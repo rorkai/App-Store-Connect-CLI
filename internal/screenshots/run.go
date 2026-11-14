@@ -151,6 +151,19 @@ func runStep(ctx context.Context, action StepAction, step PlanStep, bundleID str
 		return runExternal(ctx, "xcrun", args...)
 	case ActionTap:
 		return runTapStep(ctx, step, udid)
+	case ActionLongPress:
+		holdMS := 1000
+		if step.DurationMS != nil {
+			holdMS = *step.DurationMS
+		}
+		return runTapStep(ctx, step, udid, "--hold", formatFloat(float64(holdMS)/1000))
+	case ActionButton:
+		args := []string{"button", stringValue(step.Button)}
+		if step.DurationMS != nil {
+			args = append(args, "--duration", formatFloat(float64(*step.DurationMS)/1000))
+		}
+		args = append(args, "--udid", udid)
+		return runExternal(ctx, "axe", args...)
 	case ActionType:
 		return runExternal(ctx, "axe", "type", stringValue(step.Text), "--udid", udid)
 	case ActionKeySequence:
@@ -227,17 +240,19 @@ func runWaitForStep(ctx context.Context, step PlanStep, udid string) error {
 	}
 }
 
-func runTapStep(ctx context.Context, step PlanStep, udid string) error {
+func runTapStep(ctx context.Context, step PlanStep, udid string, extra ...string) error {
+	var args []string
 	switch {
 	case hasString(step.Label):
-		return runExternal(ctx, "axe", "tap", "--label", stringValue(step.Label), "--udid", udid)
+		args = []string{"tap", "--label", stringValue(step.Label)}
 	case hasString(step.ID):
-		return runExternal(ctx, "axe", "tap", "--id", stringValue(step.ID), "--udid", udid)
+		args = []string{"tap", "--id", stringValue(step.ID)}
 	default:
-		x := strconv.FormatFloat(floatValue(step.X), 'f', -1, 64)
-		y := strconv.FormatFloat(floatValue(step.Y), 'f', -1, 64)
-		return runExternal(ctx, "axe", "tap", "-x", x, "-y", y, "--udid", udid)
+		args = []string{"tap", "-x", formatFloat(floatValue(step.X)), "-y", formatFloat(floatValue(step.Y))}
 	}
+	args = append(args, extra...)
+	args = append(args, "--udid", udid)
+	return runExternal(ctx, "axe", args...)
 }
 
 func runScrollStep(ctx context.Context, step PlanStep, udid string) error {

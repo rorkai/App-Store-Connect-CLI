@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -221,7 +222,11 @@ printf '%s\n' "$*" >> "$AXE_LOG"
   "app": { "bundle_id": "com.example.app", "udid": "SIM-UDID-123", "output_dir": "`+t.TempDir()+`" },
   "steps": [
     { "action": "scroll", "direction": "up", "label": "Privacy", "distance": 0.6, "max_swipes": 20 },
-    { "action": "swipe", "x": 350, "y": 400, "end_x": 50, "end_y": 400.5, "duration_ms": 250 }
+    { "action": "swipe", "x": 350, "y": 400, "end_x": 50, "end_y": 400.5, "duration_ms": 250 },
+    { "action": "long_press", "label": "Photo" },
+    { "action": "long_press", "x": 120, "y": 300.5, "duration_ms": 2500 },
+    { "action": "button", "button": "home" },
+    { "action": "button", "button": "Lock", "duration_ms": 1500 }
   ]
 }`)
 	plan, err := LoadPlan(path)
@@ -239,8 +244,12 @@ printf '%s\n' "$*" >> "$AXE_LOG"
 	want := []string{
 		"gesture scroll-up --distance 0.6 --until-label Privacy --max-swipes 20 --udid SIM-UDID-123",
 		"swipe --start-x 350 --start-y 400 --end-x 50 --end-y 400.5 --duration 0.25 --udid SIM-UDID-123",
+		"tap --label Photo --hold 1 --udid SIM-UDID-123",
+		"tap -x 120 -y 300.5 --hold 2.5 --udid SIM-UDID-123",
+		"button home --udid SIM-UDID-123",
+		"button lock --duration 1.5 --udid SIM-UDID-123",
 	}
-	if len(got) != len(want) || got[0] != want[0] || got[1] != want[1] {
+	if !slices.Equal(got, want) {
 		t.Fatalf("axe calls = %q, want %q", got, want)
 	}
 }

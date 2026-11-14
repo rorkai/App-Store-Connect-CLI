@@ -28,8 +28,10 @@ func ShotsRunCommand() *ffcli.Command {
 		LongHelp: `Run a deterministic screenshot automation sequence.
 
 By default it loads .asc/screenshots.json from the current project root.
-Supported actions: launch, tap, type, key_sequence, wait, wait_for (polling), scroll, swipe, screenshot.
+Supported actions: launch, tap, type, key_sequence, wait, wait_for (polling), scroll, swipe, long_press, button, screenshot.
 scroll takes direction up, down, left, or right, the way the finger moves: up drags the content up to show what is below it.
+long_press takes label, id, or x and y, and duration_ms from 1 to 10000 (default 1000).
+button takes button apple-pay, home, lock, side-button, or siri, and optional duration_ms from 1 to 10000.
 scroll and swipe need AXe 2.0 or later.
 Set defaults.status_bar to screenshot, low-battery, no-service, or charging to
 override the simulator status bar during the run (needs AXe 2.0+ and Xcode 27+).
