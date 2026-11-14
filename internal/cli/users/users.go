@@ -227,8 +227,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			includeValues, err := normalizeUsersInclude(*include)
@@ -293,8 +292,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			roleValues, err := normalizeUserRoles(roles.String(), "--roles")
@@ -302,8 +300,7 @@ Examples:
 				return shared.UsageErrorf("users update: %v", err)
 			}
 			if len(roleValues) == 0 {
-				fmt.Fprintln(os.Stderr, "Error: --roles is required")
-				return shared.MissingRequiredUsageError("--roles")
+				return shared.RequiredFlag("--roles")
 			}
 			visibleAppIDs := shared.SplitCSV(visibleApps.String())
 			confirmSet := false
@@ -399,14 +396,12 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -460,20 +455,17 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			emailValue := strings.TrimSpace(*email)
 			if emailValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --email is required")
-				return shared.MissingRequiredUsageError("--email")
+				return shared.RequiredFlag("--email")
 			}
 
 			firstNameValue := strings.TrimSpace(*firstName)
 			if firstNameValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --first-name is required")
-				return shared.MissingRequiredUsageError("--first-name")
+				return shared.RequiredFlag("--first-name")
 			}
 
 			lastNameValue := strings.TrimSpace(*lastName)
 			if lastNameValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --last-name is required")
-				return shared.MissingRequiredUsageError("--last-name")
+				return shared.RequiredFlag("--last-name")
 			}
 
 			roleValues, err := normalizeUserRoles(roles.String(), "--roles")
@@ -481,8 +473,7 @@ Examples:
 				return shared.UsageErrorf("users invite: %v", err)
 			}
 			if len(roleValues) == 0 {
-				fmt.Fprintln(os.Stderr, "Error: --roles is required")
-				return shared.MissingRequiredUsageError("--roles")
+				return shared.RequiredFlag("--roles")
 			}
 			warnDeprecatedUserRoles(roleValues)
 
@@ -657,8 +648,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -699,14 +689,12 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			client, err := shared.GetASCClient()

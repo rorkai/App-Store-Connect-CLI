@@ -252,8 +252,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			includeValues, err := normalizeCertificatesInclude(*include)
@@ -374,13 +373,11 @@ func newCertificateCreateCommand(spec certificateCreateSpec) *ffcli.Command {
 		Exec: func(ctx context.Context, args []string) error {
 			merchantIDValue := strings.TrimSpace(*merchantID)
 			if spec.requireMerchant && merchantIDValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --merchant-id is required")
-				return shared.MissingRequiredUsageError("--merchant-id")
+				return shared.RequiredFlag("--merchant-id")
 			}
 			certificateValue := strings.ToUpper(strings.TrimSpace(*certificateType))
 			if certificateValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --certificate-type is required")
-				return shared.MissingRequiredUsageError("--certificate-type")
+				return shared.RequiredFlag("--certificate-type")
 			}
 			// Every relationship check runs before --generate-csr writes a
 			// private key and CSR for a request App Store Connect would refuse.
@@ -521,8 +518,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			activatedValue, err := shared.ParseOptionalBoolFlag("--activated", *activated)
@@ -530,8 +526,7 @@ Examples:
 				return shared.UsageErrorf("certificates update: %v", err)
 			}
 			if activatedValue == nil {
-				fmt.Fprintln(os.Stderr, "Error: --activated is required")
-				return shared.MissingRequiredUsageError("--activated")
+				return shared.RequiredFlag("--activated")
 			}
 
 			client, err := shared.GetASCClient()
@@ -575,12 +570,10 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()

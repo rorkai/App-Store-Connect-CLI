@@ -345,6 +345,14 @@ func MissingRequiredUsageError(parameters ...string) error {
 	)
 }
 
+// RequiredFlag reports a missing required flag: it prints
+// "Error: <name> is required" to stderr and returns
+// MissingRequiredUsageError(name).
+func RequiredFlag(name string) error {
+	fmt.Fprintln(os.Stderr, "Error: "+name+" is required")
+	return MissingRequiredUsageError(name)
+}
+
 // InvalidValueUsageError classifies an invalid or conflicting input after the
 // command has already written its diagnostic to stderr. It preserves the
 // flag.ErrHelp contract so ffcli continues to render the command usage page.
