@@ -165,43 +165,25 @@ Examples:
 
 // BackgroundAssetsVersionsGetCommand returns the versions get subcommand.
 func BackgroundAssetsVersionsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	versionID := shared.BindResourceIDFlag(fs, "version-id", "backgroundAssetVersions", "Background asset version ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc background-assets versions view --version-id \"VERSION_ID\"",
-		ShortHelp:  "View a background asset version by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc background-assets versions view --version-id \"VERSION_ID\"",
+		ShortHelp:   "View a background asset version by ID.",
 		LongHelp: `View a background asset version by ID.
 
 Examples:
   asc background-assets versions view --version-id "VERSION_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			versionIDValue := strings.TrimSpace(*versionID)
-			if versionIDValue == "" {
-				return shared.RequiredFlag("--version-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("background-assets versions view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetBackgroundAssetVersion(requestCtx, versionIDValue)
-			if err != nil {
-				return fmt.Errorf("background-assets versions view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDFlag:             "version-id",
+		IDUsage:            "Background asset version ID",
+		IDType:             "backgroundAssetVersions",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "background-assets versions view",
+		FetchErrorPrefix:   "background-assets versions view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetBackgroundAssetVersion(ctx, id)
 		},
-	}
+	})
 }
 
 // BackgroundAssetsVersionsCreateCommand returns the versions create subcommand.
