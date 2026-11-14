@@ -1,10 +1,8 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -13,6 +11,7 @@ import (
 	"testing"
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestGameCenterPublicCreateContracts(t *testing.T) {
@@ -173,36 +172,19 @@ func TestGameCenterPublicCreateContracts(t *testing.T) {
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 			t.Setenv("ASC_APP_ID", test.appIDEnv)
 
-			callCount := &lockedCounter{}
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				callCount.Inc()
-				if req.Method == http.MethodGet && req.URL.Path == "/v1/apps/APP_ID/gameCenterDetail" {
-					return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"gameCenterDetails","id":"detail-1","attributes":{}}}`), nil
-				}
-				if req.Method != http.MethodPost || req.URL.Path != test.postPath {
-					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-				}
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			if test.wantRequests == 2 {
+				reg.Register(asctest.GET("/v1/apps/APP_ID/gameCenterDetail"),
+					asctest.JSON(http.StatusOK, `{"data":{"type":"gameCenterDetails","id":"detail-1","attributes":{}}}`))
+			}
+			reg.Register(asctest.POST(test.postPath).JSONBody(test.wantBody),
+				asctest.JSON(http.StatusCreated, fmt.Sprintf(`{"data":{"type":%q,"id":"created","attributes":{}}}`, test.resourceType)))
 
-				body, err := io.ReadAll(req.Body)
-				if err != nil {
-					t.Fatalf("read request body: %v", err)
-				}
-				assertJSONDocumentEqual(t, body, []byte(test.wantBody))
-
-				response := fmt.Sprintf(`{"data":{"type":%q,"id":"created","attributes":{}}}`, test.resourceType)
-				return jsonHTTPResponse(http.StatusCreated, response), nil
-			}))
-
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
+			stdout, stderr, err := runCommand(t, test.args)
+			if err != nil {
+				t.Fatalf("run error: %v", err)
+			}
 
 			if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)
@@ -218,7 +200,7 @@ func TestGameCenterPublicCreateContracts(t *testing.T) {
 			if output.Data.ID != "created" {
 				t.Fatalf("created ID = %q, want created", output.Data.ID)
 			}
-			if got := callCount.Load(); got != test.wantRequests {
+			if got := len(reg.Requests()); got != test.wantRequests {
 				t.Fatalf("request count = %d, want %d", got, test.wantRequests)
 			}
 		})
@@ -349,20 +331,10 @@ func TestGameCenterUpdateSendsVisibilityAndProperties(t *testing.T) {
 			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				if req.Method != http.MethodPatch || req.URL.Path != test.patchPath {
-					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-				}
-				body, err := io.ReadAll(req.Body)
-				if err != nil {
-					t.Fatalf("read request body: %v", err)
-				}
-				wantBody := fmt.Sprintf(`{"data":{"type":%q,"id":"res-1","attributes":%s}}`, test.resourceType, test.wantAttribute)
-				assertJSONDocumentEqual(t, body, []byte(wantBody))
-
-				response := fmt.Sprintf(`{"data":{"type":%q,"id":"res-1","attributes":{}}}`, test.resourceType)
-				return jsonHTTPResponse(http.StatusOK, response), nil
-			}))
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.PATCH(test.patchPath).JSONBody(fmt.Sprintf(`{"data":{"type":%q,"id":"res-1","attributes":%s}}`, test.resourceType, test.wantAttribute)),
+				asctest.JSON(http.StatusOK, fmt.Sprintf(`{"data":{"type":%q,"id":"res-1","attributes":{}}}`, test.resourceType)))
 
 			_, stderr := captureOutput(t, func() {
 				if code := rootcmd.Run(test.args, "1.2.3"); code != rootcmd.ExitSuccess {
