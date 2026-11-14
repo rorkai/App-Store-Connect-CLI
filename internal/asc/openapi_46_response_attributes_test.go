@@ -2,6 +2,7 @@ package asc
 
 import (
 	"encoding/json"
+	"reflect"
 	"testing"
 )
 
@@ -56,8 +57,17 @@ func TestResponseKeepsAttributesFromOpenAPI46(t *testing.T) {
 			if err := json.Unmarshal(encoded, &payload); err != nil {
 				t.Fatalf("decode encoded response: %v", err)
 			}
-			if got := string(payload.Data.Attributes[tt.attribute]); got != tt.value {
-				t.Fatalf("%s after a round trip = %q, want %s (encoded: %s)", tt.attribute, got, tt.value, encoded)
+			var got, want any
+			if raw := payload.Data.Attributes[tt.attribute]; raw != nil {
+				if err := json.Unmarshal(raw, &got); err != nil {
+					t.Fatalf("decode %s: %v", tt.attribute, err)
+				}
+			}
+			if err := json.Unmarshal([]byte(tt.value), &want); err != nil {
+				t.Fatalf("decode wanted %s: %v", tt.attribute, err)
+			}
+			if !reflect.DeepEqual(got, want) {
+				t.Fatalf("%s after a round trip = %v, want %v (encoded: %s)", tt.attribute, got, want, encoded)
 			}
 		})
 	}
