@@ -401,8 +401,18 @@ type ConfirmDeleteCommandConfig struct {
 	// IDType is the API resource type named by the ID flag; see
 	// IDGetCommandConfig.IDType.
 	IDType string
+	// RequiredDiagnostic reports a missing ID flag or --confirm with the
+	// required-input diagnostic instead of a plain usage error.
+	RequiredDiagnostic bool
 
 	ErrorPrefix string
+	// DeleteErrorPrefix wraps errors returned by Delete. It defaults to
+	// ErrorPrefix.
+	DeleteErrorPrefix string
+
+	// Deps supplies the client, streams and timeout. It defaults to
+	// DefaultDeps().
+	Deps *Deps
 
 	ContextTimeout func(context.Context) (context.Context, context.CancelFunc)
 	Delete         func(context.Context, *asc.Client, string) error
@@ -412,7 +422,8 @@ type ConfirmDeleteCommandConfig struct {
 // BuildConfirmDeleteCommand builds a standard delete command requiring --id and
 // --confirm and printing a caller-provided result payload.
 func BuildConfirmDeleteCommand(config ConfirmDeleteCommandConfig) *ffcli.Command {
-	fs := flag.NewFlagSet(config.FlagSetName, flag.ExitOnError)
+	d := builderDeps(config.Deps)
+	fs := d.NewFlagSet(config.FlagSetName, flag.ExitOnError)
 
 	idFlagName := strings.TrimSpace(config.IDFlag)
 	if idFlagName == "" {
@@ -425,12 +436,10 @@ func BuildConfirmDeleteCommand(config ConfirmDeleteCommandConfig) *ffcli.Command
 
 	id := bindBuilderIDFlag(fs, idFlagName, config.IDType, idUsage)
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
-	timeout := config.ContextTimeout
-	if timeout == nil {
-		timeout = ContextWithTimeout
-	}
+	timeout := builderTimeout(d, config.ContextTimeout)
+	deleteErrorPrefix := builderFetchErrorPrefix(config.DeleteErrorPrefix, config.ErrorPrefix)
 
 	return &ffcli.Command{
 		Name:       config.Name,
@@ -442,13 +451,13 @@ func BuildConfirmDeleteCommand(config ConfirmDeleteCommandConfig) *ffcli.Command
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				return UsageErrorf("--%s is required", idFlagName)
+				return missingBuilderFlag(d, config.RequiredDiagnostic, idFlagName)
 			}
 			if !*confirm {
-				return UsageError("--confirm is required")
+				return missingBuilderFlag(d, config.RequiredDiagnostic, "confirm")
 			}
 
-			client, err := GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("%s: %w", config.ErrorPrefix, err)
 			}
@@ -457,11 +466,11 @@ func BuildConfirmDeleteCommand(config ConfirmDeleteCommandConfig) *ffcli.Command
 			defer cancel()
 
 			if err := config.Delete(requestCtx, client, idValue); err != nil {
-				return fmt.Errorf("%s: %w", config.ErrorPrefix, err)
+				return fmt.Errorf("%s: %w", deleteErrorPrefix, err)
 			}
 
 			result := config.Result(idValue)
-			return PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
