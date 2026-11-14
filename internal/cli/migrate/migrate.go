@@ -117,8 +117,8 @@ or conventional metadata/ and screenshots/ directories:
   │   │   └── ...
 
 App-level text files directly in metadata/ (copyright.txt, the category files)
-and a locale folder's apple_tv_privacy_policy.txt are not imported; non-empty
-ones are listed in skipped with the asc command that sets each value.
+and a locale or default folder's apple_tv_privacy_policy.txt are not imported;
+non-empty ones are listed in skipped with the asc command that sets each value.
 
 App Preview validation requires ffprobe on PATH (provided by FFmpeg).
 Headers must be PNG at 1800 x 1200; previews must be 15-30 seconds.
@@ -1178,6 +1178,10 @@ func scanFastlaneMetadataLocaleDirs(metadataDir string) ([]fastlaneLocaleDir, []
 
 		if dirName == defaultMetadataDirName {
 			dirs = append(dirs, fastlaneLocaleDir{DirName: dirName, Default: true})
+			policyText := filepath.Join(dirName, localePrivacyPolicyTextFile)
+			if item, ok := unimportedMetadataFile(root, filepath.Join(prefix, policyText), filepath.Join(metadataDir, policyText), "asc app-setup info set --privacy-policy-text"); ok {
+				skipped = append(skipped, item)
+			}
 			continue
 		}
 		if dirName == "review_information" || dirName == "app_clip" {

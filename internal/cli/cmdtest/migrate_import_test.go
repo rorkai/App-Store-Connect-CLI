@@ -180,6 +180,11 @@ func TestMigrateImportDryRunReportsSkippedNonLocaleMetadataDirs(t *testing.T) {
 	writeFile(t, filepath.Join(root, "metadata", "copyright.txt"), "2026 Example Inc.")
 	writeFile(t, filepath.Join(root, "metadata", "primary_category.txt"), "GAMES")
 	writeFile(t, filepath.Join(root, "metadata", "secondary_category.txt"), "  \n")
+	defaultDir := filepath.Join(root, "metadata", "default")
+	if err := os.MkdirAll(defaultDir, 0o755); err != nil {
+		t.Fatalf("mkdir default dir: %v", err)
+	}
+	writeFile(t, filepath.Join(defaultDir, "apple_tv_privacy_policy.txt"), "Default policy text")
 	unreadable := filepath.Join(root, "metadata", "primary_first_sub_category.txt")
 	writeFile(t, unreadable, "GAMES_ACTION")
 	if err := os.Chmod(unreadable, 0o000); err != nil {
@@ -234,6 +239,7 @@ func TestMigrateImportDryRunReportsSkippedNonLocaleMetadataDirs(t *testing.T) {
 
 	found := false
 	appLevelReasons := map[string]string{}
+	defaultPolicyReason := ""
 	for _, item := range result.Skipped {
 		itemPathResolved, err := filepath.EvalSymlinks(item.Path)
 		if err != nil {
@@ -242,12 +248,17 @@ func TestMigrateImportDryRunReportsSkippedNonLocaleMetadataDirs(t *testing.T) {
 		if itemPathResolved == nonLocaleDirResolved && strings.Contains(item.Reason, "skipped non-locale directory") {
 			found = true
 		}
-		if strings.HasSuffix(item.Path, ".txt") {
+		if filepath.Dir(item.Path) == defaultDir {
+			defaultPolicyReason = item.Reason
+		} else if strings.HasSuffix(item.Path, ".txt") {
 			appLevelReasons[filepath.Base(item.Path)] = item.Reason
 		}
 	}
 	if !found {
 		t.Fatalf("expected skipped to include %q (got %+v)", nonLocaleDir, result.Skipped)
+	}
+	if !strings.Contains(defaultPolicyReason, "not imported") || !strings.HasSuffix(defaultPolicyReason, "asc app-setup info set --privacy-policy-text") {
+		t.Fatalf("expected the default folder's policy text to be reported without a locale, got %q", defaultPolicyReason)
 	}
 	wantReasons := map[string]string{
 		"copyright.txt":        "asc versions update --copyright",
