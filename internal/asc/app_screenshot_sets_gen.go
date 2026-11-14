@@ -29,6 +29,20 @@ func (c *Client) GetAppScreenshotSetAppScreenshotsRelationships(ctx context.Cont
 	})
 }
 
+// UpdateAppScreenshotSetAppScreenshotsRelationship sends PATCH /v1/appScreenshotSets/{id}/relationships/appScreenshots (appScreenshotSets_appScreenshots_replaceToManyRelationship).
+func (c *Client) UpdateAppScreenshotSetAppScreenshotsRelationship(ctx context.Context, setID string, screenshotIDs []string) error {
+	setID = strings.TrimSpace(setID)
+	if setID == "" {
+		return fmt.Errorf("setID is required")
+	}
+	data := buildRelationshipData(ResourceTypeAppScreenshots, screenshotIDs)
+	if data == nil {
+		data = []RelationshipData{}
+	}
+	payload := RelationshipRequest{Data: data}
+	return sendNoContent(ctx, c, http.MethodPatch, fmt.Sprintf("/v1/appScreenshotSets/%s/relationships/appScreenshots", setID), payload)
+}
+
 // DeleteAppScreenshotSet sends DELETE /v1/appScreenshotSets/{id} (appScreenshotSets_deleteInstance).
 func (c *Client) DeleteAppScreenshotSet(ctx context.Context, setID string) error {
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/appScreenshotSets/%s", setID), nil)

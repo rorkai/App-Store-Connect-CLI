@@ -9,6 +9,8 @@
   "operations": [
     {"operation":"users_deleteInstance","name":"DeleteUser","params":["userID"],"check":"trim"},
     {"operation":"users_getCollection","name":"GetUsers","options":"UsersOption","query":"buildUsersQuery","nextContext":"users"},
+    {"operation":"users_visibleApps_createToManyRelationship","name":"AddUserVisibleApps","params":["userID"],"check":"require","ids":"appIDs","idList":{"normalize":true,"message":"appIDs are required","payload":"append","item":"id"}},
+    {"operation":"users_visibleApps_deleteToManyRelationship","name":"RemoveUserVisibleApps","params":["userID"],"check":"require","ids":"appIDs","idList":{"normalize":true,"message":"appIDs are required","payload":"append","item":"id"}},
     {"operation":"users_visibleApps_getToManyRelated","name":"GetUserVisibleApps","params":["userID"],"check":"trim","checkFirst":true,"options":"UserVisibleAppsOption","query":"buildUserVisibleAppsQuery","nextContext":"userVisibleApps","response":"AppsResponse"}
   ]
 }

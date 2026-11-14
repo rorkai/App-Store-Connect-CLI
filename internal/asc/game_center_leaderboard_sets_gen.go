@@ -95,6 +95,38 @@ func (c *Client) DeleteGameCenterLeaderboardSet(ctx context.Context, setID strin
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/gameCenterLeaderboardSets/%s", strings.TrimSpace(setID)), nil)
 }
 
+// AddGameCenterLeaderboardSetMembers sends POST /v1/gameCenterLeaderboardSets/{id}/relationships/gameCenterLeaderboards (gameCenterLeaderboardSets_gameCenterLeaderboards_createToManyRelationship).
+func (c *Client) AddGameCenterLeaderboardSetMembers(ctx context.Context, setID string, leaderboardIDs []string) error {
+	setID = strings.TrimSpace(setID)
+	leaderboardIDs = normalizeList(leaderboardIDs)
+	if setID == "" {
+		return fmt.Errorf("setID is required")
+	}
+	if len(leaderboardIDs) == 0 {
+		return fmt.Errorf("leaderboardIDs are required")
+	}
+	payload := RelationshipRequest{
+		Data: buildRelationshipData(ResourceTypeGameCenterLeaderboards, leaderboardIDs),
+	}
+	return sendNoContent(ctx, c, http.MethodPost, fmt.Sprintf("/v1/gameCenterLeaderboardSets/%s/relationships/gameCenterLeaderboards", setID), payload)
+}
+
+// RemoveGameCenterLeaderboardSetMembers sends DELETE /v1/gameCenterLeaderboardSets/{id}/relationships/gameCenterLeaderboards (gameCenterLeaderboardSets_gameCenterLeaderboards_deleteToManyRelationship).
+func (c *Client) RemoveGameCenterLeaderboardSetMembers(ctx context.Context, setID string, leaderboardIDs []string) error {
+	setID = strings.TrimSpace(setID)
+	leaderboardIDs = normalizeList(leaderboardIDs)
+	if setID == "" {
+		return fmt.Errorf("setID is required")
+	}
+	if len(leaderboardIDs) == 0 {
+		return fmt.Errorf("leaderboardIDs are required")
+	}
+	payload := RelationshipRequest{
+		Data: buildRelationshipData(ResourceTypeGameCenterLeaderboards, leaderboardIDs),
+	}
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/gameCenterLeaderboardSets/%s/relationships/gameCenterLeaderboards", setID), payload)
+}
+
 // GetGameCenterLeaderboardSetMembers sends GET /v1/gameCenterLeaderboardSets/{id}/gameCenterLeaderboards (gameCenterLeaderboardSets_gameCenterLeaderboards_getToManyRelated).
 func (c *Client) GetGameCenterLeaderboardSetMembers(ctx context.Context, setID string, opts ...GCLeaderboardSetMembersOption) (*GameCenterLeaderboardsResponse, error) {
 	query := applyOptions(opts)
