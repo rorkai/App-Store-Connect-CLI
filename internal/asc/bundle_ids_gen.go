@@ -10,6 +10,35 @@ import (
 	"strings"
 )
 
+// BundleIDCreateData is the data object of the BundleIdCreateRequest schema.
+type BundleIDCreateData struct {
+	Type       ResourceType             `json:"type"`
+	Attributes BundleIDCreateAttributes `json:"attributes"`
+}
+
+// BundleIDCreateRequest is the BundleIdCreateRequest schema.
+type BundleIDCreateRequest struct {
+	Data BundleIDCreateData `json:"data"`
+}
+
+// BundleIDResponse is the BundleIdResponse schema.
+type BundleIDResponse = SingleResponse[BundleIDAttributes]
+
+// BundleIDUpdateData is the data object of the BundleIdUpdateRequest schema.
+type BundleIDUpdateData struct {
+	Type       ResourceType              `json:"type"`
+	ID         string                    `json:"id"`
+	Attributes *BundleIDUpdateAttributes `json:"attributes,omitempty"`
+}
+
+// BundleIDUpdateRequest is the BundleIdUpdateRequest schema.
+type BundleIDUpdateRequest struct {
+	Data BundleIDUpdateData `json:"data"`
+}
+
+// BundleIDsResponse is the BundleIdsResponse schema.
+type BundleIDsResponse = Response[BundleIDAttributes]
+
 // GetBundleIDApp sends GET /v1/bundleIds/{id}/app (bundleIds_app_getToOneRelated).
 func (c *Client) GetBundleIDApp(ctx context.Context, bundleID string) (*AppResponse, error) {
 	bundleID = strings.TrimSpace(bundleID)
@@ -27,6 +56,21 @@ func (c *Client) GetBundleIDCapabilities(ctx context.Context, bundleID string, o
 		Query:       buildBundleIDCapabilitiesQuery(query),
 		Next:        query.nextURL,
 		NextContext: "bundleIdCapabilities",
+	})
+}
+
+// CreateBundleID sends POST /v1/bundleIds (bundleIds_createInstance).
+func (c *Client) CreateBundleID(ctx context.Context, attrs BundleIDCreateAttributes) (*BundleIDResponse, error) {
+	payload := BundleIDCreateRequest{
+		Data: BundleIDCreateData{
+			Type:       ResourceTypeBundleIds,
+			Attributes: attrs,
+		},
+	}
+	return sendJSON[BundleIDResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/bundleIds",
+		Payload: payload,
 	})
 }
 
@@ -52,6 +96,23 @@ func (c *Client) GetBundleIDProfiles(ctx context.Context, bundleID string, opts 
 		Query:       buildBundleIDProfilesQuery(query),
 		Next:        query.nextURL,
 		NextContext: "bundleIdProfiles",
+	})
+}
+
+// UpdateBundleID sends PATCH /v1/bundleIds/{id} (bundleIds_updateInstance).
+func (c *Client) UpdateBundleID(ctx context.Context, id string, attrs BundleIDUpdateAttributes) (*BundleIDResponse, error) {
+	id = strings.TrimSpace(id)
+	payload := BundleIDUpdateRequest{
+		Data: BundleIDUpdateData{
+			Type:       ResourceTypeBundleIds,
+			ID:         id,
+			Attributes: &attrs,
+		},
+	}
+	return sendJSON[BundleIDResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/bundleIds/%s", id),
+		Payload: payload,
 	})
 }
 
