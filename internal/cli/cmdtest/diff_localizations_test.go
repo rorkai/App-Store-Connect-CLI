@@ -1,11 +1,9 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"flag"
-	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -16,17 +14,9 @@ import (
 )
 
 func TestDiffLocalizationsRequiresAppID(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
 	t.Setenv("ASC_APP_ID", "")
 
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"diff", "localizations", "--path", "./metadata", "--version", "version-1"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	stdout, stderr, runErr := runRootWithDeps(t, nil, "diff", "localizations", "--path", "./metadata", "--version", "version-1")
 
 	if !errors.Is(runErr, flag.ErrHelp) {
 		t.Fatalf("expected ErrHelp, got %v", runErr)
@@ -40,16 +30,7 @@ func TestDiffLocalizationsRequiresAppID(t *testing.T) {
 }
 
 func TestDiffLocalizationsRequiresSourceSelector(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"diff", "localizations", "--app", "app-1", "--version", "version-1"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	stdout, stderr, runErr := runRootWithDeps(t, nil, "diff", "localizations", "--app", "app-1", "--version", "version-1")
 
 	if !errors.Is(runErr, flag.ErrHelp) {
 		t.Fatalf("expected ErrHelp, got %v", runErr)
@@ -76,21 +57,12 @@ func TestDiffLocalizationsRejectsUnknownLocalField(t *testing.T) {
 		t.Fatalf("write strings failed: %v", err)
 	}
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"diff", "localizations",
-			"--app", "app-1",
-			"--path", inputDir,
-			"--version", "version-1",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	stdout, stderr, runErr := runRootWithDeps(t, nil,
+		"diff", "localizations",
+		"--app", "app-1",
+		"--path", inputDir,
+		"--version", "version-1",
+	)
 
 	if !errors.Is(runErr, flag.ErrHelp) {
 		t.Fatalf("expected ErrHelp, got %v", runErr)
@@ -119,7 +91,6 @@ func TestDiffLocalizationsLocalToRemoteJSON(t *testing.T) {
 	}
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/appStoreVersions/version-1", "include=app"),
 		asctest.JSON(http.StatusOK, `{
 				"data":{
@@ -143,12 +114,12 @@ func TestDiffLocalizationsLocalToRemoteJSON(t *testing.T) {
 				"links":{"next":""}
 			}`))
 
-	stdout, stderr, err := runCommand(t, []string{
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg),
 		"diff", "localizations",
 		"--app", "app-1",
 		"--path", inputDir,
 		"--version", "version-1",
-	})
+	)
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -221,7 +192,6 @@ func TestDiffLocalizationsRemoteToRemoteJSON(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/appStoreVersions/version-from", "include=app"),
 		asctest.JSON(http.StatusOK, `{
 				"data":{
@@ -251,12 +221,12 @@ func TestDiffLocalizationsRemoteToRemoteJSON(t *testing.T) {
 				"links":{"next":""}
 			}`))
 
-	stdout, stderr, err := runCommand(t, []string{
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg),
 		"diff", "localizations",
 		"--app", "app-1",
 		"--from-version", "version-from",
 		"--to-version", "version-to",
-	})
+	)
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -298,7 +268,6 @@ func TestDiffLocalizationsTableOutput(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/appStoreVersions/version-from", "include=app"),
 		asctest.JSON(http.StatusOK, `{
 				"data":{
@@ -328,13 +297,13 @@ func TestDiffLocalizationsTableOutput(t *testing.T) {
 				"links":{"next":""}
 			}`))
 
-	stdout, stderr, err := runCommand(t, []string{
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg),
 		"diff", "localizations",
 		"--app", "app-1",
 		"--from-version", "version-from",
 		"--to-version", "version-to",
 		"--output", "table",
-	})
+	)
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -355,7 +324,6 @@ func TestDiffLocalizationsRejectsCrossAppVersionIDs(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/appStoreVersions/version-from", "include=app"),
 		asctest.JSON(http.StatusOK, `{
 			"data":{
@@ -366,12 +334,12 @@ func TestDiffLocalizationsRejectsCrossAppVersionIDs(t *testing.T) {
 			}
 		}`))
 
-	stdout, stderr, runErr := runCommand(t, []string{
+	stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, reg),
 		"diff", "localizations",
 		"--app", "app-1",
 		"--from-version", "version-from",
 		"--to-version", "version-to",
-	})
+	)
 
 	if !errors.Is(runErr, flag.ErrHelp) {
 		t.Fatalf("expected ErrHelp, got %v", runErr)

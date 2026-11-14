@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"sort"
 	"strings"
 
@@ -40,16 +41,16 @@ type localizationDiffPlan struct {
 	Deletes   []localizationDiffItem   `json:"deletes"`
 }
 
-// DiffLocalizationsCommand compares localization metadata between two sources.
-func DiffLocalizationsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("localizations", flag.ExitOnError)
+// newDiffLocalizationsCommand compares localization metadata between two sources.
+func newDiffLocalizationsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("localizations", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (required, or ASC_APP_ID env)")
 	path := fs.String("path", "", "Local .strings directory or file (source)")
 	fromVersion := shared.BindResourceIDFlag(fs, "from-version", "appStoreVersions", "Remote source app store version ID")
 	version := shared.BindResourceIDFlag(fs, "version", "appStoreVersions", "Remote target app store version ID (when using --path)")
 	toVersion := shared.BindResourceIDFlag(fs, "to-version", "appStoreVersions", "Remote target app store version ID (when using --from-version)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "localizations",
@@ -68,7 +69,7 @@ Modes:
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
-				return shared.UsageError("--app is required (or set ASC_APP_ID)")
+				return d.UsageError("--app is required (or set ASC_APP_ID)")
 			}
 
 			sourcePath := strings.TrimSpace(*path)
@@ -79,38 +80,38 @@ Modes:
 			hasPath := sourcePath != ""
 			hasFromVersion := sourceVersion != ""
 			if hasPath && hasFromVersion {
-				return shared.UsageError("--path and --from-version are mutually exclusive")
+				return d.UsageError("--path and --from-version are mutually exclusive")
 			}
 			if !hasPath && !hasFromVersion {
-				return shared.UsageError("either --path or --from-version is required")
+				return d.UsageError("either --path or --from-version is required")
 			}
 
 			var plan localizationDiffPlan
 			var sourceValues map[string]map[string]string
 			var targetValues map[string]map[string]string
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			if hasPath {
 				if targetVersion == "" {
-					return shared.UsageError("--version is required when using --path")
+					return d.UsageError("--version is required when using --path")
 				}
 				if targetToVersion != "" {
-					return shared.UsageError("--to-version cannot be used with --path; use --version")
+					return d.UsageError("--to-version cannot be used with --path; use --version")
 				}
 
 				localValues, err := readAndValidateLocalLocalizations(sourcePath)
 				if err != nil {
-					return shared.UsageError(err.Error())
+					return d.UsageError(err.Error())
 				}
 
-				client, err := shared.GetASCClient()
+				client, err := d.Client()
 				if err != nil {
 					return fmt.Errorf("diff localizations: %w", err)
 				}
 
-				if err := validateVersionBelongsToApp(requestCtx, client, targetVersion, resolvedAppID); err != nil {
+				if err := validateVersionBelongsToApp(requestCtx, d, client, targetVersion, resolvedAppID); err != nil {
 					return err
 				}
 
@@ -130,22 +131,22 @@ Modes:
 				)
 			} else {
 				if targetToVersion == "" {
-					return shared.UsageError("--to-version is required when using --from-version")
+					return d.UsageError("--to-version is required when using --from-version")
 				}
 				if targetVersion != "" {
-					return shared.UsageError("--version cannot be used with --from-version; use --to-version")
+					return d.UsageError("--version cannot be used with --from-version; use --to-version")
 				}
 
-				client, err := shared.GetASCClient()
+				client, err := d.Client()
 				if err != nil {
 					return fmt.Errorf("diff localizations: %w", err)
 				}
 
-				if err := validateVersionBelongsToApp(requestCtx, client, sourceVersion, resolvedAppID); err != nil {
+				if err := validateVersionBelongsToApp(requestCtx, d, client, sourceVersion, resolvedAppID); err != nil {
 					return err
 				}
 				if targetToVersion != sourceVersion {
-					if err := validateVersionBelongsToApp(requestCtx, client, targetToVersion, resolvedAppID); err != nil {
+					if err := validateVersionBelongsToApp(requestCtx, d, client, targetToVersion, resolvedAppID); err != nil {
 						return err
 					}
 				}
@@ -170,16 +171,16 @@ Modes:
 				)
 			}
 
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				plan,
 				*output.Output,
 				*output.Pretty,
 				func() error {
-					renderLocalizationDiffTable(plan)
+					renderLocalizationDiffTable(d.IO.Out, plan)
 					return nil
 				},
 				func() error {
-					renderLocalizationDiffMarkdown(plan)
+					renderLocalizationDiffMarkdown(d.IO.Out, plan)
 					return nil
 				},
 			)
@@ -269,7 +270,7 @@ func normalizeLocalizationValues(values map[string]string) map[string]string {
 	return normalized
 }
 
-func validateVersionBelongsToApp(ctx context.Context, client *asc.Client, versionID, appID string) error {
+func validateVersionBelongsToApp(ctx context.Context, d *shared.Deps, client *asc.Client, versionID, appID string) error {
 	resolvedVersionID := strings.TrimSpace(versionID)
 	expectedAppID := strings.TrimSpace(appID)
 
@@ -278,10 +279,10 @@ func validateVersionBelongsToApp(ctx context.Context, client *asc.Client, versio
 		return fmt.Errorf("diff localizations: failed to resolve app for version %q: %w", resolvedVersionID, err)
 	}
 	if actualAppID == "" {
-		return shared.UsageErrorf("could not determine owning app for version %q", resolvedVersionID)
+		return d.UsageErrorf("could not determine owning app for version %q", resolvedVersionID)
 	}
 	if actualAppID != expectedAppID {
-		return shared.UsageErrorf("version %q belongs to app %q, expected --app %q", resolvedVersionID, actualAppID, expectedAppID)
+		return d.UsageErrorf("version %q belongs to app %q, expected --app %q", resolvedVersionID, actualAppID, expectedAppID)
 	}
 
 	return nil
@@ -416,14 +417,14 @@ func buildLocalizationDiffPlan(
 	return plan
 }
 
-func renderLocalizationDiffTable(plan localizationDiffPlan) {
+func renderLocalizationDiffTable(w io.Writer, plan localizationDiffPlan) {
 	headers := []string{"change", "key", "locale", "field", "reason", "from", "to"}
-	asc.RenderTable(headers, buildLocalizationDiffRows(plan))
+	asc.RenderTableTo(w, headers, buildLocalizationDiffRows(plan))
 }
 
-func renderLocalizationDiffMarkdown(plan localizationDiffPlan) {
+func renderLocalizationDiffMarkdown(w io.Writer, plan localizationDiffPlan) {
 	headers := []string{"change", "key", "locale", "field", "reason", "from", "to"}
-	asc.RenderMarkdown(headers, buildLocalizationDiffRows(plan))
+	asc.RenderMarkdownTo(w, headers, buildLocalizationDiffRows(plan))
 }
 
 func buildLocalizationDiffRows(plan localizationDiffPlan) [][]string {

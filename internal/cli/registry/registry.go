@@ -133,7 +133,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("install-skills", "Install the asc skill pack globally for App Store Connect workflows.", install.InstallSkillsCommand),
 		commandFactory("init", "Initialize asc helper docs in the current repo.", initcmd.InitCommand),
 		commandFactory("docs", "Access embedded documentation guides and reference helpers.", docs.DocsCommand),
-		commandFactory("diff", "Generate deterministic non-mutating diff plans.", diffcmd.DiffCommand),
+		commandFactory("diff", "Generate deterministic non-mutating diff plans.", func() *ffcli.Command {
+			return diffcmd.NewDiffCommand(d)
+		}),
 		commandFactory("system-status", "Check Apple Developer service health.", systemstatus.Command),
 		commandFactory("status", "Show a release pipeline dashboard for an app.", status.StatusCommand),
 		commandFactory("insights", "Generate weekly and daily insights from App Store data sources.", insights.InsightsCommand),
