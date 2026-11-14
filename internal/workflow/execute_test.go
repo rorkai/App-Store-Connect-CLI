@@ -142,6 +142,35 @@ func TestRun_ConditionalFalsy(t *testing.T) {
 	}
 }
 
+func TestRun_IfComparison(t *testing.T) {
+	tests := []struct {
+		expr string
+		env  map[string]string
+		want string
+	}{
+		{expr: "$DO_IT", env: map[string]string{"DO_IT": "true"}, want: "ok"},
+		{expr: "DEPLOY == yes", env: map[string]string{"DEPLOY": "yes"}, want: "ok"},
+		{expr: "$DEPLOY == 'yes'", env: map[string]string{"DEPLOY": "no"}, want: "skipped"},
+		{expr: "CHANNEL != beta", env: map[string]string{"CHANNEL": "prod"}, want: "ok"},
+		{expr: `$CHANNEL != "beta"`, env: map[string]string{"CHANNEL": "beta"}, want: "skipped"},
+		{expr: `MISSING_VAR == ""`, want: "ok"},
+	}
+	for _, test := range tests {
+		t.Run(test.expr, func(t *testing.T) {
+			def := &Definition{Workflows: map[string]Workflow{
+				"test": {Env: test.env, Steps: []Step{{Run: "echo gated", If: test.expr}}},
+			}}
+			result, err := Run(context.Background(), def, runOpts("test"))
+			if err != nil {
+				t.Fatalf("Run: %v", err)
+			}
+			if result.Steps[0].Status != test.want {
+				t.Fatalf("expected %s, got %q", test.want, result.Steps[0].Status)
+			}
+		})
+	}
+}
+
 func TestRun_SkippedWorkflowStepIncludesWorkflowName(t *testing.T) {
 	def := &Definition{
 		Workflows: map[string]Workflow{

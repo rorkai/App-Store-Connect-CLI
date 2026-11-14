@@ -48,6 +48,44 @@ func isTruthy(value string) bool {
 	}
 }
 
+var errUnsupportedStepIf = errors.New("use NAME, $NAME, NAME == VALUE, or NAME != VALUE")
+
+// evalStepIf reports whether a step's `if` passes. NAME or $NAME tests the
+// variable for a truthy value; NAME == VALUE and NAME != VALUE compare its
+// value, or "" when unset, with a literal. Step env wins over process env.
+func evalStepIf(expr string, env map[string]string) (bool, error) {
+	lookup := func(operand string) (string, error) {
+		name := strings.TrimPrefix(strings.TrimSpace(operand), "$")
+		if name == "" || strings.ContainsAny(name, " \t\n\r=!<>&|") {
+			return "", errUnsupportedStepIf
+		}
+		if val, ok := env[name]; ok {
+			return val, nil
+		}
+		return os.Getenv(name), nil
+	}
+
+	op := strings.Index(expr, "==")
+	if neq := strings.Index(expr, "!="); neq >= 0 && (op < 0 || neq < op) {
+		op = neq
+	}
+	if op < 0 {
+		val, err := lookup(expr)
+		return isTruthy(val), err
+	}
+	val, err := lookup(expr[:op])
+	if err != nil {
+		return false, err
+	}
+	literal := strings.TrimSpace(expr[op+2:])
+	if n := len(literal); n >= 2 && (literal[0] == '"' || literal[0] == '\'') && literal[n-1] == literal[0] {
+		literal = literal[1 : n-1]
+	} else if strings.ContainsAny(literal, " \t\n\r=!<>&|") {
+		return false, errUnsupportedStepIf
+	}
+	return (val == literal) == (expr[op] == '='), nil
+}
+
 // buildEnvSlice creates a []string for exec.Cmd.Env by overlaying the
 // tracks env map onto os.Environ().
 func buildEnvSlice(env map[string]string) []string {
