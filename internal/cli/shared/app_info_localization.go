@@ -84,7 +84,7 @@ func planAppInfoLocalizationUpsertTo(
 			return nil, MarkAmbiguousSelectionSample(AmbiguousLocalizationError("app info localization", locale, nil))
 		}
 		if strings.TrimSpace(values["name"]) == "" {
-			return nil, UsageError("--name is required when creating an app info localization")
+			return nil, usageErrorTo(stderr, "--name is required when creating an app info localization")
 		}
 		plan.Create = true
 		plan.Attributes = buildAppInfoLocalizationAttributes(locale, values, true)
