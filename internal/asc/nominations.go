@@ -107,20 +107,6 @@ type NominationDeleteResult struct {
 	Deleted bool   `json:"deleted"`
 }
 
-// GetNomination retrieves a nomination by ID.
-func (c *Client) GetNomination(ctx context.Context, nominationID string, opts ...NominationsOption) (*NominationResponse, error) {
-	nominationID = strings.TrimSpace(nominationID)
-	if nominationID == "" {
-		return nil, fmt.Errorf("nominationID is required")
-	}
-
-	query := applyOptions(opts)
-	return getJSON[NominationResponse](ctx, c, readRequest{
-		Path:  fmt.Sprintf("/v1/nominations/%s", nominationID),
-		Query: buildNominationsDetailQuery(query),
-	})
-}
-
 // CreateNomination creates a nomination.
 func (c *Client) CreateNomination(ctx context.Context, attrs NominationCreateAttributes, relationships NominationRelationships) (*NominationResponse, error) {
 	payload := NominationCreateRequest{

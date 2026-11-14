@@ -64,21 +64,11 @@ func (c *Client) GetDevices(ctx context.Context, opts ...DevicesOption) (*Device
 	})
 }
 
-// UpdateDevice sends PATCH /v1/devices/{id} (devices_updateInstance).
-func (c *Client) UpdateDevice(ctx context.Context, deviceID string, attrs DeviceUpdateAttributes) (*DeviceResponse, error) {
+// GetDevice sends GET /v1/devices/{id} (devices_getInstance).
+func (c *Client) GetDevice(ctx context.Context, deviceID string, fields []string) (*DeviceResponse, error) {
 	deviceID = strings.TrimSpace(deviceID)
-	payload := DeviceUpdateRequest{
-		Data: DeviceUpdateData{
-			Type: ResourceTypeDevices,
-			ID:   deviceID,
-		},
-	}
-	if attrs.Name != nil || attrs.Status != nil {
-		payload.Data.Attributes = &attrs
-	}
-	return sendJSON[DeviceResponse](ctx, c, writeRequest{
-		Method:  http.MethodPatch,
-		Path:    fmt.Sprintf("/v1/devices/%s", deviceID),
-		Payload: payload,
+	return getJSON[DeviceResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/devices/%s", deviceID),
+		Query: buildDevicesFieldsQuery(fields),
 	})
 }

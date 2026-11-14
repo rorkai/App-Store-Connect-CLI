@@ -40,6 +40,7 @@ type contractOpBinding struct {
 	Params     []string `json:"params"`
 	Check      string   `json:"check"`
 	CheckFirst bool     `json:"checkFirst"`
+	Single     bool     `json:"single"`
 	// SkipEmptyAttributes is set on an update that sends its attributes only
 	// when one of them is set.
 	SkipEmptyAttributes bool `json:"skipEmptyAttributes"`
@@ -376,7 +377,7 @@ func newContractCall(name string, typ reflect.Type, b *contractOpBinding) (*cont
 	if typ.IsVariadic() {
 		last--
 		opt := typ.In(last).Elem()
-		if opt.Kind() != reflect.Func || opt.NumIn() != 1 || opt.In(0).Kind() != reflect.Pointer || !opt.In(0).Implements(reflect.TypeFor[pager]()) {
+		if opt.Kind() != reflect.Func || opt.NumIn() != 1 || opt.In(0).Kind() != reflect.Pointer || (!b.Single && !opt.In(0).Implements(reflect.TypeFor[pager]())) {
 			return nil, fmt.Errorf("options %s are not a func of a paged query", opt)
 		}
 		c.query = opt
@@ -481,6 +482,9 @@ func checkGeneratedOperation(spec *contractSpec, op *contractOperation, b *contr
 	if call.query != nil {
 		args = append(slices.Clone(args), call.option(func(q reflect.Value) {
 			fillErr = fillContractValue(q.Elem(), q.Elem().Type().Name())
+			if b.Single {
+				return
+			}
 			page := q.Interface().(pager).page()
 			page.limit = contractLimit
 			page.nextURL = ""
@@ -511,8 +515,11 @@ func checkGeneratedOperation(spec *contractSpec, op *contractOperation, b *contr
 	if want := contractPath(op.path, call.pathArgs); req.url.Path != want {
 		problems = append(problems, fmt.Sprintf("sent path %s, want %s", req.url.Path, want))
 	}
-	problems = append(problems, checkContractQuery(op, req.url.Query(), call.query != nil)...)
-	if call.query != nil {
+	problems = append(problems, checkContractQuery(op, req.url.Query(), call.query != nil && !b.Single)...)
+	if b.Single && len(req.url.Query()) == 0 {
+		problems = append(problems, "sent no query, the method reads one resource with a query argument")
+	}
+	if call.query != nil && !b.Single {
 		problems = append(problems, checkContractNextURL(call, op.path, response, b.CheckFirst && b.Check == "require")...)
 	}
 	if b.SkipEmptyAttributes {

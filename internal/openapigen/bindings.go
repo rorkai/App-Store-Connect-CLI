@@ -47,8 +47,8 @@ type OpBind struct {
 	Name      string   `json:"name"`
 	Params    []string `json:"params,omitempty"` // Go names of the path parameters, in path order
 	Check     string   `json:"check,omitempty"`  // checkInline, checkTrim, checkRequire or checkRaw
-	// CheckFirst runs the trim and require checks of a paged read before its
-	// options, so a next URL does not lift the require check.
+	// CheckFirst runs the trim and require checks of a read before its
+	// options, so a next URL does not lift the require check of a paged read.
 	CheckFirst bool `json:"checkFirst,omitempty"`
 	// Messages are the errors for blank parameters; default "<param> is required".
 	Messages    []string `json:"messages,omitempty"`
@@ -59,7 +59,11 @@ type OpBind struct {
 	Response    string   `json:"response,omitempty"`    // Go decode type; default the spec schema name
 	IDs         string   `json:"ids,omitempty"`         // ID list parameter of a relationship change
 	IDList      *IDList  `json:"idList,omitempty"`      // how a relationship change handles its ID list
-	Attrs       string   `json:"attrs,omitempty"`       // "", attrsValue or attrsPointer
+	// Single marks a read of one resource that sends a query and follows no
+	// next URL. Its builder takes the options, or a fields []string argument
+	// when there is no option type.
+	Single bool   `json:"single,omitempty"`
+	Attrs  string `json:"attrs,omitempty"` // "", attrsValue or attrsPointer
 	// SkipEmptyAttributes sends the attributes only when one of them is set.
 	SkipEmptyAttributes bool `json:"skipEmptyAttributes,omitempty"`
 	// Deviations are known differences from the schema that the contract test

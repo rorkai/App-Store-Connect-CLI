@@ -238,6 +238,7 @@ func deriveOp(spec *Spec, op *Operation, d *decl) (*OpBind, string) {
 			for _, n := range field.Names {
 				b.Params = append(b.Params, n.Name)
 			}
+		case typ == "[]string" && op.Method == "GET":
 		case typ == "[]string" && len(field.Names) == 1:
 			b.IDs = field.Names[0].Name
 		case strings.HasPrefix(typ, "..."):
@@ -252,7 +253,7 @@ func deriveOp(spec *Spec, op *Operation, d *decl) (*OpBind, string) {
 	}
 
 	var messages []string
-	var trimmed, attrsByValue bool
+	var trimmed, next, attrsByValue bool
 	var trimAt, optionsAt token.Pos
 	list := &IDList{}
 	ast.Inspect(fn.Body, func(x ast.Node) bool {
@@ -270,6 +271,8 @@ func deriveOp(spec *Spec, op *Operation, d *decl) (*OpBind, string) {
 				if call, ok := n.Value.(*ast.CallExpr); ok {
 					b.Query = exprString(call.Fun)
 				}
+			case "Next":
+				next = true
 			case "NextContext":
 				b.NextContext = stringLit(n.Value)
 			case "ParseErr":
@@ -312,6 +315,7 @@ func deriveOp(spec *Spec, op *Operation, d *decl) (*OpBind, string) {
 		b.IDList = list
 	}
 	b.CheckFirst = b.Options != "" && trimAt.IsValid() && optionsAt.IsValid() && trimAt < optionsAt
+	b.Single = op.Method == "GET" && b.Query != "" && !next
 	if data, err := requestData(spec, op.Request); attrsByValue && b.Attrs == "" && err == nil && !data.requires("attributes") {
 		b.Attrs = attrsValue
 	}

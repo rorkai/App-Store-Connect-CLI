@@ -9,6 +9,6 @@
     "AppEncryptionDeclarationDocumentUpdateRequest"
   ],
   "operations": [
-    {"operation":"appEncryptionDeclarationDocuments_updateInstance","name":"UpdateAppEncryptionDeclarationDocument","params":["documentID"],"check":"require","skipEmptyAttributes":true}
+    {"operation":"appEncryptionDeclarationDocuments_getInstance","name":"GetAppEncryptionDeclarationDocument","params":["documentID"],"check":"require","query":"buildAppEncryptionDeclarationDocumentFieldsQuery","single":true}
   ]
 }

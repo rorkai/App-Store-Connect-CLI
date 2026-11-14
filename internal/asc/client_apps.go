@@ -56,17 +56,6 @@ func (c *Client) GetApp(ctx context.Context, appID string) (*AppResponse, error)
 	return c.GetAppWithOptions(ctx, appID)
 }
 
-// GetAppWithOptions retrieves a single app by ID with sparse fields and includes.
-func (c *Client) GetAppWithOptions(ctx context.Context, appID string, opts ...AppOption) (*AppResponse, error) {
-	query := applyOptions(opts)
-
-	appID = strings.TrimSpace(appID)
-	return getJSON[AppResponse](ctx, c, readRequest{
-		Path:  fmt.Sprintf("/v1/apps/%s", appID),
-		Query: buildAppQuery(query),
-	})
-}
-
 // GetAppBetaTesterUsagesMetrics retrieves beta tester usage metrics for an app.
 func (c *Client) GetAppBetaTesterUsagesMetrics(ctx context.Context, appID string, opts ...BetaTesterUsagesOption) (*BetaTesterUsagesResponse, error) {
 	query := &betaTesterUsagesQuery{}

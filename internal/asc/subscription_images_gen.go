@@ -28,22 +28,15 @@ func (c *Client) DeleteSubscriptionImageV2(ctx context.Context, imageID string) 
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v2/subscriptionImages/%s", imageID), nil)
 }
 
-// UpdateSubscriptionImageV2 sends PATCH /v2/subscriptionImages/{id} (subscriptionImagesV2_updateInstance).
-func (c *Client) UpdateSubscriptionImageV2(ctx context.Context, imageID string, attrs SubscriptionImageV2UpdateAttributes) (*SubscriptionImageV2Response, error) {
+// GetSubscriptionImageV2 sends GET /v2/subscriptionImages/{id} (subscriptionImagesV2_getInstance).
+func (c *Client) GetSubscriptionImageV2(ctx context.Context, imageID string, opts ...SubscriptionImageV2Option) (*SubscriptionImageV2Response, error) {
 	imageID = strings.TrimSpace(imageID)
 	if imageID == "" {
 		return nil, fmt.Errorf("image ID is required")
 	}
-	payload := SubscriptionImageV2UpdateRequest{
-		Data: SubscriptionImageV2UpdateData{
-			Type:       ResourceTypeSubscriptionImages,
-			ID:         imageID,
-			Attributes: attrs,
-		},
-	}
-	return sendJSON[SubscriptionImageV2Response](ctx, c, writeRequest{
-		Method:  http.MethodPatch,
-		Path:    fmt.Sprintf("/v2/subscriptionImages/%s", imageID),
-		Payload: payload,
+	query := applyOptions(opts)
+	return getJSON[SubscriptionImageV2Response](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v2/subscriptionImages/%s", imageID),
+		Query: buildSubscriptionImageV2Query(query),
 	})
 }

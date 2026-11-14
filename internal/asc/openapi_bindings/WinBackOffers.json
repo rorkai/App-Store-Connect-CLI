@@ -9,7 +9,6 @@
     {"operation":"winBackOffers_deleteInstance","name":"DeleteWinBackOffer","params":["offerID"]},
     {"operation":"winBackOffers_getInstance","name":"GetWinBackOffer","params":["offerID"]},
     {"operation":"winBackOffers_prices_getToManyRelated","name":"GetWinBackOfferPrices","params":["offerID"],"options":"WinBackOfferPricesOption","query":"buildWinBackOfferPricesQuery","nextContext":"winBackOfferPrices"},
-    {"operation":"winBackOffers_prices_getToManyRelationship","name":"GetWinBackOfferPricesRelationships","params":["offerID"],"options":"LinkagesOption","query":"buildLinkagesQuery","nextContext":"winBackOfferPrices relationships","response":"LinkagesResponse"},
-    {"operation":"winBackOffers_updateInstance","name":"UpdateWinBackOffer","params":["offerID"],"attrs":"value"}
+    {"operation":"winBackOffers_prices_getToManyRelationship","name":"GetWinBackOfferPricesRelationships","params":["offerID"],"options":"LinkagesOption","query":"buildLinkagesQuery","nextContext":"winBackOfferPrices relationships","response":"LinkagesResponse"}
   ]
 }

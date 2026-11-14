@@ -10,7 +10,6 @@
     "AppClipAppStoreReviewDetailUpdateRequest"
   ],
   "operations": [
-    {"operation":"appClipAppStoreReviewDetails_getInstance","name":"GetAppClipAppStoreReviewDetail","params":["detailID"],"check":"require"},
-    {"operation":"appClipAppStoreReviewDetails_updateInstance","name":"UpdateAppClipAppStoreReviewDetail","params":["detailID"],"check":"require","attrs":"pointer"}
+    {"operation":"appClipAppStoreReviewDetails_getInstance","name":"GetAppClipAppStoreReviewDetail","params":["detailID"],"check":"require"}
   ]
 }

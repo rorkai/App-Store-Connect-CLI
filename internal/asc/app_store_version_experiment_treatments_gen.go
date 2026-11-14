@@ -69,25 +69,3 @@ func (c *Client) GetAppStoreVersionExperimentTreatment(ctx context.Context, trea
 		Path: fmt.Sprintf("/v1/appStoreVersionExperimentTreatments/%s", treatmentID),
 	})
 }
-
-// UpdateAppStoreVersionExperimentTreatment sends PATCH /v1/appStoreVersionExperimentTreatments/{id} (appStoreVersionExperimentTreatments_updateInstance).
-func (c *Client) UpdateAppStoreVersionExperimentTreatment(ctx context.Context, treatmentID string, attrs AppStoreVersionExperimentTreatmentUpdateAttributes) (*AppStoreVersionExperimentTreatmentResponse, error) {
-	treatmentID = strings.TrimSpace(treatmentID)
-	if treatmentID == "" {
-		return nil, fmt.Errorf("treatmentID is required")
-	}
-	payload := AppStoreVersionExperimentTreatmentUpdateRequest{
-		Data: AppStoreVersionExperimentTreatmentUpdateData{
-			Type: ResourceTypeAppStoreVersionExperimentTreatments,
-			ID:   treatmentID,
-		},
-	}
-	if attrs.Name != nil || attrs.AppIconName != nil {
-		payload.Data.Attributes = &attrs
-	}
-	return sendJSON[AppStoreVersionExperimentTreatmentResponse](ctx, c, writeRequest{
-		Method:  http.MethodPatch,
-		Path:    fmt.Sprintf("/v1/appStoreVersionExperimentTreatments/%s", treatmentID),
-		Payload: payload,
-	})
-}

@@ -187,6 +187,23 @@ func (c *Client) CreateSubscriptionIntroductoryOffer(ctx context.Context, subscr
 	})
 }
 
+// UpdateSubscriptionIntroductoryOffer updates an introductory offer.
+func (c *Client) UpdateSubscriptionIntroductoryOffer(ctx context.Context, offerID string, attrs SubscriptionIntroductoryOfferUpdateAttributes) (*SubscriptionIntroductoryOfferResponse, error) {
+	payload := SubscriptionIntroductoryOfferUpdateRequest{
+		Data: SubscriptionIntroductoryOfferUpdateData{
+			Type:       ResourceTypeSubscriptionIntroductoryOffers,
+			ID:         strings.TrimSpace(offerID),
+			Attributes: attrs,
+		},
+	}
+
+	return sendJSON[SubscriptionIntroductoryOfferResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/subscriptionIntroductoryOffers/%s", strings.TrimSpace(offerID)),
+		Payload: payload,
+	})
+}
+
 // GetSubscriptionPromotionalOffers retrieves promotional offers for a subscription.
 func (c *Client) GetSubscriptionPromotionalOffers(ctx context.Context, subscriptionID string, opts ...SubscriptionPromotionalOffersOption) (*SubscriptionPromotionalOffersResponse, error) {
 	query := &subscriptionPromotionalOffersQuery{}
@@ -503,6 +520,23 @@ func (c *Client) CreateSubscriptionOfferCode(ctx context.Context, subscriptionID
 	})
 }
 
+// UpdateSubscriptionOfferCode updates an offer code.
+func (c *Client) UpdateSubscriptionOfferCode(ctx context.Context, offerCodeID string, attrs SubscriptionOfferCodeUpdateAttributes) (*SubscriptionOfferCodeResponse, error) {
+	payload := SubscriptionOfferCodeUpdateRequest{
+		Data: SubscriptionOfferCodeUpdateData{
+			Type:       ResourceTypeSubscriptionOfferCodes,
+			ID:         strings.TrimSpace(offerCodeID),
+			Attributes: attrs,
+		},
+	}
+
+	return sendJSON[SubscriptionOfferCodeResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/subscriptionOfferCodes/%s", strings.TrimSpace(offerCodeID)),
+		Payload: payload,
+	})
+}
+
 // GetSubscriptionOfferCodePrices retrieves prices for an offer code.
 func (c *Client) GetSubscriptionOfferCodePrices(ctx context.Context, offerCodeID string, opts ...SubscriptionOfferCodePricesOption) (*SubscriptionOfferCodePricesResponse, error) {
 	query := &subscriptionOfferCodePricesQuery{}
@@ -570,19 +604,6 @@ func (c *Client) GetSubscriptionPricePoints(ctx context.Context, subscriptionID 
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 	return &response, nil
-}
-
-// GetSubscriptionPricePoint retrieves a subscription price point by ID.
-func (c *Client) GetSubscriptionPricePoint(ctx context.Context, pricePointID string, opts ...SubscriptionPricePointOption) (*SubscriptionPricePointResponse, error) {
-	pricePointID = strings.TrimSpace(pricePointID)
-	if pricePointID == "" {
-		return nil, fmt.Errorf("pricePointID is required")
-	}
-	query := applyOptions(opts)
-	return getJSON[SubscriptionPricePointResponse](ctx, c, readRequest{
-		Path:  fmt.Sprintf("/v1/subscriptionPricePoints/%s", pricePointID),
-		Query: buildSubscriptionPricePointDetailQuery(query),
-	})
 }
 
 // GetSubscriptionPricePointEqualizations retrieves equalizations for a price point.
@@ -659,15 +680,6 @@ func (c *Client) GetSubscriptionPricePointAdjustedEqualizations(ctx context.Cont
 	return &response, nil
 }
 
-// GetSubscriptionAppStoreReviewScreenshot retrieves a review screenshot by ID.
-func (c *Client) GetSubscriptionAppStoreReviewScreenshot(ctx context.Context, screenshotID string, opts ...SubscriptionAppStoreReviewScreenshotOption) (*SubscriptionAppStoreReviewScreenshotResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[SubscriptionAppStoreReviewScreenshotResponse](ctx, c, readRequest{
-		Path:  fmt.Sprintf("/v1/subscriptionAppStoreReviewScreenshots/%s", strings.TrimSpace(screenshotID)),
-		Query: buildSubscriptionAppStoreReviewScreenshotQuery(query),
-	})
-}
-
 // CreateSubscriptionAppStoreReviewScreenshot creates a review screenshot.
 func (c *Client) CreateSubscriptionAppStoreReviewScreenshot(ctx context.Context, subscriptionID, fileName string, fileSize int64) (*SubscriptionAppStoreReviewScreenshotResponse, error) {
 	subscriptionID = strings.TrimSpace(subscriptionID)
@@ -700,6 +712,23 @@ func (c *Client) CreateSubscriptionAppStoreReviewScreenshot(ctx context.Context,
 	return sendJSON[SubscriptionAppStoreReviewScreenshotResponse](ctx, c, writeRequest{
 		Method:  http.MethodPost,
 		Path:    "/v1/subscriptionAppStoreReviewScreenshots",
+		Payload: payload,
+	})
+}
+
+// UpdateSubscriptionAppStoreReviewScreenshot updates a review screenshot.
+func (c *Client) UpdateSubscriptionAppStoreReviewScreenshot(ctx context.Context, screenshotID string, attrs SubscriptionAppStoreReviewScreenshotUpdateAttributes) (*SubscriptionAppStoreReviewScreenshotResponse, error) {
+	payload := SubscriptionAppStoreReviewScreenshotUpdateRequest{
+		Data: SubscriptionAppStoreReviewScreenshotUpdateData{
+			Type:       ResourceTypeSubscriptionAppStoreReviewScreenshots,
+			ID:         strings.TrimSpace(screenshotID),
+			Attributes: attrs,
+		},
+	}
+
+	return sendJSON[SubscriptionAppStoreReviewScreenshotResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/subscriptionAppStoreReviewScreenshots/%s", strings.TrimSpace(screenshotID)),
 		Payload: payload,
 	})
 }

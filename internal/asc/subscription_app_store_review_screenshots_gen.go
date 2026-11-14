@@ -30,18 +30,11 @@ func (c *Client) DeleteSubscriptionAppStoreReviewScreenshot(ctx context.Context,
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/subscriptionAppStoreReviewScreenshots/%s", strings.TrimSpace(screenshotID)), nil)
 }
 
-// UpdateSubscriptionAppStoreReviewScreenshot sends PATCH /v1/subscriptionAppStoreReviewScreenshots/{id} (subscriptionAppStoreReviewScreenshots_updateInstance).
-func (c *Client) UpdateSubscriptionAppStoreReviewScreenshot(ctx context.Context, screenshotID string, attrs SubscriptionAppStoreReviewScreenshotUpdateAttributes) (*SubscriptionAppStoreReviewScreenshotResponse, error) {
-	payload := SubscriptionAppStoreReviewScreenshotUpdateRequest{
-		Data: SubscriptionAppStoreReviewScreenshotUpdateData{
-			Type:       ResourceTypeSubscriptionAppStoreReviewScreenshots,
-			ID:         strings.TrimSpace(screenshotID),
-			Attributes: attrs,
-		},
-	}
-	return sendJSON[SubscriptionAppStoreReviewScreenshotResponse](ctx, c, writeRequest{
-		Method:  http.MethodPatch,
-		Path:    fmt.Sprintf("/v1/subscriptionAppStoreReviewScreenshots/%s", strings.TrimSpace(screenshotID)),
-		Payload: payload,
+// GetSubscriptionAppStoreReviewScreenshot sends GET /v1/subscriptionAppStoreReviewScreenshots/{id} (subscriptionAppStoreReviewScreenshots_getInstance).
+func (c *Client) GetSubscriptionAppStoreReviewScreenshot(ctx context.Context, screenshotID string, opts ...SubscriptionAppStoreReviewScreenshotOption) (*SubscriptionAppStoreReviewScreenshotResponse, error) {
+	query := applyOptions(opts)
+	return getJSON[SubscriptionAppStoreReviewScreenshotResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/subscriptionAppStoreReviewScreenshots/%s", strings.TrimSpace(screenshotID)),
+		Query: buildSubscriptionAppStoreReviewScreenshotQuery(query),
 	})
 }

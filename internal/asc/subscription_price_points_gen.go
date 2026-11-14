@@ -2,9 +2,28 @@
 
 package asc
 
+import (
+	"context"
+	"fmt"
+	"strings"
+)
+
 // SubscriptionPricePointAttributes is the attributes object of the SubscriptionPricePoint schema.
 type SubscriptionPricePointAttributes struct {
 	CustomerPrice string `json:"customerPrice,omitempty"`
 	Proceeds      string `json:"proceeds,omitempty"`
 	ProceedsYear2 string `json:"proceedsYear2,omitempty"`
+}
+
+// GetSubscriptionPricePoint sends GET /v1/subscriptionPricePoints/{id} (subscriptionPricePoints_getInstance).
+func (c *Client) GetSubscriptionPricePoint(ctx context.Context, pricePointID string, opts ...SubscriptionPricePointOption) (*SubscriptionPricePointResponse, error) {
+	pricePointID = strings.TrimSpace(pricePointID)
+	if pricePointID == "" {
+		return nil, fmt.Errorf("pricePointID is required")
+	}
+	query := applyOptions(opts)
+	return getJSON[SubscriptionPricePointResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/subscriptionPricePoints/%s", pricePointID),
+		Query: buildSubscriptionPricePointDetailQuery(query),
+	})
 }

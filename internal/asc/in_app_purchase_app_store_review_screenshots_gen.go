@@ -43,3 +43,16 @@ func (c *Client) DeleteInAppPurchaseAppStoreReviewScreenshot(ctx context.Context
 	}
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/inAppPurchaseAppStoreReviewScreenshots/%s", screenshotID), nil)
 }
+
+// GetInAppPurchaseAppStoreReviewScreenshot sends GET /v1/inAppPurchaseAppStoreReviewScreenshots/{id} (inAppPurchaseAppStoreReviewScreenshots_getInstance).
+func (c *Client) GetInAppPurchaseAppStoreReviewScreenshot(ctx context.Context, screenshotID string, opts ...IAPReviewScreenshotOption) (*InAppPurchaseAppStoreReviewScreenshotResponse, error) {
+	screenshotID = strings.TrimSpace(screenshotID)
+	if screenshotID == "" {
+		return nil, fmt.Errorf("screenshotID is required")
+	}
+	query := applyOptions(opts)
+	return getJSON[InAppPurchaseAppStoreReviewScreenshotResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/inAppPurchaseAppStoreReviewScreenshots/%s", screenshotID),
+		Query: buildIAPReviewScreenshotQuery(query),
+	})
+}

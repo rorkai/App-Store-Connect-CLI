@@ -11,7 +11,6 @@
   "operations": [
     {"operation":"appCustomProductPages_appCustomProductPageVersions_getToManyRelated","name":"GetAppCustomProductPageVersions","params":["pageID"],"check":"require","options":"AppCustomProductPageVersionsOption","query":"buildAppCustomProductPageVersionsQuery","nextContext":"appCustomProductPageVersions"},
     {"operation":"appCustomProductPages_deleteInstance","name":"DeleteAppCustomProductPage","params":["pageID"],"check":"require"},
-    {"operation":"appCustomProductPages_getInstance","name":"GetAppCustomProductPage","params":["pageID"],"check":"require"},
-    {"operation":"appCustomProductPages_updateInstance","name":"UpdateAppCustomProductPage","params":["pageID"],"check":"require","skipEmptyAttributes":true}
+    {"operation":"appCustomProductPages_getInstance","name":"GetAppCustomProductPage","params":["pageID"],"check":"require"}
   ]
 }

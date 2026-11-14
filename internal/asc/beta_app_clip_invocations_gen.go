@@ -40,22 +40,15 @@ func (c *Client) DeleteBetaAppClipInvocation(ctx context.Context, invocationID s
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/betaAppClipInvocations/%s", invocationID), nil)
 }
 
-// UpdateBetaAppClipInvocation sends PATCH /v1/betaAppClipInvocations/{id} (betaAppClipInvocations_updateInstance).
-func (c *Client) UpdateBetaAppClipInvocation(ctx context.Context, invocationID string, attrs *BetaAppClipInvocationUpdateAttributes) (*BetaAppClipInvocationResponse, error) {
+// GetBetaAppClipInvocation sends GET /v1/betaAppClipInvocations/{id} (betaAppClipInvocations_getInstance).
+func (c *Client) GetBetaAppClipInvocation(ctx context.Context, invocationID string, opts ...BetaAppClipInvocationOption) (*BetaAppClipInvocationResponse, error) {
+	query := applyOptions(opts)
 	invocationID = strings.TrimSpace(invocationID)
 	if invocationID == "" {
 		return nil, fmt.Errorf("invocationID is required")
 	}
-	payload := BetaAppClipInvocationUpdateRequest{
-		Data: BetaAppClipInvocationUpdateData{
-			Type:       ResourceTypeBetaAppClipInvocations,
-			ID:         invocationID,
-			Attributes: attrs,
-		},
-	}
-	return sendJSON[BetaAppClipInvocationResponse](ctx, c, writeRequest{
-		Method:  http.MethodPatch,
-		Path:    fmt.Sprintf("/v1/betaAppClipInvocations/%s", invocationID),
-		Payload: payload,
+	return getJSON[BetaAppClipInvocationResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/betaAppClipInvocations/%s", invocationID),
+		Query: buildBetaAppClipInvocationQuery(query),
 	})
 }

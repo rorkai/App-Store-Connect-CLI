@@ -36,20 +36,6 @@ type BetaLicenseAgreementResponse struct {
 	Included json.RawMessage              `json:"included,omitempty"`
 }
 
-// GetBetaLicenseAgreement retrieves a beta license agreement by ID.
-func (c *Client) GetBetaLicenseAgreement(ctx context.Context, agreementID string, opts ...BetaLicenseAgreementOption) (*BetaLicenseAgreementResponse, error) {
-	agreementID = strings.TrimSpace(agreementID)
-	if agreementID == "" {
-		return nil, fmt.Errorf("agreementID is required")
-	}
-
-	query := applyOptions(opts)
-	return getJSON[BetaLicenseAgreementResponse](ctx, c, readRequest{
-		Path:  fmt.Sprintf("/v1/betaLicenseAgreements/%s", agreementID),
-		Query: buildBetaLicenseAgreementQuery(query),
-	})
-}
-
 // GetBetaLicenseAgreementForApp retrieves a beta license agreement for an app.
 func (c *Client) GetBetaLicenseAgreementForApp(ctx context.Context, appID string, fields []string) (*BetaLicenseAgreementResponse, error) {
 	appID = strings.TrimSpace(appID)

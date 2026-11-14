@@ -7,7 +7,6 @@
   ],
   "operations": [
     {"operation":"subscriptionOfferCodes_customCodes_getToManyRelated","name":"GetSubscriptionOfferCodeCustomCodes","params":["offerCodeID"],"options":"SubscriptionOfferCodeCustomCodesOption","query":"buildSubscriptionOfferCodeCustomCodesQuery","nextContext":"subscriptionOfferCodeCustomCodes"},
-    {"operation":"subscriptionOfferCodes_oneTimeUseCodes_getToManyRelated","name":"GetSubscriptionOfferCodeOneTimeUseCodes","params":["offerCodeID"],"check":"trim","checkFirst":true,"options":"SubscriptionOfferCodeOneTimeUseCodesOption","query":"buildSubscriptionOfferCodeOneTimeUseCodesQuery","nextContext":"offer codes"},
-    {"operation":"subscriptionOfferCodes_updateInstance","name":"UpdateSubscriptionOfferCode","params":["offerCodeID"],"attrs":"value"}
+    {"operation":"subscriptionOfferCodes_oneTimeUseCodes_getToManyRelated","name":"GetSubscriptionOfferCodeOneTimeUseCodes","params":["offerCodeID"],"check":"trim","checkFirst":true,"options":"SubscriptionOfferCodeOneTimeUseCodesOption","query":"buildSubscriptionOfferCodeOneTimeUseCodesQuery","nextContext":"offer codes"}
   ]
 }

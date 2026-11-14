@@ -20,6 +20,15 @@ func (c *Client) GetCiProductAdditionalRepositories(ctx context.Context, product
 	})
 }
 
+// GetCiProductApp sends GET /v1/ciProducts/{id}/app (ciProducts_app_getToOneRelated).
+func (c *Client) GetCiProductApp(ctx context.Context, productID string, opts ...CiProductAppOption) (*AppResponse, error) {
+	query := applyOptions(opts)
+	return getJSON[AppResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/ciProducts/%s/app", productID),
+		Query: buildCiProductAppQuery(query),
+	})
+}
+
 // GetCiProductBuildRuns sends GET /v1/ciProducts/{id}/buildRuns (ciProducts_buildRuns_getToManyRelated).
 func (c *Client) GetCiProductBuildRuns(ctx context.Context, productID string, opts ...CiBuildRunsOption) (*CiBuildRunsResponse, error) {
 	query := applyOptions(opts)

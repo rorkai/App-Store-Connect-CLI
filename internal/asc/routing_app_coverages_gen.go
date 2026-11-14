@@ -54,25 +54,3 @@ func (c *Client) GetRoutingAppCoverage(ctx context.Context, coverageID string) (
 		Path: fmt.Sprintf("/v1/routingAppCoverages/%s", coverageID),
 	})
 }
-
-// UpdateRoutingAppCoverage sends PATCH /v1/routingAppCoverages/{id} (routingAppCoverages_updateInstance).
-func (c *Client) UpdateRoutingAppCoverage(ctx context.Context, coverageID string, attrs RoutingAppCoverageUpdateAttributes) (*RoutingAppCoverageResponse, error) {
-	coverageID = strings.TrimSpace(coverageID)
-	if coverageID == "" {
-		return nil, fmt.Errorf("coverageID is required")
-	}
-	payload := RoutingAppCoverageUpdateRequest{
-		Data: RoutingAppCoverageUpdateData{
-			Type: ResourceTypeRoutingAppCoverages,
-			ID:   coverageID,
-		},
-	}
-	if attrs.SourceFileChecksum != nil || attrs.Uploaded != nil {
-		payload.Data.Attributes = &attrs
-	}
-	return sendJSON[RoutingAppCoverageResponse](ctx, c, writeRequest{
-		Method:  http.MethodPatch,
-		Path:    fmt.Sprintf("/v1/routingAppCoverages/%s", coverageID),
-		Payload: payload,
-	})
-}

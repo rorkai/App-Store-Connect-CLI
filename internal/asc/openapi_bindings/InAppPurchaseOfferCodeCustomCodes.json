@@ -10,7 +10,6 @@
     "InAppPurchaseOfferCodeCustomCodeUpdateRequest"
   ],
   "operations": [
-    {"operation":"inAppPurchaseOfferCodeCustomCodes_getInstance","name":"GetInAppPurchaseOfferCodeCustomCode","params":["customCodeID"],"check":"require"},
-    {"operation":"inAppPurchaseOfferCodeCustomCodes_updateInstance","name":"UpdateInAppPurchaseOfferCodeCustomCode","params":["customCodeID"],"check":"require","skipEmptyAttributes":true}
+    {"operation":"inAppPurchaseOfferCodeCustomCodes_getInstance","name":"GetInAppPurchaseOfferCodeCustomCode","params":["customCodeID"],"check":"require"}
   ]
 }

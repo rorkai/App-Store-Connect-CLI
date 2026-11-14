@@ -191,7 +191,10 @@ func renderMethod(spec *Spec, b *OpBind) (string, error) {
 		return "", fmt.Errorf("idList needs a relationship change")
 	}
 	if b.CheckFirst && (op.Method != "GET" || b.Options == "" || (b.Check != checkTrim && b.Check != checkRequire)) {
-		return "", fmt.Errorf("checkFirst needs a paged read with trim or require checks")
+		return "", fmt.Errorf("checkFirst needs a read with options and trim or require checks")
+	}
+	if b.Single && (op.Method != "GET" || b.Query == "" || b.NextContext != "") {
+		return "", fmt.Errorf("single needs a read with a query builder and no next URL")
 	}
 	write := (op.Method == "PATCH" && strings.HasSuffix(op.Request, "UpdateRequest")) ||
 		(op.Method == "POST" && strings.HasSuffix(op.Request, "CreateRequest"))
@@ -265,7 +268,9 @@ func (m *method) read(response string) string {
 	if m.b.CheckFirst {
 		m.checks()
 	}
-	if m.b.Options != "" {
+	if m.b.Single {
+		fields = append(fields, m.singleQuery())
+	} else if m.b.Options != "" {
 		m.params = append(m.params, "opts ..."+m.b.Options)
 		m.pre = append(m.pre, "query := applyOptions(opts)")
 		fields = append(fields, fmt.Sprintf("Query: %s(query)", m.b.Query), "Next: query.nextURL")
@@ -280,6 +285,18 @@ func (m *method) read(response string) string {
 		m.checks()
 	}
 	return fmt.Sprintf("return getJSON[%s](ctx, c, readRequest{\n%s,\n})", response, strings.Join(fields, ",\n"))
+}
+
+// singleQuery adds the query argument of a single read and returns its Query
+// field: the options, or a fields list when there is no option type.
+func (m *method) singleQuery() string {
+	if m.b.Options == "" {
+		m.params = append(m.params, "fields []string")
+		return fmt.Sprintf("Query: %s(fields)", m.b.Query)
+	}
+	m.params = append(m.params, "opts ..."+m.b.Options)
+	m.pre = append(m.pre, "query := applyOptions(opts)")
+	return fmt.Sprintf("Query: %s(query)", m.b.Query)
 }
 
 // checks adds the trim and blank checks of the path parameters.
@@ -303,7 +320,7 @@ func (m *method) checks() {
 			msg = m.b.Messages[i]
 		}
 		cond := p + ` == ""`
-		if m.b.Options != "" && !m.b.CheckFirst {
+		if m.b.Options != "" && !m.b.CheckFirst && !m.b.Single {
 			cond = `query.nextURL == "" && ` + cond
 		}
 		m.pre = append(m.pre, fmt.Sprintf("if %s {\nreturn %sfmt.Errorf(%s)\n}", cond, zero, strconv.Quote(msg)))
