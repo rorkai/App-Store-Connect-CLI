@@ -262,6 +262,7 @@ func TestSelfLinkRemainingFlagsRejectWrongType(t *testing.T) {
 			flag:    "webhook-id",
 			value:   selfLinkTestBase + "/v1/webhooks/webhook-1",
 			wantErr: "expected a self-link of type marketplaceWebhooks, got webhooks",
+			deps:    true,
 		},
 		{
 			name:    "certificates create rejects apps link for merchant",

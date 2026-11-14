@@ -32,31 +32,37 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			name:    "accessibility list limit",
 			args:    []string{"accessibility", "list", "--limit", "201"},
 			wantErr: "accessibility list: --limit must be between 1 and 200",
+			deps:    true,
 		},
 		{
 			name:    "accessibility list next",
 			args:    []string{"accessibility", "list", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
 			wantErr: "accessibility list: --next must be an App Store Connect URL",
+			deps:    true,
 		},
 		{
 			name:    "accessibility list invalid device family",
 			args:    []string{"accessibility", "list", "--app", "APP_ID", "--device-family", "bad"},
 			wantErr: "accessibility list: --device-family must be one of: IPHONE, IPAD, APPLE_TV, APPLE_WATCH, MAC, VISION",
+			deps:    true,
 		},
 		{
 			name:    "accessibility view invalid fields",
 			args:    []string{"accessibility", "view", "--id", "DECLARATION_ID", "--fields", "bad"},
 			wantErr: "accessibility view: --fields must be one of: deviceFamily, state, supportsAudioDescriptions, supportsCaptions, supportsDarkInterface, supportsDifferentiateWithoutColorAlone, supportsLargerText, supportsReducedMotion, supportsSufficientContrast, supportsVoiceControl, supportsVoiceover",
+			deps:    true,
 		},
 		{
 			name:    "accessibility create invalid device family",
 			args:    []string{"accessibility", "create", "--app", "APP_ID", "--device-family", "bad"},
 			wantErr: "accessibility create: --device-family must be one of: IPHONE, IPAD, APPLE_TV, APPLE_WATCH, MAC, VISION",
+			deps:    true,
 		},
 		{
 			name:    "accessibility create invalid bool",
 			args:    []string{"accessibility", "create", "--app", "APP_ID", "--device-family", "IPHONE", "--supports-voiceover", "bad"},
 			wantErr: "accessibility create: --supports-voiceover must be true or false",
+			deps:    true,
 		},
 		{
 			name:    "apps list next for builds",

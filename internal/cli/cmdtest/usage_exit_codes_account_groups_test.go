@@ -348,6 +348,7 @@ func TestAccountAndDistributionInputValidationReturnsUsageExitCode(t *testing.T)
 			name:    "marketplace search-details view invalid fields",
 			args:    []string{"marketplace", "search-details", "view", "--app", "APP_ID", "--fields", "bad"},
 			wantErr: "marketplace search-details view: --fields must be one of: catalogUrl",
+			deps:    true,
 		},
 		{
 			name:    "nominations list invalid status",
@@ -690,7 +691,7 @@ func TestMarketplaceWebhooksInputValidationReturnsUsageExitCode(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			stdout, stderr, runErr := runCommand(t, test.args)
+			stdout, stderr, runErr := runRootWithDeps(t, nil, test.args...)
 
 			if runErr == nil {
 				t.Fatal("expected error, got nil")

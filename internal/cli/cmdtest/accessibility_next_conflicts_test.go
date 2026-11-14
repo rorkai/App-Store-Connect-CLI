@@ -1,7 +1,6 @@
 package cmdtest
 
 import (
-	"context"
 	"errors"
 	"io"
 	"net/http"
@@ -66,13 +65,12 @@ func TestAccessibilityListRejectsNextQueryFlagsBeforeAuth(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			clientFactoryCalled := false
-			restore := shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+			client := func() (*asc.Client, error) {
 				clientFactoryCalled = true
 				return nil, errors.New("client factory must not run during validation")
-			})
-			defer restore()
+			}
 
-			assertUsageExit(t, test.args, test.wantErr)
+			assertUsageExitWithDeps(t, client, test.args, test.wantErr)
 			if clientFactoryCalled {
 				t.Fatal("client factory ran before --next conflict validation")
 			}
@@ -81,16 +79,14 @@ func TestAccessibilityListRejectsNextQueryFlagsBeforeAuth(t *testing.T) {
 }
 
 func TestAccessibilityListInvalidNextPrecedesLimitConflict(t *testing.T) {
-	stdout, stderr := captureOutput(t, func() {
-		code := rootcmd.Run([]string{
-			"accessibility", "list",
-			"--next", "http://api.appstoreconnect.apple.com/v1/apps/app-1/accessibilityDeclarations?cursor=next",
-			"--limit", "201",
-		}, "1.2.3")
-		if code != rootcmd.ExitUsage {
-			t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, nil,
+		"accessibility", "list",
+		"--next", "http://api.appstoreconnect.apple.com/v1/apps/app-1/accessibilityDeclarations?cursor=next",
+		"--limit", "201",
+	)
+	if code != rootcmd.ExitUsage {
+		t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
+	}
 	if stdout != "" {
 		t.Fatalf("stdout = %q, want empty", stdout)
 	}
@@ -131,17 +127,11 @@ func TestAccessibilityListNextOnlyUsesCursorURL(t *testing.T) {
 		_, _ = io.WriteString(w, `{"data":[{"type":"accessibilityDeclarations","id":"decl-next"}],"links":{"next":""}}`)
 	}))
 	t.Cleanup(server.Close)
-	installDefaultTransportForServer(t, server)
 
-	root := RootCommand("1.2.3")
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"accessibility", "list", "--next", nextURL, "--output", "json"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, accessibilityServerClient(t, server), "accessibility", "list", "--next", nextURL, "--output", "json")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 	if stderr != "" {
 		t.Fatalf("stderr = %q, want empty", stderr)
 	}
@@ -173,30 +163,40 @@ func TestAccessibilityListFilterOnlyBuildsDocumentedQuery(t *testing.T) {
 		_, _ = io.WriteString(w, `{"data":[{"type":"accessibilityDeclarations","id":"decl-filtered"}],"links":{"next":""}}`)
 	}))
 	t.Cleanup(server.Close)
-	installDefaultTransportForServer(t, server)
 
-	root := RootCommand("1.2.3")
-	stdout, stderr := captureOutput(t, func() {
-		args := []string{
-			"accessibility", "list",
-			"--app", "app-1",
-			"--device-family", "iphone,ipad",
-			"--state", "draft",
-			"--fields", "deviceFamily,state",
-			"--limit", "25",
-			"--output", "json",
-		}
-		if err := root.Parse(args); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, accessibilityServerClient(t, server),
+		"accessibility", "list",
+		"--app", "app-1",
+		"--device-family", "iphone,ipad",
+		"--state", "draft",
+		"--fields", "deviceFamily,state",
+		"--limit", "25",
+		"--output", "json",
+	)
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 	if stderr != "" {
 		t.Fatalf("stderr = %q, want empty", stderr)
 	}
 	if !strings.Contains(stdout, `"id":"decl-filtered"`) {
 		t.Fatalf("stdout = %q, want filtered response", stdout)
 	}
+}
+
+// accessibilityServerClient returns a client factory whose clients send every
+// request to server.
+func accessibilityServerClient(t *testing.T, server *httptest.Server) func() (*asc.Client, error) {
+	t.Helper()
+
+	serverURL, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf("parse server URL: %v", err)
+	}
+	return stubClient(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		cloned := req.Clone(req.Context())
+		cloned.URL.Scheme = serverURL.Scheme
+		cloned.URL.Host = serverURL.Host
+		return server.Client().Transport.RoundTrip(cloned)
+	}))
 }
