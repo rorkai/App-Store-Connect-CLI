@@ -494,7 +494,7 @@ func VersionsCreateCommand() *ffcli.Command {
 	platform := fs.String("platform", "IOS", "Platform: IOS, MAC_OS, TV_OS, VISION_OS")
 	copyright := fs.String("copyright", "", "Copyright text (e.g., '2026 My Company')")
 	releaseType := fs.String("release-type", "", "Release type: MANUAL, AFTER_APPROVAL, SCHEDULED")
-	earliestReleaseDate := fs.String("earliest-release-date", "", "Earliest release date (ISO 8601, e.g., 2026-02-01T08:00:00+00:00)")
+	earliestReleaseDate := fs.String("earliest-release-date", "", "Earliest release date (ISO 8601, e.g., 2026-02-01T08:00:00+00:00); applies only to SCHEDULED releases and sets --release-type SCHEDULED when omitted")
 	reviewType := fs.String("review-type", "", "Review type: APP_STORE, NOTARIZATION")
 	buildID := shared.BindResourceIDFlag(fs, "build-id", "builds", "Build ID to attach to the version")
 	copyMetadataFrom := fs.String("copy-metadata-from", "", "Copy localization metadata from this source version string")
@@ -586,6 +586,10 @@ be combined with skip, which would leave the build unattached.`,
 				if _, ok := shared.ParseRFC3339Date(earliestReleaseDateValue); !ok {
 					return shared.UsageErrorf("versions create: --earliest-release-date must be an RFC3339 timestamp (e.g., 2026-02-01T08:00:00+00:00), got %q", *earliestReleaseDate)
 				}
+			}
+			normalizedReleaseType, err = releaseTypeForEarliestReleaseDate("versions create", normalizedReleaseType, earliestReleaseDateValue)
+			if err != nil {
+				return err
 			}
 
 			normalizedReviewType, err := normalizeAppStoreVersionReviewType(*reviewType)
@@ -821,7 +825,7 @@ func VersionsUpdateCommand() *ffcli.Command {
 	copyright := fs.String("copyright", "", "Copyright text (e.g., '2026 My Company')")
 	releaseType := fs.String("release-type", "", "Release type: MANUAL, AFTER_APPROVAL, SCHEDULED")
 	reviewType := fs.String("review-type", "", "Review type: APP_STORE, NOTARIZATION")
-	earliestReleaseDate := fs.String("earliest-release-date", "", "Earliest release date (ISO 8601, e.g., 2026-02-01T08:00:00+00:00)")
+	earliestReleaseDate := fs.String("earliest-release-date", "", "Earliest release date (ISO 8601, e.g., 2026-02-01T08:00:00+00:00); applies only to SCHEDULED releases and sets --release-type SCHEDULED when omitted")
 	versionString := fs.String("version", "", "Version string (e.g., 1.0.1)")
 	var downloadable shared.OptionalBool
 	fs.Var(&downloadable, "downloadable", "Download availability for this version on older operating systems and devices: true or false")
@@ -872,6 +876,10 @@ Examples:
 			normalizedReviewType, err := normalizeAppStoreVersionReviewType(*reviewType)
 			if err != nil {
 				return shared.UsageErrorf("versions update: %v", err)
+			}
+			normalizedReleaseType, err = releaseTypeForEarliestReleaseDate("versions update", normalizedReleaseType, *earliestReleaseDate)
+			if err != nil {
+				return err
 			}
 
 			// Check that at least one update field is provided
@@ -1114,6 +1122,20 @@ func normalizeAppStoreVersionReleaseType(value string) (string, error) {
 	default:
 		return "", fmt.Errorf("--release-type must be one of: MANUAL, AFTER_APPROVAL, SCHEDULED")
 	}
+}
+
+// releaseTypeForEarliestReleaseDate returns SCHEDULED when a date is given
+// without a release type, because App Store Connect ignores the date for any
+// other release type.
+func releaseTypeForEarliestReleaseDate(command, releaseType, earliestReleaseDate string) (string, error) {
+	if earliestReleaseDate == "" || releaseType == "SCHEDULED" {
+		return releaseType, nil
+	}
+	if releaseType != "" {
+		return "", shared.UsageErrorf("%s: --earliest-release-date requires --release-type SCHEDULED, got --release-type %s", command, releaseType)
+	}
+	fmt.Fprintln(os.Stderr, "Warning: release type set to SCHEDULED because --earliest-release-date was given")
+	return "SCHEDULED", nil
 }
 
 func normalizeAppStoreVersionReviewType(value string) (string, error) {
