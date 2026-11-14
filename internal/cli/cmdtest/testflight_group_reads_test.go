@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestTestFlightGroupReadsSendRequest(t *testing.T) {
@@ -69,20 +70,21 @@ func TestTestFlightGroupReadsSendRequest(t *testing.T) {
 			if body == "" {
 				body = `{"data":[],"links":{}}`
 			}
-			var captured *http.Request
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				captured = req
-				return okJSONResponse(body), nil
-			}))
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET(test.wantPath, strings.Split(test.wantQuery.Encode(), "&")...),
+				asctest.JSON(http.StatusOK, body))
 
 			stdout, stderr := captureOutput(t, func() {
 				if code := cmd.Run(append(test.args, "--output", "json"), "1.2.3"); code != cmd.ExitSuccess {
 					t.Fatalf("expected exit code %d, got %d", cmd.ExitSuccess, code)
 				}
 			})
-			if captured == nil {
+			requests := reg.Requests()
+			if len(requests) == 0 {
 				t.Fatalf("expected an outbound request, stderr %q", stderr)
 			}
+			captured := requests[len(requests)-1]
 			if captured.Method != http.MethodGet || captured.URL.Path != test.wantPath {
 				t.Fatalf("request = %s %s, want GET %s", captured.Method, captured.URL.Path, test.wantPath)
 			}
@@ -130,10 +132,7 @@ func TestTestFlightGroupReadsRejectUsage(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-				return nil, nil
-			}))
+			asctest.NewRegistry(t).Install()
 
 			stdout, stderr := captureOutput(t, func() {
 				if code := cmd.Run(test.args, "1.2.3"); code != cmd.ExitUsage {

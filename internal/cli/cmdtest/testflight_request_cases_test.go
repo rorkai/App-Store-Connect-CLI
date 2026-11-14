@@ -1,16 +1,14 @@
 package cmdtest
 
 import (
-	"encoding/json"
-	"io"
 	"net/http"
 	"net/url"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 type testFlightRequestCase struct {
@@ -39,25 +37,25 @@ func runTestFlightRequestCases(t *testing.T, tests []testFlightRequestCase) {
 			if status == 0 {
 				status = http.StatusOK
 			}
-			var requests []*http.Request
-			var bodies []string
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				payload := ""
-				if req.Body != nil {
-					data, err := io.ReadAll(req.Body)
-					if err != nil {
-						t.Fatalf("read body: %v", err)
-					}
-					payload = string(data)
-				}
-				requests = append(requests, req)
-				bodies = append(bodies, payload)
-				return &http.Response{
-					StatusCode: status,
-					Body:       io.NopCloser(strings.NewReader(test.respBody)),
-					Header:     http.Header{"Content-Type": []string{"application/json"}},
-				}, nil
-			}))
+			var query []string
+			if encoded := test.wantQuery.Encode(); encoded != "" {
+				query = strings.Split(encoded, "&")
+			}
+			matcher := asctest.GET(test.wantPath, query...)
+			switch test.wantMethod {
+			case http.MethodPost:
+				matcher = asctest.POST(test.wantPath, query...)
+			case http.MethodPatch:
+				matcher = asctest.PATCH(test.wantPath, query...)
+			case http.MethodDelete:
+				matcher = asctest.DELETE(test.wantPath, query...)
+			}
+			if test.wantBody != "" {
+				matcher = matcher.JSONBody(test.wantBody)
+			}
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(matcher, asctest.JSON(status, test.respBody))
 
 			stdout, stderr := captureOutput(t, func() {
 				if code := cmd.Run(test.args, "1.2.3"); code != cmd.ExitSuccess {
@@ -65,31 +63,12 @@ func runTestFlightRequestCases(t *testing.T, tests []testFlightRequestCase) {
 				}
 			})
 
+			requests := reg.Requests()
 			if len(requests) != 1 {
 				t.Fatalf("requests = %d, want 1", len(requests))
 			}
-			req := requests[0]
-			if req.Method != test.wantMethod || req.URL.Path != test.wantPath {
-				t.Fatalf("request = %s %s, want %s %s", req.Method, req.URL.Path, test.wantMethod, test.wantPath)
-			}
-			if got := req.URL.Query().Encode(); got != test.wantQuery.Encode() {
-				t.Fatalf("query = %q, want %q", got, test.wantQuery.Encode())
-			}
-			if test.wantBody == "" {
-				if bodies[0] != "" {
-					t.Fatalf("body = %s, want none", bodies[0])
-				}
-			} else {
-				var got, want any
-				if err := json.Unmarshal([]byte(bodies[0]), &got); err != nil {
-					t.Fatalf("decode body %q: %v", bodies[0], err)
-				}
-				if err := json.Unmarshal([]byte(test.wantBody), &want); err != nil {
-					t.Fatalf("decode wantBody: %v", err)
-				}
-				if !reflect.DeepEqual(got, want) {
-					t.Fatalf("body = %s, want %s", bodies[0], test.wantBody)
-				}
+			if test.wantBody == "" && len(requests[0].Body) != 0 {
+				t.Fatalf("body = %s, want none", requests[0].Body)
 			}
 			if test.wantStderr == "" && stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)

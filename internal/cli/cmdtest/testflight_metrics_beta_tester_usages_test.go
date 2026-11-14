@@ -1,12 +1,12 @@
 package cmdtest
 
 import (
-	"context"
-	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestTestFlightMetricsAppTestersValidationErrors(t *testing.T) {
@@ -53,36 +53,15 @@ func TestTestFlightMetricsAppTestersNextWithoutApp(t *testing.T) {
 
 	nextURL := "https://api.appstoreconnect.apple.com/v1/apps/app-123/metrics/betaTesterUsages?limit=2"
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.String() != nextURL {
-			t.Fatalf("expected URL %s, got %s", nextURL, req.URL.String())
-		}
-		body := `{"data":[{"id":"usage-1"}],"links":{"next":""}}`
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/app-123/metrics/betaTesterUsages", "limit=2"),
+		asctest.JSON(http.StatusOK, `{"data":[{"id":"usage-1"}],"links":{"next":""}}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"testflight", "metrics", "app-testers", "--next", nextURL}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"testflight", "metrics", "app-testers", "--next", nextURL})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -105,52 +84,17 @@ func TestTestFlightMetricsAppTestersPaginate(t *testing.T) {
 	firstURL := "https://api.appstoreconnect.apple.com/v1/apps/app-123/metrics/betaTesterUsages?limit=2"
 	secondURL := "https://api.appstoreconnect.apple.com/v1/apps/app-123/metrics/betaTesterUsages?page=2"
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/app-123/metrics/betaTesterUsages", "limit=2"),
+		asctest.JSON(http.StatusOK, `{"data":[{"id":"usage-1"}],"links":{"next":"`+secondURL+`"}}`))
+	reg.Register(asctest.GET("/v1/apps/app-123/metrics/betaTesterUsages", "page=2"),
+		asctest.JSON(http.StatusOK, `{"data":[{"id":"usage-2"}],"links":{"next":""}}`))
 
-	callCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		callCount++
-		switch callCount {
-		case 1:
-			if req.URL.String() != firstURL {
-				t.Fatalf("expected first URL %s, got %s", firstURL, req.URL.String())
-			}
-			body := `{"data":[{"id":"usage-1"}],"links":{"next":"` + secondURL + `"}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 2:
-			if req.URL.String() != secondURL {
-				t.Fatalf("expected second URL %s, got %s", secondURL, req.URL.String())
-			}
-			body := `{"data":[{"id":"usage-2"}],"links":{"next":""}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected request %d to %s", callCount, req.URL.String())
-			return nil, nil
-		}
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"testflight", "metrics", "app-testers", "--paginate", "--next", firstURL}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"testflight", "metrics", "app-testers", "--paginate", "--next", firstURL})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)

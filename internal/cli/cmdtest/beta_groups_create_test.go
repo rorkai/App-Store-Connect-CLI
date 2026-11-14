@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -20,64 +21,15 @@ func TestBetaGroupsCreateInternalSetsAttributeOnCreate(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.POST("/v1/betaGroups").JSONBody(`{"data":{"type":"betaGroups","attributes":{"name":"Internal Testers","isInternalGroup":true},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`),
+		asctest.JSON(http.StatusCreated, `{"data":{"type":"betaGroups","id":"bg-1","attributes":{"name":"Internal Testers","isInternalGroup":true}}}`))
 
-	callCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		callCount++
-		switch callCount {
-		case 1:
-			if req.Method != http.MethodPost {
-				t.Fatalf("expected POST, got %s", req.Method)
-			}
-			if req.URL.Path != "/v1/betaGroups" {
-				t.Fatalf("expected path /v1/betaGroups, got %s", req.URL.Path)
-			}
-			payload, err := io.ReadAll(req.Body)
-			if err != nil {
-				t.Fatalf("read body error: %v", err)
-			}
-			if !strings.Contains(string(payload), `"name":"Internal Testers"`) {
-				t.Fatalf("expected group name in body, got %s", string(payload))
-			}
-			if !strings.Contains(string(payload), `"isInternalGroup":true`) {
-				t.Fatalf("expected isInternalGroup=true in body, got %s", string(payload))
-			}
-			for _, field := range []string{"publicLinkEnabled", "publicLinkLimitEnabled", "publicLinkLimit"} {
-				if strings.Contains(string(payload), field) {
-					t.Fatalf("did not expect internal group create payload to include %s, got %s", field, string(payload))
-				}
-			}
-			if !strings.Contains(string(payload), `"type":"apps"`) || !strings.Contains(string(payload), `"id":"app-1"`) {
-				t.Fatalf("expected app relationship in body, got %s", string(payload))
-			}
-
-			body := `{"data":{"type":"betaGroups","id":"bg-1","attributes":{"name":"Internal Testers","isInternalGroup":true}}}`
-			return &http.Response{
-				StatusCode: http.StatusCreated,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected request count %d", callCount)
-			return nil, nil
-		}
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"testflight", "groups", "create", "--app", "app-1", "--name", "Internal Testers", "--internal"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"testflight", "groups", "create", "--app", "app-1", "--name", "Internal Testers", "--internal"})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -92,45 +44,15 @@ func TestBetaGroupsCreateWithoutInternalMakesOneCall(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.POST("/v1/betaGroups").JSONBody(`{"data":{"type":"betaGroups","attributes":{"name":"Beta"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`),
+		asctest.JSON(http.StatusCreated, `{"data":{"type":"betaGroups","id":"bg-2","attributes":{"name":"Beta"}}}`))
 
-	callCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		callCount++
-		switch callCount {
-		case 1:
-			if req.Method != http.MethodPost {
-				t.Fatalf("expected POST, got %s", req.Method)
-			}
-			if req.URL.Path != "/v1/betaGroups" {
-				t.Fatalf("expected path /v1/betaGroups, got %s", req.URL.Path)
-			}
-			body := `{"data":{"type":"betaGroups","id":"bg-2","attributes":{"name":"Beta"}}}`
-			return &http.Response{
-				StatusCode: http.StatusCreated,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected request count %d", callCount)
-			return nil, nil
-		}
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"testflight", "groups", "create", "--app", "app-1", "--name", "Beta"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"testflight", "groups", "create", "--app", "app-1", "--name", "Beta"})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -144,7 +66,7 @@ func TestBetaGroupsCreateSendsDistributionControls(t *testing.T) {
 	tests := []struct {
 		name           string
 		args           []string
-		wantAttributes []string
+		wantAttributes string
 	}{
 		{
 			name: "enabled",
@@ -156,13 +78,7 @@ func TestBetaGroupsCreateSendsDistributionControls(t *testing.T) {
 				"--public-link-limit", "250",
 				"--feedback-enabled",
 			},
-			wantAttributes: []string{
-				`"hasAccessToAllBuilds":true`,
-				`"publicLinkEnabled":true`,
-				`"publicLinkLimitEnabled":true`,
-				`"publicLinkLimit":250`,
-				`"feedbackEnabled":true`,
-			},
+			wantAttributes: `{"name":"Public Preview","hasAccessToAllBuilds":true,"publicLinkEnabled":true,"publicLinkLimitEnabled":true,"publicLinkLimit":250,"feedbackEnabled":true}`,
 		},
 		{
 			name: "explicit false",
@@ -174,13 +90,7 @@ func TestBetaGroupsCreateSendsDistributionControls(t *testing.T) {
 				"--public-link-limit-enabled=false",
 				"--feedback-enabled=false",
 			},
-			wantAttributes: []string{
-				`"isInternalGroup":false`,
-				`"hasAccessToAllBuilds":false`,
-				`"publicLinkEnabled":false`,
-				`"publicLinkLimitEnabled":false`,
-				`"feedbackEnabled":false`,
-			},
+			wantAttributes: `{"name":"Explicit Defaults","isInternalGroup":false,"hasAccessToAllBuilds":false,"publicLinkEnabled":false,"publicLinkLimitEnabled":false,"feedbackEnabled":false}`,
 		},
 	}
 
@@ -190,41 +100,20 @@ func TestBetaGroupsCreateSendsDistributionControls(t *testing.T) {
 			t.Setenv("ASC_APP_ID", "")
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-			callCount := 0
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				callCount++
-				if req.Method != http.MethodPost || req.URL.Path != "/v1/betaGroups" {
-					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-				}
-				payload, err := io.ReadAll(req.Body)
-				if err != nil {
-					t.Fatalf("read body error: %v", err)
-				}
-				body := string(payload)
-				for _, attribute := range test.wantAttributes {
-					if !strings.Contains(body, attribute) {
-						t.Fatalf("expected %s in body, got %s", attribute, body)
-					}
-				}
-				return jsonResponse(http.StatusCreated, `{"data":{"type":"betaGroups","id":"bg-3","attributes":{"name":"Public Preview"}}}`)
-			}))
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.POST("/v1/betaGroups").JSONBody(`{"data":{"type":"betaGroups","attributes":`+test.wantAttributes+`,"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`),
+				asctest.JSON(http.StatusCreated, `{"data":{"type":"betaGroups","id":"bg-3","attributes":{"name":"Public Preview"}}}`))
 
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			_, stderr := captureOutput(t, func() {
-				if err := root.Parse(append([]string{"testflight", "groups", "create", "--app", "app-1"}, test.args...)); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
+			_, stderr, err := runCommand(t, append([]string{"testflight", "groups", "create", "--app", "app-1"}, test.args...))
+			if err != nil {
+				t.Fatalf("run error: %v", err)
+			}
 
 			if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)
 			}
-			if callCount != 1 {
+			if callCount := len(reg.Requests()); callCount != 1 {
 				t.Fatalf("expected one create request, got %d", callCount)
 			}
 		})
@@ -236,15 +125,8 @@ func TestBetaGroupsCreateRejectsInternalPublicLinkControlsBeforeRequest(t *testi
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-	callCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		callCount++
-		return nil, errors.New("unexpected request")
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
 
 	tests := []struct {
 		name string
@@ -280,7 +162,7 @@ func TestBetaGroupsCreateRejectsInternalPublicLinkControlsBeforeRequest(t *testi
 			if !strings.Contains(stderr, "--internal cannot be combined with public link controls") {
 				t.Fatalf("expected conflict diagnostic, got %q", stderr)
 			}
-			if callCount != 0 {
+			if callCount := len(reg.Requests()); callCount != 0 {
 				t.Fatalf("expected no requests, got %d", callCount)
 			}
 		})
@@ -292,14 +174,7 @@ func TestBetaGroupsCreateRejectsInvalidPublicLinkLimitBeforeRequest(t *testing.T
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-		return nil, nil
-	})
+	asctest.NewRegistry(t).Install()
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -329,7 +204,7 @@ func TestBetaGroupsCreateRejectsInvalidPublicLinkLimitBeforeRequest(t *testing.T
 	}
 }
 
-func createRequestRelationships(t *testing.T, req *http.Request) string {
+func createRequestRelationships(t *testing.T, body []byte) string {
 	t.Helper()
 
 	var payload struct {
@@ -337,7 +212,7 @@ func createRequestRelationships(t *testing.T, req *http.Request) string {
 			Relationships json.RawMessage `json:"relationships"`
 		} `json:"data"`
 	}
-	if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+	if err := json.Unmarshal(body, &payload); err != nil {
 		t.Fatalf("decode body error: %v", err)
 	}
 	return string(payload.Data.Relationships)
@@ -347,11 +222,6 @@ func TestBetaGroupsCreateSendsRelationshipsInOneRequest(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
 
 	const app = `"app":{"data":{"type":"apps","id":"app-1"}}`
 	tests := []struct {
@@ -382,32 +252,28 @@ func TestBetaGroupsCreateSendsRelationshipsInOneRequest(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			callCount := 0
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				if req.Method == http.MethodGet && req.URL.Path == "/v1/betaGroups" && len(test.args) > 0 {
-					return &http.Response{
-						StatusCode: http.StatusOK,
-						Body:       io.NopCloser(strings.NewReader(`{"data":[],"links":{}}`)),
-						Header:     http.Header{"Content-Type": []string{"application/json"}},
-					}, nil
-				}
-				callCount++
-				if req.Method != http.MethodPost || req.URL.Path != "/v1/betaGroups" {
-					t.Fatalf("unexpected request %s %s", req.Method, req.URL.Path)
-				}
-				if got := createRequestRelationships(t, req); got != test.want {
-					t.Fatalf("relationships = %s, want %s", got, test.want)
-				}
-				return &http.Response{
-					StatusCode: http.StatusCreated,
-					Body:       io.NopCloser(strings.NewReader(`{"data":{"type":"betaGroups","id":"bg-1","attributes":{"name":"Beta"}}}`)),
-					Header:     http.Header{"Content-Type": []string{"application/json"}},
-				}, nil
-			})
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			if len(test.args) > 0 {
+				reg.Register(asctest.GET("/v1/betaGroups", "filter[app]=app-1", "filter[name]=Beta", "limit=200"),
+					asctest.JSON(http.StatusOK, `{"data":[],"links":{}}`))
+			}
+			reg.Register(asctest.POST("/v1/betaGroups").JSONBody(`{"data":{"type":"betaGroups","attributes":{"name":"Beta"},"relationships":`+test.want+`}}`),
+				asctest.JSON(http.StatusCreated, `{"data":{"type":"betaGroups","id":"bg-1","attributes":{"name":"Beta"}}}`))
 
 			args := append([]string{"testflight", "groups", "create", "--app", "app-1", "--name", "Beta"}, test.args...)
 			if _, _, err := runCommand(t, args); err != nil {
 				t.Fatalf("run error: %v", err)
+			}
+			callCount := 0
+			for _, req := range reg.Requests() {
+				if req.Method != http.MethodPost {
+					continue
+				}
+				callCount++
+				if got := createRequestRelationships(t, req.Body); got != test.want {
+					t.Fatalf("relationships = %s, want %s", got, test.want)
+				}
 			}
 			if callCount != 1 {
 				t.Fatalf("expected one create request, got %d", callCount)
@@ -423,11 +289,6 @@ func TestBetaGroupsCreateFailureWithRelationshipsReportsPartialCreate(t *testing
 	setupAuth(t)
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
 
 	const (
 		notFound  = `{"errors":[{"status":"404","code":"NOT_FOUND","title":"The specified resource does not exist","detail":"There is no resource of type 'builds' with id 'missing-build'"}]}`
@@ -515,41 +376,26 @@ func TestBetaGroupsCreateFailureWithRelationshipsReportsPartialCreate(t *testing
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			gets, posts := 0, 0
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				if req.URL.Path != "/v1/betaGroups" {
-					t.Fatalf("unexpected request %s %s", req.Method, req.URL.Path)
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			wantBefore := max(test.getsBefore, 1)
+			for index, lookup := range test.lookups {
+				if index == wantBefore {
+					registerBetaGroupsCreateWithRelationships(reg, test.createStatus, test.createBody)
 				}
-				status, body := test.createStatus, test.createBody
-				switch req.Method {
-				case http.MethodPost:
-					posts++
-					wantBefore := max(test.getsBefore, 1)
-					if gets != wantBefore {
-						t.Errorf("expected %d lookups before the create, got %d", wantBefore, gets)
-					}
-				case http.MethodGet:
-					if gets >= len(test.lookups) {
-						t.Fatalf("unexpected lookup %d", gets+1)
-					}
-					query := req.URL.Query()
-					if query.Get("filter[app]") != "app-1" || query.Get("filter[name]") != "Beta" {
-						t.Fatalf("unexpected lookup query %s", req.URL.RawQuery)
-					}
-					status, body = http.StatusOK, test.lookups[gets]
-					if body == "" {
-						status, body = http.StatusInternalServerError, serverErr
-					}
-					gets++
-				default:
-					t.Fatalf("unexpected request %s %s", req.Method, req.URL.Path)
+				query := []string{"filter[app]=app-1", "filter[name]=Beta", "limit=200"}
+				if index > 0 && test.lookups[index-1] == oldPaged {
+					query = []string{"filter[app]=app-1", "filter[name]=Beta", "cursor=2"}
 				}
-				return &http.Response{
-					StatusCode: status,
-					Body:       io.NopCloser(strings.NewReader(body)),
-					Header:     http.Header{"Content-Type": []string{"application/json"}},
-				}, nil
-			})
+				status, body := http.StatusOK, lookup
+				if body == "" {
+					status, body = http.StatusInternalServerError, serverErr
+				}
+				reg.Register(asctest.GET("/v1/betaGroups", query...), asctest.JSON(status, body))
+			}
+			if len(test.lookups) == wantBefore {
+				registerBetaGroupsCreateWithRelationships(reg, test.createStatus, test.createBody)
+			}
 
 			_, _, err := runCommand(t, []string{
 				"testflight", "groups", "create", "--app", "app-1", "--name", "Beta",
@@ -571,9 +417,26 @@ func TestBetaGroupsCreateFailureWithRelationshipsReportsPartialCreate(t *testing
 					t.Errorf("error should not contain %q:\n%s", notWant, err)
 				}
 			}
+			gets, posts := 0, 0
+			for _, req := range reg.Requests() {
+				switch req.Method {
+				case http.MethodPost:
+					posts++
+					if gets != wantBefore {
+						t.Errorf("expected %d lookups before the create, got %d", wantBefore, gets)
+					}
+				case http.MethodGet:
+					gets++
+				}
+			}
 			if posts != 1 || gets != test.wantGets {
 				t.Fatalf("got %d creates and %d lookups, want 1 and %d", posts, gets, test.wantGets)
 			}
 		})
 	}
+}
+
+func registerBetaGroupsCreateWithRelationships(reg *asctest.Registry, status int, body string) {
+	reg.Register(asctest.POST("/v1/betaGroups").JSONBody(`{"data":{"type":"betaGroups","attributes":{"name":"Beta"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}},"builds":{"data":[{"type":"builds","id":"missing-build"}]},"betaTesters":{"data":[{"type":"betaTesters","id":"tester-1"}]}}}}`),
+		asctest.JSON(status, body))
 }
