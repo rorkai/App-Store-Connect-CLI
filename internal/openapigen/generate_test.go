@@ -50,13 +50,23 @@ func TestBindingsEncodeIsCanonical(t *testing.T) {
 	}
 }
 
-func TestLoadBindingsRejectsTagThatDiffersFromFileName(t *testing.T) {
+func TestLoadBindingsRejects(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "Gadgets.json"), []byte(`{"tag": "Widgets", "file": "widgets_gen.go"}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := LoadBindings(dir); err == nil || !strings.Contains(err.Error(), "Gadgets.json") {
-		t.Fatalf("err = %v", err)
+	tests := []struct {
+		name, path, want string
+	}{
+		{"a tag that differs from its file name", dir, "must be named Widgets.json"},
+		{"a file instead of a directory", filepath.Join(dir, "Gadgets.json"), "not a directory"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if _, err := LoadBindings(tt.path); err == nil || !strings.Contains(err.Error(), tt.want) {
+				t.Fatalf("err = %v, want it to contain %q", err, tt.want)
+			}
+		})
 	}
 }
 

@@ -49,8 +49,12 @@ type OpBind struct {
 	IDs         string   `json:"ids,omitempty"`         // ID list parameter of a relationship change
 }
 
-// LoadBindings reads every family file in a bindings directory.
+// LoadBindings reads every family file in a bindings directory. A missing
+// directory holds no families.
 func LoadBindings(dir string) (*Bindings, error) {
+	if info, err := os.Stat(dir); err == nil && !info.IsDir() {
+		return nil, fmt.Errorf("bindings %s is not a directory", dir)
+	}
 	paths, err := filepath.Glob(filepath.Join(dir, "*.json"))
 	if err != nil {
 		return nil, err
