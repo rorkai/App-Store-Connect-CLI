@@ -11,7 +11,7 @@
   ],
   "operations": [
     {"operation":"betaGroups_app_getToOneRelated","name":"GetBetaGroupApp","params":["groupID"],"check":"require","response":"AppResponse"},
-    {"operation":"betaGroups_betaRecruitmentCriteria_getToOneRelated","name":"GetBetaGroupBetaRecruitmentCriteria","params":["groupID"],"check":"require","response":"BetaRecruitmentCriteriaResponse"},
+    {"operation":"betaGroups_betaRecruitmentCriteria_getToOneRelated","name":"GetBetaGroupBetaRecruitmentCriteria","params":["groupID"],"check":"require","response":"BetaRecruitmentCriteriaResponse","deviations":[{"problem":"result data holds asc.BetaRecruitmentCriteriaAttributes, not the attributes of resource BetaRecruitmentCriterion","reason":"BetaRecruitmentCriteriaAttributes is the hand-written attributes type of BetaRecruitmentCriterion, named in the plural; the attribute names check above passes for it."}]},
     {"operation":"betaGroups_betaRecruitmentCriterionCompatibleBuildCheck_getToOneRelated","name":"GetBetaGroupBetaRecruitmentCriterionCompatibleBuildCheck","params":["groupID"],"check":"require"},
     {"operation":"betaGroups_betaTesters_getToManyRelated","name":"GetBetaGroupTesters","params":["groupID"],"check":"raw","options":"BetaGroupTestersOption","query":"buildBetaGroupTestersQuery","nextContext":"betaGroupTesters","response":"BetaTestersResponse"},
     {"operation":"betaGroups_builds_getToManyRelated","name":"GetBetaGroupBuilds","params":["groupID"],"check":"raw","options":"BetaGroupBuildsOption","query":"buildBetaGroupBuildsQuery","nextContext":"betaGroupBuilds","response":"BuildsResponse"},

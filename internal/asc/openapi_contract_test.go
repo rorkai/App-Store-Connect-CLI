@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"slices"
 	"sort"
 	"strconv"
@@ -87,9 +88,10 @@ const contractResourceID = "resource-1"
 // defines, or one data item with every property when the data is not a
 // resource.
 type contractResponse struct {
-	status   int
-	body     string
-	resource *contractSchema // nil for a response without a document
+	status       int
+	body         string
+	resource     *contractSchema // nil for a response without a document
+	resourceName string          // schema name of the resource; empty when defined inline
 }
 
 // isResource reports whether the response's data item is a resource with an
@@ -108,11 +110,11 @@ func (op *contractOperation) response(spec *contractSpec) (contractResponse, err
 		if data == nil {
 			return contractResponse{}, fmt.Errorf("response %d has no data", status)
 		}
-		resource := data
+		resource, ref := data, schema.Properties["data"].Ref
 		if data.Type == "array" {
-			resource = spec.resolve(data.Items)
+			resource, ref = spec.resolve(data.Items), data.Items.Ref
 		}
-		response := contractResponse{status: status, resource: resource}
+		response := contractResponse{status: status, resource: resource, resourceName: strings.TrimPrefix(ref, "#/components/schemas/")}
 		item := spec.sample(resource)
 		if response.isResource() {
 			resourceItem := map[string]any{"id": contractResourceID}
@@ -357,6 +359,7 @@ type contractCall struct {
 	pathArgs []string
 	ids      []string
 	attrs    []byte       // JSON of the attributes argument, if any
+	attrsArg reflect.Type // type of the attributes argument, if any
 	query    reflect.Type // the options' func type; nil without options
 }
 
@@ -398,7 +401,7 @@ func newContractCall(name string, typ reflect.Type, b *contractOpBinding) (*cont
 			if err != nil {
 				return nil, err
 			}
-			c.attrs = attrs
+			c.attrs, c.attrsArg = attrs, in
 			c.args = append(c.args, value)
 		default:
 			return nil, fmt.Errorf("parameter %d has type %s", i, in)
@@ -634,7 +637,46 @@ func checkContractResult(spec *contractSpec, result any, response contractRespon
 	}
 	var attrs map[string]json.RawMessage
 	_ = json.Unmarshal(got["attributes"], &attrs)
-	return compareContractNames(fmt.Sprintf("result %T has attributes", result), "the schema's resource has", attrs, spec.property(want, "attributes"))
+	problems := compareContractNames(fmt.Sprintf("result %T has attributes", result), "the schema's resource has", attrs, spec.property(want, "attributes"))
+	return append(problems, checkContractResultType(reflect.TypeOf(result), response)...)
+}
+
+// contractVersionSuffix is the version suffix of a resource schema name, such
+// as the V2 of GameCenterLeaderboardV2.
+var contractVersionSuffix = regexp.MustCompile(`V[0-9]+$`)
+
+// checkContractResultType checks that the result's data items are the
+// response's resource by name, as the generator names them: the attributes of
+// resource R are type RAttributes. Hand-written types may differ in case or
+// leave out a version suffix. Attribute names alone cannot tell two resources
+// apart when both have the same names, or when a type keeps whatever
+// attributes it decodes. Linkages carry no attributes, so their items must
+// have none.
+func checkContractResultType(result reflect.Type, response contractResponse) []string {
+	data, ok := result.Elem().FieldByName("Data")
+	if !ok {
+		return []string{fmt.Sprintf("result %s has no Data field", result)}
+	}
+	item := data.Type
+	for item.Kind() == reflect.Slice || item.Kind() == reflect.Pointer {
+		item = item.Elem()
+	}
+	attrs, hasAttrs := item.FieldByName("Attributes")
+	if response.resourceName == "" {
+		if hasAttrs {
+			return []string{fmt.Sprintf("result data %s has attributes, the response holds linkages", item)}
+		}
+		return nil
+	}
+	name, holds := item.Name(), item.String()
+	if hasAttrs && attrs.Type.Name() != "" {
+		name, holds = strings.TrimSuffix(attrs.Type.Name(), "Attributes"), attrs.Type.String()
+	}
+	want := response.resourceName
+	if !strings.EqualFold(name, want) && !strings.EqualFold(name, contractVersionSuffix.ReplaceAllString(want, "")) {
+		return []string{fmt.Sprintf("result data holds %s, not the attributes of resource %s", holds, want)}
+	}
+	return nil
 }
 
 func compareContractNames(gotLabel, wantLabel string, values map[string]json.RawMessage, schema *contractSchema) []string {
@@ -731,6 +773,71 @@ func checkContractBody(spec *contractSpec, op *contractOperation, body []byte, c
 	}
 	if call.attrs != nil && !jsonEqual(data["attributes"], call.attrs) {
 		problems = append(problems, fmt.Sprintf("data.attributes is %s, the attributes argument was %s", data["attributes"], call.attrs))
+	}
+	if call.attrsArg != nil {
+		problems = append(problems, checkContractAttributeFields(call.attrsArg, spec.property(dataSchema, "attributes"))...)
+	}
+	return problems
+}
+
+// checkContractAttributeFields sets one field of the attributes type at a
+// time and checks that it changes exactly one attribute, named like the field,
+// and that together the fields can send every attribute the schema defines. A
+// field that is never encoded, such as one tagged json:"-", fails here; the
+// comparison of the body with the argument's JSON cannot see it.
+func checkContractAttributeFields(typ reflect.Type, schema *contractSchema) []string {
+	encode := func(v reflect.Value) (map[string]json.RawMessage, error) {
+		data, err := json.Marshal(v.Interface())
+		if err != nil {
+			return nil, err
+		}
+		var values map[string]json.RawMessage
+		return values, json.Unmarshal(data, &values)
+	}
+	zero, err := encode(reflect.New(typ).Elem())
+	if err != nil {
+		return []string{fmt.Sprintf("cannot encode an empty %s: %v", typ, err)}
+	}
+	var problems []string
+	sent := map[string]bool{}
+	for i := range typ.NumField() {
+		field := typ.Field(i)
+		value := reflect.New(typ).Elem()
+		if err := fillContractValue(value.Field(i), typ.Name()+"."+field.Name); err != nil {
+			return []string{err.Error()}
+		}
+		values, err := encode(value)
+		if err != nil {
+			return []string{fmt.Sprintf("cannot encode %s with only %s set: %v", typ, field.Name, err)}
+		}
+		var changed []string
+		for name, v := range values {
+			if !jsonEqual(v, zero[name]) {
+				changed = append(changed, name)
+			}
+		}
+		sort.Strings(changed)
+		switch {
+		case len(changed) != 1:
+			problems = append(problems, fmt.Sprintf("setting %s.%s sends attributes %v, want one", typ.Name(), field.Name, changed))
+		case !strings.EqualFold(changed[0], field.Name):
+			problems = append(problems, fmt.Sprintf("setting %s.%s sends attribute %q, not the one named like the field", typ.Name(), field.Name, changed[0]))
+		}
+		for _, name := range changed {
+			sent[name] = true
+		}
+	}
+	var unsent []string
+	if schema != nil {
+		for name := range schema.Properties {
+			if !sent[name] {
+				unsent = append(unsent, name)
+			}
+		}
+	}
+	sort.Strings(unsent)
+	if len(unsent) > 0 {
+		problems = append(problems, fmt.Sprintf("%s has no field that sends %v, which the schema defines", typ.Name(), unsent))
 	}
 	return problems
 }
