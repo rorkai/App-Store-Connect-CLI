@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -93,7 +94,9 @@ func parseDeliverfileReader(path string, reader io.Reader) (DeliverfileConfig, e
 			}
 			config.SkipScreenshots = parsed
 		default:
-			config.IgnoredKeys = append(config.IgnoredKeys, IgnoredConfigKey{Key: key, Value: value, Line: lineNumber})
+			if slices.Contains(unappliedConfigKeys, key) {
+				config.IgnoredKeys = append(config.IgnoredKeys, IgnoredConfigKey{Key: key, Value: value, Line: lineNumber})
+			}
 		}
 	}
 
@@ -234,6 +237,29 @@ func parseDeliverfileBool(path string, line int, key, value string) (bool, error
 
 func deliverfileLineError(path string, line int, message string) error {
 	return fmt.Errorf("deliverfile %s line %d: %s", filepath.Base(path), line, message)
+}
+
+// unappliedConfigKeys are the configuration file options that import
+// recognises and does not apply. Any other line is ordinary script syntax
+// (a condition, an assignment, a field inside a multi-line value) and is not
+// reported.
+var unappliedConfigKeys = []string{
+	"api_key_path", "api_key", "username", "ipa", "pkg", "build_number", "edit_live", "use_live_version",
+	"app_clip_header_images_path", "app_clip_default_experience_metadata_path", "app_previews_path",
+	"preview_frame_time_code", "overwrite_preview_videos", "skip_binary_upload", "skip_app_version_update",
+	"force", "overwrite_screenshots", "screenshot_processing_timeout", "sync_screenshots", "submit_for_review",
+	"verify_only", "reject_if_possible", "version_check_wait_retry_limit", "automatic_release",
+	"auto_release_date", "phased_release", "reset_ratings", "price_tier", "app_rating_config_path",
+	"submission_information", "team_id", "team_name", "dev_portal_team_id", "dev_portal_team_name",
+	"itc_provider", "provider_public_id", "run_precheck_before_submit", "precheck_default_rule_level",
+	"individual_metadata_items", "app_icon", "apple_watch_app_icon", "copyright", "primary_category",
+	"secondary_category", "primary_first_sub_category", "primary_second_sub_category",
+	"secondary_first_sub_category", "secondary_second_sub_category", "trade_representative_contact_information",
+	"app_review_information", "app_clip_review_information", "app_review_attachment_file",
+	"routing_app_coverage_file", "description", "name", "subtitle", "keywords", "promotional_text",
+	"release_notes", "privacy_url", "apple_tv_privacy_policy", "support_url", "marketing_url", "languages",
+	"ignore_language_directory_validation", "precheck_include_in_app_purchases",
+	"app_clip_default_experience_subtitle", "app_clip_default_experience_action",
 }
 
 func ignoredConfigKeyItems(path string, keys []IgnoredConfigKey) []SkippedItem {
