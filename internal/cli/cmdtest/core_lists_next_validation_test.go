@@ -89,6 +89,7 @@ type paginateFromNextCase struct {
 	wantStderr string
 	env        map[string]string
 	singlePage bool // run without --paginate and expect only the first page
+	deps       bool // the command is built on shared.Deps: stub its client and read its deps streams
 }
 
 // runPaginateFromNextCases runs each command with --paginate --next firstURL
@@ -120,12 +121,8 @@ func runPaginateFromNextCases(t *testing.T, cases []paginateFromNextCase) {
 				args = append(append([]string{}, tc.args...), "--next", tc.firstURL)
 			}
 
-			originalTransport := http.DefaultTransport
-			t.Cleanup(func() {
-				http.DefaultTransport = originalTransport
-			})
 			requestCount := 0
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
 				if requestCount >= len(pages) {
 					t.Fatalf("unexpected extra request: %s %s", req.Method, req.URL.String())
 				}
@@ -141,17 +138,32 @@ func runPaginateFromNextCases(t *testing.T, cases []paginateFromNextCase) {
 				}, nil
 			})
 
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
+			var stdout, stderr string
+			if tc.deps {
+				var runErr error
+				stdout, stderr, runErr = runRootWithDeps(t, stubClient(t, transport), args...)
+				if runErr != nil {
+					t.Fatalf("run error: %v", runErr)
+				}
+			} else {
+				originalTransport := http.DefaultTransport
+				t.Cleanup(func() {
+					http.DefaultTransport = originalTransport
+				})
+				http.DefaultTransport = transport
 
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
+				root := RootCommand("1.2.3")
+				root.FlagSet.SetOutput(io.Discard)
+
+				stdout, stderr = captureOutput(t, func() {
+					if err := root.Parse(args); err != nil {
+						t.Fatalf("parse error: %v", err)
+					}
+					if err := root.Run(context.Background()); err != nil {
+						t.Fatalf("run error: %v", err)
+					}
+				})
+			}
 
 			if stderr != tc.wantStderr {
 				t.Fatalf("stderr = %q, want %q", stderr, tc.wantStderr)
@@ -204,6 +216,7 @@ func TestCoreListsPaginateFromNext(t *testing.T) {
 			args:     []string{"actors", "list"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/actors?cursor=AQ&limit=200",
 			dataType: "actors",
+			deps:     true,
 		},
 		{
 			args:     []string{"android-ios-mapping", "list", "--app", "app-1"},
