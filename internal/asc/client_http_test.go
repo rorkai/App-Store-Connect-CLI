@@ -200,7 +200,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetSubscriptionOfferCodeCustomCodes",
 			next: "https://api.appstoreconnect.apple.com/v1/subscriptionOfferCodes/123/customCodes?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetSubscriptionOfferCodeCustomCodes(ctx, "123", WithSubscriptionOfferCodeCustomCodesNextURL(next))
+				_, err := c.GetSubscriptionOfferCodeCustomCodes(ctx, "123", NextURL[SubscriptionOfferCodeCustomCodesOption](next))
 				return err
 			},
 		},
@@ -208,7 +208,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetSubscriptionOfferCodePrices",
 			next: "https://api.appstoreconnect.apple.com/v1/subscriptionOfferCodes/123/prices?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetSubscriptionOfferCodePrices(ctx, "123", WithSubscriptionOfferCodePricesNextURL(next))
+				_, err := c.GetSubscriptionOfferCodePrices(ctx, "123", NextURL[SubscriptionOfferCodePricesOption](next))
 				return err
 			},
 		},
@@ -304,7 +304,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetInAppPurchasesV2",
 			next: "https://api.appstoreconnect.apple.com/v1/apps/123/inAppPurchasesV2?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetInAppPurchasesV2(ctx, "123", WithIAPNextURL(next))
+				_, err := c.GetInAppPurchasesV2(ctx, "123", NextURL[IAPOption](next))
 				return err
 			},
 		},
@@ -312,7 +312,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetInAppPurchases",
 			next: "https://api.appstoreconnect.apple.com/v1/apps/123/inAppPurchases?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetInAppPurchases(ctx, "123", WithIAPNextURL(next))
+				_, err := c.GetInAppPurchases(ctx, "123", NextURL[IAPOption](next))
 				return err
 			},
 		},
@@ -336,7 +336,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetSubscriptionGroups",
 			next: "https://api.appstoreconnect.apple.com/v1/apps/app-1/subscriptionGroups?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetSubscriptionGroups(ctx, "app-1", WithSubscriptionGroupsNextURL(next))
+				_, err := c.GetSubscriptionGroups(ctx, "app-1", NextURL[SubscriptionGroupsOption](next))
 				return err
 			},
 		},
@@ -992,7 +992,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			path:  "/v1/apps/123/inAppPurchasesV2",
 			query: map[string]string{"limit": "10"},
 			body:  `{"data":[{"type":"inAppPurchases","id":"iap-1","attributes":{"name":"Pro","productId":"com.example.pro","inAppPurchaseType":"CONSUMABLE"}}]}`,
-			call:  func(c *Client) error { return discardResult(c.GetInAppPurchasesV2(ctx, "123", WithIAPLimit(10))) },
+			call:  func(c *Client) error { return discardResult(c.GetInAppPurchasesV2(ctx, "123", Limit[IAPOption](10))) },
 		},
 		{
 			name:  "GetInAppPurchasesV2_WithProductIDAndNameFilters",
@@ -1019,7 +1019,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 					"123",
 					WithIAPProductIDs([]string{"com.example.pro"}),
 					WithIAPNames([]string{"Pro"}),
-					WithIAPNextURL("https://api.appstoreconnect.apple.com/v1/apps/123/inAppPurchasesV2?cursor=abc"),
+					NextURL[IAPOption]("https://api.appstoreconnect.apple.com/v1/apps/123/inAppPurchasesV2?cursor=abc"),
 				))
 			},
 		},
@@ -1035,7 +1035,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			path:  "/v1/apps/123/inAppPurchases",
 			query: map[string]string{"limit": "10"},
 			body:  `{"data":[{"type":"inAppPurchases","id":"iap-1","attributes":{"referenceName":"Pro","productId":"com.example.pro","inAppPurchaseType":"CONSUMABLE"}}]}`,
-			call:  func(c *Client) error { return discardResult(c.GetInAppPurchases(ctx, "123", WithIAPLimit(10))) },
+			call:  func(c *Client) error { return discardResult(c.GetInAppPurchases(ctx, "123", Limit[IAPOption](10))) },
 		},
 		{
 			name: "GetMerchantIDs_WithFilters",
@@ -1144,7 +1144,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "5"},
 			body:  `{"data":[{"type":"inAppPurchaseLocalizations","id":"loc-1","attributes":{"name":"Pro","locale":"en-US"}}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetInAppPurchaseLocalizations(ctx, "iap-1", WithIAPLocalizationsLimit(5)))
+				return discardResult(c.GetInAppPurchaseLocalizations(ctx, "iap-1", Limit[IAPLocalizationsOption](5)))
 			},
 		},
 		{
@@ -1153,7 +1153,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "20"},
 			body:  `{"data":[{"type":"subscriptionGroups","id":"group-1","attributes":{"referenceName":"Premium"}}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetSubscriptionGroups(ctx, "app-1", WithSubscriptionGroupsLimit(20)))
+				return discardResult(c.GetSubscriptionGroups(ctx, "app-1", Limit[SubscriptionGroupsOption](20)))
 			},
 		},
 		{
@@ -1162,7 +1162,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "5"},
 			body:  `{"data":[{"type":"subscriptions","id":"sub-1","attributes":{"name":"Monthly","productId":"com.example.sub.monthly"}}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetSubscriptions(ctx, "group-1", WithSubscriptionsLimit(5)))
+				return discardResult(c.GetSubscriptions(ctx, "group-1", Limit[SubscriptionsOption](5)))
 			},
 		},
 		{
@@ -1190,7 +1190,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 					"group-1",
 					WithSubscriptionsProductIDs([]string{"com.example.sub.monthly"}),
 					WithSubscriptionsNames([]string{"Monthly"}),
-					WithSubscriptionsNextURL("https://api.appstoreconnect.apple.com/v1/subscriptionGroups/group-1/subscriptions?cursor=abc"),
+					NextURL[SubscriptionsOption]("https://api.appstoreconnect.apple.com/v1/subscriptionGroups/group-1/subscriptions?cursor=abc"),
 				))
 			},
 		},

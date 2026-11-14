@@ -201,7 +201,7 @@ func iapVersionQueryOptions(stateValue, includeValue string, limit, imagesLimit,
 	return []asc.IAPVersionsOption{
 		asc.WithIAPVersionsStates(states),
 		asc.WithIAPVersionsInclude(include),
-		asc.WithIAPVersionsLimit(limit),
+		asc.Limit[asc.IAPVersionsOption](limit),
 		asc.WithIAPVersionsImagesLimit(imagesLimit),
 		asc.WithIAPVersionsLocalizationsLimit(localizationsLimit),
 		asc.WithIAPVersionsNextURL(next),

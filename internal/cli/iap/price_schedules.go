@@ -421,19 +421,19 @@ Examples:
 			}
 
 			opts := []asc.IAPPriceSchedulePricesOption{
-				asc.WithIAPPriceSchedulePricesLimit(*limit),
-				asc.WithIAPPriceSchedulePricesNextURL(*next),
+				asc.Limit[asc.IAPPriceSchedulePricesOption](*limit),
+				asc.NextURL[asc.IAPPriceSchedulePricesOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithIAPPriceSchedulePricesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.IAPPriceSchedulePricesOption](200))
 				firstPage, err := client.GetInAppPurchasePriceScheduleManualPrices(requestCtx, id, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("iap pricing schedules manual-prices: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetInAppPurchasePriceScheduleManualPrices(ctx, id, asc.WithIAPPriceSchedulePricesNextURL(nextURL))
+					return client.GetInAppPurchasePriceScheduleManualPrices(ctx, id, asc.NextURL[asc.IAPPriceSchedulePricesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("iap pricing schedules manual-prices: %w", err)
@@ -510,19 +510,19 @@ Examples:
 			}
 
 			opts := []asc.IAPPriceSchedulePricesOption{
-				asc.WithIAPPriceSchedulePricesLimit(*limit),
-				asc.WithIAPPriceSchedulePricesNextURL(*next),
+				asc.Limit[asc.IAPPriceSchedulePricesOption](*limit),
+				asc.NextURL[asc.IAPPriceSchedulePricesOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithIAPPriceSchedulePricesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.IAPPriceSchedulePricesOption](200))
 				firstPage, err := client.GetInAppPurchasePriceScheduleAutomaticPrices(requestCtx, id, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("iap pricing schedules automatic-prices: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetInAppPurchasePriceScheduleAutomaticPrices(ctx, id, asc.WithIAPPriceSchedulePricesNextURL(nextURL))
+					return client.GetInAppPurchasePriceScheduleAutomaticPrices(ctx, id, asc.NextURL[asc.IAPPriceSchedulePricesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("iap pricing schedules automatic-prices: %w", err)

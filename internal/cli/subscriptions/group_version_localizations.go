@@ -59,7 +59,7 @@ func subscriptionGroupVersionLocalizationOptions(includeValue, fieldsValue, vers
 		asc.WithSubscriptionGroupVersionLocalizationsInclude(include),
 		asc.WithSubscriptionGroupVersionLocalizationsFields(fields),
 		asc.WithSubscriptionGroupVersionLocalizationsVersionFields(versionFields),
-		asc.WithSubscriptionGroupVersionLocalizationsLimit(limit),
+		asc.Limit[asc.SubscriptionGroupVersionLocalizationsOption](limit),
 		asc.WithSubscriptionGroupVersionLocalizationsNextURL(next),
 	}, nil
 }

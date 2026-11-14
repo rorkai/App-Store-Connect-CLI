@@ -182,8 +182,8 @@ Examples:
 			defer cancel()
 
 			opts := []asc.SubscriptionGroupsOption{
-				asc.WithSubscriptionGroupsLimit(*limit),
-				asc.WithSubscriptionGroupsNextURL(*next),
+				asc.Limit[asc.SubscriptionGroupsOption](*limit),
+				asc.NextURL[asc.SubscriptionGroupsOption](*next),
 				asc.WithSubscriptionGroupsInclude(includes),
 				asc.WithSubscriptionGroupsFields(groupFields),
 				asc.WithSubscriptionGroupsVersionFields(includedVersionFields),
@@ -193,14 +193,14 @@ Examples:
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithSubscriptionGroupsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.SubscriptionGroupsOption](200))
 				firstPage, err := client.GetSubscriptionGroups(requestCtx, resolvedAppID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("subscriptions groups list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetSubscriptionGroups(ctx, resolvedAppID, asc.WithSubscriptionGroupsNextURL(nextURL))
+					return client.GetSubscriptionGroups(ctx, resolvedAppID, asc.NextURL[asc.SubscriptionGroupsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("subscriptions groups list: %w", err)
@@ -564,8 +564,8 @@ Examples:
 			}
 
 			opts := []asc.SubscriptionsOption{
-				asc.WithSubscriptionsLimit(*limit),
-				asc.WithSubscriptionsNextURL(nextURL),
+				asc.Limit[asc.SubscriptionsOption](*limit),
+				asc.NextURL[asc.SubscriptionsOption](nextURL),
 				asc.WithSubscriptionsFields(fieldValues),
 				asc.WithSubscriptionsVersionFields(versionFieldValues),
 				asc.WithSubscriptionsRelatedFields(relatedFieldValues),
@@ -574,14 +574,14 @@ Examples:
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithSubscriptionsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.SubscriptionsOption](200))
 				firstPage, err := client.GetSubscriptions(requestCtx, id, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("subscriptions list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetSubscriptions(ctx, id, asc.WithSubscriptionsNextURL(nextURL))
+					return client.GetSubscriptions(ctx, id, asc.NextURL[asc.SubscriptionsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("subscriptions list: %w", err)
@@ -605,14 +605,14 @@ func listSubscriptionsForApp(ctx context.Context, client *asc.Client, appID stri
 	if pageLimit == 0 {
 		pageLimit = 200
 	}
-	groupsResp, err := client.GetSubscriptionGroups(ctx, appID, asc.WithSubscriptionGroupsLimit(pageLimit))
+	groupsResp, err := client.GetSubscriptionGroups(ctx, appID, asc.Limit[asc.SubscriptionGroupsOption](pageLimit))
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch groups: %w", err)
 	}
 
 	if paginate {
 		paginatedGroups, err := asc.PaginateAll(ctx, groupsResp, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-			return client.GetSubscriptionGroups(ctx, appID, asc.WithSubscriptionGroupsNextURL(nextURL))
+			return client.GetSubscriptionGroups(ctx, appID, asc.NextURL[asc.SubscriptionGroupsOption](nextURL))
 		})
 		if err != nil {
 			return nil, fmt.Errorf("paginate groups: %w", err)
@@ -626,14 +626,14 @@ func listSubscriptionsForApp(ctx context.Context, client *asc.Client, appID stri
 
 	result := &asc.SubscriptionsResponse{Data: []asc.Resource[asc.SubscriptionAttributes]{}}
 	for _, group := range groupsResp.Data {
-		subsResp, err := client.GetSubscriptions(ctx, group.ID, asc.WithSubscriptionsLimit(pageLimit))
+		subsResp, err := client.GetSubscriptions(ctx, group.ID, asc.Limit[asc.SubscriptionsOption](pageLimit))
 		if err != nil {
 			return nil, fmt.Errorf("failed to fetch subscriptions for group %s: %w", group.ID, err)
 		}
 
 		if paginate {
 			paginatedSubs, err := asc.PaginateAll(ctx, subsResp, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-				return client.GetSubscriptions(ctx, group.ID, asc.WithSubscriptionsNextURL(nextURL))
+				return client.GetSubscriptions(ctx, group.ID, asc.NextURL[asc.SubscriptionsOption](nextURL))
 			})
 			if err != nil {
 				return nil, fmt.Errorf("paginate subscriptions for group %s: %w", group.ID, err)
@@ -1216,8 +1216,8 @@ Examples:
 				}
 			}
 			opts := []asc.SubscriptionPricesOption{
-				asc.WithSubscriptionPricesLimit(*limit),
-				asc.WithSubscriptionPricesNextURL(nextURL),
+				asc.Limit[asc.SubscriptionPricesOption](*limit),
+				asc.NextURL[asc.SubscriptionPricesOption](nextURL),
 				asc.WithSubscriptionPricesPricePointIDs(selectedPricePointIDs),
 				asc.WithSubscriptionPricesFields(selectedPriceFields),
 				asc.WithSubscriptionPricesTerritoryFields(selectedTerritoryFields),
@@ -1232,7 +1232,7 @@ Examples:
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithSubscriptionPricesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.SubscriptionPricesOption](200))
 				firstPage, err := client.GetSubscriptionPrices(requestCtx, id, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("subscriptions prices list: failed to fetch: %w", err)
@@ -1252,7 +1252,7 @@ Examples:
 					if err != nil {
 						return nil, err
 					}
-					return client.GetSubscriptionPrices(ctx, id, asc.WithSubscriptionPricesNextURL(nextURL))
+					return client.GetSubscriptionPrices(ctx, id, asc.NextURL[asc.SubscriptionPricesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("subscriptions prices list: %w", err)
@@ -1353,7 +1353,7 @@ func findMatchingSubscriptionPrice(ctx context.Context, client *asc.Client, subI
 	territoryID = strings.ToUpper(strings.TrimSpace(territoryID))
 
 	opts := []asc.SubscriptionPricesOption{
-		asc.WithSubscriptionPricesLimit(200),
+		asc.Limit[asc.SubscriptionPricesOption](200),
 		asc.WithSubscriptionPricesInclude([]string{"subscriptionPricePoint", "territory"}),
 	}
 	if territoryID != "" {
@@ -1383,7 +1383,7 @@ func findMatchingSubscriptionPrice(ctx context.Context, client *asc.Client, subI
 		if err != nil {
 			return nil, err
 		}
-		opts = []asc.SubscriptionPricesOption{asc.WithSubscriptionPricesNextURL(nextURL)}
+		opts = []asc.SubscriptionPricesOption{asc.NextURL[asc.SubscriptionPricesOption](nextURL)}
 	}
 }
 
@@ -1847,19 +1847,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.SubscriptionAvailabilityTerritoriesOption{
-				asc.WithSubscriptionAvailabilityTerritoriesLimit(*limit),
-				asc.WithSubscriptionAvailabilityTerritoriesNextURL(*next),
+				asc.Limit[asc.SubscriptionAvailabilityTerritoriesOption](*limit),
+				asc.NextURL[asc.SubscriptionAvailabilityTerritoriesOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithSubscriptionAvailabilityTerritoriesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.SubscriptionAvailabilityTerritoriesOption](200))
 				firstPage, err := client.GetSubscriptionAvailabilityAvailableTerritories(requestCtx, availabilityValue, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("subscriptions pricing availability available-territories: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetSubscriptionAvailabilityAvailableTerritories(ctx, availabilityValue, asc.WithSubscriptionAvailabilityTerritoriesNextURL(nextURL))
+					return client.GetSubscriptionAvailabilityAvailableTerritories(ctx, availabilityValue, asc.NextURL[asc.SubscriptionAvailabilityTerritoriesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("subscriptions pricing availability available-territories: %w", err)

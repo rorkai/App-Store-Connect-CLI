@@ -87,19 +87,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.IAPOfferCodeCustomCodesOption{
-				asc.WithIAPOfferCodeCustomCodesLimit(*limit),
-				asc.WithIAPOfferCodeCustomCodesNextURL(*next),
+				asc.Limit[asc.IAPOfferCodeCustomCodesOption](*limit),
+				asc.NextURL[asc.IAPOfferCodeCustomCodesOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithIAPOfferCodeCustomCodesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.IAPOfferCodeCustomCodesOption](200))
 				firstPage, err := client.GetInAppPurchaseOfferCodeCustomCodes(requestCtx, id, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("iap offer-codes custom-codes list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetInAppPurchaseOfferCodeCustomCodes(ctx, id, asc.WithIAPOfferCodeCustomCodesNextURL(nextURL))
+					return client.GetInAppPurchaseOfferCodeCustomCodes(ctx, id, asc.NextURL[asc.IAPOfferCodeCustomCodesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("iap offer-codes custom-codes list: %w", err)
@@ -342,19 +342,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.IAPOfferCodeOneTimeUseCodesOption{
-				asc.WithIAPOfferCodeOneTimeUseCodesLimit(*limit),
-				asc.WithIAPOfferCodeOneTimeUseCodesNextURL(*next),
+				asc.Limit[asc.IAPOfferCodeOneTimeUseCodesOption](*limit),
+				asc.NextURL[asc.IAPOfferCodeOneTimeUseCodesOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithIAPOfferCodeOneTimeUseCodesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.IAPOfferCodeOneTimeUseCodesOption](200))
 				firstPage, err := client.GetInAppPurchaseOfferCodeOneTimeUseCodes(requestCtx, id, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("iap offer-codes one-time-codes list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetInAppPurchaseOfferCodeOneTimeUseCodes(ctx, id, asc.WithIAPOfferCodeOneTimeUseCodesNextURL(nextURL))
+					return client.GetInAppPurchaseOfferCodeOneTimeUseCodes(ctx, id, asc.NextURL[asc.IAPOfferCodeOneTimeUseCodesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("iap offer-codes one-time-codes list: %w", err)

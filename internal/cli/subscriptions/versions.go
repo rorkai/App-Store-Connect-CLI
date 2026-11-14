@@ -195,7 +195,7 @@ Examples:
 				firstPageLimit = 200
 			}
 			opts := []asc.SubscriptionVersionsOption{
-				asc.WithSubscriptionVersionsLimit(firstPageLimit), asc.WithSubscriptionVersionsNextURL(*next),
+				asc.Limit[asc.SubscriptionVersionsOption](firstPageLimit), asc.WithSubscriptionVersionsNextURL(*next),
 				asc.WithSubscriptionVersionsStates(states), asc.WithSubscriptionVersionsFields(versionFieldValues),
 				asc.WithSubscriptionVersionsSubscriptionFields(subscriptionFieldValues),
 				asc.WithSubscriptionVersionsImageFields(imageFieldValues),

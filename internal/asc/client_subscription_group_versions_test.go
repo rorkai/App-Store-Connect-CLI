@@ -113,7 +113,7 @@ func TestSubscriptionGroupVersionEndpoints(t *testing.T) {
 			responseBody: `{"data":[{"type":"subscriptionGroupVersions","id":"version-1","attributes":{"state":"READY_FOR_REVIEW"}}]}`,
 			query:        map[string]string{"filter[state]": "READY_FOR_REVIEW", "include": "subscriptionGroup,localizations", "limit": "3", "limit[localizations]": "2"},
 			call: func(c *Client) error {
-				_, err := c.GetSubscriptionGroupVersions(context.Background(), "group-1", WithSubscriptionGroupVersionsStates([]string{"READY_FOR_REVIEW"}), WithSubscriptionGroupVersionsInclude([]string{"subscriptionGroup", "localizations"}), WithSubscriptionGroupVersionsLimit(3), WithSubscriptionGroupVersionsLocalizationsLimit(2))
+				_, err := c.GetSubscriptionGroupVersions(context.Background(), "group-1", WithSubscriptionGroupVersionsStates([]string{"READY_FOR_REVIEW"}), WithSubscriptionGroupVersionsInclude([]string{"subscriptionGroup", "localizations"}), Limit[SubscriptionGroupVersionsOption](3), WithSubscriptionGroupVersionsLocalizationsLimit(2))
 				return err
 			},
 		},
@@ -130,7 +130,7 @@ func TestSubscriptionGroupVersionEndpoints(t *testing.T) {
 			responseBody: `{"data":[{"type":"subscriptionGroupLocalizations","id":"loc-1"}]}`,
 			query:        map[string]string{"include": "version", "fields[subscriptionGroupLocalizations]": "name,locale", "limit": "5"},
 			call: func(c *Client) error {
-				_, err := c.GetSubscriptionGroupVersionLocalizations(context.Background(), "version-1", WithSubscriptionGroupVersionLocalizationsInclude([]string{"version"}), WithSubscriptionGroupVersionLocalizationsFields([]string{"name", "locale"}), WithSubscriptionGroupVersionLocalizationsLimit(5))
+				_, err := c.GetSubscriptionGroupVersionLocalizations(context.Background(), "version-1", WithSubscriptionGroupVersionLocalizationsInclude([]string{"version"}), WithSubscriptionGroupVersionLocalizationsFields([]string{"name", "locale"}), Limit[SubscriptionGroupVersionLocalizationsOption](5))
 				return err
 			},
 		},
@@ -278,8 +278,8 @@ func TestGetSubscriptionGroupRejectsCollectionOnlyOptionsBeforeHTTP(t *testing.T
 		option  SubscriptionGroupsOption
 		wantErr string
 	}{
-		{name: "limit", option: WithSubscriptionGroupsLimit(20), wantErr: "limit is only supported when listing subscription groups"},
-		{name: "next URL", option: WithSubscriptionGroupsNextURL("https://api.appstoreconnect.apple.com/v1/apps/app-1/subscriptionGroups?cursor=next"), wantErr: "next URL is only supported when listing subscription groups"},
+		{name: "limit", option: Limit[SubscriptionGroupsOption](20), wantErr: "limit is only supported when listing subscription groups"},
+		{name: "next URL", option: NextURL[SubscriptionGroupsOption]("https://api.appstoreconnect.apple.com/v1/apps/app-1/subscriptionGroups?cursor=next"), wantErr: "next URL is only supported when listing subscription groups"},
 	}
 
 	for _, test := range tests {
@@ -304,7 +304,7 @@ func TestSubscriptionGroupVersionDetailEndpointsRejectCollectionOnlyOptionsBefor
 		{
 			name: "version limit",
 			call: func(client *Client) error {
-				_, err := client.GetSubscriptionGroupVersion(context.Background(), "version-1", WithSubscriptionGroupVersionsLimit(20))
+				_, err := client.GetSubscriptionGroupVersion(context.Background(), "version-1", Limit[SubscriptionGroupVersionsOption](20))
 				return err
 			},
 			wantErr: "limit is only supported when listing subscription group versions",
@@ -328,7 +328,7 @@ func TestSubscriptionGroupVersionDetailEndpointsRejectCollectionOnlyOptionsBefor
 		{
 			name: "localization limit",
 			call: func(client *Client) error {
-				_, err := client.GetSubscriptionGroupLocalizationV2(context.Background(), "loc-1", WithSubscriptionGroupVersionLocalizationsLimit(20))
+				_, err := client.GetSubscriptionGroupLocalizationV2(context.Background(), "loc-1", Limit[SubscriptionGroupVersionLocalizationsOption](20))
 				return err
 			},
 			wantErr: "limit is only supported when listing subscription group version localizations",

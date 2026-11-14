@@ -224,7 +224,7 @@ func TestGetInAppPurchaseAvailabilityAvailableTerritories(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetInAppPurchaseAvailabilityAvailableTerritories(context.Background(), "avail-1", WithIAPAvailabilityTerritoriesLimit(5)); err != nil {
+	if _, err := client.GetInAppPurchaseAvailabilityAvailableTerritories(context.Background(), "avail-1", Limit[IAPAvailabilityTerritoriesOption](5)); err != nil {
 		t.Fatalf("GetInAppPurchaseAvailabilityAvailableTerritories() error: %v", err)
 	}
 }
@@ -331,7 +331,7 @@ func TestGetInAppPurchasePricePointEqualizations_WithQueryOptions(t *testing.T) 
 			assertAuthorized(t, req)
 		}, jsonResponse(http.StatusOK, `{"data":[]}`))
 
-		if _, err := client.GetInAppPurchasePricePointEqualizations(context.Background(), "price-1", WithIAPPricePointsLimit(175)); err != nil {
+		if _, err := client.GetInAppPurchasePricePointEqualizations(context.Background(), "price-1", Limit[IAPPricePointsOption](175)); err != nil {
 			t.Fatalf("GetInAppPurchasePricePointEqualizations() error: %v", err)
 		}
 	})
@@ -349,7 +349,7 @@ func TestGetInAppPurchasePricePointEqualizations_WithQueryOptions(t *testing.T) 
 			assertAuthorized(t, req)
 		}, jsonResponse(http.StatusOK, `{"data":[]}`))
 
-		if _, err := client.GetInAppPurchasePricePointEqualizations(context.Background(), "price-1", WithIAPPricePointsNextURL(nextURL)); err != nil {
+		if _, err := client.GetInAppPurchasePricePointEqualizations(context.Background(), "price-1", NextURL[IAPPricePointsOption](nextURL)); err != nil {
 			t.Fatalf("GetInAppPurchasePricePointEqualizations() error: %v", err)
 		}
 	})
@@ -370,7 +370,7 @@ func TestGetInAppPurchasePriceScheduleManualPrices_WithLimit(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetInAppPurchasePriceScheduleManualPrices(context.Background(), "schedule-1", WithIAPPriceSchedulePricesLimit(5)); err != nil {
+	if _, err := client.GetInAppPurchasePriceScheduleManualPrices(context.Background(), "schedule-1", Limit[IAPPriceSchedulePricesOption](5)); err != nil {
 		t.Fatalf("GetInAppPurchasePriceScheduleManualPrices() error: %v", err)
 	}
 }
@@ -410,7 +410,7 @@ func TestGetInAppPurchasePriceScheduleManualPrices_WithQueryOptions(t *testing.T
 		WithIAPPriceSchedulePricesFields([]string{"manual", "inAppPurchasePricePoint", "territory"}),
 		WithIAPPriceSchedulePricesPricePointFields([]string{"customerPrice", "proceeds", "territory"}),
 		WithIAPPriceSchedulePricesTerritoryFields([]string{"currency"}),
-		WithIAPPriceSchedulePricesLimit(200),
+		Limit[IAPPriceSchedulePricesOption](200),
 	); err != nil {
 		t.Fatalf("GetInAppPurchasePriceScheduleManualPrices() error: %v", err)
 	}
@@ -431,7 +431,7 @@ func TestGetInAppPurchasePriceScheduleAutomaticPrices_WithLimit(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetInAppPurchasePriceScheduleAutomaticPrices(context.Background(), "schedule-1", WithIAPPriceSchedulePricesLimit(5)); err != nil {
+	if _, err := client.GetInAppPurchasePriceScheduleAutomaticPrices(context.Background(), "schedule-1", Limit[IAPPriceSchedulePricesOption](5)); err != nil {
 		t.Fatalf("GetInAppPurchasePriceScheduleAutomaticPrices() error: %v", err)
 	}
 }
@@ -580,7 +580,7 @@ func TestGetInAppPurchaseOfferCodes_UsesNextURL(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetInAppPurchaseOfferCodes(context.Background(), "iap-1", WithIAPOfferCodesNextURL(next)); err != nil {
+	if _, err := client.GetInAppPurchaseOfferCodes(context.Background(), "iap-1", NextURL[IAPOfferCodesOption](next)); err != nil {
 		t.Fatalf("GetInAppPurchaseOfferCodes() error: %v", err)
 	}
 }
@@ -609,7 +609,7 @@ func TestGetInAppPurchaseOfferCodePrices_WithQuery(t *testing.T) {
 	if _, err := client.GetInAppPurchaseOfferCodePrices(
 		context.Background(),
 		"offer-1",
-		WithIAPOfferCodePricesLimit(5),
+		Limit[IAPOfferCodePricesOption](5),
 		WithIAPOfferCodePricesFields([]string{"territory", "pricePoint"}),
 		WithIAPOfferCodePricesInclude([]string{"territory", "pricePoint"}),
 	); err != nil {
@@ -627,7 +627,7 @@ func TestGetInAppPurchaseOfferCodePrices_UsesNextURL(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetInAppPurchaseOfferCodePrices(context.Background(), "offer-1", WithIAPOfferCodePricesNextURL(next)); err != nil {
+	if _, err := client.GetInAppPurchaseOfferCodePrices(context.Background(), "offer-1", NextURL[IAPOfferCodePricesOption](next)); err != nil {
 		t.Fatalf("GetInAppPurchaseOfferCodePrices() error: %v", err)
 	}
 }

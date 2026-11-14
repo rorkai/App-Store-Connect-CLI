@@ -519,7 +519,7 @@ func verifyIAPSetupState(ctx context.Context, client *asc.Client, result iapSetu
 	hasLocalization := opts.Locale != "" || opts.DisplayName != "" || opts.Description != ""
 	if hasLocalization {
 		locCtx, locCancel := shared.ContextWithTimeout(ctx)
-		locResp, err := client.GetInAppPurchaseLocalizations(locCtx, result.IAPID, asc.WithIAPLocalizationsLimit(200)) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
+		locResp, err := client.GetInAppPurchaseLocalizations(locCtx, result.IAPID, asc.Limit[asc.IAPLocalizationsOption](200)) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 		locCancel()
 		if err != nil {
 			verification.Status = "failed"

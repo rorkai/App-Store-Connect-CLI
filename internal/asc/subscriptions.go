@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/url"
 	"strconv"
-	"strings"
 )
 
 // SubscriptionGroupAttributes describes a subscription group resource.
@@ -353,24 +352,6 @@ type subscriptionAvailabilityTerritoriesQuery struct {
 	listQuery
 }
 
-// WithSubscriptionGroupsLimit sets the max number of groups to return.
-func WithSubscriptionGroupsLimit(limit int) SubscriptionGroupsOption {
-	return func(q *subscriptionGroupsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithSubscriptionGroupsNextURL uses a next page URL directly.
-func WithSubscriptionGroupsNextURL(next string) SubscriptionGroupsOption {
-	return func(q *subscriptionGroupsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithSubscriptionGroupsInclude includes related resources in group responses.
 func WithSubscriptionGroupsInclude(include []string) SubscriptionGroupsOption {
 	return func(q *subscriptionGroupsQuery) {
@@ -411,24 +392,6 @@ func WithSubscriptionGroupsVersionsLimit(limit int) SubscriptionGroupsOption {
 	return func(q *subscriptionGroupsQuery) {
 		if limit > 0 {
 			q.versionsLimit = limit
-		}
-	}
-}
-
-// WithSubscriptionsLimit sets the max number of subscriptions to return.
-func WithSubscriptionsLimit(limit int) SubscriptionsOption {
-	return func(q *subscriptionsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithSubscriptionsNextURL uses a next page URL directly.
-func WithSubscriptionsNextURL(next string) SubscriptionsOption {
-	return func(q *subscriptionsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
 		}
 	}
 }
@@ -501,24 +464,6 @@ func WithSubscriptionVersionLimit(limit int) SubscriptionOption {
 	return func(q *subscriptionQuery) {
 		if limit > 0 {
 			q.versionLimit = limit
-		}
-	}
-}
-
-// WithSubscriptionAvailabilityTerritoriesLimit sets the max number of territories to return.
-func WithSubscriptionAvailabilityTerritoriesLimit(limit int) SubscriptionAvailabilityTerritoriesOption {
-	return func(q *subscriptionAvailabilityTerritoriesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithSubscriptionAvailabilityTerritoriesNextURL uses a next page URL directly.
-func WithSubscriptionAvailabilityTerritoriesNextURL(next string) SubscriptionAvailabilityTerritoriesOption {
-	return func(q *subscriptionAvailabilityTerritoriesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
 		}
 	}
 }

@@ -129,7 +129,7 @@ func buildSubscriptionsPricingSummaryCommand(
 				subs = []subWithGroup{{Sub: resp.Data, GroupName: ""}}
 			} else {
 				groupsCtx, groupsCancel := shared.ContextWithTimeout(ctx)
-				groupsResp, err := client.GetSubscriptionGroups(groupsCtx, resolvedAppID, asc.WithSubscriptionGroupsLimit(200))
+				groupsResp, err := client.GetSubscriptionGroups(groupsCtx, resolvedAppID, asc.Limit[asc.SubscriptionGroupsOption](200))
 				groupsCancel()
 				if err != nil {
 					return fmt.Errorf("subscriptions pricing: failed to fetch groups: %w", err)
@@ -138,7 +138,7 @@ func buildSubscriptionsPricingSummaryCommand(
 				paginatedGroups, err := asc.PaginateAll(ctx, groupsResp, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
 					pageCtx, pageCancel := shared.ContextWithTimeout(ctx)
 					defer pageCancel()
-					return client.GetSubscriptionGroups(pageCtx, resolvedAppID, asc.WithSubscriptionGroupsNextURL(nextURL))
+					return client.GetSubscriptionGroups(pageCtx, resolvedAppID, asc.NextURL[asc.SubscriptionGroupsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("subscriptions pricing: paginate groups: %w", err)
@@ -171,7 +171,7 @@ func buildSubscriptionsPricingSummaryCommand(
 
 func fetchSubscriptionPricingGroup(ctx context.Context, client *asc.Client, group asc.Resource[asc.SubscriptionGroupAttributes]) ([]subWithGroup, error) {
 	subsCtx, subsCancel := shared.ContextWithTimeout(ctx)
-	subsResp, err := client.GetSubscriptions(subsCtx, group.ID, asc.WithSubscriptionsLimit(200))
+	subsResp, err := client.GetSubscriptions(subsCtx, group.ID, asc.Limit[asc.SubscriptionsOption](200))
 	subsCancel()
 	if err != nil {
 		return nil, fmt.Errorf("subscriptions pricing: failed to fetch subscriptions for group %s: %w", group.ID, err)
@@ -179,7 +179,7 @@ func fetchSubscriptionPricingGroup(ctx context.Context, client *asc.Client, grou
 	paginatedSubs, err := asc.PaginateAll(ctx, subsResp, func(pageParent context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		pageCtx, pageCancel := shared.ContextWithTimeout(pageParent)
 		defer pageCancel()
-		return client.GetSubscriptions(pageCtx, group.ID, asc.WithSubscriptionsNextURL(nextURL))
+		return client.GetSubscriptions(pageCtx, group.ID, asc.NextURL[asc.SubscriptionsOption](nextURL))
 	})
 	if err != nil {
 		return nil, fmt.Errorf("subscriptions pricing: paginate subscriptions: %w", err)
@@ -322,7 +322,7 @@ func resolveSubscriptionPriceSummary(
 		asc.WithSubscriptionPricesInclude([]string{"subscriptionPricePoint", "territory"}),
 		asc.WithSubscriptionPricesPricePointFields([]string{"customerPrice", "proceeds", "proceedsYear2"}),
 		asc.WithSubscriptionPricesTerritoryFields([]string{"currency"}),
-		asc.WithSubscriptionPricesLimit(200),
+		asc.Limit[asc.SubscriptionPricesOption](200),
 	)
 	pricesCancel()
 	if err != nil {
@@ -331,7 +331,7 @@ func resolveSubscriptionPriceSummary(
 	allPages, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		pageCtx, pageCancel := shared.ContextWithTimeout(ctx)
 		defer pageCancel()
-		return client.GetSubscriptionPrices(pageCtx, sub.Sub.ID, asc.WithSubscriptionPricesNextURL(nextURL))
+		return client.GetSubscriptionPrices(pageCtx, sub.Sub.ID, asc.NextURL[asc.SubscriptionPricesOption](nextURL))
 	})
 	if err != nil {
 		return summary, fmt.Errorf("fetch prices: %w", err)

@@ -102,8 +102,8 @@ Examples:
 			defer cancel()
 
 			opts := []asc.SubscriptionPromotionalOffersOption{
-				asc.WithSubscriptionPromotionalOffersLimit(*limit),
-				asc.WithSubscriptionPromotionalOffersNextURL(*next),
+				asc.Limit[asc.SubscriptionPromotionalOffersOption](*limit),
+				asc.NextURL[asc.SubscriptionPromotionalOffersOption](*next),
 				asc.WithSubscriptionPromotionalOffersSubscriptionFields(selectedSubscriptionFields),
 				asc.WithSubscriptionPromotionalOffersInclude(includeRelationshipForFields(selectedSubscriptionFields, "subscription")),
 			}
@@ -111,7 +111,7 @@ Examples:
 			if *paginate {
 				paginateOpts := opts
 				if strings.TrimSpace(*next) == "" {
-					paginateOpts = append(paginateOpts, asc.WithSubscriptionPromotionalOffersLimit(200))
+					paginateOpts = append(paginateOpts, asc.Limit[asc.SubscriptionPromotionalOffersOption](200))
 				}
 				firstPage, err := client.GetSubscriptionPromotionalOffers(requestCtx, id, paginateOpts...)
 				if err != nil {
@@ -119,7 +119,7 @@ Examples:
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetSubscriptionPromotionalOffers(ctx, id, asc.WithSubscriptionPromotionalOffersNextURL(nextURL))
+					return client.GetSubscriptionPromotionalOffers(ctx, id, asc.NextURL[asc.SubscriptionPromotionalOffersOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("subscriptions promotional-offers list: %w", err)
@@ -448,8 +448,8 @@ Examples:
 			defer cancel()
 
 			opts := []asc.SubscriptionPromotionalOfferPricesOption{
-				asc.WithSubscriptionPromotionalOfferPricesLimit(*limit),
-				asc.WithSubscriptionPromotionalOfferPricesNextURL(*next),
+				asc.Limit[asc.SubscriptionPromotionalOfferPricesOption](*limit),
+				asc.NextURL[asc.SubscriptionPromotionalOfferPricesOption](*next),
 				asc.WithSubscriptionPromotionalOfferPricesPricePointFields(selectedPricePointFields),
 				asc.WithSubscriptionPromotionalOfferPricesInclude(includeRelationshipForFields(selectedPricePointFields, "subscriptionPricePoint")),
 			}
@@ -457,7 +457,7 @@ Examples:
 			if *paginate {
 				paginateOpts := opts
 				if strings.TrimSpace(*next) == "" {
-					paginateOpts = append(paginateOpts, asc.WithSubscriptionPromotionalOfferPricesLimit(200))
+					paginateOpts = append(paginateOpts, asc.Limit[asc.SubscriptionPromotionalOfferPricesOption](200))
 				}
 				firstPage, err := client.GetSubscriptionPromotionalOfferPrices(requestCtx, id, paginateOpts...)
 				if err != nil {
@@ -465,7 +465,7 @@ Examples:
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetSubscriptionPromotionalOfferPrices(ctx, id, asc.WithSubscriptionPromotionalOfferPricesNextURL(nextURL))
+					return client.GetSubscriptionPromotionalOfferPrices(ctx, id, asc.NextURL[asc.SubscriptionPromotionalOfferPricesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("subscriptions promotional-offers prices: %w", err)

@@ -86,7 +86,7 @@ func SubscriptionsVersionImagesListCommand() *ffcli.Command {
 				firstPageLimit = 200
 			}
 			resp, err := client.GetSubscriptionVersionImages(requestCtx, id,
-				asc.WithSubscriptionVersionImagesLimit(firstPageLimit), asc.WithSubscriptionVersionImagesNextURL(*next), asc.WithSubscriptionVersionImagesFields(fieldValues))
+				asc.Limit[asc.SubscriptionVersionImagesOption](firstPageLimit), asc.WithSubscriptionVersionImagesNextURL(*next), asc.WithSubscriptionVersionImagesFields(fieldValues))
 			if err != nil {
 				return fmt.Errorf("subscriptions versions images list: failed to fetch: %w", err)
 			}

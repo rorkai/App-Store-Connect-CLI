@@ -124,11 +124,11 @@ func ResolveIAPTiers(ctx context.Context, client *asc.Client, iapID, territory s
 		ctx, client, "in-app purchase", iapID, territory, tierCacheScopeIAP, refresh,
 		func(ctx context.Context, client *asc.Client, resourceID, territory, nextURL string) (tierPage, error) {
 			opts := []asc.IAPPricePointsOption{
-				asc.WithIAPPricePointsLimit(200),
+				asc.Limit[asc.IAPPricePointsOption](200),
 				asc.WithIAPPricePointsTerritory(territory),
 			}
 			if nextURL != "" {
-				opts = []asc.IAPPricePointsOption{asc.WithIAPPricePointsNextURL(nextURL)}
+				opts = []asc.IAPPricePointsOption{asc.NextURL[asc.IAPPricePointsOption](nextURL)}
 			}
 			resp, err := client.GetInAppPurchasePricePoints(ctx, resourceID, opts...)
 			if err != nil {

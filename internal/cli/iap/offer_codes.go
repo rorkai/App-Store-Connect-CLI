@@ -103,19 +103,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.IAPOfferCodesOption{
-				asc.WithIAPOfferCodesLimit(*limit),
-				asc.WithIAPOfferCodesNextURL(*next),
+				asc.Limit[asc.IAPOfferCodesOption](*limit),
+				asc.NextURL[asc.IAPOfferCodesOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithIAPOfferCodesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.IAPOfferCodesOption](200))
 				firstPage, err := client.GetInAppPurchaseOfferCodes(requestCtx, iapValue, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("iap offer-codes list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetInAppPurchaseOfferCodes(ctx, iapValue, asc.WithIAPOfferCodesNextURL(nextURL))
+					return client.GetInAppPurchaseOfferCodes(ctx, iapValue, asc.NextURL[asc.IAPOfferCodesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("iap offer-codes list: %w", err)
