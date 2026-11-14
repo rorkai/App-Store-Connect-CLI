@@ -73,8 +73,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			merchantIDValue := strings.TrimSpace(*merchantID)
 			if merchantIDValue == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --merchant-id is required")
-				return shared.MissingRequiredUsageError("--merchant-id")
+				return shared.RequiredFlag("--merchant-id")
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return shared.UsageError("merchant-ids certificates list: --limit must be between 1 and 200")
@@ -185,8 +184,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			merchantIDValue := strings.TrimSpace(*merchantID)
 			if merchantIDValue == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --merchant-id is required")
-				return shared.MissingRequiredUsageError("--merchant-id")
+				return shared.RequiredFlag("--merchant-id")
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return shared.UsageError("merchant-ids certificates view: --limit must be between 1 and 200")
