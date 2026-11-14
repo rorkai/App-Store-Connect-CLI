@@ -321,12 +321,12 @@ func TestVerifyPKG(t *testing.T) {
 func TestInspectWithoutVerificationLeavesResultUnset(t *testing.T) {
 	chain := artifactstest.NewTrustChain(t, validFrom, validUntil)
 	ipa := verificationIPA(t, artifactstest.SignedMachO(t, sealedOptions(&chain)), zip.Deflate, nil)
-	manifest, err := InspectIPA(bytes.NewReader(ipa), int64(len(ipa)), false, false)
+	manifest, err := InspectIPAWithOptions(bytes.NewReader(ipa), int64(len(ipa)), IPAOptions{IncludeEntitlements: false, IncludeProfile: false})
 	if err != nil || manifest.SignatureVerification != nil || manifest.CodeSignature != SignatureSigned {
 		t.Fatalf("manifest=%+v err=%v", manifest, err)
 	}
 	pkg := artifactstest.SignedXar(t, map[string][]byte{"PackageInfo": []byte(`<pkg-info identifier="com.example.pkg"/>`)}, chain, time.Now())
-	pkgManifest, err := InspectPKG(bytes.NewReader(pkg), int64(len(pkg)))
+	pkgManifest, err := inspectPKG(bytes.NewReader(pkg), int64(len(pkg)), nil)
 	if err != nil || pkgManifest.SignatureVerification != nil || pkgManifest.PackageSignature != SignatureSigned {
 		t.Fatalf("manifest=%+v err=%v", pkgManifest, err)
 	}

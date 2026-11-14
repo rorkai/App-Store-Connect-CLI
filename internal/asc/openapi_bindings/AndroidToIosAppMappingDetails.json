@@ -1,0 +1,13 @@
+{
+  "tag": "AndroidToIosAppMappingDetails",
+  "file": "android_to_ios_app_mapping_details_gen.go",
+  "types": [
+    "AndroidToIosAppMappingDetailCreateRequest",
+    "AndroidToIosAppMappingDetailResponse",
+    "AndroidToIosAppMappingDetailUpdateData",
+    "AndroidToIosAppMappingDetailUpdateRequest"
+  ],
+  "operations": [
+    {"operation":"androidToIosAppMappingDetails_deleteInstance","name":"DeleteAndroidToIosAppMappingDetail","params":["id"],"check":"require","messages":["mapping ID is required"]}
+  ]
+}

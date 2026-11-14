@@ -83,7 +83,7 @@ func TestInspectIPAToleratesMalformedDeviceFamily(t *testing.T) {
 		}),
 	})
 
-	manifest, err := InspectIPA(bytes.NewReader(ipa), int64(len(ipa)), false, false)
+	manifest, err := InspectIPAWithOptions(bytes.NewReader(ipa), int64(len(ipa)), IPAOptions{IncludeEntitlements: false, IncludeProfile: false})
 	if err != nil {
 		t.Fatal(err)
 	}

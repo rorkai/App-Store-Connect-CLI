@@ -21,6 +21,11 @@ type AppScreenshotSetCreateData struct {
 	Relationships *AppScreenshotSetRelationships `json:"relationships"`
 }
 
+// AppScreenshotSetCreateRequest is a request to create a screenshot set.
+type AppScreenshotSetCreateRequest struct {
+	Data AppScreenshotSetCreateData `json:"data"`
+}
+
 // AppScreenshotRelationships describes relationships for screenshots.
 type AppScreenshotRelationships struct {
 	AppScreenshotSet *Relationship `json:"appScreenshotSet"`
@@ -31,6 +36,29 @@ type AppScreenshotCreateData struct {
 	Type          ResourceType                `json:"type"`
 	Attributes    AppScreenshotAttributes     `json:"attributes"`
 	Relationships *AppScreenshotRelationships `json:"relationships"`
+}
+
+// AppScreenshotCreateRequest is a request to create a screenshot.
+type AppScreenshotCreateRequest struct {
+	Data AppScreenshotCreateData `json:"data"`
+}
+
+// AppScreenshotUpdateAttributes describes screenshot update attributes.
+type AppScreenshotUpdateAttributes struct {
+	SourceFileChecksum *string `json:"sourceFileChecksum,omitempty"`
+	Uploaded           *bool   `json:"uploaded,omitempty"`
+}
+
+// AppScreenshotUpdateData is the data portion of a screenshot update request.
+type AppScreenshotUpdateData struct {
+	Type       ResourceType                   `json:"type"`
+	ID         string                         `json:"id"`
+	Attributes *AppScreenshotUpdateAttributes `json:"attributes,omitempty"`
+}
+
+// AppScreenshotUpdateRequest is a request to update a screenshot.
+type AppScreenshotUpdateRequest struct {
+	Data AppScreenshotUpdateData `json:"data"`
 }
 
 // AppPreviewSetRelationships describes relationships for preview sets.
@@ -47,6 +75,11 @@ type AppPreviewSetCreateData struct {
 	Relationships *AppPreviewSetRelationships `json:"relationships"`
 }
 
+// AppPreviewSetCreateRequest is a request to create a preview set.
+type AppPreviewSetCreateRequest struct {
+	Data AppPreviewSetCreateData `json:"data"`
+}
+
 // AppPreviewRelationships describes relationships for previews.
 type AppPreviewRelationships struct {
 	AppPreviewSet *Relationship `json:"appPreviewSet"`
@@ -59,11 +92,28 @@ type AppPreviewCreateData struct {
 	Relationships *AppPreviewRelationships `json:"relationships"`
 }
 
+// AppPreviewCreateRequest is a request to create a preview.
+type AppPreviewCreateRequest struct {
+	Data AppPreviewCreateData `json:"data"`
+}
+
 // AppPreviewUpdateAttributes describes preview update attributes.
 type AppPreviewUpdateAttributes struct {
 	PreviewFrameTimeCode *string `json:"previewFrameTimeCode,omitempty"`
 	SourceFileChecksum   *string `json:"sourceFileChecksum,omitempty"`
 	Uploaded             *bool   `json:"uploaded,omitempty"`
+}
+
+// AppPreviewUpdateData is the data portion of a preview update request.
+type AppPreviewUpdateData struct {
+	Type       ResourceType                `json:"type"`
+	ID         string                      `json:"id"`
+	Attributes *AppPreviewUpdateAttributes `json:"attributes,omitempty"`
+}
+
+// AppPreviewUpdateRequest is a request to update a preview.
+type AppPreviewUpdateRequest struct {
+	Data AppPreviewUpdateData `json:"data"`
 }
 
 // GetAppScreenshotSets retrieves screenshot sets for a localization.
@@ -151,6 +201,22 @@ func (c *Client) GetAppScreenshots(ctx context.Context, setID string, opts ...Ap
 		Query:       buildAppScreenshotsQuery(query),
 		Next:        query.nextURL,
 		NextContext: "appScreenshots",
+	})
+}
+
+// GetAppScreenshotSetAppScreenshotsRelationships retrieves screenshot linkages for a screenshot set.
+func (c *Client) GetAppScreenshotSetAppScreenshotsRelationships(ctx context.Context, setID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := applyOptions(opts)
+	setID = strings.TrimSpace(setID)
+	if query.nextURL == "" && setID == "" {
+		return nil, fmt.Errorf("setID is required")
+	}
+
+	return getJSON[LinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/appScreenshotSets/%s/relationships/appScreenshots", setID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appScreenshotsRelationships",
 	})
 }
 
@@ -319,6 +385,22 @@ func (c *Client) GetAppPreviews(ctx context.Context, setID string, opts ...AppPr
 		Path:        fmt.Sprintf("/v1/appPreviewSets/%s/appPreviews", setID),
 		Next:        query.nextURL,
 		NextContext: "appPreviews",
+	})
+}
+
+// GetAppPreviewSetAppPreviewsRelationships retrieves preview linkages for a preview set.
+func (c *Client) GetAppPreviewSetAppPreviewsRelationships(ctx context.Context, setID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := applyOptions(opts)
+	setID = strings.TrimSpace(setID)
+	if query.nextURL == "" && setID == "" {
+		return nil, fmt.Errorf("setID is required")
+	}
+
+	return getJSON[LinkagesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/appPreviewSets/%s/relationships/appPreviews", setID),
+		Query:       buildLinkagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appPreviewsRelationships",
 	})
 }
 

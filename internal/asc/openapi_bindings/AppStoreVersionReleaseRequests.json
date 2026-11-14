@@ -1,7 +1,0 @@
-{
-  "tag": "AppStoreVersionReleaseRequests",
-  "file": "app_store_version_release_requests_gen.go",
-  "types": [
-    "AppStoreVersionReleaseRequestCreateRequest"
-  ]
-}

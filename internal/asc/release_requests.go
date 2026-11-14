@@ -22,6 +22,11 @@ type AppStoreVersionReleaseRequestResponse struct {
 	Links Links                         `json:"links"`
 }
 
+// AppStoreVersionReleaseRequestCreateRequest represents a release request create payload.
+type AppStoreVersionReleaseRequestCreateRequest struct {
+	Data AppStoreVersionReleaseRequestCreateData `json:"data"`
+}
+
 // AppStoreVersionReleaseRequestCreateData represents data for creating a release request.
 type AppStoreVersionReleaseRequestCreateData struct {
 	Type          ResourceType                               `json:"type"`

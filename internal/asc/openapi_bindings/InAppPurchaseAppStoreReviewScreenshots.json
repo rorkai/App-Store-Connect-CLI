@@ -1,0 +1,14 @@
+{
+  "tag": "InAppPurchaseAppStoreReviewScreenshots",
+  "file": "in_app_purchase_app_store_review_screenshots_gen.go",
+  "types": [
+    "InAppPurchaseAppStoreReviewScreenshotCreateRequest",
+    "InAppPurchaseAppStoreReviewScreenshotResponse",
+    "InAppPurchaseAppStoreReviewScreenshotUpdateAttributes",
+    "InAppPurchaseAppStoreReviewScreenshotUpdateData",
+    "InAppPurchaseAppStoreReviewScreenshotUpdateRequest"
+  ],
+  "operations": [
+    {"operation":"inAppPurchaseAppStoreReviewScreenshots_deleteInstance","name":"DeleteInAppPurchaseAppStoreReviewScreenshot","params":["screenshotID"],"check":"require"}
+  ]
+}

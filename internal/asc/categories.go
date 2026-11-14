@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/url"
-	"strings"
 )
 
 // AppCategoryAttributes describes app category metadata.
@@ -41,17 +40,6 @@ type AppCategoryResponse struct {
 	Links Links       `json:"links"`
 }
 
-// GetAppCategories retrieves all app categories.
-func (c *Client) GetAppCategories(ctx context.Context, opts ...AppCategoriesOption) (*AppCategoriesResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[AppCategoriesResponse](ctx, c, readRequest{
-		Path:        "/v1/appCategories",
-		Query:       buildAppCategoriesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "appCategories",
-	})
-}
-
 // appCategoriesQuery holds query parameters for app categories.
 type appCategoriesQuery struct {
 	listQuery
@@ -71,41 +59,6 @@ func buildAppCategoriesQuery(query *appCategoriesQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
 	return values.Encode()
-}
-
-// GetAppCategory retrieves a single app category by ID.
-func (c *Client) GetAppCategory(ctx context.Context, categoryID string) (*AppCategoryResponse, error) {
-	categoryID = strings.TrimSpace(categoryID)
-	if categoryID == "" {
-		return nil, fmt.Errorf("categoryID is required")
-	}
-
-	return getJSON[AppCategoryResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appCategories/%s", categoryID)})
-}
-
-// GetAppCategoryParent retrieves the parent category for a category.
-func (c *Client) GetAppCategoryParent(ctx context.Context, categoryID string) (*AppCategoryResponse, error) {
-	categoryID = strings.TrimSpace(categoryID)
-	if categoryID == "" {
-		return nil, fmt.Errorf("categoryID is required")
-	}
-
-	return getJSON[AppCategoryResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appCategories/%s/parent", categoryID)})
-}
-
-// GetAppCategorySubcategories retrieves subcategories for a category.
-func (c *Client) GetAppCategorySubcategories(ctx context.Context, categoryID string, opts ...AppCategoriesOption) (*AppCategoriesResponse, error) {
-	query := applyOptions(opts)
-	categoryID = strings.TrimSpace(categoryID)
-	if query.nextURL == "" && categoryID == "" {
-		return nil, fmt.Errorf("categoryID is required")
-	}
-	return getJSON[AppCategoriesResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/appCategories/%s/subcategories", categoryID),
-		Query:       buildAppCategoriesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "appCategorySubcategories",
-	})
 }
 
 // AppInfoUpdateCategoriesRelationships describes relationships for updating categories.

@@ -1,0 +1,11 @@
+{
+  "tag": "AlternativeDistributionPackages",
+  "file": "alternative_distribution_packages_gen.go",
+  "types": [
+    "AlternativeDistributionPackageCreateRequest",
+    "AlternativeDistributionPackageResponse"
+  ],
+  "operations": [
+    {"operation":"alternativeDistributionPackages_getInstance","name":"GetAlternativeDistributionPackage","params":["packageID"],"check":"require","parseErr":"failed to parse alternative distribution package response"}
+  ]
+}

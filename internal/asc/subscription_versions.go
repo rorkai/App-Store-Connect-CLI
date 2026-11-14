@@ -38,18 +38,6 @@ type SubscriptionVersionCreateData struct {
 	Relationships *SubscriptionVersionRelationships `json:"relationships"`
 }
 
-// SubscriptionVersionCreateRequest creates a version for a subscription.
-type SubscriptionVersionCreateRequest struct {
-	Data SubscriptionVersionCreateData `json:"data"`
-}
-
-// SubscriptionLocalizationV2Attributes describes version-scoped localization metadata.
-type SubscriptionLocalizationV2Attributes struct {
-	Name        string `json:"name,omitempty"`
-	Locale      string `json:"locale,omitempty"`
-	Description string `json:"description,omitempty"`
-}
-
 // SubscriptionLocalizationV2CreateAttributes describes localization create attributes.
 type SubscriptionLocalizationV2CreateAttributes struct {
 	Name        string          `json:"name"`
@@ -75,21 +63,11 @@ type SubscriptionLocalizationV2CreateData struct {
 	Relationships *SubscriptionVersionRelationship           `json:"relationships"`
 }
 
-// SubscriptionLocalizationV2CreateRequest creates a version-scoped localization.
-type SubscriptionLocalizationV2CreateRequest struct {
-	Data SubscriptionLocalizationV2CreateData `json:"data"`
-}
-
 // SubscriptionLocalizationV2UpdateData is the data portion of a localization update request.
 type SubscriptionLocalizationV2UpdateData struct {
 	Type       ResourceType                               `json:"type"`
 	ID         string                                     `json:"id"`
 	Attributes SubscriptionLocalizationV2UpdateAttributes `json:"attributes,omitempty"`
-}
-
-// SubscriptionLocalizationV2UpdateRequest updates a version-scoped localization.
-type SubscriptionLocalizationV2UpdateRequest struct {
-	Data SubscriptionLocalizationV2UpdateData `json:"data"`
 }
 
 // SubscriptionImageV2Attributes describes a version-scoped subscription image.
@@ -120,21 +98,11 @@ type SubscriptionImageV2CreateData struct {
 	Relationships *SubscriptionVersionRelationship    `json:"relationships"`
 }
 
-// SubscriptionImageV2CreateRequest reserves a version-scoped image upload.
-type SubscriptionImageV2CreateRequest struct {
-	Data SubscriptionImageV2CreateData `json:"data"`
-}
-
 // SubscriptionImageV2UpdateData is the data portion of an image update request.
 type SubscriptionImageV2UpdateData struct {
 	Type       ResourceType                        `json:"type"`
 	ID         string                              `json:"id"`
 	Attributes SubscriptionImageV2UpdateAttributes `json:"attributes,omitempty"`
-}
-
-// SubscriptionImageV2UpdateRequest commits a version-scoped image upload.
-type SubscriptionImageV2UpdateRequest struct {
-	Data SubscriptionImageV2UpdateData `json:"data"`
 }
 
 type (

@@ -1,0 +1,7 @@
+{
+  "tag": "AnalyticsReportSegments",
+  "file": "analytics_report_segments_gen.go",
+  "types": [
+    "AnalyticsReportSegmentResponse"
+  ]
+}

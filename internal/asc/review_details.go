@@ -21,6 +21,21 @@ type AppStoreReviewDetailAttributes struct {
 	api apiAttributes
 }
 
+// AppStoreReviewDetailResponse is the response from review detail endpoints.
+type AppStoreReviewDetailResponse = SingleResponse[AppStoreReviewDetailAttributes]
+
+// AppStoreReviewDetailCreateAttributes describes create attributes.
+type AppStoreReviewDetailCreateAttributes struct {
+	ContactFirstName    *string `json:"contactFirstName,omitempty"`
+	ContactLastName     *string `json:"contactLastName,omitempty"`
+	ContactPhone        *string `json:"contactPhone,omitempty"`
+	ContactEmail        *string `json:"contactEmail,omitempty"`
+	DemoAccountName     *string `json:"demoAccountName,omitempty"`
+	DemoAccountPassword *string `json:"demoAccountPassword,omitempty"`
+	DemoAccountRequired *bool   `json:"demoAccountRequired,omitempty"`
+	Notes               *string `json:"notes,omitempty"`
+}
+
 // AppStoreReviewDetailCreateRelationships describes relationships for create requests.
 type AppStoreReviewDetailCreateRelationships struct {
 	AppStoreVersion *Relationship `json:"appStoreVersion"`
@@ -31,6 +46,55 @@ type AppStoreReviewDetailCreateData struct {
 	Type          ResourceType                             `json:"type"`
 	Attributes    *AppStoreReviewDetailCreateAttributes    `json:"attributes,omitempty"`
 	Relationships *AppStoreReviewDetailCreateRelationships `json:"relationships"`
+}
+
+// AppStoreReviewDetailCreateRequest is a request to create review details.
+type AppStoreReviewDetailCreateRequest struct {
+	Data AppStoreReviewDetailCreateData `json:"data"`
+}
+
+// AppStoreReviewDetailUpdateAttributes describes update attributes.
+type AppStoreReviewDetailUpdateAttributes struct {
+	ContactFirstName    *string `json:"contactFirstName,omitempty"`
+	ContactLastName     *string `json:"contactLastName,omitempty"`
+	ContactPhone        *string `json:"contactPhone,omitempty"`
+	ContactEmail        *string `json:"contactEmail,omitempty"`
+	DemoAccountName     *string `json:"demoAccountName,omitempty"`
+	DemoAccountPassword *string `json:"demoAccountPassword,omitempty"`
+	DemoAccountRequired *bool   `json:"demoAccountRequired,omitempty"`
+	Notes               *string `json:"notes,omitempty"`
+}
+
+// AppStoreReviewDetailUpdateData is the data portion of an update request.
+type AppStoreReviewDetailUpdateData struct {
+	Type       ResourceType                          `json:"type"`
+	ID         string                                `json:"id"`
+	Attributes *AppStoreReviewDetailUpdateAttributes `json:"attributes,omitempty"`
+}
+
+// AppStoreReviewDetailUpdateRequest is a request to update review details.
+type AppStoreReviewDetailUpdateRequest struct {
+	Data AppStoreReviewDetailUpdateData `json:"data"`
+}
+
+// GetAppStoreReviewDetail retrieves a review detail by ID.
+func (c *Client) GetAppStoreReviewDetail(ctx context.Context, detailID string) (*AppStoreReviewDetailResponse, error) {
+	detailID = strings.TrimSpace(detailID)
+	if detailID == "" {
+		return nil, fmt.Errorf("detailID is required")
+	}
+
+	return getJSON[AppStoreReviewDetailResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appStoreReviewDetails/%s", detailID)})
+}
+
+// GetAppStoreReviewDetailForVersion retrieves the review detail for an app store version.
+func (c *Client) GetAppStoreReviewDetailForVersion(ctx context.Context, versionID string) (*AppStoreReviewDetailResponse, error) {
+	versionID = strings.TrimSpace(versionID)
+	if versionID == "" {
+		return nil, fmt.Errorf("versionID is required")
+	}
+
+	return getJSON[AppStoreReviewDetailResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appStoreVersions/%s/appStoreReviewDetail", versionID)})
 }
 
 // CreateAppStoreReviewDetail creates review details for a version.

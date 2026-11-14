@@ -224,8 +224,8 @@ func TestRequestForVersionRoutesPlatformAPIAndAdAccountContext(t *testing.T) {
 	if strings.Join(seen, "\n") != strings.Join(want, "\n") {
 		t.Fatalf("requests:\n%s\nwant:\n%s", strings.Join(seen, "\n"), strings.Join(want, "\n"))
 	}
-	if rate := client.LastRateLimit(); rate.Limit != "100" || rate.Remaining != "99" {
-		t.Fatalf("LastRateLimit() = %+v", rate)
+	if rate := client.lastRateLimit; rate.Limit != "100" || rate.Remaining != "99" {
+		t.Fatalf("lastRateLimit = %+v", rate)
 	}
 }
 

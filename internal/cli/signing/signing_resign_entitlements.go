@@ -219,10 +219,6 @@ var signingResignIdentityEntitlementKeyOrder = []string{
 	"com.apple.developer.associated-appclip-app-identifiers",
 }
 
-func buildSigningResignEntitlements(existing, profile map[string]any) (map[string]any, error) {
-	return buildSigningResignEntitlementsWithClass(existing, profile, "")
-}
-
 // buildSigningResignEntitlementsForProfile applies the replacement profile's
 // class-controlled values while retaining the existing claim-preservation
 // rules for capabilities. The profile is the authority for values such as

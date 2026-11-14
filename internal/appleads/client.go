@@ -368,13 +368,6 @@ func headerValue(headers http.Header, name string) string {
 	return ""
 }
 
-// LastRateLimit returns the rate-limit metadata from the most recent Platform API response.
-func (c *Client) LastRateLimit() RateLimit {
-	c.rateLimitMu.RLock()
-	defer c.rateLimitMu.RUnlock()
-	return c.lastRateLimit
-}
-
 func isRetryableAdsStatus(statusCode int) bool {
 	switch statusCode {
 	case http.StatusRequestTimeout,

@@ -108,7 +108,7 @@ func TestRemoveAllCredentialsWithConfigPathOverrideLeavesGlobalConfigUntouched(t
 	fixture := newScopedLogoutFixture(t)
 	globalBefore := readConfigBytes(t, fixture.globalPath)
 
-	if err := RemoveAllCredentials(); err != nil {
+	if err := RemoveAllCredentialsWithOptions(RemoveOptions{}); err != nil {
 		t.Fatalf("RemoveAllCredentials() error: %v", err)
 	}
 
@@ -150,7 +150,7 @@ func TestRemoveCredentialsWithConfigPathOverrideLeavesGlobalConfigUntouched(t *t
 	fixture := newScopedLogoutFixture(t)
 	globalBefore := readConfigBytes(t, fixture.globalPath)
 
-	if err := RemoveCredentials("shared"); err != nil {
+	if err := RemoveCredentialsWithOptions("shared", RemoveOptions{}); err != nil {
 		t.Fatalf("RemoveCredentials() error: %v", err)
 	}
 
@@ -177,7 +177,7 @@ func TestRemoveCredentialsWithConfigPathOverrideDoesNotFindGlobalOnlyProfile(t *
 	fixture := newScopedLogoutFixture(t)
 	globalBefore := readConfigBytes(t, fixture.globalPath)
 
-	err := RemoveCredentials("global-only")
+	err := RemoveCredentialsWithOptions("global-only", RemoveOptions{})
 	if !errors.Is(err, keyring.ErrKeyNotFound) {
 		t.Fatalf("RemoveCredentials() error = %v, want keyring.ErrKeyNotFound", err)
 	}
@@ -193,7 +193,7 @@ func TestRemoveCredentialsWithMissingOverrideFileDoesNotFindGlobalOnlyProfile(t 
 	}
 	globalBefore := readConfigBytes(t, fixture.globalPath)
 
-	err := RemoveCredentials("global-only")
+	err := RemoveCredentialsWithOptions("global-only", RemoveOptions{})
 	if !errors.Is(err, keyring.ErrKeyNotFound) {
 		t.Fatalf("RemoveCredentials() error = %v, want keyring.ErrKeyNotFound", err)
 	}
@@ -224,7 +224,7 @@ func TestRemoveCredentialsWithoutConfigPathOverrideStillCleansActiveAndGlobalCon
 	}
 	t.Chdir(workDir)
 
-	if err := RemoveCredentials("shared"); err != nil {
+	if err := RemoveCredentialsWithOptions("shared", RemoveOptions{}); err != nil {
 		t.Fatalf("RemoveCredentials() error: %v", err)
 	}
 

@@ -76,7 +76,7 @@ func demoPayload(t *testing.T, plist []byte, before ...artifactstest.CPIOEntry) 
 
 func TestInspectPKGReadsProductArchive(t *testing.T) {
 	pkg := productArchive(t, demoPayload(t, productAppPlist(t)), nil)
-	manifest, err := InspectPKG(bytes.NewReader(pkg), int64(len(pkg)))
+	manifest, err := inspectPKG(bytes.NewReader(pkg), int64(len(pkg)), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -114,7 +114,7 @@ func TestInspectPKGProductArchiveFallsBackToPackageInfoWhenPayloadIsUnreadable(t
 	} {
 		t.Run(name, func(t *testing.T) {
 			pkg := productArchive(t, payload, nil)
-			manifest, err := InspectPKG(bytes.NewReader(pkg), int64(len(pkg)))
+			manifest, err := inspectPKG(bytes.NewReader(pkg), int64(len(pkg)), nil)
 			if err != nil || manifest.Status != "readable" {
 				t.Fatalf("manifest=%+v err=%v", manifest, err)
 			}
@@ -130,7 +130,7 @@ func TestInspectPKGProductArchiveFallsBackToPackageInfoWhenPayloadIsUnreadable(t
 
 func TestInspectPKGProductArchiveWithoutPayloadSkipsAppMetadata(t *testing.T) {
 	pkg := productArchive(t, nil, map[string][]byte{"Demo.pkg/Payload": nil})
-	manifest, err := InspectPKG(bytes.NewReader(pkg), int64(len(pkg)))
+	manifest, err := inspectPKG(bytes.NewReader(pkg), int64(len(pkg)), nil)
 	if err != nil || manifest.Status != "readable" || manifest.BuildNumber != "56" || len(manifest.Warnings) != 0 {
 		t.Fatalf("manifest=%+v err=%v", manifest, err)
 	}
@@ -143,7 +143,7 @@ func TestInspectPKGProductArchiveBoundsPayloadExpansion(t *testing.T) {
 		t.Fatalf("fixture is not highly compressed: %d bytes", len(payload))
 	}
 	pkg := productArchive(t, payload, nil)
-	manifest, err := InspectPKG(bytes.NewReader(pkg), int64(len(pkg)))
+	manifest, err := inspectPKG(bytes.NewReader(pkg), int64(len(pkg)), nil)
 	if err != nil || manifest.Status != "readable" || manifest.Components[0].App != nil {
 		t.Fatalf("manifest=%+v err=%v", manifest, err)
 	}
@@ -161,7 +161,7 @@ func TestInspectPKGProductArchiveRejectsUnsafeInfoPlistEntries(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			payload := artifactstest.GzipCPIO(t, []artifactstest.CPIOEntry{entry})
 			pkg := productArchive(t, payload, nil)
-			manifest, err := InspectPKG(bytes.NewReader(pkg), int64(len(pkg)))
+			manifest, err := inspectPKG(bytes.NewReader(pkg), int64(len(pkg)), nil)
 			if err != nil || manifest.Status != "readable" || manifest.Components[0].App != nil || len(manifest.Warnings) != 1 {
 				t.Fatalf("manifest=%+v err=%v", manifest, err)
 			}
@@ -178,7 +178,7 @@ func TestInspectPKGProductArchiveRequiresPrimaryComponent(t *testing.T) {
 	for name, overrides := range tests {
 		t.Run(name, func(t *testing.T) {
 			pkg := productArchive(t, demoPayload(t, productAppPlist(t)), overrides)
-			manifest, err := InspectPKG(bytes.NewReader(pkg), int64(len(pkg)))
+			manifest, err := inspectPKG(bytes.NewReader(pkg), int64(len(pkg)), nil)
 			if err == nil || manifest.Status != "unreadable" {
 				t.Fatalf("manifest=%+v err=%v", manifest, err)
 			}
@@ -188,7 +188,7 @@ func TestInspectPKGProductArchiveRequiresPrimaryComponent(t *testing.T) {
 
 func TestInspectPKGProductArchiveToleratesBrokenSecondaryComponent(t *testing.T) {
 	pkg := productArchive(t, demoPayload(t, productAppPlist(t)), map[string][]byte{"Helper.pkg/PackageInfo": []byte("<pkg-info")})
-	manifest, err := InspectPKG(bytes.NewReader(pkg), int64(len(pkg)))
+	manifest, err := inspectPKG(bytes.NewReader(pkg), int64(len(pkg)), nil)
 	if err != nil || manifest.Status != "readable" || len(manifest.Components) != 2 || manifest.Components[1].Identifier != "" {
 		t.Fatalf("manifest=%+v err=%v", manifest, err)
 	}
@@ -199,7 +199,7 @@ func TestInspectPKGProductArchiveToleratesBrokenSecondaryComponent(t *testing.T)
 
 func TestInspectPKGFlatPackageHasNoComponents(t *testing.T) {
 	pkg := writeXar(t, map[string][]byte{"PackageInfo": []byte(`<pkg-info identifier="com.example.pkg" version="1.0"><bundle id="com.example.demo" path="./Demo.app" CFBundleVersion="9"/></pkg-info>`)})
-	manifest, err := InspectPKG(bytes.NewReader(pkg), int64(len(pkg)))
+	manifest, err := inspectPKG(bytes.NewReader(pkg), int64(len(pkg)), nil)
 	if err != nil || manifest.Components != nil || manifest.BundleID != "" || manifest.BuildNumber != "" || manifest.Warnings != nil {
 		t.Fatalf("manifest=%+v err=%v", manifest, err)
 	}

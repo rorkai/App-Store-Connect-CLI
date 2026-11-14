@@ -1,0 +1,16 @@
+{
+  "tag": "AlternativeDistributionKeys",
+  "file": "alternative_distribution_keys_gen.go",
+  "types": [
+    "AlternativeDistributionKeyAttributes",
+    "AlternativeDistributionKeyCreateAttributes",
+    "AlternativeDistributionKeyCreateRequest",
+    "AlternativeDistributionKeyResponse",
+    "AlternativeDistributionKeysResponse"
+  ],
+  "operations": [
+    {"operation":"alternativeDistributionKeys_deleteInstance","name":"DeleteAlternativeDistributionKey","params":["keyID"],"check":"require"},
+    {"operation":"alternativeDistributionKeys_getCollection","name":"GetAlternativeDistributionKeys","options":"AlternativeDistributionKeysOption","query":"buildAlternativeDistributionKeysQuery","nextContext":"alternativeDistributionKeys","parseErr":"failed to parse alternative distribution keys response"},
+    {"operation":"alternativeDistributionKeys_getInstance","name":"GetAlternativeDistributionKey","params":["keyID"],"check":"require","parseErr":"failed to parse alternative distribution key response"}
+  ]
+}

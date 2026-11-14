@@ -36,14 +36,6 @@ type RetentionOfferCreateAttributes struct {
 	TargetSubscriptionPlanType                          SubscriptionPlanType      `json:"targetSubscriptionPlanType,omitempty"`
 }
 
-// RetentionOfferUpdateAttributes describes the eligibility attributes a
-// retention offer update can change. The spec marks both nullable, but Apple
-// returns HTTP 500 for null, so clearing is not offered.
-type RetentionOfferUpdateAttributes struct {
-	CustomerEligibilityPaidSubscriptionDurationInMonths *int `json:"customerEligibilityPaidSubscriptionDurationInMonths,omitempty"`
-	CustomerEligibilityWaitBetweenOffersInMonths        *int `json:"customerEligibilityWaitBetweenOffersInMonths,omitempty"`
-}
-
 // RetentionOfferCreateRelationships describes relationships for creating a retention offer.
 type RetentionOfferCreateRelationships struct {
 	Subscription Relationship     `json:"subscription"`
@@ -83,9 +75,6 @@ type RetentionOfferPriceAttributes struct{}
 
 // RetentionOffersResponse is the response from retention offer list endpoints.
 type RetentionOffersResponse = Response[RetentionOfferAttributes]
-
-// RetentionOfferResponse is the response from retention offer detail endpoints.
-type RetentionOfferResponse = SingleResponse[RetentionOfferAttributes]
 
 // RetentionOfferPricesResponse is the response from the retention offer prices endpoint.
 type RetentionOfferPricesResponse = Response[RetentionOfferPriceAttributes]

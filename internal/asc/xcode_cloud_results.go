@@ -75,14 +75,6 @@ type CiBuildActionResponse struct {
 	Links Links                 `json:"links"`
 }
 
-// CiArtifactAttributes describes a CI artifact resource.
-type CiArtifactAttributes struct {
-	FileType    string `json:"fileType,omitempty"`
-	FileName    string `json:"fileName,omitempty"`
-	FileSize    int    `json:"fileSize,omitempty"`
-	DownloadURL string `json:"downloadUrl,omitempty"`
-}
-
 // CiArtifactResource represents a CI artifact resource.
 type CiArtifactResource struct {
 	Type       ResourceType         `json:"type"`

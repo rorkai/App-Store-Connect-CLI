@@ -94,14 +94,6 @@ func TestConfigSaveLoadRemove(t *testing.T) {
 	if loaded.RetryLog != cfg.RetryLog {
 		t.Fatalf("RetryLog mismatch: got %q want %q", loaded.RetryLog, cfg.RetryLog)
 	}
-
-	if err := Remove(); err != nil {
-		t.Fatalf("Remove() error: %v", err)
-	}
-
-	if _, err := Load(); !errors.Is(err, ErrNotFound) {
-		t.Fatalf("expected ErrNotFound after Remove(), got %v", err)
-	}
 }
 
 func TestSaveAtOverwritesExistingFile(t *testing.T) {

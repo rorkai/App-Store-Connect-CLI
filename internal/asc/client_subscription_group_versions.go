@@ -235,26 +235,3 @@ func (c *Client) GetSubscriptionGroupLocalizationV2(ctx context.Context, localiz
 		Query: buildSubscriptionGroupVersionLocalizationsQuery(q, false),
 	})
 }
-
-// UpdateSubscriptionGroupLocalizationV2 updates nullable version-scoped attributes.
-func (c *Client) UpdateSubscriptionGroupLocalizationV2(ctx context.Context, localizationID string, attrs SubscriptionGroupLocalizationV2UpdateAttributes) (*SubscriptionGroupLocalizationV2Response, error) {
-	localizationID = strings.TrimSpace(localizationID)
-	if localizationID == "" {
-		return nil, fmt.Errorf("localizationID is required")
-	}
-	payload := SubscriptionGroupLocalizationV2UpdateRequest{Data: SubscriptionGroupLocalizationV2UpdateData{
-		Type:       ResourceTypeSubscriptionGroupLocalizations,
-		ID:         localizationID,
-		Attributes: &attrs,
-	}}
-	return sendJSON[SubscriptionGroupLocalizationV2Response](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v2/subscriptionGroupLocalizations/%s", localizationID), Payload: payload})
-}
-
-// DeleteSubscriptionGroupLocalizationV2 deletes a version-scoped localization.
-func (c *Client) DeleteSubscriptionGroupLocalizationV2(ctx context.Context, localizationID string) error {
-	localizationID = strings.TrimSpace(localizationID)
-	if localizationID == "" {
-		return fmt.Errorf("localizationID is required")
-	}
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v2/subscriptionGroupLocalizations/%s", localizationID), nil)
-}

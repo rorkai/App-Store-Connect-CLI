@@ -1,0 +1,14 @@
+{
+  "tag": "AppClipHeaderImages",
+  "file": "app_clip_header_images_gen.go",
+  "types": [
+    "AppClipHeaderImageCreateRequest",
+    "AppClipHeaderImageUpdateAttributes",
+    "AppClipHeaderImageUpdateData",
+    "AppClipHeaderImageUpdateRequest"
+  ],
+  "operations": [
+    {"operation":"appClipHeaderImages_deleteInstance","name":"DeleteAppClipHeaderImage","params":["imageID"],"check":"require"},
+    {"operation":"appClipHeaderImages_getInstance","name":"GetAppClipHeaderImage","params":["imageID"],"check":"require"}
+  ]
+}

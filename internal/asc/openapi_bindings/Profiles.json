@@ -1,0 +1,14 @@
+{
+  "tag": "Profiles",
+  "file": "profiles_gen.go",
+  "types": [
+    "ProfileCreateRequest",
+    "ProfileResponse"
+  ],
+  "operations": [
+    {"operation":"profiles_bundleId_getToOneRelated","name":"GetProfileBundleID","params":["profileID"],"check":"trim","response":"BundleIDResponse"},
+    {"operation":"profiles_bundleId_getToOneRelationship","name":"GetProfileBundleIDRelationship","params":["profileID"],"check":"trim","response":"ProfileBundleIDLinkageResponse"},
+    {"operation":"profiles_deleteInstance","name":"DeleteProfile","params":["id"],"check":"trim"},
+    {"operation":"profiles_getCollection","name":"GetProfiles","options":"ProfilesOption","query":"buildProfilesQuery","nextContext":"profiles"}
+  ]
+}

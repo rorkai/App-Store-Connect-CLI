@@ -82,9 +82,6 @@ type BetaRecruitmentCriterionOptionDeviceFamily struct {
 	OSVersions   []string     `json:"osVersions,omitempty"`
 }
 
-// BetaRecruitmentCriterionOptionsResponse is the response from recruitment criteria options list.
-type BetaRecruitmentCriterionOptionsResponse = Response[BetaRecruitmentCriterionOptionAttributes]
-
 // BetaGroupPublicLinkUsagesResponse is the response from public link usage metrics.
 // The metric endpoint returns data-point objects rather than JSON:API resource
 // objects, so it has a dedicated envelope instead of Response[T].

@@ -1,9 +1,0 @@
-{
-  "tag": "AppStoreVersionPhasedReleases",
-  "file": "app_store_version_phased_releases_gen.go",
-  "types": [
-    "AppStoreVersionPhasedReleaseCreateRequest",
-    "AppStoreVersionPhasedReleaseUpdateData",
-    "AppStoreVersionPhasedReleaseUpdateRequest"
-  ]
-}

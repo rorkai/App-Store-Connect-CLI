@@ -34,7 +34,7 @@ func TestInspectIPAReportsSignerIdentityFromMainExecutable(t *testing.T) {
 	ipa := signedIPA(t, artifactstest.MachO(artifactstest.Superblob(artifactstest.CodeDirectorySlot(), artifactstest.CMSSlot(cms))), map[string][]byte{
 		"Payload/Demo.app/embedded.mobileprovision": profile,
 	})
-	manifest, err := InspectIPA(bytes.NewReader(ipa), int64(len(ipa)), false, false)
+	manifest, err := InspectIPAWithOptions(bytes.NewReader(ipa), int64(len(ipa)), IPAOptions{IncludeEntitlements: false, IncludeProfile: false})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,7 +65,7 @@ func TestInspectIPAFallsBackToAppDirectoryExecutableName(t *testing.T) {
 		"Payload/Demo.app/Info.plist": plistXML(t, map[string]any{"CFBundleIdentifier": "com.example.demo"}),
 		"Payload/Demo.app/Demo":       artifactstest.MachO(artifactstest.Superblob(artifactstest.CodeDirectorySlot(), artifactstest.CMSSlot(cms))),
 	})
-	manifest, err := InspectIPA(bytes.NewReader(ipa), int64(len(ipa)), false, false)
+	manifest, err := InspectIPAWithOptions(bytes.NewReader(ipa), int64(len(ipa)), IPAOptions{IncludeEntitlements: false, IncludeProfile: false})
 	if err != nil || manifest.CodeSignature != "signed" || manifest.TeamID != artifactstest.TeamID {
 		t.Fatalf("manifest=%+v err=%v", manifest, err)
 	}
@@ -75,7 +75,7 @@ func TestInspectIPAReadsLowestOffsetFatSlice(t *testing.T) {
 	cms := artifactstest.NewChain(t).CMS(t)
 	fat := artifactstest.FatMachO(artifactstest.MachO(artifactstest.Superblob(artifactstest.CodeDirectorySlot(), artifactstest.CMSSlot(cms))), artifactstest.MachO(nil))
 	ipa := signedIPA(t, fat, nil)
-	manifest, err := InspectIPA(bytes.NewReader(ipa), int64(len(ipa)), false, false)
+	manifest, err := InspectIPAWithOptions(bytes.NewReader(ipa), int64(len(ipa)), IPAOptions{IncludeEntitlements: false, IncludeProfile: false})
 	if err != nil || manifest.CodeSignature != "signed" || manifest.Signer == nil || manifest.Signer.TeamID != artifactstest.TeamID {
 		t.Fatalf("manifest=%+v err=%v", manifest, err)
 	}
@@ -94,7 +94,7 @@ func TestInspectIPAClassifiesUnsignedAndAdHocExecutables(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			ipa := signedIPA(t, test.executable, nil)
-			manifest, err := InspectIPA(bytes.NewReader(ipa), int64(len(ipa)), false, false)
+			manifest, err := InspectIPAWithOptions(bytes.NewReader(ipa), int64(len(ipa)), IPAOptions{IncludeEntitlements: false, IncludeProfile: false})
 			if err != nil || manifest.CodeSignature != test.want || manifest.Signer != nil || manifest.SignerCommonName != "" || manifest.CodeSignatureError != "" {
 				t.Fatalf("manifest=%+v err=%v", manifest, err)
 			}
@@ -131,7 +131,7 @@ func TestInspectIPAReportsMalformedSignaturesAsUnreadable(t *testing.T) {
 	for name, executable := range tests {
 		t.Run(name, func(t *testing.T) {
 			ipa := signedIPA(t, executable, nil)
-			manifest, err := InspectIPA(bytes.NewReader(ipa), int64(len(ipa)), false, false)
+			manifest, err := InspectIPAWithOptions(bytes.NewReader(ipa), int64(len(ipa)), IPAOptions{IncludeEntitlements: false, IncludeProfile: false})
 			if err != nil {
 				t.Fatalf("signature problems must not fail metadata inspection: %v", err)
 			}
@@ -146,7 +146,7 @@ func TestInspectIPAMissingExecutableIsUnreadableSignature(t *testing.T) {
 	ipa := zipArtifact(t, map[string][]byte{
 		"Payload/Demo.app/Info.plist": plistXML(t, map[string]any{"CFBundleIdentifier": "com.example.demo", "CFBundleExecutable": "Demo"}),
 	})
-	manifest, err := InspectIPA(bytes.NewReader(ipa), int64(len(ipa)), false, false)
+	manifest, err := InspectIPAWithOptions(bytes.NewReader(ipa), int64(len(ipa)), IPAOptions{IncludeEntitlements: false, IncludeProfile: false})
 	if err != nil || manifest.CodeSignature != "unreadable" || !strings.Contains(manifest.CodeSignatureError, "main executable") {
 		t.Fatalf("manifest=%+v err=%v", manifest, err)
 	}
@@ -159,7 +159,7 @@ func TestInspectIPARejectsUnsafeExecutableNames(t *testing.T) {
 				"Payload/Demo.app/Info.plist": plistXML(t, map[string]any{"CFBundleIdentifier": "com.example.demo", "CFBundleExecutable": name}),
 				"Payload/Other":               artifactstest.MachO(nil),
 			})
-			manifest, err := InspectIPA(bytes.NewReader(ipa), int64(len(ipa)), false, false)
+			manifest, err := InspectIPAWithOptions(bytes.NewReader(ipa), int64(len(ipa)), IPAOptions{IncludeEntitlements: false, IncludeProfile: false})
 			if err != nil || manifest.CodeSignature != "unreadable" || !strings.Contains(manifest.CodeSignatureError, "CFBundleExecutable") {
 				t.Fatalf("manifest=%+v err=%v", manifest, err)
 			}
@@ -193,7 +193,7 @@ func TestInspectIPAStoredExecutableSkipsPayloadWithoutReadingIt(t *testing.T) {
 		t.Fatal(err)
 	}
 	reader := &artifactReadBudget{ReaderAt: bytes.NewReader(buffer.Bytes()), remaining: 1 << 20}
-	manifest, err := InspectIPA(reader, int64(buffer.Len()), false, false)
+	manifest, err := InspectIPAWithOptions(reader, int64(buffer.Len()), IPAOptions{IncludeEntitlements: false, IncludeProfile: false})
 	if err != nil || manifest.CodeSignature != "signed" {
 		t.Fatalf("manifest=%+v err=%v", manifest, err)
 	}
@@ -204,7 +204,7 @@ func TestReadMachOSignatureSurvivesTruncation(t *testing.T) {
 	executable := artifactstest.FatMachO(artifactstest.MachO(artifactstest.Superblob(artifactstest.CodeDirectorySlot(), artifactstest.CMSSlot(cms))), artifactstest.MachO(nil))
 	for length := 0; length < len(executable); length += 97 {
 		data := executable[:length]
-		slices, primary, err := readMachOSignatures(bytes.NewReader(data), int64(len(data)))
+		slices, primary, err := readMachOSignaturesCapture(bytes.NewReader(data), int64(len(data)), nil)
 		if err == nil && slices[primary].CodeSignature == "signed" && length < 4096 {
 			t.Fatalf("length %d reported signed", length)
 		}
@@ -216,7 +216,7 @@ func TestInspectPKGReportsXarSigner(t *testing.T) {
 	leaf := chain.Leaf
 	info := []byte(`<pkg-info version="1.0" identifier="com.example.pkg"/>`)
 	pkg := writeXarWithTOCExtra(t, map[string][]byte{"PackageInfo": info}, chain.XarSignature("signature"))
-	manifest, err := InspectPKG(bytes.NewReader(pkg), int64(len(pkg)))
+	manifest, err := inspectPKG(bytes.NewReader(pkg), int64(len(pkg)), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -230,7 +230,7 @@ func TestInspectPKGReadsCMSSignatureCertificates(t *testing.T) {
 	signature := `<x-signature style="CMS"><offset>0</offset><size>256</size><KeyInfo xmlns="http://www.w3.org/2000/09/xmldsig#"><X509Data><X509Certificate>` +
 		base64.StdEncoding.EncodeToString(leaf.Raw) + `</X509Certificate></X509Data></KeyInfo></x-signature>`
 	pkg := writeXarWithTOCExtra(t, map[string][]byte{"PackageInfo": []byte(`<pkg-info identifier="com.example.pkg"/>`)}, signature)
-	manifest, err := InspectPKG(bytes.NewReader(pkg), int64(len(pkg)))
+	manifest, err := inspectPKG(bytes.NewReader(pkg), int64(len(pkg)), nil)
 	if err != nil || manifest.PackageSignature != "signed" || manifest.Signer == nil || manifest.Signer.CommonName != leaf.Subject.CommonName {
 		t.Fatalf("manifest=%+v err=%v", manifest, err)
 	}
@@ -252,7 +252,7 @@ func TestInspectPKGClassifiesUnsignedAndMalformedSignatures(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			pkg := writeXarWithTOCExtra(t, info, test.extra)
-			manifest, err := InspectPKG(bytes.NewReader(pkg), int64(len(pkg)))
+			manifest, err := inspectPKG(bytes.NewReader(pkg), int64(len(pkg)), nil)
 			if err != nil || manifest.Status != "readable" {
 				t.Fatalf("manifest=%+v err=%v", manifest, err)
 			}
@@ -282,7 +282,7 @@ func testCMSWithoutCertificates(t *testing.T) []byte {
 func TestInspectPKGReportsSignerWhenPackageInfoIsMissing(t *testing.T) {
 	chain := artifactstest.NewChain(t)
 	pkg := writeXarWithTOCExtra(t, map[string][]byte{"Distribution": []byte(`<installer-gui-script/>`)}, chain.XarSignature("signature"))
-	manifest, err := InspectPKG(bytes.NewReader(pkg), int64(len(pkg)))
+	manifest, err := inspectPKG(bytes.NewReader(pkg), int64(len(pkg)), nil)
 	if err == nil || manifest.Status != "unreadable" {
 		t.Fatalf("manifest=%+v err=%v", manifest, err)
 	}
@@ -299,7 +299,7 @@ func TestInspectIPABoundsCompressedExecutableScan(t *testing.T) {
 	if len(ipa) > 1<<20 {
 		t.Fatalf("fixture is not highly compressed: %d bytes", len(ipa))
 	}
-	manifest, err := InspectIPA(bytes.NewReader(ipa), int64(len(ipa)), false, false)
+	manifest, err := InspectIPAWithOptions(bytes.NewReader(ipa), int64(len(ipa)), IPAOptions{IncludeEntitlements: false, IncludeProfile: false})
 	if err != nil || manifest.CodeSignature != "unreadable" || !strings.Contains(manifest.CodeSignatureError, "scan limit") {
 		t.Fatalf("manifest=%+v err=%v", manifest, err)
 	}

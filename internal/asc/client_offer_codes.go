@@ -7,11 +7,6 @@ import (
 	"strings"
 )
 
-// GetSubscriptionOfferCodeCustomCode retrieves a custom code by ID.
-func (c *Client) GetSubscriptionOfferCodeCustomCode(ctx context.Context, customCodeID string) (*SubscriptionOfferCodeCustomCodeResponse, error) {
-	return getJSON[SubscriptionOfferCodeCustomCodeResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/subscriptionOfferCodeCustomCodes/%s", strings.TrimSpace(customCodeID))})
-}
-
 // CreateSubscriptionOfferCodeCustomCode creates a custom code.
 func (c *Client) CreateSubscriptionOfferCodeCustomCode(ctx context.Context, req SubscriptionOfferCodeCustomCodeCreateRequest) (*SubscriptionOfferCodeCustomCodeResponse, error) {
 	return sendJSON[SubscriptionOfferCodeCustomCodeResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/subscriptionOfferCodeCustomCodes", Payload: req})

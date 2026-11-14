@@ -80,22 +80,6 @@ func (c *Client) UpdateSubscriptionGroup(ctx context.Context, groupID string, at
 	})
 }
 
-// DeleteSubscriptionGroup deletes a subscription group.
-func (c *Client) DeleteSubscriptionGroup(ctx context.Context, groupID string) error {
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/subscriptionGroups/%s", strings.TrimSpace(groupID)), nil)
-}
-
-// GetSubscriptions retrieves the list of subscriptions for a group.
-func (c *Client) GetSubscriptions(ctx context.Context, groupID string, opts ...SubscriptionsOption) (*SubscriptionsResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[SubscriptionsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/subscriptionGroups/%s/subscriptions", strings.TrimSpace(groupID)),
-		Query:       buildSubscriptionsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "subscriptions",
-	})
-}
-
 // CreateSubscription creates a subscription within a group.
 func (c *Client) CreateSubscription(ctx context.Context, groupID string, attrs SubscriptionCreateAttributes) (*SubscriptionResponse, error) {
 	payload := SubscriptionCreateRequest{
@@ -258,11 +242,6 @@ func (c *Client) SetSubscriptionInitialPrice(ctx context.Context, subID, pricePo
 	}})
 }
 
-// DeleteSubscription deletes a subscription.
-func (c *Client) DeleteSubscription(ctx context.Context, subID string) error {
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/subscriptions/%s", strings.TrimSpace(subID)), nil)
-}
-
 // CreateSubscriptionPrice adds a price to a subscription.
 func (c *Client) CreateSubscriptionPrice(ctx context.Context, subID, pricePointID, territoryID string, attrs SubscriptionPriceCreateAttributes) (*SubscriptionPriceResponse, error) {
 	subID = strings.TrimSpace(subID)
@@ -315,11 +294,6 @@ func (c *Client) CreateSubscriptionPrice(ctx context.Context, subID, pricePointI
 	})
 }
 
-// DeleteSubscriptionPrice deletes a subscription price.
-func (c *Client) DeleteSubscriptionPrice(ctx context.Context, priceID string) error {
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/subscriptionPrices/%s", strings.TrimSpace(priceID)), nil)
-}
-
 // CreateSubscriptionAvailability sets subscription availability in territories.
 func (c *Client) CreateSubscriptionAvailability(ctx context.Context, subID string, territoryIDs []string, attrs SubscriptionAvailabilityAttributes) (*SubscriptionAvailabilityResponse, error) {
 	subID = strings.TrimSpace(subID)
@@ -359,42 +333,6 @@ func (c *Client) CreateSubscriptionAvailability(ctx context.Context, subID strin
 		Method:  http.MethodPost,
 		Path:    "/v1/subscriptionAvailabilities",
 		Payload: payload,
-	})
-}
-
-// GetSubscriptionAvailability retrieves a subscription availability by ID.
-func (c *Client) GetSubscriptionAvailability(ctx context.Context, availabilityID string) (*SubscriptionAvailabilityResponse, error) {
-	availabilityID = strings.TrimSpace(availabilityID)
-	if availabilityID == "" {
-		return nil, fmt.Errorf("availabilityID is required")
-	}
-
-	return getJSON[SubscriptionAvailabilityResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/subscriptionAvailabilities/%s", availabilityID)})
-}
-
-// GetSubscriptionAvailabilityForSubscription retrieves availability for a subscription.
-func (c *Client) GetSubscriptionAvailabilityForSubscription(ctx context.Context, subID string) (*SubscriptionAvailabilityResponse, error) {
-	subID = strings.TrimSpace(subID)
-	if subID == "" {
-		return nil, fmt.Errorf("subscription ID is required")
-	}
-
-	return getJSON[SubscriptionAvailabilityResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/subscriptions/%s/subscriptionAvailability", subID)})
-}
-
-// GetSubscriptionAvailabilityAvailableTerritories lists available territories for an availability.
-func (c *Client) GetSubscriptionAvailabilityAvailableTerritories(ctx context.Context, availabilityID string, opts ...SubscriptionAvailabilityTerritoriesOption) (*TerritoriesResponse, error) {
-	query := applyOptions(opts)
-	availabilityID = strings.TrimSpace(availabilityID)
-	if query.nextURL == "" && availabilityID == "" {
-		return nil, fmt.Errorf("availabilityID is required")
-	}
-
-	return getJSON[TerritoriesResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/subscriptionAvailabilities/%s/availableTerritories", availabilityID),
-		Query:       buildSubscriptionAvailabilityTerritoriesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "subscription-availability-territories",
 	})
 }
 
@@ -448,22 +386,6 @@ func (c *Client) RemoveSubscriptionIntroductoryOffers(ctx context.Context, subID
 	}
 
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/subscriptions/%s/relationships/introductoryOffers", subID), payload)
-}
-
-// GetSubscriptionPricesRelationships retrieves price linkages for a subscription.
-func (c *Client) GetSubscriptionPricesRelationships(ctx context.Context, subID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	query := applyOptions(opts)
-	subID = strings.TrimSpace(subID)
-	if query.nextURL == "" && subID == "" {
-		return nil, fmt.Errorf("subscription ID is required")
-	}
-
-	return getJSON[LinkagesResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/subscriptions/%s/relationships/prices", subID),
-		Query:       buildLinkagesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "subscriptionPricesRelationships",
-	})
 }
 
 // RemoveSubscriptionPrices removes price relationships from a subscription.

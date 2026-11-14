@@ -26,11 +26,6 @@ type SubscriptionPlanAvailabilityAttributes struct {
 	PlanType                  SubscriptionPlanType `json:"planType,omitempty"`
 }
 
-// SubscriptionPlanAvailabilityUpdateAttributes describes mutable plan availability attributes.
-type SubscriptionPlanAvailabilityUpdateAttributes struct {
-	AvailableInNewTerritories *bool `json:"availableInNewTerritories,omitempty"`
-}
-
 // SubscriptionPlanAvailabilityRelationships describes relationships for plan availability.
 type SubscriptionPlanAvailabilityRelationships struct {
 	Subscription         *Relationship     `json:"subscription,omitempty"`
@@ -44,11 +39,6 @@ type SubscriptionPlanAvailabilityCreateData struct {
 	Relationships *SubscriptionPlanAvailabilityRelationships `json:"relationships"`
 }
 
-// SubscriptionPlanAvailabilityCreateRequest is a request to create plan availability.
-type SubscriptionPlanAvailabilityCreateRequest struct {
-	Data SubscriptionPlanAvailabilityCreateData `json:"data"`
-}
-
 // SubscriptionPlanAvailabilityUpdateData is the data portion of plan availability update requests.
 type SubscriptionPlanAvailabilityUpdateData struct {
 	Type          ResourceType                                  `json:"type"`
@@ -56,14 +46,6 @@ type SubscriptionPlanAvailabilityUpdateData struct {
 	Attributes    *SubscriptionPlanAvailabilityUpdateAttributes `json:"attributes,omitempty"`
 	Relationships *SubscriptionPlanAvailabilityRelationships    `json:"relationships,omitempty"`
 }
-
-// SubscriptionPlanAvailabilityUpdateRequest is a request to update plan availability.
-type SubscriptionPlanAvailabilityUpdateRequest struct {
-	Data SubscriptionPlanAvailabilityUpdateData `json:"data"`
-}
-
-// SubscriptionPlanAvailabilityResponse is the response from plan availability endpoints.
-type SubscriptionPlanAvailabilityResponse = SingleResponse[SubscriptionPlanAvailabilityAttributes]
 
 // SubscriptionPlanAvailabilitiesResponse is the response from plan availability list endpoints.
 type SubscriptionPlanAvailabilitiesResponse = Response[SubscriptionPlanAvailabilityAttributes]
@@ -166,16 +148,6 @@ func (c *Client) UpdateSubscriptionPlanAvailability(ctx context.Context, planAva
 	return sendJSON[SubscriptionPlanAvailabilityResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/subscriptionPlanAvailabilities/%s", planAvailabilityID), Payload: payload})
 }
 
-// GetSubscriptionPlanAvailability retrieves a subscription plan availability by ID.
-func (c *Client) GetSubscriptionPlanAvailability(ctx context.Context, planAvailabilityID string) (*SubscriptionPlanAvailabilityResponse, error) {
-	planAvailabilityID = strings.TrimSpace(planAvailabilityID)
-	if planAvailabilityID == "" {
-		return nil, fmt.Errorf("plan availability ID is required")
-	}
-
-	return getJSON[SubscriptionPlanAvailabilityResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/subscriptionPlanAvailabilities/%s", planAvailabilityID)})
-}
-
 // GetSubscriptionPlanAvailabilitiesForSubscription retrieves plan availabilities for a subscription.
 func (c *Client) GetSubscriptionPlanAvailabilitiesForSubscription(ctx context.Context, subID string, opts ...SubscriptionPlanAvailabilitiesOption) (*SubscriptionPlanAvailabilitiesResponse, error) {
 	subID = strings.TrimSpace(subID)
@@ -241,22 +213,6 @@ func (c *Client) GetSubscriptionPlanAvailabilityAvailableTerritoriesRelationship
 		"subscriptionPlanAvailabilityAvailableTerritoriesRelationships",
 		opts...,
 	)
-}
-
-// GetSubscriptionPlanAvailabilityAvailableTerritories lists available territories for a plan availability.
-func (c *Client) GetSubscriptionPlanAvailabilityAvailableTerritories(ctx context.Context, planAvailabilityID string, opts ...SubscriptionAvailabilityTerritoriesOption) (*TerritoriesResponse, error) {
-	query := applyOptions(opts)
-	planAvailabilityID = strings.TrimSpace(planAvailabilityID)
-	if query.nextURL == "" && planAvailabilityID == "" {
-		return nil, fmt.Errorf("plan availability ID is required")
-	}
-
-	return getJSON[TerritoriesResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/subscriptionPlanAvailabilities/%s/availableTerritories", planAvailabilityID),
-		Query:       buildSubscriptionAvailabilityTerritoriesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "subscriptionPlanAvailabilityAvailableTerritories",
-	})
 }
 
 func filterSubscriptionPlanAvailabilities(resp *SubscriptionPlanAvailabilitiesResponse, planTypes []SubscriptionPlanType) *SubscriptionPlanAvailabilitiesResponse {

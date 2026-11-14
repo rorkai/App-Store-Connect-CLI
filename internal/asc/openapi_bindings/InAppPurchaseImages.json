@@ -1,0 +1,12 @@
+{
+  "tag": "InAppPurchaseImages",
+  "file": "in_app_purchase_images_gen.go",
+  "types": [
+    "InAppPurchaseImageV2CreateRequest",
+    "InAppPurchaseImageV2UpdateData",
+    "InAppPurchaseImageV2UpdateRequest"
+  ],
+  "operations": [
+    {"operation":"inAppPurchaseImagesV2_deleteInstance","name":"DeleteInAppPurchaseImageV2","params":["imageID"],"check":"require"}
+  ]
+}

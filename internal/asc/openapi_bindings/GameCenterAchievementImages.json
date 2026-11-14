@@ -1,0 +1,18 @@
+{
+  "tag": "GameCenterAchievementImages",
+  "file": "game_center_achievement_images_gen.go",
+  "types": [
+    "GameCenterAchievementImageCreateRequest",
+    "GameCenterAchievementImageResponse",
+    "GameCenterAchievementImageUpdateAttributes",
+    "GameCenterAchievementImageUpdateData",
+    "GameCenterAchievementImageUpdateRequest",
+    "GameCenterAchievementImageV2CreateRequest"
+  ],
+  "operations": [
+    {"operation":"gameCenterAchievementImagesV2_deleteInstance","name":"DeleteGameCenterAchievementImageV2","params":["imageID"]},
+    {"operation":"gameCenterAchievementImagesV2_getInstance","name":"GetGameCenterAchievementImageV2","params":["imageID"],"response":"GameCenterAchievementImageResponse"},
+    {"operation":"gameCenterAchievementImages_deleteInstance","name":"DeleteGameCenterAchievementImage","params":["imageID"]},
+    {"operation":"gameCenterAchievementImages_getInstance","name":"GetGameCenterAchievementImage","params":["imageID"]}
+  ]
+}

@@ -121,33 +121,3 @@ func (c *Client) CreateCustomerReviewResponse(ctx context.Context, reviewID, res
 
 	return sendJSON[CustomerReviewResponseResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/customerReviewResponses", Payload: payload})
 }
-
-// GetCustomerReviewResponse retrieves a customer review response by ID.
-func (c *Client) GetCustomerReviewResponse(ctx context.Context, responseID string) (*CustomerReviewResponseResponse, error) {
-	responseID = strings.TrimSpace(responseID)
-	if responseID == "" {
-		return nil, fmt.Errorf("responseID is required")
-	}
-
-	return getJSON[CustomerReviewResponseResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/customerReviewResponses/%s", responseID)})
-}
-
-// DeleteCustomerReviewResponse deletes a customer review response by ID.
-func (c *Client) DeleteCustomerReviewResponse(ctx context.Context, responseID string) error {
-	responseID = strings.TrimSpace(responseID)
-	if responseID == "" {
-		return fmt.Errorf("responseID is required")
-	}
-
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/customerReviewResponses/%s", responseID), nil)
-}
-
-// GetCustomerReviewResponseForReview retrieves the response for a specific review.
-func (c *Client) GetCustomerReviewResponseForReview(ctx context.Context, reviewID string) (*CustomerReviewResponseResponse, error) {
-	reviewID = strings.TrimSpace(reviewID)
-	if reviewID == "" {
-		return nil, fmt.Errorf("reviewID is required")
-	}
-
-	return getJSON[CustomerReviewResponseResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/customerReviews/%s/response", reviewID)})
-}

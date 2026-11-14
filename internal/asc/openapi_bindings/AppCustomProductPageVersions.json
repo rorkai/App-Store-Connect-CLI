@@ -1,0 +1,16 @@
+{
+  "tag": "AppCustomProductPageVersions",
+  "file": "app_custom_product_page_versions_gen.go",
+  "types": [
+    "AppCustomProductPageVersionAttributes",
+    "AppCustomProductPageVersionCreateRequest",
+    "AppCustomProductPageVersionResponse",
+    "AppCustomProductPageVersionUpdateAttributes",
+    "AppCustomProductPageVersionUpdateData",
+    "AppCustomProductPageVersionUpdateRequest"
+  ],
+  "operations": [
+    {"operation":"appCustomProductPageVersions_appCustomProductPageLocalizations_getToManyRelated","name":"GetAppCustomProductPageLocalizations","params":["versionID"],"check":"require","options":"AppCustomProductPageLocalizationsOption","query":"buildAppCustomProductPageLocalizationsQuery","nextContext":"appCustomProductPageLocalizations"},
+    {"operation":"appCustomProductPageVersions_getInstance","name":"GetAppCustomProductPageVersion","params":["versionID"],"check":"require"}
+  ]
+}

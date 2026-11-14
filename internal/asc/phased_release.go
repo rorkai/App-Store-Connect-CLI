@@ -37,6 +37,11 @@ type AppStoreVersionPhasedReleaseResponse struct {
 	Links Links                                             `json:"links"`
 }
 
+// AppStoreVersionPhasedReleaseCreateRequest represents a request to create a phased release.
+type AppStoreVersionPhasedReleaseCreateRequest struct {
+	Data AppStoreVersionPhasedReleaseCreateData `json:"data"`
+}
+
 // AppStoreVersionPhasedReleaseCreateData represents the data for creating a phased release.
 type AppStoreVersionPhasedReleaseCreateData struct {
 	Type          ResourceType                                  `json:"type"`
@@ -52,6 +57,18 @@ type AppStoreVersionPhasedReleaseCreateAttributes struct {
 // AppStoreVersionPhasedReleaseRelationships represents the relationships for a phased release.
 type AppStoreVersionPhasedReleaseRelationships struct {
 	AppStoreVersion *Relationship `json:"appStoreVersion"`
+}
+
+// AppStoreVersionPhasedReleaseUpdateRequest represents a request to update a phased release.
+type AppStoreVersionPhasedReleaseUpdateRequest struct {
+	Data AppStoreVersionPhasedReleaseUpdateData `json:"data"`
+}
+
+// AppStoreVersionPhasedReleaseUpdateData represents the data for updating a phased release.
+type AppStoreVersionPhasedReleaseUpdateData struct {
+	Type       ResourceType                                  `json:"type"`
+	ID         string                                        `json:"id"`
+	Attributes *AppStoreVersionPhasedReleaseUpdateAttributes `json:"attributes,omitempty"`
 }
 
 // AppStoreVersionPhasedReleaseUpdateAttributes represents attributes for updating a phased release.

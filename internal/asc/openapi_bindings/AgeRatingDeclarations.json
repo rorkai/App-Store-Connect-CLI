@@ -1,0 +1,8 @@
+{
+  "tag": "AgeRatingDeclarations",
+  "file": "age_rating_declarations_gen.go",
+  "types": [
+    "AgeRatingDeclarationResponse",
+    "AgeRatingDeclarationUpdateRequest"
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "tag": "GameCenterActivityImages",
+  "file": "game_center_activity_images_gen.go",
+  "types": [
+    "GameCenterActivityImageCreateRequest",
+    "GameCenterActivityImageResponse",
+    "GameCenterActivityImageUpdateAttributes",
+    "GameCenterActivityImageUpdateData",
+    "GameCenterActivityImageUpdateRequest"
+  ],
+  "operations": [
+    {"operation":"gameCenterActivityImages_deleteInstance","name":"DeleteGameCenterActivityImage","params":["imageID"]},
+    {"operation":"gameCenterActivityImages_getInstance","name":"GetGameCenterActivityImage","params":["imageID"]}
+  ]
+}

@@ -191,13 +191,6 @@ func IsCustomAppUserWriteUncertain(err error) bool {
 	return true
 }
 
-// ListCustomAppUsers reads the selected app's first customAppUsers page. The
-// raw page remains intact; callers that need a complete collection should use
-// ListCustomAppUsersPaginated.
-func (c *Client) ListCustomAppUsers(ctx context.Context, appID string) (*CustomAppUsersListResult, error) {
-	return c.listCustomAppUsers(ctx, appID, false)
-}
-
 // ListCustomAppUsersPaginated reads and validates the complete selected-app
 // customAppUsers collection. It follows only same-host, same-app collection
 // links and never performs a write.

@@ -6,11 +6,6 @@ import (
 	"strings"
 )
 
-// EndUserLicenseAgreementAttributes describes an EULA resource.
-type EndUserLicenseAgreementAttributes struct {
-	AgreementText string `json:"agreementText,omitempty"`
-}
-
 // EndUserLicenseAgreementRelationships describes EULA relationships.
 type EndUserLicenseAgreementRelationships struct {
 	App         *Relationship     `json:"app,omitempty"`
@@ -31,11 +26,6 @@ type EndUserLicenseAgreementResponse struct {
 	Links Links                           `json:"links"`
 }
 
-// EndUserLicenseAgreementCreateAttributes describes attributes for creating an EULA.
-type EndUserLicenseAgreementCreateAttributes struct {
-	AgreementText string `json:"agreementText"`
-}
-
 // EndUserLicenseAgreementCreateRelationships describes relationships for EULA creation.
 type EndUserLicenseAgreementCreateRelationships struct {
 	App         Relationship     `json:"app"`
@@ -49,16 +39,6 @@ type EndUserLicenseAgreementCreateData struct {
 	Relationships EndUserLicenseAgreementCreateRelationships `json:"relationships"`
 }
 
-// EndUserLicenseAgreementCreateRequest is a request to create an EULA.
-type EndUserLicenseAgreementCreateRequest struct {
-	Data EndUserLicenseAgreementCreateData `json:"data"`
-}
-
-// EndUserLicenseAgreementUpdateAttributes describes attributes for updating an EULA.
-type EndUserLicenseAgreementUpdateAttributes struct {
-	AgreementText *string `json:"agreementText,omitempty"`
-}
-
 // EndUserLicenseAgreementUpdateRelationships describes relationships for updating an EULA.
 type EndUserLicenseAgreementUpdateRelationships struct {
 	Territories *RelationshipList `json:"territories,omitempty"`
@@ -70,11 +50,6 @@ type EndUserLicenseAgreementUpdateData struct {
 	ID            string                                      `json:"id"`
 	Attributes    *EndUserLicenseAgreementUpdateAttributes    `json:"attributes,omitempty"`
 	Relationships *EndUserLicenseAgreementUpdateRelationships `json:"relationships,omitempty"`
-}
-
-// EndUserLicenseAgreementUpdateRequest is a request to update an EULA.
-type EndUserLicenseAgreementUpdateRequest struct {
-	Data EndUserLicenseAgreementUpdateData `json:"data"`
 }
 
 // EndUserLicenseAgreementDeleteResult represents CLI output for EULA deletions.
@@ -96,16 +71,6 @@ func buildTerritoryRelationship(ids []string) *RelationshipList {
 		})
 	}
 	return &RelationshipList{Data: data}
-}
-
-// GetEndUserLicenseAgreement retrieves an EULA by ID.
-func (c *Client) GetEndUserLicenseAgreement(ctx context.Context, id string) (*EndUserLicenseAgreementResponse, error) {
-	id = strings.TrimSpace(id)
-	if id == "" {
-		return nil, fmt.Errorf("id is required")
-	}
-
-	return getJSON[EndUserLicenseAgreementResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/endUserLicenseAgreements/%s", id)})
 }
 
 // GetEndUserLicenseAgreementForApp retrieves an EULA for a specific app.
@@ -198,16 +163,6 @@ func (c *Client) UpdateEndUserLicenseAgreement(ctx context.Context, id string, a
 	}
 
 	return sendJSON[EndUserLicenseAgreementResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/endUserLicenseAgreements/%s", id), Payload: payload})
-}
-
-// DeleteEndUserLicenseAgreement deletes an EULA by ID.
-func (c *Client) DeleteEndUserLicenseAgreement(ctx context.Context, id string) error {
-	id = strings.TrimSpace(id)
-	if id == "" {
-		return fmt.Errorf("id is required")
-	}
-
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/endUserLicenseAgreements/%s", id), nil)
 }
 
 // GetEndUserLicenseAgreementTerritories retrieves territories for an EULA.

@@ -1,0 +1,9 @@
+{
+  "tag": "MerchantIds",
+  "file": "merchant_ids_gen.go",
+  "operations": [
+    {"operation":"merchantIds_certificates_getToManyRelated","name":"GetMerchantIDCertificates","params":["merchantID"],"check":"trim","options":"MerchantIDCertificatesOption","query":"buildMerchantIDCertificatesQuery","nextContext":"merchantIdCertificates"},
+    {"operation":"merchantIds_deleteInstance","name":"DeleteMerchantID","params":["id"],"check":"trim"},
+    {"operation":"merchantIds_getCollection","name":"GetMerchantIDs","options":"MerchantIDsOption","query":"buildMerchantIDsQuery","nextContext":"merchantIds","response":"MerchantIDsResponse"}
+  ]
+}

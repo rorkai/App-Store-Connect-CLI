@@ -6,17 +6,6 @@ import (
 	"strings"
 )
 
-// GetUsers retrieves the list of users.
-func (c *Client) GetUsers(ctx context.Context, opts ...UsersOption) (*UsersResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[UsersResponse](ctx, c, readRequest{
-		Path:        "/v1/users",
-		Query:       buildUsersQuery(query),
-		Next:        query.nextURL,
-		NextContext: "users",
-	})
-}
-
 // GetUser retrieves a single user by ID.
 func (c *Client) GetUser(ctx context.Context, userID string, opts ...UsersOption) (*UserResponse, error) {
 	userID = strings.TrimSpace(userID)
@@ -68,23 +57,6 @@ func (c *Client) UpdateUser(ctx context.Context, userID string, attrs UserUpdate
 	return sendJSON[UserResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/users/%s", userID), Payload: payload})
 }
 
-// DeleteUser deletes a user by ID.
-func (c *Client) DeleteUser(ctx context.Context, userID string) error {
-	userID = strings.TrimSpace(userID)
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/users/%s", userID), nil)
-}
-
-// GetUserInvitations retrieves the list of user invitations.
-func (c *Client) GetUserInvitations(ctx context.Context, opts ...UserInvitationsOption) (*UserInvitationsResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[UserInvitationsResponse](ctx, c, readRequest{
-		Path:        "/v1/userInvitations",
-		Query:       buildUserInvitationsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "userInvitations",
-	})
-}
-
 // CreateUserInvitation creates a new user invitation.
 func (c *Client) CreateUserInvitation(ctx context.Context, attrs UserInvitationCreateAttributes, visibleAppIDs []string) (*UserInvitationResponse, error) {
 	visibleAppIDs = normalizeList(visibleAppIDs)
@@ -115,18 +87,6 @@ func (c *Client) CreateUserInvitation(ctx context.Context, attrs UserInvitationC
 		payload.Data.Relationships = relationships
 	}
 	return sendJSON[UserInvitationResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/userInvitations", Payload: payload})
-}
-
-// GetUserInvitation retrieves a user invitation by ID.
-func (c *Client) GetUserInvitation(ctx context.Context, inviteID string) (*UserInvitationResponse, error) {
-	inviteID = strings.TrimSpace(inviteID)
-	return getJSON[UserInvitationResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/userInvitations/%s", inviteID)})
-}
-
-// DeleteUserInvitation deletes a user invitation by ID.
-func (c *Client) DeleteUserInvitation(ctx context.Context, inviteID string) error {
-	inviteID = strings.TrimSpace(inviteID)
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/userInvitations/%s", inviteID), nil)
 }
 
 // GetUserVisibleApps retrieves the visible apps for a user.

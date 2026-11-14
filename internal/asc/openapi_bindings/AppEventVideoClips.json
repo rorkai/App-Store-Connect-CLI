@@ -1,0 +1,15 @@
+{
+  "tag": "AppEventVideoClips",
+  "file": "app_event_video_clips_gen.go",
+  "types": [
+    "AppEventVideoClipCreateRequest",
+    "AppEventVideoClipUpdateAttributes",
+    "AppEventVideoClipUpdateData",
+    "AppEventVideoClipUpdateRequest"
+  ],
+  "operations": [
+    {"operation":"appEventVideoClips_deleteInstance","name":"DeleteAppEventVideoClip","params":["clipID"],"check":"require"},
+    {"operation":"appEventVideoClips_getInstance","name":"GetAppEventVideoClip","params":["clipID"],"check":"require"},
+    {"operation":"appEventVideoClips_updateInstance","name":"UpdateAppEventVideoClip","params":["clipID"],"check":"require"}
+  ]
+}

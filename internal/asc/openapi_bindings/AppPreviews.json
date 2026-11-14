@@ -1,9 +1,0 @@
-{
-  "tag": "AppPreviews",
-  "file": "app_previews_gen.go",
-  "types": [
-    "AppPreviewCreateRequest",
-    "AppPreviewUpdateData",
-    "AppPreviewUpdateRequest"
-  ]
-}
