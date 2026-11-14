@@ -68,6 +68,32 @@ func (c *Client) GetGameCenterLeaderboardSetImageV2(ctx context.Context, imageID
 	})
 }
 
+// CreateGameCenterLeaderboardSetImage sends POST /v1/gameCenterLeaderboardSetImages (gameCenterLeaderboardSetImages_createInstance).
+func (c *Client) CreateGameCenterLeaderboardSetImage(ctx context.Context, localizationID string, fileName string, fileSize int64) (*GameCenterLeaderboardSetImageResponse, error) {
+	payload := GameCenterLeaderboardSetImageCreateRequest{
+		Data: GameCenterLeaderboardSetImageCreateData{
+			Type: ResourceTypeGameCenterLeaderboardSetImages,
+			Attributes: GameCenterLeaderboardSetImageCreateAttributes{
+				FileName: fileName,
+				FileSize: fileSize,
+			},
+			Relationships: &GameCenterLeaderboardSetImageRelationships{
+				GameCenterLeaderboardSetLocalization: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeGameCenterLeaderboardSetLocalizations,
+						ID:   strings.TrimSpace(localizationID),
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[GameCenterLeaderboardSetImageResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/gameCenterLeaderboardSetImages",
+		Payload: payload,
+	})
+}
+
 // DeleteGameCenterLeaderboardSetImage sends DELETE /v1/gameCenterLeaderboardSetImages/{id} (gameCenterLeaderboardSetImages_deleteInstance).
 func (c *Client) DeleteGameCenterLeaderboardSetImage(ctx context.Context, imageID string) error {
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/gameCenterLeaderboardSetImages/%s", strings.TrimSpace(imageID)), nil)

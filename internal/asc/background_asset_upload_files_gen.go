@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 )
 
@@ -55,5 +56,27 @@ func (c *Client) GetBackgroundAssetUploadFile(ctx context.Context, uploadFileID 
 	}
 	return getJSON[BackgroundAssetUploadFileResponse](ctx, c, readRequest{
 		Path: fmt.Sprintf("/v1/backgroundAssetUploadFiles/%s", uploadFileID),
+	})
+}
+
+// UpdateBackgroundAssetUploadFile sends PATCH /v1/backgroundAssetUploadFiles/{id} (backgroundAssetUploadFiles_updateInstance).
+func (c *Client) UpdateBackgroundAssetUploadFile(ctx context.Context, uploadFileID string, attrs BackgroundAssetUploadFileUpdateAttributes) (*BackgroundAssetUploadFileResponse, error) {
+	uploadFileID = strings.TrimSpace(uploadFileID)
+	if uploadFileID == "" {
+		return nil, fmt.Errorf("background asset upload file ID is required")
+	}
+	payload := BackgroundAssetUploadFileUpdateRequest{
+		Data: BackgroundAssetUploadFileUpdateData{
+			Type: ResourceTypeBackgroundAssetUploadFiles,
+			ID:   uploadFileID,
+		},
+	}
+	if attrs.SourceFileChecksum != nil || attrs.SourceFileChecksums != nil || attrs.Uploaded != nil {
+		payload.Data.Attributes = &attrs
+	}
+	return sendJSON[BackgroundAssetUploadFileResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/backgroundAssetUploadFiles/%s", uploadFileID),
+		Payload: payload,
 	})
 }

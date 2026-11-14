@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 )
 
@@ -58,6 +59,28 @@ func (c *Client) GetBackgroundAsset(ctx context.Context, id string) (*Background
 	}
 	return getJSON[BackgroundAssetResponse](ctx, c, readRequest{
 		Path: fmt.Sprintf("/v1/backgroundAssets/%s", id),
+	})
+}
+
+// UpdateBackgroundAsset sends PATCH /v1/backgroundAssets/{id} (backgroundAssets_updateInstance).
+func (c *Client) UpdateBackgroundAsset(ctx context.Context, id string, attrs BackgroundAssetUpdateAttributes) (*BackgroundAssetResponse, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return nil, fmt.Errorf("background asset ID is required")
+	}
+	payload := BackgroundAssetUpdateRequest{
+		Data: BackgroundAssetUpdateData{
+			Type: ResourceTypeBackgroundAssets,
+			ID:   id,
+		},
+	}
+	if attrs.Archived != nil {
+		payload.Data.Attributes = &attrs
+	}
+	return sendJSON[BackgroundAssetResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/backgroundAssets/%s", id),
+		Payload: payload,
 	})
 }
 

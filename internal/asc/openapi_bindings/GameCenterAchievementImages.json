@@ -19,6 +19,7 @@
   "operations": [
     {"operation":"gameCenterAchievementImagesV2_deleteInstance","name":"DeleteGameCenterAchievementImageV2","params":["imageID"]},
     {"operation":"gameCenterAchievementImagesV2_getInstance","name":"GetGameCenterAchievementImageV2","params":["imageID"],"response":"GameCenterAchievementImageResponse","deviations":[{"problem":"result data holds asc.GameCenterAchievementImageAttributes, not the attributes of resource GameCenterAchievementImageV2","reason":"GameCenterAchievementImageAttributes is the hand-written attributes type, named without the version suffix of GameCenterAchievementImageV2; the attribute names check passes for GameCenterAchievementImageV2."}]},
+    {"operation":"gameCenterAchievementImages_createInstance","name":"CreateGameCenterAchievementImage","params":["localizationID"],"links":["gameCenterAchievementLocalization"],"args":[{"name":"fileName"},{"name":"fileSize","type":"int64"}]},
     {"operation":"gameCenterAchievementImages_deleteInstance","name":"DeleteGameCenterAchievementImage","params":["imageID"]},
     {"operation":"gameCenterAchievementImages_getInstance","name":"GetGameCenterAchievementImage","params":["imageID"]},
     {"operation":"gameCenterAchievementImages_updateInstance","name":"UpdateGameCenterAchievementImage","params":["imageID"],"args":[{"name":"uploaded"}]}

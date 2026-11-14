@@ -39,6 +39,36 @@ type AppClipHeaderImageUpdateRequest struct {
 	Data AppClipHeaderImageUpdateData `json:"data"`
 }
 
+// CreateAppClipHeaderImage sends POST /v1/appClipHeaderImages (appClipHeaderImages_createInstance).
+func (c *Client) CreateAppClipHeaderImage(ctx context.Context, localizationID string, fileName string, fileSize int64) (*AppClipHeaderImageResponse, error) {
+	localizationID = strings.TrimSpace(localizationID)
+	if localizationID == "" {
+		return nil, fmt.Errorf("localizationID is required")
+	}
+	payload := AppClipHeaderImageCreateRequest{
+		Data: AppClipHeaderImageCreateData{
+			Type: ResourceTypeAppClipHeaderImages,
+			Attributes: AppClipHeaderImageCreateAttributes{
+				FileName: fileName,
+				FileSize: fileSize,
+			},
+			Relationships: &AppClipHeaderImageRelationships{
+				AppClipDefaultExperienceLocalization: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeAppClipDefaultExperienceLocalizations,
+						ID:   localizationID,
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[AppClipHeaderImageResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/appClipHeaderImages",
+		Payload: payload,
+	})
+}
+
 // DeleteAppClipHeaderImage sends DELETE /v1/appClipHeaderImages/{id} (appClipHeaderImages_deleteInstance).
 func (c *Client) DeleteAppClipHeaderImage(ctx context.Context, imageID string) error {
 	imageID = strings.TrimSpace(imageID)
@@ -56,5 +86,28 @@ func (c *Client) GetAppClipHeaderImage(ctx context.Context, imageID string) (*Ap
 	}
 	return getJSON[AppClipHeaderImageResponse](ctx, c, readRequest{
 		Path: fmt.Sprintf("/v1/appClipHeaderImages/%s", imageID),
+	})
+}
+
+// UpdateAppClipHeaderImage sends PATCH /v1/appClipHeaderImages/{id} (appClipHeaderImages_updateInstance).
+func (c *Client) UpdateAppClipHeaderImage(ctx context.Context, imageID string, uploaded bool, checksumHash string) (*AppClipHeaderImageResponse, error) {
+	imageID = strings.TrimSpace(imageID)
+	if imageID == "" {
+		return nil, fmt.Errorf("imageID is required")
+	}
+	payload := AppClipHeaderImageUpdateRequest{
+		Data: AppClipHeaderImageUpdateData{
+			Type: ResourceTypeAppClipHeaderImages,
+			ID:   imageID,
+			Attributes: &AppClipHeaderImageUpdateAttributes{
+				Uploaded:           &uploaded,
+				SourceFileChecksum: &checksumHash,
+			},
+		},
+	}
+	return sendJSON[AppClipHeaderImageResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/appClipHeaderImages/%s", imageID),
+		Payload: payload,
 	})
 }

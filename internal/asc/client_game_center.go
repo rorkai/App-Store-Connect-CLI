@@ -86,29 +86,6 @@ func (c *Client) SetGameCenterLeaderboardSetMembers(ctx context.Context, setID s
 	})
 }
 
-// CreateGameCenterLeaderboardImage reserves an image upload for a leaderboard localization.
-func (c *Client) CreateGameCenterLeaderboardImage(ctx context.Context, localizationID string, fileName string, fileSize int64) (*GameCenterLeaderboardImageResponse, error) {
-	payload := GameCenterLeaderboardImageCreateRequest{
-		Data: GameCenterLeaderboardImageCreateData{
-			Type: ResourceTypeGameCenterLeaderboardImages,
-			Attributes: GameCenterLeaderboardImageCreateAttributes{
-				FileSize: fileSize,
-				FileName: fileName,
-			},
-			Relationships: &GameCenterLeaderboardImageRelationships{
-				GameCenterLeaderboardLocalization: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeGameCenterLeaderboardLocalizations,
-						ID:   strings.TrimSpace(localizationID),
-					},
-				},
-			},
-		},
-	}
-
-	return sendJSON[GameCenterLeaderboardImageResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/gameCenterLeaderboardImages", Payload: payload})
-}
-
 // UploadGameCenterLeaderboardImage performs the full upload flow for a leaderboard image.
 // It reserves the upload, uploads the file, and commits the upload.
 func (c *Client) UploadGameCenterLeaderboardImage(ctx context.Context, localizationID string, filePath string) (*GameCenterLeaderboardImageUploadResult, error) {
@@ -164,29 +141,6 @@ func (c *Client) UploadGameCenterLeaderboardImage(ctx context.Context, localizat
 	}, nil
 }
 
-// CreateGameCenterAchievementImage reserves a new Game Center achievement image upload.
-func (c *Client) CreateGameCenterAchievementImage(ctx context.Context, localizationID string, fileName string, fileSize int64) (*GameCenterAchievementImageResponse, error) {
-	payload := GameCenterAchievementImageCreateRequest{
-		Data: GameCenterAchievementImageCreateData{
-			Type: ResourceTypeGameCenterAchievementImages,
-			Attributes: GameCenterAchievementImageCreateAttributes{
-				FileSize: fileSize,
-				FileName: fileName,
-			},
-			Relationships: &GameCenterAchievementImageRelationships{
-				GameCenterAchievementLocalization: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeGameCenterAchievementLocalizations,
-						ID:   strings.TrimSpace(localizationID),
-					},
-				},
-			},
-		},
-	}
-
-	return sendJSON[GameCenterAchievementImageResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/gameCenterAchievementImages", Payload: payload})
-}
-
 // UploadGameCenterAchievementImage performs the complete upload flow: reserve, upload chunks, commit.
 func (c *Client) UploadGameCenterAchievementImage(ctx context.Context, localizationID string, filePath string) (*GameCenterAchievementImageUploadResult, error) {
 	// Validate the file
@@ -239,29 +193,6 @@ func (c *Client) UploadGameCenterAchievementImage(ctx context.Context, localizat
 		AssetDeliveryState: state,
 		Uploaded:           true,
 	}, nil
-}
-
-// CreateGameCenterLeaderboardSetImage reserves an image upload slot for a leaderboard set localization.
-func (c *Client) CreateGameCenterLeaderboardSetImage(ctx context.Context, localizationID string, fileName string, fileSize int64) (*GameCenterLeaderboardSetImageResponse, error) {
-	payload := GameCenterLeaderboardSetImageCreateRequest{
-		Data: GameCenterLeaderboardSetImageCreateData{
-			Type: ResourceTypeGameCenterLeaderboardSetImages,
-			Attributes: GameCenterLeaderboardSetImageCreateAttributes{
-				FileSize: fileSize,
-				FileName: fileName,
-			},
-			Relationships: &GameCenterLeaderboardSetImageRelationships{
-				GameCenterLeaderboardSetLocalization: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeGameCenterLeaderboardSetLocalizations,
-						ID:   strings.TrimSpace(localizationID),
-					},
-				},
-			},
-		},
-	}
-
-	return sendJSON[GameCenterLeaderboardSetImageResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/gameCenterLeaderboardSetImages", Payload: payload})
 }
 
 // UploadGameCenterLeaderboardSetImage performs the full upload flow for a leaderboard set image.

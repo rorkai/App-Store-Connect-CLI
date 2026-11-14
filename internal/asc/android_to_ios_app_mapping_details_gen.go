@@ -57,3 +57,23 @@ func (c *Client) GetAndroidToIosAppMappingDetail(ctx context.Context, id string,
 		Query: buildAndroidToIosAppMappingDetailQuery(query),
 	})
 }
+
+// UpdateAndroidToIosAppMappingDetail sends PATCH /v1/androidToIosAppMappingDetails/{id} (androidToIosAppMappingDetails_updateInstance).
+func (c *Client) UpdateAndroidToIosAppMappingDetail(ctx context.Context, id string, attrs AndroidToIosAppMappingDetailUpdateAttributes) (*AndroidToIosAppMappingDetailResponse, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return nil, fmt.Errorf("mapping ID is required")
+	}
+	payload := AndroidToIosAppMappingDetailUpdateRequest{
+		Data: AndroidToIosAppMappingDetailUpdateData{
+			Type:       ResourceTypeAndroidToIosAppMappingDetails,
+			ID:         id,
+			Attributes: &attrs,
+		},
+	}
+	return sendJSON[AndroidToIosAppMappingDetailResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/androidToIosAppMappingDetails/%s", id),
+		Payload: payload,
+	})
+}

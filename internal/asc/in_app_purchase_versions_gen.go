@@ -57,6 +57,32 @@ func (c *Client) CreateInAppPurchaseVersion(ctx context.Context, iapID string) (
 	})
 }
 
+// GetInAppPurchaseVersion sends GET /v1/inAppPurchaseVersions/{id} (inAppPurchaseVersions_getInstance).
+func (c *Client) GetInAppPurchaseVersion(ctx context.Context, versionID string, opts ...IAPVersionGetOption) (*InAppPurchaseVersionResponse, error) {
+	versionID = strings.TrimSpace(versionID)
+	if versionID == "" {
+		return nil, fmt.Errorf("versionID is required")
+	}
+	query := applyOptions(opts)
+	return getJSON[InAppPurchaseVersionResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/inAppPurchaseVersions/%s", versionID),
+		Query: buildIAPVersionGetQuery(query),
+	})
+}
+
+// GetInAppPurchaseVersionImage sends GET /v1/inAppPurchaseVersions/{id}/image (inAppPurchaseVersions_image_getToOneRelated).
+func (c *Client) GetInAppPurchaseVersionImage(ctx context.Context, versionID string, opts ...IAPVersionImageOption) (*InAppPurchaseImageV2Response, error) {
+	versionID = strings.TrimSpace(versionID)
+	if versionID == "" {
+		return nil, fmt.Errorf("versionID is required")
+	}
+	query := applyOptions(opts)
+	return getJSON[InAppPurchaseImageV2Response](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/inAppPurchaseVersions/%s/image", versionID),
+		Query: buildIAPImageFieldsQuery(query),
+	})
+}
+
 // GetInAppPurchaseVersionImageRelationship sends GET /v1/inAppPurchaseVersions/{id}/relationships/image (inAppPurchaseVersions_image_getToOneRelationship).
 func (c *Client) GetInAppPurchaseVersionImageRelationship(ctx context.Context, versionID string) (*InAppPurchaseVersionImageLinkageResponse, error) {
 	versionID = strings.TrimSpace(versionID)
@@ -65,5 +91,35 @@ func (c *Client) GetInAppPurchaseVersionImageRelationship(ctx context.Context, v
 	}
 	return getJSON[InAppPurchaseVersionImageLinkageResponse](ctx, c, readRequest{
 		Path: fmt.Sprintf("/v1/inAppPurchaseVersions/%s/relationships/image", versionID),
+	})
+}
+
+// GetInAppPurchaseVersionImages sends GET /v1/inAppPurchaseVersions/{id}/images (inAppPurchaseVersions_images_getToManyRelated).
+func (c *Client) GetInAppPurchaseVersionImages(ctx context.Context, versionID string, opts ...IAPVersionImagesOption) (*InAppPurchaseImagesV2Response, error) {
+	query := applyOptions(opts)
+	versionID = strings.TrimSpace(versionID)
+	if query.nextURL == "" && versionID == "" {
+		return nil, fmt.Errorf("versionID is required")
+	}
+	return getJSON[InAppPurchaseImagesV2Response](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/inAppPurchaseVersions/%s/images", versionID),
+		Query:       buildIAPVersionImagesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "in-app-purchase-version-images",
+	})
+}
+
+// GetInAppPurchaseVersionLocalizations sends GET /v1/inAppPurchaseVersions/{id}/localizations (inAppPurchaseVersions_localizations_getToManyRelated).
+func (c *Client) GetInAppPurchaseVersionLocalizations(ctx context.Context, versionID string, opts ...IAPVersionLocalizationsOption) (*InAppPurchaseLocalizationsResponse, error) {
+	query := applyOptions(opts)
+	versionID = strings.TrimSpace(versionID)
+	if query.nextURL == "" && versionID == "" {
+		return nil, fmt.Errorf("versionID is required")
+	}
+	return getJSON[InAppPurchaseLocalizationsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/inAppPurchaseVersions/%s/localizations", versionID),
+		Query:       buildIAPVersionLocalizationsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "in-app-purchase-version-localizations",
 	})
 }

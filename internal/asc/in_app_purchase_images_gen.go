@@ -47,6 +47,19 @@ func (c *Client) DeleteInAppPurchaseImageV2(ctx context.Context, imageID string)
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v2/inAppPurchaseImages/%s", imageID), nil)
 }
 
+// GetInAppPurchaseImageV2 sends GET /v2/inAppPurchaseImages/{id} (inAppPurchaseImagesV2_getInstance).
+func (c *Client) GetInAppPurchaseImageV2(ctx context.Context, imageID string, opts ...IAPImageV2Option) (*InAppPurchaseImageV2Response, error) {
+	imageID = strings.TrimSpace(imageID)
+	if imageID == "" {
+		return nil, fmt.Errorf("imageID is required")
+	}
+	query := applyOptions(opts)
+	return getJSON[InAppPurchaseImageV2Response](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v2/inAppPurchaseImages/%s", imageID),
+		Query: buildIAPImageFieldsQuery(query),
+	})
+}
+
 // UpdateInAppPurchaseImageV2 sends PATCH /v2/inAppPurchaseImages/{id} (inAppPurchaseImagesV2_updateInstance).
 func (c *Client) UpdateInAppPurchaseImageV2(ctx context.Context, imageID string, attrs InAppPurchaseImageV2UpdateAttributes) (*InAppPurchaseImageV2Response, error) {
 	imageID = strings.TrimSpace(imageID)

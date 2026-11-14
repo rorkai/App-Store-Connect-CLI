@@ -82,3 +82,20 @@ func (c *Client) GetCertificatePassTypeIDRelationship(ctx context.Context, certi
 		Path: fmt.Sprintf("/v1/certificates/%s/relationships/passTypeId", certificateID),
 	})
 }
+
+// UpdateCertificate sends PATCH /v1/certificates/{id} (certificates_updateInstance).
+func (c *Client) UpdateCertificate(ctx context.Context, id string, attrs CertificateUpdateAttributes) (*CertificateResponse, error) {
+	id = strings.TrimSpace(id)
+	payload := CertificateUpdateRequest{
+		Data: CertificateUpdateData{
+			Type:       ResourceTypeCertificates,
+			ID:         id,
+			Attributes: &attrs,
+		},
+	}
+	return sendJSON[CertificateResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/certificates/%s", id),
+		Payload: payload,
+	})
+}

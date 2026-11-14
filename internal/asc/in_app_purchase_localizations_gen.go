@@ -59,3 +59,16 @@ func (c *Client) DeleteInAppPurchaseLocalizationV2(ctx context.Context, localiza
 	}
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v2/inAppPurchaseLocalizations/%s", localizationID), nil)
 }
+
+// GetInAppPurchaseLocalizationV2 sends GET /v2/inAppPurchaseLocalizations/{id} (inAppPurchaseLocalizationsV2_getInstance).
+func (c *Client) GetInAppPurchaseLocalizationV2(ctx context.Context, localizationID string, opts ...IAPLocalizationV2Option) (*InAppPurchaseLocalizationResponse, error) {
+	localizationID = strings.TrimSpace(localizationID)
+	if localizationID == "" {
+		return nil, fmt.Errorf("localizationID is required")
+	}
+	query := applyOptions(opts)
+	return getJSON[InAppPurchaseLocalizationResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v2/inAppPurchaseLocalizations/%s", localizationID),
+		Query: buildIAPLocalizationV2Query(query),
+	})
+}

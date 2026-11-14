@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strings"
 )
@@ -36,6 +37,32 @@ func (c *Client) GetBackgroundAssetUploadFiles(ctx context.Context, versionID st
 		Query:       buildBackgroundAssetUploadFilesQuery(query),
 		Next:        query.nextURL,
 		NextContext: "backgroundAssetUploadFiles",
+	})
+}
+
+// CreateBackgroundAssetVersion sends POST /v1/backgroundAssetVersions (backgroundAssetVersions_createInstance).
+func (c *Client) CreateBackgroundAssetVersion(ctx context.Context, backgroundAssetID string) (*BackgroundAssetVersionResponse, error) {
+	backgroundAssetID = strings.TrimSpace(backgroundAssetID)
+	if backgroundAssetID == "" {
+		return nil, fmt.Errorf("background asset ID is required")
+	}
+	payload := BackgroundAssetVersionCreateRequest{
+		Data: BackgroundAssetVersionCreateData{
+			Type: ResourceTypeBackgroundAssetVersions,
+			Relationships: BackgroundAssetVersionCreateRelationships{
+				BackgroundAsset: Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeBackgroundAssets,
+						ID:   backgroundAssetID,
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[BackgroundAssetVersionResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/backgroundAssetVersions",
+		Payload: payload,
 	})
 }
 
