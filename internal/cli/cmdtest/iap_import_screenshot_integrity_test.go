@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestIAPImportPreservesScreenshotIDInPartialReceipt(t *testing.T) {
@@ -89,22 +90,17 @@ func TestIAPImportRejectsScreenshotGrownAfterPlanValidation(t *testing.T) {
 	screenshotPath := writeIAPImportScreenshot(t, dir)
 
 	createdProduct := false
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/123456789/inAppPurchasesV2":
-			if err := os.Truncate(screenshotPath, 1<<30+1); err != nil {
-				t.Fatalf("grow screenshot after planning: %v", err)
-			}
-			return jsonResponse(http.StatusOK, `{"data":[]}`)
-		case req.Method == http.MethodPost && req.URL.Path == "/v2/inAppPurchases":
-			createdProduct = true
-			return jsonResponse(http.StatusCreated, `{"data":{"type":"inAppPurchases","id":"iap-1","attributes":{}}}`)
-		default:
-			t.Fatalf("unexpected request after screenshot growth: %s %s", req.Method, req.URL.String())
-			return nil, nil
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/123456789/inAppPurchasesV2", "fields[inAppPurchases]=productId", "filter[productId]=com.example.coins", "limit=200"), func(req *http.Request) (*http.Response, error) {
+		if err := os.Truncate(screenshotPath, 1<<30+1); err != nil {
+			t.Fatalf("grow screenshot after planning: %v", err)
 		}
+		return asctest.JSON(http.StatusOK, `{"data":[]}`)(req)
+	})
+	reg.Register(asctest.POST("/v2/inAppPurchases").JSONBody(`{"data":{"type":"inAppPurchases","attributes":{"name":"Coins","productId":"com.example.coins","inAppPurchaseType":"CONSUMABLE"},"relationships":{"app":{"data":{"type":"apps","id":"123456789"}}}}}`), func(req *http.Request) (*http.Response, error) {
+		createdProduct = true
+		return asctest.JSON(http.StatusCreated, `{"data":{"type":"inAppPurchases","id":"iap-1","attributes":{}}}`)(req)
 	})
 
 	stdout, stderr, runErr := runIAPImport(t, []string{
