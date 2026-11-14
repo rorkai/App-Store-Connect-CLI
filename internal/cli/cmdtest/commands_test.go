@@ -130,16 +130,10 @@ func TestVersionPrintsVersion(t *testing.T) {
 }
 
 func TestCompletionZshPrintsScriptToStdout(t *testing.T) {
-	root := RootCommand("1.2.3")
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"completion", "--shell", "zsh"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, nil, "completion", "--shell", "zsh")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stdout == "" || !strings.Contains(stdout, "#compdef asc") {
 		t.Fatalf("expected zsh completion script, got %q", stdout)
@@ -188,18 +182,10 @@ func TestCompletionZshPrintsScriptToStdout(t *testing.T) {
 }
 
 func TestCompletionInvalidShellErrorsToStderr(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"completion", "--shell", "nope"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, nil, "completion", "--shell", "nope")
+	if !errors.Is(err, flag.ErrHelp) {
+		t.Fatalf("expected ErrHelp, got %v", err)
+	}
 
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
@@ -1571,7 +1557,11 @@ func TestDevicesValidationErrors(t *testing.T) {
 		},
 	}
 
-	runValidationTests(t, tests)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assertUsageExitWithDeps(t, nil, test.args, test.wantErr)
+		})
+	}
 }
 
 func TestCertificatesValidationErrors(t *testing.T) {

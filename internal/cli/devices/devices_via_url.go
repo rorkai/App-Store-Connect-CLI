@@ -14,7 +14,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -49,6 +48,7 @@ type deviceURLServer struct {
 	platform   string
 	confirm    bool
 	client     *asc.Client
+	timeout    func(context.Context) (context.Context, context.CancelFunc)
 	publicURL  string
 	seen       map[string]struct{}
 	devices    []asc.DeviceURLRegistration
@@ -71,8 +71,8 @@ type deviceURLServer struct {
 	limitDone    chan struct{}
 }
 
-func serveDeviceRegistration(ctx context.Context, options deviceURLServeOptions) (*asc.DeviceURLRegistrationResult, error) {
-	if err := validateDeviceURLServeOptions(options); err != nil {
+func serveDeviceRegistration(ctx context.Context, d *shared.Deps, options deviceURLServeOptions) (*asc.DeviceURLRegistrationResult, error) {
+	if err := validateDeviceURLServeOptions(d, options); err != nil {
 		return nil, err
 	}
 	if !options.Confirm {
@@ -95,7 +95,7 @@ func serveDeviceRegistration(ctx context.Context, options deviceURLServeOptions)
 	}
 	defer listener.Close()
 	bound := listener.Addr().String()
-	if err := validateDeviceRegisterListen(bound, options.ListenExplicit); err != nil {
+	if err := validateDeviceRegisterListen(d, bound, options.ListenExplicit); err != nil {
 		return nil, err
 	}
 	publicURL := strings.TrimRight(strings.TrimSpace(options.PublicURL), "/")
@@ -108,6 +108,7 @@ func serveDeviceRegistration(ctx context.Context, options deviceURLServeOptions)
 		platform:   options.Platform,
 		confirm:    options.Confirm,
 		client:     options.Client,
+		timeout:    d.Timeout,
 		publicURL:  publicURL,
 		seen:       map[string]struct{}{},
 		stream:     options.Stream,
@@ -131,14 +132,14 @@ func serveDeviceRegistration(ctx context.Context, options deviceURLServeOptions)
 		errCh <- httpServer.Serve(listener)
 	}()
 	pageURL := publicURL + "/enroll?token=" + url.QueryEscape(token)
-	fmt.Fprintf(os.Stderr, "Open this URL on the device, or scan the QR code. Unsigned profiles show as Not Verified on iOS.\n%s\n", pageURL)
-	printDeviceRegistrationQR(os.Stderr, pageURL)
+	fmt.Fprintf(d.IO.ErrOut, "Open this URL on the device, or scan the QR code. Unsigned profiles show as Not Verified on iOS.\n%s\n", pageURL)
+	printDeviceRegistrationQR(d.IO.ErrOut, pageURL)
 	var serveErr error
 	select {
 	case serveErr = <-errCh:
 	case <-waitCtx.Done():
 	case <-serverState.limitDone:
-		fmt.Fprintf(os.Stderr, "Reached --max-devices %d; ending the registration session.\n", options.MaxDevices)
+		fmt.Fprintf(d.IO.ErrOut, "Reached --max-devices %d; ending the registration session.\n", options.MaxDevices)
 	}
 	cancel()
 	if errors.Is(serveErr, http.ErrServerClosed) {
@@ -384,7 +385,7 @@ func (server *deviceURLServer) acceptDevice(ctx context.Context, token, udid, pr
 		if server.client == nil {
 			return record, fmt.Errorf("registration client unavailable")
 		}
-		requestCtx, cancel := shared.ContextWithTimeout(ctx)
+		requestCtx, cancel := server.timeout(ctx)
 		defer cancel()
 		existing, err := findExistingDeviceByNormalizedUDID(requestCtx, server.client, udid, server.platform)
 		if err != nil {
@@ -537,10 +538,10 @@ func newDeviceRegistrationToken() (string, error) {
 	return hex.EncodeToString(buf), nil
 }
 
-func validateDeviceRegisterListen(address string, allowPublic bool) error {
+func validateDeviceRegisterListen(d *shared.Deps, address string, allowPublic bool) error {
 	host, _, err := net.SplitHostPort(address)
 	if err != nil {
-		return shared.UsageErrorf("--listen must be host:port: %v", err)
+		return d.UsageErrorf("--listen must be host:port: %v", err)
 	}
 	if allowPublic {
 		return nil
@@ -550,7 +551,7 @@ func validateDeviceRegisterListen(address string, allowPublic bool) error {
 	}
 	ip := net.ParseIP(host)
 	if ip == nil || !ip.IsLoopback() {
-		return shared.UsageError("--listen must be a loopback address unless you explicitly bind a public address")
+		return d.UsageError("--listen must be a loopback address unless you explicitly bind a public address")
 	}
 	return nil
 }
@@ -587,29 +588,29 @@ func subtleTokenEqual(got, want string) bool {
 	return diff == 0
 }
 
-func validateDeviceURLServeOptions(options deviceURLServeOptions) error {
+func validateDeviceURLServeOptions(d *shared.Deps, options deviceURLServeOptions) error {
 	if options.TTL <= 0 {
-		return shared.UsageError("--ttl must be greater than zero")
+		return d.UsageError("--ttl must be greater than zero")
 	}
 	if options.MaxDevices < 0 {
-		return shared.UsageError("--max-devices must be at least 1")
+		return d.UsageError("--max-devices must be at least 1")
 	}
-	if err := validateDeviceRegisterListen(options.Listen, options.ListenExplicit); err != nil {
+	if err := validateDeviceRegisterListen(d, options.Listen, options.ListenExplicit); err != nil {
 		return err
 	}
 	if strings.ContainsFunc(options.Name, unicode.IsControl) {
-		return shared.UsageError("--name cannot contain control characters")
+		return d.UsageError("--name cannot contain control characters")
 	}
 	if options.Confirm && options.OutputFile != "" {
-		return shared.UsageError("--output-file cannot be combined with --confirm")
+		return d.UsageError("--output-file cannot be combined with --confirm")
 	}
 	if raw := strings.TrimSpace(options.PublicURL); raw != "" {
 		parsed, err := url.Parse(raw)
 		if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Hostname() == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.ForceQuery || parsed.Fragment != "" || parsed.Opaque != "" {
-			return shared.UsageError("--public-url must be an absolute HTTP(S) base URL without credentials, query, or fragment")
+			return d.UsageError("--public-url must be an absolute HTTP(S) base URL without credentials, query, or fragment")
 		}
 		if parsed.Path != "" && parsed.Path != "/" {
-			return shared.UsageError("--public-url must not contain a path prefix")
+			return d.UsageError("--public-url must not contain a path prefix")
 		}
 	}
 	return nil

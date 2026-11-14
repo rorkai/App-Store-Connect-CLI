@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"io/fs"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -17,14 +16,14 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 )
 
-// IPAInfoCommand prints an offline IPA manifest.
-func IPAInfoCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("ipa-info", flag.ExitOnError)
+// NewIPAInfoCommand prints an offline IPA manifest, built on d.
+func NewIPAInfoCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("ipa-info", flag.ExitOnError)
 	path := fs.String("path", "", "Path to an .ipa")
 	includeEntitlements := fs.Bool("include-entitlements", false, "Include the embedded profile entitlements map")
 	includeProfile := fs.Bool("include-profile", false, "Include the embedded profile summary")
 	verifySignature := fs.Bool("verify-signature", false, "Verify the main executable's code signature and certificate chain offline; exits 1 unless valid")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name:       "ipa-info",
 		ShortUsage: "asc ipa-info --path PATH [--include-entitlements] [--include-profile] [--verify-signature]",
@@ -55,7 +54,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			return runArtifactInfo(ctx, artifactInfoConfig{
+			return runArtifactInfo(ctx, d, artifactInfoConfig{
 				Kind:                "ipa-info",
 				Path:                *path,
 				IncludeEntitlements: *includeEntitlements,
@@ -68,12 +67,13 @@ Examples:
 	}
 }
 
-// PKGInfoCommand prints an offline flat package or product archive manifest.
-func PKGInfoCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("pkg-info", flag.ExitOnError)
+// NewPKGInfoCommand prints an offline flat package or product archive
+// manifest, built on d.
+func NewPKGInfoCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("pkg-info", flag.ExitOnError)
 	path := fs.String("path", "", "Path to a flat component package or product archive .pkg")
 	verifySignature := fs.Bool("verify-signature", false, "Verify the package signature and certificate chain offline; exits 1 unless valid")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name:       "pkg-info",
 		ShortUsage: "asc pkg-info --path PATH [--verify-signature]",
@@ -108,7 +108,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			return runArtifactInfo(ctx, artifactInfoConfig{
+			return runArtifactInfo(ctx, d, artifactInfoConfig{
 				Kind:            "pkg-info",
 				Path:            *path,
 				VerifySignature: *verifySignature,
@@ -129,19 +129,19 @@ type artifactInfoConfig struct {
 	Pretty              bool
 }
 
-func runArtifactInfo(ctx context.Context, config artifactInfoConfig) error {
+func runArtifactInfo(ctx context.Context, d *shared.Deps, config artifactInfoConfig) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
 	path := strings.TrimSpace(config.Path)
 	if path == "" {
-		return shared.UsageErrorf("%s: --path is required", config.Kind)
+		return d.UsageErrorf("%s: --path is required", config.Kind)
 	}
 	if _, err := shared.ValidateOutputFormat(config.Output, config.Pretty); err != nil {
-		return shared.UsageError(err.Error())
+		return d.UsageError(err.Error())
 	}
 	unreadable := func(err error, contentCode shared.DiagnosticCode) error {
-		if printErr := shared.PrintOutput(unreadableReceipt(config.Kind, path, config.VerifySignature), config.Output, config.Pretty); printErr != nil {
+		if printErr := d.PrintOutput(unreadableReceipt(config.Kind, path, config.VerifySignature), config.Output, config.Pretty); printErr != nil {
 			return printErr
 		}
 		return shared.ClassifyLocalFileError(fmt.Errorf("%s: %w", config.Kind, err), "--path", contentCode)
@@ -166,14 +166,14 @@ func runArtifactInfo(ctx context.Context, config artifactInfoConfig) error {
 			VerifySignature:     config.VerifySignature,
 		})
 		receipt := ipaReceipt(path, manifest)
-		if printErr := shared.PrintOutput(receipt, config.Output, config.Pretty); printErr != nil {
+		if printErr := d.PrintOutput(receipt, config.Output, config.Pretty); printErr != nil {
 			return printErr
 		}
 		if manifest.CodeSignatureError != "" {
-			fmt.Fprintf(os.Stderr, "Warning: ipa-info: code signature is unreadable: %s\n", manifest.CodeSignatureError)
+			fmt.Fprintf(d.IO.ErrOut, "Warning: ipa-info: code signature is unreadable: %s\n", manifest.CodeSignatureError)
 		}
 		if manifest.SignerConsistent != nil && !*manifest.SignerConsistent {
-			fmt.Fprintf(os.Stderr, "Warning: ipa-info: architecture slices are not signed consistently: %s\n", architectureSignatureSummary(manifest.Architectures))
+			fmt.Fprintf(d.IO.ErrOut, "Warning: ipa-info: architecture slices are not signed consistently: %s\n", architectureSignatureSummary(manifest.Architectures))
 		}
 		if inspectErr != nil || manifest.Status != "readable" {
 			if inspectErr == nil {
@@ -189,17 +189,17 @@ func runArtifactInfo(ctx context.Context, config artifactInfoConfig) error {
 	case "pkg-info":
 		manifest, inspectErr := artifacts.InspectPKGWithOptions(file, info.Size(), artifacts.PKGOptions{VerifySignature: config.VerifySignature})
 		receipt := pkgReceipt(path, manifest)
-		if printErr := shared.PrintOutput(receipt, config.Output, config.Pretty); printErr != nil {
+		if printErr := d.PrintOutput(receipt, config.Output, config.Pretty); printErr != nil {
 			return printErr
 		}
 		if manifest.PackageSignatureError != "" {
-			fmt.Fprintf(os.Stderr, "Warning: pkg-info: package signature is unreadable: %s\n", manifest.PackageSignatureError)
+			fmt.Fprintf(d.IO.ErrOut, "Warning: pkg-info: package signature is unreadable: %s\n", manifest.PackageSignatureError)
 		}
 		for _, warning := range manifest.Warnings {
-			fmt.Fprintf(os.Stderr, "Warning: pkg-info: %s\n", warning)
+			fmt.Fprintf(d.IO.ErrOut, "Warning: pkg-info: %s\n", warning)
 		}
 		if manifest.Signer != nil && manifest.Signer.DeveloperIDAuthorityStatus == artifacts.DeveloperIDAffected {
-			fmt.Fprintf(os.Stderr, "Warning: pkg-info: signing certificate is from the Developer ID authority that expires on February 1, 2027; from that date this package will no longer install, so re-sign it with a certificate from %s\n", artifacts.DeveloperIDReplacementAuthority)
+			fmt.Fprintf(d.IO.ErrOut, "Warning: pkg-info: signing certificate is from the Developer ID authority that expires on February 1, 2027; from that date this package will no longer install, so re-sign it with a certificate from %s\n", artifacts.DeveloperIDReplacementAuthority)
 		}
 		if inspectErr != nil || manifest.Status != "readable" {
 			if inspectErr == nil {

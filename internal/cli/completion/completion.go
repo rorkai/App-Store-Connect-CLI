@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 
@@ -20,12 +19,12 @@ type completionNode struct {
 	valueFlags  []string
 }
 
-// CompletionCommand prints shell completion scripts to stdout.
+// NewCompletionCommand prints shell completion scripts to d's stdout.
 // The full command tree is resolved only after the requested shell is valid,
 // so normal command startup remains lazy and completion needs no auth or network
 // access.
-func CompletionCommand(resolveCommands func() []*ffcli.Command, resolveRootFlags func() *flag.FlagSet) *ffcli.Command {
-	fs := flag.NewFlagSet("completion", flag.ExitOnError)
+func NewCompletionCommand(d *shared.Deps, resolveCommands func() []*ffcli.Command, resolveRootFlags func() *flag.FlagSet) *ffcli.Command {
+	fs := d.NewFlagSet("completion", flag.ExitOnError)
 	shell := fs.String("shell", "", "Shell: bash, zsh, or fish")
 
 	cmd := &ffcli.Command{
@@ -42,10 +41,10 @@ func CompletionCommand(resolveCommands func() []*ffcli.Command, resolveRootFlags
 
 		s := strings.ToLower(strings.TrimSpace(*shell))
 		if s == "" {
-			return shared.RequiredFlag("--shell")
+			return d.RequiredFlag("--shell")
 		}
 		if s != "bash" && s != "zsh" && s != "fish" {
-			fmt.Fprintf(os.Stderr, "Error: unsupported shell: %s\n", shared.SanitizeTerminal(s))
+			fmt.Fprintf(d.IO.ErrOut, "Error: unsupported shell: %s\n", shared.SanitizeTerminal(s))
 			return flag.ErrHelp
 		}
 
@@ -60,11 +59,11 @@ func CompletionCommand(resolveCommands func() []*ffcli.Command, resolveRootFlags
 		nodes := completionNodes(commands, rootFlags)
 		switch s {
 		case "bash":
-			fmt.Fprint(os.Stdout, bashScript(nodes))
+			fmt.Fprint(d.IO.Out, bashScript(nodes))
 		case "zsh":
-			fmt.Fprint(os.Stdout, zshScript(nodes))
+			fmt.Fprint(d.IO.Out, zshScript(nodes))
 		case "fish":
-			fmt.Fprint(os.Stdout, fishScript(nodes))
+			fmt.Fprint(d.IO.Out, fishScript(nodes))
 		}
 		return nil
 	}
