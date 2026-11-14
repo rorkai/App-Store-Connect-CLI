@@ -45,5 +45,9 @@
     {"operation":"wizards_updateInstance","name":"UpdateWizard","params":["wizardID"],"check":"require","skipEmptyAttributes":true},
     {"operation":"wrenches_createInstance","name":"CreateWrench","args":[{"name":"fileName"},{"name":"fileSize","type":"int64"}]},
     {"operation":"wrenches_updateInstance","name":"UpdateWrench","params":["wrenchID"],"check":"require","args":[{"name":"uploaded"},{"name":"checksum","attribute":"sourceFileChecksum"}]}
+  ],
+  "queries": [
+    {"operation":"widgets_getCollection","name":"Widgets","params":[{"name":"filter[name]","field":"names"},{"name":"fields[widgets]"},{"name":"fields[gadgets]","arg":"fields"},{"name":"include","with":"WithWidgetsIncluded"}]},
+    {"operation":"widgets_owner_getToOneRelated","name":"WidgetOwner","option":"OwnerOption","params":[{"name":"fields[widgets]"}]}
   ]
 }

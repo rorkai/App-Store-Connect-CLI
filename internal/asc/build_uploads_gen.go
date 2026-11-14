@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -49,4 +50,17 @@ func (c *Client) GetBuildUpload(ctx context.Context, id string, opts ...BuildUpl
 		Path:  fmt.Sprintf("/v1/buildUploads/%s", id),
 		Query: buildBuildUploadQuery(query),
 	})
+}
+
+// BuildUploadFilesOption sets the query of GET /v1/buildUploads/{id}/buildUploadFiles (buildUploads_buildUploadFiles_getToManyRelated).
+type BuildUploadFilesOption func(*buildUploadFilesQuery)
+
+type buildUploadFilesQuery struct {
+	listQuery
+}
+
+func buildBuildUploadFilesQuery(query *buildUploadFilesQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
 }

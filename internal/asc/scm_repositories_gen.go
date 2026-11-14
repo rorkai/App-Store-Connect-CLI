@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 )
 
@@ -63,4 +64,30 @@ func (c *Client) GetScmRepositoryPullRequestsRelationships(ctx context.Context, 
 		Next:        query.nextURL,
 		NextContext: "scmRepositoryPullRequestsRelationships",
 	})
+}
+
+// ScmGitReferencesOption sets the query of GET /v1/scmRepositories/{id}/gitReferences (scmRepositories_gitReferences_getToManyRelated).
+type ScmGitReferencesOption func(*scmGitReferencesQuery)
+
+type scmGitReferencesQuery struct {
+	listQuery
+}
+
+func buildScmGitReferencesQuery(query *scmGitReferencesQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+// ScmPullRequestsOption sets the query of GET /v1/scmRepositories/{id}/pullRequests (scmRepositories_pullRequests_getToManyRelated).
+type ScmPullRequestsOption func(*scmPullRequestsQuery)
+
+type scmPullRequestsQuery struct {
+	listQuery
+}
+
+func buildScmPullRequestsQuery(query *scmPullRequestsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
 }

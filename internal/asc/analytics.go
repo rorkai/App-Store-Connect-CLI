@@ -183,10 +183,6 @@ type analyticsReportInstancesQuery struct {
 	processingDates []string
 }
 
-type analyticsReportSegmentsQuery struct {
-	listQuery
-}
-
 // AnalyticsReportRequestsOption is a functional option for request listings.
 type AnalyticsReportRequestsOption func(*analyticsReportRequestsQuery)
 
@@ -195,9 +191,6 @@ type AnalyticsReportsOption func(*analyticsReportsQuery)
 
 // AnalyticsReportInstancesOption is a functional option for instance listings.
 type AnalyticsReportInstancesOption func(*analyticsReportInstancesQuery)
-
-// AnalyticsReportSegmentsOption is a functional option for segment listings.
-type AnalyticsReportSegmentsOption func(*analyticsReportSegmentsQuery)
 
 // WithAnalyticsReportRequestsAccessType filters requests by access type.
 func WithAnalyticsReportRequestsAccessType(accessType AnalyticsAccessType) AnalyticsReportRequestsOption {
@@ -265,12 +258,6 @@ func buildAnalyticsReportInstancesQuery(query *analyticsReportInstancesQuery) st
 	values := url.Values{}
 	addCSV(values, "filter[granularity]", query.granularities)
 	addCSV(values, "filter[processingDate]", query.processingDates)
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
-func buildAnalyticsReportSegmentsQuery(query *analyticsReportSegmentsQuery) string {
-	values := url.Values{}
 	addLimit(values, query.limit)
 	return values.Encode()
 }

@@ -5,41 +5,6 @@ import (
 	"strings"
 )
 
-type marketplaceWebhooksQuery struct {
-	listQuery
-	fields []string
-}
-
-type alternativeDistributionDomainsQuery struct {
-	listQuery
-}
-
-type alternativeDistributionKeysQuery struct {
-	listQuery
-}
-
-type alternativeDistributionPackageVersionsQuery struct {
-	listQuery
-}
-
-type alternativeDistributionPackageVariantsQuery struct {
-	listQuery
-}
-
-type alternativeDistributionPackageDeltasQuery struct {
-	listQuery
-}
-
-type webhooksQuery struct {
-	listQuery
-}
-
-type webhookDeliveriesQuery struct {
-	listQuery
-	createdAfter  []string
-	createdBefore []string
-}
-
 type backgroundAssetsQuery struct {
 	listQuery
 	archived             []string
@@ -61,10 +26,6 @@ type backgroundAssetVersionsQuery struct {
 	sort               string
 }
 
-type backgroundAssetUploadFilesQuery struct {
-	listQuery
-}
-
 type androidToIosAppMappingDetailsQuery struct {
 	listQuery
 	fields []string
@@ -73,57 +34,6 @@ type androidToIosAppMappingDetailsQuery struct {
 func buildMarketplaceSearchDetailsFieldsQuery(fields []string) string {
 	values := url.Values{}
 	addCSV(values, "fields[marketplaceSearchDetails]", fields)
-	return values.Encode()
-}
-
-func buildMarketplaceWebhooksQuery(query *marketplaceWebhooksQuery) string {
-	values := url.Values{}
-	addCSV(values, "fields[marketplaceWebhooks]", query.fields)
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
-func buildAlternativeDistributionDomainsQuery(query *alternativeDistributionDomainsQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
-func buildAlternativeDistributionKeysQuery(query *alternativeDistributionKeysQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
-func buildAlternativeDistributionPackageVersionsQuery(query *alternativeDistributionPackageVersionsQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
-func buildAlternativeDistributionPackageVariantsQuery(query *alternativeDistributionPackageVariantsQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
-func buildAlternativeDistributionPackageDeltasQuery(query *alternativeDistributionPackageDeltasQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
-func buildWebhooksQuery(query *webhooksQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
-func buildWebhookDeliveriesQuery(query *webhookDeliveriesQuery) string {
-	values := url.Values{}
-	addCSV(values, "filter[createdDateGreaterThanOrEqualTo]", query.createdAfter)
-	addCSV(values, "filter[createdDateLessThan]", query.createdBefore)
-	addLimit(values, query.limit)
 	return values.Encode()
 }
 
@@ -156,12 +66,6 @@ func buildBackgroundAssetVersionsQuery(query *backgroundAssetVersionsQuery) stri
 	return values.Encode()
 }
 
-func buildBackgroundAssetUploadFilesQuery(query *backgroundAssetUploadFilesQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
 func buildAndroidToIosAppMappingDetailsQuery(query *androidToIosAppMappingDetailsQuery) string {
 	values := url.Values{}
 	addCSV(values, "fields[androidToIosAppMappingDetails]", query.fields)
@@ -178,59 +82,11 @@ func buildAndroidToIosAppMappingDetailQuery(query *androidToIosAppMappingDetails
 // AndroidToIosAppMappingDetailsOption is a functional option for Android-to-iOS mappings.
 type AndroidToIosAppMappingDetailsOption func(*androidToIosAppMappingDetailsQuery)
 
-// MarketplaceWebhooksOption is a functional option for marketplace webhooks.
-type MarketplaceWebhooksOption func(*marketplaceWebhooksQuery)
-
-// AlternativeDistributionDomainsOption is a functional option for alternative distribution domains.
-type AlternativeDistributionDomainsOption func(*alternativeDistributionDomainsQuery)
-
-// AlternativeDistributionKeysOption is a functional option for alternative distribution keys.
-type AlternativeDistributionKeysOption func(*alternativeDistributionKeysQuery)
-
-// AlternativeDistributionPackageVersionsOption is a functional option for package versions list endpoints.
-type AlternativeDistributionPackageVersionsOption func(*alternativeDistributionPackageVersionsQuery)
-
-// AlternativeDistributionPackageVariantsOption is a functional option for package variant list endpoints.
-type AlternativeDistributionPackageVariantsOption func(*alternativeDistributionPackageVariantsQuery)
-
-// AlternativeDistributionPackageDeltasOption is a functional option for package delta list endpoints.
-type AlternativeDistributionPackageDeltasOption func(*alternativeDistributionPackageDeltasQuery)
-
-// WebhooksOption is a functional option for webhooks list endpoints.
-type WebhooksOption func(*webhooksQuery)
-
-// WebhookDeliveriesOption is a functional option for webhook deliveries endpoints.
-type WebhookDeliveriesOption func(*webhookDeliveriesQuery)
-
 // BackgroundAssetsOption is a functional option for background assets list endpoints.
 type BackgroundAssetsOption func(*backgroundAssetsQuery)
 
 // BackgroundAssetVersionsOption is a functional option for background asset versions list endpoints.
 type BackgroundAssetVersionsOption func(*backgroundAssetVersionsQuery)
-
-// BackgroundAssetUploadFilesOption is a functional option for background asset upload files list endpoints.
-type BackgroundAssetUploadFilesOption func(*backgroundAssetUploadFilesQuery)
-
-// WithMarketplaceWebhooksFields sets fields[marketplaceWebhooks] for webhook responses.
-func WithMarketplaceWebhooksFields(fields []string) MarketplaceWebhooksOption {
-	return func(q *marketplaceWebhooksQuery) {
-		q.fields = normalizeList(fields)
-	}
-}
-
-// WithWebhookDeliveriesCreatedAfter filters deliveries created after or equal to a timestamp.
-func WithWebhookDeliveriesCreatedAfter(values []string) WebhookDeliveriesOption {
-	return func(q *webhookDeliveriesQuery) {
-		q.createdAfter = normalizeList(values)
-	}
-}
-
-// WithWebhookDeliveriesCreatedBefore filters deliveries created before a timestamp.
-func WithWebhookDeliveriesCreatedBefore(values []string) WebhookDeliveriesOption {
-	return func(q *webhookDeliveriesQuery) {
-		q.createdBefore = normalizeList(values)
-	}
-}
 
 // WithBackgroundAssetsFilterArchived filters background assets by archived state.
 func WithBackgroundAssetsFilterArchived(values []string) BackgroundAssetsOption {

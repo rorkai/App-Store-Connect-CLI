@@ -1,0 +1,7 @@
+{
+  "tag": "DiagnosticSignatures",
+  "file": "diagnostic_signatures_gen.go",
+  "queries": [
+    {"operation":"diagnosticSignatures_logs_getToManyRelated","name":"DiagnosticLogs"}
+  ]
+}

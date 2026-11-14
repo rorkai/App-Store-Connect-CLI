@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -161,4 +162,17 @@ func (c *Client) UpdateAppCustomProductPageLocalization(ctx context.Context, loc
 		Path:    fmt.Sprintf("/v1/appCustomProductPageLocalizations/%s", localizationID),
 		Payload: payload,
 	})
+}
+
+// AppCustomProductPageLocalizationPreviewSetsOption sets the query of GET /v1/appCustomProductPageLocalizations/{id}/appPreviewSets (appCustomProductPageLocalizations_appPreviewSets_getToManyRelated).
+type AppCustomProductPageLocalizationPreviewSetsOption func(*appCustomProductPageLocalizationPreviewSetsQuery)
+
+type appCustomProductPageLocalizationPreviewSetsQuery struct {
+	listQuery
+}
+
+func buildAppCustomProductPageLocalizationPreviewSetsQuery(query *appCustomProductPageLocalizationPreviewSetsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
 }

@@ -1,44 +1,9 @@
 package asc
 
-import (
-	"net/url"
-)
-
 // GameCenterLeaderboardSetMemberLocalizationAttributes represents a leaderboard set member localization.
 type GameCenterLeaderboardSetMemberLocalizationAttributes struct {
 	Name   string `json:"name"`
 	Locale string `json:"locale"`
-}
-
-// GCLeaderboardSetMemberLocalizationsOption is a functional option for GetGameCenterLeaderboardSetMemberLocalizations.
-type GCLeaderboardSetMemberLocalizationsOption func(*gcLeaderboardSetMemberLocalizationsQuery)
-
-type gcLeaderboardSetMemberLocalizationsQuery struct {
-	listQuery
-	leaderboardSetIDs []string
-	leaderboardIDs    []string
-}
-
-// WithGCLeaderboardSetMemberLocalizationsLeaderboardSetIDs filters by leaderboard set IDs.
-func WithGCLeaderboardSetMemberLocalizationsLeaderboardSetIDs(ids []string) GCLeaderboardSetMemberLocalizationsOption {
-	return func(q *gcLeaderboardSetMemberLocalizationsQuery) {
-		q.leaderboardSetIDs = normalizeList(ids)
-	}
-}
-
-// WithGCLeaderboardSetMemberLocalizationsLeaderboardIDs filters by leaderboard IDs.
-func WithGCLeaderboardSetMemberLocalizationsLeaderboardIDs(ids []string) GCLeaderboardSetMemberLocalizationsOption {
-	return func(q *gcLeaderboardSetMemberLocalizationsQuery) {
-		q.leaderboardIDs = normalizeList(ids)
-	}
-}
-
-func buildGCLeaderboardSetMemberLocalizationsQuery(query *gcLeaderboardSetMemberLocalizationsQuery) string {
-	values := url.Values{}
-	addCSV(values, "filter[gameCenterLeaderboardSet]", query.leaderboardSetIDs)
-	addCSV(values, "filter[gameCenterLeaderboard]", query.leaderboardIDs)
-	addLimit(values, query.limit)
-	return values.Encode()
 }
 
 // GameCenterLeaderboardSetMemberLocalizationCreateAttributes describes attributes for creating a member localization.

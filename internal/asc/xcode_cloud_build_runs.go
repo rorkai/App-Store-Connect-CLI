@@ -163,19 +163,6 @@ func buildCiBuildRunGetQuery(query *ciBuildRunGetQuery) string {
 	return values.Encode()
 }
 
-type ciBuildRunBuildsQuery struct {
-	listQuery
-}
-
-// CiBuildRunBuildsOption is a functional option for GetCiBuildRunBuilds.
-type CiBuildRunBuildsOption func(*ciBuildRunBuildsQuery)
-
-func buildCiBuildRunBuildsQuery(query *ciBuildRunBuildsQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
 // CreateCiBuildRun creates a new CI build run (triggers a workflow).
 func (c *Client) CreateCiBuildRun(ctx context.Context, req CiBuildRunCreateRequest) (*CiBuildRunResponse, error) {
 	return sendJSON[CiBuildRunResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/ciBuildRuns", Payload: req})

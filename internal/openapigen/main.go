@@ -125,6 +125,9 @@ func plan(spec *Spec, bindings *Bindings, dir string) (map[string][]byte, []stri
 		return nil, nil, err
 	}
 	var stale []string
+	if err := planQueryRegistry(spec, bindings, dir, writes, &stale); err != nil {
+		return nil, nil, err
+	}
 	for _, path := range existing {
 		if bindings.produces(dir, path) {
 			continue

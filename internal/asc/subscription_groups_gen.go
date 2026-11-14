@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -92,4 +93,17 @@ func (c *Client) UpdateSubscriptionGroup(ctx context.Context, groupID string, at
 		Path:    fmt.Sprintf("/v1/subscriptionGroups/%s", strings.TrimSpace(groupID)),
 		Payload: payload,
 	})
+}
+
+// SubscriptionGroupLocalizationsOption sets the query of GET /v1/subscriptionGroups/{id}/subscriptionGroupLocalizations (subscriptionGroups_subscriptionGroupLocalizations_getToManyRelated).
+type SubscriptionGroupLocalizationsOption func(*subscriptionGroupLocalizationsQuery)
+
+type subscriptionGroupLocalizationsQuery struct {
+	listQuery
+}
+
+func buildSubscriptionGroupLocalizationsQuery(query *subscriptionGroupLocalizationsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
 }

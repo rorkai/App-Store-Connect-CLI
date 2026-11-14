@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 )
 
@@ -26,4 +27,24 @@ func (c *Client) GetSubscriptionPricePoint(ctx context.Context, pricePointID str
 		Path:  fmt.Sprintf("/v1/subscriptionPricePoints/%s", pricePointID),
 		Query: buildSubscriptionPricePointDetailQuery(query),
 	})
+}
+
+// SubscriptionPricePointOption sets the query of GET /v1/subscriptionPricePoints/{id} (subscriptionPricePoints_getInstance).
+type SubscriptionPricePointOption func(*subscriptionPricePointDetailQuery)
+
+type subscriptionPricePointDetailQuery struct {
+	fields []string
+}
+
+// WithSubscriptionPricePointFields sets fields[subscriptionPricePoints].
+func WithSubscriptionPricePointFields(fields []string) SubscriptionPricePointOption {
+	return func(q *subscriptionPricePointDetailQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+func buildSubscriptionPricePointDetailQuery(query *subscriptionPricePointDetailQuery) string {
+	values := url.Values{}
+	addCSV(values, "fields[subscriptionPricePoints]", query.fields)
+	return values.Encode()
 }

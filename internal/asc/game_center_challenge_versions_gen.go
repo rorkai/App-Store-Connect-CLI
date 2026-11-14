@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -68,4 +69,17 @@ func (c *Client) GetGameCenterChallengeLocalizations(ctx context.Context, versio
 		Next:        query.nextURL,
 		NextContext: "game-center-challenge-localizations",
 	})
+}
+
+// GCChallengeLocalizationsOption sets the query of GET /v1/gameCenterChallengeVersions/{id}/localizations (gameCenterChallengeVersions_localizations_getToManyRelated).
+type GCChallengeLocalizationsOption func(*gcChallengeLocalizationsQuery)
+
+type gcChallengeLocalizationsQuery struct {
+	listQuery
+}
+
+func buildGCChallengeLocalizationsQuery(query *gcChallengeLocalizationsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
 }
