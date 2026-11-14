@@ -117,8 +117,7 @@ Examples:
 
 			catalogURLValue := strings.TrimSpace(*catalogURL)
 			if catalogURLValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --catalog-url is required")
-				return shared.MissingRequiredUsageError("--catalog-url")
+				return shared.RequiredFlag("--catalog-url")
 			}
 
 			client, err := shared.GetASCClient()
@@ -160,8 +159,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*detailID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --search-detail-id is required")
-				return shared.MissingRequiredUsageError("--search-detail-id")
+				return shared.RequiredFlag("--search-detail-id")
 			}
 
 			visited := map[string]bool{}
@@ -219,12 +217,10 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*detailID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --search-detail-id is required")
-				return shared.MissingRequiredUsageError("--search-detail-id")
+				return shared.RequiredFlag("--search-detail-id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()

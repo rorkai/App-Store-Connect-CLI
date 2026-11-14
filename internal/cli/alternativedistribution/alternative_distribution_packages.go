@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -67,8 +66,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*packageID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --package-id is required")
-				return shared.MissingRequiredUsageError("--package-id")
+				return shared.RequiredFlag("--package-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -109,8 +107,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*appStoreVersionID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app-store-version-id is required")
-				return shared.MissingRequiredUsageError("--app-store-version-id")
+				return shared.RequiredFlag("--app-store-version-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -151,8 +148,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*appStoreVersionID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app-store-version-id is required")
-				return shared.MissingRequiredUsageError("--app-store-version-id")
+				return shared.RequiredFlag("--app-store-version-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -193,8 +189,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*variantID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --variant-id is required")
-				return shared.MissingRequiredUsageError("--variant-id")
+				return shared.RequiredFlag("--variant-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -235,8 +230,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*deltaID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --delta-id is required")
-				return shared.MissingRequiredUsageError("--delta-id")
+				return shared.RequiredFlag("--delta-id")
 			}
 
 			client, err := shared.GetASCClient()

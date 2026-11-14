@@ -105,8 +105,7 @@ Examples:
 			trimmedID := strings.TrimSpace(*versionID)
 			trimmedNext := strings.TrimSpace(*next)
 			if trimmedID == "" && trimmedNext == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return shared.MissingRequiredUsageError("--version-id")
+				return shared.RequiredFlag("--version-id")
 			}
 
 			if kind == relationshipSingle && (trimmedNext != "" || *paginate || *limit != 0) {

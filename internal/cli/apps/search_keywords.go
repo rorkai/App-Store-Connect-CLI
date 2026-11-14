@@ -105,14 +105,12 @@ Examples:
 			}
 
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			keywordValue := strings.TrimSpace(keywords.String())
 			if keywordValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --keywords is required")
-				return shared.MissingRequiredUsageError("--keywords")
+				return shared.RequiredFlag("--keywords")
 			}
 			if err := shared.ValidateVersionLocalizationAttributes(asc.AppStoreVersionLocalizationAttributes{Keywords: keywordValue}); err != nil {
 				return shared.UsageError(err.Error())

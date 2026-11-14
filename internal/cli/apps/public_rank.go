@@ -60,8 +60,7 @@ Examples:
 			}
 			termValue := strings.TrimSpace(*term)
 			if termValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --term is required")
-				return shared.MissingRequiredUsageError("--term")
+				return shared.RequiredFlag("--term")
 			}
 			platformValue, err := normalizePublicRankPlatform(*platform)
 			if err != nil {

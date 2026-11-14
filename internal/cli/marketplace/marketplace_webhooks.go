@@ -146,8 +146,7 @@ Examples:
 
 			trimmedID := strings.TrimSpace(*webhookID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --webhook-id is required")
-				return shared.MissingRequiredUsageError("--webhook-id")
+				return shared.RequiredFlag("--webhook-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -191,13 +190,11 @@ Examples:
 
 			endpointURL := strings.TrimSpace(*url)
 			if endpointURL == "" {
-				fmt.Fprintln(os.Stderr, "Error: --url is required")
-				return shared.MissingRequiredUsageError("--url")
+				return shared.RequiredFlag("--url")
 			}
 			secretValue := strings.TrimSpace(*secret)
 			if secretValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --secret is required")
-				return shared.MissingRequiredUsageError("--secret")
+				return shared.RequiredFlag("--secret")
 			}
 
 			client, err := shared.GetASCClient()
@@ -243,8 +240,7 @@ Examples:
 
 			trimmedID := strings.TrimSpace(*webhookID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --webhook-id is required")
-				return shared.MissingRequiredUsageError("--webhook-id")
+				return shared.RequiredFlag("--webhook-id")
 			}
 
 			visited := map[string]bool{}
@@ -308,12 +304,10 @@ Examples:
 
 			trimmedID := strings.TrimSpace(*webhookID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --webhook-id is required")
-				return shared.MissingRequiredUsageError("--webhook-id")
+				return shared.RequiredFlag("--webhook-id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()

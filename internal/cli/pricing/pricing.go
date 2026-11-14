@@ -282,8 +282,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedPricePointID := strings.TrimSpace(*pricePointID)
 			if trimmedPricePointID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --price-point is required")
-				return shared.MissingRequiredUsageError("--price-point")
+				return shared.RequiredFlag("--price-point")
 			}
 
 			client, err := shared.GetASCClient()
@@ -488,8 +487,7 @@ Examples:
 
 			trimmedScheduleID := strings.TrimSpace(*scheduleID)
 			if trimmedScheduleID == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --schedule is required")
-				return shared.MissingRequiredUsageError("--schedule")
+				return shared.RequiredFlag("--schedule")
 			}
 
 			client, err := shared.GetASCClient()
@@ -578,8 +576,7 @@ Examples:
 
 			trimmedScheduleID := strings.TrimSpace(*scheduleID)
 			if trimmedScheduleID == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --schedule is required")
-				return shared.MissingRequiredUsageError("--schedule")
+				return shared.RequiredFlag("--schedule")
 			}
 
 			client, err := shared.GetASCClient()
