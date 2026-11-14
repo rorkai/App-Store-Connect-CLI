@@ -100,7 +100,9 @@ func TestProfilesDownloadAllUsageErrors(t *testing.T) {
 		{[]string{"--all"}, "Error: --output-dir is required"},
 		{[]string{"--all", "--output-dir", dir, "--id", "PROFILE_ID"}, "Error: profiles download: --all cannot be combined with --id or --output"},
 		{[]string{"--all", "--output-dir", dir, "--output", "./profile.mobileprovision"}, "Error: profiles download: --all cannot be combined with --id or --output"},
+		{[]string{"--all", "--output-dir", dir, "--id="}, "Error: profiles download: --all cannot be combined with --id or --output"},
 		{[]string{"--id", "PROFILE_ID", "--output-dir", dir}, "Error: profiles download: --output-dir, --profile-type, --profile-state, and --name require --all"},
+		{[]string{"--id", "PROFILE_ID", "--output", "./p.mobileprovision", "--output-dir="}, "Error: profiles download: --output-dir, --profile-type, --profile-state, and --name require --all"},
 		{[]string{"--id", "PROFILE_ID", "--output", "./p.mobileprovision", "--profile-type", "IOS_APP_DEVELOPMENT"}, "Error: profiles download: --output-dir, --profile-type, --profile-state, and --name require --all"},
 		{[]string{"--all", "--output-dir", dir, "--profile-state", "EXPIRED"}, "Error: --profile-state must be one of: ACTIVE, INVALID"},
 	}

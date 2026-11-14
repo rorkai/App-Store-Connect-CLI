@@ -604,7 +604,7 @@ before anything is written unless --overwrite is passed.`,
 				}
 			}
 			if *all {
-				if strings.TrimSpace(*id) != "" || strings.TrimSpace(*outputPath) != "" {
+				if profilesListFlagWasProvided(fs, "id") || profilesListFlagWasProvided(fs, "output") {
 					return shared.UsageError("profiles download: --all cannot be combined with --id or --output")
 				}
 				dirValue := strings.TrimSpace(*outputDir)
@@ -624,7 +624,7 @@ before anything is written unless --overwrite is passed.`,
 				}
 				return downloadAllProfiles(ctx, dirValue, opts, *overwrite, *output.OutputFormat, *output.Pretty)
 			}
-			if *outputDir != "" || *profileType != "" || *profileState != "" || *name != "" {
+			if slices.ContainsFunc([]string{"output-dir", "profile-type", "profile-state", "name"}, func(name string) bool { return profilesListFlagWasProvided(fs, name) }) {
 				return shared.UsageError("profiles download: --output-dir, --profile-type, --profile-state, and --name require --all")
 			}
 			idValue := strings.TrimSpace(*id)
