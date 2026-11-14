@@ -290,45 +290,26 @@ Examples:
 
 // ExperimentTreatmentsDeleteCommand returns the treatments delete subcommand.
 func ExperimentTreatmentsDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("experiment-treatments delete", flag.ExitOnError)
-
-	treatmentID := shared.BindResourceIDFlag(fs, "treatment-id", "appStoreVersionExperimentTreatments", "Treatment ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc product-pages experiments treatments delete --treatment-id \"TREATMENT_ID\" --confirm",
-		ShortHelp:  "Delete a treatment.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "experiment-treatments delete",
+		Name:        "delete",
+		ShortUsage:  "asc product-pages experiments treatments delete --treatment-id \"TREATMENT_ID\" --confirm",
+		ShortHelp:   "Delete a treatment.",
 		LongHelp: `Delete a treatment.
 
 Examples:
   asc product-pages experiments treatments delete --treatment-id "TREATMENT_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			trimmedID := strings.TrimSpace(*treatmentID)
-			if trimmedID == "" {
-				return shared.RequiredFlag("--treatment-id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("experiments treatments delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteAppStoreVersionExperimentTreatment(requestCtx, trimmedID); err != nil {
-				return fmt.Errorf("experiments treatments delete: failed to delete: %w", err)
-			}
-
-			result := &asc.AppStoreVersionExperimentTreatmentDeleteResult{ID: trimmedID, Deleted: true}
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "treatment-id",
+		IDUsage:            "Treatment ID",
+		IDType:             "appStoreVersionExperimentTreatments",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "experiments treatments delete",
+		DeleteErrorPrefix:  "experiments treatments delete: failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteAppStoreVersionExperimentTreatment(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.AppStoreVersionExperimentTreatmentDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }

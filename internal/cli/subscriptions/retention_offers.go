@@ -505,45 +505,28 @@ func validateRetentionOfferEligibility(command string, paidMonths, waitMonths op
 
 // SubscriptionsRetentionOffersDeleteCommand returns the retention offer delete subcommand.
 func SubscriptionsRetentionOffersDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("delete", flag.ExitOnError)
-
-	id := shared.BindResourceIDFlag(fs, "id", "retentionOffers", "Retention offer ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
 	const command = "subscriptions offers retention delete"
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc " + command + " --id OFFER_ID --confirm",
-		ShortHelp:  "Delete a retention offer.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "delete",
+		Name:        "delete",
+		ShortUsage:  "asc " + command + " --id OFFER_ID --confirm",
+		ShortHelp:   "Delete a retention offer.",
 		LongHelp: `Delete a retention offer.
 
 Examples:
   asc subscriptions offers retention delete --id "OFFER_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			offerID := strings.TrimSpace(*id)
-			if offerID == "" {
-				return shared.UsageError("--id is required")
-			}
-			if !*confirm {
-				return shared.UsageError("--confirm is required")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("%s: %w", command, err)
-			}
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteRetentionOffer(requestCtx, offerID); err != nil {
-				return fmt.Errorf("%s: failed to delete: %w", command, err)
-			}
-			return shared.PrintOutput(&asc.AssetDeleteResult{ID: offerID, Deleted: true}, *output.Output, *output.Pretty)
+		IDFlag:            "id",
+		IDUsage:           "Retention offer ID",
+		IDType:            "retentionOffers",
+		ErrorPrefix:       command,
+		DeleteErrorPrefix: command + ": failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteRetentionOffer(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.AssetDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
 
 // SubscriptionsRetentionOfferPricesCommand returns the retention offer prices group.

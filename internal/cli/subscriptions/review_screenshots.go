@@ -231,47 +231,28 @@ Examples:
 
 // SubscriptionsReviewScreenshotsDeleteCommand returns the review screenshots delete subcommand.
 func SubscriptionsReviewScreenshotsDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("review-screenshots delete", flag.ExitOnError)
-
-	screenshotID := shared.BindResourceIDFlag(fs, "screenshot-id", "subscriptionAppStoreReviewScreenshots", "Review screenshot ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc subscriptions review-screenshots delete --screenshot-id \"SHOT_ID\" --confirm",
-		ShortHelp:  "Delete a review screenshot.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "review-screenshots delete",
+		Name:        "delete",
+		ShortUsage:  "asc subscriptions review-screenshots delete --screenshot-id \"SHOT_ID\" --confirm",
+		ShortHelp:   "Delete a review screenshot.",
 		LongHelp: `Delete a review screenshot.
 
 Examples:
   asc subscriptions review-screenshots delete --screenshot-id "SHOT_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*screenshotID)
-			if id == "" {
-				return shared.RequiredFlag("--screenshot-id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("subscriptions review-screenshots delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteSubscriptionAppStoreReviewScreenshot(requestCtx, id); err != nil {
-				return fmt.Errorf("subscriptions review-screenshots delete: failed to delete: %w", err)
-			}
-
-			result := &asc.AssetDeleteResult{ID: id, Deleted: true}
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "screenshot-id",
+		IDUsage:            "Review screenshot ID",
+		IDType:             "subscriptionAppStoreReviewScreenshots",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "subscriptions review-screenshots delete",
+		DeleteErrorPrefix:  "subscriptions review-screenshots delete: failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteSubscriptionAppStoreReviewScreenshot(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.AssetDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
 
 // waitForSubscriptionReviewScreenshotDelivery polls until the screenshot reaches

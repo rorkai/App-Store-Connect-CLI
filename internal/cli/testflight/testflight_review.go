@@ -701,51 +701,28 @@ Examples:
 
 // TestFlightRecruitmentDeleteCommand deletes recruitment criteria by ID.
 func TestFlightRecruitmentDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("delete", flag.ExitOnError)
-
-	id := shared.BindResourceIDFlag(fs, "id", "betaRecruitmentCriteria", "Recruitment criteria ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc testflight recruitment delete --id \"CRITERIA_ID\" --confirm",
-		ShortHelp:  "Delete recruitment criteria.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "delete",
+		Name:        "delete",
+		ShortUsage:  "asc testflight recruitment delete --id \"CRITERIA_ID\" --confirm",
+		ShortHelp:   "Delete recruitment criteria.",
 		LongHelp: `Delete recruitment criteria.
 
 Examples:
   asc testflight recruitment delete --id "CRITERIA_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			criteriaID := strings.TrimSpace(*id)
-			if criteriaID == "" {
-				return shared.RequiredFlag("--id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("testflight recruitment delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteBetaRecruitmentCriteria(requestCtx, criteriaID); err != nil {
-				return fmt.Errorf("testflight recruitment delete: failed to delete: %w", err)
-			}
-
-			result := &asc.BetaRecruitmentCriteriaDeleteResult{
-				ID:      criteriaID,
-				Deleted: true,
-			}
-
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "id",
+		IDUsage:            "Recruitment criteria ID",
+		IDType:             "betaRecruitmentCriteria",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "testflight recruitment delete",
+		DeleteErrorPrefix:  "testflight recruitment delete: failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteBetaRecruitmentCriteria(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.BetaRecruitmentCriteriaDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
 
 // TestFlightRecruitmentOptionsCommand lists recruitment criteria options.

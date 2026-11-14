@@ -321,31 +321,23 @@ Examples:
 
 // SubscriptionsVersionLocalizationsDeleteCommand deletes a v2 localization.
 func SubscriptionsVersionLocalizationsDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("versions localizations delete", flag.ExitOnError)
-	id := shared.BindResourceIDFlag(fs, "id", "subscriptionLocalizations", "Subscription localization ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-	return &ffcli.Command{
-		Name: "delete", ShortUsage: "asc subscriptions versions localizations delete --id \"LOCALIZATION_ID\" --confirm", ShortHelp: "Delete a version-scoped localization.",
-		LongHelp: "Delete a version-scoped subscription localization.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			localizationID := strings.TrimSpace(*id)
-			if localizationID == "" {
-				return shared.RequiredFlag("--id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("subscriptions versions localizations delete: %w", err)
-			}
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-			if err := client.DeleteSubscriptionLocalizationV2(requestCtx, localizationID); err != nil {
-				return fmt.Errorf("subscriptions versions localizations delete: failed to delete: %w", err)
-			}
-			return shared.PrintOutput(&asc.AssetDeleteResult{ID: localizationID, Deleted: true}, *output.Output, *output.Pretty)
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName:        "versions localizations delete",
+		Name:               "delete",
+		ShortUsage:         "asc subscriptions versions localizations delete --id \"LOCALIZATION_ID\" --confirm",
+		ShortHelp:          "Delete a version-scoped localization.",
+		LongHelp:           "Delete a version-scoped subscription localization.",
+		IDFlag:             "id",
+		IDUsage:            "Subscription localization ID",
+		IDType:             "subscriptionLocalizations",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "subscriptions versions localizations delete",
+		DeleteErrorPrefix:  "subscriptions versions localizations delete: failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteSubscriptionLocalizationV2(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.AssetDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }

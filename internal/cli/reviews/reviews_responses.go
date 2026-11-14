@@ -112,52 +112,30 @@ Examples:
 
 // ReviewsResponseDeleteCommand returns the reviews response delete subcommand.
 func ReviewsResponseDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("delete", flag.ExitOnError)
-
-	responseID := shared.BindResourceIDFlag(fs, "id", "customerReviewResponses", "Customer review response ID (required)")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc reviews response delete [flags]",
-		ShortHelp:  "Delete a customer review response.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "delete",
+		Name:        "delete",
+		ShortUsage:  "asc reviews response delete [flags]",
+		ShortHelp:   "Delete a customer review response.",
 		LongHelp: `Delete a customer review response.
 
 This action removes your response from the review and cannot be undone.
 
 Examples:
   asc reviews response delete --id "RESPONSE_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if strings.TrimSpace(*responseID) == "" {
-				return shared.RequiredFlag("--id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("reviews response delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteCustomerReviewResponse(requestCtx, strings.TrimSpace(*responseID)); err != nil {
-				return fmt.Errorf("reviews response delete: failed to delete: %w", err)
-			}
-
-			result := &asc.CustomerReviewResponseDeleteResult{
-				ID:      strings.TrimSpace(*responseID),
-				Deleted: true,
-			}
-
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "id",
+		IDUsage:            "Customer review response ID (required)",
+		IDType:             "customerReviewResponses",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "reviews response delete",
+		DeleteErrorPrefix:  "reviews response delete: failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteCustomerReviewResponse(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.CustomerReviewResponseDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
 
 // ReviewsResponseForReviewCommand returns the reviews response for-review subcommand.

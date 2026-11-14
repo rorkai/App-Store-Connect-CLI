@@ -408,45 +408,26 @@ Examples:
 
 // CustomPagesDeleteCommand returns the custom pages delete subcommand.
 func CustomPagesDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("custom-pages delete", flag.ExitOnError)
-
-	customPageID := shared.BindResourceIDFlag(fs, "custom-page-id", "appCustomProductPages", "Custom product page ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc product-pages custom-pages delete --custom-page-id \"PAGE_ID\" --confirm",
-		ShortHelp:  "Delete a custom product page.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "custom-pages delete",
+		Name:        "delete",
+		ShortUsage:  "asc product-pages custom-pages delete --custom-page-id \"PAGE_ID\" --confirm",
+		ShortHelp:   "Delete a custom product page.",
 		LongHelp: `Delete a custom product page.
 
 Examples:
   asc product-pages custom-pages delete --custom-page-id "PAGE_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			trimmedID := strings.TrimSpace(*customPageID)
-			if trimmedID == "" {
-				return shared.RequiredFlag("--custom-page-id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("custom-pages delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteAppCustomProductPage(requestCtx, trimmedID); err != nil {
-				return fmt.Errorf("custom-pages delete: failed to delete: %w", err)
-			}
-
-			result := &asc.AppCustomProductPageDeleteResult{ID: trimmedID, Deleted: true}
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "custom-page-id",
+		IDUsage:            "Custom product page ID",
+		IDType:             "appCustomProductPages",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "custom-pages delete",
+		DeleteErrorPrefix:  "custom-pages delete: failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteAppCustomProductPage(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.AppCustomProductPageDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }

@@ -794,45 +794,26 @@ Examples:
 
 // SubscriptionsIntroductoryOffersDeleteCommand returns the introductory offers delete subcommand.
 func SubscriptionsIntroductoryOffersDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("introductory-offers delete", flag.ExitOnError)
-
-	offerID := shared.BindResourceIDFlag(fs, "id", "subscriptionIntroductoryOffers", "Introductory offer ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc subscriptions introductory-offers delete --id \"OFFER_ID\" --confirm",
-		ShortHelp:  "Delete an introductory offer.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "introductory-offers delete",
+		Name:        "delete",
+		ShortUsage:  "asc subscriptions introductory-offers delete --id \"OFFER_ID\" --confirm",
+		ShortHelp:   "Delete an introductory offer.",
 		LongHelp: `Delete an introductory offer.
 
 Examples:
   asc subscriptions introductory-offers delete --id "OFFER_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*offerID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("subscriptions introductory-offers delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteSubscriptionIntroductoryOffer(requestCtx, id); err != nil {
-				return fmt.Errorf("subscriptions introductory-offers delete: failed to delete: %w", err)
-			}
-
-			result := &asc.AssetDeleteResult{ID: id, Deleted: true}
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "id",
+		IDUsage:            "Introductory offer ID",
+		IDType:             "subscriptionIntroductoryOffers",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "subscriptions introductory-offers delete",
+		DeleteErrorPrefix:  "subscriptions introductory-offers delete: failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteSubscriptionIntroductoryOffer(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.AssetDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
