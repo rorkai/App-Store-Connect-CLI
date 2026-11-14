@@ -1,0 +1,7 @@
+{
+  "tag": "AnalyticsReportInstances",
+  "file": "analytics_report_instances_gen.go",
+  "types": [
+    "AnalyticsReportInstanceResponse"
+  ]
+}

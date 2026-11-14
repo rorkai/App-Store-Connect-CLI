@@ -1,0 +1,16 @@
+{
+  "tag": "AppEvents",
+  "file": "app_events_gen.go",
+  "types": [
+    "AppEventCreateRequest",
+    "AppEventUpdateData",
+    "AppEventUpdateRequest"
+  ],
+  "operations": [
+    {"operation":"appEvents_deleteInstance","name":"DeleteAppEvent","params":["eventID"],"check":"require"},
+    {"operation":"appEvents_getInstance","name":"GetAppEvent","params":["eventID"],"check":"require"},
+    {"operation":"appEvents_localizations_getToManyRelated","name":"GetAppEventLocalizations","params":["eventID"],"check":"require","options":"AppEventLocalizationsOption","query":"buildAppEventLocalizationsQuery","nextContext":"appEventLocalizations"},
+    {"operation":"appEvents_localizations_getToManyRelationship","name":"GetAppEventLocalizationsRelationships","params":["eventID"],"check":"require","options":"LinkagesOption","query":"buildLinkagesQuery","nextContext":"appEventLocalizationsRelationships"},
+    {"operation":"appEvents_updateInstance","name":"UpdateAppEvent","params":["eventID"],"check":"require"}
+  ]
+}

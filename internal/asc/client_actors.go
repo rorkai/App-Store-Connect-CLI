@@ -6,32 +6,6 @@ import (
 	"strings"
 )
 
-// ActorAttributes describes an actor resource.
-type ActorAttributes struct {
-	ActorType     string `json:"actorType,omitempty"`
-	UserFirstName string `json:"userFirstName,omitempty"`
-	UserLastName  string `json:"userLastName,omitempty"`
-	UserEmail     string `json:"userEmail,omitempty"`
-	APIKeyID      string `json:"apiKeyId,omitempty"`
-}
-
-// ActorsResponse is the response from actors endpoint.
-type ActorsResponse = Response[ActorAttributes]
-
-// ActorResponse is the response from actor detail endpoint.
-type ActorResponse = SingleResponse[ActorAttributes]
-
-// GetActors retrieves actors filtered by IDs.
-func (c *Client) GetActors(ctx context.Context, opts ...ActorsOption) (*ActorsResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[ActorsResponse](ctx, c, readRequest{
-		Path:        "/v1/actors",
-		Query:       buildActorsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "actors",
-	})
-}
-
 // GetActor retrieves a single actor by ID.
 func (c *Client) GetActor(ctx context.Context, actorID string, fields []string) (*ActorResponse, error) {
 	actorID = strings.TrimSpace(actorID)

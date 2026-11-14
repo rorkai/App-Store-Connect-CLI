@@ -59,25 +59,5 @@ type AndroidToIosAppMappingDetailCreateData struct {
 	Relationships AndroidToIosAppMappingDetailCreateRelationships `json:"relationships"`
 }
 
-// AndroidToIosAppMappingDetailCreateRequest is a request to create a mapping.
-type AndroidToIosAppMappingDetailCreateRequest struct {
-	Data AndroidToIosAppMappingDetailCreateData `json:"data"`
-}
-
-// AndroidToIosAppMappingDetailUpdateData is the data portion of an update request.
-type AndroidToIosAppMappingDetailUpdateData struct {
-	Type       ResourceType                                  `json:"type"`
-	ID         string                                        `json:"id"`
-	Attributes *AndroidToIosAppMappingDetailUpdateAttributes `json:"attributes,omitempty"`
-}
-
-// AndroidToIosAppMappingDetailUpdateRequest is a request to update a mapping.
-type AndroidToIosAppMappingDetailUpdateRequest struct {
-	Data AndroidToIosAppMappingDetailUpdateData `json:"data"`
-}
-
 // AndroidToIosAppMappingDetailsResponse is the response from the mapping list endpoint.
 type AndroidToIosAppMappingDetailsResponse = Response[AndroidToIosAppMappingDetailAttributes]
-
-// AndroidToIosAppMappingDetailResponse is the response from the mapping detail endpoint.
-type AndroidToIosAppMappingDetailResponse = SingleResponse[AndroidToIosAppMappingDetailAttributes]
