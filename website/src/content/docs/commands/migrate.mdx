@@ -260,9 +260,10 @@ with one of those option names, followed by a value or an opening parenthesis,
 is reported in `skipped` with its line number. An option that another command
 applies names that command, for example
 `asc versions phased-release create --version-id "VERSION_ID"` for
-`phased_release true`. Assignments, fields inside a multi-line value and the
-lines of a multi-line text that an option opens are not reported. The file is
-not executed, so options set through other script constructs are not seen.
+`phased_release true`. Assignments and fields inside a multi-line value are not
+reported. The file is not executed, so options set through other script
+constructs are not seen, and the lines of a multi-line text are read like any
+other line: one that starts with an option name followed by a value is reported.
 
 `metadata_path` and `screenshots_path` win over the conventional `metadata/` and
 `screenshots/` directories, including when `--fastlane-dir` selected the

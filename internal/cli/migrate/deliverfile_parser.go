@@ -6,7 +6,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"regexp"
 	"slices"
 	"strings"
 )
@@ -42,16 +41,9 @@ func parseDeliverfileReader(path string, reader io.Reader) (DeliverfileConfig, e
 	var config DeliverfileConfig
 	scanner := bufio.NewScanner(reader)
 	lineNumber := 0
-	heredocEnd := ""
 	for scanner.Scan() {
 		lineNumber++
 		line := strings.TrimSpace(scanner.Text())
-		if heredocEnd != "" {
-			if line == heredocEnd {
-				heredocEnd = ""
-			}
-			continue
-		}
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
@@ -59,7 +51,6 @@ func parseDeliverfileReader(path string, reader io.Reader) (DeliverfileConfig, e
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
-		heredocEnd = heredocTerminator(line)
 		key, value, ok := parseDeliverfileLine(line)
 		if !ok {
 			continue
@@ -271,33 +262,6 @@ var unappliedConfigKeys = []string{
 	"app_clip_default_experience_subtitle", "app_clip_default_experience_action",
 }
 
-// heredocStart matches the marker that opens a multi-line text, such as
-// "<<~TEXT". The lines up to the closing word are text, not options.
-var heredocStart = regexp.MustCompile(`^<<[~-]?["']?([A-Za-z_][A-Za-z0-9_]*)["']?`)
-
-// heredocTerminator returns the closing word of a multi-line text that line
-// opens, or "". A marker inside a quoted string does not count.
-func heredocTerminator(line string) string {
-	var quote byte
-	for i := 0; i < len(line); i++ {
-		switch c := line[i]; {
-		case quote != 0 && c == '\\':
-			i++
-		case quote != 0:
-			if c == quote {
-				quote = 0
-			}
-		case c == '"' || c == '\'':
-			quote = c
-		case c == '<':
-			if match := heredocStart.FindStringSubmatch(line[i:]); match != nil {
-				return match[1]
-			}
-		}
-	}
-	return ""
-}
-
 // isConfigOptionCall reports whether rest, the text that follows an option
 // name, sets the option: "name value" or "name(value)". Text that starts with
 // an operator ("name = x", "name ||= x", "name += 1") is an assignment or an
@@ -321,7 +285,7 @@ func isConfigOptionCall(rest string) bool {
 	case first == '-' && len(value) > 1 && value[1] >= '0' && value[1] <= '9':
 		return true
 	}
-	return heredocStart.MatchString(value)
+	return false
 }
 
 func ignoredConfigKeyItems(path string, keys []IgnoredConfigKey) []SkippedItem {
