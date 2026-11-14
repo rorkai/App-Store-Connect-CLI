@@ -169,6 +169,7 @@ func TestMigrateImportDryRunReportsSkippedNonLocaleMetadataDirs(t *testing.T) {
 		t.Fatalf("mkdir metadata: %v", err)
 	}
 	writeFile(t, filepath.Join(metadataDir, "description.txt"), "English description")
+	writeFile(t, filepath.Join(metadataDir, "apple_tv_privacy_policy.txt"), "Privacy policy text")
 
 	// Mimic a common fastlane deliver subdirectory that is not a locale.
 	nonLocaleDir := filepath.Join(root, "metadata", "trade_representative_contact_information")
@@ -253,6 +254,7 @@ func TestMigrateImportDryRunReportsSkippedNonLocaleMetadataDirs(t *testing.T) {
 		"primary_category.txt": "asc app-setup categories set --primary",
 		// Unreadable for a non-root user; it must still be reported, not abort the import.
 		"primary_first_sub_category.txt": "asc app-setup categories set --primary-subcategory-one",
+		"apple_tv_privacy_policy.txt":    "asc app-setup info set --privacy-policy-text --locale en-US",
 	}
 	if len(appLevelReasons) != len(wantReasons) {
 		t.Fatalf("expected skipped app-level files %v, got %+v", wantReasons, result.Skipped)

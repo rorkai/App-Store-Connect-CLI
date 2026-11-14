@@ -116,9 +116,9 @@ or conventional metadata/ and screenshots/ directories:
   │   │   ├── iphone_65_1.png
   │   │   └── ...
 
-App-level text files directly in metadata/ (copyright.txt, the category files,
-apple_tv_privacy_policy.txt) are not imported; non-empty ones are listed in
-skipped with the asc command that sets each value.
+App-level text files directly in metadata/ (copyright.txt, the category files)
+and a locale folder's apple_tv_privacy_policy.txt are not imported; non-empty
+ones are listed in skipped with the asc command that sets each value.
 
 App Preview validation requires ffprobe on PATH (provided by FFmpeg).
 Headers must be PNG at 1800 x 1200; previews must be 15-30 seconds.
@@ -1115,7 +1115,24 @@ var appLevelMetadataFiles = map[string]string{
 	"primary_second_sub_category.txt":   "asc app-setup categories set --primary-subcategory-two",
 	"secondary_first_sub_category.txt":  "asc app-setup categories set --secondary-subcategory-one",
 	"secondary_second_sub_category.txt": "asc app-setup categories set --secondary-subcategory-two",
-	"apple_tv_privacy_policy.txt":       "asc app-setup info set --privacy-policy-text",
+}
+
+// localePrivacyPolicyTextFile is a locale folder's privacy policy text, which
+// import does not apply either.
+const localePrivacyPolicyTextFile = "apple_tv_privacy_policy.txt"
+
+// unimportedMetadataFile reports a metadata text file that import does not
+// apply, unless it is missing or empty. An unreadable file is still reported.
+func unimportedMetadataFile(root rootfs.Root, name, displayPath, command string) (SkippedItem, bool) {
+	fileName := filepath.Base(name)
+	reason := fmt.Sprintf("%s is not imported; set it with %s", fileName, command)
+	value, err := readMetadataFile(root, name)
+	if err != nil {
+		reason = fmt.Sprintf("%s is not imported and could not be read; set it with %s", fileName, command)
+	} else if value == "" {
+		return SkippedItem{}, false
+	}
+	return SkippedItem{Path: displayPath, Reason: reason}, true
 }
 
 var localeMetadataFiles = []string{
@@ -1151,18 +1168,11 @@ func scanFastlaneMetadataLocaleDirs(metadataDir string) ([]fastlaneLocaleDir, []
 			continue
 		}
 		if !entry.IsDir() {
-			command, ok := appLevelMetadataFiles[dirName]
-			if !ok {
-				continue
+			if command, ok := appLevelMetadataFiles[dirName]; ok {
+				if item, ok := unimportedMetadataFile(root, filepath.Join(prefix, dirName), filepath.Join(metadataDir, dirName), command); ok {
+					skipped = append(skipped, item)
+				}
 			}
-			reason := fmt.Sprintf("%s is not imported; set it with %s", dirName, command)
-			value, err := readMetadataFile(root, filepath.Join(prefix, dirName))
-			if err != nil {
-				reason = fmt.Sprintf("%s is not imported and could not be read; set it with %s", dirName, command)
-			} else if value == "" {
-				continue
-			}
-			skipped = append(skipped, SkippedItem{Path: filepath.Join(metadataDir, dirName), Reason: reason})
 			continue
 		}
 
@@ -1197,6 +1207,10 @@ func scanFastlaneMetadataLocaleDirs(metadataDir string) ([]fastlaneLocaleDir, []
 			DirName: dirName,
 			Locale:  normalized,
 		})
+		policyText := filepath.Join(dirName, localePrivacyPolicyTextFile)
+		if item, ok := unimportedMetadataFile(root, filepath.Join(prefix, policyText), filepath.Join(metadataDir, policyText), "asc app-setup info set --privacy-policy-text --locale "+normalized); ok {
+			skipped = append(skipped, item)
+		}
 	}
 
 	if len(dirs) == 1 && dirs[0].Default {
