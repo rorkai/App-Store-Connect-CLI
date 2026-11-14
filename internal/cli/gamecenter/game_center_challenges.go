@@ -142,43 +142,24 @@ Examples:
 
 // GameCenterChallengesGetCommand returns the challenges get subcommand.
 func GameCenterChallengesGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	challengeID := shared.BindResourceIDFlag(fs, "id", "gameCenterChallenges", "Game Center challenge ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc game-center challenges view --id \"CHALLENGE_ID\"",
-		ShortHelp:  "View a Game Center challenge by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc game-center challenges view --id \"CHALLENGE_ID\"",
+		ShortHelp:   "View a Game Center challenge by ID.",
 		LongHelp: `View a Game Center challenge by ID.
 
 Examples:
   asc game-center challenges view --id "CHALLENGE_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*challengeID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center challenges view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetGameCenterChallenge(requestCtx, id)
-			if err != nil {
-				return fmt.Errorf("game-center challenges view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage:            "Game Center challenge ID",
+		IDType:             "gameCenterChallenges",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center challenges view",
+		FetchErrorPrefix:   "game-center challenges view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetGameCenterChallenge(ctx, id)
 		},
-	}
+	})
 }
 
 // GameCenterChallengesCreateCommand returns the challenges create subcommand.
@@ -520,43 +501,24 @@ Examples:
 
 // GameCenterChallengeVersionsGetCommand returns the challenge versions get subcommand.
 func GameCenterChallengeVersionsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	versionID := shared.BindResourceIDFlag(fs, "id", "gameCenterChallengeVersions", "Game Center challenge version ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc game-center challenges versions view --id \"VERSION_ID\"",
-		ShortHelp:  "View a Game Center challenge version by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc game-center challenges versions view --id \"VERSION_ID\"",
+		ShortHelp:   "View a Game Center challenge version by ID.",
 		LongHelp: `View a Game Center challenge version by ID.
 
 Examples:
   asc game-center challenges versions view --id "VERSION_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*versionID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center challenges versions view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetGameCenterChallengeVersion(requestCtx, id)
-			if err != nil {
-				return fmt.Errorf("game-center challenges versions view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage:            "Game Center challenge version ID",
+		IDType:             "gameCenterChallengeVersions",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center challenges versions view",
+		FetchErrorPrefix:   "game-center challenges versions view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetGameCenterChallengeVersion(ctx, id)
 		},
-	}
+	})
 }
 
 // GameCenterChallengeVersionsCreateCommand returns the challenge versions create subcommand.
@@ -709,43 +671,24 @@ Examples:
 
 // GameCenterChallengeLocalizationsGetCommand returns the challenge localizations get subcommand.
 func GameCenterChallengeLocalizationsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	localizationID := shared.BindResourceIDFlag(fs, "id", "gameCenterChallengeLocalizations", "Game Center challenge localization ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc game-center challenges localizations view --id \"LOCALIZATION_ID\"",
-		ShortHelp:  "View a challenge localization by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc game-center challenges localizations view --id \"LOCALIZATION_ID\"",
+		ShortHelp:   "View a challenge localization by ID.",
 		LongHelp: `View a challenge localization by ID.
 
 Examples:
   asc game-center challenges localizations view --id "LOCALIZATION_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*localizationID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center challenges localizations view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetGameCenterChallengeLocalization(requestCtx, id)
-			if err != nil {
-				return fmt.Errorf("game-center challenges localizations view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage:            "Game Center challenge localization ID",
+		IDType:             "gameCenterChallengeLocalizations",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center challenges localizations view",
+		FetchErrorPrefix:   "game-center challenges localizations view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetGameCenterChallengeLocalization(ctx, id)
 		},
-	}
+	})
 }
 
 // GameCenterChallengeLocalizationsCreateCommand returns the challenge localizations create subcommand.
@@ -1003,43 +946,24 @@ Examples:
 
 // GameCenterChallengeImagesGetCommand returns the challenge images get subcommand.
 func GameCenterChallengeImagesGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	imageID := shared.BindResourceIDFlag(fs, "id", "gameCenterChallengeImages", "Challenge image ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc game-center challenges images view --id \"IMAGE_ID\"",
-		ShortHelp:  "View a challenge image by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc game-center challenges images view --id \"IMAGE_ID\"",
+		ShortHelp:   "View a challenge image by ID.",
 		LongHelp: `View a challenge image by ID.
 
 Examples:
   asc game-center challenges images view --id "IMAGE_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*imageID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center challenges images view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetGameCenterChallengeImage(requestCtx, id)
-			if err != nil {
-				return fmt.Errorf("game-center challenges images view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage:            "Challenge image ID",
+		IDType:             "gameCenterChallengeImages",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center challenges images view",
+		FetchErrorPrefix:   "game-center challenges images view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetGameCenterChallengeImage(ctx, id)
 		},
-	}
+	})
 }
 
 // GameCenterChallengeImagesDeleteCommand returns the challenge images delete subcommand.
@@ -1319,43 +1243,24 @@ Examples:
 
 // GameCenterChallengeLocalizationImageGetCommand returns the challenge localization image get subcommand.
 func GameCenterChallengeLocalizationImageGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	localizationID := shared.BindResourceIDFlag(fs, "id", "gameCenterChallengeLocalizations", "Game Center challenge localization ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc game-center challenges localizations image view --id \"LOC_ID\"",
-		ShortHelp:  "View a challenge localization image.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc game-center challenges localizations image view --id \"LOC_ID\"",
+		ShortHelp:   "View a challenge localization image.",
 		LongHelp: `View a challenge localization image.
 
 Examples:
   asc game-center challenges localizations image view --id "LOC_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*localizationID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center challenges localizations image view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetGameCenterChallengeLocalizationImage(requestCtx, id)
-			if err != nil {
-				return fmt.Errorf("game-center challenges localizations image view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage:            "Game Center challenge localization ID",
+		IDType:             "gameCenterChallengeLocalizations",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center challenges localizations image view",
+		FetchErrorPrefix:   "game-center challenges localizations image view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetGameCenterChallengeLocalizationImage(ctx, id)
 		},
-	}
+	})
 }
 
 // GameCenterChallengeVersionDefaultImageCommand returns the challenge version default image command group.
@@ -1383,41 +1288,22 @@ Examples:
 
 // GameCenterChallengeVersionDefaultImageGetCommand returns the challenge version default image get subcommand.
 func GameCenterChallengeVersionDefaultImageGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	versionID := shared.BindResourceIDFlag(fs, "id", "gameCenterChallengeVersions", "Game Center challenge version ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc game-center challenges versions default-image view --id \"VERSION_ID\"",
-		ShortHelp:  "View a default image for a challenge version.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc game-center challenges versions default-image view --id \"VERSION_ID\"",
+		ShortHelp:   "View a default image for a challenge version.",
 		LongHelp: `View a default image for a challenge version.
 
 Examples:
   asc game-center challenges versions default-image view --id "VERSION_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*versionID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center challenges versions default-image view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetGameCenterChallengeVersionDefaultImage(requestCtx, id)
-			if err != nil {
-				return fmt.Errorf("game-center challenges versions default-image view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage:            "Game Center challenge version ID",
+		IDType:             "gameCenterChallengeVersions",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center challenges versions default-image view",
+		FetchErrorPrefix:   "game-center challenges versions default-image view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetGameCenterChallengeVersionDefaultImage(ctx, id)
 		},
-	}
+	})
 }
