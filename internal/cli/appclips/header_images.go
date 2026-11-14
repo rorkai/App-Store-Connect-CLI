@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -113,50 +112,27 @@ Examples:
 
 // AppClipHeaderImagesDeleteCommand deletes a header image.
 func AppClipHeaderImagesDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("delete", flag.ExitOnError)
-
-	imageID := shared.BindResourceIDFlag(fs, "id", "appClipHeaderImages", "Header image ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc app-clips header-images delete --id \"IMAGE_ID\" --confirm",
-		ShortHelp:  "Delete a header image.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "delete",
+		Name:        "delete",
+		ShortUsage:  "asc app-clips header-images delete --id \"IMAGE_ID\" --confirm",
+		ShortHelp:   "Delete a header image.",
 		LongHelp: `Delete a header image.
 
 Examples:
   asc app-clips header-images delete --id "IMAGE_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			idValue := strings.TrimSpace(*imageID)
-			if idValue == "" {
-				return shared.RequiredFlag("--id")
-			}
-			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required to delete")
-				return shared.MissingRequiredUsageError("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("app-clips header-images delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteAppClipHeaderImage(requestCtx, idValue); err != nil {
-				return fmt.Errorf("app-clips header-images delete: failed to delete: %w", err)
-			}
-
-			result := &asc.AppClipHeaderImageDeleteResult{
-				ID:      idValue,
-				Deleted: true,
-			}
-
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:                 "id",
+		IDUsage:                "Header image ID",
+		IDType:                 "appClipHeaderImages",
+		RequiredDiagnostic:     true,
+		ConfirmRequiredMessage: "--confirm is required to delete",
+		ErrorPrefix:            "app-clips header-images delete",
+		DeleteErrorPrefix:      "app-clips header-images delete: failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteAppClipHeaderImage(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.AppClipHeaderImageDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
