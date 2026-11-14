@@ -593,7 +593,9 @@ func TestDepsOutputHelpersMatchProcessVariantsOnDepsStdout(t *testing.T) {
 			deps: func(d *Deps, format string, pretty bool) error {
 				return d.PrintOutputWithRenderers(&planAvailabilities, format, pretty,
 					func() error { return asc.PrintSubscriptionPlanAvailabilityShowTableTo(d.IO.Out, &planAvailabilities) },
-					func() error { return asc.PrintSubscriptionPlanAvailabilityShowMarkdownTo(d.IO.Out, &planAvailabilities) })
+					func() error {
+						return asc.PrintSubscriptionPlanAvailabilityShowMarkdownTo(d.IO.Out, &planAvailabilities)
+					})
 			},
 		},
 		{

@@ -1498,7 +1498,6 @@ func validateOutputFormatAllowed(flagName, format string, pretty bool, allowed .
 	return normalized, nil
 }
 
-
 func normalizeDate(value, flagName string) (string, error) {
 	trimmed := strings.TrimSpace(value)
 	if trimmed == "" {
