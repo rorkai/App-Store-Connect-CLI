@@ -312,8 +312,9 @@ environment, so `AUTO_SUBMIT=true asc workflow run release` works too.
   A skipped step is not a failure. The run still reports `"status": "ok"` and
   exits `0`, and the step appears in `steps[]` with `"status": "skipped"`.
   Any other expression, such as `"if": "test \"$AUTO_SUBMIT\" = \"true\""` or
-  `"if": "A == yes && B == yes"`, fails `asc workflow validate` and
-  `asc workflow run`.
+  `"if": "A == yes && B == yes"`, skips the step with a warning on stderr, so a
+  `--submit --confirm` step gated that way never runs. A future major release
+  will reject such expressions.
 </Warning>
 
 ## Sub-workflows

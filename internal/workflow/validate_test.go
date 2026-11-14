@@ -610,37 +610,6 @@ func TestValidate_WorkflowStepWithAndIf(t *testing.T) {
 	}
 }
 
-func TestValidate_StepIf(t *testing.T) {
-	tests := []struct {
-		expr    string
-		wantErr bool
-	}{
-		{expr: "$DEPLOY == 'yes'"},
-		{expr: "CHANNEL != beta"},
-		{expr: "DEPLOY && SUBMIT", wantErr: true},
-		{expr: "CHANNEL == beta || CHANNEL == prod", wantErr: true},
-	}
-	for _, test := range tests {
-		t.Run(test.expr, func(t *testing.T) {
-			def := &Definition{Workflows: map[string]Workflow{
-				"main": {Steps: []Step{{Run: "echo hi"}, {Run: "echo gated", If: test.expr}}},
-			}}
-			errs := Validate(def)
-			if !test.wantErr {
-				if len(errs) != 0 {
-					t.Fatalf("expected no errors, got %v", errs)
-				}
-				return
-			}
-			assertValidationCode(t, errs, ErrInvalidStepIf)
-			msg := errs[0].Message
-			if errs[0].Step != 2 || !strings.Contains(msg, `workflow "main" step 2`) || !strings.Contains(msg, "NAME != VALUE") {
-				t.Fatalf("expected error naming step 2 and the accepted forms, got step %d: %q", errs[0].Step, msg)
-			}
-		})
-	}
-}
-
 func TestLoad_NullStepElement(t *testing.T) {
 	dir := t.TempDir()
 	path := writeWorkflowFile(t, dir, `{

@@ -147,6 +147,7 @@ func TestRun_IfComparison(t *testing.T) {
 		expr string
 		env  map[string]string
 		want string
+		warn bool
 	}{
 		{expr: "$DO_IT", env: map[string]string{"DO_IT": "true"}, want: "ok"},
 		{expr: "DEPLOY == yes", env: map[string]string{"DEPLOY": "yes"}, want: "ok"},
@@ -154,18 +155,26 @@ func TestRun_IfComparison(t *testing.T) {
 		{expr: "CHANNEL != beta", env: map[string]string{"CHANNEL": "prod"}, want: "ok"},
 		{expr: `$CHANNEL != "beta"`, env: map[string]string{"CHANNEL": "beta"}, want: "skipped"},
 		{expr: `MISSING_VAR == ""`, want: "ok"},
+		{expr: "DEPLOY && SUBMIT", env: map[string]string{"DEPLOY": "true"}, want: "skipped", warn: true},
+		{expr: "A == yes && B == no", env: map[string]string{"A": "yes"}, want: "skipped", warn: true},
 	}
 	for _, test := range tests {
 		t.Run(test.expr, func(t *testing.T) {
 			def := &Definition{Workflows: map[string]Workflow{
 				"test": {Env: test.env, Steps: []Step{{Run: "echo gated", If: test.expr}}},
 			}}
-			result, err := Run(context.Background(), def, runOpts("test"))
+			opts := runOpts("test")
+			result, err := Run(context.Background(), def, opts)
 			if err != nil {
 				t.Fatalf("Run: %v", err)
 			}
 			if result.Steps[0].Status != test.want {
 				t.Fatalf("expected %s, got %q", test.want, result.Steps[0].Status)
+			}
+			stderr := opts.Stderr.(*bytes.Buffer).String()
+			warned := strings.Contains(stderr, `workflow "test" step 1`) && strings.Contains(stderr, "NAME != VALUE")
+			if warned != test.warn {
+				t.Fatalf("expected warning=%v, got stderr %q", test.warn, stderr)
 			}
 		})
 	}

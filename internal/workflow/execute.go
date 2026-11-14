@@ -381,7 +381,7 @@ func (r *runner) executeSteps(ctx context.Context, workflowName string, steps []
 		if strings.TrimSpace(step.If) != "" {
 			pass, err := evalStepIf(step.If, env)
 			if err != nil {
-				return fmt.Errorf("workflow: %s step %d: unsupported if %q: %w", workflowName, idx, step.If, err)
+				fmt.Fprintf(r.opts.Stderr, "Warning: workflow %q step %d: if %q is not a supported condition, so the step is skipped; %v. A future major release will reject it.\n", workflowName, idx, step.If, err)
 			}
 			if !pass {
 				sr.Status = "skipped"

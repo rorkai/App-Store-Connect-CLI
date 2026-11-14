@@ -34,7 +34,6 @@ const (
 	ErrInvalidRetryMaxAttempts     ValidationCode = "invalid_retry_max_attempts"
 	ErrInvalidRetryDelay           ValidationCode = "invalid_retry_delay"
 	ErrInvalidStepTimeout          ValidationCode = "invalid_step_timeout"
-	ErrInvalidStepIf               ValidationCode = "invalid_step_if"
 )
 
 const (
@@ -143,18 +142,6 @@ func Validate(def *Definition) []*ValidationError {
 					Step:     idx,
 					Message:  fmt.Sprintf("workflow %q step %d has 'with' on a run step (only allowed on workflow steps)", name, idx),
 				})
-			}
-
-			if strings.TrimSpace(step.If) != "" {
-				if _, err := evalStepIf(step.If, nil); err != nil {
-					errs = append(errs, &ValidationError{
-						Code:     ErrInvalidStepIf,
-						Workflow: name,
-						Step:     idx,
-						Path:     stepPath + ".if",
-						Message:  fmt.Sprintf("workflow %q step %d has unsupported if %q: %v", name, idx, step.If, err),
-					})
-				}
 			}
 
 			if step.retryExplicitNull {

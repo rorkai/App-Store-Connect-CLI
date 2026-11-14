@@ -271,7 +271,9 @@ asc workflow run release SUBMIT_FOR_REVIEW:true
 ```
 
 Any other expression, such as
-`"if": "test \"$SUBMIT_FOR_REVIEW\" = \"true\""`, fails validation.
+`"if": "test \"$SUBMIT_FOR_REVIEW\" = \"true\""`, skips the step with a
+warning on stderr, so a submit step gated that way never runs. A future major
+release will reject such expressions.
 
 ## Calling Other Workflows
 
