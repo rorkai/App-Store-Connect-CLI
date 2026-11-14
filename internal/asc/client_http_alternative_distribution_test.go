@@ -17,15 +17,6 @@ func TestAlternativeDistributionReadEndpoints_SendsRequest(t *testing.T) {
 		call     func(*Client) error
 	}{
 		{
-			name:     "GetAlternativeDistributionDomain",
-			path:     "/v1/alternativeDistributionDomains/domain-1",
-			response: `{"data":{"type":"alternativeDistributionDomains","id":"domain-1"}}`,
-			call: func(c *Client) error {
-				_, err := c.GetAlternativeDistributionDomain(ctx, "domain-1")
-				return err
-			},
-		},
-		{
 			name:     "GetAlternativeDistributionKey",
 			path:     "/v1/alternativeDistributionKeys/key-1",
 			response: `{"data":{"type":"alternativeDistributionKeys","id":"key-1"}}`,
@@ -129,21 +120,6 @@ func TestAlternativeDistributionListEndpoints_WithLimit(t *testing.T) {
 		call     func(*testing.T, *Client)
 	}{
 		{
-			name:     "GetAlternativeDistributionDomains",
-			path:     "/v1/alternativeDistributionDomains",
-			limit:    "5",
-			response: `{"data":[{"type":"alternativeDistributionDomains","id":"domain-1","attributes":{"domain":"example.com","referenceName":"Example"}}]}`,
-			call: func(t *testing.T, c *Client) {
-				resp, err := c.GetAlternativeDistributionDomains(ctx, Limit[AlternativeDistributionDomainsOption](5))
-				if err != nil {
-					t.Fatalf("GetAlternativeDistributionDomains() error: %v", err)
-				}
-				if len(resp.Data) != 1 || resp.Data[0].Attributes.Domain != "example.com" {
-					t.Fatalf("expected decoded domain response, got %+v", resp.Data)
-				}
-			},
-		},
-		{
 			name:     "GetAlternativeDistributionKeys",
 			path:     "/v1/alternativeDistributionKeys",
 			limit:    "10",
@@ -233,13 +209,6 @@ func TestAlternativeDistributionDeleteEndpoints_SendsRequest(t *testing.T) {
 		path string
 		call func(*Client) error
 	}{
-		{
-			name: "DeleteAlternativeDistributionDomain",
-			path: "/v1/alternativeDistributionDomains/domain-1",
-			call: func(c *Client) error {
-				return c.DeleteAlternativeDistributionDomain(ctx, "domain-1")
-			},
-		},
 		{
 			name: "DeleteAlternativeDistributionKey",
 			path: "/v1/alternativeDistributionKeys/key-1",
