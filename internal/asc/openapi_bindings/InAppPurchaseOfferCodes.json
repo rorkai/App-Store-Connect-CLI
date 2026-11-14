@@ -11,6 +11,7 @@
     {"operation":"inAppPurchaseOfferCodes_customCodes_getToManyRelated","name":"GetInAppPurchaseOfferCodeCustomCodes","params":["offerCodeID"],"check":"require","options":"IAPOfferCodeCustomCodesOption","query":"buildIAPOfferCodeCustomCodesQuery","nextContext":"in-app-purchase-offer-code-custom-codes"},
     {"operation":"inAppPurchaseOfferCodes_getInstance","name":"GetInAppPurchaseOfferCode","params":["offerCodeID"],"check":"require"},
     {"operation":"inAppPurchaseOfferCodes_oneTimeUseCodes_getToManyRelated","name":"GetInAppPurchaseOfferCodeOneTimeUseCodes","params":["offerCodeID"],"check":"require","options":"IAPOfferCodeOneTimeUseCodesOption","query":"buildIAPOfferCodeOneTimeUseCodesQuery","nextContext":"in-app-purchase-offer-code-one-time-use-codes"},
-    {"operation":"inAppPurchaseOfferCodes_prices_getToManyRelated","name":"GetInAppPurchaseOfferCodePrices","params":["offerCodeID"],"check":"require","options":"IAPOfferCodePricesOption","query":"buildIAPOfferCodePricesQuery","nextContext":"in-app-purchase-offer-code-prices"}
+    {"operation":"inAppPurchaseOfferCodes_prices_getToManyRelated","name":"GetInAppPurchaseOfferCodePrices","params":["offerCodeID"],"check":"require","options":"IAPOfferCodePricesOption","query":"buildIAPOfferCodePricesQuery","nextContext":"in-app-purchase-offer-code-prices"},
+    {"operation":"inAppPurchaseOfferCodes_updateInstance","name":"UpdateInAppPurchaseOfferCode","params":["offerCodeID"],"check":"require","skipEmptyAttributes":true}
   ]
 }

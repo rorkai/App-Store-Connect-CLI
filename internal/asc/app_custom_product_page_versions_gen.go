@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 )
 
@@ -63,5 +64,27 @@ func (c *Client) GetAppCustomProductPageVersion(ctx context.Context, versionID s
 	}
 	return getJSON[AppCustomProductPageVersionResponse](ctx, c, readRequest{
 		Path: fmt.Sprintf("/v1/appCustomProductPageVersions/%s", versionID),
+	})
+}
+
+// UpdateAppCustomProductPageVersion sends PATCH /v1/appCustomProductPageVersions/{id} (appCustomProductPageVersions_updateInstance).
+func (c *Client) UpdateAppCustomProductPageVersion(ctx context.Context, versionID string, attrs AppCustomProductPageVersionUpdateAttributes) (*AppCustomProductPageVersionResponse, error) {
+	versionID = strings.TrimSpace(versionID)
+	if versionID == "" {
+		return nil, fmt.Errorf("versionID is required")
+	}
+	payload := AppCustomProductPageVersionUpdateRequest{
+		Data: AppCustomProductPageVersionUpdateData{
+			Type: ResourceTypeAppCustomProductPageVersions,
+			ID:   versionID,
+		},
+	}
+	if attrs.DeepLink != nil {
+		payload.Data.Attributes = &attrs
+	}
+	return sendJSON[AppCustomProductPageVersionResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/appCustomProductPageVersions/%s", versionID),
+		Payload: payload,
 	})
 }

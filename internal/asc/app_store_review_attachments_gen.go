@@ -43,3 +43,25 @@ func (c *Client) DeleteAppStoreReviewAttachment(ctx context.Context, attachmentI
 	}
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/appStoreReviewAttachments/%s", attachmentID), nil)
 }
+
+// UpdateAppStoreReviewAttachment sends PATCH /v1/appStoreReviewAttachments/{id} (appStoreReviewAttachments_updateInstance).
+func (c *Client) UpdateAppStoreReviewAttachment(ctx context.Context, attachmentID string, attrs AppStoreReviewAttachmentUpdateAttributes) (*AppStoreReviewAttachmentResponse, error) {
+	attachmentID = strings.TrimSpace(attachmentID)
+	if attachmentID == "" {
+		return nil, fmt.Errorf("attachmentID is required")
+	}
+	payload := AppStoreReviewAttachmentUpdateRequest{
+		Data: AppStoreReviewAttachmentUpdateData{
+			Type: ResourceTypeAppStoreReviewAttachments,
+			ID:   attachmentID,
+		},
+	}
+	if attrs.SourceFileChecksum != nil || attrs.Uploaded != nil {
+		payload.Data.Attributes = &attrs
+	}
+	return sendJSON[AppStoreReviewAttachmentResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/appStoreReviewAttachments/%s", attachmentID),
+		Payload: payload,
+	})
+}

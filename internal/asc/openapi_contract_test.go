@@ -362,8 +362,8 @@ type contractCall struct {
 
 // newContractCall builds arguments from the method's parameter types: path
 // parameters (string, in path order), an ID list ([]string), attributes (a
-// struct with every field set) and options (one option that sets every field
-// of the query).
+// struct, or a pointer to one, with every field set) and options (one
+// option that sets every field of the query).
 func newContractCall(name string, typ reflect.Type, b *contractOpBinding) (*contractCall, error) {
 	c := &contractCall{name: name}
 	if typ.NumIn() == 0 || typ.In(0) != reflect.TypeFor[context.Context]() {
@@ -389,9 +389,9 @@ func newContractCall(name string, typ reflect.Type, b *contractOpBinding) (*cont
 		case in == reflect.TypeFor[[]string]():
 			c.ids = []string{"related-1", "related-2"}
 			c.args = append(c.args, reflect.ValueOf(c.ids))
-		case in.Kind() == reflect.Struct:
+		case in.Kind() == reflect.Struct, in.Kind() == reflect.Pointer && in.Elem().Kind() == reflect.Struct:
 			value := reflect.New(in).Elem()
-			if err := fillContractValue(value, in.Name()); err != nil {
+			if err := fillContractValue(value, in.String()); err != nil {
 				return nil, err
 			}
 			attrs, err := json.Marshal(value.Interface())

@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 )
 
@@ -24,5 +25,21 @@ func (c *Client) GetSubscriptionGracePeriod(ctx context.Context, gracePeriodID s
 	}
 	return getJSON[SubscriptionGracePeriodResponse](ctx, c, readRequest{
 		Path: fmt.Sprintf("/v1/subscriptionGracePeriods/%s", gracePeriodID),
+	})
+}
+
+// UpdateSubscriptionGracePeriod sends PATCH /v1/subscriptionGracePeriods/{id} (subscriptionGracePeriods_updateInstance).
+func (c *Client) UpdateSubscriptionGracePeriod(ctx context.Context, gracePeriodID string, attrs SubscriptionGracePeriodUpdateAttributes) (*SubscriptionGracePeriodResponse, error) {
+	payload := SubscriptionGracePeriodUpdateRequest{
+		Data: SubscriptionGracePeriodUpdateData{
+			Type:       ResourceTypeSubscriptionGracePeriods,
+			ID:         strings.TrimSpace(gracePeriodID),
+			Attributes: attrs,
+		},
+	}
+	return sendJSON[SubscriptionGracePeriodResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/subscriptionGracePeriods/%s", strings.TrimSpace(gracePeriodID)),
+		Payload: payload,
 	})
 }

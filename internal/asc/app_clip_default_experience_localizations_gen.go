@@ -81,3 +81,23 @@ func (c *Client) GetAppClipDefaultExperienceLocalization(ctx context.Context, lo
 		Path: fmt.Sprintf("/v1/appClipDefaultExperienceLocalizations/%s", localizationID),
 	})
 }
+
+// UpdateAppClipDefaultExperienceLocalization sends PATCH /v1/appClipDefaultExperienceLocalizations/{id} (appClipDefaultExperienceLocalizations_updateInstance).
+func (c *Client) UpdateAppClipDefaultExperienceLocalization(ctx context.Context, localizationID string, attrs *AppClipDefaultExperienceLocalizationUpdateAttributes) (*AppClipDefaultExperienceLocalizationResponse, error) {
+	localizationID = strings.TrimSpace(localizationID)
+	if localizationID == "" {
+		return nil, fmt.Errorf("localizationID is required")
+	}
+	payload := AppClipDefaultExperienceLocalizationUpdateRequest{
+		Data: AppClipDefaultExperienceLocalizationUpdateData{
+			Type:       ResourceTypeAppClipDefaultExperienceLocalizations,
+			ID:         localizationID,
+			Attributes: attrs,
+		},
+	}
+	return sendJSON[AppClipDefaultExperienceLocalizationResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/appClipDefaultExperienceLocalizations/%s", localizationID),
+		Payload: payload,
+	})
+}

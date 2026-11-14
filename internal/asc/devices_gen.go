@@ -4,7 +4,9 @@ package asc
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"strings"
 )
 
 // DeviceCreateData is the data object of the DeviceCreateRequest schema.
@@ -59,5 +61,24 @@ func (c *Client) GetDevices(ctx context.Context, opts ...DevicesOption) (*Device
 		Query:       buildDevicesQuery(query),
 		Next:        query.nextURL,
 		NextContext: "devices",
+	})
+}
+
+// UpdateDevice sends PATCH /v1/devices/{id} (devices_updateInstance).
+func (c *Client) UpdateDevice(ctx context.Context, deviceID string, attrs DeviceUpdateAttributes) (*DeviceResponse, error) {
+	deviceID = strings.TrimSpace(deviceID)
+	payload := DeviceUpdateRequest{
+		Data: DeviceUpdateData{
+			Type: ResourceTypeDevices,
+			ID:   deviceID,
+		},
+	}
+	if attrs.Name != nil || attrs.Status != nil {
+		payload.Data.Attributes = &attrs
+	}
+	return sendJSON[DeviceResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/devices/%s", deviceID),
+		Payload: payload,
 	})
 }
