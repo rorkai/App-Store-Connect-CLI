@@ -1,0 +1,9 @@
+{
+  "tag": "ScmRepositories",
+  "file": "scm_repositories_gen.go",
+  "operations": [
+    {"operation":"scmRepositories_getCollection","name":"GetScmRepositories","options":"ScmRepositoriesOption","query":"buildScmRepositoriesQuery","nextContext":"scmRepositories"},
+    {"operation":"scmRepositories_gitReferences_getToManyRelated","name":"GetScmGitReferences","params":["repositoryID"],"options":"ScmGitReferencesOption","query":"buildScmGitReferencesQuery","nextContext":"scmGitReferences"},
+    {"operation":"scmRepositories_pullRequests_getToManyRelated","name":"GetScmRepositoryPullRequests","params":["repositoryID"],"options":"ScmPullRequestsOption","query":"buildScmPullRequestsQuery","nextContext":"scmRepositoryPullRequests"}
+  ]
+}

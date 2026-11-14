@@ -20,9 +20,6 @@ type SubscriptionOfferCodeOneTimeUseCodeAttributes struct {
 // SubscriptionOfferCodeOneTimeUseCodesResponse is the response from list endpoints.
 type SubscriptionOfferCodeOneTimeUseCodesResponse = Response[SubscriptionOfferCodeOneTimeUseCodeAttributes]
 
-// SubscriptionOfferCodeOneTimeUseCodeResponse is the response from detail endpoints.
-type SubscriptionOfferCodeOneTimeUseCodeResponse = SingleResponse[SubscriptionOfferCodeOneTimeUseCodeAttributes]
-
 // OfferCodeValuesResult represents parsed offer code values output.
 type OfferCodeValuesResult struct {
 	Codes []string `json:"codes"`
@@ -47,11 +44,6 @@ type SubscriptionOfferCodeOneTimeUseCodeCreateData struct {
 	Relationships SubscriptionOfferCodeOneTimeUseCodeCreateRelationships `json:"relationships"`
 }
 
-// SubscriptionOfferCodeOneTimeUseCodeCreateRequest is a request to generate offer codes.
-type SubscriptionOfferCodeOneTimeUseCodeCreateRequest struct {
-	Data SubscriptionOfferCodeOneTimeUseCodeCreateData `json:"data"`
-}
-
 // GetSubscriptionOfferCodeOneTimeUseCodes retrieves one-time use offer code batches for an offer code.
 func (c *Client) GetSubscriptionOfferCodeOneTimeUseCodes(ctx context.Context, offerCodeID string, opts ...SubscriptionOfferCodeOneTimeUseCodesOption) (*SubscriptionOfferCodeOneTimeUseCodesResponse, error) {
 	offerCodeID = strings.TrimSpace(offerCodeID)
@@ -62,12 +54,6 @@ func (c *Client) GetSubscriptionOfferCodeOneTimeUseCodes(ctx context.Context, of
 		Next:        query.nextURL,
 		NextContext: "offer codes",
 	})
-}
-
-// GetSubscriptionOfferCodeOneTimeUseCode retrieves a one-time use offer code batch by ID.
-func (c *Client) GetSubscriptionOfferCodeOneTimeUseCode(ctx context.Context, oneTimeUseCodeID string) (*SubscriptionOfferCodeOneTimeUseCodeResponse, error) {
-	oneTimeUseCodeID = strings.TrimSpace(oneTimeUseCodeID)
-	return getJSON[SubscriptionOfferCodeOneTimeUseCodeResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/subscriptionOfferCodeOneTimeUseCodes/%s", oneTimeUseCodeID)})
 }
 
 // CreateSubscriptionOfferCodeOneTimeUseCode generates a new one-time use offer code batch.

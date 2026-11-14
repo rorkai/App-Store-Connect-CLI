@@ -1,0 +1,15 @@
+{
+  "tag": "SubscriptionOfferCodeCustomCodes",
+  "file": "subscription_offer_code_custom_codes_gen.go",
+  "types": [
+    "SubscriptionOfferCodeCustomCodeAttributes",
+    "SubscriptionOfferCodeCustomCodeCreateAttributes",
+    "SubscriptionOfferCodeCustomCodeCreateRequest",
+    "SubscriptionOfferCodeCustomCodeResponse",
+    "SubscriptionOfferCodeCustomCodeUpdateAttributes",
+    "SubscriptionOfferCodeCustomCodeUpdateRequest"
+  ],
+  "operations": [
+    {"operation":"subscriptionOfferCodeCustomCodes_getInstance","name":"GetSubscriptionOfferCodeCustomCode","params":["customCodeID"]}
+  ]
+}

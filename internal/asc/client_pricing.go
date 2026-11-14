@@ -8,18 +8,6 @@ import (
 	"strings"
 )
 
-// GetTerritories retrieves available territories.
-func (c *Client) GetTerritories(ctx context.Context, opts ...TerritoriesOption) (*TerritoriesResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[TerritoriesResponse](ctx, c, readRequest{
-		Path:        "/v1/territories",
-		Query:       buildTerritoriesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "territories",
-		ParseErr:    "failed to parse territories response",
-	})
-}
-
 // GetAppPricePoints retrieves app price points for an app.
 func (c *Client) GetAppPricePoints(ctx context.Context, appID string, opts ...PricePointsOption) (*AppPricePointsV3Response, error) {
 	query := applyOptions(opts)
