@@ -132,6 +132,17 @@ func TestAdoptReplacesOnlyCodeTheGeneratorReproduces(t *testing.T) {
 	}
 }
 
+func TestAdoptIntoAnExistingFamilyLeavesItUpToDate(t *testing.T) {
+	existing := `{"tag": "Widgets", "file": "widgets_gen.go", "operations": [{"operation": "widgets_updateInstance", "name": "UpdateWidget", "params": ["widgetID"]}]}`
+	dir := writeHandWritten(t, map[string]string{"client.go": handWrittenClient, "bindings/Widgets.json": existing})
+	if err := runAdopt(dir, false); err != nil {
+		t.Fatal(err)
+	}
+	if err := run(filepath.Join("testdata", "spec.json"), filepath.Join(dir, "bindings"), dir, true, "", false, io.Discard); err != nil {
+		t.Fatalf("check right after adopt: %v", err)
+	}
+}
+
 func TestAdoptWritesNothingOnDryRunOrFailure(t *testing.T) {
 	brokenBindings := `{"tag": "Other", "file": "other_gen.go", "operations": [{"operation": "widgets_missing", "name": "Missing"}]}`
 	tests := []struct {

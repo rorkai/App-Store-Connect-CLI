@@ -63,18 +63,24 @@ func run(specPath, bindingsDir, dir string, check bool, adopt string, dryRun boo
 	if err != nil || dryRun {
 		return err
 	}
+	// Encode sorts a family, so encode before rendering to generate in the
+	// order the bindings files keep.
+	families := map[string][]byte{}
+	for _, fam := range adopted {
+		data, err := fam.Encode()
+		if err != nil {
+			return err
+		}
+		families[bindingsFile(bindingsDir, fam.Tag)] = data
+	}
 	// Render everything before touching a file, so a failure leaves the
 	// hand-written code in place.
 	writes, stale, err := plan(spec, bindings, dir)
 	if err != nil {
 		return err
 	}
-	for _, fam := range adopted {
-		data, err := fam.Encode()
-		if err != nil {
-			return err
-		}
-		writes[bindingsFile(bindingsDir, fam.Tag)] = data
+	for path, data := range families {
+		writes[path] = data
 	}
 	if len(adopted) > 0 {
 		if err := os.MkdirAll(bindingsDir, 0o755); err != nil {

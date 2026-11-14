@@ -55,11 +55,17 @@ func TestLoadBindingsRejects(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "Gadgets.json"), []byte(`{"tag": "Widgets", "file": "widgets_gen.go"}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	unreadable := filepath.Join(t.TempDir(), "bindings")
+	if err := os.Mkdir(unreadable, 0o000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(unreadable, 0o755) })
 	tests := []struct {
 		name, path, want string
 	}{
 		{"a tag that differs from its file name", dir, "must be named Widgets.json"},
 		{"a file instead of a directory", filepath.Join(dir, "Gadgets.json"), "not a directory"},
+		{"a directory it cannot read", unreadable, "permission denied"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
