@@ -153,7 +153,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("marketplace", "Manage marketplace resources.", func() *ffcli.Command {
 			return marketplace.NewMarketplaceCommand(d)
 		}),
-		commandFactory("alternative-distribution", "Manage alternative distribution resources.", alternativedistribution.Command),
+		commandFactory("alternative-distribution", "Manage alternative distribution resources.", func() *ffcli.Command {
+			return alternativedistribution.NewAlternativeDistributionCommand(d)
+		}),
 		commandFactory("webhooks", "Manage webhooks in App Store Connect.", webhooks.WebhooksCommand),
 		commandFactory("nominations", "Manage featuring nominations.", nominations.NominationsCommand),
 		commandFactory("bundle-ids", "Manage bundle IDs and capabilities.", bundleids.BundleIDsCommand),
@@ -165,7 +167,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("actors", "Lookup actors (users, API keys) by ID.", func() *ffcli.Command {
 			return actors.NewActorsCommand(d)
 		}),
-		commandFactory("devices", "Manage devices in App Store Connect.", devices.DevicesCommand),
+		commandFactory("devices", "Manage devices in App Store Connect.", func() *ffcli.Command {
+			return devices.NewDevicesCommand(d)
+		}),
 		commandFactory("testflight", "Manage TestFlight workflows.", testflight.TestFlightCommand),
 		commandFactory("builds", "Manage builds in App Store Connect.", builds.BuildsCommand),
 		commandFactory("build-bundles", "Manage build bundles and App Clip data.", buildbundles.BuildBundlesCommand),
@@ -174,12 +178,20 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("workflow", "Run multi-step automation workflows.", workflow.WorkflowCommand),
 		commandFactory("xcode", "Local Xcode build/archive/export and signing-settings helpers.", xcode.XcodeCommand),
 		commandFactory("distribute", "Plan, execute, inspect, and publish iOS distribution artifacts.", distribute.DistributeCommand),
-		commandFactory("ipa-info", "Inspect a local IPA without contacting App Store Connect.", artifacts.IPAInfoCommand),
-		commandFactory("pkg-info", "Inspect a local flat package or product archive without contacting Apple.", artifacts.PKGInfoCommand),
+		commandFactory("ipa-info", "Inspect a local IPA without contacting App Store Connect.", func() *ffcli.Command {
+			return artifacts.NewIPAInfoCommand(d)
+		}),
+		commandFactory("pkg-info", "Inspect a local flat package or product archive without contacting Apple.", func() *ffcli.Command {
+			return artifacts.NewPKGInfoCommand(d)
+		}),
 		commandFactory("versions", "Manage App Store versions.", versions.VersionsCommand),
-		commandFactory("product-pages", "Manage custom product pages and product page experiments.", productpages.ProductPagesCommand),
+		commandFactory("product-pages", "Manage custom product pages and product page experiments.", func() *ffcli.Command {
+			return productpages.NewProductPagesCommand(d)
+		}),
 		commandFactory("routing-coverage", "Manage routing app coverage files.", routingcoverage.RoutingCoverageCommand),
-		commandFactory("eula", "Manage End User License Agreements (EULA).", eula.EULACommand),
+		commandFactory("eula", "Manage End User License Agreements (EULA).", func() *ffcli.Command {
+			return eula.NewEULACommand(d)
+		}),
 		commandFactory("agreements", "Manage agreements in App Store Connect.", func() *ffcli.Command {
 			return agreements.NewAgreementsCommand(d)
 		}),
@@ -192,7 +204,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("asset-library", "Inspect Asset Library media and specifications, and upload images and videos.", assetlibrary.Command),
 		commandFactory("background-assets", "Manage background assets.", backgroundassets.BackgroundAssetsCommand),
 		commandFactory("build-localizations", "Manage build release notes localizations.", buildlocalizations.BuildLocalizationsCommand),
-		commandFactory("sandbox", "Manage sandbox testers in App Store Connect.", sandbox.SandboxCommand),
+		commandFactory("sandbox", "Manage sandbox testers in App Store Connect.", func() *ffcli.Command {
+			return sandbox.NewSandboxCommand(d)
+		}),
 		commandFactory("signing", "Manage signing certificates and profiles.", signing.SigningCommand),
 		commandFactory("notarization", "Manage macOS notarization submissions.", notarization.NotarizationCommand),
 		commandFactory("iap", "Manage in-app purchases in App Store Connect.", iap.IAPCommand),
@@ -212,7 +226,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("notify", "Send notifications to external services.", notify.NotifyCommand),
 		commandFactory("game-center", "Manage Game Center resources in App Store Connect.", gamecenter.GameCenterCommand),
 		commandFactory("capabilities", "Show CLI, API, web-only, and public-API-limited capability coverage.", capabilities.Command),
-		commandFactory("schema", "Inspect App Store Connect API endpoint schemas at runtime.", schema.SchemaCommand),
+		commandFactory("schema", "Inspect App Store Connect API endpoint schemas at runtime.", func() *ffcli.Command {
+			return schema.NewSchemaCommand(d)
+		}),
 		commandFactory("api", "Send an authenticated raw request to the App Store Connect API.", apicmd.Command),
 		commandFactory("telemetry", "Manage CLI telemetry settings.", telemetrycmd.TelemetryCommand),
 		commandFactory("search", "Search asc commands and examples for agent-oriented command discovery.", func() *ffcli.Command {
@@ -225,7 +241,7 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 			return VersionCommand(version)
 		}),
 		commandFactory("completion", "Print shell completion scripts.", func() *ffcli.Command {
-			return completion.CompletionCommand(catalog.All, func() *flag.FlagSet {
+			return completion.NewCompletionCommand(d, catalog.All, func() *flag.FlagSet {
 				return catalog.rootFlagSet
 			})
 		}),

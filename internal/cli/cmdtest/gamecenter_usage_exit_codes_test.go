@@ -365,6 +365,11 @@ func assertUsageExitCode(t *testing.T, args []string, wantErr string) {
 	t.Helper()
 
 	stdout, stderr, runErr := runCommand(t, args)
+	assertUsageExitCodeResult(t, stdout, stderr, runErr, wantErr)
+}
+
+func assertUsageExitCodeResult(t *testing.T, stdout, stderr string, runErr error, wantErr string) {
+	t.Helper()
 
 	if runErr == nil {
 		t.Fatal("expected error, got nil")

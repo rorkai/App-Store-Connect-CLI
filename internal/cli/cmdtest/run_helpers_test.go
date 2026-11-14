@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -98,4 +100,21 @@ func stubClient(t *testing.T, rt http.RoundTripper) func() (*asc.Client, error) 
 	return func() (*asc.Client, error) {
 		return asc.NewClientWithHTTPClient("TEST_KEY", "TEST_ISSUER", keyPath, &http.Client{Transport: rt})
 	}
+}
+
+// stubServerClient returns a client factory whose clients send every request
+// to server, keeping the request path and query.
+func stubServerClient(t *testing.T, server *httptest.Server) func() (*asc.Client, error) {
+	t.Helper()
+
+	serverURL, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf("parse server URL: %v", err)
+	}
+	return stubClient(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		cloned := req.Clone(req.Context())
+		cloned.URL.Scheme = serverURL.Scheme
+		cloned.URL.Host = serverURL.Host
+		return server.Client().Transport.RoundTrip(cloned)
+	}))
 }

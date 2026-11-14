@@ -956,11 +956,6 @@ func (c *Client) parseAuthenticatedResponseError(body []byte, resp *http.Respons
 	return err
 }
 
-// ParseError parses an error response (status code unknown)
-func ParseError(body []byte) error {
-	return ParseErrorWithStatus(body, 0)
-}
-
 // ParseErrorWithStatus parses an error response and includes the HTTP status code
 func ParseErrorWithStatus(body []byte, statusCode int) error {
 	var errResp struct {

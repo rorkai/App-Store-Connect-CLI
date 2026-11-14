@@ -2,9 +2,6 @@ package asc
 
 import (
 	"context"
-	"fmt"
-	"net/http"
-	"strings"
 )
 
 // BuildAppLinkageResponse is the response for build app relationships.
@@ -29,31 +26,6 @@ type BuildBuildBetaDetailLinkageResponse struct {
 type BuildPreReleaseVersionLinkageResponse struct {
 	Data  ResourceData `json:"data"`
 	Links Links        `json:"links"`
-}
-
-// BuildAppEncryptionDeclarationRelationshipUpdateRequest is a request to update the appEncryptionDeclaration relationship on a build.
-type BuildAppEncryptionDeclarationRelationshipUpdateRequest struct {
-	Data ResourceData `json:"data"`
-}
-
-// UpdateBuildAppEncryptionDeclarationRelationship updates the app encryption declaration relationship on a build.
-func (c *Client) UpdateBuildAppEncryptionDeclarationRelationship(ctx context.Context, buildID, declarationID string) error {
-	buildID = strings.TrimSpace(buildID)
-	declarationID = strings.TrimSpace(declarationID)
-	if buildID == "" {
-		return fmt.Errorf("buildID is required")
-	}
-	if declarationID == "" {
-		return fmt.Errorf("declarationID is required")
-	}
-
-	request := BuildAppEncryptionDeclarationRelationshipUpdateRequest{
-		Data: ResourceData{
-			Type: ResourceTypeAppEncryptionDeclarations,
-			ID:   declarationID,
-		},
-	}
-	return sendNoContent(ctx, c, http.MethodPatch, fmt.Sprintf("/v1/builds/%s/relationships/appEncryptionDeclaration", buildID), request)
 }
 
 // GetBuildBetaBuildLocalizationsRelationships retrieves beta build localization linkages for a build.

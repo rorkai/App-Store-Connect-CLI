@@ -12,9 +12,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// ExperimentTreatmentLocalizationsCommand returns the treatment localizations command group.
-func ExperimentTreatmentLocalizationsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("localizations", flag.ExitOnError)
+// newExperimentTreatmentLocalizationsCommand returns the treatment localizations command group.
+func newExperimentTreatmentLocalizationsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("localizations", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "localizations",
@@ -29,12 +29,12 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			ExperimentTreatmentLocalizationsListCommand(),
-			ExperimentTreatmentLocalizationsGetCommand(),
-			ExperimentTreatmentLocalizationsCreateCommand(),
-			ExperimentTreatmentLocalizationsDeleteCommand(),
-			ExperimentTreatmentLocalizationPreviewSetsCommand(),
-			ExperimentTreatmentLocalizationScreenshotSetsCommand(),
+			newExperimentTreatmentLocalizationsListCommand(d),
+			newExperimentTreatmentLocalizationsGetCommand(d),
+			newExperimentTreatmentLocalizationsCreateCommand(d),
+			newExperimentTreatmentLocalizationsDeleteCommand(d),
+			newExperimentTreatmentLocalizationPreviewSetsCommand(d),
+			newExperimentTreatmentLocalizationScreenshotSetsCommand(d),
 			shared.CreativePlacementsCommand("appStoreVersionExperimentTreatmentLocalizations", "product-pages experiments treatments localizations", "a product page optimization treatment localization"),
 		},
 		Exec: func(ctx context.Context, args []string) error {
@@ -47,16 +47,16 @@ func treatmentLocalizationIncludeList() []string {
 	return []string{"appStoreVersionExperimentTreatment", "appScreenshotSets", "appPreviewSets", "placements"}
 }
 
-// ExperimentTreatmentLocalizationsListCommand returns the treatment localizations list subcommand.
-func ExperimentTreatmentLocalizationsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("treatment-localizations list", flag.ExitOnError)
+// newExperimentTreatmentLocalizationsListCommand returns the treatment localizations list subcommand.
+func newExperimentTreatmentLocalizationsListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("treatment-localizations list", flag.ExitOnError)
 
 	treatmentID := shared.BindResourceIDFlag(fs, "treatment-id", "appStoreVersionExperimentTreatments", "Treatment ID")
 	include := shared.BindLocalizationIncludeFlags(fs, "Include related resources", treatmentLocalizationIncludeList())
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -72,12 +72,12 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > productPagesMaxLimit) {
-				return shared.UsageErrorf("experiments treatments localizations list: --limit must be between 1 and %d", productPagesMaxLimit)
+				return d.UsageErrorf("experiments treatments localizations list: --limit must be between 1 and %d", productPagesMaxLimit)
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("experiments treatments localizations list: %v", err)
+				return d.UsageErrorf("experiments treatments localizations list: %v", err)
 			}
-			if err := shared.RejectNextFlagConflicts(fs, *next, "experiments treatments localizations list", "include", "placements-limit"); err != nil {
+			if err := d.RejectNextFlagConflicts(fs, *next, "experiments treatments localizations list", "include", "placements-limit"); err != nil {
 				return err
 			}
 			includeValues, placementsLimit, err := include.Resolve()
@@ -87,15 +87,15 @@ Examples:
 
 			trimmedID := strings.TrimSpace(*treatmentID)
 			if trimmedID == "" {
-				return shared.RequiredFlag("--treatment-id")
+				return d.RequiredFlag("--treatment-id")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("experiments treatments localizations list: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			opts := []asc.AppStoreVersionExperimentTreatmentLocalizationsOption{
@@ -119,7 +119,7 @@ Examples:
 					return fmt.Errorf("experiments treatments localizations list: %w", err)
 				}
 
-				return shared.PrintOutput(paginated, *output.Output, *output.Pretty)
+				return d.PrintOutput(paginated, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetAppStoreVersionExperimentTreatmentLocalizations(requestCtx, trimmedID, opts...)
@@ -127,18 +127,18 @@ Examples:
 				return fmt.Errorf("experiments treatments localizations list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// ExperimentTreatmentLocalizationsGetCommand returns the treatment localizations get subcommand.
-func ExperimentTreatmentLocalizationsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("treatment-localizations view", flag.ExitOnError)
+// newExperimentTreatmentLocalizationsGetCommand returns the treatment localizations get subcommand.
+func newExperimentTreatmentLocalizationsGetCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("treatment-localizations view", flag.ExitOnError)
 
 	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appStoreVersionExperimentTreatmentLocalizations", "Treatment localization ID")
 	include := shared.BindLocalizationIncludeFlags(fs, "Include related resources", treatmentLocalizationIncludeList())
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "view",
@@ -154,19 +154,19 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*localizationID)
 			if trimmedID == "" {
-				return shared.RequiredFlag("--localization-id")
+				return d.RequiredFlag("--localization-id")
 			}
 			includeValues, placementsLimit, err := include.Resolve()
 			if err != nil {
 				return err
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("experiments treatments localizations view: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAppStoreVersionExperimentTreatmentLocalization(requestCtx, trimmedID, asc.WithLocalizationReadInclude(includeValues), asc.WithLocalizationReadPlacementsLimit(placementsLimit))
@@ -174,18 +174,18 @@ Examples:
 				return fmt.Errorf("experiments treatments localizations view: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// ExperimentTreatmentLocalizationsCreateCommand returns the treatment localizations create subcommand.
-func ExperimentTreatmentLocalizationsCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("treatment-localizations create", flag.ExitOnError)
+// newExperimentTreatmentLocalizationsCreateCommand returns the treatment localizations create subcommand.
+func newExperimentTreatmentLocalizationsCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("treatment-localizations create", flag.ExitOnError)
 
 	treatmentID := shared.BindResourceIDFlag(fs, "treatment-id", "appStoreVersionExperimentTreatments", "Treatment ID")
 	locale := fs.String("locale", "", "Localization locale (e.g., en-US)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -200,20 +200,20 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*treatmentID)
 			if trimmedID == "" {
-				return shared.RequiredFlag("--treatment-id")
+				return d.RequiredFlag("--treatment-id")
 			}
 
 			localeValue := strings.TrimSpace(*locale)
 			if localeValue == "" {
-				return shared.RequiredFlag("--locale")
+				return d.RequiredFlag("--locale")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("experiments treatments localizations create: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateAppStoreVersionExperimentTreatmentLocalization(requestCtx, trimmedID, localeValue)
@@ -221,14 +221,15 @@ Examples:
 				return fmt.Errorf("experiments treatments localizations create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// ExperimentTreatmentLocalizationsDeleteCommand returns the treatment localizations delete subcommand.
-func ExperimentTreatmentLocalizationsDeleteCommand() *ffcli.Command {
+// newExperimentTreatmentLocalizationsDeleteCommand returns the treatment localizations delete subcommand.
+func newExperimentTreatmentLocalizationsDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		Deps:        d,
 		FlagSetName: "treatment-localizations delete",
 		Name:        "delete",
 		ShortUsage:  "asc product-pages experiments treatments localizations delete --localization-id \"LOCALIZATION_ID\" --confirm",

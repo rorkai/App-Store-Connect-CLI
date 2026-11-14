@@ -262,6 +262,7 @@ func TestReadOnlyRefusalInBatchCommandExitsReadOnly(t *testing.T) {
 		args    func(input string) []string
 		listGET asctest.Matcher
 		listRes string
+		deps    bool // the command is built on shared.Deps: stub its client and read its deps streams
 	}{
 		{
 			name:  "metadata keywords push",
@@ -280,6 +281,7 @@ func TestReadOnlyRefusalInBatchCommandExitsReadOnly(t *testing.T) {
 			},
 			listGET: asctest.GET("/v1/devices", "fields[devices]=name,udid,platform,status", "limit=200"),
 			listRes: `{"data":[],"links":{}}`,
+			deps:    true,
 		},
 	}
 	for _, tt := range tests {
@@ -293,13 +295,19 @@ func TestReadOnlyRefusalInBatchCommandExitsReadOnly(t *testing.T) {
 			}
 
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			reg.Register(tt.listGET, asctest.JSON(http.StatusOK, tt.listRes))
 
+			args := append(tt.args("input"), "--output", "json")
+			var stdout, stderr string
 			var code int
-			stdout, stderr := captureOutput(t, func() {
-				code = cmd.Run(append(tt.args("input"), "--output", "json"), "1.0.0")
-			})
+			if tt.deps {
+				stdout, stderr, code = runWithDeps(t, stubClient(t, reg), args...)
+			} else {
+				reg.Install()
+				stdout, stderr = captureOutput(t, func() {
+					code = cmd.Run(args, "1.0.0")
+				})
+			}
 			if code != cmd.ExitReadOnly {
 				t.Fatalf("exit code = %d, want %d; stdout=%q stderr=%q", code, cmd.ExitReadOnly, stdout, stderr)
 			}

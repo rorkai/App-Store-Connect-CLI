@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 )
 
 func TestDevicesRegisterURLValidation(t *testing.T) {
@@ -30,15 +32,16 @@ func TestDevicesRegisterURLValidation(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			outputPath := filepath.Join(t.TempDir(), "devices.tsv")
-			root := RootCommand("test")
+			d, _, stderrOut := newTestDeps(t, nil)
+			root := rootcmd.RootCommandWithDeps("test", d)
 			args := append([]string{"devices", "register", "--output-file", outputPath}, tc.args...)
 			if err := root.Parse(args); err != nil {
 				t.Fatal(err)
 			}
 			ctx, cancel := context.WithCancel(context.Background())
 			cancel()
-			var runErr error
-			_, stderr := captureOutput(t, func() { runErr = root.Run(ctx) })
+			runErr := root.Run(ctx)
+			stderr := stderrOut.String()
 			if !errors.Is(runErr, flag.ErrHelp) || !strings.Contains(runErr.Error()+stderr, tc.message) {
 				t.Fatalf("want usage mentioning %q; err=%v stderr=%q", tc.message, runErr, stderr)
 			}
@@ -50,12 +53,7 @@ func TestDevicesRegisterURLValidation(t *testing.T) {
 }
 
 func TestDevicesRegisterStreamRequiresViaURL(t *testing.T) {
-	root := RootCommand("test")
-	if err := root.Parse([]string{"devices", "register", "--stream", "--name", "phone", "--udid", "123", "--platform", "IOS"}); err != nil {
-		t.Fatal(err)
-	}
-	var runErr error
-	stdout, stderr := captureOutput(t, func() { runErr = root.Run(context.Background()) })
+	stdout, stderr, runErr := runRootWithDeps(t, nil, "devices", "register", "--stream", "--name", "phone", "--udid", "123", "--platform", "IOS")
 	if !errors.Is(runErr, flag.ErrHelp) || !strings.Contains(stderr, "--stream requires --via-url") {
 		t.Fatalf("want --stream usage error; err=%v stderr=%q", runErr, stderr)
 	}
@@ -65,13 +63,8 @@ func TestDevicesRegisterStreamRequiresViaURL(t *testing.T) {
 }
 
 func TestDevicesRegisterURLTableOutput(t *testing.T) {
-	root := RootCommand("test")
 	path := filepath.Join(t.TempDir(), "devices.tsv")
-	if err := root.Parse([]string{"devices", "register", "--via-url", "--ttl", "1ms", "--output-file", path, "--output", "table", "--public-url", "https://tunnel.example/"}); err != nil {
-		t.Fatal(err)
-	}
-	var runErr error
-	stdout, _ := captureOutput(t, func() { runErr = root.Run(context.Background()) })
+	stdout, _, runErr := runRootWithDeps(t, nil, "devices", "register", "--via-url", "--ttl", "1ms", "--output-file", path, "--output", "table", "--public-url", "https://tunnel.example/")
 	if runErr != nil {
 		t.Fatal(runErr)
 	}
@@ -104,14 +97,15 @@ func TestDevicesRegisterURLRejectsExistingOutputBeforeSession(t *testing.T) {
 				defer listener.Close()
 				listen = listener.Addr().String()
 			}
-			root := RootCommand("test")
+			d, stdoutOut, stderrOut := newTestDeps(t, nil)
+			root := rootcmd.RootCommandWithDeps("test", d)
 			if err := root.Parse([]string{"devices", "register", "--via-url", "--listen", listen, "--output-file", path}); err != nil {
 				t.Fatal(err)
 			}
 			ctx, cancel := context.WithCancel(context.Background())
 			cancel()
-			var runErr error
-			stdout, stderr := captureOutput(t, func() { runErr = root.Run(ctx) })
+			runErr := root.Run(ctx)
+			stdout, stderr := stdoutOut.String(), stderrOut.String()
 			data, err := os.ReadFile(path)
 			if err != nil || string(data) != original {
 				t.Fatalf("existing output changed: data=%q err=%v", data, err)

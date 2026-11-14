@@ -20,21 +20,6 @@ func TestGameCenterDetailListEndpoints_WithLimit(t *testing.T) {
 		call     func(*testing.T, *Client)
 	}{
 		{
-			name:     "GetGameCenterGroupGameCenterDetails",
-			path:     "/v1/gameCenterGroups/group-1/gameCenterDetails",
-			limit:    "30",
-			response: `{"data":[{"type":"gameCenterDetails","id":"detail-1","attributes":{"arcadeEnabled":true}}]}`,
-			call: func(t *testing.T, c *Client) {
-				resp, err := c.GetGameCenterGroupGameCenterDetails(ctx, "group-1", Limit[GCDetailsOption](30))
-				if err != nil {
-					t.Fatalf("GetGameCenterGroupGameCenterDetails() error: %v", err)
-				}
-				if len(resp.Data) != 1 || resp.Data[0].ID != "detail-1" {
-					t.Fatalf("expected decoded group game center detail, got %+v", resp.Data)
-				}
-			},
-		},
-		{
 			name:     "GetGameCenterDetailsAchievementReleases",
 			path:     "/v1/gameCenterDetails/detail-1/achievementReleases",
 			limit:    "12",
@@ -155,20 +140,6 @@ func TestGameCenterDetailListEndpoints_UseNextURL(t *testing.T) {
 		response string
 		call     func(*testing.T, *Client, string)
 	}{
-		{
-			name:     "GetGameCenterGroupGameCenterDetails",
-			next:     "https://api.appstoreconnect.apple.com/v1/gameCenterGroups/group-1/gameCenterDetails?cursor=next",
-			response: `{"data":[{"type":"gameCenterDetails","id":"detail-1","attributes":{"arcadeEnabled":true}}]}`,
-			call: func(t *testing.T, c *Client, next string) {
-				resp, err := c.GetGameCenterGroupGameCenterDetails(ctx, "", NextURL[GCDetailsOption](next))
-				if err != nil {
-					t.Fatalf("GetGameCenterGroupGameCenterDetails() error: %v", err)
-				}
-				if len(resp.Data) != 1 || resp.Data[0].ID != "detail-1" {
-					t.Fatalf("expected decoded next-url group detail, got %+v", resp.Data)
-				}
-			},
-		},
 		{
 			name:     "GetGameCenterDetailsRuleBasedMatchmakingRequests",
 			next:     "https://api.appstoreconnect.apple.com/v1/gameCenterDetails/detail-1/metrics/ruleBasedMatchmakingRequests?cursor=next",

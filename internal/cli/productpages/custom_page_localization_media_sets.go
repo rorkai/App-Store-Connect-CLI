@@ -12,9 +12,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// CustomPageLocalizationsPreviewSetsCommand returns the preview sets command group.
-func CustomPageLocalizationsPreviewSetsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("preview-sets", flag.ExitOnError)
+// newCustomPageLocalizationsPreviewSetsCommand returns the preview sets command group.
+func newCustomPageLocalizationsPreviewSetsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("preview-sets", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "preview-sets",
@@ -29,9 +29,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			CustomPageLocalizationsPreviewSetsListCommand(),
-			CustomPageLocalizationsPreviewSetsUploadCommand(),
-			CustomPageLocalizationsPreviewSetsSyncCommand(),
+			newCustomPageLocalizationsPreviewSetsListCommand(d),
+			newCustomPageLocalizationsPreviewSetsUploadCommand(d),
+			newCustomPageLocalizationsPreviewSetsSyncCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -39,15 +39,15 @@ Examples:
 	}
 }
 
-// CustomPageLocalizationsPreviewSetsListCommand returns the preview sets list subcommand.
-func CustomPageLocalizationsPreviewSetsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("custom-page-localizations preview-sets list", flag.ExitOnError)
+// newCustomPageLocalizationsPreviewSetsListCommand returns the preview sets list subcommand.
+func newCustomPageLocalizationsPreviewSetsListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("custom-page-localizations preview-sets list", flag.ExitOnError)
 
 	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appCustomProductPageLocalizations", "Custom product page localization ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -63,21 +63,21 @@ Examples:
 			trimmedID := strings.TrimSpace(*localizationID)
 			trimmedNext := strings.TrimSpace(*next)
 			if trimmedID == "" && trimmedNext == "" {
-				return shared.RequiredFlag("--localization-id")
+				return d.RequiredFlag("--localization-id")
 			}
 			if *limit != 0 && (*limit < 1 || *limit > productPagesMaxLimit) {
-				return shared.UsageErrorf("custom-pages localizations preview-sets list: --limit must be between 1 and %d", productPagesMaxLimit)
+				return d.UsageErrorf("custom-pages localizations preview-sets list: --limit must be between 1 and %d", productPagesMaxLimit)
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("custom-pages localizations preview-sets list: %v", err)
+				return d.UsageErrorf("custom-pages localizations preview-sets list: %v", err)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("custom-pages localizations preview-sets list: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			opts := []asc.AppCustomProductPageLocalizationPreviewSetsOption{
@@ -97,7 +97,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("custom-pages localizations preview-sets list: %w", err)
 				}
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetAppCustomProductPageLocalizationPreviewSets(requestCtx, trimmedID, opts...)
@@ -105,14 +105,14 @@ Examples:
 				return fmt.Errorf("custom-pages localizations preview-sets list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// CustomPageLocalizationsScreenshotSetsCommand returns the screenshot sets command group.
-func CustomPageLocalizationsScreenshotSetsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("screenshot-sets", flag.ExitOnError)
+// newCustomPageLocalizationsScreenshotSetsCommand returns the screenshot sets command group.
+func newCustomPageLocalizationsScreenshotSetsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("screenshot-sets", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "screenshot-sets",
@@ -127,9 +127,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			CustomPageLocalizationsScreenshotSetsListCommand(),
-			CustomPageLocalizationsScreenshotSetsUploadCommand(),
-			CustomPageLocalizationsScreenshotSetsSyncCommand(),
+			newCustomPageLocalizationsScreenshotSetsListCommand(d),
+			newCustomPageLocalizationsScreenshotSetsUploadCommand(d),
+			newCustomPageLocalizationsScreenshotSetsSyncCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -137,16 +137,16 @@ Examples:
 	}
 }
 
-// CustomPageLocalizationsScreenshotSetsListCommand returns the screenshot sets list subcommand.
-func CustomPageLocalizationsScreenshotSetsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("custom-page-localizations screenshot-sets list", flag.ExitOnError)
+// newCustomPageLocalizationsScreenshotSetsListCommand returns the screenshot sets list subcommand.
+func newCustomPageLocalizationsScreenshotSetsListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("custom-page-localizations screenshot-sets list", flag.ExitOnError)
 
 	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appCustomProductPageLocalizations", "Custom product page localization ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
 	includeScreenshots := fs.Bool("include-screenshots", false, "Include screenshot IDs and metadata for each set (requires --localization-id and --paginate)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -164,26 +164,26 @@ Examples:
 			trimmedNext := strings.TrimSpace(*next)
 			if *includeScreenshots {
 				if trimmedID == "" {
-					return shared.RequiredFlag("--localization-id")
+					return d.RequiredFlag("--localization-id")
 				}
 				if trimmedNext != "" {
-					return shared.UsageError("custom-pages localizations screenshot-sets list: --include-screenshots cannot be combined with --next")
+					return d.UsageError("custom-pages localizations screenshot-sets list: --include-screenshots cannot be combined with --next")
 				}
 				if !*paginate {
-					return shared.UsageError("custom-pages localizations screenshot-sets list: --include-screenshots requires --paginate")
+					return d.UsageError("custom-pages localizations screenshot-sets list: --include-screenshots requires --paginate")
 				}
 			}
 			if trimmedID == "" && trimmedNext == "" {
-				return shared.RequiredFlag("--localization-id")
+				return d.RequiredFlag("--localization-id")
 			}
 			if *limit != 0 && (*limit < 1 || *limit > productPagesMaxLimit) {
-				return shared.UsageErrorf("custom-pages localizations screenshot-sets list: --limit must be between 1 and %d", productPagesMaxLimit)
+				return d.UsageErrorf("custom-pages localizations screenshot-sets list: --limit must be between 1 and %d", productPagesMaxLimit)
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("custom-pages localizations screenshot-sets list: %v", err)
+				return d.UsageErrorf("custom-pages localizations screenshot-sets list: %v", err)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("custom-pages localizations screenshot-sets list: %w", err)
 			}
@@ -202,37 +202,37 @@ Examples:
 				paginateOpts = append(
 					paginateOpts,
 					asc.Limit[asc.AppCustomProductPageLocalizationScreenshotSetsOption](productPagesMaxLimit),
-					asc.WithAppCustomProductPageLocalizationScreenshotSetsRequestContext(shared.ContextWithTimeout),
+					asc.WithAppCustomProductPageLocalizationScreenshotSetsRequestContext(d.Timeout),
 				)
 				resp, err := client.GetAllAppCustomProductPageLocalizationScreenshotSets(ctx, trimmedID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("custom-pages localizations screenshot-sets list: %w", err)
 				}
 				if *includeScreenshots {
-					result, err := screenshotSetListResult(ctx, client, trimmedID, resp)
+					result, err := screenshotSetListResult(ctx, d, client, trimmedID, resp)
 					if err != nil {
 						return fmt.Errorf("custom-pages localizations screenshot-sets list: %w", err)
 					}
-					return shared.PrintOutput(result, *output.Output, *output.Pretty)
+					return d.PrintOutput(result, *output.Output, *output.Pretty)
 				}
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 			resp, err := client.GetAppCustomProductPageLocalizationScreenshotSets(requestCtx, trimmedID, opts...)
 			if err != nil {
 				return fmt.Errorf("custom-pages localizations screenshot-sets list: failed to fetch: %w", err)
 			}
 			if *includeScreenshots {
-				result, err := screenshotSetListResult(ctx, client, trimmedID, resp)
+				result, err := screenshotSetListResult(ctx, d, client, trimmedID, resp)
 				if err != nil {
 					return fmt.Errorf("custom-pages localizations screenshot-sets list: %w", err)
 				}
-				return shared.PrintOutput(result, *output.Output, *output.Pretty)
+				return d.PrintOutput(result, *output.Output, *output.Pretty)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

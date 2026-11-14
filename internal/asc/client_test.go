@@ -14,7 +14,7 @@ import (
 
 func TestBuildReviewQuery(t *testing.T) {
 	query := buildReviewQuery([]ReviewOption{
-		WithRating(5),
+		WithRatings([]int{5}),
 		WithTerritory("us"),
 		Limit[ReviewOption](25),
 		WithReviewSort("-createdDate"),
@@ -59,7 +59,7 @@ func TestBuildReviewQuery(t *testing.T) {
 
 func TestBuildReviewQuery_InvalidRating(t *testing.T) {
 	query := buildReviewQuery([]ReviewOption{
-		WithRating(9),
+		WithRatings([]int{9}),
 	})
 
 	values, err := url.ParseQuery(query)
@@ -964,19 +964,6 @@ func TestBuildAppStoreVersionsQueryMixedExclusiveStatesKeepSeparateFilters(t *te
 	}
 }
 
-func TestBuildAppClipDefaultExperiencesQuery(t *testing.T) {
-	query := &appClipDefaultExperiencesQuery{}
-	WithAppClipDefaultExperiencesReleaseWithVersionExists(true)(query)
-
-	values, err := url.ParseQuery(buildAppClipDefaultExperiencesQuery(query))
-	if err != nil {
-		t.Fatalf("ParseQuery() error: %v", err)
-	}
-	if got := values.Get("exists[releaseWithAppStoreVersion]"); got != "true" {
-		t.Fatalf("exists[releaseWithAppStoreVersion] = %q, want true", got)
-	}
-}
-
 func TestAppStoreVersionStateOptionsPreserveExistingComposition(t *testing.T) {
 	query := &appStoreVersionsQuery{}
 	WithAppStoreVersionsStates([]string{"READY_FOR_SALE", "READY_FOR_DISTRIBUTION"})(query)
@@ -1240,7 +1227,7 @@ func TestBuildRequestBody(t *testing.T) {
 
 func TestParseError(t *testing.T) {
 	payload := []byte(`{"errors":[{"code":"FORBIDDEN","title":"Forbidden","detail":"not allowed"}]}`)
-	err := ParseError(payload)
+	err := ParseErrorWithStatus(payload, 0)
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -1425,7 +1412,6 @@ func TestBuildBuildsQuery(t *testing.T) {
 		NextURL[BuildsOption]("https://api.appstoreconnect.apple.com/v1/apps/123/builds?cursor=abc"),
 		WithBuildsSort("-uploadedDate"),
 		WithBuildsVersion("42"),
-		WithBuildsPreReleaseVersionVersion("2.4.0"),
 	}
 	for _, opt := range opts {
 		opt(query)
@@ -1442,9 +1428,6 @@ func TestBuildBuildsQuery(t *testing.T) {
 	}
 	if query.version != "42" {
 		t.Fatalf("expected version=42, got %q", query.version)
-	}
-	if query.preReleaseVersion != "2.4.0" {
-		t.Fatalf("expected preReleaseVersion=2.4.0, got %q", query.preReleaseVersion)
 	}
 }
 
@@ -1825,8 +1808,6 @@ func TestBuildPassTypeIDCertificatesQuery(t *testing.T) {
 		WithPassTypeIDCertificatesFilterIDs([]string{"c1"}),
 		WithPassTypeIDCertificatesSort("serialNumber"),
 		WithPassTypeIDCertificatesFields([]string{"serialNumber"}),
-		WithPassTypeIDCertificatesPassTypeIDFields([]string{"identifier"}),
-		WithPassTypeIDCertificatesInclude([]string{"passTypeId"}),
 		Limit[PassTypeIDCertificatesOption](5),
 	}
 	for _, opt := range opts {
@@ -1855,12 +1836,6 @@ func TestBuildPassTypeIDCertificatesQuery(t *testing.T) {
 	if got := values.Get("fields[certificates]"); got != "serialNumber" {
 		t.Fatalf("expected fields[certificates], got %q", got)
 	}
-	if got := values.Get("fields[passTypeIds]"); got != "identifier" {
-		t.Fatalf("expected fields[passTypeIds], got %q", got)
-	}
-	if got := values.Get("include"); got != "passTypeId" {
-		t.Fatalf("expected include=passTypeId, got %q", got)
-	}
 	if got := values.Get("limit"); got != "5" {
 		t.Fatalf("expected limit=5, got %q", got)
 	}
@@ -1886,7 +1861,6 @@ func TestBuildAndroidToIosAppMappingDetailsQuery(t *testing.T) {
 func TestBuildAlternativeDistributionDomainsQuery(t *testing.T) {
 	query := &alternativeDistributionDomainsQuery{}
 	Limit[AlternativeDistributionDomainsOption](20)(query)
-	WithAlternativeDistributionDomainsFields([]string{"domain", "referenceName"})(query)
 	values, err := url.ParseQuery(buildAlternativeDistributionDomainsQuery(query))
 	if err != nil {
 		t.Fatalf("ParseQuery() error: %v", err)
@@ -1894,16 +1868,11 @@ func TestBuildAlternativeDistributionDomainsQuery(t *testing.T) {
 	if values.Get("limit") != "20" {
 		t.Fatalf("expected limit=20, got %q", values.Get("limit"))
 	}
-	if values.Get("fields[alternativeDistributionDomains]") != "domain,referenceName" {
-		t.Fatalf("unexpected fields, got %q", values.Get("fields[alternativeDistributionDomains]"))
-	}
 }
 
 func TestBuildAlternativeDistributionKeysQuery(t *testing.T) {
 	query := &alternativeDistributionKeysQuery{}
 	Limit[AlternativeDistributionKeysOption](15)(query)
-	WithAlternativeDistributionKeysFields([]string{"publicKey"})(query)
-	WithAlternativeDistributionKeysExistsApp(true)(query)
 	values, err := url.ParseQuery(buildAlternativeDistributionKeysQuery(query))
 	if err != nil {
 		t.Fatalf("ParseQuery() error: %v", err)
@@ -1911,18 +1880,11 @@ func TestBuildAlternativeDistributionKeysQuery(t *testing.T) {
 	if values.Get("limit") != "15" {
 		t.Fatalf("expected limit=15, got %q", values.Get("limit"))
 	}
-	if values.Get("fields[alternativeDistributionKeys]") != "publicKey" {
-		t.Fatalf("unexpected fields, got %q", values.Get("fields[alternativeDistributionKeys]"))
-	}
-	if values.Get("exists[app]") != "true" {
-		t.Fatalf("expected exists[app]=true, got %q", values.Get("exists[app]"))
-	}
 }
 
 func TestBuildAlternativeDistributionPackageVariantsQuery(t *testing.T) {
 	query := &alternativeDistributionPackageVariantsQuery{}
 	Limit[AlternativeDistributionPackageVariantsOption](9)(query)
-	WithAlternativeDistributionPackageVariantsFields([]string{"url", "fileChecksum"})(query)
 	values, err := url.ParseQuery(buildAlternativeDistributionPackageVariantsQuery(query))
 	if err != nil {
 		t.Fatalf("ParseQuery() error: %v", err)
@@ -1930,24 +1892,17 @@ func TestBuildAlternativeDistributionPackageVariantsQuery(t *testing.T) {
 	if values.Get("limit") != "9" {
 		t.Fatalf("expected limit=9, got %q", values.Get("limit"))
 	}
-	if values.Get("fields[alternativeDistributionPackageVariants]") != "url,fileChecksum" {
-		t.Fatalf("unexpected fields, got %q", values.Get("fields[alternativeDistributionPackageVariants]"))
-	}
 }
 
 func TestBuildAlternativeDistributionPackageDeltasQuery(t *testing.T) {
 	query := &alternativeDistributionPackageDeltasQuery{}
 	Limit[AlternativeDistributionPackageDeltasOption](11)(query)
-	WithAlternativeDistributionPackageDeltasFields([]string{"url", "fileChecksum"})(query)
 	values, err := url.ParseQuery(buildAlternativeDistributionPackageDeltasQuery(query))
 	if err != nil {
 		t.Fatalf("ParseQuery() error: %v", err)
 	}
 	if values.Get("limit") != "11" {
 		t.Fatalf("expected limit=11, got %q", values.Get("limit"))
-	}
-	if values.Get("fields[alternativeDistributionPackageDeltas]") != "url,fileChecksum" {
-		t.Fatalf("unexpected fields, got %q", values.Get("fields[alternativeDistributionPackageDeltas]"))
 	}
 }
 
@@ -2557,60 +2512,6 @@ func TestAppPreviewUpdateRequest_JSON(t *testing.T) {
 	}
 	if parsed.Data.Attributes.SourceFileChecksum != "def456" {
 		t.Fatalf("expected checksum=def456, got %q", parsed.Data.Attributes.SourceFileChecksum)
-	}
-}
-
-func TestAppStoreVersionSubmissionCreateRequest_JSON(t *testing.T) {
-	req := AppStoreVersionSubmissionCreateRequest{
-		Data: AppStoreVersionSubmissionCreateData{
-			Type: ResourceTypeAppStoreVersionSubmissions,
-			Relationships: &AppStoreVersionSubmissionRelationships{
-				AppStoreVersion: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeAppStoreVersions,
-						ID:   "VERSION_ID_123",
-					},
-				},
-			},
-		},
-	}
-
-	body, err := BuildRequestBody(req)
-	if err != nil {
-		t.Fatalf("BuildRequestBody() error: %v", err)
-	}
-
-	buf := new(bytes.Buffer)
-	if _, err := buf.ReadFrom(body); err != nil {
-		t.Fatalf("read body error: %v", err)
-	}
-
-	// Unmarshal and verify structure
-	var parsed struct {
-		Data struct {
-			Type          string `json:"type"`
-			Relationships struct {
-				AppStoreVersion struct {
-					Data struct {
-						Type string `json:"type"`
-						ID   string `json:"id"`
-					} `json:"data"`
-				} `json:"appStoreVersion"`
-			} `json:"relationships"`
-		} `json:"data"`
-	}
-	if err := json.Unmarshal(buf.Bytes(), &parsed); err != nil {
-		t.Fatalf("failed to unmarshal body: %v", err)
-	}
-
-	if parsed.Data.Type != "appStoreVersionSubmissions" {
-		t.Fatalf("expected type=appStoreVersionSubmissions, got %q", parsed.Data.Type)
-	}
-	if parsed.Data.Relationships.AppStoreVersion.Data.Type != "appStoreVersions" {
-		t.Fatalf("expected version type=appStoreVersions, got %q", parsed.Data.Relationships.AppStoreVersion.Data.Type)
-	}
-	if parsed.Data.Relationships.AppStoreVersion.Data.ID != "VERSION_ID_123" {
-		t.Fatalf("expected version id=VERSION_ID_123, got %q", parsed.Data.Relationships.AppStoreVersion.Data.ID)
 	}
 }
 

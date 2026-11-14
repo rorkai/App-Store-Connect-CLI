@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"flag"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -93,7 +92,9 @@ func TestCompletionCommandValidationAndOutput(t *testing.T) {
 	rootFlags := flag.NewFlagSet("asc", flag.ContinueOnError)
 	rootFlags.String("profile", "", "Authentication profile")
 	resolveRootFlags := func() *flag.FlagSet { return rootFlags }
-	cmd := CompletionCommand(resolve, resolveRootFlags)
+	var out, errOut bytes.Buffer
+	d := &shared.Deps{IO: &shared.IO{Out: &out, ErrOut: &errOut}}
+	cmd := NewCompletionCommand(d, resolve, resolveRootFlags)
 	if resolveCalls != 0 {
 		t.Fatalf("command tree resolved during command construction")
 	}
@@ -110,7 +111,7 @@ func TestCompletionCommandValidationAndOutput(t *testing.T) {
 	}
 
 	// Unsupported shell should fail with ErrHelp.
-	cmd = CompletionCommand(resolve, resolveRootFlags)
+	cmd = NewCompletionCommand(d, resolve, resolveRootFlags)
 	if err := cmd.FlagSet.Parse([]string{"--shell", "tcsh"}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
@@ -122,13 +123,14 @@ func TestCompletionCommandValidationAndOutput(t *testing.T) {
 	}
 
 	// Supported shell should print script and succeed.
-	cmd = CompletionCommand(resolve, resolveRootFlags)
+	cmd = NewCompletionCommand(d, resolve, resolveRootFlags)
 	if err := cmd.FlagSet.Parse([]string{"--shell", "bash"}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
-	stdout := captureStdout(t, func() error {
-		return cmd.Exec(context.Background(), nil)
-	})
+	if err := cmd.Exec(context.Background(), nil); err != nil {
+		t.Fatalf("unexpected command error: %v", err)
+	}
+	stdout := out.String()
 	if !strings.Contains(stdout, "complete -F _asc_completions asc") {
 		t.Fatalf("expected bash completion script output, got %q", stdout)
 	}
@@ -308,36 +310,6 @@ func completionNodeText(nodes []completionNode) string {
 		b.WriteString(strings.Join(node.valueFlags, " "))
 	}
 	return b.String()
-}
-
-func captureStdout(t *testing.T, fn func() error) string {
-	t.Helper()
-
-	orig := os.Stdout
-	r, w, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("pipe error: %v", err)
-	}
-	os.Stdout = w
-
-	var runErr error
-	done := make(chan struct{})
-	var buf bytes.Buffer
-	go func() {
-		_, _ = io.Copy(&buf, r)
-		close(done)
-	}()
-
-	runErr = fn()
-	_ = w.Close()
-	<-done
-	os.Stdout = orig
-	_ = r.Close()
-
-	if runErr != nil {
-		t.Fatalf("unexpected command error: %v", runErr)
-	}
-	return buf.String()
 }
 
 // TestCompletionNodesOfferRootProfileOnEveryCommand pins the completion side of

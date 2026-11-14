@@ -3,7 +3,6 @@ package asc
 import (
 	"fmt"
 	"io"
-	"os"
 	"reflect"
 	"sync"
 )
@@ -343,13 +342,6 @@ func registerDirect[T any](fn func(*T, func([]string, [][]string)) error) {
 	directRenderRegistry[t] = func(data any, render func([]string, [][]string)) error {
 		return fn(dataAsPtrOrZero[T](data), render)
 	}
-}
-
-// renderByRegistry looks up the rows function for the given value and renders
-// using the provided render function (RenderTable or RenderMarkdown).
-// Falls back to JSON output for unregistered types.
-func renderByRegistry(data any, render func([]string, [][]string)) error {
-	return renderByRegistryTo(os.Stdout, data, render)
 }
 
 func renderByRegistryTo(w io.Writer, data any, render func([]string, [][]string)) error {

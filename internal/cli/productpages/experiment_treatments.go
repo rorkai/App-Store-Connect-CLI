@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -13,9 +12,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// ExperimentTreatmentsCommand returns the experiment treatments command group.
-func ExperimentTreatmentsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("treatments", flag.ExitOnError)
+// newExperimentTreatmentsCommand returns the experiment treatments command group.
+func newExperimentTreatmentsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("treatments", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "treatments",
@@ -30,12 +29,12 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			ExperimentTreatmentsListCommand(),
-			ExperimentTreatmentsGetCommand(),
-			ExperimentTreatmentsCreateCommand(),
-			ExperimentTreatmentsUpdateCommand(),
-			ExperimentTreatmentsDeleteCommand(),
-			ExperimentTreatmentLocalizationsCommand(),
+			newExperimentTreatmentsListCommand(d),
+			newExperimentTreatmentsGetCommand(d),
+			newExperimentTreatmentsCreateCommand(d),
+			newExperimentTreatmentsUpdateCommand(d),
+			newExperimentTreatmentsDeleteCommand(d),
+			newExperimentTreatmentLocalizationsCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -43,15 +42,15 @@ Examples:
 	}
 }
 
-// ExperimentTreatmentsListCommand returns the treatments list subcommand.
-func ExperimentTreatmentsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("experiment-treatments list", flag.ExitOnError)
+// newExperimentTreatmentsListCommand returns the treatments list subcommand.
+func newExperimentTreatmentsListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("experiment-treatments list", flag.ExitOnError)
 
 	experimentID := shared.BindResourceIDFlag(fs, "experiment-id", "appStoreVersionExperiments", "Experiment ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	v2 := fs.Bool("v2", false, "Use v2 experiments endpoint")
 
 	return &ffcli.Command{
@@ -68,23 +67,23 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > productPagesMaxLimit) {
-				return shared.UsageErrorf("experiments treatments list: --limit must be between 1 and %d", productPagesMaxLimit)
+				return d.UsageErrorf("experiments treatments list: --limit must be between 1 and %d", productPagesMaxLimit)
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("experiments treatments list: %v", err)
+				return d.UsageErrorf("experiments treatments list: %v", err)
 			}
 
 			trimmedID := strings.TrimSpace(*experimentID)
 			if trimmedID == "" {
-				return shared.RequiredFlag("--experiment-id")
+				return d.RequiredFlag("--experiment-id")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("experiments treatments list: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			opts := []asc.AppStoreVersionExperimentTreatmentsOption{
@@ -114,7 +113,7 @@ Examples:
 					return fmt.Errorf("experiments treatments list: %w", err)
 				}
 
-				return shared.PrintOutput(paginated, *output.Output, *output.Pretty)
+				return d.PrintOutput(paginated, *output.Output, *output.Pretty)
 			}
 
 			var resp *asc.AppStoreVersionExperimentTreatmentsResponse
@@ -127,17 +126,17 @@ Examples:
 				return fmt.Errorf("experiments treatments list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// ExperimentTreatmentsGetCommand returns the treatments get subcommand.
-func ExperimentTreatmentsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("experiment-treatments view", flag.ExitOnError)
+// newExperimentTreatmentsGetCommand returns the treatments get subcommand.
+func newExperimentTreatmentsGetCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("experiment-treatments view", flag.ExitOnError)
 
 	treatmentID := shared.BindResourceIDFlag(fs, "treatment-id", "appStoreVersionExperimentTreatments", "Treatment ID")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "view",
@@ -152,15 +151,15 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*treatmentID)
 			if trimmedID == "" {
-				return shared.RequiredFlag("--treatment-id")
+				return d.RequiredFlag("--treatment-id")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("experiments treatments view: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAppStoreVersionExperimentTreatment(requestCtx, trimmedID)
@@ -168,20 +167,20 @@ Examples:
 				return fmt.Errorf("experiments treatments view: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// ExperimentTreatmentsCreateCommand returns the treatments create subcommand.
-func ExperimentTreatmentsCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("experiment-treatments create", flag.ExitOnError)
+// newExperimentTreatmentsCreateCommand returns the treatments create subcommand.
+func newExperimentTreatmentsCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("experiment-treatments create", flag.ExitOnError)
 
 	experimentID := shared.BindResourceIDFlag(fs, "experiment-id", "appStoreVersionExperiments", "Experiment ID")
 	name := fs.String("name", "", "Treatment name")
 	v2 := fs.Bool("v2", false, "Create a treatment for a v2 experiment")
 	appIconName := fs.String("app-icon-name", "", "App icon asset name")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -198,20 +197,20 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*experimentID)
 			if trimmedID == "" {
-				return shared.RequiredFlag("--experiment-id")
+				return d.RequiredFlag("--experiment-id")
 			}
 
 			nameValue := strings.TrimSpace(*name)
 			if nameValue == "" {
-				return shared.RequiredFlag("--name")
+				return d.RequiredFlag("--name")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("experiments treatments create: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			var resp *asc.AppStoreVersionExperimentTreatmentResponse
@@ -224,19 +223,19 @@ Examples:
 				return fmt.Errorf("experiments treatments create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// ExperimentTreatmentsUpdateCommand returns the treatments update subcommand.
-func ExperimentTreatmentsUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("experiment-treatments update", flag.ExitOnError)
+// newExperimentTreatmentsUpdateCommand returns the treatments update subcommand.
+func newExperimentTreatmentsUpdateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("experiment-treatments update", flag.ExitOnError)
 
 	treatmentID := shared.BindResourceIDFlag(fs, "treatment-id", "appStoreVersionExperimentTreatments", "Treatment ID")
 	name := fs.String("name", "", "Update treatment name")
 	appIconName := fs.String("app-icon-name", "", "Update app icon asset name")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -252,13 +251,13 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*treatmentID)
 			if trimmedID == "" {
-				return shared.RequiredFlag("--treatment-id")
+				return d.RequiredFlag("--treatment-id")
 			}
 
 			nameValue := strings.TrimSpace(*name)
 			appIconValue := strings.TrimSpace(*appIconName)
 			if nameValue == "" && appIconValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --name or --app-icon-name is required")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --name or --app-icon-name is required")
 				return shared.MissingRequiredUsageError("")
 			}
 
@@ -270,12 +269,12 @@ Examples:
 				attrs.AppIconName = &appIconValue
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("experiments treatments update: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.UpdateAppStoreVersionExperimentTreatment(requestCtx, trimmedID, attrs)
@@ -283,14 +282,15 @@ Examples:
 				return fmt.Errorf("experiments treatments update: failed to update: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// ExperimentTreatmentsDeleteCommand returns the treatments delete subcommand.
-func ExperimentTreatmentsDeleteCommand() *ffcli.Command {
+// newExperimentTreatmentsDeleteCommand returns the treatments delete subcommand.
+func newExperimentTreatmentsDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		Deps:        d,
 		FlagSetName: "experiment-treatments delete",
 		Name:        "delete",
 		ShortUsage:  "asc product-pages experiments treatments delete --treatment-id \"TREATMENT_ID\" --confirm",

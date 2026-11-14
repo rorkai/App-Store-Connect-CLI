@@ -48,7 +48,21 @@ query builder, and error prefixes. Do not edit generated files or the bindings
 by hand.
 
 - `make generate-client` regenerates every generated file.
-- `make check-openapi` fails when a generated file is out of date.
+- `make check-openapi` and `go test ./internal/openapigen` fail when a
+  generated file is out of date.
+- `go test ./internal/asc -run TestGeneratedClient` checks the generated code
+  against `latest.json`: every bound operation and type must still exist, and
+  every generated method must send the operation's HTTP method and path, only
+  query parameters the operation defines, and a body whose type, attribute and
+  relationship names the request schema defines, with the required ones
+  present. A snapshot update that drops or changes a bound operation fails
+  here, naming the operation and the method.
+- A known difference that must stay for now is recorded by hand on its
+  operation in the bindings file, as `"deviations": [{"problem": "<the test's
+  message>", "reason": "<why it stays>"}]`. The test then requires exactly
+  that message: it fails when the method stops producing it, produces another
+  one, or the reason is empty. The generator keeps these records when it
+  rewrites a bindings file and generates nothing from them.
 - To move hand-written code of more tags to the generator, run
   `cd internal/asc && go run ../openapigen -adopt <Tag>[,<Tag>...]`. For each
   operation of a tag it renders the method from the spec and the choices read

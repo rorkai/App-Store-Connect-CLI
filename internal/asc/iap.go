@@ -125,8 +125,6 @@ type inAppPurchaseGetQuery struct {
 
 type iapLocalizationsQuery struct {
 	listQuery
-	iapFields []string
-	include   []string
 }
 
 // WithIAPProductIDs filters in-app purchases by product ID.
@@ -212,16 +210,6 @@ func WithIAPGetNestedVersionsLimit(limit int) IAPGetOption {
 	}
 }
 
-// WithIAPLocalizationsIAPFields sets fields[inAppPurchases] for included IAPs.
-func WithIAPLocalizationsIAPFields(fields []string) IAPLocalizationsOption {
-	return func(q *iapLocalizationsQuery) { q.iapFields = normalizeUniqueList(fields) }
-}
-
-// WithIAPLocalizationsInclude sets the exact localization relationship include set.
-func WithIAPLocalizationsInclude(include []string) IAPLocalizationsOption {
-	return func(q *iapLocalizationsQuery) { q.include = normalizeUniqueList(include) }
-}
-
 func buildInAppPurchasesQuery(query *inAppPurchasesQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
@@ -255,7 +243,5 @@ func buildInAppPurchaseGetQuery(query *inAppPurchaseGetQuery) string {
 func buildIAPLocalizationsQuery(query *iapLocalizationsQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
-	addCSV(values, "fields[inAppPurchases]", query.iapFields)
-	addCSV(values, "include", includeWhenFieldsSelected(query.include, "inAppPurchaseV2", query.iapFields))
 	return values.Encode()
 }

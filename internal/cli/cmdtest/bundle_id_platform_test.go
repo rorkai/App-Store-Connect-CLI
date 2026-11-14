@@ -215,25 +215,32 @@ func TestBundleIDPlatformCommandsRejectGeneralPlatforms(t *testing.T) {
 	tests := []struct {
 		name string
 		args []string
+		deps bool // the command is built on shared.Deps: run it on test deps
 	}{
-		{name: "devices list tvOS", args: []string{"devices", "list", "--platform", "TV_OS"}},
-		{name: "devices register visionOS", args: []string{"devices", "register", "--name", "Invalid", "--udid", "INVALID", "--platform", "VISION_OS"}},
+		{name: "devices list tvOS", args: []string{"devices", "list", "--platform", "TV_OS"}, deps: true},
+		{name: "devices register visionOS", args: []string{"devices", "register", "--name", "Invalid", "--udid", "INVALID", "--platform", "VISION_OS"}, deps: true},
 		{name: "bundle ID create tvOS", args: []string{"bundle-ids", "create", "--identifier", "com.example.invalid", "--name", "Invalid", "--platform", "TV_OS"}},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-			if err := root.Parse(tt.args); err != nil {
-				t.Fatalf("parse error: %v", err)
-			}
-			_, stderr := captureOutput(t, func() {
-				err := root.Run(context.Background())
-				if err == nil || !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("error = %v, want usage error", err)
+			var stderr string
+			var err error
+			if tt.deps {
+				_, stderr, err = runRootWithDeps(t, nil, tt.args...)
+			} else {
+				root := RootCommand("1.2.3")
+				root.FlagSet.SetOutput(io.Discard)
+				if parseErr := root.Parse(tt.args); parseErr != nil {
+					t.Fatalf("parse error: %v", parseErr)
 				}
-			})
+				_, stderr = captureOutput(t, func() {
+					err = root.Run(context.Background())
+				})
+			}
+			if err == nil || !errors.Is(err, flag.ErrHelp) {
+				t.Fatalf("error = %v, want usage error", err)
+			}
 			const diagnostic = "Error: --platform must be one of: IOS, MAC_OS, UNIVERSAL\n"
 			if count := strings.Count(stderr, diagnostic); count != 1 {
 				t.Fatalf("diagnostic count = %d in stderr %q", count, stderr)
