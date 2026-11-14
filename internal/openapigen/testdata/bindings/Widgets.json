@@ -21,6 +21,8 @@
     {"operation":"widgets_getInstance","name":"GetWidget","params":["widgetID"],"check":"require","parseErr":"failed to parse widget response"},
     {"operation":"widgets_owner_getToOneRelated","name":"GetWidgetOwner","params":["widgetID"],"check":"raw"},
     {"operation":"widgets_parts_getToManyRelated","name":"GetWidgetParts","params":["widgetID"],"check":"require","checkFirst":true,"options":"PartsOption","query":"buildPartsQuery","response":"GadgetListResponse"},
-    {"operation":"widgets_updateInstance","name":"UpdateWidget","params":["widgetID"]}
+    {"operation":"widgets_updateInstance","name":"UpdateWidget","params":["widgetID"]},
+    {"operation":"widgets_wheel_getToOneRelated","name":"GetWidgetWheel","params":["widgetID"],"check":"require","options":"WheelOption","query":"buildWheelQuery","single":true},
+    {"operation":"widgets_wrapper_getToOneRelated","name":"GetWidgetWrapper","params":["widgetID"],"query":"buildWrapperFieldsQuery","single":true}
   ]
 }

@@ -162,3 +162,24 @@ func (c *Client) UpdateWidget(ctx context.Context, widgetID string, attrs Widget
 		Payload: payload,
 	})
 }
+
+// GetWidgetWheel sends GET /v1/widgets/{id}/wheel (widgets_wheel_getToOneRelated).
+func (c *Client) GetWidgetWheel(ctx context.Context, widgetID string, opts ...WheelOption) (*WidgetResponse, error) {
+	query := applyOptions(opts)
+	widgetID = strings.TrimSpace(widgetID)
+	if widgetID == "" {
+		return nil, fmt.Errorf("widgetID is required")
+	}
+	return getJSON[WidgetResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/widgets/%s/wheel", widgetID),
+		Query: buildWheelQuery(query),
+	})
+}
+
+// GetWidgetWrapper sends GET /v1/widgets/{id}/wrapper (widgets_wrapper_getToOneRelated).
+func (c *Client) GetWidgetWrapper(ctx context.Context, widgetID string, fields []string) (*WidgetResponse, error) {
+	return getJSON[WidgetResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/widgets/%s/wrapper", strings.TrimSpace(widgetID)),
+		Query: buildWrapperFieldsQuery(fields),
+	})
+}
