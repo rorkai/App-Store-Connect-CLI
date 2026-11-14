@@ -84,9 +84,9 @@ func renderType(spec *Spec, fam *Family, name string) (string, error) {
 					fields = append(fields, fmt.Sprintf("Attributes *%sAttributes `json:\"attributes,omitempty\"`", base))
 				}
 			case "relationships":
-				rel := fam.relationshipsOf(name)
-				if rel == nil {
-					return "", fmt.Errorf("no relationships record for %s", name)
+				rel, err := fam.relationshipsOf(name)
+				if err != nil {
+					return "", err
 				}
 				tag := "relationships"
 				if rel.OmitEmpty {
@@ -433,9 +433,12 @@ func (m *method) payload(spec *Spec) (string, error) {
 // relationships renders the relationships of a create, one to-one link for
 // each of the last len(Links) parameters.
 func (m *method) relationships(rels *Schema) (string, error) {
-	rel := m.fam.relationshipsOf(strings.TrimSuffix(m.op.Request, "Request") + "Data")
-	if m.op.Method != "POST" || len(m.b.Links) == 0 || rel == nil {
-		return "", fmt.Errorf("relationships in %s need a create with links and a relationships record", m.op.Request)
+	if m.op.Method != "POST" || len(m.b.Links) == 0 {
+		return "", fmt.Errorf("relationships in %s need a create with links", m.op.Request)
+	}
+	rel, err := m.fam.relationshipsOf(strings.TrimSuffix(m.op.Request, "Request") + "Data")
+	if err != nil {
+		return "", err
 	}
 	for _, name := range rels.Required {
 		if !slices.Contains(m.b.Links, name) {

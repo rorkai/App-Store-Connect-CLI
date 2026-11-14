@@ -104,6 +104,7 @@ func TestGenerateRejectsWhatItCannotModel(t *testing.T) {
 		{"links without a relationships record", &Family{Operations: []*OpBind{{Operation: "widgetReleases_createInstance", Name: "X", Params: []string{"widgetID", "gadgetID"}, Links: []string{"widget", "gadget"}}}}},
 		{"create with relationships and no links", &Family{Relationships: release, Operations: []*OpBind{{Operation: "widgetReleases_createInstance", Name: "X"}}}},
 		{"data with relationships and no record", &Family{Types: []string{"WidgetReleaseCreateData"}}},
+		{"relationships record that is not a type name", &Family{Relationships: []*RelBind{{Data: "WidgetReleaseCreateData", Type: "json.RawMessage"}}, Types: []string{"WidgetReleaseCreateData"}}},
 		{"relationships record of data without relationships", &Family{Relationships: []*RelBind{{Data: "WidgetCreateData", Type: "WidgetRelationships"}}, Types: []string{"WidgetRelationships"}}},
 	}
 	for _, tt := range tests {

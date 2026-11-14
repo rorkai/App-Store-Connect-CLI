@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 )
@@ -175,15 +176,22 @@ func (b *Bindings) produces(dir, path string) bool {
 	return false
 }
 
-// relationshipsOf returns the relationships record of a data type, or nil.
-func (f *Family) relationshipsOf(data string) *RelBind {
+// relationshipsOf returns the relationships record of a data type. A record
+// must name a type such as "R" or "*R".
+func (f *Family) relationshipsOf(data string) (*RelBind, error) {
 	for _, r := range f.Relationships {
-		if r.Data == data {
-			return r
+		if r.Data != data {
+			continue
 		}
+		if !typeName.MatchString(r.Type) {
+			return nil, fmt.Errorf("relationships of %s have type %q, not a type name", data, r.Type)
+		}
+		return r, nil
 	}
-	return nil
+	return nil, fmt.Errorf("no relationships record for %s", data)
 }
+
+var typeName = regexp.MustCompile(`^\*?[A-Z][A-Za-z0-9]*$`)
 
 // relationshipsNamed returns the record whose field has the named Go type,
 // or nil.

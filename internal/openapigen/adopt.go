@@ -370,7 +370,8 @@ func (p *pkg) recordRelationships(spec *Spec, ops []*Operation, fam *Family) {
 	for _, op := range ops {
 		data, err := requestData(spec, op.Request)
 		name := strings.TrimSuffix(op.Request, "Request") + "Data"
-		if op.Method != "POST" || err != nil || data.Properties.Get("relationships") == nil || fam.relationshipsOf(name) != nil {
+		recorded := slices.ContainsFunc(fam.Relationships, func(r *RelBind) bool { return r.Data == name })
+		if op.Method != "POST" || err != nil || data.Properties.Get("relationships") == nil || recorded {
 			continue
 		}
 		d, ok := p.types[name]
