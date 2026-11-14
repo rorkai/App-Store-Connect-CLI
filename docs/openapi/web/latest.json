@@ -9484,12 +9484,22 @@
         "title": "AgreementTermAcceptanceCreateRequest",
         "properties": {
           "agreeToFamilyShare": {
-            "type": "boolean"
+            "type": "boolean",
+            "enum": [
+              true
+            ]
           },
           "agreeToTerms": {
-            "type": "boolean"
+            "type": "boolean",
+            "enum": [
+              true
+            ]
           }
-        }
+        },
+        "required": [
+          "agreeToFamilyShare",
+          "agreeToTerms"
+        ]
       },
       "AgreementTermResponse": {
         "type": "object",
@@ -9624,13 +9634,39 @@
         "type": "object",
         "title": "AnalyticsCohortQueryRequest",
         "properties": {
-          "adamId": {},
-          "endTime": {},
-          "frequency": {},
-          "measures": {},
-          "periods": {},
-          "startTime": {}
-        }
+          "adamId": {
+            "type": "string"
+          },
+          "endTime": {
+            "type": "string"
+          },
+          "frequency": {
+            "type": "string"
+          },
+          "measures": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "periods": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "startTime": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "adamId",
+          "endTime",
+          "frequency",
+          "measures",
+          "periods",
+          "startTime"
+        ]
       },
       "AnalyticsCohortsResponse": {
         "type": "object",
@@ -9656,14 +9692,39 @@
               "type": "string"
             }
           },
-          "dimensions": {},
-          "endTime": {},
-          "frequency": {},
-          "hideEmptyValues": {},
+          "dimensions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "endTime": {
+            "type": "string"
+          },
+          "frequency": {
+            "type": "string"
+          },
+          "hideEmptyValues": {
+            "type": "boolean"
+          },
           "limit": {},
-          "measure": {},
-          "startTime": {}
-        }
+          "measure": {
+            "type": "string"
+          },
+          "startTime": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "adamId",
+          "dimensions",
+          "endTime",
+          "frequency",
+          "hideEmptyValues",
+          "limit",
+          "measure",
+          "startTime"
+        ]
       },
       "AnalyticsDimensionValueQueryRequest": {
         "type": "object",
@@ -9675,12 +9736,44 @@
               "type": "string"
             }
           },
-          "dimensions": {},
-          "endTime": {},
-          "frequency": {},
-          "measure": {},
-          "startTime": {}
-        }
+          "dimensions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "dimension": {
+                  "type": "string"
+                },
+                "limit": {
+                  "type": "integer"
+                },
+                "rank": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "endTime": {
+            "type": "string"
+          },
+          "frequency": {
+            "type": "string"
+          },
+          "measure": {
+            "type": "string"
+          },
+          "startTime": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "adamId",
+          "dimensions",
+          "endTime",
+          "frequency",
+          "measure",
+          "startTime"
+        ]
       },
       "AnalyticsDimensionValueV2QueryRequest": {
         "type": "object",
@@ -9692,12 +9785,36 @@
               "type": "string"
             }
           },
-          "dimensions": {},
-          "endTime": {},
-          "frequency": {},
-          "measures": {},
-          "startTime": {}
-        }
+          "dimensions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "endTime": {
+            "type": "string"
+          },
+          "frequency": {
+            "type": "string"
+          },
+          "measures": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "startTime": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "adamId",
+          "dimensions",
+          "endTime",
+          "frequency",
+          "measures",
+          "startTime"
+        ]
       },
       "AnalyticsDimensionValuesResponse": {
         "type": "object",
@@ -9911,11 +10028,29 @@
               "type": "string"
             }
           },
-          "endTime": {},
-          "frequency": {},
-          "measures": {},
-          "startTime": {}
-        }
+          "endTime": {
+            "type": "string"
+          },
+          "frequency": {
+            "type": "string"
+          },
+          "measures": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "startTime": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "adamId",
+          "endTime",
+          "frequency",
+          "measures",
+          "startTime"
+        ]
       },
       "AnalyticsMeasuresResponse": {
         "type": "object",
@@ -9982,10 +10117,22 @@
               "type": "string"
             }
           },
-          "endTime": {},
-          "frequency": {},
-          "startTime": {}
-        }
+          "endTime": {
+            "type": "string"
+          },
+          "frequency": {
+            "type": "string"
+          },
+          "startTime": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "adamId",
+          "endTime",
+          "frequency",
+          "startTime"
+        ]
       },
       "AnalyticsRetentionResponse": {
         "type": "object",
@@ -10110,13 +10257,35 @@
               "type": "string"
             }
           },
-          "dimension": {},
-          "endTime": {},
-          "frequency": {},
+          "dimension": {
+            "type": "string"
+          },
+          "endTime": {
+            "type": "string"
+          },
+          "frequency": {
+            "type": "string"
+          },
           "limit": {},
-          "measures": {},
-          "startTime": {}
-        }
+          "measures": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "startTime": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "adamId",
+          "dimension",
+          "endTime",
+          "frequency",
+          "limit",
+          "measures",
+          "startTime"
+        ]
       },
       "AnalyticsSourcesResponse": {
         "type": "object",
@@ -10165,11 +10334,29 @@
               "type": "string"
             }
           },
-          "endTime": {},
-          "frequency": {},
-          "measures": {},
-          "startTime": {}
-        }
+          "endTime": {
+            "type": "string"
+          },
+          "frequency": {
+            "type": "string"
+          },
+          "measures": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "startTime": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "adamId",
+          "endTime",
+          "frequency",
+          "measures",
+          "startTime"
+        ]
       },
       "AnalyticsTimeseriesResponse": {
         "type": "object",
@@ -10215,11 +10402,29 @@
               "type": "string"
             }
           },
-          "endTime": {},
-          "frequency": {},
-          "measures": {},
-          "startTime": {}
-        }
+          "endTime": {
+            "type": "string"
+          },
+          "frequency": {
+            "type": "string"
+          },
+          "measures": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "startTime": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "adamId",
+          "endTime",
+          "frequency",
+          "measures",
+          "startTime"
+        ]
       },
       "AnalyticsTimeseriesV2Response": {
         "type": "object",
@@ -10347,16 +10552,34 @@
               "attributes": {
                 "type": "object",
                 "properties": {
-                  "allAppsVisible": {},
-                  "keyType": {},
-                  "nickname": {},
+                  "allAppsVisible": {
+                    "type": "boolean",
+                    "enum": [
+                      true
+                    ]
+                  },
+                  "keyType": {
+                    "type": "string",
+                    "enum": [
+                      "PUBLIC_API"
+                    ]
+                  },
+                  "nickname": {
+                    "type": "string"
+                  },
                   "roles": {
                     "type": "array",
                     "items": {
                       "type": "string"
                     }
                   }
-                }
+                },
+                "required": [
+                  "allAppsVisible",
+                  "keyType",
+                  "nickname",
+                  "roles"
+                ]
               },
               "type": {
                 "type": "string",
@@ -10364,9 +10587,16 @@
                   "apiKeys"
                 ]
               }
-            }
+            },
+            "required": [
+              "attributes",
+              "type"
+            ]
           }
-        }
+        },
+        "required": [
+          "data"
+        ]
       },
       "ApiKeyResponse": {
         "type": "object",
@@ -10469,19 +10699,37 @@
               "attributes": {
                 "type": "object",
                 "properties": {
-                  "isActive": {}
-                }
+                  "isActive": {
+                    "type": "boolean",
+                    "enum": [
+                      false
+                    ]
+                  }
+                },
+                "required": [
+                  "isActive"
+                ]
               },
-              "id": {},
+              "id": {
+                "type": "string"
+              },
               "type": {
                 "type": "string",
                 "enum": [
                   "apiKeys"
                 ]
               }
-            }
+            },
+            "required": [
+              "attributes",
+              "id",
+              "type"
+            ]
           }
-        }
+        },
+        "required": [
+          "data"
+        ]
       },
       "ApiKeyV2CreateRequest": {
         "type": "object",
@@ -10493,9 +10741,15 @@
               "type": {
                 "type": "string"
               }
-            }
+            },
+            "required": [
+              "type"
+            ]
           }
-        }
+        },
+        "required": [
+          "data"
+        ]
       },
       "ApiKeysResponse": {
         "type": "object",
@@ -10769,7 +11023,10 @@
                   "availableInNewTerritories": {
                     "type": "boolean"
                   }
-                }
+                },
+                "required": [
+                  "availableInNewTerritories"
+                ]
               },
               "relationships": {
                 "type": "object",
@@ -10789,17 +11046,31 @@
                               "apps"
                             ]
                           }
-                        }
+                        },
+                        "required": [
+                          "id",
+                          "type"
+                        ]
                       }
-                    }
+                    },
+                    "required": [
+                      "data"
+                    ]
                   },
                   "territoryAvailabilities": {
                     "type": "object",
                     "properties": {
                       "data": {}
-                    }
+                    },
+                    "required": [
+                      "data"
+                    ]
                   }
-                }
+                },
+                "required": [
+                  "app",
+                  "territoryAvailabilities"
+                ]
               },
               "type": {
                 "type": "string",
@@ -10807,9 +11078,17 @@
                   "appAvailabilities"
                 ]
               }
-            }
+            },
+            "required": [
+              "attributes",
+              "relationships",
+              "type"
+            ]
           }
-        }
+        },
+        "required": [
+          "data"
+        ]
       },
       "AppAvailabilityV2Response": {
         "type": "object",
@@ -10874,7 +11153,13 @@
                 "name": {
                   "type": "string"
                 }
-              }
+              },
+              "required": [
+                "localeCode",
+                "marketingText",
+                "marketingUrl",
+                "name"
+              ]
             }
           },
           "memberApps": {
@@ -10891,7 +11176,15 @@
           "vendorIdentifier": {
             "type": "string"
           }
-        }
+        },
+        "required": [
+          "clearedForSale",
+          "details",
+          "memberApps",
+          "primaryLocaleCode",
+          "userBundleIcon",
+          "vendorIdentifier"
+        ]
       },
       "AppBundleEligibleAppsResponse": {
         "type": "object",
@@ -11092,7 +11385,12 @@
                   "sku": {
                     "type": "string"
                   }
-                }
+                },
+                "required": [
+                  "bundleId",
+                  "primaryLocale",
+                  "sku"
+                ]
               },
               "relationships": {
                 "type": "object",
@@ -11111,10 +11409,17 @@
                             "type": {
                               "type": "string"
                             }
-                          }
+                          },
+                          "required": [
+                            "id",
+                            "type"
+                          ]
                         }
                       }
-                    }
+                    },
+                    "required": [
+                      "data"
+                    ]
                   },
                   "appStoreVersions": {
                     "type": "object",
@@ -11130,23 +11435,43 @@
                             "type": {
                               "type": "string"
                             }
-                          }
+                          },
+                          "required": [
+                            "id",
+                            "type"
+                          ]
                         }
                       }
-                    }
+                    },
+                    "required": [
+                      "data"
+                    ]
                   }
-                }
+                },
+                "required": [
+                  "appInfos",
+                  "appStoreVersions"
+                ]
               },
               "type": {
                 "type": "string"
               }
-            }
+            },
+            "required": [
+              "attributes",
+              "relationships",
+              "type"
+            ]
           },
           "included": {
             "type": "array",
             "items": {}
           }
-        }
+        },
+        "required": [
+          "data",
+          "included"
+        ]
       },
       "AppDataUsage": {
         "type": "object",
@@ -11268,9 +11593,16 @@
                   "appDataUsages"
                 ]
               }
-            }
+            },
+            "required": [
+              "relationships",
+              "type"
+            ]
           }
-        }
+        },
+        "required": [
+          "data"
+        ]
       },
       "AppDataUsageDataProtection": {
         "type": "object",
@@ -11441,7 +11773,9 @@
           "data": {
             "type": "object",
             "properties": {
-              "id": {},
+              "id": {
+                "type": "string"
+              },
               "relationships": {
                 "type": "object",
                 "additionalProperties": true
@@ -11452,9 +11786,17 @@
                   "appDataUsages"
                 ]
               }
-            }
+            },
+            "required": [
+              "id",
+              "relationships",
+              "type"
+            ]
           }
-        }
+        },
+        "required": [
+          "data"
+        ]
       },
       "AppDataUsagesPublishState": {
         "type": "object",
@@ -11506,18 +11848,31 @@
                   "published": {
                     "type": "boolean"
                   }
-                }
+                },
+                "required": [
+                  "published"
+                ]
               },
-              "id": {},
+              "id": {
+                "type": "string"
+              },
               "type": {
                 "type": "string",
                 "enum": [
                   "appDataUsagesPublishState"
                 ]
               }
-            }
+            },
+            "required": [
+              "attributes",
+              "id",
+              "type"
+            ]
           }
-        }
+        },
+        "required": [
+          "data"
+        ]
       },
       "AppDataUsagesResponse": {
         "type": "object",
@@ -11760,7 +12115,10 @@
                   "justification": {
                     "type": "string"
                   }
-                }
+                },
+                "required": [
+                  "justification"
+                ]
               },
               "relationships": {
                 "type": "object",
@@ -11775,11 +12133,21 @@
                             "type": "string"
                           },
                           "type": {
-                            "type": "string"
+                            "type": "string",
+                            "enum": [
+                              "appSandboxEntitlements"
+                            ]
                           }
-                        }
+                        },
+                        "required": [
+                          "id",
+                          "type"
+                        ]
                       }
-                    }
+                    },
+                    "required": [
+                      "data"
+                    ]
                   },
                   "appStoreReviewDetail": {
                     "type": "object",
@@ -11791,18 +12159,45 @@
                             "type": "string"
                           },
                           "type": {
-                            "type": "string"
+                            "type": "string",
+                            "enum": [
+                              "appStoreReviewDetails"
+                            ]
                           }
-                        }
+                        },
+                        "required": [
+                          "id",
+                          "type"
+                        ]
                       }
-                    }
+                    },
+                    "required": [
+                      "data"
+                    ]
                   }
-                }
+                },
+                "required": [
+                  "appSandboxEntitlement",
+                  "appStoreReviewDetail"
+                ]
               },
-              "type": {}
-            }
+              "type": {
+                "type": "string",
+                "enum": [
+                  "appSandboxEntitlementUsages"
+                ]
+              }
+            },
+            "required": [
+              "attributes",
+              "relationships",
+              "type"
+            ]
           }
-        }
+        },
+        "required": [
+          "data"
+        ]
       },
       "AppSandboxEntitlementUsageResponse": {
         "type": "object",
@@ -11827,13 +12222,31 @@
                   "justification": {
                     "type": "string"
                   }
-                }
+                },
+                "required": [
+                  "justification"
+                ]
               },
-              "id": {},
-              "type": {}
-            }
+              "id": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "appSandboxEntitlementUsages"
+                ]
+              }
+            },
+            "required": [
+              "attributes",
+              "id",
+              "type"
+            ]
           }
-        }
+        },
+        "required": [
+          "data"
+        ]
       },
       "AppSandboxEntitlementUsagesResponse": {
         "type": "object",
@@ -12055,8 +12468,69 @@
         "type": "object",
         "title": "AppTaxCategoryCreateRequest",
         "properties": {
-          "data": {}
-        }
+          "data": {
+            "type": "object",
+            "properties": {
+              "relationships": {
+                "type": "object",
+                "properties": {
+                  "category": {
+                    "type": "object",
+                    "properties": {
+                      "data": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "taxCategories"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "type"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "data"
+                    ]
+                  },
+                  "enabledConditions": {
+                    "type": "object",
+                    "properties": {
+                      "data": {}
+                    },
+                    "required": [
+                      "data"
+                    ]
+                  }
+                },
+                "required": [
+                  "category",
+                  "enabledConditions"
+                ]
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "appTaxCategories"
+                ]
+              }
+            },
+            "required": [
+              "relationships",
+              "type"
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ]
       },
       "AppTaxCategoryResponse": {
         "type": "object",
@@ -12099,8 +12573,69 @@
         "type": "object",
         "title": "AppTaxCategoryUpdateRequest",
         "properties": {
-          "data": {}
-        }
+          "data": {
+            "type": "object",
+            "properties": {
+              "relationships": {
+                "type": "object",
+                "properties": {
+                  "category": {
+                    "type": "object",
+                    "properties": {
+                      "data": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "taxCategories"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "type"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "data"
+                    ]
+                  },
+                  "enabledConditions": {
+                    "type": "object",
+                    "properties": {
+                      "data": {}
+                    },
+                    "required": [
+                      "data"
+                    ]
+                  }
+                },
+                "required": [
+                  "category",
+                  "enabledConditions"
+                ]
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "appTaxCategories"
+                ]
+              }
+            },
+            "required": [
+              "relationships",
+              "type"
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ]
       },
       "AppsResponse": {
         "type": "object",
@@ -12280,19 +12815,37 @@
                             "type": {
                               "type": "string"
                             }
-                          }
+                          },
+                          "required": [
+                            "type"
+                          ]
                         }
                       }
-                    }
+                    },
+                    "required": [
+                      "data"
+                    ]
                   }
-                }
+                },
+                "required": [
+                  "bundleIdCapabilities"
+                ]
               },
               "type": {
                 "type": "string"
               }
-            }
+            },
+            "required": [
+              "attributes",
+              "id",
+              "relationships",
+              "type"
+            ]
           }
-        }
+        },
+        "required": [
+          "data"
+        ]
       },
       "BusinessAgreementsResponse": {
         "type": "object",
@@ -12489,7 +13042,13 @@
               "type": "string"
             }
           }
-        }
+        },
+        "required": [
+          "is_locked",
+          "name",
+          "value",
+          "workflow_ids"
+        ]
       },
       "CiProductEnvironmentVariableResponse": {
         "type": "object",
@@ -13229,7 +13788,13 @@
           "type": {
             "type": "string"
           }
-        }
+        },
+        "required": [
+          "build",
+          "locked",
+          "name",
+          "type"
+        ]
       },
       "CiVersionAliasResponse": {
         "type": "object",
@@ -13671,9 +14236,16 @@
               "type": {
                 "type": "string"
               }
-            }
+            },
+            "required": [
+              "attributes",
+              "type"
+            ]
           }
-        }
+        },
+        "required": [
+          "data"
+        ]
       },
       "CreateDeveloperServiceIDRequest": {
         "type": "object",
@@ -13698,16 +14270,30 @@
                         "type": "array",
                         "items": {}
                       }
-                    }
+                    },
+                    "required": [
+                      "data"
+                    ]
                   }
-                }
+                },
+                "required": [
+                  "bundleIdCapabilities"
+                ]
               },
               "type": {
                 "type": "string"
               }
-            }
+            },
+            "required": [
+              "attributes",
+              "relationships",
+              "type"
+            ]
           }
-        }
+        },
+        "required": [
+          "data"
+        ]
       },
       "CustomAppUserCreateRequest": {
         "type": "object",
@@ -13722,7 +14308,10 @@
                   "appleId": {
                     "type": "string"
                   }
-                }
+                },
+                "required": [
+                  "appleId"
+                ]
               },
               "relationships": {
                 "type": "object",
@@ -13742,16 +14331,39 @@
                               "apps"
                             ]
                           }
-                        }
+                        },
+                        "required": [
+                          "id",
+                          "type"
+                        ]
                       }
-                    }
+                    },
+                    "required": [
+                      "data"
+                    ]
                   }
-                }
+                },
+                "required": [
+                  "app"
+                ]
               },
-              "type": {}
-            }
+              "type": {
+                "type": "string",
+                "enum": [
+                  "customAppUsers"
+                ]
+              }
+            },
+            "required": [
+              "attributes",
+              "relationships",
+              "type"
+            ]
           }
-        }
+        },
+        "required": [
+          "data"
+        ]
       },
       "CustomAppUserDeleteRequest": {
         "type": "object",
@@ -13764,11 +14376,21 @@
                 "type": "string"
               },
               "type": {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "customAppUsers"
+                ]
               }
-            }
+            },
+            "required": [
+              "id",
+              "type"
+            ]
           }
-        }
+        },
+        "required": [
+          "data"
+        ]
       },
       "CustomAppUserResponse": {
         "type": "object",
@@ -13801,7 +14423,10 @@
                   "removed": {
                     "type": "boolean"
                   }
-                }
+                },
+                "required": [
+                  "removed"
+                ]
               },
               "id": {
                 "type": "string"
@@ -13809,9 +14434,17 @@
               "type": {
                 "type": "string"
               }
-            }
+            },
+            "required": [
+              "attributes",
+              "id",
+              "type"
+            ]
           }
-        }
+        },
+        "required": [
+          "data"
+        ]
       },
       "DeleteDeveloperServiceIDRequest": {
         "type": "object",
@@ -13820,7 +14453,10 @@
           "teamId": {
             "type": "string"
           }
-        }
+        },
+        "required": [
+          "teamId"
+        ]
       },
       "DeveloperAgreementAcceptanceCreateRequest": {
         "type": "object",
@@ -13835,7 +14471,11 @@
           "teamId": {
             "type": "string"
           }
-        }
+        },
+        "required": [
+          "agreementIds",
+          "teamId"
+        ]
       },
       "DeveloperAgreementAcceptanceResponse": {
         "type": "object",
@@ -13938,7 +14578,10 @@
           "teamId": {
             "type": "string"
           }
-        }
+        },
+        "required": [
+          "teamId"
+        ]
       },
       "DeveloperAgreementHistoryResponse": {
         "type": "object",
@@ -14150,9 +14793,18 @@
               "type": {
                 "type": "string"
               }
-            }
+            },
+            "required": [
+              "attributes",
+              "id",
+              "relationships",
+              "type"
+            ]
           }
-        }
+        },
+        "required": [
+          "data"
+        ]
       },
       "DeveloperBundleIdsResponse": {
         "type": "object",
@@ -14223,7 +14875,10 @@
           "teamId": {
             "type": "string"
           }
-        }
+        },
+        "required": [
+          "teamId"
+        ]
       },
       "DeveloperNotificationsResponse": {
         "type": "object",
@@ -14329,7 +14984,11 @@
           "urlEncodedQueryParams": {
             "type": "string"
           }
-        }
+        },
+        "required": [
+          "teamId",
+          "urlEncodedQueryParams"
+        ]
       },
       "DeveloperPortalTeamRequest": {
         "type": "object",
@@ -14338,7 +14997,10 @@
           "teamId": {
             "type": "string"
           }
-        }
+        },
+        "required": [
+          "teamId"
+        ]
       },
       "DeveloperTeamsResponse": {
         "type": "object",
@@ -14481,8 +15143,52 @@
         "type": "object",
         "title": "InAppPurchaseTaxCategoryInfoCreateRequest",
         "properties": {
-          "data": {}
-        }
+          "data": {
+            "type": "object",
+            "properties": {
+              "relationships": {
+                "type": "object",
+                "properties": {
+                  "category": {
+                    "type": "object",
+                    "properties": {
+                      "data": {}
+                    },
+                    "required": [
+                      "data"
+                    ]
+                  },
+                  "enabledConditions": {
+                    "type": "object",
+                    "properties": {
+                      "data": {}
+                    },
+                    "required": [
+                      "data"
+                    ]
+                  }
+                },
+                "required": [
+                  "category",
+                  "enabledConditions"
+                ]
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "inAppPurchaseTaxCategoryInfos"
+                ]
+              }
+            },
+            "required": [
+              "relationships",
+              "type"
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ]
       },
       "InAppPurchaseTaxCategoryInfoResponse": {
         "type": "object",
@@ -14536,8 +15242,52 @@
         "type": "object",
         "title": "InAppPurchaseTaxCategoryInfoUpdateRequest",
         "properties": {
-          "data": {}
-        }
+          "data": {
+            "type": "object",
+            "properties": {
+              "relationships": {
+                "type": "object",
+                "properties": {
+                  "category": {
+                    "type": "object",
+                    "properties": {
+                      "data": {}
+                    },
+                    "required": [
+                      "data"
+                    ]
+                  },
+                  "enabledConditions": {
+                    "type": "object",
+                    "properties": {
+                      "data": {}
+                    },
+                    "required": [
+                      "data"
+                    ]
+                  }
+                },
+                "required": [
+                  "category",
+                  "enabledConditions"
+                ]
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "inAppPurchaseTaxCategoryInfos"
+                ]
+              }
+            },
+            "required": [
+              "relationships",
+              "type"
+            ]
+          }
+        },
+        "required": [
+          "data"
+        ]
       },
       "InAppPurchaseV2": {
         "type": "object",
@@ -14818,37 +15568,59 @@
               },
               "id": {},
               "type": {}
-            }
+            },
+            "required": [
+              "attributes",
+              "id",
+              "type"
+            ]
           }
-        }
+        },
+        "required": [
+          "data"
+        ]
       },
       "PhoneCodeRequestReplaceRequest": {
         "type": "object",
         "title": "PhoneCodeRequestReplaceRequest",
         "properties": {
-          "mode": {},
+          "mode": {
+            "type": "string"
+          },
           "phoneNumber": {
             "type": "object",
             "properties": {
               "id": {
                 "type": "integer"
               }
-            }
+            },
+            "required": [
+              "id"
+            ]
           }
-        }
+        },
+        "required": [
+          "mode",
+          "phoneNumber"
+        ]
       },
       "PhoneCodeVerificationCreateRequest": {
         "type": "object",
         "title": "PhoneCodeVerificationCreateRequest",
         "properties": {
-          "mode": {},
+          "mode": {
+            "type": "string"
+          },
           "phoneNumber": {
             "type": "object",
             "properties": {
               "id": {
                 "type": "integer"
               }
-            }
+            },
+            "required": [
+              "id"
+            ]
           },
           "securityCode": {
             "type": "object",
@@ -14856,9 +15628,17 @@
               "code": {
                 "type": "string"
               }
-            }
+            },
+            "required": [
+              "code"
+            ]
           }
-        }
+        },
+        "required": [
+          "mode",
+          "phoneNumber",
+          "securityCode"
+        ]
       },
       "RegisterIndividualAPIKeyRequest": {
         "type": "object",
@@ -14873,7 +15653,10 @@
                   "publicKey": {
                     "type": "string"
                   }
-                }
+                },
+                "required": [
+                  "publicKey"
+                ]
               },
               "id": {
                 "type": "string"
@@ -14881,9 +15664,17 @@
               "type": {
                 "type": "string"
               }
-            }
+            },
+            "required": [
+              "attributes",
+              "id",
+              "type"
+            ]
           }
-        }
+        },
+        "required": [
+          "data"
+        ]
       },
       "ResetRatingsRequest": {
         "type": "object",
@@ -14932,16 +15723,38 @@
                               "appStoreVersions"
                             ]
                           }
-                        }
+                        },
+                        "required": [
+                          "id",
+                          "type"
+                        ]
                       }
-                    }
+                    },
+                    "required": [
+                      "data"
+                    ]
                   }
-                }
+                },
+                "required": [
+                  "appStoreVersion"
+                ]
               },
-              "type": {}
-            }
+              "type": {
+                "type": "string",
+                "enum": [
+                  "resetRatingsRequests"
+                ]
+              }
+            },
+            "required": [
+              "relationships",
+              "type"
+            ]
           }
-        }
+        },
+        "required": [
+          "data"
+        ]
       },
       "ResetRatingsRequestResponse": {
         "type": "object",
@@ -14964,8 +15777,13 @@
               "attributes": {
                 "type": "object",
                 "properties": {
-                  "messageBody": {}
-                }
+                  "messageBody": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "messageBody"
+                ]
               },
               "relationships": {
                 "type": "object",
@@ -14985,11 +15803,21 @@
                               "resolutionCenterThreads"
                             ]
                           }
-                        }
+                        },
+                        "required": [
+                          "id",
+                          "type"
+                        ]
                       }
-                    }
+                    },
+                    "required": [
+                      "data"
+                    ]
                   }
-                }
+                },
+                "required": [
+                  "resolutionCenterThread"
+                ]
               },
               "type": {
                 "type": "string",
@@ -14997,9 +15825,17 @@
                   "resolutionCenterDraftMessages"
                 ]
               }
-            }
+            },
+            "required": [
+              "attributes",
+              "relationships",
+              "type"
+            ]
           }
-        }
+        },
+        "required": [
+          "data"
+        ]
       },
       "ResolutionCenterDraftMessageResponse": {
         "type": "object",
@@ -15048,19 +15884,34 @@
               "attributes": {
                 "type": "object",
                 "properties": {
-                  "messageBody": {}
-                }
+                  "messageBody": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "messageBody"
+                ]
               },
-              "id": {},
+              "id": {
+                "type": "string"
+              },
               "type": {
                 "type": "string",
                 "enum": [
                   "resolutionCenterDraftMessages"
                 ]
               }
-            }
+            },
+            "required": [
+              "attributes",
+              "id",
+              "type"
+            ]
           }
-        }
+        },
+        "required": [
+          "data"
+        ]
       },
       "ResolutionCenterMessage": {
         "type": "object",
@@ -15114,11 +15965,21 @@
                               "resolutionCenterDraftMessages"
                             ]
                           }
-                        }
+                        },
+                        "required": [
+                          "id",
+                          "type"
+                        ]
                       }
-                    }
+                    },
+                    "required": [
+                      "data"
+                    ]
                   }
-                }
+                },
+                "required": [
+                  "createFromDraftMessage"
+                ]
               },
               "type": {
                 "type": "string",
@@ -15126,9 +15987,16 @@
                   "resolutionCenterMessages"
                 ]
               }
-            }
+            },
+            "required": [
+              "relationships",
+              "type"
+            ]
           }
-        }
+        },
+        "required": [
+          "data"
+        ]
       },
       "ResolutionCenterMessageResponse": {
         "type": "object",
@@ -15302,19 +16170,37 @@
               "attributes": {
                 "type": "object",
                 "properties": {
-                  "removed": {}
-                }
+                  "removed": {
+                    "type": "boolean",
+                    "enum": [
+                      false
+                    ]
+                  }
+                },
+                "required": [
+                  "removed"
+                ]
               },
-              "id": {},
+              "id": {
+                "type": "string"
+              },
               "type": {
                 "type": "string",
                 "enum": [
                   "apps"
                 ]
               }
-            }
+            },
+            "required": [
+              "attributes",
+              "id",
+              "type"
+            ]
           }
-        }
+        },
+        "required": [
+          "data"
+        ]
       },
       "ReviewRejection": {
         "type": "object",
@@ -15459,36 +16345,26 @@
                   "inAppPurchaseVersion": {
                     "type": "object",
                     "properties": {
-                      "data": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string"
-                          },
-                          "type": {
-                            "type": "string"
-                          }
-                        }
-                      }
-                    }
+                      "data": {}
+                    },
+                    "required": [
+                      "data"
+                    ]
                   },
                   "reviewSubmission": {
                     "type": "object",
                     "properties": {
-                      "data": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string"
-                          },
-                          "type": {
-                            "type": "string"
-                          }
-                        }
-                      }
-                    }
+                      "data": {}
+                    },
+                    "required": [
+                      "data"
+                    ]
                   }
-                }
+                },
+                "required": [
+                  "inAppPurchaseVersion",
+                  "reviewSubmission"
+                ]
               },
               "type": {
                 "type": "string",
@@ -15496,9 +16372,16 @@
                   "reviewSubmissionItems"
                 ]
               }
-            }
+            },
+            "required": [
+              "relationships",
+              "type"
+            ]
           }
-        }
+        },
+        "required": [
+          "data"
+        ]
       },
       "ReviewSubmissionItemResponse": {
         "type": "object",
@@ -15645,19 +16528,37 @@
               "attributes": {
                 "type": "object",
                 "properties": {
-                  "isActive": {}
-                }
+                  "isActive": {
+                    "type": "boolean",
+                    "enum": [
+                      false
+                    ]
+                  }
+                },
+                "required": [
+                  "isActive"
+                ]
               },
-              "id": {},
+              "id": {
+                "type": "string"
+              },
               "type": {
                 "type": "string",
                 "enum": [
                   "apiKeys"
                 ]
               }
-            }
+            },
+            "required": [
+              "attributes",
+              "id",
+              "type"
+            ]
           }
-        }
+        },
+        "required": [
+          "data"
+        ]
       },
       "SandboxAccountCreateRequest": {
         "type": "object",
@@ -15678,7 +16579,14 @@
           "storeFront": {
             "type": "string"
           }
-        }
+        },
+        "required": [
+          "acAccountName",
+          "acAccountPassword",
+          "firstName",
+          "lastName",
+          "storeFront"
+        ]
       },
       "SandboxAccountDeletionCreateRequest": {
         "type": "object",
@@ -15690,7 +16598,10 @@
               "type": "string"
             }
           }
-        }
+        },
+        "required": [
+          "ids"
+        ]
       },
       "SandboxAccountValidationCreateRequest": {
         "type": "object",
@@ -15708,7 +16619,13 @@
           "lastName": {
             "type": "string"
           }
-        }
+        },
+        "required": [
+          "acAccountName",
+          "acAccountPassword",
+          "firstName",
+          "lastName"
+        ]
       },
       "SandboxAccountsResponse": {
         "type": "object",
@@ -15780,7 +16697,16 @@
           "userHandle": {
             "type": "string"
           }
-        }
+        },
+        "required": [
+          "authenticatorData",
+          "challenge",
+          "clientData",
+          "credentialID",
+          "rpId",
+          "signatureData",
+          "userHandle"
+        ]
       },
       "SessionCreateRequest": {
         "type": "object",
@@ -15792,9 +16718,15 @@
               "providerId": {
                 "type": "integer"
               }
-            }
+            },
+            "required": [
+              "providerId"
+            ]
           }
-        }
+        },
+        "required": [
+          "provider"
+        ]
       },
       "SessionResponse": {
         "type": "object",
@@ -15864,15 +16796,25 @@
               "type": {
                 "type": "string"
               }
-            }
+            },
+            "required": [
+              "attributes",
+              "id",
+              "type"
+            ]
           }
-        }
+        },
+        "required": [
+          "data"
+        ]
       },
       "SignInKeyCreateRequest": {
         "type": "object",
         "title": "SignInKeyCreateRequest",
         "properties": {
-          "name": {},
+          "name": {
+            "type": "string"
+          },
           "serviceConfigurationsRequests": {
             "type": "array",
             "items": {}
@@ -15880,7 +16822,12 @@
           "teamId": {
             "type": "string"
           }
-        }
+        },
+        "required": [
+          "name",
+          "serviceConfigurationsRequests",
+          "teamId"
+        ]
       },
       "SignInKeyGetRequest": {
         "type": "object",
@@ -16001,21 +16948,37 @@
           "rememberMe": {
             "type": "boolean"
           }
-        }
+        },
+        "required": [
+          "accountName",
+          "c",
+          "m1",
+          "m2",
+          "rememberMe"
+        ]
       },
       "SigninInitCreateRequest": {
         "type": "object",
         "title": "SigninInitCreateRequest",
         "properties": {
-          "a": {},
-          "accountName": {},
+          "a": {
+            "type": "string"
+          },
+          "accountName": {
+            "type": "string"
+          },
           "protocols": {
             "type": "array",
             "items": {
               "type": "string"
             }
           }
-        }
+        },
+        "required": [
+          "a",
+          "accountName",
+          "protocols"
+        ]
       },
       "Subscription": {
         "type": "object",
@@ -16197,7 +17160,17 @@
           "data": {
             "type": "object",
             "properties": {
-              "attributes": {},
+              "attributes": {
+                "type": "object",
+                "properties": {
+                  "planType": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "planType"
+                ]
+              },
               "relationships": {
                 "type": "object",
                 "properties": {
@@ -16205,7 +17178,10 @@
                     "type": "object",
                     "properties": {
                       "data": {}
-                    }
+                    },
+                    "required": [
+                      "data"
+                    ]
                   },
                   "subscription": {
                     "type": "object",
@@ -16222,11 +17198,22 @@
                               "subscriptions"
                             ]
                           }
-                        }
+                        },
+                        "required": [
+                          "id",
+                          "type"
+                        ]
                       }
-                    }
+                    },
+                    "required": [
+                      "data"
+                    ]
                   }
-                }
+                },
+                "required": [
+                  "availableTerritories",
+                  "subscription"
+                ]
               },
               "type": {
                 "type": "string",
@@ -16234,9 +17221,17 @@
                   "subscriptionPlanAvailabilities"
                 ]
               }
-            }
+            },
+            "required": [
+              "attributes",
+              "relationships",
+              "type"
+            ]
           }
-        }
+        },
+        "required": [
+          "data"
+        ]
       },
       "SubscriptionPlanAvailabilityResponse": {
         "type": "object",
@@ -16259,11 +17254,19 @@
                 "type": "object",
                 "properties": {
                   "availableInNewTerritories": {
-                    "type": "boolean"
+                    "type": "boolean",
+                    "enum": [
+                      false
+                    ]
                   }
-                }
+                },
+                "required": [
+                  "availableInNewTerritories"
+                ]
               },
-              "id": {},
+              "id": {
+                "type": "string"
+              },
               "relationships": {
                 "type": "object",
                 "properties": {
@@ -16274,9 +17277,15 @@
                         "type": "array",
                         "items": {}
                       }
-                    }
+                    },
+                    "required": [
+                      "data"
+                    ]
                   }
-                }
+                },
+                "required": [
+                  "availableTerritories"
+                ]
               },
               "type": {
                 "type": "string",
@@ -16284,9 +17293,18 @@
                   "subscriptionPlanAvailabilities"
                 ]
               }
-            }
+            },
+            "required": [
+              "attributes",
+              "id",
+              "relationships",
+              "type"
+            ]
           }
-        }
+        },
+        "required": [
+          "data"
+        ]
       },
       "SubscriptionPrice": {
         "type": "object",
@@ -16554,8 +17572,16 @@
               "attributes": {
                 "type": "object",
                 "properties": {
-                  "submitWithNextAppStoreVersion": {}
-                }
+                  "submitWithNextAppStoreVersion": {
+                    "type": "boolean",
+                    "enum": [
+                      true
+                    ]
+                  }
+                },
+                "required": [
+                  "submitWithNextAppStoreVersion"
+                ]
               },
               "relationships": {
                 "type": "object",
@@ -16575,11 +17601,21 @@
                               "subscriptions"
                             ]
                           }
-                        }
+                        },
+                        "required": [
+                          "id",
+                          "type"
+                        ]
                       }
-                    }
+                    },
+                    "required": [
+                      "data"
+                    ]
                   }
-                }
+                },
+                "required": [
+                  "subscription"
+                ]
               },
               "type": {
                 "type": "string",
@@ -16587,9 +17623,17 @@
                   "subscriptionSubmissions"
                 ]
               }
-            }
+            },
+            "required": [
+              "attributes",
+              "relationships",
+              "type"
+            ]
           }
-        }
+        },
+        "required": [
+          "data"
+        ]
       },
       "SubscriptionSubmissionResponse": {
         "type": "object",
@@ -16608,7 +17652,9 @@
           "data": {
             "type": "object",
             "properties": {
-              "id": {},
+              "id": {
+                "type": "string"
+              },
               "relationships": {
                 "type": "object",
                 "properties": {
@@ -16617,16 +17663,17 @@
                     "properties": {
                       "data": {
                         "type": "array",
-                        "items": {
-                          "type": "object",
-                          "additionalProperties": {
-                            "type": "string"
-                          }
-                        }
+                        "items": {}
                       }
-                    }
+                    },
+                    "required": [
+                      "data"
+                    ]
                   }
-                }
+                },
+                "required": [
+                  "prices"
+                ]
               },
               "type": {
                 "type": "string",
@@ -16634,7 +17681,12 @@
                   "subscriptions"
                 ]
               }
-            }
+            },
+            "required": [
+              "id",
+              "relationships",
+              "type"
+            ]
           },
           "included": {
             "type": "array",
@@ -16643,7 +17695,11 @@
               "additionalProperties": true
             }
           }
-        }
+        },
+        "required": [
+          "data",
+          "included"
+        ]
       },
       "TaxCategoriesResponse": {
         "type": "object",
@@ -16895,9 +17951,15 @@
               "code": {
                 "type": "string"
               }
-            }
+            },
+            "required": [
+              "code"
+            ]
           }
-        }
+        },
+        "required": [
+          "securityCode"
+        ]
       },
       "User": {
         "type": "object",
@@ -16931,7 +17993,9 @@
               "attributes": {
                 "type": "object",
                 "properties": {
-                  "appAdamId": {},
+                  "appAdamId": {
+                    "type": "string"
+                  },
                   "operationType": {},
                   "userOperationType": {
                     "type": "string",
@@ -16939,7 +18003,12 @@
                       "ALL_SILOABLE_USERS"
                     ]
                   }
-                }
+                },
+                "required": [
+                  "appAdamId",
+                  "operationType",
+                  "userOperationType"
+                ]
               },
               "type": {
                 "type": "string",
@@ -16947,9 +18016,16 @@
                   "userAppPermissions"
                 ]
               }
-            }
+            },
+            "required": [
+              "attributes",
+              "type"
+            ]
           }
-        }
+        },
+        "required": [
+          "data"
+        ]
       },
       "UserResponse": {
         "type": "object",
@@ -17022,15 +18098,26 @@
                       "type": "array",
                       "items": {}
                     }
-                  }
+                  },
+                  "required": [
+                    "data"
+                  ]
                 }
               },
               "type": {
                 "type": "string"
               }
-            }
+            },
+            "required": [
+              "attributes",
+              "relationships",
+              "type"
+            ]
           }
-        }
+        },
+        "required": [
+          "data"
+        ]
       },
       "WebsitePushIdListRequest": {
         "type": "object",
@@ -17046,7 +18133,10 @@
           "teamId": {
             "type": "string"
           }
-        }
+        },
+        "required": [
+          "teamId"
+        ]
       },
       "WebsitePushIdResponse": {
         "type": "object",
