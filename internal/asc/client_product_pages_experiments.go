@@ -183,44 +183,6 @@ func (c *Client) CreateAppStoreVersionExperimentV2(ctx context.Context, appID st
 	return sendJSON[AppStoreVersionExperimentV2Response](ctx, c, writeRequest{Method: "POST", Path: "/v2/appStoreVersionExperiments", Payload: payload})
 }
 
-// UpdateAppStoreVersionExperiment updates an experiment (v1).
-func (c *Client) UpdateAppStoreVersionExperiment(ctx context.Context, experimentID string, attrs AppStoreVersionExperimentUpdateAttributes) (*AppStoreVersionExperimentResponse, error) {
-	experimentID = strings.TrimSpace(experimentID)
-	if experimentID == "" {
-		return nil, fmt.Errorf("experimentID is required")
-	}
-
-	payload := AppStoreVersionExperimentUpdateRequest{
-		Data: AppStoreVersionExperimentUpdateData{
-			Type: ResourceTypeAppStoreVersionExperiments,
-			ID:   experimentID,
-		},
-	}
-	if attrs.Name != nil || attrs.TrafficProportion != nil || attrs.Started != nil {
-		payload.Data.Attributes = &attrs
-	}
-	return sendJSON[AppStoreVersionExperimentResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/appStoreVersionExperiments/%s", experimentID), Payload: payload})
-}
-
-// UpdateAppStoreVersionExperimentV2 updates an experiment (v2).
-func (c *Client) UpdateAppStoreVersionExperimentV2(ctx context.Context, experimentID string, attrs AppStoreVersionExperimentV2UpdateAttributes) (*AppStoreVersionExperimentV2Response, error) {
-	experimentID = strings.TrimSpace(experimentID)
-	if experimentID == "" {
-		return nil, fmt.Errorf("experimentID is required")
-	}
-
-	payload := AppStoreVersionExperimentV2UpdateRequest{
-		Data: AppStoreVersionExperimentV2UpdateData{
-			Type: ResourceTypeAppStoreVersionExperiments,
-			ID:   experimentID,
-		},
-	}
-	if attrs.Name != nil || attrs.TrafficProportion != nil || attrs.Started != nil {
-		payload.Data.Attributes = &attrs
-	}
-	return sendJSON[AppStoreVersionExperimentV2Response](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v2/appStoreVersionExperiments/%s", experimentID), Payload: payload})
-}
-
 // CreateAppStoreVersionExperimentTreatment creates a treatment.
 func (c *Client) CreateAppStoreVersionExperimentTreatment(ctx context.Context, experimentID, name, appIconName string) (*AppStoreVersionExperimentTreatmentResponse, error) {
 	return c.createAppStoreVersionExperimentTreatment(ctx, experimentID, name, appIconName, false)
@@ -260,25 +222,6 @@ func (c *Client) createAppStoreVersionExperimentTreatment(ctx context.Context, e
 		},
 	}
 	return sendJSON[AppStoreVersionExperimentTreatmentResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/appStoreVersionExperimentTreatments", Payload: payload})
-}
-
-// UpdateAppStoreVersionExperimentTreatment updates a treatment.
-func (c *Client) UpdateAppStoreVersionExperimentTreatment(ctx context.Context, treatmentID string, attrs AppStoreVersionExperimentTreatmentUpdateAttributes) (*AppStoreVersionExperimentTreatmentResponse, error) {
-	treatmentID = strings.TrimSpace(treatmentID)
-	if treatmentID == "" {
-		return nil, fmt.Errorf("treatmentID is required")
-	}
-
-	payload := AppStoreVersionExperimentTreatmentUpdateRequest{
-		Data: AppStoreVersionExperimentTreatmentUpdateData{
-			Type: ResourceTypeAppStoreVersionExperimentTreatments,
-			ID:   treatmentID,
-		},
-	}
-	if attrs.Name != nil || attrs.AppIconName != nil {
-		payload.Data.Attributes = &attrs
-	}
-	return sendJSON[AppStoreVersionExperimentTreatmentResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/appStoreVersionExperimentTreatments/%s", treatmentID), Payload: payload})
 }
 
 // GetAppStoreVersionExperimentTreatmentLocalization retrieves a treatment localization by ID.

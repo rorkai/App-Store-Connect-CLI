@@ -569,24 +569,6 @@ func (c *Client) CreateAppClipDefaultExperienceLocalization(ctx context.Context,
 	return sendJSON[AppClipDefaultExperienceLocalizationResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/appClipDefaultExperienceLocalizations", Payload: payload})
 }
 
-// UpdateAppClipDefaultExperienceLocalization updates a localization.
-func (c *Client) UpdateAppClipDefaultExperienceLocalization(ctx context.Context, localizationID string, attrs *AppClipDefaultExperienceLocalizationUpdateAttributes) (*AppClipDefaultExperienceLocalizationResponse, error) {
-	localizationID = strings.TrimSpace(localizationID)
-	if localizationID == "" {
-		return nil, fmt.Errorf("localizationID is required")
-	}
-
-	payload := AppClipDefaultExperienceLocalizationUpdateRequest{
-		Data: AppClipDefaultExperienceLocalizationUpdateData{
-			Type:       ResourceTypeAppClipDefaultExperienceLocalizations,
-			ID:         localizationID,
-			Attributes: attrs,
-		},
-	}
-
-	return sendJSON[AppClipDefaultExperienceLocalizationResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/appClipDefaultExperienceLocalizations/%s", localizationID), Payload: payload})
-}
-
 // GetAppClipAdvancedExperiences retrieves advanced experiences for an App Clip.
 func (c *Client) GetAppClipAdvancedExperiences(ctx context.Context, appClipID string, opts ...AppClipAdvancedExperiencesOption) (*AppClipAdvancedExperiencesResponse, error) {
 	query := applyOptions(opts)
@@ -966,24 +948,6 @@ func (c *Client) CreateAppClipAppStoreReviewDetail(ctx context.Context, experien
 	return sendJSON[AppClipAppStoreReviewDetailResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/appClipAppStoreReviewDetails", Payload: payload})
 }
 
-// UpdateAppClipAppStoreReviewDetail updates review detail by ID.
-func (c *Client) UpdateAppClipAppStoreReviewDetail(ctx context.Context, detailID string, attrs *AppClipAppStoreReviewDetailUpdateAttributes) (*AppClipAppStoreReviewDetailResponse, error) {
-	detailID = strings.TrimSpace(detailID)
-	if detailID == "" {
-		return nil, fmt.Errorf("detailID is required")
-	}
-
-	payload := AppClipAppStoreReviewDetailUpdateRequest{
-		Data: AppClipAppStoreReviewDetailUpdateData{
-			Type:       ResourceTypeAppClipAppStoreReviewDetails,
-			ID:         detailID,
-			Attributes: attrs,
-		},
-	}
-
-	return sendJSON[AppClipAppStoreReviewDetailResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/appClipAppStoreReviewDetails/%s", detailID), Payload: payload})
-}
-
 // CreateBetaAppClipInvocation creates a beta App Clip invocation.
 func (c *Client) CreateBetaAppClipInvocation(ctx context.Context, buildBundleID string, attrs BetaAppClipInvocationCreateAttributes, localizationIDs []string, inlineLocalizations []BetaAppClipInvocationLocalizationCreateAttributes) (*BetaAppClipInvocationResponse, error) {
 	buildBundleID = strings.TrimSpace(buildBundleID)
@@ -1057,24 +1021,6 @@ func (c *Client) CreateBetaAppClipInvocation(ctx context.Context, buildBundleID 
 	return sendJSON[BetaAppClipInvocationResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/betaAppClipInvocations", Payload: payload})
 }
 
-// UpdateBetaAppClipInvocation updates a beta App Clip invocation.
-func (c *Client) UpdateBetaAppClipInvocation(ctx context.Context, invocationID string, attrs *BetaAppClipInvocationUpdateAttributes) (*BetaAppClipInvocationResponse, error) {
-	invocationID = strings.TrimSpace(invocationID)
-	if invocationID == "" {
-		return nil, fmt.Errorf("invocationID is required")
-	}
-
-	payload := BetaAppClipInvocationUpdateRequest{
-		Data: BetaAppClipInvocationUpdateData{
-			Type:       ResourceTypeBetaAppClipInvocations,
-			ID:         invocationID,
-			Attributes: attrs,
-		},
-	}
-
-	return sendJSON[BetaAppClipInvocationResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/betaAppClipInvocations/%s", invocationID), Payload: payload})
-}
-
 // GetBetaAppClipInvocationLocalizations retrieves localizations via the invocation include.
 func (c *Client) GetBetaAppClipInvocationLocalizations(ctx context.Context, invocationID string, limit int) (*BetaAppClipInvocationLocalizationsResponse, error) {
 	opts := []BetaAppClipInvocationOption{
@@ -1129,22 +1075,4 @@ func (c *Client) CreateBetaAppClipInvocationLocalization(ctx context.Context, in
 	}
 
 	return sendJSON[BetaAppClipInvocationLocalizationResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/betaAppClipInvocationLocalizations", Payload: payload})
-}
-
-// UpdateBetaAppClipInvocationLocalization updates a localization.
-func (c *Client) UpdateBetaAppClipInvocationLocalization(ctx context.Context, localizationID string, attrs *BetaAppClipInvocationLocalizationUpdateAttributes) (*BetaAppClipInvocationLocalizationResponse, error) {
-	localizationID = strings.TrimSpace(localizationID)
-	if localizationID == "" {
-		return nil, fmt.Errorf("localizationID is required")
-	}
-
-	payload := BetaAppClipInvocationLocalizationUpdateRequest{
-		Data: BetaAppClipInvocationLocalizationUpdateData{
-			Type:       ResourceTypeBetaAppClipInvocationLocalizations,
-			ID:         localizationID,
-			Attributes: attrs,
-		},
-	}
-
-	return sendJSON[BetaAppClipInvocationLocalizationResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/betaAppClipInvocationLocalizations/%s", localizationID), Payload: payload})
 }

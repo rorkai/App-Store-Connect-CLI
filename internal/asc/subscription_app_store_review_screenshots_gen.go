@@ -38,3 +38,19 @@ func (c *Client) GetSubscriptionAppStoreReviewScreenshot(ctx context.Context, sc
 		Query: buildSubscriptionAppStoreReviewScreenshotQuery(query),
 	})
 }
+
+// UpdateSubscriptionAppStoreReviewScreenshot sends PATCH /v1/subscriptionAppStoreReviewScreenshots/{id} (subscriptionAppStoreReviewScreenshots_updateInstance).
+func (c *Client) UpdateSubscriptionAppStoreReviewScreenshot(ctx context.Context, screenshotID string, attrs SubscriptionAppStoreReviewScreenshotUpdateAttributes) (*SubscriptionAppStoreReviewScreenshotResponse, error) {
+	payload := SubscriptionAppStoreReviewScreenshotUpdateRequest{
+		Data: SubscriptionAppStoreReviewScreenshotUpdateData{
+			Type:       ResourceTypeSubscriptionAppStoreReviewScreenshots,
+			ID:         strings.TrimSpace(screenshotID),
+			Attributes: attrs,
+		},
+	}
+	return sendJSON[SubscriptionAppStoreReviewScreenshotResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/subscriptionAppStoreReviewScreenshots/%s", strings.TrimSpace(screenshotID)),
+		Payload: payload,
+	})
+}

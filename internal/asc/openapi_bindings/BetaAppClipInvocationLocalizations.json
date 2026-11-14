@@ -10,6 +10,7 @@
     "BetaAppClipInvocationLocalizationUpdateRequest"
   ],
   "operations": [
-    {"operation":"betaAppClipInvocationLocalizations_deleteInstance","name":"DeleteBetaAppClipInvocationLocalization","params":["localizationID"],"check":"require"}
+    {"operation":"betaAppClipInvocationLocalizations_deleteInstance","name":"DeleteBetaAppClipInvocationLocalization","params":["localizationID"],"check":"require"},
+    {"operation":"betaAppClipInvocationLocalizations_updateInstance","name":"UpdateBetaAppClipInvocationLocalization","params":["localizationID"],"check":"require","attrs":"pointer"}
   ]
 }

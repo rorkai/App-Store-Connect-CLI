@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 )
 
@@ -43,5 +44,27 @@ func (c *Client) GetAppEncryptionDeclarationDocument(ctx context.Context, docume
 	return getJSON[AppEncryptionDeclarationDocumentResponse](ctx, c, readRequest{
 		Path:  fmt.Sprintf("/v1/appEncryptionDeclarationDocuments/%s", documentID),
 		Query: buildAppEncryptionDeclarationDocumentFieldsQuery(fields),
+	})
+}
+
+// UpdateAppEncryptionDeclarationDocument sends PATCH /v1/appEncryptionDeclarationDocuments/{id} (appEncryptionDeclarationDocuments_updateInstance).
+func (c *Client) UpdateAppEncryptionDeclarationDocument(ctx context.Context, documentID string, attrs AppEncryptionDeclarationDocumentUpdateAttributes) (*AppEncryptionDeclarationDocumentResponse, error) {
+	documentID = strings.TrimSpace(documentID)
+	if documentID == "" {
+		return nil, fmt.Errorf("documentID is required")
+	}
+	payload := AppEncryptionDeclarationDocumentUpdateRequest{
+		Data: AppEncryptionDeclarationDocumentUpdateData{
+			Type: ResourceTypeAppEncryptionDeclarationDocuments,
+			ID:   documentID,
+		},
+	}
+	if attrs.SourceFileChecksum != nil || attrs.Uploaded != nil {
+		payload.Data.Attributes = &attrs
+	}
+	return sendJSON[AppEncryptionDeclarationDocumentResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/appEncryptionDeclarationDocuments/%s", documentID),
+		Payload: payload,
 	})
 }

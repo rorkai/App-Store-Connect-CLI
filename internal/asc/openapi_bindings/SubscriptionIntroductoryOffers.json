@@ -7,6 +7,7 @@
     "SubscriptionIntroductoryOfferUpdateRequest"
   ],
   "operations": [
-    {"operation":"subscriptionIntroductoryOffers_deleteInstance","name":"DeleteSubscriptionIntroductoryOffer","params":["offerID"]}
+    {"operation":"subscriptionIntroductoryOffers_deleteInstance","name":"DeleteSubscriptionIntroductoryOffer","params":["offerID"]},
+    {"operation":"subscriptionIntroductoryOffers_updateInstance","name":"UpdateSubscriptionIntroductoryOffer","params":["offerID"],"attrs":"value"}
   ]
 }
