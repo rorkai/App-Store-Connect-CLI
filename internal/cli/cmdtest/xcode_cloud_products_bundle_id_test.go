@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestXcodeCloudProductsTableHydratesBundleIDFromIncludedApp(t *testing.T) {
@@ -50,25 +52,11 @@ func TestXcodeCloudProductsTableHydratesBundleIDFromIncludedApp(t *testing.T) {
 			t.Setenv("ASC_APP_ID", "")
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-			originalTransport := http.DefaultTransport
-			t.Cleanup(func() {
-				http.DefaultTransport = originalTransport
-			})
-
-			var requested []url.Values
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				if req.Method != http.MethodGet || req.URL.Path != "/v1/ciProducts" {
-					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-				}
-				requested = append(requested, req.URL.Query())
-				body := `{"data":[{"type":"ciProducts","id":"prod-1","attributes":{"name":"FoundationLab","createdDate":"2025-06-25T08:55:49.429Z","productType":"APP"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}],` +
-					`"included":[{"type":"apps","id":"app-1","attributes":{"bundleId":"com.rudrankriyam.foundationlab"}}]}`
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body:       io.NopCloser(strings.NewReader(body)),
-					Header:     http.Header{"Content-Type": []string{"application/json"}},
-				}, nil
-			})
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET("/v1/ciProducts", test.wantQuery.Encode()),
+				asctest.JSON(http.StatusOK, `{"data":[{"type":"ciProducts","id":"prod-1","attributes":{"name":"FoundationLab","createdDate":"2025-06-25T08:55:49.429Z","productType":"APP"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}],`+
+					`"included":[{"type":"apps","id":"app-1","attributes":{"bundleId":"com.rudrankriyam.foundationlab"}}]}`))
 
 			root := RootCommand("1.2.3")
 			root.FlagSet.SetOutput(io.Discard)
@@ -91,6 +79,10 @@ func TestXcodeCloudProductsTableHydratesBundleIDFromIncludedApp(t *testing.T) {
 			}
 			if !strings.Contains(stdout, "com.rudrankriyam.foundationlab") {
 				t.Fatalf("expected bundle ID value in output, got %q", stdout)
+			}
+			var requested []url.Values
+			for _, req := range reg.Requests() {
+				requested = append(requested, req.URL.Query())
 			}
 			if len(requested) != 1 {
 				t.Fatalf("expected exactly 1 request, got %d", len(requested))
@@ -153,22 +145,11 @@ func TestXcodeCloudProductsTableHydratesBundleIDsAcrossPages(t *testing.T) {
 			t.Setenv("ASC_APP_ID", "")
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-			callCount := 0
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				callCount++
-				if callCount > len(test.steps) {
-					t.Fatalf("unexpected request %d: %s %s", callCount, req.Method, req.URL.String())
-				}
-				want := test.steps[callCount-1]
-				if req.Method != http.MethodGet || req.URL.Path != want.path || req.URL.RawQuery != want.rawQuery {
-					t.Fatalf("request %d = %s %s?%s, want GET %s?%s", callCount, req.Method, req.URL.Path, req.URL.RawQuery, want.path, want.rawQuery)
-				}
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body:       io.NopCloser(strings.NewReader(want.body)),
-					Header:     http.Header{"Content-Type": []string{"application/json"}},
-				}, nil
-			}))
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			for _, step := range test.steps {
+				reg.Register(asctest.GET(step.path, step.rawQuery), asctest.JSON(http.StatusOK, step.body))
+			}
 
 			root := RootCommand("1.2.3")
 			root.FlagSet.SetOutput(io.Discard)
@@ -187,8 +168,14 @@ func TestXcodeCloudProductsTableHydratesBundleIDsAcrossPages(t *testing.T) {
 			if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)
 			}
-			if callCount != len(test.steps) {
+			requests := reg.Requests()
+			if callCount := len(requests); callCount != len(test.steps) {
 				t.Fatalf("requests = %d, want %d", callCount, len(test.steps))
+			}
+			for i, req := range requests {
+				if want := test.steps[i]; req.URL.Path != want.path || req.URL.RawQuery != want.rawQuery {
+					t.Fatalf("request %d = %s %s?%s, want GET %s?%s", i+1, req.Method, req.URL.Path, req.URL.RawQuery, want.path, want.rawQuery)
+				}
 			}
 			for _, bundleID := range test.wantBundleIDs {
 				if !strings.Contains(stdout, bundleID) {
