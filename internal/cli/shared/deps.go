@@ -73,13 +73,53 @@ func (d *Deps) NewFlagSet(name string, errorHandling flag.ErrorHandling) *flag.F
 // or a CI environment decides otherwise, --output defaults to table when d's
 // stdout is a terminal and to json when it is not.
 func (d *Deps) BindOutputFlags(fs *flag.FlagSet) OutputFlags {
-	return BindOutputFlagsWith(fs, "output", defaultOutputFormatFor(d.IO.StdoutTTY, d.IO.ErrOut), "Output format: json, table, markdown")
+	return BindOutputFlagsWith(fs, "output", d.DefaultOutputFormat(), "Output format: json, table, markdown")
+}
+
+// DefaultOutputFormat is DefaultOutputFormat decided from d's stdout, with an
+// invalid ASC_DEFAULT_OUTPUT reported to d's stderr.
+func (d *Deps) DefaultOutputFormat() string {
+	return defaultOutputFormatFor(d.IO.StdoutTTY, d.IO.ErrOut)
 }
 
 // PrintOutput writes data to d's stdout in the given format, and the notice
 // that more pages exist to d's stderr.
 func (d *Deps) PrintOutput(data any, format string, pretty bool) error {
 	return printOutputTo(d.IO.Out, d.IO.ErrOut, data, format, pretty)
+}
+
+// PrintOutputWithRenderers is PrintOutputWithRenderers with JSON written to
+// d's stdout and the more-pages notice to d's stderr. The renderers must
+// write to d.IO.Out themselves.
+func (d *Deps) PrintOutputWithRenderers(data any, format string, pretty bool, tableRenderer, markdownRenderer func() error) error {
+	return printOutputWithRenderersTo(d.IO.Out, d.IO.ErrOut, data, format, pretty, tableRenderer, markdownRenderer)
+}
+
+// PrintOutputRows is PrintOutputRows on d's stdout and stderr.
+func (d *Deps) PrintOutputRows(data any, format string, pretty bool, headers []string, rows [][]string) error {
+	return printOutputRowsTo(d.IO.Out, d.IO.ErrOut, data, format, pretty, headers, rows)
+}
+
+// RenderSection is RenderSection on d's stdout, with the title bold when d's
+// stderr is a terminal.
+func (d *Deps) RenderSection(title string, headers []string, rows [][]string, markdown bool) {
+	renderSectionTo(d.IO.Out, d.IO.StderrTTY, title, headers, rows, markdown)
+}
+
+// PrintStreamPage is PrintStreamPage on d's stdout.
+func (d *Deps) PrintStreamPage(data any) error {
+	return asc.PrintJSONTo(d.IO.Out, data)
+}
+
+// PrintResolvedPrices is PrintResolvedPrices on d's stdout and stderr.
+func (d *Deps) PrintResolvedPrices(result *ResolvedPricesResult, format string, pretty bool) error {
+	return printResolvedPricesTo(d.IO.Out, d.IO.ErrOut, result, format, pretty)
+}
+
+// RenderLocalizationUploadResult is RenderLocalizationUploadResult on d's
+// stdout.
+func (d *Deps) RenderLocalizationUploadResult(result *asc.LocalizationUploadResult, markdown bool) error {
+	return renderLocalizationUploadResultTo(d.IO.Out, result, markdown)
 }
 
 // UsageError is UsageError with the "Error:" line written to d's stderr.

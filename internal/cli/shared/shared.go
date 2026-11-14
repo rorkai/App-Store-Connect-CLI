@@ -225,7 +225,11 @@ func ResetDefaultOutputFormat() {
 
 // Bold returns the string wrapped in ANSI bold codes
 func Bold(s string) string {
-	if !supportsANSI() {
+	return boldFor(isTerminal(int(os.Stderr.Fd())), s)
+}
+
+func boldFor(stderrTTY bool, s string) string {
+	if !supportsANSIFor(stderrTTY) {
 		return s
 	}
 	return bold + s + reset
@@ -242,26 +246,32 @@ func OrNA(value string) string {
 
 // RenderSection renders a titled section as markdown or table output.
 func RenderSection(title string, headers []string, rows [][]string, markdown bool) {
+	renderSectionTo(os.Stdout, isTerminal(int(os.Stderr.Fd())), title, headers, rows, markdown)
+}
+
+// renderSectionTo writes the section to w; the table title is bold when
+// stderrTTY allows ANSI codes.
+func renderSectionTo(w io.Writer, stderrTTY bool, title string, headers []string, rows [][]string, markdown bool) {
 	if markdown {
-		fmt.Fprintf(os.Stdout, "### %s\n\n", title)
-		asc.RenderMarkdown(headers, rows)
-		fmt.Fprintln(os.Stdout)
+		fmt.Fprintf(w, "### %s\n\n", title)
+		asc.RenderMarkdownTo(w, headers, rows)
+		fmt.Fprintln(w)
 		return
 	}
 
-	fmt.Fprintf(os.Stdout, "%s\n", Bold(strings.ToUpper(title)))
-	asc.RenderTable(headers, rows)
-	fmt.Fprintln(os.Stdout)
+	fmt.Fprintf(w, "%s\n", boldFor(stderrTTY, strings.ToUpper(title)))
+	asc.RenderTableTo(w, headers, rows)
+	fmt.Fprintln(w)
 }
 
-func supportsANSI() bool {
+func supportsANSIFor(stderrTTY bool) bool {
 	if _, ok := os.LookupEnv("NO_COLOR"); ok {
 		return false
 	}
 	if strings.EqualFold(os.Getenv("TERM"), "dumb") {
 		return false
 	}
-	return isTerminal(int(os.Stderr.Fd()))
+	return stderrTTY
 }
 
 // DefaultUsageFunc returns a usage string with bold section headers
@@ -1332,14 +1342,14 @@ func printOutputTo(out, errOut io.Writer, data any, format string, pretty bool) 
 	return nil
 }
 
-func printOutputWithRenderers(data any, format string, pretty bool, tableRenderer, markdownRenderer func() error) error {
+func printOutputWithRenderersTo(out, errOut io.Writer, data any, format string, pretty bool, tableRenderer, markdownRenderer func() error) error {
 	format, err := validateOutputFormat(format, pretty)
 	if err != nil {
 		return err
 	}
 	switch format {
 	case "json":
-		err = printJSONOutput(os.Stdout, data, pretty)
+		err = printJSONOutput(out, data, pretty)
 	case "table":
 		if tableRenderer == nil {
 			return fmt.Errorf("table renderer is required")
@@ -1356,8 +1366,20 @@ func printOutputWithRenderers(data any, format string, pretty bool, tableRendere
 	if err != nil {
 		return err
 	}
-	warnMorePages(os.Stderr, data)
+	warnMorePages(errOut, data)
 	return nil
+}
+
+func printOutputRowsTo(out, errOut io.Writer, data any, format string, pretty bool, headers []string, rows [][]string) error {
+	return printOutputWithRenderersTo(
+		out,
+		errOut,
+		data,
+		format,
+		pretty,
+		func() error { return asc.WriteTableTo(out, headers, rows) },
+		func() error { return asc.WriteMarkdownTo(out, headers, rows) },
+	)
 }
 
 // warnMorePages emits a stderr notice when rendered output is a single page of
@@ -1476,9 +1498,6 @@ func validateOutputFormatAllowed(flagName, format string, pretty bool, allowed .
 	return normalized, nil
 }
 
-func printStreamPage(data any) error {
-	return asc.PrintJSON(data)
-}
 
 func normalizeDate(value, flagName string) (string, error) {
 	trimmed := strings.TrimSpace(value)
@@ -2045,18 +2064,12 @@ func PrintOutput(data any, format string, pretty bool) error {
 }
 
 func PrintOutputWithRenderers(data any, format string, pretty bool, tableRenderer, markdownRenderer func() error) error {
-	return printOutputWithRenderers(data, format, pretty, tableRenderer, markdownRenderer)
+	return printOutputWithRenderersTo(os.Stdout, os.Stderr, data, format, pretty, tableRenderer, markdownRenderer)
 }
 
 // PrintOutputRows prints data as JSON, or as one table of headers and rows.
 func PrintOutputRows(data any, format string, pretty bool, headers []string, rows [][]string) error {
-	return printOutputWithRenderers(
-		data,
-		format,
-		pretty,
-		func() error { return asc.WriteTable(headers, rows) },
-		func() error { return asc.WriteMarkdown(headers, rows) },
-	)
+	return printOutputRowsTo(os.Stdout, os.Stderr, data, format, pretty, headers, rows)
 }
 
 func ValidateOutputFormat(format string, pretty bool) (string, error) {
@@ -2130,5 +2143,5 @@ func ValidateSort(value string, allowed ...string) error {
 // Used with --stream --paginate to emit results page-by-page as NDJSON
 // instead of buffering all pages in memory.
 func PrintStreamPage(data any) error {
-	return printStreamPage(data)
+	return asc.PrintJSONTo(os.Stdout, data)
 }
