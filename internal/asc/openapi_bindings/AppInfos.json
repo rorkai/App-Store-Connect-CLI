@@ -5,8 +5,10 @@
     "AppInfoResponse"
   ],
   "operations": [
+    {"operation":"appInfos_ageRatingDeclaration_getToOneRelated","name":"GetAgeRatingDeclarationForAppInfo","params":["appInfoID"],"check":"raw","options":"AgeRatingDeclarationOption","query":"buildAgeRatingDeclarationQuery","single":true},
     {"operation":"appInfos_ageRatingDeclaration_getToOneRelationship","name":"GetAppInfoAgeRatingDeclarationRelationship","params":["appInfoID"],"check":"require","parseErr":"failed to parse ageRatingDeclaration relationship response"},
     {"operation":"appInfos_appInfoLocalizations_getToManyRelated","name":"GetAppInfoLocalizations","params":["appInfoID"],"check":"raw","options":"AppInfoLocalizationsOption","query":"buildAppInfoLocalizationsQuery","nextContext":"appInfoLocalizations"},
+    {"operation":"appInfos_getInstance","name":"GetAppInfo","params":["appInfoID"],"check":"require","options":"AppInfoOption","query":"buildAppInfoQuery","single":true,"deviations":[{"problem":"sent query parameters [limit] that the operation does not define","reason":"Shares its option type and query builder with GetAppInfos (GET /v1/apps/{id}/appInfos), which pages with limit. asc apps info view sets fields, include and included fields, the shared app info lookup sets include, and the metadata category settings read passes no options; none sets a limit."}]},
     {"operation":"appInfos_primaryCategory_getToOneRelated","name":"GetAppInfoPrimaryCategory","params":["appInfoID"],"check":"require"},
     {"operation":"appInfos_primaryCategory_getToOneRelationship","name":"GetAppInfoPrimaryCategoryRelationship","params":["appInfoID"],"check":"require","parseErr":"failed to parse primaryCategory relationship response"},
     {"operation":"appInfos_primarySubcategoryOne_getToOneRelated","name":"GetAppInfoPrimarySubcategoryOne","params":["appInfoID"],"check":"require"},

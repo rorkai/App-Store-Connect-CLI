@@ -93,16 +93,6 @@ func (c *Client) CreateSubscription(ctx context.Context, groupID string, attrs S
 	})
 }
 
-// GetSubscription retrieves a subscription by ID.
-func (c *Client) GetSubscription(ctx context.Context, subID string, opts ...SubscriptionOption) (*SubscriptionResponse, error) {
-	subID = strings.TrimSpace(subID)
-	if subID == "" {
-		return nil, fmt.Errorf("subscription ID is required")
-	}
-	query := applyOptions(opts)
-	return getJSON[SubscriptionResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/subscriptions/%s", subID), Query: buildSubscriptionQuery(query)})
-}
-
 // UpdateSubscription updates a subscription.
 func (c *Client) UpdateSubscription(ctx context.Context, subID string, attrs SubscriptionUpdateAttributes) (*SubscriptionResponse, error) {
 	payload := SubscriptionUpdateRequest{
@@ -322,33 +312,5 @@ func (c *Client) CreateSubscriptionAvailability(ctx context.Context, subID strin
 		Method:  http.MethodPost,
 		Path:    "/v1/subscriptionAvailabilities",
 		Payload: payload,
-	})
-}
-
-// GetSubscriptionAppStoreReviewScreenshotForSubscription retrieves the review screenshot for a subscription.
-func (c *Client) GetSubscriptionAppStoreReviewScreenshotForSubscription(ctx context.Context, subID string, opts ...SubscriptionAppStoreReviewScreenshotOption) (*SubscriptionAppStoreReviewScreenshotResponse, error) {
-	subID = strings.TrimSpace(subID)
-	if subID == "" {
-		return nil, fmt.Errorf("subscription ID is required")
-	}
-
-	query := applyOptions(opts)
-	return getJSON[SubscriptionAppStoreReviewScreenshotResponse](ctx, c, readRequest{
-		Path:  fmt.Sprintf("/v1/subscriptions/%s/appStoreReviewScreenshot", subID),
-		Query: buildSubscriptionAppStoreReviewScreenshotQuery(query),
-	})
-}
-
-// GetSubscriptionPromotedPurchase retrieves the promoted purchase for a subscription.
-func (c *Client) GetSubscriptionPromotedPurchase(ctx context.Context, subID string, opts ...PromotedPurchaseGetOption) (*PromotedPurchaseResponse, error) {
-	subID = strings.TrimSpace(subID)
-	if subID == "" {
-		return nil, fmt.Errorf("subscription ID is required")
-	}
-
-	query := applyOptions(opts)
-	return getJSON[PromotedPurchaseResponse](ctx, c, readRequest{
-		Path:  fmt.Sprintf("/v1/subscriptions/%s/promotedPurchase", subID),
-		Query: buildPromotedPurchaseGetQuery(query),
 	})
 }

@@ -116,6 +116,24 @@
         "responses": {"204": {"description": "Success (no content)"}}
       }
     },
+    "/v1/widgets/{id}/wheel": {
+      "get": {
+        "tags": ["Widgets"],
+        "operationId": "widgets_wheel_getToOneRelated",
+        "responses": {
+          "200": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WidgetResponse"}}}}
+        }
+      }
+    },
+    "/v1/widgets/{id}/wrapper": {
+      "get": {
+        "tags": ["Widgets"],
+        "operationId": "widgets_wrapper_getToOneRelated",
+        "responses": {
+          "200": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WidgetResponse"}}}}
+        }
+      }
+    },
     "/v1/wrenches": {
       "post": {
         "tags": ["Widgets"],

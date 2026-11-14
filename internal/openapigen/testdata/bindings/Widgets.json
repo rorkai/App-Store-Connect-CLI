@@ -25,9 +25,11 @@
     {"operation":"widgets_visibleParts_createToManyRelationship","name":"AddWidgetVisibleParts","params":["widgetID"],"check":"require","ids":"partIDs","idList":{"normalize":true,"message":"partIDs are required"}},
     {"operation":"widgets_visibleParts_deleteToManyRelationship","name":"RemoveWidgetVisibleParts","params":["widgetID"],"check":"require","messages":["widget ID is required"],"ids":"partIDs","idList":{"normalize":true,"message":"part IDs are required","payload":"append","item":"partID"}},
     {"operation":"widgets_visibleParts_replaceToManyRelationship","name":"UpdateWidgetVisibleParts","params":["widgetID"],"check":"require","ids":"partIDs","idList":{"payload":"nonNil"}},
+    {"operation":"widgets_wheel_getToOneRelated","name":"GetWidgetWheel","params":["widgetID"],"check":"require","options":"WheelOption","query":"buildWheelQuery","single":true},
     {"operation":"widgets_wheels_createToManyRelationship","name":"AddWidgetWheels","params":["widgetID"],"check":"require","ids":"wheelIDs","idList":{"normalize":true,"message":"wheelIDs are required","payload":"index"}},
     {"operation":"widgets_wheels_deleteToManyRelationship","name":"RemoveWidgetWheels","params":["widgetID"],"check":"require","ids":"wheelIDs","idList":{"normalize":true,"message":"wheelIDs are required","payload":"resourceList","item":"wheelID"}},
     {"operation":"widgets_wheels_replaceToManyRelationship","name":"SetWidgetWheels","params":["widgetID"],"ids":"wheelIDs","idList":{"normalize":true,"payload":"append","item":"id"}},
+    {"operation":"widgets_wrapper_getToOneRelated","name":"GetWidgetWrapper","params":["widgetID"],"query":"buildWrapperFieldsQuery","single":true},
     {"operation":"wrenches_createInstance","name":"CreateWrench","args":[{"name":"fileName"},{"name":"fileSize","type":"int64"}]},
     {"operation":"wrenches_updateInstance","name":"UpdateWrench","params":["wrenchID"],"check":"require","args":[{"name":"uploaded"},{"name":"checksum","attribute":"sourceFileChecksum"}]}
   ]

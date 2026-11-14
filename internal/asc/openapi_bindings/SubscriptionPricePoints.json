@@ -3,5 +3,8 @@
   "file": "subscription_price_points_gen.go",
   "types": [
     "SubscriptionPricePointAttributes"
+  ],
+  "operations": [
+    {"operation":"subscriptionPricePoints_getInstance","name":"GetSubscriptionPricePoint","params":["pricePointID"],"check":"require","checkFirst":true,"options":"SubscriptionPricePointOption","query":"buildSubscriptionPricePointDetailQuery","single":true}
   ]
 }

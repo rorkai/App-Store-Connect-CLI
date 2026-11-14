@@ -17,9 +17,35 @@ type SubscriptionCreateRequest struct {
 // SubscriptionResponse is the SubscriptionResponse schema.
 type SubscriptionResponse = SingleResponse[SubscriptionAttributes]
 
+// GetSubscriptionAppStoreReviewScreenshotForSubscription sends GET /v1/subscriptions/{id}/appStoreReviewScreenshot (subscriptions_appStoreReviewScreenshot_getToOneRelated).
+func (c *Client) GetSubscriptionAppStoreReviewScreenshotForSubscription(ctx context.Context, subID string, opts ...SubscriptionAppStoreReviewScreenshotOption) (*SubscriptionAppStoreReviewScreenshotResponse, error) {
+	subID = strings.TrimSpace(subID)
+	if subID == "" {
+		return nil, fmt.Errorf("subscription ID is required")
+	}
+	query := applyOptions(opts)
+	return getJSON[SubscriptionAppStoreReviewScreenshotResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/subscriptions/%s/appStoreReviewScreenshot", subID),
+		Query: buildSubscriptionAppStoreReviewScreenshotQuery(query),
+	})
+}
+
 // DeleteSubscription sends DELETE /v1/subscriptions/{id} (subscriptions_deleteInstance).
 func (c *Client) DeleteSubscription(ctx context.Context, subID string) error {
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/subscriptions/%s", strings.TrimSpace(subID)), nil)
+}
+
+// GetSubscription sends GET /v1/subscriptions/{id} (subscriptions_getInstance).
+func (c *Client) GetSubscription(ctx context.Context, subID string, opts ...SubscriptionOption) (*SubscriptionResponse, error) {
+	subID = strings.TrimSpace(subID)
+	if subID == "" {
+		return nil, fmt.Errorf("subscription ID is required")
+	}
+	query := applyOptions(opts)
+	return getJSON[SubscriptionResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/subscriptions/%s", subID),
+		Query: buildSubscriptionQuery(query),
+	})
 }
 
 // GetSubscriptionPrices sends GET /v1/subscriptions/{id}/prices (subscriptions_prices_getToManyRelated).
@@ -45,6 +71,19 @@ func (c *Client) GetSubscriptionPricesRelationships(ctx context.Context, subID s
 		Query:       buildLinkagesQuery(query),
 		Next:        query.nextURL,
 		NextContext: "subscriptionPricesRelationships",
+	})
+}
+
+// GetSubscriptionPromotedPurchase sends GET /v1/subscriptions/{id}/promotedPurchase (subscriptions_promotedPurchase_getToOneRelated).
+func (c *Client) GetSubscriptionPromotedPurchase(ctx context.Context, subID string, opts ...PromotedPurchaseGetOption) (*PromotedPurchaseResponse, error) {
+	subID = strings.TrimSpace(subID)
+	if subID == "" {
+		return nil, fmt.Errorf("subscription ID is required")
+	}
+	query := applyOptions(opts)
+	return getJSON[PromotedPurchaseResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/subscriptions/%s/promotedPurchase", subID),
+		Query: buildPromotedPurchaseGetQuery(query),
 	})
 }
 

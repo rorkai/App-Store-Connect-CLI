@@ -6,13 +6,6 @@ import (
 	"strings"
 )
 
-// GetMerchantID retrieves a single merchant ID by ID.
-func (c *Client) GetMerchantID(ctx context.Context, id string, opts ...MerchantIDsOption) (*MerchantIDResponse, error) {
-	query := applyOptions(opts)
-	id = strings.TrimSpace(id)
-	return getJSON[MerchantIDResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/merchantIds/%s", id), Query: buildMerchantIDsQuery(query)})
-}
-
 // CreateMerchantID creates a new merchant ID.
 func (c *Client) CreateMerchantID(ctx context.Context, attrs MerchantIDCreateAttributes) (*MerchantIDResponse, error) {
 	request := MerchantIDCreateRequest{

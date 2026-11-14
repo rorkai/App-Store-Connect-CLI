@@ -4,7 +4,9 @@ package asc
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"strings"
 )
 
 // DeviceCreateData is the data object of the DeviceCreateRequest schema.
@@ -59,5 +61,14 @@ func (c *Client) GetDevices(ctx context.Context, opts ...DevicesOption) (*Device
 		Query:       buildDevicesQuery(query),
 		Next:        query.nextURL,
 		NextContext: "devices",
+	})
+}
+
+// GetDevice sends GET /v1/devices/{id} (devices_getInstance).
+func (c *Client) GetDevice(ctx context.Context, deviceID string, fields []string) (*DeviceResponse, error) {
+	deviceID = strings.TrimSpace(deviceID)
+	return getJSON[DeviceResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/devices/%s", deviceID),
+		Query: buildDevicesFieldsQuery(fields),
 	})
 }

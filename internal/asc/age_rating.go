@@ -87,15 +87,6 @@ type AgeRatingDeclarationUpdateData struct {
 	Attributes AgeRatingDeclarationAttributes `json:"attributes"`
 }
 
-// GetAgeRatingDeclarationForAppInfo retrieves the age rating declaration for an app info.
-func (c *Client) GetAgeRatingDeclarationForAppInfo(ctx context.Context, appInfoID string, opts ...AgeRatingDeclarationOption) (*AgeRatingDeclarationResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[AgeRatingDeclarationResponse](ctx, c, readRequest{
-		Path:  fmt.Sprintf("/v1/appInfos/%s/ageRatingDeclaration", appInfoID),
-		Query: buildAgeRatingDeclarationQuery(query),
-	})
-}
-
 // GetAgeRatingDeclarationForAppStoreVersion retrieves the age rating declaration for a version.
 //
 // Apple removed the version-scoped endpoint in API 4.3, so this now resolves the

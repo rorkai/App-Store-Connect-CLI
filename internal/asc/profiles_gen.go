@@ -73,3 +73,13 @@ func (c *Client) GetProfiles(ctx context.Context, opts ...ProfilesOption) (*Prof
 		NextContext: "profiles",
 	})
 }
+
+// GetProfile sends GET /v1/profiles/{id} (profiles_getInstance).
+func (c *Client) GetProfile(ctx context.Context, id string, opts ...ProfilesOption) (*ProfileResponse, error) {
+	id = strings.TrimSpace(id)
+	query := applyOptions(opts)
+	return getJSON[ProfileResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/profiles/%s", id),
+		Query: buildProfilesQuery(query),
+	})
+}

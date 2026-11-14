@@ -11,6 +11,7 @@
   ],
   "operations": [
     {"operation":"devices_createInstance","name":"CreateDevice"},
-    {"operation":"devices_getCollection","name":"GetDevices","options":"DevicesOption","query":"buildDevicesQuery","nextContext":"devices"}
+    {"operation":"devices_getCollection","name":"GetDevices","options":"DevicesOption","query":"buildDevicesQuery","nextContext":"devices"},
+    {"operation":"devices_getInstance","name":"GetDevice","params":["deviceID"],"check":"trim","query":"buildDevicesFieldsQuery","single":true}
   ]
 }

@@ -6,17 +6,6 @@ import (
 	"strings"
 )
 
-// GetAndroidToIosAppMappingDetail retrieves a mapping by ID.
-func (c *Client) GetAndroidToIosAppMappingDetail(ctx context.Context, id string, opts ...AndroidToIosAppMappingDetailsOption) (*AndroidToIosAppMappingDetailResponse, error) {
-	id = strings.TrimSpace(id)
-	if id == "" {
-		return nil, fmt.Errorf("mapping ID is required")
-	}
-
-	query := applyOptions(opts)
-	return getJSON[AndroidToIosAppMappingDetailResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/androidToIosAppMappingDetails/%s", id), Query: buildAndroidToIosAppMappingDetailQuery(query)})
-}
-
 // CreateAndroidToIosAppMappingDetail creates a new mapping.
 func (c *Client) CreateAndroidToIosAppMappingDetail(ctx context.Context, appID string, attrs AndroidToIosAppMappingDetailCreateAttributes) (*AndroidToIosAppMappingDetailResponse, error) {
 	appID = strings.TrimSpace(appID)

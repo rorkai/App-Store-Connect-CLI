@@ -44,3 +44,16 @@ func (c *Client) GetNominations(ctx context.Context, opts ...NominationsOption) 
 		NextContext: "nominations",
 	})
 }
+
+// GetNomination sends GET /v1/nominations/{id} (nominations_getInstance).
+func (c *Client) GetNomination(ctx context.Context, nominationID string, opts ...NominationsOption) (*NominationResponse, error) {
+	nominationID = strings.TrimSpace(nominationID)
+	if nominationID == "" {
+		return nil, fmt.Errorf("nominationID is required")
+	}
+	query := applyOptions(opts)
+	return getJSON[NominationResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/nominations/%s", nominationID),
+		Query: buildNominationsDetailQuery(query),
+	})
+}

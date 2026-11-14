@@ -9,6 +9,7 @@
     "InAppPurchaseAppStoreReviewScreenshotUpdateRequest"
   ],
   "operations": [
-    {"operation":"inAppPurchaseAppStoreReviewScreenshots_deleteInstance","name":"DeleteInAppPurchaseAppStoreReviewScreenshot","params":["screenshotID"],"check":"require"}
+    {"operation":"inAppPurchaseAppStoreReviewScreenshots_deleteInstance","name":"DeleteInAppPurchaseAppStoreReviewScreenshot","params":["screenshotID"],"check":"require"},
+    {"operation":"inAppPurchaseAppStoreReviewScreenshots_getInstance","name":"GetInAppPurchaseAppStoreReviewScreenshot","params":["screenshotID"],"check":"require","checkFirst":true,"options":"IAPReviewScreenshotOption","query":"buildIAPReviewScreenshotQuery","single":true}
   ]
 }
