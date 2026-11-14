@@ -56,15 +56,15 @@ func parseDeliverfileReader(path string, reader io.Reader) (DeliverfileConfig, e
 			continue
 		}
 		line = stripDeliverfileComment(line)
-		if match := heredocStart.FindStringSubmatch(line); match != nil {
-			heredocEnd = match[1]
-		}
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
 		key, value, ok := parseDeliverfileLine(line)
 		if !ok {
 			continue
+		}
+		if match := heredocStart.FindStringSubmatch(strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), key))); match != nil {
+			heredocEnd = match[1]
 		}
 		switch key {
 		case "metadata_path":
@@ -273,9 +273,10 @@ var unappliedConfigKeys = []string{
 	"app_clip_default_experience_subtitle", "app_clip_default_experience_action",
 }
 
-// heredocStart matches the opening of a multi-line text value, such as
-// "<<~TEXT". The lines up to the closing word are text, not options.
-var heredocStart = regexp.MustCompile(`<<[~-]?["']?([A-Za-z_][A-Za-z0-9_]*)["']?`)
+// heredocStart matches a value that opens a multi-line text, such as
+// "<<~TEXT" or "(<<~TEXT". The lines up to the closing word are text, not
+// options. It is anchored so that "<<" inside a quoted value does not count.
+var heredocStart = regexp.MustCompile(`^\(?\s*<<[~-]?["']?([A-Za-z_][A-Za-z0-9_]*)["']?`)
 
 // isConfigOptionCall reports whether rest, the text that follows an option
 // name, sets the option: "name value" or "name(value)". Text that starts with
