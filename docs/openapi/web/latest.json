@@ -4254,7 +4254,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "oneOf": [
+                "anyOf": [
                   {
                     "$ref": "#/components/schemas/DeleteAppRequest"
                   },
@@ -7257,7 +7257,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "oneOf": [
+                "anyOf": [
                   {
                     "$ref": "#/components/schemas/RegisterIndividualAPIKeyRequest"
                   },
@@ -8794,7 +8794,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "oneOf": [
+                "anyOf": [
                   {
                     "$ref": "#/components/schemas/DeveloperPortalReadRequest"
                   },
@@ -8813,7 +8813,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "oneOf": [
+                  "anyOf": [
                     {
                       "$ref": "#/components/schemas/DeveloperBundleIdsResponse"
                     },
@@ -8881,7 +8881,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "oneOf": [
+                "anyOf": [
                   {
                     "$ref": "#/components/schemas/DeveloperPortalReadRequest"
                   },
@@ -9018,7 +9018,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "oneOf": [
+                "anyOf": [
                   {
                     "$ref": "#/components/schemas/DeveloperPortalTeamRequest"
                   },
@@ -9037,7 +9037,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "oneOf": [
+                  "anyOf": [
                     {
                       "$ref": "#/components/schemas/CapabilityResponse"
                     },
@@ -9105,7 +9105,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "oneOf": [
+                "anyOf": [
                   {
                     "$ref": "#/components/schemas/DeveloperPortalReadRequest"
                   },
@@ -9124,7 +9124,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "oneOf": [
+                  "anyOf": [
                     {
                       "$ref": "#/components/schemas/CloudContainersResponse"
                     },
@@ -9298,7 +9298,8 @@
                     "type": "array",
                     "items": {
                       "type": "string"
-                    }
+                    },
+                    "nullable": true
                   }
                 },
                 "additionalProperties": true
@@ -9319,7 +9320,8 @@
                             "type": "string"
                           }
                         },
-                        "additionalProperties": true
+                        "additionalProperties": true,
+                        "nullable": true
                       }
                     },
                     "additionalProperties": true
@@ -9334,7 +9336,8 @@
                             "type": "string"
                           }
                         },
-                        "additionalProperties": true
+                        "additionalProperties": true,
+                        "nullable": true
                       }
                     },
                     "additionalProperties": true
@@ -9373,7 +9376,8 @@
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           }
         },
         "additionalProperties": true
@@ -9394,7 +9398,8 @@
                       "type": "array",
                       "items": {
                         "type": "string"
-                      }
+                      },
+                      "nullable": true
                     }
                   },
                   "additionalProperties": true
@@ -9415,7 +9420,8 @@
                               "type": "string"
                             }
                           },
-                          "additionalProperties": true
+                          "additionalProperties": true,
+                          "nullable": true
                         }
                       },
                       "additionalProperties": true
@@ -9430,7 +9436,8 @@
                               "type": "string"
                             }
                           },
-                          "additionalProperties": true
+                          "additionalProperties": true,
+                          "nullable": true
                         }
                       },
                       "additionalProperties": true
@@ -9440,7 +9447,8 @@
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "included": {
             "type": "array",
@@ -9470,11 +9478,13 @@
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "links": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           }
         },
         "additionalProperties": true
@@ -9521,16 +9531,19 @@
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "data": {
             "type": "object",
             "properties": {
               "agreeToFamilyShare": {
-                "type": "boolean"
+                "type": "boolean",
+                "nullable": true
               },
               "agreeToTerms": {
-                "type": "boolean"
+                "type": "boolean",
+                "nullable": true
               },
               "contractConfigId": {
                 "type": "string"
@@ -9542,11 +9555,13 @@
                 "type": "string"
               }
             },
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "messages": {
             "type": "array",
-            "items": {}
+            "items": {},
+            "nullable": true
           }
         },
         "additionalProperties": true
@@ -9582,7 +9597,8 @@
                   "type": "array",
                   "items": {
                     "type": "string"
-                  }
+                  },
+                  "nullable": true
                 },
                 "features": {
                   "type": "array",
@@ -9597,7 +9613,8 @@
                       }
                     },
                     "additionalProperties": true
-                  }
+                  },
+                  "nullable": true
                 },
                 "hasAppClips": {
                   "type": "boolean"
@@ -9618,11 +9635,13 @@
                   "type": "array",
                   "items": {
                     "type": "string"
-                  }
+                  },
+                  "nullable": true
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "size": {
             "type": "integer"
@@ -9677,7 +9696,8 @@
             "additionalProperties": {
               "type": "array",
               "items": {}
-            }
+            },
+            "nullable": true
           }
         },
         "additionalProperties": true
@@ -9839,11 +9859,13 @@
                   "items": {
                     "type": "object",
                     "additionalProperties": true
-                  }
+                  },
+                  "nullable": true
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "size": {
             "type": "integer"
@@ -9876,7 +9898,8 @@
                     "properties": {
                       "availability": {
                         "type": "object",
-                        "additionalProperties": true
+                        "additionalProperties": true,
+                        "nullable": true
                       },
                       "category": {
                         "type": "string"
@@ -9901,15 +9924,18 @@
                       },
                       "windows": {
                         "type": "array",
-                        "items": {}
+                        "items": {},
+                        "nullable": true
                       }
                     },
                     "additionalProperties": true
-                  }
+                  },
+                  "nullable": true
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "size": {
             "type": "integer"
@@ -9945,7 +9971,8 @@
                       }
                     },
                     "additionalProperties": true
-                  }
+                  },
+                  "nullable": true
                 },
                 "dimension": {
                   "type": "string"
@@ -9957,14 +9984,16 @@
                   "type": "string"
                 },
                 "total": {
-                  "type": "number"
+                  "type": "number",
+                  "nullable": true
                 },
                 "type": {
                   "type": "string"
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "size": {
             "type": "integer"
@@ -10010,7 +10039,8 @@
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "size": {
             "type": "integer"
@@ -10073,11 +10103,13 @@
                         "type": "string"
                       },
                       "value": {
-                        "type": "number"
+                        "type": "number",
+                        "nullable": true
                       }
                     },
                     "additionalProperties": true
-                  }
+                  },
+                  "nullable": true
                 },
                 "measure": {
                   "type": "string"
@@ -10086,20 +10118,24 @@
                   "type": "boolean"
                 },
                 "percentChange": {
-                  "type": "number"
+                  "type": "number",
+                  "nullable": true
                 },
                 "previousTotal": {
-                  "type": "number"
+                  "type": "number",
+                  "nullable": true
                 },
                 "total": {
-                  "type": "number"
+                  "type": "number",
+                  "nullable": true
                 },
                 "type": {
                   "type": "string"
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "size": {
             "type": "integer"
@@ -10158,21 +10194,25 @@
                         "type": "string"
                       },
                       "retentionPercentage": {
-                        "type": "number"
+                        "type": "number",
+                        "nullable": true
                       },
                       "value": {
-                        "type": "number"
+                        "type": "number",
+                        "nullable": true
                       }
                     },
                     "additionalProperties": true
-                  }
+                  },
+                  "nullable": true
                 },
                 "meetsThreshold": {
                   "type": "boolean"
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           }
         },
         "additionalProperties": true
@@ -10221,13 +10261,15 @@
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "enabledFeatures": {
             "type": "array",
             "items": {
               "type": "string"
-            }
+            },
+            "nullable": true
           },
           "measures": {
             "type": "array",
@@ -10242,7 +10284,8 @@
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           }
         },
         "additionalProperties": true
@@ -10303,7 +10346,8 @@
                   "type": "object",
                   "additionalProperties": {
                     "type": "number"
-                  }
+                  },
+                  "nullable": true
                 },
                 "sourceId": {
                   "type": "string"
@@ -10316,7 +10360,8 @@
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "size": {
             "type": "integer"
@@ -10375,16 +10420,19 @@
                   "items": {
                     "type": "object",
                     "additionalProperties": true
-                  }
+                  },
+                  "nullable": true
                 },
                 "group": {},
                 "totals": {
                   "type": "object",
-                  "additionalProperties": true
+                  "additionalProperties": true,
+                  "nullable": true
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "size": {
             "type": "integer"
@@ -10443,19 +10491,22 @@
                   "items": {
                     "type": "object",
                     "additionalProperties": true
-                  }
+                  },
+                  "nullable": true
                 },
                 "group": {},
                 "meetsThreshold": {
                   "type": "object",
                   "additionalProperties": {
                     "type": "boolean"
-                  }
+                  },
+                  "nullable": true
                 },
                 "totals": {}
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "size": {
             "type": "integer"
@@ -10498,7 +10549,8 @@
                     "type": "string"
                   }
                 },
-                "additionalProperties": true
+                "additionalProperties": true,
+                "nullable": true
               },
               "revokingDate": {
                 "type": "string"
@@ -10507,7 +10559,8 @@
                 "type": "array",
                 "items": {
                   "type": "string"
-                }
+                },
+                "nullable": true
               }
             },
             "additionalProperties": true
@@ -10528,7 +10581,8 @@
                         "type": "string"
                       }
                     },
-                    "additionalProperties": true
+                    "additionalProperties": true,
+                    "nullable": true
                   }
                 },
                 "additionalProperties": true
@@ -10641,7 +10695,8 @@
                           "type": "string"
                         }
                       },
-                      "additionalProperties": true
+                      "additionalProperties": true,
+                      "nullable": true
                     },
                     "revokingDate": {
                       "type": "string"
@@ -10650,7 +10705,8 @@
                       "type": "array",
                       "items": {
                         "type": "string"
-                      }
+                      },
+                      "nullable": true
                     }
                   },
                   "additionalProperties": true
@@ -10671,7 +10727,8 @@
                               "type": "string"
                             }
                           },
-                          "additionalProperties": true
+                          "additionalProperties": true,
+                          "nullable": true
                         }
                       },
                       "additionalProperties": true
@@ -10684,7 +10741,8 @@
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           }
         },
         "additionalProperties": true
@@ -10788,7 +10846,8 @@
                       "type": "array",
                       "items": {
                         "type": "string"
-                      }
+                      },
+                      "nullable": true
                     }
                   },
                   "additionalProperties": true
@@ -10809,7 +10868,8 @@
                               "type": "string"
                             }
                           },
-                          "additionalProperties": true
+                          "additionalProperties": true,
+                          "nullable": true
                         }
                       },
                       "additionalProperties": true
@@ -10824,7 +10884,8 @@
                               "type": "string"
                             }
                           },
-                          "additionalProperties": true
+                          "additionalProperties": true,
+                          "nullable": true
                         }
                       },
                       "additionalProperties": true
@@ -10834,7 +10895,8 @@
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "included": {
             "type": "array",
@@ -10861,11 +10923,13 @@
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "links": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           }
         },
         "additionalProperties": true
@@ -10901,7 +10965,8 @@
                       "type": "array",
                       "items": {
                         "type": "string"
-                      }
+                      },
+                      "nullable": true
                     }
                   },
                   "additionalProperties": true
@@ -10922,7 +10987,8 @@
                               "type": "string"
                             }
                           },
-                          "additionalProperties": true
+                          "additionalProperties": true,
+                          "nullable": true
                         }
                       },
                       "additionalProperties": true
@@ -10937,7 +11003,8 @@
                               "type": "string"
                             }
                           },
-                          "additionalProperties": true
+                          "additionalProperties": true,
+                          "nullable": true
                         }
                       },
                       "additionalProperties": true
@@ -10947,11 +11014,13 @@
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "links": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           }
         },
         "additionalProperties": true
@@ -10962,7 +11031,8 @@
         "properties": {
           "attributes": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "id": {
             "type": "string"
@@ -10975,7 +11045,8 @@
                 "data": {}
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "type": {
             "type": "string"
@@ -10989,7 +11060,8 @@
         "properties": {
           "attributes": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "id": {
             "type": "string"
@@ -11002,7 +11074,8 @@
                 "data": {}
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "type": {
             "type": "string"
@@ -11107,7 +11180,8 @@
         "properties": {
           "attributes": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "id": {
             "type": "string"
@@ -11120,7 +11194,8 @@
                 "data": {}
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "type": {
             "type": "string"
@@ -11145,10 +11220,12 @@
                   "type": "string"
                 },
                 "marketingText": {
-                  "type": "string"
+                  "type": "string",
+                  "nullable": true
                 },
                 "marketingUrl": {
-                  "type": "string"
+                  "type": "string",
+                  "nullable": true
                 },
                 "name": {
                   "type": "string"
@@ -11160,11 +11237,13 @@
                 "marketingUrl",
                 "name"
               ]
-            }
+            },
+            "nullable": true
           },
           "memberApps": {
             "type": "array",
-            "items": {}
+            "items": {},
+            "nullable": true
           },
           "priceTierStem": {
             "type": "string"
@@ -11198,7 +11277,8 @@
                 "type": "array",
                 "items": {
                   "type": "string"
-                }
+                },
+                "nullable": true
               }
             },
             "additionalProperties": true
@@ -11221,7 +11301,8 @@
                 "type": "array",
                 "items": {
                   "type": "string"
-                }
+                },
+                "nullable": true
               }
             },
             "additionalProperties": true
@@ -11244,7 +11325,8 @@
                 "type": "array",
                 "items": {
                   "type": "string"
-                }
+                },
+                "nullable": true
               }
             },
             "additionalProperties": true
@@ -11267,7 +11349,8 @@
                 "type": "array",
                 "items": {
                   "type": "string"
-                }
+                },
+                "nullable": true
               }
             },
             "additionalProperties": true
@@ -11290,7 +11373,8 @@
                 "type": "array",
                 "items": {
                   "type": "string"
-                }
+                },
+                "nullable": true
               }
             },
             "additionalProperties": true
@@ -11318,7 +11402,8 @@
               "properties": {
                 "attributes": {
                   "type": "object",
-                  "additionalProperties": true
+                  "additionalProperties": true,
+                  "nullable": true
                 },
                 "id": {
                   "type": "string"
@@ -11331,18 +11416,21 @@
                       "data": {}
                     },
                     "additionalProperties": true
-                  }
+                  },
+                  "nullable": true
                 },
                 "type": {
                   "type": "string"
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "links": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           }
         },
         "additionalProperties": true,
@@ -11414,7 +11502,8 @@
                             "id",
                             "type"
                           ]
-                        }
+                        },
+                        "nullable": true
                       }
                     },
                     "required": [
@@ -11440,7 +11529,8 @@
                             "id",
                             "type"
                           ]
-                        }
+                        },
+                        "nullable": true
                       }
                     },
                     "required": [
@@ -11465,7 +11555,8 @@
           },
           "included": {
             "type": "array",
-            "items": {}
+            "items": {},
+            "nullable": true
           }
         },
         "required": [
@@ -11479,7 +11570,8 @@
         "properties": {
           "attributes": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "id": {
             "type": "string"
@@ -11492,7 +11584,8 @@
                 "data": {}
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "type": {
             "type": "string"
@@ -11517,7 +11610,8 @@
               "properties": {
                 "attributes": {
                   "type": "object",
-                  "additionalProperties": true
+                  "additionalProperties": true,
+                  "nullable": true
                 },
                 "id": {
                   "type": "string"
@@ -11530,18 +11624,21 @@
                       "data": {}
                     },
                     "additionalProperties": true
-                  }
+                  },
+                  "nullable": true
                 },
                 "type": {
                   "type": "string"
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "links": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           }
         },
         "additionalProperties": true,
@@ -11555,7 +11652,8 @@
         "properties": {
           "attributes": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "id": {
             "type": "string"
@@ -11568,7 +11666,8 @@
                 "data": {}
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "type": {
             "type": "string"
@@ -11610,7 +11709,8 @@
         "properties": {
           "attributes": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "id": {
             "type": "string"
@@ -11623,7 +11723,8 @@
                 "data": {}
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "type": {
             "type": "string"
@@ -11648,7 +11749,8 @@
               "properties": {
                 "attributes": {
                   "type": "object",
-                  "additionalProperties": true
+                  "additionalProperties": true,
+                  "nullable": true
                 },
                 "id": {
                   "type": "string"
@@ -11661,18 +11763,21 @@
                       "data": {}
                     },
                     "additionalProperties": true
-                  }
+                  },
+                  "nullable": true
                 },
                 "type": {
                   "type": "string"
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "links": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           }
         },
         "additionalProperties": true,
@@ -11686,7 +11791,8 @@
         "properties": {
           "attributes": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "id": {
             "type": "string"
@@ -11699,7 +11805,8 @@
                 "data": {}
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "type": {
             "type": "string"
@@ -11724,7 +11831,8 @@
               "properties": {
                 "attributes": {
                   "type": "object",
-                  "additionalProperties": true
+                  "additionalProperties": true,
+                  "nullable": true
                 },
                 "id": {
                   "type": "string"
@@ -11737,18 +11845,21 @@
                       "data": {}
                     },
                     "additionalProperties": true
-                  }
+                  },
+                  "nullable": true
                 },
                 "type": {
                   "type": "string"
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "links": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           }
         },
         "additionalProperties": true,
@@ -11804,7 +11915,8 @@
         "properties": {
           "attributes": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "id": {
             "type": "string"
@@ -11817,7 +11929,8 @@
                 "data": {}
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "type": {
             "type": "string"
@@ -11891,7 +12004,8 @@
               "properties": {
                 "attributes": {
                   "type": "object",
-                  "additionalProperties": true
+                  "additionalProperties": true,
+                  "nullable": true
                 },
                 "id": {
                   "type": "string"
@@ -11904,18 +12018,21 @@
                       "data": {}
                     },
                     "additionalProperties": true
-                  }
+                  },
+                  "nullable": true
                 },
                 "type": {
                   "type": "string"
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "links": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           }
         },
         "additionalProperties": true,
@@ -11973,7 +12090,8 @@
             "type": "string"
           },
           "resultCode": {
-            "type": "integer"
+            "type": "integer",
+            "nullable": true
           },
           "resultString": {
             "type": "string"
@@ -12010,10 +12128,12 @@
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "pageNumber": {
-            "type": "integer"
+            "type": "integer",
+            "nullable": true
           },
           "pageSize": {
             "type": "integer"
@@ -12022,13 +12142,15 @@
             "type": "string"
           },
           "resultCode": {
-            "type": "integer"
+            "type": "integer",
+            "nullable": true
           },
           "resultString": {
             "type": "string"
           },
           "totalRecords": {
-            "type": "integer"
+            "type": "integer",
+            "nullable": true
           },
           "userString": {
             "type": "string"
@@ -12050,7 +12172,8 @@
               "properties": {
                 "attributes": {
                   "type": "object",
-                  "additionalProperties": true
+                  "additionalProperties": true,
+                  "nullable": true
                 },
                 "id": {
                   "type": "string"
@@ -12063,14 +12186,16 @@
                       "data": {}
                     },
                     "additionalProperties": true
-                  }
+                  },
+                  "nullable": true
                 },
                 "type": {
                   "type": "string"
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           }
         },
         "additionalProperties": true
@@ -12081,7 +12206,8 @@
         "properties": {
           "attributes": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "id": {
             "type": "string"
@@ -12094,13 +12220,15 @@
                 "data": {}
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "type": {
             "type": "string"
           }
         },
-        "additionalProperties": true
+        "additionalProperties": true,
+        "nullable": true
       },
       "AppSandboxEntitlementUsageCreateRequest": {
         "type": "object",
@@ -12255,7 +12383,8 @@
           "data": {},
           "links": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "meta": {
             "type": "object",
@@ -12264,7 +12393,8 @@
                 "type": "object",
                 "properties": {
                   "total": {
-                    "type": "integer"
+                    "type": "integer",
+                    "nullable": true
                   }
                 },
                 "additionalProperties": true
@@ -12282,7 +12412,8 @@
           "data": {},
           "links": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "meta": {
             "type": "object",
@@ -12291,7 +12422,8 @@
                 "type": "object",
                 "properties": {
                   "total": {
-                    "type": "integer"
+                    "type": "integer",
+                    "nullable": true
                   }
                 },
                 "additionalProperties": true
@@ -12308,7 +12440,8 @@
         "properties": {
           "attributes": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "id": {
             "type": "string"
@@ -12321,13 +12454,15 @@
                 "data": {}
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "type": {
             "type": "string"
           }
         },
-        "additionalProperties": true
+        "additionalProperties": true,
+        "nullable": true
       },
       "AppStoreVersionResponse": {
         "type": "object",
@@ -12345,7 +12480,8 @@
         "properties": {
           "attributes": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "id": {
             "type": "string"
@@ -12358,7 +12494,8 @@
                 "data": {}
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "type": {
             "type": "string"
@@ -12383,7 +12520,8 @@
               "properties": {
                 "attributes": {
                   "type": "object",
-                  "additionalProperties": true
+                  "additionalProperties": true,
+                  "nullable": true
                 },
                 "id": {
                   "type": "string"
@@ -12396,18 +12534,21 @@
                       "data": {}
                     },
                     "additionalProperties": true
-                  }
+                  },
+                  "nullable": true
                 },
                 "type": {
                   "type": "string"
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "links": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           }
         },
         "additionalProperties": true,
@@ -12432,7 +12573,8 @@
               "properties": {
                 "attributes": {
                   "type": "object",
-                  "additionalProperties": true
+                  "additionalProperties": true,
+                  "nullable": true
                 },
                 "id": {
                   "type": "string"
@@ -12445,18 +12587,21 @@
                       "data": {}
                     },
                     "additionalProperties": true
-                  }
+                  },
+                  "nullable": true
                 },
                 "type": {
                   "type": "string"
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "links": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           }
         },
         "additionalProperties": true,
@@ -12544,7 +12689,8 @@
               "properties": {
                 "attributes": {
                   "type": "object",
-                  "additionalProperties": true
+                  "additionalProperties": true,
+                  "nullable": true
                 },
                 "id": {
                   "type": "string"
@@ -12557,14 +12703,16 @@
                       "data": {}
                     },
                     "additionalProperties": true
-                  }
+                  },
+                  "nullable": true
                 },
                 "type": {
                   "type": "string"
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           }
         },
         "additionalProperties": true
@@ -12654,7 +12802,8 @@
               "properties": {
                 "attributes": {
                   "type": "object",
-                  "additionalProperties": true
+                  "additionalProperties": true,
+                  "nullable": true
                 },
                 "id": {
                   "type": "string"
@@ -12667,18 +12816,21 @@
                       "data": {}
                     },
                     "additionalProperties": true
-                  }
+                  },
+                  "nullable": true
                 },
                 "type": {
                   "type": "string"
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "links": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           }
         },
         "additionalProperties": true
@@ -12718,21 +12870,24 @@
                       "properties": {
                         "attributes": {
                           "type": "object",
-                          "additionalProperties": true
+                          "additionalProperties": true,
+                          "nullable": true
                         },
                         "id": {
                           "type": "string"
                         },
                         "relationships": {
                           "type": "object",
-                          "additionalProperties": true
+                          "additionalProperties": true,
+                          "nullable": true
                         },
                         "type": {
                           "type": "string"
                         }
                       },
                       "additionalProperties": true
-                    }
+                    },
+                    "nullable": true
                   }
                 },
                 "additionalProperties": true
@@ -12760,21 +12915,24 @@
               "properties": {
                 "attributes": {
                   "type": "object",
-                  "additionalProperties": true
+                  "additionalProperties": true,
+                  "nullable": true
                 },
                 "id": {
                   "type": "string"
                 },
                 "relationships": {
                   "type": "object",
-                  "additionalProperties": true
+                  "additionalProperties": true,
+                  "nullable": true
                 },
                 "type": {
                   "type": "string"
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           }
         },
         "additionalProperties": true
@@ -12803,14 +12961,16 @@
                           "properties": {
                             "attributes": {
                               "type": "object",
-                              "additionalProperties": true
+                              "additionalProperties": true,
+                              "nullable": true
                             },
                             "id": {
                               "type": "string"
                             },
                             "relationships": {
                               "type": "object",
-                              "additionalProperties": true
+                              "additionalProperties": true,
+                              "nullable": true
                             },
                             "type": {
                               "type": "string"
@@ -12819,7 +12979,8 @@
                           "required": [
                             "type"
                           ]
-                        }
+                        },
+                        "nullable": true
                       }
                     },
                     "required": [
@@ -12866,7 +13027,8 @@
                           "type": "array",
                           "items": {
                             "type": "string"
-                          }
+                          },
+                          "nullable": true
                         }
                       },
                       "additionalProperties": true
@@ -12875,19 +13037,23 @@
                       "type": "array",
                       "items": {
                         "type": "string"
-                      }
+                      },
+                      "nullable": true
                     },
                     "availableNewContractConfigId": {
-                      "type": "string"
+                      "type": "string",
+                      "nullable": true
                     },
                     "configId": {
                       "type": "string"
                     },
                     "configIsLatestVersion": {
-                      "type": "boolean"
+                      "type": "boolean",
+                      "nullable": true
                     },
                     "configVersion": {
-                      "type": "integer"
+                      "type": "integer",
+                      "nullable": true
                     },
                     "contractDisplayName": {
                       "type": "string"
@@ -12896,7 +13062,8 @@
                       "type": "string"
                     },
                     "isInEffect": {
-                      "type": "boolean"
+                      "type": "boolean",
+                      "nullable": true
                     },
                     "legalEntity": {
                       "type": "object",
@@ -12908,17 +13075,20 @@
                           "type": "boolean"
                         }
                       },
-                      "additionalProperties": true
+                      "additionalProperties": true,
+                      "nullable": true
                     },
                     "status": {
                       "type": "string"
                     }
                   },
                   "additionalProperties": true
-                }
+                },
+                "nullable": true
               }
             },
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           }
         },
         "additionalProperties": true
@@ -12980,11 +13150,13 @@
           "data": {},
           "links": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "meta": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           }
         },
         "additionalProperties": true
@@ -13026,13 +13198,16 @@
             "type": "object",
             "properties": {
               "ciphertext": {
-                "type": "string"
+                "type": "string",
+                "nullable": true
               },
               "plaintext": {
-                "type": "string"
+                "type": "string",
+                "nullable": true
               },
               "redacted_value": {
-                "type": "string"
+                "type": "string",
+                "nullable": true
               }
             }
           },
@@ -13040,7 +13215,8 @@
             "type": "array",
             "items": {
               "type": "string"
-            }
+            },
+            "nullable": true
           }
         },
         "required": [
@@ -13088,19 +13264,23 @@
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "value": {
             "type": "object",
             "properties": {
               "ciphertext": {
-                "type": "string"
+                "type": "string",
+                "nullable": true
               },
               "plaintext": {
-                "type": "string"
+                "type": "string",
+                "nullable": true
               },
               "redacted_value": {
-                "type": "string"
+                "type": "string",
+                "nullable": true
               }
             },
             "additionalProperties": true
@@ -13148,19 +13328,23 @@
                   }
                 },
                 "additionalProperties": true
-              }
+              },
+              "nullable": true
             },
             "value": {
               "type": "object",
               "properties": {
                 "ciphertext": {
-                  "type": "string"
+                  "type": "string",
+                  "nullable": true
                 },
                 "plaintext": {
-                  "type": "string"
+                  "type": "string",
+                  "nullable": true
                 },
                 "redacted_value": {
-                  "type": "string"
+                  "type": "string",
+                  "nullable": true
                 }
               },
               "additionalProperties": true
@@ -13204,7 +13388,8 @@
                 "type": "object",
                 "additionalProperties": {
                   "type": "string"
-                }
+                },
+                "nullable": true
               },
               "previous": {
                 "type": "object",
@@ -13272,7 +13457,8 @@
                       }
                     },
                     "additionalProperties": true
-                  }
+                  },
+                  "nullable": true
                 },
                 "usage_in_minutes": {
                   "type": "integer"
@@ -13282,7 +13468,8 @@
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "usage": {
             "type": "array",
@@ -13300,7 +13487,8 @@
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "workflow_usage": {
             "type": "array",
@@ -13332,7 +13520,8 @@
                       }
                     },
                     "additionalProperties": true
-                  }
+                  },
+                  "nullable": true
                 },
                 "usage_in_minutes": {
                   "type": "integer"
@@ -13345,7 +13534,8 @@
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           }
         },
         "additionalProperties": true
@@ -13376,7 +13566,8 @@
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           }
         },
         "additionalProperties": true
@@ -13402,10 +13593,12 @@
               "type": "string"
             },
             "is_registered": {
-              "type": "boolean"
+              "type": "boolean",
+              "nullable": true
             },
             "is_user_connected": {
-              "type": "boolean"
+              "type": "boolean",
+              "nullable": true
             },
             "provider": {
               "type": "string"
@@ -13452,7 +13645,8 @@
                 "type": "object",
                 "additionalProperties": {
                   "type": "string"
-                }
+                },
+                "nullable": true
               },
               "previous": {
                 "type": "object",
@@ -13520,7 +13714,8 @@
                       }
                     },
                     "additionalProperties": true
-                  }
+                  },
+                  "nullable": true
                 },
                 "usage_in_minutes": {
                   "type": "integer"
@@ -13530,7 +13725,8 @@
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "usage": {
             "type": "array",
@@ -13548,7 +13744,8 @@
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "workflow_usage": {
             "type": "array",
@@ -13580,7 +13777,8 @@
                       }
                     },
                     "additionalProperties": true
-                  }
+                  },
+                  "nullable": true
                 },
                 "usage_in_minutes": {
                   "type": "integer"
@@ -13593,7 +13791,8 @@
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           }
         },
         "additionalProperties": true
@@ -13633,7 +13832,8 @@
                 "type": "object",
                 "additionalProperties": {
                   "type": "string"
-                }
+                },
+                "nullable": true
               },
               "previous": {
                 "type": "object",
@@ -13701,7 +13901,8 @@
                       }
                     },
                     "additionalProperties": true
-                  }
+                  },
+                  "nullable": true
                 },
                 "usage_in_minutes": {
                   "type": "integer"
@@ -13711,7 +13912,8 @@
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "usage": {
             "type": "array",
@@ -13732,7 +13934,8 @@
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           }
         },
         "additionalProperties": true
@@ -13745,7 +13948,8 @@
             "type": "object",
             "additionalProperties": {
               "type": "string"
-            }
+            },
+            "nullable": true
           },
           "plan": {
             "type": "object",
@@ -13841,7 +14045,8 @@
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "type": {
             "type": "string"
@@ -13899,14 +14104,16 @@
                       }
                     },
                     "additionalProperties": true
-                  }
+                  },
+                  "nullable": true
                 },
                 "type": {
                   "type": "string"
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           }
         },
         "additionalProperties": true
@@ -13953,7 +14160,8 @@
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           }
         },
         "additionalProperties": true
@@ -13994,11 +14202,13 @@
           },
           "links": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "relationships": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "type": {
             "type": "string"
@@ -14048,15 +14258,18 @@
           },
           "links": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "meta": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "relationships": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "type": {
             "type": "string"
@@ -14076,11 +14289,13 @@
           },
           "links": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "meta": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           }
         },
         "additionalProperties": true
@@ -14114,24 +14329,28 @@
                     "properties": {
                       "listValues": {
                         "type": "array",
-                        "items": {}
+                        "items": {},
+                        "nullable": true
                       },
                       "value": {
                         "type": "string"
                       }
                     },
                     "additionalProperties": true
-                  }
+                  },
+                  "nullable": true
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "countriesOrRegions": {
             "type": "array",
             "items": {
               "type": "string"
-            }
+            },
+            "nullable": true
           },
           "data": {},
           "medicalDeviceData": {
@@ -14189,11 +14408,13 @@
                       }
                     },
                     "additionalProperties": true
-                  }
+                  },
+                  "nullable": true
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           }
         },
         "additionalProperties": true
@@ -14231,7 +14452,8 @@
                 "type": "object",
                 "additionalProperties": {
                   "type": "string"
-                }
+                },
+                "nullable": true
               },
               "type": {
                 "type": "string"
@@ -14258,7 +14480,8 @@
                 "type": "object",
                 "additionalProperties": {
                   "type": "string"
-                }
+                },
+                "nullable": true
               },
               "relationships": {
                 "type": "object",
@@ -14268,7 +14491,8 @@
                     "properties": {
                       "data": {
                         "type": "array",
-                        "items": {}
+                        "items": {},
+                        "nullable": true
                       }
                     },
                     "required": [
@@ -14466,7 +14690,8 @@
             "type": "array",
             "items": {
               "type": "string"
-            }
+            },
+            "nullable": true
           },
           "teamId": {
             "type": "string"
@@ -14502,7 +14727,8 @@
                   "type": "integer"
                 },
                 "isAgreementPLA": {
-                  "type": "boolean"
+                  "type": "boolean",
+                  "nullable": true
                 },
                 "status": {
                   "type": "string"
@@ -14515,7 +14741,8 @@
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "notifications": {
             "type": "object",
@@ -14541,7 +14768,8 @@
                       "type": "integer"
                     },
                     "isAgreementPLA": {
-                      "type": "boolean"
+                      "type": "boolean",
+                      "nullable": true
                     },
                     "status": {
                       "type": "string"
@@ -14554,13 +14782,16 @@
                     }
                   },
                   "additionalProperties": true
-                }
+                },
+                "nullable": true
               }
             },
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "resultCode": {
-            "type": "integer"
+            "type": "integer",
+            "nullable": true
           },
           "resultString": {
             "type": "string"
@@ -14608,7 +14839,8 @@
                   "type": "integer"
                 },
                 "isAgreementPLA": {
-                  "type": "boolean"
+                  "type": "boolean",
+                  "nullable": true
                 },
                 "status": {
                   "type": "string"
@@ -14621,7 +14853,8 @@
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "notifications": {
             "type": "object",
@@ -14647,7 +14880,8 @@
                       "type": "integer"
                     },
                     "isAgreementPLA": {
-                      "type": "boolean"
+                      "type": "boolean",
+                      "nullable": true
                     },
                     "status": {
                       "type": "string"
@@ -14660,13 +14894,16 @@
                     }
                   },
                   "additionalProperties": true
-                }
+                },
+                "nullable": true
               }
             },
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "resultCode": {
-            "type": "integer"
+            "type": "integer",
+            "nullable": true
           },
           "resultString": {
             "type": "string"
@@ -14683,14 +14920,16 @@
         "properties": {
           "attributes": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "id": {
             "type": "string"
           },
           "links": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "relationships": {
             "type": "object",
@@ -14700,15 +14939,18 @@
                 "data": {},
                 "links": {
                   "type": "object",
-                  "additionalProperties": true
+                  "additionalProperties": true,
+                  "nullable": true
                 },
                 "meta": {
                   "type": "object",
-                  "additionalProperties": true
+                  "additionalProperties": true,
+                  "nullable": true
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "type": {
             "type": "string"
@@ -14730,14 +14972,16 @@
               "properties": {
                 "attributes": {
                   "type": "object",
-                  "additionalProperties": true
+                  "additionalProperties": true,
+                  "nullable": true
                 },
                 "id": {
                   "type": "string"
                 },
                 "links": {
                   "type": "object",
-                  "additionalProperties": true
+                  "additionalProperties": true,
+                  "nullable": true
                 },
                 "relationships": {
                   "type": "object",
@@ -14747,30 +14991,36 @@
                       "data": {},
                       "links": {
                         "type": "object",
-                        "additionalProperties": true
+                        "additionalProperties": true,
+                        "nullable": true
                       },
                       "meta": {
                         "type": "object",
-                        "additionalProperties": true
+                        "additionalProperties": true,
+                        "nullable": true
                       }
                     },
                     "additionalProperties": true
-                  }
+                  },
+                  "nullable": true
                 },
                 "type": {
                   "type": "string"
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "links": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "meta": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           }
         },
         "additionalProperties": true
@@ -14788,7 +15038,8 @@
               },
               "relationships": {
                 "type": "object",
-                "additionalProperties": true
+                "additionalProperties": true,
+                "nullable": true
               },
               "type": {
                 "type": "string"
@@ -14823,14 +15074,16 @@
               "properties": {
                 "attributes": {
                   "type": "object",
-                  "additionalProperties": true
+                  "additionalProperties": true,
+                  "nullable": true
                 },
                 "id": {
                   "type": "string"
                 },
                 "links": {
                   "type": "object",
-                  "additionalProperties": true
+                  "additionalProperties": true,
+                  "nullable": true
                 },
                 "relationships": {
                   "type": "object",
@@ -14840,30 +15093,36 @@
                       "data": {},
                       "links": {
                         "type": "object",
-                        "additionalProperties": true
+                        "additionalProperties": true,
+                        "nullable": true
                       },
                       "meta": {
                         "type": "object",
-                        "additionalProperties": true
+                        "additionalProperties": true,
+                        "nullable": true
                       }
                     },
                     "additionalProperties": true
-                  }
+                  },
+                  "nullable": true
                 },
                 "type": {
                   "type": "string"
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "links": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "meta": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           }
         },
         "additionalProperties": true
@@ -14905,7 +15164,8 @@
                   "type": "integer"
                 },
                 "isAgreementPLA": {
-                  "type": "boolean"
+                  "type": "boolean",
+                  "nullable": true
                 },
                 "status": {
                   "type": "string"
@@ -14918,7 +15178,8 @@
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "notifications": {
             "type": "object",
@@ -14944,7 +15205,8 @@
                       "type": "integer"
                     },
                     "isAgreementPLA": {
-                      "type": "boolean"
+                      "type": "boolean",
+                      "nullable": true
                     },
                     "status": {
                       "type": "string"
@@ -14957,13 +15219,16 @@
                     }
                   },
                   "additionalProperties": true
-                }
+                },
+                "nullable": true
               }
             },
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "resultCode": {
-            "type": "integer"
+            "type": "integer",
+            "nullable": true
           },
           "resultString": {
             "type": "string"
@@ -15025,7 +15290,8 @@
                     }
                   },
                   "additionalProperties": true
-                }
+                },
+                "nullable": true
               }
             },
             "additionalProperties": true
@@ -15034,7 +15300,8 @@
             "type": "string"
           },
           "resultCode": {
-            "type": "integer"
+            "type": "integer",
+            "nullable": true
           },
           "resultString": {
             "type": "string"
@@ -15055,7 +15322,8 @@
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "userString": {
             "type": "string"
@@ -15091,7 +15359,8 @@
         "properties": {
           "attributes": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "id": {
             "type": "string"
@@ -15104,7 +15373,8 @@
                 "data": {}
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "type": {
             "type": "string"
@@ -15118,7 +15388,8 @@
         "properties": {
           "attributes": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "id": {
             "type": "string"
@@ -15131,7 +15402,8 @@
                 "data": {}
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "type": {
             "type": "string"
@@ -15213,7 +15485,8 @@
               "properties": {
                 "attributes": {
                   "type": "object",
-                  "additionalProperties": true
+                  "additionalProperties": true,
+                  "nullable": true
                 },
                 "id": {
                   "type": "string"
@@ -15226,14 +15499,16 @@
                       "data": {}
                     },
                     "additionalProperties": true
-                  }
+                  },
+                  "nullable": true
                 },
                 "type": {
                   "type": "string"
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           }
         },
         "additionalProperties": true
@@ -15295,7 +15570,8 @@
         "properties": {
           "attributes": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "id": {
             "type": "string"
@@ -15308,7 +15584,8 @@
                 "data": {}
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "type": {
             "type": "string"
@@ -15330,7 +15607,8 @@
               "properties": {
                 "attributes": {
                   "type": "object",
-                  "additionalProperties": true
+                  "additionalProperties": true,
+                  "nullable": true
                 },
                 "id": {
                   "type": "string"
@@ -15343,14 +15621,16 @@
                       "data": {}
                     },
                     "additionalProperties": true
-                  }
+                  },
+                  "nullable": true
                 },
                 "type": {
                   "type": "string"
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           }
         },
         "additionalProperties": true
@@ -15361,7 +15641,8 @@
         "properties": {
           "attributes": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "id": {
             "type": "string"
@@ -15374,7 +15655,8 @@
                 "data": {}
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "type": {
             "type": "string"
@@ -15399,7 +15681,8 @@
               "properties": {
                 "attributes": {
                   "type": "object",
-                  "additionalProperties": true
+                  "additionalProperties": true,
+                  "nullable": true
                 },
                 "id": {
                   "type": "string"
@@ -15412,18 +15695,21 @@
                       "data": {}
                     },
                     "additionalProperties": true
-                  }
+                  },
+                  "nullable": true
                 },
                 "type": {
                   "type": "string"
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "links": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           }
         },
         "additionalProperties": true,
@@ -15448,7 +15734,8 @@
               "properties": {
                 "attributes": {
                   "type": "object",
-                  "additionalProperties": true
+                  "additionalProperties": true,
+                  "nullable": true
                 },
                 "id": {
                   "type": "string"
@@ -15461,18 +15748,21 @@
                       "data": {}
                     },
                     "additionalProperties": true
-                  }
+                  },
+                  "nullable": true
                 },
                 "type": {
                   "type": "string"
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "links": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           }
         },
         "additionalProperties": true
@@ -15483,7 +15773,8 @@
         "properties": {
           "attributes": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "id": {
             "type": "string"
@@ -15496,7 +15787,8 @@
                 "data": {}
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "type": {
             "type": "string"
@@ -15521,7 +15813,8 @@
               "properties": {
                 "attributes": {
                   "type": "object",
-                  "additionalProperties": true
+                  "additionalProperties": true,
+                  "nullable": true
                 },
                 "id": {
                   "type": "string"
@@ -15534,18 +15827,21 @@
                       "data": {}
                     },
                     "additionalProperties": true
-                  }
+                  },
+                  "nullable": true
                 },
                 "type": {
                   "type": "string"
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "links": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           }
         },
         "additionalProperties": true,
@@ -15684,7 +15980,8 @@
             "type": "object",
             "properties": {
               "resetDate": {
-                "type": "string"
+                "type": "string",
+                "nullable": true
               }
             },
             "additionalProperties": true
@@ -15696,7 +15993,8 @@
             "type": "string"
           }
         },
-        "additionalProperties": true
+        "additionalProperties": true,
+        "nullable": true
       },
       "ResetRatingsRequestCreateRequest": {
         "type": "object",
@@ -15849,7 +16147,8 @@
               "properties": {
                 "attributes": {
                   "type": "object",
-                  "additionalProperties": true
+                  "additionalProperties": true,
+                  "nullable": true
                 },
                 "id": {
                   "type": "string"
@@ -15862,14 +16161,16 @@
                       "data": {}
                     },
                     "additionalProperties": true
-                  }
+                  },
+                  "nullable": true
                 },
                 "type": {
                   "type": "string"
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           }
         },
         "additionalProperties": true
@@ -15919,7 +16220,8 @@
         "properties": {
           "attributes": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "id": {
             "type": "string"
@@ -15932,7 +16234,8 @@
                 "data": {}
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "type": {
             "type": "string"
@@ -16010,7 +16313,8 @@
               "properties": {
                 "attributes": {
                   "type": "object",
-                  "additionalProperties": true
+                  "additionalProperties": true,
+                  "nullable": true
                 },
                 "id": {
                   "type": "string"
@@ -16023,14 +16327,16 @@
                       "data": {}
                     },
                     "additionalProperties": true
-                  }
+                  },
+                  "nullable": true
                 },
                 "type": {
                   "type": "string"
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           }
         },
         "additionalProperties": true
@@ -16052,7 +16358,8 @@
               "properties": {
                 "attributes": {
                   "type": "object",
-                  "additionalProperties": true
+                  "additionalProperties": true,
+                  "nullable": true
                 },
                 "id": {
                   "type": "string"
@@ -16065,18 +16372,21 @@
                       "data": {}
                     },
                     "additionalProperties": true
-                  }
+                  },
+                  "nullable": true
                 },
                 "type": {
                   "type": "string"
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "links": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           }
         },
         "additionalProperties": true,
@@ -16090,7 +16400,8 @@
         "properties": {
           "attributes": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "id": {
             "type": "string"
@@ -16103,7 +16414,8 @@
                 "data": {}
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "type": {
             "type": "string"
@@ -16128,7 +16440,8 @@
               "properties": {
                 "attributes": {
                   "type": "object",
-                  "additionalProperties": true
+                  "additionalProperties": true,
+                  "nullable": true
                 },
                 "id": {
                   "type": "string"
@@ -16141,18 +16454,21 @@
                       "data": {}
                     },
                     "additionalProperties": true
-                  }
+                  },
+                  "nullable": true
                 },
                 "type": {
                   "type": "string"
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "links": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           }
         },
         "additionalProperties": true,
@@ -16208,7 +16524,8 @@
         "properties": {
           "attributes": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "id": {
             "type": "string"
@@ -16221,7 +16538,8 @@
                 "data": {}
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "type": {
             "type": "string"
@@ -16246,7 +16564,8 @@
               "properties": {
                 "attributes": {
                   "type": "object",
-                  "additionalProperties": true
+                  "additionalProperties": true,
+                  "nullable": true
                 },
                 "id": {
                   "type": "string"
@@ -16259,18 +16578,21 @@
                       "data": {}
                     },
                     "additionalProperties": true
-                  }
+                  },
+                  "nullable": true
                 },
                 "type": {
                   "type": "string"
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "links": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           }
         },
         "additionalProperties": true,
@@ -16284,7 +16606,8 @@
         "properties": {
           "attributes": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "id": {
             "type": "string"
@@ -16297,7 +16620,8 @@
                 "data": {}
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "type": {
             "type": "string"
@@ -16311,7 +16635,8 @@
         "properties": {
           "attributes": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "id": {
             "type": "string"
@@ -16324,7 +16649,8 @@
                 "data": {}
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "type": {
             "type": "string"
@@ -16395,7 +16721,8 @@
               "properties": {
                 "attributes": {
                   "type": "object",
-                  "additionalProperties": true
+                  "additionalProperties": true,
+                  "nullable": true
                 },
                 "id": {
                   "type": "string"
@@ -16408,14 +16735,16 @@
                       "data": {}
                     },
                     "additionalProperties": true
-                  }
+                  },
+                  "nullable": true
                 },
                 "type": {
                   "type": "string"
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           }
         },
         "additionalProperties": true
@@ -16437,7 +16766,8 @@
               "properties": {
                 "attributes": {
                   "type": "object",
-                  "additionalProperties": true
+                  "additionalProperties": true,
+                  "nullable": true
                 },
                 "id": {
                   "type": "string"
@@ -16450,18 +16780,21 @@
                       "data": {}
                     },
                     "additionalProperties": true
-                  }
+                  },
+                  "nullable": true
                 },
                 "type": {
                   "type": "string"
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "links": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           }
         },
         "additionalProperties": true,
@@ -16486,7 +16819,8 @@
               "properties": {
                 "attributes": {
                   "type": "object",
-                  "additionalProperties": true
+                  "additionalProperties": true,
+                  "nullable": true
                 },
                 "id": {
                   "type": "string"
@@ -16499,18 +16833,21 @@
                       "data": {}
                     },
                     "additionalProperties": true
-                  }
+                  },
+                  "nullable": true
                 },
                 "type": {
                   "type": "string"
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "links": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           }
         },
         "additionalProperties": true,
@@ -16596,7 +16933,8 @@
             "type": "array",
             "items": {
               "type": "string"
-            }
+            },
+            "nullable": true
           }
         },
         "required": [
@@ -16646,7 +16984,8 @@
                   "type": "string"
                 },
                 "isInFamily": {
-                  "type": "boolean"
+                  "type": "boolean",
+                  "nullable": true
                 },
                 "lastName": {
                   "type": "string"
@@ -16656,13 +16995,16 @@
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "totalAccounts": {
-            "type": "integer"
+            "type": "integer",
+            "nullable": true
           },
           "totalInactiveAccounts": {
-            "type": "integer"
+            "type": "integer",
+            "nullable": true
           }
         },
         "additionalProperties": true
@@ -16748,7 +17090,8 @@
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "provider": {
             "type": "object",
@@ -16788,7 +17131,8 @@
                 "type": "object",
                 "additionalProperties": {
                   "type": "string"
-                }
+                },
+                "nullable": true
               },
               "id": {
                 "type": "string"
@@ -16868,21 +17212,25 @@
                     "properties": {
                       "configurations": {
                         "type": "array",
-                        "items": {}
+                        "items": {},
+                        "nullable": true
                       },
                       "id": {
                         "type": "string"
                       }
                     },
                     "additionalProperties": true
-                  }
+                  },
+                  "nullable": true
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "resultCode": {
-            "type": "integer"
+            "type": "integer",
+            "nullable": true
           }
         },
         "additionalProperties": true
@@ -16912,21 +17260,25 @@
                     "properties": {
                       "configurations": {
                         "type": "array",
-                        "items": {}
+                        "items": {},
+                        "nullable": true
                       },
                       "id": {
                         "type": "string"
                       }
                     },
                     "additionalProperties": true
-                  }
+                  },
+                  "nullable": true
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "resultCode": {
-            "type": "integer"
+            "type": "integer",
+            "nullable": true
           }
         },
         "additionalProperties": true
@@ -16986,7 +17338,8 @@
         "properties": {
           "attributes": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "id": {
             "type": "string"
@@ -16999,7 +17352,8 @@
                 "data": {}
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "type": {
             "type": "string"
@@ -17013,7 +17367,8 @@
         "properties": {
           "attributes": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "id": {
             "type": "string"
@@ -17026,7 +17381,8 @@
                 "data": {}
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "type": {
             "type": "string"
@@ -17051,7 +17407,8 @@
               "properties": {
                 "attributes": {
                   "type": "object",
-                  "additionalProperties": true
+                  "additionalProperties": true,
+                  "nullable": true
                 },
                 "id": {
                   "type": "string"
@@ -17064,18 +17421,21 @@
                       "data": {}
                     },
                     "additionalProperties": true
-                  }
+                  },
+                  "nullable": true
                 },
                 "type": {
                   "type": "string"
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "links": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           }
         },
         "additionalProperties": true
@@ -17097,7 +17457,8 @@
               "properties": {
                 "attributes": {
                   "type": "object",
-                  "additionalProperties": true
+                  "additionalProperties": true,
+                  "nullable": true
                 },
                 "id": {
                   "type": "string"
@@ -17110,18 +17471,21 @@
                       "data": {}
                     },
                     "additionalProperties": true
-                  }
+                  },
+                  "nullable": true
                 },
                 "type": {
                   "type": "string"
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "links": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           }
         },
         "additionalProperties": true
@@ -17132,7 +17496,8 @@
         "properties": {
           "attributes": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "id": {
             "type": "string"
@@ -17145,7 +17510,8 @@
                 "data": {}
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "type": {
             "type": "string"
@@ -17312,7 +17678,8 @@
         "properties": {
           "attributes": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "id": {
             "type": "string"
@@ -17325,7 +17692,8 @@
                 "data": {}
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "type": {
             "type": "string"
@@ -17339,7 +17707,8 @@
         "properties": {
           "attributes": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "id": {
             "type": "string"
@@ -17352,7 +17721,8 @@
                 "data": {}
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "type": {
             "type": "string"
@@ -17366,7 +17736,8 @@
         "properties": {
           "attributes": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "id": {
             "type": "string"
@@ -17379,7 +17750,8 @@
                 "data": {}
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "type": {
             "type": "string"
@@ -17404,7 +17776,8 @@
               "properties": {
                 "attributes": {
                   "type": "object",
-                  "additionalProperties": true
+                  "additionalProperties": true,
+                  "nullable": true
                 },
                 "id": {
                   "type": "string"
@@ -17417,18 +17790,21 @@
                       "data": {}
                     },
                     "additionalProperties": true
-                  }
+                  },
+                  "nullable": true
                 },
                 "type": {
                   "type": "string"
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "links": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           }
         },
         "additionalProperties": true
@@ -17450,7 +17826,8 @@
               "properties": {
                 "attributes": {
                   "type": "object",
-                  "additionalProperties": true
+                  "additionalProperties": true,
+                  "nullable": true
                 },
                 "id": {
                   "type": "string"
@@ -17463,18 +17840,21 @@
                       "data": {}
                     },
                     "additionalProperties": true
-                  }
+                  },
+                  "nullable": true
                 },
                 "type": {
                   "type": "string"
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "links": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           }
         },
         "additionalProperties": true
@@ -17496,7 +17876,8 @@
               "properties": {
                 "attributes": {
                   "type": "object",
-                  "additionalProperties": true
+                  "additionalProperties": true,
+                  "nullable": true
                 },
                 "id": {
                   "type": "string"
@@ -17509,18 +17890,21 @@
                       "data": {}
                     },
                     "additionalProperties": true
-                  }
+                  },
+                  "nullable": true
                 },
                 "type": {
                   "type": "string"
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "links": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           }
         },
         "additionalProperties": true
@@ -17541,7 +17925,8 @@
         "properties": {
           "attributes": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "id": {
             "type": "string"
@@ -17554,7 +17939,8 @@
                 "data": {}
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "type": {
             "type": "string"
@@ -17718,7 +18104,8 @@
               "properties": {
                 "attributes": {
                   "type": "object",
-                  "additionalProperties": true
+                  "additionalProperties": true,
+                  "nullable": true
                 },
                 "id": {
                   "type": "string"
@@ -17731,18 +18118,21 @@
                       "data": {}
                     },
                     "additionalProperties": true
-                  }
+                  },
+                  "nullable": true
                 },
                 "type": {
                   "type": "string"
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "links": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           }
         },
         "additionalProperties": true
@@ -17753,7 +18143,8 @@
         "properties": {
           "attributes": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "id": {
             "type": "string"
@@ -17766,7 +18157,8 @@
                 "data": {}
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "type": {
             "type": "string"
@@ -17791,7 +18183,8 @@
               "properties": {
                 "attributes": {
                   "type": "object",
-                  "additionalProperties": true
+                  "additionalProperties": true,
+                  "nullable": true
                 },
                 "id": {
                   "type": "string"
@@ -17804,18 +18197,21 @@
                       "data": {}
                     },
                     "additionalProperties": true
-                  }
+                  },
+                  "nullable": true
                 },
                 "type": {
                   "type": "string"
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "links": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           }
         },
         "additionalProperties": true,
@@ -17829,7 +18225,8 @@
         "properties": {
           "attributes": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "id": {
             "type": "string"
@@ -17842,7 +18239,8 @@
                 "data": {}
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "type": {
             "type": "string"
@@ -17867,7 +18265,8 @@
               "properties": {
                 "attributes": {
                   "type": "object",
-                  "additionalProperties": true
+                  "additionalProperties": true,
+                  "nullable": true
                 },
                 "id": {
                   "type": "string"
@@ -17880,18 +18279,21 @@
                       "data": {}
                     },
                     "additionalProperties": true
-                  }
+                  },
+                  "nullable": true
                 },
                 "type": {
                   "type": "string"
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "links": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           }
         },
         "additionalProperties": true,
@@ -17905,7 +18307,8 @@
         "properties": {
           "attributes": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "id": {
             "type": "string"
@@ -17918,7 +18321,8 @@
                 "data": {}
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "type": {
             "type": "string"
@@ -18043,14 +18447,16 @@
         "properties": {
           "attributes": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "id": {
             "type": "string"
           },
           "links": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "relationships": {
             "type": "object",
@@ -18060,15 +18466,18 @@
                 "data": {},
                 "links": {
                   "type": "object",
-                  "additionalProperties": true
+                  "additionalProperties": true,
+                  "nullable": true
                 },
                 "meta": {
                   "type": "object",
-                  "additionalProperties": true
+                  "additionalProperties": true,
+                  "nullable": true
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "type": {
             "type": "string"
@@ -18087,7 +18496,8 @@
                 "type": "object",
                 "additionalProperties": {
                   "type": "string"
-                }
+                },
+                "nullable": true
               },
               "relationships": {
                 "type": "object",
@@ -18096,13 +18506,15 @@
                   "properties": {
                     "data": {
                       "type": "array",
-                      "items": {}
+                      "items": {},
+                      "nullable": true
                     }
                   },
                   "required": [
                     "data"
                   ]
-                }
+                },
+                "nullable": true
               },
               "type": {
                 "type": "string"
@@ -18144,7 +18556,8 @@
         "properties": {
           "attributes": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "data": {
             "$ref": "#/components/schemas/WebsitePushId"
@@ -18159,14 +18572,16 @@
               "properties": {
                 "attributes": {
                   "type": "object",
-                  "additionalProperties": true
+                  "additionalProperties": true,
+                  "nullable": true
                 },
                 "id": {
                   "type": "string"
                 },
                 "links": {
                   "type": "object",
-                  "additionalProperties": true
+                  "additionalProperties": true,
+                  "nullable": true
                 },
                 "relationships": {
                   "type": "object",
@@ -18176,30 +18591,36 @@
                       "data": {},
                       "links": {
                         "type": "object",
-                        "additionalProperties": true
+                        "additionalProperties": true,
+                        "nullable": true
                       },
                       "meta": {
                         "type": "object",
-                        "additionalProperties": true
+                        "additionalProperties": true,
+                        "nullable": true
                       }
                     },
                     "additionalProperties": true
-                  }
+                  },
+                  "nullable": true
                 },
                 "type": {
                   "type": "string"
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "links": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "meta": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "nullable": true
           },
           "relationships": {
             "type": "object",
@@ -18209,15 +18630,18 @@
                 "data": {},
                 "links": {
                   "type": "object",
-                  "additionalProperties": true
+                  "additionalProperties": true,
+                  "nullable": true
                 },
                 "meta": {
                   "type": "object",
-                  "additionalProperties": true
+                  "additionalProperties": true,
+                  "nullable": true
                 }
               },
               "additionalProperties": true
-            }
+            },
+            "nullable": true
           },
           "type": {
             "type": "string"
@@ -18230,7 +18654,8 @@
         "title": "WebsitePushIdsResponse",
         "properties": {
           "pageNumber": {
-            "type": "integer"
+            "type": "integer",
+            "nullable": true
           },
           "pageSize": {
             "type": "integer"
@@ -18239,7 +18664,8 @@
             "type": "string"
           },
           "resultCode": {
-            "type": "integer"
+            "type": "integer",
+            "nullable": true
           },
           "resultString": {
             "type": "string"
