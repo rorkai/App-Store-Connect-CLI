@@ -189,24 +189,6 @@ type scmProvidersQuery struct {
 // ScmProvidersOption is a functional option for GetScmProviders.
 type ScmProvidersOption func(*scmProvidersQuery)
 
-// WithScmProvidersLimit sets the max number of SCM providers to return.
-func WithScmProvidersLimit(limit int) ScmProvidersOption {
-	return func(q *scmProvidersQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithScmProvidersNextURL uses a next page URL directly.
-func WithScmProvidersNextURL(next string) ScmProvidersOption {
-	return func(q *scmProvidersQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 func buildScmProvidersQuery(query *scmProvidersQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
@@ -219,24 +201,6 @@ type scmRepositoriesQuery struct {
 
 // ScmRepositoriesOption is a functional option for GetScmRepositories.
 type ScmRepositoriesOption func(*scmRepositoriesQuery)
-
-// WithScmRepositoriesLimit sets the max number of SCM repositories to return.
-func WithScmRepositoriesLimit(limit int) ScmRepositoriesOption {
-	return func(q *scmRepositoriesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithScmRepositoriesNextURL uses a next page URL directly.
-func WithScmRepositoriesNextURL(next string) ScmRepositoriesOption {
-	return func(q *scmRepositoriesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
 
 func buildScmRepositoriesQuery(query *scmRepositoriesQuery) string {
 	values := url.Values{}
@@ -251,24 +215,6 @@ type scmGitReferencesQuery struct {
 // ScmGitReferencesOption is a functional option for GetScmGitReferences.
 type ScmGitReferencesOption func(*scmGitReferencesQuery)
 
-// WithScmGitReferencesLimit sets the max number of git references to return.
-func WithScmGitReferencesLimit(limit int) ScmGitReferencesOption {
-	return func(q *scmGitReferencesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithScmGitReferencesNextURL uses a next page URL directly.
-func WithScmGitReferencesNextURL(next string) ScmGitReferencesOption {
-	return func(q *scmGitReferencesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 func buildScmGitReferencesQuery(query *scmGitReferencesQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
@@ -281,24 +227,6 @@ type scmPullRequestsQuery struct {
 
 // ScmPullRequestsOption is a functional option for GetScmRepositoryPullRequests.
 type ScmPullRequestsOption func(*scmPullRequestsQuery)
-
-// WithScmPullRequestsLimit sets the max number of pull requests to return.
-func WithScmPullRequestsLimit(limit int) ScmPullRequestsOption {
-	return func(q *scmPullRequestsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithScmPullRequestsNextURL uses a next page URL directly.
-func WithScmPullRequestsNextURL(next string) ScmPullRequestsOption {
-	return func(q *scmPullRequestsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
 
 func buildScmPullRequestsQuery(query *scmPullRequestsQuery) string {
 	values := url.Values{}
@@ -436,9 +364,9 @@ func (c *Client) ResolveGitReferenceByName(ctx context.Context, repositoryID, re
 		var err error
 
 		if nextURL != "" {
-			resp, err = c.GetScmGitReferences(ctx, repositoryID, WithScmGitReferencesNextURL(nextURL))
+			resp, err = c.GetScmGitReferences(ctx, repositoryID, NextURL[ScmGitReferencesOption](nextURL))
 		} else {
-			resp, err = c.GetScmGitReferences(ctx, repositoryID, WithScmGitReferencesLimit(200))
+			resp, err = c.GetScmGitReferences(ctx, repositoryID, Limit[ScmGitReferencesOption](200))
 		}
 		if err != nil {
 			return nil, fmt.Errorf("failed to fetch git references: %w", err)

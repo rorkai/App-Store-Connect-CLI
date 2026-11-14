@@ -173,22 +173,22 @@ Examples:
 				}
 			} else {
 				opts := []asc.AnalyticsReportRequestsOption{
-					asc.WithAnalyticsReportRequestsLimit(*limit),
-					asc.WithAnalyticsReportRequestsNextURL(*next),
+					asc.Limit[asc.AnalyticsReportRequestsOption](*limit),
+					asc.NextURL[asc.AnalyticsReportRequestsOption](*next),
 				}
 				if normalizedAccessType != "" {
 					opts = append(opts, asc.WithAnalyticsReportRequestsAccessType(normalizedAccessType))
 				}
 
 				if *paginate {
-					paginateOpts := append(opts, asc.WithAnalyticsReportRequestsLimit(200))
+					paginateOpts := append(opts, asc.Limit[asc.AnalyticsReportRequestsOption](200))
 					paginated, err := shared.PaginateWithSpinner(
 						requestCtx,
 						func(ctx context.Context) (asc.PaginatedResponse, error) {
 							return client.GetAnalyticsReportRequests(ctx, resolvedAppID, paginateOpts...)
 						},
 						func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-							return client.GetAnalyticsReportRequests(ctx, resolvedAppID, asc.WithAnalyticsReportRequestsNextURL(nextURL))
+							return client.GetAnalyticsReportRequests(ctx, resolvedAppID, asc.NextURL[asc.AnalyticsReportRequestsOption](nextURL))
 						},
 					)
 					if err != nil {
@@ -263,13 +263,13 @@ func createOrReuseAnalyticsReportRequest(ctx context.Context, client *asc.Client
 }
 
 func listAnalyticsReportRequestsForReuse(ctx context.Context, client *asc.Client, appID string) (*asc.AnalyticsReportRequestsResponse, error) {
-	existing, err := client.GetAnalyticsReportRequests(ctx, appID, asc.WithAnalyticsReportRequestsLimit(200))
+	existing, err := client.GetAnalyticsReportRequests(ctx, appID, asc.Limit[asc.AnalyticsReportRequestsOption](200))
 	if err != nil {
 		return nil, fmt.Errorf("failed to list requests: %w", err)
 	}
 
 	paginated, err := asc.PaginateAll(ctx, existing, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetAnalyticsReportRequests(ctx, appID, asc.WithAnalyticsReportRequestsNextURL(nextURL))
+		return client.GetAnalyticsReportRequests(ctx, appID, asc.NextURL[asc.AnalyticsReportRequestsOption](nextURL))
 	})
 	if err != nil {
 		return nil, err

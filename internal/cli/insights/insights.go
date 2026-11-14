@@ -910,13 +910,13 @@ func collectAnalyticsMetrics(ctx context.Context, client *asc.Client, appID stri
 }
 
 func fetchAllAnalyticsReportRequests(ctx context.Context, client *asc.Client, appID string) (*asc.AnalyticsReportRequestsResponse, error) {
-	first, err := client.GetAnalyticsReportRequests(ctx, appID, asc.WithAnalyticsReportRequestsLimit(200))
+	first, err := client.GetAnalyticsReportRequests(ctx, appID, asc.Limit[asc.AnalyticsReportRequestsOption](200))
 	if err != nil {
 		return nil, err
 	}
 
 	paginated, err := asc.PaginateAll(ctx, first, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetAnalyticsReportRequests(ctx, appID, asc.WithAnalyticsReportRequestsNextURL(nextURL))
+		return client.GetAnalyticsReportRequests(ctx, appID, asc.NextURL[asc.AnalyticsReportRequestsOption](nextURL))
 	})
 	if err != nil {
 		return nil, err
@@ -929,13 +929,13 @@ func fetchAllAnalyticsReportRequests(ctx context.Context, client *asc.Client, ap
 }
 
 func fetchAllAnalyticsReports(ctx context.Context, client *asc.Client, requestID string) (*asc.AnalyticsReportsResponse, error) {
-	first, err := client.GetAnalyticsReports(ctx, requestID, asc.WithAnalyticsReportsLimit(200))
+	first, err := client.GetAnalyticsReports(ctx, requestID, asc.Limit[asc.AnalyticsReportsOption](200))
 	if err != nil {
 		return nil, err
 	}
 
 	paginated, err := asc.PaginateAll(ctx, first, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetAnalyticsReports(ctx, requestID, asc.WithAnalyticsReportsNextURL(nextURL))
+		return client.GetAnalyticsReports(ctx, requestID, asc.NextURL[asc.AnalyticsReportsOption](nextURL))
 	})
 	if err != nil {
 		return nil, err
@@ -1040,7 +1040,7 @@ func fetchAnalyticsReportInstances(
 		)
 		if next == "" {
 			pageOpts := make([]asc.AnalyticsReportInstancesOption, 0, len(opts)+1)
-			pageOpts = append(pageOpts, asc.WithAnalyticsReportInstancesLimit(analyticsInstancePageLimit))
+			pageOpts = append(pageOpts, asc.Limit[asc.AnalyticsReportInstancesOption](analyticsInstancePageLimit))
 			pageOpts = append(pageOpts, opts...)
 			resp, err = client.GetAnalyticsReportInstances(ctx, reportID, pageOpts...)
 		} else {
@@ -1049,7 +1049,7 @@ func fetchAnalyticsReportInstances(
 				return nil, fmt.Errorf("insights: detected repeated analytics report instance pagination URL")
 			}
 			seen[identity] = struct{}{}
-			resp, err = client.GetAnalyticsReportInstances(ctx, reportID, asc.WithAnalyticsReportInstancesNextURL(next))
+			resp, err = client.GetAnalyticsReportInstances(ctx, reportID, asc.NextURL[asc.AnalyticsReportInstancesOption](next))
 		}
 		if err != nil {
 			return nil, err

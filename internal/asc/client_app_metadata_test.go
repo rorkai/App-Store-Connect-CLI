@@ -80,7 +80,7 @@ func TestAppMetadataListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetAppCategorySubcategories",
 			next: "https://api.appstoreconnect.apple.com/v1/appCategories/GAMES/subcategories?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetAppCategorySubcategories(ctx, "", WithAppCategoriesNextURL(next))
+				_, err := c.GetAppCategorySubcategories(ctx, "", NextURL[AppCategoriesOption](next))
 				return err
 			},
 		},

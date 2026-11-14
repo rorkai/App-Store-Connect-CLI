@@ -141,12 +141,12 @@ Examples:
 					return client.GetCiBuildRunBuilds(
 						ctx,
 						runID,
-						asc.WithCiBuildRunBuildsLimit(limit),
-						asc.WithCiBuildRunBuildsNextURL(next),
+						asc.Limit[asc.CiBuildRunBuildsOption](limit),
+						asc.NextURL[asc.CiBuildRunBuildsOption](next),
 					)
 				},
 				func(ctx context.Context, client *asc.Client, runID string, next string) (asc.PaginatedResponse, error) {
-					return client.GetCiBuildRunBuilds(ctx, runID, asc.WithCiBuildRunBuildsNextURL(next))
+					return client.GetCiBuildRunBuilds(ctx, runID, asc.NextURL[asc.CiBuildRunBuildsOption](next))
 				},
 			)
 		},
@@ -177,12 +177,12 @@ func xcodeCloudBuildRunsList(ctx context.Context, fs *flag.FlagSet, workflowID s
 				ctx,
 				workflowID,
 				asc.WithCiBuildRunsSort(sort),
-				asc.WithCiBuildRunsLimit(limit),
-				asc.WithCiBuildRunsNextURL(next),
+				asc.Limit[asc.CiBuildRunsOption](limit),
+				asc.NextURL[asc.CiBuildRunsOption](next),
 			)
 		},
 		func(ctx context.Context, client *asc.Client, workflowID string, next string) (asc.PaginatedResponse, error) {
-			return client.GetCiBuildRuns(ctx, workflowID, asc.WithCiBuildRunsNextURL(next))
+			return client.GetCiBuildRuns(ctx, workflowID, asc.NextURL[asc.CiBuildRunsOption](next))
 		},
 	)
 }

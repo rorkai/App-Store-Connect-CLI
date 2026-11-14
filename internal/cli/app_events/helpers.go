@@ -228,7 +228,7 @@ func resolveAppEventLocalizationID(ctx context.Context, client *asc.Client, even
 		return "", shared.UsageErrorf("no locale resolved for app event %q (use --locale or --localization-id)", eventID)
 	}
 
-	resp, err := client.GetAppEventLocalizations(ctx, eventID, asc.WithAppEventLocalizationsLimit(200))
+	resp, err := client.GetAppEventLocalizations(ctx, eventID, asc.Limit[asc.AppEventLocalizationsOption](200))
 	if err != nil {
 		return "", err
 	}

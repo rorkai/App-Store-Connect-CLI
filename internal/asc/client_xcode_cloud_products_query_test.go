@@ -19,7 +19,7 @@ func TestBuildCiProductsQueryIncludesOpenAPIOptions(t *testing.T) {
 		WithCiProductsScmRepositoryFields([]string{"repositoryName", "ownerName"}),
 		WithCiProductsInclude([]string{"app", "bundleId", "primaryRepositories"}),
 		WithCiProductsPrimaryRepositoriesLimit(25),
-		WithCiProductsLimit(10),
+		Limit[CiProductsOption](10),
 	} {
 		option(query)
 	}
@@ -85,7 +85,7 @@ func TestGetCiProductsWithOpenAPIQueryOptions(t *testing.T) {
 		WithCiProductsScmRepositoryFields([]string{"repositoryName", "ownerName"}),
 		WithCiProductsInclude([]string{"app", "bundleId", "primaryRepositories"}),
 		WithCiProductsPrimaryRepositoriesLimit(25),
-		WithCiProductsLimit(10),
+		Limit[CiProductsOption](10),
 	); err != nil {
 		t.Fatalf("GetCiProducts() error: %v", err)
 	}
@@ -205,7 +205,7 @@ func TestPaginateCiProductsPreservesIncludedResourcesAcrossPages(t *testing.T) {
 		t.Fatalf("GetCiProducts() error: %v", err)
 	}
 	aggregated, err := PaginateAll(context.Background(), firstPage, func(ctx context.Context, next string) (PaginatedResponse, error) {
-		return client.GetCiProducts(ctx, WithCiProductsNextURL(next))
+		return client.GetCiProducts(ctx, NextURL[CiProductsOption](next))
 	})
 	if err != nil {
 		t.Fatalf("PaginateAll() error: %v", err)

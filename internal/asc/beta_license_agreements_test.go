@@ -41,7 +41,7 @@ func TestGetBetaLicenseAgreements(t *testing.T) {
 		WithBetaLicenseAgreementsFields([]string{"agreementText"}),
 		WithBetaLicenseAgreementsAppFields([]string{"name"}),
 		WithBetaLicenseAgreementsInclude([]string{"app"}),
-		WithBetaLicenseAgreementsLimit(50),
+		Limit[BetaLicenseAgreementsOption](50),
 	)
 	if err != nil {
 		t.Fatalf("GetBetaLicenseAgreements() error: %v", err)
@@ -61,7 +61,7 @@ func TestGetBetaLicenseAgreements_UsesNextURL(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetBetaLicenseAgreements(context.Background(), WithBetaLicenseAgreementsNextURL(next)); err != nil {
+	if _, err := client.GetBetaLicenseAgreements(context.Background(), NextURL[BetaLicenseAgreementsOption](next)); err != nil {
 		t.Fatalf("GetBetaLicenseAgreements() error: %v", err)
 	}
 }

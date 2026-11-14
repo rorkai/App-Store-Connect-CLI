@@ -225,64 +225,10 @@ type AnalyticsReportInstancesOption func(*analyticsReportInstancesQuery)
 // AnalyticsReportSegmentsOption is a functional option for segment listings.
 type AnalyticsReportSegmentsOption func(*analyticsReportSegmentsQuery)
 
-// WithAnalyticsReportRequestsLimit sets the max number of requests to return.
-func WithAnalyticsReportRequestsLimit(limit int) AnalyticsReportRequestsOption {
-	return func(q *analyticsReportRequestsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithAnalyticsReportRequestsNextURL uses a next page URL directly.
-func WithAnalyticsReportRequestsNextURL(next string) AnalyticsReportRequestsOption {
-	return func(q *analyticsReportRequestsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithAnalyticsReportRequestsAccessType filters requests by access type.
 func WithAnalyticsReportRequestsAccessType(accessType AnalyticsAccessType) AnalyticsReportRequestsOption {
 	return func(q *analyticsReportRequestsQuery) {
 		q.accessType = AnalyticsAccessType(strings.TrimSpace(string(accessType)))
-	}
-}
-
-// WithAnalyticsReportsLimit sets the max number of reports to return.
-func WithAnalyticsReportsLimit(limit int) AnalyticsReportsOption {
-	return func(q *analyticsReportsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithAnalyticsReportsNextURL uses a next page URL directly.
-func WithAnalyticsReportsNextURL(next string) AnalyticsReportsOption {
-	return func(q *analyticsReportsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
-// WithAnalyticsReportInstancesLimit sets the max number of instances to return.
-func WithAnalyticsReportInstancesLimit(limit int) AnalyticsReportInstancesOption {
-	return func(q *analyticsReportInstancesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithAnalyticsReportInstancesNextURL uses a next page URL directly.
-func WithAnalyticsReportInstancesNextURL(next string) AnalyticsReportInstancesOption {
-	return func(q *analyticsReportInstancesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
 	}
 }
 
@@ -297,24 +243,6 @@ func WithAnalyticsReportInstancesGranularities(granularities []string) Analytics
 func WithAnalyticsReportInstancesProcessingDates(dates []string) AnalyticsReportInstancesOption {
 	return func(q *analyticsReportInstancesQuery) {
 		q.processingDates = normalizeUniqueList(dates)
-	}
-}
-
-// WithAnalyticsReportSegmentsLimit sets the max number of segments to return.
-func WithAnalyticsReportSegmentsLimit(limit int) AnalyticsReportSegmentsOption {
-	return func(q *analyticsReportSegmentsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithAnalyticsReportSegmentsNextURL uses a next page URL directly.
-func WithAnalyticsReportSegmentsNextURL(next string) AnalyticsReportSegmentsOption {
-	return func(q *analyticsReportSegmentsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
 	}
 }
 

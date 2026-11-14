@@ -69,7 +69,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		providers, err := client.GetScmProviders(ctx, WithScmProvidersLimit(1))
+		providers, err := client.GetScmProviders(ctx, Limit[ScmProvidersOption](1))
 		if err != nil {
 			if errors.Is(err, ErrForbidden) || errors.Is(err, ErrNotFound) {
 				t.Skipf("scm providers unavailable: %v", err)
@@ -94,7 +94,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 		}
 		assertASCLink(t, provider.Links.Self)
 
-		repos, err := client.GetScmProviderRepositories(ctx, providerID, WithScmRepositoriesLimit(1))
+		repos, err := client.GetScmProviderRepositories(ctx, providerID, Limit[ScmRepositoriesOption](1))
 		if err != nil {
 			t.Fatalf("failed to fetch scm provider repositories: %v", err)
 		}
@@ -115,7 +115,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 			t.Fatal("expected scm repository data")
 		}
 
-		gitReferences, err := client.GetScmGitReferences(ctx, repoID, WithScmGitReferencesLimit(1))
+		gitReferences, err := client.GetScmGitReferences(ctx, repoID, Limit[ScmGitReferencesOption](1))
 		if err != nil {
 			t.Fatalf("failed to fetch scm git references: %v", err)
 		}
@@ -146,7 +146,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 			assertASCLink(t, gitRefRel.Links.Next)
 		}
 
-		pullRequests, err := client.GetScmRepositoryPullRequests(ctx, repoID, WithScmPullRequestsLimit(1))
+		pullRequests, err := client.GetScmRepositoryPullRequests(ctx, repoID, Limit[ScmPullRequestsOption](1))
 		if err != nil {
 			t.Fatalf("failed to fetch scm pull requests: %v", err)
 		}
@@ -182,7 +182,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		requests, err := client.GetAnalyticsReportRequests(ctx, appID, WithAnalyticsReportRequestsLimit(1))
+		requests, err := client.GetAnalyticsReportRequests(ctx, appID, Limit[AnalyticsReportRequestsOption](1))
 		if err != nil {
 			t.Fatalf("failed to fetch analytics report requests: %v", err)
 		}
@@ -203,7 +203,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 			t.Fatal("expected analytics report request data")
 		}
 
-		reports, err := client.GetAnalyticsReports(ctx, requestID, WithAnalyticsReportsLimit(1))
+		reports, err := client.GetAnalyticsReports(ctx, requestID, Limit[AnalyticsReportsOption](1))
 		if err != nil {
 			t.Fatalf("failed to fetch analytics reports: %v", err)
 		}
@@ -234,7 +234,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 			assertASCLink(t, instancesRel.Links.Next)
 		}
 
-		instances, err := client.GetAnalyticsReportInstances(ctx, reportID, WithAnalyticsReportInstancesLimit(1))
+		instances, err := client.GetAnalyticsReportInstances(ctx, reportID, Limit[AnalyticsReportInstancesOption](1))
 		if err != nil {
 			t.Fatalf("failed to fetch analytics report instances: %v", err)
 		}
@@ -265,7 +265,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 			assertASCLink(t, segmentsRel.Links.Next)
 		}
 
-		segments, err := client.GetAnalyticsReportSegments(ctx, instanceID, WithAnalyticsReportSegmentsLimit(1))
+		segments, err := client.GetAnalyticsReportSegments(ctx, instanceID, Limit[AnalyticsReportSegmentsOption](1))
 		if err != nil {
 			t.Fatalf("failed to fetch analytics report segments: %v", err)
 		}

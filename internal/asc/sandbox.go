@@ -91,24 +91,6 @@ type sandboxTestersQuery struct {
 // SandboxTestersOption is a functional option for GetSandboxTesters.
 type SandboxTestersOption func(*sandboxTestersQuery)
 
-// WithSandboxTestersLimit sets the max number of sandbox testers to return.
-func WithSandboxTestersLimit(limit int) SandboxTestersOption {
-	return func(q *sandboxTestersQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithSandboxTestersNextURL uses a next page URL directly.
-func WithSandboxTestersNextURL(next string) SandboxTestersOption {
-	return func(q *sandboxTestersQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithSandboxTestersEmail filters sandbox testers by email address.
 func WithSandboxTestersEmail(email string) SandboxTestersOption {
 	return func(q *sandboxTestersQuery) {
@@ -209,14 +191,14 @@ var errSandboxTesterFound = errors.New("sandbox tester found")
 
 // GetSandboxTester retrieves a sandbox tester by ID.
 func (c *Client) GetSandboxTester(ctx context.Context, testerID string) (*SandboxTesterResponse, error) {
-	firstPage, err := c.GetSandboxTesters(ctx, WithSandboxTestersLimit(200))
+	firstPage, err := c.GetSandboxTesters(ctx, Limit[SandboxTestersOption](200))
 	if err != nil {
 		return nil, err
 	}
 
 	var found *SandboxTesterResponse
 	err = PaginateEach(ctx, firstPage, func(ctx context.Context, nextURL string) (PaginatedResponse, error) {
-		return c.GetSandboxTesters(ctx, WithSandboxTestersNextURL(nextURL))
+		return c.GetSandboxTesters(ctx, NextURL[SandboxTestersOption](nextURL))
 	}, func(page PaginatedResponse) error {
 		resp, ok := page.(*SandboxTestersResponse)
 		if !ok {

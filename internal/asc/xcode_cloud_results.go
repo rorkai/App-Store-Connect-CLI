@@ -203,24 +203,6 @@ type ciBuildActionsQuery struct {
 // CiBuildActionsOption is a functional option for GetCiBuildActions.
 type CiBuildActionsOption func(*ciBuildActionsQuery)
 
-// WithCiBuildActionsLimit sets the max number of build actions to return.
-func WithCiBuildActionsLimit(limit int) CiBuildActionsOption {
-	return func(q *ciBuildActionsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithCiBuildActionsNextURL uses a next page URL directly.
-func WithCiBuildActionsNextURL(next string) CiBuildActionsOption {
-	return func(q *ciBuildActionsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 func buildCiBuildActionsQuery(query *ciBuildActionsQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
@@ -233,24 +215,6 @@ type ciArtifactsQuery struct {
 
 // CiArtifactsOption is a functional option for GetCiBuildActionArtifacts.
 type CiArtifactsOption func(*ciArtifactsQuery)
-
-// WithCiArtifactsLimit sets the max number of artifacts to return.
-func WithCiArtifactsLimit(limit int) CiArtifactsOption {
-	return func(q *ciArtifactsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithCiArtifactsNextURL uses a next page URL directly.
-func WithCiArtifactsNextURL(next string) CiArtifactsOption {
-	return func(q *ciArtifactsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
 
 func buildCiArtifactsQuery(query *ciArtifactsQuery) string {
 	values := url.Values{}
@@ -265,24 +229,6 @@ type ciTestResultsQuery struct {
 // CiTestResultsOption is a functional option for GetCiBuildActionTestResults.
 type CiTestResultsOption func(*ciTestResultsQuery)
 
-// WithCiTestResultsLimit sets the max number of test results to return.
-func WithCiTestResultsLimit(limit int) CiTestResultsOption {
-	return func(q *ciTestResultsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithCiTestResultsNextURL uses a next page URL directly.
-func WithCiTestResultsNextURL(next string) CiTestResultsOption {
-	return func(q *ciTestResultsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 func buildCiTestResultsQuery(query *ciTestResultsQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
@@ -295,24 +241,6 @@ type ciIssuesQuery struct {
 
 // CiIssuesOption is a functional option for GetCiBuildActionIssues.
 type CiIssuesOption func(*ciIssuesQuery)
-
-// WithCiIssuesLimit sets the max number of issues to return.
-func WithCiIssuesLimit(limit int) CiIssuesOption {
-	return func(q *ciIssuesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithCiIssuesNextURL uses a next page URL directly.
-func WithCiIssuesNextURL(next string) CiIssuesOption {
-	return func(q *ciIssuesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
 
 func buildCiIssuesQuery(query *ciIssuesQuery) string {
 	values := url.Values{}

@@ -335,24 +335,6 @@ type ciProductsQuery struct {
 // CiProductsOption is a functional option for GetCiProducts.
 type CiProductsOption func(*ciProductsQuery)
 
-// WithCiProductsLimit sets the max number of CI products to return.
-func WithCiProductsLimit(limit int) CiProductsOption {
-	return func(q *ciProductsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithCiProductsNextURL uses a next page URL directly.
-func WithCiProductsNextURL(next string) CiProductsOption {
-	return func(q *ciProductsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithCiProductsAppID filters CI products by app ID.
 func WithCiProductsAppID(appID string) CiProductsOption {
 	return func(q *ciProductsQuery) {
@@ -459,24 +441,6 @@ type ciWorkflowsQuery struct {
 // CiWorkflowsOption is a functional option for GetCiWorkflows.
 type CiWorkflowsOption func(*ciWorkflowsQuery)
 
-// WithCiWorkflowsLimit sets the max number of CI workflows to return.
-func WithCiWorkflowsLimit(limit int) CiWorkflowsOption {
-	return func(q *ciWorkflowsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithCiWorkflowsNextURL uses a next page URL directly.
-func WithCiWorkflowsNextURL(next string) CiWorkflowsOption {
-	return func(q *ciWorkflowsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 func buildCiWorkflowsQuery(query *ciWorkflowsQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
@@ -489,24 +453,6 @@ type ciProductRepositoriesQuery struct {
 
 // CiProductRepositoriesOption is a functional option for CI product repository lists.
 type CiProductRepositoriesOption func(*ciProductRepositoriesQuery)
-
-// WithCiProductRepositoriesLimit sets the max number of repositories to return.
-func WithCiProductRepositoriesLimit(limit int) CiProductRepositoriesOption {
-	return func(q *ciProductRepositoriesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithCiProductRepositoriesNextURL uses a next page URL directly.
-func WithCiProductRepositoriesNextURL(next string) CiProductRepositoriesOption {
-	return func(q *ciProductRepositoriesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
 
 func buildCiProductRepositoriesQuery(query *ciProductRepositoriesQuery) string {
 	values := url.Values{}
@@ -687,7 +633,7 @@ func (c *Client) GetCiWorkflowRepository(ctx context.Context, workflowID string)
 // ResolveCiProductForApp finds the CI product for a given app ID.
 // Returns an error if no product or multiple products are found.
 func (c *Client) ResolveCiProductForApp(ctx context.Context, appID string) (*CiProductResource, error) {
-	resp, err := c.GetCiProducts(ctx, WithCiProductsAppID(appID), WithCiProductsLimit(200))
+	resp, err := c.GetCiProducts(ctx, WithCiProductsAppID(appID), Limit[CiProductsOption](200))
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch CI products: %w", err)
 	}
@@ -706,13 +652,13 @@ func (c *Client) ResolveCiProductForApp(ctx context.Context, appID string) (*CiP
 // ResolveCiWorkflowByName finds a workflow by name for a given product.
 // Returns an error if no workflow or multiple workflows match the name.
 func (c *Client) ResolveCiWorkflowByName(ctx context.Context, productID, workflowName string) (*CiWorkflowResource, error) {
-	firstPage, err := c.GetCiWorkflows(ctx, productID, WithCiWorkflowsLimit(200))
+	firstPage, err := c.GetCiWorkflows(ctx, productID, Limit[CiWorkflowsOption](200))
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch CI workflows: %w", err)
 	}
 
 	result, err := PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (PaginatedResponse, error) {
-		return c.GetCiWorkflows(ctx, productID, WithCiWorkflowsNextURL(nextURL))
+		return c.GetCiWorkflows(ctx, productID, NextURL[CiWorkflowsOption](nextURL))
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch CI workflows: %w", err)

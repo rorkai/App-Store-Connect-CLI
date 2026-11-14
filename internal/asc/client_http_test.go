@@ -272,7 +272,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetCiWorkflows",
 			next: "https://api.appstoreconnect.apple.com/v1/ciProducts/prod-1/workflows?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetCiWorkflows(ctx, "prod-1", WithCiWorkflowsNextURL(next))
+				_, err := c.GetCiWorkflows(ctx, "prod-1", NextURL[CiWorkflowsOption](next))
 				return err
 			},
 		},
@@ -280,7 +280,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetScmProviders",
 			next: "https://api.appstoreconnect.apple.com/v1/scmProviders?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetScmProviders(ctx, WithScmProvidersNextURL(next))
+				_, err := c.GetScmProviders(ctx, NextURL[ScmProvidersOption](next))
 				return err
 			},
 		},
@@ -288,7 +288,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetScmRepositories",
 			next: "https://api.appstoreconnect.apple.com/v1/scmRepositories?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetScmRepositories(ctx, WithScmRepositoriesNextURL(next))
+				_, err := c.GetScmRepositories(ctx, NextURL[ScmRepositoriesOption](next))
 				return err
 			},
 		},
@@ -805,7 +805,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"filter[app]": "app-1", "limit": "25"},
 			body:  `{"data":[{"type":"ciProducts","id":"prod-1"}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetCiProducts(ctx, WithCiProductsAppID("app-1"), WithCiProductsLimit(25)))
+				return discardResult(c.GetCiProducts(ctx, WithCiProductsAppID("app-1"), Limit[CiProductsOption](25)))
 			},
 		},
 		{
@@ -814,7 +814,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "50"},
 			body:  `{"data":[{"type":"ciBuildRuns","id":"run-1"}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetCiProductBuildRuns(ctx, "prod-1", WithCiBuildRunsLimit(50)))
+				return discardResult(c.GetCiProductBuildRuns(ctx, "prod-1", Limit[CiBuildRunsOption](50)))
 			},
 		},
 		{
@@ -823,7 +823,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "10"},
 			body:  `{"data":[{"type":"scmRepositories","id":"repo-1"}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetCiProductPrimaryRepositories(ctx, "prod-1", WithCiProductRepositoriesLimit(10)))
+				return discardResult(c.GetCiProductPrimaryRepositories(ctx, "prod-1", Limit[CiProductRepositoriesOption](10)))
 			},
 		},
 		{
@@ -832,7 +832,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "5"},
 			body:  `{"data":[{"type":"scmRepositories","id":"repo-2"}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetCiProductAdditionalRepositories(ctx, "prod-1", WithCiProductRepositoriesLimit(5)))
+				return discardResult(c.GetCiProductAdditionalRepositories(ctx, "prod-1", Limit[CiProductRepositoriesOption](5)))
 			},
 		},
 		{
@@ -840,7 +840,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			path:  "/v1/scmProviders",
 			query: map[string]string{"limit": "25"},
 			body:  `{"data":[{"type":"scmProviders","id":"provider-1"}]}`,
-			call:  func(c *Client) error { return discardResult(c.GetScmProviders(ctx, WithScmProvidersLimit(25))) },
+			call:  func(c *Client) error { return discardResult(c.GetScmProviders(ctx, Limit[ScmProvidersOption](25))) },
 		},
 		{
 			name:  "GetScmProviderRepositories_WithLimit",
@@ -848,7 +848,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "10"},
 			body:  `{"data":[{"type":"scmRepositories","id":"repo-1"}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetScmProviderRepositories(ctx, "provider-1", WithScmRepositoriesLimit(10)))
+				return discardResult(c.GetScmProviderRepositories(ctx, "provider-1", Limit[ScmRepositoriesOption](10)))
 			},
 		},
 		{
@@ -856,7 +856,9 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			path:  "/v1/scmRepositories",
 			query: map[string]string{"limit": "10"},
 			body:  `{"data":[{"type":"scmRepositories","id":"repo-1"}]}`,
-			call:  func(c *Client) error { return discardResult(c.GetScmRepositories(ctx, WithScmRepositoriesLimit(10))) },
+			call: func(c *Client) error {
+				return discardResult(c.GetScmRepositories(ctx, Limit[ScmRepositoriesOption](10)))
+			},
 		},
 		{
 			name:  "GetScmRepositoryGitReferencesRelationships_WithLimit",
@@ -873,7 +875,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "20"},
 			body:  `{"data":[{"type":"scmPullRequests","id":"pr-1"}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetScmRepositoryPullRequests(ctx, "repo-1", WithScmPullRequestsLimit(20)))
+				return discardResult(c.GetScmRepositoryPullRequests(ctx, "repo-1", Limit[ScmPullRequestsOption](20)))
 			},
 		},
 		{
@@ -891,7 +893,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "100"},
 			body:  `{"data":[{"type":"scmGitReferences","id":"ref-1"}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetScmGitReferences(ctx, "  repo-1  ", WithScmGitReferencesLimit(100)))
+				return discardResult(c.GetScmGitReferences(ctx, "  repo-1  ", Limit[ScmGitReferencesOption](100)))
 			},
 		},
 		{
@@ -899,7 +901,9 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			path:  "/v1/ciWorkflows/wf-1/buildRuns",
 			query: map[string]string{"limit": "50"},
 			body:  `{"data":[{"type":"ciBuildRuns","id":"run-1","attributes":{"number":1}}]}`,
-			call:  func(c *Client) error { return discardResult(c.GetCiBuildRuns(ctx, "wf-1", WithCiBuildRunsLimit(50))) },
+			call: func(c *Client) error {
+				return discardResult(c.GetCiBuildRuns(ctx, "wf-1", Limit[CiBuildRunsOption](50)))
+			},
 		},
 		{
 			name:  "GetCiBuildRuns_WithSort",
@@ -916,7 +920,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "10"},
 			body:  `{"data":[{"type":"builds","id":"build-1"}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetCiBuildRunBuilds(ctx, "run-1", WithCiBuildRunBuildsLimit(10)))
+				return discardResult(c.GetCiBuildRunBuilds(ctx, "run-1", Limit[CiBuildRunBuildsOption](10)))
 			},
 		},
 		{
@@ -925,7 +929,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "20"},
 			body:  `{"data":[{"type":"ciArtifacts","id":"art-1"}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetCiBuildActionArtifacts(ctx, "action-1", WithCiArtifactsLimit(20)))
+				return discardResult(c.GetCiBuildActionArtifacts(ctx, "action-1", Limit[CiArtifactsOption](20)))
 			},
 		},
 		{
@@ -934,7 +938,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "30"},
 			body:  `{"data":[{"type":"ciTestResults","id":"test-1"}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetCiBuildActionTestResults(ctx, "action-1", WithCiTestResultsLimit(30)))
+				return discardResult(c.GetCiBuildActionTestResults(ctx, "action-1", Limit[CiTestResultsOption](30)))
 			},
 		},
 		{
@@ -943,7 +947,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "40"},
 			body:  `{"data":[{"type":"ciIssues","id":"issue-1"}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetCiBuildActionIssues(ctx, "action-1", WithCiIssuesLimit(40)))
+				return discardResult(c.GetCiBuildActionIssues(ctx, "action-1", Limit[CiIssuesOption](40)))
 			},
 		},
 		{
@@ -951,7 +955,9 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			path:  "/v1/ciMacOsVersions",
 			query: map[string]string{"limit": "5"},
 			body:  `{"data":[{"type":"ciMacOsVersions","id":"macos-1"}]}`,
-			call:  func(c *Client) error { return discardResult(c.GetCiMacOsVersions(ctx, WithCiMacOsVersionsLimit(5))) },
+			call: func(c *Client) error {
+				return discardResult(c.GetCiMacOsVersions(ctx, Limit[CiMacOsVersionsOption](5)))
+			},
 		},
 		{
 			name:  "GetCiMacOsVersionXcodeVersions_WithLimit",
@@ -959,7 +965,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "20"},
 			body:  `{"data":[{"type":"ciXcodeVersions","id":"xcode-1"}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetCiMacOsVersionXcodeVersions(ctx, "macos-1", WithCiXcodeVersionsLimit(20)))
+				return discardResult(c.GetCiMacOsVersionXcodeVersions(ctx, "macos-1", Limit[CiXcodeVersionsOption](20)))
 			},
 		},
 		{
@@ -967,7 +973,9 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			path:  "/v1/ciXcodeVersions",
 			query: map[string]string{"limit": "10"},
 			body:  `{"data":[{"type":"ciXcodeVersions","id":"xcode-1"}]}`,
-			call:  func(c *Client) error { return discardResult(c.GetCiXcodeVersions(ctx, WithCiXcodeVersionsLimit(10))) },
+			call: func(c *Client) error {
+				return discardResult(c.GetCiXcodeVersions(ctx, Limit[CiXcodeVersionsOption](10)))
+			},
 		},
 		{
 			name:  "GetCiXcodeVersionMacOsVersions_WithLimit",
@@ -975,7 +983,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "15"},
 			body:  `{"data":[{"type":"ciMacOsVersions","id":"macos-1"}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetCiXcodeVersionMacOsVersions(ctx, "xcode-1", WithCiMacOsVersionsLimit(15)))
+				return discardResult(c.GetCiXcodeVersionMacOsVersions(ctx, "xcode-1", Limit[CiMacOsVersionsOption](15)))
 			},
 		},
 		{

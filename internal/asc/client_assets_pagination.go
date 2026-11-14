@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/url"
-	"strings"
 )
 
 // Asset collection options are intentionally separate from relationship options:
@@ -58,15 +57,6 @@ func WithAppScreenshotSetsIncludeScreenshots() AppScreenshotSetsOption {
 	}
 }
 
-// WithAppScreenshotSetsNextURL uses an Apple-supplied next page URL directly.
-func WithAppScreenshotSetsNextURL(next string) AppScreenshotSetsOption {
-	return func(query *appScreenshotSetsQuery) {
-		if strings.TrimSpace(next) != "" {
-			query.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithAppScreenshotSetsRequestContext creates a fresh context for each page
 // fetched by GetAllAppScreenshotSets.
 func WithAppScreenshotSetsRequestContext(factory RequestContextFunc) AppScreenshotSetsOption {
@@ -80,15 +70,6 @@ func WithAppScreenshotsLimit(limit int) AppScreenshotsOption {
 	return func(query *appScreenshotsQuery) {
 		query.limit = limit
 		query.limitSet = true
-	}
-}
-
-// WithAppScreenshotsNextURL uses an Apple-supplied next page URL directly.
-func WithAppScreenshotsNextURL(next string) AppScreenshotsOption {
-	return func(query *appScreenshotsQuery) {
-		if strings.TrimSpace(next) != "" {
-			query.nextURL = strings.TrimSpace(next)
-		}
 	}
 }
 
@@ -143,7 +124,7 @@ func (c *Client) GetAllAppScreenshotSets(ctx context.Context, localizationID str
 	result, err := paginateAssetResponse(ctx, firstPage, func(parentCtx context.Context, nextURL string) (PaginatedResponse, error) {
 		nextCtx, nextCancel := requestContextFor(parentCtx, query.requestContext)
 		defer nextCancel()
-		return c.GetAppScreenshotSets(nextCtx, "", WithAppScreenshotSetsNextURL(nextURL))
+		return c.GetAppScreenshotSets(nextCtx, "", NextURL[AppScreenshotSetsOption](nextURL))
 	})
 	if err != nil {
 		return nil, err
@@ -167,7 +148,7 @@ func (c *Client) GetAllAppScreenshots(ctx context.Context, setID string, opts ..
 	result, err := paginateAssetResponse(ctx, firstPage, func(parentCtx context.Context, nextURL string) (PaginatedResponse, error) {
 		nextCtx, nextCancel := requestContextFor(parentCtx, query.requestContext)
 		defer nextCancel()
-		return c.GetAppScreenshots(nextCtx, "", WithAppScreenshotsNextURL(nextURL))
+		return c.GetAppScreenshots(nextCtx, "", NextURL[AppScreenshotsOption](nextURL))
 	})
 	if err != nil {
 		return nil, err
