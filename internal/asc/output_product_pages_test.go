@@ -543,33 +543,3 @@ func TestPrintMarkdown_AppStoreVersionExperimentTreatmentLocalizations(t *testin
 		t.Fatalf("expected locale in output, got: %s", output)
 	}
 }
-
-func TestPrintTable_AppCustomProductPageDeleteResult(t *testing.T) {
-	result := &AppCustomProductPageDeleteResult{ID: "page-1", Deleted: true}
-
-	output := captureStdout(t, func() error {
-		return PrintTable(result)
-	})
-
-	if !strings.Contains(output, "Deleted") {
-		t.Fatalf("expected header in output, got: %s", output)
-	}
-	if !strings.Contains(output, "page-1") {
-		t.Fatalf("expected ID in output, got: %s", output)
-	}
-}
-
-func TestPrintMarkdown_AppCustomProductPageDeleteResult(t *testing.T) {
-	result := &AppCustomProductPageDeleteResult{ID: "page-1", Deleted: true}
-
-	output := captureStdout(t, func() error {
-		return PrintMarkdown(result)
-	})
-
-	if !strings.Contains(output, "ID") || !strings.Contains(output, "Deleted") {
-		t.Fatalf("expected markdown header, got: %s", output)
-	}
-	if !strings.Contains(output, "page-1") {
-		t.Fatalf("expected ID in output, got: %s", output)
-	}
-}

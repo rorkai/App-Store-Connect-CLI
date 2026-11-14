@@ -6,12 +6,6 @@ import (
 	"strings"
 )
 
-// InAppPurchaseDeleteResult represents CLI output for IAP deletions.
-type InAppPurchaseDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
 func inAppPurchasesRows(resp *InAppPurchasesV2Response) ([]string, [][]string) {
 	headers := []string{"ID", "Name", "Product ID", "Type", "State"}
 	rows := make([][]string, 0, len(resp.Data))
@@ -62,12 +56,6 @@ func inAppPurchaseLocalizationsRows(resp *InAppPurchaseLocalizationsResponse) ([
 			compactWhitespace(item.Attributes.Description),
 		})
 	}
-	return headers, rows
-}
-
-func inAppPurchaseDeleteResultRows(result *InAppPurchaseDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
 }
 

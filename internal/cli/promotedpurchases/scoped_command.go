@@ -458,7 +458,7 @@ Examples:
 			return fmt.Errorf("%s: failed to delete: %w", errorPrefix, err)
 		}
 
-		result := &asc.PromotedPurchaseDeleteResult{
+		result := &asc.DeleteResult{
 			ID:      promotedPurchaseID,
 			Deleted: true,
 		}

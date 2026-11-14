@@ -298,7 +298,7 @@ Examples:
 			return client.DeleteBundleIDCapability(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.BundleIDCapabilityDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }

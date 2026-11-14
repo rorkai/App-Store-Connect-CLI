@@ -372,7 +372,7 @@ Examples:
 				return fmt.Errorf("webhooks delete: failed to delete: %w", err)
 			}
 
-			result := &asc.WebhookDeleteResult{ID: trimmedID, Deleted: true}
+			result := &asc.DeleteResult{ID: trimmedID, Deleted: true}
 			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}

@@ -163,7 +163,7 @@ Examples:
 			return client.DeleteAlternativeDistributionDomain(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.AlternativeDistributionDomainDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }

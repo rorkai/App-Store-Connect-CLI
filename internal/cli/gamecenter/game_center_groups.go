@@ -223,7 +223,7 @@ Examples:
 			return client.DeleteGameCenterGroup(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.GameCenterGroupDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }

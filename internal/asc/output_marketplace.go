@@ -1,9 +1,5 @@
 package asc
 
-import (
-	"fmt"
-)
-
 func marketplaceSearchDetailsRows(resp *MarketplaceSearchDetailsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Catalog URL"}
 	rows := make([][]string, 0, len(resp.Data))
@@ -25,17 +21,5 @@ func marketplaceWebhooksRows(resp *MarketplaceWebhooksResponse) ([]string, [][]s
 			compactWhitespace(item.Attributes.EndpointURL),
 		})
 	}
-	return headers, rows
-}
-
-func marketplaceSearchDetailDeleteResultRows(result *MarketplaceSearchDetailDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	return headers, rows
-}
-
-func marketplaceWebhookDeleteResultRows(result *MarketplaceWebhookDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
 }

@@ -87,12 +87,6 @@ func betaRecruitmentCriteriaRows(resp *BetaRecruitmentCriteriaResponse) ([]strin
 	return headers, rows
 }
 
-func betaRecruitmentCriteriaDeleteResultRows(result *BetaRecruitmentCriteriaDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	return headers, rows
-}
-
 func formatDeviceFamilyOsVersions(items []BetaRecruitmentCriterionOptionDeviceFamily) string {
 	if len(items) == 0 {
 		return ""

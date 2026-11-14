@@ -418,7 +418,7 @@ Examples:
 				return fmt.Errorf("builds test-notes delete: %w", err)
 			}
 
-			result := &asc.BetaBuildLocalizationDeleteResult{
+			result := &asc.DeleteResult{
 				ID:      id,
 				Deleted: true,
 			}

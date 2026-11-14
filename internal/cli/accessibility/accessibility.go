@@ -369,7 +369,7 @@ Examples:
 			return client.DeleteAccessibilityDeclaration(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.AccessibilityDeclarationDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }

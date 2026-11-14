@@ -48,12 +48,6 @@ func appStoreReviewAttachmentFields(resp *AppStoreReviewAttachmentResponse) []ap
 	}
 }
 
-func appStoreReviewAttachmentDeleteResultRows(result *AppStoreReviewAttachmentDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	return headers, rows
-}
-
 func formatAssetDeliveryState(state *AppMediaAssetState) string {
 	if state == nil || state.State == nil {
 		return ""

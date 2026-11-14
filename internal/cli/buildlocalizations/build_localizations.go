@@ -363,7 +363,7 @@ Examples:
 			return client.DeleteAppStoreVersionLocalization(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.AppStoreVersionLocalizationDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }

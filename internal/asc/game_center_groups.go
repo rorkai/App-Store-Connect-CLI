@@ -4,12 +4,6 @@ import (
 	"net/url"
 )
 
-// GameCenterGroupDeleteResult represents CLI output for group deletions.
-type GameCenterGroupDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
 // GCGroupsOption is a functional option for GetGameCenterGroups.
 type GCGroupsOption func(*gcGroupsQuery)
 

@@ -19,12 +19,6 @@ type AppStoreVersionExperimentAttributes struct {
 // AppStoreVersionExperimentsResponse is the response from experiment list endpoints (v1).
 type AppStoreVersionExperimentsResponse = Response[AppStoreVersionExperimentAttributes]
 
-// AppStoreVersionExperimentDeleteResult represents CLI output for experiment deletions.
-type AppStoreVersionExperimentDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
 // AppStoreVersionExperimentV2Attributes describes experiment attributes (v2).
 type AppStoreVersionExperimentV2Attributes struct {
 	Name              string   `json:"name,omitempty"`
@@ -63,24 +57,12 @@ type AppStoreVersionExperimentTreatmentCreateAttributes struct {
 	AppIconName string `json:"appIconName,omitempty"`
 }
 
-// AppStoreVersionExperimentTreatmentDeleteResult represents CLI output for treatment deletions.
-type AppStoreVersionExperimentTreatmentDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
 // AppStoreVersionExperimentTreatmentLocalizationsResponse is the response from treatment localization list endpoints.
 type AppStoreVersionExperimentTreatmentLocalizationsResponse = Response[AppStoreVersionExperimentTreatmentLocalizationAttributes]
 
 // AppStoreVersionExperimentTreatmentLocalizationCreateRelationships describes create relationships.
 type AppStoreVersionExperimentTreatmentLocalizationCreateRelationships struct {
 	AppStoreVersionExperimentTreatment *Relationship `json:"appStoreVersionExperimentTreatment"`
-}
-
-// AppStoreVersionExperimentTreatmentLocalizationDeleteResult represents CLI output for treatment localization deletions.
-type AppStoreVersionExperimentTreatmentLocalizationDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
 }
 
 // CreateAppStoreVersionExperiment creates an experiment (v1).

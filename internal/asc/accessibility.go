@@ -70,9 +70,3 @@ type AccessibilityDeclarationCreateAttributes struct {
 	SupportsVoiceControl                   *bool        `json:"supportsVoiceControl,omitempty"`
 	SupportsVoiceover                      *bool        `json:"supportsVoiceover,omitempty"`
 }
-
-// AccessibilityDeclarationDeleteResult represents CLI output for deletions.
-type AccessibilityDeclarationDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}

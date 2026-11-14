@@ -1,9 +1,5 @@
 package asc
 
-import (
-	"fmt"
-)
-
 func appCustomProductPagesRows(resp *AppCustomProductPagesResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Name", "Visible", "URL"}
 	rows := make([][]string, 0, len(resp.Data))
@@ -106,35 +102,5 @@ func appStoreVersionExperimentTreatmentLocalizationsRows(resp *AppStoreVersionEx
 			compactWhitespace(item.Attributes.Locale),
 		})
 	}
-	return headers, rows
-}
-
-func appCustomProductPageDeleteResultRows(result *AppCustomProductPageDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	return headers, rows
-}
-
-func appCustomProductPageLocalizationDeleteResultRows(result *AppCustomProductPageLocalizationDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	return headers, rows
-}
-
-func appStoreVersionExperimentDeleteResultRows(result *AppStoreVersionExperimentDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	return headers, rows
-}
-
-func appStoreVersionExperimentTreatmentDeleteResultRows(result *AppStoreVersionExperimentTreatmentDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	return headers, rows
-}
-
-func appStoreVersionExperimentTreatmentLocalizationDeleteResultRows(result *AppStoreVersionExperimentTreatmentLocalizationDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
 }

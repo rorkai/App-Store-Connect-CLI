@@ -717,7 +717,7 @@ Examples:
 			return client.DeleteWinBackOffer(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.WinBackOfferDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }

@@ -1,7 +1,6 @@
 package asc
 
 import (
-	"fmt"
 	"strings"
 )
 
@@ -41,11 +40,5 @@ func endUserLicenseAgreementRows(resp *EndUserLicenseAgreementResponse) ([]strin
 		compactWhitespace(formatEndUserLicenseAgreementTerritories(resp.Data)),
 		compactWhitespace(resp.Data.Attributes.AgreementText),
 	}}
-	return headers, rows
-}
-
-func endUserLicenseAgreementDeleteResultRows(result *EndUserLicenseAgreementDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
 }

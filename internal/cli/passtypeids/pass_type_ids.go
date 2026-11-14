@@ -388,7 +388,7 @@ Examples:
 			return client.DeletePassTypeID(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.PassTypeIDDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }

@@ -367,7 +367,7 @@ Examples:
 			return client.DeleteGameCenterChallenge(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.GameCenterChallengeDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }
@@ -717,7 +717,7 @@ Examples:
 			return client.DeleteGameCenterChallengeLocalization(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.GameCenterChallengeLocalizationDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }
@@ -845,7 +845,7 @@ Examples:
 			return client.DeleteGameCenterChallengeImage(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.GameCenterChallengeImageDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }
@@ -967,7 +967,7 @@ Examples:
 			return client.DeleteGameCenterChallengeVersionRelease(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.GameCenterChallengeVersionReleaseDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }

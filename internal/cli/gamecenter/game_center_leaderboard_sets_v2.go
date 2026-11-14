@@ -349,7 +349,7 @@ Examples:
 			return client.DeleteGameCenterLeaderboardSetV2(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.GameCenterLeaderboardSetDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }
@@ -790,7 +790,7 @@ Examples:
 			return client.DeleteGameCenterLeaderboardSetLocalizationV2(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.GameCenterLeaderboardSetLocalizationDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }
@@ -950,7 +950,7 @@ Examples:
 			return client.DeleteGameCenterLeaderboardSetImageV2(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.GameCenterLeaderboardSetImageDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }

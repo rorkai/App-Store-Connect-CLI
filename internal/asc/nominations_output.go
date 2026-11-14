@@ -1,7 +1,5 @@
 package asc
 
-import "fmt"
-
 func nominationsRows(resp *NominationsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Name", "Type", "State", "Publish Start", "Publish End"}
 	rows := make([][]string, 0, len(resp.Data))
@@ -16,11 +14,5 @@ func nominationsRows(resp *NominationsResponse) ([]string, [][]string) {
 			SanitizeTerminalText(fallbackValue(attrs.PublishEndDate)),
 		})
 	}
-	return headers, rows
-}
-
-func nominationDeleteResultRows(result *NominationDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
 }

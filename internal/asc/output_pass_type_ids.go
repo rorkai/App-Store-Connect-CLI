@@ -1,13 +1,5 @@
 package asc
 
-import "fmt"
-
-// PassTypeIDDeleteResult represents CLI output for pass type ID deletions.
-type PassTypeIDDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
 func passTypeIDsRows(resp *PassTypeIDsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Name", "Identifier"}
 	rows := make([][]string, 0, len(resp.Data))
@@ -18,11 +10,5 @@ func passTypeIDsRows(resp *PassTypeIDsResponse) ([]string, [][]string) {
 			item.Attributes.Identifier,
 		})
 	}
-	return headers, rows
-}
-
-func passTypeIDDeleteResultRows(result *PassTypeIDDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
 }

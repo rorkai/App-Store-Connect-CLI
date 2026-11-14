@@ -1,17 +1,5 @@
 package asc
 
-// AlternativeDistributionDomainDeleteResult represents CLI output for domain deletions.
-type AlternativeDistributionDomainDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
-// AlternativeDistributionKeyDeleteResult represents CLI output for key deletions.
-type AlternativeDistributionKeyDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
 // AlternativeDistributionPackageAttributes describes an alternative distribution package.
 type AlternativeDistributionPackageAttributes struct {
 	SourceFileChecksum *Checksums `json:"sourceFileChecksum,omitempty"`

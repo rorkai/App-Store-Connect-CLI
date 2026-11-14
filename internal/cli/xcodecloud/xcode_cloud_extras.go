@@ -324,7 +324,7 @@ Examples:
 			return nil
 		},
 		Result: func(id string) any {
-			return &asc.CiProductDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }

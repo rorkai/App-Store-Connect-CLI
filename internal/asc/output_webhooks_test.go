@@ -109,36 +109,6 @@ func TestPrintMarkdown_WebhookDeliveries(t *testing.T) {
 	}
 }
 
-func TestPrintTable_WebhookDeleteResult(t *testing.T) {
-	result := &WebhookDeleteResult{ID: "wh-1", Deleted: true}
-
-	output := captureStdout(t, func() error {
-		return PrintTable(result)
-	})
-
-	if !strings.Contains(output, "Deleted") {
-		t.Fatalf("expected header in output, got: %s", output)
-	}
-	if !strings.Contains(output, "wh-1") {
-		t.Fatalf("expected webhook id in output, got: %s", output)
-	}
-}
-
-func TestPrintMarkdown_WebhookDeleteResult(t *testing.T) {
-	result := &WebhookDeleteResult{ID: "wh-1", Deleted: true}
-
-	output := captureStdout(t, func() error {
-		return PrintMarkdown(result)
-	})
-
-	if !strings.Contains(output, "ID") || !strings.Contains(output, "Deleted") {
-		t.Fatalf("expected markdown header, got: %s", output)
-	}
-	if !strings.Contains(output, "wh-1") {
-		t.Fatalf("expected webhook id in output, got: %s", output)
-	}
-}
-
 func TestPrintTable_WebhookPing(t *testing.T) {
 	resp := &WebhookPingResponse{
 		Data: Resource[struct{}]{

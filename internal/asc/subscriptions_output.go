@@ -6,24 +6,6 @@ import (
 	"strings"
 )
 
-// SubscriptionGroupDeleteResult represents CLI output for group deletions.
-type SubscriptionGroupDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
-// SubscriptionDeleteResult represents CLI output for subscription deletions.
-type SubscriptionDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
-// SubscriptionPriceDeleteResult represents CLI output for subscription price deletions.
-type SubscriptionPriceDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
 // SubscriptionIntroductoryOfferCreateSummary describes a single- or
 // all-territories introductory-offer create operation.
 type SubscriptionIntroductoryOfferCreateSummary struct {
@@ -277,24 +259,6 @@ func subscriptionGracePeriodRows(resp *SubscriptionGracePeriodResponse) ([]strin
 		resp.Data.Attributes.Duration,
 		resp.Data.Attributes.RenewalType,
 	}}
-	return headers, rows
-}
-
-func subscriptionGroupDeleteResultRows(result *SubscriptionGroupDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	return headers, rows
-}
-
-func subscriptionDeleteResultRows(result *SubscriptionDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	return headers, rows
-}
-
-func subscriptionPriceDeleteResultRows(result *SubscriptionPriceDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
 }
 

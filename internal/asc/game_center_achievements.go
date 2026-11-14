@@ -62,12 +62,6 @@ type GameCenterAchievementVersionInlineCreate struct {
 // GameCenterAchievementsResponse is the response from achievement list endpoints.
 type GameCenterAchievementsResponse = Response[GameCenterAchievementAttributes]
 
-// GameCenterAchievementDeleteResult represents CLI output for achievement deletions.
-type GameCenterAchievementDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
 // GCAchievementsOption is a functional option for GetGameCenterAchievements.
 type GCAchievementsOption func(*gcAchievementsQuery)
 
@@ -140,12 +134,6 @@ type GameCenterAchievementLocalizationV2CreateData struct {
 // GameCenterAchievementLocalizationsResponse is the response from achievement localization list endpoints.
 type GameCenterAchievementLocalizationsResponse = Response[GameCenterAchievementLocalizationAttributes]
 
-// GameCenterAchievementLocalizationDeleteResult represents CLI output for localization deletions.
-type GameCenterAchievementLocalizationDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
 // GCAchievementLocalizationsOption is a functional option for GetGameCenterAchievementLocalizations.
 type GCAchievementLocalizationsOption func(*gcAchievementLocalizationsQuery)
 
@@ -166,12 +154,6 @@ type GameCenterAchievementReleaseAttributes struct {
 
 // GameCenterAchievementReleasesResponse is the response from achievement release list endpoints.
 type GameCenterAchievementReleasesResponse = Response[GameCenterAchievementReleaseAttributes]
-
-// GameCenterAchievementReleaseDeleteResult represents CLI output for achievement release deletions.
-type GameCenterAchievementReleaseDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
 
 // GCAchievementReleasesOption is a functional option for GetGameCenterAchievementReleases.
 type GCAchievementReleasesOption func(*gcAchievementReleasesQuery)
@@ -210,12 +192,6 @@ type GameCenterAchievementImageV2CreateData struct {
 
 // GameCenterAchievementImagesResponse is the response from achievement image list endpoints.
 type GameCenterAchievementImagesResponse = Response[GameCenterAchievementImageAttributes]
-
-// GameCenterAchievementImageDeleteResult represents CLI output for image deletions.
-type GameCenterAchievementImageDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
 
 // GameCenterAchievementImageUploadResult represents CLI output for image uploads.
 type GameCenterAchievementImageUploadResult struct {

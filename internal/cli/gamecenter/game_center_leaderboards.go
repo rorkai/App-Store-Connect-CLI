@@ -156,7 +156,7 @@ Examples:
 			return client.DeleteGameCenterLeaderboardImage(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.GameCenterLeaderboardImageDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }
@@ -691,7 +691,7 @@ Examples:
 				}
 			}
 
-			result := &asc.GameCenterLeaderboardDeleteResult{
+			result := &asc.DeleteResult{
 				ID:      id,
 				Deleted: true,
 			}
@@ -965,7 +965,7 @@ Examples:
 			return client.DeleteGameCenterLeaderboardRelease(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.GameCenterLeaderboardReleaseDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }

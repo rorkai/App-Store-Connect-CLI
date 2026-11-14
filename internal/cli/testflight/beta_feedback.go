@@ -282,7 +282,7 @@ func runFeedbackSubmissionDelete(ctx context.Context, submissionID string, outpu
 		return fmt.Errorf("testflight feedback delete: failed to delete: %w", err)
 	}
 
-	result := &asc.BetaFeedbackSubmissionDeleteResult{
+	result := &asc.DeleteResult{
 		ID:      submissionID,
 		Deleted: true,
 	}
@@ -320,7 +320,7 @@ func runCrashSubmissionDelete(ctx context.Context, submissionID string, output s
 		return fmt.Errorf("testflight crashes delete: failed to delete: %w", err)
 	}
 
-	result := &asc.BetaFeedbackSubmissionDeleteResult{
+	result := &asc.DeleteResult{
 		ID:      submissionID,
 		Deleted: true,
 	}

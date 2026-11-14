@@ -288,7 +288,7 @@ Examples:
 			return client.DeleteGameCenterLeaderboardLocalization(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.GameCenterLeaderboardLocalizationDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }

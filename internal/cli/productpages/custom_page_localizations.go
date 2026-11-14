@@ -305,7 +305,7 @@ Examples:
 			return client.DeleteAppCustomProductPageLocalization(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.AppCustomProductPageLocalizationDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }

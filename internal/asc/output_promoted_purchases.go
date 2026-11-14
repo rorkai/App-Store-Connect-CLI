@@ -1,16 +1,9 @@
 package asc
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 )
-
-// PromotedPurchaseDeleteResult represents CLI output for promoted purchase deletions.
-type PromotedPurchaseDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
 
 // AppPromotedPurchasesLinkResult represents CLI output for linking promoted purchases.
 type AppPromotedPurchasesLinkResult struct {
@@ -37,12 +30,6 @@ func promotedPurchasesRows(resp *PromotedPurchasesResponse) ([]string, [][]strin
 			item.Attributes.State,
 		})
 	}
-	return headers, rows
-}
-
-func promotedPurchaseDeleteResultRows(result *PromotedPurchaseDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
 }
 

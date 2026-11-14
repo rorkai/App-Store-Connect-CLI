@@ -104,18 +104,6 @@ type BuildBetaGroupMembershipFailure struct {
 	Error     string `json:"error"`
 }
 
-// BetaGroupDeleteResult represents CLI output for beta group deletions.
-type BetaGroupDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
-// BetaFeedbackSubmissionDeleteResult represents CLI output for beta feedback deletions.
-type BetaFeedbackSubmissionDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
 // BetaTestersExportSummary represents CLI output for beta tester CSV exports.
 type BetaTestersExportSummary struct {
 	AppID         string `json:"appId"`
@@ -241,12 +229,6 @@ func betaTesterDeleteResultRows(result *BetaTesterDeleteResult) ([]string, [][]s
 	return headers, rows
 }
 
-func betaGroupDeleteResultRows(result *BetaGroupDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	return headers, rows
-}
-
 func betaTesterGroupsUpdateResultRows(result *BetaTesterGroupsUpdateResult) ([]string, [][]string) {
 	headers := []string{"Tester ID", "Group IDs", "Action"}
 	rows := [][]string{{result.TesterID, strings.Join(result.GroupIDs, ","), result.Action}}
@@ -274,12 +256,6 @@ func betaTesterBuildsUpdateResultRows(result *BetaTesterBuildsUpdateResult) ([]s
 func appBetaTestersUpdateResultRows(result *AppBetaTestersUpdateResult) ([]string, [][]string) {
 	headers := []string{"App ID", "Tester IDs", "Action"}
 	rows := [][]string{{result.AppID, strings.Join(result.TesterIDs, ","), result.Action}}
-	return headers, rows
-}
-
-func betaFeedbackSubmissionDeleteResultRows(result *BetaFeedbackSubmissionDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
 }
 

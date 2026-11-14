@@ -336,7 +336,7 @@ Examples:
 			return client.DeleteBetaAppLocalization(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.BetaAppLocalizationDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }

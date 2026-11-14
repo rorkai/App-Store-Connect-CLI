@@ -54,33 +54,3 @@ func TestPrintMarkdown_MerchantIDs(t *testing.T) {
 		t.Fatalf("expected identifier in output, got: %s", output)
 	}
 }
-
-func TestPrintTable_MerchantIDDeleteResult(t *testing.T) {
-	result := &MerchantIDDeleteResult{ID: "m1", Deleted: true}
-
-	output := captureStdout(t, func() error {
-		return PrintTable(result)
-	})
-
-	if !strings.Contains(output, "Deleted") {
-		t.Fatalf("expected header in output, got: %s", output)
-	}
-	if !strings.Contains(output, "m1") {
-		t.Fatalf("expected ID in output, got: %s", output)
-	}
-}
-
-func TestPrintMarkdown_MerchantIDDeleteResult(t *testing.T) {
-	result := &MerchantIDDeleteResult{ID: "m1", Deleted: true}
-
-	output := captureStdout(t, func() error {
-		return PrintMarkdown(result)
-	})
-
-	if !strings.Contains(output, "ID") || !strings.Contains(output, "Deleted") {
-		t.Fatalf("expected markdown header, got: %s", output)
-	}
-	if !strings.Contains(output, "m1") {
-		t.Fatalf("expected ID in output, got: %s", output)
-	}
-}

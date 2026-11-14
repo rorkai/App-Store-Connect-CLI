@@ -275,7 +275,7 @@ func creativePlacementDeleteCommand(prefix string) *ffcli.Command {
 			if _, err := client.RawRequest(requestCtx, "DELETE", "/v1/appAssetLibraryPlacements/"+url.PathEscape(placementID), nil); err != nil {
 				return fmt.Errorf("placements delete: %w", err)
 			}
-			return PrintOutput(&asc.CreativePlacementDeleteResult{ID: placementID, Deleted: true}, *output.Output, *output.Pretty)
+			return PrintOutput(&asc.DeleteResult{ID: placementID, Deleted: true}, *output.Output, *output.Pretty)
 		},
 	}
 }

@@ -122,39 +122,9 @@ func appClipHeaderImageRows(resp *AppClipHeaderImageResponse) ([]string, [][]str
 	return headers, rows
 }
 
-func appClipDefaultExperienceDeleteResultRows(result *AppClipDefaultExperienceDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	return headers, rows
-}
-
-func appClipDefaultExperienceLocalizationDeleteResultRows(result *AppClipDefaultExperienceLocalizationDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	return headers, rows
-}
-
 func appClipAdvancedExperienceRemoveResultRows(result *AppClipAdvancedExperienceRemoveResult) ([]string, [][]string) {
 	headers := []string{"ID", "Removed"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Removed)}}
-	return headers, rows
-}
-
-func appClipHeaderImageDeleteResultRows(result *AppClipHeaderImageDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	return headers, rows
-}
-
-func betaAppClipInvocationDeleteResultRows(result *BetaAppClipInvocationDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	return headers, rows
-}
-
-func betaAppClipInvocationLocalizationDeleteResultRows(result *BetaAppClipInvocationLocalizationDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
 }
 

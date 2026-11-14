@@ -55,12 +55,6 @@ type CustomerReviewResponseCreateRequest struct {
 	Data CustomerReviewResponseCreateData `json:"data"`
 }
 
-// CustomerReviewResponseDeleteResult represents CLI output for review response deletions.
-type CustomerReviewResponseDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
 // ResourceTypeCustomerReviewResponses is the resource type for customer review responses.
 const ResourceTypeCustomerReviewResponses ResourceType = "customerReviewResponses"
 

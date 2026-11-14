@@ -573,7 +573,7 @@ Examples:
 			return client.DeleteInAppPurchaseV2(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.InAppPurchaseDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }
