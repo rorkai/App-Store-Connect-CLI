@@ -3,12 +3,12 @@ package cmdtest
 import (
 	"context"
 	"io"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/uploadlock"
 )
 
@@ -81,13 +81,8 @@ func TestAssetUploadsWaitForAnotherAscUploadAfterValidatingInput(t *testing.T) {
 			defer release()
 			t.Cleanup(uploadlock.SetWaitLimitForTest(0))
 
-			originalTransport := http.DefaultTransport
-			t.Cleanup(func() { http.DefaultTransport = originalTransport })
-			requests := 0
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				requests++
-				return statusJSONResponse(`{"data":[],"links":{}}`), nil
-			})
+			reg := asctest.NewRegistry(t)
+			reg.Install()
 
 			stdout, stderr, runErr := runRootCommand(t, test.args)
 			if runErr == nil || !strings.Contains(runErr.Error(), test.wantErr) {
@@ -96,7 +91,7 @@ func TestAssetUploadsWaitForAnotherAscUploadAfterValidatingInput(t *testing.T) {
 			if waited := strings.HasPrefix(stderr, "Waiting for another asc upload to finish"); waited != test.wantWait {
 				t.Fatalf("stderr = %q, want waiting notice %t", stderr, test.wantWait)
 			}
-			if requests != 0 {
+			if requests := len(reg.Requests()); requests != 0 {
 				t.Fatalf("sent %d requests while another upload held the lock", requests)
 			}
 			if stdout != "" {
