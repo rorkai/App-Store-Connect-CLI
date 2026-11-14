@@ -45,22 +45,7 @@ func TestTestFlightMetricsBetaTesterUsagesResolveTesters(t *testing.T) {
 	reg := asctest.NewRegistry(t)
 	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-123/metrics/betaTesterUsages", "groupBy=betaTesters"),
-		asctest.JSON(http.StatusOK, `{
-  "data": [
-    {
-      "dataPoints": [{"start": "2026-08-01", "end": "2026-08-07", "values": {"crashCount": 0, "sessionCount": 3, "feedbackCount": 1}}],
-      "dimensions": {"betaTesters": {"data": "tester-1"}}
-    },
-    {
-      "dataPoints": [{"start": "2026-08-01", "end": "2026-08-07", "values": {"crashCount": 1, "sessionCount": 5, "feedbackCount": 0}}],
-      "dimensions": {"betaTesters": {"data": "tester-2"}}
-    }
-  ],
-  "included": [
-    {"type": "betaTesters", "id": "tester-1", "attributes": {"firstName": "Ada", "lastName": "Lovelace", "email": "ada@example.com", "inviteType": "EMAIL", "state": "INSTALLED"}}
-  ],
-  "links": {"next": ""}
-}`))
+		asctest.JSON(http.StatusOK, resolveTestersMetricsBody))
 	reg.Register(asctest.GET("/v1/betaTesters", "filter[id]=tester-2", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaTesters","id":"tester-2","attributes":{"firstName":"Grace","lastName":"Hopper","email":"grace@example.com","inviteType":"PUBLIC_LINK","state":"INVITED"}}],"links":{"next":""}}`))
 
@@ -120,22 +105,7 @@ func TestTestFlightMetricsBetaTesterUsagesWithoutResolveTestersOmitsSidecar(t *t
 	reg := asctest.NewRegistry(t)
 	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-123/metrics/betaTesterUsages", "groupBy=betaTesters"),
-		asctest.JSON(http.StatusOK, `{
-  "data": [
-    {
-      "dataPoints": [{"start": "2026-08-01", "end": "2026-08-07", "values": {"crashCount": 0, "sessionCount": 3, "feedbackCount": 1}}],
-      "dimensions": {"betaTesters": {"data": "tester-1"}}
-    },
-    {
-      "dataPoints": [{"start": "2026-08-01", "end": "2026-08-07", "values": {"crashCount": 1, "sessionCount": 5, "feedbackCount": 0}}],
-      "dimensions": {"betaTesters": {"data": "tester-2"}}
-    }
-  ],
-  "included": [
-    {"type": "betaTesters", "id": "tester-1", "attributes": {"firstName": "Ada", "lastName": "Lovelace", "email": "ada@example.com", "inviteType": "EMAIL", "state": "INSTALLED"}}
-  ],
-  "links": {"next": ""}
-}`))
+		asctest.JSON(http.StatusOK, resolveTestersMetricsBody))
 
 	stdout, stderr, err := runCommand(t, []string{"testflight", "metrics", "app-testers", "--app", "app-123"})
 	if err != nil {

@@ -123,29 +123,7 @@ func TestTestFlightMetricsTestersOutput(t *testing.T) {
 	reg := asctest.NewRegistry(t)
 	reg.Install()
 	reg.Register(asctest.GET("/v1/betaGroups/group-1/metrics/betaTesterUsages", "groupBy=betaTesters"),
-		asctest.JSON(http.StatusOK, `{
-	"data":[
-		{
-			"type":"appsBetaTesterUsages",
-			"dataPoints":[{
-				"start":"2026-08-01T00:00:00Z",
-				"end":"2026-08-02T00:00:00Z",
-				"values":{"sessionCount":12,"crashCount":1,"feedbackCount":2}
-			}],
-			"dimensions":{"betaTesters":{"data":{"type":"betaTesters","id":"tester-1"}}}
-		},
-		{
-			"type":"appsBetaTesterUsages",
-			"dataPoints":[{
-				"start":"2026-08-02T00:00:00Z",
-				"end":"2026-08-03T00:00:00Z",
-				"values":{"sessionCount":3,"crashCount":0,"feedbackCount":1}
-			}],
-			"dimensions":{"betaTesters":{"data":{"type":"betaTesters","id":"tester-2"}}}
-		}
-	],
-	"links":{"self":"https://api.example.test/v1/betaGroups/group-1/metrics/betaTesterUsages?groupBy=betaTesters"}
-}`))
+		asctest.JSON(http.StatusOK, groupTesterMetricsFixture))
 
 	stdout, stderr, err := runCommand(t, []string{"testflight", "metrics", "group-testers", "--group", "group-1"})
 	if err != nil {
@@ -204,29 +182,7 @@ func TestTestFlightMetricsTestersTableOutput(t *testing.T) {
 	reg := asctest.NewRegistry(t)
 	reg.Install()
 	reg.Register(asctest.GET("/v1/betaGroups/group-1/metrics/betaTesterUsages", "groupBy=betaTesters"),
-		asctest.JSON(http.StatusOK, `{
-	"data":[
-		{
-			"type":"appsBetaTesterUsages",
-			"dataPoints":[{
-				"start":"2026-08-01T00:00:00Z",
-				"end":"2026-08-02T00:00:00Z",
-				"values":{"sessionCount":12,"crashCount":1,"feedbackCount":2}
-			}],
-			"dimensions":{"betaTesters":{"data":{"type":"betaTesters","id":"tester-1"}}}
-		},
-		{
-			"type":"appsBetaTesterUsages",
-			"dataPoints":[{
-				"start":"2026-08-02T00:00:00Z",
-				"end":"2026-08-03T00:00:00Z",
-				"values":{"sessionCount":3,"crashCount":0,"feedbackCount":1}
-			}],
-			"dimensions":{"betaTesters":{"data":{"type":"betaTesters","id":"tester-2"}}}
-		}
-	],
-	"links":{"self":"https://api.example.test/v1/betaGroups/group-1/metrics/betaTesterUsages?groupBy=betaTesters"}
-}`))
+		asctest.JSON(http.StatusOK, groupTesterMetricsFixture))
 
 	stdout, stderr, err := runCommand(t, []string{"testflight", "metrics", "group-testers", "--group", "group-1", "--output", "table"})
 	if err != nil {
@@ -250,29 +206,7 @@ func TestTestFlightMetricsTestersMarkdownOutput(t *testing.T) {
 	reg := asctest.NewRegistry(t)
 	reg.Install()
 	reg.Register(asctest.GET("/v1/betaGroups/group-1/metrics/betaTesterUsages", "groupBy=betaTesters"),
-		asctest.JSON(http.StatusOK, `{
-	"data":[
-		{
-			"type":"appsBetaTesterUsages",
-			"dataPoints":[{
-				"start":"2026-08-01T00:00:00Z",
-				"end":"2026-08-02T00:00:00Z",
-				"values":{"sessionCount":12,"crashCount":1,"feedbackCount":2}
-			}],
-			"dimensions":{"betaTesters":{"data":{"type":"betaTesters","id":"tester-1"}}}
-		},
-		{
-			"type":"appsBetaTesterUsages",
-			"dataPoints":[{
-				"start":"2026-08-02T00:00:00Z",
-				"end":"2026-08-03T00:00:00Z",
-				"values":{"sessionCount":3,"crashCount":0,"feedbackCount":1}
-			}],
-			"dimensions":{"betaTesters":{"data":{"type":"betaTesters","id":"tester-2"}}}
-		}
-	],
-	"links":{"self":"https://api.example.test/v1/betaGroups/group-1/metrics/betaTesterUsages?groupBy=betaTesters"}
-}`))
+		asctest.JSON(http.StatusOK, groupTesterMetricsFixture))
 
 	stdout, stderr, err := runCommand(t, []string{"testflight", "metrics", "group-testers", "--group", "group-1", "--output", "markdown"})
 	if err != nil {
