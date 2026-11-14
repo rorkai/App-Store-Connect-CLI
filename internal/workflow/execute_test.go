@@ -157,6 +157,7 @@ func TestRun_IfComparison(t *testing.T) {
 		{expr: `MISSING_VAR == ""`, want: "ok"},
 		{expr: "DEPLOY && SUBMIT", env: map[string]string{"DEPLOY": "true"}, want: "skipped", warn: true},
 		{expr: "A == yes && B == no", env: map[string]string{"A": "yes"}, want: "skipped", warn: true},
+		{expr: `A == "yes" && B == "yes"`, env: map[string]string{"A": "yes", "B": "yes"}, want: "skipped", warn: true},
 	}
 	for _, test := range tests {
 		t.Run(test.expr, func(t *testing.T) {

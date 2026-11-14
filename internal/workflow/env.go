@@ -79,7 +79,11 @@ func evalStepIf(expr string, env map[string]string) (bool, error) {
 	}
 	literal := strings.TrimSpace(expr[op+2:])
 	if n := len(literal); n >= 2 && (literal[0] == '"' || literal[0] == '\'') && literal[n-1] == literal[0] {
+		quote := literal[:1]
 		literal = literal[1 : n-1]
+		if strings.Contains(literal, quote) {
+			return false, errUnsupportedStepIf
+		}
 	} else if strings.ContainsAny(literal, " \t\n\r=!<>&|") {
 		return false, errUnsupportedStepIf
 	}
