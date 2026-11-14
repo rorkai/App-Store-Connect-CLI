@@ -12,7 +12,9 @@
     {"data":"AppClipHeaderImageCreateData","type":"*AppClipHeaderImageRelationships"}
   ],
   "operations": [
+    {"operation":"appClipHeaderImages_createInstance","name":"CreateAppClipHeaderImage","params":["localizationID"],"check":"require","links":["appClipDefaultExperienceLocalization"],"args":[{"name":"fileName"},{"name":"fileSize","type":"int64"}]},
     {"operation":"appClipHeaderImages_deleteInstance","name":"DeleteAppClipHeaderImage","params":["imageID"],"check":"require"},
-    {"operation":"appClipHeaderImages_getInstance","name":"GetAppClipHeaderImage","params":["imageID"],"check":"require"}
+    {"operation":"appClipHeaderImages_getInstance","name":"GetAppClipHeaderImage","params":["imageID"],"check":"require"},
+    {"operation":"appClipHeaderImages_updateInstance","name":"UpdateAppClipHeaderImage","params":["imageID"],"check":"require","args":[{"name":"uploaded"},{"name":"checksumHash","attribute":"sourceFileChecksum"}]}
   ]
 }

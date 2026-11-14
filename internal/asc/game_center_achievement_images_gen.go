@@ -68,6 +68,32 @@ func (c *Client) GetGameCenterAchievementImageV2(ctx context.Context, imageID st
 	})
 }
 
+// CreateGameCenterAchievementImage sends POST /v1/gameCenterAchievementImages (gameCenterAchievementImages_createInstance).
+func (c *Client) CreateGameCenterAchievementImage(ctx context.Context, localizationID string, fileName string, fileSize int64) (*GameCenterAchievementImageResponse, error) {
+	payload := GameCenterAchievementImageCreateRequest{
+		Data: GameCenterAchievementImageCreateData{
+			Type: ResourceTypeGameCenterAchievementImages,
+			Attributes: GameCenterAchievementImageCreateAttributes{
+				FileName: fileName,
+				FileSize: fileSize,
+			},
+			Relationships: &GameCenterAchievementImageRelationships{
+				GameCenterAchievementLocalization: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeGameCenterAchievementLocalizations,
+						ID:   strings.TrimSpace(localizationID),
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[GameCenterAchievementImageResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/gameCenterAchievementImages",
+		Payload: payload,
+	})
+}
+
 // DeleteGameCenterAchievementImage sends DELETE /v1/gameCenterAchievementImages/{id} (gameCenterAchievementImages_deleteInstance).
 func (c *Client) DeleteGameCenterAchievementImage(ctx context.Context, imageID string) error {
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/gameCenterAchievementImages/%s", strings.TrimSpace(imageID)), nil)
