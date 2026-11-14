@@ -238,6 +238,19 @@ class WebsiteCommandChecksTest(unittest.TestCase):
             {"--internal": True, "--public-link-enabled": False},
         )
 
+    def test_help_parser_reads_query_flags(self) -> None:
+        spec = check_website_commands.parse_help_text(
+            "FLAGS\n  --limit  Maximum results per page (1-200) (default: 0)\n\n"
+            "QUERY FLAGS\n  --role  filter[roles], comma-separated: ADMIN\n"
+            "  --exists-app  exists[app] (true or false) (default: false)\n",
+            is_root=False,
+            path=("users", "invites", "list"),
+        )
+
+        self.assertEqual(
+            spec.flags, {"--limit": False, "--role": False, "--exists-app": True}
+        )
+
     def test_help_subprocesses_disable_telemetry(self) -> None:
         run = mock.Mock(return_value=mock.Mock(stderr="", stdout=""))
 

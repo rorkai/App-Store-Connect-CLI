@@ -44,6 +44,14 @@ type IDGetCommandConfig struct {
 	// Flags registers command-specific flags and returns their validation,
 	// which runs after the ID check. The returned function may be nil.
 	Flags func(*flag.FlagSet) func() error
+	// Query exposes the read's schema query parameters as flags, listed in
+	// help under QUERY FLAGS: one flag per parameter, named by
+	// QueryFlagName, registered after the command's own flags and validated
+	// after them. Pass its Option to the client.
+	Query QuerySource
+	// QueryFlagNames overrides the flag of a query parameter; an empty name
+	// leaves the parameter to a flag the command declares itself.
+	QueryFlagNames map[string]string
 
 	// Deps supplies the client, streams and timeout. It defaults to
 	// DefaultDeps().
@@ -70,6 +78,7 @@ func BuildIDGetCommand(config IDGetCommandConfig) *ffcli.Command {
 	id := bindBuilderIDFlag(fs, idFlagName, config.IDType, idUsage)
 	output := d.BindOutputFlags(fs)
 	validate := bindBuilderFlags(fs, config.Flags)
+	queryFlags := bindQueryFlags(fs, config.Query, config.QueryFlagNames)
 
 	timeout := builderTimeout(d, config.ContextTimeout)
 	errorPrefix := builderDefault(config.ErrorPrefix, commandErrorPrefixFromUsage(config.ShortUsage))
@@ -88,6 +97,9 @@ func BuildIDGetCommand(config IDGetCommandConfig) *ffcli.Command {
 				return missingBuilderInput(d, config.RequiredDiagnostic, config.ResolveApp, idFlagName)
 			}
 			if err := validate(); err != nil {
+				return err
+			}
+			if err := resolveQueryFlags(d, fs, config.Query, queryFlags, errorPrefix); err != nil {
 				return err
 			}
 
@@ -159,6 +171,15 @@ type PaginatedListCommandConfig struct {
 	// which runs after the --limit, --next and parent checks. The returned
 	// function may be nil.
 	Flags func(*flag.FlagSet) func() error
+	// Query exposes the read's schema query parameters as flags, listed in
+	// help under QUERY FLAGS: one flag per parameter, named by
+	// QueryFlagName, registered after the command's own flags and validated
+	// after them. They cannot be combined with --next. Pass
+	// its Option to the client in FetchPage.
+	Query QuerySource
+	// QueryFlagNames overrides the flag of a query parameter; an empty name
+	// leaves the parameter to a flag the command declares itself.
+	QueryFlagNames map[string]string
 
 	// ErrorPrefix wraps the client error and the error of a --paginate
 	// request after its first page. It defaults to the command path in
@@ -204,6 +225,7 @@ func BuildPaginatedListCommand(config PaginatedListCommandConfig) *ffcli.Command
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
 	output := d.BindOutputFlags(fs)
 	validate := bindBuilderFlags(fs, config.Flags)
+	queryFlags := bindQueryFlags(fs, config.Query, config.QueryFlagNames)
 
 	timeout := builderTimeout(d, config.ContextTimeout)
 	errorPrefix := builderDefault(config.ErrorPrefix, commandErrorPrefixFromUsage(config.ShortUsage))
@@ -243,6 +265,9 @@ func BuildPaginatedListCommand(config PaginatedListCommandConfig) *ffcli.Command
 		if err := d.RejectNextFlagConflicts(fs, *next, usageErrorPrefix(), config.NextConflicts...); err != nil {
 			return err
 		}
+		if err := d.RejectNextFlagConflicts(fs, *next, usageErrorPrefix(), queryFlagNames(queryFlags)...); err != nil {
+			return err
+		}
 		if err := checkLimit(); err != nil {
 			return err
 		}
@@ -252,6 +277,9 @@ func BuildPaginatedListCommand(config PaginatedListCommandConfig) *ffcli.Command
 			return missingBuilderInput(d, config.RequiredDiagnostic, config.ResolveApp, parentFlagName)
 		}
 		if err := validate(); err != nil {
+			return err
+		}
+		if err := resolveQueryFlags(d, fs, config.Query, queryFlags, usageErrorPrefix()); err != nil {
 			return err
 		}
 

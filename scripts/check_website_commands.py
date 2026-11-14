@@ -131,7 +131,7 @@ def parse_help_text(
             continue
         if expect_usage_line and stripped:
             expect_usage_line = False
-        if stripped == "FLAGS":
+        if stripped in {"FLAGS", "QUERY FLAGS"}:
             in_flags = True
             in_subcommands = False
             continue
@@ -139,7 +139,7 @@ def parse_help_text(
             in_subcommands = True
             in_flags = False
             continue
-        if stripped.isupper() and stripped not in {"FLAGS", "SUBCOMMANDS"}:
+        if stripped.isupper() and stripped not in {"FLAGS", "QUERY FLAGS", "SUBCOMMANDS"}:
             in_flags = False
             in_subcommands = False
 

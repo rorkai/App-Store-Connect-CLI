@@ -320,31 +320,44 @@ func DefaultUsageFunc(c *ffcli.Command) string {
 		b.WriteString("\n")
 	}
 
-	// FLAGS
+	// FLAGS, then QUERY FLAGS
 	if c.FlagSet != nil {
-		visibleFlags := VisibleHelpFlags(c.FlagSet)
-		if len(visibleFlags) > 0 {
-			b.WriteString(Bold("FLAGS"))
-			b.WriteString("\n")
-			tw := tabwriter.NewWriter(&b, 0, 2, 2, ' ', 0)
-			for _, f := range visibleFlags {
-				def := f.DefValue
-				usage := f.Usage
-				if f.Name == "output" {
-					usage = strings.Replace(usage, "json (default),", "json,", 1)
-				}
-				if def != "" {
-					fmt.Fprintf(tw, "  --%-12s %s (default: %s)\n", f.Name, usage, def)
-					continue
-				}
-				fmt.Fprintf(tw, "  --%-12s %s\n", f.Name, usage)
+		var own, query []*flag.Flag
+		for _, f := range VisibleHelpFlags(c.FlagSet) {
+			if _, ok := queryFlagHelp.Load(f); ok {
+				query = append(query, f)
+			} else {
+				own = append(own, f)
 			}
-			tw.Flush()
-			b.WriteString("\n")
 		}
+		writeHelpFlags(&b, "FLAGS", own)
+		writeHelpFlags(&b, "QUERY FLAGS", query)
 	}
 
 	return b.String()
+}
+
+func writeHelpFlags(b *strings.Builder, heading string, flags []*flag.Flag) {
+	if len(flags) == 0 {
+		return
+	}
+	b.WriteString(Bold(heading))
+	b.WriteString("\n")
+	tw := tabwriter.NewWriter(b, 0, 2, 2, ' ', 0)
+	for _, f := range flags {
+		def := f.DefValue
+		usage := f.Usage
+		if f.Name == "output" {
+			usage = strings.Replace(usage, "json (default),", "json,", 1)
+		}
+		if def != "" {
+			fmt.Fprintf(tw, "  --%-12s %s (default: %s)\n", f.Name, usage, def)
+			continue
+		}
+		fmt.Fprintf(tw, "  --%-12s %s\n", f.Name, usage)
+	}
+	tw.Flush()
+	b.WriteString("\n")
 }
 
 type envCredentials struct {
