@@ -172,6 +172,9 @@ Examples:
 			if err := submitcli.SubmissionLocalizationPreflight(requestCtx, client, resolvedAppID, resolvedVersionID, effectivePlatform, "asc review submit"); err != nil {
 				return fmt.Errorf("review submit: %w", err)
 			}
+			if err := submitcli.SubmissionAgeRatingPreflight(requestCtx, client, resolvedAppID, resolvedVersionID, 0, "asc review submit"); err != nil {
+				return fmt.Errorf("review submit: %w", err)
+			}
 			submitcli.SubmissionSubscriptionPreflight(requestCtx, client, resolvedAppID, "asc review submit")
 
 			submitResult, err := submitcli.SubmitResolvedVersion(requestCtx, client, submitcli.SubmitResolvedVersionOptions{

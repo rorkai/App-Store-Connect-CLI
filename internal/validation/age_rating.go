@@ -42,7 +42,9 @@ var kidsAgeBandValues = map[string]struct{}{
 	"NINE_TO_ELEVEN": {},
 }
 
-func ageRatingChecks(declaration *AgeRatingDeclaration) []CheckResult {
+// AgeRatingChecks reports missing or invalid answers in an age rating
+// declaration. A nil declaration is reported as missing.
+func AgeRatingChecks(declaration *AgeRatingDeclaration) []CheckResult {
 	var checks []CheckResult
 	if declaration == nil {
 		return []CheckResult{

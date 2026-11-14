@@ -889,6 +889,9 @@ Examples:
 				); err != nil {
 					return fmt.Errorf("publish appstore: %w", err)
 				}
+				if err := submitcli.SubmissionAgeRatingPreflight(submitCtx, client, resolvedPublishAppID, versionResp.Data.ID, submitRequestTimeout, "asc publish appstore --submit"); err != nil {
+					return fmt.Errorf("publish appstore: %w", err)
+				}
 				submitcli.SubmissionSubscriptionPreflightWithTimeout(
 					submitCtx,
 					client,

@@ -6,11 +6,14 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	validatecli "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/validate"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/validation"
 )
 
 func runSubmissionLocalizationPreflight(
@@ -66,6 +69,45 @@ func runSubmissionLocalizationPreflight(
 			shared.DiagnosticStateNotReady,
 			"",
 		),
+	)
+}
+
+func runSubmissionAgeRatingPreflight(
+	ctx context.Context,
+	client *asc.Client,
+	appID, versionID string,
+	requestTimeout time.Duration,
+	retryCommand string,
+) error {
+	declaration, err := validatecli.FetchAgeRatingDeclaration(ctx, client, appID, versionID, requestTimeout)
+	if err != nil {
+		return fmt.Errorf("age rating preflight: %w", err)
+	}
+
+	checks := validation.AgeRatingChecks(declaration)
+	if len(checks) == 0 {
+		return nil
+	}
+
+	fmt.Fprintln(os.Stderr, "Submit preflight failed: the age rating declaration is incomplete:")
+	var remediations []string
+	for _, check := range checks {
+		if check.Field != "" {
+			fmt.Fprintf(os.Stderr, "  - %s: %s (%s)\n", check.Field, check.Message, check.ID)
+		} else {
+			fmt.Fprintf(os.Stderr, "  - %s (%s)\n", check.Message, check.ID)
+		}
+		if !slices.Contains(remediations, check.Remediation) {
+			remediations = append(remediations, check.Remediation)
+		}
+	}
+	for _, remediation := range remediations {
+		fmt.Fprintf(os.Stderr, "%s before retrying `%s`.\n", remediation, normalizeSubmissionRetryCommand(retryCommand))
+	}
+	return shared.WithDiagnostic(
+		shared.NewValidationError(errors.New("submit preflight failed")),
+		shared.DiagnosticStateNotReady,
+		"",
 	)
 }
 
