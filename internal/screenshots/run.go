@@ -32,8 +32,6 @@ type RunResult struct {
 	Steps     []RunStepResult `json:"steps"`
 }
 
-var errStatusBarClearFailed = errors.New("clear status bar overrides")
-
 // RunPlan executes a validated plan.
 func RunPlan(ctx context.Context, plan *Plan) (*RunResult, error) {
 	return runPlan(ctx, plan, nil)
@@ -103,7 +101,7 @@ func runPlan(ctx context.Context, plan *Plan, rootedOutput *rootfs.Root) (_ *Run
 			clearCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), matrixSubprocessTimeout)
 			defer cancel()
 			if clearErr := runExternal(clearCtx, "axe", "settings", "status-bar", "clear", "--udid", udid); clearErr != nil {
-				runErr = errors.Join(runErr, fmt.Errorf("%w: %w", errStatusBarClearFailed, clearErr))
+				runErr = errors.Join(runErr, fmt.Errorf("clear status bar overrides: %w", clearErr))
 			}
 		}()
 	}

@@ -2857,36 +2857,6 @@ func TestRunMatrix_CleanupFailureBlocksLaterCellsOnSameSimulator(t *testing.T) {
 	}
 }
 
-func TestRunMatrix_StatusBarClearFailureBlocksLaterCellsOnSameSimulator(t *testing.T) {
-	dir := t.TempDir()
-	basePath := filepath.Join(dir, "base.json")
-	matrixPath := filepath.Join(dir, "matrix.json")
-	writeMatrixTestFile(t, basePath, `{"version":1,"app":{"bundle_id":"com.example.app"},"defaults":{"status_bar":"screenshot"},"steps":[{"action":"screenshot","name":"home"}]}`)
-	writeMatrixTestFile(t, matrixPath, `{"version":1,"base_plan":"base.json","devices":[{"id":"phone","udid":"SIM"}],"locales":["en-US","ja-JP"],"appearances":["light"],"content_variants":[{"id":"default"}],"output":{"raw_dir":"raw","review_dir":"review"}}`)
-	matrixPlan, _ := LoadMatrixPlan(matrixPath)
-	runs := 0
-	runPlan := func(_ context.Context, plan *Plan) (*RunResult, error) {
-		runs++
-		writeMatrixPNG(t, filepath.Join(plan.App.OutputDir, "home.png"))
-		return &RunResult{Steps: []RunStepResult{{Index: 1, Action: "screenshot", Status: "ok"}}}, fmt.Errorf("%w: axe failed", errStatusBarClearFailed)
-	}
-	options := MatrixOptions{MaxAttempts: 2, MaxAttemptsSet: true, RetryBackoffSet: true}
-	result, runErr := RunMatrixWithDependencies(context.Background(), matrixPath, matrixPlan, options, MatrixDependencies{RunPlan: runPlan, Appearance: &matrixTestAppearance{}})
-	if runErr == nil {
-		t.Fatal("expected cleanup failure")
-	}
-	first := result.Cells[0]
-	if first.Status != MatrixCellCleanupFailed || first.FailureStage != "cleanup" || first.FailureCode != "status_bar_clear_failed" {
-		t.Fatalf("first cell = %s %s/%s, want cleanup_failed cleanup/status_bar_clear_failed", first.Status, first.FailureStage, first.FailureCode)
-	}
-	if result.Cells[1].FailureCode != "simulator_blocked_after_cleanup_failure" {
-		t.Fatalf("second cell failure code = %q, want simulator_blocked_after_cleanup_failure", result.Cells[1].FailureCode)
-	}
-	if runs != 1 {
-		t.Fatalf("plan ran %d times, want one: no retry and no later cell on that simulator", runs)
-	}
-}
-
 type matrixTestAppearance struct {
 	mu           sync.Mutex
 	setCount     int

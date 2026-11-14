@@ -96,9 +96,6 @@ func executeMatrixCellWithSimulatorLock(ctx context.Context, cell MatrixCell, ba
 		if attemptResult.CleanupFailed {
 			result.Status = MatrixCellCleanupFailed
 		}
-		if attemptResult.SimulatorDirty {
-			guard.blocked = true
-		}
 		result.FailureStage = attemptResult.FailureStage
 		result.FailureCode = attemptResult.FailureCode
 		result.Error = newMatrixCellError(attemptResult.FailureStage, attemptResult.FailureCode, attemptResult.Error)
@@ -145,7 +142,6 @@ type matrixAttemptResult struct {
 	FramedPaths     []string
 	FramedArtifacts map[string]matrixArtifactInfo
 	CleanupFailed   bool
-	SimulatorDirty  bool
 	Screenshots     []MatrixScreenshotResult
 	Steps           []RunStepResult
 	FailureStage    string
@@ -229,14 +225,6 @@ func executeMatrixCellAttempt(ctx context.Context, cell MatrixCell, base *Plan, 
 	}
 	stabilityErr := matrixPrivateAttemptRootIsStable(attemptRoot)
 	if err != nil {
-		if errors.Is(err, errStatusBarClearFailed) {
-			attempt.CleanupFailed = true
-			attempt.SimulatorDirty = true
-			attempt.FailureStage = "cleanup"
-			attempt.FailureCode = "status_bar_clear_failed"
-			attempt.Error = "simulator status bar could not be cleared"
-			return attempt, errors.Join(err, stabilityErr)
-		}
 		if stabilityErr != nil {
 			attempt.FailureStage = "execution"
 			attempt.FailureCode = "temporary_output_failed"
