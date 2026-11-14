@@ -75,8 +75,7 @@ Examples:
 				return shared.WithDiagnostic(shared.UsageErrorf("reviews summarizations: %v", err), shared.DiagnosticInvalidInput, "--platform")
 			}
 			if len(platformValues) == 0 && nextValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --platform is required")
-				return shared.MissingRequiredUsageError("--platform")
+				return shared.RequiredFlag("--platform")
 			}
 
 			client, err := shared.GetASCClient()

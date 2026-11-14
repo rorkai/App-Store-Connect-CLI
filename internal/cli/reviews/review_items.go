@@ -133,8 +133,7 @@ Examples:
 				}
 			}
 			if submissionValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --submission is required")
-				return shared.MissingRequiredUsageError("--submission")
+				return shared.RequiredFlag("--submission")
 			}
 
 			client, err := reviewItemsClientFactory()
@@ -325,16 +324,13 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*submissionID) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --submission is required")
-				return shared.MissingRequiredUsageError("--submission")
+				return shared.RequiredFlag("--submission")
 			}
 			if strings.TrimSpace(*itemType) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --item-type is required")
-				return shared.MissingRequiredUsageError("--item-type")
+				return shared.RequiredFlag("--item-type")
 			}
 			if strings.TrimSpace(*itemID) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --item-id is required")
-				return shared.MissingRequiredUsageError("--item-id")
+				return shared.RequiredFlag("--item-id")
 			}
 
 			normalizedType, err := normalizeReviewSubmissionItemType(*itemType)
@@ -414,8 +410,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*itemID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			resolvedProvided := reviewFlagWasProvided(fs, "resolved")
 			removedProvided := reviewFlagWasProvided(fs, "removed")
@@ -517,8 +512,7 @@ Examples:
 				return shared.MissingRequiredUsageError("--confirm")
 			}
 			if strings.TrimSpace(*itemID) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			client, err := reviewItemsClientFactory()

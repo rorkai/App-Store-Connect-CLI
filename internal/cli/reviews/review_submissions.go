@@ -253,8 +253,7 @@ Examples:
 				normalizedIncludes = append(normalizedIncludes, "items")
 			}
 			if strings.TrimSpace(*submissionID) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			client, err := reviewSubmissionsClientFactory()
@@ -399,8 +398,7 @@ Examples:
 			}
 			trimmedID := strings.TrimSpace(*submissionID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			platformProvided := reviewFlagWasProvided(fs, "platform")
@@ -498,8 +496,7 @@ Examples:
 				return shared.MissingRequiredUsageError("--confirm")
 			}
 			if strings.TrimSpace(*submissionID) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			client, err := reviewSubmissionsClientFactory()
@@ -547,8 +544,7 @@ Examples:
 				return shared.MissingRequiredUsageError("--confirm")
 			}
 			if strings.TrimSpace(*submissionID) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			client, err := reviewSubmissionsClientFactory()
@@ -603,8 +599,7 @@ Examples:
 			}
 			trimmedID := strings.TrimSpace(*submissionID)
 			if trimmedID == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("review submissions-items-ids: %w", shared.WithDiagnostic(shared.UsageError("--limit must be between 1 and 200"), shared.DiagnosticInvalidInput, "--limit"))
