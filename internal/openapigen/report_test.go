@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"path/filepath"
 	"testing"
 )
 
@@ -101,11 +102,14 @@ type WidgetResponse = SingleResponse[WidgetPassThroughAttributes]
 type WidgetsResponse = Response[WidgetSelfEncodedAttributes]
 `
 
+func runReport(dir string, check bool, adopt string, dryRun bool, out *bytes.Buffer) error {
+	return run(filepath.Join("testdata", "spec.json"), filepath.Join(dir, "bindings"), dir, check, adopt, dryRun, true, out)
+}
+
 func TestReportListsOnlyWhatTheSpecDoesNotBack(t *testing.T) {
-	spec, _ := loadTestdata(t)
 	dir := writeHandWritten(t, map[string]string{"client.go": reportClient})
 	var out bytes.Buffer
-	if err := Report(spec, dir, &out); err != nil {
+	if err := runReport(dir, false, "", false, &out); err != nil {
 		t.Fatal(err)
 	}
 	want := "method\tAddWidgetGadgets\tPOST /v1/widgets/%s/relationships/gadgets (through changeWidgetGadgets)\tno spec operation\n" +
@@ -116,5 +120,31 @@ func TestReportListsOnlyWhatTheSpecDoesNotBack(t *testing.T) {
 		"5 hand-written methods or types without spec backing\n"
 	if out.String() != want {
 		t.Errorf("report:\n%s\nwant:\n%s", out.String(), want)
+	}
+}
+
+func TestReportRejectsActionFlags(t *testing.T) {
+	tests := []struct {
+		name   string
+		check  bool
+		adopt  string
+		dryRun bool
+	}{
+		{"check", true, "", false},
+		{"adopt", false, "Widgets", false},
+		{"dry run", false, "", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := writeHandWritten(t, map[string]string{"client.go": handWrittenClient})
+			var out bytes.Buffer
+			err := runReport(dir, tt.check, tt.adopt, tt.dryRun, &out)
+			if err == nil || err.Error() != "-report cannot be combined with -check, -adopt or -dry-run" {
+				t.Fatalf("err = %v", err)
+			}
+			if out.Len() > 0 || readFile(t, filepath.Join(dir, "client.go")) != handWrittenClient {
+				t.Errorf("report ran or the code changed; output:\n%s", out.String())
+			}
+		})
 	}
 }

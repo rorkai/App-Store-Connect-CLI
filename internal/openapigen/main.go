@@ -23,27 +23,22 @@ func main() {
 	dryRun := flag.Bool("dry-run", false, "with -adopt, only report what would be generated")
 	report := flag.Bool("report", false, "list hand-written methods and attribute structs the spec does not back, and change nothing")
 	flag.Parse()
-	if *report {
-		spec, err := LoadSpec(*specPath)
-		if err == nil {
-			err = Report(spec, *dir, os.Stdout)
-		}
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "openapigen:", err)
-			os.Exit(1)
-		}
-		return
-	}
-	if err := run(*specPath, *bindingsDir, *dir, *check, *adopt, *dryRun, os.Stdout); err != nil {
+	if err := run(*specPath, *bindingsDir, *dir, *check, *adopt, *dryRun, *report, os.Stdout); err != nil {
 		fmt.Fprintln(os.Stderr, "openapigen:", err)
 		os.Exit(1)
 	}
 }
 
-func run(specPath, bindingsDir, dir string, check bool, adopt string, dryRun bool, report io.Writer) error {
+func run(specPath, bindingsDir, dir string, check bool, adopt string, dryRun, reportOnly bool, report io.Writer) error {
+	if reportOnly && (check || adopt != "" || dryRun) {
+		return fmt.Errorf("-report cannot be combined with -check, -adopt or -dry-run")
+	}
 	spec, err := LoadSpec(specPath)
 	if err != nil {
 		return err
+	}
+	if reportOnly {
+		return Report(spec, dir, report)
 	}
 	bindings, err := LoadBindings(bindingsDir)
 	if err != nil {
