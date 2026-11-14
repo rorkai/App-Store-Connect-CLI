@@ -309,49 +309,26 @@ Examples:
 
 // AppEventLocalizationsDeleteCommand returns the app event localizations delete subcommand.
 func AppEventLocalizationsDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("localizations delete", flag.ExitOnError)
-
-	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appEventLocalizations", "App event localization ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc app-events localizations delete --localization-id \"LOC_ID\" --confirm",
-		ShortHelp:  "Delete an in-app event localization.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "localizations delete",
+		Name:        "delete",
+		ShortUsage:  "asc app-events localizations delete --localization-id \"LOC_ID\" --confirm",
+		ShortHelp:   "Delete an in-app event localization.",
 		LongHelp: `Delete an in-app event localization.
 
 Examples:
   asc app-events localizations delete --localization-id "LOC_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*localizationID)
-			if id == "" {
-				return shared.RequiredFlag("--localization-id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("app-events localizations delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteAppEventLocalization(requestCtx, id); err != nil {
-				return fmt.Errorf("app-events localizations delete: failed to delete: %w", err)
-			}
-
-			result := &asc.AppEventLocalizationDeleteResult{
-				ID:      id,
-				Deleted: true,
-			}
-
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "localization-id",
+		IDUsage:            "App event localization ID",
+		IDType:             "appEventLocalizations",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "app-events localizations delete",
+		DeleteErrorPrefix:  "app-events localizations delete: failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteAppEventLocalization(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.AppEventLocalizationDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }

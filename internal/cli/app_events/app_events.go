@@ -523,49 +523,30 @@ Examples:
 
 // AppEventsDeleteCommand returns the app events delete subcommand.
 func AppEventsDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("delete", flag.ExitOnError)
+	d := shared.DefaultDeps()
+	d.Client = func() (*asc.Client, error) { return appEventsClientFactory() }
 
-	eventID := shared.BindResourceIDFlag(fs, "event-id", "appEvents", "App event ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc app-events delete --event-id \"EVENT_ID\" --confirm",
-		ShortHelp:  "Delete an in-app event.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "delete",
+		Name:        "delete",
+		ShortUsage:  "asc app-events delete --event-id \"EVENT_ID\" --confirm",
+		ShortHelp:   "Delete an in-app event.",
 		LongHelp: `Delete an in-app event.
 
 Examples:
   asc app-events delete --event-id "EVENT_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*eventID)
-			if id == "" {
-				return shared.RequiredFlag("--event-id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-
-			client, err := appEventsClientFactory()
-			if err != nil {
-				return fmt.Errorf("app-events delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteAppEvent(requestCtx, id); err != nil {
-				return fmt.Errorf("app-events delete: failed to delete: %w", err)
-			}
-
-			result := &asc.AppEventDeleteResult{
-				ID:      id,
-				Deleted: true,
-			}
-
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "event-id",
+		IDUsage:            "App event ID",
+		IDType:             "appEvents",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "app-events delete",
+		DeleteErrorPrefix:  "app-events delete: failed to delete",
+		Deps:               d,
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteAppEvent(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.AppEventDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }

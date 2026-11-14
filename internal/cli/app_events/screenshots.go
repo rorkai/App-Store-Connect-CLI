@@ -339,49 +339,26 @@ Examples:
 
 // AppEventScreenshotsDeleteCommand returns the app event screenshots delete subcommand.
 func AppEventScreenshotsDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("screenshots delete", flag.ExitOnError)
-
-	screenshotID := shared.BindResourceIDFlag(fs, "screenshot-id", "appEventScreenshots", "App event screenshot ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc app-events screenshots delete --screenshot-id \"SHOT_ID\" --confirm",
-		ShortHelp:  "Delete an in-app event screenshot.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "screenshots delete",
+		Name:        "delete",
+		ShortUsage:  "asc app-events screenshots delete --screenshot-id \"SHOT_ID\" --confirm",
+		ShortHelp:   "Delete an in-app event screenshot.",
 		LongHelp: `Delete an in-app event screenshot.
 
 Examples:
   asc app-events screenshots delete --screenshot-id "SHOT_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*screenshotID)
-			if id == "" {
-				return shared.RequiredFlag("--screenshot-id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("app-events screenshots delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteAppEventScreenshot(requestCtx, id); err != nil {
-				return fmt.Errorf("app-events screenshots delete: failed to delete: %w", err)
-			}
-
-			result := &asc.AssetDeleteResult{
-				ID:      id,
-				Deleted: true,
-			}
-
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "screenshot-id",
+		IDUsage:            "App event screenshot ID",
+		IDType:             "appEventScreenshots",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "app-events screenshots delete",
+		DeleteErrorPrefix:  "app-events screenshots delete: failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteAppEventScreenshot(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.AssetDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
