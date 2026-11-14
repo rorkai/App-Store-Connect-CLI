@@ -110,8 +110,9 @@ JSON uses the registered exported output receipt with stable camelCase fields:
 ```
 
 With `--code-coverage`, test-executing actions add a `coverage` object read with
-`xccov view --report --json`: overall `lineCoverage` (0 to 1), `coveredLines`,
-`executableLines`, and per-target `targets` sorted by name. If the report cannot
+`xccov view --report --only-targets --json`: per-target `targets` sorted by name,
+and their totals as overall `lineCoverage` (0 to 1), `coveredLines` and
+`executableLines`. If the report cannot
 be read, asc prints one warning on stderr, omits `coverage`, and keeps the test
 outcome and exit status.
 
