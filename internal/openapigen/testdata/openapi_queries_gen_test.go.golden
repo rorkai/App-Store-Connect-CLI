@@ -26,4 +26,28 @@ var generatedQueries = map[string]generatedQuery{
 			"fields[widgets]": WithWidgetOwnerFields,
 		},
 	},
+	"widgets_zippers_getToManyRelated": {
+		build: buildZippersQuery,
+		options: map[string]any{
+			"filter[kind]":    WithZippersKinds,
+			"filter[maker]":   WithZippersMakers,
+			"fields[widgets]": WithZippersFields,
+		},
+	},
+	"yoyos_zippers_getToManyRelated": {
+		build: buildZippersQuery,
+		options: map[string]any{
+			"filter[kind]":    WithZippersKinds,
+			"filter[maker]":   WithZippersMakers,
+			"fields[widgets]": WithZippersFields,
+		},
+	},
+	"zippers_getCollection": {
+		build: buildZippersQuery,
+		options: map[string]any{
+			"filter[kind]":    WithZippersKinds,
+			"filter[maker]":   WithZippersMakers,
+			"fields[widgets]": WithZippersFields,
+		},
+	},
 }

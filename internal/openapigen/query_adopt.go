@@ -116,12 +116,15 @@ func isBuilderName(name string) bool {
 // adopt finds, for each read of a tag, the one query builder its methods call,
 // derives the query binding from the hand-written option type, query struct,
 // With functions and builder, and adopts all of them only when every one is
-// the same tokens as the generated code.
+// the same tokens as the generated code. A builder that several reads call is
+// adopted with the tag of the read it is bound to (see derive).
 func (qi *queryIndex) adopt(spec *Spec, b *Bindings, tag string, ops []*Operation, report io.Writer) []*QueryBind {
 	bound := map[string]bool{}
 	for _, f := range b.Families {
 		for _, q := range f.Queries {
-			bound[q.Operation] = true
+			for _, id := range q.operations() {
+				bound[id] = true
+			}
 		}
 	}
 	var builderNames []string
@@ -149,13 +152,26 @@ func (qi *queryIndex) adopt(spec *Spec, b *Bindings, tag string, ops []*Operatio
 		case len(builders) > 1:
 			fmt.Fprintf(report, "%s\t%s\tquery %s\tkept: the read uses several builders\n", tag, op.ID, strings.Join(builders, ", "))
 		default:
-			q, parts, reason := qi.derive(spec, op, builders[0])
+			q, parts, reason := qi.derive(spec, builders[0])
+			if reason == "" {
+				if home, _ := spec.Operation(q.Operation); home.Tag != tag {
+					reason = fmt.Sprintf("shared with %s, adopted with tag %s", q.Operation, home.Tag)
+				}
+				for _, id := range q.operations() {
+					if bound[id] {
+						reason = id + " already has a generated query"
+					}
+				}
+			}
 			if reason != "" {
 				fmt.Fprintf(report, "%s\t%s\tquery %s\tkept: %s\n", tag, op.ID, builders[0], reason)
 				continue
 			}
 			for _, d := range parts {
 				d.adopt()
+			}
+			for _, id := range q.operations() {
+				bound[id] = true
 			}
 			adopted = append(adopted, q)
 			fmt.Fprintf(report, "%s\t%s\tquery %s\tgenerated\n", tag, op.ID, builders[0])
@@ -164,14 +180,26 @@ func (qi *queryIndex) adopt(spec *Spec, b *Bindings, tag string, ops []*Operatio
 	return adopted
 }
 
-// derive returns the binding of a read's query and the hand-written
-// declarations it replaces, or the reason the query stays hand-written.
-func (qi *queryIndex) derive(spec *Spec, op *Operation, builder string) (*QueryBind, []*decl, string) {
+// derive returns the binding of a builder's query and the hand-written
+// declarations it replaces, or the reason the query stays hand-written. Every
+// use of the builder must be a client method of one read; the query
+// is bound to the read with the shortest path (then the first operationId)
+// and lists the others as Also.
+func (qi *queryIndex) derive(spec *Spec, builder string) (*QueryBind, []*decl, string) {
+	var reads []*Operation
 	for _, use := range qi.uses[builder] {
-		if !use.method || !slices.Equal(use.reads, []string{op.ID}) {
+		if !use.method || len(use.reads) != 1 {
 			return nil, nil, "used by " + use.name
 		}
+		if op, _ := spec.Operation(use.reads[0]); !slices.Contains(reads, op) {
+			reads = append(reads, op)
+		}
 	}
+	sort.Slice(reads, func(i, j int) bool {
+		a, b := strings.Count(reads[i].Path, "/"), strings.Count(reads[j].Path, "/")
+		return a < b || a == b && reads[i].ID < reads[j].ID
+	})
+	op := reads[0]
 	bd := qi.funcs[builder]
 	if bd == nil || bd.adopted {
 		return nil, nil, "no hand-written builder"
@@ -206,6 +234,9 @@ func (qi *queryIndex) derive(spec *Spec, op *Operation, builder string) (*QueryB
 	od := options[0]
 
 	q := &QueryBind{Operation: op.ID, Name: strings.TrimSuffix(strings.TrimPrefix(builder, "build"), "Query")}
+	for _, read := range reads[1:] {
+		q.Also = append(q.Also, read.ID)
+	}
 	if od.name != q.option() {
 		q.Option = od.name
 	}
@@ -241,6 +272,7 @@ func (qi *queryIndex) derive(spec *Spec, op *Operation, builder string) (*QueryB
 		if len(wf.Type.Params.List) == 1 && len(wf.Type.Params.List[0].Names) == 1 {
 			p.Arg = wf.Type.Params.List[0].Names[0].Name
 		}
+		p.Normalize = normalizeOf(wf, sel.Sel.Name)
 		if q.field(spec, op, &QueryParam{Name: p.Name}) == p.Field {
 			p.Field = ""
 		}
@@ -299,4 +331,28 @@ func settingWith(withs map[string]*decl, field string) *decl {
 		}
 	}
 	return nil
+}
+
+// normalizeOf returns the listNormalizers key of the function a With
+// function assigns the query field with, or "" when it is another.
+func normalizeOf(with *ast.FuncDecl, field string) string {
+	key := ""
+	ast.Inspect(with, func(x ast.Node) bool {
+		a, ok := x.(*ast.AssignStmt)
+		if !ok || len(a.Lhs) != 1 || len(a.Rhs) != 1 {
+			return true
+		}
+		sel, ok := a.Lhs[0].(*ast.SelectorExpr)
+		call, isCall := a.Rhs[0].(*ast.CallExpr)
+		if !ok || sel.Sel.Name != field || !isCall {
+			return true
+		}
+		for k, fn := range listNormalizers {
+			if exprString(call.Fun) == fn {
+				key = k
+			}
+		}
+		return false
+	})
+	return key
 }

@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -18,13 +19,25 @@ import (
 // base the default names grow from: build<Name>Query, <Name>Option and the
 // query struct <name>Query (leading initialism lowered).
 type QueryBind struct {
-	Operation string        `json:"operation"`
-	Name      string        `json:"name"`
-	Option    string        `json:"option,omitempty"` // default <Name>Option
-	Params    []*QueryParam `json:"params,omitempty"`
+	Operation string `json:"operation"`
+	// Also are the other reads whose methods call the same builder. The
+	// naming rules follow Operation, and the query is generated once, in the
+	// family of Operation.
+	Also   []string      `json:"also,omitempty"`
+	Name   string        `json:"name"`
+	Option string        `json:"option,omitempty"` // default <Name>Option
+	Params []*QueryParam `json:"params,omitempty"`
 	// Deviations are known differences from the schema that the query test
 	// in internal/asc pins. They change no generated code.
-	Deviations []Deviation `json:"deviations,omitempty"`
+	Deviations []QueryDeviation `json:"deviations,omitempty"`
+}
+
+// QueryDeviation is a Deviation of one read a query serves; Operation is
+// empty for the query's own Operation.
+type QueryDeviation struct {
+	Operation string `json:"operation,omitempty"`
+	Problem   string `json:"problem"`
+	Reason    string `json:"reason"`
 }
 
 // QueryParam is one query parameter with an option. The parameter must be an
@@ -38,6 +51,17 @@ type QueryParam struct {
 	Field string `json:"field,omitempty"`
 	With  string `json:"with,omitempty"` // default With<Name><Field>
 	Arg   string `json:"arg,omitempty"`  // With argument; default the field name
+	// Normalize names how the option cleans the list, one of the keys of
+	// listNormalizers.
+	Normalize string `json:"normalize,omitempty"`
+}
+
+// listNormalizers are the functions an option cleans its list with, by
+// QueryParam.Normalize.
+var listNormalizers = map[string]string{
+	"":       "normalizeList",       // trim, drop blank values
+	"unique": "normalizeUniqueList", // and drop repeated values
+	"upper":  "normalizeUpperList",  // and upper-case the values
 }
 
 // queryRegistry is the test file that lists every generated query builder and
@@ -52,6 +76,9 @@ func (q *QueryBind) option() string {
 }
 
 func (q *QueryBind) builder() string { return "build" + q.Name + "Query" }
+
+// operations are the reads the query serves, its own first.
+func (q *QueryBind) operations() []string { return append([]string{q.Operation}, q.Also...) }
 
 func (q *QueryBind) structName() string { return lowerInitial(q.Name) + "Query" }
 
@@ -164,25 +191,33 @@ type queryPart struct {
 // renderQuery renders the option type, the query struct, one With function
 // per parameter and the query builder of a read, in that order.
 func renderQuery(spec *Spec, q *QueryBind) ([]queryPart, error) {
-	op, ok := spec.Operation(q.Operation)
-	if !ok {
-		return nil, fmt.Errorf("operation not in spec")
-	}
-	if op.Method != "GET" {
-		return nil, fmt.Errorf("query of a %s operation", op.Method)
-	}
 	if q.Name == "" {
 		return nil, fmt.Errorf("query without a name")
 	}
-	specParams, err := spec.queryParams(op)
-	if err != nil {
-		return nil, err
+	var ops []*Operation
+	defined := map[string][]queryParam{}
+	paged := false
+	for _, id := range q.operations() {
+		op, ok := spec.Operation(id)
+		switch {
+		case !ok:
+			return nil, fmt.Errorf("operation %s not in spec", id)
+		case op.Method != "GET":
+			return nil, fmt.Errorf("query of a %s operation %s", op.Method, id)
+		case slices.Contains(ops, op):
+			return nil, fmt.Errorf("operation %s listed twice", id)
+		}
+		ops = append(ops, op)
+		specParams, err := spec.queryParams(op)
+		if err != nil {
+			return nil, err
+		}
+		for _, p := range specParams {
+			defined[p.Name] = append(defined[p.Name], p)
+			paged = paged || p.Name == "limit"
+		}
 	}
-	defined := map[string]queryParam{}
-	for _, p := range specParams {
-		defined[p.Name] = p
-	}
-	_, paged := defined["limit"]
+	op := ops[0]
 
 	option, structName := q.option(), q.structName()
 	var fields, sends []string
@@ -192,18 +227,24 @@ func renderQuery(spec *Spec, q *QueryBind) ([]queryPart, error) {
 	var parts []queryPart
 	seen := map[string]bool{}
 	for _, p := range q.Params {
-		sp, ok := defined[p.Name]
+		normalize, known := listNormalizers[p.Normalize]
 		switch {
-		case !ok:
-			return nil, fmt.Errorf("parameter %s is not defined by the operation", p.Name)
+		case len(defined[p.Name]) == 0:
+			return nil, fmt.Errorf("parameter %s is not defined by %s", p.Name, strings.Join(q.operations(), " or "))
 		case p.Name == "limit":
 			return nil, fmt.Errorf("limit is set by Limit, not by a parameter binding")
-		case sp.Schema.Type != "array" || sp.Schema.Items == nil || sp.Schema.Items.Type != "string":
-			return nil, fmt.Errorf("parameter %s is not an array of strings", p.Name)
-		case sp.Explode == nil || *sp.Explode || (sp.Style != "" && sp.Style != "form"):
-			return nil, fmt.Errorf("parameter %s is not sent as one comma-separated value (form style, explode false)", p.Name)
 		case seen[p.Name]:
 			return nil, fmt.Errorf("parameter %s is bound twice", p.Name)
+		case !known:
+			return nil, fmt.Errorf("parameter %s has unknown normalize %q", p.Name, p.Normalize)
+		}
+		for _, sp := range defined[p.Name] {
+			switch {
+			case sp.Schema.Type != "array" || sp.Schema.Items == nil || sp.Schema.Items.Type != "string":
+				return nil, fmt.Errorf("parameter %s is not an array of strings", p.Name)
+			case sp.Explode == nil || *sp.Explode || (sp.Style != "" && sp.Style != "form"):
+				return nil, fmt.Errorf("parameter %s is not sent as one comma-separated value (form style, explode false)", p.Name)
+			}
 		}
 		seen[p.Name] = true
 		field := q.field(spec, op, p)
@@ -215,8 +256,8 @@ func renderQuery(spec *Spec, q *QueryBind) ([]queryPart, error) {
 			arg = field
 		}
 		fields = append(fields, field+" []string")
-		parts = append(parts, queryPart{with, fmt.Sprintf("// %s sets %s.\nfunc %s(%s []string) %s {\nreturn func(q *%s) {\nq.%s = normalizeList(%s)\n}\n}\n\n",
-			with, p.Name, with, arg, option, structName, field, arg)})
+		parts = append(parts, queryPart{with, fmt.Sprintf("// %s sets %s.\nfunc %s(%s []string) %s {\nreturn func(q *%s) {\nq.%s = %s(%s)\n}\n}\n\n",
+			with, p.Name, with, arg, option, structName, field, normalize, arg)})
 		sends = append(sends, fmt.Sprintf("addCSV(values, %s, query.%s)", strconv.Quote(p.Name), field))
 	}
 	if paged {
@@ -225,8 +266,16 @@ func renderQuery(spec *Spec, q *QueryBind) ([]queryPart, error) {
 	if len(sends) == 0 {
 		return nil, fmt.Errorf("query sends nothing")
 	}
+	var reads []string
+	for _, op := range ops {
+		reads = append(reads, fmt.Sprintf("%s %s (%s)", op.Method, op.Path, op.ID))
+	}
+	served := reads[0]
+	if n := len(reads); n > 1 {
+		served = strings.Join(reads[:n-1], ", ") + " and " + reads[n-1]
+	}
 	head := []queryPart{
-		{option, fmt.Sprintf("// %s sets the query of %s %s (%s).\ntype %s func(*%s)\n\n", option, op.Method, op.Path, op.ID, option, structName)},
+		{option, fmt.Sprintf("// %s sets the query of %s.\ntype %s func(*%s)\n\n", option, served, option, structName)},
 		{structName, fmt.Sprintf("type %s struct {\n%s\n}\n\n", structName, strings.Join(fields, "\n"))},
 	}
 	builder := queryPart{q.builder(), fmt.Sprintf("func %s(query *%s) string {\nvalues := url.Values{}\n%s\nreturn values.Encode()\n}\n\n",
@@ -253,24 +302,38 @@ func renderQueries(spec *Spec, fam *Family) (string, error) {
 // by operation: its builder and its With functions by parameter. It returns
 // nil when no family has a query.
 func renderQueryRegistry(spec *Spec, bindings *Bindings) ([]byte, error) {
-	var queries []*QueryBind
-	for _, fam := range bindings.Families {
-		queries = append(queries, fam.Queries...)
+	type entry struct {
+		operation string
+		query     *QueryBind
 	}
-	if len(queries) == 0 {
+	var entries []entry
+	for _, fam := range bindings.Families {
+		for _, q := range fam.Queries {
+			for _, id := range q.operations() {
+				entries = append(entries, entry{id, q})
+			}
+		}
+	}
+	if len(entries) == 0 {
 		return nil, nil
 	}
-	sort.SliceStable(queries, func(i, j int) bool { return queries[i].Operation < queries[j].Operation })
+	sort.SliceStable(entries, func(i, j int) bool { return entries[i].operation < entries[j].operation })
+	for i := 1; i < len(entries); i++ {
+		if entries[i].operation == entries[i-1].operation {
+			return nil, fmt.Errorf("operation %s has two queries", entries[i].operation)
+		}
+	}
 	var out strings.Builder
 	out.WriteString(header + "\n\npackage asc\n\n")
 	out.WriteString("// generatedQuery is a generated query builder and its With functions by\n// query parameter.\ntype generatedQuery struct {\nbuild any\noptions map[string]any\n}\n\n")
 	out.WriteString("// generatedQueries lists the generated queries by operation for the schema test.\nvar generatedQueries = map[string]generatedQuery{\n")
-	for _, q := range queries {
+	for _, e := range entries {
+		q := e.query
 		op, ok := spec.Operation(q.Operation)
 		if !ok {
 			return nil, fmt.Errorf("query %s: operation not in spec", q.Operation)
 		}
-		fmt.Fprintf(&out, "%s: {\nbuild: %s,\noptions: map[string]any{\n", strconv.Quote(q.Operation), q.builder())
+		fmt.Fprintf(&out, "%s: {\nbuild: %s,\noptions: map[string]any{\n", strconv.Quote(e.operation), q.builder())
 		for _, p := range q.Params {
 			fmt.Fprintf(&out, "%s: %s,\n", strconv.Quote(p.Name), q.with(q.field(spec, op, p), p))
 		}
