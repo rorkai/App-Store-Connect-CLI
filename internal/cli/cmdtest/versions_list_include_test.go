@@ -1,14 +1,13 @@
 package cmdtest
 
 import (
-	"context"
-	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	cmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestVersionsListIncludeEmitsIncludeQuery(t *testing.T) {
@@ -16,44 +15,20 @@ func TestVersionsListIncludeEmitsIncludeQuery(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "include=build,appStoreVersionSubmission"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.0","platform":"IOS"}}],"included":[{"type":"builds","id":"build-1","attributes":{"version":"42"}}]}`))
 
-	requests := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requests++
-		if req.URL.Path != "/v1/apps/123456789/appStoreVersions" {
-			t.Fatalf("expected app versions path, got %s", req.URL.Path)
-		}
-		if got := req.URL.Query().Get("include"); got != "build,appStoreVersionSubmission" {
-			t.Fatalf("expected include=build,appStoreVersionSubmission, got %q", got)
-		}
-		body := `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.0","platform":"IOS"}}],"included":[{"type":"builds","id":"build-1","attributes":{"version":"42"}}]}`
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"versions", "list", "--app", "123456789", "--include", "build,appStoreVersionSubmission"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"versions", "list", "--app", "123456789", "--include", "build,appStoreVersionSubmission"})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	if requests != 1 {
+	if requests := len(reg.Requests()); requests != 1 {
 		t.Fatalf("expected 1 request, got %d", requests)
 	}
 	if !strings.Contains(stdout, `"id":"build-1"`) {
@@ -66,36 +41,18 @@ func TestVersionsListRedactsIncludedReviewCredentialsByDefault(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if got := req.URL.Query().Get("include"); got != "appStoreReviewDetail" {
-			t.Fatalf("expected include=appStoreReviewDetail, got %q", got)
-		}
-		body := `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.0","platform":"IOS"}}],"included":[` +
-			includedAppStoreReviewDetailJSON() + `]}`
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "include=appStoreReviewDetail"), asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.0","platform":"IOS"}}],"included":[`+
+		includedAppStoreReviewDetailJSON()+`]}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"versions", "list", "--app", "123456789",
-			"--include", "appStoreReviewDetail", "--output", "json",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
+	stdout, stderr, err := runCommand(t, []string{
+		"versions", "list", "--app", "123456789",
+		"--include", "appStoreReviewDetail", "--output", "json",
 	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	assertNoSentinel(t, "stdout", appStoreDemoPasswordSentinel, stdout)
 	assertNoSentinel(t, "stderr", appStoreDemoPasswordSentinel, stderr)
@@ -109,34 +66,19 @@ func TestVersionsListIncludesReviewCredentialsWithExplicitOptIn(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		body := `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.0","platform":"IOS"}}],"included":[` +
-			includedAppStoreReviewDetailJSON() + `]}`
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "include=appStoreReviewDetail"), asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.0","platform":"IOS"}}],"included":[`+
+		includedAppStoreReviewDetailJSON()+`]}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"versions", "list", "--app", "123456789",
-			"--include", "appStoreReviewDetail", "--output", "json",
-			"--include-sensitive",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
+	stdout, stderr, err := runCommand(t, []string{
+		"versions", "list", "--app", "123456789",
+		"--include", "appStoreReviewDetail", "--output", "json",
+		"--include-sensitive",
 	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if !strings.Contains(stdout, appStoreDemoPasswordSentinel) {
 		t.Fatalf("expected real review credential with --include-sensitive, got %q", stdout)
@@ -151,50 +93,22 @@ func TestVersionsListPaginateKeepsInclude(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "include=build,appStoreReviewDetail", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.0","platform":"IOS"}}],"included":[{"type":"builds","id":"build-1","attributes":{"version":"42"}},`+includedAppStoreReviewDetailJSON()+`],"links":{"next":"https://api.appstoreconnect.apple.com/v1/apps/123456789/appStoreVersions?cursor=AQ&include=build%2CappStoreReviewDetail"}}`))
+	reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "cursor=AQ", "include=build,appStoreReviewDetail"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-2","attributes":{"versionString":"1.1","platform":"IOS"}}],"included":[{"type":"builds","id":"build-2","attributes":{"version":"43"}}]}`))
 
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		if got := req.URL.Query().Get("include"); got != "build,appStoreReviewDetail" {
-			t.Fatalf("expected include=build,appStoreReviewDetail on request %d, got %q", requestCount, got)
-		}
-
-		var body string
-		switch requestCount {
-		case 1:
-			body = `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.0","platform":"IOS"}}],"included":[{"type":"builds","id":"build-1","attributes":{"version":"42"}},` + includedAppStoreReviewDetailJSON() + `],"links":{"next":"https://api.appstoreconnect.apple.com/v1/apps/123456789/appStoreVersions?cursor=AQ&include=build%2CappStoreReviewDetail"}}`
-		case 2:
-			body = `{"data":[{"type":"appStoreVersions","id":"version-2","attributes":{"versionString":"1.1","platform":"IOS"}}],"included":[{"type":"builds","id":"build-2","attributes":{"version":"43"}}]}`
-		default:
-			t.Fatalf("unexpected request %d to %s", requestCount, req.URL.String())
-		}
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"versions", "list", "--app", "123456789", "--include", "build,appStoreReviewDetail", "--paginate"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"versions", "list", "--app", "123456789", "--include", "build,appStoreReviewDetail", "--paginate"})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	if requestCount != 2 {
+	if requestCount := len(reg.Requests()); requestCount != 2 {
 		t.Fatalf("expected 2 requests, got %d", requestCount)
 	}
 	for _, buildID := range []string{"build-1", "build-2"} {
@@ -213,14 +127,7 @@ func TestVersionsListRejectsInvalidIncludeUsage(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("unexpected request to %s", req.URL.String())
-		return nil, nil
-	})
+	asctest.NewRegistry(t).Install()
 
 	tests := []struct {
 		name    string
@@ -251,15 +158,7 @@ func TestVersionsListRejectsUnsupportedInclude(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("unexpected request to %s", req.URL.String())
-		return nil, nil
-	})
+	asctest.NewRegistry(t).Install()
 
 	tests := []struct {
 		name  string

@@ -1,54 +1,32 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
-	"fmt"
-	"io"
 	"net/http"
 	"strings"
 	"testing"
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestVersionsListLatestKeepsNewestVersionPerPlatform(t *testing.T) {
 	setupAuth(t)
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[appStoreState]=READY_FOR_SALE", "limit=10"), asctest.JSON(http.StatusOK, `{"data":[
+		{"type":"appStoreVersions","id":"ver-ios-old","attributes":{"platform":"IOS","versionString":"2.3.2","appStoreState":"READY_FOR_SALE","createdDate":"2026-02-20T01:00:00+01:00"}},
+		{"type":"appStoreVersions","id":"ver-mac-new","attributes":{"platform":"MAC_OS","versionString":"2.6.2","appStoreState":"READY_FOR_SALE","createdDate":"2020-10-26T09:49:56-07:00"}}
+	],"links":{"next":"https://api.appstoreconnect.apple.com/v1/apps/app-1/appStoreVersions?cursor=page2"},"meta":{"paging":{"total":14,"limit":200}}}`))
+	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "cursor=page2"), asctest.JSON(http.StatusOK, `{"data":[
+		{"type":"appStoreVersions","id":"ver-ios-new","attributes":{"platform":"IOS","versionString":"2.4.1","appStoreState":"READY_FOR_SALE","createdDate":"2026-02-20T00:30:00Z"}},
+		{"type":"appStoreVersions","id":"ver-mac-old","attributes":{"platform":"MAC_OS","versionString":"1.0.0","appStoreState":"READY_FOR_SALE","createdDate":"2020-01-01T00:00:00-07:00"}}
+	],"links":{}}`))
 
-	pageTwoPath := "/v1/apps/app-1/appStoreVersions"
-	pageTwoQuery := "cursor=page2"
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == pageTwoPath && req.URL.RawQuery == pageTwoQuery:
-			return jsonHTTPResponse(http.StatusOK, `{"data":[
-				{"type":"appStoreVersions","id":"ver-ios-new","attributes":{"platform":"IOS","versionString":"2.4.1","appStoreState":"READY_FOR_SALE","createdDate":"2026-02-20T00:30:00Z"}},
-				{"type":"appStoreVersions","id":"ver-mac-old","attributes":{"platform":"MAC_OS","versionString":"1.0.0","appStoreState":"READY_FOR_SALE","createdDate":"2020-01-01T00:00:00-07:00"}}
-			],"links":{}}`), nil
-		case req.Method == http.MethodGet && req.URL.Path == pageTwoPath:
-			if got := req.URL.Query().Get("limit"); got != "10" {
-				return nil, fmt.Errorf("first-page limit = %q, want 10", got)
-			}
-			return jsonHTTPResponse(http.StatusOK, fmt.Sprintf(`{"data":[
-				{"type":"appStoreVersions","id":"ver-ios-old","attributes":{"platform":"IOS","versionString":"2.3.2","appStoreState":"READY_FOR_SALE","createdDate":"2026-02-20T01:00:00+01:00"}},
-				{"type":"appStoreVersions","id":"ver-mac-new","attributes":{"platform":"MAC_OS","versionString":"2.6.2","appStoreState":"READY_FOR_SALE","createdDate":"2020-10-26T09:49:56-07:00"}}
-			],"links":{"next":"https://api.appstoreconnect.apple.com%s?%s"},"meta":{"paging":{"total":14,"limit":200}}}`, pageTwoPath, pageTwoQuery)), nil
-		default:
-			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
-		}
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{"versions", "list", "--app", "app-1", "--state", "READY_FOR_SALE", "--latest", "--limit", "10", "--output", "json"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, _, err := runCommand(t, []string{"versions", "list", "--app", "app-1", "--state", "READY_FOR_SALE", "--latest", "--limit", "10", "--output", "json"})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	var result struct {
 		Items []struct {
@@ -84,27 +62,15 @@ func TestVersionsListLatestKeepsNewestVersionPerPlatform(t *testing.T) {
 
 func TestVersionsListLatestRejectsInvalidCreatedDate(t *testing.T) {
 	setupAuth(t)
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"ver-invalid","attributes":{"platform":"IOS","versionString":"2.4.1","createdDate":"not-a-date"}}],"links":{}}`))
 
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/app-1/appStoreVersions" {
-			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
-		}
-		return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"ver-invalid","attributes":{"platform":"IOS","versionString":"2.4.1","createdDate":"not-a-date"}}],"links":{}}`), nil
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{"versions", "list", "--app", "app-1", "--latest", "--output", "json"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if err == nil || !strings.Contains(err.Error(), `version "ver-invalid" has invalid createdDate`) {
-			t.Fatalf("expected invalid createdDate error, got %v", err)
-		}
-	})
+	stdout, _, err := runCommand(t, []string{"versions", "list", "--app", "app-1", "--latest", "--output", "json"})
+	if err == nil || !strings.Contains(err.Error(), `version "ver-invalid" has invalid createdDate`) {
+		t.Fatalf("expected invalid createdDate error, got %v", err)
+	}
 	if stdout != "" {
 		t.Fatalf("expected no computed output for invalid data, got %q", stdout)
 	}
@@ -112,41 +78,26 @@ func TestVersionsListLatestRejectsInvalidCreatedDate(t *testing.T) {
 
 func TestVersionsListLatestKeepsOnlySelectedIncludesAndRedactsSecrets(t *testing.T) {
 	setupAuth(t)
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "include=build,appStoreReviewDetail", "limit=200"), asctest.JSON(http.StatusOK, `{
+		"data":[
+			{"type":"appStoreVersions","id":"old","attributes":{"platform":"IOS","versionString":"1.0","createdDate":"2025-01-01T00:00:00Z"},"relationships":{"build":{"data":{"type":"builds","id":"build-old"}},"appStoreReviewDetail":{"data":{"type":"appStoreReviewDetails","id":"review-old"}}}},
+			{"type":"appStoreVersions","id":"new","attributes":{"platform":"IOS","versionString":"2.0","createdDate":"2026-01-01T00:00:00Z"},"relationships":{"build":{"data":{"type":"builds","id":"build-new"}},"appStoreReviewDetail":{"data":{"type":"appStoreReviewDetails","id":"review-new"}}}}
+		],
+		"included":[
+			{"type":"builds","id":"build-old","attributes":{"version":"1"}},
+			{"type":"appStoreReviewDetails","id":"review-old","attributes":{"demoAccountPassword":"old-secret"}},
+			{"type":"builds","id":"build-new","attributes":{"version":"2"}},
+			{"type":"appStoreReviewDetails","id":"review-new","attributes":{"demoAccountPassword":"new-secret"}}
+		],
+		"links":{}
+	}`))
 
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/app-1/appStoreVersions" {
-			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
-		}
-		if got := req.URL.Query().Get("include"); got != "build,appStoreReviewDetail" {
-			return nil, fmt.Errorf("include = %q, want build,appStoreReviewDetail", got)
-		}
-		return jsonHTTPResponse(http.StatusOK, `{
-			"data":[
-				{"type":"appStoreVersions","id":"old","attributes":{"platform":"IOS","versionString":"1.0","createdDate":"2025-01-01T00:00:00Z"},"relationships":{"build":{"data":{"type":"builds","id":"build-old"}},"appStoreReviewDetail":{"data":{"type":"appStoreReviewDetails","id":"review-old"}}}},
-				{"type":"appStoreVersions","id":"new","attributes":{"platform":"IOS","versionString":"2.0","createdDate":"2026-01-01T00:00:00Z"},"relationships":{"build":{"data":{"type":"builds","id":"build-new"}},"appStoreReviewDetail":{"data":{"type":"appStoreReviewDetails","id":"review-new"}}}}
-			],
-			"included":[
-				{"type":"builds","id":"build-old","attributes":{"version":"1"}},
-				{"type":"appStoreReviewDetails","id":"review-old","attributes":{"demoAccountPassword":"old-secret"}},
-				{"type":"builds","id":"build-new","attributes":{"version":"2"}},
-				{"type":"appStoreReviewDetails","id":"review-new","attributes":{"demoAccountPassword":"new-secret"}}
-			],
-			"links":{}
-		}`), nil
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{"versions", "list", "--app", "app-1", "--latest", "--include", "build,appStoreReviewDetail", "--output", "json"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, _, err := runCommand(t, []string{"versions", "list", "--app", "app-1", "--latest", "--include", "build,appStoreReviewDetail", "--output", "json"})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	var result struct {
 		Items []struct {
@@ -205,24 +156,11 @@ func TestVersionsListLatestRejectsNextURL(t *testing.T) {
 // attribute and return such a version.
 func TestVersionsListLatestFindsVersionReportedOnlyAsReadyForDistribution(t *testing.T) {
 	setupAuth(t)
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/app-1/appStoreVersions" {
-			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
-		}
-		query := req.URL.Query()
-		if got := query.Get("filter[appVersionState]"); got != "READY_FOR_DISTRIBUTION" {
-			return nil, fmt.Errorf("filter[appVersionState] = %q, want READY_FOR_DISTRIBUTION", got)
-		}
-		if got := query.Get("filter[appStoreState]"); got != "" {
-			return nil, fmt.Errorf("filter[appStoreState] = %q, want unset", got)
-		}
-		return jsonHTTPResponse(http.StatusOK, `{"data":[
-			{"type":"appStoreVersions","id":"ver-live","attributes":{"platform":"IOS","versionString":"3.0","appVersionState":"READY_FOR_DISTRIBUTION","createdDate":"2026-09-01T00:00:00Z"}}
-		],"links":{}}`), nil
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[appVersionState]=READY_FOR_DISTRIBUTION", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[
+		{"type":"appStoreVersions","id":"ver-live","attributes":{"platform":"IOS","versionString":"3.0","appVersionState":"READY_FOR_DISTRIBUTION","createdDate":"2026-09-01T00:00:00Z"}}
+	],"links":{}}`))
 
 	stdout, stderr := captureOutput(t, func() {
 		if code := rootcmd.Run([]string{"versions", "list", "--app", "app-1", "--state", "READY_FOR_DISTRIBUTION", "--latest", "--output", "json"}, "1.2.3"); code != rootcmd.ExitSuccess {

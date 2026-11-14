@@ -1,13 +1,13 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
-	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestReleaseStageUsageErrors(t *testing.T) {
@@ -28,54 +28,26 @@ func TestReleaseStageUsageErrors(t *testing.T) {
 func TestReleaseStage_DryRunCopyMetadataFromVersion(t *testing.T) {
 	setupAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/builds/BUILD_123/relationships/app"), asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"APP_123"}}`))
+	reg.Register(asctest.GET("/v1/builds/BUILD_123"), asctest.JSON(http.StatusOK, `{"data":{"type":"builds","id":"BUILD_123","attributes":{"version":"42","buildAudienceType":"APP_STORE_ELIGIBLE"}}}`))
+	reg.Register(asctest.GET("/v1/builds/BUILD_123/preReleaseVersion"), asctest.JSON(http.StatusOK, `{"data":{"type":"preReleaseVersions","id":"PRE_RELEASE_123","attributes":{"version":"1.2.3","platform":"IOS"}}}`))
+	reg.Register(asctest.GET("/v1/apps/APP_123/appStoreVersions", "filter[platform]=IOS", "filter[versionString]=1.2.3", "limit=10"), asctest.JSON(http.StatusOK, `{"data":[]}`))
 
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		body := ""
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/builds/BUILD_123/relationships/app":
-			body = `{"data":{"type":"apps","id":"APP_123"}}`
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/builds/BUILD_123":
-			body = `{"data":{"type":"builds","id":"BUILD_123","attributes":{"version":"42","buildAudienceType":"APP_STORE_ELIGIBLE"}}}`
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/builds/BUILD_123/preReleaseVersion":
-			body = `{"data":{"type":"preReleaseVersions","id":"PRE_RELEASE_123","attributes":{"version":"1.2.3","platform":"IOS"}}}`
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/APP_123/appStoreVersions":
-			body = `{"data":[]}`
-		default:
-			t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-		}
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
+	stdout, stderr, err := runCommand(t, []string{
+		"release", "stage",
+		"--app", "APP_123",
+		"--version", "1.2.3",
+		"--build-id", "BUILD_123",
+		"--copy-metadata-from", "1.2.2",
+		"--copy-fields", "description,keywords",
+		"--exclude-fields", "keywords",
+		"--dry-run",
 	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"release", "stage",
-			"--app", "APP_123",
-			"--version", "1.2.3",
-			"--build-id", "BUILD_123",
-			"--copy-metadata-from", "1.2.2",
-			"--copy-fields", "description,keywords",
-			"--exclude-fields", "keywords",
-			"--dry-run",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -95,7 +67,7 @@ func TestReleaseStage_DryRunCopyMetadataFromVersion(t *testing.T) {
 	if !strings.Contains(stdout, `"name":"validate_build","status":"dry-run"`) {
 		t.Fatalf("expected the build precondition check in the plan, got %q", stdout)
 	}
-	if requestCount != 4 {
+	if requestCount := len(reg.Requests()); requestCount != 4 {
 		t.Fatalf("expected the build ownership, platform, and audience checks plus the version lookup, got %d requests", requestCount)
 	}
 }
@@ -109,50 +81,25 @@ func TestReleaseStage_ResolvesTrimmedCheckpointFile(t *testing.T) {
 	workDir := t.TempDir()
 	t.Chdir(workDir)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		body := ""
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/builds/BUILD_123/relationships/app":
-			body = `{"data":{"type":"apps","id":"APP_123"}}`
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/builds/BUILD_123":
-			body = `{"data":{"type":"builds","id":"BUILD_123","attributes":{"version":"42","buildAudienceType":"APP_STORE_ELIGIBLE"}}}`
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/builds/BUILD_123/preReleaseVersion":
-			body = `{"data":{"type":"preReleaseVersions","id":"PRE_RELEASE_123","attributes":{"version":"1.2.3","platform":"IOS"}}}`
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/APP_123/appStoreVersions":
-			body = `{"data":[]}`
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-		}
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/builds/BUILD_123/relationships/app"), asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"APP_123"}}`))
+	reg.Register(asctest.GET("/v1/builds/BUILD_123"), asctest.JSON(http.StatusOK, `{"data":{"type":"builds","id":"BUILD_123","attributes":{"version":"42","buildAudienceType":"APP_STORE_ELIGIBLE"}}}`))
+	reg.Register(asctest.GET("/v1/builds/BUILD_123/preReleaseVersion"), asctest.JSON(http.StatusOK, `{"data":{"type":"preReleaseVersions","id":"PRE_RELEASE_123","attributes":{"version":"1.2.3","platform":"IOS"}}}`))
+	reg.Register(asctest.GET("/v1/apps/APP_123/appStoreVersions", "filter[platform]=IOS", "filter[versionString]=1.2.3", "limit=10"), asctest.JSON(http.StatusOK, `{"data":[]}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"release", "stage",
-			"--app", "APP_123",
-			"--version", "1.2.3",
-			"--build-id", "BUILD_123",
-			"--copy-metadata-from", "1.2.2",
-			"--checkpoint-file", "  stage-checkpoint.json  ",
-			"--dry-run",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
+	stdout, _, err := runCommand(t, []string{
+		"release", "stage",
+		"--app", "APP_123",
+		"--version", "1.2.3",
+		"--build-id", "BUILD_123",
+		"--copy-metadata-from", "1.2.2",
+		"--checkpoint-file", "  stage-checkpoint.json  ",
+		"--dry-run",
 	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	var plan struct {
 		CheckpointFile string `json:"checkpointFile"`
