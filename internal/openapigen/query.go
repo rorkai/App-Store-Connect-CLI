@@ -22,6 +22,9 @@ type QueryBind struct {
 	Name      string        `json:"name"`
 	Option    string        `json:"option,omitempty"` // default <Name>Option
 	Params    []*QueryParam `json:"params,omitempty"`
+	// Schema also lets the query send every parameter the operation defines,
+	// by name through WithQueryParams, and lists them in a QuerySchema.
+	Schema bool `json:"schema,omitempty"`
 	// Deviations are known differences from the schema that the query test
 	// in internal/asc pins. They change no generated code.
 	Deviations []Deviation `json:"deviations,omitempty"`
@@ -74,9 +77,12 @@ type queryParam struct {
 	Style   string `json:"style"`
 	Explode *bool  `json:"explode"`
 	Schema  struct {
-		Type  string `json:"type"`
-		Items *struct {
-			Type string `json:"type"`
+		Type    string   `json:"type"`
+		Enum    []string `json:"enum"`
+		Maximum int      `json:"maximum"`
+		Items   *struct {
+			Type string   `json:"type"`
+			Enum []string `json:"enum"`
 		} `json:"items"`
 	} `json:"schema"`
 }
@@ -189,6 +195,16 @@ func renderQuery(spec *Spec, q *QueryBind) ([]queryPart, error) {
 	if paged {
 		fields = append(fields, "listQuery")
 	}
+	var schema *queryPart
+	if q.Schema {
+		src, err := renderQuerySchema(spec, op, structName, specParams)
+		if err != nil {
+			return nil, err
+		}
+		schema = &queryPart{structName + "Schema", src}
+		fields = append(fields, "schemaQuery")
+		sends = append(sends, "addSchemaParams(values, query.schemaQuery)")
+	}
 	var parts []queryPart
 	seen := map[string]bool{}
 	for _, p := range q.Params {
@@ -231,7 +247,55 @@ func renderQuery(spec *Spec, q *QueryBind) ([]queryPart, error) {
 	}
 	builder := queryPart{q.builder(), fmt.Sprintf("func %s(query *%s) string {\nvalues := url.Values{}\n%s\nreturn values.Encode()\n}\n\n",
 		q.builder(), structName, strings.Join(sends, "\n"))}
-	return append(append(head, parts...), builder), nil
+	parts = append(head, parts...)
+	if schema != nil {
+		parts = append(parts, *schema)
+	}
+	return append(parts, builder), nil
+}
+
+// renderQuerySchema renders the querySchema method of a query struct and the
+// QuerySchema it returns: the read's resource type and every query parameter
+// of the operation except limit, in spec order.
+func renderQuerySchema(spec *Spec, op *Operation, structName string, params []queryParam) (string, error) {
+	resource := readType(spec, op)
+	if resource == "" {
+		return "", fmt.Errorf("schema parameters need a read whose resource type is known")
+	}
+	var lines []string
+	for _, p := range params {
+		if p.Name == "limit" {
+			continue
+		}
+		typ, values := p.Schema.Type, p.Schema.Enum
+		switch typ {
+		case "array":
+			if p.Schema.Items == nil || p.Schema.Items.Type != "string" {
+				return "", fmt.Errorf("schema parameter %s is not an array of strings", p.Name)
+			}
+			if p.Explode == nil || *p.Explode || (p.Style != "" && p.Style != "form") {
+				return "", fmt.Errorf("schema parameter %s is not sent as one comma-separated value (form style, explode false)", p.Name)
+			}
+			values = p.Schema.Items.Enum
+		case "integer", "boolean", "string":
+		default:
+			return "", fmt.Errorf("schema parameter %s has unsupported type %q", p.Name, typ)
+		}
+		fields := []string{"Name: " + strconv.Quote(p.Name), "Type: " + strconv.Quote(typ)}
+		if len(values) > 0 {
+			quoted := make([]string, len(values))
+			for i, v := range values {
+				quoted[i] = strconv.Quote(v)
+			}
+			fields = append(fields, "Values: []string{"+strings.Join(quoted, ", ")+"}")
+		}
+		if p.Schema.Maximum > 0 {
+			fields = append(fields, fmt.Sprintf("Maximum: %d", p.Schema.Maximum))
+		}
+		lines = append(lines, "{"+strings.Join(fields, ", ")+"},")
+	}
+	return fmt.Sprintf("func (*%s) querySchema() QuerySchema { return %sSchema }\n\nvar %sSchema = QuerySchema{\nResource: %s,\nParams: []QueryParam{\n%s\n},\n}\n\n",
+		structName, structName, structName, strconv.Quote(resource), strings.Join(lines, "\n")), nil
 }
 
 // renderQueries renders the queries of a family.

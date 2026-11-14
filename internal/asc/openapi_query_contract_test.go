@@ -87,8 +87,11 @@ type contractQueryFamily struct {
 // option sends exactly the parameter the schema defines for it, with the
 // list trimmed, without blank items and encoded as the schema says; that
 // limit is sent for an operation that pages; and that
-// every query parameter of the operation has an option. Differences recorded
-// in the bindings as deviations are excused exactly as for methods.
+// every query parameter of the operation has an option. A query that sends
+// parameters by name (a SchemaQuery) must list exactly the operation's
+// parameters with their types, allowed values and maximums, and send each
+// one under its name. Differences recorded in the bindings as deviations are
+// excused exactly as for methods.
 func TestGeneratedQueriesMatchSchema(t *testing.T) {
 	params, err := loadContractQueryParams()
 	if err != nil {
@@ -190,6 +193,21 @@ func checkGeneratedQuery(operation string, params map[string]contractQueryParam)
 		problems = append(problems, fmt.Sprintf("sent %v with no option set, want %v", got, base))
 	}
 
+	byName := map[string]bool{}
+	if schema, ok := reflect.New(queryType.Elem()).Interface().(SchemaQuery); ok {
+		problems = append(problems, checkQuerySchema(operation, params, schema.querySchema())...)
+		for _, param := range schema.querySchema().Params {
+			byName[param.Name] = true
+			got := send(func(q reflect.Value) { q.Interface().(SchemaQuery).setSchemaParam(param.Name, contractSchemaValue) })
+			want := url.Values{}
+			maps.Copy(want, base)
+			want[param.Name] = []string{contractSchemaValue}
+			if !reflect.DeepEqual(got, want) {
+				problems = append(problems, fmt.Sprintf("%s set by name sent %v, want %v", param.Name, got, want))
+			}
+		}
+	}
+
 	for _, name := range slices.Sorted(maps.Keys(query.options)) {
 		option := reflect.ValueOf(query.options[name])
 		label := runtime.FuncForPC(option.Pointer()).Name()
@@ -217,13 +235,74 @@ func checkGeneratedQuery(operation string, params map[string]contractQueryParam)
 
 	var missing []string
 	for name := range params {
-		if _, ok := query.options[name]; !ok && name != "limit" {
+		if _, ok := query.options[name]; !ok && !byName[name] && name != "limit" {
 			missing = append(missing, name)
 		}
 	}
 	sort.Strings(missing)
 	if len(missing) > 0 {
 		problems = append(problems, fmt.Sprintf("query parameters %v have no option", missing))
+	}
+	return problems
+}
+
+// contractSchemaValue is the value a parameter set by name is sent as.
+const contractSchemaValue = "contract-1,contract-2"
+
+// checkQuerySchema compares the query schema of a generated query with the
+// operation: the resource type of its response, and every query parameter
+// other than limit with its type, allowed values and maximum.
+func checkQuerySchema(operation string, params map[string]contractQueryParam, got QuerySchema) []string {
+	var problems []string
+	spec, err := loadContractSpec()
+	if err != nil {
+		return []string{err.Error()}
+	}
+	resource := ""
+	if op, ok := spec.operations[operation]; ok {
+		if response, err := op.response(spec); err == nil && response.resource != nil {
+			if types := spec.property(response.resource, "type"); types != nil && len(types.Enum) == 1 {
+				resource = types.Enum[0]
+			}
+		}
+	}
+	if got.Resource != resource {
+		problems = append(problems, fmt.Sprintf("query schema resource %q, the response returns %q", got.Resource, resource))
+	}
+	want := map[string]QueryParam{}
+	for name, p := range params {
+		if name == "limit" || p.Schema == nil {
+			continue
+		}
+		param := QueryParam{Name: name, Type: p.Schema.Type, Values: p.Schema.Enum, Maximum: p.Schema.Maximum}
+		if p.Schema.Type == "array" && p.Schema.Items != nil {
+			param.Values = p.Schema.Items.Enum
+		}
+		if len(param.Values) == 0 {
+			param.Values = nil
+		}
+		want[name] = param
+	}
+	listed := map[string]QueryParam{}
+	for _, p := range got.Params {
+		if _, twice := listed[p.Name]; twice {
+			problems = append(problems, fmt.Sprintf("query schema lists %s twice", p.Name))
+		}
+		listed[p.Name] = p
+	}
+	for _, name := range slices.Sorted(maps.Keys(listed)) {
+		w, ok := want[name]
+		switch {
+		case !ok:
+			problems = append(problems, fmt.Sprintf("query schema lists %s, which the operation does not define", name))
+		case !reflect.DeepEqual(listed[name], w):
+			problems = append(problems, fmt.Sprintf("query schema has %+v, the operation defines %+v", listed[name], w))
+		}
+	}
+	for _, name := range slices.Sorted(maps.Keys(want)) {
+		if _, ok := listed[name]; !ok {
+			problems = append(problems, fmt.Sprintf("query schema lacks %s", name))
+		}
 	}
 	return problems
 }

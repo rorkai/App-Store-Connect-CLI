@@ -48,6 +48,6 @@
   ],
   "queries": [
     {"operation":"widgets_getCollection","name":"Widgets","params":[{"name":"filter[name]","field":"names"},{"name":"fields[widgets]"},{"name":"fields[gadgets]","arg":"fields"},{"name":"include","with":"WithWidgetsIncluded"}]},
-    {"operation":"widgets_owner_getToOneRelated","name":"WidgetOwner","option":"OwnerOption","params":[{"name":"fields[widgets]"}]}
+    {"operation":"widgets_owner_getToOneRelated","name":"WidgetOwner","option":"OwnerOption","params":[{"name":"fields[widgets]"}],"schema":true}
   ]
 }

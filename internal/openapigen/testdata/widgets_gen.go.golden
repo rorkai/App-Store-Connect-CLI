@@ -534,6 +534,7 @@ func buildWidgetsQuery(query *widgetsQuery) string {
 type OwnerOption func(*widgetOwnerQuery)
 
 type widgetOwnerQuery struct {
+	schemaQuery
 	fields []string
 }
 
@@ -544,8 +545,22 @@ func WithWidgetOwnerFields(fields []string) OwnerOption {
 	}
 }
 
+func (*widgetOwnerQuery) querySchema() QuerySchema { return widgetOwnerQuerySchema }
+
+var widgetOwnerQuerySchema = QuerySchema{
+	Resource: "widgets",
+	Params: []QueryParam{
+		{Name: "fields[widgets]", Type: "array"},
+		{Name: "exists[name]", Type: "boolean"},
+		{Name: "sort", Type: "array", Values: []string{"name", "-name"}},
+		{Name: "limit[parts]", Type: "integer", Maximum: 50},
+		{Name: "filter[kind]", Type: "string", Values: []string{"BIG", "SMALL"}},
+	},
+}
+
 func buildWidgetOwnerQuery(query *widgetOwnerQuery) string {
 	values := url.Values{}
+	addSchemaParams(values, query.schemaQuery)
 	addCSV(values, "fields[widgets]", query.fields)
 	return values.Encode()
 }

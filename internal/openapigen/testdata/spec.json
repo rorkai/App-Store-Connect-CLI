@@ -86,7 +86,10 @@
         "operationId": "widgets_owner_getToOneRelated",
         "parameters": [
           {"name": "fields[widgets]", "in": "query", "schema": {"type": "array", "items": {"type": "string"}}, "style": "form", "explode": false},
-          {"name": "exists[name]", "in": "query", "schema": {"type": "boolean"}, "style": "form"}
+          {"name": "exists[name]", "in": "query", "schema": {"type": "boolean"}, "style": "form"},
+          {"name": "sort", "in": "query", "schema": {"type": "array", "items": {"type": "string", "enum": ["name", "-name"]}}, "style": "form", "explode": false},
+          {"name": "limit[parts]", "in": "query", "schema": {"type": "integer", "maximum": 50}, "style": "form"},
+          {"name": "filter[kind]", "in": "query", "schema": {"type": "string", "enum": ["BIG", "SMALL"]}, "style": "form"}
         ],
         "responses": {
           "200": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WidgetResponse"}}}}

@@ -44,6 +44,7 @@ func TestGenerateRejectsMalformedQueryBindings(t *testing.T) {
 		{"parameter bound twice", &QueryBind{Operation: "widgets_getCollection", Name: "X", Params: []*QueryParam{param("include", ""), param("include", "other")}}},
 		{"filter without a field name", &QueryBind{Operation: "widgets_getCollection", Name: "X", Params: []*QueryParam{param("filter[name]", "")}}},
 		{"a query that sends nothing", &QueryBind{Operation: "widgets_owner_getToOneRelated", Name: "X"}},
+		{"schema parameters with an array sent as repeated values", &QueryBind{Operation: "widgets_getCollection", Name: "X", Schema: true}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

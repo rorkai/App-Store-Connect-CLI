@@ -67,6 +67,7 @@ type contractSchema struct {
 	Properties map[string]*contractSchema `json:"properties"`
 	Required   []string                   `json:"required"`
 	Items      *contractSchema            `json:"items"`
+	Maximum    int                        `json:"maximum"`
 }
 
 type contractOperation struct {
