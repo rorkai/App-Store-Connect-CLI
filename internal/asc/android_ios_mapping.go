@@ -52,5 +52,12 @@ type AndroidToIosAppMappingDetailCreateRelationships struct {
 	App *Relationship `json:"app"`
 }
 
+// AndroidToIosAppMappingDetailCreateData is the data portion of a create request.
+type AndroidToIosAppMappingDetailCreateData struct {
+	Type          ResourceType                                    `json:"type"`
+	Attributes    AndroidToIosAppMappingDetailCreateAttributes    `json:"attributes"`
+	Relationships AndroidToIosAppMappingDetailCreateRelationships `json:"relationships"`
+}
+
 // AndroidToIosAppMappingDetailsResponse is the response from the mapping list endpoint.
 type AndroidToIosAppMappingDetailsResponse = Response[AndroidToIosAppMappingDetailAttributes]

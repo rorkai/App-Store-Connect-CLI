@@ -9,13 +9,6 @@ import (
 	"strings"
 )
 
-// NominationCreateData is the data object of the NominationCreateRequest schema.
-type NominationCreateData struct {
-	Type          ResourceType               `json:"type"`
-	Attributes    NominationCreateAttributes `json:"attributes"`
-	Relationships NominationRelationships    `json:"relationships"`
-}
-
 // NominationCreateRequest is the NominationCreateRequest schema.
 type NominationCreateRequest struct {
 	Data NominationCreateData `json:"data"`

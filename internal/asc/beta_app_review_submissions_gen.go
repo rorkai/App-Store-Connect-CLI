@@ -5,20 +5,8 @@ package asc
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"strings"
 )
-
-// BetaAppReviewSubmissionCreateData is the data object of the BetaAppReviewSubmissionCreateRequest schema.
-type BetaAppReviewSubmissionCreateData struct {
-	Type          ResourceType                                `json:"type"`
-	Relationships *BetaAppReviewSubmissionCreateRelationships `json:"relationships"`
-}
-
-// BetaAppReviewSubmissionCreateRelationships is the data.relationships object of the BetaAppReviewSubmissionCreateRequest schema.
-type BetaAppReviewSubmissionCreateRelationships struct {
-	Build *Relationship `json:"build"`
-}
 
 // BetaAppReviewSubmissionCreateRequest is the BetaAppReviewSubmissionCreateRequest schema.
 type BetaAppReviewSubmissionCreateRequest struct {
@@ -39,32 +27,6 @@ func (c *Client) GetBetaAppReviewSubmissionBuild(ctx context.Context, submission
 	}
 	return getJSON[BuildResponse](ctx, c, readRequest{
 		Path: fmt.Sprintf("/v1/betaAppReviewSubmissions/%s/build", submissionID),
-	})
-}
-
-// CreateBetaAppReviewSubmission sends POST /v1/betaAppReviewSubmissions (betaAppReviewSubmissions_createInstance).
-func (c *Client) CreateBetaAppReviewSubmission(ctx context.Context, buildID string) (*BetaAppReviewSubmissionResponse, error) {
-	buildID = strings.TrimSpace(buildID)
-	if buildID == "" {
-		return nil, fmt.Errorf("buildID is required")
-	}
-	payload := BetaAppReviewSubmissionCreateRequest{
-		Data: BetaAppReviewSubmissionCreateData{
-			Type: ResourceTypeBetaAppReviewSubmissions,
-			Relationships: &BetaAppReviewSubmissionCreateRelationships{
-				Build: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeBuilds,
-						ID:   buildID,
-					},
-				},
-			},
-		},
-	}
-	return sendJSON[BetaAppReviewSubmissionResponse](ctx, c, writeRequest{
-		Method:  http.MethodPost,
-		Path:    "/v1/betaAppReviewSubmissions",
-		Payload: payload,
 	})
 }
 

@@ -9,19 +9,6 @@ import (
 	"strings"
 )
 
-// WinBackOfferCreateData is the data object of the WinBackOfferCreateRequest schema.
-type WinBackOfferCreateData struct {
-	Type          ResourceType                    `json:"type"`
-	Attributes    WinBackOfferCreateAttributes    `json:"attributes"`
-	Relationships WinBackOfferCreateRelationships `json:"relationships"`
-}
-
-// WinBackOfferCreateRelationships is the data.relationships object of the WinBackOfferCreateRequest schema.
-type WinBackOfferCreateRelationships struct {
-	Subscription Relationship     `json:"subscription"`
-	Prices       RelationshipList `json:"prices"`
-}
-
 // WinBackOfferResponse is the WinBackOfferResponse schema.
 type WinBackOfferResponse = SingleResponse[WinBackOfferAttributes]
 
@@ -61,5 +48,21 @@ func (c *Client) GetWinBackOfferPricesRelationships(ctx context.Context, offerID
 		Query:       buildLinkagesQuery(query),
 		Next:        query.nextURL,
 		NextContext: "winBackOfferPrices relationships",
+	})
+}
+
+// UpdateWinBackOffer sends PATCH /v1/winBackOffers/{id} (winBackOffers_updateInstance).
+func (c *Client) UpdateWinBackOffer(ctx context.Context, offerID string, attrs WinBackOfferUpdateAttributes) (*WinBackOfferResponse, error) {
+	payload := WinBackOfferUpdateRequest{
+		Data: WinBackOfferUpdateData{
+			Type:       ResourceTypeWinBackOffers,
+			ID:         strings.TrimSpace(offerID),
+			Attributes: attrs,
+		},
+	}
+	return sendJSON[WinBackOfferResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/winBackOffers/%s", strings.TrimSpace(offerID)),
+		Payload: payload,
 	})
 }

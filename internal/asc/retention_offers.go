@@ -36,6 +36,19 @@ type RetentionOfferCreateAttributes struct {
 	TargetSubscriptionPlanType                          SubscriptionPlanType      `json:"targetSubscriptionPlanType,omitempty"`
 }
 
+// RetentionOfferCreateRelationships describes relationships for creating a retention offer.
+type RetentionOfferCreateRelationships struct {
+	Subscription Relationship     `json:"subscription"`
+	Prices       RelationshipList `json:"prices"`
+}
+
+// RetentionOfferCreateData is the data portion of a create request.
+type RetentionOfferCreateData struct {
+	Type          ResourceType                      `json:"type"`
+	Attributes    RetentionOfferCreateAttributes    `json:"attributes"`
+	Relationships RetentionOfferCreateRelationships `json:"relationships"`
+}
+
 // RetentionOfferCreateRequest is a request to create a retention offer.
 type RetentionOfferCreateRequest struct {
 	Data     RetentionOfferCreateData          `json:"data"`

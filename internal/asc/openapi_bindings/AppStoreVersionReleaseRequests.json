@@ -2,14 +2,6 @@
   "tag": "AppStoreVersionReleaseRequests",
   "file": "app_store_version_release_requests_gen.go",
   "types": [
-    "AppStoreVersionReleaseRequestCreateData",
-    "AppStoreVersionReleaseRequestCreateRequest",
-    "AppStoreVersionReleaseRequestRelationships"
-  ],
-  "relationships": [
-    {"data":"AppStoreVersionReleaseRequestCreateData","type":"AppStoreVersionReleaseRequestRelationships"}
-  ],
-  "operations": [
-    {"operation":"appStoreVersionReleaseRequests_createInstance","name":"CreateAppStoreVersionReleaseRequest","params":["versionID"],"check":"require","messages":["version ID is required"],"links":["appStoreVersion"]}
+    "AppStoreVersionReleaseRequestCreateRequest"
   ]
 }

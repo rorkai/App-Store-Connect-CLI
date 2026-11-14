@@ -107,6 +107,19 @@ type WinBackOfferUpdateAttributes struct {
 	PromotionIntent                                     *WinBackOfferPromotionIntent `json:"promotionIntent,omitempty"`
 }
 
+// WinBackOfferCreateRelationships describes relationships for win-back offers.
+type WinBackOfferCreateRelationships struct {
+	Subscription Relationship     `json:"subscription"`
+	Prices       RelationshipList `json:"prices"`
+}
+
+// WinBackOfferCreateData is the data portion of a create request.
+type WinBackOfferCreateData struct {
+	Type          ResourceType                    `json:"type"`
+	Attributes    WinBackOfferCreateAttributes    `json:"attributes"`
+	Relationships WinBackOfferCreateRelationships `json:"relationships"`
+}
+
 // WinBackOfferCreateRequest is a request to create a win-back offer.
 type WinBackOfferCreateRequest struct {
 	Data     WinBackOfferCreateData          `json:"data"`

@@ -9,53 +9,13 @@ import (
 	"strings"
 )
 
-// GameCenterLeaderboardSetReleaseCreateData is the data object of the GameCenterLeaderboardSetReleaseCreateRequest schema.
-type GameCenterLeaderboardSetReleaseCreateData struct {
-	Type          ResourceType                                  `json:"type"`
-	Relationships *GameCenterLeaderboardSetReleaseRelationships `json:"relationships"`
-}
-
 // GameCenterLeaderboardSetReleaseCreateRequest is the GameCenterLeaderboardSetReleaseCreateRequest schema.
 type GameCenterLeaderboardSetReleaseCreateRequest struct {
 	Data GameCenterLeaderboardSetReleaseCreateData `json:"data"`
 }
 
-// GameCenterLeaderboardSetReleaseRelationships is the data.relationships object of the GameCenterLeaderboardSetReleaseCreateRequest schema.
-type GameCenterLeaderboardSetReleaseRelationships struct {
-	GameCenterDetail         *Relationship `json:"gameCenterDetail"`
-	GameCenterLeaderboardSet *Relationship `json:"gameCenterLeaderboardSet"`
-}
-
 // GameCenterLeaderboardSetReleaseResponse is the GameCenterLeaderboardSetReleaseResponse schema.
 type GameCenterLeaderboardSetReleaseResponse = SingleResponse[GameCenterLeaderboardSetReleaseAttributes]
-
-// CreateGameCenterLeaderboardSetRelease sends POST /v1/gameCenterLeaderboardSetReleases (gameCenterLeaderboardSetReleases_createInstance).
-func (c *Client) CreateGameCenterLeaderboardSetRelease(ctx context.Context, gcDetailID, setID string) (*GameCenterLeaderboardSetReleaseResponse, error) {
-	payload := GameCenterLeaderboardSetReleaseCreateRequest{
-		Data: GameCenterLeaderboardSetReleaseCreateData{
-			Type: ResourceTypeGameCenterLeaderboardSetReleases,
-			Relationships: &GameCenterLeaderboardSetReleaseRelationships{
-				GameCenterDetail: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeGameCenterDetails,
-						ID:   strings.TrimSpace(gcDetailID),
-					},
-				},
-				GameCenterLeaderboardSet: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeGameCenterLeaderboardSets,
-						ID:   strings.TrimSpace(setID),
-					},
-				},
-			},
-		},
-	}
-	return sendJSON[GameCenterLeaderboardSetReleaseResponse](ctx, c, writeRequest{
-		Method:  http.MethodPost,
-		Path:    "/v1/gameCenterLeaderboardSetReleases",
-		Payload: payload,
-	})
-}
 
 // DeleteGameCenterLeaderboardSetRelease sends DELETE /v1/gameCenterLeaderboardSetReleases/{id} (gameCenterLeaderboardSetReleases_deleteInstance).
 func (c *Client) DeleteGameCenterLeaderboardSetRelease(ctx context.Context, releaseID string) error {

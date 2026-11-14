@@ -9,18 +9,6 @@ import (
 	"strings"
 )
 
-// AppEventCreateData is the data object of the AppEventCreateRequest schema.
-type AppEventCreateData struct {
-	Type          ResourceType                 `json:"type"`
-	Attributes    AppEventCreateAttributes     `json:"attributes"`
-	Relationships *AppEventCreateRelationships `json:"relationships"`
-}
-
-// AppEventCreateRelationships is the data.relationships object of the AppEventCreateRequest schema.
-type AppEventCreateRelationships struct {
-	App *Relationship `json:"app"`
-}
-
 // AppEventCreateRequest is the AppEventCreateRequest schema.
 type AppEventCreateRequest struct {
 	Data AppEventCreateData `json:"data"`
@@ -36,33 +24,6 @@ type AppEventUpdateData struct {
 // AppEventUpdateRequest is the AppEventUpdateRequest schema.
 type AppEventUpdateRequest struct {
 	Data AppEventUpdateData `json:"data"`
-}
-
-// CreateAppEvent sends POST /v1/appEvents (appEvents_createInstance).
-func (c *Client) CreateAppEvent(ctx context.Context, appID string, attrs AppEventCreateAttributes) (*AppEventResponse, error) {
-	appID = strings.TrimSpace(appID)
-	if appID == "" {
-		return nil, fmt.Errorf("appID is required")
-	}
-	payload := AppEventCreateRequest{
-		Data: AppEventCreateData{
-			Type:       ResourceTypeAppEvents,
-			Attributes: attrs,
-			Relationships: &AppEventCreateRelationships{
-				App: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeApps,
-						ID:   appID,
-					},
-				},
-			},
-		},
-	}
-	return sendJSON[AppEventResponse](ctx, c, writeRequest{
-		Method:  http.MethodPost,
-		Path:    "/v1/appEvents",
-		Payload: payload,
-	})
 }
 
 // DeleteAppEvent sends DELETE /v1/appEvents/{id} (appEvents_deleteInstance).

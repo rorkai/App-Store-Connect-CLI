@@ -14,13 +14,6 @@ type AppCustomProductPageCreateAttributes struct {
 	Name string `json:"name"`
 }
 
-// AppCustomProductPageCreateData is the data object of the AppCustomProductPageCreateRequest schema.
-type AppCustomProductPageCreateData struct {
-	Type          ResourceType                             `json:"type"`
-	Attributes    AppCustomProductPageCreateAttributes     `json:"attributes"`
-	Relationships *AppCustomProductPageCreateRelationships `json:"relationships"`
-}
-
 // AppCustomProductPageResponse is the AppCustomProductPageResponse schema.
 type AppCustomProductPageResponse = SingleResponse[AppCustomProductPageAttributes]
 
@@ -74,5 +67,27 @@ func (c *Client) GetAppCustomProductPage(ctx context.Context, pageID string) (*A
 	}
 	return getJSON[AppCustomProductPageResponse](ctx, c, readRequest{
 		Path: fmt.Sprintf("/v1/appCustomProductPages/%s", pageID),
+	})
+}
+
+// UpdateAppCustomProductPage sends PATCH /v1/appCustomProductPages/{id} (appCustomProductPages_updateInstance).
+func (c *Client) UpdateAppCustomProductPage(ctx context.Context, pageID string, attrs AppCustomProductPageUpdateAttributes) (*AppCustomProductPageResponse, error) {
+	pageID = strings.TrimSpace(pageID)
+	if pageID == "" {
+		return nil, fmt.Errorf("pageID is required")
+	}
+	payload := AppCustomProductPageUpdateRequest{
+		Data: AppCustomProductPageUpdateData{
+			Type: ResourceTypeAppCustomProductPages,
+			ID:   pageID,
+		},
+	}
+	if attrs.Name != nil || attrs.Visible != nil {
+		payload.Data.Attributes = &attrs
+	}
+	return sendJSON[AppCustomProductPageResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/appCustomProductPages/%s", pageID),
+		Payload: payload,
 	})
 }

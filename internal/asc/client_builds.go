@@ -163,6 +163,11 @@ type BuildUploadFileAttributes struct {
 	Uploaded            *bool               `json:"uploaded,omitempty"`
 }
 
+// BuildUploadFileRelationships describes the relationships for a build upload file.
+type BuildUploadFileRelationships struct {
+	BuildUpload *Relationship `json:"buildUpload"`
+}
+
 // BuildUploadFileCreateData is the data portion of a build upload file create request.
 type BuildUploadFileCreateData struct {
 	Type          ResourceType                  `json:"type"`

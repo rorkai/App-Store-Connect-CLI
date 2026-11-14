@@ -13,11 +13,6 @@ type AppScreenshotCreateRequest struct {
 	Data AppScreenshotCreateData `json:"data"`
 }
 
-// AppScreenshotRelationships is the data.relationships object of the AppScreenshotCreateRequest schema.
-type AppScreenshotRelationships struct {
-	AppScreenshotSet *Relationship `json:"appScreenshotSet"`
-}
-
 // AppScreenshotUpdateAttributes is the data.attributes object of the AppScreenshotUpdateRequest schema.
 type AppScreenshotUpdateAttributes struct {
 	SourceFileChecksum *string `json:"sourceFileChecksum,omitempty"`

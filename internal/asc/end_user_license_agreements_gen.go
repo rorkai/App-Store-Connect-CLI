@@ -19,19 +19,6 @@ type EndUserLicenseAgreementCreateAttributes struct {
 	AgreementText string `json:"agreementText"`
 }
 
-// EndUserLicenseAgreementCreateData is the data object of the EndUserLicenseAgreementCreateRequest schema.
-type EndUserLicenseAgreementCreateData struct {
-	Type          ResourceType                               `json:"type"`
-	Attributes    EndUserLicenseAgreementCreateAttributes    `json:"attributes"`
-	Relationships EndUserLicenseAgreementCreateRelationships `json:"relationships"`
-}
-
-// EndUserLicenseAgreementCreateRelationships is the data.relationships object of the EndUserLicenseAgreementCreateRequest schema.
-type EndUserLicenseAgreementCreateRelationships struct {
-	App         Relationship     `json:"app"`
-	Territories RelationshipList `json:"territories"`
-}
-
 // EndUserLicenseAgreementCreateRequest is the EndUserLicenseAgreementCreateRequest schema.
 type EndUserLicenseAgreementCreateRequest struct {
 	Data EndUserLicenseAgreementCreateData `json:"data"`

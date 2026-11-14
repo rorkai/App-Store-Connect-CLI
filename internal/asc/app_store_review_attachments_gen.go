@@ -9,21 +9,9 @@ import (
 	"strings"
 )
 
-// AppStoreReviewAttachmentCreateData is the data object of the AppStoreReviewAttachmentCreateRequest schema.
-type AppStoreReviewAttachmentCreateData struct {
-	Type          ResourceType                             `json:"type"`
-	Attributes    AppStoreReviewAttachmentCreateAttributes `json:"attributes"`
-	Relationships *AppStoreReviewAttachmentRelationships   `json:"relationships"`
-}
-
 // AppStoreReviewAttachmentCreateRequest is the AppStoreReviewAttachmentCreateRequest schema.
 type AppStoreReviewAttachmentCreateRequest struct {
 	Data AppStoreReviewAttachmentCreateData `json:"data"`
-}
-
-// AppStoreReviewAttachmentRelationships is the data.relationships object of the AppStoreReviewAttachmentCreateRequest schema.
-type AppStoreReviewAttachmentRelationships struct {
-	AppStoreReviewDetail *Relationship `json:"appStoreReviewDetail"`
 }
 
 // AppStoreReviewAttachmentResponse is the AppStoreReviewAttachmentResponse schema.
@@ -66,5 +54,27 @@ func (c *Client) GetAppStoreReviewAttachment(ctx context.Context, attachmentID s
 	return getJSON[AppStoreReviewAttachmentResponse](ctx, c, readRequest{
 		Path:  fmt.Sprintf("/v1/appStoreReviewAttachments/%s", attachmentID),
 		Query: buildAppStoreReviewAttachmentsQuery(query),
+	})
+}
+
+// UpdateAppStoreReviewAttachment sends PATCH /v1/appStoreReviewAttachments/{id} (appStoreReviewAttachments_updateInstance).
+func (c *Client) UpdateAppStoreReviewAttachment(ctx context.Context, attachmentID string, attrs AppStoreReviewAttachmentUpdateAttributes) (*AppStoreReviewAttachmentResponse, error) {
+	attachmentID = strings.TrimSpace(attachmentID)
+	if attachmentID == "" {
+		return nil, fmt.Errorf("attachmentID is required")
+	}
+	payload := AppStoreReviewAttachmentUpdateRequest{
+		Data: AppStoreReviewAttachmentUpdateData{
+			Type: ResourceTypeAppStoreReviewAttachments,
+			ID:   attachmentID,
+		},
+	}
+	if attrs.SourceFileChecksum != nil || attrs.Uploaded != nil {
+		payload.Data.Attributes = &attrs
+	}
+	return sendJSON[AppStoreReviewAttachmentResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/appStoreReviewAttachments/%s", attachmentID),
+		Payload: payload,
 	})
 }

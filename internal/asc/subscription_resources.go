@@ -7,6 +7,18 @@ type SubscriptionLocalizationCreateAttributes struct {
 	Description string `json:"description,omitempty"`
 }
 
+// SubscriptionLocalizationRelationships describes relationships for localizations.
+type SubscriptionLocalizationRelationships struct {
+	Subscription *Relationship `json:"subscription"`
+}
+
+// SubscriptionLocalizationCreateData is the data portion of a localization create request.
+type SubscriptionLocalizationCreateData struct {
+	Type          ResourceType                             `json:"type"`
+	Attributes    SubscriptionLocalizationCreateAttributes `json:"attributes"`
+	Relationships *SubscriptionLocalizationRelationships   `json:"relationships,omitempty"`
+}
+
 // SubscriptionImageAttributes describes a subscription image resource.
 type SubscriptionImageAttributes struct {
 	FileSize           int64             `json:"fileSize,omitempty"`
@@ -38,6 +50,20 @@ type SubscriptionIntroductoryOfferCreateAttributes struct {
 	TargetSubscriptionPlanType SubscriptionPlanType      `json:"targetSubscriptionPlanType,omitempty"`
 }
 
+// SubscriptionIntroductoryOfferRelationships describes relationships for introductory offers.
+type SubscriptionIntroductoryOfferRelationships struct {
+	Subscription           *Relationship `json:"subscription"`
+	Territory              *Relationship `json:"territory,omitempty"`
+	SubscriptionPricePoint *Relationship `json:"subscriptionPricePoint,omitempty"`
+}
+
+// SubscriptionIntroductoryOfferCreateData is the data portion of an introductory offer create request.
+type SubscriptionIntroductoryOfferCreateData struct {
+	Type          ResourceType                                  `json:"type"`
+	Attributes    SubscriptionIntroductoryOfferCreateAttributes `json:"attributes"`
+	Relationships *SubscriptionIntroductoryOfferRelationships   `json:"relationships,omitempty"`
+}
+
 // SubscriptionIntroductoryOfferUpdateData is the data portion of an introductory offer update request.
 type SubscriptionIntroductoryOfferUpdateData struct {
 	Type       ResourceType                                  `json:"type"`
@@ -63,6 +89,19 @@ type SubscriptionPromotionalOfferCreateAttributes struct {
 	OfferCode                  string                    `json:"offerCode"`
 	OfferMode                  SubscriptionOfferMode     `json:"offerMode"`
 	TargetSubscriptionPlanType SubscriptionPlanType      `json:"targetSubscriptionPlanType,omitempty"`
+}
+
+// SubscriptionPromotionalOfferRelationships describes relationships for promotional offers.
+type SubscriptionPromotionalOfferRelationships struct {
+	Subscription Relationship     `json:"subscription"`
+	Prices       RelationshipList `json:"prices"`
+}
+
+// SubscriptionPromotionalOfferCreateData is the data portion of a promotional offer create request.
+type SubscriptionPromotionalOfferCreateData struct {
+	Type          ResourceType                                 `json:"type"`
+	Attributes    SubscriptionPromotionalOfferCreateAttributes `json:"attributes"`
+	Relationships SubscriptionPromotionalOfferRelationships    `json:"relationships"`
 }
 
 // SubscriptionPromotionalOfferCreateRequest is a request to create a promotional offer.
@@ -139,6 +178,19 @@ type SubscriptionOfferCodePrice struct {
 	PricePointID string
 }
 
+// SubscriptionOfferCodeRelationships describes relationships for offer codes.
+type SubscriptionOfferCodeRelationships struct {
+	Subscription Relationship     `json:"subscription"`
+	Prices       RelationshipList `json:"prices"`
+}
+
+// SubscriptionOfferCodeCreateData is the data portion of an offer code create request.
+type SubscriptionOfferCodeCreateData struct {
+	Type          ResourceType                          `json:"type"`
+	Attributes    SubscriptionOfferCodeCreateAttributes `json:"attributes"`
+	Relationships SubscriptionOfferCodeRelationships    `json:"relationships"`
+}
+
 // SubscriptionOfferCodeCreateRequest is a request to create an offer code.
 type SubscriptionOfferCodeCreateRequest struct {
 	Data     SubscriptionOfferCodeCreateData          `json:"data"`
@@ -173,6 +225,18 @@ type SubscriptionAppStoreReviewScreenshotCreateAttributes struct {
 	FileName string `json:"fileName"`
 }
 
+// SubscriptionAppStoreReviewScreenshotRelationships describes relationships for review screenshots.
+type SubscriptionAppStoreReviewScreenshotRelationships struct {
+	Subscription *Relationship `json:"subscription"`
+}
+
+// SubscriptionAppStoreReviewScreenshotCreateData is the data portion of a create request.
+type SubscriptionAppStoreReviewScreenshotCreateData struct {
+	Type          ResourceType                                         `json:"type"`
+	Attributes    SubscriptionAppStoreReviewScreenshotCreateAttributes `json:"attributes"`
+	Relationships *SubscriptionAppStoreReviewScreenshotRelationships   `json:"relationships,omitempty"`
+}
+
 // SubscriptionAppStoreReviewScreenshotUpdateData is the data portion of an update request.
 type SubscriptionAppStoreReviewScreenshotUpdateData struct {
 	Type       ResourceType                                         `json:"type"`
@@ -185,6 +249,18 @@ type SubscriptionGroupLocalizationCreateAttributes struct {
 	Name          string `json:"name"`
 	CustomAppName string `json:"customAppName,omitempty"`
 	Locale        string `json:"locale"`
+}
+
+// SubscriptionGroupLocalizationRelationships describes group localization relationships.
+type SubscriptionGroupLocalizationRelationships struct {
+	SubscriptionGroup *Relationship `json:"subscriptionGroup"`
+}
+
+// SubscriptionGroupLocalizationCreateData is the data portion of a group localization create request.
+type SubscriptionGroupLocalizationCreateData struct {
+	Type          ResourceType                                  `json:"type"`
+	Attributes    SubscriptionGroupLocalizationCreateAttributes `json:"attributes"`
+	Relationships *SubscriptionGroupLocalizationRelationships   `json:"relationships,omitempty"`
 }
 
 // Response types for subscription resources.

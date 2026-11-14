@@ -19,18 +19,6 @@ type MarketplaceSearchDetailCreateAttributes struct {
 	CatalogURL string `json:"catalogUrl"`
 }
 
-// MarketplaceSearchDetailCreateData is the data object of the MarketplaceSearchDetailCreateRequest schema.
-type MarketplaceSearchDetailCreateData struct {
-	Type          ResourceType                                `json:"type"`
-	Attributes    MarketplaceSearchDetailCreateAttributes     `json:"attributes"`
-	Relationships *MarketplaceSearchDetailCreateRelationships `json:"relationships"`
-}
-
-// MarketplaceSearchDetailCreateRelationships is the data.relationships object of the MarketplaceSearchDetailCreateRequest schema.
-type MarketplaceSearchDetailCreateRelationships struct {
-	App *Relationship `json:"app"`
-}
-
 // MarketplaceSearchDetailCreateRequest is the MarketplaceSearchDetailCreateRequest schema.
 type MarketplaceSearchDetailCreateRequest struct {
 	Data MarketplaceSearchDetailCreateData `json:"data"`

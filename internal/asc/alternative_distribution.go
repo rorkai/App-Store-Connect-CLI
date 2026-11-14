@@ -6,6 +6,18 @@ type AlternativeDistributionDomainDeleteResult struct {
 	Deleted bool   `json:"deleted"`
 }
 
+// AlternativeDistributionKeyCreateRelationships describes relationships for key create requests.
+type AlternativeDistributionKeyCreateRelationships struct {
+	App *Relationship `json:"app,omitempty"`
+}
+
+// AlternativeDistributionKeyCreateData is the data payload for key create requests.
+type AlternativeDistributionKeyCreateData struct {
+	Type          ResourceType                                   `json:"type"`
+	Attributes    AlternativeDistributionKeyCreateAttributes     `json:"attributes"`
+	Relationships *AlternativeDistributionKeyCreateRelationships `json:"relationships,omitempty"`
+}
+
 // AlternativeDistributionKeyDeleteResult represents CLI output for key deletions.
 type AlternativeDistributionKeyDeleteResult struct {
 	ID      string `json:"id"`
@@ -15,6 +27,17 @@ type AlternativeDistributionKeyDeleteResult struct {
 // AlternativeDistributionPackageAttributes describes an alternative distribution package.
 type AlternativeDistributionPackageAttributes struct {
 	SourceFileChecksum *Checksums `json:"sourceFileChecksum,omitempty"`
+}
+
+// AlternativeDistributionPackageCreateRelationships describes relationships for package create requests.
+type AlternativeDistributionPackageCreateRelationships struct {
+	AppStoreVersion Relationship `json:"appStoreVersion"`
+}
+
+// AlternativeDistributionPackageCreateData is the data payload for package create requests.
+type AlternativeDistributionPackageCreateData struct {
+	Type          ResourceType                                      `json:"type"`
+	Relationships AlternativeDistributionPackageCreateRelationships `json:"relationships"`
 }
 
 // AlternativeDistributionPackageVersionState represents a package version state.

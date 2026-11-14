@@ -2,15 +2,10 @@
   "tag": "AppEventScreenshots",
   "file": "app_event_screenshots_gen.go",
   "types": [
-    "AppEventScreenshotCreateData",
     "AppEventScreenshotCreateRequest",
-    "AppEventScreenshotRelationships",
     "AppEventScreenshotUpdateAttributes",
     "AppEventScreenshotUpdateData",
     "AppEventScreenshotUpdateRequest"
-  ],
-  "relationships": [
-    {"data":"AppEventScreenshotCreateData","type":"*AppEventScreenshotRelationships"}
   ],
   "operations": [
     {"operation":"appEventScreenshots_deleteInstance","name":"DeleteAppEventScreenshot","params":["screenshotID"],"check":"require"},

@@ -2,57 +2,13 @@
 
 package asc
 
-import (
-	"context"
-	"fmt"
-	"net/http"
-	"strings"
-)
-
 // SubscriptionGroupVersionAttributes is the attributes object of the SubscriptionGroupVersion schema.
 type SubscriptionGroupVersionAttributes struct {
 	Version int    `json:"version,omitempty"`
 	State   string `json:"state,omitempty"`
 }
 
-// SubscriptionGroupVersionCreateData is the data object of the SubscriptionGroupVersionCreateRequest schema.
-type SubscriptionGroupVersionCreateData struct {
-	Type          ResourceType                                `json:"type"`
-	Relationships SubscriptionGroupVersionCreateRelationships `json:"relationships"`
-}
-
-// SubscriptionGroupVersionCreateRelationships is the data.relationships object of the SubscriptionGroupVersionCreateRequest schema.
-type SubscriptionGroupVersionCreateRelationships struct {
-	SubscriptionGroup Relationship `json:"subscriptionGroup"`
-}
-
 // SubscriptionGroupVersionCreateRequest is the SubscriptionGroupVersionCreateRequest schema.
 type SubscriptionGroupVersionCreateRequest struct {
 	Data SubscriptionGroupVersionCreateData `json:"data"`
-}
-
-// CreateSubscriptionGroupVersion sends POST /v1/subscriptionGroupVersions (subscriptionGroupVersions_createInstance).
-func (c *Client) CreateSubscriptionGroupVersion(ctx context.Context, groupID string) (*SubscriptionGroupVersionResponse, error) {
-	groupID = strings.TrimSpace(groupID)
-	if groupID == "" {
-		return nil, fmt.Errorf("groupID is required")
-	}
-	payload := SubscriptionGroupVersionCreateRequest{
-		Data: SubscriptionGroupVersionCreateData{
-			Type: ResourceTypeSubscriptionGroupVersions,
-			Relationships: SubscriptionGroupVersionCreateRelationships{
-				SubscriptionGroup: Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeSubscriptionGroups,
-						ID:   groupID,
-					},
-				},
-			},
-		},
-	}
-	return sendJSON[SubscriptionGroupVersionResponse](ctx, c, writeRequest{
-		Method:  http.MethodPost,
-		Path:    "/v1/subscriptionGroupVersions",
-		Payload: payload,
-	})
 }

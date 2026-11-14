@@ -19,13 +19,6 @@ type AppStoreVersionExperimentTreatmentLocalizationCreateAttributes struct {
 	Locale string `json:"locale"`
 }
 
-// AppStoreVersionExperimentTreatmentLocalizationCreateData is the data object of the AppStoreVersionExperimentTreatmentLocalizationCreateRequest schema.
-type AppStoreVersionExperimentTreatmentLocalizationCreateData struct {
-	Type          ResourceType                                                       `json:"type"`
-	Attributes    AppStoreVersionExperimentTreatmentLocalizationCreateAttributes     `json:"attributes"`
-	Relationships *AppStoreVersionExperimentTreatmentLocalizationCreateRelationships `json:"relationships"`
-}
-
 // AppStoreVersionExperimentTreatmentLocalizationCreateRequest is the AppStoreVersionExperimentTreatmentLocalizationCreateRequest schema.
 type AppStoreVersionExperimentTreatmentLocalizationCreateRequest struct {
 	Data AppStoreVersionExperimentTreatmentLocalizationCreateData `json:"data"`

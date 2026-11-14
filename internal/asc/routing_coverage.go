@@ -22,6 +22,18 @@ type RoutingAppCoverageCreateAttributes struct {
 	FileName string `json:"fileName"`
 }
 
+// RoutingAppCoverageRelationships describes routing app coverage relationships.
+type RoutingAppCoverageRelationships struct {
+	AppStoreVersion *Relationship `json:"appStoreVersion"`
+}
+
+// RoutingAppCoverageCreateData is the data portion of a create request.
+type RoutingAppCoverageCreateData struct {
+	Type          ResourceType                       `json:"type"`
+	Attributes    RoutingAppCoverageCreateAttributes `json:"attributes"`
+	Relationships *RoutingAppCoverageRelationships   `json:"relationships"`
+}
+
 // RoutingAppCoverageDeleteResult represents CLI output for deletions.
 type RoutingAppCoverageDeleteResult struct {
 	ID      string `json:"id"`
@@ -61,24 +73,4 @@ func (c *Client) CreateRoutingAppCoverage(ctx context.Context, versionID, fileNa
 	}
 
 	return sendJSON[RoutingAppCoverageResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/routingAppCoverages", Payload: payload})
-}
-
-// UpdateRoutingAppCoverage updates routing app coverage by ID.
-func (c *Client) UpdateRoutingAppCoverage(ctx context.Context, coverageID string, attrs RoutingAppCoverageUpdateAttributes) (*RoutingAppCoverageResponse, error) {
-	coverageID = strings.TrimSpace(coverageID)
-	if coverageID == "" {
-		return nil, fmt.Errorf("coverageID is required")
-	}
-
-	payload := RoutingAppCoverageUpdateRequest{
-		Data: RoutingAppCoverageUpdateData{
-			Type: ResourceTypeRoutingAppCoverages,
-			ID:   coverageID,
-		},
-	}
-	if attrs.SourceFileChecksum != nil || attrs.Uploaded != nil {
-		payload.Data.Attributes = &attrs
-	}
-
-	return sendJSON[RoutingAppCoverageResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/routingAppCoverages/%s", coverageID), Payload: payload})
 }

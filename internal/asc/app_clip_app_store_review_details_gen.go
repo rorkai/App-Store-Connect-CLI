@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 )
 
@@ -16,13 +17,6 @@ type AppClipAppStoreReviewDetailAttributes struct {
 // AppClipAppStoreReviewDetailCreateAttributes is the data.attributes object of the AppClipAppStoreReviewDetailCreateRequest schema.
 type AppClipAppStoreReviewDetailCreateAttributes struct {
 	InvocationURLs []string `json:"invocationUrls,omitempty"`
-}
-
-// AppClipAppStoreReviewDetailCreateData is the data object of the AppClipAppStoreReviewDetailCreateRequest schema.
-type AppClipAppStoreReviewDetailCreateData struct {
-	Type          ResourceType                                 `json:"type"`
-	Attributes    *AppClipAppStoreReviewDetailCreateAttributes `json:"attributes,omitempty"`
-	Relationships *AppClipAppStoreReviewDetailRelationships    `json:"relationships"`
 }
 
 // AppClipAppStoreReviewDetailCreateRequest is the AppClipAppStoreReviewDetailCreateRequest schema.
@@ -55,5 +49,25 @@ func (c *Client) GetAppClipAppStoreReviewDetail(ctx context.Context, detailID st
 	}
 	return getJSON[AppClipAppStoreReviewDetailResponse](ctx, c, readRequest{
 		Path: fmt.Sprintf("/v1/appClipAppStoreReviewDetails/%s", detailID),
+	})
+}
+
+// UpdateAppClipAppStoreReviewDetail sends PATCH /v1/appClipAppStoreReviewDetails/{id} (appClipAppStoreReviewDetails_updateInstance).
+func (c *Client) UpdateAppClipAppStoreReviewDetail(ctx context.Context, detailID string, attrs *AppClipAppStoreReviewDetailUpdateAttributes) (*AppClipAppStoreReviewDetailResponse, error) {
+	detailID = strings.TrimSpace(detailID)
+	if detailID == "" {
+		return nil, fmt.Errorf("detailID is required")
+	}
+	payload := AppClipAppStoreReviewDetailUpdateRequest{
+		Data: AppClipAppStoreReviewDetailUpdateData{
+			Type:       ResourceTypeAppClipAppStoreReviewDetails,
+			ID:         detailID,
+			Attributes: attrs,
+		},
+	}
+	return sendJSON[AppClipAppStoreReviewDetailResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/appClipAppStoreReviewDetails/%s", detailID),
+		Payload: payload,
 	})
 }

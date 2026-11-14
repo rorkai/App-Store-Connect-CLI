@@ -2,11 +2,7 @@
   "tag": "AppPreviewSets",
   "file": "app_preview_sets_gen.go",
   "types": [
-    "AppPreviewSetCreateRequest",
-    "AppPreviewSetRelationships"
-  ],
-  "relationships": [
-    {"data":"AppPreviewSetCreateData","type":"*AppPreviewSetRelationships"}
+    "AppPreviewSetCreateRequest"
   ],
   "operations": [
     {"operation":"appPreviewSets_appPreviews_getToManyRelationship","name":"GetAppPreviewSetAppPreviewsRelationships","params":["setID"],"check":"require","options":"LinkagesOption","query":"buildLinkagesQuery","nextContext":"appPreviewsRelationships","response":"LinkagesResponse"},

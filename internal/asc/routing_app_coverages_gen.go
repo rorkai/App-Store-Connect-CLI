@@ -9,21 +9,9 @@ import (
 	"strings"
 )
 
-// RoutingAppCoverageCreateData is the data object of the RoutingAppCoverageCreateRequest schema.
-type RoutingAppCoverageCreateData struct {
-	Type          ResourceType                       `json:"type"`
-	Attributes    RoutingAppCoverageCreateAttributes `json:"attributes"`
-	Relationships *RoutingAppCoverageRelationships   `json:"relationships"`
-}
-
 // RoutingAppCoverageCreateRequest is the RoutingAppCoverageCreateRequest schema.
 type RoutingAppCoverageCreateRequest struct {
 	Data RoutingAppCoverageCreateData `json:"data"`
-}
-
-// RoutingAppCoverageRelationships is the data.relationships object of the RoutingAppCoverageCreateRequest schema.
-type RoutingAppCoverageRelationships struct {
-	AppStoreVersion *Relationship `json:"appStoreVersion"`
 }
 
 // RoutingAppCoverageResponse is the RoutingAppCoverageResponse schema.
@@ -64,5 +52,27 @@ func (c *Client) GetRoutingAppCoverage(ctx context.Context, coverageID string) (
 	}
 	return getJSON[RoutingAppCoverageResponse](ctx, c, readRequest{
 		Path: fmt.Sprintf("/v1/routingAppCoverages/%s", coverageID),
+	})
+}
+
+// UpdateRoutingAppCoverage sends PATCH /v1/routingAppCoverages/{id} (routingAppCoverages_updateInstance).
+func (c *Client) UpdateRoutingAppCoverage(ctx context.Context, coverageID string, attrs RoutingAppCoverageUpdateAttributes) (*RoutingAppCoverageResponse, error) {
+	coverageID = strings.TrimSpace(coverageID)
+	if coverageID == "" {
+		return nil, fmt.Errorf("coverageID is required")
+	}
+	payload := RoutingAppCoverageUpdateRequest{
+		Data: RoutingAppCoverageUpdateData{
+			Type: ResourceTypeRoutingAppCoverages,
+			ID:   coverageID,
+		},
+	}
+	if attrs.SourceFileChecksum != nil || attrs.Uploaded != nil {
+		payload.Data.Attributes = &attrs
+	}
+	return sendJSON[RoutingAppCoverageResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/routingAppCoverages/%s", coverageID),
+		Payload: payload,
 	})
 }

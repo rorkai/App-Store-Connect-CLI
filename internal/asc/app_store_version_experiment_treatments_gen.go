@@ -9,19 +9,6 @@ import (
 	"strings"
 )
 
-// AppStoreVersionExperimentTreatmentCreateData is the data object of the AppStoreVersionExperimentTreatmentCreateRequest schema.
-type AppStoreVersionExperimentTreatmentCreateData struct {
-	Type          ResourceType                                           `json:"type"`
-	Attributes    AppStoreVersionExperimentTreatmentCreateAttributes     `json:"attributes"`
-	Relationships *AppStoreVersionExperimentTreatmentCreateRelationships `json:"relationships,omitempty"`
-}
-
-// AppStoreVersionExperimentTreatmentCreateRelationships is the data.relationships object of the AppStoreVersionExperimentTreatmentCreateRequest schema.
-type AppStoreVersionExperimentTreatmentCreateRelationships struct {
-	AppStoreVersionExperiment   *Relationship `json:"appStoreVersionExperiment,omitempty"`
-	AppStoreVersionExperimentV2 *Relationship `json:"appStoreVersionExperimentV2,omitempty"`
-}
-
 // AppStoreVersionExperimentTreatmentCreateRequest is the AppStoreVersionExperimentTreatmentCreateRequest schema.
 type AppStoreVersionExperimentTreatmentCreateRequest struct {
 	Data AppStoreVersionExperimentTreatmentCreateData `json:"data"`
@@ -80,5 +67,27 @@ func (c *Client) GetAppStoreVersionExperimentTreatment(ctx context.Context, trea
 	}
 	return getJSON[AppStoreVersionExperimentTreatmentResponse](ctx, c, readRequest{
 		Path: fmt.Sprintf("/v1/appStoreVersionExperimentTreatments/%s", treatmentID),
+	})
+}
+
+// UpdateAppStoreVersionExperimentTreatment sends PATCH /v1/appStoreVersionExperimentTreatments/{id} (appStoreVersionExperimentTreatments_updateInstance).
+func (c *Client) UpdateAppStoreVersionExperimentTreatment(ctx context.Context, treatmentID string, attrs AppStoreVersionExperimentTreatmentUpdateAttributes) (*AppStoreVersionExperimentTreatmentResponse, error) {
+	treatmentID = strings.TrimSpace(treatmentID)
+	if treatmentID == "" {
+		return nil, fmt.Errorf("treatmentID is required")
+	}
+	payload := AppStoreVersionExperimentTreatmentUpdateRequest{
+		Data: AppStoreVersionExperimentTreatmentUpdateData{
+			Type: ResourceTypeAppStoreVersionExperimentTreatments,
+			ID:   treatmentID,
+		},
+	}
+	if attrs.Name != nil || attrs.AppIconName != nil {
+		payload.Data.Attributes = &attrs
+	}
+	return sendJSON[AppStoreVersionExperimentTreatmentResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/appStoreVersionExperimentTreatments/%s", treatmentID),
+		Payload: payload,
 	})
 }

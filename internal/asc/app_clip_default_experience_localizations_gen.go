@@ -21,13 +21,6 @@ type AppClipDefaultExperienceLocalizationCreateAttributes struct {
 	Subtitle *string `json:"subtitle,omitempty"`
 }
 
-// AppClipDefaultExperienceLocalizationCreateData is the data object of the AppClipDefaultExperienceLocalizationCreateRequest schema.
-type AppClipDefaultExperienceLocalizationCreateData struct {
-	Type          ResourceType                                         `json:"type"`
-	Attributes    AppClipDefaultExperienceLocalizationCreateAttributes `json:"attributes"`
-	Relationships *AppClipDefaultExperienceLocalizationRelationships   `json:"relationships"`
-}
-
 // AppClipDefaultExperienceLocalizationCreateRequest is the AppClipDefaultExperienceLocalizationCreateRequest schema.
 type AppClipDefaultExperienceLocalizationCreateRequest struct {
 	Data AppClipDefaultExperienceLocalizationCreateData `json:"data"`
@@ -69,33 +62,6 @@ func (c *Client) GetAppClipDefaultExperienceLocalizationHeaderImageRelationship(
 	})
 }
 
-// CreateAppClipDefaultExperienceLocalization sends POST /v1/appClipDefaultExperienceLocalizations (appClipDefaultExperienceLocalizations_createInstance).
-func (c *Client) CreateAppClipDefaultExperienceLocalization(ctx context.Context, experienceID string, attrs AppClipDefaultExperienceLocalizationCreateAttributes) (*AppClipDefaultExperienceLocalizationResponse, error) {
-	experienceID = strings.TrimSpace(experienceID)
-	if experienceID == "" {
-		return nil, fmt.Errorf("experienceID is required")
-	}
-	payload := AppClipDefaultExperienceLocalizationCreateRequest{
-		Data: AppClipDefaultExperienceLocalizationCreateData{
-			Type:       ResourceTypeAppClipDefaultExperienceLocalizations,
-			Attributes: attrs,
-			Relationships: &AppClipDefaultExperienceLocalizationRelationships{
-				AppClipDefaultExperience: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeAppClipDefaultExperiences,
-						ID:   experienceID,
-					},
-				},
-			},
-		},
-	}
-	return sendJSON[AppClipDefaultExperienceLocalizationResponse](ctx, c, writeRequest{
-		Method:  http.MethodPost,
-		Path:    "/v1/appClipDefaultExperienceLocalizations",
-		Payload: payload,
-	})
-}
-
 // DeleteAppClipDefaultExperienceLocalization sends DELETE /v1/appClipDefaultExperienceLocalizations/{id} (appClipDefaultExperienceLocalizations_deleteInstance).
 func (c *Client) DeleteAppClipDefaultExperienceLocalization(ctx context.Context, localizationID string) error {
 	localizationID = strings.TrimSpace(localizationID)
@@ -113,5 +79,25 @@ func (c *Client) GetAppClipDefaultExperienceLocalization(ctx context.Context, lo
 	}
 	return getJSON[AppClipDefaultExperienceLocalizationResponse](ctx, c, readRequest{
 		Path: fmt.Sprintf("/v1/appClipDefaultExperienceLocalizations/%s", localizationID),
+	})
+}
+
+// UpdateAppClipDefaultExperienceLocalization sends PATCH /v1/appClipDefaultExperienceLocalizations/{id} (appClipDefaultExperienceLocalizations_updateInstance).
+func (c *Client) UpdateAppClipDefaultExperienceLocalization(ctx context.Context, localizationID string, attrs *AppClipDefaultExperienceLocalizationUpdateAttributes) (*AppClipDefaultExperienceLocalizationResponse, error) {
+	localizationID = strings.TrimSpace(localizationID)
+	if localizationID == "" {
+		return nil, fmt.Errorf("localizationID is required")
+	}
+	payload := AppClipDefaultExperienceLocalizationUpdateRequest{
+		Data: AppClipDefaultExperienceLocalizationUpdateData{
+			Type:       ResourceTypeAppClipDefaultExperienceLocalizations,
+			ID:         localizationID,
+			Attributes: attrs,
+		},
+	}
+	return sendJSON[AppClipDefaultExperienceLocalizationResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/appClipDefaultExperienceLocalizations/%s", localizationID),
+		Payload: payload,
 	})
 }

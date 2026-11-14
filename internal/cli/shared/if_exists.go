@@ -4,6 +4,8 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
+	"os"
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -41,6 +43,16 @@ func BindIfExistsFlag(fs *flag.FlagSet, supported ...IfExistsMode) *string {
 // value can only come from an explicitly supplied --if-exists "" and is
 // rejected rather than silently read as fail.
 func ParseIfExistsMode(raw string, supported ...IfExistsMode) (IfExistsMode, error) {
+	return parseIfExistsModeTo(os.Stderr, raw, supported...)
+}
+
+// ParseIfExistsMode is ParseIfExistsMode with the "Error:" line written to
+// d's stderr.
+func (d *Deps) ParseIfExistsMode(raw string, supported ...IfExistsMode) (IfExistsMode, error) {
+	return parseIfExistsModeTo(d.IO.ErrOut, raw, supported...)
+}
+
+func parseIfExistsModeTo(stderr io.Writer, raw string, supported ...IfExistsMode) (IfExistsMode, error) {
 	value := IfExistsMode(strings.ToLower(strings.TrimSpace(raw)))
 	modes := ifExistsModeNames(supported)
 	for _, mode := range modes {
@@ -48,7 +60,7 @@ func ParseIfExistsMode(raw string, supported ...IfExistsMode) (IfExistsMode, err
 			return value, nil
 		}
 	}
-	return "", UsageErrorf("--%s must be one of %s (got %q)", ifExistsFlagName, strings.Join(modes, ", "), strings.TrimSpace(raw))
+	return "", usageErrorfTo(stderr, "--%s must be one of %s (got %q)", ifExistsFlagName, strings.Join(modes, ", "), strings.TrimSpace(raw))
 }
 
 // ParseOptionalIfExistsMode is ParseIfExistsMode for a value that may legitimately
@@ -61,10 +73,20 @@ func ParseIfExistsMode(raw string, supported ...IfExistsMode) (IfExistsMode, err
 // the flag to fail, so an empty value there was supplied explicitly and
 // ParseIfExistsMode rejects it.
 func ParseOptionalIfExistsMode(raw string, supported ...IfExistsMode) (IfExistsMode, error) {
+	return parseOptionalIfExistsModeTo(os.Stderr, raw, supported...)
+}
+
+// ParseOptionalIfExistsMode is ParseOptionalIfExistsMode with the "Error:"
+// line written to d's stderr.
+func (d *Deps) ParseOptionalIfExistsMode(raw string, supported ...IfExistsMode) (IfExistsMode, error) {
+	return parseOptionalIfExistsModeTo(d.IO.ErrOut, raw, supported...)
+}
+
+func parseOptionalIfExistsModeTo(stderr io.Writer, raw string, supported ...IfExistsMode) (IfExistsMode, error) {
 	if strings.TrimSpace(raw) == "" {
 		return IfExistsFail, nil
 	}
-	return ParseIfExistsMode(raw, supported...)
+	return parseIfExistsModeTo(stderr, raw, supported...)
 }
 
 func ifExistsModeNames(supported []IfExistsMode) []string {

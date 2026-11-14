@@ -7,6 +7,22 @@ import (
 	"strings"
 )
 
+// CreateSubscriptionVersion creates a version for a subscription.
+func (c *Client) CreateSubscriptionVersion(ctx context.Context, subscriptionID string) (*SubscriptionVersionResponse, error) {
+	subscriptionID = strings.TrimSpace(subscriptionID)
+	if subscriptionID == "" {
+		return nil, fmt.Errorf("subscription ID is required")
+	}
+	payload := SubscriptionVersionCreateRequest{Data: SubscriptionVersionCreateData{
+		Type: ResourceTypeSubscriptionVersions,
+		Relationships: &SubscriptionVersionRelationships{Subscription: &Relationship{Data: ResourceData{
+			Type: ResourceTypeSubscriptions,
+			ID:   subscriptionID,
+		}}},
+	}}
+	return sendJSON[SubscriptionVersionResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/subscriptionVersions", Payload: payload})
+}
+
 // GetSubscriptionVersionsRelationships retrieves version linkages for a subscription.
 func (c *Client) GetSubscriptionVersionsRelationships(ctx context.Context, subscriptionID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
 	return c.getSubscriptionVersionLinkages(ctx, subscriptionID, "/v1/subscriptions/%s/relationships/versions", "subscriptionVersionsRelationships", opts...)
@@ -59,20 +75,6 @@ func (c *Client) CreateSubscriptionLocalizationV2(ctx context.Context, versionID
 	return sendJSON[SubscriptionLocalizationV2Response](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v2/subscriptionLocalizations", Payload: payload})
 }
 
-// UpdateSubscriptionLocalizationV2 updates a version-scoped localization.
-func (c *Client) UpdateSubscriptionLocalizationV2(ctx context.Context, localizationID string, attrs SubscriptionLocalizationV2UpdateAttributes) (*SubscriptionLocalizationV2Response, error) {
-	localizationID = strings.TrimSpace(localizationID)
-	if localizationID == "" {
-		return nil, fmt.Errorf("localization ID is required")
-	}
-	payload := SubscriptionLocalizationV2UpdateRequest{Data: SubscriptionLocalizationV2UpdateData{
-		Type:       ResourceTypeSubscriptionLocalizations,
-		ID:         localizationID,
-		Attributes: attrs,
-	}}
-	return sendJSON[SubscriptionLocalizationV2Response](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v2/subscriptionLocalizations/%s", localizationID), Payload: payload})
-}
-
 // CreateSubscriptionImageV2 reserves a version-scoped image upload.
 func (c *Client) CreateSubscriptionImageV2(ctx context.Context, versionID, fileName string, fileSize int64) (*SubscriptionImageV2Response, error) {
 	versionID = strings.TrimSpace(versionID)
@@ -98,18 +100,4 @@ func (c *Client) CreateSubscriptionImageV2(ctx context.Context, versionID, fileN
 		}}},
 	}}
 	return sendJSON[SubscriptionImageV2Response](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v2/subscriptionImages", Payload: payload})
-}
-
-// UpdateSubscriptionImageV2 commits or updates a version-scoped image.
-func (c *Client) UpdateSubscriptionImageV2(ctx context.Context, imageID string, attrs SubscriptionImageV2UpdateAttributes) (*SubscriptionImageV2Response, error) {
-	imageID = strings.TrimSpace(imageID)
-	if imageID == "" {
-		return nil, fmt.Errorf("image ID is required")
-	}
-	payload := SubscriptionImageV2UpdateRequest{Data: SubscriptionImageV2UpdateData{
-		Type:       ResourceTypeSubscriptionImages,
-		ID:         imageID,
-		Attributes: attrs,
-	}}
-	return sendJSON[SubscriptionImageV2Response](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v2/subscriptionImages/%s", imageID), Payload: payload})
 }

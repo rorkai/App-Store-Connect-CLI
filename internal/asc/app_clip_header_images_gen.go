@@ -9,13 +9,6 @@ import (
 	"strings"
 )
 
-// AppClipHeaderImageCreateData is the data object of the AppClipHeaderImageCreateRequest schema.
-type AppClipHeaderImageCreateData struct {
-	Type          ResourceType                       `json:"type"`
-	Attributes    AppClipHeaderImageCreateAttributes `json:"attributes"`
-	Relationships *AppClipHeaderImageRelationships   `json:"relationships"`
-}
-
 // AppClipHeaderImageCreateRequest is the AppClipHeaderImageCreateRequest schema.
 type AppClipHeaderImageCreateRequest struct {
 	Data AppClipHeaderImageCreateData `json:"data"`

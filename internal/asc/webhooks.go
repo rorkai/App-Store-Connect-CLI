@@ -54,6 +54,18 @@ type WebhookCreateAttributes struct {
 	URL        string             `json:"url"`
 }
 
+// WebhookCreateRelationships describes relationships for creating a webhook.
+type WebhookCreateRelationships struct {
+	App Relationship `json:"app"`
+}
+
+// WebhookCreateData is the data portion of a webhook create request.
+type WebhookCreateData struct {
+	Type          ResourceType               `json:"type"`
+	Attributes    WebhookCreateAttributes    `json:"attributes"`
+	Relationships WebhookCreateRelationships `json:"relationships"`
+}
+
 // WebhookUpdateAttributes describes attributes for updating a webhook.
 type WebhookUpdateAttributes struct {
 	Enabled    *bool              `json:"enabled,omitempty"`
@@ -91,5 +103,27 @@ type WebhookDeliveriesResponse = Response[WebhookDeliveryAttributes]
 // WebhookDeliveriesLinkagesResponse is the response from webhook delivery relationship endpoints.
 type WebhookDeliveriesLinkagesResponse = LinkagesResponse
 
+// WebhookDeliveryCreateRelationships describes relationships for delivery create requests.
+type WebhookDeliveryCreateRelationships struct {
+	Template Relationship `json:"template"`
+}
+
+// WebhookDeliveryCreateData is the data portion of a webhook delivery create request.
+type WebhookDeliveryCreateData struct {
+	Type          ResourceType                       `json:"type"`
+	Relationships WebhookDeliveryCreateRelationships `json:"relationships"`
+}
+
 // WebhookPingResponse is the response from webhook ping endpoints.
 type WebhookPingResponse = SingleResponse[struct{}]
+
+// WebhookPingCreateRelationships describes relationships for ping requests.
+type WebhookPingCreateRelationships struct {
+	Webhook Relationship `json:"webhook"`
+}
+
+// WebhookPingCreateData is the data portion of a webhook ping request.
+type WebhookPingCreateData struct {
+	Type          ResourceType                   `json:"type"`
+	Relationships WebhookPingCreateRelationships `json:"relationships"`
+}

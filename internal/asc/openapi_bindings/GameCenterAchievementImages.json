@@ -2,19 +2,12 @@
   "tag": "GameCenterAchievementImages",
   "file": "game_center_achievement_images_gen.go",
   "types": [
-    "GameCenterAchievementImageCreateData",
     "GameCenterAchievementImageCreateRequest",
-    "GameCenterAchievementImageRelationships",
     "GameCenterAchievementImageResponse",
     "GameCenterAchievementImageUpdateAttributes",
     "GameCenterAchievementImageUpdateData",
     "GameCenterAchievementImageUpdateRequest",
-    "GameCenterAchievementImageV2CreateRequest",
-    "GameCenterAchievementImageV2Relationships"
-  ],
-  "relationships": [
-    {"data":"GameCenterAchievementImageCreateData","type":"*GameCenterAchievementImageRelationships"},
-    {"data":"GameCenterAchievementImageV2CreateData","type":"*GameCenterAchievementImageV2Relationships"}
+    "GameCenterAchievementImageV2CreateRequest"
   ],
   "operations": [
     {"operation":"gameCenterAchievementImagesV2_deleteInstance","name":"DeleteGameCenterAchievementImageV2","params":["imageID"]},

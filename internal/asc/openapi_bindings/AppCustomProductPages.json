@@ -3,18 +3,15 @@
   "file": "app_custom_product_pages_gen.go",
   "types": [
     "AppCustomProductPageCreateAttributes",
-    "AppCustomProductPageCreateData",
     "AppCustomProductPageResponse",
     "AppCustomProductPageUpdateAttributes",
     "AppCustomProductPageUpdateData",
     "AppCustomProductPageUpdateRequest"
   ],
-  "relationships": [
-    {"data":"AppCustomProductPageCreateData","type":"*AppCustomProductPageCreateRelationships"}
-  ],
   "operations": [
     {"operation":"appCustomProductPages_appCustomProductPageVersions_getToManyRelated","name":"GetAppCustomProductPageVersions","params":["pageID"],"check":"require","options":"AppCustomProductPageVersionsOption","query":"buildAppCustomProductPageVersionsQuery","nextContext":"appCustomProductPageVersions"},
     {"operation":"appCustomProductPages_deleteInstance","name":"DeleteAppCustomProductPage","params":["pageID"],"check":"require"},
-    {"operation":"appCustomProductPages_getInstance","name":"GetAppCustomProductPage","params":["pageID"],"check":"require"}
+    {"operation":"appCustomProductPages_getInstance","name":"GetAppCustomProductPage","params":["pageID"],"check":"require"},
+    {"operation":"appCustomProductPages_updateInstance","name":"UpdateAppCustomProductPage","params":["pageID"],"check":"require","skipEmptyAttributes":true}
   ]
 }

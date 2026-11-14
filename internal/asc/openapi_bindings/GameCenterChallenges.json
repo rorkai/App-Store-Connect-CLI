@@ -3,13 +3,9 @@
   "file": "game_center_challenges_gen.go",
   "types": [
     "GameCenterChallengeCreateAttributes",
-    "GameCenterChallengeCreateData",
     "GameCenterChallengeResponse",
     "GameCenterChallengeUpdateAttributes",
     "GameCenterChallengeUpdateRequest"
-  ],
-  "relationships": [
-    {"data":"GameCenterChallengeCreateData","type":"*GameCenterChallengeRelationships","omitempty":true}
   ],
   "operations": [
     {"operation":"gameCenterChallenges_deleteInstance","name":"DeleteGameCenterChallenge","params":["challengeID"]},

@@ -14,13 +14,6 @@ type AppScreenshotSetCreateRequest struct {
 	Data AppScreenshotSetCreateData `json:"data"`
 }
 
-// AppScreenshotSetRelationships is the data.relationships object of the AppScreenshotSetCreateRequest schema.
-type AppScreenshotSetRelationships struct {
-	AppStoreVersionLocalization                    *Relationship `json:"appStoreVersionLocalization,omitempty"`
-	AppCustomProductPageLocalization               *Relationship `json:"appCustomProductPageLocalization,omitempty"`
-	AppStoreVersionExperimentTreatmentLocalization *Relationship `json:"appStoreVersionExperimentTreatmentLocalization,omitempty"`
-}
-
 // GetAppScreenshotSetAppScreenshotsRelationships sends GET /v1/appScreenshotSets/{id}/relationships/appScreenshots (appScreenshotSets_appScreenshots_getToManyRelationship).
 func (c *Client) GetAppScreenshotSetAppScreenshotsRelationships(ctx context.Context, setID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
 	query := applyOptions(opts)

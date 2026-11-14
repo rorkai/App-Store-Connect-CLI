@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 )
 
@@ -15,12 +16,6 @@ type InAppPurchaseOfferCodeAttributes struct {
 	ProductionCodeCount   int      `json:"productionCodeCount,omitempty"`
 	SandboxCodeCount      int      `json:"sandboxCodeCount,omitempty"`
 	Active                bool     `json:"active,omitempty"`
-}
-
-// InAppPurchaseOfferCodeCreateRelationships is the data.relationships object of the InAppPurchaseOfferCodeCreateRequest schema.
-type InAppPurchaseOfferCodeCreateRelationships struct {
-	InAppPurchase Relationship     `json:"inAppPurchase"`
-	Prices        RelationshipList `json:"prices"`
 }
 
 // InAppPurchaseOfferCodeUpdateAttributes is the data.attributes object of the InAppPurchaseOfferCodeUpdateRequest schema.
@@ -93,5 +88,27 @@ func (c *Client) GetInAppPurchaseOfferCodePrices(ctx context.Context, offerCodeI
 		Query:       buildIAPOfferCodePricesQuery(query),
 		Next:        query.nextURL,
 		NextContext: "in-app-purchase-offer-code-prices",
+	})
+}
+
+// UpdateInAppPurchaseOfferCode sends PATCH /v1/inAppPurchaseOfferCodes/{id} (inAppPurchaseOfferCodes_updateInstance).
+func (c *Client) UpdateInAppPurchaseOfferCode(ctx context.Context, offerCodeID string, attrs InAppPurchaseOfferCodeUpdateAttributes) (*InAppPurchaseOfferCodeResponse, error) {
+	offerCodeID = strings.TrimSpace(offerCodeID)
+	if offerCodeID == "" {
+		return nil, fmt.Errorf("offerCodeID is required")
+	}
+	payload := InAppPurchaseOfferCodeUpdateRequest{
+		Data: InAppPurchaseOfferCodeUpdateData{
+			Type: ResourceTypeInAppPurchaseOfferCodes,
+			ID:   offerCodeID,
+		},
+	}
+	if attrs.Active != nil {
+		payload.Data.Attributes = &attrs
+	}
+	return sendJSON[InAppPurchaseOfferCodeResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/inAppPurchaseOfferCodes/%s", offerCodeID),
+		Payload: payload,
 	})
 }

@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 )
 
@@ -22,18 +23,6 @@ type SubscriptionOfferCodeCustomCodeCreateAttributes struct {
 	CustomCode     string  `json:"customCode"`
 	NumberOfCodes  int     `json:"numberOfCodes"`
 	ExpirationDate *string `json:"expirationDate,omitempty"`
-}
-
-// SubscriptionOfferCodeCustomCodeCreateData is the data object of the SubscriptionOfferCodeCustomCodeCreateRequest schema.
-type SubscriptionOfferCodeCustomCodeCreateData struct {
-	Type          ResourceType                                       `json:"type"`
-	Attributes    SubscriptionOfferCodeCustomCodeCreateAttributes    `json:"attributes"`
-	Relationships SubscriptionOfferCodeCustomCodeCreateRelationships `json:"relationships"`
-}
-
-// SubscriptionOfferCodeCustomCodeCreateRelationships is the data.relationships object of the SubscriptionOfferCodeCustomCodeCreateRequest schema.
-type SubscriptionOfferCodeCustomCodeCreateRelationships struct {
-	OfferCode Relationship `json:"offerCode"`
 }
 
 // SubscriptionOfferCodeCustomCodeCreateRequest is the SubscriptionOfferCodeCustomCodeCreateRequest schema.
@@ -58,5 +47,21 @@ type SubscriptionOfferCodeCustomCodeUpdateRequest struct {
 func (c *Client) GetSubscriptionOfferCodeCustomCode(ctx context.Context, customCodeID string) (*SubscriptionOfferCodeCustomCodeResponse, error) {
 	return getJSON[SubscriptionOfferCodeCustomCodeResponse](ctx, c, readRequest{
 		Path: fmt.Sprintf("/v1/subscriptionOfferCodeCustomCodes/%s", strings.TrimSpace(customCodeID)),
+	})
+}
+
+// UpdateSubscriptionOfferCodeCustomCode sends PATCH /v1/subscriptionOfferCodeCustomCodes/{id} (subscriptionOfferCodeCustomCodes_updateInstance).
+func (c *Client) UpdateSubscriptionOfferCodeCustomCode(ctx context.Context, customCodeID string, attrs SubscriptionOfferCodeCustomCodeUpdateAttributes) (*SubscriptionOfferCodeCustomCodeResponse, error) {
+	payload := SubscriptionOfferCodeCustomCodeUpdateRequest{
+		Data: SubscriptionOfferCodeCustomCodeUpdateData{
+			Type:       ResourceTypeSubscriptionOfferCodeCustomCodes,
+			ID:         strings.TrimSpace(customCodeID),
+			Attributes: attrs,
+		},
+	}
+	return sendJSON[SubscriptionOfferCodeCustomCodeResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/subscriptionOfferCodeCustomCodes/%s", strings.TrimSpace(customCodeID)),
+		Payload: payload,
 	})
 }

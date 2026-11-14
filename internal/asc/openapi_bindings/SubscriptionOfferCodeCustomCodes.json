@@ -4,17 +4,13 @@
   "types": [
     "SubscriptionOfferCodeCustomCodeAttributes",
     "SubscriptionOfferCodeCustomCodeCreateAttributes",
-    "SubscriptionOfferCodeCustomCodeCreateData",
-    "SubscriptionOfferCodeCustomCodeCreateRelationships",
     "SubscriptionOfferCodeCustomCodeCreateRequest",
     "SubscriptionOfferCodeCustomCodeResponse",
     "SubscriptionOfferCodeCustomCodeUpdateAttributes",
     "SubscriptionOfferCodeCustomCodeUpdateRequest"
   ],
-  "relationships": [
-    {"data":"SubscriptionOfferCodeCustomCodeCreateData","type":"SubscriptionOfferCodeCustomCodeCreateRelationships"}
-  ],
   "operations": [
-    {"operation":"subscriptionOfferCodeCustomCodes_getInstance","name":"GetSubscriptionOfferCodeCustomCode","params":["customCodeID"]}
+    {"operation":"subscriptionOfferCodeCustomCodes_getInstance","name":"GetSubscriptionOfferCodeCustomCode","params":["customCodeID"]},
+    {"operation":"subscriptionOfferCodeCustomCodes_updateInstance","name":"UpdateSubscriptionOfferCodeCustomCode","params":["customCodeID"],"attrs":"value"}
   ]
 }

@@ -14,12 +14,6 @@ type GameCenterLeaderboardSetMemberLocalizationCreateRequest struct {
 	Data GameCenterLeaderboardSetMemberLocalizationCreateData `json:"data"`
 }
 
-// GameCenterLeaderboardSetMemberLocalizationRelationships is the data.relationships object of the GameCenterLeaderboardSetMemberLocalizationCreateRequest schema.
-type GameCenterLeaderboardSetMemberLocalizationRelationships struct {
-	GameCenterLeaderboardSet *Relationship `json:"gameCenterLeaderboardSet"`
-	GameCenterLeaderboard    *Relationship `json:"gameCenterLeaderboard"`
-}
-
 // GameCenterLeaderboardSetMemberLocalizationResponse is the GameCenterLeaderboardSetMemberLocalizationResponse schema.
 type GameCenterLeaderboardSetMemberLocalizationResponse = SingleResponse[GameCenterLeaderboardSetMemberLocalizationAttributes]
 

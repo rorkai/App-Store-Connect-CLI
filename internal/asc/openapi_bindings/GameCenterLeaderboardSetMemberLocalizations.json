@@ -3,15 +3,11 @@
   "file": "game_center_leaderboard_set_member_localizations_gen.go",
   "types": [
     "GameCenterLeaderboardSetMemberLocalizationCreateRequest",
-    "GameCenterLeaderboardSetMemberLocalizationRelationships",
     "GameCenterLeaderboardSetMemberLocalizationResponse",
     "GameCenterLeaderboardSetMemberLocalizationUpdateAttributes",
     "GameCenterLeaderboardSetMemberLocalizationUpdateData",
     "GameCenterLeaderboardSetMemberLocalizationUpdateRequest",
     "GameCenterLeaderboardSetMemberLocalizationsResponse"
-  ],
-  "relationships": [
-    {"data":"GameCenterLeaderboardSetMemberLocalizationCreateData","type":"*GameCenterLeaderboardSetMemberLocalizationRelationships"}
   ],
   "operations": [
     {"operation":"gameCenterLeaderboardSetMemberLocalizations_deleteInstance","name":"DeleteGameCenterLeaderboardSetMemberLocalization","params":["localizationID"],"check":"require"},

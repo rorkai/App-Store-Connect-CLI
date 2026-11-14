@@ -9,23 +9,9 @@ import (
 	"strings"
 )
 
-// SubscriptionIntroductoryOfferCreateData is the data object of the SubscriptionIntroductoryOfferCreateRequest schema.
-type SubscriptionIntroductoryOfferCreateData struct {
-	Type          ResourceType                                  `json:"type"`
-	Attributes    SubscriptionIntroductoryOfferCreateAttributes `json:"attributes"`
-	Relationships *SubscriptionIntroductoryOfferRelationships   `json:"relationships,omitempty"`
-}
-
 // SubscriptionIntroductoryOfferCreateRequest is the SubscriptionIntroductoryOfferCreateRequest schema.
 type SubscriptionIntroductoryOfferCreateRequest struct {
 	Data SubscriptionIntroductoryOfferCreateData `json:"data"`
-}
-
-// SubscriptionIntroductoryOfferRelationships is the data.relationships object of the SubscriptionIntroductoryOfferCreateRequest schema.
-type SubscriptionIntroductoryOfferRelationships struct {
-	Subscription           *Relationship `json:"subscription"`
-	Territory              *Relationship `json:"territory,omitempty"`
-	SubscriptionPricePoint *Relationship `json:"subscriptionPricePoint,omitempty"`
 }
 
 // SubscriptionIntroductoryOfferUpdateAttributes is the data.attributes object of the SubscriptionIntroductoryOfferUpdateRequest schema.
@@ -41,4 +27,20 @@ type SubscriptionIntroductoryOfferUpdateRequest struct {
 // DeleteSubscriptionIntroductoryOffer sends DELETE /v1/subscriptionIntroductoryOffers/{id} (subscriptionIntroductoryOffers_deleteInstance).
 func (c *Client) DeleteSubscriptionIntroductoryOffer(ctx context.Context, offerID string) error {
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/subscriptionIntroductoryOffers/%s", strings.TrimSpace(offerID)), nil)
+}
+
+// UpdateSubscriptionIntroductoryOffer sends PATCH /v1/subscriptionIntroductoryOffers/{id} (subscriptionIntroductoryOffers_updateInstance).
+func (c *Client) UpdateSubscriptionIntroductoryOffer(ctx context.Context, offerID string, attrs SubscriptionIntroductoryOfferUpdateAttributes) (*SubscriptionIntroductoryOfferResponse, error) {
+	payload := SubscriptionIntroductoryOfferUpdateRequest{
+		Data: SubscriptionIntroductoryOfferUpdateData{
+			Type:       ResourceTypeSubscriptionIntroductoryOffers,
+			ID:         strings.TrimSpace(offerID),
+			Attributes: attrs,
+		},
+	}
+	return sendJSON[SubscriptionIntroductoryOfferResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/subscriptionIntroductoryOffers/%s", strings.TrimSpace(offerID)),
+		Payload: payload,
+	})
 }

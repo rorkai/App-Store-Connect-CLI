@@ -4,16 +4,13 @@
   "types": [
     "AppClipAppStoreReviewDetailAttributes",
     "AppClipAppStoreReviewDetailCreateAttributes",
-    "AppClipAppStoreReviewDetailCreateData",
     "AppClipAppStoreReviewDetailCreateRequest",
     "AppClipAppStoreReviewDetailUpdateAttributes",
     "AppClipAppStoreReviewDetailUpdateData",
     "AppClipAppStoreReviewDetailUpdateRequest"
   ],
-  "relationships": [
-    {"data":"AppClipAppStoreReviewDetailCreateData","type":"*AppClipAppStoreReviewDetailRelationships"}
-  ],
   "operations": [
-    {"operation":"appClipAppStoreReviewDetails_getInstance","name":"GetAppClipAppStoreReviewDetail","params":["detailID"],"check":"require"}
+    {"operation":"appClipAppStoreReviewDetails_getInstance","name":"GetAppClipAppStoreReviewDetail","params":["detailID"],"check":"require"},
+    {"operation":"appClipAppStoreReviewDetails_updateInstance","name":"UpdateAppClipAppStoreReviewDetail","params":["detailID"],"check":"require","attrs":"pointer"}
   ]
 }

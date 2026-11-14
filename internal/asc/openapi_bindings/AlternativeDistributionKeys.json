@@ -4,14 +4,9 @@
   "types": [
     "AlternativeDistributionKeyAttributes",
     "AlternativeDistributionKeyCreateAttributes",
-    "AlternativeDistributionKeyCreateData",
-    "AlternativeDistributionKeyCreateRelationships",
     "AlternativeDistributionKeyCreateRequest",
     "AlternativeDistributionKeyResponse",
     "AlternativeDistributionKeysResponse"
-  ],
-  "relationships": [
-    {"data":"AlternativeDistributionKeyCreateData","type":"*AlternativeDistributionKeyCreateRelationships","omitempty":true}
   ],
   "operations": [
     {"operation":"alternativeDistributionKeys_deleteInstance","name":"DeleteAlternativeDistributionKey","params":["keyID"],"check":"require"},

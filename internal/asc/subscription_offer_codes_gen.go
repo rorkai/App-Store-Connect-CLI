@@ -5,21 +5,9 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 )
-
-// SubscriptionOfferCodeCreateData is the data object of the SubscriptionOfferCodeCreateRequest schema.
-type SubscriptionOfferCodeCreateData struct {
-	Type          ResourceType                          `json:"type"`
-	Attributes    SubscriptionOfferCodeCreateAttributes `json:"attributes"`
-	Relationships SubscriptionOfferCodeRelationships    `json:"relationships"`
-}
-
-// SubscriptionOfferCodeRelationships is the data.relationships object of the SubscriptionOfferCodeCreateRequest schema.
-type SubscriptionOfferCodeRelationships struct {
-	Subscription Relationship     `json:"subscription"`
-	Prices       RelationshipList `json:"prices"`
-}
 
 // SubscriptionOfferCodeUpdateAttributes is the data.attributes object of the SubscriptionOfferCodeUpdateRequest schema.
 type SubscriptionOfferCodeUpdateAttributes struct {
@@ -51,5 +39,21 @@ func (c *Client) GetSubscriptionOfferCodeOneTimeUseCodes(ctx context.Context, of
 		Query:       buildSubscriptionOfferCodeOneTimeUseCodesQuery(query),
 		Next:        query.nextURL,
 		NextContext: "offer codes",
+	})
+}
+
+// UpdateSubscriptionOfferCode sends PATCH /v1/subscriptionOfferCodes/{id} (subscriptionOfferCodes_updateInstance).
+func (c *Client) UpdateSubscriptionOfferCode(ctx context.Context, offerCodeID string, attrs SubscriptionOfferCodeUpdateAttributes) (*SubscriptionOfferCodeResponse, error) {
+	payload := SubscriptionOfferCodeUpdateRequest{
+		Data: SubscriptionOfferCodeUpdateData{
+			Type:       ResourceTypeSubscriptionOfferCodes,
+			ID:         strings.TrimSpace(offerCodeID),
+			Attributes: attrs,
+		},
+	}
+	return sendJSON[SubscriptionOfferCodeResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/subscriptionOfferCodes/%s", strings.TrimSpace(offerCodeID)),
+		Payload: payload,
 	})
 }

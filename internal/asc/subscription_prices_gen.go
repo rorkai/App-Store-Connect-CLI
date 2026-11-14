@@ -9,13 +9,6 @@ import (
 	"strings"
 )
 
-// SubscriptionPriceCreateData is the data object of the SubscriptionPriceCreateRequest schema.
-type SubscriptionPriceCreateData struct {
-	Type          ResourceType                       `json:"type"`
-	Attributes    *SubscriptionPriceCreateAttributes `json:"attributes,omitempty"`
-	Relationships *SubscriptionPriceRelationships    `json:"relationships"`
-}
-
 // SubscriptionPriceCreateRequest is the SubscriptionPriceCreateRequest schema.
 type SubscriptionPriceCreateRequest struct {
 	Data SubscriptionPriceCreateData `json:"data"`

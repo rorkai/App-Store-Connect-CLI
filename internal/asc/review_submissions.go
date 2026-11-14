@@ -126,6 +126,11 @@ type ReviewSubmissionCreateAttributes struct {
 	Platform Platform `json:"platform"`
 }
 
+// ReviewSubmissionCreateRelationships describes relationships for create requests.
+type ReviewSubmissionCreateRelationships struct {
+	App *Relationship `json:"app"`
+}
+
 // ReviewSubmissionCreateData is the data portion of a review submission create request.
 type ReviewSubmissionCreateData struct {
 	Type          ResourceType                         `json:"type"`

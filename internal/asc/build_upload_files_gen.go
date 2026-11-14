@@ -13,11 +13,6 @@ type BuildUploadFileCreateRequest struct {
 	Data BuildUploadFileCreateData `json:"data"`
 }
 
-// BuildUploadFileRelationships is the data.relationships object of the BuildUploadFileCreateRequest schema.
-type BuildUploadFileRelationships struct {
-	BuildUpload *Relationship `json:"buildUpload"`
-}
-
 // BuildUploadFileUpdateData is the data object of the BuildUploadFileUpdateRequest schema.
 type BuildUploadFileUpdateData struct {
 	Type       ResourceType                     `json:"type"`

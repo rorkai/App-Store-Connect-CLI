@@ -2,14 +2,10 @@
   "tag": "Nominations",
   "file": "nominations_gen.go",
   "types": [
-    "NominationCreateData",
     "NominationCreateRequest",
     "NominationResponse",
     "NominationUpdateRequest",
     "NominationsResponse"
-  ],
-  "relationships": [
-    {"data":"NominationCreateData","type":"NominationRelationships"}
   ],
   "operations": [
     {"operation":"nominations_deleteInstance","name":"DeleteNomination","params":["nominationID"],"check":"require"},

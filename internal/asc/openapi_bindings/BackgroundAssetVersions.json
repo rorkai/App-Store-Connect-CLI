@@ -2,13 +2,8 @@
   "tag": "BackgroundAssetVersions",
   "file": "background_asset_versions_gen.go",
   "types": [
-    "BackgroundAssetVersionCreateData",
-    "BackgroundAssetVersionCreateRelationships",
     "BackgroundAssetVersionCreateRequest",
     "BackgroundAssetVersionResponse"
-  ],
-  "relationships": [
-    {"data":"BackgroundAssetVersionCreateData","type":"BackgroundAssetVersionCreateRelationships"}
   ],
   "operations": [
     {"operation":"backgroundAssetVersions_backgroundAssetUploadFiles_getToManyRelated","name":"GetBackgroundAssetUploadFiles","params":["versionID"],"options":"BackgroundAssetUploadFilesOption","query":"buildBackgroundAssetUploadFilesQuery","nextContext":"backgroundAssetUploadFiles"},

@@ -19,18 +19,6 @@ type AlternativeDistributionKeyCreateAttributes struct {
 	PublicKey string `json:"publicKey"`
 }
 
-// AlternativeDistributionKeyCreateData is the data object of the AlternativeDistributionKeyCreateRequest schema.
-type AlternativeDistributionKeyCreateData struct {
-	Type          ResourceType                                   `json:"type"`
-	Attributes    AlternativeDistributionKeyCreateAttributes     `json:"attributes"`
-	Relationships *AlternativeDistributionKeyCreateRelationships `json:"relationships,omitempty"`
-}
-
-// AlternativeDistributionKeyCreateRelationships is the data.relationships object of the AlternativeDistributionKeyCreateRequest schema.
-type AlternativeDistributionKeyCreateRelationships struct {
-	App *Relationship `json:"app,omitempty"`
-}
-
 // AlternativeDistributionKeyCreateRequest is the AlternativeDistributionKeyCreateRequest schema.
 type AlternativeDistributionKeyCreateRequest struct {
 	Data AlternativeDistributionKeyCreateData `json:"data"`

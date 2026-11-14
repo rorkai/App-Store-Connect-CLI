@@ -8,18 +8,6 @@ import (
 	"strings"
 )
 
-// BackgroundAssetUploadFileCreateData is the data object of the BackgroundAssetUploadFileCreateRequest schema.
-type BackgroundAssetUploadFileCreateData struct {
-	Type          ResourceType                                 `json:"type"`
-	Attributes    BackgroundAssetUploadFileCreateAttributes    `json:"attributes"`
-	Relationships BackgroundAssetUploadFileCreateRelationships `json:"relationships"`
-}
-
-// BackgroundAssetUploadFileCreateRelationships is the data.relationships object of the BackgroundAssetUploadFileCreateRequest schema.
-type BackgroundAssetUploadFileCreateRelationships struct {
-	BackgroundAssetVersion Relationship `json:"backgroundAssetVersion"`
-}
-
 // BackgroundAssetUploadFileCreateRequest is the BackgroundAssetUploadFileCreateRequest schema.
 type BackgroundAssetUploadFileCreateRequest struct {
 	Data BackgroundAssetUploadFileCreateData `json:"data"`

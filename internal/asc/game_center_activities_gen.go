@@ -9,20 +9,6 @@ import (
 	"strings"
 )
 
-// GameCenterActivityCreateData is the data object of the GameCenterActivityCreateRequest schema.
-type GameCenterActivityCreateData struct {
-	Type          ResourceType                       `json:"type"`
-	Attributes    GameCenterActivityCreateAttributes `json:"attributes"`
-	Relationships *GameCenterActivityRelationships   `json:"relationships,omitempty"`
-}
-
-// GameCenterActivityRelationships is the data.relationships object of the GameCenterActivityCreateRequest schema.
-type GameCenterActivityRelationships struct {
-	GameCenterDetail *Relationship     `json:"gameCenterDetail,omitempty"`
-	GameCenterGroup  *Relationship     `json:"gameCenterGroup,omitempty"`
-	Versions         *RelationshipList `json:"versions,omitempty"`
-}
-
 // GameCenterActivityResponse is the GameCenterActivityResponse schema.
 type GameCenterActivityResponse = SingleResponse[GameCenterActivityAttributes]
 

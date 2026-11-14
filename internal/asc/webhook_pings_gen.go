@@ -2,17 +2,6 @@
 
 package asc
 
-// WebhookPingCreateData is the data object of the WebhookPingCreateRequest schema.
-type WebhookPingCreateData struct {
-	Type          ResourceType                   `json:"type"`
-	Relationships WebhookPingCreateRelationships `json:"relationships"`
-}
-
-// WebhookPingCreateRelationships is the data.relationships object of the WebhookPingCreateRequest schema.
-type WebhookPingCreateRelationships struct {
-	Webhook Relationship `json:"webhook"`
-}
-
 // WebhookPingCreateRequest is the WebhookPingCreateRequest schema.
 type WebhookPingCreateRequest struct {
 	Data WebhookPingCreateData `json:"data"`

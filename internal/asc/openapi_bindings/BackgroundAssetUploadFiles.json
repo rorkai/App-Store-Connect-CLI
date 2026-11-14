@@ -2,15 +2,10 @@
   "tag": "BackgroundAssetUploadFiles",
   "file": "background_asset_upload_files_gen.go",
   "types": [
-    "BackgroundAssetUploadFileCreateData",
-    "BackgroundAssetUploadFileCreateRelationships",
     "BackgroundAssetUploadFileCreateRequest",
     "BackgroundAssetUploadFileResponse",
     "BackgroundAssetUploadFileUpdateData",
     "BackgroundAssetUploadFileUpdateRequest"
-  ],
-  "relationships": [
-    {"data":"BackgroundAssetUploadFileCreateData","type":"BackgroundAssetUploadFileCreateRelationships"}
   ],
   "operations": [
     {"operation":"backgroundAssetUploadFiles_getInstance","name":"GetBackgroundAssetUploadFile","params":["uploadFileID"],"check":"require","messages":["background asset upload file ID is required"]}

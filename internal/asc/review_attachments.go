@@ -26,6 +26,18 @@ type AppStoreReviewAttachmentCreateAttributes struct {
 	FileName string `json:"fileName"`
 }
 
+// AppStoreReviewAttachmentRelationships describes attachment relationships.
+type AppStoreReviewAttachmentRelationships struct {
+	AppStoreReviewDetail *Relationship `json:"appStoreReviewDetail"`
+}
+
+// AppStoreReviewAttachmentCreateData is the data portion of a create request.
+type AppStoreReviewAttachmentCreateData struct {
+	Type          ResourceType                             `json:"type"`
+	Attributes    AppStoreReviewAttachmentCreateAttributes `json:"attributes"`
+	Relationships *AppStoreReviewAttachmentRelationships   `json:"relationships"`
+}
+
 // AppStoreReviewAttachmentDeleteResult represents CLI output for deletions.
 type AppStoreReviewAttachmentDeleteResult struct {
 	ID      string `json:"id"`
@@ -103,23 +115,4 @@ func (c *Client) CreateAppStoreReviewAttachment(ctx context.Context, reviewDetai
 		},
 	}
 	return sendJSON[AppStoreReviewAttachmentResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/appStoreReviewAttachments", Payload: payload})
-}
-
-// UpdateAppStoreReviewAttachment updates an attachment by ID.
-func (c *Client) UpdateAppStoreReviewAttachment(ctx context.Context, attachmentID string, attrs AppStoreReviewAttachmentUpdateAttributes) (*AppStoreReviewAttachmentResponse, error) {
-	attachmentID = strings.TrimSpace(attachmentID)
-	if attachmentID == "" {
-		return nil, fmt.Errorf("attachmentID is required")
-	}
-
-	payload := AppStoreReviewAttachmentUpdateRequest{
-		Data: AppStoreReviewAttachmentUpdateData{
-			Type: ResourceTypeAppStoreReviewAttachments,
-			ID:   attachmentID,
-		},
-	}
-	if attrs.SourceFileChecksum != nil || attrs.Uploaded != nil {
-		payload.Data.Attributes = &attrs
-	}
-	return sendJSON[AppStoreReviewAttachmentResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/appStoreReviewAttachments/%s", attachmentID), Payload: payload})
 }

@@ -3,18 +3,13 @@
   "file": "game_center_matchmaking_teams_gen.go",
   "types": [
     "GameCenterMatchmakingTeamCreateAttributes",
-    "GameCenterMatchmakingTeamCreateData",
     "GameCenterMatchmakingTeamCreateRequest",
     "GameCenterMatchmakingTeamResponse",
     "GameCenterMatchmakingTeamUpdateAttributes",
     "GameCenterMatchmakingTeamUpdateData",
     "GameCenterMatchmakingTeamUpdateRequest"
   ],
-  "relationships": [
-    {"data":"GameCenterMatchmakingTeamCreateData","type":"*GameCenterMatchmakingTeamRelationships","omitempty":true}
-  ],
   "operations": [
-    {"operation":"gameCenterMatchmakingTeams_createInstance","name":"CreateGameCenterMatchmakingTeam","params":["ruleSetID"],"links":["ruleSet"]},
     {"operation":"gameCenterMatchmakingTeams_deleteInstance","name":"DeleteGameCenterMatchmakingTeam","params":["teamID"]},
     {"operation":"gameCenterMatchmakingTeams_updateInstance","name":"UpdateGameCenterMatchmakingTeam","params":["teamID"]}
   ]

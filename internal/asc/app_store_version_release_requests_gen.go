@@ -2,51 +2,7 @@
 
 package asc
 
-import (
-	"context"
-	"fmt"
-	"net/http"
-	"strings"
-)
-
-// AppStoreVersionReleaseRequestCreateData is the data object of the AppStoreVersionReleaseRequestCreateRequest schema.
-type AppStoreVersionReleaseRequestCreateData struct {
-	Type          ResourceType                               `json:"type"`
-	Relationships AppStoreVersionReleaseRequestRelationships `json:"relationships"`
-}
-
 // AppStoreVersionReleaseRequestCreateRequest is the AppStoreVersionReleaseRequestCreateRequest schema.
 type AppStoreVersionReleaseRequestCreateRequest struct {
 	Data AppStoreVersionReleaseRequestCreateData `json:"data"`
-}
-
-// AppStoreVersionReleaseRequestRelationships is the data.relationships object of the AppStoreVersionReleaseRequestCreateRequest schema.
-type AppStoreVersionReleaseRequestRelationships struct {
-	AppStoreVersion Relationship `json:"appStoreVersion"`
-}
-
-// CreateAppStoreVersionReleaseRequest sends POST /v1/appStoreVersionReleaseRequests (appStoreVersionReleaseRequests_createInstance).
-func (c *Client) CreateAppStoreVersionReleaseRequest(ctx context.Context, versionID string) (*AppStoreVersionReleaseRequestResponse, error) {
-	versionID = strings.TrimSpace(versionID)
-	if versionID == "" {
-		return nil, fmt.Errorf("version ID is required")
-	}
-	payload := AppStoreVersionReleaseRequestCreateRequest{
-		Data: AppStoreVersionReleaseRequestCreateData{
-			Type: ResourceTypeAppStoreVersionReleaseRequests,
-			Relationships: AppStoreVersionReleaseRequestRelationships{
-				AppStoreVersion: Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeAppStoreVersions,
-						ID:   versionID,
-					},
-				},
-			},
-		},
-	}
-	return sendJSON[AppStoreVersionReleaseRequestResponse](ctx, c, writeRequest{
-		Method:  http.MethodPost,
-		Path:    "/v1/appStoreVersionReleaseRequests",
-		Payload: payload,
-	})
 }

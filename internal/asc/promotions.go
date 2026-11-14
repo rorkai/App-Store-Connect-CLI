@@ -18,6 +18,12 @@ type AppStoreVersionPromotionRelationships struct {
 	AppStoreVersionExperimentTreatment *Relationship `json:"appStoreVersionExperimentTreatment,omitempty"`
 }
 
+// AppStoreVersionPromotionCreateData is the data portion of a promotion create request.
+type AppStoreVersionPromotionCreateData struct {
+	Type          ResourceType                          `json:"type"`
+	Relationships AppStoreVersionPromotionRelationships `json:"relationships"`
+}
+
 // AppStoreVersionPromotionResponse is the response from promotion create endpoints.
 type AppStoreVersionPromotionResponse struct {
 	Data  Resource[AppStoreVersionPromotionAttributes] `json:"data"`

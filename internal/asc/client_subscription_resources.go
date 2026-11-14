@@ -43,6 +43,37 @@ func (c *Client) GetSubscriptionLocalizations(ctx context.Context, subscriptionI
 	return &response, nil
 }
 
+// CreateSubscriptionLocalization creates a subscription localization.
+//
+// Deprecated: Use CreateSubscriptionLocalizationV2 with a subscription version ID.
+func (c *Client) CreateSubscriptionLocalization(ctx context.Context, subscriptionID string, attrs SubscriptionLocalizationCreateAttributes) (*SubscriptionLocalizationResponse, error) {
+	subscriptionID = strings.TrimSpace(subscriptionID)
+	if subscriptionID == "" {
+		return nil, fmt.Errorf("subscription ID is required")
+	}
+
+	payload := SubscriptionLocalizationCreateRequest{
+		Data: SubscriptionLocalizationCreateData{
+			Type:       ResourceTypeSubscriptionLocalizations,
+			Attributes: attrs,
+			Relationships: &SubscriptionLocalizationRelationships{
+				Subscription: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeSubscriptions,
+						ID:   subscriptionID,
+					},
+				},
+			},
+		},
+	}
+
+	return sendJSON[SubscriptionLocalizationResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/subscriptionLocalizations",
+		Payload: payload,
+	})
+}
+
 // GetSubscriptionImages retrieves subscription images for a subscription.
 //
 // Deprecated: Use GetSubscriptionVersionImages with a subscription version ID.
@@ -152,23 +183,6 @@ func (c *Client) CreateSubscriptionIntroductoryOffer(ctx context.Context, subscr
 	return sendJSON[SubscriptionIntroductoryOfferResponse](ctx, c, writeRequest{
 		Method:  http.MethodPost,
 		Path:    "/v1/subscriptionIntroductoryOffers",
-		Payload: payload,
-	})
-}
-
-// UpdateSubscriptionIntroductoryOffer updates an introductory offer.
-func (c *Client) UpdateSubscriptionIntroductoryOffer(ctx context.Context, offerID string, attrs SubscriptionIntroductoryOfferUpdateAttributes) (*SubscriptionIntroductoryOfferResponse, error) {
-	payload := SubscriptionIntroductoryOfferUpdateRequest{
-		Data: SubscriptionIntroductoryOfferUpdateData{
-			Type:       ResourceTypeSubscriptionIntroductoryOffers,
-			ID:         strings.TrimSpace(offerID),
-			Attributes: attrs,
-		},
-	}
-
-	return sendJSON[SubscriptionIntroductoryOfferResponse](ctx, c, writeRequest{
-		Method:  http.MethodPatch,
-		Path:    fmt.Sprintf("/v1/subscriptionIntroductoryOffers/%s", strings.TrimSpace(offerID)),
 		Payload: payload,
 	})
 }
@@ -489,23 +503,6 @@ func (c *Client) CreateSubscriptionOfferCode(ctx context.Context, subscriptionID
 	})
 }
 
-// UpdateSubscriptionOfferCode updates an offer code.
-func (c *Client) UpdateSubscriptionOfferCode(ctx context.Context, offerCodeID string, attrs SubscriptionOfferCodeUpdateAttributes) (*SubscriptionOfferCodeResponse, error) {
-	payload := SubscriptionOfferCodeUpdateRequest{
-		Data: SubscriptionOfferCodeUpdateData{
-			Type:       ResourceTypeSubscriptionOfferCodes,
-			ID:         strings.TrimSpace(offerCodeID),
-			Attributes: attrs,
-		},
-	}
-
-	return sendJSON[SubscriptionOfferCodeResponse](ctx, c, writeRequest{
-		Method:  http.MethodPatch,
-		Path:    fmt.Sprintf("/v1/subscriptionOfferCodes/%s", strings.TrimSpace(offerCodeID)),
-		Payload: payload,
-	})
-}
-
 // GetSubscriptionOfferCodePrices retrieves prices for an offer code.
 func (c *Client) GetSubscriptionOfferCodePrices(ctx context.Context, offerCodeID string, opts ...SubscriptionOfferCodePricesOption) (*SubscriptionOfferCodePricesResponse, error) {
 	query := &subscriptionOfferCodePricesQuery{}
@@ -685,23 +682,6 @@ func (c *Client) CreateSubscriptionAppStoreReviewScreenshot(ctx context.Context,
 	})
 }
 
-// UpdateSubscriptionAppStoreReviewScreenshot updates a review screenshot.
-func (c *Client) UpdateSubscriptionAppStoreReviewScreenshot(ctx context.Context, screenshotID string, attrs SubscriptionAppStoreReviewScreenshotUpdateAttributes) (*SubscriptionAppStoreReviewScreenshotResponse, error) {
-	payload := SubscriptionAppStoreReviewScreenshotUpdateRequest{
-		Data: SubscriptionAppStoreReviewScreenshotUpdateData{
-			Type:       ResourceTypeSubscriptionAppStoreReviewScreenshots,
-			ID:         strings.TrimSpace(screenshotID),
-			Attributes: attrs,
-		},
-	}
-
-	return sendJSON[SubscriptionAppStoreReviewScreenshotResponse](ctx, c, writeRequest{
-		Method:  http.MethodPatch,
-		Path:    fmt.Sprintf("/v1/subscriptionAppStoreReviewScreenshots/%s", strings.TrimSpace(screenshotID)),
-		Payload: payload,
-	})
-}
-
 // GetSubscriptionGroupLocalizations retrieves subscription group localizations for a group.
 //
 // Deprecated: Use GetSubscriptionGroupVersionLocalizations with a subscription group version ID.
@@ -734,4 +714,35 @@ func (c *Client) GetSubscriptionGroupLocalizations(ctx context.Context, groupID 
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 	return &response, nil
+}
+
+// CreateSubscriptionGroupLocalization creates a subscription group localization.
+//
+// Deprecated: Use CreateSubscriptionGroupLocalizationV2 with a subscription group version ID.
+func (c *Client) CreateSubscriptionGroupLocalization(ctx context.Context, groupID string, attrs SubscriptionGroupLocalizationCreateAttributes) (*SubscriptionGroupLocalizationResponse, error) {
+	groupID = strings.TrimSpace(groupID)
+	if groupID == "" {
+		return nil, fmt.Errorf("group ID is required")
+	}
+
+	payload := SubscriptionGroupLocalizationCreateRequest{
+		Data: SubscriptionGroupLocalizationCreateData{
+			Type:       ResourceTypeSubscriptionGroupLocalizations,
+			Attributes: attrs,
+			Relationships: &SubscriptionGroupLocalizationRelationships{
+				SubscriptionGroup: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeSubscriptionGroups,
+						ID:   groupID,
+					},
+				},
+			},
+		},
+	}
+
+	return sendJSON[SubscriptionGroupLocalizationResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/subscriptionGroupLocalizations",
+		Payload: payload,
+	})
 }

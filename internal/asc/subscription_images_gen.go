@@ -9,13 +9,6 @@ import (
 	"strings"
 )
 
-// SubscriptionImageV2CreateData is the data object of the SubscriptionImageV2CreateRequest schema.
-type SubscriptionImageV2CreateData struct {
-	Type          ResourceType                        `json:"type"`
-	Attributes    SubscriptionImageV2CreateAttributes `json:"attributes"`
-	Relationships *SubscriptionVersionRelationship    `json:"relationships"`
-}
-
 // SubscriptionImageV2CreateRequest is the SubscriptionImageV2CreateRequest schema.
 type SubscriptionImageV2CreateRequest struct {
 	Data SubscriptionImageV2CreateData `json:"data"`
@@ -24,11 +17,6 @@ type SubscriptionImageV2CreateRequest struct {
 // SubscriptionImageV2UpdateRequest is the SubscriptionImageV2UpdateRequest schema.
 type SubscriptionImageV2UpdateRequest struct {
 	Data SubscriptionImageV2UpdateData `json:"data"`
-}
-
-// SubscriptionVersionRelationship is the data.relationships object of the SubscriptionImageV2CreateRequest schema.
-type SubscriptionVersionRelationship struct {
-	Version *Relationship `json:"version"`
 }
 
 // DeleteSubscriptionImageV2 sends DELETE /v2/subscriptionImages/{id} (subscriptionImagesV2_deleteInstance).
@@ -50,5 +38,25 @@ func (c *Client) GetSubscriptionImageV2(ctx context.Context, imageID string, opt
 	return getJSON[SubscriptionImageV2Response](ctx, c, readRequest{
 		Path:  fmt.Sprintf("/v2/subscriptionImages/%s", imageID),
 		Query: buildSubscriptionImageV2Query(query),
+	})
+}
+
+// UpdateSubscriptionImageV2 sends PATCH /v2/subscriptionImages/{id} (subscriptionImagesV2_updateInstance).
+func (c *Client) UpdateSubscriptionImageV2(ctx context.Context, imageID string, attrs SubscriptionImageV2UpdateAttributes) (*SubscriptionImageV2Response, error) {
+	imageID = strings.TrimSpace(imageID)
+	if imageID == "" {
+		return nil, fmt.Errorf("image ID is required")
+	}
+	payload := SubscriptionImageV2UpdateRequest{
+		Data: SubscriptionImageV2UpdateData{
+			Type:       ResourceTypeSubscriptionImages,
+			ID:         imageID,
+			Attributes: attrs,
+		},
+	}
+	return sendJSON[SubscriptionImageV2Response](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v2/subscriptionImages/%s", imageID),
+		Payload: payload,
 	})
 }

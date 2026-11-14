@@ -32,6 +32,18 @@ type SubscriptionOfferCodeOneTimeUseCodeCreateAttributes struct {
 	Environment    string `json:"environment,omitempty"`
 }
 
+// SubscriptionOfferCodeOneTimeUseCodeCreateRelationships describes relationships for offer code creation.
+type SubscriptionOfferCodeOneTimeUseCodeCreateRelationships struct {
+	OfferCode Relationship `json:"offerCode"`
+}
+
+// SubscriptionOfferCodeOneTimeUseCodeCreateData is the data portion of a create request.
+type SubscriptionOfferCodeOneTimeUseCodeCreateData struct {
+	Type          ResourceType                                           `json:"type"`
+	Attributes    SubscriptionOfferCodeOneTimeUseCodeCreateAttributes    `json:"attributes"`
+	Relationships SubscriptionOfferCodeOneTimeUseCodeCreateRelationships `json:"relationships"`
+}
+
 // CreateSubscriptionOfferCodeOneTimeUseCode generates a new one-time use offer code batch.
 func (c *Client) CreateSubscriptionOfferCodeOneTimeUseCode(ctx context.Context, req SubscriptionOfferCodeOneTimeUseCodeCreateRequest) (*SubscriptionOfferCodeOneTimeUseCodeResponse, error) {
 	return sendJSON[SubscriptionOfferCodeOneTimeUseCodeResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/subscriptionOfferCodeOneTimeUseCodes", Payload: req})

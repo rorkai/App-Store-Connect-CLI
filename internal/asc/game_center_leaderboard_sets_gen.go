@@ -15,13 +15,6 @@ type GameCenterLeaderboardSetCreateAttributes struct {
 	VendorIdentifier string `json:"vendorIdentifier"`
 }
 
-// GameCenterLeaderboardSetCreateData is the data object of the GameCenterLeaderboardSetCreateRequest schema.
-type GameCenterLeaderboardSetCreateData struct {
-	Type          ResourceType                             `json:"type"`
-	Attributes    GameCenterLeaderboardSetCreateAttributes `json:"attributes"`
-	Relationships *GameCenterLeaderboardSetRelationships   `json:"relationships,omitempty"`
-}
-
 // GameCenterLeaderboardSetCreateRequest is the GameCenterLeaderboardSetCreateRequest schema.
 type GameCenterLeaderboardSetCreateRequest struct {
 	Data GameCenterLeaderboardSetCreateData `json:"data"`
@@ -45,14 +38,6 @@ type GameCenterLeaderboardSetUpdateData struct {
 // GameCenterLeaderboardSetUpdateRequest is the GameCenterLeaderboardSetUpdateRequest schema.
 type GameCenterLeaderboardSetUpdateRequest struct {
 	Data GameCenterLeaderboardSetUpdateData `json:"data"`
-}
-
-// GameCenterLeaderboardSetV2Relationships is the data.relationships object of the GameCenterLeaderboardSetV2CreateRequest schema.
-type GameCenterLeaderboardSetV2Relationships struct {
-	GameCenterDetail       *Relationship     `json:"gameCenterDetail,omitempty"`
-	GameCenterGroup        *Relationship     `json:"gameCenterGroup,omitempty"`
-	GameCenterLeaderboards *RelationshipList `json:"gameCenterLeaderboards,omitempty"`
-	Versions               *RelationshipList `json:"versions"`
 }
 
 // DeleteGameCenterLeaderboardSetV2 sends DELETE /v2/gameCenterLeaderboardSets/{id} (gameCenterLeaderboardSetsV2_deleteInstance).

@@ -27,6 +27,17 @@ type SubscriptionVersionAttributes struct {
 	State   SubscriptionVersionState `json:"state,omitempty"`
 }
 
+// SubscriptionVersionRelationships describes relationships used to create a version.
+type SubscriptionVersionRelationships struct {
+	Subscription *Relationship `json:"subscription"`
+}
+
+// SubscriptionVersionCreateData is the data portion of a version create request.
+type SubscriptionVersionCreateData struct {
+	Type          ResourceType                      `json:"type"`
+	Relationships *SubscriptionVersionRelationships `json:"relationships"`
+}
+
 // SubscriptionLocalizationV2CreateAttributes describes localization create attributes.
 type SubscriptionLocalizationV2CreateAttributes struct {
 	Name        string          `json:"name"`
@@ -38,6 +49,18 @@ type SubscriptionLocalizationV2CreateAttributes struct {
 type SubscriptionLocalizationV2UpdateAttributes struct {
 	Name        *NullableString `json:"name,omitempty"`
 	Description *NullableString `json:"description,omitempty"`
+}
+
+// SubscriptionVersionRelationship identifies the owning version.
+type SubscriptionVersionRelationship struct {
+	Version *Relationship `json:"version"`
+}
+
+// SubscriptionLocalizationV2CreateData is the data portion of a localization create request.
+type SubscriptionLocalizationV2CreateData struct {
+	Type          ResourceType                               `json:"type"`
+	Attributes    SubscriptionLocalizationV2CreateAttributes `json:"attributes"`
+	Relationships *SubscriptionVersionRelationship           `json:"relationships"`
 }
 
 // SubscriptionLocalizationV2UpdateData is the data portion of a localization update request.
@@ -66,6 +89,13 @@ type SubscriptionImageV2CreateAttributes struct {
 // SubscriptionImageV2UpdateAttributes describes the upload commit state.
 type SubscriptionImageV2UpdateAttributes struct {
 	Uploaded *NullableBool `json:"uploaded,omitempty"`
+}
+
+// SubscriptionImageV2CreateData is the data portion of an image create request.
+type SubscriptionImageV2CreateData struct {
+	Type          ResourceType                        `json:"type"`
+	Attributes    SubscriptionImageV2CreateAttributes `json:"attributes"`
+	Relationships *SubscriptionVersionRelationship    `json:"relationships"`
 }
 
 // SubscriptionImageV2UpdateData is the data portion of an image update request.

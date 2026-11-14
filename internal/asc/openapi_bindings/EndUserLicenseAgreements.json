@@ -4,14 +4,9 @@
   "types": [
     "EndUserLicenseAgreementAttributes",
     "EndUserLicenseAgreementCreateAttributes",
-    "EndUserLicenseAgreementCreateData",
-    "EndUserLicenseAgreementCreateRelationships",
     "EndUserLicenseAgreementCreateRequest",
     "EndUserLicenseAgreementUpdateAttributes",
     "EndUserLicenseAgreementUpdateRequest"
-  ],
-  "relationships": [
-    {"data":"EndUserLicenseAgreementCreateData","type":"EndUserLicenseAgreementCreateRelationships"}
   ],
   "operations": [
     {"operation":"endUserLicenseAgreements_deleteInstance","name":"DeleteEndUserLicenseAgreement","params":["id"],"check":"require"},

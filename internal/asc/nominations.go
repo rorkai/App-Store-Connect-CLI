@@ -86,6 +86,13 @@ type NominationRelationships struct {
 	SupportedTerritories *RelationshipList `json:"supportedTerritories,omitempty"`
 }
 
+// NominationCreateData is the data portion of a nomination create request.
+type NominationCreateData struct {
+	Type          ResourceType               `json:"type"`
+	Attributes    NominationCreateAttributes `json:"attributes"`
+	Relationships NominationRelationships    `json:"relationships"`
+}
+
 // NominationUpdateData is the data portion of a nomination update request.
 type NominationUpdateData struct {
 	Type          ResourceType                `json:"type"`

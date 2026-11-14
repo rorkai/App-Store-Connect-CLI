@@ -3,16 +3,11 @@
   "file": "app_store_review_details_gen.go",
   "types": [
     "AppStoreReviewDetailCreateAttributes",
-    "AppStoreReviewDetailCreateData",
-    "AppStoreReviewDetailCreateRelationships",
     "AppStoreReviewDetailCreateRequest",
     "AppStoreReviewDetailResponse",
     "AppStoreReviewDetailUpdateAttributes",
     "AppStoreReviewDetailUpdateData",
     "AppStoreReviewDetailUpdateRequest"
-  ],
-  "relationships": [
-    {"data":"AppStoreReviewDetailCreateData","type":"*AppStoreReviewDetailCreateRelationships"}
   ],
   "operations": [
     {"operation":"appStoreReviewDetails_getInstance","name":"GetAppStoreReviewDetail","params":["detailID"],"check":"require"}

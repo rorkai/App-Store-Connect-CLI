@@ -13,12 +13,6 @@ type SubscriptionAvailabilityCreateRequest struct {
 	Data SubscriptionAvailabilityCreateData `json:"data"`
 }
 
-// SubscriptionAvailabilityRelationships is the data.relationships object of the SubscriptionAvailabilityCreateRequest schema.
-type SubscriptionAvailabilityRelationships struct {
-	Subscription         *Relationship     `json:"subscription"`
-	AvailableTerritories *RelationshipList `json:"availableTerritories"`
-}
-
 // SubscriptionAvailabilityResponse is the SubscriptionAvailabilityResponse schema.
 type SubscriptionAvailabilityResponse = SingleResponse[SubscriptionAvailabilityAttributes]
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"slices"
 	"sort"
@@ -215,11 +216,22 @@ func selectDefaultAppStoreVersion(appID, source string, data []asc.Resource[asc.
 // error (exit 2 without the full help page). overrideFlag is the flag name
 // shown in the note.
 func ResolveAndAnnounceDefaultAppStoreVersion(ctx context.Context, client *asc.Client, appID, platform, overrideFlag string) (DefaultAppStoreVersion, error) {
+	return resolveAndAnnounceDefaultAppStoreVersionTo(ctx, os.Stderr, client, appID, platform, overrideFlag)
+}
+
+// ResolveAndAnnounceDefaultAppStoreVersion is
+// ResolveAndAnnounceDefaultAppStoreVersion with the note and the "Error:" line
+// written to d's stderr.
+func (d *Deps) ResolveAndAnnounceDefaultAppStoreVersion(ctx context.Context, client *asc.Client, appID, platform, overrideFlag string) (DefaultAppStoreVersion, error) {
+	return resolveAndAnnounceDefaultAppStoreVersionTo(ctx, d.IO.ErrOut, client, appID, platform, overrideFlag)
+}
+
+func resolveAndAnnounceDefaultAppStoreVersionTo(ctx context.Context, stderr io.Writer, client *asc.Client, appID, platform, overrideFlag string) (DefaultAppStoreVersion, error) {
 	resolved, err := ResolveDefaultAppStoreVersion(ctx, client, appID, platform)
 	if err != nil {
 		if IsAmbiguousSelection(err) {
 			message := err.Error()
-			fmt.Fprintf(os.Stderr, "Error: %s\n", message)
+			fmt.Fprintf(stderr, "Error: %s\n", message)
 			reported := WithDiagnostic(NewReportedUsageError(UsageErrorInvalidValue, message), DiagnosticInvalidInput, "--platform")
 			return DefaultAppStoreVersion{}, NewErrorWithCause(reported, err)
 		}
@@ -228,6 +240,6 @@ func ResolveAndAnnounceDefaultAppStoreVersion(ctx context.Context, client *asc.C
 		}
 		return DefaultAppStoreVersion{}, err
 	}
-	fmt.Fprintln(os.Stderr, resolved.Note(overrideFlag))
+	fmt.Fprintln(stderr, resolved.Note(overrideFlag))
 	return resolved, nil
 }

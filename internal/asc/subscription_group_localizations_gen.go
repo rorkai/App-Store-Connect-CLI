@@ -17,21 +17,9 @@ type SubscriptionGroupLocalizationAttributes struct {
 	State         string `json:"state,omitempty"`
 }
 
-// SubscriptionGroupLocalizationCreateData is the data object of the SubscriptionGroupLocalizationCreateRequest schema.
-type SubscriptionGroupLocalizationCreateData struct {
-	Type          ResourceType                                  `json:"type"`
-	Attributes    SubscriptionGroupLocalizationCreateAttributes `json:"attributes"`
-	Relationships *SubscriptionGroupLocalizationRelationships   `json:"relationships,omitempty"`
-}
-
 // SubscriptionGroupLocalizationCreateRequest is the SubscriptionGroupLocalizationCreateRequest schema.
 type SubscriptionGroupLocalizationCreateRequest struct {
 	Data SubscriptionGroupLocalizationCreateData `json:"data"`
-}
-
-// SubscriptionGroupLocalizationRelationships is the data.relationships object of the SubscriptionGroupLocalizationCreateRequest schema.
-type SubscriptionGroupLocalizationRelationships struct {
-	SubscriptionGroup *Relationship `json:"subscriptionGroup"`
 }
 
 // SubscriptionGroupLocalizationV2Attributes is the attributes object of the SubscriptionGroupLocalizationV2 schema.
@@ -39,18 +27,6 @@ type SubscriptionGroupLocalizationV2Attributes struct {
 	Name          string `json:"name,omitempty"`
 	CustomAppName string `json:"customAppName,omitempty"`
 	Locale        string `json:"locale,omitempty"`
-}
-
-// SubscriptionGroupLocalizationV2CreateData is the data object of the SubscriptionGroupLocalizationV2CreateRequest schema.
-type SubscriptionGroupLocalizationV2CreateData struct {
-	Type          ResourceType                                       `json:"type"`
-	Attributes    SubscriptionGroupLocalizationV2CreateAttributes    `json:"attributes"`
-	Relationships SubscriptionGroupLocalizationV2CreateRelationships `json:"relationships"`
-}
-
-// SubscriptionGroupLocalizationV2CreateRelationships is the data.relationships object of the SubscriptionGroupLocalizationV2CreateRequest schema.
-type SubscriptionGroupLocalizationV2CreateRelationships struct {
-	Version Relationship `json:"version"`
 }
 
 // SubscriptionGroupLocalizationV2CreateRequest is the SubscriptionGroupLocalizationV2CreateRequest schema.
@@ -95,33 +71,6 @@ func (c *Client) UpdateSubscriptionGroupLocalizationV2(ctx context.Context, loca
 	return sendJSON[SubscriptionGroupLocalizationV2Response](ctx, c, writeRequest{
 		Method:  http.MethodPatch,
 		Path:    fmt.Sprintf("/v2/subscriptionGroupLocalizations/%s", localizationID),
-		Payload: payload,
-	})
-}
-
-// CreateSubscriptionGroupLocalization sends POST /v1/subscriptionGroupLocalizations (subscriptionGroupLocalizations_createInstance).
-func (c *Client) CreateSubscriptionGroupLocalization(ctx context.Context, groupID string, attrs SubscriptionGroupLocalizationCreateAttributes) (*SubscriptionGroupLocalizationResponse, error) {
-	groupID = strings.TrimSpace(groupID)
-	if groupID == "" {
-		return nil, fmt.Errorf("group ID is required")
-	}
-	payload := SubscriptionGroupLocalizationCreateRequest{
-		Data: SubscriptionGroupLocalizationCreateData{
-			Type:       ResourceTypeSubscriptionGroupLocalizations,
-			Attributes: attrs,
-			Relationships: &SubscriptionGroupLocalizationRelationships{
-				SubscriptionGroup: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeSubscriptionGroups,
-						ID:   groupID,
-					},
-				},
-			},
-		},
-	}
-	return sendJSON[SubscriptionGroupLocalizationResponse](ctx, c, writeRequest{
-		Method:  http.MethodPost,
-		Path:    "/v1/subscriptionGroupLocalizations",
 		Payload: payload,
 	})
 }

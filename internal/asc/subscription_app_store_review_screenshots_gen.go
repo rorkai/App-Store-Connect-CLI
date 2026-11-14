@@ -9,21 +9,9 @@ import (
 	"strings"
 )
 
-// SubscriptionAppStoreReviewScreenshotCreateData is the data object of the SubscriptionAppStoreReviewScreenshotCreateRequest schema.
-type SubscriptionAppStoreReviewScreenshotCreateData struct {
-	Type          ResourceType                                         `json:"type"`
-	Attributes    SubscriptionAppStoreReviewScreenshotCreateAttributes `json:"attributes"`
-	Relationships *SubscriptionAppStoreReviewScreenshotRelationships   `json:"relationships,omitempty"`
-}
-
 // SubscriptionAppStoreReviewScreenshotCreateRequest is the SubscriptionAppStoreReviewScreenshotCreateRequest schema.
 type SubscriptionAppStoreReviewScreenshotCreateRequest struct {
 	Data SubscriptionAppStoreReviewScreenshotCreateData `json:"data"`
-}
-
-// SubscriptionAppStoreReviewScreenshotRelationships is the data.relationships object of the SubscriptionAppStoreReviewScreenshotCreateRequest schema.
-type SubscriptionAppStoreReviewScreenshotRelationships struct {
-	Subscription *Relationship `json:"subscription"`
 }
 
 // SubscriptionAppStoreReviewScreenshotUpdateAttributes is the data.attributes object of the SubscriptionAppStoreReviewScreenshotUpdateRequest schema.
@@ -48,5 +36,21 @@ func (c *Client) GetSubscriptionAppStoreReviewScreenshot(ctx context.Context, sc
 	return getJSON[SubscriptionAppStoreReviewScreenshotResponse](ctx, c, readRequest{
 		Path:  fmt.Sprintf("/v1/subscriptionAppStoreReviewScreenshots/%s", strings.TrimSpace(screenshotID)),
 		Query: buildSubscriptionAppStoreReviewScreenshotQuery(query),
+	})
+}
+
+// UpdateSubscriptionAppStoreReviewScreenshot sends PATCH /v1/subscriptionAppStoreReviewScreenshots/{id} (subscriptionAppStoreReviewScreenshots_updateInstance).
+func (c *Client) UpdateSubscriptionAppStoreReviewScreenshot(ctx context.Context, screenshotID string, attrs SubscriptionAppStoreReviewScreenshotUpdateAttributes) (*SubscriptionAppStoreReviewScreenshotResponse, error) {
+	payload := SubscriptionAppStoreReviewScreenshotUpdateRequest{
+		Data: SubscriptionAppStoreReviewScreenshotUpdateData{
+			Type:       ResourceTypeSubscriptionAppStoreReviewScreenshots,
+			ID:         strings.TrimSpace(screenshotID),
+			Attributes: attrs,
+		},
+	}
+	return sendJSON[SubscriptionAppStoreReviewScreenshotResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/subscriptionAppStoreReviewScreenshots/%s", strings.TrimSpace(screenshotID)),
+		Payload: payload,
 	})
 }

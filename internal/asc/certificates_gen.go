@@ -9,19 +9,6 @@ import (
 	"strings"
 )
 
-// CertificateCreateData is the data object of the CertificateCreateRequest schema.
-type CertificateCreateData struct {
-	Type          ResourceType                    `json:"type"`
-	Attributes    CertificateCreateAttributes     `json:"attributes"`
-	Relationships *CertificateCreateRelationships `json:"relationships,omitempty"`
-}
-
-// CertificateCreateRelationships is the data.relationships object of the CertificateCreateRequest schema.
-type CertificateCreateRelationships struct {
-	MerchantID *Relationship `json:"merchantId,omitempty"`
-	PassTypeID *Relationship `json:"passTypeId,omitempty"`
-}
-
 // CertificateCreateRequest is the CertificateCreateRequest schema.
 type CertificateCreateRequest struct {
 	Data CertificateCreateData `json:"data"`

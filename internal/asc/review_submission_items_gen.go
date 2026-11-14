@@ -9,12 +9,6 @@ import (
 	"strings"
 )
 
-// ReviewSubmissionItemCreateData is the data object of the ReviewSubmissionItemCreateRequest schema.
-type ReviewSubmissionItemCreateData struct {
-	Type          ResourceType                            `json:"type"`
-	Relationships ReviewSubmissionItemCreateRelationships `json:"relationships"`
-}
-
 // ReviewSubmissionItemCreateRequest is the ReviewSubmissionItemCreateRequest schema.
 type ReviewSubmissionItemCreateRequest struct {
 	Data ReviewSubmissionItemCreateData `json:"data"`
