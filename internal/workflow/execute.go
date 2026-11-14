@@ -390,19 +390,9 @@ func (r *runner) executeSteps(ctx context.Context, workflowName string, steps []
 			stepEnv = mergeEnv(env, step.Env)
 		}
 
-		if strings.TrimSpace(step.If) != "" {
-			pass, err := evalStepIf(step.If, stepEnv)
-			if err != nil {
-				fmt.Fprintf(r.opts.Stderr, "Warning: workflow %q step %d: if %q is not a supported condition, so the step is skipped; %v. A future major release will reject it.\n", workflowName, idx, step.If, err)
-			}
-			if !pass {
-				sr.Status = "skipped"
-				sr.DurationMS = time.Since(stepStart).Milliseconds()
-				r.result.Steps = append(r.result.Steps, sr)
-				continue
-			}
-		}
-
+		// A recorded tolerated failure is replayed before the step's condition
+		// is evaluated again: the condition may read differently on resume, and
+		// the steps after this one must stay unrun either way.
 		if r.state != nil {
 			if persisted, ok := r.state.Steps[stepKey]; ok && persisted.ContinuedOnError && !r.hasChildState(stepKey) {
 				sr.Status = "resumed"
@@ -414,6 +404,19 @@ func (r *runner) executeSteps(ctx context.Context, workflowName string, steps []
 				if !step.ContinueOnError {
 					return errToleratedFailureReplayed
 				}
+				continue
+			}
+		}
+
+		if strings.TrimSpace(step.If) != "" {
+			pass, err := evalStepIf(step.If, stepEnv)
+			if err != nil {
+				fmt.Fprintf(r.opts.Stderr, "Warning: workflow %q step %d: if %q is not a supported condition, so the step is skipped; %v. A future major release will reject it.\n", workflowName, idx, step.If, err)
+			}
+			if !pass {
+				sr.Status = "skipped"
+				sr.DurationMS = time.Since(stepStart).Milliseconds()
+				r.result.Steps = append(r.result.Steps, sr)
 				continue
 			}
 		}

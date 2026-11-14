@@ -541,12 +541,13 @@ func TestRun_ResumeReplaysToleratedSubWorkflowSteps(t *testing.T) {
 			]},
 			"notify": {"steps": [
 				{"name": "ping", "run": "printf p >> \"$COUNTER\""},
-				{"name": "post", "run": "printf o >> \"$COUNTER\"; exit 4"},
+				{"name": "post", "if": "POST_ENABLED", "run": "printf o >> \"$COUNTER\"; exit 4"},
 				{"name": "never", "run": "printf n >> \"$COUNTER\""}
 			]}
 		}
 	}`, counterPath, allowPath))
 
+	t.Setenv("POST_ENABLED", "true")
 	opts := runOpts("main")
 	opts.WorkflowFile = workflowPath
 	opts.StateDir = filepath.Join(dir, "runs")
@@ -557,6 +558,10 @@ func TestRun_ResumeReplaysToleratedSubWorkflowSteps(t *testing.T) {
 	if writeErr := os.WriteFile(allowPath, []byte("ok"), 0o600); writeErr != nil {
 		t.Fatalf("write allow file: %v", writeErr)
 	}
+	// The tolerated step's own condition no longer holds when the run is
+	// resumed. The recorded failure must still be replayed, so the steps after
+	// it stay unrun.
+	t.Setenv("POST_ENABLED", "false")
 	resumeOpts := runOpts("main")
 	resumeOpts.WorkflowFile = workflowPath
 	resumeOpts.StateDir = opts.StateDir
