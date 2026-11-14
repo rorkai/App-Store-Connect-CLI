@@ -98,9 +98,10 @@ func runPlan(ctx context.Context, plan *Plan, rootedOutput *rootfs.Root) (_ *Run
 			return nil, fmt.Errorf("apply status bar preset %q: %w", preset, err)
 		}
 		defer func() {
-			clearErr := runExternal(context.WithoutCancel(ctx), "axe", "settings", "status-bar", "clear", "--udid", udid)
-			if clearErr != nil && runErr == nil {
-				runErr = fmt.Errorf("clear status bar overrides: %w", clearErr)
+			clearCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), matrixSubprocessTimeout)
+			defer cancel()
+			if clearErr := runExternal(clearCtx, "axe", "settings", "status-bar", "clear", "--udid", udid); clearErr != nil {
+				runErr = errors.Join(runErr, fmt.Errorf("clear status bar overrides: %w", clearErr))
 			}
 		}()
 	}

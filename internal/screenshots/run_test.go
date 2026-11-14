@@ -368,7 +368,9 @@ func TestRunPlanAppliesAndClearsStatusBarPreset(t *testing.T) {
 		statusBar string
 		steps     []PlanStep
 		failOn    string
+		failClear bool
 		wantErr   string
+		alsoErr   string
 		wantCode  PlanValidationCode
 		wantCalls []string
 	}{
@@ -405,6 +407,20 @@ func TestRunPlanAppliesAndClearsStatusBarPreset(t *testing.T) {
 			},
 		},
 		{
+			name:      "failing step and failing clear are both reported",
+			statusBar: "screenshot",
+			steps:     appSteps,
+			failOn:    "type",
+			failClear: true,
+			wantErr:   "step 2 (type)",
+			alsoErr:   "clear status bar overrides",
+			wantCalls: []string{
+				"settings status-bar preset screenshot --udid BOOTED-1",
+				"type hello --udid BOOTED-1",
+				"settings status-bar clear --udid BOOTED-1",
+			},
+		},
+		{
 			name:      "unknown preset fails validation before anything runs",
 			statusBar: "sunny",
 			steps:     appSteps,
@@ -427,6 +443,7 @@ fi
 set -eu
 printf '%s\n' "$*" >> "$AXE_LOG"
 if [ "$1" = "$AXE_FAIL_ON" ]; then exit 1; fi
+if [ "$AXE_FAIL_CLEAR" = "1" ] && [ "$1" = "settings" ] && [ "$3" = "clear" ]; then exit 1; fi
 out=""
 while [ "$#" -gt 0 ]; do
   if [ "$1" = "--output" ]; then out="$2"; break; fi
@@ -437,6 +454,11 @@ if [ -n "$out" ]; then cp "$AXE_TEMPLATE_PNG" "$out"; fi
 			t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
 			t.Setenv("AXE_LOG", axeLog)
 			t.Setenv("AXE_FAIL_ON", test.failOn)
+			failClear := "0"
+			if test.failClear {
+				failClear = "1"
+			}
+			t.Setenv("AXE_FAIL_CLEAR", failClear)
 			t.Setenv("AXE_TEMPLATE_PNG", templatePNG)
 
 			outputDir := t.TempDir()
@@ -451,8 +473,8 @@ if [ -n "$out" ]; then cp "$AXE_TEMPLATE_PNG" "$out"; fi
 			case test.wantCode != "":
 				assertValidationCode(t, err, test.wantCode)
 			case test.wantErr != "":
-				if err == nil || !strings.Contains(err.Error(), test.wantErr) {
-					t.Fatalf("RunPlan() error = %v, want %q", err, test.wantErr)
+				if err == nil || !strings.Contains(err.Error(), test.wantErr) || !strings.Contains(err.Error(), test.alsoErr) {
+					t.Fatalf("RunPlan() error = %v, want %q and %q", err, test.wantErr, test.alsoErr)
 				}
 			case err != nil:
 				t.Fatalf("RunPlan() error = %v", err)
