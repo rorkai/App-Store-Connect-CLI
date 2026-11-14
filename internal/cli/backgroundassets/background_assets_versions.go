@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -75,8 +74,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			assetIDValue := strings.TrimSpace(*assetID)
 			if assetIDValue == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --background-asset-id is required")
-				return shared.MissingRequiredUsageError("--background-asset-id")
+				return shared.RequiredFlag("--background-asset-id")
 			}
 			if *limit != 0 && (*limit < 1 || *limit > backgroundAssetsMaxLimit) {
 				return shared.UsageErrorf("background-assets versions list: --limit must be between 1 and %d", backgroundAssetsMaxLimit)
@@ -185,8 +183,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			versionIDValue := strings.TrimSpace(*versionID)
 			if versionIDValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return shared.MissingRequiredUsageError("--version-id")
+				return shared.RequiredFlag("--version-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -227,8 +224,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			assetIDValue := strings.TrimSpace(*assetID)
 			if assetIDValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --background-asset-id is required")
-				return shared.MissingRequiredUsageError("--background-asset-id")
+				return shared.RequiredFlag("--background-asset-id")
 			}
 
 			client, err := shared.GetASCClient()

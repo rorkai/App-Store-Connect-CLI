@@ -188,8 +188,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			assetIDValue := strings.TrimSpace(*assetID)
 			if assetIDValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -237,8 +236,7 @@ Examples:
 
 			assetPackIdentifierValue := strings.TrimSpace(*assetPackIdentifier)
 			if assetPackIdentifierValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --asset-pack-identifier is required")
-				return shared.MissingRequiredUsageError("--asset-pack-identifier")
+				return shared.RequiredFlag("--asset-pack-identifier")
 			}
 
 			client, err := shared.GetASCClient()
@@ -280,13 +278,11 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			assetIDValue := strings.TrimSpace(*assetID)
 			if assetIDValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			if strings.TrimSpace(*archived) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --archived is required")
-				return shared.MissingRequiredUsageError("--archived")
+				return shared.RequiredFlag("--archived")
 			}
 			archivedValue, err := shared.ParseBoolFlag(*archived, "--archived")
 			if err != nil {
