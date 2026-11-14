@@ -23,8 +23,8 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
-	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 	"unicode/utf8"
 
@@ -1449,59 +1449,36 @@ func TestResolveWebMinRequestInterval(t *testing.T) {
 }
 
 func TestClientDoRequestAppliesRateLimit(t *testing.T) {
-	var (
-		mu     sync.Mutex
-		now    = time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
-		events []string
-	)
-	record := func(event string) {
-		mu.Lock()
-		defer mu.Unlock()
-		events = append(events, event)
-	}
-	previousNow, previousAfter := rateLimitNow, rateLimitAfter
-	rateLimitNow = func() time.Time {
-		mu.Lock()
-		defer mu.Unlock()
-		return now
-	}
-	rateLimitAfter = func(d time.Duration) <-chan time.Time {
-		record(fmt.Sprintf("wait %v", d))
-		mu.Lock()
-		defer mu.Unlock()
-		now = now.Add(d)
-		fired := make(chan time.Time, 1)
-		fired <- now
-		return fired
-	}
-	t.Cleanup(func() { rateLimitNow, rateLimitAfter = previousNow, previousAfter })
+	synctest.Test(t, func(t *testing.T) {
+		var servedAt []time.Time
+		client := &Client{
+			httpClient: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				servedAt = append(servedAt, time.Now())
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Header:     http.Header{"Content-Type": []string{"application/json"}},
+					Body:       io.NopCloser(strings.NewReader(`{"data":[]}`)),
+					Request:    req,
+				}, nil
+			})},
+			baseURL:            "https://appstoreconnect.example.test",
+			minRequestInterval: 80 * time.Millisecond,
+		}
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		record("request")
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"data":[]}`))
-	}))
-	defer server.Close()
+		if _, err := client.doRequest(context.Background(), "GET", "/apps", nil); err != nil {
+			t.Fatalf("first doRequest error: %v", err)
+		}
+		if _, err := client.doRequest(context.Background(), "GET", "/apps", nil); err != nil {
+			t.Fatalf("second doRequest error: %v", err)
+		}
 
-	client := &Client{
-		httpClient:         server.Client(),
-		baseURL:            server.URL,
-		minRequestInterval: 80 * time.Millisecond,
-	}
-
-	if _, err := client.doRequest(context.Background(), "GET", "/apps", nil); err != nil {
-		t.Fatalf("first doRequest error: %v", err)
-	}
-	if _, err := client.doRequest(context.Background(), "GET", "/apps", nil); err != nil {
-		t.Fatalf("second doRequest error: %v", err)
-	}
-
-	mu.Lock()
-	defer mu.Unlock()
-	want := []string{"request", "wait 80ms", "request"}
-	if !reflect.DeepEqual(events, want) {
-		t.Fatalf("events = %q, want %q", events, want)
-	}
+		if len(servedAt) != 2 {
+			t.Fatalf("served %d requests, want 2", len(servedAt))
+		}
+		if diff := servedAt[1].Sub(servedAt[0]); diff != 80*time.Millisecond {
+			t.Fatalf("gap between calls = %v, want the 80ms request interval", diff)
+		}
+	})
 }
 
 func TestLoadWebRootCAPoolFromPaths(t *testing.T) {
