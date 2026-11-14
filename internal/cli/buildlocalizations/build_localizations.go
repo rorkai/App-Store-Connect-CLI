@@ -344,51 +344,27 @@ Examples:
 
 // BuildLocalizationsDeleteCommand returns the delete subcommand.
 func BuildLocalizationsDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("delete", flag.ExitOnError)
-
-	localizationID := shared.BindResourceIDFlag(fs, "id", "appStoreVersionLocalizations", "Localization ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc build-localizations delete [flags]",
-		ShortHelp:  "Delete a localization by ID.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "delete",
+		Name:        "delete",
+		ShortUsage:  "asc build-localizations delete [flags]",
+		ShortHelp:   "Delete a localization by ID.",
 		LongHelp: `Delete a localization by ID.
 
 Examples:
   asc build-localizations delete --id "LOCALIZATION_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*localizationID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("build-localizations delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteAppStoreVersionLocalization(requestCtx, id); err != nil {
-				return fmt.Errorf("build-localizations delete: %w", err)
-			}
-
-			result := &asc.AppStoreVersionLocalizationDeleteResult{
-				ID:      id,
-				Deleted: true,
-			}
-
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "id",
+		IDUsage:            "Localization ID",
+		IDType:             "appStoreVersionLocalizations",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "build-localizations delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteAppStoreVersionLocalization(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.AppStoreVersionLocalizationDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
 
 // resolveBuildAppStoreVersion returns the App Store version a build is attached

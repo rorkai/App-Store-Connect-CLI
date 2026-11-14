@@ -169,51 +169,28 @@ Examples:
 
 // BuildsUploadsDeleteCommand returns the builds uploads delete subcommand.
 func BuildsUploadsDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("uploads delete", flag.ExitOnError)
-
-	id := shared.BindResourceIDFlag(fs, "id", "buildUploads", "Build upload ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc builds uploads delete --id \"UPLOAD_ID\" --confirm",
-		ShortHelp:  "Delete a build upload by ID.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "uploads delete",
+		Name:        "delete",
+		ShortUsage:  "asc builds uploads delete --id \"UPLOAD_ID\" --confirm",
+		ShortHelp:   "Delete a build upload by ID.",
 		LongHelp: `Delete a build upload by ID.
 
 Examples:
   asc builds uploads delete --id "UPLOAD_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			uploadID := strings.TrimSpace(*id)
-			if uploadID == "" {
-				return shared.RequiredFlag("--id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("builds uploads delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteBuildUpload(requestCtx, uploadID); err != nil {
-				return fmt.Errorf("builds uploads delete: failed to delete: %w", err)
-			}
-
-			result := &asc.BuildUploadDeleteResult{
-				ID:      uploadID,
-				Deleted: true,
-			}
-
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "id",
+		IDUsage:            "Build upload ID",
+		IDType:             "buildUploads",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "builds uploads delete",
+		DeleteErrorPrefix:  "builds uploads delete: failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteBuildUpload(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.BuildUploadDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
 
 // BuildsUploadFilesCommand returns the builds upload files command group.
