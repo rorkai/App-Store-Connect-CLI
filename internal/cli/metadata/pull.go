@@ -349,7 +349,7 @@ func resolveVersionID(ctx context.Context, client *asc.Client, appID, version, p
 		ctx,
 		appID,
 		asc.WithAppStoreVersionsVersionStrings([]string{version}),
-		asc.WithAppStoreVersionsLimit(200),
+		asc.Limit[asc.AppStoreVersionsOption](200),
 	)
 	if err != nil {
 		return "", "", err
@@ -393,7 +393,7 @@ func resolveMetadataPullAppInfoID(
 
 func fetchAppInfoLocalizations(ctx context.Context, client *asc.Client, appInfoID string) ([]asc.Resource[asc.AppInfoLocalizationAttributes], error) {
 	firstPage, err := shared.RetryReadWithFreshTimeout(ctx, func(requestCtx context.Context) (*asc.AppInfoLocalizationsResponse, error) {
-		return client.GetAppInfoLocalizations(requestCtx, appInfoID, asc.WithAppInfoLocalizationsLimit(200))
+		return client.GetAppInfoLocalizations(requestCtx, appInfoID, asc.Limit[asc.AppInfoLocalizationsOption](200))
 	})
 	if err != nil {
 		return nil, err
@@ -407,7 +407,7 @@ func fetchAppInfoLocalizations(ctx context.Context, client *asc.Client, appInfoI
 
 	paginated, err := asc.PaginateAll(ctx, firstPage, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		return shared.RetryReadWithFreshTimeout(ctx, func(requestCtx context.Context) (*asc.AppInfoLocalizationsResponse, error) {
-			return client.GetAppInfoLocalizations(requestCtx, appInfoID, asc.WithAppInfoLocalizationsNextURL(nextURL))
+			return client.GetAppInfoLocalizations(requestCtx, appInfoID, asc.NextURL[asc.AppInfoLocalizationsOption](nextURL))
 		})
 	})
 	if err != nil {
@@ -422,7 +422,7 @@ func fetchAppInfoLocalizations(ctx context.Context, client *asc.Client, appInfoI
 
 func fetchVersionLocalizations(ctx context.Context, client *asc.Client, versionID string) ([]asc.Resource[asc.AppStoreVersionLocalizationAttributes], error) {
 	firstPage, err := shared.RetryReadWithFreshTimeout(ctx, func(requestCtx context.Context) (*asc.AppStoreVersionLocalizationsResponse, error) {
-		return client.GetAppStoreVersionLocalizations(requestCtx, versionID, asc.WithAppStoreVersionLocalizationsLimit(200))
+		return client.GetAppStoreVersionLocalizations(requestCtx, versionID, asc.Limit[asc.AppStoreVersionLocalizationsOption](200))
 	})
 	if err != nil {
 		return nil, err
@@ -436,7 +436,7 @@ func fetchVersionLocalizations(ctx context.Context, client *asc.Client, versionI
 
 	paginated, err := asc.PaginateAll(ctx, firstPage, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		return shared.RetryReadWithFreshTimeout(ctx, func(requestCtx context.Context) (*asc.AppStoreVersionLocalizationsResponse, error) {
-			return client.GetAppStoreVersionLocalizations(requestCtx, versionID, asc.WithAppStoreVersionLocalizationsNextURL(nextURL))
+			return client.GetAppStoreVersionLocalizations(requestCtx, versionID, asc.NextURL[asc.AppStoreVersionLocalizationsOption](nextURL))
 		})
 	})
 	if err != nil {

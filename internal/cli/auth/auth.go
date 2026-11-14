@@ -304,7 +304,7 @@ func doctorMigrationSuggestionResolver() authsvc.MigrationSuggestionResolver {
 			versionsResp, err := client.GetAppStoreVersions(
 				requestCtx, appID,
 				asc.WithAppStoreVersionsVersionStrings([]string{versionString}),
-				asc.WithAppStoreVersionsLimit(1),
+				asc.Limit[asc.AppStoreVersionsOption](1),
 			)
 			if err == nil && len(versionsResp.Data) > 0 {
 				result.VersionID = strings.TrimSpace(versionsResp.Data[0].ID)

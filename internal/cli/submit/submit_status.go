@@ -208,7 +208,7 @@ func resolveReviewSubmissionVersionIDFromItems(ctx context.Context, client *asc.
 	opts := []asc.ReviewSubmissionItemsOption{
 		asc.WithReviewSubmissionItemsInclude([]string{"appStoreVersion"}),
 		asc.WithReviewSubmissionItemsFields([]string{"appStoreVersion"}),
-		asc.WithReviewSubmissionItemsLimit(200),
+		asc.Limit[asc.ReviewSubmissionItemsOption](200),
 	}
 	resp, err := client.GetReviewSubmissionItems(ctx, submissionID, opts...)
 	if err != nil {
@@ -223,7 +223,7 @@ func resolveReviewSubmissionVersionIDFromItems(ctx context.Context, client *asc.
 		if nextURL == "" {
 			return "", nil
 		}
-		resp, err = client.GetReviewSubmissionItems(ctx, submissionID, asc.WithReviewSubmissionItemsNextURL(nextURL))
+		resp, err = client.GetReviewSubmissionItems(ctx, submissionID, asc.NextURL[asc.ReviewSubmissionItemsOption](nextURL))
 		if err != nil {
 			return "", err
 		}
@@ -253,7 +253,7 @@ func findReviewSubmissionForVersion(ctx context.Context, client *asc.Client, app
 		ctx,
 		appID,
 		asc.WithReviewSubmissionsInclude([]string{"appStoreVersionForReview"}),
-		asc.WithReviewSubmissionsLimit(200),
+		asc.Limit[asc.ReviewSubmissionsOption](200),
 	)
 	if err != nil {
 		return nil, err
@@ -279,7 +279,7 @@ func findReviewSubmissionForVersion(ctx context.Context, client *asc.Client, app
 		if nextURL == "" {
 			break
 		}
-		resp, err = client.GetReviewSubmissions(ctx, appID, asc.WithReviewSubmissionsNextURL(nextURL))
+		resp, err = client.GetReviewSubmissions(ctx, appID, asc.NextURL[asc.ReviewSubmissionsOption](nextURL))
 		if err != nil {
 			return nil, err
 		}

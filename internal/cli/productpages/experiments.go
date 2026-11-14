@@ -104,20 +104,20 @@ Examples:
 				defer cancel()
 
 				opts := []asc.AppStoreVersionExperimentsV2Option{
-					asc.WithAppStoreVersionExperimentsV2Limit(*limit),
-					asc.WithAppStoreVersionExperimentsV2NextURL(*next),
+					asc.Limit[asc.AppStoreVersionExperimentsV2Option](*limit),
+					asc.NextURL[asc.AppStoreVersionExperimentsV2Option](*next),
 					asc.WithAppStoreVersionExperimentsV2State(stateValues),
 				}
 
 				if *paginate {
-					paginateOpts := append(opts, asc.WithAppStoreVersionExperimentsV2Limit(productPagesMaxLimit))
+					paginateOpts := append(opts, asc.Limit[asc.AppStoreVersionExperimentsV2Option](productPagesMaxLimit))
 					firstPage, err := client.GetAppStoreVersionExperimentsV2(requestCtx, resolvedAppID, paginateOpts...)
 					if err != nil {
 						return fmt.Errorf("experiments list: failed to fetch: %w", err)
 					}
 
 					paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return client.GetAppStoreVersionExperimentsV2(ctx, resolvedAppID, asc.WithAppStoreVersionExperimentsV2NextURL(nextURL))
+						return client.GetAppStoreVersionExperimentsV2(ctx, resolvedAppID, asc.NextURL[asc.AppStoreVersionExperimentsV2Option](nextURL))
 					})
 					if err != nil {
 						return fmt.Errorf("experiments list: %w", err)
@@ -148,20 +148,20 @@ Examples:
 			defer cancel()
 
 			opts := []asc.AppStoreVersionExperimentsOption{
-				asc.WithAppStoreVersionExperimentsLimit(*limit),
-				asc.WithAppStoreVersionExperimentsNextURL(*next),
+				asc.Limit[asc.AppStoreVersionExperimentsOption](*limit),
+				asc.NextURL[asc.AppStoreVersionExperimentsOption](*next),
 				asc.WithAppStoreVersionExperimentsState(stateValues),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithAppStoreVersionExperimentsLimit(productPagesMaxLimit))
+				paginateOpts := append(opts, asc.Limit[asc.AppStoreVersionExperimentsOption](productPagesMaxLimit))
 				firstPage, err := client.GetAppStoreVersionExperiments(requestCtx, trimmedVersionID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("experiments list: failed to fetch: %w", err)
 				}
 
 				paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppStoreVersionExperiments(ctx, trimmedVersionID, asc.WithAppStoreVersionExperimentsNextURL(nextURL))
+					return client.GetAppStoreVersionExperiments(ctx, trimmedVersionID, asc.NextURL[asc.AppStoreVersionExperimentsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("experiments list: %w", err)

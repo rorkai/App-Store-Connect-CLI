@@ -429,9 +429,9 @@ func FetchAvailabilityPlatformListings(ctx context.Context, client *asc.Client, 
 	order := []string{}
 	next := ""
 	for {
-		opts := []asc.AppStoreVersionsOption{asc.WithAppStoreVersionsLimit(200)}
+		opts := []asc.AppStoreVersionsOption{asc.Limit[asc.AppStoreVersionsOption](200)}
 		if next != "" {
-			opts = append(opts, asc.WithAppStoreVersionsNextURL(next))
+			opts = append(opts, asc.NextURL[asc.AppStoreVersionsOption](next))
 		}
 		resp, err := client.GetAppStoreVersions(ctx, appID, opts...)
 		if err != nil {

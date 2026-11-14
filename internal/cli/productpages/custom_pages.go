@@ -160,8 +160,8 @@ Examples:
 
 			opts := []asc.AppCustomProductPagesOption{
 				asc.WithAppCustomProductPagesVisible(visibleValues),
-				asc.WithAppCustomProductPagesLimit(*limit),
-				asc.WithAppCustomProductPagesNextURL(*next),
+				asc.Limit[asc.AppCustomProductPagesOption](*limit),
+				asc.NextURL[asc.AppCustomProductPagesOption](*next),
 			}
 			if len(pageFields) > 0 {
 				opts = append(opts, asc.WithAppCustomProductPagesFields(pageFields))
@@ -181,7 +181,7 @@ Examples:
 
 			if *paginate {
 				paginateOpts := append([]asc.AppCustomProductPagesOption{}, opts...)
-				paginateOpts = append(paginateOpts, asc.WithAppCustomProductPagesLimit(productPagesMaxLimit))
+				paginateOpts = append(paginateOpts, asc.Limit[asc.AppCustomProductPagesOption](productPagesMaxLimit))
 				firstPage, err := client.GetAppCustomProductPages(requestCtx, resolvedAppID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("custom-pages list: failed to fetch: %w", err)
@@ -189,7 +189,7 @@ Examples:
 
 				paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 					continuationOpts := append([]asc.AppCustomProductPagesOption{}, opts...)
-					continuationOpts = append(continuationOpts, asc.WithAppCustomProductPagesNextURL(nextURL))
+					continuationOpts = append(continuationOpts, asc.NextURL[asc.AppCustomProductPagesOption](nextURL))
 					return client.GetAppCustomProductPages(ctx, resolvedAppID, continuationOpts...)
 				})
 				if err != nil {

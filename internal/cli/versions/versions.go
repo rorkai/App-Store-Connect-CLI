@@ -167,13 +167,13 @@ Examples:
 			defer cancel()
 
 			opts := []asc.AppStoreVersionsOption{
-				asc.WithAppStoreVersionsLimit(*limit),
+				asc.Limit[asc.AppStoreVersionsOption](*limit),
 				asc.WithAppStoreVersionsPlatforms(platforms),
 				asc.WithAppStoreVersionsVersionStrings(shared.SplitCSV(*version)),
 				asc.WithAppStoreVersionsStates(states),
 				asc.WithAppStoreVersionsInclude(includeValues),
 				asc.WithIncludedFields[asc.AppStoreVersionsOption](included),
-				asc.WithAppStoreVersionsNextURL(*next),
+				asc.NextURL[asc.AppStoreVersionsOption](*next),
 			}
 
 			if *paginate || *latest {
@@ -181,7 +181,7 @@ Examples:
 				// largest page to keep automatic pagination efficient.
 				paginateOpts := opts
 				if *limit == 0 {
-					paginateOpts = append(paginateOpts, asc.WithAppStoreVersionsLimit(200))
+					paginateOpts = append(paginateOpts, asc.Limit[asc.AppStoreVersionsOption](200))
 				}
 				firstPage, err := client.GetAppStoreVersions(requestCtx, resolvedAppID, paginateOpts...)
 				if err != nil {
@@ -190,7 +190,7 @@ Examples:
 
 				// Fetch all remaining pages
 				versions, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppStoreVersions(ctx, resolvedAppID, asc.WithAppStoreVersionsNextURL(nextURL))
+					return client.GetAppStoreVersions(ctx, resolvedAppID, asc.NextURL[asc.AppStoreVersionsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("versions list: %w", err)
@@ -796,7 +796,7 @@ func findExistingAppStoreVersion(ctx context.Context, client *asc.Client, appID,
 		ctx, appID,
 		asc.WithAppStoreVersionsVersionStrings([]string{versionString}),
 		asc.WithAppStoreVersionsPlatforms([]string{platform}),
-		asc.WithAppStoreVersionsLimit(10),
+		asc.Limit[asc.AppStoreVersionsOption](10),
 	)
 	if err != nil {
 		return nil, false, err

@@ -87,14 +87,14 @@ Examples:
 				asc.WithAppStoreReviewAttachmentsFields(fieldsValue),
 				asc.WithAppStoreReviewAttachmentReviewDetailFields(detailFieldsValue),
 				asc.WithAppStoreReviewAttachmentsInclude(includeValue),
-				asc.WithAppStoreReviewAttachmentsLimit(*limit),
-				asc.WithAppStoreReviewAttachmentsNextURL(*next),
+				asc.Limit[asc.AppStoreReviewAttachmentsOption](*limit),
+				asc.NextURL[asc.AppStoreReviewAttachmentsOption](*next),
 			}
 
 			if *paginate {
 				paginateOpts := opts
 				if nextValue == "" {
-					paginateOpts = append(paginateOpts, asc.WithAppStoreReviewAttachmentsLimit(200))
+					paginateOpts = append(paginateOpts, asc.Limit[asc.AppStoreReviewAttachmentsOption](200))
 				}
 				pages, err := shared.PaginateWithSpinner(
 					requestCtx,
@@ -106,7 +106,7 @@ Examples:
 						return asc.RedactAppStoreReviewDetailIncludesInListResponse(resp)
 					},
 					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						resp, err := client.GetAppStoreReviewAttachmentsForReviewDetail(ctx, "", asc.WithAppStoreReviewAttachmentsNextURL(nextURL))
+						resp, err := client.GetAppStoreReviewAttachmentsForReviewDetail(ctx, "", asc.NextURL[asc.AppStoreReviewAttachmentsOption](nextURL))
 						if err != nil || *includeSensitive {
 							return resp, err
 						}

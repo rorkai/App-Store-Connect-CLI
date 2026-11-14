@@ -122,22 +122,22 @@ Examples:
 			}
 
 			opts := []asc.AppStoreVersionLocalizationsOption{
-				asc.WithAppStoreVersionLocalizationsLimit(*limit),
-				asc.WithAppStoreVersionLocalizationsNextURL(*next),
+				asc.Limit[asc.AppStoreVersionLocalizationsOption](*limit),
+				asc.NextURL[asc.AppStoreVersionLocalizationsOption](*next),
 			}
 			if len(locales) > 0 {
 				opts = append(opts, asc.WithAppStoreVersionLocalizationLocales(locales))
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithAppStoreVersionLocalizationsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.AppStoreVersionLocalizationsOption](200))
 				firstPage, err := client.GetAppStoreVersionLocalizations(requestCtx, versionID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("build-localizations list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppStoreVersionLocalizations(ctx, versionID, asc.WithAppStoreVersionLocalizationsNextURL(nextURL))
+					return client.GetAppStoreVersionLocalizations(ctx, versionID, asc.NextURL[asc.AppStoreVersionLocalizationsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("build-localizations list: %w", err)

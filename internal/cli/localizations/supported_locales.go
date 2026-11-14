@@ -60,13 +60,13 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			firstPage, err := client.GetAppStoreVersionLocalizations(requestCtx, vid, asc.WithAppStoreVersionLocalizationsLimit(200))
+			firstPage, err := client.GetAppStoreVersionLocalizations(requestCtx, vid, asc.Limit[asc.AppStoreVersionLocalizationsOption](200))
 			if err != nil {
 				return fmt.Errorf("localizations supported-locales: failed to fetch configured localizations: %w", err)
 			}
 
 			paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-				return client.GetAppStoreVersionLocalizations(ctx, vid, asc.WithAppStoreVersionLocalizationsNextURL(nextURL))
+				return client.GetAppStoreVersionLocalizations(ctx, vid, asc.NextURL[asc.AppStoreVersionLocalizationsOption](nextURL))
 			})
 			if err != nil {
 				return fmt.Errorf("localizations supported-locales: paginate configured localizations: %w", err)

@@ -86,19 +86,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.AppStoreVersionExperimentTreatmentLocalizationPreviewSetsOption{
-				asc.WithAppStoreVersionExperimentTreatmentLocalizationPreviewSetsLimit(*limit),
-				asc.WithAppStoreVersionExperimentTreatmentLocalizationPreviewSetsNextURL(*next),
+				asc.Limit[asc.AppStoreVersionExperimentTreatmentLocalizationPreviewSetsOption](*limit),
+				asc.NextURL[asc.AppStoreVersionExperimentTreatmentLocalizationPreviewSetsOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithAppStoreVersionExperimentTreatmentLocalizationPreviewSetsLimit(productPagesMaxLimit))
+				paginateOpts := append(opts, asc.Limit[asc.AppStoreVersionExperimentTreatmentLocalizationPreviewSetsOption](productPagesMaxLimit))
 				firstPage, err := client.GetAppStoreVersionExperimentTreatmentLocalizationPreviewSets(requestCtx, trimmedID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("experiments treatments localizations preview-sets list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppStoreVersionExperimentTreatmentLocalizationPreviewSets(ctx, trimmedID, asc.WithAppStoreVersionExperimentTreatmentLocalizationPreviewSetsNextURL(nextURL))
+					return client.GetAppStoreVersionExperimentTreatmentLocalizationPreviewSets(ctx, trimmedID, asc.NextURL[asc.AppStoreVersionExperimentTreatmentLocalizationPreviewSetsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("experiments treatments localizations preview-sets list: %w", err)
@@ -236,8 +236,8 @@ Examples:
 			}
 
 			opts := []asc.AppStoreVersionExperimentTreatmentLocalizationScreenshotSetsOption{
-				asc.WithAppStoreVersionExperimentTreatmentLocalizationScreenshotSetsLimit(*limit),
-				asc.WithAppStoreVersionExperimentTreatmentLocalizationScreenshotSetsNextURL(*next),
+				asc.Limit[asc.AppStoreVersionExperimentTreatmentLocalizationScreenshotSetsOption](*limit),
+				asc.NextURL[asc.AppStoreVersionExperimentTreatmentLocalizationScreenshotSetsOption](*next),
 			}
 			if *includeScreenshots {
 				opts = append(opts, asc.WithAppStoreVersionExperimentTreatmentLocalizationScreenshotSetsIncludeScreenshots())
@@ -248,7 +248,7 @@ Examples:
 				paginateOpts = append(paginateOpts, opts...)
 				paginateOpts = append(
 					paginateOpts,
-					asc.WithAppStoreVersionExperimentTreatmentLocalizationScreenshotSetsLimit(productPagesMaxLimit),
+					asc.Limit[asc.AppStoreVersionExperimentTreatmentLocalizationScreenshotSetsOption](productPagesMaxLimit),
 					asc.WithAppStoreVersionExperimentTreatmentLocalizationScreenshotSetsRequestContext(shared.ContextWithTimeout),
 				)
 				resp, err := client.GetAllAppStoreVersionExperimentTreatmentLocalizationScreenshotSets(ctx, trimmedID, paginateOpts...)

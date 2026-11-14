@@ -391,7 +391,7 @@ func executePipeline(ctx context.Context, opts runOptions) (runResult, error) {
 			opts.AppID,
 			asc.WithAppStoreVersionsVersionStrings([]string{opts.Version}),
 			asc.WithAppStoreVersionsPlatforms([]string{opts.Platform}),
-			asc.WithAppStoreVersionsLimit(10),
+			asc.Limit[asc.AppStoreVersionsOption](10),
 		)
 		if getErr != nil {
 			return stepOutcome{}, fmt.Errorf("ensure version: %w", getErr)

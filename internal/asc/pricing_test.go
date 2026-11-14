@@ -31,7 +31,7 @@ func TestGetTerritories(t *testing.T) {
 		}
 	}, jsonResponse(http.StatusOK, string(body)))
 
-	result, err := client.GetTerritories(context.Background(), WithTerritoriesLimit(5))
+	result, err := client.GetTerritories(context.Background(), Limit[TerritoriesOption](5))
 	if err != nil {
 		t.Fatalf("GetTerritories() error: %v", err)
 	}

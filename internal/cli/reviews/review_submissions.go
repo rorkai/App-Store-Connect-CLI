@@ -146,8 +146,8 @@ Examples:
 			defer cancel()
 
 			opts := []asc.ReviewSubmissionsOption{
-				asc.WithReviewSubmissionsLimit(*limit),
-				asc.WithReviewSubmissionsNextURL(*next),
+				asc.Limit[asc.ReviewSubmissionsOption](*limit),
+				asc.NextURL[asc.ReviewSubmissionsOption](*next),
 				asc.WithReviewSubmissionsPlatforms(platforms),
 				asc.WithReviewSubmissionsStates(states),
 				asc.WithReviewSubmissionsItemFields(normalizedItemFields),
@@ -160,14 +160,14 @@ Examples:
 
 			if *global {
 				if *paginate {
-					paginateOpts := append(opts, asc.WithReviewSubmissionsLimit(200))
+					paginateOpts := append(opts, asc.Limit[asc.ReviewSubmissionsOption](200))
 					resp, err := shared.PaginateWithSpinner(
 						requestCtx,
 						func(ctx context.Context) (asc.PaginatedResponse, error) {
 							return client.ListReviewSubmissions(ctx, paginateOpts...)
 						},
 						func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-							return client.ListReviewSubmissions(ctx, asc.WithReviewSubmissionsNextURL(nextURL))
+							return client.ListReviewSubmissions(ctx, asc.NextURL[asc.ReviewSubmissionsOption](nextURL))
 						},
 					)
 					if err != nil {
@@ -186,14 +186,14 @@ Examples:
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithReviewSubmissionsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.ReviewSubmissionsOption](200))
 				resp, err := shared.PaginateWithSpinner(
 					requestCtx,
 					func(ctx context.Context) (asc.PaginatedResponse, error) {
 						return client.GetReviewSubmissions(ctx, resolvedAppID, paginateOpts...)
 					},
 					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return client.GetReviewSubmissions(ctx, resolvedAppID, asc.WithReviewSubmissionsNextURL(nextURL))
+						return client.GetReviewSubmissions(ctx, resolvedAppID, asc.NextURL[asc.ReviewSubmissionsOption](nextURL))
 					},
 				)
 				if err != nil {

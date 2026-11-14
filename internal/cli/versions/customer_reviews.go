@@ -97,17 +97,17 @@ Examples:
 
 			opts := make([]asc.ReviewOption, 0, len(filterOpts)+2)
 			opts = append(opts, filterOpts...)
-			opts = append(opts, asc.WithLimit(*limit), asc.WithNextURL(*next))
+			opts = append(opts, asc.Limit[asc.ReviewOption](*limit), asc.NextURL[asc.ReviewOption](*next))
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.ReviewOption](200))
 				firstPage, err := client.GetAppStoreVersionCustomerReviews(requestCtx, versionValue, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("versions customer-reviews list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppStoreVersionCustomerReviews(ctx, versionValue, asc.WithNextURL(nextURL))
+					return client.GetAppStoreVersionCustomerReviews(ctx, versionValue, asc.NextURL[asc.ReviewOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("versions customer-reviews list: %w", err)

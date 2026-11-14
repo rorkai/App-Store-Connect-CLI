@@ -187,7 +187,7 @@ func (c *Client) GetAllAppStoreVersionLocalizationScreenshotSets(ctx context.Con
 	result, err := paginateAssetResponse(ctx, firstPage, func(parentCtx context.Context, nextURL string) (PaginatedResponse, error) {
 		nextCtx, nextCancel := requestContextFor(parentCtx, query.requestContext)
 		defer nextCancel()
-		return c.GetAppStoreVersionLocalizationScreenshotSets(nextCtx, "", WithAppStoreVersionLocalizationScreenshotSetsNextURL(nextURL))
+		return c.GetAppStoreVersionLocalizationScreenshotSets(nextCtx, "", NextURL[AppStoreVersionLocalizationScreenshotSetsOption](nextURL))
 	})
 	if err != nil {
 		return nil, err
@@ -212,7 +212,7 @@ func (c *Client) GetAllAppCustomProductPageLocalizationScreenshotSets(ctx contex
 	result, err := paginateAssetResponse(ctx, firstPage, func(parentCtx context.Context, nextURL string) (PaginatedResponse, error) {
 		nextCtx, nextCancel := requestContextFor(parentCtx, query.requestContext)
 		defer nextCancel()
-		return c.GetAppCustomProductPageLocalizationScreenshotSets(nextCtx, "", WithAppCustomProductPageLocalizationScreenshotSetsNextURL(nextURL))
+		return c.GetAppCustomProductPageLocalizationScreenshotSets(nextCtx, "", NextURL[AppCustomProductPageLocalizationScreenshotSetsOption](nextURL))
 	})
 	if err != nil {
 		return nil, err
@@ -237,7 +237,7 @@ func (c *Client) GetAllAppStoreVersionExperimentTreatmentLocalizationScreenshotS
 	result, err := paginateAssetResponse(ctx, firstPage, func(parentCtx context.Context, nextURL string) (PaginatedResponse, error) {
 		nextCtx, nextCancel := requestContextFor(parentCtx, query.requestContext)
 		defer nextCancel()
-		return c.GetAppStoreVersionExperimentTreatmentLocalizationScreenshotSets(nextCtx, "", WithAppStoreVersionExperimentTreatmentLocalizationScreenshotSetsNextURL(nextURL))
+		return c.GetAppStoreVersionExperimentTreatmentLocalizationScreenshotSets(nextCtx, "", NextURL[AppStoreVersionExperimentTreatmentLocalizationScreenshotSetsOption](nextURL))
 	})
 	if err != nil {
 		return nil, err

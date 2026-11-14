@@ -93,7 +93,7 @@ func TestGetEndUserLicenseAgreementTerritories_SendsRequest(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetEndUserLicenseAgreementTerritories(context.Background(), "eula-1", WithEndUserLicenseAgreementTerritoriesLimit(5)); err != nil {
+	if _, err := client.GetEndUserLicenseAgreementTerritories(context.Background(), "eula-1", Limit[EndUserLicenseAgreementTerritoriesOption](5)); err != nil {
 		t.Fatalf("GetEndUserLicenseAgreementTerritories() error: %v", err)
 	}
 }

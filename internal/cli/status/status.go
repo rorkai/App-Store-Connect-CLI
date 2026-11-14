@@ -1013,7 +1013,7 @@ func sameBetaReviewVersionTrain(first, second *betaReviewBuildStatus) bool {
 }
 
 func fillAppStoreAndPhasedRelease(ctx context.Context, client *asc.Client, appID string, platform string, includes includeSet, resp *dashboardResponse) error {
-	versionOpts := []asc.AppStoreVersionsOption{asc.WithAppStoreVersionsLimit(200)}
+	versionOpts := []asc.AppStoreVersionsOption{asc.Limit[asc.AppStoreVersionsOption](200)}
 	if platform != "" {
 		versionOpts = append(versionOpts, asc.WithAppStoreVersionsPlatforms([]string{platform}))
 	}
@@ -1101,7 +1101,7 @@ func fillSubmissionAndReview(ctx context.Context, client *asc.Client, appID stri
 }
 
 func fetchStatusReviewSubmissions(ctx context.Context, client *asc.Client, appID string, platform string, watchMode bool) ([]asc.ReviewSubmissionResource, error) {
-	opts := []asc.ReviewSubmissionsOption{asc.WithReviewSubmissionsLimit(200)}
+	opts := []asc.ReviewSubmissionsOption{asc.Limit[asc.ReviewSubmissionsOption](200)}
 	if platform != "" {
 		opts = append(opts, asc.WithReviewSubmissionsPlatforms([]string{platform}))
 	}

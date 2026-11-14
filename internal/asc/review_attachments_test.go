@@ -22,7 +22,7 @@ func TestGetAppStoreReviewAttachmentsForReviewDetail_UsesNextURLWithoutReviewDet
 	if _, err := client.GetAppStoreReviewAttachmentsForReviewDetail(
 		context.Background(),
 		"",
-		WithAppStoreReviewAttachmentsNextURL(next),
+		NextURL[AppStoreReviewAttachmentsOption](next),
 	); err != nil {
 		t.Fatalf("GetAppStoreReviewAttachmentsForReviewDetail() error: %v", err)
 	}
@@ -39,14 +39,14 @@ func TestGetAppStoreReviewAttachmentsForReviewDetail_RejectsNextURLWithSelectorO
 		{name: "fields", opts: []AppStoreReviewAttachmentsOption{WithAppStoreReviewAttachmentsFields([]string{"fileName"})}},
 		{name: "review detail fields", opts: []AppStoreReviewAttachmentsOption{WithAppStoreReviewAttachmentReviewDetailFields([]string{"notes"})}},
 		{name: "include", opts: []AppStoreReviewAttachmentsOption{WithAppStoreReviewAttachmentsInclude([]string{"appStoreReviewDetail"})}},
-		{name: "limit", opts: []AppStoreReviewAttachmentsOption{WithAppStoreReviewAttachmentsLimit(25)}},
+		{name: "limit", opts: []AppStoreReviewAttachmentsOption{Limit[AppStoreReviewAttachmentsOption](25)}},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			requests := 0
 			client := newTestClient(t, func(*http.Request) { requests++ }, jsonResponse(http.StatusOK, `{"data":[]}`))
-			opts := append([]AppStoreReviewAttachmentsOption{WithAppStoreReviewAttachmentsNextURL(next)}, test.opts...)
+			opts := append([]AppStoreReviewAttachmentsOption{NextURL[AppStoreReviewAttachmentsOption](next)}, test.opts...)
 
 			_, err := client.GetAppStoreReviewAttachmentsForReviewDetail(context.Background(), test.reviewDetailID, opts...)
 			if err == nil || !strings.Contains(err.Error(), "next URL cannot be combined with") {

@@ -43,7 +43,7 @@ func FetchAllAppStoreVersions(ctx context.Context, client *asc.Client, appID str
 	}
 
 	resp, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetAppStoreVersions(ctx, appID, asc.WithAppStoreVersionsNextURL(nextURL))
+		return client.GetAppStoreVersions(ctx, appID, asc.NextURL[asc.AppStoreVersionsOption](nextURL))
 	})
 	if err != nil {
 		return nil, err
@@ -71,7 +71,7 @@ func FetchAllReviewSubmissions(ctx context.Context, client *asc.Client, appID st
 	}
 
 	resp, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetReviewSubmissions(ctx, appID, asc.WithReviewSubmissionsNextURL(nextURL))
+		return client.GetReviewSubmissions(ctx, appID, asc.NextURL[asc.ReviewSubmissionsOption](nextURL))
 	})
 	if err != nil {
 		return nil, err

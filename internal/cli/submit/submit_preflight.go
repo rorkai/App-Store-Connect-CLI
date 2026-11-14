@@ -21,7 +21,7 @@ func runSubmissionLocalizationPreflight(
 	errorPrefix, retryCommand string,
 ) error {
 	localizationsCtx, localizationsCancel := submitPreflightRequestContext(ctx, requestTimeout)
-	localizations, err := client.GetAppStoreVersionLocalizations(localizationsCtx, versionID, asc.WithAppStoreVersionLocalizationsLimit(200))
+	localizations, err := client.GetAppStoreVersionLocalizations(localizationsCtx, versionID, asc.Limit[asc.AppStoreVersionLocalizationsOption](200))
 	localizationsCancel()
 	if err != nil {
 		return submissionPreflightWrap(errorPrefix, fmt.Errorf("failed to fetch version localizations for preflight: %w", err))
