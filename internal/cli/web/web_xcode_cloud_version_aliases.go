@@ -391,7 +391,6 @@ Example:
 			}
 			normalizedType, err := webVersionAliasType(*typeValue)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error: --type %v\n", err)
 				return shared.UsageError("--type " + err.Error())
 			}
 			if !*confirm {
@@ -473,7 +472,7 @@ Example:
 			fieldProvided := versionAliasFlagProvided(fs, "name") || versionAliasFlagProvided(fs, "type") || versionAliasFlagProvided(fs, "build") || versionAliasFlagProvided(fs, "locked")
 			if !fieldProvided {
 				fmt.Fprintln(os.Stderr, "Error: at least one of --name, --type, --build, or --locked is required")
-				return shared.UsageError("at least one version alias field is required")
+				return shared.MissingRequiredUsageError("")
 			}
 			var normalizedName string
 			if versionAliasFlagProvided(fs, "name") {
@@ -491,7 +490,6 @@ Example:
 				var typeErr error
 				normalizedType, typeErr = webVersionAliasType(*typeValue)
 				if typeErr != nil {
-					fmt.Fprintf(os.Stderr, "Error: --type %v\n", typeErr)
 					return shared.UsageError("--type " + typeErr.Error())
 				}
 			}

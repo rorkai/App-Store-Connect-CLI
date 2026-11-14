@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -136,7 +135,6 @@ Example:
 				return shared.RequiredFlag("--product-id")
 			}
 			if *value <= 0 {
-				fmt.Fprintln(os.Stderr, "Error: --value must be greater than 0")
 				return shared.UsageError("--value must be greater than 0")
 			}
 			if !*confirm {

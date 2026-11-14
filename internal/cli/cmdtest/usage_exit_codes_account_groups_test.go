@@ -519,6 +519,11 @@ func TestAccountAndDistributionInputValidationReturnsUsageExitCode(t *testing.T)
 			deps:    true,
 		},
 		{
+			name:    "profiles create name too long",
+			args:    []string{"profiles", "create", "--name", "ppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp", "--profile-type", "IOS_APP_DEVELOPMENT", "--bundle", "BUNDLE_ID", "--certificate", "CERT_ID"},
+			wantErr: "profile name must be at most 64 characters; got 65",
+		},
+		{
 			name:    "profiles links certificates limit",
 			args:    []string{"profiles", "links", "certificates", "--id", "X", "--limit", "201"},
 			wantErr: "profiles links certificates: --limit must be between 1 and 200",
@@ -603,6 +608,16 @@ func TestAccountAndDistributionInputValidationReturnsUsageExitCode(t *testing.T)
 			args:    []string{"sandbox", "clear-history", "--email", "bad", "--confirm"},
 			wantErr: "sandbox clear-history: --email must be a valid email address",
 			deps:    true,
+		},
+		{
+			name:    "signing fetch create-missing-certificate without create-missing",
+			args:    []string{"signing", "fetch", "--bundle-id", "com.example.app", "--profile-type", "IOS_APP_STORE", "--create-missing-certificate"},
+			wantErr: "--create-missing-certificate requires --create-missing",
+		},
+		{
+			name:    "signing fetch match-extensions with create-missing-certificate",
+			args:    []string{"signing", "fetch", "--bundle-id", "com.example.app", "--profile-type", "IOS_APP_STORE", "--match-extensions", "--create-missing-certificate"},
+			wantErr: "--match-extensions cannot be combined with --create-missing-certificate; create the certificate with a single-bundle fetch first",
 		},
 		{
 			name:    "testflight crashes list limit",

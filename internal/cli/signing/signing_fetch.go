@@ -147,7 +147,6 @@ Examples:
 			}
 			if *matchExtensions && *createMissingCertificate {
 				const message = "--match-extensions cannot be combined with --create-missing-certificate; create the certificate with a single-bundle fetch first"
-				fmt.Fprintln(os.Stderr, "Error: "+message)
 				return shared.UsageError(message)
 			}
 			if !*deleteStale {
@@ -190,7 +189,6 @@ Examples:
 				}
 			}
 			if *createMissingCertificate && !*createMissing {
-				fmt.Fprintln(os.Stderr, "Error: --create-missing-certificate requires --create-missing")
 				return shared.UsageError("--create-missing-certificate requires --create-missing")
 			}
 			p12EncodingSet := false
