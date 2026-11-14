@@ -8,17 +8,6 @@ import (
 	"strings"
 )
 
-// AlternativeDistributionPackageCreateData is the data object of the AlternativeDistributionPackageCreateRequest schema.
-type AlternativeDistributionPackageCreateData struct {
-	Type          ResourceType                                      `json:"type"`
-	Relationships AlternativeDistributionPackageCreateRelationships `json:"relationships"`
-}
-
-// AlternativeDistributionPackageCreateRelationships is the data.relationships object of the AlternativeDistributionPackageCreateRequest schema.
-type AlternativeDistributionPackageCreateRelationships struct {
-	AppStoreVersion Relationship `json:"appStoreVersion"`
-}
-
 // AlternativeDistributionPackageCreateRequest is the AlternativeDistributionPackageCreateRequest schema.
 type AlternativeDistributionPackageCreateRequest struct {
 	Data AlternativeDistributionPackageCreateData `json:"data"`

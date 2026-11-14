@@ -8,19 +8,6 @@ import (
 	"strings"
 )
 
-// SubscriptionOfferCodeCreateData is the data object of the SubscriptionOfferCodeCreateRequest schema.
-type SubscriptionOfferCodeCreateData struct {
-	Type          ResourceType                          `json:"type"`
-	Attributes    SubscriptionOfferCodeCreateAttributes `json:"attributes"`
-	Relationships SubscriptionOfferCodeRelationships    `json:"relationships"`
-}
-
-// SubscriptionOfferCodeRelationships is the data.relationships object of the SubscriptionOfferCodeCreateRequest schema.
-type SubscriptionOfferCodeRelationships struct {
-	Subscription Relationship     `json:"subscription"`
-	Prices       RelationshipList `json:"prices"`
-}
-
 // SubscriptionOfferCodeUpdateAttributes is the data.attributes object of the SubscriptionOfferCodeUpdateRequest schema.
 type SubscriptionOfferCodeUpdateAttributes struct {
 	Active *bool `json:"active,omitempty"`

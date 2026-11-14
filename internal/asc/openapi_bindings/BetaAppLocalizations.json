@@ -3,14 +3,10 @@
   "file": "beta_app_localizations_gen.go",
   "types": [
     "BetaAppLocalizationCreateRequest",
-    "BetaAppLocalizationRelationships",
     "BetaAppLocalizationResponse",
     "BetaAppLocalizationUpdateData",
     "BetaAppLocalizationUpdateRequest",
     "BetaAppLocalizationsResponse"
-  ],
-  "relationships": [
-    {"data":"BetaAppLocalizationCreateData","type":"*BetaAppLocalizationRelationships"}
   ],
   "operations": [
     {"operation":"betaAppLocalizations_app_getToOneRelated","name":"GetBetaAppLocalizationApp","params":["localizationID"],"check":"require","response":"AppResponse"},

@@ -37,6 +37,18 @@ type AppEncryptionDeclarationAttributes struct {
 	CodeValue                       string                        `json:"codeValue,omitempty"`
 }
 
+// AppEncryptionDeclarationRelationships describes declaration relationships.
+type AppEncryptionDeclarationRelationships struct {
+	App *Relationship `json:"app"`
+}
+
+// AppEncryptionDeclarationCreateData is the data portion of a create request.
+type AppEncryptionDeclarationCreateData struct {
+	Type          ResourceType                             `json:"type"`
+	Attributes    AppEncryptionDeclarationCreateAttributes `json:"attributes"`
+	Relationships *AppEncryptionDeclarationRelationships   `json:"relationships"`
+}
+
 // AppEncryptionDeclarationBuildsUpdateResult represents CLI output for build assignments.
 type AppEncryptionDeclarationBuildsUpdateResult struct {
 	DeclarationID string   `json:"declarationId"`
@@ -61,6 +73,18 @@ type AppEncryptionDeclarationDocumentCreateAttributes struct {
 	FileName string `json:"fileName"`
 }
 
+// AppEncryptionDeclarationDocumentRelationships describes document relationships.
+type AppEncryptionDeclarationDocumentRelationships struct {
+	AppEncryptionDeclaration *Relationship `json:"appEncryptionDeclaration"`
+}
+
+// AppEncryptionDeclarationDocumentCreateData is the data portion of a create request.
+type AppEncryptionDeclarationDocumentCreateData struct {
+	Type          ResourceType                                     `json:"type"`
+	Attributes    AppEncryptionDeclarationDocumentCreateAttributes `json:"attributes"`
+	Relationships *AppEncryptionDeclarationDocumentRelationships   `json:"relationships"`
+}
+
 // GetAppEncryptionDeclarations retrieves encryption declarations for an app.
 func (c *Client) GetAppEncryptionDeclarations(ctx context.Context, appID string, opts ...AppEncryptionDeclarationsOption) (*AppEncryptionDeclarationsResponse, error) {
 	query := applyOptions(opts)
@@ -73,31 +97,24 @@ func (c *Client) GetAppEncryptionDeclarations(ctx context.Context, appID string,
 	})
 }
 
-// GetAppEncryptionDeclaration retrieves an encryption declaration by ID.
-func (c *Client) GetAppEncryptionDeclaration(ctx context.Context, declarationID string, opts ...AppEncryptionDeclarationsOption) (*AppEncryptionDeclarationResponse, error) {
-	declarationID = strings.TrimSpace(declarationID)
-	if declarationID == "" {
-		return nil, fmt.Errorf("declarationID is required")
+// CreateAppEncryptionDeclaration creates a new encryption declaration.
+func (c *Client) CreateAppEncryptionDeclaration(ctx context.Context, appID string, attrs AppEncryptionDeclarationCreateAttributes) (*AppEncryptionDeclarationResponse, error) {
+	payload := AppEncryptionDeclarationCreateRequest{
+		Data: AppEncryptionDeclarationCreateData{
+			Type:       ResourceTypeAppEncryptionDeclarations,
+			Attributes: attrs,
+			Relationships: &AppEncryptionDeclarationRelationships{
+				App: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeApps,
+						ID:   strings.TrimSpace(appID),
+					},
+				},
+			},
+		},
 	}
 
-	query := applyOptions(opts)
-	return getJSON[AppEncryptionDeclarationResponse](ctx, c, readRequest{
-		Path:  fmt.Sprintf("/v1/appEncryptionDeclarations/%s", declarationID),
-		Query: buildAppEncryptionDeclarationsQuery(query),
-	})
-}
-
-// GetAppEncryptionDeclarationDocument retrieves a document by ID.
-func (c *Client) GetAppEncryptionDeclarationDocument(ctx context.Context, documentID string, fields []string) (*AppEncryptionDeclarationDocumentResponse, error) {
-	documentID = strings.TrimSpace(documentID)
-	if documentID == "" {
-		return nil, fmt.Errorf("documentID is required")
-	}
-
-	return getJSON[AppEncryptionDeclarationDocumentResponse](ctx, c, readRequest{
-		Path:  fmt.Sprintf("/v1/appEncryptionDeclarationDocuments/%s", documentID),
-		Query: buildAppEncryptionDeclarationDocumentFieldsQuery(fields),
-	})
+	return sendJSON[AppEncryptionDeclarationResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/appEncryptionDeclarations", Payload: payload})
 }
 
 // CreateAppEncryptionDeclarationDocument creates a new document upload reservation.

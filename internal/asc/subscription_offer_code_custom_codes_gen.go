@@ -24,18 +24,6 @@ type SubscriptionOfferCodeCustomCodeCreateAttributes struct {
 	ExpirationDate *string `json:"expirationDate,omitempty"`
 }
 
-// SubscriptionOfferCodeCustomCodeCreateData is the data object of the SubscriptionOfferCodeCustomCodeCreateRequest schema.
-type SubscriptionOfferCodeCustomCodeCreateData struct {
-	Type          ResourceType                                       `json:"type"`
-	Attributes    SubscriptionOfferCodeCustomCodeCreateAttributes    `json:"attributes"`
-	Relationships SubscriptionOfferCodeCustomCodeCreateRelationships `json:"relationships"`
-}
-
-// SubscriptionOfferCodeCustomCodeCreateRelationships is the data.relationships object of the SubscriptionOfferCodeCustomCodeCreateRequest schema.
-type SubscriptionOfferCodeCustomCodeCreateRelationships struct {
-	OfferCode Relationship `json:"offerCode"`
-}
-
 // SubscriptionOfferCodeCustomCodeCreateRequest is the SubscriptionOfferCodeCustomCodeCreateRequest schema.
 type SubscriptionOfferCodeCustomCodeCreateRequest struct {
 	Data SubscriptionOfferCodeCustomCodeCreateData `json:"data"`

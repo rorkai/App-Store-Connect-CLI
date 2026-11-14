@@ -15,13 +15,6 @@ type GameCenterMatchmakingQueueCreateAttributes struct {
 	ClassicMatchmakingBundleIDs []string `json:"classicMatchmakingBundleIds,omitempty"`
 }
 
-// GameCenterMatchmakingQueueCreateData is the data object of the GameCenterMatchmakingQueueCreateRequest schema.
-type GameCenterMatchmakingQueueCreateData struct {
-	Type          ResourceType                               `json:"type"`
-	Attributes    GameCenterMatchmakingQueueCreateAttributes `json:"attributes"`
-	Relationships *GameCenterMatchmakingQueueRelationships   `json:"relationships,omitempty"`
-}
-
 // GameCenterMatchmakingQueueCreateRequest is the GameCenterMatchmakingQueueCreateRequest schema.
 type GameCenterMatchmakingQueueCreateRequest struct {
 	Data GameCenterMatchmakingQueueCreateData `json:"data"`

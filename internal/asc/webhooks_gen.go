@@ -9,18 +9,6 @@ import (
 	"strings"
 )
 
-// WebhookCreateData is the data object of the WebhookCreateRequest schema.
-type WebhookCreateData struct {
-	Type          ResourceType               `json:"type"`
-	Attributes    WebhookCreateAttributes    `json:"attributes"`
-	Relationships WebhookCreateRelationships `json:"relationships"`
-}
-
-// WebhookCreateRelationships is the data.relationships object of the WebhookCreateRequest schema.
-type WebhookCreateRelationships struct {
-	App Relationship `json:"app"`
-}
-
 // WebhookCreateRequest is the WebhookCreateRequest schema.
 type WebhookCreateRequest struct {
 	Data WebhookCreateData `json:"data"`

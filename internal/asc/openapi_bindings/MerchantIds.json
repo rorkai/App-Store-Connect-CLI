@@ -4,6 +4,7 @@
   "operations": [
     {"operation":"merchantIds_certificates_getToManyRelated","name":"GetMerchantIDCertificates","params":["merchantID"],"check":"trim","options":"MerchantIDCertificatesOption","query":"buildMerchantIDCertificatesQuery","nextContext":"merchantIdCertificates"},
     {"operation":"merchantIds_deleteInstance","name":"DeleteMerchantID","params":["id"],"check":"trim"},
-    {"operation":"merchantIds_getCollection","name":"GetMerchantIDs","options":"MerchantIDsOption","query":"buildMerchantIDsQuery","nextContext":"merchantIds","response":"MerchantIDsResponse"}
+    {"operation":"merchantIds_getCollection","name":"GetMerchantIDs","options":"MerchantIDsOption","query":"buildMerchantIDsQuery","nextContext":"merchantIds","response":"MerchantIDsResponse"},
+    {"operation":"merchantIds_getInstance","name":"GetMerchantID","params":["id"],"check":"trim","options":"MerchantIDsOption","query":"buildMerchantIDsQuery","response":"MerchantIDResponse","single":true,"deviations":[{"problem":"sent query parameters [filter[identifier] filter[name] limit sort] that the operation does not define","reason":"Shares its option type and query builder with GetMerchantIDs (GET /v1/merchantIds), which defines these. asc merchant-ids view, the only caller, sets fields, certificate fields, include and the certificates limit, never a filter, sort or limit."}]}
   ]
 }

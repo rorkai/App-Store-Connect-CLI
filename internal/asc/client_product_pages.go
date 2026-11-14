@@ -31,6 +31,13 @@ type AppCustomProductPageTemplate struct {
 	CustomPageID      string
 }
 
+// AppCustomProductPageCreateData is the data payload for create requests.
+type AppCustomProductPageCreateData struct {
+	Type          ResourceType                             `json:"type"`
+	Attributes    AppCustomProductPageCreateAttributes     `json:"attributes"`
+	Relationships *AppCustomProductPageCreateRelationships `json:"relationships"`
+}
+
 // AppCustomProductPageCreateRequest is a request to create a custom product page.
 type AppCustomProductPageCreateRequest struct {
 	Data     AppCustomProductPageCreateData       `json:"data"`
@@ -94,6 +101,13 @@ type AppCustomProductPageLocalizationCreateAttributes struct {
 // AppCustomProductPageLocalizationCreateRelationships describes create relationships.
 type AppCustomProductPageLocalizationCreateRelationships struct {
 	AppCustomProductPageVersion *Relationship `json:"appCustomProductPageVersion"`
+}
+
+// AppCustomProductPageLocalizationCreateData is the data payload for create requests.
+type AppCustomProductPageLocalizationCreateData struct {
+	Type          ResourceType                                         `json:"type"`
+	Attributes    AppCustomProductPageLocalizationCreateAttributes     `json:"attributes"`
+	Relationships *AppCustomProductPageLocalizationCreateRelationships `json:"relationships"`
 }
 
 // AppCustomProductPageLocalizationDeleteResult represents CLI output for custom page localization deletions.

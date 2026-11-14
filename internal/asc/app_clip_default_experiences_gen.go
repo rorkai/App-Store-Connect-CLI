@@ -9,20 +9,6 @@ import (
 	"strings"
 )
 
-// AppClipDefaultExperienceCreateData is the data object of the AppClipDefaultExperienceCreateRequest schema.
-type AppClipDefaultExperienceCreateData struct {
-	Type          ResourceType                                 `json:"type"`
-	Attributes    *AppClipDefaultExperienceCreateAttributes    `json:"attributes,omitempty"`
-	Relationships *AppClipDefaultExperienceCreateRelationships `json:"relationships"`
-}
-
-// AppClipDefaultExperienceCreateRelationships is the data.relationships object of the AppClipDefaultExperienceCreateRequest schema.
-type AppClipDefaultExperienceCreateRelationships struct {
-	AppClip                          *Relationship `json:"appClip"`
-	ReleaseWithAppStoreVersion       *Relationship `json:"releaseWithAppStoreVersion,omitempty"`
-	AppClipDefaultExperienceTemplate *Relationship `json:"appClipDefaultExperienceTemplate,omitempty"`
-}
-
 // AppClipDefaultExperienceCreateRequest is the AppClipDefaultExperienceCreateRequest schema.
 type AppClipDefaultExperienceCreateRequest struct {
 	Data AppClipDefaultExperienceCreateData `json:"data"`
@@ -59,6 +45,19 @@ func (c *Client) DeleteAppClipDefaultExperience(ctx context.Context, experienceI
 		return fmt.Errorf("experienceID is required")
 	}
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/appClipDefaultExperiences/%s", experienceID), nil)
+}
+
+// GetAppClipDefaultExperience sends GET /v1/appClipDefaultExperiences/{id} (appClipDefaultExperiences_getInstance).
+func (c *Client) GetAppClipDefaultExperience(ctx context.Context, experienceID string, opts ...AppClipDefaultExperienceOption) (*AppClipDefaultExperienceResponse, error) {
+	query := applyOptions(opts)
+	experienceID = strings.TrimSpace(experienceID)
+	if experienceID == "" {
+		return nil, fmt.Errorf("experienceID is required")
+	}
+	return getJSON[AppClipDefaultExperienceResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/appClipDefaultExperiences/%s", experienceID),
+		Query: buildAppClipDefaultExperienceQuery(query),
+	})
 }
 
 // GetAppClipDefaultExperienceReleaseWithAppStoreVersion sends GET /v1/appClipDefaultExperiences/{id}/releaseWithAppStoreVersion (appClipDefaultExperiences_releaseWithAppStoreVersion_getToOneRelated).

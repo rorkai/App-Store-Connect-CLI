@@ -3,15 +3,11 @@
   "file": "ci_build_runs_gen.go",
   "types": [
     "CiBuildRunCreateAttributes",
-    "CiBuildRunCreateData",
-    "CiBuildRunCreateRelationships",
     "CiBuildRunCreateRequest"
-  ],
-  "relationships": [
-    {"data":"CiBuildRunCreateData","type":"*CiBuildRunCreateRelationships","omitempty":true}
   ],
   "operations": [
     {"operation":"ciBuildRuns_actions_getToManyRelated","name":"GetCiBuildActions","params":["buildRunID"],"check":"raw","options":"CiBuildActionsOption","query":"buildCiBuildActionsQuery","nextContext":"ciBuildActions"},
-    {"operation":"ciBuildRuns_builds_getToManyRelated","name":"GetCiBuildRunBuilds","params":["buildRunID"],"check":"raw","options":"CiBuildRunBuildsOption","query":"buildCiBuildRunBuildsQuery","nextContext":"ciBuildRunBuilds"}
+    {"operation":"ciBuildRuns_builds_getToManyRelated","name":"GetCiBuildRunBuilds","params":["buildRunID"],"check":"raw","options":"CiBuildRunBuildsOption","query":"buildCiBuildRunBuildsQuery","nextContext":"ciBuildRunBuilds"},
+    {"operation":"ciBuildRuns_getInstance","name":"GetCiBuildRun","params":["buildRunID"],"check":"raw","options":"CiBuildRunGetOption","query":"buildCiBuildRunGetQuery","single":true}
   ]
 }

@@ -8,19 +8,6 @@ import (
 	"strings"
 )
 
-// InAppPurchasePriceScheduleCreateData is the data object of the InAppPurchasePriceScheduleCreateRequest schema.
-type InAppPurchasePriceScheduleCreateData struct {
-	Type          ResourceType                                  `json:"type"`
-	Relationships InAppPurchasePriceScheduleCreateRelationships `json:"relationships"`
-}
-
-// InAppPurchasePriceScheduleCreateRelationships is the data.relationships object of the InAppPurchasePriceScheduleCreateRequest schema.
-type InAppPurchasePriceScheduleCreateRelationships struct {
-	InAppPurchase Relationship     `json:"inAppPurchase"`
-	BaseTerritory Relationship     `json:"baseTerritory"`
-	ManualPrices  RelationshipList `json:"manualPrices"`
-}
-
 // InAppPurchasePriceScheduleResponse is the InAppPurchasePriceScheduleResponse schema.
 type InAppPurchasePriceScheduleResponse = SingleResponse[InAppPurchasePriceScheduleAttributes]
 
@@ -47,6 +34,19 @@ func (c *Client) GetInAppPurchasePriceScheduleBaseTerritory(ctx context.Context,
 	}
 	return getJSON[TerritoryResponse](ctx, c, readRequest{
 		Path: fmt.Sprintf("/v1/inAppPurchasePriceSchedules/%s/baseTerritory", scheduleID),
+	})
+}
+
+// GetInAppPurchasePriceScheduleByID sends GET /v1/inAppPurchasePriceSchedules/{id} (inAppPurchasePriceSchedules_getInstance).
+func (c *Client) GetInAppPurchasePriceScheduleByID(ctx context.Context, scheduleID string, opts ...IAPPriceScheduleOption) (*InAppPurchasePriceScheduleResponse, error) {
+	query := applyOptions(opts)
+	scheduleID = strings.TrimSpace(scheduleID)
+	if scheduleID == "" {
+		return nil, fmt.Errorf("scheduleID is required")
+	}
+	return getJSON[InAppPurchasePriceScheduleResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/inAppPurchasePriceSchedules/%s", scheduleID),
+		Query: buildIAPPriceScheduleQuery(query),
 	})
 }
 

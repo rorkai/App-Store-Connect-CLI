@@ -8,6 +8,30 @@ import (
 	"strings"
 )
 
+// CreateSubscriptionGroup creates a subscription group for an app.
+func (c *Client) CreateSubscriptionGroup(ctx context.Context, appID string, attrs SubscriptionGroupCreateAttributes) (*SubscriptionGroupResponse, error) {
+	payload := SubscriptionGroupCreateRequest{
+		Data: SubscriptionGroupCreateData{
+			Type:       ResourceTypeSubscriptionGroups,
+			Attributes: attrs,
+			Relationships: &SubscriptionGroupRelationships{
+				App: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeApps,
+						ID:   strings.TrimSpace(appID),
+					},
+				},
+			},
+		},
+	}
+
+	return sendJSON[SubscriptionGroupResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/subscriptionGroups",
+		Payload: payload,
+	})
+}
+
 // GetSubscriptionGroup retrieves a subscription group by ID.
 func (c *Client) GetSubscriptionGroup(ctx context.Context, groupID string, opts ...SubscriptionGroupsOption) (*SubscriptionGroupResponse, error) {
 	groupID = strings.TrimSpace(groupID)
@@ -45,14 +69,28 @@ func (c *Client) UpdateSubscriptionGroup(ctx context.Context, groupID string, at
 	})
 }
 
-// GetSubscription retrieves a subscription by ID.
-func (c *Client) GetSubscription(ctx context.Context, subID string, opts ...SubscriptionOption) (*SubscriptionResponse, error) {
-	subID = strings.TrimSpace(subID)
-	if subID == "" {
-		return nil, fmt.Errorf("subscription ID is required")
+// CreateSubscription creates a subscription within a group.
+func (c *Client) CreateSubscription(ctx context.Context, groupID string, attrs SubscriptionCreateAttributes) (*SubscriptionResponse, error) {
+	payload := SubscriptionCreateRequest{
+		Data: SubscriptionCreateData{
+			Type:       ResourceTypeSubscriptions,
+			Attributes: attrs,
+			Relationships: &SubscriptionRelationships{
+				Group: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeSubscriptionGroups,
+						ID:   strings.TrimSpace(groupID),
+					},
+				},
+			},
+		},
 	}
-	query := applyOptions(opts)
-	return getJSON[SubscriptionResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/subscriptions/%s", subID), Query: buildSubscriptionQuery(query)})
+
+	return sendJSON[SubscriptionResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/subscriptions",
+		Payload: payload,
+	})
 }
 
 // UpdateSubscription updates a subscription.
@@ -274,33 +312,5 @@ func (c *Client) CreateSubscriptionAvailability(ctx context.Context, subID strin
 		Method:  http.MethodPost,
 		Path:    "/v1/subscriptionAvailabilities",
 		Payload: payload,
-	})
-}
-
-// GetSubscriptionAppStoreReviewScreenshotForSubscription retrieves the review screenshot for a subscription.
-func (c *Client) GetSubscriptionAppStoreReviewScreenshotForSubscription(ctx context.Context, subID string, opts ...SubscriptionAppStoreReviewScreenshotOption) (*SubscriptionAppStoreReviewScreenshotResponse, error) {
-	subID = strings.TrimSpace(subID)
-	if subID == "" {
-		return nil, fmt.Errorf("subscription ID is required")
-	}
-
-	query := applyOptions(opts)
-	return getJSON[SubscriptionAppStoreReviewScreenshotResponse](ctx, c, readRequest{
-		Path:  fmt.Sprintf("/v1/subscriptions/%s/appStoreReviewScreenshot", subID),
-		Query: buildSubscriptionAppStoreReviewScreenshotQuery(query),
-	})
-}
-
-// GetSubscriptionPromotedPurchase retrieves the promoted purchase for a subscription.
-func (c *Client) GetSubscriptionPromotedPurchase(ctx context.Context, subID string, opts ...PromotedPurchaseGetOption) (*PromotedPurchaseResponse, error) {
-	subID = strings.TrimSpace(subID)
-	if subID == "" {
-		return nil, fmt.Errorf("subscription ID is required")
-	}
-
-	query := applyOptions(opts)
-	return getJSON[PromotedPurchaseResponse](ctx, c, readRequest{
-		Path:  fmt.Sprintf("/v1/subscriptions/%s/promotedPurchase", subID),
-		Query: buildPromotedPurchaseGetQuery(query),
 	})
 }

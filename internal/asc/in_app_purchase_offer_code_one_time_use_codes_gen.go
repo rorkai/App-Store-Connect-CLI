@@ -8,18 +8,6 @@ import (
 	"strings"
 )
 
-// InAppPurchaseOfferCodeOneTimeUseCodeCreateData is the data object of the InAppPurchaseOfferCodeOneTimeUseCodeCreateRequest schema.
-type InAppPurchaseOfferCodeOneTimeUseCodeCreateData struct {
-	Type          ResourceType                                            `json:"type"`
-	Attributes    InAppPurchaseOfferCodeOneTimeUseCodeCreateAttributes    `json:"attributes"`
-	Relationships InAppPurchaseOfferCodeOneTimeUseCodeCreateRelationships `json:"relationships"`
-}
-
-// InAppPurchaseOfferCodeOneTimeUseCodeCreateRelationships is the data.relationships object of the InAppPurchaseOfferCodeOneTimeUseCodeCreateRequest schema.
-type InAppPurchaseOfferCodeOneTimeUseCodeCreateRelationships struct {
-	OfferCode Relationship `json:"offerCode"`
-}
-
 // InAppPurchaseOfferCodeOneTimeUseCodeCreateRequest is the InAppPurchaseOfferCodeOneTimeUseCodeCreateRequest schema.
 type InAppPurchaseOfferCodeOneTimeUseCodeCreateRequest struct {
 	Data InAppPurchaseOfferCodeOneTimeUseCodeCreateData `json:"data"`

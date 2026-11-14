@@ -2,16 +2,11 @@
   "tag": "GameCenterChallengeImages",
   "file": "game_center_challenge_images_gen.go",
   "types": [
-    "GameCenterChallengeImageCreateData",
     "GameCenterChallengeImageCreateRequest",
-    "GameCenterChallengeImageRelationships",
     "GameCenterChallengeImageResponse",
     "GameCenterChallengeImageUpdateAttributes",
     "GameCenterChallengeImageUpdateData",
     "GameCenterChallengeImageUpdateRequest"
-  ],
-  "relationships": [
-    {"data":"GameCenterChallengeImageCreateData","type":"*GameCenterChallengeImageRelationships"}
   ],
   "operations": [
     {"operation":"gameCenterChallengeImages_deleteInstance","name":"DeleteGameCenterChallengeImage","params":["imageID"]},

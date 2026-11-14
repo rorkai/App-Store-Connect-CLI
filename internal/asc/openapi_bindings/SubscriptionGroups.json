@@ -3,17 +3,12 @@
   "file": "subscription_groups_gen.go",
   "types": [
     "SubscriptionGroupCreateAttributes",
-    "SubscriptionGroupCreateData",
     "SubscriptionGroupCreateRequest",
     "SubscriptionGroupResponse",
     "SubscriptionGroupUpdateAttributes",
     "SubscriptionGroupUpdateRequest"
   ],
-  "relationships": [
-    {"data":"SubscriptionGroupCreateData","type":"*SubscriptionGroupRelationships","omitempty":true}
-  ],
   "operations": [
-    {"operation":"subscriptionGroups_createInstance","name":"CreateSubscriptionGroup","params":["appID"],"links":["app"]},
     {"operation":"subscriptionGroups_deleteInstance","name":"DeleteSubscriptionGroup","params":["groupID"]},
     {"operation":"subscriptionGroups_subscriptions_getToManyRelated","name":"GetSubscriptions","params":["groupID"],"options":"SubscriptionsOption","query":"buildSubscriptionsQuery","nextContext":"subscriptions"}
   ]

@@ -5,49 +5,37 @@ package asc
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"strings"
 )
-
-// SubscriptionVersionCreateData is the data object of the SubscriptionVersionCreateRequest schema.
-type SubscriptionVersionCreateData struct {
-	Type          ResourceType                      `json:"type"`
-	Relationships *SubscriptionVersionRelationships `json:"relationships"`
-}
 
 // SubscriptionVersionCreateRequest is the SubscriptionVersionCreateRequest schema.
 type SubscriptionVersionCreateRequest struct {
 	Data SubscriptionVersionCreateData `json:"data"`
 }
 
-// SubscriptionVersionRelationships is the data.relationships object of the SubscriptionVersionCreateRequest schema.
-type SubscriptionVersionRelationships struct {
-	Subscription *Relationship `json:"subscription"`
+// GetSubscriptionVersion sends GET /v1/subscriptionVersions/{id} (subscriptionVersions_getInstance).
+func (c *Client) GetSubscriptionVersion(ctx context.Context, versionID string, opts ...SubscriptionVersionOption) (*SubscriptionVersionResponse, error) {
+	versionID = strings.TrimSpace(versionID)
+	if versionID == "" {
+		return nil, fmt.Errorf("version ID is required")
+	}
+	query := applyOptions(opts)
+	return getJSON[SubscriptionVersionResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/subscriptionVersions/%s", versionID),
+		Query: buildSubscriptionVersionQuery(query),
+	})
 }
 
-// CreateSubscriptionVersion sends POST /v1/subscriptionVersions (subscriptionVersions_createInstance).
-func (c *Client) CreateSubscriptionVersion(ctx context.Context, subscriptionID string) (*SubscriptionVersionResponse, error) {
-	subscriptionID = strings.TrimSpace(subscriptionID)
-	if subscriptionID == "" {
-		return nil, fmt.Errorf("subscription ID is required")
+// GetSubscriptionVersionImage sends GET /v1/subscriptionVersions/{id}/image (subscriptionVersions_image_getToOneRelated).
+func (c *Client) GetSubscriptionVersionImage(ctx context.Context, versionID string, opts ...SubscriptionImageV2Option) (*SubscriptionImageV2Response, error) {
+	versionID = strings.TrimSpace(versionID)
+	if versionID == "" {
+		return nil, fmt.Errorf("version ID is required")
 	}
-	payload := SubscriptionVersionCreateRequest{
-		Data: SubscriptionVersionCreateData{
-			Type: ResourceTypeSubscriptionVersions,
-			Relationships: &SubscriptionVersionRelationships{
-				Subscription: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeSubscriptions,
-						ID:   subscriptionID,
-					},
-				},
-			},
-		},
-	}
-	return sendJSON[SubscriptionVersionResponse](ctx, c, writeRequest{
-		Method:  http.MethodPost,
-		Path:    "/v1/subscriptionVersions",
-		Payload: payload,
+	query := applyOptions(opts)
+	return getJSON[SubscriptionImageV2Response](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/subscriptionVersions/%s/image", versionID),
+		Query: buildSubscriptionImageV2Query(query),
 	})
 }
 

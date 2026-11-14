@@ -9,19 +9,6 @@ import (
 	"strings"
 )
 
-// BetaTesterCreateData is the data object of the BetaTesterCreateRequest schema.
-type BetaTesterCreateData struct {
-	Type          ResourceType                   `json:"type"`
-	Attributes    BetaTesterCreateAttributes     `json:"attributes"`
-	Relationships *BetaTesterCreateRelationships `json:"relationships,omitempty"`
-}
-
-// BetaTesterCreateRelationships is the data.relationships object of the BetaTesterCreateRequest schema.
-type BetaTesterCreateRelationships struct {
-	BetaGroups *RelationshipList `json:"betaGroups,omitempty"`
-	Builds     *RelationshipList `json:"builds,omitempty"`
-}
-
 // BetaTesterCreateRequest is the BetaTesterCreateRequest schema.
 type BetaTesterCreateRequest struct {
 	Data BetaTesterCreateData `json:"data"`

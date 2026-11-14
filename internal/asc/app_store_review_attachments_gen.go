@@ -9,21 +9,9 @@ import (
 	"strings"
 )
 
-// AppStoreReviewAttachmentCreateData is the data object of the AppStoreReviewAttachmentCreateRequest schema.
-type AppStoreReviewAttachmentCreateData struct {
-	Type          ResourceType                             `json:"type"`
-	Attributes    AppStoreReviewAttachmentCreateAttributes `json:"attributes"`
-	Relationships *AppStoreReviewAttachmentRelationships   `json:"relationships"`
-}
-
 // AppStoreReviewAttachmentCreateRequest is the AppStoreReviewAttachmentCreateRequest schema.
 type AppStoreReviewAttachmentCreateRequest struct {
 	Data AppStoreReviewAttachmentCreateData `json:"data"`
-}
-
-// AppStoreReviewAttachmentRelationships is the data.relationships object of the AppStoreReviewAttachmentCreateRequest schema.
-type AppStoreReviewAttachmentRelationships struct {
-	AppStoreReviewDetail *Relationship `json:"appStoreReviewDetail"`
 }
 
 // AppStoreReviewAttachmentResponse is the AppStoreReviewAttachmentResponse schema.
@@ -54,4 +42,17 @@ func (c *Client) DeleteAppStoreReviewAttachment(ctx context.Context, attachmentI
 		return fmt.Errorf("attachmentID is required")
 	}
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/appStoreReviewAttachments/%s", attachmentID), nil)
+}
+
+// GetAppStoreReviewAttachment sends GET /v1/appStoreReviewAttachments/{id} (appStoreReviewAttachments_getInstance).
+func (c *Client) GetAppStoreReviewAttachment(ctx context.Context, attachmentID string, opts ...AppStoreReviewAttachmentsOption) (*AppStoreReviewAttachmentResponse, error) {
+	attachmentID = strings.TrimSpace(attachmentID)
+	if attachmentID == "" {
+		return nil, fmt.Errorf("attachmentID is required")
+	}
+	query := applyOptions(opts)
+	return getJSON[AppStoreReviewAttachmentResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/appStoreReviewAttachments/%s", attachmentID),
+		Query: buildAppStoreReviewAttachmentsQuery(query),
+	})
 }

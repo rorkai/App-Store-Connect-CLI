@@ -315,6 +315,65 @@ func TestWriteAllCheckFailsOnOutdatedOrStaleFiles(t *testing.T) {
 	}
 }
 
+func TestAdoptSingleReadsWithAQuery(t *testing.T) {
+	singleReads := `package asc
+
+import (
+	"context"
+	"fmt"
+	"strings"
+)
+
+// GetWidgetWheel reads the wheel of a widget.
+func (c *Client) GetWidgetWheel(ctx context.Context, widgetID string, opts ...WheelOption) (*WidgetResponse, error) {
+	query := applyOptions(opts)
+	widgetID = strings.TrimSpace(widgetID)
+	if widgetID == "" {
+		return nil, fmt.Errorf("widgetID is required")
+	}
+	return getJSON[WidgetResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/widgets/%s/wheel", widgetID), Query: buildWheelQuery(query)})
+}
+
+// GetWidgetWrapper reads the wrapper of a widget.
+func (c *Client) GetWidgetWrapper(ctx context.Context, widgetID string, fields []string) (*WidgetResponse, error) {
+	return getJSON[WidgetResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/widgets/%s/wrapper", strings.TrimSpace(widgetID)), Query: buildWrapperFieldsQuery(fields)})
+}
+
+// GetWidget passes its options to the builder, so it stays hand-written.
+func (c *Client) GetWidget(ctx context.Context, widgetID string, opts ...WidgetOption) (*WidgetResponse, error) {
+	return getJSON[WidgetResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/widgets/%s", widgetID), Query: buildWidgetQuery(opts)})
+}
+`
+	dir := writeHandWritten(t, map[string]string{"client.go": singleReads})
+	if err := runAdopt(dir, false); err != nil {
+		t.Fatal(err)
+	}
+	bindings, err := LoadBindings(filepath.Join(dir, "bindings"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(bindings.Families) != 1 {
+		t.Fatalf("adopted into %d families, want Widgets", len(bindings.Families))
+	}
+	adopted := map[string]*OpBind{}
+	for _, op := range bindings.Families[0].Operations {
+		adopted[op.Name] = op
+	}
+	wheel, wrapper := adopted["GetWidgetWheel"], adopted["GetWidgetWrapper"]
+	if len(adopted) != 2 || wheel == nil || wrapper == nil {
+		t.Fatalf("adopted methods = %v", adopted)
+	}
+	if !wheel.Single || wheel.CheckFirst || wheel.Check != checkRequire || wheel.Options != "WheelOption" || wheel.Query != "buildWheelQuery" {
+		t.Errorf("GetWidgetWheel binding = %+v", wheel)
+	}
+	if !wrapper.Single || wrapper.Check != checkInline || wrapper.Options != "" || wrapper.IDs != "" || wrapper.Query != "buildWrapperFieldsQuery" {
+		t.Errorf("GetWidgetWrapper binding = %+v", wrapper)
+	}
+	if client := readFile(t, filepath.Join(dir, "client.go")); strings.Contains(client, "GetWidgetW") || !strings.Contains(client, "func (c *Client) GetWidget(") {
+		t.Errorf("client.go after adopt:\n%s", client)
+	}
+}
+
 func readFile(t *testing.T, path string) string {
 	t.Helper()
 	data, err := os.ReadFile(path)

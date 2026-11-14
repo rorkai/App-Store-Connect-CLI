@@ -13,13 +13,6 @@ type GameCenterActivityVersionCreateAttributes struct {
 	FallbackURL *string `json:"fallbackUrl,omitempty"`
 }
 
-// GameCenterActivityVersionCreateData is the data object of the GameCenterActivityVersionCreateRequest schema.
-type GameCenterActivityVersionCreateData struct {
-	Type          ResourceType                               `json:"type"`
-	Attributes    *GameCenterActivityVersionCreateAttributes `json:"attributes,omitempty"`
-	Relationships *GameCenterActivityVersionRelationships    `json:"relationships,omitempty"`
-}
-
 // GameCenterActivityVersionCreateRequest is the GameCenterActivityVersionCreateRequest schema.
 type GameCenterActivityVersionCreateRequest struct {
 	Data GameCenterActivityVersionCreateData `json:"data"`

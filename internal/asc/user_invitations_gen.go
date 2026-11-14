@@ -9,18 +9,6 @@ import (
 	"strings"
 )
 
-// UserInvitationCreateData is the data object of the UserInvitationCreateRequest schema.
-type UserInvitationCreateData struct {
-	Type          ResourceType                       `json:"type"`
-	Attributes    UserInvitationCreateAttributes     `json:"attributes"`
-	Relationships *UserInvitationCreateRelationships `json:"relationships,omitempty"`
-}
-
-// UserInvitationCreateRelationships is the data.relationships object of the UserInvitationCreateRequest schema.
-type UserInvitationCreateRelationships struct {
-	VisibleApps *RelationshipList `json:"visibleApps,omitempty"`
-}
-
 // UserInvitationCreateRequest is the UserInvitationCreateRequest schema.
 type UserInvitationCreateRequest struct {
 	Data UserInvitationCreateData `json:"data"`

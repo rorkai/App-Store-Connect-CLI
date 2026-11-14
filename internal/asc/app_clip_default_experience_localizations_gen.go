@@ -21,13 +21,6 @@ type AppClipDefaultExperienceLocalizationCreateAttributes struct {
 	Subtitle *string `json:"subtitle,omitempty"`
 }
 
-// AppClipDefaultExperienceLocalizationCreateData is the data object of the AppClipDefaultExperienceLocalizationCreateRequest schema.
-type AppClipDefaultExperienceLocalizationCreateData struct {
-	Type          ResourceType                                         `json:"type"`
-	Attributes    AppClipDefaultExperienceLocalizationCreateAttributes `json:"attributes"`
-	Relationships *AppClipDefaultExperienceLocalizationRelationships   `json:"relationships"`
-}
-
 // AppClipDefaultExperienceLocalizationCreateRequest is the AppClipDefaultExperienceLocalizationCreateRequest schema.
 type AppClipDefaultExperienceLocalizationCreateRequest struct {
 	Data AppClipDefaultExperienceLocalizationCreateData `json:"data"`
@@ -66,33 +59,6 @@ func (c *Client) GetAppClipDefaultExperienceLocalizationHeaderImageRelationship(
 	localizationID = strings.TrimSpace(localizationID)
 	return getJSON[AppClipDefaultExperienceLocalizationHeaderImageLinkageResponse](ctx, c, readRequest{
 		Path: fmt.Sprintf("/v1/appClipDefaultExperienceLocalizations/%s/relationships/appClipHeaderImage", localizationID),
-	})
-}
-
-// CreateAppClipDefaultExperienceLocalization sends POST /v1/appClipDefaultExperienceLocalizations (appClipDefaultExperienceLocalizations_createInstance).
-func (c *Client) CreateAppClipDefaultExperienceLocalization(ctx context.Context, experienceID string, attrs AppClipDefaultExperienceLocalizationCreateAttributes) (*AppClipDefaultExperienceLocalizationResponse, error) {
-	experienceID = strings.TrimSpace(experienceID)
-	if experienceID == "" {
-		return nil, fmt.Errorf("experienceID is required")
-	}
-	payload := AppClipDefaultExperienceLocalizationCreateRequest{
-		Data: AppClipDefaultExperienceLocalizationCreateData{
-			Type:       ResourceTypeAppClipDefaultExperienceLocalizations,
-			Attributes: attrs,
-			Relationships: &AppClipDefaultExperienceLocalizationRelationships{
-				AppClipDefaultExperience: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeAppClipDefaultExperiences,
-						ID:   experienceID,
-					},
-				},
-			},
-		},
-	}
-	return sendJSON[AppClipDefaultExperienceLocalizationResponse](ctx, c, writeRequest{
-		Method:  http.MethodPost,
-		Path:    "/v1/appClipDefaultExperienceLocalizations",
-		Payload: payload,
 	})
 }
 

@@ -15,20 +15,6 @@ type PromotedPurchaseCreateAttributes struct {
 	Enabled            *bool `json:"enabled,omitempty"`
 }
 
-// PromotedPurchaseCreateData is the data object of the PromotedPurchaseCreateRequest schema.
-type PromotedPurchaseCreateData struct {
-	Type          ResourceType                        `json:"type"`
-	Attributes    PromotedPurchaseCreateAttributes    `json:"attributes"`
-	Relationships PromotedPurchaseCreateRelationships `json:"relationships"`
-}
-
-// PromotedPurchaseCreateRelationships is the data.relationships object of the PromotedPurchaseCreateRequest schema.
-type PromotedPurchaseCreateRelationships struct {
-	App             Relationship  `json:"app"`
-	InAppPurchaseV2 *Relationship `json:"inAppPurchaseV2,omitempty"`
-	Subscription    *Relationship `json:"subscription,omitempty"`
-}
-
 // PromotedPurchaseCreateRequest is the PromotedPurchaseCreateRequest schema.
 type PromotedPurchaseCreateRequest struct {
 	Data PromotedPurchaseCreateData `json:"data"`
@@ -58,4 +44,15 @@ type PromotedPurchaseUpdateRequest struct {
 // DeletePromotedPurchase sends DELETE /v1/promotedPurchases/{id} (promotedPurchases_deleteInstance).
 func (c *Client) DeletePromotedPurchase(ctx context.Context, promotedPurchaseID string) error {
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/promotedPurchases/%s", strings.TrimSpace(promotedPurchaseID)), nil)
+}
+
+// GetPromotedPurchase sends GET /v1/promotedPurchases/{id} (promotedPurchases_getInstance).
+func (c *Client) GetPromotedPurchase(ctx context.Context, promotedPurchaseID string, opts ...PromotedPurchaseGetOption) (*PromotedPurchaseResponse, error) {
+	promotedPurchaseID = strings.TrimSpace(promotedPurchaseID)
+	query := applyOptions(opts)
+	return getJSON[PromotedPurchaseResponse](ctx, c, readRequest{
+		Path:     fmt.Sprintf("/v1/promotedPurchases/%s", promotedPurchaseID),
+		Query:    buildPromotedPurchaseGetQuery(query),
+		ParseErr: "failed to parse promoted purchase response",
+	})
 }

@@ -10,6 +10,18 @@ import (
 // MarketplaceSearchDetailsResponse is the response for marketplace search detail list formatting.
 type MarketplaceSearchDetailsResponse = Response[MarketplaceSearchDetailAttributes]
 
+// MarketplaceSearchDetailCreateRelationships describes relationships for create requests.
+type MarketplaceSearchDetailCreateRelationships struct {
+	App *Relationship `json:"app"`
+}
+
+// MarketplaceSearchDetailCreateData is the data payload for create requests.
+type MarketplaceSearchDetailCreateData struct {
+	Type          ResourceType                                `json:"type"`
+	Attributes    MarketplaceSearchDetailCreateAttributes     `json:"attributes"`
+	Relationships *MarketplaceSearchDetailCreateRelationships `json:"relationships"`
+}
+
 // MarketplaceSearchDetailDeleteResult represents CLI output for search detail deletions.
 type MarketplaceSearchDetailDeleteResult struct {
 	ID      string `json:"id"`
@@ -20,20 +32,6 @@ type MarketplaceSearchDetailDeleteResult struct {
 type MarketplaceWebhookDeleteResult struct {
 	ID      string `json:"id"`
 	Deleted bool   `json:"deleted"`
-}
-
-// GetMarketplaceSearchDetailForApp retrieves marketplace search details for an app.
-func (c *Client) GetMarketplaceSearchDetailForApp(ctx context.Context, appID string, fields []string) (*MarketplaceSearchDetailResponse, error) {
-	appID = strings.TrimSpace(appID)
-	if appID == "" {
-		return nil, fmt.Errorf("appID is required")
-	}
-
-	return getJSON[MarketplaceSearchDetailResponse](ctx, c, readRequest{
-		Path:     fmt.Sprintf("/v1/apps/%s/marketplaceSearchDetail", appID),
-		Query:    buildMarketplaceSearchDetailsFieldsQuery(fields),
-		ParseErr: "failed to parse marketplace search detail response",
-	})
 }
 
 // CreateMarketplaceSearchDetail creates marketplace search details for an app.

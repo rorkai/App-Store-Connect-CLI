@@ -9,13 +9,6 @@ import (
 	"strings"
 )
 
-// AppStoreVersionCreateData is the data object of the AppStoreVersionCreateRequest schema.
-type AppStoreVersionCreateData struct {
-	Type          ResourceType                        `json:"type"`
-	Attributes    AppStoreVersionCreateAttributes     `json:"attributes"`
-	Relationships *AppStoreVersionCreateRelationships `json:"relationships"`
-}
-
 // AppStoreVersionCreateRequest is the AppStoreVersionCreateRequest schema.
 type AppStoreVersionCreateRequest struct {
 	Data AppStoreVersionCreateData `json:"data"`
@@ -218,6 +211,15 @@ func (c *Client) GetAppStoreVersionGameCenterAppVersionRelationship(ctx context.
 	return getJSON[AppStoreVersionGameCenterAppVersionLinkageResponse](ctx, c, readRequest{
 		Path:     fmt.Sprintf("/v1/appStoreVersions/%s/relationships/gameCenterAppVersion", versionID),
 		ParseErr: "failed to parse gameCenterAppVersion relationship response",
+	})
+}
+
+// GetAppStoreVersion sends GET /v1/appStoreVersions/{id} (appStoreVersions_getInstance).
+func (c *Client) GetAppStoreVersion(ctx context.Context, versionID string, opts ...AppStoreVersionOption) (*AppStoreVersionResponse, error) {
+	query := applyOptions(opts)
+	return getJSON[AppStoreVersionResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/appStoreVersions/%s", versionID),
+		Query: buildAppStoreVersionQuery(query),
 	})
 }
 

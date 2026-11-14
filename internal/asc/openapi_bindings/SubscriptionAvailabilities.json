@@ -3,11 +3,7 @@
   "file": "subscription_availabilities_gen.go",
   "types": [
     "SubscriptionAvailabilityCreateRequest",
-    "SubscriptionAvailabilityRelationships",
     "SubscriptionAvailabilityResponse"
-  ],
-  "relationships": [
-    {"data":"SubscriptionAvailabilityCreateData","type":"*SubscriptionAvailabilityRelationships"}
   ],
   "operations": [
     {"operation":"subscriptionAvailabilities_availableTerritories_getToManyRelated","name":"GetSubscriptionAvailabilityAvailableTerritories","params":["availabilityID"],"check":"require","options":"SubscriptionAvailabilityTerritoriesOption","query":"buildSubscriptionAvailabilityTerritoriesQuery","nextContext":"subscription-availability-territories"},

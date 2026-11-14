@@ -86,6 +86,13 @@ type NominationRelationships struct {
 	SupportedTerritories *RelationshipList `json:"supportedTerritories,omitempty"`
 }
 
+// NominationCreateData is the data portion of a nomination create request.
+type NominationCreateData struct {
+	Type          ResourceType               `json:"type"`
+	Attributes    NominationCreateAttributes `json:"attributes"`
+	Relationships NominationRelationships    `json:"relationships"`
+}
+
 // NominationUpdateData is the data portion of a nomination update request.
 type NominationUpdateData struct {
 	Type          ResourceType                `json:"type"`
@@ -98,20 +105,6 @@ type NominationUpdateData struct {
 type NominationDeleteResult struct {
 	ID      string `json:"id"`
 	Deleted bool   `json:"deleted"`
-}
-
-// GetNomination retrieves a nomination by ID.
-func (c *Client) GetNomination(ctx context.Context, nominationID string, opts ...NominationsOption) (*NominationResponse, error) {
-	nominationID = strings.TrimSpace(nominationID)
-	if nominationID == "" {
-		return nil, fmt.Errorf("nominationID is required")
-	}
-
-	query := applyOptions(opts)
-	return getJSON[NominationResponse](ctx, c, readRequest{
-		Path:  fmt.Sprintf("/v1/nominations/%s", nominationID),
-		Query: buildNominationsDetailQuery(query),
-	})
 }
 
 // CreateNomination creates a nomination.

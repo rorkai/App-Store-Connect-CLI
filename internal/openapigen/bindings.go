@@ -53,8 +53,8 @@ type OpBind struct {
 	// the IDs a create links.
 	Params []string `json:"params,omitempty"`
 	Check  string   `json:"check,omitempty"` // checkInline, checkTrim, checkRequire or checkRaw
-	// CheckFirst runs the trim and require checks of a paged read before its
-	// options, so a next URL does not lift the require check.
+	// CheckFirst runs the trim and require checks of a read before its
+	// options, so a next URL does not lift the require check of a paged read.
 	CheckFirst bool `json:"checkFirst,omitempty"`
 	// Messages are the errors for blank parameters; default "<param> is required".
 	Messages    []string `json:"messages,omitempty"`
@@ -68,6 +68,10 @@ type OpBind struct {
 	// last len(Links) Params.
 	Links  []string `json:"links,omitempty"`
 	IDList *IDList  `json:"idList,omitempty"` // how a relationship change handles its ID list
+	// Single marks a read of one resource that sends a query and follows no
+	// next URL. Its builder takes the options, or a fields []string argument
+	// when there is no option type.
+	Single bool `json:"single,omitempty"`
 	// Deviations are known differences from the schema that the contract test
 	// in internal/asc pins. They change no generated code.
 	Deviations []Deviation `json:"deviations,omitempty"`

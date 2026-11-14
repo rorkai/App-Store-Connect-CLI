@@ -9,13 +9,6 @@ import (
 	"strings"
 )
 
-// AndroidToIosAppMappingDetailCreateData is the data object of the AndroidToIosAppMappingDetailCreateRequest schema.
-type AndroidToIosAppMappingDetailCreateData struct {
-	Type          ResourceType                                    `json:"type"`
-	Attributes    AndroidToIosAppMappingDetailCreateAttributes    `json:"attributes"`
-	Relationships AndroidToIosAppMappingDetailCreateRelationships `json:"relationships"`
-}
-
 // AndroidToIosAppMappingDetailCreateRequest is the AndroidToIosAppMappingDetailCreateRequest schema.
 type AndroidToIosAppMappingDetailCreateRequest struct {
 	Data AndroidToIosAppMappingDetailCreateData `json:"data"`
@@ -43,4 +36,17 @@ func (c *Client) DeleteAndroidToIosAppMappingDetail(ctx context.Context, id stri
 		return fmt.Errorf("mapping ID is required")
 	}
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/androidToIosAppMappingDetails/%s", id), nil)
+}
+
+// GetAndroidToIosAppMappingDetail sends GET /v1/androidToIosAppMappingDetails/{id} (androidToIosAppMappingDetails_getInstance).
+func (c *Client) GetAndroidToIosAppMappingDetail(ctx context.Context, id string, opts ...AndroidToIosAppMappingDetailsOption) (*AndroidToIosAppMappingDetailResponse, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return nil, fmt.Errorf("mapping ID is required")
+	}
+	query := applyOptions(opts)
+	return getJSON[AndroidToIosAppMappingDetailResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/androidToIosAppMappingDetails/%s", id),
+		Query: buildAndroidToIosAppMappingDetailQuery(query),
+	})
 }

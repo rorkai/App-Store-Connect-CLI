@@ -3,15 +3,11 @@
   "file": "app_custom_product_page_localizations_gen.go",
   "types": [
     "AppCustomProductPageLocalizationAttributes",
-    "AppCustomProductPageLocalizationCreateData",
     "AppCustomProductPageLocalizationCreateRequest",
     "AppCustomProductPageLocalizationResponse",
     "AppCustomProductPageLocalizationUpdateAttributes",
     "AppCustomProductPageLocalizationUpdateData",
     "AppCustomProductPageLocalizationUpdateRequest"
-  ],
-  "relationships": [
-    {"data":"AppCustomProductPageLocalizationCreateData","type":"*AppCustomProductPageLocalizationCreateRelationships"}
   ],
   "operations": [
     {"operation":"appCustomProductPageLocalizations_appPreviewSets_getToManyRelated","name":"GetAppCustomProductPageLocalizationPreviewSets","params":["localizationID"],"check":"require","options":"AppCustomProductPageLocalizationPreviewSetsOption","query":"buildAppCustomProductPageLocalizationPreviewSetsQuery","nextContext":"appPreviewSets"},

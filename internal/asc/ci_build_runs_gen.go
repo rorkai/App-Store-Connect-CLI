@@ -12,21 +12,6 @@ type CiBuildRunCreateAttributes struct {
 	Clean *bool `json:"clean,omitempty"`
 }
 
-// CiBuildRunCreateData is the data object of the CiBuildRunCreateRequest schema.
-type CiBuildRunCreateData struct {
-	Type          ResourceType                   `json:"type"`
-	Attributes    *CiBuildRunCreateAttributes    `json:"attributes,omitempty"`
-	Relationships *CiBuildRunCreateRelationships `json:"relationships,omitempty"`
-}
-
-// CiBuildRunCreateRelationships is the data.relationships object of the CiBuildRunCreateRequest schema.
-type CiBuildRunCreateRelationships struct {
-	BuildRun          *Relationship `json:"buildRun,omitempty"`
-	Workflow          *Relationship `json:"workflow,omitempty"`
-	SourceBranchOrTag *Relationship `json:"sourceBranchOrTag,omitempty"`
-	PullRequest       *Relationship `json:"pullRequest,omitempty"`
-}
-
 // CiBuildRunCreateRequest is the CiBuildRunCreateRequest schema.
 type CiBuildRunCreateRequest struct {
 	Data CiBuildRunCreateData `json:"data"`
@@ -51,5 +36,14 @@ func (c *Client) GetCiBuildRunBuilds(ctx context.Context, buildRunID string, opt
 		Query:       buildCiBuildRunBuildsQuery(query),
 		Next:        query.nextURL,
 		NextContext: "ciBuildRunBuilds",
+	})
+}
+
+// GetCiBuildRun sends GET /v1/ciBuildRuns/{id} (ciBuildRuns_getInstance).
+func (c *Client) GetCiBuildRun(ctx context.Context, buildRunID string, opts ...CiBuildRunGetOption) (*CiBuildRunResponse, error) {
+	query := applyOptions(opts)
+	return getJSON[CiBuildRunResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/ciBuildRuns/%s", buildRunID),
+		Query: buildCiBuildRunGetQuery(query),
 	})
 }

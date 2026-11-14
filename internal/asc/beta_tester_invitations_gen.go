@@ -2,46 +2,7 @@
 
 package asc
 
-import (
-	"context"
-	"net/http"
-)
-
-// BetaTesterInvitationCreateData is the data object of the BetaTesterInvitationCreateRequest schema.
-type BetaTesterInvitationCreateData struct {
-	Type          ResourceType                             `json:"type"`
-	Relationships *BetaTesterInvitationCreateRelationships `json:"relationships"`
-}
-
 // BetaTesterInvitationCreateRequest is the BetaTesterInvitationCreateRequest schema.
 type BetaTesterInvitationCreateRequest struct {
 	Data BetaTesterInvitationCreateData `json:"data"`
-}
-
-// CreateBetaTesterInvitation sends POST /v1/betaTesterInvitations (betaTesterInvitations_createInstance).
-func (c *Client) CreateBetaTesterInvitation(ctx context.Context, appID, testerID string) (*BetaTesterInvitationResponse, error) {
-	payload := BetaTesterInvitationCreateRequest{
-		Data: BetaTesterInvitationCreateData{
-			Type: ResourceTypeBetaTesterInvitations,
-			Relationships: &BetaTesterInvitationCreateRelationships{
-				App: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeApps,
-						ID:   appID,
-					},
-				},
-				BetaTester: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeBetaTesters,
-						ID:   testerID,
-					},
-				},
-			},
-		},
-	}
-	return sendJSON[BetaTesterInvitationResponse](ctx, c, writeRequest{
-		Method:  http.MethodPost,
-		Path:    "/v1/betaTesterInvitations",
-		Payload: payload,
-	})
 }

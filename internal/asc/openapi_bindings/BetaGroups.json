@@ -3,16 +3,11 @@
   "file": "beta_groups_gen.go",
   "types": [
     "BetaGroupCreateAttributes",
-    "BetaGroupCreateData",
     "BetaGroupCreateRequest",
-    "BetaGroupRelationships",
     "BetaGroupResponse",
     "BetaGroupUpdateData",
     "BetaGroupUpdateRequest",
     "BetaGroupsResponse"
-  ],
-  "relationships": [
-    {"data":"BetaGroupCreateData","type":"*BetaGroupRelationships"}
   ],
   "operations": [
     {"operation":"betaGroups_app_getToOneRelated","name":"GetBetaGroupApp","params":["groupID"],"check":"require","response":"AppResponse"},

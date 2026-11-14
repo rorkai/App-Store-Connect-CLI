@@ -2,18 +2,14 @@
   "tag": "InAppPurchaseAppStoreReviewScreenshots",
   "file": "in_app_purchase_app_store_review_screenshots_gen.go",
   "types": [
-    "InAppPurchaseAppStoreReviewScreenshotCreateData",
     "InAppPurchaseAppStoreReviewScreenshotCreateRequest",
-    "InAppPurchaseAppStoreReviewScreenshotRelationships",
     "InAppPurchaseAppStoreReviewScreenshotResponse",
     "InAppPurchaseAppStoreReviewScreenshotUpdateAttributes",
     "InAppPurchaseAppStoreReviewScreenshotUpdateData",
     "InAppPurchaseAppStoreReviewScreenshotUpdateRequest"
   ],
-  "relationships": [
-    {"data":"InAppPurchaseAppStoreReviewScreenshotCreateData","type":"InAppPurchaseAppStoreReviewScreenshotRelationships"}
-  ],
   "operations": [
-    {"operation":"inAppPurchaseAppStoreReviewScreenshots_deleteInstance","name":"DeleteInAppPurchaseAppStoreReviewScreenshot","params":["screenshotID"],"check":"require"}
+    {"operation":"inAppPurchaseAppStoreReviewScreenshots_deleteInstance","name":"DeleteInAppPurchaseAppStoreReviewScreenshot","params":["screenshotID"],"check":"require"},
+    {"operation":"inAppPurchaseAppStoreReviewScreenshots_getInstance","name":"GetInAppPurchaseAppStoreReviewScreenshot","params":["screenshotID"],"check":"require","checkFirst":true,"options":"IAPReviewScreenshotOption","query":"buildIAPReviewScreenshotQuery","single":true}
   ]
 }

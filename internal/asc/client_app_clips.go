@@ -177,6 +177,13 @@ type AppClipHeaderImageCreateAttributes struct {
 	FileName string `json:"fileName"`
 }
 
+// AppClipDefaultExperienceCreateRelationships describes relationships for default experience create.
+type AppClipDefaultExperienceCreateRelationships struct {
+	AppClip                          *Relationship `json:"appClip"`
+	ReleaseWithAppStoreVersion       *Relationship `json:"releaseWithAppStoreVersion,omitempty"`
+	AppClipDefaultExperienceTemplate *Relationship `json:"appClipDefaultExperienceTemplate,omitempty"`
+}
+
 // AppClipDefaultExperienceUpdateRelationships describes relationships for default experience update.
 type AppClipDefaultExperienceUpdateRelationships struct {
 	ReleaseWithAppStoreVersion *Relationship `json:"releaseWithAppStoreVersion,omitempty"`
@@ -195,6 +202,13 @@ type AppClipAdvancedExperienceRelationships struct {
 	Localizations *RelationshipList `json:"localizations,omitempty"`
 }
 
+// AppClipAdvancedExperienceCreateRelationships describes required create relationships.
+type AppClipAdvancedExperienceCreateRelationships struct {
+	AppClip       Relationship     `json:"appClip"`
+	HeaderImage   Relationship     `json:"headerImage"`
+	Localizations RelationshipList `json:"localizations"`
+}
+
 // AppClipHeaderImageRelationships describes header image relationships.
 type AppClipHeaderImageRelationships struct {
 	AppClipDefaultExperienceLocalization *Relationship `json:"appClipDefaultExperienceLocalization,omitempty"`
@@ -205,12 +219,33 @@ type AppClipAppStoreReviewDetailRelationships struct {
 	AppClipDefaultExperience *Relationship `json:"appClipDefaultExperience,omitempty"`
 }
 
+// AppClipDefaultExperienceCreateData is the payload for creating a default experience.
+type AppClipDefaultExperienceCreateData struct {
+	Type          ResourceType                                 `json:"type"`
+	Attributes    *AppClipDefaultExperienceCreateAttributes    `json:"attributes,omitempty"`
+	Relationships *AppClipDefaultExperienceCreateRelationships `json:"relationships"`
+}
+
 // AppClipDefaultExperienceUpdateData is the payload for updating a default experience.
 type AppClipDefaultExperienceUpdateData struct {
 	Type          ResourceType                                 `json:"type"`
 	ID            string                                       `json:"id"`
 	Attributes    *AppClipDefaultExperienceUpdateAttributes    `json:"attributes,omitempty"`
 	Relationships *AppClipDefaultExperienceUpdateRelationships `json:"relationships,omitempty"`
+}
+
+// AppClipDefaultExperienceLocalizationCreateData is the payload for creating a localization.
+type AppClipDefaultExperienceLocalizationCreateData struct {
+	Type          ResourceType                                         `json:"type"`
+	Attributes    AppClipDefaultExperienceLocalizationCreateAttributes `json:"attributes"`
+	Relationships *AppClipDefaultExperienceLocalizationRelationships   `json:"relationships"`
+}
+
+// AppClipAdvancedExperienceCreateData is the payload for creating an advanced experience.
+type AppClipAdvancedExperienceCreateData struct {
+	Type          ResourceType                                 `json:"type"`
+	Attributes    AppClipAdvancedExperienceCreateAttributes    `json:"attributes"`
+	Relationships AppClipAdvancedExperienceCreateRelationships `json:"relationships"`
 }
 
 // AppClipAdvancedExperienceCreateRequest is the create request payload.
@@ -234,6 +269,20 @@ type AppClipAdvancedExperienceUpdateData struct {
 	Relationships *AppClipAdvancedExperienceRelationships    `json:"relationships,omitempty"`
 }
 
+// AppClipHeaderImageCreateData is the payload for creating a header image.
+type AppClipHeaderImageCreateData struct {
+	Type          ResourceType                       `json:"type"`
+	Attributes    AppClipHeaderImageCreateAttributes `json:"attributes"`
+	Relationships *AppClipHeaderImageRelationships   `json:"relationships"`
+}
+
+// AppClipAppStoreReviewDetailCreateData is the payload for creating review details.
+type AppClipAppStoreReviewDetailCreateData struct {
+	Type          ResourceType                                 `json:"type"`
+	Attributes    *AppClipAppStoreReviewDetailCreateAttributes `json:"attributes,omitempty"`
+	Relationships *AppClipAppStoreReviewDetailRelationships    `json:"relationships"`
+}
+
 // BetaAppClipInvocationLocalizationInlineCreate describes an inline localization create payload.
 type BetaAppClipInvocationLocalizationInlineCreate struct {
 	Type          ResourceType                                      `json:"type"`
@@ -253,10 +302,24 @@ type BetaAppClipInvocationLocalizationRelationships struct {
 	BetaAppClipInvocation *Relationship `json:"betaAppClipInvocation,omitempty"`
 }
 
+// BetaAppClipInvocationCreateData is the payload for creating an invocation.
+type BetaAppClipInvocationCreateData struct {
+	Type          ResourceType                          `json:"type"`
+	Attributes    BetaAppClipInvocationCreateAttributes `json:"attributes"`
+	Relationships *BetaAppClipInvocationRelationships   `json:"relationships,omitempty"`
+}
+
 // BetaAppClipInvocationCreateRequest is the create request payload.
 type BetaAppClipInvocationCreateRequest struct {
 	Data     BetaAppClipInvocationCreateData                 `json:"data"`
 	Included []BetaAppClipInvocationLocalizationInlineCreate `json:"included,omitempty"`
+}
+
+// BetaAppClipInvocationLocalizationCreateData is the payload for creating a localization.
+type BetaAppClipInvocationLocalizationCreateData struct {
+	Type          ResourceType                                      `json:"type"`
+	Attributes    BetaAppClipInvocationLocalizationCreateAttributes `json:"attributes"`
+	Relationships *BetaAppClipInvocationLocalizationRelationships   `json:"relationships"`
 }
 
 // Response aliases.
@@ -387,18 +450,6 @@ func (c *Client) GetAppClipDefaultExperiences(ctx context.Context, appClipID str
 	})
 }
 
-// GetAppClipDefaultExperience retrieves a default experience by ID.
-func (c *Client) GetAppClipDefaultExperience(ctx context.Context, experienceID string, opts ...AppClipDefaultExperienceOption) (*AppClipDefaultExperienceResponse, error) {
-	query := applyOptions(opts)
-
-	experienceID = strings.TrimSpace(experienceID)
-	if experienceID == "" {
-		return nil, fmt.Errorf("experienceID is required")
-	}
-
-	return getJSON[AppClipDefaultExperienceResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appClipDefaultExperiences/%s", experienceID), Query: buildAppClipDefaultExperienceQuery(query)})
-}
-
 // CreateAppClipDefaultExperience creates a default experience for an App Clip.
 func (c *Client) CreateAppClipDefaultExperience(ctx context.Context, appClipID string, attrs *AppClipDefaultExperienceCreateAttributes, releaseVersionID string, templateID string) (*AppClipDefaultExperienceResponse, error) {
 	appClipID = strings.TrimSpace(appClipID)
@@ -491,6 +542,31 @@ func (c *Client) GetAppClipDefaultExperienceLocalizations(ctx context.Context, e
 		Next:        query.nextURL,
 		NextContext: "appClipDefaultExperienceLocalizations",
 	})
+}
+
+// CreateAppClipDefaultExperienceLocalization creates a localization.
+func (c *Client) CreateAppClipDefaultExperienceLocalization(ctx context.Context, experienceID string, attrs AppClipDefaultExperienceLocalizationCreateAttributes) (*AppClipDefaultExperienceLocalizationResponse, error) {
+	experienceID = strings.TrimSpace(experienceID)
+	if experienceID == "" {
+		return nil, fmt.Errorf("experienceID is required")
+	}
+
+	payload := AppClipDefaultExperienceLocalizationCreateRequest{
+		Data: AppClipDefaultExperienceLocalizationCreateData{
+			Type:       ResourceTypeAppClipDefaultExperienceLocalizations,
+			Attributes: attrs,
+			Relationships: &AppClipDefaultExperienceLocalizationRelationships{
+				AppClipDefaultExperience: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeAppClipDefaultExperiences,
+						ID:   experienceID,
+					},
+				},
+			},
+		},
+	}
+
+	return sendJSON[AppClipDefaultExperienceLocalizationResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/appClipDefaultExperienceLocalizations", Payload: payload})
 }
 
 // UpdateAppClipDefaultExperienceLocalization updates a localization.
@@ -908,18 +984,6 @@ func (c *Client) UpdateAppClipAppStoreReviewDetail(ctx context.Context, detailID
 	return sendJSON[AppClipAppStoreReviewDetailResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/appClipAppStoreReviewDetails/%s", detailID), Payload: payload})
 }
 
-// GetBetaAppClipInvocation retrieves a beta App Clip invocation by ID.
-func (c *Client) GetBetaAppClipInvocation(ctx context.Context, invocationID string, opts ...BetaAppClipInvocationOption) (*BetaAppClipInvocationResponse, error) {
-	query := applyOptions(opts)
-
-	invocationID = strings.TrimSpace(invocationID)
-	if invocationID == "" {
-		return nil, fmt.Errorf("invocationID is required")
-	}
-
-	return getJSON[BetaAppClipInvocationResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/betaAppClipInvocations/%s", invocationID), Query: buildBetaAppClipInvocationQuery(query)})
-}
-
 // CreateBetaAppClipInvocation creates a beta App Clip invocation.
 func (c *Client) CreateBetaAppClipInvocation(ctx context.Context, buildBundleID string, attrs BetaAppClipInvocationCreateAttributes, localizationIDs []string, inlineLocalizations []BetaAppClipInvocationLocalizationCreateAttributes) (*BetaAppClipInvocationResponse, error) {
 	buildBundleID = strings.TrimSpace(buildBundleID)
@@ -1040,6 +1104,31 @@ func (c *Client) GetBetaAppClipInvocationLocalizations(ctx context.Context, invo
 	resp.Data = included
 
 	return resp, nil
+}
+
+// CreateBetaAppClipInvocationLocalization creates a localization.
+func (c *Client) CreateBetaAppClipInvocationLocalization(ctx context.Context, invocationID string, attrs BetaAppClipInvocationLocalizationCreateAttributes) (*BetaAppClipInvocationLocalizationResponse, error) {
+	invocationID = strings.TrimSpace(invocationID)
+	if invocationID == "" {
+		return nil, fmt.Errorf("invocationID is required")
+	}
+
+	payload := BetaAppClipInvocationLocalizationCreateRequest{
+		Data: BetaAppClipInvocationLocalizationCreateData{
+			Type:       ResourceTypeBetaAppClipInvocationLocalizations,
+			Attributes: attrs,
+			Relationships: &BetaAppClipInvocationLocalizationRelationships{
+				BetaAppClipInvocation: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeBetaAppClipInvocations,
+						ID:   invocationID,
+					},
+				},
+			},
+		},
+	}
+
+	return sendJSON[BetaAppClipInvocationLocalizationResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/betaAppClipInvocationLocalizations", Payload: payload})
 }
 
 // UpdateBetaAppClipInvocationLocalization updates a localization.

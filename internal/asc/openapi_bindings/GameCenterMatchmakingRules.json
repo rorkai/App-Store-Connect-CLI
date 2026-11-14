@@ -3,18 +3,13 @@
   "file": "game_center_matchmaking_rules_gen.go",
   "types": [
     "GameCenterMatchmakingRuleCreateAttributes",
-    "GameCenterMatchmakingRuleCreateData",
     "GameCenterMatchmakingRuleCreateRequest",
     "GameCenterMatchmakingRuleResponse",
     "GameCenterMatchmakingRuleUpdateAttributes",
     "GameCenterMatchmakingRuleUpdateData",
     "GameCenterMatchmakingRuleUpdateRequest"
   ],
-  "relationships": [
-    {"data":"GameCenterMatchmakingRuleCreateData","type":"*GameCenterMatchmakingRuleRelationships","omitempty":true}
-  ],
   "operations": [
-    {"operation":"gameCenterMatchmakingRules_createInstance","name":"CreateGameCenterMatchmakingRule","params":["ruleSetID"],"links":["ruleSet"]},
     {"operation":"gameCenterMatchmakingRules_deleteInstance","name":"DeleteGameCenterMatchmakingRule","params":["ruleID"]},
     {"operation":"gameCenterMatchmakingRules_matchmakingBooleanRuleResults_getMetrics","name":"GetGameCenterMatchmakingBooleanRuleResults","params":["ruleID"],"options":"GCMatchmakingMetricsOption","query":"buildGCMatchmakingRuleMetricsQuery","nextContext":"game-center-matchmaking-boolean-rule-results","response":"GameCenterMatchmakingBooleanRuleResultsResponse"},
     {"operation":"gameCenterMatchmakingRules_matchmakingNumberRuleResults_getMetrics","name":"GetGameCenterMatchmakingNumberRuleResults","params":["ruleID"],"options":"GCMatchmakingMetricsOption","query":"buildGCMatchmakingRuleMetricsQuery","nextContext":"game-center-matchmaking-number-rule-results","response":"GameCenterMatchmakingNumberRuleResultsResponse","deviations":[{"problem":"sent query parameters [filter[result]] that the operation does not define","reason":"the option type is shared with the boolean rule results metric, which defines this filter; game-center matchmaking metrics rule-number-results rejects --filter-result before any request"}]},

@@ -12,21 +12,9 @@ import (
 // InAppPurchaseResponse is the InAppPurchaseResponse schema.
 type InAppPurchaseResponse = SingleResponse[InAppPurchaseAttributes]
 
-// InAppPurchaseV2CreateData is the data object of the InAppPurchaseV2CreateRequest schema.
-type InAppPurchaseV2CreateData struct {
-	Type          ResourceType                    `json:"type"`
-	Attributes    InAppPurchaseV2CreateAttributes `json:"attributes"`
-	Relationships *InAppPurchaseV2Relationships   `json:"relationships,omitempty"`
-}
-
 // InAppPurchaseV2CreateRequest is the InAppPurchaseV2CreateRequest schema.
 type InAppPurchaseV2CreateRequest struct {
 	Data InAppPurchaseV2CreateData `json:"data"`
-}
-
-// InAppPurchaseV2Relationships is the data.relationships object of the InAppPurchaseV2CreateRequest schema.
-type InAppPurchaseV2Relationships struct {
-	App *Relationship `json:"app"`
 }
 
 // InAppPurchaseV2Response is the InAppPurchaseV2Response schema.
@@ -44,32 +32,61 @@ type InAppPurchaseV2UpdateRequest struct {
 	Data InAppPurchaseV2UpdateData `json:"data"`
 }
 
-// CreateInAppPurchaseV2 sends POST /v2/inAppPurchases (inAppPurchasesV2_createInstance).
-func (c *Client) CreateInAppPurchaseV2(ctx context.Context, appID string, attrs InAppPurchaseV2CreateAttributes) (*InAppPurchaseV2Response, error) {
-	payload := InAppPurchaseV2CreateRequest{
-		Data: InAppPurchaseV2CreateData{
-			Type:       ResourceTypeInAppPurchases,
-			Attributes: attrs,
-			Relationships: &InAppPurchaseV2Relationships{
-				App: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeApps,
-						ID:   strings.TrimSpace(appID),
-					},
-				},
-			},
-		},
+// GetInAppPurchaseAppStoreReviewScreenshotForIAP sends GET /v2/inAppPurchases/{id}/appStoreReviewScreenshot (inAppPurchasesV2_appStoreReviewScreenshot_getToOneRelated).
+func (c *Client) GetInAppPurchaseAppStoreReviewScreenshotForIAP(ctx context.Context, iapID string, opts ...IAPReviewScreenshotOption) (*InAppPurchaseAppStoreReviewScreenshotResponse, error) {
+	iapID = strings.TrimSpace(iapID)
+	if iapID == "" {
+		return nil, fmt.Errorf("iapID is required")
 	}
-	return sendJSON[InAppPurchaseV2Response](ctx, c, writeRequest{
-		Method:  http.MethodPost,
-		Path:    "/v2/inAppPurchases",
-		Payload: payload,
+	query := applyOptions(opts)
+	return getJSON[InAppPurchaseAppStoreReviewScreenshotResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v2/inAppPurchases/%s/appStoreReviewScreenshot", iapID),
+		Query: buildIAPReviewScreenshotQuery(query),
+	})
+}
+
+// GetInAppPurchaseContent sends GET /v2/inAppPurchases/{id}/content (inAppPurchasesV2_content_getToOneRelated).
+func (c *Client) GetInAppPurchaseContent(ctx context.Context, iapID string, opts ...IAPContentOption) (*InAppPurchaseContentResponse, error) {
+	iapID = strings.TrimSpace(iapID)
+	if iapID == "" {
+		return nil, fmt.Errorf("iapID is required")
+	}
+	query := applyOptions(opts)
+	return getJSON[InAppPurchaseContentResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v2/inAppPurchases/%s/content", iapID),
+		Query: buildIAPContentQuery(query),
 	})
 }
 
 // DeleteInAppPurchaseV2 sends DELETE /v2/inAppPurchases/{id} (inAppPurchasesV2_deleteInstance).
 func (c *Client) DeleteInAppPurchaseV2(ctx context.Context, iapID string) error {
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v2/inAppPurchases/%s", strings.TrimSpace(iapID)), nil)
+}
+
+// GetInAppPurchaseV2 sends GET /v2/inAppPurchases/{id} (inAppPurchasesV2_getInstance).
+func (c *Client) GetInAppPurchaseV2(ctx context.Context, iapID string, opts ...IAPGetOption) (*InAppPurchaseV2Response, error) {
+	iapID = strings.TrimSpace(iapID)
+	if iapID == "" {
+		return nil, fmt.Errorf("iapID is required")
+	}
+	query := applyOptions(opts)
+	return getJSON[InAppPurchaseV2Response](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v2/inAppPurchases/%s", iapID),
+		Query: buildInAppPurchaseGetQuery(query),
+	})
+}
+
+// GetInAppPurchasePriceSchedule sends GET /v2/inAppPurchases/{id}/iapPriceSchedule (inAppPurchasesV2_iapPriceSchedule_getToOneRelated).
+func (c *Client) GetInAppPurchasePriceSchedule(ctx context.Context, iapID string, opts ...IAPPriceScheduleOption) (*InAppPurchasePriceScheduleResponse, error) {
+	query := applyOptions(opts)
+	iapID = strings.TrimSpace(iapID)
+	if iapID == "" {
+		return nil, fmt.Errorf("iapID is required")
+	}
+	return getJSON[InAppPurchasePriceScheduleResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v2/inAppPurchases/%s/iapPriceSchedule", iapID),
+		Query: buildIAPPriceScheduleQuery(query),
+	})
 }
 
 // GetInAppPurchaseAvailability sends GET /v2/inAppPurchases/{id}/inAppPurchaseAvailability (inAppPurchasesV2_inAppPurchaseAvailability_getToOneRelated).
@@ -121,6 +138,19 @@ func (c *Client) GetInAppPurchasePricePoints(ctx context.Context, iapID string, 
 		Query:       buildIAPPricePointsQuery(query),
 		Next:        query.nextURL,
 		NextContext: "in-app-purchase-price-points",
+	})
+}
+
+// GetInAppPurchasePromotedPurchase sends GET /v2/inAppPurchases/{id}/promotedPurchase (inAppPurchasesV2_promotedPurchase_getToOneRelated).
+func (c *Client) GetInAppPurchasePromotedPurchase(ctx context.Context, iapID string, opts ...PromotedPurchaseGetOption) (*PromotedPurchaseResponse, error) {
+	iapID = strings.TrimSpace(iapID)
+	if iapID == "" {
+		return nil, fmt.Errorf("iapID is required")
+	}
+	query := applyOptions(opts)
+	return getJSON[PromotedPurchaseResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v2/inAppPurchases/%s/promotedPurchase", iapID),
+		Query: buildPromotedPurchaseGetQuery(query),
 	})
 }
 

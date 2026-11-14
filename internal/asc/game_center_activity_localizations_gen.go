@@ -9,21 +9,9 @@ import (
 	"strings"
 )
 
-// GameCenterActivityLocalizationCreateData is the data object of the GameCenterActivityLocalizationCreateRequest schema.
-type GameCenterActivityLocalizationCreateData struct {
-	Type          ResourceType                                   `json:"type"`
-	Attributes    GameCenterActivityLocalizationCreateAttributes `json:"attributes"`
-	Relationships *GameCenterActivityLocalizationRelationships   `json:"relationships,omitempty"`
-}
-
 // GameCenterActivityLocalizationCreateRequest is the GameCenterActivityLocalizationCreateRequest schema.
 type GameCenterActivityLocalizationCreateRequest struct {
 	Data GameCenterActivityLocalizationCreateData `json:"data"`
-}
-
-// GameCenterActivityLocalizationRelationships is the data.relationships object of the GameCenterActivityLocalizationCreateRequest schema.
-type GameCenterActivityLocalizationRelationships struct {
-	Version *Relationship `json:"version"`
 }
 
 // GameCenterActivityLocalizationResponse is the GameCenterActivityLocalizationResponse schema.
@@ -45,29 +33,6 @@ type GameCenterActivityLocalizationUpdateData struct {
 // GameCenterActivityLocalizationUpdateRequest is the GameCenterActivityLocalizationUpdateRequest schema.
 type GameCenterActivityLocalizationUpdateRequest struct {
 	Data GameCenterActivityLocalizationUpdateData `json:"data"`
-}
-
-// CreateGameCenterActivityLocalization sends POST /v1/gameCenterActivityLocalizations (gameCenterActivityLocalizations_createInstance).
-func (c *Client) CreateGameCenterActivityLocalization(ctx context.Context, versionID string, attrs GameCenterActivityLocalizationCreateAttributes) (*GameCenterActivityLocalizationResponse, error) {
-	payload := GameCenterActivityLocalizationCreateRequest{
-		Data: GameCenterActivityLocalizationCreateData{
-			Type:       ResourceTypeGameCenterActivityLocalizations,
-			Attributes: attrs,
-			Relationships: &GameCenterActivityLocalizationRelationships{
-				Version: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeGameCenterActivityVersions,
-						ID:   strings.TrimSpace(versionID),
-					},
-				},
-			},
-		},
-	}
-	return sendJSON[GameCenterActivityLocalizationResponse](ctx, c, writeRequest{
-		Method:  http.MethodPost,
-		Path:    "/v1/gameCenterActivityLocalizations",
-		Payload: payload,
-	})
 }
 
 // DeleteGameCenterActivityLocalization sends DELETE /v1/gameCenterActivityLocalizations/{id} (gameCenterActivityLocalizations_deleteInstance).

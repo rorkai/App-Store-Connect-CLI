@@ -17,13 +17,6 @@ type AppEventLocalizationAttributes struct {
 	LongDescription  string `json:"longDescription,omitempty"`
 }
 
-// AppEventLocalizationCreateData is the data object of the AppEventLocalizationCreateRequest schema.
-type AppEventLocalizationCreateData struct {
-	Type          ResourceType                         `json:"type"`
-	Attributes    AppEventLocalizationCreateAttributes `json:"attributes"`
-	Relationships *AppEventLocalizationRelationships   `json:"relationships"`
-}
-
 // AppEventLocalizationCreateRequest is the AppEventLocalizationCreateRequest schema.
 type AppEventLocalizationCreateRequest struct {
 	Data AppEventLocalizationCreateData `json:"data"`
@@ -105,33 +98,6 @@ func (c *Client) GetAppEventVideoClipsRelationships(ctx context.Context, localiz
 		Query:       buildLinkagesQuery(query),
 		Next:        query.nextURL,
 		NextContext: "appEventVideoClipsRelationships",
-	})
-}
-
-// CreateAppEventLocalization sends POST /v1/appEventLocalizations (appEventLocalizations_createInstance).
-func (c *Client) CreateAppEventLocalization(ctx context.Context, eventID string, attrs AppEventLocalizationCreateAttributes) (*AppEventLocalizationResponse, error) {
-	eventID = strings.TrimSpace(eventID)
-	if eventID == "" {
-		return nil, fmt.Errorf("eventID is required")
-	}
-	payload := AppEventLocalizationCreateRequest{
-		Data: AppEventLocalizationCreateData{
-			Type:       ResourceTypeAppEventLocalizations,
-			Attributes: attrs,
-			Relationships: &AppEventLocalizationRelationships{
-				AppEvent: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeAppEvents,
-						ID:   eventID,
-					},
-				},
-			},
-		},
-	}
-	return sendJSON[AppEventLocalizationResponse](ctx, c, writeRequest{
-		Method:  http.MethodPost,
-		Path:    "/v1/appEventLocalizations",
-		Payload: payload,
 	})
 }
 

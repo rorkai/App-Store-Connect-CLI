@@ -5,7 +5,6 @@ package asc
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"strings"
 )
 
@@ -17,11 +16,6 @@ type GameCenterAppVersionAttributes struct {
 // GameCenterAppVersionCreateRequest is the GameCenterAppVersionCreateRequest schema.
 type GameCenterAppVersionCreateRequest struct {
 	Data GameCenterAppVersionCreateData `json:"data"`
-}
-
-// GameCenterAppVersionRelationships is the data.relationships object of the GameCenterAppVersionCreateRequest schema.
-type GameCenterAppVersionRelationships struct {
-	AppStoreVersion *Relationship `json:"appStoreVersion"`
 }
 
 // GameCenterAppVersionResponse is the GameCenterAppVersionResponse schema.
@@ -63,32 +57,6 @@ func (c *Client) GetGameCenterAppVersionCompatibilityVersions(ctx context.Contex
 		Query:       buildGCAppVersionsQuery(query),
 		Next:        query.nextURL,
 		NextContext: "game-center-app-version-compatibility",
-	})
-}
-
-// CreateGameCenterAppVersion sends POST /v1/gameCenterAppVersions (gameCenterAppVersions_createInstance).
-func (c *Client) CreateGameCenterAppVersion(ctx context.Context, appStoreVersionID string) (*GameCenterAppVersionResponse, error) {
-	appStoreVersionID = strings.TrimSpace(appStoreVersionID)
-	if appStoreVersionID == "" {
-		return nil, fmt.Errorf("appStoreVersionID is required")
-	}
-	payload := GameCenterAppVersionCreateRequest{
-		Data: GameCenterAppVersionCreateData{
-			Type: ResourceTypeGameCenterAppVersions,
-			Relationships: &GameCenterAppVersionRelationships{
-				AppStoreVersion: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeAppStoreVersions,
-						ID:   appStoreVersionID,
-					},
-				},
-			},
-		},
-	}
-	return sendJSON[GameCenterAppVersionResponse](ctx, c, writeRequest{
-		Method:  http.MethodPost,
-		Path:    "/v1/gameCenterAppVersions",
-		Payload: payload,
 	})
 }
 

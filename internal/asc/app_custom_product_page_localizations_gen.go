@@ -15,13 +15,6 @@ type AppCustomProductPageLocalizationAttributes struct {
 	PromotionalText string `json:"promotionalText,omitempty"`
 }
 
-// AppCustomProductPageLocalizationCreateData is the data object of the AppCustomProductPageLocalizationCreateRequest schema.
-type AppCustomProductPageLocalizationCreateData struct {
-	Type          ResourceType                                         `json:"type"`
-	Attributes    AppCustomProductPageLocalizationCreateAttributes     `json:"attributes"`
-	Relationships *AppCustomProductPageLocalizationCreateRelationships `json:"relationships"`
-}
-
 // AppCustomProductPageLocalizationCreateRequest is the AppCustomProductPageLocalizationCreateRequest schema.
 type AppCustomProductPageLocalizationCreateRequest struct {
 	Data AppCustomProductPageLocalizationCreateData `json:"data"`

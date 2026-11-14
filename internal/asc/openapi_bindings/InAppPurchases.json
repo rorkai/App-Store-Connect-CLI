@@ -3,23 +3,22 @@
   "file": "in_app_purchases_gen.go",
   "types": [
     "InAppPurchaseResponse",
-    "InAppPurchaseV2CreateData",
     "InAppPurchaseV2CreateRequest",
-    "InAppPurchaseV2Relationships",
     "InAppPurchaseV2Response",
     "InAppPurchaseV2UpdateData",
     "InAppPurchaseV2UpdateRequest"
   ],
-  "relationships": [
-    {"data":"InAppPurchaseV2CreateData","type":"*InAppPurchaseV2Relationships","omitempty":true}
-  ],
   "operations": [
-    {"operation":"inAppPurchasesV2_createInstance","name":"CreateInAppPurchaseV2","params":["appID"],"links":["app"],"deviations":[{"problem":"data.attributes has [availableInAllTerritories contentHosting], which the schema does not define","reason":"the hand-written InAppPurchaseV2CreateAttributes has two optional fields the create request does not define; asc iap create, setup and import never set them, so omitempty keeps them out of every request"}]},
+    {"operation":"inAppPurchasesV2_appStoreReviewScreenshot_getToOneRelated","name":"GetInAppPurchaseAppStoreReviewScreenshotForIAP","params":["iapID"],"check":"require","checkFirst":true,"options":"IAPReviewScreenshotOption","query":"buildIAPReviewScreenshotQuery","single":true},
+    {"operation":"inAppPurchasesV2_content_getToOneRelated","name":"GetInAppPurchaseContent","params":["iapID"],"check":"require","checkFirst":true,"options":"IAPContentOption","query":"buildIAPContentQuery","single":true},
     {"operation":"inAppPurchasesV2_deleteInstance","name":"DeleteInAppPurchaseV2","params":["iapID"]},
+    {"operation":"inAppPurchasesV2_getInstance","name":"GetInAppPurchaseV2","params":["iapID"],"check":"require","checkFirst":true,"options":"IAPGetOption","query":"buildInAppPurchaseGetQuery","single":true},
+    {"operation":"inAppPurchasesV2_iapPriceSchedule_getToOneRelated","name":"GetInAppPurchasePriceSchedule","params":["iapID"],"check":"require","options":"IAPPriceScheduleOption","query":"buildIAPPriceScheduleQuery","single":true},
     {"operation":"inAppPurchasesV2_inAppPurchaseAvailability_getToOneRelated","name":"GetInAppPurchaseAvailability","params":["iapID"],"check":"require"},
     {"operation":"inAppPurchasesV2_inAppPurchaseLocalizations_getToManyRelated","name":"GetInAppPurchaseLocalizations","params":["iapID"],"options":"IAPLocalizationsOption","query":"buildIAPLocalizationsQuery","nextContext":"in-app-purchase-localizations"},
     {"operation":"inAppPurchasesV2_offerCodes_getToManyRelated","name":"GetInAppPurchaseOfferCodes","params":["iapID"],"check":"require","options":"IAPOfferCodesOption","query":"buildIAPOfferCodesQuery","nextContext":"in-app-purchase-offer-codes"},
     {"operation":"inAppPurchasesV2_pricePoints_getToManyRelated","name":"GetInAppPurchasePricePoints","params":["iapID"],"check":"require","options":"IAPPricePointsOption","query":"buildIAPPricePointsQuery","nextContext":"in-app-purchase-price-points"},
+    {"operation":"inAppPurchasesV2_promotedPurchase_getToOneRelated","name":"GetInAppPurchasePromotedPurchase","params":["iapID"],"check":"require","checkFirst":true,"options":"PromotedPurchaseGetOption","query":"buildPromotedPurchaseGetQuery","single":true},
     {"operation":"inAppPurchasesV2_updateInstance","name":"UpdateInAppPurchaseV2","params":["iapID"],"deviations":[{"problem":"data.attributes has [availableInAllTerritories contentHosting], which the schema does not define","reason":"the hand-written InAppPurchaseV2UpdateAttributes has two optional fields the update request does not define; no command sets them, so they are never sent"}]},
     {"operation":"inAppPurchases_getInstance","name":"GetInAppPurchase","params":["iapID"]}
   ]

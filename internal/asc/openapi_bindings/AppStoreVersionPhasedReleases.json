@@ -2,13 +2,9 @@
   "tag": "AppStoreVersionPhasedReleases",
   "file": "app_store_version_phased_releases_gen.go",
   "types": [
-    "AppStoreVersionPhasedReleaseCreateData",
     "AppStoreVersionPhasedReleaseCreateRequest",
     "AppStoreVersionPhasedReleaseUpdateData",
     "AppStoreVersionPhasedReleaseUpdateRequest"
-  ],
-  "relationships": [
-    {"data":"AppStoreVersionPhasedReleaseCreateData","type":"AppStoreVersionPhasedReleaseRelationships"}
   ],
   "operations": [
     {"operation":"appStoreVersionPhasedReleases_deleteInstance","name":"DeleteAppStoreVersionPhasedRelease","params":["phasedReleaseID"],"check":"raw"}

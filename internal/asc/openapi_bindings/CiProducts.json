@@ -3,6 +3,7 @@
   "file": "ci_products_gen.go",
   "operations": [
     {"operation":"ciProducts_additionalRepositories_getToManyRelated","name":"GetCiProductAdditionalRepositories","params":["productID"],"check":"raw","options":"CiProductRepositoriesOption","query":"buildCiProductRepositoriesQuery","nextContext":"ciProductAdditionalRepositories"},
+    {"operation":"ciProducts_app_getToOneRelated","name":"GetCiProductApp","params":["productID"],"check":"raw","options":"CiProductAppOption","query":"buildCiProductAppQuery","single":true},
     {"operation":"ciProducts_buildRuns_getToManyRelated","name":"GetCiProductBuildRuns","params":["productID"],"check":"raw","options":"CiBuildRunsOption","query":"buildCiBuildRunsQuery","nextContext":"ciProductBuildRuns"},
     {"operation":"ciProducts_deleteInstance","name":"DeleteCiProduct","params":["productID"],"check":"trim"},
     {"operation":"ciProducts_getCollection","name":"GetCiProducts","options":"CiProductsOption","query":"buildCiProductsQuery","nextContext":"ciProducts"},

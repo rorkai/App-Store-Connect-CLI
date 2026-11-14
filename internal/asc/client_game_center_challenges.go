@@ -98,6 +98,45 @@ func (c *Client) UpdateGameCenterChallenge(ctx context.Context, challengeID stri
 	return sendJSON[GameCenterChallengeResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/gameCenterChallenges/%s", strings.TrimSpace(challengeID)), Payload: payload})
 }
 
+// CreateGameCenterChallengeVersion creates a new challenge version.
+func (c *Client) CreateGameCenterChallengeVersion(ctx context.Context, challengeID string) (*GameCenterChallengeVersionResponse, error) {
+	payload := GameCenterChallengeVersionCreateRequest{
+		Data: GameCenterChallengeVersionCreateData{
+			Type: ResourceTypeGameCenterChallengeVersions,
+			Relationships: &GameCenterChallengeVersionRelationships{
+				Challenge: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeGameCenterChallenges,
+						ID:   strings.TrimSpace(challengeID),
+					},
+				},
+			},
+		},
+	}
+
+	return sendJSON[GameCenterChallengeVersionResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/gameCenterChallengeVersions", Payload: payload})
+}
+
+// CreateGameCenterChallengeLocalization creates a new challenge localization.
+func (c *Client) CreateGameCenterChallengeLocalization(ctx context.Context, versionID string, attrs GameCenterChallengeLocalizationCreateAttributes) (*GameCenterChallengeLocalizationResponse, error) {
+	payload := GameCenterChallengeLocalizationCreateRequest{
+		Data: GameCenterChallengeLocalizationCreateData{
+			Type:       ResourceTypeGameCenterChallengeLocalizations,
+			Attributes: attrs,
+			Relationships: &GameCenterChallengeLocalizationRelationships{
+				Version: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeGameCenterChallengeVersions,
+						ID:   strings.TrimSpace(versionID),
+					},
+				},
+			},
+		},
+	}
+
+	return sendJSON[GameCenterChallengeLocalizationResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/gameCenterChallengeLocalizations", Payload: payload})
+}
+
 // CreateGameCenterChallengeImage reserves a challenge image upload.
 // Pass exactly one of localizationID or versionID; a version target sets the version's default image.
 func (c *Client) CreateGameCenterChallengeImage(ctx context.Context, localizationID, versionID, fileName string, fileSize int64) (*GameCenterChallengeImageResponse, error) {

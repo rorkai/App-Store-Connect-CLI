@@ -482,6 +482,11 @@ type BetaAppLocalizationUpdateAttributes struct {
 	Description       *string `json:"description,omitempty"`
 }
 
+// BetaAppLocalizationRelationships describes relationships for beta app localizations.
+type BetaAppLocalizationRelationships struct {
+	App *Relationship `json:"app"`
+}
+
 // BetaBuildLocalizationCreateData is the data portion of a beta build localization create request.
 type BetaBuildLocalizationCreateData struct {
 	Type          ResourceType                        `json:"type"`
@@ -494,6 +499,11 @@ type BetaBuildLocalizationUpdateData struct {
 	Type       ResourceType                    `json:"type"`
 	ID         string                          `json:"id"`
 	Attributes BetaBuildLocalizationAttributes `json:"attributes"`
+}
+
+// BetaBuildLocalizationRelationships describes relationships for beta build localizations.
+type BetaBuildLocalizationRelationships struct {
+	Build *Relationship `json:"build"`
 }
 
 // AppInfoLocalizationCreateData is the data portion of an app info localization create request.
@@ -510,6 +520,18 @@ type AppInfoLocalizationUpdateData struct {
 	Attributes AppInfoLocalizationAttributes `json:"attributes"`
 }
 
+// AppInfoLocalizationRelationships describes relationships for app info localizations.
+type AppInfoLocalizationRelationships struct {
+	AppInfo *Relationship `json:"appInfo"`
+}
+
+// BetaGroupCreateData is the data portion of a beta group create request.
+type BetaGroupCreateData struct {
+	Type          ResourceType              `json:"type"`
+	Attributes    BetaGroupCreateAttributes `json:"attributes"`
+	Relationships *BetaGroupRelationships   `json:"relationships"`
+}
+
 // BetaGroupUpdateAttributes describes attributes for updating a beta group.
 type BetaGroupUpdateAttributes struct {
 	Name                                 string `json:"name,omitempty"`
@@ -521,6 +543,13 @@ type BetaGroupUpdateAttributes struct {
 	IOSBuildsAvailableForAppleVision     *bool  `json:"iosBuildsAvailableForAppleVision,omitempty"`
 }
 
+// BetaGroupRelationships describes relationships for beta groups.
+type BetaGroupRelationships struct {
+	App         *Relationship     `json:"app"`
+	Builds      *RelationshipList `json:"builds,omitempty"`
+	BetaTesters *RelationshipList `json:"betaTesters,omitempty"`
+}
+
 // BetaTesterCreateAttributes describes attributes for creating a beta tester.
 type BetaTesterCreateAttributes struct {
 	FirstName string `json:"firstName,omitempty"`
@@ -528,10 +557,29 @@ type BetaTesterCreateAttributes struct {
 	Email     string `json:"email"`
 }
 
+// BetaTesterCreateRelationships describes relationships for beta tester creation.
+type BetaTesterCreateRelationships struct {
+	BetaGroups *RelationshipList `json:"betaGroups,omitempty"`
+	Builds     *RelationshipList `json:"builds,omitempty"`
+}
+
+// BetaTesterCreateData is the data portion of a beta tester create request.
+type BetaTesterCreateData struct {
+	Type          ResourceType                   `json:"type"`
+	Attributes    BetaTesterCreateAttributes     `json:"attributes"`
+	Relationships *BetaTesterCreateRelationships `json:"relationships,omitempty"`
+}
+
 // BetaTesterInvitationCreateRelationships describes relationships for invitations.
 type BetaTesterInvitationCreateRelationships struct {
 	App        *Relationship `json:"app"`
 	BetaTester *Relationship `json:"betaTester,omitempty"`
+}
+
+// BetaTesterInvitationCreateData is the data portion of an invitation create request.
+type BetaTesterInvitationCreateData struct {
+	Type          ResourceType                             `json:"type"`
+	Relationships *BetaTesterInvitationCreateRelationships `json:"relationships"`
 }
 
 // GetReviews retrieves App Store reviews
@@ -624,6 +672,30 @@ func (c *Client) CreateBetaTester(ctx context.Context, email, firstName, lastNam
 		},
 	}
 	return sendJSON[BetaTesterResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/betaTesters", Payload: payload})
+}
+
+// CreateBetaTesterInvitation creates a beta tester invitation.
+func (c *Client) CreateBetaTesterInvitation(ctx context.Context, appID, testerID string) (*BetaTesterInvitationResponse, error) {
+	payload := BetaTesterInvitationCreateRequest{
+		Data: BetaTesterInvitationCreateData{
+			Type: ResourceTypeBetaTesterInvitations,
+			Relationships: &BetaTesterInvitationCreateRelationships{
+				App: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeApps,
+						ID:   appID,
+					},
+				},
+				BetaTester: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeBetaTesters,
+						ID:   testerID,
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[BetaTesterInvitationResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/betaTesterInvitations", Payload: payload})
 }
 
 // CreateAppStoreVersionLocalization creates a localization for an app store version.
@@ -763,17 +835,4 @@ func (c *Client) UpdateAppInfoLocalizationNullableFields(ctx context.Context, lo
 		Attributes: fields,
 	}}
 	return sendJSON[AppInfoLocalizationResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/appInfoLocalizations/%s", localizationID), Payload: payload})
-}
-
-// GetAppInfo retrieves an app info record by ID.
-func (c *Client) GetAppInfo(ctx context.Context, appInfoID string, opts ...AppInfoOption) (*AppInfoResponse, error) {
-	query := applyOptions(opts)
-	appInfoID = strings.TrimSpace(appInfoID)
-	if appInfoID == "" {
-		return nil, fmt.Errorf("appInfoID is required")
-	}
-	return getJSON[AppInfoResponse](ctx, c, readRequest{
-		Path:  fmt.Sprintf("/v1/appInfos/%s", appInfoID),
-		Query: buildAppInfoQuery(query),
-	})
 }

@@ -163,6 +163,11 @@ type BuildUploadFileAttributes struct {
 	Uploaded            *bool               `json:"uploaded,omitempty"`
 }
 
+// BuildUploadFileRelationships describes the relationships for a build upload file.
+type BuildUploadFileRelationships struct {
+	BuildUpload *Relationship `json:"buildUpload"`
+}
+
 // BuildUploadFileCreateData is the data portion of a build upload file create request.
 type BuildUploadFileCreateData struct {
 	Type          ResourceType                  `json:"type"`
@@ -587,17 +592,6 @@ func (c *Client) GetBuildUploads(ctx context.Context, appID string, opts ...Buil
 // CreateBuildUpload creates a new build upload record.
 func (c *Client) CreateBuildUpload(ctx context.Context, req BuildUploadCreateRequest) (*BuildUploadResponse, error) {
 	return sendJSON[BuildUploadResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/buildUploads", Payload: req})
-}
-
-// GetBuildUpload retrieves a build upload by ID.
-func (c *Client) GetBuildUpload(ctx context.Context, id string, opts ...BuildUploadOption) (*BuildUploadResponse, error) {
-	id = strings.TrimSpace(id)
-	if id == "" {
-		return nil, fmt.Errorf("id is required")
-	}
-
-	query := applyOptions(opts)
-	return getJSON[BuildUploadResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/buildUploads/%s", id), Query: buildBuildUploadQuery(query)})
 }
 
 // CreateBuildUploadFile creates a new build upload file reservation.

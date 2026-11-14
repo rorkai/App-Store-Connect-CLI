@@ -4,12 +4,8 @@
   "types": [
     "AppStoreVersionExperimentTreatmentLocalizationAttributes",
     "AppStoreVersionExperimentTreatmentLocalizationCreateAttributes",
-    "AppStoreVersionExperimentTreatmentLocalizationCreateData",
     "AppStoreVersionExperimentTreatmentLocalizationCreateRequest",
     "AppStoreVersionExperimentTreatmentLocalizationResponse"
-  ],
-  "relationships": [
-    {"data":"AppStoreVersionExperimentTreatmentLocalizationCreateData","type":"*AppStoreVersionExperimentTreatmentLocalizationCreateRelationships"}
   ],
   "operations": [
     {"operation":"appStoreVersionExperimentTreatmentLocalizations_appPreviewSets_getToManyRelated","name":"GetAppStoreVersionExperimentTreatmentLocalizationPreviewSets","params":["localizationID"],"check":"require","options":"AppStoreVersionExperimentTreatmentLocalizationPreviewSetsOption","query":"buildAppStoreVersionExperimentTreatmentLocalizationPreviewSetsQuery","nextContext":"appPreviewSets"},

@@ -2,11 +2,6 @@
   "tag": "WebhookPings",
   "file": "webhook_pings_gen.go",
   "types": [
-    "WebhookPingCreateData",
-    "WebhookPingCreateRelationships",
     "WebhookPingCreateRequest"
-  ],
-  "relationships": [
-    {"data":"WebhookPingCreateData","type":"WebhookPingCreateRelationships"}
   ]
 }

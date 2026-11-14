@@ -302,6 +302,19 @@ func (c *Client) UpdateWidgetVisibleParts(ctx context.Context, widgetID string, 
 	return sendNoContent(ctx, c, http.MethodPatch, fmt.Sprintf("/v1/widgets/%s/relationships/visibleParts", widgetID), payload)
 }
 
+// GetWidgetWheel sends GET /v1/widgets/{id}/wheel (widgets_wheel_getToOneRelated).
+func (c *Client) GetWidgetWheel(ctx context.Context, widgetID string, opts ...WheelOption) (*WidgetResponse, error) {
+	query := applyOptions(opts)
+	widgetID = strings.TrimSpace(widgetID)
+	if widgetID == "" {
+		return nil, fmt.Errorf("widgetID is required")
+	}
+	return getJSON[WidgetResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/widgets/%s/wheel", widgetID),
+		Query: buildWheelQuery(query),
+	})
+}
+
 // AddWidgetWheels sends POST /v1/widgets/{id}/relationships/wheels (widgets_wheels_createToManyRelationship).
 func (c *Client) AddWidgetWheels(ctx context.Context, widgetID string, wheelIDs []string) error {
 	widgetID = strings.TrimSpace(widgetID)
@@ -357,4 +370,12 @@ func (c *Client) SetWidgetWheels(ctx context.Context, widgetID string, wheelIDs 
 		})
 	}
 	return sendNoContent(ctx, c, http.MethodPatch, fmt.Sprintf("/v1/widgets/%s/relationships/wheels", strings.TrimSpace(widgetID)), payload)
+}
+
+// GetWidgetWrapper sends GET /v1/widgets/{id}/wrapper (widgets_wrapper_getToOneRelated).
+func (c *Client) GetWidgetWrapper(ctx context.Context, widgetID string, fields []string) (*WidgetResponse, error) {
+	return getJSON[WidgetResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/widgets/%s/wrapper", strings.TrimSpace(widgetID)),
+		Query: buildWrapperFieldsQuery(fields),
+	})
 }

@@ -29,6 +29,13 @@ type GameCenterChallengeUpdateRelationships struct {
 	LeaderboardV2 *Relationship `json:"leaderboardV2,omitempty"`
 }
 
+// GameCenterChallengeCreateData is the data portion of a challenge create request.
+type GameCenterChallengeCreateData struct {
+	Type          ResourceType                        `json:"type"`
+	Attributes    GameCenterChallengeCreateAttributes `json:"attributes"`
+	Relationships *GameCenterChallengeRelationships   `json:"relationships,omitempty"`
+}
+
 // GameCenterChallengeCreateRequest is a request to create a challenge.
 type GameCenterChallengeCreateRequest struct {
 	Data     GameCenterChallengeCreateData            `json:"data"`
@@ -83,6 +90,12 @@ type GameCenterChallengeVersionRelationships struct {
 	Challenge *Relationship `json:"challenge,omitempty"`
 }
 
+// GameCenterChallengeVersionCreateData is the data portion of a version create request.
+type GameCenterChallengeVersionCreateData struct {
+	Type          ResourceType                             `json:"type"`
+	Relationships *GameCenterChallengeVersionRelationships `json:"relationships,omitempty"`
+}
+
 // GameCenterChallengeVersionsResponse is the response from version list endpoints.
 type GameCenterChallengeVersionsResponse = Response[GameCenterChallengeVersionAttributes]
 
@@ -111,6 +124,18 @@ type GameCenterChallengeLocalizationCreateAttributes struct {
 	Locale      string `json:"locale"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
+}
+
+// GameCenterChallengeLocalizationRelationships describes relationships for challenge localizations.
+type GameCenterChallengeLocalizationRelationships struct {
+	Version *Relationship `json:"version"`
+}
+
+// GameCenterChallengeLocalizationCreateData is the data portion of a localization create request.
+type GameCenterChallengeLocalizationCreateData struct {
+	Type          ResourceType                                    `json:"type"`
+	Attributes    GameCenterChallengeLocalizationCreateAttributes `json:"attributes"`
+	Relationships *GameCenterChallengeLocalizationRelationships   `json:"relationships,omitempty"`
 }
 
 // GameCenterChallengeLocalizationsResponse is the response from localization list endpoints.
@@ -150,6 +175,19 @@ type GameCenterChallengeImageCreateAttributes struct {
 	FileName string `json:"fileName"`
 }
 
+// GameCenterChallengeImageRelationships describes relationships for challenge images.
+type GameCenterChallengeImageRelationships struct {
+	Localization *Relationship `json:"localization,omitempty"`
+	Version      *Relationship `json:"version,omitempty"`
+}
+
+// GameCenterChallengeImageCreateData is the data portion of an image create request.
+type GameCenterChallengeImageCreateData struct {
+	Type          ResourceType                             `json:"type"`
+	Attributes    GameCenterChallengeImageCreateAttributes `json:"attributes"`
+	Relationships *GameCenterChallengeImageRelationships   `json:"relationships"`
+}
+
 // GameCenterChallengeImagesResponse is the response from challenge image list endpoints.
 type GameCenterChallengeImagesResponse = Response[GameCenterChallengeImageAttributes]
 
@@ -184,6 +222,12 @@ type GameCenterChallengeVersionReleaseAttributes struct{}
 // GameCenterChallengeVersionReleaseRelationships describes relationships for challenge version releases.
 type GameCenterChallengeVersionReleaseRelationships struct {
 	Version *Relationship `json:"version,omitempty"`
+}
+
+// GameCenterChallengeVersionReleaseCreateData is the data portion of a release create request.
+type GameCenterChallengeVersionReleaseCreateData struct {
+	Type          ResourceType                                    `json:"type"`
+	Relationships *GameCenterChallengeVersionReleaseRelationships `json:"relationships,omitempty"`
 }
 
 // GameCenterChallengeVersionReleasesResponse is the response from release list endpoints.

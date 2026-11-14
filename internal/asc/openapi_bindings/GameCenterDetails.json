@@ -3,15 +3,10 @@
   "file": "game_center_details_gen.go",
   "types": [
     "GameCenterDetailCreateAttributes",
-    "GameCenterDetailCreateData",
-    "GameCenterDetailCreateRelationships",
     "GameCenterDetailCreateRequest",
     "GameCenterDetailResponse",
     "GameCenterDetailUpdateAttributes",
     "GameCenterDetailUpdateRequest"
-  ],
-  "relationships": [
-    {"data":"GameCenterDetailCreateData","type":"*GameCenterDetailCreateRelationships"}
   ],
   "operations": [
     {"operation":"gameCenterDetails_achievementReleases_getToManyRelated","name":"GetGameCenterDetailsAchievementReleases","params":["gcDetailID"],"options":"GCAchievementReleasesOption","query":"buildGCAchievementReleasesQuery","nextContext":"game-center-details-achievement-releases"},

@@ -2,15 +2,11 @@
   "tag": "SubscriptionImages",
   "file": "subscription_images_gen.go",
   "types": [
-    "SubscriptionImageV2CreateData",
     "SubscriptionImageV2CreateRequest",
-    "SubscriptionImageV2UpdateRequest",
-    "SubscriptionVersionRelationship"
-  ],
-  "relationships": [
-    {"data":"SubscriptionImageV2CreateData","type":"*SubscriptionVersionRelationship"}
+    "SubscriptionImageV2UpdateRequest"
   ],
   "operations": [
-    {"operation":"subscriptionImagesV2_deleteInstance","name":"DeleteSubscriptionImageV2","params":["imageID"],"check":"require","messages":["image ID is required"]}
+    {"operation":"subscriptionImagesV2_deleteInstance","name":"DeleteSubscriptionImageV2","params":["imageID"],"check":"require","messages":["image ID is required"]},
+    {"operation":"subscriptionImagesV2_getInstance","name":"GetSubscriptionImageV2","params":["imageID"],"check":"require","checkFirst":true,"messages":["image ID is required"],"options":"SubscriptionImageV2Option","query":"buildSubscriptionImageV2Query","single":true}
   ]
 }

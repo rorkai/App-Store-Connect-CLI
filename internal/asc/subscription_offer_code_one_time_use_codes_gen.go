@@ -8,18 +8,6 @@ import (
 	"strings"
 )
 
-// SubscriptionOfferCodeOneTimeUseCodeCreateData is the data object of the SubscriptionOfferCodeOneTimeUseCodeCreateRequest schema.
-type SubscriptionOfferCodeOneTimeUseCodeCreateData struct {
-	Type          ResourceType                                           `json:"type"`
-	Attributes    SubscriptionOfferCodeOneTimeUseCodeCreateAttributes    `json:"attributes"`
-	Relationships SubscriptionOfferCodeOneTimeUseCodeCreateRelationships `json:"relationships"`
-}
-
-// SubscriptionOfferCodeOneTimeUseCodeCreateRelationships is the data.relationships object of the SubscriptionOfferCodeOneTimeUseCodeCreateRequest schema.
-type SubscriptionOfferCodeOneTimeUseCodeCreateRelationships struct {
-	OfferCode Relationship `json:"offerCode"`
-}
-
 // SubscriptionOfferCodeOneTimeUseCodeCreateRequest is the SubscriptionOfferCodeOneTimeUseCodeCreateRequest schema.
 type SubscriptionOfferCodeOneTimeUseCodeCreateRequest struct {
 	Data SubscriptionOfferCodeOneTimeUseCodeCreateData `json:"data"`

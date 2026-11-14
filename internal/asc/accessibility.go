@@ -71,6 +71,18 @@ type AccessibilityDeclarationCreateAttributes struct {
 	SupportsVoiceover                      *bool        `json:"supportsVoiceover,omitempty"`
 }
 
+// AccessibilityDeclarationRelationships describes relationships for requests.
+type AccessibilityDeclarationRelationships struct {
+	App *Relationship `json:"app"`
+}
+
+// AccessibilityDeclarationCreateData is the data portion of a create request.
+type AccessibilityDeclarationCreateData struct {
+	Type          ResourceType                             `json:"type"`
+	Attributes    AccessibilityDeclarationCreateAttributes `json:"attributes"`
+	Relationships *AccessibilityDeclarationRelationships   `json:"relationships"`
+}
+
 // AccessibilityDeclarationDeleteResult represents CLI output for deletions.
 type AccessibilityDeclarationDeleteResult struct {
 	ID      string `json:"id"`

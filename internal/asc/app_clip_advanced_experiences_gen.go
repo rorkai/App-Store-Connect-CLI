@@ -8,20 +8,6 @@ import (
 	"strings"
 )
 
-// AppClipAdvancedExperienceCreateData is the data object of the AppClipAdvancedExperienceCreateRequest schema.
-type AppClipAdvancedExperienceCreateData struct {
-	Type          ResourceType                                 `json:"type"`
-	Attributes    AppClipAdvancedExperienceCreateAttributes    `json:"attributes"`
-	Relationships AppClipAdvancedExperienceCreateRelationships `json:"relationships"`
-}
-
-// AppClipAdvancedExperienceCreateRelationships is the data.relationships object of the AppClipAdvancedExperienceCreateRequest schema.
-type AppClipAdvancedExperienceCreateRelationships struct {
-	AppClip       Relationship     `json:"appClip"`
-	HeaderImage   Relationship     `json:"headerImage"`
-	Localizations RelationshipList `json:"localizations"`
-}
-
 // AppClipAdvancedExperienceUpdateRequest is the AppClipAdvancedExperienceUpdateRequest schema.
 type AppClipAdvancedExperienceUpdateRequest struct {
 	Data AppClipAdvancedExperienceUpdateData `json:"data"`

@@ -9,13 +9,6 @@ import (
 	"strings"
 )
 
-// ProfileCreateData is the data object of the ProfileCreateRequest schema.
-type ProfileCreateData struct {
-	Type          ResourceType                `json:"type"`
-	Attributes    ProfileCreateAttributes     `json:"attributes"`
-	Relationships *ProfileCreateRelationships `json:"relationships"`
-}
-
 // ProfileCreateRequest is the ProfileCreateRequest schema.
 type ProfileCreateRequest struct {
 	Data ProfileCreateData `json:"data"`
@@ -78,5 +71,15 @@ func (c *Client) GetProfiles(ctx context.Context, opts ...ProfilesOption) (*Prof
 		Query:       buildProfilesQuery(query),
 		Next:        query.nextURL,
 		NextContext: "profiles",
+	})
+}
+
+// GetProfile sends GET /v1/profiles/{id} (profiles_getInstance).
+func (c *Client) GetProfile(ctx context.Context, id string, opts ...ProfilesOption) (*ProfileResponse, error) {
+	id = strings.TrimSpace(id)
+	query := applyOptions(opts)
+	return getJSON[ProfileResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/profiles/%s", id),
+		Query: buildProfilesQuery(query),
 	})
 }

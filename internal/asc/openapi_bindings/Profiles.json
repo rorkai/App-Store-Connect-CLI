@@ -2,12 +2,8 @@
   "tag": "Profiles",
   "file": "profiles_gen.go",
   "types": [
-    "ProfileCreateData",
     "ProfileCreateRequest",
     "ProfileResponse"
-  ],
-  "relationships": [
-    {"data":"ProfileCreateData","type":"*ProfileCreateRelationships"}
   ],
   "operations": [
     {"operation":"profiles_bundleId_getToOneRelated","name":"GetProfileBundleID","params":["profileID"],"check":"trim","response":"BundleIDResponse"},
@@ -15,6 +11,7 @@
     {"operation":"profiles_certificates_getToManyRelated","name":"GetProfileCertificates","params":["profileID"],"check":"trim","checkFirst":true,"options":"ProfileCertificatesOption","query":"buildProfileCertificatesQuery","nextContext":"profileCertificates","response":"CertificatesResponse"},
     {"operation":"profiles_deleteInstance","name":"DeleteProfile","params":["id"],"check":"trim"},
     {"operation":"profiles_devices_getToManyRelated","name":"GetProfileDevices","params":["profileID"],"check":"trim","checkFirst":true,"options":"ProfileDevicesOption","query":"buildProfileDevicesQuery","nextContext":"profileDevices","response":"DevicesResponse"},
-    {"operation":"profiles_getCollection","name":"GetProfiles","options":"ProfilesOption","query":"buildProfilesQuery","nextContext":"profiles","deviations":[{"problem":"sent query parameters [filter[bundleId]] that the operation does not define","reason":"profilesQuery keeps a bundleID field that no option sets since its option was removed, so the filter is never sent"}]}
+    {"operation":"profiles_getCollection","name":"GetProfiles","options":"ProfilesOption","query":"buildProfilesQuery","nextContext":"profiles","deviations":[{"problem":"sent query parameters [filter[bundleId]] that the operation does not define","reason":"profilesQuery keeps a bundleID field that no option sets since its option was removed, so the filter is never sent"}]},
+    {"operation":"profiles_getInstance","name":"GetProfile","params":["id"],"check":"trim","checkFirst":true,"options":"ProfilesOption","query":"buildProfilesQuery","single":true,"deviations":[{"problem":"sent query parameters [filter[bundleId] filter[id] filter[name] filter[profileState] filter[profileType] limit sort] that the operation does not define","reason":"Shares its option type and query builder with GetProfiles (GET /v1/profiles), which defines all but filter[bundleId] (a field no option sets, see GetProfiles). asc profiles view sets include and included fields; the signing reconcile and local profile commands pass no options."}]}
   ]
 }

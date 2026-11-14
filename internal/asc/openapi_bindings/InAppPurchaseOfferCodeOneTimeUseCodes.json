@@ -2,15 +2,10 @@
   "tag": "InAppPurchaseOfferCodeOneTimeUseCodes",
   "file": "in_app_purchase_offer_code_one_time_use_codes_gen.go",
   "types": [
-    "InAppPurchaseOfferCodeOneTimeUseCodeCreateData",
-    "InAppPurchaseOfferCodeOneTimeUseCodeCreateRelationships",
     "InAppPurchaseOfferCodeOneTimeUseCodeCreateRequest",
     "InAppPurchaseOfferCodeOneTimeUseCodeUpdateAttributes",
     "InAppPurchaseOfferCodeOneTimeUseCodeUpdateData",
     "InAppPurchaseOfferCodeOneTimeUseCodeUpdateRequest"
-  ],
-  "relationships": [
-    {"data":"InAppPurchaseOfferCodeOneTimeUseCodeCreateData","type":"InAppPurchaseOfferCodeOneTimeUseCodeCreateRelationships"}
   ],
   "operations": [
     {"operation":"inAppPurchaseOfferCodeOneTimeUseCodes_getInstance","name":"GetInAppPurchaseOfferCodeOneTimeUseCode","params":["oneTimeUseCodeID"],"check":"require"}

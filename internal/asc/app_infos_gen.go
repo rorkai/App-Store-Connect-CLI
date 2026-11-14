@@ -11,6 +11,15 @@ import (
 // AppInfoResponse is the AppInfoResponse schema.
 type AppInfoResponse = SingleResponse[AppInfoAttributes]
 
+// GetAgeRatingDeclarationForAppInfo sends GET /v1/appInfos/{id}/ageRatingDeclaration (appInfos_ageRatingDeclaration_getToOneRelated).
+func (c *Client) GetAgeRatingDeclarationForAppInfo(ctx context.Context, appInfoID string, opts ...AgeRatingDeclarationOption) (*AgeRatingDeclarationResponse, error) {
+	query := applyOptions(opts)
+	return getJSON[AgeRatingDeclarationResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/appInfos/%s/ageRatingDeclaration", appInfoID),
+		Query: buildAgeRatingDeclarationQuery(query),
+	})
+}
+
 // GetAppInfoAgeRatingDeclarationRelationship sends GET /v1/appInfos/{id}/relationships/ageRatingDeclaration (appInfos_ageRatingDeclaration_getToOneRelationship).
 func (c *Client) GetAppInfoAgeRatingDeclarationRelationship(ctx context.Context, appInfoID string) (*AppInfoAgeRatingDeclarationLinkageResponse, error) {
 	appInfoID = strings.TrimSpace(appInfoID)
@@ -31,6 +40,19 @@ func (c *Client) GetAppInfoLocalizations(ctx context.Context, appInfoID string, 
 		Query:       buildAppInfoLocalizationsQuery(query),
 		Next:        query.nextURL,
 		NextContext: "appInfoLocalizations",
+	})
+}
+
+// GetAppInfo sends GET /v1/appInfos/{id} (appInfos_getInstance).
+func (c *Client) GetAppInfo(ctx context.Context, appInfoID string, opts ...AppInfoOption) (*AppInfoResponse, error) {
+	query := applyOptions(opts)
+	appInfoID = strings.TrimSpace(appInfoID)
+	if appInfoID == "" {
+		return nil, fmt.Errorf("appInfoID is required")
+	}
+	return getJSON[AppInfoResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/appInfos/%s", appInfoID),
+		Query: buildAppInfoQuery(query),
 	})
 }
 

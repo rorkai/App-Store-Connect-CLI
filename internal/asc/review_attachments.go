@@ -26,6 +26,18 @@ type AppStoreReviewAttachmentCreateAttributes struct {
 	FileName string `json:"fileName"`
 }
 
+// AppStoreReviewAttachmentRelationships describes attachment relationships.
+type AppStoreReviewAttachmentRelationships struct {
+	AppStoreReviewDetail *Relationship `json:"appStoreReviewDetail"`
+}
+
+// AppStoreReviewAttachmentCreateData is the data portion of a create request.
+type AppStoreReviewAttachmentCreateData struct {
+	Type          ResourceType                             `json:"type"`
+	Attributes    AppStoreReviewAttachmentCreateAttributes `json:"attributes"`
+	Relationships *AppStoreReviewAttachmentRelationships   `json:"relationships"`
+}
+
 // AppStoreReviewAttachmentDeleteResult represents CLI output for deletions.
 type AppStoreReviewAttachmentDeleteResult struct {
 	ID      string `json:"id"`
@@ -69,20 +81,6 @@ func (c *Client) GetAppStoreReviewAttachmentsForReviewDetail(ctx context.Context
 	}
 
 	return &response, nil
-}
-
-// GetAppStoreReviewAttachment retrieves an attachment by ID.
-func (c *Client) GetAppStoreReviewAttachment(ctx context.Context, attachmentID string, opts ...AppStoreReviewAttachmentsOption) (*AppStoreReviewAttachmentResponse, error) {
-	attachmentID = strings.TrimSpace(attachmentID)
-	if attachmentID == "" {
-		return nil, fmt.Errorf("attachmentID is required")
-	}
-
-	query := applyOptions(opts)
-	return getJSON[AppStoreReviewAttachmentResponse](ctx, c, readRequest{
-		Path:  fmt.Sprintf("/v1/appStoreReviewAttachments/%s", attachmentID),
-		Query: buildAppStoreReviewAttachmentsQuery(query),
-	})
 }
 
 // CreateAppStoreReviewAttachment creates a new attachment.

@@ -9,12 +9,6 @@ import (
 	"strings"
 )
 
-// GameCenterChallengeVersionReleaseCreateData is the data object of the GameCenterChallengeVersionReleaseCreateRequest schema.
-type GameCenterChallengeVersionReleaseCreateData struct {
-	Type          ResourceType                                    `json:"type"`
-	Relationships *GameCenterChallengeVersionReleaseRelationships `json:"relationships,omitempty"`
-}
-
 // GameCenterChallengeVersionReleaseCreateRequest is the GameCenterChallengeVersionReleaseCreateRequest schema.
 type GameCenterChallengeVersionReleaseCreateRequest struct {
 	Data GameCenterChallengeVersionReleaseCreateData `json:"data"`

@@ -22,6 +22,18 @@ type RoutingAppCoverageCreateAttributes struct {
 	FileName string `json:"fileName"`
 }
 
+// RoutingAppCoverageRelationships describes routing app coverage relationships.
+type RoutingAppCoverageRelationships struct {
+	AppStoreVersion *Relationship `json:"appStoreVersion"`
+}
+
+// RoutingAppCoverageCreateData is the data portion of a create request.
+type RoutingAppCoverageCreateData struct {
+	Type          ResourceType                       `json:"type"`
+	Attributes    RoutingAppCoverageCreateAttributes `json:"attributes"`
+	Relationships *RoutingAppCoverageRelationships   `json:"relationships"`
+}
+
 // RoutingAppCoverageDeleteResult represents CLI output for deletions.
 type RoutingAppCoverageDeleteResult struct {
 	ID      string `json:"id"`

@@ -8,6 +8,7 @@
     "BetaLicenseAgreementUpdateRequest"
   ],
   "operations": [
-    {"operation":"betaLicenseAgreements_getCollection","name":"GetBetaLicenseAgreements","options":"BetaLicenseAgreementsOption","query":"buildBetaLicenseAgreementsQuery","nextContext":"betaLicenseAgreements"}
+    {"operation":"betaLicenseAgreements_getCollection","name":"GetBetaLicenseAgreements","options":"BetaLicenseAgreementsOption","query":"buildBetaLicenseAgreementsQuery","nextContext":"betaLicenseAgreements"},
+    {"operation":"betaLicenseAgreements_getInstance","name":"GetBetaLicenseAgreement","params":["agreementID"],"check":"require","checkFirst":true,"options":"BetaLicenseAgreementOption","query":"buildBetaLicenseAgreementQuery","single":true}
   ]
 }

@@ -16,13 +16,6 @@ type GameCenterMatchmakingTeamCreateAttributes struct {
 	MaxPlayers    int    `json:"maxPlayers"`
 }
 
-// GameCenterMatchmakingTeamCreateData is the data object of the GameCenterMatchmakingTeamCreateRequest schema.
-type GameCenterMatchmakingTeamCreateData struct {
-	Type          ResourceType                              `json:"type"`
-	Attributes    GameCenterMatchmakingTeamCreateAttributes `json:"attributes"`
-	Relationships *GameCenterMatchmakingTeamRelationships   `json:"relationships,omitempty"`
-}
-
 // GameCenterMatchmakingTeamCreateRequest is the GameCenterMatchmakingTeamCreateRequest schema.
 type GameCenterMatchmakingTeamCreateRequest struct {
 	Data GameCenterMatchmakingTeamCreateData `json:"data"`
@@ -47,29 +40,6 @@ type GameCenterMatchmakingTeamUpdateData struct {
 // GameCenterMatchmakingTeamUpdateRequest is the GameCenterMatchmakingTeamUpdateRequest schema.
 type GameCenterMatchmakingTeamUpdateRequest struct {
 	Data GameCenterMatchmakingTeamUpdateData `json:"data"`
-}
-
-// CreateGameCenterMatchmakingTeam sends POST /v1/gameCenterMatchmakingTeams (gameCenterMatchmakingTeams_createInstance).
-func (c *Client) CreateGameCenterMatchmakingTeam(ctx context.Context, ruleSetID string, attrs GameCenterMatchmakingTeamCreateAttributes) (*GameCenterMatchmakingTeamResponse, error) {
-	payload := GameCenterMatchmakingTeamCreateRequest{
-		Data: GameCenterMatchmakingTeamCreateData{
-			Type:       ResourceTypeGameCenterMatchmakingTeams,
-			Attributes: attrs,
-			Relationships: &GameCenterMatchmakingTeamRelationships{
-				RuleSet: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeGameCenterMatchmakingRuleSets,
-						ID:   strings.TrimSpace(ruleSetID),
-					},
-				},
-			},
-		},
-	}
-	return sendJSON[GameCenterMatchmakingTeamResponse](ctx, c, writeRequest{
-		Method:  http.MethodPost,
-		Path:    "/v1/gameCenterMatchmakingTeams",
-		Payload: payload,
-	})
 }
 
 // DeleteGameCenterMatchmakingTeam sends DELETE /v1/gameCenterMatchmakingTeams/{id} (gameCenterMatchmakingTeams_deleteInstance).

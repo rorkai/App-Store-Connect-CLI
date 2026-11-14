@@ -2,21 +2,15 @@
 
 package asc
 
-// AppEncryptionDeclarationDocumentCreateData is the data object of the AppEncryptionDeclarationDocumentCreateRequest schema.
-type AppEncryptionDeclarationDocumentCreateData struct {
-	Type          ResourceType                                     `json:"type"`
-	Attributes    AppEncryptionDeclarationDocumentCreateAttributes `json:"attributes"`
-	Relationships *AppEncryptionDeclarationDocumentRelationships   `json:"relationships"`
-}
+import (
+	"context"
+	"fmt"
+	"strings"
+)
 
 // AppEncryptionDeclarationDocumentCreateRequest is the AppEncryptionDeclarationDocumentCreateRequest schema.
 type AppEncryptionDeclarationDocumentCreateRequest struct {
 	Data AppEncryptionDeclarationDocumentCreateData `json:"data"`
-}
-
-// AppEncryptionDeclarationDocumentRelationships is the data.relationships object of the AppEncryptionDeclarationDocumentCreateRequest schema.
-type AppEncryptionDeclarationDocumentRelationships struct {
-	AppEncryptionDeclaration *Relationship `json:"appEncryptionDeclaration"`
 }
 
 // AppEncryptionDeclarationDocumentResponse is the AppEncryptionDeclarationDocumentResponse schema.
@@ -38,4 +32,16 @@ type AppEncryptionDeclarationDocumentUpdateData struct {
 // AppEncryptionDeclarationDocumentUpdateRequest is the AppEncryptionDeclarationDocumentUpdateRequest schema.
 type AppEncryptionDeclarationDocumentUpdateRequest struct {
 	Data AppEncryptionDeclarationDocumentUpdateData `json:"data"`
+}
+
+// GetAppEncryptionDeclarationDocument sends GET /v1/appEncryptionDeclarationDocuments/{id} (appEncryptionDeclarationDocuments_getInstance).
+func (c *Client) GetAppEncryptionDeclarationDocument(ctx context.Context, documentID string, fields []string) (*AppEncryptionDeclarationDocumentResponse, error) {
+	documentID = strings.TrimSpace(documentID)
+	if documentID == "" {
+		return nil, fmt.Errorf("documentID is required")
+	}
+	return getJSON[AppEncryptionDeclarationDocumentResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/appEncryptionDeclarationDocuments/%s", documentID),
+		Query: buildAppEncryptionDeclarationDocumentFieldsQuery(fields),
+	})
 }

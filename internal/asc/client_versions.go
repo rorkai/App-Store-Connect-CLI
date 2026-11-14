@@ -64,6 +64,13 @@ type AppStoreVersionCreateRelationships struct {
 	Build *Relationship `json:"build,omitempty"`
 }
 
+// AppStoreVersionCreateData is the data portion of an app store version create request.
+type AppStoreVersionCreateData struct {
+	Type          ResourceType                        `json:"type"`
+	Attributes    AppStoreVersionCreateAttributes     `json:"attributes"`
+	Relationships *AppStoreVersionCreateRelationships `json:"relationships"`
+}
+
 // AppStoreVersionsResponse is the response from app store versions endpoints.
 type AppStoreVersionsResponse = Response[AppStoreVersionAttributes]
 
@@ -113,15 +120,6 @@ func (c *Client) GetPreReleaseVersions(ctx context.Context, appID string, opts .
 		Query:       buildPreReleaseVersionsQuery(appID, query),
 		Next:        query.nextURL,
 		NextContext: "preReleaseVersions",
-	})
-}
-
-// GetAppStoreVersion retrieves an app store version by ID.
-func (c *Client) GetAppStoreVersion(ctx context.Context, versionID string, opts ...AppStoreVersionOption) (*AppStoreVersionResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[AppStoreVersionResponse](ctx, c, readRequest{
-		Path:  fmt.Sprintf("/v1/appStoreVersions/%s", versionID),
-		Query: buildAppStoreVersionQuery(query),
 	})
 }
 

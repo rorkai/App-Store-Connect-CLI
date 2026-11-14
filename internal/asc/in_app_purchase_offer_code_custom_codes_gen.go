@@ -24,18 +24,6 @@ type InAppPurchaseOfferCodeCustomCodeCreateAttributes struct {
 	ExpirationDate *string `json:"expirationDate,omitempty"`
 }
 
-// InAppPurchaseOfferCodeCustomCodeCreateData is the data object of the InAppPurchaseOfferCodeCustomCodeCreateRequest schema.
-type InAppPurchaseOfferCodeCustomCodeCreateData struct {
-	Type          ResourceType                                        `json:"type"`
-	Attributes    InAppPurchaseOfferCodeCustomCodeCreateAttributes    `json:"attributes"`
-	Relationships InAppPurchaseOfferCodeCustomCodeCreateRelationships `json:"relationships"`
-}
-
-// InAppPurchaseOfferCodeCustomCodeCreateRelationships is the data.relationships object of the InAppPurchaseOfferCodeCustomCodeCreateRequest schema.
-type InAppPurchaseOfferCodeCustomCodeCreateRelationships struct {
-	OfferCode Relationship `json:"offerCode"`
-}
-
 // InAppPurchaseOfferCodeCustomCodeCreateRequest is the InAppPurchaseOfferCodeCustomCodeCreateRequest schema.
 type InAppPurchaseOfferCodeCustomCodeCreateRequest struct {
 	Data InAppPurchaseOfferCodeCustomCodeCreateData `json:"data"`

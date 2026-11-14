@@ -14,13 +14,6 @@ type BetaAppClipInvocationCreateAttributes struct {
 	URL string `json:"url"`
 }
 
-// BetaAppClipInvocationCreateData is the data object of the BetaAppClipInvocationCreateRequest schema.
-type BetaAppClipInvocationCreateData struct {
-	Type          ResourceType                          `json:"type"`
-	Attributes    BetaAppClipInvocationCreateAttributes `json:"attributes"`
-	Relationships *BetaAppClipInvocationRelationships   `json:"relationships,omitempty"`
-}
-
 // BetaAppClipInvocationUpdateAttributes is the data.attributes object of the BetaAppClipInvocationUpdateRequest schema.
 type BetaAppClipInvocationUpdateAttributes struct {
 	URL *string `json:"url,omitempty"`
@@ -45,4 +38,17 @@ func (c *Client) DeleteBetaAppClipInvocation(ctx context.Context, invocationID s
 		return fmt.Errorf("invocationID is required")
 	}
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/betaAppClipInvocations/%s", invocationID), nil)
+}
+
+// GetBetaAppClipInvocation sends GET /v1/betaAppClipInvocations/{id} (betaAppClipInvocations_getInstance).
+func (c *Client) GetBetaAppClipInvocation(ctx context.Context, invocationID string, opts ...BetaAppClipInvocationOption) (*BetaAppClipInvocationResponse, error) {
+	query := applyOptions(opts)
+	invocationID = strings.TrimSpace(invocationID)
+	if invocationID == "" {
+		return nil, fmt.Errorf("invocationID is required")
+	}
+	return getJSON[BetaAppClipInvocationResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/betaAppClipInvocations/%s", invocationID),
+		Query: buildBetaAppClipInvocationQuery(query),
+	})
 }

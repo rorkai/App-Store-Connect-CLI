@@ -14,13 +14,6 @@ type AppPreviewSetCreateRequest struct {
 	Data AppPreviewSetCreateData `json:"data"`
 }
 
-// AppPreviewSetRelationships is the data.relationships object of the AppPreviewSetCreateRequest schema.
-type AppPreviewSetRelationships struct {
-	AppStoreVersionLocalization                    *Relationship `json:"appStoreVersionLocalization,omitempty"`
-	AppCustomProductPageLocalization               *Relationship `json:"appCustomProductPageLocalization,omitempty"`
-	AppStoreVersionExperimentTreatmentLocalization *Relationship `json:"appStoreVersionExperimentTreatmentLocalization,omitempty"`
-}
-
 // GetAppPreviewSetAppPreviewsRelationships sends GET /v1/appPreviewSets/{id}/relationships/appPreviews (appPreviewSets_appPreviews_getToManyRelationship).
 func (c *Client) GetAppPreviewSetAppPreviewsRelationships(ctx context.Context, setID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
 	query := applyOptions(opts)

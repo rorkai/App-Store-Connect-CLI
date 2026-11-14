@@ -264,6 +264,7 @@ func (p *pkg) deriveOp(spec *Spec, fam *Family, op *Operation, d *decl) (*OpBind
 			for _, n := range field.Names {
 				b.Params = append(b.Params, n.Name)
 			}
+		case typ == "[]string" && op.Method == "GET":
 		case typ == "[]string" && len(field.Names) == 1:
 			b.IDs = field.Names[0].Name
 		case strings.HasPrefix(typ, "..."):
@@ -275,7 +276,7 @@ func (p *pkg) deriveOp(spec *Spec, fam *Family, op *Operation, d *decl) (*OpBind
 	}
 
 	var messages, links []string
-	var trimmed bool
+	var trimmed, next bool
 	var trimAt, optionsAt token.Pos
 	list := &IDList{}
 	ast.Inspect(fn.Body, func(x ast.Node) bool {
@@ -293,6 +294,8 @@ func (p *pkg) deriveOp(spec *Spec, fam *Family, op *Operation, d *decl) (*OpBind
 				if call, ok := n.Value.(*ast.CallExpr); ok {
 					b.Query = exprString(call.Fun)
 				}
+			case "Next":
+				next = true
 			case "NextContext":
 				b.NextContext = stringLit(n.Value)
 			case "ParseErr":
@@ -335,6 +338,7 @@ func (p *pkg) deriveOp(spec *Spec, fam *Family, op *Operation, d *decl) (*OpBind
 	}
 	b.CheckFirst = b.Options != "" && trimAt.IsValid() && optionsAt.IsValid() && trimAt < optionsAt
 	b.Links = linkNames(spec, op, links)
+	b.Single = op.Method == "GET" && b.Query != "" && !next
 	for i, msg := range messages {
 		if i >= len(b.Params) || msg != b.Params[i]+" is required" {
 			b.Messages = messages

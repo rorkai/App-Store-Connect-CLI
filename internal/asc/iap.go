@@ -63,6 +63,18 @@ type InAppPurchaseV2UpdateAttributes struct {
 	AvailableInAllTerritories *bool   `json:"availableInAllTerritories,omitempty"`
 }
 
+// InAppPurchaseV2Relationships describes relationships for IAPs.
+type InAppPurchaseV2Relationships struct {
+	App *Relationship `json:"app"`
+}
+
+// InAppPurchaseV2CreateData is the data portion of an IAP create request.
+type InAppPurchaseV2CreateData struct {
+	Type          ResourceType                    `json:"type"`
+	Attributes    InAppPurchaseV2CreateAttributes `json:"attributes"`
+	Relationships *InAppPurchaseV2Relationships   `json:"relationships,omitempty"`
+}
+
 // InAppPurchaseLocalizationAttributes describes an IAP localization.
 type InAppPurchaseLocalizationAttributes struct {
 	Name        string `json:"name"`
