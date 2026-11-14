@@ -2,12 +2,13 @@ package cmdtest
 
 import (
 	"context"
-	"encoding/json"
 	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestXcodeCloudWorkflowsResolvesAppByBundleID(t *testing.T) {
@@ -15,64 +16,14 @@ func TestXcodeCloudWorkflowsResolvesAppByBundleID(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	callCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		callCount++
-		switch callCount {
-		case 1:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps" {
-				t.Fatalf("unexpected first request: %s %s", req.Method, req.URL.String())
-			}
-			query := req.URL.Query()
-			if query.Get("filter[bundleId]") != "com.example.lookup" {
-				t.Fatalf("expected bundle filter com.example.lookup, got %q", query.Get("filter[bundleId]"))
-			}
-			if query.Get("limit") != "2" {
-				t.Fatalf("expected limit=2, got %q", query.Get("limit"))
-			}
-			body := `{"data":[{"type":"apps","id":"app-lookup"}]}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 2:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/ciProducts" {
-				t.Fatalf("unexpected second request: %s %s", req.Method, req.URL.String())
-			}
-			query := req.URL.Query()
-			if query.Get("filter[app]") != "app-lookup" {
-				t.Fatalf("expected filter[app]=app-lookup, got %q", query.Get("filter[app]"))
-			}
-			if query.Get("limit") != "200" {
-				t.Fatalf("expected limit=200, got %q", query.Get("limit"))
-			}
-			body := `{"data":[{"type":"ciProducts","id":"prod-1"}]}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 3:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/ciProducts/prod-1/workflows" {
-				t.Fatalf("unexpected third request: %s %s", req.Method, req.URL.String())
-			}
-			body := `{"data":[{"type":"ciWorkflows","id":"wf-1","attributes":{"name":"CI"}}]}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected request count %d", callCount)
-			return nil, nil
-		}
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=com.example.lookup", "limit=2"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"apps","id":"app-lookup"}]}`))
+	reg.Register(asctest.GET("/v1/ciProducts", "filter[app]=app-lookup", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"ciProducts","id":"prod-1"}]}`))
+	reg.Register(asctest.GET("/v1/ciProducts/prod-1/workflows"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"ciWorkflows","id":"wf-1","attributes":{"name":"CI"}}]}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -99,65 +50,14 @@ func TestXcodeCloudProductsResolvesAppByExactName(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	callCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		callCount++
-		switch callCount {
-		case 1:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps" {
-				t.Fatalf("unexpected first request: %s %s", req.Method, req.URL.String())
-			}
-			query := req.URL.Query()
-			if query.Get("filter[bundleId]") != "Focus Rail" {
-				t.Fatalf("expected bundle filter Focus Rail, got %q", query.Get("filter[bundleId]"))
-			}
-			body := `{"data":[]}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 2:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps" {
-				t.Fatalf("unexpected second request: %s %s", req.Method, req.URL.String())
-			}
-			query := req.URL.Query()
-			if query.Get("filter[name]") != "Focus Rail" {
-				t.Fatalf("expected name filter Focus Rail, got %q", query.Get("filter[name]"))
-			}
-			if query.Get("limit") != "200" {
-				t.Fatalf("expected limit=200, got %q", query.Get("limit"))
-			}
-			body := `{"data":[{"type":"apps","id":"app-lookup","attributes":{"name":"Focus Rail"}}]}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 3:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/ciProducts" {
-				t.Fatalf("unexpected third request: %s %s", req.Method, req.URL.String())
-			}
-			query := req.URL.Query()
-			if query.Get("filter[app]") != "app-lookup" {
-				t.Fatalf("expected filter[app]=app-lookup, got %q", query.Get("filter[app]"))
-			}
-			body := `{"data":[{"type":"ciProducts","id":"prod-1","attributes":{"name":"Focus Rail"}}]}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected request count %d", callCount)
-			return nil, nil
-		}
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=Focus Rail", "limit=2"),
+		asctest.JSON(http.StatusOK, `{"data":[]}`))
+	reg.Register(asctest.GET("/v1/apps", "filter[name]=Focus Rail", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"apps","id":"app-lookup","attributes":{"name":"Focus Rail"}}]}`))
+	reg.Register(asctest.GET("/v1/ciProducts", "filter[app]=app-lookup"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"ciProducts","id":"prod-1","attributes":{"name":"Focus Rail"}}]}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -184,138 +84,22 @@ func TestXcodeCloudRunResolvesAppByExactNameWhenWorkflowNameProvided(t *testing.
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	callCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		callCount++
-		switch callCount {
-		case 1:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps" {
-				t.Fatalf("unexpected first request: %s %s", req.Method, req.URL.String())
-			}
-			query := req.URL.Query()
-			if query.Get("filter[bundleId]") != "Focus Rail" {
-				t.Fatalf("expected bundle filter Focus Rail, got %q", query.Get("filter[bundleId]"))
-			}
-			body := `{"data":[]}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 2:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps" {
-				t.Fatalf("unexpected second request: %s %s", req.Method, req.URL.String())
-			}
-			query := req.URL.Query()
-			if query.Get("filter[name]") != "Focus Rail" {
-				t.Fatalf("expected name filter Focus Rail, got %q", query.Get("filter[name]"))
-			}
-			body := `{"data":[{"type":"apps","id":"app-lookup","attributes":{"name":"Focus Rail"}}]}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 3:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/ciProducts" {
-				t.Fatalf("unexpected third request: %s %s", req.Method, req.URL.String())
-			}
-			query := req.URL.Query()
-			if query.Get("filter[app]") != "app-lookup" {
-				t.Fatalf("expected filter[app]=app-lookup, got %q", query.Get("filter[app]"))
-			}
-			if query.Get("limit") != "200" {
-				t.Fatalf("expected limit=200, got %q", query.Get("limit"))
-			}
-			body := `{"data":[{"type":"ciProducts","id":"prod-1"}]}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 4:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/ciProducts/prod-1/workflows" {
-				t.Fatalf("unexpected fourth request: %s %s", req.Method, req.URL.String())
-			}
-			if req.URL.Query().Get("limit") != "200" {
-				t.Fatalf("expected limit=200, got %q", req.URL.Query().Get("limit"))
-			}
-			body := `{"data":[{"type":"ciWorkflows","id":"wf-1","attributes":{"name":"CI"}}],"links":{"next":""}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 5:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/ciWorkflows/wf-1/repository" {
-				t.Fatalf("unexpected fifth request: %s %s", req.Method, req.URL.String())
-			}
-			body := `{"data":{"type":"scmRepositories","id":"repo-1"}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 6:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/scmRepositories/repo-1/gitReferences" {
-				t.Fatalf("unexpected sixth request: %s %s", req.Method, req.URL.String())
-			}
-			if req.URL.Query().Get("limit") != "200" {
-				t.Fatalf("expected limit=200, got %q", req.URL.Query().Get("limit"))
-			}
-			body := `{"data":[{"type":"scmGitReferences","id":"ref-1","attributes":{"name":"main","canonicalName":"refs/heads/main"}}],"links":{"next":""}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 7:
-			if req.Method != http.MethodPost || req.URL.Path != "/v1/ciBuildRuns" {
-				t.Fatalf("unexpected seventh request: %s %s", req.Method, req.URL.String())
-			}
-
-			var payload map[string]any
-			if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-				t.Fatalf("failed to decode request body: %v", err)
-			}
-
-			data, ok := payload["data"].(map[string]any)
-			if !ok {
-				t.Fatalf("expected data object in payload, got %#v", payload["data"])
-			}
-			relationships, ok := data["relationships"].(map[string]any)
-			if !ok {
-				t.Fatalf("expected relationships object in payload, got %#v", data["relationships"])
-			}
-
-			workflow := relationships["workflow"].(map[string]any)
-			workflowData := workflow["data"].(map[string]any)
-			if workflowData["id"] != "wf-1" {
-				t.Fatalf("expected workflow ID wf-1, got %#v", workflowData["id"])
-			}
-
-			source := relationships["sourceBranchOrTag"].(map[string]any)
-			sourceData := source["data"].(map[string]any)
-			if sourceData["id"] != "ref-1" {
-				t.Fatalf("expected git reference ID ref-1, got %#v", sourceData["id"])
-			}
-
-			body := `{"data":{"type":"ciBuildRuns","id":"run-1","attributes":{"number":1,"executionProgress":"PENDING","startReason":"MANUAL","createdDate":"2026-03-14T00:00:00Z"}}}`
-			return &http.Response{
-				StatusCode: http.StatusCreated,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected request count %d", callCount)
-			return nil, nil
-		}
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=Focus Rail", "limit=2"),
+		asctest.JSON(http.StatusOK, `{"data":[]}`))
+	reg.Register(asctest.GET("/v1/apps", "filter[name]=Focus Rail", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"apps","id":"app-lookup","attributes":{"name":"Focus Rail"}}]}`))
+	reg.Register(asctest.GET("/v1/ciProducts", "filter[app]=app-lookup", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"ciProducts","id":"prod-1"}]}`))
+	reg.Register(asctest.GET("/v1/ciProducts/prod-1/workflows", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"ciWorkflows","id":"wf-1","attributes":{"name":"CI"}}],"links":{"next":""}}`))
+	reg.Register(asctest.GET("/v1/ciWorkflows/wf-1/repository"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"scmRepositories","id":"repo-1"}}`))
+	reg.Register(asctest.GET("/v1/scmRepositories/repo-1/gitReferences", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"scmGitReferences","id":"ref-1","attributes":{"name":"main","canonicalName":"refs/heads/main"}}],"links":{"next":""}}`))
+	reg.Register(asctest.POST("/v1/ciBuildRuns").JSONBody(`{"data":{"type":"ciBuildRuns","relationships":{"workflow":{"data":{"type":"ciWorkflows","id":"wf-1"}},"sourceBranchOrTag":{"data":{"type":"scmGitReferences","id":"ref-1"}}}}}`),
+		asctest.JSON(http.StatusCreated, `{"data":{"type":"ciBuildRuns","id":"run-1","attributes":{"number":1,"executionProgress":"PENDING","startReason":"MANUAL","createdDate":"2026-03-14T00:00:00Z"}}}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -342,59 +126,14 @@ func TestXcodeCloudProductsRejectsUniqueFuzzyAppName(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	callCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		callCount++
-		switch callCount {
-		case 1:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps" {
-				t.Fatalf("unexpected first request: %s %s", req.Method, req.URL.String())
-			}
-			if req.URL.Query().Get("filter[bundleId]") != "Relax" {
-				t.Fatalf("expected bundle filter Relax, got %q", req.URL.Query().Get("filter[bundleId]"))
-			}
-			body := `{"data":[]}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 2:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps" {
-				t.Fatalf("unexpected second request: %s %s", req.Method, req.URL.String())
-			}
-			if req.URL.Query().Get("filter[name]") != "Relax" {
-				t.Fatalf("expected name filter Relax, got %q", req.URL.Query().Get("filter[name]"))
-			}
-			body := `{"data":[{"type":"apps","id":"app-fuzzy","attributes":{"name":"Relax: Sleep + Focus"}}],"links":{"next":""}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 3:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps" {
-				t.Fatalf("unexpected third request: %s %s", req.Method, req.URL.String())
-			}
-			if req.URL.Query().Get("limit") != "200" {
-				t.Fatalf("expected full-scan limit=200, got %q", req.URL.Query().Get("limit"))
-			}
-			body := `{"data":[{"type":"apps","id":"app-fuzzy","attributes":{"name":"Relax: Sleep + Focus"}}],"links":{"next":""}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected request count %d", callCount)
-			return nil, nil
-		}
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=Relax", "limit=2"),
+		asctest.JSON(http.StatusOK, `{"data":[]}`))
+	reg.Register(asctest.GET("/v1/apps", "filter[name]=Relax", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"apps","id":"app-fuzzy","attributes":{"name":"Relax: Sleep + Focus"}}],"links":{"next":""}}`))
+	reg.Register(asctest.GET("/v1/apps", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"apps","id":"app-fuzzy","attributes":{"name":"Relax: Sleep + Focus"}}],"links":{"next":""}}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -419,7 +158,7 @@ func TestXcodeCloudProductsRejectsUniqueFuzzyAppName(t *testing.T) {
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	if callCount != 3 {
+	if callCount := len(reg.Requests()); callCount != 3 {
 		t.Fatalf("expected exactly 3 lookup requests, got %d", callCount)
 	}
 }
@@ -429,33 +168,10 @@ func TestXcodeCloudProductsTreatsNumericAppAsIDBeforeExactNameLookup(t *testing.
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	callCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		callCount++
-		switch callCount {
-		case 1:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/ciProducts" {
-				t.Fatalf("unexpected first request: %s %s", req.Method, req.URL.String())
-			}
-			if req.URL.Query().Get("filter[app]") != "2048" {
-				t.Fatalf("expected filter[app]=2048, got %q", req.URL.Query().Get("filter[app]"))
-			}
-			body := `{"data":[{"type":"ciProducts","id":"prod-2048","attributes":{"name":"2048"}}]}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected request count %d", callCount)
-			return nil, nil
-		}
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/ciProducts", "filter[app]=2048"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"ciProducts","id":"prod-2048","attributes":{"name":"2048"}}]}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -475,7 +191,7 @@ func TestXcodeCloudProductsTreatsNumericAppAsIDBeforeExactNameLookup(t *testing.
 	if !strings.Contains(stdout, `"id":"prod-2048"`) {
 		t.Fatalf("expected product output, got %q", stdout)
 	}
-	if callCount != 1 {
+	if callCount := len(reg.Requests()); callCount != 1 {
 		t.Fatalf("expected exactly 1 request, got %d", callCount)
 	}
 }
