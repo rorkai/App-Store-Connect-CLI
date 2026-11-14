@@ -940,53 +940,31 @@ Examples:
 }
 
 func VersionsDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("versions delete", flag.ExitOnError)
-
-	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID (required)")
-	confirm := fs.Bool("confirm", false, "Confirm deletion (required)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc versions delete [flags]",
-		ShortHelp:  "Delete an app store version (only versions in PREPARE_FOR_SUBMISSION state).",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "versions delete",
+		Name:        "delete",
+		ShortUsage:  "asc versions delete [flags]",
+		ShortHelp:   "Delete an app store version (only versions in PREPARE_FOR_SUBMISSION state).",
 		LongHelp: `Delete an app store version.
 
 Only versions in PREPARE_FOR_SUBMISSION state can be deleted.
 
 Examples:
   asc versions delete --version-id "VERSION_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if strings.TrimSpace(*versionID) == "" {
-				return shared.RequiredFlag("--version-id")
-			}
-			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required to delete a version")
-				return shared.MissingRequiredUsageError("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("versions delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteAppStoreVersion(requestCtx, strings.TrimSpace(*versionID)); err != nil {
-				return fmt.Errorf("versions delete: %w", err)
-			}
-
-			result := &asc.AppStoreVersionDeleteResult{
-				Deleted:   true,
-				VersionID: strings.TrimSpace(*versionID),
-			}
-
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:                 "version-id",
+		IDUsage:                "App Store version ID (required)",
+		IDType:                 "appStoreVersions",
+		RequiredDiagnostic:     true,
+		ConfirmUsage:           "Confirm deletion (required)",
+		ConfirmRequiredMessage: "--confirm is required to delete a version",
+		ErrorPrefix:            "versions delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteAppStoreVersion(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.AppStoreVersionDeleteResult{Deleted: true, VersionID: id}
+		},
+	})
 }
 
 func VersionsAttachBuildCommand() *ffcli.Command {
