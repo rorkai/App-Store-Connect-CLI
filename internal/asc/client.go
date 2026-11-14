@@ -661,13 +661,6 @@ func (c *Client) GetBetaGroupTesters(ctx context.Context, groupID string, opts .
 	})
 }
 
-// CreateBetaGroup creates a beta group for an app.
-func (c *Client) CreateBetaGroup(ctx context.Context, appID, name string) (*BetaGroupResponse, error) {
-	return c.CreateBetaGroupWithAttributes(ctx, appID, BetaGroupCreateAttributes{
-		Name: name,
-	}, nil, nil)
-}
-
 // CreateBetaGroupWithAttributes creates a beta group for an app with explicit
 // attributes, attaching any builds and beta testers in the same request.
 // Note: some attributes (e.g., isInternalGroup) are create-only in the ASC API.
@@ -1142,19 +1135,6 @@ func (c *Client) UpdateAppInfoLocalizationNullableFields(ctx context.Context, lo
 		Attributes: fields,
 	}}
 	return sendJSON[AppInfoLocalizationResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/appInfoLocalizations/%s", localizationID), Payload: payload})
-}
-
-// GetAppInfoLocalization retrieves an app info localization by ID.
-func (c *Client) GetAppInfoLocalization(ctx context.Context, localizationID string, opts ...AppInfoLocalizationOption) (*AppInfoLocalizationResponse, error) {
-	query := applyOptions(opts)
-	localizationID = strings.TrimSpace(localizationID)
-	if localizationID == "" {
-		return nil, fmt.Errorf("localizationID is required")
-	}
-	return getJSON[AppInfoLocalizationResponse](ctx, c, readRequest{
-		Path:  fmt.Sprintf("/v1/appInfoLocalizations/%s", localizationID),
-		Query: buildAppInfoLocalizationQuery(query),
-	})
 }
 
 // GetAppInfos retrieves app info records for an app.

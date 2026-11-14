@@ -2,7 +2,6 @@ package asc
 
 import (
 	"net/url"
-	"strconv"
 )
 
 // GameCenterAppVersionsResponse is the response from app version list endpoints.
@@ -13,19 +12,10 @@ type GCAppVersionsOption func(*gcAppVersionsQuery)
 
 type gcAppVersionsQuery struct {
 	listQuery
-	enabled []string
-}
-
-// WithGCAppVersionsEnabled filters by enabled status.
-func WithGCAppVersionsEnabled(enabled bool) GCAppVersionsOption {
-	return func(q *gcAppVersionsQuery) {
-		q.enabled = []string{strconv.FormatBool(enabled)}
-	}
 }
 
 func buildGCAppVersionsQuery(query *gcAppVersionsQuery) string {
 	values := url.Values{}
-	addCSV(values, "filter[enabled]", query.enabled)
 	addLimit(values, query.limit)
 	return values.Encode()
 }

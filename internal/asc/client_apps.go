@@ -51,25 +51,6 @@ type AppUpdateAttributes struct {
 	StreamlinedPurchasingEnabled           *bool                         `json:"streamlinedPurchasingEnabled,omitempty"`
 }
 
-// AppCreateAttributes describes attributes for creating an app.
-type AppCreateAttributes struct {
-	Name          string `json:"name"`
-	BundleID      string `json:"bundleId"`
-	SKU           string `json:"sku"`
-	PrimaryLocale string `json:"primaryLocale,omitempty"`
-}
-
-// AppCreateData is the data portion of an app create request.
-type AppCreateData struct {
-	Type       ResourceType         `json:"type"`
-	Attributes *AppCreateAttributes `json:"attributes,omitempty"`
-}
-
-// AppCreateRequest is a request to create an app.
-type AppCreateRequest struct {
-	Data AppCreateData `json:"data"`
-}
-
 // GetApp retrieves a single app by ID.
 func (c *Client) GetApp(ctx context.Context, appID string) (*AppResponse, error) {
 	return c.GetAppWithOptions(ctx, appID)
@@ -137,32 +118,6 @@ func (c *Client) UpdateApp(ctx context.Context, appID string, attrs AppUpdateAtt
 	return sendJSON[AppResponse](ctx, c, writeRequest{
 		Method:  "PATCH",
 		Path:    fmt.Sprintf("/v1/apps/%s", appID),
-		Payload: payload,
-	})
-}
-
-// CreateApp creates a new app in App Store Connect.
-func (c *Client) CreateApp(ctx context.Context, attrs AppCreateAttributes) (*AppResponse, error) {
-	if strings.TrimSpace(attrs.Name) == "" {
-		return nil, fmt.Errorf("name is required")
-	}
-	if strings.TrimSpace(attrs.BundleID) == "" {
-		return nil, fmt.Errorf("bundleId is required")
-	}
-	if strings.TrimSpace(attrs.SKU) == "" {
-		return nil, fmt.Errorf("sku is required")
-	}
-
-	payload := AppCreateRequest{
-		Data: AppCreateData{
-			Type:       ResourceTypeApps,
-			Attributes: &attrs,
-		},
-	}
-
-	return sendJSON[AppResponse](ctx, c, writeRequest{
-		Method:  "POST",
-		Path:    "/v1/apps",
 		Payload: payload,
 	})
 }

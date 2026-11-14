@@ -6,14 +6,6 @@ type IntegerRange struct {
 	Maximum *int `json:"maximum,omitempty"`
 }
 
-// NewIntegerRange builds an IntegerRange with both bounds set.
-func NewIntegerRange(minimum, maximum int) IntegerRange {
-	return IntegerRange{
-		Minimum: &minimum,
-		Maximum: &maximum,
-	}
-}
-
 // SubscriptionOfferDuration represents subscription offer durations.
 type SubscriptionOfferDuration string
 

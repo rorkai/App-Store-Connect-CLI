@@ -9,7 +9,7 @@ func TestBuildDevicesQuery(t *testing.T) {
 	query := &devicesQuery{}
 	opts := []DevicesOption{
 		WithDevicesNames([]string{"My iPhone", " My iPad "}),
-		WithDevicesPlatform("ios"),
+		WithDevicesPlatforms([]string{"ios"}),
 		WithDevicesStatus("enabled"),
 		WithDevicesUDIDs([]string{"UDID-1", " UDID-2 "}),
 		WithDevicesIDs([]string{"device-1"}),

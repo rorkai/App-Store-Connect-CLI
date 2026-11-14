@@ -44,23 +44,6 @@ const (
 	testSubmissionID = "550e8400-e29b-41d4-a716-446655440000"
 )
 
-type cancelAfterReadSeeker struct {
-	reader *bytes.Reader
-	cancel context.CancelFunc
-}
-
-func (r *cancelAfterReadSeeker) Read(p []byte) (int, error) {
-	n, err := r.reader.Read(p)
-	if n > 0 {
-		r.cancel()
-	}
-	return n, err
-}
-
-func (r *cancelAfterReadSeeker) Seek(offset int64, whence int) (int64, error) {
-	return r.reader.Seek(offset, whence)
-}
-
 func TestGenerateNotaryJWT(t *testing.T) {
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
@@ -516,74 +499,6 @@ func TestListNotarizations_ErrorResponse(t *testing.T) {
 	_, err := client.ListNotarizations(context.Background())
 	if err == nil {
 		t.Fatal("expected error for 401 response")
-	}
-}
-
-func TestComputeFileSHA256(t *testing.T) {
-	content := []byte("hello world")
-	file := bytes.NewReader(content)
-	got, err := ComputeFileSHA256(context.Background(), file)
-	if err != nil {
-		t.Fatalf("ComputeFileSHA256() error: %v", err)
-	}
-
-	// Expected SHA-256 of "hello world"
-	h := sha256.Sum256(content)
-	want := hex.EncodeToString(h[:])
-
-	if got != want {
-		t.Errorf("got %s, want %s", got, want)
-	}
-	replayed, err := io.ReadAll(file)
-	if err != nil {
-		t.Fatalf("read rewound file: %v", err)
-	}
-	if !bytes.Equal(replayed, content) {
-		t.Fatalf("rewound contents = %q, want %q", replayed, content)
-	}
-}
-
-func TestComputeFileSHA256_EmptyFile(t *testing.T) {
-	got, err := ComputeFileSHA256(context.Background(), bytes.NewReader(nil))
-	if err != nil {
-		t.Fatalf("ComputeFileSHA256() error: %v", err)
-	}
-
-	// SHA-256 of empty data
-	h := sha256.Sum256(nil)
-	want := hex.EncodeToString(h[:])
-
-	if got != want {
-		t.Errorf("got %s, want %s", got, want)
-	}
-}
-
-func TestComputeFileSHA256_ContextCancellationBeforeRead(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-
-	got, err := ComputeFileSHA256(ctx, bytes.NewReader([]byte("data")))
-	if !errors.Is(err, context.Canceled) {
-		t.Fatalf("ComputeFileSHA256() error = %v, want context.Canceled", err)
-	}
-	if got != "" {
-		t.Fatalf("ComputeFileSHA256() hash = %q, want empty hash on cancellation", got)
-	}
-}
-
-func TestComputeFileSHA256_ContextCancellationDuringRead(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	file := &cancelAfterReadSeeker{
-		reader: bytes.NewReader(bytes.Repeat([]byte("x"), 128*1024)),
-		cancel: cancel,
-	}
-
-	got, err := ComputeFileSHA256(ctx, file)
-	if !errors.Is(err, context.Canceled) {
-		t.Fatalf("ComputeFileSHA256() error = %v, want context.Canceled", err)
-	}
-	if got != "" {
-		t.Fatalf("ComputeFileSHA256() hash = %q, want empty hash on cancellation", got)
 	}
 }
 

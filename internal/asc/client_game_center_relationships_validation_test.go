@@ -45,62 +45,6 @@ func TestGameCenterAddRemoveRelationshipValidationErrors(t *testing.T) {
 			},
 		},
 		{
-			name:    "AddGameCenterEnabledVersionCompatibleVersions missing enabledVersionID",
-			wantErr: "enabledVersionID is required",
-			call: func(client *Client) error {
-				return client.AddGameCenterEnabledVersionCompatibleVersions(ctx, "", []string{"ver-1"})
-			},
-		},
-		{
-			name:    "AddGameCenterEnabledVersionCompatibleVersions missing compatibleIDs",
-			wantErr: "compatibleIDs are required",
-			call: func(client *Client) error {
-				return client.AddGameCenterEnabledVersionCompatibleVersions(ctx, "ver-1", []string{})
-			},
-		},
-		{
-			name:    "RemoveGameCenterEnabledVersionCompatibleVersions missing enabledVersionID",
-			wantErr: "enabledVersionID is required",
-			call: func(client *Client) error {
-				return client.RemoveGameCenterEnabledVersionCompatibleVersions(ctx, " ", []string{"ver-1"})
-			},
-		},
-		{
-			name:    "RemoveGameCenterEnabledVersionCompatibleVersions missing compatibleIDs",
-			wantErr: "compatibleIDs are required",
-			call: func(client *Client) error {
-				return client.RemoveGameCenterEnabledVersionCompatibleVersions(ctx, "ver-1", []string{" "})
-			},
-		},
-		{
-			name:    "AddGameCenterAppVersionCompatibilityVersions missing appVersionID",
-			wantErr: "appVersionID is required",
-			call: func(client *Client) error {
-				return client.AddGameCenterAppVersionCompatibilityVersions(ctx, "", []string{"ver-1"})
-			},
-		},
-		{
-			name:    "AddGameCenterAppVersionCompatibilityVersions missing compatibleIDs",
-			wantErr: "compatibleIDs are required",
-			call: func(client *Client) error {
-				return client.AddGameCenterAppVersionCompatibilityVersions(ctx, "ver-1", []string{})
-			},
-		},
-		{
-			name:    "RemoveGameCenterAppVersionCompatibilityVersions missing appVersionID",
-			wantErr: "appVersionID is required",
-			call: func(client *Client) error {
-				return client.RemoveGameCenterAppVersionCompatibilityVersions(ctx, " ", []string{"ver-1"})
-			},
-		},
-		{
-			name:    "RemoveGameCenterAppVersionCompatibilityVersions missing compatibleIDs",
-			wantErr: "compatibleIDs are required",
-			call: func(client *Client) error {
-				return client.RemoveGameCenterAppVersionCompatibilityVersions(ctx, "ver-1", nil)
-			},
-		},
-		{
 			name:    "AddGameCenterActivityAchievementsV2 missing activityID",
 			wantErr: "activityID is required",
 			call: func(client *Client) error {

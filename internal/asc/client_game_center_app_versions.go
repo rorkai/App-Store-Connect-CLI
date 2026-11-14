@@ -7,17 +7,6 @@ import (
 	"strings"
 )
 
-// GetGameCenterAppVersions retrieves the list of Game Center app versions.
-func (c *Client) GetGameCenterAppVersions(ctx context.Context, opts ...GCAppVersionsOption) (*GameCenterAppVersionsResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[GameCenterAppVersionsResponse](ctx, c, readRequest{
-		Path:        "/v1/gameCenterAppVersions",
-		Query:       buildGCAppVersionsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "game-center-app-versions",
-	})
-}
-
 // CreateGameCenterAppVersion creates a new Game Center app version.
 func (c *Client) CreateGameCenterAppVersion(ctx context.Context, appStoreVersionID string) (*GameCenterAppVersionResponse, error) {
 	appStoreVersionID = strings.TrimSpace(appStoreVersionID)

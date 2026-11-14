@@ -177,16 +177,6 @@ func WithBuildsVersion(version string) BuildsOption {
 	}
 }
 
-// WithBuildsPreReleaseVersionVersion filters builds by marketing version
-// (CFBundleShortVersionString) via filter[preReleaseVersion.version].
-func WithBuildsPreReleaseVersionVersion(version string) BuildsOption {
-	return func(q *buildsQuery) {
-		if strings.TrimSpace(version) != "" {
-			q.preReleaseVersion = strings.TrimSpace(version)
-		}
-	}
-}
-
 // WithBuildsBuildNumber filters builds by build number.
 // App Store Connect models build number as build version, so this maps to filter[version].
 func WithBuildsBuildNumber(buildNumber string) BuildsOption {

@@ -17,7 +17,7 @@ func TestValidateScreenshotDimensionsValid(t *testing.T) {
 	path := filepath.Join(dir, "valid.png")
 	writePNG(t, path, 640, 960)
 
-	if err := ValidateScreenshotDimensions(path, "APP_IPHONE_35"); err != nil {
+	if err := ValidateScreenshotDimensionsForSize(path, 640, 960, "APP_IPHONE_35"); err != nil {
 		t.Fatalf("expected valid dimensions, got %v", err)
 	}
 }
@@ -27,7 +27,7 @@ func TestValidateScreenshotDimensionsInvalid(t *testing.T) {
 	path := filepath.Join(dir, "invalid.png")
 	writePNG(t, path, 100, 100)
 
-	err := ValidateScreenshotDimensions(path, "APP_IPHONE_35")
+	err := ValidateScreenshotDimensionsForSize(path, 100, 100, "APP_IPHONE_35")
 	if err == nil {
 		t.Fatal("expected dimension validation error, got nil")
 	}
@@ -48,7 +48,7 @@ func TestValidateScreenshotDimensionsSuggestsMatchingDisplayType(t *testing.T) {
 	path := filepath.Join(dir, "known-wrong-type.png")
 	writePNG(t, path, 1206, 2622)
 
-	err := ValidateScreenshotDimensions(path, "APP_IPHONE_67")
+	err := ValidateScreenshotDimensionsForSize(path, 1206, 2622, "APP_IPHONE_67")
 	if err == nil {
 		t.Fatal("expected dimension validation error, got nil")
 	}
@@ -93,7 +93,7 @@ func TestValidateScreenshotDimensionsAcceptsLatestIPhone67Sizes(t *testing.T) {
 			path := filepath.Join(dir, "latest-large.png")
 			writePNG(t, path, tc.width, tc.height)
 
-			if err := ValidateScreenshotDimensions(path, "APP_IPHONE_67"); err != nil {
+			if err := ValidateScreenshotDimensionsForSize(path, tc.width, tc.height, "APP_IPHONE_67"); err != nil {
 				t.Fatalf("expected dimensions %dx%d to be valid for APP_IPHONE_67, got %v", tc.width, tc.height, err)
 			}
 		})
@@ -118,7 +118,7 @@ func TestValidateScreenshotDimensionsAcceptsLatestIPhone61Sizes(t *testing.T) {
 			path := filepath.Join(dir, "latest-61.png")
 			writePNG(t, path, tc.width, tc.height)
 
-			if err := ValidateScreenshotDimensions(path, "APP_IPHONE_61"); err != nil {
+			if err := ValidateScreenshotDimensionsForSize(path, tc.width, tc.height, "APP_IPHONE_61"); err != nil {
 				t.Fatalf("expected dimensions %dx%d to be valid for APP_IPHONE_61, got %v", tc.width, tc.height, err)
 			}
 		})
@@ -143,7 +143,7 @@ func TestValidateScreenshotDimensionsAcceptsIPhone65ConsolidatedSlotSizes(t *tes
 			path := filepath.Join(dir, "iphone65-consolidated.png")
 			writePNG(t, path, tc.width, tc.height)
 
-			if err := ValidateScreenshotDimensions(path, "APP_IPHONE_65"); err != nil {
+			if err := ValidateScreenshotDimensionsForSize(path, tc.width, tc.height, "APP_IPHONE_65"); err != nil {
 				t.Fatalf("expected dimensions %dx%d to be valid for APP_IPHONE_65, got %v", tc.width, tc.height, err)
 			}
 		})
@@ -170,7 +170,7 @@ func TestValidateScreenshotDimensionsAcceptsLatestIPhone58Sizes(t *testing.T) {
 			path := filepath.Join(dir, "latest-58.png")
 			writePNG(t, path, tc.width, tc.height)
 
-			if err := ValidateScreenshotDimensions(path, "APP_IPHONE_58"); err != nil {
+			if err := ValidateScreenshotDimensionsForSize(path, tc.width, tc.height, "APP_IPHONE_58"); err != nil {
 				t.Fatalf("expected dimensions %dx%d to be valid for APP_IPHONE_58, got %v", tc.width, tc.height, err)
 			}
 		})
@@ -356,7 +356,7 @@ func TestValidateScreenshotDimensionsAcceptsIPadPro11LatestSizes(t *testing.T) {
 			path := filepath.Join(dir, "ipad-pro-11-latest.png")
 			writePNG(t, path, tc.width, tc.height)
 
-			if err := ValidateScreenshotDimensions(path, "APP_IPAD_PRO_3GEN_11"); err != nil {
+			if err := ValidateScreenshotDimensionsForSize(path, tc.width, tc.height, "APP_IPAD_PRO_3GEN_11"); err != nil {
 				t.Fatalf("expected dimensions %dx%d to be valid for APP_IPAD_PRO_3GEN_11, got %v", tc.width, tc.height, err)
 			}
 		})
@@ -606,7 +606,7 @@ func TestValidateScreenshotDimensionsAcceptsMacWatchTVVisionSizes(t *testing.T) 
 			path := filepath.Join(dir, "platform-size.png")
 			writePNG(t, path, tc.width, tc.height)
 
-			if err := ValidateScreenshotDimensions(path, tc.displayType); err != nil {
+			if err := ValidateScreenshotDimensionsForSize(path, tc.width, tc.height, tc.displayType); err != nil {
 				t.Fatalf("expected dimensions %dx%d to be valid for %s, got %v", tc.width, tc.height, tc.displayType, err)
 			}
 		})
@@ -632,7 +632,7 @@ func TestValidateScreenshotDimensionsRejectsLegacyWatchSizes(t *testing.T) {
 			path := filepath.Join(dir, "legacy-watch.png")
 			writePNG(t, path, tc.width, tc.height)
 
-			err := ValidateScreenshotDimensions(path, tc.displayType)
+			err := ValidateScreenshotDimensionsForSize(path, tc.width, tc.height, tc.displayType)
 			if err == nil {
 				t.Fatalf("expected dimensions %dx%d to be rejected for %s", tc.width, tc.height, tc.displayType)
 			}
@@ -656,7 +656,7 @@ func TestValidateScreenshotDimensionsAcceptsIPadPro129M5Size(t *testing.T) {
 			path := filepath.Join(dir, "ipad-pro-129-m5.png")
 			writePNG(t, path, tc.width, tc.height)
 
-			if err := ValidateScreenshotDimensions(path, "APP_IPAD_PRO_3GEN_129"); err != nil {
+			if err := ValidateScreenshotDimensionsForSize(path, tc.width, tc.height, "APP_IPAD_PRO_3GEN_129"); err != nil {
 				t.Fatalf("expected dimensions %dx%d to be valid for APP_IPAD_PRO_3GEN_129, got %v", tc.width, tc.height, err)
 			}
 		})

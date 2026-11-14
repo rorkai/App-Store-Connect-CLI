@@ -81,15 +81,6 @@ func WithAppScreenshotsRequestContext(factory RequestContextFunc) AppScreenshots
 	}
 }
 
-// WithAppStoreVersionLocalizationScreenshotSetsRequestContext creates a fresh
-// context for each page fetched by
-// GetAllAppStoreVersionLocalizationScreenshotSets.
-func WithAppStoreVersionLocalizationScreenshotSetsRequestContext(factory RequestContextFunc) AppStoreVersionLocalizationScreenshotSetsOption {
-	return func(query *appStoreVersionLocalizationScreenshotSetsQuery) {
-		query.requestContext = factory
-	}
-}
-
 // WithAppCustomProductPageLocalizationScreenshotSetsRequestContext creates a
 // fresh context for each page fetched by
 // GetAllAppCustomProductPageLocalizationScreenshotSets.
@@ -168,31 +159,6 @@ func paginateAssetResponse[T any](ctx context.Context, firstPage *Response[T], f
 		return nil, fmt.Errorf("unexpected paginated response type %T", result)
 	}
 	return response, nil
-}
-
-// GetAllAppStoreVersionLocalizationScreenshotSets retrieves every screenshot
-// set for an App Store version localization.
-func (c *Client) GetAllAppStoreVersionLocalizationScreenshotSets(ctx context.Context, localizationID string, opts ...AppStoreVersionLocalizationScreenshotSetsOption) (*AppScreenshotSetsResponse, error) {
-	query := &appStoreVersionLocalizationScreenshotSetsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-	requestCtx, cancel := requestContextFor(ctx, query.requestContext)
-	firstPage, err := c.GetAppStoreVersionLocalizationScreenshotSets(requestCtx, localizationID, opts...)
-	cancel()
-	if err != nil {
-		return nil, err
-	}
-
-	result, err := paginateAssetResponse(ctx, firstPage, func(parentCtx context.Context, nextURL string) (PaginatedResponse, error) {
-		nextCtx, nextCancel := requestContextFor(parentCtx, query.requestContext)
-		defer nextCancel()
-		return c.GetAppStoreVersionLocalizationScreenshotSets(nextCtx, "", NextURL[AppStoreVersionLocalizationScreenshotSetsOption](nextURL))
-	})
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
 }
 
 // GetAllAppCustomProductPageLocalizationScreenshotSets retrieves every

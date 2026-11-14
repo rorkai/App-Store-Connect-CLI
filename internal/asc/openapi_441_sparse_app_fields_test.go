@@ -15,22 +15,6 @@ func TestOpenAPI441SparseAppFields(t *testing.T) {
 		call      func(*Client) error
 	}{
 		{
-			name:     "app info localization detail",
-			wantPath: "/v1/appInfoLocalizations/loc-1",
-			wantQuery: map[string]string{
-				"fields[appInfos]": "kidsAgeBand",
-				"include":          "appInfo",
-			},
-			call: func(client *Client) error {
-				_, err := client.GetAppInfoLocalization(
-					context.Background(), "loc-1",
-					WithAppInfoLocalizationAppInfoFields([]string{"kidsAgeBand"}),
-					WithAppInfoLocalizationInclude([]string{"appInfo"}),
-				)
-				return err
-			},
-		},
-		{
 			name:     "app info detail",
 			wantPath: "/v1/appInfos/info-1",
 			wantQuery: map[string]string{
