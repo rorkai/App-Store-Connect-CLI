@@ -118,6 +118,12 @@ type Catalog struct {
 
 // NewCatalog returns the current root command catalog.
 func NewCatalog(version string) *Catalog {
+	return NewCatalogWithDeps(version, shared.DefaultDeps())
+}
+
+// NewCatalogWithDeps returns the root command catalog with the commands that
+// take dependencies built on d.
+func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 	catalog := &Catalog{}
 	catalog.factories = []factory{
 		commandFactory("auth", "Manage authentication for the App Store Connect API.", auth.AuthCommand),
@@ -154,7 +160,9 @@ func NewCatalog(version string) *Catalog {
 		commandFactory("pass-type-ids", "Manage pass type IDs.", passtypeids.PassTypeIDsCommand),
 		commandFactory("profiles", "Manage provisioning profiles.", profiles.ProfilesCommand),
 		commandFactory("users", "Manage users and invitations in App Store Connect.", users.UsersCommand),
-		commandFactory("actors", "Lookup actors (users, API keys) by ID.", actors.ActorsCommand),
+		commandFactory("actors", "Lookup actors (users, API keys) by ID.", func() *ffcli.Command {
+			return actors.NewActorsCommand(d)
+		}),
 		commandFactory("devices", "Manage devices in App Store Connect.", devices.DevicesCommand),
 		commandFactory("testflight", "Manage TestFlight workflows.", testflight.TestFlightCommand),
 		commandFactory("builds", "Manage builds in App Store Connect.", builds.BuildsCommand),
