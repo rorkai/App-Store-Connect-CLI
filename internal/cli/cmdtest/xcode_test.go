@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	xcodecli "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/xcode"
 	localxcode "github.com/rudrankriyam/App-Store-Connect-CLI/internal/xcode"
 )
 
@@ -254,6 +255,63 @@ func TestXcodeExportRejectsInvalidImplicitDestinationAsUsage(t *testing.T) {
 			}
 			if stdout != "" || !strings.Contains(stderr, tc.errorHint) {
 				t.Fatalf("unexpected output: stdout=%q stderr=%q", stdout, stderr)
+			}
+		})
+	}
+}
+
+func TestXcodeTestJUnitExitsNonZeroWhenBundleHasFailedTests(t *testing.T) {
+	failing := &localxcode.TestSummary{Total: 2, Passed: 1, Failed: 1, Cases: []localxcode.TestCase{
+		{Identifier: "DemoTests/Smoke/testPass", Name: "testPass", Status: "passed"},
+		{Identifier: "DemoTests/Smoke/testFail", Name: "testFail", Status: "failed", Message: "expected true"},
+	}}
+	passing := &localxcode.TestSummary{Total: 1, Passed: 1, Cases: []localxcode.TestCase{
+		{Identifier: "DemoTests/Smoke/testPass", Name: "testPass", Status: "passed"},
+	}}
+	tests := []struct {
+		name       string
+		summary    *localxcode.TestSummary
+		extraArgs  []string
+		wantExit   int
+		wantStderr string
+	}{
+		{name: "failed tests", summary: failing, wantExit: rootcmd.ExitError, wantStderr: "Error: xcode test junit: 1 failed test(s); report written to "},
+		{name: "failed tests allowed", summary: failing, extraArgs: []string{"--allow-failures"}, wantExit: rootcmd.ExitSuccess},
+		{name: "passing tests", summary: passing, wantExit: rootcmd.ExitSuccess},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Cleanup(xcodecli.SetXCResultSummaryLoaderForTesting(func(context.Context, string) (*localxcode.TestSummary, error) {
+				return test.summary, nil
+			}))
+			reportFile := filepath.Join(t.TempDir(), "junit.xml")
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+			args := append([]string{"xcode", "test", "junit", "--xcresult", "Test.xcresult", "--report-file", reportFile, "--output", "json"}, test.extraArgs...)
+
+			var runErr error
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				runErr = root.Run(context.Background())
+			})
+
+			if got := rootcmd.ExitCodeFromError(runErr); got != test.wantExit {
+				t.Fatalf("exit code = %d, want %d (err %v)", got, test.wantExit, runErr)
+			}
+			if !strings.Contains(stdout, `"reportFile":"`+reportFile+`"`) {
+				t.Fatalf("stdout = %q, want JSON receipt", stdout)
+			}
+			if _, err := os.Stat(reportFile); err != nil {
+				t.Fatalf("report not written: %v", err)
+			}
+			wantStderr := ""
+			if test.wantStderr != "" {
+				wantStderr = test.wantStderr + reportFile + "\n"
+			}
+			if stderr != wantStderr {
+				t.Fatalf("stderr = %q, want %q", stderr, wantStderr)
 			}
 		})
 	}
