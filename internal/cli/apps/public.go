@@ -161,8 +161,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			termValue := strings.TrimSpace(*term)
 			if termValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --term is required")
-				return shared.MissingRequiredUsageError("--term")
+				return shared.RequiredFlag("--term")
 			}
 			if *limit < 1 || *limit > 200 {
 				fmt.Fprintln(os.Stderr, "Error: --limit must be between 1 and 200")

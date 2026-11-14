@@ -338,8 +338,7 @@ Examples:
 				}
 			}
 			if fromDirValue == "" && localeValue == "" && len(localesValue) == 0 {
-				fmt.Fprintln(os.Stderr, "Error: --locale is required")
-				return shared.MissingRequiredUsageError("--locale")
+				return shared.RequiredFlag("--locale")
 			}
 			if localeValue != "" {
 				if err := shared.ValidateBuildLocalizationLocale(localeValue); err != nil {
