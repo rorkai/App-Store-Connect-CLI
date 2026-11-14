@@ -101,9 +101,13 @@ cp "$CAPTURE_FIXTURE" "$out"
 	}
 	var result struct {
 		Path string `json:"path"`
+		UDID string `json:"udid"`
 	}
 	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
 		t.Fatalf("unmarshal capture output: %v\nstdout=%q", err, stdout)
+	}
+	if result.UDID != "SIM-UDID" {
+		t.Fatalf("capture udid = %q, want the booted simulator's UDID", result.UDID)
 	}
 	wantPath := filepath.Join(outputDir, "home.png")
 	wantPath, err := filepath.Abs(wantPath)
