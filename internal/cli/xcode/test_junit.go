@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
 	"runtime"
 	"strings"
 
@@ -41,6 +42,7 @@ func XcodeTestJUnitCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("xcode test junit", flag.ExitOnError)
 	xcresult := fs.String("xcresult", "", "Path to an existing .xcresult bundle")
 	reportFile := fs.String("report-file", "", "Path to write the JUnit XML report")
+	allowFailures := fs.Bool("allow-failures", false, "Exit 0 even when the bundle contains failed tests")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -54,6 +56,10 @@ as asc xcode test --report junit. It does not call App Store Connect.
 The xcresulttool reads use the configured ASC timeout, defaulting to 30 seconds.
 If aggregate summary loading succeeds but per-case enrichment fails, the command
 fails closed and does not write a partial report.
+
+When the bundle contains failed tests, the command writes the report and prints
+its receipt, then exits 1, the same exit code as a failed asc xcode test run.
+Pass --allow-failures to exit 0 whatever the bundle contains.
 
 Examples:
   asc xcode test junit --xcresult ./Test.xcresult --report-file ./junit.xml --output json`,
@@ -88,7 +94,18 @@ Examples:
 				return fmt.Errorf("xcode test junit: %w", err)
 			}
 			receipt := junitReceipt(bundlePath, reportPath, report)
-			return shared.PrintOutput(receipt, *output.Output, *output.Pretty)
+			if err := shared.PrintOutput(receipt, *output.Output, *output.Pretty); err != nil {
+				return err
+			}
+			failed := receipt.Failures
+			if summary != nil {
+				failed = max(failed, summary.Failed)
+			}
+			if failed == 0 || *allowFailures {
+				return nil
+			}
+			fmt.Fprintf(os.Stderr, "Error: xcode test junit: %d failed test(s); report written to %s\n", failed, reportPath)
+			return shared.NewStderrReportedError(fmt.Errorf("xcode test junit: %w", &localxcode.ReportedTestFailuresError{Failed: failed}))
 		},
 	}
 }
