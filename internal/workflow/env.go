@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -48,15 +49,25 @@ func isTruthy(value string) bool {
 	}
 }
 
-var errUnsupportedStepIf = errors.New("use NAME, $NAME, NAME == VALUE, or NAME != VALUE")
+var (
+	errUnsupportedStepIf = errors.New("use NAME, $NAME, NAME == VALUE, or NAME != VALUE")
+	stepIfName           = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+)
 
 // evalStepIf reports whether a step's `if` passes. NAME or $NAME tests the
 // variable for a truthy value; NAME == VALUE and NAME != VALUE compare its
 // value, or "" when unset, with a literal. Step env wins over process env.
 func evalStepIf(expr string, env map[string]string) (bool, error) {
 	lookup := func(operand string) (string, error) {
-		name := strings.TrimPrefix(strings.TrimSpace(operand), "$")
-		if name == "" || strings.ContainsAny(name, " \t\n\r=!<>&|") {
+		name := strings.TrimSpace(operand)
+		if val, ok := env[name]; ok {
+			return val, nil
+		}
+		if val, ok := os.LookupEnv(name); ok {
+			return val, nil
+		}
+		name = strings.TrimPrefix(name, "$")
+		if !stepIfName.MatchString(name) {
 			return "", errUnsupportedStepIf
 		}
 		if val, ok := env[name]; ok {

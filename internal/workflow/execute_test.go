@@ -158,6 +158,8 @@ func TestRun_IfComparison(t *testing.T) {
 		{expr: "DEPLOY && SUBMIT", env: map[string]string{"DEPLOY": "true"}, want: "skipped", warn: true},
 		{expr: "A == yes && B == no", env: map[string]string{"A": "yes"}, want: "skipped", warn: true},
 		{expr: `A == "yes" && B == "yes"`, env: map[string]string{"A": "yes", "B": "yes"}, want: "skipped", warn: true},
+		{expr: "test($AUTO_SUBMIT)", env: map[string]string{"AUTO_SUBMIT": "true"}, want: "skipped", warn: true},
+		{expr: "deploy-flag", env: map[string]string{"deploy-flag": "true"}, want: "ok"},
 	}
 	for _, test := range tests {
 		t.Run(test.expr, func(t *testing.T) {
