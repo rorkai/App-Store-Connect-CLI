@@ -366,6 +366,7 @@ type contractCall struct {
 	ids      []string
 	attrs    []byte       // JSON of the attributes argument, if any
 	attrsArg reflect.Type // type of the attributes argument, if any
+	attrsAt  int          // index of the attributes argument in args
 	query    reflect.Type // the options' func type; nil without options
 }
 
@@ -407,7 +408,7 @@ func newContractCall(name string, typ reflect.Type, b *contractOpBinding) (*cont
 			if err != nil {
 				return nil, err
 			}
-			c.attrs, c.attrsArg = attrs, in
+			c.attrs, c.attrsArg, c.attrsAt = attrs, in, len(c.args)
 			c.args = append(c.args, value)
 		default:
 			return nil, fmt.Errorf("parameter %d has type %s", i, in)
@@ -521,7 +522,12 @@ func checkGeneratedOperation(spec *contractSpec, op *contractOperation, b *contr
 	if call.query != nil {
 		problems = append(problems, checkContractNextURL(call, op.path, response, b.CheckFirst && b.Check == "require")...)
 	}
-	return append(problems, checkContractBody(spec, op, req.body, call)...)
+	problems = append(problems, checkContractBody(spec, op, req.body, call)...)
+	if call.attrsArg != nil {
+		attrs := spec.property(spec.property(op.RequestBody.schema(spec), "data"), "attributes")
+		problems = append(problems, checkContractAttributeFields(call, response, attrs)...)
+	}
+	return problems
 }
 
 func contractPath(template string, args []string) string {
@@ -779,29 +785,34 @@ func checkContractBody(spec *contractSpec, op *contractOperation, body []byte, c
 	if call.attrs != nil && !jsonEqual(data["attributes"], call.attrs) {
 		problems = append(problems, fmt.Sprintf("data.attributes is %s, the attributes argument was %s", data["attributes"], call.attrs))
 	}
-	if call.attrsArg != nil {
-		problems = append(problems, checkContractAttributeFields(call.attrsArg, spec.property(dataSchema, "attributes"))...)
-	}
 	return problems
 }
 
-// checkContractAttributeFields sets one field of the attributes type at a
-// time and checks that it changes exactly one attribute, named like the field,
-// and that together the fields can send every attribute the schema defines. A
-// field that is never encoded, such as one tagged json:"-", fails here; the
-// comparison of the body with the argument's JSON cannot see it.
-func checkContractAttributeFields(typ reflect.Type, schema *contractSchema) []string {
+// checkContractAttributeFields calls the method with one field of the
+// attributes argument set at a time and checks that the body then has exactly
+// one more or changed attribute, named like the field, and that together the
+// fields can send every attribute the schema defines. A field that never
+// reaches the body, such as one tagged json:"-", fails here; the comparison of
+// the body with the argument's JSON cannot see it.
+func checkContractAttributeFields(call *contractCall, response contractResponse, schema *contractSchema) []string {
+	typ := call.attrsArg
 	encode := func(v reflect.Value) (map[string]json.RawMessage, error) {
-		data, err := json.Marshal(v.Interface())
-		if err != nil {
-			return nil, err
+		args := slices.Clone(call.args)
+		args[call.attrsAt] = v
+		requests, _, err := call.invoke(args, response)
+		if err != nil || len(requests) != 1 {
+			return nil, fmt.Errorf("sent %v (error: %v)", requests, err)
 		}
-		var values map[string]json.RawMessage
-		return values, json.Unmarshal(data, &values)
+		var body struct {
+			Data struct {
+				Attributes map[string]json.RawMessage `json:"attributes"`
+			} `json:"data"`
+		}
+		return body.Data.Attributes, json.Unmarshal(requests[0].body, &body)
 	}
 	zero, err := encode(reflect.New(typ).Elem())
 	if err != nil {
-		return []string{fmt.Sprintf("cannot encode an empty %s: %v", typ, err)}
+		return []string{fmt.Sprintf("with an empty %s: %v", typ.Name(), err)}
 	}
 	var problems []string
 	sent := map[string]bool{}
@@ -813,7 +824,7 @@ func checkContractAttributeFields(typ reflect.Type, schema *contractSchema) []st
 		}
 		values, err := encode(value)
 		if err != nil {
-			return []string{fmt.Sprintf("cannot encode %s with only %s set: %v", typ, field.Name, err)}
+			return []string{fmt.Sprintf("with only %s.%s set: %v", typ.Name(), field.Name, err)}
 		}
 		var changed []string
 		for name, v := range values {
