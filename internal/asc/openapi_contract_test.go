@@ -109,6 +109,12 @@ var loadContractSpec = sync.OnceValues(func() (*contractSpec, error) {
 	}
 	spec := &contractSpec{operations: map[string]*contractOperation{}, schemas: raw.Components.Schemas}
 	for path, item := range raw.Paths {
+		var shared contractOperation
+		if rawParams, ok := item["parameters"]; ok {
+			if err := json.Unmarshal(rawParams, &shared.Parameters); err != nil {
+				return nil, fmt.Errorf("%s parameters: %w", path, err)
+			}
+		}
 		for method, rawOp := range item {
 			if method == "parameters" {
 				continue
@@ -117,6 +123,7 @@ var loadContractSpec = sync.OnceValues(func() (*contractSpec, error) {
 			if err := json.Unmarshal(rawOp, &op); err != nil {
 				return nil, fmt.Errorf("%s %s: %w", method, path, err)
 			}
+			op.Parameters = append(op.Parameters, shared.Parameters...)
 			op.method = strings.ToUpper(method)
 			op.path = path
 			spec.operations[op.ID] = &op
