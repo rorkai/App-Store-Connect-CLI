@@ -1,0 +1,27 @@
+{
+  "tag": "AppStoreVersions",
+  "file": "app_store_versions_gen.go",
+  "types": [
+    "AppStoreVersionCreateRequest",
+    "AppStoreVersionResponse",
+    "AppStoreVersionUpdateRequest"
+  ],
+  "operations": [
+    {"operation":"appStoreVersions_alternativeDistributionPackage_getToOneRelated","name":"GetAlternativeDistributionPackageForVersion","params":["versionID"],"check":"require","parseErr":"failed to parse alternative distribution package response"},
+    {"operation":"appStoreVersions_alternativeDistributionPackage_getToOneRelated","name":"GetAppStoreVersionAlternativeDistributionPackage","params":["appStoreVersionID"],"check":"require","parseErr":"failed to parse alternative distribution package response"},
+    {"operation":"appStoreVersions_alternativeDistributionPackage_getToOneRelationship","name":"GetAppStoreVersionAlternativeDistributionPackageRelationship","params":["appStoreVersionID"],"check":"require","parseErr":"failed to parse alternative distribution package relationship response"},
+    {"operation":"appStoreVersions_appClipDefaultExperience_getToOneRelated","name":"GetAppStoreVersionAppClipDefaultExperience","params":["versionID"],"check":"require"},
+    {"operation":"appStoreVersions_appClipDefaultExperience_getToOneRelationship","name":"GetAppStoreVersionAppClipDefaultExperienceRelationship","params":["versionID"],"check":"require","parseErr":"failed to parse appClipDefaultExperience relationship response"},
+    {"operation":"appStoreVersions_appStoreReviewDetail_getToOneRelated","name":"GetAppStoreReviewDetailForVersion","params":["versionID"],"check":"require"},
+    {"operation":"appStoreVersions_appStoreReviewDetail_getToOneRelationship","name":"GetAppStoreVersionReviewDetailRelationship","params":["versionID"],"check":"require","parseErr":"failed to parse appStoreReviewDetail relationship response","response":"AppStoreVersionReviewDetailLinkageResponse"},
+    {"operation":"appStoreVersions_appStoreVersionExperimentsV2_getToManyRelated","name":"GetAppStoreVersionExperimentsV2ForVersion","params":["versionID"],"check":"require","options":"AppStoreVersionExperimentsV2Option","query":"buildAppStoreVersionExperimentsV2Query","nextContext":"appStoreVersionExperimentsV2"},
+    {"operation":"appStoreVersions_appStoreVersionExperiments_getToManyRelated","name":"GetAppStoreVersionExperiments","params":["versionID"],"check":"require","options":"AppStoreVersionExperimentsOption","query":"buildAppStoreVersionExperimentsQuery","nextContext":"appStoreVersionExperiments"},
+    {"operation":"appStoreVersions_appStoreVersionSubmission_getToOneRelationship","name":"GetAppStoreVersionSubmissionRelationship","params":["versionID"],"check":"require","parseErr":"failed to parse appStoreVersionSubmission relationship response","response":"AppStoreVersionSubmissionLinkageResponse"},
+    {"operation":"appStoreVersions_build_getToOneRelationship","name":"GetAppStoreVersionBuildRelationship","params":["versionID"],"check":"require","parseErr":"failed to parse build relationship response"},
+    {"operation":"appStoreVersions_deleteInstance","name":"DeleteAppStoreVersion","params":["versionID"]},
+    {"operation":"appStoreVersions_gameCenterAppVersion_getToOneRelated","name":"GetAppStoreVersionGameCenterAppVersion","params":["versionID"]},
+    {"operation":"appStoreVersions_gameCenterAppVersion_getToOneRelationship","name":"GetAppStoreVersionGameCenterAppVersionRelationship","params":["versionID"],"check":"require","parseErr":"failed to parse gameCenterAppVersion relationship response"},
+    {"operation":"appStoreVersions_routingAppCoverage_getToOneRelated","name":"GetRoutingAppCoverageForVersion","params":["versionID"],"check":"require"},
+    {"operation":"appStoreVersions_routingAppCoverage_getToOneRelationship","name":"GetAppStoreVersionRoutingAppCoverageRelationship","params":["versionID"],"check":"require","parseErr":"failed to parse routingAppCoverage relationship response"}
+  ]
+}

@@ -71,42 +71,6 @@ func (c *Client) GetAppStoreVersionAgeRatingDeclarationRelationship(ctx context.
 	}, nil
 }
 
-// GetAppStoreVersionReviewDetailRelationship retrieves the review detail linkage for a version.
-func (c *Client) GetAppStoreVersionReviewDetailRelationship(ctx context.Context, versionID string) (*AppStoreVersionReviewDetailLinkageResponse, error) {
-	versionID = strings.TrimSpace(versionID)
-	if versionID == "" {
-		return nil, fmt.Errorf("versionID is required")
-	}
-	return getJSON[AppStoreVersionReviewDetailLinkageResponse](ctx, c, readRequest{
-		Path:     fmt.Sprintf("/v1/appStoreVersions/%s/relationships/appStoreReviewDetail", versionID),
-		ParseErr: "failed to parse appStoreReviewDetail relationship response",
-	})
-}
-
-// GetAppStoreVersionAppClipDefaultExperienceRelationship retrieves the app clip default experience linkage.
-func (c *Client) GetAppStoreVersionAppClipDefaultExperienceRelationship(ctx context.Context, versionID string) (*AppStoreVersionAppClipDefaultExperienceLinkageResponse, error) {
-	versionID = strings.TrimSpace(versionID)
-	if versionID == "" {
-		return nil, fmt.Errorf("versionID is required")
-	}
-	return getJSON[AppStoreVersionAppClipDefaultExperienceLinkageResponse](ctx, c, readRequest{
-		Path:     fmt.Sprintf("/v1/appStoreVersions/%s/relationships/appClipDefaultExperience", versionID),
-		ParseErr: "failed to parse appClipDefaultExperience relationship response",
-	})
-}
-
-// GetAppStoreVersionBuildRelationship retrieves the build linkage for a version.
-func (c *Client) GetAppStoreVersionBuildRelationship(ctx context.Context, versionID string) (*AppStoreVersionBuildLinkageResponse, error) {
-	versionID = strings.TrimSpace(versionID)
-	if versionID == "" {
-		return nil, fmt.Errorf("versionID is required")
-	}
-	return getJSON[AppStoreVersionBuildLinkageResponse](ctx, c, readRequest{
-		Path:     fmt.Sprintf("/v1/appStoreVersions/%s/relationships/build", versionID),
-		ParseErr: "failed to parse build relationship response",
-	})
-}
-
 // GetAppStoreVersionExperimentsRelationships retrieves experiment linkages for a version (v1).
 func (c *Client) GetAppStoreVersionExperimentsRelationships(ctx context.Context, versionID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
 	return c.getResourceLinkages(
@@ -133,18 +97,6 @@ func (c *Client) GetAppStoreVersionExperimentsV2Relationships(ctx context.Contex
 	)
 }
 
-// GetAppStoreVersionSubmissionRelationship retrieves the submission linkage for a version.
-func (c *Client) GetAppStoreVersionSubmissionRelationship(ctx context.Context, versionID string) (*AppStoreVersionSubmissionLinkageResponse, error) {
-	versionID = strings.TrimSpace(versionID)
-	if versionID == "" {
-		return nil, fmt.Errorf("versionID is required")
-	}
-	return getJSON[AppStoreVersionSubmissionLinkageResponse](ctx, c, readRequest{
-		Path:     fmt.Sprintf("/v1/appStoreVersions/%s/relationships/appStoreVersionSubmission", versionID),
-		ParseErr: "failed to parse appStoreVersionSubmission relationship response",
-	})
-}
-
 // GetAppStoreVersionCustomerReviewsRelationships retrieves customer review linkages for a version.
 func (c *Client) GetAppStoreVersionCustomerReviewsRelationships(ctx context.Context, versionID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
 	return c.getResourceLinkages(
@@ -156,28 +108,4 @@ func (c *Client) GetAppStoreVersionCustomerReviewsRelationships(ctx context.Cont
 		"customerReviewsRelationships",
 		opts...,
 	)
-}
-
-// GetAppStoreVersionRoutingAppCoverageRelationship retrieves routing coverage linkage for a version.
-func (c *Client) GetAppStoreVersionRoutingAppCoverageRelationship(ctx context.Context, versionID string) (*AppStoreVersionRoutingAppCoverageLinkageResponse, error) {
-	versionID = strings.TrimSpace(versionID)
-	if versionID == "" {
-		return nil, fmt.Errorf("versionID is required")
-	}
-	return getJSON[AppStoreVersionRoutingAppCoverageLinkageResponse](ctx, c, readRequest{
-		Path:     fmt.Sprintf("/v1/appStoreVersions/%s/relationships/routingAppCoverage", versionID),
-		ParseErr: "failed to parse routingAppCoverage relationship response",
-	})
-}
-
-// GetAppStoreVersionGameCenterAppVersionRelationship retrieves Game Center app version linkage.
-func (c *Client) GetAppStoreVersionGameCenterAppVersionRelationship(ctx context.Context, versionID string) (*AppStoreVersionGameCenterAppVersionLinkageResponse, error) {
-	versionID = strings.TrimSpace(versionID)
-	if versionID == "" {
-		return nil, fmt.Errorf("versionID is required")
-	}
-	return getJSON[AppStoreVersionGameCenterAppVersionLinkageResponse](ctx, c, readRequest{
-		Path:     fmt.Sprintf("/v1/appStoreVersions/%s/relationships/gameCenterAppVersion", versionID),
-		ParseErr: "failed to parse gameCenterAppVersion relationship response",
-	})
 }

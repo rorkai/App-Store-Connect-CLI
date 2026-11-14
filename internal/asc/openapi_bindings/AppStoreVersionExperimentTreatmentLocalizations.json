@@ -1,0 +1,15 @@
+{
+  "tag": "AppStoreVersionExperimentTreatmentLocalizations",
+  "file": "app_store_version_experiment_treatment_localizations_gen.go",
+  "types": [
+    "AppStoreVersionExperimentTreatmentLocalizationAttributes",
+    "AppStoreVersionExperimentTreatmentLocalizationCreateAttributes",
+    "AppStoreVersionExperimentTreatmentLocalizationCreateRequest",
+    "AppStoreVersionExperimentTreatmentLocalizationResponse"
+  ],
+  "operations": [
+    {"operation":"appStoreVersionExperimentTreatmentLocalizations_appPreviewSets_getToManyRelated","name":"GetAppStoreVersionExperimentTreatmentLocalizationPreviewSets","params":["localizationID"],"check":"require","options":"AppStoreVersionExperimentTreatmentLocalizationPreviewSetsOption","query":"buildAppStoreVersionExperimentTreatmentLocalizationPreviewSetsQuery","nextContext":"appPreviewSets"},
+    {"operation":"appStoreVersionExperimentTreatmentLocalizations_appScreenshotSets_getToManyRelated","name":"GetAppStoreVersionExperimentTreatmentLocalizationScreenshotSets","params":["localizationID"],"check":"require","options":"AppStoreVersionExperimentTreatmentLocalizationScreenshotSetsOption","query":"buildAppStoreVersionExperimentTreatmentLocalizationScreenshotSetsQuery","nextContext":"appScreenshotSets"},
+    {"operation":"appStoreVersionExperimentTreatmentLocalizations_deleteInstance","name":"DeleteAppStoreVersionExperimentTreatmentLocalization","params":["localizationID"],"check":"require"}
+  ]
+}

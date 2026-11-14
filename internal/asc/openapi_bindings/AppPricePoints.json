@@ -1,0 +1,10 @@
+{
+  "tag": "AppPricePoints",
+  "file": "app_price_points_gen.go",
+  "types": [
+    "AppPricePointV3Attributes"
+  ],
+  "operations": [
+    {"operation":"appPricePointsV3_equalizations_getToManyRelated","name":"GetAppPricePointEqualizations","params":["pricePointID"],"check":"require","options":"PricePointsOption","query":"buildPricePointsQuery","nextContext":"appPricePointEqualizations","parseErr":"failed to parse app price point equalizations response"}
+  ]
+}

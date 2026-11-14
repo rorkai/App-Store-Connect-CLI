@@ -1,0 +1,7 @@
+{
+  "tag": "AppStoreVersionPromotions",
+  "file": "app_store_version_promotions_gen.go",
+  "types": [
+    "AppStoreVersionPromotionCreateRequest"
+  ]
+}

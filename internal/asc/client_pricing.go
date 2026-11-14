@@ -41,39 +41,11 @@ func (c *Client) GetAppPricePoint(ctx context.Context, pricePointID string) (*Ap
 	return &response, nil
 }
 
-// GetAppPricePointEqualizations retrieves equalized price points for a price point.
-func (c *Client) GetAppPricePointEqualizations(ctx context.Context, pricePointID string, opts ...PricePointsOption) (*AppPricePointsV3Response, error) {
-	query := applyOptions(opts)
-	pricePointID = strings.TrimSpace(pricePointID)
-	if query.nextURL == "" && pricePointID == "" {
-		return nil, fmt.Errorf("pricePointID is required")
-	}
-	return getJSON[AppPricePointsV3Response](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v3/appPricePoints/%s/equalizations", pricePointID),
-		Query:       buildPricePointsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "appPricePointEqualizations",
-		ParseErr:    "failed to parse app price point equalizations response",
-	})
-}
-
 // GetAppPriceSchedule retrieves the app price schedule for an app.
 func (c *Client) GetAppPriceSchedule(ctx context.Context, appID string) (*AppPriceScheduleResponse, error) {
 	appID = strings.TrimSpace(appID)
 	return getJSON[AppPriceScheduleResponse](ctx, c, readRequest{
 		Path:     fmt.Sprintf("/v1/apps/%s/appPriceSchedule", appID),
-		ParseErr: "failed to parse app price schedule response",
-	})
-}
-
-// GetAppPriceScheduleByID retrieves an app price schedule by ID.
-func (c *Client) GetAppPriceScheduleByID(ctx context.Context, scheduleID string) (*AppPriceScheduleResponse, error) {
-	scheduleID = strings.TrimSpace(scheduleID)
-	if scheduleID == "" {
-		return nil, fmt.Errorf("scheduleID is required")
-	}
-	return getJSON[AppPriceScheduleResponse](ctx, c, readRequest{
-		Path:     fmt.Sprintf("/v1/appPriceSchedules/%s", scheduleID),
 		ParseErr: "failed to parse app price schedule response",
 	})
 }
@@ -155,47 +127,6 @@ func (c *Client) CreateAppPriceSchedule(ctx context.Context, appID string, attrs
 		Path:     "/v1/appPriceSchedules",
 		Payload:  payload,
 		ParseErr: "failed to parse app price schedule response",
-	})
-}
-
-// GetAppPriceScheduleBaseTerritory retrieves the base territory for a schedule.
-func (c *Client) GetAppPriceScheduleBaseTerritory(ctx context.Context, scheduleID string) (*TerritoryResponse, error) {
-	scheduleID = strings.TrimSpace(scheduleID)
-	return getJSON[TerritoryResponse](ctx, c, readRequest{
-		Path:     fmt.Sprintf("/v1/appPriceSchedules/%s/baseTerritory", scheduleID),
-		ParseErr: "failed to parse base territory response",
-	})
-}
-
-// GetAppPriceScheduleManualPrices retrieves manual prices for a schedule.
-func (c *Client) GetAppPriceScheduleManualPrices(ctx context.Context, scheduleID string, opts ...AppPriceSchedulePricesOption) (*AppPricesResponse, error) {
-	query := applyOptions(opts)
-	scheduleID = strings.TrimSpace(scheduleID)
-	if query.nextURL == "" && scheduleID == "" {
-		return nil, fmt.Errorf("scheduleID is required")
-	}
-	return getJSON[AppPricesResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/appPriceSchedules/%s/manualPrices", scheduleID),
-		Query:       buildAppPriceSchedulePricesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "appPriceScheduleManualPrices",
-		ParseErr:    "failed to parse manual prices response",
-	})
-}
-
-// GetAppPriceScheduleAutomaticPrices retrieves automatic prices for a schedule.
-func (c *Client) GetAppPriceScheduleAutomaticPrices(ctx context.Context, scheduleID string, opts ...AppPriceSchedulePricesOption) (*AppPricesResponse, error) {
-	query := applyOptions(opts)
-	scheduleID = strings.TrimSpace(scheduleID)
-	if query.nextURL == "" && scheduleID == "" {
-		return nil, fmt.Errorf("scheduleID is required")
-	}
-	return getJSON[AppPricesResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/appPriceSchedules/%s/automaticPrices", scheduleID),
-		Query:       buildAppPriceSchedulePricesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "appPriceScheduleAutomaticPrices",
-		ParseErr:    "failed to parse automatic prices response",
 	})
 }
 
