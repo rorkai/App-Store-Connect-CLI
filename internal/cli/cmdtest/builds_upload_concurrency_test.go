@@ -6,8 +6,9 @@ import (
 	"net/http"
 	"path/filepath"
 	"strings"
-	"sync/atomic"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestBuildsUploadDryRunRejectsExplicitConcurrency(t *testing.T) {
@@ -16,14 +17,7 @@ func TestBuildsUploadDryRunRejectsExplicitConcurrency(t *testing.T) {
 
 	ipaPath := writeBuildUploadIPA(t, "com.example.demo")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
-		return nil, http.ErrUseLastResponse
-	})
+	asctest.NewRegistry(t).Install()
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -58,28 +52,13 @@ func TestBuildsUploadDryRunSucceedsWithDefaultConcurrency(t *testing.T) {
 
 	ipaPath := writeBuildUploadIPA(t, "com.example.demo")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	var uploadRequests int32
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/123456789":
-			return jsonResponse(http.StatusOK, `{"data":{"type":"apps","id":"123456789","attributes":{"name":"Demo","bundleId":"com.example.demo"}}}`)
-		case req.Method == http.MethodPost && req.URL.Path == "/v1/buildUploads":
-			return jsonResponse(http.StatusOK, `{"data":{"type":"buildUploads","id":"upload-1","attributes":{"cfBundleShortVersionString":"1.0.0","cfBundleVersion":"42","platform":"IOS"}}}`)
-		case req.Method == http.MethodPost && req.URL.Path == "/v1/buildUploadFiles":
-			return jsonResponse(http.StatusOK, `{"data":{"type":"buildUploadFiles","id":"file-1","attributes":{"fileName":"app.ipa","fileSize":4,"uti":"com.apple.itunes.ipa","assetType":"ASSET","uploadOperations":[{"method":"PUT","url":"https://upload.example.com/part-1","length":4,"offset":0,"requestHeaders":[{"name":"Content-Type","value":"application/octet-stream"}]}]}}}`)
-		case req.Method == http.MethodPut:
-			atomic.AddInt32(&uploadRequests, 1)
-			return jsonResponse(http.StatusOK, `{}`)
-		default:
-			t.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, http.ErrUseLastResponse
-		}
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/123456789"), asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"123456789","attributes":{"name":"Demo","bundleId":"com.example.demo"}}}`))
+	reg.Register(asctest.POST("/v1/buildUploads").JSONBody(`{"data":{"type":"buildUploads","attributes":{"cfBundleShortVersionString":"1.0.0","cfBundleVersion":"42","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"123456789"}}}}}`),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"buildUploads","id":"upload-1","attributes":{"cfBundleShortVersionString":"1.0.0","cfBundleVersion":"42","platform":"IOS"}}}`))
+	reg.Register(asctest.POST("/v1/buildUploadFiles").JSONBody(buildUploadFileRequestBody(t, ipaPath)),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"buildUploadFiles","id":"file-1","attributes":{"fileName":"app.ipa","fileSize":4,"uti":"com.apple.itunes.ipa","assetType":"ASSET","uploadOperations":[{"method":"PUT","url":"https://upload.example.com/part-1","length":4,"offset":0,"requestHeaders":[{"name":"Content-Type","value":"application/octet-stream"}]}]}}}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -113,7 +92,13 @@ func TestBuildsUploadDryRunSucceedsWithDefaultConcurrency(t *testing.T) {
 	if !strings.Contains(stdout, `"(redacted)"`) {
 		t.Fatalf("default dry-run output did not mark withheld upload capabilities: %q", stdout)
 	}
-	if got := atomic.LoadInt32(&uploadRequests); got != 0 {
+	uploadRequests := 0
+	for _, req := range reg.Requests() {
+		if req.Method == http.MethodPut {
+			uploadRequests++
+		}
+	}
+	if got := uploadRequests; got != 0 {
 		t.Fatalf("expected no chunk uploads in dry-run, got %d", got)
 	}
 }
@@ -124,23 +109,13 @@ func TestBuildsUploadDryRunRequiresExplicitOptInForUploadCapabilities(t *testing
 
 	ipaPath := writeBuildUploadIPA(t, "com.example.demo")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/123456789":
-			return jsonResponse(http.StatusOK, `{"data":{"type":"apps","id":"123456789","attributes":{"name":"Demo","bundleId":"com.example.demo"}}}`)
-		case req.Method == http.MethodPost && req.URL.Path == "/v1/buildUploads":
-			return jsonResponse(http.StatusOK, `{"data":{"type":"buildUploads","id":"upload-1","attributes":{"cfBundleShortVersionString":"1.0.0","cfBundleVersion":"42","platform":"IOS"}}}`)
-		case req.Method == http.MethodPost && req.URL.Path == "/v1/buildUploadFiles":
-			return jsonResponse(http.StatusOK, `{"data":{"type":"buildUploadFiles","id":"file-1","attributes":{"fileName":"app.ipa","fileSize":4,"uti":"com.apple.itunes.ipa","assetType":"ASSET","uploadOperations":[{"method":"PUT","url":"https://upload.example.com/part-1?Signature=signed-secret","length":4,"offset":0,"requestHeaders":[{"name":"Authorization","value":"header-secret"}]}]}}}`)
-		default:
-			t.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, http.ErrUseLastResponse
-		}
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/123456789"), asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"123456789","attributes":{"name":"Demo","bundleId":"com.example.demo"}}}`))
+	reg.Register(asctest.POST("/v1/buildUploads").JSONBody(`{"data":{"type":"buildUploads","attributes":{"cfBundleShortVersionString":"1.0.0","cfBundleVersion":"42","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"123456789"}}}}}`),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"buildUploads","id":"upload-1","attributes":{"cfBundleShortVersionString":"1.0.0","cfBundleVersion":"42","platform":"IOS"}}}`))
+	reg.Register(asctest.POST("/v1/buildUploadFiles").JSONBody(buildUploadFileRequestBody(t, ipaPath)),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"buildUploadFiles","id":"file-1","attributes":{"fileName":"app.ipa","fileSize":4,"uti":"com.apple.itunes.ipa","assetType":"ASSET","uploadOperations":[{"method":"PUT","url":"https://upload.example.com/part-1?Signature=signed-secret","length":4,"offset":0,"requestHeaders":[{"name":"Authorization","value":"header-secret"}]}]}}}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
