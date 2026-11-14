@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -21,14 +22,14 @@ func TestFindOrCreatePublishAppStoreVersionUsesFreshCreateDeadline(t *testing.T)
 		switch {
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appStoreVersions":
 			deadline, ok := req.Context().Deadline()
-			if !ok || time.Until(deadline) < 350*time.Millisecond {
+			if !ok || time.Until(deadline) != 500*time.Millisecond {
 				t.Fatalf("expected lookup request deadline, remaining=%s", time.Until(deadline))
 			}
 			time.Sleep(300 * time.Millisecond)
 			return publishCommandJSONResponse(http.StatusOK, `{"data":[]}`)
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/appStoreVersions":
 			deadline, ok := req.Context().Deadline()
-			if !ok || time.Until(deadline) < 350*time.Millisecond {
+			if !ok || time.Until(deadline) != 500*time.Millisecond {
 				t.Fatalf("expected fresh create request deadline, remaining=%s", time.Until(deadline))
 			}
 			return publishCommandJSONResponse(http.StatusCreated, `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}}`)
@@ -38,7 +39,11 @@ func TestFindOrCreatePublishAppStoreVersionUsesFreshCreateDeadline(t *testing.T)
 	}))
 	client := newPublishCommandTestClient(t)
 
-	result, err := findOrCreatePublishAppStoreVersion(context.Background(), client, "app-1", "1.2.3", asc.PlatformIOS)
+	var result *asc.AppStoreVersionResponse
+	var err error
+	synctest.Test(t, func(*testing.T) {
+		result, err = findOrCreatePublishAppStoreVersion(context.Background(), client, "app-1", "1.2.3", asc.PlatformIOS)
+	})
 	if err != nil || result.Data.ID != "version-1" {
 		t.Fatalf("unexpected version result: result=%+v err=%v", result, err)
 	}

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/itunes"
@@ -47,7 +48,7 @@ func TestRatingsAllRenewsCountryOperationDeadlines(t *testing.T) {
 		return 0
 	}
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		switch {
 		case req.URL.Path == "/lookup" && req.URL.Query().Get("bundleId") != "":
 			time.Sleep(5 * time.Millisecond)
@@ -68,12 +69,9 @@ func TestRatingsAllRenewsCountryOperationDeadlines(t *testing.T) {
 		default:
 			http.NotFound(w, req)
 		}
-	}))
-	defer server.Close()
+	})
 
-	serverClient := server.Client()
-	baseTransport := serverClient.Transport
-	serverClient.Transport = reviewRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+	httpClient := &http.Client{Transport: reviewRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
 		case req.URL.Path == "/lookup" && req.URL.Query().Get("bundleId") != "":
 			record(req, "app resolution", req.URL.Query().Get("country"))
@@ -87,9 +85,11 @@ func TestRatingsAllRenewsCountryOperationDeadlines(t *testing.T) {
 			}
 			record(req, "histogram", country)
 		}
-		return baseTransport.RoundTrip(req)
-	})
-	client := &itunes.Client{BaseURL: server.URL, HTTPClient: serverClient}
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, req)
+		return response.Result(), nil
+	})}
+	client := &itunes.Client{BaseURL: "https://itunes.apple.com", HTTPClient: httpClient}
 	stdout, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
 	if err != nil {
 		t.Fatalf("open stdout sink: %v", err)
@@ -99,8 +99,12 @@ func TestRatingsAllRenewsCountryOperationDeadlines(t *testing.T) {
 	os.Stdout = stdout
 	defer func() { os.Stdout = originalStdout }()
 
-	if err := executeRatingsWithClient(context.Background(), client, "com.example.deadlines", "us", true, 1, "json", false); err != nil {
-		t.Fatalf("executeRatingsWithClient() error: %v", err)
+	var runErr error
+	synctest.Test(t, func(*testing.T) {
+		runErr = executeRatingsWithClient(context.Background(), client, "com.example.deadlines", "us", true, 1, "json", false)
+	})
+	if runErr != nil {
+		t.Fatalf("executeRatingsWithClient() error: %v", runErr)
 	}
 
 	mu.Lock()
@@ -125,11 +129,11 @@ func TestRatingsAllRenewsCountryOperationDeadlines(t *testing.T) {
 	if resolution.deadline.IsZero() || len(countryLookups) < 2 || firstCountryHistogram.deadline.IsZero() {
 		t.Fatalf("missing deadline observations: resolution=%v lookups=%d histogram=%v", resolution, len(countryLookups), firstCountryHistogram)
 	}
-	if !countryLookups[0].deadline.After(resolution.deadline) {
-		t.Fatalf("first country deadline = %s, want later than app resolution deadline %s", countryLookups[0].deadline, resolution.deadline)
+	if gap := countryLookups[0].deadline.Sub(resolution.deadline); gap != 5*time.Millisecond {
+		t.Fatalf("first country deadline = %s, want 5ms later than app resolution deadline %s", countryLookups[0].deadline, resolution.deadline)
 	}
-	if !countryLookups[1].deadline.After(countryLookups[0].deadline) {
-		t.Fatalf("second country deadline = %s, want later than first country deadline %s", countryLookups[1].deadline, countryLookups[0].deadline)
+	if gap := countryLookups[1].deadline.Sub(countryLookups[0].deadline); gap != 5*time.Millisecond {
+		t.Fatalf("second country deadline = %s, want 5ms later than first country deadline %s", countryLookups[1].deadline, countryLookups[0].deadline)
 	}
 	if !firstCountryHistogram.deadline.Equal(countryLookups[0].deadline) {
 		t.Fatalf("first country histogram deadline = %s, want country operation deadline %s", firstCountryHistogram.deadline, countryLookups[0].deadline)

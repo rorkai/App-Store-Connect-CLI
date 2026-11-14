@@ -21,6 +21,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -1375,7 +1376,7 @@ func TestRunSigningSyncBatchUsesFreshTimeoutForEachTarget(t *testing.T) {
 	profileContent := base64.StdEncoding.EncodeToString([]byte("profile-content"))
 	profileIDs := map[string]string{"bundle-a": "profile-a", "bundle-b": "profile-b"}
 	timeoutCalls := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		switch {
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/bundleIds":
 			identifier := req.URL.Query().Get("filter[identifier]")
@@ -1400,25 +1401,30 @@ func TestRunSigningSyncBatchUsesFreshTimeoutForEachTarget(t *testing.T) {
 			t.Fatalf("unexpected request %s %s", req.Method, req.URL.String())
 			signingFetchWriteJSON(t, w, http.StatusInternalServerError, `{}`)
 		}
-	}))
-	defer server.Close()
-	client := newSigningFetchServerTestClient(t, server)
+	})
+	client := newSigningFetchHTTPClient(t, &http.Client{Transport: signingFetchServerRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, req)
+		return response.Result(), nil
+	})})
 
 	var result SyncResult
 	var err error
 	_, _ = captureOutput(t, func() {
-		result, err = runSigningSyncBatch(context.Background(), client, signingSyncBatchOptions{
-			RepoURL:     remoteURL,
-			Password:    "repository-password",
-			ProfileType: "IOS_APP_STORE",
-			BundleIDs:   []string{"com.example.a", "com.example.b"},
-			ContextWithTimeout: func(parent context.Context) (context.Context, context.CancelFunc) {
-				timeoutCalls++
-				if timeoutCalls == 1 {
-					return context.WithTimeout(parent, 200*time.Millisecond)
-				}
-				return context.WithTimeout(parent, time.Second)
-			},
+		synctest.Test(t, func(*testing.T) {
+			result, err = runSigningSyncBatch(context.Background(), client, signingSyncBatchOptions{
+				RepoURL:     remoteURL,
+				Password:    "repository-password",
+				ProfileType: "IOS_APP_STORE",
+				BundleIDs:   []string{"com.example.a", "com.example.b"},
+				ContextWithTimeout: func(parent context.Context) (context.Context, context.CancelFunc) {
+					timeoutCalls++
+					if timeoutCalls == 1 {
+						return context.WithTimeout(parent, 200*time.Millisecond)
+					}
+					return context.WithTimeout(parent, time.Second)
+				},
+			})
 		})
 	})
 	if err != nil {
