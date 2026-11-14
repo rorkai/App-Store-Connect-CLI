@@ -45,6 +45,7 @@ type Step struct {
 	Outputs             map[string]string `json:"outputs,omitempty"`
 	Retry               *RetryPolicy      `json:"retry,omitempty"`
 	Timeout             *string           `json:"timeout,omitempty"`
+	Env                 map[string]string `json:"env,omitempty"`
 	retryExplicitNull   bool
 	timeoutExplicitNull bool
 }
