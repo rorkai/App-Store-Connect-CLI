@@ -1128,7 +1128,7 @@ func normalizeAppStoreVersionReleaseType(value string) (string, error) {
 // without a release type, because App Store Connect ignores the date for any
 // other release type.
 func releaseTypeForEarliestReleaseDate(command, releaseType, earliestReleaseDate string) (string, error) {
-	if earliestReleaseDate == "" || releaseType == "SCHEDULED" {
+	if strings.TrimSpace(earliestReleaseDate) == "" || releaseType == "SCHEDULED" {
 		return releaseType, nil
 	}
 	if releaseType != "" {
