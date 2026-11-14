@@ -153,8 +153,7 @@ Examples:
 			}
 			price := strings.TrimSpace(*basePrice)
 			if price == "" {
-				fmt.Fprintln(os.Stderr, "Error: --base-price is required")
-				return MissingRequiredUsageError("--base-price")
+				return RequiredFlag("--base-price")
 			}
 			basePriceValue, ok := new(big.Rat).SetString(price)
 			if !IsPriceDecimal(price) || !ok || basePriceValue.Sign() <= 0 {

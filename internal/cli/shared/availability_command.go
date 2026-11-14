@@ -161,8 +161,7 @@ Examples:
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return MissingRequiredUsageError("--confirm")
+				return RequiredFlag("--confirm")
 			}
 			resolvedAppID := resolveAppID(*appID)
 			if resolvedAppID == "" {
