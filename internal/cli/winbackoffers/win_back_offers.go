@@ -173,8 +173,7 @@ Examples:
 
 			id := strings.TrimSpace(*subscriptionID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --subscription-id is required")
-				return shared.MissingRequiredUsageError("--subscription-id")
+				return shared.RequiredFlag("--subscription-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -303,25 +302,21 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			subscription := strings.TrimSpace(*subscriptionID)
 			if subscription == "" {
-				fmt.Fprintln(os.Stderr, "Error: --subscription-id is required")
-				return shared.MissingRequiredUsageError("--subscription-id")
+				return shared.RequiredFlag("--subscription-id")
 			}
 
 			name := strings.TrimSpace(*referenceName)
 			if name == "" {
-				fmt.Fprintln(os.Stderr, "Error: --reference-name is required")
-				return shared.MissingRequiredUsageError("--reference-name")
+				return shared.RequiredFlag("--reference-name")
 			}
 
 			offer := strings.TrimSpace(*offerID)
 			if offer == "" {
-				fmt.Fprintln(os.Stderr, "Error: --offer-id is required")
-				return shared.MissingRequiredUsageError("--offer-id")
+				return shared.RequiredFlag("--offer-id")
 			}
 
 			if strings.TrimSpace(*duration) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --duration is required")
-				return shared.MissingRequiredUsageError("--duration")
+				return shared.RequiredFlag("--duration")
 			}
 			durationValue, err := normalizeWinBackOfferDuration(*duration)
 			if err != nil {
@@ -329,8 +324,7 @@ Examples:
 			}
 
 			if strings.TrimSpace(*offerMode) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --offer-mode is required")
-				return shared.MissingRequiredUsageError("--offer-mode")
+				return shared.RequiredFlag("--offer-mode")
 			}
 			offerModeValue, err := normalizeWinBackOfferMode(*offerMode)
 			if err != nil {
@@ -338,16 +332,14 @@ Examples:
 			}
 
 			if !periodCount.set {
-				fmt.Fprintln(os.Stderr, "Error: --period-count is required")
-				return shared.MissingRequiredUsageError("--period-count")
+				return shared.RequiredFlag("--period-count")
 			}
 			if periodCount.value <= 0 {
 				return shared.UsageErrorCtx(ctx, "win-back-offers create: --period-count must be greater than 0")
 			}
 
 			if !eligibilityPaidMonths.set {
-				fmt.Fprintln(os.Stderr, "Error: --eligibility-paid-months is required")
-				return shared.MissingRequiredUsageError("--eligibility-paid-months")
+				return shared.RequiredFlag("--eligibility-paid-months")
 			}
 			if eligibilityPaidMonths.value < 0 {
 				return shared.UsageErrorCtx(ctx, "win-back-offers create: --eligibility-paid-months must be 0 or greater")
@@ -376,8 +368,7 @@ Examples:
 			}
 
 			if strings.TrimSpace(*startDate) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --start-date is required")
-				return shared.MissingRequiredUsageError("--start-date")
+				return shared.RequiredFlag("--start-date")
 			}
 			normalizedStartDate, err := shared.NormalizeDate(*startDate, "--start-date")
 			if err != nil {
@@ -385,8 +376,7 @@ Examples:
 			}
 
 			if strings.TrimSpace(*priority) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --priority is required")
-				return shared.MissingRequiredUsageError("--priority")
+				return shared.RequiredFlag("--priority")
 			}
 			priorityValue, err := normalizeWinBackOfferPriority(*priority)
 			if err != nil {
@@ -417,8 +407,7 @@ Examples:
 					return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticConflictingInput, "--territory")
 				}
 				if len(prices) == 0 {
-					fmt.Fprintln(os.Stderr, "Error: --price is required")
-					return shared.MissingRequiredUsageError("--price")
+					return shared.RequiredFlag("--price")
 				}
 			}
 
@@ -605,8 +594,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*id)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			hasUpdates := false
@@ -729,12 +717,10 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*id)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()
@@ -798,8 +784,7 @@ Examples:
 
 			trimmedID := strings.TrimSpace(*id)
 			if trimmedID == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			fieldsValue, err := normalizeWinBackOfferPriceFields(*fields, "--fields")
