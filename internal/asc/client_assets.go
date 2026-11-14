@@ -330,34 +330,3 @@ func (c *Client) CreateAppPreview(ctx context.Context, setID string, fileName st
 
 	return sendJSON[AppPreviewResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/appPreviews", Payload: payload})
 }
-
-// UpdateAppPreview updates a preview (used to commit upload).
-func (c *Client) UpdateAppPreview(ctx context.Context, previewID string, uploaded bool, checksumHash string) (*AppPreviewResponse, error) {
-	payload := AppPreviewUpdateRequest{
-		Data: AppPreviewUpdateData{
-			Type: ResourceTypeAppPreviews,
-			ID:   previewID,
-			Attributes: &AppPreviewUpdateAttributes{
-				Uploaded:           &uploaded,
-				SourceFileChecksum: &checksumHash,
-			},
-		},
-	}
-
-	return sendJSON[AppPreviewResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/appPreviews/%s", previewID), Payload: payload})
-}
-
-// SetAppPreviewFrameTimeCode sets the poster frame timecode for a preview.
-func (c *Client) SetAppPreviewFrameTimeCode(ctx context.Context, previewID string, timeCode string) (*AppPreviewResponse, error) {
-	payload := AppPreviewUpdateRequest{
-		Data: AppPreviewUpdateData{
-			Type: ResourceTypeAppPreviews,
-			ID:   previewID,
-			Attributes: &AppPreviewUpdateAttributes{
-				PreviewFrameTimeCode: &timeCode,
-			},
-		},
-	}
-
-	return sendJSON[AppPreviewResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/appPreviews/%s", previewID), Payload: payload})
-}

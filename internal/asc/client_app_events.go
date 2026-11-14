@@ -171,30 +171,6 @@ func (c *Client) CreateAppEventScreenshot(ctx context.Context, localizationID, f
 	})
 }
 
-// UpdateAppEventScreenshot updates an app event screenshot.
-func (c *Client) UpdateAppEventScreenshot(ctx context.Context, screenshotID string, uploaded bool) (*AppEventScreenshotResponse, error) {
-	screenshotID = strings.TrimSpace(screenshotID)
-	if screenshotID == "" {
-		return nil, fmt.Errorf("screenshotID is required")
-	}
-
-	payload := AppEventScreenshotUpdateRequest{
-		Data: AppEventScreenshotUpdateData{
-			Type: ResourceTypeAppEventScreenshots,
-			ID:   screenshotID,
-			Attributes: &AppEventScreenshotUpdateAttributes{
-				Uploaded: &uploaded,
-			},
-		},
-	}
-
-	return sendJSON[AppEventScreenshotResponse](ctx, c, writeRequest{
-		Method:  http.MethodPatch,
-		Path:    fmt.Sprintf("/v1/appEventScreenshots/%s", screenshotID),
-		Payload: payload,
-	})
-}
-
 // CreateAppEventVideoClip creates an app event video clip reservation.
 func (c *Client) CreateAppEventVideoClip(ctx context.Context, localizationID, fileName string, fileSize int64, assetType, previewFrameTimeCode string) (*AppEventVideoClipResponse, error) {
 	localizationID = strings.TrimSpace(localizationID)

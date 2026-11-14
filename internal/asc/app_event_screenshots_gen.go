@@ -50,3 +50,25 @@ func (c *Client) GetAppEventScreenshot(ctx context.Context, screenshotID string)
 		Path: fmt.Sprintf("/v1/appEventScreenshots/%s", screenshotID),
 	})
 }
+
+// UpdateAppEventScreenshot sends PATCH /v1/appEventScreenshots/{id} (appEventScreenshots_updateInstance).
+func (c *Client) UpdateAppEventScreenshot(ctx context.Context, screenshotID string, uploaded bool) (*AppEventScreenshotResponse, error) {
+	screenshotID = strings.TrimSpace(screenshotID)
+	if screenshotID == "" {
+		return nil, fmt.Errorf("screenshotID is required")
+	}
+	payload := AppEventScreenshotUpdateRequest{
+		Data: AppEventScreenshotUpdateData{
+			Type: ResourceTypeAppEventScreenshots,
+			ID:   screenshotID,
+			Attributes: &AppEventScreenshotUpdateAttributes{
+				Uploaded: &uploaded,
+			},
+		},
+	}
+	return sendJSON[AppEventScreenshotResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/appEventScreenshots/%s", screenshotID),
+		Payload: payload,
+	})
+}

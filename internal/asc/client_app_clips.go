@@ -769,18 +769,6 @@ func (c *Client) DeleteAppClipAdvancedExperience(ctx context.Context, experience
 	return err
 }
 
-// CreateAppClipAdvancedExperienceImage reserves an upload slot.
-func (c *Client) CreateAppClipAdvancedExperienceImage(ctx context.Context, fileName string, fileSize int64) (*AppClipAdvancedExperienceImageResponse, error) {
-	payload := AppClipAdvancedExperienceImageCreateRequest{
-		Data: AppClipAdvancedExperienceImageCreateData{
-			Type:       ResourceTypeAppClipAdvancedExperienceImages,
-			Attributes: AppClipAdvancedExperienceImageCreateAttributes{FileName: fileName, FileSize: fileSize},
-		},
-	}
-
-	return sendJSON[AppClipAdvancedExperienceImageResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/appClipAdvancedExperienceImages", Payload: payload})
-}
-
 // UpdateAppClipAdvancedExperienceImage commits an upload.
 func (c *Client) UpdateAppClipAdvancedExperienceImage(ctx context.Context, imageID string, uploaded bool, checksumHash string) (*AppClipAdvancedExperienceImageResponse, error) {
 	imageID = strings.TrimSpace(imageID)

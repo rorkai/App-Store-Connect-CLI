@@ -1,6 +1,7 @@
 package asc
 
 import (
+	"cmp"
 	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
@@ -40,6 +41,10 @@ type contractOpBinding struct {
 	Params     []string `json:"params"`
 	Check      string   `json:"check"`
 	CheckFirst bool     `json:"checkFirst"`
+	Args       []struct {
+		Name      string `json:"name"`
+		Attribute string `json:"attribute"`
+	} `json:"args"`
 	Deviations []struct {
 		Problem string `json:"problem"`
 		Reason  string `json:"reason"`
@@ -363,7 +368,9 @@ type contractCall struct {
 // newContractCall builds arguments from the method's parameter types: path
 // parameters (string, in path order), an ID list ([]string), attributes (a
 // struct with every field set) and options (one option that sets every field
-// of the query).
+// of the query). Parameters the bindings list as args follow the path
+// parameters; each gets its own value, and together they are the attributes
+// the body must send.
 func newContractCall(name string, typ reflect.Type, b *contractOpBinding) (*contractCall, error) {
 	c := &contractCall{name: name}
 	if typ.NumIn() == 0 || typ.In(0) != reflect.TypeFor[context.Context]() {
@@ -378,10 +385,20 @@ func newContractCall(name string, typ reflect.Type, b *contractOpBinding) (*cont
 		}
 		c.query = opt
 	}
+	argAttrs, nArgs := map[string]any{}, 0
 	for i := 1; i < last; i++ {
 		in := typ.In(i)
 		c.params = append(c.params, in)
 		switch {
+		case len(c.pathArgs) == len(b.Params) && nArgs < len(b.Args):
+			arg := b.Args[nArgs]
+			nArgs++
+			value, err := contractArg(in, nArgs)
+			if err != nil {
+				return nil, fmt.Errorf("arg %s: %w", arg.Name, err)
+			}
+			argAttrs[cmp.Or(arg.Attribute, arg.Name)] = value.Interface()
+			c.args = append(c.args, value)
 		case in.Kind() == reflect.String:
 			value := fmt.Sprintf("path-%d", len(c.pathArgs)+1)
 			c.pathArgs = append(c.pathArgs, value)
@@ -407,7 +424,35 @@ func newContractCall(name string, typ reflect.Type, b *contractOpBinding) (*cont
 	if len(c.pathArgs) != len(b.Params) {
 		return nil, fmt.Errorf("%d string parameters, bindings name %d path parameters", len(c.pathArgs), len(b.Params))
 	}
+	if nArgs != len(b.Args) {
+		return nil, fmt.Errorf("%d args, bindings name %d", nArgs, len(b.Args))
+	}
+	if nArgs > 0 {
+		attrs, err := json.Marshal(argAttrs)
+		if err != nil {
+			return nil, err
+		}
+		c.attrs = attrs
+	}
 	return c, nil
+}
+
+// contractArg is the n-th scalar argument, distinct from the other args.
+func contractArg(typ reflect.Type, n int) (reflect.Value, error) {
+	v := reflect.New(typ).Elem()
+	switch v.Kind() {
+	case reflect.String:
+		v.SetString(fmt.Sprintf("arg-%d", n))
+	case reflect.Bool:
+		v.SetBool(n%2 == 1)
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		v.SetInt(int64(100 + n))
+	case reflect.Float32, reflect.Float64:
+		v.SetFloat(float64(n) + 0.5)
+	default:
+		return v, fmt.Errorf("type %s is not a scalar", typ)
+	}
+	return v, nil
 }
 
 // option returns one option value that runs set on the query.
