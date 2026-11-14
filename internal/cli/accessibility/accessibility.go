@@ -184,8 +184,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			fieldsValue, err := normalizeAccessibilityDeclarationFields(*fields)
@@ -248,8 +247,7 @@ Examples:
 
 			deviceFamilyValue := strings.TrimSpace(*deviceFamily)
 			if deviceFamilyValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --device-family is required")
-				return shared.MissingRequiredUsageError("--device-family")
+				return shared.RequiredFlag("--device-family")
 			}
 
 			normalizedDeviceFamily, err := normalizeAccessibilityDeviceFamily(deviceFamilyValue)
@@ -321,8 +319,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			attrs, err := buildAccessibilityDeclarationUpdateAttributes(map[string]string{
@@ -384,12 +381,10 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()
