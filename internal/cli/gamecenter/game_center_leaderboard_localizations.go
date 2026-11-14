@@ -269,51 +269,28 @@ Examples:
 
 // GameCenterLeaderboardLocalizationsDeleteCommand returns the leaderboard localizations delete subcommand.
 func GameCenterLeaderboardLocalizationsDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("delete", flag.ExitOnError)
-
-	localizationID := shared.BindResourceIDFlag(fs, "id", "gameCenterLeaderboardLocalizations", "Game Center leaderboard localization ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc game-center leaderboards localizations delete --id \"LOCALIZATION_ID\" --confirm",
-		ShortHelp:  "Delete a Game Center leaderboard localization.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "delete",
+		Name:        "delete",
+		ShortUsage:  "asc game-center leaderboards localizations delete --id \"LOCALIZATION_ID\" --confirm",
+		ShortHelp:   "Delete a Game Center leaderboard localization.",
 		LongHelp: `Delete a Game Center leaderboard localization.
 
 Examples:
   asc game-center leaderboards localizations delete --id "LOCALIZATION_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*localizationID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center leaderboards localizations delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteGameCenterLeaderboardLocalization(requestCtx, id); err != nil {
-				return fmt.Errorf("game-center leaderboards localizations delete: failed to delete: %w", err)
-			}
-
-			result := &asc.GameCenterLeaderboardLocalizationDeleteResult{
-				ID:      id,
-				Deleted: true,
-			}
-
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "id",
+		IDUsage:            "Game Center leaderboard localization ID",
+		IDType:             "gameCenterLeaderboardLocalizations",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center leaderboards localizations delete",
+		DeleteErrorPrefix:  "game-center leaderboards localizations delete: failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteGameCenterLeaderboardLocalization(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.GameCenterLeaderboardLocalizationDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
 
 // GameCenterLeaderboardLocalizationImageCommand returns the localization image command group.

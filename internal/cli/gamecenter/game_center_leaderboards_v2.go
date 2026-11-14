@@ -502,51 +502,28 @@ Examples:
 
 // GameCenterLeaderboardLocalizationsV2DeleteCommand returns the leaderboard localizations v2 delete subcommand.
 func GameCenterLeaderboardLocalizationsV2DeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("delete", flag.ExitOnError)
-
-	localizationID := shared.BindResourceIDFlag(fs, "id", "gameCenterLeaderboardLocalizations", "Game Center leaderboard localization ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc game-center leaderboards v2 localizations delete --id \"LOC_ID\" --confirm",
-		ShortHelp:  "Delete a Game Center leaderboard localization (v2).",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "delete",
+		Name:        "delete",
+		ShortUsage:  "asc game-center leaderboards v2 localizations delete --id \"LOC_ID\" --confirm",
+		ShortHelp:   "Delete a Game Center leaderboard localization (v2).",
 		LongHelp: `Delete a Game Center leaderboard localization (v2).
 
 Examples:
   asc game-center leaderboards v2 localizations delete --id "LOC_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*localizationID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center leaderboards v2 localizations delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteGameCenterLeaderboardLocalizationV2(requestCtx, id); err != nil {
-				return fmt.Errorf("game-center leaderboards v2 localizations delete: failed to delete: %w", err)
-			}
-
-			result := &asc.GameCenterLeaderboardLocalizationDeleteResult{
-				ID:      id,
-				Deleted: true,
-			}
-
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "id",
+		IDUsage:            "Game Center leaderboard localization ID",
+		IDType:             "gameCenterLeaderboardLocalizations",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center leaderboards v2 localizations delete",
+		DeleteErrorPrefix:  "game-center leaderboards v2 localizations delete: failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteGameCenterLeaderboardLocalizationV2(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.GameCenterLeaderboardLocalizationDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
 
 // GameCenterLeaderboardImagesV2Command returns the leaderboard images v2 command group.
@@ -685,49 +662,26 @@ Examples:
 
 // GameCenterLeaderboardImagesV2DeleteCommand returns the leaderboard images v2 delete subcommand.
 func GameCenterLeaderboardImagesV2DeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("delete", flag.ExitOnError)
-
-	imageID := shared.BindResourceIDFlag(fs, "id", "gameCenterLeaderboardImages", "Game Center leaderboard image ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc game-center leaderboards v2 images delete --id \"IMAGE_ID\" --confirm",
-		ShortHelp:  "Delete a Game Center leaderboard image (v2).",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "delete",
+		Name:        "delete",
+		ShortUsage:  "asc game-center leaderboards v2 images delete --id \"IMAGE_ID\" --confirm",
+		ShortHelp:   "Delete a Game Center leaderboard image (v2).",
 		LongHelp: `Delete a Game Center leaderboard image (v2).
 
 Examples:
   asc game-center leaderboards v2 images delete --id "IMAGE_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*imageID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center leaderboards v2 images delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteGameCenterLeaderboardImageV2(requestCtx, id); err != nil {
-				return fmt.Errorf("game-center leaderboards v2 images delete: failed to delete: %w", err)
-			}
-
-			result := &asc.GameCenterLeaderboardImageDeleteResult{
-				ID:      id,
-				Deleted: true,
-			}
-
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "id",
+		IDUsage:            "Game Center leaderboard image ID",
+		IDType:             "gameCenterLeaderboardImages",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center leaderboards v2 images delete",
+		DeleteErrorPrefix:  "game-center leaderboards v2 images delete: failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteGameCenterLeaderboardImageV2(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.GameCenterLeaderboardImageDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
