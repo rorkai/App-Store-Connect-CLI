@@ -160,6 +160,7 @@ func TestGenerateRejectsWhatItCannotModel(t *testing.T) {
 		{"record of an object as a string", &Family{Types: []string{"YoyoAttributes"}, RefTypes: []*RefType{{Schema: "YoyoImage", Type: "string"}}}},
 		{"record of a schema that is neither an enum nor an object", &Family{RefTypes: []*RefType{{Schema: "YoyoNote", Type: "YoyoText"}}}},
 		{"schema recorded twice", &Family{Types: []string{"YoyoAttributes"}, RefTypes: []*RefType{{Schema: "YoyoState", Type: "YoyoStatus"}, {Schema: "YoyoState", Type: "YoyoPhase"}}}},
+		{"type recorded by its Go name instead of its schema name", &Family{Types: []string{"ZoneIDAttributes"}}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -181,6 +182,24 @@ func TestGoName(t *testing.T) {
 	for in, want := range tests {
 		if got := goName(in); got != want {
 			t.Errorf("goName(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestGoTypeName(t *testing.T) {
+	tests := map[string]string{
+		"BundleIdCreateAttributes":                     "BundleIDCreateAttributes",
+		"MerchantIdsResponse":                          "MerchantIDsResponse",
+		"BundleIdBundleIdCapabilitiesLinkagesResponse": "BundleIDBundleIDCapabilitiesLinkagesResponse",
+		"PassTypeId":                                   "PassTypeID",
+		"AndroidToIosAppMappingDetailAttributes":       "AndroidToIosAppMappingDetailAttributes",
+		"AppStoreVersionV2Response":                    "AppStoreVersionV2Response",
+		"IdentityResponse":                             "IdentityResponse",
+		"BetaAppIdfaAttributes":                        "BetaAppIdfaAttributes",
+	}
+	for in, want := range tests {
+		if got := goTypeName(in); got != want {
+			t.Errorf("goTypeName(%q) = %q, want %q", in, got, want)
 		}
 	}
 }

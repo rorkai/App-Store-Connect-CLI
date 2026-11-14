@@ -69,11 +69,11 @@ func renderType(spec *Spec, fam *Family, name string) (string, error) {
 		if many {
 			generic = "Response"
 		}
-		return fmt.Sprintf("// %s is the %s schema.\ntype %s = %s[%sAttributes]\n\n", name, name, name, generic, resource), nil
+		return fmt.Sprintf("// %s is the %s schema.\ntype %s = %s[%s]\n\n", goTypeName(name), name, goTypeName(name), generic, goTypeName(resource+"Attributes")), nil
 	}
 	if base, ok := strings.CutSuffix(name, "Request"); ok {
 		if _, found := spec.Schema(name); found {
-			return fmt.Sprintf("// %s is the %s schema.\ntype %s struct {\nData %sData `json:\"data\"`\n}\n\n", name, name, name, base), nil
+			return fmt.Sprintf("// %s is the %s schema.\ntype %s struct {\nData %s `json:\"data\"`\n}\n\n", goTypeName(name), name, goTypeName(name), goTypeName(base+"Data")), nil
 		}
 	}
 	if base, ok := strings.CutSuffix(name, "Data"); ok {
@@ -91,9 +91,9 @@ func renderType(spec *Spec, fam *Family, name string) (string, error) {
 				fields = append(fields, "ID string `json:\"id\"`")
 			case "attributes":
 				if data.requires("attributes") {
-					fields = append(fields, fmt.Sprintf("Attributes %sAttributes `json:\"attributes\"`", base))
+					fields = append(fields, fmt.Sprintf("Attributes %s `json:\"attributes\"`", goTypeName(base+"Attributes")))
 				} else {
-					fields = append(fields, fmt.Sprintf("Attributes *%sAttributes `json:\"attributes,omitempty\"`", base))
+					fields = append(fields, fmt.Sprintf("Attributes *%s `json:\"attributes,omitempty\"`", goTypeName(base+"Attributes")))
 				}
 			case "relationships":
 				rel, err := fam.relationshipsOf(name)
@@ -109,7 +109,7 @@ func renderType(spec *Spec, fam *Family, name string) (string, error) {
 				return "", fmt.Errorf("data property %q is not supported", prop.Name)
 			}
 		}
-		return structDecl(name, "the data object of the "+request+" schema", fields), nil
+		return structDecl(goTypeName(name), "the data object of the "+request+" schema", fields), nil
 	}
 	if base, ok := strings.CutSuffix(name, "Attributes"); ok {
 		if data, err := requestData(spec, base+"Request"); err == nil {
@@ -121,7 +121,7 @@ func renderType(spec *Spec, fam *Family, name string) (string, error) {
 			if err != nil {
 				return "", err
 			}
-			return structDecl(name, "the data.attributes object of the "+base+"Request schema", fields), nil
+			return structDecl(goTypeName(name), "the data.attributes object of the "+base+"Request schema", fields), nil
 		}
 		resource, ok := spec.Schema(base)
 		if !ok || resource.Properties.Get("attributes") == nil {
@@ -131,7 +131,7 @@ func renderType(spec *Spec, fam *Family, name string) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		return structDecl(name, "the attributes object of the "+base+" schema", fields), nil
+		return structDecl(goTypeName(name), "the attributes object of the "+base+" schema", fields), nil
 	}
 	return "", fmt.Errorf("no rule for this name")
 }
@@ -367,7 +367,7 @@ func renderMethod(spec *Spec, fam *Family, b *OpBind) (string, error) {
 	}
 	response := b.Response
 	if response == "" {
-		response = op.Response
+		response = goTypeName(op.Response)
 	}
 
 	var call string
@@ -552,7 +552,7 @@ func (m *method) payload(spec *Spec) (string, error) {
 		}
 		fields = append(fields, attrs)
 	} else if attrs := data.Properties.Get("attributes"); attrs != nil {
-		typ := base + "Attributes"
+		typ := goTypeName(base + "Attributes")
 		if m.b.Attrs == attrsPointer {
 			typ = "*" + typ
 		}
@@ -570,7 +570,7 @@ func (m *method) payload(spec *Spec) (string, error) {
 		fields = append(fields, "Relationships: "+relationships)
 	}
 	m.checks()
-	return fmt.Sprintf("payload := %s{\nData: %sData{\n%s,\n},\n}", m.op.Request, base, strings.Join(fields, ",\n")) + step, nil
+	return fmt.Sprintf("payload := %s{\nData: %s{\n%s,\n},\n}", goTypeName(m.op.Request), goTypeName(base+"Data"), strings.Join(fields, ",\n")) + step, nil
 }
 
 // checkAttrs rejects attributes bindings the request data cannot take.
@@ -740,7 +740,7 @@ func (m *method) argAttributes(data *Schema, base string) (string, error) {
 		}
 		fields = append(fields, goName(name)+": "+value)
 	}
-	lit := fmt.Sprintf("%sAttributes{\n%s,\n}", base, strings.Join(fields, ",\n"))
+	lit := fmt.Sprintf("%s{\n%s,\n}", goTypeName(base+"Attributes"), strings.Join(fields, ",\n"))
 	if data.requires("attributes") {
 		return "Attributes: " + lit, nil
 	}
