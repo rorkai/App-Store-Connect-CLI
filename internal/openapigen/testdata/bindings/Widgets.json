@@ -22,5 +22,9 @@
     {"operation":"widgets_owner_getToOneRelated","name":"GetWidgetOwner","params":["widgetID"],"check":"raw"},
     {"operation":"widgets_parts_getToManyRelated","name":"GetWidgetParts","params":["widgetID"],"check":"require","checkFirst":true,"options":"PartsOption","query":"buildPartsQuery","response":"GadgetListResponse"},
     {"operation":"widgets_updateInstance","name":"UpdateWidget","params":["widgetID"]}
+  ],
+  "queries": [
+    {"operation":"widgets_getCollection","name":"Widgets","params":[{"name":"filter[name]","field":"names"},{"name":"fields[widgets]"},{"name":"fields[gadgets]","arg":"fields"},{"name":"include","with":"WithWidgetsIncluded"}]},
+    {"operation":"widgets_owner_getToOneRelated","name":"WidgetOwner","option":"OwnerOption","params":[{"name":"fields[widgets]"}]}
   ]
 }

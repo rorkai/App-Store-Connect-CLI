@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -161,4 +162,73 @@ func (c *Client) UpdateWidget(ctx context.Context, widgetID string, attrs Widget
 		Path:    fmt.Sprintf("/v1/widgets/%s", strings.TrimSpace(widgetID)),
 		Payload: payload,
 	})
+}
+
+// WidgetsOption sets the query of GET /v1/widgets (widgets_getCollection).
+type WidgetsOption func(*widgetsQuery)
+
+type widgetsQuery struct {
+	listQuery
+	names        []string
+	fields       []string
+	gadgetFields []string
+	include      []string
+}
+
+// WithWidgetsNames sets filter[name].
+func WithWidgetsNames(names []string) WidgetsOption {
+	return func(q *widgetsQuery) {
+		q.names = normalizeList(names)
+	}
+}
+
+// WithWidgetsFields sets fields[widgets].
+func WithWidgetsFields(fields []string) WidgetsOption {
+	return func(q *widgetsQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+// WithWidgetsGadgetFields sets fields[gadgets].
+func WithWidgetsGadgetFields(fields []string) WidgetsOption {
+	return func(q *widgetsQuery) {
+		q.gadgetFields = normalizeList(fields)
+	}
+}
+
+// WithWidgetsIncluded sets include.
+func WithWidgetsIncluded(include []string) WidgetsOption {
+	return func(q *widgetsQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
+func buildWidgetsQuery(query *widgetsQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[name]", query.names)
+	addCSV(values, "fields[widgets]", query.fields)
+	addCSV(values, "fields[gadgets]", query.gadgetFields)
+	addCSV(values, "include", query.include)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+// OwnerOption sets the query of GET /v1/widgets/{id}/owner (widgets_owner_getToOneRelated).
+type OwnerOption func(*widgetOwnerQuery)
+
+type widgetOwnerQuery struct {
+	fields []string
+}
+
+// WithWidgetOwnerFields sets fields[widgets].
+func WithWidgetOwnerFields(fields []string) OwnerOption {
+	return func(q *widgetOwnerQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+func buildWidgetOwnerQuery(query *widgetOwnerQuery) string {
+	values := url.Values{}
+	addCSV(values, "fields[widgets]", query.fields)
+	return values.Encode()
 }

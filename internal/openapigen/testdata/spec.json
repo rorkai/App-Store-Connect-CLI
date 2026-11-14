@@ -5,6 +5,14 @@
       "get": {
         "tags": ["Widgets"],
         "operationId": "widgets_getCollection",
+        "parameters": [
+          {"name": "filter[name]", "in": "query", "schema": {"type": "array", "items": {"type": "string"}}, "style": "form", "explode": false},
+          {"name": "fields[widgets]", "in": "query", "schema": {"type": "array", "items": {"type": "string"}}, "style": "form", "explode": false},
+          {"name": "fields[gadgets]", "in": "query", "schema": {"type": "array", "items": {"type": "string"}}, "style": "form", "explode": false},
+          {"name": "include", "in": "query", "schema": {"type": "array", "items": {"type": "string"}}, "style": "form", "explode": false},
+          {"name": "sort", "in": "query", "schema": {"type": "array", "items": {"type": "string"}}, "style": "form", "explode": false},
+          {"name": "limit", "in": "query", "schema": {"type": "integer", "maximum": 200}, "style": "form"}
+        ],
         "responses": {
           "200": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WidgetsResponse"}}}},
           "400": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}}}
@@ -54,6 +62,10 @@
       "get": {
         "tags": ["Widgets"],
         "operationId": "widgets_owner_getToOneRelated",
+        "parameters": [
+          {"name": "fields[widgets]", "in": "query", "schema": {"type": "array", "items": {"type": "string"}}, "style": "form", "explode": false},
+          {"name": "exists[name]", "in": "query", "schema": {"type": "boolean"}, "style": "form"}
+        ],
         "responses": {
           "200": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WidgetResponse"}}}}
         }

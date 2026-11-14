@@ -19,10 +19,11 @@ type Bindings struct {
 
 // Family is one spec tag generated into one file.
 type Family struct {
-	Tag        string    `json:"tag"`
-	File       string    `json:"file"`
-	Types      []string  `json:"types,omitempty"`
-	Operations []*OpBind `json:"operations,omitempty"`
+	Tag        string       `json:"tag"`
+	File       string       `json:"file"`
+	Types      []string     `json:"types,omitempty"`
+	Operations []*OpBind    `json:"operations,omitempty"`
+	Queries    []*QueryBind `json:"queries,omitempty"`
 }
 
 // Check styles for path parameters.
@@ -125,6 +126,18 @@ func (f *Family) Encode() ([]byte, error) {
 			ops = append(ops, strings.TrimSpace(buf.String()))
 		}
 		fields = append(fields, "\"operations\": [\n    "+strings.Join(ops, ",\n    ")+"\n  ]")
+	}
+	if len(f.Queries) > 0 {
+		sort.Slice(f.Queries, func(i, j int) bool { return f.Queries[i].Operation < f.Queries[j].Operation })
+		var queries []string
+		for _, q := range f.Queries {
+			line, err := encodeLine(q)
+			if err != nil {
+				return nil, err
+			}
+			queries = append(queries, line)
+		}
+		fields = append(fields, "\"queries\": [\n    "+strings.Join(queries, ",\n    ")+"\n  ]")
 	}
 	return []byte("{\n  " + strings.Join(fields, ",\n  ") + "\n}\n"), nil
 }

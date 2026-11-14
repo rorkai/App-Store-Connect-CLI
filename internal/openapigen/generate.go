@@ -27,12 +27,17 @@ func Generate(spec *Spec, fam *Family) ([]byte, error) {
 		}
 		body.WriteString(src)
 	}
+	queries, err := renderQueries(spec, fam)
+	if err != nil {
+		return nil, err
+	}
+	body.WriteString(queries)
 
 	var out bytes.Buffer
 	out.WriteString(header + "\n\npackage asc\n\n")
 	var imports []string
 	for _, imp := range []struct{ path, use string }{
-		{"context", "context."}, {"fmt", "fmt."}, {"net/http", "http."}, {"strings", "strings."},
+		{"context", "context."}, {"fmt", "fmt."}, {"net/http", "http."}, {"net/url", "url.Values"}, {"strings", "strings."},
 	} {
 		if strings.Contains(body.String(), imp.use) {
 			imports = append(imports, strconv.Quote(imp.path))

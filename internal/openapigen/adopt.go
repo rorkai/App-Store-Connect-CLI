@@ -22,6 +22,7 @@ var httpMethods = map[string]bool{"GET": true, "POST": true, "PATCH": true, "DEL
 type pkgFile struct {
 	path    string
 	src     []byte
+	ast     *ast.File
 	removed []ast.Node
 }
 
@@ -52,6 +53,10 @@ func (d *decl) adopt() {
 // change, nil for a file left empty, and the families whose bindings grew.
 func Adopt(spec *Spec, b *Bindings, dir string, tags []string, report io.Writer) (map[string][]byte, []*Family, error) {
 	p, err := loadPackage(dir)
+	if err != nil {
+		return nil, nil, err
+	}
+	qi, err := newQueryIndex(spec, p, dir)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -111,10 +116,12 @@ func Adopt(spec *Spec, b *Bindings, dir string, tags []string, report io.Writer)
 			adoptedTypes = append(adoptedTypes, name)
 			fmt.Fprintf(report, "%s\ttype %s\tgenerated\n", tag, name)
 		}
-		if len(adoptedOps)+len(adoptedTypes) > 0 {
+		adoptedQueries := qi.adopt(spec, b, tag, ops, report)
+		if len(adoptedOps)+len(adoptedTypes)+len(adoptedQueries) > 0 {
 			fam := b.Family(tag, fileName(tag))
 			fam.Operations = append(fam.Operations, adoptedOps...)
 			fam.Types = append(fam.Types, adoptedTypes...)
+			fam.Queries = append(fam.Queries, adoptedQueries...)
 			adopted = append(adopted, fam)
 		}
 	}
@@ -143,7 +150,7 @@ func loadPackage(dir string) (*pkg, error) {
 		if err != nil {
 			return nil, err
 		}
-		pf := &pkgFile{path: path, src: src}
+		pf := &pkgFile{path: path, src: src, ast: f}
 		p.files = append(p.files, pf)
 		for _, node := range f.Decls {
 			p.index(pf, node)

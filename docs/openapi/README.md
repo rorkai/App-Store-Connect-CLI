@@ -72,6 +72,21 @@ by hand.
   generated, why it kept the rest, and the name the rule in
   `internal/openapigen/names.go` gives each operation that has no method yet.
   Add `-dry-run` to only print the report.
+- A tag's `"queries"` bind the query of a read: its option type, query
+  struct, one `With*` function per parameter and its `build*Query` function,
+  rendered into the tag's `*_gen.go` file. Names follow from the binding's
+  `name` (`build<Name>Query`, `<Name>Option`, `<name>Query`); a parameter
+  records its struct field, `With*` name and argument name only where the
+  rules in `internal/openapigen/query.go` give another name. Only parameters
+  that are arrays of strings are generated (the list is normalized and sent
+  comma-separated), and `limit` is sent when the operation defines it.
+  `-adopt` moves a read's query to the generator only when every one of these
+  declarations is the same Go tokens as the hand-written code and no other
+  read or function uses the builder. `openapi_queries_gen_test.go` lists the
+  generated builders and options, and
+  `go test ./internal/asc -run TestGeneratedQueriesMatchSchema` checks that each
+  option sends exactly its parameter and that every parameter of the operation
+  has an option; differences are recorded as `deviations` on the query.
 
 ## Web interface schema (`web/`)
 
