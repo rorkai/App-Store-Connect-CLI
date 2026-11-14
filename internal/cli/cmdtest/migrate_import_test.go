@@ -176,6 +176,9 @@ func TestMigrateImportDryRunReportsSkippedNonLocaleMetadataDirs(t *testing.T) {
 		t.Fatalf("mkdir non-locale dir: %v", err)
 	}
 	writeFile(t, filepath.Join(nonLocaleDir, "first_name.txt"), "Rita")
+	writeFile(t, filepath.Join(root, "metadata", "copyright.txt"), "2026 Example Inc.")
+	writeFile(t, filepath.Join(root, "metadata", "primary_category.txt"), "GAMES")
+	writeFile(t, filepath.Join(root, "metadata", "secondary_category.txt"), "  \n")
 	nonLocaleDirResolved, err := filepath.EvalSymlinks(nonLocaleDir)
 	if err != nil {
 		t.Fatalf("eval symlinks non-locale dir: %v", err)
@@ -224,6 +227,7 @@ func TestMigrateImportDryRunReportsSkippedNonLocaleMetadataDirs(t *testing.T) {
 	}
 
 	found := false
+	appLevelReasons := map[string]string{}
 	for _, item := range result.Skipped {
 		itemPathResolved, err := filepath.EvalSymlinks(item.Path)
 		if err != nil {
@@ -231,11 +235,25 @@ func TestMigrateImportDryRunReportsSkippedNonLocaleMetadataDirs(t *testing.T) {
 		}
 		if itemPathResolved == nonLocaleDirResolved && strings.Contains(item.Reason, "skipped non-locale directory") {
 			found = true
-			break
+		}
+		if strings.HasSuffix(item.Path, ".txt") {
+			appLevelReasons[filepath.Base(item.Path)] = item.Reason
 		}
 	}
 	if !found {
 		t.Fatalf("expected skipped to include %q (got %+v)", nonLocaleDir, result.Skipped)
+	}
+	wantReasons := map[string]string{
+		"copyright.txt":        "asc versions update --copyright",
+		"primary_category.txt": "asc app-setup categories set --primary",
+	}
+	if len(appLevelReasons) != len(wantReasons) {
+		t.Fatalf("expected skipped app-level files %v, got %+v", wantReasons, result.Skipped)
+	}
+	for file, command := range wantReasons {
+		if reason := appLevelReasons[file]; !strings.Contains(reason, "not imported") || !strings.Contains(reason, command) {
+			t.Fatalf("expected skipped reason for %s to name %q, got %q", file, command, reason)
+		}
 	}
 }
 

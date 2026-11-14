@@ -116,6 +116,10 @@ or conventional metadata/ and screenshots/ directories:
   │   │   ├── iphone_65_1.png
   │   │   └── ...
 
+App-level text files directly in metadata/ (copyright.txt, the category files,
+apple_tv_privacy_policy.txt) are not imported; non-empty ones are listed in
+skipped with the asc command that sets each value.
+
 App Preview validation requires ffprobe on PATH (provided by FFmpeg).
 Headers must be PNG at 1800 x 1200; previews must be 15-30 seconds.
 By default, dry-run lists local inputs without comparing remote assets.
@@ -1101,6 +1105,19 @@ type fastlaneLocaleDir struct {
 
 const defaultMetadataDirName = "default"
 
+// appLevelMetadataFiles maps the metadata folder's app-level text files, which
+// import does not apply, to the command that sets each value.
+var appLevelMetadataFiles = map[string]string{
+	"copyright.txt":                     "asc versions update --copyright",
+	"primary_category.txt":              "asc app-setup categories set --primary",
+	"secondary_category.txt":            "asc app-setup categories set --secondary",
+	"primary_first_sub_category.txt":    "asc app-setup categories set --primary-subcategory-one",
+	"primary_second_sub_category.txt":   "asc app-setup categories set --primary-subcategory-two",
+	"secondary_first_sub_category.txt":  "asc app-setup categories set --secondary-subcategory-one",
+	"secondary_second_sub_category.txt": "asc app-setup categories set --secondary-subcategory-two",
+	"apple_tv_privacy_policy.txt":       "asc app-setup info set --privacy-policy-text",
+}
+
 var localeMetadataFiles = []string{
 	"description.txt", "keywords.txt", "release_notes.txt", "promotional_text.txt",
 	"support_url.txt", "marketing_url.txt", "name.txt", "subtitle.txt", "privacy_url.txt",
@@ -1134,6 +1151,20 @@ func scanFastlaneMetadataLocaleDirs(metadataDir string) ([]fastlaneLocaleDir, []
 			continue
 		}
 		if !entry.IsDir() {
+			command, ok := appLevelMetadataFiles[dirName]
+			if !ok {
+				continue
+			}
+			value, err := readMetadataFile(root, filepath.Join(prefix, dirName))
+			if err != nil {
+				return nil, nil, err
+			}
+			if value != "" {
+				skipped = append(skipped, SkippedItem{
+					Path:   filepath.Join(metadataDir, dirName),
+					Reason: fmt.Sprintf("%s is not imported; set it with %s", dirName, command),
+				})
+			}
 			continue
 		}
 
