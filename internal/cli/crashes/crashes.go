@@ -136,22 +136,22 @@ func runListCommand(ctx context.Context, config shared.ListCommandConfig, fs *fl
 		asc.WithCrashTesterIDs(shared.SplitCSV(*flags.tester)),
 		asc.WithCrashInclude(shared.SplitCSV(*flags.include)),
 		asc.WithIncludedFields[asc.CrashOption](included),
-		asc.WithCrashLimit(*flags.limit),
-		asc.WithCrashNextURL(*flags.next),
+		asc.Limit[asc.CrashOption](*flags.limit),
+		asc.NextURL[asc.CrashOption](*flags.next),
 	}
 	if strings.TrimSpace(*flags.sort) != "" {
 		opts = append(opts, asc.WithCrashSort(*flags.sort))
 	}
 
 	if *flags.paginate {
-		paginateOpts := append(opts, asc.WithCrashLimit(200))
+		paginateOpts := append(opts, asc.Limit[asc.CrashOption](200))
 		firstPage, err := client.GetCrashes(requestCtx, resolvedAppID, paginateOpts...)
 		if err != nil {
 			return fmt.Errorf("%s: failed to fetch: %w", prefix, err)
 		}
 
 		crashes, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-			return client.GetCrashes(ctx, resolvedAppID, asc.WithCrashNextURL(nextURL))
+			return client.GetCrashes(ctx, resolvedAppID, asc.NextURL[asc.CrashOption](nextURL))
 		})
 		if err != nil {
 			return fmt.Errorf("%s: %w", prefix, err)

@@ -199,7 +199,7 @@ Examples:
 		ParentType:  "subscriptions",
 		ErrorPrefix: command,
 		FetchPage: func(ctx context.Context, client *asc.Client, id string, limit int, next string) (asc.PaginatedResponse, error) {
-			return fetch(client, ctx, id, asc.WithLinkagesLimit(limit), asc.WithLinkagesNextURL(next))
+			return fetch(client, ctx, id, asc.Limit[asc.LinkagesOption](limit), asc.NextURL[asc.LinkagesOption](next))
 		},
 	})
 	return cmd
@@ -578,7 +578,7 @@ Examples:
 				ParentType:  "retentionOffers",
 				ErrorPrefix: "subscriptions offers retention prices links",
 				FetchPage: func(ctx context.Context, client *asc.Client, id string, limit int, next string) (asc.PaginatedResponse, error) {
-					return client.GetRetentionOfferPricesRelationships(ctx, id, asc.WithLinkagesLimit(limit), asc.WithLinkagesNextURL(next))
+					return client.GetRetentionOfferPricesRelationships(ctx, id, asc.Limit[asc.LinkagesOption](limit), asc.NextURL[asc.LinkagesOption](next))
 				},
 			}),
 		},

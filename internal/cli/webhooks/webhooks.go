@@ -561,8 +561,8 @@ Examples:
 			defer cancel()
 
 			opts := []asc.LinkagesOption{
-				asc.WithLinkagesLimit(*limit),
-				asc.WithLinkagesNextURL(*next),
+				asc.Limit[asc.LinkagesOption](*limit),
+				asc.NextURL[asc.LinkagesOption](*next),
 			}
 
 			if *paginate {
@@ -570,13 +570,13 @@ Examples:
 					fmt.Fprintln(os.Stderr, "Error: --webhook-id is required")
 					return shared.MissingRequiredUsageError("--webhook-id")
 				}
-				paginateOpts := append(opts, asc.WithLinkagesLimit(webhooksMaxLimit))
+				paginateOpts := append(opts, asc.Limit[asc.LinkagesOption](webhooksMaxLimit))
 				firstPage, err := client.GetWebhookDeliveriesRelationships(requestCtx, trimmedID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("webhooks deliveries links: failed to fetch: %w", err)
 				}
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetWebhookDeliveriesRelationships(ctx, trimmedID, asc.WithLinkagesNextURL(nextURL))
+					return client.GetWebhookDeliveriesRelationships(ctx, trimmedID, asc.NextURL[asc.LinkagesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("webhooks deliveries links: %w", err)

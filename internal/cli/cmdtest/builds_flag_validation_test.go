@@ -1,12 +1,11 @@
 package cmdtest
 
 import (
-	"errors"
-	"net/http"
 	"path/filepath"
 	"testing"
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestBuildsInvalidInputFailsBeforeNetwork(t *testing.T) {
@@ -133,10 +132,7 @@ func TestBuildsInvalidInputFailsBeforeNetwork(t *testing.T) {
 			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 			t.Setenv("ASC_APP_ID", "")
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				t.Errorf("unexpected HTTP request: %s %s", req.Method, req.URL.String())
-				return nil, errors.New("unexpected HTTP request")
-			}))
+			asctest.NewRegistry(t).Install()
 
 			assertExitStderr(t, test.args, test.wantExit, test.wantErr)
 		})

@@ -311,7 +311,7 @@ Examples:
 					territoryOpts = append(territoryOpts, asc.WithTerritoriesFields(territoryFieldsValue))
 				}
 				if *territoryLimit > 0 {
-					territoryOpts = append(territoryOpts, asc.WithTerritoriesLimit(*territoryLimit))
+					territoryOpts = append(territoryOpts, asc.Limit[asc.TerritoriesOption](*territoryLimit))
 				}
 
 				territories, err := client.GetAppTagTerritories(requestCtx, trimmedID, territoryOpts...)
@@ -452,22 +452,22 @@ Examples:
 			defer cancel()
 
 			opts := []asc.TerritoriesOption{
-				asc.WithTerritoriesLimit(*limit),
-				asc.WithTerritoriesNextURL(*next),
+				asc.Limit[asc.TerritoriesOption](*limit),
+				asc.NextURL[asc.TerritoriesOption](*next),
 			}
 			if len(fieldsValue) > 0 {
 				opts = append(opts, asc.WithTerritoriesFields(fieldsValue))
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithTerritoriesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.TerritoriesOption](200))
 				firstPage, err := client.GetAppTagTerritories(requestCtx, trimmedID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("app-tags territories: failed to fetch: %w", err)
 				}
 
 				territories, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppTagTerritories(ctx, trimmedID, asc.WithTerritoriesNextURL(nextURL))
+					return client.GetAppTagTerritories(ctx, trimmedID, asc.NextURL[asc.TerritoriesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("app-tags territories: %w", err)
@@ -533,19 +533,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.LinkagesOption{
-				asc.WithLinkagesLimit(*limit),
-				asc.WithLinkagesNextURL(*next),
+				asc.Limit[asc.LinkagesOption](*limit),
+				asc.NextURL[asc.LinkagesOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithLinkagesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.LinkagesOption](200))
 				firstPage, err := client.GetAppTagTerritoriesRelationships(requestCtx, trimmedID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("app-tags territories-links: failed to fetch: %w", err)
 				}
 
 				linkages, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppTagTerritoriesRelationships(ctx, trimmedID, asc.WithLinkagesNextURL(nextURL))
+					return client.GetAppTagTerritoriesRelationships(ctx, trimmedID, asc.NextURL[asc.LinkagesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("app-tags territories-links: %w", err)
@@ -611,19 +611,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.LinkagesOption{
-				asc.WithLinkagesLimit(*limit),
-				asc.WithLinkagesNextURL(*next),
+				asc.Limit[asc.LinkagesOption](*limit),
+				asc.NextURL[asc.LinkagesOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithLinkagesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.LinkagesOption](200))
 				firstPage, err := client.GetAppTagsRelationshipsForApp(requestCtx, resolvedAppID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("app-tags links: failed to fetch: %w", err)
 				}
 
 				linkages, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppTagsRelationshipsForApp(ctx, resolvedAppID, asc.WithLinkagesNextURL(nextURL))
+					return client.GetAppTagsRelationshipsForApp(ctx, resolvedAppID, asc.NextURL[asc.LinkagesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("app-tags links: %w", err)

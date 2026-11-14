@@ -214,14 +214,6 @@ type subscriptionImageV2Query struct {
 	fields []string
 }
 
-func WithSubscriptionVersionsLimit(limit int) SubscriptionVersionsOption {
-	return func(q *subscriptionVersionsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
 func WithSubscriptionVersionsNextURL(next string) SubscriptionVersionsOption {
 	return func(q *subscriptionVersionsQuery) { q.nextURL = strings.TrimSpace(next) }
 }
@@ -302,14 +294,6 @@ func WithSubscriptionVersionLocalizationLimit(limit int) SubscriptionVersionOpti
 	}
 }
 
-func WithSubscriptionVersionLocalizationsLimit(limit int) SubscriptionVersionLocalizationsOption {
-	return func(q *subscriptionVersionLocalizationsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
 func WithSubscriptionVersionLocalizationsNextURL(next string) SubscriptionVersionLocalizationsOption {
 	return func(q *subscriptionVersionLocalizationsQuery) { q.nextURL = strings.TrimSpace(next) }
 }
@@ -324,14 +308,6 @@ func WithSubscriptionVersionLocalizationsVersionFields(fields []string) Subscrip
 
 func WithSubscriptionVersionLocalizationsInclude(include []string) SubscriptionVersionLocalizationsOption {
 	return func(q *subscriptionVersionLocalizationsQuery) { q.include = normalizeList(include) }
-}
-
-func WithSubscriptionVersionImagesLimit(limit int) SubscriptionVersionImagesOption {
-	return func(q *subscriptionVersionImagesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
 }
 
 func WithSubscriptionVersionImagesNextURL(next string) SubscriptionVersionImagesOption {

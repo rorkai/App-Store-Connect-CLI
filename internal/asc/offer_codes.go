@@ -3,7 +3,6 @@ package asc
 import (
 	"context"
 	"encoding/csv"
-	"encoding/json"
 	"fmt"
 	"io"
 	"strings"
@@ -56,71 +55,24 @@ type SubscriptionOfferCodeOneTimeUseCodeCreateRequest struct {
 // GetSubscriptionOfferCodeOneTimeUseCodes retrieves one-time use offer code batches for an offer code.
 func (c *Client) GetSubscriptionOfferCodeOneTimeUseCodes(ctx context.Context, offerCodeID string, opts ...SubscriptionOfferCodeOneTimeUseCodesOption) (*SubscriptionOfferCodeOneTimeUseCodesResponse, error) {
 	offerCodeID = strings.TrimSpace(offerCodeID)
-	query := &subscriptionOfferCodeOneTimeUseCodesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := fmt.Sprintf("/v1/subscriptionOfferCodes/%s/oneTimeUseCodes", offerCodeID)
-	if query.nextURL != "" {
-		// Validate nextURL to prevent credential exfiltration
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("offer codes: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildSubscriptionOfferCodeOneTimeUseCodesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response SubscriptionOfferCodeOneTimeUseCodesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[SubscriptionOfferCodeOneTimeUseCodesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/subscriptionOfferCodes/%s/oneTimeUseCodes", offerCodeID),
+		Query:       buildSubscriptionOfferCodeOneTimeUseCodesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "offer codes",
+	})
 }
 
 // GetSubscriptionOfferCodeOneTimeUseCode retrieves a one-time use offer code batch by ID.
 func (c *Client) GetSubscriptionOfferCodeOneTimeUseCode(ctx context.Context, oneTimeUseCodeID string) (*SubscriptionOfferCodeOneTimeUseCodeResponse, error) {
 	oneTimeUseCodeID = strings.TrimSpace(oneTimeUseCodeID)
-	path := fmt.Sprintf("/v1/subscriptionOfferCodeOneTimeUseCodes/%s", oneTimeUseCodeID)
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response SubscriptionOfferCodeOneTimeUseCodeResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[SubscriptionOfferCodeOneTimeUseCodeResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/subscriptionOfferCodeOneTimeUseCodes/%s", oneTimeUseCodeID)})
 }
 
 // CreateSubscriptionOfferCodeOneTimeUseCode generates a new one-time use offer code batch.
 func (c *Client) CreateSubscriptionOfferCodeOneTimeUseCode(ctx context.Context, req SubscriptionOfferCodeOneTimeUseCodeCreateRequest) (*SubscriptionOfferCodeOneTimeUseCodeResponse, error) {
-	body, err := BuildRequestBody(req)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "POST", "/v1/subscriptionOfferCodeOneTimeUseCodes", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response SubscriptionOfferCodeOneTimeUseCodeResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[SubscriptionOfferCodeOneTimeUseCodeResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/subscriptionOfferCodeOneTimeUseCodes", Payload: req})
 }
 
 // GetSubscriptionOfferCodeOneTimeUseCodeValues retrieves offer code values as a list of codes.

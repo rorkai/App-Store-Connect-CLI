@@ -2,7 +2,6 @@ package asc
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 )
@@ -156,107 +155,40 @@ type AppStoreVersionAppClipDefaultExperienceRelationshipUpdateRequest struct {
 
 // GetAppStoreVersions retrieves app store versions for an app.
 func (c *Client) GetAppStoreVersions(ctx context.Context, appID string, opts ...AppStoreVersionsOption) (*AppStoreVersionsResponse, error) {
-	query := &appStoreVersionsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := fmt.Sprintf("/v1/apps/%s/appStoreVersions", appID)
-	if query.nextURL != "" {
-		// Validate nextURL to prevent credential exfiltration
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appStoreVersions: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildAppStoreVersionsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppStoreVersionsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[AppStoreVersionsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/apps/%s/appStoreVersions", appID),
+		Query:       buildAppStoreVersionsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appStoreVersions",
+	})
 }
 
 // GetPreReleaseVersions retrieves TestFlight pre-release versions for an app.
 func (c *Client) GetPreReleaseVersions(ctx context.Context, appID string, opts ...PreReleaseVersionsOption) (*PreReleaseVersionsResponse, error) {
-	query := &preReleaseVersionsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
+	query := applyOptions(opts)
 	appID = strings.TrimSpace(appID)
-	path := "/v1/preReleaseVersions"
-	if query.nextURL != "" {
-		// Validate nextURL to prevent credential exfiltration
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("preReleaseVersions: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildPreReleaseVersionsQuery(appID, query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response PreReleaseVersionsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[PreReleaseVersionsResponse](ctx, c, readRequest{
+		Path:        "/v1/preReleaseVersions",
+		Query:       buildPreReleaseVersionsQuery(appID, query),
+		Next:        query.nextURL,
+		NextContext: "preReleaseVersions",
+	})
 }
 
 // GetPreReleaseVersion retrieves a TestFlight pre-release version by ID.
 func (c *Client) GetPreReleaseVersion(ctx context.Context, id string) (*PreReleaseVersionResponse, error) {
 	id = strings.TrimSpace(id)
-	path := fmt.Sprintf("/v1/preReleaseVersions/%s", id)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response PreReleaseVersionResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[PreReleaseVersionResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/preReleaseVersions/%s", id)})
 }
 
 // GetAppStoreVersion retrieves an app store version by ID.
 func (c *Client) GetAppStoreVersion(ctx context.Context, versionID string, opts ...AppStoreVersionOption) (*AppStoreVersionResponse, error) {
-	query := &appStoreVersionQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := fmt.Sprintf("/v1/appStoreVersions/%s", versionID)
-	if queryString := buildAppStoreVersionQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppStoreVersionResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[AppStoreVersionResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/appStoreVersions/%s", versionID),
+		Query: buildAppStoreVersionQuery(query),
+	})
 }
 
 // CreateAppStoreVersion creates a new app store version for an app.
@@ -290,23 +222,7 @@ func (c *Client) CreateAppStoreVersionWithBuild(ctx context.Context, appID, buil
 			Relationships: relationships,
 		},
 	}
-
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "POST", "/v1/appStoreVersions", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppStoreVersionResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppStoreVersionResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/appStoreVersions", Payload: payload})
 }
 
 // UpdateAppStoreVersion updates an existing app store version.
@@ -329,32 +245,13 @@ func (c *Client) UpdateAppStoreVersionWithBuild(ctx context.Context, versionID, 
 			Build: &Relationship{Data: ResourceData{Type: ResourceTypeBuilds, ID: buildID}},
 		}
 	}
-
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	path := fmt.Sprintf("/v1/appStoreVersions/%s", strings.TrimSpace(versionID))
-	data, err := c.do(ctx, "PATCH", path, body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppStoreVersionResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppStoreVersionResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/appStoreVersions/%s", strings.TrimSpace(versionID)), Payload: payload})
 }
 
 // DeleteAppStoreVersion deletes an app store version.
 // Only versions in PREPARE_FOR_SUBMISSION state can be deleted.
 func (c *Client) DeleteAppStoreVersion(ctx context.Context, versionID string) error {
-	path := fmt.Sprintf("/v1/appStoreVersions/%s", strings.TrimSpace(versionID))
-	_, err := c.do(ctx, "DELETE", path, nil)
-	return err
+	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/appStoreVersions/%s", strings.TrimSpace(versionID)), nil)
 }
 
 // AttachBuildToVersion attaches a build to an app store version.
@@ -365,16 +262,7 @@ func (c *Client) AttachBuildToVersion(ctx context.Context, versionID, buildID st
 			ID:   buildID,
 		},
 	}
-	body, err := BuildRequestBody(request)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v1/appStoreVersions/%s/relationships/build", versionID)
-	if _, err := c.do(ctx, "PATCH", path, body); err != nil {
-		return err
-	}
-	return nil
+	return sendNoContent(ctx, c, "PATCH", fmt.Sprintf("/v1/appStoreVersions/%s/relationships/build", versionID), request)
 }
 
 // AttachAppClipDefaultExperienceToVersion attaches an App Clip default experience to an app store version.
@@ -394,103 +282,35 @@ func (c *Client) AttachAppClipDefaultExperienceToVersion(ctx context.Context, ve
 			ID:   experienceID,
 		},
 	}
-	body, err := BuildRequestBody(request)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v1/appStoreVersions/%s/relationships/appClipDefaultExperience", versionID)
-	if _, err := c.do(ctx, "PATCH", path, body); err != nil {
-		return err
-	}
-	return nil
+	return sendNoContent(ctx, c, "PATCH", fmt.Sprintf("/v1/appStoreVersions/%s/relationships/appClipDefaultExperience", versionID), request)
 }
 
 // GetAppStoreVersionBuild retrieves the build attached to a version.
 func (c *Client) GetAppStoreVersionBuild(ctx context.Context, versionID string) (*BuildResponse, error) {
-	path := fmt.Sprintf("/v1/appStoreVersions/%s/build", versionID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BuildResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[BuildResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appStoreVersions/%s/build", versionID)})
 }
 
 // GetAppStoreVersionSubmissionResource retrieves a submission by submission ID.
 func (c *Client) GetAppStoreVersionSubmissionResource(ctx context.Context, submissionID string) (*AppStoreVersionSubmissionResourceResponse, error) {
-	path := fmt.Sprintf("/v1/appStoreVersionSubmissions/%s", submissionID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppStoreVersionSubmissionResourceResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppStoreVersionSubmissionResourceResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appStoreVersionSubmissions/%s", submissionID)})
 }
 
 // GetAppStoreVersionSubmissionForVersion retrieves a submission by version ID.
 func (c *Client) GetAppStoreVersionSubmissionForVersion(ctx context.Context, versionID string) (*AppStoreVersionSubmissionResourceResponse, error) {
-	path := fmt.Sprintf("/v1/appStoreVersions/%s/appStoreVersionSubmission", versionID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppStoreVersionSubmissionResourceResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppStoreVersionSubmissionResourceResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appStoreVersions/%s/appStoreVersionSubmission", versionID)})
 }
 
 // CreateAppStoreVersionSubmission creates a new app store version submission.
 func (c *Client) CreateAppStoreVersionSubmission(ctx context.Context, req AppStoreVersionSubmissionCreateRequest) (*AppStoreVersionSubmissionResponse, error) {
-	body, err := BuildRequestBody(req)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "POST", "/v1/appStoreVersionSubmissions", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppStoreVersionSubmissionResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppStoreVersionSubmissionResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/appStoreVersionSubmissions", Payload: req})
 }
 
 // GetAppStoreVersionSubmission retrieves an app store version submission by ID.
 func (c *Client) GetAppStoreVersionSubmission(ctx context.Context, id string) (*AppStoreVersionSubmissionResponse, error) {
-	data, err := c.do(ctx, "GET", fmt.Sprintf("/v1/appStoreVersionSubmissions/%s", id), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppStoreVersionSubmissionResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppStoreVersionSubmissionResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appStoreVersionSubmissions/%s", id)})
 }
 
 // DeleteAppStoreVersionSubmission deletes an app store version submission.
 func (c *Client) DeleteAppStoreVersionSubmission(ctx context.Context, id string) error {
-	_, err := c.do(ctx, "DELETE", fmt.Sprintf("/v1/appStoreVersionSubmissions/%s", id), nil)
-	return err
+	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/appStoreVersionSubmissions/%s", id), nil)
 }

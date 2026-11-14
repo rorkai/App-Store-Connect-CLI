@@ -220,7 +220,7 @@ func pullTestFlightConfig(ctx context.Context, client testFlightSyncClient, appI
 		appDone <- appResult{resp, err}
 	}()
 
-	groupFirstPage, groupErr := client.GetBetaGroups(ctx, appID, asc.WithBetaGroupsLimit(200))
+	groupFirstPage, groupErr := client.GetBetaGroups(ctx, appID, asc.Limit[asc.BetaGroupsOption](200))
 	var groupResp *asc.BetaGroupsResponse
 	if groupErr == nil {
 		groupResp, groupErr = paginateBetaGroups(ctx, client, appID, groupFirstPage)
@@ -250,7 +250,7 @@ func pullTestFlightConfig(ctx context.Context, client testFlightSyncClient, appI
 	if opts.includeBuilds {
 		for i, group := range filteredGroups {
 			tasks = append(tasks, func(ctx context.Context) error {
-				firstPage, err := client.GetBetaGroupBuilds(ctx, group.ID, asc.WithBetaGroupBuildsLimit(200))
+				firstPage, err := client.GetBetaGroupBuilds(ctx, group.ID, asc.Limit[asc.BetaGroupBuildsOption](200))
 				if err != nil {
 					return err
 				}
@@ -263,7 +263,7 @@ func pullTestFlightConfig(ctx context.Context, client testFlightSyncClient, appI
 	if opts.includeTesters {
 		for i, group := range filteredGroups {
 			tasks = append(tasks, func(ctx context.Context) error {
-				firstPage, err := client.GetBetaGroupTesters(ctx, group.ID, asc.WithBetaGroupTestersLimit(200))
+				firstPage, err := client.GetBetaGroupTesters(ctx, group.ID, asc.Limit[asc.BetaGroupTestersOption](200))
 				if err != nil {
 					return err
 				}
@@ -414,7 +414,7 @@ func paginateBetaGroups(ctx context.Context, client testFlightSyncClient, appID 
 		return &asc.BetaGroupsResponse{}, nil
 	}
 	allPages, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetBetaGroups(ctx, appID, asc.WithBetaGroupsNextURL(nextURL))
+		return client.GetBetaGroups(ctx, appID, asc.NextURL[asc.BetaGroupsOption](nextURL))
 	})
 	if err != nil {
 		return nil, err
@@ -434,7 +434,7 @@ func paginateBetaGroupBuilds(ctx context.Context, client testFlightSyncClient, g
 		return &asc.BuildsResponse{}, nil
 	}
 	allPages, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetBetaGroupBuilds(ctx, groupID, asc.WithBetaGroupBuildsNextURL(nextURL))
+		return client.GetBetaGroupBuilds(ctx, groupID, asc.NextURL[asc.BetaGroupBuildsOption](nextURL))
 	})
 	if err != nil {
 		return nil, err
@@ -454,7 +454,7 @@ func paginateBetaGroupTesters(ctx context.Context, client testFlightSyncClient, 
 		return &asc.BetaTestersResponse{}, nil
 	}
 	allPages, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetBetaGroupTesters(ctx, groupID, asc.WithBetaGroupTestersNextURL(nextURL))
+		return client.GetBetaGroupTesters(ctx, groupID, asc.NextURL[asc.BetaGroupTestersOption](nextURL))
 	})
 	if err != nil {
 		return nil, err

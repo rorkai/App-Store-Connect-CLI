@@ -22,9 +22,9 @@ func FindBundleID(ctx context.Context, client *asc.Client, identifier string) (*
 	page := 1
 	seenNext := make(map[string]struct{})
 	for {
-		opts := []asc.BundleIDsOption{asc.WithBundleIDsFilterIdentifier(identifier), asc.WithBundleIDsLimit(200)}
+		opts := []asc.BundleIDsOption{asc.WithBundleIDsFilterIdentifier(identifier), asc.Limit[asc.BundleIDsOption](200)}
 		if next != "" {
-			opts = []asc.BundleIDsOption{asc.WithBundleIDsNextURL(next)}
+			opts = []asc.BundleIDsOption{asc.NextURL[asc.BundleIDsOption](next)}
 		}
 		resp, err := client.GetBundleIDs(ctx, opts...)
 		if err != nil {

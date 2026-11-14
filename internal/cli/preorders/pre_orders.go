@@ -111,10 +111,10 @@ Examples:
 		FetchPage: func(ctx context.Context, client *asc.Client, availabilityID string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := make([]asc.TerritoryAvailabilitiesOption, 0, 2)
 			if limit > 0 {
-				opts = append(opts, asc.WithTerritoryAvailabilitiesLimit(limit))
+				opts = append(opts, asc.Limit[asc.TerritoryAvailabilitiesOption](limit))
 			}
 			if strings.TrimSpace(next) != "" {
-				opts = append(opts, asc.WithTerritoryAvailabilitiesNextURL(next))
+				opts = append(opts, asc.NextURL[asc.TerritoryAvailabilitiesOption](next))
 			}
 			return client.GetTerritoryAvailabilities(ctx, availabilityID, opts...)
 		},
@@ -212,12 +212,12 @@ Examples:
 			if availabilityID == "" {
 				return fmt.Errorf("pre-orders enable: app availability ID missing from response")
 			}
-			firstPage, err := client.GetTerritoryAvailabilities(requestCtx, availabilityID, asc.WithTerritoryAvailabilitiesLimit(200))
+			firstPage, err := client.GetTerritoryAvailabilities(requestCtx, availabilityID, asc.Limit[asc.TerritoryAvailabilitiesOption](200))
 			if err != nil {
 				return fmt.Errorf("pre-orders enable: %w", err)
 			}
 			paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-				return client.GetTerritoryAvailabilities(ctx, availabilityID, asc.WithTerritoryAvailabilitiesNextURL(nextURL))
+				return client.GetTerritoryAvailabilities(ctx, availabilityID, asc.NextURL[asc.TerritoryAvailabilitiesOption](nextURL))
 			})
 			if err != nil {
 				return fmt.Errorf("pre-orders enable: %w", err)

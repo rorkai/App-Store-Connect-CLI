@@ -262,14 +262,14 @@ func clipLocalizations(ctx context.Context, c *asc.Client, id string) ([]asc.Res
 
 func versionLocalizations(ctx context.Context, c *asc.Client, id string) ([]asc.Resource[asc.AppStoreVersionLocalizationAttributes], error) {
 	return pages(ctx, func(ctx context.Context, next string) (*asc.AppStoreVersionLocalizationsResponse, error) {
-		return c.GetAppStoreVersionLocalizations(ctx, id, asc.WithAppStoreVersionLocalizationsNextURL(next))
+		return c.GetAppStoreVersionLocalizations(ctx, id, asc.NextURL[asc.AppStoreVersionLocalizationsOption](next))
 	})
 }
 
 // previewSets also returns each set's previews in order when Apple included them.
 func previewSets(ctx context.Context, c *asc.Client, id string) ([]asc.Resource[asc.AppPreviewSetAttributes], map[string][]asc.Resource[asc.AppPreviewAttributes], error) {
 	response, err := pagesResponse(ctx, func(ctx context.Context, next string) (*asc.AppPreviewSetsResponse, error) {
-		return c.GetAppStoreVersionLocalizationPreviewSets(ctx, id, asc.WithAppStoreVersionLocalizationPreviewSetsIncludePreviews(), asc.WithAppStoreVersionLocalizationPreviewSetsNextURL(next))
+		return c.GetAppStoreVersionLocalizationPreviewSets(ctx, id, asc.WithAppStoreVersionLocalizationPreviewSetsIncludePreviews(), asc.NextURL[asc.AppStoreVersionLocalizationPreviewSetsOption](next))
 	})
 	if err != nil {
 		return nil, nil, err

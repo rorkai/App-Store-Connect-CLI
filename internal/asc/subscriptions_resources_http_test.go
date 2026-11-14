@@ -81,7 +81,7 @@ func TestSubscriptionListEndpoints_WithLimit(t *testing.T) {
 			limit:    "5",
 			response: `{"data":[{"type":"subscriptionLocalizations","id":"loc-1","attributes":{"name":"Pro","locale":"en-US"}}]}`,
 			call: func(t *testing.T, c *Client) {
-				resp, err := c.GetSubscriptionLocalizations(ctx, "sub-1", WithSubscriptionLocalizationsLimit(5))
+				resp, err := c.GetSubscriptionLocalizations(ctx, "sub-1", Limit[SubscriptionLocalizationsOption](5))
 				if err != nil {
 					t.Fatalf("GetSubscriptionLocalizations() error: %v", err)
 				}
@@ -96,7 +96,7 @@ func TestSubscriptionListEndpoints_WithLimit(t *testing.T) {
 			limit:    "5",
 			response: `{"data":[{"type":"subscriptionImages","id":"img-1","attributes":{"fileName":"image.png","fileSize":1234}}]}`,
 			call: func(t *testing.T, c *Client) {
-				resp, err := c.GetSubscriptionImages(ctx, "sub-1", WithSubscriptionImagesLimit(5))
+				resp, err := c.GetSubscriptionImages(ctx, "sub-1", Limit[SubscriptionImagesOption](5))
 				if err != nil {
 					t.Fatalf("GetSubscriptionImages() error: %v", err)
 				}
@@ -111,7 +111,7 @@ func TestSubscriptionListEndpoints_WithLimit(t *testing.T) {
 			limit:    "5",
 			response: `{"data":[{"type":"subscriptionIntroductoryOffers","id":"offer-1","attributes":{"duration":"ONE_MONTH","numberOfPeriods":1,"offerMode":"FREE_TRIAL"}}]}`,
 			call: func(t *testing.T, c *Client) {
-				resp, err := c.GetSubscriptionIntroductoryOffers(ctx, "sub-1", WithSubscriptionIntroductoryOffersLimit(5))
+				resp, err := c.GetSubscriptionIntroductoryOffers(ctx, "sub-1", Limit[SubscriptionIntroductoryOffersOption](5))
 				if err != nil {
 					t.Fatalf("GetSubscriptionIntroductoryOffers() error: %v", err)
 				}
@@ -126,7 +126,7 @@ func TestSubscriptionListEndpoints_WithLimit(t *testing.T) {
 			limit:    "5",
 			response: `{"data":[{"type":"subscriptionPromotionalOffers","id":"offer-1","attributes":{"name":"Spring","offerCode":"SPRING"}}]}`,
 			call: func(t *testing.T, c *Client) {
-				resp, err := c.GetSubscriptionPromotionalOffers(ctx, "sub-1", WithSubscriptionPromotionalOffersLimit(5))
+				resp, err := c.GetSubscriptionPromotionalOffers(ctx, "sub-1", Limit[SubscriptionPromotionalOffersOption](5))
 				if err != nil {
 					t.Fatalf("GetSubscriptionPromotionalOffers() error: %v", err)
 				}
@@ -141,7 +141,7 @@ func TestSubscriptionListEndpoints_WithLimit(t *testing.T) {
 			limit:    "5",
 			response: `{"data":[{"type":"subscriptionPromotionalOfferPrices","id":"price-1"}]}`,
 			call: func(t *testing.T, c *Client) {
-				resp, err := c.GetSubscriptionPromotionalOfferPrices(ctx, "offer-1", WithSubscriptionPromotionalOfferPricesLimit(5))
+				resp, err := c.GetSubscriptionPromotionalOfferPrices(ctx, "offer-1", Limit[SubscriptionPromotionalOfferPricesOption](5))
 				if err != nil {
 					t.Fatalf("GetSubscriptionPromotionalOfferPrices() error: %v", err)
 				}
@@ -156,7 +156,7 @@ func TestSubscriptionListEndpoints_WithLimit(t *testing.T) {
 			limit:    "5",
 			response: `{"data":[{"type":"subscriptionOfferCodes","id":"code-1","attributes":{"name":"Spring"}}]}`,
 			call: func(t *testing.T, c *Client) {
-				resp, err := c.GetSubscriptionOfferCodes(ctx, "sub-1", WithSubscriptionOfferCodesLimit(5))
+				resp, err := c.GetSubscriptionOfferCodes(ctx, "sub-1", Limit[SubscriptionOfferCodesOption](5))
 				if err != nil {
 					t.Fatalf("GetSubscriptionOfferCodes() error: %v", err)
 				}
@@ -171,7 +171,7 @@ func TestSubscriptionListEndpoints_WithLimit(t *testing.T) {
 			limit:    "5",
 			response: `{"data":[{"type":"subscriptionOfferCodeCustomCodes","id":"custom-1","attributes":{"customCode":"SPRING"}}]}`,
 			call: func(t *testing.T, c *Client) {
-				resp, err := c.GetSubscriptionOfferCodeCustomCodes(ctx, "code-1", WithSubscriptionOfferCodeCustomCodesLimit(5))
+				resp, err := c.GetSubscriptionOfferCodeCustomCodes(ctx, "code-1", Limit[SubscriptionOfferCodeCustomCodesOption](5))
 				if err != nil {
 					t.Fatalf("GetSubscriptionOfferCodeCustomCodes() error: %v", err)
 				}
@@ -186,7 +186,7 @@ func TestSubscriptionListEndpoints_WithLimit(t *testing.T) {
 			limit:    "5",
 			response: `{"data":[{"type":"subscriptionOfferCodePrices","id":"price-1"}]}`,
 			call: func(t *testing.T, c *Client) {
-				resp, err := c.GetSubscriptionOfferCodePrices(ctx, "code-1", WithSubscriptionOfferCodePricesLimit(5))
+				resp, err := c.GetSubscriptionOfferCodePrices(ctx, "code-1", Limit[SubscriptionOfferCodePricesOption](5))
 				if err != nil {
 					t.Fatalf("GetSubscriptionOfferCodePrices() error: %v", err)
 				}
@@ -201,7 +201,7 @@ func TestSubscriptionListEndpoints_WithLimit(t *testing.T) {
 			limit:    "5",
 			response: `{"data":[{"type":"subscriptionPrices","id":"price-1"}]}`,
 			call: func(t *testing.T, c *Client) {
-				resp, err := c.GetSubscriptionPrices(ctx, "sub-1", WithSubscriptionPricesLimit(5))
+				resp, err := c.GetSubscriptionPrices(ctx, "sub-1", Limit[SubscriptionPricesOption](5))
 				if err != nil {
 					t.Fatalf("GetSubscriptionPrices() error: %v", err)
 				}
@@ -246,7 +246,7 @@ func TestSubscriptionListEndpoints_WithLimit(t *testing.T) {
 			limit:    "5",
 			response: `{"data":[{"type":"subscriptionGroupLocalizations","id":"loc-1","attributes":{"name":"Premium","locale":"en-US"}}]}`,
 			call: func(t *testing.T, c *Client) {
-				resp, err := c.GetSubscriptionGroupLocalizations(ctx, "group-1", WithSubscriptionGroupLocalizationsLimit(5))
+				resp, err := c.GetSubscriptionGroupLocalizations(ctx, "group-1", Limit[SubscriptionGroupLocalizationsOption](5))
 				if err != nil {
 					t.Fatalf("GetSubscriptionGroupLocalizations() error: %v", err)
 				}
@@ -289,7 +289,7 @@ func TestSubscriptionListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetSubscriptionLocalizations",
 			next: "https://api.appstoreconnect.apple.com/v1/subscriptions/sub-1/subscriptionLocalizations?cursor=abc",
 			call: func(t *testing.T, c *Client, next string) {
-				resp, err := c.GetSubscriptionLocalizations(ctx, "sub-1", WithSubscriptionLocalizationsNextURL(next))
+				resp, err := c.GetSubscriptionLocalizations(ctx, "sub-1", NextURL[SubscriptionLocalizationsOption](next))
 				if err != nil {
 					t.Fatalf("GetSubscriptionLocalizations() error: %v", err)
 				}
@@ -302,7 +302,7 @@ func TestSubscriptionListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetSubscriptionPrices",
 			next: "https://api.appstoreconnect.apple.com/v1/subscriptions/sub-1/prices?cursor=abc",
 			call: func(t *testing.T, c *Client, next string) {
-				resp, err := c.GetSubscriptionPrices(ctx, "sub-1", WithSubscriptionPricesNextURL(next))
+				resp, err := c.GetSubscriptionPrices(ctx, "sub-1", NextURL[SubscriptionPricesOption](next))
 				if err != nil {
 					t.Fatalf("GetSubscriptionPrices() error: %v", err)
 				}
@@ -1163,7 +1163,7 @@ func TestGetSubscriptionAvailabilityAvailableTerritories(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetSubscriptionAvailabilityAvailableTerritories(context.Background(), "avail-1", WithSubscriptionAvailabilityTerritoriesLimit(5)); err != nil {
+	if _, err := client.GetSubscriptionAvailabilityAvailableTerritories(context.Background(), "avail-1", Limit[SubscriptionAvailabilityTerritoriesOption](5)); err != nil {
 		t.Fatalf("GetSubscriptionAvailabilityAvailableTerritories() error: %v", err)
 	}
 }

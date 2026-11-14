@@ -2,39 +2,19 @@ package asc
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 )
 
 // GetBetaAppLocalizations retrieves beta app localizations with optional filters.
 func (c *Client) GetBetaAppLocalizations(ctx context.Context, opts ...BetaAppLocalizationsOption) (*BetaAppLocalizationsResponse, error) {
-	query := &betaAppLocalizationsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := "/v1/betaAppLocalizations"
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("betaAppLocalizations: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildBetaAppLocalizationsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BetaAppLocalizationsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[BetaAppLocalizationsResponse](ctx, c, readRequest{
+		Path:        "/v1/betaAppLocalizations",
+		Query:       buildBetaAppLocalizationsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "betaAppLocalizations",
+	})
 }
 
 // GetBetaAppLocalization retrieves a beta app localization by ID.
@@ -44,18 +24,7 @@ func (c *Client) GetBetaAppLocalization(ctx context.Context, localizationID stri
 		return nil, fmt.Errorf("localizationID is required")
 	}
 
-	path := fmt.Sprintf("/v1/betaAppLocalizations/%s", localizationID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BetaAppLocalizationResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[BetaAppLocalizationResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/betaAppLocalizations/%s", localizationID)})
 }
 
 // GetBetaAppLocalizationApp retrieves the app for a beta app localization.
@@ -65,18 +34,7 @@ func (c *Client) GetBetaAppLocalizationApp(ctx context.Context, localizationID s
 		return nil, fmt.Errorf("localizationID is required")
 	}
 
-	path := fmt.Sprintf("/v1/betaAppLocalizations/%s/app", localizationID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/betaAppLocalizations/%s/app", localizationID)})
 }
 
 // CreateBetaAppLocalization creates a beta app localization for an app.
@@ -102,22 +60,7 @@ func (c *Client) CreateBetaAppLocalization(ctx context.Context, appID string, at
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "POST", "/v1/betaAppLocalizations", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BetaAppLocalizationResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[BetaAppLocalizationResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/betaAppLocalizations", Payload: payload})
 }
 
 // UpdateBetaAppLocalization updates a beta app localization by ID.
@@ -135,22 +78,7 @@ func (c *Client) UpdateBetaAppLocalization(ctx context.Context, localizationID s
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "PATCH", fmt.Sprintf("/v1/betaAppLocalizations/%s", localizationID), body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BetaAppLocalizationResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[BetaAppLocalizationResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/betaAppLocalizations/%s", localizationID), Payload: payload})
 }
 
 // DeleteBetaAppLocalization deletes a beta app localization by ID.
@@ -160,7 +88,5 @@ func (c *Client) DeleteBetaAppLocalization(ctx context.Context, localizationID s
 		return fmt.Errorf("localizationID is required")
 	}
 
-	path := fmt.Sprintf("/v1/betaAppLocalizations/%s", localizationID)
-	_, err := c.do(ctx, "DELETE", path, nil)
-	return err
+	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/betaAppLocalizations/%s", localizationID), nil)
 }

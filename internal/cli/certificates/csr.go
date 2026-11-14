@@ -106,13 +106,11 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			keyOutValue := strings.TrimSpace(*keyOut)
 			if keyOutValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --key-out is required")
-				return shared.MissingRequiredUsageError("--key-out")
+				return shared.RequiredFlag("--key-out")
 			}
 			csrOutValue := strings.TrimSpace(*csrOut)
 			if csrOutValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --csr-out is required")
-				return shared.MissingRequiredUsageError("--csr-out")
+				return shared.RequiredFlag("--csr-out")
 			}
 			if err := validateCSRPairOutputPaths(keyOutValue, csrOutValue); err != nil {
 				return err

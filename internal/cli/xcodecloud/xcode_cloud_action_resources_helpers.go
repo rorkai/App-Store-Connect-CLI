@@ -203,8 +203,8 @@ Examples:
 	ListFetchPage: func(ctx context.Context, client *asc.Client, actionID string, limit int, next string) (asc.PaginatedResponse, error) {
 		return client.GetCiBuildActionIssues(
 			ctx, actionID,
-			asc.WithCiIssuesLimit(limit),
-			asc.WithCiIssuesNextURL(next),
+			asc.Limit[asc.CiIssuesOption](limit),
+			asc.NextURL[asc.CiIssuesOption](next),
 		)
 	},
 	ListAggregateFromRun: aggregateXcodeCloudIssuesFromRun,
@@ -249,8 +249,8 @@ Examples:
 	ListFetchPage: func(ctx context.Context, client *asc.Client, actionID string, limit int, next string) (asc.PaginatedResponse, error) {
 		return client.GetCiBuildActionTestResults(
 			ctx, actionID,
-			asc.WithCiTestResultsLimit(limit),
-			asc.WithCiTestResultsNextURL(next),
+			asc.Limit[asc.CiTestResultsOption](limit),
+			asc.NextURL[asc.CiTestResultsOption](next),
 		)
 	},
 	ListAggregateFromRun: aggregateXcodeCloudTestResultsFromRun,
@@ -378,7 +378,7 @@ func listBuildActionsForRun(ctx context.Context, client *asc.Client, runID strin
 }
 
 func listBuildActionsForRunAllowEmpty(ctx context.Context, client *asc.Client, runID string) ([]asc.CiBuildActionResource, error) {
-	resp, err := client.GetCiBuildActions(ctx, runID, asc.WithCiBuildActionsLimit(200))
+	resp, err := client.GetCiBuildActions(ctx, runID, asc.Limit[asc.CiBuildActionsOption](200))
 	if err != nil {
 		return nil, fmt.Errorf("resolve build actions for run %q: %w", runID, err)
 	}
@@ -387,7 +387,7 @@ func listBuildActionsForRunAllowEmpty(ctx context.Context, client *asc.Client, r
 	}
 
 	allPages, err := asc.PaginateAll(ctx, resp, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetCiBuildActions(ctx, runID, asc.WithCiBuildActionsNextURL(nextURL))
+		return client.GetCiBuildActions(ctx, runID, asc.NextURL[asc.CiBuildActionsOption](nextURL))
 	})
 	if err != nil {
 		return nil, fmt.Errorf("resolve build actions for run %q: %w", runID, err)
@@ -434,13 +434,13 @@ func aggregateXcodeCloudIssuesFromRun(ctx context.Context, client *asc.Client, r
 		if paginate {
 			pageLimit = 200
 		}
-		resp, err := client.GetCiBuildActionIssues(ctx, actionID, asc.WithCiIssuesLimit(pageLimit))
+		resp, err := client.GetCiBuildActionIssues(ctx, actionID, asc.Limit[asc.CiIssuesOption](pageLimit))
 		if err != nil {
 			return nil, fmt.Errorf("list issues for action %q: %w", actionID, err)
 		}
 		if paginate {
 			allPages, err := asc.PaginateAll(ctx, resp, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-				return client.GetCiBuildActionIssues(ctx, actionID, asc.WithCiIssuesNextURL(nextURL))
+				return client.GetCiBuildActionIssues(ctx, actionID, asc.NextURL[asc.CiIssuesOption](nextURL))
 			})
 			if err != nil {
 				return nil, fmt.Errorf("list issues for action %q: %w", actionID, err)
@@ -479,13 +479,13 @@ func aggregateXcodeCloudTestResultsFromRun(ctx context.Context, client *asc.Clie
 		if paginate {
 			pageLimit = 200
 		}
-		resp, err := client.GetCiBuildActionTestResults(ctx, actionID, asc.WithCiTestResultsLimit(pageLimit))
+		resp, err := client.GetCiBuildActionTestResults(ctx, actionID, asc.Limit[asc.CiTestResultsOption](pageLimit))
 		if err != nil {
 			return nil, fmt.Errorf("list test results for action %q: %w", actionID, err)
 		}
 		if paginate {
 			allPages, err := asc.PaginateAll(ctx, resp, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-				return client.GetCiBuildActionTestResults(ctx, actionID, asc.WithCiTestResultsNextURL(nextURL))
+				return client.GetCiBuildActionTestResults(ctx, actionID, asc.NextURL[asc.CiTestResultsOption](nextURL))
 			})
 			if err != nil {
 				return nil, fmt.Errorf("list test results for action %q: %w", actionID, err)
@@ -524,13 +524,13 @@ func aggregateXcodeCloudArtifactsFromRun(ctx context.Context, client *asc.Client
 		if paginate {
 			pageLimit = 200
 		}
-		resp, err := client.GetCiBuildActionArtifacts(ctx, actionID, asc.WithCiArtifactsLimit(pageLimit))
+		resp, err := client.GetCiBuildActionArtifacts(ctx, actionID, asc.Limit[asc.CiArtifactsOption](pageLimit))
 		if err != nil {
 			return nil, fmt.Errorf("list artifacts for action %q: %w", actionID, err)
 		}
 		if paginate {
 			allPages, err := asc.PaginateAll(ctx, resp, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-				return client.GetCiBuildActionArtifacts(ctx, actionID, asc.WithCiArtifactsNextURL(nextURL))
+				return client.GetCiBuildActionArtifacts(ctx, actionID, asc.NextURL[asc.CiArtifactsOption](nextURL))
 			})
 			if err != nil {
 				return nil, fmt.Errorf("list artifacts for action %q: %w", actionID, err)

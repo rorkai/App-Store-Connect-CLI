@@ -131,8 +131,8 @@ func runListCommand(ctx context.Context, config shared.ListCommandConfig, fs *fl
 		asc.WithFeedbackTesterIDs(shared.SplitCSV(*flags.tester)),
 		asc.WithFeedbackInclude(shared.SplitCSV(*flags.include)),
 		asc.WithIncludedFields[asc.FeedbackOption](included),
-		asc.WithFeedbackLimit(*flags.limit),
-		asc.WithFeedbackNextURL(*flags.next),
+		asc.Limit[asc.FeedbackOption](*flags.limit),
+		asc.NextURL[asc.FeedbackOption](*flags.next),
 	}
 	if strings.TrimSpace(*flags.sort) != "" {
 		opts = append(opts, asc.WithFeedbackSort(*flags.sort))
@@ -142,14 +142,14 @@ func runListCommand(ctx context.Context, config shared.ListCommandConfig, fs *fl
 	}
 
 	if *flags.paginate {
-		paginateOpts := append(opts, asc.WithFeedbackLimit(200))
+		paginateOpts := append(opts, asc.Limit[asc.FeedbackOption](200))
 		firstPage, err := client.GetFeedback(requestCtx, resolvedAppID, paginateOpts...)
 		if err != nil {
 			return fmt.Errorf("%s: failed to fetch: %w", prefix, err)
 		}
 
 		feedback, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-			return client.GetFeedback(ctx, resolvedAppID, asc.WithFeedbackNextURL(nextURL))
+			return client.GetFeedback(ctx, resolvedAppID, asc.NextURL[asc.FeedbackOption](nextURL))
 		})
 		if err != nil {
 			return fmt.Errorf("%s: %w", prefix, err)

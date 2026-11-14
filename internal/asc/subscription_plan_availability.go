@@ -81,24 +81,6 @@ type subscriptionPlanAvailabilitiesQuery struct {
 // limit[availableTerritories] on subscription plan availability reads.
 const SubscriptionPlanAvailabilityIncludedTerritoriesLimit = 50
 
-// WithSubscriptionPlanAvailabilitiesLimit sets the maximum number of plan availabilities to return.
-func WithSubscriptionPlanAvailabilitiesLimit(limit int) SubscriptionPlanAvailabilitiesOption {
-	return func(q *subscriptionPlanAvailabilitiesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithSubscriptionPlanAvailabilitiesNextURL uses a next page URL directly.
-func WithSubscriptionPlanAvailabilitiesNextURL(next string) SubscriptionPlanAvailabilitiesOption {
-	return func(q *subscriptionPlanAvailabilitiesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithSubscriptionPlanAvailabilitiesPlanTypes filters returned plan availabilities by plan type.
 // The App Store Connect API does not expose filter[planType] on planAvailabilities, so filtering
 // is applied client-side after the list response is fetched.
@@ -154,21 +136,7 @@ func (c *Client) CreateSubscriptionPlanAvailability(ctx context.Context, subID s
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-	data, err := c.do(ctx, http.MethodPost, "/v1/subscriptionPlanAvailabilities", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response SubscriptionPlanAvailabilityResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[SubscriptionPlanAvailabilityResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/subscriptionPlanAvailabilities", Payload: payload})
 }
 
 // UpdateSubscriptionPlanAvailability updates subscription plan availability in territories.
@@ -195,22 +163,7 @@ func (c *Client) UpdateSubscriptionPlanAvailability(ctx context.Context, planAva
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-	path := fmt.Sprintf("/v1/subscriptionPlanAvailabilities/%s", planAvailabilityID)
-	data, err := c.do(ctx, http.MethodPatch, path, body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response SubscriptionPlanAvailabilityResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[SubscriptionPlanAvailabilityResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/subscriptionPlanAvailabilities/%s", planAvailabilityID), Payload: payload})
 }
 
 // GetSubscriptionPlanAvailability retrieves a subscription plan availability by ID.
@@ -220,18 +173,7 @@ func (c *Client) GetSubscriptionPlanAvailability(ctx context.Context, planAvaila
 		return nil, fmt.Errorf("plan availability ID is required")
 	}
 
-	path := fmt.Sprintf("/v1/subscriptionPlanAvailabilities/%s", planAvailabilityID)
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response SubscriptionPlanAvailabilityResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[SubscriptionPlanAvailabilityResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/subscriptionPlanAvailabilities/%s", planAvailabilityID)})
 }
 
 // GetSubscriptionPlanAvailabilitiesForSubscription retrieves plan availabilities for a subscription.
@@ -303,37 +245,18 @@ func (c *Client) GetSubscriptionPlanAvailabilityAvailableTerritoriesRelationship
 
 // GetSubscriptionPlanAvailabilityAvailableTerritories lists available territories for a plan availability.
 func (c *Client) GetSubscriptionPlanAvailabilityAvailableTerritories(ctx context.Context, planAvailabilityID string, opts ...SubscriptionAvailabilityTerritoriesOption) (*TerritoriesResponse, error) {
-	query := &subscriptionAvailabilityTerritoriesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
+	query := applyOptions(opts)
 	planAvailabilityID = strings.TrimSpace(planAvailabilityID)
 	if query.nextURL == "" && planAvailabilityID == "" {
 		return nil, fmt.Errorf("plan availability ID is required")
 	}
 
-	path := fmt.Sprintf("/v1/subscriptionPlanAvailabilities/%s/availableTerritories", planAvailabilityID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("subscriptionPlanAvailabilityAvailableTerritories: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildSubscriptionAvailabilityTerritoriesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response TerritoriesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[TerritoriesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/subscriptionPlanAvailabilities/%s/availableTerritories", planAvailabilityID),
+		Query:       buildSubscriptionAvailabilityTerritoriesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "subscriptionPlanAvailabilityAvailableTerritories",
+	})
 }
 
 func filterSubscriptionPlanAvailabilities(resp *SubscriptionPlanAvailabilitiesResponse, planTypes []SubscriptionPlanType) *SubscriptionPlanAvailabilitiesResponse {

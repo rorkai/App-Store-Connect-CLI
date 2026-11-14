@@ -2,7 +2,6 @@ package asc
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/url"
 	"strings"
@@ -44,32 +43,13 @@ type AppCategoryResponse struct {
 
 // GetAppCategories retrieves all app categories.
 func (c *Client) GetAppCategories(ctx context.Context, opts ...AppCategoriesOption) (*AppCategoriesResponse, error) {
-	query := &appCategoriesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := "/v1/appCategories"
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appCategories: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildAppCategoriesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppCategoriesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[AppCategoriesResponse](ctx, c, readRequest{
+		Path:        "/v1/appCategories",
+		Query:       buildAppCategoriesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appCategories",
+	})
 }
 
 // appCategoriesQuery holds query parameters for app categories.
@@ -87,15 +67,6 @@ func WithAppCategoriesLimit(limit int) AppCategoriesOption {
 	}
 }
 
-// WithAppCategoriesNextURL uses a next page URL directly.
-func WithAppCategoriesNextURL(next string) AppCategoriesOption {
-	return func(q *appCategoriesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 func buildAppCategoriesQuery(query *appCategoriesQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
@@ -109,18 +80,7 @@ func (c *Client) GetAppCategory(ctx context.Context, categoryID string) (*AppCat
 		return nil, fmt.Errorf("categoryID is required")
 	}
 
-	path := fmt.Sprintf("/v1/appCategories/%s", categoryID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppCategoryResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppCategoryResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appCategories/%s", categoryID)})
 }
 
 // GetAppCategoryParent retrieves the parent category for a category.
@@ -130,53 +90,22 @@ func (c *Client) GetAppCategoryParent(ctx context.Context, categoryID string) (*
 		return nil, fmt.Errorf("categoryID is required")
 	}
 
-	path := fmt.Sprintf("/v1/appCategories/%s/parent", categoryID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppCategoryResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppCategoryResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appCategories/%s/parent", categoryID)})
 }
 
 // GetAppCategorySubcategories retrieves subcategories for a category.
 func (c *Client) GetAppCategorySubcategories(ctx context.Context, categoryID string, opts ...AppCategoriesOption) (*AppCategoriesResponse, error) {
-	query := &appCategoriesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
+	query := applyOptions(opts)
 	categoryID = strings.TrimSpace(categoryID)
 	if query.nextURL == "" && categoryID == "" {
 		return nil, fmt.Errorf("categoryID is required")
 	}
-
-	path := fmt.Sprintf("/v1/appCategories/%s/subcategories", categoryID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appCategorySubcategories: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildAppCategoriesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppCategoriesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppCategoriesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/appCategories/%s/subcategories", categoryID),
+		Query:       buildAppCategoriesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appCategorySubcategories",
+	})
 }
 
 // AppInfoUpdateCategoriesRelationships describes relationships for updating categories.
@@ -267,20 +196,5 @@ func (c *Client) UpdateAppInfoCategories(ctx context.Context, appInfoID string, 
 		},
 	}
 
-	body, err := BuildRequestBody(request)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "PATCH", fmt.Sprintf("/v1/appInfos/%s", appInfoID), body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppInfoResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppInfoResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/appInfos/%s", appInfoID), Payload: request})
 }

@@ -578,8 +578,8 @@ Examples:
 			}
 
 			opts := []asc.BetaGroupsOption{
-				asc.WithBetaGroupsLimit(*limit),
-				asc.WithBetaGroupsNextURL(*next),
+				asc.Limit[asc.BetaGroupsOption](*limit),
+				asc.NextURL[asc.BetaGroupsOption](*next),
 			}
 			if internalFilter != nil {
 				opts = append(opts, asc.WithBetaGroupsIsInternal(*internalFilter))
@@ -657,13 +657,13 @@ Examples:
 				// Fetch with Apple's maximum page size before applying the
 				// stable client-side cap. Passing a small --limit here would
 				// make a large filtered set require one request per page.
-				firstPageOpts := append(slices.Clone(opts), asc.WithBetaGroupsLimit(200))
+				firstPageOpts := append(slices.Clone(opts), asc.Limit[asc.BetaGroupsOption](200))
 				firstPage, err := listPage(requestCtx, firstPageOpts...)
 				if err != nil {
 					return fmt.Errorf("beta-groups list: failed to fetch: %w", err)
 				}
 				groups, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return listPage(ctx, asc.WithBetaGroupsNextURL(nextURL))
+					return listPage(ctx, asc.NextURL[asc.BetaGroupsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("beta-groups list: %w", err)
@@ -676,14 +676,14 @@ Examples:
 			}
 
 			if *paginate {
-				paginateOpts := append(slices.Clone(opts), asc.WithBetaGroupsLimit(200))
+				paginateOpts := append(slices.Clone(opts), asc.Limit[asc.BetaGroupsOption](200))
 				groups, err := shared.PaginateWithSpinner(
 					requestCtx,
 					func(ctx context.Context) (asc.PaginatedResponse, error) {
 						return firstPage(ctx, paginateOpts...)
 					},
 					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return listPage(ctx, asc.WithBetaGroupsNextURL(nextURL))
+						return listPage(ctx, asc.NextURL[asc.BetaGroupsOption](nextURL))
 					},
 				)
 				if err != nil {
@@ -712,12 +712,12 @@ Examples:
 // after shared.NormalizeBetaGroupName, joined for filter[name], where a comma
 // means OR.
 func appleBetaGroupNameSpelling(ctx context.Context, client *asc.Client, appID, name string) (string, error) {
-	firstPage, err := client.GetBetaGroups(ctx, appID, asc.WithBetaGroupsLimit(200), asc.WithBetaGroupsFields([]string{"name"}))
+	firstPage, err := client.GetBetaGroups(ctx, appID, asc.Limit[asc.BetaGroupsOption](200), asc.WithBetaGroupsFields([]string{"name"}))
 	if err != nil {
 		return "", err
 	}
 	all, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetBetaGroups(ctx, appID, asc.WithBetaGroupsNextURL(nextURL))
+		return client.GetBetaGroups(ctx, appID, asc.NextURL[asc.BetaGroupsOption](nextURL))
 	})
 	if err != nil {
 		return "", err
@@ -1081,12 +1081,12 @@ func listBetaGroupIDsByName(ctx context.Context, client *asc.Client, appID, name
 // listAllBetaGroupsByName follows every page, so the before and after lists
 // compare whole sets.
 func listAllBetaGroupsByName(ctx context.Context, client *asc.Client, appID, name string) ([]asc.Resource[asc.BetaGroupAttributes], error) {
-	firstPage, err := client.ListBetaGroups(ctx, asc.WithBetaGroupsApps([]string{appID}), asc.WithBetaGroupsName(name), asc.WithBetaGroupsLimit(200))
+	firstPage, err := client.ListBetaGroups(ctx, asc.WithBetaGroupsApps([]string{appID}), asc.WithBetaGroupsName(name), asc.Limit[asc.BetaGroupsOption](200))
 	if err != nil {
 		return nil, err
 	}
 	all, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.ListBetaGroups(ctx, asc.WithBetaGroupsNextURL(nextURL))
+		return client.ListBetaGroups(ctx, asc.NextURL[asc.BetaGroupsOption](nextURL))
 	})
 	if err != nil {
 		return nil, err
@@ -1378,7 +1378,7 @@ Examples:
 						requestCtx,
 						appID,
 						asc.WithBetaTestersEmail(testerEmail),
-						asc.WithBetaTestersLimit(2),
+						asc.Limit[asc.BetaTestersOption](2),
 					)
 					if err != nil {
 						return fmt.Errorf("beta-groups add-testers: failed to resolve tester email %q: %w", testerEmail, err)

@@ -48,8 +48,7 @@ Examples:
 				return shared.MissingRequiredUsageError("--offer-code-id")
 			}
 			if *quantity <= 0 {
-				fmt.Fprintln(os.Stderr, "Error: --quantity is required")
-				return shared.MissingRequiredUsageError("--quantity")
+				return shared.RequiredFlag("--quantity")
 			}
 			normalizedExpirationDate, err := normalizeOfferCodeExpirationDate(*expirationDate)
 			if err != nil {
@@ -145,8 +144,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*id)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --batch-id is required")
-				return shared.MissingRequiredUsageError("--batch-id")
+				return shared.RequiredFlag("--batch-id")
 			}
 			format, err := normalizeOfferCodeValuesFormat(*outputFormat)
 			if err != nil {

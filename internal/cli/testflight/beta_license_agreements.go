@@ -95,18 +95,18 @@ Examples:
 				asc.WithBetaLicenseAgreementsFields(shared.SplitCSV(*fields)),
 				asc.WithBetaLicenseAgreementsAppFields(shared.SplitCSV(*appFields)),
 				asc.WithBetaLicenseAgreementsInclude(shared.SplitCSV(*include)),
-				asc.WithBetaLicenseAgreementsLimit(*limit),
-				asc.WithBetaLicenseAgreementsNextURL(*next),
+				asc.Limit[asc.BetaLicenseAgreementsOption](*limit),
+				asc.NextURL[asc.BetaLicenseAgreementsOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithBetaLicenseAgreementsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.BetaLicenseAgreementsOption](200))
 				firstPage, err := client.GetBetaLicenseAgreements(requestCtx, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("beta-license-agreements list: failed to fetch: %w", err)
 				}
 				agreements, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetBetaLicenseAgreements(ctx, asc.WithBetaLicenseAgreementsNextURL(nextURL))
+					return client.GetBetaLicenseAgreements(ctx, asc.NextURL[asc.BetaLicenseAgreementsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("beta-license-agreements list: %w", err)

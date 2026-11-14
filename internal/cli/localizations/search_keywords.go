@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -65,8 +64,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*localizationID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
-				return shared.MissingRequiredUsageError("--localization-id")
+				return shared.RequiredFlag("--localization-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -108,14 +106,12 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*localizationID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
-				return shared.MissingRequiredUsageError("--localization-id")
+				return shared.RequiredFlag("--localization-id")
 			}
 
 			keywordValues := shared.SplitCSV(*keywords)
 			if len(keywordValues) == 0 {
-				fmt.Fprintln(os.Stderr, "Error: --keywords is required")
-				return shared.MissingRequiredUsageError("--keywords")
+				return shared.RequiredFlag("--keywords")
 			}
 
 			client, err := shared.GetASCClient()
@@ -157,18 +153,15 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*localizationID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
-				return shared.MissingRequiredUsageError("--localization-id")
+				return shared.RequiredFlag("--localization-id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			keywordValues := shared.SplitCSV(*keywords)
 			if len(keywordValues) == 0 {
-				fmt.Fprintln(os.Stderr, "Error: --keywords is required")
-				return shared.MissingRequiredUsageError("--keywords")
+				return shared.RequiredFlag("--keywords")
 			}
 
 			client, err := shared.GetASCClient()

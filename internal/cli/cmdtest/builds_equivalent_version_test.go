@@ -1,14 +1,13 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
-	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -18,62 +17,21 @@ func TestBuildsListMatchesEquivalentMarketingVersionForPlatform(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/preReleaseVersions", "filter[app]=123456789", "filter[platform]=MAC_OS", "filter[version]=98.76.0", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[],"links":{"next":""}}`))
+	reg.Register(asctest.GET("/v1/preReleaseVersions", "filter[app]=123456789", "filter[platform]=MAC_OS", "filter[version]=98.76", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"preReleaseVersions","id":"prv-equivalent","attributes":{"version":"98.76","platform":"MAC_OS"}}],"links":{"next":""}}`))
+	reg.Register(asctest.GET("/v1/builds", "filter[app]=123456789", "filter[preReleaseVersion.platform]=MAC_OS", "filter[preReleaseVersion]=prv-equivalent", "include=preReleaseVersion"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"builds","id":"build-equivalent"}]}`))
 
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		switch requestCount {
-		case 1, 2:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/preReleaseVersions" {
-				t.Fatalf("unexpected pre-release-version request: %s %s", req.Method, req.URL.String())
-			}
-			wantVersion := "98.76.0"
-			body := `{"data":[],"links":{"next":""}}`
-			if requestCount == 2 {
-				wantVersion = "98.76"
-				body = `{"data":[{"type":"preReleaseVersions","id":"prv-equivalent","attributes":{"version":"98.76","platform":"MAC_OS"}}],"links":{"next":""}}`
-			}
-			if got := req.URL.Query().Get("filter[version]"); got != wantVersion {
-				t.Fatalf("filter[version] = %q, want %q", got, wantVersion)
-			}
-			if got := req.URL.Query().Get("filter[platform]"); got != "MAC_OS" {
-				t.Fatalf("filter[platform] = %q, want MAC_OS", got)
-			}
-			return jsonHTTPResponse(http.StatusOK, body), nil
-		case 3:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds" {
-				t.Fatalf("unexpected builds request: %s %s", req.Method, req.URL.String())
-			}
-			if got := req.URL.Query().Get("filter[preReleaseVersion]"); got != "prv-equivalent" {
-				t.Fatalf("filter[preReleaseVersion] = %q, want prv-equivalent", got)
-			}
-			if got := req.URL.Query().Get("filter[preReleaseVersion.platform]"); got != "MAC_OS" {
-				t.Fatalf("filter[preReleaseVersion.platform] = %q, want MAC_OS", got)
-			}
-			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"builds","id":"build-equivalent"}]}`), nil
-		default:
-			t.Fatalf("unexpected request count %d", requestCount)
-			return nil, nil
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"builds", "list", "--app", "123456789", "--version", "98.76.0", "--platform", "MAC_OS"})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"builds", "list", "--app", "123456789", "--version", "98.76.0", "--platform", "MAC_OS"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
-	if requestCount != 3 {
+	if requestCount := len(reg.Requests()); requestCount != 3 {
 		t.Fatalf("request count = %d, want 3", requestCount)
 	}
 	if !strings.Contains(stdout, `"id":"build-equivalent"`) {
@@ -90,62 +48,21 @@ func TestBuildsCountMatchesEquivalentMarketingVersionForPlatform(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/preReleaseVersions", "filter[app]=123456789", "filter[platform]=MAC_OS", "filter[version]=87.65.0", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[],"links":{"next":""}}`))
+	reg.Register(asctest.GET("/v1/preReleaseVersions", "filter[app]=123456789", "filter[platform]=MAC_OS", "filter[version]=87.65", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"preReleaseVersions","id":"prv-count-equivalent","attributes":{"version":"87.65","platform":"MAC_OS"}}],"links":{"next":""}}`))
+	reg.Register(asctest.GET("/v1/builds", "filter[app]=123456789", "filter[preReleaseVersion.platform]=MAC_OS", "filter[preReleaseVersion]=prv-count-equivalent", "limit=1"),
+		asctest.JSON(http.StatusOK, `{"data":[],"meta":{"paging":{"total":4,"limit":1}}}`))
 
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		switch requestCount {
-		case 1, 2:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/preReleaseVersions" {
-				t.Fatalf("unexpected pre-release-version request: %s %s", req.Method, req.URL.String())
-			}
-			wantVersion := "87.65.0"
-			body := `{"data":[],"links":{"next":""}}`
-			if requestCount == 2 {
-				wantVersion = "87.65"
-				body = `{"data":[{"type":"preReleaseVersions","id":"prv-count-equivalent","attributes":{"version":"87.65","platform":"MAC_OS"}}],"links":{"next":""}}`
-			}
-			if got := req.URL.Query().Get("filter[version]"); got != wantVersion {
-				t.Fatalf("filter[version] = %q, want %q", got, wantVersion)
-			}
-			if got := req.URL.Query().Get("filter[platform]"); got != "MAC_OS" {
-				t.Fatalf("filter[platform] = %q, want MAC_OS", got)
-			}
-			return jsonHTTPResponse(http.StatusOK, body), nil
-		case 3:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds" {
-				t.Fatalf("unexpected builds request: %s %s", req.Method, req.URL.String())
-			}
-			if got := req.URL.Query().Get("filter[preReleaseVersion]"); got != "prv-count-equivalent" {
-				t.Fatalf("filter[preReleaseVersion] = %q, want prv-count-equivalent", got)
-			}
-			if got := req.URL.Query().Get("filter[preReleaseVersion.platform]"); got != "MAC_OS" {
-				t.Fatalf("filter[preReleaseVersion.platform] = %q, want MAC_OS", got)
-			}
-			return jsonHTTPResponse(http.StatusOK, `{"data":[],"meta":{"paging":{"total":4,"limit":1}}}`), nil
-		default:
-			t.Fatalf("unexpected request count %d", requestCount)
-			return nil, nil
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"builds", "count", "--app", "123456789", "--version", "87.65.0", "--platform", "MAC_OS"})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"builds", "count", "--app", "123456789", "--version", "87.65.0", "--platform", "MAC_OS"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
-	if requestCount != 3 {
+	if requestCount := len(reg.Requests()); requestCount != 3 {
 		t.Fatalf("request count = %d, want 3", requestCount)
 	}
 	var result struct {

@@ -97,7 +97,7 @@ func collectIAPAttachmentDeepCheck(ctx context.Context, client *asc.Client, repo
 			response, ok := versions[p.ID]
 			if !ok {
 				first, err := doReadinessRequest(ctx, func(c context.Context) (*asc.InAppPurchaseVersionsResponse, error) {
-					return client.GetInAppPurchaseVersionsStrict(c, p.ID, asc.WithIAPVersionsFields([]string{"version", "state"}), asc.WithIAPVersionsLimit(200))
+					return client.GetInAppPurchaseVersionsStrict(c, p.ID, asc.WithIAPVersionsFields([]string{"version", "state"}), asc.Limit[asc.IAPVersionsOption](200))
 				})
 				if err != nil {
 					group.uncertain = true
@@ -194,7 +194,7 @@ func collectIAPAttachmentDeepCheck(ctx context.Context, client *asc.Client, repo
 		return finish(validation.DeepStatusPassed, "Each ready IAP type has an explicitly approved product or version")
 	}
 	first, err := doReadinessRequest(ctx, func(c context.Context) (*asc.ReviewSubmissionsResponse, error) {
-		return client.GetReviewSubmissionsStrict(c, report.AppID, asc.WithReviewSubmissionsInclude([]string{"appStoreVersionForReview"}), asc.WithReviewSubmissionsLimit(200))
+		return client.GetReviewSubmissionsStrict(c, report.AppID, asc.WithReviewSubmissionsInclude([]string{"appStoreVersionForReview"}), asc.Limit[asc.ReviewSubmissionsOption](200))
 	})
 	if err != nil {
 		return finish(validation.DeepStatusUnverified, "App Review submissions could not be verified through the public API")
@@ -202,7 +202,7 @@ func collectIAPAttachmentDeepCheck(ctx context.Context, client *asc.Client, repo
 	total, hasTotal := asc.ParsePagingTotalOK(first.Meta)
 	all, err := asc.PaginateAll(ctx, first, func(c context.Context, next string) (asc.PaginatedResponse, error) {
 		return doReadinessRequest(c, func(c context.Context) (asc.PaginatedResponse, error) {
-			page, err := client.GetReviewSubmissionsStrict(c, report.AppID, asc.WithReviewSubmissionsNextURL(next))
+			page, err := client.GetReviewSubmissionsStrict(c, report.AppID, asc.NextURL[asc.ReviewSubmissionsOption](next))
 			if page != nil {
 				if n, ok := asc.ParsePagingTotalOK(page.Meta); ok && (!hasTotal || n > total) {
 					total, hasTotal = n, true
@@ -355,7 +355,7 @@ func collectIAPAttachmentDeepCheck(ctx context.Context, client *asc.Client, repo
 
 func fetchIAPSubmissionItems(ctx context.Context, client *asc.Client, submissionID string) ([]asc.ReviewSubmissionItemResource, error) {
 	first, err := doReadinessRequest(ctx, func(c context.Context) (*asc.ReviewSubmissionItemsResponse, error) {
-		return client.GetReviewSubmissionItemsStrict(c, submissionID, asc.WithReviewSubmissionItemsFields([]string{"state", "appStoreVersion", "inAppPurchaseVersion"}), asc.WithReviewSubmissionItemsInclude([]string{"appStoreVersion", "inAppPurchaseVersion"}), asc.WithReviewSubmissionItemsLimit(200))
+		return client.GetReviewSubmissionItemsStrict(c, submissionID, asc.WithReviewSubmissionItemsFields([]string{"state", "appStoreVersion", "inAppPurchaseVersion"}), asc.WithReviewSubmissionItemsInclude([]string{"appStoreVersion", "inAppPurchaseVersion"}), asc.Limit[asc.ReviewSubmissionItemsOption](200))
 	})
 	if err != nil {
 		return nil, err
@@ -363,7 +363,7 @@ func fetchIAPSubmissionItems(ctx context.Context, client *asc.Client, submission
 	total, hasTotal := asc.ParsePagingTotalOK(first.Meta)
 	all, err := asc.PaginateAll(ctx, first, func(c context.Context, next string) (asc.PaginatedResponse, error) {
 		return doReadinessRequest(c, func(c context.Context) (asc.PaginatedResponse, error) {
-			page, err := client.GetReviewSubmissionItemsStrict(c, submissionID, asc.WithReviewSubmissionItemsNextURL(next))
+			page, err := client.GetReviewSubmissionItemsStrict(c, submissionID, asc.NextURL[asc.ReviewSubmissionItemsOption](next))
 			if page != nil {
 				if n, ok := asc.ParsePagingTotalOK(page.Meta); ok && (!hasTotal || n > total) {
 					total, hasTotal = n, true

@@ -3,7 +3,6 @@ package asc
 import (
 	"net/url"
 	"strconv"
-	"strings"
 )
 
 // InAppPurchaseType represents an App Store Connect in-app purchase type.
@@ -153,24 +152,6 @@ type iapLocalizationsQuery struct {
 	include   []string
 }
 
-// WithIAPLimit sets the max number of IAPs to return.
-func WithIAPLimit(limit int) IAPOption {
-	return func(q *inAppPurchasesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithIAPNextURL uses a next page URL directly.
-func WithIAPNextURL(next string) IAPOption {
-	return func(q *inAppPurchasesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithIAPProductIDs filters in-app purchases by product ID.
 func WithIAPProductIDs(productIDs []string) IAPOption {
 	return func(q *inAppPurchasesQuery) {
@@ -250,24 +231,6 @@ func WithIAPGetNestedVersionsLimit(limit int) IAPGetOption {
 	return func(q *inAppPurchaseGetQuery) {
 		if limit > 0 {
 			q.nestedVersionsLimit = limit
-		}
-	}
-}
-
-// WithIAPLocalizationsLimit sets the max number of localizations to return.
-func WithIAPLocalizationsLimit(limit int) IAPLocalizationsOption {
-	return func(q *iapLocalizationsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithIAPLocalizationsNextURL uses a next page URL directly.
-func WithIAPLocalizationsNextURL(next string) IAPLocalizationsOption {
-	return func(q *iapLocalizationsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
 		}
 	}
 }

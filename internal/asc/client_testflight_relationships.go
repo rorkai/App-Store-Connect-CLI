@@ -38,14 +38,7 @@ func (c *Client) AddBuildsToBetaGroup(ctx context.Context, groupID string, build
 		}
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v1/betaGroups/%s/relationships/builds", groupID)
-	_, err = c.do(ctx, http.MethodPost, path, body)
-	return err
+	return sendNoContent(ctx, c, http.MethodPost, fmt.Sprintf("/v1/betaGroups/%s/relationships/builds", groupID), payload)
 }
 
 // RemoveBuildsFromBetaGroup removes builds from a beta group.
@@ -69,14 +62,7 @@ func (c *Client) RemoveBuildsFromBetaGroup(ctx context.Context, groupID string, 
 		}
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v1/betaGroups/%s/relationships/builds", groupID)
-	_, err = c.do(ctx, http.MethodDelete, path, body)
-	return err
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/betaGroups/%s/relationships/builds", groupID), payload)
 }
 
 // GetBetaTesterAppsRelationships retrieves app linkages for a beta tester.

@@ -77,8 +77,7 @@ Examples:
 
 			experienceValue := strings.TrimSpace(*experienceID)
 			if experienceValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --experience-id is required")
-				return shared.MissingRequiredUsageError("--experience-id")
+				return shared.RequiredFlag("--experience-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -150,8 +149,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			locValue := strings.TrimSpace(*localizationID)
 			if locValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
-				return shared.MissingRequiredUsageError("--localization-id")
+				return shared.RequiredFlag("--localization-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -194,14 +192,12 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			experienceValue := strings.TrimSpace(*experienceID)
 			if experienceValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --experience-id is required")
-				return shared.MissingRequiredUsageError("--experience-id")
+				return shared.RequiredFlag("--experience-id")
 			}
 
 			localeValue := strings.TrimSpace(*locale)
 			if localeValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --locale is required")
-				return shared.MissingRequiredUsageError("--locale")
+				return shared.RequiredFlag("--locale")
 			}
 
 			var subtitleValue *string
@@ -254,8 +250,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			locValue := strings.TrimSpace(*localizationID)
 			if locValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
-				return shared.MissingRequiredUsageError("--localization-id")
+				return shared.RequiredFlag("--localization-id")
 			}
 
 			visited := map[string]bool{}
@@ -315,8 +310,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			locValue := strings.TrimSpace(*localizationID)
 			if locValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
-				return shared.MissingRequiredUsageError("--localization-id")
+				return shared.RequiredFlag("--localization-id")
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required to delete")
@@ -365,8 +359,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			locValue := strings.TrimSpace(*localizationID)
 			if locValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
-				return shared.MissingRequiredUsageError("--localization-id")
+				return shared.RequiredFlag("--localization-id")
 			}
 
 			client, err := shared.GetASCClient()

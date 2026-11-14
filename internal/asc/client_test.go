@@ -16,7 +16,7 @@ func TestBuildReviewQuery(t *testing.T) {
 	query := buildReviewQuery([]ReviewOption{
 		WithRating(5),
 		WithTerritory("us"),
-		WithLimit(25),
+		Limit[ReviewOption](25),
 		WithReviewSort("-createdDate"),
 		WithPublishedResponseExists(false),
 		WithReviewIncludeResponse(),
@@ -82,7 +82,7 @@ func TestBuildFeedbackQuery(t *testing.T) {
 		WithFeedbackBuildIDs([]string{"build-1"}),
 		WithFeedbackBuildPreReleaseVersionIDs([]string{"pre-1"}),
 		WithFeedbackTesterIDs([]string{"tester-1"}),
-		WithFeedbackLimit(10),
+		Limit[FeedbackOption](10),
 		WithFeedbackSort("-createdDate"),
 	}
 	for _, opt := range opts {
@@ -231,7 +231,7 @@ func TestBuildCrashQueryIncludeBuildAndTester(t *testing.T) {
 
 func TestBuildBetaGroupsQuery(t *testing.T) {
 	query := &betaGroupsQuery{}
-	WithBetaGroupsLimit(10)(query)
+	Limit[BetaGroupsOption](10)(query)
 	WithBetaGroupsApps([]string{" app-1 ", "app-2"})(query)
 	WithBetaGroupsBuilds([]string{"build-1"})(query)
 	WithBetaGroupsFields([]string{"name", "isInternalGroup", "hasAccessToAllBuilds"})(query)
@@ -809,7 +809,7 @@ func TestBuildAppEncryptionDeclarationsQuery(t *testing.T) {
 func TestBuildBetaTestersQuery(t *testing.T) {
 	query := &betaTestersQuery{}
 	opts := []BetaTestersOption{
-		WithBetaTestersLimit(25),
+		Limit[BetaTestersOption](25),
 		WithBetaTestersEmail("tester@example.com"),
 		WithBetaTestersFirstName("Ada"),
 		WithBetaTestersLastName("Lovelace"),
@@ -897,7 +897,7 @@ func TestBuildBetaTestersQueryRejectsGroupAndBuild(t *testing.T) {
 func TestBuildAppStoreVersionsQuery(t *testing.T) {
 	query := &appStoreVersionsQuery{}
 	opts := []AppStoreVersionsOption{
-		WithAppStoreVersionsLimit(20),
+		Limit[AppStoreVersionsOption](20),
 		WithAppStoreVersionsPlatforms([]string{"ios", "MAC_OS"}),
 		WithAppStoreVersionsVersionStrings([]string{"1.0.0", "1.1.0"}),
 		WithAppStoreVersionsStates([]string{"ready_for_review"}),
@@ -1083,7 +1083,7 @@ func TestBuildPreReleaseVersionsQuery(t *testing.T) {
 func TestBuildAppStoreVersionLocalizationsQuery(t *testing.T) {
 	query := &appStoreVersionLocalizationsQuery{}
 	opts := []AppStoreVersionLocalizationsOption{
-		WithAppStoreVersionLocalizationsLimit(10),
+		Limit[AppStoreVersionLocalizationsOption](10),
 		WithAppStoreVersionLocalizationLocales([]string{"en-US", "ja"}),
 	}
 	for _, opt := range opts {
@@ -1105,7 +1105,7 @@ func TestBuildAppStoreVersionLocalizationsQuery(t *testing.T) {
 func TestBuildBetaAppLocalizationsQuery(t *testing.T) {
 	query := &betaAppLocalizationsQuery{}
 	opts := []BetaAppLocalizationsOption{
-		WithBetaAppLocalizationsLimit(12),
+		Limit[BetaAppLocalizationsOption](12),
 		WithBetaAppLocalizationLocales([]string{"en-US", "fr-FR"}),
 		WithBetaAppLocalizationAppIDs([]string{"app-1", "app-2"}),
 	}
@@ -1131,7 +1131,7 @@ func TestBuildBetaAppLocalizationsQuery(t *testing.T) {
 func TestBuildBetaBuildLocalizationsQuery(t *testing.T) {
 	query := &betaBuildLocalizationsQuery{}
 	opts := []BetaBuildLocalizationsOption{
-		WithBetaBuildLocalizationsLimit(25),
+		Limit[BetaBuildLocalizationsOption](25),
 		WithBetaBuildLocalizationBuildIDs([]string{"build-1", "build-2"}),
 		WithBetaBuildLocalizationLocales([]string{"en-US", "fr-FR"}),
 	}
@@ -1197,7 +1197,7 @@ func TestBuildBetaTesterUsagesQuery(t *testing.T) {
 	opts := []BetaTesterUsagesOption{
 		WithBetaTesterUsagesPeriod("P7D"),
 		WithBetaTesterUsagesAppID("app-1"),
-		WithBetaTesterUsagesLimit(10),
+		Limit[BetaTesterUsagesOption](10),
 	}
 	for _, opt := range opts {
 		opt(query)
@@ -1489,8 +1489,8 @@ func TestBuildBuildsQuery_WithPreReleaseVersions(t *testing.T) {
 func TestBuildSubscriptionOfferCodeOneTimeUseCodesQuery(t *testing.T) {
 	query := &subscriptionOfferCodeOneTimeUseCodesQuery{}
 	opts := []SubscriptionOfferCodeOneTimeUseCodesOption{
-		WithSubscriptionOfferCodeOneTimeUseCodesLimit(10),
-		WithSubscriptionOfferCodeOneTimeUseCodesNextURL("https://api.appstoreconnect.apple.com/v1/subscriptionOfferCodes/123/oneTimeUseCodes?cursor=abc"),
+		Limit[SubscriptionOfferCodeOneTimeUseCodesOption](10),
+		NextURL[SubscriptionOfferCodeOneTimeUseCodesOption]("https://api.appstoreconnect.apple.com/v1/subscriptionOfferCodes/123/oneTimeUseCodes?cursor=abc"),
 	}
 	for _, opt := range opts {
 		opt(query)
@@ -1515,8 +1515,8 @@ func TestBuildSubscriptionOfferCodeOneTimeUseCodesQuery(t *testing.T) {
 func TestBuildSubscriptionOfferCodeCustomCodesQuery(t *testing.T) {
 	query := &subscriptionOfferCodeCustomCodesQuery{}
 	opts := []SubscriptionOfferCodeCustomCodesOption{
-		WithSubscriptionOfferCodeCustomCodesLimit(20),
-		WithSubscriptionOfferCodeCustomCodesNextURL("https://api.appstoreconnect.apple.com/v1/subscriptionOfferCodes/123/customCodes?cursor=abc"),
+		Limit[SubscriptionOfferCodeCustomCodesOption](20),
+		NextURL[SubscriptionOfferCodeCustomCodesOption]("https://api.appstoreconnect.apple.com/v1/subscriptionOfferCodes/123/customCodes?cursor=abc"),
 	}
 	for _, opt := range opts {
 		opt(query)
@@ -1541,8 +1541,8 @@ func TestBuildSubscriptionOfferCodeCustomCodesQuery(t *testing.T) {
 func TestBuildSubscriptionOfferCodePricesQuery(t *testing.T) {
 	query := &subscriptionOfferCodePricesQuery{}
 	opts := []SubscriptionOfferCodePricesOption{
-		WithSubscriptionOfferCodePricesLimit(30),
-		WithSubscriptionOfferCodePricesNextURL("https://api.appstoreconnect.apple.com/v1/subscriptionOfferCodes/123/prices?cursor=abc"),
+		Limit[SubscriptionOfferCodePricesOption](30),
+		NextURL[SubscriptionOfferCodePricesOption]("https://api.appstoreconnect.apple.com/v1/subscriptionOfferCodes/123/prices?cursor=abc"),
 	}
 	for _, opt := range opts {
 		opt(query)
@@ -1567,8 +1567,8 @@ func TestBuildSubscriptionOfferCodePricesQuery(t *testing.T) {
 func TestBuildSubscriptionAvailabilityTerritoriesQuery(t *testing.T) {
 	query := &subscriptionAvailabilityTerritoriesQuery{}
 	opts := []SubscriptionAvailabilityTerritoriesOption{
-		WithSubscriptionAvailabilityTerritoriesLimit(15),
-		WithSubscriptionAvailabilityTerritoriesNextURL("https://api.appstoreconnect.apple.com/v1/subscriptionAvailabilities/123/availableTerritories?cursor=abc"),
+		Limit[SubscriptionAvailabilityTerritoriesOption](15),
+		NextURL[SubscriptionAvailabilityTerritoriesOption]("https://api.appstoreconnect.apple.com/v1/subscriptionAvailabilities/123/availableTerritories?cursor=abc"),
 	}
 	for _, opt := range opts {
 		opt(query)
@@ -1593,7 +1593,7 @@ func TestBuildSubscriptionAvailabilityTerritoriesQuery(t *testing.T) {
 func TestBuildWinBackOffersQuery(t *testing.T) {
 	query := &winBackOffersQuery{}
 	opts := []WinBackOffersOption{
-		WithWinBackOffersLimit(25),
+		Limit[WinBackOffersOption](25),
 		WithWinBackOffersFields([]string{"referenceName", "offerMode"}),
 		WithWinBackOffersPriceFields([]string{"territory"}),
 		WithWinBackOffersInclude([]string{"prices"}),
@@ -1631,7 +1631,7 @@ func TestBuildWinBackOffersQuery(t *testing.T) {
 func TestBuildWinBackOfferPricesQuery(t *testing.T) {
 	query := &winBackOfferPricesQuery{}
 	opts := []WinBackOfferPricesOption{
-		WithWinBackOfferPricesLimit(15),
+		Limit[WinBackOfferPricesOption](15),
 		WithWinBackOfferPricesTerritoryFilter([]string{"USA", "CAN"}),
 		WithWinBackOfferPricesFields([]string{"territory"}),
 		WithWinBackOfferPricesTerritoryFields([]string{"currency"}),
@@ -1680,7 +1680,7 @@ func TestBuildMerchantIDsQuery(t *testing.T) {
 		WithMerchantIDsCertificateFields([]string{"certificateType"}),
 		WithMerchantIDsInclude([]string{"certificates"}),
 		WithMerchantIDsCertificatesLimit(10),
-		WithMerchantIDsLimit(5),
+		Limit[MerchantIDsOption](5),
 	}
 	for _, opt := range opts {
 		opt(query)
@@ -1727,7 +1727,7 @@ func TestBuildMerchantIDCertificatesQuery(t *testing.T) {
 		WithMerchantIDCertificatesFields([]string{"serialNumber"}),
 		WithMerchantIDCertificatesPassTypeFields([]string{"identifier"}),
 		WithMerchantIDCertificatesInclude([]string{"passTypeId"}),
-		WithMerchantIDCertificatesLimit(5),
+		Limit[MerchantIDCertificatesOption](5),
 	}
 	for _, opt := range opts {
 		opt(query)
@@ -1777,7 +1777,7 @@ func TestBuildPassTypeIDsQuery(t *testing.T) {
 		WithPassTypeIDsCertificateFields([]string{"certificateType"}),
 		WithPassTypeIDsInclude([]string{"certificates"}),
 		WithPassTypeIDsCertificatesLimit(5),
-		WithPassTypeIDsLimit(10),
+		Limit[PassTypeIDsOption](10),
 	}
 	for _, opt := range opts {
 		opt(query)
@@ -1827,7 +1827,7 @@ func TestBuildPassTypeIDCertificatesQuery(t *testing.T) {
 		WithPassTypeIDCertificatesFields([]string{"serialNumber"}),
 		WithPassTypeIDCertificatesPassTypeIDFields([]string{"identifier"}),
 		WithPassTypeIDCertificatesInclude([]string{"passTypeId"}),
-		WithPassTypeIDCertificatesLimit(5),
+		Limit[PassTypeIDCertificatesOption](5),
 	}
 	for _, opt := range opts {
 		opt(query)

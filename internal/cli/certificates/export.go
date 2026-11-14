@@ -92,23 +92,19 @@ func CertificatesExportCommand() *ffcli.Command {
 		Exec: func(ctx context.Context, args []string) error {
 			certificateValue := *certificatePath
 			if strings.TrimSpace(certificateValue) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --certificate is required")
-				return shared.MissingRequiredUsageError("--certificate")
+				return shared.RequiredFlag("--certificate")
 			}
 			privateKeyValue := *privateKeyPath
 			if strings.TrimSpace(privateKeyValue) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --private-key is required")
-				return shared.MissingRequiredUsageError("--private-key")
+				return shared.RequiredFlag("--private-key")
 			}
 			passwordValue := *passwordPath
 			if strings.TrimSpace(passwordValue) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --password-file is required")
-				return shared.MissingRequiredUsageError("--password-file")
+				return shared.RequiredFlag("--password-file")
 			}
 			p12Value := *p12Out
 			if strings.TrimSpace(p12Value) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --p12-out is required")
-				return shared.MissingRequiredUsageError("--p12-out")
+				return shared.RequiredFlag("--p12-out")
 			}
 			csrSet := false
 			fs.Visit(func(f *flag.Flag) {

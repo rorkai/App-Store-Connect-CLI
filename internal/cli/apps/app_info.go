@@ -228,8 +228,8 @@ Examples:
 			}
 
 			opts := []asc.AppStoreVersionLocalizationsOption{
-				asc.WithAppStoreVersionLocalizationsLimit(*limit),
-				asc.WithAppStoreVersionLocalizationsNextURL(*next),
+				asc.Limit[asc.AppStoreVersionLocalizationsOption](*limit),
+				asc.NextURL[asc.AppStoreVersionLocalizationsOption](*next),
 			}
 			locales := shared.SplitCSV(*locale)
 			if len(locales) > 0 {
@@ -237,14 +237,14 @@ Examples:
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithAppStoreVersionLocalizationsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.AppStoreVersionLocalizationsOption](200))
 				firstPage, err := client.GetAppStoreVersionLocalizations(requestCtx, versionResource.ID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("apps info view: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppStoreVersionLocalizations(ctx, versionResource.ID, asc.WithAppStoreVersionLocalizationsNextURL(nextURL))
+					return client.GetAppStoreVersionLocalizations(ctx, versionResource.ID, asc.NextURL[asc.AppStoreVersionLocalizationsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("apps info view: %w", err)
@@ -500,7 +500,7 @@ func runAppInfoSetSingleLocale(
 	output shared.OutputFlags,
 ) error {
 	localizationOpts := []asc.AppStoreVersionLocalizationsOption{
-		asc.WithAppStoreVersionLocalizationsLimit(200),
+		asc.Limit[asc.AppStoreVersionLocalizationsOption](200),
 		asc.WithAppStoreVersionLocalizationLocales(appInfoSetRequestedLocales(locale, copyFromLocale)),
 	}
 	localizations, err := client.GetAppStoreVersionLocalizations(ctx, versionID, localizationOpts...)
@@ -663,7 +663,7 @@ func runAppInfoSetBatch(
 	localizations, err := client.GetAppStoreVersionLocalizations(
 		ctx,
 		versionID,
-		asc.WithAppStoreVersionLocalizationsLimit(200),
+		asc.Limit[asc.AppStoreVersionLocalizationsOption](200),
 	)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to fetch localizations: %w", err)
@@ -826,7 +826,7 @@ func fetchAppInfoSetLocalizationByLocale(ctx context.Context, client *asc.Client
 	localizations, err := client.GetAppStoreVersionLocalizations(
 		ctx,
 		versionID,
-		asc.WithAppStoreVersionLocalizationsLimit(200),
+		asc.Limit[asc.AppStoreVersionLocalizationsOption](200),
 		asc.WithAppStoreVersionLocalizationLocales([]string{locale}),
 	)
 	if err != nil {
@@ -1101,7 +1101,7 @@ func resolveAppStoreVersionForAppInfo(
 	}
 
 	opts := []asc.AppStoreVersionsOption{
-		asc.WithAppStoreVersionsLimit(200),
+		asc.Limit[asc.AppStoreVersionsOption](200),
 		asc.WithAppStoreVersionsPlatforms(platforms),
 		asc.WithAppStoreVersionsStates(states),
 	}
@@ -1110,7 +1110,7 @@ func resolveAppStoreVersionForAppInfo(
 		return asc.Resource[asc.AppStoreVersionAttributes]{}, err
 	}
 	allPages, err := asc.PaginateAll(ctx, resp, func(pageCtx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetAppStoreVersions(pageCtx, appID, asc.WithAppStoreVersionsNextURL(nextURL))
+		return client.GetAppStoreVersions(pageCtx, appID, asc.NextURL[asc.AppStoreVersionsOption](nextURL))
 	})
 	if err != nil {
 		return asc.Resource[asc.AppStoreVersionAttributes]{}, err

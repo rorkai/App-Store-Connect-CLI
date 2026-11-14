@@ -8,7 +8,7 @@ import (
 func TestBuildAppStoreVersionLocalizationsQueryEmitsInclude(t *testing.T) {
 	query := &appStoreVersionLocalizationsQuery{}
 	opts := []AppStoreVersionLocalizationsOption{
-		WithAppStoreVersionLocalizationsLimit(25),
+		Limit[AppStoreVersionLocalizationsOption](25),
 		WithAppStoreVersionLocalizationLocales([]string{"en-US", "ja"}),
 		WithAppStoreVersionLocalizationsInclude([]string{"appScreenshotSets", "appPreviewSets"}),
 	}

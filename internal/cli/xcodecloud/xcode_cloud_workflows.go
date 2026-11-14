@@ -301,19 +301,19 @@ func xcodeCloudWorkflowsList(ctx context.Context, appID string, limit int, next 
 	}
 
 	opts := []asc.CiWorkflowsOption{
-		asc.WithCiWorkflowsLimit(limit),
-		asc.WithCiWorkflowsNextURL(nextURL),
+		asc.Limit[asc.CiWorkflowsOption](limit),
+		asc.NextURL[asc.CiWorkflowsOption](nextURL),
 	}
 
 	if paginate {
-		paginateOpts := append(opts, asc.WithCiWorkflowsLimit(200))
+		paginateOpts := append(opts, asc.Limit[asc.CiWorkflowsOption](200))
 		resp, err := shared.PaginateWithSpinner(
 			requestCtx,
 			func(ctx context.Context) (asc.PaginatedResponse, error) {
 				return client.GetCiWorkflows(ctx, productID, paginateOpts...)
 			},
 			func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-				return client.GetCiWorkflows(ctx, productID, asc.WithCiWorkflowsNextURL(nextURL))
+				return client.GetCiWorkflows(ctx, productID, asc.NextURL[asc.CiWorkflowsOption](nextURL))
 			},
 		)
 		if err != nil {

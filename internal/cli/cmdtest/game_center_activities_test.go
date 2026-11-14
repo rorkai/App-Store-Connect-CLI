@@ -1,12 +1,12 @@
 package cmdtest
 
 import (
-	"context"
-	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestGameCenterActivitiesValidationErrors(t *testing.T) {
@@ -74,41 +74,31 @@ func TestGameCenterActivityRelationshipsSetRequestWiring(t *testing.T) {
 			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-			callCount := &lockedCounter{}
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				callCount.Inc()
-				if req.Method != test.wantMethod || req.URL.Path != test.wantPath {
-					t.Fatalf("request = %s %s, want %s %s", req.Method, req.URL.Path, test.wantMethod, test.wantPath)
-				}
-				body, err := io.ReadAll(req.Body)
-				if err != nil {
-					t.Fatalf("read request body: %v", err)
-				}
-				if string(body) != test.wantBody+"\n" {
-					t.Fatalf("request body = %q, want %q", body, test.wantBody+"\n")
-				}
-				return jsonHTTPResponse(http.StatusNoContent, ""), nil
-			}))
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			match := asctest.POST
+			if test.wantMethod == http.MethodDelete {
+				match = asctest.DELETE
+			}
+			reg.Register(match(test.wantPath), asctest.JSON(http.StatusNoContent, ""))
 
 			args := []string{"game-center", "activities", test.resource, "set", "--activity-id", "ACTIVITY_ID", "--ids", "RES_1,RES_2"}
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(append(args, test.extraArgs...)); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
+			stdout, stderr, err := runCommand(t, append(args, test.extraArgs...))
+			if err != nil {
+				t.Fatalf("run error: %v", err)
+			}
 
 			if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)
 			}
 			wantOutput := strings.TrimSuffix(test.wantBody, "}") + `,"links":{}}`
 			assertJSONDocumentEqual(t, []byte(stdout), []byte(wantOutput))
-			if got := callCount.Load(); got != 1 {
+			requests := reg.Requests()
+			if got := len(requests); got != 1 {
 				t.Fatalf("request count = %d, want 1", got)
+			}
+			if string(requests[0].Body) != test.wantBody+"\n" {
+				t.Fatalf("request body = %q, want %q", requests[0].Body, test.wantBody+"\n")
 			}
 		})
 	}

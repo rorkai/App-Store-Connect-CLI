@@ -86,7 +86,7 @@ func TestBuildSubscriptionPricesQuery(t *testing.T) {
 				WithSubscriptionPricesPlanType(SubscriptionPlanTypeUpfront),
 				WithSubscriptionPricesTerritory("nor"),
 				WithSubscriptionPricesInclude([]string{"subscriptionPricePoint", "territory"}),
-				WithSubscriptionPricesLimit(25),
+				Limit[SubscriptionPricesOption](25),
 			},
 			want: url.Values{
 				"filter[planType]":  {"UPFRONT"},

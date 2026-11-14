@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -64,8 +63,7 @@ Examples:
 			trimmedID := strings.TrimSpace(*localizationID)
 			trimmedNext := strings.TrimSpace(*next)
 			if trimmedID == "" && trimmedNext == "" {
-				fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
-				return shared.MissingRequiredUsageError("--localization-id")
+				return shared.RequiredFlag("--localization-id")
 			}
 			if *limit != 0 && (*limit < 1 || *limit > productPagesMaxLimit) {
 				return shared.UsageErrorf("custom-pages localizations preview-sets list: --limit must be between 1 and %d", productPagesMaxLimit)
@@ -83,18 +81,18 @@ Examples:
 			defer cancel()
 
 			opts := []asc.AppCustomProductPageLocalizationPreviewSetsOption{
-				asc.WithAppCustomProductPageLocalizationPreviewSetsLimit(*limit),
-				asc.WithAppCustomProductPageLocalizationPreviewSetsNextURL(*next),
+				asc.Limit[asc.AppCustomProductPageLocalizationPreviewSetsOption](*limit),
+				asc.NextURL[asc.AppCustomProductPageLocalizationPreviewSetsOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithAppCustomProductPageLocalizationPreviewSetsLimit(productPagesMaxLimit))
+				paginateOpts := append(opts, asc.Limit[asc.AppCustomProductPageLocalizationPreviewSetsOption](productPagesMaxLimit))
 				firstPage, err := client.GetAppCustomProductPageLocalizationPreviewSets(requestCtx, trimmedID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("custom-pages localizations preview-sets list: failed to fetch: %w", err)
 				}
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppCustomProductPageLocalizationPreviewSets(ctx, trimmedID, asc.WithAppCustomProductPageLocalizationPreviewSetsNextURL(nextURL))
+					return client.GetAppCustomProductPageLocalizationPreviewSets(ctx, trimmedID, asc.NextURL[asc.AppCustomProductPageLocalizationPreviewSetsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("custom-pages localizations preview-sets list: %w", err)
@@ -166,8 +164,7 @@ Examples:
 			trimmedNext := strings.TrimSpace(*next)
 			if *includeScreenshots {
 				if trimmedID == "" {
-					fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
-					return shared.MissingRequiredUsageError("--localization-id")
+					return shared.RequiredFlag("--localization-id")
 				}
 				if trimmedNext != "" {
 					return shared.UsageError("custom-pages localizations screenshot-sets list: --include-screenshots cannot be combined with --next")
@@ -177,8 +174,7 @@ Examples:
 				}
 			}
 			if trimmedID == "" && trimmedNext == "" {
-				fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
-				return shared.MissingRequiredUsageError("--localization-id")
+				return shared.RequiredFlag("--localization-id")
 			}
 			if *limit != 0 && (*limit < 1 || *limit > productPagesMaxLimit) {
 				return shared.UsageErrorf("custom-pages localizations screenshot-sets list: --limit must be between 1 and %d", productPagesMaxLimit)
@@ -193,8 +189,8 @@ Examples:
 			}
 
 			opts := []asc.AppCustomProductPageLocalizationScreenshotSetsOption{
-				asc.WithAppCustomProductPageLocalizationScreenshotSetsLimit(*limit),
-				asc.WithAppCustomProductPageLocalizationScreenshotSetsNextURL(*next),
+				asc.Limit[asc.AppCustomProductPageLocalizationScreenshotSetsOption](*limit),
+				asc.NextURL[asc.AppCustomProductPageLocalizationScreenshotSetsOption](*next),
 			}
 			if *includeScreenshots {
 				opts = append(opts, asc.WithAppCustomProductPageLocalizationScreenshotSetsIncludeScreenshots())
@@ -205,7 +201,7 @@ Examples:
 				paginateOpts = append(paginateOpts, opts...)
 				paginateOpts = append(
 					paginateOpts,
-					asc.WithAppCustomProductPageLocalizationScreenshotSetsLimit(productPagesMaxLimit),
+					asc.Limit[asc.AppCustomProductPageLocalizationScreenshotSetsOption](productPagesMaxLimit),
 					asc.WithAppCustomProductPageLocalizationScreenshotSetsRequestContext(shared.ContextWithTimeout),
 				)
 				resp, err := client.GetAllAppCustomProductPageLocalizationScreenshotSets(ctx, trimmedID, paginateOpts...)

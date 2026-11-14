@@ -30,7 +30,7 @@ var fetchSubscriptionsFn = fetchSubscriptions
 func fetchSubscriptions(ctx context.Context, client *asc.Client, appID string) ([]validation.Subscription, error) {
 	ctx = withReadinessRequestGate(ctx)
 	groupsResp, err := doReadinessRequest(ctx, func(requestCtx context.Context) (*asc.SubscriptionGroupsResponse, error) {
-		return client.GetSubscriptionGroups(requestCtx, appID, asc.WithSubscriptionGroupsLimit(200))
+		return client.GetSubscriptionGroups(requestCtx, appID, asc.Limit[asc.SubscriptionGroupsOption](200))
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch subscription groups: %w", err)
@@ -38,7 +38,7 @@ func fetchSubscriptions(ctx context.Context, client *asc.Client, appID string) (
 
 	paginatedGroups, err := asc.PaginateAll(ctx, groupsResp, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		return doReadinessRequest(ctx, func(requestCtx context.Context) (asc.PaginatedResponse, error) {
-			return client.GetSubscriptionGroups(requestCtx, appID, asc.WithSubscriptionGroupsNextURL(nextURL))
+			return client.GetSubscriptionGroups(requestCtx, appID, asc.NextURL[asc.SubscriptionGroupsOption](nextURL))
 		})
 	})
 	if err != nil {
@@ -320,7 +320,7 @@ type subscriptionEnrichment struct {
 
 func fetchSubscriptionsForGroup(ctx context.Context, client *asc.Client, groupID string) ([]asc.Resource[asc.SubscriptionAttributes], error) {
 	response, err := doReadinessRequest(ctx, func(requestCtx context.Context) (*asc.SubscriptionsResponse, error) {
-		return client.GetSubscriptions(requestCtx, groupID, asc.WithSubscriptionsLimit(200))
+		return client.GetSubscriptions(requestCtx, groupID, asc.Limit[asc.SubscriptionsOption](200))
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch subscriptions for group %s: %w", groupID, err)
@@ -328,7 +328,7 @@ func fetchSubscriptionsForGroup(ctx context.Context, client *asc.Client, groupID
 
 	paginated, err := asc.PaginateAll(ctx, response, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		return doReadinessRequest(ctx, func(requestCtx context.Context) (asc.PaginatedResponse, error) {
-			return client.GetSubscriptions(requestCtx, groupID, asc.WithSubscriptionsNextURL(nextURL))
+			return client.GetSubscriptions(requestCtx, groupID, asc.NextURL[asc.SubscriptionsOption](nextURL))
 		})
 	})
 	if err != nil {
@@ -343,7 +343,7 @@ func fetchSubscriptionsForGroup(ctx context.Context, client *asc.Client, groupID
 
 func fetchGroupLocalizations(ctx context.Context, client *asc.Client, groupID string) ([]validation.SubscriptionGroupLocalizationInfo, metadataCheckStatus, error) {
 	resp, err := doReadinessRequest(ctx, func(requestCtx context.Context) (*asc.SubscriptionGroupLocalizationsResponse, error) {
-		return client.GetSubscriptionGroupLocalizations(requestCtx, strings.TrimSpace(groupID), asc.WithSubscriptionGroupLocalizationsLimit(200)) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
+		return client.GetSubscriptionGroupLocalizations(requestCtx, strings.TrimSpace(groupID), asc.Limit[asc.SubscriptionGroupLocalizationsOption](200)) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 	})
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
@@ -357,7 +357,7 @@ func fetchGroupLocalizations(ctx context.Context, client *asc.Client, groupID st
 
 	paginated, err := asc.PaginateAll(ctx, resp, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		return doReadinessRequest(ctx, func(requestCtx context.Context) (asc.PaginatedResponse, error) {
-			return client.GetSubscriptionGroupLocalizations(requestCtx, strings.TrimSpace(groupID), asc.WithSubscriptionGroupLocalizationsNextURL(nextURL)) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
+			return client.GetSubscriptionGroupLocalizations(requestCtx, strings.TrimSpace(groupID), asc.NextURL[asc.SubscriptionGroupLocalizationsOption](nextURL)) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 		})
 	})
 	if err != nil {
@@ -394,7 +394,7 @@ func fetchGroupLocalizations(ctx context.Context, client *asc.Client, groupID st
 // fetchSubscriptionLocalizations fetches localization info for a subscription.
 func fetchSubscriptionLocalizations(ctx context.Context, client *asc.Client, subscriptionID string) ([]validation.SubscriptionLocalizationInfo, metadataCheckStatus, error) {
 	resp, err := doReadinessRequest(ctx, func(requestCtx context.Context) (*asc.SubscriptionLocalizationsResponse, error) {
-		return client.GetSubscriptionLocalizations(requestCtx, strings.TrimSpace(subscriptionID), asc.WithSubscriptionLocalizationsLimit(200)) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
+		return client.GetSubscriptionLocalizations(requestCtx, strings.TrimSpace(subscriptionID), asc.Limit[asc.SubscriptionLocalizationsOption](200)) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 	})
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
@@ -408,7 +408,7 @@ func fetchSubscriptionLocalizations(ctx context.Context, client *asc.Client, sub
 
 	paginated, err := asc.PaginateAll(ctx, resp, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		return doReadinessRequest(ctx, func(requestCtx context.Context) (asc.PaginatedResponse, error) {
-			return client.GetSubscriptionLocalizations(requestCtx, strings.TrimSpace(subscriptionID), asc.WithSubscriptionLocalizationsNextURL(nextURL)) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
+			return client.GetSubscriptionLocalizations(requestCtx, strings.TrimSpace(subscriptionID), asc.NextURL[asc.SubscriptionLocalizationsOption](nextURL)) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 		})
 	})
 	if err != nil {
@@ -456,7 +456,7 @@ func fetchSubscriptionPriceTerritories(ctx context.Context, client *asc.Client, 
 			strings.TrimSpace(subscriptionID),
 			asc.WithSubscriptionPricesInclude([]string{"territory"}),
 			asc.WithSubscriptionPricesPlanType(asc.SubscriptionPlanTypeUpfront),
-			asc.WithSubscriptionPricesLimit(200),
+			asc.Limit[asc.SubscriptionPricesOption](200),
 		)
 	})
 	if err != nil {
@@ -471,7 +471,7 @@ func fetchSubscriptionPriceTerritories(ctx context.Context, client *asc.Client, 
 
 	paginated, err := asc.PaginateAll(ctx, resp, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		return doReadinessRequest(ctx, func(requestCtx context.Context) (asc.PaginatedResponse, error) {
-			return client.GetSubscriptionPrices(requestCtx, strings.TrimSpace(subscriptionID), asc.WithSubscriptionPricesNextURL(nextURL))
+			return client.GetSubscriptionPrices(requestCtx, strings.TrimSpace(subscriptionID), asc.NextURL[asc.SubscriptionPricesOption](nextURL))
 		})
 	})
 	if err != nil {
@@ -606,9 +606,9 @@ func fetchSubscriptionAvailabilityTerritories(ctx context.Context, client *asc.C
 	for {
 		territoryResp, requestErr := doReadinessRequest(ctx, func(requestCtx context.Context) (*asc.TerritoriesResponse, error) {
 			if strings.TrimSpace(nextURL) != "" {
-				return client.GetSubscriptionAvailabilityAvailableTerritories(requestCtx, availabilityID, asc.WithSubscriptionAvailabilityTerritoriesNextURL(nextURL))
+				return client.GetSubscriptionAvailabilityAvailableTerritories(requestCtx, availabilityID, asc.NextURL[asc.SubscriptionAvailabilityTerritoriesOption](nextURL))
 			}
-			return client.GetSubscriptionAvailabilityAvailableTerritories(requestCtx, availabilityID, asc.WithSubscriptionAvailabilityTerritoriesLimit(200))
+			return client.GetSubscriptionAvailabilityAvailableTerritories(requestCtx, availabilityID, asc.Limit[asc.SubscriptionAvailabilityTerritoriesOption](200))
 		})
 		err = requestErr
 		if err != nil {
@@ -636,7 +636,7 @@ func fetchSubscriptionAvailabilityTerritories(ctx context.Context, client *asc.C
 
 func fetchSubscriptionPlanAvailabilities(ctx context.Context, client *asc.Client, subscriptionID string) ([]validation.SubscriptionPlanAvailabilityInfo, metadataCheckStatus, error) {
 	resp, err := doReadinessRequest(ctx, func(requestCtx context.Context) (*asc.SubscriptionPlanAvailabilitiesResponse, error) {
-		return client.GetSubscriptionPlanAvailabilitiesForSubscription(requestCtx, strings.TrimSpace(subscriptionID), asc.WithSubscriptionPlanAvailabilitiesLimit(200))
+		return client.GetSubscriptionPlanAvailabilitiesForSubscription(requestCtx, strings.TrimSpace(subscriptionID), asc.Limit[asc.SubscriptionPlanAvailabilitiesOption](200))
 	})
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
@@ -649,7 +649,7 @@ func fetchSubscriptionPlanAvailabilities(ctx context.Context, client *asc.Client
 	}
 	paginated, err := asc.PaginateAll(ctx, resp, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		return doReadinessRequest(ctx, func(requestCtx context.Context) (asc.PaginatedResponse, error) {
-			return client.GetSubscriptionPlanAvailabilitiesForSubscription(requestCtx, strings.TrimSpace(subscriptionID), asc.WithSubscriptionPlanAvailabilitiesNextURL(nextURL))
+			return client.GetSubscriptionPlanAvailabilitiesForSubscription(requestCtx, strings.TrimSpace(subscriptionID), asc.NextURL[asc.SubscriptionPlanAvailabilitiesOption](nextURL))
 		})
 	})
 	if err != nil {
@@ -670,7 +670,7 @@ func fetchSubscriptionPlanAvailabilities(ctx context.Context, client *asc.Client
 	for _, plan := range typed.Data {
 		planID := strings.TrimSpace(plan.ID)
 		territoryResp, fetchErr := doReadinessRequest(ctx, func(requestCtx context.Context) (*asc.LinkagesResponse, error) {
-			return client.GetSubscriptionPlanAvailabilityAvailableTerritoriesRelationships(requestCtx, planID, asc.WithLinkagesLimit(200))
+			return client.GetSubscriptionPlanAvailabilityAvailableTerritoriesRelationships(requestCtx, planID, asc.Limit[asc.LinkagesOption](200))
 		})
 		if fetchErr != nil {
 			if errors.Is(fetchErr, context.Canceled) {
@@ -683,7 +683,7 @@ func fetchSubscriptionPlanAvailabilities(ctx context.Context, client *asc.Client
 		}
 		all, fetchErr := asc.PaginateAll(ctx, territoryResp, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
 			return doReadinessRequest(ctx, func(requestCtx context.Context) (asc.PaginatedResponse, error) {
-				return client.GetSubscriptionPlanAvailabilityAvailableTerritoriesRelationships(requestCtx, planID, asc.WithLinkagesNextURL(nextURL))
+				return client.GetSubscriptionPlanAvailabilityAvailableTerritoriesRelationships(requestCtx, planID, asc.NextURL[asc.LinkagesOption](nextURL))
 			})
 		})
 		if fetchErr != nil {
@@ -716,7 +716,7 @@ func fetchSubscriptionPlanAvailabilities(ctx context.Context, client *asc.Client
 
 func fetchSubscriptionIntroductoryOfferCount(ctx context.Context, client *asc.Client, subscriptionID string) (int, metadataCheckStatus, error) {
 	resp, err := doReadinessRequest(ctx, func(requestCtx context.Context) (*asc.SubscriptionIntroductoryOffersResponse, error) {
-		return client.GetSubscriptionIntroductoryOffers(requestCtx, strings.TrimSpace(subscriptionID), asc.WithSubscriptionIntroductoryOffersLimit(1))
+		return client.GetSubscriptionIntroductoryOffers(requestCtx, strings.TrimSpace(subscriptionID), asc.Limit[asc.SubscriptionIntroductoryOffersOption](1))
 	})
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
@@ -732,7 +732,7 @@ func fetchSubscriptionIntroductoryOfferCount(ctx context.Context, client *asc.Cl
 
 func fetchSubscriptionPromotionalOfferCount(ctx context.Context, client *asc.Client, subscriptionID string) (int, metadataCheckStatus, error) {
 	resp, err := doReadinessRequest(ctx, func(requestCtx context.Context) (*asc.SubscriptionPromotionalOffersResponse, error) {
-		return client.GetSubscriptionPromotionalOffers(requestCtx, strings.TrimSpace(subscriptionID), asc.WithSubscriptionPromotionalOffersLimit(1))
+		return client.GetSubscriptionPromotionalOffers(requestCtx, strings.TrimSpace(subscriptionID), asc.Limit[asc.SubscriptionPromotionalOffersOption](1))
 	})
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
@@ -748,7 +748,7 @@ func fetchSubscriptionPromotionalOfferCount(ctx context.Context, client *asc.Cli
 
 func fetchSubscriptionWinBackOfferCount(ctx context.Context, client *asc.Client, subscriptionID string) (int, metadataCheckStatus, error) {
 	resp, err := doReadinessRequest(ctx, func(requestCtx context.Context) (*asc.WinBackOffersResponse, error) {
-		return client.GetSubscriptionWinBackOffers(requestCtx, strings.TrimSpace(subscriptionID), asc.WithWinBackOffersLimit(1))
+		return client.GetSubscriptionWinBackOffers(requestCtx, strings.TrimSpace(subscriptionID), asc.Limit[asc.WinBackOffersOption](1))
 	})
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
@@ -764,7 +764,7 @@ func fetchSubscriptionWinBackOfferCount(ctx context.Context, client *asc.Client,
 
 func subscriptionHasImage(ctx context.Context, client *asc.Client, subscriptionID string) (subscriptionImageStatus, error) {
 	resp, err := doReadinessRequest(ctx, func(requestCtx context.Context) (*asc.SubscriptionImagesResponse, error) {
-		return client.GetSubscriptionImages(requestCtx, strings.TrimSpace(subscriptionID), asc.WithSubscriptionImagesLimit(1)) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
+		return client.GetSubscriptionImages(requestCtx, strings.TrimSpace(subscriptionID), asc.Limit[asc.SubscriptionImagesOption](1)) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 	})
 	if err != nil {
 		if asc.IsNotFound(err) {

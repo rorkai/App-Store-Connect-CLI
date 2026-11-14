@@ -304,7 +304,7 @@ func doctorMigrationSuggestionResolver() authsvc.MigrationSuggestionResolver {
 			versionsResp, err := client.GetAppStoreVersions(
 				requestCtx, appID,
 				asc.WithAppStoreVersionsVersionStrings([]string{versionString}),
-				asc.WithAppStoreVersionsLimit(1),
+				asc.Limit[asc.AppStoreVersionsOption](1),
 			)
 			if err == nil && len(versionsResp.Data) > 0 {
 				result.VersionID = strings.TrimSpace(versionsResp.Data[0].ID)
@@ -407,7 +407,7 @@ func credentialProbeName(keyType string) string {
 func probeCredential(ctx context.Context, client *asc.Client, keyType string) error {
 	if config.IsEnterpriseCredentialKeyType(keyType) {
 		client.UseEnterpriseProgramAPI()
-		_, err := client.GetBundleIDs(ctx, asc.WithBundleIDsLimit(1))
+		_, err := client.GetBundleIDs(ctx, asc.Limit[asc.BundleIDsOption](1))
 		return err
 	}
 	_, err := client.GetApps(ctx, asc.WithAppsLimit(1))

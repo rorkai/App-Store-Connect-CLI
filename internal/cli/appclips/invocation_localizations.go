@@ -65,8 +65,7 @@ Examples:
 
 			invocationValue := strings.TrimSpace(*invocationID)
 			if invocationValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --invocation-id is required")
-				return shared.MissingRequiredUsageError("--invocation-id")
+				return shared.RequiredFlag("--invocation-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -113,20 +112,17 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			invocationValue := strings.TrimSpace(*invocationID)
 			if invocationValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --invocation-id is required")
-				return shared.MissingRequiredUsageError("--invocation-id")
+				return shared.RequiredFlag("--invocation-id")
 			}
 
 			localeValue := strings.TrimSpace(*locale)
 			if localeValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --locale is required")
-				return shared.MissingRequiredUsageError("--locale")
+				return shared.RequiredFlag("--locale")
 			}
 
 			titleValue := strings.TrimSpace(*title)
 			if titleValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --title is required")
-				return shared.MissingRequiredUsageError("--title")
+				return shared.RequiredFlag("--title")
 			}
 
 			client, err := shared.GetASCClient()
@@ -173,8 +169,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			locValue := strings.TrimSpace(*localizationID)
 			if locValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
-				return shared.MissingRequiredUsageError("--localization-id")
+				return shared.RequiredFlag("--localization-id")
 			}
 
 			visited := map[string]bool{}
@@ -228,8 +223,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			locValue := strings.TrimSpace(*localizationID)
 			if locValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
-				return shared.MissingRequiredUsageError("--localization-id")
+				return shared.RequiredFlag("--localization-id")
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required to delete")

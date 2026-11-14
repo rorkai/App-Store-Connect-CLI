@@ -1,11 +1,11 @@
 package cmdtest
 
 import (
-	"context"
-	"io"
 	"net/http"
 	"path/filepath"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestGameCenterLeaderboardsUpdateSendsOnlyRecurrenceFlagsSet(t *testing.T) {
@@ -52,36 +52,17 @@ func TestGameCenterLeaderboardsUpdateSendsOnlyRecurrenceFlagsSet(t *testing.T) {
 			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-			callCount := &lockedCounter{}
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				callCount.Inc()
-				if req.Method != http.MethodPatch || req.URL.Path != test.patchPath {
-					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-				}
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.PATCH(test.patchPath).JSONBody(`{"data":{"type":"gameCenterLeaderboards","id":"LB_ID","attributes":`+test.wantAttrs+`}}`),
+				asctest.JSON(http.StatusOK, `{"data":{"type":"gameCenterLeaderboards","id":"LB_ID","attributes":{}}}`))
 
-				body, err := io.ReadAll(req.Body)
-				if err != nil {
-					t.Fatalf("read request body: %v", err)
-				}
-				want := `{"data":{"type":"gameCenterLeaderboards","id":"LB_ID","attributes":` + test.wantAttrs + `}}`
-				assertJSONDocumentEqual(t, body, []byte(want))
-
-				return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"gameCenterLeaderboards","id":"LB_ID","attributes":{}}}`), nil
-			}))
-
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
 			args := append([]string{"game-center", "leaderboards", "update", "--id", "LB_ID"}, test.args...)
-			captureOutput(t, func() {
-				if err := root.Parse(args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
+			if _, _, err := runCommand(t, args); err != nil {
+				t.Fatalf("run error: %v", err)
+			}
 
-			if got := callCount.Load(); got != 1 {
+			if got := len(reg.Requests()); got != 1 {
 				t.Fatalf("request count = %d, want 1", got)
 			}
 		})
@@ -152,10 +133,7 @@ func TestGameCenterLeaderboardsRecurrenceFlagsRejectBadValuesBeforeRequests(t *t
 			t.Run(command.name+"/"+value.name, func(t *testing.T) {
 				setupAuth(t)
 				t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-				installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-					return nil, nil
-				}))
+				asctest.NewRegistry(t).Install()
 
 				args := append(append([]string{}, command.args...), value.flag, value.value)
 				assertUsageExitCode(t, args, value.wantErr)

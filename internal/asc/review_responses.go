@@ -119,22 +119,7 @@ func (c *Client) CreateCustomerReviewResponse(ctx context.Context, reviewID, res
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "POST", "/v1/customerReviewResponses", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response CustomerReviewResponseResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[CustomerReviewResponseResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/customerReviewResponses", Payload: payload})
 }
 
 // GetCustomerReviewResponse retrieves a customer review response by ID.
@@ -144,18 +129,7 @@ func (c *Client) GetCustomerReviewResponse(ctx context.Context, responseID strin
 		return nil, fmt.Errorf("responseID is required")
 	}
 
-	path := fmt.Sprintf("/v1/customerReviewResponses/%s", responseID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response CustomerReviewResponseResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[CustomerReviewResponseResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/customerReviewResponses/%s", responseID)})
 }
 
 // DeleteCustomerReviewResponse deletes a customer review response by ID.
@@ -165,9 +139,7 @@ func (c *Client) DeleteCustomerReviewResponse(ctx context.Context, responseID st
 		return fmt.Errorf("responseID is required")
 	}
 
-	path := fmt.Sprintf("/v1/customerReviewResponses/%s", responseID)
-	_, err := c.do(ctx, "DELETE", path, nil)
-	return err
+	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/customerReviewResponses/%s", responseID), nil)
 }
 
 // GetCustomerReviewResponseForReview retrieves the response for a specific review.
@@ -177,16 +149,5 @@ func (c *Client) GetCustomerReviewResponseForReview(ctx context.Context, reviewI
 		return nil, fmt.Errorf("reviewID is required")
 	}
 
-	path := fmt.Sprintf("/v1/customerReviews/%s/response", reviewID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response CustomerReviewResponseResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[CustomerReviewResponseResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/customerReviews/%s/response", reviewID)})
 }

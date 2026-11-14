@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"net/url"
-	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -71,8 +70,7 @@ Examples:
 			}
 			id := strings.TrimSpace(*localizationID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			path := "/v1/" + resourceType + "/" + url.PathEscape(id)

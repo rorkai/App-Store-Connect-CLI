@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -37,12 +36,10 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*reviewID) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --review-id is required")
-				return shared.MissingRequiredUsageError("--review-id")
+				return shared.RequiredFlag("--review-id")
 			}
 			if strings.TrimSpace(*response) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --response is required")
-				return shared.MissingRequiredUsageError("--response")
+				return shared.RequiredFlag("--response")
 			}
 
 			client, err := shared.GetASCClient()
@@ -110,8 +107,7 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*responseID) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -154,12 +150,10 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*responseID) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()
@@ -206,8 +200,7 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*reviewID) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --review-id is required")
-				return shared.MissingRequiredUsageError("--review-id")
+				return shared.RequiredFlag("--review-id")
 			}
 
 			client, err := shared.GetASCClient()

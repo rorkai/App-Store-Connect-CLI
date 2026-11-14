@@ -73,8 +73,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*eventID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --event-id is required")
-				return shared.MissingRequiredUsageError("--event-id")
+				return shared.RequiredFlag("--event-id")
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return shared.UsageError("app-events localizations list: --limit must be between 1 and 200")
@@ -99,21 +98,21 @@ Examples:
 			defer cancel()
 
 			opts := []asc.AppEventLocalizationsOption{
-				asc.WithAppEventLocalizationsLimit(*limit),
-				asc.WithAppEventLocalizationsNextURL(*next),
+				asc.Limit[asc.AppEventLocalizationsOption](*limit),
+				asc.NextURL[asc.AppEventLocalizationsOption](*next),
 				asc.WithAppEventLocalizationsInclude(includeValues),
 				asc.WithAppEventLocalizationsPlacementsLimit(placementsLimit),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithAppEventLocalizationsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.AppEventLocalizationsOption](200))
 				firstPage, err := client.GetAppEventLocalizations(requestCtx, id, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("app-events localizations list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppEventLocalizations(ctx, id, asc.WithAppEventLocalizationsNextURL(nextURL))
+					return client.GetAppEventLocalizations(ctx, id, asc.NextURL[asc.AppEventLocalizationsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("app-events localizations list: %w", err)
@@ -154,8 +153,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*localizationID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
-				return shared.MissingRequiredUsageError("--localization-id")
+				return shared.RequiredFlag("--localization-id")
 			}
 			includeValues, placementsLimit, err := include.Resolve()
 			if err != nil {
@@ -205,14 +203,12 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*eventID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --event-id is required")
-				return shared.MissingRequiredUsageError("--event-id")
+				return shared.RequiredFlag("--event-id")
 			}
 
 			localeValue := strings.TrimSpace(*locale)
 			if localeValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --locale is required")
-				return shared.MissingRequiredUsageError("--locale")
+				return shared.RequiredFlag("--locale")
 			}
 
 			attrs := asc.AppEventLocalizationCreateAttributes{
@@ -264,8 +260,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*localizationID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
-				return shared.MissingRequiredUsageError("--localization-id")
+				return shared.RequiredFlag("--localization-id")
 			}
 
 			var (
@@ -333,12 +328,10 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*localizationID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
-				return shared.MissingRequiredUsageError("--localization-id")
+				return shared.RequiredFlag("--localization-id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()

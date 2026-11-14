@@ -92,19 +92,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.PromotedPurchasesOption{
-				asc.WithPromotedPurchasesLimit(*limit),
-				asc.WithPromotedPurchasesNextURL(*next),
+				asc.Limit[asc.PromotedPurchasesOption](*limit),
+				asc.NextURL[asc.PromotedPurchasesOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithPromotedPurchasesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.PromotedPurchasesOption](200))
 				firstPage, err := client.GetAppPromotedPurchases(requestCtx, resolvedAppID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("promoted-purchases list: failed to fetch: %w", err)
 				}
 
 				paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppPromotedPurchases(ctx, resolvedAppID, asc.WithPromotedPurchasesNextURL(nextURL))
+					return client.GetAppPromotedPurchases(ctx, resolvedAppID, asc.NextURL[asc.PromotedPurchasesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("promoted-purchases list: %w", err)
@@ -143,8 +143,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --promoted-purchase-id is required")
-				return shared.MissingRequiredUsageError("--promoted-purchase-id")
+				return shared.RequiredFlag("--promoted-purchase-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -198,13 +197,11 @@ Examples:
 
 			productIDValue := strings.TrimSpace(*productID)
 			if productIDValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --product-id is required")
-				return shared.MissingRequiredUsageError("--product-id")
+				return shared.RequiredFlag("--product-id")
 			}
 
 			if strings.TrimSpace(*productType) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --product-type is required")
-				return shared.MissingRequiredUsageError("--product-type")
+				return shared.RequiredFlag("--product-type")
 			}
 
 			productTypeValue, err := normalizePromotedPurchaseProductType(*productType)
@@ -214,8 +211,7 @@ Examples:
 			}
 
 			if !visibleForAllUsers.IsSet() {
-				fmt.Fprintln(os.Stderr, "Error: --visible-for-all-users is required")
-				return shared.MissingRequiredUsageError("--visible-for-all-users")
+				return shared.RequiredFlag("--visible-for-all-users")
 			}
 
 			client, err := shared.GetASCClient()
@@ -296,8 +292,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --promoted-purchase-id is required")
-				return shared.MissingRequiredUsageError("--promoted-purchase-id")
+				return shared.RequiredFlag("--promoted-purchase-id")
 			}
 			if !visibleForAllUsers.IsSet() && !enabled.IsSet() {
 				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
@@ -352,14 +347,12 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --promoted-purchase-id is required")
-				return shared.MissingRequiredUsageError("--promoted-purchase-id")
+				return shared.RequiredFlag("--promoted-purchase-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -427,8 +420,7 @@ Examples:
 			} else {
 				promotedPurchaseIDs = shared.SplitCSV(promotedIDs.String())
 				if len(promotedPurchaseIDs) == 0 {
-					fmt.Fprintln(os.Stderr, "Error: --promoted-purchase-id is required")
-					return shared.MissingRequiredUsageError("--promoted-purchase-id")
+					return shared.RequiredFlag("--promoted-purchase-id")
 				}
 			}
 

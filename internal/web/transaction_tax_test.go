@@ -302,45 +302,61 @@ func TestTransactionTaxGenerationRejectsRedirectWithoutReplaying(t *testing.T) {
 }
 
 func TestTransactionTaxDownloadUsesWorkflowDeadline(t *testing.T) {
-	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		select {
-		case <-time.After(100 * time.Millisecond):
-			w.Header().Set("Content-Type", "application/zip")
-			_, _ = io.WriteString(w, "PK\x03\x04archive")
-		case <-r.Context().Done():
-		}
-	}))
-	defer server.Close()
-	origin, err := url.Parse(server.URL)
-	if err != nil {
-		t.Fatal(err)
+	const clientTimeout = time.Minute
+	var requestDeadline time.Time
+	var requestBounded bool
+	origin := &url.URL{Scheme: "https", Host: "appstoreconnect.example.test"}
+	client := &Client{
+		httpClient: &http.Client{
+			Timeout: clientTimeout,
+			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				requestDeadline, requestBounded = req.Context().Deadline()
+				if err := req.Context().Err(); err != nil {
+					return nil, err
+				}
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Header:     http.Header{"Content-Type": []string{"application/zip"}},
+					Body:       io.NopCloser(strings.NewReader("PK\x03\x04archive")),
+					Request:    req,
+				}, nil
+			}),
+		},
+		baseURL: origin.String(),
 	}
-	client := testWebClient(server)
-	client.httpClient.Timeout = 10 * time.Millisecond
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	archiveURL := origin.String() + "/archive"
+
+	workflowDeadline := time.Now().Add(time.Hour)
+	ctx, cancel := context.WithDeadline(context.Background(), workflowDeadline)
 	defer cancel()
-	result, err := client.openTransactionTaxDownload(ctx, origin, server.URL+"/archive")
+	result, err := client.openTransactionTaxDownload(ctx, origin, archiveURL)
 	if err != nil {
 		t.Fatalf("download within workflow deadline: %v", err)
 	}
-	defer result.Body.Close()
-	if _, err := io.ReadAll(result.Body); err != nil {
-		t.Fatalf("read archive: %v", err)
+	result.Body.Close()
+	if !requestBounded || !requestDeadline.Equal(workflowDeadline) {
+		t.Fatalf("download deadline = %v (bounded %v), want workflow deadline %v", requestDeadline, requestBounded, workflowDeadline)
 	}
-	if client.httpClient.Timeout != 10*time.Millisecond {
+	if client.httpClient.Timeout != clientTimeout {
 		t.Fatal("changed shared client timeout")
 	}
 
 	for _, unbounded := range []context.Context{context.Background(), nil} {
-		if result, err := client.openTransactionTaxDownload(unbounded, origin, server.URL+"/archive"); err == nil {
-			result.Body.Close()
-			t.Fatal("unbounded caller lost the configured client timeout")
+		before := time.Now()
+		result, err := client.openTransactionTaxDownload(unbounded, origin, archiveURL)
+		after := time.Now()
+		if err != nil {
+			t.Fatalf("download without workflow deadline: %v", err)
+		}
+		result.Body.Close()
+		if !requestBounded || requestDeadline.Before(before.Add(clientTimeout)) || requestDeadline.After(after.Add(clientTimeout)) {
+			t.Fatalf("unbounded caller lost the configured client timeout: deadline %v (bounded %v)", requestDeadline, requestBounded)
 		}
 	}
 
-	shortCtx, shortCancel := context.WithTimeout(context.Background(), time.Millisecond)
-	defer shortCancel()
-	if result, err := client.openTransactionTaxDownload(shortCtx, origin, server.URL+"/archive"); err == nil {
+	expiredCtx, expiredCancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+	defer expiredCancel()
+	if result, err := client.openTransactionTaxDownload(expiredCtx, origin, archiveURL); err == nil {
 		result.Body.Close()
 		t.Fatal("download ignored workflow cancellation")
 	}

@@ -94,8 +94,8 @@ Examples:
 			defer cancel()
 
 			opts := []asc.BetaTesterUsagesOption{
-				asc.WithBetaTesterUsagesLimit(*limit),
-				asc.WithBetaTesterUsagesNextURL(*next),
+				asc.Limit[asc.BetaTesterUsagesOption](*limit),
+				asc.NextURL[asc.BetaTesterUsagesOption](*next),
 				asc.WithBetaTesterUsagesPeriod(periodValue),
 				asc.WithBetaTesterUsagesAppID(resolvedAppID),
 			}

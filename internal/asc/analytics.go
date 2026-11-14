@@ -2,7 +2,6 @@ package asc
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/url"
@@ -226,64 +225,10 @@ type AnalyticsReportInstancesOption func(*analyticsReportInstancesQuery)
 // AnalyticsReportSegmentsOption is a functional option for segment listings.
 type AnalyticsReportSegmentsOption func(*analyticsReportSegmentsQuery)
 
-// WithAnalyticsReportRequestsLimit sets the max number of requests to return.
-func WithAnalyticsReportRequestsLimit(limit int) AnalyticsReportRequestsOption {
-	return func(q *analyticsReportRequestsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithAnalyticsReportRequestsNextURL uses a next page URL directly.
-func WithAnalyticsReportRequestsNextURL(next string) AnalyticsReportRequestsOption {
-	return func(q *analyticsReportRequestsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithAnalyticsReportRequestsAccessType filters requests by access type.
 func WithAnalyticsReportRequestsAccessType(accessType AnalyticsAccessType) AnalyticsReportRequestsOption {
 	return func(q *analyticsReportRequestsQuery) {
 		q.accessType = AnalyticsAccessType(strings.TrimSpace(string(accessType)))
-	}
-}
-
-// WithAnalyticsReportsLimit sets the max number of reports to return.
-func WithAnalyticsReportsLimit(limit int) AnalyticsReportsOption {
-	return func(q *analyticsReportsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithAnalyticsReportsNextURL uses a next page URL directly.
-func WithAnalyticsReportsNextURL(next string) AnalyticsReportsOption {
-	return func(q *analyticsReportsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
-// WithAnalyticsReportInstancesLimit sets the max number of instances to return.
-func WithAnalyticsReportInstancesLimit(limit int) AnalyticsReportInstancesOption {
-	return func(q *analyticsReportInstancesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithAnalyticsReportInstancesNextURL uses a next page URL directly.
-func WithAnalyticsReportInstancesNextURL(next string) AnalyticsReportInstancesOption {
-	return func(q *analyticsReportInstancesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
 	}
 }
 
@@ -298,24 +243,6 @@ func WithAnalyticsReportInstancesGranularities(granularities []string) Analytics
 func WithAnalyticsReportInstancesProcessingDates(dates []string) AnalyticsReportInstancesOption {
 	return func(q *analyticsReportInstancesQuery) {
 		q.processingDates = normalizeUniqueList(dates)
-	}
-}
-
-// WithAnalyticsReportSegmentsLimit sets the max number of segments to return.
-func WithAnalyticsReportSegmentsLimit(limit int) AnalyticsReportSegmentsOption {
-	return func(q *analyticsReportSegmentsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithAnalyticsReportSegmentsNextURL uses a next page URL directly.
-func WithAnalyticsReportSegmentsNextURL(next string) AnalyticsReportSegmentsOption {
-	return func(q *analyticsReportSegmentsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
 	}
 }
 
@@ -404,53 +331,22 @@ func (c *Client) CreateAnalyticsReportRequest(ctx context.Context, appID string,
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "POST", "/v1/analyticsReportRequests", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AnalyticsReportRequestResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-	return &response, nil
+	return sendJSON[AnalyticsReportRequestResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/analyticsReportRequests", Payload: payload})
 }
 
 // GetAnalyticsReportRequests retrieves analytics report requests for an app.
 func (c *Client) GetAnalyticsReportRequests(ctx context.Context, appID string, opts ...AnalyticsReportRequestsOption) (*AnalyticsReportRequestsResponse, error) {
-	query := &analyticsReportRequestsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 	path := "/v1/analyticsReportRequests"
 	if strings.TrimSpace(appID) != "" {
 		path = fmt.Sprintf("/v1/apps/%s/analyticsReportRequests", strings.TrimSpace(appID))
 	}
-	if query.nextURL != "" {
-		// Validate nextURL to prevent credential exfiltration
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("analyticsReportRequests: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildAnalyticsReportRequestsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AnalyticsReportRequestsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-	return &response, nil
+	return getJSON[AnalyticsReportRequestsResponse](ctx, c, readRequest{
+		Path:        path,
+		Query:       buildAnalyticsReportRequestsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "analyticsReportRequests",
+	})
 }
 
 // GetAnalyticsReportRequest retrieves a specific analytics report request by ID.
@@ -459,16 +355,7 @@ func (c *Client) GetAnalyticsReportRequest(ctx context.Context, requestID string
 	if err != nil {
 		return nil, fmt.Errorf("analytics report request: %w", err)
 	}
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AnalyticsReportRequestResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-	return &response, nil
+	return getJSON[AnalyticsReportRequestResponse](ctx, c, readRequest{Path: path})
 }
 
 // DeleteAnalyticsReportRequest deletes an analytics report request by ID.
@@ -477,8 +364,7 @@ func (c *Client) DeleteAnalyticsReportRequest(ctx context.Context, requestID str
 	if err != nil {
 		return fmt.Errorf("analytics report request: %w", err)
 	}
-	_, err = c.do(ctx, "DELETE", path, nil)
-	return err
+	return sendNoContent(ctx, c, "DELETE", path, nil)
 }
 
 // GetAnalyticsReport retrieves a specific analytics report by ID.
@@ -487,53 +373,27 @@ func (c *Client) GetAnalyticsReport(ctx context.Context, reportID string) (*Anal
 	if err != nil {
 		return nil, fmt.Errorf("analytics report: %w", err)
 	}
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AnalyticsReportResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-	return &response, nil
+	return getJSON[AnalyticsReportResponse](ctx, c, readRequest{Path: path})
 }
 
 // GetAnalyticsReports retrieves analytics reports for a request.
 func (c *Client) GetAnalyticsReports(ctx context.Context, requestID string, opts ...AnalyticsReportsOption) (*AnalyticsReportsResponse, error) {
-	query := &analyticsReportsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
 	var path string
-	if query.nextURL != "" {
-		// Validate nextURL to prevent credential exfiltration
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("analyticsReports: %w", err)
-		}
-		path = query.nextURL
-	} else {
+	if query.nextURL == "" {
 		var err error
 		path, err = resourcePath("/v1/analyticsReportRequests/%s/reports", requestID)
 		if err != nil {
 			return nil, fmt.Errorf("analytics reports: %w", err)
 		}
-		if queryString := buildAnalyticsReportsQuery(query); queryString != "" {
-			path += "?" + queryString
-		}
 	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AnalyticsReportsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-	return &response, nil
+	return getJSON[AnalyticsReportsResponse](ctx, c, readRequest{
+		Path:        path,
+		Query:       buildAnalyticsReportsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "analyticsReports",
+	})
 }
 
 // GetAnalyticsReportInstancesRelationships retrieves report instance linkages for a report.
@@ -552,39 +412,22 @@ func (c *Client) GetAnalyticsReportInstancesRelationships(ctx context.Context, r
 
 // GetAnalyticsReportInstances retrieves report instances for a report.
 func (c *Client) GetAnalyticsReportInstances(ctx context.Context, reportID string, opts ...AnalyticsReportInstancesOption) (*AnalyticsReportInstancesResponse, error) {
-	query := &analyticsReportInstancesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
 	var path string
-	if query.nextURL != "" {
-		// Validate nextURL to prevent credential exfiltration
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("analyticsReportInstances: %w", err)
-		}
-		path = query.nextURL
-	} else {
+	if query.nextURL == "" {
 		var err error
 		path, err = resourcePath("/v1/analyticsReports/%s/instances", reportID)
 		if err != nil {
 			return nil, fmt.Errorf("analytics report instances: %w", err)
 		}
-		if queryString := buildAnalyticsReportInstancesQuery(query); queryString != "" {
-			path += "?" + queryString
-		}
 	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AnalyticsReportInstancesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-	return &response, nil
+	return getJSON[AnalyticsReportInstancesResponse](ctx, c, readRequest{
+		Path:        path,
+		Query:       buildAnalyticsReportInstancesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "analyticsReportInstances",
+	})
 }
 
 // GetAnalyticsReportInstance retrieves a specific report instance by ID.
@@ -593,16 +436,7 @@ func (c *Client) GetAnalyticsReportInstance(ctx context.Context, instanceID stri
 	if err != nil {
 		return nil, fmt.Errorf("analytics report instance: %w", err)
 	}
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AnalyticsReportInstanceResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-	return &response, nil
+	return getJSON[AnalyticsReportInstanceResponse](ctx, c, readRequest{Path: path})
 }
 
 // GetAnalyticsReportInstanceSegmentsRelationships retrieves segment linkages for a report instance.
@@ -628,39 +462,22 @@ func (c *Client) GetAnalyticsReportInstanceSegmentsRelationships(ctx context.Con
 
 // GetAnalyticsReportSegments retrieves report segments for an instance.
 func (c *Client) GetAnalyticsReportSegments(ctx context.Context, instanceID string, opts ...AnalyticsReportSegmentsOption) (*AnalyticsReportSegmentsResponse, error) {
-	query := &analyticsReportSegmentsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
 	var path string
-	if query.nextURL != "" {
-		// Validate nextURL to prevent credential exfiltration
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("analyticsReportSegments: %w", err)
-		}
-		path = query.nextURL
-	} else {
+	if query.nextURL == "" {
 		var err error
 		path, err = resourcePath("/v1/analyticsReportInstances/%s/segments", instanceID)
 		if err != nil {
 			return nil, fmt.Errorf("analytics report segments: %w", err)
 		}
-		if queryString := buildAnalyticsReportSegmentsQuery(query); queryString != "" {
-			path += "?" + queryString
-		}
 	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AnalyticsReportSegmentsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-	return &response, nil
+	return getJSON[AnalyticsReportSegmentsResponse](ctx, c, readRequest{
+		Path:        path,
+		Query:       buildAnalyticsReportSegmentsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "analyticsReportSegments",
+	})
 }
 
 // GetAnalyticsReportSegment retrieves a specific report segment by ID.
@@ -669,16 +486,7 @@ func (c *Client) GetAnalyticsReportSegment(ctx context.Context, segmentID string
 	if err != nil {
 		return nil, fmt.Errorf("analytics report segment: %w", err)
 	}
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AnalyticsReportSegmentResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-	return &response, nil
+	return getJSON[AnalyticsReportSegmentResponse](ctx, c, readRequest{Path: path})
 }
 
 // DownloadAnalyticsReport downloads an analytics report from a presigned URL.

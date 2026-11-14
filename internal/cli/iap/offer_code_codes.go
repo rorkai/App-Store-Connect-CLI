@@ -74,8 +74,7 @@ Examples:
 
 			id := strings.TrimSpace(*offerCodeID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --offer-code-id is required")
-				return shared.MissingRequiredUsageError("--offer-code-id")
+				return shared.RequiredFlag("--offer-code-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -87,19 +86,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.IAPOfferCodeCustomCodesOption{
-				asc.WithIAPOfferCodeCustomCodesLimit(*limit),
-				asc.WithIAPOfferCodeCustomCodesNextURL(*next),
+				asc.Limit[asc.IAPOfferCodeCustomCodesOption](*limit),
+				asc.NextURL[asc.IAPOfferCodeCustomCodesOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithIAPOfferCodeCustomCodesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.IAPOfferCodeCustomCodesOption](200))
 				firstPage, err := client.GetInAppPurchaseOfferCodeCustomCodes(requestCtx, id, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("iap offer-codes custom-codes list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetInAppPurchaseOfferCodeCustomCodes(ctx, id, asc.WithIAPOfferCodeCustomCodesNextURL(nextURL))
+					return client.GetInAppPurchaseOfferCodeCustomCodes(ctx, id, asc.NextURL[asc.IAPOfferCodeCustomCodesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("iap offer-codes custom-codes list: %w", err)
@@ -138,8 +137,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*customCodeID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --custom-code-id is required")
-				return shared.MissingRequiredUsageError("--custom-code-id")
+				return shared.RequiredFlag("--custom-code-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -184,14 +182,12 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*offerCodeID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --offer-code-id is required")
-				return shared.MissingRequiredUsageError("--offer-code-id")
+				return shared.RequiredFlag("--offer-code-id")
 			}
 
 			code := strings.TrimSpace(*customCode)
 			if code == "" {
-				fmt.Fprintln(os.Stderr, "Error: --custom-code is required")
-				return shared.MissingRequiredUsageError("--custom-code")
+				return shared.RequiredFlag("--custom-code")
 			}
 
 			if *quantity <= 0 {
@@ -329,8 +325,7 @@ Examples:
 
 			id := strings.TrimSpace(*offerCodeID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --offer-code-id is required")
-				return shared.MissingRequiredUsageError("--offer-code-id")
+				return shared.RequiredFlag("--offer-code-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -342,19 +337,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.IAPOfferCodeOneTimeUseCodesOption{
-				asc.WithIAPOfferCodeOneTimeUseCodesLimit(*limit),
-				asc.WithIAPOfferCodeOneTimeUseCodesNextURL(*next),
+				asc.Limit[asc.IAPOfferCodeOneTimeUseCodesOption](*limit),
+				asc.NextURL[asc.IAPOfferCodeOneTimeUseCodesOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithIAPOfferCodeOneTimeUseCodesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.IAPOfferCodeOneTimeUseCodesOption](200))
 				firstPage, err := client.GetInAppPurchaseOfferCodeOneTimeUseCodes(requestCtx, id, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("iap offer-codes one-time-codes list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetInAppPurchaseOfferCodeOneTimeUseCodes(ctx, id, asc.WithIAPOfferCodeOneTimeUseCodesNextURL(nextURL))
+					return client.GetInAppPurchaseOfferCodeOneTimeUseCodes(ctx, id, asc.NextURL[asc.IAPOfferCodeOneTimeUseCodesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("iap offer-codes one-time-codes list: %w", err)
@@ -393,8 +388,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*oneTimeCodeID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --one-time-code-id is required")
-				return shared.MissingRequiredUsageError("--one-time-code-id")
+				return shared.RequiredFlag("--one-time-code-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -440,8 +434,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*offerCodeID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --offer-code-id is required")
-				return shared.MissingRequiredUsageError("--offer-code-id")
+				return shared.RequiredFlag("--offer-code-id")
 			}
 
 			if *quantity <= 0 {
@@ -542,8 +535,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*oneTimeCodeID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --one-time-code-id is required")
-				return shared.MissingRequiredUsageError("--one-time-code-id")
+				return shared.RequiredFlag("--one-time-code-id")
 			}
 
 			client, err := shared.GetASCClient()

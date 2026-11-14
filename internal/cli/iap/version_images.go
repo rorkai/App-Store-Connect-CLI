@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 
@@ -35,8 +34,7 @@ func IAPVersionImagesListCommand() *ffcli.Command {
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*versionID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return shared.MissingRequiredUsageError("--version-id")
+				return shared.RequiredFlag("--version-id")
 			}
 			if err := rejectIAPVersionNextFlagConflicts(
 				fs, *next, "iap versions images list", "version-id", "limit", "image-fields",
@@ -63,7 +61,7 @@ func IAPVersionImagesListCommand() *ffcli.Command {
 			if *paginate && firstPageLimit == 0 {
 				firstPageLimit = 200
 			}
-			resp, err := client.GetInAppPurchaseVersionImages(requestCtx, id, asc.WithIAPVersionImagesLimit(firstPageLimit), asc.WithIAPVersionImagesNextURL(*next), asc.WithIAPVersionImagesFields(fields))
+			resp, err := client.GetInAppPurchaseVersionImages(requestCtx, id, asc.Limit[asc.IAPVersionImagesOption](firstPageLimit), asc.WithIAPVersionImagesNextURL(*next), asc.WithIAPVersionImagesFields(fields))
 			if err != nil {
 				return fmt.Errorf("iap versions images list: failed to fetch: %w", err)
 			}
@@ -91,13 +89,11 @@ func IAPVersionImagesCreateCommand() *ffcli.Command {
 		Exec: func(ctx context.Context, args []string) error {
 			vid := strings.TrimSpace(*versionID)
 			if vid == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return shared.MissingRequiredUsageError("--version-id")
+				return shared.RequiredFlag("--version-id")
 			}
 			path := strings.TrimSpace(*filePath)
 			if path == "" {
-				fmt.Fprintln(os.Stderr, "Error: --file is required")
-				return shared.MissingRequiredUsageError("--file")
+				return shared.RequiredFlag("--file")
 			}
 			file, info, err := openImageFile(path)
 			if err != nil {
@@ -147,8 +143,7 @@ func IAPVersionImagesViewCommand() *ffcli.Command {
 		Exec: func(ctx context.Context, args []string) error {
 			value := strings.TrimSpace(*id)
 			if value == "" {
-				fmt.Fprintln(os.Stderr, "Error: --image-id is required")
-				return shared.MissingRequiredUsageError("--image-id")
+				return shared.RequiredFlag("--image-id")
 			}
 			fields, err := shared.NormalizeSelection(*imageFields, iapVersionImageFields, "--image-fields")
 			if err != nil {
@@ -179,12 +174,10 @@ func IAPVersionImagesUpdateCommand() *ffcli.Command {
 		Exec: func(ctx context.Context, args []string) error {
 			value := strings.TrimSpace(*id)
 			if value == "" {
-				fmt.Fprintln(os.Stderr, "Error: --image-id is required")
-				return shared.MissingRequiredUsageError("--image-id")
+				return shared.RequiredFlag("--image-id")
 			}
 			if !flagSet(fs, "uploaded") {
-				fmt.Fprintln(os.Stderr, "Error: --uploaded is required")
-				return shared.MissingRequiredUsageError("--uploaded")
+				return shared.RequiredFlag("--uploaded")
 			}
 			uploadedValue, err := strconv.ParseBool(strings.TrimSpace(*uploaded))
 			if err != nil {
@@ -215,12 +208,10 @@ func IAPVersionImagesDeleteCommand() *ffcli.Command {
 		Exec: func(ctx context.Context, args []string) error {
 			value := strings.TrimSpace(*id)
 			if value == "" {
-				fmt.Fprintln(os.Stderr, "Error: --image-id is required")
-				return shared.MissingRequiredUsageError("--image-id")
+				return shared.RequiredFlag("--image-id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 			client, err := iapVersionClientFactory()
 			if err != nil {

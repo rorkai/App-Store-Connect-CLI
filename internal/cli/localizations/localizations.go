@@ -243,8 +243,8 @@ Examples:
 				}
 
 				opts := []asc.AppStoreVersionLocalizationsOption{
-					asc.WithAppStoreVersionLocalizationsLimit(*limit),
-					asc.WithAppStoreVersionLocalizationsNextURL(*next),
+					asc.Limit[asc.AppStoreVersionLocalizationsOption](*limit),
+					asc.NextURL[asc.AppStoreVersionLocalizationsOption](*next),
 				}
 				if len(locales) > 0 {
 					opts = append(opts, asc.WithAppStoreVersionLocalizationLocales(locales))
@@ -261,7 +261,7 @@ Examples:
 					// Fetch first page with limit set for consistent pagination.
 					// Later pages ride links.next, which preserves include, and
 					// PaginateAll merges the included resources per page.
-					paginateOpts := append(opts, asc.WithAppStoreVersionLocalizationsLimit(200))
+					paginateOpts := append(opts, asc.Limit[asc.AppStoreVersionLocalizationsOption](200))
 					firstPage, err := client.GetAppStoreVersionLocalizations(requestCtx, resolvedVersionID, paginateOpts...)
 					if err != nil {
 						return fmt.Errorf("localizations list: failed to fetch: %w", err)
@@ -269,7 +269,7 @@ Examples:
 
 					// Fetch all remaining pages
 					resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return client.GetAppStoreVersionLocalizations(ctx, resolvedVersionID, asc.WithAppStoreVersionLocalizationsNextURL(nextURL))
+						return client.GetAppStoreVersionLocalizations(ctx, resolvedVersionID, asc.NextURL[asc.AppStoreVersionLocalizationsOption](nextURL))
 					})
 					if err != nil {
 						return fmt.Errorf("localizations list: %w", err)
@@ -304,8 +304,8 @@ Examples:
 				}
 
 				opts := []asc.AppInfoLocalizationsOption{
-					asc.WithAppInfoLocalizationsLimit(*limit),
-					asc.WithAppInfoLocalizationsNextURL(*next),
+					asc.Limit[asc.AppInfoLocalizationsOption](*limit),
+					asc.NextURL[asc.AppInfoLocalizationsOption](*next),
 				}
 				if len(appInfoFieldValues) > 0 {
 					opts = append(
@@ -320,7 +320,7 @@ Examples:
 
 				if *paginate {
 					// Fetch first page with limit set for consistent pagination
-					paginateOpts := append(opts, asc.WithAppInfoLocalizationsLimit(200))
+					paginateOpts := append(opts, asc.Limit[asc.AppInfoLocalizationsOption](200))
 					firstPage, err := client.GetAppInfoLocalizations(requestCtx, appInfo, paginateOpts...)
 					if err != nil {
 						return fmt.Errorf("localizations list: failed to fetch: %w", err)
@@ -328,7 +328,7 @@ Examples:
 
 					// Fetch all remaining pages
 					resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return client.GetAppInfoLocalizations(ctx, appInfo, asc.WithAppInfoLocalizationsNextURL(nextURL))
+						return client.GetAppInfoLocalizations(ctx, appInfo, asc.NextURL[asc.AppInfoLocalizationsOption](nextURL))
 					})
 					if err != nil {
 						return fmt.Errorf("localizations list: %w", err)
@@ -355,7 +355,7 @@ func resolveLocalizationsVersionString(ctx context.Context, client *asc.Client, 
 	appID = strings.TrimSpace(appID)
 	opts := []asc.AppStoreVersionsOption{
 		asc.WithAppStoreVersionsVersionStrings([]string{version}),
-		asc.WithAppStoreVersionsLimit(200),
+		asc.Limit[asc.AppStoreVersionsOption](200),
 	}
 	if platform != "" {
 		opts = append(opts, asc.WithAppStoreVersionsPlatforms([]string{platform}))
@@ -463,8 +463,8 @@ Examples:
 				defer cancel()
 
 				opts := []asc.AppStoreVersionLocalizationsOption{
-					asc.WithAppStoreVersionLocalizationsLimit(pageLimit),
-					asc.WithAppStoreVersionLocalizationsNextURL(*next),
+					asc.Limit[asc.AppStoreVersionLocalizationsOption](pageLimit),
+					asc.NextURL[asc.AppStoreVersionLocalizationsOption](*next),
 				}
 				if len(locales) > 0 {
 					opts = append(opts, asc.WithAppStoreVersionLocalizationLocales(locales))
@@ -476,7 +476,7 @@ Examples:
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppStoreVersionLocalizations(ctx, strings.TrimSpace(*versionID), asc.WithAppStoreVersionLocalizationsNextURL(nextURL))
+					return client.GetAppStoreVersionLocalizations(ctx, strings.TrimSpace(*versionID), asc.NextURL[asc.AppStoreVersionLocalizationsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("localizations download: %w", err)
@@ -520,8 +520,8 @@ Examples:
 				}
 
 				opts := []asc.AppInfoLocalizationsOption{
-					asc.WithAppInfoLocalizationsLimit(pageLimit),
-					asc.WithAppInfoLocalizationsNextURL(*next),
+					asc.Limit[asc.AppInfoLocalizationsOption](pageLimit),
+					asc.NextURL[asc.AppInfoLocalizationsOption](*next),
 				}
 				if len(locales) > 0 {
 					opts = append(opts, asc.WithAppInfoLocalizationLocales(locales))
@@ -533,7 +533,7 @@ Examples:
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppInfoLocalizations(ctx, appInfo, asc.WithAppInfoLocalizationsNextURL(nextURL))
+					return client.GetAppInfoLocalizations(ctx, appInfo, asc.NextURL[asc.AppInfoLocalizationsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("localizations download: %w", err)
@@ -593,8 +593,7 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*path) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --path is required")
-				return shared.MissingRequiredUsageError("--path")
+				return shared.RequiredFlag("--path")
 			}
 
 			normalizedType, err := shared.NormalizeLocalizationType(*locType)

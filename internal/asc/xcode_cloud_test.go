@@ -1011,7 +1011,7 @@ func TestPrintMarkdown_CiProductDeleteResult(t *testing.T) {
 
 func TestBuildCiWorkflowsQuery(t *testing.T) {
 	query := &ciWorkflowsQuery{}
-	WithCiWorkflowsLimit(50)(query)
+	Limit[CiWorkflowsOption](50)(query)
 
 	values, err := url.ParseQuery(buildCiWorkflowsQuery(query))
 	if err != nil {
@@ -1024,7 +1024,7 @@ func TestBuildCiWorkflowsQuery(t *testing.T) {
 
 func TestBuildCiBuildRunsQuery(t *testing.T) {
 	query := &ciBuildRunsQuery{}
-	WithCiBuildRunsLimit(10)(query)
+	Limit[CiBuildRunsOption](10)(query)
 	WithCiBuildRunsSort("-number")(query)
 
 	values, err := url.ParseQuery(buildCiBuildRunsQuery(query))

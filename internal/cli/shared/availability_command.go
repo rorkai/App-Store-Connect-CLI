@@ -429,9 +429,9 @@ func FetchAvailabilityPlatformListings(ctx context.Context, client *asc.Client, 
 	order := []string{}
 	next := ""
 	for {
-		opts := []asc.AppStoreVersionsOption{asc.WithAppStoreVersionsLimit(200)}
+		opts := []asc.AppStoreVersionsOption{asc.Limit[asc.AppStoreVersionsOption](200)}
 		if next != "" {
-			opts = append(opts, asc.WithAppStoreVersionsNextURL(next))
+			opts = append(opts, asc.NextURL[asc.AppStoreVersionsOption](next))
 		}
 		resp, err := client.GetAppStoreVersions(ctx, appID, opts...)
 		if err != nil {
@@ -626,12 +626,12 @@ func updateTerritoryAvailabilityTargets(ctx context.Context, client *asc.Client,
 }
 
 func getAllTerritoryAvailabilities(ctx context.Context, client *asc.Client, availabilityID string) (*asc.TerritoryAvailabilitiesResponse, error) {
-	firstPage, err := client.GetTerritoryAvailabilities(ctx, availabilityID, asc.WithTerritoryAvailabilitiesLimit(200))
+	firstPage, err := client.GetTerritoryAvailabilities(ctx, availabilityID, asc.Limit[asc.TerritoryAvailabilitiesOption](200))
 	if err != nil {
 		return nil, err
 	}
 	paginated, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetTerritoryAvailabilities(ctx, availabilityID, asc.WithTerritoryAvailabilitiesNextURL(nextURL))
+		return client.GetTerritoryAvailabilities(ctx, availabilityID, asc.NextURL[asc.TerritoryAvailabilitiesOption](nextURL))
 	})
 	if err != nil {
 		return nil, err

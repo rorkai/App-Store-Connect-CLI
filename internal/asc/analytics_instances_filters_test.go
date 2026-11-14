@@ -39,7 +39,7 @@ func TestGetAnalyticsReportInstancesUsesDocumentedFilters(t *testing.T) {
 		"report-1",
 		WithAnalyticsReportInstancesGranularities([]string{"daily", " WEEKLY ", "DAILY"}),
 		WithAnalyticsReportInstancesProcessingDates([]string{"2026-02-20", " 2026-02-27 ", "2026-02-20", ""}),
-		WithAnalyticsReportInstancesLimit(200),
+		Limit[AnalyticsReportInstancesOption](200),
 	)
 	if err != nil {
 		t.Fatalf("GetAnalyticsReportInstances() error = %v", err)

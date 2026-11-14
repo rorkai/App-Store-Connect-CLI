@@ -112,8 +112,8 @@ Examples:
 			defer cancel()
 
 			opts := []asc.SubscriptionOfferCodesOption{
-				asc.WithSubscriptionOfferCodesLimit(*limit),
-				asc.WithSubscriptionOfferCodesNextURL(*next),
+				asc.Limit[asc.SubscriptionOfferCodesOption](*limit),
+				asc.NextURL[asc.SubscriptionOfferCodesOption](*next),
 				asc.WithSubscriptionOfferCodesSubscriptionFields(selectedSubscriptionFields),
 				asc.WithSubscriptionOfferCodesInclude(includeRelationshipForFields(selectedSubscriptionFields, "subscription")),
 			}
@@ -121,7 +121,7 @@ Examples:
 			if *paginate {
 				paginateOpts := opts
 				if strings.TrimSpace(*next) == "" {
-					paginateOpts = append(paginateOpts, asc.WithSubscriptionOfferCodesLimit(200))
+					paginateOpts = append(paginateOpts, asc.Limit[asc.SubscriptionOfferCodesOption](200))
 				}
 				firstPage, err := client.GetSubscriptionOfferCodes(requestCtx, id, paginateOpts...)
 				if err != nil {
@@ -129,7 +129,7 @@ Examples:
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetSubscriptionOfferCodes(ctx, id, asc.WithSubscriptionOfferCodesNextURL(nextURL))
+					return client.GetSubscriptionOfferCodes(ctx, id, asc.NextURL[asc.SubscriptionOfferCodesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("subscriptions offer-codes list: %w", err)
@@ -492,19 +492,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.SubscriptionOfferCodeOneTimeUseCodesOption{
-				asc.WithSubscriptionOfferCodeOneTimeUseCodesLimit(*limit),
-				asc.WithSubscriptionOfferCodeOneTimeUseCodesNextURL(*next),
+				asc.Limit[asc.SubscriptionOfferCodeOneTimeUseCodesOption](*limit),
+				asc.NextURL[asc.SubscriptionOfferCodeOneTimeUseCodesOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithSubscriptionOfferCodeOneTimeUseCodesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.SubscriptionOfferCodeOneTimeUseCodesOption](200))
 				firstPage, err := client.GetSubscriptionOfferCodeOneTimeUseCodes(requestCtx, id, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("subscriptions offer-codes one-time-codes list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetSubscriptionOfferCodeOneTimeUseCodes(ctx, id, asc.WithSubscriptionOfferCodeOneTimeUseCodesNextURL(nextURL))
+					return client.GetSubscriptionOfferCodeOneTimeUseCodes(ctx, id, asc.NextURL[asc.SubscriptionOfferCodeOneTimeUseCodesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("subscriptions offer-codes one-time-codes list: %w", err)
@@ -641,8 +641,8 @@ Examples:
 			defer cancel()
 
 			opts := []asc.SubscriptionOfferCodePricesOption{
-				asc.WithSubscriptionOfferCodePricesLimit(*limit),
-				asc.WithSubscriptionOfferCodePricesNextURL(*next),
+				asc.Limit[asc.SubscriptionOfferCodePricesOption](*limit),
+				asc.NextURL[asc.SubscriptionOfferCodePricesOption](*next),
 				asc.WithSubscriptionOfferCodePricesPricePointFields(selectedPricePointFields),
 				asc.WithSubscriptionOfferCodePricesInclude(includeRelationshipForFields(selectedPricePointFields, "subscriptionPricePoint")),
 			}
@@ -650,7 +650,7 @@ Examples:
 			if *paginate {
 				paginateOpts := opts
 				if strings.TrimSpace(*next) == "" {
-					paginateOpts = append(paginateOpts, asc.WithSubscriptionOfferCodePricesLimit(200))
+					paginateOpts = append(paginateOpts, asc.Limit[asc.SubscriptionOfferCodePricesOption](200))
 				}
 				firstPage, err := client.GetSubscriptionOfferCodePrices(requestCtx, id, paginateOpts...)
 				if err != nil {
@@ -658,7 +658,7 @@ Examples:
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetSubscriptionOfferCodePrices(ctx, id, asc.WithSubscriptionOfferCodePricesNextURL(nextURL))
+					return client.GetSubscriptionOfferCodePrices(ctx, id, asc.NextURL[asc.SubscriptionOfferCodePricesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("subscriptions offer-codes prices: %w", err)

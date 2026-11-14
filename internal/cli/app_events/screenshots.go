@@ -96,18 +96,18 @@ Examples:
 			}
 
 			opts := []asc.LinkagesOption{
-				asc.WithLinkagesLimit(*limit),
-				asc.WithLinkagesNextURL(*next),
+				asc.Limit[asc.LinkagesOption](*limit),
+				asc.NextURL[asc.LinkagesOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithLinkagesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.LinkagesOption](200))
 				firstPage, err := client.GetAppEventScreenshotsRelationships(requestCtx, resolvedLocalizationID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("app-events screenshots links: failed to fetch: %w", err)
 				}
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppEventScreenshotsRelationships(ctx, resolvedLocalizationID, asc.WithLinkagesNextURL(nextURL))
+					return client.GetAppEventScreenshotsRelationships(ctx, resolvedLocalizationID, asc.NextURL[asc.LinkagesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("app-events screenshots links: %w", err)
@@ -178,19 +178,19 @@ Examples:
 			}
 
 			opts := []asc.AppEventScreenshotsOption{
-				asc.WithAppEventScreenshotsLimit(*limit),
-				asc.WithAppEventScreenshotsNextURL(*next),
+				asc.Limit[asc.AppEventScreenshotsOption](*limit),
+				asc.NextURL[asc.AppEventScreenshotsOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithAppEventScreenshotsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.AppEventScreenshotsOption](200))
 				firstPage, err := client.GetAppEventScreenshots(requestCtx, resolvedLocalizationID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("app-events screenshots list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppEventScreenshots(ctx, resolvedLocalizationID, asc.WithAppEventScreenshotsNextURL(nextURL))
+					return client.GetAppEventScreenshots(ctx, resolvedLocalizationID, asc.NextURL[asc.AppEventScreenshotsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("app-events screenshots list: %w", err)
@@ -229,8 +229,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*screenshotID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --screenshot-id is required")
-				return shared.MissingRequiredUsageError("--screenshot-id")
+				return shared.RequiredFlag("--screenshot-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -276,8 +275,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			pathValue := strings.TrimSpace(*path)
 			if pathValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --path is required")
-				return shared.MissingRequiredUsageError("--path")
+				return shared.RequiredFlag("--path")
 			}
 			if strings.TrimSpace(*localizationID) == "" && strings.TrimSpace(*eventID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --event-id or --localization-id is required")
@@ -360,12 +358,10 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*screenshotID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --screenshot-id is required")
-				return shared.MissingRequiredUsageError("--screenshot-id")
+				return shared.RequiredFlag("--screenshot-id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()

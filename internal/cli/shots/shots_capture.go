@@ -39,13 +39,11 @@ macOS: app must be running. Captures the frontmost visible window by bundle ID.
 		Exec: func(ctx context.Context, args []string) error {
 			bundleIDVal := strings.TrimSpace(*bundleID)
 			if bundleIDVal == "" {
-				fmt.Fprintln(os.Stderr, "Error: --bundle-id is required")
-				return shared.MissingRequiredUsageError("--bundle-id")
+				return shared.RequiredFlag("--bundle-id")
 			}
 			nameVal := strings.TrimSpace(*name)
 			if nameVal == "" {
-				fmt.Fprintln(os.Stderr, "Error: --name is required")
-				return shared.MissingRequiredUsageError("--name")
+				return shared.RequiredFlag("--name")
 			}
 			if nameVal == "." || nameVal == ".." || strings.ContainsAny(nameVal, `/\`) {
 				fmt.Fprintln(os.Stderr, "Error: --name must be a file name without path separators")

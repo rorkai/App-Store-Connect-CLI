@@ -2,9 +2,7 @@ package asc
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"net/http"
 	"strings"
 )
 
@@ -79,19 +77,10 @@ func (c *Client) GetAppStoreVersionReviewDetailRelationship(ctx context.Context,
 	if versionID == "" {
 		return nil, fmt.Errorf("versionID is required")
 	}
-
-	path := fmt.Sprintf("/v1/appStoreVersions/%s/relationships/appStoreReviewDetail", versionID)
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppStoreVersionReviewDetailLinkageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse appStoreReviewDetail relationship response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppStoreVersionReviewDetailLinkageResponse](ctx, c, readRequest{
+		Path:     fmt.Sprintf("/v1/appStoreVersions/%s/relationships/appStoreReviewDetail", versionID),
+		ParseErr: "failed to parse appStoreReviewDetail relationship response",
+	})
 }
 
 // GetAppStoreVersionAppClipDefaultExperienceRelationship retrieves the app clip default experience linkage.
@@ -100,19 +89,10 @@ func (c *Client) GetAppStoreVersionAppClipDefaultExperienceRelationship(ctx cont
 	if versionID == "" {
 		return nil, fmt.Errorf("versionID is required")
 	}
-
-	path := fmt.Sprintf("/v1/appStoreVersions/%s/relationships/appClipDefaultExperience", versionID)
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppStoreVersionAppClipDefaultExperienceLinkageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse appClipDefaultExperience relationship response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppStoreVersionAppClipDefaultExperienceLinkageResponse](ctx, c, readRequest{
+		Path:     fmt.Sprintf("/v1/appStoreVersions/%s/relationships/appClipDefaultExperience", versionID),
+		ParseErr: "failed to parse appClipDefaultExperience relationship response",
+	})
 }
 
 // GetAppStoreVersionBuildRelationship retrieves the build linkage for a version.
@@ -121,19 +101,10 @@ func (c *Client) GetAppStoreVersionBuildRelationship(ctx context.Context, versio
 	if versionID == "" {
 		return nil, fmt.Errorf("versionID is required")
 	}
-
-	path := fmt.Sprintf("/v1/appStoreVersions/%s/relationships/build", versionID)
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppStoreVersionBuildLinkageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse build relationship response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppStoreVersionBuildLinkageResponse](ctx, c, readRequest{
+		Path:     fmt.Sprintf("/v1/appStoreVersions/%s/relationships/build", versionID),
+		ParseErr: "failed to parse build relationship response",
+	})
 }
 
 // GetAppStoreVersionExperimentsRelationships retrieves experiment linkages for a version (v1).
@@ -168,19 +139,10 @@ func (c *Client) GetAppStoreVersionSubmissionRelationship(ctx context.Context, v
 	if versionID == "" {
 		return nil, fmt.Errorf("versionID is required")
 	}
-
-	path := fmt.Sprintf("/v1/appStoreVersions/%s/relationships/appStoreVersionSubmission", versionID)
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppStoreVersionSubmissionLinkageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse appStoreVersionSubmission relationship response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppStoreVersionSubmissionLinkageResponse](ctx, c, readRequest{
+		Path:     fmt.Sprintf("/v1/appStoreVersions/%s/relationships/appStoreVersionSubmission", versionID),
+		ParseErr: "failed to parse appStoreVersionSubmission relationship response",
+	})
 }
 
 // GetAppStoreVersionCustomerReviewsRelationships retrieves customer review linkages for a version.
@@ -202,19 +164,10 @@ func (c *Client) GetAppStoreVersionRoutingAppCoverageRelationship(ctx context.Co
 	if versionID == "" {
 		return nil, fmt.Errorf("versionID is required")
 	}
-
-	path := fmt.Sprintf("/v1/appStoreVersions/%s/relationships/routingAppCoverage", versionID)
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppStoreVersionRoutingAppCoverageLinkageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse routingAppCoverage relationship response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppStoreVersionRoutingAppCoverageLinkageResponse](ctx, c, readRequest{
+		Path:     fmt.Sprintf("/v1/appStoreVersions/%s/relationships/routingAppCoverage", versionID),
+		ParseErr: "failed to parse routingAppCoverage relationship response",
+	})
 }
 
 // GetAppStoreVersionGameCenterAppVersionRelationship retrieves Game Center app version linkage.
@@ -223,17 +176,8 @@ func (c *Client) GetAppStoreVersionGameCenterAppVersionRelationship(ctx context.
 	if versionID == "" {
 		return nil, fmt.Errorf("versionID is required")
 	}
-
-	path := fmt.Sprintf("/v1/appStoreVersions/%s/relationships/gameCenterAppVersion", versionID)
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppStoreVersionGameCenterAppVersionLinkageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse gameCenterAppVersion relationship response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppStoreVersionGameCenterAppVersionLinkageResponse](ctx, c, readRequest{
+		Path:     fmt.Sprintf("/v1/appStoreVersions/%s/relationships/gameCenterAppVersion", versionID),
+		ParseErr: "failed to parse gameCenterAppVersion relationship response",
+	})
 }

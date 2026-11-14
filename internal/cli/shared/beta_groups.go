@@ -60,7 +60,7 @@ type AddBuildBetaGroupsResult struct {
 // list of group names or IDs.
 func ResolveBetaGroups(ctx context.Context, client betaGroupsClient, appID, rawGroups string, opts ResolveBetaGroupsOptions) ([]ResolvedBetaGroup, error) {
 	groups := SplitCSV(rawGroups)
-	page, err := client.GetBetaGroups(ctx, appID, asc.WithBetaGroupsLimit(200))
+	page, err := client.GetBetaGroups(ctx, appID, asc.Limit[asc.BetaGroupsOption](200))
 	if err == nil && !betaGroupPageContainsAllIDs(page, groups) {
 		page, err = paginateBetaGroups(ctx, client, appID, page)
 	}
@@ -230,7 +230,7 @@ func AddBuildBetaGroups(ctx context.Context, client buildBetaGroupsMutationClien
 
 // ListAllBetaGroups fetches and paginates all beta groups for an app.
 func ListAllBetaGroups(ctx context.Context, client betaGroupsClient, appID string) (*asc.BetaGroupsResponse, error) {
-	firstPage, err := client.GetBetaGroups(ctx, appID, asc.WithBetaGroupsLimit(200))
+	firstPage, err := client.GetBetaGroups(ctx, appID, asc.Limit[asc.BetaGroupsOption](200))
 	if err != nil {
 		return nil, err
 	}
@@ -243,7 +243,7 @@ func paginateBetaGroups(ctx context.Context, client betaGroupsClient, appID stri
 	}
 
 	paginated, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetBetaGroups(ctx, appID, asc.WithBetaGroupsNextURL(nextURL))
+		return client.GetBetaGroups(ctx, appID, asc.NextURL[asc.BetaGroupsOption](nextURL))
 	})
 	if err != nil {
 		return nil, err

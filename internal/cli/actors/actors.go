@@ -12,11 +12,6 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// ActorsCommand returns the actors command with subcommands.
-func ActorsCommand() *ffcli.Command {
-	return NewActorsCommand(shared.DefaultDeps())
-}
-
 // NewActorsCommand returns the actors command with subcommands built on d.
 func NewActorsCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("actors", flag.ExitOnError)

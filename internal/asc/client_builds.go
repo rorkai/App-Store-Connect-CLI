@@ -373,10 +373,7 @@ func (c *Client) GetBuilds(ctx context.Context, appID string, opts ...BuildsOpti
 
 // GetBuild retrieves a single build by ID.
 func (c *Client) GetBuild(ctx context.Context, buildID string, opts ...BuildOption) (*BuildResponse, error) {
-	query := &buildQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 	path := fmt.Sprintf("/v1/builds/%s", buildID)
 	if len(query.include) > 0 {
 		values := url.Values{}
@@ -384,33 +381,12 @@ func (c *Client) GetBuild(ctx context.Context, buildID string, opts ...BuildOpti
 		query.includedFields.AddTo(values)
 		path += "?" + values.Encode()
 	}
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BuildResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[BuildResponse](ctx, c, readRequest{Path: path})
 }
 
 // GetBuildAppStoreVersion retrieves the app store version for a build.
 func (c *Client) GetBuildAppStoreVersion(ctx context.Context, buildID string) (*AppStoreVersionResponse, error) {
-	path := fmt.Sprintf("/v1/builds/%s/appStoreVersion", buildID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppStoreVersionResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppStoreVersionResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/builds/%s/appStoreVersion", buildID)})
 }
 
 // GetBuildAppEncryptionDeclaration retrieves the encryption declaration for a build.
@@ -420,18 +396,7 @@ func (c *Client) GetBuildAppEncryptionDeclaration(ctx context.Context, buildID s
 		return nil, fmt.Errorf("buildID is required")
 	}
 
-	path := fmt.Sprintf("/v1/builds/%s/appEncryptionDeclaration", buildID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppEncryptionDeclarationResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppEncryptionDeclarationResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/builds/%s/appEncryptionDeclaration", buildID)})
 }
 
 // BuildUpdateAttributes describes mutable attributes on a build resource.
@@ -659,51 +624,24 @@ func (c *Client) RemoveBetaGroupsFromBuild(ctx context.Context, buildID string, 
 		}
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v1/builds/%s/relationships/betaGroups", buildID)
-	if _, err := c.do(ctx, "DELETE", path, body); err != nil {
-		return err
-	}
-	return nil
+	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/builds/%s/relationships/betaGroups", buildID), payload)
 }
 
 // GetBuildIndividualTesters retrieves individual testers assigned to a build.
 func (c *Client) GetBuildIndividualTesters(ctx context.Context, buildID string, opts ...BuildIndividualTestersOption) (*BetaTestersResponse, error) {
-	query := &buildIndividualTestersQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
 	buildID = strings.TrimSpace(buildID)
 	if query.nextURL == "" && buildID == "" {
 		return nil, fmt.Errorf("buildID is required")
 	}
 
-	path := fmt.Sprintf("/v1/builds/%s/individualTesters", buildID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("buildIndividualTesters: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildBuildIndividualTestersQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BetaTestersResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[BetaTestersResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/builds/%s/individualTesters", buildID),
+		Query:       buildBuildIndividualTestersQuery(query),
+		Next:        query.nextURL,
+		NextContext: "buildIndividualTesters",
+	})
 }
 
 // AddIndividualTestersToBuild adds individual testers to a build.
@@ -727,16 +665,7 @@ func (c *Client) AddIndividualTestersToBuild(ctx context.Context, buildID string
 		}
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v1/builds/%s/relationships/individualTesters", buildID)
-	if _, err := c.do(ctx, "POST", path, body); err != nil {
-		return err
-	}
-	return nil
+	return sendNoContent(ctx, c, "POST", fmt.Sprintf("/v1/builds/%s/relationships/individualTesters", buildID), payload)
 }
 
 // RemoveIndividualTestersFromBuild removes individual testers from a build.
@@ -760,16 +689,7 @@ func (c *Client) RemoveIndividualTestersFromBuild(ctx context.Context, buildID s
 		}
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v1/builds/%s/relationships/individualTesters", buildID)
-	if _, err := c.do(ctx, "DELETE", path, body); err != nil {
-		return err
-	}
-	return nil
+	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/builds/%s/relationships/individualTesters", buildID), payload)
 }
 
 // GetBuildUploads retrieves build uploads for an app.
@@ -809,22 +729,7 @@ func (c *Client) GetBuildUploads(ctx context.Context, appID string, opts ...Buil
 
 // CreateBuildUpload creates a new build upload record.
 func (c *Client) CreateBuildUpload(ctx context.Context, req BuildUploadCreateRequest) (*BuildUploadResponse, error) {
-	body, err := BuildRequestBody(req)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "POST", "/v1/buildUploads", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BuildUploadResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[BuildUploadResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/buildUploads", Payload: req})
 }
 
 // DeleteBuildUpload deletes a build upload by ID.
@@ -833,8 +738,7 @@ func (c *Client) DeleteBuildUpload(ctx context.Context, id string) error {
 	if id == "" {
 		return fmt.Errorf("id is required")
 	}
-	_, err := c.do(ctx, "DELETE", fmt.Sprintf("/v1/buildUploads/%s", id), nil)
-	return err
+	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/buildUploads/%s", id), nil)
 }
 
 // GetBuildUpload retrieves a build upload by ID.
@@ -844,61 +748,25 @@ func (c *Client) GetBuildUpload(ctx context.Context, id string, opts ...BuildUpl
 		return nil, fmt.Errorf("id is required")
 	}
 
-	query := &buildUploadQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-	path := fmt.Sprintf("/v1/buildUploads/%s", id)
-	if queryString := buildBuildUploadQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BuildUploadResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[BuildUploadResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/buildUploads/%s", id), Query: buildBuildUploadQuery(query)})
 }
 
 // GetBuildUploadFiles retrieves upload files for a build upload.
 func (c *Client) GetBuildUploadFiles(ctx context.Context, uploadID string, opts ...BuildUploadFilesOption) (*BuildUploadFilesResponse, error) {
-	query := &buildUploadFilesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
 	uploadID = strings.TrimSpace(uploadID)
 	if query.nextURL == "" && uploadID == "" {
 		return nil, fmt.Errorf("uploadID is required")
 	}
 
-	path := fmt.Sprintf("/v1/buildUploads/%s/buildUploadFiles", uploadID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("buildUploadFiles: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildBuildUploadFilesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BuildUploadFilesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[BuildUploadFilesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/buildUploads/%s/buildUploadFiles", uploadID),
+		Query:       buildBuildUploadFilesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "buildUploadFiles",
+	})
 }
 
 // GetBuildUploadFile retrieves a build upload file by ID.
@@ -908,37 +776,12 @@ func (c *Client) GetBuildUploadFile(ctx context.Context, id string) (*BuildUploa
 		return nil, fmt.Errorf("id is required")
 	}
 
-	data, err := c.do(ctx, "GET", fmt.Sprintf("/v1/buildUploadFiles/%s", id), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BuildUploadFileResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[BuildUploadFileResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/buildUploadFiles/%s", id)})
 }
 
 // CreateBuildUploadFile creates a new build upload file reservation.
 func (c *Client) CreateBuildUploadFile(ctx context.Context, req BuildUploadFileCreateRequest) (*BuildUploadFileResponse, error) {
-	body, err := BuildRequestBody(req)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "POST", "/v1/buildUploadFiles", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BuildUploadFileResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[BuildUploadFileResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/buildUploadFiles", Payload: req})
 }
 
 // UpdateBuildUploadFile updates a build upload file (used to commit upload).

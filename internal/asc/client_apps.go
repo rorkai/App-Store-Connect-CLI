@@ -2,7 +2,6 @@ package asc
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 )
@@ -91,33 +90,13 @@ type AppResponse = SingleResponse[AppAttributes]
 
 // GetApps retrieves the list of apps
 func (c *Client) GetApps(ctx context.Context, opts ...AppsOption) (*AppsResponse, error) {
-	query := &appsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := "/v1/apps"
-	if query.nextURL != "" {
-		// Validate nextURL to prevent credential exfiltration
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("apps: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildAppsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[AppsResponse](ctx, c, readRequest{
+		Path:        "/v1/apps",
+		Query:       buildAppsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "apps",
+	})
 }
 
 // GetApp retrieves a single app by ID.
@@ -127,62 +106,30 @@ func (c *Client) GetApp(ctx context.Context, appID string) (*AppResponse, error)
 
 // GetAppWithOptions retrieves a single app by ID with sparse fields and includes.
 func (c *Client) GetAppWithOptions(ctx context.Context, appID string, opts ...AppOption) (*AppResponse, error) {
-	query := &appQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
 	appID = strings.TrimSpace(appID)
-	path := fmt.Sprintf("/v1/apps/%s", appID)
-	if queryString := buildAppQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/apps/%s", appID),
+		Query: buildAppQuery(query),
+	})
 }
 
 // GetAppBetaAppLocalizations retrieves beta app localizations for an app.
 func (c *Client) GetAppBetaAppLocalizations(ctx context.Context, appID string, opts ...AppBetaAppLocalizationsOption) (*BetaAppLocalizationsResponse, error) {
-	query := &listQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
 	appID = strings.TrimSpace(appID)
 	if query.nextURL == "" && appID == "" {
 		return nil, fmt.Errorf("appID is required")
 	}
 
-	path := fmt.Sprintf("/v1/apps/%s/betaAppLocalizations", appID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appBetaAppLocalizations: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildListQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BetaAppLocalizationsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[BetaAppLocalizationsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/apps/%s/betaAppLocalizations", appID),
+		Query:       buildListQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appBetaAppLocalizations",
+	})
 }
 
 // GetAppBetaAppReviewDetail retrieves beta app review detail for an app.
@@ -192,18 +139,7 @@ func (c *Client) GetAppBetaAppReviewDetail(ctx context.Context, appID string) (*
 		return nil, fmt.Errorf("appID is required")
 	}
 
-	path := fmt.Sprintf("/v1/apps/%s/betaAppReviewDetail", appID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BetaAppReviewDetailResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[BetaAppReviewDetailResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/apps/%s/betaAppReviewDetail", appID)})
 }
 
 // GetAppSubscriptionGracePeriod retrieves the subscription grace period for an app.
@@ -213,18 +149,7 @@ func (c *Client) GetAppSubscriptionGracePeriod(ctx context.Context, appID string
 		return nil, fmt.Errorf("app ID is required")
 	}
 
-	path := fmt.Sprintf("/v1/apps/%s/subscriptionGracePeriod", appID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response SubscriptionGracePeriodResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[SubscriptionGracePeriodResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/apps/%s/subscriptionGracePeriod", appID)})
 }
 
 // GetAppBetaTesterUsagesMetrics retrieves beta tester usage metrics for an app.
@@ -260,37 +185,19 @@ func (c *Client) GetAppBetaTesterUsagesMetrics(ctx context.Context, appID string
 
 // GetAppPreReleaseVersions retrieves pre-release versions for an app.
 func (c *Client) GetAppPreReleaseVersions(ctx context.Context, appID string, opts ...AppPreReleaseVersionsOption) (*PreReleaseVersionsResponse, error) {
-	query := &listQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
 	appID = strings.TrimSpace(appID)
 	if query.nextURL == "" && appID == "" {
 		return nil, fmt.Errorf("appID is required")
 	}
 
-	path := fmt.Sprintf("/v1/apps/%s/preReleaseVersions", appID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appPreReleaseVersions: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildListQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response PreReleaseVersionsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[PreReleaseVersionsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/apps/%s/preReleaseVersions", appID),
+		Query:       buildListQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appPreReleaseVersions",
+	})
 }
 
 // UpdateApp updates an app by ID.
@@ -310,22 +217,11 @@ func (c *Client) UpdateApp(ctx context.Context, appID string, attrs AppUpdateAtt
 		payload.Data.Attributes = &attrs
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "PATCH", fmt.Sprintf("/v1/apps/%s", appID), body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppResponse](ctx, c, writeRequest{
+		Method:  "PATCH",
+		Path:    fmt.Sprintf("/v1/apps/%s", appID),
+		Payload: payload,
+	})
 }
 
 // CreateApp creates a new app in App Store Connect.
@@ -347,72 +243,32 @@ func (c *Client) CreateApp(ctx context.Context, attrs AppCreateAttributes) (*App
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "POST", "/v1/apps", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppResponse](ctx, c, writeRequest{
+		Method:  "POST",
+		Path:    "/v1/apps",
+		Payload: payload,
+	})
 }
 
 // GetAppSearchKeywords retrieves search keywords for an app.
 func (c *Client) GetAppSearchKeywords(ctx context.Context, appID string, opts ...AppSearchKeywordsOption) (*AppKeywordsResponse, error) {
-	query := &appSearchKeywordsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
 	appID = strings.TrimSpace(appID)
 	if query.nextURL == "" && appID == "" {
 		return nil, fmt.Errorf("appID is required")
 	}
 
-	path := fmt.Sprintf("/v1/apps/%s/searchKeywords", appID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("searchKeywords: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildAppSearchKeywordsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppKeywordsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppKeywordsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/apps/%s/searchKeywords", appID),
+		Query:       buildAppSearchKeywordsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "searchKeywords",
+	})
 }
 
 // GetAppCiProduct retrieves the CI product for an app.
 func (c *Client) GetAppCiProduct(ctx context.Context, appID string) (*CiProductResponse, error) {
 	appID = strings.TrimSpace(appID)
-	path := fmt.Sprintf("/v1/apps/%s/ciProduct", appID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response CiProductResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[CiProductResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/apps/%s/ciProduct", appID)})
 }

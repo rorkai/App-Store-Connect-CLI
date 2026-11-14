@@ -147,7 +147,7 @@ Examples:
 
 			opts := []asc.AppCategoriesOption{
 				asc.WithAppCategoriesLimit(*limit),
-				asc.WithAppCategoriesNextURL(*next),
+				asc.NextURL[asc.AppCategoriesOption](*next),
 			}
 
 			if *paginate {
@@ -157,7 +157,7 @@ Examples:
 					return fmt.Errorf("categories subcategories: failed to fetch: %w", err)
 				}
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppCategorySubcategories(ctx, trimmedID, asc.WithAppCategoriesNextURL(nextURL))
+					return client.GetAppCategorySubcategories(ctx, trimmedID, asc.NextURL[asc.AppCategoriesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("categories subcategories: %w", err)

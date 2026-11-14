@@ -100,7 +100,7 @@ Examples:
 			case trimmedDiagnosticID != "":
 				defaultOutput := fmt.Sprintf("diagnostic_logs_%s.json", trimmedDiagnosticID)
 
-				download, err := client.DownloadDiagnosticSignatureLogs(requestCtx, trimmedDiagnosticID, asc.WithDiagnosticLogsLimit(*limit))
+				download, err := client.DownloadDiagnosticSignatureLogs(requestCtx, trimmedDiagnosticID, asc.Limit[asc.DiagnosticLogsOption](*limit))
 				if err != nil {
 					return fmt.Errorf("performance download: %w", err)
 				}

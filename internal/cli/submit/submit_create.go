@@ -297,7 +297,7 @@ func prepareReviewSubmissionForCreateWithPageLimit(
 		asc.WithReviewSubmissionsStates([]string{string(asc.ReviewSubmissionStateReadyForReview)}),
 		asc.WithReviewSubmissionsPlatforms([]string{platform}),
 		asc.WithReviewSubmissionsInclude([]string{"appStoreVersionForReview"}),
-		asc.WithReviewSubmissionsLimit(200),
+		asc.Limit[asc.ReviewSubmissionsOption](200),
 	)
 	if err != nil {
 		return submitCreateReviewSubmissionPreparation{}, fmt.Errorf("query ready review submissions: %w", err)
@@ -317,7 +317,7 @@ func prepareReviewSubmissionForCreateWithPageLimit(
 			return nil, fmt.Errorf("review submission discovery pagination must not exceed %d pages", maxPages)
 		}
 		submissionPages++
-		next, nextErr := client.GetReviewSubmissionsStrict(ctx, appID, asc.WithReviewSubmissionsNextURL(nextURL))
+		next, nextErr := client.GetReviewSubmissionsStrict(ctx, appID, asc.NextURL[asc.ReviewSubmissionsOption](nextURL))
 		if nextErr != nil {
 			return nil, nextErr
 		}
@@ -575,7 +575,7 @@ func summarizeReviewSubmissionItemsWithPageLimit(
 		submissionID,
 		asc.WithReviewSubmissionItemsInclude([]string{"appStoreVersion"}),
 		asc.WithReviewSubmissionItemsFields([]string{"appStoreVersion"}),
-		asc.WithReviewSubmissionItemsLimit(200),
+		asc.Limit[asc.ReviewSubmissionItemsOption](200),
 	)
 	if err != nil {
 		return summary, err
@@ -629,7 +629,7 @@ func summarizeReviewSubmissionItemsWithPageLimit(
 		if page >= maxPages {
 			return nil, fmt.Errorf("review submission items pagination must not exceed %d pages", maxPages)
 		}
-		return client.GetReviewSubmissionItemsStrict(fetchCtx, submissionID, asc.WithReviewSubmissionItemsNextURL(strings.TrimSpace(nextURL)))
+		return client.GetReviewSubmissionItemsStrict(fetchCtx, submissionID, asc.NextURL[asc.ReviewSubmissionItemsOption](strings.TrimSpace(nextURL)))
 	}
 	if err := asc.PaginateEach(ctx, resp, fetchNext, consume); err != nil {
 		return summary, err

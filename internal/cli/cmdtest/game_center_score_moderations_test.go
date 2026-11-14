@@ -1,49 +1,33 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestGameCenterScoreModerations(t *testing.T) {
 	for _, format := range []string{"json", "table", "markdown"} {
 		t.Run(format, func(t *testing.T) {
 			setupAuth(t)
-			calls := 0
-			installDefaultTransport(t, roundTripFunc(func(r *http.Request) (*http.Response, error) {
-				calls++
-				if r.Method != http.MethodGet || r.URL.Path != "/v2/gameCenterLeaderboards/lb-45/gameCenterScoreModerations" {
-					t.Errorf("request %s %s", r.Method, r.URL)
-				}
-				q := r.URL.Query()
-				if calls == 1 {
-					if q.Get("exists[blocked]") != "false" || q.Get("include") != "player" || q.Get("limit") != "1" || q.Get("fields[gameCenterScoreModerations]") != "rank,score,blocked,player" || q.Get("fields[gameCenterDetailPlayers]") != "nickname,blocked" {
-						t.Errorf("query=%v", q)
-					}
-				} else if q.Get("cursor") != "page2" {
-					t.Errorf("next query=%v", q)
-				}
-				next := "null"
-				if calls == 1 {
-					next = `"https://api.appstoreconnect.apple.com/v2/gameCenterLeaderboards/lb-45/gameCenterScoreModerations?cursor=page2"`
-				}
-				body := fmt.Sprintf(`{"data":[{"type":"gameCenterScoreModerations","id":"score-%d","attributes":{"rank":"1","score":"9007199254740993","blocked":false,"preReleased":false,"context":"18446744073709551615","challengeIds":[]},"relationships":{"player":{"data":{"type":"gameCenterDetailPlayers","id":"player-45"}}}}],"links":{"next":%s},"included":[{"type":"gameCenterDetailPlayers","id":"player-45","attributes":{"nickname":"Runner","blocked":false}}],"meta":{"paging":{"total":2}}}`, calls, next)
-				return &http.Response{StatusCode: 200, Header: http.Header{"Content-Type": []string{"application/json"}}, Body: io.NopCloser(strings.NewReader(body))}, nil
-			}))
-			root := RootCommand("test")
-			var runErr error
-			out, errout := captureOutput(t, func() {
-				runErr = root.ParseAndRun(context.Background(), []string{"game-center", "leaderboards", "v2", "score-moderations", "list", "--leaderboard-id", "lb-45", "--exists-blocked", "false", "--include", "player", "--fields", "rank,score,blocked", "--player-fields", "nickname,blocked", "--limit", "1", "--paginate", "--output", format})
-			})
+			page := func(n int, next string) string {
+				return fmt.Sprintf(`{"data":[{"type":"gameCenterScoreModerations","id":"score-%d","attributes":{"rank":"1","score":"9007199254740993","blocked":false,"preReleased":false,"context":"18446744073709551615","challengeIds":[]},"relationships":{"player":{"data":{"type":"gameCenterDetailPlayers","id":"player-45"}}}}],"links":{"next":%s},"included":[{"type":"gameCenterDetailPlayers","id":"player-45","attributes":{"nickname":"Runner","blocked":false}}],"meta":{"paging":{"total":2}}}`, n, next)
+			}
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET("/v2/gameCenterLeaderboards/lb-45/gameCenterScoreModerations", "exists[blocked]=false", "include=player", "limit=1", "fields[gameCenterScoreModerations]=rank,score,blocked,player", "fields[gameCenterDetailPlayers]=nickname,blocked"),
+				asctest.JSON(http.StatusOK, page(1, `"https://api.appstoreconnect.apple.com/v2/gameCenterLeaderboards/lb-45/gameCenterScoreModerations?cursor=page2"`)))
+			reg.Register(asctest.GET("/v2/gameCenterLeaderboards/lb-45/gameCenterScoreModerations", "cursor=page2"),
+				asctest.JSON(http.StatusOK, page(2, "null")))
+			out, errout, runErr := runCommand(t, []string{"game-center", "leaderboards", "v2", "score-moderations", "list", "--leaderboard-id", "lb-45", "--exists-blocked", "false", "--include", "player", "--fields", "rank,score,blocked", "--player-fields", "nickname,blocked", "--limit", "1", "--paginate", "--output", format})
 			if runErr != nil || errout != "" {
 				t.Fatalf("run=%v stderr=%s", runErr, errout)
 			}
-			if calls != 2 || !strings.Contains(out, "score-2") || !strings.Contains(out, "9007199254740993") {
+			if calls := len(reg.Requests()); calls != 2 || !strings.Contains(out, "score-2") || !strings.Contains(out, "9007199254740993") {
 				t.Fatalf("calls=%d output=%s", calls, out)
 			}
 			if format == "json" {
@@ -70,29 +54,11 @@ func TestGameCenterScoreModerationUpdate(t *testing.T) {
 	for _, blocked := range []string{"true", "false"} {
 		t.Run(blocked, func(t *testing.T) {
 			setupAuth(t)
-			installDefaultTransport(t, roundTripFunc(func(r *http.Request) (*http.Response, error) {
-				if r.Method != http.MethodPatch || r.URL.Path != "/v1/gameCenterScoreModerations/score-45" {
-					t.Errorf("request %s %s", r.Method, r.URL)
-				}
-				body, _ := io.ReadAll(r.Body)
-				var got map[string]any
-				if err := json.Unmarshal(body, &got); err != nil {
-					t.Fatal(err)
-				}
-				want := fmt.Sprintf(`{"data":{"type":"gameCenterScoreModerations","id":"score-45","attributes":{"blocked":%s}}}`, blocked)
-				compact, _ := json.Marshal(got)
-				var expected map[string]any
-				_ = json.Unmarshal([]byte(want), &expected)
-				normalized, _ := json.Marshal(expected)
-				if string(compact) != string(normalized) {
-					t.Errorf("body=%s want=%s", body, want)
-				}
-				return &http.Response{StatusCode: 200, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(want))}, nil
-			}))
-			var runErr error
-			out, stderr := captureOutput(t, func() {
-				runErr = RootCommand("test").ParseAndRun(context.Background(), []string{"game-center", "leaderboards", "v2", "score-moderations", "update", "--id", "score-45", "--blocked", blocked, "--confirm", "--output", "json"})
-			})
+			want := fmt.Sprintf(`{"data":{"type":"gameCenterScoreModerations","id":"score-45","attributes":{"blocked":%s}}}`, blocked)
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.PATCH("/v1/gameCenterScoreModerations/score-45").JSONBody(want), asctest.JSON(http.StatusOK, want))
+			out, stderr, runErr := runCommand(t, []string{"game-center", "leaderboards", "v2", "score-moderations", "update", "--id", "score-45", "--blocked", blocked, "--confirm", "--output", "json"})
 			if runErr != nil || stderr != "" || !strings.Contains(out, `"blocked":`+blocked) {
 				t.Fatalf("run=%v stdout=%s stderr=%s", runErr, out, stderr)
 			}
@@ -132,16 +98,10 @@ func TestGameCenterScoreModerationNextAndErrors(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			setupAuth(t)
-			installDefaultTransport(t, roundTripFunc(func(r *http.Request) (*http.Response, error) {
-				if r.URL.Query().Get("cursor") != "next" {
-					t.Errorf("query=%s", r.URL.RawQuery)
-				}
-				return &http.Response{StatusCode: tt.status, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(tt.body))}, nil
-			}))
-			var runErr error
-			out, stderr := captureOutput(t, func() {
-				runErr = RootCommand("test").ParseAndRun(context.Background(), []string{"game-center", "leaderboards", "v2", "score-moderations", "list", "--next", "https://api.appstoreconnect.apple.com/v2/gameCenterLeaderboards/lb/gameCenterScoreModerations?cursor=next", "--output", "json"})
-			})
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET("/v2/gameCenterLeaderboards/lb/gameCenterScoreModerations", "cursor=next"), asctest.JSON(tt.status, tt.body))
+			out, stderr, runErr := runCommand(t, []string{"game-center", "leaderboards", "v2", "score-moderations", "list", "--next", "https://api.appstoreconnect.apple.com/v2/gameCenterLeaderboards/lb/gameCenterScoreModerations?cursor=next", "--output", "json"})
 			if tt.name == "next only" {
 				if runErr != nil || stderr != "" || !strings.Contains(out, tt.want) {
 					t.Fatalf("run=%v out=%s stderr=%s", runErr, out, stderr)
@@ -154,28 +114,25 @@ func TestGameCenterScoreModerationNextAndErrors(t *testing.T) {
 }
 
 func TestGameCenterScoreModerationsUnservedEndpoint(t *testing.T) {
+	const scoreModerationsPath = "/v2/gameCenterLeaderboards/lb-45/gameCenterScoreModerations"
 	pathError := `{"status":"404","code":"PATH_ERROR","title":"The URL path is not valid","detail":"The resource 'v2/gameCenterLeaderboards' does not exist"}`
 	for _, tc := range []struct {
 		name     string
 		errors   string
 		args     []string
+		query    []string
 		wantHint bool
 	}{
-		{"path error", pathError, []string{"--leaderboard-id", "lb-45"}, true},
-		{"path error after another error", `{"status":"404","code":"NOT_FOUND","title":"Not found"},` + pathError, []string{"--leaderboard-id", "lb-45"}, true},
-		{"caller next URL", pathError, []string{"--next", "https://api.appstoreconnect.apple.com/v2/gameCenterLeaderboards/lb-45/gameCenterScoreModerations?cursor=stale"}, false},
+		{"path error", pathError, []string{"--leaderboard-id", "lb-45"}, nil, true},
+		{"path error after another error", `{"status":"404","code":"NOT_FOUND","title":"Not found"},` + pathError, []string{"--leaderboard-id", "lb-45"}, nil, true},
+		{"caller next URL", pathError, []string{"--next", "https://api.appstoreconnect.apple.com/v2/gameCenterLeaderboards/lb-45/gameCenterScoreModerations?cursor=stale"}, []string{"cursor=stale"}, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			setupAuth(t)
-			installDefaultTransport(t, roundTripFunc(func(r *http.Request) (*http.Response, error) {
-				body := `{"errors":[` + tc.errors + `]}`
-				return &http.Response{StatusCode: 404, Header: http.Header{"Content-Type": []string{"application/json"}}, Body: io.NopCloser(strings.NewReader(body))}, nil
-			}))
-			root := RootCommand("test")
-			var runErr error
-			_, _ = captureOutput(t, func() {
-				runErr = root.ParseAndRun(context.Background(), append([]string{"game-center", "leaderboards", "v2", "score-moderations", "list"}, tc.args...))
-			})
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET(scoreModerationsPath, tc.query...), asctest.JSON(http.StatusNotFound, `{"errors":[`+tc.errors+`]}`))
+			_, _, runErr := runCommand(t, append([]string{"game-center", "leaderboards", "v2", "score-moderations", "list"}, tc.args...))
 			if runErr == nil || !strings.Contains(runErr.Error(), "does not exist") || strings.Contains(runErr.Error(), "Manage Scores and Players") != tc.wantHint {
 				t.Fatalf("err=%v", runErr)
 			}

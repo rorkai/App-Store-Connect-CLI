@@ -189,7 +189,7 @@ func TestFetchAllAppStoreVersions_PaginatesAllPages(t *testing.T) {
 		}
 	})
 
-	got, err := FetchAllAppStoreVersions(context.Background(), client, "app-1", asc.WithAppStoreVersionsLimit(1))
+	got, err := FetchAllAppStoreVersions(context.Background(), client, "app-1", asc.Limit[asc.AppStoreVersionsOption](1))
 	if err != nil {
 		t.Fatalf("FetchAllAppStoreVersions() error: %v", err)
 	}
@@ -243,7 +243,7 @@ func TestFetchAllReviewSubmissions_PaginatesAllPages(t *testing.T) {
 		}
 	})
 
-	got, err := FetchAllReviewSubmissions(context.Background(), client, "app-1", asc.WithReviewSubmissionsLimit(1))
+	got, err := FetchAllReviewSubmissions(context.Background(), client, "app-1", asc.Limit[asc.ReviewSubmissionsOption](1))
 	if err != nil {
 		t.Fatalf("FetchAllReviewSubmissions() error: %v", err)
 	}
@@ -279,7 +279,7 @@ func TestFetchAllReviewSubmissions_ReturnsPaginationErrors(t *testing.T) {
 		}
 	})
 
-	_, err := FetchAllReviewSubmissions(context.Background(), client, "app-1", asc.WithReviewSubmissionsLimit(1))
+	_, err := FetchAllReviewSubmissions(context.Background(), client, "app-1", asc.Limit[asc.ReviewSubmissionsOption](1))
 	if err == nil {
 		t.Fatal("expected pagination error, got nil")
 	}

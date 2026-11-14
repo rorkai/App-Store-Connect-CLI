@@ -266,18 +266,15 @@ func ExecuteScreenshotSetUpload[T any](ctx context.Context, opts ScreenshotSetUp
 
 	trimmedLocalizationID := strings.TrimSpace(opts.LocalizationID)
 	if trimmedLocalizationID == "" {
-		fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
-		return zero, shared.MissingRequiredUsageError("--localization-id")
+		return zero, shared.RequiredFlag("--localization-id")
 	}
 	trimmedPath := strings.TrimSpace(opts.Path)
 	if trimmedPath == "" {
-		fmt.Fprintln(os.Stderr, "Error: --path is required")
-		return zero, shared.MissingRequiredUsageError("--path")
+		return zero, shared.RequiredFlag("--path")
 	}
 	trimmedDeviceType := strings.TrimSpace(opts.DeviceType)
 	if trimmedDeviceType == "" {
-		fmt.Fprintln(os.Stderr, "Error: --device-type is required")
-		return zero, shared.MissingRequiredUsageError("--device-type")
+		return zero, shared.RequiredFlag("--device-type")
 	}
 	if opts.ClientFactory == nil {
 		return zero, fmt.Errorf("client factory is required")
@@ -635,7 +632,7 @@ func fetchAllScreenshotVersionLocalizations(
 	requestContext func(context.Context) (context.Context, context.CancelFunc),
 ) ([]asc.Resource[asc.AppStoreVersionLocalizationAttributes], error) {
 	requestCtx, cancel := requestContext(ctx)
-	firstPage, err := client.GetAppStoreVersionLocalizations(requestCtx, versionID, asc.WithAppStoreVersionLocalizationsLimit(200))
+	firstPage, err := client.GetAppStoreVersionLocalizations(requestCtx, versionID, asc.Limit[asc.AppStoreVersionLocalizationsOption](200))
 	cancel()
 	if err != nil {
 		return nil, err
@@ -646,7 +643,7 @@ func fetchAllScreenshotVersionLocalizations(
 
 	paginated, err := asc.PaginateAll(ctx, firstPage, func(pageCtx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		nextCtx, nextCancel := requestContext(pageCtx)
-		nextPage, nextErr := client.GetAppStoreVersionLocalizations(nextCtx, versionID, asc.WithAppStoreVersionLocalizationsNextURL(nextURL))
+		nextPage, nextErr := client.GetAppStoreVersionLocalizations(nextCtx, versionID, asc.NextURL[asc.AppStoreVersionLocalizationsOption](nextURL))
 		nextCancel()
 		if nextErr != nil {
 			return nil, nextErr
@@ -1037,13 +1034,11 @@ func executeScreenshotUploadCommand(ctx context.Context, opts screenshotUploadCo
 
 	pathValue := strings.TrimSpace(opts.Path)
 	if pathValue == "" {
-		fmt.Fprintln(os.Stderr, "Error: --path is required")
-		return nil, shared.MissingRequiredUsageError("--path")
+		return nil, shared.RequiredFlag("--path")
 	}
 	deviceValue := strings.TrimSpace(opts.DeviceType)
 	if deviceValue == "" {
-		fmt.Fprintln(os.Stderr, "Error: --device-type is required")
-		return nil, shared.MissingRequiredUsageError("--device-type")
+		return nil, shared.RequiredFlag("--device-type")
 	}
 	if opts.SkipExisting && opts.Replace {
 		fmt.Fprintln(os.Stderr, "Error: --skip-existing and --replace are mutually exclusive")

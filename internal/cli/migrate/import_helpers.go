@@ -411,7 +411,7 @@ func prepareAppInfoLocalizations(ctx context.Context, client *asc.Client, appID 
 
 func fetchAppInfoLocalizationsForPlan(ctx context.Context, client *asc.Client, appInfoID string) ([]asc.Resource[asc.AppInfoLocalizationAttributes], error) {
 	requestCtx, cancel := migrateRequestContext(ctx)
-	firstPage, err := client.GetAppInfoLocalizations(requestCtx, appInfoID, asc.WithAppInfoLocalizationsLimit(200))
+	firstPage, err := client.GetAppInfoLocalizations(requestCtx, appInfoID, asc.Limit[asc.AppInfoLocalizationsOption](200))
 	cancel()
 	if err != nil {
 		return nil, err
@@ -422,7 +422,7 @@ func fetchAppInfoLocalizationsForPlan(ctx context.Context, client *asc.Client, a
 
 	paginated, err := asc.PaginateAll(ctx, firstPage, func(pageCtx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		requestCtx, cancel := migrateRequestContext(pageCtx)
-		nextPage, err := client.GetAppInfoLocalizations(requestCtx, appInfoID, asc.WithAppInfoLocalizationsNextURL(nextURL))
+		nextPage, err := client.GetAppInfoLocalizations(requestCtx, appInfoID, asc.NextURL[asc.AppInfoLocalizationsOption](nextURL))
 		cancel()
 		if err != nil {
 			return nil, err
@@ -444,7 +444,7 @@ func fetchAppInfoLocalizationsForPlan(ctx context.Context, client *asc.Client, a
 
 func fetchVersionLocalizationsForPlan(ctx context.Context, client *asc.Client, versionID string) ([]asc.Resource[asc.AppStoreVersionLocalizationAttributes], error) {
 	requestCtx, cancel := migrateRequestContext(ctx)
-	firstPage, err := client.GetAppStoreVersionLocalizations(requestCtx, versionID, asc.WithAppStoreVersionLocalizationsLimit(200))
+	firstPage, err := client.GetAppStoreVersionLocalizations(requestCtx, versionID, asc.Limit[asc.AppStoreVersionLocalizationsOption](200))
 	cancel()
 	if err != nil {
 		return nil, err
@@ -455,7 +455,7 @@ func fetchVersionLocalizationsForPlan(ctx context.Context, client *asc.Client, v
 
 	paginated, err := asc.PaginateAll(ctx, firstPage, func(pageCtx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		requestCtx, cancel := migrateRequestContext(pageCtx)
-		nextPage, err := client.GetAppStoreVersionLocalizations(requestCtx, versionID, asc.WithAppStoreVersionLocalizationsNextURL(nextURL))
+		nextPage, err := client.GetAppStoreVersionLocalizations(requestCtx, versionID, asc.NextURL[asc.AppStoreVersionLocalizationsOption](nextURL))
 		cancel()
 		if err != nil {
 			return nil, err

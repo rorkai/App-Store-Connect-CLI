@@ -2,7 +2,6 @@ package asc
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 )
@@ -44,34 +43,14 @@ type AppTagUpdateRequest struct {
 
 // GetAppTags retrieves the list of app tags for an app.
 func (c *Client) GetAppTags(ctx context.Context, appID string, opts ...AppTagsOption) (*AppTagsResponse, error) {
-	query := &appTagsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
+	query := applyOptions(opts)
 	appID = strings.TrimSpace(appID)
-	path := fmt.Sprintf("/v1/apps/%s/appTags", appID)
-	if query.nextURL != "" {
-		// Validate nextURL to prevent credential exfiltration
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appTags: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildAppTagsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppTagsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppTagsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/apps/%s/appTags", appID),
+		Query:       buildAppTagsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appTags",
+	})
 }
 
 // UpdateAppTag updates an app tag by ID.
@@ -87,54 +66,19 @@ func (c *Client) UpdateAppTag(ctx context.Context, tagID string, attrs AppTagUpd
 		payload.Data.Attributes = &attrs
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "PATCH", fmt.Sprintf("/v1/appTags/%s", tagID), body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppTagResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppTagResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/appTags/%s", tagID), Payload: payload})
 }
 
 // GetAppTagTerritories retrieves territories for a specific app tag.
 func (c *Client) GetAppTagTerritories(ctx context.Context, tagID string, opts ...TerritoriesOption) (*TerritoriesResponse, error) {
-	query := &territoriesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
+	query := applyOptions(opts)
 	tagID = strings.TrimSpace(tagID)
-	path := fmt.Sprintf("/v1/appTags/%s/territories", tagID)
-	if query.nextURL != "" {
-		// Validate nextURL to prevent credential exfiltration
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appTagTerritories: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildTerritoriesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response TerritoriesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[TerritoriesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/appTags/%s/territories", tagID),
+		Query:       buildTerritoriesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appTagTerritories",
+	})
 }
 
 // GetAppTagTerritoriesRelationships retrieves territory linkages for an app tag.

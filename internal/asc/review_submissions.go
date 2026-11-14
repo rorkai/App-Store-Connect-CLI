@@ -218,31 +218,14 @@ func (c *Client) getReviewSubmissions(ctx context.Context, appID string, strict 
 // ListReviewSubmissions retrieves review submissions using the top-level /v1/reviewSubmissions endpoint.
 // App Store Connect requires filter[app] for this endpoint, so callers should pass WithReviewSubmissionsApps.
 func (c *Client) ListReviewSubmissions(ctx context.Context, opts ...ReviewSubmissionsOption) (*ReviewSubmissionsResponse, error) {
-	query := &reviewSubmissionsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := "/v1/reviewSubmissions"
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("reviewSubmissions: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildReviewSubmissionsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response ReviewSubmissionsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse review submissions response: %w", err)
-	}
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[ReviewSubmissionsResponse](ctx, c, readRequest{
+		Path:        "/v1/reviewSubmissions",
+		Query:       buildReviewSubmissionsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "reviewSubmissions",
+		ParseErr:    "failed to parse review submissions response",
+	})
 }
 
 // GetReviewSubmission retrieves a review submission by ID.

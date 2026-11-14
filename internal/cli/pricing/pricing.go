@@ -121,19 +121,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.TerritoriesOption{
-				asc.WithTerritoriesLimit(*limit),
-				asc.WithTerritoriesNextURL(*next),
+				asc.Limit[asc.TerritoriesOption](*limit),
+				asc.NextURL[asc.TerritoriesOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithTerritoriesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.TerritoriesOption](200))
 				firstPage, err := client.GetTerritories(requestCtx, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("pricing territories list: failed to fetch: %w", err)
 				}
 
 				territories, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetTerritories(ctx, asc.WithTerritoriesNextURL(nextURL))
+					return client.GetTerritories(ctx, asc.NextURL[asc.TerritoriesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("pricing territories list: %w", err)
@@ -228,22 +228,22 @@ Examples:
 			}
 
 			opts := []asc.PricePointsOption{
-				asc.WithPricePointsLimit(*limit),
-				asc.WithPricePointsNextURL(*next),
+				asc.Limit[asc.PricePointsOption](*limit),
+				asc.NextURL[asc.PricePointsOption](*next),
 				asc.WithPricePointsTerritory(strings.Join(territoryIDs, ",")),
 				asc.WithPricePointsInclude(includes),
 				asc.WithIncludedFields[asc.PricePointsOption](included),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithPricePointsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.PricePointsOption](200))
 				firstPage, err := client.GetAppPricePoints(requestCtx, resolvedAppID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("pricing price-points: failed to fetch: %w", err)
 				}
 
 				points, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppPricePoints(ctx, resolvedAppID, asc.WithPricePointsNextURL(nextURL))
+					return client.GetAppPricePoints(ctx, resolvedAppID, asc.NextURL[asc.PricePointsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("pricing price-points: %w", err)
@@ -319,8 +319,8 @@ func PricingPricePointsEqualizationsCommand() *ffcli.Command {
 		ErrorPrefix: "pricing price-points equalizations",
 		FetchPage: func(ctx context.Context, client *asc.Client, pricePointID string, limit int, next string, include []string, included asc.IncludedFields) (asc.PaginatedResponse, error) {
 			opts := []asc.PricePointsOption{
-				asc.WithPricePointsLimit(limit),
-				asc.WithPricePointsNextURL(next),
+				asc.Limit[asc.PricePointsOption](limit),
+				asc.NextURL[asc.PricePointsOption](next),
 				asc.WithPricePointsInclude(include),
 				asc.WithIncludedFields[asc.PricePointsOption](included),
 			}
@@ -509,19 +509,19 @@ Examples:
 			}
 
 			opts := []asc.AppPriceSchedulePricesOption{
-				asc.WithAppPriceSchedulePricesLimit(*limit),
-				asc.WithAppPriceSchedulePricesNextURL(*next),
+				asc.Limit[asc.AppPriceSchedulePricesOption](*limit),
+				asc.NextURL[asc.AppPriceSchedulePricesOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithAppPriceSchedulePricesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.AppPriceSchedulePricesOption](200))
 				firstPage, err := client.GetAppPriceScheduleManualPrices(requestCtx, trimmedScheduleID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("pricing schedule manual-prices: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppPriceScheduleManualPrices(ctx, trimmedScheduleID, asc.WithAppPriceSchedulePricesNextURL(nextURL))
+					return client.GetAppPriceScheduleManualPrices(ctx, trimmedScheduleID, asc.NextURL[asc.AppPriceSchedulePricesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("pricing schedule manual-prices: %w", err)
@@ -599,19 +599,19 @@ Examples:
 			}
 
 			opts := []asc.AppPriceSchedulePricesOption{
-				asc.WithAppPriceSchedulePricesLimit(*limit),
-				asc.WithAppPriceSchedulePricesNextURL(*next),
+				asc.Limit[asc.AppPriceSchedulePricesOption](*limit),
+				asc.NextURL[asc.AppPriceSchedulePricesOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithAppPriceSchedulePricesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.AppPriceSchedulePricesOption](200))
 				firstPage, err := client.GetAppPriceScheduleAutomaticPrices(requestCtx, trimmedScheduleID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("pricing schedule automatic-prices: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppPriceScheduleAutomaticPrices(ctx, trimmedScheduleID, asc.WithAppPriceSchedulePricesNextURL(nextURL))
+					return client.GetAppPriceScheduleAutomaticPrices(ctx, trimmedScheduleID, asc.NextURL[asc.AppPriceSchedulePricesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("pricing schedule automatic-prices: %w", err)
@@ -756,10 +756,10 @@ Examples:
 		FetchPage: func(ctx context.Context, client *asc.Client, availabilityID string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := make([]asc.TerritoryAvailabilitiesOption, 0, 2)
 			if limit > 0 {
-				opts = append(opts, asc.WithTerritoryAvailabilitiesLimit(limit))
+				opts = append(opts, asc.Limit[asc.TerritoryAvailabilitiesOption](limit))
 			}
 			if strings.TrimSpace(next) != "" {
-				opts = append(opts, asc.WithTerritoryAvailabilitiesNextURL(next))
+				opts = append(opts, asc.NextURL[asc.TerritoryAvailabilitiesOption](next))
 			}
 			return client.GetTerritoryAvailabilities(ctx, availabilityID, opts...)
 		},

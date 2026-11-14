@@ -110,7 +110,7 @@ func ensureAppCreateUsersExist(ctx context.Context, client *asc.Client, userIDs 
 }
 
 func ensureAppCreateAPIAccess(ctx context.Context, client *asc.Client) error {
-	_, err := client.GetUsers(ctx, asc.WithUsersLimit(1))
+	_, err := client.GetUsers(ctx, asc.Limit[asc.UsersOption](1))
 	return err
 }
 
@@ -164,12 +164,12 @@ func rollbackAppCreateVisibleApps(ctx context.Context, client *asc.Client, appID
 }
 
 func readAppCreateAccess(ctx context.Context, client *asc.Client, appID string) (string, []string, error) {
-	firstPage, err := client.GetUsers(ctx, asc.WithUsersVisibleAppIDs([]string{appID}), asc.WithUsersLimit(200))
+	firstPage, err := client.GetUsers(ctx, asc.WithUsersVisibleAppIDs([]string{appID}), asc.Limit[asc.UsersOption](200))
 	if err != nil {
 		return "", nil, err
 	}
 	aggregated, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetUsers(ctx, asc.WithUsersNextURL(nextURL))
+		return client.GetUsers(ctx, asc.NextURL[asc.UsersOption](nextURL))
 	})
 	if err != nil {
 		return "", nil, err

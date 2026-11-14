@@ -151,18 +151,18 @@ Examples:
 				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			case relationshipList:
 				opts := []asc.LinkagesOption{
-					asc.WithLinkagesLimit(*limit),
-					asc.WithLinkagesNextURL(*next),
+					asc.Limit[asc.LinkagesOption](*limit),
+					asc.NextURL[asc.LinkagesOption](*next),
 				}
 
 				if *paginate {
-					paginateOpts := append(opts, asc.WithLinkagesLimit(200))
+					paginateOpts := append(opts, asc.Limit[asc.LinkagesOption](200))
 					firstPage, err := getAppStoreVersionRelationshipList(requestCtx, client, relationshipType, trimmedID, paginateOpts...)
 					if err != nil {
 						return fmt.Errorf("versions links: failed to fetch: %w", shared.DescribeRelationshipLookupFailure(err, relationshipType, parent))
 					}
 					resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						page, err := getAppStoreVersionRelationshipList(ctx, client, relationshipType, trimmedID, asc.WithLinkagesNextURL(nextURL))
+						page, err := getAppStoreVersionRelationshipList(ctx, client, relationshipType, trimmedID, asc.NextURL[asc.LinkagesOption](nextURL))
 						if err != nil {
 							return nil, shared.DescribeRelationshipLookupFailure(err, relationshipType, pageParent)
 						}

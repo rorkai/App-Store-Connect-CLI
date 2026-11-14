@@ -348,9 +348,9 @@ func visitAnalyticsReports(ctx context.Context, client *asc.Client, requestID st
 				return asc.Links{}, fmt.Errorf("failed to fetch reports: detected repeated pagination URL")
 			}
 			seen[nextURL] = true
-			resp, err = getAnalyticsReportsPage(ctx, client, requestID, asc.WithAnalyticsReportsNextURL(nextURL))
+			resp, err = getAnalyticsReportsPage(ctx, client, requestID, asc.NextURL[asc.AnalyticsReportsOption](nextURL))
 		} else {
-			resp, err = getAnalyticsReportsPage(ctx, client, requestID, asc.WithAnalyticsReportsLimit(limit))
+			resp, err = getAnalyticsReportsPage(ctx, client, requestID, asc.Limit[asc.AnalyticsReportsOption](limit))
 		}
 		if err != nil {
 			return asc.Links{}, fmt.Errorf("failed to fetch reports: %w", err)
@@ -397,10 +397,10 @@ func fetchAnalyticsReportInstancesMatchingID(ctx context.Context, client *asc.Cl
 				return nil, fmt.Errorf("analytics view: detected repeated instance pagination URL")
 			}
 			seen[next] = true
-			resp, err = getAnalyticsReportInstancesPage(ctx, client, reportID, asc.WithAnalyticsReportInstancesNextURL(next))
+			resp, err = getAnalyticsReportInstancesPage(ctx, client, reportID, asc.NextURL[asc.AnalyticsReportInstancesOption](next))
 		} else {
 			firstPageOpts := make([]asc.AnalyticsReportInstancesOption, 0, len(opts)+1)
-			firstPageOpts = append(firstPageOpts, asc.WithAnalyticsReportInstancesLimit(analyticsMaxLimit))
+			firstPageOpts = append(firstPageOpts, asc.Limit[asc.AnalyticsReportInstancesOption](analyticsMaxLimit))
 			firstPageOpts = append(firstPageOpts, opts...)
 			resp, err = getAnalyticsReportInstancesPage(ctx, client, reportID, firstPageOpts...)
 		}
@@ -586,9 +586,9 @@ func fetchAnalyticsReportSegmentsUntilMatch(ctx context.Context, client *asc.Cli
 				return nil, fmt.Errorf("analytics view: detected repeated segment pagination URL")
 			}
 			seen[next] = true
-			resp, err = getAnalyticsReportSegmentsPage(ctx, client, instanceID, asc.WithAnalyticsReportSegmentsNextURL(next))
+			resp, err = getAnalyticsReportSegmentsPage(ctx, client, instanceID, asc.NextURL[asc.AnalyticsReportSegmentsOption](next))
 		} else {
-			resp, err = getAnalyticsReportSegmentsPage(ctx, client, instanceID, asc.WithAnalyticsReportSegmentsLimit(analyticsMaxLimit))
+			resp, err = getAnalyticsReportSegmentsPage(ctx, client, instanceID, asc.Limit[asc.AnalyticsReportSegmentsOption](analyticsMaxLimit))
 		}
 		if err != nil {
 			return nil, err

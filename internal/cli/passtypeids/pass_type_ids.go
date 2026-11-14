@@ -129,8 +129,8 @@ Examples:
 			defer cancel()
 
 			opts := []asc.PassTypeIDsOption{
-				asc.WithPassTypeIDsLimit(*limit),
-				asc.WithPassTypeIDsNextURL(*next),
+				asc.Limit[asc.PassTypeIDsOption](*limit),
+				asc.NextURL[asc.PassTypeIDsOption](*next),
 			}
 			idsValue := shared.SplitCSV(*ids)
 			if len(idsValue) > 0 {
@@ -159,14 +159,14 @@ Examples:
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithPassTypeIDsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.PassTypeIDsOption](200))
 				firstPage, err := client.GetPassTypeIDs(requestCtx, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("pass-type-ids list: failed to fetch: %w", err)
 				}
 
 				paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetPassTypeIDs(ctx, asc.WithPassTypeIDsNextURL(nextURL))
+					return client.GetPassTypeIDs(ctx, asc.NextURL[asc.PassTypeIDsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("pass-type-ids list: %w", err)
@@ -209,8 +209,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			passTypeIDValue := strings.TrimSpace(*passTypeID)
 			if passTypeIDValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --pass-type-id is required")
-				return shared.MissingRequiredUsageError("--pass-type-id")
+				return shared.RequiredFlag("--pass-type-id")
 			}
 			if *certificatesLimit != 0 && (*certificatesLimit < 1 || *certificatesLimit > 50) {
 				return shared.UsageError("pass-type-ids view: --limit-certificates must be between 1 and 50")
@@ -290,13 +289,11 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			identifierValue := strings.TrimSpace(*identifier)
 			if identifierValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --identifier is required")
-				return shared.MissingRequiredUsageError("--identifier")
+				return shared.RequiredFlag("--identifier")
 			}
 			nameValue := strings.TrimSpace(*name)
 			if nameValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --name is required")
-				return shared.MissingRequiredUsageError("--name")
+				return shared.RequiredFlag("--name")
 			}
 
 			client, err := shared.GetASCClient()
@@ -342,13 +339,11 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			passTypeIDValue := strings.TrimSpace(*passTypeID)
 			if passTypeIDValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --pass-type-id is required")
-				return shared.MissingRequiredUsageError("--pass-type-id")
+				return shared.RequiredFlag("--pass-type-id")
 			}
 			nameValue := strings.TrimSpace(*name)
 			if nameValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --name is required")
-				return shared.MissingRequiredUsageError("--name")
+				return shared.RequiredFlag("--name")
 			}
 
 			client, err := shared.GetASCClient()
@@ -393,12 +388,10 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			passTypeIDValue := strings.TrimSpace(*passTypeID)
 			if passTypeIDValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --pass-type-id is required")
-				return shared.MissingRequiredUsageError("--pass-type-id")
+				return shared.RequiredFlag("--pass-type-id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()

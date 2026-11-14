@@ -11,6 +11,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 const (
@@ -154,34 +156,23 @@ func TestProductPagesExperimentTreatmentLocalizationPreviewSetsUploadFailureRoll
 	setupAuth(t)
 	filePath := writePreviewUploadFile(t)
 
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreVersionExperimentTreatmentLocalizations/tloc-1/appPreviewSets"),
+		asctest.JSON(http.StatusOK, `{"data":[]}`))
+	reg.Register(asctest.POST("/v1/appPreviewSets").JSONBody(`{"data":{"type":"appPreviewSets","attributes":{"previewType":"IPHONE_65"},"relationships":{"appStoreVersionExperimentTreatmentLocalization":{"data":{"type":"appStoreVersionExperimentTreatmentLocalizations","id":"tloc-1"}}}}}`),
+		asctest.JSON(http.StatusCreated, `{"data":{"type":"appPreviewSets","id":"set-1","attributes":{"previewType":"IPHONE_65"}}}`))
+	reg.Register(asctest.POST("/v1/appPreviews").JSONBody(`{"data":{"type":"appPreviews","attributes":{"fileSize":13,"fileName":"preview.mov","mimeType":"video/quicktime"},"relationships":{"appPreviewSet":{"data":{"type":"appPreviewSets","id":"set-1"}}}}}`),
+		asctest.JSON(http.StatusForbidden, `{"errors":[{"status":"403","code":"FORBIDDEN","title":"Forbidden","detail":"not allowed"}]}`))
 	deletedSet := false
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersionExperimentTreatmentLocalizations/tloc-1/appPreviewSets":
-			return jsonHTTPResponse(http.StatusOK, `{"data":[]}`), nil
-		case req.Method == http.MethodPost && req.URL.Path == "/v1/appPreviewSets":
-			return jsonHTTPResponse(http.StatusCreated, `{"data":{"type":"appPreviewSets","id":"set-1","attributes":{"previewType":"IPHONE_65"}}}`), nil
-		case req.Method == http.MethodPost && req.URL.Path == "/v1/appPreviews":
-			return jsonHTTPResponse(http.StatusForbidden, `{"errors":[{"status":"403","code":"FORBIDDEN","title":"Forbidden","detail":"not allowed"}]}`), nil
-		case req.Method == http.MethodDelete && req.URL.Path == "/v1/appPreviewSets/set-1":
-			deletedSet = true
-			return jsonHTTPResponse(http.StatusNoContent, ""), nil
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	}))
+	reg.Register(asctest.DELETE("/v1/appPreviewSets/set-1"), func(req *http.Request) (*http.Response, error) {
+		deletedSet = true
+		return asctest.JSON(http.StatusNoContent, "")(req)
+	})
 
-	root := RootCommand("1.2.3")
-	var runErr error
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"product-pages", "experiments", "treatments", "localizations", "preview-sets", "upload",
-			"--localization-id", "tloc-1", "--path", filePath, "--device-type", "IPHONE_65", "--output", "json",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
+	stdout, _, runErr := runCommand(t, []string{
+		"product-pages", "experiments", "treatments", "localizations", "preview-sets", "upload",
+		"--localization-id", "tloc-1", "--path", filePath, "--device-type", "IPHONE_65", "--output", "json",
 	})
 
 	if runErr == nil || !strings.HasPrefix(runErr.Error(), "experiments treatments localizations preview-sets upload: ") {

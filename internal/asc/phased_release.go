@@ -2,7 +2,6 @@ package asc
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -108,19 +107,7 @@ func FormatPhasedReleaseProgressBar(currentDayNumber int) string {
 
 // GetAppStoreVersionPhasedRelease fetches the phased release for an app store version.
 func (c *Client) GetAppStoreVersionPhasedRelease(ctx context.Context, versionID string) (*AppStoreVersionPhasedReleaseResponse, error) {
-	path := fmt.Sprintf("/v1/appStoreVersions/%s/appStoreVersionPhasedRelease", versionID)
-
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppStoreVersionPhasedReleaseResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppStoreVersionPhasedReleaseResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appStoreVersions/%s/appStoreVersionPhasedRelease", versionID)})
 }
 
 // CreateAppStoreVersionPhasedRelease creates a phased release for an app store version.
@@ -148,22 +135,7 @@ func (c *Client) CreateAppStoreVersionPhasedRelease(ctx context.Context, version
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, http.MethodPost, "/v1/appStoreVersionPhasedReleases", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppStoreVersionPhasedReleaseResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppStoreVersionPhasedReleaseResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/appStoreVersionPhasedReleases", Payload: payload})
 }
 
 // UpdateAppStoreVersionPhasedRelease updates a phased release.
@@ -183,30 +155,10 @@ func (c *Client) UpdateAppStoreVersionPhasedRelease(ctx context.Context, phasedR
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	path := fmt.Sprintf("/v1/appStoreVersionPhasedReleases/%s", phasedReleaseID)
-
-	data, err := c.do(ctx, http.MethodPatch, path, body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppStoreVersionPhasedReleaseResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppStoreVersionPhasedReleaseResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/appStoreVersionPhasedReleases/%s", phasedReleaseID), Payload: payload})
 }
 
 // DeleteAppStoreVersionPhasedRelease deletes a phased release.
 func (c *Client) DeleteAppStoreVersionPhasedRelease(ctx context.Context, phasedReleaseID string) error {
-	path := fmt.Sprintf("/v1/appStoreVersionPhasedReleases/%s", phasedReleaseID)
-
-	_, err := c.do(ctx, http.MethodDelete, path, nil)
-	return err
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/appStoreVersionPhasedReleases/%s", phasedReleaseID), nil)
 }

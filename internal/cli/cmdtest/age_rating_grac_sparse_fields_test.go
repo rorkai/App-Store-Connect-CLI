@@ -1,11 +1,11 @@
 package cmdtest
 
 import (
-	"context"
-	"io"
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestGRACAgeRatingSparseFields(t *testing.T) {
@@ -24,31 +24,16 @@ func TestGRACAgeRatingSparseFields(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			setupAuth(t)
-			calls := 0
-			installDefaultTransport(t, roundTripFunc(func(r *http.Request) (*http.Response, error) {
-				calls++
-				if r.Method != http.MethodGet || r.URL.Path != tt.path {
-					t.Errorf("request=%s %s", r.Method, r.URL)
-				}
-				query := r.URL.Query()
-				if query.Get("fields[ageRatingDeclarations]") != "gracRatingClassificationNumber" {
-					t.Errorf("fields=%v", query)
-				}
-				size := 1
-				if tt.included {
-					size = 2
-					if query.Get("include") != "ageRatingDeclaration" {
-						t.Errorf("include=%v", query)
-					}
-				}
-				if len(query) != size {
-					t.Errorf("unexpected query=%v", query)
-				}
-				return &http.Response{StatusCode: 200, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(tt.body))}, nil
-			}))
-			var runErr error
-			args := append(tt.args, "--output", "json")
-			out, stderr := captureOutput(t, func() { runErr = RootCommand("test").ParseAndRun(context.Background(), args) })
+			query := []string{"fields[ageRatingDeclarations]=gracRatingClassificationNumber"}
+			if tt.included {
+				query = append(query, "include=ageRatingDeclaration")
+			}
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET(tt.path, query...), asctest.JSON(http.StatusOK, tt.body))
+
+			out, stderr, runErr := runCommand(t, append(tt.args, "--output", "json"))
+			calls := len(reg.Requests())
 			if runErr != nil || stderr != "" || calls != 1 || !strings.Contains(out, `"gracRatingClassificationNumber":"GRAC-45"`) {
 				t.Fatalf("run=%v calls=%d stdout=%s stderr=%s", runErr, calls, out, stderr)
 			}

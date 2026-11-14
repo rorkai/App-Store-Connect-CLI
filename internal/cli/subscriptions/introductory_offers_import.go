@@ -418,14 +418,14 @@ func fetchSubscriptionIntroductoryOfferImportState(ctx context.Context, client *
 				return nil, err
 			}
 			return shared.RetryReadWithFreshTimeout(ctx, func(requestCtx context.Context) (*asc.SubscriptionIntroductoryOffersResponse, error) {
-				return client.GetSubscriptionIntroductoryOffers(requestCtx, subscriptionID, asc.WithSubscriptionIntroductoryOffersNextURL(mergedNext))
+				return client.GetSubscriptionIntroductoryOffers(requestCtx, subscriptionID, asc.NextURL[asc.SubscriptionIntroductoryOffersOption](mergedNext))
 			})
 		}
 		return shared.RetryReadWithFreshTimeout(ctx, func(requestCtx context.Context) (*asc.SubscriptionIntroductoryOffersResponse, error) {
 			return client.GetSubscriptionIntroductoryOffers(
 				requestCtx,
 				subscriptionID,
-				asc.WithSubscriptionIntroductoryOffersLimit(200),
+				asc.Limit[asc.SubscriptionIntroductoryOffersOption](200),
 				asc.WithSubscriptionIntroductoryOffersFields([]string{"startDate", "endDate", "duration", "offerMode", "numberOfPeriods", "targetSubscriptionPlanType", "territory", "subscriptionPricePoint"}),
 				asc.WithSubscriptionIntroductoryOffersInclude([]string{"territory", "subscriptionPricePoint"}),
 			)

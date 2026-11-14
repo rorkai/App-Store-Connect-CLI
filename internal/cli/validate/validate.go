@@ -310,7 +310,7 @@ func requiredAgreementFallbackReport(opts validateOptions) validation.Report {
 func resolveVersionID(ctx context.Context, client *asc.Client, appID, version, platform string) (string, error) {
 	opts := []asc.AppStoreVersionsOption{
 		asc.WithAppStoreVersionsVersionStrings([]string{version}),
-		asc.WithAppStoreVersionsLimit(20),
+		asc.Limit[asc.AppStoreVersionsOption](20),
 	}
 	if strings.TrimSpace(platform) != "" {
 		opts = append(opts, asc.WithAppStoreVersionsPlatforms([]string{platform}))
@@ -465,7 +465,7 @@ func fetchAllScreenshotSetsForValidation(ctx context.Context, client *asc.Client
 
 	paginated, err := asc.PaginateAll(ctx, firstPage, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		return doReadinessRequest(ctx, func(requestCtx context.Context) (asc.PaginatedResponse, error) {
-			return client.GetAppScreenshotSets(requestCtx, "", asc.WithAppScreenshotSetsNextURL(nextURL))
+			return client.GetAppScreenshotSets(requestCtx, "", asc.NextURL[asc.AppScreenshotSetsOption](nextURL))
 		})
 	})
 	if err != nil {
@@ -489,7 +489,7 @@ func fetchAllScreenshotsForValidation(ctx context.Context, client *asc.Client, s
 
 	paginated, err := asc.PaginateAll(ctx, firstPage, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		return doReadinessRequest(ctx, func(requestCtx context.Context) (asc.PaginatedResponse, error) {
-			return client.GetAppScreenshots(requestCtx, "", asc.WithAppScreenshotsNextURL(nextURL))
+			return client.GetAppScreenshots(requestCtx, "", asc.NextURL[asc.AppScreenshotsOption](nextURL))
 		})
 	})
 	if err != nil {

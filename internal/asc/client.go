@@ -702,95 +702,35 @@ type BetaTesterInvitationCreateRequest struct {
 
 // GetFeedback retrieves TestFlight feedback
 func (c *Client) GetFeedback(ctx context.Context, appID string, opts ...FeedbackOption) (*FeedbackResponse, error) {
-	query := &feedbackQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := fmt.Sprintf("/v1/apps/%s/betaFeedbackScreenshotSubmissions", appID)
-	if query.nextURL != "" {
-		// Validate nextURL to prevent credential exfiltration
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("feedback: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildFeedbackQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response FeedbackResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[FeedbackResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/apps/%s/betaFeedbackScreenshotSubmissions", appID),
+		Query:       buildFeedbackQuery(query),
+		Next:        query.nextURL,
+		NextContext: "feedback",
+	})
 }
 
 // GetCrashes retrieves TestFlight crash reports
 func (c *Client) GetCrashes(ctx context.Context, appID string, opts ...CrashOption) (*CrashesResponse, error) {
-	query := &crashQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := fmt.Sprintf("/v1/apps/%s/betaFeedbackCrashSubmissions", appID)
-	if query.nextURL != "" {
-		// Validate nextURL to prevent credential exfiltration
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("crashes: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildCrashQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response CrashesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[CrashesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/apps/%s/betaFeedbackCrashSubmissions", appID),
+		Query:       buildCrashQuery(query),
+		Next:        query.nextURL,
+		NextContext: "crashes",
+	})
 }
 
 // GetReviews retrieves App Store reviews
 func (c *Client) GetReviews(ctx context.Context, appID string, opts ...ReviewOption) (*ReviewsResponse, error) {
-	query := &reviewQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := fmt.Sprintf("/v1/apps/%s/customerReviews", appID)
-	if query.nextURL != "" {
-		// Validate nextURL to prevent credential exfiltration
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("reviews: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildReviewQuery(opts); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response ReviewsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[ReviewsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/apps/%s/customerReviews", appID),
+		Query:       buildReviewQuery(opts),
+		Next:        query.nextURL,
+		NextContext: "reviews",
+	})
 }
 
 // GetCustomerReview retrieves a customer review by ID. Only include and fields
@@ -800,146 +740,54 @@ func (c *Client) GetCustomerReview(ctx context.Context, reviewID string, opts ..
 	if reviewID == "" {
 		return nil, fmt.Errorf("reviewID is required")
 	}
-
-	path := fmt.Sprintf("/v1/customerReviews/%s", reviewID)
-	if queryString := buildCustomerReviewQuery(opts); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response CustomerReviewResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[CustomerReviewResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/customerReviews/%s", reviewID),
+		Query: buildCustomerReviewQuery(opts),
+	})
 }
 
 // GetBetaGroups retrieves the list of beta groups for an app.
 func (c *Client) GetBetaGroups(ctx context.Context, appID string, opts ...BetaGroupsOption) (*BetaGroupsResponse, error) {
-	query := &betaGroupsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := fmt.Sprintf("/v1/apps/%s/betaGroups", appID)
-	if query.nextURL != "" {
-		// Validate nextURL to prevent credential exfiltration
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("betaGroups: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildBetaGroupsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BetaGroupsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[BetaGroupsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/apps/%s/betaGroups", appID),
+		Query:       buildBetaGroupsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "betaGroups",
+	})
 }
 
 // ListBetaGroups retrieves beta groups using the top-level /v1/betaGroups endpoint (global list).
 func (c *Client) ListBetaGroups(ctx context.Context, opts ...BetaGroupsOption) (*BetaGroupsResponse, error) {
-	query := &betaGroupsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := "/v1/betaGroups"
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("betaGroups: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildBetaGroupsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BetaGroupsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[BetaGroupsResponse](ctx, c, readRequest{
+		Path:        "/v1/betaGroups",
+		Query:       buildBetaGroupsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "betaGroups",
+	})
 }
 
 // GetBetaGroupBuilds retrieves builds assigned to a beta group.
 func (c *Client) GetBetaGroupBuilds(ctx context.Context, groupID string, opts ...BetaGroupBuildsOption) (*BuildsResponse, error) {
-	query := &betaGroupBuildsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := fmt.Sprintf("/v1/betaGroups/%s/builds", groupID)
-	if query.nextURL != "" {
-		// Validate nextURL to prevent credential exfiltration
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("betaGroupBuilds: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildBetaGroupBuildsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BuildsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[BuildsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/betaGroups/%s/builds", groupID),
+		Query:       buildBetaGroupBuildsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "betaGroupBuilds",
+	})
 }
 
 // GetBetaGroupTesters retrieves beta testers assigned to a beta group.
 func (c *Client) GetBetaGroupTesters(ctx context.Context, groupID string, opts ...BetaGroupTestersOption) (*BetaTestersResponse, error) {
-	query := &betaGroupTestersQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := fmt.Sprintf("/v1/betaGroups/%s/betaTesters", groupID)
-	if query.nextURL != "" {
-		// Validate nextURL to prevent credential exfiltration
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("betaGroupTesters: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildBetaGroupTestersQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BetaTestersResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[BetaTestersResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/betaGroups/%s/betaTesters", groupID),
+		Query:       buildBetaGroupTestersQuery(query),
+		Next:        query.nextURL,
+		NextContext: "betaGroupTesters",
+	})
 }
 
 // CreateBetaGroup creates a beta group for an app.
@@ -969,66 +817,22 @@ func (c *Client) CreateBetaGroupWithAttributes(ctx context.Context, appID string
 			},
 		},
 	}
-
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "POST", "/v1/betaGroups", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BetaGroupResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[BetaGroupResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/betaGroups", Payload: payload})
 }
 
 // GetBetaGroup retrieves a beta group by ID.
 func (c *Client) GetBetaGroup(ctx context.Context, groupID string) (*BetaGroupResponse, error) {
-	path := fmt.Sprintf("/v1/betaGroups/%s", groupID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BetaGroupResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[BetaGroupResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/betaGroups/%s", groupID)})
 }
 
 // UpdateBetaGroup updates a beta group by ID.
 func (c *Client) UpdateBetaGroup(ctx context.Context, groupID string, req BetaGroupUpdateRequest) (*BetaGroupResponse, error) {
-	body, err := BuildRequestBody(req)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "PATCH", fmt.Sprintf("/v1/betaGroups/%s", groupID), body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BetaGroupResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[BetaGroupResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/betaGroups/%s", groupID), Payload: req})
 }
 
 // DeleteBetaGroup deletes a beta group by ID.
 func (c *Client) DeleteBetaGroup(ctx context.Context, groupID string) error {
-	path := fmt.Sprintf("/v1/betaGroups/%s", groupID)
-	_, err := c.do(ctx, "DELETE", path, nil)
-	return err
+	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/betaGroups/%s", groupID), nil)
 }
 
 // AddBetaTestersToGroup adds testers to a beta group.
@@ -1050,15 +854,7 @@ func (c *Client) AddBetaTestersToGroup(ctx context.Context, groupID string, test
 			ID:   testerID,
 		})
 	}
-
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v1/betaGroups/%s/relationships/betaTesters", groupID)
-	_, err = c.do(ctx, "POST", path, body)
-	return err
+	return sendNoContent(ctx, c, "POST", fmt.Sprintf("/v1/betaGroups/%s/relationships/betaTesters", groupID), payload)
 }
 
 // RemoveBetaTestersFromGroup removes testers from a beta group.
@@ -1080,32 +876,14 @@ func (c *Client) RemoveBetaTestersFromGroup(ctx context.Context, groupID string,
 			ID:   testerID,
 		})
 	}
-
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v1/betaGroups/%s/relationships/betaTesters", groupID)
-	_, err = c.do(ctx, "DELETE", path, body)
-	return err
+	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/betaGroups/%s/relationships/betaTesters", groupID), payload)
 }
 
 // GetBetaTesters retrieves beta testers for an app.
 func (c *Client) GetBetaTesters(ctx context.Context, appID string, opts ...BetaTestersOption) (*BetaTestersResponse, error) {
-	query := &betaTestersQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
+	query := applyOptions(opts)
 	path := "/v1/betaTesters"
-	if query.nextURL != "" {
-		// Validate nextURL to prevent credential exfiltration
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("betaTesters: %w", err)
-		}
-		path = query.nextURL
-	} else {
+	if query.nextURL == "" {
 		queryString, err := buildBetaTestersQuery(appID, query)
 		if err != nil {
 			return nil, fmt.Errorf("betaTesters: %w", err)
@@ -1114,34 +892,12 @@ func (c *Client) GetBetaTesters(ctx context.Context, appID string, opts ...BetaT
 			path += "?" + queryString
 		}
 	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BetaTestersResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[BetaTestersResponse](ctx, c, readRequest{Path: path, Next: query.nextURL, NextContext: "betaTesters"})
 }
 
 // GetBetaTester retrieves a beta tester by ID.
 func (c *Client) GetBetaTester(ctx context.Context, testerID string) (*BetaTesterResponse, error) {
-	path := fmt.Sprintf("/v1/betaTesters/%s", testerID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BetaTesterResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[BetaTesterResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/betaTesters/%s", testerID)})
 }
 
 // CreateBetaTester creates a beta tester, attaching any beta groups and builds
@@ -1165,23 +921,7 @@ func (c *Client) CreateBetaTester(ctx context.Context, email, firstName, lastNam
 			Relationships: relationships,
 		},
 	}
-
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "POST", "/v1/betaTesters", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BetaTesterResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[BetaTesterResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/betaTesters", Payload: payload})
 }
 
 // AddBetaTesterToGroups adds a tester to multiple beta groups.
@@ -1202,18 +942,7 @@ func (c *Client) AddBetaTesterToGroups(ctx context.Context, testerID string, gro
 			ID:   groupID,
 		})
 	}
-
-	payload := RelationshipList{Data: relData}
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v1/betaTesters/%s/relationships/betaGroups", testerID)
-	if _, err := c.do(ctx, "POST", path, body); err != nil {
-		return err
-	}
-	return nil
+	return sendNoContent(ctx, c, "POST", fmt.Sprintf("/v1/betaTesters/%s/relationships/betaGroups", testerID), RelationshipList{Data: relData})
 }
 
 // RemoveBetaTesterFromGroups removes a tester from multiple beta groups.
@@ -1234,18 +963,7 @@ func (c *Client) RemoveBetaTesterFromGroups(ctx context.Context, testerID string
 			ID:   groupID,
 		})
 	}
-
-	payload := RelationshipList{Data: relData}
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v1/betaTesters/%s/relationships/betaGroups", testerID)
-	if _, err := c.do(ctx, "DELETE", path, body); err != nil {
-		return err
-	}
-	return nil
+	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/betaTesters/%s/relationships/betaGroups", testerID), RelationshipList{Data: relData})
 }
 
 // RemoveBetaTesterFromApps removes a tester from multiple apps.
@@ -1266,18 +984,7 @@ func (c *Client) RemoveBetaTesterFromApps(ctx context.Context, testerID string, 
 			ID:   appID,
 		})
 	}
-
-	payload := RelationshipList{Data: relData}
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v1/betaTesters/%s/relationships/apps", testerID)
-	if _, err := c.do(ctx, "DELETE", path, body); err != nil {
-		return err
-	}
-	return nil
+	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/betaTesters/%s/relationships/apps", testerID), RelationshipList{Data: relData})
 }
 
 // AddBuildsToBetaTester adds builds to a beta tester.
@@ -1298,18 +1005,7 @@ func (c *Client) AddBuildsToBetaTester(ctx context.Context, testerID string, bui
 			ID:   buildID,
 		})
 	}
-
-	payload := RelationshipList{Data: relData}
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v1/betaTesters/%s/relationships/builds", testerID)
-	if _, err := c.do(ctx, "POST", path, body); err != nil {
-		return err
-	}
-	return nil
+	return sendNoContent(ctx, c, "POST", fmt.Sprintf("/v1/betaTesters/%s/relationships/builds", testerID), RelationshipList{Data: relData})
 }
 
 // RemoveBuildsFromBetaTester removes builds from a beta tester.
@@ -1330,18 +1026,7 @@ func (c *Client) RemoveBuildsFromBetaTester(ctx context.Context, testerID string
 			ID:   buildID,
 		})
 	}
-
-	payload := RelationshipList{Data: relData}
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v1/betaTesters/%s/relationships/builds", testerID)
-	if _, err := c.do(ctx, "DELETE", path, body); err != nil {
-		return err
-	}
-	return nil
+	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/betaTesters/%s/relationships/builds", testerID), RelationshipList{Data: relData})
 }
 
 // RemoveBetaTestersFromApp removes beta testers from an app.
@@ -1364,24 +1049,12 @@ func (c *Client) RemoveBetaTestersFromApp(ctx context.Context, appID string, tes
 			ID:   testerID,
 		})
 	}
-
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v1/apps/%s/relationships/betaTesters", appID)
-	if _, err := c.do(ctx, "DELETE", path, body); err != nil {
-		return err
-	}
-	return nil
+	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/apps/%s/relationships/betaTesters", appID), payload)
 }
 
 // DeleteBetaTester deletes a beta tester by ID.
 func (c *Client) DeleteBetaTester(ctx context.Context, testerID string) error {
-	path := fmt.Sprintf("/v1/betaTesters/%s", testerID)
-	_, err := c.do(ctx, "DELETE", path, nil)
-	return err
+	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/betaTesters/%s", testerID), nil)
 }
 
 // CreateBetaTesterInvitation creates a beta tester invitation.
@@ -1405,70 +1078,23 @@ func (c *Client) CreateBetaTesterInvitation(ctx context.Context, appID, testerID
 			},
 		},
 	}
-
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "POST", "/v1/betaTesterInvitations", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BetaTesterInvitationResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[BetaTesterInvitationResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/betaTesterInvitations", Payload: payload})
 }
 
 // GetAppStoreVersionLocalizations retrieves localizations for an app store version.
 func (c *Client) GetAppStoreVersionLocalizations(ctx context.Context, versionID string, opts ...AppStoreVersionLocalizationsOption) (*AppStoreVersionLocalizationsResponse, error) {
-	query := &appStoreVersionLocalizationsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := fmt.Sprintf("/v1/appStoreVersions/%s/appStoreVersionLocalizations", versionID)
-	if query.nextURL != "" {
-		// Validate nextURL to prevent credential exfiltration
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appStoreVersionLocalizations: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildAppStoreVersionLocalizationsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppStoreVersionLocalizationsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[AppStoreVersionLocalizationsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/appStoreVersions/%s/appStoreVersionLocalizations", versionID),
+		Query:       buildAppStoreVersionLocalizationsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appStoreVersionLocalizations",
+	})
 }
 
 // GetAppStoreVersionLocalization retrieves a single app store version localization by ID.
 func (c *Client) GetAppStoreVersionLocalization(ctx context.Context, localizationID string) (*AppStoreVersionLocalizationResponse, error) {
-	path := fmt.Sprintf("/v1/appStoreVersionLocalizations/%s", localizationID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppStoreVersionLocalizationResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppStoreVersionLocalizationResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appStoreVersionLocalizations/%s", localizationID)})
 }
 
 // CreateAppStoreVersionLocalization creates a localization for an app store version.
@@ -1488,23 +1114,7 @@ func (c *Client) CreateAppStoreVersionLocalization(ctx context.Context, versionI
 			},
 		},
 	}
-
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "POST", "/v1/appStoreVersionLocalizations", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppStoreVersionLocalizationResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppStoreVersionLocalizationResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/appStoreVersionLocalizations", Payload: payload})
 }
 
 // UpdateAppStoreVersionLocalization updates a localization for an app store version.
@@ -1519,24 +1129,7 @@ func (c *Client) UpdateAppStoreVersionLocalization(ctx context.Context, localiza
 			Attributes: attributes,
 		},
 	}
-
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	path := fmt.Sprintf("/v1/appStoreVersionLocalizations/%s", localizationID)
-	data, err := c.do(ctx, "PATCH", path, body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppStoreVersionLocalizationResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppStoreVersionLocalizationResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/appStoreVersionLocalizations/%s", localizationID), Payload: payload})
 }
 
 // UpdateAppStoreVersionLocalizationFields updates exactly the supplied fields,
@@ -1554,105 +1147,39 @@ func (c *Client) UpdateAppStoreVersionLocalizationNullableFields(ctx context.Con
 		ID:         localizationID,
 		Attributes: fields,
 	}}
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-	path := fmt.Sprintf("/v1/appStoreVersionLocalizations/%s", localizationID)
-	data, err := c.do(ctx, http.MethodPatch, path, body)
-	if err != nil {
-		return nil, err
-	}
-	var response AppStoreVersionLocalizationResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-	return &response, nil
+	return sendJSON[AppStoreVersionLocalizationResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/appStoreVersionLocalizations/%s", localizationID), Payload: payload})
 }
 
 // DeleteAppStoreVersionLocalization deletes a localization by ID.
 func (c *Client) DeleteAppStoreVersionLocalization(ctx context.Context, localizationID string) error {
-	path := fmt.Sprintf("/v1/appStoreVersionLocalizations/%s", localizationID)
-	if _, err := c.do(ctx, "DELETE", path, nil); err != nil {
-		return err
-	}
-	return nil
+	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/appStoreVersionLocalizations/%s", localizationID), nil)
 }
 
 // GetBetaBuildLocalizations retrieves beta build localizations for a build.
 func (c *Client) GetBetaBuildLocalizations(ctx context.Context, buildID string, opts ...BetaBuildLocalizationsOption) (*BetaBuildLocalizationsResponse, error) {
-	query := &betaBuildLocalizationsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := fmt.Sprintf("/v1/builds/%s/betaBuildLocalizations", buildID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("betaBuildLocalizations: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildBetaBuildLocalizationsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BetaBuildLocalizationsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[BetaBuildLocalizationsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/builds/%s/betaBuildLocalizations", buildID),
+		Query:       buildBetaBuildLocalizationsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "betaBuildLocalizations",
+	})
 }
 
 // ListBetaBuildLocalizations retrieves beta build localizations using the top-level /v1/betaBuildLocalizations endpoint (global list).
 func (c *Client) ListBetaBuildLocalizations(ctx context.Context, opts ...BetaBuildLocalizationsOption) (*BetaBuildLocalizationsResponse, error) {
-	query := &betaBuildLocalizationsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := "/v1/betaBuildLocalizations"
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("betaBuildLocalizations: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildBetaBuildLocalizationsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BetaBuildLocalizationsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[BetaBuildLocalizationsResponse](ctx, c, readRequest{
+		Path:        "/v1/betaBuildLocalizations",
+		Query:       buildBetaBuildLocalizationsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "betaBuildLocalizations",
+	})
 }
 
 // GetBetaBuildLocalization retrieves a single beta build localization by ID.
 func (c *Client) GetBetaBuildLocalization(ctx context.Context, localizationID string) (*BetaBuildLocalizationResponse, error) {
-	path := fmt.Sprintf("/v1/betaBuildLocalizations/%s", localizationID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BetaBuildLocalizationResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[BetaBuildLocalizationResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/betaBuildLocalizations/%s", localizationID)})
 }
 
 // GetBetaBuildLocalizationBuild retrieves the build for a beta build localization.
@@ -1661,19 +1188,7 @@ func (c *Client) GetBetaBuildLocalizationBuild(ctx context.Context, localization
 	if localizationID == "" {
 		return nil, fmt.Errorf("localizationID is required")
 	}
-
-	path := fmt.Sprintf("/v1/betaBuildLocalizations/%s/build", localizationID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BuildResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[BuildResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/betaBuildLocalizations/%s/build", localizationID)})
 }
 
 // CreateBetaBuildLocalization creates a beta build localization for a build.
@@ -1693,23 +1208,7 @@ func (c *Client) CreateBetaBuildLocalization(ctx context.Context, buildID string
 			},
 		},
 	}
-
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "POST", "/v1/betaBuildLocalizations", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BetaBuildLocalizationResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[BetaBuildLocalizationResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/betaBuildLocalizations", Payload: payload})
 }
 
 // UpdateBetaBuildLocalization updates a beta build localization by ID.
@@ -1722,64 +1221,23 @@ func (c *Client) UpdateBetaBuildLocalization(ctx context.Context, localizationID
 			Attributes: attributes,
 		},
 	}
-
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	path := fmt.Sprintf("/v1/betaBuildLocalizations/%s", localizationID)
-	data, err := c.do(ctx, "PATCH", path, body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response BetaBuildLocalizationResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[BetaBuildLocalizationResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/betaBuildLocalizations/%s", localizationID), Payload: payload})
 }
 
 // DeleteBetaBuildLocalization deletes a beta build localization by ID.
 func (c *Client) DeleteBetaBuildLocalization(ctx context.Context, localizationID string) error {
-	path := fmt.Sprintf("/v1/betaBuildLocalizations/%s", localizationID)
-	if _, err := c.do(ctx, "DELETE", path, nil); err != nil {
-		return err
-	}
-	return nil
+	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/betaBuildLocalizations/%s", localizationID), nil)
 }
 
 // GetAppInfoLocalizations retrieves localizations for an app info resource.
 func (c *Client) GetAppInfoLocalizations(ctx context.Context, appInfoID string, opts ...AppInfoLocalizationsOption) (*AppInfoLocalizationsResponse, error) {
-	query := &appInfoLocalizationsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := fmt.Sprintf("/v1/appInfos/%s/appInfoLocalizations", appInfoID)
-	if query.nextURL != "" {
-		// Validate nextURL to prevent credential exfiltration
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appInfoLocalizations: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildAppInfoLocalizationsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppInfoLocalizationsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[AppInfoLocalizationsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/appInfos/%s/appInfoLocalizations", appInfoID),
+		Query:       buildAppInfoLocalizationsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appInfoLocalizations",
+	})
 }
 
 // CreateAppInfoLocalization creates a localization for an app info resource.
@@ -1799,23 +1257,7 @@ func (c *Client) CreateAppInfoLocalization(ctx context.Context, appInfoID string
 			},
 		},
 	}
-
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "POST", "/v1/appInfoLocalizations", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppInfoLocalizationResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppInfoLocalizationResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/appInfoLocalizations", Payload: payload})
 }
 
 // UpdateAppInfoLocalization updates a localization for an app info resource.
@@ -1830,24 +1272,7 @@ func (c *Client) UpdateAppInfoLocalization(ctx context.Context, localizationID s
 			Attributes: attributes,
 		},
 	}
-
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	path := fmt.Sprintf("/v1/appInfoLocalizations/%s", localizationID)
-	data, err := c.do(ctx, "PATCH", path, body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppInfoLocalizationResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppInfoLocalizationResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/appInfoLocalizations/%s", localizationID), Payload: payload})
 }
 
 // UpdateAppInfoLocalizationFields updates exactly the supplied fields,
@@ -1865,49 +1290,20 @@ func (c *Client) UpdateAppInfoLocalizationNullableFields(ctx context.Context, lo
 		ID:         localizationID,
 		Attributes: fields,
 	}}
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-	path := fmt.Sprintf("/v1/appInfoLocalizations/%s", localizationID)
-	data, err := c.do(ctx, http.MethodPatch, path, body)
-	if err != nil {
-		return nil, err
-	}
-	var response AppInfoLocalizationResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-	return &response, nil
+	return sendJSON[AppInfoLocalizationResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/appInfoLocalizations/%s", localizationID), Payload: payload})
 }
 
 // GetAppInfoLocalization retrieves an app info localization by ID.
 func (c *Client) GetAppInfoLocalization(ctx context.Context, localizationID string, opts ...AppInfoLocalizationOption) (*AppInfoLocalizationResponse, error) {
-	query := &appInfoLocalizationQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
+	query := applyOptions(opts)
 	localizationID = strings.TrimSpace(localizationID)
 	if localizationID == "" {
 		return nil, fmt.Errorf("localizationID is required")
 	}
-
-	path := fmt.Sprintf("/v1/appInfoLocalizations/%s", localizationID)
-	if queryString := buildAppInfoLocalizationQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppInfoLocalizationResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppInfoLocalizationResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/appInfoLocalizations/%s", localizationID),
+		Query: buildAppInfoLocalizationQuery(query),
+	})
 }
 
 // DeleteAppInfoLocalization deletes an app info localization by ID.
@@ -1916,66 +1312,29 @@ func (c *Client) DeleteAppInfoLocalization(ctx context.Context, localizationID s
 	if localizationID == "" {
 		return fmt.Errorf("localizationID is required")
 	}
-
-	path := fmt.Sprintf("/v1/appInfoLocalizations/%s", localizationID)
-	_, err := c.do(ctx, "DELETE", path, nil)
-	return err
+	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/appInfoLocalizations/%s", localizationID), nil)
 }
 
 // GetAppInfos retrieves app info records for an app.
 func (c *Client) GetAppInfos(ctx context.Context, appID string, opts ...AppInfoOption) (*AppInfosResponse, error) {
-	query := &appInfoQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := fmt.Sprintf("/v1/apps/%s/appInfos", appID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("appInfos: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildAppInfoQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppInfosResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[AppInfosResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/apps/%s/appInfos", appID),
+		Query:       buildAppInfoQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appInfos",
+	})
 }
 
 // GetAppInfo retrieves an app info record by ID.
 func (c *Client) GetAppInfo(ctx context.Context, appInfoID string, opts ...AppInfoOption) (*AppInfoResponse, error) {
-	query := &appInfoQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
+	query := applyOptions(opts)
 	appInfoID = strings.TrimSpace(appInfoID)
 	if appInfoID == "" {
 		return nil, fmt.Errorf("appInfoID is required")
 	}
-
-	path := fmt.Sprintf("/v1/appInfos/%s", appInfoID)
-	if queryString := buildAppInfoQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppInfoResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[AppInfoResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/appInfos/%s", appInfoID),
+		Query: buildAppInfoQuery(query),
+	})
 }

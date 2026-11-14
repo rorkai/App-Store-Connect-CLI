@@ -145,12 +145,12 @@ func xcodeCloudActionsList(ctx context.Context, runID string, limit int, next st
 			return client.GetCiBuildActions(
 				ctx,
 				runID,
-				asc.WithCiBuildActionsLimit(limit),
-				asc.WithCiBuildActionsNextURL(next),
+				asc.Limit[asc.CiBuildActionsOption](limit),
+				asc.NextURL[asc.CiBuildActionsOption](next),
 			)
 		},
 		func(ctx context.Context, client *asc.Client, runID string, next string) (asc.PaginatedResponse, error) {
-			return client.GetCiBuildActions(ctx, runID, asc.WithCiBuildActionsNextURL(next))
+			return client.GetCiBuildActions(ctx, runID, asc.NextURL[asc.CiBuildActionsOption](next))
 		},
 	)
 }

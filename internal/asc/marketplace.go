@@ -2,7 +2,6 @@ package asc
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -123,21 +122,11 @@ func (c *Client) GetMarketplaceSearchDetailForApp(ctx context.Context, appID str
 		return nil, fmt.Errorf("appID is required")
 	}
 
-	path := fmt.Sprintf("/v1/apps/%s/marketplaceSearchDetail", appID)
-	if queryString := buildMarketplaceSearchDetailsFieldsQuery(fields); queryString != "" {
-		path += "?" + queryString
-	}
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response MarketplaceSearchDetailResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse marketplace search detail response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[MarketplaceSearchDetailResponse](ctx, c, readRequest{
+		Path:     fmt.Sprintf("/v1/apps/%s/marketplaceSearchDetail", appID),
+		Query:    buildMarketplaceSearchDetailsFieldsQuery(fields),
+		ParseErr: "failed to parse marketplace search detail response",
+	})
 }
 
 // CreateMarketplaceSearchDetail creates marketplace search details for an app.
@@ -166,22 +155,12 @@ func (c *Client) CreateMarketplaceSearchDetail(ctx context.Context, appID, catal
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "POST", "/v1/marketplaceSearchDetails", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response MarketplaceSearchDetailResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse marketplace search detail response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[MarketplaceSearchDetailResponse](ctx, c, writeRequest{
+		Method:   "POST",
+		Path:     "/v1/marketplaceSearchDetails",
+		Payload:  payload,
+		ParseErr: "failed to parse marketplace search detail response",
+	})
 }
 
 // UpdateMarketplaceSearchDetail updates marketplace search details by ID.
@@ -201,22 +180,12 @@ func (c *Client) UpdateMarketplaceSearchDetail(ctx context.Context, detailID str
 		payload.Data.Attributes = &attrs
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "PATCH", fmt.Sprintf("/v1/marketplaceSearchDetails/%s", detailID), body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response MarketplaceSearchDetailResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse marketplace search detail response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[MarketplaceSearchDetailResponse](ctx, c, writeRequest{
+		Method:   "PATCH",
+		Path:     fmt.Sprintf("/v1/marketplaceSearchDetails/%s", detailID),
+		Payload:  payload,
+		ParseErr: "failed to parse marketplace search detail response",
+	})
 }
 
 // DeleteMarketplaceSearchDetail deletes marketplace search details by ID.
@@ -226,38 +195,20 @@ func (c *Client) DeleteMarketplaceSearchDetail(ctx context.Context, detailID str
 		return fmt.Errorf("detailID is required")
 	}
 
-	_, err := c.do(ctx, "DELETE", fmt.Sprintf("/v1/marketplaceSearchDetails/%s", detailID), nil)
-	return err
+	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/marketplaceSearchDetails/%s", detailID), nil)
 }
 
 // GetMarketplaceWebhooks retrieves marketplace webhooks.
 func (c *Client) GetMarketplaceWebhooks(ctx context.Context, opts ...MarketplaceWebhooksOption) (*MarketplaceWebhooksResponse, error) {
-	query := &marketplaceWebhooksQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
-	path := "/v1/marketplaceWebhooks"
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("marketplaceWebhooks: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildMarketplaceWebhooksQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response MarketplaceWebhooksResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse marketplace webhooks response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[MarketplaceWebhooksResponse](ctx, c, readRequest{
+		Path:        "/v1/marketplaceWebhooks",
+		Query:       buildMarketplaceWebhooksQuery(query),
+		Next:        query.nextURL,
+		NextContext: "marketplaceWebhooks",
+		ParseErr:    "failed to parse marketplace webhooks response",
+	})
 }
 
 // GetMarketplaceWebhook retrieves a marketplace webhook by ID from the
@@ -321,22 +272,12 @@ func (c *Client) CreateMarketplaceWebhook(ctx context.Context, endpointURL, secr
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "POST", "/v1/marketplaceWebhooks", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response MarketplaceWebhookResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse marketplace webhook response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[MarketplaceWebhookResponse](ctx, c, writeRequest{
+		Method:   "POST",
+		Path:     "/v1/marketplaceWebhooks",
+		Payload:  payload,
+		ParseErr: "failed to parse marketplace webhook response",
+	})
 }
 
 // UpdateMarketplaceWebhook updates a marketplace webhook by ID.
@@ -356,22 +297,12 @@ func (c *Client) UpdateMarketplaceWebhook(ctx context.Context, webhookID string,
 		payload.Data.Attributes = &attrs
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, "PATCH", fmt.Sprintf("/v1/marketplaceWebhooks/%s", webhookID), body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response MarketplaceWebhookResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse marketplace webhook response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[MarketplaceWebhookResponse](ctx, c, writeRequest{
+		Method:   "PATCH",
+		Path:     fmt.Sprintf("/v1/marketplaceWebhooks/%s", webhookID),
+		Payload:  payload,
+		ParseErr: "failed to parse marketplace webhook response",
+	})
 }
 
 // DeleteMarketplaceWebhook deletes a marketplace webhook by ID.
@@ -381,6 +312,5 @@ func (c *Client) DeleteMarketplaceWebhook(ctx context.Context, webhookID string)
 		return fmt.Errorf("webhookID is required")
 	}
 
-	_, err := c.do(ctx, "DELETE", fmt.Sprintf("/v1/marketplaceWebhooks/%s", webhookID), nil)
-	return err
+	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/marketplaceWebhooks/%s", webhookID), nil)
 }

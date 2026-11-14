@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"net/url"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -63,8 +62,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return shared.UsageError("users visible-apps list: --limit must be between 1 and 200")
@@ -89,23 +87,22 @@ Examples:
 			defer cancel()
 
 			opts := []asc.UserVisibleAppsOption{
-				asc.WithUserVisibleAppsLimit(*limit),
-				asc.WithUserVisibleAppsNextURL(*next),
+				asc.Limit[asc.UserVisibleAppsOption](*limit),
+				asc.NextURL[asc.UserVisibleAppsOption](*next),
 			}
 
 			if *paginate {
 				if idValue == "" {
-					fmt.Fprintln(os.Stderr, "Error: --id is required")
-					return shared.MissingRequiredUsageError("--id")
+					return shared.RequiredFlag("--id")
 				}
-				paginateOpts := append(opts, asc.WithUserVisibleAppsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.UserVisibleAppsOption](200))
 				firstPage, err := client.GetUserVisibleApps(requestCtx, idValue, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("users visible-apps list: failed to fetch: %w", err)
 				}
 
 				paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetUserVisibleApps(ctx, idValue, asc.WithUserVisibleAppsNextURL(nextURL))
+					return client.GetUserVisibleApps(ctx, idValue, asc.NextURL[asc.UserVisibleAppsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("users visible-apps list: %w", err)
@@ -148,8 +145,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return shared.UsageError("users visible-apps view: --limit must be between 1 and 200")
@@ -174,23 +170,22 @@ Examples:
 			defer cancel()
 
 			opts := []asc.LinkagesOption{
-				asc.WithLinkagesLimit(*limit),
-				asc.WithLinkagesNextURL(*next),
+				asc.Limit[asc.LinkagesOption](*limit),
+				asc.NextURL[asc.LinkagesOption](*next),
 			}
 
 			if *paginate {
 				if idValue == "" {
-					fmt.Fprintln(os.Stderr, "Error: --id is required")
-					return shared.MissingRequiredUsageError("--id")
+					return shared.RequiredFlag("--id")
 				}
-				paginateOpts := append(opts, asc.WithLinkagesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.LinkagesOption](200))
 				firstPage, err := client.GetUserVisibleAppsRelationships(requestCtx, idValue, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("users visible-apps view: failed to fetch: %w", err)
 				}
 
 				paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetUserVisibleAppsRelationships(ctx, idValue, asc.WithLinkagesNextURL(nextURL))
+					return client.GetUserVisibleAppsRelationships(ctx, idValue, asc.NextURL[asc.LinkagesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("users visible-apps view: %w", err)

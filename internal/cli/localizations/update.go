@@ -265,7 +265,7 @@ func updateAppInfoLocalization(ctx context.Context, p updateAppInfoParams) error
 		}
 
 		// Find existing localization ID for the locale
-		existing, err := client.GetAppInfoLocalizations(requestCtx, appInfo, asc.WithAppInfoLocalizationsLimit(200))
+		existing, err := client.GetAppInfoLocalizations(requestCtx, appInfo, asc.Limit[asc.AppInfoLocalizationsOption](200))
 		if err != nil {
 			return fmt.Errorf("localizations update: failed to fetch localizations: %w", err)
 		}
@@ -400,7 +400,7 @@ func updateVersionLocalization(ctx context.Context, p updateVersionParams) error
 			}
 		}
 		// Find existing localization ID for the locale
-		existing, err := client.GetAppStoreVersionLocalizations(requestCtx, vid, asc.WithAppStoreVersionLocalizationsLimit(200))
+		existing, err := client.GetAppStoreVersionLocalizations(requestCtx, vid, asc.Limit[asc.AppStoreVersionLocalizationsOption](200))
 		if err != nil {
 			return fmt.Errorf("localizations update: failed to fetch localizations: %w", err)
 		}

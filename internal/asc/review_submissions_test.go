@@ -833,7 +833,7 @@ func TestGetReviewSubmissionItemsStrictRejectsCursorForDifferentSubmission(t *te
 	}, reviewSubmissionsJSONResponse(http.StatusOK, `{"data":[],"links":{"self":"https://api.appstoreconnect.apple.com/v1/reviewSubmissions/submission-2/items"}}`))
 
 	_, err := client.GetReviewSubmissionItemsStrict(context.Background(), "submission-1",
-		WithReviewSubmissionItemsNextURL("https://api.appstoreconnect.apple.com/v1/reviewSubmissions/submission-2/items?cursor=next"))
+		NextURL[ReviewSubmissionItemsOption]("https://api.appstoreconnect.apple.com/v1/reviewSubmissions/submission-2/items?cursor=next"))
 	if err == nil || !strings.Contains(err.Error(), "pagination URL points to another review submission") {
 		t.Fatalf("error = %v, want submission mismatch", err)
 	}

@@ -1471,8 +1471,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			pathValue := strings.TrimSpace(*filePath)
 			if pathValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --file is required")
-				return shared.MissingRequiredUsageError("--file")
+				return shared.RequiredFlag("--file")
 			}
 
 			interval, err := time.ParseDuration(strings.TrimSpace(*pollInterval))
@@ -1683,8 +1682,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*submissionID)
 			if idValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -1742,8 +1740,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*submissionID)
 			if idValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			provided := map[string]bool{}

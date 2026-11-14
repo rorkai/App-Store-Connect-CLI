@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -88,8 +87,7 @@ Examples:
 
 			trimmedID := strings.TrimSpace(*treatmentID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --treatment-id is required")
-				return shared.MissingRequiredUsageError("--treatment-id")
+				return shared.RequiredFlag("--treatment-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -101,21 +99,21 @@ Examples:
 			defer cancel()
 
 			opts := []asc.AppStoreVersionExperimentTreatmentLocalizationsOption{
-				asc.WithAppStoreVersionExperimentTreatmentLocalizationsLimit(*limit),
-				asc.WithAppStoreVersionExperimentTreatmentLocalizationsNextURL(*next),
+				asc.Limit[asc.AppStoreVersionExperimentTreatmentLocalizationsOption](*limit),
+				asc.NextURL[asc.AppStoreVersionExperimentTreatmentLocalizationsOption](*next),
 				asc.WithAppStoreVersionExperimentTreatmentLocalizationsInclude(includeValues),
 				asc.WithAppStoreVersionExperimentTreatmentLocalizationsPlacementsLimit(placementsLimit),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithAppStoreVersionExperimentTreatmentLocalizationsLimit(productPagesMaxLimit))
+				paginateOpts := append(opts, asc.Limit[asc.AppStoreVersionExperimentTreatmentLocalizationsOption](productPagesMaxLimit))
 				firstPage, err := client.GetAppStoreVersionExperimentTreatmentLocalizations(requestCtx, trimmedID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("experiments treatments localizations list: failed to fetch: %w", err)
 				}
 
 				paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppStoreVersionExperimentTreatmentLocalizations(ctx, trimmedID, asc.WithAppStoreVersionExperimentTreatmentLocalizationsNextURL(nextURL))
+					return client.GetAppStoreVersionExperimentTreatmentLocalizations(ctx, trimmedID, asc.NextURL[asc.AppStoreVersionExperimentTreatmentLocalizationsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("experiments treatments localizations list: %w", err)
@@ -156,8 +154,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*localizationID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
-				return shared.MissingRequiredUsageError("--localization-id")
+				return shared.RequiredFlag("--localization-id")
 			}
 			includeValues, placementsLimit, err := include.Resolve()
 			if err != nil {
@@ -203,14 +200,12 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*treatmentID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --treatment-id is required")
-				return shared.MissingRequiredUsageError("--treatment-id")
+				return shared.RequiredFlag("--treatment-id")
 			}
 
 			localeValue := strings.TrimSpace(*locale)
 			if localeValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --locale is required")
-				return shared.MissingRequiredUsageError("--locale")
+				return shared.RequiredFlag("--locale")
 			}
 
 			client, err := shared.GetASCClient()
@@ -252,12 +247,10 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*localizationID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
-				return shared.MissingRequiredUsageError("--localization-id")
+				return shared.RequiredFlag("--localization-id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()

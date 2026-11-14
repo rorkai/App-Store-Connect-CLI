@@ -81,8 +81,8 @@ Examples:
 				"xcode-cloud artifacts list",
 				func(ctx context.Context, client *asc.Client, resolvedActionID string, limit int, next string) (asc.PaginatedResponse, error) {
 					opts := []asc.CiArtifactsOption{
-						asc.WithCiArtifactsLimit(limit),
-						asc.WithCiArtifactsNextURL(next),
+						asc.Limit[asc.CiArtifactsOption](limit),
+						asc.NextURL[asc.CiArtifactsOption](next),
 					}
 					return client.GetCiBuildActionArtifacts(ctx, resolvedActionID, opts...)
 				},

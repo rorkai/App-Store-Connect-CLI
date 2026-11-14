@@ -170,8 +170,8 @@ Examples:
 				asc.WithBundleIDsInclude(includeValues),
 				asc.WithBundleIDsProfilesLimit(*profilesLimit),
 				asc.WithBundleIDsCapabilitiesLimit(*capabilitiesLimit),
-				asc.WithBundleIDsLimit(*limit),
-				asc.WithBundleIDsNextURL(*next),
+				asc.Limit[asc.BundleIDsOption](*limit),
+				asc.NextURL[asc.BundleIDsOption](*next),
 				asc.WithBundleIDsSplitPagination(*paginate),
 			}
 			if err := asc.ValidateBundleIDsRequest(opts...); err != nil {
@@ -190,14 +190,14 @@ Examples:
 			defer cancel()
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithBundleIDsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.BundleIDsOption](200))
 				firstPage, err := client.GetBundleIDs(requestCtx, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("bundle-ids list: failed to fetch: %w", err)
 				}
 
 				paginated, err := asc.PaginateBundleIDs(requestCtx, firstPage, func(ctx context.Context, nextURL string) (*asc.BundleIDsResponse, error) {
-					return client.GetBundleIDs(ctx, asc.WithBundleIDsNextURL(nextURL))
+					return client.GetBundleIDs(ctx, asc.NextURL[asc.BundleIDsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("bundle-ids list: %w", err)
@@ -272,8 +272,7 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*id) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -318,13 +317,11 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			identifierValue := strings.TrimSpace(*identifier)
 			if identifierValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --identifier is required")
-				return shared.MissingRequiredUsageError("--identifier")
+				return shared.RequiredFlag("--identifier")
 			}
 			nameValue := strings.TrimSpace(*name)
 			if nameValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --name is required")
-				return shared.MissingRequiredUsageError("--name")
+				return shared.RequiredFlag("--name")
 			}
 			platformValue, err := shared.NormalizeBundleIDPlatform(*platform)
 			if err != nil {
@@ -386,13 +383,11 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			nameValue := strings.TrimSpace(*name)
 			if nameValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --name is required")
-				return shared.MissingRequiredUsageError("--name")
+				return shared.RequiredFlag("--name")
 			}
 
 			client, err := shared.GetASCClient()
@@ -435,12 +430,10 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()

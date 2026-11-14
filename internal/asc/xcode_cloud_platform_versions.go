@@ -2,10 +2,8 @@ package asc
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/url"
-	"strings"
 )
 
 // CiTestDestinationKind represents the kind of test destination.
@@ -124,24 +122,6 @@ type ciMacOsVersionsQuery struct {
 // CiMacOsVersionsOption is a functional option for GetCiMacOsVersions.
 type CiMacOsVersionsOption func(*ciMacOsVersionsQuery)
 
-// WithCiMacOsVersionsLimit sets the max number of macOS versions to return.
-func WithCiMacOsVersionsLimit(limit int) CiMacOsVersionsOption {
-	return func(q *ciMacOsVersionsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithCiMacOsVersionsNextURL uses a next page URL directly.
-func WithCiMacOsVersionsNextURL(next string) CiMacOsVersionsOption {
-	return func(q *ciMacOsVersionsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 func buildCiMacOsVersionsQuery(query *ciMacOsVersionsQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
@@ -155,24 +135,6 @@ type ciXcodeVersionsQuery struct {
 // CiXcodeVersionsOption is a functional option for GetCiXcodeVersions.
 type CiXcodeVersionsOption func(*ciXcodeVersionsQuery)
 
-// WithCiXcodeVersionsLimit sets the max number of Xcode versions to return.
-func WithCiXcodeVersionsLimit(limit int) CiXcodeVersionsOption {
-	return func(q *ciXcodeVersionsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithCiXcodeVersionsNextURL uses a next page URL directly.
-func WithCiXcodeVersionsNextURL(next string) CiXcodeVersionsOption {
-	return func(q *ciXcodeVersionsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 func buildCiXcodeVersionsQuery(query *ciXcodeVersionsQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
@@ -181,152 +143,58 @@ func buildCiXcodeVersionsQuery(query *ciXcodeVersionsQuery) string {
 
 // GetCiMacOsVersions retrieves the list of CI macOS versions.
 func (c *Client) GetCiMacOsVersions(ctx context.Context, opts ...CiMacOsVersionsOption) (*CiMacOsVersionsResponse, error) {
-	query := &ciMacOsVersionsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
-	path := "/v1/ciMacOsVersions"
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("ciMacOsVersions: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildCiMacOsVersionsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response CiMacOsVersionsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[CiMacOsVersionsResponse](ctx, c, readRequest{
+		Path:        "/v1/ciMacOsVersions",
+		Query:       buildCiMacOsVersionsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "ciMacOsVersions",
+	})
 }
 
 // GetCiMacOsVersion retrieves a CI macOS version by ID.
 func (c *Client) GetCiMacOsVersion(ctx context.Context, macOsVersionID string) (*CiMacOsVersionResponse, error) {
-	path := fmt.Sprintf("/v1/ciMacOsVersions/%s", macOsVersionID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response CiMacOsVersionResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[CiMacOsVersionResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/ciMacOsVersions/%s", macOsVersionID)})
 }
 
 // GetCiMacOsVersionXcodeVersions retrieves Xcode versions for a macOS version.
 func (c *Client) GetCiMacOsVersionXcodeVersions(ctx context.Context, macOsVersionID string, opts ...CiXcodeVersionsOption) (*CiXcodeVersionsResponse, error) {
-	query := &ciXcodeVersionsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
-	path := fmt.Sprintf("/v1/ciMacOsVersions/%s/xcodeVersions", macOsVersionID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("ciMacOsVersionXcodeVersions: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildCiXcodeVersionsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response CiXcodeVersionsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[CiXcodeVersionsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/ciMacOsVersions/%s/xcodeVersions", macOsVersionID),
+		Query:       buildCiXcodeVersionsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "ciMacOsVersionXcodeVersions",
+	})
 }
 
 // GetCiXcodeVersions retrieves the list of CI Xcode versions.
 func (c *Client) GetCiXcodeVersions(ctx context.Context, opts ...CiXcodeVersionsOption) (*CiXcodeVersionsResponse, error) {
-	query := &ciXcodeVersionsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
-	path := "/v1/ciXcodeVersions"
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("ciXcodeVersions: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildCiXcodeVersionsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response CiXcodeVersionsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[CiXcodeVersionsResponse](ctx, c, readRequest{
+		Path:        "/v1/ciXcodeVersions",
+		Query:       buildCiXcodeVersionsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "ciXcodeVersions",
+	})
 }
 
 // GetCiXcodeVersion retrieves a CI Xcode version by ID.
 func (c *Client) GetCiXcodeVersion(ctx context.Context, xcodeVersionID string) (*CiXcodeVersionResponse, error) {
-	path := fmt.Sprintf("/v1/ciXcodeVersions/%s", xcodeVersionID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response CiXcodeVersionResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[CiXcodeVersionResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/ciXcodeVersions/%s", xcodeVersionID)})
 }
 
 // GetCiXcodeVersionMacOsVersions retrieves macOS versions for an Xcode version.
 func (c *Client) GetCiXcodeVersionMacOsVersions(ctx context.Context, xcodeVersionID string, opts ...CiMacOsVersionsOption) (*CiMacOsVersionsResponse, error) {
-	query := &ciMacOsVersionsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
-	path := fmt.Sprintf("/v1/ciXcodeVersions/%s/macOsVersions", xcodeVersionID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("ciXcodeVersionMacOsVersions: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildCiMacOsVersionsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response CiMacOsVersionsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[CiMacOsVersionsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/ciXcodeVersions/%s/macOsVersions", xcodeVersionID),
+		Query:       buildCiMacOsVersionsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "ciXcodeVersionMacOsVersions",
+	})
 }

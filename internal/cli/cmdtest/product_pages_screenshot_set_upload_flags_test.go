@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 var productPageScreenshotSetUploadCommands = []struct {
@@ -46,10 +47,7 @@ func TestProductPageScreenshotSetUploadsRejectConcurrencyOutOfRange(t *testing.T
 	for _, command := range productPageScreenshotSetUploadCommands {
 		for _, value := range []string{"0", "11"} {
 			t.Run(command.name+" "+value, func(t *testing.T) {
-				installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-					t.Fatalf("usage error must not send requests, got %s %s", req.Method, req.URL.String())
-					return nil, nil
-				}))
+				asctest.NewRegistry(t).Install()
 				args := append(append([]string{}, command.args...), "--path", "./shots", "--device-type", "IPHONE_65", "--concurrency", value)
 				_, stderr, runErr := runRootCommand(t, args)
 				if got := rootcmd.ExitCodeFromError(runErr); got != rootcmd.ExitUsage {

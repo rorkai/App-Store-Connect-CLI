@@ -21,7 +21,7 @@ func runSubmissionLocalizationPreflight(
 	errorPrefix, retryCommand string,
 ) error {
 	localizationsCtx, localizationsCancel := submitPreflightRequestContext(ctx, requestTimeout)
-	localizations, err := client.GetAppStoreVersionLocalizations(localizationsCtx, versionID, asc.WithAppStoreVersionLocalizationsLimit(200))
+	localizations, err := client.GetAppStoreVersionLocalizations(localizationsCtx, versionID, asc.Limit[asc.AppStoreVersionLocalizationsOption](200))
 	localizationsCancel()
 	if err != nil {
 		return submissionPreflightWrap(errorPrefix, fmt.Errorf("failed to fetch version localizations for preflight: %w", err))
@@ -178,7 +178,7 @@ func normalizeSubmissionRetryCommand(retryCommand string) string {
 
 func fetchSubscriptionPreflightGroups(ctx context.Context, client *asc.Client, appID string, requestTimeout time.Duration) ([]asc.Resource[asc.SubscriptionGroupAttributes], string) {
 	firstCtx, firstCancel := submitPreflightRequestContext(ctx, requestTimeout)
-	resp, err := client.GetSubscriptionGroups(firstCtx, appID, asc.WithSubscriptionGroupsLimit(200))
+	resp, err := client.GetSubscriptionGroups(firstCtx, appID, asc.Limit[asc.SubscriptionGroupsOption](200))
 	firstCancel()
 	if err != nil {
 		return nil, subscriptionPreflightSkipReason(err, "subscription groups")
@@ -187,7 +187,7 @@ func fetchSubscriptionPreflightGroups(ctx context.Context, client *asc.Client, a
 	paginated, err := asc.PaginateAll(ctx, resp, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		pageCtx, pageCancel := submitPreflightRequestContext(ctx, requestTimeout)
 		defer pageCancel()
-		return client.GetSubscriptionGroups(pageCtx, appID, asc.WithSubscriptionGroupsNextURL(nextURL))
+		return client.GetSubscriptionGroups(pageCtx, appID, asc.NextURL[asc.SubscriptionGroupsOption](nextURL))
 	})
 	if err != nil {
 		return nil, subscriptionPreflightSkipReason(err, "subscription groups")
@@ -202,7 +202,7 @@ func fetchSubscriptionPreflightGroups(ctx context.Context, client *asc.Client, a
 
 func fetchSubscriptionPreflightSubscriptions(ctx context.Context, client *asc.Client, groupID string, requestTimeout time.Duration) ([]asc.Resource[asc.SubscriptionAttributes], string) {
 	firstCtx, firstCancel := submitPreflightRequestContext(ctx, requestTimeout)
-	resp, err := client.GetSubscriptions(firstCtx, groupID, asc.WithSubscriptionsLimit(200))
+	resp, err := client.GetSubscriptions(firstCtx, groupID, asc.Limit[asc.SubscriptionsOption](200))
 	firstCancel()
 	if err != nil {
 		return nil, subscriptionPreflightSkipReason(err, "subscriptions for this group")
@@ -211,7 +211,7 @@ func fetchSubscriptionPreflightSubscriptions(ctx context.Context, client *asc.Cl
 	paginated, err := asc.PaginateAll(ctx, resp, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		pageCtx, pageCancel := submitPreflightRequestContext(ctx, requestTimeout)
 		defer pageCancel()
-		return client.GetSubscriptions(pageCtx, groupID, asc.WithSubscriptionsNextURL(nextURL))
+		return client.GetSubscriptions(pageCtx, groupID, asc.NextURL[asc.SubscriptionsOption](nextURL))
 	})
 	if err != nil {
 		return nil, subscriptionPreflightSkipReason(err, "subscriptions for this group")

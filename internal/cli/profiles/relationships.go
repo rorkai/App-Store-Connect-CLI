@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"net/url"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -61,8 +60,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -107,8 +105,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return shared.UsageError("profiles links certificates: --limit must be between 1 and 200")
@@ -133,23 +130,22 @@ Examples:
 			defer cancel()
 
 			opts := []asc.LinkagesOption{
-				asc.WithLinkagesLimit(*limit),
-				asc.WithLinkagesNextURL(*next),
+				asc.Limit[asc.LinkagesOption](*limit),
+				asc.NextURL[asc.LinkagesOption](*next),
 			}
 
 			if *paginate {
 				if idValue == "" {
-					fmt.Fprintln(os.Stderr, "Error: --id is required")
-					return shared.MissingRequiredUsageError("--id")
+					return shared.RequiredFlag("--id")
 				}
-				paginateOpts := append(opts, asc.WithLinkagesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.LinkagesOption](200))
 				firstPage, err := client.GetProfileCertificatesRelationships(requestCtx, idValue, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("profiles links certificates: failed to fetch: %w", err)
 				}
 
 				paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetProfileCertificatesRelationships(ctx, idValue, asc.WithLinkagesNextURL(nextURL))
+					return client.GetProfileCertificatesRelationships(ctx, idValue, asc.NextURL[asc.LinkagesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("profiles links certificates: %w", err)
@@ -192,8 +188,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return shared.UsageError("profiles links devices: --limit must be between 1 and 200")
@@ -218,23 +213,22 @@ Examples:
 			defer cancel()
 
 			opts := []asc.LinkagesOption{
-				asc.WithLinkagesLimit(*limit),
-				asc.WithLinkagesNextURL(*next),
+				asc.Limit[asc.LinkagesOption](*limit),
+				asc.NextURL[asc.LinkagesOption](*next),
 			}
 
 			if *paginate {
 				if idValue == "" {
-					fmt.Fprintln(os.Stderr, "Error: --id is required")
-					return shared.MissingRequiredUsageError("--id")
+					return shared.RequiredFlag("--id")
 				}
-				paginateOpts := append(opts, asc.WithLinkagesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.LinkagesOption](200))
 				firstPage, err := client.GetProfileDevicesRelationships(requestCtx, idValue, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("profiles links devices: failed to fetch: %w", err)
 				}
 
 				paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetProfileDevicesRelationships(ctx, idValue, asc.WithLinkagesNextURL(nextURL))
+					return client.GetProfileDevicesRelationships(ctx, idValue, asc.NextURL[asc.LinkagesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("profiles links devices: %w", err)

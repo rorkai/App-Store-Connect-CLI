@@ -45,8 +45,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			locID := strings.TrimSpace(*localizationID)
 			if locID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version-localization is required")
-				return shared.MissingRequiredUsageError("--version-localization")
+				return shared.RequiredFlag("--version-localization")
 			}
 
 			client, err := shared.GetASCClient()
@@ -63,7 +62,7 @@ Examples:
 			allPages, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 				requestCtx, cancel := shared.ContextWithTimeout(ctx)
 				defer cancel()
-				return client.GetAppStoreVersionLocalizationPreviewSets(requestCtx, "", asc.WithAppStoreVersionLocalizationPreviewSetsNextURL(nextURL))
+				return client.GetAppStoreVersionLocalizationPreviewSets(requestCtx, "", asc.NextURL[asc.AppStoreVersionLocalizationPreviewSetsOption](nextURL))
 			})
 			if err != nil {
 				return fmt.Errorf("video-previews list: failed to fetch sets: %w", err)
@@ -176,18 +175,15 @@ Examples:
 			}
 			locID := strings.TrimSpace(*localizationID)
 			if locID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version-localization is required")
-				return shared.MissingRequiredUsageError("--version-localization")
+				return shared.RequiredFlag("--version-localization")
 			}
 			pathValue := strings.TrimSpace(*path)
 			if pathValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --path is required")
-				return shared.MissingRequiredUsageError("--path")
+				return shared.RequiredFlag("--path")
 			}
 			deviceValue := strings.TrimSpace(*deviceType)
 			if deviceValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --device-type is required")
-				return shared.MissingRequiredUsageError("--device-type")
+				return shared.RequiredFlag("--device-type")
 			}
 			if err := validateLibraryUploadFlags(*assetLibrary, *placementGroup, *skipExisting, *replace); err != nil {
 				return err
@@ -435,7 +431,7 @@ Examples:
 				allPages, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 					requestCtx, cancel := shared.ContextWithTimeout(ctx)
 					defer cancel()
-					return client.GetAppStoreVersionLocalizationPreviewSets(requestCtx, "", asc.WithAppStoreVersionLocalizationPreviewSetsNextURL(nextURL))
+					return client.GetAppStoreVersionLocalizationPreviewSets(requestCtx, "", asc.NextURL[asc.AppStoreVersionLocalizationPreviewSetsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("video-previews download: failed to fetch sets: %w", err)
@@ -675,8 +671,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			assetID := strings.TrimSpace(*id)
 			if assetID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required to delete")
@@ -731,13 +726,11 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			previewID := strings.TrimSpace(*id)
 			if previewID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			tc := strings.TrimSpace(*timeCode)
 			if tc == "" {
-				fmt.Fprintln(os.Stderr, "Error: --time-code is required")
-				return shared.MissingRequiredUsageError("--time-code")
+				return shared.RequiredFlag("--time-code")
 			}
 			if !isValidPreviewFrameTimeCode(tc) {
 				fmt.Fprintln(os.Stderr, "Error: --time-code must be in HH:MM:SS:FF or HH:MM:SS.mmm format (e.g., 00:00:05:00 or 00:00:05.000)")
@@ -1235,13 +1228,13 @@ func getOrderedAppPreviewIDs(ctx context.Context, client *asc.Client, setID stri
 		return nil, fmt.Errorf("client is required")
 	}
 
-	firstPage, err := client.GetAppPreviewSetAppPreviewsRelationships(ctx, setID, asc.WithLinkagesLimit(200))
+	firstPage, err := client.GetAppPreviewSetAppPreviewsRelationships(ctx, setID, asc.Limit[asc.LinkagesOption](200))
 	if err != nil {
 		return nil, err
 	}
 
 	return collectOrderedLinkageIDs(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetAppPreviewSetAppPreviewsRelationships(ctx, "", asc.WithLinkagesNextURL(nextURL))
+		return client.GetAppPreviewSetAppPreviewsRelationships(ctx, "", asc.NextURL[asc.LinkagesOption](nextURL))
 	})
 }
 

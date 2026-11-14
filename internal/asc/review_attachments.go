@@ -116,27 +116,11 @@ func (c *Client) GetAppStoreReviewAttachment(ctx context.Context, attachmentID s
 		return nil, fmt.Errorf("attachmentID is required")
 	}
 
-	query := &appStoreReviewAttachmentsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	path := fmt.Sprintf("/v1/appStoreReviewAttachments/%s", attachmentID)
-	if queryString := buildAppStoreReviewAttachmentsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppStoreReviewAttachmentResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	query := applyOptions(opts)
+	return getJSON[AppStoreReviewAttachmentResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/appStoreReviewAttachments/%s", attachmentID),
+		Query: buildAppStoreReviewAttachmentsQuery(query),
+	})
 }
 
 // CreateAppStoreReviewAttachment creates a new attachment.
@@ -170,23 +154,7 @@ func (c *Client) CreateAppStoreReviewAttachment(ctx context.Context, reviewDetai
 			},
 		},
 	}
-
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, http.MethodPost, "/v1/appStoreReviewAttachments", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppStoreReviewAttachmentResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppStoreReviewAttachmentResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/appStoreReviewAttachments", Payload: payload})
 }
 
 // UpdateAppStoreReviewAttachment updates an attachment by ID.
@@ -205,23 +173,7 @@ func (c *Client) UpdateAppStoreReviewAttachment(ctx context.Context, attachmentI
 	if attrs.SourceFileChecksum != nil || attrs.Uploaded != nil {
 		payload.Data.Attributes = &attrs
 	}
-
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, http.MethodPatch, fmt.Sprintf("/v1/appStoreReviewAttachments/%s", attachmentID), body)
-	if err != nil {
-		return nil, err
-	}
-
-	var response AppStoreReviewAttachmentResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return sendJSON[AppStoreReviewAttachmentResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/appStoreReviewAttachments/%s", attachmentID), Payload: payload})
 }
 
 // DeleteAppStoreReviewAttachment deletes an attachment by ID.
@@ -231,6 +183,5 @@ func (c *Client) DeleteAppStoreReviewAttachment(ctx context.Context, attachmentI
 		return fmt.Errorf("attachmentID is required")
 	}
 
-	_, err := c.do(ctx, http.MethodDelete, fmt.Sprintf("/v1/appStoreReviewAttachments/%s", attachmentID), nil)
-	return err
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/appStoreReviewAttachments/%s", attachmentID), nil)
 }

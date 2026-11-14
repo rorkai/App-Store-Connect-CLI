@@ -161,19 +161,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.SubscriptionAvailabilityTerritoriesOption{
-				asc.WithSubscriptionAvailabilityTerritoriesLimit(*limit),
-				asc.WithSubscriptionAvailabilityTerritoriesNextURL(*next),
+				asc.Limit[asc.SubscriptionAvailabilityTerritoriesOption](*limit),
+				asc.NextURL[asc.SubscriptionAvailabilityTerritoriesOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithSubscriptionAvailabilityTerritoriesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.SubscriptionAvailabilityTerritoriesOption](200))
 				firstPage, err := client.GetSubscriptionPlanAvailabilityAvailableTerritories(requestCtx, id, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("subscriptions pricing plan-availability available-territories: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetSubscriptionPlanAvailabilityAvailableTerritories(ctx, id, asc.WithSubscriptionAvailabilityTerritoriesNextURL(nextURL))
+					return client.GetSubscriptionPlanAvailabilityAvailableTerritories(ctx, id, asc.NextURL[asc.SubscriptionAvailabilityTerritoriesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("subscriptions pricing plan-availability available-territories: %w", err)

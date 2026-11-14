@@ -43,8 +43,7 @@ Examples:
 
 			id := strings.TrimSpace(*eventID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --event-id is required")
-				return shared.MissingRequiredUsageError("--event-id")
+				return shared.RequiredFlag("--event-id")
 			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)

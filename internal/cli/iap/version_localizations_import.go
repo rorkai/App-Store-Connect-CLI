@@ -27,7 +27,7 @@ func IAPVersionLocalizationsImportCommand() *ffcli.Command {
 func iapVersionLocalizationImportOps(client *asc.Client) shared.VersionLocalizationImportOps {
 	return shared.VersionLocalizationImportOps{
 		List: func(ctx context.Context, versionID string) ([]shared.VersionLocalization, error) {
-			first, err := client.GetInAppPurchaseVersionLocalizations(ctx, versionID, asc.WithIAPVersionLocalizationsLimit(200))
+			first, err := client.GetInAppPurchaseVersionLocalizations(ctx, versionID, asc.Limit[asc.IAPVersionLocalizationsOption](200))
 			if err != nil {
 				return nil, err
 			}

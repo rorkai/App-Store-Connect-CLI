@@ -2,7 +2,6 @@ package asc
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
@@ -204,24 +203,6 @@ type ciBuildActionsQuery struct {
 // CiBuildActionsOption is a functional option for GetCiBuildActions.
 type CiBuildActionsOption func(*ciBuildActionsQuery)
 
-// WithCiBuildActionsLimit sets the max number of build actions to return.
-func WithCiBuildActionsLimit(limit int) CiBuildActionsOption {
-	return func(q *ciBuildActionsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithCiBuildActionsNextURL uses a next page URL directly.
-func WithCiBuildActionsNextURL(next string) CiBuildActionsOption {
-	return func(q *ciBuildActionsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 func buildCiBuildActionsQuery(query *ciBuildActionsQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
@@ -234,24 +215,6 @@ type ciArtifactsQuery struct {
 
 // CiArtifactsOption is a functional option for GetCiBuildActionArtifacts.
 type CiArtifactsOption func(*ciArtifactsQuery)
-
-// WithCiArtifactsLimit sets the max number of artifacts to return.
-func WithCiArtifactsLimit(limit int) CiArtifactsOption {
-	return func(q *ciArtifactsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithCiArtifactsNextURL uses a next page URL directly.
-func WithCiArtifactsNextURL(next string) CiArtifactsOption {
-	return func(q *ciArtifactsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
 
 func buildCiArtifactsQuery(query *ciArtifactsQuery) string {
 	values := url.Values{}
@@ -266,24 +229,6 @@ type ciTestResultsQuery struct {
 // CiTestResultsOption is a functional option for GetCiBuildActionTestResults.
 type CiTestResultsOption func(*ciTestResultsQuery)
 
-// WithCiTestResultsLimit sets the max number of test results to return.
-func WithCiTestResultsLimit(limit int) CiTestResultsOption {
-	return func(q *ciTestResultsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithCiTestResultsNextURL uses a next page URL directly.
-func WithCiTestResultsNextURL(next string) CiTestResultsOption {
-	return func(q *ciTestResultsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 func buildCiTestResultsQuery(query *ciTestResultsQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
@@ -297,24 +242,6 @@ type ciIssuesQuery struct {
 // CiIssuesOption is a functional option for GetCiBuildActionIssues.
 type CiIssuesOption func(*ciIssuesQuery)
 
-// WithCiIssuesLimit sets the max number of issues to return.
-func WithCiIssuesLimit(limit int) CiIssuesOption {
-	return func(q *ciIssuesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithCiIssuesNextURL uses a next page URL directly.
-func WithCiIssuesNextURL(next string) CiIssuesOption {
-	return func(q *ciIssuesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 func buildCiIssuesQuery(query *ciIssuesQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
@@ -323,202 +250,75 @@ func buildCiIssuesQuery(query *ciIssuesQuery) string {
 
 // GetCiBuildActions retrieves build actions for a build run.
 func (c *Client) GetCiBuildActions(ctx context.Context, buildRunID string, opts ...CiBuildActionsOption) (*CiBuildActionsResponse, error) {
-	query := &ciBuildActionsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
-	path := fmt.Sprintf("/v1/ciBuildRuns/%s/actions", buildRunID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("ciBuildActions: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildCiBuildActionsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response CiBuildActionsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[CiBuildActionsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/ciBuildRuns/%s/actions", buildRunID),
+		Query:       buildCiBuildActionsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "ciBuildActions",
+	})
 }
 
 // GetCiBuildAction retrieves a build action by ID.
 func (c *Client) GetCiBuildAction(ctx context.Context, buildActionID string) (*CiBuildActionResponse, error) {
-	path := fmt.Sprintf("/v1/ciBuildActions/%s", buildActionID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response CiBuildActionResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[CiBuildActionResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/ciBuildActions/%s", buildActionID)})
 }
 
 // GetCiBuildActionBuildRun retrieves the build run for a build action.
 func (c *Client) GetCiBuildActionBuildRun(ctx context.Context, buildActionID string) (*CiBuildRunResponse, error) {
-	path := fmt.Sprintf("/v1/ciBuildActions/%s/buildRun", buildActionID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response CiBuildRunResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[CiBuildRunResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/ciBuildActions/%s/buildRun", buildActionID)})
 }
 
 // GetCiBuildActionArtifacts retrieves artifacts for a build action.
 func (c *Client) GetCiBuildActionArtifacts(ctx context.Context, buildActionID string, opts ...CiArtifactsOption) (*CiArtifactsResponse, error) {
-	query := &ciArtifactsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
-	path := fmt.Sprintf("/v1/ciBuildActions/%s/artifacts", buildActionID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("ciArtifacts: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildCiArtifactsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response CiArtifactsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[CiArtifactsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/ciBuildActions/%s/artifacts", buildActionID),
+		Query:       buildCiArtifactsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "ciArtifacts",
+	})
 }
 
 // GetCiArtifact retrieves a single artifact by ID.
 func (c *Client) GetCiArtifact(ctx context.Context, artifactID string) (*CiArtifactResponse, error) {
-	path := fmt.Sprintf("/v1/ciArtifacts/%s", artifactID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response CiArtifactResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[CiArtifactResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/ciArtifacts/%s", artifactID)})
 }
 
 // GetCiBuildActionTestResults retrieves test results for a build action.
 func (c *Client) GetCiBuildActionTestResults(ctx context.Context, buildActionID string, opts ...CiTestResultsOption) (*CiTestResultsResponse, error) {
-	query := &ciTestResultsQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
-	path := fmt.Sprintf("/v1/ciBuildActions/%s/testResults", buildActionID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("ciTestResults: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildCiTestResultsQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response CiTestResultsResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[CiTestResultsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/ciBuildActions/%s/testResults", buildActionID),
+		Query:       buildCiTestResultsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "ciTestResults",
+	})
 }
 
 // GetCiTestResult retrieves a single test result by ID.
 func (c *Client) GetCiTestResult(ctx context.Context, testResultID string) (*CiTestResultResponse, error) {
-	path := fmt.Sprintf("/v1/ciTestResults/%s", testResultID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response CiTestResultResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[CiTestResultResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/ciTestResults/%s", testResultID)})
 }
 
 // GetCiBuildActionIssues retrieves issues for a build action.
 func (c *Client) GetCiBuildActionIssues(ctx context.Context, buildActionID string, opts ...CiIssuesOption) (*CiIssuesResponse, error) {
-	query := &ciIssuesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
+	query := applyOptions(opts)
 
-	path := fmt.Sprintf("/v1/ciBuildActions/%s/issues", buildActionID)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("ciIssues: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildCiIssuesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response CiIssuesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[CiIssuesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/ciBuildActions/%s/issues", buildActionID),
+		Query:       buildCiIssuesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "ciIssues",
+	})
 }
 
 // GetCiIssue retrieves a single issue by ID.
 func (c *Client) GetCiIssue(ctx context.Context, issueID string) (*CiIssueResponse, error) {
-	path := fmt.Sprintf("/v1/ciIssues/%s", issueID)
-	data, err := c.do(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response CiIssueResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return getJSON[CiIssueResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/ciIssues/%s", issueID)})
 }
 
 // DownloadCiArtifact downloads an artifact from its download URL.

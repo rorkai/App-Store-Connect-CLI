@@ -45,7 +45,7 @@ func TestGetCustomerReviewSummarizations(t *testing.T) {
 		WithCustomerReviewSummarizationsFields([]string{"locale", "text"}),
 		WithCustomerReviewSummarizationsTerritoryFields([]string{"currency"}),
 		WithCustomerReviewSummarizationsInclude([]string{"territory"}),
-		WithCustomerReviewSummarizationsLimit(25),
+		Limit[CustomerReviewSummarizationsOption](25),
 	)
 	if err != nil {
 		t.Fatalf("GetCustomerReviewSummarizations() error: %v", err)
@@ -65,7 +65,7 @@ func TestGetCustomerReviewSummarizations_UsesNextURL(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetCustomerReviewSummarizations(context.Background(), "", WithCustomerReviewSummarizationsNextURL(next)); err != nil {
+	if _, err := client.GetCustomerReviewSummarizations(context.Background(), "", NextURL[CustomerReviewSummarizationsOption](next)); err != nil {
 		t.Fatalf("GetCustomerReviewSummarizations() error: %v", err)
 	}
 }
@@ -83,14 +83,14 @@ func TestGetCustomerReviewSummarizations_RejectsNextURLWithSelectorsOrQueryOptio
 		{name: "fields", opts: []CustomerReviewSummarizationsOption{WithCustomerReviewSummarizationsFields([]string{"text"})}},
 		{name: "territory fields", opts: []CustomerReviewSummarizationsOption{WithCustomerReviewSummarizationsTerritoryFields([]string{"currency"})}},
 		{name: "include", opts: []CustomerReviewSummarizationsOption{WithCustomerReviewSummarizationsInclude([]string{"territory"})}},
-		{name: "limit", opts: []CustomerReviewSummarizationsOption{WithCustomerReviewSummarizationsLimit(25)}},
+		{name: "limit", opts: []CustomerReviewSummarizationsOption{Limit[CustomerReviewSummarizationsOption](25)}},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			requests := 0
 			client := newTestClient(t, func(*http.Request) { requests++ }, jsonResponse(http.StatusOK, `{"data":[]}`))
-			opts := append([]CustomerReviewSummarizationsOption{WithCustomerReviewSummarizationsNextURL(next)}, test.opts...)
+			opts := append([]CustomerReviewSummarizationsOption{NextURL[CustomerReviewSummarizationsOption](next)}, test.opts...)
 
 			_, err := client.GetCustomerReviewSummarizations(context.Background(), test.appID, opts...)
 			if err == nil || !strings.Contains(err.Error(), "next URL cannot be combined with") {

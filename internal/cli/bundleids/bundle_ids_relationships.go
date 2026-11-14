@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"net/url"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -57,8 +56,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -126,8 +124,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return shared.UsageError("bundle-ids profiles list: --limit must be between 1 and 200")
@@ -152,23 +149,22 @@ Examples:
 			defer cancel()
 
 			opts := []asc.BundleIDProfilesOption{
-				asc.WithBundleIDProfilesLimit(*limit),
-				asc.WithBundleIDProfilesNextURL(*next),
+				asc.Limit[asc.BundleIDProfilesOption](*limit),
+				asc.NextURL[asc.BundleIDProfilesOption](*next),
 			}
 
 			if *paginate {
 				if idValue == "" {
-					fmt.Fprintln(os.Stderr, "Error: --id is required")
-					return shared.MissingRequiredUsageError("--id")
+					return shared.RequiredFlag("--id")
 				}
-				paginateOpts := append(opts, asc.WithBundleIDProfilesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.BundleIDProfilesOption](200))
 				firstPage, err := client.GetBundleIDProfiles(requestCtx, idValue, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("bundle-ids profiles list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetBundleIDProfiles(ctx, idValue, asc.WithBundleIDProfilesNextURL(nextURL))
+					return client.GetBundleIDProfiles(ctx, idValue, asc.NextURL[asc.BundleIDProfilesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("bundle-ids profiles list: %w", err)

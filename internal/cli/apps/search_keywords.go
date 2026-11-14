@@ -151,7 +151,7 @@ Examples:
 func resolveSearchKeywordsVersionID(ctx context.Context, client *asc.Client, appID, version, platform string) (string, error) {
 	opts := []asc.AppStoreVersionsOption{
 		asc.WithAppStoreVersionsVersionStrings([]string{version}),
-		asc.WithAppStoreVersionsLimit(200),
+		asc.Limit[asc.AppStoreVersionsOption](200),
 	}
 	if platform != "" {
 		opts = append(opts, asc.WithAppStoreVersionsPlatforms([]string{platform}))
@@ -162,7 +162,7 @@ func resolveSearchKeywordsVersionID(ctx context.Context, client *asc.Client, app
 		return "", fmt.Errorf("failed to resolve App Store version: %w", err)
 	}
 	allPages, err := asc.PaginateAll(ctx, firstPage, func(pageCtx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetAppStoreVersions(pageCtx, appID, asc.WithAppStoreVersionsNextURL(nextURL))
+		return client.GetAppStoreVersions(pageCtx, appID, asc.NextURL[asc.AppStoreVersionsOption](nextURL))
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to resolve App Store version: %w", err)
@@ -202,13 +202,13 @@ func resolveSearchKeywordsLocalizationID(ctx context.Context, client *asc.Client
 		ctx,
 		versionID,
 		asc.WithAppStoreVersionLocalizationLocales([]string{locale}),
-		asc.WithAppStoreVersionLocalizationsLimit(200),
+		asc.Limit[asc.AppStoreVersionLocalizationsOption](200),
 	)
 	if err != nil {
 		return "", fmt.Errorf("failed to resolve version localization: %w", err)
 	}
 	allPages, err := asc.PaginateAll(ctx, firstPage, func(pageCtx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetAppStoreVersionLocalizations(pageCtx, versionID, asc.WithAppStoreVersionLocalizationsNextURL(nextURL))
+		return client.GetAppStoreVersionLocalizations(pageCtx, versionID, asc.NextURL[asc.AppStoreVersionLocalizationsOption](nextURL))
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to resolve version localization: %w", err)

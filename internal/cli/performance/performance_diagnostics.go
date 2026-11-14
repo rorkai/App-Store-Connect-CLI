@@ -99,19 +99,19 @@ Examples:
 			opts := []asc.DiagnosticSignaturesOption{
 				asc.WithDiagnosticSignaturesDiagnosticTypes(diagnosticTypes),
 				asc.WithDiagnosticSignaturesFields(fieldValues),
-				asc.WithDiagnosticSignaturesLimit(*limit),
-				asc.WithDiagnosticSignaturesNextURL(*next),
+				asc.Limit[asc.DiagnosticSignaturesOption](*limit),
+				asc.NextURL[asc.DiagnosticSignaturesOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithDiagnosticSignaturesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.DiagnosticSignaturesOption](200))
 				firstPage, err := client.GetDiagnosticSignaturesForBuild(requestCtx, trimmedBuildID, paginateOpts...)
 				if err != nil {
 					return diagnosticsListFetchError(trimmedBuildID, err)
 				}
 
 				paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetDiagnosticSignaturesForBuild(ctx, trimmedBuildID, asc.WithDiagnosticSignaturesNextURL(nextURL))
+					return client.GetDiagnosticSignaturesForBuild(ctx, trimmedBuildID, asc.NextURL[asc.DiagnosticSignaturesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("performance diagnostics list: %w", err)
@@ -201,7 +201,7 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			resp, err := client.GetDiagnosticSignatureLogs(requestCtx, trimmedID, asc.WithDiagnosticLogsLimit(*limit))
+			resp, err := client.GetDiagnosticSignatureLogs(requestCtx, trimmedID, asc.Limit[asc.DiagnosticLogsOption](*limit))
 			if err != nil {
 				return fmt.Errorf("performance diagnostics view: %w", err)
 			}
