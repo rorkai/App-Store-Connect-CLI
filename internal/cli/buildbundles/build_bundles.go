@@ -244,48 +244,30 @@ Examples:
 
 // BuildBundlesAppClipCacheStatusGetCommand returns the cache-status get subcommand.
 func BuildBundlesAppClipCacheStatusGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	buildBundleID := fs.String("id", "", "Build bundle ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc build-bundles app-clip cache-status view --id \"BUILD_BUNDLE_ID\"",
-		ShortHelp:  "View App Clip domain cache status for a build bundle.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc build-bundles app-clip cache-status view --id \"BUILD_BUNDLE_ID\"",
+		ShortHelp:   "View App Clip domain cache status for a build bundle.",
 		LongHelp: `View App Clip domain cache status for a build bundle.
 
 Examples:
   asc build-bundles app-clip cache-status view --id "BUILD_BUNDLE_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			buildBundleValue := strings.TrimSpace(*buildBundleID)
-			if buildBundleValue == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("build-bundles app-clip cache-status view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetBuildBundleAppClipDomainCacheStatus(requestCtx, buildBundleValue)
+		IDUsage:            "Build bundle ID",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "build-bundles app-clip cache-status view",
+		FetchErrorPrefix:   "build-bundles app-clip cache-status view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			resp, err := client.GetBuildBundleAppClipDomainCacheStatus(ctx, id)
 			if err != nil {
 				if asc.IsNotFound(err) {
-					result := asc.NewAppClipDomainStatusResult(buildBundleValue, nil)
-					return shared.PrintOutput(result, *output.Output, *output.Pretty)
+					return asc.NewAppClipDomainStatusResult(id, nil), nil
 				}
-				return fmt.Errorf("build-bundles app-clip cache-status view: failed to fetch: %w", err)
+				return nil, err
 			}
-
-			result := asc.NewAppClipDomainStatusResult(buildBundleValue, resp)
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return asc.NewAppClipDomainStatusResult(id, resp), nil
 		},
-	}
+	})
 }
 
 // BuildBundlesAppClipDebugStatusCommand returns the debug-status command group.
@@ -313,48 +295,30 @@ Examples:
 
 // BuildBundlesAppClipDebugStatusGetCommand returns the debug-status get subcommand.
 func BuildBundlesAppClipDebugStatusGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	buildBundleID := fs.String("id", "", "Build bundle ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc build-bundles app-clip debug-status view --id \"BUILD_BUNDLE_ID\"",
-		ShortHelp:  "View App Clip domain debug status for a build bundle.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc build-bundles app-clip debug-status view --id \"BUILD_BUNDLE_ID\"",
+		ShortHelp:   "View App Clip domain debug status for a build bundle.",
 		LongHelp: `View App Clip domain debug status for a build bundle.
 
 Examples:
   asc build-bundles app-clip debug-status view --id "BUILD_BUNDLE_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			buildBundleValue := strings.TrimSpace(*buildBundleID)
-			if buildBundleValue == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("build-bundles app-clip debug-status view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetBuildBundleAppClipDomainDebugStatus(requestCtx, buildBundleValue)
+		IDUsage:            "Build bundle ID",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "build-bundles app-clip debug-status view",
+		FetchErrorPrefix:   "build-bundles app-clip debug-status view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			resp, err := client.GetBuildBundleAppClipDomainDebugStatus(ctx, id)
 			if err != nil {
 				if asc.IsNotFound(err) {
-					result := asc.NewAppClipDomainStatusResult(buildBundleValue, nil)
-					return shared.PrintOutput(result, *output.Output, *output.Pretty)
+					return asc.NewAppClipDomainStatusResult(id, nil), nil
 				}
-				return fmt.Errorf("build-bundles app-clip debug-status view: failed to fetch: %w", err)
+				return nil, err
 			}
-
-			result := asc.NewAppClipDomainStatusResult(buildBundleValue, resp)
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return asc.NewAppClipDomainStatusResult(id, resp), nil
 		},
-	}
+	})
 }
 
 // BuildBundlesAppClipInvocationsCommand returns the invocations command group.

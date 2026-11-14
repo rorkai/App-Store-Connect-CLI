@@ -1106,42 +1106,24 @@ func optionalBetaGroupCreateBool(value shared.OptionalBool) *bool {
 
 // BetaGroupsGetCommand returns the beta groups get subcommand.
 func BetaGroupsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	id := shared.BindResourceIDFlag(fs, "id", "betaGroups", "Beta group ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc testflight beta-groups view [flags]",
-		ShortHelp:  "View a TestFlight beta group by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc testflight beta-groups view [flags]",
+		ShortHelp:   "View a TestFlight beta group by ID.",
 		LongHelp: `View a TestFlight beta group by ID.
 
 Examples:
   asc testflight beta-groups view --id "GROUP_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if strings.TrimSpace(*id) == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("beta-groups view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			group, err := client.GetBetaGroup(requestCtx, strings.TrimSpace(*id))
-			if err != nil {
-				return fmt.Errorf("beta-groups view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(group, *output.Output, *output.Pretty)
+		IDUsage:            "Beta group ID",
+		IDType:             "betaGroups",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "beta-groups view",
+		FetchErrorPrefix:   "beta-groups view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetBetaGroup(ctx, id)
 		},
-	}
+	})
 }
 
 // BetaGroupsUpdateCommand returns the beta groups update subcommand.
