@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -35,8 +34,7 @@ Supported actions: launch, tap, type, wait, wait_for (polling), screenshot.`,
 		Exec: func(ctx context.Context, args []string) error {
 			planPathVal := *planPath
 			if strings.TrimSpace(planPathVal) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --plan is required")
-				return shared.MissingRequiredUsageError("--plan")
+				return shared.RequiredFlag("--plan")
 			}
 
 			absPlanPath, err := filepath.Abs(planPathVal)
