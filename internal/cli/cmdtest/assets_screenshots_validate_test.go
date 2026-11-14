@@ -9,13 +9,13 @@ import (
 	"image/color"
 	"image/png"
 	"io"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 type screenshotValidateOutput struct {
@@ -367,13 +367,8 @@ func TestScreenshotsUploadRunsValidateChecksBeforeNetwork(t *testing.T) {
 	writeScreenshotValidatePNG(t, filepath.Join(dir, "01-original.png"), 312, 390, marker, png.BestSpeed)
 	writeScreenshotValidatePNG(t, filepath.Join(dir, "02-duplicate.png"), 312, 390, marker, png.BestCompression)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	calls := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		calls++
-		return statusJSONResponse(`{"data":[],"links":{}}`), nil
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
 
 	_, stderr, err := runRootCommand(t, []string{
 		"screenshots", "upload",
@@ -384,7 +379,7 @@ func TestScreenshotsUploadRunsValidateChecksBeforeNetwork(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), `screenshot "02-duplicate.png" has decoded pixels identical to "01-original.png"`) {
 		t.Fatalf("expected the duplicate-pixel validate error, got %v; stderr=%s", err, stderr)
 	}
-	if calls != 0 {
+	if calls := len(reg.Requests()); calls != 0 {
 		t.Fatalf("made %d network calls before rejecting the folder", calls)
 	}
 }

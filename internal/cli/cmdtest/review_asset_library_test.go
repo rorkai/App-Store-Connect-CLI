@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestAssetLibraryReviewItemsAdd(t *testing.T) {
@@ -46,25 +47,20 @@ func TestAssetLibraryReviewItemsListAndHistory(t *testing.T) {
 	for _, mode := range []string{"json", "table", "markdown", "history"} {
 		t.Run(mode, func(t *testing.T) {
 			setupSubmitCreateAuth(t)
-			old := http.DefaultTransport
-			t.Cleanup(func() { http.DefaultTransport = old })
-			http.DefaultTransport = roundTripFunc(func(r *http.Request) (*http.Response, error) {
-				if r.Method != "GET" {
-					t.Fatalf("unexpected method %s", r.Method)
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			itemsQuery := []string{"fields[reviewSubmissionItems]=state,appAssetLibraryImage,appAssetLibraryVideo", "include=appAssetLibraryImage,appAssetLibraryVideo"}
+			if mode == "history" {
+				reg.Register(asctest.GET("/v1/apps/app-1/reviewSubmissions", "include=appStoreVersionForReview"),
+					asctest.JSON(200, `{"data":[{"type":"reviewSubmissions","id":"sub-1","attributes":{"state":"COMPLETE","platform":"IOS","submittedDate":"2026-10-01T12:00:00Z"}}],"links":{}}`))
+				itemsQuery = []string{
+					"fields[reviewSubmissionItems]=state,appStoreVersion,appCustomProductPageVersion,appAssetLibraryImage,appAssetLibraryVideo,appStoreVersionExperiment,appStoreVersionExperimentV2,appEvent,backgroundAssetVersion,gameCenterAchievementVersion,gameCenterActivityVersion,gameCenterChallengeVersion,gameCenterLeaderboardSetVersion,gameCenterLeaderboardVersion,inAppPurchaseVersion,subscriptionVersion,subscriptionGroupVersion,retentionMessageVersion",
+					"include=appStoreVersion,appCustomProductPageVersion,appAssetLibraryImage,appAssetLibraryVideo,appStoreVersionExperiment,appEvent,backgroundAssetVersion,gameCenterAchievementVersion,gameCenterActivityVersion,gameCenterChallengeVersion,gameCenterLeaderboardSetVersion,gameCenterLeaderboardVersion,inAppPurchaseVersion,subscriptionVersion,subscriptionGroupVersion,retentionMessageVersion",
+					"limit=200",
 				}
-				if r.URL.Path == "/v1/apps/app-1/reviewSubmissions" {
-					return jsonResponse(200, `{"data":[{"type":"reviewSubmissions","id":"sub-1","attributes":{"state":"COMPLETE","platform":"IOS","submittedDate":"2026-10-01T12:00:00Z"}}],"links":{}}`)
-				}
-				if r.URL.Path != "/v1/reviewSubmissions/sub-1/items" {
-					t.Fatalf("unexpected request %s", r.URL)
-				}
-				for _, key := range []string{"appAssetLibraryImage", "appAssetLibraryVideo"} {
-					if !strings.Contains(r.URL.Query().Get("include"), key) || !strings.Contains(r.URL.Query().Get("fields[reviewSubmissionItems]"), key) {
-						t.Errorf("query lacks %s: %s", key, r.URL)
-					}
-				}
-				return jsonResponse(200, `{"data":[{"type":"reviewSubmissionItems","id":"item-1","attributes":{"state":"ACCEPTED"},"relationships":{"appAssetLibraryImage":{"data":{"type":"appAssetLibraryImages","id":"image-1"}}}},{"type":"reviewSubmissionItems","id":"item-2","attributes":{"state":"ACCEPTED"},"relationships":{"appAssetLibraryVideo":{"data":{"type":"appAssetLibraryVideos","id":"video-1"}}}}],"links":{},"included":[{"type":"appAssetLibraryImages","id":"image-1","attributes":{"future":"preserved"}}]}`)
-			})
+			}
+			reg.Register(asctest.GET("/v1/reviewSubmissions/sub-1/items", itemsQuery...),
+				asctest.JSON(200, `{"data":[{"type":"reviewSubmissionItems","id":"item-1","attributes":{"state":"ACCEPTED"},"relationships":{"appAssetLibraryImage":{"data":{"type":"appAssetLibraryImages","id":"image-1"}}}},{"type":"reviewSubmissionItems","id":"item-2","attributes":{"state":"ACCEPTED"},"relationships":{"appAssetLibraryVideo":{"data":{"type":"appAssetLibraryVideos","id":"video-1"}}}}],"links":{},"included":[{"type":"appAssetLibraryImages","id":"image-1","attributes":{"future":"preserved"}}]}`))
 			args := []string{"review", "items-list", "--submission", "sub-1", "--fields", "state,appAssetLibraryImage,appAssetLibraryVideo", "--include", "appAssetLibraryImage,appAssetLibraryVideo", "--output", mode}
 			if mode == "history" {
 				args = []string{"review", "history", "--app", "app-1", "--output", "json"}
