@@ -268,6 +268,28 @@ func fetchAppInfoReadinessData(ctx context.Context, client *asc.Client, appID st
 	return result, nil
 }
 
+// FetchAgeRatingDeclaration reads the app's age rating declaration the way
+// `asc validate` does, choosing the app info that matches the version when the
+// app has more than one. It returns nil when no declaration exists.
+func FetchAgeRatingDeclaration(ctx context.Context, client *asc.Client, appID, versionID string) (*validation.AgeRatingDeclaration, error) {
+	data, err := fetchAppInfoReadinessData(ctx, client, appID)
+	if err != nil {
+		return nil, err
+	}
+	if len(data.response.Data) > 1 {
+		version, err := doReadinessRequest(ctx, func(requestCtx context.Context) (*asc.AppStoreVersionResponse, error) {
+			return client.GetAppStoreVersion(requestCtx, versionID)
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch app store version: %w", err)
+		}
+		if err := resolveMultipleAppInfoAgeRating(ctx, client, &data, appID, shared.ResolveAppStoreVersionState(version.Data.Attributes)); err != nil {
+			return nil, err
+		}
+	}
+	return data.ageRatingDeclaration, nil
+}
+
 func resolveMultipleAppInfoAgeRating(ctx context.Context, client *asc.Client, result *appInfoReadinessData, appID, versionState string) error {
 	if result == nil || result.response == nil || len(result.response.Data) <= 1 {
 		return nil

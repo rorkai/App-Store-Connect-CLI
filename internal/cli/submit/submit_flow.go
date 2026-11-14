@@ -65,6 +65,12 @@ func SubmissionLocalizationPreflightWithTimeout(
 	return runSubmissionLocalizationPreflight(ctx, client, appID, versionID, platform, requestTimeout, "", retryCommand)
 }
 
+// SubmissionAgeRatingPreflight runs the age rating declaration check from
+// `asc validate` and fails when a required answer is missing or invalid.
+func SubmissionAgeRatingPreflight(ctx context.Context, client *asc.Client, appID, versionID string, requestTimeout time.Duration, retryCommand string) error {
+	return runSubmissionAgeRatingPreflight(ctx, client, appID, versionID, requestTimeout, retryCommand)
+}
+
 // SubmissionSubscriptionPreflight runs the advisory subscription preflight used
 // by submit-style App Store review flows.
 func SubmissionSubscriptionPreflight(ctx context.Context, client *asc.Client, appID, retryCommand string) {

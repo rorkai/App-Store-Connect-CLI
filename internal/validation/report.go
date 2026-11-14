@@ -50,7 +50,7 @@ func Validate(input Input, strict bool) Report {
 	checks = append(checks, subscriptionPricingCoverageChecks(input.Subscriptions, pricingTerritoryCount, pricingTerritories)...)
 	checks = append(checks, iapFetchChecks(input.IAPFetchSkipReason)...)
 	checks = append(checks, iapReviewReadinessChecks(input.IAPs)...)
-	checks = append(checks, ageRatingChecks(input.AgeRatingDeclaration)...)
+	checks = append(checks, AgeRatingChecks(input.AgeRatingDeclaration)...)
 	checks = append(checks, releaseChecks(input.ReleaseType, input.EarliestReleaseDate)...)
 	checks = append(checks, legalChecks(input.Copyright, activeMonetization, reviewRelevantSubscriptions, input.VersionLocalizations, input.AppInfoLocalizations)...)
 	checks = append(checks, tvOSPrivacyPolicyTextChecks(input.Platform, input.AppInfoLocalizations)...)

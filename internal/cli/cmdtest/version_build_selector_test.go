@@ -340,6 +340,8 @@ func TestReviewSubmitBuildNumberSelectsBuildFromVersionTrain(t *testing.T) {
 			return jsonResponse(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"locale":"en-US","description":"Description","keywords":"keyword","supportUrl":"https://example.com/support"}}]}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/123456789/appStoreVersions" && isReleasedVersionStateQuery(req.URL.Query()):
 			return jsonResponse(http.StatusOK, `{"data":[]}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/123456789/appInfos":
+			return jsonResponse(http.StatusOK, submitPreflightAppInfosJSON("123456789", completeAgeRatingAttributes))
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/123456789/subscriptionGroups":
 			return jsonResponse(http.StatusOK, `{"data":[]}`)
 		case req.Method == http.MethodGet && (req.URL.Path == "/v1/appStoreVersions/version-1/build" || req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionSubmission"):
