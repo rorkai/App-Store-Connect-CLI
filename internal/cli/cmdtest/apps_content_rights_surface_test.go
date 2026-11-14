@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestAppsContentRightsEditRequiresExplicitValue(t *testing.T) {
@@ -38,21 +40,9 @@ func TestAppsContentRightsViewTableShowsDeclaration(t *testing.T) {
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 	t.Setenv("ASC_PROFILE", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/apps/app-1" {
-			t.Fatalf("expected path /v1/apps/app-1, got %s", req.URL.Path)
-		}
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body: io.NopCloser(strings.NewReader(`{
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/app-1"), asctest.JSON(http.StatusOK, `{
 				"data":{
 					"type":"apps",
 					"id":"app-1",
@@ -63,21 +53,9 @@ func TestAppsContentRightsViewTableShowsDeclaration(t *testing.T) {
 						"contentRightsDeclaration":"DOES_NOT_USE_THIRD_PARTY_CONTENT"
 					}
 				}
-			}`)),
-			Header: http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
+			}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"apps", "content-rights", "view", "--app", "app-1", "--output", "table"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	stdout, stderr, runErr := runCommand(t, []string{"apps", "content-rights", "view", "--app", "app-1", "--output", "table"})
 
 	if runErr != nil {
 		t.Fatalf("run error: %v", runErr)
