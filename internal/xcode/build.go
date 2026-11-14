@@ -220,6 +220,10 @@ func reservedBuildPassthroughArgument(args []string) string {
 		"action",
 		"code_signing_allowed",
 	}
+	return firstReservedPassthroughArgument(args, managedFlags, xcodebuildActions, managedBuildSettings)
+}
+
+func firstReservedPassthroughArgument(args, managedFlags []string, xcodebuildActions map[string]struct{}, managedBuildSettings []string) string {
 	for index := 0; index < len(args); index++ {
 		arg := args[index]
 		trimmed := strings.TrimSpace(arg)

@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -1238,6 +1239,101 @@ func TestXcodeArchiveRejectsExplicitlyEmptyConfiguration(t *testing.T) {
 	}
 	if !strings.Contains(stderr, "--configuration must not be empty") {
 		t.Fatalf("stderr = %q, want empty configuration usage error", stderr)
+	}
+}
+
+func TestXcodeArchivePassesTypedBuildFlags(t *testing.T) {
+	restore := overrideXcodeCommandTestHooks(t)
+	defer restore()
+
+	var gotOpts localxcode.ArchiveOptions
+	runArchive = func(_ context.Context, opts localxcode.ArchiveOptions) (*localxcode.ArchiveResult, error) {
+		gotOpts = opts
+		return &localxcode.ArchiveResult{ArchivePath: opts.ArchivePath}, nil
+	}
+
+	cmd := XcodeArchiveCommand()
+	cmd.FlagSet.SetOutput(io.Discard)
+	if err := cmd.FlagSet.Parse([]string{
+		"--project", "Demo.xcodeproj",
+		"--scheme", "Demo",
+		"--archive-path", filepath.Join(t.TempDir(), "Demo.xcarchive"),
+		"--destination", "generic/platform=iOS",
+		"--derived-data-path", "/tmp/Derived Data",
+		"--result-bundle-path", "/tmp/Results/Demo.xcresult",
+		"--no-code-signing",
+		"--output", "json",
+	}); err != nil {
+		t.Fatalf("FlagSet.Parse() error = %v", err)
+	}
+
+	var runErr error
+	captureCommandOutput(t, func() error {
+		runErr = cmd.Exec(context.Background(), nil)
+		return runErr
+	})
+	if runErr != nil {
+		t.Fatalf("Exec() error = %v", runErr)
+	}
+	if gotOpts.Destination != "generic/platform=iOS" || gotOpts.DerivedDataPath != "/tmp/Derived Data" ||
+		gotOpts.ResultBundlePath != "/tmp/Results/Demo.xcresult" || !gotOpts.NoCodeSigning {
+		t.Fatalf("unexpected archive options: %+v", gotOpts)
+	}
+}
+
+func TestXcodeArchivePassthroughOfTypedBuildFlags(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{name: "raw destination alone", args: []string{"--xcodebuild-flag=-destination", "--xcodebuild-flag=generic/platform=iOS"}},
+		{name: "destination conflict", args: []string{"--destination", "generic/platform=iOS", "--xcodebuild-flag=-destination", "--xcodebuild-flag=generic/platform=macOS"}, wantErr: `--destination conflicts with --xcodebuild-flag "-destination"; use one`},
+		{name: "derived data path conflict", args: []string{"--derived-data-path", "/tmp/dd", "--xcodebuild-flag=-derivedDataPath=/tmp/elsewhere"}, wantErr: `--derived-data-path conflicts with --xcodebuild-flag "-derivedDataPath"; use one`},
+		{name: "result bundle path conflict", args: []string{"--result-bundle-path", "/tmp/a.xcresult", "--xcodebuild-flag=-resultBundlePath", "--xcodebuild-flag=/tmp/b.xcresult"}, wantErr: `--result-bundle-path conflicts with --xcodebuild-flag "-resultBundlePath"; use one`},
+		{name: "code signing conflict", args: []string{"--no-code-signing", "--xcodebuild-flag=CODE_SIGNING_ALLOWED=YES"}, wantErr: `--no-code-signing conflicts with --xcodebuild-flag "CODE_SIGNING_ALLOWED"; use one`},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			restore := overrideXcodeCommandTestHooks(t)
+			defer restore()
+			var gotOpts *localxcode.ArchiveOptions
+			runArchive = func(_ context.Context, opts localxcode.ArchiveOptions) (*localxcode.ArchiveResult, error) {
+				gotOpts = &opts
+				return &localxcode.ArchiveResult{ArchivePath: opts.ArchivePath}, nil
+			}
+
+			cmd := XcodeArchiveCommand()
+			cmd.FlagSet.SetOutput(io.Discard)
+			args := append([]string{"--project", "Demo.xcodeproj", "--scheme", "Demo", "--archive-path", filepath.Join(t.TempDir(), "Demo.xcarchive"), "--output", "json"}, test.args...)
+			if err := cmd.FlagSet.Parse(args); err != nil {
+				t.Fatalf("FlagSet.Parse() error = %v", err)
+			}
+			var runErr error
+			_, stderr := captureCommandOutput(t, func() error {
+				runErr = cmd.Exec(context.Background(), nil)
+				return runErr
+			})
+			if test.wantErr == "" {
+				if runErr != nil {
+					t.Fatalf("Exec() error = %v, stderr = %q", runErr, stderr)
+				}
+				if gotOpts == nil || gotOpts.Destination != "" || !reflect.DeepEqual(gotOpts.XcodebuildArgs, []string{"-destination", "generic/platform=iOS"}) {
+					t.Fatalf("raw passthrough changed: %+v", gotOpts)
+				}
+				return
+			}
+			if gotOpts != nil {
+				t.Fatal("runArchive must not be called for a conflicting passthrough argument")
+			}
+			if !errors.Is(runErr, flag.ErrHelp) {
+				t.Fatalf("Exec() error = %v, want usage error", runErr)
+			}
+			if !strings.Contains(stderr, test.wantErr) {
+				t.Fatalf("stderr = %q, want %q", stderr, test.wantErr)
+			}
+		})
 	}
 }
 
