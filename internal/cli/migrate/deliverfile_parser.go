@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 )
@@ -262,10 +263,14 @@ var unappliedConfigKeys = []string{
 	"app_clip_default_experience_subtitle", "app_clip_default_experience_action",
 }
 
+// notOptionValue matches text after an option name that is not a value: an
+// assignment ("= x", "||= x", "+= 1") or the rest of an expression ("- 1",
+// "<< x", "? a : b").
+var notOptionValue = regexp.MustCompile(`^(?:=|(?:\+|-|\*\*?|/|%|\|\|?|&&?|\^|<<|>>)=|(?:\+|-|\*\*?|/|%|\|\|?|&&?|\^|<=>|<=|>=|<<|>>|<|>|\?)\s)`)
+
 // isConfigOptionCall reports whether rest, the text that follows an option
-// name, sets the option: "name value" or "name(value)". Text that starts with
-// an operator ("name = x", "name ||= x", "name += 1") is an assignment or an
-// expression, and "name: x" is a field inside a multi-line value.
+// name, sets the option: "name value" or "name(value)". "name: x" is a field
+// inside a multi-line value, and "name.x" and "name[0]" are expressions.
 func isConfigOptionCall(rest string) bool {
 	if rest == "" || rest[0] == '(' {
 		return true
@@ -273,19 +278,7 @@ func isConfigOptionCall(rest string) bool {
 	if rest[0] != ' ' && rest[0] != '\t' {
 		return false
 	}
-	value := strings.TrimSpace(rest)
-	if value == "" {
-		return true
-	}
-	switch first := value[0]; {
-	case strings.ContainsRune("\"'[{:(_", rune(first)):
-		return true
-	case first >= '0' && first <= '9', first >= 'a' && first <= 'z', first >= 'A' && first <= 'Z':
-		return true
-	case first == '-' && len(value) > 1 && value[1] >= '0' && value[1] <= '9':
-		return true
-	}
-	return false
+	return !notOptionValue.MatchString(strings.TrimSpace(rest))
 }
 
 func ignoredConfigKeyItems(path string, keys []IgnoredConfigKey) []SkippedItem {
