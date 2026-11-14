@@ -249,30 +249,27 @@ func IAPVersionLocalizationsUpdateCommand() *ffcli.Command {
 }
 
 func IAPVersionLocalizationsDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("versions localizations delete", flag.ExitOnError)
-	id := shared.BindResourceIDFlag(fs, "localization-id", "inAppPurchaseLocalizations", "Localization ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-	return &ffcli.Command{
-		Name: "delete", ShortUsage: `asc iap versions localizations delete --localization-id "LOCALIZATION_ID" --confirm`, ShortHelp: "Delete a version-scoped IAP localization.", LongHelp: "Delete a version-scoped IAP localization.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			value := strings.TrimSpace(*id)
-			if value == "" {
-				return shared.RequiredFlag("--localization-id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-			client, err := iapVersionClientFactory()
-			if err != nil {
-				return fmt.Errorf("iap versions localizations delete: %w", err)
-			}
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-			if err := client.DeleteInAppPurchaseLocalizationV2(requestCtx, value); err != nil {
-				return fmt.Errorf("iap versions localizations delete: failed to delete: %w", err)
-			}
-			return shared.PrintOutput(&asc.AssetDeleteResult{ID: value, Deleted: true}, *output.Output, *output.Pretty)
+	d := shared.DefaultDeps()
+	d.Client = func() (*asc.Client, error) { return iapVersionClientFactory() }
+
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName:        "versions localizations delete",
+		Name:               "delete",
+		ShortUsage:         `asc iap versions localizations delete --localization-id "LOCALIZATION_ID" --confirm`,
+		ShortHelp:          "Delete a version-scoped IAP localization.",
+		LongHelp:           "Delete a version-scoped IAP localization.",
+		IDFlag:             "localization-id",
+		IDUsage:            "Localization ID",
+		IDType:             "inAppPurchaseLocalizations",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "iap versions localizations delete",
+		DeleteErrorPrefix:  "iap versions localizations delete: failed to delete",
+		Deps:               d,
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteInAppPurchaseLocalizationV2(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.AssetDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }

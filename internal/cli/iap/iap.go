@@ -554,51 +554,28 @@ Examples:
 
 // IAPDeleteCommand returns the iap delete subcommand.
 func IAPDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("delete", flag.ExitOnError)
-
-	iapID := shared.BindResourceIDFlag(fs, "id", "inAppPurchases", "In-app purchase ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc iap delete --id \"IAP_ID\" --confirm",
-		ShortHelp:  "Delete an in-app purchase.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "delete",
+		Name:        "delete",
+		ShortUsage:  "asc iap delete --id \"IAP_ID\" --confirm",
+		ShortHelp:   "Delete an in-app purchase.",
 		LongHelp: `Delete an in-app purchase.
 
 Examples:
   asc iap delete --id "IAP_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*iapID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("iap delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteInAppPurchaseV2(requestCtx, id); err != nil {
-				return fmt.Errorf("iap delete: failed to delete: %w", err)
-			}
-
-			result := &asc.InAppPurchaseDeleteResult{
-				ID:      id,
-				Deleted: true,
-			}
-
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "id",
+		IDUsage:            "In-app purchase ID",
+		IDType:             "inAppPurchases",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "iap delete",
+		DeleteErrorPrefix:  "iap delete: failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteInAppPurchaseV2(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.InAppPurchaseDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
 
 func normalizeIAPType(value string) (string, error) {
