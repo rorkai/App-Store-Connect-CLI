@@ -348,51 +348,28 @@ Examples:
 
 // GameCenterChallengesDeleteCommand returns the challenges delete subcommand.
 func GameCenterChallengesDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("delete", flag.ExitOnError)
-
-	challengeID := shared.BindResourceIDFlag(fs, "id", "gameCenterChallenges", "Game Center challenge ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc game-center challenges delete --id \"CHALLENGE_ID\" --confirm",
-		ShortHelp:  "Delete a Game Center challenge.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "delete",
+		Name:        "delete",
+		ShortUsage:  "asc game-center challenges delete --id \"CHALLENGE_ID\" --confirm",
+		ShortHelp:   "Delete a Game Center challenge.",
 		LongHelp: `Delete a Game Center challenge.
 
 Examples:
   asc game-center challenges delete --id "CHALLENGE_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*challengeID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center challenges delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteGameCenterChallenge(requestCtx, id); err != nil {
-				return fmt.Errorf("game-center challenges delete: failed to delete: %w", err)
-			}
-
-			result := &asc.GameCenterChallengeDeleteResult{
-				ID:      id,
-				Deleted: true,
-			}
-
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "id",
+		IDUsage:            "Game Center challenge ID",
+		IDType:             "gameCenterChallenges",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center challenges delete",
+		DeleteErrorPrefix:  "game-center challenges delete: failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteGameCenterChallenge(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.GameCenterChallengeDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
 
 // GameCenterChallengeVersionsCommand returns the challenge versions command group.
@@ -721,51 +698,28 @@ Examples:
 
 // GameCenterChallengeLocalizationsDeleteCommand returns the challenge localizations delete subcommand.
 func GameCenterChallengeLocalizationsDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("delete", flag.ExitOnError)
-
-	localizationID := shared.BindResourceIDFlag(fs, "id", "gameCenterChallengeLocalizations", "Game Center challenge localization ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc game-center challenges localizations delete --id \"LOCALIZATION_ID\" --confirm",
-		ShortHelp:  "Delete a challenge localization.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "delete",
+		Name:        "delete",
+		ShortUsage:  "asc game-center challenges localizations delete --id \"LOCALIZATION_ID\" --confirm",
+		ShortHelp:   "Delete a challenge localization.",
 		LongHelp: `Delete a challenge localization.
 
 Examples:
   asc game-center challenges localizations delete --id "LOCALIZATION_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*localizationID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center challenges localizations delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteGameCenterChallengeLocalization(requestCtx, id); err != nil {
-				return fmt.Errorf("game-center challenges localizations delete: failed to delete: %w", err)
-			}
-
-			result := &asc.GameCenterChallengeLocalizationDeleteResult{
-				ID:      id,
-				Deleted: true,
-			}
-
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "id",
+		IDUsage:            "Game Center challenge localization ID",
+		IDType:             "gameCenterChallengeLocalizations",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center challenges localizations delete",
+		DeleteErrorPrefix:  "game-center challenges localizations delete: failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteGameCenterChallengeLocalization(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.GameCenterChallengeLocalizationDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
 
 // GameCenterChallengeImagesCommand returns the challenge images command group.
@@ -872,51 +826,28 @@ Examples:
 
 // GameCenterChallengeImagesDeleteCommand returns the challenge images delete subcommand.
 func GameCenterChallengeImagesDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("delete", flag.ExitOnError)
-
-	imageID := shared.BindResourceIDFlag(fs, "id", "gameCenterChallengeImages", "Challenge image ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc game-center challenges images delete --id \"IMAGE_ID\" --confirm",
-		ShortHelp:  "Delete a challenge image.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "delete",
+		Name:        "delete",
+		ShortUsage:  "asc game-center challenges images delete --id \"IMAGE_ID\" --confirm",
+		ShortHelp:   "Delete a challenge image.",
 		LongHelp: `Delete a challenge image.
 
 Examples:
   asc game-center challenges images delete --id "IMAGE_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*imageID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center challenges images delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteGameCenterChallengeImage(requestCtx, id); err != nil {
-				return fmt.Errorf("game-center challenges images delete: failed to delete: %w", err)
-			}
-
-			result := &asc.GameCenterChallengeImageDeleteResult{
-				ID:      id,
-				Deleted: true,
-			}
-
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "id",
+		IDUsage:            "Challenge image ID",
+		IDType:             "gameCenterChallengeImages",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center challenges images delete",
+		DeleteErrorPrefix:  "game-center challenges images delete: failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteGameCenterChallengeImage(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.GameCenterChallengeImageDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
 
 // GameCenterChallengeReleasesCommand returns the challenge releases command group.
@@ -1075,51 +1006,28 @@ Examples:
 
 // GameCenterChallengeReleasesDeleteCommand returns the challenge releases delete subcommand.
 func GameCenterChallengeReleasesDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("delete", flag.ExitOnError)
-
-	releaseID := shared.BindResourceIDFlag(fs, "id", "gameCenterChallengeVersionReleases", "Game Center challenge release ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc game-center challenges releases delete --id \"RELEASE_ID\" --confirm",
-		ShortHelp:  "Delete a Game Center challenge release.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "delete",
+		Name:        "delete",
+		ShortUsage:  "asc game-center challenges releases delete --id \"RELEASE_ID\" --confirm",
+		ShortHelp:   "Delete a Game Center challenge release.",
 		LongHelp: `Delete a Game Center challenge release.
 
 Examples:
   asc game-center challenges releases delete --id "RELEASE_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*releaseID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center challenges releases delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteGameCenterChallengeVersionRelease(requestCtx, id); err != nil {
-				return fmt.Errorf("game-center challenges releases delete: failed to delete: %w", err)
-			}
-
-			result := &asc.GameCenterChallengeVersionReleaseDeleteResult{
-				ID:      id,
-				Deleted: true,
-			}
-
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "id",
+		IDUsage:            "Game Center challenge release ID",
+		IDType:             "gameCenterChallengeVersionReleases",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center challenges releases delete",
+		DeleteErrorPrefix:  "game-center challenges releases delete: failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteGameCenterChallengeVersionRelease(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.GameCenterChallengeVersionReleaseDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
 
 // GameCenterChallengeLocalizationImageCommand returns the challenge localization image command group.
