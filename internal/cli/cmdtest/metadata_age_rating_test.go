@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 // metadataAgeRatingHTTP serves version and app-info resolution plus the age
@@ -154,10 +156,7 @@ func TestMetadataAgeRatingRejectsInvalidValuesBeforeRequests(t *testing.T) {
 	for _, test := range tests {
 		for _, command := range []string{"plan", "apply"} {
 			t.Run(test.name+"/"+command, func(t *testing.T) {
-				withMetadataReviewHTTP(t, func(req *http.Request) (*http.Response, error) {
-					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-					return nil, nil
-				})
+				asctest.NewRegistry(t).Install()
 				dir := t.TempDir()
 				versionDir := filepath.Join(dir, "version", "1.2.3")
 				if err := os.MkdirAll(versionDir, 0o755); err != nil {

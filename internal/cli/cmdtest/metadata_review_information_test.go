@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 type metadataReviewDetailServer struct {
@@ -238,10 +240,7 @@ func TestMetadataReviewInformationReadBackMismatchRedactsPassword(t *testing.T) 
 func TestMetadataReviewInformationRejectsUnsafePasswordSources(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	withMetadataReviewHTTP(t, func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-		return nil, nil
-	})
+	asctest.NewRegistry(t).Install()
 
 	parent := t.TempDir()
 	if err := os.WriteFile(filepath.Join(parent, "outside.txt"), []byte("outside-secret"), 0o600); err != nil {
