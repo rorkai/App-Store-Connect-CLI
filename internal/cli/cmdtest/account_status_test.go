@@ -16,7 +16,6 @@ func TestAccountStatusJSON(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps", "limit=1"), asctest.JSON(http.StatusOK, `{
 			"data":[
 				{"type":"apps","id":"app-1","attributes":{"name":"My App","bundleId":"com.example.myapp","sku":"sku"}}
@@ -24,7 +23,7 @@ func TestAccountStatusJSON(t *testing.T) {
 			"links":{"next":""}
 		}`))
 
-	stdout, stderr, err := runCommand(t, []string{"account", "status"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "account", "status")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -72,12 +71,11 @@ func TestAccountStatusForbiddenProducesWarning(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps", "limit=1"), asctest.JSON(http.StatusForbidden, `{
 		"errors":[{"status":"403","code":"FORBIDDEN","title":"Forbidden","detail":"permission denied"}]
 	}`))
 
-	stdout, stderr, err := runCommand(t, []string{"account", "status"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "account", "status")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -116,7 +114,6 @@ func TestAccountStatusTableOutput(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps", "limit=1"), asctest.JSON(http.StatusOK, `{
 			"data":[
 				{"type":"apps","id":"app-1","attributes":{"name":"My App","bundleId":"com.example.myapp","sku":"sku"}}
@@ -124,7 +121,7 @@ func TestAccountStatusTableOutput(t *testing.T) {
 			"links":{"next":""}
 		}`))
 
-	stdout, stderr, err := runCommand(t, []string{"account", "status", "--output", "table"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "account", "status", "--output", "table")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}

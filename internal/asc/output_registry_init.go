@@ -93,7 +93,7 @@ func registerAllOutputRenderers() {
 	registerRows(customerReviewSummarizationsRows)
 	registerDirect(customerReviewDigestTables)
 	registerRowsWithSingleResourceAdapter(appsRows)
-	registerDirect(appsPublishedReportTables)
+	registerDirectTo(appsPublishedReportTables)
 	registerRows(appRenameResultRows)
 	registerRows(webAppCreateResultRows)
 	registerRows(webAppCreateIfExistsResultRows)

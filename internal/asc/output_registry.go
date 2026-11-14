@@ -10,9 +10,10 @@ import (
 // rowsFunc extracts headers and rows from a typed response value.
 type rowsFunc func(data any) ([]string, [][]string, error)
 
-// directRenderFunc renders the value using the provided render callback.
-// Used for multi-table types that need to call render more than once.
-type directRenderFunc func(data any, render func([]string, [][]string)) error
+// directRenderFunc renders the value using the provided render callback, and
+// writes any text between tables to w. Used for multi-table types that need to
+// call render more than once.
+type directRenderFunc func(w io.Writer, data any, render func([]string, [][]string)) error
 
 // outputRegistry maps concrete pointer types to their rows-extraction function.
 var outputRegistry = map[reflect.Type]rowsFunc{}
@@ -320,13 +321,25 @@ func registerRowsWithSingleToListAdapter[T any, U any](rows func(*U) ([]string, 
 // registerDirect registers a type that needs direct render control (multi-table output).
 // Typed-nil pointers are normalized to zero-value pointers before invocation.
 func registerDirect[T any](fn func(*T, func([]string, [][]string)) error) {
+	var direct func(io.Writer, *T, func([]string, [][]string)) error
+	if fn != nil {
+		direct = func(_ io.Writer, v *T, render func([]string, [][]string)) error {
+			return fn(v, render)
+		}
+	}
+	registerDirectTo(direct)
+}
+
+// registerDirectTo is registerDirect for a renderer that also writes text
+// between its tables, to the writer the output goes to.
+func registerDirectTo[T any](fn func(io.Writer, *T, func([]string, [][]string)) error) {
 	t := typeForPtr[T]()
 	if fn == nil {
 		panicNilHelperFunction("direct render function", t)
 	}
 	ensureRegistryTypeAvailable(t)
-	directRenderRegistry[t] = func(data any, render func([]string, [][]string)) error {
-		return fn(dataAsPtrOrZero[T](data), render)
+	directRenderRegistry[t] = func(w io.Writer, data any, render func([]string, [][]string)) error {
+		return fn(w, dataAsPtrOrZero[T](data), render)
 	}
 }
 
@@ -337,7 +350,7 @@ func renderByRegistryTo(w io.Writer, data any, render func([]string, [][]string)
 
 	// Check direct render registry first (multi-table types).
 	if fn, ok := directRenderRegistry[t]; ok {
-		return fn(data, render)
+		return fn(w, data, render)
 	}
 
 	// Standard single-table types.

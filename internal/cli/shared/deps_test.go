@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -493,6 +494,204 @@ func TestDepsUsageErrorsMatchProcessVariantsOnDepsStderr(t *testing.T) {
 				t.Fatalf("value = %#v, want %#v", gotValue, wantValue)
 			}
 		})
+	}
+}
+
+func TestDepsOutputHelpersMatchProcessVariantsOnDepsStdout(t *testing.T) {
+	t.Setenv("TERM", "xterm-256color")
+	t.Setenv("NO_COLOR", "")
+	os.Unsetenv("NO_COLOR")
+
+	var page asc.ActorsResponse
+	if err := json.Unmarshal([]byte(`{
+		"data":[{"type":"actors","id":"actor-1","attributes":{"actorType":"USER","userEmail":"a@example.com"}}],
+		"links":{"self":"https://api.appstoreconnect.apple.com/v1/actors","next":"https://api.appstoreconnect.apple.com/v1/actors?cursor=abc"}
+	}`), &page); err != nil {
+		t.Fatalf("unmarshal page: %v", err)
+	}
+	var planAvailabilities asc.SubscriptionPlanAvailabilitiesResponse
+	if err := json.Unmarshal([]byte(`{"data":[{"type":"subscriptionPlanAvailabilities","id":"plan-1","attributes":{"planType":"MONTHLY","availableInNewTerritories":true}}]}`), &planAvailabilities); err != nil {
+		t.Fatalf("unmarshal plan availabilities: %v", err)
+	}
+	headers := []string{"ID", "Name"}
+	rows := [][]string{{"actor-1", "Ada | Lovelace"}, {"actor-2", "Grace"}}
+	manual := true
+	prices := &ResolvedPricesResult{Prices: []ResolvedPriceRow{
+		{Territory: "USA", PriceID: "price-2", PricePointID: "point-2", CustomerPrice: "0.99", Currency: "USD", Manual: &manual},
+		{Territory: "FRA", PriceID: "price-1", PricePointID: "point-1"},
+	}}
+	upload := &asc.LocalizationUploadResult{Type: "version", InputPath: "./metadata", Total: 2, Succeeded: 1, Failed: 1, Results: []asc.LocalizationUploadLocaleResult{
+		{Locale: "en-US", Action: "update", Status: "succeeded", LocalizationID: "loc-1"},
+		{Locale: "fr-FR", Action: "create", Status: "failed", Error: "conflict"},
+	}}
+	published := &asc.AppsPublishedReport{
+		AuditedAppCount:   2,
+		PublishedAppCount: 1,
+		Apps:              []asc.PublishedApp{{ID: "app-1", Name: "Healthy", BundleID: "com.example.healthy", SKU: "HEALTHY", AvailabilityID: "availability-1", PublishedTerritoryCount: 2}},
+		Failures:          []asc.PublishedAppFailure{{ID: "app-2", Name: "Broken", Error: "request failed"}},
+	}
+
+	type outputFormat struct {
+		format string
+		pretty bool
+	}
+	jsonOnly := []outputFormat{{format: "json"}}
+	human := []outputFormat{{format: "table"}, {format: "markdown"}}
+	all := []outputFormat{{format: "json"}, {format: "json", pretty: true}, {format: "table"}, {format: "markdown"}}
+	boldTitle := func(title string) func(string) string {
+		return func(stdout string) string {
+			return strings.Replace(stdout, title+"\n", bold+title+reset+"\n", 1)
+		}
+	}
+
+	tests := []struct {
+		name      string
+		formats   []outputFormat
+		stderrTTY bool
+		process   func(format string, pretty bool) error
+		deps      func(d *Deps, format string, pretty bool) error
+		// wantStdout derives the deps stdout from the process stdout when
+		// they differ by design; nil means identical.
+		wantStdout func(processStdout string) string
+	}{
+		{
+			name:    "PrintOutputWithRenderers",
+			formats: all,
+			process: func(format string, pretty bool) error {
+				return PrintOutputWithRenderers(&page, format, pretty,
+					func() error { return asc.WriteTable(headers, rows) },
+					func() error { return asc.WriteMarkdown(headers, rows) })
+			},
+			deps: func(d *Deps, format string, pretty bool) error {
+				return d.PrintOutputWithRenderers(&page, format, pretty,
+					func() error { return asc.WriteTableTo(d.IO.Out, headers, rows) },
+					func() error { return asc.WriteMarkdownTo(d.IO.Out, headers, rows) })
+			},
+		},
+		{
+			name:    "PrintOutputWithRenderers with RenderTable and RenderMarkdown",
+			formats: human,
+			process: func(format string, pretty bool) error {
+				return PrintOutputWithRenderers(&page, format, pretty,
+					func() error { asc.RenderTable(headers, rows); return nil },
+					func() error { asc.RenderMarkdown(headers, rows); return nil })
+			},
+			deps: func(d *Deps, format string, pretty bool) error {
+				return d.PrintOutputWithRenderers(&page, format, pretty,
+					func() error { asc.RenderTableTo(d.IO.Out, headers, rows); return nil },
+					func() error { asc.RenderMarkdownTo(d.IO.Out, headers, rows); return nil })
+			},
+		},
+		{
+			name:    "PrintOutputWithRenderers with the plan availability renderers",
+			formats: human,
+			process: func(format string, pretty bool) error {
+				return PrintOutputWithRenderers(&planAvailabilities, format, pretty,
+					func() error { return asc.PrintSubscriptionPlanAvailabilityShowTable(&planAvailabilities) },
+					func() error { return asc.PrintSubscriptionPlanAvailabilityShowMarkdown(&planAvailabilities) })
+			},
+			deps: func(d *Deps, format string, pretty bool) error {
+				return d.PrintOutputWithRenderers(&planAvailabilities, format, pretty,
+					func() error { return asc.PrintSubscriptionPlanAvailabilityShowTableTo(d.IO.Out, &planAvailabilities) },
+					func() error {
+						return asc.PrintSubscriptionPlanAvailabilityShowMarkdownTo(d.IO.Out, &planAvailabilities)
+					})
+			},
+		},
+		{
+			name:    "PrintOutputRows",
+			formats: all,
+			process: func(format string, pretty bool) error { return PrintOutputRows(&page, format, pretty, headers, rows) },
+			deps: func(d *Deps, format string, pretty bool) error {
+				return d.PrintOutputRows(&page, format, pretty, headers, rows)
+			},
+		},
+		{
+			name:    "RenderSection",
+			formats: human,
+			process: func(format string, _ bool) error {
+				RenderSection("Summary", headers, rows, format == "markdown")
+				return nil
+			},
+			deps: func(d *Deps, format string, _ bool) error {
+				d.RenderSection("Summary", headers, rows, format == "markdown")
+				return nil
+			},
+		},
+		{
+			name:      "RenderSection on a terminal stderr",
+			formats:   human,
+			stderrTTY: true,
+			process: func(format string, _ bool) error {
+				RenderSection("Summary", headers, rows, format == "markdown")
+				return nil
+			},
+			deps: func(d *Deps, format string, _ bool) error {
+				d.RenderSection("Summary", headers, rows, format == "markdown")
+				return nil
+			},
+			wantStdout: boldTitle("SUMMARY"),
+		},
+		{
+			name:    "PrintStreamPage",
+			formats: jsonOnly,
+			process: func(string, bool) error { return PrintStreamPage(&page) },
+			deps:    func(d *Deps, _ string, _ bool) error { return d.PrintStreamPage(&page) },
+		},
+		{
+			name:    "PrintResolvedPrices",
+			formats: all,
+			process: func(format string, pretty bool) error { return PrintResolvedPrices(prices, format, pretty) },
+			deps:    func(d *Deps, format string, pretty bool) error { return d.PrintResolvedPrices(prices, format, pretty) },
+		},
+		{
+			name:    "RenderLocalizationUploadResult",
+			formats: human,
+			process: func(format string, _ bool) error { return RenderLocalizationUploadResult(upload, format == "markdown") },
+			deps: func(d *Deps, format string, _ bool) error {
+				return d.RenderLocalizationUploadResult(upload, format == "markdown")
+			},
+		},
+		{
+			name:    "PrintOutput of the published apps report",
+			formats: all,
+			process: func(format string, pretty bool) error { return PrintOutput(published, format, pretty) },
+			deps:    func(d *Deps, format string, pretty bool) error { return d.PrintOutput(published, format, pretty) },
+		},
+	}
+
+	for _, test := range tests {
+		for _, f := range test.formats {
+			name := test.name + "/" + f.format
+			if f.pretty {
+				name += " pretty"
+			}
+			t.Run(name, func(t *testing.T) {
+				var wantErr error
+				wantStdout, wantStderr := captureOutput(t, func() { wantErr = test.process(f.format, f.pretty) })
+				if test.wantStdout != nil {
+					wantStdout = test.wantStdout(wantStdout)
+				}
+
+				var stdout, stderr bytes.Buffer
+				d := &Deps{IO: &IO{Out: &stdout, ErrOut: &stderr, StderrTTY: test.stderrTTY}}
+				var gotErr error
+				processStdout, processStderr := captureOutput(t, func() { gotErr = test.deps(d, f.format, f.pretty) })
+
+				if processStdout != "" || processStderr != "" {
+					t.Fatalf("process stdout = %q, stderr = %q, want both empty", processStdout, processStderr)
+				}
+				if wantStdout == "" || stdout.String() != wantStdout {
+					t.Fatalf("deps stdout = %q, want %q", stdout.String(), wantStdout)
+				}
+				if stderr.String() != wantStderr {
+					t.Fatalf("deps stderr = %q, want %q", stderr.String(), wantStderr)
+				}
+				if !reflect.DeepEqual(gotErr, wantErr) {
+					t.Fatalf("error = %#v, want %#v", gotErr, wantErr)
+				}
+			})
+		}
 	}
 }
 

@@ -129,11 +129,15 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("auth", "Manage authentication for the App Store Connect API.", auth.AuthCommand),
 		commandFactory("doctor", "Diagnose authentication configuration issues.", auth.AuthDoctorCommand),
 		commandFactory("web", "Apple web-session workflows, including finance report downloads.", web.WebCommand),
-		commandFactory("account", "Inspect account-level health and access signals.", account.AccountCommand),
+		commandFactory("account", "Inspect account-level health and access signals.", func() *ffcli.Command {
+			return account.NewAccountCommand(d)
+		}),
 		commandFactory("install-skills", "Install the asc skill pack globally for App Store Connect workflows.", install.InstallSkillsCommand),
 		commandFactory("init", "Initialize asc helper docs in the current repo.", initcmd.InitCommand),
 		commandFactory("docs", "Access embedded documentation guides and reference helpers.", docs.DocsCommand),
-		commandFactory("diff", "Generate deterministic non-mutating diff plans.", diffcmd.DiffCommand),
+		commandFactory("diff", "Generate deterministic non-mutating diff plans.", func() *ffcli.Command {
+			return diffcmd.NewDiffCommand(d)
+		}),
 		commandFactory("system-status", "Check Apple Developer service health.", systemstatus.Command),
 		commandFactory("status", "Show a release pipeline dashboard for an app.", status.StatusCommand),
 		commandFactory("insights", "Generate weekly and daily insights from App Store data sources.", insights.InsightsCommand),
@@ -248,7 +252,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 			return schema.NewSchemaCommand(d)
 		}),
 		commandFactory("api", "Send an authenticated raw request to the App Store Connect API.", apicmd.Command),
-		commandFactory("telemetry", "Manage CLI telemetry settings.", telemetrycmd.TelemetryCommand),
+		commandFactory("telemetry", "Manage CLI telemetry settings.", func() *ffcli.Command {
+			return telemetrycmd.NewTelemetryCommand(d)
+		}),
 		commandFactory("search", "Search asc commands and examples for agent-oriented command discovery.", func() *ffcli.Command {
 			return searchcmd.SearchCommand(catalog.All)
 		}),

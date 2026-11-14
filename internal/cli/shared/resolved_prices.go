@@ -2,6 +2,8 @@ package shared
 
 import (
 	"fmt"
+	"io"
+	"os"
 	"sort"
 	"strings"
 
@@ -52,16 +54,22 @@ func SortResolvedPrices(rows []ResolvedPriceRow) {
 
 // PrintResolvedPrices renders resolved price rows without registering global raw renderers.
 func PrintResolvedPrices(result *ResolvedPricesResult, format string, pretty bool) error {
-	return PrintOutputWithRenderers(
+	return printResolvedPricesTo(os.Stdout, os.Stderr, result, format, pretty)
+}
+
+func printResolvedPricesTo(out, errOut io.Writer, result *ResolvedPricesResult, format string, pretty bool) error {
+	return printOutputWithRenderersTo(
+		out,
+		errOut,
 		result,
 		format,
 		pretty,
-		func() error { return printResolvedPricesTable(result, false) },
-		func() error { return printResolvedPricesTable(result, true) },
+		func() error { return printResolvedPricesTable(out, result, false) },
+		func() error { return printResolvedPricesTable(out, result, true) },
 	)
 }
 
-func printResolvedPricesTable(result *ResolvedPricesResult, markdown bool) error {
+func printResolvedPricesTable(w io.Writer, result *ResolvedPricesResult, markdown bool) error {
 	if result == nil {
 		return fmt.Errorf("resolved prices result is nil")
 	}
@@ -104,11 +112,11 @@ func printResolvedPricesTable(result *ResolvedPricesResult, markdown bool) error
 	}
 
 	if markdown {
-		asc.RenderMarkdown(headers, values)
+		asc.RenderMarkdownTo(w, headers, values)
 		return nil
 	}
 
-	asc.RenderTable(headers, values)
+	asc.RenderTableTo(w, headers, values)
 	return nil
 }
 

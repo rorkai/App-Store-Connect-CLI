@@ -908,13 +908,18 @@ func FinalizeLocalizationUploadResult(result *asc.LocalizationUploadResult, comm
 // RenderLocalizationUploadResult renders both the batch summary and per-locale
 // details so interactive output includes retry artifact information.
 func RenderLocalizationUploadResult(result *asc.LocalizationUploadResult, markdown bool) error {
+	return renderLocalizationUploadResultTo(os.Stdout, result, markdown)
+}
+
+func renderLocalizationUploadResultTo(w io.Writer, result *asc.LocalizationUploadResult, markdown bool) error {
 	if result == nil {
 		return fmt.Errorf("localization upload result is nil")
 	}
-	render := asc.RenderTable
+	renderTo := asc.RenderTableTo
 	if markdown {
-		render = asc.RenderMarkdown
+		renderTo = asc.RenderMarkdownTo
 	}
+	render := func(headers []string, rows [][]string) { renderTo(w, headers, rows) }
 	render(
 		[]string{"Type", "Input Path", "Dry Run", "Total", "Succeeded", "Failed", "Failure Artifact", "Failure Artifact Error"},
 		[][]string{{

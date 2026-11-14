@@ -9,9 +9,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// DiffCommand returns the root diff command group.
-func DiffCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("diff", flag.ExitOnError)
+// NewDiffCommand returns the root diff command group built on d.
+func NewDiffCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("diff", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "diff",
@@ -25,7 +25,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			DiffLocalizationsCommand(),
+			newDiffLocalizationsCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
