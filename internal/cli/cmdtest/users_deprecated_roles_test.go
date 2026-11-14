@@ -6,30 +6,29 @@ import (
 	"io"
 	"net/http"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestUsersCommandsWarnDeprecatedAccessToReportsRole(t *testing.T) {
 	tests := []struct {
 		name     string
 		args     []string
-		method   string
-		path     string
+		request  asctest.Matcher
 		response string
 		wantID   string
 	}{
 		{
 			name:     "update",
 			args:     []string{"users", "update", "--id", "user-1", "--roles", "access_to_reports", "--output", "json"},
-			method:   http.MethodPatch,
-			path:     "/v1/users/user-1",
+			request:  asctest.PATCH("/v1/users/user-1").JSONBody(`{"data":{"type":"users","id":"user-1","attributes":{"roles":["ACCESS_TO_REPORTS"]}}}`),
 			response: `{"data":{"type":"users","id":"user-1","attributes":{"username":"user@example.com","roles":["ACCESS_TO_REPORTS"],"allAppsVisible":true,"provisioningAllowed":false}}}`,
 			wantID:   "user-1",
 		},
 		{
 			name:     "invite",
 			args:     []string{"users", "invite", "--email", "user@example.com", "--first-name", "Jane", "--last-name", "Doe", "--roles", "access_to_reports", "--all-apps", "--output", "json"},
-			method:   http.MethodPost,
-			path:     "/v1/userInvitations",
+			request:  asctest.POST("/v1/userInvitations").JSONBody(`{"data":{"type":"userInvitations","attributes":{"email":"user@example.com","firstName":"Jane","lastName":"Doe","roles":["ACCESS_TO_REPORTS"],"allAppsVisible":true}}}`),
 			response: `{"data":{"type":"userInvitations","id":"invite-1","attributes":{"email":"user@example.com","roles":["ACCESS_TO_REPORTS"],"allAppsVisible":true,"provisioningAllowed":false}}}`,
 			wantID:   "invite-1",
 		},
@@ -39,13 +38,9 @@ func TestUsersCommandsWarnDeprecatedAccessToReportsRole(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			setupAuth(t)
 
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				if req.Method != tt.method || req.URL.Path != tt.path {
-					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-					return nil, nil
-				}
-				return jsonResponse(http.StatusOK, tt.response)
-			}))
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(tt.request, asctest.JSON(http.StatusOK, tt.response))
 
 			root := RootCommand("1.2.3")
 			root.FlagSet.SetOutput(io.Discard)

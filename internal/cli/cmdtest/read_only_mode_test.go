@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 	webcmd "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/web"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/readonly"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
@@ -20,14 +21,8 @@ func TestReadOnlyEnvRefusesPublicAPIMutation(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv(readonly.EnvVar, "1")
 
-	var mutating int
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet {
-			mutating++
-		}
-		t.Errorf("unexpected request left the client: %s %s", req.Method, req.URL.Path)
-		return nil, io.ErrUnexpectedEOF
-	}))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
 
 	var code int
 	stdout, stderr := captureOutput(t, func() {
@@ -47,6 +42,12 @@ func TestReadOnlyEnvRefusesPublicAPIMutation(t *testing.T) {
 	if stderr != want {
 		t.Fatalf("stderr = %q, want %q", stderr, want)
 	}
+	mutating := 0
+	for _, req := range reg.Requests() {
+		if req.Method != http.MethodGet {
+			mutating++
+		}
+	}
 	if mutating != 0 {
 		t.Fatalf("%d mutating requests reached the transport, want 0", mutating)
 	}
@@ -57,10 +58,7 @@ func TestReadOnlyFlagRefusesPublicAPIMutationAndNamesTheFlag(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv(readonly.EnvVar, "")
 
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Errorf("unexpected request left the client: %s %s", req.Method, req.URL.Path)
-		return nil, io.ErrUnexpectedEOF
-	}))
+	asctest.NewRegistry(t).Install()
 
 	var code int
 	stdout, stderr := captureOutput(t, func() {
@@ -90,18 +88,10 @@ func TestReadOnlyAllowsPublicAPIReads(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv(readonly.EnvVar, "true")
 
-	var gets int
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet {
-			t.Errorf("unexpected %s %s", req.Method, req.URL.Path)
-		}
-		gets++
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-			Body:       io.NopCloser(strings.NewReader(`{"data":[{"type":"apps","id":"123","attributes":{"name":"App","bundleId":"com.example.app","sku":"SKU"}}],"links":{}}`)),
-		}, nil
-	}))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"apps","id":"123","attributes":{"name":"App","bundleId":"com.example.app","sku":"SKU"}}],"links":{}}`))
 
 	var code int
 	stdout, stderr := captureOutput(t, func() {
@@ -110,7 +100,7 @@ func TestReadOnlyAllowsPublicAPIReads(t *testing.T) {
 	if code != cmd.ExitSuccess {
 		t.Fatalf("exit code = %d, want 0; stderr=%q", code, stderr)
 	}
-	if gets != 1 {
+	if gets := len(reg.Requests()); gets != 1 {
 		t.Fatalf("GET requests = %d, want 1", gets)
 	}
 	if !strings.Contains(stdout, `"id":"123"`) {
@@ -196,10 +186,7 @@ func TestReadOnlyRefusesConfirmedDeleteBeforeAnyRequest(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv(readonly.EnvVar, "1")
 
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Errorf("unexpected request left the client: %s %s", req.Method, req.URL.Path)
-		return nil, io.ErrUnexpectedEOF
-	}))
+	asctest.NewRegistry(t).Install()
 
 	var code int
 	stdout, stderr := captureOutput(t, func() {
@@ -245,16 +232,14 @@ func TestReadOnlyRawAPITransport(t *testing.T) {
 				if method == http.MethodPost || method == http.MethodPatch {
 					args = append(args, "--body", `{"data":{}}`)
 				}
-				requests := 0
-				installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-					requests++
-					if req.Method != http.MethodGet {
-						t.Errorf("mutation reached transport: %s %s", req.Method, req.URL.Path)
-					}
-					return &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Content-Type": {"application/json"}}, Body: io.NopCloser(strings.NewReader(`{"data":[]}`))}, nil
-				}))
+				reg := asctest.NewRegistry(t)
+				reg.Install()
+				if method == http.MethodGet {
+					reg.Register(asctest.GET(path), asctest.JSON(http.StatusOK, `{"data":[]}`))
+				}
 				var code int
 				stdout, stderr := captureOutput(t, func() { code = cmd.Run(args, "1.0.0") })
+				requests := len(reg.Requests())
 				if method == http.MethodGet {
 					if code != cmd.ExitSuccess || requests != 1 || strings.TrimSpace(stdout) != `{"data":[]}` {
 						t.Fatalf("read result: code=%d requests=%d stdout=%q stderr=%q", code, requests, stdout, stderr)
@@ -275,7 +260,7 @@ func TestReadOnlyRefusalInBatchCommandExitsReadOnly(t *testing.T) {
 		name    string
 		input   string
 		args    func(input string) []string
-		listGET string
+		listGET asctest.Matcher
 		listRes string
 	}{
 		{
@@ -284,7 +269,7 @@ func TestReadOnlyRefusalInBatchCommandExitsReadOnly(t *testing.T) {
 			args: func(input string) []string {
 				return []string{"metadata", "keywords", "push", "--version-id", "ver-1", "--input", input}
 			},
-			listGET: "/v1/appStoreVersions/ver-1/appStoreVersionLocalizations",
+			listGET: asctest.GET("/v1/appStoreVersions/ver-1/appStoreVersionLocalizations", "limit=200"),
 			listRes: `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US","keywords":"old"}}],"links":{}}`,
 		},
 		{
@@ -293,7 +278,7 @@ func TestReadOnlyRefusalInBatchCommandExitsReadOnly(t *testing.T) {
 			args: func(input string) []string {
 				return []string{"devices", "register-batch", "--file", input, "--confirm"}
 			},
-			listGET: "/v1/devices",
+			listGET: asctest.GET("/v1/devices", "fields[devices]=name,udid,platform,status", "limit=200"),
 			listRes: `{"data":[],"links":{}}`,
 		},
 	}
@@ -307,13 +292,9 @@ func TestReadOnlyRefusalInBatchCommandExitsReadOnly(t *testing.T) {
 				t.Fatalf("WriteFile() error: %v", err)
 			}
 
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				if req.Method != http.MethodGet || req.URL.Path != tt.listGET {
-					t.Errorf("unexpected request left the client: %s %s", req.Method, req.URL.Path)
-					return nil, io.ErrUnexpectedEOF
-				}
-				return jsonResponse(http.StatusOK, tt.listRes)
-			}))
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(tt.listGET, asctest.JSON(http.StatusOK, tt.listRes))
 
 			var code int
 			stdout, stderr := captureOutput(t, func() {

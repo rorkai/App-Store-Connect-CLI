@@ -85,75 +85,6 @@ func TestReadPasswordFromInput(t *testing.T) {
 	})
 }
 
-func TestReadPasswordFromTerminalFD(t *testing.T) {
-	origReadPassword := termReadPasswordFn
-	t.Cleanup(func() {
-		termReadPasswordFn = origReadPassword
-	})
-
-	t.Run("preserves interactive password bytes and writes prompt", func(t *testing.T) {
-		termReadPasswordFn = func(fd int) ([]byte, error) {
-			return []byte("  secret-pass  "), nil
-		}
-		var prompt bytes.Buffer
-
-		password, err := readPasswordFromTerminalFD(context.Background(), &prompt)
-		if err != nil {
-			t.Fatalf("readPasswordFromTerminalFD returned error: %v", err)
-		}
-		if password != "  secret-pass  " {
-			t.Fatalf("expected password %q, got %q", "  secret-pass  ", password)
-		}
-		if !strings.Contains(prompt.String(), "Apple Account password:") {
-			t.Fatalf("expected password prompt text, got %q", prompt.String())
-		}
-	})
-
-	t.Run("rejects whitespace-only password", func(t *testing.T) {
-		termReadPasswordFn = func(fd int) ([]byte, error) {
-			return []byte("   "), nil
-		}
-
-		_, err := readPasswordFromTerminalFD(context.Background(), &bytes.Buffer{})
-		if err == nil {
-			t.Fatal("expected error for whitespace-only password")
-		}
-		if !strings.Contains(err.Error(), "password is required") {
-			t.Fatalf("unexpected error: %v", err)
-		}
-	})
-
-	t.Run("propagates terminal read failure", func(t *testing.T) {
-		termReadPasswordFn = func(fd int) ([]byte, error) {
-			return nil, errors.New("terminal read failed")
-		}
-
-		_, err := readPasswordFromTerminalFD(context.Background(), &bytes.Buffer{})
-		if err == nil {
-			t.Fatal("expected read failure")
-		}
-		if !strings.Contains(err.Error(), "failed to read password") {
-			t.Fatalf("unexpected error: %v", err)
-		}
-	})
-
-	t.Run("preserves prompt cancellation", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		cancel()
-		termReadPasswordFn = func(fd int) ([]byte, error) {
-			return nil, errors.New("read aborted")
-		}
-
-		_, err := readPasswordFromTerminalFD(ctx, &bytes.Buffer{})
-		if err == nil {
-			t.Fatal("expected cancellation error")
-		}
-		if !errors.Is(err, context.Canceled) {
-			t.Fatalf("expected context cancellation, got %v", err)
-		}
-	})
-}
-
 func TestPromptPasswordInteractiveUsesControllingTTYWhenStdinIsNotTerminal(t *testing.T) {
 	origOpenTTY := openTTYFn
 	origIsTerminal := termIsTerminalFn
@@ -370,37 +301,6 @@ func TestReadPasswordFromTerminalReturnsPromptInterruptAfterContextCancel(t *tes
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for password prompt to return after context cancellation")
 	}
-}
-
-func TestReadTwoFactorCodeFrom(t *testing.T) {
-	t.Run("trims input", func(t *testing.T) {
-		input := strings.NewReader(" 123456 \n")
-		var prompt bytes.Buffer
-
-		code, err := readTwoFactorCodeFrom(input, &prompt)
-		if err != nil {
-			t.Fatalf("readTwoFactorCodeFrom returned error: %v", err)
-		}
-		if code != "123456" {
-			t.Fatalf("expected code %q, got %q", "123456", code)
-		}
-		if !strings.Contains(prompt.String(), "Enter 2FA code") {
-			t.Fatalf("expected prompt text, got %q", prompt.String())
-		}
-	})
-
-	t.Run("rejects empty", func(t *testing.T) {
-		input := strings.NewReader("\n")
-		var prompt bytes.Buffer
-
-		_, err := readTwoFactorCodeFrom(input, &prompt)
-		if err == nil {
-			t.Fatal("expected error for empty input")
-		}
-		if !strings.Contains(err.Error(), "empty 2fa code") {
-			t.Fatalf("unexpected error: %v", err)
-		}
-	})
 }
 
 func TestReadTwoFactorCodeFromTerminalFD(t *testing.T) {
@@ -2432,12 +2332,10 @@ func TestResolveSessionReturnsPromptCancellationWithoutUsageFallback(t *testing.
 	origTryResume := tryResumeSessionFn
 	origTryResumeLast := tryResumeLastFn
 	origPromptPassword := promptPasswordFn
-	origReadPassword := termReadPasswordFn
 	t.Cleanup(func() {
 		tryResumeSessionFn = origTryResume
 		tryResumeLastFn = origTryResumeLast
 		promptPasswordFn = origPromptPassword
-		termReadPasswordFn = origReadPassword
 	})
 
 	t.Setenv(webPasswordEnv, "")
@@ -2449,11 +2347,8 @@ func TestResolveSessionReturnsPromptCancellationWithoutUsageFallback(t *testing.
 		t.Fatal("did not expect last-session cache lookup when apple-id is provided")
 		return nil, false, nil
 	}
-	termReadPasswordFn = func(fd int) ([]byte, error) {
-		return nil, errors.New("tty closed")
-	}
 	promptPasswordFn = func(ctx context.Context) (string, error) {
-		return readPasswordFromTerminalFD(ctx, &bytes.Buffer{})
+		return "", fmt.Errorf("password prompt interrupted: %w", ctx.Err())
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())

@@ -1,7 +1,6 @@
 package web
 
 import (
-	"bufio"
 	"context"
 	"errors"
 	"flag"
@@ -264,28 +263,6 @@ func readPasswordFromEnv() string {
 	return os.Getenv(webPasswordEnv)
 }
 
-func readPasswordFromTerminalFD(ctx context.Context, writer io.Writer) (string, error) {
-	if writer == nil {
-		return "", fmt.Errorf("password prompt unavailable")
-	}
-	if _, err := fmt.Fprint(writer, "Apple Account password: "); err != nil {
-		return "", fmt.Errorf("password prompt unavailable")
-	}
-	passwordBytes, err := termReadPasswordFn(0)
-	_, _ = fmt.Fprintln(writer)
-	if err != nil {
-		if ctxErr := ctx.Err(); ctxErr != nil {
-			return "", fmt.Errorf("password prompt interrupted: %w", ctxErr)
-		}
-		return "", fmt.Errorf("failed to read password")
-	}
-	password := string(passwordBytes)
-	if !webPasswordProvided(password) {
-		return "", fmt.Errorf("password is required")
-	}
-	return password, nil
-}
-
 func readPasswordFromTerminal(ctx context.Context, terminal *os.File, writer io.Writer, closeTerminal bool) (string, error) {
 	if terminal == nil {
 		return "", fmt.Errorf("password prompt unavailable")
@@ -363,24 +340,6 @@ func promptPasswordInteractive(ctx context.Context) (string, error) {
 		return readPasswordFromTerminal(ctx, os.Stdin, os.Stderr, false)
 	}
 	return "", nil
-}
-
-func readTwoFactorCodeFrom(reader io.Reader, writer io.Writer) (string, error) {
-	if reader == nil || writer == nil {
-		return "", fmt.Errorf("2fa required: unable to prompt for code")
-	}
-	if _, err := fmt.Fprint(writer, "Two-factor code required. Enter 2FA code: "); err != nil {
-		return "", fmt.Errorf("2fa required: unable to prompt for code")
-	}
-	line, err := bufio.NewReader(reader).ReadString('\n')
-	if err != nil && !errors.Is(err, io.EOF) {
-		return "", fmt.Errorf("2fa required: failed to read 2fa code")
-	}
-	code := strings.TrimSpace(line)
-	if code == "" {
-		return "", fmt.Errorf("2fa required: empty 2fa code")
-	}
-	return code, nil
 }
 
 func readTwoFactorCodeFromTerminalFD(fd int, writer io.Writer) (string, error) {

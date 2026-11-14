@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 // Catches a malformed time code reaching Apple, or leaving a half-created clip
@@ -33,10 +34,7 @@ func TestAppEventVideoClipsTimeCodeUsageErrorsBeforeHTTP(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			setupAuth(t)
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-				return nil, nil
-			}))
+			asctest.NewRegistry(t).Install()
 
 			exitCode := rootcmd.ExitSuccess
 			_, stderr := captureOutput(t, func() {
@@ -135,18 +133,11 @@ func TestAppEventVideoClipsCreateTimeCodeRequestWiring(t *testing.T) {
 func TestAppEventVideoClipsSetPosterFramePatchesOnlyTheTimeCode(t *testing.T) {
 	setupAuth(t)
 
-	var gotBody string
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodPatch || req.URL.Path != "/v1/appEventVideoClips/clip-1" {
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-		}
-		body, err := io.ReadAll(req.Body)
-		if err != nil {
-			t.Fatalf("read body: %v", err)
-		}
-		gotBody = strings.TrimSpace(string(body))
-		return statusJSONResponse(`{"data":{"type":"appEventVideoClips","id":"clip-1"}}`), nil
-	}))
+	const wantBody = `{"data":{"type":"appEventVideoClips","id":"clip-1","attributes":{"previewFrameTimeCode":"00:00:05:00"}}}`
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.PATCH("/v1/appEventVideoClips/clip-1").JSONBody(wantBody),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"appEventVideoClips","id":"clip-1"}}`))
 
 	exitCode := rootcmd.ExitError
 	_, stderr := captureOutput(t, func() {
@@ -161,8 +152,7 @@ func TestAppEventVideoClipsSetPosterFramePatchesOnlyTheTimeCode(t *testing.T) {
 	if exitCode != rootcmd.ExitSuccess {
 		t.Fatalf("exit code = %d, stderr=%q", exitCode, stderr)
 	}
-	const wantBody = `{"data":{"type":"appEventVideoClips","id":"clip-1","attributes":{"previewFrameTimeCode":"00:00:05:00"}}}`
-	if gotBody != wantBody {
+	if gotBody := strings.TrimSpace(string(reg.Requests()[0].Body)); gotBody != wantBody {
 		t.Fatalf("body = %s, want %s", gotBody, wantBody)
 	}
 }

@@ -499,7 +499,7 @@ func TestDiscoverScreenshotPlanRefusesSymlinkedInTreeScreenshotsDirectory(t *tes
 
 	// The default fastlane/screenshots layout ships with the checkout, so a
 	// symlinked screenshots directory must be refused before any traversal.
-	_, _, err = discoverScreenshotPlan(filepath.Join(workDir, "fastlane", "screenshots"))
+	_, _, err = discoverScreenshotPlanWithOpenFiles(filepath.Join(workDir, "fastlane", "screenshots"), false)
 	if err == nil {
 		t.Fatal("discoverScreenshotPlan() error = nil, want symlink rejection")
 	}
@@ -544,7 +544,7 @@ func TestDiscoverScreenshotPlanSkipsAndReportsSymlinkedLocaleDirectory(t *testin
 		t.Fatalf("Symlink() error = %v", err)
 	}
 
-	plans, skipped, err := discoverScreenshotPlan(screenshotsDir)
+	plans, skipped, err := discoverScreenshotPlanWithOpenFiles(screenshotsDir, false)
 	if err != nil {
 		t.Fatalf("discoverScreenshotPlan() error = %v, want symlinked locale skipped", err)
 	}

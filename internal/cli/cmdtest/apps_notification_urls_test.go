@@ -5,14 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
-	"io"
 	"net/http"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
 
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/handlertest"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestAppsUpdateNotificationURLs(t *testing.T) {
@@ -34,30 +33,14 @@ func TestAppsUpdateNotificationURLs(t *testing.T) {
 			setupAuth(t)
 			t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
-			original := http.DefaultTransport
-			t.Cleanup(func() { http.DefaultTransport = original })
-			fixture := handlertest.New(t)
-			calls := 0
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				calls++
-				if req.Method != http.MethodPatch || req.URL.Path != "/v1/apps/app-1" {
-					return nil, fixture.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
-				}
-				var body struct {
-					Data struct {
-						Type       string         `json:"type"`
-						ID         string         `json:"id"`
-						Attributes map[string]any `json:"attributes"`
-					} `json:"data"`
-				}
-				if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
-					return nil, fixture.Errorf("decode payload: %v", err)
-				}
-				if body.Data.Type != "apps" || body.Data.ID != "app-1" || !reflect.DeepEqual(body.Data.Attributes, tt.want) {
-					return nil, fixture.Errorf("unexpected payload: %+v, wanted attributes %v", body.Data, tt.want)
-				}
-				return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(`{"data":{"type":"apps","id":"app-1","attributes":{"name":"Example","subscriptionStatusUrl":"https://example.com/production","subscriptionStatusUrlVersion":"V2","subscriptionStatusUrlForSandbox":"https://example.com/sandbox","subscriptionStatusUrlVersionForSandbox":"V1","streamlinedPurchasingEnabled":false}}}`)), Header: http.Header{"Content-Type": []string{"application/json"}}}, nil
-			})
+			attributes, err := json.Marshal(tt.want)
+			if err != nil {
+				t.Fatal(err)
+			}
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.PATCH("/v1/apps/app-1").JSONBody(`{"data":{"type":"apps","id":"app-1","attributes":`+string(attributes)+`}}`),
+				asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"app-1","attributes":{"name":"Example","subscriptionStatusUrl":"https://example.com/production","subscriptionStatusUrlVersion":"V2","subscriptionStatusUrlForSandbox":"https://example.com/sandbox","subscriptionStatusUrlVersionForSandbox":"V1","streamlinedPurchasingEnabled":false}}}`))
 			root := RootCommand("test")
 			args := append([]string{"apps", "update", "--id", "app-1", "--output", "json"}, tt.args...)
 			var runErr error
@@ -65,7 +48,7 @@ func TestAppsUpdateNotificationURLs(t *testing.T) {
 			if runErr != nil {
 				t.Fatal(runErr)
 			}
-			if calls != 1 || stderr != "" {
+			if calls := len(reg.Requests()); calls != 1 || stderr != "" {
 				t.Fatalf("calls=%d stderr=%q", calls, stderr)
 			}
 			var output struct {
@@ -97,12 +80,7 @@ func TestAppsUpdateNotificationURLRejectsInvalid(t *testing.T) {
 				setupAuth(t)
 				t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 				t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
-				original := http.DefaultTransport
-				t.Cleanup(func() { http.DefaultTransport = original })
-				fixture := handlertest.New(t)
-				http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-					return nil, fixture.Errorf("invalid URL made network request: %s", req.URL)
-				})
+				asctest.NewRegistry(t).Install()
 				root := RootCommand("test")
 				var err error
 				stdout, stderr := captureOutput(t, func() {
@@ -122,12 +100,7 @@ func TestAppsUpdateAccessibilityURLRejectsInvalid(t *testing.T) {
 			setupAuth(t)
 			t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
-			original := http.DefaultTransport
-			t.Cleanup(func() { http.DefaultTransport = original })
-			fixture := handlertest.New(t)
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				return nil, fixture.Errorf("invalid URL made network request: %s", req.URL)
-			})
+			asctest.NewRegistry(t).Install()
 			root := RootCommand("test")
 			var err error
 			stdout, stderr := captureOutput(t, func() {
@@ -144,16 +117,11 @@ func TestAppsViewNotificationURLFields(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
-	original := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = original })
-	fixture := handlertest.New(t)
 	fields := "accessibilityUrl,subscriptionStatusUrl,subscriptionStatusUrlVersion,subscriptionStatusUrlForSandbox,subscriptionStatusUrlVersionForSandbox"
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/app-1" || req.URL.Query().Get("fields[apps]") != fields {
-			return nil, fixture.Errorf("unexpected readback request: %s %s", req.Method, req.URL)
-		}
-		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(`{"data":{"type":"apps","id":"app-1","attributes":{"accessibilityUrl":"https://example.com/accessibility","subscriptionStatusUrl":"https://example.com/production","subscriptionStatusUrlVersion":"V2","subscriptionStatusUrlForSandbox":"https://example.com/sandbox","subscriptionStatusUrlVersionForSandbox":"V2"}}}`)), Header: http.Header{"Content-Type": []string{"application/json"}}}, nil
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/app-1", "fields[apps]="+fields),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"app-1","attributes":{"accessibilityUrl":"https://example.com/accessibility","subscriptionStatusUrl":"https://example.com/production","subscriptionStatusUrlVersion":"V2","subscriptionStatusUrlForSandbox":"https://example.com/sandbox","subscriptionStatusUrlVersionForSandbox":"V2"}}}`))
 	root := RootCommand("test")
 	var err error
 	stdout, stderr := captureOutput(t, func() {
@@ -201,16 +169,10 @@ func TestAppsViewNotificationFieldsPreserveIncludedRelationships(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
-	original := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = original })
-	fixture := handlertest.New(t)
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		query := req.URL.Query()
-		if query.Get("fields[apps]") != "subscriptionStatusUrl,appInfos,inAppPurchases,subscriptionGroups" || query.Get("include") != "appInfos,inAppPurchases,subscriptionGroups" {
-			return nil, fixture.Errorf("sparse app fields lost included relationship: %s", req.URL)
-		}
-		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(`{"data":{"type":"apps","id":"app-1","attributes":{"subscriptionStatusUrl":null}},"included":[{"type":"subscriptionGroups","id":"group-1","attributes":{"referenceName":"Plus"}}]}`)), Header: http.Header{"Content-Type": []string{"application/json"}}}, nil
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/app-1", "fields[appInfos]=kidsAgeBand", "fields[apps]=subscriptionStatusUrl,appInfos,inAppPurchases,subscriptionGroups", "fields[inAppPurchases]=versions", "fields[subscriptionGroups]=versions", "include=appInfos,inAppPurchases,subscriptionGroups"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"app-1","attributes":{"subscriptionStatusUrl":null}},"included":[{"type":"subscriptionGroups","id":"group-1","attributes":{"referenceName":"Plus"}}]}`))
 	root := RootCommand("test")
 	var err error
 	stdout, stderr := captureOutput(t, func() {

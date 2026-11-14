@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestAppTagsListOutputAndQueryOptions(t *testing.T) {
@@ -17,43 +19,10 @@ func TestAppTagsListOutputAndQueryOptions(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/apps/app-1/appTags" {
-			t.Fatalf("expected path /v1/apps/app-1/appTags, got %s", req.URL.Path)
-		}
-
-		query := req.URL.Query()
-		if query.Get("filter[visibleInAppStore]") != "true,false" {
-			t.Fatalf("expected visibility filter true,false, got %q", query.Get("filter[visibleInAppStore]"))
-		}
-		if query.Get("sort") != "-name" {
-			t.Fatalf("expected sort -name, got %q", query.Get("sort"))
-		}
-		if query.Get("fields[appTags]") != "name,visibleInAppStore" {
-			t.Fatalf("expected fields[appTags], got %q", query.Get("fields[appTags]"))
-		}
-		if query.Get("include") != "territories" {
-			t.Fatalf("expected include territories, got %q", query.Get("include"))
-		}
-		if query.Get("fields[territories]") != "currency" {
-			t.Fatalf("expected territory fields currency, got %q", query.Get("fields[territories]"))
-		}
-		if query.Get("limit[territories]") != "2" {
-			t.Fatalf("expected territory limit 2, got %q", query.Get("limit[territories]"))
-		}
-		if query.Get("limit") != "5" {
-			t.Fatalf("expected limit 5, got %q", query.Get("limit"))
-		}
-
-		body := `{
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/app-1/appTags", "fields[appTags]=name,visibleInAppStore", "fields[territories]=currency", "filter[visibleInAppStore]=true,false", "include=territories", "limit=5", "limit[territories]=2", "sort=-name"),
+		asctest.JSON(http.StatusOK, `{
 			"data":[
 				{
 					"type":"appTags",
@@ -69,13 +38,7 @@ func TestAppTagsListOutputAndQueryOptions(t *testing.T) {
 				}
 			],
 			"links":{"next":""}
-		}`
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
+		}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -128,25 +91,10 @@ func TestAppTagsListReturnsFetchFailure(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/apps/app-1/appTags" {
-			t.Fatalf("expected path /v1/apps/app-1/appTags, got %s", req.URL.Path)
-		}
-		body := `{"errors":[{"status":"403","title":"Forbidden","detail":"not allowed"}]}`
-		return &http.Response{
-			StatusCode: http.StatusForbidden,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/app-1/appTags"),
+		asctest.JSON(http.StatusForbidden, `{"errors":[{"status":"403","title":"Forbidden","detail":"not allowed"}]}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -177,49 +125,16 @@ func TestAppTagsListPaginateRejectsRepeatedNextURL(t *testing.T) {
 
 	const repeatedNextURL = "https://api.appstoreconnect.apple.com/v1/apps/app-1/appTags?cursor=AQ"
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		switch requestCount {
-		case 1:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/app-1/appTags" {
-				t.Fatalf("unexpected first request: %s %s", req.Method, req.URL.String())
-			}
-			if req.URL.Query().Get("limit") != "200" {
-				t.Fatalf("expected limit 200 for paginate first page, got %q", req.URL.Query().Get("limit"))
-			}
-			body := `{
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/app-1/appTags", "limit=200"), asctest.JSON(http.StatusOK, `{
 				"data":[{"type":"appTags","id":"tag-1"}],
-				"links":{"next":"` + repeatedNextURL + `"}
-			}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 2:
-			if req.Method != http.MethodGet || req.URL.String() != repeatedNextURL {
-				t.Fatalf("unexpected second request: %s %s", req.Method, req.URL.String())
-			}
-			body := `{
+				"links":{"next":"`+repeatedNextURL+`"}
+			}`))
+	reg.Register(asctest.GET("/v1/apps/app-1/appTags", "cursor=AQ"), asctest.JSON(http.StatusOK, `{
 				"data":[{"type":"appTags","id":"tag-2"}],
-				"links":{"next":"` + repeatedNextURL + `"}
-			}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected extra request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	})
+				"links":{"next":"`+repeatedNextURL+`"}
+			}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -251,25 +166,7 @@ func TestAppTagsListOutputErrors(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/apps/app-1/appTags" {
-			t.Fatalf("expected path /v1/apps/app-1/appTags, got %s", req.URL.Path)
-		}
-		body := `{"data":[{"type":"appTags","id":"tag-1"}],"links":{"next":""}}`
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
+	asctest.NewRegistry(t).Install()
 
 	tests := []struct {
 		name    string
@@ -321,69 +218,17 @@ func TestAppTagsListPaginateWithFiltersUsesQueryOptions(t *testing.T) {
 
 	const secondURL = "https://api.appstoreconnect.apple.com/v1/apps/app-1/appTags?cursor=BQ&limit=200"
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		switch requestCount {
-		case 1:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/app-1/appTags" {
-				t.Fatalf("unexpected first request: %s %s", req.Method, req.URL.String())
-			}
-			query := req.URL.Query()
-			if query.Get("filter[visibleInAppStore]") != "true,false" {
-				t.Fatalf("expected visibility filter true,false, got %q", query.Get("filter[visibleInAppStore]"))
-			}
-			if query.Get("sort") != "-name" {
-				t.Fatalf("expected sort -name, got %q", query.Get("sort"))
-			}
-			if query.Get("fields[appTags]") != "name,visibleInAppStore" {
-				t.Fatalf("expected app tag fields, got %q", query.Get("fields[appTags]"))
-			}
-			if query.Get("include") != "territories" {
-				t.Fatalf("expected include territories, got %q", query.Get("include"))
-			}
-			if query.Get("fields[territories]") != "currency" {
-				t.Fatalf("expected territory fields currency, got %q", query.Get("fields[territories]"))
-			}
-			if query.Get("limit[territories]") != "2" {
-				t.Fatalf("expected territory limit 2, got %q", query.Get("limit[territories]"))
-			}
-			if query.Get("limit") != "200" {
-				t.Fatalf("expected paginate first-page limit=200, got %q", query.Get("limit"))
-			}
-
-			body := `{
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/app-1/appTags", "fields[appTags]=name,visibleInAppStore", "fields[territories]=currency", "filter[visibleInAppStore]=true,false", "include=territories", "limit=200", "limit[territories]=2", "sort=-name"),
+		asctest.JSON(http.StatusOK, `{
 				"data":[{"type":"appTags","id":"tag-page-1"}],
-				"links":{"next":"` + secondURL + `"}
-			}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 2:
-			if req.Method != http.MethodGet || req.URL.String() != secondURL {
-				t.Fatalf("unexpected second request: %s %s", req.Method, req.URL.String())
-			}
-			body := `{
+				"links":{"next":"`+secondURL+`"}
+			}`))
+	reg.Register(asctest.GET("/v1/apps/app-1/appTags", "cursor=BQ", "limit=200"), asctest.JSON(http.StatusOK, `{
 				"data":[{"type":"appTags","id":"tag-page-2"}],
 				"links":{"next":""}
-			}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected extra request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	})
+			}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -479,28 +324,12 @@ func TestAppTagsListMarkdownOutput(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/apps/app-1/appTags" {
-			t.Fatalf("expected path /v1/apps/app-1/appTags, got %s", req.URL.Path)
-		}
-		body := `{
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/app-1/appTags"), asctest.JSON(http.StatusOK, `{
 			"data":[{"type":"appTags","id":"tag-md-1","attributes":{"name":"Featured","visibleInAppStore":true}}],
 			"links":{"next":""}
-		}`
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
+		}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)

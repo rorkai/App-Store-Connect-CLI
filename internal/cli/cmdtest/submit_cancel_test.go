@@ -3,7 +3,7 @@ package cmdtest
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -12,13 +12,8 @@ import (
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
-
-type submitCancelRoundTripFunc func(*http.Request) (*http.Response, error)
-
-func (fn submitCancelRoundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
-	return fn(req)
-}
 
 func setupSubmitCancelAuth(t *testing.T) {
 	t.Helper()
@@ -33,43 +28,17 @@ func setupSubmitCancelAuth(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 }
 
-func submitCancelJSONResponse(status int, body string) (*http.Response, error) {
-	return &http.Response{
-		Status:     fmt.Sprintf("%d %s", status, http.StatusText(status)),
-		StatusCode: status,
-		Header:     http.Header{"Content-Type": []string{"application/json"}},
-		Body:       io.NopCloser(strings.NewReader(body)),
-	}, nil
-}
-
 func TestSubmitCancelByIDUsesReviewSubmissionEndpoint(t *testing.T) {
 	setupSubmitCancelAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.PATCH("/v1/reviewSubmissions/review-submission-456").JSONBody(`{"data":{"type":"reviewSubmissions","id":"review-submission-456","attributes":{"canceled":true}}}`), asctest.JSON(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"review-submission-456"}}`))
 
-	requests := make([]string, 0, 1)
-	http.DefaultTransport = submitCancelRoundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requests = append(requests, req.Method+" "+req.URL.Path)
-		if req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/review-submission-456" {
-			return submitCancelJSONResponse(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"review-submission-456"}}`)
-		}
-		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"submit", "cancel", "--id", "review-submission-456", "--confirm"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"submit", "cancel", "--id", "review-submission-456", "--confirm"})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -84,6 +53,7 @@ func TestSubmitCancelByIDUsesReviewSubmissionEndpoint(t *testing.T) {
 	}
 
 	wantRequests := []string{"PATCH /v1/reviewSubmissions/review-submission-456"}
+	requests := submitCancelRequests(reg)
 	if !reflect.DeepEqual(requests, wantRequests) {
 		t.Fatalf("unexpected requests: got %v want %v", requests, wantRequests)
 	}
@@ -92,36 +62,19 @@ func TestSubmitCancelByIDUsesReviewSubmissionEndpoint(t *testing.T) {
 func TestSubmitCancelByVersionIDFallsBackToLegacyDelete(t *testing.T) {
 	setupSubmitCancelAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	requests := make([]string, 0, 6)
-	http.DefaultTransport = submitCancelRoundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requests = append(requests, req.Method+" "+req.URL.Path)
-
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-456" && req.URL.Query().Get("include") == "app":
-			return submitCancelJSONResponse(http.StatusOK, `{
-				"data": {
-					"type": "appStoreVersions", "id": "version-456",
-					"attributes": {"platform": "IOS", "versionString": "1.0"},
-					"relationships": {"app": {"data": {"type": "apps", "id": "app-1"}}}
-				}
-			}`)
-		case req.Method == http.MethodGet && strings.Contains(req.URL.Path, "/reviewSubmissions"):
-			return submitCancelJSONResponse(http.StatusOK, `{"data":[],"links":{}}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-456/appStoreVersionSubmission":
-			return submitCancelJSONResponse(http.StatusOK, `{"data":{"type":"appStoreVersionSubmissions","id":"legacy-submission-456"}}`)
-		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/legacy-submission-456":
-			return submitCancelJSONResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`)
-		case req.Method == http.MethodDelete && req.URL.Path == "/v1/appStoreVersionSubmissions/legacy-submission-456":
-			return submitCancelJSONResponse(http.StatusNoContent, "")
-		default:
-			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-456", "include=app"), asctest.JSON(http.StatusOK, `{
+		"data": {
+			"type": "appStoreVersions", "id": "version-456",
+			"attributes": {"platform": "IOS", "versionString": "1.0"},
+			"relationships": {"app": {"data": {"type": "apps", "id": "app-1"}}}
 		}
-	})
+	}`))
+	reg.Register(asctest.GET("/v1/apps/app-1/reviewSubmissions", "include=appStoreVersionForReview", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[],"links":{}}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-456/appStoreVersionSubmission"), asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreVersionSubmissions","id":"legacy-submission-456"}}`))
+	reg.Register(asctest.PATCH("/v1/reviewSubmissions/legacy-submission-456").JSONBody(`{"data":{"type":"reviewSubmissions","id":"legacy-submission-456","attributes":{"canceled":true}}}`), asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`))
+	reg.Register(asctest.DELETE("/v1/appStoreVersionSubmissions/legacy-submission-456"), asctest.JSON(http.StatusNoContent, ""))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -144,6 +97,7 @@ func TestSubmitCancelByVersionIDFallsBackToLegacyDelete(t *testing.T) {
 	}
 
 	foundLegacyDelete := false
+	requests := submitCancelRequests(reg)
 	for _, r := range requests {
 		if r == "DELETE /v1/appStoreVersionSubmissions/legacy-submission-456" {
 			foundLegacyDelete = true
@@ -157,61 +111,36 @@ func TestSubmitCancelByVersionIDFallsBackToLegacyDelete(t *testing.T) {
 func TestSubmitCancelByVersionIDTreatsCancelingModernSubmissionAsSuccess(t *testing.T) {
 	setupSubmitCancelAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	requests := make([]string, 0, 2)
-	http.DefaultTransport = submitCancelRoundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requests = append(requests, req.Method+" "+req.URL.RequestURI())
-
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-456" && req.URL.Query().Get("include") == "app":
-			return submitCancelJSONResponse(http.StatusOK, `{
-				"data": {
-					"type": "appStoreVersions",
-					"id": "version-456",
-					"attributes": {"platform": "IOS", "versionString": "1.0"},
-					"relationships": {"app": {"data": {"type": "apps", "id": "app-1"}}}
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-456", "include=app"), asctest.JSON(http.StatusOK, `{
+		"data": {
+			"type": "appStoreVersions",
+			"id": "version-456",
+			"attributes": {"platform": "IOS", "versionString": "1.0"},
+			"relationships": {"app": {"data": {"type": "apps", "id": "app-1"}}}
+		}
+	}`))
+	reg.Register(asctest.GET("/v1/apps/app-1/reviewSubmissions", "include=appStoreVersionForReview", "limit=200"), asctest.JSON(http.StatusOK, `{
+		"data": [{
+			"type": "reviewSubmissions",
+			"id": "review-submission-456",
+			"attributes": {
+				"state": "CANCELING",
+				"submittedDate": "2026-03-15T11:00:00Z"
+			},
+			"relationships": {
+				"appStoreVersionForReview": {
+					"data": {"type": "appStoreVersions", "id": "version-456"}
 				}
-			}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/reviewSubmissions":
-			return submitCancelJSONResponse(http.StatusOK, `{
-				"data": [{
-					"type": "reviewSubmissions",
-					"id": "review-submission-456",
-					"attributes": {
-						"state": "CANCELING",
-						"submittedDate": "2026-03-15T11:00:00Z"
-					},
-					"relationships": {
-						"appStoreVersionForReview": {
-							"data": {"type": "appStoreVersions", "id": "version-456"}
-						}
-					}
-				}]
-			}`)
-		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/review-submission-456":
-			t.Fatalf("did not expect a second cancel request while submission is already CANCELING")
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-456/appStoreVersionSubmission":
-			t.Fatalf("did not expect legacy fallback for a matched CANCELING modern submission")
-		}
+			}
+		}]
+	}`))
 
-		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"submit", "cancel", "--version-id", "version-456", "--confirm"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"submit", "cancel", "--version-id", "version-456", "--confirm"})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -229,6 +158,7 @@ func TestSubmitCancelByVersionIDTreatsCancelingModernSubmissionAsSuccess(t *test
 		"GET /v1/appStoreVersions/version-456?include=app",
 		"GET /v1/apps/app-1/reviewSubmissions?include=appStoreVersionForReview&limit=200",
 	}
+	requests := submitCancelRequestURIs(reg)
 	if !reflect.DeepEqual(requests, wantRequests) {
 		t.Fatalf("unexpected requests: got %v want %v", requests, wantRequests)
 	}
@@ -237,42 +167,31 @@ func TestSubmitCancelByVersionIDTreatsCancelingModernSubmissionAsSuccess(t *test
 func TestSubmitCancelByVersionIDModernConflictDoesNotFallBackToLegacy(t *testing.T) {
 	setupSubmitCancelAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = submitCancelRoundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-456" && req.URL.Query().Get("include") == "app":
-			return submitCancelJSONResponse(http.StatusOK, `{
-				"data": {
-					"type": "appStoreVersions",
-					"id": "version-456",
-					"attributes": {"platform": "IOS", "versionString": "1.0"},
-					"relationships": {"app": {"data": {"type": "apps", "id": "app-1"}}}
-				}
-			}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/reviewSubmissions":
-			return submitCancelJSONResponse(http.StatusOK, `{
-				"data": [{
-					"type": "reviewSubmissions",
-					"id": "review-submission-456",
-					"attributes": {"state": "WAITING_FOR_REVIEW"},
-					"relationships": {
-						"appStoreVersionForReview": {
-							"data": {"type": "appStoreVersions", "id": "version-456"}
-						}
-					}
-				}]
-			}`)
-		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/review-submission-456":
-			return submitCancelJSONResponse(http.StatusConflict, `{"errors":[{"status":"409","code":"CONFLICT","title":"Resource state is invalid.","detail":"Resource is not in cancellable state"}]}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-456/appStoreVersionSubmission":
-			t.Fatalf("did not expect legacy fallback after a matched modern submission conflict")
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-456", "include=app"), asctest.JSON(http.StatusOK, `{
+		"data": {
+			"type": "appStoreVersions",
+			"id": "version-456",
+			"attributes": {"platform": "IOS", "versionString": "1.0"},
+			"relationships": {"app": {"data": {"type": "apps", "id": "app-1"}}}
 		}
-
-		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
+	}`))
+	reg.Register(asctest.GET("/v1/apps/app-1/reviewSubmissions", "include=appStoreVersionForReview", "limit=200"), asctest.JSON(http.StatusOK, `{
+		"data": [{
+			"type": "reviewSubmissions",
+			"id": "review-submission-456",
+			"attributes": {"state": "WAITING_FOR_REVIEW"},
+			"relationships": {
+				"appStoreVersionForReview": {
+					"data": {"type": "appStoreVersions", "id": "version-456"}
+				}
+			}
+		}]
+	}`))
+	reg.Register(asctest.PATCH("/v1/reviewSubmissions/review-submission-456").JSONBody(`{"data":{"type":"reviewSubmissions","id":"review-submission-456","attributes":{"canceled":true}}}`), asctest.JSON(http.StatusConflict, `{"errors":[{"status":"409","code":"CONFLICT","title":"Resource state is invalid.","detail":"Resource is not in cancellable state"}]}`))
+	reg.Register(asctest.GET("/v1/reviewSubmissions/review-submission-456"), func(*http.Request) (*http.Response, error) {
+		return nil, errors.New("unexpected request: GET /v1/reviewSubmissions/review-submission-456")
 	})
 
 	root := RootCommand("1.2.3")
@@ -302,71 +221,46 @@ func TestSubmitCancelByVersionIDModernConflictDoesNotFallBackToLegacy(t *testing
 func TestSubmitCancelByVersionIDModernConflictRefreshesCancelingStateToSuccess(t *testing.T) {
 	setupSubmitCancelAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	requests := make([]string, 0, 4)
-	http.DefaultTransport = submitCancelRoundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requests = append(requests, req.Method+" "+req.URL.RequestURI())
-
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-456" && req.URL.Query().Get("include") == "app":
-			return submitCancelJSONResponse(http.StatusOK, `{
-				"data": {
-					"type": "appStoreVersions",
-					"id": "version-456",
-					"attributes": {"platform": "IOS", "versionString": "1.0"},
-					"relationships": {"app": {"data": {"type": "apps", "id": "app-1"}}}
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-456", "include=app"), asctest.JSON(http.StatusOK, `{
+		"data": {
+			"type": "appStoreVersions",
+			"id": "version-456",
+			"attributes": {"platform": "IOS", "versionString": "1.0"},
+			"relationships": {"app": {"data": {"type": "apps", "id": "app-1"}}}
+		}
+	}`))
+	reg.Register(asctest.GET("/v1/apps/app-1/reviewSubmissions", "include=appStoreVersionForReview", "limit=200"), asctest.JSON(http.StatusOK, `{
+		"data": [{
+			"type": "reviewSubmissions",
+			"id": "review-submission-456",
+			"attributes": {"state": "WAITING_FOR_REVIEW"},
+			"relationships": {
+				"appStoreVersionForReview": {
+					"data": {"type": "appStoreVersions", "id": "version-456"}
 				}
-			}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/reviewSubmissions":
-			return submitCancelJSONResponse(http.StatusOK, `{
-				"data": [{
-					"type": "reviewSubmissions",
-					"id": "review-submission-456",
-					"attributes": {"state": "WAITING_FOR_REVIEW"},
-					"relationships": {
-						"appStoreVersionForReview": {
-							"data": {"type": "appStoreVersions", "id": "version-456"}
-						}
-					}
-				}]
-			}`)
-		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/review-submission-456":
-			return submitCancelJSONResponse(http.StatusConflict, `{"errors":[{"status":"409","code":"CONFLICT","title":"Resource state is invalid.","detail":"Resource is not in cancellable state"}]}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/review-submission-456":
-			return submitCancelJSONResponse(http.StatusOK, `{
-				"data": {
-					"type": "reviewSubmissions",
-					"id": "review-submission-456",
-					"attributes": {"state": "CANCELING"},
-					"relationships": {
-						"appStoreVersionForReview": {
-							"data": {"type": "appStoreVersions", "id": "version-456"}
-						}
-					}
+			}
+		}]
+	}`))
+	reg.Register(asctest.PATCH("/v1/reviewSubmissions/review-submission-456").JSONBody(`{"data":{"type":"reviewSubmissions","id":"review-submission-456","attributes":{"canceled":true}}}`), asctest.JSON(http.StatusConflict, `{"errors":[{"status":"409","code":"CONFLICT","title":"Resource state is invalid.","detail":"Resource is not in cancellable state"}]}`))
+	reg.Register(asctest.GET("/v1/reviewSubmissions/review-submission-456"), asctest.JSON(http.StatusOK, `{
+		"data": {
+			"type": "reviewSubmissions",
+			"id": "review-submission-456",
+			"attributes": {"state": "CANCELING"},
+			"relationships": {
+				"appStoreVersionForReview": {
+					"data": {"type": "appStoreVersions", "id": "version-456"}
 				}
-			}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-456/appStoreVersionSubmission":
-			t.Fatalf("did not expect legacy fallback after refreshed CANCELING state")
+			}
 		}
+	}`))
 
-		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"submit", "cancel", "--version-id", "version-456", "--confirm"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"submit", "cancel", "--version-id", "version-456", "--confirm"})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -386,6 +280,7 @@ func TestSubmitCancelByVersionIDModernConflictRefreshesCancelingStateToSuccess(t
 		"PATCH /v1/reviewSubmissions/review-submission-456",
 		"GET /v1/reviewSubmissions/review-submission-456",
 	}
+	requests := submitCancelRequestURIs(reg)
 	if !reflect.DeepEqual(requests, wantRequests) {
 		t.Fatalf("unexpected requests: got %v want %v", requests, wantRequests)
 	}
@@ -394,28 +289,12 @@ func TestSubmitCancelByVersionIDModernConflictRefreshesCancelingStateToSuccess(t
 func TestSubmitCancelByVersionIDVersionLookupErrorFallsBackToLegacy(t *testing.T) {
 	setupSubmitCancelAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	requests := make([]string, 0, 4)
-	http.DefaultTransport = submitCancelRoundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requests = append(requests, req.Method+" "+req.URL.RequestURI())
-
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-lookup-error" && req.URL.Query().Get("include") == "app":
-			return submitCancelJSONResponse(http.StatusInternalServerError, `{"errors":[{"status":"500","code":"INTERNAL_ERROR","title":"Server Error"}]}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-lookup-error/appStoreVersionSubmission":
-			return submitCancelJSONResponse(http.StatusOK, `{"data":{"type":"appStoreVersionSubmissions","id":"legacy-submission-123"}}`)
-		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/legacy-submission-123":
-			return submitCancelJSONResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`)
-		case req.Method == http.MethodDelete && req.URL.Path == "/v1/appStoreVersionSubmissions/legacy-submission-123":
-			return submitCancelJSONResponse(http.StatusNoContent, "")
-		}
-
-		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-lookup-error", "include=app"), asctest.JSON(http.StatusInternalServerError, `{"errors":[{"status":"500","code":"INTERNAL_ERROR","title":"Server Error"}]}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-lookup-error/appStoreVersionSubmission"), asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreVersionSubmissions","id":"legacy-submission-123"}}`))
+	reg.Register(asctest.PATCH("/v1/reviewSubmissions/legacy-submission-123").JSONBody(`{"data":{"type":"reviewSubmissions","id":"legacy-submission-123","attributes":{"canceled":true}}}`), asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`))
+	reg.Register(asctest.DELETE("/v1/appStoreVersionSubmissions/legacy-submission-123"), asctest.JSON(http.StatusNoContent, ""))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -447,6 +326,7 @@ func TestSubmitCancelByVersionIDVersionLookupErrorFallsBackToLegacy(t *testing.T
 		"PATCH /v1/reviewSubmissions/legacy-submission-123",
 		"DELETE /v1/appStoreVersionSubmissions/legacy-submission-123",
 	}
+	requests := submitCancelRequestURIs(reg)
 	if !reflect.DeepEqual(requests, wantRequests) {
 		t.Fatalf("unexpected requests: got %v want %v", requests, wantRequests)
 	}
@@ -455,51 +335,27 @@ func TestSubmitCancelByVersionIDVersionLookupErrorFallsBackToLegacy(t *testing.T
 func TestSubmitCancelByVersionIDVersionLookupErrorFallsBackToExplicitApp(t *testing.T) {
 	setupSubmitCancelAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-lookup-error", "include=app"), asctest.JSON(http.StatusInternalServerError, `{"errors":[{"status":"500","code":"INTERNAL_ERROR","title":"Server Error"}]}`))
+	reg.Register(asctest.GET("/v1/apps/app-123/reviewSubmissions", "include=appStoreVersionForReview", "limit=200"), asctest.JSON(http.StatusOK, `{
+		"data": [{
+			"type": "reviewSubmissions",
+			"id": "review-submission-123",
+			"attributes": {"state": "READY_FOR_REVIEW"},
+			"relationships": {
+				"appStoreVersionForReview": {
+					"data": {"type": "appStoreVersions", "id": "version-lookup-error"}
+				}
+			}
+		}]
+	}`))
+	reg.Register(asctest.PATCH("/v1/reviewSubmissions/review-submission-123").JSONBody(`{"data":{"type":"reviewSubmissions","id":"review-submission-123","attributes":{"canceled":true}}}`), asctest.JSON(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"review-submission-123"}}`))
 
-	requests := make([]string, 0, 3)
-	http.DefaultTransport = submitCancelRoundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requests = append(requests, req.Method+" "+req.URL.RequestURI())
-
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-lookup-error" && req.URL.Query().Get("include") == "app":
-			return submitCancelJSONResponse(http.StatusInternalServerError, `{"errors":[{"status":"500","code":"INTERNAL_ERROR","title":"Server Error"}]}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-123/reviewSubmissions":
-			return submitCancelJSONResponse(http.StatusOK, `{
-				"data": [{
-					"type": "reviewSubmissions",
-					"id": "review-submission-123",
-					"attributes": {"state": "READY_FOR_REVIEW"},
-					"relationships": {
-						"appStoreVersionForReview": {
-							"data": {"type": "appStoreVersions", "id": "version-lookup-error"}
-						}
-					}
-				}]
-			}`)
-		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/review-submission-123":
-			return submitCancelJSONResponse(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"review-submission-123"}}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-lookup-error/appStoreVersionSubmission":
-			t.Fatalf("did not expect legacy fallback when explicit --app modern lookup succeeds")
-		}
-
-		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"submit", "cancel", "--version-id", "version-lookup-error", "--app", "app-123", "--confirm"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"submit", "cancel", "--version-id", "version-lookup-error", "--app", "app-123", "--confirm"})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -518,6 +374,7 @@ func TestSubmitCancelByVersionIDVersionLookupErrorFallsBackToExplicitApp(t *test
 		"GET /v1/apps/app-123/reviewSubmissions?include=appStoreVersionForReview&limit=200",
 		"PATCH /v1/reviewSubmissions/review-submission-123",
 	}
+	requests := submitCancelRequestURIs(reg)
 	if !reflect.DeepEqual(requests, wantRequests) {
 		t.Fatalf("unexpected requests: got %v want %v", requests, wantRequests)
 	}
@@ -526,37 +383,20 @@ func TestSubmitCancelByVersionIDVersionLookupErrorFallsBackToExplicitApp(t *test
 func TestSubmitCancelByVersionIDModernLookupErrorFallsBackToLegacy(t *testing.T) {
 	setupSubmitCancelAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	requests := make([]string, 0, 5)
-	http.DefaultTransport = submitCancelRoundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requests = append(requests, req.Method+" "+req.URL.RequestURI())
-
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-123" && req.URL.Query().Get("include") == "app":
-			return submitCancelJSONResponse(http.StatusOK, `{
-				"data": {
-					"type": "appStoreVersions",
-					"id": "version-123",
-					"attributes": {"platform": "IOS", "versionString": "1.0"},
-					"relationships": {"app": {"data": {"type": "apps", "id": "app-1"}}}
-				}
-			}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/reviewSubmissions":
-			return submitCancelJSONResponse(http.StatusInternalServerError, `{"errors":[{"status":"500","code":"INTERNAL_ERROR","title":"Server Error"}]}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-123/appStoreVersionSubmission":
-			return submitCancelJSONResponse(http.StatusOK, `{"data":{"type":"appStoreVersionSubmissions","id":"legacy-submission-123"}}`)
-		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/legacy-submission-123":
-			return submitCancelJSONResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`)
-		case req.Method == http.MethodDelete && req.URL.Path == "/v1/appStoreVersionSubmissions/legacy-submission-123":
-			return submitCancelJSONResponse(http.StatusNoContent, "")
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-123", "include=app"), asctest.JSON(http.StatusOK, `{
+		"data": {
+			"type": "appStoreVersions",
+			"id": "version-123",
+			"attributes": {"platform": "IOS", "versionString": "1.0"},
+			"relationships": {"app": {"data": {"type": "apps", "id": "app-1"}}}
 		}
-
-		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
-	})
+	}`))
+	reg.Register(asctest.GET("/v1/apps/app-1/reviewSubmissions", "include=appStoreVersionForReview", "limit=200"), asctest.JSON(http.StatusInternalServerError, `{"errors":[{"status":"500","code":"INTERNAL_ERROR","title":"Server Error"}]}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-123/appStoreVersionSubmission"), asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreVersionSubmissions","id":"legacy-submission-123"}}`))
+	reg.Register(asctest.PATCH("/v1/reviewSubmissions/legacy-submission-123").JSONBody(`{"data":{"type":"reviewSubmissions","id":"legacy-submission-123","attributes":{"canceled":true}}}`), asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`))
+	reg.Register(asctest.DELETE("/v1/appStoreVersionSubmissions/legacy-submission-123"), asctest.JSON(http.StatusNoContent, ""))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -585,6 +425,7 @@ func TestSubmitCancelByVersionIDModernLookupErrorFallsBackToLegacy(t *testing.T)
 		"PATCH /v1/reviewSubmissions/legacy-submission-123",
 		"DELETE /v1/appStoreVersionSubmissions/legacy-submission-123",
 	}
+	requests := submitCancelRequestURIs(reg)
 	if !reflect.DeepEqual(requests, wantRequests) {
 		t.Fatalf("unexpected requests: got %v want %v", requests, wantRequests)
 	}
@@ -593,20 +434,10 @@ func TestSubmitCancelByVersionIDModernLookupErrorFallsBackToLegacy(t *testing.T)
 func TestSubmitCancelByVersionIDMissingLegacySubmissionReturnsClearError(t *testing.T) {
 	setupSubmitCancelAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = submitCancelRoundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-missing":
-			return submitCancelJSONResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-missing/appStoreVersionSubmission":
-			return submitCancelJSONResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`)
-		}
-		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-missing", "include=app"), asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-missing/appStoreVersionSubmission"), asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -632,30 +463,18 @@ func TestSubmitCancelByVersionIDMissingLegacySubmissionReturnsClearError(t *test
 func TestSubmitCancelByVersionIDLegacyForbiddenSurfacesPermissionError(t *testing.T) {
 	setupSubmitCancelAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = submitCancelRoundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-forbidden" && req.URL.Query().Get("include") == "app":
-			return submitCancelJSONResponse(http.StatusOK, `{
-				"data": {
-					"type": "appStoreVersions",
-					"id": "version-forbidden",
-					"attributes": {"platform": "IOS", "versionString": "1.0"},
-					"relationships": {"app": {"data": {"type": "apps", "id": "app-1"}}}
-				}
-			}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/reviewSubmissions":
-			return submitCancelJSONResponse(http.StatusOK, `{"data":[],"links":{}}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-forbidden/appStoreVersionSubmission":
-			return submitCancelJSONResponse(http.StatusForbidden, `{"errors":[{"status":"403","code":"FORBIDDEN","title":"Forbidden"}]}`)
-		default:
-			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-forbidden", "include=app"), asctest.JSON(http.StatusOK, `{
+		"data": {
+			"type": "appStoreVersions",
+			"id": "version-forbidden",
+			"attributes": {"platform": "IOS", "versionString": "1.0"},
+			"relationships": {"app": {"data": {"type": "apps", "id": "app-1"}}}
 		}
-	})
+	}`))
+	reg.Register(asctest.GET("/v1/apps/app-1/reviewSubmissions", "include=appStoreVersionForReview", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[],"links":{}}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-forbidden/appStoreVersionSubmission"), asctest.JSON(http.StatusForbidden, `{"errors":[{"status":"403","code":"FORBIDDEN","title":"Forbidden"}]}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -684,47 +503,32 @@ func TestSubmitCancelByVersionIDLegacyForbiddenSurfacesPermissionError(t *testin
 func TestSubmitCancelByVersionIDIgnoresHistoricalCompleteReviewSubmission(t *testing.T) {
 	setupSubmitCancelAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	requests := make([]string, 0, 3)
-	http.DefaultTransport = submitCancelRoundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requests = append(requests, req.Method+" "+req.URL.RequestURI())
-
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-456" && req.URL.Query().Get("include") == "app":
-			return submitCancelJSONResponse(http.StatusOK, `{
-				"data": {
-					"type": "appStoreVersions",
-					"id": "version-456",
-					"attributes": {"platform": "IOS", "versionString": "1.0"},
-					"relationships": {"app": {"data": {"type": "apps", "id": "app-1"}}}
-				}
-			}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/reviewSubmissions":
-			return submitCancelJSONResponse(http.StatusOK, `{
-				"data": [{
-					"type": "reviewSubmissions",
-					"id": "historical-submission",
-					"attributes": {
-						"state": "COMPLETE",
-						"submittedDate": "2026-03-15T11:00:00Z"
-					},
-					"relationships": {
-						"appStoreVersionForReview": {
-							"data": {"type": "appStoreVersions", "id": "version-456"}
-						}
-					}
-				}]
-			}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-456/appStoreVersionSubmission":
-			return submitCancelJSONResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`)
-		default:
-			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-456", "include=app"), asctest.JSON(http.StatusOK, `{
+		"data": {
+			"type": "appStoreVersions",
+			"id": "version-456",
+			"attributes": {"platform": "IOS", "versionString": "1.0"},
+			"relationships": {"app": {"data": {"type": "apps", "id": "app-1"}}}
 		}
-	})
+	}`))
+	reg.Register(asctest.GET("/v1/apps/app-1/reviewSubmissions", "include=appStoreVersionForReview", "limit=200"), asctest.JSON(http.StatusOK, `{
+		"data": [{
+			"type": "reviewSubmissions",
+			"id": "historical-submission",
+			"attributes": {
+				"state": "COMPLETE",
+				"submittedDate": "2026-03-15T11:00:00Z"
+			},
+			"relationships": {
+				"appStoreVersionForReview": {
+					"data": {"type": "appStoreVersions", "id": "version-456"}
+				}
+			}
+		}]
+	}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-456/appStoreVersionSubmission"), asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -751,6 +555,7 @@ func TestSubmitCancelByVersionIDIgnoresHistoricalCompleteReviewSubmission(t *tes
 		"GET /v1/apps/app-1/reviewSubmissions?include=appStoreVersionForReview&limit=200",
 		"GET /v1/appStoreVersions/version-456/appStoreVersionSubmission",
 	}
+	requests := submitCancelRequestURIs(reg)
 	if !reflect.DeepEqual(requests, wantRequests) {
 		t.Fatalf("unexpected requests: got %v want %v", requests, wantRequests)
 	}
@@ -759,33 +564,12 @@ func TestSubmitCancelByVersionIDIgnoresHistoricalCompleteReviewSubmission(t *tes
 func TestSubmitCancelByIDExplainsNonCancellableState(t *testing.T) {
 	setupSubmitCancelAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.PATCH("/v1/reviewSubmissions/review-submission-456").JSONBody(`{"data":{"type":"reviewSubmissions","id":"review-submission-456","attributes":{"canceled":true}}}`), asctest.JSON(http.StatusConflict, `{"errors":[{"status":"409","code":"CONFLICT","title":"Resource state is invalid.","detail":"Resource is not in cancellable state"}]}`))
+	reg.Register(asctest.GET("/v1/reviewSubmissions/review-submission-456"), asctest.JSON(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"review-submission-456","attributes":{"state":"UNRESOLVED_ISSUES"}}}`))
 
-	requests := make([]string, 0, 2)
-	http.DefaultTransport = submitCancelRoundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requests = append(requests, req.Method+" "+req.URL.Path)
-		switch {
-		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/review-submission-456":
-			return submitCancelJSONResponse(http.StatusConflict, `{"errors":[{"status":"409","code":"CONFLICT","title":"Resource state is invalid.","detail":"Resource is not in cancellable state"}]}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/review-submission-456":
-			return submitCancelJSONResponse(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"review-submission-456","attributes":{"state":"UNRESOLVED_ISSUES"}}}`)
-		}
-		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{"submit", "cancel", "--id", "review-submission-456", "--confirm"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	stdout, _, runErr := runCommand(t, []string{"submit", "cancel", "--id", "review-submission-456", "--confirm"})
 
 	if runErr == nil {
 		t.Fatal("expected error, got nil")
@@ -803,6 +587,7 @@ func TestSubmitCancelByIDExplainsNonCancellableState(t *testing.T) {
 		"PATCH /v1/reviewSubmissions/review-submission-456",
 		"GET /v1/reviewSubmissions/review-submission-456",
 	}
+	requests := submitCancelRequests(reg)
 	if !reflect.DeepEqual(requests, wantRequests) {
 		t.Fatalf("unexpected requests: got %v want %v", requests, wantRequests)
 	}
@@ -814,53 +599,32 @@ func TestSubmitCancelByIDExplainsNonCancellableState(t *testing.T) {
 func TestSubmitCancelByVersionIDModernConflictExplainsRefreshedState(t *testing.T) {
 	setupSubmitCancelAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = submitCancelRoundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-456" && req.URL.Query().Get("include") == "app":
-			return submitCancelJSONResponse(http.StatusOK, `{
-				"data": {
-					"type": "appStoreVersions",
-					"id": "version-456",
-					"attributes": {"platform": "IOS", "versionString": "1.0"},
-					"relationships": {"app": {"data": {"type": "apps", "id": "app-1"}}}
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-456", "include=app"), asctest.JSON(http.StatusOK, `{
+		"data": {
+			"type": "appStoreVersions",
+			"id": "version-456",
+			"attributes": {"platform": "IOS", "versionString": "1.0"},
+			"relationships": {"app": {"data": {"type": "apps", "id": "app-1"}}}
+		}
+	}`))
+	reg.Register(asctest.GET("/v1/apps/app-1/reviewSubmissions", "include=appStoreVersionForReview", "limit=200"), asctest.JSON(http.StatusOK, `{
+		"data": [{
+			"type": "reviewSubmissions",
+			"id": "review-submission-456",
+			"attributes": {"state": "READY_FOR_REVIEW"},
+			"relationships": {
+				"appStoreVersionForReview": {
+					"data": {"type": "appStoreVersions", "id": "version-456"}
 				}
-			}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/reviewSubmissions":
-			return submitCancelJSONResponse(http.StatusOK, `{
-				"data": [{
-					"type": "reviewSubmissions",
-					"id": "review-submission-456",
-					"attributes": {"state": "READY_FOR_REVIEW"},
-					"relationships": {
-						"appStoreVersionForReview": {
-							"data": {"type": "appStoreVersions", "id": "version-456"}
-						}
-					}
-				}]
-			}`)
-		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/review-submission-456":
-			return submitCancelJSONResponse(http.StatusConflict, `{"errors":[{"status":"409","code":"CONFLICT","title":"Resource state is invalid.","detail":"Resource is not in cancellable state"}]}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/review-submission-456":
-			return submitCancelJSONResponse(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"review-submission-456","attributes":{"state":"READY_FOR_REVIEW"}}}`)
-		}
-		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
-	})
+			}
+		}]
+	}`))
+	reg.Register(asctest.PATCH("/v1/reviewSubmissions/review-submission-456").JSONBody(`{"data":{"type":"reviewSubmissions","id":"review-submission-456","attributes":{"canceled":true}}}`), asctest.JSON(http.StatusConflict, `{"errors":[{"status":"409","code":"CONFLICT","title":"Resource state is invalid.","detail":"Resource is not in cancellable state"}]}`))
+	reg.Register(asctest.GET("/v1/reviewSubmissions/review-submission-456"), asctest.JSON(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"review-submission-456","attributes":{"state":"READY_FOR_REVIEW"}}}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{"submit", "cancel", "--version-id", "version-456", "--confirm"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	stdout, _, runErr := runCommand(t, []string{"submit", "cancel", "--version-id", "version-456", "--confirm"})
 
 	if runErr == nil {
 		t.Fatal("expected error, got nil")
@@ -882,43 +646,21 @@ func TestSubmitCancelByVersionIDModernConflictExplainsRefreshedState(t *testing.
 func TestSubmitCancelByVersionIDLegacyLookupConflictExplainsState(t *testing.T) {
 	setupSubmitCancelAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = submitCancelRoundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-456" && req.URL.Query().Get("include") == "app":
-			return submitCancelJSONResponse(http.StatusOK, `{
-				"data": {
-					"type": "appStoreVersions", "id": "version-456",
-					"attributes": {"platform": "IOS", "versionString": "1.0"},
-					"relationships": {"app": {"data": {"type": "apps", "id": "app-1"}}}
-				}
-			}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/reviewSubmissions":
-			return submitCancelJSONResponse(http.StatusOK, `{"data":[],"links":{}}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-456/appStoreVersionSubmission":
-			return submitCancelJSONResponse(http.StatusOK, `{"data":{"type":"appStoreVersionSubmissions","id":"submission-456"}}`)
-		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/submission-456":
-			return submitCancelJSONResponse(http.StatusConflict, `{"errors":[{"status":"409","code":"CONFLICT","title":"Resource state is invalid.","detail":"Resource is not in cancellable state"}]}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/submission-456":
-			return submitCancelJSONResponse(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"submission-456","attributes":{"state":"COMPLETE"}}}`)
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-456", "include=app"), asctest.JSON(http.StatusOK, `{
+		"data": {
+			"type": "appStoreVersions", "id": "version-456",
+			"attributes": {"platform": "IOS", "versionString": "1.0"},
+			"relationships": {"app": {"data": {"type": "apps", "id": "app-1"}}}
 		}
-		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
-	})
+	}`))
+	reg.Register(asctest.GET("/v1/apps/app-1/reviewSubmissions", "include=appStoreVersionForReview", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[],"links":{}}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-456/appStoreVersionSubmission"), asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreVersionSubmissions","id":"submission-456"}}`))
+	reg.Register(asctest.PATCH("/v1/reviewSubmissions/submission-456").JSONBody(`{"data":{"type":"reviewSubmissions","id":"submission-456","attributes":{"canceled":true}}}`), asctest.JSON(http.StatusConflict, `{"errors":[{"status":"409","code":"CONFLICT","title":"Resource state is invalid.","detail":"Resource is not in cancellable state"}]}`))
+	reg.Register(asctest.GET("/v1/reviewSubmissions/submission-456"), asctest.JSON(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"submission-456","attributes":{"state":"COMPLETE"}}}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{"submit", "cancel", "--version-id", "version-456", "--confirm"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	stdout, _, runErr := runCommand(t, []string{"submit", "cancel", "--version-id", "version-456", "--confirm"})
 
 	if runErr == nil {
 		t.Fatal("expected error, got nil")
@@ -935,4 +677,20 @@ func TestSubmitCancelByVersionIDLegacyLookupConflictExplainsState(t *testing.T) 
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
+}
+
+func submitCancelRequests(reg *asctest.Registry) []string {
+	requests := make([]string, 0, len(reg.Requests()))
+	for _, req := range reg.Requests() {
+		requests = append(requests, req.Method+" "+req.URL.Path)
+	}
+	return requests
+}
+
+func submitCancelRequestURIs(reg *asctest.Registry) []string {
+	requests := make([]string, 0, len(reg.Requests()))
+	for _, req := range reg.Requests() {
+		requests = append(requests, req.Method+" "+req.URL.RequestURI())
+	}
+	return requests
 }

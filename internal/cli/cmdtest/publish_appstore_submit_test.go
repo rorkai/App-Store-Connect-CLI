@@ -12,6 +12,8 @@ import (
 	"testing"
 	"testing/synctest"
 	"time"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func respondToPublishAppLookup(t *testing.T, req *http.Request) (*http.Response, error, bool) {
@@ -470,15 +472,9 @@ func TestPublishAppStoreSubmitDryRunPrintsPlanWithoutMutations(t *testing.T) {
 		t.Fatalf("write ipa fixture: %v", err)
 	}
 
-	requests := newRequestLog(10)
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requests.Add(req.Method + " " + req.URL.Path)
-		if resp, err, ok := respondToPublishAppLookup(t, req); ok {
-			return resp, err
-		}
-		t.Fatalf("unexpected HTTP request during dry-run: %s %s?%s", req.Method, req.URL.Path, req.URL.RawQuery)
-		return nil, nil
-	}))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=app-1", "limit=2"), asctest.JSON(http.StatusOK, `{"data":[{"type":"apps","id":"app-1","attributes":{"bundleId":"app-1","name":"app-1"}}]}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -562,7 +558,7 @@ func TestPublishAppStoreSubmitDryRunPrintsPlanWithoutMutations(t *testing.T) {
 		t.Fatalf("expected plan %v, got %v", expectedPlanNames, planNames)
 	}
 
-	recordedRequests := requests.Snapshot()
+	recordedRequests := reviewSubmitRequests(reg)
 	if len(recordedRequests) != 1 || recordedRequests[0] != "GET /v1/apps" {
 		t.Fatalf("expected dry-run lookup-only request log, got %v", recordedRequests)
 	}
@@ -585,12 +581,8 @@ func TestPublishAppStoreDryRunNumericAppIDDoesNotRequireAuth(t *testing.T) {
 		t.Fatalf("write ipa fixture: %v", err)
 	}
 
-	requests := newRequestLog(5)
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requests.Add(req.Method + " " + req.URL.Path)
-		t.Fatalf("unexpected HTTP request during authless dry-run: %s %s?%s", req.Method, req.URL.Path, req.URL.RawQuery)
-		return nil, nil
-	}))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -650,7 +642,7 @@ func TestPublishAppStoreDryRunNumericAppIDDoesNotRequireAuth(t *testing.T) {
 		t.Fatalf("expected last dry-run step to submit review, got %q", payload.Plan[len(payload.Plan)-1].Name)
 	}
 
-	if recordedRequests := requests.Snapshot(); len(recordedRequests) != 0 {
+	if recordedRequests := reviewSubmitRequests(reg); len(recordedRequests) != 0 {
 		t.Fatalf("expected authless dry-run to avoid all HTTP requests, got %v", recordedRequests)
 	}
 }

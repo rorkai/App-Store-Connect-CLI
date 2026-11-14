@@ -1,11 +1,11 @@
 package cmdtest
 
 import (
-	"context"
-	"io"
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestPaginateRequestsMaxLimitOnFirstPage(t *testing.T) {
@@ -38,36 +38,18 @@ func TestPaginateRequestsMaxLimitOnFirstPage(t *testing.T) {
 	for _, test := range tests {
 		t.Run(strings.Join(test.args, " "), func(t *testing.T) {
 			setupAuth(t)
-			originalTransport := http.DefaultTransport
-			t.Cleanup(func() { http.DefaultTransport = originalTransport })
+			query := "limit=" + test.wantLimit
+			if test.wantLimit == "" {
+				query = "cursor=Mg"
+			}
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET(test.path, query), asctest.JSON(http.StatusOK, `{"data":[],"links":{}}`))
 
-			var requests []string
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				requests = append(requests, req.URL.String())
-				if req.URL.Path != test.path {
-					t.Fatalf("unexpected request: %s", req.URL.String())
-				}
-				if got := req.URL.Query().Get("limit"); got != test.wantLimit {
-					t.Fatalf("expected first-page limit=%s, got %q (%s)", test.wantLimit, got, req.URL.String())
-				}
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body:       io.NopCloser(strings.NewReader(`{"data":[],"links":{}}`)),
-					Header:     http.Header{"Content-Type": []string{"application/json"}},
-				}, nil
-			})
-
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-			captureOutput(t, func() {
-				if err := root.Parse(append(test.args, "--paginate")); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
-			if len(requests) != 1 {
+			if _, _, err := runCommand(t, append(test.args, "--paginate")); err != nil {
+				t.Fatalf("run error: %v", err)
+			}
+			if requests := reg.Requests(); len(requests) != 1 {
 				t.Fatalf("expected 1 request, got %d: %v", len(requests), requests)
 			}
 		})

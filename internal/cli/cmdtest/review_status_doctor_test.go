@@ -1,15 +1,15 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"flag"
-	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestReviewStatusAndDoctorValidationErrors(t *testing.T) {
@@ -69,76 +69,50 @@ func TestReviewStatusShowsCurrentReviewState(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch req.URL.Path {
-		case "/v1/apps/123456789/appStoreVersions":
-			return statusJSONResponse(`{
-				"data":[
-					{
-						"type":"appStoreVersions",
-						"id":"ver-1",
-						"attributes":{
-							"platform":"IOS",
-							"versionString":"1.2.3",
-							"appVersionState":"WAITING_FOR_REVIEW",
-							"createdDate":"2026-03-15T00:00:00Z"
-						}
-					}
-				],
-				"links":{"next":""}
-			}`), nil
-		case "/v1/appStoreVersions/ver-1/appStoreReviewDetail":
-			return statusJSONResponse(`{
-				"data":{
-					"type":"appStoreReviewDetails",
-					"id":"detail-1",
-					"attributes":{"contactEmail":"dev@example.com"}
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "limit=200"), asctest.JSON(http.StatusOK, `{
+		"data":[
+			{
+				"type":"appStoreVersions",
+				"id":"ver-1",
+				"attributes":{
+					"platform":"IOS",
+					"versionString":"1.2.3",
+					"appVersionState":"WAITING_FOR_REVIEW",
+					"createdDate":"2026-03-15T00:00:00Z"
 				}
-			}`), nil
-		case "/v1/apps/123456789/reviewSubmissions":
-			if req.URL.Query().Get("filter[platform]") != "IOS" {
-				t.Fatalf("expected platform filter IOS, got %q", req.URL.Query().Get("filter[platform]"))
 			}
-			if req.URL.Query().Get("include") != "appStoreVersionForReview" {
-				t.Fatalf("expected include=appStoreVersionForReview, got %q", req.URL.Query().Get("include"))
-			}
-			return statusJSONResponse(`{
-				"data":[
-					{
-						"type":"reviewSubmissions",
-						"id":"review-sub-1",
-						"attributes":{"state":"WAITING_FOR_REVIEW","platform":"IOS","submittedDate":"2026-03-15T01:00:00Z"},
-						"relationships":{
-							"appStoreVersionForReview":{
-								"data":{"type":"appStoreVersions","id":"ver-1"}
-							}
-						}
+		],
+		"links":{"next":""}
+	}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/ver-1/appStoreReviewDetail"), asctest.JSON(http.StatusOK, `{
+		"data":{
+			"type":"appStoreReviewDetails",
+			"id":"detail-1",
+			"attributes":{"contactEmail":"dev@example.com"}
+		}
+	}`))
+	reg.Register(asctest.GET("/v1/apps/123456789/reviewSubmissions", "filter[platform]=IOS", "include=appStoreVersionForReview", "limit=200"), asctest.JSON(http.StatusOK, `{
+		"data":[
+			{
+				"type":"reviewSubmissions",
+				"id":"review-sub-1",
+				"attributes":{"state":"WAITING_FOR_REVIEW","platform":"IOS","submittedDate":"2026-03-15T01:00:00Z"},
+				"relationships":{
+					"appStoreVersionForReview":{
+						"data":{"type":"appStoreVersions","id":"ver-1"}
 					}
-				],
-				"links":{"next":""}
-			}`), nil
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	})
+				}
+			}
+		],
+		"links":{"next":""}
+	}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"review", "status", "--app", "123456789"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"review", "status", "--app", "123456789"})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -173,70 +147,50 @@ func TestReviewStatusUsesGenericNextActionForUnhandledSubmissionState(t *testing
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch req.URL.Path {
-		case "/v1/apps/123456789/appStoreVersions":
-			return statusJSONResponse(`{
-				"data":[
-					{
-						"type":"appStoreVersions",
-						"id":"ver-1",
-						"attributes":{
-							"platform":"IOS",
-							"versionString":"1.2.3",
-							"appVersionState":"PREPARE_FOR_SUBMISSION",
-							"createdDate":"2026-03-15T00:00:00Z"
-						}
-					}
-				],
-				"links":{"next":""}
-			}`), nil
-		case "/v1/appStoreVersions/ver-1/appStoreReviewDetail":
-			return statusJSONResponse(`{
-				"data":{
-					"type":"appStoreReviewDetails",
-					"id":"detail-1",
-					"attributes":{"contactEmail":"dev@example.com"}
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "limit=200"), asctest.JSON(http.StatusOK, `{
+		"data":[
+			{
+				"type":"appStoreVersions",
+				"id":"ver-1",
+				"attributes":{
+					"platform":"IOS",
+					"versionString":"1.2.3",
+					"appVersionState":"PREPARE_FOR_SUBMISSION",
+					"createdDate":"2026-03-15T00:00:00Z"
 				}
-			}`), nil
-		case "/v1/apps/123456789/reviewSubmissions":
-			return statusJSONResponse(`{
-				"data":[
-					{
-						"type":"reviewSubmissions",
-						"id":"review-sub-1",
-						"attributes":{"state":"CANCELING","platform":"IOS","submittedDate":"2026-03-15T01:00:00Z"},
-						"relationships":{
-							"appStoreVersionForReview":{
-								"data":{"type":"appStoreVersions","id":"ver-1"}
-							}
-						}
+			}
+		],
+		"links":{"next":""}
+	}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/ver-1/appStoreReviewDetail"), asctest.JSON(http.StatusOK, `{
+		"data":{
+			"type":"appStoreReviewDetails",
+			"id":"detail-1",
+			"attributes":{"contactEmail":"dev@example.com"}
+		}
+	}`))
+	reg.Register(asctest.GET("/v1/apps/123456789/reviewSubmissions", "filter[platform]=IOS", "include=appStoreVersionForReview", "limit=200"), asctest.JSON(http.StatusOK, `{
+		"data":[
+			{
+				"type":"reviewSubmissions",
+				"id":"review-sub-1",
+				"attributes":{"state":"CANCELING","platform":"IOS","submittedDate":"2026-03-15T01:00:00Z"},
+				"relationships":{
+					"appStoreVersionForReview":{
+						"data":{"type":"appStoreVersions","id":"ver-1"}
 					}
-				],
-				"links":{"next":""}
-			}`), nil
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	})
+				}
+			}
+		],
+		"links":{"next":""}
+	}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"review", "status", "--app", "123456789"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"review", "status", "--app", "123456789"})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -260,99 +214,73 @@ func TestReviewStatusExplainsCompleteSubmissionWithOnlyRemovedItems(t *testing.T
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	itemRequests := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch req.URL.Path {
-		case "/v1/apps/123456789/appStoreVersions":
-			return statusJSONResponse(`{
-				"data":[
-					{
-						"type":"appStoreVersions",
-						"id":"ver-1",
-						"attributes":{
-							"platform":"IOS",
-							"versionString":"1.2.3",
-							"appVersionState":"DEVELOPER_REJECTED",
-							"createdDate":"2026-03-15T00:00:00Z"
-						}
-					}
-				],
-				"links":{"next":""}
-			}`), nil
-		case "/v1/appStoreVersions/ver-1/appStoreReviewDetail":
-			return statusJSONResponse(`{
-				"data":{
-					"type":"appStoreReviewDetails",
-					"id":"detail-1",
-					"attributes":{"contactEmail":"dev@example.com"}
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "limit=200"), asctest.JSON(http.StatusOK, `{
+		"data":[
+			{
+				"type":"appStoreVersions",
+				"id":"ver-1",
+				"attributes":{
+					"platform":"IOS",
+					"versionString":"1.2.3",
+					"appVersionState":"DEVELOPER_REJECTED",
+					"createdDate":"2026-03-15T00:00:00Z"
 				}
-			}`), nil
-		case "/v1/apps/123456789/reviewSubmissions":
-			return statusJSONResponse(`{
-				"data":[
-					{
-						"type":"reviewSubmissions",
-						"id":"review-sub-1",
-						"attributes":{"state":"COMPLETE","platform":"IOS","submittedDate":"2026-03-15T01:00:00Z"},
-						"relationships":{
-							"appStoreVersionForReview":{
-								"data":{"type":"appStoreVersions","id":"ver-1"}
-							}
-						}
-					}
-				],
-				"links":{"next":""}
-			}`), nil
-		case "/v1/reviewSubmissions/review-sub-1/items":
-			itemRequests++
-			if req.URL.Query().Get("limit") != "200" {
-				t.Fatalf("expected items limit 200, got %q", req.URL.Query().Get("limit"))
 			}
-			return statusJSONResponse(`{
-				"data":[
-					{
-						"type":"reviewSubmissionItems",
-						"id":"item-1",
-						"attributes":{"state":"REMOVED"},
-						"relationships":{
-							"appStoreVersion":{
-								"data":{"type":"appStoreVersions","id":"ver-1"}
-							},
-							"reviewSubmission":{
-								"data":{"type":"reviewSubmissions","id":"review-sub-1"}
-							}
-						}
+		],
+		"links":{"next":""}
+	}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/ver-1/appStoreReviewDetail"), asctest.JSON(http.StatusOK, `{
+		"data":{
+			"type":"appStoreReviewDetails",
+			"id":"detail-1",
+			"attributes":{"contactEmail":"dev@example.com"}
+		}
+	}`))
+	reg.Register(asctest.GET("/v1/apps/123456789/reviewSubmissions", "filter[platform]=IOS", "include=appStoreVersionForReview", "limit=200"), asctest.JSON(http.StatusOK, `{
+		"data":[
+			{
+				"type":"reviewSubmissions",
+				"id":"review-sub-1",
+				"attributes":{"state":"COMPLETE","platform":"IOS","submittedDate":"2026-03-15T01:00:00Z"},
+				"relationships":{
+					"appStoreVersionForReview":{
+						"data":{"type":"appStoreVersions","id":"ver-1"}
 					}
-				],
-				"links":{"next":""}
-			}`), nil
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	})
+				}
+			}
+		],
+		"links":{"next":""}
+	}`))
+	reg.Register(asctest.GET("/v1/reviewSubmissions/review-sub-1/items", "fields[reviewSubmissionItems]=state,appStoreVersion", "include=appStoreVersion", "limit=200"), asctest.JSON(http.StatusOK, `{
+		"data":[
+			{
+				"type":"reviewSubmissionItems",
+				"id":"item-1",
+				"attributes":{"state":"REMOVED"},
+				"relationships":{
+					"appStoreVersion":{
+						"data":{"type":"appStoreVersions","id":"ver-1"}
+					},
+					"reviewSubmission":{
+						"data":{"type":"reviewSubmissions","id":"review-sub-1"}
+					}
+				}
+			}
+		],
+		"links":{"next":""}
+	}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"review", "status", "--app", "123456789"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"review", "status", "--app", "123456789"})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	if itemRequests != 1 {
+	if itemRequests := countStatusRequests(reg, "/v1/reviewSubmissions/review-sub-1/items"); itemRequests != 1 {
 		t.Fatalf("expected 1 review submission item request, got %d", itemRequests)
 	}
 
@@ -392,115 +320,86 @@ func TestReviewStatusIgnoresUnrelatedActiveSubmissionItems(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	itemRequests := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch req.URL.Path {
-		case "/v1/apps/123456789/appStoreVersions":
-			return statusJSONResponse(`{
-				"data":[
-					{
-						"type":"appStoreVersions",
-						"id":"ver-1",
-						"attributes":{
-							"platform":"IOS",
-							"versionString":"1.2.3",
-							"appVersionState":"DEVELOPER_REJECTED",
-							"createdDate":"2026-03-15T00:00:00Z"
-						}
-					}
-				],
-				"links":{"next":""}
-			}`), nil
-		case "/v1/appStoreVersions/ver-1/appStoreReviewDetail":
-			return statusJSONResponse(`{
-				"data":{
-					"type":"appStoreReviewDetails",
-					"id":"detail-1",
-					"attributes":{"contactEmail":"dev@example.com"}
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "limit=200"), asctest.JSON(http.StatusOK, `{
+		"data":[
+			{
+				"type":"appStoreVersions",
+				"id":"ver-1",
+				"attributes":{
+					"platform":"IOS",
+					"versionString":"1.2.3",
+					"appVersionState":"DEVELOPER_REJECTED",
+					"createdDate":"2026-03-15T00:00:00Z"
 				}
-			}`), nil
-		case "/v1/apps/123456789/reviewSubmissions":
-			return statusJSONResponse(`{
-				"data":[
-					{
-						"type":"reviewSubmissions",
-						"id":"review-sub-1",
-						"attributes":{"state":"COMPLETE","platform":"IOS","submittedDate":"2026-03-15T01:00:00Z"},
-						"relationships":{
-							"appStoreVersionForReview":{
-								"data":{"type":"appStoreVersions","id":"ver-1"}
-							}
-						}
+			}
+		],
+		"links":{"next":""}
+	}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/ver-1/appStoreReviewDetail"), asctest.JSON(http.StatusOK, `{
+		"data":{
+			"type":"appStoreReviewDetails",
+			"id":"detail-1",
+			"attributes":{"contactEmail":"dev@example.com"}
+		}
+	}`))
+	reg.Register(asctest.GET("/v1/apps/123456789/reviewSubmissions", "filter[platform]=IOS", "include=appStoreVersionForReview", "limit=200"), asctest.JSON(http.StatusOK, `{
+		"data":[
+			{
+				"type":"reviewSubmissions",
+				"id":"review-sub-1",
+				"attributes":{"state":"COMPLETE","platform":"IOS","submittedDate":"2026-03-15T01:00:00Z"},
+				"relationships":{
+					"appStoreVersionForReview":{
+						"data":{"type":"appStoreVersions","id":"ver-1"}
 					}
-				],
-				"links":{"next":""}
-			}`), nil
-		case "/v1/reviewSubmissions/review-sub-1/items":
-			itemRequests++
-			if req.URL.Query().Get("limit") != "200" {
-				t.Fatalf("expected items limit 200, got %q", req.URL.Query().Get("limit"))
+				}
 			}
-			if req.URL.Query().Get("fields[reviewSubmissionItems]") != "state,appStoreVersion" {
-				t.Fatalf("expected item fields state,appStoreVersion, got %q", req.URL.Query().Get("fields[reviewSubmissionItems]"))
-			}
-			return statusJSONResponse(`{
-				"data":[
-					{
-						"type":"reviewSubmissionItems",
-						"id":"item-version-removed",
-						"attributes":{"state":"REMOVED"},
-						"relationships":{
-							"appStoreVersion":{
-								"data":{"type":"appStoreVersions","id":"ver-1"}
-							},
-							"reviewSubmission":{
-								"data":{"type":"reviewSubmissions","id":"review-sub-1"}
-							}
-						}
+		],
+		"links":{"next":""}
+	}`))
+	reg.Register(asctest.GET("/v1/reviewSubmissions/review-sub-1/items", "fields[reviewSubmissionItems]=state,appStoreVersion", "include=appStoreVersion", "limit=200"), asctest.JSON(http.StatusOK, `{
+		"data":[
+			{
+				"type":"reviewSubmissionItems",
+				"id":"item-version-removed",
+				"attributes":{"state":"REMOVED"},
+				"relationships":{
+					"appStoreVersion":{
+						"data":{"type":"appStoreVersions","id":"ver-1"}
 					},
-					{
-						"type":"reviewSubmissionItems",
-						"id":"item-background-active",
-						"attributes":{"state":"APPROVED"},
-						"relationships":{
-							"backgroundAssetVersion":{
-								"data":{"type":"backgroundAssetVersions","id":"bg-1"}
-							},
-							"reviewSubmission":{
-								"data":{"type":"reviewSubmissions","id":"review-sub-1"}
-							}
-						}
+					"reviewSubmission":{
+						"data":{"type":"reviewSubmissions","id":"review-sub-1"}
 					}
-				],
-				"links":{"next":""}
-			}`), nil
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	})
+				}
+			},
+			{
+				"type":"reviewSubmissionItems",
+				"id":"item-background-active",
+				"attributes":{"state":"APPROVED"},
+				"relationships":{
+					"backgroundAssetVersion":{
+						"data":{"type":"backgroundAssetVersions","id":"bg-1"}
+					},
+					"reviewSubmission":{
+						"data":{"type":"reviewSubmissions","id":"review-sub-1"}
+					}
+				}
+			}
+		],
+		"links":{"next":""}
+	}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"review", "status", "--app", "123456789"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"review", "status", "--app", "123456789"})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	if itemRequests != 1 {
+	if itemRequests := countStatusRequests(reg, "/v1/reviewSubmissions/review-sub-1/items"); itemRequests != 1 {
 		t.Fatalf("expected 1 review submission item request, got %d", itemRequests)
 	}
 
@@ -540,109 +439,86 @@ func TestReviewStatusFiltersSubmissionsToSelectedVersion(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	includeQuery := ""
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch req.URL.Path {
-		case "/v1/appStoreVersions/ver-2":
-			if req.URL.Query().Get("include") != "app" {
-				t.Fatalf("expected include=app, got %q", req.URL.Query().Get("include"))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreVersions/ver-2", "include=app"), asctest.JSON(http.StatusOK, `{
+		"data":{
+			"type":"appStoreVersions",
+			"id":"ver-2",
+			"attributes":{
+				"platform":"IOS",
+				"versionString":"2.0.0",
+				"appVersionState":"PREPARE_FOR_SUBMISSION"
+			},
+			"relationships":{
+				"app":{"data":{"type":"apps","id":"123456789"}}
 			}
-			return statusJSONResponse(`{
-				"data":{
-					"type":"appStoreVersions",
-					"id":"ver-2",
-					"attributes":{
-						"platform":"IOS",
-						"versionString":"2.0.0",
-						"appVersionState":"PREPARE_FOR_SUBMISSION"
-					},
-					"relationships":{
-						"app":{"data":{"type":"apps","id":"123456789"}}
+		}
+	}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/ver-2/appStoreReviewDetail"), asctest.JSON(http.StatusOK, `{
+		"data":{
+			"type":"appStoreReviewDetails",
+			"id":"detail-2",
+			"attributes":{"contactEmail":"dev@example.com"}
+		}
+	}`))
+	reg.Register(asctest.GET("/v1/apps/123456789/reviewSubmissions", "filter[platform]=IOS", "include=appStoreVersionForReview", "limit=200"), asctest.JSON(http.StatusOK, `{
+		"data":[
+			{
+				"type":"reviewSubmissions",
+				"id":"review-sub-other-version",
+				"attributes":{"state":"WAITING_FOR_REVIEW","platform":"IOS","submittedDate":"2026-03-15T02:00:00Z"},
+				"relationships":{
+					"appStoreVersionForReview":{
+						"data":{"type":"appStoreVersions","id":"ver-1"}
 					}
 				}
-			}`), nil
-		case "/v1/appStoreVersions/ver-2/appStoreReviewDetail":
-			return statusJSONResponse(`{
-				"data":{
-					"type":"appStoreReviewDetails",
-					"id":"detail-2",
-					"attributes":{"contactEmail":"dev@example.com"}
+			},
+			{
+				"type":"reviewSubmissions",
+				"id":"review-sub-target",
+				"attributes":{"state":"COMPLETE","platform":"IOS","submittedDate":"2026-03-15T01:00:00Z"},
+				"relationships":{
+					"appStoreVersionForReview":{
+						"data":{"type":"appStoreVersions","id":"ver-2"}
+					}
 				}
-			}`), nil
-		case "/v1/apps/123456789/reviewSubmissions":
-			if req.URL.Query().Get("filter[platform]") != "IOS" {
-				t.Fatalf("expected platform filter IOS, got %q", req.URL.Query().Get("filter[platform]"))
 			}
-			includeQuery = req.URL.Query().Get("include")
-			return statusJSONResponse(`{
-				"data":[
-					{
-						"type":"reviewSubmissions",
-						"id":"review-sub-other-version",
-						"attributes":{"state":"WAITING_FOR_REVIEW","platform":"IOS","submittedDate":"2026-03-15T02:00:00Z"},
-						"relationships":{
-							"appStoreVersionForReview":{
-								"data":{"type":"appStoreVersions","id":"ver-1"}
-							}
-						}
+		],
+		"links":{"next":""}
+	}`))
+	reg.Register(asctest.GET("/v1/reviewSubmissions/review-sub-target/items", "fields[reviewSubmissionItems]=state,appStoreVersion", "include=appStoreVersion", "limit=200"), asctest.JSON(http.StatusOK, `{
+		"data":[
+			{
+				"type":"reviewSubmissionItems",
+				"id":"item-1",
+				"attributes":{"state":"APPROVED"},
+				"relationships":{
+					"appStoreVersion":{
+						"data":{"type":"appStoreVersions","id":"ver-2"}
 					},
-					{
-						"type":"reviewSubmissions",
-						"id":"review-sub-target",
-						"attributes":{"state":"COMPLETE","platform":"IOS","submittedDate":"2026-03-15T01:00:00Z"},
-						"relationships":{
-							"appStoreVersionForReview":{
-								"data":{"type":"appStoreVersions","id":"ver-2"}
-							}
-						}
+					"reviewSubmission":{
+						"data":{"type":"reviewSubmissions","id":"review-sub-target"}
 					}
-				],
-				"links":{"next":""}
-			}`), nil
-		case "/v1/reviewSubmissions/review-sub-target/items":
-			return statusJSONResponse(`{
-				"data":[
-					{
-						"type":"reviewSubmissionItems",
-						"id":"item-1",
-						"attributes":{"state":"APPROVED"},
-						"relationships":{
-							"appStoreVersion":{
-								"data":{"type":"appStoreVersions","id":"ver-2"}
-							},
-							"reviewSubmission":{
-								"data":{"type":"reviewSubmissions","id":"review-sub-target"}
-							}
-						}
-					}
-				],
-				"links":{"next":""}
-			}`), nil
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	})
+				}
+			}
+		],
+		"links":{"next":""}
+	}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"review", "status", "--app", "123456789", "--version-id", "ver-2"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"review", "status", "--app", "123456789", "--version-id", "ver-2"})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	includeQuery := ""
+	for _, req := range reg.Requests() {
+		if req.URL.Path == "/v1/apps/123456789/reviewSubmissions" {
+			includeQuery = req.URL.Query().Get("include")
+		}
 	}
 	if includeQuery != "appStoreVersionForReview" {
 		t.Fatalf("expected include=appStoreVersionForReview, got %q", includeQuery)
@@ -671,124 +547,85 @@ func TestReviewStatusPaginatesSubmissionsToSelectedVersion(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	reviewSubmissionRequests := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch req.URL.Path {
-		case "/v1/appStoreVersions/ver-2":
-			if req.URL.Query().Get("include") != "app" {
-				t.Fatalf("expected include=app, got %q", req.URL.Query().Get("include"))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreVersions/ver-2", "include=app"), asctest.JSON(http.StatusOK, `{
+		"data":{
+			"type":"appStoreVersions",
+			"id":"ver-2",
+			"attributes":{
+				"platform":"IOS",
+				"versionString":"2.0.0",
+				"appVersionState":"PREPARE_FOR_SUBMISSION"
+			},
+			"relationships":{
+				"app":{"data":{"type":"apps","id":"123456789"}}
 			}
-			return statusJSONResponse(`{
-				"data":{
-					"type":"appStoreVersions",
-					"id":"ver-2",
-					"attributes":{
-						"platform":"IOS",
-						"versionString":"2.0.0",
-						"appVersionState":"PREPARE_FOR_SUBMISSION"
-					},
-					"relationships":{
-						"app":{"data":{"type":"apps","id":"123456789"}}
+		}
+	}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/ver-2/appStoreReviewDetail"), asctest.JSON(http.StatusOK, `{
+		"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]
+	}`))
+	reg.Register(asctest.GET("/v1/apps/123456789/reviewSubmissions", "filter[platform]=IOS", "include=appStoreVersionForReview", "limit=200"), asctest.JSON(http.StatusOK, `{
+		"data":[
+			{
+				"type":"reviewSubmissions",
+				"id":"review-sub-page-1",
+				"attributes":{"state":"WAITING_FOR_REVIEW","platform":"IOS","submittedDate":"2026-03-15T02:00:00Z"},
+				"relationships":{
+					"appStoreVersionForReview":{
+						"data":{"type":"appStoreVersions","id":"ver-1"}
 					}
 				}
-			}`), nil
-		case "/v1/appStoreVersions/ver-2/appStoreReviewDetail":
-			return statusJSONResponse(`{
-				"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]
-			}`), nil
-		case "/v1/apps/123456789/reviewSubmissions":
-			reviewSubmissionRequests++
-			if req.URL.Query().Get("filter[platform]") != "IOS" {
-				t.Fatalf("expected platform filter IOS, got %q", req.URL.Query().Get("filter[platform]"))
 			}
-			if req.URL.Query().Get("include") != "appStoreVersionForReview" {
-				t.Fatalf("expected include=appStoreVersionForReview, got %q", req.URL.Query().Get("include"))
-			}
-			switch req.URL.Query().Get("cursor") {
-			case "":
-				return statusJSONResponse(`{
-					"data":[
-						{
-							"type":"reviewSubmissions",
-							"id":"review-sub-page-1",
-							"attributes":{"state":"WAITING_FOR_REVIEW","platform":"IOS","submittedDate":"2026-03-15T02:00:00Z"},
-							"relationships":{
-								"appStoreVersionForReview":{
-									"data":{"type":"appStoreVersions","id":"ver-1"}
-								}
-							}
-						}
-					],
-					"links":{
-						"next":"https://api.appstoreconnect.apple.com/v1/apps/123456789/reviewSubmissions?cursor=page-2&filter%5Bplatform%5D=IOS&include=appStoreVersionForReview&limit=200"
+		],
+		"links":{
+			"next":"https://api.appstoreconnect.apple.com/v1/apps/123456789/reviewSubmissions?cursor=page-2&filter%5Bplatform%5D=IOS&include=appStoreVersionForReview&limit=200"
+		}
+	}`))
+	reg.Register(asctest.GET("/v1/apps/123456789/reviewSubmissions", "cursor=page-2", "filter[platform]=IOS", "include=appStoreVersionForReview", "limit=200"), asctest.JSON(http.StatusOK, `{
+		"data":[
+			{
+				"type":"reviewSubmissions",
+				"id":"review-sub-target",
+				"attributes":{"state":"COMPLETE","platform":"IOS","submittedDate":"2026-03-15T01:00:00Z"},
+				"relationships":{
+					"appStoreVersionForReview":{
+						"data":{"type":"appStoreVersions","id":"ver-2"}
 					}
-				}`), nil
-			case "page-2":
-				return statusJSONResponse(`{
-					"data":[
-						{
-							"type":"reviewSubmissions",
-							"id":"review-sub-target",
-							"attributes":{"state":"COMPLETE","platform":"IOS","submittedDate":"2026-03-15T01:00:00Z"},
-							"relationships":{
-								"appStoreVersionForReview":{
-									"data":{"type":"appStoreVersions","id":"ver-2"}
-								}
-							}
-						}
-					],
-					"links":{"next":""}
-				}`), nil
-			default:
-				t.Fatalf("unexpected cursor %q", req.URL.Query().Get("cursor"))
-				return nil, nil
+				}
 			}
-		case "/v1/reviewSubmissions/review-sub-target/items":
-			return statusJSONResponse(`{
-				"data":[
-					{
-						"type":"reviewSubmissionItems",
-						"id":"item-1",
-						"attributes":{"state":"APPROVED"},
-						"relationships":{
-							"appStoreVersion":{
-								"data":{"type":"appStoreVersions","id":"ver-2"}
-							},
-							"reviewSubmission":{
-								"data":{"type":"reviewSubmissions","id":"review-sub-target"}
-							}
-						}
+		],
+		"links":{"next":""}
+	}`))
+	reg.Register(asctest.GET("/v1/reviewSubmissions/review-sub-target/items", "fields[reviewSubmissionItems]=state,appStoreVersion", "include=appStoreVersion", "limit=200"), asctest.JSON(http.StatusOK, `{
+		"data":[
+			{
+				"type":"reviewSubmissionItems",
+				"id":"item-1",
+				"attributes":{"state":"APPROVED"},
+				"relationships":{
+					"appStoreVersion":{
+						"data":{"type":"appStoreVersions","id":"ver-2"}
+					},
+					"reviewSubmission":{
+						"data":{"type":"reviewSubmissions","id":"review-sub-target"}
 					}
-				],
-				"links":{"next":""}
-			}`), nil
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	})
+				}
+			}
+		],
+		"links":{"next":""}
+	}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"review", "status", "--app", "123456789", "--version-id", "ver-2"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"review", "status", "--app", "123456789", "--version-id", "ver-2"})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	if reviewSubmissionRequests != 2 {
+	if reviewSubmissionRequests := countStatusRequests(reg, "/v1/apps/123456789/reviewSubmissions"); reviewSubmissionRequests != 2 {
 		t.Fatalf("expected 2 review submission page requests, got %d", reviewSubmissionRequests)
 	}
 
@@ -814,93 +651,58 @@ func TestReviewStatusPaginatesVersionsBeforeSelectingLatestTarget(t *testing.T) 
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	versionRequests := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch req.URL.Path {
-		case "/v1/apps/123456789/appStoreVersions":
-			versionRequests++
-			switch req.URL.Query().Get("cursor") {
-			case "":
-				return statusJSONResponse(`{
-					"data":[
-						{
-							"type":"appStoreVersions",
-							"id":"ver-1",
-							"attributes":{
-								"platform":"IOS",
-								"versionString":"1.9.9",
-								"appVersionState":"WAITING_FOR_REVIEW",
-								"createdDate":"2026-03-15T00:00:00Z"
-							}
-						}
-					],
-					"links":{
-						"next":"https://api.appstoreconnect.apple.com/v1/apps/123456789/appStoreVersions?cursor=page-2&limit=200"
-					}
-				}`), nil
-			case "page-2":
-				return statusJSONResponse(`{
-					"data":[
-						{
-							"type":"appStoreVersions",
-							"id":"ver-2",
-							"attributes":{
-								"platform":"IOS",
-								"versionString":"2.0.0",
-								"appVersionState":"PREPARE_FOR_SUBMISSION",
-								"createdDate":"2026-03-16T00:00:00Z"
-							}
-						}
-					],
-					"links":{"next":""}
-				}`), nil
-			default:
-				t.Fatalf("unexpected cursor %q", req.URL.Query().Get("cursor"))
-				return nil, nil
-			}
-		case "/v1/appStoreVersions/ver-2/appStoreReviewDetail":
-			return statusJSONResponse(`{
-				"data":{
-					"type":"appStoreReviewDetails",
-					"id":"detail-2",
-					"attributes":{"contactEmail":"dev@example.com"}
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "limit=200"), asctest.JSON(http.StatusOK, `{
+		"data":[
+			{
+				"type":"appStoreVersions",
+				"id":"ver-1",
+				"attributes":{
+					"platform":"IOS",
+					"versionString":"1.9.9",
+					"appVersionState":"WAITING_FOR_REVIEW",
+					"createdDate":"2026-03-15T00:00:00Z"
 				}
-			}`), nil
-		case "/v1/apps/123456789/reviewSubmissions":
-			if req.URL.Query().Get("filter[platform]") != "IOS" {
-				t.Fatalf("expected platform filter IOS, got %q", req.URL.Query().Get("filter[platform]"))
 			}
-			if req.URL.Query().Get("include") != "appStoreVersionForReview" {
-				t.Fatalf("expected include=appStoreVersionForReview, got %q", req.URL.Query().Get("include"))
+		],
+		"links":{
+			"next":"https://api.appstoreconnect.apple.com/v1/apps/123456789/appStoreVersions?cursor=page-2&limit=200"
+		}
+	}`))
+	reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "cursor=page-2", "limit=200"), asctest.JSON(http.StatusOK, `{
+		"data":[
+			{
+				"type":"appStoreVersions",
+				"id":"ver-2",
+				"attributes":{
+					"platform":"IOS",
+					"versionString":"2.0.0",
+					"appVersionState":"PREPARE_FOR_SUBMISSION",
+					"createdDate":"2026-03-16T00:00:00Z"
+				}
 			}
-			return statusJSONResponse(`{"data":[],"links":{"next":""}}`), nil
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
+		],
+		"links":{"next":""}
+	}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/ver-2/appStoreReviewDetail"), asctest.JSON(http.StatusOK, `{
+		"data":{
+			"type":"appStoreReviewDetails",
+			"id":"detail-2",
+			"attributes":{"contactEmail":"dev@example.com"}
 		}
-	})
+	}`))
+	reg.Register(asctest.GET("/v1/apps/123456789/reviewSubmissions", "filter[platform]=IOS", "include=appStoreVersionForReview", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[],"links":{"next":""}}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"review", "status", "--app", "123456789"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"review", "status", "--app", "123456789"})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	if versionRequests != 2 {
+	if versionRequests := countStatusRequests(reg, "/v1/apps/123456789/appStoreVersions"); versionRequests != 2 {
 		t.Fatalf("expected 2 app store version page requests, got %d", versionRequests)
 	}
 
@@ -932,101 +734,77 @@ func TestReviewStatusPrefersNewestSubmissionForSelectedVersion(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch req.URL.Path {
-		case "/v1/appStoreVersions/ver-2":
-			if req.URL.Query().Get("include") != "app" {
-				t.Fatalf("expected include=app, got %q", req.URL.Query().Get("include"))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreVersions/ver-2", "include=app"), asctest.JSON(http.StatusOK, `{
+		"data":{
+			"type":"appStoreVersions",
+			"id":"ver-2",
+			"attributes":{
+				"platform":"IOS",
+				"versionString":"2.0.0",
+				"appVersionState":"PREPARE_FOR_SUBMISSION"
+			},
+			"relationships":{
+				"app":{"data":{"type":"apps","id":"123456789"}}
 			}
-			return statusJSONResponse(`{
-				"data":{
-					"type":"appStoreVersions",
-					"id":"ver-2",
-					"attributes":{
-						"platform":"IOS",
-						"versionString":"2.0.0",
-						"appVersionState":"PREPARE_FOR_SUBMISSION"
-					},
-					"relationships":{
-						"app":{"data":{"type":"apps","id":"123456789"}}
+		}
+	}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/ver-2/appStoreReviewDetail"), asctest.JSON(http.StatusOK, `{
+		"data":{
+			"type":"appStoreReviewDetails",
+			"id":"detail-2",
+			"attributes":{"contactEmail":"dev@example.com"}
+		}
+	}`))
+	reg.Register(asctest.GET("/v1/apps/123456789/reviewSubmissions", "filter[platform]=IOS", "include=appStoreVersionForReview", "limit=200"), asctest.JSON(http.StatusOK, `{
+		"data":[
+			{
+				"type":"reviewSubmissions",
+				"id":"review-sub-older",
+				"attributes":{"state":"UNRESOLVED_ISSUES","platform":"IOS","submittedDate":"2026-03-15T01:00:00Z"},
+				"relationships":{
+					"appStoreVersionForReview":{
+						"data":{"type":"appStoreVersions","id":"ver-2"}
 					}
 				}
-			}`), nil
-		case "/v1/appStoreVersions/ver-2/appStoreReviewDetail":
-			return statusJSONResponse(`{
-				"data":{
-					"type":"appStoreReviewDetails",
-					"id":"detail-2",
-					"attributes":{"contactEmail":"dev@example.com"}
+			},
+			{
+				"type":"reviewSubmissions",
+				"id":"review-sub-newer",
+				"attributes":{"state":"COMPLETE","platform":"IOS","submittedDate":"2026-03-16T01:00:00Z"},
+				"relationships":{
+					"appStoreVersionForReview":{
+						"data":{"type":"appStoreVersions","id":"ver-2"}
+					}
 				}
-			}`), nil
-		case "/v1/apps/123456789/reviewSubmissions":
-			return statusJSONResponse(`{
-				"data":[
-					{
-						"type":"reviewSubmissions",
-						"id":"review-sub-older",
-						"attributes":{"state":"UNRESOLVED_ISSUES","platform":"IOS","submittedDate":"2026-03-15T01:00:00Z"},
-						"relationships":{
-							"appStoreVersionForReview":{
-								"data":{"type":"appStoreVersions","id":"ver-2"}
-							}
-						}
+			}
+		],
+		"links":{"next":""}
+	}`))
+	reg.Register(asctest.GET("/v1/reviewSubmissions/review-sub-newer/items", "fields[reviewSubmissionItems]=state,appStoreVersion", "include=appStoreVersion", "limit=200"), asctest.JSON(http.StatusOK, `{
+		"data":[
+			{
+				"type":"reviewSubmissionItems",
+				"id":"item-1",
+				"attributes":{"state":"APPROVED"},
+				"relationships":{
+					"appStoreVersion":{
+						"data":{"type":"appStoreVersions","id":"ver-2"}
 					},
-					{
-						"type":"reviewSubmissions",
-						"id":"review-sub-newer",
-						"attributes":{"state":"COMPLETE","platform":"IOS","submittedDate":"2026-03-16T01:00:00Z"},
-						"relationships":{
-							"appStoreVersionForReview":{
-								"data":{"type":"appStoreVersions","id":"ver-2"}
-							}
-						}
+					"reviewSubmission":{
+						"data":{"type":"reviewSubmissions","id":"review-sub-newer"}
 					}
-				],
-				"links":{"next":""}
-			}`), nil
-		case "/v1/reviewSubmissions/review-sub-newer/items":
-			return statusJSONResponse(`{
-				"data":[
-					{
-						"type":"reviewSubmissionItems",
-						"id":"item-1",
-						"attributes":{"state":"APPROVED"},
-						"relationships":{
-							"appStoreVersion":{
-								"data":{"type":"appStoreVersions","id":"ver-2"}
-							},
-							"reviewSubmission":{
-								"data":{"type":"reviewSubmissions","id":"review-sub-newer"}
-							}
-						}
-					}
-				],
-				"links":{"next":""}
-			}`), nil
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	})
+				}
+			}
+		],
+		"links":{"next":""}
+	}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"review", "status", "--app", "123456789", "--version-id", "ver-2"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"review", "status", "--app", "123456789", "--version-id", "ver-2"})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -1070,41 +848,18 @@ func TestReviewStatusAndDoctorRejectVersionIDFromDifferentApp(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			originalTransport := http.DefaultTransport
-			t.Cleanup(func() {
-				http.DefaultTransport = originalTransport
-			})
-
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				switch req.URL.Path {
-				case "/v1/appStoreVersions/ver-1":
-					if req.URL.Query().Get("include") != "app" {
-						t.Fatalf("expected include=app, got %q", req.URL.Query().Get("include"))
-					}
-					return statusJSONResponse(`{
-						"data":{
-							"type":"appStoreVersions",
-							"id":"ver-1",
-							"attributes":{"platform":"IOS","versionString":"1.2.3"},
-							"relationships":{"app":{"data":{"type":"apps","id":"999999999"}}}
-						}
-					}`), nil
-				default:
-					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-					return nil, nil
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET("/v1/appStoreVersions/ver-1", "include=app"), asctest.JSON(http.StatusOK, `{
+				"data":{
+					"type":"appStoreVersions",
+					"id":"ver-1",
+					"attributes":{"platform":"IOS","versionString":"1.2.3"},
+					"relationships":{"app":{"data":{"type":"apps","id":"999999999"}}}
 				}
-			})
+			}`))
 
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			var runErr error
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				runErr = root.Run(context.Background())
-			})
+			stdout, stderr, runErr := runCommand(t, test.args)
 
 			if runErr == nil {
 				t.Fatal("expected version/app mismatch error")
@@ -1123,4 +878,14 @@ func TestReviewStatusAndDoctorRejectVersionIDFromDifferentApp(t *testing.T) {
 			}
 		})
 	}
+}
+
+func countStatusRequests(reg *asctest.Registry, path string) int {
+	count := 0
+	for _, req := range reg.Requests() {
+		if req.URL.Path == path {
+			count++
+		}
+	}
+	return count
 }

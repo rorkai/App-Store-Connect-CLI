@@ -3,13 +3,14 @@ package cmdtest
 import (
 	"bytes"
 	"compress/gzip"
-	"context"
 	"encoding/json"
 	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestInsightsWeeklyValidationErrors(t *testing.T) {
@@ -82,73 +83,37 @@ func TestInsightsWeeklySalesJSON(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch req.URL.Path {
-		case "/v1/apps/app-1":
-			return insightsJSONResponse(`{
-				"data":{
-					"type":"apps",
-					"id":"app-1",
-					"attributes":{
-						"name":"Example App",
-						"bundleId":"com.example.app",
-						"sku":"example-sku-1"
-					}
-				}
-			}`), nil
-		case "/v1/salesReports":
-			query := req.URL.Query()
-			if query.Get("filter[vendorNumber]") != "12345678" {
-				t.Fatalf("expected filter[vendorNumber]=12345678, got %q", query.Get("filter[vendorNumber]"))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/app-1"), asctest.JSON(http.StatusOK, `{
+		"data":{
+			"type":"apps",
+			"id":"app-1",
+			"attributes":{
+				"name":"Example App",
+				"bundleId":"com.example.app",
+				"sku":"example-sku-1"
 			}
-			if query.Get("filter[reportType]") != "SALES" {
-				t.Fatalf("expected filter[reportType]=SALES, got %q", query.Get("filter[reportType]"))
-			}
-			if query.Get("filter[frequency]") != "WEEKLY" {
-				t.Fatalf("expected filter[frequency]=WEEKLY, got %q", query.Get("filter[frequency]"))
-			}
-			switch query.Get("filter[reportDate]") {
-			case "2026-02-22":
-				return insightsGzipResponse(strings.Join([]string{
-					"Provider\tSKU\tApple Identifier\tParent Identifier\tUnits\tDeveloper Proceeds\tCustomer Price",
-					"foo\texample-sku-1\tapp-1\t\t10\t0.00\t0.00",
-					"foo\tcom.example.app.plus\tiap-1\texample-sku-1\t2\t2.50\t4.00",
-					"foo\tother-sku\tapp-999\tother-sku\t99\t9.99\t9.99",
-					"",
-				}, "\n")), nil
-			case "2026-02-15":
-				return insightsGzipResponse(strings.Join([]string{
-					"Provider\tSKU\tApple Identifier\tParent Identifier\tUnits\tDeveloper Proceeds\tCustomer Price",
-					"foo\texample-sku-1\tapp-1\t\t8\t0.00\t0.00",
-					"foo\tcom.example.app.plus\tiap-1\texample-sku-1\t1\t1.25\t2.00",
-					"",
-				}, "\n")), nil
-			default:
-				t.Fatalf("unexpected report date filter %q", query.Get("filter[reportDate]"))
-				return nil, nil
-			}
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
 		}
-	})
+	}`))
+	reg.Register(asctest.GET("/v1/salesReports", "filter[vendorNumber]=12345678", "filter[reportType]=SALES", "filter[reportSubType]=SUMMARY", "filter[frequency]=WEEKLY", "filter[reportDate]=2026-02-22", "filter[version]=1_0"), insightsGzipResponse(strings.Join([]string{
+		"Provider\tSKU\tApple Identifier\tParent Identifier\tUnits\tDeveloper Proceeds\tCustomer Price",
+		"foo\texample-sku-1\tapp-1\t\t10\t0.00\t0.00",
+		"foo\tcom.example.app.plus\tiap-1\texample-sku-1\t2\t2.50\t4.00",
+		"foo\tother-sku\tapp-999\tother-sku\t99\t9.99\t9.99",
+		"",
+	}, "\n")))
+	reg.Register(asctest.GET("/v1/salesReports", "filter[vendorNumber]=12345678", "filter[reportType]=SALES", "filter[reportSubType]=SUMMARY", "filter[frequency]=WEEKLY", "filter[reportDate]=2026-02-15", "filter[version]=1_0"), insightsGzipResponse(strings.Join([]string{
+		"Provider\tSKU\tApple Identifier\tParent Identifier\tUnits\tDeveloper Proceeds\tCustomer Price",
+		"foo\texample-sku-1\tapp-1\t\t8\t0.00\t0.00",
+		"foo\tcom.example.app.plus\tiap-1\texample-sku-1\t1\t1.25\t2.00",
+		"",
+	}, "\n")))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"insights", "weekly", "--app", "app-1", "--source", "sales", "--vendor", "12345678", "--week", "2026-02-16"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"insights", "weekly", "--app", "app-1", "--source", "sales", "--vendor", "12345678", "--week", "2026-02-16"})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -211,62 +176,32 @@ func TestInsightsWeeklySalesReportRowsUnavailableOnFetchError(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch req.URL.Path {
-		case "/v1/apps/app-1":
-			return insightsJSONResponse(`{
-				"data":{
-					"type":"apps",
-					"id":"app-1",
-					"attributes":{
-						"name":"Example App",
-						"bundleId":"com.example.app",
-						"sku":"example-sku-1"
-					}
-				}
-			}`), nil
-		case "/v1/salesReports":
-			switch req.URL.Query().Get("filter[reportDate]") {
-			case "2026-02-22":
-				return &http.Response{
-					StatusCode: http.StatusInternalServerError,
-					Body: io.NopCloser(strings.NewReader(`{
-						"errors":[{"status":"500","code":"INTERNAL_ERROR","title":"Internal Server Error","detail":"temporary failure"}]
-					}`)),
-					Header: http.Header{"Content-Type": []string{"application/json"}},
-				}, nil
-			case "2026-02-15":
-				return insightsGzipResponse(strings.Join([]string{
-					"Provider\tSKU\tApple Identifier\tParent Identifier\tUnits\tDeveloper Proceeds\tCustomer Price",
-					"foo\texample-sku-1\tapp-1\t\t8\t1.25\t2.00",
-					"",
-				}, "\n")), nil
-			default:
-				t.Fatalf("unexpected report date filter %q", req.URL.Query().Get("filter[reportDate]"))
-				return nil, nil
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/app-1"), asctest.JSON(http.StatusOK, `{
+		"data":{
+			"type":"apps",
+			"id":"app-1",
+			"attributes":{
+				"name":"Example App",
+				"bundleId":"com.example.app",
+				"sku":"example-sku-1"
 			}
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
 		}
-	})
+	}`))
+	reg.Register(asctest.GET("/v1/salesReports", "filter[vendorNumber]=12345678", "filter[reportType]=SALES", "filter[reportSubType]=SUMMARY", "filter[frequency]=WEEKLY", "filter[reportDate]=2026-02-22", "filter[version]=1_0"), asctest.JSON(http.StatusInternalServerError, `{
+		"errors":[{"status":"500","code":"INTERNAL_ERROR","title":"Internal Server Error","detail":"temporary failure"}]
+	}`))
+	reg.Register(asctest.GET("/v1/salesReports", "filter[vendorNumber]=12345678", "filter[reportType]=SALES", "filter[reportSubType]=SUMMARY", "filter[frequency]=WEEKLY", "filter[reportDate]=2026-02-15", "filter[version]=1_0"), insightsGzipResponse(strings.Join([]string{
+		"Provider\tSKU\tApple Identifier\tParent Identifier\tUnits\tDeveloper Proceeds\tCustomer Price",
+		"foo\texample-sku-1\tapp-1\t\t8\t1.25\t2.00",
+		"",
+	}, "\n")))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"insights", "weekly", "--app", "app-1", "--source", "sales", "--vendor", "12345678", "--week", "2026-02-16"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"insights", "weekly", "--app", "app-1", "--source", "sales", "--vendor", "12345678", "--week", "2026-02-16"})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -293,74 +228,38 @@ func TestInsightsDailySalesJSON(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch req.URL.Path {
-		case "/v1/apps/app-1":
-			return insightsJSONResponse(`{
-				"data":{
-					"type":"apps",
-					"id":"app-1",
-					"attributes":{
-						"name":"Example App",
-						"bundleId":"com.example.app",
-						"sku":"example-sku-1"
-					}
-				}
-			}`), nil
-		case "/v1/salesReports":
-			query := req.URL.Query()
-			if query.Get("filter[vendorNumber]") != "12345678" {
-				t.Fatalf("expected filter[vendorNumber]=12345678, got %q", query.Get("filter[vendorNumber]"))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/app-1"), asctest.JSON(http.StatusOK, `{
+		"data":{
+			"type":"apps",
+			"id":"app-1",
+			"attributes":{
+				"name":"Example App",
+				"bundleId":"com.example.app",
+				"sku":"example-sku-1"
 			}
-			if query.Get("filter[reportType]") != "SALES" {
-				t.Fatalf("expected filter[reportType]=SALES, got %q", query.Get("filter[reportType]"))
-			}
-			if query.Get("filter[frequency]") != "DAILY" {
-				t.Fatalf("expected filter[frequency]=DAILY, got %q", query.Get("filter[frequency]"))
-			}
-			switch query.Get("filter[reportDate]") {
-			case "2026-02-18":
-				return insightsGzipResponse(strings.Join([]string{
-					"Provider\tSKU\tApple Identifier\tParent Identifier\tSubscription\tUnits\tDeveloper Proceeds\tCustomer Price",
-					"foo\texample-sku-1\tapp-1\t\t \t1\t0.00\t0.00",
-					"foo\tcom.example.app.plus\tiap-1\texample-sku-1\tRenewal\t1\t2.46\t3.99",
-					"foo\tcom.example.app.plus\tiap-1\texample-sku-1\tNew\t1\t1.23\t1.99",
-					"foo\tother-sku\tapp-999\tother-sku\tRenewal\t99\t9.99\t9.99",
-					"",
-				}, "\n")), nil
-			case "2026-02-17":
-				return insightsGzipResponse(strings.Join([]string{
-					"Provider\tSKU\tApple Identifier\tParent Identifier\tSubscription\tUnits\tDeveloper Proceeds\tCustomer Price",
-					"foo\texample-sku-1\tapp-1\t\t \t2\t0.00\t0.00",
-					"foo\tcom.example.app.plus\tiap-1\texample-sku-1\tRenewal\t1\t1.11\t1.49",
-					"",
-				}, "\n")), nil
-			default:
-				t.Fatalf("unexpected report date filter %q", query.Get("filter[reportDate]"))
-				return nil, nil
-			}
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
 		}
-	})
+	}`))
+	reg.Register(asctest.GET("/v1/salesReports", "filter[vendorNumber]=12345678", "filter[reportType]=SALES", "filter[reportSubType]=SUMMARY", "filter[frequency]=DAILY", "filter[reportDate]=2026-02-18", "filter[version]=1_0"), insightsGzipResponse(strings.Join([]string{
+		"Provider\tSKU\tApple Identifier\tParent Identifier\tSubscription\tUnits\tDeveloper Proceeds\tCustomer Price",
+		"foo\texample-sku-1\tapp-1\t\t \t1\t0.00\t0.00",
+		"foo\tcom.example.app.plus\tiap-1\texample-sku-1\tRenewal\t1\t2.46\t3.99",
+		"foo\tcom.example.app.plus\tiap-1\texample-sku-1\tNew\t1\t1.23\t1.99",
+		"foo\tother-sku\tapp-999\tother-sku\tRenewal\t99\t9.99\t9.99",
+		"",
+	}, "\n")))
+	reg.Register(asctest.GET("/v1/salesReports", "filter[vendorNumber]=12345678", "filter[reportType]=SALES", "filter[reportSubType]=SUMMARY", "filter[frequency]=DAILY", "filter[reportDate]=2026-02-17", "filter[version]=1_0"), insightsGzipResponse(strings.Join([]string{
+		"Provider\tSKU\tApple Identifier\tParent Identifier\tSubscription\tUnits\tDeveloper Proceeds\tCustomer Price",
+		"foo\texample-sku-1\tapp-1\t\t \t2\t0.00\t0.00",
+		"foo\tcom.example.app.plus\tiap-1\texample-sku-1\tRenewal\t1\t1.11\t1.49",
+		"",
+	}, "\n")))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"insights", "daily", "--app", "app-1", "--vendor", "12345678", "--date", "2026-02-18"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"insights", "daily", "--app", "app-1", "--vendor", "12345678", "--date", "2026-02-18"})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -405,56 +304,36 @@ func TestInsightsWeeklyAnalyticsJSON(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/app-1/analyticsReportRequests", "limit=200"), asctest.JSON(http.StatusOK, `{
+		"data":[
+			{
+				"type":"analyticsReportRequests",
+				"id":"req-1",
+				"attributes":{"accessType":"ONGOING","stoppedDueToInactivity":false}
+			}
+		],
+		"links":{"next":""}
+	}`))
+	reg.Register(asctest.GET("/v1/analyticsReportRequests/req-1/reports", "limit=200"), asctest.JSON(http.StatusOK, `{
+		"data":[
+			{"type":"analyticsReports","id":"report-1","attributes":{"name":"App Usage"}}
+		],
+		"links":{"next":""}
+	}`))
+	reg.Register(asctest.GET("/v1/analyticsReports/report-1/instances", "filter[granularity]=DAILY,WEEKLY,MONTHLY", "filter[processingDate]=2026-02-16,2026-02-17,2026-02-18,2026-02-19,2026-02-20,2026-02-21,2026-02-22,2026-02-09,2026-02-10,2026-02-11,2026-02-12,2026-02-13,2026-02-14,2026-02-15", "limit=200"), asctest.JSON(http.StatusOK, `{
+		"data":[
+			{"type":"analyticsReportInstances","id":"inst-1","attributes":{"granularity":"DAILY","processingDate":"2026-02-18"}},
+			{"type":"analyticsReportInstances","id":"inst-2","attributes":{"granularity":"DAILY","processingDate":"2026-02-10"}}
+		],
+		"links":{"next":""}
+	}`))
 
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch req.URL.Path {
-		case "/v1/apps/app-1/analyticsReportRequests":
-			return insightsJSONResponse(`{
-				"data":[
-					{
-						"type":"analyticsReportRequests",
-						"id":"req-1",
-						"attributes":{"accessType":"ONGOING","stoppedDueToInactivity":false}
-					}
-				],
-				"links":{"next":""}
-			}`), nil
-		case "/v1/analyticsReportRequests/req-1/reports":
-			return insightsJSONResponse(`{
-				"data":[
-					{"type":"analyticsReports","id":"report-1","attributes":{"name":"App Usage"}}
-				],
-				"links":{"next":""}
-			}`), nil
-		case "/v1/analyticsReports/report-1/instances":
-			return insightsJSONResponse(`{
-				"data":[
-					{"type":"analyticsReportInstances","id":"inst-1","attributes":{"granularity":"DAILY","processingDate":"2026-02-18"}},
-					{"type":"analyticsReportInstances","id":"inst-2","attributes":{"granularity":"DAILY","processingDate":"2026-02-10"}}
-				],
-				"links":{"next":""}
-			}`), nil
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"insights", "weekly", "--app", "app-1", "--source", "analytics", "--week", "2026-02-16"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"insights", "weekly", "--app", "app-1", "--source", "analytics", "--week", "2026-02-16"})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -498,48 +377,34 @@ func TestInsightsWeeklyTableOutput(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch req.URL.Path {
-		case "/v1/apps/app-1":
-			return insightsJSONResponse(`{
-				"data":{
-					"type":"apps",
-					"id":"app-1",
-					"attributes":{
-						"name":"Example App",
-						"bundleId":"com.example.app",
-						"sku":"example-sku-1"
-					}
-				}
-			}`), nil
-		case "/v1/salesReports":
-			return insightsGzipResponse(strings.Join([]string{
-				"Provider\tSKU\tApple Identifier\tParent Identifier\tUnits\tDeveloper Proceeds\tCustomer Price",
-				"foo\texample-sku-1\tapp-1\t\t1\t0.00\t0.00",
-				"foo\tcom.example.app.plus\tiap-1\texample-sku-1\t1\t0.10\t0.20",
-			}, "\n")), nil
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/app-1"), asctest.JSON(http.StatusOK, `{
+		"data":{
+			"type":"apps",
+			"id":"app-1",
+			"attributes":{
+				"name":"Example App",
+				"bundleId":"com.example.app",
+				"sku":"example-sku-1"
+			}
 		}
-	})
+	}`))
+	reg.Register(asctest.GET("/v1/salesReports", "filter[vendorNumber]=12345678", "filter[reportType]=SALES", "filter[reportSubType]=SUMMARY", "filter[frequency]=WEEKLY", "filter[reportDate]=2026-02-22", "filter[version]=1_0"), insightsGzipResponse(strings.Join([]string{
+		"Provider\tSKU\tApple Identifier\tParent Identifier\tUnits\tDeveloper Proceeds\tCustomer Price",
+		"foo\texample-sku-1\tapp-1\t\t1\t0.00\t0.00",
+		"foo\tcom.example.app.plus\tiap-1\texample-sku-1\t1\t0.10\t0.20",
+	}, "\n")))
+	reg.Register(asctest.GET("/v1/salesReports", "filter[vendorNumber]=12345678", "filter[reportType]=SALES", "filter[reportSubType]=SUMMARY", "filter[frequency]=WEEKLY", "filter[reportDate]=2026-02-15", "filter[version]=1_0"), insightsGzipResponse(strings.Join([]string{
+		"Provider\tSKU\tApple Identifier\tParent Identifier\tUnits\tDeveloper Proceeds\tCustomer Price",
+		"foo\texample-sku-1\tapp-1\t\t1\t0.00\t0.00",
+		"foo\tcom.example.app.plus\tiap-1\texample-sku-1\t1\t0.10\t0.20",
+	}, "\n")))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"insights", "weekly", "--app", "app-1", "--source", "sales", "--vendor", "12345678", "--week", "2026-02-16", "--output", "table"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"insights", "weekly", "--app", "app-1", "--source", "sales", "--vendor", "12345678", "--week", "2026-02-16", "--output", "table"})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -554,35 +419,16 @@ func TestInsightsWeeklyAnalyticsForbiddenReturnsUnavailable(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/app-1/analyticsReportRequests", "limit=200"), asctest.JSON(http.StatusForbidden, `{
+		"errors":[{"status":"403","code":"FORBIDDEN","title":"Forbidden","detail":"security restriction"}]
+	}`))
 
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.URL.Path != "/v1/apps/app-1/analyticsReportRequests" {
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-		}
-		return &http.Response{
-			StatusCode: http.StatusForbidden,
-			Body: io.NopCloser(strings.NewReader(`{
-				"errors":[{"status":"403","code":"FORBIDDEN","title":"Forbidden","detail":"security restriction"}]
-			}`)),
-			Header: http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"insights", "weekly", "--app", "app-1", "--source", "analytics", "--week", "2026-02-16"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"insights", "weekly", "--app", "app-1", "--source", "analytics", "--week", "2026-02-16"})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -608,45 +454,22 @@ func TestInsightsWeeklyAnalyticsNestedForbiddenReturnsUnavailable(t *testing.T) 
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/app-1/analyticsReportRequests", "limit=200"), asctest.JSON(http.StatusOK, `{
+		"data":[
+			{"type":"analyticsReportRequests","id":"req-1","attributes":{"accessType":"ONGOING","stoppedDueToInactivity":false}}
+		],
+		"links":{"next":""}
+	}`))
+	reg.Register(asctest.GET("/v1/analyticsReportRequests/req-1/reports", "limit=200"), asctest.JSON(http.StatusForbidden, `{
+		"errors":[{"status":"403","code":"FORBIDDEN","title":"Forbidden","detail":"security restriction"}]
+	}`))
 
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch req.URL.Path {
-		case "/v1/apps/app-1/analyticsReportRequests":
-			return insightsJSONResponse(`{
-				"data":[
-					{"type":"analyticsReportRequests","id":"req-1","attributes":{"accessType":"ONGOING","stoppedDueToInactivity":false}}
-				],
-				"links":{"next":""}
-			}`), nil
-		case "/v1/analyticsReportRequests/req-1/reports":
-			return &http.Response{
-				StatusCode: http.StatusForbidden,
-				Body: io.NopCloser(strings.NewReader(`{
-					"errors":[{"status":"403","code":"FORBIDDEN","title":"Forbidden","detail":"security restriction"}]
-				}`)),
-				Header: http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"insights", "weekly", "--app", "app-1", "--source", "analytics", "--week", "2026-02-16"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"insights", "weekly", "--app", "app-1", "--source", "analytics", "--week", "2026-02-16"})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -690,14 +513,16 @@ func insightsJSONResponse(body string) *http.Response {
 	}
 }
 
-func insightsGzipResponse(report string) *http.Response {
+func insightsGzipResponse(report string) asctest.Responder {
 	var compressed bytes.Buffer
 	zw := gzip.NewWriter(&compressed)
 	_, _ = zw.Write([]byte(report))
 	_ = zw.Close()
-	return &http.Response{
-		StatusCode: http.StatusOK,
-		Body:       io.NopCloser(bytes.NewReader(compressed.Bytes())),
-		Header:     http.Header{"Content-Type": []string{"application/a-gzip"}},
+	return func(*http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(bytes.NewReader(compressed.Bytes())),
+			Header:     http.Header{"Content-Type": []string{"application/a-gzip"}},
+		}, nil
 	}
 }
