@@ -74,7 +74,7 @@ Examples:
 			}
 
 			buildBundleValue := strings.TrimSpace(*buildBundleID)
-			if buildBundleValue == "" {
+			if buildBundleValue == "" && strings.TrimSpace(*next) == "" {
 				return shared.RequiredFlag("--build-bundle-id")
 			}
 

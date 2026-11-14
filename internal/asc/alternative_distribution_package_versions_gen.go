@@ -14,11 +14,11 @@ type AlternativeDistributionPackageVersionResponse = SingleResponse[AlternativeD
 
 // GetAlternativeDistributionPackageVersionDeltas sends GET /v1/alternativeDistributionPackageVersions/{id}/deltas (alternativeDistributionPackageVersions_deltas_getToManyRelated).
 func (c *Client) GetAlternativeDistributionPackageVersionDeltas(ctx context.Context, versionID string, opts ...AlternativeDistributionPackageDeltasOption) (*AlternativeDistributionPackageDeltasResponse, error) {
+	query := applyOptions(opts)
 	versionID = strings.TrimSpace(versionID)
-	if versionID == "" {
+	if query.nextURL == "" && versionID == "" {
 		return nil, fmt.Errorf("versionID is required")
 	}
-	query := applyOptions(opts)
 	return getJSON[AlternativeDistributionPackageDeltasResponse](ctx, c, readRequest{
 		Path:        fmt.Sprintf("/v1/alternativeDistributionPackageVersions/%s/deltas", versionID),
 		Query:       buildAlternativeDistributionPackageDeltasQuery(query),
@@ -42,11 +42,11 @@ func (c *Client) GetAlternativeDistributionPackageVersion(ctx context.Context, v
 
 // GetAlternativeDistributionPackageVersionVariants sends GET /v1/alternativeDistributionPackageVersions/{id}/variants (alternativeDistributionPackageVersions_variants_getToManyRelated).
 func (c *Client) GetAlternativeDistributionPackageVersionVariants(ctx context.Context, versionID string, opts ...AlternativeDistributionPackageVariantsOption) (*AlternativeDistributionPackageVariantsResponse, error) {
+	query := applyOptions(opts)
 	versionID = strings.TrimSpace(versionID)
-	if versionID == "" {
+	if query.nextURL == "" && versionID == "" {
 		return nil, fmt.Errorf("versionID is required")
 	}
-	query := applyOptions(opts)
 	return getJSON[AlternativeDistributionPackageVariantsResponse](ctx, c, readRequest{
 		Path:        fmt.Sprintf("/v1/alternativeDistributionPackageVersions/%s/variants", versionID),
 		Query:       buildAlternativeDistributionPackageVariantsQuery(query),

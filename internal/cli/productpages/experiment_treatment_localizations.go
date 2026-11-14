@@ -86,7 +86,7 @@ Examples:
 			}
 
 			trimmedID := strings.TrimSpace(*treatmentID)
-			if trimmedID == "" {
+			if trimmedID == "" && strings.TrimSpace(*next) == "" {
 				return d.RequiredFlag("--treatment-id")
 			}
 

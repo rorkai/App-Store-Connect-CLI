@@ -90,7 +90,7 @@ Examples:
 			}
 
 			trimmedID := strings.TrimSpace(*versionID)
-			if trimmedID == "" {
+			if trimmedID == "" && strings.TrimSpace(*next) == "" {
 				return d.RequiredFlag("--custom-page-version-id")
 			}
 

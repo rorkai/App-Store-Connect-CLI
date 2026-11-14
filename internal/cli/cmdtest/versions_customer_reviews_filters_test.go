@@ -374,16 +374,6 @@ func TestCustomerReviewListsRejectQueryFlagsWithNext(t *testing.T) {
 			args:    []string{"reviews", "--next", nextURL, "--limit", "0"},
 			wantErr: "--next cannot be combined with --limit",
 		},
-		{
-			name:    "version owner",
-			args:    []string{"versions", "customer-reviews", "list", "--next", nextURL, "--version-id", "version-1"},
-			wantErr: "--next cannot be combined with --version-id",
-		},
-		{
-			name:    "app owner",
-			args:    []string{"reviews", "list", "--next", nextURL, "--app", "app-1"},
-			wantErr: "--next cannot be combined with --app",
-		},
 	}
 
 	for _, test := range tests {

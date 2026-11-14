@@ -128,9 +128,6 @@ Examples:
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return shared.UsageErrorf("%s: %v", command, err)
 			}
-			if err := validateNextExclusiveFlags(fs, *next, "subscription-id", "app"); err != nil {
-				return err
-			}
 			opts, err := read.options(fs, command, *next)
 			if err != nil {
 				return err
@@ -601,7 +598,7 @@ Examples:
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return shared.UsageErrorf("%s: %v", command, err)
 			}
-			if err := validateNextExclusiveFlags(fs, *next, "id", "territory", "fields", "include"); err != nil {
+			if err := validateNextExclusiveFlags(fs, *next, "territory", "fields", "include"); err != nil {
 				return err
 			}
 			fieldsValue, err := normalizeSelectionFlag(fs, *fields, "--fields", []string{"territory", "subscriptionPricePoint"})

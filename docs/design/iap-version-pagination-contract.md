@@ -35,11 +35,13 @@ The direct collection endpoints return their typed collection responses. The
 relationship endpoints return `LinkagesResponse`, whose `data` array contains
 resource identifiers. Every response may contain an opaque `links.next` URL.
 When `--next` is present, that URL replaces the complete owner-scoped request
-path and query string. Therefore owner flags and every explicitly supplied
-query-shaping flag cannot be combined with `--next`, even when its parsed value
-is empty or zero. This includes `--limit 0`, the version collection's nested
-limits, and empty filter, include, or sparse-field values; accepting any of
-them would silently ignore user input.
+path and query string. The owner flag is optional with `--next`; when given,
+it is accepted and not sent, because the URL already names the owner (changed
+2026-11-15, so the first page's command can be rerun with `--next` added).
+Every explicitly supplied query-shaping flag cannot be combined with `--next`,
+even when its parsed value is empty or zero. This includes `--limit 0`, the
+version collection's nested limits, and empty filter, include, or sparse-field
+values; accepting any of them would silently ignore user input.
 
 `--paginate` fetches the first owner-scoped page and follows each opaque
 `links.next` URL, aggregating every page before applying the normal output
@@ -52,15 +54,14 @@ the CLI usage exit code before authentication or HTTP work begins.
 This is additive for valid linkage invocations and makes previously ambiguous
 invalid combinations fail explicitly. Existing one-page linkage output remains
 unchanged when `--paginate` is absent. A malformed next URL or any explicitly
-supplied owner or query-shaping flag plus `--next` is a usage error. Pagination
+supplied query-shaping flag plus `--next` is a usage error. Pagination
 API errors retain page context from `asc.PaginateAll`.
 
 ## Verification
 
-RED coverage uses a poison client factory to prove the parent list and all six
-version collection/linkage owner-plus-next combinations fail before
-authentication. It also covers parent, collection, and linkage
-limit-plus-next combinations, including explicitly empty owners, `--limit 0`,
+RED coverage uses a poison client factory to prove the parent, collection, and
+linkage limit-plus-next combinations fail before authentication, including
+`--limit 0`,
 nested zero limits, and explicitly empty filters, includes, and sparse fields,
 so validation follows flag presence rather than values. HTTP-backed CLI tests exercise two-page
 aggregation for each plural linkage command, including the exact first owner
@@ -68,9 +69,9 @@ path and opaque second URL. Command documentation is regenerated because
 linkage help gains `--paginate`. Focused command tests precede the full format,
 documentation, lint, test, and build gates.
 
-An alternative was to accept owner flags with `--next` and try to compare the
-owner against the URL. Opaque URLs are not a stable source of owner identity,
-so that would add parsing without making the request less ambiguous. Another
+Comparing an accepted owner flag against the URL was considered and not done.
+Opaque URLs are not a stable source of owner identity, so that would add
+parsing without making the request less ambiguous. Another
 alternative was to leave linkage pagination to repeated manual `--next` calls;
 that would keep these commands inconsistent with the neighboring collection
 and subscription relationship commands.

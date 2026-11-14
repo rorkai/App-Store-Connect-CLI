@@ -137,9 +137,6 @@ Examples:
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return shared.UsageErrorfCtx(ctx, "subscriptions groups list: %v", err)
 			}
-			if strings.TrimSpace(*next) != "" && subscriptionGroupAnyFlagSet(fs, "app") {
-				return shared.UsageError("subscriptions groups list: --next cannot be combined with --app")
-			}
 			if strings.TrimSpace(*next) != "" && subscriptionGroupAnyFlagSet(fs, "limit", "include", "fields", "version-fields", "subscription-fields", "localization-fields", "versions-limit") {
 				return shared.UsageError("subscriptions groups list: --next cannot be combined with query flags")
 			}
@@ -477,7 +474,6 @@ Examples:
 			if err := validateNextFlagConflicts(
 				nextURL,
 				flagConflict{"--app", flagWasProvided(fs, "app")},
-				flagConflict{"--group-id", flagWasProvided(fs, "group-id")},
 				flagConflict{"--fields", flagWasProvided(fs, "fields")},
 				flagConflict{"--version-fields", flagWasProvided(fs, "version-fields")},
 				flagConflict{"--include", flagWasProvided(fs, "include")},
@@ -1018,7 +1014,7 @@ Examples:
 				fmt.Fprintln(os.Stderr, "Error: --resolved cannot be combined with --next")
 				return flag.ErrHelp
 			}
-			if err := validateNextExclusiveFlags(fs, *next, "subscription-id", "app", "price-point-id", "fields", "territory-fields", "price-point-fields", "include"); err != nil {
+			if err := validateNextExclusiveFlags(fs, *next, "price-point-id", "fields", "territory-fields", "price-point-fields", "include"); err != nil {
 				return err
 			}
 			if *resolved {
@@ -1679,7 +1675,7 @@ Examples:
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return shared.UsageErrorf("subscriptions pricing availability available-territories: %v", err)
 			}
-			if err := validateNextExclusiveFlags(fs, *next, "availability-id", "subscription-id", "app", "limit"); err != nil {
+			if err := validateNextExclusiveFlags(fs, *next, "limit"); err != nil {
 				return err
 			}
 
@@ -1704,7 +1700,7 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("subscriptions pricing availability available-territories: %w", err)
 			}
-			if subscriptionValue != "" {
+			if subscriptionValue != "" && strings.TrimSpace(*next) == "" {
 				subscriptionValue, err = resolveSubscriptionLookupIDWithTimeout(ctx, client, resolvedAppID, subscriptionValue)
 				if err != nil {
 					return err

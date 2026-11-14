@@ -25,16 +25,6 @@ func TestCategoriesRejectsNextQueryFlagsBeforeAuth(t *testing.T) {
 		wantErr string
 	}{
 		{
-			name:    "category before next",
-			args:    []string{"categories", "subcategories", "--category-id", "BUSINESS", "--next", nextURL},
-			wantErr: "categories subcategories: --next cannot be combined with --category-id",
-		},
-		{
-			name:    "explicit empty category after next",
-			args:    []string{"categories", "subcategories", "--next", nextURL, "--category-id", ""},
-			wantErr: "categories subcategories: --next cannot be combined with --category-id",
-		},
-		{
 			name:    "limit before next",
 			args:    []string{"categories", "subcategories", "--limit", "25", "--next", nextURL},
 			wantErr: "categories subcategories: --next cannot be combined with --limit",

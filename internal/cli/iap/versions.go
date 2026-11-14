@@ -235,7 +235,7 @@ Examples:
 			}
 			if err := rejectIAPVersionNextFlagConflicts(
 				fs, *next, "iap versions list",
-				"iap-id", "state", "include", "limit", "images-limit", "localizations-limit",
+				"state", "include", "limit", "images-limit", "localizations-limit",
 				"version-fields", "iap-fields", "image-fields", "localization-fields",
 			); err != nil {
 				return err
@@ -449,9 +449,6 @@ func iapVersionLinkagesCommand(name string, parentIAP bool) *ffcli.Command {
 			if value == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintf(os.Stderr, "Error: --%s is required\n", idFlag)
 				return shared.MissingRequiredUsageError("--" + idFlag)
-			}
-			if flagSet(fs, idFlag) && strings.TrimSpace(*next) != "" {
-				return shared.UsageError(fmt.Sprintf("iap versions links %s: --next cannot be combined with --%s", name, idFlag))
 			}
 			if flagSet(fs, "limit") && strings.TrimSpace(*next) != "" {
 				return shared.UsageError(fmt.Sprintf("iap versions links %s: --next cannot be combined with --limit", name))

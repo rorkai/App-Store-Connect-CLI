@@ -111,7 +111,7 @@ Examples:
 			}
 			if err := rejectReviewNextFlagConflicts(
 				fs, *next, errorPrefix,
-				"submission", "limit", "fields", "include", "iap-version-fields",
+				"limit", "fields", "include", "iap-version-fields",
 				"subscription-version-fields", "subscription-group-version-fields",
 			); err != nil {
 				return err

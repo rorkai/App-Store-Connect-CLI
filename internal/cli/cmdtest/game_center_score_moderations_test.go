@@ -75,7 +75,6 @@ func TestGameCenterScoreModerationUsage(t *testing.T) {
 	}{
 		{"missing parent", []string{"list"}, "--leaderboard-id is required"},
 		{"zero limit", []string{"list", "--leaderboard-id", "lb", "--limit", "0"}, "--limit must be between 1 and 200"},
-		{"next conflict", []string{"list", "--next", "https://api.appstoreconnect.apple.com/v2/gameCenterLeaderboards/lb/gameCenterScoreModerations?cursor=x", "--leaderboard-id", "lb"}, "--next cannot be combined with --leaderboard-id"},
 		{"bad field", []string{"list", "--leaderboard-id", "lb", "--fields", "bogus"}, "--fields"},
 		{"empty field", []string{"list", "--leaderboard-id", "lb", "--fields", " "}, "--fields must not be empty"},
 		{"player without include", []string{"list", "--leaderboard-id", "lb", "--player-fields", "nickname"}, "--player-fields requires --include player"},

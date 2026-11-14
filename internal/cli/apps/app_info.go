@@ -118,7 +118,7 @@ Examples:
 			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
-			if strings.TrimSpace(*versionID) == "" && resolvedAppID == "" && infoIDValue == "" {
+			if strings.TrimSpace(*versionID) == "" && resolvedAppID == "" && infoIDValue == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app or --info-id is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("")
 			}
@@ -214,17 +214,21 @@ Examples:
 				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
-			versionResource, err := resolveAppStoreVersionForAppInfo(
-				requestCtx,
-				client,
-				resolvedAppID,
-				strings.TrimSpace(*versionID),
-				strings.TrimSpace(*version),
-				platforms,
-				states,
-			)
-			if err != nil {
-				return fmt.Errorf("apps info view: %w", err)
+			versionResourceID := ""
+			if resolvedAppID != "" || strings.TrimSpace(*versionID) != "" {
+				versionResource, err := resolveAppStoreVersionForAppInfo(
+					requestCtx,
+					client,
+					resolvedAppID,
+					strings.TrimSpace(*versionID),
+					strings.TrimSpace(*version),
+					platforms,
+					states,
+				)
+				if err != nil {
+					return fmt.Errorf("apps info view: %w", err)
+				}
+				versionResourceID = versionResource.ID
 			}
 
 			opts := []asc.AppStoreVersionLocalizationsOption{
@@ -238,13 +242,13 @@ Examples:
 
 			if *paginate {
 				paginateOpts := append(opts, asc.Limit[asc.AppStoreVersionLocalizationsOption](200))
-				firstPage, err := client.GetAppStoreVersionLocalizations(requestCtx, versionResource.ID, paginateOpts...)
+				firstPage, err := client.GetAppStoreVersionLocalizations(requestCtx, versionResourceID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("apps info view: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppStoreVersionLocalizations(ctx, versionResource.ID, asc.NextURL[asc.AppStoreVersionLocalizationsOption](nextURL))
+					return client.GetAppStoreVersionLocalizations(ctx, versionResourceID, asc.NextURL[asc.AppStoreVersionLocalizationsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("apps info view: %w", err)
@@ -252,7 +256,7 @@ Examples:
 				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
-			resp, err := client.GetAppStoreVersionLocalizations(requestCtx, versionResource.ID, opts...)
+			resp, err := client.GetAppStoreVersionLocalizations(requestCtx, versionResourceID, opts...)
 			if err != nil {
 				return fmt.Errorf("apps info view: failed to fetch: %w", err)
 			}

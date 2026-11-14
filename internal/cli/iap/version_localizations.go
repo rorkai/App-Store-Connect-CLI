@@ -40,7 +40,7 @@ func IAPVersionLocalizationsListCommand() *ffcli.Command {
 			}
 			if err := rejectIAPVersionNextFlagConflicts(
 				fs, *next, "iap versions localizations list",
-				"version-id", "limit", "include", "localization-fields", "version-fields",
+				"limit", "include", "localization-fields", "version-fields",
 			); err != nil {
 				return err
 			}

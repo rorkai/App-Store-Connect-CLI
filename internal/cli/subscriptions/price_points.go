@@ -103,10 +103,10 @@ Examples:
 			}
 			if strings.TrimSpace(*next) != "" && flagWasProvided(
 				fs,
-				"subscription-id", "app", "territory", "price", "min-price", "max-price",
+				"territory", "price", "min-price", "max-price",
 				"upfront-price-point-id", "plan-type", "fields", "territory-fields", "include", "limit",
 			) {
-				return shared.UsageError("--next cannot be combined with owner flags, --limit, API filters, sparse fields, includes, or client-side price filters")
+				return shared.UsageError("--next cannot be combined with --limit, API filters, sparse fields, includes, or client-side price filters")
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return shared.UsageErrorCtx(ctx, "subscriptions price-points list: --limit must be between 1 and 200")
@@ -447,10 +447,10 @@ Examples:
 		}
 		if strings.TrimSpace(*next) != "" && flagWasProvided(
 			fs,
-			"price-point-id", "territory", "subscription-id", "upfront-price-point-id",
+			"territory", "subscription-id", "upfront-price-point-id",
 			"plan-type", "fields", "territory-fields", "include", "limit",
 		) {
-			return shared.UsageError("--next cannot be combined with owner flags, --limit, API filters, sparse fields, or includes")
+			return shared.UsageError("--next cannot be combined with --limit, API filters, sparse fields, or includes")
 		}
 		if *limit != 0 && (*limit < 1 || *limit > 8000) {
 			return shared.UsageErrorf("%s: --limit must be between 1 and 8000", usageErrorPrefix())

@@ -51,18 +51,12 @@ func TestReviewListNextConflictsUseFlagPresenceBeforeClientFactory(t *testing.T)
 		args    []string
 		want    string
 	}{
-		{name: "items owner", command: ReviewItemsListCommand, args: []string{"--next", itemsNext, "--submission", "sub-1"}, want: "--submission"},
-		{name: "items empty owner", command: ReviewItemsListCommand, args: []string{"--next", itemsNext, "--submission", ""}, want: "--submission"},
-		{name: "items whitespace owner", command: ReviewItemsListCommand, args: []string{"--next", itemsNext, "--submission", "   "}, want: "--submission"},
 		{name: "items zero limit", command: ReviewItemsListCommand, args: []string{"--next", itemsNext, "--limit", "0"}, want: "--limit"},
 		{name: "items empty fields", command: ReviewItemsListCommand, args: []string{"--next", itemsNext, "--fields", ""}, want: "--fields"},
 		{name: "items whitespace include", command: ReviewItemsListCommand, args: []string{"--next", itemsNext, "--include", "   "}, want: "--include"},
 		{name: "items empty iap fields", command: ReviewItemsListCommand, args: []string{"--next", itemsNext, "--iap-version-fields", ""}, want: "--iap-version-fields"},
 		{name: "items whitespace subscription fields", command: ReviewItemsListCommand, args: []string{"--next", itemsNext, "--subscription-version-fields", "   "}, want: "--subscription-version-fields"},
 		{name: "items empty group fields", command: ReviewItemsListCommand, args: []string{"--next", itemsNext, "--subscription-group-version-fields", ""}, want: "--subscription-group-version-fields"},
-		{name: "submissions app", command: ReviewSubmissionsListCommand, args: []string{"--next", submissionsNext, "--app", "app-1"}, want: "--app"},
-		{name: "submissions empty app", command: ReviewSubmissionsListCommand, args: []string{"--next", submissionsNext, "--app", ""}, want: "--app"},
-		{name: "submissions whitespace app", command: ReviewSubmissionsListCommand, args: []string{"--next", submissionsNext, "--app", "   "}, want: "--app"},
 		{name: "submissions true global", command: ReviewSubmissionsListCommand, args: []string{"--next", submissionsNext, "--global"}, want: "--global"},
 		{name: "submissions false global", command: ReviewSubmissionsListCommand, args: []string{"--next", submissionsNext, "--global=false"}, want: "--global"},
 		{name: "submissions empty platform", command: ReviewSubmissionsListCommand, args: []string{"--next", submissionsNext, "--platform", ""}, want: "--platform"},
@@ -233,8 +227,6 @@ func TestReviewSubmissionItemIDsRejectOpaqueNextConflictsAndPositionals(t *testi
 		args []string
 		want string
 	}{
-		{name: "owner", args: []string{"--next", next, "--id", "sub-1"}, want: "--id"},
-		{name: "empty owner", args: []string{"--next", next, "--id", ""}, want: "--id"},
 		{name: "zero limit", args: []string{"--next", next, "--limit", "0"}, want: "--limit"},
 		{name: "positional", args: []string{"--id", "sub-1", "unexpected"}, want: "unexpected positional arguments"},
 	}

@@ -123,7 +123,7 @@ func readCommand(name, help, selector, path string, collection bool) *ffcli.Comm
 				if err := shared.ValidateNextURL(next); err != nil {
 					return shared.UsageErrorf("asset-library: %v", err)
 				}
-				conflicts := []string{selector, "limit"}
+				conflicts := []string{"limit"}
 				if filters != nil {
 					conflicts = append(conflicts, libraryListFilterFlags...)
 				}

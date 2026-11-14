@@ -171,11 +171,6 @@ func TestPricingAvailabilityTerritoryAvailabilitiesRejectsAppUsageBeforeLookup(t
 			wantStderr: "Error: --app and --availability are mutually exclusive",
 		},
 		{
-			name:       "next",
-			args:       []string{"--app", "app-1", "--next", "https://api.appstoreconnect.apple.com/v2/appAvailabilities/availability-1/territoryAvailabilities?cursor=Mg"},
-			wantStderr: "Error: --app and --next are mutually exclusive",
-		},
-		{
 			name:       "limit",
 			args:       []string{"--app", "app-1", "--limit", "201"},
 			wantStderr: "Error: pricing availability territory-availabilities: --limit must be between 1 and 200",

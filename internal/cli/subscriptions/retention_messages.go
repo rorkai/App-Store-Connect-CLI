@@ -102,7 +102,7 @@ func retentionReadCommand(r retentionRead) *ffcli.Command {
 			if err := shared.ValidateNextURL(nextURL); err != nil {
 				return shared.UsageErrorf("%s: %v", command, err)
 			}
-			conflicts := []string{r.ownerFlag, "fields", "include", "limit"}
+			conflicts := []string{"fields", "include", "limit"}
 			for _, l := range r.limits {
 				conflicts = append(conflicts, l.flag)
 			}

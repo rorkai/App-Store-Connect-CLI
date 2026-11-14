@@ -447,18 +447,6 @@ func TestSubscriptionsPricePointCommandsRejectAllOpaqueNextConflictsBeforeClient
 		conflict []string
 	}{
 		{
-			name:     "list empty owner subscription",
-			command:  []string{"subscriptions", "pricing", "price-points", "list"},
-			nextURL:  "https://api.appstoreconnect.apple.com/v1/subscriptions/sub-1/pricePoints?cursor=next",
-			conflict: []string{"--subscription-id", ""},
-		},
-		{
-			name:     "list empty owner app",
-			command:  []string{"subscriptions", "pricing", "price-points", "list"},
-			nextURL:  "https://api.appstoreconnect.apple.com/v1/subscriptions/sub-1/pricePoints?cursor=next",
-			conflict: []string{"--app", ""},
-		},
-		{
 			name:     "list territory filter",
 			command:  []string{"subscriptions", "pricing", "price-points", "list"},
 			nextURL:  "https://api.appstoreconnect.apple.com/v1/subscriptions/sub-1/pricePoints?cursor=next",
@@ -521,7 +509,6 @@ func TestSubscriptionsPricePointCommandsRejectAllOpaqueNextConflictsBeforeClient
 		name string
 		args []string
 	}{
-		{name: "empty owner price point", args: []string{"--price-point-id", ""}},
 		{name: "territory filter", args: []string{"--territory", "USA"}},
 		{name: "subscription filter", args: []string{"--subscription-id", "sub-1"}},
 	}, commonFilters...)

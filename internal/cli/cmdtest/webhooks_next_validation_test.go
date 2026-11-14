@@ -25,16 +25,6 @@ func TestWebhooksListRejectsNextQueryFlagConflicts(t *testing.T) {
 		wantErr string
 	}{
 		{
-			name:    "app before next",
-			args:    []string{"webhooks", "list", "--app", "app-1", "--next", nextURL},
-			wantErr: "webhooks list: --next cannot be combined with --app",
-		},
-		{
-			name:    "explicit empty app after next",
-			args:    []string{"webhooks", "list", "--next", nextURL, "--app", ""},
-			wantErr: "webhooks list: --next cannot be combined with --app",
-		},
-		{
 			name:    "limit after next",
 			args:    []string{"webhooks", "list", "--next", nextURL, "--limit", "5"},
 			wantErr: "webhooks list: --next cannot be combined with --limit",

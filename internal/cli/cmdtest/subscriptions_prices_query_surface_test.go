@@ -308,11 +308,7 @@ func TestSubscriptionsPricingPricesListRejectsQueryControlsWithNextOrResolved(t 
 	}
 
 	for _, mode := range modes {
-		flags := []string{"price-point-id", "fields", "territory-fields", "price-point-fields", "include"}
-		if mode.flag == "--next" {
-			flags = append(flags, "subscription-id", "app")
-		}
-		for _, flagName := range flags {
+		for _, flagName := range []string{"price-point-id", "fields", "territory-fields", "price-point-fields", "include"} {
 			t.Run(mode.flag+" with "+flagName, func(t *testing.T) {
 				captured := subscriptionPricesListQuerySurfaceStub(t)
 				args := append([]string{"subscriptions", "pricing", "prices", "list"}, mode.args...)

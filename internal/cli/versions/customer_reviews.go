@@ -72,7 +72,7 @@ Examples:
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return shared.UsageErrorf("versions customer-reviews list: %v", err)
 			}
-			if err := reviews.ValidateReviewNextFlagConflicts(*next, fs, "version-id"); err != nil {
+			if err := reviews.ValidateReviewNextFlagConflicts(*next, fs); err != nil {
 				return err
 			}
 			filterOpts, err := filters.ReviewOptions()
