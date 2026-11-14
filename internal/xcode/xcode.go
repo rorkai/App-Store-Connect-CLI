@@ -120,8 +120,8 @@ type ExportResult struct {
 	Version     string `json:"version,omitempty"`
 	BuildNumber string `json:"build_number,omitempty"`
 
-	ExportDir   string   `json:"export_dir,omitempty"`
-	ExportFiles []string `json:"export_files,omitempty"`
+	ExportDir   string   `json:"exportDir,omitempty"`
+	ExportFiles []string `json:"exportFiles,omitempty"`
 }
 
 type ValidateOptions struct {
@@ -255,12 +255,17 @@ func PreflightExportPKGDestination(pkgPath string, overwrite, directUpload bool)
 
 // ValidateExportDir checks an --export-dir destination without mutating the
 // filesystem. It must be missing or empty unless overwrite is set.
-func ValidateExportDir(dir string, overwrite, directUpload bool) error {
+func ValidateExportDir(dir, ipaPath, pkgPath string, overwrite, directUpload bool) error {
 	if dir = strings.TrimSpace(dir); dir == "" {
 		return nil
 	}
 	if directUpload {
 		return exportDestinationUsageError{message: "--export-dir cannot be used when ExportOptions.plist uses destination=upload"}
+	}
+	for flagName, artifactPath := range map[string]string{"--ipa-path": ipaPath, "--pkg-path": pkgPath} {
+		if artifactPath = strings.TrimSpace(artifactPath); artifactPath != "" && sameAbsolutePath(dir, artifactPath) {
+			return exportDestinationUsageError{message: "--export-dir must not be the same path as " + flagName}
+		}
 	}
 	info, err := os.Lstat(dir)
 	switch {
@@ -281,6 +286,24 @@ func ValidateExportDir(dir string, overwrite, directUpload bool) error {
 		return exportDestinationUsageError{message: fmt.Sprintf("--export-dir is not empty: %s (use --overwrite to replace matching entries)", dir)}
 	}
 	return nil
+}
+
+func sameAbsolutePath(first, second string) bool {
+	firstAbs, firstErr := filepath.Abs(first)
+	secondAbs, secondErr := filepath.Abs(second)
+	return firstErr == nil && secondErr == nil && firstAbs == secondAbs
+}
+
+// PreflightExportDir creates an --export-dir destination and proves a file can
+// be written inside it before the export runs.
+func PreflightExportDir(dir string) error {
+	if dir = strings.TrimSpace(dir); dir == "" {
+		return nil
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("create export dir: %w", err)
+	}
+	return preflightWritableParent(filepath.Join(dir, "probe"), "export dir")
 }
 
 // keepExportOutputs copies everything xcodebuild wrote except the main
@@ -447,8 +470,13 @@ func Export(ctx context.Context, opts ExportOptions) (*ExportResult, error) {
 	if err := validateExportInputPaths(opts); err != nil {
 		return nil, err
 	}
-	if err := ValidateExportDir(opts.ExportDir, opts.Overwrite, uploadMode); err != nil {
+	if err := ValidateExportDir(opts.ExportDir, opts.IPAPath, opts.PKGPath, opts.Overwrite, uploadMode); err != nil {
 		return nil, err
+	}
+	if !uploadMode {
+		if err := PreflightExportDir(opts.ExportDir); err != nil {
+			return nil, err
+		}
 	}
 
 	// When the ExportOptions plist has destination=upload, xcodebuild uploads

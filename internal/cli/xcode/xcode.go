@@ -351,7 +351,7 @@ Examples:
 					return fmt.Errorf("xcode export: %w", err)
 				}
 			}
-			if err := localxcode.ValidateExportDir(*exportDir, *overwrite, directUpload); err != nil {
+			if err := localxcode.ValidateExportDir(*exportDir, trimmedIPAPath, trimmedPKGPath, *overwrite, directUpload); err != nil {
 				if localxcode.IsExportDestinationUsageError(err) {
 					return shared.UsageError(err.Error())
 				}
@@ -371,6 +371,9 @@ Examples:
 						err = localxcode.PreflightExportPKGDestination(trimmedPKGPath, *overwrite, false)
 					} else {
 						err = localxcode.PreflightExportDestination(trimmedIPAPath, *overwrite, false)
+					}
+					if err == nil {
+						err = localxcode.PreflightExportDir(*exportDir)
 					}
 					if err != nil {
 						if localxcode.IsExportDestinationUsageError(err) {
@@ -737,8 +740,8 @@ type xcodeExportCommandResult struct {
 	BuildID           string `json:"build_id,omitempty"`
 	ProcessingState   string `json:"processing_state,omitempty"`
 
-	ExportDir   string   `json:"export_dir,omitempty"`
-	ExportFiles []string `json:"export_files,omitempty"`
+	ExportDir   string   `json:"exportDir,omitempty"`
+	ExportFiles []string `json:"exportFiles,omitempty"`
 }
 
 func exportResultRows(result xcodeExportCommandResult) [][]string {
