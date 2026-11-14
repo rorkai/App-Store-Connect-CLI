@@ -117,10 +117,6 @@ type InspectOptions struct {
 	Now            time.Time
 }
 
-func hashSet(values []string) string {
-	return deviceset.Digest(values).SHA256
-}
-
 var (
 	duringZIPValidationForTest func(string)
 	duringZIPStreamReadForTest func()

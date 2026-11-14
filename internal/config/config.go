@@ -423,15 +423,6 @@ func Save(cfg *Config) error {
 	return SaveAt(path, cfg)
 }
 
-// Remove removes the config file
-func Remove() error {
-	path, err := Path()
-	if err != nil {
-		return err
-	}
-	return RemoveAt(path)
-}
-
 // LoadAt loads the configuration from the provided path.
 func LoadAt(path string) (*Config, error) {
 	if strings.TrimSpace(path) == "" {
@@ -563,22 +554,6 @@ func SaveAt(path string, cfg *Config) error {
 
 	if err := writeConfigFile(path, data); err != nil {
 		return fmt.Errorf("failed to write config: %w", err)
-	}
-
-	return nil
-}
-
-// RemoveAt removes the config file at the provided path.
-func RemoveAt(path string) error {
-	if strings.TrimSpace(path) == "" {
-		return fmt.Errorf("failed to remove config: empty path")
-	}
-
-	if err := os.Remove(path); err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return fmt.Errorf("failed to remove config: %w", err)
 	}
 
 	return nil

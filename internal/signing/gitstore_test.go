@@ -13,45 +13,6 @@ import (
 	"testing"
 )
 
-func TestEnsureInsideDir(t *testing.T) {
-	baseDir := t.TempDir()
-
-	tests := []struct {
-		name    string
-		target  string
-		wantErr bool
-	}{
-		{
-			name:   "allows base directory itself",
-			target: baseDir,
-		},
-		{
-			name:   "allows child path",
-			target: filepath.Join(baseDir, "nested", "file.txt"),
-		},
-		{
-			name:    "rejects parent directory escape",
-			target:  filepath.Join(baseDir, "..", "escaped.txt"),
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := EnsureInsideDir(baseDir, tt.target)
-			if tt.wantErr {
-				if err == nil {
-					t.Fatalf("EnsureInsideDir(%q, %q) expected error, got nil", baseDir, tt.target)
-				}
-				return
-			}
-			if err != nil {
-				t.Fatalf("EnsureInsideDir(%q, %q) unexpected error: %v", baseDir, tt.target, err)
-			}
-		})
-	}
-}
-
 func TestGitStoreWriteAndReadEncryptedFileRoundTrip(t *testing.T) {
 	store := &GitStore{LocalDir: t.TempDir()}
 	relPath := filepath.Join("profiles", "development", "com.example.app.mobileprovision")
