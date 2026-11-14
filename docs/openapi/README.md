@@ -57,6 +57,12 @@ by hand.
   relationship names the request schema defines, with the required ones
   present. A snapshot update that drops or changes a bound operation fails
   here, naming the operation and the method.
+- A known difference that must stay for now is recorded by hand on its
+  operation in the bindings file, as `"deviations": [{"problem": "<the test's
+  message>", "reason": "<why it stays>"}]`. The test then requires exactly
+  that message: it fails when the method stops producing it, produces another
+  one, or the reason is empty. The generator keeps these records when it
+  rewrites a bindings file and generates nothing from them.
 - `cd internal/asc && go run ../openapigen -report` lists the hand-written
   client methods that send a request no operation in `latest.json` describes,
   and the hand-written attribute structs that lack an attribute of their

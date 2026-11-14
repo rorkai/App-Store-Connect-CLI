@@ -13,6 +13,6 @@
     {"operation":"appCustomProductPageLocalizations_appPreviewSets_getToManyRelated","name":"GetAppCustomProductPageLocalizationPreviewSets","params":["localizationID"],"check":"require","options":"AppCustomProductPageLocalizationPreviewSetsOption","query":"buildAppCustomProductPageLocalizationPreviewSetsQuery","nextContext":"appPreviewSets"},
     {"operation":"appCustomProductPageLocalizations_appScreenshotSets_getToManyRelated","name":"GetAppCustomProductPageLocalizationScreenshotSets","params":["localizationID"],"check":"require","options":"AppCustomProductPageLocalizationScreenshotSetsOption","query":"buildAppCustomProductPageLocalizationScreenshotSetsQuery","nextContext":"appScreenshotSets"},
     {"operation":"appCustomProductPageLocalizations_deleteInstance","name":"DeleteAppCustomProductPageLocalization","params":["localizationID"],"check":"require"},
-    {"operation":"appCustomProductPageLocalizations_searchKeywords_getToManyRelated","name":"GetAppCustomProductPageLocalizationSearchKeywords","params":["localizationID"],"check":"require"}
+    {"operation":"appCustomProductPageLocalizations_searchKeywords_getToManyRelated","name":"GetAppCustomProductPageLocalizationSearchKeywords","params":["localizationID"],"check":"require","deviations":[{"problem":"the operation pages with limit, the method takes no options","reason":"hand-written signature without options; product-pages custom-pages localizations search-keywords list reads the first page only, and adding options would change the request"}]}
   ]
 }

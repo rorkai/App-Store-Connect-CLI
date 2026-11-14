@@ -9,6 +9,6 @@
     {"operation":"profiles_bundleId_getToOneRelated","name":"GetProfileBundleID","params":["profileID"],"check":"trim","response":"BundleIDResponse"},
     {"operation":"profiles_bundleId_getToOneRelationship","name":"GetProfileBundleIDRelationship","params":["profileID"],"check":"trim","response":"ProfileBundleIDLinkageResponse"},
     {"operation":"profiles_deleteInstance","name":"DeleteProfile","params":["id"],"check":"trim"},
-    {"operation":"profiles_getCollection","name":"GetProfiles","options":"ProfilesOption","query":"buildProfilesQuery","nextContext":"profiles"}
+    {"operation":"profiles_getCollection","name":"GetProfiles","options":"ProfilesOption","query":"buildProfilesQuery","nextContext":"profiles","deviations":[{"problem":"sent query parameters [filter[bundleId]] that the operation does not define","reason":"profilesQuery keeps a bundleID field that no option sets since its option was removed, so the filter is never sent"}]}
   ]
 }

@@ -35,9 +35,13 @@ type contractFamily struct {
 }
 
 type contractOpBinding struct {
-	Operation string   `json:"operation"`
-	Name      string   `json:"name"`
-	Params    []string `json:"params"`
+	Operation  string   `json:"operation"`
+	Name       string   `json:"name"`
+	Params     []string `json:"params"`
+	Deviations []struct {
+		Problem string `json:"problem"`
+		Reason  string `json:"reason"`
+	} `json:"deviations"`
 }
 
 type contractSchema struct {
@@ -78,11 +82,18 @@ const contractResourceID = "resource-1"
 
 // contractResponse is the success response of an operation: a document with
 // one resource of the schema's type that has every attribute the schema
-// defines.
+// defines, or one data item with every property when the data is not a
+// resource.
 type contractResponse struct {
 	status   int
 	body     string
 	resource *contractSchema // nil for a response without a document
+}
+
+// isResource reports whether the response's data item is a resource with an
+// ID, not a row such as a metrics data point.
+func (r contractResponse) isResource() bool {
+	return r.resource != nil && r.resource.Properties["id"] != nil
 }
 
 func (op *contractOperation) response(spec *contractSpec) (contractResponse, error) {
@@ -99,19 +110,25 @@ func (op *contractOperation) response(spec *contractSpec) (contractResponse, err
 		if data.Type == "array" {
 			resource = spec.resolve(data.Items)
 		}
-		item := map[string]any{"id": contractResourceID}
-		if types := spec.property(resource, "type"); types != nil && len(types.Enum) > 0 {
-			item["type"] = types.Enum[0]
-		}
-		if attrs := spec.property(resource, "attributes"); attrs != nil {
-			item["attributes"] = spec.sample(attrs)
+		response := contractResponse{status: status, resource: resource}
+		var item any = spec.sample(resource)
+		if response.isResource() {
+			resourceItem := map[string]any{"id": contractResourceID}
+			if types := spec.property(resource, "type"); types != nil && len(types.Enum) > 0 {
+				resourceItem["type"] = types.Enum[0]
+			}
+			if attrs := spec.property(resource, "attributes"); attrs != nil {
+				resourceItem["attributes"] = spec.sample(attrs)
+			}
+			item = resourceItem
 		}
 		var document any = map[string]any{"data": item}
 		if data.Type == "array" {
 			document = map[string]any{"data": []any{item}}
 		}
 		body, err := json.Marshal(document)
-		return contractResponse{status: status, body: string(body), resource: resource}, err
+		response.body = string(body)
+		return response, err
 	}
 	return contractResponse{status: http.StatusNoContent}, nil
 }
@@ -277,19 +294,22 @@ func (s *contractSpec) hasTypeSchema(name string) bool {
 
 // TestGeneratedClientMatchesSchema calls every generated method with synthetic
 // arguments and checks the request it sends against the operation in the
-// snapshot: HTTP method, path, query parameter names and body shape.
+// snapshot: HTTP method, path, query parameter names and body shape. A
+// difference recorded in the bindings as a deviation must be exactly one the
+// method still produces, so the records can only shrink on purpose.
 func TestGeneratedClientMatchesSchema(t *testing.T) {
 	spec := mustLoadContractSpec(t)
-	operations := 0
+	operations, deviations := 0, 0
 	for _, family := range loadContractFamilies(t) {
 		for _, b := range family.Operations {
 			operations++
+			deviations += len(b.Deviations)
 			op, ok := spec.operations[b.Operation]
 			if !ok {
 				t.Errorf("%s (%s): operation not in %s", b.Operation, b.Name, contractSpecPath)
 				continue
 			}
-			for _, problem := range checkGeneratedOperation(spec, op, b) {
+			for _, problem := range unrecordedContractProblems(family.Tag, b, checkGeneratedOperation(spec, op, b)) {
 				t.Errorf("%s (%s %s), method %s: %s", b.Operation, op.method, op.path, b.Name, problem)
 			}
 		}
@@ -297,6 +317,32 @@ func TestGeneratedClientMatchesSchema(t *testing.T) {
 	if operations == 0 {
 		t.Fatal("no operations in the bindings")
 	}
+	t.Logf("%d generated operations checked, %d recorded deviations", operations, deviations)
+}
+
+// unrecordedContractProblems returns the problems the bindings do not record
+// as deviations, and a problem for each recorded deviation that has no reason
+// or that the method no longer produces.
+func unrecordedContractProblems(tag string, b *contractOpBinding, problems []string) []string {
+	recorded := map[string]bool{}
+	var out []string
+	for _, d := range b.Deviations {
+		switch {
+		case strings.TrimSpace(d.Reason) == "":
+			out = append(out, fmt.Sprintf("recorded deviation %q in openapi_bindings/%s.json has no reason", d.Problem, tag))
+		case recorded[d.Problem]:
+			out = append(out, fmt.Sprintf("deviation %q is recorded twice in openapi_bindings/%s.json", d.Problem, tag))
+		case !slices.Contains(problems, d.Problem):
+			out = append(out, fmt.Sprintf("recorded deviation %q no longer happens; remove it from openapi_bindings/%s.json", d.Problem, tag))
+		}
+		recorded[d.Problem] = true
+	}
+	for _, problem := range problems {
+		if !recorded[problem] {
+			out = append(out, problem)
+		}
+	}
+	return out
 }
 
 const contractLimit = 7
@@ -487,7 +533,7 @@ func checkContractQuery(op *contractOperation, query url.Values, paged bool) []s
 	}
 	var unknown []string
 	for name := range query {
-		if !allowed[name] {
+		if !allowed[name] && !allowsMapKeyName(allowed, name) {
 			unknown = append(unknown, name)
 		}
 	}
@@ -503,6 +549,21 @@ func checkContractQuery(op *contractOperation, query url.Values, paged bool) []s
 		problems = append(problems, fmt.Sprintf("sent limit=%q with a limit option of %d", query.Get("limit"), contractLimit))
 	}
 	return problems
+}
+
+// allowsMapKeyName reports whether a name built from a caller's map key, such
+// as fields[<key>], is a parameter the operation defines for some key.
+func allowsMapKeyName(allowed map[string]bool, name string) bool {
+	prefix, suffix, ok := strings.Cut(name, contractMapKey)
+	if !ok {
+		return false
+	}
+	for param := range allowed {
+		if len(param) > len(prefix)+len(suffix) && strings.HasPrefix(param, prefix) && strings.HasSuffix(param, suffix) {
+			return true
+		}
+	}
+	return false
 }
 
 // checkContractNextURL calls a paged read with a next URL and blank path
@@ -525,7 +586,8 @@ func checkContractNextURL(call *contractCall, path string, response contractResp
 
 // checkContractResult checks that the method returns the resource of the
 // response: its ID, and every attribute the schema defines and no other, so a
-// method that decodes into another resource's type fails.
+// method that decodes into another resource's type fails. A data item that is
+// not a resource, such as a metrics row, must keep every property instead.
 func checkContractResult(spec *contractSpec, result any, response contractResponse) []string {
 	if response.resource == nil {
 		if result != nil {
@@ -543,38 +605,46 @@ func checkContractResult(spec *contractSpec, result any, response contractRespon
 	if err := json.Unmarshal(encoded, &document); err != nil {
 		return []string{fmt.Sprintf("result %T is not a document: %v", result, err)}
 	}
-	var items []struct {
-		ID         string                     `json:"id"`
-		Attributes map[string]json.RawMessage `json:"attributes"`
-	}
+	var items []map[string]json.RawMessage
 	if err := json.Unmarshal(document.Data, &items); err != nil {
-		items = items[:0]
-		var item struct {
-			ID         string                     `json:"id"`
-			Attributes map[string]json.RawMessage `json:"attributes"`
-		}
+		var item map[string]json.RawMessage
 		if err := json.Unmarshal(document.Data, &item); err != nil {
 			return []string{fmt.Sprintf("result %T has data %s", result, document.Data)}
 		}
-		items = append(items, item)
+		items = []map[string]json.RawMessage{item}
 	}
-	if len(items) != 1 || items[0].ID != contractResourceID {
+	if len(items) != 1 {
+		return []string{fmt.Sprintf("result %T does not hold the response's one data item: %s", result, encoded)}
+	}
+	got := items[0]
+	want := response.resource
+	if !response.isResource() {
+		return compareContractNames(fmt.Sprintf("result %T has data item properties", result), "the schema's item has", got, want)
+	}
+	var id string
+	_ = json.Unmarshal(got["id"], &id)
+	if id != contractResourceID {
 		return []string{fmt.Sprintf("result %T does not hold the response resource: %s", result, encoded)}
 	}
-	var want []string
-	if attrs := spec.property(response.resource, "attributes"); attrs != nil {
-		for name := range attrs.Properties {
+	var attrs map[string]json.RawMessage
+	_ = json.Unmarshal(got["attributes"], &attrs)
+	return compareContractNames(fmt.Sprintf("result %T has attributes", result), "the schema's resource has", attrs, spec.property(want, "attributes"))
+}
+
+func compareContractNames(gotLabel, wantLabel string, values map[string]json.RawMessage, schema *contractSchema) []string {
+	var want, got []string
+	if schema != nil {
+		for name := range schema.Properties {
 			want = append(want, name)
 		}
 	}
-	var got []string
-	for name := range items[0].Attributes {
+	for name := range values {
 		got = append(got, name)
 	}
 	sort.Strings(want)
 	sort.Strings(got)
 	if !slices.Equal(got, want) {
-		return []string{fmt.Sprintf("result %T has attributes %v, the schema's resource has %v", result, got, want)}
+		return []string{fmt.Sprintf("%s %v, %s %v", gotLabel, got, wantLabel, want)}
 	}
 	return nil
 }
@@ -689,6 +759,10 @@ func checkContractNames(where string, values map[string]json.RawMessage, schema 
 	return problems
 }
 
+// contractMapKey is the key of every map fillContractValue fills. A query
+// parameter whose name holds it was named by the caller's map key.
+const contractMapKey = "contract-key"
+
 // fillContractValue sets every field of a struct, exported or not, to a
 // non-zero value, so a request built from it sends everything it can.
 func fillContractValue(v reflect.Value, where string) error {
@@ -702,6 +776,8 @@ func fillContractValue(v reflect.Value, where string) error {
 		v.SetBool(true)
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		v.SetInt(1)
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		v.SetUint(1)
 	case reflect.Float32, reflect.Float64:
 		v.SetFloat(1)
 	case reflect.Pointer:
@@ -710,6 +786,31 @@ func fillContractValue(v reflect.Value, where string) error {
 	case reflect.Slice:
 		v.Set(reflect.MakeSlice(v.Type(), 1, 1))
 		return fillContractValue(v.Index(0), where+"[0]")
+	case reflect.Array:
+		for i := range v.Len() {
+			if err := fillContractValue(v.Index(i), fmt.Sprintf("%s[%d]", where, i)); err != nil {
+				return err
+			}
+		}
+	case reflect.Map:
+		key := reflect.New(v.Type().Key()).Elem()
+		if key.Kind() == reflect.String {
+			key.SetString(contractMapKey)
+		} else if err := fillContractValue(key, where+" key"); err != nil {
+			return err
+		}
+		elem := reflect.New(v.Type().Elem()).Elem()
+		if err := fillContractValue(elem, where+"["+fmt.Sprint(key)+"]"); err != nil {
+			return err
+		}
+		v.Set(reflect.MakeMapWithSize(v.Type(), 1))
+		v.SetMapIndex(key, elem)
+	case reflect.Func:
+		fn, err := contractFunc(v.Type(), where)
+		if err != nil {
+			return err
+		}
+		v.Set(fn)
 	case reflect.Struct:
 		for i := range v.NumField() {
 			if err := fillContractValue(v.Field(i), where+"."+v.Type().Field(i).Name); err != nil {
@@ -720,4 +821,31 @@ func fillContractValue(v reflect.Value, where string) error {
 		return fmt.Errorf("%s has kind %s", where, v.Kind())
 	}
 	return nil
+}
+
+// contractFunc returns a func of the type that returns, for each result, its
+// first argument of that type, or else a filled value; so a request-context
+// func passes the context through and returns a cancel func.
+func contractFunc(typ reflect.Type, where string) (reflect.Value, error) {
+	from := make([]int, typ.NumOut())
+	filled := make([]reflect.Value, typ.NumOut())
+	for i := range typ.NumOut() {
+		from[i] = slices.IndexFunc(slices.Collect(typ.Ins()), func(in reflect.Type) bool { return in.AssignableTo(typ.Out(i)) })
+		if from[i] >= 0 {
+			continue
+		}
+		filled[i] = reflect.New(typ.Out(i)).Elem()
+		if err := fillContractValue(filled[i], fmt.Sprintf("%s result %d", where, i)); err != nil {
+			return reflect.Value{}, err
+		}
+	}
+	return reflect.MakeFunc(typ, func(in []reflect.Value) []reflect.Value {
+		out := slices.Clone(filled)
+		for i, j := range from {
+			if j >= 0 {
+				out[i] = in[j]
+			}
+		}
+		return out
+	}), nil
 }
