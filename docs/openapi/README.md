@@ -55,7 +55,13 @@ by hand.
   every generated method must send the operation's HTTP method and path, only
   query parameters the operation defines, and a body whose type, attribute and
   relationship names the request schema defines, with the required ones
-  present. A snapshot update that drops or changes a bound operation fails
+  present. Each field of an attributes argument must send exactly one
+  attribute, named like the field, and together they must be able to send
+  every attribute the request defines. The result must hold the response's
+  resource: its attributes type is named after the resource schema, as the
+  generator names it. A linkage result has no attributes and is the type
+  named after the response schema, or `LinkagesResponse` for a list.
+  A snapshot update that drops or changes a bound operation fails
   here, naming the operation and the method.
 - A known difference that must stay for now is recorded by hand on its
   operation in the bindings file, as `"deviations": [{"problem": "<the test's

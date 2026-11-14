@@ -9,6 +9,6 @@
     {"data":"BetaTesterInvitationCreateData","type":"*BetaTesterInvitationCreateRelationships"}
   ],
   "operations": [
-    {"operation":"betaTesterInvitations_createInstance","name":"CreateBetaTesterInvitation","params":["appID","testerID"],"check":"raw","links":["app","betaTester"]}
+    {"operation":"betaTesterInvitations_createInstance","name":"CreateBetaTesterInvitation","params":["appID","testerID"],"check":"raw","links":["app","betaTester"],"deviations":[{"problem":"result data holds types.Resource[struct {}], not the attributes of resource BetaTesterInvitation","reason":"The BetaTesterInvitation resource defines no attributes, and the hand-written BetaTesterInvitationResponse is SingleResponse[struct{}], an attributes type with no fields instead of a named one; the resource type and ID it holds are this operation's."}]}
   ]
 }

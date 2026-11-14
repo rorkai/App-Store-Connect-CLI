@@ -16,7 +16,7 @@
   ],
   "operations": [
     {"operation":"betaGroups_app_getToOneRelated","name":"GetBetaGroupApp","params":["groupID"],"check":"require","response":"AppResponse"},
-    {"operation":"betaGroups_betaRecruitmentCriteria_getToOneRelated","name":"GetBetaGroupBetaRecruitmentCriteria","params":["groupID"],"check":"require","response":"BetaRecruitmentCriteriaResponse"},
+    {"operation":"betaGroups_betaRecruitmentCriteria_getToOneRelated","name":"GetBetaGroupBetaRecruitmentCriteria","params":["groupID"],"check":"require","response":"BetaRecruitmentCriteriaResponse","deviations":[{"problem":"result data holds asc.BetaRecruitmentCriteriaAttributes, not the attributes of resource BetaRecruitmentCriterion","reason":"BetaRecruitmentCriteriaAttributes is the hand-written attributes type of BetaRecruitmentCriterion, named in the plural; the attribute names check above passes for it."}]},
     {"operation":"betaGroups_betaRecruitmentCriterionCompatibleBuildCheck_getToOneRelated","name":"GetBetaGroupBetaRecruitmentCriterionCompatibleBuildCheck","params":["groupID"],"check":"require"},
     {"operation":"betaGroups_betaTesters_createToManyRelationship","name":"AddBetaTestersToGroup","params":["groupID"],"check":"require","ids":"testerIDs","idList":{"normalize":true,"message":"testerIDs are required","payload":"append","item":"testerID"}},
     {"operation":"betaGroups_betaTesters_deleteToManyRelationship","name":"RemoveBetaTestersFromGroup","params":["groupID"],"check":"require","ids":"testerIDs","idList":{"normalize":true,"message":"testerIDs are required","payload":"append","item":"testerID"}},
