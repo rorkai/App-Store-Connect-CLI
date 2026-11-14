@@ -389,16 +389,6 @@ func (c *Client) UpdateAppDataUsage(ctx context.Context, appDataUsageID string, 
 	return &usage, nil
 }
 
-// DeleteAppDataUsage deletes one appDataUsages resource.
-func (c *Client) DeleteAppDataUsage(ctx context.Context, appDataUsageID string) error {
-	appDataUsageID = strings.TrimSpace(appDataUsageID)
-	if appDataUsageID == "" {
-		return fmt.Errorf("app data usage id is required")
-	}
-	_, err := c.doRequest(ctx, http.MethodDelete, "/appDataUsages/"+url.PathEscape(appDataUsageID), nil)
-	return err
-}
-
 // GetAppDataUsagesPublishState fetches publication state for app data usages.
 func (c *Client) GetAppDataUsagesPublishState(ctx context.Context, appID string) (*AppDataUsagesPublishState, error) {
 	appID = strings.TrimSpace(appID)

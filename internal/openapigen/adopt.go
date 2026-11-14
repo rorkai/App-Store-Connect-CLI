@@ -29,6 +29,7 @@ type pkg struct {
 	fset    *token.FileSet
 	files   []*pkgFile
 	methods map[string][]*decl // by HTTP method and path literal, such as "GET /v1/apps/%s"
+	names   map[string]*decl   // every *Client method by name
 	types   map[string]*decl
 }
 
@@ -123,7 +124,7 @@ func Adopt(spec *Spec, b *Bindings, dir string, tags []string, report io.Writer)
 }
 
 func loadPackage(dir string) (*pkg, error) {
-	p := &pkg{fset: token.NewFileSet(), methods: map[string][]*decl{}, types: map[string]*decl{}}
+	p := &pkg{fset: token.NewFileSet(), methods: map[string][]*decl{}, names: map[string]*decl{}, types: map[string]*decl{}}
 	paths, err := filepath.Glob(filepath.Join(dir, "*.go"))
 	if err != nil {
 		return nil, err
@@ -136,7 +137,7 @@ func loadPackage(dir string) (*pkg, error) {
 		if err != nil {
 			return nil, err
 		}
-		if bytes.HasPrefix(src, []byte(header)) {
+		if bytes.HasPrefix(src, []byte(generatedPrefix)) {
 			continue
 		}
 		f, err := parser.ParseFile(p.fset, path, src, parser.ParseComments)
@@ -163,6 +164,7 @@ func (p *pkg) index(pf *pkgFile, node ast.Decl) {
 			return
 		}
 		d := &decl{file: pf, node: n, name: n.Name.Name, src: p.slice(pf, n.Pos(), n.End())}
+		p.names[d.name] = d
 		var paths, verbs []string
 		ast.Inspect(n.Body, func(x ast.Node) bool {
 			switch x := x.(type) {

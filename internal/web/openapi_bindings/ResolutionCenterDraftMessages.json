@@ -1,0 +1,7 @@
+{
+  "tag": "ResolutionCenterDraftMessages",
+  "file": "resolution_center_draft_messages_gen.go",
+  "operations": [
+    {"operation":"resolutionCenterDraftMessages_deleteInstance","name":"DeleteResolutionCenterDraftMessage","params":["draftID"],"check":"require","messages":["draft id is required"]}
+  ]
+}

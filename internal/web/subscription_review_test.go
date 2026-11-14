@@ -271,24 +271,6 @@ func TestCreateSubscriptionSubmissionSendsHiddenAttachPayload(t *testing.T) {
 	}
 }
 
-func TestDeleteSubscriptionSubmissionUsesSubscriptionIDPath(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodDelete {
-			t.Fatalf("unexpected method: %s", r.Method)
-		}
-		if r.URL.Path != "/subscriptionSubmissions/sub-1" {
-			t.Fatalf("unexpected delete path: %s", r.URL.Path)
-		}
-		w.WriteHeader(http.StatusNoContent)
-	}))
-	defer server.Close()
-
-	client := testWebClient(server)
-	if err := client.DeleteSubscriptionSubmission(context.Background(), "sub-1"); err != nil {
-		t.Fatalf("DeleteSubscriptionSubmission() error = %v", err)
-	}
-}
-
 func TestReviewSubscriptionJSONPreservesFalseBooleans(t *testing.T) {
 	payload := ReviewSubscription{
 		ID:                            "sub-1",

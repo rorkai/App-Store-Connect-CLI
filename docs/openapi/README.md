@@ -154,7 +154,8 @@ whose `X-HTTP-Method-Override` header names the real action), and
    changed.
 4. Run `make update-openapi`. It sorts paths and schemas, writes the file in
    canonical form, and regenerates `web/paths.txt`.
-5. Run `make check-docs`.
+5. Run `make generate-client` if you changed a generated method's operation.
+6. Run `make check-docs`.
 
 CI runs the full test suite for any change to `web/latest.json`, so the drift
 test also guards schema-only changes.
@@ -175,3 +176,30 @@ cannot see:
 - which method goes with which URL when both are chosen at run time: every
   method and every URL must appear in at least one matching operation;
 - query strings, headers and bodies, which it does not compare.
+
+### Generated web client code
+
+`go run ../openapigen -target web` (run from `internal/web`, and by
+`make generate-client`) writes the `*_gen.go` files in `internal/web` from
+`web/latest.json` and the bindings in `internal/web/openapi_bindings/`, in the
+same format as the bindings of `internal/asc`. Since the schema describes what
+the client already sends, the web target renders methods in the client's own
+idiom: the method sends through `c.doRequest`, so its path is relative to
+`/iris/v1`, and escapes each path parameter with `url.PathEscape`. It renders
+only a `DELETE` without request or response body so far, and never an
+operation marked `x-asc-hand-written` or `x-asc-not-implemented`.
+
+- `-adopt <Tag>[,<Tag>...]` (or `all`, with `-dry-run` for the report only)
+  tries every method an operation's `x-asc-source` names and replaces it only
+  when the rendered method is the same Go tokens. Method names, signatures
+  and callers do not change, so the drift test above keeps naming the same
+  sources.
+- `make check-openapi` and `go test ./internal/openapigen` fail when a
+  generated file is out of date.
+- `go test ./internal/web -run TestGeneratedClient` calls every generated
+  method with synthetic arguments and checks that it sends the operation's
+  HTTP method and URL, only query parameters the operation defines and every
+  one it requires, no body when the operation has none, and returns nothing
+  but an error when the operation has no response body. It fails for an
+  operation with a request or response body until it checks those bodies.
+  Known differences are recorded per operation as in `internal/asc`.

@@ -1,0 +1,7 @@
+{
+  "tag": "SubscriptionSubmissions",
+  "file": "subscription_submissions_gen.go",
+  "operations": [
+    {"operation":"subscriptionSubmissions_deleteInstance","name":"DeleteSubscriptionSubmission","params":["subscriptionID"],"check":"require","messages":["subscription id is required"]}
+  ]
+}

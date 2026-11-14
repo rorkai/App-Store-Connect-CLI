@@ -824,18 +824,6 @@ func (c *Client) UpdateResolutionCenterDraftMessage(ctx context.Context, draftID
 	return decodeResolutionCenterDraftMessage(resource, included, threadID, false), nil
 }
 
-// DeleteResolutionCenterDraftMessage removes an unsent Resolution Center
-// draft. There is deliberately no retry: a transport error can leave Apple's
-// mutation outcome ambiguous.
-func (c *Client) DeleteResolutionCenterDraftMessage(ctx context.Context, draftID string) error {
-	draftID = strings.TrimSpace(draftID)
-	if draftID == "" {
-		return fmt.Errorf("draft id is required")
-	}
-	_, err := c.doRequest(ctx, http.MethodDelete, "/resolutionCenterDraftMessages/"+url.PathEscape(draftID), nil)
-	return err
-}
-
 // SendResolutionCenterDraftMessage publishes a draft as a Resolution Center
 // message. The response must contain the created message resource and ID so a
 // caller can re-read and verify it. This method never retries because a failed
