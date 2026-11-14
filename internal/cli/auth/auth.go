@@ -642,8 +642,7 @@ so commands continue to work even if the original .p8 file is removed.`,
 				*name = profileName
 			}
 			if strings.TrimSpace(*name) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --name is required")
-				return shared.MissingRequiredUsageError("--name")
+				return shared.RequiredFlag("--name")
 			}
 			trimmedKeyID := strings.TrimSpace(*keyID)
 			if !flagWasSet(fs, "key-id") {
@@ -669,16 +668,14 @@ so commands continue to work even if the original .p8 file is removed.`,
 			}
 			trimmedIssuerID := strings.TrimSpace(*issuerID)
 			if normalizedKeyType != config.CredentialKeyTypeIndividual && trimmedIssuerID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --issuer-id is required")
-				return shared.MissingRequiredUsageError("--issuer-id")
+				return shared.RequiredFlag("--issuer-id")
 			}
 			if normalizedKeyType == config.CredentialKeyTypeIndividual && trimmedIssuerID != "" {
 				return shared.WithDiagnostic(shared.UsageError("--issuer-id must be omitted when --key-type individual"), shared.DiagnosticConflictingInput, "--issuer-id")
 			}
 			*issuerID = trimmedIssuerID
 			if strings.TrimSpace(*keyPath) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --private-key is required")
-				return shared.MissingRequiredUsageError("--private-key")
+				return shared.RequiredFlag("--private-key")
 			}
 			if *skipValidation && *network {
 				return shared.WithDiagnostic(shared.UsageError("--skip-validation and --network are mutually exclusive"), shared.DiagnosticConflictingInput, "--skip-validation")
@@ -983,8 +980,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedName := strings.TrimSpace(*name)
 			if trimmedName == "" {
-				fmt.Fprintln(os.Stderr, "Error: --name is required")
-				return shared.MissingRequiredUsageError("--name")
+				return shared.RequiredFlag("--name")
 			}
 
 			credentials, err := listCredentialSummaries()
