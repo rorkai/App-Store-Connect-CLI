@@ -32,6 +32,17 @@ func Report(spec *Spec, dir string, w io.Writer) error {
 			continue
 		}
 		for _, t := range f.templates {
+			if len(t.verbs) == 0 {
+				// A helper that takes the HTTP method as an argument is
+				// resolved with the methods its callers pass.
+				for _, caller := range src.callers[f.name] {
+					withVerbs := template{verbs: caller.verbs, path: t.path}
+					if !caller.generated && len(caller.verbs) > 0 && !spec.matchesTemplate(withVerbs, caller.literalsWith(f), false) {
+						lines = append(lines, fmt.Sprintf("method\t%s\t%s %s (through %s)\tno spec operation", caller.name, strings.Join(caller.verbs, ","), t.path, f.name))
+					}
+				}
+				continue
+			}
 			if spec.matchesTemplate(t, f.literals, false) {
 				continue
 			}
@@ -155,7 +166,7 @@ func loadReportSource(dir string) (*reportSource, error) {
 		src.index(src.funcs[d.Name.Name], d.Body)
 	}
 	for _, f := range src.funcs {
-		f.templates = src.templatesOf(f, map[string]bool{})
+		f.templates = src.templatesOf(f)
 	}
 	return src, nil
 }
@@ -244,39 +255,24 @@ func concatPath(x *ast.BinaryExpr) (string, bool) {
 }
 
 // templatesOf pairs the path literals of f with its HTTP methods, or with
-// those of the helpers it passes the path to.
-func (src *reportSource) templatesOf(f *reportFunc, visiting map[string]bool) []template {
+// those of the helpers it passes the path to, such as getJSON. A template
+// without methods is left to the callers that pass the method.
+func (src *reportSource) templatesOf(f *reportFunc) []template {
 	if len(f.paths) == 0 {
 		return nil
 	}
 	verbs := f.verbs
 	if len(verbs) == 0 {
-		verbs = src.calleeVerbs(f, visiting)
-	}
-	if len(verbs) == 0 {
-		return nil
+		for _, name := range f.callees {
+			verbs = append(verbs, src.funcs[name].verbs...)
+		}
+		verbs = dedupe(sortedCopy(verbs))
 	}
 	var out []template
 	for _, p := range dedupe(sortedCopy(f.paths)) {
 		out = append(out, template{verbs: verbs, path: p})
 	}
 	return out
-}
-
-func (src *reportSource) calleeVerbs(f *reportFunc, visiting map[string]bool) []string {
-	if visiting[f.name] {
-		return nil
-	}
-	visiting[f.name] = true
-	var verbs []string
-	for _, name := range f.callees {
-		callee := src.funcs[name]
-		verbs = append(verbs, callee.verbs...)
-		if len(callee.verbs) == 0 {
-			verbs = append(verbs, src.calleeVerbs(callee, visiting)...)
-		}
-	}
-	return dedupe(sortedCopy(verbs))
 }
 
 // matchesTemplate reports whether some operation has one of the template's

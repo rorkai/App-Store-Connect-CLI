@@ -31,6 +31,30 @@ func (c *Client) UpdateWidgetGizmos(ctx context.Context, id string) error {
 	return c.updateWidgetRelationship(ctx, id, "gizmos")
 }
 
+func sendNoContent(ctx context.Context, c *Client, method, path string, payload any) error {
+	return checkMethod(method)
+}
+
+func checkMethod(method string) error {
+	switch method {
+	case "GET", "POST", "PATCH", "DELETE":
+		return nil
+	}
+	return fmt.Errorf("method %s", method)
+}
+
+func (c *Client) changeWidgetGadgets(ctx context.Context, method, id string) error {
+	return sendNoContent(ctx, c, method, fmt.Sprintf("/v1/widgets/%s/relationships/gadgets", id), nil)
+}
+
+func (c *Client) ReplaceWidgetGadgets(ctx context.Context, id string) error {
+	return c.changeWidgetGadgets(ctx, http.MethodPatch, id)
+}
+
+func (c *Client) AddWidgetGadgets(ctx context.Context, id string) error {
+	return c.changeWidgetGadgets(ctx, http.MethodPost, id)
+}
+
 type WidgetAttributes struct {
 	Name  string ` + "`json:\"name\"`" + `
 	Count int    ` + "`json:\"count\"`" + `
@@ -59,10 +83,11 @@ func TestReportListsOnlyWhatTheSpecDoesNotBack(t *testing.T) {
 	if err := Report(spec, dir, &out); err != nil {
 		t.Fatal(err)
 	}
-	want := "method\tGetWidgetOrphans\tGET /v1/widgets/%s/orphans\tno spec operation\n" +
+	want := "method\tAddWidgetGadgets\tPOST /v1/widgets/%s/relationships/gadgets (through changeWidgetGadgets)\tno spec operation\n" +
+		"method\tGetWidgetOrphans\tGET /v1/widgets/%s/orphans\tno spec operation\n" +
 		"method\tUpdateWidgetGizmos\tPATCH /v1/widgets/%s/relationships/%s (through updateWidgetRelationship)\tno spec operation\n" +
 		"type\tWidgetAttributes\tWidget\tlacks enabled, apiKeyId, tags\n" +
-		"3 hand-written methods or types without spec backing\n"
+		"4 hand-written methods or types without spec backing\n"
 	if out.String() != want {
 		t.Errorf("report:\n%s\nwant:\n%s", out.String(), want)
 	}
