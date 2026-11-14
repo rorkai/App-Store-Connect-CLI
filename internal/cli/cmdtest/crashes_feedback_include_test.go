@@ -45,16 +45,23 @@ func decodeBetaSubmissionListOutput(t *testing.T, stdout string) betaSubmissionL
 func installDefaultTransportForServer(t *testing.T, server *httptest.Server) {
 	t.Helper()
 
+	installDefaultTransport(t, serverTransport(t, server))
+}
+
+// serverTransport sends every request to server, keeping its path and query.
+func serverTransport(t *testing.T, server *httptest.Server) http.RoundTripper {
+	t.Helper()
+
 	serverURL, err := url.Parse(server.URL)
 	if err != nil {
 		t.Fatalf("parse server URL: %v", err)
 	}
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	return roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		cloned := req.Clone(req.Context())
 		cloned.URL.Scheme = serverURL.Scheme
 		cloned.URL.Host = serverURL.Host
 		return server.Client().Transport.RoundTrip(cloned)
-	}))
+	})
 }
 
 func TestBetaFeedbackListIncludeBuildSendsBuildRelationship(t *testing.T) {

@@ -26,6 +26,7 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 		name    string
 		args    []string
 		wantErr string
+		deps    bool // the command is built on shared.Deps: run it on test deps
 	}{
 		{
 			name:    "accessibility list limit",
@@ -376,46 +377,55 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			name:    "build-bundles app-clip invocations list limit",
 			args:    []string{"build-bundles", "app-clip", "invocations", "list", "--limit", "201"},
 			wantErr: "build-bundles app-clip invocations list: --limit must be between 1 and 200",
+			deps:    true,
 		},
 		{
 			name:    "build-bundles app-clip invocations list next",
 			args:    []string{"build-bundles", "app-clip", "invocations", "list", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
 			wantErr: "build-bundles app-clip invocations list: --next must be an App Store Connect URL",
+			deps:    true,
 		},
 		{
 			name:    "build-bundles file-sizes list limit",
 			args:    []string{"build-bundles", "file-sizes", "list", "--limit", "201"},
 			wantErr: "build-bundles file-sizes list: --limit must be between 1 and 200",
+			deps:    true,
 		},
 		{
 			name:    "build-bundles file-sizes list next",
 			args:    []string{"build-bundles", "file-sizes", "list", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
 			wantErr: "build-bundles file-sizes list: --next must be an App Store Connect URL",
+			deps:    true,
 		},
 		{
 			name:    "build-bundles list limit",
 			args:    []string{"build-bundles", "list", "--limit", "201"},
 			wantErr: "build-bundles list: --limit must be between 1 and 50",
+			deps:    true,
 		},
 		{
 			name:    "build-localizations list limit",
 			args:    []string{"build-localizations", "list", "--limit", "201"},
 			wantErr: "build-localizations list: --limit must be between 1 and 200",
+			deps:    true,
 		},
 		{
 			name:    "build-localizations list next",
 			args:    []string{"build-localizations", "list", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
 			wantErr: "build-localizations list: --next must be an App Store Connect URL",
+			deps:    true,
 		},
 		{
 			name:    "build-localizations list invalid locale",
 			args:    []string{"build-localizations", "list", "--build-id", "BUILD_ID", "--locale", "!!!bad!!!"},
 			wantErr: `build-localizations list: invalid locale "!!!bad!!!": must match pattern like en or en-US`,
+			deps:    true,
 		},
 		{
 			name:    "build-localizations create invalid locale",
 			args:    []string{"build-localizations", "create", "--build-id", "BUILD_ID", "--locale", "!!!bad!!!"},
 			wantErr: `build-localizations create: invalid locale "!!!bad!!!": must match pattern like en or en-US`,
+			deps:    true,
 		},
 		{
 			name:    "builds expire-all keep-latest negative",
@@ -961,6 +971,7 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			name:    "build-localizations view without id",
 			args:    []string{"build-localizations", "view"},
 			wantErr: "--id is required",
+			deps:    true,
 		},
 		{
 			name:    "app-events view without event-id",
@@ -986,7 +997,13 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			stdout, stderr, runErr := runCommand(t, test.args)
+			var stdout, stderr string
+			var runErr error
+			if test.deps {
+				stdout, stderr, runErr = runRootWithDeps(t, nil, test.args...)
+			} else {
+				stdout, stderr, runErr = runCommand(t, test.args)
+			}
 
 			if runErr == nil {
 				t.Fatal("expected error, got nil")

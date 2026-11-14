@@ -32,17 +32,24 @@ func TestBuildIDRequiredErrorsNameCanonicalFlag(t *testing.T) {
 	tests := []struct {
 		name string
 		args []string
+		deps bool // the command is built on shared.Deps: run it on test deps
 	}{
 		{name: "validate testflight", args: []string{"validate", "testflight", "--app", "app-1"}},
-		{name: "build-bundles list", args: []string{"build-bundles", "list"}},
-		{name: "build-localizations create", args: []string{"build-localizations", "create", "--locale", "en-US"}},
+		{name: "build-bundles list", args: []string{"build-bundles", "list"}, deps: true},
+		{name: "build-localizations create", args: []string{"build-localizations", "create", "--locale", "en-US"}, deps: true},
 		{name: "performance diagnostics list", args: []string{"performance", "diagnostics", "list"}},
 		{name: "performance metrics view", args: []string{"performance", "metrics", "view"}},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			stdout, stderr, runErr := runBuildIDFlagCommand(t, test.args)
+			var stdout, stderr string
+			var runErr error
+			if test.deps {
+				stdout, stderr, runErr = runRootWithDeps(t, nil, test.args...)
+			} else {
+				stdout, stderr, runErr = runBuildIDFlagCommand(t, test.args)
+			}
 			if !errors.Is(runErr, flag.ErrHelp) {
 				t.Fatalf("expected ErrHelp, got %v", runErr)
 			}

@@ -130,26 +130,31 @@ func TestAccountAndDistributionInputValidationReturnsUsageExitCode(t *testing.T)
 			name:    "android-ios-mapping list limit",
 			args:    []string{"android-ios-mapping", "list", "--app", "123456789", "--limit", "201"},
 			wantErr: "android-ios-mapping list: --limit must be between 1 and 200",
+			deps:    true,
 		},
 		{
 			name:    "android-ios-mapping list next",
 			args:    []string{"android-ios-mapping", "list", "--app", "123456789", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
 			wantErr: "android-ios-mapping list: --next must be an App Store Connect URL",
+			deps:    true,
 		},
 		{
 			name:    "android-ios-mapping list invalid fields",
 			args:    []string{"android-ios-mapping", "list", "--app", "APP_ID", "--fields", "bad"},
 			wantErr: "android-ios-mapping list: --fields must be one of: packageName, appSigningKeyPublicCertificateSha256Fingerprints",
+			deps:    true,
 		},
 		{
 			name:    "android-ios-mapping view invalid fields",
 			args:    []string{"android-ios-mapping", "view", "--mapping-id", "MAP_ID", "--fields", "bad"},
 			wantErr: "android-ios-mapping view: --fields must be one of: packageName, appSigningKeyPublicCertificateSha256Fingerprints",
+			deps:    true,
 		},
 		{
 			name:    "android-ios-mapping update conflicting package name flags",
 			args:    []string{"android-ios-mapping", "update", "--mapping-id", "MAP_ID", "--android-package-name", "com.example", "--clear-android-package-name"},
 			wantErr: "android-ios-mapping update: --android-package-name cannot be used with --clear-android-package-name",
+			deps:    true,
 		},
 		{
 			name:    "background-assets list limit",

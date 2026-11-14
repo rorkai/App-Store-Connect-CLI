@@ -50,6 +50,7 @@ func TestSelfLinkRemainingFlagsSendExtractedID(t *testing.T) {
 		wantPath string
 		wantID   string
 		bodies   map[string]string
+		deps     bool // the command is built on shared.Deps: run it on test deps
 	}{
 		{
 			name:     "webhooks view",
@@ -95,6 +96,7 @@ func TestSelfLinkRemainingFlagsSendExtractedID(t *testing.T) {
 			bodies: map[string]string{
 				"/v1/androidToIosAppMappingDetails/mapping-1": `{"data":{"type":"androidToIosAppMappingDetails","id":"mapping-1","attributes":{"androidPackageName":"com.example.android"}}}`,
 			},
+			deps: true,
 		},
 		{
 			name:     "alternative-distribution domains view",
@@ -180,19 +182,28 @@ func TestSelfLinkRemainingFlagsSendExtractedID(t *testing.T) {
 				_, _ = io.WriteString(w, body)
 			}))
 			t.Cleanup(server.Close)
-			installDefaultTransportForServer(t, server)
 
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
 			args := append(append([]string(nil), test.args...), "--output", "json")
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
+			var stdout, stderr string
+			if test.deps {
+				var err error
+				stdout, stderr, err = runRootWithDeps(t, stubClient(t, serverTransport(t, server)), args...)
+				if err != nil {
 					t.Fatalf("run error: %v (requests %q)", err, recorder.requested())
 				}
-			})
+			} else {
+				installDefaultTransportForServer(t, server)
+				root := RootCommand("1.2.3")
+				root.FlagSet.SetOutput(io.Discard)
+				stdout, stderr = captureOutput(t, func() {
+					if err := root.Parse(args); err != nil {
+						t.Fatalf("parse error: %v", err)
+					}
+					if err := root.Run(context.Background()); err != nil {
+						t.Fatalf("run error: %v (requests %q)", err, recorder.requested())
+					}
+				})
+			}
 			if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)
 			}
@@ -230,6 +241,7 @@ func TestSelfLinkRemainingFlagsRejectWrongType(t *testing.T) {
 		flag    string
 		value   string
 		wantErr string
+		deps    bool // the command is built on shared.Deps: run it on test deps
 	}{
 		{
 			name:    "webhooks view rejects apps link",
@@ -412,18 +424,28 @@ func TestSelfLinkRemainingFlagsRejectWrongType(t *testing.T) {
 			flag:    "mapping-id",
 			value:   selfLinkTestBase + "/v1/apps/123",
 			wantErr: "expected a self-link of type androidToIosAppMappingDetails, got apps",
+			deps:    true,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			args := append(append([]string(nil), test.args...), "--"+test.flag, test.value)
-			stdout, stderr := captureOutput(t, func() {
-				code := rootcmd.Run(args, "1.2.3")
+			var stdout, stderr string
+			if test.deps {
+				var code int
+				stdout, stderr, code = runWithDeps(t, nil, args...)
 				if code != rootcmd.ExitUsage {
 					t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
 				}
-			})
+			} else {
+				stdout, stderr = captureOutput(t, func() {
+					code := rootcmd.Run(args, "1.2.3")
+					if code != rootcmd.ExitUsage {
+						t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
+					}
+				})
+			}
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
 			}
