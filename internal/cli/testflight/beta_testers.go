@@ -331,45 +331,26 @@ func rejectBetaTestersNextFlagConflicts(fs *flag.FlagSet, next string, names ...
 
 // BetaTestersGetCommand returns the beta testers get subcommand.
 func BetaTestersGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	id := shared.BindResourceIDFlag(fs, "id", "betaTesters", "Beta tester ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc testflight beta-testers view --id \"TESTER_ID\" [flags]",
-		ShortHelp:  "View a TestFlight beta tester by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc testflight beta-testers view --id \"TESTER_ID\" [flags]",
+		ShortHelp:   "View a TestFlight beta tester by ID.",
 		LongHelp: `View a TestFlight beta tester by ID.
 
 Examples:
   asc testflight beta-testers view --id "TESTER_ID"
 
 See also: asc testflight beta-testers beta-groups list --id "TESTER_ID" for the tester's group membership.`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			idValue := strings.TrimSpace(*id)
-			if idValue == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("beta-testers view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			tester, err := client.GetBetaTester(requestCtx, idValue)
-			if err != nil {
-				return fmt.Errorf("beta-testers view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(tester, *output.Output, *output.Pretty)
+		IDUsage:            "Beta tester ID",
+		IDType:             "betaTesters",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "beta-testers view",
+		FetchErrorPrefix:   "beta-testers view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetBetaTester(ctx, id)
 		},
-	}
+	})
 }
 
 // BetaTestersAddCommand returns the beta testers add subcommand.

@@ -287,43 +287,24 @@ Examples:
 
 // TestFlightReviewAppGetCommand retrieves the app for a beta app review detail.
 func TestFlightReviewAppGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("app view", flag.ExitOnError)
-
-	id := shared.BindResourceIDFlag(fs, "id", "betaAppReviewDetails", "Beta app review detail ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc testflight review app view --id \"DETAIL_ID\"",
-		ShortHelp:  "View the app for a beta app review detail.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "app view",
+		Name:        "view",
+		ShortUsage:  "asc testflight review app view --id \"DETAIL_ID\"",
+		ShortHelp:   "View the app for a beta app review detail.",
 		LongHelp: `View the app for a beta app review detail.
 
 Examples:
   asc testflight review app view --id "DETAIL_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			idValue := strings.TrimSpace(*id)
-			if idValue == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("testflight review app view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetBetaAppReviewDetailApp(requestCtx, idValue)
-			if err != nil {
-				return fmt.Errorf("testflight review app view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage:            "Beta app review detail ID",
+		IDType:             "betaAppReviewDetails",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "testflight review app view",
+		FetchErrorPrefix:   "testflight review app view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetBetaAppReviewDetailApp(ctx, id)
 		},
-	}
+	})
 }
 
 // TestFlightReviewSubmissionsCommand returns the review submissions command group.
@@ -435,43 +416,24 @@ Examples:
 
 // TestFlightReviewSubmissionsGetCommand retrieves a beta app review submission by ID.
 func TestFlightReviewSubmissionsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("submissions view", flag.ExitOnError)
-
-	id := shared.BindResourceIDFlag(fs, "id", "betaAppReviewSubmissions", "Beta app review submission ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc testflight review submissions view --id \"SUBMISSION_ID\"",
-		ShortHelp:  "View a beta app review submission by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "submissions view",
+		Name:        "view",
+		ShortUsage:  "asc testflight review submissions view --id \"SUBMISSION_ID\"",
+		ShortHelp:   "View a beta app review submission by ID.",
 		LongHelp: `View a beta app review submission by ID.
 
 Examples:
   asc testflight review submissions view --id "SUBMISSION_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			idValue := strings.TrimSpace(*id)
-			if idValue == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("testflight review submissions view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetBetaAppReviewSubmission(requestCtx, idValue)
-			if err != nil {
-				return fmt.Errorf("testflight review submissions view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage:            "Beta app review submission ID",
+		IDType:             "betaAppReviewSubmissions",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "testflight review submissions view",
+		FetchErrorPrefix:   "testflight review submissions view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetBetaAppReviewSubmission(ctx, id)
 		},
-	}
+	})
 }
 
 // TestFlightReviewSubmissionsBuildCommand retrieves the build for a beta app review submission.
@@ -629,43 +591,24 @@ Examples:
 
 // TestFlightBetaDetailsBuildGetCommand retrieves the build for a build beta detail.
 func TestFlightBetaDetailsBuildGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("build view", flag.ExitOnError)
-
-	id := shared.BindResourceIDFlag(fs, "id", "buildBetaDetails", "Build beta detail ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc testflight beta-details build view --id \"DETAIL_ID\"",
-		ShortHelp:  "View the build for a build beta detail.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "build view",
+		Name:        "view",
+		ShortUsage:  "asc testflight beta-details build view --id \"DETAIL_ID\"",
+		ShortHelp:   "View the build for a build beta detail.",
 		LongHelp: `View the build for a build beta detail.
 
 Examples:
   asc testflight beta-details build view --id "DETAIL_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			idValue := strings.TrimSpace(*id)
-			if idValue == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("testflight beta-details build view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetBuildBetaDetailBuild(requestCtx, idValue)
-			if err != nil {
-				return fmt.Errorf("testflight beta-details build view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage:            "Build beta detail ID",
+		IDType:             "buildBetaDetails",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "testflight beta-details build view",
+		FetchErrorPrefix:   "testflight beta-details build view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetBuildBetaDetailBuild(ctx, id)
 		},
-	}
+	})
 }
 
 // TestFlightBetaDetailsUpdateCommand updates build beta details by ID.
