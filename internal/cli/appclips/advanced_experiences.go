@@ -144,8 +144,7 @@ Examples:
 
 			appClipValue := strings.TrimSpace(*appClipID)
 			if appClipValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app-clip-id is required")
-				return shared.MissingRequiredUsageError("--app-clip-id")
+				return shared.RequiredFlag("--app-clip-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -219,8 +218,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*experienceID)
 			if idValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --experience-id is required")
-				return shared.MissingRequiredUsageError("--experience-id")
+				return shared.RequiredFlag("--experience-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -282,13 +280,11 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			linkValue := strings.TrimSpace(*link)
 			if linkValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --link is required")
-				return shared.MissingRequiredUsageError("--link")
+				return shared.RequiredFlag("--link")
 			}
 
 			if strings.TrimSpace(*defaultLanguage) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --default-language is required")
-				return shared.MissingRequiredUsageError("--default-language")
+				return shared.RequiredFlag("--default-language")
 			}
 
 			langValue, err := normalizeAppClipLanguage(*defaultLanguage)
@@ -301,14 +297,12 @@ Examples:
 				visited[f.Name] = true
 			})
 			if !visited["is-powered-by"] {
-				fmt.Fprintln(os.Stderr, "Error: --is-powered-by is required")
-				return shared.MissingRequiredUsageError("--is-powered-by")
+				return shared.RequiredFlag("--is-powered-by")
 			}
 
 			headerImageValue := strings.TrimSpace(*headerImageID)
 			if headerImageValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --header-image-id is required")
-				return shared.MissingRequiredUsageError("--header-image-id")
+				return shared.RequiredFlag("--header-image-id")
 			}
 
 			localizationValues := shared.SplitCSV(localizationIDs.String())
@@ -450,8 +444,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			experienceValue := strings.TrimSpace(*experienceID)
 			if experienceValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --experience-id is required")
-				return shared.MissingRequiredUsageError("--experience-id")
+				return shared.RequiredFlag("--experience-id")
 			}
 
 			visited := map[string]bool{}
@@ -546,8 +539,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			experienceValue := strings.TrimSpace(*experienceID)
 			if experienceValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --experience-id is required")
-				return shared.MissingRequiredUsageError("--experience-id")
+				return shared.RequiredFlag("--experience-id")
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required to remove")

@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -86,8 +85,7 @@ Examples:
 
 			appValue := strings.TrimSpace(shared.ResolveAppID(*appID))
 			if appValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required")
-				return shared.MissingRequiredUsageError("--app")
+				return shared.RequiredFlag("--app")
 			}
 
 			client, err := shared.GetASCClient()
@@ -159,8 +157,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*appClipID)
 			if idValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			client, err := shared.GetASCClient()
