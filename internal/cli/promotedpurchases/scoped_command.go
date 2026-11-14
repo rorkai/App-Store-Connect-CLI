@@ -233,8 +233,7 @@ Examples:
 
 		if promotedPurchaseID == "" && ownerID == "" {
 			if ownerIDFlag == "" {
-				fmt.Fprintln(os.Stderr, "Error: --promoted-purchase-id is required")
-				return shared.MissingRequiredUsageError("--promoted-purchase-id")
+				return shared.RequiredFlag("--promoted-purchase-id")
 			} else {
 				fmt.Fprintf(os.Stderr, "Error: --promoted-purchase-id or --%s is required\n", ownerIDFlag)
 			}
@@ -375,8 +374,7 @@ Examples:
 		errorPrefix := promotedPurchasesCommandErrorPrefix(cfg, "update")
 
 		if promotedPurchaseID == "" {
-			fmt.Fprintln(os.Stderr, "Error: --promoted-purchase-id is required")
-			return shared.MissingRequiredUsageError("--promoted-purchase-id")
+			return shared.RequiredFlag("--promoted-purchase-id")
 		}
 		if !visibleForAllUsersSet && !enabledSet {
 			fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
@@ -432,12 +430,10 @@ Examples:
 		errorPrefix := promotedPurchasesCommandErrorPrefix(cfg, "delete")
 
 		if !confirm {
-			fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-			return shared.MissingRequiredUsageError("--confirm")
+			return shared.RequiredFlag("--confirm")
 		}
 		if promotedPurchaseID == "" {
-			fmt.Fprintln(os.Stderr, "Error: --promoted-purchase-id is required")
-			return shared.MissingRequiredUsageError("--promoted-purchase-id")
+			return shared.RequiredFlag("--promoted-purchase-id")
 		}
 
 		client, err := shared.GetASCClient()
@@ -511,8 +507,7 @@ Examples:
 		} else {
 			scopedIDs = shared.SplitCSV(promotedIDs)
 			if len(scopedIDs) == 0 {
-				fmt.Fprintln(os.Stderr, "Error: --promoted-purchase-id is required")
-				return shared.MissingRequiredUsageError("--promoted-purchase-id")
+				return shared.RequiredFlag("--promoted-purchase-id")
 			}
 		}
 
