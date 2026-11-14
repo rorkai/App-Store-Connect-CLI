@@ -7,27 +7,6 @@ import (
 	"strings"
 )
 
-// SetAppPromotedPurchases replaces promoted purchases for an app.
-func (c *Client) SetAppPromotedPurchases(ctx context.Context, appID string, promotedPurchaseIDs []string) error {
-	appID = strings.TrimSpace(appID)
-	promotedPurchaseIDs = normalizeList(promotedPurchaseIDs)
-	if appID == "" {
-		return fmt.Errorf("appID is required")
-	}
-
-	payload := RelationshipRequest{
-		Data: make([]RelationshipData, 0, len(promotedPurchaseIDs)),
-	}
-	for _, id := range promotedPurchaseIDs {
-		payload.Data = append(payload.Data, RelationshipData{
-			Type: ResourceTypePromotedPurchases,
-			ID:   id,
-		})
-	}
-
-	return sendNoContent(ctx, c, http.MethodPatch, fmt.Sprintf("/v1/apps/%s/relationships/promotedPurchases", appID), payload)
-}
-
 // CreatePromotedPurchase creates a new promoted purchase.
 func (c *Client) CreatePromotedPurchase(ctx context.Context, attrs PromotedPurchaseCreateAttributes, relationships PromotedPurchaseCreateRelationships) (*PromotedPurchaseResponse, error) {
 	payload := PromotedPurchaseCreateRequest{

@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 )
 
@@ -259,6 +260,28 @@ func (c *Client) GetBetaGroups(ctx context.Context, appID string, opts ...BetaGr
 	})
 }
 
+// RemoveBetaTestersFromApp sends DELETE /v1/apps/{id}/relationships/betaTesters (apps_betaTesters_deleteToManyRelationship).
+func (c *Client) RemoveBetaTestersFromApp(ctx context.Context, appID string, testerIDs []string) error {
+	appID = strings.TrimSpace(appID)
+	testerIDs = normalizeList(testerIDs)
+	if appID == "" {
+		return fmt.Errorf("app ID is required")
+	}
+	if len(testerIDs) == 0 {
+		return fmt.Errorf("tester IDs are required")
+	}
+	payload := RelationshipRequest{
+		Data: make([]RelationshipData, 0, len(testerIDs)),
+	}
+	for _, testerID := range testerIDs {
+		payload.Data = append(payload.Data, RelationshipData{
+			Type: ResourceTypeBetaTesters,
+			ID:   testerID,
+		})
+	}
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/apps/%s/relationships/betaTesters", appID), payload)
+}
+
 // GetAppCiProduct sends GET /v1/apps/{id}/ciProduct (apps_ciProduct_getToOneRelated).
 func (c *Client) GetAppCiProduct(ctx context.Context, appID string) (*CiProductResponse, error) {
 	appID = strings.TrimSpace(appID)
@@ -364,6 +387,25 @@ func (c *Client) GetAppPromotedPurchases(ctx context.Context, appID string, opts
 		NextContext: "promotedPurchases",
 		ParseErr:    "failed to parse promoted purchases response",
 	})
+}
+
+// SetAppPromotedPurchases sends PATCH /v1/apps/{id}/relationships/promotedPurchases (apps_promotedPurchases_replaceToManyRelationship).
+func (c *Client) SetAppPromotedPurchases(ctx context.Context, appID string, promotedPurchaseIDs []string) error {
+	appID = strings.TrimSpace(appID)
+	promotedPurchaseIDs = normalizeList(promotedPurchaseIDs)
+	if appID == "" {
+		return fmt.Errorf("appID is required")
+	}
+	payload := RelationshipRequest{
+		Data: make([]RelationshipData, 0, len(promotedPurchaseIDs)),
+	}
+	for _, id := range promotedPurchaseIDs {
+		payload.Data = append(payload.Data, RelationshipData{
+			Type: ResourceTypePromotedPurchases,
+			ID:   id,
+		})
+	}
+	return sendNoContent(ctx, c, http.MethodPatch, fmt.Sprintf("/v1/apps/%s/relationships/promotedPurchases", appID), payload)
 }
 
 // GetAppSearchKeywords sends GET /v1/apps/{id}/searchKeywords (apps_searchKeywords_getToManyRelated).

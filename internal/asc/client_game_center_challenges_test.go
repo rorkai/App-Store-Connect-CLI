@@ -13,58 +13,6 @@ import (
 	"testing"
 )
 
-func TestGetGameCenterChallenges_WithLimit(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterDetails/gc-detail-1/gameCenterChallenges" {
-			t.Fatalf("expected path /v1/gameCenterDetails/gc-detail-1/gameCenterChallenges, got %s", req.URL.Path)
-		}
-		if req.URL.Query().Get("limit") != "50" {
-			t.Fatalf("expected limit=50, got %q", req.URL.Query().Get("limit"))
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetGameCenterChallenges(context.Background(), "gc-detail-1", Limit[GCChallengesOption](50)); err != nil {
-		t.Fatalf("GetGameCenterChallenges() error: %v", err)
-	}
-}
-
-func TestGetGameCenterChallenges_UsesNextURL(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/gameCenterDetails/gc-detail-1/gameCenterChallenges?cursor=abc"
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.URL.String() != next {
-			t.Fatalf("expected URL %q, got %q", next, req.URL.String())
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetGameCenterChallenges(context.Background(), "gc-detail-1", NextURL[GCChallengesOption](next)); err != nil {
-		t.Fatalf("GetGameCenterChallenges() error: %v", err)
-	}
-}
-
-func TestGetGameCenterChallenge(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterChallenges","id":"ch-1","attributes":{"referenceName":"Weekly","vendorIdentifier":"com.test.weekly","challengeType":"LEADERBOARD"}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterChallenges/ch-1" {
-			t.Fatalf("expected path /v1/gameCenterChallenges/ch-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetGameCenterChallenge(context.Background(), "ch-1"); err != nil {
-		t.Fatalf("GetGameCenterChallenge() error: %v", err)
-	}
-}
-
 func TestCreateGameCenterChallenge_WithDetail(t *testing.T) {
 	response := jsonResponse(http.StatusCreated, `{"data":{"type":"gameCenterChallenges","id":"ch-1","attributes":{"referenceName":"Weekly","vendorIdentifier":"com.test.weekly","challengeType":"LEADERBOARD"}}}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -227,75 +175,6 @@ func TestUpdateGameCenterChallenge(t *testing.T) {
 	}
 }
 
-func TestDeleteGameCenterChallenge(t *testing.T) {
-	response := jsonResponse(http.StatusNoContent, "")
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodDelete {
-			t.Fatalf("expected DELETE, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterChallenges/ch-1" {
-			t.Fatalf("expected path /v1/gameCenterChallenges/ch-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if err := client.DeleteGameCenterChallenge(context.Background(), "ch-1"); err != nil {
-		t.Fatalf("DeleteGameCenterChallenge() error: %v", err)
-	}
-}
-
-func TestGetGameCenterChallengeVersions_WithLimit(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterChallenges/ch-1/versions" {
-			t.Fatalf("expected path /v1/gameCenterChallenges/ch-1/versions, got %s", req.URL.Path)
-		}
-		if req.URL.Query().Get("limit") != "20" {
-			t.Fatalf("expected limit=20, got %q", req.URL.Query().Get("limit"))
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetGameCenterChallengeVersions(context.Background(), "ch-1", Limit[GCChallengeVersionsOption](20)); err != nil {
-		t.Fatalf("GetGameCenterChallengeVersions() error: %v", err)
-	}
-}
-
-func TestGetGameCenterChallengeVersions_UsesNextURL(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/gameCenterChallenges/ch-1/versions?cursor=next"
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.URL.String() != next {
-			t.Fatalf("expected URL %q, got %q", next, req.URL.String())
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetGameCenterChallengeVersions(context.Background(), "ch-1", NextURL[GCChallengeVersionsOption](next)); err != nil {
-		t.Fatalf("GetGameCenterChallengeVersions() error: %v", err)
-	}
-}
-
-func TestGetGameCenterChallengeVersion(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterChallengeVersions","id":"ver-1","attributes":{"version":1}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterChallengeVersions/ver-1" {
-			t.Fatalf("expected path /v1/gameCenterChallengeVersions/ver-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetGameCenterChallengeVersion(context.Background(), "ver-1"); err != nil {
-		t.Fatalf("GetGameCenterChallengeVersion() error: %v", err)
-	}
-}
-
 func TestCreateGameCenterChallengeVersion(t *testing.T) {
 	response := jsonResponse(http.StatusCreated, `{"data":{"type":"gameCenterChallengeVersions","id":"ver-2","attributes":{"version":2}}}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -320,58 +199,6 @@ func TestCreateGameCenterChallengeVersion(t *testing.T) {
 
 	if _, err := client.CreateGameCenterChallengeVersion(context.Background(), "ch-1"); err != nil {
 		t.Fatalf("CreateGameCenterChallengeVersion() error: %v", err)
-	}
-}
-
-func TestGetGameCenterChallengeLocalizations_WithLimit(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterChallengeVersions/ver-1/localizations" {
-			t.Fatalf("expected path /v1/gameCenterChallengeVersions/ver-1/localizations, got %s", req.URL.Path)
-		}
-		if req.URL.Query().Get("limit") != "10" {
-			t.Fatalf("expected limit=10, got %q", req.URL.Query().Get("limit"))
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetGameCenterChallengeLocalizations(context.Background(), "ver-1", Limit[GCChallengeLocalizationsOption](10)); err != nil {
-		t.Fatalf("GetGameCenterChallengeLocalizations() error: %v", err)
-	}
-}
-
-func TestGetGameCenterChallengeLocalizations_UsesNextURL(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/gameCenterChallengeVersions/ver-1/localizations?cursor=next"
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.URL.String() != next {
-			t.Fatalf("expected URL %q, got %q", next, req.URL.String())
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetGameCenterChallengeLocalizations(context.Background(), "ver-1", NextURL[GCChallengeLocalizationsOption](next)); err != nil {
-		t.Fatalf("GetGameCenterChallengeLocalizations() error: %v", err)
-	}
-}
-
-func TestGetGameCenterChallengeLocalization(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterChallengeLocalizations","id":"loc-1","attributes":{"locale":"en-US","name":"Weekly","description":"Desc"}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterChallengeLocalizations/loc-1" {
-			t.Fatalf("expected path /v1/gameCenterChallengeLocalizations/loc-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetGameCenterChallengeLocalization(context.Background(), "loc-1"); err != nil {
-		t.Fatalf("GetGameCenterChallengeLocalization() error: %v", err)
 	}
 }
 
@@ -404,69 +231,6 @@ func TestCreateGameCenterChallengeLocalization(t *testing.T) {
 	}
 	if _, err := client.CreateGameCenterChallengeLocalization(context.Background(), "ver-1", attrs); err != nil {
 		t.Fatalf("CreateGameCenterChallengeLocalization() error: %v", err)
-	}
-}
-
-func TestUpdateGameCenterChallengeLocalization(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterChallengeLocalizations","id":"loc-1","attributes":{"name":"Updated","description":"Desc"}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodPatch {
-			t.Fatalf("expected PATCH, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterChallengeLocalizations/loc-1" {
-			t.Fatalf("expected path /v1/gameCenterChallengeLocalizations/loc-1, got %s", req.URL.Path)
-		}
-		var payload GameCenterChallengeLocalizationUpdateRequest
-		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-			t.Fatalf("failed to decode request: %v", err)
-		}
-		if payload.Data.ID != "loc-1" || payload.Data.Type != ResourceTypeGameCenterChallengeLocalizations {
-			t.Fatalf("unexpected payload: %+v", payload.Data)
-		}
-		if payload.Data.Attributes == nil || payload.Data.Attributes.Name == nil || *payload.Data.Attributes.Name != "Updated" {
-			t.Fatalf("expected name update, got %+v", payload.Data.Attributes)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	name := "Updated"
-	attrs := GameCenterChallengeLocalizationUpdateAttributes{Name: &name}
-	if _, err := client.UpdateGameCenterChallengeLocalization(context.Background(), "loc-1", attrs); err != nil {
-		t.Fatalf("UpdateGameCenterChallengeLocalization() error: %v", err)
-	}
-}
-
-func TestDeleteGameCenterChallengeLocalization(t *testing.T) {
-	response := jsonResponse(http.StatusNoContent, "")
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodDelete {
-			t.Fatalf("expected DELETE, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterChallengeLocalizations/loc-1" {
-			t.Fatalf("expected path /v1/gameCenterChallengeLocalizations/loc-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if err := client.DeleteGameCenterChallengeLocalization(context.Background(), "loc-1"); err != nil {
-		t.Fatalf("DeleteGameCenterChallengeLocalization() error: %v", err)
-	}
-}
-
-func TestGetGameCenterChallengeImage(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterChallengeImages","id":"img-1","attributes":{"fileName":"image.png","fileSize":12}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterChallengeImages/img-1" {
-			t.Fatalf("expected path /v1/gameCenterChallengeImages/img-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetGameCenterChallengeImage(context.Background(), "img-1"); err != nil {
-		t.Fatalf("GetGameCenterChallengeImage() error: %v", err)
 	}
 }
 
@@ -527,23 +291,6 @@ func TestUpdateGameCenterChallengeImage(t *testing.T) {
 	}
 }
 
-func TestDeleteGameCenterChallengeImage(t *testing.T) {
-	response := jsonResponse(http.StatusNoContent, "")
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodDelete {
-			t.Fatalf("expected DELETE, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterChallengeImages/img-1" {
-			t.Fatalf("expected path /v1/gameCenterChallengeImages/img-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if err := client.DeleteGameCenterChallengeImage(context.Background(), "img-1"); err != nil {
-		t.Fatalf("DeleteGameCenterChallengeImage() error: %v", err)
-	}
-}
-
 func TestUploadGameCenterChallengeImage(t *testing.T) {
 	dir := t.TempDir()
 	filePath := filepath.Join(dir, "challenge.png")
@@ -599,58 +346,6 @@ func TestUploadGameCenterChallengeImage(t *testing.T) {
 	}
 }
 
-func TestGetGameCenterChallengeVersionRelease(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterChallengeVersionReleases","id":"rel-1","attributes":{"live":true}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterChallengeVersionReleases/rel-1" {
-			t.Fatalf("expected path /v1/gameCenterChallengeVersionReleases/rel-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetGameCenterChallengeVersionRelease(context.Background(), "rel-1"); err != nil {
-		t.Fatalf("GetGameCenterChallengeVersionRelease() error: %v", err)
-	}
-}
-
-func TestGetGameCenterChallengeVersionReleases_WithLimit(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterDetails/gc-detail-1/challengeReleases" {
-			t.Fatalf("expected path /v1/gameCenterDetails/gc-detail-1/challengeReleases, got %s", req.URL.Path)
-		}
-		if req.URL.Query().Get("limit") != "15" {
-			t.Fatalf("expected limit=15, got %q", req.URL.Query().Get("limit"))
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetGameCenterChallengeVersionReleases(context.Background(), "gc-detail-1", Limit[GCChallengeVersionReleasesOption](15)); err != nil {
-		t.Fatalf("GetGameCenterChallengeVersionReleases() error: %v", err)
-	}
-}
-
-func TestGetGameCenterChallengeVersionReleases_UsesNextURL(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/gameCenterDetails/gc-detail-1/challengeReleases?cursor=next"
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.URL.String() != next {
-			t.Fatalf("expected URL %q, got %q", next, req.URL.String())
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetGameCenterChallengeVersionReleases(context.Background(), "gc-detail-1", NextURL[GCChallengeVersionReleasesOption](next)); err != nil {
-		t.Fatalf("GetGameCenterChallengeVersionReleases() error: %v", err)
-	}
-}
-
 func TestCreateGameCenterChallengeVersionRelease(t *testing.T) {
 	response := jsonResponse(http.StatusCreated, `{"data":{"type":"gameCenterChallengeVersionReleases","id":"rel-2","attributes":{"live":false}}}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -675,23 +370,6 @@ func TestCreateGameCenterChallengeVersionRelease(t *testing.T) {
 
 	if _, err := client.CreateGameCenterChallengeVersionRelease(context.Background(), "ver-1"); err != nil {
 		t.Fatalf("CreateGameCenterChallengeVersionRelease() error: %v", err)
-	}
-}
-
-func TestDeleteGameCenterChallengeVersionRelease(t *testing.T) {
-	response := jsonResponse(http.StatusNoContent, "")
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodDelete {
-			t.Fatalf("expected DELETE, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterChallengeVersionReleases/rel-1" {
-			t.Fatalf("expected path /v1/gameCenterChallengeVersionReleases/rel-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if err := client.DeleteGameCenterChallengeVersionRelease(context.Background(), "rel-1"); err != nil {
-		t.Fatalf("DeleteGameCenterChallengeVersionRelease() error: %v", err)
 	}
 }
 
@@ -752,40 +430,6 @@ func TestGCChallengeLocalizationsOptions(t *testing.T) {
 	}
 	if values.Get("limit") != "5" {
 		t.Fatalf("expected limit=5, got %q", values.Get("limit"))
-	}
-}
-
-func TestGetGameCenterChallengeLocalizationImage(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterChallengeImages","id":"img-1","attributes":{"fileName":"image.png","fileSize":12}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterChallengeLocalizations/loc-1/image" {
-			t.Fatalf("expected path /v1/gameCenterChallengeLocalizations/loc-1/image, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetGameCenterChallengeLocalizationImage(context.Background(), "loc-1"); err != nil {
-		t.Fatalf("GetGameCenterChallengeLocalizationImage() error: %v", err)
-	}
-}
-
-func TestGetGameCenterChallengeVersionDefaultImage(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterChallengeImages","id":"img-1","attributes":{"fileName":"image.png","fileSize":12}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterChallengeVersions/ver-1/defaultImage" {
-			t.Fatalf("expected path /v1/gameCenterChallengeVersions/ver-1/defaultImage, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetGameCenterChallengeVersionDefaultImage(context.Background(), "ver-1"); err != nil {
-		t.Fatalf("GetGameCenterChallengeVersionDefaultImage() error: %v", err)
 	}
 }
 

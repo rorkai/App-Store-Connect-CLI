@@ -97,6 +97,11 @@ func TestGenerateRejectsWhatItCannotModel(t *testing.T) {
 		{"single read without a query builder", &Family{Operations: []*OpBind{{Operation: "widgets_wheel_getToOneRelated", Name: "X", Params: []string{"id"}, Options: "WheelOption", Single: true}}}},
 		{"single read with a next URL context", &Family{Operations: []*OpBind{{Operation: "widgets_wheel_getToOneRelated", Name: "X", Params: []string{"id"}, Options: "WheelOption", Query: "buildWheelQuery", NextContext: "wheel", Single: true}}}},
 		{"single on a write", &Family{Operations: []*OpBind{{Operation: "widgets_deleteInstance", Name: "X", Params: []string{"id"}, Query: "buildWheelQuery", Single: true}}}},
+		{"id list handling on a read", &Family{Operations: []*OpBind{{Operation: "widgets_getInstance", Name: "X", Params: []string{"id"}, IDList: &IDList{Normalize: true}}}}},
+		{"empty list message without normalizing", &Family{Operations: []*OpBind{{Operation: "widgets_wheels_createToManyRelationship", Name: "X", Params: []string{"id"}, IDs: "ids", IDList: &IDList{Message: "ids are required"}}}}},
+		{"unknown id list payload", &Family{Operations: []*OpBind{{Operation: "widgets_wheels_createToManyRelationship", Name: "X", Params: []string{"id"}, IDs: "ids", IDList: &IDList{Payload: "bogus"}}}}},
+		{"loop payload without an item name", &Family{Operations: []*OpBind{{Operation: "widgets_wheels_createToManyRelationship", Name: "X", Params: []string{"id"}, IDs: "ids", IDList: &IDList{Payload: payloadAppend}}}}},
+		{"item name without a loop payload", &Family{Operations: []*OpBind{{Operation: "widgets_wheels_createToManyRelationship", Name: "X", Params: []string{"id"}, IDs: "ids", IDList: &IDList{Payload: payloadIndex, Item: "id"}}}}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

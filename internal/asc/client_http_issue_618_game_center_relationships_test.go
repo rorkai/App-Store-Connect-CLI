@@ -90,30 +90,6 @@ func TestIssue618_GameCenterRelationshipEndpoints_Mutations(t *testing.T) {
 				return client.RemoveGameCenterActivityLeaderboardsV2(ctx, "act-1", []string{"lb-1"})
 			},
 		},
-		{
-			name:       "UpdateGameCenterEnabledVersionCompatibleVersionsRelationship",
-			wantMethod: http.MethodPatch,
-			wantPath:   "/v1/gameCenterEnabledVersions/env-1/relationships/compatibleVersions",
-			wantBodyFn: func(t *testing.T, body []byte) {
-				t.Helper()
-				var got RelationshipRequest
-				if err := json.Unmarshal(body, &got); err != nil {
-					t.Fatalf("unmarshal body: %v", err)
-				}
-				if len(got.Data) != 2 {
-					t.Fatalf("expected 2 items, got %d", len(got.Data))
-				}
-				if got.Data[0].Type != ResourceTypeGameCenterEnabledVersions || got.Data[0].ID != "env-2" {
-					t.Fatalf("unexpected first item: %#v", got.Data[0])
-				}
-				if got.Data[1].Type != ResourceTypeGameCenterEnabledVersions || got.Data[1].ID != "env-3" {
-					t.Fatalf("unexpected second item: %#v", got.Data[1])
-				}
-			},
-			call: func(client *Client) error {
-				return client.UpdateGameCenterEnabledVersionCompatibleVersionsRelationship(ctx, "env-1", []string{"env-2", "env-3"})
-			},
-		},
 	}
 
 	for _, tt := range tests {
