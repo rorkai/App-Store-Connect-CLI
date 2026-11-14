@@ -189,3 +189,16 @@ func validateScreenshotDimensionsForSize(path string, width, height int, display
 func ValidateScreenshotDimensionsForSize(path string, width, height int, displayType string) error {
 	return validateScreenshotDimensionsForSize(path, width, height, displayType)
 }
+
+// ValidateScreenshotDimensions checks that the image matches an allowed size
+// and that its encoded format agrees with its file extension.
+func ValidateScreenshotDimensions(path, displayType string) error {
+	dims, format, err := ReadImageDimensionsAndFormat(path)
+	if err != nil {
+		return err
+	}
+	if err := ValidateImageFormatMatchesExtension(path, format); err != nil {
+		return err
+	}
+	return validateScreenshotDimensionsForSize(path, dims.Width, dims.Height, displayType)
+}

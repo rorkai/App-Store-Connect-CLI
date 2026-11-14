@@ -10,17 +10,6 @@ type GameCenterLeaderboardSetAttributes struct {
 	VendorIdentifier string `json:"vendorIdentifier"`
 }
 
-// GameCenterLeaderboardSetCreateAttributes describes attributes for creating a leaderboard set.
-type GameCenterLeaderboardSetCreateAttributes struct {
-	ReferenceName    string `json:"referenceName"`
-	VendorIdentifier string `json:"vendorIdentifier"`
-}
-
-// GameCenterLeaderboardSetUpdateAttributes describes attributes for updating a leaderboard set.
-type GameCenterLeaderboardSetUpdateAttributes struct {
-	ReferenceName *string `json:"referenceName,omitempty"`
-}
-
 // GameCenterLeaderboardSetRelationships describes relationships for leaderboard sets.
 type GameCenterLeaderboardSetRelationships struct {
 	GameCenterDetail       *Relationship     `json:"gameCenterDetail,omitempty"`
@@ -42,11 +31,6 @@ type GameCenterLeaderboardSetCreateData struct {
 	Relationships *GameCenterLeaderboardSetRelationships   `json:"relationships,omitempty"`
 }
 
-// GameCenterLeaderboardSetCreateRequest is a request to create a leaderboard set.
-type GameCenterLeaderboardSetCreateRequest struct {
-	Data GameCenterLeaderboardSetCreateData `json:"data"`
-}
-
 // GameCenterLeaderboardSetV2CreateData is the data portion of a v2 leaderboard set create request.
 type GameCenterLeaderboardSetV2CreateData struct {
 	Type          ResourceType                             `json:"type"`
@@ -66,23 +50,8 @@ type GameCenterLeaderboardSetVersionInlineCreate struct {
 	ID   string       `json:"id"`
 }
 
-// GameCenterLeaderboardSetUpdateData is the data portion of a leaderboard set update request.
-type GameCenterLeaderboardSetUpdateData struct {
-	Type       ResourceType                              `json:"type"`
-	ID         string                                    `json:"id"`
-	Attributes *GameCenterLeaderboardSetUpdateAttributes `json:"attributes,omitempty"`
-}
-
-// GameCenterLeaderboardSetUpdateRequest is a request to update a leaderboard set.
-type GameCenterLeaderboardSetUpdateRequest struct {
-	Data GameCenterLeaderboardSetUpdateData `json:"data"`
-}
-
 // GameCenterLeaderboardSetsResponse is the response from leaderboard set list endpoints.
 type GameCenterLeaderboardSetsResponse = Response[GameCenterLeaderboardSetAttributes]
-
-// GameCenterLeaderboardSetResponse is the response from leaderboard set detail endpoints.
-type GameCenterLeaderboardSetResponse = SingleResponse[GameCenterLeaderboardSetAttributes]
 
 // GameCenterLeaderboardSetDeleteResult represents CLI output for leaderboard set deletions.
 type GameCenterLeaderboardSetDeleteResult struct {
@@ -150,17 +119,6 @@ type GameCenterLeaderboardSetLocalizationAttributes struct {
 	Name   string `json:"name"`
 }
 
-// GameCenterLeaderboardSetLocalizationCreateAttributes describes attributes for creating a leaderboard set localization.
-type GameCenterLeaderboardSetLocalizationCreateAttributes struct {
-	Locale string `json:"locale"`
-	Name   string `json:"name"`
-}
-
-// GameCenterLeaderboardSetLocalizationUpdateAttributes describes attributes for updating a leaderboard set localization.
-type GameCenterLeaderboardSetLocalizationUpdateAttributes struct {
-	Name *string `json:"name,omitempty"`
-}
-
 // GameCenterLeaderboardSetLocalizationRelationships describes relationships for leaderboard set localizations.
 type GameCenterLeaderboardSetLocalizationRelationships struct {
 	GameCenterLeaderboardSet *Relationship `json:"gameCenterLeaderboardSet"`
@@ -171,11 +129,6 @@ type GameCenterLeaderboardSetLocalizationCreateData struct {
 	Type          ResourceType                                         `json:"type"`
 	Attributes    GameCenterLeaderboardSetLocalizationCreateAttributes `json:"attributes"`
 	Relationships *GameCenterLeaderboardSetLocalizationRelationships   `json:"relationships,omitempty"`
-}
-
-// GameCenterLeaderboardSetLocalizationCreateRequest is a request to create a leaderboard set localization.
-type GameCenterLeaderboardSetLocalizationCreateRequest struct {
-	Data GameCenterLeaderboardSetLocalizationCreateData `json:"data"`
 }
 
 // GameCenterLeaderboardSetLocalizationV2Relationships describes relationships for v2 leaderboard set localizations.
@@ -190,28 +143,8 @@ type GameCenterLeaderboardSetLocalizationV2CreateData struct {
 	Relationships *GameCenterLeaderboardSetLocalizationV2Relationships `json:"relationships,omitempty"`
 }
 
-// GameCenterLeaderboardSetLocalizationV2CreateRequest is a request to create a v2 localization.
-type GameCenterLeaderboardSetLocalizationV2CreateRequest struct {
-	Data GameCenterLeaderboardSetLocalizationV2CreateData `json:"data"`
-}
-
-// GameCenterLeaderboardSetLocalizationUpdateData is the data portion of a leaderboard set localization update request.
-type GameCenterLeaderboardSetLocalizationUpdateData struct {
-	Type       ResourceType                                          `json:"type"`
-	ID         string                                                `json:"id"`
-	Attributes *GameCenterLeaderboardSetLocalizationUpdateAttributes `json:"attributes,omitempty"`
-}
-
-// GameCenterLeaderboardSetLocalizationUpdateRequest is a request to update a leaderboard set localization.
-type GameCenterLeaderboardSetLocalizationUpdateRequest struct {
-	Data GameCenterLeaderboardSetLocalizationUpdateData `json:"data"`
-}
-
 // GameCenterLeaderboardSetLocalizationsResponse is the response from leaderboard set localization list endpoints.
 type GameCenterLeaderboardSetLocalizationsResponse = Response[GameCenterLeaderboardSetLocalizationAttributes]
-
-// GameCenterLeaderboardSetLocalizationResponse is the response from leaderboard set localization detail endpoints.
-type GameCenterLeaderboardSetLocalizationResponse = SingleResponse[GameCenterLeaderboardSetLocalizationAttributes]
 
 // GameCenterLeaderboardSetLocalizationDeleteResult represents CLI output for leaderboard set localization deletions.
 type GameCenterLeaderboardSetLocalizationDeleteResult struct {
@@ -249,16 +182,8 @@ type GameCenterLeaderboardSetReleaseCreateData struct {
 	Relationships *GameCenterLeaderboardSetReleaseRelationships `json:"relationships"`
 }
 
-// GameCenterLeaderboardSetReleaseCreateRequest is a request to create a leaderboard set release.
-type GameCenterLeaderboardSetReleaseCreateRequest struct {
-	Data GameCenterLeaderboardSetReleaseCreateData `json:"data"`
-}
-
 // GameCenterLeaderboardSetReleasesResponse is the response from leaderboard set release list endpoints.
 type GameCenterLeaderboardSetReleasesResponse = Response[GameCenterLeaderboardSetReleaseAttributes]
-
-// GameCenterLeaderboardSetReleaseResponse is the response from leaderboard set release detail endpoints.
-type GameCenterLeaderboardSetReleaseResponse = SingleResponse[GameCenterLeaderboardSetReleaseAttributes]
 
 // GameCenterLeaderboardSetReleaseDeleteResult represents CLI output for leaderboard set release deletions.
 type GameCenterLeaderboardSetReleaseDeleteResult struct {
@@ -320,11 +245,6 @@ type GameCenterLeaderboardSetImageCreateAttributes struct {
 	FileName string `json:"fileName"`
 }
 
-// GameCenterLeaderboardSetImageUpdateAttributes describes attributes for committing an image upload.
-type GameCenterLeaderboardSetImageUpdateAttributes struct {
-	Uploaded *bool `json:"uploaded,omitempty"`
-}
-
 // GameCenterLeaderboardSetImageRelationships describes relationships for leaderboard set images.
 type GameCenterLeaderboardSetImageRelationships struct {
 	GameCenterLeaderboardSetLocalization *Relationship `json:"gameCenterLeaderboardSetLocalization"`
@@ -335,11 +255,6 @@ type GameCenterLeaderboardSetImageCreateData struct {
 	Type          ResourceType                                  `json:"type"`
 	Attributes    GameCenterLeaderboardSetImageCreateAttributes `json:"attributes"`
 	Relationships *GameCenterLeaderboardSetImageRelationships   `json:"relationships"`
-}
-
-// GameCenterLeaderboardSetImageCreateRequest is a request to reserve an image upload.
-type GameCenterLeaderboardSetImageCreateRequest struct {
-	Data GameCenterLeaderboardSetImageCreateData `json:"data"`
 }
 
 // GameCenterLeaderboardSetImageV2Relationships describes relationships for v2 leaderboard set images.
@@ -353,26 +268,6 @@ type GameCenterLeaderboardSetImageV2CreateData struct {
 	Attributes    GameCenterLeaderboardSetImageCreateAttributes `json:"attributes"`
 	Relationships *GameCenterLeaderboardSetImageV2Relationships `json:"relationships"`
 }
-
-// GameCenterLeaderboardSetImageV2CreateRequest is a request to reserve a v2 image upload.
-type GameCenterLeaderboardSetImageV2CreateRequest struct {
-	Data GameCenterLeaderboardSetImageV2CreateData `json:"data"`
-}
-
-// GameCenterLeaderboardSetImageUpdateData is the data portion of an image update (commit) request.
-type GameCenterLeaderboardSetImageUpdateData struct {
-	Type       ResourceType                                   `json:"type"`
-	ID         string                                         `json:"id"`
-	Attributes *GameCenterLeaderboardSetImageUpdateAttributes `json:"attributes,omitempty"`
-}
-
-// GameCenterLeaderboardSetImageUpdateRequest is a request to update a leaderboard set image.
-type GameCenterLeaderboardSetImageUpdateRequest struct {
-	Data GameCenterLeaderboardSetImageUpdateData `json:"data"`
-}
-
-// GameCenterLeaderboardSetImageResponse is the response from leaderboard set image detail endpoints.
-type GameCenterLeaderboardSetImageResponse = SingleResponse[GameCenterLeaderboardSetImageAttributes]
 
 // GameCenterLeaderboardSetImageDeleteResult represents CLI output for leaderboard set image deletions.
 type GameCenterLeaderboardSetImageDeleteResult struct {

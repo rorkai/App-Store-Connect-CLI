@@ -118,12 +118,6 @@ type BuildIconAttributes struct {
 	Name      string        `json:"name,omitempty"`
 }
 
-// BuildsResponse is the response from builds endpoint.
-type BuildsResponse = Response[BuildAttributes]
-
-// BuildResponse is the response from build detail/updates.
-type BuildResponse = SingleResponse[BuildAttributes]
-
 // BuildIconsResponse is the response from build icons endpoint.
 type BuildIconsResponse = Response[BuildIconAttributes]
 
@@ -148,11 +142,6 @@ type BuildUploadCreateData struct {
 	Type          ResourceType              `json:"type"`
 	Attributes    BuildUploadAttributes     `json:"attributes"`
 	Relationships *BuildUploadRelationships `json:"relationships,omitempty"`
-}
-
-// BuildUploadCreateRequest is a request to create a build upload.
-type BuildUploadCreateRequest struct {
-	Data BuildUploadCreateData `json:"data"`
 }
 
 // BuildUploadsResponse is the response from build uploads list endpoint.
@@ -186,11 +175,6 @@ type BuildUploadFileCreateData struct {
 	Relationships *BuildUploadFileRelationships `json:"relationships"`
 }
 
-// BuildUploadFileCreateRequest is a request to create a build upload file.
-type BuildUploadFileCreateRequest struct {
-	Data BuildUploadFileCreateData `json:"data"`
-}
-
 // BuildUploadFilesResponse is the response from build upload files list endpoint.
 type BuildUploadFilesResponse = Response[BuildUploadFileAttributes]
 
@@ -201,18 +185,6 @@ type BuildUploadFileResponse = SingleResourceResponse[BuildUploadFileAttributes]
 type BuildUploadFileUpdateAttributes struct {
 	SourceFileChecksums *Checksums `json:"sourceFileChecksums,omitempty"`
 	Uploaded            *bool      `json:"uploaded,omitempty"`
-}
-
-// BuildUploadFileUpdateData is the data portion of a build upload file update request.
-type BuildUploadFileUpdateData struct {
-	Type       ResourceType                     `json:"type"`
-	ID         string                           `json:"id"`
-	Attributes *BuildUploadFileUpdateAttributes `json:"attributes,omitempty"`
-}
-
-// BuildUploadFileUpdateRequest is a request to update a build upload file.
-type BuildUploadFileUpdateRequest struct {
-	Data BuildUploadFileUpdateData `json:"data"`
 }
 
 // UploadOperation represents a file upload operation with presigned URL.
@@ -312,10 +284,10 @@ func (c *Client) GetBuilds(ctx context.Context, appID string, opts ...BuildsOpti
 	} else {
 		values := url.Values{}
 		// Use /v1/builds endpoint when sorting, limiting, or filtering by
-		// version/processingState/preReleaseVersion/platform/
+		// version/preReleaseVersion.version/processingState/preReleaseVersion/platform/
 		// betaAppReviewSubmission.betaReviewState/expired,
 		// since /v1/apps/{id}/builds doesn't support these
-		if query.sort != "" || query.limit > 0 || query.version != "" || len(query.processingStates) > 0 || len(query.preReleasePlatforms) > 0 || len(query.preReleaseVersionIDs) > 0 || len(query.betaReviewStates) > 0 || query.expired != nil || query.buildAudienceType != "" || len(query.include) > 0 {
+		if query.sort != "" || query.limit > 0 || query.version != "" || query.preReleaseVersion != "" || len(query.processingStates) > 0 || len(query.preReleasePlatforms) > 0 || len(query.preReleaseVersionIDs) > 0 || len(query.betaReviewStates) > 0 || query.expired != nil || query.buildAudienceType != "" || len(query.include) > 0 {
 			path = "/v1/builds"
 			values.Set("filter[app]", appID)
 			if query.sort != "" {
@@ -326,6 +298,9 @@ func (c *Client) GetBuilds(ctx context.Context, appID string, opts ...BuildsOpti
 			}
 			if query.version != "" {
 				values.Set("filter[version]", query.version)
+			}
+			if query.preReleaseVersion != "" {
+				values.Set("filter[preReleaseVersion.version]", query.preReleaseVersion)
 			}
 			if query.buildAudienceType != "" {
 				values.Set("filter[buildAudienceType]", string(query.buildAudienceType))
@@ -384,16 +359,6 @@ func (c *Client) GetBuild(ctx context.Context, buildID string, opts ...BuildOpti
 // GetBuildAppStoreVersion retrieves the app store version for a build.
 func (c *Client) GetBuildAppStoreVersion(ctx context.Context, buildID string) (*AppStoreVersionResponse, error) {
 	return getJSON[AppStoreVersionResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/builds/%s/appStoreVersion", buildID)})
-}
-
-// GetBuildAppEncryptionDeclaration retrieves the encryption declaration for a build.
-func (c *Client) GetBuildAppEncryptionDeclaration(ctx context.Context, buildID string) (*AppEncryptionDeclarationResponse, error) {
-	buildID = strings.TrimSpace(buildID)
-	if buildID == "" {
-		return nil, fmt.Errorf("buildID is required")
-	}
-
-	return getJSON[AppEncryptionDeclarationResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/builds/%s/appEncryptionDeclaration", buildID)})
 }
 
 // BuildUpdateAttributes describes mutable attributes on a build resource.
@@ -489,6 +454,12 @@ func buildUpdateMatchesCurrent(resp *BuildResponse, attrs BuildUpdateAttributes)
 func (c *Client) ExpireBuild(ctx context.Context, buildID string) (*BuildResponse, error) {
 	expired := true
 	return c.UpdateBuild(ctx, buildID, BuildUpdateAttributes{Expired: &expired})
+}
+
+// AddBetaGroupsToBuild adds beta groups to a build for TestFlight distribution.
+func (c *Client) AddBetaGroupsToBuild(ctx context.Context, buildID string, groupIDs []string) error {
+	_, err := c.AddBetaGroupsToBuildWithNotify(ctx, buildID, groupIDs, false)
+	return err
 }
 
 // BuildBetaGroupsNotificationAction describes how notify=true was satisfied.
@@ -618,23 +589,6 @@ func (c *Client) RemoveBetaGroupsFromBuild(ctx context.Context, buildID string, 
 	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/builds/%s/relationships/betaGroups", buildID), payload)
 }
 
-// GetBuildIndividualTesters retrieves individual testers assigned to a build.
-func (c *Client) GetBuildIndividualTesters(ctx context.Context, buildID string, opts ...BuildIndividualTestersOption) (*BetaTestersResponse, error) {
-	query := applyOptions(opts)
-
-	buildID = strings.TrimSpace(buildID)
-	if query.nextURL == "" && buildID == "" {
-		return nil, fmt.Errorf("buildID is required")
-	}
-
-	return getJSON[BetaTestersResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/builds/%s/individualTesters", buildID),
-		Query:       buildBuildIndividualTestersQuery(query),
-		Next:        query.nextURL,
-		NextContext: "buildIndividualTesters",
-	})
-}
-
 // AddIndividualTestersToBuild adds individual testers to a build.
 func (c *Client) AddIndividualTestersToBuild(ctx context.Context, buildID string, testerIDs []string) error {
 	buildID = strings.TrimSpace(buildID)
@@ -723,15 +677,6 @@ func (c *Client) CreateBuildUpload(ctx context.Context, req BuildUploadCreateReq
 	return sendJSON[BuildUploadResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/buildUploads", Payload: req})
 }
 
-// DeleteBuildUpload deletes a build upload by ID.
-func (c *Client) DeleteBuildUpload(ctx context.Context, id string) error {
-	id = strings.TrimSpace(id)
-	if id == "" {
-		return fmt.Errorf("id is required")
-	}
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/buildUploads/%s", id), nil)
-}
-
 // GetBuildUpload retrieves a build upload by ID.
 func (c *Client) GetBuildUpload(ctx context.Context, id string, opts ...BuildUploadOption) (*BuildUploadResponse, error) {
 	id = strings.TrimSpace(id)
@@ -741,33 +686,6 @@ func (c *Client) GetBuildUpload(ctx context.Context, id string, opts ...BuildUpl
 
 	query := applyOptions(opts)
 	return getJSON[BuildUploadResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/buildUploads/%s", id), Query: buildBuildUploadQuery(query)})
-}
-
-// GetBuildUploadFiles retrieves upload files for a build upload.
-func (c *Client) GetBuildUploadFiles(ctx context.Context, uploadID string, opts ...BuildUploadFilesOption) (*BuildUploadFilesResponse, error) {
-	query := applyOptions(opts)
-
-	uploadID = strings.TrimSpace(uploadID)
-	if query.nextURL == "" && uploadID == "" {
-		return nil, fmt.Errorf("uploadID is required")
-	}
-
-	return getJSON[BuildUploadFilesResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/buildUploads/%s/buildUploadFiles", uploadID),
-		Query:       buildBuildUploadFilesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "buildUploadFiles",
-	})
-}
-
-// GetBuildUploadFile retrieves a build upload file by ID.
-func (c *Client) GetBuildUploadFile(ctx context.Context, id string) (*BuildUploadFileResponse, error) {
-	id = strings.TrimSpace(id)
-	if id == "" {
-		return nil, fmt.Errorf("id is required")
-	}
-
-	return getJSON[BuildUploadFileResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/buildUploadFiles/%s", id)})
 }
 
 // CreateBuildUploadFile creates a new build upload file reservation.

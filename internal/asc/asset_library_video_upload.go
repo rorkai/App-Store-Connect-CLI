@@ -31,6 +31,13 @@ type assetLibraryVideoUploadResponse struct {
 	} `json:"data"`
 }
 
+// UploadAssetLibraryVideo reserves, uploads, commits, and waits for a video.
+// A partial result retains the reserved ID when a later operation fails.
+// The caller validates the video and owns the overall upload timeout.
+func (c *Client) UploadAssetLibraryVideo(ctx context.Context, libraryID, fileName string, file *os.File, fileSize int64, requestContext RequestContextFunc) (AssetLibraryVideoUploadResult, error) {
+	return c.UploadAssetLibraryVideoWithCategory(ctx, libraryID, fileName, file, fileSize, "CREATIVE_ASSETS", "", "", requestContext)
+}
+
 // UploadAssetLibraryVideoWithCategory uploads an independently managed video.
 // An empty referenceName leaves Apple's default reference name in place. A
 // non-empty previewFrameTimeCode also makes readiness wait for that frame.

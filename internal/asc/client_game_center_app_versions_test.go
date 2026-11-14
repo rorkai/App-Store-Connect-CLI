@@ -10,6 +10,45 @@ import (
 	"testing"
 )
 
+func TestGetGameCenterAppVersions_WithLimitAndFilter(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/gameCenterAppVersions" {
+			t.Fatalf("expected path /v1/gameCenterAppVersions, got %s", req.URL.Path)
+		}
+		values := req.URL.Query()
+		if values.Get("limit") != "10" {
+			t.Fatalf("expected limit=10, got %q", values.Get("limit"))
+		}
+		if values.Get("filter[enabled]") != "true" {
+			t.Fatalf("expected filter[enabled]=true, got %q", values.Get("filter[enabled]"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetGameCenterAppVersions(context.Background(), Limit[GCAppVersionsOption](10), WithGCAppVersionsEnabled(true)); err != nil {
+		t.Fatalf("GetGameCenterAppVersions() error: %v", err)
+	}
+}
+
+func TestGetGameCenterAppVersions_UsesNextURL(t *testing.T) {
+	next := "https://api.appstoreconnect.apple.com/v1/gameCenterAppVersions?cursor=next"
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.URL.String() != next {
+			t.Fatalf("expected URL %q, got %q", next, req.URL.String())
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetGameCenterAppVersions(context.Background(), NextURL[GCAppVersionsOption](next)); err != nil {
+		t.Fatalf("GetGameCenterAppVersions() error: %v", err)
+	}
+}
+
 func TestGetGameCenterAppVersion(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterAppVersions","id":"gcav-1","attributes":{"enabled":true}}}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -111,6 +150,23 @@ func TestGetGameCenterAppVersionAppStoreVersion(t *testing.T) {
 
 	if _, err := client.GetGameCenterAppVersionAppStoreVersion(context.Background(), "gcav-1"); err != nil {
 		t.Fatalf("GetGameCenterAppVersionAppStoreVersion() error: %v", err)
+	}
+}
+
+func TestGetAppStoreVersionGameCenterAppVersion(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterAppVersions","id":"gcav-1","attributes":{"enabled":true}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appStoreVersions/version-1/gameCenterAppVersion" {
+			t.Fatalf("expected path /v1/appStoreVersions/version-1/gameCenterAppVersion, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetAppStoreVersionGameCenterAppVersion(context.Background(), "version-1"); err != nil {
+		t.Fatalf("GetAppStoreVersionGameCenterAppVersion() error: %v", err)
 	}
 }
 
@@ -294,9 +350,13 @@ func TestGCAppVersionsOptions(t *testing.T) {
 	if query.nextURL != "next" {
 		t.Fatalf("expected nextURL set, got %q", query.nextURL)
 	}
+	WithGCAppVersionsEnabled(true)(query)
 	values, err := url.ParseQuery(buildGCAppVersionsQuery(query))
 	if err != nil {
 		t.Fatalf("parse query: %v", err)
+	}
+	if values.Get("filter[enabled]") != "true" {
+		t.Fatalf("expected filter[enabled]=true, got %q", values.Get("filter[enabled]"))
 	}
 	if values.Get("limit") != "12" {
 		t.Fatalf("expected limit=12, got %q", values.Get("limit"))

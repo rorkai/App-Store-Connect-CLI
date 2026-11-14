@@ -11,7 +11,7 @@ import (
 
 func readPrimaryMachOSignature(t *testing.T, data []byte) (string, *SignerIdentity) {
 	t.Helper()
-	slices, primary, err := readMachOSignatures(bytes.NewReader(data), int64(len(data)))
+	slices, primary, err := readMachOSignaturesCapture(bytes.NewReader(data), int64(len(data)), nil)
 	if err != nil || slices[primary].CodeSignatureError != "" {
 		t.Fatalf("slices=%+v err=%v", slices, err)
 	}
@@ -55,7 +55,7 @@ func TestReadMachOSignaturesMatchesLipoAndCodesignPerSlice(t *testing.T) {
 	if len(want) < 2 {
 		t.Skipf("%s is not universal: %v", path, want)
 	}
-	slices, _, err := readMachOSignatures(bytes.NewReader(data), int64(len(data)))
+	slices, _, err := readMachOSignaturesCapture(bytes.NewReader(data), int64(len(data)), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -114,7 +114,7 @@ func TestReadMachOSignatureClassifiesCodesignOutput(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		slices, _, err := readMachOSignatures(bytes.NewReader(signed), int64(len(signed)))
+		slices, _, err := readMachOSignaturesCapture(bytes.NewReader(signed), int64(len(signed)), nil)
 		if err != nil {
 			t.Fatalf("after %v: %v", step.args, err)
 		}

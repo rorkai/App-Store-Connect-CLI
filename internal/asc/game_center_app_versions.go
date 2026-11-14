@@ -2,39 +2,36 @@ package asc
 
 import (
 	"net/url"
+	"strconv"
 )
-
-// GameCenterAppVersionAttributes represents a Game Center app version resource.
-type GameCenterAppVersionAttributes struct {
-	Enabled bool `json:"enabled,omitempty"`
-}
 
 // GameCenterAppVersionsResponse is the response from app version list endpoints.
 type GameCenterAppVersionsResponse = Response[GameCenterAppVersionAttributes]
-
-// GameCenterAppVersionResponse is the response from app version detail endpoints.
-type GameCenterAppVersionResponse = SingleResponse[GameCenterAppVersionAttributes]
 
 // GCAppVersionsOption is a functional option for Game Center app version queries.
 type GCAppVersionsOption func(*gcAppVersionsQuery)
 
 type gcAppVersionsQuery struct {
 	listQuery
+	enabled []string
+}
+
+// WithGCAppVersionsEnabled filters by enabled status.
+func WithGCAppVersionsEnabled(enabled bool) GCAppVersionsOption {
+	return func(q *gcAppVersionsQuery) {
+		q.enabled = []string{strconv.FormatBool(enabled)}
+	}
 }
 
 func buildGCAppVersionsQuery(query *gcAppVersionsQuery) string {
 	values := url.Values{}
+	addCSV(values, "filter[enabled]", query.enabled)
 	addLimit(values, query.limit)
 	return values.Encode()
 }
 
 // GameCenterAppVersionCreateAttributes describes attributes for creating a Game Center app version.
 type GameCenterAppVersionCreateAttributes struct {
-	Enabled *bool `json:"enabled,omitempty"`
-}
-
-// GameCenterAppVersionUpdateAttributes describes attributes for updating a Game Center app version.
-type GameCenterAppVersionUpdateAttributes struct {
 	Enabled *bool `json:"enabled,omitempty"`
 }
 
@@ -48,21 +45,4 @@ type GameCenterAppVersionCreateData struct {
 	Type          ResourceType                          `json:"type"`
 	Attributes    *GameCenterAppVersionCreateAttributes `json:"attributes,omitempty"`
 	Relationships *GameCenterAppVersionRelationships    `json:"relationships"`
-}
-
-// GameCenterAppVersionCreateRequest is a request to create a Game Center app version.
-type GameCenterAppVersionCreateRequest struct {
-	Data GameCenterAppVersionCreateData `json:"data"`
-}
-
-// GameCenterAppVersionUpdateData is the data portion of an app version update request.
-type GameCenterAppVersionUpdateData struct {
-	Type       ResourceType                          `json:"type"`
-	ID         string                                `json:"id"`
-	Attributes *GameCenterAppVersionUpdateAttributes `json:"attributes,omitempty"`
-}
-
-// GameCenterAppVersionUpdateRequest is a request to update a Game Center app version.
-type GameCenterAppVersionUpdateRequest struct {
-	Data GameCenterAppVersionUpdateData `json:"data"`
 }

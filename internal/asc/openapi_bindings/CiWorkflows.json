@@ -1,0 +1,7 @@
+{
+  "tag": "CiWorkflows",
+  "file": "ci_workflows_gen.go",
+  "operations": [
+    {"operation":"ciWorkflows_deleteInstance","name":"DeleteCiWorkflow","params":["workflowID"],"check":"trim"}
+  ]
+}

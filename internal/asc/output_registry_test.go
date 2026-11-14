@@ -3,16 +3,11 @@ package asc
 import (
 	"errors"
 	"fmt"
-	"os"
 	"reflect"
 	"slices"
 	"strings"
 	"testing"
 )
-
-func renderByRegistry(data any, render func([]string, [][]string)) error {
-	return renderByRegistryTo(os.Stdout, data, render)
-}
 
 func TestOutputRegistry(t *testing.T) {
 	t.Run("render by registry scenarios", runOutputRegistryRenderByRegistryScenarios)

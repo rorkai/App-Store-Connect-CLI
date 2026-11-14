@@ -19,10 +19,46 @@ type GCEnabledVersionsOption func(*gcEnabledVersionsQuery)
 
 type gcEnabledVersionsQuery struct {
 	listQuery
+	platforms      []string
+	versionStrings []string
+	ids            []string
+	sort           []string
+}
+
+// WithGCEnabledVersionsPlatforms filters enabled versions by platform.
+func WithGCEnabledVersionsPlatforms(platforms []string) GCEnabledVersionsOption {
+	return func(q *gcEnabledVersionsQuery) {
+		q.platforms = normalizeList(platforms)
+	}
+}
+
+// WithGCEnabledVersionsVersionStrings filters enabled versions by version string.
+func WithGCEnabledVersionsVersionStrings(versions []string) GCEnabledVersionsOption {
+	return func(q *gcEnabledVersionsQuery) {
+		q.versionStrings = normalizeList(versions)
+	}
+}
+
+// WithGCEnabledVersionsIDs filters enabled versions by ID.
+func WithGCEnabledVersionsIDs(ids []string) GCEnabledVersionsOption {
+	return func(q *gcEnabledVersionsQuery) {
+		q.ids = normalizeList(ids)
+	}
+}
+
+// WithGCEnabledVersionsSort sets the sort fields.
+func WithGCEnabledVersionsSort(values []string) GCEnabledVersionsOption {
+	return func(q *gcEnabledVersionsQuery) {
+		q.sort = normalizeList(values)
+	}
 }
 
 func buildGCEnabledVersionsQuery(query *gcEnabledVersionsQuery) string {
 	values := url.Values{}
+	addCSV(values, "filter[platform]", query.platforms)
+	addCSV(values, "filter[versionString]", query.versionStrings)
+	addCSV(values, "filter[id]", query.ids)
+	addCSV(values, "sort", query.sort)
 	addLimit(values, query.limit)
 	return values.Encode()
 }

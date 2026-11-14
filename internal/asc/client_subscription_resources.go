@@ -204,11 +204,6 @@ func (c *Client) UpdateSubscriptionIntroductoryOffer(ctx context.Context, offerI
 	})
 }
 
-// DeleteSubscriptionIntroductoryOffer deletes an introductory offer.
-func (c *Client) DeleteSubscriptionIntroductoryOffer(ctx context.Context, offerID string) error {
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/subscriptionIntroductoryOffers/%s", strings.TrimSpace(offerID)), nil)
-}
-
 // GetSubscriptionPromotionalOffers retrieves promotional offers for a subscription.
 func (c *Client) GetSubscriptionPromotionalOffers(ctx context.Context, subscriptionID string, opts ...SubscriptionPromotionalOffersOption) (*SubscriptionPromotionalOffersResponse, error) {
 	query := &subscriptionPromotionalOffersQuery{}
@@ -371,11 +366,6 @@ func (c *Client) UpdateSubscriptionPromotionalOffer(ctx context.Context, offerID
 		Path:    fmt.Sprintf("/v1/subscriptionPromotionalOffers/%s", strings.TrimSpace(offerID)),
 		Payload: payload,
 	})
-}
-
-// DeleteSubscriptionPromotionalOffer deletes a promotional offer.
-func (c *Client) DeleteSubscriptionPromotionalOffer(ctx context.Context, offerID string) error {
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/subscriptionPromotionalOffers/%s", strings.TrimSpace(offerID)), nil)
 }
 
 // GetSubscriptionPromotionalOfferPrices retrieves prices for a promotional offer.
@@ -547,17 +537,6 @@ func (c *Client) UpdateSubscriptionOfferCode(ctx context.Context, offerCodeID st
 	})
 }
 
-// GetSubscriptionOfferCodeCustomCodes retrieves custom codes for an offer code.
-func (c *Client) GetSubscriptionOfferCodeCustomCodes(ctx context.Context, offerCodeID string, opts ...SubscriptionOfferCodeCustomCodesOption) (*SubscriptionOfferCodeCustomCodesResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[SubscriptionOfferCodeCustomCodesResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/subscriptionOfferCodes/%s/customCodes", strings.TrimSpace(offerCodeID)),
-		Query:       buildSubscriptionOfferCodeCustomCodesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "subscriptionOfferCodeCustomCodes",
-	})
-}
-
 // GetSubscriptionOfferCodePrices retrieves prices for an offer code.
 func (c *Client) GetSubscriptionOfferCodePrices(ctx context.Context, offerCodeID string, opts ...SubscriptionOfferCodePricesOption) (*SubscriptionOfferCodePricesResponse, error) {
 	query := &subscriptionOfferCodePricesQuery{}
@@ -588,17 +567,6 @@ func (c *Client) GetSubscriptionOfferCodePrices(ctx context.Context, offerCodeID
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 	return &response, nil
-}
-
-// GetSubscriptionPrices retrieves prices for a subscription.
-func (c *Client) GetSubscriptionPrices(ctx context.Context, subscriptionID string, opts ...SubscriptionPricesOption) (*SubscriptionPricesResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[SubscriptionPricesResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/subscriptions/%s/prices", strings.TrimSpace(subscriptionID)),
-		Query:       buildSubscriptionPricesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "subscriptionPrices",
-	})
 }
 
 // GetSubscriptionPricePoints retrieves price points for a subscription.
@@ -785,11 +753,6 @@ func (c *Client) UpdateSubscriptionAppStoreReviewScreenshot(ctx context.Context,
 		Path:    fmt.Sprintf("/v1/subscriptionAppStoreReviewScreenshots/%s", strings.TrimSpace(screenshotID)),
 		Payload: payload,
 	})
-}
-
-// DeleteSubscriptionAppStoreReviewScreenshot deletes a review screenshot.
-func (c *Client) DeleteSubscriptionAppStoreReviewScreenshot(ctx context.Context, screenshotID string) error {
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/subscriptionAppStoreReviewScreenshots/%s", strings.TrimSpace(screenshotID)), nil)
 }
 
 // GetSubscriptionGroupLocalizations retrieves subscription group localizations for a group.

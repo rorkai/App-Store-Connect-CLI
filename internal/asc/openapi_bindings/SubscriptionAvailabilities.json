@@ -1,0 +1,12 @@
+{
+  "tag": "SubscriptionAvailabilities",
+  "file": "subscription_availabilities_gen.go",
+  "types": [
+    "SubscriptionAvailabilityCreateRequest",
+    "SubscriptionAvailabilityResponse"
+  ],
+  "operations": [
+    {"operation":"subscriptionAvailabilities_availableTerritories_getToManyRelated","name":"GetSubscriptionAvailabilityAvailableTerritories","params":["availabilityID"],"check":"require","options":"SubscriptionAvailabilityTerritoriesOption","query":"buildSubscriptionAvailabilityTerritoriesQuery","nextContext":"subscription-availability-territories"},
+    {"operation":"subscriptionAvailabilities_getInstance","name":"GetSubscriptionAvailability","params":["availabilityID"],"check":"require"}
+  ]
+}

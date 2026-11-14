@@ -1,0 +1,10 @@
+{
+  "tag": "Territories",
+  "file": "territories_gen.go",
+  "types": [
+    "TerritoryAttributes"
+  ],
+  "operations": [
+    {"operation":"territories_getCollection","name":"GetTerritories","options":"TerritoriesOption","query":"buildTerritoriesQuery","nextContext":"territories","parseErr":"failed to parse territories response"}
+  ]
+}

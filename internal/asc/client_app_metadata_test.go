@@ -545,6 +545,23 @@ func TestGetAppCategorySubcategories_SendsRequestWithLimit(t *testing.T) {
 	}
 }
 
+func TestGetAlternativeDistributionPackageForVersion_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"alternativeDistributionPackages","id":"pkg-1"}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appStoreVersions/version-1/alternativeDistributionPackage" {
+			t.Fatalf("expected path /v1/appStoreVersions/version-1/alternativeDistributionPackage, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetAlternativeDistributionPackageForVersion(context.Background(), "version-1"); err != nil {
+		t.Fatalf("GetAlternativeDistributionPackageForVersion() error: %v", err)
+	}
+}
+
 func TestGetAppInfo_SendsRequestWithInclude(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":{"type":"appInfos","id":"info-1","attributes":{"state":"READY"}}}`)
 	client := newTestClient(t, func(req *http.Request) {

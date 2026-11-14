@@ -31,6 +31,7 @@ type promotedPurchasesQuery struct {
 	listQuery
 	iapFields          []string
 	subscriptionFields []string
+	include            []string
 }
 
 type territoryAvailabilitiesQuery struct {
@@ -50,6 +51,9 @@ type pricePointsQuery struct {
 
 type appPriceSchedulePricesQuery struct {
 	listQuery
+	startDate        string
+	endDate          string
+	territory        string
 	include          []string
 	priceFields      []string
 	pricePointFields []string
@@ -61,7 +65,7 @@ func buildPromotedPurchasesQuery(query *promotedPurchasesQuery) string {
 	addLimit(values, query.limit)
 	addCSV(values, "fields[inAppPurchases]", query.iapFields)
 	addCSV(values, "fields[subscriptions]", query.subscriptionFields)
-	include := includeWhenFieldsSelected(nil, "inAppPurchaseV2", query.iapFields)
+	include := includeWhenFieldsSelected(query.include, "inAppPurchaseV2", query.iapFields)
 	include = includeWhenFieldsSelected(include, "subscription", query.subscriptionFields)
 	addCSV(values, "include", include)
 	return values.Encode()
@@ -115,6 +119,15 @@ func buildPricePointsQuery(query *pricePointsQuery) string {
 
 func buildAppPriceSchedulePricesQuery(query *appPriceSchedulePricesQuery) string {
 	values := url.Values{}
+	if strings.TrimSpace(query.startDate) != "" {
+		values.Set("filter[startDate]", strings.TrimSpace(query.startDate))
+	}
+	if strings.TrimSpace(query.endDate) != "" {
+		values.Set("filter[endDate]", strings.TrimSpace(query.endDate))
+	}
+	if strings.TrimSpace(query.territory) != "" {
+		values.Set("filter[territory]", strings.TrimSpace(query.territory))
+	}
 	addCSV(values, "include", query.include)
 	addCSV(values, "fields[appPrices]", query.priceFields)
 	addCSV(values, "fields[appPricePoints]", query.pricePointFields)
@@ -222,6 +235,11 @@ func WithPromotedPurchasesSubscriptionFields(fields []string) PromotedPurchasesO
 	return func(q *promotedPurchasesQuery) { q.subscriptionFields = normalizeUniqueList(fields) }
 }
 
+// WithPromotedPurchasesInclude sets the exact promoted-purchase relationship include set.
+func WithPromotedPurchasesInclude(include []string) PromotedPurchasesOption {
+	return func(q *promotedPurchasesQuery) { q.include = normalizeUniqueList(include) }
+}
+
 // WithPricePointsTerritory filters app price points by territory.
 func WithPricePointsTerritory(territory string) PricePointsOption {
 	return func(q *pricePointsQuery) {
@@ -235,6 +253,33 @@ func WithPricePointsTerritory(territory string) PricePointsOption {
 func WithPricePointsInclude(include []string) PricePointsOption {
 	return func(q *pricePointsQuery) {
 		q.include = normalizeList(include)
+	}
+}
+
+// WithAppPriceSchedulePricesStartDate filters schedule prices by inclusive start date.
+func WithAppPriceSchedulePricesStartDate(startDate string) AppPriceSchedulePricesOption {
+	return func(q *appPriceSchedulePricesQuery) {
+		if strings.TrimSpace(startDate) != "" {
+			q.startDate = strings.TrimSpace(startDate)
+		}
+	}
+}
+
+// WithAppPriceSchedulePricesEndDate filters schedule prices by inclusive end date.
+func WithAppPriceSchedulePricesEndDate(endDate string) AppPriceSchedulePricesOption {
+	return func(q *appPriceSchedulePricesQuery) {
+		if strings.TrimSpace(endDate) != "" {
+			q.endDate = strings.TrimSpace(endDate)
+		}
+	}
+}
+
+// WithAppPriceSchedulePricesTerritory filters schedule prices by territory code.
+func WithAppPriceSchedulePricesTerritory(territory string) AppPriceSchedulePricesOption {
+	return func(q *appPriceSchedulePricesQuery) {
+		if strings.TrimSpace(territory) != "" {
+			q.territory = strings.ToUpper(strings.TrimSpace(territory))
+		}
 	}
 }
 

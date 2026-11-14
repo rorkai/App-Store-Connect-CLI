@@ -1,0 +1,7 @@
+{
+  "tag": "AnalyticsReportRequests",
+  "file": "analytics_report_requests_gen.go",
+  "types": [
+    "AnalyticsReportRequestCreateRequest"
+  ]
+}

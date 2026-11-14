@@ -636,7 +636,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 			filtered, err := client.GetReviews(
 				filteredCtx,
 				appID,
-				WithRatings([]int{first.Rating}),
+				WithRating(first.Rating),
 				Limit[ReviewOption](5),
 			)
 			if err != nil {

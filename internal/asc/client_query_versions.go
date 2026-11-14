@@ -144,7 +144,8 @@ type appStoreVersionLocalizationPreviewSetsQuery struct {
 type appStoreVersionLocalizationScreenshotSetsQuery struct {
 	listQuery
 	includedFieldsQuery
-	includeMedia bool
+	includeMedia   bool
+	requestContext RequestContextFunc
 }
 
 type appStoreVersionExperimentsQuery struct {
@@ -608,6 +609,11 @@ func WithAppStoreReviewAttachmentsInclude(include []string) AppStoreReviewAttach
 	return func(q *appStoreReviewAttachmentsQuery) {
 		q.include = normalizeList(include)
 	}
+}
+
+// WithRating filters reviews by a single star rating (1-5).
+func WithRating(rating int) ReviewOption {
+	return WithRatings([]int{rating})
 }
 
 // WithRatings filters reviews by one or more star ratings (1-5). Apple models

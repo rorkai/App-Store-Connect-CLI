@@ -34,6 +34,7 @@ type appClipsQuery struct {
 
 type appClipDefaultExperiencesQuery struct {
 	listQuery
+	releaseWithVersionExists *bool
 }
 
 type appClipDefaultExperienceQuery struct {
@@ -132,6 +133,9 @@ func buildAppClipsQuery(query *appClipsQuery) string {
 
 func buildAppClipDefaultExperiencesQuery(query *appClipDefaultExperiencesQuery) string {
 	values := url.Values{}
+	if query.releaseWithVersionExists != nil {
+		values.Set("exists[releaseWithAppStoreVersion]", strconv.FormatBool(*query.releaseWithVersionExists))
+	}
 	addLimit(values, query.limit)
 	return values.Encode()
 }
@@ -473,6 +477,13 @@ func WithAppSearchKeywordsLocales(locales []string) AppSearchKeywordsOption {
 func WithAppClipsBundleIDs(bundleIDs []string) AppClipsOption {
 	return func(q *appClipsQuery) {
 		q.bundleIDs = normalizeList(bundleIDs)
+	}
+}
+
+// WithAppClipDefaultExperiencesReleaseWithVersionExists filters default experiences by release version presence.
+func WithAppClipDefaultExperiencesReleaseWithVersionExists(exists bool) AppClipDefaultExperiencesOption {
+	return func(q *appClipDefaultExperiencesQuery) {
+		q.releaseWithVersionExists = &exists
 	}
 }
 

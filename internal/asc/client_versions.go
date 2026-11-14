@@ -58,11 +58,6 @@ type AppStoreVersionUpdateData struct {
 	Relationships *AppStoreVersionUpdateRelationships `json:"relationships,omitempty"`
 }
 
-// AppStoreVersionUpdateRequest is a request to update an app store version.
-type AppStoreVersionUpdateRequest struct {
-	Data AppStoreVersionUpdateData `json:"data"`
-}
-
 // AppStoreVersionCreateRelationships describes relationships for app store version create requests.
 type AppStoreVersionCreateRelationships struct {
 	App   *Relationship `json:"app"`
@@ -76,16 +71,8 @@ type AppStoreVersionCreateData struct {
 	Relationships *AppStoreVersionCreateRelationships `json:"relationships"`
 }
 
-// AppStoreVersionCreateRequest is a request to create an app store version.
-type AppStoreVersionCreateRequest struct {
-	Data AppStoreVersionCreateData `json:"data"`
-}
-
 // AppStoreVersionsResponse is the response from app store versions endpoints.
 type AppStoreVersionsResponse = Response[AppStoreVersionAttributes]
-
-// AppStoreVersionResponse is the response from app store version detail.
-type AppStoreVersionResponse = SingleResponse[AppStoreVersionAttributes]
 
 // PreReleaseVersionAttributes describes TestFlight pre-release version metadata.
 type PreReleaseVersionAttributes struct {
@@ -101,6 +88,30 @@ type PreReleaseVersionsResponse = Response[PreReleaseVersionAttributes]
 
 // PreReleaseVersionResponse is the response from pre-release version detail.
 type PreReleaseVersionResponse = SingleResponse[PreReleaseVersionAttributes]
+
+// AppStoreVersionSubmissionCreateData is the data portion of an app store version submission create request.
+type AppStoreVersionSubmissionCreateData struct {
+	Type          ResourceType                            `json:"type"`
+	Relationships *AppStoreVersionSubmissionRelationships `json:"relationships"`
+}
+
+// AppStoreVersionSubmissionCreateRequest is a request to create an app store version submission.
+type AppStoreVersionSubmissionCreateRequest struct {
+	Data AppStoreVersionSubmissionCreateData `json:"data"`
+}
+
+// AppStoreVersionSubmissionRelationships describes the relationships for an app store version submission.
+type AppStoreVersionSubmissionRelationships struct {
+	AppStoreVersion *Relationship `json:"appStoreVersion"`
+}
+
+// AppStoreVersionSubmissionAttributes describes an app store version submission resource.
+type AppStoreVersionSubmissionAttributes struct {
+	CreatedDate *string `json:"createdDate,omitempty"`
+}
+
+// AppStoreVersionSubmissionResponse is the response from app store version submission endpoint.
+type AppStoreVersionSubmissionResponse = SingleResourceResponse[AppStoreVersionSubmissionAttributes]
 
 // AppStoreVersionSubmissionResource represents a submission with relationships.
 type AppStoreVersionSubmissionResource struct {
@@ -121,6 +132,11 @@ type AppStoreVersionSubmissionResourceResponse struct {
 
 // AppStoreVersionBuildRelationshipUpdateRequest is a request to attach a build to a version.
 type AppStoreVersionBuildRelationshipUpdateRequest struct {
+	Data ResourceData `json:"data"`
+}
+
+// AppStoreVersionAppClipDefaultExperienceRelationshipUpdateRequest is a request to attach an App Clip default experience to a version.
+type AppStoreVersionAppClipDefaultExperienceRelationshipUpdateRequest struct {
 	Data ResourceData `json:"data"`
 }
 
@@ -145,12 +161,6 @@ func (c *Client) GetPreReleaseVersions(ctx context.Context, appID string, opts .
 		Next:        query.nextURL,
 		NextContext: "preReleaseVersions",
 	})
-}
-
-// GetPreReleaseVersion retrieves a TestFlight pre-release version by ID.
-func (c *Client) GetPreReleaseVersion(ctx context.Context, id string) (*PreReleaseVersionResponse, error) {
-	id = strings.TrimSpace(id)
-	return getJSON[PreReleaseVersionResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/preReleaseVersions/%s", id)})
 }
 
 // GetAppStoreVersion retrieves an app store version by ID.
@@ -219,12 +229,6 @@ func (c *Client) UpdateAppStoreVersionWithBuild(ctx context.Context, versionID, 
 	return sendJSON[AppStoreVersionResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/appStoreVersions/%s", strings.TrimSpace(versionID)), Payload: payload})
 }
 
-// DeleteAppStoreVersion deletes an app store version.
-// Only versions in PREPARE_FOR_SUBMISSION state can be deleted.
-func (c *Client) DeleteAppStoreVersion(ctx context.Context, versionID string) error {
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/appStoreVersions/%s", strings.TrimSpace(versionID)), nil)
-}
-
 // AttachBuildToVersion attaches a build to an app store version.
 func (c *Client) AttachBuildToVersion(ctx context.Context, versionID, buildID string) error {
 	request := AppStoreVersionBuildRelationshipUpdateRequest{
@@ -236,14 +240,49 @@ func (c *Client) AttachBuildToVersion(ctx context.Context, versionID, buildID st
 	return sendNoContent(ctx, c, "PATCH", fmt.Sprintf("/v1/appStoreVersions/%s/relationships/build", versionID), request)
 }
 
+// AttachAppClipDefaultExperienceToVersion attaches an App Clip default experience to an app store version.
+func (c *Client) AttachAppClipDefaultExperienceToVersion(ctx context.Context, versionID, experienceID string) error {
+	versionID = strings.TrimSpace(versionID)
+	experienceID = strings.TrimSpace(experienceID)
+	if versionID == "" {
+		return fmt.Errorf("versionID is required")
+	}
+	if experienceID == "" {
+		return fmt.Errorf("experienceID is required")
+	}
+
+	request := AppStoreVersionAppClipDefaultExperienceRelationshipUpdateRequest{
+		Data: ResourceData{
+			Type: ResourceTypeAppClipDefaultExperiences,
+			ID:   experienceID,
+		},
+	}
+	return sendNoContent(ctx, c, "PATCH", fmt.Sprintf("/v1/appStoreVersions/%s/relationships/appClipDefaultExperience", versionID), request)
+}
+
 // GetAppStoreVersionBuild retrieves the build attached to a version.
 func (c *Client) GetAppStoreVersionBuild(ctx context.Context, versionID string) (*BuildResponse, error) {
 	return getJSON[BuildResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appStoreVersions/%s/build", versionID)})
 }
 
+// GetAppStoreVersionSubmissionResource retrieves a submission by submission ID.
+func (c *Client) GetAppStoreVersionSubmissionResource(ctx context.Context, submissionID string) (*AppStoreVersionSubmissionResourceResponse, error) {
+	return getJSON[AppStoreVersionSubmissionResourceResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appStoreVersionSubmissions/%s", submissionID)})
+}
+
 // GetAppStoreVersionSubmissionForVersion retrieves a submission by version ID.
 func (c *Client) GetAppStoreVersionSubmissionForVersion(ctx context.Context, versionID string) (*AppStoreVersionSubmissionResourceResponse, error) {
 	return getJSON[AppStoreVersionSubmissionResourceResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appStoreVersions/%s/appStoreVersionSubmission", versionID)})
+}
+
+// CreateAppStoreVersionSubmission creates a new app store version submission.
+func (c *Client) CreateAppStoreVersionSubmission(ctx context.Context, req AppStoreVersionSubmissionCreateRequest) (*AppStoreVersionSubmissionResponse, error) {
+	return sendJSON[AppStoreVersionSubmissionResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/appStoreVersionSubmissions", Payload: req})
+}
+
+// GetAppStoreVersionSubmission retrieves an app store version submission by ID.
+func (c *Client) GetAppStoreVersionSubmission(ctx context.Context, id string) (*AppStoreVersionSubmissionResponse, error) {
+	return getJSON[AppStoreVersionSubmissionResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appStoreVersionSubmissions/%s", id)})
 }
 
 // DeleteAppStoreVersionSubmission deletes an app store version submission.

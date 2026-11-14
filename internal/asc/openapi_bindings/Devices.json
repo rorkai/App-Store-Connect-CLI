@@ -1,0 +1,16 @@
+{
+  "tag": "Devices",
+  "file": "devices_gen.go",
+  "types": [
+    "DeviceCreateData",
+    "DeviceCreateRequest",
+    "DeviceResponse",
+    "DeviceUpdateData",
+    "DeviceUpdateRequest",
+    "DevicesResponse"
+  ],
+  "operations": [
+    {"operation":"devices_createInstance","name":"CreateDevice"},
+    {"operation":"devices_getCollection","name":"GetDevices","options":"DevicesOption","query":"buildDevicesQuery","nextContext":"devices"}
+  ]
+}

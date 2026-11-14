@@ -62,6 +62,16 @@ func validateBundleIDsRequest(query *bundleIDsQuery) error {
 	return err
 }
 
+// BundleIDsRequestRequiresSplit reports whether the request must split its
+// identifier filter to stay within the supported request URL length.
+func BundleIDsRequestRequiresSplit(opts ...BundleIDsOption) bool {
+	query := &bundleIDsQuery{splitPagination: true}
+	for _, opt := range opts {
+		opt(query)
+	}
+	return query.nextURL == "" && shouldSplitBundleIDsIdentifierFilter(query)
+}
+
 // GetBundleIDs retrieves the list of bundle IDs.
 func (c *Client) GetBundleIDs(ctx context.Context, opts ...BundleIDsOption) (*BundleIDsResponse, error) {
 	query := &bundleIDsQuery{splitPagination: true}
@@ -396,12 +406,6 @@ func splitBundleIDsIdentifierFilter(query *bundleIDsQuery) ([][]string, error) {
 	return chunks, nil
 }
 
-// GetBundleID retrieves a single bundle ID by ID.
-func (c *Client) GetBundleID(ctx context.Context, id string) (*BundleIDResponse, error) {
-	id = strings.TrimSpace(id)
-	return getJSON[BundleIDResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/bundleIds/%s", id)})
-}
-
 // CreateBundleID creates a new bundle ID.
 func (c *Client) CreateBundleID(ctx context.Context, attrs BundleIDCreateAttributes) (*BundleIDResponse, error) {
 	request := BundleIDCreateRequest{
@@ -424,12 +428,6 @@ func (c *Client) UpdateBundleID(ctx context.Context, id string, attrs BundleIDUp
 		},
 	}
 	return sendJSON[BundleIDResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/bundleIds/%s", id), Payload: request})
-}
-
-// DeleteBundleID deletes a bundle ID by ID.
-func (c *Client) DeleteBundleID(ctx context.Context, id string) error {
-	id = strings.TrimSpace(id)
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/bundleIds/%s", id), nil)
 }
 
 // GetBundleIDCapabilities retrieves capabilities for a bundle ID.
@@ -478,23 +476,6 @@ func (c *Client) UpdateBundleIDCapability(ctx context.Context, capabilityID stri
 		},
 	}
 	return sendJSON[BundleIDCapabilityResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/bundleIdCapabilities/%s", capabilityID), Payload: request})
-}
-
-// DeleteBundleIDCapability deletes a bundle ID capability by ID.
-func (c *Client) DeleteBundleIDCapability(ctx context.Context, capabilityID string) error {
-	capabilityID = strings.TrimSpace(capabilityID)
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/bundleIdCapabilities/%s", capabilityID), nil)
-}
-
-// GetCertificates retrieves the list of certificates.
-func (c *Client) GetCertificates(ctx context.Context, opts ...CertificatesOption) (*CertificatesResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[CertificatesResponse](ctx, c, readRequest{
-		Path:        "/v1/certificates",
-		Query:       buildCertificatesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "certificates",
-	})
 }
 
 // GetCertificate retrieves a single certificate by ID.
@@ -600,21 +581,15 @@ func (c *Client) UpdateCertificate(ctx context.Context, id string, attrs Certifi
 	return sendJSON[CertificateResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/certificates/%s", id), Payload: request})
 }
 
-// RevokeCertificate revokes a certificate by ID.
-func (c *Client) RevokeCertificate(ctx context.Context, id string) error {
-	id = strings.TrimSpace(id)
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/certificates/%s", id), nil)
-}
-
-// GetProfiles retrieves the list of profiles.
-func (c *Client) GetProfiles(ctx context.Context, opts ...ProfilesOption) (*ProfilesResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[ProfilesResponse](ctx, c, readRequest{
-		Path:        "/v1/profiles",
-		Query:       buildProfilesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "profiles",
-	})
+// RegisterDevice registers a new device.
+func (c *Client) RegisterDevice(ctx context.Context, attrs DeviceCreateAttributes) (*DeviceResponse, error) {
+	request := DeviceCreateRequest{
+		Data: DeviceCreateData{
+			Type:       ResourceTypeDevices,
+			Attributes: attrs,
+		},
+	}
+	return sendJSON[DeviceResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/devices", Payload: request})
 }
 
 // GetProfile retrieves a single profile by ID.
@@ -622,12 +597,6 @@ func (c *Client) GetProfile(ctx context.Context, id string, opts ...ProfilesOpti
 	id = strings.TrimSpace(id)
 	query := applyOptions(opts)
 	return getJSON[ProfileResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/profiles/%s", id), Query: buildProfilesQuery(query)})
-}
-
-// GetProfileBundleID retrieves the bundle ID for a profile.
-func (c *Client) GetProfileBundleID(ctx context.Context, profileID string) (*BundleIDResponse, error) {
-	profileID = strings.TrimSpace(profileID)
-	return getJSON[BundleIDResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/profiles/%s/bundleId", profileID)})
 }
 
 // GetProfileCertificates retrieves certificates for a profile.
@@ -652,12 +621,6 @@ func (c *Client) GetProfileDevices(ctx context.Context, profileID string, opts .
 		Next:        query.nextURL,
 		NextContext: "profileDevices",
 	})
-}
-
-// GetProfileBundleIDRelationship retrieves the bundle ID linkage for a profile.
-func (c *Client) GetProfileBundleIDRelationship(ctx context.Context, profileID string) (*ProfileBundleIDLinkageResponse, error) {
-	profileID = strings.TrimSpace(profileID)
-	return getJSON[ProfileBundleIDLinkageResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/profiles/%s/relationships/bundleId", profileID)})
 }
 
 // GetProfileCertificatesRelationships retrieves certificate linkages for a profile.
@@ -731,10 +694,4 @@ func (c *Client) CreateProfile(ctx context.Context, attrs ProfileCreateAttribute
 		},
 	}
 	return sendJSON[ProfileResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/profiles", Payload: request})
-}
-
-// DeleteProfile deletes a profile by ID.
-func (c *Client) DeleteProfile(ctx context.Context, id string) error {
-	id = strings.TrimSpace(id)
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/profiles/%s", id), nil)
 }

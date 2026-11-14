@@ -1,0 +1,7 @@
+{
+  "tag": "BetaTesterInvitations",
+  "file": "beta_tester_invitations_gen.go",
+  "types": [
+    "BetaTesterInvitationCreateRequest"
+  ]
+}

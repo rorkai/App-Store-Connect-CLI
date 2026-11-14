@@ -104,7 +104,7 @@ func TestAssetLibraryImageProgress(t *testing.T) {
 			})
 			file := createTempAssetFile(t, []byte("abc"))
 			defer file.Close()
-			result, err := client.UploadAssetLibraryImageWithCategory(ctx, "secret-library", "secret-name.png", file, 3, "CREATIVE_ASSETS", "", nil)
+			result, err := client.UploadAssetLibraryImage(ctx, "secret-library", "secret-name.png", file, 3, nil)
 			if outcome == "commit-still-awaiting" || outcome == "commit-rejected" {
 				wantPolls := 0
 				if outcome == "commit-still-awaiting" {
@@ -220,7 +220,7 @@ func TestAssetLibraryImageProgressConcurrentFailureStatus(t *testing.T) {
 	})
 	file := createTempAssetFile(t, []byte("ab"))
 	defer file.Close()
-	result, err := client.UploadAssetLibraryImageWithCategory(ctx, "library", "file.png", file, 2, "CREATIVE_ASSETS", "", nil)
+	result, err := client.UploadAssetLibraryImage(ctx, "library", "file.png", file, 2, nil)
 	if err == nil || failed.Stage != "upload" || failed.HTTPStatus != 403 || failed.ErrorCode != "http_error" {
 		t.Fatalf("wrong failure event: %+v, error %v", failed, err)
 	}

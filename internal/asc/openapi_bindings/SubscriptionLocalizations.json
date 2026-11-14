@@ -1,0 +1,14 @@
+{
+  "tag": "SubscriptionLocalizations",
+  "file": "subscription_localizations_gen.go",
+  "types": [
+    "SubscriptionLocalizationAttributes",
+    "SubscriptionLocalizationCreateRequest",
+    "SubscriptionLocalizationV2Attributes",
+    "SubscriptionLocalizationV2CreateRequest",
+    "SubscriptionLocalizationV2UpdateRequest"
+  ],
+  "operations": [
+    {"operation":"subscriptionLocalizationsV2_deleteInstance","name":"DeleteSubscriptionLocalizationV2","params":["localizationID"],"check":"require","messages":["localization ID is required"]}
+  ]
+}

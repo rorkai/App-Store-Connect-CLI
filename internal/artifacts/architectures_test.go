@@ -18,7 +18,7 @@ func signedSlice(t *testing.T, chain artifactstest.Chain, cpuType, cpuSubtype ui
 func inspectExecutable(t *testing.T, executable []byte) IPAManifest {
 	t.Helper()
 	ipa := signedIPA(t, executable, nil)
-	manifest, err := InspectIPA(bytes.NewReader(ipa), int64(len(ipa)), false, false)
+	manifest, err := InspectIPAWithOptions(bytes.NewReader(ipa), int64(len(ipa)), IPAOptions{IncludeEntitlements: false, IncludeProfile: false})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -191,7 +191,7 @@ func TestInspectIPAStoredUniversalExecutableSkipsCodePages(t *testing.T) {
 		t.Fatal(err)
 	}
 	reader := &artifactReadBudget{ReaderAt: bytes.NewReader(buffer.Bytes()), remaining: 1 << 20}
-	manifest, err := InspectIPA(reader, int64(buffer.Len()), false, false)
+	manifest, err := InspectIPAWithOptions(reader, int64(buffer.Len()), IPAOptions{IncludeEntitlements: false, IncludeProfile: false})
 	if err != nil || len(manifest.Architectures) != 2 || manifest.Architectures[1].CodeSignature != "signed" || !*manifest.SignerConsistent {
 		t.Fatalf("manifest=%+v err=%v", manifest, err)
 	}

@@ -1,0 +1,16 @@
+{
+  "tag": "Webhooks",
+  "file": "webhooks_gen.go",
+  "types": [
+    "WebhookCreateRequest",
+    "WebhookResponse",
+    "WebhookUpdateData",
+    "WebhookUpdateRequest"
+  ],
+  "operations": [
+    {"operation":"webhooks_deleteInstance","name":"DeleteWebhook","params":["webhookID"]},
+    {"operation":"webhooks_deliveries_getToManyRelated","name":"GetWebhookDeliveries","params":["webhookID"],"options":"WebhookDeliveriesOption","query":"buildWebhookDeliveriesQuery","nextContext":"webhookDeliveries","parseErr":"failed to parse webhook deliveries response"},
+    {"operation":"webhooks_deliveries_getToManyRelationship","name":"GetWebhookDeliveriesRelationships","params":["webhookID"],"options":"LinkagesOption","query":"buildLinkagesQuery","nextContext":"webhookDeliveries relationships","parseErr":"failed to parse webhook deliveries relationships response"},
+    {"operation":"webhooks_getInstance","name":"GetWebhook","params":["webhookID"],"check":"trim","parseErr":"failed to parse webhook response"}
+  ]
+}

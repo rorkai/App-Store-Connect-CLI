@@ -1,0 +1,14 @@
+{
+  "tag": "AppClipAdvancedExperienceImages",
+  "file": "app_clip_advanced_experience_images_gen.go",
+  "types": [
+    "AppClipAdvancedExperienceImageCreateData",
+    "AppClipAdvancedExperienceImageCreateRequest",
+    "AppClipAdvancedExperienceImageUpdateAttributes",
+    "AppClipAdvancedExperienceImageUpdateData",
+    "AppClipAdvancedExperienceImageUpdateRequest"
+  ],
+  "operations": [
+    {"operation":"appClipAdvancedExperienceImages_getInstance","name":"GetAppClipAdvancedExperienceImage","params":["imageID"],"check":"require"}
+  ]
+}

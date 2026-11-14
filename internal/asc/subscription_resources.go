@@ -1,13 +1,5 @@
 package asc
 
-// SubscriptionLocalizationAttributes describes a subscription localization resource.
-type SubscriptionLocalizationAttributes struct {
-	Name        string `json:"name,omitempty"`
-	Locale      string `json:"locale,omitempty"`
-	Description string `json:"description,omitempty"`
-	State       string `json:"state,omitempty"`
-}
-
 // SubscriptionLocalizationCreateAttributes describes attributes for creating a localization.
 type SubscriptionLocalizationCreateAttributes struct {
 	Name        string `json:"name"`
@@ -25,11 +17,6 @@ type SubscriptionLocalizationCreateData struct {
 	Type          ResourceType                             `json:"type"`
 	Attributes    SubscriptionLocalizationCreateAttributes `json:"attributes"`
 	Relationships *SubscriptionLocalizationRelationships   `json:"relationships,omitempty"`
-}
-
-// SubscriptionLocalizationCreateRequest is a request to create a localization.
-type SubscriptionLocalizationCreateRequest struct {
-	Data SubscriptionLocalizationCreateData `json:"data"`
 }
 
 // SubscriptionImageAttributes describes a subscription image resource.
@@ -63,11 +50,6 @@ type SubscriptionIntroductoryOfferCreateAttributes struct {
 	TargetSubscriptionPlanType SubscriptionPlanType      `json:"targetSubscriptionPlanType,omitempty"`
 }
 
-// SubscriptionIntroductoryOfferUpdateAttributes describes attributes for updating an introductory offer.
-type SubscriptionIntroductoryOfferUpdateAttributes struct {
-	EndDate *string `json:"endDate,omitempty"`
-}
-
 // SubscriptionIntroductoryOfferRelationships describes relationships for introductory offers.
 type SubscriptionIntroductoryOfferRelationships struct {
 	Subscription           *Relationship `json:"subscription"`
@@ -82,21 +64,11 @@ type SubscriptionIntroductoryOfferCreateData struct {
 	Relationships *SubscriptionIntroductoryOfferRelationships   `json:"relationships,omitempty"`
 }
 
-// SubscriptionIntroductoryOfferCreateRequest is a request to create an introductory offer.
-type SubscriptionIntroductoryOfferCreateRequest struct {
-	Data SubscriptionIntroductoryOfferCreateData `json:"data"`
-}
-
 // SubscriptionIntroductoryOfferUpdateData is the data portion of an introductory offer update request.
 type SubscriptionIntroductoryOfferUpdateData struct {
 	Type       ResourceType                                  `json:"type"`
 	ID         string                                        `json:"id"`
 	Attributes SubscriptionIntroductoryOfferUpdateAttributes `json:"attributes"`
-}
-
-// SubscriptionIntroductoryOfferUpdateRequest is a request to update an introductory offer.
-type SubscriptionIntroductoryOfferUpdateRequest struct {
-	Data SubscriptionIntroductoryOfferUpdateData `json:"data"`
 }
 
 // SubscriptionPromotionalOfferAttributes describes a subscription promotional offer.
@@ -170,11 +142,6 @@ type SubscriptionPromotionalOfferUpdateData struct {
 	Relationships *SubscriptionPromotionalOfferUpdateRelationships `json:"relationships,omitempty"`
 }
 
-// SubscriptionPromotionalOfferUpdateRequest is a request to update a promotional offer.
-type SubscriptionPromotionalOfferUpdateRequest struct {
-	Data SubscriptionPromotionalOfferUpdateData `json:"data"`
-}
-
 // SubscriptionPromotionalOfferPriceAttributes describes promotional offer price resources.
 type SubscriptionPromotionalOfferPriceAttributes struct{}
 
@@ -211,11 +178,6 @@ type SubscriptionOfferCodePrice struct {
 	PricePointID string
 }
 
-// SubscriptionOfferCodeUpdateAttributes describes attributes for updating an offer code.
-type SubscriptionOfferCodeUpdateAttributes struct {
-	Active *bool `json:"active,omitempty"`
-}
-
 // SubscriptionOfferCodeRelationships describes relationships for offer codes.
 type SubscriptionOfferCodeRelationships struct {
 	Subscription Relationship     `json:"subscription"`
@@ -242,29 +204,8 @@ type SubscriptionOfferCodeUpdateData struct {
 	Attributes SubscriptionOfferCodeUpdateAttributes `json:"attributes"`
 }
 
-// SubscriptionOfferCodeUpdateRequest is a request to update an offer code.
-type SubscriptionOfferCodeUpdateRequest struct {
-	Data SubscriptionOfferCodeUpdateData `json:"data"`
-}
-
-// SubscriptionOfferCodeCustomCodeAttributes describes custom offer codes.
-type SubscriptionOfferCodeCustomCodeAttributes struct {
-	CustomCode     string `json:"customCode,omitempty"`
-	NumberOfCodes  int    `json:"numberOfCodes,omitempty"`
-	CreatedDate    string `json:"createdDate,omitempty"`
-	ExpirationDate string `json:"expirationDate,omitempty"`
-	Active         bool   `json:"active,omitempty"`
-}
-
 // SubscriptionOfferCodePriceAttributes describes offer code price resources.
 type SubscriptionOfferCodePriceAttributes struct{}
-
-// SubscriptionPricePointAttributes describes subscription price points.
-type SubscriptionPricePointAttributes struct {
-	CustomerPrice string `json:"customerPrice,omitempty"`
-	Proceeds      string `json:"proceeds,omitempty"`
-	ProceedsYear2 string `json:"proceedsYear2,omitempty"`
-}
 
 // SubscriptionAppStoreReviewScreenshotAttributes describes a subscription review screenshot.
 type SubscriptionAppStoreReviewScreenshotAttributes struct {
@@ -284,12 +225,6 @@ type SubscriptionAppStoreReviewScreenshotCreateAttributes struct {
 	FileName string `json:"fileName"`
 }
 
-// SubscriptionAppStoreReviewScreenshotUpdateAttributes describes attributes for updating review screenshots.
-type SubscriptionAppStoreReviewScreenshotUpdateAttributes struct {
-	SourceFileChecksum *string `json:"sourceFileChecksum,omitempty"`
-	Uploaded           *bool   `json:"uploaded,omitempty"`
-}
-
 // SubscriptionAppStoreReviewScreenshotRelationships describes relationships for review screenshots.
 type SubscriptionAppStoreReviewScreenshotRelationships struct {
 	Subscription *Relationship `json:"subscription"`
@@ -302,29 +237,11 @@ type SubscriptionAppStoreReviewScreenshotCreateData struct {
 	Relationships *SubscriptionAppStoreReviewScreenshotRelationships   `json:"relationships,omitempty"`
 }
 
-// SubscriptionAppStoreReviewScreenshotCreateRequest is a request to create review screenshots.
-type SubscriptionAppStoreReviewScreenshotCreateRequest struct {
-	Data SubscriptionAppStoreReviewScreenshotCreateData `json:"data"`
-}
-
 // SubscriptionAppStoreReviewScreenshotUpdateData is the data portion of an update request.
 type SubscriptionAppStoreReviewScreenshotUpdateData struct {
 	Type       ResourceType                                         `json:"type"`
 	ID         string                                               `json:"id"`
 	Attributes SubscriptionAppStoreReviewScreenshotUpdateAttributes `json:"attributes"`
-}
-
-// SubscriptionAppStoreReviewScreenshotUpdateRequest is a request to update review screenshots.
-type SubscriptionAppStoreReviewScreenshotUpdateRequest struct {
-	Data SubscriptionAppStoreReviewScreenshotUpdateData `json:"data"`
-}
-
-// SubscriptionGroupLocalizationAttributes describes a subscription group localization.
-type SubscriptionGroupLocalizationAttributes struct {
-	Name          string `json:"name,omitempty"`
-	CustomAppName string `json:"customAppName,omitempty"`
-	Locale        string `json:"locale,omitempty"`
-	State         string `json:"state,omitempty"`
 }
 
 // SubscriptionGroupLocalizationCreateAttributes describes attributes for creating group localizations.
@@ -344,11 +261,6 @@ type SubscriptionGroupLocalizationCreateData struct {
 	Type          ResourceType                                  `json:"type"`
 	Attributes    SubscriptionGroupLocalizationCreateAttributes `json:"attributes"`
 	Relationships *SubscriptionGroupLocalizationRelationships   `json:"relationships,omitempty"`
-}
-
-// SubscriptionGroupLocalizationCreateRequest is a request to create group localizations.
-type SubscriptionGroupLocalizationCreateRequest struct {
-	Data SubscriptionGroupLocalizationCreateData `json:"data"`
 }
 
 // Response types for subscription resources.

@@ -1,0 +1,13 @@
+{
+  "tag": "InAppPurchaseLocalizations",
+  "file": "in_app_purchase_localizations_gen.go",
+  "types": [
+    "InAppPurchaseLocalizationCreateRequest",
+    "InAppPurchaseLocalizationResponse",
+    "InAppPurchaseLocalizationV2CreateRequest",
+    "InAppPurchaseLocalizationV2UpdateRequest"
+  ],
+  "operations": [
+    {"operation":"inAppPurchaseLocalizationsV2_deleteInstance","name":"DeleteInAppPurchaseLocalizationV2","params":["localizationID"],"check":"require"}
+  ]
+}

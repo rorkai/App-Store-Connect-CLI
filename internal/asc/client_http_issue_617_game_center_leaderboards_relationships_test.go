@@ -11,6 +11,10 @@ import (
 func TestIssue617_GameCenterLeaderboardRelationshipEndpoints_Mutations(t *testing.T) {
 	ctx := context.Background()
 
+	type toOneRequest struct {
+		Data ResourceData `json:"data"`
+	}
+
 	tests := []struct {
 		name       string
 		wantMethod string
@@ -106,6 +110,114 @@ func TestIssue617_GameCenterLeaderboardRelationshipEndpoints_Mutations(t *testin
 			},
 			call: func(client *Client) error {
 				return client.RemoveGameCenterLeaderboardSetMembersV2(ctx, "set-1", []string{"lb-1"})
+			},
+		},
+		{
+			name:       "UpdateGameCenterLeaderboardSetGroupLeaderboardSetRelationship (PATCH v1)",
+			wantMethod: http.MethodPatch,
+			wantPath:   "/v1/gameCenterLeaderboardSets/set-1/relationships/groupLeaderboardSet",
+			wantBodyFn: func(t *testing.T, body []byte) {
+				t.Helper()
+				var got toOneRequest
+				if err := json.Unmarshal(body, &got); err != nil {
+					t.Fatalf("unmarshal body: %v", err)
+				}
+				if got.Data.Type != ResourceTypeGameCenterLeaderboardSets || got.Data.ID != "set-2" {
+					t.Fatalf("unexpected data: %#v", got.Data)
+				}
+			},
+			call: func(client *Client) error {
+				return client.UpdateGameCenterLeaderboardSetGroupLeaderboardSetRelationship(ctx, "set-1", "set-2")
+			},
+		},
+		{
+			name:       "UpdateGameCenterLeaderboardActivityRelationship (PATCH v1)",
+			wantMethod: http.MethodPatch,
+			wantPath:   "/v1/gameCenterLeaderboards/lb-1/relationships/activity",
+			wantBodyFn: func(t *testing.T, body []byte) {
+				t.Helper()
+				var got toOneRequest
+				if err := json.Unmarshal(body, &got); err != nil {
+					t.Fatalf("unmarshal body: %v", err)
+				}
+				if got.Data.Type != ResourceTypeGameCenterActivities || got.Data.ID != "act-1" {
+					t.Fatalf("unexpected data: %#v", got.Data)
+				}
+			},
+			call: func(client *Client) error {
+				return client.UpdateGameCenterLeaderboardActivityRelationship(ctx, "lb-1", "act-1")
+			},
+		},
+		{
+			name:       "UpdateGameCenterLeaderboardChallengeRelationship (PATCH v1)",
+			wantMethod: http.MethodPatch,
+			wantPath:   "/v1/gameCenterLeaderboards/lb-1/relationships/challenge",
+			wantBodyFn: func(t *testing.T, body []byte) {
+				t.Helper()
+				var got toOneRequest
+				if err := json.Unmarshal(body, &got); err != nil {
+					t.Fatalf("unmarshal body: %v", err)
+				}
+				if got.Data.Type != ResourceTypeGameCenterChallenges || got.Data.ID != "chal-1" {
+					t.Fatalf("unexpected data: %#v", got.Data)
+				}
+			},
+			call: func(client *Client) error {
+				return client.UpdateGameCenterLeaderboardChallengeRelationship(ctx, "lb-1", "chal-1")
+			},
+		},
+		{
+			name:       "UpdateGameCenterLeaderboardGroupLeaderboardRelationship (PATCH v1)",
+			wantMethod: http.MethodPatch,
+			wantPath:   "/v1/gameCenterLeaderboards/lb-1/relationships/groupLeaderboard",
+			wantBodyFn: func(t *testing.T, body []byte) {
+				t.Helper()
+				var got toOneRequest
+				if err := json.Unmarshal(body, &got); err != nil {
+					t.Fatalf("unmarshal body: %v", err)
+				}
+				if got.Data.Type != ResourceTypeGameCenterLeaderboards || got.Data.ID != "lb-2" {
+					t.Fatalf("unexpected data: %#v", got.Data)
+				}
+			},
+			call: func(client *Client) error {
+				return client.UpdateGameCenterLeaderboardGroupLeaderboardRelationship(ctx, "lb-1", "lb-2")
+			},
+		},
+		{
+			name:       "UpdateGameCenterLeaderboardActivityRelationshipV2 (PATCH v2)",
+			wantMethod: http.MethodPatch,
+			wantPath:   "/v2/gameCenterLeaderboards/lb-1/relationships/activity",
+			wantBodyFn: func(t *testing.T, body []byte) {
+				t.Helper()
+				var got toOneRequest
+				if err := json.Unmarshal(body, &got); err != nil {
+					t.Fatalf("unmarshal body: %v", err)
+				}
+				if got.Data.Type != ResourceTypeGameCenterActivities || got.Data.ID != "act-1" {
+					t.Fatalf("unexpected data: %#v", got.Data)
+				}
+			},
+			call: func(client *Client) error {
+				return client.UpdateGameCenterLeaderboardActivityRelationshipV2(ctx, "lb-1", "act-1")
+			},
+		},
+		{
+			name:       "UpdateGameCenterLeaderboardChallengeRelationshipV2 (PATCH v2)",
+			wantMethod: http.MethodPatch,
+			wantPath:   "/v2/gameCenterLeaderboards/lb-1/relationships/challenge",
+			wantBodyFn: func(t *testing.T, body []byte) {
+				t.Helper()
+				var got toOneRequest
+				if err := json.Unmarshal(body, &got); err != nil {
+					t.Fatalf("unmarshal body: %v", err)
+				}
+				if got.Data.Type != ResourceTypeGameCenterChallenges || got.Data.ID != "chal-1" {
+					t.Fatalf("unexpected data: %#v", got.Data)
+				}
+			},
+			call: func(client *Client) error {
+				return client.UpdateGameCenterLeaderboardChallengeRelationshipV2(ctx, "lb-1", "chal-1")
 			},
 		},
 	}

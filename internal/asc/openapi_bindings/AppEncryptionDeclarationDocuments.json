@@ -1,0 +1,11 @@
+{
+  "tag": "AppEncryptionDeclarationDocuments",
+  "file": "app_encryption_declaration_documents_gen.go",
+  "types": [
+    "AppEncryptionDeclarationDocumentCreateRequest",
+    "AppEncryptionDeclarationDocumentResponse",
+    "AppEncryptionDeclarationDocumentUpdateAttributes",
+    "AppEncryptionDeclarationDocumentUpdateData",
+    "AppEncryptionDeclarationDocumentUpdateRequest"
+  ]
+}

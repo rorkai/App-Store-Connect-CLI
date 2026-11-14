@@ -1,9 +1,7 @@
 package shared
 
 import (
-	"bytes"
 	"encoding/xml"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -266,47 +264,6 @@ func TestJUnitReport_WriteRefusesSymlink(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error when writing to symlink path, got nil")
 	}
-}
-
-func TestJUnitReport_WriteTo(t *testing.T) {
-	report := JUnitReport{
-		Tests: []JUnitTestCase{
-			{Name: "test", Classname: "suite", Time: time.Second},
-		},
-		Timestamp: time.Now(),
-	}
-
-	var out bytes.Buffer
-	n, err := report.WriteTo(&out)
-	if err != nil {
-		t.Fatalf("WriteTo() error = %v", err)
-	}
-	if n <= 0 {
-		t.Fatalf("WriteTo() wrote %d bytes, want > 0", n)
-	}
-	if !strings.Contains(out.String(), "<testsuite") {
-		t.Fatalf("WriteTo() output missing testsuite: %q", out.String())
-	}
-}
-
-func TestJUnitReport_WriteTo_WriterError(t *testing.T) {
-	report := JUnitReport{
-		Tests: []JUnitTestCase{
-			{Name: "test", Classname: "suite", Time: time.Second},
-		},
-		Timestamp: time.Now(),
-	}
-
-	_, err := report.WriteTo(failingWriter{})
-	if err == nil {
-		t.Fatal("expected writer error, got nil")
-	}
-}
-
-type failingWriter struct{}
-
-func (failingWriter) Write([]byte) (int, error) {
-	return 0, fmt.Errorf("write failed")
 }
 
 func TestJUnitReport_SuiteDurationPrefersAggregateOverCaseSum(t *testing.T) {

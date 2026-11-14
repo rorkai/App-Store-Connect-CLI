@@ -1,0 +1,15 @@
+{
+  "tag": "InAppPurchaseOfferCodeCustomCodes",
+  "file": "in_app_purchase_offer_code_custom_codes_gen.go",
+  "types": [
+    "InAppPurchaseOfferCodeCustomCodeAttributes",
+    "InAppPurchaseOfferCodeCustomCodeCreateAttributes",
+    "InAppPurchaseOfferCodeCustomCodeCreateRequest",
+    "InAppPurchaseOfferCodeCustomCodeUpdateAttributes",
+    "InAppPurchaseOfferCodeCustomCodeUpdateData",
+    "InAppPurchaseOfferCodeCustomCodeUpdateRequest"
+  ],
+  "operations": [
+    {"operation":"inAppPurchaseOfferCodeCustomCodes_getInstance","name":"GetInAppPurchaseOfferCodeCustomCode","params":["customCodeID"],"check":"require"}
+  ]
+}

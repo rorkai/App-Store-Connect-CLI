@@ -5,12 +5,14 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/config"
 )
 
 type testPaginatedResponse struct {
@@ -461,6 +463,237 @@ func TestBuildPaginatedListCommandOptions(t *testing.T) {
 	}
 }
 
+const requiredAppStderr = "Error: --app is required (or set ASC_APP_ID)\n"
+
+// setBuilderTestAppEnv sets ASC_APP_ID, or unsets it when envApp is nil, and
+// points the config at a file naming configApp, or at a missing file.
+func setBuilderTestAppEnv(t *testing.T, envApp *string, configApp string) {
+	t.Helper()
+	configPath := filepath.Join(t.TempDir(), "config.json")
+	if configApp != "" {
+		if err := config.SaveAt(configPath, &config.Config{AppID: configApp}); err != nil {
+			t.Fatalf("SaveAt() error: %v", err)
+		}
+	}
+	t.Setenv("ASC_CONFIG_PATH", configPath)
+	t.Setenv("ASC_APP_ID", "")
+	if envApp == nil {
+		if err := os.Unsetenv("ASC_APP_ID"); err != nil {
+			t.Fatalf("Unsetenv() error: %v", err)
+		}
+		return
+	}
+	t.Setenv("ASC_APP_ID", *envApp)
+}
+
+func TestBuildPaginatedListCommandResolveApp(t *testing.T) {
+	const (
+		nextURL       = "https://api.appstoreconnect.apple.com/v1/items?cursor=AQ"
+		secondPageURL = "https://api.appstoreconnect.apple.com/v1/items?cursor=BB"
+	)
+	envApp := "env-app"
+	tests := []struct {
+		name        string
+		envApp      *string
+		configApp   string
+		lookup      bool
+		lookupErr   error
+		args        []string
+		wantErr     string
+		wantStderr  string
+		wantLookups []string
+		wantCalls   []builderTestCall
+	}{
+		{
+			name:       "missing app names the ASC_APP_ID fallback",
+			wantErr:    "--app",
+			wantStderr: requiredAppStderr,
+		},
+		{
+			name:      "app flag goes through ResolveAppID",
+			envApp:    &envApp,
+			args:      []string{"--app", "https://api.appstoreconnect.apple.com/v1/apps/app-1"},
+			wantCalls: []builderTestCall{{parent: "app-1"}},
+		},
+		{
+			name:      "ASC_APP_ID supplies the app",
+			envApp:    &envApp,
+			configApp: "config-app",
+			wantCalls: []builderTestCall{{parent: "env-app"}},
+		},
+		{
+			name:      "config supplies the app when ASC_APP_ID is unset",
+			configApp: "config-app",
+			wantCalls: []builderTestCall{{parent: "config-app"}},
+		},
+		{
+			name:        "lookup turns the app into the parent of every page",
+			lookup:      true,
+			args:        []string{"--app", "app-1", "--paginate"},
+			wantLookups: []string{"app-1"},
+			wantCalls:   []builderTestCall{{parent: "detail-app-1", limit: 200}, {parent: "detail-app-1", next: secondPageURL}},
+		},
+		{
+			name:      "lookup is skipped with --next",
+			envApp:    &envApp,
+			lookup:    true,
+			args:      []string{"--next", nextURL},
+			wantCalls: []builderTestCall{{next: nextURL}},
+		},
+		{
+			name:        "lookup error is returned as is",
+			lookup:      true,
+			lookupErr:   errors.New("items list: failed to look up: boom"),
+			args:        []string{"--app", "app-1"},
+			wantErr:     "items list: failed to look up: boom",
+			wantLookups: []string{"app-1"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			setBuilderTestAppEnv(t, tt.envApp, tt.configApp)
+
+			var stdout, stderr bytes.Buffer
+			var lookups []string
+			var calls []builderTestCall
+			cfg := PaginatedListCommandConfig{
+				FlagSetName:          "list",
+				Name:                 "list",
+				ShortUsage:           "asc items list [flags]",
+				ParentFlag:           "app",
+				ParentUsage:          "App Store Connect app ID (or ASC_APP_ID env)",
+				ResolveApp:           true,
+				RequiredDiagnostic:   true,
+				PaginateIgnoresLimit: true,
+				NoSpinner:            true,
+				ErrorPrefix:          "items list",
+				FetchErrorPrefix:     "items list: failed to fetch",
+				Deps:                 newBuilderTestDeps(&stdout, &stderr),
+				FetchPage: func(_ context.Context, _ *asc.Client, parent string, limit int, next string) (asc.PaginatedResponse, error) {
+					calls = append(calls, builderTestCall{parent: parent, limit: limit, next: next})
+					if len(calls) == 1 && strings.Contains(strings.Join(tt.args, " "), "--paginate") {
+						return &testPaginatedResponse{Links: asc.Links{Next: secondPageURL}}, nil
+					}
+					return &testPaginatedResponse{}, nil
+				},
+			}
+			if tt.lookup {
+				cfg.LookupParent = func(_ context.Context, _ *asc.Client, appID string) (string, error) {
+					lookups = append(lookups, appID)
+					if tt.lookupErr != nil {
+						return "", tt.lookupErr
+					}
+					return "detail-" + appID, nil
+				}
+			}
+			cmd := BuildPaginatedListCommand(cfg)
+			if err := cmd.FlagSet.Parse(append(tt.args, "--output", "json")); err != nil {
+				t.Fatalf("parse flags: %v", err)
+			}
+
+			err := cmd.Exec(context.Background(), nil)
+			if tt.wantErr == "" && err != nil {
+				t.Fatalf("Exec() error: %v", err)
+			}
+			if tt.wantErr != "" && (err == nil || err.Error() != tt.wantErr) {
+				t.Fatalf("Exec() error = %v, want %q", err, tt.wantErr)
+			}
+			if tt.wantStderr == requiredAppStderr {
+				diagnostic, ok := DiagnosticFromError(err)
+				if !ok || diagnostic.Code != DiagnosticRequiredInputMissing || diagnostic.Parameter != "--app" {
+					t.Fatalf("diagnostic = %+v, %v; want required --app", diagnostic, ok)
+				}
+			}
+			if got := stderr.String(); got != tt.wantStderr {
+				t.Fatalf("stderr = %q, want %q", got, tt.wantStderr)
+			}
+			if !slices.Equal(lookups, tt.wantLookups) {
+				t.Fatalf("LookupParent calls = %q, want %q", lookups, tt.wantLookups)
+			}
+			if !slices.Equal(calls, tt.wantCalls) {
+				t.Fatalf("FetchPage calls = %+v, want %+v", calls, tt.wantCalls)
+			}
+		})
+	}
+}
+
+func TestBuildIDGetCommandResolveApp(t *testing.T) {
+	envApp := "env-app"
+	tests := []struct {
+		name       string
+		envApp     *string
+		configApp  string
+		wantErr    string
+		wantStderr string
+		wantFetch  string
+	}{
+		{
+			name:       "missing app names the ASC_APP_ID fallback",
+			wantErr:    "--app",
+			wantStderr: requiredAppStderr,
+		},
+		{
+			name:      "ASC_APP_ID supplies the app",
+			envApp:    &envApp,
+			configApp: "config-app",
+			wantFetch: "env-app",
+		},
+		{
+			name:      "config supplies the app when ASC_APP_ID is unset",
+			configApp: "config-app",
+			wantFetch: "config-app",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			setBuilderTestAppEnv(t, tt.envApp, tt.configApp)
+
+			var stdout, stderr bytes.Buffer
+			var fetched string
+			cmd := BuildIDGetCommand(IDGetCommandConfig{
+				FlagSetName:        "view",
+				Name:               "view",
+				ShortUsage:         "asc items view [flags]",
+				IDFlag:             "app",
+				IDUsage:            "App Store Connect app ID (or ASC_APP_ID env)",
+				ResolveApp:         true,
+				RequiredDiagnostic: true,
+				ErrorPrefix:        "items view",
+				Deps:               newBuilderTestDeps(&stdout, &stderr),
+				Fetch: func(_ context.Context, _ *asc.Client, id string) (any, error) {
+					fetched = id
+					return map[string]string{"id": id}, nil
+				},
+			})
+			if err := cmd.FlagSet.Parse([]string{"--output", "json"}); err != nil {
+				t.Fatalf("parse flags: %v", err)
+			}
+
+			err := cmd.Exec(context.Background(), nil)
+			if tt.wantErr == "" && err != nil {
+				t.Fatalf("Exec() error: %v", err)
+			}
+			if tt.wantErr != "" && (err == nil || err.Error() != tt.wantErr) {
+				t.Fatalf("Exec() error = %v, want %q", err, tt.wantErr)
+			}
+			if tt.wantStderr == requiredAppStderr {
+				diagnostic, ok := DiagnosticFromError(err)
+				if !ok || diagnostic.Code != DiagnosticRequiredInputMissing || diagnostic.Parameter != "--app" {
+					t.Fatalf("diagnostic = %+v, %v; want required --app", diagnostic, ok)
+				}
+			}
+			if got := stderr.String(); got != tt.wantStderr {
+				t.Fatalf("stderr = %q, want %q", got, tt.wantStderr)
+			}
+			if fetched != tt.wantFetch {
+				t.Fatalf("Fetch id = %q, want %q", fetched, tt.wantFetch)
+			}
+		})
+	}
+}
+
 func TestBuildIDGetCommandOptions(t *testing.T) {
 	t.Parallel()
 
@@ -557,13 +790,15 @@ func TestBuildConfirmDeleteCommandOptions(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name          string
-		args          []string
-		deleteErr     error
-		wantErr       string
-		wantParameter string
-		wantStderr    string
-		wantStdout    string
+		name             string
+		args             []string
+		configure        func(*ConfirmDeleteCommandConfig)
+		deleteErr        error
+		wantErr          string
+		wantParameter    string
+		wantStderr       string
+		wantStdout       string
+		wantConfirmUsage string
 	}{
 		{
 			name:          "missing id reports the required diagnostic",
@@ -578,6 +813,34 @@ func TestBuildConfirmDeleteCommandOptions(t *testing.T) {
 			wantErr:       "--confirm",
 			wantParameter: "--confirm",
 			wantStderr:    "Error: --confirm is required\n",
+		},
+		{
+			name: "missing confirm reports the configured message",
+			args: []string{"--id", "item-1"},
+			configure: func(c *ConfirmDeleteCommandConfig) {
+				c.ConfirmRequiredMessage = "--confirm is required to delete"
+			},
+			wantErr:       "--confirm",
+			wantParameter: "--confirm",
+			wantStderr:    "Error: --confirm is required to delete\n",
+		},
+		{
+			name: "missing confirm returns the configured message as a usage error",
+			args: []string{"--id", "item-1"},
+			configure: func(c *ConfirmDeleteCommandConfig) {
+				c.RequiredDiagnostic = false
+				c.ConfirmRequiredMessage = "--confirm is required to delete"
+			},
+			wantErr: "--confirm is required to delete",
+		},
+		{
+			name: "confirm flag uses the configured usage",
+			args: []string{"--id", "item-1", "--confirm"},
+			configure: func(c *ConfirmDeleteCommandConfig) {
+				c.ConfirmUsage = "Confirm removal"
+			},
+			wantStdout:       `{"deleted":"true","id":"item-1"}` + "\n",
+			wantConfirmUsage: "Confirm removal",
 		},
 		{
 			name:      "delete error uses the delete prefix",
@@ -597,7 +860,7 @@ func TestBuildConfirmDeleteCommandOptions(t *testing.T) {
 			t.Parallel()
 
 			var stdout, stderr bytes.Buffer
-			cmd := BuildConfirmDeleteCommand(ConfirmDeleteCommandConfig{
+			config := ConfirmDeleteCommandConfig{
 				FlagSetName:        "delete",
 				Name:               "delete",
 				ShortUsage:         "asc items delete --id ITEM_ID --confirm",
@@ -611,7 +874,18 @@ func TestBuildConfirmDeleteCommandOptions(t *testing.T) {
 				Result: func(id string) any {
 					return map[string]string{"id": id, "deleted": "true"}
 				},
-			})
+			}
+			if tt.configure != nil {
+				tt.configure(&config)
+			}
+			cmd := BuildConfirmDeleteCommand(config)
+			wantConfirmUsage := tt.wantConfirmUsage
+			if wantConfirmUsage == "" {
+				wantConfirmUsage = "Confirm deletion"
+			}
+			if got := cmd.FlagSet.Lookup("confirm").Usage; got != wantConfirmUsage {
+				t.Fatalf("--confirm usage = %q, want %q", got, wantConfirmUsage)
+			}
 			if err := cmd.FlagSet.Parse(append(tt.args, "--output", "json")); err != nil {
 				t.Fatalf("parse flags: %v", err)
 			}

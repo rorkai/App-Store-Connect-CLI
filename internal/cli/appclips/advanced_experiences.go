@@ -502,50 +502,28 @@ Examples:
 
 // AppClipAdvancedExperiencesDeleteCommand deletes an advanced experience.
 func AppClipAdvancedExperiencesDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("delete", flag.ExitOnError)
-
-	experienceID := shared.BindResourceIDFlag(fs, "experience-id", "appClipAdvancedExperiences", "Advanced experience ID")
-	confirm := fs.Bool("confirm", false, "Confirm removal")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc app-clips advanced-experiences delete --experience-id \"EXP_ID\" --confirm",
-		ShortHelp:  "Remove an advanced experience.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "delete",
+		Name:        "delete",
+		ShortUsage:  "asc app-clips advanced-experiences delete --experience-id \"EXP_ID\" --confirm",
+		ShortHelp:   "Remove an advanced experience.",
 		LongHelp: `Remove an advanced experience by setting its removed attribute to true.
 
 Examples:
   asc app-clips advanced-experiences delete --experience-id "EXP_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			experienceValue := strings.TrimSpace(*experienceID)
-			if experienceValue == "" {
-				return shared.RequiredFlag("--experience-id")
-			}
-			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required to remove")
-				return shared.MissingRequiredUsageError("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("app-clips advanced-experiences delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteAppClipAdvancedExperience(requestCtx, experienceValue); err != nil {
-				return fmt.Errorf("app-clips advanced-experiences delete: failed to remove: %w", err)
-			}
-
-			result := &asc.AppClipAdvancedExperienceRemoveResult{
-				ID:      experienceValue,
-				Removed: true,
-			}
-
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:                 "experience-id",
+		IDUsage:                "Advanced experience ID",
+		IDType:                 "appClipAdvancedExperiences",
+		RequiredDiagnostic:     true,
+		ConfirmUsage:           "Confirm removal",
+		ConfirmRequiredMessage: "--confirm is required to remove",
+		ErrorPrefix:            "app-clips advanced-experiences delete",
+		DeleteErrorPrefix:      "app-clips advanced-experiences delete: failed to remove",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteAppClipAdvancedExperience(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.AppClipAdvancedExperienceRemoveResult{ID: id, Removed: true}
+		},
+	})
 }

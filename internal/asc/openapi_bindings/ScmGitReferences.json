@@ -1,0 +1,7 @@
+{
+  "tag": "ScmGitReferences",
+  "file": "scm_git_references_gen.go",
+  "operations": [
+    {"operation":"scmGitReferences_getInstance","name":"GetScmGitReference","params":["referenceID"]}
+  ]
+}

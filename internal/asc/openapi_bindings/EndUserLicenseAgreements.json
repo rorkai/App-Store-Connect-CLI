@@ -1,0 +1,15 @@
+{
+  "tag": "EndUserLicenseAgreements",
+  "file": "end_user_license_agreements_gen.go",
+  "types": [
+    "EndUserLicenseAgreementAttributes",
+    "EndUserLicenseAgreementCreateAttributes",
+    "EndUserLicenseAgreementCreateRequest",
+    "EndUserLicenseAgreementUpdateAttributes",
+    "EndUserLicenseAgreementUpdateRequest"
+  ],
+  "operations": [
+    {"operation":"endUserLicenseAgreements_deleteInstance","name":"DeleteEndUserLicenseAgreement","params":["id"],"check":"require"},
+    {"operation":"endUserLicenseAgreements_getInstance","name":"GetEndUserLicenseAgreement","params":["id"],"check":"require"}
+  ]
+}

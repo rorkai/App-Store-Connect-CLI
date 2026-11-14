@@ -20,6 +20,12 @@ func TestGetAppGameCenterEnabledVersions_WithLimitAndFilters(t *testing.T) {
 		if values.Get("limit") != "40" {
 			t.Fatalf("expected limit=40, got %q", values.Get("limit"))
 		}
+		if values.Get("filter[platform]") != "IOS" {
+			t.Fatalf("expected filter[platform]=IOS, got %q", values.Get("filter[platform]"))
+		}
+		if values.Get("filter[versionString]") != "1.0" {
+			t.Fatalf("expected filter[versionString]=1.0, got %q", values.Get("filter[versionString]"))
+		}
 		assertAuthorized(t, req)
 	}, response)
 
@@ -27,6 +33,8 @@ func TestGetAppGameCenterEnabledVersions_WithLimitAndFilters(t *testing.T) {
 		context.Background(),
 		"app-1",
 		Limit[GCEnabledVersionsOption](40),
+		WithGCEnabledVersionsPlatforms([]string{"IOS"}),
+		WithGCEnabledVersionsVersionStrings([]string{"1.0"}),
 	); err != nil {
 		t.Fatalf("GetAppGameCenterEnabledVersions() error: %v", err)
 	}
@@ -86,6 +94,10 @@ func TestGCEnabledVersionsOptions(t *testing.T) {
 	query := &gcEnabledVersionsQuery{}
 	Limit[GCEnabledVersionsOption](9)(query)
 	NextURL[GCEnabledVersionsOption]("next")(query)
+	WithGCEnabledVersionsPlatforms([]string{" IOS ", "", "MAC_OS"})(query)
+	WithGCEnabledVersionsVersionStrings([]string{"1.0", "  ", "1.1"})(query)
+	WithGCEnabledVersionsIDs([]string{"id-1", "id-2"})(query)
+	WithGCEnabledVersionsSort([]string{"versionString"})(query)
 
 	values, err := url.ParseQuery(buildGCEnabledVersionsQuery(query))
 	if err != nil {
@@ -93,6 +105,18 @@ func TestGCEnabledVersionsOptions(t *testing.T) {
 	}
 	if values.Get("limit") != "9" {
 		t.Fatalf("expected limit=9, got %q", values.Get("limit"))
+	}
+	if values.Get("filter[platform]") != "IOS,MAC_OS" {
+		t.Fatalf("expected filter[platform]=IOS,MAC_OS, got %q", values.Get("filter[platform]"))
+	}
+	if values.Get("filter[versionString]") != "1.0,1.1" {
+		t.Fatalf("expected filter[versionString]=1.0,1.1, got %q", values.Get("filter[versionString]"))
+	}
+	if values.Get("filter[id]") != "id-1,id-2" {
+		t.Fatalf("expected filter[id]=id-1,id-2, got %q", values.Get("filter[id]"))
+	}
+	if values.Get("sort") != "versionString" {
+		t.Fatalf("expected sort=versionString, got %q", values.Get("sort"))
 	}
 	if query.nextURL != "next" {
 		t.Fatalf("expected nextURL set, got %q", query.nextURL)

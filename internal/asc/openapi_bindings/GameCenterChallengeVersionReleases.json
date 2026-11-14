@@ -1,0 +1,12 @@
+{
+  "tag": "GameCenterChallengeVersionReleases",
+  "file": "game_center_challenge_version_releases_gen.go",
+  "types": [
+    "GameCenterChallengeVersionReleaseCreateRequest",
+    "GameCenterChallengeVersionReleaseResponse"
+  ],
+  "operations": [
+    {"operation":"gameCenterChallengeVersionReleases_deleteInstance","name":"DeleteGameCenterChallengeVersionRelease","params":["releaseID"]},
+    {"operation":"gameCenterChallengeVersionReleases_getInstance","name":"GetGameCenterChallengeVersionRelease","params":["releaseID"]}
+  ]
+}

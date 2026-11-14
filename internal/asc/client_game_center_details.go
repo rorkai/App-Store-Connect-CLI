@@ -7,16 +7,6 @@ import (
 	"strings"
 )
 
-// GetGameCenterDetail retrieves a Game Center detail by ID.
-func (c *Client) GetGameCenterDetail(ctx context.Context, detailID string) (*GameCenterDetailResponse, error) {
-	return getJSON[GameCenterDetailResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/gameCenterDetails/%s", strings.TrimSpace(detailID))})
-}
-
-// GetGameCenterDetailGameCenterGroup retrieves the related Game Center group.
-func (c *Client) GetGameCenterDetailGameCenterGroup(ctx context.Context, detailID string) (*GameCenterGroupResponse, error) {
-	return getJSON[GameCenterGroupResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/gameCenterDetails/%s/gameCenterGroup", strings.TrimSpace(detailID))})
-}
-
 // CreateGameCenterDetail creates a new Game Center detail.
 func (c *Client) CreateGameCenterDetail(ctx context.Context, appID string, attrs *GameCenterDetailCreateAttributes) (*GameCenterDetailResponse, error) {
 	appID = strings.TrimSpace(appID)
@@ -91,92 +81,4 @@ func (c *Client) UpdateGameCenterDetail(ctx context.Context, detailID string, at
 		},
 	}
 	return sendJSON[GameCenterDetailResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/gameCenterDetails/%s", detailID), Payload: payload})
-}
-
-// GetGameCenterDetailsAchievementReleases retrieves achievement releases for a Game Center detail.
-func (c *Client) GetGameCenterDetailsAchievementReleases(ctx context.Context, gcDetailID string, opts ...GCAchievementReleasesOption) (*GameCenterAchievementReleasesResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[GameCenterAchievementReleasesResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/gameCenterDetails/%s/achievementReleases", strings.TrimSpace(gcDetailID)),
-		Query:       buildGCAchievementReleasesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "game-center-details-achievement-releases",
-	})
-}
-
-// GetGameCenterDetailsLeaderboardReleases retrieves leaderboard releases for a Game Center detail.
-func (c *Client) GetGameCenterDetailsLeaderboardReleases(ctx context.Context, gcDetailID string, opts ...GCLeaderboardReleasesOption) (*GameCenterLeaderboardReleasesResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[GameCenterLeaderboardReleasesResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/gameCenterDetails/%s/leaderboardReleases", strings.TrimSpace(gcDetailID)),
-		Query:       buildGCLeaderboardReleasesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "game-center-details-leaderboard-releases",
-	})
-}
-
-// GetGameCenterDetailsLeaderboardSetReleases retrieves leaderboard set releases for a Game Center detail.
-func (c *Client) GetGameCenterDetailsLeaderboardSetReleases(ctx context.Context, gcDetailID string, opts ...GCLeaderboardSetReleasesOption) (*GameCenterLeaderboardSetReleasesResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[GameCenterLeaderboardSetReleasesResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/gameCenterDetails/%s/leaderboardSetReleases", strings.TrimSpace(gcDetailID)),
-		Query:       buildGCLeaderboardSetReleasesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "game-center-details-leaderboard-set-releases",
-	})
-}
-
-// GetGameCenterDetailsAchievementsV2 retrieves v2 achievements for a Game Center detail.
-func (c *Client) GetGameCenterDetailsAchievementsV2(ctx context.Context, gcDetailID string, opts ...GCAchievementsOption) (*GameCenterAchievementsResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[GameCenterAchievementsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/gameCenterDetails/%s/gameCenterAchievementsV2", strings.TrimSpace(gcDetailID)),
-		Query:       buildGCAchievementsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "game-center-details-achievements-v2",
-	})
-}
-
-// GetGameCenterDetailsLeaderboardsV2 retrieves v2 leaderboards for a Game Center detail.
-func (c *Client) GetGameCenterDetailsLeaderboardsV2(ctx context.Context, gcDetailID string, opts ...GCLeaderboardsOption) (*GameCenterLeaderboardsResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[GameCenterLeaderboardsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/gameCenterDetails/%s/gameCenterLeaderboardsV2", strings.TrimSpace(gcDetailID)),
-		Query:       buildGCLeaderboardsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "game-center-details-leaderboards-v2",
-	})
-}
-
-// GetGameCenterDetailsLeaderboardSetsV2 retrieves v2 leaderboard sets for a Game Center detail.
-func (c *Client) GetGameCenterDetailsLeaderboardSetsV2(ctx context.Context, gcDetailID string, opts ...GCLeaderboardSetsOption) (*GameCenterLeaderboardSetsResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[GameCenterLeaderboardSetsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/gameCenterDetails/%s/gameCenterLeaderboardSetsV2", strings.TrimSpace(gcDetailID)),
-		Query:       buildGCLeaderboardSetsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "game-center-details-leaderboard-sets-v2",
-	})
-}
-
-// GetGameCenterDetailsClassicMatchmakingRequests retrieves classic matchmaking request metrics.
-func (c *Client) GetGameCenterDetailsClassicMatchmakingRequests(ctx context.Context, gcDetailID string, opts ...GCMatchmakingMetricsOption) (*GameCenterMetricsResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[GameCenterMetricsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/gameCenterDetails/%s/metrics/classicMatchmakingRequests", strings.TrimSpace(gcDetailID)),
-		Query:       buildGCMatchmakingQueueRequestsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "game-center-details-classic-matchmaking-requests",
-	})
-}
-
-// GetGameCenterDetailsRuleBasedMatchmakingRequests retrieves rule-based matchmaking request metrics.
-func (c *Client) GetGameCenterDetailsRuleBasedMatchmakingRequests(ctx context.Context, gcDetailID string, opts ...GCMatchmakingMetricsOption) (*GameCenterMetricsResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[GameCenterMetricsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/gameCenterDetails/%s/metrics/ruleBasedMatchmakingRequests", strings.TrimSpace(gcDetailID)),
-		Query:       buildGCMatchmakingQueueRequestsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "game-center-details-rule-based-matchmaking-requests",
-	})
 }

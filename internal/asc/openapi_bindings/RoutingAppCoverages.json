@@ -1,0 +1,15 @@
+{
+  "tag": "RoutingAppCoverages",
+  "file": "routing_app_coverages_gen.go",
+  "types": [
+    "RoutingAppCoverageCreateRequest",
+    "RoutingAppCoverageResponse",
+    "RoutingAppCoverageUpdateAttributes",
+    "RoutingAppCoverageUpdateData",
+    "RoutingAppCoverageUpdateRequest"
+  ],
+  "operations": [
+    {"operation":"routingAppCoverages_deleteInstance","name":"DeleteRoutingAppCoverage","params":["coverageID"],"check":"require"},
+    {"operation":"routingAppCoverages_getInstance","name":"GetRoutingAppCoverage","params":["coverageID"],"check":"require"}
+  ]
+}

@@ -199,6 +199,7 @@ const (
 	ResourceTypeGameCenterDetails                               = types.ResourceTypeGameCenterDetails
 	ResourceTypeGameCenterAppVersions                           = types.ResourceTypeGameCenterAppVersions
 	ResourceTypeGameCenterDetailPlayers                         = types.ResourceTypeGameCenterDetailPlayers
+	ResourceTypeGameCenterEnabledVersions                       = types.ResourceTypeGameCenterEnabledVersions
 	ResourceTypeGameCenterAchievements                          = types.ResourceTypeGameCenterAchievements
 	ResourceTypeGameCenterAchievementVersions                   = types.ResourceTypeGameCenterAchievementVersions
 	ResourceTypeGameCenterLeaderboards                          = types.ResourceTypeGameCenterLeaderboards

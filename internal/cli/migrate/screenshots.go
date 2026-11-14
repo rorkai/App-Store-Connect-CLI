@@ -35,10 +35,6 @@ type ScreenshotUploadResult struct {
 
 const maxMigrateScreenshotFileSize = int64(1024 * 1024 * 1024)
 
-func discoverScreenshotPlan(screenshotsDir string) ([]ScreenshotPlan, []SkippedItem, error) {
-	return discoverScreenshotPlanWithOpenFiles(screenshotsDir, false)
-}
-
 // discoverScreenshotPlanForUpload pins discovery to one rooted directory
 // handle and records each file's identity. Upload reopens one file at a time
 // through that root, preventing path redirection without retaining an
@@ -345,14 +341,6 @@ func collectScreenshotFiles(rooted *os.Root, localeRelative, localeDir string) (
 	return files, skipped, nil
 }
 
-func inferScreenshotDisplayType(path string) (string, error) {
-	width, height, err := readImageDimensions(path)
-	if err != nil {
-		return "", fmt.Errorf("unable to read screenshot dimensions for %q: %w", path, err)
-	}
-	return inferScreenshotDisplayTypeFromDimensions(path, width, height)
-}
-
 func inferScreenshotDisplayTypeFromDimensions(path string, width, height int) (string, error) {
 	hint := inferDisplayTypeFromFilename(path)
 	if hint != "" {
@@ -388,14 +376,6 @@ func ambiguousDisplayTypesForDimensions(width, height int) []string {
 		return []string{"APP_APPLE_TV", "APP_APPLE_VISION_PRO"}
 	}
 	return nil
-}
-
-func readImageDimensions(path string) (int, int, error) {
-	dimensions, err := asc.ReadImageDimensions(path)
-	if err != nil {
-		return 0, 0, err
-	}
-	return dimensions.Width, dimensions.Height, nil
 }
 
 func inferDisplayTypeFromFilename(path string) string {

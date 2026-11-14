@@ -2,6 +2,7 @@ package asc
 
 import (
 	"net/url"
+	"strconv"
 	"strings"
 )
 
@@ -12,10 +13,13 @@ type marketplaceWebhooksQuery struct {
 
 type alternativeDistributionDomainsQuery struct {
 	listQuery
+	fields []string
 }
 
 type alternativeDistributionKeysQuery struct {
 	listQuery
+	fields    []string
+	existsApp *bool
 }
 
 type alternativeDistributionPackageVersionsQuery struct {
@@ -24,20 +28,29 @@ type alternativeDistributionPackageVersionsQuery struct {
 
 type alternativeDistributionPackageVariantsQuery struct {
 	listQuery
+	fields []string
 }
 
 type alternativeDistributionPackageDeltasQuery struct {
 	listQuery
+	fields []string
 }
 
 type webhooksQuery struct {
 	listQuery
+	fields    []string
+	appFields []string
+	include   []string
 }
 
 type webhookDeliveriesQuery struct {
 	listQuery
-	createdAfter  []string
-	createdBefore []string
+	deliveryStates []string
+	createdAfter   []string
+	createdBefore  []string
+	fields         []string
+	eventFields    []string
+	include        []string
 }
 
 type backgroundAssetsQuery struct {
@@ -85,12 +98,17 @@ func buildMarketplaceWebhooksQuery(query *marketplaceWebhooksQuery) string {
 
 func buildAlternativeDistributionDomainsQuery(query *alternativeDistributionDomainsQuery) string {
 	values := url.Values{}
+	addCSV(values, "fields[alternativeDistributionDomains]", query.fields)
 	addLimit(values, query.limit)
 	return values.Encode()
 }
 
 func buildAlternativeDistributionKeysQuery(query *alternativeDistributionKeysQuery) string {
 	values := url.Values{}
+	addCSV(values, "fields[alternativeDistributionKeys]", query.fields)
+	if query.existsApp != nil {
+		values.Set("exists[app]", strconv.FormatBool(*query.existsApp))
+	}
 	addLimit(values, query.limit)
 	return values.Encode()
 }
@@ -103,26 +121,35 @@ func buildAlternativeDistributionPackageVersionsQuery(query *alternativeDistribu
 
 func buildAlternativeDistributionPackageVariantsQuery(query *alternativeDistributionPackageVariantsQuery) string {
 	values := url.Values{}
+	addCSV(values, "fields[alternativeDistributionPackageVariants]", query.fields)
 	addLimit(values, query.limit)
 	return values.Encode()
 }
 
 func buildAlternativeDistributionPackageDeltasQuery(query *alternativeDistributionPackageDeltasQuery) string {
 	values := url.Values{}
+	addCSV(values, "fields[alternativeDistributionPackageDeltas]", query.fields)
 	addLimit(values, query.limit)
 	return values.Encode()
 }
 
 func buildWebhooksQuery(query *webhooksQuery) string {
 	values := url.Values{}
+	addCSV(values, "fields[webhooks]", query.fields)
+	addCSV(values, "fields[apps]", query.appFields)
+	addCSV(values, "include", query.include)
 	addLimit(values, query.limit)
 	return values.Encode()
 }
 
 func buildWebhookDeliveriesQuery(query *webhookDeliveriesQuery) string {
 	values := url.Values{}
+	addCSV(values, "filter[deliveryState]", query.deliveryStates)
 	addCSV(values, "filter[createdDateGreaterThanOrEqualTo]", query.createdAfter)
 	addCSV(values, "filter[createdDateLessThan]", query.createdBefore)
+	addCSV(values, "fields[webhookDeliveries]", query.fields)
+	addCSV(values, "fields[webhookEvents]", query.eventFields)
+	addCSV(values, "include", query.include)
 	addLimit(values, query.limit)
 	return values.Encode()
 }
@@ -218,6 +245,69 @@ func WithMarketplaceWebhooksFields(fields []string) MarketplaceWebhooksOption {
 	}
 }
 
+// WithAlternativeDistributionDomainsFields sets fields[alternativeDistributionDomains].
+func WithAlternativeDistributionDomainsFields(fields []string) AlternativeDistributionDomainsOption {
+	return func(q *alternativeDistributionDomainsQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+// WithAlternativeDistributionKeysFields sets fields[alternativeDistributionKeys].
+func WithAlternativeDistributionKeysFields(fields []string) AlternativeDistributionKeysOption {
+	return func(q *alternativeDistributionKeysQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+// WithAlternativeDistributionKeysExistsApp filters keys by whether they belong to an app.
+func WithAlternativeDistributionKeysExistsApp(exists bool) AlternativeDistributionKeysOption {
+	return func(q *alternativeDistributionKeysQuery) {
+		q.existsApp = &exists
+	}
+}
+
+// WithAlternativeDistributionPackageVariantsFields sets fields[alternativeDistributionPackageVariants].
+func WithAlternativeDistributionPackageVariantsFields(fields []string) AlternativeDistributionPackageVariantsOption {
+	return func(q *alternativeDistributionPackageVariantsQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+// WithAlternativeDistributionPackageDeltasFields sets fields[alternativeDistributionPackageDeltas].
+func WithAlternativeDistributionPackageDeltasFields(fields []string) AlternativeDistributionPackageDeltasOption {
+	return func(q *alternativeDistributionPackageDeltasQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+// WithWebhooksFields sets fields[webhooks] for webhook responses.
+func WithWebhooksFields(fields []string) WebhooksOption {
+	return func(q *webhooksQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+// WithWebhooksAppFields sets fields[apps] for webhook responses.
+func WithWebhooksAppFields(fields []string) WebhooksOption {
+	return func(q *webhooksQuery) {
+		q.appFields = normalizeList(fields)
+	}
+}
+
+// WithWebhooksInclude sets include for webhook responses.
+func WithWebhooksInclude(include []string) WebhooksOption {
+	return func(q *webhooksQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
+// WithWebhookDeliveriesDeliveryStates filters deliveries by state.
+func WithWebhookDeliveriesDeliveryStates(states []string) WebhookDeliveriesOption {
+	return func(q *webhookDeliveriesQuery) {
+		q.deliveryStates = normalizeUpperList(states)
+	}
+}
+
 // WithWebhookDeliveriesCreatedAfter filters deliveries created after or equal to a timestamp.
 func WithWebhookDeliveriesCreatedAfter(values []string) WebhookDeliveriesOption {
 	return func(q *webhookDeliveriesQuery) {
@@ -229,6 +319,27 @@ func WithWebhookDeliveriesCreatedAfter(values []string) WebhookDeliveriesOption 
 func WithWebhookDeliveriesCreatedBefore(values []string) WebhookDeliveriesOption {
 	return func(q *webhookDeliveriesQuery) {
 		q.createdBefore = normalizeList(values)
+	}
+}
+
+// WithWebhookDeliveriesFields sets fields[webhookDeliveries].
+func WithWebhookDeliveriesFields(fields []string) WebhookDeliveriesOption {
+	return func(q *webhookDeliveriesQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+// WithWebhookDeliveriesEventFields sets fields[webhookEvents].
+func WithWebhookDeliveriesEventFields(fields []string) WebhookDeliveriesOption {
+	return func(q *webhookDeliveriesQuery) {
+		q.eventFields = normalizeList(fields)
+	}
+}
+
+// WithWebhookDeliveriesInclude sets related resources to include.
+func WithWebhookDeliveriesInclude(include []string) WebhookDeliveriesOption {
+	return func(q *webhookDeliveriesQuery) {
+		q.include = normalizeList(include)
 	}
 }
 

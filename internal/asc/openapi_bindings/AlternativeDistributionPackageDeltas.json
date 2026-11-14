@@ -1,0 +1,11 @@
+{
+  "tag": "AlternativeDistributionPackageDeltas",
+  "file": "alternative_distribution_package_deltas_gen.go",
+  "types": [
+    "AlternativeDistributionPackageDeltaAttributes",
+    "AlternativeDistributionPackageDeltaResponse"
+  ],
+  "operations": [
+    {"operation":"alternativeDistributionPackageDeltas_getInstance","name":"GetAlternativeDistributionPackageDelta","params":["deltaID"],"check":"require","parseErr":"failed to parse alternative distribution package delta response"}
+  ]
+}

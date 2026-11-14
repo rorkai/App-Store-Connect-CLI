@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func writeMigrateOwnershipFixture(t *testing.T) string {
@@ -36,24 +38,10 @@ func TestMigrateImportRejectsVersionOwnedByAnotherAppBeforeMutation(t *testing.T
 
 	fastlaneDir := writeMigrateOwnershipFixture(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	var mutations []string
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet {
-			mutations = append(mutations, req.Method+" "+req.URL.Path)
-		}
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/VERSION_B":
-			body := `{"data":{"type":"appStoreVersions","id":"VERSION_B","attributes":{"versionString":"1.0","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"APP_B"}}}}}`
-			return migrateJSONResponse(http.StatusOK, body), nil
-		default:
-			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
-		}
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreVersions/VERSION_B", "include=app"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"VERSION_B","attributes":{"versionString":"1.0","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"APP_B"}}}}}`))
 
 	rootCmd := RootCommand("1.2.3")
 	rootCmd.FlagSet.SetOutput(io.Discard)
@@ -78,6 +66,12 @@ func TestMigrateImportRejectsVersionOwnedByAnotherAppBeforeMutation(t *testing.T
 	if !strings.Contains(runErr.Error(), "belongs to app") {
 		t.Fatalf("expected ownership error, got %v", runErr)
 	}
+	var mutations []string
+	for _, req := range reg.Requests() {
+		if req.Method != http.MethodGet {
+			mutations = append(mutations, req.Method+" "+req.URL.Path)
+		}
+	}
 	if len(mutations) != 0 {
 		t.Fatalf("expected no mutating requests, got %v", mutations)
 	}
@@ -94,28 +88,19 @@ func TestMigrateImportAcceptsVersionOwnedByApp(t *testing.T) {
 
 	fastlaneDir := writeMigrateOwnershipFixture(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	ownershipChecked := false
-	createCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/VERSION_A":
-			ownershipChecked = true
-			body := `{"data":{"type":"appStoreVersions","id":"VERSION_A","attributes":{"versionString":"1.0","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"APP_A"}}}}}`
-			return migrateJSONResponse(http.StatusOK, body), nil
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/VERSION_A/appStoreVersionLocalizations":
-			return migrateJSONResponse(http.StatusOK, `{"data":[],"links":{"next":""}}`), nil
-		case req.Method == http.MethodPost && req.URL.Path == "/v1/appStoreVersionLocalizations":
-			createCount++
-			return migrateJSONResponse(http.StatusCreated, `{"data":{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"locale":"en-US","description":"English description"}}}`), nil
-		default:
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	versionA := asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"VERSION_A","attributes":{"versionString":"1.0","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"APP_A"}}}}}`)
+	reg.Register(asctest.GET("/v1/appStoreVersions/VERSION_A", "include=app"), versionA)
+	reg.Register(asctest.GET("/v1/appStoreVersions/VERSION_A/appStoreVersionLocalizations", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[],"links":{"next":""}}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/VERSION_A", "include=app"), versionA)
+	reg.Register(asctest.GET("/v1/apps/APP_A/appStoreVersions", "filter[appStoreState]=READY_FOR_SALE,DEVELOPER_REMOVED_FROM_SALE,REMOVED_FROM_SALE", "filter[platform]=IOS", "limit=1"),
+		func(req *http.Request) (*http.Response, error) {
 			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
-		}
-	})
+		})
+	reg.Register(asctest.POST("/v1/appStoreVersionLocalizations").JSONBody(`{"data":{"type":"appStoreVersionLocalizations","attributes":{"locale":"en-US","description":"English description"},"relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"VERSION_A"}}}}}`),
+		asctest.JSON(http.StatusCreated, `{"data":{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"locale":"en-US","description":"English description"}}}`))
 
 	rootCmd := RootCommand("1.2.3")
 	rootCmd.FlagSet.SetOutput(io.Discard)
@@ -135,9 +120,11 @@ func TestMigrateImportAcceptsVersionOwnedByApp(t *testing.T) {
 		}
 	})
 
+	ownershipChecked := metadataRequestCount(reg, http.MethodGet, "/v1/appStoreVersions/VERSION_A") > 0
 	if !ownershipChecked {
 		t.Fatal("expected migrate import to resolve the explicit version through App Store Connect")
 	}
+	createCount := metadataRequestCount(reg, http.MethodPost, "/v1/appStoreVersionLocalizations")
 	if createCount != 1 {
 		t.Fatalf("expected one localization create, got %d", createCount)
 	}

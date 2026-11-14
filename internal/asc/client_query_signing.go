@@ -68,6 +68,8 @@ type passTypeIDCertificatesQuery struct {
 	ids              []string
 	sort             string
 	fields           []string
+	passTypeIDFields []string
+	include          []string
 }
 
 type certificatesQuery struct {
@@ -314,6 +316,8 @@ func buildPassTypeIDCertificatesQuery(query *passTypeIDCertificatesQuery) string
 		values.Set("sort", strings.TrimSpace(query.sort))
 	}
 	addCSV(values, "fields[certificates]", query.fields)
+	addCSV(values, "fields[passTypeIds]", query.passTypeIDFields)
+	addCSV(values, "include", query.include)
 	addLimit(values, query.limit)
 	return values.Encode()
 }
@@ -913,6 +917,20 @@ func WithPassTypeIDCertificatesFields(fields []string) PassTypeIDCertificatesOpt
 	}
 }
 
+// WithPassTypeIDCertificatesPassTypeIDFields sets fields[passTypeIds] for included pass type IDs.
+func WithPassTypeIDCertificatesPassTypeIDFields(fields []string) PassTypeIDCertificatesOption {
+	return func(q *passTypeIDCertificatesQuery) {
+		q.passTypeIDFields = normalizeList(fields)
+	}
+}
+
+// WithPassTypeIDCertificatesInclude sets include for certificate responses.
+func WithPassTypeIDCertificatesInclude(include []string) PassTypeIDCertificatesOption {
+	return func(q *passTypeIDCertificatesQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
 // WithCertificatesTypes filters certificates by type.
 func WithCertificatesTypes(types []string) CertificatesOption {
 	return func(q *certificatesQuery) {
@@ -1161,6 +1179,22 @@ func WithActorsFields(fields []string) ActorsOption {
 	}
 }
 
+// WithDevicesFilterUDIDs filters devices by UDID(s).
+func WithDevicesFilterUDIDs(udids []string) DevicesOption {
+	return WithDevicesUDIDs(udids)
+}
+
+// WithDevicesFilterPlatforms filters devices by platform(s).
+func WithDevicesFilterPlatforms(platforms []string) DevicesOption {
+	return func(q *devicesQuery) {
+		normalized := normalizeUpperList(platforms)
+		if len(normalized) == 0 {
+			return
+		}
+		q.platforms = normalized
+	}
+}
+
 // WithDevicesFilterStatuses filters devices by status (e.g., ENABLED, DISABLED).
 func WithDevicesFilterStatuses(statuses []string) DevicesOption {
 	return func(q *devicesQuery) {
@@ -1176,6 +1210,15 @@ func WithDevicesFilterStatuses(statuses []string) DevicesOption {
 func WithDevicesNames(names []string) DevicesOption {
 	return func(q *devicesQuery) {
 		q.names = normalizeList(names)
+	}
+}
+
+// WithDevicesPlatform filters devices by platform.
+func WithDevicesPlatform(platform string) DevicesOption {
+	return func(q *devicesQuery) {
+		if strings.TrimSpace(platform) != "" {
+			q.platforms = []string{strings.ToUpper(strings.TrimSpace(platform))}
+		}
 	}
 }
 

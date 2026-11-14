@@ -6,6 +6,14 @@ type IntegerRange struct {
 	Maximum *int `json:"maximum,omitempty"`
 }
 
+// NewIntegerRange builds an IntegerRange with both bounds set.
+func NewIntegerRange(minimum, maximum int) IntegerRange {
+	return IntegerRange{
+		Minimum: &minimum,
+		Maximum: &maximum,
+	}
+}
+
 // SubscriptionOfferDuration represents subscription offer durations.
 type SubscriptionOfferDuration string
 
@@ -133,11 +141,6 @@ type WinBackOfferUpdateData struct {
 	Attributes WinBackOfferUpdateAttributes `json:"attributes"`
 }
 
-// WinBackOfferUpdateRequest is a request to update a win-back offer.
-type WinBackOfferUpdateRequest struct {
-	Data WinBackOfferUpdateData `json:"data"`
-}
-
 // WinBackOfferPriceAttributes describes a win-back offer price (attributes are empty).
 type WinBackOfferPriceAttributes struct{}
 
@@ -165,9 +168,6 @@ type WinBackOfferPriceInlineCreate struct {
 
 // WinBackOffersResponse is the response from list endpoints.
 type WinBackOffersResponse = Response[WinBackOfferAttributes]
-
-// WinBackOfferResponse is the response from detail endpoints.
-type WinBackOfferResponse = SingleResponse[WinBackOfferAttributes]
 
 // WinBackOfferPricesResponse is the response from prices endpoints.
 type WinBackOfferPricesResponse = Response[WinBackOfferPriceAttributes]

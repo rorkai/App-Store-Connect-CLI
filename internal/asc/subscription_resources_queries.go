@@ -89,10 +89,15 @@ type subscriptionPricePointDetailQuery struct {
 
 type subscriptionLocalizationsQuery struct {
 	listQuery
+	fields             []string
+	subscriptionFields []string
+	include            []string
 }
 
 type subscriptionImagesQuery struct {
 	listQuery
+	subscriptionFields []string
+	include            []string
 }
 
 type subscriptionIntroductoryOffersQuery struct {
@@ -156,12 +161,50 @@ type subscriptionPricesQuery struct {
 
 type subscriptionGroupLocalizationsQuery struct {
 	listQuery
+	fields      []string
+	groupFields []string
+	include     []string
 }
 
 type subscriptionAppStoreReviewScreenshotQuery struct {
 	fields             []string
 	subscriptionFields []string
 	include            []string
+}
+
+// WithSubscriptionLocalizationsFields sets fields for returned subscription localizations.
+func WithSubscriptionLocalizationsFields(fields []string) SubscriptionLocalizationsOption {
+	return func(q *subscriptionLocalizationsQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+// WithSubscriptionLocalizationsSubscriptionFields sets fields[subscriptions] for included subscriptions.
+func WithSubscriptionLocalizationsSubscriptionFields(fields []string) SubscriptionLocalizationsOption {
+	return func(q *subscriptionLocalizationsQuery) {
+		q.subscriptionFields = normalizeList(fields)
+	}
+}
+
+// WithSubscriptionLocalizationsInclude sets relationships to include.
+func WithSubscriptionLocalizationsInclude(include []string) SubscriptionLocalizationsOption {
+	return func(q *subscriptionLocalizationsQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
+// WithSubscriptionImagesSubscriptionFields sets fields[subscriptions] for included subscriptions.
+func WithSubscriptionImagesSubscriptionFields(fields []string) SubscriptionImagesOption {
+	return func(q *subscriptionImagesQuery) {
+		q.subscriptionFields = normalizeList(fields)
+	}
+}
+
+// WithSubscriptionImagesInclude sets relationships to include.
+func WithSubscriptionImagesInclude(include []string) SubscriptionImagesOption {
+	return func(q *subscriptionImagesQuery) {
+		q.include = normalizeList(include)
+	}
 }
 
 // WithSubscriptionIntroductoryOffersTerritories filters introductory offers by territory IDs.
@@ -384,6 +427,27 @@ func WithSubscriptionPricesTerritoryFields(fields []string) SubscriptionPricesOp
 	}
 }
 
+// WithSubscriptionGroupLocalizationsFields sets fields for returned subscription group localizations.
+func WithSubscriptionGroupLocalizationsFields(fields []string) SubscriptionGroupLocalizationsOption {
+	return func(q *subscriptionGroupLocalizationsQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+// WithSubscriptionGroupLocalizationsGroupFields sets fields[subscriptionGroups] for included groups.
+func WithSubscriptionGroupLocalizationsGroupFields(fields []string) SubscriptionGroupLocalizationsOption {
+	return func(q *subscriptionGroupLocalizationsQuery) {
+		q.groupFields = normalizeList(fields)
+	}
+}
+
+// WithSubscriptionGroupLocalizationsInclude sets relationships to include.
+func WithSubscriptionGroupLocalizationsInclude(include []string) SubscriptionGroupLocalizationsOption {
+	return func(q *subscriptionGroupLocalizationsQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
 // WithSubscriptionAppStoreReviewScreenshotFields limits returned screenshot fields.
 func WithSubscriptionAppStoreReviewScreenshotFields(fields []string) SubscriptionAppStoreReviewScreenshotOption {
 	return func(q *subscriptionAppStoreReviewScreenshotQuery) {
@@ -444,12 +508,17 @@ func WithSubscriptionPricePointFields(fields []string) SubscriptionPricePointOpt
 
 func buildSubscriptionLocalizationsQuery(query *subscriptionLocalizationsQuery) string {
 	values := url.Values{}
+	addCSV(values, "fields[subscriptionLocalizations]", query.fields)
+	addCSV(values, "fields[subscriptions]", query.subscriptionFields)
+	addCSV(values, "include", query.include)
 	addLimit(values, query.limit)
 	return values.Encode()
 }
 
 func buildSubscriptionImagesQuery(query *subscriptionImagesQuery) string {
 	values := url.Values{}
+	addCSV(values, "fields[subscriptions]", query.subscriptionFields)
+	addCSV(values, "include", query.include)
 	addLimit(values, query.limit)
 	return values.Encode()
 }
@@ -541,6 +610,9 @@ func buildSubscriptionPricesQuery(query *subscriptionPricesQuery) string {
 
 func buildSubscriptionGroupLocalizationsQuery(query *subscriptionGroupLocalizationsQuery) string {
 	values := url.Values{}
+	addCSV(values, "fields[subscriptionGroupLocalizations]", query.fields)
+	addCSV(values, "fields[subscriptionGroups]", query.groupFields)
+	addCSV(values, "include", query.include)
 	addLimit(values, query.limit)
 	return values.Encode()
 }
@@ -567,11 +639,11 @@ func buildSubscriptionPricePointDetailQuery(query *subscriptionPricePointDetailQ
 }
 
 func subscriptionLocalizationsQueryHasModifiers(query *subscriptionLocalizationsQuery) bool {
-	return query.limit != 0
+	return query.limit != 0 || len(query.fields) != 0 || len(query.subscriptionFields) != 0 || len(query.include) != 0
 }
 
 func subscriptionImagesQueryHasModifiers(query *subscriptionImagesQuery) bool {
-	return query.limit != 0
+	return query.limit != 0 || len(query.subscriptionFields) != 0 || len(query.include) != 0
 }
 
 func subscriptionIntroductoryOffersQueryHasModifiers(query *subscriptionIntroductoryOffersQuery) bool {
@@ -596,5 +668,5 @@ func subscriptionOfferCodePricesQueryHasModifiers(query *subscriptionOfferCodePr
 }
 
 func subscriptionGroupLocalizationsQueryHasModifiers(query *subscriptionGroupLocalizationsQuery) bool {
-	return query.limit != 0
+	return query.limit != 0 || len(query.fields) != 0 || len(query.groupFields) != 0 || len(query.include) != 0
 }

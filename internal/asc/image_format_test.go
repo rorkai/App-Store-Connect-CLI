@@ -88,15 +88,11 @@ func TestValidateImageFormatMatchesExtensionRejectsContradictions(t *testing.T) 
 	}
 }
 
-func TestImageFormatCheckRejectsJPEGNamedPNG(t *testing.T) {
+func TestValidateScreenshotDimensionsRejectsJPEGNamedPNG(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "01-home.png")
 	writeJPEG(t, path, 640, 960)
 
-	_, format, err := ReadImageDimensionsAndFormat(path)
-	if err != nil {
-		t.Fatalf("ReadImageDimensionsAndFormat() error: %v", err)
-	}
-	err = ValidateImageFormatMatchesExtension(path, format)
+	err := ValidateScreenshotDimensions(path, "APP_IPHONE_35")
 	if err == nil {
 		t.Fatal("expected a format mismatch error for JPEG data named .png, got nil")
 	}
@@ -111,25 +107,19 @@ func TestImageFormatCheckRejectsJPEGNamedPNG(t *testing.T) {
 	}
 }
 
-func TestImageFormatCheckAcceptsAgreeingFormats(t *testing.T) {
+func TestValidateScreenshotDimensionsAcceptsAgreeingFormats(t *testing.T) {
 	dir := t.TempDir()
 
 	pngPath := filepath.Join(dir, "01-home.png")
 	writePNG(t, pngPath, 640, 960)
+	if err := ValidateScreenshotDimensions(pngPath, "APP_IPHONE_35"); err != nil {
+		t.Fatalf("ValidateScreenshotDimensions(png) error: %v", err)
+	}
+
 	jpgPath := filepath.Join(dir, "02-settings.jpg")
 	writeJPEG(t, jpgPath, 640, 960)
-
-	for _, path := range []string{pngPath, jpgPath} {
-		dims, format, err := ReadImageDimensionsAndFormat(path)
-		if err != nil {
-			t.Fatalf("ReadImageDimensionsAndFormat(%q) error: %v", path, err)
-		}
-		if err := ValidateImageFormatMatchesExtension(path, format); err != nil {
-			t.Fatalf("ValidateImageFormatMatchesExtension(%q) error: %v", path, err)
-		}
-		if err := ValidateScreenshotDimensionsForSize(path, dims.Width, dims.Height, "APP_IPHONE_35"); err != nil {
-			t.Fatalf("ValidateScreenshotDimensionsForSize(%q) error: %v", path, err)
-		}
+	if err := ValidateScreenshotDimensions(jpgPath, "APP_IPHONE_35"); err != nil {
+		t.Fatalf("ValidateScreenshotDimensions(jpg) error: %v", err)
 	}
 }
 

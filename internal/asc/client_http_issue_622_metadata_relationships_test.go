@@ -90,6 +90,26 @@ func TestIssue622_MetadataRelationshipEndpoints_PATCH(t *testing.T) {
 		call       func(*Client) error
 	}{
 		{
+			name:     "UpdateAppClipDefaultExperienceReleaseWithAppStoreVersionRelationship",
+			wantPath: "/v1/appClipDefaultExperiences/exp-1/relationships/releaseWithAppStoreVersion",
+			wantBodyFn: func(t *testing.T, body []byte) {
+				t.Helper()
+				var got AppClipDefaultExperienceReleaseWithAppStoreVersionRelationshipUpdateRequest
+				if err := json.Unmarshal(body, &got); err != nil {
+					t.Fatalf("unmarshal body: %v", err)
+				}
+				if got.Data.Type != ResourceTypeAppStoreVersions {
+					t.Fatalf("expected type %q, got %q", ResourceTypeAppStoreVersions, got.Data.Type)
+				}
+				if got.Data.ID != "ver-1" {
+					t.Fatalf("expected id %q, got %q", "ver-1", got.Data.ID)
+				}
+			},
+			call: func(client *Client) error {
+				return client.UpdateAppClipDefaultExperienceReleaseWithAppStoreVersionRelationship(ctx, "exp-1", "ver-1")
+			},
+		},
+		{
 			name:     "UpdateAppPreviewSetAppPreviewsRelationship",
 			wantPath: "/v1/appPreviewSets/set-1/relationships/appPreviews",
 			wantBodyFn: func(t *testing.T, body []byte) {
@@ -136,20 +156,23 @@ func TestIssue622_MetadataRelationshipEndpoints_PATCH(t *testing.T) {
 			},
 		},
 		{
-			name:     "UpdateAppScreenshotSetAppScreenshotsRelationship empty clears relationship",
-			wantPath: "/v1/appScreenshotSets/set-1/relationships/appScreenshots",
+			name:     "AttachAppClipDefaultExperienceToVersion",
+			wantPath: "/v1/appStoreVersions/ver-1/relationships/appClipDefaultExperience",
 			wantBodyFn: func(t *testing.T, body []byte) {
 				t.Helper()
-				var got map[string]json.RawMessage
+				var got AppStoreVersionAppClipDefaultExperienceRelationshipUpdateRequest
 				if err := json.Unmarshal(body, &got); err != nil {
 					t.Fatalf("unmarshal body: %v", err)
 				}
-				if string(got["data"]) != "[]" {
-					t.Fatalf("expected empty relationship data array, got %s", body)
+				if got.Data.Type != ResourceTypeAppClipDefaultExperiences {
+					t.Fatalf("expected type %q, got %q", ResourceTypeAppClipDefaultExperiences, got.Data.Type)
+				}
+				if got.Data.ID != "exp-1" {
+					t.Fatalf("expected id %q, got %q", "exp-1", got.Data.ID)
 				}
 			},
 			call: func(client *Client) error {
-				return client.UpdateAppScreenshotSetAppScreenshotsRelationship(ctx, "set-1", nil)
+				return client.AttachAppClipDefaultExperienceToVersion(ctx, "ver-1", "exp-1")
 			},
 		},
 	}

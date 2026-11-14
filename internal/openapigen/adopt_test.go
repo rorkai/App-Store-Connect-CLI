@@ -67,7 +67,11 @@ func writeHandWritten(t *testing.T, files map[string]string) string {
 	t.Helper()
 	dir := t.TempDir()
 	for name, src := range files {
-		if err := os.WriteFile(filepath.Join(dir, name), []byte(src), 0o644); err != nil {
+		path := filepath.Join(dir, name)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -75,21 +79,25 @@ func writeHandWritten(t *testing.T, files map[string]string) string {
 }
 
 func runAdopt(dir string, dryRun bool) error {
-	return run(filepath.Join("testdata", "spec.json"), filepath.Join(dir, "bindings.json"), dir, false, "Widgets", dryRun, io.Discard)
+	return run(filepath.Join("testdata", "spec.json"), filepath.Join(dir, "bindings"), dir, false, "Widgets", dryRun, io.Discard)
 }
 
 func TestAdoptReplacesOnlyCodeTheGeneratorReproduces(t *testing.T) {
-	dir := writeHandWritten(t, map[string]string{"client.go": handWrittenClient, "types.go": handWrittenTypes, "response.go": handWrittenResponse})
+	otherFamily := `{"tag": "Other", "file": "other_gen.go"}`
+	dir := writeHandWritten(t, map[string]string{"client.go": handWrittenClient, "types.go": handWrittenTypes, "response.go": handWrittenResponse, "bindings/Other.json": otherFamily})
 	if err := runAdopt(dir, false); err != nil {
 		t.Fatal(err)
 	}
+	if got := readFile(t, filepath.Join(dir, "bindings", "Other.json")); got != otherFamily {
+		t.Errorf("adopt rewrote the bindings of a family it did not adopt:\n%s", got)
+	}
 
-	bindings, err := LoadBindings(filepath.Join(dir, "bindings.json"))
+	bindings, err := LoadBindings(filepath.Join(dir, "bindings"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	fam := bindings.Families[0]
-	if fam.File != "widgets_gen.go" || strings.Join(fam.Types, ",") != "WidgetAttributes,WidgetResponse" {
+	fam := bindings.Families[1]
+	if fam.Tag != "Widgets" || fam.File != "widgets_gen.go" || strings.Join(fam.Types, ",") != "WidgetAttributes,WidgetResponse" {
 		t.Errorf("family = %s with types %v", fam.File, fam.Types)
 	}
 	adopted := map[string]*OpBind{}
@@ -124,8 +132,19 @@ func TestAdoptReplacesOnlyCodeTheGeneratorReproduces(t *testing.T) {
 	}
 }
 
+func TestAdoptIntoAnExistingFamilyLeavesItUpToDate(t *testing.T) {
+	existing := `{"tag": "Widgets", "file": "widgets_gen.go", "operations": [{"operation": "widgets_updateInstance", "name": "UpdateWidget", "params": ["widgetID"]}]}`
+	dir := writeHandWritten(t, map[string]string{"client.go": handWrittenClient, "bindings/Widgets.json": existing})
+	if err := runAdopt(dir, false); err != nil {
+		t.Fatal(err)
+	}
+	if err := run(filepath.Join("testdata", "spec.json"), filepath.Join(dir, "bindings"), dir, true, "", false, io.Discard); err != nil {
+		t.Fatalf("check right after adopt: %v", err)
+	}
+}
+
 func TestAdoptWritesNothingOnDryRunOrFailure(t *testing.T) {
-	brokenBindings := `{"families": [{"tag": "Other", "file": "other_gen.go", "operations": [{"operation": "widgets_missing", "name": "Missing"}]}]}`
+	brokenBindings := `{"tag": "Other", "file": "other_gen.go", "operations": [{"operation": "widgets_missing", "name": "Missing"}]}`
 	tests := []struct {
 		name     string
 		bindings string
@@ -138,7 +157,7 @@ func TestAdoptWritesNothingOnDryRunOrFailure(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			files := map[string]string{"client.go": handWrittenClient}
 			if tt.bindings != "" {
-				files["bindings.json"] = tt.bindings
+				files["bindings/Other.json"] = tt.bindings
 			}
 			dir := writeHandWritten(t, files)
 			err := runAdopt(dir, tt.dryRun)

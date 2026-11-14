@@ -9,7 +9,7 @@ from collections.abc import Iterable
 
 
 WALL_SOURCE = "docs/wall-of-apps.json"
-OPENAPI_SNAPSHOT = "docs/openapi/latest.json"
+OPENAPI_SNAPSHOTS = {"docs/openapi/latest.json", "docs/openapi/web/latest.json"}
 EMBEDDED_GUIDES = {"docs/API_NOTES.md", "docs/WORKFLOWS.md", "docs/THIRD_PARTY_NOTICES.md"}
 WEBSITE_PREFIX = "website/"
 TELEMETRY_PREFIX = "internal/telemetry/"
@@ -17,7 +17,7 @@ TELEMETRY_CLI_PREFIX = "internal/cli/telemetry/"
 def path_kind(path: str) -> str:
     if path == WALL_SOURCE:
         return "wall"
-    if path == OPENAPI_SNAPSHOT or path in EMBEDDED_GUIDES:
+    if path in OPENAPI_SNAPSHOTS or path in EMBEDDED_GUIDES:
         return "full"
     if path.startswith(TELEMETRY_CLI_PREFIX):
         return "full"

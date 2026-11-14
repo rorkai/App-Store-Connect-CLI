@@ -1,0 +1,12 @@
+{
+  "tag": "GameCenterLeaderboardSetReleases",
+  "file": "game_center_leaderboard_set_releases_gen.go",
+  "types": [
+    "GameCenterLeaderboardSetReleaseCreateRequest",
+    "GameCenterLeaderboardSetReleaseResponse"
+  ],
+  "operations": [
+    {"operation":"gameCenterLeaderboardSetReleases_deleteInstance","name":"DeleteGameCenterLeaderboardSetRelease","params":["releaseID"]},
+    {"operation":"gameCenterLeaderboardSetReleases_getInstance","name":"GetGameCenterLeaderboardSetRelease","params":["releaseID"]}
+  ]
+}

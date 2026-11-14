@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -12,7 +13,7 @@ func loadTestdata(t *testing.T) (*Spec, *Bindings) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	bindings, err := LoadBindings(filepath.Join("testdata", "bindings.json"))
+	bindings, err := LoadBindings(filepath.Join("testdata", "bindings"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -36,16 +37,47 @@ func TestGenerateMatchesGolden(t *testing.T) {
 
 func TestBindingsEncodeIsCanonical(t *testing.T) {
 	_, bindings := loadTestdata(t)
-	got, err := bindings.Encode()
+	got, err := bindings.Families[0].Encode()
 	if err != nil {
 		t.Fatal(err)
 	}
-	want, err := os.ReadFile(filepath.Join("testdata", "bindings.json"))
+	want, err := os.ReadFile(filepath.Join("testdata", "bindings", "Widgets.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if string(got) != string(want) {
-		t.Errorf("Encode differs from testdata/bindings.json:\n%s", got)
+		t.Errorf("Encode differs from testdata/bindings/Widgets.json:\n%s", got)
+	}
+}
+
+func TestLoadBindingsRejects(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "Gadgets.json"), []byte(`{"tag": "Widgets", "file": "widgets_gen.go"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	unreadable := filepath.Join(t.TempDir(), "bindings")
+	if err := os.Mkdir(unreadable, 0o000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(unreadable, 0o755) })
+	tests := []struct {
+		name           string
+		path           string
+		needsFileModes bool
+	}{
+		{"a tag that differs from its file name", dir, false},
+		{"a file instead of a directory", filepath.Join(dir, "Gadgets.json"), false},
+		{"a directory it cannot read", unreadable, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.needsFileModes && (runtime.GOOS == "windows" || os.Geteuid() == 0) {
+				t.Skip("file modes do not stop this user from reading a directory")
+			}
+			if b, err := LoadBindings(tt.path); err == nil {
+				t.Fatalf("loaded %d families, want an error", len(b.Families))
+			}
+		})
 	}
 }
 

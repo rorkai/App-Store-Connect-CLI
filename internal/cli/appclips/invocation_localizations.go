@@ -204,50 +204,27 @@ Examples:
 
 // AppClipInvocationLocalizationsDeleteCommand deletes a localization.
 func AppClipInvocationLocalizationsDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("delete", flag.ExitOnError)
-
-	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "betaAppClipInvocationLocalizations", "Localization ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc app-clips invocations localizations delete --localization-id \"LOC_ID\" --confirm",
-		ShortHelp:  "Delete a beta App Clip invocation localization.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "delete",
+		Name:        "delete",
+		ShortUsage:  "asc app-clips invocations localizations delete --localization-id \"LOC_ID\" --confirm",
+		ShortHelp:   "Delete a beta App Clip invocation localization.",
 		LongHelp: `Delete a beta App Clip invocation localization.
 
 Examples:
   asc app-clips invocations localizations delete --localization-id "LOC_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			locValue := strings.TrimSpace(*localizationID)
-			if locValue == "" {
-				return shared.RequiredFlag("--localization-id")
-			}
-			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required to delete")
-				return shared.MissingRequiredUsageError("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("app-clips invocations localizations delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteBetaAppClipInvocationLocalization(requestCtx, locValue); err != nil {
-				return fmt.Errorf("app-clips invocations localizations delete: failed to delete: %w", err)
-			}
-
-			result := &asc.BetaAppClipInvocationLocalizationDeleteResult{
-				ID:      locValue,
-				Deleted: true,
-			}
-
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:                 "localization-id",
+		IDUsage:                "Localization ID",
+		IDType:                 "betaAppClipInvocationLocalizations",
+		RequiredDiagnostic:     true,
+		ConfirmRequiredMessage: "--confirm is required to delete",
+		ErrorPrefix:            "app-clips invocations localizations delete",
+		DeleteErrorPrefix:      "app-clips invocations localizations delete: failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteBetaAppClipInvocationLocalization(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.BetaAppClipInvocationLocalizationDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }

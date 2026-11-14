@@ -75,23 +75,6 @@ type InAppPurchaseV2CreateData struct {
 	Relationships *InAppPurchaseV2Relationships   `json:"relationships,omitempty"`
 }
 
-// InAppPurchaseV2CreateRequest is a request to create an IAP.
-type InAppPurchaseV2CreateRequest struct {
-	Data InAppPurchaseV2CreateData `json:"data"`
-}
-
-// InAppPurchaseV2UpdateData is the data portion of an IAP update request.
-type InAppPurchaseV2UpdateData struct {
-	Type       ResourceType                     `json:"type"`
-	ID         string                           `json:"id"`
-	Attributes *InAppPurchaseV2UpdateAttributes `json:"attributes,omitempty"`
-}
-
-// InAppPurchaseV2UpdateRequest is a request to update an IAP.
-type InAppPurchaseV2UpdateRequest struct {
-	Data InAppPurchaseV2UpdateData `json:"data"`
-}
-
 // InAppPurchaseLocalizationAttributes describes an IAP localization.
 type InAppPurchaseLocalizationAttributes struct {
 	Name        string `json:"name"`
@@ -103,17 +86,11 @@ type InAppPurchaseLocalizationAttributes struct {
 // InAppPurchasesV2Response is the response from in-app purchase list endpoints.
 type InAppPurchasesV2Response = Response[InAppPurchaseV2Attributes]
 
-// InAppPurchaseV2Response is the response from in-app purchase detail endpoints.
-type InAppPurchaseV2Response = SingleResponse[InAppPurchaseV2Attributes]
-
 // InAppPurchaseLocalizationsResponse is the response from localization endpoints.
 type InAppPurchaseLocalizationsResponse = Response[InAppPurchaseLocalizationAttributes]
 
 // InAppPurchasesResponse is the response from legacy in-app purchase list endpoints.
 type InAppPurchasesResponse = Response[InAppPurchaseAttributes]
-
-// InAppPurchaseResponse is the response from legacy in-app purchase detail endpoints.
-type InAppPurchaseResponse = SingleResponse[InAppPurchaseAttributes]
 
 // IAPOption is a functional option for GetInAppPurchasesV2.
 type IAPOption func(*inAppPurchasesQuery)
@@ -148,6 +125,8 @@ type inAppPurchaseGetQuery struct {
 
 type iapLocalizationsQuery struct {
 	listQuery
+	iapFields []string
+	include   []string
 }
 
 // WithIAPProductIDs filters in-app purchases by product ID.
@@ -233,6 +212,16 @@ func WithIAPGetNestedVersionsLimit(limit int) IAPGetOption {
 	}
 }
 
+// WithIAPLocalizationsIAPFields sets fields[inAppPurchases] for included IAPs.
+func WithIAPLocalizationsIAPFields(fields []string) IAPLocalizationsOption {
+	return func(q *iapLocalizationsQuery) { q.iapFields = normalizeUniqueList(fields) }
+}
+
+// WithIAPLocalizationsInclude sets the exact localization relationship include set.
+func WithIAPLocalizationsInclude(include []string) IAPLocalizationsOption {
+	return func(q *iapLocalizationsQuery) { q.include = normalizeUniqueList(include) }
+}
+
 func buildInAppPurchasesQuery(query *inAppPurchasesQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
@@ -266,5 +255,7 @@ func buildInAppPurchaseGetQuery(query *inAppPurchaseGetQuery) string {
 func buildIAPLocalizationsQuery(query *iapLocalizationsQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
+	addCSV(values, "fields[inAppPurchases]", query.iapFields)
+	addCSV(values, "include", includeWhenFieldsSelected(query.include, "inAppPurchaseV2", query.iapFields))
 	return values.Encode()
 }

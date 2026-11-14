@@ -171,12 +171,13 @@ Examples:
 				fmt.Fprintf(os.Stderr, "Error: %s\n", err.Error())
 				return shared.InvalidValueUsageError("--invite-type")
 			}
+			command := shared.RewriteUsageMessage(ctx, "beta-testers list")
 			// A links.next URL already carries the query it was produced from, so
 			// these flags would be accepted and silently dropped.
-			if err := rejectBetaTestersNextFlagConflicts(fs, *next, "build-id", "group", "email", "first-name", "last-name", "invite-type", "sort", "include", "fields"); err != nil {
+			if err := rejectBetaTestersNextFlagConflicts(fs, *next, command, "build-id", "group", "email", "first-name", "last-name", "invite-type", "sort", "include", "fields"); err != nil {
 				return err
 			}
-			included, err := includedFields.Resolve("beta-testers list", *next, shared.SplitCSV(*include))
+			included, err := includedFields.Resolve(command, *next, shared.SplitCSV(*include))
 			if err != nil {
 				return err
 			}
@@ -309,7 +310,7 @@ func betaTestersNextURLHasInclude(next string) bool {
 // rejectBetaTestersNextFlagConflicts fails when a caller pairs --next with a
 // flag whose value cannot reach the request, because a links.next URL is
 // followed verbatim.
-func rejectBetaTestersNextFlagConflicts(fs *flag.FlagSet, next string, names ...string) error {
+func rejectBetaTestersNextFlagConflicts(fs *flag.FlagSet, next, command string, names ...string) error {
 	if strings.TrimSpace(next) == "" {
 		return nil
 	}
@@ -320,7 +321,7 @@ func rejectBetaTestersNextFlagConflicts(fs *flag.FlagSet, next string, names ...
 	for _, name := range names {
 		if _, ok := provided[name]; ok {
 			return shared.WithDiagnostic(
-				shared.UsageErrorf("beta-testers list: --next cannot be combined with --%s", name),
+				shared.UsageErrorf("%s: --next cannot be combined with --%s", command, name),
 				shared.DiagnosticConflictingInput,
 				"--"+name,
 			)

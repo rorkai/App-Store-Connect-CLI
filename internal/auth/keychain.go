@@ -395,11 +395,6 @@ func LoadPrivateKeyFromPEM(data []byte) (*ecdsa.PrivateKey, error) {
 	return ecdsaKey, nil
 }
 
-// StoreCredentials stores credentials in the keychain when available.
-func StoreCredentials(name, keyID, issuerID, keyPath string) error {
-	return StoreCredentialsWithKeyType(name, keyID, issuerID, keyPath, config.CredentialKeyTypeTeam)
-}
-
 // StoreCredentialsWithKeyType stores credentials with an explicit App Store Connect key type.
 func StoreCredentialsWithKeyType(name, keyID, issuerID, keyPath, keyType string) error {
 	originalName := name
@@ -771,11 +766,6 @@ func loadPrivateKeyPEMForStorage(path string) (string, error) {
 		return "", closeErr
 	}
 	return string(data), nil
-}
-
-// StoreCredentialsConfig stores credentials in the config file only.
-func StoreCredentialsConfig(name, keyID, issuerID, keyPath string) error {
-	return StoreCredentialsConfigWithKeyType(name, keyID, issuerID, keyPath, config.CredentialKeyTypeTeam)
 }
 
 // StoreCredentialsConfigWithKeyType stores credentials in the config file only
@@ -1277,12 +1267,6 @@ type RemoveOptions struct {
 	IncludeGlobalConfig bool
 }
 
-// RemoveCredentials removes a named credential from the keychain and the
-// config files selected by the default RemoveOptions.
-func RemoveCredentials(name string) error {
-	return RemoveCredentialsWithOptions(name, RemoveOptions{})
-}
-
 // RemoveCredentialsWithOptions removes a named credential from the keychain
 // and the config files that opts selects.
 func RemoveCredentialsWithOptions(name string, opts RemoveOptions) error {
@@ -1319,12 +1303,6 @@ func RemoveCredentialsWithOptions(name string, opts RemoveOptions) error {
 		return clearDefaultNameIf(name)
 	}
 	return configErr
-}
-
-// RemoveAllCredentials removes all stored credentials from the keychain and
-// the config files selected by the default RemoveOptions.
-func RemoveAllCredentials() error {
-	return RemoveAllCredentialsWithOptions(RemoveOptions{})
 }
 
 // RemoveAllCredentialsWithOptions removes all stored credentials from the
