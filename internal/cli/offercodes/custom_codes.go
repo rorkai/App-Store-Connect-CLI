@@ -62,8 +62,8 @@ Examples:
 		ErrorPrefix: "offer-codes custom-codes list",
 		FetchPage: func(ctx context.Context, client *asc.Client, offerCodeID string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := []asc.SubscriptionOfferCodeCustomCodesOption{
-				asc.WithSubscriptionOfferCodeCustomCodesLimit(limit),
-				asc.WithSubscriptionOfferCodeCustomCodesNextURL(next),
+				asc.Limit[asc.SubscriptionOfferCodeCustomCodesOption](limit),
+				asc.NextURL[asc.SubscriptionOfferCodeCustomCodesOption](next),
 			}
 			resp, err := client.GetSubscriptionOfferCodeCustomCodes(ctx, offerCodeID, opts...)
 			if err != nil {

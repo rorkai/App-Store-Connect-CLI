@@ -65,38 +65,6 @@ type iapPriceScheduleQuery struct {
 	automaticPricesLimit int
 }
 
-func WithIAPOfferCodesLimit(limit int) IAPOfferCodesOption {
-	return func(q *iapOfferCodesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-func WithIAPOfferCodesNextURL(next string) IAPOfferCodesOption {
-	return func(q *iapOfferCodesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
-func WithIAPPricePointsLimit(limit int) IAPPricePointsOption {
-	return func(q *iapPricePointsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-func WithIAPPricePointsNextURL(next string) IAPPricePointsOption {
-	return func(q *iapPricePointsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 func WithIAPPricePointsTerritory(territory string) IAPPricePointsOption {
 	return func(q *iapPricePointsQuery) {
 		if strings.TrimSpace(territory) != "" {
@@ -123,54 +91,6 @@ func WithIAPPricePointsInclude(include []string) IAPPricePointsOption {
 	}
 }
 
-func WithIAPOfferCodeCustomCodesLimit(limit int) IAPOfferCodeCustomCodesOption {
-	return func(q *iapOfferCodeCustomCodesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-func WithIAPOfferCodeCustomCodesNextURL(next string) IAPOfferCodeCustomCodesOption {
-	return func(q *iapOfferCodeCustomCodesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
-func WithIAPOfferCodeOneTimeUseCodesLimit(limit int) IAPOfferCodeOneTimeUseCodesOption {
-	return func(q *iapOfferCodeOneTimeUseCodesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-func WithIAPOfferCodeOneTimeUseCodesNextURL(next string) IAPOfferCodeOneTimeUseCodesOption {
-	return func(q *iapOfferCodeOneTimeUseCodesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
-func WithIAPOfferCodePricesLimit(limit int) IAPOfferCodePricesOption {
-	return func(q *iapOfferCodePricesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-func WithIAPOfferCodePricesNextURL(next string) IAPOfferCodePricesOption {
-	return func(q *iapOfferCodePricesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithIAPOfferCodePricesFields sets fields[inAppPurchaseOfferPrices].
 func WithIAPOfferCodePricesFields(fields []string) IAPOfferCodePricesOption {
 	return func(q *iapOfferCodePricesQuery) {
@@ -182,38 +102,6 @@ func WithIAPOfferCodePricesFields(fields []string) IAPOfferCodePricesOption {
 func WithIAPOfferCodePricesInclude(include []string) IAPOfferCodePricesOption {
 	return func(q *iapOfferCodePricesQuery) {
 		q.include = normalizeUniqueList(include)
-	}
-}
-
-func WithIAPAvailabilityTerritoriesLimit(limit int) IAPAvailabilityTerritoriesOption {
-	return func(q *iapAvailabilityTerritoriesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-func WithIAPAvailabilityTerritoriesNextURL(next string) IAPAvailabilityTerritoriesOption {
-	return func(q *iapAvailabilityTerritoriesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
-func WithIAPPriceSchedulePricesLimit(limit int) IAPPriceSchedulePricesOption {
-	return func(q *iapPriceSchedulePricesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-func WithIAPPriceSchedulePricesNextURL(next string) IAPPriceSchedulePricesOption {
-	return func(q *iapPriceSchedulePricesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
 	}
 }
 

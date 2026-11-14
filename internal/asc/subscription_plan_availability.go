@@ -81,24 +81,6 @@ type subscriptionPlanAvailabilitiesQuery struct {
 // limit[availableTerritories] on subscription plan availability reads.
 const SubscriptionPlanAvailabilityIncludedTerritoriesLimit = 50
 
-// WithSubscriptionPlanAvailabilitiesLimit sets the maximum number of plan availabilities to return.
-func WithSubscriptionPlanAvailabilitiesLimit(limit int) SubscriptionPlanAvailabilitiesOption {
-	return func(q *subscriptionPlanAvailabilitiesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithSubscriptionPlanAvailabilitiesNextURL uses a next page URL directly.
-func WithSubscriptionPlanAvailabilitiesNextURL(next string) SubscriptionPlanAvailabilitiesOption {
-	return func(q *subscriptionPlanAvailabilitiesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithSubscriptionPlanAvailabilitiesPlanTypes filters returned plan availabilities by plan type.
 // The App Store Connect API does not expose filter[planType] on planAvailabilities, so filtering
 // is applied client-side after the list response is fetched.

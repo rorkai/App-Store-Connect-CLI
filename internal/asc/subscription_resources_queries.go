@@ -172,24 +172,6 @@ type subscriptionAppStoreReviewScreenshotQuery struct {
 	include            []string
 }
 
-// WithSubscriptionLocalizationsLimit sets the max number of localizations to return.
-func WithSubscriptionLocalizationsLimit(limit int) SubscriptionLocalizationsOption {
-	return func(q *subscriptionLocalizationsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithSubscriptionLocalizationsNextURL uses a next page URL directly.
-func WithSubscriptionLocalizationsNextURL(next string) SubscriptionLocalizationsOption {
-	return func(q *subscriptionLocalizationsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithSubscriptionLocalizationsFields sets fields for returned subscription localizations.
 func WithSubscriptionLocalizationsFields(fields []string) SubscriptionLocalizationsOption {
 	return func(q *subscriptionLocalizationsQuery) {
@@ -211,24 +193,6 @@ func WithSubscriptionLocalizationsInclude(include []string) SubscriptionLocaliza
 	}
 }
 
-// WithSubscriptionImagesLimit sets the max number of images to return.
-func WithSubscriptionImagesLimit(limit int) SubscriptionImagesOption {
-	return func(q *subscriptionImagesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithSubscriptionImagesNextURL uses a next page URL directly.
-func WithSubscriptionImagesNextURL(next string) SubscriptionImagesOption {
-	return func(q *subscriptionImagesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithSubscriptionImagesSubscriptionFields sets fields[subscriptions] for included subscriptions.
 func WithSubscriptionImagesSubscriptionFields(fields []string) SubscriptionImagesOption {
 	return func(q *subscriptionImagesQuery) {
@@ -240,24 +204,6 @@ func WithSubscriptionImagesSubscriptionFields(fields []string) SubscriptionImage
 func WithSubscriptionImagesInclude(include []string) SubscriptionImagesOption {
 	return func(q *subscriptionImagesQuery) {
 		q.include = normalizeList(include)
-	}
-}
-
-// WithSubscriptionIntroductoryOffersLimit sets the max number of offers to return.
-func WithSubscriptionIntroductoryOffersLimit(limit int) SubscriptionIntroductoryOffersOption {
-	return func(q *subscriptionIntroductoryOffersQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithSubscriptionIntroductoryOffersNextURL uses a next page URL directly.
-func WithSubscriptionIntroductoryOffersNextURL(next string) SubscriptionIntroductoryOffersOption {
-	return func(q *subscriptionIntroductoryOffersQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
 	}
 }
 
@@ -296,24 +242,6 @@ func WithSubscriptionIntroductoryOffersPricePointFields(fields []string) Subscri
 	}
 }
 
-// WithSubscriptionPromotionalOffersLimit sets the max number of offers to return.
-func WithSubscriptionPromotionalOffersLimit(limit int) SubscriptionPromotionalOffersOption {
-	return func(q *subscriptionPromotionalOffersQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithSubscriptionPromotionalOffersNextURL uses a next page URL directly.
-func WithSubscriptionPromotionalOffersNextURL(next string) SubscriptionPromotionalOffersOption {
-	return func(q *subscriptionPromotionalOffersQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithSubscriptionPromotionalOffersSubscriptionFields sets fields[subscriptions] for included subscriptions.
 func WithSubscriptionPromotionalOffersSubscriptionFields(fields []string) SubscriptionPromotionalOffersOption {
 	return func(q *subscriptionPromotionalOffersQuery) {
@@ -325,24 +253,6 @@ func WithSubscriptionPromotionalOffersSubscriptionFields(fields []string) Subscr
 func WithSubscriptionPromotionalOffersInclude(include []string) SubscriptionPromotionalOffersOption {
 	return func(q *subscriptionPromotionalOffersQuery) {
 		q.include = normalizeList(include)
-	}
-}
-
-// WithSubscriptionPromotionalOfferPricesLimit sets the max number of prices to return.
-func WithSubscriptionPromotionalOfferPricesLimit(limit int) SubscriptionPromotionalOfferPricesOption {
-	return func(q *subscriptionPromotionalOfferPricesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithSubscriptionPromotionalOfferPricesNextURL uses a next page URL directly.
-func WithSubscriptionPromotionalOfferPricesNextURL(next string) SubscriptionPromotionalOfferPricesOption {
-	return func(q *subscriptionPromotionalOfferPricesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
 	}
 }
 
@@ -360,24 +270,6 @@ func WithSubscriptionPromotionalOfferPricesInclude(include []string) Subscriptio
 	}
 }
 
-// WithSubscriptionOfferCodesLimit sets the max number of offer codes to return.
-func WithSubscriptionOfferCodesLimit(limit int) SubscriptionOfferCodesOption {
-	return func(q *subscriptionOfferCodesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithSubscriptionOfferCodesNextURL uses a next page URL directly.
-func WithSubscriptionOfferCodesNextURL(next string) SubscriptionOfferCodesOption {
-	return func(q *subscriptionOfferCodesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithSubscriptionOfferCodesSubscriptionFields sets fields[subscriptions] for included subscriptions.
 func WithSubscriptionOfferCodesSubscriptionFields(fields []string) SubscriptionOfferCodesOption {
 	return func(q *subscriptionOfferCodesQuery) {
@@ -389,42 +281,6 @@ func WithSubscriptionOfferCodesSubscriptionFields(fields []string) SubscriptionO
 func WithSubscriptionOfferCodesInclude(include []string) SubscriptionOfferCodesOption {
 	return func(q *subscriptionOfferCodesQuery) {
 		q.include = normalizeList(include)
-	}
-}
-
-// WithSubscriptionOfferCodeCustomCodesLimit sets the max number of custom codes to return.
-func WithSubscriptionOfferCodeCustomCodesLimit(limit int) SubscriptionOfferCodeCustomCodesOption {
-	return func(q *subscriptionOfferCodeCustomCodesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithSubscriptionOfferCodeCustomCodesNextURL uses a next page URL directly.
-func WithSubscriptionOfferCodeCustomCodesNextURL(next string) SubscriptionOfferCodeCustomCodesOption {
-	return func(q *subscriptionOfferCodeCustomCodesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
-// WithSubscriptionOfferCodePricesLimit sets the max number of prices to return.
-func WithSubscriptionOfferCodePricesLimit(limit int) SubscriptionOfferCodePricesOption {
-	return func(q *subscriptionOfferCodePricesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithSubscriptionOfferCodePricesNextURL uses a next page URL directly.
-func WithSubscriptionOfferCodePricesNextURL(next string) SubscriptionOfferCodePricesOption {
-	return func(q *subscriptionOfferCodePricesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
 	}
 }
 
@@ -518,24 +374,6 @@ func WithSubscriptionPricePointsTerritoryFields(fields []string) SubscriptionPri
 	})
 }
 
-// WithSubscriptionPricesLimit sets the max number of prices to return.
-func WithSubscriptionPricesLimit(limit int) SubscriptionPricesOption {
-	return func(q *subscriptionPricesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithSubscriptionPricesNextURL uses a next page URL directly.
-func WithSubscriptionPricesNextURL(next string) SubscriptionPricesOption {
-	return func(q *subscriptionPricesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithSubscriptionPricesTerritory filters subscription prices by territory (e.g., "USA").
 func WithSubscriptionPricesTerritory(territory string) SubscriptionPricesOption {
 	return func(q *subscriptionPricesQuery) {
@@ -586,24 +424,6 @@ func WithSubscriptionPricesPricePointFields(fields []string) SubscriptionPricesO
 func WithSubscriptionPricesTerritoryFields(fields []string) SubscriptionPricesOption {
 	return func(q *subscriptionPricesQuery) {
 		q.territoryFields = normalizeList(fields)
-	}
-}
-
-// WithSubscriptionGroupLocalizationsLimit sets the max number of group localizations to return.
-func WithSubscriptionGroupLocalizationsLimit(limit int) SubscriptionGroupLocalizationsOption {
-	return func(q *subscriptionGroupLocalizationsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithSubscriptionGroupLocalizationsNextURL uses a next page URL directly.
-func WithSubscriptionGroupLocalizationsNextURL(next string) SubscriptionGroupLocalizationsOption {
-	return func(q *subscriptionGroupLocalizationsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
 	}
 }
 

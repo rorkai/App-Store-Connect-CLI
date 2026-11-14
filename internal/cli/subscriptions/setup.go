@@ -1113,7 +1113,7 @@ func verifySubscriptionsSetupState(ctx context.Context, client *asc.Client, resu
 
 	if opts.hasLocalization() {
 		locCtx, locCancel := shared.ContextWithTimeout(ctx)
-		locResp, err := client.GetSubscriptionLocalizations(locCtx, result.SubscriptionID, asc.WithSubscriptionLocalizationsLimit(200)) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
+		locResp, err := client.GetSubscriptionLocalizations(locCtx, result.SubscriptionID, asc.Limit[asc.SubscriptionLocalizationsOption](200)) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 		locCancel()
 		if err != nil {
 			verification.Status = "failed"
@@ -1379,7 +1379,7 @@ func findExistingSubscriptionSetupGroupLocalization(ctx context.Context, client 
 	if locale == "" {
 		return asc.Resource[asc.SubscriptionGroupLocalizationAttributes]{}, false, nil
 	}
-	firstPage, err := client.GetSubscriptionGroupLocalizations(ctx, groupID, asc.WithSubscriptionGroupLocalizationsLimit(200)) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
+	firstPage, err := client.GetSubscriptionGroupLocalizations(ctx, groupID, asc.Limit[asc.SubscriptionGroupLocalizationsOption](200)) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 	if err != nil {
 		return asc.Resource[asc.SubscriptionGroupLocalizationAttributes]{}, false, err
 	}
@@ -1388,7 +1388,7 @@ func findExistingSubscriptionSetupGroupLocalization(ctx context.Context, client 
 		ctx,
 		firstPage,
 		func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-			return client.GetSubscriptionGroupLocalizations(ctx, groupID, asc.WithSubscriptionGroupLocalizationsNextURL(nextURL)) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
+			return client.GetSubscriptionGroupLocalizations(ctx, groupID, asc.NextURL[asc.SubscriptionGroupLocalizationsOption](nextURL)) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 		},
 		func(page asc.PaginatedResponse) error {
 			resp, ok := page.(*asc.SubscriptionGroupLocalizationsResponse)
@@ -1552,7 +1552,7 @@ func findExistingSubscriptionSetupGroup(ctx context.Context, client *asc.Client,
 	if referenceName == "" {
 		return "", false, nil
 	}
-	firstPage, err := client.GetSubscriptionGroups(ctx, appID, asc.WithSubscriptionGroupsLimit(200))
+	firstPage, err := client.GetSubscriptionGroups(ctx, appID, asc.Limit[asc.SubscriptionGroupsOption](200))
 	if err != nil {
 		return "", false, err
 	}
@@ -1565,7 +1565,7 @@ func findExistingSubscriptionSetupGroup(ctx context.Context, client *asc.Client,
 		ctx,
 		firstPage,
 		func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-			return client.GetSubscriptionGroups(ctx, appID, asc.WithSubscriptionGroupsNextURL(nextURL))
+			return client.GetSubscriptionGroups(ctx, appID, asc.NextURL[asc.SubscriptionGroupsOption](nextURL))
 		},
 		func(page asc.PaginatedResponse) error {
 			resp, ok := page.(*asc.SubscriptionGroupsResponse)
@@ -1601,7 +1601,7 @@ func findExistingSubscriptionSetupSubscription(ctx context.Context, client *asc.
 	if productID == "" {
 		return asc.Resource[asc.SubscriptionAttributes]{}, false, nil
 	}
-	firstPage, err := client.GetSubscriptions(ctx, groupID, asc.WithSubscriptionsLimit(200), asc.WithSubscriptionsProductIDs([]string{productID}))
+	firstPage, err := client.GetSubscriptions(ctx, groupID, asc.Limit[asc.SubscriptionsOption](200), asc.WithSubscriptionsProductIDs([]string{productID}))
 	if err != nil {
 		return asc.Resource[asc.SubscriptionAttributes]{}, false, err
 	}
@@ -1614,7 +1614,7 @@ func findExistingSubscriptionSetupSubscription(ctx context.Context, client *asc.
 		ctx,
 		firstPage,
 		func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-			return client.GetSubscriptions(ctx, groupID, asc.WithSubscriptionsNextURL(nextURL))
+			return client.GetSubscriptions(ctx, groupID, asc.NextURL[asc.SubscriptionsOption](nextURL))
 		},
 		func(page asc.PaginatedResponse) error {
 			resp, ok := page.(*asc.SubscriptionsResponse)
@@ -1641,7 +1641,7 @@ func findExistingSubscriptionSetupLocalization(ctx context.Context, client *asc.
 	if locale == "" {
 		return asc.Resource[asc.SubscriptionLocalizationAttributes]{}, false, nil
 	}
-	firstPage, err := client.GetSubscriptionLocalizations(ctx, subscriptionID, asc.WithSubscriptionLocalizationsLimit(200)) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
+	firstPage, err := client.GetSubscriptionLocalizations(ctx, subscriptionID, asc.Limit[asc.SubscriptionLocalizationsOption](200)) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 	if err != nil {
 		return asc.Resource[asc.SubscriptionLocalizationAttributes]{}, false, err
 	}
@@ -1654,7 +1654,7 @@ func findExistingSubscriptionSetupLocalization(ctx context.Context, client *asc.
 		ctx,
 		firstPage,
 		func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-			return client.GetSubscriptionLocalizations(ctx, subscriptionID, asc.WithSubscriptionLocalizationsNextURL(nextURL)) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
+			return client.GetSubscriptionLocalizations(ctx, subscriptionID, asc.NextURL[asc.SubscriptionLocalizationsOption](nextURL)) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 		},
 		func(page asc.PaginatedResponse) error {
 			resp, ok := page.(*asc.SubscriptionLocalizationsResponse)
@@ -1684,7 +1684,7 @@ func findExistingSubscriptionSetupPrice(ctx context.Context, client *asc.Client,
 	}
 
 	opts := []asc.SubscriptionPricesOption{
-		asc.WithSubscriptionPricesLimit(200),
+		asc.Limit[asc.SubscriptionPricesOption](200),
 		asc.WithSubscriptionPricesInclude([]string{"subscriptionPricePoint", "territory"}),
 	}
 	firstPage, err := client.GetSubscriptionPrices(ctx, subID, opts...)
@@ -1701,7 +1701,7 @@ func findExistingSubscriptionSetupPrice(ctx context.Context, client *asc.Client,
 		ctx,
 		firstPage,
 		func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-			return client.GetSubscriptionPrices(ctx, subID, asc.WithSubscriptionPricesNextURL(nextURL))
+			return client.GetSubscriptionPrices(ctx, subID, asc.NextURL[asc.SubscriptionPricesOption](nextURL))
 		},
 		func(page asc.PaginatedResponse) error {
 			resp, ok := page.(*asc.SubscriptionPricesResponse)
@@ -1792,7 +1792,7 @@ func mismatchedExistingSubscriptionSetupAvailabilityError(subscriptionID string)
 }
 
 func fetchSubscriptionSetupAvailabilityTerritories(ctx context.Context, client *asc.Client, availabilityID string) (map[string]struct{}, []string, error) {
-	firstPage, err := client.GetSubscriptionAvailabilityAvailableTerritories(ctx, availabilityID, asc.WithSubscriptionAvailabilityTerritoriesLimit(200))
+	firstPage, err := client.GetSubscriptionAvailabilityAvailableTerritories(ctx, availabilityID, asc.Limit[asc.SubscriptionAvailabilityTerritoriesOption](200))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1806,7 +1806,7 @@ func fetchSubscriptionSetupAvailabilityTerritories(ctx context.Context, client *
 		ctx,
 		firstPage,
 		func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-			return client.GetSubscriptionAvailabilityAvailableTerritories(ctx, availabilityID, asc.WithSubscriptionAvailabilityTerritoriesNextURL(nextURL))
+			return client.GetSubscriptionAvailabilityAvailableTerritories(ctx, availabilityID, asc.NextURL[asc.SubscriptionAvailabilityTerritoriesOption](nextURL))
 		},
 		func(page asc.PaginatedResponse) error {
 			resp, ok := page.(*asc.TerritoriesResponse)

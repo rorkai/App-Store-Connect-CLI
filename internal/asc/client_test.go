@@ -1515,8 +1515,8 @@ func TestBuildSubscriptionOfferCodeOneTimeUseCodesQuery(t *testing.T) {
 func TestBuildSubscriptionOfferCodeCustomCodesQuery(t *testing.T) {
 	query := &subscriptionOfferCodeCustomCodesQuery{}
 	opts := []SubscriptionOfferCodeCustomCodesOption{
-		WithSubscriptionOfferCodeCustomCodesLimit(20),
-		WithSubscriptionOfferCodeCustomCodesNextURL("https://api.appstoreconnect.apple.com/v1/subscriptionOfferCodes/123/customCodes?cursor=abc"),
+		Limit[SubscriptionOfferCodeCustomCodesOption](20),
+		NextURL[SubscriptionOfferCodeCustomCodesOption]("https://api.appstoreconnect.apple.com/v1/subscriptionOfferCodes/123/customCodes?cursor=abc"),
 	}
 	for _, opt := range opts {
 		opt(query)
@@ -1541,8 +1541,8 @@ func TestBuildSubscriptionOfferCodeCustomCodesQuery(t *testing.T) {
 func TestBuildSubscriptionOfferCodePricesQuery(t *testing.T) {
 	query := &subscriptionOfferCodePricesQuery{}
 	opts := []SubscriptionOfferCodePricesOption{
-		WithSubscriptionOfferCodePricesLimit(30),
-		WithSubscriptionOfferCodePricesNextURL("https://api.appstoreconnect.apple.com/v1/subscriptionOfferCodes/123/prices?cursor=abc"),
+		Limit[SubscriptionOfferCodePricesOption](30),
+		NextURL[SubscriptionOfferCodePricesOption]("https://api.appstoreconnect.apple.com/v1/subscriptionOfferCodes/123/prices?cursor=abc"),
 	}
 	for _, opt := range opts {
 		opt(query)
@@ -1567,8 +1567,8 @@ func TestBuildSubscriptionOfferCodePricesQuery(t *testing.T) {
 func TestBuildSubscriptionAvailabilityTerritoriesQuery(t *testing.T) {
 	query := &subscriptionAvailabilityTerritoriesQuery{}
 	opts := []SubscriptionAvailabilityTerritoriesOption{
-		WithSubscriptionAvailabilityTerritoriesLimit(15),
-		WithSubscriptionAvailabilityTerritoriesNextURL("https://api.appstoreconnect.apple.com/v1/subscriptionAvailabilities/123/availableTerritories?cursor=abc"),
+		Limit[SubscriptionAvailabilityTerritoriesOption](15),
+		NextURL[SubscriptionAvailabilityTerritoriesOption]("https://api.appstoreconnect.apple.com/v1/subscriptionAvailabilities/123/availableTerritories?cursor=abc"),
 	}
 	for _, opt := range opts {
 		opt(query)

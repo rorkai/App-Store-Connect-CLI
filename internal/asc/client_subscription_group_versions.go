@@ -31,14 +31,6 @@ type subscriptionGroupVersionLocalizationsQuery struct {
 	versionFields []string
 }
 
-func WithSubscriptionGroupVersionsLimit(limit int) SubscriptionGroupVersionsOption {
-	return func(q *subscriptionGroupVersionsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
 func WithSubscriptionGroupVersionsNextURL(next string) SubscriptionGroupVersionsOption {
 	return func(q *subscriptionGroupVersionsQuery) { q.nextURL = strings.TrimSpace(next) }
 }
@@ -67,14 +59,6 @@ func WithSubscriptionGroupVersionsLocalizationsLimit(limit int) SubscriptionGrou
 	return func(q *subscriptionGroupVersionsQuery) {
 		if limit > 0 {
 			q.localizationsLimit = limit
-		}
-	}
-}
-
-func WithSubscriptionGroupVersionLocalizationsLimit(limit int) SubscriptionGroupVersionLocalizationsOption {
-	return func(q *subscriptionGroupVersionLocalizationsQuery) {
-		if limit > 0 {
-			q.limit = limit
 		}
 	}
 }

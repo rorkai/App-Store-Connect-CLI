@@ -129,8 +129,8 @@ Examples:
 			defer cancel()
 
 			opts := []asc.IAPPricePointsOption{
-				asc.WithIAPPricePointsLimit(*limit),
-				asc.WithIAPPricePointsNextURL(*next),
+				asc.Limit[asc.IAPPricePointsOption](*limit),
+				asc.NextURL[asc.IAPPricePointsOption](*next),
 				asc.WithIAPPricePointsInclude(includes),
 				asc.WithIncludedFields[asc.IAPPricePointsOption](included),
 			}
@@ -143,14 +143,14 @@ Examples:
 			}
 
 			if *paginate || (priceFilter.HasFilter() && strings.TrimSpace(*next) == "") {
-				paginateOpts := append(opts, asc.WithIAPPricePointsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.IAPPricePointsOption](200))
 				firstPage, err := client.GetInAppPurchasePricePoints(requestCtx, iapValue, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("iap price-points list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetInAppPurchasePricePoints(ctx, iapValue, asc.WithIAPPricePointsNextURL(nextURL))
+					return client.GetInAppPurchasePricePoints(ctx, iapValue, asc.NextURL[asc.IAPPricePointsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("iap price-points list: %w", err)
@@ -205,8 +205,8 @@ func IAPPricePointsEqualizationsCommand() *ffcli.Command {
 		ErrorPrefix: "iap price-points equalizations",
 		FetchPage: func(ctx context.Context, client *asc.Client, pricePointID string, limit int, next string, include []string, included asc.IncludedFields) (asc.PaginatedResponse, error) {
 			opts := []asc.IAPPricePointsOption{
-				asc.WithIAPPricePointsLimit(limit),
-				asc.WithIAPPricePointsNextURL(next),
+				asc.Limit[asc.IAPPricePointsOption](limit),
+				asc.NextURL[asc.IAPPricePointsOption](next),
 				asc.WithIAPPricePointsInclude(include),
 				asc.WithIncludedFields[asc.IAPPricePointsOption](included),
 			}

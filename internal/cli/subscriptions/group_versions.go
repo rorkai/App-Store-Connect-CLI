@@ -147,7 +147,7 @@ func subscriptionGroupVersionOptions(stateValue, includeValue, fieldsValue, grou
 		asc.WithSubscriptionGroupVersionsFields(fields),
 		asc.WithSubscriptionGroupVersionsGroupFields(groupFields),
 		asc.WithSubscriptionGroupVersionsLocalizationFields(localizationFields),
-		asc.WithSubscriptionGroupVersionsLimit(limit),
+		asc.Limit[asc.SubscriptionGroupVersionsOption](limit),
 		asc.WithSubscriptionGroupVersionsLocalizationsLimit(localizationsLimit),
 		asc.WithSubscriptionGroupVersionsNextURL(next),
 	}, nil

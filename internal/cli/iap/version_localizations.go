@@ -74,7 +74,7 @@ func IAPVersionLocalizationsListCommand() *ffcli.Command {
 				firstPageLimit = 200
 			}
 			opts := []asc.IAPVersionLocalizationsOption{
-				asc.WithIAPVersionLocalizationsLimit(firstPageLimit),
+				asc.Limit[asc.IAPVersionLocalizationsOption](firstPageLimit),
 				asc.WithIAPVersionLocalizationsNextURL(*next),
 				asc.WithIAPVersionLocalizationsInclude(includes),
 				asc.WithIAPVersionLocalizationsFields(localizationFieldValues),

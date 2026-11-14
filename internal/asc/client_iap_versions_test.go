@@ -95,7 +95,7 @@ func TestInAppPurchaseVersionEndpoints(t *testing.T) {
 					WithIAPVersionsImageFields([]string{"fileName"}),
 					WithIAPVersionsLocalizationFields([]string{"locale"}),
 					WithIAPVersionsInclude([]string{"images"}),
-					WithIAPVersionsLimit(3),
+					Limit[IAPVersionsOption](3),
 					WithIAPVersionsImagesLimit(2),
 				)
 				return err
@@ -130,7 +130,7 @@ func TestInAppPurchaseVersionEndpoints(t *testing.T) {
 			name: "related images", method: http.MethodGet, path: "/v1/inAppPurchaseVersions/version-1/images", responseCode: http.StatusOK,
 			responseBody: `{"data":[{"type":"inAppPurchaseImages","id":"image-1"}]}`, query: map[string]string{"fields[inAppPurchaseImages]": "fileName,assetDeliveryState", "limit": "7"},
 			call: func(c *Client) error {
-				_, err := c.GetInAppPurchaseVersionImages(context.Background(), "version-1", WithIAPVersionImagesFields([]string{"fileName", "assetDeliveryState"}), WithIAPVersionImagesLimit(7))
+				_, err := c.GetInAppPurchaseVersionImages(context.Background(), "version-1", WithIAPVersionImagesFields([]string{"fileName", "assetDeliveryState"}), Limit[IAPVersionImagesOption](7))
 				return err
 			},
 		},
@@ -146,7 +146,7 @@ func TestInAppPurchaseVersionEndpoints(t *testing.T) {
 			name: "related localizations", method: http.MethodGet, path: "/v1/inAppPurchaseVersions/version-1/localizations", responseCode: http.StatusOK,
 			responseBody: `{"data":[{"type":"inAppPurchaseLocalizations","id":"loc-1"}]}`, query: map[string]string{"fields[inAppPurchaseLocalizations]": "name,locale", "fields[inAppPurchaseVersions]": "version,state", "include": "version", "limit": "9"},
 			call: func(c *Client) error {
-				_, err := c.GetInAppPurchaseVersionLocalizations(context.Background(), "version-1", WithIAPVersionLocalizationsFields([]string{"name", "locale"}), WithIAPVersionLocalizationsVersionFields([]string{"version", "state"}), WithIAPVersionLocalizationsInclude([]string{"version"}), WithIAPVersionLocalizationsLimit(9))
+				_, err := c.GetInAppPurchaseVersionLocalizations(context.Background(), "version-1", WithIAPVersionLocalizationsFields([]string{"name", "locale"}), WithIAPVersionLocalizationsVersionFields([]string{"version", "state"}), WithIAPVersionLocalizationsInclude([]string{"version"}), Limit[IAPVersionLocalizationsOption](9))
 				return err
 			},
 		},

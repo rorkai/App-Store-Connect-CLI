@@ -106,7 +106,7 @@ func SubscriptionsVersionLocalizationsListCommand() *ffcli.Command {
 			}
 			resp, err := client.GetSubscriptionVersionLocalizations(
 				requestCtx, id,
-				asc.WithSubscriptionVersionLocalizationsLimit(firstPageLimit),
+				asc.Limit[asc.SubscriptionVersionLocalizationsOption](firstPageLimit),
 				asc.WithSubscriptionVersionLocalizationsNextURL(*next),
 				asc.WithSubscriptionVersionLocalizationsFields(fieldValues),
 				asc.WithSubscriptionVersionLocalizationsVersionFields(versionFieldValues),

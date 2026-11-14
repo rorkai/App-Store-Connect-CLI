@@ -97,7 +97,7 @@ func collectIAPAttachmentDeepCheck(ctx context.Context, client *asc.Client, repo
 			response, ok := versions[p.ID]
 			if !ok {
 				first, err := doReadinessRequest(ctx, func(c context.Context) (*asc.InAppPurchaseVersionsResponse, error) {
-					return client.GetInAppPurchaseVersionsStrict(c, p.ID, asc.WithIAPVersionsFields([]string{"version", "state"}), asc.WithIAPVersionsLimit(200))
+					return client.GetInAppPurchaseVersionsStrict(c, p.ID, asc.WithIAPVersionsFields([]string{"version", "state"}), asc.Limit[asc.IAPVersionsOption](200))
 				})
 				if err != nil {
 					group.uncertain = true

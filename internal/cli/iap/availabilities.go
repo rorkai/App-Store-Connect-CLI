@@ -124,19 +124,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.IAPAvailabilityTerritoriesOption{
-				asc.WithIAPAvailabilityTerritoriesLimit(*limit),
-				asc.WithIAPAvailabilityTerritoriesNextURL(*next),
+				asc.Limit[asc.IAPAvailabilityTerritoriesOption](*limit),
+				asc.NextURL[asc.IAPAvailabilityTerritoriesOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithIAPAvailabilityTerritoriesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.IAPAvailabilityTerritoriesOption](200))
 				firstPage, err := client.GetInAppPurchaseAvailabilityAvailableTerritories(requestCtx, id, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("iap availabilities available-territories: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetInAppPurchaseAvailabilityAvailableTerritories(ctx, id, asc.WithIAPAvailabilityTerritoriesNextURL(nextURL))
+					return client.GetInAppPurchaseAvailabilityAvailableTerritories(ctx, id, asc.NextURL[asc.IAPAvailabilityTerritoriesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("iap availabilities available-territories: %w", err)

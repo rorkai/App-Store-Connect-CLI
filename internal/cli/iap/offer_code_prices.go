@@ -63,14 +63,14 @@ Examples:
 			}
 
 			opts := []asc.IAPOfferCodePricesOption{
-				asc.WithIAPOfferCodePricesLimit(*limit),
-				asc.WithIAPOfferCodePricesNextURL(nextURL),
+				asc.Limit[asc.IAPOfferCodePricesOption](*limit),
+				asc.NextURL[asc.IAPOfferCodePricesOption](nextURL),
 				asc.WithIAPOfferCodePricesFields([]string{"territory", "pricePoint"}),
 				asc.WithIAPOfferCodePricesInclude([]string{"territory", "pricePoint"}),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithIAPOfferCodePricesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.IAPOfferCodePricesOption](200))
 				firstPage, err := client.GetInAppPurchaseOfferCodePrices(requestCtx, id, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("iap offer-codes prices: failed to fetch: %w", err)
@@ -81,7 +81,7 @@ Examples:
 					if err != nil {
 						return nil, err
 					}
-					return client.GetInAppPurchaseOfferCodePrices(ctx, id, asc.WithIAPOfferCodePricesNextURL(nextURL))
+					return client.GetInAppPurchaseOfferCodePrices(ctx, id, asc.NextURL[asc.IAPOfferCodePricesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("iap offer-codes prices: %w", err)

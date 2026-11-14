@@ -63,7 +63,7 @@ func IAPVersionImagesListCommand() *ffcli.Command {
 			if *paginate && firstPageLimit == 0 {
 				firstPageLimit = 200
 			}
-			resp, err := client.GetInAppPurchaseVersionImages(requestCtx, id, asc.WithIAPVersionImagesLimit(firstPageLimit), asc.WithIAPVersionImagesNextURL(*next), asc.WithIAPVersionImagesFields(fields))
+			resp, err := client.GetInAppPurchaseVersionImages(requestCtx, id, asc.Limit[asc.IAPVersionImagesOption](firstPageLimit), asc.WithIAPVersionImagesNextURL(*next), asc.WithIAPVersionImagesFields(fields))
 			if err != nil {
 				return fmt.Errorf("iap versions images list: failed to fetch: %w", err)
 			}

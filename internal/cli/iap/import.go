@@ -470,7 +470,7 @@ func importIAPProduct(
 // not already provisioned it.
 func resolveIAPImportVersionID(ctx context.Context, client *asc.Client, iapID string) (string, error) {
 	listCtx, listCancel := shared.ContextWithTimeout(ctx)
-	versions, err := client.GetInAppPurchaseVersions(listCtx, iapID, asc.WithIAPVersionsLimit(200))
+	versions, err := client.GetInAppPurchaseVersions(listCtx, iapID, asc.Limit[asc.IAPVersionsOption](200))
 	listCancel()
 	if err != nil {
 		return "", fmt.Errorf("list in-app purchase versions: %w", err)
@@ -579,7 +579,7 @@ func fetchExistingIAPProductIDs(ctx context.Context, client *asc.Client, appID s
 		appID,
 		asc.WithIAPProductIDs(productIDs),
 		asc.WithIAPFields([]string{"productId"}),
-		asc.WithIAPLimit(200),
+		asc.Limit[asc.IAPOption](200),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("list existing in-app purchases: %w", err)
@@ -590,7 +590,7 @@ func fetchExistingIAPProductIDs(ctx context.Context, client *asc.Client, appID s
 		requestCtx,
 		firstPage,
 		func(pageCtx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-			return client.GetInAppPurchasesV2(pageCtx, appID, asc.WithIAPNextURL(nextURL))
+			return client.GetInAppPurchasesV2(pageCtx, appID, asc.NextURL[asc.IAPOption](nextURL))
 		},
 		func(page asc.PaginatedResponse) error {
 			resp, ok := page.(*asc.InAppPurchasesV2Response)

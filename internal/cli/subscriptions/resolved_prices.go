@@ -36,8 +36,8 @@ func fetchResolvedSubscriptionPrices(
 	}
 
 	opts := []asc.SubscriptionPricesOption{
-		asc.WithSubscriptionPricesLimit(limit),
-		asc.WithSubscriptionPricesNextURL(nextURL),
+		asc.Limit[asc.SubscriptionPricesOption](limit),
+		asc.NextURL[asc.SubscriptionPricesOption](nextURL),
 		asc.WithSubscriptionPricesFields([]string{"startDate", "preserved", "planType", "territory", "subscriptionPricePoint"}),
 		asc.WithSubscriptionPricesInclude([]string{"subscriptionPricePoint", "territory"}),
 		asc.WithSubscriptionPricesPricePointFields([]string{"customerPrice", "proceeds", "proceedsYear2"}),
@@ -67,7 +67,7 @@ func fetchResolvedSubscriptionPrices(
 			return client.GetSubscriptionPrices(
 				requestCtx,
 				subscriptionID,
-				asc.WithSubscriptionPricesNextURL(nextURL),
+				asc.NextURL[asc.SubscriptionPricesOption](nextURL),
 				asc.WithSubscriptionPricesFields([]string{"startDate", "preserved", "planType", "territory", "subscriptionPricePoint"}),
 				asc.WithSubscriptionPricesInclude([]string{"subscriptionPricePoint", "territory"}),
 				asc.WithSubscriptionPricesPricePointFields([]string{"customerPrice", "proceeds", "proceedsYear2"}),

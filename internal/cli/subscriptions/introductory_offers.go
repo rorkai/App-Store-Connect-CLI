@@ -135,8 +135,8 @@ Examples:
 			defer cancel()
 
 			opts := []asc.SubscriptionIntroductoryOffersOption{
-				asc.WithSubscriptionIntroductoryOffersLimit(*limit),
-				asc.WithSubscriptionIntroductoryOffersNextURL(*next),
+				asc.Limit[asc.SubscriptionIntroductoryOffersOption](*limit),
+				asc.NextURL[asc.SubscriptionIntroductoryOffersOption](*next),
 				asc.WithSubscriptionIntroductoryOffersTerritories(selectedTerritories),
 				asc.WithSubscriptionIntroductoryOffersSubscriptionFields(selectedSubscriptionFields),
 				asc.WithSubscriptionIntroductoryOffersPricePointFields(selectedPricePointFields),
@@ -146,7 +146,7 @@ Examples:
 			if *paginate {
 				paginateOpts := opts
 				if strings.TrimSpace(*next) == "" {
-					paginateOpts = append(paginateOpts, asc.WithSubscriptionIntroductoryOffersLimit(200))
+					paginateOpts = append(paginateOpts, asc.Limit[asc.SubscriptionIntroductoryOffersOption](200))
 				}
 				firstPage, err := client.GetSubscriptionIntroductoryOffers(requestCtx, id, paginateOpts...)
 				if err != nil {
@@ -154,7 +154,7 @@ Examples:
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetSubscriptionIntroductoryOffers(ctx, id, asc.WithSubscriptionIntroductoryOffersNextURL(nextURL))
+					return client.GetSubscriptionIntroductoryOffers(ctx, id, asc.NextURL[asc.SubscriptionIntroductoryOffersOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("subscriptions introductory-offers list: %w", err)
@@ -233,7 +233,7 @@ Examples:
 }
 
 func findSubscriptionIntroductoryOffer(ctx context.Context, client *asc.Client, subscriptionID, offerID string) (*asc.SubscriptionIntroductoryOfferResponse, error) {
-	firstPage, err := client.GetSubscriptionIntroductoryOffers(ctx, subscriptionID, asc.WithSubscriptionIntroductoryOffersLimit(200))
+	firstPage, err := client.GetSubscriptionIntroductoryOffers(ctx, subscriptionID, asc.Limit[asc.SubscriptionIntroductoryOffersOption](200))
 	if err != nil {
 		return nil, err
 	}
@@ -241,7 +241,7 @@ func findSubscriptionIntroductoryOffer(ctx context.Context, client *asc.Client, 
 	errOfferFound := errors.New("introductory offer found")
 	var found *asc.SubscriptionIntroductoryOfferResponse
 	err = asc.PaginateEach(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetSubscriptionIntroductoryOffers(ctx, subscriptionID, asc.WithSubscriptionIntroductoryOffersNextURL(nextURL))
+		return client.GetSubscriptionIntroductoryOffers(ctx, subscriptionID, asc.NextURL[asc.SubscriptionIntroductoryOffersOption](nextURL))
 	}, func(page asc.PaginatedResponse) error {
 		resp, ok := page.(*asc.SubscriptionIntroductoryOffersResponse)
 		if !ok {
@@ -588,7 +588,7 @@ func fetchIntroductoryOfferAvailabilityTerritories(ctx context.Context, client *
 	}
 
 	territoriesCtx, territoriesCancel := shared.ContextWithTimeout(ctx)
-	firstPage, err := client.GetSubscriptionAvailabilityAvailableTerritories(territoriesCtx, availabilityID, asc.WithSubscriptionAvailabilityTerritoriesLimit(200))
+	firstPage, err := client.GetSubscriptionAvailabilityAvailableTerritories(territoriesCtx, availabilityID, asc.Limit[asc.SubscriptionAvailabilityTerritoriesOption](200))
 	territoriesCancel()
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to fetch subscription availability territories: %w", err)
@@ -597,7 +597,7 @@ func fetchIntroductoryOfferAvailabilityTerritories(ctx context.Context, client *
 	allPages, err := asc.PaginateAll(ctx, firstPage, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		pageCtx, pageCancel := shared.ContextWithTimeout(ctx)
 		defer pageCancel()
-		return client.GetSubscriptionAvailabilityAvailableTerritories(pageCtx, availabilityID, asc.WithSubscriptionAvailabilityTerritoriesNextURL(nextURL))
+		return client.GetSubscriptionAvailabilityAvailableTerritories(pageCtx, availabilityID, asc.NextURL[asc.SubscriptionAvailabilityTerritoriesOption](nextURL))
 	})
 	if err != nil {
 		return "", nil, fmt.Errorf("paginate subscription availability territories: %w", err)
@@ -628,7 +628,7 @@ func fetchIntroductoryOfferAvailabilityTerritories(ctx context.Context, client *
 // offer. With a target plan type, offers known to target the other plan don't count.
 func fetchIntroductoryOfferTerritories(ctx context.Context, client *asc.Client, subscriptionID string, targetPlanType asc.SubscriptionPlanType) (map[string]struct{}, error) {
 	offersCtx, offersCancel := shared.ContextWithTimeout(ctx)
-	firstPage, err := client.GetSubscriptionIntroductoryOffers(offersCtx, subscriptionID, asc.WithSubscriptionIntroductoryOffersLimit(200))
+	firstPage, err := client.GetSubscriptionIntroductoryOffers(offersCtx, subscriptionID, asc.Limit[asc.SubscriptionIntroductoryOffersOption](200))
 	offersCancel()
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch existing introductory offers: %w", err)
@@ -637,7 +637,7 @@ func fetchIntroductoryOfferTerritories(ctx context.Context, client *asc.Client, 
 	allPages, err := asc.PaginateAll(ctx, firstPage, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		pageCtx, pageCancel := shared.ContextWithTimeout(ctx)
 		defer pageCancel()
-		return client.GetSubscriptionIntroductoryOffers(pageCtx, subscriptionID, asc.WithSubscriptionIntroductoryOffersNextURL(nextURL))
+		return client.GetSubscriptionIntroductoryOffers(pageCtx, subscriptionID, asc.NextURL[asc.SubscriptionIntroductoryOffersOption](nextURL))
 	})
 	if err != nil {
 		return nil, fmt.Errorf("paginate existing introductory offers: %w", err)

@@ -120,8 +120,8 @@ func consumeResolvedIAPSchedulePrices(
 	requireComplete bool,
 ) error {
 	opts := []asc.IAPPriceSchedulePricesOption{
-		asc.WithIAPPriceSchedulePricesLimit(limit),
-		asc.WithIAPPriceSchedulePricesNextURL(nextURL),
+		asc.Limit[asc.IAPPriceSchedulePricesOption](limit),
+		asc.NextURL[asc.IAPPriceSchedulePricesOption](nextURL),
 		asc.WithIAPPriceSchedulePricesInclude([]string{"inAppPurchasePricePoint", "territory"}),
 		asc.WithIAPPriceSchedulePricesFields([]string{"manual", "startDate", "endDate", "inAppPurchasePricePoint", "territory"}),
 		asc.WithIAPPriceSchedulePricesPricePointFields([]string{"customerPrice", "proceeds", "territory"}),
@@ -138,7 +138,7 @@ func consumeResolvedIAPSchedulePrices(
 		if err != nil {
 			return nil, err
 		}
-		return fetch(ctx, scheduleID, asc.WithIAPPriceSchedulePricesNextURL(nextURL))
+		return fetch(ctx, scheduleID, asc.NextURL[asc.IAPPriceSchedulePricesOption](nextURL))
 	}, func(page asc.PaginatedResponse) error {
 		resp, ok := page.(*asc.InAppPurchasePricesResponse)
 		if !ok {
