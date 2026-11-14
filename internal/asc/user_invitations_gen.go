@@ -51,10 +51,12 @@ func (c *Client) GetUserInvitations(ctx context.Context, opts ...UserInvitations
 }
 
 // GetUserInvitation sends GET /v1/userInvitations/{id} (userInvitations_getInstance).
-func (c *Client) GetUserInvitation(ctx context.Context, inviteID string) (*UserInvitationResponse, error) {
+func (c *Client) GetUserInvitation(ctx context.Context, inviteID string, opts ...UserInvitationOption) (*UserInvitationResponse, error) {
+	query := applyOptions(opts)
 	inviteID = strings.TrimSpace(inviteID)
 	return getJSON[UserInvitationResponse](ctx, c, readRequest{
-		Path: fmt.Sprintf("/v1/userInvitations/%s", inviteID),
+		Path:  fmt.Sprintf("/v1/userInvitations/%s", inviteID),
+		Query: buildUserInvitationQuery(query),
 	})
 }
 
@@ -74,11 +76,54 @@ type UserInvitationsOption func(*userInvitationsQuery)
 
 type userInvitationsQuery struct {
 	listQuery
+	schemaQuery
+}
+
+func (*userInvitationsQuery) querySchema() QuerySchema { return userInvitationsQuerySchema }
+
+var userInvitationsQuerySchema = QuerySchema{
+	Resource: "userInvitations",
+	Params: []QueryParam{
+		{Name: "filter[email]", Type: "array"},
+		{Name: "filter[roles]", Type: "array", Values: []string{"ADMIN", "FINANCE", "ACCOUNT_HOLDER", "SALES", "MARKETING", "APP_MANAGER", "DEVELOPER", "ACCESS_TO_REPORTS", "CUSTOMER_SUPPORT", "CREATE_APPS", "CLOUD_MANAGED_DEVELOPER_ID", "CLOUD_MANAGED_APP_DISTRIBUTION", "GENERATE_INDIVIDUAL_KEYS"}},
+		{Name: "filter[visibleApps]", Type: "array"},
+		{Name: "sort", Type: "array", Values: []string{"email", "-email", "lastName", "-lastName"}},
+		{Name: "fields[userInvitations]", Type: "array", Values: []string{"email", "firstName", "lastName", "expirationDate", "roles", "allAppsVisible", "provisioningAllowed", "visibleApps"}},
+		{Name: "fields[apps]", Type: "array", Values: []string{"accessibilityUrl", "name", "bundleId", "sku", "primaryLocale", "isOrEverWasMadeForKids", "subscriptionStatusUrl", "subscriptionStatusUrlVersion", "subscriptionStatusUrlForSandbox", "subscriptionStatusUrlVersionForSandbox", "contentRightsDeclaration", "streamlinedPurchasingEnabled", "accessibilityDeclarations", "appEncryptionDeclarations", "appStoreIcon", "ciProduct", "betaTesters", "betaGroups", "appStoreVersions", "appTags", "preReleaseVersions", "betaAppLocalizations", "builds", "betaLicenseAgreement", "betaAppReviewDetail", "appInfos", "appClips", "appPricePoints", "endUserLicenseAgreement", "appPriceSchedule", "appAvailabilityV2", "inAppPurchases", "subscriptionGroups", "retentionMessages", "gameCenterEnabledVersions", "performanceOverviews", "perfPowerMetrics", "appCustomProductPages", "inAppPurchasesV2", "promotedPurchases", "appEvents", "reviewSubmissions", "subscriptionGracePeriod", "customerReviews", "customerReviewSummarizations", "gameCenterDetail", "appStoreVersionExperimentsV2", "alternativeDistributionKey", "analyticsReportRequests", "marketplaceSearchDetail", "buildUploads", "backgroundAssets", "assetLibrary", "betaFeedbackScreenshotSubmissions", "betaFeedbackCrashSubmissions", "searchKeywords", "webhooks", "androidToIosAppMappingDetails"}},
+		{Name: "include", Type: "array", Values: []string{"visibleApps"}},
+		{Name: "limit[visibleApps]", Type: "integer", Maximum: 50},
+	},
 }
 
 func buildUserInvitationsQuery(query *userInvitationsQuery) string {
 	values := url.Values{}
+	addSchemaParams(values, query.schemaQuery)
 	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+// UserInvitationOption sets the query of GET /v1/userInvitations/{id} (userInvitations_getInstance).
+type UserInvitationOption func(*userInvitationQuery)
+
+type userInvitationQuery struct {
+	schemaQuery
+}
+
+func (*userInvitationQuery) querySchema() QuerySchema { return userInvitationQuerySchema }
+
+var userInvitationQuerySchema = QuerySchema{
+	Resource: "userInvitations",
+	Params: []QueryParam{
+		{Name: "fields[userInvitations]", Type: "array", Values: []string{"email", "firstName", "lastName", "expirationDate", "roles", "allAppsVisible", "provisioningAllowed", "visibleApps"}},
+		{Name: "fields[apps]", Type: "array", Values: []string{"accessibilityUrl", "name", "bundleId", "sku", "primaryLocale", "isOrEverWasMadeForKids", "subscriptionStatusUrl", "subscriptionStatusUrlVersion", "subscriptionStatusUrlForSandbox", "subscriptionStatusUrlVersionForSandbox", "contentRightsDeclaration", "streamlinedPurchasingEnabled", "accessibilityDeclarations", "appEncryptionDeclarations", "appStoreIcon", "ciProduct", "betaTesters", "betaGroups", "appStoreVersions", "appTags", "preReleaseVersions", "betaAppLocalizations", "builds", "betaLicenseAgreement", "betaAppReviewDetail", "appInfos", "appClips", "appPricePoints", "endUserLicenseAgreement", "appPriceSchedule", "appAvailabilityV2", "inAppPurchases", "subscriptionGroups", "retentionMessages", "gameCenterEnabledVersions", "performanceOverviews", "perfPowerMetrics", "appCustomProductPages", "inAppPurchasesV2", "promotedPurchases", "appEvents", "reviewSubmissions", "subscriptionGracePeriod", "customerReviews", "customerReviewSummarizations", "gameCenterDetail", "appStoreVersionExperimentsV2", "alternativeDistributionKey", "analyticsReportRequests", "marketplaceSearchDetail", "buildUploads", "backgroundAssets", "assetLibrary", "betaFeedbackScreenshotSubmissions", "betaFeedbackCrashSubmissions", "searchKeywords", "webhooks", "androidToIosAppMappingDetails"}},
+		{Name: "include", Type: "array", Values: []string{"visibleApps"}},
+		{Name: "limit[visibleApps]", Type: "integer", Maximum: 50},
+	},
+}
+
+func buildUserInvitationQuery(query *userInvitationQuery) string {
+	values := url.Values{}
+	addSchemaParams(values, query.schemaQuery)
 	return values.Encode()
 }
 

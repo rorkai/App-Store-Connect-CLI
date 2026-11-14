@@ -400,6 +400,10 @@ var generatedQueries = map[string]generatedQuery{
 		build:   buildUserInvitationsQuery,
 		options: map[string]any{},
 	},
+	"userInvitations_getInstance": {
+		build:   buildUserInvitationQuery,
+		options: map[string]any{},
+	},
 	"userInvitations_visibleApps_getToManyRelated": {
 		build:   buildUserInvitationVisibleAppsQuery,
 		options: map[string]any{},
