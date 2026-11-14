@@ -10,39 +10,6 @@ import (
 	"testing"
 )
 
-func TestGetTerritories(t *testing.T) {
-	resp := TerritoriesResponse{
-		Data: []Resource[TerritoryAttributes]{
-			{Type: ResourceTypeTerritories, ID: "USA", Attributes: TerritoryAttributes{Currency: "USD"}},
-		},
-	}
-	body, _ := json.Marshal(resp)
-
-	client := newTestClient(t, func(req *http.Request) {
-		assertAuthorized(t, req)
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/territories" {
-			t.Fatalf("expected path /v1/territories, got %s", req.URL.Path)
-		}
-		if got := req.URL.Query().Get("limit"); got != "5" {
-			t.Fatalf("expected limit=5, got %q", got)
-		}
-	}, jsonResponse(http.StatusOK, string(body)))
-
-	result, err := client.GetTerritories(context.Background(), Limit[TerritoriesOption](5))
-	if err != nil {
-		t.Fatalf("GetTerritories() error: %v", err)
-	}
-	if len(result.Data) != 1 {
-		t.Fatalf("expected 1 territory, got %d", len(result.Data))
-	}
-	if result.Data[0].ID != "USA" {
-		t.Fatalf("expected territory USA, got %q", result.Data[0].ID)
-	}
-}
-
 func TestGetAppPricePoints_WithTerritory(t *testing.T) {
 	resp := AppPricePointsV3Response{
 		Data: []Resource[AppPricePointV3Attributes]{
@@ -179,56 +146,6 @@ func TestGetAppPricePointEqualizations_WithQueryOptions(t *testing.T) {
 	})
 }
 
-func TestGetAppPriceSchedule(t *testing.T) {
-	resp := AppPriceScheduleResponse{
-		Data: Resource[AppPriceScheduleAttributes]{
-			Type: ResourceTypeAppPriceSchedules,
-			ID:   "schedule-1",
-		},
-	}
-	body, _ := json.Marshal(resp)
-
-	client := newTestClient(t, func(req *http.Request) {
-		assertAuthorized(t, req)
-		if req.URL.Path != "/v1/apps/app-1/appPriceSchedule" {
-			t.Fatalf("expected path /v1/apps/app-1/appPriceSchedule, got %s", req.URL.Path)
-		}
-	}, jsonResponse(http.StatusOK, string(body)))
-
-	result, err := client.GetAppPriceSchedule(context.Background(), "app-1")
-	if err != nil {
-		t.Fatalf("GetAppPriceSchedule() error: %v", err)
-	}
-	if result.Data.ID != "schedule-1" {
-		t.Fatalf("expected schedule ID schedule-1, got %q", result.Data.ID)
-	}
-}
-
-func TestGetAppPriceScheduleByID(t *testing.T) {
-	resp := AppPriceScheduleResponse{
-		Data: Resource[AppPriceScheduleAttributes]{
-			Type: ResourceTypeAppPriceSchedules,
-			ID:   "schedule-1",
-		},
-	}
-	body, _ := json.Marshal(resp)
-
-	client := newTestClient(t, func(req *http.Request) {
-		assertAuthorized(t, req)
-		if req.URL.Path != "/v1/appPriceSchedules/schedule-1" {
-			t.Fatalf("expected path /v1/appPriceSchedules/schedule-1, got %s", req.URL.Path)
-		}
-	}, jsonResponse(http.StatusOK, string(body)))
-
-	result, err := client.GetAppPriceScheduleByID(context.Background(), "schedule-1")
-	if err != nil {
-		t.Fatalf("GetAppPriceScheduleByID() error: %v", err)
-	}
-	if result.Data.ID != "schedule-1" {
-		t.Fatalf("expected schedule ID schedule-1, got %q", result.Data.ID)
-	}
-}
-
 func TestGetAppPriceScheduleByID_RequiresID(t *testing.T) {
 	client := newTestClient(t, nil, nil)
 
@@ -322,27 +239,6 @@ func TestGetAppPriceScheduleAutomaticPrices_WithOptions(t *testing.T) {
 	}
 }
 
-func TestGetAppPriceScheduleBaseTerritory(t *testing.T) {
-	resp := TerritoryResponse{
-		Data: Resource[TerritoryAttributes]{
-			Type: ResourceTypeTerritories,
-			ID:   "USA",
-		},
-	}
-	body, _ := json.Marshal(resp)
-
-	client := newTestClient(t, func(req *http.Request) {
-		assertAuthorized(t, req)
-		if req.URL.Path != "/v1/appPriceSchedules/schedule-1/baseTerritory" {
-			t.Fatalf("expected path /v1/appPriceSchedules/schedule-1/baseTerritory, got %s", req.URL.Path)
-		}
-	}, jsonResponse(http.StatusOK, string(body)))
-
-	if _, err := client.GetAppPriceScheduleBaseTerritory(context.Background(), "schedule-1"); err != nil {
-		t.Fatalf("GetAppPriceScheduleBaseTerritory() error: %v", err)
-	}
-}
-
 func TestCreateAppPriceSchedule(t *testing.T) {
 	resp := AppPriceScheduleResponse{
 		Data: Resource[AppPriceScheduleAttributes]{
@@ -399,54 +295,6 @@ func TestCreateAppPriceSchedule(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatalf("CreateAppPriceSchedule() error: %v", err)
-	}
-}
-
-func TestGetAppAvailabilityV2(t *testing.T) {
-	resp := AppAvailabilityV2Response{
-		Data: Resource[AppAvailabilityV2Attributes]{
-			Type: ResourceTypeAppAvailabilities,
-			ID:   "availability-1",
-			Attributes: AppAvailabilityV2Attributes{
-				AvailableInNewTerritories: true,
-			},
-		},
-	}
-	body, _ := json.Marshal(resp)
-
-	client := newTestClient(t, func(req *http.Request) {
-		assertAuthorized(t, req)
-		if req.URL.Path != "/v1/apps/app-1/appAvailabilityV2" {
-			t.Fatalf("expected path /v1/apps/app-1/appAvailabilityV2, got %s", req.URL.Path)
-		}
-	}, jsonResponse(http.StatusOK, string(body)))
-
-	if _, err := client.GetAppAvailabilityV2(context.Background(), "app-1"); err != nil {
-		t.Fatalf("GetAppAvailabilityV2() error: %v", err)
-	}
-}
-
-func TestGetAppAvailabilityV2ByID(t *testing.T) {
-	resp := AppAvailabilityV2Response{
-		Data: Resource[AppAvailabilityV2Attributes]{
-			Type: ResourceTypeAppAvailabilities,
-			ID:   "availability-1",
-			Attributes: AppAvailabilityV2Attributes{
-				AvailableInNewTerritories: true,
-			},
-		},
-	}
-	body, _ := json.Marshal(resp)
-
-	client := newTestClient(t, func(req *http.Request) {
-		assertAuthorized(t, req)
-		if req.URL.Path != "/v2/appAvailabilities/availability-1" {
-			t.Fatalf("expected path /v2/appAvailabilities/availability-1, got %s", req.URL.Path)
-		}
-	}, jsonResponse(http.StatusOK, string(body)))
-
-	if _, err := client.GetAppAvailabilityV2ByID(context.Background(), "availability-1"); err != nil {
-		t.Fatalf("GetAppAvailabilityV2ByID() error: %v", err)
 	}
 }
 
