@@ -126,8 +126,8 @@ Examples:
 			defer cancel()
 
 			opts := []asc.BackgroundAssetsOption{
-				asc.WithBackgroundAssetsLimit(*limit),
-				asc.WithBackgroundAssetsNextURL(*next),
+				asc.Limit[asc.BackgroundAssetsOption](*limit),
+				asc.NextURL[asc.BackgroundAssetsOption](*next),
 				asc.WithBackgroundAssetsFilterVersionsPlatforms(versionsPlatforms),
 				asc.WithBackgroundAssetsSort(*sortBy),
 			}
@@ -142,14 +142,14 @@ Examples:
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithBackgroundAssetsLimit(backgroundAssetsMaxLimit))
+				paginateOpts := append(opts, asc.Limit[asc.BackgroundAssetsOption](backgroundAssetsMaxLimit))
 				firstPage, err := client.GetBackgroundAssets(requestCtx, resolvedAppID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("background-assets list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetBackgroundAssets(ctx, resolvedAppID, asc.WithBackgroundAssetsNextURL(nextURL))
+					return client.GetBackgroundAssets(ctx, resolvedAppID, asc.NextURL[asc.BackgroundAssetsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("background-assets list: %w", err)

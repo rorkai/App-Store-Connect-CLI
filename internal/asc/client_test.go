@@ -1885,7 +1885,7 @@ func TestBuildAndroidToIosAppMappingDetailsQuery(t *testing.T) {
 
 func TestBuildAlternativeDistributionDomainsQuery(t *testing.T) {
 	query := &alternativeDistributionDomainsQuery{}
-	WithAlternativeDistributionDomainsLimit(20)(query)
+	Limit[AlternativeDistributionDomainsOption](20)(query)
 	WithAlternativeDistributionDomainsFields([]string{"domain", "referenceName"})(query)
 	values, err := url.ParseQuery(buildAlternativeDistributionDomainsQuery(query))
 	if err != nil {
@@ -1901,7 +1901,7 @@ func TestBuildAlternativeDistributionDomainsQuery(t *testing.T) {
 
 func TestBuildAlternativeDistributionKeysQuery(t *testing.T) {
 	query := &alternativeDistributionKeysQuery{}
-	WithAlternativeDistributionKeysLimit(15)(query)
+	Limit[AlternativeDistributionKeysOption](15)(query)
 	WithAlternativeDistributionKeysFields([]string{"publicKey"})(query)
 	WithAlternativeDistributionKeysExistsApp(true)(query)
 	values, err := url.ParseQuery(buildAlternativeDistributionKeysQuery(query))
@@ -1921,7 +1921,7 @@ func TestBuildAlternativeDistributionKeysQuery(t *testing.T) {
 
 func TestBuildAlternativeDistributionPackageVariantsQuery(t *testing.T) {
 	query := &alternativeDistributionPackageVariantsQuery{}
-	WithAlternativeDistributionPackageVariantsLimit(9)(query)
+	Limit[AlternativeDistributionPackageVariantsOption](9)(query)
 	WithAlternativeDistributionPackageVariantsFields([]string{"url", "fileChecksum"})(query)
 	values, err := url.ParseQuery(buildAlternativeDistributionPackageVariantsQuery(query))
 	if err != nil {
@@ -1937,7 +1937,7 @@ func TestBuildAlternativeDistributionPackageVariantsQuery(t *testing.T) {
 
 func TestBuildAlternativeDistributionPackageDeltasQuery(t *testing.T) {
 	query := &alternativeDistributionPackageDeltasQuery{}
-	WithAlternativeDistributionPackageDeltasLimit(11)(query)
+	Limit[AlternativeDistributionPackageDeltasOption](11)(query)
 	WithAlternativeDistributionPackageDeltasFields([]string{"url", "fileChecksum"})(query)
 	values, err := url.ParseQuery(buildAlternativeDistributionPackageDeltasQuery(query))
 	if err != nil {

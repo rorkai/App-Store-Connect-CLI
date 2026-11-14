@@ -1422,7 +1422,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 					ctx,
 					"app-1",
 					WithAndroidToIosAppMappingDetailsFields([]string{"packageName"}),
-					WithAndroidToIosAppMappingDetailsLimit(20),
+					Limit[AndroidToIosAppMappingDetailsOption](20),
 				))
 			},
 		},
@@ -1865,7 +1865,7 @@ func TestGetEndpoints_SendRequest(t *testing.T) {
 					ctx,
 					"map-1",
 					WithAndroidToIosAppMappingDetailsFields([]string{"packageName"}),
-					WithAndroidToIosAppMappingDetailsLimit(20),
+					Limit[AndroidToIosAppMappingDetailsOption](20),
 				))
 			},
 		},

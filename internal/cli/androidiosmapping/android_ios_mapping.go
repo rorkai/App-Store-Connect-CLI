@@ -96,19 +96,19 @@ Examples:
 
 			opts := []asc.AndroidToIosAppMappingDetailsOption{
 				asc.WithAndroidToIosAppMappingDetailsFields(fieldValues),
-				asc.WithAndroidToIosAppMappingDetailsLimit(*limit),
-				asc.WithAndroidToIosAppMappingDetailsNextURL(*next),
+				asc.Limit[asc.AndroidToIosAppMappingDetailsOption](*limit),
+				asc.NextURL[asc.AndroidToIosAppMappingDetailsOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithAndroidToIosAppMappingDetailsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.AndroidToIosAppMappingDetailsOption](200))
 				firstPage, err := client.GetAndroidToIosAppMappingDetails(requestCtx, resolvedAppID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("android-ios-mapping list: failed to fetch: %w", err)
 				}
 
 				paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAndroidToIosAppMappingDetails(ctx, resolvedAppID, asc.WithAndroidToIosAppMappingDetailsNextURL(nextURL))
+					return client.GetAndroidToIosAppMappingDetails(ctx, resolvedAppID, asc.NextURL[asc.AndroidToIosAppMappingDetailsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("android-ios-mapping list: %w", err)

@@ -159,7 +159,7 @@ func TestGetMarketplaceWebhooks_SendsRequest(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetMarketplaceWebhooks(context.Background(), WithMarketplaceWebhooksLimit(5)); err != nil {
+	if _, err := client.GetMarketplaceWebhooks(context.Background(), Limit[MarketplaceWebhooksOption](5)); err != nil {
 		t.Fatalf("GetMarketplaceWebhooks() error: %v", err)
 	}
 }

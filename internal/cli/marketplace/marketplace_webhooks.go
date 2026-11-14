@@ -90,22 +90,22 @@ Examples:
 			defer cancel()
 
 			opts := []asc.MarketplaceWebhooksOption{
-				asc.WithMarketplaceWebhooksLimit(*limit),
-				asc.WithMarketplaceWebhooksNextURL(*next),
+				asc.Limit[asc.MarketplaceWebhooksOption](*limit),
+				asc.NextURL[asc.MarketplaceWebhooksOption](*next),
 			}
 			if len(fieldsValue) > 0 {
 				opts = append(opts, asc.WithMarketplaceWebhooksFields(fieldsValue))
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithMarketplaceWebhooksLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.MarketplaceWebhooksOption](200))
 				firstPage, err := client.GetMarketplaceWebhooks(requestCtx, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("marketplace webhooks list: failed to fetch: %w", err)
 				}
 
 				webhooks, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetMarketplaceWebhooks(ctx, asc.WithMarketplaceWebhooksNextURL(nextURL))
+					return client.GetMarketplaceWebhooks(ctx, asc.NextURL[asc.MarketplaceWebhooksOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("marketplace webhooks list: %w", err)

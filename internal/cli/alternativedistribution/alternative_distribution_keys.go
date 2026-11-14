@@ -82,19 +82,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.AlternativeDistributionKeysOption{
-				asc.WithAlternativeDistributionKeysLimit(*limit),
-				asc.WithAlternativeDistributionKeysNextURL(*next),
+				asc.Limit[asc.AlternativeDistributionKeysOption](*limit),
+				asc.NextURL[asc.AlternativeDistributionKeysOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithAlternativeDistributionKeysLimit(alternativeDistributionMaxLimit))
+				paginateOpts := append(opts, asc.Limit[asc.AlternativeDistributionKeysOption](alternativeDistributionMaxLimit))
 				firstPage, err := client.GetAlternativeDistributionKeys(requestCtx, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("alternative-distribution keys list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAlternativeDistributionKeys(ctx, asc.WithAlternativeDistributionKeysNextURL(nextURL))
+					return client.GetAlternativeDistributionKeys(ctx, asc.NextURL[asc.AlternativeDistributionKeysOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("alternative-distribution keys list: %w", err)

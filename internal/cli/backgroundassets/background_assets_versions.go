@@ -122,8 +122,8 @@ Examples:
 			defer cancel()
 
 			opts := []asc.BackgroundAssetVersionsOption{
-				asc.WithBackgroundAssetVersionsLimit(*limit),
-				asc.WithBackgroundAssetVersionsNextURL(*next),
+				asc.Limit[asc.BackgroundAssetVersionsOption](*limit),
+				asc.NextURL[asc.BackgroundAssetVersionsOption](*next),
 				asc.WithBackgroundAssetVersionsFilterPlatforms(platforms),
 				asc.WithBackgroundAssetVersionsFilterState(states),
 				asc.WithBackgroundAssetVersionsFilterVersion(versions),
@@ -137,14 +137,14 @@ Examples:
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithBackgroundAssetVersionsLimit(backgroundAssetsMaxLimit))
+				paginateOpts := append(opts, asc.Limit[asc.BackgroundAssetVersionsOption](backgroundAssetsMaxLimit))
 				firstPage, err := client.GetBackgroundAssetVersions(requestCtx, assetIDValue, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("background-assets versions list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetBackgroundAssetVersions(ctx, assetIDValue, asc.WithBackgroundAssetVersionsNextURL(nextURL))
+					return client.GetBackgroundAssetVersions(ctx, assetIDValue, asc.NextURL[asc.BackgroundAssetVersionsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("background-assets versions list: %w", err)

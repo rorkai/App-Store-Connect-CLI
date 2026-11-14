@@ -79,19 +79,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.AlternativeDistributionDomainsOption{
-				asc.WithAlternativeDistributionDomainsLimit(*limit),
-				asc.WithAlternativeDistributionDomainsNextURL(*next),
+				asc.Limit[asc.AlternativeDistributionDomainsOption](*limit),
+				asc.NextURL[asc.AlternativeDistributionDomainsOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithAlternativeDistributionDomainsLimit(alternativeDistributionMaxLimit))
+				paginateOpts := append(opts, asc.Limit[asc.AlternativeDistributionDomainsOption](alternativeDistributionMaxLimit))
 				firstPage, err := client.GetAlternativeDistributionDomains(requestCtx, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("alternative-distribution domains list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAlternativeDistributionDomains(ctx, asc.WithAlternativeDistributionDomainsNextURL(nextURL))
+					return client.GetAlternativeDistributionDomains(ctx, asc.NextURL[asc.AlternativeDistributionDomainsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("alternative-distribution domains list: %w", err)
