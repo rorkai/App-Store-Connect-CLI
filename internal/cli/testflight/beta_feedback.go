@@ -77,8 +77,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			submissionIDValue := strings.TrimSpace(*submissionID)
 			if submissionIDValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --submission-id is required")
-				return shared.MissingRequiredUsageError("--submission-id")
+				return shared.RequiredFlag("--submission-id")
 			}
 			return runFeedbackSubmissionView(ctx, submissionIDValue, output)
 		},
@@ -105,12 +104,10 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			submissionIDValue := strings.TrimSpace(*submissionID)
 			if submissionIDValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --submission-id is required")
-				return shared.MissingRequiredUsageError("--submission-id")
+				return shared.RequiredFlag("--submission-id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 			return runFeedbackSubmissionDelete(ctx, submissionIDValue, output)
 		},
@@ -181,8 +178,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			submissionIDValue := strings.TrimSpace(*submissionID)
 			if submissionIDValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --submission-id is required")
-				return shared.MissingRequiredUsageError("--submission-id")
+				return shared.RequiredFlag("--submission-id")
 			}
 			return runCrashSubmissionView(ctx, submissionIDValue, output)
 		},
@@ -209,12 +205,10 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			submissionIDValue := strings.TrimSpace(*submissionID)
 			if submissionIDValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --submission-id is required")
-				return shared.MissingRequiredUsageError("--submission-id")
+				return shared.RequiredFlag("--submission-id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 			return runCrashSubmissionDelete(ctx, submissionIDValue, output)
 		},
