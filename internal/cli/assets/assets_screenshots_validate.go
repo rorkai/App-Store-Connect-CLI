@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -84,13 +83,11 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			pathValue := strings.TrimSpace(*path)
 			if pathValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --path is required")
-				return shared.MissingRequiredUsageError("--path")
+				return shared.RequiredFlag("--path")
 			}
 			deviceValue := strings.TrimSpace(*deviceType)
 			if deviceValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --device-type is required")
-				return shared.MissingRequiredUsageError("--device-type")
+				return shared.RequiredFlag("--device-type")
 			}
 
 			displayType, err := normalizeScreenshotDisplayType(deviceValue)
