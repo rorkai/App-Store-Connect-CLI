@@ -35,6 +35,32 @@ type WidgetCreateRequest struct {
 	Data WidgetCreateData `json:"data"`
 }
 
+// WidgetNoteCreateData is the data object of the WidgetNoteCreateRequest schema.
+type WidgetNoteCreateData struct {
+	Type          ResourceType               `json:"type"`
+	Attributes    WidgetNoteCreateAttributes `json:"attributes"`
+	Relationships *WidgetNoteRelationships   `json:"relationships,omitempty"`
+}
+
+// WidgetNoteRelationships is the data.relationships object of the WidgetNoteCreateRequest schema.
+type WidgetNoteRelationships struct {
+	Widget  *Relationship     `json:"widget"`
+	Gadgets *RelationshipList `json:"gadgets,omitempty"`
+}
+
+// WidgetReleaseCreateData is the data object of the WidgetReleaseCreateRequest schema.
+type WidgetReleaseCreateData struct {
+	Type          ResourceType                     `json:"type"`
+	Relationships WidgetReleaseCreateRelationships `json:"relationships"`
+}
+
+// WidgetReleaseCreateRelationships is the data.relationships object of the WidgetReleaseCreateRequest schema.
+type WidgetReleaseCreateRelationships struct {
+	Widget Relationship  `json:"widget"`
+	Gadget Relationship  `json:"gadget"`
+	Owner  *Relationship `json:"owner,omitempty"`
+}
+
 // WidgetResponse is the WidgetResponse schema.
 type WidgetResponse = SingleResponse[WidgetAttributes]
 
@@ -58,6 +84,67 @@ type WidgetUpdateRequest struct {
 
 // WidgetsResponse is the WidgetsResponse schema.
 type WidgetsResponse = Response[WidgetAttributes]
+
+// CreateWidgetNote sends POST /v1/widgetNotes (widgetNotes_createInstance).
+func (c *Client) CreateWidgetNote(ctx context.Context, widgetID string, attrs WidgetNoteCreateAttributes) (*WidgetResponse, error) {
+	widgetID = strings.TrimSpace(widgetID)
+	if widgetID == "" {
+		return nil, fmt.Errorf("widget ID is required")
+	}
+	payload := WidgetNoteCreateRequest{
+		Data: WidgetNoteCreateData{
+			Type:       ResourceTypeWidgetNotes,
+			Attributes: attrs,
+			Relationships: &WidgetNoteRelationships{
+				Widget: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeWidgets,
+						ID:   widgetID,
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[WidgetResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/widgetNotes",
+		Payload: payload,
+	})
+}
+
+// CreateWidgetRelease sends POST /v1/widgetReleases (widgetReleases_createInstance).
+func (c *Client) CreateWidgetRelease(ctx context.Context, widgetID, gadgetID, ownerID string) (*WidgetResponse, error) {
+	payload := WidgetReleaseCreateRequest{
+		Data: WidgetReleaseCreateData{
+			Type: ResourceTypeWidgetReleases,
+			Relationships: WidgetReleaseCreateRelationships{
+				Widget: Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeWidgets,
+						ID:   strings.TrimSpace(widgetID),
+					},
+				},
+				Gadget: Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeGadgets,
+						ID:   strings.TrimSpace(gadgetID),
+					},
+				},
+				Owner: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeWidgets,
+						ID:   strings.TrimSpace(ownerID),
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[WidgetResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/widgetReleases",
+		Payload: payload,
+	})
+}
 
 // CreateWidget sends POST /v1/widgets (widgets_createInstance).
 func (c *Client) CreateWidget(ctx context.Context, attrs WidgetCreateAttributes) (*WidgetResponse, error) {

@@ -8,6 +8,13 @@ import (
 	"net/http"
 )
 
+// AppStoreVersionPhasedReleaseCreateData is the data object of the AppStoreVersionPhasedReleaseCreateRequest schema.
+type AppStoreVersionPhasedReleaseCreateData struct {
+	Type          ResourceType                                  `json:"type"`
+	Attributes    *AppStoreVersionPhasedReleaseCreateAttributes `json:"attributes,omitempty"`
+	Relationships AppStoreVersionPhasedReleaseRelationships     `json:"relationships"`
+}
+
 // AppStoreVersionPhasedReleaseCreateRequest is the AppStoreVersionPhasedReleaseCreateRequest schema.
 type AppStoreVersionPhasedReleaseCreateRequest struct {
 	Data AppStoreVersionPhasedReleaseCreateData `json:"data"`

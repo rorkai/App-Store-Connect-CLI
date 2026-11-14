@@ -20,9 +20,23 @@ type BetaGroupCreateAttributes struct {
 	FeedbackEnabled        *bool  `json:"feedbackEnabled,omitempty"`
 }
 
+// BetaGroupCreateData is the data object of the BetaGroupCreateRequest schema.
+type BetaGroupCreateData struct {
+	Type          ResourceType              `json:"type"`
+	Attributes    BetaGroupCreateAttributes `json:"attributes"`
+	Relationships *BetaGroupRelationships   `json:"relationships"`
+}
+
 // BetaGroupCreateRequest is the BetaGroupCreateRequest schema.
 type BetaGroupCreateRequest struct {
 	Data BetaGroupCreateData `json:"data"`
+}
+
+// BetaGroupRelationships is the data.relationships object of the BetaGroupCreateRequest schema.
+type BetaGroupRelationships struct {
+	App         *Relationship     `json:"app"`
+	Builds      *RelationshipList `json:"builds,omitempty"`
+	BetaTesters *RelationshipList `json:"betaTesters,omitempty"`
 }
 
 // BetaGroupResponse is the BetaGroupResponse schema.

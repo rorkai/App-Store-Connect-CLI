@@ -2,9 +2,14 @@
   "tag": "UserInvitations",
   "file": "user_invitations_gen.go",
   "types": [
+    "UserInvitationCreateData",
+    "UserInvitationCreateRelationships",
     "UserInvitationCreateRequest",
     "UserInvitationResponse",
     "UserInvitationsResponse"
+  ],
+  "relationships": [
+    {"data":"UserInvitationCreateData","type":"*UserInvitationCreateRelationships","omitempty":true}
   ],
   "operations": [
     {"operation":"userInvitations_deleteInstance","name":"DeleteUserInvitation","params":["inviteID"],"check":"trim"},

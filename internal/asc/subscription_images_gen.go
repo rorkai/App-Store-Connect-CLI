@@ -9,6 +9,13 @@ import (
 	"strings"
 )
 
+// SubscriptionImageV2CreateData is the data object of the SubscriptionImageV2CreateRequest schema.
+type SubscriptionImageV2CreateData struct {
+	Type          ResourceType                        `json:"type"`
+	Attributes    SubscriptionImageV2CreateAttributes `json:"attributes"`
+	Relationships *SubscriptionVersionRelationship    `json:"relationships"`
+}
+
 // SubscriptionImageV2CreateRequest is the SubscriptionImageV2CreateRequest schema.
 type SubscriptionImageV2CreateRequest struct {
 	Data SubscriptionImageV2CreateData `json:"data"`
@@ -17,6 +24,11 @@ type SubscriptionImageV2CreateRequest struct {
 // SubscriptionImageV2UpdateRequest is the SubscriptionImageV2UpdateRequest schema.
 type SubscriptionImageV2UpdateRequest struct {
 	Data SubscriptionImageV2UpdateData `json:"data"`
+}
+
+// SubscriptionVersionRelationship is the data.relationships object of the SubscriptionImageV2CreateRequest schema.
+type SubscriptionVersionRelationship struct {
+	Version *Relationship `json:"version"`
 }
 
 // DeleteSubscriptionImageV2 sends DELETE /v2/subscriptionImages/{id} (subscriptionImagesV2_deleteInstance).

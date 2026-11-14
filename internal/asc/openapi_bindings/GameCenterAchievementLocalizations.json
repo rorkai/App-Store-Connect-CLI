@@ -3,17 +3,25 @@
   "file": "game_center_achievement_localizations_gen.go",
   "types": [
     "GameCenterAchievementLocalizationCreateAttributes",
+    "GameCenterAchievementLocalizationCreateData",
     "GameCenterAchievementLocalizationCreateRequest",
+    "GameCenterAchievementLocalizationRelationships",
     "GameCenterAchievementLocalizationResponse",
     "GameCenterAchievementLocalizationUpdateAttributes",
     "GameCenterAchievementLocalizationUpdateData",
     "GameCenterAchievementLocalizationUpdateRequest",
-    "GameCenterAchievementLocalizationV2CreateRequest"
+    "GameCenterAchievementLocalizationV2CreateRequest",
+    "GameCenterAchievementLocalizationV2Relationships"
+  ],
+  "relationships": [
+    {"data":"GameCenterAchievementLocalizationCreateData","type":"*GameCenterAchievementLocalizationRelationships","omitempty":true},
+    {"data":"GameCenterAchievementLocalizationV2CreateData","type":"*GameCenterAchievementLocalizationV2Relationships","omitempty":true}
   ],
   "operations": [
     {"operation":"gameCenterAchievementLocalizationsV2_deleteInstance","name":"DeleteGameCenterAchievementLocalizationV2","params":["localizationID"]},
     {"operation":"gameCenterAchievementLocalizationsV2_getInstance","name":"GetGameCenterAchievementLocalizationV2","params":["localizationID"],"response":"GameCenterAchievementLocalizationResponse"},
     {"operation":"gameCenterAchievementLocalizationsV2_image_getToOneRelated","name":"GetGameCenterAchievementLocalizationImageV2","params":["localizationID"],"response":"GameCenterAchievementImageResponse"},
+    {"operation":"gameCenterAchievementLocalizations_createInstance","name":"CreateGameCenterAchievementLocalization","params":["achievementID"],"links":["gameCenterAchievement"]},
     {"operation":"gameCenterAchievementLocalizations_deleteInstance","name":"DeleteGameCenterAchievementLocalization","params":["localizationID"]},
     {"operation":"gameCenterAchievementLocalizations_gameCenterAchievementImage_getToOneRelated","name":"GetGameCenterAchievementLocalizationImage","params":["localizationID"]},
     {"operation":"gameCenterAchievementLocalizations_gameCenterAchievement_getToOneRelated","name":"GetGameCenterAchievementLocalizationAchievement","params":["localizationID"]},

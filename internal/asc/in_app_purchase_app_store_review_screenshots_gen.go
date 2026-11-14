@@ -9,9 +9,21 @@ import (
 	"strings"
 )
 
+// InAppPurchaseAppStoreReviewScreenshotCreateData is the data object of the InAppPurchaseAppStoreReviewScreenshotCreateRequest schema.
+type InAppPurchaseAppStoreReviewScreenshotCreateData struct {
+	Type          ResourceType                                          `json:"type"`
+	Attributes    InAppPurchaseAppStoreReviewScreenshotCreateAttributes `json:"attributes"`
+	Relationships InAppPurchaseAppStoreReviewScreenshotRelationships    `json:"relationships"`
+}
+
 // InAppPurchaseAppStoreReviewScreenshotCreateRequest is the InAppPurchaseAppStoreReviewScreenshotCreateRequest schema.
 type InAppPurchaseAppStoreReviewScreenshotCreateRequest struct {
 	Data InAppPurchaseAppStoreReviewScreenshotCreateData `json:"data"`
+}
+
+// InAppPurchaseAppStoreReviewScreenshotRelationships is the data.relationships object of the InAppPurchaseAppStoreReviewScreenshotCreateRequest schema.
+type InAppPurchaseAppStoreReviewScreenshotRelationships struct {
+	InAppPurchaseV2 Relationship `json:"inAppPurchaseV2"`
 }
 
 // InAppPurchaseAppStoreReviewScreenshotResponse is the InAppPurchaseAppStoreReviewScreenshotResponse schema.

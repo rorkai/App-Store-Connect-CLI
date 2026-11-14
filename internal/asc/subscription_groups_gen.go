@@ -14,6 +14,13 @@ type SubscriptionGroupCreateAttributes struct {
 	ReferenceName string `json:"referenceName"`
 }
 
+// SubscriptionGroupCreateData is the data object of the SubscriptionGroupCreateRequest schema.
+type SubscriptionGroupCreateData struct {
+	Type          ResourceType                      `json:"type"`
+	Attributes    SubscriptionGroupCreateAttributes `json:"attributes"`
+	Relationships *SubscriptionGroupRelationships   `json:"relationships,omitempty"`
+}
+
 // SubscriptionGroupCreateRequest is the SubscriptionGroupCreateRequest schema.
 type SubscriptionGroupCreateRequest struct {
 	Data SubscriptionGroupCreateData `json:"data"`
@@ -30,6 +37,29 @@ type SubscriptionGroupUpdateAttributes struct {
 // SubscriptionGroupUpdateRequest is the SubscriptionGroupUpdateRequest schema.
 type SubscriptionGroupUpdateRequest struct {
 	Data SubscriptionGroupUpdateData `json:"data"`
+}
+
+// CreateSubscriptionGroup sends POST /v1/subscriptionGroups (subscriptionGroups_createInstance).
+func (c *Client) CreateSubscriptionGroup(ctx context.Context, appID string, attrs SubscriptionGroupCreateAttributes) (*SubscriptionGroupResponse, error) {
+	payload := SubscriptionGroupCreateRequest{
+		Data: SubscriptionGroupCreateData{
+			Type:       ResourceTypeSubscriptionGroups,
+			Attributes: attrs,
+			Relationships: &SubscriptionGroupRelationships{
+				App: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeApps,
+						ID:   strings.TrimSpace(appID),
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[SubscriptionGroupResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/subscriptionGroups",
+		Payload: payload,
+	})
 }
 
 // DeleteSubscriptionGroup sends DELETE /v1/subscriptionGroups/{id} (subscriptionGroups_deleteInstance).

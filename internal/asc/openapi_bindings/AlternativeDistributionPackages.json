@@ -2,8 +2,13 @@
   "tag": "AlternativeDistributionPackages",
   "file": "alternative_distribution_packages_gen.go",
   "types": [
+    "AlternativeDistributionPackageCreateData",
+    "AlternativeDistributionPackageCreateRelationships",
     "AlternativeDistributionPackageCreateRequest",
     "AlternativeDistributionPackageResponse"
+  ],
+  "relationships": [
+    {"data":"AlternativeDistributionPackageCreateData","type":"AlternativeDistributionPackageCreateRelationships"}
   ],
   "operations": [
     {"operation":"alternativeDistributionPackages_getInstance","name":"GetAlternativeDistributionPackage","params":["packageID"],"check":"require","parseErr":"failed to parse alternative distribution package response"},

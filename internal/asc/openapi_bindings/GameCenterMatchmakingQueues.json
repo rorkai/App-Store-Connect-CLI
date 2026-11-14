@@ -3,11 +3,15 @@
   "file": "game_center_matchmaking_queues_gen.go",
   "types": [
     "GameCenterMatchmakingQueueCreateAttributes",
+    "GameCenterMatchmakingQueueCreateData",
     "GameCenterMatchmakingQueueCreateRequest",
     "GameCenterMatchmakingQueueResponse",
     "GameCenterMatchmakingQueueUpdateAttributes",
     "GameCenterMatchmakingQueueUpdateRequest",
     "GameCenterMatchmakingQueuesResponse"
+  ],
+  "relationships": [
+    {"data":"GameCenterMatchmakingQueueCreateData","type":"*GameCenterMatchmakingQueueRelationships","omitempty":true}
   ],
   "operations": [
     {"operation":"gameCenterMatchmakingQueues_deleteInstance","name":"DeleteGameCenterMatchmakingQueue","params":["queueID"]},

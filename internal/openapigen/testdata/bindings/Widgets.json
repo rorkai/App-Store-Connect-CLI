@@ -6,13 +6,23 @@
     "WidgetCreateAttributes",
     "WidgetCreateData",
     "WidgetCreateRequest",
+    "WidgetNoteCreateData",
+    "WidgetNoteRelationships",
+    "WidgetReleaseCreateData",
+    "WidgetReleaseCreateRelationships",
     "WidgetResponse",
     "WidgetUpdateAttributes",
     "WidgetUpdateData",
     "WidgetUpdateRequest",
     "WidgetsResponse"
   ],
+  "relationships": [
+    {"data":"WidgetNoteCreateData","type":"*WidgetNoteRelationships","omitempty":true},
+    {"data":"WidgetReleaseCreateData","type":"WidgetReleaseCreateRelationships"}
+  ],
   "operations": [
+    {"operation":"widgetNotes_createInstance","name":"CreateWidgetNote","params":["widgetID"],"check":"require","messages":["widget ID is required"],"links":["widget"]},
+    {"operation":"widgetReleases_createInstance","name":"CreateWidgetRelease","params":["widgetID","gadgetID","ownerID"],"links":["widget","gadget","owner"]},
     {"operation":"widgets_createInstance","name":"CreateWidget"},
     {"operation":"widgets_deleteInstance","name":"DeleteWidget","params":["widgetID"],"check":"trim"},
     {"operation":"widgets_gadgets_getToManyRelated","name":"GetWidgetGadgets","params":["widgetID"],"check":"require","messages":["widget ID is required"],"options":"GadgetsOption","query":"buildGadgetsQuery","nextContext":"widget-gadgets","response":"GadgetListResponse"},

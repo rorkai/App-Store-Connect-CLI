@@ -3,9 +3,15 @@
   "file": "in_app_purchase_versions_gen.go",
   "types": [
     "InAppPurchaseVersionAttributes",
+    "InAppPurchaseVersionCreateData",
+    "InAppPurchaseVersionCreateRelationships",
     "InAppPurchaseVersionCreateRequest"
   ],
+  "relationships": [
+    {"data":"InAppPurchaseVersionCreateData","type":"InAppPurchaseVersionCreateRelationships"}
+  ],
   "operations": [
+    {"operation":"inAppPurchaseVersions_createInstance","name":"CreateInAppPurchaseVersion","params":["iapID"],"check":"require","links":["inAppPurchase"]},
     {"operation":"inAppPurchaseVersions_image_getToOneRelationship","name":"GetInAppPurchaseVersionImageRelationship","params":["versionID"],"check":"require"}
   ]
 }

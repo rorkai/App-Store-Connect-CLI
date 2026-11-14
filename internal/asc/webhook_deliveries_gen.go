@@ -2,6 +2,17 @@
 
 package asc
 
+// WebhookDeliveryCreateData is the data object of the WebhookDeliveryCreateRequest schema.
+type WebhookDeliveryCreateData struct {
+	Type          ResourceType                       `json:"type"`
+	Relationships WebhookDeliveryCreateRelationships `json:"relationships"`
+}
+
+// WebhookDeliveryCreateRelationships is the data.relationships object of the WebhookDeliveryCreateRequest schema.
+type WebhookDeliveryCreateRelationships struct {
+	Template Relationship `json:"template"`
+}
+
 // WebhookDeliveryCreateRequest is the WebhookDeliveryCreateRequest schema.
 type WebhookDeliveryCreateRequest struct {
 	Data WebhookDeliveryCreateData `json:"data"`

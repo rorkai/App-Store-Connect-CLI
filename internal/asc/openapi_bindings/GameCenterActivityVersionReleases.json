@@ -2,8 +2,12 @@
   "tag": "GameCenterActivityVersionReleases",
   "file": "game_center_activity_version_releases_gen.go",
   "types": [
+    "GameCenterActivityVersionReleaseCreateData",
     "GameCenterActivityVersionReleaseCreateRequest",
     "GameCenterActivityVersionReleaseResponse"
+  ],
+  "relationships": [
+    {"data":"GameCenterActivityVersionReleaseCreateData","type":"*GameCenterActivityVersionReleaseRelationships","omitempty":true}
   ],
   "operations": [
     {"operation":"gameCenterActivityVersionReleases_deleteInstance","name":"DeleteGameCenterActivityVersionRelease","params":["releaseID"]},

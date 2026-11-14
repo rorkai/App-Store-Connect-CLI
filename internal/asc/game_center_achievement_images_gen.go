@@ -9,9 +9,21 @@ import (
 	"strings"
 )
 
+// GameCenterAchievementImageCreateData is the data object of the GameCenterAchievementImageCreateRequest schema.
+type GameCenterAchievementImageCreateData struct {
+	Type          ResourceType                               `json:"type"`
+	Attributes    GameCenterAchievementImageCreateAttributes `json:"attributes"`
+	Relationships *GameCenterAchievementImageRelationships   `json:"relationships"`
+}
+
 // GameCenterAchievementImageCreateRequest is the GameCenterAchievementImageCreateRequest schema.
 type GameCenterAchievementImageCreateRequest struct {
 	Data GameCenterAchievementImageCreateData `json:"data"`
+}
+
+// GameCenterAchievementImageRelationships is the data.relationships object of the GameCenterAchievementImageCreateRequest schema.
+type GameCenterAchievementImageRelationships struct {
+	GameCenterAchievementLocalization *Relationship `json:"gameCenterAchievementLocalization"`
 }
 
 // GameCenterAchievementImageResponse is the GameCenterAchievementImageResponse schema.
@@ -37,6 +49,11 @@ type GameCenterAchievementImageUpdateRequest struct {
 // GameCenterAchievementImageV2CreateRequest is the GameCenterAchievementImageV2CreateRequest schema.
 type GameCenterAchievementImageV2CreateRequest struct {
 	Data GameCenterAchievementImageV2CreateData `json:"data"`
+}
+
+// GameCenterAchievementImageV2Relationships is the data.relationships object of the GameCenterAchievementImageV2CreateRequest schema.
+type GameCenterAchievementImageV2Relationships struct {
+	Localization *Relationship `json:"localization"`
 }
 
 // DeleteGameCenterAchievementImageV2 sends DELETE /v2/gameCenterAchievementImages/{id} (gameCenterAchievementImagesV2_deleteInstance).

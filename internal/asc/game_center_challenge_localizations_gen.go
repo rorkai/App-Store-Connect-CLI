@@ -9,9 +9,21 @@ import (
 	"strings"
 )
 
+// GameCenterChallengeLocalizationCreateData is the data object of the GameCenterChallengeLocalizationCreateRequest schema.
+type GameCenterChallengeLocalizationCreateData struct {
+	Type          ResourceType                                    `json:"type"`
+	Attributes    GameCenterChallengeLocalizationCreateAttributes `json:"attributes"`
+	Relationships *GameCenterChallengeLocalizationRelationships   `json:"relationships,omitempty"`
+}
+
 // GameCenterChallengeLocalizationCreateRequest is the GameCenterChallengeLocalizationCreateRequest schema.
 type GameCenterChallengeLocalizationCreateRequest struct {
 	Data GameCenterChallengeLocalizationCreateData `json:"data"`
+}
+
+// GameCenterChallengeLocalizationRelationships is the data.relationships object of the GameCenterChallengeLocalizationCreateRequest schema.
+type GameCenterChallengeLocalizationRelationships struct {
+	Version *Relationship `json:"version"`
 }
 
 // GameCenterChallengeLocalizationResponse is the GameCenterChallengeLocalizationResponse schema.
@@ -33,6 +45,29 @@ type GameCenterChallengeLocalizationUpdateData struct {
 // GameCenterChallengeLocalizationUpdateRequest is the GameCenterChallengeLocalizationUpdateRequest schema.
 type GameCenterChallengeLocalizationUpdateRequest struct {
 	Data GameCenterChallengeLocalizationUpdateData `json:"data"`
+}
+
+// CreateGameCenterChallengeLocalization sends POST /v1/gameCenterChallengeLocalizations (gameCenterChallengeLocalizations_createInstance).
+func (c *Client) CreateGameCenterChallengeLocalization(ctx context.Context, versionID string, attrs GameCenterChallengeLocalizationCreateAttributes) (*GameCenterChallengeLocalizationResponse, error) {
+	payload := GameCenterChallengeLocalizationCreateRequest{
+		Data: GameCenterChallengeLocalizationCreateData{
+			Type:       ResourceTypeGameCenterChallengeLocalizations,
+			Attributes: attrs,
+			Relationships: &GameCenterChallengeLocalizationRelationships{
+				Version: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeGameCenterChallengeVersions,
+						ID:   strings.TrimSpace(versionID),
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[GameCenterChallengeLocalizationResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/gameCenterChallengeLocalizations",
+		Payload: payload,
+	})
 }
 
 // DeleteGameCenterChallengeLocalization sends DELETE /v1/gameCenterChallengeLocalizations/{id} (gameCenterChallengeLocalizations_deleteInstance).

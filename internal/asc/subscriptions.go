@@ -19,13 +19,6 @@ type SubscriptionGroupRelationships struct {
 	Versions                       *RelationshipList `json:"versions,omitempty"`
 }
 
-// SubscriptionGroupCreateData is the data portion of a group create request.
-type SubscriptionGroupCreateData struct {
-	Type          ResourceType                      `json:"type"`
-	Attributes    SubscriptionGroupCreateAttributes `json:"attributes"`
-	Relationships *SubscriptionGroupRelationships   `json:"relationships,omitempty"`
-}
-
 // SubscriptionGroupUpdateData is the data portion of a group update request.
 type SubscriptionGroupUpdateData struct {
 	Type       ResourceType                      `json:"type"`
@@ -72,22 +65,10 @@ type SubscriptionUpdateAttributes struct {
 	MultiSeatStatus           *string   `json:"multiSeatStatus,omitempty"`
 }
 
-// SubscriptionRelationships describes relationships for subscriptions.
-type SubscriptionRelationships struct {
-	Group *Relationship `json:"group"`
-}
-
 // RelationshipLinks describes links returned for a JSON:API relationship.
 type RelationshipLinks struct {
 	Self    string `json:"self,omitempty"`
 	Related string `json:"related,omitempty"`
-}
-
-// SubscriptionCreateData is the data portion of a subscription create request.
-type SubscriptionCreateData struct {
-	Type          ResourceType                 `json:"type"`
-	Attributes    SubscriptionCreateAttributes `json:"attributes"`
-	Relationships *SubscriptionRelationships   `json:"relationships,omitempty"`
 }
 
 // SubscriptionUpdateData is the data portion of a subscription update request.
@@ -207,22 +188,9 @@ type SubscriptionPricePointLinkRelationship struct {
 	Links RelationshipLinks `json:"links"`
 }
 
-// SubscriptionPriceCreateData is the data portion of a price create request.
-type SubscriptionPriceCreateData struct {
-	Type          ResourceType                       `json:"type"`
-	Attributes    *SubscriptionPriceCreateAttributes `json:"attributes,omitempty"`
-	Relationships *SubscriptionPriceRelationships    `json:"relationships"`
-}
-
 // SubscriptionAvailabilityAttributes describes a subscription availability.
 type SubscriptionAvailabilityAttributes struct {
 	AvailableInNewTerritories bool `json:"availableInNewTerritories"`
-}
-
-// SubscriptionAvailabilityRelationships describes relationships for availability.
-type SubscriptionAvailabilityRelationships struct {
-	Subscription         *Relationship     `json:"subscription"`
-	AvailableTerritories *RelationshipList `json:"availableTerritories"`
 }
 
 // SubscriptionAvailabilityCreateData is the data portion of availability create requests.

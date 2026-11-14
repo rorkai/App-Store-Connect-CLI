@@ -49,6 +49,37 @@ func (c *Client) GetWidgetOwner(ctx context.Context, widgetID string) (*WidgetRe
 	return getJSON[WidgetResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/widgets/%s/owner", widgetID)})
 }
 
+// CreateWidgetNote adds a note to a widget.
+func (c *Client) CreateWidgetNote(ctx context.Context, widgetID string, attrs WidgetNoteCreateAttributes) (*WidgetResponse, error) {
+	widgetID = strings.TrimSpace(widgetID)
+	if widgetID == "" {
+		return nil, fmt.Errorf("widgetID is required")
+	}
+
+	payload := WidgetNoteCreateRequest{Data: WidgetNoteCreateData{
+		Type:       ResourceTypeWidgetNotes,
+		Attributes: attrs,
+		Relationships: &WidgetNoteRelationships{
+			Widget: &Relationship{Data: ResourceData{Type: ResourceTypeWidgets, ID: widgetID}},
+		},
+	}}
+	return sendJSON[WidgetResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/widgetNotes", Payload: payload})
+}
+
+// CreateWidgetRelease sets its relationships in another order than its
+// parameters, so it stays hand-written.
+func (c *Client) CreateWidgetRelease(ctx context.Context, widgetID, gadgetID, ownerID string) (*WidgetResponse, error) {
+	payload := WidgetReleaseCreateRequest{Data: WidgetReleaseCreateData{
+		Type: ResourceTypeWidgetReleases,
+		Relationships: WidgetReleaseCreateRelationships{
+			Gadget: Relationship{Data: ResourceData{Type: ResourceTypeGadgets, ID: gadgetID}},
+			Widget: Relationship{Data: ResourceData{Type: ResourceTypeWidgets, ID: widgetID}},
+			Owner:  &Relationship{Data: ResourceData{Type: ResourceTypeWidgets, ID: ownerID}},
+		},
+	}}
+	return sendJSON[WidgetResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/widgetReleases", Payload: payload})
+}
+
 // DeleteWidget logs before it deletes, so it stays hand-written.
 func (c *Client) DeleteWidget(ctx context.Context, widgetID string) error {
 	fmt.Println("deleting", widgetID)
@@ -129,6 +160,33 @@ type WidgetAttributes struct {
 	Tags     []string ` + "`json:\"tags,omitempty\"`" + `
 }
 
+// WidgetNoteCreateData is the data of a new widget note.
+type WidgetNoteCreateData struct {
+	Type          ResourceType               ` + "`json:\"type\"`" + `
+	Attributes    WidgetNoteCreateAttributes ` + "`json:\"attributes\"`" + `
+	Relationships *WidgetNoteRelationships   ` + "`json:\"relationships\"`" + `
+}
+
+// WidgetNoteRelationships links a note to its widget.
+type WidgetNoteRelationships struct {
+	Widget  *Relationship     ` + "`json:\"widget\"`" + `
+	Gadgets *RelationshipList ` + "`json:\"gadgets,omitempty\"`" + `
+}
+
+// WidgetReleaseCreateData is the data of a new widget release.
+type WidgetReleaseCreateData struct {
+	Type          ResourceType                     ` + "`json:\"type\"`" + `
+	Relationships WidgetReleaseCreateRelationships ` + "`json:\"relationships\"`" + `
+}
+
+// WidgetReleaseCreateRelationships sends the owner even when it is empty, so
+// it stays hand-written.
+type WidgetReleaseCreateRelationships struct {
+	Widget Relationship  ` + "`json:\"widget\"`" + `
+	Gadget Relationship  ` + "`json:\"gadget\"`" + `
+	Owner  *Relationship ` + "`json:\"owner\"`" + `
+}
+
 // WidgetsResponse keeps a pointer on purpose.
 type WidgetsResponse = Response[*WidgetAttributes]
 `
@@ -175,15 +233,15 @@ func TestAdoptReplacesOnlyCodeTheGeneratorReproduces(t *testing.T) {
 		t.Fatal(err)
 	}
 	fam := bindings.Families[1]
-	if fam.Tag != "Widgets" || fam.File != "widgets_gen.go" || strings.Join(fam.Types, ",") != "WidgetAttributes,WidgetResponse" {
+	if fam.Tag != "Widgets" || fam.File != "widgets_gen.go" || strings.Join(fam.Types, ",") != "WidgetAttributes,WidgetNoteCreateData,WidgetNoteRelationships,WidgetReleaseCreateData,WidgetResponse" {
 		t.Errorf("family = %s with types %v", fam.File, fam.Types)
 	}
 	adopted := map[string]*OpBind{}
 	for _, op := range fam.Operations {
 		adopted[op.Name] = op
 	}
-	get, parts, owner := adopted["GetWidget"], adopted["GetWidgetParts"], adopted["GetWidgetOwner"]
-	if len(adopted) != 7 || get == nil || parts == nil || owner == nil || adopted["UpdateWidgetGadgets"] == nil {
+	get, parts, owner, note := adopted["GetWidget"], adopted["GetWidgetParts"], adopted["GetWidgetOwner"], adopted["CreateWidgetNote"]
+	if len(adopted) != 8 || get == nil || parts == nil || owner == nil || note == nil || adopted["UpdateWidgetGadgets"] == nil {
 		t.Fatalf("adopted methods = %v", adopted)
 	}
 	if get.Check != checkRequire || get.CheckFirst || get.ParseErr != "failed to parse widget" || strings.Join(get.Messages, ",") != "widget ID is required" {
@@ -194,6 +252,12 @@ func TestAdoptReplacesOnlyCodeTheGeneratorReproduces(t *testing.T) {
 	}
 	if owner.Check != checkRaw || owner.CheckFirst {
 		t.Errorf("GetWidgetOwner binding = %+v", owner)
+	}
+	if note.Check != checkRequire || strings.Join(note.Links, ",") != "widget" {
+		t.Errorf("CreateWidgetNote binding = %+v", note)
+	}
+	if len(fam.Relationships) != 2 || *fam.Relationships[0] != (RelBind{Data: "WidgetNoteCreateData", Type: "*WidgetNoteRelationships"}) || *fam.Relationships[1] != (RelBind{Data: "WidgetReleaseCreateData", Type: "WidgetReleaseCreateRelationships"}) {
+		t.Errorf("relationships records = %v", fam.Relationships)
 	}
 	if update := adopted["UpdateWidgetGadgets"]; update.Check != checkInline {
 		t.Errorf("UpdateWidgetGadgets binding = %+v", update)
@@ -213,14 +277,14 @@ func TestAdoptReplacesOnlyCodeTheGeneratorReproduces(t *testing.T) {
 		t.Errorf("widgets_gen.go:\n%s", generated)
 	}
 	client := readFile(t, filepath.Join(dir, "client.go"))
-	if strings.Contains(client, "GetWidget") || strings.Contains(client, "UpdateWidgetGadgets") || !strings.Contains(client, "func (c *Client) DeleteWidget(") || !strings.Contains(client, "func (c *Client) UpdateWizardIfChanged(") {
+	if strings.Contains(client, "GetWidget") || strings.Contains(client, "UpdateWidgetGadgets") || strings.Contains(client, "CreateWidgetNote") || !strings.Contains(client, "func (c *Client) DeleteWidget(") || !strings.Contains(client, "func (c *Client) UpdateWizardIfChanged(") || !strings.Contains(client, "func (c *Client) CreateWidgetRelease(") {
 		t.Errorf("client.go after adopt:\n%s", client)
 	}
 	if strings.Contains(client, `"strings"`) || !strings.Contains(client, `"fmt"`) {
 		t.Errorf("client.go imports not pruned:\n%s", client)
 	}
 	types := readFile(t, filepath.Join(dir, "types.go"))
-	if strings.Contains(types, "WidgetAttributes struct") || !strings.Contains(types, "WidgetsResponse") {
+	if strings.Contains(types, "WidgetAttributes struct") || strings.Contains(types, "WidgetNoteCreateData") || strings.Contains(types, "WidgetReleaseCreateData") || !strings.Contains(types, "WidgetReleaseCreateRelationships struct") || !strings.Contains(types, "WidgetsResponse") {
 		t.Errorf("types.go after adopt:\n%s", types)
 	}
 	if _, err := os.Stat(filepath.Join(dir, "response.go")); !os.IsNotExist(err) {

@@ -1,6 +1,13 @@
 {
   "tag": "AppPriceSchedules",
   "file": "app_price_schedules_gen.go",
+  "types": [
+    "AppPriceScheduleCreateData",
+    "AppPriceScheduleCreateRelationships"
+  ],
+  "relationships": [
+    {"data":"AppPriceScheduleCreateData","type":"AppPriceScheduleCreateRelationships"}
+  ],
   "operations": [
     {"operation":"appPriceSchedules_automaticPrices_getToManyRelated","name":"GetAppPriceScheduleAutomaticPrices","params":["scheduleID"],"check":"require","options":"AppPriceSchedulePricesOption","query":"buildAppPriceSchedulePricesQuery","nextContext":"appPriceScheduleAutomaticPrices","parseErr":"failed to parse automatic prices response","response":"AppPricesResponse"},
     {"operation":"appPriceSchedules_baseTerritory_getToOneRelated","name":"GetAppPriceScheduleBaseTerritory","params":["scheduleID"],"check":"trim","parseErr":"failed to parse base territory response"},

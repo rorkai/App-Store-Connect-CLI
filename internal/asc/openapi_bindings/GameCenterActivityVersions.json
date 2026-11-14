@@ -3,11 +3,15 @@
   "file": "game_center_activity_versions_gen.go",
   "types": [
     "GameCenterActivityVersionCreateAttributes",
+    "GameCenterActivityVersionCreateData",
     "GameCenterActivityVersionCreateRequest",
     "GameCenterActivityVersionResponse",
     "GameCenterActivityVersionUpdateAttributes",
     "GameCenterActivityVersionUpdateData",
     "GameCenterActivityVersionUpdateRequest"
+  ],
+  "relationships": [
+    {"data":"GameCenterActivityVersionCreateData","type":"*GameCenterActivityVersionRelationships","omitempty":true}
   ],
   "operations": [
     {"operation":"gameCenterActivityVersions_defaultImage_getToOneRelated","name":"GetGameCenterActivityVersionDefaultImage","params":["versionID"],"response":"GameCenterActivityVersionDefaultImageResponse"},
