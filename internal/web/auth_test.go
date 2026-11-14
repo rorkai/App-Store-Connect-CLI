@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 	"unicode/utf8"
@@ -1448,9 +1449,35 @@ func TestResolveWebMinRequestInterval(t *testing.T) {
 }
 
 func TestClientDoRequestAppliesRateLimit(t *testing.T) {
-	servedAt := make(chan time.Time, 2)
+	var (
+		mu     sync.Mutex
+		now    = time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+		events []string
+	)
+	record := func(event string) {
+		mu.Lock()
+		defer mu.Unlock()
+		events = append(events, event)
+	}
+	previousNow, previousAfter := rateLimitNow, rateLimitAfter
+	rateLimitNow = func() time.Time {
+		mu.Lock()
+		defer mu.Unlock()
+		return now
+	}
+	rateLimitAfter = func(d time.Duration) <-chan time.Time {
+		record(fmt.Sprintf("wait %v", d))
+		mu.Lock()
+		defer mu.Unlock()
+		now = now.Add(d)
+		fired := make(chan time.Time, 1)
+		fired <- now
+		return fired
+	}
+	t.Cleanup(func() { rateLimitNow, rateLimitAfter = previousNow, previousAfter })
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		servedAt <- time.Now()
+		record("request")
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"data":[]}`))
 	}))
@@ -1469,10 +1496,11 @@ func TestClientDoRequestAppliesRateLimit(t *testing.T) {
 		t.Fatalf("second doRequest error: %v", err)
 	}
 
-	first := <-servedAt
-	second := <-servedAt
-	if diff := second.Sub(first); diff < 55*time.Millisecond {
-		t.Fatalf("expected low-rate gap between calls, got %v", diff)
+	mu.Lock()
+	defer mu.Unlock()
+	want := []string{"request", "wait 80ms", "request"}
+	if !reflect.DeepEqual(events, want) {
+		t.Fatalf("events = %q, want %q", events, want)
 	}
 }
 

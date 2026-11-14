@@ -1942,6 +1942,11 @@ func isAppleAccountActionRequiredSigninComplete(status int, respBody []byte) boo
 	return appleauth.IsAppleAccountActionRequiredSigninComplete(status, respBody)
 }
 
+var (
+	rateLimitNow   = time.Now
+	rateLimitAfter = time.After
+)
+
 func (c *Client) waitForRateLimit(ctx context.Context) error {
 	if c == nil || c.minRequestInterval <= 0 {
 		return nil
@@ -1951,23 +1956,19 @@ func (c *Client) waitForRateLimit(ctx context.Context) error {
 	}
 	for {
 		c.rateLimitMu.Lock()
-		now := time.Now()
+		now := rateLimitNow()
 		if c.nextAllowedAt.IsZero() || !now.Before(c.nextAllowedAt) {
 			c.nextAllowedAt = now.Add(c.minRequestInterval)
 			c.rateLimitMu.Unlock()
 			return nil
 		}
-		wait := time.Until(c.nextAllowedAt)
+		wait := c.nextAllowedAt.Sub(rateLimitNow())
 		c.rateLimitMu.Unlock()
 
-		timer := time.NewTimer(wait)
 		select {
 		case <-ctx.Done():
-			if !timer.Stop() {
-				<-timer.C
-			}
 			return ctx.Err()
-		case <-timer.C:
+		case <-rateLimitAfter(wait):
 		}
 	}
 }
