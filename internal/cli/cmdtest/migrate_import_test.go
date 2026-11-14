@@ -1162,26 +1162,47 @@ func TestMigrateImportWarnsAboutEveryUnreportedScreenshotLocalization(t *testing
 		writePNGForMigrate(t, filepath.Join(screenshotsDir, "iphone_65_existing.png"), 1242, 2688)
 	}
 
-	reg := asctest.NewRegistry(t)
-	reg.Install()
-	reg.Register(asctest.GET("/v1/appStoreVersions/VERSION_ID", "include=app"),
-		asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"VERSION_ID","attributes":{"versionString":"1.0","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"APP_ID"}}}}}`))
-	reg.Register(asctest.GET("/v1/appStoreVersions/VERSION_ID/appStoreVersionLocalizations", "limit=200"),
-		asctest.JSON(http.StatusOK, `{"data":[],"links":{"next":""}}`))
-	for index, locale := range []string{"en-US", "fr-FR"} {
-		reg.Register(asctest.POST("/v1/appStoreVersionLocalizations").JSONBody(fmt.Sprintf(`{"data":{"type":"appStoreVersionLocalizations","attributes":{"locale":%q},"relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"VERSION_ID"}}}}}`, locale)),
-			asctest.JSON(http.StatusCreated, fmt.Sprintf(`{"data":{"type":"appStoreVersionLocalizations","id":"loc-%d","attributes":{"locale":%q}}}`, index+1, locale)))
-	}
-	reg.Register(asctest.GET("/v1/appStoreVersionLocalizations/loc-1/appScreenshotSets"),
-		asctest.JSON(http.StatusOK, `{"data":[{"type":"appScreenshotSets","id":"set-1","attributes":{"screenshotDisplayType":"APP_IPHONE_65"}}]}`))
-	reg.Register(asctest.GET("/v1/appScreenshotSets/set-1/relationships/appScreenshots", "limit=200"),
-		asctest.JSON(http.StatusOK, `{"data":[{"type":"appScreenshots","id":"shot-existing"}],"links":{}}`))
-	reg.Register(asctest.GET("/v1/appScreenshotSets/set-1/appScreenshots"),
-		asctest.JSON(http.StatusOK, `{"data":[{"type":"appScreenshots","id":"shot-existing","attributes":{"fileName":"iphone_65_existing.png"}}]}`))
-	reg.Register(asctest.PATCH("/v1/appScreenshotSets/set-1/relationships/appScreenshots").JSONBody(`{"data":[{"type":"appScreenshots","id":"shot-existing"}]}`),
-		asctest.JSON(http.StatusNoContent, ""))
-	reg.Register(asctest.GET("/v1/appStoreVersionLocalizations/loc-2/appScreenshotSets"),
-		asctest.JSON(http.StatusConflict, `{"errors":[{"status":"409","code":"STATE_ERROR","title":"Request failed","detail":"sets unavailable"}]}`))
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	var createdLocales []string
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/VERSION_ID":
+			return migrateJSONResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"VERSION_ID","attributes":{"versionString":"1.0","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"APP_ID"}}}}}`), nil
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/VERSION_ID/appStoreVersionLocalizations":
+			return migrateJSONResponse(http.StatusOK, `{"data":[],"links":{"next":""}}`), nil
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/appStoreVersionLocalizations":
+			var payload struct {
+				Data struct {
+					Attributes struct {
+						Locale string `json:"locale"`
+					} `json:"attributes"`
+				} `json:"data"`
+			}
+			if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+				t.Fatalf("decode localization request: %v", err)
+			}
+			createdLocales = append(createdLocales, payload.Data.Attributes.Locale)
+			localizationID := fmt.Sprintf("loc-%d", len(createdLocales))
+			body := fmt.Sprintf(`{"data":{"type":"appStoreVersionLocalizations","id":%q,"attributes":{"locale":%q}}}`, localizationID, payload.Data.Attributes.Locale)
+			return migrateJSONResponse(http.StatusCreated, body), nil
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersionLocalizations/loc-1/appScreenshotSets":
+			return migrateJSONResponse(http.StatusOK, `{"data":[{"type":"appScreenshotSets","id":"set-1","attributes":{"screenshotDisplayType":"APP_IPHONE_65"}}]}`), nil
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appScreenshotSets/set-1/relationships/appScreenshots":
+			return migrateJSONResponse(http.StatusOK, `{"data":[{"type":"appScreenshots","id":"shot-existing"}],"links":{}}`), nil
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appScreenshotSets/set-1/appScreenshots":
+			return migrateJSONResponse(http.StatusOK, `{"data":[{"type":"appScreenshots","id":"shot-existing","attributes":{"fileName":"iphone_65_existing.png"}}]}`), nil
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appScreenshotSets/set-1/relationships/appScreenshots":
+			return migrateJSONResponse(http.StatusNoContent, ""), nil
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersionLocalizations/loc-2/appScreenshotSets":
+			return migrateJSONResponse(http.StatusConflict, `{"errors":[{"status":"409","code":"STATE_ERROR","title":"Request failed","detail":"sets unavailable"}]}`), nil
+		default:
+			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
+		}
+	})
 
 	rootCmd := RootCommand("1.2.3")
 	rootCmd.FlagSet.SetOutput(io.Discard)
@@ -1202,23 +1223,6 @@ func TestMigrateImportWarnsAboutEveryUnreportedScreenshotLocalization(t *testing
 
 	if runErr == nil {
 		t.Fatal("expected migrate import to fail after one screenshot locale completed")
-	}
-	var createdLocales []string
-	for _, req := range reg.Requests() {
-		if req.Method != http.MethodPost {
-			continue
-		}
-		var payload struct {
-			Data struct {
-				Attributes struct {
-					Locale string `json:"locale"`
-				} `json:"attributes"`
-			} `json:"data"`
-		}
-		if err := json.Unmarshal(req.Body, &payload); err != nil {
-			t.Fatalf("decode localization request: %v", err)
-		}
-		createdLocales = append(createdLocales, payload.Data.Attributes.Locale)
 	}
 	if len(createdLocales) != 2 {
 		t.Fatalf("created locales = %v, want two screenshot-only locales", createdLocales)
