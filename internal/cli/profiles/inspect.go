@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"os"
 	"reflect"
 	"sort"
 	"strings"
@@ -76,8 +75,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			pathValue := strings.TrimSpace(*sourcePath)
 			if pathValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --path is required")
-				return shared.MissingRequiredUsageError("--path")
+				return shared.RequiredFlag("--path")
 			}
 
 			file, err := shared.OpenExistingNoFollow(pathValue)

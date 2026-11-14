@@ -450,8 +450,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			includeValues, err := normalizeProfileInclude(*include)
@@ -511,8 +510,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			nameValue := strings.TrimSpace(*name)
 			if nameValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --name is required")
-				return shared.MissingRequiredUsageError("--name")
+				return shared.RequiredFlag("--name")
 			}
 			if err := signing.ValidateProfileNameLength(nameValue); err != nil {
 				fmt.Fprintf(os.Stderr, "Error: %s\n", err.Error())
@@ -520,18 +518,15 @@ Examples:
 			}
 			profileTypeValue := strings.ToUpper(strings.TrimSpace(*profileType))
 			if profileTypeValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --profile-type is required")
-				return shared.MissingRequiredUsageError("--profile-type")
+				return shared.RequiredFlag("--profile-type")
 			}
 			bundleValue := strings.TrimSpace(*bundleID)
 			if bundleValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --bundle is required")
-				return shared.MissingRequiredUsageError("--bundle")
+				return shared.RequiredFlag("--bundle")
 			}
 			certificateIDs := shared.SplitCSV(certificates.String())
 			if len(certificateIDs) == 0 {
-				fmt.Fprintln(os.Stderr, "Error: --certificate is required")
-				return shared.MissingRequiredUsageError("--certificate")
+				return shared.RequiredFlag("--certificate")
 			}
 			deviceIDs := shared.SplitCSV(devices.String())
 
@@ -578,12 +573,10 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()
@@ -632,13 +625,11 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			pathValue := strings.TrimSpace(*outputPath)
 			if pathValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --output is required")
-				return shared.MissingRequiredUsageError("--output")
+				return shared.RequiredFlag("--output")
 			}
 			if err := checkProfileDownloadOutput(pathValue, *overwrite); err != nil {
 				return fmt.Errorf("profiles download: %w", err)
