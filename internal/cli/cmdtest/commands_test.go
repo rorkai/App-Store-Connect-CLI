@@ -1608,7 +1608,7 @@ func TestCertificatesCreateGenerateCSRFlagValidation(t *testing.T) {
 		{
 			name:    "generate csr missing key out value",
 			args:    []string{"certificates", "create", "--certificate-type", "IOS_DISTRIBUTION", "--generate-csr", "--key-out"},
-			wantErr: "flag needs an argument: -key-out",
+			wantErr: "flag needs an argument: --key-out",
 		},
 		{
 			name:    "generate csr invalid bool value",
@@ -1618,7 +1618,7 @@ func TestCertificatesCreateGenerateCSRFlagValidation(t *testing.T) {
 		{
 			name:    "generate csr missing csr out value",
 			args:    []string{"certificates", "create", "--certificate-type", "IOS_DISTRIBUTION", "--generate-csr", "--key-out", "./dist.key", "--csr-out"},
-			wantErr: "flag needs an argument: -csr-out",
+			wantErr: "flag needs an argument: --csr-out",
 		},
 		{
 			name:    "generation only default key type still requires generate csr",
@@ -2723,7 +2723,7 @@ func TestPublishValidationErrors(t *testing.T) {
 		{
 			name:    "publish testflight upload only invalid value",
 			args:    []string{"publish", "testflight", "--app", "APP_123", "--ipa", "app.ipa", "--upload-only=maybe"},
-			wantErr: `invalid boolean value "maybe" for -upload-only`,
+			wantErr: `invalid boolean value "maybe" for --upload-only`,
 		},
 		{
 			name:    "publish testflight test-notes missing locale",
@@ -2743,7 +2743,7 @@ func TestPublishValidationErrors(t *testing.T) {
 		{
 			name:    "publish testflight submit invalid value",
 			args:    []string{"publish", "testflight", "--app", "APP_123", "--build-id", "BUILD_123", "--group", "GROUP_ID", "--submit=maybe"},
-			wantErr: `invalid boolean value "maybe" for -submit`,
+			wantErr: `invalid boolean value "maybe" for --submit`,
 		},
 		{
 			name:    "publish testflight confirm requires submit",
@@ -2753,7 +2753,7 @@ func TestPublishValidationErrors(t *testing.T) {
 		{
 			name:    "publish testflight confirm invalid value",
 			args:    []string{"publish", "testflight", "--app", "APP_123", "--build-id", "BUILD_123", "--group", "GROUP_ID", "--confirm=maybe"},
-			wantErr: `invalid boolean value "maybe" for -confirm`,
+			wantErr: `invalid boolean value "maybe" for --confirm`,
 		},
 		{
 			name:    "publish appstore missing app",

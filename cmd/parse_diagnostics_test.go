@@ -20,17 +20,42 @@ func TestRunKnownFlagParseFailuresAreConcise(t *testing.T) {
 		{
 			name: "invalid value",
 			args: []string{"builds", "list", "--limit", "nope"},
-			want: `invalid value "nope" for flag -limit: parse error`,
+			want: `invalid value "nope" for flag --limit: parse error`,
 		},
 		{
 			name: "missing value",
 			args: []string{"builds", "list", "--limit"},
-			want: "flag needs an argument: -limit",
+			want: "flag needs an argument: --limit",
 		},
 		{
 			name: "invalid boolean",
 			args: []string{"builds", "list", "--paginate", "nope"},
-			want: `invalid boolean value "nope" for -paginate: parse error`,
+			want: `invalid boolean value "nope" for --paginate: parse error`,
+		},
+		{
+			name: "invalid boolean with equals",
+			args: []string{"builds", "list", "--paginate=nope"},
+			want: `invalid boolean value "nope" for --paginate: parse error`,
+		},
+		{
+			name: "flag typed with one dash",
+			args: []string{"builds", "list", "-limit", "nope"},
+			want: `invalid value "nope" for flag --limit: parse error`,
+		},
+		{
+			name: "value that looks like a parse message",
+			args: []string{"builds", "list", "--limit", "1 for flag -limit: x"},
+			want: `invalid value "1 for flag -limit: x" for flag --limit: parse error`,
+		},
+		{
+			name: "value with a quote and a dash",
+			args: []string{"builds", "list", "--limit", `a" for -x`},
+			want: `invalid value "a\" for -x" for flag --limit: parse error`,
+		},
+		{
+			name: "dash value",
+			args: []string{"builds", "list", "--limit", "-x"},
+			want: `invalid value "-x" for flag --limit: parse error`,
 		},
 	}
 

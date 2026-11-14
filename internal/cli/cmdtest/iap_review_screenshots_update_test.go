@@ -375,7 +375,7 @@ func iapReviewScreenshotResponse(id string, hasUploadOperations bool, state stri
 
 func TestIAPReviewScreenshotsUpdateRejectsInvalidUploadedFlag(t *testing.T) {
 	setupUsageExitCodeEnv(t)
-	assertUsageExit(t, []string{"iap", "review-screenshots", "update", "--screenshot-id", "shot-1", "--uploaded", "maybe"}, `invalid value "maybe" for flag -uploaded`)
+	assertUsageExit(t, []string{"iap", "review-screenshots", "update", "--screenshot-id", "shot-1", "--uploaded", "maybe"}, `invalid value "maybe" for flag --uploaded`)
 }
 
 func TestIAPReviewScreenshotsUpdatePreservesAPIValidationError(t *testing.T) {

@@ -761,7 +761,7 @@ func TestScreenshotsUploadResumeMissingValueExitCode(t *testing.T) {
 	}
 
 	stderr := string(output)
-	if !strings.Contains(stderr, "flag needs an argument: -resume") {
+	if !strings.Contains(stderr, "flag needs an argument: --resume") {
 		t.Fatalf("expected missing resume value message, got %q", stderr)
 	}
 }

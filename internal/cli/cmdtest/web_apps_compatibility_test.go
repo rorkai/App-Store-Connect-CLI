@@ -30,7 +30,7 @@ func TestWebAppsCompatibilityInvalidBooleanExitCodes(t *testing.T) {
 				"--app", "app-1",
 				"--ios-app-on-mac=maybe",
 			},
-			wantStderr: `invalid value "maybe" for flag -ios-app-on-mac: must be true or false`,
+			wantStderr: `invalid value "maybe" for flag --ios-app-on-mac: must be true or false`,
 		},
 		{
 			name: "web vision pro flag",
@@ -39,7 +39,7 @@ func TestWebAppsCompatibilityInvalidBooleanExitCodes(t *testing.T) {
 				"--app", "app-1",
 				"--ios-app-on-vision-pro=maybe",
 			},
-			wantStderr: `invalid value "maybe" for flag -ios-app-on-vision-pro: must be true or false`,
+			wantStderr: `invalid value "maybe" for flag --ios-app-on-vision-pro: must be true or false`,
 		},
 		{
 			name: "flag value matches subcommand name",
@@ -48,7 +48,7 @@ func TestWebAppsCompatibilityInvalidBooleanExitCodes(t *testing.T) {
 				"--app", "app-1",
 				"--ios-app-on-mac=edit",
 			},
-			wantStderr: `invalid value "edit" for flag -ios-app-on-mac: must be true or false`,
+			wantStderr: `invalid value "edit" for flag --ios-app-on-mac: must be true or false`,
 		},
 		{
 			name: "mixed flag order",
@@ -57,7 +57,7 @@ func TestWebAppsCompatibilityInvalidBooleanExitCodes(t *testing.T) {
 				"--ios-app-on-vision-pro=maybe",
 				"--app", "app-1",
 			},
-			wantStderr: `invalid value "maybe" for flag -ios-app-on-vision-pro: must be true or false`,
+			wantStderr: `invalid value "maybe" for flag --ios-app-on-vision-pro: must be true or false`,
 		},
 		{
 			name: "flag before subcommands",

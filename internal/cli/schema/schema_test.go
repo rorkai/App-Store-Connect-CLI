@@ -18,7 +18,7 @@ func TestParseInterspersedSchemaFlagsPreservesErrorPrecedence(t *testing.T) {
 		_, err := shared.ParseInterspersedFlags(fs, []string{
 			"apps", "--bogus", "--profile", "staging",
 		})
-		if err == nil || !strings.Contains(err.Error(), "flag provided but not defined: -bogus") {
+		if err == nil || !strings.Contains(err.Error(), "flag provided but not defined: --bogus") {
 			t.Fatalf("ParseInterspersedFlags() error = %v, want the unknown-flag error", err)
 		}
 	})

@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -22,6 +23,21 @@ import (
 )
 
 const unknownFlagErrorPrefix = "flag provided but not defined:"
+
+// goFlagParseFlagName matches the standard flag package's messages about a
+// defined flag up to the single dash it writes before the flag name. The value
+// is quoted with %q, so text inside a value never matches.
+var goFlagParseFlagName = regexp.MustCompile(`^(?:invalid value "(?:[^"\\]|\\.)*" for flag |invalid boolean value "(?:[^"\\]|\\.)*" for |flag needs an argument: )-`)
+
+// withDoubleDashFlagName names the flag in a flag-parse message as --name,
+// the way every other CLI message does.
+func withDoubleDashFlagName(message string) string {
+	loc := goFlagParseFlagName.FindStringIndex(message)
+	if loc == nil {
+		return message
+	}
+	return message[:loc[1]] + "-" + message[loc[1]:]
+}
 
 var emitTelemetry = telemetry.EmitWithContext
 
@@ -538,7 +554,7 @@ func printParseFailure(stderr io.Writer, parseErr error, parseOutput string, ana
 				fmt.Fprintf(
 					stderr,
 					"Error: %s\nFor help:\n  %s --help\n",
-					shared.SanitizeTerminal(firstLine),
+					shared.SanitizeTerminal(withDoubleDashFlagName(firstLine)),
 					commandName,
 				)
 			}

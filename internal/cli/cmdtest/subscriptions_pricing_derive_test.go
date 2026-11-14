@@ -248,10 +248,10 @@ func TestSubscriptionsPricingDeriveBooleanFlagExitCodes(t *testing.T) {
 		flag       string
 		wantStderr string
 	}{
-		{name: "invalid dry run", flag: "--dry-run=maybe", wantStderr: `invalid boolean value "maybe" for -dry-run`},
-		{name: "invalid confirm", flag: "--confirm=maybe", wantStderr: `invalid boolean value "maybe" for -confirm`},
-		{name: "invalid preserved", flag: "--preserved=maybe", wantStderr: `invalid boolean value "maybe" for -preserved`},
-		{name: "invalid auto start date", flag: "--auto-start-date=maybe", wantStderr: `invalid boolean value "maybe" for -auto-start-date`},
+		{name: "invalid dry run", flag: "--dry-run=maybe", wantStderr: `invalid boolean value "maybe" for --dry-run`},
+		{name: "invalid confirm", flag: "--confirm=maybe", wantStderr: `invalid boolean value "maybe" for --confirm`},
+		{name: "invalid preserved", flag: "--preserved=maybe", wantStderr: `invalid boolean value "maybe" for --preserved`},
+		{name: "invalid auto start date", flag: "--auto-start-date=maybe", wantStderr: `invalid boolean value "maybe" for --auto-start-date`},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			assertUsageExit(t, []string{

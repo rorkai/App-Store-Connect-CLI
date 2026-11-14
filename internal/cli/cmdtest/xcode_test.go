@@ -19,7 +19,7 @@ func TestXcodeBuildRejectsBlankPassthroughValue(t *testing.T) {
 	assertUsageExit(
 		t,
 		[]string{"xcode", "build", "--project", "Demo.xcodeproj", "--scheme", "Demo", "--xcodebuild-flag="},
-		`invalid value "" for flag -xcodebuild-flag: value cannot be empty`,
+		`invalid value "" for flag --xcodebuild-flag: value cannot be empty`,
 	)
 }
 
@@ -101,12 +101,12 @@ func TestXcodeInjectInvalidFlagValuesExitUsage(t *testing.T) {
 		{
 			name:       "invalid dry-run boolean",
 			args:       []string{"xcode", "inject", "--manifest", manifestPath, "--dry-run=maybe"},
-			wantStderr: `invalid boolean value "maybe" for -dry-run`,
+			wantStderr: `invalid boolean value "maybe" for --dry-run`,
 		},
 		{
 			name:       "invalid overwrite boolean",
 			args:       []string{"xcode", "inject", "--manifest", manifestPath, "--overwrite=inject"},
-			wantStderr: `invalid boolean value "inject" for -overwrite`,
+			wantStderr: `invalid boolean value "inject" for --overwrite`,
 		},
 	}
 

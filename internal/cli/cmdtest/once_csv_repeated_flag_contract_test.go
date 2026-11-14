@@ -45,7 +45,7 @@ func TestRepeatedCSVFlagRejectedEndToEnd(t *testing.T) {
 	// 0 and starts with the usage banner, so the first stderr line has to be the
 	// concise flag error itself.
 	firstLine, _, _ := strings.Cut(stderr, "\n")
-	wantFirstLine := fmt.Sprintf("Error: invalid value %q for flag -certificate: %s", "CERT_B", wantMessage)
+	wantFirstLine := fmt.Sprintf("Error: invalid value %q for flag --certificate: %s", "CERT_B", wantMessage)
 	if firstLine != wantFirstLine {
 		t.Fatalf("first stderr line = %q, want %q", firstLine, wantFirstLine)
 	}

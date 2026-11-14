@@ -101,7 +101,7 @@ func TestSchemaRejectsInvalidArgumentsWithUsageExit(t *testing.T) {
 		wantErr string
 	}{
 		{args: []string{"schema", "--list", "extra"}, wantErr: "--list does not accept a query"},
-		{args: []string{"schema", "apps", "--unknown-schema-flag"}, wantErr: "flag provided but not defined: -unknown-schema-flag"},
+		{args: []string{"schema", "apps", "--unknown-schema-flag"}, wantErr: "flag provided but not defined: --unknown-schema-flag"},
 		{args: []string{"schema", "--list", "--method", "DELTE"}, wantErr: "invalid --method"},
 	}
 
