@@ -290,6 +290,7 @@ func TestSelfLinkRemainingFlagsRejectWrongType(t *testing.T) {
 			flag:    "pass-type-id",
 			value:   selfLinkTestBase + "/v1/certificates/certificate-1",
 			wantErr: "expected a self-link of type passTypeIds, got certificates",
+			deps:    true,
 		},
 		{
 			name:    "reviews respond rejects apps link",

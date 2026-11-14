@@ -363,31 +363,37 @@ func TestAccountAndDistributionInputValidationReturnsUsageExitCode(t *testing.T)
 			name:    "pass-type-ids certificates list limit",
 			args:    []string{"pass-type-ids", "certificates", "list", "--pass-type-id", "P", "--limit", "201"},
 			wantErr: "pass-type-ids certificates list: --limit must be between 1 and 200",
+			deps:    true,
 		},
 		{
 			name:    "pass-type-ids certificates view limit",
 			args:    []string{"pass-type-ids", "certificates", "view", "--pass-type-id", "P", "--limit", "201"},
 			wantErr: "pass-type-ids certificates view: --limit must be between 1 and 200",
+			deps:    true,
 		},
 		{
 			name:    "pass-type-ids list limit",
 			args:    []string{"pass-type-ids", "list", "--limit", "201"},
 			wantErr: "pass-type-ids list: --limit must be between 1 and 200",
+			deps:    true,
 		},
 		{
 			name:    "pass-type-ids list limit-certificates",
 			args:    []string{"pass-type-ids", "list", "--limit-certificates", "51"},
 			wantErr: "pass-type-ids list: --limit-certificates must be between 1 and 50",
+			deps:    true,
 		},
 		{
 			name:    "pass-type-ids list next",
 			args:    []string{"pass-type-ids", "list", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
 			wantErr: "pass-type-ids list: --next must be an App Store Connect URL",
+			deps:    true,
 		},
 		{
 			name:    "pass-type-ids view limit-certificates",
 			args:    []string{"pass-type-ids", "view", "--pass-type-id", "P", "--limit-certificates", "51"},
 			wantErr: "pass-type-ids view: --limit-certificates must be between 1 and 50",
+			deps:    true,
 		},
 		{
 			name:    "profiles links certificates limit",
