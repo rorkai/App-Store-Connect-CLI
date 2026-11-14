@@ -2,10 +2,15 @@
   "tag": "AppEncryptionDeclarationDocuments",
   "file": "app_encryption_declaration_documents_gen.go",
   "types": [
+    "AppEncryptionDeclarationDocumentCreateData",
     "AppEncryptionDeclarationDocumentCreateRequest",
+    "AppEncryptionDeclarationDocumentRelationships",
     "AppEncryptionDeclarationDocumentResponse",
     "AppEncryptionDeclarationDocumentUpdateAttributes",
     "AppEncryptionDeclarationDocumentUpdateData",
     "AppEncryptionDeclarationDocumentUpdateRequest"
+  ],
+  "relationships": [
+    {"data":"AppEncryptionDeclarationDocumentCreateData","type":"*AppEncryptionDeclarationDocumentRelationships"}
   ]
 }

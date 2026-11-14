@@ -5,12 +5,50 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 )
+
+// SubscriptionVersionCreateData is the data object of the SubscriptionVersionCreateRequest schema.
+type SubscriptionVersionCreateData struct {
+	Type          ResourceType                      `json:"type"`
+	Relationships *SubscriptionVersionRelationships `json:"relationships"`
+}
 
 // SubscriptionVersionCreateRequest is the SubscriptionVersionCreateRequest schema.
 type SubscriptionVersionCreateRequest struct {
 	Data SubscriptionVersionCreateData `json:"data"`
+}
+
+// SubscriptionVersionRelationships is the data.relationships object of the SubscriptionVersionCreateRequest schema.
+type SubscriptionVersionRelationships struct {
+	Subscription *Relationship `json:"subscription"`
+}
+
+// CreateSubscriptionVersion sends POST /v1/subscriptionVersions (subscriptionVersions_createInstance).
+func (c *Client) CreateSubscriptionVersion(ctx context.Context, subscriptionID string) (*SubscriptionVersionResponse, error) {
+	subscriptionID = strings.TrimSpace(subscriptionID)
+	if subscriptionID == "" {
+		return nil, fmt.Errorf("subscription ID is required")
+	}
+	payload := SubscriptionVersionCreateRequest{
+		Data: SubscriptionVersionCreateData{
+			Type: ResourceTypeSubscriptionVersions,
+			Relationships: &SubscriptionVersionRelationships{
+				Subscription: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeSubscriptions,
+						ID:   subscriptionID,
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[SubscriptionVersionResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/subscriptionVersions",
+		Payload: payload,
+	})
 }
 
 // GetSubscriptionVersionImageRelationship sends GET /v1/subscriptionVersions/{id}/relationships/image (subscriptionVersions_image_getToOneRelationship).

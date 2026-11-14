@@ -2,13 +2,19 @@
   "tag": "GameCenterActivityLocalizations",
   "file": "game_center_activity_localizations_gen.go",
   "types": [
+    "GameCenterActivityLocalizationCreateData",
     "GameCenterActivityLocalizationCreateRequest",
+    "GameCenterActivityLocalizationRelationships",
     "GameCenterActivityLocalizationResponse",
     "GameCenterActivityLocalizationUpdateAttributes",
     "GameCenterActivityLocalizationUpdateData",
     "GameCenterActivityLocalizationUpdateRequest"
   ],
+  "relationships": [
+    {"data":"GameCenterActivityLocalizationCreateData","type":"*GameCenterActivityLocalizationRelationships","omitempty":true}
+  ],
   "operations": [
+    {"operation":"gameCenterActivityLocalizations_createInstance","name":"CreateGameCenterActivityLocalization","params":["versionID"],"links":["version"]},
     {"operation":"gameCenterActivityLocalizations_deleteInstance","name":"DeleteGameCenterActivityLocalization","params":["localizationID"]},
     {"operation":"gameCenterActivityLocalizations_getInstance","name":"GetGameCenterActivityLocalization","params":["localizationID"]},
     {"operation":"gameCenterActivityLocalizations_image_getToOneRelated","name":"GetGameCenterActivityLocalizationImage","params":["localizationID"]},

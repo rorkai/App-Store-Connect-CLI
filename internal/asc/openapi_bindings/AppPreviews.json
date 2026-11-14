@@ -3,8 +3,12 @@
   "file": "app_previews_gen.go",
   "types": [
     "AppPreviewCreateRequest",
+    "AppPreviewRelationships",
     "AppPreviewUpdateData",
     "AppPreviewUpdateRequest"
+  ],
+  "relationships": [
+    {"data":"AppPreviewCreateData","type":"*AppPreviewRelationships"}
   ],
   "operations": [
     {"operation":"appPreviews_deleteInstance","name":"DeleteAppPreview","params":["previewID"],"check":"raw"},

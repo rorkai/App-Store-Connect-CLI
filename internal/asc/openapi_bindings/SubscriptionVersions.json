@@ -2,9 +2,15 @@
   "tag": "SubscriptionVersions",
   "file": "subscription_versions_gen.go",
   "types": [
-    "SubscriptionVersionCreateRequest"
+    "SubscriptionVersionCreateData",
+    "SubscriptionVersionCreateRequest",
+    "SubscriptionVersionRelationships"
+  ],
+  "relationships": [
+    {"data":"SubscriptionVersionCreateData","type":"*SubscriptionVersionRelationships"}
   ],
   "operations": [
+    {"operation":"subscriptionVersions_createInstance","name":"CreateSubscriptionVersion","params":["subscriptionID"],"check":"require","messages":["subscription ID is required"],"links":["subscription"]},
     {"operation":"subscriptionVersions_image_getToOneRelationship","name":"GetSubscriptionVersionImageRelationship","params":["versionID"],"check":"require","messages":["version ID is required"]},
     {"operation":"subscriptionVersions_images_getToManyRelated","name":"GetSubscriptionVersionImages","params":["versionID"],"check":"require","messages":["version ID is required"],"options":"SubscriptionVersionImagesOption","query":"buildSubscriptionVersionImagesQuery","nextContext":"subscriptionVersionImages"},
     {"operation":"subscriptionVersions_localizations_getToManyRelated","name":"GetSubscriptionVersionLocalizations","params":["versionID"],"check":"require","messages":["version ID is required"],"options":"SubscriptionVersionLocalizationsOption","query":"buildSubscriptionVersionLocalizationsQuery","nextContext":"subscriptionVersionLocalizations"}

@@ -6,6 +6,11 @@ import (
 	"context"
 )
 
+// ReviewSubmissionCreateRelationships is the data.relationships object of the ReviewSubmissionCreateRequest schema.
+type ReviewSubmissionCreateRelationships struct {
+	App *Relationship `json:"app"`
+}
+
 // ReviewSubmissionCreateRequest is the ReviewSubmissionCreateRequest schema.
 type ReviewSubmissionCreateRequest struct {
 	Data ReviewSubmissionCreateData `json:"data"`

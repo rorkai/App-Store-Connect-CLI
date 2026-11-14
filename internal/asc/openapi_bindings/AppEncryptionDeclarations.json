@@ -3,13 +3,19 @@
   "file": "app_encryption_declarations_gen.go",
   "types": [
     "AppEncryptionDeclarationCreateAttributes",
+    "AppEncryptionDeclarationCreateData",
     "AppEncryptionDeclarationCreateRequest",
+    "AppEncryptionDeclarationRelationships",
     "AppEncryptionDeclarationResponse",
     "AppEncryptionDeclarationsResponse"
+  ],
+  "relationships": [
+    {"data":"AppEncryptionDeclarationCreateData","type":"*AppEncryptionDeclarationRelationships"}
   ],
   "operations": [
     {"operation":"appEncryptionDeclarations_appEncryptionDeclarationDocument_getToOneRelated","name":"GetAppEncryptionDeclarationDocumentForDeclaration","params":["declarationID"],"check":"require"},
     {"operation":"appEncryptionDeclarations_app_getToOneRelated","name":"GetAppEncryptionDeclarationApp","params":["declarationID"],"check":"require","response":"AppResponse"},
-    {"operation":"appEncryptionDeclarations_builds_createToManyRelationship","name":"AddBuildsToAppEncryptionDeclaration","params":["declarationID"],"check":"require","ids":"buildIDs","idList":{"normalize":true,"message":"buildIDs are required","payload":"index"}}
+    {"operation":"appEncryptionDeclarations_builds_createToManyRelationship","name":"AddBuildsToAppEncryptionDeclaration","params":["declarationID"],"check":"require","ids":"buildIDs","idList":{"normalize":true,"message":"buildIDs are required","payload":"index"}},
+    {"operation":"appEncryptionDeclarations_createInstance","name":"CreateAppEncryptionDeclaration","params":["appID"],"links":["app"]}
   ]
 }

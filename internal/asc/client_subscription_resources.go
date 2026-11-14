@@ -43,37 +43,6 @@ func (c *Client) GetSubscriptionLocalizations(ctx context.Context, subscriptionI
 	return &response, nil
 }
 
-// CreateSubscriptionLocalization creates a subscription localization.
-//
-// Deprecated: Use CreateSubscriptionLocalizationV2 with a subscription version ID.
-func (c *Client) CreateSubscriptionLocalization(ctx context.Context, subscriptionID string, attrs SubscriptionLocalizationCreateAttributes) (*SubscriptionLocalizationResponse, error) {
-	subscriptionID = strings.TrimSpace(subscriptionID)
-	if subscriptionID == "" {
-		return nil, fmt.Errorf("subscription ID is required")
-	}
-
-	payload := SubscriptionLocalizationCreateRequest{
-		Data: SubscriptionLocalizationCreateData{
-			Type:       ResourceTypeSubscriptionLocalizations,
-			Attributes: attrs,
-			Relationships: &SubscriptionLocalizationRelationships{
-				Subscription: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeSubscriptions,
-						ID:   subscriptionID,
-					},
-				},
-			},
-		},
-	}
-
-	return sendJSON[SubscriptionLocalizationResponse](ctx, c, writeRequest{
-		Method:  http.MethodPost,
-		Path:    "/v1/subscriptionLocalizations",
-		Payload: payload,
-	})
-}
-
 // GetSubscriptionImages retrieves subscription images for a subscription.
 //
 // Deprecated: Use GetSubscriptionVersionImages with a subscription version ID.
@@ -787,35 +756,4 @@ func (c *Client) GetSubscriptionGroupLocalizations(ctx context.Context, groupID 
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 	return &response, nil
-}
-
-// CreateSubscriptionGroupLocalization creates a subscription group localization.
-//
-// Deprecated: Use CreateSubscriptionGroupLocalizationV2 with a subscription group version ID.
-func (c *Client) CreateSubscriptionGroupLocalization(ctx context.Context, groupID string, attrs SubscriptionGroupLocalizationCreateAttributes) (*SubscriptionGroupLocalizationResponse, error) {
-	groupID = strings.TrimSpace(groupID)
-	if groupID == "" {
-		return nil, fmt.Errorf("group ID is required")
-	}
-
-	payload := SubscriptionGroupLocalizationCreateRequest{
-		Data: SubscriptionGroupLocalizationCreateData{
-			Type:       ResourceTypeSubscriptionGroupLocalizations,
-			Attributes: attrs,
-			Relationships: &SubscriptionGroupLocalizationRelationships{
-				SubscriptionGroup: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeSubscriptionGroups,
-						ID:   groupID,
-					},
-				},
-			},
-		},
-	}
-
-	return sendJSON[SubscriptionGroupLocalizationResponse](ctx, c, writeRequest{
-		Method:  http.MethodPost,
-		Path:    "/v1/subscriptionGroupLocalizations",
-		Payload: payload,
-	})
 }

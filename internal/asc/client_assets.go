@@ -7,23 +7,11 @@ import (
 	"strings"
 )
 
-// AppScreenshotSetRelationships describes relationships for screenshot sets.
-type AppScreenshotSetRelationships struct {
-	AppStoreVersionLocalization                    *Relationship `json:"appStoreVersionLocalization,omitempty"`
-	AppCustomProductPageLocalization               *Relationship `json:"appCustomProductPageLocalization,omitempty"`
-	AppStoreVersionExperimentTreatmentLocalization *Relationship `json:"appStoreVersionExperimentTreatmentLocalization,omitempty"`
-}
-
 // AppScreenshotSetCreateData is the data portion of a screenshot set create request.
 type AppScreenshotSetCreateData struct {
 	Type          ResourceType                   `json:"type"`
 	Attributes    AppScreenshotSetAttributes     `json:"attributes"`
 	Relationships *AppScreenshotSetRelationships `json:"relationships"`
-}
-
-// AppScreenshotRelationships describes relationships for screenshots.
-type AppScreenshotRelationships struct {
-	AppScreenshotSet *Relationship `json:"appScreenshotSet"`
 }
 
 // AppScreenshotCreateData is the data portion of a screenshot create request.
@@ -33,23 +21,11 @@ type AppScreenshotCreateData struct {
 	Relationships *AppScreenshotRelationships `json:"relationships"`
 }
 
-// AppPreviewSetRelationships describes relationships for preview sets.
-type AppPreviewSetRelationships struct {
-	AppStoreVersionLocalization                    *Relationship `json:"appStoreVersionLocalization,omitempty"`
-	AppCustomProductPageLocalization               *Relationship `json:"appCustomProductPageLocalization,omitempty"`
-	AppStoreVersionExperimentTreatmentLocalization *Relationship `json:"appStoreVersionExperimentTreatmentLocalization,omitempty"`
-}
-
 // AppPreviewSetCreateData is the data portion of a preview set create request.
 type AppPreviewSetCreateData struct {
 	Type          ResourceType                `json:"type"`
 	Attributes    AppPreviewSetAttributes     `json:"attributes"`
 	Relationships *AppPreviewSetRelationships `json:"relationships"`
-}
-
-// AppPreviewRelationships describes relationships for previews.
-type AppPreviewRelationships struct {
-	AppPreviewSet *Relationship `json:"appPreviewSet"`
 }
 
 // AppPreviewCreateData is the data portion of a preview create request.

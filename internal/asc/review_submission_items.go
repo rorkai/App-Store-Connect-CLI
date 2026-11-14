@@ -150,12 +150,6 @@ type ReviewSubmissionItemCreateRelationships struct {
 	RetentionMessageVersion         *Relationship `json:"retentionMessageVersion,omitempty"`
 }
 
-// ReviewSubmissionItemCreateData is the data portion of a review submission item create request.
-type ReviewSubmissionItemCreateData struct {
-	Type          ResourceType                            `json:"type"`
-	Relationships ReviewSubmissionItemCreateRelationships `json:"relationships"`
-}
-
 type reviewSubmissionItemTypeSpec struct {
 	canonical         ReviewSubmissionItemType
 	applyRelationship func(*ReviewSubmissionItemCreateRelationships, string)

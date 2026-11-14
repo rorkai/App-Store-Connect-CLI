@@ -2,10 +2,16 @@
   "tag": "GameCenterLeaderboards",
   "file": "game_center_leaderboards_gen.go",
   "types": [
+    "GameCenterLeaderboardCreateData",
     "GameCenterLeaderboardCreateRequest",
     "GameCenterLeaderboardResponse",
     "GameCenterLeaderboardUpdateData",
-    "GameCenterLeaderboardUpdateRequest"
+    "GameCenterLeaderboardUpdateRequest",
+    "GameCenterLeaderboardV2Relationships"
+  ],
+  "relationships": [
+    {"data":"GameCenterLeaderboardCreateData","type":"*GameCenterLeaderboardRelationships","omitempty":true},
+    {"data":"GameCenterLeaderboardV2CreateData","type":"*GameCenterLeaderboardV2Relationships","omitempty":true}
   ],
   "operations": [
     {"operation":"gameCenterLeaderboardsV2_deleteInstance","name":"DeleteGameCenterLeaderboardV2","params":["leaderboardID"]},

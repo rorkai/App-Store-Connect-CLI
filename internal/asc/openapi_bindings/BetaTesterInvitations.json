@@ -2,6 +2,13 @@
   "tag": "BetaTesterInvitations",
   "file": "beta_tester_invitations_gen.go",
   "types": [
+    "BetaTesterInvitationCreateData",
     "BetaTesterInvitationCreateRequest"
+  ],
+  "relationships": [
+    {"data":"BetaTesterInvitationCreateData","type":"*BetaTesterInvitationCreateRelationships"}
+  ],
+  "operations": [
+    {"operation":"betaTesterInvitations_createInstance","name":"CreateBetaTesterInvitation","params":["appID","testerID"],"check":"raw","links":["app","betaTester"]}
   ]
 }

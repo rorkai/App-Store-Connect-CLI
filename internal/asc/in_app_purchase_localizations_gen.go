@@ -9,6 +9,18 @@ import (
 	"strings"
 )
 
+// InAppPurchaseLocalizationCreateData is the data object of the InAppPurchaseLocalizationCreateRequest schema.
+type InAppPurchaseLocalizationCreateData struct {
+	Type          ResourceType                                 `json:"type"`
+	Attributes    InAppPurchaseLocalizationCreateAttributes    `json:"attributes"`
+	Relationships InAppPurchaseLocalizationCreateRelationships `json:"relationships"`
+}
+
+// InAppPurchaseLocalizationCreateRelationships is the data.relationships object of the InAppPurchaseLocalizationCreateRequest schema.
+type InAppPurchaseLocalizationCreateRelationships struct {
+	InAppPurchaseV2 Relationship `json:"inAppPurchaseV2"`
+}
+
 // InAppPurchaseLocalizationCreateRequest is the InAppPurchaseLocalizationCreateRequest schema.
 type InAppPurchaseLocalizationCreateRequest struct {
 	Data InAppPurchaseLocalizationCreateData `json:"data"`
@@ -16,6 +28,18 @@ type InAppPurchaseLocalizationCreateRequest struct {
 
 // InAppPurchaseLocalizationResponse is the InAppPurchaseLocalizationResponse schema.
 type InAppPurchaseLocalizationResponse = SingleResponse[InAppPurchaseLocalizationAttributes]
+
+// InAppPurchaseLocalizationV2CreateData is the data object of the InAppPurchaseLocalizationV2CreateRequest schema.
+type InAppPurchaseLocalizationV2CreateData struct {
+	Type          ResourceType                                   `json:"type"`
+	Attributes    InAppPurchaseLocalizationV2CreateAttributes    `json:"attributes"`
+	Relationships InAppPurchaseLocalizationV2CreateRelationships `json:"relationships"`
+}
+
+// InAppPurchaseLocalizationV2CreateRelationships is the data.relationships object of the InAppPurchaseLocalizationV2CreateRequest schema.
+type InAppPurchaseLocalizationV2CreateRelationships struct {
+	Version Relationship `json:"version"`
+}
 
 // InAppPurchaseLocalizationV2CreateRequest is the InAppPurchaseLocalizationV2CreateRequest schema.
 type InAppPurchaseLocalizationV2CreateRequest struct {

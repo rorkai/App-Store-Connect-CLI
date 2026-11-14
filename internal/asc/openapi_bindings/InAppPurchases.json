@@ -3,12 +3,18 @@
   "file": "in_app_purchases_gen.go",
   "types": [
     "InAppPurchaseResponse",
+    "InAppPurchaseV2CreateData",
     "InAppPurchaseV2CreateRequest",
+    "InAppPurchaseV2Relationships",
     "InAppPurchaseV2Response",
     "InAppPurchaseV2UpdateData",
     "InAppPurchaseV2UpdateRequest"
   ],
+  "relationships": [
+    {"data":"InAppPurchaseV2CreateData","type":"*InAppPurchaseV2Relationships","omitempty":true}
+  ],
   "operations": [
+    {"operation":"inAppPurchasesV2_createInstance","name":"CreateInAppPurchaseV2","params":["appID"],"links":["app"],"deviations":[{"problem":"data.attributes has [availableInAllTerritories contentHosting], which the schema does not define","reason":"the hand-written InAppPurchaseV2CreateAttributes has two optional fields the create request does not define; asc iap create, setup and import never set them, so omitempty keeps them out of every request"}]},
     {"operation":"inAppPurchasesV2_deleteInstance","name":"DeleteInAppPurchaseV2","params":["iapID"]},
     {"operation":"inAppPurchasesV2_inAppPurchaseAvailability_getToOneRelated","name":"GetInAppPurchaseAvailability","params":["iapID"],"check":"require"},
     {"operation":"inAppPurchasesV2_inAppPurchaseLocalizations_getToManyRelated","name":"GetInAppPurchaseLocalizations","params":["iapID"],"options":"IAPLocalizationsOption","query":"buildIAPLocalizationsQuery","nextContext":"in-app-purchase-localizations"},

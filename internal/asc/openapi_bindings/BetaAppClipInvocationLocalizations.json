@@ -4,12 +4,17 @@
   "types": [
     "BetaAppClipInvocationLocalizationAttributes",
     "BetaAppClipInvocationLocalizationCreateAttributes",
+    "BetaAppClipInvocationLocalizationCreateData",
     "BetaAppClipInvocationLocalizationCreateRequest",
     "BetaAppClipInvocationLocalizationUpdateAttributes",
     "BetaAppClipInvocationLocalizationUpdateData",
     "BetaAppClipInvocationLocalizationUpdateRequest"
   ],
+  "relationships": [
+    {"data":"BetaAppClipInvocationLocalizationCreateData","type":"*BetaAppClipInvocationLocalizationRelationships"}
+  ],
   "operations": [
+    {"operation":"betaAppClipInvocationLocalizations_createInstance","name":"CreateBetaAppClipInvocationLocalization","params":["invocationID"],"check":"require","links":["betaAppClipInvocation"]},
     {"operation":"betaAppClipInvocationLocalizations_deleteInstance","name":"DeleteBetaAppClipInvocationLocalization","params":["localizationID"],"check":"require"}
   ]
 }
