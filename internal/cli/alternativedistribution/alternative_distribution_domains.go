@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -131,8 +130,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*domainID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --domain-id is required")
-				return shared.MissingRequiredUsageError("--domain-id")
+				return shared.RequiredFlag("--domain-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -174,14 +172,12 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			domainValue := strings.TrimSpace(*domain)
 			if domainValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --domain is required")
-				return shared.MissingRequiredUsageError("--domain")
+				return shared.RequiredFlag("--domain")
 			}
 
 			referenceValue := strings.TrimSpace(*referenceName)
 			if referenceValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --reference-name is required")
-				return shared.MissingRequiredUsageError("--reference-name")
+				return shared.RequiredFlag("--reference-name")
 			}
 
 			client, err := shared.GetASCClient()
@@ -223,12 +219,10 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*domainID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --domain-id is required")
-				return shared.MissingRequiredUsageError("--domain-id")
+				return shared.RequiredFlag("--domain-id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()
