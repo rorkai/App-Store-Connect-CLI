@@ -72,3 +72,22 @@ func (c *Client) GetDevice(ctx context.Context, deviceID string, fields []string
 		Query: buildDevicesFieldsQuery(fields),
 	})
 }
+
+// UpdateDevice sends PATCH /v1/devices/{id} (devices_updateInstance).
+func (c *Client) UpdateDevice(ctx context.Context, deviceID string, attrs DeviceUpdateAttributes) (*DeviceResponse, error) {
+	deviceID = strings.TrimSpace(deviceID)
+	payload := DeviceUpdateRequest{
+		Data: DeviceUpdateData{
+			Type: ResourceTypeDevices,
+			ID:   deviceID,
+		},
+	}
+	if attrs.Name != nil || attrs.Status != nil {
+		payload.Data.Attributes = &attrs
+	}
+	return sendJSON[DeviceResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/devices/%s", deviceID),
+		Payload: payload,
+	})
+}

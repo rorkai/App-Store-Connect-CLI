@@ -9,6 +9,7 @@
     "AppTagUpdateRequest"
   ],
   "operations": [
-    {"operation":"appTags_territories_getToManyRelated","name":"GetAppTagTerritories","params":["tagID"],"check":"trim","options":"TerritoriesOption","query":"buildTerritoriesQuery","nextContext":"appTagTerritories"}
+    {"operation":"appTags_territories_getToManyRelated","name":"GetAppTagTerritories","params":["tagID"],"check":"trim","options":"TerritoriesOption","query":"buildTerritoriesQuery","nextContext":"appTagTerritories"},
+    {"operation":"appTags_updateInstance","name":"UpdateAppTag","params":["tagID"],"check":"trim","skipEmptyAttributes":true}
   ]
 }

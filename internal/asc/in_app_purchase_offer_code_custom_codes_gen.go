@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 )
 
@@ -54,5 +55,27 @@ func (c *Client) GetInAppPurchaseOfferCodeCustomCode(ctx context.Context, custom
 	}
 	return getJSON[InAppPurchaseOfferCodeCustomCodeResponse](ctx, c, readRequest{
 		Path: fmt.Sprintf("/v1/inAppPurchaseOfferCodeCustomCodes/%s", customCodeID),
+	})
+}
+
+// UpdateInAppPurchaseOfferCodeCustomCode sends PATCH /v1/inAppPurchaseOfferCodeCustomCodes/{id} (inAppPurchaseOfferCodeCustomCodes_updateInstance).
+func (c *Client) UpdateInAppPurchaseOfferCodeCustomCode(ctx context.Context, customCodeID string, attrs InAppPurchaseOfferCodeCustomCodeUpdateAttributes) (*InAppPurchaseOfferCodeCustomCodeResponse, error) {
+	customCodeID = strings.TrimSpace(customCodeID)
+	if customCodeID == "" {
+		return nil, fmt.Errorf("customCodeID is required")
+	}
+	payload := InAppPurchaseOfferCodeCustomCodeUpdateRequest{
+		Data: InAppPurchaseOfferCodeCustomCodeUpdateData{
+			Type: ResourceTypeInAppPurchaseOfferCodeCustomCodes,
+			ID:   customCodeID,
+		},
+	}
+	if attrs.Active != nil {
+		payload.Data.Attributes = &attrs
+	}
+	return sendJSON[InAppPurchaseOfferCodeCustomCodeResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/inAppPurchaseOfferCodeCustomCodes/%s", customCodeID),
+		Payload: payload,
 	})
 }

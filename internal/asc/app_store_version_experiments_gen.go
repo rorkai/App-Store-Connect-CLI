@@ -104,6 +104,28 @@ func (c *Client) GetAppStoreVersionExperimentV2(ctx context.Context, experimentI
 	})
 }
 
+// UpdateAppStoreVersionExperimentV2 sends PATCH /v2/appStoreVersionExperiments/{id} (appStoreVersionExperimentsV2_updateInstance).
+func (c *Client) UpdateAppStoreVersionExperimentV2(ctx context.Context, experimentID string, attrs AppStoreVersionExperimentV2UpdateAttributes) (*AppStoreVersionExperimentV2Response, error) {
+	experimentID = strings.TrimSpace(experimentID)
+	if experimentID == "" {
+		return nil, fmt.Errorf("experimentID is required")
+	}
+	payload := AppStoreVersionExperimentV2UpdateRequest{
+		Data: AppStoreVersionExperimentV2UpdateData{
+			Type: ResourceTypeAppStoreVersionExperiments,
+			ID:   experimentID,
+		},
+	}
+	if attrs.Name != nil || attrs.TrafficProportion != nil || attrs.Started != nil {
+		payload.Data.Attributes = &attrs
+	}
+	return sendJSON[AppStoreVersionExperimentV2Response](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v2/appStoreVersionExperiments/%s", experimentID),
+		Payload: payload,
+	})
+}
+
 // GetAppStoreVersionExperimentTreatments sends GET /v1/appStoreVersionExperiments/{id}/appStoreVersionExperimentTreatments (appStoreVersionExperiments_appStoreVersionExperimentTreatments_getToManyRelated).
 func (c *Client) GetAppStoreVersionExperimentTreatments(ctx context.Context, experimentID string, opts ...AppStoreVersionExperimentTreatmentsOption) (*AppStoreVersionExperimentTreatmentsResponse, error) {
 	query := applyOptions(opts)
@@ -136,5 +158,27 @@ func (c *Client) GetAppStoreVersionExperiment(ctx context.Context, experimentID 
 	}
 	return getJSON[AppStoreVersionExperimentResponse](ctx, c, readRequest{
 		Path: fmt.Sprintf("/v1/appStoreVersionExperiments/%s", experimentID),
+	})
+}
+
+// UpdateAppStoreVersionExperiment sends PATCH /v1/appStoreVersionExperiments/{id} (appStoreVersionExperiments_updateInstance).
+func (c *Client) UpdateAppStoreVersionExperiment(ctx context.Context, experimentID string, attrs AppStoreVersionExperimentUpdateAttributes) (*AppStoreVersionExperimentResponse, error) {
+	experimentID = strings.TrimSpace(experimentID)
+	if experimentID == "" {
+		return nil, fmt.Errorf("experimentID is required")
+	}
+	payload := AppStoreVersionExperimentUpdateRequest{
+		Data: AppStoreVersionExperimentUpdateData{
+			Type: ResourceTypeAppStoreVersionExperiments,
+			ID:   experimentID,
+		},
+	}
+	if attrs.Name != nil || attrs.TrafficProportion != nil || attrs.Started != nil {
+		payload.Data.Attributes = &attrs
+	}
+	return sendJSON[AppStoreVersionExperimentResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/appStoreVersionExperiments/%s", experimentID),
+		Payload: payload,
 	})
 }

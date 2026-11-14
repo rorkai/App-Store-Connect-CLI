@@ -10,6 +10,7 @@
     "SubscriptionOfferCodeCustomCodeUpdateRequest"
   ],
   "operations": [
-    {"operation":"subscriptionOfferCodeCustomCodes_getInstance","name":"GetSubscriptionOfferCodeCustomCode","params":["customCodeID"]}
+    {"operation":"subscriptionOfferCodeCustomCodes_getInstance","name":"GetSubscriptionOfferCodeCustomCode","params":["customCodeID"]},
+    {"operation":"subscriptionOfferCodeCustomCodes_updateInstance","name":"UpdateSubscriptionOfferCodeCustomCode","params":["customCodeID"],"attrs":"value"}
   ]
 }

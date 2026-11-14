@@ -10,6 +10,7 @@
   ],
   "operations": [
     {"operation":"subscriptionLocalizationsV2_deleteInstance","name":"DeleteSubscriptionLocalizationV2","params":["localizationID"],"check":"require","messages":["localization ID is required"]},
-    {"operation":"subscriptionLocalizationsV2_getInstance","name":"GetSubscriptionLocalizationV2","params":["localizationID"],"check":"require","checkFirst":true,"messages":["localization ID is required"],"options":"SubscriptionLocalizationV2Option","query":"buildSubscriptionLocalizationV2Query","single":true}
+    {"operation":"subscriptionLocalizationsV2_getInstance","name":"GetSubscriptionLocalizationV2","params":["localizationID"],"check":"require","checkFirst":true,"messages":["localization ID is required"],"options":"SubscriptionLocalizationV2Option","query":"buildSubscriptionLocalizationV2Query","single":true},
+    {"operation":"subscriptionLocalizationsV2_updateInstance","name":"UpdateSubscriptionLocalizationV2","params":["localizationID"],"check":"require","messages":["localization ID is required"],"attrs":"value"}
   ]
 }
