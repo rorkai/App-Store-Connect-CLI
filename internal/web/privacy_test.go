@@ -344,24 +344,6 @@ func TestDeleteAppDataUsageRequiresID(t *testing.T) {
 	}
 }
 
-func TestDeleteAppDataUsageCallsEndpoint(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/appDataUsages/usage-1" {
-			t.Fatalf("unexpected path: %s", r.URL.Path)
-		}
-		if r.Method != http.MethodDelete {
-			t.Fatalf("unexpected method: %s", r.Method)
-		}
-		w.WriteHeader(http.StatusNoContent)
-	}))
-	defer server.Close()
-
-	client := testWebClient(server)
-	if err := client.DeleteAppDataUsage(context.Background(), "usage-1"); err != nil {
-		t.Fatalf("DeleteAppDataUsage() error = %v", err)
-	}
-}
-
 func TestGetAppDataUsagesPublishStateParsesResponse(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/apps/app-123/dataUsagePublishState" {

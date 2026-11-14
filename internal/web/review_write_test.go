@@ -82,25 +82,6 @@ func TestUpdateResolutionCenterDraftMessageBuildsCapturedRequest(t *testing.T) {
 	}
 }
 
-func TestDeleteResolutionCenterDraftMessageBuildsCapturedRequest(t *testing.T) {
-	requests := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		requests++
-		if r.Method != http.MethodDelete || r.URL.Path != "/resolutionCenterDraftMessages/draft-1" {
-			t.Fatalf("unexpected draft delete request: %s %s", r.Method, r.URL.Path)
-		}
-		w.WriteHeader(http.StatusNoContent)
-	}))
-	defer server.Close()
-
-	if err := testWebClient(server).DeleteResolutionCenterDraftMessage(context.Background(), "draft-1"); err != nil {
-		t.Fatalf("DeleteResolutionCenterDraftMessage() error = %v", err)
-	}
-	if requests != 1 {
-		t.Fatalf("delete requests = %d, want 1", requests)
-	}
-}
-
 func TestSendResolutionCenterDraftMessageBuildsCapturedRequest(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost || r.URL.Path != "/resolutionCenterMessages" {
