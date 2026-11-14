@@ -179,6 +179,11 @@ func TestMigrateImportDryRunReportsSkippedNonLocaleMetadataDirs(t *testing.T) {
 	writeFile(t, filepath.Join(root, "metadata", "copyright.txt"), "2026 Example Inc.")
 	writeFile(t, filepath.Join(root, "metadata", "primary_category.txt"), "GAMES")
 	writeFile(t, filepath.Join(root, "metadata", "secondary_category.txt"), "  \n")
+	unreadable := filepath.Join(root, "metadata", "primary_first_sub_category.txt")
+	writeFile(t, unreadable, "GAMES_ACTION")
+	if err := os.Chmod(unreadable, 0o000); err != nil {
+		t.Fatalf("chmod: %v", err)
+	}
 	nonLocaleDirResolved, err := filepath.EvalSymlinks(nonLocaleDir)
 	if err != nil {
 		t.Fatalf("eval symlinks non-locale dir: %v", err)
@@ -246,6 +251,8 @@ func TestMigrateImportDryRunReportsSkippedNonLocaleMetadataDirs(t *testing.T) {
 	wantReasons := map[string]string{
 		"copyright.txt":        "asc versions update --copyright",
 		"primary_category.txt": "asc app-setup categories set --primary",
+		// Unreadable for a non-root user; it must still be reported, not abort the import.
+		"primary_first_sub_category.txt": "asc app-setup categories set --primary-subcategory-one",
 	}
 	if len(appLevelReasons) != len(wantReasons) {
 		t.Fatalf("expected skipped app-level files %v, got %+v", wantReasons, result.Skipped)

@@ -1155,16 +1155,14 @@ func scanFastlaneMetadataLocaleDirs(metadataDir string) ([]fastlaneLocaleDir, []
 			if !ok {
 				continue
 			}
+			reason := fmt.Sprintf("%s is not imported; set it with %s", dirName, command)
 			value, err := readMetadataFile(root, filepath.Join(prefix, dirName))
 			if err != nil {
-				return nil, nil, err
+				reason = fmt.Sprintf("%s is not imported and could not be read; set it with %s", dirName, command)
+			} else if value == "" {
+				continue
 			}
-			if value != "" {
-				skipped = append(skipped, SkippedItem{
-					Path:   filepath.Join(metadataDir, dirName),
-					Reason: fmt.Sprintf("%s is not imported; set it with %s", dirName, command),
-				})
-			}
+			skipped = append(skipped, SkippedItem{Path: filepath.Join(metadataDir, dirName), Reason: reason})
 			continue
 		}
 
