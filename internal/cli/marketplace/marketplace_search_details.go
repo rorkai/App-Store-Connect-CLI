@@ -198,51 +198,28 @@ Examples:
 
 // MarketplaceSearchDetailsDeleteCommand returns the search details delete subcommand.
 func MarketplaceSearchDetailsDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("delete", flag.ExitOnError)
-
-	detailID := shared.BindResourceIDFlag(fs, "search-detail-id", "marketplaceSearchDetails", "Marketplace search detail ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc marketplace search-details delete --search-detail-id \"DETAIL_ID\" --confirm",
-		ShortHelp:  "Delete marketplace search details.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "delete",
+		Name:        "delete",
+		ShortUsage:  "asc marketplace search-details delete --search-detail-id \"DETAIL_ID\" --confirm",
+		ShortHelp:   "Delete marketplace search details.",
 		LongHelp: `Delete marketplace search details.
 
 Examples:
   asc marketplace search-details delete --search-detail-id "DETAIL_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			trimmedID := strings.TrimSpace(*detailID)
-			if trimmedID == "" {
-				return shared.RequiredFlag("--search-detail-id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("marketplace search-details delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteMarketplaceSearchDetail(requestCtx, trimmedID); err != nil {
-				return fmt.Errorf("marketplace search-details delete: failed to delete: %w", err)
-			}
-
-			result := &asc.MarketplaceSearchDetailDeleteResult{
-				ID:      trimmedID,
-				Deleted: true,
-			}
-
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "search-detail-id",
+		IDUsage:            "Marketplace search detail ID",
+		IDType:             "marketplaceSearchDetails",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "marketplace search-details delete",
+		DeleteErrorPrefix:  "marketplace search-details delete: failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteMarketplaceSearchDetail(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.MarketplaceSearchDetailDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
 
 func normalizeMarketplaceSearchDetailFields(value string) ([]string, error) {

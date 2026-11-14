@@ -141,49 +141,26 @@ Examples:
 
 // AlternativeDistributionDomainsDeleteCommand returns the domains delete subcommand.
 func AlternativeDistributionDomainsDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("delete", flag.ExitOnError)
-
-	domainID := shared.BindResourceIDFlag(fs, "domain-id", "alternativeDistributionDomains", "Alternative distribution domain ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc alternative-distribution domains delete --domain-id \"DOMAIN_ID\" --confirm",
-		ShortHelp:  "Delete an alternative distribution domain.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "delete",
+		Name:        "delete",
+		ShortUsage:  "asc alternative-distribution domains delete --domain-id \"DOMAIN_ID\" --confirm",
+		ShortHelp:   "Delete an alternative distribution domain.",
 		LongHelp: `Delete an alternative distribution domain.
 
 Examples:
   asc alternative-distribution domains delete --domain-id "DOMAIN_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			trimmedID := strings.TrimSpace(*domainID)
-			if trimmedID == "" {
-				return shared.RequiredFlag("--domain-id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("alternative-distribution domains delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteAlternativeDistributionDomain(requestCtx, trimmedID); err != nil {
-				return fmt.Errorf("alternative-distribution domains delete: failed to delete: %w", err)
-			}
-
-			result := &asc.AlternativeDistributionDomainDeleteResult{
-				ID:      trimmedID,
-				Deleted: true,
-			}
-
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "domain-id",
+		IDUsage:            "Alternative distribution domain ID",
+		IDType:             "alternativeDistributionDomains",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "alternative-distribution domains delete",
+		DeleteErrorPrefix:  "alternative-distribution domains delete: failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteAlternativeDistributionDomain(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.AlternativeDistributionDomainDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
