@@ -225,6 +225,79 @@ func TestXcodeExportDirectUploadDoesNotRequireArtifactPath(t *testing.T) {
 	}
 }
 
+func TestXcodeExportExportDir(t *testing.T) {
+	tests := []struct {
+		name         string
+		directUpload bool
+		populated    bool
+		wantStderr   string
+	}{
+		{name: "keeps outputs"},
+		{name: "non-empty directory", populated: true, wantStderr: "Error: --export-dir is not empty: "},
+		{name: "direct upload", directUpload: true, wantStderr: "Error: --export-dir cannot be used when ExportOptions.plist uses destination=upload"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			restore := overrideXcodeCommandTestHooks(t)
+			defer restore()
+
+			exportDir := filepath.Join(t.TempDir(), "outputs")
+			if test.populated {
+				if err := os.MkdirAll(exportDir, 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(exportDir, "old.plist"), nil, 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			isDirectUploadExportOptionsFn = func(string) bool { return test.directUpload }
+			runExport = func(_ context.Context, opts localxcode.ExportOptions) (*localxcode.ExportResult, error) {
+				if test.wantStderr != "" {
+					t.Fatal("export must not run after a usage error")
+				}
+				return &localxcode.ExportResult{ArchivePath: opts.ArchivePath, IPAPath: opts.IPAPath, ExportDir: opts.ExportDir, ExportFiles: []string{"manifest.plist"}}, nil
+			}
+
+			cmd := XcodeExportCommand()
+			cmd.FlagSet.SetOutput(io.Discard)
+			if err := cmd.FlagSet.Parse([]string{
+				"--archive-path", "Demo.xcarchive",
+				"--export-options", "ExportOptions.plist",
+				"--ipa-path", filepath.Join(t.TempDir(), "Demo.ipa"),
+				"--export-dir", exportDir,
+				"--output", "json",
+			}); err != nil {
+				t.Fatalf("failed to parse flags: %v", err)
+			}
+
+			var runErr error
+			stdout, stderr := captureCommandOutput(t, func() error {
+				runErr = cmd.Exec(context.Background(), nil)
+				return runErr
+			})
+			if test.wantStderr != "" {
+				if !errors.Is(runErr, flag.ErrHelp) || !strings.Contains(stderr, test.wantStderr) {
+					t.Fatalf("Exec() error = %v stderr = %q, want usage error %q", runErr, stderr, test.wantStderr)
+				}
+				return
+			}
+			if runErr != nil {
+				t.Fatalf("Exec() error: %v", runErr)
+			}
+			var payload struct {
+				ExportDir   string   `json:"export_dir"`
+				ExportFiles []string `json:"export_files"`
+			}
+			if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+				t.Fatalf("json.Unmarshal() error: %v\nstdout=%s", err, stdout)
+			}
+			if payload.ExportDir != exportDir || !reflect.DeepEqual(payload.ExportFiles, []string{"manifest.plist"}) {
+				t.Fatalf("payload = %+v, want export_dir %q with manifest.plist", payload, exportDir)
+			}
+		})
+	}
+}
+
 func TestXcodeInjectGeneratesPlistTextAndCopiesAsset(t *testing.T) {
 	dir := t.TempDir()
 	sourceAssetPath := filepath.Join(dir, "Assets", "AppIcon.appiconset", "Contents.json")

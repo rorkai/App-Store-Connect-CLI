@@ -1326,15 +1326,30 @@ func TestExportWritesIPAAtExactPathAndReturnsMetadata(t *testing.T) {
 	t.Cleanup(restore)
 
 	ipaPath := filepath.Join(tempDir, "artifacts", "Demo.ipa")
+	exportDir := filepath.Join(tempDir, "export-outputs")
 	result, err := Export(context.Background(), ExportOptions{
 		ArchivePath:    archivePath,
 		ExportOptions:  exportOptionsPath,
 		IPAPath:        ipaPath,
+		ExportDir:      exportDir,
 		Overwrite:      false,
 		XcodebuildArgs: []string{"-allowProvisioningUpdates"},
 	})
 	if err != nil {
 		t.Fatalf("Export() error: %v", err)
+	}
+
+	wantFiles := []string{"DistributionSummary.plist", "manifest.plist"}
+	if result.ExportDir != exportDir || !reflect.DeepEqual(result.ExportFiles, wantFiles) {
+		t.Fatalf("export dir = %q files = %q, want %q %q", result.ExportDir, result.ExportFiles, exportDir, wantFiles)
+	}
+	for _, name := range wantFiles {
+		if data, err := os.ReadFile(filepath.Join(exportDir, name)); err != nil || string(data) != name {
+			t.Fatalf("kept %s = %q, %v", name, data, err)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(exportDir, "Exported.ipa")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("IPA must not be copied into --export-dir, stat err = %v", err)
 	}
 
 	if result.ArchivePath != archivePath {
@@ -2920,6 +2935,12 @@ func TestXcodeHelperProcess(t *testing.T) {
 		if err := writeTestIPA(filepath.Join(exportPath, "Exported.ipa")); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(2)
+		}
+		for _, name := range []string{"DistributionSummary.plist", "manifest.plist"} {
+			if err := os.WriteFile(filepath.Join(exportPath, name), []byte(name), 0o644); err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(2)
+			}
 		}
 		os.Exit(0)
 	}

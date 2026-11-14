@@ -101,6 +101,7 @@ type ExportOptions struct {
 	ExportOptions  string
 	IPAPath        string
 	PKGPath        string
+	ExportDir      string
 	Overwrite      bool
 	XcodebuildArgs []string
 	Environment    []string
@@ -112,12 +113,14 @@ type ExportOptions struct {
 }
 
 type ExportResult struct {
-	ArchivePath string `json:"archive_path"`
-	IPAPath     string `json:"ipa_path"`
-	PKGPath     string `json:"pkg_path,omitempty"`
-	BundleID    string `json:"bundle_id,omitempty"`
-	Version     string `json:"version,omitempty"`
-	BuildNumber string `json:"build_number,omitempty"`
+	ArchivePath string   `json:"archive_path"`
+	IPAPath     string   `json:"ipa_path"`
+	PKGPath     string   `json:"pkg_path,omitempty"`
+	BundleID    string   `json:"bundle_id,omitempty"`
+	Version     string   `json:"version,omitempty"`
+	BuildNumber string   `json:"build_number,omitempty"`
+	ExportDir   string   `json:"export_dir,omitempty"`
+	ExportFiles []string `json:"export_files,omitempty"`
 }
 
 type ValidateOptions struct {
@@ -249,6 +252,99 @@ func PreflightExportPKGDestination(pkgPath string, overwrite, directUpload bool)
 	return preflightWritableParent(strings.TrimSpace(pkgPath), "pkg output")
 }
 
+// ValidateExportDir checks an --export-dir destination without mutating the
+// filesystem. It must be missing or empty unless overwrite is set.
+func ValidateExportDir(dir string, overwrite, directUpload bool) error {
+	if dir = strings.TrimSpace(dir); dir == "" {
+		return nil
+	}
+	if directUpload {
+		return exportDestinationUsageError{message: "--export-dir cannot be used when ExportOptions.plist uses destination=upload"}
+	}
+	info, err := os.Lstat(dir)
+	switch {
+	case errors.Is(err, os.ErrNotExist):
+		return nil
+	case err != nil:
+		return fmt.Errorf("lstat export dir: %w", err)
+	case !info.IsDir():
+		return exportDestinationUsageError{message: fmt.Sprintf("--export-dir must be a directory: %s", dir)}
+	case overwrite:
+		return nil
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return fmt.Errorf("read export dir: %w", err)
+	}
+	if len(entries) > 0 {
+		return exportDestinationUsageError{message: fmt.Sprintf("--export-dir is not empty: %s (use --overwrite to replace matching entries)", dir)}
+	}
+	return nil
+}
+
+// keepExportOutputs copies everything xcodebuild wrote except the main
+// artifact into opts.ExportDir and returns the top-level names it kept.
+func keepExportOutputs(opts ExportOptions, tempExportDir, artifactPath string) ([]string, error) {
+	if opts.ExportDir == "" {
+		return nil, nil
+	}
+	root, err := rootfs.New(opts.ExportDir)
+	if err != nil {
+		return nil, fmt.Errorf("open export dir: %w", err)
+	}
+	defer root.Close()
+	if err := root.MkdirAll(".", 0o755); err != nil {
+		return nil, fmt.Errorf("create export dir: %w", err)
+	}
+	kept := []string{}
+	err = filepath.WalkDir(tempExportDir, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil || path == tempExportDir || path == artifactPath {
+			return walkErr
+		}
+		rel, err := filepath.Rel(tempExportDir, path)
+		if err != nil {
+			return err
+		}
+		switch {
+		case entry.IsDir():
+			err = root.MkdirAll(rel, 0o755)
+		case entry.Type().IsRegular():
+			err = copyExportOutput(root, path, rel, opts.Overwrite)
+		default:
+			if opts.LogWriter != nil {
+				fmt.Fprintf(opts.LogWriter, "Warning: --export-dir skipped %s: not a regular file or directory\n", rel)
+			}
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("keep export output %s: %w", rel, err)
+		}
+		if !strings.ContainsRune(rel, filepath.Separator) {
+			kept = append(kept, rel)
+		}
+		return nil
+	})
+	return kept, err
+}
+
+func copyExportOutput(root rootfs.Root, sourcePath, rel string, overwrite bool) error {
+	source, err := os.Open(sourcePath)
+	if err != nil {
+		return err
+	}
+	defer source.Close()
+	info, err := source.Stat()
+	if err != nil {
+		return err
+	}
+	if overwrite {
+		_, err = root.WriteFrom(rel, source, info.Mode().Perm())
+	} else {
+		_, err = root.CreateNewFrom(rel, source, info.Mode().Perm())
+	}
+	return err
+}
+
 func preflightWritableParent(path, description string) error {
 	parent := filepath.Dir(path)
 	if err := os.MkdirAll(parent, 0o755); err != nil {
@@ -350,6 +446,9 @@ func Export(ctx context.Context, opts ExportOptions) (*ExportResult, error) {
 	if err := validateExportInputPaths(opts); err != nil {
 		return nil, err
 	}
+	if err := ValidateExportDir(opts.ExportDir, opts.Overwrite, uploadMode); err != nil {
+		return nil, err
+	}
 
 	// When the ExportOptions plist has destination=upload, xcodebuild uploads
 	// directly to App Store Connect and does not produce a local artifact.
@@ -409,6 +508,10 @@ func Export(ctx context.Context, opts ExportOptions) (*ExportResult, error) {
 		if err != nil {
 			return nil, fmt.Errorf("read archive bundle info after PKG export: %w", err)
 		}
+		exportFiles, err := keepExportOutputs(opts, tempExportDir, exportedPKGPath)
+		if err != nil {
+			return nil, err
+		}
 		if err := moveExportedArtifact(exportedPKGPath, opts.PKGPath, "PKG", opts.Overwrite); err != nil {
 			return nil, err
 		}
@@ -418,10 +521,16 @@ func Export(ctx context.Context, opts ExportOptions) (*ExportResult, error) {
 			BundleID:    info.BundleID,
 			Version:     info.Version,
 			BuildNumber: info.BuildNumber,
+			ExportDir:   opts.ExportDir,
+			ExportFiles: exportFiles,
 		}, nil
 	}
 
 	exportedIPAPath, err := findExportedIPA(tempExportDir)
+	if err != nil {
+		return nil, err
+	}
+	exportFiles, err := keepExportOutputs(opts, tempExportDir, exportedIPAPath)
 	if err != nil {
 		return nil, err
 	}
@@ -447,6 +556,8 @@ func Export(ctx context.Context, opts ExportOptions) (*ExportResult, error) {
 		BundleID:    info.BundleID,
 		Version:     info.Version,
 		BuildNumber: info.BuildNumber,
+		ExportDir:   opts.ExportDir,
+		ExportFiles: exportFiles,
 	}, nil
 }
 
@@ -757,6 +868,7 @@ func normalizeExportOptions(opts ExportOptions) ExportOptions {
 	opts.ExportOptions = strings.TrimSpace(opts.ExportOptions)
 	opts.IPAPath = strings.TrimSpace(opts.IPAPath)
 	opts.PKGPath = strings.TrimSpace(opts.PKGPath)
+	opts.ExportDir = strings.TrimSpace(opts.ExportDir)
 	opts.Environment = cloneEnvironment(opts.Environment)
 	return opts
 }

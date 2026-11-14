@@ -219,7 +219,8 @@ func XcodeExportCommand() *ffcli.Command {
 	teamID := fs.String("team-id", "", "Apple Developer team ID for generated options (overrides archive metadata)")
 	ipaPath := fs.String("ipa-path", "", "Destination path for a local .ipa when one is produced")
 	pkgPath := fs.String("pkg-path", "", "Destination path for a local macOS .pkg when one is produced")
-	overwrite := fs.Bool("overwrite", false, "Replace an existing local artifact at its destination path")
+	exportDir := fs.String("export-dir", "", "Directory that keeps xcodebuild's other export outputs, such as manifest.plist and DistributionSummary.plist")
+	overwrite := fs.Bool("overwrite", false, "Replace an existing local artifact at its destination path, and matching entries in --export-dir")
 	wait := fs.Bool("wait", false, "Wait for App Store Connect build discovery and processing when export uploads directly")
 	pollInterval := fs.Duration("poll-interval", shared.PublishDefaultPollInterval, "Polling interval for --wait when waiting for uploaded builds")
 	timeout := fs.Duration("timeout", 0, "Maximum duration for xcodebuild -exportArchive (0 disables local export timeout)")
@@ -243,7 +244,8 @@ Automatic signing may need --xcodebuild-flag=-allowProvisioningUpdates so
 xcodebuild can create or update provisioning profiles.
 For local exports, provide exactly one destination: --ipa-path for iOS, tvOS,
 or visionOS, or --pkg-path for macOS. asc moves the exported artifact to that
-exact path. Generated manual signing options support iOS, tvOS, and App Store
+exact path and discards the other export outputs unless --export-dir keeps
+them. Generated manual signing options support iOS, tvOS, and App Store
 macOS archives; provide an explicit --export-options plist for other macOS methods.
 When ExportOptions.plist uses destination=upload, xcodebuild uploads directly
 to App Store Connect and asc returns archive metadata without writing a local
@@ -256,6 +258,7 @@ Examples:
   asc xcode export --archive-path .asc/artifacts/App.xcarchive --ipa-path .asc/artifacts/App.ipa --method release-testing --signing-style manual
   asc xcode export --archive-path .asc/artifacts/App.xcarchive --ipa-path .asc/artifacts/App.ipa --signing-style manual --team-id TEAM_ID
   asc xcode export --archive-path .asc/artifacts/App.xcarchive --ipa-path .asc/artifacts/App.ipa --timeout 10m
+  asc xcode export --archive-path .asc/artifacts/App.xcarchive --ipa-path .asc/artifacts/App.ipa --export-dir .asc/artifacts/export
   asc xcode export --archive-path .asc/artifacts/App.xcarchive --export-options UploadExportOptions.plist --wait
   asc xcode export --archive-path .asc/artifacts/App.xcarchive --export-options ExportOptions.plist --ipa-path .asc/artifacts/App.ipa --xcodebuild-flag=-allowProvisioningUpdates --output json`,
 		FlagSet:   fs,
@@ -348,6 +351,12 @@ Examples:
 					return fmt.Errorf("xcode export: %w", err)
 				}
 			}
+			if err := localxcode.ValidateExportDir(*exportDir, *overwrite, directUpload); err != nil {
+				if localxcode.IsExportDestinationUsageError(err) {
+					return shared.UsageError(err.Error())
+				}
+				return fmt.Errorf("xcode export: %w", err)
+			}
 			if exportOptionsPath == "" {
 				destination := "export"
 				if *wait {
@@ -418,6 +427,7 @@ Examples:
 				ExportOptions:  exportOptionsPath,
 				IPAPath:        trimmedIPAPath,
 				PKGPath:        trimmedPKGPath,
+				ExportDir:      strings.TrimSpace(*exportDir),
 				Overwrite:      *overwrite,
 				XcodebuildArgs: []string(xcodebuildFlags),
 				LogWriter:      os.Stderr,
@@ -440,6 +450,8 @@ Examples:
 				BundleID:          result.BundleID,
 				Version:           result.Version,
 				BuildNumber:       result.BuildNumber,
+				ExportDir:         result.ExportDir,
+				ExportFiles:       result.ExportFiles,
 			}
 			if *wait {
 				if strings.TrimSpace(result.BundleID) == "" {
@@ -715,15 +727,17 @@ func archiveResultRows(result *localxcode.ArchiveResult) [][]string {
 }
 
 type xcodeExportCommandResult struct {
-	ArchivePath       string `json:"archive_path"`
-	ExportOptionsPath string `json:"export_options_path"`
-	IPAPath           string `json:"ipa_path"`
-	PKGPath           string `json:"pkg_path,omitempty"`
-	BundleID          string `json:"bundle_id,omitempty"`
-	Version           string `json:"version,omitempty"`
-	BuildNumber       string `json:"build_number,omitempty"`
-	BuildID           string `json:"build_id,omitempty"`
-	ProcessingState   string `json:"processing_state,omitempty"`
+	ArchivePath       string   `json:"archive_path"`
+	ExportOptionsPath string   `json:"export_options_path"`
+	IPAPath           string   `json:"ipa_path"`
+	PKGPath           string   `json:"pkg_path,omitempty"`
+	BundleID          string   `json:"bundle_id,omitempty"`
+	Version           string   `json:"version,omitempty"`
+	BuildNumber       string   `json:"build_number,omitempty"`
+	BuildID           string   `json:"build_id,omitempty"`
+	ProcessingState   string   `json:"processing_state,omitempty"`
+	ExportDir         string   `json:"export_dir,omitempty"`
+	ExportFiles       []string `json:"export_files,omitempty"`
 }
 
 func exportResultRows(result xcodeExportCommandResult) [][]string {
@@ -737,6 +751,9 @@ func exportResultRows(result xcodeExportCommandResult) [][]string {
 		rows = append(rows, []string{"pkg_path", result.PKGPath})
 	} else {
 		rows = append(rows, []string{"ipa_path", "(direct upload — no local artifact)"})
+	}
+	if result.ExportDir != "" {
+		rows = append(rows, []string{"export_dir", result.ExportDir})
 	}
 	rows = append(
 		rows,
