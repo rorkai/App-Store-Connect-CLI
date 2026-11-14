@@ -303,12 +303,6 @@ func TestGetPassTypeIDCertificates_WithFilters(t *testing.T) {
 		if values.Get("fields[certificates]") != "serialNumber,certificateType" {
 			t.Fatalf("expected fields[certificates], got %q", values.Get("fields[certificates]"))
 		}
-		if values.Get("fields[passTypeIds]") != "identifier" {
-			t.Fatalf("expected fields[passTypeIds], got %q", values.Get("fields[passTypeIds]"))
-		}
-		if values.Get("include") != "passTypeId" {
-			t.Fatalf("expected include passTypeId, got %q", values.Get("include"))
-		}
 		if values.Get("limit") != "25" {
 			t.Fatalf("expected limit=25, got %q", values.Get("limit"))
 		}
@@ -324,8 +318,6 @@ func TestGetPassTypeIDCertificates_WithFilters(t *testing.T) {
 		WithPassTypeIDCertificatesFilterIDs([]string{"c1", "c2"}),
 		WithPassTypeIDCertificatesSort("-displayName"),
 		WithPassTypeIDCertificatesFields([]string{"serialNumber", "certificateType"}),
-		WithPassTypeIDCertificatesPassTypeIDFields([]string{"identifier"}),
-		WithPassTypeIDCertificatesInclude([]string{"passTypeId"}),
 		Limit[PassTypeIDCertificatesOption](25),
 	)
 	if err != nil {
@@ -350,23 +342,6 @@ func TestGetPassTypeIDCertificatesRelationships_SendsRequest(t *testing.T) {
 
 	if _, err := client.GetPassTypeIDCertificatesRelationships(context.Background(), "p1", Limit[LinkagesOption](5)); err != nil {
 		t.Fatalf("GetPassTypeIDCertificatesRelationships() error: %v", err)
-	}
-}
-
-func TestGetCertificatePassTypeID_SendsRequest(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"passTypeIds","id":"p1","attributes":{"name":"Wallet","identifier":"pass.com.example"}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/certificates/c1/passTypeId" {
-			t.Fatalf("expected path /v1/certificates/c1/passTypeId, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetCertificatePassTypeID(context.Background(), "c1"); err != nil {
-		t.Fatalf("GetCertificatePassTypeID() error: %v", err)
 	}
 }
 

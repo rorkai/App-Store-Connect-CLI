@@ -790,13 +790,6 @@ func (c *Client) GetBetaGroupTesters(ctx context.Context, groupID string, opts .
 	})
 }
 
-// CreateBetaGroup creates a beta group for an app.
-func (c *Client) CreateBetaGroup(ctx context.Context, appID, name string) (*BetaGroupResponse, error) {
-	return c.CreateBetaGroupWithAttributes(ctx, appID, BetaGroupCreateAttributes{
-		Name: name,
-	}, nil, nil)
-}
-
 // CreateBetaGroupWithAttributes creates a beta group for an app with explicit
 // attributes, attaching any builds and beta testers in the same request.
 // Note: some attributes (e.g., isInternalGroup) are create-only in the ASC API.
@@ -1182,15 +1175,6 @@ func (c *Client) GetBetaBuildLocalization(ctx context.Context, localizationID st
 	return getJSON[BetaBuildLocalizationResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/betaBuildLocalizations/%s", localizationID)})
 }
 
-// GetBetaBuildLocalizationBuild retrieves the build for a beta build localization.
-func (c *Client) GetBetaBuildLocalizationBuild(ctx context.Context, localizationID string) (*BuildResponse, error) {
-	localizationID = strings.TrimSpace(localizationID)
-	if localizationID == "" {
-		return nil, fmt.Errorf("localizationID is required")
-	}
-	return getJSON[BuildResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/betaBuildLocalizations/%s/build", localizationID)})
-}
-
 // CreateBetaBuildLocalization creates a beta build localization for a build.
 func (c *Client) CreateBetaBuildLocalization(ctx context.Context, buildID string, attributes BetaBuildLocalizationAttributes) (*BetaBuildLocalizationResponse, error) {
 	attributes.api = apiAttributes{}
@@ -1291,19 +1275,6 @@ func (c *Client) UpdateAppInfoLocalizationNullableFields(ctx context.Context, lo
 		Attributes: fields,
 	}}
 	return sendJSON[AppInfoLocalizationResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/appInfoLocalizations/%s", localizationID), Payload: payload})
-}
-
-// GetAppInfoLocalization retrieves an app info localization by ID.
-func (c *Client) GetAppInfoLocalization(ctx context.Context, localizationID string, opts ...AppInfoLocalizationOption) (*AppInfoLocalizationResponse, error) {
-	query := applyOptions(opts)
-	localizationID = strings.TrimSpace(localizationID)
-	if localizationID == "" {
-		return nil, fmt.Errorf("localizationID is required")
-	}
-	return getJSON[AppInfoLocalizationResponse](ctx, c, readRequest{
-		Path:  fmt.Sprintf("/v1/appInfoLocalizations/%s", localizationID),
-		Query: buildAppInfoLocalizationQuery(query),
-	})
 }
 
 // DeleteAppInfoLocalization deletes an app info localization by ID.

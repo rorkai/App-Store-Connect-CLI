@@ -152,19 +152,6 @@ func (c *Client) GetAlternativeDistributionPackage(ctx context.Context, packageI
 	})
 }
 
-// GetAlternativeDistributionPackageForVersion retrieves a package for an app store version.
-func (c *Client) GetAlternativeDistributionPackageForVersion(ctx context.Context, versionID string) (*AlternativeDistributionPackageResponse, error) {
-	versionID = strings.TrimSpace(versionID)
-	if versionID == "" {
-		return nil, fmt.Errorf("versionID is required")
-	}
-
-	return getJSON[AlternativeDistributionPackageResponse](ctx, c, readRequest{
-		Path:     fmt.Sprintf("/v1/appStoreVersions/%s/alternativeDistributionPackage", versionID),
-		ParseErr: "failed to parse alternative distribution package response",
-	})
-}
-
 // CreateAlternativeDistributionPackage creates an alternative distribution package.
 func (c *Client) CreateAlternativeDistributionPackage(ctx context.Context, appStoreVersionID string) (*AlternativeDistributionPackageResponse, error) {
 	appStoreVersionID = strings.TrimSpace(appStoreVersionID)

@@ -426,30 +426,6 @@ func (c *Client) GetSubscriptionPromotedPurchase(ctx context.Context, subID stri
 	})
 }
 
-// RemoveSubscriptionIntroductoryOffers removes introductory offer relationships from a subscription.
-func (c *Client) RemoveSubscriptionIntroductoryOffers(ctx context.Context, subID string, offerIDs []string) error {
-	subID = strings.TrimSpace(subID)
-	offerIDs = normalizeList(offerIDs)
-	if subID == "" {
-		return fmt.Errorf("subscription ID is required")
-	}
-	if len(offerIDs) == 0 {
-		return fmt.Errorf("offerIDs are required")
-	}
-
-	payload := RelationshipRequest{
-		Data: make([]RelationshipData, len(offerIDs)),
-	}
-	for i, id := range offerIDs {
-		payload.Data[i] = RelationshipData{
-			Type: ResourceTypeSubscriptionIntroductoryOffers,
-			ID:   id,
-		}
-	}
-
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/subscriptions/%s/relationships/introductoryOffers", subID), payload)
-}
-
 // GetSubscriptionPricesRelationships retrieves price linkages for a subscription.
 func (c *Client) GetSubscriptionPricesRelationships(ctx context.Context, subID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
 	query := applyOptions(opts)
@@ -464,28 +440,4 @@ func (c *Client) GetSubscriptionPricesRelationships(ctx context.Context, subID s
 		Next:        query.nextURL,
 		NextContext: "subscriptionPricesRelationships",
 	})
-}
-
-// RemoveSubscriptionPrices removes price relationships from a subscription.
-func (c *Client) RemoveSubscriptionPrices(ctx context.Context, subID string, priceIDs []string) error {
-	subID = strings.TrimSpace(subID)
-	priceIDs = normalizeList(priceIDs)
-	if subID == "" {
-		return fmt.Errorf("subscription ID is required")
-	}
-	if len(priceIDs) == 0 {
-		return fmt.Errorf("priceIDs are required")
-	}
-
-	payload := RelationshipRequest{
-		Data: make([]RelationshipData, len(priceIDs)),
-	}
-	for i, id := range priceIDs {
-		payload.Data[i] = RelationshipData{
-			Type: ResourceTypeSubscriptionPrices,
-			ID:   id,
-		}
-	}
-
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/subscriptions/%s/relationships/prices", subID), payload)
 }

@@ -11,7 +11,6 @@ type buildsQuery struct {
 	includedFieldsQuery
 	sort                 string
 	version              string
-	preReleaseVersion    string
 	processingStates     []string
 	buildAudienceType    BuildAudienceType
 	preReleasePlatforms  []string
@@ -152,9 +151,6 @@ type BuildIconsOption func(*listQuery)
 // PreReleaseVersionsOption is a functional option for GetPreReleaseVersions.
 type PreReleaseVersionsOption func(*preReleaseVersionsQuery)
 
-// AppPreReleaseVersionsOption is a functional option for GetAppPreReleaseVersions.
-type AppPreReleaseVersionsOption func(*listQuery)
-
 // PreReleaseVersionBuildsOption is a functional option for GetPreReleaseVersionBuilds.
 type PreReleaseVersionBuildsOption func(*listQuery)
 
@@ -173,16 +169,6 @@ func WithBuildsVersion(version string) BuildsOption {
 	return func(q *buildsQuery) {
 		if strings.TrimSpace(version) != "" {
 			q.version = strings.TrimSpace(version)
-		}
-	}
-}
-
-// WithBuildsPreReleaseVersionVersion filters builds by marketing version
-// (CFBundleShortVersionString) via filter[preReleaseVersion.version].
-func WithBuildsPreReleaseVersionVersion(version string) BuildsOption {
-	return func(q *buildsQuery) {
-		if strings.TrimSpace(version) != "" {
-			q.preReleaseVersion = strings.TrimSpace(version)
 		}
 	}
 }

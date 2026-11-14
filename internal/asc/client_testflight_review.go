@@ -18,16 +18,6 @@ func (c *Client) GetBetaAppReviewDetails(ctx context.Context, appID string, opts
 	})
 }
 
-// GetBetaAppReviewDetail retrieves a beta app review detail by ID.
-func (c *Client) GetBetaAppReviewDetail(ctx context.Context, detailID string) (*BetaAppReviewDetailResponse, error) {
-	detailID = strings.TrimSpace(detailID)
-	if detailID == "" {
-		return nil, fmt.Errorf("detailID is required")
-	}
-
-	return getJSON[BetaAppReviewDetailResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/betaAppReviewDetails/%s", detailID)})
-}
-
 // GetBetaAppReviewDetailApp retrieves the app for a beta app review detail.
 func (c *Client) GetBetaAppReviewDetailApp(ctx context.Context, detailID string) (*AppResponse, error) {
 	detailID = strings.TrimSpace(detailID)
@@ -142,16 +132,6 @@ func (c *Client) GetBuildBetaDetails(ctx context.Context, opts ...BuildBetaDetai
 		Next:        query.nextURL,
 		NextContext: "buildBetaDetails",
 	})
-}
-
-// GetBuildBetaDetail retrieves a build beta detail by ID.
-func (c *Client) GetBuildBetaDetail(ctx context.Context, detailID string) (*BuildBetaDetailResponse, error) {
-	detailID = strings.TrimSpace(detailID)
-	if detailID == "" {
-		return nil, fmt.Errorf("detailID is required")
-	}
-
-	return getJSON[BuildBetaDetailResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/buildBetaDetails/%s", detailID)})
 }
 
 // GetBuildBetaDetailBuild retrieves the build for a build beta detail.

@@ -98,21 +98,6 @@ func (c *Client) GetBetaLicenseAgreementForApp(ctx context.Context, appID string
 	})
 }
 
-// GetBetaLicenseAgreementApp retrieves the app for a beta license agreement.
-func (c *Client) GetBetaLicenseAgreementApp(ctx context.Context, agreementID string, fields []string) (*AppResponse, error) {
-	agreementID = strings.TrimSpace(agreementID)
-	if agreementID == "" {
-		return nil, fmt.Errorf("agreementID is required")
-	}
-
-	values := url.Values{}
-	addCSV(values, "fields[apps]", normalizeList(fields))
-	return getJSON[AppResponse](ctx, c, readRequest{
-		Path:  fmt.Sprintf("/v1/betaLicenseAgreements/%s/app", agreementID),
-		Query: values.Encode(),
-	})
-}
-
 // UpdateBetaLicenseAgreement updates a beta license agreement by ID.
 func (c *Client) UpdateBetaLicenseAgreement(ctx context.Context, agreementID string, agreementText *string) (*BetaLicenseAgreementResponse, error) {
 	agreementID = strings.TrimSpace(agreementID)

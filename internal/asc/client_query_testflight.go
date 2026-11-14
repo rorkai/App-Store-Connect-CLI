@@ -408,9 +408,6 @@ type BetaRecruitmentCriterionOptionsOption func(*betaRecruitmentCriterionOptions
 // BetaAppLocalizationsOption is a functional option for beta app localizations.
 type BetaAppLocalizationsOption func(*betaAppLocalizationsQuery)
 
-// AppBetaAppLocalizationsOption is a functional option for GetAppBetaAppLocalizations.
-type AppBetaAppLocalizationsOption func(*listQuery)
-
 // BetaBuildLocalizationsOption is a functional option for beta build localizations.
 type BetaBuildLocalizationsOption func(*betaBuildLocalizationsQuery)
 

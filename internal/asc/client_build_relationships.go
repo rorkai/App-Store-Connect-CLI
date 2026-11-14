@@ -3,7 +3,6 @@ package asc
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"strings"
 )
 
@@ -31,11 +30,6 @@ type BuildPreReleaseVersionLinkageResponse struct {
 	Links Links        `json:"links"`
 }
 
-// BuildAppEncryptionDeclarationRelationshipUpdateRequest is a request to update the appEncryptionDeclaration relationship on a build.
-type BuildAppEncryptionDeclarationRelationshipUpdateRequest struct {
-	Data ResourceData `json:"data"`
-}
-
 // GetBuildAppRelationship retrieves the app linkage for a build.
 func (c *Client) GetBuildAppRelationship(ctx context.Context, buildID string) (*BuildAppLinkageResponse, error) {
 	buildID = strings.TrimSpace(buildID)
@@ -44,26 +38,6 @@ func (c *Client) GetBuildAppRelationship(ctx context.Context, buildID string) (*
 	}
 
 	return getJSON[BuildAppLinkageResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/builds/%s/relationships/app", buildID), ParseErr: "failed to parse app relationship response"})
-}
-
-// UpdateBuildAppEncryptionDeclarationRelationship updates the app encryption declaration relationship on a build.
-func (c *Client) UpdateBuildAppEncryptionDeclarationRelationship(ctx context.Context, buildID, declarationID string) error {
-	buildID = strings.TrimSpace(buildID)
-	declarationID = strings.TrimSpace(declarationID)
-	if buildID == "" {
-		return fmt.Errorf("buildID is required")
-	}
-	if declarationID == "" {
-		return fmt.Errorf("declarationID is required")
-	}
-
-	request := BuildAppEncryptionDeclarationRelationshipUpdateRequest{
-		Data: ResourceData{
-			Type: ResourceTypeAppEncryptionDeclarations,
-			ID:   declarationID,
-		},
-	}
-	return sendNoContent(ctx, c, http.MethodPatch, fmt.Sprintf("/v1/builds/%s/relationships/appEncryptionDeclaration", buildID), request)
 }
 
 // GetBuildAppStoreVersionRelationship retrieves the app store version linkage for a build.

@@ -62,16 +62,6 @@ func validateBundleIDsRequest(query *bundleIDsQuery) error {
 	return err
 }
 
-// BundleIDsRequestRequiresSplit reports whether the request must split its
-// identifier filter to stay within the supported request URL length.
-func BundleIDsRequestRequiresSplit(opts ...BundleIDsOption) bool {
-	query := &bundleIDsQuery{splitPagination: true}
-	for _, opt := range opts {
-		opt(query)
-	}
-	return query.nextURL == "" && shouldSplitBundleIDsIdentifierFilter(query)
-}
-
 // GetBundleIDs retrieves the list of bundle IDs.
 func (c *Client) GetBundleIDs(ctx context.Context, opts ...BundleIDsOption) (*BundleIDsResponse, error) {
 	query := &bundleIDsQuery{splitPagination: true}
@@ -614,17 +604,6 @@ func (c *Client) UpdateCertificate(ctx context.Context, id string, attrs Certifi
 func (c *Client) RevokeCertificate(ctx context.Context, id string) error {
 	id = strings.TrimSpace(id)
 	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/certificates/%s", id), nil)
-}
-
-// RegisterDevice registers a new device.
-func (c *Client) RegisterDevice(ctx context.Context, attrs DeviceCreateAttributes) (*DeviceResponse, error) {
-	request := DeviceCreateRequest{
-		Data: DeviceCreateData{
-			Type:       ResourceTypeDevices,
-			Attributes: attrs,
-		},
-	}
-	return sendJSON[DeviceResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/devices", Payload: request})
 }
 
 // GetProfiles retrieves the list of profiles.

@@ -67,19 +67,6 @@ func TestIAPRelatedReadsPropagateVersionSparseFields441(t *testing.T) {
 			},
 		},
 		{
-			name:     "localizations relationship",
-			path:     "/v2/inAppPurchases/iap-1/inAppPurchaseLocalizations",
-			response: `{"data":[]}`,
-			wantQuery: map[string]string{
-				"fields[inAppPurchases]": "versions",
-				"include":                "inAppPurchaseV2",
-			},
-			invoke: func(ctx context.Context, client *Client) error {
-				_, err := client.GetInAppPurchaseLocalizations(ctx, "iap-1", WithIAPLocalizationsIAPFields([]string{"versions"}))
-				return err
-			},
-		},
-		{
 			name:     "promoted purchase detail",
 			path:     "/v1/promotedPurchases/promo-1",
 			response: `{"data":{"type":"promotedPurchases","id":"promo-1"}}`,
@@ -147,25 +134,6 @@ func TestIAPRelatedReadsPropagateVersionSparseFields441(t *testing.T) {
 				t.Fatalf("invoke() error: %v", err)
 			}
 		})
-	}
-}
-
-func TestIAPRelatedSparseFieldsExplicitIncludesAreDeduplicated441(t *testing.T) {
-	client := newTestClient(t, func(req *http.Request) {
-		values := req.URL.Query()["include"]
-		if len(values) != 1 || values[0] != "inAppPurchaseV2" {
-			t.Fatalf("include = %v, want exactly [inAppPurchaseV2]", values)
-		}
-	}, jsonResponse(http.StatusOK, `{"data":{"type":"inAppPurchaseContents","id":"content-1"}}`))
-
-	_, err := client.GetInAppPurchaseContent(
-		context.Background(),
-		"iap-1",
-		WithIAPContentInclude([]string{"inAppPurchaseV2"}),
-		WithIAPContentIAPFields([]string{"versions"}),
-	)
-	if err != nil {
-		t.Fatalf("GetInAppPurchaseContent() error: %v", err)
 	}
 }
 

@@ -12,6 +12,17 @@ import (
 	"testing"
 )
 
+func ValidateScreenshotDimensions(path, displayType string) error {
+	dims, format, err := ReadImageDimensionsAndFormat(path)
+	if err != nil {
+		return err
+	}
+	if err := ValidateImageFormatMatchesExtension(path, format); err != nil {
+		return err
+	}
+	return validateScreenshotDimensionsForSize(path, dims.Width, dims.Height, displayType)
+}
+
 func TestValidateScreenshotDimensionsValid(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "valid.png")
