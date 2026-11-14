@@ -245,8 +245,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			localeValue := strings.TrimSpace(*locale)
 			if localeValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --locale is required")
-				return shared.MissingRequiredUsageError("--locale")
+				return shared.RequiredFlag("--locale")
 			}
 			if err := shared.ValidateBuildLocalizationLocale(localeValue); err != nil {
 				return shared.UsageErrorf("builds test-notes create: %v", err)
@@ -257,8 +256,7 @@ Examples:
 
 			whatsNewValue := strings.TrimSpace(*whatsNew)
 			if whatsNewValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --whats-new is required")
-				return shared.MissingRequiredUsageError("--whats-new")
+				return shared.RequiredFlag("--whats-new")
 			}
 			whatsNewValue, normalizeErr := shared.NormalizeTestNotesForCommand(os.Stderr, whatsNewValue)
 			if normalizeErr != nil {
@@ -397,8 +395,7 @@ Examples:
 				return fmt.Errorf("builds test-notes delete: %w", err)
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()

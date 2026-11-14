@@ -107,8 +107,7 @@ Examples:
 
 			nextValue := strings.TrimSpace(*next)
 			if testerValue == "" && nextValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --tester-id is required")
-				return shared.MissingRequiredUsageError("--tester-id")
+				return shared.RequiredFlag("--tester-id")
 			}
 
 			if kind == relationshipSingle && (nextValue != "" || *paginate || *limit != 0) {

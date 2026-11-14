@@ -165,8 +165,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			uploadID := strings.TrimSpace(*id)
 			if uploadID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -208,12 +207,10 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			uploadID := strings.TrimSpace(*id)
 			if uploadID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()
@@ -295,8 +292,7 @@ Examples:
 
 			uploadValue := strings.TrimSpace(*uploadID)
 			if uploadValue == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --upload is required")
-				return shared.MissingRequiredUsageError("--upload")
+				return shared.RequiredFlag("--upload")
 			}
 
 			client, err := shared.GetASCClient()
@@ -314,8 +310,7 @@ Examples:
 
 			if *paginate {
 				if uploadValue == "" {
-					fmt.Fprintln(os.Stderr, "Error: --upload is required")
-					return shared.MissingRequiredUsageError("--upload")
+					return shared.RequiredFlag("--upload")
 				}
 
 				paginateOpts := append(opts, asc.WithBuildUploadFilesLimit(200))
@@ -365,8 +360,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			fileID := strings.TrimSpace(*id)
 			if fileID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			client, err := shared.GetASCClient()

@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -82,8 +81,7 @@ Examples:
 				)
 			}
 			if testerValue == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --tester-id is required")
-				return shared.MissingRequiredUsageError("--tester-id")
+				return shared.RequiredFlag("--tester-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -101,8 +99,7 @@ Examples:
 
 			if *paginate {
 				if testerValue == "" {
-					fmt.Fprintln(os.Stderr, "Error: --tester-id is required")
-					return shared.MissingRequiredUsageError("--tester-id")
+					return shared.RequiredFlag("--tester-id")
 				}
 				paginateOpts := append(opts, asc.Limit[asc.BetaTesterAppsOption](200))
 				resp, err := shared.PaginateWithSpinner(
@@ -199,8 +196,7 @@ Examples:
 				)
 			}
 			if testerValue == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --tester-id is required")
-				return shared.MissingRequiredUsageError("--tester-id")
+				return shared.RequiredFlag("--tester-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -218,8 +214,7 @@ Examples:
 
 			if *paginate {
 				if testerValue == "" {
-					fmt.Fprintln(os.Stderr, "Error: --tester-id is required")
-					return shared.MissingRequiredUsageError("--tester-id")
+					return shared.RequiredFlag("--tester-id")
 				}
 				paginateOpts := append(opts, asc.Limit[asc.BetaTesterBetaGroupsOption](200))
 				resp, err := shared.PaginateWithSpinner(
@@ -316,8 +311,7 @@ Examples:
 				)
 			}
 			if testerValue == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --tester-id is required")
-				return shared.MissingRequiredUsageError("--tester-id")
+				return shared.RequiredFlag("--tester-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -335,8 +329,7 @@ Examples:
 
 			if *paginate {
 				if testerValue == "" {
-					fmt.Fprintln(os.Stderr, "Error: --tester-id is required")
-					return shared.MissingRequiredUsageError("--tester-id")
+					return shared.RequiredFlag("--tester-id")
 				}
 				paginateOpts := append(opts, asc.Limit[asc.BetaTesterBuildsOption](200))
 				resp, err := shared.PaginateWithSpinner(

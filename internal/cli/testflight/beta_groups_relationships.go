@@ -106,8 +106,7 @@ Examples:
 
 			nextValue := strings.TrimSpace(*next)
 			if groupValue == "" && nextValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --group-id is required")
-				return shared.MissingRequiredUsageError("--group-id")
+				return shared.RequiredFlag("--group-id")
 			}
 
 			if kind == relationshipSingle && (nextValue != "" || *paginate || *limit != 0) {

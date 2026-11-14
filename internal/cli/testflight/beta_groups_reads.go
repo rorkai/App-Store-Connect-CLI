@@ -130,8 +130,7 @@ Examples:
 			groupValue := strings.TrimSpace(*groupID)
 			nextValue := strings.TrimSpace(*next)
 			if groupValue == "" && nextValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --group-id is required")
-				return shared.MissingRequiredUsageError("--group-id")
+				return shared.RequiredFlag("--group-id")
 			}
 
 			client, err := shared.GetASCClient()

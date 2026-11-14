@@ -829,8 +829,7 @@ func BuildGroupsListCommand(config BuildGroupsListCommandConfig) *ffcli.Command 
 				return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticInvalidInput, "--build-id")
 			}
 			if resolvedBuildID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --build-id is required")
-				return shared.MissingRequiredUsageError("--build-id")
+				return shared.RequiredFlag("--build-id")
 			}
 
 			return runBuildGroupMembershipList(
@@ -942,8 +941,7 @@ Examples:
 				return shared.MissingRequiredUsageError("--app")
 			}
 			if strings.TrimSpace(*name) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --name is required")
-				return shared.MissingRequiredUsageError("--name")
+				return shared.RequiredFlag("--name")
 			}
 
 			visited := map[string]bool{}
@@ -1125,8 +1123,7 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*id) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -1181,8 +1178,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*id)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			visited := map[string]bool{}
@@ -1280,8 +1276,7 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*id) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required to delete")
@@ -1344,8 +1339,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			groupID := strings.TrimSpace(*group)
 			if groupID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --group is required")
-				return shared.MissingRequiredUsageError("--group")
+				return shared.RequiredFlag("--group")
 			}
 
 			testerIDs := shared.SplitCSV(tester.String())
@@ -1501,18 +1495,15 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			groupID := strings.TrimSpace(*group)
 			if groupID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --group is required")
-				return shared.MissingRequiredUsageError("--group")
+				return shared.RequiredFlag("--group")
 			}
 
 			testerIDs := shared.SplitCSV(tester.String())
 			if len(testerIDs) == 0 {
-				fmt.Fprintln(os.Stderr, "Error: --tester is required")
-				return shared.MissingRequiredUsageError("--tester")
+				return shared.RequiredFlag("--tester")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()
