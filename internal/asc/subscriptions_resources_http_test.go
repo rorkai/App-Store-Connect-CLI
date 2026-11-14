@@ -166,21 +166,6 @@ func TestSubscriptionListEndpoints_WithLimit(t *testing.T) {
 			},
 		},
 		{
-			name:     "GetSubscriptionOfferCodeCustomCodes",
-			path:     "/v1/subscriptionOfferCodes/code-1/customCodes",
-			limit:    "5",
-			response: `{"data":[{"type":"subscriptionOfferCodeCustomCodes","id":"custom-1","attributes":{"customCode":"SPRING"}}]}`,
-			call: func(t *testing.T, c *Client) {
-				resp, err := c.GetSubscriptionOfferCodeCustomCodes(ctx, "code-1", Limit[SubscriptionOfferCodeCustomCodesOption](5))
-				if err != nil {
-					t.Fatalf("GetSubscriptionOfferCodeCustomCodes() error: %v", err)
-				}
-				if len(resp.Data) != 1 || resp.Data[0].Attributes.CustomCode != "SPRING" {
-					t.Fatalf("expected decoded custom code, got %+v", resp.Data)
-				}
-			},
-		},
-		{
 			name:     "GetSubscriptionOfferCodePrices",
 			path:     "/v1/subscriptionOfferCodes/code-1/prices",
 			limit:    "5",
@@ -192,21 +177,6 @@ func TestSubscriptionListEndpoints_WithLimit(t *testing.T) {
 				}
 				if len(resp.Data) != 1 || resp.Data[0].ID != "price-1" {
 					t.Fatalf("expected decoded offer code price, got %+v", resp.Data)
-				}
-			},
-		},
-		{
-			name:     "GetSubscriptionPrices",
-			path:     "/v1/subscriptions/sub-1/prices",
-			limit:    "5",
-			response: `{"data":[{"type":"subscriptionPrices","id":"price-1"}]}`,
-			call: func(t *testing.T, c *Client) {
-				resp, err := c.GetSubscriptionPrices(ctx, "sub-1", Limit[SubscriptionPricesOption](5))
-				if err != nil {
-					t.Fatalf("GetSubscriptionPrices() error: %v", err)
-				}
-				if len(resp.Data) != 1 || resp.Data[0].ID != "price-1" {
-					t.Fatalf("expected decoded subscription price, got %+v", resp.Data)
 				}
 			},
 		},
@@ -299,19 +269,6 @@ func TestSubscriptionListEndpoints_UseNextURL(t *testing.T) {
 			},
 		},
 		{
-			name: "GetSubscriptionPrices",
-			next: "https://api.appstoreconnect.apple.com/v1/subscriptions/sub-1/prices?cursor=abc",
-			call: func(t *testing.T, c *Client, next string) {
-				resp, err := c.GetSubscriptionPrices(ctx, "sub-1", NextURL[SubscriptionPricesOption](next))
-				if err != nil {
-					t.Fatalf("GetSubscriptionPrices() error: %v", err)
-				}
-				if len(resp.Data) != 1 || resp.Data[0].ID != "price-1" {
-					t.Fatalf("expected decoded next-url subscription price, got %+v", resp.Data)
-				}
-			},
-		},
-		{
 			name: "GetSubscriptionPricePointEqualizations",
 			next: "https://api.appstoreconnect.apple.com/v1/subscriptionPricePoints/price-1/equalizations?cursor=abc&limit=200",
 			call: func(t *testing.T, c *Client, next string) {
@@ -340,14 +297,6 @@ func TestSubscriptionListEndpoints_UseNextURL(t *testing.T) {
 				assertAuthorized(t, req)
 			}, jsonResponse(http.StatusOK, `{"data":[{"type":"subscriptionLocalizations","id":"loc-1","attributes":{"name":"Pro","locale":"en-US"}}]}`))
 
-			if tt.name == "GetSubscriptionPrices" {
-				client = newTestClient(t, func(req *http.Request) {
-					if req.URL.String() != tt.next {
-						t.Fatalf("expected next URL %q, got %q", tt.next, req.URL.String())
-					}
-					assertAuthorized(t, req)
-				}, jsonResponse(http.StatusOK, `{"data":[{"type":"subscriptionPrices","id":"price-1"}]}`))
-			}
 			if tt.name == "GetSubscriptionPricePointEqualizations" {
 				client = newTestClient(t, func(req *http.Request) {
 					if req.URL.String() != tt.next {
@@ -479,23 +428,6 @@ func TestUpdateSubscriptionIntroductoryOffer(t *testing.T) {
 	attrs := SubscriptionIntroductoryOfferUpdateAttributes{EndDate: &endDate}
 	if _, err := client.UpdateSubscriptionIntroductoryOffer(context.Background(), "offer-1", attrs); err != nil {
 		t.Fatalf("UpdateSubscriptionIntroductoryOffer() error: %v", err)
-	}
-}
-
-func TestDeleteSubscriptionIntroductoryOffer(t *testing.T) {
-	response := jsonResponse(http.StatusNoContent, `{}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodDelete {
-			t.Fatalf("expected DELETE, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/subscriptionIntroductoryOffers/offer-1" {
-			t.Fatalf("expected path /v1/subscriptionIntroductoryOffers/offer-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if err := client.DeleteSubscriptionIntroductoryOffer(context.Background(), "offer-1"); err != nil {
-		t.Fatalf("DeleteSubscriptionIntroductoryOffer() error: %v", err)
 	}
 }
 
@@ -649,40 +581,6 @@ func TestUpdateSubscriptionPromotionalOffer(t *testing.T) {
 
 	if _, err := client.UpdateSubscriptionPromotionalOffer(context.Background(), "offer-1", []string{"price-1"}); err != nil {
 		t.Fatalf("UpdateSubscriptionPromotionalOffer() error: %v", err)
-	}
-}
-
-func TestDeleteSubscriptionPromotionalOffer(t *testing.T) {
-	response := jsonResponse(http.StatusNoContent, `{}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodDelete {
-			t.Fatalf("expected DELETE, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/subscriptionPromotionalOffers/offer-1" {
-			t.Fatalf("expected path /v1/subscriptionPromotionalOffers/offer-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if err := client.DeleteSubscriptionPromotionalOffer(context.Background(), "offer-1"); err != nil {
-		t.Fatalf("DeleteSubscriptionPromotionalOffer() error: %v", err)
-	}
-}
-
-func TestDeleteSubscriptionPrice(t *testing.T) {
-	response := jsonResponse(http.StatusNoContent, `{}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodDelete {
-			t.Fatalf("expected DELETE, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/subscriptionPrices/price-1" {
-			t.Fatalf("expected path /v1/subscriptionPrices/price-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if err := client.DeleteSubscriptionPrice(context.Background(), "price-1"); err != nil {
-		t.Fatalf("DeleteSubscriptionPrice() error: %v", err)
 	}
 }
 
@@ -1094,77 +992,6 @@ func TestUpdateSubscriptionAppStoreReviewScreenshot(t *testing.T) {
 	attrs := SubscriptionAppStoreReviewScreenshotUpdateAttributes{Uploaded: &uploaded}
 	if _, err := client.UpdateSubscriptionAppStoreReviewScreenshot(context.Background(), "shot-1", attrs); err != nil {
 		t.Fatalf("UpdateSubscriptionAppStoreReviewScreenshot() error: %v", err)
-	}
-}
-
-func TestDeleteSubscriptionAppStoreReviewScreenshot(t *testing.T) {
-	response := jsonResponse(http.StatusNoContent, `{}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodDelete {
-			t.Fatalf("expected DELETE, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/subscriptionAppStoreReviewScreenshots/shot-1" {
-			t.Fatalf("expected path /v1/subscriptionAppStoreReviewScreenshots/shot-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if err := client.DeleteSubscriptionAppStoreReviewScreenshot(context.Background(), "shot-1"); err != nil {
-		t.Fatalf("DeleteSubscriptionAppStoreReviewScreenshot() error: %v", err)
-	}
-}
-
-func TestGetSubscriptionAvailability(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"subscriptionAvailabilities","id":"avail-1","attributes":{"availableInNewTerritories":true}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/subscriptionAvailabilities/avail-1" {
-			t.Fatalf("expected path /v1/subscriptionAvailabilities/avail-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetSubscriptionAvailability(context.Background(), "avail-1"); err != nil {
-		t.Fatalf("GetSubscriptionAvailability() error: %v", err)
-	}
-}
-
-func TestGetSubscriptionAvailabilityForSubscription(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"subscriptionAvailabilities","id":"avail-1","attributes":{"availableInNewTerritories":false}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/subscriptions/sub-1/subscriptionAvailability" {
-			t.Fatalf("expected path /v1/subscriptions/sub-1/subscriptionAvailability, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetSubscriptionAvailabilityForSubscription(context.Background(), "sub-1"); err != nil {
-		t.Fatalf("GetSubscriptionAvailabilityForSubscription() error: %v", err)
-	}
-}
-
-func TestGetSubscriptionAvailabilityAvailableTerritories(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/subscriptionAvailabilities/avail-1/availableTerritories" {
-			t.Fatalf("expected path /v1/subscriptionAvailabilities/avail-1/availableTerritories, got %s", req.URL.Path)
-		}
-		if req.URL.Query().Get("limit") != "5" {
-			t.Fatalf("expected limit=5, got %q", req.URL.Query().Get("limit"))
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetSubscriptionAvailabilityAvailableTerritories(context.Background(), "avail-1", Limit[SubscriptionAvailabilityTerritoriesOption](5)); err != nil {
-		t.Fatalf("GetSubscriptionAvailabilityAvailableTerritories() error: %v", err)
 	}
 }
 

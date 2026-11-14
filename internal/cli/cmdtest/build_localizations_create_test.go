@@ -10,8 +10,6 @@ import (
 )
 
 func TestBuildLocalizationsCreateWarnsForIncompleteCreate(t *testing.T) {
-	setupAuth(t)
-
 	var seenPayload struct {
 		Data struct {
 			Attributes struct {
@@ -29,18 +27,17 @@ func TestBuildLocalizationsCreateWarnsForIncompleteCreate(t *testing.T) {
 	}
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/builds/build-1/appStoreVersion"),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-1"}}`))
 	reg.Register(asctest.POST("/v1/appStoreVersionLocalizations").JSONBody(`{"data":{"type":"appStoreVersionLocalizations","attributes":{"locale":"en-US","whatsNew":"Bug fixes"},"relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"version-1"}}}}}`),
 		asctest.JSON(http.StatusCreated, `{"data":{"type":"appStoreVersionLocalizations","id":"loc-build-1","attributes":{"locale":"en-US","whatsNew":"Bug fixes"}}}`))
 
-	stdout, stderr, err := runCommand(t, []string{
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg),
 		"build-localizations", "create",
 		"--build-id", "build-1",
 		"--locale", "en-US",
 		"--whats-new", "Bug fixes",
-	})
+	)
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}

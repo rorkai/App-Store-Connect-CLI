@@ -401,7 +401,7 @@ func TestSelfLinkCoverageRejectsWrongType(t *testing.T) {
 		{args: []string{"video-previews", "download"}, flag: "id", wantType: "appPreviews"},
 		{args: []string{"video-previews", "delete"}, flag: "id", wantType: "appPreviews"},
 		{args: []string{"video-previews", "set-poster-frame"}, flag: "id", wantType: "appPreviews"},
-		{args: []string{"build-localizations", "view"}, flag: "id", wantType: "appStoreVersionLocalizations"},
+		{args: []string{"build-localizations", "view"}, flag: "id", wantType: "appStoreVersionLocalizations", deps: true},
 		{args: []string{"diff", "localizations"}, flag: "from-version", wantType: "appStoreVersions"},
 		{args: []string{"diff", "localizations"}, flag: "to-version", wantType: "appStoreVersions"},
 		{args: []string{"app-setup", "localizations", "upload"}, flag: "version", wantType: "appStoreVersions"},

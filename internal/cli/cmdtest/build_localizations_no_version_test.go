@@ -16,16 +16,11 @@ const buildWithoutAppStoreVersionBody = `{"data":null,"links":{"self":"https://a
 
 func runBuildLocalizations(t *testing.T, args []string, register func(reg *asctest.Registry)) (int, string, string, []string) {
 	t.Helper()
-	setupAuth(t)
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	register(reg)
 
-	var exitCode int
-	stdout, stderr := captureOutput(t, func() {
-		exitCode = rootcmd.Run(append(append([]string{"build-localizations"}, args...), "--output", "json"), "1.2.3")
-	})
+	stdout, stderr, exitCode := runWithDeps(t, stubClient(t, reg), append(append([]string{"build-localizations"}, args...), "--output", "json")...)
 
 	var requests []string
 	for _, req := range reg.Requests() {

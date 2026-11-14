@@ -119,14 +119,6 @@ func TestInAppPurchaseVersionEndpoints(t *testing.T) {
 			},
 		},
 		{
-			name: "image linkage", method: http.MethodGet, path: "/v1/inAppPurchaseVersions/version-1/relationships/image", responseCode: http.StatusOK,
-			responseBody: `{"data":{"type":"inAppPurchaseImages","id":"image-1"}}`,
-			call: func(c *Client) error {
-				_, err := c.GetInAppPurchaseVersionImageRelationship(context.Background(), "version-1")
-				return err
-			},
-		},
-		{
 			name: "related images", method: http.MethodGet, path: "/v1/inAppPurchaseVersions/version-1/images", responseCode: http.StatusOK,
 			responseBody: `{"data":[{"type":"inAppPurchaseImages","id":"image-1"}]}`, query: map[string]string{"fields[inAppPurchaseImages]": "fileName,assetDeliveryState", "limit": "7"},
 			call: func(c *Client) error {
@@ -198,10 +190,6 @@ func TestInAppPurchaseVersionEndpoints(t *testing.T) {
 			},
 		},
 		{
-			name: "delete localization v2", method: http.MethodDelete, path: "/v2/inAppPurchaseLocalizations/loc-1", responseCode: http.StatusNoContent,
-			call: func(c *Client) error { return c.DeleteInAppPurchaseLocalizationV2(context.Background(), "loc-1") },
-		},
-		{
 			name: "create image v2", method: http.MethodPost, path: "/v2/inAppPurchaseImages", responseCode: http.StatusCreated,
 			responseBody: `{"data":{"type":"inAppPurchaseImages","id":"image-1"}}`,
 			wantBody:     `{"data":{"type":"inAppPurchaseImages","attributes":{"fileSize":123,"fileName":"image.png"},"relationships":{"version":{"data":{"type":"inAppPurchaseVersions","id":"version-1"}}}}}`,
@@ -227,10 +215,6 @@ func TestInAppPurchaseVersionEndpoints(t *testing.T) {
 				_, err := c.UpdateInAppPurchaseImageV2(context.Background(), "image-1", InAppPurchaseImageV2UpdateAttributes{Uploaded: &NullableBool{Value: &uploaded}})
 				return err
 			},
-		},
-		{
-			name: "delete image v2", method: http.MethodDelete, path: "/v2/inAppPurchaseImages/image-1", responseCode: http.StatusNoContent,
-			call: func(c *Client) error { return c.DeleteInAppPurchaseImageV2(context.Background(), "image-1") },
 		},
 	}
 

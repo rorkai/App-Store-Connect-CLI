@@ -97,6 +97,7 @@ func TestSelfLinkRemainingFlagsSendExtractedID(t *testing.T) {
 			bodies: map[string]string{
 				"/v1/androidToIosAppMappingDetails/mapping-1": `{"data":{"type":"androidToIosAppMappingDetails","id":"mapping-1","attributes":{"androidPackageName":"com.example.android"}}}`,
 			},
+			deps: true,
 		},
 		{
 			name:     "alternative-distribution domains view",
@@ -428,6 +429,7 @@ func TestSelfLinkRemainingFlagsRejectWrongType(t *testing.T) {
 			flag:    "mapping-id",
 			value:   selfLinkTestBase + "/v1/apps/123",
 			wantErr: "expected a self-link of type androidToIosAppMappingDetails, got apps",
+			deps:    true,
 		},
 	}
 
