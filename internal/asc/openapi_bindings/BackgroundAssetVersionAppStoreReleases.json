@@ -1,0 +1,10 @@
+{
+  "tag": "BackgroundAssetVersionAppStoreReleases",
+  "file": "background_asset_version_app_store_releases_gen.go",
+  "types": [
+    "BackgroundAssetVersionAppStoreReleaseResponse"
+  ],
+  "operations": [
+    {"operation":"backgroundAssetVersionAppStoreReleases_getInstance","name":"GetBackgroundAssetVersionAppStoreRelease","params":["releaseID"],"check":"require","messages":["background asset version App Store release ID is required"]}
+  ]
+}

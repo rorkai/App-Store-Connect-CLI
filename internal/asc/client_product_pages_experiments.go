@@ -246,21 +246,6 @@ func (c *Client) GetAppStoreVersionExperiments(ctx context.Context, versionID st
 	})
 }
 
-// GetAppStoreVersionExperimentsV2 retrieves experiments for an app (v2).
-func (c *Client) GetAppStoreVersionExperimentsV2(ctx context.Context, appID string, opts ...AppStoreVersionExperimentsV2Option) (*AppStoreVersionExperimentsV2Response, error) {
-	query := applyOptions(opts)
-	appID = strings.TrimSpace(appID)
-	if query.nextURL == "" && appID == "" {
-		return nil, fmt.Errorf("appID is required")
-	}
-	return getJSON[AppStoreVersionExperimentsV2Response](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/apps/%s/appStoreVersionExperimentsV2", appID),
-		Query:       buildAppStoreVersionExperimentsV2Query(query),
-		Next:        query.nextURL,
-		NextContext: "appStoreVersionExperimentsV2",
-	})
-}
-
 // GetAppStoreVersionExperiment retrieves an experiment by ID (v1).
 func (c *Client) GetAppStoreVersionExperiment(ctx context.Context, experimentID string) (*AppStoreVersionExperimentResponse, error) {
 	experimentID = strings.TrimSpace(experimentID)
