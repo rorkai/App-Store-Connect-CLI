@@ -402,6 +402,7 @@ func (r *runner) executeSteps(ctx context.Context, workflowName string, steps []
 				sr.Status = "resumed"
 				sr.FailureReason = persisted.FailureReason
 				sr.Error = persisted.Error
+				sr.Attempts = cloneAttemptResults(persisted.Attempts)
 				sr.ContinuedOnError = true
 				r.result.Steps = append(r.result.Steps, sr)
 				continue

@@ -518,6 +518,9 @@ func TestRun_ToleratedTimeoutStaysRecoverableAndIsNotRepeatedOnResume(t *testing
 	if notify := resumeResult.Steps[1]; notify.Status != "resumed" || !notify.ContinuedOnError {
 		t.Fatalf("expected the tolerated step to be resumed as tolerated, got %+v", notify)
 	}
+	if got, want := len(resumeResult.Steps[1].Attempts), len(result.Steps[1].Attempts); want == 0 || got != want {
+		t.Fatalf("resume kept %d of the tolerated step's %d attempts", got, want)
+	}
 	if got := readFileOrEmpty(t, counterPath); got != "x" {
 		t.Fatalf("resume repeated the tolerated step: %q", got)
 	}
