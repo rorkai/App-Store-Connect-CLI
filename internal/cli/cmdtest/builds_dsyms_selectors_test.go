@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -22,16 +23,12 @@ func TestBuildsDSYMExistingFileMalformedSignedURLIsRedacted(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(outputDir, "com.example.app-42.dSYM.zip"), []byte("existing"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	restoreTransport(t)
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.URL.Path == "/v1/builds/build-1" && req.URL.RawQuery == "" {
-			return dsymJSON(`{"data":{"type":"builds","id":"build-1","attributes":{"version":"42","processingState":"VALID"}}}`), nil
-		}
-		if req.URL.Path != "/v1/builds/build-1" || req.URL.Query().Get("include") != "buildBundles" {
-			t.Fatalf("unexpected request: %s", req.URL.Path)
-		}
-		return dsymJSON(`{"data":{"type":"builds","id":"build-1","attributes":{"version":"42"}},"included":[{"type":"buildBundles","id":"bundle","attributes":{"bundleId":"com.example.app","dSYMUrl":"https://downloads.example.com/bad\u007f.zip?X-Amz-Signature=secret-sentinel"}}]}`), nil
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/builds/build-1"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"version":"42","processingState":"VALID"}}}`))
+	reg.Register(asctest.GET("/v1/builds/build-1", "include=buildBundles"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"version":"42"}},"included":[{"type":"buildBundles","id":"bundle","attributes":{"bundleId":"com.example.app","dSYMUrl":"https://downloads.example.com/bad\u007f.zip?X-Amz-Signature=secret-sentinel"}}]}`))
 	stdout, stderr, err := runDSYMErr(t, "builds", "dsyms", "--build-id", "build-1", "--output-dir", outputDir)
 	if err == nil {
 		t.Fatal("expected malformed URL error")
@@ -203,18 +200,15 @@ func TestBuildsDSYMVersionLiveDownloadsAttachedBuild(t *testing.T) {
 func TestBuildsDSYMVersionLiveSkipsVersionsThatAreNoLongerLive(t *testing.T) {
 	setupAuth(t)
 	outputDir := filepath.Join(t.TempDir(), "dsyms")
-	restoreTransport(t)
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.URL.Path != "/v1/apps/123456789/appStoreVersions" {
-			t.Fatalf("unexpected request: %s %s?%s", req.Method, req.URL.Path, req.URL.RawQuery)
-		}
-		// appVersionState is authoritative when present: a replaced version
-		// whose deprecated appStoreState still reads READY_FOR_SALE is not live.
-		return dsymJSON(`{"data":[
+	// appVersionState is authoritative when present: a replaced version
+	// whose deprecated appStoreState still reads READY_FOR_SALE is not live.
+	replaced := asctest.JSON(http.StatusOK, `{"data":[
 			{"type":"appStoreVersions","id":"ver-replaced","attributes":{"platform":"IOS","versionString":"1.0","appStoreState":"READY_FOR_SALE","appVersionState":"REPLACED_WITH_NEW_VERSION","createdDate":"2024-01-01T00:00:00Z"}}
-		],"links":{}}`), nil
-	})
+		],"links":{}}`)
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "filter[appStoreState]=READY_FOR_SALE,PREORDER_READY_FOR_SALE", "limit=200"), replaced)
+	reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "filter[appVersionState]=READY_FOR_DISTRIBUTION", "limit=200"), replaced)
 
 	_, _, err := runDSYMErr(t, "builds", "dsyms", "--app", "123456789", "--version", "live", "--output", "json", "--output-dir", outputDir)
 	if err == nil || !strings.Contains(err.Error(), "no live App Store version") {

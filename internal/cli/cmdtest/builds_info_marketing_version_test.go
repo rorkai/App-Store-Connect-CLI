@@ -1,13 +1,13 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
-	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestBuildsInfoTableShowsMarketingVersionAndPlatform(t *testing.T) {
@@ -15,71 +15,29 @@ func TestBuildsInfoTableShowsMarketingVersionAndPlatform(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		switch requestCount {
-		case 1:
-			if req.Method != http.MethodGet {
-				t.Fatalf("expected GET, got %s", req.Method)
-			}
-			if req.URL.Path != "/v1/builds/build-1" {
-				t.Fatalf("expected build request path /v1/builds/build-1, got %s", req.URL.Path)
-			}
-			body := `{
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/builds/build-1"), asctest.JSON(http.StatusOK, `{
 				"data":{
 					"type":"builds",
 					"id":"build-1",
 					"attributes":{"version":"9","uploadedDate":"2026-03-13T00:00:00Z","processingState":"VALID","expired":false}
 				}
-			}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 2:
-			if req.Method != http.MethodGet {
-				t.Fatalf("expected GET, got %s", req.Method)
-			}
-			if req.URL.Path != "/v1/builds/build-1/preReleaseVersion" {
-				t.Fatalf("expected pre-release-version path, got %s", req.URL.Path)
-			}
-			body := `{
+			}`))
+	reg.Register(asctest.GET("/v1/builds/build-1/preReleaseVersion"), asctest.JSON(http.StatusOK, `{
 				"data":{
 					"type":"preReleaseVersions",
 					"id":"prv-1",
 					"attributes":{"version":"1.2.3","platform":"TV_OS"}
 				}
-			}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected request count %d", requestCount)
-			return nil, nil
-		}
-	})
+			}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
+	stdout, stderr, err := runCommand(t, []string{"builds", "info", "--build-id", "build-1", "--output", "table"})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"builds", "info", "--build-id", "build-1", "--output", "table"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
+	assertBuildsRequestOrder(t, reg, "GET /v1/builds/build-1", "GET /v1/builds/build-1/preReleaseVersion")
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
@@ -93,17 +51,9 @@ func TestBuildsInfoJSONPreservesExistingRelationships(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		switch requestCount {
-		case 1:
-			body := `{
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/builds/build-1"), asctest.JSON(http.StatusOK, `{
 				"data":{
 					"type":"builds",
 					"id":"build-1",
@@ -112,43 +62,21 @@ func TestBuildsInfoJSONPreservesExistingRelationships(t *testing.T) {
 						"app":{"links":{"related":"https://example.com/apps/app-1"}}
 					}
 				}
-			}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 2:
-			body := `{
+			}`))
+	reg.Register(asctest.GET("/v1/builds/build-1/preReleaseVersion"), asctest.JSON(http.StatusOK, `{
 				"data":{
 					"type":"preReleaseVersions",
 					"id":"prv-1",
 					"attributes":{"version":"1.2.3","platform":"TV_OS"}
 				}
-			}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected request count %d", requestCount)
-			return nil, nil
-		}
-	})
+			}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
+	stdout, stderr, err := runCommand(t, []string{"builds", "info", "--build-id", "build-1", "--output", "json"})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"builds", "info", "--build-id", "build-1", "--output", "json"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
+	assertBuildsRequestOrder(t, reg, "GET /v1/builds/build-1", "GET /v1/builds/build-1/preReleaseVersion")
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
@@ -179,59 +107,16 @@ func TestBuildsInfoBuildNumberRequiresUniqueMatch(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/builds" {
-			t.Fatalf("expected builds list path, got %s", req.URL.Path)
-		}
-
-		query := req.URL.Query()
-		if query.Get("filter[app]") != "123456789" {
-			t.Fatalf("expected filter[app]=123456789, got %q", query.Get("filter[app]"))
-		}
-		if query.Get("filter[version]") != "42" {
-			t.Fatalf("expected filter[version]=42, got %q", query.Get("filter[version]"))
-		}
-		if query.Get("filter[preReleaseVersion.platform]") != "IOS" {
-			t.Fatalf("expected IOS platform filter, got %q", query.Get("filter[preReleaseVersion.platform]"))
-		}
-		if query.Get("sort") != "-uploadedDate" {
-			t.Fatalf("expected sort=-uploadedDate, got %q", query.Get("sort"))
-		}
-		if query.Get("limit") != "200" {
-			t.Fatalf("expected limit=200 for uniqueness check, got %q", query.Get("limit"))
-		}
-
-		body := `{
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(buildsByNumberIOS42, asctest.JSON(http.StatusOK, `{
 			"data":[
 				{"type":"builds","id":"build-ios","attributes":{"version":"42","uploadedDate":"2026-03-13T00:00:00Z","processingState":"VALID","expired":false}},
 				{"type":"builds","id":"build-macos","attributes":{"version":"42","uploadedDate":"2026-03-12T00:00:00Z","processingState":"VALID","expired":false}}
 			]
-		}`
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
+		}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"builds", "info", "--app", "123456789", "--build-number", "42", "--platform", "IOS", "--output", "json"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	stdout, stderr, runErr := runCommand(t, []string{"builds", "info", "--app", "123456789", "--build-number", "42", "--platform", "IOS", "--output", "json"})
 
 	if runErr == nil {
 		t.Fatal("expected unique build-number lookup error")

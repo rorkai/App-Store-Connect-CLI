@@ -2,13 +2,13 @@ package cmdtest
 
 import (
 	"encoding/json"
-	"io"
 	"net/http"
 	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestRun_BuildsInfoInclude(t *testing.T) {
@@ -19,19 +19,27 @@ func TestRun_BuildsInfoInclude(t *testing.T) {
 	tests := []struct {
 		name         string
 		args         []string
+		register     func(reg *asctest.Registry)
 		wantCode     int
 		wantRequests []string
 		wantStderr   string
 	}{
 		{
-			name:         "build id",
-			args:         []string{"--build-id", "build-1", "--include", "buildBetaDetail,betaGroups"},
+			name: "build id",
+			args: []string{"--build-id", "build-1", "--include", "buildBetaDetail,betaGroups"},
+			register: func(reg *asctest.Registry) {
+				reg.Register(asctest.GET("/v1/builds/build-1", "include=preReleaseVersion,buildBetaDetail,betaGroups"), asctest.JSON(http.StatusOK, detailBody))
+			},
 			wantCode:     cmd.ExitSuccess,
 			wantRequests: []string{"/v1/builds/build-1 include=preReleaseVersion,buildBetaDetail,betaGroups"},
 		},
 		{
-			name:     "app build number",
-			args:     []string{"--app", "123456789", "--build-number", "42", "--platform", "IOS", "--include", "buildBetaDetail"},
+			name: "app build number",
+			args: []string{"--app", "123456789", "--build-number", "42", "--platform", "IOS", "--include", "buildBetaDetail"},
+			register: func(reg *asctest.Registry) {
+				reg.Register(buildsByNumberIOS42, asctest.JSON(http.StatusOK, listBody))
+				reg.Register(asctest.GET("/v1/builds/build-1", "include=preReleaseVersion,buildBetaDetail"), asctest.JSON(http.StatusOK, detailBody))
+			},
 			wantCode: cmd.ExitSuccess,
 			wantRequests: []string{
 				"/v1/builds",
@@ -41,6 +49,7 @@ func TestRun_BuildsInfoInclude(t *testing.T) {
 		{
 			name:       "unknown value",
 			args:       []string{"--build-id", "build-1", "--include", "buildBetaDetail,bogus"},
+			register:   func(*asctest.Registry) {},
 			wantCode:   cmd.ExitUsage,
 			wantStderr: `unknown value "bogus"`,
 		},
@@ -48,34 +57,22 @@ func TestRun_BuildsInfoInclude(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			var requests []string
-			transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				if req.Method != http.MethodGet {
-					t.Fatalf("expected GET, got %s %s", req.Method, req.URL.Path)
-				}
-				body := emptyCollectionBody
-				switch req.URL.Path {
-				case "/v1/builds":
-					requests = append(requests, req.URL.Path)
-					body = listBody
-				case "/v1/builds/build-1":
-					requests = append(requests, req.URL.Path+" include="+req.URL.Query().Get("include"))
-					body = detailBody
-				case "/v1/preReleaseVersions":
-				default:
-					t.Fatalf("unexpected request %s", req.URL.String())
-				}
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body:       io.NopCloser(strings.NewReader(body)),
-					Header:     http.Header{"Content-Type": []string{"application/json"}},
-				}, nil
-			})
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			test.register(reg)
 
-			code, stdout, stderr := runBuildsInfoSelector(t, transport, append(test.args, "--output", "json")...)
+			code, stdout, stderr := runBuildsInfoSelector(t, append(test.args, "--output", "json")...)
 
 			if code != test.wantCode {
 				t.Fatalf("exit code = %d, want %d (stderr %q)", code, test.wantCode, stderr)
+			}
+			var requests []string
+			for _, req := range reg.Requests() {
+				request := req.URL.Path
+				if req.URL.Path == "/v1/builds/build-1" {
+					request += " include=" + req.URL.Query().Get("include")
+				}
+				requests = append(requests, request)
 			}
 			if !reflect.DeepEqual(requests, test.wantRequests) {
 				t.Fatalf("requests = %q, want %q", requests, test.wantRequests)
