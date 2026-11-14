@@ -111,19 +111,6 @@ type GameCenterActivityVersionCreateData struct {
 // GameCenterActivityVersionsResponse is the response from version list endpoints.
 type GameCenterActivityVersionsResponse = Response[GameCenterActivityVersionAttributes]
 
-// GCActivityVersionsOption is a functional option for GetGameCenterActivityVersions.
-type GCActivityVersionsOption func(*gcActivityVersionsQuery)
-
-type gcActivityVersionsQuery struct {
-	listQuery
-}
-
-func buildGCActivityVersionsQuery(query *gcActivityVersionsQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
 // GameCenterActivityLocalizationAttributes represents an activity localization.
 type GameCenterActivityLocalizationAttributes struct {
 	Locale      string `json:"locale"`
@@ -157,19 +144,6 @@ type GameCenterActivityLocalizationsResponse = Response[GameCenterActivityLocali
 type GameCenterActivityLocalizationDeleteResult struct {
 	ID      string `json:"id"`
 	Deleted bool   `json:"deleted"`
-}
-
-// GCActivityLocalizationsOption is a functional option for GetGameCenterActivityLocalizations.
-type GCActivityLocalizationsOption func(*gcActivityLocalizationsQuery)
-
-type gcActivityLocalizationsQuery struct {
-	listQuery
-}
-
-func buildGCActivityLocalizationsQuery(query *gcActivityLocalizationsQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
 }
 
 // GameCenterActivityImageAttributes represents an activity image resource.
@@ -249,17 +223,4 @@ type GameCenterActivityVersionReleasesResponse = Response[GameCenterActivityVers
 type GameCenterActivityVersionReleaseDeleteResult struct {
 	ID      string `json:"id"`
 	Deleted bool   `json:"deleted"`
-}
-
-// GCActivityVersionReleasesOption is a functional option for GetGameCenterActivityVersionReleases.
-type GCActivityVersionReleasesOption func(*gcActivityVersionReleasesQuery)
-
-type gcActivityVersionReleasesQuery struct {
-	listQuery
-}
-
-func buildGCActivityVersionReleasesQuery(query *gcActivityVersionReleasesQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
 }

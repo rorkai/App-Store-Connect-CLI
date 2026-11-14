@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -64,4 +65,17 @@ func (c *Client) GetEndUserLicenseAgreementTerritories(ctx context.Context, id s
 		Next:        query.nextURL,
 		NextContext: "endUserLicenseAgreementTerritories",
 	})
+}
+
+// EndUserLicenseAgreementTerritoriesOption sets the query of GET /v1/endUserLicenseAgreements/{id}/territories (endUserLicenseAgreements_territories_getToManyRelated).
+type EndUserLicenseAgreementTerritoriesOption func(*endUserLicenseAgreementTerritoriesQuery)
+
+type endUserLicenseAgreementTerritoriesQuery struct {
+	listQuery
+}
+
+func buildEndUserLicenseAgreementTerritoriesQuery(query *endUserLicenseAgreementTerritoriesQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
 }

@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -137,4 +138,43 @@ func (c *Client) UpdateGameCenterMatchmakingRuleSet(ctx context.Context, ruleSet
 		Path:    fmt.Sprintf("/v1/gameCenterMatchmakingRuleSets/%s", strings.TrimSpace(ruleSetID)),
 		Payload: payload,
 	})
+}
+
+// GCMatchmakingRuleSetsOption sets the query of GET /v1/gameCenterMatchmakingRuleSets (gameCenterMatchmakingRuleSets_getCollection).
+type GCMatchmakingRuleSetsOption func(*gcMatchmakingRuleSetsQuery)
+
+type gcMatchmakingRuleSetsQuery struct {
+	listQuery
+}
+
+func buildGCMatchmakingRuleSetsQuery(query *gcMatchmakingRuleSetsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+// GCMatchmakingRulesOption sets the query of GET /v1/gameCenterMatchmakingRuleSets/{id}/rules (gameCenterMatchmakingRuleSets_rules_getToManyRelated).
+type GCMatchmakingRulesOption func(*gcMatchmakingRulesQuery)
+
+type gcMatchmakingRulesQuery struct {
+	listQuery
+}
+
+func buildGCMatchmakingRulesQuery(query *gcMatchmakingRulesQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+// GCMatchmakingTeamsOption sets the query of GET /v1/gameCenterMatchmakingRuleSets/{id}/teams (gameCenterMatchmakingRuleSets_teams_getToManyRelated).
+type GCMatchmakingTeamsOption func(*gcMatchmakingTeamsQuery)
+
+type gcMatchmakingTeamsQuery struct {
+	listQuery
+}
+
+func buildGCMatchmakingTeamsQuery(query *gcMatchmakingTeamsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
 }

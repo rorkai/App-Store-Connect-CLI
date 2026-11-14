@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -130,4 +131,30 @@ func (c *Client) GetBetaGroupPublicLinkUsages(ctx context.Context, groupID strin
 	return getJSON[BetaGroupPublicLinkUsagesResponse](ctx, c, readRequest{
 		Path: fmt.Sprintf("/v1/betaGroups/%s/metrics/publicLinkUsages", groupID),
 	})
+}
+
+// BetaGroupTestersOption sets the query of GET /v1/betaGroups/{id}/betaTesters (betaGroups_betaTesters_getToManyRelated).
+type BetaGroupTestersOption func(*betaGroupTestersQuery)
+
+type betaGroupTestersQuery struct {
+	listQuery
+}
+
+func buildBetaGroupTestersQuery(query *betaGroupTestersQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+// BetaGroupBuildsOption sets the query of GET /v1/betaGroups/{id}/builds (betaGroups_builds_getToManyRelated).
+type BetaGroupBuildsOption func(*betaGroupBuildsQuery)
+
+type betaGroupBuildsQuery struct {
+	listQuery
+}
+
+func buildBetaGroupBuildsQuery(query *betaGroupBuildsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
 }

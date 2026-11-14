@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -69,4 +70,35 @@ func (c *Client) GetGameCenterLeaderboardSetMemberLocalizations(ctx context.Cont
 		Next:        query.nextURL,
 		NextContext: "game-center-leaderboard-set-member-localizations",
 	})
+}
+
+// GCLeaderboardSetMemberLocalizationsOption sets the query of GET /v1/gameCenterLeaderboardSetMemberLocalizations (gameCenterLeaderboardSetMemberLocalizations_getCollection).
+type GCLeaderboardSetMemberLocalizationsOption func(*gcLeaderboardSetMemberLocalizationsQuery)
+
+type gcLeaderboardSetMemberLocalizationsQuery struct {
+	listQuery
+	leaderboardSetIDs []string
+	leaderboardIDs    []string
+}
+
+// WithGCLeaderboardSetMemberLocalizationsLeaderboardSetIDs sets filter[gameCenterLeaderboardSet].
+func WithGCLeaderboardSetMemberLocalizationsLeaderboardSetIDs(ids []string) GCLeaderboardSetMemberLocalizationsOption {
+	return func(q *gcLeaderboardSetMemberLocalizationsQuery) {
+		q.leaderboardSetIDs = normalizeList(ids)
+	}
+}
+
+// WithGCLeaderboardSetMemberLocalizationsLeaderboardIDs sets filter[gameCenterLeaderboard].
+func WithGCLeaderboardSetMemberLocalizationsLeaderboardIDs(ids []string) GCLeaderboardSetMemberLocalizationsOption {
+	return func(q *gcLeaderboardSetMemberLocalizationsQuery) {
+		q.leaderboardIDs = normalizeList(ids)
+	}
+}
+
+func buildGCLeaderboardSetMemberLocalizationsQuery(query *gcLeaderboardSetMemberLocalizationsQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[gameCenterLeaderboardSet]", query.leaderboardSetIDs)
+	addCSV(values, "filter[gameCenterLeaderboard]", query.leaderboardIDs)
+	addLimit(values, query.limit)
+	return values.Encode()
 }

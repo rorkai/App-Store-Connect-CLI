@@ -98,9 +98,6 @@ type IAPOption func(*inAppPurchasesQuery)
 // IAPGetOption is a functional option for GetInAppPurchaseV2.
 type IAPGetOption func(*inAppPurchaseGetQuery)
 
-// IAPLocalizationsOption is a functional option for GetInAppPurchaseLocalizations.
-type IAPLocalizationsOption func(*iapLocalizationsQuery)
-
 type inAppPurchasesQuery struct {
 	listQuery
 	includedFieldsQuery
@@ -121,10 +118,6 @@ type inAppPurchaseGetQuery struct {
 	include             []string
 	versionFields       []string
 	nestedVersionsLimit int
-}
-
-type iapLocalizationsQuery struct {
-	listQuery
 }
 
 // WithIAPProductIDs filters in-app purchases by product ID.
@@ -237,11 +230,5 @@ func buildInAppPurchaseGetQuery(query *inAppPurchaseGetQuery) string {
 		values.Set("limit[versions]", strconv.Itoa(query.nestedVersionsLimit))
 	}
 	query.includedFields.AddTo(values)
-	return values.Encode()
-}
-
-func buildIAPLocalizationsQuery(query *iapLocalizationsQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
 	return values.Encode()
 }

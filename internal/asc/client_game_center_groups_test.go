@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"net/url"
 	"testing"
 )
 
@@ -61,31 +60,5 @@ func TestUpdateGameCenterGroup(t *testing.T) {
 	name := "Updated"
 	if _, err := client.UpdateGameCenterGroup(context.Background(), "group-1", &name); err != nil {
 		t.Fatalf("UpdateGameCenterGroup() error: %v", err)
-	}
-}
-
-func TestGCGroupsOptions(t *testing.T) {
-	query := &gcGroupsQuery{}
-	Limit[GCGroupsOption](10)(query)
-	if query.limit != 10 {
-		t.Fatalf("expected limit 10, got %d", query.limit)
-	}
-	NextURL[GCGroupsOption]("next")(query)
-	if query.nextURL != "next" {
-		t.Fatalf("expected nextURL set, got %q", query.nextURL)
-	}
-	WithGCGroupsGameCenterDetailIDs([]string{" gc-1 ", "", "gc-2"})(query)
-	if len(query.gameCenterDetailIDs) != 2 {
-		t.Fatalf("expected 2 detail IDs, got %d", len(query.gameCenterDetailIDs))
-	}
-	values, err := url.ParseQuery(buildGCGroupsQuery(query))
-	if err != nil {
-		t.Fatalf("parse query: %v", err)
-	}
-	if values.Get("limit") != "10" {
-		t.Fatalf("expected limit=10, got %q", values.Get("limit"))
-	}
-	if values.Get("filter[gameCenterDetails]") != "gc-1,gc-2" {
-		t.Fatalf("expected filter[gameCenterDetails]=gc-1,gc-2, got %q", values.Get("filter[gameCenterDetails]"))
 	}
 }

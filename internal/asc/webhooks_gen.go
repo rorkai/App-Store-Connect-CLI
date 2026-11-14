@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -65,4 +66,35 @@ func (c *Client) GetWebhook(ctx context.Context, webhookID string) (*WebhookResp
 		Path:     fmt.Sprintf("/v1/webhooks/%s", webhookID),
 		ParseErr: "failed to parse webhook response",
 	})
+}
+
+// WebhookDeliveriesOption sets the query of GET /v1/webhooks/{id}/deliveries (webhooks_deliveries_getToManyRelated).
+type WebhookDeliveriesOption func(*webhookDeliveriesQuery)
+
+type webhookDeliveriesQuery struct {
+	listQuery
+	createdAfter  []string
+	createdBefore []string
+}
+
+// WithWebhookDeliveriesCreatedAfter sets filter[createdDateGreaterThanOrEqualTo].
+func WithWebhookDeliveriesCreatedAfter(values []string) WebhookDeliveriesOption {
+	return func(q *webhookDeliveriesQuery) {
+		q.createdAfter = normalizeList(values)
+	}
+}
+
+// WithWebhookDeliveriesCreatedBefore sets filter[createdDateLessThan].
+func WithWebhookDeliveriesCreatedBefore(values []string) WebhookDeliveriesOption {
+	return func(q *webhookDeliveriesQuery) {
+		q.createdBefore = normalizeList(values)
+	}
+}
+
+func buildWebhookDeliveriesQuery(query *webhookDeliveriesQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[createdDateGreaterThanOrEqualTo]", query.createdAfter)
+	addCSV(values, "filter[createdDateLessThan]", query.createdBefore)
+	addLimit(values, query.limit)
+	return values.Encode()
 }

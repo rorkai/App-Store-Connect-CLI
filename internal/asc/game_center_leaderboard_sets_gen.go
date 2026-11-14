@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -156,4 +157,17 @@ func (c *Client) UpdateGameCenterLeaderboardSet(ctx context.Context, setID strin
 		Path:    fmt.Sprintf("/v1/gameCenterLeaderboardSets/%s", strings.TrimSpace(setID)),
 		Payload: payload,
 	})
+}
+
+// GCLeaderboardSetVersionsOption sets the query of GET /v2/gameCenterLeaderboardSets/{id}/versions (gameCenterLeaderboardSetsV2_versions_getToManyRelated).
+type GCLeaderboardSetVersionsOption func(*gcLeaderboardSetVersionsQuery)
+
+type gcLeaderboardSetVersionsQuery struct {
+	listQuery
+}
+
+func buildGCLeaderboardSetVersionsQuery(query *gcLeaderboardSetVersionsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
 }

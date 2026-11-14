@@ -717,44 +717,6 @@ func TestGCChallengesOptions(t *testing.T) {
 	}
 }
 
-func TestGCChallengeVersionsOptions(t *testing.T) {
-	query := &gcChallengeVersionsQuery{}
-	Limit[GCChallengeVersionsOption](10)(query)
-	if query.limit != 10 {
-		t.Fatalf("expected limit 10, got %d", query.limit)
-	}
-	NextURL[GCChallengeVersionsOption]("next")(query)
-	if query.nextURL != "next" {
-		t.Fatalf("expected nextURL set, got %q", query.nextURL)
-	}
-	values, err := url.ParseQuery(buildGCChallengeVersionsQuery(query))
-	if err != nil {
-		t.Fatalf("parse query: %v", err)
-	}
-	if values.Get("limit") != "10" {
-		t.Fatalf("expected limit=10, got %q", values.Get("limit"))
-	}
-}
-
-func TestGCChallengeLocalizationsOptions(t *testing.T) {
-	query := &gcChallengeLocalizationsQuery{}
-	Limit[GCChallengeLocalizationsOption](5)(query)
-	if query.limit != 5 {
-		t.Fatalf("expected limit 5, got %d", query.limit)
-	}
-	NextURL[GCChallengeLocalizationsOption]("next")(query)
-	if query.nextURL != "next" {
-		t.Fatalf("expected nextURL set, got %q", query.nextURL)
-	}
-	values, err := url.ParseQuery(buildGCChallengeLocalizationsQuery(query))
-	if err != nil {
-		t.Fatalf("parse query: %v", err)
-	}
-	if values.Get("limit") != "5" {
-		t.Fatalf("expected limit=5, got %q", values.Get("limit"))
-	}
-}
-
 func TestGetGameCenterChallengeLocalizationImage(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterChallengeImages","id":"img-1","attributes":{"fileName":"image.png","fileSize":12}}}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -786,24 +748,5 @@ func TestGetGameCenterChallengeVersionDefaultImage(t *testing.T) {
 
 	if _, err := client.GetGameCenterChallengeVersionDefaultImage(context.Background(), "ver-1"); err != nil {
 		t.Fatalf("GetGameCenterChallengeVersionDefaultImage() error: %v", err)
-	}
-}
-
-func TestGCChallengeVersionReleasesOptions(t *testing.T) {
-	query := &gcChallengeVersionReleasesQuery{}
-	Limit[GCChallengeVersionReleasesOption](12)(query)
-	if query.limit != 12 {
-		t.Fatalf("expected limit 12, got %d", query.limit)
-	}
-	NextURL[GCChallengeVersionReleasesOption]("next")(query)
-	if query.nextURL != "next" {
-		t.Fatalf("expected nextURL set, got %q", query.nextURL)
-	}
-	values, err := url.ParseQuery(buildGCChallengeVersionReleasesQuery(query))
-	if err != nil {
-		t.Fatalf("parse query: %v", err)
-	}
-	if values.Get("limit") != "12" {
-		t.Fatalf("expected limit=12, got %q", values.Get("limit"))
 	}
 }

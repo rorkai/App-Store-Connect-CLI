@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 )
 
@@ -168,4 +169,30 @@ func (c *Client) GetBuildPreReleaseVersionRelationship(ctx context.Context, buil
 		Path:     fmt.Sprintf("/v1/builds/%s/relationships/preReleaseVersion", buildID),
 		ParseErr: "failed to parse preReleaseVersion relationship response",
 	})
+}
+
+// BetaBuildUsagesOption sets the query of GET /v1/builds/{id}/metrics/betaBuildUsages (builds_betaBuildUsages_getMetrics).
+type BetaBuildUsagesOption func(*betaBuildUsagesQuery)
+
+type betaBuildUsagesQuery struct {
+	listQuery
+}
+
+func buildBetaBuildUsagesQuery(query *betaBuildUsagesQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+// BuildIndividualTestersOption sets the query of GET /v1/builds/{id}/individualTesters (builds_individualTesters_getToManyRelated).
+type BuildIndividualTestersOption func(*buildIndividualTestersQuery)
+
+type buildIndividualTestersQuery struct {
+	listQuery
+}
+
+func buildBuildIndividualTestersQuery(query *buildIndividualTestersQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
 }

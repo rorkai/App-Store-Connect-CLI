@@ -13,5 +13,8 @@
     {"operation":"gameCenterActivityVersions_defaultImage_getToOneRelated","name":"GetGameCenterActivityVersionDefaultImage","params":["versionID"],"response":"GameCenterActivityVersionDefaultImageResponse"},
     {"operation":"gameCenterActivityVersions_getInstance","name":"GetGameCenterActivityVersion","params":["versionID"]},
     {"operation":"gameCenterActivityVersions_localizations_getToManyRelated","name":"GetGameCenterActivityLocalizations","params":["versionID"],"options":"GCActivityLocalizationsOption","query":"buildGCActivityLocalizationsQuery","nextContext":"game-center-activity-localizations"}
+  ],
+  "queries": [
+    {"operation":"gameCenterActivityVersions_localizations_getToManyRelated","name":"GCActivityLocalizations","deviations":[{"problem":"query parameters [fields[gameCenterActivityImages] fields[gameCenterActivityLocalizations] fields[gameCenterActivityVersions] include] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]}
   ]
 }

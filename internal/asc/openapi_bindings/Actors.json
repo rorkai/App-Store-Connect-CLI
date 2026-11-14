@@ -8,5 +8,8 @@
   ],
   "operations": [
     {"operation":"actors_getCollection","name":"GetActors","options":"ActorsOption","query":"buildActorsQuery","nextContext":"actors"}
+  ],
+  "queries": [
+    {"operation":"actors_getCollection","name":"Actors","params":[{"name":"filter[id]","field":"ids"},{"name":"fields[actors]"}]}
   ]
 }

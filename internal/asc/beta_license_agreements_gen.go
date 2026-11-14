@@ -4,6 +4,7 @@ package asc
 
 import (
 	"context"
+	"net/url"
 )
 
 // BetaLicenseAgreementAttributes is the attributes object of the BetaLicenseAgreement schema.
@@ -37,4 +38,91 @@ func (c *Client) GetBetaLicenseAgreements(ctx context.Context, opts ...BetaLicen
 		Next:        query.nextURL,
 		NextContext: "betaLicenseAgreements",
 	})
+}
+
+// BetaLicenseAgreementsOption sets the query of GET /v1/betaLicenseAgreements (betaLicenseAgreements_getCollection).
+type BetaLicenseAgreementsOption func(*betaLicenseAgreementsQuery)
+
+type betaLicenseAgreementsQuery struct {
+	listQuery
+	appIDs    []string
+	fields    []string
+	appFields []string
+	include   []string
+}
+
+// WithBetaLicenseAgreementsAppIDs sets filter[app].
+func WithBetaLicenseAgreementsAppIDs(appIDs []string) BetaLicenseAgreementsOption {
+	return func(q *betaLicenseAgreementsQuery) {
+		q.appIDs = normalizeList(appIDs)
+	}
+}
+
+// WithBetaLicenseAgreementsFields sets fields[betaLicenseAgreements].
+func WithBetaLicenseAgreementsFields(fields []string) BetaLicenseAgreementsOption {
+	return func(q *betaLicenseAgreementsQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+// WithBetaLicenseAgreementsAppFields sets fields[apps].
+func WithBetaLicenseAgreementsAppFields(fields []string) BetaLicenseAgreementsOption {
+	return func(q *betaLicenseAgreementsQuery) {
+		q.appFields = normalizeList(fields)
+	}
+}
+
+// WithBetaLicenseAgreementsInclude sets include.
+func WithBetaLicenseAgreementsInclude(include []string) BetaLicenseAgreementsOption {
+	return func(q *betaLicenseAgreementsQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
+func buildBetaLicenseAgreementsQuery(query *betaLicenseAgreementsQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[app]", query.appIDs)
+	addCSV(values, "fields[betaLicenseAgreements]", query.fields)
+	addCSV(values, "fields[apps]", query.appFields)
+	addCSV(values, "include", query.include)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+// BetaLicenseAgreementOption sets the query of GET /v1/betaLicenseAgreements/{id} (betaLicenseAgreements_getInstance).
+type BetaLicenseAgreementOption func(*betaLicenseAgreementQuery)
+
+type betaLicenseAgreementQuery struct {
+	fields    []string
+	appFields []string
+	include   []string
+}
+
+// WithBetaLicenseAgreementFields sets fields[betaLicenseAgreements].
+func WithBetaLicenseAgreementFields(fields []string) BetaLicenseAgreementOption {
+	return func(q *betaLicenseAgreementQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+// WithBetaLicenseAgreementAppFields sets fields[apps].
+func WithBetaLicenseAgreementAppFields(fields []string) BetaLicenseAgreementOption {
+	return func(q *betaLicenseAgreementQuery) {
+		q.appFields = normalizeList(fields)
+	}
+}
+
+// WithBetaLicenseAgreementInclude sets include.
+func WithBetaLicenseAgreementInclude(include []string) BetaLicenseAgreementOption {
+	return func(q *betaLicenseAgreementQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
+func buildBetaLicenseAgreementQuery(query *betaLicenseAgreementQuery) string {
+	values := url.Values{}
+	addCSV(values, "fields[betaLicenseAgreements]", query.fields)
+	addCSV(values, "fields[apps]", query.appFields)
+	addCSV(values, "include", query.include)
+	return values.Encode()
 }

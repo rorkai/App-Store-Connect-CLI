@@ -6,5 +6,8 @@
   ],
   "operations": [
     {"operation":"subscriptionPromotionalOffers_deleteInstance","name":"DeleteSubscriptionPromotionalOffer","params":["offerID"]}
+  ],
+  "queries": [
+    {"operation":"subscriptionPromotionalOffers_prices_getToManyRelated","name":"SubscriptionPromotionalOfferPrices","params":[{"name":"fields[subscriptionPricePoints]","field":"pricePointFields","arg":"fields"},{"name":"include"}],"deviations":[{"problem":"query parameters [fields[subscriptionPromotionalOfferPrices] fields[territories] filter[territory]] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]}
   ]
 }

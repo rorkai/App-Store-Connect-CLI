@@ -212,12 +212,6 @@ type AppEventsOption func(*appEventsQuery)
 // AppEventLocalizationsOption is a functional option for app event localizations list.
 type AppEventLocalizationsOption func(*appEventLocalizationsQuery)
 
-// AppEventScreenshotsOption is a functional option for app event screenshots list.
-type AppEventScreenshotsOption func(*appEventScreenshotsQuery)
-
-// AppEventVideoClipsOption is a functional option for app event video clips list.
-type AppEventVideoClipsOption func(*appEventVideoClipsQuery)
-
 type appEventsQuery struct {
 	listQuery
 	states             []string
@@ -231,14 +225,6 @@ type appEventsQuery struct {
 type appEventLocalizationsQuery struct {
 	listQuery
 	localizationRelatedQuery
-}
-
-type appEventScreenshotsQuery struct {
-	listQuery
-}
-
-type appEventVideoClipsQuery struct {
-	listQuery
 }
 
 // WithAppEventsStates filters app events by lifecycle state(s).
@@ -317,17 +303,5 @@ func buildAppEventLocalizationsQuery(query *appEventLocalizationsQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
 	query.addTo(values)
-	return values.Encode()
-}
-
-func buildAppEventScreenshotsQuery(query *appEventScreenshotsQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
-func buildAppEventVideoClipsQuery(query *appEventVideoClipsQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
 	return values.Encode()
 }

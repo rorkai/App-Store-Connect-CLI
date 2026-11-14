@@ -13,5 +13,8 @@
     {"operation":"alternativeDistributionDomains_deleteInstance","name":"DeleteAlternativeDistributionDomain","params":["domainID"],"check":"require"},
     {"operation":"alternativeDistributionDomains_getCollection","name":"GetAlternativeDistributionDomains","options":"AlternativeDistributionDomainsOption","query":"buildAlternativeDistributionDomainsQuery","nextContext":"alternativeDistributionDomains","parseErr":"failed to parse alternative distribution domains response"},
     {"operation":"alternativeDistributionDomains_getInstance","name":"GetAlternativeDistributionDomain","params":["domainID"],"check":"require","parseErr":"failed to parse alternative distribution domain response"}
+  ],
+  "queries": [
+    {"operation":"alternativeDistributionDomains_getCollection","name":"AlternativeDistributionDomains","deviations":[{"problem":"query parameters [fields[alternativeDistributionDomains]] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]}
   ]
 }

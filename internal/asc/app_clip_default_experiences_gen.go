@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -64,4 +65,26 @@ func (c *Client) GetAppClipDefaultExperienceReleaseWithAppStoreVersionRelationsh
 	return getJSON[AppClipDefaultExperienceReleaseWithAppStoreVersionLinkageResponse](ctx, c, readRequest{
 		Path: fmt.Sprintf("/v1/appClipDefaultExperiences/%s/relationships/releaseWithAppStoreVersion", experienceID),
 	})
+}
+
+// AppClipDefaultExperienceLocalizationsOption sets the query of GET /v1/appClipDefaultExperiences/{id}/appClipDefaultExperienceLocalizations (appClipDefaultExperiences_appClipDefaultExperienceLocalizations_getToManyRelated).
+type AppClipDefaultExperienceLocalizationsOption func(*appClipDefaultExperienceLocalizationsQuery)
+
+type appClipDefaultExperienceLocalizationsQuery struct {
+	listQuery
+	locales []string
+}
+
+// WithAppClipDefaultExperienceLocalizationsLocales sets filter[locale].
+func WithAppClipDefaultExperienceLocalizationsLocales(locales []string) AppClipDefaultExperienceLocalizationsOption {
+	return func(q *appClipDefaultExperienceLocalizationsQuery) {
+		q.locales = normalizeList(locales)
+	}
+}
+
+func buildAppClipDefaultExperienceLocalizationsQuery(query *appClipDefaultExperienceLocalizationsQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[locale]", query.locales)
+	addLimit(values, query.limit)
+	return values.Encode()
 }

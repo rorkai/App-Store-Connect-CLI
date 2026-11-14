@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -92,4 +93,35 @@ func (c *Client) UpdateBetaAppLocalization(ctx context.Context, localizationID s
 		Path:    fmt.Sprintf("/v1/betaAppLocalizations/%s", localizationID),
 		Payload: payload,
 	})
+}
+
+// BetaAppLocalizationsOption sets the query of GET /v1/betaAppLocalizations (betaAppLocalizations_getCollection).
+type BetaAppLocalizationsOption func(*betaAppLocalizationsQuery)
+
+type betaAppLocalizationsQuery struct {
+	listQuery
+	locales []string
+	appIDs  []string
+}
+
+// WithBetaAppLocalizationLocales sets filter[locale].
+func WithBetaAppLocalizationLocales(locales []string) BetaAppLocalizationsOption {
+	return func(q *betaAppLocalizationsQuery) {
+		q.locales = normalizeList(locales)
+	}
+}
+
+// WithBetaAppLocalizationAppIDs sets filter[app].
+func WithBetaAppLocalizationAppIDs(ids []string) BetaAppLocalizationsOption {
+	return func(q *betaAppLocalizationsQuery) {
+		q.appIDs = normalizeList(ids)
+	}
+}
+
+func buildBetaAppLocalizationsQuery(query *betaAppLocalizationsQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[locale]", query.locales)
+	addCSV(values, "filter[app]", query.appIDs)
+	addLimit(values, query.limit)
+	return values.Encode()
 }

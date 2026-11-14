@@ -6,7 +6,6 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"net/url"
 	"testing"
 )
 
@@ -202,25 +201,6 @@ func TestGetGameCenterDetailGameCenterGroup(t *testing.T) {
 
 	if _, err := client.GetGameCenterDetailGameCenterGroup(context.Background(), "detail-1"); err != nil {
 		t.Fatalf("GetGameCenterDetailGameCenterGroup() error: %v", err)
-	}
-}
-
-func TestGCDetailsOptions(t *testing.T) {
-	query := &gcDetailsQuery{}
-	Limit[GCDetailsOption](8)(query)
-	if query.limit != 8 {
-		t.Fatalf("expected limit 8, got %d", query.limit)
-	}
-	NextURL[GCDetailsOption]("next")(query)
-	if query.nextURL != "next" {
-		t.Fatalf("expected nextURL set, got %q", query.nextURL)
-	}
-	values, err := url.ParseQuery(buildGCDetailsQuery(query))
-	if err != nil {
-		t.Fatalf("parse query: %v", err)
-	}
-	if values.Get("limit") != "8" {
-		t.Fatalf("expected limit=8, got %q", values.Get("limit"))
 	}
 }
 

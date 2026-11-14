@@ -2,5 +2,22 @@
 
 package asc
 
+import (
+	"net/url"
+)
+
 // AnalyticsReportInstanceResponse is the AnalyticsReportInstanceResponse schema.
 type AnalyticsReportInstanceResponse = SingleResponse[AnalyticsReportInstanceAttributes]
+
+// AnalyticsReportSegmentsOption sets the query of GET /v1/analyticsReportInstances/{id}/segments (analyticsReportInstances_segments_getToManyRelated).
+type AnalyticsReportSegmentsOption func(*analyticsReportSegmentsQuery)
+
+type analyticsReportSegmentsQuery struct {
+	listQuery
+}
+
+func buildAnalyticsReportSegmentsQuery(query *analyticsReportSegmentsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}

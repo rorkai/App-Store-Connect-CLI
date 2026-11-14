@@ -10,5 +10,8 @@
     {"operation":"winBackOffers_getInstance","name":"GetWinBackOffer","params":["offerID"]},
     {"operation":"winBackOffers_prices_getToManyRelated","name":"GetWinBackOfferPrices","params":["offerID"],"options":"WinBackOfferPricesOption","query":"buildWinBackOfferPricesQuery","nextContext":"winBackOfferPrices"},
     {"operation":"winBackOffers_prices_getToManyRelationship","name":"GetWinBackOfferPricesRelationships","params":["offerID"],"options":"LinkagesOption","query":"buildLinkagesQuery","nextContext":"winBackOfferPrices relationships","response":"LinkagesResponse"}
+  ],
+  "queries": [
+    {"operation":"winBackOffers_prices_getToManyRelated","name":"WinBackOfferPrices","params":[{"name":"filter[territory]","field":"territoryIDs","with":"WithWinBackOfferPricesTerritoryFilter","arg":"ids"},{"name":"fields[winBackOfferPrices]"},{"name":"fields[territories]","arg":"fields"},{"name":"fields[subscriptionPricePoints]","arg":"fields"},{"name":"include"}]}
   ]
 }

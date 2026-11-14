@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -47,4 +48,17 @@ func (c *Client) GetUserVisibleApps(ctx context.Context, userID string, opts ...
 		Next:        query.nextURL,
 		NextContext: "userVisibleApps",
 	})
+}
+
+// UserVisibleAppsOption sets the query of GET /v1/users/{id}/visibleApps (users_visibleApps_getToManyRelated).
+type UserVisibleAppsOption func(*userVisibleAppsQuery)
+
+type userVisibleAppsQuery struct {
+	listQuery
+}
+
+func buildUserVisibleAppsQuery(query *userVisibleAppsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
 }

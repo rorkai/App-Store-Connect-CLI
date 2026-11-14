@@ -11,5 +11,8 @@
     {"operation":"gameCenterChallenges_deleteInstance","name":"DeleteGameCenterChallenge","params":["challengeID"]},
     {"operation":"gameCenterChallenges_getInstance","name":"GetGameCenterChallenge","params":["challengeID"]},
     {"operation":"gameCenterChallenges_versions_getToManyRelated","name":"GetGameCenterChallengeVersions","params":["challengeID"],"options":"GCChallengeVersionsOption","query":"buildGCChallengeVersionsQuery","nextContext":"game-center-challenge-versions"}
+  ],
+  "queries": [
+    {"operation":"gameCenterChallenges_versions_getToManyRelated","name":"GCChallengeVersions","deviations":[{"problem":"query parameters [fields[gameCenterChallengeImages] fields[gameCenterChallengeLocalizations] fields[gameCenterChallengeVersionReleases] fields[gameCenterChallengeVersions] fields[gameCenterChallenges] include limit[localizations] limit[releases]] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]}
   ]
 }

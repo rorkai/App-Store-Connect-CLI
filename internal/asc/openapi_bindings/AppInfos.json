@@ -20,5 +20,10 @@
     {"operation":"appInfos_secondarySubcategoryTwo_getToOneRelated","name":"GetAppInfoSecondarySubcategoryTwo","params":["appInfoID"],"check":"require"},
     {"operation":"appInfos_secondarySubcategoryTwo_getToOneRelationship","name":"GetAppInfoSecondarySubcategoryTwoRelationship","params":["appInfoID"],"check":"require","parseErr":"failed to parse secondarySubcategoryTwo relationship response"},
     {"operation":"appInfos_territoryAgeRatings_getToManyRelated","name":"GetAppInfoTerritoryAgeRatings","params":["appInfoID"],"check":"require","options":"TerritoryAgeRatingsOption","query":"buildTerritoryAgeRatingsQuery","nextContext":"territoryAgeRatings"}
+  ],
+  "queries": [
+    {"operation":"appInfos_ageRatingDeclaration_getToOneRelated","name":"AgeRatingDeclaration","params":[{"name":"fields[ageRatingDeclarations]"}]},
+    {"operation":"appInfos_appInfoLocalizations_getToManyRelated","name":"AppInfoLocalizations","params":[{"name":"filter[locale]","field":"locales","with":"WithAppInfoLocalizationLocales"},{"name":"fields[appInfos]","arg":"fields"},{"name":"include"}],"deviations":[{"problem":"query parameters [fields[appInfoLocalizations]] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]},
+    {"operation":"appInfos_territoryAgeRatings_getToManyRelated","name":"TerritoryAgeRatings","params":[{"name":"fields[territoryAgeRatings]"},{"name":"fields[territories]","arg":"fields"},{"name":"include"}]}
   ]
 }

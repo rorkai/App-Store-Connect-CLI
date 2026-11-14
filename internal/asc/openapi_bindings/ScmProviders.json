@@ -5,5 +5,8 @@
     {"operation":"scmProviders_getCollection","name":"GetScmProviders","options":"ScmProvidersOption","query":"buildScmProvidersQuery","nextContext":"scmProviders"},
     {"operation":"scmProviders_getInstance","name":"GetScmProvider","params":["providerID"]},
     {"operation":"scmProviders_repositories_getToManyRelated","name":"GetScmProviderRepositories","params":["providerID"],"options":"ScmRepositoriesOption","query":"buildScmRepositoriesQuery","nextContext":"scmProviderRepositories"}
+  ],
+  "queries": [
+    {"operation":"scmProviders_getCollection","name":"ScmProviders","deviations":[{"problem":"query parameters [fields[scmProviders]] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]}
   ]
 }

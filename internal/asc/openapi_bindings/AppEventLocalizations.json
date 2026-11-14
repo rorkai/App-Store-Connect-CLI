@@ -15,5 +15,9 @@
     {"operation":"appEventLocalizations_appEventVideoClips_getToManyRelationship","name":"GetAppEventVideoClipsRelationships","params":["localizationID"],"check":"require","options":"LinkagesOption","query":"buildLinkagesQuery","nextContext":"appEventVideoClipsRelationships","response":"AppEventLocalizationVideoClipsLinkagesResponse"},
     {"operation":"appEventLocalizations_deleteInstance","name":"DeleteAppEventLocalization","params":["localizationID"],"check":"require"},
     {"operation":"appEventLocalizations_updateInstance","name":"UpdateAppEventLocalization","params":["localizationID"],"check":"require"}
+  ],
+  "queries": [
+    {"operation":"appEventLocalizations_appEventScreenshots_getToManyRelated","name":"AppEventScreenshots","deviations":[{"problem":"query parameters [fields[appEventLocalizations] fields[appEventScreenshots] include] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]},
+    {"operation":"appEventLocalizations_appEventVideoClips_getToManyRelated","name":"AppEventVideoClips","deviations":[{"problem":"query parameters [fields[appEventLocalizations] fields[appEventVideoClips] include] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]}
   ]
 }

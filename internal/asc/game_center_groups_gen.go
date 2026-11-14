@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -209,4 +210,39 @@ func (c *Client) GetGameCenterGroup(ctx context.Context, groupID string) (*GameC
 	return getJSON[GameCenterGroupResponse](ctx, c, readRequest{
 		Path: fmt.Sprintf("/v1/gameCenterGroups/%s", strings.TrimSpace(groupID)),
 	})
+}
+
+// GCDetailsOption sets the query of GET /v1/gameCenterGroups/{id}/gameCenterDetails (gameCenterGroups_gameCenterDetails_getToManyRelated).
+type GCDetailsOption func(*gcDetailsQuery)
+
+type gcDetailsQuery struct {
+	listQuery
+}
+
+func buildGCDetailsQuery(query *gcDetailsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+// GCGroupsOption sets the query of GET /v1/gameCenterGroups (gameCenterGroups_getCollection).
+type GCGroupsOption func(*gcGroupsQuery)
+
+type gcGroupsQuery struct {
+	listQuery
+	gameCenterDetailIDs []string
+}
+
+// WithGCGroupsGameCenterDetailIDs sets filter[gameCenterDetails].
+func WithGCGroupsGameCenterDetailIDs(detailIDs []string) GCGroupsOption {
+	return func(q *gcGroupsQuery) {
+		q.gameCenterDetailIDs = normalizeList(detailIDs)
+	}
+}
+
+func buildGCGroupsQuery(query *gcGroupsQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[gameCenterDetails]", query.gameCenterDetailIDs)
+	addLimit(values, query.limit)
+	return values.Encode()
 }

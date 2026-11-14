@@ -11,5 +11,9 @@
     {"operation":"userInvitations_getCollection","name":"GetUserInvitations","options":"UserInvitationsOption","query":"buildUserInvitationsQuery","nextContext":"userInvitations"},
     {"operation":"userInvitations_getInstance","name":"GetUserInvitation","params":["inviteID"],"check":"trim"},
     {"operation":"userInvitations_visibleApps_getToManyRelated","name":"GetUserInvitationVisibleApps","params":["invitationID"],"options":"UserInvitationVisibleAppsOption","query":"buildUserInvitationVisibleAppsQuery","nextContext":"userInvitationVisibleApps","response":"AppsResponse"}
+  ],
+  "queries": [
+    {"operation":"userInvitations_getCollection","name":"UserInvitations","deviations":[{"problem":"query parameters [fields[apps] fields[userInvitations] filter[email] filter[roles] filter[visibleApps] include limit[visibleApps] sort] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]},
+    {"operation":"userInvitations_visibleApps_getToManyRelated","name":"UserInvitationVisibleApps","deviations":[{"problem":"query parameters [fields[apps]] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]}
   ]
 }

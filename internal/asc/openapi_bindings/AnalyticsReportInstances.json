@@ -3,5 +3,8 @@
   "file": "analytics_report_instances_gen.go",
   "types": [
     "AnalyticsReportInstanceResponse"
+  ],
+  "queries": [
+    {"operation":"analyticsReportInstances_segments_getToManyRelated","name":"AnalyticsReportSegments","deviations":[{"problem":"query parameters [fields[analyticsReportSegments]] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]}
   ]
 }

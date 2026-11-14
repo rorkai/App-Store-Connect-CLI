@@ -6,5 +6,9 @@
     {"operation":"buildBundles_appClipDomainDebugStatus_getToOneRelated","name":"GetBuildBundleAppClipDomainDebugStatus","params":["buildBundleID"],"check":"raw"},
     {"operation":"buildBundles_betaAppClipInvocations_getToManyRelated","name":"GetBuildBundleBetaAppClipInvocations","params":["buildBundleID"],"check":"raw","options":"BetaAppClipInvocationsOption","query":"buildBetaAppClipInvocationsQuery","nextContext":"build bundle app clip invocations"},
     {"operation":"buildBundles_buildBundleFileSizes_getToManyRelated","name":"GetBuildBundleFileSizes","params":["buildBundleID"],"check":"raw","options":"BuildBundleFileSizesOption","query":"buildBuildBundleFileSizesQuery","nextContext":"build bundle file sizes"}
+  ],
+  "queries": [
+    {"operation":"buildBundles_betaAppClipInvocations_getToManyRelated","name":"BetaAppClipInvocations","deviations":[{"problem":"query parameters [fields[betaAppClipInvocationLocalizations] fields[betaAppClipInvocations] include limit[betaAppClipInvocationLocalizations]] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]},
+    {"operation":"buildBundles_buildBundleFileSizes_getToManyRelated","name":"BuildBundleFileSizes","deviations":[{"problem":"query parameters [fields[buildBundleFileSizes]] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]}
   ]
 }

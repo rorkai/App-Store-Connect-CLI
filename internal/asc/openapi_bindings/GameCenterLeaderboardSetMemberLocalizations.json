@@ -14,5 +14,8 @@
     {"operation":"gameCenterLeaderboardSetMemberLocalizations_gameCenterLeaderboardSet_getToOneRelated","name":"GetGameCenterLeaderboardSetMemberLocalizationLeaderboardSet","params":["localizationID"]},
     {"operation":"gameCenterLeaderboardSetMemberLocalizations_gameCenterLeaderboard_getToOneRelated","name":"GetGameCenterLeaderboardSetMemberLocalizationLeaderboard","params":["localizationID"]},
     {"operation":"gameCenterLeaderboardSetMemberLocalizations_getCollection","name":"GetGameCenterLeaderboardSetMemberLocalizations","options":"GCLeaderboardSetMemberLocalizationsOption","query":"buildGCLeaderboardSetMemberLocalizationsQuery","nextContext":"game-center-leaderboard-set-member-localizations"}
+  ],
+  "queries": [
+    {"operation":"gameCenterLeaderboardSetMemberLocalizations_getCollection","name":"GCLeaderboardSetMemberLocalizations","params":[{"name":"filter[gameCenterLeaderboardSet]","field":"leaderboardSetIDs","arg":"ids"},{"name":"filter[gameCenterLeaderboard]","field":"leaderboardIDs","arg":"ids"}],"deviations":[{"problem":"query parameters [fields[gameCenterLeaderboardSetMemberLocalizations] fields[gameCenterLeaderboardSets] fields[gameCenterLeaderboards] include] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]}
   ]
 }

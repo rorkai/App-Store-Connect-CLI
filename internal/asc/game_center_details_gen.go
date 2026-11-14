@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 )
 
@@ -223,4 +224,30 @@ func (c *Client) GetGameCenterDetailsRuleBasedMatchmakingRequests(ctx context.Co
 		Next:        query.nextURL,
 		NextContext: "game-center-details-rule-based-matchmaking-requests",
 	})
+}
+
+// GCActivityVersionReleasesOption sets the query of GET /v1/gameCenterDetails/{id}/activityReleases (gameCenterDetails_activityReleases_getToManyRelated).
+type GCActivityVersionReleasesOption func(*gcActivityVersionReleasesQuery)
+
+type gcActivityVersionReleasesQuery struct {
+	listQuery
+}
+
+func buildGCActivityVersionReleasesQuery(query *gcActivityVersionReleasesQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+// GCChallengeVersionReleasesOption sets the query of GET /v1/gameCenterDetails/{id}/challengeReleases (gameCenterDetails_challengeReleases_getToManyRelated).
+type GCChallengeVersionReleasesOption func(*gcChallengeVersionReleasesQuery)
+
+type gcChallengeVersionReleasesQuery struct {
+	listQuery
+}
+
+func buildGCChallengeVersionReleasesQuery(query *gcChallengeVersionReleasesQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
 }

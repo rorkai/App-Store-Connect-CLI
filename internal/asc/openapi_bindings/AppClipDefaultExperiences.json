@@ -11,5 +11,8 @@
     {"operation":"appClipDefaultExperiences_deleteInstance","name":"DeleteAppClipDefaultExperience","params":["experienceID"],"check":"require"},
     {"operation":"appClipDefaultExperiences_releaseWithAppStoreVersion_getToOneRelated","name":"GetAppClipDefaultExperienceReleaseWithAppStoreVersion","params":["experienceID"],"check":"require"},
     {"operation":"appClipDefaultExperiences_releaseWithAppStoreVersion_getToOneRelationship","name":"GetAppClipDefaultExperienceReleaseWithAppStoreVersionRelationship","params":["experienceID"],"check":"trim"}
+  ],
+  "queries": [
+    {"operation":"appClipDefaultExperiences_appClipDefaultExperienceLocalizations_getToManyRelated","name":"AppClipDefaultExperienceLocalizations","params":[{"name":"filter[locale]","field":"locales"}],"deviations":[{"problem":"query parameters [fields[appClipDefaultExperienceLocalizations] fields[appClipDefaultExperiences] fields[appClipHeaderImages] include] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]}
   ]
 }

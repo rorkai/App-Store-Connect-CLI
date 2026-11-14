@@ -9,5 +9,9 @@
   ],
   "operations": [
     {"operation":"betaLicenseAgreements_getCollection","name":"GetBetaLicenseAgreements","options":"BetaLicenseAgreementsOption","query":"buildBetaLicenseAgreementsQuery","nextContext":"betaLicenseAgreements"}
+  ],
+  "queries": [
+    {"operation":"betaLicenseAgreements_getCollection","name":"BetaLicenseAgreements","params":[{"name":"filter[app]","field":"appIDs"},{"name":"fields[betaLicenseAgreements]"},{"name":"fields[apps]","arg":"fields"},{"name":"include"}]},
+    {"operation":"betaLicenseAgreements_getInstance","name":"BetaLicenseAgreement","params":[{"name":"fields[betaLicenseAgreements]"},{"name":"fields[apps]","arg":"fields"},{"name":"include"}]}
   ]
 }

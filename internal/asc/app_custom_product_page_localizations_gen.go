@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -88,4 +89,17 @@ func (c *Client) GetAppCustomProductPageLocalizationSearchKeywords(ctx context.C
 	return getJSON[AppKeywordsResponse](ctx, c, readRequest{
 		Path: fmt.Sprintf("/v1/appCustomProductPageLocalizations/%s/searchKeywords", localizationID),
 	})
+}
+
+// AppCustomProductPageLocalizationPreviewSetsOption sets the query of GET /v1/appCustomProductPageLocalizations/{id}/appPreviewSets (appCustomProductPageLocalizations_appPreviewSets_getToManyRelated).
+type AppCustomProductPageLocalizationPreviewSetsOption func(*appCustomProductPageLocalizationPreviewSetsQuery)
+
+type appCustomProductPageLocalizationPreviewSetsQuery struct {
+	listQuery
+}
+
+func buildAppCustomProductPageLocalizationPreviewSetsQuery(query *appCustomProductPageLocalizationPreviewSetsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
 }

@@ -17,5 +17,8 @@
     {"operation":"gameCenterLeaderboards_localizations_getToManyRelated","name":"GetGameCenterLeaderboardLocalizations","params":["leaderboardID"],"options":"GCLeaderboardLocalizationsOption","query":"buildGCLeaderboardLocalizationsQuery","nextContext":"game-center-leaderboard-localizations"},
     {"operation":"gameCenterLeaderboards_releases_getToManyRelated","name":"GetGameCenterLeaderboardReleases","params":["leaderboardID"],"options":"GCLeaderboardReleasesOption","query":"buildGCLeaderboardReleasesQuery","nextContext":"game-center-leaderboard-releases"},
     {"operation":"gameCenterLeaderboards_updateInstance","name":"UpdateGameCenterLeaderboard","params":["leaderboardID"]}
+  ],
+  "queries": [
+    {"operation":"gameCenterLeaderboardsV2_versions_getToManyRelated","name":"GCLeaderboardVersions","deviations":[{"problem":"query parameters [fields[gameCenterLeaderboardLocalizations] fields[gameCenterLeaderboardVersions] fields[gameCenterLeaderboards] include limit[localizations]] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]}
   ]
 }

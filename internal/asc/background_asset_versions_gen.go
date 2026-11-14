@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 )
 
@@ -36,4 +37,17 @@ func (c *Client) GetBackgroundAssetVersion(ctx context.Context, versionID string
 	return getJSON[BackgroundAssetVersionResponse](ctx, c, readRequest{
 		Path: fmt.Sprintf("/v1/backgroundAssetVersions/%s", versionID),
 	})
+}
+
+// BackgroundAssetUploadFilesOption sets the query of GET /v1/backgroundAssetVersions/{id}/backgroundAssetUploadFiles (backgroundAssetVersions_backgroundAssetUploadFiles_getToManyRelated).
+type BackgroundAssetUploadFilesOption func(*backgroundAssetUploadFilesQuery)
+
+type backgroundAssetUploadFilesQuery struct {
+	listQuery
+}
+
+func buildBackgroundAssetUploadFilesQuery(query *backgroundAssetUploadFilesQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
 }

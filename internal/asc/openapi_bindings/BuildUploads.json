@@ -7,5 +7,8 @@
   "operations": [
     {"operation":"buildUploads_buildUploadFiles_getToManyRelated","name":"GetBuildUploadFiles","params":["uploadID"],"check":"require","options":"BuildUploadFilesOption","query":"buildBuildUploadFilesQuery","nextContext":"buildUploadFiles"},
     {"operation":"buildUploads_deleteInstance","name":"DeleteBuildUpload","params":["id"],"check":"require"}
+  ],
+  "queries": [
+    {"operation":"buildUploads_buildUploadFiles_getToManyRelated","name":"BuildUploadFiles","deviations":[{"problem":"query parameters [fields[buildUploadFiles]] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]}
   ]
 }

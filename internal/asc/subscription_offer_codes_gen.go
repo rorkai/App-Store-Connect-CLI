@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 )
 
@@ -39,4 +40,61 @@ func (c *Client) GetSubscriptionOfferCodeOneTimeUseCodes(ctx context.Context, of
 		Next:        query.nextURL,
 		NextContext: "offer codes",
 	})
+}
+
+// SubscriptionOfferCodeCustomCodesOption sets the query of GET /v1/subscriptionOfferCodes/{id}/customCodes (subscriptionOfferCodes_customCodes_getToManyRelated).
+type SubscriptionOfferCodeCustomCodesOption func(*subscriptionOfferCodeCustomCodesQuery)
+
+type subscriptionOfferCodeCustomCodesQuery struct {
+	listQuery
+}
+
+func buildSubscriptionOfferCodeCustomCodesQuery(query *subscriptionOfferCodeCustomCodesQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+// SubscriptionOfferCodeOneTimeUseCodesOption sets the query of GET /v1/subscriptionOfferCodes/{id}/oneTimeUseCodes (subscriptionOfferCodes_oneTimeUseCodes_getToManyRelated).
+type SubscriptionOfferCodeOneTimeUseCodesOption func(*subscriptionOfferCodeOneTimeUseCodesQuery)
+
+type subscriptionOfferCodeOneTimeUseCodesQuery struct {
+	listQuery
+}
+
+func buildSubscriptionOfferCodeOneTimeUseCodesQuery(query *subscriptionOfferCodeOneTimeUseCodesQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+// SubscriptionOfferCodePricesOption sets the query of GET /v1/subscriptionOfferCodes/{id}/prices (subscriptionOfferCodes_prices_getToManyRelated).
+type SubscriptionOfferCodePricesOption func(*subscriptionOfferCodePricesQuery)
+
+type subscriptionOfferCodePricesQuery struct {
+	listQuery
+	pricePointFields []string
+	include          []string
+}
+
+// WithSubscriptionOfferCodePricesPricePointFields sets fields[subscriptionPricePoints].
+func WithSubscriptionOfferCodePricesPricePointFields(fields []string) SubscriptionOfferCodePricesOption {
+	return func(q *subscriptionOfferCodePricesQuery) {
+		q.pricePointFields = normalizeList(fields)
+	}
+}
+
+// WithSubscriptionOfferCodePricesInclude sets include.
+func WithSubscriptionOfferCodePricesInclude(include []string) SubscriptionOfferCodePricesOption {
+	return func(q *subscriptionOfferCodePricesQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
+func buildSubscriptionOfferCodePricesQuery(query *subscriptionOfferCodePricesQuery) string {
+	values := url.Values{}
+	addCSV(values, "fields[subscriptionPricePoints]", query.pricePointFields)
+	addCSV(values, "include", query.include)
+	addLimit(values, query.limit)
+	return values.Encode()
 }

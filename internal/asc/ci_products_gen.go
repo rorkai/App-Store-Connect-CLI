@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -75,4 +76,73 @@ func (c *Client) GetCiWorkflows(ctx context.Context, productID string, opts ...C
 		Next:        query.nextURL,
 		NextContext: "ciWorkflows",
 	})
+}
+
+// CiProductAppOption sets the query of GET /v1/ciProducts/{id}/app (ciProducts_app_getToOneRelated).
+type CiProductAppOption func(*ciProductAppQuery)
+
+type ciProductAppQuery struct {
+	appInfoFields           []string
+	inAppPurchaseFields     []string
+	subscriptionGroupFields []string
+	retentionMessageFields  []string
+	include                 []string
+}
+
+// WithCiProductAppAppInfoFields sets fields[appInfos].
+func WithCiProductAppAppInfoFields(fields []string) CiProductAppOption {
+	return func(q *ciProductAppQuery) {
+		q.appInfoFields = normalizeList(fields)
+	}
+}
+
+// WithCiProductAppInAppPurchaseFields sets fields[inAppPurchases].
+func WithCiProductAppInAppPurchaseFields(fields []string) CiProductAppOption {
+	return func(q *ciProductAppQuery) {
+		q.inAppPurchaseFields = normalizeList(fields)
+	}
+}
+
+// WithCiProductAppSubscriptionGroupFields sets fields[subscriptionGroups].
+func WithCiProductAppSubscriptionGroupFields(fields []string) CiProductAppOption {
+	return func(q *ciProductAppQuery) {
+		q.subscriptionGroupFields = normalizeList(fields)
+	}
+}
+
+// WithCiProductAppRetentionMessageFields sets fields[retentionMessages].
+func WithCiProductAppRetentionMessageFields(fields []string) CiProductAppOption {
+	return func(q *ciProductAppQuery) {
+		q.retentionMessageFields = normalizeList(fields)
+	}
+}
+
+// WithCiProductAppInclude sets include.
+func WithCiProductAppInclude(include []string) CiProductAppOption {
+	return func(q *ciProductAppQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
+func buildCiProductAppQuery(query *ciProductAppQuery) string {
+	values := url.Values{}
+	addCSV(values, "fields[appInfos]", query.appInfoFields)
+	addCSV(values, "fields[inAppPurchases]", query.inAppPurchaseFields)
+	addCSV(values, "fields[subscriptionGroups]", query.subscriptionGroupFields)
+	addCSV(values, "fields[retentionMessages]", query.retentionMessageFields)
+	addCSV(values, "include", query.include)
+	return values.Encode()
+}
+
+// CiWorkflowsOption sets the query of GET /v1/ciProducts/{id}/workflows (ciProducts_workflows_getToManyRelated).
+type CiWorkflowsOption func(*ciWorkflowsQuery)
+
+type ciWorkflowsQuery struct {
+	listQuery
+}
+
+func buildCiWorkflowsQuery(query *ciWorkflowsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
 }

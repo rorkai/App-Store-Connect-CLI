@@ -167,19 +167,6 @@ type ScmPullRequestResponse struct {
 	Links Links                  `json:"links"`
 }
 
-type scmProvidersQuery struct {
-	listQuery
-}
-
-// ScmProvidersOption is a functional option for GetScmProviders.
-type ScmProvidersOption func(*scmProvidersQuery)
-
-func buildScmProvidersQuery(query *scmProvidersQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
 type scmRepositoriesQuery struct {
 	listQuery
 }
@@ -188,32 +175,6 @@ type scmRepositoriesQuery struct {
 type ScmRepositoriesOption func(*scmRepositoriesQuery)
 
 func buildScmRepositoriesQuery(query *scmRepositoriesQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
-type scmGitReferencesQuery struct {
-	listQuery
-}
-
-// ScmGitReferencesOption is a functional option for GetScmGitReferences.
-type ScmGitReferencesOption func(*scmGitReferencesQuery)
-
-func buildScmGitReferencesQuery(query *scmGitReferencesQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
-type scmPullRequestsQuery struct {
-	listQuery
-}
-
-// ScmPullRequestsOption is a functional option for GetScmRepositoryPullRequests.
-type ScmPullRequestsOption func(*scmPullRequestsQuery)
-
-func buildScmPullRequestsQuery(query *scmPullRequestsQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
 	return values.Encode()

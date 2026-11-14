@@ -22,32 +22,6 @@ func TestBuildBuildBundlesQuery(t *testing.T) {
 	}
 }
 
-func TestBuildBuildBundleFileSizesQuery(t *testing.T) {
-	query := &buildBundleFileSizesQuery{}
-	Limit[BuildBundleFileSizesOption](100)(query)
-
-	values, err := url.ParseQuery(buildBuildBundleFileSizesQuery(query))
-	if err != nil {
-		t.Fatalf("failed to parse query: %v", err)
-	}
-	if got := values.Get("limit"); got != "100" {
-		t.Fatalf("expected limit=100, got %q", got)
-	}
-}
-
-func TestBuildBetaAppClipInvocationsQuery(t *testing.T) {
-	query := &betaAppClipInvocationsQuery{}
-	Limit[BetaAppClipInvocationsOption](50)(query)
-
-	values, err := url.ParseQuery(buildBetaAppClipInvocationsQuery(query))
-	if err != nil {
-		t.Fatalf("failed to parse query: %v", err)
-	}
-	if got := values.Get("limit"); got != "50" {
-		t.Fatalf("expected limit=50, got %q", got)
-	}
-}
-
 func TestExtractBuildBundles(t *testing.T) {
 	included := json.RawMessage(`[
 		{

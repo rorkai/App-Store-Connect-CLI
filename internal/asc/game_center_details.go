@@ -1,24 +1,7 @@
 package asc
 
-import (
-	"net/url"
-)
-
 // GameCenterDetailsResponse is the response from Game Center detail list endpoints.
 type GameCenterDetailsResponse = Response[GameCenterDetailAttributes]
-
-// GCDetailsOption is a functional option for Game Center detail queries.
-type GCDetailsOption func(*gcDetailsQuery)
-
-type gcDetailsQuery struct {
-	listQuery
-}
-
-func buildGCDetailsQuery(query *gcDetailsQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
 
 // GameCenterDetailCreateRelationships describes relationships for creating a Game Center detail.
 type GameCenterDetailCreateRelationships struct {

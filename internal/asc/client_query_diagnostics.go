@@ -16,10 +16,6 @@ type diagnosticSignaturesQuery struct {
 	fields          []string
 }
 
-type diagnosticLogsQuery struct {
-	listQuery
-}
-
 func buildPerfPowerMetricsQuery(query *perfPowerMetricsQuery) string {
 	values := url.Values{}
 	addCSV(values, "filter[platform]", query.platforms)
@@ -36,20 +32,11 @@ func buildDiagnosticSignaturesQuery(query *diagnosticSignaturesQuery) string {
 	return values.Encode()
 }
 
-func buildDiagnosticLogsQuery(query *diagnosticLogsQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
 // PerfPowerMetricsOption is a functional option for performance/power metrics.
 type PerfPowerMetricsOption func(*perfPowerMetricsQuery)
 
 // DiagnosticSignaturesOption is a functional option for diagnostic signatures.
 type DiagnosticSignaturesOption func(*diagnosticSignaturesQuery)
-
-// DiagnosticLogsOption is a functional option for diagnostic logs.
-type DiagnosticLogsOption func(*diagnosticLogsQuery)
 
 // WithPerfPowerMetricsPlatforms filters metrics by platform(s).
 func WithPerfPowerMetricsPlatforms(platforms []string) PerfPowerMetricsOption {

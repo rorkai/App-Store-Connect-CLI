@@ -8,5 +8,10 @@
   "operations": [
     {"operation":"subscriptionOfferCodes_customCodes_getToManyRelated","name":"GetSubscriptionOfferCodeCustomCodes","params":["offerCodeID"],"options":"SubscriptionOfferCodeCustomCodesOption","query":"buildSubscriptionOfferCodeCustomCodesQuery","nextContext":"subscriptionOfferCodeCustomCodes"},
     {"operation":"subscriptionOfferCodes_oneTimeUseCodes_getToManyRelated","name":"GetSubscriptionOfferCodeOneTimeUseCodes","params":["offerCodeID"],"check":"trim","checkFirst":true,"options":"SubscriptionOfferCodeOneTimeUseCodesOption","query":"buildSubscriptionOfferCodeOneTimeUseCodesQuery","nextContext":"offer codes"}
+  ],
+  "queries": [
+    {"operation":"subscriptionOfferCodes_customCodes_getToManyRelated","name":"SubscriptionOfferCodeCustomCodes","deviations":[{"problem":"query parameters [fields[subscriptionOfferCodeCustomCodes] fields[subscriptionOfferCodes] include] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]},
+    {"operation":"subscriptionOfferCodes_oneTimeUseCodes_getToManyRelated","name":"SubscriptionOfferCodeOneTimeUseCodes","deviations":[{"problem":"query parameters [fields[subscriptionOfferCodeOneTimeUseCodes] fields[subscriptionOfferCodes] include] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]},
+    {"operation":"subscriptionOfferCodes_prices_getToManyRelated","name":"SubscriptionOfferCodePrices","params":[{"name":"fields[subscriptionPricePoints]","field":"pricePointFields","arg":"fields"},{"name":"include"}],"deviations":[{"problem":"query parameters [fields[subscriptionOfferCodePrices] fields[territories] filter[territory]] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]}
   ]
 }

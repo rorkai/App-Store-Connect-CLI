@@ -497,63 +497,6 @@ func TestGCMatchmakingQueuesOptions(t *testing.T) {
 	}
 }
 
-func TestGCMatchmakingRuleSetsOptions(t *testing.T) {
-	query := &gcMatchmakingRuleSetsQuery{}
-	Limit[GCMatchmakingRuleSetsOption](3)(query)
-	if query.limit != 3 {
-		t.Fatalf("expected limit 3, got %d", query.limit)
-	}
-	NextURL[GCMatchmakingRuleSetsOption]("next")(query)
-	if query.nextURL != "next" {
-		t.Fatalf("expected nextURL set, got %q", query.nextURL)
-	}
-	values, err := url.ParseQuery(buildGCMatchmakingRuleSetsQuery(query))
-	if err != nil {
-		t.Fatalf("parse query: %v", err)
-	}
-	if values.Get("limit") != "3" {
-		t.Fatalf("expected limit=3, got %q", values.Get("limit"))
-	}
-}
-
-func TestGCMatchmakingRulesOptions(t *testing.T) {
-	query := &gcMatchmakingRulesQuery{}
-	Limit[GCMatchmakingRulesOption](7)(query)
-	if query.limit != 7 {
-		t.Fatalf("expected limit 7, got %d", query.limit)
-	}
-	NextURL[GCMatchmakingRulesOption]("next")(query)
-	if query.nextURL != "next" {
-		t.Fatalf("expected nextURL set, got %q", query.nextURL)
-	}
-	values, err := url.ParseQuery(buildGCMatchmakingRulesQuery(query))
-	if err != nil {
-		t.Fatalf("parse query: %v", err)
-	}
-	if values.Get("limit") != "7" {
-		t.Fatalf("expected limit=7, got %q", values.Get("limit"))
-	}
-}
-
-func TestGCMatchmakingTeamsOptions(t *testing.T) {
-	query := &gcMatchmakingTeamsQuery{}
-	Limit[GCMatchmakingTeamsOption](9)(query)
-	if query.limit != 9 {
-		t.Fatalf("expected limit 9, got %d", query.limit)
-	}
-	NextURL[GCMatchmakingTeamsOption]("next")(query)
-	if query.nextURL != "next" {
-		t.Fatalf("expected nextURL set, got %q", query.nextURL)
-	}
-	values, err := url.ParseQuery(buildGCMatchmakingTeamsQuery(query))
-	if err != nil {
-		t.Fatalf("parse query: %v", err)
-	}
-	if values.Get("limit") != "9" {
-		t.Fatalf("expected limit=9, got %q", values.Get("limit"))
-	}
-}
-
 func TestGCMatchmakingMetricsOptionsAndQueries(t *testing.T) {
 	query := &gcMatchmakingMetricsQuery{}
 	WithGCMatchmakingMetricsGranularity("P1D")(query)

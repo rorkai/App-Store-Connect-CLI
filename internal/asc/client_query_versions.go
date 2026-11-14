@@ -83,13 +83,6 @@ type appStoreVersionLocalizationsQuery struct {
 	locales []string
 }
 
-type appInfoLocalizationsQuery struct {
-	listQuery
-	locales       []string
-	appInfoFields []string
-	include       []string
-}
-
 type appInfoQuery struct {
 	listQuery
 	includedFieldsQuery
@@ -97,13 +90,6 @@ type appInfoQuery struct {
 	ageRatingDeclarationFields []string
 	include                    []string
 	localizationsLimit         int
-}
-
-type territoryAgeRatingsQuery struct {
-	listQuery
-	fields          []string
-	territoryFields []string
-	include         []string
 }
 
 type appCustomProductPagesQuery struct {
@@ -116,18 +102,10 @@ type appCustomProductPagesQuery struct {
 	versionsLimit int
 }
 
-type appCustomProductPageVersionsQuery struct {
-	listQuery
-}
-
 type appCustomProductPageLocalizationsQuery struct {
 	listQuery
 	localizationRelatedQuery
 	searchKeywordsLimit int
-}
-
-type appCustomProductPageLocalizationPreviewSetsQuery struct {
-	listQuery
 }
 
 type appCustomProductPageLocalizationScreenshotSetsQuery struct {
@@ -166,18 +144,10 @@ type appStoreVersionExperimentTreatmentLocalizationsQuery struct {
 	localizationRelatedQuery
 }
 
-type appStoreVersionExperimentTreatmentLocalizationPreviewSetsQuery struct {
-	listQuery
-}
-
 type appStoreVersionExperimentTreatmentLocalizationScreenshotSetsQuery struct {
 	listQuery
 	includeMedia   bool
 	requestContext RequestContextFunc
-}
-
-type endUserLicenseAgreementTerritoriesQuery struct {
-	listQuery
 }
 
 type territoriesQuery struct {
@@ -316,15 +286,6 @@ func buildAppStoreVersionLocalizationsQuery(query *appStoreVersionLocalizationsQ
 	return values.Encode()
 }
 
-func buildAppInfoLocalizationsQuery(query *appInfoLocalizationsQuery) string {
-	values := url.Values{}
-	addCSV(values, "filter[locale]", query.locales)
-	addCSV(values, "fields[appInfos]", query.appInfoFields)
-	addCSV(values, "include", query.include)
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
 func buildAppInfoQuery(query *appInfoQuery) string {
 	values := url.Values{}
 	include := normalizeUniqueList(query.include)
@@ -342,15 +303,6 @@ func buildAppInfoQuery(query *appInfoQuery) string {
 		values.Set("limit[appInfoLocalizations]", strconv.Itoa(query.localizationsLimit))
 	}
 	query.includedFields.AddTo(values)
-	return values.Encode()
-}
-
-func buildTerritoryAgeRatingsQuery(query *territoryAgeRatingsQuery) string {
-	values := url.Values{}
-	addCSV(values, "fields[territoryAgeRatings]", query.fields)
-	addCSV(values, "fields[territories]", query.territoryFields)
-	addCSV(values, "include", query.include)
-	addLimit(values, query.limit)
 	return values.Encode()
 }
 
@@ -375,12 +327,6 @@ func buildAppCustomProductPagesQuery(query *appCustomProductPagesQuery) string {
 	return values.Encode()
 }
 
-func buildAppCustomProductPageVersionsQuery(query *appCustomProductPageVersionsQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
 func buildAppCustomProductPageLocalizationsQuery(query *appCustomProductPageLocalizationsQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
@@ -389,12 +335,6 @@ func buildAppCustomProductPageLocalizationsQuery(query *appCustomProductPageLoca
 		addCSV(values, "include", append(slices.Clone(query.include), "searchKeywords"))
 		values.Set("limit[searchKeywords]", strconv.Itoa(query.searchKeywordsLimit))
 	}
-	return values.Encode()
-}
-
-func buildAppCustomProductPageLocalizationPreviewSetsQuery(query *appCustomProductPageLocalizationPreviewSetsQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
 	return values.Encode()
 }
 
@@ -453,24 +393,12 @@ func buildAppStoreVersionExperimentTreatmentLocalizationsQuery(query *appStoreVe
 	return values.Encode()
 }
 
-func buildAppStoreVersionExperimentTreatmentLocalizationPreviewSetsQuery(query *appStoreVersionExperimentTreatmentLocalizationPreviewSetsQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
 func buildAppStoreVersionExperimentTreatmentLocalizationScreenshotSetsQuery(query *appStoreVersionExperimentTreatmentLocalizationScreenshotSetsQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
 	if query.includeMedia {
 		addIncludedSetMedia(values, "appScreenshots")
 	}
-	return values.Encode()
-}
-
-func buildEndUserLicenseAgreementTerritoriesQuery(query *endUserLicenseAgreementTerritoriesQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
 	return values.Encode()
 }
 
@@ -502,17 +430,11 @@ type ReviewSubmissionOption func(*reviewSubmissionQuery)
 // AppStoreVersionLocalizationsOption is a functional option for version localizations.
 type AppStoreVersionLocalizationsOption func(*appStoreVersionLocalizationsQuery)
 
-// AppInfoLocalizationsOption is a functional option for app info localizations.
-type AppInfoLocalizationsOption func(*appInfoLocalizationsQuery)
-
 // AppInfoOption is a functional option for GetAppInfo.
 type AppInfoOption func(*appInfoQuery)
 
 // AppCustomProductPagesOption is a functional option for custom product page list endpoints.
 type AppCustomProductPagesOption func(*appCustomProductPagesQuery)
-
-// AppCustomProductPageVersionsOption is a functional option for custom product page version list endpoints.
-type AppCustomProductPageVersionsOption func(*appCustomProductPageVersionsQuery)
 
 // LocalizationReadOption sets query parameters on a single-localization read.
 type LocalizationReadOption func(*localizationRelatedQuery)
@@ -547,9 +469,6 @@ func localizationReadPath(path string, opts []LocalizationReadOption) string {
 // AppCustomProductPageLocalizationsOption is a functional option for custom product page localization list endpoints.
 type AppCustomProductPageLocalizationsOption func(*appCustomProductPageLocalizationsQuery)
 
-// AppCustomProductPageLocalizationPreviewSetsOption is a functional option for preview set list endpoints.
-type AppCustomProductPageLocalizationPreviewSetsOption func(*appCustomProductPageLocalizationPreviewSetsQuery)
-
 // AppCustomProductPageLocalizationScreenshotSetsOption is a functional option for screenshot set list endpoints.
 type AppCustomProductPageLocalizationScreenshotSetsOption func(*appCustomProductPageLocalizationScreenshotSetsQuery)
 
@@ -558,9 +477,6 @@ type AppStoreVersionLocalizationPreviewSetsOption func(*appStoreVersionLocalizat
 
 // AppStoreVersionLocalizationScreenshotSetsOption is a functional option for app store version screenshot sets list endpoints.
 type AppStoreVersionLocalizationScreenshotSetsOption func(*appStoreVersionLocalizationScreenshotSetsQuery)
-
-// AppStoreVersionExperimentTreatmentLocalizationPreviewSetsOption is a functional option for treatment localization preview set list endpoints.
-type AppStoreVersionExperimentTreatmentLocalizationPreviewSetsOption func(*appStoreVersionExperimentTreatmentLocalizationPreviewSetsQuery)
 
 // AppStoreVersionExperimentTreatmentLocalizationScreenshotSetsOption is a functional option for treatment localization screenshot set list endpoints.
 type AppStoreVersionExperimentTreatmentLocalizationScreenshotSetsOption func(*appStoreVersionExperimentTreatmentLocalizationScreenshotSetsQuery)
@@ -580,14 +496,8 @@ type AppStoreVersionExperimentTreatmentLocalizationsOption func(*appStoreVersion
 // TerritoriesOption is a functional option for GetTerritories.
 type TerritoriesOption func(*territoriesQuery)
 
-// EndUserLicenseAgreementTerritoriesOption is a functional option for EULA territory lists.
-type EndUserLicenseAgreementTerritoriesOption func(*endUserLicenseAgreementTerritoriesQuery)
-
 // AppStoreReviewAttachmentsOption is a functional option for review attachments.
 type AppStoreReviewAttachmentsOption func(*appStoreReviewAttachmentsQuery)
-
-// TerritoryAgeRatingsOption is a functional option for territory age ratings.
-type TerritoryAgeRatingsOption func(*territoryAgeRatingsQuery)
 
 // WithAppStoreReviewAttachmentsFields includes specific attachment fields.
 func WithAppStoreReviewAttachmentsFields(fields []string) AppStoreReviewAttachmentsOption {
@@ -867,27 +777,6 @@ func WithAppStoreVersionLocalizationsPlacementsLimit(limit int) AppStoreVersionL
 	}
 }
 
-// WithAppInfoLocalizationLocales filters app info localizations by locale.
-func WithAppInfoLocalizationLocales(locales []string) AppInfoLocalizationsOption {
-	return func(q *appInfoLocalizationsQuery) {
-		q.locales = normalizeList(locales)
-	}
-}
-
-// WithAppInfoLocalizationsAppInfoFields sets fields[appInfos].
-func WithAppInfoLocalizationsAppInfoFields(fields []string) AppInfoLocalizationsOption {
-	return func(q *appInfoLocalizationsQuery) {
-		q.appInfoFields = normalizeList(fields)
-	}
-}
-
-// WithAppInfoLocalizationsInclude includes related resources.
-func WithAppInfoLocalizationsInclude(include []string) AppInfoLocalizationsOption {
-	return func(q *appInfoLocalizationsQuery) {
-		q.include = normalizeList(include)
-	}
-}
-
 // WithAppInfoFields sets fields[appInfos].
 func WithAppInfoFields(fields []string) AppInfoOption {
 	return func(q *appInfoQuery) {
@@ -916,27 +805,6 @@ func WithAppInfoLocalizationsIncludeLimit(limit int) AppInfoOption {
 		if limit > 0 {
 			q.localizationsLimit = limit
 		}
-	}
-}
-
-// WithTerritoryAgeRatingsFields sets fields[territoryAgeRatings].
-func WithTerritoryAgeRatingsFields(fields []string) TerritoryAgeRatingsOption {
-	return func(q *territoryAgeRatingsQuery) {
-		q.fields = normalizeList(fields)
-	}
-}
-
-// WithTerritoryAgeRatingsTerritoryFields sets fields[territories].
-func WithTerritoryAgeRatingsTerritoryFields(fields []string) TerritoryAgeRatingsOption {
-	return func(q *territoryAgeRatingsQuery) {
-		q.territoryFields = normalizeList(fields)
-	}
-}
-
-// WithTerritoryAgeRatingsInclude sets include values for territory age ratings.
-func WithTerritoryAgeRatingsInclude(include []string) TerritoryAgeRatingsOption {
-	return func(q *territoryAgeRatingsQuery) {
-		q.include = normalizeList(include)
 	}
 }
 

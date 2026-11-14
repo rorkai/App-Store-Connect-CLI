@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -49,4 +50,62 @@ func (c *Client) GetWinBackOfferPricesRelationships(ctx context.Context, offerID
 		Next:        query.nextURL,
 		NextContext: "winBackOfferPrices relationships",
 	})
+}
+
+// WinBackOfferPricesOption sets the query of GET /v1/winBackOffers/{id}/prices (winBackOffers_prices_getToManyRelated).
+type WinBackOfferPricesOption func(*winBackOfferPricesQuery)
+
+type winBackOfferPricesQuery struct {
+	listQuery
+	territoryIDs                 []string
+	fields                       []string
+	territoryFields              []string
+	subscriptionPricePointFields []string
+	include                      []string
+}
+
+// WithWinBackOfferPricesTerritoryFilter sets filter[territory].
+func WithWinBackOfferPricesTerritoryFilter(ids []string) WinBackOfferPricesOption {
+	return func(q *winBackOfferPricesQuery) {
+		q.territoryIDs = normalizeList(ids)
+	}
+}
+
+// WithWinBackOfferPricesFields sets fields[winBackOfferPrices].
+func WithWinBackOfferPricesFields(fields []string) WinBackOfferPricesOption {
+	return func(q *winBackOfferPricesQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+// WithWinBackOfferPricesTerritoryFields sets fields[territories].
+func WithWinBackOfferPricesTerritoryFields(fields []string) WinBackOfferPricesOption {
+	return func(q *winBackOfferPricesQuery) {
+		q.territoryFields = normalizeList(fields)
+	}
+}
+
+// WithWinBackOfferPricesSubscriptionPricePointFields sets fields[subscriptionPricePoints].
+func WithWinBackOfferPricesSubscriptionPricePointFields(fields []string) WinBackOfferPricesOption {
+	return func(q *winBackOfferPricesQuery) {
+		q.subscriptionPricePointFields = normalizeList(fields)
+	}
+}
+
+// WithWinBackOfferPricesInclude sets include.
+func WithWinBackOfferPricesInclude(include []string) WinBackOfferPricesOption {
+	return func(q *winBackOfferPricesQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
+func buildWinBackOfferPricesQuery(query *winBackOfferPricesQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[territory]", query.territoryIDs)
+	addCSV(values, "fields[winBackOfferPrices]", query.fields)
+	addCSV(values, "fields[territories]", query.territoryFields)
+	addCSV(values, "fields[subscriptionPricePoints]", query.subscriptionPricePointFields)
+	addCSV(values, "include", query.include)
+	addLimit(values, query.limit)
+	return values.Encode()
 }

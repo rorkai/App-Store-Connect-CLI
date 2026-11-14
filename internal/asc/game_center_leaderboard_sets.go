@@ -100,19 +100,6 @@ type GameCenterLeaderboardSetVersionsResponse = Response[GameCenterLeaderboardSe
 // GameCenterLeaderboardSetVersionResponse is the response from leaderboard set version detail endpoints.
 type GameCenterLeaderboardSetVersionResponse = SingleResponse[GameCenterLeaderboardSetVersionAttributes]
 
-// GCLeaderboardSetVersionsOption is a functional option for GetGameCenterLeaderboardSetVersions.
-type GCLeaderboardSetVersionsOption func(*gcLeaderboardSetVersionsQuery)
-
-type gcLeaderboardSetVersionsQuery struct {
-	listQuery
-}
-
-func buildGCLeaderboardSetVersionsQuery(query *gcLeaderboardSetVersionsQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
 // GameCenterLeaderboardSetLocalizationAttributes represents a Game Center leaderboard set localization resource.
 type GameCenterLeaderboardSetLocalizationAttributes struct {
 	Locale string `json:"locale"`

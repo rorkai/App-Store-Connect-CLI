@@ -3,5 +3,8 @@
   "file": "subscription_price_points_gen.go",
   "types": [
     "SubscriptionPricePointAttributes"
+  ],
+  "queries": [
+    {"operation":"subscriptionPricePoints_getInstance","name":"SubscriptionPricePointDetail","option":"SubscriptionPricePointOption","params":[{"name":"fields[subscriptionPricePoints]","with":"WithSubscriptionPricePointFields"}],"deviations":[{"problem":"query parameters [fields[territories] include] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]}
   ]
 }

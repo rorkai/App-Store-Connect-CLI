@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -17,4 +18,35 @@ type SubscriptionPromotionalOfferUpdateRequest struct {
 // DeleteSubscriptionPromotionalOffer sends DELETE /v1/subscriptionPromotionalOffers/{id} (subscriptionPromotionalOffers_deleteInstance).
 func (c *Client) DeleteSubscriptionPromotionalOffer(ctx context.Context, offerID string) error {
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/subscriptionPromotionalOffers/%s", strings.TrimSpace(offerID)), nil)
+}
+
+// SubscriptionPromotionalOfferPricesOption sets the query of GET /v1/subscriptionPromotionalOffers/{id}/prices (subscriptionPromotionalOffers_prices_getToManyRelated).
+type SubscriptionPromotionalOfferPricesOption func(*subscriptionPromotionalOfferPricesQuery)
+
+type subscriptionPromotionalOfferPricesQuery struct {
+	listQuery
+	pricePointFields []string
+	include          []string
+}
+
+// WithSubscriptionPromotionalOfferPricesPricePointFields sets fields[subscriptionPricePoints].
+func WithSubscriptionPromotionalOfferPricesPricePointFields(fields []string) SubscriptionPromotionalOfferPricesOption {
+	return func(q *subscriptionPromotionalOfferPricesQuery) {
+		q.pricePointFields = normalizeList(fields)
+	}
+}
+
+// WithSubscriptionPromotionalOfferPricesInclude sets include.
+func WithSubscriptionPromotionalOfferPricesInclude(include []string) SubscriptionPromotionalOfferPricesOption {
+	return func(q *subscriptionPromotionalOfferPricesQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
+func buildSubscriptionPromotionalOfferPricesQuery(query *subscriptionPromotionalOfferPricesQuery) string {
+	values := url.Values{}
+	addCSV(values, "fields[subscriptionPricePoints]", query.pricePointFields)
+	addCSV(values, "include", query.include)
+	addLimit(values, query.limit)
+	return values.Encode()
 }

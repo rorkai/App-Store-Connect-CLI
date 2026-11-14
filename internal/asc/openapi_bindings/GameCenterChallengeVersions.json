@@ -9,5 +9,8 @@
     {"operation":"gameCenterChallengeVersions_defaultImage_getToOneRelated","name":"GetGameCenterChallengeVersionDefaultImage","params":["versionID"],"response":"GameCenterChallengeVersionDefaultImageResponse"},
     {"operation":"gameCenterChallengeVersions_getInstance","name":"GetGameCenterChallengeVersion","params":["versionID"]},
     {"operation":"gameCenterChallengeVersions_localizations_getToManyRelated","name":"GetGameCenterChallengeLocalizations","params":["versionID"],"options":"GCChallengeLocalizationsOption","query":"buildGCChallengeLocalizationsQuery","nextContext":"game-center-challenge-localizations"}
+  ],
+  "queries": [
+    {"operation":"gameCenterChallengeVersions_localizations_getToManyRelated","name":"GCChallengeLocalizations","deviations":[{"problem":"query parameters [fields[gameCenterChallengeImages] fields[gameCenterChallengeLocalizations] fields[gameCenterChallengeVersions] include] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]}
   ]
 }

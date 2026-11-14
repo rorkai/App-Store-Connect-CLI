@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -128,4 +129,30 @@ func (c *Client) UpdateAppEventLocalization(ctx context.Context, localizationID 
 		Path:    fmt.Sprintf("/v1/appEventLocalizations/%s", localizationID),
 		Payload: payload,
 	})
+}
+
+// AppEventScreenshotsOption sets the query of GET /v1/appEventLocalizations/{id}/appEventScreenshots (appEventLocalizations_appEventScreenshots_getToManyRelated).
+type AppEventScreenshotsOption func(*appEventScreenshotsQuery)
+
+type appEventScreenshotsQuery struct {
+	listQuery
+}
+
+func buildAppEventScreenshotsQuery(query *appEventScreenshotsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+// AppEventVideoClipsOption sets the query of GET /v1/appEventLocalizations/{id}/appEventVideoClips (appEventLocalizations_appEventVideoClips_getToManyRelated).
+type AppEventVideoClipsOption func(*appEventVideoClipsQuery)
+
+type appEventVideoClipsQuery struct {
+	listQuery
+}
+
+func buildAppEventVideoClipsQuery(query *appEventVideoClipsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
 }

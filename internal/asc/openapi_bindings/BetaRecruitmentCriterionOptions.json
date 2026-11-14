@@ -6,5 +6,8 @@
   ],
   "operations": [
     {"operation":"betaRecruitmentCriterionOptions_getCollection","name":"GetBetaRecruitmentCriterionOptions","options":"BetaRecruitmentCriterionOptionsOption","query":"buildBetaRecruitmentCriterionOptionsQuery","nextContext":"betaRecruitmentCriterionOptions"}
+  ],
+  "queries": [
+    {"operation":"betaRecruitmentCriterionOptions_getCollection","name":"BetaRecruitmentCriterionOptions","params":[{"name":"fields[betaRecruitmentCriterionOptions]"}]}
   ]
 }

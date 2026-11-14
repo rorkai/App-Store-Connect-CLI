@@ -8,5 +8,9 @@
   "operations": [
     {"operation":"ciBuildRuns_actions_getToManyRelated","name":"GetCiBuildActions","params":["buildRunID"],"check":"raw","options":"CiBuildActionsOption","query":"buildCiBuildActionsQuery","nextContext":"ciBuildActions"},
     {"operation":"ciBuildRuns_builds_getToManyRelated","name":"GetCiBuildRunBuilds","params":["buildRunID"],"check":"raw","options":"CiBuildRunBuildsOption","query":"buildCiBuildRunBuildsQuery","nextContext":"ciBuildRunBuilds"}
+  ],
+  "queries": [
+    {"operation":"ciBuildRuns_actions_getToManyRelated","name":"CiBuildActions","deviations":[{"problem":"query parameters [fields[ciBuildActions] fields[ciBuildRuns] include] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]},
+    {"operation":"ciBuildRuns_builds_getToManyRelated","name":"CiBuildRunBuilds","deviations":[{"problem":"query parameters [exists[usesNonExemptEncryption] fields[appEncryptionDeclarations] fields[appStoreVersions] fields[apps] fields[betaAppReviewSubmissions] fields[betaBuildLocalizations] fields[betaGroups] fields[betaTesters] fields[buildBetaDetails] fields[buildBundles] fields[buildIcons] fields[buildUploads] fields[builds] fields[preReleaseVersions] filter[appStoreVersion] filter[app] filter[betaAppReviewSubmission.betaReviewState] filter[betaGroups] filter[buildAudienceType] filter[expired] filter[id] filter[preReleaseVersion.platform] filter[preReleaseVersion.version] filter[preReleaseVersion] filter[processingState] filter[usesNonExemptEncryption] filter[version] include limit[betaBuildLocalizations] limit[betaGroups] limit[buildBundles] limit[icons] limit[individualTesters] sort] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]}
   ]
 }

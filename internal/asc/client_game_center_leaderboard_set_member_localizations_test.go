@@ -6,7 +6,6 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"net/url"
 	"strings"
 	"testing"
 )
@@ -469,38 +468,5 @@ func TestDeleteGameCenterLeaderboardSetMemberLocalization_ReturnsAPIError(t *tes
 	}
 	if apiErr.StatusCode != http.StatusForbidden {
 		t.Fatalf("expected status code %d, got %d", http.StatusForbidden, apiErr.StatusCode)
-	}
-}
-
-func TestGCLeaderboardSetMemberLocalizationsOptions(t *testing.T) {
-	query := &gcLeaderboardSetMemberLocalizationsQuery{}
-	Limit[GCLeaderboardSetMemberLocalizationsOption](10)(query)
-	if query.limit != 10 {
-		t.Fatalf("expected limit 10, got %d", query.limit)
-	}
-	NextURL[GCLeaderboardSetMemberLocalizationsOption]("next")(query)
-	if query.nextURL != "next" {
-		t.Fatalf("expected nextURL set, got %q", query.nextURL)
-	}
-	WithGCLeaderboardSetMemberLocalizationsLeaderboardSetIDs([]string{" set-1 ", "", "set-2"})(query)
-	if len(query.leaderboardSetIDs) != 2 {
-		t.Fatalf("expected 2 set IDs, got %d", len(query.leaderboardSetIDs))
-	}
-	WithGCLeaderboardSetMemberLocalizationsLeaderboardIDs([]string{" lb-1 ", "lb-2"})(query)
-	if len(query.leaderboardIDs) != 2 {
-		t.Fatalf("expected 2 leaderboard IDs, got %d", len(query.leaderboardIDs))
-	}
-	values, err := url.ParseQuery(buildGCLeaderboardSetMemberLocalizationsQuery(query))
-	if err != nil {
-		t.Fatalf("parse query: %v", err)
-	}
-	if values.Get("limit") != "10" {
-		t.Fatalf("expected limit=10, got %q", values.Get("limit"))
-	}
-	if values.Get("filter[gameCenterLeaderboardSet]") != "set-1,set-2" {
-		t.Fatalf("expected filter[gameCenterLeaderboardSet]=set-1,set-2, got %q", values.Get("filter[gameCenterLeaderboardSet]"))
-	}
-	if values.Get("filter[gameCenterLeaderboard]") != "lb-1,lb-2" {
-		t.Fatalf("expected filter[gameCenterLeaderboard]=lb-1,lb-2, got %q", values.Get("filter[gameCenterLeaderboard]"))
 	}
 }

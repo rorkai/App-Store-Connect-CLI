@@ -2,9 +2,33 @@
 
 package asc
 
+import (
+	"net/url"
+)
+
 // SubscriptionPricePointAttributes is the attributes object of the SubscriptionPricePoint schema.
 type SubscriptionPricePointAttributes struct {
 	CustomerPrice string `json:"customerPrice,omitempty"`
 	Proceeds      string `json:"proceeds,omitempty"`
 	ProceedsYear2 string `json:"proceedsYear2,omitempty"`
+}
+
+// SubscriptionPricePointOption sets the query of GET /v1/subscriptionPricePoints/{id} (subscriptionPricePoints_getInstance).
+type SubscriptionPricePointOption func(*subscriptionPricePointDetailQuery)
+
+type subscriptionPricePointDetailQuery struct {
+	fields []string
+}
+
+// WithSubscriptionPricePointFields sets fields[subscriptionPricePoints].
+func WithSubscriptionPricePointFields(fields []string) SubscriptionPricePointOption {
+	return func(q *subscriptionPricePointDetailQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+func buildSubscriptionPricePointDetailQuery(query *subscriptionPricePointDetailQuery) string {
+	values := url.Values{}
+	addCSV(values, "fields[subscriptionPricePoints]", query.fields)
+	return values.Encode()
 }

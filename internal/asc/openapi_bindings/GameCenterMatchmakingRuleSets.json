@@ -20,5 +20,10 @@
     {"operation":"gameCenterMatchmakingRuleSets_rules_getToManyRelated","name":"GetGameCenterMatchmakingRules","params":["ruleSetID"],"options":"GCMatchmakingRulesOption","query":"buildGCMatchmakingRulesQuery","nextContext":"game-center-matchmaking-rules"},
     {"operation":"gameCenterMatchmakingRuleSets_teams_getToManyRelated","name":"GetGameCenterMatchmakingTeams","params":["ruleSetID"],"options":"GCMatchmakingTeamsOption","query":"buildGCMatchmakingTeamsQuery","nextContext":"game-center-matchmaking-teams"},
     {"operation":"gameCenterMatchmakingRuleSets_updateInstance","name":"UpdateGameCenterMatchmakingRuleSet","params":["ruleSetID"]}
+  ],
+  "queries": [
+    {"operation":"gameCenterMatchmakingRuleSets_getCollection","name":"GCMatchmakingRuleSets","deviations":[{"problem":"query parameters [fields[gameCenterMatchmakingQueues] fields[gameCenterMatchmakingRuleSets] fields[gameCenterMatchmakingRules] fields[gameCenterMatchmakingTeams] include limit[matchmakingQueues] limit[rules] limit[teams]] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]},
+    {"operation":"gameCenterMatchmakingRuleSets_rules_getToManyRelated","name":"GCMatchmakingRules","deviations":[{"problem":"query parameters [fields[gameCenterMatchmakingRules]] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]},
+    {"operation":"gameCenterMatchmakingRuleSets_teams_getToManyRelated","name":"GCMatchmakingTeams","deviations":[{"problem":"query parameters [fields[gameCenterMatchmakingTeams]] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]}
   ]
 }

@@ -19,5 +19,9 @@
     {"operation":"betaGroups_getCollection","name":"ListBetaGroups","options":"BetaGroupsOption","query":"buildBetaGroupsQuery","nextContext":"betaGroups"},
     {"operation":"betaGroups_getInstance","name":"GetBetaGroup","params":["groupID"],"check":"raw"},
     {"operation":"betaGroups_publicLinkUsages_getMetrics","name":"GetBetaGroupPublicLinkUsages","params":["groupID"],"check":"require","response":"BetaGroupPublicLinkUsagesResponse","deviations":[{"problem":"the operation pages with limit, the method takes no options","reason":"hand-written signature without options. The live API rejects limit on this read (\"The parameter 'limit' can not be used with this request\", checked 2026-11-14), so the schema snapshot is wrong here and the method must not send it"}]}
+  ],
+  "queries": [
+    {"operation":"betaGroups_betaTesters_getToManyRelated","name":"BetaGroupTesters","deviations":[{"problem":"query parameters [fields[betaTesters]] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]},
+    {"operation":"betaGroups_builds_getToManyRelated","name":"BetaGroupBuilds","deviations":[{"problem":"query parameters [fields[builds]] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]}
   ]
 }

@@ -19,5 +19,9 @@
     {"operation":"builds_individualTesters_getToManyRelated","name":"GetBuildIndividualTesters","params":["buildID"],"check":"require","options":"BuildIndividualTestersOption","query":"buildBuildIndividualTestersQuery","nextContext":"buildIndividualTesters","response":"BetaTestersResponse"},
     {"operation":"builds_preReleaseVersion_getToOneRelated","name":"GetBuildPreReleaseVersion","params":["buildID"],"check":"require","response":"PreReleaseVersionResponse"},
     {"operation":"builds_preReleaseVersion_getToOneRelationship","name":"GetBuildPreReleaseVersionRelationship","params":["buildID"],"check":"require","parseErr":"failed to parse preReleaseVersion relationship response"}
+  ],
+  "queries": [
+    {"operation":"builds_betaBuildUsages_getMetrics","name":"BetaBuildUsages"},
+    {"operation":"builds_individualTesters_getToManyRelated","name":"BuildIndividualTesters","deviations":[{"problem":"query parameters [fields[betaTesters]] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]}
   ]
 }

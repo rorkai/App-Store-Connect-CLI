@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -70,4 +71,17 @@ func (c *Client) GetAlternativeDistributionDomain(ctx context.Context, domainID 
 		Path:     fmt.Sprintf("/v1/alternativeDistributionDomains/%s", domainID),
 		ParseErr: "failed to parse alternative distribution domain response",
 	})
+}
+
+// AlternativeDistributionDomainsOption sets the query of GET /v1/alternativeDistributionDomains (alternativeDistributionDomains_getCollection).
+type AlternativeDistributionDomainsOption func(*alternativeDistributionDomainsQuery)
+
+type alternativeDistributionDomainsQuery struct {
+	listQuery
+}
+
+func buildAlternativeDistributionDomainsQuery(query *alternativeDistributionDomainsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
 }

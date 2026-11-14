@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 )
 
@@ -185,4 +186,104 @@ func (c *Client) GetAppInfoTerritoryAgeRatings(ctx context.Context, appInfoID st
 		Next:        query.nextURL,
 		NextContext: "territoryAgeRatings",
 	})
+}
+
+// AgeRatingDeclarationOption sets the query of GET /v1/appInfos/{id}/ageRatingDeclaration (appInfos_ageRatingDeclaration_getToOneRelated).
+type AgeRatingDeclarationOption func(*ageRatingDeclarationQuery)
+
+type ageRatingDeclarationQuery struct {
+	fields []string
+}
+
+// WithAgeRatingDeclarationFields sets fields[ageRatingDeclarations].
+func WithAgeRatingDeclarationFields(fields []string) AgeRatingDeclarationOption {
+	return func(q *ageRatingDeclarationQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+func buildAgeRatingDeclarationQuery(query *ageRatingDeclarationQuery) string {
+	values := url.Values{}
+	addCSV(values, "fields[ageRatingDeclarations]", query.fields)
+	return values.Encode()
+}
+
+// AppInfoLocalizationsOption sets the query of GET /v1/appInfos/{id}/appInfoLocalizations (appInfos_appInfoLocalizations_getToManyRelated).
+type AppInfoLocalizationsOption func(*appInfoLocalizationsQuery)
+
+type appInfoLocalizationsQuery struct {
+	listQuery
+	locales       []string
+	appInfoFields []string
+	include       []string
+}
+
+// WithAppInfoLocalizationLocales sets filter[locale].
+func WithAppInfoLocalizationLocales(locales []string) AppInfoLocalizationsOption {
+	return func(q *appInfoLocalizationsQuery) {
+		q.locales = normalizeList(locales)
+	}
+}
+
+// WithAppInfoLocalizationsAppInfoFields sets fields[appInfos].
+func WithAppInfoLocalizationsAppInfoFields(fields []string) AppInfoLocalizationsOption {
+	return func(q *appInfoLocalizationsQuery) {
+		q.appInfoFields = normalizeList(fields)
+	}
+}
+
+// WithAppInfoLocalizationsInclude sets include.
+func WithAppInfoLocalizationsInclude(include []string) AppInfoLocalizationsOption {
+	return func(q *appInfoLocalizationsQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
+func buildAppInfoLocalizationsQuery(query *appInfoLocalizationsQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[locale]", query.locales)
+	addCSV(values, "fields[appInfos]", query.appInfoFields)
+	addCSV(values, "include", query.include)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+// TerritoryAgeRatingsOption sets the query of GET /v1/appInfos/{id}/territoryAgeRatings (appInfos_territoryAgeRatings_getToManyRelated).
+type TerritoryAgeRatingsOption func(*territoryAgeRatingsQuery)
+
+type territoryAgeRatingsQuery struct {
+	listQuery
+	fields          []string
+	territoryFields []string
+	include         []string
+}
+
+// WithTerritoryAgeRatingsFields sets fields[territoryAgeRatings].
+func WithTerritoryAgeRatingsFields(fields []string) TerritoryAgeRatingsOption {
+	return func(q *territoryAgeRatingsQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+// WithTerritoryAgeRatingsTerritoryFields sets fields[territories].
+func WithTerritoryAgeRatingsTerritoryFields(fields []string) TerritoryAgeRatingsOption {
+	return func(q *territoryAgeRatingsQuery) {
+		q.territoryFields = normalizeList(fields)
+	}
+}
+
+// WithTerritoryAgeRatingsInclude sets include.
+func WithTerritoryAgeRatingsInclude(include []string) TerritoryAgeRatingsOption {
+	return func(q *territoryAgeRatingsQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
+func buildTerritoryAgeRatingsQuery(query *territoryAgeRatingsQuery) string {
+	values := url.Values{}
+	addCSV(values, "fields[territoryAgeRatings]", query.fields)
+	addCSV(values, "fields[territories]", query.territoryFields)
+	addCSV(values, "include", query.include)
+	addLimit(values, query.limit)
+	return values.Encode()
 }

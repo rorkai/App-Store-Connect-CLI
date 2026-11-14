@@ -14,5 +14,8 @@
     {"operation":"betaAppLocalizations_getCollection","name":"GetBetaAppLocalizations","options":"BetaAppLocalizationsOption","query":"buildBetaAppLocalizationsQuery","nextContext":"betaAppLocalizations"},
     {"operation":"betaAppLocalizations_getInstance","name":"GetBetaAppLocalization","params":["localizationID"],"check":"require"},
     {"operation":"betaAppLocalizations_updateInstance","name":"UpdateBetaAppLocalization","params":["localizationID"],"check":"require"}
+  ],
+  "queries": [
+    {"operation":"betaAppLocalizations_getCollection","name":"BetaAppLocalizations","params":[{"name":"filter[locale]","field":"locales","with":"WithBetaAppLocalizationLocales"},{"name":"filter[app]","field":"appIDs","with":"WithBetaAppLocalizationAppIDs","arg":"ids"}],"deviations":[{"problem":"query parameters [fields[apps] fields[betaAppLocalizations] include] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]}
   ]
 }

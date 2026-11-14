@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 )
 
@@ -35,4 +36,17 @@ func (c *Client) GetScmProviderRepositories(ctx context.Context, providerID stri
 		Next:        query.nextURL,
 		NextContext: "scmProviderRepositories",
 	})
+}
+
+// ScmProvidersOption sets the query of GET /v1/scmProviders (scmProviders_getCollection).
+type ScmProvidersOption func(*scmProvidersQuery)
+
+type scmProvidersQuery struct {
+	listQuery
+}
+
+func buildScmProvidersQuery(query *scmProvidersQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
 }

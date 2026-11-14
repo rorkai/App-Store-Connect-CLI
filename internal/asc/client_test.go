@@ -1089,32 +1089,6 @@ func TestBuildAppStoreVersionLocalizationsQuery(t *testing.T) {
 	}
 }
 
-func TestBuildBetaAppLocalizationsQuery(t *testing.T) {
-	query := &betaAppLocalizationsQuery{}
-	opts := []BetaAppLocalizationsOption{
-		Limit[BetaAppLocalizationsOption](12),
-		WithBetaAppLocalizationLocales([]string{"en-US", "fr-FR"}),
-		WithBetaAppLocalizationAppIDs([]string{"app-1", "app-2"}),
-	}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	values, err := url.ParseQuery(buildBetaAppLocalizationsQuery(query))
-	if err != nil {
-		t.Fatalf("failed to parse query: %v", err)
-	}
-	if got := values.Get("filter[locale]"); got != "en-US,fr-FR" {
-		t.Fatalf("expected filter[locale]=en-US,fr-FR, got %q", got)
-	}
-	if got := values.Get("filter[app]"); got != "app-1,app-2" {
-		t.Fatalf("expected filter[app]=app-1,app-2, got %q", got)
-	}
-	if got := values.Get("limit"); got != "12" {
-		t.Fatalf("expected limit=12, got %q", got)
-	}
-}
-
 func TestBuildBetaBuildLocalizationsQuery(t *testing.T) {
 	query := &betaBuildLocalizationsQuery{}
 	opts := []BetaBuildLocalizationsOption{
@@ -1469,84 +1443,6 @@ func TestBuildBuildsQuery_WithPreReleaseVersions(t *testing.T) {
 	}
 }
 
-func TestBuildSubscriptionOfferCodeOneTimeUseCodesQuery(t *testing.T) {
-	query := &subscriptionOfferCodeOneTimeUseCodesQuery{}
-	opts := []SubscriptionOfferCodeOneTimeUseCodesOption{
-		Limit[SubscriptionOfferCodeOneTimeUseCodesOption](10),
-		NextURL[SubscriptionOfferCodeOneTimeUseCodesOption]("https://api.appstoreconnect.apple.com/v1/subscriptionOfferCodes/123/oneTimeUseCodes?cursor=abc"),
-	}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	if query.limit != 10 {
-		t.Fatalf("expected limit=10, got %d", query.limit)
-	}
-	if query.nextURL != "https://api.appstoreconnect.apple.com/v1/subscriptionOfferCodes/123/oneTimeUseCodes?cursor=abc" {
-		t.Fatalf("expected nextURL to be set, got %q", query.nextURL)
-	}
-
-	values, err := url.ParseQuery(buildSubscriptionOfferCodeOneTimeUseCodesQuery(query))
-	if err != nil {
-		t.Fatalf("failed to parse query: %v", err)
-	}
-	if got := values.Get("limit"); got != "10" {
-		t.Fatalf("expected limit=10, got %q", got)
-	}
-}
-
-func TestBuildSubscriptionOfferCodeCustomCodesQuery(t *testing.T) {
-	query := &subscriptionOfferCodeCustomCodesQuery{}
-	opts := []SubscriptionOfferCodeCustomCodesOption{
-		Limit[SubscriptionOfferCodeCustomCodesOption](20),
-		NextURL[SubscriptionOfferCodeCustomCodesOption]("https://api.appstoreconnect.apple.com/v1/subscriptionOfferCodes/123/customCodes?cursor=abc"),
-	}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	if query.limit != 20 {
-		t.Fatalf("expected limit=20, got %d", query.limit)
-	}
-	if query.nextURL != "https://api.appstoreconnect.apple.com/v1/subscriptionOfferCodes/123/customCodes?cursor=abc" {
-		t.Fatalf("expected nextURL to be set, got %q", query.nextURL)
-	}
-
-	values, err := url.ParseQuery(buildSubscriptionOfferCodeCustomCodesQuery(query))
-	if err != nil {
-		t.Fatalf("failed to parse query: %v", err)
-	}
-	if got := values.Get("limit"); got != "20" {
-		t.Fatalf("expected limit=20, got %q", got)
-	}
-}
-
-func TestBuildSubscriptionOfferCodePricesQuery(t *testing.T) {
-	query := &subscriptionOfferCodePricesQuery{}
-	opts := []SubscriptionOfferCodePricesOption{
-		Limit[SubscriptionOfferCodePricesOption](30),
-		NextURL[SubscriptionOfferCodePricesOption]("https://api.appstoreconnect.apple.com/v1/subscriptionOfferCodes/123/prices?cursor=abc"),
-	}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	if query.limit != 30 {
-		t.Fatalf("expected limit=30, got %d", query.limit)
-	}
-	if query.nextURL != "https://api.appstoreconnect.apple.com/v1/subscriptionOfferCodes/123/prices?cursor=abc" {
-		t.Fatalf("expected nextURL to be set, got %q", query.nextURL)
-	}
-
-	values, err := url.ParseQuery(buildSubscriptionOfferCodePricesQuery(query))
-	if err != nil {
-		t.Fatalf("failed to parse query: %v", err)
-	}
-	if got := values.Get("limit"); got != "30" {
-		t.Fatalf("expected limit=30, got %q", got)
-	}
-}
-
 func TestBuildSubscriptionAvailabilityTerritoriesQuery(t *testing.T) {
 	query := &subscriptionAvailabilityTerritoriesQuery{}
 	opts := []SubscriptionAvailabilityTerritoriesOption{
@@ -1608,48 +1504,6 @@ func TestBuildWinBackOffersQuery(t *testing.T) {
 	}
 	if got := values.Get("limit[prices]"); got != "10" {
 		t.Fatalf("expected limit[prices]=10, got %q", got)
-	}
-}
-
-func TestBuildWinBackOfferPricesQuery(t *testing.T) {
-	query := &winBackOfferPricesQuery{}
-	opts := []WinBackOfferPricesOption{
-		Limit[WinBackOfferPricesOption](15),
-		WithWinBackOfferPricesTerritoryFilter([]string{"USA", "CAN"}),
-		WithWinBackOfferPricesFields([]string{"territory"}),
-		WithWinBackOfferPricesTerritoryFields([]string{"currency"}),
-		WithWinBackOfferPricesSubscriptionPricePointFields([]string{"customerPrice", "proceeds"}),
-		WithWinBackOfferPricesInclude([]string{"territory", "subscriptionPricePoint"}),
-	}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	if query.limit != 15 {
-		t.Fatalf("expected limit=15, got %d", query.limit)
-	}
-
-	values, err := url.ParseQuery(buildWinBackOfferPricesQuery(query))
-	if err != nil {
-		t.Fatalf("failed to parse query: %v", err)
-	}
-	if got := values.Get("limit"); got != "15" {
-		t.Fatalf("expected limit=15, got %q", got)
-	}
-	if got := values.Get("filter[territory]"); got != "USA,CAN" {
-		t.Fatalf("expected territory filter, got %q", got)
-	}
-	if got := values.Get("fields[winBackOfferPrices]"); got != "territory" {
-		t.Fatalf("expected winBackOfferPrices fields, got %q", got)
-	}
-	if got := values.Get("fields[territories]"); got != "currency" {
-		t.Fatalf("expected territories fields, got %q", got)
-	}
-	if got := values.Get("fields[subscriptionPricePoints]"); got != "customerPrice,proceeds" {
-		t.Fatalf("expected subscriptionPricePoints fields, got %q", got)
-	}
-	if got := values.Get("include"); got != "territory,subscriptionPricePoint" {
-		t.Fatalf("expected include list, got %q", got)
 	}
 }
 
@@ -1855,54 +1709,6 @@ func TestBuildAndroidToIosAppMappingDetailsQuery(t *testing.T) {
 	}
 	if values.Get("fields[androidToIosAppMappingDetails]") != "packageName,appSigningKeyPublicCertificateSha256Fingerprints" {
 		t.Fatalf("unexpected fields, got %q", values.Get("fields[androidToIosAppMappingDetails]"))
-	}
-}
-
-func TestBuildAlternativeDistributionDomainsQuery(t *testing.T) {
-	query := &alternativeDistributionDomainsQuery{}
-	Limit[AlternativeDistributionDomainsOption](20)(query)
-	values, err := url.ParseQuery(buildAlternativeDistributionDomainsQuery(query))
-	if err != nil {
-		t.Fatalf("ParseQuery() error: %v", err)
-	}
-	if values.Get("limit") != "20" {
-		t.Fatalf("expected limit=20, got %q", values.Get("limit"))
-	}
-}
-
-func TestBuildAlternativeDistributionKeysQuery(t *testing.T) {
-	query := &alternativeDistributionKeysQuery{}
-	Limit[AlternativeDistributionKeysOption](15)(query)
-	values, err := url.ParseQuery(buildAlternativeDistributionKeysQuery(query))
-	if err != nil {
-		t.Fatalf("ParseQuery() error: %v", err)
-	}
-	if values.Get("limit") != "15" {
-		t.Fatalf("expected limit=15, got %q", values.Get("limit"))
-	}
-}
-
-func TestBuildAlternativeDistributionPackageVariantsQuery(t *testing.T) {
-	query := &alternativeDistributionPackageVariantsQuery{}
-	Limit[AlternativeDistributionPackageVariantsOption](9)(query)
-	values, err := url.ParseQuery(buildAlternativeDistributionPackageVariantsQuery(query))
-	if err != nil {
-		t.Fatalf("ParseQuery() error: %v", err)
-	}
-	if values.Get("limit") != "9" {
-		t.Fatalf("expected limit=9, got %q", values.Get("limit"))
-	}
-}
-
-func TestBuildAlternativeDistributionPackageDeltasQuery(t *testing.T) {
-	query := &alternativeDistributionPackageDeltasQuery{}
-	Limit[AlternativeDistributionPackageDeltasOption](11)(query)
-	values, err := url.ParseQuery(buildAlternativeDistributionPackageDeltasQuery(query))
-	if err != nil {
-		t.Fatalf("ParseQuery() error: %v", err)
-	}
-	if values.Get("limit") != "11" {
-		t.Fatalf("expected limit=11, got %q", values.Get("limit"))
 	}
 }
 

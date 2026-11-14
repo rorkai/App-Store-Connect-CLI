@@ -11,5 +11,8 @@
     {"operation":"appStoreVersionExperimentTreatmentLocalizations_appPreviewSets_getToManyRelated","name":"GetAppStoreVersionExperimentTreatmentLocalizationPreviewSets","params":["localizationID"],"check":"require","options":"AppStoreVersionExperimentTreatmentLocalizationPreviewSetsOption","query":"buildAppStoreVersionExperimentTreatmentLocalizationPreviewSetsQuery","nextContext":"appPreviewSets"},
     {"operation":"appStoreVersionExperimentTreatmentLocalizations_appScreenshotSets_getToManyRelated","name":"GetAppStoreVersionExperimentTreatmentLocalizationScreenshotSets","params":["localizationID"],"check":"require","options":"AppStoreVersionExperimentTreatmentLocalizationScreenshotSetsOption","query":"buildAppStoreVersionExperimentTreatmentLocalizationScreenshotSetsQuery","nextContext":"appScreenshotSets"},
     {"operation":"appStoreVersionExperimentTreatmentLocalizations_deleteInstance","name":"DeleteAppStoreVersionExperimentTreatmentLocalization","params":["localizationID"],"check":"require"}
+  ],
+  "queries": [
+    {"operation":"appStoreVersionExperimentTreatmentLocalizations_appPreviewSets_getToManyRelated","name":"AppStoreVersionExperimentTreatmentLocalizationPreviewSets","deviations":[{"problem":"query parameters [fields[appCustomProductPageLocalizations] fields[appPreviewSets] fields[appPreviews] fields[appStoreVersionExperimentTreatmentLocalizations] fields[appStoreVersionLocalizations] filter[appCustomProductPageLocalization] filter[appStoreVersionLocalization] filter[previewType] include limit[appPreviews]] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]}
   ]
 }

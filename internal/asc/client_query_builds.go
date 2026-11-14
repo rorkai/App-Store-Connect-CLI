@@ -43,18 +43,6 @@ type buildBundlesQuery struct {
 	limit int
 }
 
-type buildBundleFileSizesQuery struct {
-	listQuery
-}
-
-type buildUploadFilesQuery struct {
-	listQuery
-}
-
-type buildIndividualTestersQuery struct {
-	listQuery
-}
-
 type preReleaseVersionsQuery struct {
 	listQuery
 	platform string
@@ -67,12 +55,6 @@ func buildBuildBundlesQuery(query *buildBundlesQuery) string {
 	if query.limit > 0 {
 		values.Set("limit[buildBundles]", strconv.Itoa(query.limit))
 	}
-	return values.Encode()
-}
-
-func buildBuildBundleFileSizesQuery(query *buildBundleFileSizesQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
 	return values.Encode()
 }
 
@@ -91,18 +73,6 @@ func buildBuildUploadsQuery(query *buildUploadsQuery) string {
 	if query.sort != "" {
 		values.Set("sort", query.sort)
 	}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
-func buildBuildUploadFilesQuery(query *buildUploadFilesQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
-func buildBuildIndividualTestersQuery(query *buildIndividualTestersQuery) string {
-	values := url.Values{}
 	addLimit(values, query.limit)
 	return values.Encode()
 }
@@ -128,9 +98,6 @@ type BuildsOption func(*buildsQuery)
 // BuildBundlesOption is a functional option for GetBuildBundlesForBuild.
 type BuildBundlesOption func(*buildBundlesQuery)
 
-// BuildBundleFileSizesOption is a functional option for GetBuildBundleFileSizes.
-type BuildBundleFileSizesOption func(*buildBundleFileSizesQuery)
-
 // BuildOption is a functional option for GetBuild.
 type BuildOption func(*buildQuery)
 
@@ -139,12 +106,6 @@ type BuildUploadOption func(*buildUploadQuery)
 
 // BuildUploadsOption is a functional option for GetBuildUploads.
 type BuildUploadsOption func(*buildUploadsQuery)
-
-// BuildUploadFilesOption is a functional option for GetBuildUploadFiles.
-type BuildUploadFilesOption func(*buildUploadFilesQuery)
-
-// BuildIndividualTestersOption is a functional option for GetBuildIndividualTesters.
-type BuildIndividualTestersOption func(*buildIndividualTestersQuery)
 
 // BuildIconsOption is a functional option for GetBuildIcons.
 type BuildIconsOption func(*listQuery)

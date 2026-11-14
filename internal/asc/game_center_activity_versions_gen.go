@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 )
 
@@ -61,4 +62,17 @@ func (c *Client) GetGameCenterActivityLocalizations(ctx context.Context, version
 		Next:        query.nextURL,
 		NextContext: "game-center-activity-localizations",
 	})
+}
+
+// GCActivityLocalizationsOption sets the query of GET /v1/gameCenterActivityVersions/{id}/localizations (gameCenterActivityVersions_localizations_getToManyRelated).
+type GCActivityLocalizationsOption func(*gcActivityLocalizationsQuery)
+
+type gcActivityLocalizationsQuery struct {
+	listQuery
+}
+
+func buildGCActivityLocalizationsQuery(query *gcActivityLocalizationsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
 }

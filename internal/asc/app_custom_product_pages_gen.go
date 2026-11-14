@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -68,4 +69,17 @@ func (c *Client) GetAppCustomProductPage(ctx context.Context, pageID string) (*A
 	return getJSON[AppCustomProductPageResponse](ctx, c, readRequest{
 		Path: fmt.Sprintf("/v1/appCustomProductPages/%s", pageID),
 	})
+}
+
+// AppCustomProductPageVersionsOption sets the query of GET /v1/appCustomProductPages/{id}/appCustomProductPageVersions (appCustomProductPages_appCustomProductPageVersions_getToManyRelated).
+type AppCustomProductPageVersionsOption func(*appCustomProductPageVersionsQuery)
+
+type appCustomProductPageVersionsQuery struct {
+	listQuery
+}
+
+func buildAppCustomProductPageVersionsQuery(query *appCustomProductPageVersionsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
 }

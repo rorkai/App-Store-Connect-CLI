@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -61,4 +62,17 @@ func (c *Client) GetGameCenterActivityVersions(ctx context.Context, activityID s
 		Next:        query.nextURL,
 		NextContext: "game-center-activity-versions",
 	})
+}
+
+// GCActivityVersionsOption sets the query of GET /v1/gameCenterActivities/{id}/versions (gameCenterActivities_versions_getToManyRelated).
+type GCActivityVersionsOption func(*gcActivityVersionsQuery)
+
+type gcActivityVersionsQuery struct {
+	listQuery
+}
+
+func buildGCActivityVersionsQuery(query *gcActivityVersionsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
 }

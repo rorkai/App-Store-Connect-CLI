@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -64,4 +65,17 @@ func (c *Client) DeleteAppStoreVersionExperimentTreatmentLocalization(ctx contex
 		return fmt.Errorf("localizationID is required")
 	}
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/appStoreVersionExperimentTreatmentLocalizations/%s", localizationID), nil)
+}
+
+// AppStoreVersionExperimentTreatmentLocalizationPreviewSetsOption sets the query of GET /v1/appStoreVersionExperimentTreatmentLocalizations/{id}/appPreviewSets (appStoreVersionExperimentTreatmentLocalizations_appPreviewSets_getToManyRelated).
+type AppStoreVersionExperimentTreatmentLocalizationPreviewSetsOption func(*appStoreVersionExperimentTreatmentLocalizationPreviewSetsQuery)
+
+type appStoreVersionExperimentTreatmentLocalizationPreviewSetsQuery struct {
+	listQuery
+}
+
+func buildAppStoreVersionExperimentTreatmentLocalizationPreviewSetsQuery(query *appStoreVersionExperimentTreatmentLocalizationPreviewSetsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
 }

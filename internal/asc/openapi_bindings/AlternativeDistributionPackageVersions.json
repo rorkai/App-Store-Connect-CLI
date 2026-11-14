@@ -8,5 +8,9 @@
     {"operation":"alternativeDistributionPackageVersions_deltas_getToManyRelated","name":"GetAlternativeDistributionPackageVersionDeltas","params":["versionID"],"check":"require","checkFirst":true,"options":"AlternativeDistributionPackageDeltasOption","query":"buildAlternativeDistributionPackageDeltasQuery","nextContext":"alternativeDistributionPackageDeltas","parseErr":"failed to parse alternative distribution package deltas response"},
     {"operation":"alternativeDistributionPackageVersions_getInstance","name":"GetAlternativeDistributionPackageVersion","params":["versionID"],"check":"require","parseErr":"failed to parse alternative distribution package version response"},
     {"operation":"alternativeDistributionPackageVersions_variants_getToManyRelated","name":"GetAlternativeDistributionPackageVersionVariants","params":["versionID"],"check":"require","checkFirst":true,"options":"AlternativeDistributionPackageVariantsOption","query":"buildAlternativeDistributionPackageVariantsQuery","nextContext":"alternativeDistributionPackageVariants","parseErr":"failed to parse alternative distribution package variants response"}
+  ],
+  "queries": [
+    {"operation":"alternativeDistributionPackageVersions_deltas_getToManyRelated","name":"AlternativeDistributionPackageDeltas","deviations":[{"problem":"query parameters [fields[alternativeDistributionPackageDeltas]] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]},
+    {"operation":"alternativeDistributionPackageVersions_variants_getToManyRelated","name":"AlternativeDistributionPackageVariants","deviations":[{"problem":"query parameters [fields[alternativeDistributionPackageVariants]] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]}
   ]
 }

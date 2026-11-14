@@ -12,5 +12,8 @@
     {"operation":"alternativeDistributionKeys_deleteInstance","name":"DeleteAlternativeDistributionKey","params":["keyID"],"check":"require"},
     {"operation":"alternativeDistributionKeys_getCollection","name":"GetAlternativeDistributionKeys","options":"AlternativeDistributionKeysOption","query":"buildAlternativeDistributionKeysQuery","nextContext":"alternativeDistributionKeys","parseErr":"failed to parse alternative distribution keys response"},
     {"operation":"alternativeDistributionKeys_getInstance","name":"GetAlternativeDistributionKey","params":["keyID"],"check":"require","parseErr":"failed to parse alternative distribution key response"}
+  ],
+  "queries": [
+    {"operation":"alternativeDistributionKeys_getCollection","name":"AlternativeDistributionKeys","deviations":[{"problem":"query parameters [exists[app] fields[alternativeDistributionKeys]] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]}
   ]
 }

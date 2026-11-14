@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -54,4 +55,30 @@ func (c *Client) GetUserInvitationVisibleApps(ctx context.Context, invitationID 
 		Next:        query.nextURL,
 		NextContext: "userInvitationVisibleApps",
 	})
+}
+
+// UserInvitationsOption sets the query of GET /v1/userInvitations (userInvitations_getCollection).
+type UserInvitationsOption func(*userInvitationsQuery)
+
+type userInvitationsQuery struct {
+	listQuery
+}
+
+func buildUserInvitationsQuery(query *userInvitationsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+// UserInvitationVisibleAppsOption sets the query of GET /v1/userInvitations/{id}/visibleApps (userInvitations_visibleApps_getToManyRelated).
+type UserInvitationVisibleAppsOption func(*userInvitationVisibleAppsQuery)
+
+type userInvitationVisibleAppsQuery struct {
+	listQuery
+}
+
+func buildUserInvitationVisibleAppsQuery(query *userInvitationVisibleAppsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
 }

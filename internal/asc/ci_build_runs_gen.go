@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/url"
 )
 
 // CiBuildRunCreateAttributes is the data.attributes object of the CiBuildRunCreateRequest schema.
@@ -37,4 +38,30 @@ func (c *Client) GetCiBuildRunBuilds(ctx context.Context, buildRunID string, opt
 		Next:        query.nextURL,
 		NextContext: "ciBuildRunBuilds",
 	})
+}
+
+// CiBuildActionsOption sets the query of GET /v1/ciBuildRuns/{id}/actions (ciBuildRuns_actions_getToManyRelated).
+type CiBuildActionsOption func(*ciBuildActionsQuery)
+
+type ciBuildActionsQuery struct {
+	listQuery
+}
+
+func buildCiBuildActionsQuery(query *ciBuildActionsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+// CiBuildRunBuildsOption sets the query of GET /v1/ciBuildRuns/{id}/builds (ciBuildRuns_builds_getToManyRelated).
+type CiBuildRunBuildsOption func(*ciBuildRunBuildsQuery)
+
+type ciBuildRunBuildsQuery struct {
+	listQuery
+}
+
+func buildCiBuildRunBuildsQuery(query *ciBuildRunBuildsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
 }

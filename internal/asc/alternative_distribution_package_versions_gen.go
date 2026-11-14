@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 )
 
@@ -53,4 +54,30 @@ func (c *Client) GetAlternativeDistributionPackageVersionVariants(ctx context.Co
 		NextContext: "alternativeDistributionPackageVariants",
 		ParseErr:    "failed to parse alternative distribution package variants response",
 	})
+}
+
+// AlternativeDistributionPackageDeltasOption sets the query of GET /v1/alternativeDistributionPackageVersions/{id}/deltas (alternativeDistributionPackageVersions_deltas_getToManyRelated).
+type AlternativeDistributionPackageDeltasOption func(*alternativeDistributionPackageDeltasQuery)
+
+type alternativeDistributionPackageDeltasQuery struct {
+	listQuery
+}
+
+func buildAlternativeDistributionPackageDeltasQuery(query *alternativeDistributionPackageDeltasQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+// AlternativeDistributionPackageVariantsOption sets the query of GET /v1/alternativeDistributionPackageVersions/{id}/variants (alternativeDistributionPackageVersions_variants_getToManyRelated).
+type AlternativeDistributionPackageVariantsOption func(*alternativeDistributionPackageVariantsQuery)
+
+type alternativeDistributionPackageVariantsQuery struct {
+	listQuery
+}
+
+func buildAlternativeDistributionPackageVariantsQuery(query *alternativeDistributionPackageVariantsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
 }

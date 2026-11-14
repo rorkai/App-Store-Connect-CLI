@@ -16,5 +16,8 @@
     {"operation":"inAppPurchasesV2_pricePoints_getToManyRelated","name":"GetInAppPurchasePricePoints","params":["iapID"],"check":"require","options":"IAPPricePointsOption","query":"buildIAPPricePointsQuery","nextContext":"in-app-purchase-price-points"},
     {"operation":"inAppPurchasesV2_updateInstance","name":"UpdateInAppPurchaseV2","params":["iapID"],"deviations":[{"problem":"data.attributes has [availableInAllTerritories contentHosting], which the schema does not define","reason":"the hand-written InAppPurchaseV2UpdateAttributes has two optional fields the update request does not define; no command sets them, so they are never sent"}]},
     {"operation":"inAppPurchases_getInstance","name":"GetInAppPurchase","params":["iapID"]}
+  ],
+  "queries": [
+    {"operation":"inAppPurchasesV2_inAppPurchaseLocalizations_getToManyRelated","name":"IAPLocalizations","deviations":[{"problem":"query parameters [fields[inAppPurchaseLocalizations] fields[inAppPurchases] include] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]}
   ]
 }

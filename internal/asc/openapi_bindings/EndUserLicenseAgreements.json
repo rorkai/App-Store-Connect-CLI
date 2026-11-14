@@ -12,5 +12,8 @@
     {"operation":"endUserLicenseAgreements_deleteInstance","name":"DeleteEndUserLicenseAgreement","params":["id"],"check":"require"},
     {"operation":"endUserLicenseAgreements_getInstance","name":"GetEndUserLicenseAgreement","params":["id"],"check":"require"},
     {"operation":"endUserLicenseAgreements_territories_getToManyRelated","name":"GetEndUserLicenseAgreementTerritories","params":["id"],"check":"trim","checkFirst":true,"options":"EndUserLicenseAgreementTerritoriesOption","query":"buildEndUserLicenseAgreementTerritoriesQuery","nextContext":"endUserLicenseAgreementTerritories","response":"TerritoriesResponse"}
+  ],
+  "queries": [
+    {"operation":"endUserLicenseAgreements_territories_getToManyRelated","name":"EndUserLicenseAgreementTerritories","deviations":[{"problem":"query parameters [fields[territories]] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]}
   ]
 }

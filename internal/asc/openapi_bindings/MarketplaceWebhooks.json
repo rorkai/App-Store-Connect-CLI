@@ -15,5 +15,8 @@
   "operations": [
     {"operation":"marketplaceWebhooks_deleteInstance","name":"DeleteMarketplaceWebhook","params":["webhookID"],"check":"require"},
     {"operation":"marketplaceWebhooks_getCollection","name":"GetMarketplaceWebhooks","options":"MarketplaceWebhooksOption","query":"buildMarketplaceWebhooksQuery","nextContext":"marketplaceWebhooks","parseErr":"failed to parse marketplace webhooks response"}
+  ],
+  "queries": [
+    {"operation":"marketplaceWebhooks_getCollection","name":"MarketplaceWebhooks","params":[{"name":"fields[marketplaceWebhooks]"}]}
   ]
 }

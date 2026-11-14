@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -52,4 +53,17 @@ func (c *Client) GetBundleIDProfiles(ctx context.Context, bundleID string, opts 
 		Next:        query.nextURL,
 		NextContext: "bundleIdProfiles",
 	})
+}
+
+// BundleIDProfilesOption sets the query of GET /v1/bundleIds/{id}/profiles (bundleIds_profiles_getToManyRelated).
+type BundleIDProfilesOption func(*bundleIDProfilesQuery)
+
+type bundleIDProfilesQuery struct {
+	listQuery
+}
+
+func buildBundleIDProfilesQuery(query *bundleIDProfilesQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
 }

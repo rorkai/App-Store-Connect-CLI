@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -61,4 +62,17 @@ func (c *Client) GetAlternativeDistributionKey(ctx context.Context, keyID string
 		Path:     fmt.Sprintf("/v1/alternativeDistributionKeys/%s", keyID),
 		ParseErr: "failed to parse alternative distribution key response",
 	})
+}
+
+// AlternativeDistributionKeysOption sets the query of GET /v1/alternativeDistributionKeys (alternativeDistributionKeys_getCollection).
+type AlternativeDistributionKeysOption func(*alternativeDistributionKeysQuery)
+
+type alternativeDistributionKeysQuery struct {
+	listQuery
+}
+
+func buildAlternativeDistributionKeysQuery(query *alternativeDistributionKeysQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
 }

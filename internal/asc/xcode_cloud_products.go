@@ -434,19 +434,6 @@ func ciProductsFieldsWithIncludes(fields, include []string) []string {
 	return combined
 }
 
-type ciWorkflowsQuery struct {
-	listQuery
-}
-
-// CiWorkflowsOption is a functional option for GetCiWorkflows.
-type CiWorkflowsOption func(*ciWorkflowsQuery)
-
-func buildCiWorkflowsQuery(query *ciWorkflowsQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
 type ciProductRepositoriesQuery struct {
 	listQuery
 }

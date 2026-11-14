@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -46,4 +47,17 @@ func (c *Client) GetSubscriptions(ctx context.Context, groupID string, opts ...S
 		Next:        query.nextURL,
 		NextContext: "subscriptions",
 	})
+}
+
+// SubscriptionGroupLocalizationsOption sets the query of GET /v1/subscriptionGroups/{id}/subscriptionGroupLocalizations (subscriptionGroups_subscriptionGroupLocalizations_getToManyRelated).
+type SubscriptionGroupLocalizationsOption func(*subscriptionGroupLocalizationsQuery)
+
+type subscriptionGroupLocalizationsQuery struct {
+	listQuery
+}
+
+func buildSubscriptionGroupLocalizationsQuery(query *subscriptionGroupLocalizationsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
 }

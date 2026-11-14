@@ -12,5 +12,8 @@
     {"operation":"appCustomProductPages_appCustomProductPageVersions_getToManyRelated","name":"GetAppCustomProductPageVersions","params":["pageID"],"check":"require","options":"AppCustomProductPageVersionsOption","query":"buildAppCustomProductPageVersionsQuery","nextContext":"appCustomProductPageVersions"},
     {"operation":"appCustomProductPages_deleteInstance","name":"DeleteAppCustomProductPage","params":["pageID"],"check":"require"},
     {"operation":"appCustomProductPages_getInstance","name":"GetAppCustomProductPage","params":["pageID"],"check":"require"}
+  ],
+  "queries": [
+    {"operation":"appCustomProductPages_appCustomProductPageVersions_getToManyRelated","name":"AppCustomProductPageVersions","deviations":[{"problem":"query parameters [fields[appCustomProductPageLocalizations] fields[appCustomProductPageVersions] fields[appCustomProductPages] filter[state] include limit[appCustomProductPageLocalizations]] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]}
   ]
 }

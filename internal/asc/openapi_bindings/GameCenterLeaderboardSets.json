@@ -23,5 +23,8 @@
     {"operation":"gameCenterLeaderboardSets_localizations_getToManyRelated","name":"GetGameCenterLeaderboardSetLocalizations","params":["setID"],"options":"GCLeaderboardSetLocalizationsOption","query":"buildGCLeaderboardSetLocalizationsQuery","nextContext":"game-center-leaderboard-set-localizations"},
     {"operation":"gameCenterLeaderboardSets_releases_getToManyRelated","name":"GetGameCenterLeaderboardSetReleases","params":["setID"],"options":"GCLeaderboardSetReleasesOption","query":"buildGCLeaderboardSetReleasesQuery","nextContext":"game-center-leaderboard-set-releases"},
     {"operation":"gameCenterLeaderboardSets_updateInstance","name":"UpdateGameCenterLeaderboardSet","params":["setID"]}
+  ],
+  "queries": [
+    {"operation":"gameCenterLeaderboardSetsV2_versions_getToManyRelated","name":"GCLeaderboardSetVersions","deviations":[{"problem":"query parameters [fields[gameCenterLeaderboardSetLocalizations] fields[gameCenterLeaderboardSetVersions] fields[gameCenterLeaderboardSets] include limit[localizations]] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]}
   ]
 }

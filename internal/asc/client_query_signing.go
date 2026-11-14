@@ -126,32 +126,6 @@ type usersQuery struct {
 	visibleAppsLimit int
 }
 
-type profileCertificatesQuery struct {
-	listQuery
-}
-
-type profileDevicesQuery struct {
-	listQuery
-}
-
-type bundleIDProfilesQuery struct {
-	listQuery
-}
-
-type userVisibleAppsQuery struct {
-	listQuery
-}
-
-type userInvitationVisibleAppsQuery struct {
-	listQuery
-}
-
-type actorsQuery struct {
-	listQuery
-	ids    []string
-	fields []string
-}
-
 type devicesQuery struct {
 	listQuery
 	names     []string
@@ -161,10 +135,6 @@ type devicesQuery struct {
 	ids       []string
 	sort      string
 	fields    []string
-}
-
-type userInvitationsQuery struct {
-	listQuery
 }
 
 func buildBundleIDsQuery(query *bundleIDsQuery) string {
@@ -376,44 +346,6 @@ func buildUsersQuery(query *usersQuery) string {
 	return values.Encode()
 }
 
-func buildProfileCertificatesQuery(query *profileCertificatesQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
-func buildProfileDevicesQuery(query *profileDevicesQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
-func buildBundleIDProfilesQuery(query *bundleIDProfilesQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
-func buildUserVisibleAppsQuery(query *userVisibleAppsQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
-func buildUserInvitationVisibleAppsQuery(query *userInvitationVisibleAppsQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
-func buildActorsQuery(query *actorsQuery) string {
-	values := url.Values{}
-	addCSV(values, "filter[id]", query.ids)
-	addCSV(values, "fields[actors]", query.fields)
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
 func buildActorsFieldsQuery(fields []string) string {
 	values := url.Values{}
 	addCSV(values, "fields[actors]", fields)
@@ -440,12 +372,6 @@ func buildDevicesQuery(query *devicesQuery) string {
 func buildDevicesFieldsQuery(fields []string) string {
 	values := url.Values{}
 	addCSV(values, "fields[devices]", fields)
-	return values.Encode()
-}
-
-func buildUserInvitationsQuery(query *userInvitationsQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
 	return values.Encode()
 }
 
@@ -479,29 +405,8 @@ type DevicesOption func(*devicesQuery)
 // ProfilesOption is a functional option for GetProfiles.
 type ProfilesOption func(*profilesQuery)
 
-// BundleIDProfilesOption is a functional option for GetBundleIDProfiles.
-type BundleIDProfilesOption func(*bundleIDProfilesQuery)
-
 // UsersOption is a functional option for GetUsers.
 type UsersOption func(*usersQuery)
-
-// ProfileCertificatesOption is a functional option for GetProfileCertificates.
-type ProfileCertificatesOption func(*profileCertificatesQuery)
-
-// ProfileDevicesOption is a functional option for GetProfileDevices.
-type ProfileDevicesOption func(*profileDevicesQuery)
-
-// UserVisibleAppsOption is a functional option for GetUserVisibleApps.
-type UserVisibleAppsOption func(*userVisibleAppsQuery)
-
-// UserInvitationVisibleAppsOption is a functional option for GetUserInvitationVisibleApps.
-type UserInvitationVisibleAppsOption func(*userInvitationVisibleAppsQuery)
-
-// ActorsOption is a functional option for GetActors.
-type ActorsOption func(*actorsQuery)
-
-// UserInvitationsOption is a functional option for GetUserInvitations.
-type UserInvitationsOption func(*userInvitationsQuery)
 
 // WithBundleIDsSplitPagination controls whether split identifier requests follow links.next.
 // It defaults to enabled for direct client callers.
@@ -1144,20 +1049,6 @@ func WithUsersVisibleAppsLimit(limit int) UsersOption {
 		if limit > 0 {
 			q.visibleAppsLimit = limit
 		}
-	}
-}
-
-// WithActorsIDs filters actors by id(s).
-func WithActorsIDs(ids []string) ActorsOption {
-	return func(q *actorsQuery) {
-		q.ids = normalizeList(ids)
-	}
-}
-
-// WithActorsFields limits actor fields in the response.
-func WithActorsFields(fields []string) ActorsOption {
-	return func(q *actorsQuery) {
-		q.fields = normalizeList(fields)
 	}
 }
 

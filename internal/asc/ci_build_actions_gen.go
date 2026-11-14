@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/url"
 )
 
 // GetCiBuildActionArtifacts sends GET /v1/ciBuildActions/{id}/artifacts (ciBuildActions_artifacts_getToManyRelated).
@@ -52,4 +53,43 @@ func (c *Client) GetCiBuildActionTestResults(ctx context.Context, buildActionID 
 		Next:        query.nextURL,
 		NextContext: "ciTestResults",
 	})
+}
+
+// CiArtifactsOption sets the query of GET /v1/ciBuildActions/{id}/artifacts (ciBuildActions_artifacts_getToManyRelated).
+type CiArtifactsOption func(*ciArtifactsQuery)
+
+type ciArtifactsQuery struct {
+	listQuery
+}
+
+func buildCiArtifactsQuery(query *ciArtifactsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+// CiIssuesOption sets the query of GET /v1/ciBuildActions/{id}/issues (ciBuildActions_issues_getToManyRelated).
+type CiIssuesOption func(*ciIssuesQuery)
+
+type ciIssuesQuery struct {
+	listQuery
+}
+
+func buildCiIssuesQuery(query *ciIssuesQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+// CiTestResultsOption sets the query of GET /v1/ciBuildActions/{id}/testResults (ciBuildActions_testResults_getToManyRelated).
+type CiTestResultsOption func(*ciTestResultsQuery)
+
+type ciTestResultsQuery struct {
+	listQuery
+}
+
+func buildCiTestResultsQuery(query *ciTestResultsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
 }

@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -53,4 +54,17 @@ func (c *Client) GetGameCenterChallengeVersions(ctx context.Context, challengeID
 		Next:        query.nextURL,
 		NextContext: "game-center-challenge-versions",
 	})
+}
+
+// GCChallengeVersionsOption sets the query of GET /v1/gameCenterChallenges/{id}/versions (gameCenterChallenges_versions_getToManyRelated).
+type GCChallengeVersionsOption func(*gcChallengeVersionsQuery)
+
+type gcChallengeVersionsQuery struct {
+	listQuery
+}
+
+func buildGCChallengeVersionsQuery(query *gcChallengeVersionsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
 }

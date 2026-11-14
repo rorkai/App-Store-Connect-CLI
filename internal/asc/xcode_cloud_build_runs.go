@@ -179,19 +179,6 @@ func buildCiBuildRunGetQuery(query *ciBuildRunGetQuery) string {
 	return values.Encode()
 }
 
-type ciBuildRunBuildsQuery struct {
-	listQuery
-}
-
-// CiBuildRunBuildsOption is a functional option for GetCiBuildRunBuilds.
-type CiBuildRunBuildsOption func(*ciBuildRunBuildsQuery)
-
-func buildCiBuildRunBuildsQuery(query *ciBuildRunBuildsQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
 // GetCiBuildRun retrieves a CI build run by ID.
 func (c *Client) GetCiBuildRun(ctx context.Context, buildRunID string, opts ...CiBuildRunGetOption) (*CiBuildRunResponse, error) {
 	query := applyOptions(opts)

@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -107,4 +108,17 @@ func (c *Client) UpdateGameCenterAchievement(ctx context.Context, achievementID 
 		Path:    fmt.Sprintf("/v1/gameCenterAchievements/%s", strings.TrimSpace(achievementID)),
 		Payload: payload,
 	})
+}
+
+// GCAchievementVersionsOption sets the query of GET /v2/gameCenterAchievements/{id}/versions (gameCenterAchievementsV2_versions_getToManyRelated).
+type GCAchievementVersionsOption func(*gcAchievementVersionsQuery)
+
+type gcAchievementVersionsQuery struct {
+	listQuery
+}
+
+func buildGCAchievementVersionsQuery(query *gcAchievementVersionsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
 }

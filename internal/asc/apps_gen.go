@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 )
 
@@ -391,4 +392,162 @@ func (c *Client) GetAppWebhooks(ctx context.Context, appID string, opts ...Webho
 		NextContext: "webhooks",
 		ParseErr:    "failed to parse webhooks response",
 	})
+}
+
+// AppClipsOption sets the query of GET /v1/apps/{id}/appClips (apps_appClips_getToManyRelated).
+type AppClipsOption func(*appClipsQuery)
+
+type appClipsQuery struct {
+	listQuery
+	bundleIDs []string
+}
+
+// WithAppClipsBundleIDs sets filter[bundleId].
+func WithAppClipsBundleIDs(bundleIDs []string) AppClipsOption {
+	return func(q *appClipsQuery) {
+		q.bundleIDs = normalizeList(bundleIDs)
+	}
+}
+
+func buildAppClipsQuery(query *appClipsQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[bundleId]", query.bundleIDs)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+// CustomerReviewSummarizationsOption sets the query of GET /v1/apps/{id}/customerReviewSummarizations (apps_customerReviewSummarizations_getToManyRelated).
+type CustomerReviewSummarizationsOption func(*customerReviewSummarizationsQuery)
+
+type customerReviewSummarizationsQuery struct {
+	listQuery
+	platforms       []string
+	territories     []string
+	fields          []string
+	territoryFields []string
+	include         []string
+}
+
+// WithCustomerReviewSummarizationsPlatforms sets filter[platform].
+func WithCustomerReviewSummarizationsPlatforms(platforms []string) CustomerReviewSummarizationsOption {
+	return func(q *customerReviewSummarizationsQuery) {
+		q.platforms = normalizeList(platforms)
+	}
+}
+
+// WithCustomerReviewSummarizationsTerritories sets filter[territory].
+func WithCustomerReviewSummarizationsTerritories(territories []string) CustomerReviewSummarizationsOption {
+	return func(q *customerReviewSummarizationsQuery) {
+		q.territories = normalizeList(territories)
+	}
+}
+
+// WithCustomerReviewSummarizationsFields sets fields[customerReviewSummarizations].
+func WithCustomerReviewSummarizationsFields(fields []string) CustomerReviewSummarizationsOption {
+	return func(q *customerReviewSummarizationsQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+// WithCustomerReviewSummarizationsTerritoryFields sets fields[territories].
+func WithCustomerReviewSummarizationsTerritoryFields(fields []string) CustomerReviewSummarizationsOption {
+	return func(q *customerReviewSummarizationsQuery) {
+		q.territoryFields = normalizeList(fields)
+	}
+}
+
+// WithCustomerReviewSummarizationsInclude sets include.
+func WithCustomerReviewSummarizationsInclude(include []string) CustomerReviewSummarizationsOption {
+	return func(q *customerReviewSummarizationsQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
+func buildCustomerReviewSummarizationsQuery(query *customerReviewSummarizationsQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[platform]", query.platforms)
+	addCSV(values, "filter[territory]", query.territories)
+	addCSV(values, "fields[customerReviewSummarizations]", query.fields)
+	addCSV(values, "fields[territories]", query.territoryFields)
+	addCSV(values, "include", query.include)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+// AppOption sets the query of GET /v1/apps/{id} (apps_getInstance).
+type AppOption func(*appQuery)
+
+type appQuery struct {
+	fields                  []string
+	appInfoFields           []string
+	inAppPurchaseFields     []string
+	subscriptionGroupFields []string
+	retentionMessageFields  []string
+	include                 []string
+}
+
+// WithAppFields sets fields[apps].
+func WithAppFields(fields []string) AppOption {
+	return func(q *appQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+// WithAppAppInfoFields sets fields[appInfos].
+func WithAppAppInfoFields(fields []string) AppOption {
+	return func(q *appQuery) {
+		q.appInfoFields = normalizeList(fields)
+	}
+}
+
+// WithAppInAppPurchaseFields sets fields[inAppPurchases].
+func WithAppInAppPurchaseFields(fields []string) AppOption {
+	return func(q *appQuery) {
+		q.inAppPurchaseFields = normalizeList(fields)
+	}
+}
+
+// WithAppSubscriptionGroupFields sets fields[subscriptionGroups].
+func WithAppSubscriptionGroupFields(fields []string) AppOption {
+	return func(q *appQuery) {
+		q.subscriptionGroupFields = normalizeList(fields)
+	}
+}
+
+// WithAppRetentionMessageFields sets fields[retentionMessages].
+func WithAppRetentionMessageFields(fields []string) AppOption {
+	return func(q *appQuery) {
+		q.retentionMessageFields = normalizeList(fields)
+	}
+}
+
+// WithAppInclude sets include.
+func WithAppInclude(include []string) AppOption {
+	return func(q *appQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
+func buildAppQuery(query *appQuery) string {
+	values := url.Values{}
+	addCSV(values, "fields[apps]", query.fields)
+	addCSV(values, "fields[appInfos]", query.appInfoFields)
+	addCSV(values, "fields[inAppPurchases]", query.inAppPurchaseFields)
+	addCSV(values, "fields[subscriptionGroups]", query.subscriptionGroupFields)
+	addCSV(values, "fields[retentionMessages]", query.retentionMessageFields)
+	addCSV(values, "include", query.include)
+	return values.Encode()
+}
+
+// WebhooksOption sets the query of GET /v1/apps/{id}/webhooks (apps_webhooks_getToManyRelated).
+type WebhooksOption func(*webhooksQuery)
+
+type webhooksQuery struct {
+	listQuery
+}
+
+func buildWebhooksQuery(query *webhooksQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
 }

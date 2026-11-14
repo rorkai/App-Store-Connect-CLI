@@ -66,19 +66,6 @@ type GameCenterMatchmakingRuleSetDeleteResult struct {
 	Deleted bool   `json:"deleted"`
 }
 
-// GCMatchmakingRuleSetsOption is a functional option for GetGameCenterMatchmakingRuleSets.
-type GCMatchmakingRuleSetsOption func(*gcMatchmakingRuleSetsQuery)
-
-type gcMatchmakingRuleSetsQuery struct {
-	listQuery
-}
-
-func buildGCMatchmakingRuleSetsQuery(query *gcMatchmakingRuleSetsQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
 // GameCenterMatchmakingRuleAttributes represents a matchmaking rule resource.
 type GameCenterMatchmakingRuleAttributes struct {
 	ReferenceName string  `json:"referenceName"`
@@ -109,19 +96,6 @@ type GameCenterMatchmakingRuleDeleteResult struct {
 	Deleted bool   `json:"deleted"`
 }
 
-// GCMatchmakingRulesOption is a functional option for GetGameCenterMatchmakingRules.
-type GCMatchmakingRulesOption func(*gcMatchmakingRulesQuery)
-
-type gcMatchmakingRulesQuery struct {
-	listQuery
-}
-
-func buildGCMatchmakingRulesQuery(query *gcMatchmakingRulesQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
 // GameCenterMatchmakingTeamAttributes represents a matchmaking team resource.
 type GameCenterMatchmakingTeamAttributes struct {
 	ReferenceName string `json:"referenceName"`
@@ -148,19 +122,6 @@ type GameCenterMatchmakingTeamsResponse = Response[GameCenterMatchmakingTeamAttr
 type GameCenterMatchmakingTeamDeleteResult struct {
 	ID      string `json:"id"`
 	Deleted bool   `json:"deleted"`
-}
-
-// GCMatchmakingTeamsOption is a functional option for GetGameCenterMatchmakingTeams.
-type GCMatchmakingTeamsOption func(*gcMatchmakingTeamsQuery)
-
-type gcMatchmakingTeamsQuery struct {
-	listQuery
-}
-
-func buildGCMatchmakingTeamsQuery(query *gcMatchmakingTeamsQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
 }
 
 // GameCenterMetricsDataPoint represents a metrics data point.

@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -94,4 +95,92 @@ func (c *Client) GetSubscriptionWinBackOffersRelationships(ctx context.Context, 
 		Next:        query.nextURL,
 		NextContext: "winBackOffers relationships",
 	})
+}
+
+// SubscriptionImagesOption sets the query of GET /v1/subscriptions/{id}/images (subscriptions_images_getToManyRelated).
+type SubscriptionImagesOption func(*subscriptionImagesQuery)
+
+type subscriptionImagesQuery struct {
+	listQuery
+}
+
+func buildSubscriptionImagesQuery(query *subscriptionImagesQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+// SubscriptionOfferCodesOption sets the query of GET /v1/subscriptions/{id}/offerCodes (subscriptions_offerCodes_getToManyRelated).
+type SubscriptionOfferCodesOption func(*subscriptionOfferCodesQuery)
+
+type subscriptionOfferCodesQuery struct {
+	listQuery
+	subscriptionFields []string
+	include            []string
+}
+
+// WithSubscriptionOfferCodesSubscriptionFields sets fields[subscriptions].
+func WithSubscriptionOfferCodesSubscriptionFields(fields []string) SubscriptionOfferCodesOption {
+	return func(q *subscriptionOfferCodesQuery) {
+		q.subscriptionFields = normalizeList(fields)
+	}
+}
+
+// WithSubscriptionOfferCodesInclude sets include.
+func WithSubscriptionOfferCodesInclude(include []string) SubscriptionOfferCodesOption {
+	return func(q *subscriptionOfferCodesQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
+func buildSubscriptionOfferCodesQuery(query *subscriptionOfferCodesQuery) string {
+	values := url.Values{}
+	addCSV(values, "fields[subscriptions]", query.subscriptionFields)
+	addCSV(values, "include", query.include)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+// SubscriptionPromotionalOffersOption sets the query of GET /v1/subscriptions/{id}/promotionalOffers (subscriptions_promotionalOffers_getToManyRelated).
+type SubscriptionPromotionalOffersOption func(*subscriptionPromotionalOffersQuery)
+
+type subscriptionPromotionalOffersQuery struct {
+	listQuery
+	subscriptionFields []string
+	include            []string
+}
+
+// WithSubscriptionPromotionalOffersSubscriptionFields sets fields[subscriptions].
+func WithSubscriptionPromotionalOffersSubscriptionFields(fields []string) SubscriptionPromotionalOffersOption {
+	return func(q *subscriptionPromotionalOffersQuery) {
+		q.subscriptionFields = normalizeList(fields)
+	}
+}
+
+// WithSubscriptionPromotionalOffersInclude sets include.
+func WithSubscriptionPromotionalOffersInclude(include []string) SubscriptionPromotionalOffersOption {
+	return func(q *subscriptionPromotionalOffersQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
+func buildSubscriptionPromotionalOffersQuery(query *subscriptionPromotionalOffersQuery) string {
+	values := url.Values{}
+	addCSV(values, "fields[subscriptions]", query.subscriptionFields)
+	addCSV(values, "include", query.include)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+// SubscriptionLocalizationsOption sets the query of GET /v1/subscriptions/{id}/subscriptionLocalizations (subscriptions_subscriptionLocalizations_getToManyRelated).
+type SubscriptionLocalizationsOption func(*subscriptionLocalizationsQuery)
+
+type subscriptionLocalizationsQuery struct {
+	listQuery
+}
+
+func buildSubscriptionLocalizationsQuery(query *subscriptionLocalizationsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
 }

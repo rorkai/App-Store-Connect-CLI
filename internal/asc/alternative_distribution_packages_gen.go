@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 )
 
@@ -42,4 +43,17 @@ func (c *Client) GetAlternativeDistributionPackageVersions(ctx context.Context, 
 		NextContext: "alternativeDistributionPackageVersions",
 		ParseErr:    "failed to parse alternative distribution package versions response",
 	})
+}
+
+// AlternativeDistributionPackageVersionsOption sets the query of GET /v1/alternativeDistributionPackages/{id}/versions (alternativeDistributionPackages_versions_getToManyRelated).
+type AlternativeDistributionPackageVersionsOption func(*alternativeDistributionPackageVersionsQuery)
+
+type alternativeDistributionPackageVersionsQuery struct {
+	listQuery
+}
+
+func buildAlternativeDistributionPackageVersionsQuery(query *alternativeDistributionPackageVersionsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
 }

@@ -17,5 +17,8 @@
     {"operation":"gameCenterAchievements_localizations_getToManyRelated","name":"GetGameCenterAchievementLocalizations","params":["achievementID"],"options":"GCAchievementLocalizationsOption","query":"buildGCAchievementLocalizationsQuery","nextContext":"game-center-achievement-localizations"},
     {"operation":"gameCenterAchievements_releases_getToManyRelated","name":"GetGameCenterAchievementReleases","params":["achievementID"],"options":"GCAchievementReleasesOption","query":"buildGCAchievementReleasesQuery","nextContext":"game-center-achievement-releases"},
     {"operation":"gameCenterAchievements_updateInstance","name":"UpdateGameCenterAchievement","params":["achievementID"]}
+  ],
+  "queries": [
+    {"operation":"gameCenterAchievementsV2_versions_getToManyRelated","name":"GCAchievementVersions","deviations":[{"problem":"query parameters [fields[gameCenterAchievementLocalizations] fields[gameCenterAchievementVersions] fields[gameCenterAchievements] include limit[localizations]] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]}
   ]
 }

@@ -123,19 +123,6 @@ type GameCenterAchievementVersionsResponse = Response[GameCenterAchievementVersi
 // GameCenterAchievementVersionResponse is the response from achievement version detail endpoints.
 type GameCenterAchievementVersionResponse = SingleResponse[GameCenterAchievementVersionAttributes]
 
-// GCAchievementVersionsOption is a functional option for GetGameCenterAchievementVersions.
-type GCAchievementVersionsOption func(*gcAchievementVersionsQuery)
-
-type gcAchievementVersionsQuery struct {
-	listQuery
-}
-
-func buildGCAchievementVersionsQuery(query *gcAchievementVersionsQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
 // GameCenterAchievementLocalizationAttributes represents a Game Center achievement localization.
 type GameCenterAchievementLocalizationAttributes struct {
 	Locale                  string `json:"locale"`

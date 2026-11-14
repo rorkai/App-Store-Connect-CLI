@@ -37,20 +37,10 @@ type crashQuery struct {
 	include                   []string
 }
 
-type betaAppLocalizationsQuery struct {
-	listQuery
-	locales []string
-	appIDs  []string
-}
-
 type betaBuildLocalizationsQuery struct {
 	listQuery
 	locales  []string
 	buildIDs []string
-}
-
-type betaBuildUsagesQuery struct {
-	listQuery
 }
 
 type betaTesterUsagesQuery struct {
@@ -82,14 +72,6 @@ type betaGroupsQuery struct {
 	sort                          string
 }
 
-type betaGroupBuildsQuery struct {
-	listQuery
-}
-
-type betaGroupTestersQuery struct {
-	listQuery
-}
-
 type betaTestersQuery struct {
 	listQuery
 	includedFieldsQuery
@@ -113,16 +95,6 @@ type betaAppReviewSubmissionsQuery struct {
 	listQuery
 	buildIDs     []string
 	includeBuild bool
-}
-
-type buildBetaDetailsQuery struct {
-	listQuery
-	buildIDs []string
-}
-
-type betaRecruitmentCriterionOptionsQuery struct {
-	listQuery
-	fields []string
 }
 
 func buildFeedbackQuery(query *feedbackQuery) string {
@@ -239,18 +211,6 @@ func buildBetaGroupsQuery(query *betaGroupsQuery) string {
 	return values.Encode()
 }
 
-func buildBetaGroupBuildsQuery(query *betaGroupBuildsQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
-func buildBetaGroupTestersQuery(query *betaGroupTestersQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
 func buildBetaTestersQuery(appID string, query *betaTestersQuery) (string, error) {
 	// The API allows only one relationship filter at a time. Reject conflicting
 	// combinations up front so every call site gets a consistent error instead of
@@ -309,38 +269,10 @@ func buildBetaAppReviewSubmissionsQuery(query *betaAppReviewSubmissionsQuery) st
 	return values.Encode()
 }
 
-func buildBuildBetaDetailsQuery(query *buildBetaDetailsQuery) string {
-	values := url.Values{}
-	addCSV(values, "filter[build]", query.buildIDs)
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
-func buildBetaRecruitmentCriterionOptionsQuery(query *betaRecruitmentCriterionOptionsQuery) string {
-	values := url.Values{}
-	addCSV(values, "fields[betaRecruitmentCriterionOptions]", query.fields)
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
-func buildBetaAppLocalizationsQuery(query *betaAppLocalizationsQuery) string {
-	values := url.Values{}
-	addCSV(values, "filter[locale]", query.locales)
-	addCSV(values, "filter[app]", query.appIDs)
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
 func buildBetaBuildLocalizationsQuery(query *betaBuildLocalizationsQuery) string {
 	values := url.Values{}
 	addCSV(values, "filter[build]", query.buildIDs)
 	addCSV(values, "filter[locale]", query.locales)
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
-func buildBetaBuildUsagesQuery(query *betaBuildUsagesQuery) string {
-	values := url.Values{}
 	addLimit(values, query.limit)
 	return values.Encode()
 }
@@ -372,12 +304,6 @@ type CrashOption func(*crashQuery)
 // BetaGroupsOption is a functional option for GetBetaGroups.
 type BetaGroupsOption func(*betaGroupsQuery)
 
-// BetaGroupBuildsOption is a functional option for GetBetaGroupBuilds.
-type BetaGroupBuildsOption func(*betaGroupBuildsQuery)
-
-// BetaGroupTestersOption is a functional option for GetBetaGroupTesters.
-type BetaGroupTestersOption func(*betaGroupTestersQuery)
-
 // BetaTestersOption is a functional option for GetBetaTesters.
 type BetaTestersOption func(*betaTestersQuery)
 
@@ -399,23 +325,11 @@ type BetaAppReviewDetailsOption func(*betaAppReviewDetailsQuery)
 // BetaAppReviewSubmissionsOption is a functional option for beta app review submissions.
 type BetaAppReviewSubmissionsOption func(*betaAppReviewSubmissionsQuery)
 
-// BuildBetaDetailsOption is a functional option for build beta details.
-type BuildBetaDetailsOption func(*buildBetaDetailsQuery)
-
-// BetaRecruitmentCriterionOptionsOption is a functional option for recruitment options.
-type BetaRecruitmentCriterionOptionsOption func(*betaRecruitmentCriterionOptionsQuery)
-
-// BetaAppLocalizationsOption is a functional option for beta app localizations.
-type BetaAppLocalizationsOption func(*betaAppLocalizationsQuery)
-
 // AppBetaAppLocalizationsOption is a functional option for GetAppBetaAppLocalizations.
 type AppBetaAppLocalizationsOption func(*listQuery)
 
 // BetaBuildLocalizationsOption is a functional option for beta build localizations.
 type BetaBuildLocalizationsOption func(*betaBuildLocalizationsQuery)
-
-// BetaBuildUsagesOption is a functional option for beta build usage metrics.
-type BetaBuildUsagesOption func(*betaBuildUsagesQuery)
 
 // WithFeedbackDeviceModels filters feedback by device model(s).
 func WithFeedbackDeviceModels(models []string) FeedbackOption {
@@ -814,34 +728,6 @@ func WithBetaAppReviewSubmissionsBuildIDs(ids []string) BetaAppReviewSubmissions
 func WithBetaAppReviewSubmissionsIncludeBuild() BetaAppReviewSubmissionsOption {
 	return func(q *betaAppReviewSubmissionsQuery) {
 		q.includeBuild = true
-	}
-}
-
-// WithBuildBetaDetailsBuildIDs filters build beta details by build ID(s).
-func WithBuildBetaDetailsBuildIDs(ids []string) BuildBetaDetailsOption {
-	return func(q *buildBetaDetailsQuery) {
-		q.buildIDs = normalizeList(ids)
-	}
-}
-
-// WithBetaRecruitmentCriterionOptionsFields sets fields for criterion options.
-func WithBetaRecruitmentCriterionOptionsFields(fields []string) BetaRecruitmentCriterionOptionsOption {
-	return func(q *betaRecruitmentCriterionOptionsQuery) {
-		q.fields = normalizeList(fields)
-	}
-}
-
-// WithBetaAppLocalizationLocales filters beta app localizations by locale.
-func WithBetaAppLocalizationLocales(locales []string) BetaAppLocalizationsOption {
-	return func(q *betaAppLocalizationsQuery) {
-		q.locales = normalizeList(locales)
-	}
-}
-
-// WithBetaAppLocalizationAppIDs filters beta app localizations by app ID(s).
-func WithBetaAppLocalizationAppIDs(ids []string) BetaAppLocalizationsOption {
-	return func(q *betaAppLocalizationsQuery) {
-		q.appIDs = normalizeList(ids)
 	}
 }
 

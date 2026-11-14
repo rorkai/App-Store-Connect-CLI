@@ -8,5 +8,8 @@
   "operations": [
     {"operation":"alternativeDistributionPackages_getInstance","name":"GetAlternativeDistributionPackage","params":["packageID"],"check":"require","parseErr":"failed to parse alternative distribution package response"},
     {"operation":"alternativeDistributionPackages_versions_getToManyRelated","name":"GetAlternativeDistributionPackageVersions","params":["packageID"],"check":"require","checkFirst":true,"options":"AlternativeDistributionPackageVersionsOption","query":"buildAlternativeDistributionPackageVersionsQuery","nextContext":"alternativeDistributionPackageVersions","parseErr":"failed to parse alternative distribution package versions response"}
+  ],
+  "queries": [
+    {"operation":"alternativeDistributionPackages_versions_getToManyRelated","name":"AlternativeDistributionPackageVersions","deviations":[{"problem":"query parameters [fields[alternativeDistributionPackageDeltas] fields[alternativeDistributionPackageVariants] fields[alternativeDistributionPackageVersions] fields[alternativeDistributionPackages] filter[state] include limit[deltas] limit[variants]] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]}
   ]
 }

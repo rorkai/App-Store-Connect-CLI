@@ -1009,19 +1009,6 @@ func TestPrintMarkdown_CiProductDeleteResult(t *testing.T) {
 	}
 }
 
-func TestBuildCiWorkflowsQuery(t *testing.T) {
-	query := &ciWorkflowsQuery{}
-	Limit[CiWorkflowsOption](50)(query)
-
-	values, err := url.ParseQuery(buildCiWorkflowsQuery(query))
-	if err != nil {
-		t.Fatalf("failed to parse query: %v", err)
-	}
-	if got := values.Get("limit"); got != "50" {
-		t.Fatalf("expected limit=50, got %q", got)
-	}
-}
-
 func TestBuildCiBuildRunsQuery(t *testing.T) {
 	query := &ciBuildRunsQuery{}
 	Limit[CiBuildRunsOption](10)(query)

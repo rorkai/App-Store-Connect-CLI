@@ -27,30 +27,9 @@ type appSearchKeywordsQuery struct {
 	locales   []string
 }
 
-type appClipsQuery struct {
-	listQuery
-	bundleIDs []string
-}
-
-type appClipDefaultExperiencesQuery struct {
-	listQuery
-}
-
 type appClipDefaultExperienceQuery struct {
 	includedFieldsQuery
 	include []string
-}
-
-type appClipDefaultExperienceLocalizationsQuery struct {
-	listQuery
-	locales []string
-}
-
-type appClipAdvancedExperiencesQuery struct {
-	listQuery
-	actions       []string
-	statuses      []string
-	placeStatuses []string
 }
 
 type appTagsQuery struct {
@@ -75,10 +54,6 @@ type nominationsQuery struct {
 	inAppEventsLimit          int
 	relatedAppsLimit          int
 	supportedTerritoriesLimit int
-}
-
-type betaAppClipInvocationsQuery struct {
-	listQuery
 }
 
 type betaAppClipInvocationQuery struct {
@@ -123,39 +98,10 @@ func buildAppsQuery(query *appsQuery) string {
 	return values.Encode()
 }
 
-func buildAppClipsQuery(query *appClipsQuery) string {
-	values := url.Values{}
-	addCSV(values, "filter[bundleId]", query.bundleIDs)
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
-func buildAppClipDefaultExperiencesQuery(query *appClipDefaultExperiencesQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
 func buildAppClipDefaultExperienceQuery(query *appClipDefaultExperienceQuery) string {
 	values := url.Values{}
 	addCSV(values, "include", query.include)
 	query.includedFields.AddTo(values)
-	return values.Encode()
-}
-
-func buildAppClipDefaultExperienceLocalizationsQuery(query *appClipDefaultExperienceLocalizationsQuery) string {
-	values := url.Values{}
-	addCSV(values, "filter[locale]", query.locales)
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
-func buildAppClipAdvancedExperiencesQuery(query *appClipAdvancedExperiencesQuery) string {
-	values := url.Values{}
-	addCSV(values, "filter[action]", query.actions)
-	addCSV(values, "filter[status]", query.statuses)
-	addCSV(values, "filter[placeStatus]", query.placeStatuses)
-	addLimit(values, query.limit)
 	return values.Encode()
 }
 
@@ -263,12 +209,6 @@ func buildAppEncryptionDeclarationDocumentFieldsQuery(fields []string) string {
 	return values.Encode()
 }
 
-func buildBetaAppClipInvocationsQuery(query *betaAppClipInvocationsQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
 func buildAppSearchKeywordsQuery(query *appSearchKeywordsQuery) string {
 	values := url.Values{}
 	addCSV(values, "filter[platform]", query.platforms)
@@ -283,20 +223,8 @@ type AppsOption func(*appsQuery)
 // AppSearchKeywordsOption is a functional option for GetAppSearchKeywords.
 type AppSearchKeywordsOption func(*appSearchKeywordsQuery)
 
-// AppClipsOption is a functional option for GetAppClips.
-type AppClipsOption func(*appClipsQuery)
-
-// AppClipDefaultExperiencesOption is a functional option for GetAppClipDefaultExperiences.
-type AppClipDefaultExperiencesOption func(*appClipDefaultExperiencesQuery)
-
 // AppClipDefaultExperienceOption is a functional option for GetAppClipDefaultExperience.
 type AppClipDefaultExperienceOption func(*appClipDefaultExperienceQuery)
-
-// AppClipDefaultExperienceLocalizationsOption is a functional option for GetAppClipDefaultExperienceLocalizations.
-type AppClipDefaultExperienceLocalizationsOption func(*appClipDefaultExperienceLocalizationsQuery)
-
-// AppClipAdvancedExperiencesOption is a functional option for GetAppClipAdvancedExperiences.
-type AppClipAdvancedExperiencesOption func(*appClipAdvancedExperiencesQuery)
 
 // BetaAppClipInvocationOption is a functional option for GetBetaAppClipInvocation.
 type BetaAppClipInvocationOption func(*betaAppClipInvocationQuery)
@@ -306,9 +234,6 @@ type AppTagsOption func(*appTagsQuery)
 
 // NominationsOption is a functional option for nominations endpoints.
 type NominationsOption func(*nominationsQuery)
-
-// BetaAppClipInvocationsOption is a functional option for GetBuildBundleBetaAppClipInvocations.
-type BetaAppClipInvocationsOption func(*betaAppClipInvocationsQuery)
 
 // AccessibilityDeclarationsOption is a functional option for accessibility declarations.
 type AccessibilityDeclarationsOption func(*accessibilityDeclarationsQuery)
@@ -469,45 +394,10 @@ func WithAppSearchKeywordsLocales(locales []string) AppSearchKeywordsOption {
 	}
 }
 
-// WithAppClipsBundleIDs filters App Clips by bundle ID(s).
-func WithAppClipsBundleIDs(bundleIDs []string) AppClipsOption {
-	return func(q *appClipsQuery) {
-		q.bundleIDs = normalizeList(bundleIDs)
-	}
-}
-
 // WithAppClipDefaultExperienceInclude sets include for default experience detail.
 func WithAppClipDefaultExperienceInclude(include []string) AppClipDefaultExperienceOption {
 	return func(q *appClipDefaultExperienceQuery) {
 		q.include = normalizeList(include)
-	}
-}
-
-// WithAppClipDefaultExperienceLocalizationsLocales filters localizations by locale(s).
-func WithAppClipDefaultExperienceLocalizationsLocales(locales []string) AppClipDefaultExperienceLocalizationsOption {
-	return func(q *appClipDefaultExperienceLocalizationsQuery) {
-		q.locales = normalizeList(locales)
-	}
-}
-
-// WithAppClipAdvancedExperiencesActions filters advanced experiences by action(s).
-func WithAppClipAdvancedExperiencesActions(actions []string) AppClipAdvancedExperiencesOption {
-	return func(q *appClipAdvancedExperiencesQuery) {
-		q.actions = normalizeList(actions)
-	}
-}
-
-// WithAppClipAdvancedExperiencesStatuses filters advanced experiences by status(es).
-func WithAppClipAdvancedExperiencesStatuses(statuses []string) AppClipAdvancedExperiencesOption {
-	return func(q *appClipAdvancedExperiencesQuery) {
-		q.statuses = normalizeList(statuses)
-	}
-}
-
-// WithAppClipAdvancedExperiencesPlaceStatuses filters advanced experiences by place status(es).
-func WithAppClipAdvancedExperiencesPlaceStatuses(placeStatuses []string) AppClipAdvancedExperiencesOption {
-	return func(q *appClipAdvancedExperiencesQuery) {
-		q.placeStatuses = normalizeList(placeStatuses)
 	}
 }
 

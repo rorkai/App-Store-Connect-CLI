@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -110,4 +111,17 @@ func (c *Client) GetInAppPurchase(ctx context.Context, iapID string) (*InAppPurc
 	return getJSON[InAppPurchaseResponse](ctx, c, readRequest{
 		Path: fmt.Sprintf("/v1/inAppPurchases/%s", strings.TrimSpace(iapID)),
 	})
+}
+
+// IAPLocalizationsOption sets the query of GET /v2/inAppPurchases/{id}/inAppPurchaseLocalizations (inAppPurchasesV2_inAppPurchaseLocalizations_getToManyRelated).
+type IAPLocalizationsOption func(*iapLocalizationsQuery)
+
+type iapLocalizationsQuery struct {
+	listQuery
+}
+
+func buildIAPLocalizationsQuery(query *iapLocalizationsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
 }

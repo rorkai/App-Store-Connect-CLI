@@ -11,5 +11,8 @@
     {"operation":"gameCenterActivities_getInstance","name":"GetGameCenterActivity","params":["activityID"]},
     {"operation":"gameCenterActivities_updateInstance","name":"UpdateGameCenterActivity","params":["activityID"]},
     {"operation":"gameCenterActivities_versions_getToManyRelated","name":"GetGameCenterActivityVersions","params":["activityID"],"options":"GCActivityVersionsOption","query":"buildGCActivityVersionsQuery","nextContext":"game-center-activity-versions"}
+  ],
+  "queries": [
+    {"operation":"gameCenterActivities_versions_getToManyRelated","name":"GCActivityVersions","deviations":[{"problem":"query parameters [fields[gameCenterActivities] fields[gameCenterActivityImages] fields[gameCenterActivityLocalizations] fields[gameCenterActivityVersionReleases] fields[gameCenterActivityVersions] include limit[localizations] limit[releases]] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]}
   ]
 }
