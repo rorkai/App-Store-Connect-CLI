@@ -127,21 +127,6 @@ type AppStoreVersionExperimentTreatmentLocalizationDeleteResult struct {
 	Deleted bool   `json:"deleted"`
 }
 
-// GetAppStoreVersionExperimentsV2 retrieves experiments for an app (v2).
-func (c *Client) GetAppStoreVersionExperimentsV2(ctx context.Context, appID string, opts ...AppStoreVersionExperimentsV2Option) (*AppStoreVersionExperimentsV2Response, error) {
-	query := applyOptions(opts)
-	appID = strings.TrimSpace(appID)
-	if query.nextURL == "" && appID == "" {
-		return nil, fmt.Errorf("appID is required")
-	}
-	return getJSON[AppStoreVersionExperimentsV2Response](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/apps/%s/appStoreVersionExperimentsV2", appID),
-		Query:       buildAppStoreVersionExperimentsV2Query(query),
-		Next:        query.nextURL,
-		NextContext: "appStoreVersionExperimentsV2",
-	})
-}
-
 // CreateAppStoreVersionExperiment creates an experiment (v1).
 func (c *Client) CreateAppStoreVersionExperiment(ctx context.Context, versionID, name string, trafficProportion int) (*AppStoreVersionExperimentResponse, error) {
 	versionID = strings.TrimSpace(versionID)

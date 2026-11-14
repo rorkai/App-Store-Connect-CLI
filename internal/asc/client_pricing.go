@@ -8,19 +8,6 @@ import (
 	"strings"
 )
 
-// GetAppPricePoints retrieves app price points for an app.
-func (c *Client) GetAppPricePoints(ctx context.Context, appID string, opts ...PricePointsOption) (*AppPricePointsV3Response, error) {
-	query := applyOptions(opts)
-	appID = strings.TrimSpace(appID)
-	return getJSON[AppPricePointsV3Response](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/apps/%s/appPricePoints", appID),
-		Query:       buildPricePointsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "appPricePoints",
-		ParseErr:    "failed to parse app price points response",
-	})
-}
-
 // GetAppPricePoint retrieves a single app price point by ID.
 func (c *Client) GetAppPricePoint(ctx context.Context, pricePointID string) (*AppPricePointsV3Response, error) {
 	pricePointID = strings.TrimSpace(pricePointID)
@@ -39,15 +26,6 @@ func (c *Client) GetAppPricePoint(ctx context.Context, pricePointID string) (*Ap
 	}
 
 	return &response, nil
-}
-
-// GetAppPriceSchedule retrieves the app price schedule for an app.
-func (c *Client) GetAppPriceSchedule(ctx context.Context, appID string) (*AppPriceScheduleResponse, error) {
-	appID = strings.TrimSpace(appID)
-	return getJSON[AppPriceScheduleResponse](ctx, c, readRequest{
-		Path:     fmt.Sprintf("/v1/apps/%s/appPriceSchedule", appID),
-		ParseErr: "failed to parse app price schedule response",
-	})
 }
 
 // CreateAppPriceSchedule creates an app price schedule with manual prices.
@@ -127,15 +105,6 @@ func (c *Client) CreateAppPriceSchedule(ctx context.Context, appID string, attrs
 		Path:     "/v1/appPriceSchedules",
 		Payload:  payload,
 		ParseErr: "failed to parse app price schedule response",
-	})
-}
-
-// GetAppAvailabilityV2 retrieves app availability for an app.
-func (c *Client) GetAppAvailabilityV2(ctx context.Context, appID string) (*AppAvailabilityV2Response, error) {
-	appID = strings.TrimSpace(appID)
-	return getJSON[AppAvailabilityV2Response](ctx, c, readRequest{
-		Path:     fmt.Sprintf("/v1/apps/%s/appAvailabilityV2", appID),
-		ParseErr: "failed to parse app availability response",
 	})
 }
 

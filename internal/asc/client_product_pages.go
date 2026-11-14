@@ -116,21 +116,6 @@ type AppCustomProductPageLocalizationDeleteResult struct {
 	Deleted bool   `json:"deleted"`
 }
 
-// GetAppCustomProductPages retrieves custom product pages for an app.
-func (c *Client) GetAppCustomProductPages(ctx context.Context, appID string, opts ...AppCustomProductPagesOption) (*AppCustomProductPagesResponse, error) {
-	query := applyOptions(opts)
-	appID = strings.TrimSpace(appID)
-	if query.nextURL == "" && appID == "" {
-		return nil, fmt.Errorf("appID is required")
-	}
-	return getJSON[AppCustomProductPagesResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/apps/%s/appCustomProductPages", appID),
-		Query:       buildAppCustomProductPagesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "appCustomProductPages",
-	})
-}
-
 // CreateAppCustomProductPage creates a custom product page with an initial version and
 // a localization that uses the app's primary locale.
 func (c *Client) CreateAppCustomProductPage(ctx context.Context, appID, name string, template AppCustomProductPageTemplate) (*AppCustomProductPageResponse, error) {

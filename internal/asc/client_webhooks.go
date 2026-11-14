@@ -7,19 +7,6 @@ import (
 	"strings"
 )
 
-// GetAppWebhooks retrieves webhooks for an app.
-func (c *Client) GetAppWebhooks(ctx context.Context, appID string, opts ...WebhooksOption) (*WebhooksResponse, error) {
-	query := applyOptions(opts)
-	appID = strings.TrimSpace(appID)
-	return getJSON[WebhooksResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/apps/%s/webhooks", appID),
-		Query:       buildWebhooksQuery(query),
-		Next:        query.nextURL,
-		NextContext: "webhooks",
-		ParseErr:    "failed to parse webhooks response",
-	})
-}
-
 // CreateWebhook creates a webhook for an app.
 func (c *Client) CreateWebhook(ctx context.Context, appID string, attrs WebhookCreateAttributes) (*WebhookResponse, error) {
 	payload := WebhookCreateRequest{
