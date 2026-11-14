@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -75,8 +74,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*subscriptionID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --subscription-id is required")
-				return shared.MissingRequiredUsageError("--subscription-id")
+				return shared.RequiredFlag("--subscription-id")
 			}
 			client, err := shared.GetASCClient()
 			if err != nil {
@@ -175,8 +173,7 @@ Examples:
 			}
 			id := strings.TrimSpace(*subscriptionID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --subscription-id is required")
-				return shared.MissingRequiredUsageError("--subscription-id")
+				return shared.RequiredFlag("--subscription-id")
 			}
 			client, err := shared.GetASCClient()
 			if err != nil {
@@ -243,8 +240,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			versionID := strings.TrimSpace(*id)
 			if versionID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if err := validateRelationshipLimit("--images-limit", *imagesLimit); err != nil {
 				return err
@@ -325,8 +321,7 @@ func SubscriptionsVersionsLinksCommand() *ffcli.Command {
 			}
 			id := strings.TrimSpace(*subscriptionID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --subscription-id is required")
-				return shared.MissingRequiredUsageError("--subscription-id")
+				return shared.RequiredFlag("--subscription-id")
 			}
 			client, err := shared.GetASCClient()
 			if err != nil {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -91,8 +90,7 @@ func SubscriptionsVersionLocalizationsListCommand() *ffcli.Command {
 			}
 			id := strings.TrimSpace(*versionID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return shared.MissingRequiredUsageError("--version-id")
+				return shared.RequiredFlag("--version-id")
 			}
 			client, err := shared.GetASCClient()
 			if err != nil {
@@ -156,8 +154,7 @@ func SubscriptionsVersionLocalizationsLinksCommand() *ffcli.Command {
 			}
 			id := strings.TrimSpace(*versionID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return shared.MissingRequiredUsageError("--version-id")
+				return shared.RequiredFlag("--version-id")
 			}
 			client, err := shared.GetASCClient()
 			if err != nil {
@@ -201,8 +198,7 @@ func SubscriptionsVersionLocalizationsViewCommand() *ffcli.Command {
 		Exec: func(ctx context.Context, args []string) error {
 			localizationID := strings.TrimSpace(*id)
 			if localizationID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			fieldValues, err := normalizeSelectionFlag(fs, *fields, "--fields", subscriptionVersionLocalizationFieldsList())
 			if err != nil {
@@ -251,16 +247,13 @@ func SubscriptionsVersionLocalizationsCreateCommand() *ffcli.Command {
 		Exec: func(ctx context.Context, args []string) error {
 			id, localeValue, nameValue := strings.TrimSpace(*versionID), strings.TrimSpace(*locale), strings.TrimSpace(*name)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return shared.MissingRequiredUsageError("--version-id")
+				return shared.RequiredFlag("--version-id")
 			}
 			if localeValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --locale is required")
-				return shared.MissingRequiredUsageError("--locale")
+				return shared.RequiredFlag("--locale")
 			}
 			if nameValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --name is required")
-				return shared.MissingRequiredUsageError("--name")
+				return shared.RequiredFlag("--name")
 			}
 			attrs := asc.SubscriptionLocalizationV2CreateAttributes{Name: nameValue, Locale: localeValue}
 			if description.set {
@@ -301,8 +294,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			localizationID := strings.TrimSpace(*id)
 			if localizationID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if name.set && *clearName {
 				return shared.UsageError("--name cannot be used with --clear-name")
@@ -351,12 +343,10 @@ func SubscriptionsVersionLocalizationsDeleteCommand() *ffcli.Command {
 		Exec: func(ctx context.Context, args []string) error {
 			localizationID := strings.TrimSpace(*id)
 			if localizationID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 			client, err := shared.GetASCClient()
 			if err != nil {

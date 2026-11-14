@@ -76,8 +76,7 @@ func SubscriptionsGroupsVersionsCreateCommand() *ffcli.Command {
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*groupID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --group-id is required")
-				return shared.MissingRequiredUsageError("--group-id")
+				return shared.RequiredFlag("--group-id")
 			}
 			client, err := subscriptionGroupVersionClientFactory()
 			if err != nil {
@@ -181,8 +180,7 @@ func SubscriptionsGroupsVersionsListCommand() *ffcli.Command {
 				return shared.UsageError("subscriptions groups versions list: --next cannot be combined with --group-id")
 			}
 			if id == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --group-id is required")
-				return shared.MissingRequiredUsageError("--group-id")
+				return shared.RequiredFlag("--group-id")
 			}
 			if strings.TrimSpace(*next) != "" && subscriptionGroupAnyFlagSet(fs, "state", "include", "fields", "group-fields", "localization-fields", "limit", "localizations-limit") {
 				return shared.UsageError("subscriptions groups versions list: --next cannot be combined with query flags")
@@ -235,8 +233,7 @@ func SubscriptionsGroupsVersionsViewCommand() *ffcli.Command {
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*versionID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return shared.MissingRequiredUsageError("--version-id")
+				return shared.RequiredFlag("--version-id")
 			}
 			opts, err := subscriptionGroupVersionOptions("", *include, *fields, *groupFields, *localizationFields, 0, *localizationsLimit, "")
 			if err != nil {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"slices"
 	"strings"
 
@@ -341,8 +340,7 @@ Examples:
 			}
 			id := strings.TrimSpace(*pricePointID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --price-point-id is required")
-				return shared.MissingRequiredUsageError("--price-point-id")
+				return shared.RequiredFlag("--price-point-id")
 			}
 
 			client, err := shared.GetASCClient()

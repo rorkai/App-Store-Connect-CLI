@@ -69,13 +69,11 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			sourceID := strings.TrimSpace(*sourceSubscriptionID)
 			if sourceID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --source-subscription-id is required")
-				return shared.MissingRequiredUsageError("--source-subscription-id")
+				return shared.RequiredFlag("--source-subscription-id")
 			}
 			targetID := strings.TrimSpace(*targetSubscriptionID)
 			if targetID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --target-subscription-id is required")
-				return shared.MissingRequiredUsageError("--target-subscription-id")
+				return shared.RequiredFlag("--target-subscription-id")
 			}
 			if sourceID == targetID {
 				return shared.UsageError("source and target subscriptions must be different")
@@ -596,8 +594,7 @@ func fetchSubscriptionPriceDeriveCandidatesByTerritory(
 func parseSubscriptionPriceDeriveMultiplier(value string) (*big.Rat, error) {
 	trimmed := strings.TrimSpace(value)
 	if trimmed == "" {
-		fmt.Fprintln(os.Stderr, "Error: --multiplier is required")
-		return nil, shared.MissingRequiredUsageError("--multiplier")
+		return nil, shared.RequiredFlag("--multiplier")
 	}
 	if !shared.IsPriceDecimal(trimmed) {
 		return nil, shared.UsageError("--multiplier must be a positive decimal")

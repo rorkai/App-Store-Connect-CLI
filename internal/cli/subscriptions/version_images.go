@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -72,8 +71,7 @@ func SubscriptionsVersionImagesListCommand() *ffcli.Command {
 			}
 			id := strings.TrimSpace(*versionID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return shared.MissingRequiredUsageError("--version-id")
+				return shared.RequiredFlag("--version-id")
 			}
 			client, err := shared.GetASCClient()
 			if err != nil {
@@ -116,8 +114,7 @@ func SubscriptionsVersionImagesPrimaryCommand() *ffcli.Command {
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*versionID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return shared.MissingRequiredUsageError("--version-id")
+				return shared.RequiredFlag("--version-id")
 			}
 			fieldValues, err := normalizeSelectionFlag(fs, *fields, "--fields", subscriptionVersionImageFieldsList())
 			if err != nil {
@@ -165,8 +162,7 @@ func SubscriptionsVersionImagesLinksCommand() *ffcli.Command {
 			}
 			id := strings.TrimSpace(*versionID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return shared.MissingRequiredUsageError("--version-id")
+				return shared.RequiredFlag("--version-id")
 			}
 			client, err := shared.GetASCClient()
 			if err != nil {
@@ -207,8 +203,7 @@ func SubscriptionsVersionImagesPrimaryLinkCommand() *ffcli.Command {
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*versionID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return shared.MissingRequiredUsageError("--version-id")
+				return shared.RequiredFlag("--version-id")
 			}
 			client, err := shared.GetASCClient()
 			if err != nil {
@@ -237,8 +232,7 @@ func SubscriptionsVersionImagesViewCommand() *ffcli.Command {
 		Exec: func(ctx context.Context, args []string) error {
 			imageID := strings.TrimSpace(*id)
 			if imageID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			fieldValues, err := normalizeSelectionFlag(fs, *fields, "--fields", subscriptionVersionImageFieldsList())
 			if err != nil {
@@ -271,12 +265,10 @@ func SubscriptionsVersionImagesUploadCommand() *ffcli.Command {
 		Exec: func(ctx context.Context, args []string) error {
 			id, pathValue := strings.TrimSpace(*versionID), strings.TrimSpace(*filePath)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return shared.MissingRequiredUsageError("--version-id")
+				return shared.RequiredFlag("--version-id")
 			}
 			if pathValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --file is required")
-				return shared.MissingRequiredUsageError("--file")
+				return shared.RequiredFlag("--file")
 			}
 			file, info, err := openSubscriptionImageFile(pathValue)
 			if err != nil {
@@ -326,8 +318,7 @@ func SubscriptionsVersionImagesUpdateCommand() *ffcli.Command {
 		Exec: func(ctx context.Context, args []string) error {
 			imageID := strings.TrimSpace(*id)
 			if imageID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if !uploaded.IsSet() {
 				return shared.UsageError("--uploaded is required")
@@ -360,12 +351,10 @@ func SubscriptionsVersionImagesDeleteCommand() *ffcli.Command {
 		Exec: func(ctx context.Context, args []string) error {
 			imageID := strings.TrimSpace(*id)
 			if imageID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 			client, err := shared.GetASCClient()
 			if err != nil {

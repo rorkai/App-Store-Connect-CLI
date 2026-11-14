@@ -11,7 +11,6 @@ import (
 	"io"
 	"math/big"
 	"net/url"
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -180,14 +179,12 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*subID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --subscription-id is required")
-				return shared.MissingRequiredUsageError("--subscription-id")
+				return shared.RequiredFlag("--subscription-id")
 			}
 
 			inputValue := strings.TrimSpace(*inputPath)
 			if inputValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --input is required")
-				return shared.MissingRequiredUsageError("--input")
+				return shared.RequiredFlag("--input")
 			}
 
 			defaultStartDate := ""

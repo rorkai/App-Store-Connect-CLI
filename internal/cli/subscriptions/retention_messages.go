@@ -390,8 +390,7 @@ func retentionDeleteCommand(path, ownerType, label string, del func(*asc.Client,
 					return nil, err
 				}
 				if !*confirm {
-					fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-					return nil, shared.MissingRequiredUsageError("--confirm")
+					return nil, shared.RequiredFlag("--confirm")
 				}
 				return func(ctx context.Context, client *asc.Client) (any, error) {
 					if err := del(client, ctx, value); err != nil {
