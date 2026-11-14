@@ -260,7 +260,7 @@ func renderQueryRegistry(spec *Spec, bindings *Bindings) ([]byte, error) {
 	if len(queries) == 0 {
 		return nil, nil
 	}
-	sort.Slice(queries, func(i, j int) bool { return queries[i].Operation < queries[j].Operation })
+	sort.SliceStable(queries, func(i, j int) bool { return queries[i].Operation < queries[j].Operation })
 	var out strings.Builder
 	out.WriteString(header + "\n\npackage asc\n\n")
 	out.WriteString("// generatedQuery is a generated query builder and its With functions by\n// query parameter.\ntype generatedQuery struct {\nbuild any\noptions map[string]any\n}\n\n")
