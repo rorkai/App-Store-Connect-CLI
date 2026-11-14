@@ -58,6 +58,7 @@ func XcodeTestCommand() *ffcli.Command {
 	resultBundlePath := fs.String("result-bundle-path", "", "Destination for a new Xcode result bundle")
 	clean := fs.Bool("clean", false, "Run clean before the selected Xcode action")
 	noCodeSigning := fs.Bool("no-code-signing", false, "Set CODE_SIGNING_ALLOWED=NO explicitly")
+	codeCoverage := fs.Bool("code-coverage", false, "Enable code coverage and report line coverage from the result bundle")
 	var xcodebuildFlags exactTestStringFlag
 	fs.Var(&xcodebuildFlags, "xcodebuild-flag", "Pass a raw argument through to xcodebuild (repeatable)")
 	output := shared.BindOutputFlags(fs)
@@ -77,6 +78,11 @@ write a new .xcresult bundle automatically when --result-bundle-path is omitted.
 The test-without-building action rejects project/build controls, including
 --configuration and --derived-data-path. Convert an existing result bundle
 with asc xcode test junit.
+
+--code-coverage passes -enableCodeCoverage YES to xcodebuild. After test and
+test-without-building, the result adds overall and per-target line coverage
+read with xccov; if coverage cannot be read, a warning is printed on stderr and
+the test outcome is unchanged.
 
 Xcode diagnostics are written to stderr and the selected structured result
 format is written to stdout. This command never calls App Store Connect or
@@ -117,6 +123,7 @@ Examples:
 				ResultBundlePath: strings.TrimSpace(*resultBundlePath),
 				Clean:            *clean,
 				NoCodeSigning:    *noCodeSigning,
+				CodeCoverage:     *codeCoverage,
 				XcodebuildArgs:   []string(xcodebuildFlags),
 				LogWriter:        os.Stderr,
 			}
@@ -178,6 +185,9 @@ func toXcodeTestResult(result *localxcode.TestResult) *asc.XcodeTestResult {
 		DurationMs:       result.DurationMS,
 		ExitStatus:       result.ExitStatus,
 	}
+	if result.Coverage != nil {
+		output.Coverage = toXcodeCoverage(*result.Coverage)
+	}
 	if result.Tests == nil {
 		return output
 	}
@@ -210,6 +220,19 @@ func toXcodeTestResult(result *localxcode.TestResult) *asc.XcodeTestResult {
 				Message:    failure.Message,
 			})
 		}
+	}
+	return output
+}
+
+func toXcodeCoverage(coverage localxcode.Coverage) *asc.XcodeCoverage {
+	output := &asc.XcodeCoverage{
+		Name:            coverage.Name,
+		LineCoverage:    coverage.LineCoverage,
+		CoveredLines:    coverage.CoveredLines,
+		ExecutableLines: coverage.ExecutableLines,
+	}
+	for _, target := range coverage.Targets {
+		output.Targets = append(output.Targets, *toXcodeCoverage(target))
 	}
 	return output
 }

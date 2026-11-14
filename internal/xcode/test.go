@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -51,6 +52,7 @@ type TestOptions struct {
 	ResultBundlePath string
 	Clean            bool
 	NoCodeSigning    bool
+	CodeCoverage     bool
 	XcodebuildArgs   []string
 	LogWriter        io.Writer
 }
@@ -69,6 +71,7 @@ type TestResult struct {
 	DerivedDataPath  string       `json:"derived_data_path,omitempty"`
 	ResultBundlePath string       `json:"result_bundle_path,omitempty"`
 	Tests            *TestSummary `json:"tests,omitempty"`
+	Coverage         *Coverage    `json:"coverage,omitempty"`
 	Clean            bool         `json:"clean"`
 	NoCodeSigning    bool         `json:"no_code_signing"`
 	Success          bool         `json:"success"`
@@ -92,6 +95,16 @@ type TestSummary struct {
 	expectedFailuresSet bool
 }
 
+// Coverage is the line coverage of a whole run or, inside Targets, of one
+// target, decoded from the xccov JSON report with per-file data dropped.
+type Coverage struct {
+	Name            string     `json:"name,omitempty"`
+	LineCoverage    float64    `json:"lineCoverage"`
+	CoveredLines    int        `json:"coveredLines"`
+	ExecutableLines int        `json:"executableLines"`
+	Targets         []Coverage `json:"targets,omitempty"`
+}
+
 // TestCase is a bounded structured representation of one test case.
 type TestCase struct {
 	Identifier string `json:"identifier"`
@@ -111,6 +124,7 @@ type TestFailure struct {
 var (
 	runXcodeTestCommand     = runXcodebuildForTest
 	readTestResultSummaryFn = readTestResultSummary
+	readTestCoverageFn      = readTestCoverage
 	testNowFn               = time.Now
 )
 
@@ -201,6 +215,11 @@ func ValidateTestOptions(opts TestOptions) error {
 	if reserved := reservedTestPassthroughArgument(opts.XcodebuildArgs); reserved != "" {
 		return fmt.Errorf("--xcodebuild-flag cannot override asc-managed argument %q", reserved)
 	}
+	if opts.CodeCoverage {
+		if raw := firstReservedPassthroughArgument(opts.XcodebuildArgs, []string{"-enablecodecoverage"}, nil, nil); raw != "" {
+			return fmt.Errorf("--code-coverage conflicts with --xcodebuild-flag %q; use one", raw)
+		}
+	}
 	if opts.ResultBundlePath != "" && !strings.EqualFold(filepath.Ext(opts.ResultBundlePath), ".xcresult") {
 		return fmt.Errorf("--result-bundle-path must end with .xcresult")
 	}
@@ -281,6 +300,9 @@ func Test(ctx context.Context, opts TestOptions) (*TestResult, error) {
 
 	command := buildTestCommand(opts)
 	processErr := runXcodeTestCommand(ctx, opts.PackagePath, command, opts.LogWriter)
+	if opts.CodeCoverage && opts.Action != string(TestActionBuildForTesting) {
+		result.Coverage = readTestCoverageOrWarn(ctx, opts)
+	}
 	if processErr != nil {
 		setTestExitStatus(result, processErr)
 		if opts.Action != string(TestActionBuildForTesting) && validateTestResultBundlePathComponents(opts.ResultBundlePath) == nil && existingDirectory(opts.ResultBundlePath) {
@@ -349,6 +371,59 @@ func readPartialTestResultSummary(ctx context.Context, resultBundlePath string) 
 	postProcessContext, cancel := context.WithTimeout(context.WithoutCancel(ctx), testResultPostProcessingTimeout)
 	defer cancel()
 	return readTestResultSummaryFn(postProcessContext, resultBundlePath)
+}
+
+// readTestCoverageOrWarn never changes the test outcome: a missing or
+// unreadable coverage report is one warning line and an omitted coverage field.
+func readTestCoverageOrWarn(ctx context.Context, opts TestOptions) *Coverage {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	postProcessContext, cancel := context.WithTimeout(context.WithoutCancel(ctx), testResultPostProcessingTimeout)
+	defer cancel()
+	err := validateTestResultBundlePathComponents(opts.ResultBundlePath)
+	var coverage *Coverage
+	if err == nil {
+		coverage, err = readTestCoverageFn(postProcessContext, opts.ResultBundlePath)
+	}
+	if err != nil {
+		logWriter := opts.LogWriter
+		if logWriter == nil {
+			logWriter = os.Stderr
+		}
+		fmt.Fprintf(logWriter, "Warning: code coverage unavailable: %s\n", strings.ReplaceAll(err.Error(), "\n", " "))
+		return nil
+	}
+	return coverage
+}
+
+func readTestCoverage(ctx context.Context, resultBundlePath string) (*Coverage, error) {
+	cmd, err := trustedXcodeCommand(ctx, "xcrun", []string{"xccov", "view", "--report", "--json", resultBundlePath}, nil)
+	if err != nil {
+		return nil, err
+	}
+	output := boundedXcresulttoolOutput{limit: maxXcresulttoolOutputBytes}
+	diagnostics := boundedXcresulttoolOutput{limit: maxXcresulttoolDiagnosticBytes}
+	cmd.Stdout = &output
+	cmd.Stderr = &diagnostics
+	if err := runXcodeCommand(cmd); err != nil {
+		if diagnostic := strings.TrimSpace(string(diagnostics.Bytes())); diagnostic != "" {
+			return nil, fmt.Errorf("xccov: %w: %s", err, diagnostic)
+		}
+		return nil, fmt.Errorf("xccov: %w", err)
+	}
+	if output.exceeded {
+		return nil, fmt.Errorf("xccov report exceeds %d bytes", maxXcresulttoolOutputBytes)
+	}
+	var coverage Coverage
+	if err := json.Unmarshal(output.Bytes(), &coverage); err != nil {
+		return nil, fmt.Errorf("decode xccov report: %w", err)
+	}
+	if coverage.ExecutableLines <= 0 && len(coverage.Targets) == 0 {
+		return nil, fmt.Errorf("result bundle has no code coverage data")
+	}
+	slices.SortFunc(coverage.Targets, func(a, b Coverage) int { return strings.Compare(a.Name, b.Name) })
+	return &coverage, nil
 }
 
 func normalizeTestOptions(opts TestOptions) TestOptions {
@@ -620,6 +695,9 @@ func buildTestCommand(opts TestOptions) []string {
 	}
 	for _, identifier := range opts.SkipTesting {
 		args = append(args, "-skip-testing:"+identifier)
+	}
+	if opts.CodeCoverage {
+		args = append(args, "-enableCodeCoverage", "YES")
 	}
 	args = append(args, cloneTestValues(opts.XcodebuildArgs)...)
 	if opts.NoCodeSigning {

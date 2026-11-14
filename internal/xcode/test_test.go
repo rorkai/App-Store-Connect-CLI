@@ -1100,6 +1100,80 @@ func TestTestRunsActionAndParsesResult(t *testing.T) {
 	}
 }
 
+func TestTestCodeCoverageReportsLineCoverageWithoutChangingOutcome(t *testing.T) {
+	report := `{"coveredLines":30,"executableLines":40,"lineCoverage":0.75,"targets":[{"name":"Demo.app","coveredLines":20,"executableLines":25,"lineCoverage":0.8,"files":[{"name":"A.swift"}]},{"name":"DemoKit.framework","coveredLines":10,"executableLines":15,"lineCoverage":0.6666}]}`
+	tests := []struct {
+		name         string
+		xccovScript  string
+		wantCoverage *Coverage
+		wantWarning  string
+	}{
+		{
+			name:        "report",
+			xccovScript: "printf '%s' '" + report + "'",
+			wantCoverage: &Coverage{LineCoverage: 0.75, CoveredLines: 30, ExecutableLines: 40, Targets: []Coverage{
+				{Name: "Demo.app", LineCoverage: 0.8, CoveredLines: 20, ExecutableLines: 25},
+				{Name: "DemoKit.framework", LineCoverage: 0.6666, CoveredLines: 10, ExecutableLines: 15},
+			}},
+		},
+		{name: "xccov fails", xccovScript: "echo no coverage data >&2; exit 1", wantWarning: "Warning: code coverage unavailable: "},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			originalRuntimeGOOS, originalLookPath, originalCommandContext := runtimeGOOS, lookPathFn, commandContextFn
+			originalRun, originalRead := runXcodeTestCommand, readTestResultSummaryFn
+			useLookPathAsTrustedResolver(t)
+			t.Cleanup(func() {
+				runtimeGOOS, lookPathFn, commandContextFn = originalRuntimeGOOS, originalLookPath, originalCommandContext
+				runXcodeTestCommand, readTestResultSummaryFn = originalRun, originalRead
+			})
+			runtimeGOOS = "darwin"
+			lookPathFn = func(tool string) (string, error) { return "/usr/bin/" + tool, nil }
+			commandContextFn = func(ctx context.Context, _ string, args ...string) *exec.Cmd {
+				if len(args) > 0 && args[0] == "xccov" {
+					return exec.CommandContext(ctx, "/bin/sh", "-c", test.xccovScript)
+				}
+				return exec.CommandContext(ctx, "true")
+			}
+			projectPath := filepath.Join(t.TempDir(), "Demo.xcodeproj")
+			if err := os.Mkdir(projectPath, 0o755); err != nil {
+				t.Fatalf("Mkdir() error = %v", err)
+			}
+			var gotArgs []string
+			runXcodeTestCommand = func(_ context.Context, _ string, args []string, _ io.Writer) error {
+				gotArgs = append([]string(nil), args...)
+				return os.Mkdir(args[slices.Index(args, "-resultBundlePath")+1], 0o755)
+			}
+			readTestResultSummaryFn = func(context.Context, string) (*TestSummary, error) {
+				return &TestSummary{Total: 1, Passed: 1}, nil
+			}
+			var log strings.Builder
+
+			result, err := Test(context.Background(), TestOptions{
+				ProjectPath:      projectPath,
+				Scheme:           "Demo",
+				Destinations:     []string{"platform=macOS"},
+				DerivedDataPath:  filepath.Join(t.TempDir(), "DerivedData"),
+				ResultBundlePath: filepath.Join(t.TempDir(), "Demo.xcresult"),
+				CodeCoverage:     true,
+				LogWriter:        &log,
+			})
+			if err != nil || !result.Success || result.ExitStatus == nil || *result.ExitStatus != 0 {
+				t.Fatalf("Test() = %+v, %v; want unchanged successful outcome", result, err)
+			}
+			if index := slices.Index(gotArgs, "-enableCodeCoverage"); index < 0 || gotArgs[index+1] != "YES" {
+				t.Fatalf("xcodebuild args = %#v, want -enableCodeCoverage YES", gotArgs)
+			}
+			if !reflect.DeepEqual(result.Coverage, test.wantCoverage) {
+				t.Fatalf("Coverage = %+v, want %+v", result.Coverage, test.wantCoverage)
+			}
+			if got := log.String(); (test.wantWarning == "") != (got == "") || !strings.HasPrefix(got, test.wantWarning) || strings.Count(got, "\n") > 1 {
+				t.Fatalf("log = %q, want warning %q", log.String(), test.wantWarning)
+			}
+		})
+	}
+}
+
 func TestTestRunsPackageFromItsDirectoryWithoutContainerArguments(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("uses a POSIX shell as the fake xcodebuild")
