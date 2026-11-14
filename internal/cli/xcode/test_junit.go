@@ -97,11 +97,15 @@ Examples:
 			if err := shared.PrintOutput(receipt, *output.Output, *output.Pretty); err != nil {
 				return err
 			}
-			if receipt.Failures == 0 || *allowFailures {
+			failed := receipt.Failures
+			if summary != nil {
+				failed = max(failed, summary.Failed)
+			}
+			if failed == 0 || *allowFailures {
 				return nil
 			}
-			fmt.Fprintf(os.Stderr, "Error: xcode test junit: %d failed test(s); report written to %s\n", receipt.Failures, reportPath)
-			return shared.NewStderrReportedError(fmt.Errorf("xcode test junit: %w", &localxcode.ReportedTestFailuresError{Failed: receipt.Failures}))
+			fmt.Fprintf(os.Stderr, "Error: xcode test junit: %d failed test(s); report written to %s\n", failed, reportPath)
+			return shared.NewStderrReportedError(fmt.Errorf("xcode test junit: %w", &localxcode.ReportedTestFailuresError{Failed: failed}))
 		},
 	}
 }

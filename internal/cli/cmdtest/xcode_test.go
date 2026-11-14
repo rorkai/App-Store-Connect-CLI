@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -268,6 +269,13 @@ func TestXcodeTestJUnitExitsNonZeroWhenBundleHasFailedTests(t *testing.T) {
 	passing := &localxcode.TestSummary{Total: 1, Passed: 1, Cases: []localxcode.TestCase{
 		{Identifier: "DemoTests/Smoke/testPass", Name: "testPass", Status: "passed"},
 	}}
+	// A failure the report cannot show: the passing cases alone fill the
+	// report's case limit, so only the summary still says a test failed.
+	manyPassing := make([]localxcode.TestCase, 10000)
+	for index := range manyPassing {
+		manyPassing[index] = localxcode.TestCase{Identifier: "DemoTests/Smoke/testPass" + strconv.Itoa(index), Name: "testPass" + strconv.Itoa(index), Status: "passed"}
+	}
+	unlisted := &localxcode.TestSummary{Total: len(manyPassing) + 1, Passed: len(manyPassing), Failed: 1, Cases: manyPassing}
 	tests := []struct {
 		name       string
 		summary    *localxcode.TestSummary
@@ -276,6 +284,7 @@ func TestXcodeTestJUnitExitsNonZeroWhenBundleHasFailedTests(t *testing.T) {
 		wantStderr string
 	}{
 		{name: "failed tests", summary: failing, wantExit: rootcmd.ExitError, wantStderr: "Error: xcode test junit: 1 failed test(s); report written to "},
+		{name: "failed test missing from the report", summary: unlisted, wantExit: rootcmd.ExitError, wantStderr: "Error: xcode test junit: 1 failed test(s); report written to "},
 		{name: "failed tests allowed", summary: failing, extraArgs: []string{"--allow-failures"}, wantExit: rootcmd.ExitSuccess},
 		{name: "passing tests", summary: passing, wantExit: rootcmd.ExitSuccess},
 	}
