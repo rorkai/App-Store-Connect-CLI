@@ -364,8 +364,7 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*runID) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --run-id is required")
-				return shared.MissingRequiredUsageError("--run-id")
+				return shared.RequiredFlag("--run-id")
 			}
 			if *timeout < 0 {
 				return shared.UsageError("--timeout must be greater than or equal to 0")

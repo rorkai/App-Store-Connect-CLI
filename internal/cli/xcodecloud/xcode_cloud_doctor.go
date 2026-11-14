@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -56,8 +55,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			runIDValue := strings.TrimSpace(*runID)
 			if runIDValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --run-id is required")
-				return shared.MissingRequiredUsageError("--run-id")
+				return shared.RequiredFlag("--run-id")
 			}
 			if *timeout < 0 {
 				return shared.UsageError("--timeout must be greater than or equal to 0")
