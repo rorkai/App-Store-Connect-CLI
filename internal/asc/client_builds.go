@@ -594,17 +594,6 @@ func (c *Client) CreateBuildUpload(ctx context.Context, req BuildUploadCreateReq
 	return sendJSON[BuildUploadResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/buildUploads", Payload: req})
 }
 
-// GetBuildUpload retrieves a build upload by ID.
-func (c *Client) GetBuildUpload(ctx context.Context, id string, opts ...BuildUploadOption) (*BuildUploadResponse, error) {
-	id = strings.TrimSpace(id)
-	if id == "" {
-		return nil, fmt.Errorf("id is required")
-	}
-
-	query := applyOptions(opts)
-	return getJSON[BuildUploadResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/buildUploads/%s", id), Query: buildBuildUploadQuery(query)})
-}
-
 // CreateBuildUploadFile creates a new build upload file reservation.
 func (c *Client) CreateBuildUploadFile(ctx context.Context, req BuildUploadFileCreateRequest) (*BuildUploadFileResponse, error) {
 	return sendJSON[BuildUploadFileResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/buildUploadFiles", Payload: req})

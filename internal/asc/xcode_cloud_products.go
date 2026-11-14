@@ -460,13 +460,6 @@ func buildCiProductRepositoriesQuery(query *ciProductRepositoriesQuery) string {
 	return values.Encode()
 }
 
-// GetCiProductApp retrieves the app for a CI product.
-func (c *Client) GetCiProductApp(ctx context.Context, productID string, opts ...CiProductAppOption) (*AppResponse, error) {
-	query := applyOptions(opts)
-
-	return getJSON[AppResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/ciProducts/%s/app", productID), Query: buildCiProductAppQuery(query)})
-}
-
 // GetCiWorkflowRaw retrieves a CI workflow by ID as the unmodified Apple response body.
 // Duplicating a workflow needs fields that the typed CiWorkflowResource omits or
 // drops through omitempty, so the raw envelope is the only lossless source.

@@ -9,6 +9,7 @@
     "AccessibilityDeclarationUpdateRequest"
   ],
   "operations": [
-    {"operation":"accessibilityDeclarations_deleteInstance","name":"DeleteAccessibilityDeclaration","params":["declarationID"]}
+    {"operation":"accessibilityDeclarations_deleteInstance","name":"DeleteAccessibilityDeclaration","params":["declarationID"]},
+    {"operation":"accessibilityDeclarations_getInstance","name":"GetAccessibilityDeclaration","params":["declarationID"],"check":"trim","query":"buildAccessibilityDeclarationsFieldsQuery","single":true}
   ]
 }

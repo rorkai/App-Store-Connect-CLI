@@ -8,6 +8,7 @@
     "BetaAppClipInvocationUpdateRequest"
   ],
   "operations": [
-    {"operation":"betaAppClipInvocations_deleteInstance","name":"DeleteBetaAppClipInvocation","params":["invocationID"],"check":"require"}
+    {"operation":"betaAppClipInvocations_deleteInstance","name":"DeleteBetaAppClipInvocation","params":["invocationID"],"check":"require"},
+    {"operation":"betaAppClipInvocations_getInstance","name":"GetBetaAppClipInvocation","params":["invocationID"],"check":"require","options":"BetaAppClipInvocationOption","query":"buildBetaAppClipInvocationQuery","single":true}
   ]
 }

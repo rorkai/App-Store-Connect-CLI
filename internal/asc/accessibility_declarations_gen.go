@@ -47,3 +47,12 @@ type AccessibilityDeclarationUpdateRequest struct {
 func (c *Client) DeleteAccessibilityDeclaration(ctx context.Context, declarationID string) error {
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/accessibilityDeclarations/%s", strings.TrimSpace(declarationID)), nil)
 }
+
+// GetAccessibilityDeclaration sends GET /v1/accessibilityDeclarations/{id} (accessibilityDeclarations_getInstance).
+func (c *Client) GetAccessibilityDeclaration(ctx context.Context, declarationID string, fields []string) (*AccessibilityDeclarationResponse, error) {
+	declarationID = strings.TrimSpace(declarationID)
+	return getJSON[AccessibilityDeclarationResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/accessibilityDeclarations/%s", declarationID),
+		Query: buildAccessibilityDeclarationsFieldsQuery(fields),
+	})
+}

@@ -450,18 +450,6 @@ func (c *Client) GetAppClipDefaultExperiences(ctx context.Context, appClipID str
 	})
 }
 
-// GetAppClipDefaultExperience retrieves a default experience by ID.
-func (c *Client) GetAppClipDefaultExperience(ctx context.Context, experienceID string, opts ...AppClipDefaultExperienceOption) (*AppClipDefaultExperienceResponse, error) {
-	query := applyOptions(opts)
-
-	experienceID = strings.TrimSpace(experienceID)
-	if experienceID == "" {
-		return nil, fmt.Errorf("experienceID is required")
-	}
-
-	return getJSON[AppClipDefaultExperienceResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appClipDefaultExperiences/%s", experienceID), Query: buildAppClipDefaultExperienceQuery(query)})
-}
-
 // CreateAppClipDefaultExperience creates a default experience for an App Clip.
 func (c *Client) CreateAppClipDefaultExperience(ctx context.Context, appClipID string, attrs *AppClipDefaultExperienceCreateAttributes, releaseVersionID string, templateID string) (*AppClipDefaultExperienceResponse, error) {
 	appClipID = strings.TrimSpace(appClipID)
@@ -994,18 +982,6 @@ func (c *Client) UpdateAppClipAppStoreReviewDetail(ctx context.Context, detailID
 	}
 
 	return sendJSON[AppClipAppStoreReviewDetailResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/appClipAppStoreReviewDetails/%s", detailID), Payload: payload})
-}
-
-// GetBetaAppClipInvocation retrieves a beta App Clip invocation by ID.
-func (c *Client) GetBetaAppClipInvocation(ctx context.Context, invocationID string, opts ...BetaAppClipInvocationOption) (*BetaAppClipInvocationResponse, error) {
-	query := applyOptions(opts)
-
-	invocationID = strings.TrimSpace(invocationID)
-	if invocationID == "" {
-		return nil, fmt.Errorf("invocationID is required")
-	}
-
-	return getJSON[BetaAppClipInvocationResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/betaAppClipInvocations/%s", invocationID), Query: buildBetaAppClipInvocationQuery(query)})
 }
 
 // CreateBetaAppClipInvocation creates a beta App Clip invocation.

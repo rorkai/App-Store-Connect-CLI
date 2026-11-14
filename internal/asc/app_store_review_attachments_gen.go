@@ -43,3 +43,16 @@ func (c *Client) DeleteAppStoreReviewAttachment(ctx context.Context, attachmentI
 	}
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/appStoreReviewAttachments/%s", attachmentID), nil)
 }
+
+// GetAppStoreReviewAttachment sends GET /v1/appStoreReviewAttachments/{id} (appStoreReviewAttachments_getInstance).
+func (c *Client) GetAppStoreReviewAttachment(ctx context.Context, attachmentID string, opts ...AppStoreReviewAttachmentsOption) (*AppStoreReviewAttachmentResponse, error) {
+	attachmentID = strings.TrimSpace(attachmentID)
+	if attachmentID == "" {
+		return nil, fmt.Errorf("attachmentID is required")
+	}
+	query := applyOptions(opts)
+	return getJSON[AppStoreReviewAttachmentResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/appStoreReviewAttachments/%s", attachmentID),
+		Query: buildAppStoreReviewAttachmentsQuery(query),
+	})
+}
