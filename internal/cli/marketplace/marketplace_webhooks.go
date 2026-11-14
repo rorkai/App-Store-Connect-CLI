@@ -43,128 +43,69 @@ Examples:
 
 // MarketplaceWebhooksListCommand returns the webhooks list subcommand.
 func MarketplaceWebhooksListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
-
-	fields := fs.String("fields", "", "Fields to include: "+strings.Join(marketplaceWebhookFieldsList(), ", "))
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc marketplace webhooks list [flags]",
-		ShortHelp:  "List marketplace webhooks.",
+	var fieldsValue []string
+	cmd := shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "list",
+		Name:        "list",
+		ShortUsage:  "asc marketplace webhooks list [flags]",
+		ShortHelp:   "List marketplace webhooks.",
 		LongHelp: `List marketplace webhooks.
 
 Examples:
   asc marketplace webhooks list
   asc marketplace webhooks list --limit 10
   asc marketplace webhooks list --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			warnMarketplaceWebhooksDeprecated()
-
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("marketplace webhooks list: --limit must be between 1 and 200")
+		TopLevel:             true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		NextConflicts:        []string{"fields"},
+		Flags: func(fs *flag.FlagSet) func() error {
+			fields := fs.String("fields", "", "Fields to include: "+strings.Join(marketplaceWebhookFieldsList(), ", "))
+			return func() (err error) {
+				if fieldsValue, err = normalizeMarketplaceWebhookFields(*fields); err != nil {
+					return shared.UsageErrorf("marketplace webhooks list: %v", err)
+				}
+				return nil
 			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("marketplace webhooks list: %v", err)
-			}
-			if err := shared.RejectNextFlagConflicts(fs, *next, "marketplace webhooks list", "fields"); err != nil {
-				return err
-			}
-
-			fieldsValue, err := normalizeMarketplaceWebhookFields(*fields)
-			if err != nil {
-				return shared.UsageErrorf("marketplace webhooks list: %v", err)
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("marketplace webhooks list: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
+		},
+		ErrorPrefix:      "marketplace webhooks list",
+		FetchErrorPrefix: "marketplace webhooks list: failed to fetch",
+		FetchPage: func(ctx context.Context, client *asc.Client, _ string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := []asc.MarketplaceWebhooksOption{
-				asc.Limit[asc.MarketplaceWebhooksOption](*limit),
-				asc.NextURL[asc.MarketplaceWebhooksOption](*next),
+				asc.Limit[asc.MarketplaceWebhooksOption](limit),
+				asc.NextURL[asc.MarketplaceWebhooksOption](next),
 			}
 			if len(fieldsValue) > 0 {
 				opts = append(opts, asc.WithMarketplaceWebhooksFields(fieldsValue))
 			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.Limit[asc.MarketplaceWebhooksOption](200))
-				firstPage, err := client.GetMarketplaceWebhooks(requestCtx, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("marketplace webhooks list: failed to fetch: %w", err)
-				}
-
-				webhooks, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetMarketplaceWebhooks(ctx, asc.NextURL[asc.MarketplaceWebhooksOption](nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("marketplace webhooks list: %w", err)
-				}
-
-				return shared.PrintOutput(webhooks, *output.Output, *output.Pretty)
-			}
-
-			webhooks, err := client.GetMarketplaceWebhooks(requestCtx, opts...)
-			if err != nil {
-				return fmt.Errorf("marketplace webhooks list: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(webhooks, *output.Output, *output.Pretty)
+			return client.GetMarketplaceWebhooks(ctx, opts...)
 		},
-	}
+	})
+	return withMarketplaceWebhooksDeprecationWarning(cmd)
 }
 
 // MarketplaceWebhooksGetCommand returns the webhooks view subcommand.
 func MarketplaceWebhooksGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	webhookID := shared.BindResourceIDFlag(fs, "webhook-id", "marketplaceWebhooks", "Marketplace webhook ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc marketplace webhooks view --webhook-id \"WEBHOOK_ID\" [flags]",
-		ShortHelp:  "View a marketplace webhook by ID.",
+	cmd := shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc marketplace webhooks view --webhook-id \"WEBHOOK_ID\" [flags]",
+		ShortHelp:   "View a marketplace webhook by ID.",
 		LongHelp: `View a marketplace webhook by ID.
 
 Examples:
   asc marketplace webhooks view --webhook-id "WEBHOOK_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			warnMarketplaceWebhooksDeprecated()
-
-			trimmedID := strings.TrimSpace(*webhookID)
-			if trimmedID == "" {
-				return shared.RequiredFlag("--webhook-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("marketplace webhooks view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			webhook, err := client.GetMarketplaceWebhook(requestCtx, trimmedID)
-			if err != nil {
-				return fmt.Errorf("marketplace webhooks view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(webhook, *output.Output, *output.Pretty)
+		IDFlag:             "webhook-id",
+		IDUsage:            "Marketplace webhook ID",
+		IDType:             "marketplaceWebhooks",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "marketplace webhooks view",
+		FetchErrorPrefix:   "marketplace webhooks view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetMarketplaceWebhook(ctx, id)
 		},
-	}
+	})
+	return withMarketplaceWebhooksDeprecationWarning(cmd)
 }
 
 // MarketplaceWebhooksCreateCommand returns the webhooks create subcommand.
@@ -355,4 +296,15 @@ func marketplaceWebhookFieldsList() []string {
 
 func warnMarketplaceWebhooksDeprecated() {
 	fmt.Fprintln(os.Stderr, "Warning: marketplace webhooks endpoints are deprecated in App Store Connect API.")
+}
+
+// withMarketplaceWebhooksDeprecationWarning prints the deprecation warning before
+// any of cmd's own checks run.
+func withMarketplaceWebhooksDeprecationWarning(cmd *ffcli.Command) *ffcli.Command {
+	exec := cmd.Exec
+	cmd.Exec = func(ctx context.Context, args []string) error {
+		warnMarketplaceWebhooksDeprecated()
+		return exec(ctx, args)
+	}
+	return cmd
 }
