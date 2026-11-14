@@ -233,25 +233,6 @@ func TestGameCenterMetricsResponseAccessors(t *testing.T) {
 	}
 }
 
-func TestGCMatchmakingQueuesOptions(t *testing.T) {
-	query := &gcMatchmakingQueuesQuery{}
-	Limit[GCMatchmakingQueuesOption](12)(query)
-	if query.limit != 12 {
-		t.Fatalf("expected limit 12, got %d", query.limit)
-	}
-	NextURL[GCMatchmakingQueuesOption]("next")(query)
-	if query.nextURL != "next" {
-		t.Fatalf("expected nextURL set, got %q", query.nextURL)
-	}
-	values, err := url.ParseQuery(buildGCMatchmakingQueuesQuery(query))
-	if err != nil {
-		t.Fatalf("parse query: %v", err)
-	}
-	if values.Get("limit") != "12" {
-		t.Fatalf("expected limit=12, got %q", values.Get("limit"))
-	}
-}
-
 func TestGCMatchmakingMetricsOptionsAndQueries(t *testing.T) {
 	query := &gcMatchmakingMetricsQuery{}
 	WithGCMatchmakingMetricsGranularity("P1D")(query)

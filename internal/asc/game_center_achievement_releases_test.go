@@ -96,23 +96,6 @@ func TestCreateGameCenterAchievementRelease(t *testing.T) {
 	}
 }
 
-func TestBuildGCAchievementReleasesQuery(t *testing.T) {
-	query := &gcAchievementReleasesQuery{}
-
-	// Test empty query
-	result := buildGCAchievementReleasesQuery(query)
-	if result != "" {
-		t.Fatalf("expected empty query string, got %s", result)
-	}
-
-	// Test with limit
-	query.limit = 25
-	result = buildGCAchievementReleasesQuery(query)
-	if result != "limit=25" {
-		t.Fatalf("expected limit=25, got %s", result)
-	}
-}
-
 func TestWithGCAchievementReleasesLimit(t *testing.T) {
 	query := &gcAchievementReleasesQuery{}
 

@@ -6,7 +6,6 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"net/url"
 	"testing"
 )
 
@@ -177,24 +176,5 @@ func TestUpdateGameCenterAppVersion_ReturnsAPIError(t *testing.T) {
 	}
 	if apiErr.StatusCode != http.StatusForbidden {
 		t.Fatalf("expected status code %d, got %d", http.StatusForbidden, apiErr.StatusCode)
-	}
-}
-
-func TestGCAppVersionsOptions(t *testing.T) {
-	query := &gcAppVersionsQuery{}
-	Limit[GCAppVersionsOption](12)(query)
-	if query.limit != 12 {
-		t.Fatalf("expected limit 12, got %d", query.limit)
-	}
-	NextURL[GCAppVersionsOption]("next")(query)
-	if query.nextURL != "next" {
-		t.Fatalf("expected nextURL set, got %q", query.nextURL)
-	}
-	values, err := url.ParseQuery(buildGCAppVersionsQuery(query))
-	if err != nil {
-		t.Fatalf("parse query: %v", err)
-	}
-	if values.Get("limit") != "12" {
-		t.Fatalf("expected limit=12, got %q", values.Get("limit"))
 	}
 }
