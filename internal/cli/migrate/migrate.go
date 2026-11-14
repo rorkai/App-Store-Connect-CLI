@@ -116,6 +116,10 @@ or conventional metadata/ and screenshots/ directories:
   │   │   ├── iphone_65_1.png
   │   │   └── ...
 
+App-level text files directly in metadata/ (copyright.txt, the category files)
+and a locale or default folder's apple_tv_privacy_policy.txt are not imported;
+non-empty ones are listed in skipped with the asc command that sets each value.
+
 App Preview validation requires ffprobe on PATH (provided by FFmpeg).
 Headers must be PNG at 1800 x 1200; previews must be 15-30 seconds.
 By default, dry-run lists local inputs without comparing remote assets.
@@ -1101,6 +1105,36 @@ type fastlaneLocaleDir struct {
 
 const defaultMetadataDirName = "default"
 
+// appLevelMetadataFiles maps the metadata folder's app-level text files, which
+// import does not apply, to the command that sets each value.
+var appLevelMetadataFiles = map[string]string{
+	"copyright.txt":                     "asc versions update --version-id VERSION_ID --copyright TEXT",
+	"primary_category.txt":              "asc app-setup categories set --app APP_ID --primary CATEGORY_ID",
+	"secondary_category.txt":            "asc app-setup categories set --app APP_ID --primary CATEGORY_ID --secondary CATEGORY_ID",
+	"primary_first_sub_category.txt":    "asc app-setup categories set --app APP_ID --primary CATEGORY_ID --primary-subcategory-one SUBCATEGORY_ID",
+	"primary_second_sub_category.txt":   "asc app-setup categories set --app APP_ID --primary CATEGORY_ID --primary-subcategory-two SUBCATEGORY_ID",
+	"secondary_first_sub_category.txt":  "asc app-setup categories set --app APP_ID --primary CATEGORY_ID --secondary CATEGORY_ID --secondary-subcategory-one SUBCATEGORY_ID",
+	"secondary_second_sub_category.txt": "asc app-setup categories set --app APP_ID --primary CATEGORY_ID --secondary CATEGORY_ID --secondary-subcategory-two SUBCATEGORY_ID",
+}
+
+// localePrivacyPolicyTextFile is a locale folder's privacy policy text, which
+// import does not apply either.
+const localePrivacyPolicyTextFile = "apple_tv_privacy_policy.txt"
+
+// unimportedMetadataFile reports a metadata text file that import does not
+// apply, unless it is missing or empty. An unreadable file is still reported.
+func unimportedMetadataFile(root rootfs.Root, name, displayPath, command string) (SkippedItem, bool) {
+	fileName := filepath.Base(name)
+	reason := fmt.Sprintf("%s is not imported; set it with %s", fileName, command)
+	value, err := readMetadataFile(root, name)
+	if err != nil {
+		reason = fmt.Sprintf("%s is not imported and could not be read; set it with %s", fileName, command)
+	} else if value == "" {
+		return SkippedItem{}, false
+	}
+	return SkippedItem{Path: displayPath, Reason: reason}, true
+}
+
 var localeMetadataFiles = []string{
 	"description.txt", "keywords.txt", "release_notes.txt", "promotional_text.txt",
 	"support_url.txt", "marketing_url.txt", "name.txt", "subtitle.txt", "privacy_url.txt",
@@ -1134,11 +1168,20 @@ func scanFastlaneMetadataLocaleDirs(metadataDir string) ([]fastlaneLocaleDir, []
 			continue
 		}
 		if !entry.IsDir() {
+			if command, ok := appLevelMetadataFiles[dirName]; ok {
+				if item, ok := unimportedMetadataFile(root, filepath.Join(prefix, dirName), filepath.Join(metadataDir, dirName), command); ok {
+					skipped = append(skipped, item)
+				}
+			}
 			continue
 		}
 
 		if dirName == defaultMetadataDirName {
 			dirs = append(dirs, fastlaneLocaleDir{DirName: dirName, Default: true})
+			policyText := filepath.Join(dirName, localePrivacyPolicyTextFile)
+			if item, ok := unimportedMetadataFile(root, filepath.Join(prefix, policyText), filepath.Join(metadataDir, policyText), "asc app-setup info set --app APP_ID --locale LOCALE --privacy-policy-text TEXT"); ok {
+				skipped = append(skipped, item)
+			}
 			continue
 		}
 		if dirName == "review_information" || dirName == "app_clip" {
@@ -1168,6 +1211,10 @@ func scanFastlaneMetadataLocaleDirs(metadataDir string) ([]fastlaneLocaleDir, []
 			DirName: dirName,
 			Locale:  normalized,
 		})
+		policyText := filepath.Join(dirName, localePrivacyPolicyTextFile)
+		if item, ok := unimportedMetadataFile(root, filepath.Join(prefix, policyText), filepath.Join(metadataDir, policyText), "asc app-setup info set --app APP_ID --locale "+normalized+" --privacy-policy-text TEXT"); ok {
+			skipped = append(skipped, item)
+		}
 	}
 
 	if len(dirs) == 1 && dirs[0].Default {

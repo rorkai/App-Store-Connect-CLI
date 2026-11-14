@@ -169,6 +169,7 @@ func TestMigrateImportDryRunReportsSkippedNonLocaleMetadataDirs(t *testing.T) {
 		t.Fatalf("mkdir metadata: %v", err)
 	}
 	writeFile(t, filepath.Join(metadataDir, "description.txt"), "English description")
+	writeFile(t, filepath.Join(metadataDir, "apple_tv_privacy_policy.txt"), "Privacy policy text")
 
 	// Mimic a common fastlane deliver subdirectory that is not a locale.
 	nonLocaleDir := filepath.Join(root, "metadata", "trade_representative_contact_information")
@@ -176,6 +177,19 @@ func TestMigrateImportDryRunReportsSkippedNonLocaleMetadataDirs(t *testing.T) {
 		t.Fatalf("mkdir non-locale dir: %v", err)
 	}
 	writeFile(t, filepath.Join(nonLocaleDir, "first_name.txt"), "Rita")
+	writeFile(t, filepath.Join(root, "metadata", "copyright.txt"), "2026 Example Inc.")
+	writeFile(t, filepath.Join(root, "metadata", "primary_category.txt"), "GAMES")
+	writeFile(t, filepath.Join(root, "metadata", "secondary_category.txt"), "  \n")
+	defaultDir := filepath.Join(root, "metadata", "default")
+	if err := os.MkdirAll(defaultDir, 0o755); err != nil {
+		t.Fatalf("mkdir default dir: %v", err)
+	}
+	writeFile(t, filepath.Join(defaultDir, "apple_tv_privacy_policy.txt"), "Default policy text")
+	unreadable := filepath.Join(root, "metadata", "primary_first_sub_category.txt")
+	writeFile(t, unreadable, "GAMES_ACTION")
+	if err := os.Chmod(unreadable, 0o000); err != nil {
+		t.Fatalf("chmod: %v", err)
+	}
 	nonLocaleDirResolved, err := filepath.EvalSymlinks(nonLocaleDir)
 	if err != nil {
 		t.Fatalf("eval symlinks non-locale dir: %v", err)
@@ -224,6 +238,8 @@ func TestMigrateImportDryRunReportsSkippedNonLocaleMetadataDirs(t *testing.T) {
 	}
 
 	found := false
+	appLevelReasons := map[string]string{}
+	defaultPolicyReason := ""
 	for _, item := range result.Skipped {
 		itemPathResolved, err := filepath.EvalSymlinks(item.Path)
 		if err != nil {
@@ -231,11 +247,33 @@ func TestMigrateImportDryRunReportsSkippedNonLocaleMetadataDirs(t *testing.T) {
 		}
 		if itemPathResolved == nonLocaleDirResolved && strings.Contains(item.Reason, "skipped non-locale directory") {
 			found = true
-			break
+		}
+		if strings.HasSuffix(item.Path, filepath.Join("default", "apple_tv_privacy_policy.txt")) {
+			defaultPolicyReason = item.Reason
+		} else if strings.HasSuffix(item.Path, ".txt") {
+			appLevelReasons[filepath.Base(item.Path)] = item.Reason
 		}
 	}
 	if !found {
 		t.Fatalf("expected skipped to include %q (got %+v)", nonLocaleDir, result.Skipped)
+	}
+	if !strings.Contains(defaultPolicyReason, "not imported") || !strings.HasSuffix(defaultPolicyReason, "asc app-setup info set --app APP_ID --locale LOCALE --privacy-policy-text TEXT") {
+		t.Fatalf("expected the default folder's policy text to be reported with a locale placeholder, got %q", defaultPolicyReason)
+	}
+	wantReasons := map[string]string{
+		"copyright.txt":        "asc versions update --version-id VERSION_ID --copyright TEXT",
+		"primary_category.txt": "asc app-setup categories set --app APP_ID --primary CATEGORY_ID",
+		// Unreadable for a non-root user; it must still be reported, not abort the import.
+		"primary_first_sub_category.txt": "asc app-setup categories set --app APP_ID --primary CATEGORY_ID --primary-subcategory-one SUBCATEGORY_ID",
+		"apple_tv_privacy_policy.txt":    "asc app-setup info set --app APP_ID --locale en-US --privacy-policy-text TEXT",
+	}
+	if len(appLevelReasons) != len(wantReasons) {
+		t.Fatalf("expected skipped app-level files %v, got %+v", wantReasons, result.Skipped)
+	}
+	for file, command := range wantReasons {
+		if reason := appLevelReasons[file]; !strings.Contains(reason, "not imported") || !strings.Contains(reason, command) {
+			t.Fatalf("expected skipped reason for %s to name %q, got %q", file, command, reason)
+		}
 	}
 }
 
