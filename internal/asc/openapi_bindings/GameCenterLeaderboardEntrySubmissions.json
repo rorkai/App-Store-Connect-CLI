@@ -1,0 +1,7 @@
+{
+  "tag": "GameCenterLeaderboardEntrySubmissions",
+  "file": "game_center_leaderboard_entry_submissions_gen.go",
+  "types": [
+    "GameCenterLeaderboardEntrySubmissionCreateRequest"
+  ]
+}

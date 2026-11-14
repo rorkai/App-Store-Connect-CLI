@@ -10,12 +10,6 @@ type GameCenterLeaderboardSetMemberLocalizationAttributes struct {
 	Locale string `json:"locale"`
 }
 
-// GameCenterLeaderboardSetMemberLocalizationsResponse is the response from member localization list endpoints.
-type GameCenterLeaderboardSetMemberLocalizationsResponse = Response[GameCenterLeaderboardSetMemberLocalizationAttributes]
-
-// GameCenterLeaderboardSetMemberLocalizationResponse is the response from member localization detail endpoints.
-type GameCenterLeaderboardSetMemberLocalizationResponse = SingleResponse[GameCenterLeaderboardSetMemberLocalizationAttributes]
-
 // GCLeaderboardSetMemberLocalizationsOption is a functional option for GetGameCenterLeaderboardSetMemberLocalizations.
 type GCLeaderboardSetMemberLocalizationsOption func(*gcLeaderboardSetMemberLocalizationsQuery)
 
@@ -53,11 +47,6 @@ type GameCenterLeaderboardSetMemberLocalizationCreateAttributes struct {
 	Locale string `json:"locale"`
 }
 
-// GameCenterLeaderboardSetMemberLocalizationUpdateAttributes describes attributes for updating a member localization.
-type GameCenterLeaderboardSetMemberLocalizationUpdateAttributes struct {
-	Name *string `json:"name,omitempty"`
-}
-
 // GameCenterLeaderboardSetMemberLocalizationRelationships describes relationships for member localizations.
 type GameCenterLeaderboardSetMemberLocalizationRelationships struct {
 	GameCenterLeaderboardSet *Relationship `json:"gameCenterLeaderboardSet"`
@@ -69,23 +58,6 @@ type GameCenterLeaderboardSetMemberLocalizationCreateData struct {
 	Type          ResourceType                                               `json:"type"`
 	Attributes    GameCenterLeaderboardSetMemberLocalizationCreateAttributes `json:"attributes"`
 	Relationships *GameCenterLeaderboardSetMemberLocalizationRelationships   `json:"relationships"`
-}
-
-// GameCenterLeaderboardSetMemberLocalizationCreateRequest is a request to create a member localization.
-type GameCenterLeaderboardSetMemberLocalizationCreateRequest struct {
-	Data GameCenterLeaderboardSetMemberLocalizationCreateData `json:"data"`
-}
-
-// GameCenterLeaderboardSetMemberLocalizationUpdateData is the data portion of a member localization update request.
-type GameCenterLeaderboardSetMemberLocalizationUpdateData struct {
-	Type       ResourceType                                                `json:"type"`
-	ID         string                                                      `json:"id"`
-	Attributes *GameCenterLeaderboardSetMemberLocalizationUpdateAttributes `json:"attributes,omitempty"`
-}
-
-// GameCenterLeaderboardSetMemberLocalizationUpdateRequest is a request to update a member localization.
-type GameCenterLeaderboardSetMemberLocalizationUpdateRequest struct {
-	Data GameCenterLeaderboardSetMemberLocalizationUpdateData `json:"data"`
 }
 
 // GameCenterLeaderboardSetMemberLocalizationDeleteResult represents CLI output for member localization deletions.

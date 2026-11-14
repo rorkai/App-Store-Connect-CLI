@@ -1,0 +1,18 @@
+{
+  "tag": "GameCenterLeaderboardSetMemberLocalizations",
+  "file": "game_center_leaderboard_set_member_localizations_gen.go",
+  "types": [
+    "GameCenterLeaderboardSetMemberLocalizationCreateRequest",
+    "GameCenterLeaderboardSetMemberLocalizationResponse",
+    "GameCenterLeaderboardSetMemberLocalizationUpdateAttributes",
+    "GameCenterLeaderboardSetMemberLocalizationUpdateData",
+    "GameCenterLeaderboardSetMemberLocalizationUpdateRequest",
+    "GameCenterLeaderboardSetMemberLocalizationsResponse"
+  ],
+  "operations": [
+    {"operation":"gameCenterLeaderboardSetMemberLocalizations_deleteInstance","name":"DeleteGameCenterLeaderboardSetMemberLocalization","params":["localizationID"],"check":"require"},
+    {"operation":"gameCenterLeaderboardSetMemberLocalizations_gameCenterLeaderboardSet_getToOneRelated","name":"GetGameCenterLeaderboardSetMemberLocalizationLeaderboardSet","params":["localizationID"]},
+    {"operation":"gameCenterLeaderboardSetMemberLocalizations_gameCenterLeaderboard_getToOneRelated","name":"GetGameCenterLeaderboardSetMemberLocalizationLeaderboard","params":["localizationID"]},
+    {"operation":"gameCenterLeaderboardSetMemberLocalizations_getCollection","name":"GetGameCenterLeaderboardSetMemberLocalizations","options":"GCLeaderboardSetMemberLocalizationsOption","query":"buildGCLeaderboardSetMemberLocalizationsQuery","nextContext":"game-center-leaderboard-set-member-localizations"}
+  ]
+}
