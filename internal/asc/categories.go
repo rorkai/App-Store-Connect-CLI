@@ -6,11 +6,6 @@ import (
 	"net/url"
 )
 
-// AppCategoryAttributes describes app category metadata.
-type AppCategoryAttributes struct {
-	Platforms []Platform `json:"platforms,omitempty"`
-}
-
 // AppCategory represents an app category resource.
 type AppCategory struct {
 	Type       ResourceType          `json:"type"`

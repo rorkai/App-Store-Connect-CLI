@@ -8,15 +8,6 @@ import (
 	"strings"
 )
 
-// SubscriptionOfferCodeOneTimeUseCodeAttributes describes a one-time use offer code batch.
-type SubscriptionOfferCodeOneTimeUseCodeAttributes struct {
-	NumberOfCodes  int    `json:"numberOfCodes,omitempty"`
-	CreatedDate    string `json:"createdDate,omitempty"`
-	ExpirationDate string `json:"expirationDate,omitempty"`
-	Active         bool   `json:"active,omitempty"`
-	Environment    string `json:"environment,omitempty"`
-}
-
 // SubscriptionOfferCodeOneTimeUseCodesResponse is the response from list endpoints.
 type SubscriptionOfferCodeOneTimeUseCodesResponse = Response[SubscriptionOfferCodeOneTimeUseCodeAttributes]
 

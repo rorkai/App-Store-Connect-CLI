@@ -13,9 +13,3 @@ type BetaAppReviewDetailAttributes struct {
 
 	api apiAttributes
 }
-
-// BetaAppReviewSubmissionAttributes describes beta app review submission metadata.
-type BetaAppReviewSubmissionAttributes struct {
-	BetaReviewState string `json:"betaReviewState,omitempty"`
-	SubmittedDate   string `json:"submittedDate,omitempty"`
-}

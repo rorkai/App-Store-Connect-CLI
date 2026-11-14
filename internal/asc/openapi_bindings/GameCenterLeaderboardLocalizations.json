@@ -2,10 +2,12 @@
   "tag": "GameCenterLeaderboardLocalizations",
   "file": "game_center_leaderboard_localizations_gen.go",
   "types": [
+    "GameCenterLeaderboardLocalizationCreateAttributes",
     "GameCenterLeaderboardLocalizationCreateData",
     "GameCenterLeaderboardLocalizationCreateRequest",
     "GameCenterLeaderboardLocalizationRelationships",
     "GameCenterLeaderboardLocalizationResponse",
+    "GameCenterLeaderboardLocalizationUpdateAttributes",
     "GameCenterLeaderboardLocalizationUpdateData",
     "GameCenterLeaderboardLocalizationUpdateRequest",
     "GameCenterLeaderboardLocalizationV2CreateRequest",
@@ -24,5 +26,8 @@
     {"operation":"gameCenterLeaderboardLocalizations_gameCenterLeaderboardImage_getToOneRelated","name":"GetGameCenterLeaderboardLocalizationImage","params":["localizationID"]},
     {"operation":"gameCenterLeaderboardLocalizations_getInstance","name":"GetGameCenterLeaderboardLocalization","params":["localizationID"]},
     {"operation":"gameCenterLeaderboardLocalizations_updateInstance","name":"UpdateGameCenterLeaderboardLocalization","params":["localizationID"]}
+  ],
+  "refTypes": [
+    {"schema":"GameCenterLeaderboardFormatter","type":"string"}
   ]
 }

@@ -9,6 +9,13 @@ import (
 	"strings"
 )
 
+// GameCenterActivityVersionAttributes is the attributes object of the GameCenterActivityVersion schema.
+type GameCenterActivityVersionAttributes struct {
+	Version     int                    `json:"version,omitempty"`
+	State       GameCenterVersionState `json:"state,omitempty"`
+	FallbackURL string                 `json:"fallbackUrl,omitempty"`
+}
+
 // GameCenterActivityVersionCreateAttributes is the data.attributes object of the GameCenterActivityVersionCreateRequest schema.
 type GameCenterActivityVersionCreateAttributes struct {
 	FallbackURL *string `json:"fallbackUrl,omitempty"`

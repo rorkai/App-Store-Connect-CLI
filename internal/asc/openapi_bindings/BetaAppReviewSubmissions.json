@@ -2,6 +2,7 @@
   "tag": "BetaAppReviewSubmissions",
   "file": "beta_app_review_submissions_gen.go",
   "types": [
+    "BetaAppReviewSubmissionAttributes",
     "BetaAppReviewSubmissionCreateData",
     "BetaAppReviewSubmissionCreateRelationships",
     "BetaAppReviewSubmissionCreateRequest",
@@ -16,5 +17,8 @@
     {"operation":"betaAppReviewSubmissions_createInstance","name":"CreateBetaAppReviewSubmission","params":["buildID"],"check":"require","links":["build"]},
     {"operation":"betaAppReviewSubmissions_getCollection","name":"GetBetaAppReviewSubmissions","options":"BetaAppReviewSubmissionsOption","query":"buildBetaAppReviewSubmissionsQuery","nextContext":"betaAppReviewSubmissions"},
     {"operation":"betaAppReviewSubmissions_getInstance","name":"GetBetaAppReviewSubmission","params":["submissionID"],"check":"require"}
+  ],
+  "refTypes": [
+    {"schema":"BetaReviewState","type":"string"}
   ]
 }

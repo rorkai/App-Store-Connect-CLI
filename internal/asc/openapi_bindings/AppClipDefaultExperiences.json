@@ -2,9 +2,12 @@
   "tag": "AppClipDefaultExperiences",
   "file": "app_clip_default_experiences_gen.go",
   "types": [
+    "AppClipDefaultExperienceAttributes",
+    "AppClipDefaultExperienceCreateAttributes",
     "AppClipDefaultExperienceCreateData",
     "AppClipDefaultExperienceCreateRelationships",
     "AppClipDefaultExperienceCreateRequest",
+    "AppClipDefaultExperienceUpdateAttributes",
     "AppClipDefaultExperienceUpdateRequest"
   ],
   "relationships": [

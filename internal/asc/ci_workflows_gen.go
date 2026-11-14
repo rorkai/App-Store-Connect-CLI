@@ -9,6 +9,25 @@ import (
 	"strings"
 )
 
+// CiWorkflowAttributes is the attributes object of the CiWorkflow schema.
+type CiWorkflowAttributes struct {
+	Name                            string                             `json:"name,omitempty"`
+	Description                     string                             `json:"description,omitempty"`
+	BranchStartCondition            *CiBranchStartCondition            `json:"branchStartCondition,omitempty"`
+	TagStartCondition               *CiTagStartCondition               `json:"tagStartCondition,omitempty"`
+	PullRequestStartCondition       *CiPullRequestStartCondition       `json:"pullRequestStartCondition,omitempty"`
+	ScheduledStartCondition         *CiScheduledStartCondition         `json:"scheduledStartCondition,omitempty"`
+	ManualBranchStartCondition      *CiManualStartCondition            `json:"manualBranchStartCondition,omitempty"`
+	ManualTagStartCondition         *CiManualStartCondition            `json:"manualTagStartCondition,omitempty"`
+	ManualPullRequestStartCondition *CiManualPullRequestStartCondition `json:"manualPullRequestStartCondition,omitempty"`
+	Actions                         []CiAction                         `json:"actions,omitempty"`
+	IsEnabled                       bool                               `json:"isEnabled,omitempty"`
+	IsLockedForEditing              bool                               `json:"isLockedForEditing,omitempty"`
+	Clean                           bool                               `json:"clean,omitempty"`
+	ContainerFilePath               string                             `json:"containerFilePath,omitempty"`
+	LastModifiedDate                string                             `json:"lastModifiedDate,omitempty"`
+}
+
 // GetCiBuildRuns sends GET /v1/ciWorkflows/{id}/buildRuns (ciWorkflows_buildRuns_getToManyRelated).
 func (c *Client) GetCiBuildRuns(ctx context.Context, workflowID string, opts ...CiBuildRunsOption) (*CiBuildRunsResponse, error) {
 	query := applyOptions(opts)

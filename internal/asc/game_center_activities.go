@@ -69,13 +69,6 @@ func buildGCActivitiesQuery(query *gcActivitiesQuery) string {
 	return values.Encode()
 }
 
-// GameCenterActivityVersionAttributes represents a Game Center activity version resource.
-type GameCenterActivityVersionAttributes struct {
-	Version     int                    `json:"version,omitempty"`
-	State       GameCenterVersionState `json:"state,omitempty"`
-	FallbackURL string                 `json:"fallbackUrl,omitempty"`
-}
-
 // GameCenterActivityVersionRelationships describes relationships for activity versions.
 type GameCenterActivityVersionRelationships struct {
 	Activity *Relationship `json:"activity,omitempty"`

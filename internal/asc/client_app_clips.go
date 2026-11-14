@@ -89,11 +89,6 @@ const (
 	AppClipAdvancedExperienceLanguageZH AppClipAdvancedExperienceLanguage = "ZH"
 )
 
-// AppClipDefaultExperienceAttributes describes App Clip default experience attributes.
-type AppClipDefaultExperienceAttributes struct {
-	Action AppClipAction `json:"action,omitempty"`
-}
-
 // AppClipAdvancedExperienceAttributes describes advanced experience attributes.
 type AppClipAdvancedExperienceAttributes struct {
 	Link string `json:"link,omitempty"`
@@ -126,16 +121,6 @@ type AppClipHeaderImageAttributes struct {
 	ImageAsset         *ImageAsset         `json:"imageAsset,omitempty"`
 	UploadOperations   []UploadOperation   `json:"uploadOperations,omitempty"`
 	AssetDeliveryState *AssetDeliveryState `json:"assetDeliveryState,omitempty"`
-}
-
-// AppClipDefaultExperienceCreateAttributes describes default experience create attributes.
-type AppClipDefaultExperienceCreateAttributes struct {
-	Action *AppClipAction `json:"action,omitempty"`
-}
-
-// AppClipDefaultExperienceUpdateAttributes describes default experience update attributes.
-type AppClipDefaultExperienceUpdateAttributes struct {
-	Action *AppClipAction `json:"action,omitempty"`
 }
 
 // AppClipAdvancedExperienceCreateAttributes describes advanced experience create attributes.

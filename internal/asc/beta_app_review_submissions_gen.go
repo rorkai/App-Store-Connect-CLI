@@ -9,6 +9,12 @@ import (
 	"strings"
 )
 
+// BetaAppReviewSubmissionAttributes is the attributes object of the BetaAppReviewSubmission schema.
+type BetaAppReviewSubmissionAttributes struct {
+	BetaReviewState string `json:"betaReviewState,omitempty"`
+	SubmittedDate   string `json:"submittedDate,omitempty"`
+}
+
 // BetaAppReviewSubmissionCreateData is the data object of the BetaAppReviewSubmissionCreateRequest schema.
 type BetaAppReviewSubmissionCreateData struct {
 	Type          ResourceType                                `json:"type"`

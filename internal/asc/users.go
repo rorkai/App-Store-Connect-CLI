@@ -123,13 +123,6 @@ type UserInvitationAttributes struct {
 // UserVisibleAppsLinkagesResponse is the response from user visible apps linkage endpoint.
 type UserVisibleAppsLinkagesResponse = LinkagesResponse
 
-// UserUpdateAttributes describes attributes for updating a user.
-type UserUpdateAttributes struct {
-	Roles               []string `json:"roles,omitempty"`
-	AllAppsVisible      *bool    `json:"allAppsVisible,omitempty"`
-	ProvisioningAllowed *bool    `json:"provisioningAllowed,omitempty"`
-}
-
 // UserUpdateRelationships describes relationships for updating a user.
 type UserUpdateRelationships struct {
 	VisibleApps *RelationshipList `json:"visibleApps,omitempty"`

@@ -8,6 +8,14 @@ import (
 	"strings"
 )
 
+// ScmGitReferenceAttributes is the attributes object of the ScmGitReference schema.
+type ScmGitReferenceAttributes struct {
+	Name          string `json:"name,omitempty"`
+	CanonicalName string `json:"canonicalName,omitempty"`
+	IsDeleted     bool   `json:"isDeleted,omitempty"`
+	Kind          string `json:"kind,omitempty"`
+}
+
 // GetScmGitReference sends GET /v1/scmGitReferences/{id} (scmGitReferences_getInstance).
 func (c *Client) GetScmGitReference(ctx context.Context, referenceID string) (*ScmGitReferenceResponse, error) {
 	return getJSON[ScmGitReferenceResponse](ctx, c, readRequest{

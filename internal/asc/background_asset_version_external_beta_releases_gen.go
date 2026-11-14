@@ -8,6 +8,11 @@ import (
 	"strings"
 )
 
+// BackgroundAssetVersionExternalBetaReleaseAttributes is the attributes object of the BackgroundAssetVersionExternalBetaRelease schema.
+type BackgroundAssetVersionExternalBetaReleaseAttributes struct {
+	State string `json:"state,omitempty"`
+}
+
 // BackgroundAssetVersionExternalBetaReleaseResponse is the BackgroundAssetVersionExternalBetaReleaseResponse schema.
 type BackgroundAssetVersionExternalBetaReleaseResponse = SingleResponse[BackgroundAssetVersionExternalBetaReleaseAttributes]
 

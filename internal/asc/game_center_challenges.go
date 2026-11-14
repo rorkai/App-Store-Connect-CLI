@@ -66,12 +66,6 @@ func buildGCChallengesQuery(query *gcChallengesQuery) string {
 	return values.Encode()
 }
 
-// GameCenterChallengeVersionAttributes represents a Game Center challenge version resource.
-type GameCenterChallengeVersionAttributes struct {
-	Version int                    `json:"version,omitempty"`
-	State   GameCenterVersionState `json:"state,omitempty"`
-}
-
 // GameCenterChallengeVersionRelationships describes relationships for challenge versions.
 type GameCenterChallengeVersionRelationships struct {
 	Challenge *Relationship `json:"challenge,omitempty"`

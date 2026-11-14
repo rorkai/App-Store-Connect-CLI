@@ -54,6 +54,13 @@ type AppStoreVersionExperimentUpdateRequest struct {
 	Data AppStoreVersionExperimentUpdateData `json:"data"`
 }
 
+// AppStoreVersionExperimentV2CreateAttributes is the data.attributes object of the AppStoreVersionExperimentV2CreateRequest schema.
+type AppStoreVersionExperimentV2CreateAttributes struct {
+	Name              string   `json:"name"`
+	Platform          Platform `json:"platform"`
+	TrafficProportion int      `json:"trafficProportion"`
+}
+
 // AppStoreVersionExperimentV2CreateData is the data object of the AppStoreVersionExperimentV2CreateRequest schema.
 type AppStoreVersionExperimentV2CreateData struct {
 	Type          ResourceType                                    `json:"type"`

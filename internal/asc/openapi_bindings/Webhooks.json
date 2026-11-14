@@ -2,10 +2,13 @@
   "tag": "Webhooks",
   "file": "webhooks_gen.go",
   "types": [
+    "WebhookAttributes",
+    "WebhookCreateAttributes",
     "WebhookCreateData",
     "WebhookCreateRelationships",
     "WebhookCreateRequest",
     "WebhookResponse",
+    "WebhookUpdateAttributes",
     "WebhookUpdateData",
     "WebhookUpdateRequest"
   ],

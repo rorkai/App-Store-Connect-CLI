@@ -2,9 +2,13 @@
   "tag": "BackgroundAssetVersionExternalBetaReleases",
   "file": "background_asset_version_external_beta_releases_gen.go",
   "types": [
+    "BackgroundAssetVersionExternalBetaReleaseAttributes",
     "BackgroundAssetVersionExternalBetaReleaseResponse"
   ],
   "operations": [
     {"operation":"backgroundAssetVersionExternalBetaReleases_getInstance","name":"GetBackgroundAssetVersionExternalBetaRelease","params":["releaseID"],"check":"require","messages":["background asset version external beta release ID is required"]}
+  ],
+  "refTypes": [
+    {"schema":"BackgroundAssetVersionExternalBetaReleaseState","type":"string"}
   ]
 }
