@@ -47,3 +47,36 @@ func (c *Client) DeleteSubscriptionLocalizationV2(ctx context.Context, localizat
 	}
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v2/subscriptionLocalizations/%s", localizationID), nil)
 }
+
+// GetSubscriptionLocalizationV2 sends GET /v2/subscriptionLocalizations/{id} (subscriptionLocalizationsV2_getInstance).
+func (c *Client) GetSubscriptionLocalizationV2(ctx context.Context, localizationID string, opts ...SubscriptionLocalizationV2Option) (*SubscriptionLocalizationV2Response, error) {
+	localizationID = strings.TrimSpace(localizationID)
+	if localizationID == "" {
+		return nil, fmt.Errorf("localization ID is required")
+	}
+	query := applyOptions(opts)
+	return getJSON[SubscriptionLocalizationV2Response](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v2/subscriptionLocalizations/%s", localizationID),
+		Query: buildSubscriptionLocalizationV2Query(query),
+	})
+}
+
+// UpdateSubscriptionLocalizationV2 sends PATCH /v2/subscriptionLocalizations/{id} (subscriptionLocalizationsV2_updateInstance).
+func (c *Client) UpdateSubscriptionLocalizationV2(ctx context.Context, localizationID string, attrs SubscriptionLocalizationV2UpdateAttributes) (*SubscriptionLocalizationV2Response, error) {
+	localizationID = strings.TrimSpace(localizationID)
+	if localizationID == "" {
+		return nil, fmt.Errorf("localization ID is required")
+	}
+	payload := SubscriptionLocalizationV2UpdateRequest{
+		Data: SubscriptionLocalizationV2UpdateData{
+			Type:       ResourceTypeSubscriptionLocalizations,
+			ID:         localizationID,
+			Attributes: attrs,
+		},
+	}
+	return sendJSON[SubscriptionLocalizationV2Response](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v2/subscriptionLocalizations/%s", localizationID),
+		Payload: payload,
+	})
+}

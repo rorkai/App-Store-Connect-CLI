@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 )
 
@@ -43,5 +44,24 @@ func (c *Client) GetAppTagTerritories(ctx context.Context, tagID string, opts ..
 		Query:       buildTerritoriesQuery(query),
 		Next:        query.nextURL,
 		NextContext: "appTagTerritories",
+	})
+}
+
+// UpdateAppTag sends PATCH /v1/appTags/{id} (appTags_updateInstance).
+func (c *Client) UpdateAppTag(ctx context.Context, tagID string, attrs AppTagUpdateAttributes) (*AppTagResponse, error) {
+	tagID = strings.TrimSpace(tagID)
+	payload := AppTagUpdateRequest{
+		Data: AppTagUpdateData{
+			Type: ResourceTypeAppTags,
+			ID:   tagID,
+		},
+	}
+	if attrs.VisibleInAppStore != nil {
+		payload.Data.Attributes = &attrs
+	}
+	return sendJSON[AppTagResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/appTags/%s", tagID),
+		Payload: payload,
 	})
 }

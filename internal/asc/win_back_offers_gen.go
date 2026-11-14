@@ -52,6 +52,22 @@ func (c *Client) GetWinBackOfferPricesRelationships(ctx context.Context, offerID
 	})
 }
 
+// UpdateWinBackOffer sends PATCH /v1/winBackOffers/{id} (winBackOffers_updateInstance).
+func (c *Client) UpdateWinBackOffer(ctx context.Context, offerID string, attrs WinBackOfferUpdateAttributes) (*WinBackOfferResponse, error) {
+	payload := WinBackOfferUpdateRequest{
+		Data: WinBackOfferUpdateData{
+			Type:       ResourceTypeWinBackOffers,
+			ID:         strings.TrimSpace(offerID),
+			Attributes: attrs,
+		},
+	}
+	return sendJSON[WinBackOfferResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/winBackOffers/%s", strings.TrimSpace(offerID)),
+		Payload: payload,
+	})
+}
+
 // WinBackOfferPricesOption sets the query of GET /v1/winBackOffers/{id}/prices (winBackOffers_prices_getToManyRelated).
 type WinBackOfferPricesOption func(*winBackOfferPricesQuery)
 

@@ -6,16 +6,6 @@ import (
 	"strings"
 )
 
-// GetUser retrieves a single user by ID.
-func (c *Client) GetUser(ctx context.Context, userID string, opts ...UsersOption) (*UserResponse, error) {
-	userID = strings.TrimSpace(userID)
-	query := applyOptions(opts)
-	return getJSON[UserResponse](ctx, c, readRequest{
-		Path:  fmt.Sprintf("/v1/users/%s", userID),
-		Query: buildUsersQuery(query),
-	})
-}
-
 // UpdateUser updates a user by ID.
 //
 // UserUpdateRequest treats attributes.allAppsVisible and

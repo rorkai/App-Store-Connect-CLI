@@ -4,7 +4,9 @@ package asc
 
 import (
 	"context"
+	"fmt"
 	"net/url"
+	"strings"
 )
 
 // BetaLicenseAgreementAttributes is the attributes object of the BetaLicenseAgreement schema.
@@ -37,6 +39,19 @@ func (c *Client) GetBetaLicenseAgreements(ctx context.Context, opts ...BetaLicen
 		Query:       buildBetaLicenseAgreementsQuery(query),
 		Next:        query.nextURL,
 		NextContext: "betaLicenseAgreements",
+	})
+}
+
+// GetBetaLicenseAgreement sends GET /v1/betaLicenseAgreements/{id} (betaLicenseAgreements_getInstance).
+func (c *Client) GetBetaLicenseAgreement(ctx context.Context, agreementID string, opts ...BetaLicenseAgreementOption) (*BetaLicenseAgreementResponse, error) {
+	agreementID = strings.TrimSpace(agreementID)
+	if agreementID == "" {
+		return nil, fmt.Errorf("agreementID is required")
+	}
+	query := applyOptions(opts)
+	return getJSON[BetaLicenseAgreementResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/betaLicenseAgreements/%s", agreementID),
+		Query: buildBetaLicenseAgreementQuery(query),
 	})
 }
 

@@ -54,6 +54,68 @@ func (c *Client) DeleteWidget(ctx context.Context, widgetID string) error {
 	fmt.Println("deleting", widgetID)
 	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/widgets/%s", widgetID), nil)
 }
+
+// UpdateWizard sends the attributes only when one is set.
+func (c *Client) UpdateWizard(ctx context.Context, wizardID string, attrs WizardUpdateAttributes) (*WidgetResponse, error) {
+	wizardID = strings.TrimSpace(wizardID)
+	if wizardID == "" {
+		return nil, fmt.Errorf("wizardID is required")
+	}
+
+	payload := WizardUpdateRequest{
+		Data: WizardUpdateData{
+			Type: ResourceTypeWizards,
+			ID:   wizardID,
+		},
+	}
+	if attrs.Title != nil || attrs.Visible != nil {
+		payload.Data.Attributes = &attrs
+	}
+	return sendJSON[WidgetResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/wizards/%s", wizardID), Payload: payload})
+}
+
+// UpdateWizardIfChanged compares the whole struct, so it stays hand-written.
+func (c *Client) UpdateWizardIfChanged(ctx context.Context, wizardID string, attrs WizardUpdateAttributes) (*WidgetResponse, error) {
+	payload := WizardUpdateRequest{
+		Data: WizardUpdateData{
+			Type: ResourceTypeWizards,
+			ID:   wizardID,
+		},
+	}
+	if attrs != (WizardUpdateAttributes{}) {
+		payload.Data.Attributes = &attrs
+	}
+	return sendJSON[WidgetResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/wizards/%s", wizardID), Payload: payload})
+}
+
+// UpdateWizardV2 sends the attributes by value.
+func (c *Client) UpdateWizardV2(ctx context.Context, wizardID string, attrs WizardUpdateAttributes) (*WidgetResponse, error) {
+	payload := WizardUpdateRequest{
+		Data: WizardUpdateData{
+			Type:       ResourceTypeWizards,
+			ID:         strings.TrimSpace(wizardID),
+			Attributes: attrs,
+		},
+	}
+	return sendJSON[WidgetResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v2/wizards/%s", strings.TrimSpace(wizardID)), Payload: payload})
+}
+
+// UpdateWizardV3 takes the attributes as a pointer.
+func (c *Client) UpdateWizardV3(ctx context.Context, wizardID string, attrs *WizardUpdateAttributes) (*WidgetResponse, error) {
+	wizardID = strings.TrimSpace(wizardID)
+	if wizardID == "" {
+		return nil, fmt.Errorf("wizardID is required")
+	}
+
+	payload := WizardUpdateRequest{
+		Data: WizardUpdateData{
+			Type:       ResourceTypeWizards,
+			ID:         wizardID,
+			Attributes: attrs,
+		},
+	}
+	return sendJSON[WidgetResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v3/wizards/%s", wizardID), Payload: payload})
+}
 `
 
 const handWrittenTypes = `package asc
@@ -121,7 +183,7 @@ func TestAdoptReplacesOnlyCodeTheGeneratorReproduces(t *testing.T) {
 		adopted[op.Name] = op
 	}
 	get, parts, owner := adopted["GetWidget"], adopted["GetWidgetParts"], adopted["GetWidgetOwner"]
-	if len(adopted) != 4 || get == nil || parts == nil || owner == nil || adopted["UpdateWidgetGadgets"] == nil {
+	if len(adopted) != 7 || get == nil || parts == nil || owner == nil || adopted["UpdateWidgetGadgets"] == nil {
 		t.Fatalf("adopted methods = %v", adopted)
 	}
 	if get.Check != checkRequire || get.CheckFirst || get.ParseErr != "failed to parse widget" || strings.Join(get.Messages, ",") != "widget ID is required" {
@@ -136,13 +198,22 @@ func TestAdoptReplacesOnlyCodeTheGeneratorReproduces(t *testing.T) {
 	if update := adopted["UpdateWidgetGadgets"]; update.Check != checkInline {
 		t.Errorf("UpdateWidgetGadgets binding = %+v", update)
 	}
+	if wizard := adopted["UpdateWizard"]; wizard == nil || !wizard.SkipEmptyAttributes || wizard.Attrs != "" {
+		t.Errorf("UpdateWizard binding = %+v", wizard)
+	}
+	if v2 := adopted["UpdateWizardV2"]; v2 == nil || v2.Attrs != attrsValue || v2.SkipEmptyAttributes || v2.Check != checkInline {
+		t.Errorf("UpdateWizardV2 binding = %+v", v2)
+	}
+	if v3 := adopted["UpdateWizardV3"]; v3 == nil || v3.Attrs != attrsPointer || v3.SkipEmptyAttributes {
+		t.Errorf("UpdateWizardV3 binding = %+v", v3)
+	}
 
 	generated := readFile(t, filepath.Join(dir, "widgets_gen.go"))
 	if !strings.Contains(generated, "func (c *Client) GetWidget(") || !strings.Contains(generated, "type WidgetAttributes struct") {
 		t.Errorf("widgets_gen.go:\n%s", generated)
 	}
 	client := readFile(t, filepath.Join(dir, "client.go"))
-	if strings.Contains(client, "GetWidget") || strings.Contains(client, "UpdateWidgetGadgets") || !strings.Contains(client, "func (c *Client) DeleteWidget(") {
+	if strings.Contains(client, "GetWidget") || strings.Contains(client, "UpdateWidgetGadgets") || !strings.Contains(client, "func (c *Client) DeleteWidget(") || !strings.Contains(client, "func (c *Client) UpdateWizardIfChanged(") {
 		t.Errorf("client.go after adopt:\n%s", client)
 	}
 	if strings.Contains(client, `"strings"`) || !strings.Contains(client, `"fmt"`) {
@@ -248,6 +319,65 @@ func TestWriteAllCheckFailsOnOutdatedOrStaleFiles(t *testing.T) {
 	}
 	if _, err := os.Stat(stale); !os.IsNotExist(err) {
 		t.Errorf("stale generated file not removed, stat err = %v", err)
+	}
+}
+
+func TestAdoptSingleReadsWithAQuery(t *testing.T) {
+	singleReads := `package asc
+
+import (
+	"context"
+	"fmt"
+	"strings"
+)
+
+// GetWidgetWheel reads the wheel of a widget.
+func (c *Client) GetWidgetWheel(ctx context.Context, widgetID string, opts ...WheelOption) (*WidgetResponse, error) {
+	query := applyOptions(opts)
+	widgetID = strings.TrimSpace(widgetID)
+	if widgetID == "" {
+		return nil, fmt.Errorf("widgetID is required")
+	}
+	return getJSON[WidgetResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/widgets/%s/wheel", widgetID), Query: buildWheelQuery(query)})
+}
+
+// GetWidgetWrapper reads the wrapper of a widget.
+func (c *Client) GetWidgetWrapper(ctx context.Context, widgetID string, fields []string) (*WidgetResponse, error) {
+	return getJSON[WidgetResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/widgets/%s/wrapper", strings.TrimSpace(widgetID)), Query: buildWrapperFieldsQuery(fields)})
+}
+
+// GetWidget passes its options to the builder, so it stays hand-written.
+func (c *Client) GetWidget(ctx context.Context, widgetID string, opts ...WidgetOption) (*WidgetResponse, error) {
+	return getJSON[WidgetResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/widgets/%s", widgetID), Query: buildWidgetQuery(opts)})
+}
+`
+	dir := writeHandWritten(t, map[string]string{"client.go": singleReads})
+	if err := runAdopt(dir, false); err != nil {
+		t.Fatal(err)
+	}
+	bindings, err := LoadBindings(filepath.Join(dir, "bindings"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(bindings.Families) != 1 {
+		t.Fatalf("adopted into %d families, want Widgets", len(bindings.Families))
+	}
+	adopted := map[string]*OpBind{}
+	for _, op := range bindings.Families[0].Operations {
+		adopted[op.Name] = op
+	}
+	wheel, wrapper := adopted["GetWidgetWheel"], adopted["GetWidgetWrapper"]
+	if len(adopted) != 2 || wheel == nil || wrapper == nil {
+		t.Fatalf("adopted methods = %v", adopted)
+	}
+	if !wheel.Single || wheel.CheckFirst || wheel.Check != checkRequire || wheel.Options != "WheelOption" || wheel.Query != "buildWheelQuery" {
+		t.Errorf("GetWidgetWheel binding = %+v", wheel)
+	}
+	if !wrapper.Single || wrapper.Check != checkInline || wrapper.Options != "" || wrapper.IDs != "" || wrapper.Query != "buildWrapperFieldsQuery" {
+		t.Errorf("GetWidgetWrapper binding = %+v", wrapper)
+	}
+	if client := readFile(t, filepath.Join(dir, "client.go")); strings.Contains(client, "GetWidgetW") || !strings.Contains(client, "func (c *Client) GetWidget(") {
+		t.Errorf("client.go after adopt:\n%s", client)
 	}
 }
 

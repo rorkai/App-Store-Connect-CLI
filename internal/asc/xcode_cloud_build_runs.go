@@ -2,7 +2,6 @@ package asc
 
 import (
 	"context"
-	"fmt"
 	"net/url"
 	"strings"
 )
@@ -177,13 +176,6 @@ func buildCiBuildRunGetQuery(query *ciBuildRunGetQuery) string {
 	addCSV(values, "include", query.include)
 	addCSV(values, "fields[ciBuildRuns]", query.fieldsCiBuildRuns)
 	return values.Encode()
-}
-
-// GetCiBuildRun retrieves a CI build run by ID.
-func (c *Client) GetCiBuildRun(ctx context.Context, buildRunID string, opts ...CiBuildRunGetOption) (*CiBuildRunResponse, error) {
-	query := applyOptions(opts)
-
-	return getJSON[CiBuildRunResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/ciBuildRuns/%s", buildRunID), Query: buildCiBuildRunGetQuery(query)})
 }
 
 // CreateCiBuildRun creates a new CI build run (triggers a workflow).

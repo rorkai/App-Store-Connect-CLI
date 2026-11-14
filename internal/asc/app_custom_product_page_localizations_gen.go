@@ -135,6 +135,28 @@ func (c *Client) GetAppCustomProductPageLocalizationSearchKeywords(ctx context.C
 	})
 }
 
+// UpdateAppCustomProductPageLocalization sends PATCH /v1/appCustomProductPageLocalizations/{id} (appCustomProductPageLocalizations_updateInstance).
+func (c *Client) UpdateAppCustomProductPageLocalization(ctx context.Context, localizationID string, attrs AppCustomProductPageLocalizationUpdateAttributes) (*AppCustomProductPageLocalizationResponse, error) {
+	localizationID = strings.TrimSpace(localizationID)
+	if localizationID == "" {
+		return nil, fmt.Errorf("localizationID is required")
+	}
+	payload := AppCustomProductPageLocalizationUpdateRequest{
+		Data: AppCustomProductPageLocalizationUpdateData{
+			Type: ResourceTypeAppCustomProductPageLocalizations,
+			ID:   localizationID,
+		},
+	}
+	if attrs.PromotionalText != nil {
+		payload.Data.Attributes = &attrs
+	}
+	return sendJSON[AppCustomProductPageLocalizationResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/appCustomProductPageLocalizations/%s", localizationID),
+		Payload: payload,
+	})
+}
+
 // AppCustomProductPageLocalizationPreviewSetsOption sets the query of GET /v1/appCustomProductPageLocalizations/{id}/appPreviewSets (appCustomProductPageLocalizations_appPreviewSets_getToManyRelated).
 type AppCustomProductPageLocalizationPreviewSetsOption func(*appCustomProductPageLocalizationPreviewSetsQuery)
 

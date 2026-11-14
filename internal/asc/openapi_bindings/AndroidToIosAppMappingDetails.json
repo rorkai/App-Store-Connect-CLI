@@ -8,6 +8,7 @@
     "AndroidToIosAppMappingDetailUpdateRequest"
   ],
   "operations": [
-    {"operation":"androidToIosAppMappingDetails_deleteInstance","name":"DeleteAndroidToIosAppMappingDetail","params":["id"],"check":"require","messages":["mapping ID is required"]}
+    {"operation":"androidToIosAppMappingDetails_deleteInstance","name":"DeleteAndroidToIosAppMappingDetail","params":["id"],"check":"require","messages":["mapping ID is required"]},
+    {"operation":"androidToIosAppMappingDetails_getInstance","name":"GetAndroidToIosAppMappingDetail","params":["id"],"check":"require","checkFirst":true,"messages":["mapping ID is required"],"options":"AndroidToIosAppMappingDetailsOption","query":"buildAndroidToIosAppMappingDetailQuery","single":true}
   ]
 }

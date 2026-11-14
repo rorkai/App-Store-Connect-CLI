@@ -7,6 +7,7 @@
   "operations": [
     {"operation":"inAppPurchasePriceSchedules_automaticPrices_getToManyRelated","name":"GetInAppPurchasePriceScheduleAutomaticPrices","params":["scheduleID"],"check":"require","options":"IAPPriceSchedulePricesOption","query":"buildIAPPriceSchedulePricesQuery","nextContext":"in-app-purchase-automatic-prices"},
     {"operation":"inAppPurchasePriceSchedules_baseTerritory_getToOneRelated","name":"GetInAppPurchasePriceScheduleBaseTerritory","params":["scheduleID"],"check":"require"},
+    {"operation":"inAppPurchasePriceSchedules_getInstance","name":"GetInAppPurchasePriceScheduleByID","params":["scheduleID"],"check":"require","options":"IAPPriceScheduleOption","query":"buildIAPPriceScheduleQuery","single":true},
     {"operation":"inAppPurchasePriceSchedules_manualPrices_getToManyRelated","name":"GetInAppPurchasePriceScheduleManualPrices","params":["scheduleID"],"check":"require","options":"IAPPriceSchedulePricesOption","query":"buildIAPPriceSchedulePricesQuery","nextContext":"in-app-purchase-manual-prices"}
   ]
 }

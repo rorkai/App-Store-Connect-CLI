@@ -179,7 +179,7 @@ func TestAdoptQueriesReplacesOnlyQueriesTheGeneratorReproduces(t *testing.T) {
 	}
 
 	generated := readFile(t, filepath.Join(dir, "widgets_gen.go"))
-	if !strings.Contains(generated, "func buildWidgetsQuery(") || strings.Contains(generated, "OwnerOption") {
+	if !strings.Contains(generated, "func buildWidgetsQuery(") || strings.Contains(generated, "type OwnerOption") || strings.Contains(generated, "func buildWidgetOwnerQuery(") {
 		t.Errorf("widgets_gen.go:\n%s", generated)
 	}
 	queries := readFile(t, filepath.Join(dir, "queries.go"))

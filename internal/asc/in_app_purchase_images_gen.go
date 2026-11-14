@@ -34,3 +34,25 @@ func (c *Client) DeleteInAppPurchaseImageV2(ctx context.Context, imageID string)
 	}
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v2/inAppPurchaseImages/%s", imageID), nil)
 }
+
+// UpdateInAppPurchaseImageV2 sends PATCH /v2/inAppPurchaseImages/{id} (inAppPurchaseImagesV2_updateInstance).
+func (c *Client) UpdateInAppPurchaseImageV2(ctx context.Context, imageID string, attrs InAppPurchaseImageV2UpdateAttributes) (*InAppPurchaseImageV2Response, error) {
+	imageID = strings.TrimSpace(imageID)
+	if imageID == "" {
+		return nil, fmt.Errorf("imageID is required")
+	}
+	payload := InAppPurchaseImageV2UpdateRequest{
+		Data: InAppPurchaseImageV2UpdateData{
+			Type: ResourceTypeInAppPurchaseImages,
+			ID:   imageID,
+		},
+	}
+	if attrs.Uploaded != nil {
+		payload.Data.Attributes = &attrs
+	}
+	return sendJSON[InAppPurchaseImageV2Response](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v2/inAppPurchaseImages/%s", imageID),
+		Payload: payload,
+	})
+}

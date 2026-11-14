@@ -4,6 +4,7 @@
   "operations": [
     {"operation":"passTypeIds_certificates_getToManyRelated","name":"GetPassTypeIDCertificates","params":["passTypeID"],"check":"trim","checkFirst":true,"options":"PassTypeIDCertificatesOption","query":"buildPassTypeIDCertificatesQuery","nextContext":"passTypeIdCertificates"},
     {"operation":"passTypeIds_deleteInstance","name":"DeletePassTypeID","params":["id"],"check":"trim"},
-    {"operation":"passTypeIds_getCollection","name":"GetPassTypeIDs","options":"PassTypeIDsOption","query":"buildPassTypeIDsQuery","nextContext":"passTypeIds","response":"PassTypeIDsResponse"}
+    {"operation":"passTypeIds_getCollection","name":"GetPassTypeIDs","options":"PassTypeIDsOption","query":"buildPassTypeIDsQuery","nextContext":"passTypeIds","response":"PassTypeIDsResponse"},
+    {"operation":"passTypeIds_getInstance","name":"GetPassTypeID","params":["id"],"check":"trim","checkFirst":true,"options":"PassTypeIDOption","query":"buildPassTypeIDQuery","response":"PassTypeIDResponse","single":true}
   ]
 }

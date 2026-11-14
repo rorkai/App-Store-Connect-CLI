@@ -7,7 +7,8 @@
   ],
   "operations": [
     {"operation":"subscriptionOfferCodes_customCodes_getToManyRelated","name":"GetSubscriptionOfferCodeCustomCodes","params":["offerCodeID"],"options":"SubscriptionOfferCodeCustomCodesOption","query":"buildSubscriptionOfferCodeCustomCodesQuery","nextContext":"subscriptionOfferCodeCustomCodes"},
-    {"operation":"subscriptionOfferCodes_oneTimeUseCodes_getToManyRelated","name":"GetSubscriptionOfferCodeOneTimeUseCodes","params":["offerCodeID"],"check":"trim","checkFirst":true,"options":"SubscriptionOfferCodeOneTimeUseCodesOption","query":"buildSubscriptionOfferCodeOneTimeUseCodesQuery","nextContext":"offer codes"}
+    {"operation":"subscriptionOfferCodes_oneTimeUseCodes_getToManyRelated","name":"GetSubscriptionOfferCodeOneTimeUseCodes","params":["offerCodeID"],"check":"trim","checkFirst":true,"options":"SubscriptionOfferCodeOneTimeUseCodesOption","query":"buildSubscriptionOfferCodeOneTimeUseCodesQuery","nextContext":"offer codes"},
+    {"operation":"subscriptionOfferCodes_updateInstance","name":"UpdateSubscriptionOfferCode","params":["offerCodeID"],"attrs":"value"}
   ],
   "queries": [
     {"operation":"subscriptionOfferCodes_customCodes_getToManyRelated","name":"SubscriptionOfferCodeCustomCodes","deviations":[{"problem":"query parameters [fields[subscriptionOfferCodeCustomCodes] fields[subscriptionOfferCodes] include] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]},

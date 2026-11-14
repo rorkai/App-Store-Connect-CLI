@@ -45,3 +45,14 @@ type PromotedPurchaseUpdateRequest struct {
 func (c *Client) DeletePromotedPurchase(ctx context.Context, promotedPurchaseID string) error {
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/promotedPurchases/%s", strings.TrimSpace(promotedPurchaseID)), nil)
 }
+
+// GetPromotedPurchase sends GET /v1/promotedPurchases/{id} (promotedPurchases_getInstance).
+func (c *Client) GetPromotedPurchase(ctx context.Context, promotedPurchaseID string, opts ...PromotedPurchaseGetOption) (*PromotedPurchaseResponse, error) {
+	promotedPurchaseID = strings.TrimSpace(promotedPurchaseID)
+	query := applyOptions(opts)
+	return getJSON[PromotedPurchaseResponse](ctx, c, readRequest{
+		Path:     fmt.Sprintf("/v1/promotedPurchases/%s", promotedPurchaseID),
+		Query:    buildPromotedPurchaseGetQuery(query),
+		ParseErr: "failed to parse promoted purchase response",
+	})
+}

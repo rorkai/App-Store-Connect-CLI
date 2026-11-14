@@ -2,5 +2,24 @@
 
 package asc
 
+import (
+	"context"
+	"fmt"
+	"strings"
+)
+
 // InAppPurchaseContentResponse is the InAppPurchaseContentResponse schema.
 type InAppPurchaseContentResponse = SingleResponse[InAppPurchaseContentAttributes]
+
+// GetInAppPurchaseContentByID sends GET /v1/inAppPurchaseContents/{id} (inAppPurchaseContents_getInstance).
+func (c *Client) GetInAppPurchaseContentByID(ctx context.Context, contentID string, opts ...IAPContentOption) (*InAppPurchaseContentResponse, error) {
+	contentID = strings.TrimSpace(contentID)
+	if contentID == "" {
+		return nil, fmt.Errorf("contentID is required")
+	}
+	query := applyOptions(opts)
+	return getJSON[InAppPurchaseContentResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/inAppPurchaseContents/%s", contentID),
+		Query: buildIAPContentQuery(query),
+	})
+}

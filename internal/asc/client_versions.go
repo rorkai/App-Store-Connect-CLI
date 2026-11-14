@@ -123,15 +123,6 @@ func (c *Client) GetPreReleaseVersions(ctx context.Context, appID string, opts .
 	})
 }
 
-// GetAppStoreVersion retrieves an app store version by ID.
-func (c *Client) GetAppStoreVersion(ctx context.Context, versionID string, opts ...AppStoreVersionOption) (*AppStoreVersionResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[AppStoreVersionResponse](ctx, c, readRequest{
-		Path:  fmt.Sprintf("/v1/appStoreVersions/%s", versionID),
-		Query: buildAppStoreVersionQuery(query),
-	})
-}
-
 // CreateAppStoreVersion creates a new app store version for an app.
 func (c *Client) CreateAppStoreVersion(ctx context.Context, appID string, attrs AppStoreVersionCreateAttributes) (*AppStoreVersionResponse, error) {
 	return c.CreateAppStoreVersionWithBuild(ctx, appID, "", attrs)

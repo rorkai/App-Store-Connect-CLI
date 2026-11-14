@@ -40,6 +40,15 @@ func (c *Client) GetCiBuildRunBuilds(ctx context.Context, buildRunID string, opt
 	})
 }
 
+// GetCiBuildRun sends GET /v1/ciBuildRuns/{id} (ciBuildRuns_getInstance).
+func (c *Client) GetCiBuildRun(ctx context.Context, buildRunID string, opts ...CiBuildRunGetOption) (*CiBuildRunResponse, error) {
+	query := applyOptions(opts)
+	return getJSON[CiBuildRunResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/ciBuildRuns/%s", buildRunID),
+		Query: buildCiBuildRunGetQuery(query),
+	})
+}
+
 // CiBuildActionsOption sets the query of GET /v1/ciBuildRuns/{id}/actions (ciBuildRuns_actions_getToManyRelated).
 type CiBuildActionsOption func(*ciBuildActionsQuery)
 

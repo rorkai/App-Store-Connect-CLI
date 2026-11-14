@@ -49,6 +49,22 @@ func (c *Client) GetSubscriptions(ctx context.Context, groupID string, opts ...S
 	})
 }
 
+// UpdateSubscriptionGroup sends PATCH /v1/subscriptionGroups/{id} (subscriptionGroups_updateInstance).
+func (c *Client) UpdateSubscriptionGroup(ctx context.Context, groupID string, attrs SubscriptionGroupUpdateAttributes) (*SubscriptionGroupResponse, error) {
+	payload := SubscriptionGroupUpdateRequest{
+		Data: SubscriptionGroupUpdateData{
+			Type:       ResourceTypeSubscriptionGroups,
+			ID:         strings.TrimSpace(groupID),
+			Attributes: attrs,
+		},
+	}
+	return sendJSON[SubscriptionGroupResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/subscriptionGroups/%s", strings.TrimSpace(groupID)),
+		Payload: payload,
+	})
+}
+
 // SubscriptionGroupLocalizationsOption sets the query of GET /v1/subscriptionGroups/{id}/subscriptionGroupLocalizations (subscriptionGroups_subscriptionGroupLocalizations_getToManyRelated).
 type SubscriptionGroupLocalizationsOption func(*subscriptionGroupLocalizationsQuery)
 
