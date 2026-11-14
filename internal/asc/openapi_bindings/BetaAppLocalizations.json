@@ -1,0 +1,18 @@
+{
+  "tag": "BetaAppLocalizations",
+  "file": "beta_app_localizations_gen.go",
+  "types": [
+    "BetaAppLocalizationCreateRequest",
+    "BetaAppLocalizationResponse",
+    "BetaAppLocalizationUpdateData",
+    "BetaAppLocalizationUpdateRequest",
+    "BetaAppLocalizationsResponse"
+  ],
+  "operations": [
+    {"operation":"betaAppLocalizations_app_getToOneRelated","name":"GetBetaAppLocalizationApp","params":["localizationID"],"check":"require","response":"AppResponse"},
+    {"operation":"betaAppLocalizations_deleteInstance","name":"DeleteBetaAppLocalization","params":["localizationID"],"check":"require"},
+    {"operation":"betaAppLocalizations_getCollection","name":"GetBetaAppLocalizations","options":"BetaAppLocalizationsOption","query":"buildBetaAppLocalizationsQuery","nextContext":"betaAppLocalizations"},
+    {"operation":"betaAppLocalizations_getInstance","name":"GetBetaAppLocalization","params":["localizationID"],"check":"require"},
+    {"operation":"betaAppLocalizations_updateInstance","name":"UpdateBetaAppLocalization","params":["localizationID"],"check":"require"}
+  ]
+}

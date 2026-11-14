@@ -8,17 +8,6 @@ import (
 	"strings"
 )
 
-// GetSubscriptionGroups retrieves the list of subscription groups for an app.
-func (c *Client) GetSubscriptionGroups(ctx context.Context, appID string, opts ...SubscriptionGroupsOption) (*SubscriptionGroupsResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[SubscriptionGroupsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/apps/%s/subscriptionGroups", strings.TrimSpace(appID)),
-		Query:       buildSubscriptionGroupsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "subscriptionGroups",
-	})
-}
-
 // CreateSubscriptionGroup creates a subscription group for an app.
 func (c *Client) CreateSubscriptionGroup(ctx context.Context, appID string, attrs SubscriptionGroupCreateAttributes) (*SubscriptionGroupResponse, error) {
 	payload := SubscriptionGroupCreateRequest{

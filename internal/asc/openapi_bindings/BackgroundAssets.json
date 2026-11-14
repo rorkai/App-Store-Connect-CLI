@@ -1,0 +1,16 @@
+{
+  "tag": "BackgroundAssets",
+  "file": "background_assets_gen.go",
+  "types": [
+    "BackgroundAssetCreateAttributes",
+    "BackgroundAssetCreateRequest",
+    "BackgroundAssetResponse",
+    "BackgroundAssetUpdateAttributes",
+    "BackgroundAssetUpdateData",
+    "BackgroundAssetUpdateRequest"
+  ],
+  "operations": [
+    {"operation":"backgroundAssets_getInstance","name":"GetBackgroundAsset","params":["id"],"check":"require","messages":["background asset ID is required"]},
+    {"operation":"backgroundAssets_versions_getToManyRelated","name":"GetBackgroundAssetVersions","params":["backgroundAssetID"],"options":"BackgroundAssetVersionsOption","query":"buildBackgroundAssetVersionsQuery","nextContext":"backgroundAssetVersions"}
+  ]
+}
