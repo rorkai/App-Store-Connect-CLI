@@ -5,17 +5,6 @@ type (
 	SubscriptionGroupVersionsResponse = Response[SubscriptionGroupVersionAttributes]
 )
 
-// SubscriptionGroupVersionCreateRelationships contains the required group owner.
-type SubscriptionGroupVersionCreateRelationships struct {
-	SubscriptionGroup Relationship `json:"subscriptionGroup"`
-}
-
-// SubscriptionGroupVersionCreateData is the data portion of a create request.
-type SubscriptionGroupVersionCreateData struct {
-	Type          ResourceType                                `json:"type"`
-	Relationships SubscriptionGroupVersionCreateRelationships `json:"relationships"`
-}
-
 // SubscriptionGroupLocalizationV2CreateAttributes describes version-scoped localization attributes.
 type SubscriptionGroupLocalizationV2CreateAttributes struct {
 	Name          string          `json:"name"`
@@ -27,16 +16,6 @@ type SubscriptionGroupLocalizationV2CreateAttributes struct {
 type SubscriptionGroupLocalizationV2UpdateAttributes struct {
 	Name          *NullableString `json:"name,omitempty"`
 	CustomAppName *NullableString `json:"customAppName,omitempty"`
-}
-
-type SubscriptionGroupLocalizationV2CreateRelationships struct {
-	Version Relationship `json:"version"`
-}
-
-type SubscriptionGroupLocalizationV2CreateData struct {
-	Type          ResourceType                                       `json:"type"`
-	Attributes    SubscriptionGroupLocalizationV2CreateAttributes    `json:"attributes"`
-	Relationships SubscriptionGroupLocalizationV2CreateRelationships `json:"relationships"`
 }
 
 type (

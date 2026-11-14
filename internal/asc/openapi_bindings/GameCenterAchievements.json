@@ -2,15 +2,22 @@
   "tag": "GameCenterAchievements",
   "file": "game_center_achievements_gen.go",
   "types": [
+    "GameCenterAchievementCreateData",
     "GameCenterAchievementCreateRequest",
     "GameCenterAchievementResponse",
     "GameCenterAchievementUpdateData",
-    "GameCenterAchievementUpdateRequest"
+    "GameCenterAchievementUpdateRequest",
+    "GameCenterAchievementV2Relationships"
+  ],
+  "relationships": [
+    {"data":"GameCenterAchievementCreateData","type":"*GameCenterAchievementRelationships","omitempty":true},
+    {"data":"GameCenterAchievementV2CreateData","type":"*GameCenterAchievementV2Relationships","omitempty":true}
   ],
   "operations": [
     {"operation":"gameCenterAchievementsV2_deleteInstance","name":"DeleteGameCenterAchievementV2","params":["achievementID"]},
     {"operation":"gameCenterAchievementsV2_getInstance","name":"GetGameCenterAchievementV2","params":["achievementID"],"response":"GameCenterAchievementResponse"},
     {"operation":"gameCenterAchievementsV2_versions_getToManyRelated","name":"GetGameCenterAchievementVersions","params":["achievementID"],"options":"GCAchievementVersionsOption","query":"buildGCAchievementVersionsQuery","nextContext":"game-center-achievement-versions","response":"GameCenterAchievementVersionsResponse"},
+    {"operation":"gameCenterAchievements_createInstance","name":"CreateGameCenterAchievement","params":["gcDetailID"],"links":["gameCenterDetail"]},
     {"operation":"gameCenterAchievements_deleteInstance","name":"DeleteGameCenterAchievement","params":["achievementID"]},
     {"operation":"gameCenterAchievements_getInstance","name":"GetGameCenterAchievement","params":["achievementID"]},
     {"operation":"gameCenterAchievements_groupAchievement_getToOneRelated","name":"GetGameCenterAchievementGroupAchievement","params":["achievementID"]},

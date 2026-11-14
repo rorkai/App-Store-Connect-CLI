@@ -2,7 +2,12 @@
   "tag": "EndAppAvailabilityPreOrders",
   "file": "end_app_availability_pre_orders_gen.go",
   "types": [
+    "EndAppAvailabilityPreOrderCreateData",
     "EndAppAvailabilityPreOrderCreateRequest",
+    "EndAppAvailabilityPreOrderRelationships",
     "EndAppAvailabilityPreOrderResponse"
+  ],
+  "relationships": [
+    {"data":"EndAppAvailabilityPreOrderCreateData","type":"EndAppAvailabilityPreOrderRelationships"}
   ]
 }

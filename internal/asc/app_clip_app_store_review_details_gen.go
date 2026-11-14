@@ -19,6 +19,13 @@ type AppClipAppStoreReviewDetailCreateAttributes struct {
 	InvocationURLs []string `json:"invocationUrls,omitempty"`
 }
 
+// AppClipAppStoreReviewDetailCreateData is the data object of the AppClipAppStoreReviewDetailCreateRequest schema.
+type AppClipAppStoreReviewDetailCreateData struct {
+	Type          ResourceType                                 `json:"type"`
+	Attributes    *AppClipAppStoreReviewDetailCreateAttributes `json:"attributes,omitempty"`
+	Relationships *AppClipAppStoreReviewDetailRelationships    `json:"relationships"`
+}
+
 // AppClipAppStoreReviewDetailCreateRequest is the AppClipAppStoreReviewDetailCreateRequest schema.
 type AppClipAppStoreReviewDetailCreateRequest struct {
 	Data AppClipAppStoreReviewDetailCreateData `json:"data"`
@@ -39,6 +46,33 @@ type AppClipAppStoreReviewDetailUpdateData struct {
 // AppClipAppStoreReviewDetailUpdateRequest is the AppClipAppStoreReviewDetailUpdateRequest schema.
 type AppClipAppStoreReviewDetailUpdateRequest struct {
 	Data AppClipAppStoreReviewDetailUpdateData `json:"data"`
+}
+
+// CreateAppClipAppStoreReviewDetail sends POST /v1/appClipAppStoreReviewDetails (appClipAppStoreReviewDetails_createInstance).
+func (c *Client) CreateAppClipAppStoreReviewDetail(ctx context.Context, experienceID string, attrs *AppClipAppStoreReviewDetailCreateAttributes) (*AppClipAppStoreReviewDetailResponse, error) {
+	experienceID = strings.TrimSpace(experienceID)
+	if experienceID == "" {
+		return nil, fmt.Errorf("experienceID is required")
+	}
+	payload := AppClipAppStoreReviewDetailCreateRequest{
+		Data: AppClipAppStoreReviewDetailCreateData{
+			Type:       ResourceTypeAppClipAppStoreReviewDetails,
+			Attributes: attrs,
+			Relationships: &AppClipAppStoreReviewDetailRelationships{
+				AppClipDefaultExperience: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeAppClipDefaultExperiences,
+						ID:   experienceID,
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[AppClipAppStoreReviewDetailResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/appClipAppStoreReviewDetails",
+		Payload: payload,
+	})
 }
 
 // GetAppClipAppStoreReviewDetail sends GET /v1/appClipAppStoreReviewDetails/{id} (appClipAppStoreReviewDetails_getInstance).

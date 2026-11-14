@@ -2,7 +2,11 @@
   "tag": "AppScreenshotSets",
   "file": "app_screenshot_sets_gen.go",
   "types": [
-    "AppScreenshotSetCreateRequest"
+    "AppScreenshotSetCreateRequest",
+    "AppScreenshotSetRelationships"
+  ],
+  "relationships": [
+    {"data":"AppScreenshotSetCreateData","type":"*AppScreenshotSetRelationships"}
   ],
   "operations": [
     {"operation":"appScreenshotSets_appScreenshots_getToManyRelationship","name":"GetAppScreenshotSetAppScreenshotsRelationships","params":["setID"],"check":"require","options":"LinkagesOption","query":"buildLinkagesQuery","nextContext":"appScreenshotsRelationships","response":"LinkagesResponse"},

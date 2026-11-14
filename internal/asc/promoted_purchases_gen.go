@@ -15,6 +15,20 @@ type PromotedPurchaseCreateAttributes struct {
 	Enabled            *bool `json:"enabled,omitempty"`
 }
 
+// PromotedPurchaseCreateData is the data object of the PromotedPurchaseCreateRequest schema.
+type PromotedPurchaseCreateData struct {
+	Type          ResourceType                        `json:"type"`
+	Attributes    PromotedPurchaseCreateAttributes    `json:"attributes"`
+	Relationships PromotedPurchaseCreateRelationships `json:"relationships"`
+}
+
+// PromotedPurchaseCreateRelationships is the data.relationships object of the PromotedPurchaseCreateRequest schema.
+type PromotedPurchaseCreateRelationships struct {
+	App             Relationship  `json:"app"`
+	InAppPurchaseV2 *Relationship `json:"inAppPurchaseV2,omitempty"`
+	Subscription    *Relationship `json:"subscription,omitempty"`
+}
+
 // PromotedPurchaseCreateRequest is the PromotedPurchaseCreateRequest schema.
 type PromotedPurchaseCreateRequest struct {
 	Data PromotedPurchaseCreateData `json:"data"`

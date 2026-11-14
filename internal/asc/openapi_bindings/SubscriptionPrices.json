@@ -2,8 +2,12 @@
   "tag": "SubscriptionPrices",
   "file": "subscription_prices_gen.go",
   "types": [
+    "SubscriptionPriceCreateData",
     "SubscriptionPriceCreateRequest",
     "SubscriptionPriceResponse"
+  ],
+  "relationships": [
+    {"data":"SubscriptionPriceCreateData","type":"*SubscriptionPriceRelationships"}
   ],
   "operations": [
     {"operation":"subscriptionPrices_deleteInstance","name":"DeleteSubscriptionPrice","params":["priceID"]}

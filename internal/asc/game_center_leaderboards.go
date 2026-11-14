@@ -59,21 +59,6 @@ type GameCenterLeaderboardRelationships struct {
 	GameCenterLeaderboardSets *RelationshipList `json:"gameCenterLeaderboardSets,omitempty"`
 }
 
-// GameCenterLeaderboardV2Relationships describes relationships for v2 leaderboards.
-type GameCenterLeaderboardV2Relationships struct {
-	GameCenterDetail          *Relationship     `json:"gameCenterDetail,omitempty"`
-	GameCenterGroup           *Relationship     `json:"gameCenterGroup,omitempty"`
-	GameCenterLeaderboardSets *RelationshipList `json:"gameCenterLeaderboardSets,omitempty"`
-	Versions                  *RelationshipList `json:"versions"`
-}
-
-// GameCenterLeaderboardCreateData is the data portion of a leaderboard create request.
-type GameCenterLeaderboardCreateData struct {
-	Type          ResourceType                          `json:"type"`
-	Attributes    GameCenterLeaderboardCreateAttributes `json:"attributes"`
-	Relationships *GameCenterLeaderboardRelationships   `json:"relationships,omitempty"`
-}
-
 // GameCenterLeaderboardV2CreateData is the data portion of a v2 leaderboard create request.
 type GameCenterLeaderboardV2CreateData struct {
 	Type          ResourceType                          `json:"type"`
@@ -185,23 +170,6 @@ type GameCenterLeaderboardLocalizationUpdateAttributes struct {
 	Description             *string `json:"description,omitempty"`
 }
 
-// GameCenterLeaderboardLocalizationRelationships describes relationships for leaderboard localizations.
-type GameCenterLeaderboardLocalizationRelationships struct {
-	GameCenterLeaderboard *Relationship `json:"gameCenterLeaderboard"`
-}
-
-// GameCenterLeaderboardLocalizationCreateData is the data portion of a localization create request.
-type GameCenterLeaderboardLocalizationCreateData struct {
-	Type          ResourceType                                      `json:"type"`
-	Attributes    GameCenterLeaderboardLocalizationCreateAttributes `json:"attributes"`
-	Relationships *GameCenterLeaderboardLocalizationRelationships   `json:"relationships,omitempty"`
-}
-
-// GameCenterLeaderboardLocalizationV2Relationships describes relationships for v2 leaderboard localizations.
-type GameCenterLeaderboardLocalizationV2Relationships struct {
-	Version *Relationship `json:"version"`
-}
-
 // GameCenterLeaderboardLocalizationV2CreateData is the data portion of a v2 localization create request.
 type GameCenterLeaderboardLocalizationV2CreateData struct {
 	Type          ResourceType                                      `json:"type"`
@@ -234,18 +202,6 @@ func buildGCLeaderboardLocalizationsQuery(query *gcLeaderboardLocalizationsQuery
 // GameCenterLeaderboardReleaseAttributes represents a Game Center leaderboard release resource.
 type GameCenterLeaderboardReleaseAttributes struct {
 	Live bool `json:"live"`
-}
-
-// GameCenterLeaderboardReleaseRelationships describes relationships for leaderboard releases.
-type GameCenterLeaderboardReleaseRelationships struct {
-	GameCenterDetail      *Relationship `json:"gameCenterDetail"`
-	GameCenterLeaderboard *Relationship `json:"gameCenterLeaderboard"`
-}
-
-// GameCenterLeaderboardReleaseCreateData is the data portion of a leaderboard release create request.
-type GameCenterLeaderboardReleaseCreateData struct {
-	Type          ResourceType                               `json:"type"`
-	Relationships *GameCenterLeaderboardReleaseRelationships `json:"relationships"`
 }
 
 // GameCenterLeaderboardReleasesResponse is the response from leaderboard release list endpoints.
@@ -283,23 +239,6 @@ type GameCenterLeaderboardImageAttributes struct {
 type GameCenterLeaderboardImageCreateAttributes struct {
 	FileSize int64  `json:"fileSize"`
 	FileName string `json:"fileName"`
-}
-
-// GameCenterLeaderboardImageRelationships describes relationships for leaderboard images.
-type GameCenterLeaderboardImageRelationships struct {
-	GameCenterLeaderboardLocalization *Relationship `json:"gameCenterLeaderboardLocalization"`
-}
-
-// GameCenterLeaderboardImageCreateData is the data portion of an image create (reserve) request.
-type GameCenterLeaderboardImageCreateData struct {
-	Type          ResourceType                               `json:"type"`
-	Attributes    GameCenterLeaderboardImageCreateAttributes `json:"attributes"`
-	Relationships *GameCenterLeaderboardImageRelationships   `json:"relationships"`
-}
-
-// GameCenterLeaderboardImageV2Relationships describes relationships for v2 leaderboard images.
-type GameCenterLeaderboardImageV2Relationships struct {
-	Localization *Relationship `json:"localization"`
 }
 
 // GameCenterLeaderboardImageV2CreateData is the data portion of a v2 image create (reserve) request.

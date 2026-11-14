@@ -3,11 +3,16 @@
   "file": "background_assets_gen.go",
   "types": [
     "BackgroundAssetCreateAttributes",
+    "BackgroundAssetCreateData",
+    "BackgroundAssetCreateRelationships",
     "BackgroundAssetCreateRequest",
     "BackgroundAssetResponse",
     "BackgroundAssetUpdateAttributes",
     "BackgroundAssetUpdateData",
     "BackgroundAssetUpdateRequest"
+  ],
+  "relationships": [
+    {"data":"BackgroundAssetCreateData","type":"BackgroundAssetCreateRelationships"}
   ],
   "operations": [
     {"operation":"backgroundAssets_getInstance","name":"GetBackgroundAsset","params":["id"],"check":"require","messages":["background asset ID is required"]},

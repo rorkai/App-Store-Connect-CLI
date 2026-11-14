@@ -20,6 +20,18 @@ type AppStoreReviewDetailCreateAttributes struct {
 	Notes               *string `json:"notes,omitempty"`
 }
 
+// AppStoreReviewDetailCreateData is the data object of the AppStoreReviewDetailCreateRequest schema.
+type AppStoreReviewDetailCreateData struct {
+	Type          ResourceType                             `json:"type"`
+	Attributes    *AppStoreReviewDetailCreateAttributes    `json:"attributes,omitempty"`
+	Relationships *AppStoreReviewDetailCreateRelationships `json:"relationships"`
+}
+
+// AppStoreReviewDetailCreateRelationships is the data.relationships object of the AppStoreReviewDetailCreateRequest schema.
+type AppStoreReviewDetailCreateRelationships struct {
+	AppStoreVersion *Relationship `json:"appStoreVersion"`
+}
+
 // AppStoreReviewDetailCreateRequest is the AppStoreReviewDetailCreateRequest schema.
 type AppStoreReviewDetailCreateRequest struct {
 	Data AppStoreReviewDetailCreateData `json:"data"`

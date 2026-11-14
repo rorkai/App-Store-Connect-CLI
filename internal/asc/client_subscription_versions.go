@@ -7,22 +7,6 @@ import (
 	"strings"
 )
 
-// CreateSubscriptionVersion creates a version for a subscription.
-func (c *Client) CreateSubscriptionVersion(ctx context.Context, subscriptionID string) (*SubscriptionVersionResponse, error) {
-	subscriptionID = strings.TrimSpace(subscriptionID)
-	if subscriptionID == "" {
-		return nil, fmt.Errorf("subscription ID is required")
-	}
-	payload := SubscriptionVersionCreateRequest{Data: SubscriptionVersionCreateData{
-		Type: ResourceTypeSubscriptionVersions,
-		Relationships: &SubscriptionVersionRelationships{Subscription: &Relationship{Data: ResourceData{
-			Type: ResourceTypeSubscriptions,
-			ID:   subscriptionID,
-		}}},
-	}}
-	return sendJSON[SubscriptionVersionResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/subscriptionVersions", Payload: payload})
-}
-
 // GetSubscriptionVersionsRelationships retrieves version linkages for a subscription.
 func (c *Client) GetSubscriptionVersionsRelationships(ctx context.Context, subscriptionID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
 	return c.getSubscriptionVersionLinkages(ctx, subscriptionID, "/v1/subscriptions/%s/relationships/versions", "subscriptionVersionsRelationships", opts...)

@@ -37,13 +37,6 @@ type AppStoreVersionPhasedReleaseResponse struct {
 	Links Links                                             `json:"links"`
 }
 
-// AppStoreVersionPhasedReleaseCreateData represents the data for creating a phased release.
-type AppStoreVersionPhasedReleaseCreateData struct {
-	Type          ResourceType                                  `json:"type"`
-	Attributes    *AppStoreVersionPhasedReleaseCreateAttributes `json:"attributes,omitempty"`
-	Relationships AppStoreVersionPhasedReleaseRelationships     `json:"relationships"`
-}
-
 // AppStoreVersionPhasedReleaseCreateAttributes represents attributes for creating a phased release.
 type AppStoreVersionPhasedReleaseCreateAttributes struct {
 	PhasedReleaseState PhasedReleaseState `json:"phasedReleaseState,omitempty"`

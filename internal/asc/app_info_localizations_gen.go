@@ -14,6 +14,11 @@ type AppInfoLocalizationCreateRequest struct {
 	Data AppInfoLocalizationCreateData `json:"data"`
 }
 
+// AppInfoLocalizationRelationships is the data.relationships object of the AppInfoLocalizationCreateRequest schema.
+type AppInfoLocalizationRelationships struct {
+	AppInfo *Relationship `json:"appInfo"`
+}
+
 // AppInfoLocalizationResponse is the AppInfoLocalizationResponse schema.
 type AppInfoLocalizationResponse = SingleResponse[AppInfoLocalizationAttributes]
 

@@ -14,6 +14,13 @@ type BetaAppClipInvocationCreateAttributes struct {
 	URL string `json:"url"`
 }
 
+// BetaAppClipInvocationCreateData is the data object of the BetaAppClipInvocationCreateRequest schema.
+type BetaAppClipInvocationCreateData struct {
+	Type          ResourceType                          `json:"type"`
+	Attributes    BetaAppClipInvocationCreateAttributes `json:"attributes"`
+	Relationships *BetaAppClipInvocationRelationships   `json:"relationships,omitempty"`
+}
+
 // BetaAppClipInvocationUpdateAttributes is the data.attributes object of the BetaAppClipInvocationUpdateRequest schema.
 type BetaAppClipInvocationUpdateAttributes struct {
 	URL *string `json:"url,omitempty"`

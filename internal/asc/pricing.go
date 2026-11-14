@@ -61,19 +61,6 @@ type AppPriceScheduleCreateRequest struct {
 	Included []AppPriceCreateResource   `json:"included,omitempty"`
 }
 
-// AppPriceScheduleCreateData is the data portion of a schedule create request.
-type AppPriceScheduleCreateData struct {
-	Type          ResourceType                        `json:"type"`
-	Relationships AppPriceScheduleCreateRelationships `json:"relationships"`
-}
-
-// AppPriceScheduleCreateRelationships describes schedule relationships.
-type AppPriceScheduleCreateRelationships struct {
-	App           Relationship     `json:"app"`
-	BaseTerritory Relationship     `json:"baseTerritory"`
-	ManualPrices  RelationshipList `json:"manualPrices"`
-}
-
 // AppPriceCreateResource represents an app price resource for schedule creation.
 type AppPriceCreateResource struct {
 	Type          ResourceType          `json:"type"`
@@ -152,14 +139,3 @@ type TerritoryAvailabilityUpdateAttributes struct {
 
 // EndAppAvailabilityPreOrderAttributes describes the end pre-order response attributes.
 type EndAppAvailabilityPreOrderAttributes struct{}
-
-// EndAppAvailabilityPreOrderCreateData is the data portion of a pre-order end request.
-type EndAppAvailabilityPreOrderCreateData struct {
-	Type          ResourceType                            `json:"type"`
-	Relationships EndAppAvailabilityPreOrderRelationships `json:"relationships"`
-}
-
-// EndAppAvailabilityPreOrderRelationships describes pre-order end relationships.
-type EndAppAvailabilityPreOrderRelationships struct {
-	TerritoryAvailabilities RelationshipList `json:"territoryAvailabilities"`
-}

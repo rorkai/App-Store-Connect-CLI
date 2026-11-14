@@ -2,8 +2,12 @@
   "tag": "ReviewSubmissionItems",
   "file": "review_submission_items_gen.go",
   "types": [
+    "ReviewSubmissionItemCreateData",
     "ReviewSubmissionItemCreateRequest",
     "ReviewSubmissionItemUpdateRequest"
+  ],
+  "relationships": [
+    {"data":"ReviewSubmissionItemCreateData","type":"ReviewSubmissionItemCreateRelationships"}
   ],
   "operations": [
     {"operation":"reviewSubmissionItems_deleteInstance","name":"DeleteReviewSubmissionItem","params":["itemID"],"check":"require"}
