@@ -568,12 +568,10 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*versionID) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return shared.MissingRequiredUsageError("--version-id")
+				return shared.RequiredFlag("--version-id")
 			}
 			if strings.TrimSpace(*outputDir) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --output-dir is required")
-				return shared.MissingRequiredUsageError("--output-dir")
+				return shared.RequiredFlag("--output-dir")
 			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
@@ -1386,8 +1384,7 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*fastlaneDir) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --fastlane-dir is required")
-				return shared.MissingRequiredUsageError("--fastlane-dir")
+				return shared.RequiredFlag("--fastlane-dir")
 			}
 
 			workDir, err := os.Getwd()
