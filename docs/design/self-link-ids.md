@@ -279,7 +279,7 @@ without an `-id` suffix. They are wired the same way now:
   `asc app-setup categories set`, `asc categories set`) keep their plain
   string flag, so help is unchanged, and normalize it with
   `shared.AppIDFlagValue`. A link of another type there prints the same
-  `invalid value ... for flag -app` message and exits 2 before any request.
+  `invalid value ... for flag --app` message and exits 2 before any request.
 
 Flags wired in this pass (382 command flags in the tree):
 
