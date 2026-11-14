@@ -18,7 +18,7 @@ func TestReadDeviceBatchTSVAcceptsHeaderCommentsBlankRowsAndDefaultPlatform(t *t
 		"",
 	}, "\n"))
 
-	records, err := readDeviceBatchTSV(path, "MAC_OS")
+	records, err := readDeviceBatchTSV(newTestDeps(), path, "MAC_OS")
 	if err != nil {
 		t.Fatalf("readDeviceBatchTSV() error: %v", err)
 	}
@@ -36,7 +36,7 @@ func TestReadDeviceBatchTSVAcceptsHeaderCommentsBlankRowsAndDefaultPlatform(t *t
 func TestReadDeviceBatchTSVAcceptsHeaderlessRows(t *testing.T) {
 	path := writeDeviceBatchTestFile(t, "UDID-1\tDevice One\nUDID-2\tDevice Two\tmac_os\n")
 
-	records, err := readDeviceBatchTSV(path, "IOS")
+	records, err := readDeviceBatchTSV(newTestDeps(), path, "IOS")
 	if err != nil {
 		t.Fatalf("readDeviceBatchTSV() error: %v", err)
 	}
@@ -65,7 +65,7 @@ func TestReadDeviceBatchTSVRejectsInvalidRowsBeforeMutation(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			path := writeDeviceBatchTestFile(t, test.contents)
-			_, err := readDeviceBatchTSV(path, test.defaultPlatform)
+			_, err := readDeviceBatchTSV(newTestDeps(), path, test.defaultPlatform)
 			if err == nil || !strings.Contains(err.Error(), test.want) {
 				t.Fatalf("expected error containing %q, got %v", test.want, err)
 			}
@@ -76,7 +76,7 @@ func TestReadDeviceBatchTSVRejectsInvalidRowsBeforeMutation(t *testing.T) {
 func TestReadDeviceBatchTSVFromReaderRejectsInputBeyondLimit(t *testing.T) {
 	contents := "UDID-1\tDevice One\tIOS\n#" + strings.Repeat("x", maxDeviceBatchFileSize)
 
-	_, err := readDeviceBatchTSVFromReader(strings.NewReader(contents), "IOS")
+	_, err := readDeviceBatchTSVFromReader(newTestDeps(), strings.NewReader(contents), "IOS")
 	if err == nil || !strings.Contains(err.Error(), "device file exceeds") {
 		t.Fatalf("expected size-limit error, got %v", err)
 	}

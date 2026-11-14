@@ -1,16 +1,22 @@
 package artifacts
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"strings"
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/artifacts"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
+func newTestDeps() *shared.Deps {
+	return &shared.Deps{IO: &shared.IO{Out: &bytes.Buffer{}, ErrOut: &bytes.Buffer{}}}
+}
+
 func TestIPAInfoRequiresPath(t *testing.T) {
-	cmd := IPAInfoCommand()
+	cmd := NewIPAInfoCommand(newTestDeps())
 	if err := cmd.Parse([]string{"--output", "json"}); err != nil {
 		t.Fatal(err)
 	}
@@ -21,7 +27,7 @@ func TestIPAInfoRequiresPath(t *testing.T) {
 }
 
 func TestPKGInfoRequiresPath(t *testing.T) {
-	cmd := PKGInfoCommand()
+	cmd := NewPKGInfoCommand(newTestDeps())
 	if err := cmd.Parse([]string{}); err != nil {
 		t.Fatal(err)
 	}

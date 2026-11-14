@@ -235,11 +235,13 @@ func TestAccountAndDistributionInputValidationReturnsUsageExitCode(t *testing.T)
 			name:    "devices view invalid fields",
 			args:    []string{"devices", "view", "--id", "DEVICE_ID", "--fields", "bad"},
 			wantErr: "devices view: --fields must be one of: addedDate, deviceClass, model, name, platform, status, udid",
+			deps:    true,
 		},
 		{
 			name:    "devices update invalid status",
 			args:    []string{"devices", "update", "--id", "DEVICE_ID", "--status", "bad"},
 			wantErr: "devices update: --status must be one of: ENABLED, DISABLED",
+			deps:    true,
 		},
 		{
 			name:    "iap promoted-purchases list next",

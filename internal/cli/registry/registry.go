@@ -163,7 +163,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("actors", "Lookup actors (users, API keys) by ID.", func() *ffcli.Command {
 			return actors.NewActorsCommand(d)
 		}),
-		commandFactory("devices", "Manage devices in App Store Connect.", devices.DevicesCommand),
+		commandFactory("devices", "Manage devices in App Store Connect.", func() *ffcli.Command {
+			return devices.NewDevicesCommand(d)
+		}),
 		commandFactory("testflight", "Manage TestFlight workflows.", testflight.TestFlightCommand),
 		commandFactory("builds", "Manage builds in App Store Connect.", builds.BuildsCommand),
 		commandFactory("build-bundles", "Manage build bundles and App Clip data.", buildbundles.BuildBundlesCommand),
@@ -172,8 +174,12 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("workflow", "Run multi-step automation workflows.", workflow.WorkflowCommand),
 		commandFactory("xcode", "Local Xcode build/archive/export and signing-settings helpers.", xcode.XcodeCommand),
 		commandFactory("distribute", "Plan, execute, inspect, and publish iOS distribution artifacts.", distribute.DistributeCommand),
-		commandFactory("ipa-info", "Inspect a local IPA without contacting App Store Connect.", artifacts.IPAInfoCommand),
-		commandFactory("pkg-info", "Inspect a local flat package or product archive without contacting Apple.", artifacts.PKGInfoCommand),
+		commandFactory("ipa-info", "Inspect a local IPA without contacting App Store Connect.", func() *ffcli.Command {
+			return artifacts.NewIPAInfoCommand(d)
+		}),
+		commandFactory("pkg-info", "Inspect a local flat package or product archive without contacting Apple.", func() *ffcli.Command {
+			return artifacts.NewPKGInfoCommand(d)
+		}),
 		commandFactory("versions", "Manage App Store versions.", versions.VersionsCommand),
 		commandFactory("product-pages", "Manage custom product pages and product page experiments.", productpages.ProductPagesCommand),
 		commandFactory("routing-coverage", "Manage routing app coverage files.", routingcoverage.RoutingCoverageCommand),
@@ -221,7 +227,7 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 			return VersionCommand(version)
 		}),
 		commandFactory("completion", "Print shell completion scripts.", func() *ffcli.Command {
-			return completion.CompletionCommand(catalog.All, func() *flag.FlagSet {
+			return completion.NewCompletionCommand(d, catalog.All, func() *flag.FlagSet {
 				return catalog.rootFlagSet
 			})
 		}),
