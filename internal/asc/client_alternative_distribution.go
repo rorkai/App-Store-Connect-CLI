@@ -148,16 +148,3 @@ func (c *Client) GetAlternativeDistributionPackageVersionDeltas(ctx context.Cont
 		ParseErr:    "failed to parse alternative distribution package deltas response",
 	})
 }
-
-// GetAppAlternativeDistributionKey retrieves an app's alternative distribution key.
-func (c *Client) GetAppAlternativeDistributionKey(ctx context.Context, appID string) (*AlternativeDistributionKeyResponse, error) {
-	appID = strings.TrimSpace(appID)
-	if appID == "" {
-		return nil, fmt.Errorf("appID is required")
-	}
-
-	return getJSON[AlternativeDistributionKeyResponse](ctx, c, readRequest{
-		Path:     fmt.Sprintf("/v1/apps/%s/alternativeDistributionKey", appID),
-		ParseErr: "failed to parse alternative distribution key response",
-	})
-}
