@@ -20,6 +20,7 @@ import (
 	"sync"
 	"syscall"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
@@ -6030,7 +6031,10 @@ func TestRevalidateMatrixFramedPathsUsesPerArtifactBudget(t *testing.T) {
 		deadlines = append(deadlines, deadline)
 	}
 	t.Cleanup(func() { matrixFramedVerificationContextForTest = previousContextHook })
-	if err := revalidateMatrixFramedPathsWithRoot(context.Background(), result, 20*time.Millisecond, nil); err != nil {
+	synctest.Test(t, func(*testing.T) {
+		err = revalidateMatrixFramedPathsWithRoot(context.Background(), result, 20*time.Millisecond, nil)
+	})
+	if err != nil {
 		t.Fatalf("revalidateMatrixFramedPathsWithRoot() error = %v, want each artifact to receive its own budget", err)
 	}
 	if got := result.Cells[0].FramedPaths; !reflect.DeepEqual(got, paths) {
@@ -6182,7 +6186,10 @@ func TestRevalidateMatrixFramedPathsChildTimeoutKeepsPartialReviewTruth(t *testi
 		}
 	}
 	t.Cleanup(func() { matrixFramedVerificationContextForTest = previousHook })
-	if err := revalidateMatrixFramedPathsWithRoot(context.Background(), result, 20*time.Millisecond, nil); err == nil {
+	synctest.Test(t, func(*testing.T) {
+		err = revalidateMatrixFramedPathsWithRoot(context.Background(), result, 20*time.Millisecond, nil)
+	})
+	if err == nil {
 		t.Fatal("revalidateMatrixFramedPathsWithRoot() error = nil, want child timeout")
 	} else if errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("revalidateMatrixFramedPathsWithRoot() error = %v, want bounded non-context failure", err)
@@ -6581,7 +6588,10 @@ func TestRevalidateMatrixRawPathsUsesPerArtifactBudget(t *testing.T) {
 	}
 	t.Cleanup(func() { matrixRawVerificationContextForTest = previousContextHook })
 
-	if err := revalidateMatrixRawPathsWithRoot(context.Background(), result, 20*time.Millisecond, nil); err != nil {
+	synctest.Test(t, func(*testing.T) {
+		err = revalidateMatrixRawPathsWithRoot(context.Background(), result, 20*time.Millisecond, nil)
+	})
+	if err != nil {
 		t.Fatalf("revalidateMatrixRawPathsWithRoot() error = %v, want each artifact to receive its own budget", err)
 	}
 	if got := result.Cells[0].RawPaths; !reflect.DeepEqual(got, paths) {
