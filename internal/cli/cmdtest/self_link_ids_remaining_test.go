@@ -230,6 +230,7 @@ func TestSelfLinkRemainingFlagsRejectWrongType(t *testing.T) {
 		flag    string
 		value   string
 		wantErr string
+		deps    bool // the command is built on shared.Deps: run it through RunWithDeps
 	}{
 		{
 			name:    "webhooks view rejects apps link",
@@ -251,6 +252,7 @@ func TestSelfLinkRemainingFlagsRejectWrongType(t *testing.T) {
 			flag:    "webhook-id",
 			value:   selfLinkTestBase + "/v1/webhooks/webhook-1",
 			wantErr: "expected a self-link of type marketplaceWebhooks, got webhooks",
+			deps:    true,
 		},
 		{
 			name:    "certificates create rejects apps link for merchant",
@@ -418,12 +420,21 @@ func TestSelfLinkRemainingFlagsRejectWrongType(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			args := append(append([]string(nil), test.args...), "--"+test.flag, test.value)
-			stdout, stderr := captureOutput(t, func() {
-				code := rootcmd.Run(args, "1.2.3")
+			var stdout, stderr string
+			if test.deps {
+				var code int
+				stdout, stderr, code = runWithDeps(t, nil, args...)
 				if code != rootcmd.ExitUsage {
 					t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
 				}
-			})
+			} else {
+				stdout, stderr = captureOutput(t, func() {
+					code := rootcmd.Run(args, "1.2.3")
+					if code != rootcmd.ExitUsage {
+						t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
+					}
+				})
+			}
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
 			}

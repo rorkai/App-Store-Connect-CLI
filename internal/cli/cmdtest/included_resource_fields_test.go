@@ -37,6 +37,9 @@ type includedFieldsCase struct {
 	// rejected lists fields[type] values the spec allows on this command but
 	// Apple rejected live.
 	rejected map[string][]string
+	// deps marks a command built on shared.Deps: run it on test deps with a
+	// client that sends every request to the test server.
+	deps bool
 	// removed lists field flags the command must not define because Apple
 	// rejected every value live.
 	removed []string
@@ -246,12 +249,14 @@ func includedFieldsCases() []includedFieldsCase {
 			command: []string{"nominations", "list"}, selector: []string{"--status", "DRAFT"},
 			include: nominationIncludes, path: "/v1/nominations", query: map[string]string{"filter[state]": "DRAFT"},
 			flags: nominationIncludedFieldFlags, removed: []string{"app-event-fields", "territory-fields"},
+			deps: true,
 		},
 		{
 			name: "nominations view", operation: "nominations_getInstance", resource: true, noNext: true,
 			command: []string{"nominations", "view"}, selector: []string{"--id", "nomination-1"},
 			include: nominationIncludes, path: "/v1/nominations/nomination-1",
 			flags: nominationIncludedFieldFlags, removed: []string{"app-event-fields", "territory-fields"},
+			deps: true,
 		},
 		{
 			name: "testflight testers list", operation: "betaTesters_getCollection",
@@ -368,7 +373,7 @@ func TestIncludedResourceFieldFlags(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	var requests []*url.URL
-	var resource bool
+	var resource, deps bool
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		requests = append(requests, req.URL)
 		w.Header().Set("Content-Type", "application/json")
@@ -380,11 +385,28 @@ func TestIncludedResourceFieldFlags(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 	installDefaultTransportForServer(t, server)
+	serverURL, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf("parse server URL: %v", err)
+	}
+	depsClient := stubClient(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		cloned := req.Clone(req.Context())
+		cloned.URL.Scheme = serverURL.Scheme
+		cloned.URL.Host = serverURL.Host
+		return server.Client().Transport.RoundTrip(cloned)
+	}))
+	runRoot := func(t *testing.T, args []string) (string, string, error) {
+		t.Helper()
+		if deps {
+			return runRootWithDeps(t, depsClient, args...)
+		}
+		return runRootCommand(t, args)
+	}
 
 	run := func(t *testing.T, args []string) (*url.URL, error) {
 		t.Helper()
 		requests = nil
-		_, stderr, err := runRootCommand(t, append(args, "--output", "json"))
+		_, stderr, err := runRoot(t, append(args, "--output", "json"))
 		if err != nil {
 			return nil, err
 		}
@@ -396,7 +418,7 @@ func TestIncludedResourceFieldFlags(t *testing.T) {
 	assertUsageError := func(t *testing.T, args []string, want string) {
 		t.Helper()
 		requests = nil
-		_, _, err := runRootCommand(t, append(args, "--output", "json"))
+		_, _, err := runRoot(t, append(args, "--output", "json"))
 		if err == nil || !strings.Contains(err.Error(), want) {
 			t.Fatalf("error = %v, want it to mention %q", err, want)
 		}
@@ -411,6 +433,7 @@ func TestIncludedResourceFieldFlags(t *testing.T) {
 	for _, tc := range includedFieldsCases() {
 		t.Run(tc.name, func(t *testing.T) {
 			resource = tc.resource
+			deps = tc.deps
 			allowed := openAPIFieldValues(t, tc.operation)
 			selected := slices.Concat(tc.command, tc.selector)
 
@@ -473,10 +496,16 @@ func TestIncludedResourceFieldFlags(t *testing.T) {
 
 			for _, flagName := range tc.removed {
 				requests = nil
+				removedArgs := slices.Concat(selected, []string{"--include", tc.include, "--" + flagName, "name"})
 				var code int
-				_, stderr := captureOutput(t, func() {
-					code = rootcmd.Run(slices.Concat(selected, []string{"--include", tc.include, "--" + flagName, "name"}), "1.2.3")
-				})
+				var stderr string
+				if deps {
+					_, stderr, code = runWithDeps(t, depsClient, removedArgs...)
+				} else {
+					_, stderr = captureOutput(t, func() {
+						code = rootcmd.Run(removedArgs, "1.2.3")
+					})
+				}
 				if code != rootcmd.ExitUsage || !strings.Contains(stderr, "unknown flag `--"+flagName+"`") || len(requests) != 0 {
 					t.Fatalf("--%s: exit %d, stderr %q, requests %v; want an unknown-flag usage error before any request", flagName, code, stderr, requests)
 				}

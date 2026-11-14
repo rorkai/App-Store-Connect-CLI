@@ -55,19 +55,20 @@ func TestRepeatedCSVFlagRejectedAcrossConvertedCommands(t *testing.T) {
 		name    string
 		command []string
 		flag    string
+		deps    bool // the command is built on shared.Deps: run it through RunWithDeps
 	}{
-		{name: "nominations create app", command: []string{"nominations", "create"}, flag: "app"},
-		{name: "nominations create device families", command: []string{"nominations", "create"}, flag: "device-families"},
-		{name: "nominations create locales", command: []string{"nominations", "create"}, flag: "locales"},
-		{name: "nominations create supplemental materials uris", command: []string{"nominations", "create"}, flag: "supplemental-materials-uris"},
-		{name: "nominations create in-app events", command: []string{"nominations", "create"}, flag: "in-app-events"},
-		{name: "nominations create supported territories", command: []string{"nominations", "create"}, flag: "supported-territories"},
-		{name: "nominations update app", command: []string{"nominations", "update"}, flag: "app"},
-		{name: "nominations update device families", command: []string{"nominations", "update"}, flag: "device-families"},
-		{name: "nominations update locales", command: []string{"nominations", "update"}, flag: "locales"},
-		{name: "nominations update supplemental materials uris", command: []string{"nominations", "update"}, flag: "supplemental-materials-uris"},
-		{name: "nominations update in-app events", command: []string{"nominations", "update"}, flag: "in-app-events"},
-		{name: "nominations update supported territories", command: []string{"nominations", "update"}, flag: "supported-territories"},
+		{name: "nominations create app", command: []string{"nominations", "create"}, flag: "app", deps: true},
+		{name: "nominations create device families", command: []string{"nominations", "create"}, flag: "device-families", deps: true},
+		{name: "nominations create locales", command: []string{"nominations", "create"}, flag: "locales", deps: true},
+		{name: "nominations create supplemental materials uris", command: []string{"nominations", "create"}, flag: "supplemental-materials-uris", deps: true},
+		{name: "nominations create in-app events", command: []string{"nominations", "create"}, flag: "in-app-events", deps: true},
+		{name: "nominations create supported territories", command: []string{"nominations", "create"}, flag: "supported-territories", deps: true},
+		{name: "nominations update app", command: []string{"nominations", "update"}, flag: "app", deps: true},
+		{name: "nominations update device families", command: []string{"nominations", "update"}, flag: "device-families", deps: true},
+		{name: "nominations update locales", command: []string{"nominations", "update"}, flag: "locales", deps: true},
+		{name: "nominations update supplemental materials uris", command: []string{"nominations", "update"}, flag: "supplemental-materials-uris", deps: true},
+		{name: "nominations update in-app events", command: []string{"nominations", "update"}, flag: "in-app-events", deps: true},
+		{name: "nominations update supported territories", command: []string{"nominations", "update"}, flag: "supported-territories", deps: true},
 		{name: "profiles create certificate", command: []string{"profiles", "create"}, flag: "certificate"},
 		{name: "profiles create device", command: []string{"profiles", "create"}, flag: "device"},
 		{name: "win-back offers create price", command: []string{"subscriptions", "offers", "win-back", "create"}, flag: "price"},
@@ -81,7 +82,11 @@ func TestRepeatedCSVFlagRejectedAcrossConvertedCommands(t *testing.T) {
 			args := append([]string{}, test.command...)
 			args = append(args, "--"+test.flag, "ONE", "--"+test.flag, "TWO")
 
-			assertUsageExit(t, args, repeatedCSVFlagMessage(test.flag, "ONE", "TWO"))
+			if test.deps {
+				assertUsageExitWithDeps(t, nil, args, repeatedCSVFlagMessage(test.flag, "ONE", "TWO"))
+			} else {
+				assertUsageExit(t, args, repeatedCSVFlagMessage(test.flag, "ONE", "TWO"))
+			}
 		})
 	}
 }
@@ -105,7 +110,7 @@ func TestExplicitEmptyCSVFlagKeepsExistingValidation(t *testing.T) {
 	t.Run("empty update flag stays a visited flag", func(t *testing.T) {
 		isolateRepeatedCSVFlagEnv(t)
 
-		assertUsageExit(t, []string{
+		assertUsageExitWithDeps(t, nil, []string{
 			"nominations", "update",
 			"--id", "NOMINATION_ID",
 			"--submitted=false",

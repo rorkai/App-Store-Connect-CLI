@@ -295,56 +295,67 @@ func TestAccountAndDistributionInputValidationReturnsUsageExitCode(t *testing.T)
 			name:    "nominations list in-app-events-limit",
 			args:    []string{"nominations", "list", "--in-app-events-limit", "51"},
 			wantErr: "nominations list: --in-app-events-limit must be between 1 and 50",
+			deps:    true,
 		},
 		{
 			name:    "nominations list limit",
 			args:    []string{"nominations", "list", "--limit", "201"},
 			wantErr: "nominations list: --limit must be between 1 and 200",
+			deps:    true,
 		},
 		{
 			name:    "nominations list next",
 			args:    []string{"nominations", "list", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
 			wantErr: "nominations list: --next must be an App Store Connect URL",
+			deps:    true,
 		},
 		{
 			name:    "nominations list related-apps-limit",
 			args:    []string{"nominations", "list", "--related-apps-limit", "51"},
 			wantErr: "nominations list: --related-apps-limit must be between 1 and 50",
+			deps:    true,
 		},
 		{
 			name:    "nominations list supported-territories-limit",
 			args:    []string{"nominations", "list", "--supported-territories-limit", "201"},
 			wantErr: "nominations list: --supported-territories-limit must be between 1 and 200",
+			deps:    true,
 		},
 		{
 			name:    "nominations view in-app-events-limit",
 			args:    []string{"nominations", "view", "--id", "N", "--in-app-events-limit", "51"},
 			wantErr: "nominations view: --in-app-events-limit must be between 1 and 50",
+			deps:    true,
 		},
 		{
 			name:    "nominations view related-apps-limit",
 			args:    []string{"nominations", "view", "--id", "N", "--related-apps-limit", "51"},
 			wantErr: "nominations view: --related-apps-limit must be between 1 and 50",
+			deps:    true,
 		},
 		{
 			name:    "nominations view supported-territories-limit",
 			args:    []string{"nominations", "view", "--id", "N", "--supported-territories-limit", "201"},
 			wantErr: "nominations view: --supported-territories-limit must be between 1 and 200",
+			deps:    true,
 		},
 		{
 			name:    "marketplace search-details view invalid fields",
 			args:    []string{"marketplace", "search-details", "view", "--app", "APP_ID", "--fields", "bad"},
 			wantErr: "marketplace search-details view: --fields must be one of: catalogUrl",
+			deps:    true,
 		},
 		{
 			name:    "nominations list invalid status",
 			args:    []string{"nominations", "list", "--status", "bad"},
 			wantErr: "nominations list: --status must be one of: DRAFT, SUBMITTED, ARCHIVED",
+			deps:    true,
 		},
 		{
 			name:    "nominations view invalid fields",
 			args:    []string{"nominations", "view", "--id", "NOMINATION_ID", "--fields", "bad"},
 			wantErr: "nominations view: --fields must be one of: name, type, description, createdDate, lastModifiedDate, submittedDate, state, publishStartDate, publishEndDate, deviceFamilies, locales, supplementalMaterialsUris, hasInAppEvents, launchInSelectMarketsFirst, notes, preOrderEnabled, relatedApps, createdByActor, lastModifiedByActor, submittedByActor, inAppEvents, supportedTerritories",
+			deps:    true,
 		},
 		{
 			name:    "pass-type-ids certificates list limit",
@@ -665,7 +676,7 @@ func TestMarketplaceWebhooksInputValidationReturnsUsageExitCode(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			stdout, stderr, runErr := runCommand(t, test.args)
+			stdout, stderr, runErr := runRootWithDeps(t, nil, test.args...)
 
 			if runErr == nil {
 				t.Fatal("expected error, got nil")

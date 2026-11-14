@@ -16,6 +16,7 @@ func TestReadCommandsPrintAppleNullAndEmptyAttributes(t *testing.T) {
 		args      []string
 		responses map[string]string
 		attrs     map[string]string
+		deps      bool // the command is built on shared.Deps: run it on test deps
 	}{
 		{
 			name: "review details-get",
@@ -77,6 +78,7 @@ func TestReadCommandsPrintAppleNullAndEmptyAttributes(t *testing.T) {
 				"gracRatingClassificationNumber": "null",
 				"kidsAgeBand":                    "null",
 			},
+			deps: true,
 		},
 		{
 			name: "builds test-notes list",
@@ -117,13 +119,19 @@ func TestReadCommandsPrintAppleNullAndEmptyAttributes(t *testing.T) {
 			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			for request, body := range test.responses {
 				path, query, _ := strings.Cut(request, "?")
 				reg.Register(asctest.GET(path, query), asctest.JSON(http.StatusOK, body))
 			}
 
-			stdout, _, err := runCommand(t, append(test.args, "--output", "json"))
+			var stdout string
+			var err error
+			if test.deps {
+				stdout, _, err = runRootWithDeps(t, stubClient(t, reg), append(test.args, "--output", "json")...)
+			} else {
+				reg.Install()
+				stdout, _, err = runCommand(t, append(test.args, "--output", "json"))
+			}
 			if err != nil {
 				t.Fatalf("run error: %v", err)
 			}

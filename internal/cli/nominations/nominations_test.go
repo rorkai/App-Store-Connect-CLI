@@ -1,73 +1,68 @@
 package nominations
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"flag"
 	"testing"
 
+	"github.com/peterbourgon/ff/v3/ffcli"
+
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestNominationsValidationErrors(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
-	t.Run("list missing status", func(t *testing.T) {
-		cmd := NominationsListCommand()
-		if err := cmd.FlagSet.Parse([]string{}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := cmd.Exec(context.Background(), nil); !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
+	tests := []struct {
+		name       string
+		newCommand func(*shared.Deps) *ffcli.Command
+		args       []string
+		wantStderr string
+	}{
+		{name: "list missing status", newCommand: newNominationsListCommand, wantStderr: "Error: --status is required\n"},
+		{name: "get missing id", newCommand: newNominationsGetCommand, wantStderr: "Error: --id is required\n"},
+		{
+			name:       "create missing submitted flag",
+			newCommand: newNominationsCreateCommand,
+			args: []string{
+				"--app", "APP_ID",
+				"--name", "Launch",
+				"--type", "APP_LAUNCH",
+				"--description", "Desc",
+				"--publish-start-date", "2026-02-01T08:00:00Z",
+			},
+			wantStderr: "Error: --submitted is required\n",
+		},
+		{name: "update missing submitted and archived", newCommand: newNominationsUpdateCommand, args: []string{"--id", "NOM_ID", "--notes", "updated"}, wantStderr: "Error: --submitted or --archived is required by Apple's live API\n"},
+		{name: "delete missing confirm", newCommand: newNominationsDeleteCommand, args: []string{"--id", "NOM_ID"}, wantStderr: "Error: --confirm is required to delete\n"},
+	}
 
-	t.Run("get missing id", func(t *testing.T) {
-		cmd := NominationsGetCommand()
-		if err := cmd.FlagSet.Parse([]string{}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := cmd.Exec(context.Background(), nil); !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	t.Run("create missing submitted flag", func(t *testing.T) {
-		cmd := NominationsCreateCommand()
-		args := []string{
-			"--app", "APP_ID",
-			"--name", "Launch",
-			"--type", "APP_LAUNCH",
-			"--description", "Desc",
-			"--publish-start-date", "2026-02-01T08:00:00Z",
-		}
-		if err := cmd.FlagSet.Parse(args); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := cmd.Exec(context.Background(), nil); !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	t.Run("update missing submitted and archived", func(t *testing.T) {
-		cmd := NominationsUpdateCommand()
-		if err := cmd.FlagSet.Parse([]string{"--id", "NOM_ID", "--notes", "updated"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := cmd.Exec(context.Background(), nil); !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
-
-	t.Run("delete missing confirm", func(t *testing.T) {
-		cmd := NominationsDeleteCommand()
-		if err := cmd.FlagSet.Parse([]string{"--id", "NOM_ID"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := cmd.Exec(context.Background(), nil); !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var stdout, stderr bytes.Buffer
+			cmd := test.newCommand(&shared.Deps{
+				Client: func() (*asc.Client, error) {
+					return nil, errors.New("unexpected client request")
+				},
+				IO: &shared.IO{Out: &stdout, ErrOut: &stderr},
+			})
+			if err := cmd.FlagSet.Parse(test.args); err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
+			if err := cmd.Exec(context.Background(), nil); !errors.Is(err, flag.ErrHelp) {
+				t.Fatalf("expected ErrHelp, got %v", err)
+			}
+			if got := stderr.String(); got != test.wantStderr {
+				t.Fatalf("stderr = %q, want %q", got, test.wantStderr)
+			}
+			if stdout.Len() != 0 {
+				t.Fatalf("stdout = %q, want empty", stdout.String())
+			}
+		})
+	}
 }
 
 func TestNominationHelpers(t *testing.T) {

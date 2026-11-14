@@ -156,8 +156,8 @@ func runPaginateFromNextCases(t *testing.T, cases []paginateFromNextCase) {
 func TestCoreListsRejectsInvalidNextURL(t *testing.T) {
 	runInvalidNextURLCases(t, []invalidNextURLCase{
 		{args: []string{"certificates", "list"}, wantErr: "certificates list: --next"},
-		{args: []string{"nominations", "list", "--status", "DRAFT"}, wantErr: "nominations list: --next"},
-		{args: []string{"accessibility", "list"}, wantErr: "accessibility list: --next"},
+		{args: []string{"nominations", "list", "--status", "DRAFT"}, wantErr: "nominations list: --next", deps: true},
+		{args: []string{"accessibility", "list"}, wantErr: "accessibility list: --next", deps: true},
 		{args: []string{"actors", "list"}, wantErr: "actors list: --next", deps: true},
 		{args: []string{"android-ios-mapping", "list", "--app", "app-1"}, wantErr: "android-ios-mapping list: --next"},
 		{args: []string{"testflight", "feedback", "list"}, wantErr: "testflight feedback list: --next"},
@@ -183,11 +183,13 @@ func TestCoreListsPaginateFromNext(t *testing.T) {
 			args:     []string{"nominations", "list"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/nominations?cursor=AQ&limit=200",
 			dataType: "nominations",
+			deps:     true,
 		},
 		{
 			args:     []string{"accessibility", "list"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/apps/app-1/accessibilityDeclarations?cursor=AQ&limit=200",
 			dataType: "accessibilityDeclarations",
+			deps:     true,
 		},
 		{
 			args:     []string{"actors", "list"},

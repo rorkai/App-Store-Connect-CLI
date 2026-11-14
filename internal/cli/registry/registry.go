@@ -150,10 +150,14 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("android-ios-mapping", "Manage Android-to-iOS app mapping details.", androidiosmapping.AndroidIosMappingCommand),
 		commandFactory("app-setup", "Post-create app setup automation.", apps.AppSetupCommand),
 		commandFactory("app-tags", "Inspect Apple-generated App Store discoverability tags.", apps.AppTagsCommand),
-		commandFactory("marketplace", "Manage marketplace resources.", marketplace.MarketplaceCommand),
+		commandFactory("marketplace", "Manage marketplace resources.", func() *ffcli.Command {
+			return marketplace.NewMarketplaceCommand(d)
+		}),
 		commandFactory("alternative-distribution", "Manage alternative distribution resources.", alternativedistribution.Command),
 		commandFactory("webhooks", "Manage webhooks in App Store Connect.", webhooks.WebhooksCommand),
-		commandFactory("nominations", "Manage featuring nominations.", nominations.NominationsCommand),
+		commandFactory("nominations", "Manage featuring nominations.", func() *ffcli.Command {
+			return nominations.NewNominationsCommand(d)
+		}),
 		commandFactory("bundle-ids", "Manage bundle IDs and capabilities.", bundleids.BundleIDsCommand),
 		commandFactory("merchant-ids", "Manage merchant IDs and certificates.", merchantids.MerchantIDsCommand),
 		commandFactory("certificates", "Manage signing certificates.", certificates.CertificatesCommand),
@@ -201,8 +205,12 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("validate", "Canonical App Store submission readiness report.", validate.ValidateCommand),
 		commandFactory("xcode-cloud", "Trigger and monitor Xcode Cloud workflows.", xcodecloud.XcodeCloudCommand),
 		commandFactory("categories", "Manage App Store categories.", categories.CategoriesCommand),
-		commandFactory("age-rating", "Manage App Store age rating declarations.", agerating.AgeRatingCommand),
-		commandFactory("accessibility", "Manage accessibility declarations.", accessibility.AccessibilityCommand),
+		commandFactory("age-rating", "Manage App Store age rating declarations.", func() *ffcli.Command {
+			return agerating.NewAgeRatingCommand(d)
+		}),
+		commandFactory("accessibility", "Manage accessibility declarations.", func() *ffcli.Command {
+			return accessibility.NewAccessibilityCommand(d)
+		}),
 		commandFactory("encryption", "Manage app encryption declarations and documents.", encryption.EncryptionCommand),
 		commandFactory("migrate", "Migrate metadata from/to fastlane format.", migrate.MigrateCommand),
 		commandFactory("notify", "Send notifications to external services.", notify.NotifyCommand),
