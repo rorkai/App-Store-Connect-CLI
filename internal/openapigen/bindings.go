@@ -20,11 +20,12 @@ type Bindings struct {
 
 // Family is one spec tag generated into one file.
 type Family struct {
-	Tag           string     `json:"tag"`
-	File          string     `json:"file"`
-	Types         []string   `json:"types,omitempty"`
-	Relationships []*RelBind `json:"relationships,omitempty"`
-	Operations    []*OpBind  `json:"operations,omitempty"`
+	Tag           string       `json:"tag"`
+	File          string       `json:"file"`
+	Types         []string     `json:"types,omitempty"`
+	Relationships []*RelBind   `json:"relationships,omitempty"`
+	Operations    []*OpBind    `json:"operations,omitempty"`
+	Queries       []*QueryBind `json:"queries,omitempty"`
 }
 
 // RelBind is the relationships field of a create's data type, as the
@@ -187,6 +188,14 @@ func (f *Family) Encode() ([]byte, error) {
 	}
 	if len(ops) > 0 {
 		fields = append(fields, "\"operations\": [\n    "+strings.Join(ops, ",\n    ")+"\n  ]")
+	}
+	sort.Slice(f.Queries, func(i, j int) bool { return f.Queries[i].Operation < f.Queries[j].Operation })
+	queries, err := jsonLines(f.Queries)
+	if err != nil {
+		return nil, err
+	}
+	if len(queries) > 0 {
+		fields = append(fields, "\"queries\": [\n    "+strings.Join(queries, ",\n    ")+"\n  ]")
 	}
 	return []byte("{\n  " + strings.Join(fields, ",\n  ") + "\n}\n"), nil
 }

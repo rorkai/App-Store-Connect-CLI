@@ -7,5 +7,9 @@
     {"operation":"scmRepositories_gitReferences_getToManyRelationship","name":"GetScmRepositoryGitReferencesRelationships","params":["repositoryID"],"check":"trim","checkFirst":true,"options":"LinkagesOption","query":"buildLinkagesQuery","nextContext":"scmRepositoryGitReferencesRelationships","response":"LinkagesResponse"},
     {"operation":"scmRepositories_pullRequests_getToManyRelated","name":"GetScmRepositoryPullRequests","params":["repositoryID"],"options":"ScmPullRequestsOption","query":"buildScmPullRequestsQuery","nextContext":"scmRepositoryPullRequests"},
     {"operation":"scmRepositories_pullRequests_getToManyRelationship","name":"GetScmRepositoryPullRequestsRelationships","params":["repositoryID"],"check":"trim","checkFirst":true,"options":"LinkagesOption","query":"buildLinkagesQuery","nextContext":"scmRepositoryPullRequestsRelationships","response":"LinkagesResponse"}
+  ],
+  "queries": [
+    {"operation":"scmRepositories_gitReferences_getToManyRelated","name":"ScmGitReferences","deviations":[{"problem":"query parameters [fields[scmGitReferences] fields[scmRepositories] include] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]},
+    {"operation":"scmRepositories_pullRequests_getToManyRelated","name":"ScmPullRequests","deviations":[{"problem":"query parameters [fields[scmPullRequests] fields[scmRepositories] include] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]}
   ]
 }

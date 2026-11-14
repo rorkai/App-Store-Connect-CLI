@@ -4,6 +4,7 @@ package asc
 
 import (
 	"context"
+	"net/url"
 )
 
 // BetaRecruitmentCriterionOptionsResponse is the BetaRecruitmentCriterionOptionsResponse schema.
@@ -18,4 +19,26 @@ func (c *Client) GetBetaRecruitmentCriterionOptions(ctx context.Context, opts ..
 		Next:        query.nextURL,
 		NextContext: "betaRecruitmentCriterionOptions",
 	})
+}
+
+// BetaRecruitmentCriterionOptionsOption sets the query of GET /v1/betaRecruitmentCriterionOptions (betaRecruitmentCriterionOptions_getCollection).
+type BetaRecruitmentCriterionOptionsOption func(*betaRecruitmentCriterionOptionsQuery)
+
+type betaRecruitmentCriterionOptionsQuery struct {
+	listQuery
+	fields []string
+}
+
+// WithBetaRecruitmentCriterionOptionsFields sets fields[betaRecruitmentCriterionOptions].
+func WithBetaRecruitmentCriterionOptionsFields(fields []string) BetaRecruitmentCriterionOptionsOption {
+	return func(q *betaRecruitmentCriterionOptionsQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+func buildBetaRecruitmentCriterionOptionsQuery(query *betaRecruitmentCriterionOptionsQuery) string {
+	values := url.Values{}
+	addCSV(values, "fields[betaRecruitmentCriterionOptions]", query.fields)
+	addLimit(values, query.limit)
+	return values.Encode()
 }

@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/url"
 )
 
 // GetBuildBundleAppClipDomainCacheStatus sends GET /v1/buildBundles/{id}/appClipDomainCacheStatus (buildBundles_appClipDomainCacheStatus_getToOneRelated).
@@ -41,4 +42,30 @@ func (c *Client) GetBuildBundleFileSizes(ctx context.Context, buildBundleID stri
 		Next:        query.nextURL,
 		NextContext: "build bundle file sizes",
 	})
+}
+
+// BetaAppClipInvocationsOption sets the query of GET /v1/buildBundles/{id}/betaAppClipInvocations (buildBundles_betaAppClipInvocations_getToManyRelated).
+type BetaAppClipInvocationsOption func(*betaAppClipInvocationsQuery)
+
+type betaAppClipInvocationsQuery struct {
+	listQuery
+}
+
+func buildBetaAppClipInvocationsQuery(query *betaAppClipInvocationsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+// BuildBundleFileSizesOption sets the query of GET /v1/buildBundles/{id}/buildBundleFileSizes (buildBundles_buildBundleFileSizes_getToManyRelated).
+type BuildBundleFileSizesOption func(*buildBundleFileSizesQuery)
+
+type buildBundleFileSizesQuery struct {
+	listQuery
+}
+
+func buildBuildBundleFileSizesQuery(query *buildBundleFileSizesQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
 }

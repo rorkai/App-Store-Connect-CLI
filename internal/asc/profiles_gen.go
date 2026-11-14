@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -89,4 +90,30 @@ func (c *Client) GetProfile(ctx context.Context, id string, opts ...ProfilesOpti
 		Path:  fmt.Sprintf("/v1/profiles/%s", id),
 		Query: buildProfilesQuery(query),
 	})
+}
+
+// ProfileCertificatesOption sets the query of GET /v1/profiles/{id}/certificates (profiles_certificates_getToManyRelated).
+type ProfileCertificatesOption func(*profileCertificatesQuery)
+
+type profileCertificatesQuery struct {
+	listQuery
+}
+
+func buildProfileCertificatesQuery(query *profileCertificatesQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+// ProfileDevicesOption sets the query of GET /v1/profiles/{id}/devices (profiles_devices_getToManyRelated).
+type ProfileDevicesOption func(*profileDevicesQuery)
+
+type profileDevicesQuery struct {
+	listQuery
+}
+
+func buildProfileDevicesQuery(query *profileDevicesQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
 }

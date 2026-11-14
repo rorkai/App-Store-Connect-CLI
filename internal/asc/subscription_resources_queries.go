@@ -5,29 +5,8 @@ import (
 	"strings"
 )
 
-// SubscriptionLocalizationsOption is a functional option for subscription localizations list endpoints.
-type SubscriptionLocalizationsOption func(*subscriptionLocalizationsQuery)
-
-// SubscriptionImagesOption is a functional option for subscription images list endpoints.
-type SubscriptionImagesOption func(*subscriptionImagesQuery)
-
 // SubscriptionIntroductoryOffersOption is a functional option for introductory offers list endpoints.
 type SubscriptionIntroductoryOffersOption func(*subscriptionIntroductoryOffersQuery)
-
-// SubscriptionPromotionalOffersOption is a functional option for promotional offers list endpoints.
-type SubscriptionPromotionalOffersOption func(*subscriptionPromotionalOffersQuery)
-
-// SubscriptionPromotionalOfferPricesOption is a functional option for promotional offer prices list endpoints.
-type SubscriptionPromotionalOfferPricesOption func(*subscriptionPromotionalOfferPricesQuery)
-
-// SubscriptionOfferCodesOption is a functional option for offer codes list endpoints.
-type SubscriptionOfferCodesOption func(*subscriptionOfferCodesQuery)
-
-// SubscriptionOfferCodeCustomCodesOption is a functional option for offer code custom codes list endpoints.
-type SubscriptionOfferCodeCustomCodesOption func(*subscriptionOfferCodeCustomCodesQuery)
-
-// SubscriptionOfferCodePricesOption is a functional option for offer code prices list endpoints.
-type SubscriptionOfferCodePricesOption func(*subscriptionOfferCodePricesQuery)
 
 // SubscriptionPricePointsOption configures the subscription-scoped price-points endpoint.
 // It intentionally excludes equalization-only filters such as filter[subscription].
@@ -63,9 +42,6 @@ func (subscriptionPricePointEqualizationsOnlyOption) subscriptionPricePointEqual
 // SubscriptionPricesOption is a functional option for subscription price list endpoints.
 type SubscriptionPricesOption func(*subscriptionPricesQuery)
 
-// SubscriptionGroupLocalizationsOption is a functional option for subscription group localization list endpoints.
-type SubscriptionGroupLocalizationsOption func(*subscriptionGroupLocalizationsQuery)
-
 // SubscriptionAppStoreReviewScreenshotOption configures the subscription screenshot relationship endpoint.
 type SubscriptionAppStoreReviewScreenshotOption func(*subscriptionAppStoreReviewScreenshotQuery)
 
@@ -75,24 +51,9 @@ type SubscriptionOfferCodeOption func(*subscriptionRelatedFieldsQuery)
 // SubscriptionPromotionalOfferOption configures a subscription promotional offer detail read.
 type SubscriptionPromotionalOfferOption func(*subscriptionRelatedFieldsQuery)
 
-// SubscriptionPricePointOption configures a subscription price point detail read.
-type SubscriptionPricePointOption func(*subscriptionPricePointDetailQuery)
-
 type subscriptionRelatedFieldsQuery struct {
 	parentFields []string
 	include      []string
-}
-
-type subscriptionPricePointDetailQuery struct {
-	fields []string
-}
-
-type subscriptionLocalizationsQuery struct {
-	listQuery
-}
-
-type subscriptionImagesQuery struct {
-	listQuery
 }
 
 type subscriptionIntroductoryOffersQuery struct {
@@ -102,34 +63,6 @@ type subscriptionIntroductoryOffersQuery struct {
 	subscriptionFields []string
 	pricePointFields   []string
 	include            []string
-}
-
-type subscriptionPromotionalOffersQuery struct {
-	listQuery
-	subscriptionFields []string
-	include            []string
-}
-
-type subscriptionPromotionalOfferPricesQuery struct {
-	listQuery
-	pricePointFields []string
-	include          []string
-}
-
-type subscriptionOfferCodesQuery struct {
-	listQuery
-	subscriptionFields []string
-	include            []string
-}
-
-type subscriptionOfferCodeCustomCodesQuery struct {
-	listQuery
-}
-
-type subscriptionOfferCodePricesQuery struct {
-	listQuery
-	pricePointFields []string
-	include          []string
 }
 
 type subscriptionPricePointsQuery struct {
@@ -152,10 +85,6 @@ type subscriptionPricesQuery struct {
 	priceFields      []string
 	pricePointFields []string
 	territoryFields  []string
-}
-
-type subscriptionGroupLocalizationsQuery struct {
-	listQuery
 }
 
 type subscriptionAppStoreReviewScreenshotQuery struct {
@@ -196,62 +125,6 @@ func WithSubscriptionIntroductoryOffersSubscriptionFields(fields []string) Subsc
 func WithSubscriptionIntroductoryOffersPricePointFields(fields []string) SubscriptionIntroductoryOffersOption {
 	return func(q *subscriptionIntroductoryOffersQuery) {
 		q.pricePointFields = normalizeList(fields)
-	}
-}
-
-// WithSubscriptionPromotionalOffersSubscriptionFields sets fields[subscriptions] for included subscriptions.
-func WithSubscriptionPromotionalOffersSubscriptionFields(fields []string) SubscriptionPromotionalOffersOption {
-	return func(q *subscriptionPromotionalOffersQuery) {
-		q.subscriptionFields = normalizeList(fields)
-	}
-}
-
-// WithSubscriptionPromotionalOffersInclude sets relationships to include.
-func WithSubscriptionPromotionalOffersInclude(include []string) SubscriptionPromotionalOffersOption {
-	return func(q *subscriptionPromotionalOffersQuery) {
-		q.include = normalizeList(include)
-	}
-}
-
-// WithSubscriptionPromotionalOfferPricesPricePointFields sets fields[subscriptionPricePoints] for included price points.
-func WithSubscriptionPromotionalOfferPricesPricePointFields(fields []string) SubscriptionPromotionalOfferPricesOption {
-	return func(q *subscriptionPromotionalOfferPricesQuery) {
-		q.pricePointFields = normalizeList(fields)
-	}
-}
-
-// WithSubscriptionPromotionalOfferPricesInclude sets relationships to include.
-func WithSubscriptionPromotionalOfferPricesInclude(include []string) SubscriptionPromotionalOfferPricesOption {
-	return func(q *subscriptionPromotionalOfferPricesQuery) {
-		q.include = normalizeList(include)
-	}
-}
-
-// WithSubscriptionOfferCodesSubscriptionFields sets fields[subscriptions] for included subscriptions.
-func WithSubscriptionOfferCodesSubscriptionFields(fields []string) SubscriptionOfferCodesOption {
-	return func(q *subscriptionOfferCodesQuery) {
-		q.subscriptionFields = normalizeList(fields)
-	}
-}
-
-// WithSubscriptionOfferCodesInclude sets relationships to include.
-func WithSubscriptionOfferCodesInclude(include []string) SubscriptionOfferCodesOption {
-	return func(q *subscriptionOfferCodesQuery) {
-		q.include = normalizeList(include)
-	}
-}
-
-// WithSubscriptionOfferCodePricesPricePointFields sets fields[subscriptionPricePoints] for included price points.
-func WithSubscriptionOfferCodePricesPricePointFields(fields []string) SubscriptionOfferCodePricesOption {
-	return func(q *subscriptionOfferCodePricesQuery) {
-		q.pricePointFields = normalizeList(fields)
-	}
-}
-
-// WithSubscriptionOfferCodePricesInclude sets relationships to include.
-func WithSubscriptionOfferCodePricesInclude(include []string) SubscriptionOfferCodePricesOption {
-	return func(q *subscriptionOfferCodePricesQuery) {
-		q.include = normalizeList(include)
 	}
 }
 
@@ -435,68 +308,11 @@ func WithSubscriptionPromotionalOfferInclude(include []string) SubscriptionPromo
 	}
 }
 
-// WithSubscriptionPricePointFields sets fields[subscriptionPricePoints] on a price point detail read.
-func WithSubscriptionPricePointFields(fields []string) SubscriptionPricePointOption {
-	return func(q *subscriptionPricePointDetailQuery) {
-		q.fields = normalizeList(fields)
-	}
-}
-
-func buildSubscriptionLocalizationsQuery(query *subscriptionLocalizationsQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
-func buildSubscriptionImagesQuery(query *subscriptionImagesQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
 func buildSubscriptionIntroductoryOffersQuery(query *subscriptionIntroductoryOffersQuery) string {
 	values := url.Values{}
 	addCSV(values, "filter[territory]", query.territories)
 	addCSV(values, "fields[subscriptionIntroductoryOffers]", query.fields)
 	addCSV(values, "fields[subscriptions]", query.subscriptionFields)
-	addCSV(values, "fields[subscriptionPricePoints]", query.pricePointFields)
-	addCSV(values, "include", query.include)
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
-func buildSubscriptionPromotionalOffersQuery(query *subscriptionPromotionalOffersQuery) string {
-	values := url.Values{}
-	addCSV(values, "fields[subscriptions]", query.subscriptionFields)
-	addCSV(values, "include", query.include)
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
-func buildSubscriptionPromotionalOfferPricesQuery(query *subscriptionPromotionalOfferPricesQuery) string {
-	values := url.Values{}
-	addCSV(values, "fields[subscriptionPricePoints]", query.pricePointFields)
-	addCSV(values, "include", query.include)
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
-func buildSubscriptionOfferCodesQuery(query *subscriptionOfferCodesQuery) string {
-	values := url.Values{}
-	addCSV(values, "fields[subscriptions]", query.subscriptionFields)
-	addCSV(values, "include", query.include)
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
-func buildSubscriptionOfferCodeCustomCodesQuery(query *subscriptionOfferCodeCustomCodesQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
-func buildSubscriptionOfferCodePricesQuery(query *subscriptionOfferCodePricesQuery) string {
-	values := url.Values{}
 	addCSV(values, "fields[subscriptionPricePoints]", query.pricePointFields)
 	addCSV(values, "include", query.include)
 	addLimit(values, query.limit)
@@ -539,12 +355,6 @@ func buildSubscriptionPricesQuery(query *subscriptionPricesQuery) string {
 	return values.Encode()
 }
 
-func buildSubscriptionGroupLocalizationsQuery(query *subscriptionGroupLocalizationsQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
 func buildSubscriptionAppStoreReviewScreenshotQuery(query *subscriptionAppStoreReviewScreenshotQuery) string {
 	values := url.Values{}
 	addCSV(values, "fields[subscriptionAppStoreReviewScreenshots]", query.fields)
@@ -557,12 +367,6 @@ func buildSubscriptionRelatedFieldsQuery(parentResource string, query *subscript
 	values := url.Values{}
 	addCSV(values, "fields["+parentResource+"]", query.parentFields)
 	addCSV(values, "include", query.include)
-	return values.Encode()
-}
-
-func buildSubscriptionPricePointDetailQuery(query *subscriptionPricePointDetailQuery) string {
-	values := url.Values{}
-	addCSV(values, "fields[subscriptionPricePoints]", query.fields)
 	return values.Encode()
 }
 

@@ -86,19 +86,6 @@ type GameCenterChallengeVersionRelationships struct {
 // GameCenterChallengeVersionsResponse is the response from version list endpoints.
 type GameCenterChallengeVersionsResponse = Response[GameCenterChallengeVersionAttributes]
 
-// GCChallengeVersionsOption is a functional option for GetGameCenterChallengeVersions.
-type GCChallengeVersionsOption func(*gcChallengeVersionsQuery)
-
-type gcChallengeVersionsQuery struct {
-	listQuery
-}
-
-func buildGCChallengeVersionsQuery(query *gcChallengeVersionsQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
 // GameCenterChallengeLocalizationAttributes represents a challenge localization.
 type GameCenterChallengeLocalizationAttributes struct {
 	Locale      string `json:"locale"`
@@ -120,19 +107,6 @@ type GameCenterChallengeLocalizationsResponse = Response[GameCenterChallengeLoca
 type GameCenterChallengeLocalizationDeleteResult struct {
 	ID      string `json:"id"`
 	Deleted bool   `json:"deleted"`
-}
-
-// GCChallengeLocalizationsOption is a functional option for GetGameCenterChallengeLocalizations.
-type GCChallengeLocalizationsOption func(*gcChallengeLocalizationsQuery)
-
-type gcChallengeLocalizationsQuery struct {
-	listQuery
-}
-
-func buildGCChallengeLocalizationsQuery(query *gcChallengeLocalizationsQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
 }
 
 // GameCenterChallengeImageAttributes represents a challenge image resource.
@@ -193,17 +167,4 @@ type GameCenterChallengeVersionReleasesResponse = Response[GameCenterChallengeVe
 type GameCenterChallengeVersionReleaseDeleteResult struct {
 	ID      string `json:"id"`
 	Deleted bool   `json:"deleted"`
-}
-
-// GCChallengeVersionReleasesOption is a functional option for GetGameCenterChallengeVersionReleases.
-type GCChallengeVersionReleasesOption func(*gcChallengeVersionReleasesQuery)
-
-type gcChallengeVersionReleasesQuery struct {
-	listQuery
-}
-
-func buildGCChallengeVersionReleasesQuery(query *gcChallengeVersionReleasesQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
 }

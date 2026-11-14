@@ -1,12 +1,11 @@
 package cmdtest
 
 import (
-	"context"
 	"errors"
 	"flag"
-	"io"
 	"testing"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -35,13 +34,7 @@ func TestPaginationSelectorsReportCanonicalMissingParameter(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			if err := root.Parse(test.args); err != nil {
-				t.Fatalf("parse error: %v", err)
-			}
-			err := root.Run(context.Background())
+			_, _, err := runRootWithDeps(t, stubClient(t, asctest.NewRegistry(t)), test.args...)
 			if !errors.Is(err, flag.ErrHelp) {
 				t.Fatalf("expected ErrHelp, got %v", err)
 			}

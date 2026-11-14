@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 )
 
@@ -46,4 +47,57 @@ func (c *Client) GetAppClip(ctx context.Context, appClipID string) (*AppClipResp
 	return getJSON[AppClipResponse](ctx, c, readRequest{
 		Path: fmt.Sprintf("/v1/appClips/%s", appClipID),
 	})
+}
+
+// AppClipAdvancedExperiencesOption sets the query of GET /v1/appClips/{id}/appClipAdvancedExperiences (appClips_appClipAdvancedExperiences_getToManyRelated).
+type AppClipAdvancedExperiencesOption func(*appClipAdvancedExperiencesQuery)
+
+type appClipAdvancedExperiencesQuery struct {
+	listQuery
+	actions       []string
+	statuses      []string
+	placeStatuses []string
+}
+
+// WithAppClipAdvancedExperiencesActions sets filter[action].
+func WithAppClipAdvancedExperiencesActions(actions []string) AppClipAdvancedExperiencesOption {
+	return func(q *appClipAdvancedExperiencesQuery) {
+		q.actions = normalizeList(actions)
+	}
+}
+
+// WithAppClipAdvancedExperiencesStatuses sets filter[status].
+func WithAppClipAdvancedExperiencesStatuses(statuses []string) AppClipAdvancedExperiencesOption {
+	return func(q *appClipAdvancedExperiencesQuery) {
+		q.statuses = normalizeList(statuses)
+	}
+}
+
+// WithAppClipAdvancedExperiencesPlaceStatuses sets filter[placeStatus].
+func WithAppClipAdvancedExperiencesPlaceStatuses(placeStatuses []string) AppClipAdvancedExperiencesOption {
+	return func(q *appClipAdvancedExperiencesQuery) {
+		q.placeStatuses = normalizeList(placeStatuses)
+	}
+}
+
+func buildAppClipAdvancedExperiencesQuery(query *appClipAdvancedExperiencesQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[action]", query.actions)
+	addCSV(values, "filter[status]", query.statuses)
+	addCSV(values, "filter[placeStatus]", query.placeStatuses)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+// AppClipDefaultExperiencesOption sets the query of GET /v1/appClips/{id}/appClipDefaultExperiences (appClips_appClipDefaultExperiences_getToManyRelated).
+type AppClipDefaultExperiencesOption func(*appClipDefaultExperiencesQuery)
+
+type appClipDefaultExperiencesQuery struct {
+	listQuery
+}
+
+func buildAppClipDefaultExperiencesQuery(query *appClipDefaultExperiencesQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
 }

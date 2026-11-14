@@ -1,7 +1,6 @@
 package cmdtest
 
 import (
-	"context"
 	"errors"
 	"io"
 	"net/http"
@@ -12,11 +11,9 @@ import (
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestUsersListQuerySurfaceEmitsSupportedParameters(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	var gotQuery url.Values
@@ -31,33 +28,21 @@ func TestUsersListQuerySurfaceEmitsSupportedParameters(t *testing.T) {
 		_, _ = io.WriteString(w, `{"data":[{"type":"users","id":"user-query"}],"links":{"next":""}}`)
 	}))
 	t.Cleanup(server.Close)
-	setUsersListTestClient(t, server)
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	var parseErr, runErr error
-	stdout, stderr := captureOutput(t, func() {
-		parseErr = root.Parse([]string{
-			"users", "list",
-			"--email", "user@example.com",
-			"--role", "developer, app_manager",
-			"--visible-app", "app-1,app-2",
-			"--sort", "-lastName",
-			"--fields", "username,lastName,visibleApps",
-			"--app-fields", "name,bundleId",
-			"--include", "visibleApps",
-			"--visible-apps-limit", "25",
-			"--limit", "10",
-			"--output", "json",
-		})
-		if parseErr == nil {
-			runErr = root.Run(context.Background())
-		}
-	})
+	stdout, stderr, runErr := runRootWithDeps(t, usersListTestClient(t, server),
+		"users", "list",
+		"--email", "user@example.com",
+		"--role", "developer, app_manager",
+		"--visible-app", "app-1,app-2",
+		"--sort", "-lastName",
+		"--fields", "username,lastName,visibleApps",
+		"--app-fields", "name,bundleId",
+		"--include", "visibleApps",
+		"--visible-apps-limit", "25",
+		"--limit", "10",
+		"--output", "json",
+	)
 
-	if parseErr != nil {
-		t.Fatalf("parse error: %v; stderr=%q", parseErr, stderr)
-	}
 	if runErr != nil {
 		t.Fatalf("run error: %v; stderr=%q", runErr, stderr)
 	}
@@ -85,7 +70,6 @@ func TestUsersListQuerySurfaceEmitsSupportedParameters(t *testing.T) {
 }
 
 func TestUsersListQuerySurfaceAcceptsCommaSeparatedSort(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	var gotQuery url.Values
@@ -100,21 +84,9 @@ func TestUsersListQuerySurfaceAcceptsCommaSeparatedSort(t *testing.T) {
 		_, _ = io.WriteString(w, `{"data":[{"type":"users","id":"user-sort"}],"links":{"next":""}}`)
 	}))
 	t.Cleanup(server.Close)
-	setUsersListTestClient(t, server)
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	var parseErr, runErr error
-	stdout, stderr := captureOutput(t, func() {
-		parseErr = root.Parse([]string{"users", "list", "--sort", " username, -lastName ", "--output", "json"})
-		if parseErr == nil {
-			runErr = root.Run(context.Background())
-		}
-	})
+	stdout, stderr, runErr := runRootWithDeps(t, usersListTestClient(t, server), "users", "list", "--sort", " username, -lastName ", "--output", "json")
 
-	if parseErr != nil {
-		t.Fatalf("parse error: %v; stderr=%q", parseErr, stderr)
-	}
 	if runErr != nil {
 		t.Fatalf("run error: %v; stderr=%q", runErr, stderr)
 	}
@@ -149,14 +121,13 @@ func TestUsersListRejectsNextQueryFlagConflictsBeforeClient(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			clientFactoryCalled := false
-			restore := shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+			client := func() (*asc.Client, error) {
 				clientFactoryCalled = true
 				return nil, errors.New("client factory must not run during validation")
-			})
-			defer restore()
+			}
 
 			args := append([]string{"users", "list", "--next", nextURL}, test.args...)
-			assertUsageExit(t, args, "users list: "+test.want)
+			assertUsageExitWithDeps(t, client, args, "users list: "+test.want)
 			if clientFactoryCalled {
 				t.Fatal("client factory ran before --next conflict validation")
 			}
@@ -166,13 +137,12 @@ func TestUsersListRejectsNextQueryFlagConflictsBeforeClient(t *testing.T) {
 
 func TestUsersListRejectsVisibleAppsLimitWithoutInclude(t *testing.T) {
 	clientFactoryCalled := false
-	restore := shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+	client := func() (*asc.Client, error) {
 		clientFactoryCalled = true
 		return nil, errors.New("client factory must not run during validation")
-	})
-	defer restore()
+	}
 
-	assertUsageExit(t, []string{"users", "list", "--visible-apps-limit", "25"}, "users list: --visible-apps-limit requires --include visibleApps")
+	assertUsageExitWithDeps(t, client, []string{"users", "list", "--visible-apps-limit", "25"}, "users list: --visible-apps-limit requires --include visibleApps")
 	if clientFactoryCalled {
 		t.Fatal("client factory ran before relationship limit validation")
 	}
@@ -202,13 +172,12 @@ func TestUsersListRejectsInvalidQueryValuesBeforeClient(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			clientFactoryCalled := false
-			restore := shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+			client := func() (*asc.Client, error) {
 				clientFactoryCalled = true
 				return nil, errors.New("client factory must not run during validation")
-			})
-			defer restore()
+			}
 
-			assertUsageExit(t, append([]string{"users", "list"}, test.args...), test.want)
+			assertUsageExitWithDeps(t, client, append([]string{"users", "list"}, test.args...), test.want)
 			if clientFactoryCalled {
 				t.Fatal("client factory ran before query validation")
 			}
@@ -216,7 +185,7 @@ func TestUsersListRejectsInvalidQueryValuesBeforeClient(t *testing.T) {
 	}
 }
 
-func setUsersListTestClient(t *testing.T, server *httptest.Server) {
+func usersListTestClient(t *testing.T, server *httptest.Server) func() (*asc.Client, error) {
 	t.Helper()
 
 	serverURL, err := url.Parse(server.URL)
@@ -241,7 +210,7 @@ func setUsersListTestClient(t *testing.T, server *httptest.Server) {
 	if err != nil {
 		t.Fatalf("create test client: %v", err)
 	}
-	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+	return func() (*asc.Client, error) {
 		return client, nil
-	}))
+	}
 }

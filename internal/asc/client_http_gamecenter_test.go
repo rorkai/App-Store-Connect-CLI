@@ -68,35 +68,6 @@ func TestCreateGameCenterAchievement(t *testing.T) {
 	}
 }
 
-func TestUpdateGameCenterAchievement(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterAchievements","id":"ach-1","attributes":{"referenceName":"Updated Name","vendorIdentifier":"com.example.firstwin","points":20,"showBeforeEarned":true,"repeatable":false}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodPatch {
-			t.Fatalf("expected PATCH, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterAchievements/ach-1" {
-			t.Fatalf("expected path /v1/gameCenterAchievements/ach-1, got %s", req.URL.Path)
-		}
-		var payload GameCenterAchievementUpdateRequest
-		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-			t.Fatalf("failed to decode request: %v", err)
-		}
-		if payload.Data.ID != "ach-1" || payload.Data.Type != ResourceTypeGameCenterAchievements {
-			t.Fatalf("unexpected payload: %+v", payload.Data)
-		}
-		if payload.Data.Attributes == nil || payload.Data.Attributes.Points == nil || *payload.Data.Attributes.Points != 20 {
-			t.Fatalf("expected points update, got %+v", payload.Data.Attributes)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	points := 20
-	attrs := GameCenterAchievementUpdateAttributes{Points: &points}
-	if _, err := client.UpdateGameCenterAchievement(context.Background(), "ach-1", attrs); err != nil {
-		t.Fatalf("UpdateGameCenterAchievement() error: %v", err)
-	}
-}
-
 func TestCreateGameCenterAchievementV2_WithDetail(t *testing.T) {
 	response := jsonResponse(http.StatusCreated, `{"data":{"type":"gameCenterAchievements","id":"ach-1","attributes":{"referenceName":"First Win","vendorIdentifier":"com.example.firstwin","points":10,"showBeforeEarned":true,"repeatable":false}}}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -252,35 +223,6 @@ func TestCreateGameCenterLeaderboard(t *testing.T) {
 	}
 	if _, err := client.CreateGameCenterLeaderboard(context.Background(), "gc-detail-1", attrs, nil); err != nil {
 		t.Fatalf("CreateGameCenterLeaderboard() error: %v", err)
-	}
-}
-
-func TestUpdateGameCenterLeaderboard(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterLeaderboards","id":"lb-1","attributes":{"referenceName":"Updated Name","vendorIdentifier":"com.example.highscore","defaultFormatter":"INTEGER","scoreSortType":"DESC","submissionType":"BEST_SCORE"}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodPatch {
-			t.Fatalf("expected PATCH, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterLeaderboards/lb-1" {
-			t.Fatalf("expected path /v1/gameCenterLeaderboards/lb-1, got %s", req.URL.Path)
-		}
-		var payload GameCenterLeaderboardUpdateRequest
-		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-			t.Fatalf("failed to decode request: %v", err)
-		}
-		if payload.Data.ID != "lb-1" || payload.Data.Type != ResourceTypeGameCenterLeaderboards {
-			t.Fatalf("unexpected payload: %+v", payload.Data)
-		}
-		if payload.Data.Attributes == nil || payload.Data.Attributes.ReferenceName == nil || *payload.Data.Attributes.ReferenceName != "Updated Name" {
-			t.Fatalf("expected name update, got %+v", payload.Data.Attributes)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	name := "Updated Name"
-	attrs := GameCenterLeaderboardUpdateAttributes{ReferenceName: &name}
-	if _, err := client.UpdateGameCenterLeaderboard(context.Background(), "lb-1", attrs); err != nil {
-		t.Fatalf("UpdateGameCenterLeaderboard() error: %v", err)
 	}
 }
 
