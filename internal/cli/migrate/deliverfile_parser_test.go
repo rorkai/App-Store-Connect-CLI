@@ -71,21 +71,3 @@ func TestParseDeliverfile_InvalidBool(t *testing.T) {
 		t.Fatalf("expected error to mention skip_screenshots, got %v", err)
 	}
 }
-
-func TestIgnoredConfigKeyHintsFollowTheReleaseTheFileAsksFor(t *testing.T) {
-	const manual = "asc versions update --version-id VERSION_ID --release-type MANUAL"
-	const scheduled = "asc versions update --version-id VERSION_ID --release-type SCHEDULED --earliest-release-date DATE"
-
-	alone := ignoredConfigKeyItems("config", []IgnoredConfigKey{{Key: "automatic_release", Value: "false", Line: 1}})
-	if len(alone) != 1 || !strings.HasSuffix(alone[0].Reason, manual) {
-		t.Fatalf("expected the manual release hint, got %+v", alone)
-	}
-
-	withDate := ignoredConfigKeyItems("config", []IgnoredConfigKey{
-		{Key: "automatic_release", Value: "false", Line: 1},
-		{Key: "auto_release_date", Value: "1767225600000", Line: 2},
-	})
-	if len(withDate) != 2 || strings.Contains(withDate[0].Reason, "asc ") || !strings.HasSuffix(withDate[1].Reason, scheduled) {
-		t.Fatalf("expected only the scheduled release hint when a release date is set, got %+v", withDate)
-	}
-}

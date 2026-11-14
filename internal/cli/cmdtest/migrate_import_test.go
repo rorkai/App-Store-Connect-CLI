@@ -1902,6 +1902,66 @@ func TestMigrateImportDryRunDeliverfileSkipScreenshotsAllowsMissingFastlaneScree
 	}
 }
 
+func TestMigrateImportDryRunConfigReleaseHints(t *testing.T) {
+	tests := []struct {
+		name   string
+		config string
+		want   []string
+	}{
+		{
+			name:   "manual release",
+			config: "automatic_release false\n",
+			want: []string{
+				"line 1: automatic_release is not applied by import; to apply it, run: asc versions update --version-id VERSION_ID --release-type MANUAL",
+			},
+		},
+		{
+			name:   "a release date decides the release type",
+			config: "automatic_release false\nauto_release_date 1767225600000\n",
+			want: []string{
+				"line 1: automatic_release is not applied by import",
+				"line 2: auto_release_date is not applied by import; to apply it, run: asc versions update --version-id VERSION_ID --release-type SCHEDULED --earliest-release-date DATE",
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			dir := t.TempDir()
+			localeDir := filepath.Join(dir, "metadata", "en-US")
+			if err := os.MkdirAll(localeDir, 0o755); err != nil {
+				t.Fatalf("mkdir metadata: %v", err)
+			}
+			writeFile(t, filepath.Join(localeDir, "description.txt"), "English description")
+			configPath := filepath.Join(dir, "Deliverfile")
+			writeFile(t, configPath, test.config)
+
+			rootCmd := RootCommand("1.2.3")
+			rootCmd.FlagSet.SetOutput(io.Discard)
+			stdout, _ := captureOutput(t, func() {
+				if err := rootCmd.Parse([]string{"migrate", "import", "--app", "APP_ID", "--version-id", "VERSION_ID", "--fastlane-dir", dir, "--dry-run", "--skip-screenshots"}); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				if err := rootCmd.Run(context.Background()); err != nil {
+					t.Fatalf("run error: %v", err)
+				}
+			})
+			var result migrate.MigrateImportResult
+			if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+				t.Fatalf("unmarshal result: %v", err)
+			}
+			var got []string
+			for _, skipped := range result.Skipped {
+				if skipped.Path == configPath {
+					got = append(got, skipped.Reason)
+				}
+			}
+			if !slices.Equal(got, test.want) {
+				t.Fatalf("configuration hints = %q, want %q", got, test.want)
+			}
+		})
+	}
+}
+
 func TestMigrateImportDryRunRejectsUnsupportedCreateLocale(t *testing.T) {
 	root := t.TempDir()
 	localeDir := filepath.Join(root, "metadata", "nl")
