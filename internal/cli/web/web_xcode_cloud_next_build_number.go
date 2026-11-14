@@ -73,8 +73,7 @@ Example:
 		Exec: func(ctx context.Context, args []string) error {
 			pid := strings.TrimSpace(*productID)
 			if pid == "" {
-				fmt.Fprintln(os.Stderr, "Error: --product-id is required")
-				return shared.MissingRequiredUsageError("--product-id")
+				return shared.RequiredFlag("--product-id")
 			}
 
 			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, sessionFlags)
@@ -134,16 +133,14 @@ Example:
 		Exec: func(ctx context.Context, args []string) error {
 			pid := strings.TrimSpace(*productID)
 			if pid == "" {
-				fmt.Fprintln(os.Stderr, "Error: --product-id is required")
-				return shared.MissingRequiredUsageError("--product-id")
+				return shared.RequiredFlag("--product-id")
 			}
 			if *value <= 0 {
 				fmt.Fprintln(os.Stderr, "Error: --value must be greater than 0")
 				return shared.UsageError("--value must be greater than 0")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, sessionFlags)

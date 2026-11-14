@@ -141,8 +141,7 @@ Examples:
 
 			msg := strings.TrimSpace(*message)
 			if msg == "" {
-				fmt.Fprintln(os.Stderr, "Error: --message is required")
-				return shared.MissingRequiredUsageError("--message")
+				return shared.RequiredFlag("--message")
 			}
 
 			blocks, err := parseSlackBlocks(*blocksJSON, *blocksFile)

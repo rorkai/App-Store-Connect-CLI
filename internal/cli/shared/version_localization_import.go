@@ -97,13 +97,11 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*versionID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return MissingRequiredUsageError("--version-id")
+				return RequiredFlag("--version-id")
 			}
 			pathValue := strings.TrimSpace(*filePath)
 			if pathValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --file is required")
-				return MissingRequiredUsageError("--file")
+				return RequiredFlag("--file")
 			}
 			if _, err := ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
 				return UsageError(err.Error())

@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 
@@ -135,8 +134,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			pid := strings.TrimSpace(*productID)
 			if pid == "" {
-				fmt.Fprintln(os.Stderr, "Error: --product-id is required")
-				return shared.MissingRequiredUsageError("--product-id")
+				return shared.RequiredFlag("--product-id")
 			}
 
 			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, sessionFlags)
@@ -213,13 +211,11 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			pid := strings.TrimSpace(*productID)
 			if pid == "" {
-				fmt.Fprintln(os.Stderr, "Error: --product-id is required")
-				return shared.MissingRequiredUsageError("--product-id")
+				return shared.RequiredFlag("--product-id")
 			}
 			wfID := strings.TrimSpace(*workflowID)
 			if wfID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --workflow-id is required")
-				return shared.MissingRequiredUsageError("--workflow-id")
+				return shared.RequiredFlag("--workflow-id")
 			}
 
 			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, sessionFlags)
@@ -293,13 +289,11 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			pid := strings.TrimSpace(*productID)
 			if pid == "" {
-				fmt.Fprintln(os.Stderr, "Error: --product-id is required")
-				return shared.MissingRequiredUsageError("--product-id")
+				return shared.RequiredFlag("--product-id")
 			}
 			fileValue := strings.TrimSpace(*file)
 			if fileValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --file is required")
-				return shared.MissingRequiredUsageError("--file")
+				return shared.RequiredFlag("--file")
 			}
 
 			payload, err := shared.ReadJSONFilePayload(fileValue)
@@ -396,18 +390,15 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			pid := strings.TrimSpace(*productID)
 			if pid == "" {
-				fmt.Fprintln(os.Stderr, "Error: --product-id is required")
-				return shared.MissingRequiredUsageError("--product-id")
+				return shared.RequiredFlag("--product-id")
 			}
 			wfID := strings.TrimSpace(*workflowID)
 			if wfID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --workflow-id is required")
-				return shared.MissingRequiredUsageError("--workflow-id")
+				return shared.RequiredFlag("--workflow-id")
 			}
 			patchFileValue := strings.TrimSpace(*patchFile)
 			if patchFileValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --patch-file is required")
-				return shared.MissingRequiredUsageError("--patch-file")
+				return shared.RequiredFlag("--patch-file")
 			}
 
 			patchPayload, err := shared.ReadJSONFilePayload(patchFileValue)
@@ -500,13 +491,11 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			pid := strings.TrimSpace(*productID)
 			if pid == "" {
-				fmt.Fprintln(os.Stderr, "Error: --product-id is required")
-				return shared.MissingRequiredUsageError("--product-id")
+				return shared.RequiredFlag("--product-id")
 			}
 			wfID := strings.TrimSpace(*workflowID)
 			if wfID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --workflow-id is required")
-				return shared.MissingRequiredUsageError("--workflow-id")
+				return shared.RequiredFlag("--workflow-id")
 			}
 
 			result, err := executeWorkflowToggle(ctx, sessionFlags, pid, wfID, false, "xcode-cloud workflows enable")
@@ -553,17 +542,14 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			pid := strings.TrimSpace(*productID)
 			if pid == "" {
-				fmt.Fprintln(os.Stderr, "Error: --product-id is required")
-				return shared.MissingRequiredUsageError("--product-id")
+				return shared.RequiredFlag("--product-id")
 			}
 			wfID := strings.TrimSpace(*workflowID)
 			if wfID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --workflow-id is required")
-				return shared.MissingRequiredUsageError("--workflow-id")
+				return shared.RequiredFlag("--workflow-id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			result, err := executeWorkflowToggle(ctx, sessionFlags, pid, wfID, true, "xcode-cloud workflows disable")
