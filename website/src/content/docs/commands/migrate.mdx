@@ -254,9 +254,12 @@ skip_screenshots false
 * `metadata_path` - Metadata directory, resolved relative to the Deliverfile
 * `screenshots_path` - Screenshots directory, resolved relative to the Deliverfile
 
-Any other key is not applied. Each one is reported in `skipped` with its line
-number, and a key that another command applies names that command, for example
+The format's other options, such as `submit_for_review`, `phased_release` and
+`price_tier`, are not applied. Each one is reported in `skipped` with its line
+number, and an option set to `true` that another command applies names that
+command, for example
 `asc versions phased-release create --version-id "VERSION_ID"` for `phased_release`.
+Lines that are not options, such as conditions and assignments, are not reported.
 
 `metadata_path` and `screenshots_path` win over the conventional `metadata/` and
 `screenshots/` directories, including when `--fastlane-dir` selected the
