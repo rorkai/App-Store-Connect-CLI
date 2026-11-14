@@ -8,9 +8,10 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// SandboxCommand returns the sandbox testers command with subcommands.
-func SandboxCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("sandbox", flag.ExitOnError)
+// NewSandboxCommand returns the sandbox testers command with subcommands,
+// built on d.
+func NewSandboxCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("sandbox", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "sandbox",
@@ -28,10 +29,10 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			SandboxListCommand(),
-			SandboxGetCommand(),
-			SandboxUpdateCommand(),
-			SandboxClearHistoryCommand(),
+			newSandboxListCommand(d),
+			newSandboxGetCommand(d),
+			newSandboxUpdateCommand(d),
+			newSandboxClearHistoryCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp

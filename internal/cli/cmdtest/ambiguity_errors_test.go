@@ -77,20 +77,17 @@ func TestAmbiguousBetaGroupNameListsCandidatesAndGroupFlag(t *testing.T) {
 }
 
 func TestAmbiguousSandboxTesterEmailListsCandidatesAndIDFlag(t *testing.T) {
-	setupAuth(t)
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v2/sandboxTesters", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[
 			{"type":"sandboxTesters","id":"tester-1","attributes":{"email":"dup@example.com","firstName":"Jane","lastName":"Doe"}},
 			{"type":"sandboxTesters","id":"tester-2","attributes":{"email":"dup@example.com","firstName":"John","lastName":"Doe"}}
 		],"links":{}}`))
 
-	stdout, stderr := captureOutput(t, func() {
-		if code := cmd.Run([]string{"sandbox", "view", "--email", "dup@example.com"}, "1.2.3"); code != cmd.ExitError {
-			t.Fatalf("exit code = %d, want %d", code, cmd.ExitError)
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, stubClient(t, reg), "sandbox", "view", "--email", "dup@example.com")
+	if code != cmd.ExitError {
+		t.Fatalf("exit code = %d, want %d", code, cmd.ExitError)
+	}
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}

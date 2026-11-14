@@ -430,31 +430,37 @@ func TestAccountAndDistributionInputValidationReturnsUsageExitCode(t *testing.T)
 			name:    "sandbox list limit",
 			args:    []string{"sandbox", "list", "--limit", "201"},
 			wantErr: "sandbox list: --limit must be between 1 and 200",
+			deps:    true,
 		},
 		{
 			name:    "sandbox list next",
 			args:    []string{"sandbox", "list", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
 			wantErr: "sandbox list: --next must be an App Store Connect URL",
+			deps:    true,
 		},
 		{
 			name:    "sandbox list invalid email",
 			args:    []string{"sandbox", "list", "--email", "bad"},
 			wantErr: "sandbox list: --email must be a valid email address",
+			deps:    true,
 		},
 		{
 			name:    "sandbox view invalid email",
 			args:    []string{"sandbox", "view", "--email", "bad"},
 			wantErr: "sandbox view: --email must be a valid email address",
+			deps:    true,
 		},
 		{
 			name:    "sandbox update invalid renewal rate",
 			args:    []string{"sandbox", "update", "--id", "TESTER_ID", "--subscription-renewal-rate", "bad"},
 			wantErr: "sandbox update: --subscription-renewal-rate must be one of: MONTHLY_RENEWAL_EVERY_FIFTEEN_MINUTES, MONTHLY_RENEWAL_EVERY_FIVE_MINUTES, MONTHLY_RENEWAL_EVERY_ONE_HOUR, MONTHLY_RENEWAL_EVERY_THIRTY_MINUTES, MONTHLY_RENEWAL_EVERY_THREE_MINUTES",
+			deps:    true,
 		},
 		{
 			name:    "sandbox clear-history invalid email",
 			args:    []string{"sandbox", "clear-history", "--email", "bad", "--confirm"},
 			wantErr: "sandbox clear-history: --email must be a valid email address",
+			deps:    true,
 		},
 		{
 			name:    "testflight crashes list limit",

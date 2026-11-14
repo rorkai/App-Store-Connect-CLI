@@ -10,10 +10,8 @@ import (
 )
 
 func TestSandboxViewByEmailDeduplicatesRepeatedResourceIDsAcrossPages(t *testing.T) {
-	setupAuth(t)
 	const nextURL = "https://api.appstoreconnect.apple.com/v2/sandboxTesters?cursor=next"
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v2/sandboxTesters", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[
 		{"type":"sandboxTesters","id":"tester-1","attributes":{"email":"same@example.com","firstName":"Jane"}}
 	],"links":{"next":"`+nextURL+`"}}`))
@@ -21,11 +19,10 @@ func TestSandboxViewByEmailDeduplicatesRepeatedResourceIDsAcrossPages(t *testing
 		{"type":"sandboxTesters","id":"tester-1","attributes":{"email":"same@example.com","firstName":"Jane"}}
 	],"links":{}}`))
 
-	stdout, stderr := captureOutput(t, func() {
-		if code := cmd.Run([]string{"sandbox", "view", "--email", "same@example.com", "--output", "json"}, "1.2.3"); code != cmd.ExitSuccess {
-			t.Fatalf("exit code = %d, want %d", code, cmd.ExitSuccess)
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, stubClient(t, reg), "sandbox", "view", "--email", "same@example.com", "--output", "json")
+	if code != cmd.ExitSuccess {
+		t.Fatalf("exit code = %d, want %d", code, cmd.ExitSuccess)
+	}
 	if requests := len(reg.Requests()); requests != 2 {
 		t.Fatalf("requests = %d, want 2", requests)
 	}
@@ -38,10 +35,8 @@ func TestSandboxViewByEmailDeduplicatesRepeatedResourceIDsAcrossPages(t *testing
 }
 
 func TestSandboxViewByEmailKeepsDistinctIDsAmbiguousAcrossPages(t *testing.T) {
-	setupAuth(t)
 	const nextURL = "https://api.appstoreconnect.apple.com/v2/sandboxTesters?cursor=next"
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v2/sandboxTesters", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[
 		{"type":"sandboxTesters","id":" tester-2 ","attributes":{"email":"ambiguous@example.com"}}
 	],"links":{"next":"`+nextURL+`"}}`))
@@ -49,11 +44,10 @@ func TestSandboxViewByEmailKeepsDistinctIDsAmbiguousAcrossPages(t *testing.T) {
 		{"type":"sandboxTesters","id":" tester-1 ","attributes":{"email":"ambiguous@example.com"}}
 	],"links":{}}`))
 
-	stdout, stderr := captureOutput(t, func() {
-		if code := cmd.Run([]string{"sandbox", "view", "--email", "ambiguous@example.com"}, "1.2.3"); code != cmd.ExitError {
-			t.Fatalf("exit code = %d, want %d", code, cmd.ExitError)
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, stubClient(t, reg), "sandbox", "view", "--email", "ambiguous@example.com")
+	if code != cmd.ExitError {
+		t.Fatalf("exit code = %d, want %d", code, cmd.ExitError)
+	}
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
@@ -68,18 +62,15 @@ func TestSandboxViewByEmailKeepsDistinctIDsAmbiguousAcrossPages(t *testing.T) {
 }
 
 func TestSandboxViewByEmailRejectsBlankResourceID(t *testing.T) {
-	setupAuth(t)
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v2/sandboxTesters", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[
 		{"type":"sandboxTesters","id":"   ","attributes":{"email":"malformed@example.com"}}
 	],"links":{}}`))
 
-	stdout, stderr := captureOutput(t, func() {
-		if code := cmd.Run([]string{"sandbox", "view", "--email", "malformed@example.com"}, "1.2.3"); code != cmd.ExitError {
-			t.Fatalf("exit code = %d, want %d", code, cmd.ExitError)
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, stubClient(t, reg), "sandbox", "view", "--email", "malformed@example.com")
+	if code != cmd.ExitError {
+		t.Fatalf("exit code = %d, want %d", code, cmd.ExitError)
+	}
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
@@ -128,20 +119,17 @@ func TestSandboxByEmailNormalizesID(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			setupAuth(t)
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			reg.Register(asctest.GET("/v2/sandboxTesters", "limit=200"),
 				asctest.JSON(http.StatusOK, `{"data":[{"type":"sandboxTesters","id":" tester-42 ","attributes":{"email":"`+test.email+`"}}],"links":{}}`))
 			if test.mutation != nil {
 				test.mutation(reg)
 			}
 
-			stdout, stderr := captureOutput(t, func() {
-				if code := cmd.Run(test.args, "1.2.3"); code != cmd.ExitSuccess {
-					t.Fatalf("exit code = %d, want %d", code, cmd.ExitSuccess)
-				}
-			})
+			stdout, stderr, code := runWithDeps(t, stubClient(t, reg), test.args...)
+			if code != cmd.ExitSuccess {
+				t.Fatalf("exit code = %d, want %d", code, cmd.ExitSuccess)
+			}
 			if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)
 			}
