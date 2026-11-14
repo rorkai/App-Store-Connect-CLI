@@ -1,35 +1,5 @@
 package asc
 
-// AlternativeDistributionDomainAttributes describes an alternative distribution domain.
-type AlternativeDistributionDomainAttributes struct {
-	Domain        string `json:"domain,omitempty"`
-	ReferenceName string `json:"referenceName,omitempty"`
-	CreatedDate   string `json:"createdDate,omitempty"`
-}
-
-// AlternativeDistributionDomainsResponse is the response from domain list endpoints.
-type AlternativeDistributionDomainsResponse = Response[AlternativeDistributionDomainAttributes]
-
-// AlternativeDistributionDomainResponse is the response from domain detail endpoints.
-type AlternativeDistributionDomainResponse = SingleResponse[AlternativeDistributionDomainAttributes]
-
-// AlternativeDistributionDomainCreateAttributes describes attributes for creating a domain.
-type AlternativeDistributionDomainCreateAttributes struct {
-	Domain        string `json:"domain"`
-	ReferenceName string `json:"referenceName"`
-}
-
-// AlternativeDistributionDomainCreateData is the data payload for domain create requests.
-type AlternativeDistributionDomainCreateData struct {
-	Type       ResourceType                                  `json:"type"`
-	Attributes AlternativeDistributionDomainCreateAttributes `json:"attributes"`
-}
-
-// AlternativeDistributionDomainCreateRequest is a request to create a domain.
-type AlternativeDistributionDomainCreateRequest struct {
-	Data AlternativeDistributionDomainCreateData `json:"data"`
-}
-
 // AlternativeDistributionDomainDeleteResult represents CLI output for domain deletions.
 type AlternativeDistributionDomainDeleteResult struct {
 	ID      string `json:"id"`

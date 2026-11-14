@@ -17,21 +17,6 @@ func (c *Client) GetGameCenterDetailGameCenterGroup(ctx context.Context, detailI
 	return getJSON[GameCenterGroupResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/gameCenterDetails/%s/gameCenterGroup", strings.TrimSpace(detailID))})
 }
 
-// GetGameCenterGroupGameCenterDetails retrieves Game Center details for a group.
-func (c *Client) GetGameCenterGroupGameCenterDetails(ctx context.Context, groupID string, opts ...GCDetailsOption) (*GameCenterDetailsResponse, error) {
-	query := applyOptions(opts)
-	groupID = strings.TrimSpace(groupID)
-	if query.nextURL == "" && groupID == "" {
-		return nil, fmt.Errorf("groupID is required")
-	}
-	return getJSON[GameCenterDetailsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/gameCenterGroups/%s/gameCenterDetails", groupID),
-		Query:       buildGCDetailsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "game-center-group-details",
-	})
-}
-
 // CreateGameCenterDetail creates a new Game Center detail.
 func (c *Client) CreateGameCenterDetail(ctx context.Context, appID string, attrs *GameCenterDetailCreateAttributes) (*GameCenterDetailResponse, error) {
 	appID = strings.TrimSpace(appID)
