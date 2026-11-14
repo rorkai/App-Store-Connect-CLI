@@ -7,6 +7,14 @@ import (
 	"fmt"
 )
 
+// CiIssueAttributes is the attributes object of the CiIssue schema.
+type CiIssueAttributes struct {
+	IssueType  string        `json:"issueType,omitempty"`
+	Message    string        `json:"message,omitempty"`
+	FileSource *FileLocation `json:"fileSource,omitempty"`
+	Category   string        `json:"category,omitempty"`
+}
+
 // GetCiIssue sends GET /v1/ciIssues/{id} (ciIssues_getInstance).
 func (c *Client) GetCiIssue(ctx context.Context, issueID string) (*CiIssueResponse, error) {
 	return getJSON[CiIssueResponse](ctx, c, readRequest{

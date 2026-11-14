@@ -2,6 +2,7 @@
   "tag": "AccessibilityDeclarations",
   "file": "accessibility_declarations_gen.go",
   "types": [
+    "AccessibilityDeclarationCreateAttributes",
     "AccessibilityDeclarationCreateData",
     "AccessibilityDeclarationCreateRequest",
     "AccessibilityDeclarationRelationships",

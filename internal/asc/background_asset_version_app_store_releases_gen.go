@@ -8,6 +8,11 @@ import (
 	"strings"
 )
 
+// BackgroundAssetVersionAppStoreReleaseAttributes is the attributes object of the BackgroundAssetVersionAppStoreRelease schema.
+type BackgroundAssetVersionAppStoreReleaseAttributes struct {
+	State string `json:"state,omitempty"`
+}
+
 // BackgroundAssetVersionAppStoreReleaseResponse is the BackgroundAssetVersionAppStoreReleaseResponse schema.
 type BackgroundAssetVersionAppStoreReleaseResponse = SingleResponse[BackgroundAssetVersionAppStoreReleaseAttributes]
 

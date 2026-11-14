@@ -2,6 +2,7 @@
   "tag": "SubscriptionPromotionalOffers",
   "file": "subscription_promotional_offers_gen.go",
   "types": [
+    "SubscriptionPromotionalOfferAttributes",
     "SubscriptionPromotionalOfferCreateData",
     "SubscriptionPromotionalOfferRelationships",
     "SubscriptionPromotionalOfferUpdateRequest"

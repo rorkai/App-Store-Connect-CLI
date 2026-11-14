@@ -9,6 +9,20 @@ import (
 	"strings"
 )
 
+// AccessibilityDeclarationCreateAttributes is the data.attributes object of the AccessibilityDeclarationCreateRequest schema.
+type AccessibilityDeclarationCreateAttributes struct {
+	DeviceFamily                           DeviceFamily `json:"deviceFamily"`
+	SupportsAudioDescriptions              *bool        `json:"supportsAudioDescriptions,omitempty"`
+	SupportsCaptions                       *bool        `json:"supportsCaptions,omitempty"`
+	SupportsDarkInterface                  *bool        `json:"supportsDarkInterface,omitempty"`
+	SupportsDifferentiateWithoutColorAlone *bool        `json:"supportsDifferentiateWithoutColorAlone,omitempty"`
+	SupportsLargerText                     *bool        `json:"supportsLargerText,omitempty"`
+	SupportsReducedMotion                  *bool        `json:"supportsReducedMotion,omitempty"`
+	SupportsSufficientContrast             *bool        `json:"supportsSufficientContrast,omitempty"`
+	SupportsVoiceControl                   *bool        `json:"supportsVoiceControl,omitempty"`
+	SupportsVoiceover                      *bool        `json:"supportsVoiceover,omitempty"`
+}
+
 // AccessibilityDeclarationCreateData is the data object of the AccessibilityDeclarationCreateRequest schema.
 type AccessibilityDeclarationCreateData struct {
 	Type          ResourceType                             `json:"type"`

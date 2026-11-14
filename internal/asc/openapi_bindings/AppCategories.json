@@ -1,6 +1,9 @@
 {
   "tag": "AppCategories",
   "file": "app_categories_gen.go",
+  "types": [
+    "AppCategoryAttributes"
+  ],
   "operations": [
     {"operation":"appCategories_getCollection","name":"GetAppCategories","options":"AppCategoriesOption","query":"buildAppCategoriesQuery","nextContext":"appCategories"},
     {"operation":"appCategories_getInstance","name":"GetAppCategory","params":["categoryID"],"check":"require"},

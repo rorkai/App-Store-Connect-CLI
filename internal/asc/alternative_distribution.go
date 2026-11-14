@@ -12,11 +12,6 @@ type AlternativeDistributionKeyDeleteResult struct {
 	Deleted bool   `json:"deleted"`
 }
 
-// AlternativeDistributionPackageAttributes describes an alternative distribution package.
-type AlternativeDistributionPackageAttributes struct {
-	SourceFileChecksum *Checksums `json:"sourceFileChecksum,omitempty"`
-}
-
 // AlternativeDistributionPackageVersionState represents a package version state.
 type AlternativeDistributionPackageVersionState string
 

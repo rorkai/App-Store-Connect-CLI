@@ -138,25 +138,6 @@ type GameCenterLeaderboardLocalizationAttributes struct {
 	Description             *string `json:"description,omitempty"`
 }
 
-// GameCenterLeaderboardLocalizationCreateAttributes describes attributes for creating a localization.
-type GameCenterLeaderboardLocalizationCreateAttributes struct {
-	Locale                  string  `json:"locale"`
-	Name                    string  `json:"name"`
-	FormatterOverride       *string `json:"formatterOverride,omitempty"`
-	FormatterSuffix         *string `json:"formatterSuffix,omitempty"`
-	FormatterSuffixSingular *string `json:"formatterSuffixSingular,omitempty"`
-	Description             *string `json:"description,omitempty"`
-}
-
-// GameCenterLeaderboardLocalizationUpdateAttributes describes attributes for updating a localization.
-type GameCenterLeaderboardLocalizationUpdateAttributes struct {
-	Name                    *string `json:"name,omitempty"`
-	FormatterOverride       *string `json:"formatterOverride,omitempty"`
-	FormatterSuffix         *string `json:"formatterSuffix,omitempty"`
-	FormatterSuffixSingular *string `json:"formatterSuffixSingular,omitempty"`
-	Description             *string `json:"description,omitempty"`
-}
-
 // GameCenterLeaderboardLocalizationV2CreateData is the data portion of a v2 localization create request.
 type GameCenterLeaderboardLocalizationV2CreateData struct {
 	Type          ResourceType                                      `json:"type"`

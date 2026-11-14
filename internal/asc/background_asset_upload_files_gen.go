@@ -28,6 +28,13 @@ type BackgroundAssetUploadFileCreateRequest struct {
 // BackgroundAssetUploadFileResponse is the BackgroundAssetUploadFileResponse schema.
 type BackgroundAssetUploadFileResponse = SingleResponse[BackgroundAssetUploadFileAttributes]
 
+// BackgroundAssetUploadFileUpdateAttributes is the data.attributes object of the BackgroundAssetUploadFileUpdateRequest schema.
+type BackgroundAssetUploadFileUpdateAttributes struct {
+	SourceFileChecksum  *string    `json:"sourceFileChecksum,omitempty"`
+	SourceFileChecksums *Checksums `json:"sourceFileChecksums,omitempty"`
+	Uploaded            *bool      `json:"uploaded,omitempty"`
+}
+
 // BackgroundAssetUploadFileUpdateData is the data object of the BackgroundAssetUploadFileUpdateRequest schema.
 type BackgroundAssetUploadFileUpdateData struct {
 	Type       ResourceType                               `json:"type"`

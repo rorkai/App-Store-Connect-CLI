@@ -9,6 +9,16 @@ import (
 	"strings"
 )
 
+// SubscriptionIntroductoryOfferAttributes is the attributes object of the SubscriptionIntroductoryOffer schema.
+type SubscriptionIntroductoryOfferAttributes struct {
+	StartDate                  string                    `json:"startDate,omitempty"`
+	EndDate                    string                    `json:"endDate,omitempty"`
+	Duration                   SubscriptionOfferDuration `json:"duration,omitempty"`
+	OfferMode                  SubscriptionOfferMode     `json:"offerMode,omitempty"`
+	NumberOfPeriods            int                       `json:"numberOfPeriods,omitempty"`
+	TargetSubscriptionPlanType SubscriptionPlanType      `json:"targetSubscriptionPlanType,omitempty"`
+}
+
 // SubscriptionIntroductoryOfferCreateData is the data object of the SubscriptionIntroductoryOfferCreateRequest schema.
 type SubscriptionIntroductoryOfferCreateData struct {
 	Type          ResourceType                                  `json:"type"`

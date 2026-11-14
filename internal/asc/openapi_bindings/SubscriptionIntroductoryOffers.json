@@ -2,6 +2,7 @@
   "tag": "SubscriptionIntroductoryOffers",
   "file": "subscription_introductory_offers_gen.go",
   "types": [
+    "SubscriptionIntroductoryOfferAttributes",
     "SubscriptionIntroductoryOfferCreateData",
     "SubscriptionIntroductoryOfferCreateRequest",
     "SubscriptionIntroductoryOfferRelationships",

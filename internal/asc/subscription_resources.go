@@ -18,16 +18,6 @@ type SubscriptionImageAttributes struct {
 	State              string            `json:"state,omitempty"`
 }
 
-// SubscriptionIntroductoryOfferAttributes describes a subscription introductory offer.
-type SubscriptionIntroductoryOfferAttributes struct {
-	StartDate                  string                    `json:"startDate,omitempty"`
-	EndDate                    string                    `json:"endDate,omitempty"`
-	Duration                   SubscriptionOfferDuration `json:"duration,omitempty"`
-	OfferMode                  SubscriptionOfferMode     `json:"offerMode,omitempty"`
-	NumberOfPeriods            int                       `json:"numberOfPeriods,omitempty"`
-	TargetSubscriptionPlanType SubscriptionPlanType      `json:"targetSubscriptionPlanType,omitempty"`
-}
-
 // SubscriptionIntroductoryOfferCreateAttributes describes attributes for creating an introductory offer.
 type SubscriptionIntroductoryOfferCreateAttributes struct {
 	StartDate                  string                    `json:"startDate,omitempty"`
@@ -43,16 +33,6 @@ type SubscriptionIntroductoryOfferUpdateData struct {
 	Type       ResourceType                                  `json:"type"`
 	ID         string                                        `json:"id"`
 	Attributes SubscriptionIntroductoryOfferUpdateAttributes `json:"attributes"`
-}
-
-// SubscriptionPromotionalOfferAttributes describes a subscription promotional offer.
-type SubscriptionPromotionalOfferAttributes struct {
-	Duration                   SubscriptionOfferDuration `json:"duration,omitempty"`
-	Name                       string                    `json:"name,omitempty"`
-	NumberOfPeriods            int                       `json:"numberOfPeriods,omitempty"`
-	OfferCode                  string                    `json:"offerCode,omitempty"`
-	OfferMode                  SubscriptionOfferMode     `json:"offerMode,omitempty"`
-	TargetSubscriptionPlanType SubscriptionPlanType      `json:"targetSubscriptionPlanType,omitempty"`
 }
 
 // SubscriptionPromotionalOfferCreateAttributes describes attributes for creating a promotional offer.
