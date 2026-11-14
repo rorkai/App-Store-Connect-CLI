@@ -707,7 +707,7 @@ func pruneImports(src []byte) ([]byte, error) {
 			continue
 		}
 		for _, s := range unused {
-			cut = append(cut, [2]int{fset.Position(s.Pos()).Offset, fset.Position(s.End()).Offset})
+			cut = append(cut, wholeLines(src, fset.Position(s.Pos()).Offset, fset.Position(s.End()).Offset))
 		}
 	}
 	if !other {
@@ -717,4 +717,16 @@ func pruneImports(src []byte) ([]byte, error) {
 		src = append(src[:cut[i][0]:cut[i][0]], src[cut[i][1]:]...)
 	}
 	return format.Source(src)
+}
+
+// wholeLines widens the span from:to to the lines it is on when nothing else
+// is on them, so a removed import leaves no blank line that would split its
+// import group.
+func wholeLines(src []byte, from, to int) [2]int {
+	start := bytes.LastIndexByte(src[:from], '\n') + 1
+	end := bytes.IndexByte(src[to:], '\n')
+	if end < 0 || len(bytes.TrimSpace(src[start:from])) > 0 || len(bytes.TrimSpace(src[to:to+end])) > 0 {
+		return [2]int{from, to}
+	}
+	return [2]int{start, to + end + 1}
 }
