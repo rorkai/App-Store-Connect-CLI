@@ -149,8 +149,7 @@ Examples:
 			id := strings.TrimSpace(*enabledVersionID)
 			nextURL := strings.TrimSpace(*next)
 			if id == "" && nextURL == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			client, err := shared.GetASCClient()

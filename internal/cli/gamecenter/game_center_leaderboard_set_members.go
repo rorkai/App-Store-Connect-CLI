@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -70,8 +69,7 @@ Examples:
 
 			id := strings.TrimSpace(*setID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --set-id is required")
-				return shared.MissingRequiredUsageError("--set-id")
+				return shared.RequiredFlag("--set-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -141,13 +139,11 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*setID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --set-id is required")
-				return shared.MissingRequiredUsageError("--set-id")
+				return shared.RequiredFlag("--set-id")
 			}
 
 			if !flagPassed(fs, "leaderboard-ids") {
-				fmt.Fprintln(os.Stderr, "Error: --leaderboard-ids is required")
-				return shared.MissingRequiredUsageError("--leaderboard-ids")
+				return shared.RequiredFlag("--leaderboard-ids")
 			}
 
 			if err := validateGameCenterReplacementConfirm(fs, *confirm); err != nil {
