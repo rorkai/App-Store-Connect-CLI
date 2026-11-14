@@ -162,3 +162,44 @@ func (c *Client) UpdateWidget(ctx context.Context, widgetID string, attrs Widget
 		Payload: payload,
 	})
 }
+
+// CreateWrench sends POST /v1/wrenches (wrenches_createInstance).
+func (c *Client) CreateWrench(ctx context.Context, fileName string, fileSize int64) (*WrenchResponse, error) {
+	payload := WrenchCreateRequest{
+		Data: WrenchCreateData{
+			Type: ResourceTypeWrenches,
+			Attributes: WrenchCreateAttributes{
+				FileName: fileName,
+				FileSize: fileSize,
+			},
+		},
+	}
+	return sendJSON[WrenchResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/wrenches",
+		Payload: payload,
+	})
+}
+
+// UpdateWrench sends PATCH /v1/wrenches/{id} (wrenches_updateInstance).
+func (c *Client) UpdateWrench(ctx context.Context, wrenchID string, uploaded bool, checksum string) (*WrenchResponse, error) {
+	wrenchID = strings.TrimSpace(wrenchID)
+	if wrenchID == "" {
+		return nil, fmt.Errorf("wrenchID is required")
+	}
+	payload := WrenchUpdateRequest{
+		Data: WrenchUpdateData{
+			Type: ResourceTypeWrenches,
+			ID:   wrenchID,
+			Attributes: &WrenchUpdateAttributes{
+				Uploaded:           &uploaded,
+				SourceFileChecksum: &checksum,
+			},
+		},
+	}
+	return sendJSON[WrenchResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/wrenches/%s", wrenchID),
+		Payload: payload,
+	})
+}

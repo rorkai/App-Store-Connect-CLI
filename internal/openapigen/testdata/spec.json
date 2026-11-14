@@ -75,6 +75,26 @@
         "requestBody": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WidgetGadgetsLinkagesRequest"}}}},
         "responses": {"204": {"description": "Success (no content)"}}
       }
+    },
+    "/v1/wrenches": {
+      "post": {
+        "tags": ["Widgets"],
+        "operationId": "wrenches_createInstance",
+        "requestBody": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WrenchCreateRequest"}}}},
+        "responses": {
+          "201": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WrenchResponse"}}}}
+        }
+      }
+    },
+    "/v1/wrenches/{id}": {
+      "patch": {
+        "tags": ["Widgets"],
+        "operationId": "wrenches_updateInstance",
+        "requestBody": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WrenchUpdateRequest"}}}},
+        "responses": {
+          "200": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WrenchResponse"}}}}
+        }
+      }
     }
   },
   "components": {
@@ -164,6 +184,49 @@
               },
               "required": ["id", "type"]
             }
+          }
+        },
+        "required": ["data"]
+      },
+      "WrenchResponse": {"type": "object"},
+      "WrenchCreateRequest": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "type": {"type": "string", "enum": ["wrenches"]},
+              "attributes": {
+                "type": "object",
+                "properties": {
+                  "fileSize": {"type": "integer"},
+                  "fileName": {"type": "string"}
+                },
+                "required": ["fileName", "fileSize"]
+              }
+            },
+            "required": ["attributes", "type"]
+          }
+        },
+        "required": ["data"]
+      },
+      "WrenchUpdateRequest": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "type": {"type": "string", "enum": ["wrenches"]},
+              "id": {"type": "string"},
+              "attributes": {
+                "type": "object",
+                "properties": {
+                  "sourceFileChecksum": {"type": "string"},
+                  "uploaded": {"type": "boolean"}
+                }
+              }
+            },
+            "required": ["id", "type"]
           }
         },
         "required": ["data"]

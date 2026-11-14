@@ -21,6 +21,8 @@
     {"operation":"widgets_getInstance","name":"GetWidget","params":["widgetID"],"check":"require","parseErr":"failed to parse widget response"},
     {"operation":"widgets_owner_getToOneRelated","name":"GetWidgetOwner","params":["widgetID"],"check":"raw"},
     {"operation":"widgets_parts_getToManyRelated","name":"GetWidgetParts","params":["widgetID"],"check":"require","checkFirst":true,"options":"PartsOption","query":"buildPartsQuery","response":"GadgetListResponse"},
-    {"operation":"widgets_updateInstance","name":"UpdateWidget","params":["widgetID"]}
+    {"operation":"widgets_updateInstance","name":"UpdateWidget","params":["widgetID"]},
+    {"operation":"wrenches_createInstance","name":"CreateWrench","args":[{"name":"fileName"},{"name":"fileSize","type":"int64"}]},
+    {"operation":"wrenches_updateInstance","name":"UpdateWrench","params":["wrenchID"],"check":"require","args":[{"name":"uploaded"},{"name":"checksum","attribute":"sourceFileChecksum"}]}
   ]
 }

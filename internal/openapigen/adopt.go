@@ -230,8 +230,17 @@ func pathFormat(template string) string {
 func deriveOp(spec *Spec, op *Operation, d *decl) (*OpBind, string) {
 	fn := d.node.(*ast.FuncDecl)
 	b := &OpBind{Operation: op.ID, Name: fn.Name.Name}
+	argFields := attributeArgs(fn.Body)
 	for i, field := range fn.Type.Params.List {
 		typ := exprString(field.Type)
+		if len(field.Names) == 1 && argFields[field.Names[0].Name] != "" {
+			arg, reason := deriveArg(spec, op, field.Names[0].Name, argFields[field.Names[0].Name], typ)
+			if reason != "" {
+				return nil, reason
+			}
+			b.Args = append(b.Args, arg)
+			continue
+		}
 		switch {
 		case i == 0 && typ == "context.Context":
 		case typ == "string":
@@ -312,6 +321,68 @@ func deriveOp(spec *Spec, op *Operation, d *decl) (*OpBind, string) {
 		return nil, "differs at " + diff
 	}
 	return b, ""
+}
+
+// attributeArgs maps each identifier an attributes literal sets a field to,
+// by value or by address, to the field name.
+func attributeArgs(body *ast.BlockStmt) map[string]string {
+	out := map[string]string{}
+	ast.Inspect(body, func(x ast.Node) bool {
+		kv, ok := x.(*ast.KeyValueExpr)
+		if !ok || exprString(kv.Key) != "Attributes" {
+			return true
+		}
+		value := kv.Value
+		if u, ok := value.(*ast.UnaryExpr); ok && u.Op == token.AND {
+			value = u.X
+		}
+		lit, ok := value.(*ast.CompositeLit)
+		if !ok {
+			return true
+		}
+		for _, elt := range lit.Elts {
+			field, ok := elt.(*ast.KeyValueExpr)
+			if !ok {
+				continue
+			}
+			arg := field.Value
+			if u, ok := arg.(*ast.UnaryExpr); ok && u.Op == token.AND {
+				arg = u.X
+			}
+			if id, ok := arg.(*ast.Ident); ok {
+				out[id.Name] = exprString(field.Key)
+			}
+		}
+		return true
+	})
+	return out
+}
+
+// deriveArg binds a parameter set as the request attribute whose Go field
+// name is field.
+func deriveArg(spec *Spec, op *Operation, name, field, typ string) (ArgBind, string) {
+	data, err := requestData(spec, op.Request)
+	if err != nil {
+		return ArgBind{}, err.Error()
+	}
+	attrs := data.Properties.Get("attributes")
+	if attrs == nil {
+		return ArgBind{}, op.Request + " has no attributes"
+	}
+	for _, prop := range attrs.Properties {
+		if goName(prop.Name) != field {
+			continue
+		}
+		arg := ArgBind{Name: name, Type: typ}
+		if prop.Name != name {
+			arg.Attribute = prop.Name
+		}
+		if def, _, err := goType(prop.Schema); err == nil && def == typ {
+			arg.Type = ""
+		}
+		return arg, ""
+	}
+	return ArgBind{}, fmt.Sprintf("field %s is no attribute of %s", field, op.Request)
 }
 
 func stringLit(expr ast.Expr) string {

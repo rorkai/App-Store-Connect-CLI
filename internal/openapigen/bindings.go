@@ -51,9 +51,20 @@ type OpBind struct {
 	ParseErr    string   `json:"parseErr,omitempty"`    // default "failed to parse response"
 	Response    string   `json:"response,omitempty"`    // Go decode type; default the spec schema name
 	IDs         string   `json:"ids,omitempty"`         // ID list parameter of a relationship change
+	// Args are parameters after the path parameters that a create or update
+	// sets as body attributes, in signature order, which is also the order
+	// the attributes literal lists them in.
+	Args []ArgBind `json:"args,omitempty"`
 	// Deviations are known differences from the schema that the contract test
 	// in internal/asc pins. They change no generated code.
 	Deviations []Deviation `json:"deviations,omitempty"`
+}
+
+// ArgBind is one scalar parameter set as one request attribute.
+type ArgBind struct {
+	Name      string `json:"name"`
+	Attribute string `json:"attribute,omitempty"` // default Name
+	Type      string `json:"type,omitempty"`      // Go type; default the attribute's, "int64" may replace "int"
 }
 
 // Deviation is one problem text of the contract test that the method is known

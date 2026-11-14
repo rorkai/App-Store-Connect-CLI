@@ -189,6 +189,9 @@ func renderMethod(spec *Spec, b *OpBind) (string, error) {
 	if b.CheckFirst && (op.Method != "GET" || b.Options == "" || (b.Check != checkTrim && b.Check != checkRequire)) {
 		return "", fmt.Errorf("checkFirst needs a paged read with trim or require checks")
 	}
+	if len(b.Args) > 0 && !strings.HasSuffix(op.Request, "CreateRequest") && !strings.HasSuffix(op.Request, "UpdateRequest") {
+		return "", fmt.Errorf("args need a create or update request")
+	}
 	m := &method{b: b, op: op}
 	if len(b.Params) > 0 {
 		m.params = append(m.params, strings.Join(b.Params, ", ")+" string")
@@ -344,7 +347,13 @@ func (m *method) payload(spec *Spec) (string, error) {
 	if data.Properties.Get("relationships") != nil {
 		return "", fmt.Errorf("relationships in %s are not supported", m.op.Request)
 	}
-	if data.Properties.Get("attributes") != nil {
+	if len(m.b.Args) > 0 {
+		attrs, err := m.argAttributes(data, base)
+		if err != nil {
+			return "", err
+		}
+		fields = append(fields, attrs)
+	} else if data.Properties.Get("attributes") != nil {
 		m.params = append(m.params, "attrs "+base+"Attributes")
 		if data.requires("attributes") {
 			fields = append(fields, "Attributes: attrs")
@@ -354,6 +363,48 @@ func (m *method) payload(spec *Spec) (string, error) {
 	}
 	m.checks()
 	return fmt.Sprintf("payload := %s{\nData: %sData{\n%s,\n},\n}", m.op.Request, base, strings.Join(fields, ",\n")), nil
+}
+
+// argAttributes sets each argument as its attribute, in argument order:
+// required attributes by value, optional ones by pointer.
+func (m *method) argAttributes(data *Schema, base string) (string, error) {
+	attrs := data.Properties.Get("attributes")
+	if attrs == nil {
+		return "", fmt.Errorf("args need request attributes")
+	}
+	seen := map[string]bool{}
+	var fields []string
+	for _, arg := range m.b.Args {
+		name := arg.Attribute
+		if name == "" {
+			name = arg.Name
+		}
+		prop := attrs.Properties.Get(name)
+		if prop == nil || seen[name] {
+			return "", fmt.Errorf("arg %s: no attribute %q or set twice", arg.Name, name)
+		}
+		seen[name] = true
+		typ, scalar, err := goType(prop)
+		switch {
+		case err != nil || !scalar:
+			return "", fmt.Errorf("arg %s: attribute %q is not a scalar", arg.Name, name)
+		case arg.Type == "int64" && typ == "int":
+			typ = arg.Type
+		case arg.Type != "":
+			return "", fmt.Errorf("arg %s: type %s does not fit attribute %q", arg.Name, arg.Type, name)
+		}
+		m.params = append(m.params, arg.Name+" "+typ)
+		value := arg.Name
+		if !attrs.requires(name) {
+			value = "&" + value
+		}
+		fields = append(fields, goName(name)+": "+value)
+	}
+	lit := fmt.Sprintf("%sAttributes{\n%s,\n}", base, strings.Join(fields, ",\n"))
+	if data.requires("attributes") {
+		return "Attributes: " + lit, nil
+	}
+	return "Attributes: &" + lit, nil
 }
 
 func linkageType(spec *Spec, request string) (string, error) {
