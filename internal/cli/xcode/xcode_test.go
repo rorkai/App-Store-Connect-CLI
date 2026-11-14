@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -1280,30 +1281,32 @@ func TestXcodeArchivePassesTypedBuildFlags(t *testing.T) {
 	}
 }
 
-func TestXcodeArchiveRejectsPassthroughOfTypedBuildFlags(t *testing.T) {
+func TestXcodeArchivePassthroughOfTypedBuildFlags(t *testing.T) {
 	tests := []struct {
-		name string
-		raw  []string
-		want string
+		name    string
+		args    []string
+		wantErr string
 	}{
-		{name: "destination", raw: []string{"--xcodebuild-flag=-destination", "--xcodebuild-flag=generic/platform=iOS"}, want: `--xcodebuild-flag cannot override asc-managed argument "-destination"`},
-		{name: "derived data path", raw: []string{"--xcodebuild-flag=-derivedDataPath=/tmp/elsewhere"}, want: `--xcodebuild-flag cannot override asc-managed argument "-derivedDataPath"`},
-		{name: "result bundle path", raw: []string{"--xcodebuild-flag=-resultBundlePath", "--xcodebuild-flag=/tmp/elsewhere.xcresult"}, want: `--xcodebuild-flag cannot override asc-managed argument "-resultBundlePath"`},
-		{name: "code signing setting", raw: []string{"--xcodebuild-flag=CODE_SIGNING_ALLOWED=NO"}, want: `--xcodebuild-flag cannot override asc-managed argument "CODE_SIGNING_ALLOWED"`},
+		{name: "raw destination alone", args: []string{"--xcodebuild-flag=-destination", "--xcodebuild-flag=generic/platform=iOS"}},
+		{name: "destination conflict", args: []string{"--destination", "generic/platform=iOS", "--xcodebuild-flag=-destination", "--xcodebuild-flag=generic/platform=macOS"}, wantErr: `--destination conflicts with --xcodebuild-flag "-destination"; use one`},
+		{name: "derived data path conflict", args: []string{"--derived-data-path", "/tmp/dd", "--xcodebuild-flag=-derivedDataPath=/tmp/elsewhere"}, wantErr: `--derived-data-path conflicts with --xcodebuild-flag "-derivedDataPath"; use one`},
+		{name: "result bundle path conflict", args: []string{"--result-bundle-path", "/tmp/a.xcresult", "--xcodebuild-flag=-resultBundlePath", "--xcodebuild-flag=/tmp/b.xcresult"}, wantErr: `--result-bundle-path conflicts with --xcodebuild-flag "-resultBundlePath"; use one`},
+		{name: "code signing conflict", args: []string{"--no-code-signing", "--xcodebuild-flag=CODE_SIGNING_ALLOWED=YES"}, wantErr: `--no-code-signing conflicts with --xcodebuild-flag "CODE_SIGNING_ALLOWED"; use one`},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			restore := overrideXcodeCommandTestHooks(t)
 			defer restore()
-			runArchive = func(context.Context, localxcode.ArchiveOptions) (*localxcode.ArchiveResult, error) {
-				t.Fatal("runArchive must not be called for a reserved passthrough argument")
-				return nil, nil
+			var gotOpts *localxcode.ArchiveOptions
+			runArchive = func(_ context.Context, opts localxcode.ArchiveOptions) (*localxcode.ArchiveResult, error) {
+				gotOpts = &opts
+				return &localxcode.ArchiveResult{ArchivePath: opts.ArchivePath}, nil
 			}
 
 			cmd := XcodeArchiveCommand()
 			cmd.FlagSet.SetOutput(io.Discard)
-			args := append([]string{"--project", "Demo.xcodeproj", "--scheme", "Demo", "--archive-path", "Demo.xcarchive"}, test.raw...)
+			args := append([]string{"--project", "Demo.xcodeproj", "--scheme", "Demo", "--archive-path", filepath.Join(t.TempDir(), "Demo.xcarchive"), "--output", "json"}, test.args...)
 			if err := cmd.FlagSet.Parse(args); err != nil {
 				t.Fatalf("FlagSet.Parse() error = %v", err)
 			}
@@ -1312,11 +1315,23 @@ func TestXcodeArchiveRejectsPassthroughOfTypedBuildFlags(t *testing.T) {
 				runErr = cmd.Exec(context.Background(), nil)
 				return runErr
 			})
+			if test.wantErr == "" {
+				if runErr != nil {
+					t.Fatalf("Exec() error = %v, stderr = %q", runErr, stderr)
+				}
+				if gotOpts == nil || gotOpts.Destination != "" || !reflect.DeepEqual(gotOpts.XcodebuildArgs, []string{"-destination", "generic/platform=iOS"}) {
+					t.Fatalf("raw passthrough changed: %+v", gotOpts)
+				}
+				return
+			}
+			if gotOpts != nil {
+				t.Fatal("runArchive must not be called for a conflicting passthrough argument")
+			}
 			if !errors.Is(runErr, flag.ErrHelp) {
 				t.Fatalf("Exec() error = %v, want usage error", runErr)
 			}
-			if !strings.Contains(stderr, test.want) {
-				t.Fatalf("stderr = %q, want %q", stderr, test.want)
+			if !strings.Contains(stderr, test.wantErr) {
+				t.Fatalf("stderr = %q, want %q", stderr, test.wantErr)
 			}
 		})
 	}

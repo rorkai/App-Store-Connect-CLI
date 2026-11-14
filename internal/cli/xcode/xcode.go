@@ -164,14 +164,7 @@ Examples:
 			if emptyFlag := firstExplicitlyEmptyFlag(fs, "configuration", "destination", "derived-data-path", "result-bundle-path"); emptyFlag != "" {
 				return shared.UsageErrorf("--%s must not be empty", emptyFlag)
 			}
-			if err := localxcode.ValidateArchiveXcodebuildArgs([]string(xcodebuildFlags)); err != nil {
-				return shared.UsageError(err.Error())
-			}
-			if _, err := os.Stat(strings.TrimSpace(*archivePath)); err == nil && !*overwrite {
-				return shared.UsageErrorf("--archive-path already exists: %s (use --overwrite to replace it)", strings.TrimSpace(*archivePath))
-			}
-
-			result, err := runArchive(ctx, localxcode.ArchiveOptions{
+			opts := localxcode.ArchiveOptions{
 				WorkspacePath:    strings.TrimSpace(*workspacePath),
 				ProjectPath:      strings.TrimSpace(*projectPath),
 				Scheme:           strings.TrimSpace(*scheme),
@@ -185,7 +178,15 @@ Examples:
 				Overwrite:        *overwrite,
 				XcodebuildArgs:   []string(xcodebuildFlags),
 				LogWriter:        os.Stderr,
-			})
+			}
+			if err := localxcode.ValidateArchiveXcodebuildArgs(opts); err != nil {
+				return shared.UsageError(err.Error())
+			}
+			if _, err := os.Stat(strings.TrimSpace(*archivePath)); err == nil && !*overwrite {
+				return shared.UsageErrorf("--archive-path already exists: %s (use --overwrite to replace it)", strings.TrimSpace(*archivePath))
+			}
+
+			result, err := runArchive(ctx, opts)
 			if err != nil {
 				return xcodeCommandError("xcode archive", err)
 			}

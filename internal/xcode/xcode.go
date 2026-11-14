@@ -641,11 +641,27 @@ func ValidateExportXcodebuildArgs(args []string) error {
 	return nil
 }
 
-// ValidateArchiveXcodebuildArgs rejects passthrough arguments that override
-// values asc xcode archive sets from its own flags.
-func ValidateArchiveXcodebuildArgs(args []string) error {
-	if reserved := reservedArchivePassthroughArgument(args); reserved != "" {
-		return fmt.Errorf("--xcodebuild-flag cannot override asc-managed argument %q", reserved)
+// ValidateArchiveXcodebuildArgs rejects a passthrough argument that names the
+// same xcodebuild argument as a typed archive flag that is also set.
+func ValidateArchiveXcodebuildArgs(opts ArchiveOptions) error {
+	opts = normalizeArchiveOptions(opts)
+	for _, typed := range []struct {
+		set      bool
+		flag     string
+		flags    []string
+		settings []string
+	}{
+		{set: opts.Destination != "", flag: "--destination", flags: []string{"-destination"}},
+		{set: opts.DerivedDataPath != "", flag: "--derived-data-path", flags: []string{"-deriveddatapath"}},
+		{set: opts.ResultBundlePath != "", flag: "--result-bundle-path", flags: []string{"-resultbundlepath"}},
+		{set: opts.NoCodeSigning, flag: "--no-code-signing", settings: []string{"code_signing_allowed"}},
+	} {
+		if !typed.set {
+			continue
+		}
+		if raw := firstReservedPassthroughArgument(opts.XcodebuildArgs, typed.flags, nil, typed.settings); raw != "" {
+			return fmt.Errorf("%s conflicts with --xcodebuild-flag %q; use one", typed.flag, raw)
+		}
 	}
 	return nil
 }

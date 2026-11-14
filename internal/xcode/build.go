@@ -223,17 +223,6 @@ func reservedBuildPassthroughArgument(args []string) string {
 	return firstReservedPassthroughArgument(args, managedFlags, xcodebuildActions, managedBuildSettings)
 }
 
-// reservedArchivePassthroughArgument reserves only the arguments that
-// asc xcode archive sets from its own flags.
-func reservedArchivePassthroughArgument(args []string) string {
-	return firstReservedPassthroughArgument(
-		args,
-		[]string{"-destination", "-deriveddatapath", "-resultbundlepath"},
-		nil,
-		[]string{"code_signing_allowed"},
-	)
-}
-
 func firstReservedPassthroughArgument(args, managedFlags []string, xcodebuildActions map[string]struct{}, managedBuildSettings []string) string {
 	for index := 0; index < len(args); index++ {
 		arg := args[index]
