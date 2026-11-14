@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -40,81 +39,29 @@ Examples:
 
 // GameCenterEnabledVersionsListCommand returns the enabled versions list subcommand.
 func GameCenterEnabledVersionsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
-
-	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc game-center enabled-versions list [flags]",
-		ShortHelp:  "List Game Center enabled versions for an app.",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "list",
+		Name:        "list",
+		ShortUsage:  "asc game-center enabled-versions list [flags]",
+		ShortHelp:   "List Game Center enabled versions for an app.",
 		LongHelp: `List Game Center enabled versions for an app.
 
 Examples:
   asc game-center enabled-versions list --app "APP_ID"
   asc game-center enabled-versions list --app "APP_ID" --limit 50
   asc game-center enabled-versions list --app "APP_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("game-center enabled-versions list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("game-center enabled-versions list: %v", err)
-			}
-			resolvedAppID := shared.ResolveAppID(*appID)
-			nextURL := strings.TrimSpace(*next)
-			if resolvedAppID == "" && nextURL == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return shared.MissingRequiredUsageError("--app")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center enabled-versions list: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			opts := []asc.GCEnabledVersionsOption{
-				asc.Limit[asc.GCEnabledVersionsOption](*limit),
-				asc.NextURL[asc.GCEnabledVersionsOption](*next),
-			}
-
-			if *paginate {
-				paginateOpts := []asc.GCEnabledVersionsOption{asc.NextURL[asc.GCEnabledVersionsOption](*next)}
-				if nextURL == "" {
-					paginateOpts = []asc.GCEnabledVersionsOption{asc.Limit[asc.GCEnabledVersionsOption](200)}
-				}
-				firstPage, err := client.GetAppGameCenterEnabledVersions(requestCtx, resolvedAppID, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("game-center enabled-versions list: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppGameCenterEnabledVersions(ctx, resolvedAppID, asc.NextURL[asc.GCEnabledVersionsOption](nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("game-center enabled-versions list: %w", err)
-				}
-
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetAppGameCenterEnabledVersions(requestCtx, resolvedAppID, opts...)
-			if err != nil {
-				return fmt.Errorf("game-center enabled-versions list: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		ParentFlag:           "app",
+		ParentUsage:          "App Store Connect app ID (or ASC_APP_ID env)",
+		ResolveApp:           true,
+		RequiredDiagnostic:   true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		ErrorPrefix:          "game-center enabled-versions list",
+		FetchErrorPrefix:     "game-center enabled-versions list: failed to fetch",
+		FetchPage: func(ctx context.Context, client *asc.Client, appID string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetAppGameCenterEnabledVersions(ctx, appID, asc.Limit[asc.GCEnabledVersionsOption](limit), asc.NextURL[asc.GCEnabledVersionsOption](next))
 		},
-	}
+	})
 }
 
 // GameCenterEnabledVersionsCompatibleVersionsCommand returns the compatible versions subcommand.
