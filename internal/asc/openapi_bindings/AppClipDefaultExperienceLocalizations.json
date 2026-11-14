@@ -13,6 +13,7 @@
     {"operation":"appClipDefaultExperienceLocalizations_appClipHeaderImage_getToOneRelated","name":"GetAppClipDefaultExperienceLocalizationHeaderImage","params":["localizationID"],"check":"require"},
     {"operation":"appClipDefaultExperienceLocalizations_appClipHeaderImage_getToOneRelationship","name":"GetAppClipDefaultExperienceLocalizationHeaderImageRelationship","params":["localizationID"],"check":"trim","response":"AppClipDefaultExperienceLocalizationHeaderImageLinkageResponse"},
     {"operation":"appClipDefaultExperienceLocalizations_deleteInstance","name":"DeleteAppClipDefaultExperienceLocalization","params":["localizationID"],"check":"require"},
-    {"operation":"appClipDefaultExperienceLocalizations_getInstance","name":"GetAppClipDefaultExperienceLocalization","params":["localizationID"],"check":"require"}
+    {"operation":"appClipDefaultExperienceLocalizations_getInstance","name":"GetAppClipDefaultExperienceLocalization","params":["localizationID"],"check":"require"},
+    {"operation":"appClipDefaultExperienceLocalizations_updateInstance","name":"UpdateAppClipDefaultExperienceLocalization","params":["localizationID"],"check":"require","attrs":"pointer"}
   ]
 }

@@ -10,6 +10,7 @@
   ],
   "operations": [
     {"operation":"routingAppCoverages_deleteInstance","name":"DeleteRoutingAppCoverage","params":["coverageID"],"check":"require"},
-    {"operation":"routingAppCoverages_getInstance","name":"GetRoutingAppCoverage","params":["coverageID"],"check":"require"}
+    {"operation":"routingAppCoverages_getInstance","name":"GetRoutingAppCoverage","params":["coverageID"],"check":"require"},
+    {"operation":"routingAppCoverages_updateInstance","name":"UpdateRoutingAppCoverage","params":["coverageID"],"check":"require","skipEmptyAttributes":true}
   ]
 }

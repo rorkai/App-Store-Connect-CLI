@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 )
 
@@ -38,5 +39,27 @@ func (c *Client) GetInAppPurchaseOfferCodeOneTimeUseCode(ctx context.Context, on
 	}
 	return getJSON[InAppPurchaseOfferCodeOneTimeUseCodeResponse](ctx, c, readRequest{
 		Path: fmt.Sprintf("/v1/inAppPurchaseOfferCodeOneTimeUseCodes/%s", oneTimeUseCodeID),
+	})
+}
+
+// UpdateInAppPurchaseOfferCodeOneTimeUseCode sends PATCH /v1/inAppPurchaseOfferCodeOneTimeUseCodes/{id} (inAppPurchaseOfferCodeOneTimeUseCodes_updateInstance).
+func (c *Client) UpdateInAppPurchaseOfferCodeOneTimeUseCode(ctx context.Context, oneTimeUseCodeID string, attrs InAppPurchaseOfferCodeOneTimeUseCodeUpdateAttributes) (*InAppPurchaseOfferCodeOneTimeUseCodeResponse, error) {
+	oneTimeUseCodeID = strings.TrimSpace(oneTimeUseCodeID)
+	if oneTimeUseCodeID == "" {
+		return nil, fmt.Errorf("oneTimeUseCodeID is required")
+	}
+	payload := InAppPurchaseOfferCodeOneTimeUseCodeUpdateRequest{
+		Data: InAppPurchaseOfferCodeOneTimeUseCodeUpdateData{
+			Type: ResourceTypeInAppPurchaseOfferCodeOneTimeUseCodes,
+			ID:   oneTimeUseCodeID,
+		},
+	}
+	if attrs.Active != nil {
+		payload.Data.Attributes = &attrs
+	}
+	return sendJSON[InAppPurchaseOfferCodeOneTimeUseCodeResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/inAppPurchaseOfferCodeOneTimeUseCodes/%s", oneTimeUseCodeID),
+		Payload: payload,
 	})
 }

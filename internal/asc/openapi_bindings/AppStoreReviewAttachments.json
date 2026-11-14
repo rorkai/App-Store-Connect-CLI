@@ -9,6 +9,7 @@
     "AppStoreReviewAttachmentUpdateRequest"
   ],
   "operations": [
-    {"operation":"appStoreReviewAttachments_deleteInstance","name":"DeleteAppStoreReviewAttachment","params":["attachmentID"],"check":"require"}
+    {"operation":"appStoreReviewAttachments_deleteInstance","name":"DeleteAppStoreReviewAttachment","params":["attachmentID"],"check":"require"},
+    {"operation":"appStoreReviewAttachments_updateInstance","name":"UpdateAppStoreReviewAttachment","params":["attachmentID"],"check":"require","skipEmptyAttributes":true}
   ]
 }
