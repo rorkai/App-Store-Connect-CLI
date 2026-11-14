@@ -143,7 +143,7 @@ Examples:
 			}
 
 			appClipValue := strings.TrimSpace(*appClipID)
-			if appClipValue == "" {
+			if appClipValue == "" && strings.TrimSpace(*next) == "" {
 				return shared.RequiredFlag("--app-clip-id")
 			}
 

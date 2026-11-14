@@ -64,7 +64,7 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*packageID)
-			if trimmedID == "" {
+			if trimmedID == "" && strings.TrimSpace(*next) == "" {
 				return d.RequiredFlag("--package-id")
 			}
 			if *limit != 0 && (*limit < 1 || *limit > alternativeDistributionMaxLimit) {
@@ -158,7 +158,7 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*versionID)
-			if trimmedID == "" {
+			if trimmedID == "" && strings.TrimSpace(*next) == "" {
 				return d.RequiredFlag("--version-id")
 			}
 			if *limit != 0 && (*limit < 1 || *limit > alternativeDistributionMaxLimit) {
@@ -231,7 +231,7 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*versionID)
-			if trimmedID == "" {
+			if trimmedID == "" && strings.TrimSpace(*next) == "" {
 				return d.RequiredFlag("--version-id")
 			}
 			if *limit != 0 && (*limit < 1 || *limit > alternativeDistributionMaxLimit) {

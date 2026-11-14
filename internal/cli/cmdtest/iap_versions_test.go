@@ -99,16 +99,6 @@ func TestIAPNextConflictsFailBeforeClientFactory(t *testing.T) {
 		wantErr string
 	}{
 		{
-			name:    "iap list rejects owner with next",
-			args:    []string{"iap", "list", "--app", "app-1", "--next", next},
-			wantErr: "--next cannot be combined with --app",
-		},
-		{
-			name:    "iap list rejects explicit empty owner with next",
-			args:    []string{"iap", "list", "--app", "", "--next", next},
-			wantErr: "--next cannot be combined with --app",
-		},
-		{
 			name:    "iap list rejects explicit zero limit with next",
 			args:    []string{"iap", "list", "--limit", "0", "--next", next},
 			wantErr: "--next cannot be combined with --limit",
@@ -164,16 +154,6 @@ func TestIAPNextConflictsFailBeforeClientFactory(t *testing.T) {
 			wantErr: "--next cannot be combined with --version-fields",
 		},
 		{
-			name:    "versions list rejects owner with next",
-			args:    []string{"iap", "versions", "list", "--iap-id", "iap-1", "--next", next},
-			wantErr: "--next cannot be combined with --iap-id",
-		},
-		{
-			name:    "versions list rejects explicit empty owner with next",
-			args:    []string{"iap", "versions", "list", "--iap-id", "", "--next", next},
-			wantErr: "--next cannot be combined with --iap-id",
-		},
-		{
 			name:    "versions list rejects explicit zero limit with next",
 			args:    []string{"iap", "versions", "list", "--limit", "0", "--next", next},
 			wantErr: "--next cannot be combined with --limit",
@@ -219,16 +199,6 @@ func TestIAPNextConflictsFailBeforeClientFactory(t *testing.T) {
 			wantErr: "--next cannot be combined with --localization-fields",
 		},
 		{
-			name:    "images list rejects owner with next",
-			args:    []string{"iap", "versions", "images", "list", "--version-id", "version-1", "--next", next},
-			wantErr: "--next cannot be combined with --version-id",
-		},
-		{
-			name:    "images list rejects explicit empty owner with next",
-			args:    []string{"iap", "versions", "images", "list", "--version-id", "", "--next", next},
-			wantErr: "--next cannot be combined with --version-id",
-		},
-		{
 			name:    "images list rejects explicit zero limit with next",
 			args:    []string{"iap", "versions", "images", "list", "--limit", "0", "--next", next},
 			wantErr: "--next cannot be combined with --limit",
@@ -237,16 +207,6 @@ func TestIAPNextConflictsFailBeforeClientFactory(t *testing.T) {
 			name:    "images list rejects explicit empty fields with next",
 			args:    []string{"iap", "versions", "images", "list", "--image-fields", "", "--next", next},
 			wantErr: "--next cannot be combined with --image-fields",
-		},
-		{
-			name:    "localizations list rejects owner with next",
-			args:    []string{"iap", "versions", "localizations", "list", "--version-id", "version-1", "--next", next},
-			wantErr: "--next cannot be combined with --version-id",
-		},
-		{
-			name:    "localizations list rejects explicit empty owner with next",
-			args:    []string{"iap", "versions", "localizations", "list", "--version-id", "", "--next", next},
-			wantErr: "--next cannot be combined with --version-id",
 		},
 		{
 			name:    "localizations list rejects explicit zero limit with next",
@@ -267,36 +227,6 @@ func TestIAPNextConflictsFailBeforeClientFactory(t *testing.T) {
 			name:    "localizations list rejects explicit empty version fields with next",
 			args:    []string{"iap", "versions", "localizations", "list", "--version-fields", "", "--next", next},
 			wantErr: "--next cannot be combined with --version-fields",
-		},
-		{
-			name:    "version linkages reject owner with next",
-			args:    []string{"iap", "versions", "links", "versions", "--iap-id", "iap-1", "--next", next},
-			wantErr: "--next cannot be combined with --iap-id",
-		},
-		{
-			name:    "version linkages reject explicit empty owner with next",
-			args:    []string{"iap", "versions", "links", "versions", "--iap-id", "", "--next", next},
-			wantErr: "--next cannot be combined with --iap-id",
-		},
-		{
-			name:    "image linkages reject owner with next",
-			args:    []string{"iap", "versions", "links", "images", "--version-id", "version-1", "--next", next},
-			wantErr: "--next cannot be combined with --version-id",
-		},
-		{
-			name:    "image linkages reject explicit empty owner with next",
-			args:    []string{"iap", "versions", "links", "images", "--version-id", "", "--next", next},
-			wantErr: "--next cannot be combined with --version-id",
-		},
-		{
-			name:    "localization linkages reject owner with next",
-			args:    []string{"iap", "versions", "links", "localizations", "--version-id", "version-1", "--next", next},
-			wantErr: "--next cannot be combined with --version-id",
-		},
-		{
-			name:    "localization linkages reject explicit empty owner with next",
-			args:    []string{"iap", "versions", "links", "localizations", "--version-id", "", "--next", next},
-			wantErr: "--next cannot be combined with --version-id",
 		},
 		{
 			name:    "version linkages reject explicit zero limit with next",

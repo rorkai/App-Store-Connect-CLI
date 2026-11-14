@@ -76,7 +76,7 @@ Examples:
 			}
 
 			experienceValue := strings.TrimSpace(*experienceID)
-			if experienceValue == "" {
+			if experienceValue == "" && strings.TrimSpace(*next) == "" {
 				return shared.RequiredFlag("--experience-id")
 			}
 

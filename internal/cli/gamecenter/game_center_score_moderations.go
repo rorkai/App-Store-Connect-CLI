@@ -41,7 +41,7 @@ func gameCenterScoreModerationsListCommand() *ffcli.Command {
 		if err := shared.ValidateNextURL(nextURL); err != nil {
 			return shared.UsageErrorf("%s: %v", command, err)
 		}
-		if err := shared.RejectNextFlagConflicts(fs, nextURL, command, "leaderboard-id", "exists-blocked", "fields", "player-fields", "include", "limit"); err != nil {
+		if err := shared.RejectNextFlagConflicts(fs, nextURL, command, "exists-blocked", "fields", "player-fields", "include", "limit"); err != nil {
 			return err
 		}
 		leaderboardID := strings.TrimSpace(*id)

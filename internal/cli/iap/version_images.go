@@ -37,7 +37,7 @@ func IAPVersionImagesListCommand() *ffcli.Command {
 				return shared.RequiredFlag("--version-id")
 			}
 			if err := rejectIAPVersionNextFlagConflicts(
-				fs, *next, "iap versions images list", "version-id", "limit", "image-fields",
+				fs, *next, "iap versions images list", "limit", "image-fields",
 			); err != nil {
 				return err
 			}

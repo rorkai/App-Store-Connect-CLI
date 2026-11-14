@@ -124,7 +124,7 @@ func BindReviewSelectionFlags(fs *flag.FlagSet) *ReviewSelectionFlags {
 // ValidateReviewNextFlagConflicts rejects query flags that a links.next URL
 // already encodes. Inspecting the FlagSet preserves explicit empty and zero
 // values, which must not be silently ignored either.
-func ValidateReviewNextFlagConflicts(next string, fs *flag.FlagSet, ownerFlag string) error {
+func ValidateReviewNextFlagConflicts(next string, fs *flag.FlagSet) error {
 	if strings.TrimSpace(next) == "" || fs == nil {
 		return nil
 	}
@@ -134,7 +134,6 @@ func ValidateReviewNextFlagConflicts(next string, fs *flag.FlagSet, ownerFlag st
 		setFlags[f.Name] = struct{}{}
 	})
 	for _, name := range []string{
-		ownerFlag,
 		"stars",
 		"territory",
 		"review-territory",

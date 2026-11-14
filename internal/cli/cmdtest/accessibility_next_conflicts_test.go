@@ -26,16 +26,6 @@ func TestAccessibilityListRejectsNextQueryFlagsBeforeAuth(t *testing.T) {
 		wantErr string
 	}{
 		{
-			name:    "app before next",
-			args:    []string{"accessibility", "list", "--app", "app-2", "--next", nextURL},
-			wantErr: "accessibility list: --next cannot be combined with --app",
-		},
-		{
-			name:    "explicit empty app after next",
-			args:    []string{"accessibility", "list", "--next", nextURL, "--app", ""},
-			wantErr: "accessibility list: --next cannot be combined with --app",
-		},
-		{
 			name:    "device family after next",
 			args:    []string{"accessibility", "list", "--next", nextURL, "--device-family", "IPHONE"},
 			wantErr: "accessibility list: --next cannot be combined with --device-family",

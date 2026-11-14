@@ -232,7 +232,6 @@ func TestRetentionMessagesValidationBeforeClient(t *testing.T) {
 		{"localization update requires a change", []string{"localizations", "update", "--id", "loc-1"}, "Error: --header, --body, --clear-header, or --clear-body is required"},
 		{"localization update rejects set and clear", []string{"localizations", "update", "--id", "loc-1", "--header", "Stay", "--clear-header"}, "--header cannot be used with --clear-header"},
 		{"localization delete requires confirm", []string{"localizations", "delete", "--id", "loc-1"}, "Error: --confirm is required"},
-		{"next rejects owner", []string{"versions", "list", "--message-id", "msg-2", "--next", next}, "--next cannot be combined with --message-id"},
 		{"next rejects query flags", []string{"versions", "list", "--next", next, "--include", "localizations"}, "--next cannot be combined with --include"},
 		{"include validated", []string{"versions", "view", "--id", "ver-1", "--include", "subscriptions"}, "--include must be one of"},
 		{"included fields require include", []string{"versions", "view", "--id", "ver-1", "--placement-fields", "state"}, "--placement-fields requires --include placement"},

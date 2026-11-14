@@ -42,11 +42,6 @@ func TestSubscriptionsPricingPlanAvailabilityValidationErrors(t *testing.T) {
 			wantErr: "--limit must be between 1 and 200",
 		},
 		{
-			name:    "available-territories rejects next with a selector",
-			args:    []string{"subscriptions", "pricing", "plan-availability", "available-territories", "--plan-availability-id", "plan-1", "--next", "https://api.appstoreconnect.apple.com/v1/subscriptionPlanAvailabilities/plan-1/availableTerritories?cursor=AQ"},
-			wantErr: "--plan-availability-id",
-		},
-		{
 			name:    "set missing subscription",
 			args:    []string{"subscriptions", "pricing", "plan-availability", "set", "--plan-type", "UPFRONT", "--territories", "USA", "--confirm"},
 			wantErr: "--subscription-id is required",

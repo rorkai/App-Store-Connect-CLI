@@ -73,7 +73,7 @@ Examples:
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return shared.WithDiagnostic(shared.NewValidationError(shared.UsageErrorf("reviews: %v", err)), shared.DiagnosticInvalidInput, "--next")
 			}
-			if err := ValidateReviewNextFlagConflicts(*next, fs, "app"); err != nil {
+			if err := ValidateReviewNextFlagConflicts(*next, fs); err != nil {
 				return err
 			}
 
@@ -122,7 +122,7 @@ Examples:
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return shared.WithDiagnostic(shared.NewValidationError(shared.UsageErrorf("reviews: %v", err)), shared.DiagnosticInvalidInput, "--next")
 			}
-			if err := ValidateReviewNextFlagConflicts(*next, fs, "app"); err != nil {
+			if err := ValidateReviewNextFlagConflicts(*next, fs); err != nil {
 				return err
 			}
 			resolvedAppID := shared.ResolveAppID(*appID)

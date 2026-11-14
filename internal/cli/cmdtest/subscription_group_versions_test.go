@@ -61,11 +61,9 @@ func TestSubscriptionGroupVersionsValidationErrors(t *testing.T) {
 		{"list requires group", []string{"subscriptions", "groups", "versions", "list"}, "--group-id is required"},
 		{"list validates state", []string{"subscriptions", "groups", "versions", "list", "--group-id", "group-1", "--state", "NOPE"}, "--state must be one of"},
 		{"list validates include", []string{"subscriptions", "groups", "versions", "list", "--group-id", "group-1", "--include", "subscriptions"}, "--include must be one of"},
-		{"list rejects group owner with next", []string{"subscriptions", "groups", "versions", "list", "--group-id", "group-2", "--next", "https://api.appstoreconnect.apple.com/v1/subscriptionGroups/group-1/versions?cursor=next"}, "--next cannot be combined with --group-id"},
 		{"list rejects query flags with next", []string{"subscriptions", "groups", "versions", "list", "--next", "https://api.appstoreconnect.apple.com/v1/subscriptionGroups/group-1/versions?cursor=next", "--state", "READY_FOR_REVIEW"}, "--next cannot be combined with query flags"},
 		{"view requires version", []string{"subscriptions", "groups", "versions", "view"}, "--version-id is required"},
 		{"localizations list requires version", []string{"subscriptions", "groups", "versions", "localizations", "list"}, "--version-id is required"},
-		{"localizations list rejects version owner with next", []string{"subscriptions", "groups", "versions", "localizations", "list", "--version-id", "version-2", "--next", "https://api.appstoreconnect.apple.com/v1/subscriptionGroupVersions/version-1/localizations?cursor=next"}, "--next cannot be combined with --version-id"},
 		{"localizations list rejects query flags with next", []string{"subscriptions", "groups", "versions", "localizations", "list", "--next", "https://api.appstoreconnect.apple.com/v1/subscriptionGroupVersions/version-1/localizations?cursor=next", "--include", "version"}, "--next cannot be combined with query flags"},
 		{"localization create requires version", []string{"subscriptions", "groups", "versions", "localizations", "create", "--name", "Premium", "--locale", "en-US"}, "--version-id is required"},
 		{"localization view requires id", []string{"subscriptions", "groups", "versions", "localizations", "view"}, "--id is required"},
@@ -74,8 +72,6 @@ func TestSubscriptionGroupVersionsValidationErrors(t *testing.T) {
 		{"localization delete requires confirm", []string{"subscriptions", "groups", "versions", "localizations", "delete", "--id", "loc-1"}, "--confirm is required"},
 		{"links versions requires group", []string{"subscriptions", "groups", "versions", "links", "versions"}, "--group-id is required"},
 		{"links localizations requires version", []string{"subscriptions", "groups", "versions", "links", "localizations"}, "--version-id is required"},
-		{"links versions reject group owner with next", []string{"subscriptions", "groups", "versions", "links", "versions", "--group-id", "group-2", "--next", "https://api.appstoreconnect.apple.com/v1/subscriptionGroups/group-1/relationships/versions?cursor=next"}, "--next cannot be combined with --group-id"},
-		{"links localizations reject version owner with next", []string{"subscriptions", "groups", "versions", "links", "localizations", "--version-id", "version-2", "--next", "https://api.appstoreconnect.apple.com/v1/subscriptionGroupVersions/version-1/relationships/localizations?cursor=next"}, "--next cannot be combined with --version-id"},
 		{"links reject limit with next", []string{"subscriptions", "groups", "versions", "links", "versions", "--next", "https://api.appstoreconnect.apple.com/v1/subscriptionGroups/group-1/relationships/versions?cursor=next", "--limit", "5"}, "--next cannot be combined with --limit"},
 	}
 
@@ -126,50 +122,6 @@ func TestSubscriptionGroupsListRejectsVersionQueryFlagsWithNext(t *testing.T) {
 	})
 	if !strings.Contains(stderr, "--next cannot be combined with query flags") {
 		t.Fatalf("unexpected stderr: %q", stderr)
-	}
-}
-
-func TestSubscriptionGroupsListRejectsExplicitAppWithOpaqueNextBeforeClient(t *testing.T) {
-	const next = "https://api.appstoreconnect.apple.com/v1/apps/app-1/subscriptionGroups?cursor=next"
-	tests := []struct {
-		name string
-		args []string
-	}{
-		{name: "nonempty app", args: []string{"--app", "app-2"}},
-		{name: "explicit empty app", args: []string{"--app", ""}},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			clientFactoryCalled := false
-			restore := subscriptionscli.SetGroupVersionClientFactory(func() (*asc.Client, error) {
-				clientFactoryCalled = true
-				return nil, errors.New("client factory must not run during validation")
-			})
-			defer restore()
-
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-			args := append([]string{"subscriptions", "groups", "list", "--next", next}, test.args...)
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(args); err != nil {
-					t.Fatal(err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected usage error, got %v", err)
-				}
-			})
-			if stdout != "" {
-				t.Fatalf("stdout = %q", stdout)
-			}
-			if !strings.Contains(stderr, "--next cannot be combined with --app") {
-				t.Fatalf("stderr = %q", stderr)
-			}
-			if clientFactoryCalled {
-				t.Fatal("client factory ran before opaque next validation")
-			}
-		})
 	}
 }
 

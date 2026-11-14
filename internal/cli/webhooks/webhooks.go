@@ -80,7 +80,7 @@ Examples:
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return shared.UsageErrorf("webhooks list: %v", err)
 			}
-			if err := rejectWebhooksListNextFlagConflicts(fs, *next, "app", "limit"); err != nil {
+			if err := rejectWebhooksListNextFlagConflicts(fs, *next, "limit"); err != nil {
 				return err
 			}
 			resolvedAppID := shared.ResolveAppID(*appID)
@@ -132,7 +132,7 @@ Examples:
 
 // rejectWebhooksListNextFlagConflicts rejects query flags that a continuation
 // URL already encodes: `--next` replaces the whole request path, so an
-// explicitly provided app or page size would otherwise be dropped silently.
+// explicitly provided page size would otherwise be dropped silently.
 func rejectWebhooksListNextFlagConflicts(fs *flag.FlagSet, next string, names ...string) error {
 	if strings.TrimSpace(next) == "" {
 		return nil

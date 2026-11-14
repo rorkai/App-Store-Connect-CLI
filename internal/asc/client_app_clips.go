@@ -313,7 +313,7 @@ func (c *Client) GetAppClips(ctx context.Context, appID string, opts ...AppClips
 	query := applyOptions(opts)
 
 	appID = strings.TrimSpace(appID)
-	if appID == "" {
+	if query.nextURL == "" && appID == "" {
 		return nil, fmt.Errorf("appID is required")
 	}
 
@@ -330,7 +330,7 @@ func (c *Client) GetAppClipDefaultExperiences(ctx context.Context, appClipID str
 	query := applyOptions(opts)
 
 	appClipID = strings.TrimSpace(appClipID)
-	if appClipID == "" {
+	if query.nextURL == "" && appClipID == "" {
 		return nil, fmt.Errorf("appClipID is required")
 	}
 
@@ -424,7 +424,7 @@ func (c *Client) GetAppClipDefaultExperienceLocalizations(ctx context.Context, e
 	query := applyOptions(opts)
 
 	experienceID = strings.TrimSpace(experienceID)
-	if experienceID == "" {
+	if query.nextURL == "" && experienceID == "" {
 		return nil, fmt.Errorf("experienceID is required")
 	}
 
@@ -441,7 +441,7 @@ func (c *Client) GetAppClipAdvancedExperiences(ctx context.Context, appClipID st
 	query := applyOptions(opts)
 
 	appClipID = strings.TrimSpace(appClipID)
-	if appClipID == "" {
+	if query.nextURL == "" && appClipID == "" {
 		return nil, fmt.Errorf("appClipID is required")
 	}
 

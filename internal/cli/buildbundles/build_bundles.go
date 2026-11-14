@@ -149,7 +149,7 @@ Examples:
 			}
 
 			buildBundleValue := strings.TrimSpace(*buildBundleID)
-			if buildBundleValue == "" {
+			if buildBundleValue == "" && strings.TrimSpace(*next) == "" {
 				return d.RequiredFlag("--id")
 			}
 
@@ -373,7 +373,7 @@ Examples:
 			}
 
 			buildBundleValue := strings.TrimSpace(*buildBundleID)
-			if buildBundleValue == "" {
+			if buildBundleValue == "" && strings.TrimSpace(*next) == "" {
 				return d.RequiredFlag("--id")
 			}
 

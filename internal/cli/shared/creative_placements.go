@@ -56,7 +56,7 @@ func creativePlacementsListCommand(resource, prefix, label string) *ffcli.Comman
 			if err := ValidateNextURL(*next); err != nil {
 				return UsageErrorf(prefix+" placements list: %v", err)
 			}
-			if err := RejectNextFlagConflicts(fs, *next, prefix+" placements list", append([]string{"localization-id", "placement-type", "placement-group", "include", "limit"}, filters.Names()...)...); err != nil {
+			if err := RejectNextFlagConflicts(fs, *next, prefix+" placements list", append([]string{"placement-type", "placement-group", "include", "limit"}, filters.Names()...)...); err != nil {
 				return err
 			}
 			kinds, err := validatedPlacementCSV(*kind, listTypes)

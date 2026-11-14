@@ -81,7 +81,6 @@ func TestAssetLibraryValidationBeforeAuth(t *testing.T) {
 		{"videos", "placements", "--next", "https://api.appstoreconnect.apple.com/v1/apps", "--sort", "createdDate"},
 		{"images", "placements", "--next", "https://api.appstoreconnect.apple.com/v1/apps", "--placement-id", "place"},
 		{"images", "list", "--next", "https://evil.example/v1/apps"},
-		{"images", "list", "--library-id", "lib", "--next", "https://api.appstoreconnect.apple.com/v1/apps"},
 		{"images", "view", "--id", "../apps"},
 	} {
 		t.Run(strings.Join(args, " "), func(t *testing.T) {

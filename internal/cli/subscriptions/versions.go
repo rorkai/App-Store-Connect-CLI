@@ -124,8 +124,6 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			if err := validateNextFlagConflicts(
 				*next,
-				flagConflict{"--subscription-id", flagWasProvided(fs, "subscription-id")},
-				flagConflict{"--app", flagWasProvided(fs, "app")},
 				flagConflict{"--state", flagWasProvided(fs, "state")},
 				flagConflict{"--fields", flagWasProvided(fs, "fields")},
 				flagConflict{"--subscription-fields", flagWasProvided(fs, "subscription-fields")},
@@ -294,8 +292,6 @@ func SubscriptionsVersionsLinksCommand() *ffcli.Command {
 		Exec: func(ctx context.Context, args []string) error {
 			if err := validateNextFlagConflicts(
 				*next,
-				flagConflict{"--subscription-id", flagWasProvided(fs, "subscription-id")},
-				flagConflict{"--app", flagWasProvided(fs, "app")},
 				flagConflict{"--limit", flagWasProvided(fs, "limit")},
 			); err != nil {
 				return err

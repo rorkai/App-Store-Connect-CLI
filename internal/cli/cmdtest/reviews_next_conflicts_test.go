@@ -25,16 +25,6 @@ func TestReviewContinuationsRejectServerQueryFlagsBeforeAuth(t *testing.T) {
 		wantErr string
 	}{
 		{
-			name:    "summarizations app before next",
-			args:    []string{"reviews", "summarizations", "--app", "app-1", "--next", summariesNext},
-			wantErr: "reviews summarizations: --next cannot be combined with --app",
-		},
-		{
-			name:    "summarizations app after next with root flag before subcommands",
-			args:    []string{"--profile", "ci", "reviews", "summarizations", "--next", summariesNext, "--app", "app-1"},
-			wantErr: "reviews summarizations: --next cannot be combined with --app",
-		},
-		{
 			name:    "summarizations platform after next",
 			args:    []string{"reviews", "summarizations", "--next", summariesNext, "--platform", "IOS"},
 			wantErr: "reviews summarizations: --next cannot be combined with --platform",
@@ -63,16 +53,6 @@ func TestReviewContinuationsRejectServerQueryFlagsBeforeAuth(t *testing.T) {
 			name:    "summarizations explicit zero limit",
 			args:    []string{"reviews", "summarizations", "--limit", "0", "--next", summariesNext},
 			wantErr: "reviews summarizations: --next cannot be combined with --limit",
-		},
-		{
-			name:    "attachments review detail before next",
-			args:    []string{"review", "attachments-list", "--review-detail", "detail-1", "--next", attachmentsNext},
-			wantErr: "review attachments-list: --next cannot be combined with --review-detail",
-		},
-		{
-			name:    "attachments review detail after next with root flag before subcommands",
-			args:    []string{"--profile", "ci", "review", "attachments-list", "--next", attachmentsNext, "--review-detail", "detail-1"},
-			wantErr: "review attachments-list: --next cannot be combined with --review-detail",
 		},
 		{
 			name:    "attachments fields after next",

@@ -549,11 +549,6 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			wantErr: "builds uploads list: --next must be an App Store Connect URL",
 		},
 		{
-			name:    "builds uploads list owner with next",
-			args:    []string{"builds", "uploads", "list", "--app", "APP_A", "--next", "https://api.appstoreconnect.apple.com/v1/apps/APP_B/buildUploads?cursor=next"},
-			wantErr: "builds uploads list: --next cannot be combined with --app",
-		},
-		{
 			name:    "builds uploads list invalid platform",
 			args:    []string{"builds", "uploads", "list", "--app", "123456789", "--platform", "bad"},
 			wantErr: "builds uploads list: --platform must be one of: IOS, MAC_OS, TV_OS, VISION_OS",
@@ -922,11 +917,6 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			name:    "versions list next",
 			args:    []string{"versions", "list", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
 			wantErr: "versions list: --next must be an App Store Connect URL",
-		},
-		{
-			name:    "versions list owner with next",
-			args:    []string{"versions", "list", "--app", "APP_A", "--next", "https://api.appstoreconnect.apple.com/v1/apps/APP_B/appStoreVersions?cursor=next"},
-			wantErr: "versions list: --next cannot be combined with --app",
 		},
 		{
 			name:    "versions list invalid platform",

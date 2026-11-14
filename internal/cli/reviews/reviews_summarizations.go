@@ -48,7 +48,7 @@ Examples:
 			}
 			if err := rejectReviewNextFlagConflicts(
 				fs, *next, "reviews summarizations",
-				"app", "platform", "territory", "fields", "territory-fields", "include", "limit",
+				"platform", "territory", "fields", "territory-fields", "include", "limit",
 			); err != nil {
 				return err
 			}

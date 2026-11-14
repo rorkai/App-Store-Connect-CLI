@@ -144,7 +144,7 @@ Examples:
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return shared.UsageErrorf("subscriptions pricing plan-availability available-territories: %v", err)
 			}
-			if err := validateNextExclusiveFlags(fs, *next, "plan-availability-id", "limit"); err != nil {
+			if err := validateNextExclusiveFlags(fs, *next, "limit"); err != nil {
 				return err
 			}
 			id := strings.TrimSpace(*planAvailabilityID)

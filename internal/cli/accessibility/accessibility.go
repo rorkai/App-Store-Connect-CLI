@@ -75,7 +75,7 @@ Examples:
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return d.UsageErrorf("accessibility list: %v", err)
 			}
-			if err := rejectAccessibilityNextFlagConflicts(d, fs, *next, "app", "device-family", "state", "fields", "limit"); err != nil {
+			if err := rejectAccessibilityNextFlagConflicts(d, fs, *next, "device-family", "state", "fields", "limit"); err != nil {
 				return err
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {

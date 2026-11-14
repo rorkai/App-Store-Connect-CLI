@@ -98,7 +98,7 @@ func betaGroupReadListCommand(config betaGroupReadConfig) *ffcli.Command {
 		ShortHelp:  "List " + config.resource + " in a beta group.",
 		LongHelp: `List ` + config.resource + ` in a beta group by group ID; no --app is needed.
 
---group-id, --fields, and --limit cannot be combined with --next: a links.next
+--fields and --limit cannot be combined with --next: a links.next
 URL already carries the query it was produced from. With --paginate, --limit
 sets the page size (default 200).
 
@@ -119,7 +119,7 @@ Examples:
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return shared.UsageErrorfCtx(ctx, "%s: %v", errPrefix, err)
 			}
-			if err := shared.RejectNextFlagConflicts(fs, *next, errPrefix, "group-id", "fields", "limit"); err != nil {
+			if err := shared.RejectNextFlagConflicts(fs, *next, errPrefix, "fields", "limit"); err != nil {
 				return err
 			}
 			fieldValues, err := shared.NormalizeSelection(*fields, config.fieldValues, "--fields")

@@ -61,7 +61,6 @@ func TestGameCenterBlockedPlayersUsage(t *testing.T) {
 		{"zero limit", []string{"list", "--detail-id", "d", "--limit", "0"}, "--limit must be between 1 and 200"},
 		{"bad fields", []string{"list", "--detail-id", "d", "--fields", "score"}, "--fields"},
 		{"empty fields", []string{"list", "--detail-id", "d", "--fields", " "}, "--fields must not be empty"},
-		{"next conflict", []string{"list", "--next", "https://api.appstoreconnect.apple.com/v1/gameCenterDetails/d/blockedPlayers?cursor=x", "--detail-id", "d"}, "--next cannot be combined with --detail-id"},
 		{"missing blocked", []string{"update", "--id", "p", "--confirm"}, "--blocked is required"},
 		{"missing confirm", []string{"update", "--id", "p", "--blocked", "false"}, "--confirm is required"},
 		{"empty bundle", []string{"update", "--id", "p", "--blocked", "true", "--bundle-id", " ", "--confirm"}, "--bundle-id must not be empty"},

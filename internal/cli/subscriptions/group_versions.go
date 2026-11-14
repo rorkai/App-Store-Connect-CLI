@@ -176,9 +176,6 @@ func SubscriptionsGroupsVersionsListCommand() *ffcli.Command {
 		LongHelp: "List versions for a subscription group.\n\nExamples:\n  asc subscriptions groups versions list --group-id \"GROUP_ID\" --state PREPARE_FOR_SUBMISSION --paginate", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*groupID)
-			if strings.TrimSpace(*next) != "" && subscriptionGroupAnyFlagSet(fs, "group-id") {
-				return shared.UsageError("subscriptions groups versions list: --next cannot be combined with --group-id")
-			}
 			if id == "" && strings.TrimSpace(*next) == "" {
 				return shared.RequiredFlag("--group-id")
 			}
@@ -287,9 +284,6 @@ func subscriptionsGroupsVersionLinkagesCommand(name string, groupOwned bool) *ff
 		FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*ownerID)
-			if strings.TrimSpace(*next) != "" && subscriptionGroupAnyFlagSet(fs, strings.TrimPrefix(requiredFlag, "--")) {
-				return shared.UsageError("subscriptions groups versions links " + name + ": --next cannot be combined with " + requiredFlag)
-			}
 			if id == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintf(os.Stderr, "Error: %s is required\n", requiredFlag)
 				return shared.MissingRequiredUsageError(requiredFlag)

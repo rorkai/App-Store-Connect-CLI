@@ -74,7 +74,7 @@ Examples:
 			}
 
 			trimmedID := strings.TrimSpace(*experimentID)
-			if trimmedID == "" {
+			if trimmedID == "" && strings.TrimSpace(*next) == "" {
 				return d.RequiredFlag("--experiment-id")
 			}
 

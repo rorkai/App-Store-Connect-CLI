@@ -143,7 +143,7 @@ Examples:
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return shared.UsageErrorf("iap list: %v", err)
 			}
-			if err := rejectIAPVersionNextFlagConflicts(fs, *next, "iap list", "app", "product-id", "name", "state", "type", "sort", "limit", "include", "include-versions", "versions-limit", "fields", "version-fields"); err != nil {
+			if err := rejectIAPVersionNextFlagConflicts(fs, *next, "iap list", "product-id", "name", "state", "type", "sort", "limit", "include", "include-versions", "versions-limit", "fields", "version-fields"); err != nil {
 				return err
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {

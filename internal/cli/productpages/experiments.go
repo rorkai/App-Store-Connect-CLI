@@ -89,7 +89,7 @@ Examples:
 
 			if *v2 {
 				resolvedAppID := shared.ResolveAppID(*appID)
-				if resolvedAppID == "" {
+				if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
 					fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 					return shared.MissingRequiredUsageError("--app")
 				}
@@ -134,7 +134,7 @@ Examples:
 			}
 
 			trimmedVersionID := strings.TrimSpace(*versionID)
-			if trimmedVersionID == "" {
+			if trimmedVersionID == "" && strings.TrimSpace(*next) == "" {
 				return d.RequiredFlag("--version-id")
 			}
 

@@ -91,7 +91,7 @@ Examples:
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return shared.UsageErrorfCtx(ctx, "subscriptions introductory-offers list: %v", err)
 			}
-			if err := validateNextExclusiveFlags(fs, *next, "subscription-id", "app", "limit", "territory", "include", "subscription-fields", "price-point-fields"); err != nil {
+			if err := validateNextExclusiveFlags(fs, *next, "limit", "territory", "include", "subscription-fields", "price-point-fields"); err != nil {
 				return err
 			}
 			selectedTerritories, err := normalizeOptionalTerritoryFilter(fs, "territory", *territory)

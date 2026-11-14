@@ -791,9 +791,6 @@ func resolveTerritoryAvailabilitiesAvailability(ctx context.Context, fs *flag.Fl
 	if explicitApp && availabilityID != "" {
 		return shared.UsageError("--app and --availability are mutually exclusive")
 	}
-	if explicitApp && next != "" {
-		return shared.UsageError("--app and --next are mutually exclusive")
-	}
 	if availabilityID != "" || next != "" {
 		return nil
 	}

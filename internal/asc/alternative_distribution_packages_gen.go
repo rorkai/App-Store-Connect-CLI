@@ -47,11 +47,11 @@ func (c *Client) GetAlternativeDistributionPackage(ctx context.Context, packageI
 
 // GetAlternativeDistributionPackageVersions sends GET /v1/alternativeDistributionPackages/{id}/versions (alternativeDistributionPackages_versions_getToManyRelated).
 func (c *Client) GetAlternativeDistributionPackageVersions(ctx context.Context, packageID string, opts ...AlternativeDistributionPackageVersionsOption) (*AlternativeDistributionPackageVersionsResponse, error) {
+	query := applyOptions(opts)
 	packageID = strings.TrimSpace(packageID)
-	if packageID == "" {
+	if query.nextURL == "" && packageID == "" {
 		return nil, fmt.Errorf("packageID is required")
 	}
-	query := applyOptions(opts)
 	return getJSON[AlternativeDistributionPackageVersionsResponse](ctx, c, readRequest{
 		Path:        fmt.Sprintf("/v1/alternativeDistributionPackages/%s/versions", packageID),
 		Query:       buildAlternativeDistributionPackageVersionsQuery(query),

@@ -53,11 +53,11 @@ func (c *Client) GetAppAlternativeDistributionKey(ctx context.Context, appID str
 
 // GetAndroidToIosAppMappingDetails sends GET /v1/apps/{id}/androidToIosAppMappingDetails (apps_androidToIosAppMappingDetails_getToManyRelated).
 func (c *Client) GetAndroidToIosAppMappingDetails(ctx context.Context, appID string, opts ...AndroidToIosAppMappingDetailsOption) (*AndroidToIosAppMappingDetailsResponse, error) {
+	query := applyOptions(opts)
 	appID = strings.TrimSpace(appID)
-	if appID == "" {
+	if query.nextURL == "" && appID == "" {
 		return nil, fmt.Errorf("app ID is required")
 	}
-	query := applyOptions(opts)
 	return getJSON[AndroidToIosAppMappingDetailsResponse](ctx, c, readRequest{
 		Path:        fmt.Sprintf("/v1/apps/%s/androidToIosAppMappingDetails", appID),
 		Query:       buildAndroidToIosAppMappingDetailsQuery(query),

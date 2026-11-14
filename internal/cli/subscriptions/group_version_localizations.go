@@ -80,9 +80,6 @@ func SubscriptionsGroupsVersionLocalizationsListCommand() *ffcli.Command {
 		LongHelp: "List localizations for a subscription group version.\n\nExamples:\n  asc subscriptions groups versions localizations list --version-id \"VERSION_ID\" --paginate", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*versionID)
-			if strings.TrimSpace(*next) != "" && subscriptionGroupAnyFlagSet(fs, "version-id") {
-				return shared.UsageError("subscriptions groups versions localizations list: --next cannot be combined with --version-id")
-			}
 			if id == "" && strings.TrimSpace(*next) == "" {
 				return shared.RequiredFlag("--version-id")
 			}

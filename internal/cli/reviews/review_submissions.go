@@ -93,7 +93,7 @@ Examples:
 			}
 			if err := rejectReviewNextFlagConflicts(
 				fs, *next, command,
-				"app", "global", "platform", "state", "limit", "item-fields", "include",
+				"global", "platform", "state", "limit", "item-fields", "include",
 			); err != nil {
 				return err
 			}
@@ -595,7 +595,7 @@ Examples:
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return shared.WithDiagnostic(shared.NewValidationError(shared.UsageErrorf("review submissions-items-ids: %v", err)), shared.DiagnosticInvalidInput, "--next")
 			}
-			if err := rejectReviewNextFlagConflicts(fs, *next, "review submissions-items-ids", "id", "limit"); err != nil {
+			if err := rejectReviewNextFlagConflicts(fs, *next, "review submissions-items-ids", "limit"); err != nil {
 				return err
 			}
 			trimmedID := strings.TrimSpace(*submissionID)

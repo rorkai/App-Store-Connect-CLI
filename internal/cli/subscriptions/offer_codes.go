@@ -82,7 +82,7 @@ Examples:
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return shared.UsageErrorfCtx(ctx, "subscriptions offer-codes list: %v", err)
 			}
-			if err := validateNextExclusiveFlags(fs, *next, "subscription-id", "app", "limit", "subscription-fields"); err != nil {
+			if err := validateNextExclusiveFlags(fs, *next, "limit", "subscription-fields"); err != nil {
 				return err
 			}
 			selectedSubscriptionFields, err := normalizeSparseFieldsFlag(fs, *next, "subscription-fields", *subscriptionFields, subscriptionFieldsList())
@@ -589,7 +589,7 @@ Examples:
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return shared.UsageErrorfCtx(ctx, "subscriptions offer-codes prices: %v", err)
 			}
-			if err := validateNextExclusiveFlags(fs, *next, "offer-code-id", "limit", "price-point-fields"); err != nil {
+			if err := validateNextExclusiveFlags(fs, *next, "limit", "price-point-fields"); err != nil {
 				return err
 			}
 			selectedPricePointFields, err := normalizeSparseFieldsFlag(fs, *next, "price-point-fields", *pricePointFields, subscriptionPricePointFieldsList())

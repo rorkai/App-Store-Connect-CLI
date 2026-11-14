@@ -62,7 +62,6 @@ func SubscriptionsVersionLocalizationsListCommand() *ffcli.Command {
 		Exec: func(ctx context.Context, args []string) error {
 			if err := validateNextFlagConflicts(
 				*next,
-				flagConflict{"--version-id", flagWasProvided(fs, "version-id")},
 				flagConflict{"--fields", flagWasProvided(fs, "fields")},
 				flagConflict{"--version-fields", flagWasProvided(fs, "version-fields")},
 				flagConflict{"--include", flagWasProvided(fs, "include")},
@@ -141,7 +140,6 @@ func SubscriptionsVersionLocalizationsLinksCommand() *ffcli.Command {
 		Exec: func(ctx context.Context, args []string) error {
 			if err := validateNextFlagConflicts(
 				*next,
-				flagConflict{"--version-id", flagWasProvided(fs, "version-id")},
 				flagConflict{"--limit", flagWasProvided(fs, "limit")},
 			); err != nil {
 				return err

@@ -35,7 +35,7 @@ func gameCenterBlockedPlayersListCommand() *ffcli.Command {
 		if err := shared.ValidateNextURL(nextURL); err != nil {
 			return shared.UsageErrorf("%s: %v", command, err)
 		}
-		if err := shared.RejectNextFlagConflicts(fs, nextURL, command, "detail-id", "fields", "limit"); err != nil {
+		if err := shared.RejectNextFlagConflicts(fs, nextURL, command, "fields", "limit"); err != nil {
 			return err
 		}
 		detailID := strings.TrimSpace(*id)

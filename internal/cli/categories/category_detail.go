@@ -119,7 +119,7 @@ Examples:
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return d.UsageErrorf("categories subcategories: %v", err)
 			}
-			if err := rejectCategorySubcategoriesNextFlagConflicts(d, fs, *next, "category-id", "limit"); err != nil {
+			if err := rejectCategorySubcategoriesNextFlagConflicts(d, fs, *next, "limit"); err != nil {
 				return err
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {

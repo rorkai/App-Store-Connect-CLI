@@ -250,11 +250,11 @@ func TestSubscriptionSparseFields441NextConflictsBeforeClient(t *testing.T) {
 		},
 		{
 			name: "offer code prices", base: []string{"subscriptions", "offers", "offer-codes", "prices"},
-			modifiers: [][]string{{"--offer-code-id", "code-1"}, {"--limit", "10"}, {"--price-point-fields", "adjustedEqualizations"}},
+			modifiers: [][]string{{"--limit", "10"}, {"--price-point-fields", "adjustedEqualizations"}},
 		},
 		{
 			name: "promotional offer prices", base: []string{"subscriptions", "offers", "promotional", "prices"},
-			modifiers: [][]string{{"--id", "promo-1"}, {"--limit", "10"}, {"--price-point-fields", "adjustedEqualizations"}},
+			modifiers: [][]string{{"--limit", "10"}, {"--price-point-fields", "adjustedEqualizations"}},
 		},
 	}
 
@@ -291,8 +291,6 @@ func TestSubscriptionSparseFields441NextConflictsBeforeClient(t *testing.T) {
 
 func subscriptionNextModifierFamilies441() [][]string {
 	return [][]string{
-		{"--subscription-id", "123456789"},
-		{"--app", "app-1"},
 		{"--limit", "10"},
 		{"--subscription-fields", "versions"},
 	}

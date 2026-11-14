@@ -49,7 +49,7 @@ Examples:
 			}
 			if err := rejectReviewNextFlagConflicts(
 				fs, *next, "review attachments-list",
-				"review-detail", "fields", "detail-fields", "include", "limit",
+				"fields", "detail-fields", "include", "limit",
 			); err != nil {
 				return err
 			}
@@ -73,6 +73,9 @@ Examples:
 			reviewDetailValue := strings.TrimSpace(*reviewDetailID)
 			if reviewDetailValue == "" && nextValue == "" {
 				return shared.RequiredFlag("--review-detail")
+			}
+			if nextValue != "" {
+				reviewDetailValue = ""
 			}
 
 			client, err := shared.GetASCClient()

@@ -84,7 +84,7 @@ Examples:
 			}
 
 			appValue := strings.TrimSpace(shared.ResolveAppID(*appID))
-			if appValue == "" {
+			if appValue == "" && strings.TrimSpace(*next) == "" {
 				return shared.RequiredFlag("--app")
 			}
 

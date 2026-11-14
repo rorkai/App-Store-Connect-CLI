@@ -69,7 +69,7 @@ Examples:
 			}
 
 			trimmedID := strings.TrimSpace(*customPageID)
-			if trimmedID == "" {
+			if trimmedID == "" && strings.TrimSpace(*next) == "" {
 				return d.RequiredFlag("--custom-page-id")
 			}
 
