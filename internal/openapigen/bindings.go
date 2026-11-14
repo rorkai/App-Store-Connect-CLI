@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"sort"
+	"strings"
 )
 
 // Bindings lists what is generated and the Go-side choices the spec cannot
@@ -58,21 +59,43 @@ func LoadBindings(path string) (*Bindings, error) {
 	return &b, nil
 }
 
-// Encode returns the file contents in a stable order.
+// Encode returns the file contents in a stable order, one operation or type
+// per line so that a diff shows each binding that changed.
 func (b *Bindings) Encode() ([]byte, error) {
 	sort.Slice(b.Families, func(i, j int) bool { return b.Families[i].Tag < b.Families[j].Tag })
+	var families []string
 	for _, f := range b.Families {
 		sort.Strings(f.Types)
 		sort.Slice(f.Operations, func(i, j int) bool { return f.Operations[i].Operation < f.Operations[j].Operation })
+		fields := []string{`"tag": ` + jsonString(f.Tag), `"file": ` + jsonString(f.File)}
+		if len(f.Types) > 0 {
+			var types []string
+			for _, t := range f.Types {
+				types = append(types, jsonString(t))
+			}
+			fields = append(fields, "\"types\": [\n        "+strings.Join(types, ",\n        ")+"\n      ]")
+		}
+		if len(f.Operations) > 0 {
+			var ops []string
+			for _, op := range f.Operations {
+				var buf bytes.Buffer
+				enc := json.NewEncoder(&buf)
+				enc.SetEscapeHTML(false)
+				if err := enc.Encode(op); err != nil {
+					return nil, err
+				}
+				ops = append(ops, strings.TrimSpace(buf.String()))
+			}
+			fields = append(fields, "\"operations\": [\n        "+strings.Join(ops, ",\n        ")+"\n      ]")
+		}
+		families = append(families, "    {\n      "+strings.Join(fields, ",\n      ")+"\n    }")
 	}
-	var buf bytes.Buffer
-	enc := json.NewEncoder(&buf)
-	enc.SetEscapeHTML(false)
-	enc.SetIndent("", "  ")
-	if err := enc.Encode(b); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
+	return []byte("{\n  \"families\": [\n" + strings.Join(families, ",\n") + "\n  ]\n}\n"), nil
+}
+
+func jsonString(s string) string {
+	data, _ := json.Marshal(s)
+	return string(data)
 }
 
 // Family returns the family for a tag, adding it if missing.

@@ -34,6 +34,21 @@ func TestGenerateMatchesGolden(t *testing.T) {
 	}
 }
 
+func TestBindingsEncodeIsCanonical(t *testing.T) {
+	_, bindings := loadTestdata(t)
+	got, err := bindings.Encode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, err := os.ReadFile(filepath.Join("testdata", "bindings.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != string(want) {
+		t.Errorf("Encode differs from testdata/bindings.json:\n%s", got)
+	}
+}
+
 func TestGenerateRejectsWhatItCannotModel(t *testing.T) {
 	spec, _ := loadTestdata(t)
 	tests := []struct {

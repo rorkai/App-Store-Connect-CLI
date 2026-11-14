@@ -80,29 +80,6 @@ func (c *Client) DeleteWidget(ctx context.Context, widgetID string) error {
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/widgets/%s", widgetID), nil)
 }
 
-// GetWidgets sends GET /v1/widgets (widgets_getCollection).
-func (c *Client) GetWidgets(ctx context.Context, opts ...WidgetsOption) (*WidgetsResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[WidgetsResponse](ctx, c, readRequest{
-		Path:        "/v1/widgets",
-		Query:       buildWidgetsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "widgets",
-	})
-}
-
-// GetWidget sends GET /v1/widgets/{id} (widgets_getInstance).
-func (c *Client) GetWidget(ctx context.Context, widgetID string) (*WidgetResponse, error) {
-	widgetID = strings.TrimSpace(widgetID)
-	if widgetID == "" {
-		return nil, fmt.Errorf("widgetID is required")
-	}
-	return getJSON[WidgetResponse](ctx, c, readRequest{
-		Path:     fmt.Sprintf("/v1/widgets/%s", widgetID),
-		ParseErr: "failed to parse widget response",
-	})
-}
-
 // GetWidgetGadgets sends GET /v1/widgets/{id}/gadgets (widgets_gadgets_getToManyRelated).
 func (c *Client) GetWidgetGadgets(ctx context.Context, widgetID string, opts ...GadgetsOption) (*GadgetListResponse, error) {
 	query := applyOptions(opts)
@@ -124,6 +101,29 @@ func (c *Client) UpdateWidgetGadgets(ctx context.Context, widgetID string, gadge
 		Data: buildRelationshipData(ResourceTypeGadgets, gadgetIDs),
 	}
 	return sendNoContent(ctx, c, http.MethodPatch, fmt.Sprintf("/v1/widgets/%s/relationships/gadgets", strings.TrimSpace(widgetID)), payload)
+}
+
+// GetWidgets sends GET /v1/widgets (widgets_getCollection).
+func (c *Client) GetWidgets(ctx context.Context, opts ...WidgetsOption) (*WidgetsResponse, error) {
+	query := applyOptions(opts)
+	return getJSON[WidgetsResponse](ctx, c, readRequest{
+		Path:        "/v1/widgets",
+		Query:       buildWidgetsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "widgets",
+	})
+}
+
+// GetWidget sends GET /v1/widgets/{id} (widgets_getInstance).
+func (c *Client) GetWidget(ctx context.Context, widgetID string) (*WidgetResponse, error) {
+	widgetID = strings.TrimSpace(widgetID)
+	if widgetID == "" {
+		return nil, fmt.Errorf("widgetID is required")
+	}
+	return getJSON[WidgetResponse](ctx, c, readRequest{
+		Path:     fmt.Sprintf("/v1/widgets/%s", widgetID),
+		ParseErr: "failed to parse widget response",
+	})
 }
 
 // UpdateWidget sends PATCH /v1/widgets/{id} (widgets_updateInstance).

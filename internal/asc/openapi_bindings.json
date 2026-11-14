@@ -12,31 +12,9 @@
         "AlternativeDistributionDomainsResponse"
       ],
       "operations": [
-        {
-          "operation": "alternativeDistributionDomains_deleteInstance",
-          "name": "DeleteAlternativeDistributionDomain",
-          "params": [
-            "domainID"
-          ],
-          "check": "require"
-        },
-        {
-          "operation": "alternativeDistributionDomains_getCollection",
-          "name": "GetAlternativeDistributionDomains",
-          "options": "AlternativeDistributionDomainsOption",
-          "query": "buildAlternativeDistributionDomainsQuery",
-          "nextContext": "alternativeDistributionDomains",
-          "parseErr": "failed to parse alternative distribution domains response"
-        },
-        {
-          "operation": "alternativeDistributionDomains_getInstance",
-          "name": "GetAlternativeDistributionDomain",
-          "params": [
-            "domainID"
-          ],
-          "check": "require",
-          "parseErr": "failed to parse alternative distribution domain response"
-        }
+        {"operation":"alternativeDistributionDomains_deleteInstance","name":"DeleteAlternativeDistributionDomain","params":["domainID"],"check":"require"},
+        {"operation":"alternativeDistributionDomains_getCollection","name":"GetAlternativeDistributionDomains","options":"AlternativeDistributionDomainsOption","query":"buildAlternativeDistributionDomainsQuery","nextContext":"alternativeDistributionDomains","parseErr":"failed to parse alternative distribution domains response"},
+        {"operation":"alternativeDistributionDomains_getInstance","name":"GetAlternativeDistributionDomain","params":["domainID"],"check":"require","parseErr":"failed to parse alternative distribution domain response"}
       ]
     },
     {
@@ -54,153 +32,22 @@
         "GameCenterGroupsResponse"
       ],
       "operations": [
-        {
-          "operation": "gameCenterGroups_deleteInstance",
-          "name": "DeleteGameCenterGroup",
-          "params": [
-            "groupID"
-          ]
-        },
-        {
-          "operation": "gameCenterGroups_gameCenterAchievementsV2_getToManyRelated",
-          "name": "GetGameCenterGroupAchievementsV2",
-          "params": [
-            "groupID"
-          ],
-          "options": "GCAchievementsOption",
-          "query": "buildGCAchievementsQuery",
-          "nextContext": "game-center-group-achievements-v2",
-          "response": "GameCenterAchievementsResponse"
-        },
-        {
-          "operation": "gameCenterGroups_gameCenterAchievementsV2_replaceToManyRelationship",
-          "name": "UpdateGameCenterGroupAchievementsV2",
-          "params": [
-            "groupID"
-          ],
-          "ids": "achievementIDs"
-        },
-        {
-          "operation": "gameCenterGroups_gameCenterAchievements_getToManyRelated",
-          "name": "GetGameCenterGroupAchievements",
-          "params": [
-            "groupID"
-          ],
-          "options": "GCAchievementsOption",
-          "query": "buildGCAchievementsQuery",
-          "nextContext": "game-center-group-achievements"
-        },
-        {
-          "operation": "gameCenterGroups_gameCenterAchievements_replaceToManyRelationship",
-          "name": "UpdateGameCenterGroupAchievements",
-          "params": [
-            "groupID"
-          ],
-          "ids": "achievementIDs"
-        },
-        {
-          "operation": "gameCenterGroups_gameCenterActivities_getToManyRelated",
-          "name": "GetGameCenterGroupActivities",
-          "params": [
-            "groupID"
-          ],
-          "options": "GCActivitiesOption",
-          "query": "buildGCActivitiesQuery",
-          "nextContext": "game-center-group-activities"
-        },
-        {
-          "operation": "gameCenterGroups_gameCenterChallenges_getToManyRelated",
-          "name": "GetGameCenterGroupChallenges",
-          "params": [
-            "groupID"
-          ],
-          "options": "GCChallengesOption",
-          "query": "buildGCChallengesQuery",
-          "nextContext": "game-center-group-challenges"
-        },
-        {
-          "operation": "gameCenterGroups_gameCenterDetails_getToManyRelated",
-          "name": "GetGameCenterGroupGameCenterDetails",
-          "params": [
-            "groupID"
-          ],
-          "check": "require",
-          "options": "GCDetailsOption",
-          "query": "buildGCDetailsQuery",
-          "nextContext": "game-center-group-details"
-        },
-        {
-          "operation": "gameCenterGroups_gameCenterLeaderboardSetsV2_getToManyRelated",
-          "name": "GetGameCenterGroupLeaderboardSetsV2",
-          "params": [
-            "groupID"
-          ],
-          "options": "GCLeaderboardSetsOption",
-          "query": "buildGCLeaderboardSetsQuery",
-          "nextContext": "game-center-group-leaderboard-sets-v2",
-          "response": "GameCenterLeaderboardSetsResponse"
-        },
-        {
-          "operation": "gameCenterGroups_gameCenterLeaderboardSets_getToManyRelated",
-          "name": "GetGameCenterGroupLeaderboardSets",
-          "params": [
-            "groupID"
-          ],
-          "options": "GCLeaderboardSetsOption",
-          "query": "buildGCLeaderboardSetsQuery",
-          "nextContext": "game-center-group-leaderboard-sets"
-        },
-        {
-          "operation": "gameCenterGroups_gameCenterLeaderboardsV2_getToManyRelated",
-          "name": "GetGameCenterGroupLeaderboardsV2",
-          "params": [
-            "groupID"
-          ],
-          "options": "GCLeaderboardsOption",
-          "query": "buildGCLeaderboardsQuery",
-          "nextContext": "game-center-group-leaderboards-v2",
-          "response": "GameCenterLeaderboardsResponse"
-        },
-        {
-          "operation": "gameCenterGroups_gameCenterLeaderboardsV2_replaceToManyRelationship",
-          "name": "UpdateGameCenterGroupLeaderboardsV2",
-          "params": [
-            "groupID"
-          ],
-          "ids": "leaderboardIDs"
-        },
-        {
-          "operation": "gameCenterGroups_gameCenterLeaderboards_getToManyRelated",
-          "name": "GetGameCenterGroupLeaderboards",
-          "params": [
-            "groupID"
-          ],
-          "options": "GCLeaderboardsOption",
-          "query": "buildGCLeaderboardsQuery",
-          "nextContext": "game-center-group-leaderboards"
-        },
-        {
-          "operation": "gameCenterGroups_gameCenterLeaderboards_replaceToManyRelationship",
-          "name": "UpdateGameCenterGroupLeaderboards",
-          "params": [
-            "groupID"
-          ],
-          "ids": "leaderboardIDs"
-        },
-        {
-          "operation": "gameCenterGroups_getCollection",
-          "name": "GetGameCenterGroups",
-          "options": "GCGroupsOption",
-          "query": "buildGCGroupsQuery",
-          "nextContext": "game-center-groups"
-        },
-        {
-          "operation": "gameCenterGroups_getInstance",
-          "name": "GetGameCenterGroup",
-          "params": [
-            "groupID"
-          ]
-        }
+        {"operation":"gameCenterGroups_deleteInstance","name":"DeleteGameCenterGroup","params":["groupID"]},
+        {"operation":"gameCenterGroups_gameCenterAchievementsV2_getToManyRelated","name":"GetGameCenterGroupAchievementsV2","params":["groupID"],"options":"GCAchievementsOption","query":"buildGCAchievementsQuery","nextContext":"game-center-group-achievements-v2","response":"GameCenterAchievementsResponse"},
+        {"operation":"gameCenterGroups_gameCenterAchievementsV2_replaceToManyRelationship","name":"UpdateGameCenterGroupAchievementsV2","params":["groupID"],"ids":"achievementIDs"},
+        {"operation":"gameCenterGroups_gameCenterAchievements_getToManyRelated","name":"GetGameCenterGroupAchievements","params":["groupID"],"options":"GCAchievementsOption","query":"buildGCAchievementsQuery","nextContext":"game-center-group-achievements"},
+        {"operation":"gameCenterGroups_gameCenterAchievements_replaceToManyRelationship","name":"UpdateGameCenterGroupAchievements","params":["groupID"],"ids":"achievementIDs"},
+        {"operation":"gameCenterGroups_gameCenterActivities_getToManyRelated","name":"GetGameCenterGroupActivities","params":["groupID"],"options":"GCActivitiesOption","query":"buildGCActivitiesQuery","nextContext":"game-center-group-activities"},
+        {"operation":"gameCenterGroups_gameCenterChallenges_getToManyRelated","name":"GetGameCenterGroupChallenges","params":["groupID"],"options":"GCChallengesOption","query":"buildGCChallengesQuery","nextContext":"game-center-group-challenges"},
+        {"operation":"gameCenterGroups_gameCenterDetails_getToManyRelated","name":"GetGameCenterGroupGameCenterDetails","params":["groupID"],"check":"require","options":"GCDetailsOption","query":"buildGCDetailsQuery","nextContext":"game-center-group-details"},
+        {"operation":"gameCenterGroups_gameCenterLeaderboardSetsV2_getToManyRelated","name":"GetGameCenterGroupLeaderboardSetsV2","params":["groupID"],"options":"GCLeaderboardSetsOption","query":"buildGCLeaderboardSetsQuery","nextContext":"game-center-group-leaderboard-sets-v2","response":"GameCenterLeaderboardSetsResponse"},
+        {"operation":"gameCenterGroups_gameCenterLeaderboardSets_getToManyRelated","name":"GetGameCenterGroupLeaderboardSets","params":["groupID"],"options":"GCLeaderboardSetsOption","query":"buildGCLeaderboardSetsQuery","nextContext":"game-center-group-leaderboard-sets"},
+        {"operation":"gameCenterGroups_gameCenterLeaderboardsV2_getToManyRelated","name":"GetGameCenterGroupLeaderboardsV2","params":["groupID"],"options":"GCLeaderboardsOption","query":"buildGCLeaderboardsQuery","nextContext":"game-center-group-leaderboards-v2","response":"GameCenterLeaderboardsResponse"},
+        {"operation":"gameCenterGroups_gameCenterLeaderboardsV2_replaceToManyRelationship","name":"UpdateGameCenterGroupLeaderboardsV2","params":["groupID"],"ids":"leaderboardIDs"},
+        {"operation":"gameCenterGroups_gameCenterLeaderboards_getToManyRelated","name":"GetGameCenterGroupLeaderboards","params":["groupID"],"options":"GCLeaderboardsOption","query":"buildGCLeaderboardsQuery","nextContext":"game-center-group-leaderboards"},
+        {"operation":"gameCenterGroups_gameCenterLeaderboards_replaceToManyRelationship","name":"UpdateGameCenterGroupLeaderboards","params":["groupID"],"ids":"leaderboardIDs"},
+        {"operation":"gameCenterGroups_getCollection","name":"GetGameCenterGroups","options":"GCGroupsOption","query":"buildGCGroupsQuery","nextContext":"game-center-groups"},
+        {"operation":"gameCenterGroups_getInstance","name":"GetGameCenterGroup","params":["groupID"]}
       ]
     },
     {
@@ -217,68 +64,14 @@
         "GameCenterMatchmakingRuleSetsResponse"
       ],
       "operations": [
-        {
-          "operation": "gameCenterMatchmakingRuleSets_createInstance",
-          "name": "CreateGameCenterMatchmakingRuleSet"
-        },
-        {
-          "operation": "gameCenterMatchmakingRuleSets_deleteInstance",
-          "name": "DeleteGameCenterMatchmakingRuleSet",
-          "params": [
-            "ruleSetID"
-          ]
-        },
-        {
-          "operation": "gameCenterMatchmakingRuleSets_getCollection",
-          "name": "GetGameCenterMatchmakingRuleSets",
-          "options": "GCMatchmakingRuleSetsOption",
-          "query": "buildGCMatchmakingRuleSetsQuery",
-          "nextContext": "game-center-matchmaking-rule-sets"
-        },
-        {
-          "operation": "gameCenterMatchmakingRuleSets_getInstance",
-          "name": "GetGameCenterMatchmakingRuleSet",
-          "params": [
-            "ruleSetID"
-          ]
-        },
-        {
-          "operation": "gameCenterMatchmakingRuleSets_matchmakingQueues_getToManyRelated",
-          "name": "GetGameCenterMatchmakingRuleSetQueues",
-          "params": [
-            "ruleSetID"
-          ],
-          "options": "GCMatchmakingQueuesOption",
-          "query": "buildGCMatchmakingQueuesQuery",
-          "nextContext": "game-center-matchmaking-rule-set-queues"
-        },
-        {
-          "operation": "gameCenterMatchmakingRuleSets_rules_getToManyRelated",
-          "name": "GetGameCenterMatchmakingRules",
-          "params": [
-            "ruleSetID"
-          ],
-          "options": "GCMatchmakingRulesOption",
-          "query": "buildGCMatchmakingRulesQuery",
-          "nextContext": "game-center-matchmaking-rules"
-        },
-        {
-          "operation": "gameCenterMatchmakingRuleSets_teams_getToManyRelated",
-          "name": "GetGameCenterMatchmakingTeams",
-          "params": [
-            "ruleSetID"
-          ],
-          "options": "GCMatchmakingTeamsOption",
-          "query": "buildGCMatchmakingTeamsQuery",
-          "nextContext": "game-center-matchmaking-teams"
-        },
-        {
-          "operation": "gameCenterMatchmakingRuleSets_updateInstance",
-          "name": "UpdateGameCenterMatchmakingRuleSet",
-          "params": [
-            "ruleSetID"
-          ]
-        }
+        {"operation":"gameCenterMatchmakingRuleSets_createInstance","name":"CreateGameCenterMatchmakingRuleSet"},
+        {"operation":"gameCenterMatchmakingRuleSets_deleteInstance","name":"DeleteGameCenterMatchmakingRuleSet","params":["ruleSetID"]},
+        {"operation":"gameCenterMatchmakingRuleSets_getCollection","name":"GetGameCenterMatchmakingRuleSets","options":"GCMatchmakingRuleSetsOption","query":"buildGCMatchmakingRuleSetsQuery","nextContext":"game-center-matchmaking-rule-sets"},
+        {"operation":"gameCenterMatchmakingRuleSets_getInstance","name":"GetGameCenterMatchmakingRuleSet","params":["ruleSetID"]},
+        {"operation":"gameCenterMatchmakingRuleSets_matchmakingQueues_getToManyRelated","name":"GetGameCenterMatchmakingRuleSetQueues","params":["ruleSetID"],"options":"GCMatchmakingQueuesOption","query":"buildGCMatchmakingQueuesQuery","nextContext":"game-center-matchmaking-rule-set-queues"},
+        {"operation":"gameCenterMatchmakingRuleSets_rules_getToManyRelated","name":"GetGameCenterMatchmakingRules","params":["ruleSetID"],"options":"GCMatchmakingRulesOption","query":"buildGCMatchmakingRulesQuery","nextContext":"game-center-matchmaking-rules"},
+        {"operation":"gameCenterMatchmakingRuleSets_teams_getToManyRelated","name":"GetGameCenterMatchmakingTeams","params":["ruleSetID"],"options":"GCMatchmakingTeamsOption","query":"buildGCMatchmakingTeamsQuery","nextContext":"game-center-matchmaking-teams"},
+        {"operation":"gameCenterMatchmakingRuleSets_updateInstance","name":"UpdateGameCenterMatchmakingRuleSet","params":["ruleSetID"]}
       ]
     }
   ]
