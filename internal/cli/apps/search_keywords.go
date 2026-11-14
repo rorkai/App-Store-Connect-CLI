@@ -259,7 +259,7 @@ Examples:
 			locale := fs.String("locale", "", "Filter by locale(s), comma-separated")
 			return func() (err error) {
 				if platforms, err = shared.NormalizeAppStoreVersionPlatforms(shared.SplitCSVUpper(*platform)); err != nil {
-					return fmt.Errorf("apps search-keywords list: %w", err)
+					return shared.UsageErrorf("apps search-keywords list: %v", err)
 				}
 				locales = shared.SplitCSV(*locale)
 				if err := shared.ValidateBuildLocalizationLocales(locales); err != nil {

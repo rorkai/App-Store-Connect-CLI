@@ -134,6 +134,41 @@ func TestSubscriptionsInputValidationReturnsUsageExitCode(t *testing.T) {
 			wantErr: "subscriptions offers win-back prices: --next must be an App Store Connect URL",
 		},
 		{
+			name:    "offers win-back list subscription-id s invalid fields",
+			args:    []string{"subscriptions", "offers", "win-back", "list", "--subscription-id", "s", "--fields", "bad"},
+			wantErr: "subscriptions offers win-back list: --fields must be one of: referenceName, offerId, duration, offerMode, periodCount, customerEligibilityPaidSubscriptionDurationInMonths, customerEligibilityTimeSinceLastSubscribedInMonths, customerEligibilityWaitBetweenOffersInMonths, startDate, endDate, priority, promotionIntent, targetSubscriptionPlanType, prices",
+		},
+		{
+			name:    "offers win-back list subscription-id s invalid price-fields",
+			args:    []string{"subscriptions", "offers", "win-back", "list", "--subscription-id", "s", "--price-fields", "bad"},
+			wantErr: "subscriptions offers win-back list: --price-fields must be one of: territory, subscriptionPricePoint",
+		},
+		{
+			name:    "offers win-back list subscription-id s invalid include",
+			args:    []string{"subscriptions", "offers", "win-back", "list", "--subscription-id", "s", "--include", "bad"},
+			wantErr: "subscriptions offers win-back list: --include must be one of: prices",
+		},
+		{
+			name:    "offers win-back prices id o invalid fields",
+			args:    []string{"subscriptions", "offers", "win-back", "prices", "--id", "o", "--fields", "bad"},
+			wantErr: "subscriptions offers win-back prices: --fields must be one of: territory, subscriptionPricePoint",
+		},
+		{
+			name:    "offers win-back prices id o invalid territory-fields",
+			args:    []string{"subscriptions", "offers", "win-back", "prices", "--id", "o", "--territory-fields", "bad"},
+			wantErr: "subscriptions offers win-back prices: --territory-fields must be one of: currency",
+		},
+		{
+			name:    "offers win-back prices id o invalid price-point-fields",
+			args:    []string{"subscriptions", "offers", "win-back", "prices", "--id", "o", "--price-point-fields", "bad"},
+			wantErr: "subscriptions offers win-back prices: --price-point-fields must be one of: customerPrice, proceeds, proceedsYear2, territory, equalizations, adjustedEqualizations",
+		},
+		{
+			name:    "offers win-back prices id o invalid include",
+			args:    []string{"subscriptions", "offers", "win-back", "prices", "--id", "o", "--include", "bad"},
+			wantErr: "subscriptions offers win-back prices: --include must be one of: territory, subscriptionPricePoint",
+		},
+		{
 			name:    "offers win-back links subscription-id s limit 201",
 			args:    []string{"subscriptions", "offers", "win-back", "links", "--subscription-id", "s", "--limit", "201"},
 			wantErr: "subscriptions offers win-back links: --limit must be between 1 and 200",

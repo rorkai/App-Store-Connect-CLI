@@ -179,7 +179,7 @@ Examples:
 
 			normalizedReleaseDate, err := normalizePreOrderReleaseDate(*releaseDate)
 			if err != nil {
-				return fmt.Errorf("pre-orders enable: %w", err)
+				return shared.UsageErrorf("pre-orders enable: %v", err)
 			}
 
 			territories, err := shared.NormalizeASCTerritoryCSV(*territory)
@@ -301,7 +301,7 @@ Examples:
 			if strings.TrimSpace(*releaseDate) != "" {
 				normalizedReleaseDate, err := normalizePreOrderReleaseDate(*releaseDate)
 				if err != nil {
-					return fmt.Errorf("pre-orders update: %w", err)
+					return shared.UsageErrorf("pre-orders update: %v", err)
 				}
 				attrs.ReleaseDate = &normalizedReleaseDate
 				hasAttr = true

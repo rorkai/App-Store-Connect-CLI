@@ -99,7 +99,7 @@ Examples:
 
 			fieldsValue, err := normalizeCertificateFields(*fields, "--fields")
 			if err != nil {
-				return fmt.Errorf("pass-type-ids certificates list: %w", err)
+				return d.UsageErrorf("pass-type-ids certificates list: %v", err)
 			}
 
 			client, err := d.Client()

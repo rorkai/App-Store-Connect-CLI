@@ -245,8 +245,8 @@ func validateExportOptionsGenerateOptions(opts ExportOptionsGenerateOptions) err
 	if opts.ArchivePath == "" {
 		return fmt.Errorf("--archive-path is required")
 	}
-	if !strings.EqualFold(filepath.Ext(opts.ArchivePath), ".xcarchive") {
-		return fmt.Errorf("--archive-path must end with .xcarchive")
+	if err := ValidateExportOptionsArchivePath(opts.ArchivePath); err != nil {
+		return err
 	}
 	if opts.OutputPath == "" {
 		return fmt.Errorf("--output-path is required")
@@ -264,6 +264,15 @@ func validateExportOptionsGenerateOptions(opts ExportOptionsGenerateOptions) err
 	}
 	if opts.Method == exportOptionsMethodReleaseTesting && opts.Destination != exportOptionsDestinationExport {
 		return fmt.Errorf("release-testing requires destination=export")
+	}
+	return nil
+}
+
+// ValidateExportOptionsArchivePath reports an archive path that does not name
+// an .xcarchive.
+func ValidateExportOptionsArchivePath(archivePath string) error {
+	if !strings.EqualFold(filepath.Ext(normalizeDirectoryPath(archivePath)), ".xcarchive") {
+		return fmt.Errorf("--archive-path must end with .xcarchive")
 	}
 	return nil
 }

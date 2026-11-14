@@ -109,7 +109,7 @@ Examples:
 			if strings.TrimSpace(*archived) != "" {
 				value, err := shared.ParseBoolFlag(*archived, "--archived")
 				if err != nil {
-					return fmt.Errorf("background-assets list: %w", err)
+					return shared.UsageErrorf("background-assets list: %v", err)
 				}
 				archivedFilter = []string{strconv.FormatBool(value)}
 			}
@@ -267,7 +267,7 @@ Examples:
 			}
 			archivedValue, err := shared.ParseBoolFlag(*archived, "--archived")
 			if err != nil {
-				return fmt.Errorf("background-assets update: %w", err)
+				return shared.UsageErrorf("background-assets update: %v", err)
 			}
 
 			client, err := shared.GetASCClient()

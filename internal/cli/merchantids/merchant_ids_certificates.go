@@ -90,15 +90,15 @@ Examples:
 
 			fieldsValue, err := normalizeCertificateFields(*fields, "--fields")
 			if err != nil {
-				return fmt.Errorf("merchant-ids certificates list: %w", err)
+				return shared.UsageErrorf("merchant-ids certificates list: %v", err)
 			}
 			passTypeFieldsValue, err := normalizePassTypeIDFields(*passTypeFields, "--pass-type-fields")
 			if err != nil {
-				return fmt.Errorf("merchant-ids certificates list: %w", err)
+				return shared.UsageErrorf("merchant-ids certificates list: %v", err)
 			}
 			includeValue, err := normalizeCertificateInclude(*include, "--include")
 			if err != nil {
-				return fmt.Errorf("merchant-ids certificates list: %w", err)
+				return shared.UsageErrorf("merchant-ids certificates list: %v", err)
 			}
 			if len(passTypeFieldsValue) > 0 && !shared.HasInclude(includeValue, "passTypeId") {
 				fmt.Fprintln(os.Stderr, "Error: --pass-type-fields requires --include passTypeId")

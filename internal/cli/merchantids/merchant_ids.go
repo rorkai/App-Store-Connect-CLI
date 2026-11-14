@@ -99,15 +99,15 @@ Examples:
 
 			fieldsValue, err := normalizeMerchantIDFields(*fields, "--fields")
 			if err != nil {
-				return fmt.Errorf("merchant-ids list: %w", err)
+				return shared.UsageErrorf("merchant-ids list: %v", err)
 			}
 			certificateFieldsValue, err := normalizeCertificateFields(*certificateFields, "--certificate-fields")
 			if err != nil {
-				return fmt.Errorf("merchant-ids list: %w", err)
+				return shared.UsageErrorf("merchant-ids list: %v", err)
 			}
 			includeValue, err := normalizeMerchantIDInclude(*include, "--include")
 			if err != nil {
-				return fmt.Errorf("merchant-ids list: %w", err)
+				return shared.UsageErrorf("merchant-ids list: %v", err)
 			}
 			if len(certificateFieldsValue) > 0 && !shared.HasInclude(includeValue, "certificates") {
 				fmt.Fprintln(os.Stderr, "Error: --certificate-fields requires --include certificates")
@@ -201,15 +201,15 @@ Examples:
 
 			fieldsValue, err := normalizeMerchantIDFields(*fields, "--fields")
 			if err != nil {
-				return fmt.Errorf("merchant-ids view: %w", err)
+				return shared.UsageErrorf("merchant-ids view: %v", err)
 			}
 			certificateFieldsValue, err := normalizeCertificateFields(*certificateFields, "--certificate-fields")
 			if err != nil {
-				return fmt.Errorf("merchant-ids view: %w", err)
+				return shared.UsageErrorf("merchant-ids view: %v", err)
 			}
 			includeValue, err := normalizeMerchantIDInclude(*include, "--include")
 			if err != nil {
-				return fmt.Errorf("merchant-ids view: %w", err)
+				return shared.UsageErrorf("merchant-ids view: %v", err)
 			}
 			if len(certificateFieldsValue) > 0 && !shared.HasInclude(includeValue, "certificates") {
 				fmt.Fprintln(os.Stderr, "Error: --certificate-fields requires --include certificates")

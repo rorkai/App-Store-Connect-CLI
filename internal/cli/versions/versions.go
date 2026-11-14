@@ -542,7 +542,7 @@ be combined with skip, which would leave the build unattached.`,
 
 			normalizedPlatform, err := shared.NormalizeAppStoreVersionPlatform(*platform)
 			if err != nil {
-				return fmt.Errorf("versions create: %w", err)
+				return shared.UsageErrorf("versions create: %v", err)
 			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
