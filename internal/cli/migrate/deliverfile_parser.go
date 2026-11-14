@@ -290,7 +290,7 @@ func isConfigOptionCall(rest string) bool {
 
 func ignoredConfigKeyItems(path string, keys []IgnoredConfigKey) []SkippedItem {
 	items := make([]SkippedItem, 0, len(keys))
-	scheduled := slices.ContainsFunc(keys, func(key IgnoredConfigKey) bool { return key.Key == "auto_release_date" })
+	scheduled := slices.ContainsFunc(keys, func(key IgnoredConfigKey) bool { return key.Key == "auto_release_date" && hasConfigValue(key.Value) })
 	for _, ignored := range keys {
 		reason := fmt.Sprintf("line %d: %s is not applied by import", ignored.Line, ignored.Key)
 		if hint := ignoredConfigKeyHint(ignored, scheduled); hint != "" {
@@ -301,13 +301,19 @@ func ignoredConfigKeyItems(path string, keys []IgnoredConfigKey) []SkippedItem {
 	return items
 }
 
+// hasConfigValue reports whether an option was given a value other than nil.
+func hasConfigValue(value string) bool {
+	value = strings.ToLower(strings.TrimSpace(value))
+	return value != "" && value != "nil"
+}
+
 // ignoredConfigKeyHint returns the command that applies an ignored option, or
 // "" when no single command does. scheduled means the file also sets a release
 // date, which decides the release type, so automatic_release gets no hint.
 func ignoredConfigKeyHint(ignored IgnoredConfigKey, scheduled bool) string {
 	value := strings.ToLower(strings.TrimSpace(ignored.Value))
 	switch {
-	case ignored.Key == "auto_release_date":
+	case ignored.Key == "auto_release_date" && hasConfigValue(ignored.Value):
 		return "asc versions update --version-id VERSION_ID --release-type SCHEDULED --earliest-release-date DATE"
 	case ignored.Key == "automatic_release" && scheduled:
 		return ""

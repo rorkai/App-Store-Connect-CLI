@@ -1916,6 +1916,14 @@ func TestMigrateImportDryRunConfigReleaseHints(t *testing.T) {
 			},
 		},
 		{
+			name:   "a nil release date is no release date",
+			config: "automatic_release false\nauto_release_date nil\n",
+			want: []string{
+				"line 1: automatic_release is not applied by import; to apply it, run: asc versions update --version-id VERSION_ID --release-type MANUAL",
+				"line 2: auto_release_date is not applied by import",
+			},
+		},
+		{
 			name:   "a release date decides the release type",
 			config: "automatic_release false\nauto_release_date 1767225600000\n",
 			want: []string{
