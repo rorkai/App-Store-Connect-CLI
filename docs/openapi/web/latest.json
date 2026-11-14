@@ -4474,7 +4474,6 @@
           "code": "2026-11-14"
         },
         "x-asc-source": [
-          "Client.ListCustomAppUsers",
           "Client.ListCustomAppUsersPaginated",
           "Client.ListCustomAppUsersWithPagination"
         ]
