@@ -4130,7 +4130,17 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AppUpdateRequest"
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/DeleteAppRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/RestoreAppRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/SetAppDistributionRequest"
+                  }
+                ]
               }
             }
           },
@@ -6913,7 +6923,14 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ApiKeyV2UpdateRequest"
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/RegisterIndividualAPIKeyRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/RevokeAPIKeyRequest"
+                  }
+                ]
               }
             }
           },
@@ -8405,8 +8422,7 @@
             "schema": {
               "type": "string",
               "enum": [
-                "GET",
-                "DELETE"
+                "GET"
               ]
             }
           }
@@ -8415,7 +8431,14 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/DeveloperBundleIdCreateRequest"
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/CreateDeveloperServiceIDRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/DeveloperPortalReadRequest"
+                  }
+                ]
               }
             }
           },
@@ -8423,11 +8446,18 @@
         },
         "responses": {
           "2XX": {
-            "description": "Success. The schema lists the fields the client reads.",
+            "description": "Success. The schema lists the fields the client reads; the shape follows the request variant.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DeveloperBundleIdResponse"
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/DeveloperBundleIdResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/DeveloperBundleIdsResponse"
+                    }
+                  ]
                 }
               }
             }
@@ -8474,7 +8504,7 @@
           {
             "name": "X-HTTP-Method-Override",
             "in": "header",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "string",
               "enum": [
@@ -8488,7 +8518,17 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/DeveloperBundleIdOverrideRequest"
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/DeveloperPortalReadRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/DeveloperPortalTeamRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/DeleteDeveloperServiceIDRequest"
+                  }
+                ]
               }
             }
           },
@@ -8599,12 +8639,11 @@
           {
             "name": "X-HTTP-Method-Override",
             "in": "header",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "string",
               "enum": [
-                "GET",
-                "DELETE"
+                "GET"
               ]
             }
           }
@@ -8613,7 +8652,14 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CapabilityOverrideRequest"
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/DeveloperPortalTeamRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/DeveloperPortalReadRequest"
+                  }
+                ]
               }
             }
           },
@@ -8621,11 +8667,18 @@
         },
         "responses": {
           "2XX": {
-            "description": "Success. The schema lists the fields the client reads.",
+            "description": "Success. The schema lists the fields the client reads; the shape follows the request variant.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CapabilityResponse"
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/CapabilityResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/CapabilitiesResponse"
+                    }
+                  ]
                 }
               }
             }
@@ -8677,8 +8730,7 @@
             "schema": {
               "type": "string",
               "enum": [
-                "GET",
-                "DELETE"
+                "GET"
               ]
             }
           }
@@ -8687,7 +8739,14 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CloudContainerCreateRequest"
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/DeveloperPortalReadRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreateDeveloperICloudContainerRequest"
+                  }
+                ]
               }
             }
           },
@@ -8695,11 +8754,18 @@
         },
         "responses": {
           "2XX": {
-            "description": "Success. The schema lists the fields the client reads.",
+            "description": "Success. The schema lists the fields the client reads; the shape follows the request variant.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CloudContainerResponse"
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/CloudContainersResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/CloudContainerResponse"
+                    }
+                  ]
                 }
               }
             }
@@ -8801,7 +8867,7 @@
           {
             "name": "X-HTTP-Method-Override",
             "in": "header",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "string",
               "enum": [
@@ -10057,30 +10123,6 @@
             "properties": {
               "type": {
                 "type": "string"
-              }
-            }
-          }
-        }
-      },
-      "ApiKeyV2UpdateRequest": {
-        "type": "object",
-        "title": "ApiKeyV2UpdateRequest",
-        "properties": {
-          "data": {
-            "type": "object",
-            "properties": {
-              "attributes": {
-                "type": "object",
-                "properties": {
-                  "isActive": {}
-                }
-              },
-              "id": {},
-              "type": {
-                "type": "string",
-                "enum": [
-                  "apiKeys"
-                ]
               }
             }
           }
@@ -11691,30 +11733,6 @@
           "data": {}
         }
       },
-      "AppUpdateRequest": {
-        "type": "object",
-        "title": "AppUpdateRequest",
-        "properties": {
-          "data": {
-            "type": "object",
-            "properties": {
-              "attributes": {
-                "type": "object",
-                "properties": {
-                  "removed": {}
-                }
-              },
-              "id": {},
-              "type": {
-                "type": "string",
-                "enum": [
-                  "apps"
-                ]
-              }
-            }
-          }
-        }
-      },
       "AppsResponse": {
         "type": "object",
         "title": "AppsResponse",
@@ -11983,6 +12001,19 @@
         },
         "additionalProperties": true
       },
+      "CapabilitiesResponse": {
+        "type": "object",
+        "title": "CapabilitiesResponse",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Capability"
+            }
+          }
+        },
+        "additionalProperties": true
+      },
       "Capability": {
         "type": "object",
         "title": "Capability",
@@ -12020,27 +12051,18 @@
         },
         "additionalProperties": true
       },
-      "CapabilityOverrideRequest": {
-        "type": "object",
-        "title": "CapabilityOverrideRequest",
-        "properties": {
-          "teamId": {
-            "type": "string"
-          },
-          "urlEncodedQueryParams": {
-            "type": "string"
-          }
-        }
-      },
       "CapabilityResponse": {
         "type": "object",
         "title": "CapabilityResponse",
         "properties": {
-          "data": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Capability"
-            }
+          "data": {},
+          "links": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "meta": {
+            "type": "object",
+            "additionalProperties": true
           }
         },
         "additionalProperties": true
@@ -13045,29 +13067,67 @@
         },
         "additionalProperties": true
       },
-      "CloudContainerCreateRequest": {
-        "type": "object",
-        "title": "CloudContainerCreateRequest",
-        "properties": {
-          "data": {
-            "type": "object",
-            "properties": {
-              "attributes": {
-                "type": "object",
-                "additionalProperties": {
-                  "type": "string"
-                }
-              },
-              "type": {
-                "type": "string"
-              }
-            }
-          }
-        }
-      },
       "CloudContainerResponse": {
         "type": "object",
         "title": "CloudContainerResponse",
+        "properties": {
+          "attributes": {
+            "type": "object",
+            "properties": {
+              "canDelete": {
+                "type": "boolean"
+              },
+              "canEdit": {
+                "type": "boolean"
+              },
+              "hidden": {
+                "type": "boolean"
+              },
+              "identifier": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "prefix": {
+                "type": "string"
+              },
+              "responseId": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": true
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CloudContainer"
+            }
+          },
+          "id": {
+            "type": "string"
+          },
+          "links": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "meta": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "relationships": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      },
+      "CloudContainersResponse": {
+        "type": "object",
+        "title": "CloudContainersResponse",
         "properties": {
           "data": {
             "type": "array",
@@ -13221,6 +13281,60 @@
           "additionalProperties": true
         }
       },
+      "CreateDeveloperICloudContainerRequest": {
+        "type": "object",
+        "title": "CreateDeveloperICloudContainerRequest",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "attributes": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
+              "type": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "CreateDeveloperServiceIDRequest": {
+        "type": "object",
+        "title": "CreateDeveloperServiceIDRequest",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "attributes": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
+              "relationships": {
+                "type": "object",
+                "properties": {
+                  "bundleIdCapabilities": {
+                    "type": "object",
+                    "properties": {
+                      "data": {
+                        "type": "array",
+                        "items": {}
+                      }
+                    }
+                  }
+                }
+              },
+              "type": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
       "CustomAppUserCreateRequest": {
         "type": "object",
         "title": "CustomAppUserCreateRequest",
@@ -13299,6 +13413,40 @@
         "type": "object",
         "title": "CustomAppUsersResponse",
         "additionalProperties": true
+      },
+      "DeleteAppRequest": {
+        "type": "object",
+        "title": "DeleteAppRequest",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "attributes": {
+                "type": "object",
+                "properties": {
+                  "removed": {
+                    "type": "boolean"
+                  }
+                }
+              },
+              "id": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "DeleteDeveloperServiceIDRequest": {
+        "type": "object",
+        "title": "DeleteDeveloperServiceIDRequest",
+        "properties": {
+          "teamId": {
+            "type": "string"
+          }
+        }
       },
       "DeveloperAgreementAcceptanceCreateRequest": {
         "type": "object",
@@ -13551,52 +13699,6 @@
         },
         "additionalProperties": true
       },
-      "DeveloperBundleIdCreateRequest": {
-        "type": "object",
-        "title": "DeveloperBundleIdCreateRequest",
-        "properties": {
-          "data": {
-            "type": "object",
-            "properties": {
-              "attributes": {
-                "type": "object",
-                "additionalProperties": {
-                  "type": "string"
-                }
-              },
-              "relationships": {
-                "type": "object",
-                "properties": {
-                  "bundleIdCapabilities": {
-                    "type": "object",
-                    "properties": {
-                      "data": {
-                        "type": "array",
-                        "items": {}
-                      }
-                    }
-                  }
-                }
-              },
-              "type": {
-                "type": "string"
-              }
-            }
-          }
-        }
-      },
-      "DeveloperBundleIdOverrideRequest": {
-        "type": "object",
-        "title": "DeveloperBundleIdOverrideRequest",
-        "properties": {
-          "teamId": {
-            "type": "string"
-          },
-          "urlEncodedQueryParams": {
-            "type": "string"
-          }
-        }
-      },
       "DeveloperBundleIdResponse": {
         "type": "object",
         "title": "DeveloperBundleIdResponse",
@@ -13677,6 +13779,68 @@
             }
           }
         }
+      },
+      "DeveloperBundleIdsResponse": {
+        "type": "object",
+        "title": "DeveloperBundleIdsResponse",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeveloperBundleId"
+            }
+          },
+          "included": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "attributes": {
+                  "type": "object",
+                  "additionalProperties": true
+                },
+                "id": {
+                  "type": "string"
+                },
+                "links": {
+                  "type": "object",
+                  "additionalProperties": true
+                },
+                "relationships": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "object",
+                    "properties": {
+                      "data": {},
+                      "links": {
+                        "type": "object",
+                        "additionalProperties": true
+                      },
+                      "meta": {
+                        "type": "object",
+                        "additionalProperties": true
+                      }
+                    },
+                    "additionalProperties": true
+                  }
+                },
+                "type": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          "links": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "meta": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "additionalProperties": true
       },
       "DeveloperNotificationListRequest": {
         "type": "object",
@@ -13780,6 +13944,27 @@
           }
         },
         "additionalProperties": true
+      },
+      "DeveloperPortalReadRequest": {
+        "type": "object",
+        "title": "DeveloperPortalReadRequest",
+        "properties": {
+          "teamId": {
+            "type": "string"
+          },
+          "urlEncodedQueryParams": {
+            "type": "string"
+          }
+        }
+      },
+      "DeveloperPortalTeamRequest": {
+        "type": "object",
+        "title": "DeveloperPortalTeamRequest",
+        "properties": {
+          "teamId": {
+            "type": "string"
+          }
+        }
       },
       "DeveloperTeamsResponse": {
         "type": "object",
@@ -14301,6 +14486,31 @@
           }
         }
       },
+      "RegisterIndividualAPIKeyRequest": {
+        "type": "object",
+        "title": "RegisterIndividualAPIKeyRequest",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "attributes": {
+                "type": "object",
+                "properties": {
+                  "publicKey": {
+                    "type": "string"
+                  }
+                }
+              },
+              "id": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
       "ResetRatingsRequest": {
         "type": "object",
         "title": "ResetRatingsRequest",
@@ -14708,6 +14918,30 @@
           "data"
         ]
       },
+      "RestoreAppRequest": {
+        "type": "object",
+        "title": "RestoreAppRequest",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "attributes": {
+                "type": "object",
+                "properties": {
+                  "removed": {}
+                }
+              },
+              "id": {},
+              "type": {
+                "type": "string",
+                "enum": [
+                  "apps"
+                ]
+              }
+            }
+          }
+        }
+      },
       "ReviewRejection": {
         "type": "object",
         "title": "ReviewRejection",
@@ -15027,6 +15261,30 @@
           "data"
         ]
       },
+      "RevokeAPIKeyRequest": {
+        "type": "object",
+        "title": "RevokeAPIKeyRequest",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "attributes": {
+                "type": "object",
+                "properties": {
+                  "isActive": {}
+                }
+              },
+              "id": {},
+              "type": {
+                "type": "string",
+                "enum": [
+                  "apiKeys"
+                ]
+              }
+            }
+          }
+        }
+      },
       "SandboxAccountCreateRequest": {
         "type": "object",
         "title": "SandboxAccountCreateRequest",
@@ -15212,6 +15470,29 @@
           }
         },
         "additionalProperties": true
+      },
+      "SetAppDistributionRequest": {
+        "type": "object",
+        "title": "SetAppDistributionRequest",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "attributes": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
+              "id": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string"
+              }
+            }
+          }
+        }
       },
       "SignInKeyCreateRequest": {
         "type": "object",
