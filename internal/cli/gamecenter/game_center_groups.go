@@ -166,8 +166,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*groupID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -251,13 +250,11 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*groupID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			if strings.TrimSpace(*referenceName) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --reference-name is required")
-				return shared.MissingRequiredUsageError("--reference-name")
+				return shared.RequiredFlag("--reference-name")
 			}
 			value := strings.TrimSpace(*referenceName)
 
@@ -300,12 +297,10 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*groupID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()
@@ -389,8 +384,7 @@ Examples:
 
 			id := strings.TrimSpace(*groupID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --group-id is required")
-				return shared.MissingRequiredUsageError("--group-id")
+				return shared.RequiredFlag("--group-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -474,13 +468,11 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*groupID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --group-id is required")
-				return shared.MissingRequiredUsageError("--group-id")
+				return shared.RequiredFlag("--group-id")
 			}
 			idsValue := shared.SplitCSV(ids.String())
 			if len(idsValue) == 0 {
-				fmt.Fprintln(os.Stderr, "Error: --ids is required")
-				return shared.MissingRequiredUsageError("--ids")
+				return shared.RequiredFlag("--ids")
 			}
 			if err := validateGameCenterReplacementConfirm(fs, *confirm); err != nil {
 				return err
@@ -569,8 +561,7 @@ Examples:
 
 			id := strings.TrimSpace(*groupID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --group-id is required")
-				return shared.MissingRequiredUsageError("--group-id")
+				return shared.RequiredFlag("--group-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -654,13 +645,11 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*groupID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --group-id is required")
-				return shared.MissingRequiredUsageError("--group-id")
+				return shared.RequiredFlag("--group-id")
 			}
 			idsValue := shared.SplitCSV(ids.String())
 			if len(idsValue) == 0 {
-				fmt.Fprintln(os.Stderr, "Error: --ids is required")
-				return shared.MissingRequiredUsageError("--ids")
+				return shared.RequiredFlag("--ids")
 			}
 			if err := validateGameCenterReplacementConfirm(fs, *confirm); err != nil {
 				return err
@@ -747,8 +736,7 @@ Examples:
 
 			id := strings.TrimSpace(*groupID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --group-id is required")
-				return shared.MissingRequiredUsageError("--group-id")
+				return shared.RequiredFlag("--group-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -861,8 +849,7 @@ Examples:
 
 			id := strings.TrimSpace(*groupID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --group-id is required")
-				return shared.MissingRequiredUsageError("--group-id")
+				return shared.RequiredFlag("--group-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -964,8 +951,7 @@ Examples:
 
 			id := strings.TrimSpace(*groupID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --group-id is required")
-				return shared.MissingRequiredUsageError("--group-id")
+				return shared.RequiredFlag("--group-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -1064,8 +1050,7 @@ Examples:
 			id := strings.TrimSpace(*groupID)
 			nextURL := strings.TrimSpace(*next)
 			if id == "" && nextURL == "" {
-				fmt.Fprintln(os.Stderr, "Error: --group-id is required")
-				return shared.MissingRequiredUsageError("--group-id")
+				return shared.RequiredFlag("--group-id")
 			}
 
 			client, err := shared.GetASCClient()

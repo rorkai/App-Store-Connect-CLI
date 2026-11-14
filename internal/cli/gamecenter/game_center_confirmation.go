@@ -2,8 +2,6 @@ package gamecenter
 
 import (
 	"flag"
-	"fmt"
-	"os"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
@@ -17,6 +15,5 @@ func validateGameCenterReplacementConfirm(fs *flag.FlagSet, confirmed bool) erro
 	if flagPassed(fs, "confirm") {
 		return shared.UsageError("--confirm must be true when specified")
 	}
-	fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-	return shared.MissingRequiredUsageError("--confirm")
+	return shared.RequiredFlag("--confirm")
 }

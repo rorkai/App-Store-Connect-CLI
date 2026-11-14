@@ -109,14 +109,12 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			locID := strings.TrimSpace(*localizationID)
 			if locID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
-				return shared.MissingRequiredUsageError("--localization-id")
+				return shared.RequiredFlag("--localization-id")
 			}
 
 			file := strings.TrimSpace(*filePath)
 			if file == "" {
-				fmt.Fprintln(os.Stderr, "Error: --file is required")
-				return shared.MissingRequiredUsageError("--file")
+				return shared.RequiredFlag("--file")
 			}
 
 			client, err := shared.GetASCClient()
@@ -158,12 +156,10 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*imageID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()
@@ -306,8 +302,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*leaderboardID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -413,14 +408,12 @@ Examples:
 
 			name := strings.TrimSpace(*referenceName)
 			if name == "" {
-				fmt.Fprintln(os.Stderr, "Error: --reference-name is required")
-				return shared.MissingRequiredUsageError("--reference-name")
+				return shared.RequiredFlag("--reference-name")
 			}
 
 			vendor := strings.TrimSpace(*vendorID)
 			if vendor == "" {
-				fmt.Fprintln(os.Stderr, "Error: --vendor-id is required")
-				return shared.MissingRequiredUsageError("--vendor-id")
+				return shared.RequiredFlag("--vendor-id")
 			}
 			if group != "" && !strings.HasPrefix(vendor, "grp.") {
 				fmt.Fprintln(os.Stderr, "Error: --vendor-id must start with \"grp.\" when using --group-id")
@@ -429,8 +422,7 @@ Examples:
 
 			formatterVal := strings.TrimSpace(strings.ToUpper(*formatter))
 			if formatterVal == "" {
-				fmt.Fprintln(os.Stderr, "Error: --formatter is required")
-				return shared.MissingRequiredUsageError("--formatter")
+				return shared.RequiredFlag("--formatter")
 			}
 			if !isValidLeaderboardFormatter(formatterVal) {
 				fmt.Fprintf(os.Stderr, "Error: --formatter must be one of: %s\n", strings.Join(asc.ValidLeaderboardFormatters, ", "))
@@ -439,8 +431,7 @@ Examples:
 
 			sortVal := strings.TrimSpace(strings.ToUpper(*sortType))
 			if sortVal == "" {
-				fmt.Fprintln(os.Stderr, "Error: --sort is required")
-				return shared.MissingRequiredUsageError("--sort")
+				return shared.RequiredFlag("--sort")
 			}
 			if !isValidScoreSortType(sortVal) {
 				fmt.Fprintf(os.Stderr, "Error: --sort must be one of: %s\n", strings.Join(asc.ValidScoreSortTypes, ", "))
@@ -449,8 +440,7 @@ Examples:
 
 			submissionVal := strings.TrimSpace(strings.ToUpper(*submissionType))
 			if submissionVal == "" {
-				fmt.Fprintln(os.Stderr, "Error: --submission-type is required")
-				return shared.MissingRequiredUsageError("--submission-type")
+				return shared.RequiredFlag("--submission-type")
 			}
 			if !isValidSubmissionType(submissionVal) {
 				fmt.Fprintf(os.Stderr, "Error: --submission-type must be one of: %s\n", strings.Join(asc.ValidSubmissionTypes, ", "))
@@ -560,8 +550,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*leaderboardID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			attrs := asc.GameCenterLeaderboardUpdateAttributes{}
@@ -717,12 +706,10 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*leaderboardID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()
@@ -783,23 +770,19 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			vendorValue := strings.TrimSpace(*vendorID)
 			if vendorValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --vendor-id is required")
-				return shared.MissingRequiredUsageError("--vendor-id")
+				return shared.RequiredFlag("--vendor-id")
 			}
 			scoreValue := strings.TrimSpace(*score)
 			if scoreValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --score is required")
-				return shared.MissingRequiredUsageError("--score")
+				return shared.RequiredFlag("--score")
 			}
 			bundleValue := strings.TrimSpace(*bundleID)
 			if bundleValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --bundle-id is required")
-				return shared.MissingRequiredUsageError("--bundle-id")
+				return shared.RequiredFlag("--bundle-id")
 			}
 			playerValue := strings.TrimSpace(*scopedPlayerID)
 			if playerValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --scoped-player-id is required")
-				return shared.MissingRequiredUsageError("--scoped-player-id")
+				return shared.RequiredFlag("--scoped-player-id")
 			}
 
 			var preReleasedValue *bool
@@ -888,8 +871,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*leaderboardID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -969,8 +951,7 @@ Examples:
 
 			lbID := strings.TrimSpace(*leaderboardID)
 			if lbID == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --leaderboard-id is required")
-				return shared.MissingRequiredUsageError("--leaderboard-id")
+				return shared.RequiredFlag("--leaderboard-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -1042,8 +1023,7 @@ Examples:
 
 			lbID := strings.TrimSpace(*leaderboardID)
 			if lbID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --leaderboard-id is required")
-				return shared.MissingRequiredUsageError("--leaderboard-id")
+				return shared.RequiredFlag("--leaderboard-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -1091,12 +1071,10 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*releaseID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()

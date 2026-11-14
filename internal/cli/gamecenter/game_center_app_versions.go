@@ -155,8 +155,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*appVersionID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -197,8 +196,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*appStoreVersionID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app-store-version-id is required")
-				return shared.MissingRequiredUsageError("--app-store-version-id")
+				return shared.RequiredFlag("--app-store-version-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -241,8 +239,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*appVersionID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			attrs := asc.GameCenterAppVersionUpdateAttributes{}
@@ -338,8 +335,7 @@ Examples:
 			id := strings.TrimSpace(*appVersionID)
 			nextURL := strings.TrimSpace(*next)
 			if id == "" && nextURL == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -428,8 +424,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*appVersionID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			client, err := shared.GetASCClient()
