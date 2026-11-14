@@ -146,20 +146,13 @@ Examples:
 
 // AppsGetCommand returns the apps view subcommand.
 func AppsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("apps view", flag.ExitOnError)
+	var fieldValues, appInfoFieldValues, iapFieldValues, groupFieldValues, retentionMessageFieldValues []string
 
-	id := shared.BindResourceIDFlag(fs, "id", "apps", "App Store Connect app ID")
-	fields := fs.String("fields", "", "App attribute fields to return, comma-separated: "+strings.Join(appAttributeFields, ", "))
-	appInfoFields := fs.String("app-info-fields", "", "Sparse fields for included app info records: "+strings.Join(shared.AppInfoSparseFields, ", ")+" (deprecated; removed from API 4.5; prefer asc age-rating view)")
-	iapFields := fs.String("iap-fields", "", "Sparse fields for included in-app purchases: "+strings.Join(shared.AppInAppPurchaseSparseFields, ", "))
-	subscriptionGroupFields := fs.String("subscription-group-fields", "", "Sparse fields for included subscription groups: "+strings.Join(shared.SubscriptionGroupSparseFields, ", "))
-	retentionMessageFields := fs.String("retention-message-fields", "", "Sparse fields for included retention messages: "+strings.Join(shared.RetentionMessageSparseFields, ", "))
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc apps view --id APP_ID",
-		ShortHelp:  "View app details by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "apps view",
+		Name:        "view",
+		ShortUsage:  "asc apps view --id APP_ID",
+		ShortHelp:   "View app details by ID.",
 		LongHelp: `View app details by ID.
 
 Examples:
@@ -167,44 +160,39 @@ Examples:
   asc apps view --id "APP_ID" --app-info-fields state,primaryCategory --iap-fields versions --subscription-group-fields versions
   asc apps view --id "APP_ID" --output table
   asc apps view --id "APP_ID" --fields "subscriptionStatusUrl,subscriptionStatusUrlVersion,subscriptionStatusUrlForSandbox,subscriptionStatusUrlVersionForSandbox" --output json`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			idValue := strings.TrimSpace(*id)
-			if idValue == "" {
-				return shared.RequiredFlag("--id")
-			}
-			fieldValues, err := normalizeSparseField(fs, *fields, appAttributeFields, "--fields")
-			if err != nil {
-				return shared.UsageError(err.Error())
-			}
-			appInfoFieldValues, err := normalizeSparseField(fs, *appInfoFields, shared.AppInfoSparseFields, "--app-info-fields")
-			if err != nil {
-				return shared.UsageError(err.Error())
-			}
-			iapFieldValues, err := normalizeSparseField(fs, *iapFields, shared.AppInAppPurchaseSparseFields, "--iap-fields")
-			if err != nil {
-				return shared.UsageError(err.Error())
-			}
-			groupFieldValues, err := normalizeSparseField(fs, *subscriptionGroupFields, shared.SubscriptionGroupSparseFields, "--subscription-group-fields")
-			if err != nil {
-				return shared.UsageError(err.Error())
-			}
-			retentionMessageFieldValues, err := normalizeSparseField(fs, *retentionMessageFields, shared.RetentionMessageSparseFields, "--retention-message-fields")
-			if err != nil {
-				return shared.UsageError(err.Error())
-			}
+		IDUsage:            "App Store Connect app ID",
+		IDType:             "apps",
+		RequiredDiagnostic: true,
+		Flags: func(fs *flag.FlagSet) func() error {
+			fields := fs.String("fields", "", "App attribute fields to return, comma-separated: "+strings.Join(appAttributeFields, ", "))
+			appInfoFields := fs.String("app-info-fields", "", "Sparse fields for included app info records: "+strings.Join(shared.AppInfoSparseFields, ", ")+" (deprecated; removed from API 4.5; prefer asc age-rating view)")
+			iapFields := fs.String("iap-fields", "", "Sparse fields for included in-app purchases: "+strings.Join(shared.AppInAppPurchaseSparseFields, ", "))
+			subscriptionGroupFields := fs.String("subscription-group-fields", "", "Sparse fields for included subscription groups: "+strings.Join(shared.SubscriptionGroupSparseFields, ", "))
+			retentionMessageFields := fs.String("retention-message-fields", "", "Sparse fields for included retention messages: "+strings.Join(shared.RetentionMessageSparseFields, ", "))
+			return func() (err error) {
+				if fieldValues, err = normalizeSparseField(fs, *fields, appAttributeFields, "--fields"); err != nil {
+					return shared.UsageError(err.Error())
+				}
+				if appInfoFieldValues, err = normalizeSparseField(fs, *appInfoFields, shared.AppInfoSparseFields, "--app-info-fields"); err != nil {
+					return shared.UsageError(err.Error())
+				}
+				if iapFieldValues, err = normalizeSparseField(fs, *iapFields, shared.AppInAppPurchaseSparseFields, "--iap-fields"); err != nil {
+					return shared.UsageError(err.Error())
+				}
+				if groupFieldValues, err = normalizeSparseField(fs, *subscriptionGroupFields, shared.SubscriptionGroupSparseFields, "--subscription-group-fields"); err != nil {
+					return shared.UsageError(err.Error())
+				}
+				if retentionMessageFieldValues, err = normalizeSparseField(fs, *retentionMessageFields, shared.RetentionMessageSparseFields, "--retention-message-fields"); err != nil {
+					return shared.UsageError(err.Error())
+				}
 
-			shared.WarnDeprecatedAppInfoFields(appInfoFieldValues, "")
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("apps view: %w", err)
+				shared.WarnDeprecatedAppInfoFields(appInfoFieldValues, "")
+				return nil
 			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
+		},
+		ErrorPrefix:      "apps view",
+		FetchErrorPrefix: "apps view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			includeValues := []string{}
 			if len(appInfoFieldValues) > 0 {
 				includeValues = addInclude(includeValues, "appInfos")
@@ -218,25 +206,21 @@ Examples:
 			if len(retentionMessageFieldValues) > 0 {
 				includeValues = addInclude(includeValues, "retentionMessages")
 			}
-			if len(fieldValues) > 0 {
-				fieldValues = append(fieldValues, includeValues...)
+			fields := fieldValues
+			if len(fields) > 0 {
+				fields = append(fields, includeValues...)
 			}
 			opts := []asc.AppOption{
-				asc.WithAppFields(fieldValues),
+				asc.WithAppFields(fields),
 				asc.WithAppAppInfoFields(appInfoFieldValues),
 				asc.WithAppInAppPurchaseFields(iapFieldValues),
 				asc.WithAppSubscriptionGroupFields(groupFieldValues),
 				asc.WithAppRetentionMessageFields(retentionMessageFieldValues),
 				asc.WithAppInclude(includeValues),
 			}
-			app, err := client.GetAppWithOptions(requestCtx, idValue, opts...)
-			if err != nil {
-				return fmt.Errorf("apps view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(app, *output.Output, *output.Pretty)
+			return client.GetAppWithOptions(ctx, id, opts...)
 		},
-	}
+	})
 }
 
 // AppsUpdateCommand returns the apps update subcommand.
