@@ -72,15 +72,19 @@ func signingCaseInsensitiveVolumeForRuntime(path string) (bool, bool) {
 const xcodebuildErrorTailLimit = 64 * 1024
 
 type ArchiveOptions struct {
-	WorkspacePath  string
-	ProjectPath    string
-	Scheme         string
-	Configuration  string
-	ArchivePath    string
-	Clean          bool
-	Overwrite      bool
-	XcodebuildArgs []string
-	LogWriter      io.Writer
+	WorkspacePath    string
+	ProjectPath      string
+	Scheme           string
+	Configuration    string
+	Destination      string
+	DerivedDataPath  string
+	ResultBundlePath string
+	ArchivePath      string
+	Clean            bool
+	NoCodeSigning    bool
+	Overwrite        bool
+	XcodebuildArgs   []string
+	LogWriter        io.Writer
 }
 
 type ArchiveResult struct {
@@ -266,6 +270,14 @@ func preflightWritableParent(path, description string) error {
 func Archive(ctx context.Context, opts ArchiveOptions) (*ArchiveResult, error) {
 	opts = normalizeArchiveOptions(opts)
 	if err := validateArchiveOptions(opts); err != nil {
+		return nil, err
+	}
+	resultBundlePath, err := resolveBuildResultBundlePath(opts.ResultBundlePath)
+	if err != nil {
+		return nil, err
+	}
+	opts.ResultBundlePath = resultBundlePath
+	if err := validateBuildResultBundleDestination(resultBundlePath); err != nil {
 		return nil, err
 	}
 	if err := ensureXcodeAvailable(ctx); err != nil {
@@ -629,6 +641,15 @@ func ValidateExportXcodebuildArgs(args []string) error {
 	return nil
 }
 
+// ValidateArchiveXcodebuildArgs rejects passthrough arguments that override
+// values asc xcode archive sets from its own flags.
+func ValidateArchiveXcodebuildArgs(args []string) error {
+	if reserved := reservedArchivePassthroughArgument(args); reserved != "" {
+		return fmt.Errorf("--xcodebuild-flag cannot override asc-managed argument %q", reserved)
+	}
+	return nil
+}
+
 func reservedExportPassthroughArgument(args []string) string {
 	if reserved := reservedBuildPassthroughArgument(args); reserved != "" {
 		return reserved
@@ -708,6 +729,9 @@ func normalizeArchiveOptions(opts ArchiveOptions) ArchiveOptions {
 	opts.ProjectPath = normalizeDirectoryPath(opts.ProjectPath)
 	opts.Scheme = strings.TrimSpace(opts.Scheme)
 	opts.Configuration = strings.TrimSpace(opts.Configuration)
+	opts.Destination = strings.TrimSpace(opts.Destination)
+	opts.DerivedDataPath = normalizeDirectoryPath(opts.DerivedDataPath)
+	opts.ResultBundlePath = normalizeDirectoryPath(opts.ResultBundlePath)
 	opts.ArchivePath = normalizeDirectoryPath(opts.ArchivePath)
 	return opts
 }
@@ -893,7 +917,19 @@ func buildArchiveCommand(opts ArchiveOptions) []string {
 	if trimmed := strings.TrimSpace(opts.Configuration); trimmed != "" {
 		args = append(args, "-configuration", trimmed)
 	}
+	if opts.Destination != "" {
+		args = append(args, "-destination", opts.Destination)
+	}
+	if opts.DerivedDataPath != "" {
+		args = append(args, "-derivedDataPath", opts.DerivedDataPath)
+	}
+	if opts.ResultBundlePath != "" {
+		args = append(args, "-resultBundlePath", opts.ResultBundlePath)
+	}
 	args = append(args, cloneStrings(opts.XcodebuildArgs)...)
+	if opts.NoCodeSigning {
+		args = append(args, "CODE_SIGNING_ALLOWED=NO")
+	}
 	if opts.Clean {
 		args = append(args, "clean")
 	}

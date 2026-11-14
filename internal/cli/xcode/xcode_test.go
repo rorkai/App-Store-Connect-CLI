@@ -1241,6 +1241,87 @@ func TestXcodeArchiveRejectsExplicitlyEmptyConfiguration(t *testing.T) {
 	}
 }
 
+func TestXcodeArchivePassesTypedBuildFlags(t *testing.T) {
+	restore := overrideXcodeCommandTestHooks(t)
+	defer restore()
+
+	var gotOpts localxcode.ArchiveOptions
+	runArchive = func(_ context.Context, opts localxcode.ArchiveOptions) (*localxcode.ArchiveResult, error) {
+		gotOpts = opts
+		return &localxcode.ArchiveResult{ArchivePath: opts.ArchivePath}, nil
+	}
+
+	cmd := XcodeArchiveCommand()
+	cmd.FlagSet.SetOutput(io.Discard)
+	if err := cmd.FlagSet.Parse([]string{
+		"--project", "Demo.xcodeproj",
+		"--scheme", "Demo",
+		"--archive-path", filepath.Join(t.TempDir(), "Demo.xcarchive"),
+		"--destination", "generic/platform=iOS",
+		"--derived-data-path", "/tmp/Derived Data",
+		"--result-bundle-path", "/tmp/Results/Demo.xcresult",
+		"--no-code-signing",
+		"--output", "json",
+	}); err != nil {
+		t.Fatalf("FlagSet.Parse() error = %v", err)
+	}
+
+	var runErr error
+	captureCommandOutput(t, func() error {
+		runErr = cmd.Exec(context.Background(), nil)
+		return runErr
+	})
+	if runErr != nil {
+		t.Fatalf("Exec() error = %v", runErr)
+	}
+	if gotOpts.Destination != "generic/platform=iOS" || gotOpts.DerivedDataPath != "/tmp/Derived Data" ||
+		gotOpts.ResultBundlePath != "/tmp/Results/Demo.xcresult" || !gotOpts.NoCodeSigning {
+		t.Fatalf("unexpected archive options: %+v", gotOpts)
+	}
+}
+
+func TestXcodeArchiveRejectsPassthroughOfTypedBuildFlags(t *testing.T) {
+	tests := []struct {
+		name string
+		raw  []string
+		want string
+	}{
+		{name: "destination", raw: []string{"--xcodebuild-flag=-destination", "--xcodebuild-flag=generic/platform=iOS"}, want: `--xcodebuild-flag cannot override asc-managed argument "-destination"`},
+		{name: "derived data path", raw: []string{"--xcodebuild-flag=-derivedDataPath=/tmp/elsewhere"}, want: `--xcodebuild-flag cannot override asc-managed argument "-derivedDataPath"`},
+		{name: "result bundle path", raw: []string{"--xcodebuild-flag=-resultBundlePath", "--xcodebuild-flag=/tmp/elsewhere.xcresult"}, want: `--xcodebuild-flag cannot override asc-managed argument "-resultBundlePath"`},
+		{name: "code signing setting", raw: []string{"--xcodebuild-flag=CODE_SIGNING_ALLOWED=NO"}, want: `--xcodebuild-flag cannot override asc-managed argument "CODE_SIGNING_ALLOWED"`},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			restore := overrideXcodeCommandTestHooks(t)
+			defer restore()
+			runArchive = func(context.Context, localxcode.ArchiveOptions) (*localxcode.ArchiveResult, error) {
+				t.Fatal("runArchive must not be called for a reserved passthrough argument")
+				return nil, nil
+			}
+
+			cmd := XcodeArchiveCommand()
+			cmd.FlagSet.SetOutput(io.Discard)
+			args := append([]string{"--project", "Demo.xcodeproj", "--scheme", "Demo", "--archive-path", "Demo.xcarchive"}, test.raw...)
+			if err := cmd.FlagSet.Parse(args); err != nil {
+				t.Fatalf("FlagSet.Parse() error = %v", err)
+			}
+			var runErr error
+			_, stderr := captureCommandOutput(t, func() error {
+				runErr = cmd.Exec(context.Background(), nil)
+				return runErr
+			})
+			if !errors.Is(runErr, flag.ErrHelp) {
+				t.Fatalf("Exec() error = %v, want usage error", runErr)
+			}
+			if !strings.Contains(stderr, test.want) {
+				t.Fatalf("stderr = %q, want %q", stderr, test.want)
+			}
+		})
+	}
+}
+
 func TestXcodeValidateRejectsNonIPAPath(t *testing.T) {
 	restore := overrideXcodeCommandTestHooks(t)
 	defer restore()
