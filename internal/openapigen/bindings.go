@@ -172,11 +172,12 @@ func bindingsFile(dir, tag string) string {
 }
 
 // Encode returns the family file in a stable order, one operation or type per
-// line so that a diff shows each binding that changed.
+// line so that a diff shows each binding that changed. Methods bound to one
+// operation keep the order they were adopted in.
 func (f *Family) Encode() ([]byte, error) {
 	sort.Strings(f.Types)
-	sort.Slice(f.Relationships, func(i, j int) bool { return f.Relationships[i].Data < f.Relationships[j].Data })
-	sort.Slice(f.Operations, func(i, j int) bool { return f.Operations[i].Operation < f.Operations[j].Operation })
+	sort.SliceStable(f.Relationships, func(i, j int) bool { return f.Relationships[i].Data < f.Relationships[j].Data })
+	sort.SliceStable(f.Operations, func(i, j int) bool { return f.Operations[i].Operation < f.Operations[j].Operation })
 	fields := []string{`"tag": ` + jsonString(f.Tag), `"file": ` + jsonString(f.File)}
 	if len(f.Types) > 0 {
 		var types []string
@@ -199,7 +200,7 @@ func (f *Family) Encode() ([]byte, error) {
 	if len(ops) > 0 {
 		fields = append(fields, "\"operations\": [\n    "+strings.Join(ops, ",\n    ")+"\n  ]")
 	}
-	sort.Slice(f.Queries, func(i, j int) bool { return f.Queries[i].Operation < f.Queries[j].Operation })
+	sort.SliceStable(f.Queries, func(i, j int) bool { return f.Queries[i].Operation < f.Queries[j].Operation })
 	queries, err := jsonLines(f.Queries)
 	if err != nil {
 		return nil, err

@@ -292,6 +292,44 @@ func TestAdoptReplacesOnlyCodeTheGeneratorReproduces(t *testing.T) {
 	}
 }
 
+func TestAdoptLeavesNoBlankLineWhereItRemovesAnImport(t *testing.T) {
+	src := `package asc
+
+import (
+	"context"
+	"fmt"
+	"strings"
+)
+
+// GetWidgetOwner fetches the owner of a widget as given.
+func (c *Client) GetWidgetOwner(ctx context.Context, widgetID string) (*WidgetResponse, error) {
+	return getJSON[WidgetResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/widgets/%s/owner", widgetID)})
+}
+
+func widgetName(ctx context.Context, name string) string {
+	return strings.TrimSpace(name)
+}
+`
+	want := `package asc
+
+import (
+	"context"
+	"strings"
+)
+
+func widgetName(ctx context.Context, name string) string {
+	return strings.TrimSpace(name)
+}
+`
+	dir := writeHandWritten(t, map[string]string{"owner.go": src})
+	if err := runAdopt(dir, false); err != nil {
+		t.Fatal(err)
+	}
+	if got := readFile(t, filepath.Join(dir, "owner.go")); got != want {
+		t.Errorf("owner.go after adopt:\n%s", got)
+	}
+}
+
 func TestAdoptIntoAnExistingFamilyLeavesItUpToDate(t *testing.T) {
 	deviation := `{"problem":"sent query parameters [filter[x]] that the operation does not define","reason":"kept on purpose"}`
 	existing := `{"tag": "Widgets", "file": "widgets_gen.go", "operations": [{"operation": "widgets_updateInstance", "name": "UpdateWidget", "params": ["widgetID"], "deviations": [` + deviation + `]}]}`

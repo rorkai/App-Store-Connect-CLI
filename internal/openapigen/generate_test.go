@@ -1,9 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
+	"strings"
 	"testing"
 )
 
@@ -50,6 +53,26 @@ func TestBindingsEncodeIsCanonical(t *testing.T) {
 		}
 		if string(got) != string(want) {
 			t.Errorf("Encode differs from testdata/bindings/%s.json:\n%s", fam.Tag, got)
+		}
+	}
+}
+
+func TestBindingsEncodeKeepsTheOrderOfMethodsOfOneOperation(t *testing.T) {
+	var others []*OpBind
+	for i := range 30 {
+		others = append(others, &OpBind{Operation: fmt.Sprintf("widgets_op%02d", 29-i), Name: fmt.Sprintf("Op%02d", i)})
+	}
+	update := &OpBind{Operation: "widgets_op14_updateInstance", Name: "UpdateWidget"}
+	set := &OpBind{Operation: "widgets_op14_updateInstance", Name: "SetWidgetName"}
+	for _, pair := range [][]*OpBind{{update, set}, {set, update}} {
+		fam := &Family{Tag: "Widgets", File: "widgets_gen.go", Operations: slices.Concat(others[:10], pair[:1], others[10:], pair[1:])}
+		got, err := fam.Encode()
+		if err != nil {
+			t.Fatal(err)
+		}
+		first, second := strings.Index(string(got), `"name":"`+pair[0].Name+`"`), strings.Index(string(got), `"name":"`+pair[1].Name+`"`)
+		if first < 0 || second < first {
+			t.Errorf("%s was bound before %s, Encode moved it after:\n%s", pair[0].Name, pair[1].Name, got)
 		}
 	}
 }
