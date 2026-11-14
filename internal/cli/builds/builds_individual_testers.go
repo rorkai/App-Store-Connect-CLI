@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -157,8 +156,7 @@ Examples:
 
 			testerIDs := shared.SplitCSV(testers.String())
 			if len(testerIDs) == 0 {
-				fmt.Fprintln(os.Stderr, "Error: --tester is required")
-				return shared.MissingRequiredUsageError("--tester")
+				return shared.RequiredFlag("--tester")
 			}
 
 			client, err := shared.GetASCClient()
@@ -217,12 +215,10 @@ Examples:
 
 			testerIDs := shared.SplitCSV(testers.String())
 			if len(testerIDs) == 0 {
-				fmt.Fprintln(os.Stderr, "Error: --tester is required")
-				return shared.MissingRequiredUsageError("--tester")
+				return shared.RequiredFlag("--tester")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()
