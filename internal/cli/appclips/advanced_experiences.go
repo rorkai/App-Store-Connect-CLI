@@ -200,43 +200,25 @@ Examples:
 
 // AppClipAdvancedExperiencesGetCommand gets an advanced experience by ID.
 func AppClipAdvancedExperiencesGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	experienceID := shared.BindResourceIDFlag(fs, "experience-id", "appClipAdvancedExperiences", "Advanced experience ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc app-clips advanced-experiences view --experience-id \"EXP_ID\"",
-		ShortHelp:  "View an advanced experience by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc app-clips advanced-experiences view --experience-id \"EXP_ID\"",
+		ShortHelp:   "View an advanced experience by ID.",
 		LongHelp: `View an advanced experience by ID.
 
 Examples:
   asc app-clips advanced-experiences view --experience-id "EXP_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			idValue := strings.TrimSpace(*experienceID)
-			if idValue == "" {
-				return shared.RequiredFlag("--experience-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("app-clips advanced-experiences view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetAppClipAdvancedExperience(requestCtx, idValue)
-			if err != nil {
-				return fmt.Errorf("app-clips advanced-experiences view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDFlag:             "experience-id",
+		IDUsage:            "Advanced experience ID",
+		IDType:             "appClipAdvancedExperiences",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "app-clips advanced-experiences view",
+		FetchErrorPrefix:   "app-clips advanced-experiences view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetAppClipAdvancedExperience(ctx, id)
 		},
-	}
+	})
 }
 
 // AppClipAdvancedExperiencesCreateCommand creates an advanced experience.

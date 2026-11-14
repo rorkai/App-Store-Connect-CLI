@@ -131,43 +131,25 @@ Examples:
 
 // AppClipDefaultExperienceLocalizationsGetCommand gets a localization by ID.
 func AppClipDefaultExperienceLocalizationsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appClipDefaultExperienceLocalizations", "Localization ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc app-clips default-experiences localizations view --localization-id \"LOC_ID\"",
-		ShortHelp:  "View a localization by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc app-clips default-experiences localizations view --localization-id \"LOC_ID\"",
+		ShortHelp:   "View a localization by ID.",
 		LongHelp: `View a localization by ID.
 
 Examples:
   asc app-clips default-experiences localizations view --localization-id "LOC_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			locValue := strings.TrimSpace(*localizationID)
-			if locValue == "" {
-				return shared.RequiredFlag("--localization-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("app-clips default-experiences localizations view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetAppClipDefaultExperienceLocalization(requestCtx, locValue)
-			if err != nil {
-				return fmt.Errorf("app-clips default-experiences localizations view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDFlag:             "localization-id",
+		IDUsage:            "Localization ID",
+		IDType:             "appClipDefaultExperienceLocalizations",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "app-clips default-experiences localizations view",
+		FetchErrorPrefix:   "app-clips default-experiences localizations view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetAppClipDefaultExperienceLocalization(ctx, id)
 		},
-	}
+	})
 }
 
 // AppClipDefaultExperienceLocalizationsCreateCommand creates a localization.
