@@ -1017,35 +1017,6 @@ Examples:
 	}
 }
 
-// SubscriptionsPricesCommand returns the subscriptions prices command group.
-func SubscriptionsPricesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("prices", flag.ExitOnError)
-
-	return &ffcli.Command{
-		Name:       "prices",
-		ShortUsage: "asc subscriptions prices <subcommand> [flags]",
-		ShortHelp:  "Manage subscription pricing.",
-		LongHelp: `Manage subscription pricing.
-
-Examples:
-  asc subscriptions prices list --subscription-id "SUB_ID"
-  asc subscriptions prices add --subscription-id "SUB_ID" --price-point "PRICE_POINT_ID"
-  asc subscriptions prices import --subscription-id "SUB_ID" --input "./prices.csv" --confirm
-  asc subscriptions prices delete --price-id "PRICE_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Subcommands: []*ffcli.Command{
-			SubscriptionsPricesListCommand(),
-			SubscriptionsPricesAddCommand(),
-			SubscriptionsPricesImportCommand(),
-			SubscriptionsPricesDeleteCommand(),
-		},
-		Exec: func(ctx context.Context, args []string) error {
-			return flag.ErrHelp
-		},
-	}
-}
-
 // SubscriptionsPricesListCommand returns the subscriptions prices list subcommand.
 func SubscriptionsPricesListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("prices list", flag.ExitOnError)

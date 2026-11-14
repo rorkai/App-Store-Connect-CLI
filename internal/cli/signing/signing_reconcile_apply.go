@@ -414,10 +414,6 @@ func exactSigningFloat(value float64) (*big.Rat, bool) {
 	return number, number != nil
 }
 
-func loadOrStartSigningReceipt(plan signingReconcilePlanArtifact) (signingReconcileReceipt, error) {
-	return loadOrStartSigningReceiptWithUsage(plan, shared.UsageError)
-}
-
 func loadOrStartSigningReceiptWithUsage(plan signingReconcilePlanArtifact, usageError func(string) error) (signingReconcileReceipt, error) {
 	receiptPath := filepath.Join(plan.Paths.StateDir, "receipt.json")
 	data, err := readProtectedFile(receiptPath)

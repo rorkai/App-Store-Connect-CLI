@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/xml"
 	"fmt"
-	"io"
 	"strings"
 	"time"
 )
@@ -50,21 +49,6 @@ func (r *JUnitReport) Write(path string) error {
 	}
 
 	return nil
-}
-
-// WriteTo writes the JUnit report to the specified writer.
-func (r *JUnitReport) WriteTo(w io.Writer) (int64, error) {
-	data, err := r.Marshal()
-	if err != nil {
-		return 0, fmt.Errorf("failed to marshal JUnit report: %w", err)
-	}
-
-	n, err := w.Write(data)
-	if err != nil {
-		return int64(n), fmt.Errorf("failed to write report: %w", err)
-	}
-
-	return int64(n), nil
 }
 
 // Marshal marshals the JUnit report to XML.
