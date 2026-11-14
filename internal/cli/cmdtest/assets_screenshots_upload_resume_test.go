@@ -16,6 +16,7 @@ import (
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -305,21 +306,12 @@ func TestRunScreenshotsUploadWarnsWhenFileNamesAlreadyInSet(t *testing.T) {
 	writeCmdtestScreenshotPNG(t, workDir, "01-home.png")
 	writeCmdtestScreenshotPNG(t, workDir, "02-settings.png")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersionLocalizations/LOC_123/appScreenshotSets":
-			return screenshotsUploadJSONResponse(http.StatusOK, `{"data":[{"type":"appScreenshotSets","id":"set-1","attributes":{"screenshotDisplayType":"APP_IPHONE_65"}}],"links":{}}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appScreenshotSets/set-1/appScreenshots":
-			return screenshotsUploadJSONResponse(http.StatusOK, `{"data":[{"type":"appScreenshots","id":"old-1","attributes":{"fileName":"01-home.png"}}],"links":{}}`)
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreVersionLocalizations/LOC_123/appScreenshotSets"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appScreenshotSets","id":"set-1","attributes":{"screenshotDisplayType":"APP_IPHONE_65"}}],"links":{}}`))
+	reg.Register(asctest.GET("/v1/appScreenshotSets/set-1/appScreenshots"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appScreenshots","id":"old-1","attributes":{"fileName":"01-home.png"}}],"links":{}}`))
 
 	_, stderr := captureOutput(t, func() {
 		code := cmd.Run([]string{
@@ -588,16 +580,10 @@ func TestRunScreenshotsResumeKeepsLiteralFailureArtifactPath(t *testing.T) {
 			if err := os.WriteFile(path, []byte(artifact), 0o600); err != nil {
 				t.Fatal(err)
 			}
-			originalTransport := http.DefaultTransport
-			t.Cleanup(func() { http.DefaultTransport = originalTransport })
-			calls := 0
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				if req.Method != http.MethodDelete || req.URL.Path != "/v1/appScreenshots/SHOT_BAD" {
-					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-				}
-				calls++
-				return screenshotsUploadJSONResponse(http.StatusBadRequest, `{"errors":[{"status":"400","code":"BAD_REQUEST","detail":"cleanup failed"}]}`)
-			})
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.DELETE("/v1/appScreenshots/SHOT_BAD"),
+				asctest.JSON(http.StatusBadRequest, `{"errors":[{"status":"400","code":"BAD_REQUEST","detail":"cleanup failed"}]}`))
 			stdout, stderr := captureOutput(t, func() {
 				if code := cmd.Run([]string{"screenshots", "upload", "--resume", path, "--output", "json"}, "1.2.3"); code != cmd.ExitHTTPBadRequest {
 					t.Fatalf("expected HTTP 400 exit %d, got %d", cmd.ExitHTTPBadRequest, code)
@@ -610,7 +596,7 @@ func TestRunScreenshotsResumeKeepsLiteralFailureArtifactPath(t *testing.T) {
 			if err := json.Unmarshal([]byte(stdout), &result); err != nil {
 				t.Fatalf("invalid receipt: %v, %q", err, stdout)
 			}
-			if result.FailureArtifactPath != path || !result.Resumed || calls != 1 {
+			if calls := len(reg.Requests()); result.FailureArtifactPath != path || !result.Resumed || calls != 1 {
 				t.Fatalf("resume outcome changed: %+v, calls=%d", result, calls)
 			}
 			if !strings.Contains(stderr, "cleanup failed") || strings.Count(stderr, "Error:") != 1 {

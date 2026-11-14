@@ -2,7 +2,6 @@ package asc
 
 import (
 	"net/url"
-	"strings"
 )
 
 // GameCenterLeaderboardSetAttributes represents a Game Center leaderboard set resource.
@@ -98,24 +97,6 @@ type gcLeaderboardSetsQuery struct {
 	listQuery
 }
 
-// WithGCLeaderboardSetsLimit sets the max number of leaderboard sets to return.
-func WithGCLeaderboardSetsLimit(limit int) GCLeaderboardSetsOption {
-	return func(q *gcLeaderboardSetsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithGCLeaderboardSetsNextURL uses a next page URL directly.
-func WithGCLeaderboardSetsNextURL(next string) GCLeaderboardSetsOption {
-	return func(q *gcLeaderboardSetsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 func buildGCLeaderboardSetsQuery(query *gcLeaderboardSetsQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
@@ -155,24 +136,6 @@ type GCLeaderboardSetVersionsOption func(*gcLeaderboardSetVersionsQuery)
 
 type gcLeaderboardSetVersionsQuery struct {
 	listQuery
-}
-
-// WithGCLeaderboardSetVersionsLimit sets the max number of versions to return.
-func WithGCLeaderboardSetVersionsLimit(limit int) GCLeaderboardSetVersionsOption {
-	return func(q *gcLeaderboardSetVersionsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithGCLeaderboardSetVersionsNextURL uses a next page URL directly.
-func WithGCLeaderboardSetVersionsNextURL(next string) GCLeaderboardSetVersionsOption {
-	return func(q *gcLeaderboardSetVersionsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
 }
 
 func buildGCLeaderboardSetVersionsQuery(query *gcLeaderboardSetVersionsQuery) string {
@@ -263,24 +226,6 @@ type gcLeaderboardSetLocalizationsQuery struct {
 	listQuery
 }
 
-// WithGCLeaderboardSetLocalizationsLimit sets the max number of leaderboard set localizations to return.
-func WithGCLeaderboardSetLocalizationsLimit(limit int) GCLeaderboardSetLocalizationsOption {
-	return func(q *gcLeaderboardSetLocalizationsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithGCLeaderboardSetLocalizationsNextURL uses a next page URL directly.
-func WithGCLeaderboardSetLocalizationsNextURL(next string) GCLeaderboardSetLocalizationsOption {
-	return func(q *gcLeaderboardSetLocalizationsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 func buildGCLeaderboardSetLocalizationsQuery(query *gcLeaderboardSetLocalizationsQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
@@ -328,24 +273,6 @@ type gcLeaderboardSetReleasesQuery struct {
 	listQuery
 }
 
-// WithGCLeaderboardSetReleasesLimit sets the max number of leaderboard set releases to return.
-func WithGCLeaderboardSetReleasesLimit(limit int) GCLeaderboardSetReleasesOption {
-	return func(q *gcLeaderboardSetReleasesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithGCLeaderboardSetReleasesNextURL uses a next page URL directly.
-func WithGCLeaderboardSetReleasesNextURL(next string) GCLeaderboardSetReleasesOption {
-	return func(q *gcLeaderboardSetReleasesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 func buildGCLeaderboardSetReleasesQuery(query *gcLeaderboardSetReleasesQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
@@ -370,24 +297,6 @@ type GCLeaderboardSetMembersOption func(*gcLeaderboardSetMembersQuery)
 
 type gcLeaderboardSetMembersQuery struct {
 	listQuery
-}
-
-// WithGCLeaderboardSetMembersLimit sets the max number of members to return.
-func WithGCLeaderboardSetMembersLimit(limit int) GCLeaderboardSetMembersOption {
-	return func(q *gcLeaderboardSetMembersQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithGCLeaderboardSetMembersNextURL uses a next page URL directly.
-func WithGCLeaderboardSetMembersNextURL(next string) GCLeaderboardSetMembersOption {
-	return func(q *gcLeaderboardSetMembersQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
 }
 
 func buildGCLeaderboardSetMembersQuery(query *gcLeaderboardSetMembersQuery) string {

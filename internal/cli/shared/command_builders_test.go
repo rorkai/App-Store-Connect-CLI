@@ -552,3 +552,89 @@ func TestBuildIDGetCommandOptions(t *testing.T) {
 		})
 	}
 }
+
+func TestBuildConfirmDeleteCommandOptions(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name          string
+		args          []string
+		deleteErr     error
+		wantErr       string
+		wantParameter string
+		wantStderr    string
+		wantStdout    string
+	}{
+		{
+			name:          "missing id reports the required diagnostic",
+			args:          []string{"--confirm"},
+			wantErr:       "--id",
+			wantParameter: "--id",
+			wantStderr:    requiredIDStderr,
+		},
+		{
+			name:          "missing confirm reports the required diagnostic",
+			args:          []string{"--id", "item-1"},
+			wantErr:       "--confirm",
+			wantParameter: "--confirm",
+			wantStderr:    "Error: --confirm is required\n",
+		},
+		{
+			name:      "delete error uses the delete prefix",
+			args:      []string{"--id", "item-1", "--confirm"},
+			deleteErr: errors.New("boom"),
+			wantErr:   "items delete: failed to delete: boom",
+		},
+		{
+			name:       "result prints to the deps stdout",
+			args:       []string{"--id", "item-1", "--confirm"},
+			wantStdout: `{"deleted":"true","id":"item-1"}` + "\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var stdout, stderr bytes.Buffer
+			cmd := BuildConfirmDeleteCommand(ConfirmDeleteCommandConfig{
+				FlagSetName:        "delete",
+				Name:               "delete",
+				ShortUsage:         "asc items delete --id ITEM_ID --confirm",
+				RequiredDiagnostic: true,
+				ErrorPrefix:        "items delete",
+				DeleteErrorPrefix:  "items delete: failed to delete",
+				Deps:               newBuilderTestDeps(&stdout, &stderr),
+				Delete: func(context.Context, *asc.Client, string) error {
+					return tt.deleteErr
+				},
+				Result: func(id string) any {
+					return map[string]string{"id": id, "deleted": "true"}
+				},
+			})
+			if err := cmd.FlagSet.Parse(append(tt.args, "--output", "json")); err != nil {
+				t.Fatalf("parse flags: %v", err)
+			}
+
+			err := cmd.Exec(context.Background(), nil)
+			if tt.wantErr == "" && err != nil {
+				t.Fatalf("Exec() error: %v", err)
+			}
+			if tt.wantErr != "" && (err == nil || err.Error() != tt.wantErr) {
+				t.Fatalf("Exec() error = %v, want %q", err, tt.wantErr)
+			}
+			if tt.wantParameter != "" {
+				diagnostic, ok := DiagnosticFromError(err)
+				if !ok || diagnostic.Code != DiagnosticRequiredInputMissing || diagnostic.Parameter != tt.wantParameter {
+					t.Fatalf("diagnostic = %+v, %v; want required %s", diagnostic, ok, tt.wantParameter)
+				}
+			}
+			if got := stderr.String(); got != tt.wantStderr {
+				t.Fatalf("stderr = %q, want %q", got, tt.wantStderr)
+			}
+			if got := stdout.String(); got != tt.wantStdout {
+				t.Fatalf("stdout = %q, want %q", got, tt.wantStdout)
+			}
+		})
+	}
+}

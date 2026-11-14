@@ -43,7 +43,7 @@ func TestGetGameCenterAchievements_WithLimit(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetGameCenterAchievements(context.Background(), "gc-detail-1", WithGCAchievementsLimit(50)); err != nil {
+	if _, err := client.GetGameCenterAchievements(context.Background(), "gc-detail-1", Limit[GCAchievementsOption](50)); err != nil {
 		t.Fatalf("GetGameCenterAchievements() error: %v", err)
 	}
 }
@@ -61,7 +61,7 @@ func TestGetGameCenterAchievements_UsesNextURL(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetGameCenterAchievements(context.Background(), "gc-detail-1", WithGCAchievementsNextURL(next)); err != nil {
+	if _, err := client.GetGameCenterAchievements(context.Background(), "gc-detail-1", NextURL[GCAchievementsOption](next)); err != nil {
 		t.Fatalf("GetGameCenterAchievements() error: %v", err)
 	}
 }
@@ -336,7 +336,7 @@ func TestGetGameCenterLeaderboards_WithLimit(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetGameCenterLeaderboards(context.Background(), "gc-detail-1", WithGCLeaderboardsLimit(50)); err != nil {
+	if _, err := client.GetGameCenterLeaderboards(context.Background(), "gc-detail-1", Limit[GCLeaderboardsOption](50)); err != nil {
 		t.Fatalf("GetGameCenterLeaderboards() error: %v", err)
 	}
 }
@@ -354,7 +354,7 @@ func TestGetGameCenterLeaderboards_UsesNextURL(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetGameCenterLeaderboards(context.Background(), "gc-detail-1", WithGCLeaderboardsNextURL(next)); err != nil {
+	if _, err := client.GetGameCenterLeaderboards(context.Background(), "gc-detail-1", NextURL[GCLeaderboardsOption](next)); err != nil {
 		t.Fatalf("GetGameCenterLeaderboards() error: %v", err)
 	}
 }
@@ -648,7 +648,7 @@ func TestGetGameCenterAchievementLocalizations_WithLimit(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetGameCenterAchievementLocalizations(context.Background(), "ach-1", WithGCAchievementLocalizationsLimit(50)); err != nil {
+	if _, err := client.GetGameCenterAchievementLocalizations(context.Background(), "ach-1", Limit[GCAchievementLocalizationsOption](50)); err != nil {
 		t.Fatalf("GetGameCenterAchievementLocalizations() error: %v", err)
 	}
 }

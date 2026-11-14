@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared/errfmt"
 )
 
@@ -193,6 +194,37 @@ func (f *libraryUploadFake) roundTrip(req *http.Request) (*http.Response, error)
 	return nil, nil
 }
 
+// registerLibraryUploadReads stubs the read chain libraryUploadFake answers,
+// ending with the existing placements of placementGroup when it is not empty.
+func registerLibraryUploadReads(reg *asctest.Registry, placementGroup, placementType string, existing []string) {
+	reg.Register(asctest.GET("/v1/appStoreVersionLocalizations/LOC_1", "include=appStoreVersion"),
+		asctest.JSON(200, `{"data":{"type":"appStoreVersionLocalizations","id":"LOC_1","relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"VER_1"}}}}}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/VER_1", "include=app"),
+		asctest.JSON(200, `{"data":{"type":"appStoreVersions","id":"VER_1","relationships":{"app":{"data":{"type":"apps","id":"APP_1"}}}}}`))
+	reg.Register(asctest.GET("/v1/apps/APP_1/assetLibrary"),
+		asctest.JSON(200, `{"data":{"type":"appAssetLibraries","id":"LIB_1"}}`))
+	reg.Register(asctest.GET("/v1/appAssetLibraryRefData"), asctest.JSON(200, libraryUploadRefData))
+	if placementGroup == "" {
+		return
+	}
+	items := make([]string, len(existing))
+	for i, id := range existing {
+		items[i] = fmt.Sprintf(`{"type":"appAssetLibraryPlacements","id":%q}`, id)
+	}
+	reg.Register(asctest.GET("/v1/appStoreVersionLocalizations/LOC_1/placements", "filter[placementGroup]="+placementGroup, "filter[placementType]="+placementType, "limit=200", "sort=placementGroupPosition"),
+		asctest.JSON(200, `{"data":[`+strings.Join(items, ",")+`],"links":{}}`))
+}
+
+func libraryWrites(reg *asctest.Registry) []string {
+	var writes []string
+	for _, req := range reg.Requests() {
+		if req.Method != http.MethodGet {
+			writes = append(writes, req.Method+" "+req.URL.Path)
+		}
+	}
+	return writes
+}
+
 func duoScreenshotFolder(t *testing.T, names ...string) string {
 	t.Helper()
 	dir := t.TempDir()
@@ -264,14 +296,15 @@ func TestScreenshotsUploadAssetLibraryPlacesDuoInFileOrderAfterExistingPlacement
 
 func TestScreenshotsUploadAssetLibraryDryRunWritesNothing(t *testing.T) {
 	setupAuth(t)
-	fake := &libraryUploadFake{t: t}
-	fake.install()
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	registerLibraryUploadReads(reg, "IPHONE_DUO_PROFILE", "APP_SCREENSHOT", nil)
 	stdout, stderr, err := runRootCommand(t, libraryScreenshotArgs(duoScreenshotFolder(t, "01.png"), "--dry-run"))
 	if err != nil {
 		t.Fatalf("dry run: %v; stderr: %s", err, stderr)
 	}
-	if len(fake.writes) != 0 {
-		t.Fatalf("dry run wrote %v", fake.writes)
+	if writes := libraryWrites(reg); len(writes) != 0 {
+		t.Fatalf("dry run wrote %v", writes)
 	}
 	receipt := decodeLibraryReceipt(t, stdout)
 	if !receipt.DryRun || receipt.Complete || receipt.PlacementGroup != "IPHONE_DUO_PROFILE" || receipt.Items[0].State != "would-upload" {
@@ -281,8 +314,9 @@ func TestScreenshotsUploadAssetLibraryDryRunWritesNothing(t *testing.T) {
 
 func TestScreenshotsUploadAssetLibraryValidatesAgainstChosenGroupNotDeviceCatalog(t *testing.T) {
 	setupAuth(t)
-	fake := &libraryUploadFake{t: t}
-	fake.install()
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	registerLibraryUploadReads(reg, "IPHONE_DYNAMIC_ISLAND_LARGE_PROFILE", "APP_SCREENSHOT", nil)
 	file := filepath.Join(t.TempDir(), "large.png")
 	writePNG(t, file, 1320, 2868)
 	stdout, stderr, err := runRootCommand(t, libraryScreenshotArgs(file, "--placement-group", "IPHONE_DYNAMIC_ISLAND_LARGE_PROFILE", "--dry-run"))
@@ -356,26 +390,28 @@ func TestScreenshotsUploadAssetLibraryRejectsBeforeAnyWrite(t *testing.T) {
 		name     string
 		existing []string
 		extra    []string
+		group    string
 		want     string
 	}{
-		{name: "group capacity", existing: []string{"a", "b"}, want: "IPHONE_DUO_PROFILE allows 3 placement(s)"},
-		{name: "image does not fit the chosen group", extra: []string{"--placement-group", "IPHONE_DYNAMIC_ISLAND_LARGE_PROFILE"}, want: "does not match a specification of IPHONE_DYNAMIC_ISLAND_LARGE_PROFILE"},
-		{name: "image exceeds the group's file size", extra: []string{"--placement-group", "SIZE_LIMITED_PROFILE"}, want: "does not match a specification of SIZE_LIMITED_PROFILE"},
-		{name: "image type the group does not accept", extra: []string{"--placement-group", "WRONG_TYPE_PROFILE"}, want: "does not match a specification of WRONG_TYPE_PROFILE"},
-		{name: "image ratio the group does not accept", extra: []string{"--placement-group", "RATIO_PROFILE"}, want: "does not match a specification of RATIO_PROFILE"},
+		{name: "group capacity", existing: []string{"a", "b"}, group: "IPHONE_DUO_PROFILE", want: "IPHONE_DUO_PROFILE allows 3 placement(s)"},
+		{name: "image does not fit the chosen group", extra: []string{"--placement-group", "IPHONE_DYNAMIC_ISLAND_LARGE_PROFILE"}, group: "IPHONE_DYNAMIC_ISLAND_LARGE_PROFILE", want: "does not match a specification of IPHONE_DYNAMIC_ISLAND_LARGE_PROFILE"},
+		{name: "image exceeds the group's file size", extra: []string{"--placement-group", "SIZE_LIMITED_PROFILE"}, group: "SIZE_LIMITED_PROFILE", want: "does not match a specification of SIZE_LIMITED_PROFILE"},
+		{name: "image type the group does not accept", extra: []string{"--placement-group", "WRONG_TYPE_PROFILE"}, group: "WRONG_TYPE_PROFILE", want: "does not match a specification of WRONG_TYPE_PROFILE"},
+		{name: "image ratio the group does not accept", extra: []string{"--placement-group", "RATIO_PROFILE"}, group: "RATIO_PROFILE", want: "does not match a specification of RATIO_PROFILE"},
 		{name: "group the version does not offer", extra: []string{"--placement-group", "IMESSAGE_IPHONE_DUO_PROFILE"}, want: `placement group "IMESSAGE_IPHONE_DUO_PROFILE" is not offered`},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			setupAuth(t)
-			fake := &libraryUploadFake{t: t, existing: test.existing}
-			fake.install()
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			registerLibraryUploadReads(reg, test.group, "APP_SCREENSHOT", test.existing)
 			stdout, _, err := runRootCommand(t, libraryScreenshotArgs(duoScreenshotFolder(t, "01.png", "02.png"), test.extra...))
 			if err == nil || !strings.Contains(err.Error(), test.want) {
 				t.Fatalf("err = %v, want %q", err, test.want)
 			}
-			if len(fake.writes) != 0 || stdout != "" {
-				t.Fatalf("writes %v, stdout %q", fake.writes, stdout)
+			if writes := libraryWrites(reg); len(writes) != 0 || stdout != "" {
+				t.Fatalf("writes %v, stdout %q", writes, stdout)
 			}
 		})
 	}
@@ -413,12 +449,7 @@ func TestLibraryUploadFlagConflicts(t *testing.T) {
 	for _, test := range tests {
 		t.Run(strings.Join(test.args, " "), func(t *testing.T) {
 			setupAuth(t)
-			original := http.DefaultTransport
-			t.Cleanup(func() { http.DefaultTransport = original })
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				t.Fatalf("unexpected request %s %s", req.Method, req.URL.Path)
-				return nil, nil
-			})
+			asctest.NewRegistry(t).Install()
 			_, stderr, err := runRootCommand(t, test.args)
 			if err == nil || !strings.Contains(err.Error()+stderr, test.want) {
 				t.Fatalf("err = %v, stderr = %q, want %q", err, stderr, test.want)
@@ -451,14 +482,15 @@ printf '%%s' '{"streams":[{"codec_type":"video","codec_name":"h264","width":%d,"
 func TestVideoPreviewsUploadAssetLibraryRejectsVideoFromAnotherGroupBeforeUpload(t *testing.T) {
 	setupAuth(t)
 	file := libraryPreviewFile(t, 1200, 1600)
-	fake := &libraryUploadFake{t: t}
-	fake.install()
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	registerLibraryUploadReads(reg, "IPHONE_DUO_PROFILE", "APP_PREVIEW", nil)
 	_, _, err := runRootCommand(t, []string{"video-previews", "upload", "--version-localization", "LOC_1", "--path", file, "--device-type", "IPHONE_DUO", "--asset-library", "--dry-run", "--output", "json"})
 	if err == nil || !strings.Contains(err.Error(), "does not match") {
 		t.Fatalf("err = %v", err)
 	}
-	if len(fake.writes) != 0 {
-		t.Fatalf("writes = %v", fake.writes)
+	if writes := libraryWrites(reg); len(writes) != 0 {
+		t.Fatalf("writes = %v", writes)
 	}
 }
 

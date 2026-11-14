@@ -42,7 +42,7 @@ func TestGetGameCenterDetailGameCenterAppVersions_WithLimit(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetGameCenterDetailGameCenterAppVersions(context.Background(), "detail-1", WithGCAppVersionsLimit(20)); err != nil {
+	if _, err := client.GetGameCenterDetailGameCenterAppVersions(context.Background(), "detail-1", Limit[GCAppVersionsOption](20)); err != nil {
 		t.Fatalf("GetGameCenterDetailGameCenterAppVersions() error: %v", err)
 	}
 }
@@ -57,7 +57,7 @@ func TestGetGameCenterDetailGameCenterAppVersions_UsesNextURL(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetGameCenterDetailGameCenterAppVersions(context.Background(), "", WithGCAppVersionsNextURL(next)); err != nil {
+	if _, err := client.GetGameCenterDetailGameCenterAppVersions(context.Background(), "", NextURL[GCAppVersionsOption](next)); err != nil {
 		t.Fatalf("GetGameCenterDetailGameCenterAppVersions() error: %v", err)
 	}
 }
@@ -77,7 +77,7 @@ func TestGetGameCenterAppVersionCompatibilityVersions_WithLimit(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetGameCenterAppVersionCompatibilityVersions(context.Background(), "gcav-1", WithGCAppVersionsLimit(15)); err != nil {
+	if _, err := client.GetGameCenterAppVersionCompatibilityVersions(context.Background(), "gcav-1", Limit[GCAppVersionsOption](15)); err != nil {
 		t.Fatalf("GetGameCenterAppVersionCompatibilityVersions() error: %v", err)
 	}
 }
@@ -92,7 +92,7 @@ func TestGetGameCenterAppVersionCompatibilityVersions_UsesNextURL(t *testing.T) 
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetGameCenterAppVersionCompatibilityVersions(context.Background(), "", WithGCAppVersionsNextURL(next)); err != nil {
+	if _, err := client.GetGameCenterAppVersionCompatibilityVersions(context.Background(), "", NextURL[GCAppVersionsOption](next)); err != nil {
 		t.Fatalf("GetGameCenterAppVersionCompatibilityVersions() error: %v", err)
 	}
 }
@@ -286,11 +286,11 @@ func TestUpdateGameCenterAppVersion_ReturnsAPIError(t *testing.T) {
 
 func TestGCAppVersionsOptions(t *testing.T) {
 	query := &gcAppVersionsQuery{}
-	WithGCAppVersionsLimit(12)(query)
+	Limit[GCAppVersionsOption](12)(query)
 	if query.limit != 12 {
 		t.Fatalf("expected limit 12, got %d", query.limit)
 	}
-	WithGCAppVersionsNextURL("next")(query)
+	NextURL[GCAppVersionsOption]("next")(query)
 	if query.nextURL != "next" {
 		t.Fatalf("expected nextURL set, got %q", query.nextURL)
 	}

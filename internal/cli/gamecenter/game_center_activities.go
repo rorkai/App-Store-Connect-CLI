@@ -113,19 +113,19 @@ Examples:
 			}
 
 			opts := []asc.GCActivitiesOption{
-				asc.WithGCActivitiesLimit(*limit),
-				asc.WithGCActivitiesNextURL(*next),
+				asc.Limit[asc.GCActivitiesOption](*limit),
+				asc.NextURL[asc.GCActivitiesOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithGCActivitiesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.GCActivitiesOption](200))
 				firstPage, err := client.GetGameCenterActivities(requestCtx, gcDetailID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("game-center activities list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterActivities(ctx, gcDetailID, asc.WithGCActivitiesNextURL(nextURL))
+					return client.GetGameCenterActivities(ctx, gcDetailID, asc.NextURL[asc.GCActivitiesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("game-center activities list: %w", err)
@@ -411,51 +411,28 @@ Examples:
 
 // GameCenterActivitiesDeleteCommand returns the activities delete subcommand.
 func GameCenterActivitiesDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("delete", flag.ExitOnError)
-
-	activityID := shared.BindResourceIDFlag(fs, "id", "gameCenterActivities", "Game Center activity ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc game-center activities delete --id \"ACTIVITY_ID\" --confirm",
-		ShortHelp:  "Delete a Game Center activity.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "delete",
+		Name:        "delete",
+		ShortUsage:  "asc game-center activities delete --id \"ACTIVITY_ID\" --confirm",
+		ShortHelp:   "Delete a Game Center activity.",
 		LongHelp: `Delete a Game Center activity.
 
 Examples:
   asc game-center activities delete --id "ACTIVITY_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*activityID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center activities delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteGameCenterActivity(requestCtx, id); err != nil {
-				return fmt.Errorf("game-center activities delete: failed to delete: %w", err)
-			}
-
-			result := &asc.GameCenterActivityDeleteResult{
-				ID:      id,
-				Deleted: true,
-			}
-
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "id",
+		IDUsage:            "Game Center activity ID",
+		IDType:             "gameCenterActivities",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center activities delete",
+		DeleteErrorPrefix:  "game-center activities delete: failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteGameCenterActivity(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.GameCenterActivityDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
 
 // GameCenterActivityAchievementsCommand returns the activity achievements command group.
@@ -701,7 +678,7 @@ Examples:
 		ErrorPrefix:          "game-center activities versions list",
 		FetchErrorPrefix:     "game-center activities versions list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, activityId string, limit int, next string) (asc.PaginatedResponse, error) {
-			return client.GetGameCenterActivityVersions(ctx, activityId, asc.WithGCActivityVersionsLimit(limit), asc.WithGCActivityVersionsNextURL(next))
+			return client.GetGameCenterActivityVersions(ctx, activityId, asc.Limit[asc.GCActivityVersionsOption](limit), asc.NextURL[asc.GCActivityVersionsOption](next))
 		},
 	})
 }
@@ -873,7 +850,7 @@ Examples:
 		ErrorPrefix:          "game-center activities localizations list",
 		FetchErrorPrefix:     "game-center activities localizations list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, versionId string, limit int, next string) (asc.PaginatedResponse, error) {
-			return client.GetGameCenterActivityLocalizations(ctx, versionId, asc.WithGCActivityLocalizationsLimit(limit), asc.WithGCActivityLocalizationsNextURL(next))
+			return client.GetGameCenterActivityLocalizations(ctx, versionId, asc.Limit[asc.GCActivityLocalizationsOption](limit), asc.NextURL[asc.GCActivityLocalizationsOption](next))
 		},
 	})
 }
@@ -1026,51 +1003,28 @@ Examples:
 
 // GameCenterActivityLocalizationsDeleteCommand returns the activity localizations delete subcommand.
 func GameCenterActivityLocalizationsDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("delete", flag.ExitOnError)
-
-	localizationID := shared.BindResourceIDFlag(fs, "id", "gameCenterActivityLocalizations", "Game Center activity localization ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc game-center activities localizations delete --id \"LOCALIZATION_ID\" --confirm",
-		ShortHelp:  "Delete an activity localization.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "delete",
+		Name:        "delete",
+		ShortUsage:  "asc game-center activities localizations delete --id \"LOCALIZATION_ID\" --confirm",
+		ShortHelp:   "Delete an activity localization.",
 		LongHelp: `Delete an activity localization.
 
 Examples:
   asc game-center activities localizations delete --id "LOCALIZATION_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*localizationID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center activities localizations delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteGameCenterActivityLocalization(requestCtx, id); err != nil {
-				return fmt.Errorf("game-center activities localizations delete: failed to delete: %w", err)
-			}
-
-			result := &asc.GameCenterActivityLocalizationDeleteResult{
-				ID:      id,
-				Deleted: true,
-			}
-
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "id",
+		IDUsage:            "Game Center activity localization ID",
+		IDType:             "gameCenterActivityLocalizations",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center activities localizations delete",
+		DeleteErrorPrefix:  "game-center activities localizations delete: failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteGameCenterActivityLocalization(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.GameCenterActivityLocalizationDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
 
 // GameCenterActivityImagesCommand returns the activity images command group.
@@ -1177,51 +1131,28 @@ Examples:
 
 // GameCenterActivityImagesDeleteCommand returns the activity images delete subcommand.
 func GameCenterActivityImagesDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("delete", flag.ExitOnError)
-
-	imageID := shared.BindResourceIDFlag(fs, "id", "gameCenterActivityImages", "Activity image ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc game-center activities images delete --id \"IMAGE_ID\" --confirm",
-		ShortHelp:  "Delete an activity image.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "delete",
+		Name:        "delete",
+		ShortUsage:  "asc game-center activities images delete --id \"IMAGE_ID\" --confirm",
+		ShortHelp:   "Delete an activity image.",
 		LongHelp: `Delete an activity image.
 
 Examples:
   asc game-center activities images delete --id "IMAGE_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*imageID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center activities images delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteGameCenterActivityImage(requestCtx, id); err != nil {
-				return fmt.Errorf("game-center activities images delete: failed to delete: %w", err)
-			}
-
-			result := &asc.GameCenterActivityImageDeleteResult{
-				ID:      id,
-				Deleted: true,
-			}
-
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "id",
+		IDUsage:            "Activity image ID",
+		IDType:             "gameCenterActivityImages",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center activities images delete",
+		DeleteErrorPrefix:  "game-center activities images delete: failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteGameCenterActivityImage(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.GameCenterActivityImageDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
 
 // GameCenterActivityReleasesCommand returns the activity releases command group.
@@ -1306,19 +1237,19 @@ Examples:
 			}
 
 			opts := []asc.GCActivityVersionReleasesOption{
-				asc.WithGCActivityVersionReleasesLimit(*limit),
-				asc.WithGCActivityVersionReleasesNextURL(*next),
+				asc.Limit[asc.GCActivityVersionReleasesOption](*limit),
+				asc.NextURL[asc.GCActivityVersionReleasesOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithGCActivityVersionReleasesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.GCActivityVersionReleasesOption](200))
 				firstPage, err := client.GetGameCenterActivityVersionReleases(requestCtx, gcDetailID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("game-center activities releases list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterActivityVersionReleases(ctx, gcDetailID, asc.WithGCActivityVersionReleasesNextURL(nextURL))
+					return client.GetGameCenterActivityVersionReleases(ctx, gcDetailID, asc.NextURL[asc.GCActivityVersionReleasesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("game-center activities releases list: %w", err)
@@ -1380,51 +1311,28 @@ Examples:
 
 // GameCenterActivityReleasesDeleteCommand returns the activity releases delete subcommand.
 func GameCenterActivityReleasesDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("delete", flag.ExitOnError)
-
-	releaseID := shared.BindResourceIDFlag(fs, "id", "gameCenterActivityVersionReleases", "Game Center activity release ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc game-center activities releases delete --id \"RELEASE_ID\" --confirm",
-		ShortHelp:  "Delete a Game Center activity release.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "delete",
+		Name:        "delete",
+		ShortUsage:  "asc game-center activities releases delete --id \"RELEASE_ID\" --confirm",
+		ShortHelp:   "Delete a Game Center activity release.",
 		LongHelp: `Delete a Game Center activity release.
 
 Examples:
   asc game-center activities releases delete --id "RELEASE_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*releaseID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center activities releases delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteGameCenterActivityVersionRelease(requestCtx, id); err != nil {
-				return fmt.Errorf("game-center activities releases delete: failed to delete: %w", err)
-			}
-
-			result := &asc.GameCenterActivityVersionReleaseDeleteResult{
-				ID:      id,
-				Deleted: true,
-			}
-
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "id",
+		IDUsage:            "Game Center activity release ID",
+		IDType:             "gameCenterActivityVersionReleases",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center activities releases delete",
+		DeleteErrorPrefix:  "game-center activities releases delete: failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteGameCenterActivityVersionRelease(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.GameCenterActivityVersionReleaseDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
 
 // GameCenterActivityLocalizationImageCommand returns the activity localization image command group.

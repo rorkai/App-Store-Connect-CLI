@@ -101,14 +101,14 @@ Examples:
 			}
 
 			opts := []asc.GCAppVersionsOption{
-				asc.WithGCAppVersionsLimit(*limit),
-				asc.WithGCAppVersionsNextURL(*next),
+				asc.Limit[asc.GCAppVersionsOption](*limit),
+				asc.NextURL[asc.GCAppVersionsOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := []asc.GCAppVersionsOption{asc.WithGCAppVersionsNextURL(*next)}
+				paginateOpts := []asc.GCAppVersionsOption{asc.NextURL[asc.GCAppVersionsOption](*next)}
 				if nextURL == "" {
-					paginateOpts = []asc.GCAppVersionsOption{asc.WithGCAppVersionsLimit(200)}
+					paginateOpts = []asc.GCAppVersionsOption{asc.Limit[asc.GCAppVersionsOption](200)}
 				}
 				firstPage, err := client.GetGameCenterDetailGameCenterAppVersions(requestCtx, detailID, paginateOpts...)
 				if err != nil {
@@ -116,7 +116,7 @@ Examples:
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterDetailGameCenterAppVersions(ctx, detailID, asc.WithGCAppVersionsNextURL(nextURL))
+					return client.GetGameCenterDetailGameCenterAppVersions(ctx, detailID, asc.NextURL[asc.GCAppVersionsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("game-center app-versions list: %w", err)
@@ -305,7 +305,7 @@ Examples:
 		ErrorPrefix:          "game-center app-versions compatibility list",
 		FetchErrorPrefix:     "game-center app-versions compatibility list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, id string, limit int, next string) (asc.PaginatedResponse, error) {
-			return client.GetGameCenterAppVersionCompatibilityVersions(ctx, id, asc.WithGCAppVersionsLimit(limit), asc.WithGCAppVersionsNextURL(next))
+			return client.GetGameCenterAppVersionCompatibilityVersions(ctx, id, asc.Limit[asc.GCAppVersionsOption](limit), asc.NextURL[asc.GCAppVersionsOption](next))
 		},
 	})
 }

@@ -132,9 +132,10 @@ type AppStoreVersionExperimentV2UpdateRequest struct {
 
 // AppStoreVersionExperimentTreatmentAttributes describes treatment attributes.
 type AppStoreVersionExperimentTreatmentAttributes struct {
-	Name         string `json:"name,omitempty"`
-	AppIconName  string `json:"appIconName,omitempty"`
-	PromotedDate string `json:"promotedDate,omitempty"`
+	Name         string      `json:"name,omitempty"`
+	AppIcon      *ImageAsset `json:"appIcon,omitempty"`
+	AppIconName  string      `json:"appIconName,omitempty"`
+	PromotedDate string      `json:"promotedDate,omitempty"`
 }
 
 // AppStoreVersionExperimentTreatmentsResponse is the response from treatment list endpoints.

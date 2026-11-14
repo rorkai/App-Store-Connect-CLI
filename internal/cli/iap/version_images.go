@@ -199,30 +199,27 @@ func IAPVersionImagesUpdateCommand() *ffcli.Command {
 }
 
 func IAPVersionImagesDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("versions images delete", flag.ExitOnError)
-	id := shared.BindResourceIDFlag(fs, "image-id", "inAppPurchaseImages", "Image ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-	return &ffcli.Command{
-		Name: "delete", ShortUsage: `asc iap versions images delete --image-id "IMAGE_ID" --confirm`, ShortHelp: "Delete a version-scoped IAP image.", LongHelp: "Delete a version-scoped IAP image.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			value := strings.TrimSpace(*id)
-			if value == "" {
-				return shared.RequiredFlag("--image-id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-			client, err := iapVersionClientFactory()
-			if err != nil {
-				return fmt.Errorf("iap versions images delete: %w", err)
-			}
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-			if err := client.DeleteInAppPurchaseImageV2(requestCtx, value); err != nil {
-				return fmt.Errorf("iap versions images delete: failed to delete: %w", err)
-			}
-			return shared.PrintOutput(&asc.AssetDeleteResult{ID: value, Deleted: true}, *output.Output, *output.Pretty)
+	d := shared.DefaultDeps()
+	d.Client = func() (*asc.Client, error) { return iapVersionClientFactory() }
+
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName:        "versions images delete",
+		Name:               "delete",
+		ShortUsage:         `asc iap versions images delete --image-id "IMAGE_ID" --confirm`,
+		ShortHelp:          "Delete a version-scoped IAP image.",
+		LongHelp:           "Delete a version-scoped IAP image.",
+		IDFlag:             "image-id",
+		IDUsage:            "Image ID",
+		IDType:             "inAppPurchaseImages",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "iap versions images delete",
+		DeleteErrorPrefix:  "iap versions images delete: failed to delete",
+		Deps:               d,
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteInAppPurchaseImageV2(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.AssetDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }

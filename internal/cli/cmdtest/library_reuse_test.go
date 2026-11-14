@@ -11,6 +11,8 @@ import (
 	"testing"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 var libraryReuseContexts = []struct{ path, resource, relationship string }{
@@ -20,32 +22,48 @@ var libraryReuseContexts = []struct{ path, resource, relationship string }{
 	{"app-events localizations", "appEventLocalizations", "appEventLocalization"},
 }
 
+func libraryReuseJSON(t *testing.T, value any) string {
+	t.Helper()
+	data, err := json.Marshal(value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(data)
+}
+
+func libraryReuseCalls(reg *asctest.Registry) []string {
+	calls := []string{}
+	for _, req := range reg.Requests() {
+		calls = append(calls, req.Method+" "+req.URL.Path)
+	}
+	return calls
+}
+
+func libraryReuseDeletedIDs(reg *asctest.Registry) []string {
+	calls := []string{}
+	for _, req := range reg.Requests() {
+		if req.Method == http.MethodDelete {
+			calls = append(calls, strings.TrimPrefix(req.URL.Path, "/v1/appAssetLibraryPlacements/"))
+		}
+	}
+	return calls
+}
+
 func TestLibraryReuseCreateContexts(t *testing.T) {
 	for _, c := range libraryReuseContexts {
 		t.Run(c.resource, func(t *testing.T) {
 			setupAuth(t)
-			original := http.DefaultTransport
-			t.Cleanup(func() { http.DefaultTransport = original })
 			kind := "APP_PREVIEW"
 			group := "IPHONE_DUO_PROFILE"
 			if c.resource == "appEventLocalizations" {
 				kind = "EVENT_DETAILS_PAGE_ASSET"
 				group = "DEFAULT_PROFILE"
 			}
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				if req.Method != "POST" || req.URL.Path != "/v1/appAssetLibraryPlacements" {
-					t.Fatalf("request=%s %s", req.Method, req.URL)
-				}
-				var got map[string]any
-				if err := json.NewDecoder(req.Body).Decode(&got); err != nil {
-					t.Fatal(err)
-				}
-				want := map[string]any{"data": map[string]any{"type": "appAssetLibraryPlacements", "attributes": map[string]any{"placementType": kind, "placementGroup": group}, "relationships": map[string]any{"video": map[string]any{"data": map[string]any{"type": "appAssetLibraryVideos", "id": "video"}}, c.relationship: map[string]any{"data": map[string]any{"type": c.resource, "id": "loc"}}}}}
-				if !reflect.DeepEqual(got, want) {
-					t.Fatalf("payload=%v want=%v", got, want)
-				}
-				return jsonResponse(201, `{"data":{"id":"placement","type":"appAssetLibraryPlacements","attributes":{"state":"ACTIVE"}}}`)
-			})
+			want := map[string]any{"data": map[string]any{"type": "appAssetLibraryPlacements", "attributes": map[string]any{"placementType": kind, "placementGroup": group}, "relationships": map[string]any{"video": map[string]any{"data": map[string]any{"type": "appAssetLibraryVideos", "id": "video"}}, c.relationship: map[string]any{"data": map[string]any{"type": c.resource, "id": "loc"}}}}}
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.POST("/v1/appAssetLibraryPlacements").JSONBody(libraryReuseJSON(t, want)),
+				asctest.JSON(201, `{"data":{"id":"placement","type":"appAssetLibraryPlacements","attributes":{"state":"ACTIVE"}}}`))
 			args := append(strings.Fields(c.path), "placements", "create", "--localization-id", "loc", "--video-id", "video", "--placement-type", kind)
 			if group != "DEFAULT_PROFILE" {
 				args = append(args, "--placement-group", group)
@@ -64,22 +82,11 @@ func TestLibraryReuseOrderContexts(t *testing.T) {
 		t.Run(c.resource, func(t *testing.T) {
 			setupAuth(t)
 			group := "IPHONE_DUO_PROFILE"
-			original := http.DefaultTransport
-			t.Cleanup(func() { http.DefaultTransport = original })
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				if req.Method != "POST" || req.URL.Path != "/v1/appAssetLibraryPlacementOrderingRequests" || req.URL.RawQuery != "" {
-					t.Fatalf("request=%s %s", req.Method, req.URL)
-				}
-				var got map[string]any
-				if err := json.NewDecoder(req.Body).Decode(&got); err != nil {
-					t.Fatal(err)
-				}
-				want := map[string]any{"data": map[string]any{"type": "appAssetLibraryPlacementOrderingRequests", "attributes": map[string]any{"placementGroup": group}, "relationships": map[string]any{"orderedPlacements": map[string]any{"data": []any{map[string]any{"type": "appAssetLibraryPlacements", "id": "second"}, map[string]any{"type": "appAssetLibraryPlacements", "id": "first"}}}, c.relationship: map[string]any{"data": map[string]any{"type": c.resource, "id": "loc"}}}}}
-				if !reflect.DeepEqual(got, want) {
-					t.Fatalf("payload=%v want=%v", got, want)
-				}
-				return jsonResponse(201, `{"data":{"type":"appAssetLibraryPlacementOrderingRequests","id":"order"},"included":[{"type":"appAssetLibraryPlacements","id":"second"}]}`)
-			})
+			want := map[string]any{"data": map[string]any{"type": "appAssetLibraryPlacementOrderingRequests", "attributes": map[string]any{"placementGroup": group}, "relationships": map[string]any{"orderedPlacements": map[string]any{"data": []any{map[string]any{"type": "appAssetLibraryPlacements", "id": "second"}, map[string]any{"type": "appAssetLibraryPlacements", "id": "first"}}}, c.relationship: map[string]any{"data": map[string]any{"type": c.resource, "id": "loc"}}}}}
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.POST("/v1/appAssetLibraryPlacementOrderingRequests").JSONBody(libraryReuseJSON(t, want)),
+				asctest.JSON(201, `{"data":{"type":"appAssetLibraryPlacementOrderingRequests","id":"order"},"included":[{"type":"appAssetLibraryPlacements","id":"second"}]}`))
 			args := append(strings.Fields(c.path), "placements", "reorder", "--localization-id", "loc", "--placement-group", group, "--placement-ids", "second,first")
 			stdout, stderr, err := runLibraryReuse(t, args...)
 			var receipt map[string]any
@@ -136,8 +143,6 @@ func TestLibraryReuseNewReadsPreserveEnvelope(t *testing.T) {
 	for _, c := range libraryReuseContexts[2:] {
 		t.Run(c.resource, func(t *testing.T) {
 			setupAuth(t)
-			original := http.DefaultTransport
-			t.Cleanup(func() { http.DefaultTransport = original })
 			kind := "APP_SCREENSHOT"
 			group := "IPHONE_DUO_PROFILE"
 			if c.resource == "appEventLocalizations" {
@@ -145,13 +150,10 @@ func TestLibraryReuseNewReadsPreserveEnvelope(t *testing.T) {
 				group = "DEFAULT_PROFILE"
 			}
 			const body = `{"data":[],"included":[],"links":{"self":"retained"},"future":{"nested":null}}`
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				q := req.URL.Query()
-				if req.Method != "GET" || req.URL.Path != "/v1/"+c.resource+"/loc/placements" || q.Get("filter[placementGroup]") != group || q.Get("filter[placementType]") != kind || q.Get("include") != "image,video" {
-					t.Fatalf("request=%s %s", req.Method, req.URL)
-				}
-				return jsonResponse(200, body)
-			})
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET("/v1/"+c.resource+"/loc/placements", "filter[placementGroup]="+group, "filter[placementType]="+kind, "include=image,video"),
+				asctest.JSON(200, body))
 			args := append(strings.Fields(c.path), "placements", "list", "--localization-id", "loc", "--placement-type", kind, "--placement-group", group, "--include", "image,video")
 			stdout, stderr, err := runLibraryReuse(t, args...)
 			var got, want any
@@ -173,23 +175,15 @@ func TestLibraryReuseScreenshotImageAndCreativeVideo(t *testing.T) {
 	} {
 		t.Run(tc.kind, func(t *testing.T) {
 			setupAuth(t)
-			original := http.DefaultTransport
-			t.Cleanup(func() { http.DefaultTransport = original })
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				var body struct {
-					Data struct {
-						Attributes    map[string]string
-						Relationships map[string]json.RawMessage
-					}
-				}
-				if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
-					t.Fatal(err)
-				}
-				if body.Data.Attributes["placementType"] != tc.kind || body.Data.Attributes["placementGroup"] != tc.group || len(body.Data.Relationships) != 2 || body.Data.Relationships[tc.mediaKind] == nil {
-					t.Fatalf("payload=%+v", body)
-				}
-				return jsonResponse(201, `{"data":{"type":"appAssetLibraryPlacements","id":"placement"}}`)
-			})
+			mediaType := "appAssetLibraryImages"
+			if tc.mediaKind == "video" {
+				mediaType = "appAssetLibraryVideos"
+			}
+			want := map[string]any{"data": map[string]any{"type": "appAssetLibraryPlacements", "attributes": map[string]any{"placementType": tc.kind, "placementGroup": tc.group}, "relationships": map[string]any{tc.mediaKind: map[string]any{"data": map[string]any{"type": mediaType, "id": "asset"}}, "appStoreVersionLocalization": map[string]any{"data": map[string]any{"type": "appStoreVersionLocalizations", "id": "loc"}}}}}
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.POST("/v1/appAssetLibraryPlacements").JSONBody(libraryReuseJSON(t, want)),
+				asctest.JSON(201, `{"data":{"type":"appAssetLibraryPlacements","id":"placement"}}`))
 			stdout, stderr, err := runLibraryReuse(t, "localizations", "placements", "create", "--localization-id", "loc", tc.mediaFlag, "asset", "--placement-type", tc.kind, "--placement-group", tc.group)
 			if err != nil || stderr != "" || stdout == "" {
 				t.Fatalf("failed=%s %s %v", stdout, stderr, err)
@@ -200,13 +194,14 @@ func TestLibraryReuseScreenshotImageAndCreativeVideo(t *testing.T) {
 
 func TestLibraryReuseOrderRefusesFalseSuccess(t *testing.T) {
 	setupAuth(t)
-	original := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = original })
+	reg := asctest.NewRegistry(t)
+	reg.Install()
 	for _, response := range []struct {
 		status int
 		body   string
 	}{{403, `{"errors":[{"status":"403","code":"FORBIDDEN","title":"Denied"}]}`}, {201, `{"data":{}}`}, {201, `{"data":{"type":"appAssetLibraryPlacements","id":"wrong"}}`}} {
-		http.DefaultTransport = roundTripFunc(func(*http.Request) (*http.Response, error) { return jsonResponse(response.status, response.body) })
+		reg.Register(asctest.POST("/v1/appAssetLibraryPlacementOrderingRequests").JSONBody(`{"data":{"type":"appAssetLibraryPlacementOrderingRequests","attributes":{"placementGroup":"IPHONE_DUO_PROFILE"},"relationships":{"appStoreVersionLocalization":{"data":{"type":"appStoreVersionLocalizations","id":"loc"}},"orderedPlacements":{"data":[{"type":"appAssetLibraryPlacements","id":"first"},{"type":"appAssetLibraryPlacements","id":"second"}]}}}}`),
+			asctest.JSON(response.status, response.body))
 		stdout, _, err := runLibraryReuse(t, "localizations", "placements", "reorder", "--localization-id", "loc", "--placement-group", "IPHONE_DUO_PROFILE", "--placement-ids", "first,second")
 		if err == nil || stdout != "" {
 			t.Fatalf("false ordering success: %s %v", stdout, err)
@@ -217,23 +212,16 @@ func TestLibraryReuseOrderRefusesFalseSuccess(t *testing.T) {
 // Event examples must be runnable for the event contract, including its group.
 func TestLibraryReuseEventHelpExamples(t *testing.T) {
 	setupAuth(t)
-	original := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = original })
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method == "GET" {
-			return jsonResponse(200, `{"data":[]}`)
-		}
-		var body struct {
-			Data struct{ Attributes map[string]string }
-		}
-		if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
-			t.Fatal(err)
-		}
-		if body.Data.Attributes["placementGroup"] != "DEFAULT_PROFILE" {
-			t.Errorf("event ordering example used group %q", body.Data.Attributes["placementGroup"])
-		}
-		return jsonResponse(201, `{"data":{"type":"appAssetLibraryPlacementOrderingRequests","id":"order"}}`)
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	for _, query := range [][]string{
+		{"filter[placementType]=EVENT_CARD_ASSET"},
+		{"filter[placementType]=EVENT_DETAILS_PAGE_ASSET", "include=image,video"},
+		{"limit=200"},
+		{"filter[state]=FAILED", "sort=-lastModifiedDate"},
+	} {
+		reg.Register(asctest.GET("/v1/appEventLocalizations/ID/placements", query...), asctest.JSON(200, `{"data":[]}`))
+	}
 	for _, operation := range []string{"list"} {
 		command := RootCommand("dev")
 		for _, name := range []string{"app-events", "localizations", "placements", operation} {
@@ -271,8 +259,6 @@ func TestLibraryReuseAtomicSwapContexts(t *testing.T) {
 	for _, c := range libraryReuseContexts {
 		t.Run(c.resource, func(t *testing.T) {
 			setupAuth(t)
-			original := http.DefaultTransport
-			t.Cleanup(func() { http.DefaultTransport = original })
 			kind := "APP_PREVIEW"
 			if c.resource == "appEventLocalizations" {
 				kind = "EVENT_CARD_ASSET"
@@ -281,32 +267,20 @@ func TestLibraryReuseAtomicSwapContexts(t *testing.T) {
 			if c.resource == "appEventLocalizations" {
 				group = "DEFAULT_PROFILE"
 			}
-			calls := []string{}
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				calls = append(calls, req.Method+" "+req.URL.Path)
-				if req.Method == "GET" && req.URL.Path == "/v1/appAssetLibraryPlacements/old" {
-					return jsonResponse(200, `{"data":{"type":"appAssetLibraryPlacements","id":"old","attributes":{"placementType":"`+kind+`","placementGroup":"`+group+`"}}}`)
-				}
-				if req.Method != "POST" || req.URL.Path != "/v1/appAssetLibraryPlacements" {
-					t.Fatalf("request=%s %s", req.Method, req.URL)
-				}
-				var got map[string]any
-				if err := json.NewDecoder(req.Body).Decode(&got); err != nil {
-					t.Fatal(err)
-				}
-				want := map[string]any{"data": map[string]any{"type": "appAssetLibraryPlacements", "attributes": map[string]any{"placementType": kind, "placementGroup": group}, "relationships": map[string]any{"video": map[string]any{"data": map[string]any{"type": "appAssetLibraryVideos", "id": "video"}}, c.relationship: map[string]any{"data": map[string]any{"type": c.resource, "id": "loc"}}, "placementToSwapOut": map[string]any{"data": map[string]any{"type": "appAssetLibraryPlacements", "id": "old"}}}}}
-				if !reflect.DeepEqual(got, want) {
-					t.Fatalf("swap payload=%v want=%v", got, want)
-				}
-				return jsonResponse(201, `{"data":{"type":"appAssetLibraryPlacements","id":"new","attributes":{"state":"ACTIVE"}}}`)
-			})
+			want := map[string]any{"data": map[string]any{"type": "appAssetLibraryPlacements", "attributes": map[string]any{"placementType": kind, "placementGroup": group}, "relationships": map[string]any{"video": map[string]any{"data": map[string]any{"type": "appAssetLibraryVideos", "id": "video"}}, c.relationship: map[string]any{"data": map[string]any{"type": c.resource, "id": "loc"}}, "placementToSwapOut": map[string]any{"data": map[string]any{"type": "appAssetLibraryPlacements", "id": "old"}}}}}
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET("/v1/appAssetLibraryPlacements/old"),
+				asctest.JSON(200, `{"data":{"type":"appAssetLibraryPlacements","id":"old","attributes":{"placementType":"`+kind+`","placementGroup":"`+group+`"}}}`))
+			reg.Register(asctest.POST("/v1/appAssetLibraryPlacements").JSONBody(libraryReuseJSON(t, want)),
+				asctest.JSON(201, `{"data":{"type":"appAssetLibraryPlacements","id":"new","attributes":{"state":"ACTIVE"}}}`))
 			args := append(strings.Fields(c.path), "placements", "swap", "--localization-id", "loc", "--placement-id", "old", "--video-id", "video", "--placement-type", kind, "--confirm")
 			stdout, stderr, err := runLibraryReuse(t, args...)
 			var receipt map[string]any
 			if err != nil || stderr != "" || json.Unmarshal([]byte(stdout), &receipt) != nil || receipt["id"] != "new" || receipt["swapped"] != true || receipt["previousPlacementId"] != "old" || receipt["videoId"] != "video" || receipt["placementGroup"] != group {
 				t.Fatalf("swap receipt=%s %s %v", stdout, stderr, err)
 			}
-			if want := []string{"GET /v1/appAssetLibraryPlacements/old", "POST /v1/appAssetLibraryPlacements"}; !reflect.DeepEqual(calls, want) {
+			if calls, want := libraryReuseCalls(reg), []string{"GET /v1/appAssetLibraryPlacements/old", "POST /v1/appAssetLibraryPlacements"}; !reflect.DeepEqual(calls, want) {
 				t.Fatalf("calls=%v want %v", calls, want)
 			}
 		})
@@ -315,14 +289,10 @@ func TestLibraryReuseAtomicSwapContexts(t *testing.T) {
 
 func TestLibraryReuseSwapStopsWhenExistingPlacementCannotBeRead(t *testing.T) {
 	setupAuth(t)
-	original := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = original })
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != "GET" || req.URL.Path != "/v1/appAssetLibraryPlacements/old" {
-			t.Fatalf("swap continued after failed lookup: %s %s", req.Method, req.URL)
-		}
-		return jsonResponse(404, `{"errors":[{"status":"404","code":"NOT_FOUND","detail":"missing"}]}`)
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appAssetLibraryPlacements/old"),
+		asctest.JSON(404, `{"errors":[{"status":"404","code":"NOT_FOUND","detail":"missing"}]}`))
 	stdout, _, err := runLibraryReuse(t, "localizations", "placements", "swap", "--localization-id", "loc", "--placement-id", "old", "--image-id", "image", "--placement-type", "APP_SCREENSHOT", "--confirm")
 	if err == nil || stdout != "" || !strings.Contains(err.Error(), "placements swap: read placement old") {
 		t.Fatalf("stdout=%q err=%v", stdout, err)
@@ -333,18 +303,13 @@ func TestLibraryReuseBulkRemovalContexts(t *testing.T) {
 	for _, c := range libraryReuseContexts {
 		t.Run(c.resource, func(t *testing.T) {
 			setupAuth(t)
-			original := http.DefaultTransport
-			t.Cleanup(func() { http.DefaultTransport = original })
-			calls := []string{}
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				if req.Method != "DELETE" || !strings.HasPrefix(req.URL.Path, "/v1/appAssetLibraryPlacements/") {
-					t.Fatalf("request=%s %s", req.Method, req.URL)
-				}
-				calls = append(calls, strings.TrimPrefix(req.URL.Path, "/v1/appAssetLibraryPlacements/"))
-				return jsonResponse(204, "")
-			})
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.DELETE("/v1/appAssetLibraryPlacements/first"), asctest.JSON(204, ""))
+			reg.Register(asctest.DELETE("/v1/appAssetLibraryPlacements/second"), asctest.JSON(204, ""))
 			args := append(strings.Fields(c.path), "placements", "delete", "--placement-ids", "first,second", "--confirm")
 			stdout, stderr, err := runLibraryReuse(t, args...)
+			calls := libraryReuseDeletedIDs(reg)
 			var receipt map[string]any
 			if err != nil || stderr != "" || json.Unmarshal([]byte(stdout), &receipt) != nil || receipt["deleted"] != true || !reflect.DeepEqual(receipt["placementIds"], []any{"first", "second"}) || !reflect.DeepEqual(receipt["deletedPlacementIds"], []any{"first", "second"}) || !reflect.DeepEqual(calls, []string{"first", "second"}) {
 				t.Fatalf("remove receipt=%s %s %v calls=%v", stdout, stderr, err, calls)
@@ -355,21 +320,13 @@ func TestLibraryReuseBulkRemovalContexts(t *testing.T) {
 
 func TestLibraryReuseSequentialRemovalPartialReceipt(t *testing.T) {
 	setupAuth(t)
-	original := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = original })
-	calls := []string{}
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != "DELETE" {
-			t.Fatalf("unexpected method %s", req.Method)
-		}
-		id := strings.TrimPrefix(req.URL.Path, "/v1/appAssetLibraryPlacements/")
-		calls = append(calls, id)
-		if id == "first" {
-			return jsonResponse(204, "")
-		}
-		return jsonResponse(403, `{"errors":[{"status":"403","code":"FORBIDDEN","title":"Denied"}]}`)
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.DELETE("/v1/appAssetLibraryPlacements/first"), asctest.JSON(204, ""))
+	reg.Register(asctest.DELETE("/v1/appAssetLibraryPlacements/second"),
+		asctest.JSON(403, `{"errors":[{"status":"403","code":"FORBIDDEN","title":"Denied"}]}`))
 	stdout, stderr, err := runLibraryReuse(t, "localizations", "placements", "delete", "--placement-ids", "first,second,third", "--confirm")
+	calls := libraryReuseDeletedIDs(reg)
 	var receipt map[string]any
 	if err == nil || json.Unmarshal([]byte(stdout), &receipt) != nil || receipt["deleted"] != false || receipt["failedPlacementId"] != "second" || !reflect.DeepEqual(receipt["deletedPlacementIds"], []any{"first"}) || !reflect.DeepEqual(calls, []string{"first", "second"}) {
 		t.Fatalf("partial=%s stderr=%s err=%v calls=%v", stdout, stderr, err, calls)
@@ -378,12 +335,7 @@ func TestLibraryReuseSequentialRemovalPartialReceipt(t *testing.T) {
 
 func TestLibraryReuseSwapBulkUsageBeforeHTTP(t *testing.T) {
 	setupAuth(t)
-	original := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = original })
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("unexpected HTTP %s %s", req.Method, req.URL)
-		return nil, nil
-	})
+	asctest.NewRegistry(t).Install()
 	for _, args := range [][]string{
 		{"swap", "--localization-id", "loc", "--placement-id", "old", "--image-id", "image", "--video-id", "video", "--placement-type", "PRODUCT_PAGE_HEADER_ASSET", "--confirm"},
 		{"swap", "--localization-id", "loc", "--image-id", "image", "--placement-type", "PRODUCT_PAGE_HEADER_ASSET", "--confirm"},
@@ -405,8 +357,8 @@ func TestLibraryReuseSwapBulkUsageBeforeHTTP(t *testing.T) {
 
 func TestLibraryReuseSwapBulkFailureDoesNotFallBack(t *testing.T) {
 	setupAuth(t)
-	original := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = original })
+	reg := asctest.NewRegistry(t)
+	reg.Install()
 	for _, operation := range []string{"swap", "delete"} {
 		responses := []struct {
 			status int
@@ -419,22 +371,16 @@ func TestLibraryReuseSwapBulkFailureDoesNotFallBack(t *testing.T) {
 			}{201, `{"data":{}}`})
 		}
 		for _, response := range responses {
-			calls := 0
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			before := len(reg.Requests())
+			if operation == "swap" {
 				// Swap reads the existing placement's group before its one mutation.
-				if operation == "swap" && req.Method == "GET" && req.URL.Path == "/v1/appAssetLibraryPlacements/old" {
-					return jsonResponse(200, `{"data":{"type":"appAssetLibraryPlacements","id":"old","attributes":{"placementGroup":"DEFAULT_PROFILE"}}}`)
-				}
-				calls++
-				want := "POST"
-				if operation == "delete" {
-					want = "DELETE"
-				}
-				if req.Method != want {
-					t.Fatalf("fallback mutation %s %s", req.Method, req.URL)
-				}
-				return jsonResponse(response.status, response.body)
-			})
+				reg.Register(asctest.GET("/v1/appAssetLibraryPlacements/old"),
+					asctest.JSON(200, `{"data":{"type":"appAssetLibraryPlacements","id":"old","attributes":{"placementGroup":"DEFAULT_PROFILE"}}}`))
+				reg.Register(asctest.POST("/v1/appAssetLibraryPlacements").JSONBody(libraryReuseHeaderSwapBody),
+					asctest.JSON(response.status, response.body))
+			} else {
+				reg.Register(asctest.DELETE("/v1/appAssetLibraryPlacements/one"), asctest.JSON(response.status, response.body))
+			}
 			args := []string{"localizations", "placements", operation}
 			if operation == "swap" {
 				args = append(args, "--localization-id", "loc", "--placement-id", "old", "--image-id", "image", "--placement-type", "PRODUCT_PAGE_HEADER_ASSET", "--confirm")
@@ -442,6 +388,12 @@ func TestLibraryReuseSwapBulkFailureDoesNotFallBack(t *testing.T) {
 				args = append(args, "--placement-ids", "one,two", "--confirm")
 			}
 			stdout, _, err := runLibraryReuse(t, args...)
+			calls := 0
+			for _, req := range reg.Requests()[before:] {
+				if req.Method != http.MethodGet {
+					calls++
+				}
+			}
 			if err == nil || calls != 1 {
 				t.Fatalf("failed mutation: %s %v calls=%d", stdout, err, calls)
 			}
@@ -458,19 +410,20 @@ func TestLibraryReuseSwapBulkFailureDoesNotFallBack(t *testing.T) {
 	}
 }
 
+const libraryReuseHeaderSwapBody = `{"data":{"type":"appAssetLibraryPlacements","attributes":{"placementGroup":"DEFAULT_PROFILE","placementType":"PRODUCT_PAGE_HEADER_ASSET"},"relationships":{"appStoreVersionLocalization":{"data":{"type":"appStoreVersionLocalizations","id":"loc"}},"image":{"data":{"type":"appAssetLibraryImages","id":"image"}},"placementToSwapOut":{"data":{"type":"appAssetLibraryPlacements","id":"old"}}}}}`
+
 func TestLibraryReuseSwapAndBulkHumanReceipts(t *testing.T) {
 	setupAuth(t)
-	original := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = original })
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.URL.Path == "/v1/appAssetLibraryPlacements" {
-			return jsonResponse(201, `{"data":{"type":"appAssetLibraryPlacements","id":"new"}}`)
-		}
-		if req.Method == "GET" {
-			return jsonResponse(200, `{"data":{"type":"appAssetLibraryPlacements","id":"old","attributes":{"placementGroup":"DEFAULT_PROFILE"}}}`)
-		}
-		return jsonResponse(204, "")
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	for range []string{"table", "markdown"} {
+		reg.Register(asctest.GET("/v1/appAssetLibraryPlacements/old"),
+			asctest.JSON(200, `{"data":{"type":"appAssetLibraryPlacements","id":"old","attributes":{"placementGroup":"DEFAULT_PROFILE"}}}`))
+		reg.Register(asctest.POST("/v1/appAssetLibraryPlacements").JSONBody(libraryReuseHeaderSwapBody),
+			asctest.JSON(201, `{"data":{"type":"appAssetLibraryPlacements","id":"new"}}`))
+		reg.Register(asctest.DELETE("/v1/appAssetLibraryPlacements/one"), asctest.JSON(204, ""))
+		reg.Register(asctest.DELETE("/v1/appAssetLibraryPlacements/two"), asctest.JSON(204, ""))
+	}
 	for _, format := range []string{"table", "markdown"} {
 		for _, args := range [][]string{
 			{"swap", "--localization-id", "loc", "--placement-id", "old", "--image-id", "image", "--placement-type", "PRODUCT_PAGE_HEADER_ASSET", "--confirm"},
@@ -489,14 +442,10 @@ func TestLibraryReuseSwapAndBulkHumanReceipts(t *testing.T) {
 // A public event probe also rejected appEventLocalization; reject locally.
 func TestLibraryReuseEventReorderRejectedBeforeHTTP(t *testing.T) {
 	setupAuth(t)
-	original := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = original })
-	requests := 0
-	http.DefaultTransport = roundTripFunc(func(*http.Request) (*http.Response, error) {
-		requests++
-		return jsonResponse(201, `{"data":{"type":"appAssetLibraryPlacementOrderingRequests","id":"must-not-be-requested"}}`)
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
 	_, _, err := runLibraryReuse(t, "app-events", "localizations", "placements", "reorder", "--localization-id", "loc", "--placement-group", "DEFAULT_PROFILE", "--placement-ids", "one,two")
+	requests := len(reg.Requests())
 	if err == nil || requests != 0 {
 		t.Fatalf("event reorder must be unavailable before HTTP: err=%v requests=%d", err, requests)
 	}

@@ -3,9 +3,10 @@ package cmdtest
 import (
 	"errors"
 	"flag"
-	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestAssetLibraryListFilters(t *testing.T) {
@@ -27,19 +28,16 @@ func TestAssetLibraryListFilters(t *testing.T) {
 				}
 			}
 			setupAuth(t)
-			original := http.DefaultTransport
-			t.Cleanup(func() { http.DefaultTransport = original })
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				q := req.URL.Query()
-				if req.Method != "GET" || req.URL.Path != "/v1/appAssetLibraries/lib/"+group || q.Get("filter[category]") != "CREATIVE_ASSETS,APP_SCREENSHOTS_AND_PREVIEWS" || q.Get("filter[state]") != "FAILED,FUTURE_STATE" || q.Get("filter[specId]") != "spec-1,spec-2" || q.Get("sort") != "referenceName,-lastModifiedDate,createdDate,-createdDate" || q.Get("filter[referenceName]") != "Header & Search,Spring Campaign" || q.Get("filter[id]") != "asset-1,asset-2" || q.Get("limit") != "2" {
-					t.Fatalf("unexpected query: %s", req.URL)
-				}
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET("/v1/appAssetLibraries/lib/"+group, "filter[category]=CREATIVE_ASSETS,APP_SCREENSHOTS_AND_PREVIEWS", "filter[state]=FAILED,FUTURE_STATE", "filter[specId]=spec-1,spec-2", "sort=referenceName,-lastModifiedDate,createdDate,-createdDate", "filter[referenceName]=Header %26 Search,Spring Campaign", "filter[id]=asset-1,asset-2", "limit=2"),
+				asctest.JSON(200, `{"data":[],"meta":{"unknown":{"preserved":true}}}`))
+			out, _, err := runAssetLibrary(t, "asset-library", group, "list", "--library-id", "https://api.appstoreconnect.apple.com/v1/appAssetLibraries/lib", "--category", "CREATIVE_ASSETS, APP_SCREENSHOTS_AND_PREVIEWS", "--state", "FAILED,FUTURE_STATE", "--spec-id", "spec-1,spec-2", "--sort", "referenceName,-lastModifiedDate,createdDate,-createdDate", "--reference-name", "Header & Search, Spring Campaign", "--id", "asset-1,asset-2", "--limit", "2", "--output", "json")
+			for _, req := range reg.Requests() {
 				if strings.Contains(req.URL.RawQuery, "[") {
 					t.Fatalf("query not encoded: %s", req.URL.RawQuery)
 				}
-				return jsonResponse(200, `{"data":[],"meta":{"unknown":{"preserved":true}}}`)
-			})
-			out, _, err := runAssetLibrary(t, "asset-library", group, "list", "--library-id", "https://api.appstoreconnect.apple.com/v1/appAssetLibraries/lib", "--category", "CREATIVE_ASSETS, APP_SCREENSHOTS_AND_PREVIEWS", "--state", "FAILED,FUTURE_STATE", "--spec-id", "spec-1,spec-2", "--sort", "referenceName,-lastModifiedDate,createdDate,-createdDate", "--reference-name", "Header & Search, Spring Campaign", "--id", "asset-1,asset-2", "--limit", "2", "--output", "json")
+			}
 			if err != nil || !strings.Contains(out, `"unknown":{"preserved":true}`) {
 				t.Fatalf("out=%s err=%v", out, err)
 			}
@@ -51,11 +49,10 @@ func TestAssetLibraryListFilterValidation(t *testing.T) {
 	for _, tc := range []struct{ flag, value string }{{"reference-name", ""}, {"reference-name", "Header,,Search"}, {"id", "asset-1,"}, {"id", "../asset"}, {"category", "OTHER"}, {"category", "CREATIVE_ASSETS,"}, {"state", "FAILED,,APPROVED"}, {"state", "bad state"}, {"spec-id", "../spec"}, {"sort", "state"}, {"sort", "referenceName,"}} {
 		t.Run(tc.flag+tc.value, func(t *testing.T) {
 			setupAuth(t)
-			original := http.DefaultTransport
-			t.Cleanup(func() { http.DefaultTransport = original })
-			calls := 0
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) { calls++; return jsonResponse(200, `{"data":[]}`) })
+			reg := asctest.NewRegistry(t)
+			reg.Install()
 			_, _, err := runAssetLibrary(t, "asset-library", "images", "list", "--library-id", "lib", "--"+tc.flag, tc.value)
+			calls := len(reg.Requests())
 			if err == nil || calls != 0 {
 				t.Fatalf("expected zeroHTTP usage error: %v calls%d", err, calls)
 			}
@@ -64,12 +61,11 @@ func TestAssetLibraryListFilterValidation(t *testing.T) {
 	for _, flag := range []string{"category", "state", "spec-id", "sort", "reference-name", "id"} {
 		t.Run("next/"+flag, func(t *testing.T) {
 			setupAuth(t)
-			original := http.DefaultTransport
-			t.Cleanup(func() { http.DefaultTransport = original })
-			calls := 0
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) { calls++; return jsonResponse(200, `{"data":[]}`) })
+			reg := asctest.NewRegistry(t)
+			reg.Install()
 			values := map[string]string{"category": "CREATIVE_ASSETS", "state": "FAILED", "spec-id": "spec-1", "sort": "referenceName", "reference-name": "Header & Search", "id": "asset-1"}
 			_, _, err := runAssetLibrary(t, "asset-library", "videos", "list", "--next", "https://api.appstoreconnect.apple.com/v1/appAssetLibraries/lib/videos?cursor=next", "--"+flag, values[flag])
+			calls := len(reg.Requests())
 			if err == nil || calls != 0 || !strings.Contains(err.Error(), "--next") {
 				t.Fatalf("expected specific next conflict: %v", err)
 			}
@@ -79,23 +75,14 @@ func TestAssetLibraryListFilterValidation(t *testing.T) {
 
 func TestAssetLibraryListFilterPagination(t *testing.T) {
 	setupAuth(t)
-	original := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = original })
-	calls := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		calls++
-		if calls == 1 {
-			if req.URL.Query().Get("filter[state]") != "FAILED" {
-				t.Fatalf("missing initial filter: %s", req.URL)
-			}
-			return jsonResponse(200, `{"data":[{"type":"appAssetLibraryImages","id":"a","attributes":{"future":true}}],"links":{"next":"https://api.appstoreconnect.apple.com/v1/appAssetLibraries/lib/images?cursor=opaque&filter%5Bstate%5D=FAILED"}}`)
-		}
-		if req.URL.Query().Get("cursor") != "opaque" || req.URL.Query().Get("filter[state]") != "FAILED" {
-			t.Fatalf("next changed: %s", req.URL)
-		}
-		return jsonResponse(200, `{"data":[{"type":"appAssetLibraryImages","id":"b","attributes":{"future":null}}],"links":{"next":null}}`)
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appAssetLibraries/lib/images", "filter[state]=FAILED", "limit=200"),
+		asctest.JSON(200, `{"data":[{"type":"appAssetLibraryImages","id":"a","attributes":{"future":true}}],"links":{"next":"https://api.appstoreconnect.apple.com/v1/appAssetLibraries/lib/images?cursor=opaque&filter%5Bstate%5D=FAILED"}}`))
+	reg.Register(asctest.GET("/v1/appAssetLibraries/lib/images", "cursor=opaque", "filter[state]=FAILED"),
+		asctest.JSON(200, `{"data":[{"type":"appAssetLibraryImages","id":"b","attributes":{"future":null}}],"links":{"next":null}}`))
 	out, _, err := runAssetLibrary(t, "asset-library", "images", "list", "--library-id", "lib", "--state", "FAILED", "--paginate", "--output", "json")
+	calls := len(reg.Requests())
 	if err != nil || calls != 2 || !strings.Contains(out, `"id":"b"`) || !strings.Contains(out, `"future":null`) {
 		t.Fatalf("pagination lost data: %s calls%d %v", out, calls, err)
 	}
@@ -105,43 +92,35 @@ func TestAssetLibrarySpecsFilters(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		args []string
-		want map[string]string
+		want []string
 	}{
 		{name: "omitted flags send no query"},
 		{
 			name: "every filter encodes as a comma-separated list",
 			args: []string{"--placement-type", "APP_SCREENSHOT, FUTURE_PLACEMENT", "--placement-profile-group", "IPHONE_DUO_PROFILE,future.group", "--feature", "APP_STORE_VERSIONS,FUTURE_FEATURE", "--spec", "duo-shot,future.spec"},
-			want: map[string]string{
-				"filter[placementTypes]":         "APP_SCREENSHOT,FUTURE_PLACEMENT",
-				"filter[placementProfileGroups]": "IPHONE_DUO_PROFILE,future.group",
-				"filter[features]":               "APP_STORE_VERSIONS,FUTURE_FEATURE",
-				"filter[specs]":                  "duo-shot,future.spec",
+			want: []string{
+				"filter[placementTypes]=APP_SCREENSHOT,FUTURE_PLACEMENT",
+				"filter[placementProfileGroups]=IPHONE_DUO_PROFILE,future.group",
+				"filter[features]=APP_STORE_VERSIONS,FUTURE_FEATURE",
+				"filter[specs]=duo-shot,future.spec",
 			},
 		},
-		{name: "one filter sends only its key", args: []string{"--feature", "GAME_CENTER"}, want: map[string]string{"filter[features]": "GAME_CENTER"}},
+		{name: "one filter sends only its key", args: []string{"--feature", "GAME_CENTER"}, want: []string{"filter[features]=GAME_CENTER"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			setupAuth(t)
-			original := http.DefaultTransport
-			t.Cleanup(func() { http.DefaultTransport = original })
-			calls := 0
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				calls++
-				q := req.URL.Query()
-				if req.Method != "GET" || req.URL.Path != "/v1/appAssetLibraryRefData" || len(q) != len(tc.want) {
-					t.Fatalf("unexpected request: %s %s", req.Method, req.URL)
-				}
-				for key, value := range tc.want {
-					if q.Get(key) != value {
-						t.Fatalf("%s=%q want %q in %s", key, q.Get(key), value, req.URL)
-					}
-				}
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET("/v1/appAssetLibraryRefData", tc.want...),
+				asctest.JSON(200, `{"data":[],"links":{"self":"https://example.test"},"future":true}`))
+			out, _, err := runAssetLibrary(t, append([]string{"asset-library", "specs", "--output", "json"}, tc.args...)...)
+			requests := reg.Requests()
+			for _, req := range requests {
 				if strings.Contains(req.URL.RawQuery, "[") {
 					t.Fatalf("query not encoded: %s", req.URL.RawQuery)
 				}
-				return jsonResponse(200, `{"data":[],"links":{"self":"https://example.test"},"future":true}`)
-			})
-			out, _, err := runAssetLibrary(t, append([]string{"asset-library", "specs", "--output", "json"}, tc.args...)...)
+			}
+			calls := len(requests)
 			if err != nil || calls != 1 || !strings.Contains(out, `"future":true`) {
 				t.Fatalf("out=%s calls=%d err=%v", out, calls, err)
 			}
@@ -153,11 +132,10 @@ func TestAssetLibrarySpecsFilterValidation(t *testing.T) {
 	for _, tc := range []struct{ flag, value string }{{"placement-type", ""}, {"placement-profile-group", "A,,B"}, {"feature", "GAME_CENTER,"}, {"spec", " "}} {
 		t.Run(tc.flag+"/"+tc.value, func(t *testing.T) {
 			setupAuth(t)
-			original := http.DefaultTransport
-			t.Cleanup(func() { http.DefaultTransport = original })
-			calls := 0
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) { calls++; return jsonResponse(200, `{"data":[]}`) })
+			reg := asctest.NewRegistry(t)
+			reg.Install()
 			_, _, err := runAssetLibrary(t, "asset-library", "specs", "--"+tc.flag, tc.value)
+			calls := len(reg.Requests())
 			if !errors.Is(err, flag.ErrHelp) || calls != 0 || !strings.Contains(err.Error(), "--"+tc.flag) {
 				t.Fatalf("expected usage error naming --%s with zero HTTP: %v calls%d", tc.flag, err, calls)
 			}

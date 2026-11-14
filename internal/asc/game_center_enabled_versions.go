@@ -2,7 +2,6 @@ package asc
 
 import (
 	"net/url"
-	"strings"
 )
 
 // GameCenterEnabledVersionAttributes represents a Game Center enabled version resource.
@@ -20,24 +19,6 @@ type GCEnabledVersionsOption func(*gcEnabledVersionsQuery)
 
 type gcEnabledVersionsQuery struct {
 	listQuery
-}
-
-// WithGCEnabledVersionsLimit sets the max number of enabled versions to return.
-func WithGCEnabledVersionsLimit(limit int) GCEnabledVersionsOption {
-	return func(q *gcEnabledVersionsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithGCEnabledVersionsNextURL uses a next page URL directly.
-func WithGCEnabledVersionsNextURL(next string) GCEnabledVersionsOption {
-	return func(q *gcEnabledVersionsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
 }
 
 func buildGCEnabledVersionsQuery(query *gcEnabledVersionsQuery) string {

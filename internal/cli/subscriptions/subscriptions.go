@@ -404,51 +404,28 @@ Examples:
 
 // SubscriptionsGroupsDeleteCommand returns the groups delete subcommand.
 func SubscriptionsGroupsDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("groups delete", flag.ExitOnError)
-
-	groupID := shared.BindResourceIDFlag(fs, "id", "subscriptionGroups", "Subscription group ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc subscriptions groups delete --id \"GROUP_ID\" --confirm",
-		ShortHelp:  "Delete a subscription group.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "groups delete",
+		Name:        "delete",
+		ShortUsage:  "asc subscriptions groups delete --id \"GROUP_ID\" --confirm",
+		ShortHelp:   "Delete a subscription group.",
 		LongHelp: `Delete a subscription group.
 
 Examples:
   asc subscriptions groups delete --id "GROUP_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*groupID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("subscriptions groups delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteSubscriptionGroup(requestCtx, id); err != nil {
-				return fmt.Errorf("subscriptions groups delete: failed to delete: %w", err)
-			}
-
-			result := &asc.SubscriptionGroupDeleteResult{
-				ID:      id,
-				Deleted: true,
-			}
-
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "id",
+		IDUsage:            "Subscription group ID",
+		IDType:             "subscriptionGroups",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "subscriptions groups delete",
+		DeleteErrorPrefix:  "subscriptions groups delete: failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteSubscriptionGroup(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.SubscriptionGroupDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
 
 // SubscriptionsListCommand returns the subscriptions list subcommand.
@@ -970,51 +947,28 @@ func (i optionalInt) Value() int {
 
 // SubscriptionsDeleteCommand returns the subscriptions delete subcommand.
 func SubscriptionsDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("delete", flag.ExitOnError)
-
-	subID := shared.BindResourceIDFlag(fs, "id", "subscriptions", "Subscription ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc subscriptions delete --id \"SUB_ID\" --confirm",
-		ShortHelp:  "Delete a subscription.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "delete",
+		Name:        "delete",
+		ShortUsage:  "asc subscriptions delete --id \"SUB_ID\" --confirm",
+		ShortHelp:   "Delete a subscription.",
 		LongHelp: `Delete a subscription.
 
 Examples:
   asc subscriptions delete --id "SUB_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*subID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("subscriptions delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteSubscription(requestCtx, id); err != nil {
-				return fmt.Errorf("subscriptions delete: failed to delete: %w", err)
-			}
-
-			result := &asc.SubscriptionDeleteResult{
-				ID:      id,
-				Deleted: true,
-			}
-
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "id",
+		IDUsage:            "Subscription ID",
+		IDType:             "subscriptions",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "subscriptions delete",
+		DeleteErrorPrefix:  "subscriptions delete: failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteSubscription(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.SubscriptionDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
 
 // SubscriptionsPricesCommand returns the subscriptions prices command group.
@@ -1605,51 +1559,28 @@ combined with --force or USA, and it needs MONTHLY plan availability.`,
 
 // SubscriptionsPricesDeleteCommand returns the subscriptions prices delete subcommand.
 func SubscriptionsPricesDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("prices delete", flag.ExitOnError)
-
-	priceID := shared.BindResourceIDFlag(fs, "price-id", "subscriptionPrices", "Subscription price ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc subscriptions prices delete --price-id \"PRICE_ID\" --confirm",
-		ShortHelp:  "Delete a subscription price.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "prices delete",
+		Name:        "delete",
+		ShortUsage:  "asc subscriptions prices delete --price-id \"PRICE_ID\" --confirm",
+		ShortHelp:   "Delete a subscription price.",
 		LongHelp: `Delete a subscription price.
 
 Examples:
   asc subscriptions prices delete --price-id "PRICE_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*priceID)
-			if id == "" {
-				return shared.RequiredFlag("--price-id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("subscriptions prices delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteSubscriptionPrice(requestCtx, id); err != nil {
-				return fmt.Errorf("subscriptions prices delete: failed to delete: %w", err)
-			}
-
-			result := &asc.SubscriptionPriceDeleteResult{
-				ID:      id,
-				Deleted: true,
-			}
-
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "price-id",
+		IDUsage:            "Subscription price ID",
+		IDType:             "subscriptionPrices",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "subscriptions prices delete",
+		DeleteErrorPrefix:  "subscriptions prices delete: failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteSubscriptionPrice(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.SubscriptionPriceDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
 
 // SubscriptionsAvailabilityCommand returns the subscriptions pricing availability command group.

@@ -369,51 +369,28 @@ Examples:
 
 // PassTypeIDsDeleteCommand returns the pass type IDs delete subcommand.
 func PassTypeIDsDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("delete", flag.ExitOnError)
-
-	passTypeID := shared.BindResourceIDFlag(fs, "pass-type-id", "passTypeIds", "Pass type ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc pass-type-ids delete --pass-type-id \"PASS_ID\" --confirm",
-		ShortHelp:  "Delete a pass type ID.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "delete",
+		Name:        "delete",
+		ShortUsage:  "asc pass-type-ids delete --pass-type-id \"PASS_ID\" --confirm",
+		ShortHelp:   "Delete a pass type ID.",
 		LongHelp: `Delete a pass type ID.
 
 Examples:
   asc pass-type-ids delete --pass-type-id "PASS_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			passTypeIDValue := strings.TrimSpace(*passTypeID)
-			if passTypeIDValue == "" {
-				return shared.RequiredFlag("--pass-type-id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("pass-type-ids delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeletePassTypeID(requestCtx, passTypeIDValue); err != nil {
-				return fmt.Errorf("pass-type-ids delete: failed to delete: %w", err)
-			}
-
-			result := &asc.PassTypeIDDeleteResult{
-				ID:      passTypeIDValue,
-				Deleted: true,
-			}
-
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "pass-type-id",
+		IDUsage:            "Pass type ID",
+		IDType:             "passTypeIds",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "pass-type-ids delete",
+		DeleteErrorPrefix:  "pass-type-ids delete: failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeletePassTypeID(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.PassTypeIDDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
 
 func normalizePassTypeIDFields(value, flagName string) ([]string, error) {

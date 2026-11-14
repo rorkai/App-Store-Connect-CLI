@@ -302,51 +302,27 @@ Examples:
 
 // AndroidIosMappingDeleteCommand returns the mapping delete subcommand.
 func AndroidIosMappingDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("delete", flag.ExitOnError)
-
-	id := shared.BindResourceIDFlag(fs, "mapping-id", "androidToIosAppMappingDetails", "Mapping ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc android-ios-mapping delete --mapping-id \"MAPPING_ID\" --confirm",
-		ShortHelp:  "Delete an Android-to-iOS app mapping.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "delete",
+		Name:        "delete",
+		ShortUsage:  "asc android-ios-mapping delete --mapping-id \"MAPPING_ID\" --confirm",
+		ShortHelp:   "Delete an Android-to-iOS app mapping.",
 		LongHelp: `Delete an Android-to-iOS app mapping.
 
 Examples:
   asc android-ios-mapping delete --mapping-id "MAPPING_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			trimmedID := strings.TrimSpace(*id)
-			if trimmedID == "" {
-				return shared.RequiredFlag("--mapping-id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("android-ios-mapping delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteAndroidToIosAppMappingDetail(requestCtx, trimmedID); err != nil {
-				return fmt.Errorf("android-ios-mapping delete: %w", err)
-			}
-
-			result := &asc.AndroidToIosAppMappingDeleteResult{
-				ID:      trimmedID,
-				Deleted: true,
-			}
-
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "mapping-id",
+		IDUsage:            "Mapping ID",
+		IDType:             "androidToIosAppMappingDetails",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "android-ios-mapping delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteAndroidToIosAppMappingDetail(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.AndroidToIosAppMappingDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
 
 func androidIosMappingFieldsList() []string {

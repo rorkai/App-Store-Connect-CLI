@@ -125,19 +125,19 @@ Examples:
 			}
 
 			opts := []asc.GCAchievementsOption{
-				asc.WithGCAchievementsLimit(*limit),
-				asc.WithGCAchievementsNextURL(*next),
+				asc.Limit[asc.GCAchievementsOption](*limit),
+				asc.NextURL[asc.GCAchievementsOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithGCAchievementsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.GCAchievementsOption](200))
 				firstPage, err := client.GetGameCenterAchievements(requestCtx, gcDetailID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("game-center achievements list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterAchievements(ctx, gcDetailID, asc.WithGCAchievementsNextURL(nextURL))
+					return client.GetGameCenterAchievements(ctx, gcDetailID, asc.NextURL[asc.GCAchievementsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("game-center achievements list: %w", err)
@@ -614,7 +614,7 @@ Examples:
 		ErrorPrefix:          "game-center achievements localizations list",
 		FetchErrorPrefix:     "game-center achievements localizations list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, achievementId string, limit int, next string) (asc.PaginatedResponse, error) {
-			return client.GetGameCenterAchievementLocalizations(ctx, achievementId, asc.WithGCAchievementLocalizationsLimit(limit), asc.WithGCAchievementLocalizationsNextURL(next))
+			return client.GetGameCenterAchievementLocalizations(ctx, achievementId, asc.Limit[asc.GCAchievementLocalizationsOption](limit), asc.NextURL[asc.GCAchievementLocalizationsOption](next))
 		},
 	})
 }
@@ -787,51 +787,28 @@ Examples:
 
 // GameCenterAchievementLocalizationsDeleteCommand returns the localizations delete subcommand.
 func GameCenterAchievementLocalizationsDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("delete", flag.ExitOnError)
-
-	localizationID := shared.BindResourceIDFlag(fs, "id", "gameCenterAchievementLocalizations", "Game Center achievement localization ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc game-center achievements localizations delete --id \"LOC_ID\" --confirm",
-		ShortHelp:  "Delete a Game Center achievement localization.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "delete",
+		Name:        "delete",
+		ShortUsage:  "asc game-center achievements localizations delete --id \"LOC_ID\" --confirm",
+		ShortHelp:   "Delete a Game Center achievement localization.",
 		LongHelp: `Delete a Game Center achievement localization.
 
 Examples:
   asc game-center achievements localizations delete --id "LOC_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*localizationID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center achievements localizations delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteGameCenterAchievementLocalization(requestCtx, id); err != nil {
-				return fmt.Errorf("game-center achievements localizations delete: failed to delete: %w", err)
-			}
-
-			result := &asc.GameCenterAchievementLocalizationDeleteResult{
-				ID:      id,
-				Deleted: true,
-			}
-
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "id",
+		IDUsage:            "Game Center achievement localization ID",
+		IDType:             "gameCenterAchievementLocalizations",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center achievements localizations delete",
+		DeleteErrorPrefix:  "game-center achievements localizations delete: failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteGameCenterAchievementLocalization(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.GameCenterAchievementLocalizationDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
 
 // GameCenterAchievementReleasesCommand returns the achievement releases command group.
@@ -883,7 +860,7 @@ Examples:
 		ErrorPrefix:          "game-center achievements releases list",
 		FetchErrorPrefix:     "game-center achievements releases list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, achievementId string, limit int, next string) (asc.PaginatedResponse, error) {
-			return client.GetGameCenterAchievementReleases(ctx, achievementId, asc.WithGCAchievementReleasesLimit(limit), asc.WithGCAchievementReleasesNextURL(next))
+			return client.GetGameCenterAchievementReleases(ctx, achievementId, asc.Limit[asc.GCAchievementReleasesOption](limit), asc.NextURL[asc.GCAchievementReleasesOption](next))
 		},
 	})
 }
@@ -944,51 +921,28 @@ Examples:
 
 // GameCenterAchievementReleasesDeleteCommand returns the achievement releases delete subcommand.
 func GameCenterAchievementReleasesDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("delete", flag.ExitOnError)
-
-	releaseID := shared.BindResourceIDFlag(fs, "id", "gameCenterAchievementReleases", "Game Center achievement release ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc game-center achievements releases delete --id \"RELEASE_ID\" --confirm",
-		ShortHelp:  "Delete a Game Center achievement release.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "delete",
+		Name:        "delete",
+		ShortUsage:  "asc game-center achievements releases delete --id \"RELEASE_ID\" --confirm",
+		ShortHelp:   "Delete a Game Center achievement release.",
 		LongHelp: `Delete a Game Center achievement release.
 
 Examples:
   asc game-center achievements releases delete --id "RELEASE_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*releaseID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center achievements releases delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteGameCenterAchievementRelease(requestCtx, id); err != nil {
-				return fmt.Errorf("game-center achievements releases delete: failed to delete: %w", err)
-			}
-
-			result := &asc.GameCenterAchievementReleaseDeleteResult{
-				ID:      id,
-				Deleted: true,
-			}
-
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "id",
+		IDUsage:            "Game Center achievement release ID",
+		IDType:             "gameCenterAchievementReleases",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center achievements releases delete",
+		DeleteErrorPrefix:  "game-center achievements releases delete: failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteGameCenterAchievementRelease(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.GameCenterAchievementReleaseDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
 
 // GameCenterAchievementImagesCommand returns the achievement images command group.
@@ -1090,51 +1044,28 @@ Examples:
 
 // GameCenterAchievementImagesDeleteCommand returns the achievement images delete subcommand.
 func GameCenterAchievementImagesDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("delete", flag.ExitOnError)
-
-	imageID := shared.BindResourceIDFlag(fs, "id", "gameCenterAchievementImages", "Game Center achievement image ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc game-center achievements images delete --id \"IMAGE_ID\" --confirm",
-		ShortHelp:  "Delete a Game Center achievement image.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "delete",
+		Name:        "delete",
+		ShortUsage:  "asc game-center achievements images delete --id \"IMAGE_ID\" --confirm",
+		ShortHelp:   "Delete a Game Center achievement image.",
 		LongHelp: `Delete a Game Center achievement image.
 
 Examples:
   asc game-center achievements images delete --id "IMAGE_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*imageID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center achievements images delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteGameCenterAchievementImage(requestCtx, id); err != nil {
-				return fmt.Errorf("game-center achievements images delete: failed to delete: %w", err)
-			}
-
-			result := &asc.GameCenterAchievementImageDeleteResult{
-				ID:      id,
-				Deleted: true,
-			}
-
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "id",
+		IDUsage:            "Game Center achievement image ID",
+		IDType:             "gameCenterAchievementImages",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center achievements images delete",
+		DeleteErrorPrefix:  "game-center achievements images delete: failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteGameCenterAchievementImage(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.GameCenterAchievementImageDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
 
 // GameCenterAchievementGroupAchievementCommand returns the group achievement command group.

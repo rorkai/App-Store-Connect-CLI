@@ -26,7 +26,7 @@ func TestGetAppGameCenterEnabledVersions_WithLimitAndFilters(t *testing.T) {
 	if _, err := client.GetAppGameCenterEnabledVersions(
 		context.Background(),
 		"app-1",
-		WithGCEnabledVersionsLimit(40),
+		Limit[GCEnabledVersionsOption](40),
 	); err != nil {
 		t.Fatalf("GetAppGameCenterEnabledVersions() error: %v", err)
 	}
@@ -42,7 +42,7 @@ func TestGetAppGameCenterEnabledVersions_UsesNextURL(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetAppGameCenterEnabledVersions(context.Background(), "", WithGCEnabledVersionsNextURL(next)); err != nil {
+	if _, err := client.GetAppGameCenterEnabledVersions(context.Background(), "", NextURL[GCEnabledVersionsOption](next)); err != nil {
 		t.Fatalf("GetAppGameCenterEnabledVersions() error: %v", err)
 	}
 }
@@ -62,7 +62,7 @@ func TestGetGameCenterEnabledVersionCompatibleVersions_WithLimit(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetGameCenterEnabledVersionCompatibleVersions(context.Background(), "enabled-1", WithGCEnabledVersionsLimit(12)); err != nil {
+	if _, err := client.GetGameCenterEnabledVersionCompatibleVersions(context.Background(), "enabled-1", Limit[GCEnabledVersionsOption](12)); err != nil {
 		t.Fatalf("GetGameCenterEnabledVersionCompatibleVersions() error: %v", err)
 	}
 }
@@ -77,15 +77,15 @@ func TestGetGameCenterEnabledVersionCompatibleVersions_UsesNextURL(t *testing.T)
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetGameCenterEnabledVersionCompatibleVersions(context.Background(), "", WithGCEnabledVersionsNextURL(next)); err != nil {
+	if _, err := client.GetGameCenterEnabledVersionCompatibleVersions(context.Background(), "", NextURL[GCEnabledVersionsOption](next)); err != nil {
 		t.Fatalf("GetGameCenterEnabledVersionCompatibleVersions() error: %v", err)
 	}
 }
 
 func TestGCEnabledVersionsOptions(t *testing.T) {
 	query := &gcEnabledVersionsQuery{}
-	WithGCEnabledVersionsLimit(9)(query)
-	WithGCEnabledVersionsNextURL("next")(query)
+	Limit[GCEnabledVersionsOption](9)(query)
+	NextURL[GCEnabledVersionsOption]("next")(query)
 
 	values, err := url.ParseQuery(buildGCEnabledVersionsQuery(query))
 	if err != nil {

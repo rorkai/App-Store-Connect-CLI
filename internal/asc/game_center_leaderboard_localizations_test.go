@@ -302,7 +302,7 @@ func TestGetGameCenterLeaderboardLocalizations_WithLimit(t *testing.T) {
 		}
 	}, response)
 
-	_, err := client.GetGameCenterLeaderboardLocalizations(context.Background(), "lb-123", WithGCLeaderboardLocalizationsLimit(50))
+	_, err := client.GetGameCenterLeaderboardLocalizations(context.Background(), "lb-123", Limit[GCLeaderboardLocalizationsOption](50))
 	if err != nil {
 		t.Fatalf("GetGameCenterLeaderboardLocalizations() error: %v", err)
 	}
@@ -317,7 +317,7 @@ func TestGetGameCenterLeaderboardLocalizations_UsesNextURL(t *testing.T) {
 		assertAuthorized(t, req)
 	}, jsonResponse(http.StatusOK, `{"data":[]}`))
 
-	if _, err := client.GetGameCenterLeaderboardLocalizations(context.Background(), "lb-123", WithGCLeaderboardLocalizationsNextURL(next)); err != nil {
+	if _, err := client.GetGameCenterLeaderboardLocalizations(context.Background(), "lb-123", NextURL[GCLeaderboardLocalizationsOption](next)); err != nil {
 		t.Fatalf("GetGameCenterLeaderboardLocalizations() error: %v", err)
 	}
 }

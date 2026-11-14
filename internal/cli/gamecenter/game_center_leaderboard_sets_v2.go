@@ -111,19 +111,19 @@ Examples:
 			}
 
 			opts := []asc.GCLeaderboardSetsOption{
-				asc.WithGCLeaderboardSetsLimit(*limit),
-				asc.WithGCLeaderboardSetsNextURL(*next),
+				asc.Limit[asc.GCLeaderboardSetsOption](*limit),
+				asc.NextURL[asc.GCLeaderboardSetsOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithGCLeaderboardSetsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.GCLeaderboardSetsOption](200))
 				firstPage, err := client.GetGameCenterLeaderboardSetsV2(requestCtx, gcDetailID, group, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("game-center leaderboard-sets v2 list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterLeaderboardSetsV2(ctx, gcDetailID, group, asc.WithGCLeaderboardSetsNextURL(nextURL))
+					return client.GetGameCenterLeaderboardSetsV2(ctx, gcDetailID, group, asc.NextURL[asc.GCLeaderboardSetsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("game-center leaderboard-sets v2 list: %w", err)
@@ -330,51 +330,28 @@ Examples:
 
 // GameCenterLeaderboardSetsV2DeleteCommand returns the leaderboard-sets v2 delete subcommand.
 func GameCenterLeaderboardSetsV2DeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("delete", flag.ExitOnError)
-
-	setID := shared.BindResourceIDFlag(fs, "id", "gameCenterLeaderboardSets", "Game Center leaderboard set ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc game-center leaderboard-sets v2 delete --id \"SET_ID\" --confirm",
-		ShortHelp:  "Delete a Game Center leaderboard set (v2).",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "delete",
+		Name:        "delete",
+		ShortUsage:  "asc game-center leaderboard-sets v2 delete --id \"SET_ID\" --confirm",
+		ShortHelp:   "Delete a Game Center leaderboard set (v2).",
 		LongHelp: `Delete a Game Center leaderboard set (v2).
 
 Examples:
   asc game-center leaderboard-sets v2 delete --id "SET_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*setID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center leaderboard-sets v2 delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteGameCenterLeaderboardSetV2(requestCtx, id); err != nil {
-				return fmt.Errorf("game-center leaderboard-sets v2 delete: failed to delete: %w", err)
-			}
-
-			result := &asc.GameCenterLeaderboardSetDeleteResult{
-				ID:      id,
-				Deleted: true,
-			}
-
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "id",
+		IDUsage:            "Game Center leaderboard set ID",
+		IDType:             "gameCenterLeaderboardSets",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center leaderboard-sets v2 delete",
+		DeleteErrorPrefix:  "game-center leaderboard-sets v2 delete: failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteGameCenterLeaderboardSetV2(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.GameCenterLeaderboardSetDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
 
 // GameCenterLeaderboardSetMembersV2Command returns the leaderboard set members v2 command group.
@@ -423,7 +400,7 @@ Examples:
 		ErrorPrefix:          "game-center leaderboard-sets v2 members list",
 		FetchErrorPrefix:     "game-center leaderboard-sets v2 members list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, setId string, limit int, next string) (asc.PaginatedResponse, error) {
-			return client.GetGameCenterLeaderboardSetMembersV2(ctx, setId, asc.WithGCLeaderboardSetMembersLimit(limit), asc.WithGCLeaderboardSetMembersNextURL(next))
+			return client.GetGameCenterLeaderboardSetMembersV2(ctx, setId, asc.Limit[asc.GCLeaderboardSetMembersOption](limit), asc.NextURL[asc.GCLeaderboardSetMembersOption](next))
 		},
 	})
 }
@@ -539,7 +516,7 @@ Examples:
 		ErrorPrefix:          "game-center leaderboard-sets v2 versions list",
 		FetchErrorPrefix:     "game-center leaderboard-sets v2 versions list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, setId string, limit int, next string) (asc.PaginatedResponse, error) {
-			return client.GetGameCenterLeaderboardSetVersions(ctx, setId, asc.WithGCLeaderboardSetVersionsLimit(limit), asc.WithGCLeaderboardSetVersionsNextURL(next))
+			return client.GetGameCenterLeaderboardSetVersions(ctx, setId, asc.Limit[asc.GCLeaderboardSetVersionsOption](limit), asc.NextURL[asc.GCLeaderboardSetVersionsOption](next))
 		},
 	})
 }
@@ -656,7 +633,7 @@ Examples:
 		ErrorPrefix:          "game-center leaderboard-sets v2 localizations list",
 		FetchErrorPrefix:     "game-center leaderboard-sets v2 localizations list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, versionId string, limit int, next string) (asc.PaginatedResponse, error) {
-			return client.GetGameCenterLeaderboardSetVersionLocalizations(ctx, versionId, asc.WithGCLeaderboardSetLocalizationsLimit(limit), asc.WithGCLeaderboardSetLocalizationsNextURL(next))
+			return client.GetGameCenterLeaderboardSetVersionLocalizations(ctx, versionId, asc.Limit[asc.GCLeaderboardSetLocalizationsOption](limit), asc.NextURL[asc.GCLeaderboardSetLocalizationsOption](next))
 		},
 	})
 }
@@ -794,51 +771,28 @@ Examples:
 
 // GameCenterLeaderboardSetLocalizationsV2DeleteCommand returns the leaderboard set localizations v2 delete subcommand.
 func GameCenterLeaderboardSetLocalizationsV2DeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("delete", flag.ExitOnError)
-
-	localizationID := shared.BindResourceIDFlag(fs, "id", "gameCenterLeaderboardSetLocalizations", "Game Center leaderboard set localization ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc game-center leaderboard-sets v2 localizations delete --id \"LOC_ID\" --confirm",
-		ShortHelp:  "Delete a Game Center leaderboard set localization (v2).",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "delete",
+		Name:        "delete",
+		ShortUsage:  "asc game-center leaderboard-sets v2 localizations delete --id \"LOC_ID\" --confirm",
+		ShortHelp:   "Delete a Game Center leaderboard set localization (v2).",
 		LongHelp: `Delete a Game Center leaderboard set localization (v2).
 
 Examples:
   asc game-center leaderboard-sets v2 localizations delete --id "LOC_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*localizationID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center leaderboard-sets v2 localizations delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteGameCenterLeaderboardSetLocalizationV2(requestCtx, id); err != nil {
-				return fmt.Errorf("game-center leaderboard-sets v2 localizations delete: failed to delete: %w", err)
-			}
-
-			result := &asc.GameCenterLeaderboardSetLocalizationDeleteResult{
-				ID:      id,
-				Deleted: true,
-			}
-
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "id",
+		IDUsage:            "Game Center leaderboard set localization ID",
+		IDType:             "gameCenterLeaderboardSetLocalizations",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center leaderboard-sets v2 localizations delete",
+		DeleteErrorPrefix:  "game-center leaderboard-sets v2 localizations delete: failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteGameCenterLeaderboardSetLocalizationV2(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.GameCenterLeaderboardSetLocalizationDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
 
 // GameCenterLeaderboardSetImagesV2Command returns the leaderboard set images v2 command group.
@@ -977,49 +931,26 @@ Examples:
 
 // GameCenterLeaderboardSetImagesV2DeleteCommand returns the leaderboard set images v2 delete subcommand.
 func GameCenterLeaderboardSetImagesV2DeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("delete", flag.ExitOnError)
-
-	imageID := shared.BindResourceIDFlag(fs, "id", "gameCenterLeaderboardSetImages", "Game Center leaderboard set image ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc game-center leaderboard-sets v2 images delete --id \"IMAGE_ID\" --confirm",
-		ShortHelp:  "Delete a Game Center leaderboard set image (v2).",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "delete",
+		Name:        "delete",
+		ShortUsage:  "asc game-center leaderboard-sets v2 images delete --id \"IMAGE_ID\" --confirm",
+		ShortHelp:   "Delete a Game Center leaderboard set image (v2).",
 		LongHelp: `Delete a Game Center leaderboard set image (v2).
 
 Examples:
   asc game-center leaderboard-sets v2 images delete --id "IMAGE_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*imageID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center leaderboard-sets v2 images delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteGameCenterLeaderboardSetImageV2(requestCtx, id); err != nil {
-				return fmt.Errorf("game-center leaderboard-sets v2 images delete: failed to delete: %w", err)
-			}
-
-			result := &asc.GameCenterLeaderboardSetImageDeleteResult{
-				ID:      id,
-				Deleted: true,
-			}
-
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "id",
+		IDUsage:            "Game Center leaderboard set image ID",
+		IDType:             "gameCenterLeaderboardSetImages",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center leaderboard-sets v2 images delete",
+		DeleteErrorPrefix:  "game-center leaderboard-sets v2 images delete: failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteGameCenterLeaderboardSetImageV2(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.GameCenterLeaderboardSetImageDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }

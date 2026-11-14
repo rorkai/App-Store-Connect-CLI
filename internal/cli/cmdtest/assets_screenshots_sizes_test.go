@@ -12,8 +12,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync/atomic"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestAssetsScreenshotsSizesRejectsAllWithDisplayType(t *testing.T) {
@@ -69,15 +70,8 @@ func TestAssetsScreenshotsUploadRejectsInvalidDimensionsBeforeNetwork(t *testing
 	path := filepath.Join(dir, "invalid.png")
 	writePNG(t, path, 100, 100)
 
-	var calls int32
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		atomic.AddInt32(&calls, 1)
-		return nil, fmt.Errorf("unexpected network request: %s %s", req.Method, req.URL.Path)
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -114,7 +108,7 @@ func TestAssetsScreenshotsUploadRejectsInvalidDimensionsBeforeNetwork(t *testing
 	if !strings.Contains(message, "asc screenshots sizes") {
 		t.Fatalf("expected hint in error, got %q", message)
 	}
-	if atomic.LoadInt32(&calls) != 0 {
+	if calls := len(reg.Requests()); calls != 0 {
 		t.Fatalf("expected no network calls, got %d", calls)
 	}
 }
@@ -156,15 +150,8 @@ func TestAssetsScreenshotsUploadSuggestsMatchingDisplayTypeBeforeNetwork(t *test
 	path := filepath.Join(dir, "known-size-wrong-type.png")
 	writePNG(t, path, 1206, 2622)
 
-	var calls int32
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		atomic.AddInt32(&calls, 1)
-		return nil, fmt.Errorf("unexpected network request: %s %s", req.Method, req.URL.Path)
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -194,7 +181,7 @@ func TestAssetsScreenshotsUploadSuggestsMatchingDisplayTypeBeforeNetwork(t *test
 	if !strings.Contains(runErr.Error(), "This size matches: APP_IPHONE_61") {
 		t.Fatalf("expected display type suggestion in error, got %q", runErr.Error())
 	}
-	if atomic.LoadInt32(&calls) != 0 {
+	if calls := len(reg.Requests()); calls != 0 {
 		t.Fatalf("expected no network calls, got %d", calls)
 	}
 }
@@ -207,13 +194,9 @@ func TestAssetsScreenshotsUploadAcceptsIPhone69AliasAndLatestDimensions(t *testi
 	path := filepath.Join(dir, "valid-iphone69.png")
 	writePNG(t, path, 1320, 2868)
 
-	var calls int32
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		atomic.AddInt32(&calls, 1)
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreVersionLocalizations/LOC_ID/appScreenshotSets"), func(*http.Request) (*http.Response, error) {
 		return nil, fmt.Errorf("forced network failure after local validation")
 	})
 
@@ -245,7 +228,7 @@ func TestAssetsScreenshotsUploadAcceptsIPhone69AliasAndLatestDimensions(t *testi
 	if !strings.Contains(runErr.Error(), "forced network failure after local validation") {
 		t.Fatalf("expected network failure error, got %q", runErr.Error())
 	}
-	if atomic.LoadInt32(&calls) == 0 {
+	if len(reg.Requests()) == 0 {
 		t.Fatal("expected at least one network call after successful local validation")
 	}
 }

@@ -285,45 +285,26 @@ Examples:
 
 // CustomPageLocalizationsDeleteCommand returns the custom page localizations delete subcommand.
 func CustomPageLocalizationsDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("custom-page-localizations delete", flag.ExitOnError)
-
-	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appCustomProductPageLocalizations", "Custom product page localization ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc product-pages custom-pages localizations delete --localization-id \"LOCALIZATION_ID\" --confirm",
-		ShortHelp:  "Delete a custom product page localization.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "custom-page-localizations delete",
+		Name:        "delete",
+		ShortUsage:  "asc product-pages custom-pages localizations delete --localization-id \"LOCALIZATION_ID\" --confirm",
+		ShortHelp:   "Delete a custom product page localization.",
 		LongHelp: `Delete a custom product page localization.
 
 Examples:
   asc product-pages custom-pages localizations delete --localization-id "LOCALIZATION_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			trimmedID := strings.TrimSpace(*localizationID)
-			if trimmedID == "" {
-				return shared.RequiredFlag("--localization-id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("custom-pages localizations delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteAppCustomProductPageLocalization(requestCtx, trimmedID); err != nil {
-				return fmt.Errorf("custom-pages localizations delete: failed to delete: %w", err)
-			}
-
-			result := &asc.AppCustomProductPageLocalizationDeleteResult{ID: trimmedID, Deleted: true}
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "localization-id",
+		IDUsage:            "Custom product page localization ID",
+		IDType:             "appCustomProductPageLocalizations",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "custom-pages localizations delete",
+		DeleteErrorPrefix:  "custom-pages localizations delete: failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteAppCustomProductPageLocalization(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.AppCustomProductPageLocalizationDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }

@@ -137,51 +137,28 @@ Examples:
 
 // GameCenterLeaderboardImagesDeleteCommand returns the leaderboard images delete subcommand.
 func GameCenterLeaderboardImagesDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("delete", flag.ExitOnError)
-
-	imageID := shared.BindResourceIDFlag(fs, "id", "gameCenterLeaderboardImages", "Game Center leaderboard image ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc game-center leaderboards images delete --id \"IMAGE_ID\" --confirm",
-		ShortHelp:  "Delete a Game Center leaderboard image.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "delete",
+		Name:        "delete",
+		ShortUsage:  "asc game-center leaderboards images delete --id \"IMAGE_ID\" --confirm",
+		ShortHelp:   "Delete a Game Center leaderboard image.",
 		LongHelp: `Delete a Game Center leaderboard image.
 
 Examples:
   asc game-center leaderboards images delete --id "IMAGE_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*imageID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center leaderboards images delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteGameCenterLeaderboardImage(requestCtx, id); err != nil {
-				return fmt.Errorf("game-center leaderboards images delete: failed to delete: %w", err)
-			}
-
-			result := &asc.GameCenterLeaderboardImageDeleteResult{
-				ID:      id,
-				Deleted: true,
-			}
-
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "id",
+		IDUsage:            "Game Center leaderboard image ID",
+		IDType:             "gameCenterLeaderboardImages",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center leaderboards images delete",
+		DeleteErrorPrefix:  "game-center leaderboards images delete: failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteGameCenterLeaderboardImage(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.GameCenterLeaderboardImageDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
 
 // GameCenterLeaderboardsListCommand returns the leaderboards list subcommand.
@@ -249,19 +226,19 @@ Examples:
 			}
 
 			opts := []asc.GCLeaderboardsOption{
-				asc.WithGCLeaderboardsLimit(*limit),
-				asc.WithGCLeaderboardsNextURL(*next),
+				asc.Limit[asc.GCLeaderboardsOption](*limit),
+				asc.NextURL[asc.GCLeaderboardsOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithGCLeaderboardsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.GCLeaderboardsOption](200))
 				firstPage, err := client.GetGameCenterLeaderboards(requestCtx, gcDetailID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("game-center leaderboards list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterLeaderboards(ctx, gcDetailID, asc.WithGCLeaderboardsNextURL(nextURL))
+					return client.GetGameCenterLeaderboards(ctx, gcDetailID, asc.NextURL[asc.GCLeaderboardsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("game-center leaderboards list: %w", err)
@@ -906,7 +883,7 @@ Examples:
 		ErrorPrefix:          "game-center leaderboards releases list",
 		FetchErrorPrefix:     "game-center leaderboards releases list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, leaderboardId string, limit int, next string) (asc.PaginatedResponse, error) {
-			return client.GetGameCenterLeaderboardReleases(ctx, leaderboardId, asc.WithGCLeaderboardReleasesLimit(limit), asc.WithGCLeaderboardReleasesNextURL(next))
+			return client.GetGameCenterLeaderboardReleases(ctx, leaderboardId, asc.Limit[asc.GCLeaderboardReleasesOption](limit), asc.NextURL[asc.GCLeaderboardReleasesOption](next))
 		},
 	})
 }
@@ -969,51 +946,28 @@ Examples:
 
 // GameCenterLeaderboardReleasesDeleteCommand returns the releases delete subcommand.
 func GameCenterLeaderboardReleasesDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("delete", flag.ExitOnError)
-
-	releaseID := shared.BindResourceIDFlag(fs, "id", "gameCenterLeaderboardReleases", "Game Center leaderboard release ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc game-center leaderboards releases delete --id \"RELEASE_ID\" --confirm",
-		ShortHelp:  "Delete a Game Center leaderboard release.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "delete",
+		Name:        "delete",
+		ShortUsage:  "asc game-center leaderboards releases delete --id \"RELEASE_ID\" --confirm",
+		ShortHelp:   "Delete a Game Center leaderboard release.",
 		LongHelp: `Delete a Game Center leaderboard release.
 
 Examples:
   asc game-center leaderboards releases delete --id "RELEASE_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*releaseID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center leaderboards releases delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteGameCenterLeaderboardRelease(requestCtx, id); err != nil {
-				return fmt.Errorf("game-center leaderboards releases delete: failed to delete: %w", err)
-			}
-
-			result := &asc.GameCenterLeaderboardReleaseDeleteResult{
-				ID:      id,
-				Deleted: true,
-			}
-
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "id",
+		IDUsage:            "Game Center leaderboard release ID",
+		IDType:             "gameCenterLeaderboardReleases",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center leaderboards releases delete",
+		DeleteErrorPrefix:  "game-center leaderboards releases delete: failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteGameCenterLeaderboardRelease(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.GameCenterLeaderboardReleaseDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
 
 // leaderboardRecurrenceDuration allows time components only. OpenAPI says
