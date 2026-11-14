@@ -34,10 +34,9 @@ class ChangeScopeTest(unittest.TestCase):
                 self.assertEqual(ci_change_scope.classify([path]), "full")
 
     def test_openapi_snapshot_requires_schema_drift_tests(self) -> None:
-        self.assertEqual(
-            ci_change_scope.classify(["docs/openapi/latest.json"]),
-            "full",
-        )
+        for path in ("docs/openapi/latest.json", "docs/openapi/web/latest.json"):
+            with self.subTest(path=path):
+                self.assertEqual(ci_change_scope.classify([path]), "full")
 
     def test_embedded_guides_require_runtime_docs_tests(self) -> None:
         for path in ("docs/API_NOTES.md", "docs/WORKFLOWS.md"):
