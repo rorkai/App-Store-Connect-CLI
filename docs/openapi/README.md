@@ -63,15 +63,6 @@ by hand.
   that message: it fails when the method stops producing it, produces another
   one, or the reason is empty. The generator keeps these records when it
   rewrites a bindings file and generates nothing from them.
-- `cd internal/asc && go run ../openapigen -report` lists the hand-written
-  client methods that send a request no operation in `latest.json` describes,
-  and the hand-written attribute structs that lack an attribute of their
-  resource and neither keep unmodeled attributes (`apiAttributes`) nor encode
-  themselves. It changes nothing and never fails. It follows request paths
-  written as string literals (including `+` concatenation), through helpers
-  that take a path segment or the HTTP method from their callers and through
-  package functions that return a path; a path assembled without any `/v…`
-  literal is not seen.
 - To move hand-written code of more tags to the generator, run
   `cd internal/asc && go run ../openapigen -adopt <Tag>[,<Tag>...]`. For each
   operation of a tag it renders the method from the spec and the choices read

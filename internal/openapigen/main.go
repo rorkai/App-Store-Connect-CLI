@@ -21,24 +21,17 @@ func main() {
 	check := flag.Bool("check", false, "fail if generated files are out of date instead of writing them")
 	adopt := flag.String("adopt", "", "comma-separated tags (or \"all\") whose hand-written methods and types to replace")
 	dryRun := flag.Bool("dry-run", false, "with -adopt, only report what would be generated")
-	report := flag.Bool("report", false, "list hand-written methods and attribute structs the spec does not back, and change nothing")
 	flag.Parse()
-	if err := run(*specPath, *bindingsDir, *dir, *check, *adopt, *dryRun, *report, os.Stdout); err != nil {
+	if err := run(*specPath, *bindingsDir, *dir, *check, *adopt, *dryRun, os.Stdout); err != nil {
 		fmt.Fprintln(os.Stderr, "openapigen:", err)
 		os.Exit(1)
 	}
 }
 
-func run(specPath, bindingsDir, dir string, check bool, adopt string, dryRun, reportOnly bool, report io.Writer) error {
-	if reportOnly && (check || adopt != "" || dryRun) {
-		return fmt.Errorf("-report cannot be combined with -check, -adopt or -dry-run")
-	}
+func run(specPath, bindingsDir, dir string, check bool, adopt string, dryRun bool, report io.Writer) error {
 	spec, err := LoadSpec(specPath)
 	if err != nil {
 		return err
-	}
-	if reportOnly {
-		return Report(spec, dir, report)
 	}
 	bindings, err := LoadBindings(bindingsDir)
 	if err != nil {

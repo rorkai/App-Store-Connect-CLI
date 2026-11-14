@@ -79,7 +79,7 @@ func writeHandWritten(t *testing.T, files map[string]string) string {
 }
 
 func runAdopt(dir string, dryRun bool) error {
-	return run(filepath.Join("testdata", "spec.json"), filepath.Join(dir, "bindings"), dir, false, "Widgets", dryRun, false, io.Discard)
+	return run(filepath.Join("testdata", "spec.json"), filepath.Join(dir, "bindings"), dir, false, "Widgets", dryRun, io.Discard)
 }
 
 func TestAdoptReplacesOnlyCodeTheGeneratorReproduces(t *testing.T) {
@@ -139,7 +139,7 @@ func TestAdoptIntoAnExistingFamilyLeavesItUpToDate(t *testing.T) {
 	if err := runAdopt(dir, false); err != nil {
 		t.Fatal(err)
 	}
-	if err := run(filepath.Join("testdata", "spec.json"), filepath.Join(dir, "bindings"), dir, true, "", false, false, io.Discard); err != nil {
+	if err := run(filepath.Join("testdata", "spec.json"), filepath.Join(dir, "bindings"), dir, true, "", false, io.Discard); err != nil {
 		t.Fatalf("check right after adopt: %v", err)
 	}
 	if got := readFile(t, filepath.Join(dir, "bindings", "Widgets.json")); !strings.Contains(got, `"name":"UpdateWidget","params":["widgetID"],"deviations":[`+deviation+`]}`) {
