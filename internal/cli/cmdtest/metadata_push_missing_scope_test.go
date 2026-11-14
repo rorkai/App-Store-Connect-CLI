@@ -10,73 +10,80 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 type metadataScopeFixture struct {
-	mu       sync.Mutex
-	requests []string
-}
-
-func (f *metadataScopeFixture) record(req *http.Request) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.requests = append(f.requests, req.Method+" "+req.URL.Path)
+	reg *asctest.Registry
 }
 
 func (f *metadataScopeFixture) seen(prefix string) []string {
-	f.mu.Lock()
-	defer f.mu.Unlock()
 	var matches []string
-	for _, request := range f.requests {
-		if strings.HasPrefix(request, prefix) {
+	for _, req := range f.reg.Requests() {
+		if request := req.Method + " " + req.URL.Path; strings.HasPrefix(request, prefix) {
 			matches = append(matches, request)
 		}
 	}
 	return matches
 }
 
-// installMetadataScopeTransport serves one app info with en-US and fr-FR
-// localizations and one version with en-US and fr-FR localizations.
-func installMetadataScopeTransport(t *testing.T) *metadataScopeFixture {
+// metadataScopeStubs serves one app info with en-US and fr-FR localizations
+// and one version with en-US and fr-FR localizations.
+var metadataScopeStubs = map[string]struct {
+	matcher  asctest.Matcher
+	response asctest.Responder
+}{
+	"GET /v1/apps/app-1/appInfos": {
+		asctest.GET("/v1/apps/app-1/appInfos"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfos","id":"appinfo-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`),
+	},
+	"GET /v1/apps/app-1/appStoreVersions": {
+		asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[versionString]=1.2.3", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{"next":""}}`),
+	},
+	"GET /v1/appInfos/appinfo-1/appInfoLocalizations": {
+		asctest.GET("/v1/appInfos/appinfo-1/appInfoLocalizations", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[
+			{"type":"appInfoLocalizations","id":"loc-app-en","attributes":{"locale":"en-US","name":"App Name","subtitle":"Remote subtitle"}},
+			{"type":"appInfoLocalizations","id":"loc-app-fr","attributes":{"locale":"fr-FR","name":"App FR"}}
+		],"links":{"next":""}}`),
+	},
+	"GET /v1/appStoreVersions/version-1/appStoreVersionLocalizations": {
+		asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[
+			{"type":"appStoreVersionLocalizations","id":"loc-ver-en","attributes":{"locale":"en-US","description":"Remote description","keywords":"one,two","supportUrl":"https://example.com/support","whatsNew":"Fixes"}},
+			{"type":"appStoreVersionLocalizations","id":"loc-ver-fr","attributes":{"locale":"fr-FR","description":"Description FR","keywords":"un,deux","supportUrl":"https://example.com/fr","whatsNew":"Corrections"}}
+		],"links":{"next":""}}`),
+	},
+	"PATCH /v1/appStoreVersionLocalizations/loc-ver-en": {
+		asctest.PATCH("/v1/appStoreVersionLocalizations/loc-ver-en").JSONBody(`{"data":{"type":"appStoreVersionLocalizations","id":"loc-ver-en","attributes":{"description":"Local description"}}}`),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreVersionLocalizations","id":"loc-ver-en","attributes":{"locale":"en-US","description":"Local description"}}}`),
+	},
+	"DELETE /v1/appStoreVersionLocalizations/loc-ver-fr": {
+		asctest.DELETE("/v1/appStoreVersionLocalizations/loc-ver-fr"),
+		asctest.JSON(http.StatusNoContent, ""),
+	},
+	"PATCH /v1/appInfoLocalizations/loc-app-en": {
+		asctest.PATCH("/v1/appInfoLocalizations/loc-app-en").JSONBody(`{"data":{"type":"appInfoLocalizations","id":"loc-app-en","attributes":{"name":"App Name","subtitle":"Local subtitle"}}}`),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"appInfoLocalizations","id":"loc-app-en","attributes":{"locale":"en-US","subtitle":"Local subtitle"}}}`),
+	},
+}
+
+// installMetadataScopeTransport stubs the named metadataScopeStubs requests.
+func installMetadataScopeTransport(t *testing.T, requests ...string) *metadataScopeFixture {
 	t.Helper()
-	fixture := &metadataScopeFixture{}
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		fixture.record(req)
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appInfos":
-			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"appInfos","id":"appinfo-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`), nil
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appStoreVersions":
-			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{"next":""}}`), nil
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appInfos/appinfo-1/appInfoLocalizations":
-			return jsonHTTPResponse(http.StatusOK, `{"data":[
-				{"type":"appInfoLocalizations","id":"loc-app-en","attributes":{"locale":"en-US","name":"App Name","subtitle":"Remote subtitle"}},
-				{"type":"appInfoLocalizations","id":"loc-app-fr","attributes":{"locale":"fr-FR","name":"App FR"}}
-			],"links":{"next":""}}`), nil
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
-			return jsonHTTPResponse(http.StatusOK, `{"data":[
-				{"type":"appStoreVersionLocalizations","id":"loc-ver-en","attributes":{"locale":"en-US","description":"Remote description","keywords":"one,two","supportUrl":"https://example.com/support","whatsNew":"Fixes"}},
-				{"type":"appStoreVersionLocalizations","id":"loc-ver-fr","attributes":{"locale":"fr-FR","description":"Description FR","keywords":"un,deux","supportUrl":"https://example.com/fr","whatsNew":"Corrections"}}
-			],"links":{"next":""}}`), nil
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1":
-			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`), nil
-		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appStoreVersionLocalizations/loc-ver-en":
-			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"appStoreVersionLocalizations","id":"loc-ver-en","attributes":{"locale":"en-US","description":"Local description"}}}`), nil
-		case req.Method == http.MethodDelete && req.URL.Path == "/v1/appStoreVersionLocalizations/loc-ver-fr":
-			return &http.Response{StatusCode: http.StatusNoContent, Body: io.NopCloser(strings.NewReader("")), Header: http.Header{}}, nil
-		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appInfoLocalizations/loc-app-en":
-			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"appInfoLocalizations","id":"loc-app-en","attributes":{"locale":"en-US","subtitle":"Local subtitle"}}}`), nil
-		default:
-			t.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
-			return jsonHTTPResponse(http.StatusNotFound, `{"errors":[{"status":"404"}]}`), nil
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	for _, request := range requests {
+		stub, ok := metadataScopeStubs[request]
+		if !ok {
+			t.Fatalf("no metadata scope stub for %q", request)
 		}
-	})
-	return fixture
+		reg.Register(stub.matcher, stub.response)
+	}
+	return &metadataScopeFixture{reg: reg}
 }
 
 type metadataScopePlan struct {
@@ -141,7 +148,7 @@ func TestMetadataPushAbsentAppInfoDirLeavesAppInfoScopeUnmanaged(t *testing.T) {
 	writeMetadataScopeFile(t, filepath.Join(dir, "version", "1.2.3", "fr-FR.json"), `{"description":"Description FR"}`)
 
 	t.Run("dry-run plans no app-info entries", func(t *testing.T) {
-		fixture := installMetadataScopeTransport(t)
+		fixture := installMetadataScopeTransport(t, "GET /v1/apps/app-1/appStoreVersions", "GET /v1/appStoreVersions/version-1/appStoreVersionLocalizations")
 		stdout, stderr, err := runMetadataScopePush(t, "--dir", dir, "--dry-run")
 		if err != nil {
 			t.Fatalf("run error: %v\nstderr=%q", err, stderr)
@@ -176,7 +183,7 @@ func TestMetadataPushAbsentAppInfoDirLeavesAppInfoScopeUnmanaged(t *testing.T) {
 	})
 
 	t.Run("apply succeeds without allow-deletes", func(t *testing.T) {
-		fixture := installMetadataScopeTransport(t)
+		fixture := installMetadataScopeTransport(t, "GET /v1/apps/app-1/appStoreVersions", "GET /v1/appStoreVersions/version-1/appStoreVersionLocalizations", "PATCH /v1/appStoreVersionLocalizations/loc-ver-en")
 		stdout, stderr, err := runMetadataScopePush(t, "--dir", dir)
 		if err != nil {
 			t.Fatalf("run error: %v\nstderr=%q", err, stderr)
@@ -193,7 +200,7 @@ func TestMetadataPushAbsentAppInfoDirLeavesAppInfoScopeUnmanaged(t *testing.T) {
 	})
 
 	t.Run("allow-deletes does not delete unmanaged app-info locales", func(t *testing.T) {
-		fixture := installMetadataScopeTransport(t)
+		fixture := installMetadataScopeTransport(t, "GET /v1/apps/app-1/appStoreVersions", "GET /v1/appStoreVersions/version-1/appStoreVersionLocalizations", "PATCH /v1/appStoreVersionLocalizations/loc-ver-en", "DELETE /v1/appStoreVersionLocalizations/loc-ver-fr")
 		versionOnlyDir := t.TempDir()
 		writeMetadataScopeFile(t, filepath.Join(versionOnlyDir, "version", "1.2.3", "en-US.json"), `{"description":"Local description"}`)
 		stdout, stderr, err := runMetadataScopePush(t, "--dir", versionOnlyDir, "--allow-deletes", "--confirm")
@@ -217,7 +224,7 @@ func TestMetadataPushAbsentVersionDirLeavesVersionScopeUnmanaged(t *testing.T) {
 	writeMetadataScopeFile(t, filepath.Join(dir, "app-info", "fr-FR.json"), `{"name":"App FR"}`)
 
 	t.Run("dry-run plans no version entries", func(t *testing.T) {
-		fixture := installMetadataScopeTransport(t)
+		fixture := installMetadataScopeTransport(t, "GET /v1/apps/app-1/appStoreVersions", "GET /v1/apps/app-1/appInfos", "GET /v1/appInfos/appinfo-1/appInfoLocalizations")
 		stdout, stderr, err := runMetadataScopePush(t, "--dir", dir, "--dry-run")
 		if err != nil {
 			t.Fatalf("run error: %v\nstderr=%q", err, stderr)
@@ -235,7 +242,7 @@ func TestMetadataPushAbsentVersionDirLeavesVersionScopeUnmanaged(t *testing.T) {
 	})
 
 	t.Run("apply succeeds without allow-deletes", func(t *testing.T) {
-		fixture := installMetadataScopeTransport(t)
+		fixture := installMetadataScopeTransport(t, "GET /v1/apps/app-1/appStoreVersions", "GET /v1/apps/app-1/appInfos", "GET /v1/appInfos/appinfo-1/appInfoLocalizations", "PATCH /v1/appInfoLocalizations/loc-app-en")
 		_, stderr, err := runMetadataScopePush(t, "--dir", dir)
 		if err != nil {
 			t.Fatalf("run error: %v\nstderr=%q", err, stderr)
@@ -259,7 +266,7 @@ func TestMetadataPushEmptyAppInfoDirStillManagesAppInfoScope(t *testing.T) {
 	writeMetadataScopeFile(t, filepath.Join(dir, "version", "1.2.3", "fr-FR.json"), `{"description":"Description FR"}`)
 
 	t.Run("dry-run plans app-info deletes", func(t *testing.T) {
-		installMetadataScopeTransport(t)
+		installMetadataScopeTransport(t, "GET /v1/apps/app-1/appStoreVersions", "GET /v1/apps/app-1/appInfos", "GET /v1/appInfos/appinfo-1/appInfoLocalizations", "GET /v1/appStoreVersions/version-1/appStoreVersionLocalizations")
 		stdout, stderr, err := runMetadataScopePush(t, "--dir", dir, "--dry-run")
 		if err != nil {
 			t.Fatalf("run error: %v\nstderr=%q", err, stderr)
@@ -276,7 +283,7 @@ func TestMetadataPushEmptyAppInfoDirStillManagesAppInfoScope(t *testing.T) {
 	})
 
 	t.Run("apply requires allow-deletes", func(t *testing.T) {
-		fixture := installMetadataScopeTransport(t)
+		fixture := installMetadataScopeTransport(t, "GET /v1/apps/app-1/appStoreVersions", "GET /v1/apps/app-1/appInfos", "GET /v1/appInfos/appinfo-1/appInfoLocalizations", "GET /v1/appStoreVersions/version-1/appStoreVersionLocalizations")
 		_, stderr, err := runMetadataScopePush(t, "--dir", dir)
 		if !errors.Is(err, flag.ErrHelp) {
 			t.Fatalf("expected ErrHelp, got %v", err)

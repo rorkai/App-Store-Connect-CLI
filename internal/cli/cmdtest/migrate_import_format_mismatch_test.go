@@ -1,13 +1,12 @@
 package cmdtest
 
 import (
-	"errors"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
-	"sync/atomic"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestMigrateImportRejectsFormatExtensionMismatchBeforeAnyMutation(t *testing.T) {
@@ -28,25 +27,17 @@ func TestMigrateImportRejectsFormatExtensionMismatchBeforeAnyMutation(t *testing
 	}
 	writeCmdtestScreenshotJPEG(t, screenshotsDir, "iphone_65_screen.png")
 
-	var requests atomic.Int32
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
 	// Discovery runs before the client exists, so a mismatch must not create
 	// the localization or the screenshot set first.
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requests.Add(1)
-		t.Errorf("unexpected request before import discovery finished: %s %s", req.Method, req.URL.String())
-		return nil, errors.New("unexpected request")
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
 
 	stdout, _, runErr := runMigrateImportWithOptions(t, fastlaneDir)
 
 	if runErr == nil {
 		t.Fatal("expected migrate import to fail for JPEG data named .png")
 	}
-	if got := requests.Load(); got != 0 {
+	if got := len(reg.Requests()); got != 0 {
 		t.Fatalf("expected zero requests, got %d", got)
 	}
 	if stdout != "" {
