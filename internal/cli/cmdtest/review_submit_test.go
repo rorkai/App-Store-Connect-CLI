@@ -581,11 +581,11 @@ const completeAgeRatingAttributes = `"advertising":false,"gambling":false,"healt
 // submitPreflightAppInfosJSON is the app info read by the submit age rating
 // preflight, with the declaration's attributes included.
 func submitPreflightAppInfosJSON(appID, ageRatingAttributes string) string {
-	return `{"data":[{"type":"appInfos","id":"info-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"},"relationships":{"app":{"data":{"type":"apps","id":"` + appID + `"}},"ageRatingDeclaration":{"data":{"type":"ageRatingDeclarations","id":"age-1"}},"appInfoLocalizations":{"data":[]},"primaryCategory":{"data":null}}}],"included":[{"type":"apps","id":"` + appID + `","attributes":{}},{"type":"ageRatingDeclarations","id":"age-1","attributes":{` + ageRatingAttributes + `}}]}`
+	return `{"data":[{"type":"appInfos","id":"info-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"},"relationships":{"app":{"data":{"type":"apps","id":"` + appID + `"}},"ageRatingDeclaration":{"data":{"type":"ageRatingDeclarations","id":"age-1"}}}}],"included":[{"type":"apps","id":"` + appID + `","attributes":{}},{"type":"ageRatingDeclarations","id":"age-1","attributes":{` + ageRatingAttributes + `}}]}`
 }
 
 func registerSubmitPreflightAppInfos(reg *asctest.Registry, ageRatingAttributes string) {
-	reg.Register(asctest.GET("/v1/apps/app-1/appInfos", "include=app,ageRatingDeclaration,appInfoLocalizations,primaryCategory", "limit[appInfoLocalizations]=50"), asctest.JSON(http.StatusOK, submitPreflightAppInfosJSON("app-1", ageRatingAttributes)))
+	reg.Register(asctest.GET("/v1/apps/app-1/appInfos", "include=ageRatingDeclaration"), asctest.JSON(http.StatusOK, submitPreflightAppInfosJSON("app-1", ageRatingAttributes)))
 }
 
 func reviewSubmitRequests(reg *asctest.Registry) []string {

@@ -131,13 +131,22 @@ func fetchVersionReadinessData(ctx context.Context, client *asc.Client, versionI
 }
 
 func fetchAppInfoReadinessData(ctx context.Context, client *asc.Client, appID string) (appInfoReadinessData, error) {
-	response, err := doReadinessRequest(ctx, func(requestCtx context.Context) (*asc.AppInfosResponse, error) {
-		return client.GetAppInfos(
-			requestCtx,
-			appID,
+	return fetchAppInfoData(ctx, client, appID, false)
+}
+
+// fetchAppInfoData reads the app info records. With ageRatingOnly it loads only
+// what is needed to resolve the age rating declaration and skips the app,
+// localization and primary category reads.
+func fetchAppInfoData(ctx context.Context, client *asc.Client, appID string, ageRatingOnly bool) (appInfoReadinessData, error) {
+	options := []asc.AppInfoOption{asc.WithAppInfoInclude([]string{"ageRatingDeclaration"})}
+	if !ageRatingOnly {
+		options = []asc.AppInfoOption{
 			asc.WithAppInfoInclude([]string{"app", "ageRatingDeclaration", "appInfoLocalizations", "primaryCategory"}),
 			asc.WithAppInfoLocalizationsIncludeLimit(compoundLocalizationLimit),
-		)
+		}
+	}
+	response, err := doReadinessRequest(ctx, func(requestCtx context.Context) (*asc.AppInfosResponse, error) {
+		return client.GetAppInfos(requestCtx, appID, options...)
 	})
 	if err != nil {
 		return appInfoReadinessData{}, fmt.Errorf("failed to fetch app info: %w", err)
@@ -208,7 +217,7 @@ func fetchAppInfoReadinessData(ctx context.Context, client *asc.Client, appID st
 	}
 
 	tasks := make([]readinessTask, 0, 4)
-	if appState != compoundLinkageResolved {
+	if !ageRatingOnly && appState != compoundLinkageResolved {
 		tasks = append(tasks, func(taskCtx context.Context) error {
 			appResponse, err := doReadinessRequest(taskCtx, func(requestCtx context.Context) (*asc.AppResponse, error) {
 				return client.GetApp(requestCtx, appID)
@@ -220,7 +229,7 @@ func fetchAppInfoReadinessData(ctx context.Context, client *asc.Client, appID st
 			return nil
 		})
 	}
-	if !localizationsResolved {
+	if !ageRatingOnly && !localizationsResolved {
 		tasks = append(tasks, func(taskCtx context.Context) error {
 			localizationsResponse, err := doReadinessRequest(taskCtx, func(requestCtx context.Context) (*asc.AppInfoLocalizationsResponse, error) {
 				return client.GetAppInfoLocalizations(requestCtx, appInfoID, asc.Limit[asc.AppInfoLocalizationsOption](200))
@@ -232,7 +241,7 @@ func fetchAppInfoReadinessData(ctx context.Context, client *asc.Client, appID st
 			return nil
 		})
 	}
-	if primaryCategoryState == compoundLinkageFallback {
+	if !ageRatingOnly && primaryCategoryState == compoundLinkageFallback {
 		tasks = append(tasks, func(taskCtx context.Context) error {
 			categoryResponse, err := doReadinessRequest(taskCtx, func(requestCtx context.Context) (*asc.AppInfoPrimaryCategoryLinkageResponse, error) {
 				return client.GetAppInfoPrimaryCategoryRelationship(requestCtx, appInfoID)
@@ -275,7 +284,7 @@ func fetchAppInfoReadinessData(ctx context.Context, client *asc.Client, appID st
 // requestTimeout gives each request that budget instead of the default timeout.
 func FetchAgeRatingDeclaration(ctx context.Context, client *asc.Client, appID, versionID string, requestTimeout time.Duration) (*validation.AgeRatingDeclaration, error) {
 	ctx = context.WithValue(ctx, readinessRequestTimeoutKey{}, requestTimeout)
-	data, err := fetchAppInfoReadinessData(ctx, client, appID)
+	data, err := fetchAppInfoData(ctx, client, appID, true)
 	if err != nil {
 		return nil, err
 	}
