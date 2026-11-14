@@ -443,117 +443,54 @@ Examples:
 
 // SubscriptionsOfferCodesOneTimeCodesListCommand returns the offer code one-time use codes list subcommand.
 func SubscriptionsOfferCodesOneTimeCodesListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("offer-codes one-time-codes list", flag.ExitOnError)
-
-	offerCodeID := shared.BindResourceIDFlag(fs, "offer-code-id", "subscriptionOfferCodes", "Offer code ID")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc subscriptions offer-codes one-time-codes list --offer-code-id \"OFFER_CODE_ID\" [flags]",
-		ShortHelp:  "List one-time use code batches for an offer code.",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "offer-codes one-time-codes list",
+		Name:        "list",
+		ShortUsage:  "asc subscriptions offer-codes one-time-codes list --offer-code-id \"OFFER_CODE_ID\" [flags]",
+		ShortHelp:   "List one-time use code batches for an offer code.",
 		LongHelp: `List one-time use code batches for an offer code.
 
 Examples:
   asc subscriptions offer-codes one-time-codes list --offer-code-id "OFFER_CODE_ID"
   asc subscriptions offer-codes one-time-codes list --offer-code-id "OFFER_CODE_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageErrorCtx(ctx, "subscriptions offer-codes one-time-codes list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorfCtx(ctx, "subscriptions offer-codes one-time-codes list: %v", err)
-			}
-
-			id := strings.TrimSpace(*offerCodeID)
-			if id == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--offer-code-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("subscriptions offer-codes one-time-codes list: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			opts := []asc.SubscriptionOfferCodeOneTimeUseCodesOption{
-				asc.Limit[asc.SubscriptionOfferCodeOneTimeUseCodesOption](*limit),
-				asc.NextURL[asc.SubscriptionOfferCodeOneTimeUseCodesOption](*next),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.Limit[asc.SubscriptionOfferCodeOneTimeUseCodesOption](200))
-				firstPage, err := client.GetSubscriptionOfferCodeOneTimeUseCodes(requestCtx, id, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("subscriptions offer-codes one-time-codes list: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetSubscriptionOfferCodeOneTimeUseCodes(ctx, id, asc.NextURL[asc.SubscriptionOfferCodeOneTimeUseCodesOption](nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("subscriptions offer-codes one-time-codes list: %w", err)
-				}
-
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetSubscriptionOfferCodeOneTimeUseCodes(requestCtx, id, opts...)
-			if err != nil {
-				return fmt.Errorf("subscriptions offer-codes one-time-codes list: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		ParentFlag:           "offer-code-id",
+		ParentUsage:          "Offer code ID",
+		ParentType:           "subscriptionOfferCodes",
+		RequiredDiagnostic:   true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		ErrorPrefix:          "subscriptions offer-codes one-time-codes list",
+		FetchErrorPrefix:     "subscriptions offer-codes one-time-codes list: failed to fetch",
+		FetchPage: func(ctx context.Context, client *asc.Client, offerCodeID string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetSubscriptionOfferCodeOneTimeUseCodes(ctx, offerCodeID,
+				asc.Limit[asc.SubscriptionOfferCodeOneTimeUseCodesOption](limit),
+				asc.NextURL[asc.SubscriptionOfferCodeOneTimeUseCodesOption](next),
+			)
 		},
-	}
+	})
 }
 
 // SubscriptionsOfferCodesOneTimeCodesGetCommand returns the offer code one-time use codes get subcommand.
 func SubscriptionsOfferCodesOneTimeCodesGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("offer-codes one-time-codes view", flag.ExitOnError)
-
-	oneTimeCodeID := shared.BindResourceIDFlag(fs, "batch-id", "subscriptionOfferCodeOneTimeUseCodes", "One-time use code batch ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc subscriptions offer-codes one-time-codes view --batch-id \"ONE_TIME_USE_CODE_ID\"",
-		ShortHelp:  "View a one-time use code batch by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "offer-codes one-time-codes view",
+		Name:        "view",
+		ShortUsage:  "asc subscriptions offer-codes one-time-codes view --batch-id \"ONE_TIME_USE_CODE_ID\"",
+		ShortHelp:   "View a one-time use code batch by ID.",
 		LongHelp: `View a one-time use code batch by ID.
 
 Examples:
   asc subscriptions offer-codes one-time-codes view --batch-id "ONE_TIME_USE_CODE_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*oneTimeCodeID)
-			if id == "" {
-				return shared.RequiredFlag("--batch-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("subscriptions offer-codes one-time-codes view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetSubscriptionOfferCodeOneTimeUseCode(requestCtx, id)
-			if err != nil {
-				return fmt.Errorf("subscriptions offer-codes one-time-codes view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDFlag:             "batch-id",
+		IDUsage:            "One-time use code batch ID",
+		IDType:             "subscriptionOfferCodeOneTimeUseCodes",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "subscriptions offer-codes one-time-codes view",
+		FetchErrorPrefix:   "subscriptions offer-codes one-time-codes view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetSubscriptionOfferCodeOneTimeUseCode(ctx, id)
 		},
-	}
+	})
 }
 
 // SubscriptionsOfferCodesOneTimeCodesUpdateCommand returns the one-time use code batch update subcommand.
