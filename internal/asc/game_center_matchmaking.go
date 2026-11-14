@@ -87,49 +87,6 @@ type GameCenterMatchmakingRuleSetAttributes struct {
 	MaxPlayers          int    `json:"maxPlayers"`
 }
 
-// GameCenterMatchmakingRuleSetCreateAttributes describes attributes for creating a rule set.
-type GameCenterMatchmakingRuleSetCreateAttributes struct {
-	ReferenceName       string `json:"referenceName"`
-	RuleLanguageVersion int    `json:"ruleLanguageVersion"`
-	MinPlayers          int    `json:"minPlayers"`
-	MaxPlayers          int    `json:"maxPlayers"`
-}
-
-// GameCenterMatchmakingRuleSetUpdateAttributes describes attributes for updating a rule set.
-type GameCenterMatchmakingRuleSetUpdateAttributes struct {
-	MinPlayers *int `json:"minPlayers,omitempty"`
-	MaxPlayers *int `json:"maxPlayers,omitempty"`
-}
-
-// GameCenterMatchmakingRuleSetCreateData is the data portion of a rule set create request.
-type GameCenterMatchmakingRuleSetCreateData struct {
-	Type       ResourceType                                 `json:"type"`
-	Attributes GameCenterMatchmakingRuleSetCreateAttributes `json:"attributes"`
-}
-
-// GameCenterMatchmakingRuleSetCreateRequest is a request to create a rule set.
-type GameCenterMatchmakingRuleSetCreateRequest struct {
-	Data GameCenterMatchmakingRuleSetCreateData `json:"data"`
-}
-
-// GameCenterMatchmakingRuleSetUpdateData is the data portion of a rule set update request.
-type GameCenterMatchmakingRuleSetUpdateData struct {
-	Type       ResourceType                                  `json:"type"`
-	ID         string                                        `json:"id"`
-	Attributes *GameCenterMatchmakingRuleSetUpdateAttributes `json:"attributes,omitempty"`
-}
-
-// GameCenterMatchmakingRuleSetUpdateRequest is a request to update a rule set.
-type GameCenterMatchmakingRuleSetUpdateRequest struct {
-	Data GameCenterMatchmakingRuleSetUpdateData `json:"data"`
-}
-
-// GameCenterMatchmakingRuleSetsResponse is the response from rule set list endpoints.
-type GameCenterMatchmakingRuleSetsResponse = Response[GameCenterMatchmakingRuleSetAttributes]
-
-// GameCenterMatchmakingRuleSetResponse is the response from rule set detail endpoints.
-type GameCenterMatchmakingRuleSetResponse = SingleResponse[GameCenterMatchmakingRuleSetAttributes]
-
 // GameCenterMatchmakingRuleSetDeleteResult represents CLI output for rule set deletions.
 type GameCenterMatchmakingRuleSetDeleteResult struct {
 	ID      string `json:"id"`

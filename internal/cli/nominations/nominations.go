@@ -651,52 +651,29 @@ Examples:
 
 // NominationsDeleteCommand returns the nominations delete subcommand.
 func NominationsDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("nominations delete", flag.ExitOnError)
-
-	nominationID := shared.BindResourceIDFlag(fs, "id", "nominations", "Nomination ID (required)")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc nominations delete --id NOMINATION_ID --confirm",
-		ShortHelp:  "Delete a featuring nomination.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "nominations delete",
+		Name:        "delete",
+		ShortUsage:  "asc nominations delete --id NOMINATION_ID --confirm",
+		ShortHelp:   "Delete a featuring nomination.",
 		LongHelp: `Delete a featuring nomination.
 
 Examples:
   asc nominations delete --id "NOMINATION_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			trimmedID := strings.TrimSpace(*nominationID)
-			if trimmedID == "" {
-				return shared.RequiredFlag("--id")
-			}
-			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required to delete")
-				return shared.MissingRequiredUsageError("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("nominations delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteNomination(requestCtx, trimmedID); err != nil {
-				return fmt.Errorf("nominations delete: failed to delete: %w", err)
-			}
-
-			result := &asc.NominationDeleteResult{
-				ID:      trimmedID,
-				Deleted: true,
-			}
-
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:                 "id",
+		IDUsage:                "Nomination ID (required)",
+		IDType:                 "nominations",
+		RequiredDiagnostic:     true,
+		ConfirmRequiredMessage: "--confirm is required to delete",
+		ErrorPrefix:            "nominations delete",
+		DeleteErrorPrefix:      "nominations delete: failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteNomination(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.NominationDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
 
 func normalizeNominationType(value string) (string, error) {

@@ -1,0 +1,24 @@
+{
+  "tag": "GameCenterMatchmakingRuleSets",
+  "file": "game_center_matchmaking_rule_sets_gen.go",
+  "types": [
+    "GameCenterMatchmakingRuleSetCreateAttributes",
+    "GameCenterMatchmakingRuleSetCreateData",
+    "GameCenterMatchmakingRuleSetCreateRequest",
+    "GameCenterMatchmakingRuleSetResponse",
+    "GameCenterMatchmakingRuleSetUpdateAttributes",
+    "GameCenterMatchmakingRuleSetUpdateData",
+    "GameCenterMatchmakingRuleSetUpdateRequest",
+    "GameCenterMatchmakingRuleSetsResponse"
+  ],
+  "operations": [
+    {"operation":"gameCenterMatchmakingRuleSets_createInstance","name":"CreateGameCenterMatchmakingRuleSet"},
+    {"operation":"gameCenterMatchmakingRuleSets_deleteInstance","name":"DeleteGameCenterMatchmakingRuleSet","params":["ruleSetID"]},
+    {"operation":"gameCenterMatchmakingRuleSets_getCollection","name":"GetGameCenterMatchmakingRuleSets","options":"GCMatchmakingRuleSetsOption","query":"buildGCMatchmakingRuleSetsQuery","nextContext":"game-center-matchmaking-rule-sets"},
+    {"operation":"gameCenterMatchmakingRuleSets_getInstance","name":"GetGameCenterMatchmakingRuleSet","params":["ruleSetID"]},
+    {"operation":"gameCenterMatchmakingRuleSets_matchmakingQueues_getToManyRelated","name":"GetGameCenterMatchmakingRuleSetQueues","params":["ruleSetID"],"options":"GCMatchmakingQueuesOption","query":"buildGCMatchmakingQueuesQuery","nextContext":"game-center-matchmaking-rule-set-queues"},
+    {"operation":"gameCenterMatchmakingRuleSets_rules_getToManyRelated","name":"GetGameCenterMatchmakingRules","params":["ruleSetID"],"options":"GCMatchmakingRulesOption","query":"buildGCMatchmakingRulesQuery","nextContext":"game-center-matchmaking-rules"},
+    {"operation":"gameCenterMatchmakingRuleSets_teams_getToManyRelated","name":"GetGameCenterMatchmakingTeams","params":["ruleSetID"],"options":"GCMatchmakingTeamsOption","query":"buildGCMatchmakingTeamsQuery","nextContext":"game-center-matchmaking-teams"},
+    {"operation":"gameCenterMatchmakingRuleSets_updateInstance","name":"UpdateGameCenterMatchmakingRuleSet","params":["ruleSetID"]}
+  ]
+}

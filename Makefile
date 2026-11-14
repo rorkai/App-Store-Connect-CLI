@@ -257,6 +257,12 @@ update-schema-index:
 	@echo "$(BLUE)Updating schema index...$(NC)"
 	python3 scripts/generate-schema-index.py
 
+# Regenerate the client code in internal/asc from the OpenAPI snapshot
+.PHONY: generate-client
+generate-client:
+	@echo "$(BLUE)Generating API client code...$(NC)"
+	$(GO) generate ./internal/asc
+
 # Generate docs/COMMANDS.md from live CLI help
 .PHONY: generate-command-docs
 generate-command-docs:
@@ -294,6 +300,7 @@ check-openapi:
 	python3 ./scripts/test_generate_schema_index.py
 	python3 ./scripts/update-openapi-index.py --check
 	python3 ./scripts/generate-schema-index.py --check
+	cd internal/asc && $(GO) run ../openapigen -check
 
 .PHONY: check-docs
 check-docs: check-repo-docs check-agent-skills check-openapi
@@ -377,12 +384,13 @@ help:
 	@echo "  update-deps    Update dependencies"
 	@echo "  update-openapi Update OpenAPI paths index"
 	@echo "  update-schema-index Update runtime schema index"
+	@echo "  generate-client Regenerate API client code from the OpenAPI snapshot"
 	@echo "  generate-command-docs Generate docs/COMMANDS.md from live CLI help"
 	@echo "  check-command-docs Validate docs command lists against live CLI help"
 	@echo "  check-repo-docs Validate local links in repository markdown docs"
 	@echo "  check-website-docs Validate website navigation, links, and CLI examples"
 	@echo "  check-agent-skills Validate repository-scoped Codex skills"
-	@echo "  check-openapi  Validate generated OpenAPI indexes"
+	@echo "  check-openapi  Validate generated OpenAPI indexes and client code"
 	@echo "  check-docs     Run all documentation checks"
 	@echo "  release-guardrails Run non-publishing release checks"
 	@echo "  clean          Clean build artifacts"

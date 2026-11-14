@@ -50,6 +50,7 @@ type AppPreviewAttributes struct {
 	FileName             string              `json:"fileName"`
 	SourceFileChecksum   string              `json:"sourceFileChecksum,omitempty"`
 	PreviewFrameTimeCode string              `json:"previewFrameTimeCode,omitempty"`
+	PreviewFrameImage    *PreviewFrameImage  `json:"previewFrameImage,omitempty"`
 	MimeType             string              `json:"mimeType,omitempty"`
 	VideoURL             string              `json:"videoUrl,omitempty"`
 	PreviewImage         *ImageAsset         `json:"previewImage,omitempty"`

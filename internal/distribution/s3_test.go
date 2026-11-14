@@ -17,6 +17,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -129,52 +130,53 @@ func TestPrivatePublishStopsAfterS3HeadMatchesButFetchedBodyIsCorrupt(t *testing
 	t.Setenv("AWS_ACCESS_KEY_ID", "")
 	t.Setenv("AWS_SECRET_ACCESS_KEY", "")
 	t.Setenv("AWS_SESSION_TOKEN", "")
-	var operations []string
-	server := httptest.NewTLSServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		operations = append(operations, request.Method)
-		switch request.Method {
-		case http.MethodHead:
-			writer.Header().Set("Content-Length", "3")
-			writer.Header().Set("Content-Type", ContentTypeIPA)
-			writer.Header().Set("x-amz-meta-asc-sha256", sha256Hex([]byte("ipa")))
-			writer.WriteHeader(http.StatusOK)
-		case http.MethodGet:
-			writer.Header().Set("Content-Length", "3")
-			writer.Header().Set("Content-Type", ContentTypeIPA)
-			writer.WriteHeader(http.StatusOK)
-			_, _ = writer.Write([]byte("bad"))
-		case http.MethodPut:
-			t.Error("exact HEAD evidence unexpectedly triggered a PUT")
-			writer.WriteHeader(http.StatusInternalServerError)
-		default:
-			writer.WriteHeader(http.StatusMethodNotAllowed)
+	synctest.Test(t, func(t *testing.T) {
+		var operations []string
+		server := httptest.NewTestServer(t, http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			operations = append(operations, request.Method)
+			switch request.Method {
+			case http.MethodHead:
+				writer.Header().Set("Content-Length", "3")
+				writer.Header().Set("Content-Type", ContentTypeIPA)
+				writer.Header().Set("x-amz-meta-asc-sha256", sha256Hex([]byte("ipa")))
+				writer.WriteHeader(http.StatusOK)
+			case http.MethodGet:
+				writer.Header().Set("Content-Length", "3")
+				writer.Header().Set("Content-Type", ContentTypeIPA)
+				writer.WriteHeader(http.StatusOK)
+				_, _ = writer.Write([]byte("bad"))
+			case http.MethodPut:
+				t.Error("exact HEAD evidence unexpectedly triggered a PUT")
+				writer.WriteHeader(http.StatusInternalServerError)
+			default:
+				writer.WriteHeader(http.StatusMethodNotAllowed)
+			}
+		}))
+		store, _, err := NewS3Store(context.Background(), S3StoreConfig{
+			Endpoint: "https://s3.example.com", Region: "auto", Bucket: "bucket", AddressingStyle: "path", HTTPClient: server.Client(),
+		})
+		if err != nil {
+			t.Fatal(err)
 		}
-	}))
-	defer server.Close()
-	store, _, err := NewS3Store(context.Background(), S3StoreConfig{
-		Endpoint: server.URL, Region: "auto", Bucket: "bucket", AddressingStyle: "path", HTTPClient: server.Client(),
+		now := time.Now().UTC().Truncate(time.Second)
+		descriptor := minimalDescriptor([]byte("ipa"))
+		descriptor.Signing.ExpiresAt = now.Add(48 * time.Hour).Format(time.RFC3339)
+		options := PublishOptions{
+			Store: store, Verifier: NewHTTPVerifier(server.Client(), time.Second), Bucket: "bucket", Prefix: "app", Access: AccessPrivate,
+			URLTTL: time.Hour, DownloadGrace: time.Minute, Now: func() time.Time { return now }, RandomID: func() (string, error) { return "stable", nil },
+		}
+		intent, err := PreparePrivatePublishIntent(context.Background(), descriptor, options)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, _, err = ExecutePrivatePublishIntent(context.Background(), bytes.NewReader([]byte("ipa")), descriptor, options, intent)
+		if !errors.Is(err, ErrPrivatePublishConflict) || !errors.Is(err, ErrVerificationContentConflict) {
+			t.Fatalf("corrupt provider body error = %v, want permanent private conflict", err)
+		}
+		if want := []string{http.MethodHead, http.MethodGet}; !slices.Equal(operations, want) {
+			t.Fatalf("provider operations = %v, want %v (no PUT or later objects)", operations, want)
+		}
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	now := time.Now().UTC().Truncate(time.Second)
-	descriptor := minimalDescriptor([]byte("ipa"))
-	descriptor.Signing.ExpiresAt = now.Add(48 * time.Hour).Format(time.RFC3339)
-	options := PublishOptions{
-		Store: store, Verifier: NewHTTPVerifier(server.Client(), time.Second), Bucket: "bucket", Prefix: "app", Access: AccessPrivate,
-		URLTTL: time.Hour, DownloadGrace: time.Minute, Now: func() time.Time { return now }, RandomID: func() (string, error) { return "stable", nil },
-	}
-	intent, err := PreparePrivatePublishIntent(context.Background(), descriptor, options)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, _, err = ExecutePrivatePublishIntent(context.Background(), bytes.NewReader([]byte("ipa")), descriptor, options, intent)
-	if !errors.Is(err, ErrPrivatePublishConflict) || !errors.Is(err, ErrVerificationContentConflict) {
-		t.Fatalf("corrupt provider body error = %v, want permanent private conflict", err)
-	}
-	if want := []string{http.MethodHead, http.MethodGet}; !slices.Equal(operations, want) {
-		t.Fatalf("provider operations = %v, want %v (no PUT or later objects)", operations, want)
-	}
 }
 
 func TestS3StoreDefaultClientHonorsAWSCABundle(t *testing.T) {

@@ -1,0 +1,33 @@
+{
+  "tag": "GameCenterGroups",
+  "file": "game_center_groups_gen.go",
+  "types": [
+    "GameCenterGroupAttributes",
+    "GameCenterGroupCreateAttributes",
+    "GameCenterGroupCreateData",
+    "GameCenterGroupCreateRequest",
+    "GameCenterGroupResponse",
+    "GameCenterGroupUpdateAttributes",
+    "GameCenterGroupUpdateData",
+    "GameCenterGroupUpdateRequest",
+    "GameCenterGroupsResponse"
+  ],
+  "operations": [
+    {"operation":"gameCenterGroups_deleteInstance","name":"DeleteGameCenterGroup","params":["groupID"]},
+    {"operation":"gameCenterGroups_gameCenterAchievementsV2_getToManyRelated","name":"GetGameCenterGroupAchievementsV2","params":["groupID"],"options":"GCAchievementsOption","query":"buildGCAchievementsQuery","nextContext":"game-center-group-achievements-v2","response":"GameCenterAchievementsResponse"},
+    {"operation":"gameCenterGroups_gameCenterAchievementsV2_replaceToManyRelationship","name":"UpdateGameCenterGroupAchievementsV2","params":["groupID"],"ids":"achievementIDs"},
+    {"operation":"gameCenterGroups_gameCenterAchievements_getToManyRelated","name":"GetGameCenterGroupAchievements","params":["groupID"],"options":"GCAchievementsOption","query":"buildGCAchievementsQuery","nextContext":"game-center-group-achievements"},
+    {"operation":"gameCenterGroups_gameCenterAchievements_replaceToManyRelationship","name":"UpdateGameCenterGroupAchievements","params":["groupID"],"ids":"achievementIDs"},
+    {"operation":"gameCenterGroups_gameCenterActivities_getToManyRelated","name":"GetGameCenterGroupActivities","params":["groupID"],"options":"GCActivitiesOption","query":"buildGCActivitiesQuery","nextContext":"game-center-group-activities"},
+    {"operation":"gameCenterGroups_gameCenterChallenges_getToManyRelated","name":"GetGameCenterGroupChallenges","params":["groupID"],"options":"GCChallengesOption","query":"buildGCChallengesQuery","nextContext":"game-center-group-challenges"},
+    {"operation":"gameCenterGroups_gameCenterDetails_getToManyRelated","name":"GetGameCenterGroupGameCenterDetails","params":["groupID"],"check":"require","options":"GCDetailsOption","query":"buildGCDetailsQuery","nextContext":"game-center-group-details"},
+    {"operation":"gameCenterGroups_gameCenterLeaderboardSetsV2_getToManyRelated","name":"GetGameCenterGroupLeaderboardSetsV2","params":["groupID"],"options":"GCLeaderboardSetsOption","query":"buildGCLeaderboardSetsQuery","nextContext":"game-center-group-leaderboard-sets-v2","response":"GameCenterLeaderboardSetsResponse"},
+    {"operation":"gameCenterGroups_gameCenterLeaderboardSets_getToManyRelated","name":"GetGameCenterGroupLeaderboardSets","params":["groupID"],"options":"GCLeaderboardSetsOption","query":"buildGCLeaderboardSetsQuery","nextContext":"game-center-group-leaderboard-sets"},
+    {"operation":"gameCenterGroups_gameCenterLeaderboardsV2_getToManyRelated","name":"GetGameCenterGroupLeaderboardsV2","params":["groupID"],"options":"GCLeaderboardsOption","query":"buildGCLeaderboardsQuery","nextContext":"game-center-group-leaderboards-v2","response":"GameCenterLeaderboardsResponse"},
+    {"operation":"gameCenterGroups_gameCenterLeaderboardsV2_replaceToManyRelationship","name":"UpdateGameCenterGroupLeaderboardsV2","params":["groupID"],"ids":"leaderboardIDs"},
+    {"operation":"gameCenterGroups_gameCenterLeaderboards_getToManyRelated","name":"GetGameCenterGroupLeaderboards","params":["groupID"],"options":"GCLeaderboardsOption","query":"buildGCLeaderboardsQuery","nextContext":"game-center-group-leaderboards"},
+    {"operation":"gameCenterGroups_gameCenterLeaderboards_replaceToManyRelationship","name":"UpdateGameCenterGroupLeaderboards","params":["groupID"],"ids":"leaderboardIDs"},
+    {"operation":"gameCenterGroups_getCollection","name":"GetGameCenterGroups","options":"GCGroupsOption","query":"buildGCGroupsQuery","nextContext":"game-center-groups"},
+    {"operation":"gameCenterGroups_getInstance","name":"GetGameCenterGroup","params":["groupID"]}
+  ]
+}
