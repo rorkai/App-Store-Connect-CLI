@@ -74,8 +74,7 @@ Examples:
 
 			id := strings.TrimSpace(*offerCodeID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --offer-code-id is required")
-				return shared.MissingRequiredUsageError("--offer-code-id")
+				return shared.RequiredFlag("--offer-code-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -138,8 +137,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*customCodeID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --custom-code-id is required")
-				return shared.MissingRequiredUsageError("--custom-code-id")
+				return shared.RequiredFlag("--custom-code-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -184,14 +182,12 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*offerCodeID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --offer-code-id is required")
-				return shared.MissingRequiredUsageError("--offer-code-id")
+				return shared.RequiredFlag("--offer-code-id")
 			}
 
 			code := strings.TrimSpace(*customCode)
 			if code == "" {
-				fmt.Fprintln(os.Stderr, "Error: --custom-code is required")
-				return shared.MissingRequiredUsageError("--custom-code")
+				return shared.RequiredFlag("--custom-code")
 			}
 
 			if *quantity <= 0 {
@@ -329,8 +325,7 @@ Examples:
 
 			id := strings.TrimSpace(*offerCodeID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --offer-code-id is required")
-				return shared.MissingRequiredUsageError("--offer-code-id")
+				return shared.RequiredFlag("--offer-code-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -393,8 +388,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*oneTimeCodeID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --one-time-code-id is required")
-				return shared.MissingRequiredUsageError("--one-time-code-id")
+				return shared.RequiredFlag("--one-time-code-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -440,8 +434,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*offerCodeID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --offer-code-id is required")
-				return shared.MissingRequiredUsageError("--offer-code-id")
+				return shared.RequiredFlag("--offer-code-id")
 			}
 
 			if *quantity <= 0 {
@@ -542,8 +535,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*oneTimeCodeID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --one-time-code-id is required")
-				return shared.MissingRequiredUsageError("--one-time-code-id")
+				return shared.RequiredFlag("--one-time-code-id")
 			}
 
 			client, err := shared.GetASCClient()
