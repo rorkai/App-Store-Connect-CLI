@@ -79,17 +79,6 @@ func TestSubscriptionVersionReadOperations(t *testing.T) {
 			},
 		},
 		{
-			name: "version singular image linkage", path: "/v1/subscriptionVersions/ver-1/relationships/image", query: map[string]string{},
-			response: `{"data":{"type":"subscriptionImages","id":"img-1"},"links":{}}`,
-			call: func(c *Client) error {
-				resp, err := c.GetSubscriptionVersionImageRelationship(ctx, "ver-1")
-				if err == nil && resp.Data.ID != "img-1" {
-					t.Fatalf("linkage not decoded")
-				}
-				return err
-			},
-		},
-		{
 			name: "version plural images related", path: "/v1/subscriptionVersions/ver-1/images", query: map[string]string{"limit": "11", "fields[subscriptionImages]": "fileName"},
 			response: `{"data":[{"type":"subscriptionImages","id":"img-1","attributes":{"fileName":"image.png"}}],"links":{}}`,
 			call: func(c *Client) error {

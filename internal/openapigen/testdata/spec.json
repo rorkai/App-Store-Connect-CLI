@@ -76,6 +76,46 @@
         "responses": {"204": {"description": "Success (no content)"}}
       }
     },
+    "/v1/widgets/{id}/relationships/visibleParts": {
+      "post": {
+        "tags": ["Widgets"],
+        "operationId": "widgets_visibleParts_createToManyRelationship",
+        "requestBody": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WidgetVisiblePartsLinkagesRequest"}}}},
+        "responses": {"204": {"description": "Success (no content)"}}
+      },
+      "delete": {
+        "tags": ["Widgets"],
+        "operationId": "widgets_visibleParts_deleteToManyRelationship",
+        "requestBody": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WidgetVisiblePartsLinkagesRequest"}}}},
+        "responses": {"204": {"description": "Success (no content)"}}
+      },
+      "patch": {
+        "tags": ["Widgets"],
+        "operationId": "widgets_visibleParts_replaceToManyRelationship",
+        "requestBody": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WidgetVisiblePartsLinkagesRequest"}}}},
+        "responses": {"204": {"description": "Success (no content)"}}
+      }
+    },
+    "/v1/widgets/{id}/relationships/wheels": {
+      "post": {
+        "tags": ["Widgets"],
+        "operationId": "widgets_wheels_createToManyRelationship",
+        "requestBody": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WidgetWheelsLinkagesRequest"}}}},
+        "responses": {"204": {"description": "Success (no content)"}}
+      },
+      "delete": {
+        "tags": ["Widgets"],
+        "operationId": "widgets_wheels_deleteToManyRelationship",
+        "requestBody": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WidgetWheelsLinkagesRequest"}}}},
+        "responses": {"204": {"description": "Success (no content)"}}
+      },
+      "patch": {
+        "tags": ["Widgets"],
+        "operationId": "widgets_wheels_replaceToManyRelationship",
+        "requestBody": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WidgetWheelsLinkagesRequest"}}}},
+        "responses": {"204": {"description": "Success (no content)"}}
+      }
+    },
     "/v1/wrenches": {
       "post": {
         "tags": ["Widgets"],
@@ -180,6 +220,40 @@
               "type": "object",
               "properties": {
                 "type": {"type": "string", "enum": ["gadgets"]},
+                "id": {"type": "string"}
+              },
+              "required": ["id", "type"]
+            }
+          }
+        },
+        "required": ["data"]
+      },
+      "WidgetVisiblePartsLinkagesRequest": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": {"type": "string", "enum": ["parts"]},
+                "id": {"type": "string"}
+              },
+              "required": ["id", "type"]
+            }
+          }
+        },
+        "required": ["data"]
+      },
+      "WidgetWheelsLinkagesRequest": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": {"type": "string", "enum": ["wheels"]},
                 "id": {"type": "string"}
               },
               "required": ["id", "type"]
