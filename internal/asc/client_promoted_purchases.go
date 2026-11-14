@@ -7,6 +7,19 @@ import (
 	"strings"
 )
 
+// GetAppPromotedPurchases retrieves promoted purchases for an app.
+func (c *Client) GetAppPromotedPurchases(ctx context.Context, appID string, opts ...PromotedPurchasesOption) (*PromotedPurchasesResponse, error) {
+	query := applyOptions(opts)
+	appID = strings.TrimSpace(appID)
+	return getJSON[PromotedPurchasesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/apps/%s/promotedPurchases", appID),
+		Query:       buildPromotedPurchasesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "promotedPurchases",
+		ParseErr:    "failed to parse promoted purchases response",
+	})
+}
+
 // SetAppPromotedPurchases replaces promoted purchases for an app.
 func (c *Client) SetAppPromotedPurchases(ctx context.Context, appID string, promotedPurchaseIDs []string) error {
 	appID = strings.TrimSpace(appID)

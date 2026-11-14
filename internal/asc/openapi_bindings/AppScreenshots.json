@@ -1,0 +1,10 @@
+{
+  "tag": "AppScreenshots",
+  "file": "app_screenshots_gen.go",
+  "types": [
+    "AppScreenshotCreateRequest",
+    "AppScreenshotUpdateAttributes",
+    "AppScreenshotUpdateData",
+    "AppScreenshotUpdateRequest"
+  ]
+}

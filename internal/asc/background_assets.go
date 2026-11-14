@@ -48,8 +48,14 @@ type BackgroundAssetUploadFileAttributes struct {
 // BackgroundAssetsResponse represents a background assets list response.
 type BackgroundAssetsResponse = Response[BackgroundAssetAttributes]
 
+// BackgroundAssetResponse represents a background asset response.
+type BackgroundAssetResponse = SingleResponse[BackgroundAssetAttributes]
+
 // BackgroundAssetVersionsResponse represents a background asset versions list response.
 type BackgroundAssetVersionsResponse = Response[BackgroundAssetVersionAttributes]
+
+// BackgroundAssetVersionResponse represents a background asset version response.
+type BackgroundAssetVersionResponse = SingleResponse[BackgroundAssetVersionAttributes]
 
 // BackgroundAssetVersionAppStoreReleaseAttributes describes an App Store release.
 type BackgroundAssetVersionAppStoreReleaseAttributes struct {
@@ -61,8 +67,30 @@ type BackgroundAssetVersionExternalBetaReleaseAttributes struct {
 	State string `json:"state,omitempty"`
 }
 
+// BackgroundAssetVersionInternalBetaReleaseAttributes describes an internal beta release.
+type BackgroundAssetVersionInternalBetaReleaseAttributes struct {
+	State string `json:"state,omitempty"`
+}
+
+// BackgroundAssetVersionAppStoreReleaseResponse represents an App Store release response.
+type BackgroundAssetVersionAppStoreReleaseResponse = SingleResponse[BackgroundAssetVersionAppStoreReleaseAttributes]
+
+// BackgroundAssetVersionExternalBetaReleaseResponse represents an external beta release response.
+type BackgroundAssetVersionExternalBetaReleaseResponse = SingleResponse[BackgroundAssetVersionExternalBetaReleaseAttributes]
+
+// BackgroundAssetVersionInternalBetaReleaseResponse represents an internal beta release response.
+type BackgroundAssetVersionInternalBetaReleaseResponse = SingleResponse[BackgroundAssetVersionInternalBetaReleaseAttributes]
+
 // BackgroundAssetUploadFilesResponse represents a background asset upload files list response.
 type BackgroundAssetUploadFilesResponse = Response[BackgroundAssetUploadFileAttributes]
+
+// BackgroundAssetUploadFileResponse represents a background asset upload file response.
+type BackgroundAssetUploadFileResponse = SingleResponse[BackgroundAssetUploadFileAttributes]
+
+// BackgroundAssetCreateAttributes describes attributes for creating a background asset.
+type BackgroundAssetCreateAttributes struct {
+	AssetPackIdentifier string `json:"assetPackIdentifier"`
+}
 
 // BackgroundAssetCreateRelationships describes relationships for creating a background asset.
 type BackgroundAssetCreateRelationships struct {
@@ -76,6 +104,28 @@ type BackgroundAssetCreateData struct {
 	Relationships BackgroundAssetCreateRelationships `json:"relationships"`
 }
 
+// BackgroundAssetCreateRequest is a request to create a background asset.
+type BackgroundAssetCreateRequest struct {
+	Data BackgroundAssetCreateData `json:"data"`
+}
+
+// BackgroundAssetUpdateAttributes describes attributes for updating a background asset.
+type BackgroundAssetUpdateAttributes struct {
+	Archived *bool `json:"archived,omitempty"`
+}
+
+// BackgroundAssetUpdateData is the data portion of an update request.
+type BackgroundAssetUpdateData struct {
+	Type       ResourceType                     `json:"type"`
+	ID         string                           `json:"id"`
+	Attributes *BackgroundAssetUpdateAttributes `json:"attributes,omitempty"`
+}
+
+// BackgroundAssetUpdateRequest is a request to update a background asset.
+type BackgroundAssetUpdateRequest struct {
+	Data BackgroundAssetUpdateData `json:"data"`
+}
+
 // BackgroundAssetVersionCreateRelationships describes relationships for creating a version.
 type BackgroundAssetVersionCreateRelationships struct {
 	BackgroundAsset Relationship `json:"backgroundAsset"`
@@ -85,6 +135,11 @@ type BackgroundAssetVersionCreateRelationships struct {
 type BackgroundAssetVersionCreateData struct {
 	Type          ResourceType                              `json:"type"`
 	Relationships BackgroundAssetVersionCreateRelationships `json:"relationships"`
+}
+
+// BackgroundAssetVersionCreateRequest is a request to create a background asset version.
+type BackgroundAssetVersionCreateRequest struct {
+	Data BackgroundAssetVersionCreateData `json:"data"`
 }
 
 // BackgroundAssetUploadFileCreateAttributes describes attributes for creating upload files.
@@ -106,9 +161,26 @@ type BackgroundAssetUploadFileCreateData struct {
 	Relationships BackgroundAssetUploadFileCreateRelationships `json:"relationships"`
 }
 
+// BackgroundAssetUploadFileCreateRequest is a request to create a background asset upload file.
+type BackgroundAssetUploadFileCreateRequest struct {
+	Data BackgroundAssetUploadFileCreateData `json:"data"`
+}
+
 // BackgroundAssetUploadFileUpdateAttributes describes fields for updating upload files.
 type BackgroundAssetUploadFileUpdateAttributes struct {
 	SourceFileChecksum  *string    `json:"sourceFileChecksum,omitempty"`
 	SourceFileChecksums *Checksums `json:"sourceFileChecksums,omitempty"`
 	Uploaded            *bool      `json:"uploaded,omitempty"`
+}
+
+// BackgroundAssetUploadFileUpdateData is the data portion of an upload file update request.
+type BackgroundAssetUploadFileUpdateData struct {
+	Type       ResourceType                               `json:"type"`
+	ID         string                                     `json:"id"`
+	Attributes *BackgroundAssetUploadFileUpdateAttributes `json:"attributes,omitempty"`
+}
+
+// BackgroundAssetUploadFileUpdateRequest is a request to update a background asset upload file.
+type BackgroundAssetUploadFileUpdateRequest struct {
+	Data BackgroundAssetUploadFileUpdateData `json:"data"`
 }

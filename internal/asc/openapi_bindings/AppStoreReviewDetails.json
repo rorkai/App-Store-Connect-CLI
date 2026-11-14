@@ -1,0 +1,15 @@
+{
+  "tag": "AppStoreReviewDetails",
+  "file": "app_store_review_details_gen.go",
+  "types": [
+    "AppStoreReviewDetailCreateAttributes",
+    "AppStoreReviewDetailCreateRequest",
+    "AppStoreReviewDetailResponse",
+    "AppStoreReviewDetailUpdateAttributes",
+    "AppStoreReviewDetailUpdateData",
+    "AppStoreReviewDetailUpdateRequest"
+  ],
+  "operations": [
+    {"operation":"appStoreReviewDetails_getInstance","name":"GetAppStoreReviewDetail","params":["detailID"],"check":"require"}
+  ]
+}

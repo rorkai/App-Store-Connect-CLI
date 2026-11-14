@@ -1,0 +1,16 @@
+{
+  "tag": "AppStoreVersionExperimentTreatments",
+  "file": "app_store_version_experiment_treatments_gen.go",
+  "types": [
+    "AppStoreVersionExperimentTreatmentCreateRequest",
+    "AppStoreVersionExperimentTreatmentResponse",
+    "AppStoreVersionExperimentTreatmentUpdateAttributes",
+    "AppStoreVersionExperimentTreatmentUpdateData",
+    "AppStoreVersionExperimentTreatmentUpdateRequest"
+  ],
+  "operations": [
+    {"operation":"appStoreVersionExperimentTreatments_appStoreVersionExperimentTreatmentLocalizations_getToManyRelated","name":"GetAppStoreVersionExperimentTreatmentLocalizations","params":["treatmentID"],"check":"require","options":"AppStoreVersionExperimentTreatmentLocalizationsOption","query":"buildAppStoreVersionExperimentTreatmentLocalizationsQuery","nextContext":"appStoreVersionExperimentTreatmentLocalizations"},
+    {"operation":"appStoreVersionExperimentTreatments_deleteInstance","name":"DeleteAppStoreVersionExperimentTreatment","params":["treatmentID"],"check":"require"},
+    {"operation":"appStoreVersionExperimentTreatments_getInstance","name":"GetAppStoreVersionExperimentTreatment","params":["treatmentID"],"check":"require"}
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "tag": "GameCenterMatchmakingTeams",
+  "file": "game_center_matchmaking_teams_gen.go",
+  "types": [
+    "GameCenterMatchmakingTeamCreateAttributes",
+    "GameCenterMatchmakingTeamCreateRequest",
+    "GameCenterMatchmakingTeamResponse",
+    "GameCenterMatchmakingTeamUpdateAttributes",
+    "GameCenterMatchmakingTeamUpdateData",
+    "GameCenterMatchmakingTeamUpdateRequest"
+  ],
+  "operations": [
+    {"operation":"gameCenterMatchmakingTeams_deleteInstance","name":"DeleteGameCenterMatchmakingTeam","params":["teamID"]},
+    {"operation":"gameCenterMatchmakingTeams_updateInstance","name":"UpdateGameCenterMatchmakingTeam","params":["teamID"]}
+  ]
+}

@@ -37,16 +37,6 @@ func (c *Client) CreateGameCenterAchievement(ctx context.Context, gcDetailID str
 	return sendJSON[GameCenterAchievementResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/gameCenterAchievements", Payload: payload})
 }
 
-// GetGameCenterLeaderboard retrieves a Game Center leaderboard by ID.
-func (c *Client) GetGameCenterLeaderboard(ctx context.Context, leaderboardID string) (*GameCenterLeaderboardResponse, error) {
-	return getJSON[GameCenterLeaderboardResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/gameCenterLeaderboards/%s", strings.TrimSpace(leaderboardID))})
-}
-
-// GetGameCenterLeaderboardGroupLeaderboard retrieves the group leaderboard for a leaderboard.
-func (c *Client) GetGameCenterLeaderboardGroupLeaderboard(ctx context.Context, leaderboardID string) (*GameCenterLeaderboardResponse, error) {
-	return getJSON[GameCenterLeaderboardResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/gameCenterLeaderboards/%s/groupLeaderboard", strings.TrimSpace(leaderboardID))})
-}
-
 // gameCenterDetailRelationship returns nil for an empty ID so a create that
 // inherits its parent from its members sends no gameCenterDetail.
 func gameCenterDetailRelationship(gcDetailID string) *Relationship {
@@ -73,34 +63,6 @@ func (c *Client) CreateGameCenterLeaderboard(ctx context.Context, gcDetailID str
 	return sendJSON[GameCenterLeaderboardResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/gameCenterLeaderboards", Payload: payload})
 }
 
-// UpdateGameCenterLeaderboard updates an existing Game Center leaderboard.
-func (c *Client) UpdateGameCenterLeaderboard(ctx context.Context, leaderboardID string, attrs GameCenterLeaderboardUpdateAttributes) (*GameCenterLeaderboardResponse, error) {
-	payload := GameCenterLeaderboardUpdateRequest{
-		Data: GameCenterLeaderboardUpdateData{
-			Type:       ResourceTypeGameCenterLeaderboards,
-			ID:         strings.TrimSpace(leaderboardID),
-			Attributes: &attrs,
-		},
-	}
-
-	return sendJSON[GameCenterLeaderboardResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/gameCenterLeaderboards/%s", strings.TrimSpace(leaderboardID)), Payload: payload})
-}
-
-// DeleteGameCenterLeaderboard deletes a Game Center leaderboard.
-func (c *Client) DeleteGameCenterLeaderboard(ctx context.Context, leaderboardID string) error {
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/gameCenterLeaderboards/%s", strings.TrimSpace(leaderboardID)), nil)
-}
-
-// GetGameCenterLeaderboardSet retrieves a Game Center leaderboard set by ID.
-func (c *Client) GetGameCenterLeaderboardSet(ctx context.Context, setID string) (*GameCenterLeaderboardSetResponse, error) {
-	return getJSON[GameCenterLeaderboardSetResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/gameCenterLeaderboardSets/%s", strings.TrimSpace(setID))})
-}
-
-// GetGameCenterLeaderboardSetGroupLeaderboardSet retrieves the group leaderboard set for a leaderboard set.
-func (c *Client) GetGameCenterLeaderboardSetGroupLeaderboardSet(ctx context.Context, setID string) (*GameCenterLeaderboardSetResponse, error) {
-	return getJSON[GameCenterLeaderboardSetResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/gameCenterLeaderboardSets/%s/groupLeaderboardSet", strings.TrimSpace(setID))})
-}
-
 // CreateGameCenterLeaderboardSet creates a new Game Center leaderboard set.
 func (c *Client) CreateGameCenterLeaderboardSet(ctx context.Context, gcDetailID string, attrs GameCenterLeaderboardSetCreateAttributes, leaderboardIDs []string) (*GameCenterLeaderboardSetResponse, error) {
 	payload := GameCenterLeaderboardSetCreateRequest{
@@ -115,45 +77,6 @@ func (c *Client) CreateGameCenterLeaderboardSet(ctx context.Context, gcDetailID 
 	}
 
 	return sendJSON[GameCenterLeaderboardSetResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/gameCenterLeaderboardSets", Payload: payload})
-}
-
-// UpdateGameCenterLeaderboardSet updates an existing Game Center leaderboard set.
-func (c *Client) UpdateGameCenterLeaderboardSet(ctx context.Context, setID string, attrs GameCenterLeaderboardSetUpdateAttributes) (*GameCenterLeaderboardSetResponse, error) {
-	payload := GameCenterLeaderboardSetUpdateRequest{
-		Data: GameCenterLeaderboardSetUpdateData{
-			Type:       ResourceTypeGameCenterLeaderboardSets,
-			ID:         strings.TrimSpace(setID),
-			Attributes: &attrs,
-		},
-	}
-
-	return sendJSON[GameCenterLeaderboardSetResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/gameCenterLeaderboardSets/%s", strings.TrimSpace(setID)), Payload: payload})
-}
-
-// DeleteGameCenterLeaderboardSet deletes a Game Center leaderboard set.
-func (c *Client) DeleteGameCenterLeaderboardSet(ctx context.Context, setID string) error {
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/gameCenterLeaderboardSets/%s", strings.TrimSpace(setID)), nil)
-}
-
-// GetGameCenterLeaderboardLocalizations retrieves the list of localizations for a Game Center leaderboard.
-func (c *Client) GetGameCenterLeaderboardLocalizations(ctx context.Context, leaderboardID string, opts ...GCLeaderboardLocalizationsOption) (*GameCenterLeaderboardLocalizationsResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[GameCenterLeaderboardLocalizationsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/gameCenterLeaderboards/%s/localizations", strings.TrimSpace(leaderboardID)),
-		Query:       buildGCLeaderboardLocalizationsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "game-center-leaderboard-localizations",
-	})
-}
-
-// GetGameCenterLeaderboardLocalization retrieves a Game Center leaderboard localization by ID.
-func (c *Client) GetGameCenterLeaderboardLocalization(ctx context.Context, localizationID string) (*GameCenterLeaderboardLocalizationResponse, error) {
-	return getJSON[GameCenterLeaderboardLocalizationResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/gameCenterLeaderboardLocalizations/%s", strings.TrimSpace(localizationID))})
-}
-
-// GetGameCenterLeaderboardLocalizationImage retrieves the image for a leaderboard localization.
-func (c *Client) GetGameCenterLeaderboardLocalizationImage(ctx context.Context, localizationID string) (*GameCenterLeaderboardImageResponse, error) {
-	return getJSON[GameCenterLeaderboardImageResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/gameCenterLeaderboardLocalizations/%s/gameCenterLeaderboardImage", strings.TrimSpace(localizationID))})
 }
 
 // CreateGameCenterLeaderboardLocalization creates a new Game Center leaderboard localization.
@@ -176,24 +99,6 @@ func (c *Client) CreateGameCenterLeaderboardLocalization(ctx context.Context, le
 	return sendJSON[GameCenterLeaderboardLocalizationResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/gameCenterLeaderboardLocalizations", Payload: payload})
 }
 
-// UpdateGameCenterLeaderboardLocalization updates an existing Game Center leaderboard localization.
-func (c *Client) UpdateGameCenterLeaderboardLocalization(ctx context.Context, localizationID string, attrs GameCenterLeaderboardLocalizationUpdateAttributes) (*GameCenterLeaderboardLocalizationResponse, error) {
-	payload := GameCenterLeaderboardLocalizationUpdateRequest{
-		Data: GameCenterLeaderboardLocalizationUpdateData{
-			Type:       ResourceTypeGameCenterLeaderboardLocalizations,
-			ID:         strings.TrimSpace(localizationID),
-			Attributes: &attrs,
-		},
-	}
-
-	return sendJSON[GameCenterLeaderboardLocalizationResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/gameCenterLeaderboardLocalizations/%s", strings.TrimSpace(localizationID)), Payload: payload})
-}
-
-// DeleteGameCenterLeaderboardLocalization deletes a Game Center leaderboard localization.
-func (c *Client) DeleteGameCenterLeaderboardLocalization(ctx context.Context, localizationID string) error {
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/gameCenterLeaderboardLocalizations/%s", strings.TrimSpace(localizationID)), nil)
-}
-
 // GetAllGameCenterLeaderboardLocalizations retrieves all leaderboard localizations using automatic pagination.
 func (c *Client) GetAllGameCenterLeaderboardLocalizations(ctx context.Context, leaderboardID string, opts ...GCLeaderboardLocalizationsOption) (*GameCenterLeaderboardLocalizationsResponse, error) {
 	firstPage, err := c.GetGameCenterLeaderboardLocalizations(ctx, leaderboardID, opts...)
@@ -213,22 +118,6 @@ func (c *Client) GetAllGameCenterLeaderboardLocalizations(ctx context.Context, l
 		return nil, fmt.Errorf("unexpected paginated response type %T", result)
 	}
 	return resp, nil
-}
-
-// GetGameCenterLeaderboardReleases retrieves the list of releases for a Game Center leaderboard.
-func (c *Client) GetGameCenterLeaderboardReleases(ctx context.Context, leaderboardID string, opts ...GCLeaderboardReleasesOption) (*GameCenterLeaderboardReleasesResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[GameCenterLeaderboardReleasesResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/gameCenterLeaderboards/%s/releases", strings.TrimSpace(leaderboardID)),
-		Query:       buildGCLeaderboardReleasesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "game-center-leaderboard-releases",
-	})
-}
-
-// GetGameCenterLeaderboardRelease retrieves a leaderboard release by ID.
-func (c *Client) GetGameCenterLeaderboardRelease(ctx context.Context, releaseID string) (*GameCenterLeaderboardReleaseResponse, error) {
-	return getJSON[GameCenterLeaderboardReleaseResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/gameCenterLeaderboardReleases/%s", strings.TrimSpace(releaseID))})
 }
 
 // CreateGameCenterLeaderboardRelease creates a new Game Center leaderboard release.
@@ -256,11 +145,6 @@ func (c *Client) CreateGameCenterLeaderboardRelease(ctx context.Context, gcDetai
 	return sendJSON[GameCenterLeaderboardReleaseResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/gameCenterLeaderboardReleases", Payload: payload})
 }
 
-// DeleteGameCenterLeaderboardRelease deletes a Game Center leaderboard release.
-func (c *Client) DeleteGameCenterLeaderboardRelease(ctx context.Context, releaseID string) error {
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/gameCenterLeaderboardReleases/%s", strings.TrimSpace(releaseID)), nil)
-}
-
 // CreateGameCenterAchievementRelease creates a new Game Center achievement release.
 func (c *Client) CreateGameCenterAchievementRelease(ctx context.Context, gcDetailID, achievementID string) (*GameCenterAchievementReleaseResponse, error) {
 	payload := GameCenterAchievementReleaseCreateRequest{
@@ -284,17 +168,6 @@ func (c *Client) CreateGameCenterAchievementRelease(ctx context.Context, gcDetai
 	}
 
 	return sendJSON[GameCenterAchievementReleaseResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/gameCenterAchievementReleases", Payload: payload})
-}
-
-// GetGameCenterLeaderboardSetMembers retrieves the leaderboards in a leaderboard set.
-func (c *Client) GetGameCenterLeaderboardSetMembers(ctx context.Context, setID string, opts ...GCLeaderboardSetMembersOption) (*GameCenterLeaderboardsResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[GameCenterLeaderboardsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/gameCenterLeaderboardSets/%s/gameCenterLeaderboards", strings.TrimSpace(setID)),
-		Query:       buildGCLeaderboardSetMembersQuery(query),
-		Next:        query.nextURL,
-		NextContext: "game-center-leaderboard-set-members",
-	})
 }
 
 // UpdateGameCenterLeaderboardSetMembers replaces all leaderboard members in a leaderboard set.
@@ -324,22 +197,6 @@ func (c *Client) SetGameCenterLeaderboardSetMembers(ctx context.Context, setID s
 	})
 }
 
-// GetGameCenterLeaderboardSetReleases retrieves the list of releases for a Game Center leaderboard set.
-func (c *Client) GetGameCenterLeaderboardSetReleases(ctx context.Context, setID string, opts ...GCLeaderboardSetReleasesOption) (*GameCenterLeaderboardSetReleasesResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[GameCenterLeaderboardSetReleasesResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/gameCenterLeaderboardSets/%s/releases", strings.TrimSpace(setID)),
-		Query:       buildGCLeaderboardSetReleasesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "game-center-leaderboard-set-releases",
-	})
-}
-
-// GetGameCenterLeaderboardSetRelease retrieves a leaderboard set release by ID.
-func (c *Client) GetGameCenterLeaderboardSetRelease(ctx context.Context, releaseID string) (*GameCenterLeaderboardSetReleaseResponse, error) {
-	return getJSON[GameCenterLeaderboardSetReleaseResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/gameCenterLeaderboardSetReleases/%s", strings.TrimSpace(releaseID))})
-}
-
 // CreateGameCenterLeaderboardSetRelease creates a new Game Center leaderboard set release.
 func (c *Client) CreateGameCenterLeaderboardSetRelease(ctx context.Context, gcDetailID, setID string) (*GameCenterLeaderboardSetReleaseResponse, error) {
 	payload := GameCenterLeaderboardSetReleaseCreateRequest{
@@ -365,32 +222,6 @@ func (c *Client) CreateGameCenterLeaderboardSetRelease(ctx context.Context, gcDe
 	return sendJSON[GameCenterLeaderboardSetReleaseResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/gameCenterLeaderboardSetReleases", Payload: payload})
 }
 
-// DeleteGameCenterLeaderboardSetRelease deletes a Game Center leaderboard set release.
-func (c *Client) DeleteGameCenterLeaderboardSetRelease(ctx context.Context, releaseID string) error {
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/gameCenterLeaderboardSetReleases/%s", strings.TrimSpace(releaseID)), nil)
-}
-
-// GetGameCenterLeaderboardSetLocalizations retrieves the list of localizations for a Game Center leaderboard set.
-func (c *Client) GetGameCenterLeaderboardSetLocalizations(ctx context.Context, setID string, opts ...GCLeaderboardSetLocalizationsOption) (*GameCenterLeaderboardSetLocalizationsResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[GameCenterLeaderboardSetLocalizationsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/gameCenterLeaderboardSets/%s/localizations", strings.TrimSpace(setID)),
-		Query:       buildGCLeaderboardSetLocalizationsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "game-center-leaderboard-set-localizations",
-	})
-}
-
-// GetGameCenterLeaderboardSetLocalization retrieves a Game Center leaderboard set localization by ID.
-func (c *Client) GetGameCenterLeaderboardSetLocalization(ctx context.Context, localizationID string) (*GameCenterLeaderboardSetLocalizationResponse, error) {
-	return getJSON[GameCenterLeaderboardSetLocalizationResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/gameCenterLeaderboardSetLocalizations/%s", strings.TrimSpace(localizationID))})
-}
-
-// GetGameCenterLeaderboardSetLocalizationImage retrieves the image for a leaderboard set localization.
-func (c *Client) GetGameCenterLeaderboardSetLocalizationImage(ctx context.Context, localizationID string) (*GameCenterLeaderboardSetImageResponse, error) {
-	return getJSON[GameCenterLeaderboardSetImageResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/gameCenterLeaderboardSetLocalizations/%s/gameCenterLeaderboardSetImage", strings.TrimSpace(localizationID))})
-}
-
 // CreateGameCenterLeaderboardSetLocalization creates a new Game Center leaderboard set localization.
 func (c *Client) CreateGameCenterLeaderboardSetLocalization(ctx context.Context, setID string, attrs GameCenterLeaderboardSetLocalizationCreateAttributes) (*GameCenterLeaderboardSetLocalizationResponse, error) {
 	payload := GameCenterLeaderboardSetLocalizationCreateRequest{
@@ -411,24 +242,6 @@ func (c *Client) CreateGameCenterLeaderboardSetLocalization(ctx context.Context,
 	return sendJSON[GameCenterLeaderboardSetLocalizationResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/gameCenterLeaderboardSetLocalizations", Payload: payload})
 }
 
-// UpdateGameCenterLeaderboardSetLocalization updates an existing Game Center leaderboard set localization.
-func (c *Client) UpdateGameCenterLeaderboardSetLocalization(ctx context.Context, localizationID string, attrs GameCenterLeaderboardSetLocalizationUpdateAttributes) (*GameCenterLeaderboardSetLocalizationResponse, error) {
-	payload := GameCenterLeaderboardSetLocalizationUpdateRequest{
-		Data: GameCenterLeaderboardSetLocalizationUpdateData{
-			Type:       ResourceTypeGameCenterLeaderboardSetLocalizations,
-			ID:         strings.TrimSpace(localizationID),
-			Attributes: &attrs,
-		},
-	}
-
-	return sendJSON[GameCenterLeaderboardSetLocalizationResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/gameCenterLeaderboardSetLocalizations/%s", strings.TrimSpace(localizationID)), Payload: payload})
-}
-
-// DeleteGameCenterLeaderboardSetLocalization deletes a Game Center leaderboard set localization.
-func (c *Client) DeleteGameCenterLeaderboardSetLocalization(ctx context.Context, localizationID string) error {
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/gameCenterLeaderboardSetLocalizations/%s", strings.TrimSpace(localizationID)), nil)
-}
-
 // CreateGameCenterAchievementLocalization creates a new Game Center achievement localization.
 func (c *Client) CreateGameCenterAchievementLocalization(ctx context.Context, achievementID string, attrs GameCenterAchievementLocalizationCreateAttributes) (*GameCenterAchievementLocalizationResponse, error) {
 	payload := GameCenterAchievementLocalizationCreateRequest{
@@ -447,11 +260,6 @@ func (c *Client) CreateGameCenterAchievementLocalization(ctx context.Context, ac
 	}
 
 	return sendJSON[GameCenterAchievementLocalizationResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/gameCenterAchievementLocalizations", Payload: payload})
-}
-
-// GetGameCenterLeaderboardImage retrieves a Game Center leaderboard image by ID.
-func (c *Client) GetGameCenterLeaderboardImage(ctx context.Context, imageID string) (*GameCenterLeaderboardImageResponse, error) {
-	return getJSON[GameCenterLeaderboardImageResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/gameCenterLeaderboardImages/%s", strings.TrimSpace(imageID))})
 }
 
 // CreateGameCenterLeaderboardImage reserves an image upload for a leaderboard localization.
@@ -490,11 +298,6 @@ func (c *Client) UpdateGameCenterLeaderboardImage(ctx context.Context, imageID s
 	}
 
 	return sendJSON[GameCenterLeaderboardImageResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/gameCenterLeaderboardImages/%s", strings.TrimSpace(imageID)), Payload: payload})
-}
-
-// DeleteGameCenterLeaderboardImage deletes a Game Center leaderboard image.
-func (c *Client) DeleteGameCenterLeaderboardImage(ctx context.Context, imageID string) error {
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/gameCenterLeaderboardImages/%s", strings.TrimSpace(imageID)), nil)
 }
 
 // UploadGameCenterLeaderboardImage performs the full upload flow for a leaderboard image.
@@ -644,11 +447,6 @@ func (c *Client) UploadGameCenterAchievementImage(ctx context.Context, localizat
 	}, nil
 }
 
-// GetGameCenterLeaderboardSetImage retrieves a Game Center leaderboard set image by ID.
-func (c *Client) GetGameCenterLeaderboardSetImage(ctx context.Context, imageID string) (*GameCenterLeaderboardSetImageResponse, error) {
-	return getJSON[GameCenterLeaderboardSetImageResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/gameCenterLeaderboardSetImages/%s", strings.TrimSpace(imageID))})
-}
-
 // CreateGameCenterLeaderboardSetImage reserves an image upload slot for a leaderboard set localization.
 func (c *Client) CreateGameCenterLeaderboardSetImage(ctx context.Context, localizationID string, fileName string, fileSize int64) (*GameCenterLeaderboardSetImageResponse, error) {
 	payload := GameCenterLeaderboardSetImageCreateRequest{
@@ -685,11 +483,6 @@ func (c *Client) UpdateGameCenterLeaderboardSetImage(ctx context.Context, imageI
 	}
 
 	return sendJSON[GameCenterLeaderboardSetImageResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/gameCenterLeaderboardSetImages/%s", strings.TrimSpace(imageID)), Payload: payload})
-}
-
-// DeleteGameCenterLeaderboardSetImage deletes a Game Center leaderboard set image.
-func (c *Client) DeleteGameCenterLeaderboardSetImage(ctx context.Context, imageID string) error {
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/gameCenterLeaderboardSetImages/%s", strings.TrimSpace(imageID)), nil)
 }
 
 // UploadGameCenterLeaderboardSetImage performs the full upload flow for a leaderboard set image.
@@ -803,11 +596,6 @@ func (c *Client) UpdateGameCenterAchievementV2(ctx context.Context, achievementI
 	return sendJSON[GameCenterAchievementResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v2/gameCenterAchievements/%s", strings.TrimSpace(achievementID)), Payload: payload})
 }
 
-// GetGameCenterLeaderboardV2 retrieves a v2 Game Center leaderboard by ID.
-func (c *Client) GetGameCenterLeaderboardV2(ctx context.Context, leaderboardID string) (*GameCenterLeaderboardResponse, error) {
-	return getJSON[GameCenterLeaderboardResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v2/gameCenterLeaderboards/%s", strings.TrimSpace(leaderboardID))})
-}
-
 // CreateGameCenterLeaderboardV2 creates a new v2 Game Center leaderboard.
 func (c *Client) CreateGameCenterLeaderboardV2(ctx context.Context, gcDetailID string, groupID string, attrs GameCenterLeaderboardCreateAttributes, setIDs []string) (*GameCenterLeaderboardResponse, error) {
 	const initialVersionID = "${lbVer1}"
@@ -863,9 +651,4 @@ func (c *Client) UpdateGameCenterLeaderboardV2(ctx context.Context, leaderboardI
 	}
 
 	return sendJSON[GameCenterLeaderboardResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v2/gameCenterLeaderboards/%s", strings.TrimSpace(leaderboardID)), Payload: payload})
-}
-
-// DeleteGameCenterLeaderboardV2 deletes a v2 Game Center leaderboard.
-func (c *Client) DeleteGameCenterLeaderboardV2(ctx context.Context, leaderboardID string) error {
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v2/gameCenterLeaderboards/%s", strings.TrimSpace(leaderboardID)), nil)
 }

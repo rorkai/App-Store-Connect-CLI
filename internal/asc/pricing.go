@@ -1,11 +1,5 @@
 package asc
 
-// AppPricePointV3Attributes describes app price point metadata.
-type AppPricePointV3Attributes struct {
-	CustomerPrice string `json:"customerPrice,omitempty"`
-	Proceeds      string `json:"proceeds,omitempty"`
-}
-
 // AppPriceScheduleAttributes describes an app price schedule resource.
 type AppPriceScheduleAttributes struct {
 	// Usually empty - data is in relationships.

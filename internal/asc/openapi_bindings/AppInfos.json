@@ -1,0 +1,23 @@
+{
+  "tag": "AppInfos",
+  "file": "app_infos_gen.go",
+  "types": [
+    "AppInfoResponse"
+  ],
+  "operations": [
+    {"operation":"appInfos_ageRatingDeclaration_getToOneRelationship","name":"GetAppInfoAgeRatingDeclarationRelationship","params":["appInfoID"],"check":"require","parseErr":"failed to parse ageRatingDeclaration relationship response"},
+    {"operation":"appInfos_primaryCategory_getToOneRelated","name":"GetAppInfoPrimaryCategory","params":["appInfoID"],"check":"require"},
+    {"operation":"appInfos_primaryCategory_getToOneRelationship","name":"GetAppInfoPrimaryCategoryRelationship","params":["appInfoID"],"check":"require","parseErr":"failed to parse primaryCategory relationship response"},
+    {"operation":"appInfos_primarySubcategoryOne_getToOneRelated","name":"GetAppInfoPrimarySubcategoryOne","params":["appInfoID"],"check":"require"},
+    {"operation":"appInfos_primarySubcategoryOne_getToOneRelationship","name":"GetAppInfoPrimarySubcategoryOneRelationship","params":["appInfoID"],"check":"require","parseErr":"failed to parse primarySubcategoryOne relationship response"},
+    {"operation":"appInfos_primarySubcategoryTwo_getToOneRelated","name":"GetAppInfoPrimarySubcategoryTwo","params":["appInfoID"],"check":"require"},
+    {"operation":"appInfos_primarySubcategoryTwo_getToOneRelationship","name":"GetAppInfoPrimarySubcategoryTwoRelationship","params":["appInfoID"],"check":"require","parseErr":"failed to parse primarySubcategoryTwo relationship response"},
+    {"operation":"appInfos_secondaryCategory_getToOneRelated","name":"GetAppInfoSecondaryCategory","params":["appInfoID"],"check":"require"},
+    {"operation":"appInfos_secondaryCategory_getToOneRelationship","name":"GetAppInfoSecondaryCategoryRelationship","params":["appInfoID"],"check":"require","parseErr":"failed to parse secondaryCategory relationship response"},
+    {"operation":"appInfos_secondarySubcategoryOne_getToOneRelated","name":"GetAppInfoSecondarySubcategoryOne","params":["appInfoID"],"check":"require"},
+    {"operation":"appInfos_secondarySubcategoryOne_getToOneRelationship","name":"GetAppInfoSecondarySubcategoryOneRelationship","params":["appInfoID"],"check":"require","parseErr":"failed to parse secondarySubcategoryOne relationship response"},
+    {"operation":"appInfos_secondarySubcategoryTwo_getToOneRelated","name":"GetAppInfoSecondarySubcategoryTwo","params":["appInfoID"],"check":"require"},
+    {"operation":"appInfos_secondarySubcategoryTwo_getToOneRelationship","name":"GetAppInfoSecondarySubcategoryTwoRelationship","params":["appInfoID"],"check":"require","parseErr":"failed to parse secondarySubcategoryTwo relationship response"},
+    {"operation":"appInfos_territoryAgeRatings_getToManyRelated","name":"GetAppInfoTerritoryAgeRatings","params":["appInfoID"],"check":"require","options":"TerritoryAgeRatingsOption","query":"buildTerritoryAgeRatingsQuery","nextContext":"territoryAgeRatings"}
+  ]
+}

@@ -52,6 +52,17 @@ func (c *Client) getInAppPurchasesV2(ctx context.Context, appID string, strict b
 	return &response, nil
 }
 
+// GetInAppPurchases retrieves the legacy list of in-app purchases for an app.
+func (c *Client) GetInAppPurchases(ctx context.Context, appID string, opts ...IAPOption) (*InAppPurchasesResponse, error) {
+	query := applyOptions(opts)
+	return getJSON[InAppPurchasesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/apps/%s/inAppPurchases", strings.TrimSpace(appID)),
+		Query:       buildInAppPurchasesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "in-app-purchases",
+	})
+}
+
 // GetInAppPurchaseV2 retrieves an in-app purchase by ID.
 func (c *Client) GetInAppPurchaseV2(ctx context.Context, iapID string, opts ...IAPGetOption) (*InAppPurchaseV2Response, error) {
 	iapID = strings.TrimSpace(iapID)
