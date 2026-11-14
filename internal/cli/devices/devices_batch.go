@@ -68,8 +68,12 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("devices register-batch: %w", d.UsageError(err.Error()))
 			}
-			if err := shared.RequireConfirmUnlessDryRun(*dryRun, *confirm); err != nil {
-				return err
+			if !*dryRun && !*confirm {
+				return shared.WithDiagnostic(
+					d.UsageError("--confirm is required unless --dry-run is set"),
+					shared.DiagnosticRequiredInputMissing,
+					"--confirm",
+				)
 			}
 
 			records, err := readDeviceBatchTSV(d, fileValue, defaultPlatform)

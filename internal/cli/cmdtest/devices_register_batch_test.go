@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
-	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -210,17 +209,7 @@ func TestDevicesRegisterBatchRequiresConfirmBeforeReadingFileOrNetwork(t *testin
 	setupAuth(t)
 	missingPath := filepath.Join(t.TempDir(), "missing.txt")
 
-	asctest.NewRegistry(t).Install()
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	if err := root.Parse([]string{"devices", "register-batch", "--file", missingPath}); err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		runErr = root.Run(context.Background())
-	})
+	stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, asctest.NewRegistry(t)), "devices", "register-batch", "--file", missingPath)
 	if !errors.Is(runErr, flag.ErrHelp) || runErr.Error() != "--confirm is required unless --dry-run is set" {
 		t.Fatalf("run error = %v, want exact confirmation usage error", runErr)
 	}
