@@ -237,51 +237,28 @@ Examples:
 
 // GameCenterMatchmakingQueuesDeleteCommand returns the matchmaking queues delete subcommand.
 func GameCenterMatchmakingQueuesDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("delete", flag.ExitOnError)
-
-	queueID := shared.BindResourceIDFlag(fs, "id", "gameCenterMatchmakingQueues", "Matchmaking queue ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc game-center matchmaking queues delete --id \"QUEUE_ID\" --confirm",
-		ShortHelp:  "Delete a matchmaking queue.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "delete",
+		Name:        "delete",
+		ShortUsage:  "asc game-center matchmaking queues delete --id \"QUEUE_ID\" --confirm",
+		ShortHelp:   "Delete a matchmaking queue.",
 		LongHelp: `Delete a matchmaking queue.
 
 Examples:
   asc game-center matchmaking queues delete --id "QUEUE_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*queueID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center matchmaking queues delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteGameCenterMatchmakingQueue(requestCtx, id); err != nil {
-				return fmt.Errorf("game-center matchmaking queues delete: failed to delete: %w", err)
-			}
-
-			result := &asc.GameCenterMatchmakingQueueDeleteResult{
-				ID:      id,
-				Deleted: true,
-			}
-
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "id",
+		IDUsage:            "Matchmaking queue ID",
+		IDType:             "gameCenterMatchmakingQueues",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center matchmaking queues delete",
+		DeleteErrorPrefix:  "game-center matchmaking queues delete: failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteGameCenterMatchmakingQueue(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.GameCenterMatchmakingQueueDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
 
 // GameCenterMatchmakingRuleSetsCommand returns the matchmaking rule sets command group.
@@ -486,51 +463,28 @@ Examples:
 
 // GameCenterMatchmakingRuleSetsDeleteCommand returns the rule sets delete subcommand.
 func GameCenterMatchmakingRuleSetsDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("delete", flag.ExitOnError)
-
-	ruleSetID := shared.BindResourceIDFlag(fs, "id", "gameCenterMatchmakingRuleSets", "Matchmaking rule set ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc game-center matchmaking rule-sets delete --id \"RULE_SET_ID\" --confirm",
-		ShortHelp:  "Delete a matchmaking rule set.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "delete",
+		Name:        "delete",
+		ShortUsage:  "asc game-center matchmaking rule-sets delete --id \"RULE_SET_ID\" --confirm",
+		ShortHelp:   "Delete a matchmaking rule set.",
 		LongHelp: `Delete a matchmaking rule set.
 
 Examples:
   asc game-center matchmaking rule-sets delete --id "RULE_SET_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*ruleSetID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center matchmaking rule-sets delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteGameCenterMatchmakingRuleSet(requestCtx, id); err != nil {
-				return fmt.Errorf("game-center matchmaking rule-sets delete: failed to delete: %w", err)
-			}
-
-			result := &asc.GameCenterMatchmakingRuleSetDeleteResult{
-				ID:      id,
-				Deleted: true,
-			}
-
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "id",
+		IDUsage:            "Matchmaking rule set ID",
+		IDType:             "gameCenterMatchmakingRuleSets",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center matchmaking rule-sets delete",
+		DeleteErrorPrefix:  "game-center matchmaking rule-sets delete: failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteGameCenterMatchmakingRuleSet(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.GameCenterMatchmakingRuleSetDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
 
 // GameCenterMatchmakingRuleSetQueuesCommand returns the rule set queues command group.
@@ -801,51 +755,28 @@ func parseMatchmakingRuleWeight(value string) (float64, error) {
 
 // GameCenterMatchmakingRulesDeleteCommand returns the rules delete subcommand.
 func GameCenterMatchmakingRulesDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("delete", flag.ExitOnError)
-
-	ruleID := shared.BindResourceIDFlag(fs, "id", "gameCenterMatchmakingRules", "Matchmaking rule ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc game-center matchmaking rules delete --id \"RULE_ID\" --confirm",
-		ShortHelp:  "Delete a matchmaking rule.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "delete",
+		Name:        "delete",
+		ShortUsage:  "asc game-center matchmaking rules delete --id \"RULE_ID\" --confirm",
+		ShortHelp:   "Delete a matchmaking rule.",
 		LongHelp: `Delete a matchmaking rule.
 
 Examples:
   asc game-center matchmaking rules delete --id "RULE_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*ruleID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center matchmaking rules delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteGameCenterMatchmakingRule(requestCtx, id); err != nil {
-				return fmt.Errorf("game-center matchmaking rules delete: failed to delete: %w", err)
-			}
-
-			result := &asc.GameCenterMatchmakingRuleDeleteResult{
-				ID:      id,
-				Deleted: true,
-			}
-
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "id",
+		IDUsage:            "Matchmaking rule ID",
+		IDType:             "gameCenterMatchmakingRules",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center matchmaking rules delete",
+		DeleteErrorPrefix:  "game-center matchmaking rules delete: failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteGameCenterMatchmakingRule(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.GameCenterMatchmakingRuleDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
 
 // GameCenterMatchmakingTeamsCommand returns the matchmaking teams command group.
@@ -1025,51 +956,28 @@ Examples:
 
 // GameCenterMatchmakingTeamsDeleteCommand returns the teams delete subcommand.
 func GameCenterMatchmakingTeamsDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("delete", flag.ExitOnError)
-
-	teamID := shared.BindResourceIDFlag(fs, "id", "gameCenterMatchmakingTeams", "Matchmaking team ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc game-center matchmaking teams delete --id \"TEAM_ID\" --confirm",
-		ShortHelp:  "Delete a matchmaking team.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "delete",
+		Name:        "delete",
+		ShortUsage:  "asc game-center matchmaking teams delete --id \"TEAM_ID\" --confirm",
+		ShortHelp:   "Delete a matchmaking team.",
 		LongHelp: `Delete a matchmaking team.
 
 Examples:
   asc game-center matchmaking teams delete --id "TEAM_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*teamID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center matchmaking teams delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteGameCenterMatchmakingTeam(requestCtx, id); err != nil {
-				return fmt.Errorf("game-center matchmaking teams delete: failed to delete: %w", err)
-			}
-
-			result := &asc.GameCenterMatchmakingTeamDeleteResult{
-				ID:      id,
-				Deleted: true,
-			}
-
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "id",
+		IDUsage:            "Matchmaking team ID",
+		IDType:             "gameCenterMatchmakingTeams",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center matchmaking teams delete",
+		DeleteErrorPrefix:  "game-center matchmaking teams delete: failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteGameCenterMatchmakingTeam(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.GameCenterMatchmakingTeamDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
 
 // GameCenterMatchmakingMetricsCommand returns the matchmaking metrics command group.

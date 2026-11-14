@@ -259,51 +259,28 @@ Examples:
 
 // GameCenterGroupsDeleteCommand returns the groups delete subcommand.
 func GameCenterGroupsDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("delete", flag.ExitOnError)
-
-	groupID := shared.BindResourceIDFlag(fs, "id", "gameCenterGroups", "Game Center group ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc game-center groups delete --id \"GROUP_ID\" --confirm",
-		ShortHelp:  "Delete a Game Center group.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "delete",
+		Name:        "delete",
+		ShortUsage:  "asc game-center groups delete --id \"GROUP_ID\" --confirm",
+		ShortHelp:   "Delete a Game Center group.",
 		LongHelp: `Delete a Game Center group.
 
 Examples:
   asc game-center groups delete --id "GROUP_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*groupID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center groups delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteGameCenterGroup(requestCtx, id); err != nil {
-				return fmt.Errorf("game-center groups delete: failed to delete: %w", err)
-			}
-
-			result := &asc.GameCenterGroupDeleteResult{
-				ID:      id,
-				Deleted: true,
-			}
-
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "id",
+		IDUsage:            "Game Center group ID",
+		IDType:             "gameCenterGroups",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center groups delete",
+		DeleteErrorPrefix:  "game-center groups delete: failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteGameCenterGroup(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.GameCenterGroupDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
 
 // GameCenterGroupAchievementsCommand returns the group achievements command group.
