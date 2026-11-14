@@ -117,19 +117,6 @@ func (c *Client) GetAlternativeDistributionPackage(ctx context.Context, packageI
 	})
 }
 
-// GetAlternativeDistributionPackageForVersion retrieves a package for an app store version.
-func (c *Client) GetAlternativeDistributionPackageForVersion(ctx context.Context, versionID string) (*AlternativeDistributionPackageResponse, error) {
-	versionID = strings.TrimSpace(versionID)
-	if versionID == "" {
-		return nil, fmt.Errorf("versionID is required")
-	}
-
-	return getJSON[AlternativeDistributionPackageResponse](ctx, c, readRequest{
-		Path:     fmt.Sprintf("/v1/appStoreVersions/%s/alternativeDistributionPackage", versionID),
-		ParseErr: "failed to parse alternative distribution package response",
-	})
-}
-
 // CreateAlternativeDistributionPackage creates an alternative distribution package.
 func (c *Client) CreateAlternativeDistributionPackage(ctx context.Context, appStoreVersionID string) (*AlternativeDistributionPackageResponse, error) {
 	appStoreVersionID = strings.TrimSpace(appStoreVersionID)
@@ -259,31 +246,5 @@ func (c *Client) GetAppAlternativeDistributionKey(ctx context.Context, appID str
 	return getJSON[AlternativeDistributionKeyResponse](ctx, c, readRequest{
 		Path:     fmt.Sprintf("/v1/apps/%s/alternativeDistributionKey", appID),
 		ParseErr: "failed to parse alternative distribution key response",
-	})
-}
-
-// GetAppStoreVersionAlternativeDistributionPackage retrieves the alternative distribution package for an app store version.
-func (c *Client) GetAppStoreVersionAlternativeDistributionPackage(ctx context.Context, appStoreVersionID string) (*AlternativeDistributionPackageResponse, error) {
-	appStoreVersionID = strings.TrimSpace(appStoreVersionID)
-	if appStoreVersionID == "" {
-		return nil, fmt.Errorf("appStoreVersionID is required")
-	}
-
-	return getJSON[AlternativeDistributionPackageResponse](ctx, c, readRequest{
-		Path:     fmt.Sprintf("/v1/appStoreVersions/%s/alternativeDistributionPackage", appStoreVersionID),
-		ParseErr: "failed to parse alternative distribution package response",
-	})
-}
-
-// GetAppStoreVersionAlternativeDistributionPackageRelationship retrieves the package relationship for an app store version.
-func (c *Client) GetAppStoreVersionAlternativeDistributionPackageRelationship(ctx context.Context, appStoreVersionID string) (*AppStoreVersionAlternativeDistributionPackageLinkageResponse, error) {
-	appStoreVersionID = strings.TrimSpace(appStoreVersionID)
-	if appStoreVersionID == "" {
-		return nil, fmt.Errorf("appStoreVersionID is required")
-	}
-
-	return getJSON[AppStoreVersionAlternativeDistributionPackageLinkageResponse](ctx, c, readRequest{
-		Path:     fmt.Sprintf("/v1/appStoreVersions/%s/relationships/alternativeDistributionPackage", appStoreVersionID),
-		ParseErr: "failed to parse alternative distribution package relationship response",
 	})
 }

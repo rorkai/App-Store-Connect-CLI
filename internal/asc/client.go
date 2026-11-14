@@ -95,9 +95,6 @@ type CustomerReviewResponse = SingleResponse[ReviewAttributes]
 // AppStoreVersionLocalizationsResponse is the response from app store version localizations endpoints.
 type AppStoreVersionLocalizationsResponse = Response[AppStoreVersionLocalizationAttributes]
 
-// AppStoreVersionLocalizationResponse is the response from app store version localization detail/creates.
-type AppStoreVersionLocalizationResponse = SingleResponse[AppStoreVersionLocalizationAttributes]
-
 // BetaAppLocalizationsResponse is the response from beta app localization endpoints.
 type BetaAppLocalizationsResponse = Response[BetaAppLocalizationAttributes]
 
@@ -113,14 +110,8 @@ type BetaBuildLocalizationResponse = SingleResponse[BetaBuildLocalizationAttribu
 // AppInfoLocalizationsResponse is the response from app info localizations endpoints.
 type AppInfoLocalizationsResponse = Response[AppInfoLocalizationAttributes]
 
-// AppInfoLocalizationResponse is the response from app info localization detail/creates.
-type AppInfoLocalizationResponse = SingleResponse[AppInfoLocalizationAttributes]
-
 // AppInfosResponse is the response from app info endpoints.
 type AppInfosResponse = Response[AppInfoAttributes]
-
-// AppInfoResponse is the response from app info detail endpoints.
-type AppInfoResponse = SingleResponse[AppInfoAttributes]
 
 // BetaGroupsResponse is the response from beta groups endpoints.
 type BetaGroupsResponse = Response[BetaGroupAttributes]
@@ -487,21 +478,11 @@ type AppStoreVersionLocalizationCreateData struct {
 	Relationships *AppStoreVersionLocalizationRelationships `json:"relationships"`
 }
 
-// AppStoreVersionLocalizationCreateRequest is a request to create a version localization.
-type AppStoreVersionLocalizationCreateRequest struct {
-	Data AppStoreVersionLocalizationCreateData `json:"data"`
-}
-
 // AppStoreVersionLocalizationUpdateData is the data portion of a version localization update request.
 type AppStoreVersionLocalizationUpdateData struct {
 	Type       ResourceType                          `json:"type"`
 	ID         string                                `json:"id"`
 	Attributes AppStoreVersionLocalizationAttributes `json:"attributes"`
-}
-
-// AppStoreVersionLocalizationUpdateRequest is a request to update a version localization.
-type AppStoreVersionLocalizationUpdateRequest struct {
-	Data AppStoreVersionLocalizationUpdateData `json:"data"`
 }
 
 // AppStoreVersionLocalizationRelationships describes relationships for version localizations.
@@ -583,21 +564,11 @@ type AppInfoLocalizationCreateData struct {
 	Relationships *AppInfoLocalizationRelationships `json:"relationships"`
 }
 
-// AppInfoLocalizationCreateRequest is a request to create an app info localization.
-type AppInfoLocalizationCreateRequest struct {
-	Data AppInfoLocalizationCreateData `json:"data"`
-}
-
 // AppInfoLocalizationUpdateData is the data portion of an app info localization update request.
 type AppInfoLocalizationUpdateData struct {
 	Type       ResourceType                  `json:"type"`
 	ID         string                        `json:"id"`
 	Attributes AppInfoLocalizationAttributes `json:"attributes"`
-}
-
-// AppInfoLocalizationUpdateRequest is a request to update an app info localization.
-type AppInfoLocalizationUpdateRequest struct {
-	Data AppInfoLocalizationUpdateData `json:"data"`
 }
 
 // AppInfoLocalizationRelationships describes relationships for app info localizations.
@@ -1304,15 +1275,6 @@ func (c *Client) GetAppInfoLocalization(ctx context.Context, localizationID stri
 		Path:  fmt.Sprintf("/v1/appInfoLocalizations/%s", localizationID),
 		Query: buildAppInfoLocalizationQuery(query),
 	})
-}
-
-// DeleteAppInfoLocalization deletes an app info localization by ID.
-func (c *Client) DeleteAppInfoLocalization(ctx context.Context, localizationID string) error {
-	localizationID = strings.TrimSpace(localizationID)
-	if localizationID == "" {
-		return fmt.Errorf("localizationID is required")
-	}
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/appInfoLocalizations/%s", localizationID), nil)
 }
 
 // GetAppInfos retrieves app info records for an app.

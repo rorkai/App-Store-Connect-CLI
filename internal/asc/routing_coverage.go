@@ -76,16 +76,6 @@ func (c *Client) GetRoutingAppCoverage(ctx context.Context, coverageID string) (
 	return getJSON[RoutingAppCoverageResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/routingAppCoverages/%s", coverageID)})
 }
 
-// GetRoutingAppCoverageForVersion retrieves routing app coverage for an app store version.
-func (c *Client) GetRoutingAppCoverageForVersion(ctx context.Context, versionID string) (*RoutingAppCoverageResponse, error) {
-	versionID = strings.TrimSpace(versionID)
-	if versionID == "" {
-		return nil, fmt.Errorf("versionID is required")
-	}
-
-	return getJSON[RoutingAppCoverageResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appStoreVersions/%s/routingAppCoverage", versionID)})
-}
-
 // CreateRoutingAppCoverage creates a routing app coverage upload reservation.
 func (c *Client) CreateRoutingAppCoverage(ctx context.Context, versionID, fileName string, fileSize int64) (*RoutingAppCoverageResponse, error) {
 	versionID = strings.TrimSpace(versionID)

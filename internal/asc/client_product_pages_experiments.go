@@ -19,15 +19,6 @@ type AppStoreVersionExperimentAttributes struct {
 // AppStoreVersionExperimentsResponse is the response from experiment list endpoints (v1).
 type AppStoreVersionExperimentsResponse = Response[AppStoreVersionExperimentAttributes]
 
-// AppStoreVersionExperimentResponse is the response from experiment endpoints (v1).
-type AppStoreVersionExperimentResponse = SingleResponse[AppStoreVersionExperimentAttributes]
-
-// AppStoreVersionExperimentCreateAttributes describes create payload attributes (v1).
-type AppStoreVersionExperimentCreateAttributes struct {
-	Name              string `json:"name"`
-	TrafficProportion int    `json:"trafficProportion"`
-}
-
 // AppStoreVersionExperimentCreateRelationships describes create relationships (v1).
 type AppStoreVersionExperimentCreateRelationships struct {
 	AppStoreVersion *Relationship `json:"appStoreVersion"`
@@ -38,30 +29,6 @@ type AppStoreVersionExperimentCreateData struct {
 	Type          ResourceType                                  `json:"type"`
 	Attributes    AppStoreVersionExperimentCreateAttributes     `json:"attributes"`
 	Relationships *AppStoreVersionExperimentCreateRelationships `json:"relationships"`
-}
-
-// AppStoreVersionExperimentCreateRequest is a request to create an experiment (v1).
-type AppStoreVersionExperimentCreateRequest struct {
-	Data AppStoreVersionExperimentCreateData `json:"data"`
-}
-
-// AppStoreVersionExperimentUpdateAttributes describes update payload attributes (v1).
-type AppStoreVersionExperimentUpdateAttributes struct {
-	Name              *string `json:"name,omitempty"`
-	TrafficProportion *int    `json:"trafficProportion,omitempty"`
-	Started           *bool   `json:"started,omitempty"`
-}
-
-// AppStoreVersionExperimentUpdateData is the data payload for update requests (v1).
-type AppStoreVersionExperimentUpdateData struct {
-	Type       ResourceType                               `json:"type"`
-	ID         string                                     `json:"id"`
-	Attributes *AppStoreVersionExperimentUpdateAttributes `json:"attributes,omitempty"`
-}
-
-// AppStoreVersionExperimentUpdateRequest is a request to update an experiment (v1).
-type AppStoreVersionExperimentUpdateRequest struct {
-	Data AppStoreVersionExperimentUpdateData `json:"data"`
 }
 
 // AppStoreVersionExperimentDeleteResult represents CLI output for experiment deletions.
@@ -84,9 +51,6 @@ type AppStoreVersionExperimentV2Attributes struct {
 // AppStoreVersionExperimentsV2Response is the response from experiment list endpoints (v2).
 type AppStoreVersionExperimentsV2Response = Response[AppStoreVersionExperimentV2Attributes]
 
-// AppStoreVersionExperimentV2Response is the response from experiment endpoints (v2).
-type AppStoreVersionExperimentV2Response = SingleResponse[AppStoreVersionExperimentV2Attributes]
-
 // AppStoreVersionExperimentV2CreateAttributes describes create payload attributes (v2).
 type AppStoreVersionExperimentV2CreateAttributes struct {
 	Name              string   `json:"name"`
@@ -106,30 +70,6 @@ type AppStoreVersionExperimentV2CreateData struct {
 	Relationships *AppStoreVersionExperimentV2CreateRelationships `json:"relationships"`
 }
 
-// AppStoreVersionExperimentV2CreateRequest is a request to create an experiment (v2).
-type AppStoreVersionExperimentV2CreateRequest struct {
-	Data AppStoreVersionExperimentV2CreateData `json:"data"`
-}
-
-// AppStoreVersionExperimentV2UpdateAttributes describes update payload attributes (v2).
-type AppStoreVersionExperimentV2UpdateAttributes struct {
-	Name              *string `json:"name,omitempty"`
-	TrafficProportion *int    `json:"trafficProportion,omitempty"`
-	Started           *bool   `json:"started,omitempty"`
-}
-
-// AppStoreVersionExperimentV2UpdateData is the data payload for update requests (v2).
-type AppStoreVersionExperimentV2UpdateData struct {
-	Type       ResourceType                                 `json:"type"`
-	ID         string                                       `json:"id"`
-	Attributes *AppStoreVersionExperimentV2UpdateAttributes `json:"attributes,omitempty"`
-}
-
-// AppStoreVersionExperimentV2UpdateRequest is a request to update an experiment (v2).
-type AppStoreVersionExperimentV2UpdateRequest struct {
-	Data AppStoreVersionExperimentV2UpdateData `json:"data"`
-}
-
 // AppStoreVersionExperimentTreatmentAttributes describes treatment attributes.
 type AppStoreVersionExperimentTreatmentAttributes struct {
 	Name         string      `json:"name,omitempty"`
@@ -140,9 +80,6 @@ type AppStoreVersionExperimentTreatmentAttributes struct {
 
 // AppStoreVersionExperimentTreatmentsResponse is the response from treatment list endpoints.
 type AppStoreVersionExperimentTreatmentsResponse = Response[AppStoreVersionExperimentTreatmentAttributes]
-
-// AppStoreVersionExperimentTreatmentResponse is the response from treatment endpoints.
-type AppStoreVersionExperimentTreatmentResponse = SingleResponse[AppStoreVersionExperimentTreatmentAttributes]
 
 // AppStoreVersionExperimentTreatmentCreateAttributes describes create payload attributes.
 type AppStoreVersionExperimentTreatmentCreateAttributes struct {
@@ -163,50 +100,14 @@ type AppStoreVersionExperimentTreatmentCreateData struct {
 	Relationships *AppStoreVersionExperimentTreatmentCreateRelationships `json:"relationships,omitempty"`
 }
 
-// AppStoreVersionExperimentTreatmentCreateRequest is a request to create a treatment.
-type AppStoreVersionExperimentTreatmentCreateRequest struct {
-	Data AppStoreVersionExperimentTreatmentCreateData `json:"data"`
-}
-
-// AppStoreVersionExperimentTreatmentUpdateAttributes describes update payload attributes.
-type AppStoreVersionExperimentTreatmentUpdateAttributes struct {
-	Name        *string `json:"name,omitempty"`
-	AppIconName *string `json:"appIconName,omitempty"`
-}
-
-// AppStoreVersionExperimentTreatmentUpdateData is the data payload for update requests.
-type AppStoreVersionExperimentTreatmentUpdateData struct {
-	Type       ResourceType                                        `json:"type"`
-	ID         string                                              `json:"id"`
-	Attributes *AppStoreVersionExperimentTreatmentUpdateAttributes `json:"attributes,omitempty"`
-}
-
-// AppStoreVersionExperimentTreatmentUpdateRequest is a request to update a treatment.
-type AppStoreVersionExperimentTreatmentUpdateRequest struct {
-	Data AppStoreVersionExperimentTreatmentUpdateData `json:"data"`
-}
-
 // AppStoreVersionExperimentTreatmentDeleteResult represents CLI output for treatment deletions.
 type AppStoreVersionExperimentTreatmentDeleteResult struct {
 	ID      string `json:"id"`
 	Deleted bool   `json:"deleted"`
 }
 
-// AppStoreVersionExperimentTreatmentLocalizationAttributes describes treatment localization attributes.
-type AppStoreVersionExperimentTreatmentLocalizationAttributes struct {
-	Locale string `json:"locale,omitempty"`
-}
-
 // AppStoreVersionExperimentTreatmentLocalizationsResponse is the response from treatment localization list endpoints.
 type AppStoreVersionExperimentTreatmentLocalizationsResponse = Response[AppStoreVersionExperimentTreatmentLocalizationAttributes]
-
-// AppStoreVersionExperimentTreatmentLocalizationResponse is the response from treatment localization endpoints.
-type AppStoreVersionExperimentTreatmentLocalizationResponse = SingleResponse[AppStoreVersionExperimentTreatmentLocalizationAttributes]
-
-// AppStoreVersionExperimentTreatmentLocalizationCreateAttributes describes create payload attributes.
-type AppStoreVersionExperimentTreatmentLocalizationCreateAttributes struct {
-	Locale string `json:"locale"`
-}
 
 // AppStoreVersionExperimentTreatmentLocalizationCreateRelationships describes create relationships.
 type AppStoreVersionExperimentTreatmentLocalizationCreateRelationships struct {
@@ -220,30 +121,10 @@ type AppStoreVersionExperimentTreatmentLocalizationCreateData struct {
 	Relationships *AppStoreVersionExperimentTreatmentLocalizationCreateRelationships `json:"relationships"`
 }
 
-// AppStoreVersionExperimentTreatmentLocalizationCreateRequest is a request to create a treatment localization.
-type AppStoreVersionExperimentTreatmentLocalizationCreateRequest struct {
-	Data AppStoreVersionExperimentTreatmentLocalizationCreateData `json:"data"`
-}
-
 // AppStoreVersionExperimentTreatmentLocalizationDeleteResult represents CLI output for treatment localization deletions.
 type AppStoreVersionExperimentTreatmentLocalizationDeleteResult struct {
 	ID      string `json:"id"`
 	Deleted bool   `json:"deleted"`
-}
-
-// GetAppStoreVersionExperiments retrieves experiments for an app store version (v1).
-func (c *Client) GetAppStoreVersionExperiments(ctx context.Context, versionID string, opts ...AppStoreVersionExperimentsOption) (*AppStoreVersionExperimentsResponse, error) {
-	query := applyOptions(opts)
-	versionID = strings.TrimSpace(versionID)
-	if query.nextURL == "" && versionID == "" {
-		return nil, fmt.Errorf("versionID is required")
-	}
-	return getJSON[AppStoreVersionExperimentsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/appStoreVersions/%s/appStoreVersionExperiments", versionID),
-		Query:       buildAppStoreVersionExperimentsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "appStoreVersionExperiments",
-	})
 }
 
 // GetAppStoreVersionExperimentsV2 retrieves experiments for an app (v2).
@@ -259,24 +140,6 @@ func (c *Client) GetAppStoreVersionExperimentsV2(ctx context.Context, appID stri
 		Next:        query.nextURL,
 		NextContext: "appStoreVersionExperimentsV2",
 	})
-}
-
-// GetAppStoreVersionExperiment retrieves an experiment by ID (v1).
-func (c *Client) GetAppStoreVersionExperiment(ctx context.Context, experimentID string) (*AppStoreVersionExperimentResponse, error) {
-	experimentID = strings.TrimSpace(experimentID)
-	if experimentID == "" {
-		return nil, fmt.Errorf("experimentID is required")
-	}
-	return getJSON[AppStoreVersionExperimentResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appStoreVersionExperiments/%s", experimentID)})
-}
-
-// GetAppStoreVersionExperimentV2 retrieves an experiment by ID (v2).
-func (c *Client) GetAppStoreVersionExperimentV2(ctx context.Context, experimentID string) (*AppStoreVersionExperimentV2Response, error) {
-	experimentID = strings.TrimSpace(experimentID)
-	if experimentID == "" {
-		return nil, fmt.Errorf("experimentID is required")
-	}
-	return getJSON[AppStoreVersionExperimentV2Response](ctx, c, readRequest{Path: fmt.Sprintf("/v2/appStoreVersionExperiments/%s", experimentID)})
 }
 
 // CreateAppStoreVersionExperiment creates an experiment (v1).
@@ -373,63 +236,6 @@ func (c *Client) UpdateAppStoreVersionExperimentV2(ctx context.Context, experime
 	return sendJSON[AppStoreVersionExperimentV2Response](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v2/appStoreVersionExperiments/%s", experimentID), Payload: payload})
 }
 
-// DeleteAppStoreVersionExperiment deletes an experiment (v1).
-func (c *Client) DeleteAppStoreVersionExperiment(ctx context.Context, experimentID string) error {
-	experimentID = strings.TrimSpace(experimentID)
-	if experimentID == "" {
-		return fmt.Errorf("experimentID is required")
-	}
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/appStoreVersionExperiments/%s", experimentID), nil)
-}
-
-// DeleteAppStoreVersionExperimentV2 deletes an experiment (v2).
-func (c *Client) DeleteAppStoreVersionExperimentV2(ctx context.Context, experimentID string) error {
-	experimentID = strings.TrimSpace(experimentID)
-	if experimentID == "" {
-		return fmt.Errorf("experimentID is required")
-	}
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v2/appStoreVersionExperiments/%s", experimentID), nil)
-}
-
-// GetAppStoreVersionExperimentTreatments retrieves treatments for an experiment.
-func (c *Client) GetAppStoreVersionExperimentTreatments(ctx context.Context, experimentID string, opts ...AppStoreVersionExperimentTreatmentsOption) (*AppStoreVersionExperimentTreatmentsResponse, error) {
-	query := applyOptions(opts)
-	experimentID = strings.TrimSpace(experimentID)
-	if query.nextURL == "" && experimentID == "" {
-		return nil, fmt.Errorf("experimentID is required")
-	}
-	return getJSON[AppStoreVersionExperimentTreatmentsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/appStoreVersionExperiments/%s/appStoreVersionExperimentTreatments", experimentID),
-		Query:       buildAppStoreVersionExperimentTreatmentsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "appStoreVersionExperimentTreatments",
-	})
-}
-
-// GetAppStoreVersionExperimentTreatmentsV2 retrieves treatments for a v2 experiment.
-func (c *Client) GetAppStoreVersionExperimentTreatmentsV2(ctx context.Context, experimentID string, opts ...AppStoreVersionExperimentTreatmentsOption) (*AppStoreVersionExperimentTreatmentsResponse, error) {
-	query := applyOptions(opts)
-	experimentID = strings.TrimSpace(experimentID)
-	if query.nextURL == "" && experimentID == "" {
-		return nil, fmt.Errorf("experimentID is required")
-	}
-	return getJSON[AppStoreVersionExperimentTreatmentsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v2/appStoreVersionExperiments/%s/appStoreVersionExperimentTreatments", experimentID),
-		Query:       buildAppStoreVersionExperimentTreatmentsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "appStoreVersionExperimentTreatments",
-	})
-}
-
-// GetAppStoreVersionExperimentTreatment retrieves a treatment by ID.
-func (c *Client) GetAppStoreVersionExperimentTreatment(ctx context.Context, treatmentID string) (*AppStoreVersionExperimentTreatmentResponse, error) {
-	treatmentID = strings.TrimSpace(treatmentID)
-	if treatmentID == "" {
-		return nil, fmt.Errorf("treatmentID is required")
-	}
-	return getJSON[AppStoreVersionExperimentTreatmentResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appStoreVersionExperimentTreatments/%s", treatmentID)})
-}
-
 // CreateAppStoreVersionExperimentTreatment creates a treatment.
 func (c *Client) CreateAppStoreVersionExperimentTreatment(ctx context.Context, experimentID, name, appIconName string) (*AppStoreVersionExperimentTreatmentResponse, error) {
 	return c.createAppStoreVersionExperimentTreatment(ctx, experimentID, name, appIconName, false)
@@ -490,30 +296,6 @@ func (c *Client) UpdateAppStoreVersionExperimentTreatment(ctx context.Context, t
 	return sendJSON[AppStoreVersionExperimentTreatmentResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/appStoreVersionExperimentTreatments/%s", treatmentID), Payload: payload})
 }
 
-// DeleteAppStoreVersionExperimentTreatment deletes a treatment.
-func (c *Client) DeleteAppStoreVersionExperimentTreatment(ctx context.Context, treatmentID string) error {
-	treatmentID = strings.TrimSpace(treatmentID)
-	if treatmentID == "" {
-		return fmt.Errorf("treatmentID is required")
-	}
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/appStoreVersionExperimentTreatments/%s", treatmentID), nil)
-}
-
-// GetAppStoreVersionExperimentTreatmentLocalizations retrieves localizations for a treatment.
-func (c *Client) GetAppStoreVersionExperimentTreatmentLocalizations(ctx context.Context, treatmentID string, opts ...AppStoreVersionExperimentTreatmentLocalizationsOption) (*AppStoreVersionExperimentTreatmentLocalizationsResponse, error) {
-	query := applyOptions(opts)
-	treatmentID = strings.TrimSpace(treatmentID)
-	if query.nextURL == "" && treatmentID == "" {
-		return nil, fmt.Errorf("treatmentID is required")
-	}
-	return getJSON[AppStoreVersionExperimentTreatmentLocalizationsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/appStoreVersionExperimentTreatments/%s/appStoreVersionExperimentTreatmentLocalizations", treatmentID),
-		Query:       buildAppStoreVersionExperimentTreatmentLocalizationsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "appStoreVersionExperimentTreatmentLocalizations",
-	})
-}
-
 // GetAppStoreVersionExperimentTreatmentLocalization retrieves a treatment localization by ID.
 func (c *Client) GetAppStoreVersionExperimentTreatmentLocalization(ctx context.Context, localizationID string, opts ...LocalizationReadOption) (*AppStoreVersionExperimentTreatmentLocalizationResponse, error) {
 	localizationID = strings.TrimSpace(localizationID)
@@ -549,43 +331,4 @@ func (c *Client) CreateAppStoreVersionExperimentTreatmentLocalization(ctx contex
 		},
 	}
 	return sendJSON[AppStoreVersionExperimentTreatmentLocalizationResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/appStoreVersionExperimentTreatmentLocalizations", Payload: payload})
-}
-
-// DeleteAppStoreVersionExperimentTreatmentLocalization deletes a treatment localization.
-func (c *Client) DeleteAppStoreVersionExperimentTreatmentLocalization(ctx context.Context, localizationID string) error {
-	localizationID = strings.TrimSpace(localizationID)
-	if localizationID == "" {
-		return fmt.Errorf("localizationID is required")
-	}
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/appStoreVersionExperimentTreatmentLocalizations/%s", localizationID), nil)
-}
-
-// GetAppStoreVersionExperimentTreatmentLocalizationPreviewSets retrieves preview sets for a treatment localization.
-func (c *Client) GetAppStoreVersionExperimentTreatmentLocalizationPreviewSets(ctx context.Context, localizationID string, opts ...AppStoreVersionExperimentTreatmentLocalizationPreviewSetsOption) (*AppPreviewSetsResponse, error) {
-	query := applyOptions(opts)
-	localizationID = strings.TrimSpace(localizationID)
-	if query.nextURL == "" && localizationID == "" {
-		return nil, fmt.Errorf("localizationID is required")
-	}
-	return getJSON[AppPreviewSetsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/appStoreVersionExperimentTreatmentLocalizations/%s/appPreviewSets", localizationID),
-		Query:       buildAppStoreVersionExperimentTreatmentLocalizationPreviewSetsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "appPreviewSets",
-	})
-}
-
-// GetAppStoreVersionExperimentTreatmentLocalizationScreenshotSets retrieves screenshot sets for a treatment localization.
-func (c *Client) GetAppStoreVersionExperimentTreatmentLocalizationScreenshotSets(ctx context.Context, localizationID string, opts ...AppStoreVersionExperimentTreatmentLocalizationScreenshotSetsOption) (*AppScreenshotSetsResponse, error) {
-	query := applyOptions(opts)
-	localizationID = strings.TrimSpace(localizationID)
-	if query.nextURL == "" && localizationID == "" {
-		return nil, fmt.Errorf("localizationID is required")
-	}
-	return getJSON[AppScreenshotSetsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/appStoreVersionExperimentTreatmentLocalizations/%s/appScreenshotSets", localizationID),
-		Query:       buildAppStoreVersionExperimentTreatmentLocalizationScreenshotSetsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "appScreenshotSets",
-	})
 }
