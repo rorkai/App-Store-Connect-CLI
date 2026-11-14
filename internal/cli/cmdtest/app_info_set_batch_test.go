@@ -572,14 +572,6 @@ func TestRunAppInfoSetBatchPartialFailureReturnsExitError(t *testing.T) {
 	}
 }
 
-func appInfoSetBatchJSONResponse(status int, body string) *http.Response {
-	return &http.Response{
-		StatusCode: status,
-		Body:       io.NopCloser(strings.NewReader(body)),
-		Header:     http.Header{"Content-Type": []string{"application/json"}},
-	}
-}
-
 func intValue(value any) int {
 	switch v := value.(type) {
 	case float64:
