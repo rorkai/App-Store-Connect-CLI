@@ -272,6 +272,7 @@ type SubscriptionAppStoreReviewScreenshotAttributes struct {
 	FileName           string              `json:"fileName,omitempty"`
 	SourceFileChecksum string              `json:"sourceFileChecksum,omitempty"`
 	AssetToken         string              `json:"assetToken,omitempty"`
+	AssetType          string              `json:"assetType,omitempty"`
 	ImageAsset         *ImageAsset         `json:"imageAsset,omitempty"`
 	UploadOperations   []UploadOperation   `json:"uploadOperations,omitempty"`
 	AssetDeliveryState *AppMediaAssetState `json:"assetDeliveryState,omitempty"`
