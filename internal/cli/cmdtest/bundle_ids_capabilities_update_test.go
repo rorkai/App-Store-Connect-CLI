@@ -1,8 +1,6 @@
 package cmdtest
 
 import (
-	"context"
-	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -13,11 +11,9 @@ import (
 )
 
 func TestBundleIDCapabilitiesSettingsValidationStopsBeforeHTTP(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 
 	tests := []struct {
 		name        string
@@ -91,16 +87,7 @@ func TestBundleIDCapabilitiesSettingsValidationStopsBeforeHTTP(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			requestsBefore := len(reg.Requests())
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			var runErr error
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(tc.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				runErr = root.Run(context.Background())
-			})
+			stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), tc.args...)
 
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
@@ -122,30 +109,22 @@ func TestBundleIDCapabilitiesSettingsValidationStopsBeforeHTTP(t *testing.T) {
 }
 
 func TestBundleIDCapabilitiesAddWithSettings(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	wantPayload := `{"data":{"type":"bundleIdCapabilities","attributes":{"capabilityType":"MARZIPAN","settings":[{"key":"ENABLED_FOR_MAC_APP_SETUP","options":[{"key":"USE_IOS_APPID","enabled":true}]}]},"relationships":{"bundleId":{"data":{"type":"bundleIds","id":"bundle1"}}}}}` + "\n"
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.POST("/v1/bundleIdCapabilities").JSONBody(wantPayload),
 		asctest.JSON(http.StatusCreated, `{"data":{"type":"bundleIdCapabilities","id":"cap1","attributes":{"capabilityType":"MARZIPAN","settings":[{"key":"ENABLED_FOR_MAC_APP_SETUP","options":[{"key":"USE_IOS_APPID","enabled":true}]}]}}}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"bundle-ids", "capabilities", "add",
-			"--bundle", "bundle1", "--capability", "MARZIPAN",
-			"--settings", `[{"key":"ENABLED_FOR_MAC_APP_SETUP","options":[{"key":"USE_IOS_APPID","enabled":true}]}]`,
-			"--output", "json",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg),
+		"bundle-ids", "capabilities", "add",
+		"--bundle", "bundle1", "--capability", "MARZIPAN",
+		"--settings", `[{"key":"ENABLED_FOR_MAC_APP_SETUP","options":[{"key":"USE_IOS_APPID","enabled":true}]}]`,
+		"--output", "json",
+	)
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 	if payload := reg.Requests()[0].Body; string(payload) != wantPayload {
 		t.Fatalf("request body = %q, want %q", payload, wantPayload)
 	}
@@ -163,26 +142,17 @@ func TestBundleIDCapabilitiesAddWithSettings(t *testing.T) {
 }
 
 func TestBundleIDCapabilitiesUpdateSuccessOutput(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	wantPayload := `{"data":{"type":"bundleIdCapabilities","id":"cap1","attributes":{"settings":[{"key":"APP_GROUP_IDENTIFIERS","allowedInstances":"FUTURE_INSTANCE_MODE","options":[{"key":"group.com.example.shared","enabled":true}]}]}}}` + "\n"
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.PATCH("/v1/bundleIdCapabilities/cap1").JSONBody(wantPayload),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"bundleIdCapabilities","id":"cap1","attributes":{"capabilityType":"APP_GROUPS","settings":[{"key":"APP_GROUP_IDENTIFIERS","allowedInstances":"FUTURE_INSTANCE_MODE","options":[{"key":"group.com.example.shared","enabled":true}]}]}}}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"bundle-ids", "capabilities", "update", "--id", "cap1", "--settings", `[{"key":"APP_GROUP_IDENTIFIERS","allowedInstances":"FUTURE_INSTANCE_MODE","options":[{"key":"group.com.example.shared","enabled":true}]}]`}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "bundle-ids", "capabilities", "update", "--id", "cap1", "--settings", `[{"key":"APP_GROUP_IDENTIFIERS","allowedInstances":"FUTURE_INSTANCE_MODE","options":[{"key":"group.com.example.shared","enabled":true}]}]`)
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 	if payload := reg.Requests()[0].Body; string(payload) != wantPayload {
 		t.Fatalf("request body = %q, want %q", payload, wantPayload)
 	}
@@ -204,25 +174,16 @@ func TestBundleIDCapabilitiesUpdateSuccessOutput(t *testing.T) {
 }
 
 func TestBundleIDCapabilitiesUpdateWithCapabilityType(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.PATCH("/v1/bundleIdCapabilities/cap1").JSONBody(`{"data":{"type":"bundleIdCapabilities","id":"cap1","attributes":{"capabilityType":"PUSH_NOTIFICATIONS"}}}`),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"bundleIdCapabilities","id":"cap1","attributes":{"capabilityType":"PUSH_NOTIFICATIONS"}}}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"bundle-ids", "capabilities", "update", "--id", "cap1", "--capability", "PUSH_NOTIFICATIONS"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "bundle-ids", "capabilities", "update", "--id", "cap1", "--capability", "PUSH_NOTIFICATIONS")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)

@@ -221,6 +221,7 @@ func TestListsRejectNextURLWithEmptyParentID(t *testing.T) {
 		args    []string
 		next    string
 		wantErr string
+		deps    bool // the command is built on shared.Deps: stub its client and read its deps streams
 	}{
 		{
 			args:    []string{"agreements", "territories", "list"},
@@ -231,11 +232,13 @@ func TestListsRejectNextURLWithEmptyParentID(t *testing.T) {
 			args:    []string{"bundle-ids", "profiles", "list"},
 			next:    "https://api.appstoreconnect.apple.com/v1/bundleIds//profiles?cursor=AQ",
 			wantErr: "bundle-ids profiles list: invalid --next URL",
+			deps:    true,
 		},
 		{
 			args:    []string{"users", "visible-apps", "list"},
 			next:    "https://api.appstoreconnect.apple.com/v1/users//visibleApps?cursor=AQ",
 			wantErr: "users visible-apps list: invalid --next URL",
+			deps:    true,
 		},
 		{
 			args:    []string{"webhooks", "deliveries", "links"},
@@ -247,7 +250,7 @@ func TestListsRejectNextURLWithEmptyParentID(t *testing.T) {
 	for _, test := range tests {
 		t.Run(strings.Join(test.args, " "), func(t *testing.T) {
 			args := append(append([]string{}, test.args...), "--next", test.next)
-			assertInvalidNextURLRun(t, args, test.wantErr, "", false)
+			assertInvalidNextURLRun(t, args, test.wantErr, "", test.deps)
 		})
 	}
 }

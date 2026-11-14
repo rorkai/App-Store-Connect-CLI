@@ -51,6 +51,16 @@ func setBundleIDPlatformTestServer(t *testing.T, handler http.HandlerFunc) {
 	t.Cleanup(restoreClient)
 }
 
+// bundleIDPlatformTestClient returns a client factory whose clients send every
+// request to a test server running handler.
+func bundleIDPlatformTestClient(t *testing.T, handler http.HandlerFunc) func() (*asc.Client, error) {
+	t.Helper()
+
+	server := httptest.NewServer(handler)
+	t.Cleanup(server.Close)
+	return stubServerClient(t, server)
+}
+
 func TestDevicesListUsesBundleIDPlatformFilter(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
@@ -82,11 +92,10 @@ func TestDevicesListUsesBundleIDPlatformFilter(t *testing.T) {
 }
 
 func TestBundleIDsCreateUsesBundleIDPlatformPayload(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	requestCount := 0
-	setBundleIDPlatformTestServer(t, func(w http.ResponseWriter, req *http.Request) {
+	client := bundleIDPlatformTestClient(t, func(w http.ResponseWriter, req *http.Request) {
 		requestCount++
 		if req.Method != http.MethodPost || req.URL.Path != "/v1/bundleIds" {
 			t.Fatalf("expected POST /v1/bundleIds, got %s %s", req.Method, req.URL.Path)
@@ -112,12 +121,7 @@ func TestBundleIDsCreateUsesBundleIDPlatformPayload(t *testing.T) {
 		_, _ = io.WriteString(w, `{"data":{"type":"bundleIds","id":"bundle-1","attributes":{"identifier":"com.example.universal","name":"Universal","platform":"UNIVERSAL"}}}`)
 	})
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	if err := root.Parse([]string{"bundle-ids", "create", "--identifier", "com.example.universal", "--name", "Universal", "--platform", "universal"}); err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-	if err := root.Run(context.Background()); err != nil {
+	if _, _, err := runRootWithDeps(t, client, "bundle-ids", "create", "--identifier", "com.example.universal", "--name", "Universal", "--platform", "universal"); err != nil {
 		t.Fatalf("run error: %v", err)
 	}
 	if requestCount != 1 {
@@ -144,11 +148,10 @@ func TestBundleIDsCreateSeedIDRequestAttributes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 			var got map[string]any
-			setBundleIDPlatformTestServer(t, func(w http.ResponseWriter, req *http.Request) {
+			client := bundleIDPlatformTestClient(t, func(w http.ResponseWriter, req *http.Request) {
 				var payload struct {
 					Data struct {
 						Attributes map[string]any `json:"attributes"`
@@ -163,17 +166,10 @@ func TestBundleIDsCreateSeedIDRequestAttributes(t *testing.T) {
 				_, _ = io.WriteString(w, `{"data":{"type":"bundleIds","id":"bundle-1","attributes":{"identifier":"com.example.app","name":"Example","platform":"IOS"}}}`)
 			})
 
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
 			args := append([]string{"bundle-ids", "create", "--identifier", "com.example.app", "--name", "Example"}, tt.flags...)
-			if err := root.Parse(args); err != nil {
-				t.Fatalf("parse error: %v", err)
+			if _, _, err := runRootWithDeps(t, client, args...); err != nil {
+				t.Fatalf("run error: %v", err)
 			}
-			captureOutput(t, func() {
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Fatalf("attributes = %v, want %v", got, tt.want)
 			}
@@ -184,25 +180,18 @@ func TestBundleIDsCreateSeedIDRequestAttributes(t *testing.T) {
 func TestBundleIDsCreateRejectsBlankSeedIDBeforeRequest(t *testing.T) {
 	for _, value := range []string{"", "   "} {
 		t.Run(strconv.Quote(value), func(t *testing.T) {
-			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 			requestCount := 0
-			setBundleIDPlatformTestServer(t, func(w http.ResponseWriter, req *http.Request) {
+			client := bundleIDPlatformTestClient(t, func(w http.ResponseWriter, req *http.Request) {
 				requestCount++
 				http.Error(w, "unexpected request", http.StatusBadRequest)
 			})
 
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-			if err := root.Parse([]string{"bundle-ids", "create", "--identifier", "com.example.app", "--name", "Example", "--seed-id", value}); err != nil {
-				t.Fatalf("parse error: %v", err)
+			_, stderr, err := runRootWithDeps(t, client, "bundle-ids", "create", "--identifier", "com.example.app", "--name", "Example", "--seed-id", value)
+			if !errors.Is(err, flag.ErrHelp) {
+				t.Fatalf("error = %v, want usage error", err)
 			}
-			_, stderr := captureOutput(t, func() {
-				if err := root.Run(context.Background()); !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("error = %v, want usage error", err)
-				}
-			})
 			assertUsageDiagnosticFirstLine(t, stderr, "--seed-id must not be empty")
 			if requestCount != 0 {
 				t.Fatalf("request count = %d, want 0", requestCount)

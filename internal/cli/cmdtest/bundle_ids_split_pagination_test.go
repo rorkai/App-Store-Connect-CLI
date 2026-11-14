@@ -1,7 +1,6 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -12,11 +11,10 @@ import (
 )
 
 func TestBundleIDsListSplitRequiresPaginate(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	identifiers := makeLongBundleIDIdentifierFilter()
 	requestCount := 0
-	setBundleIDPlatformTestServer(t, func(w http.ResponseWriter, req *http.Request) {
+	client := bundleIDPlatformTestClient(t, func(w http.ResponseWriter, req *http.Request) {
 		requestCount++
 		if req.URL.Query().Get("filter[identifier]") == "" {
 			t.Fatalf("request %d unexpectedly followed a continuation URL: %s", requestCount, req.URL.String())
@@ -29,15 +27,7 @@ func TestBundleIDsListSplitRequiresPaginate(t *testing.T) {
 		_, _ = io.WriteString(w, `{"data":[{"type":"bundleIds","id":"bundle-second"}]}`)
 	})
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	if err := root.Parse([]string{"bundle-ids", "list", "--identifier", identifiers, "--output", "json"}); err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		runErr = root.Run(context.Background())
-	})
+	stdout, stderr, runErr := runRootWithDeps(t, client, "bundle-ids", "list", "--identifier", identifiers, "--output", "json")
 	if runErr == nil || !strings.Contains(runErr.Error(), "split identifier filter requires --paginate") {
 		t.Fatalf("run error = %v, want pagination requirement", runErr)
 	}
@@ -54,10 +44,9 @@ func TestBundleIDsListSplitRequiresPaginate(t *testing.T) {
 }
 
 func TestBundleIDsListPaginatePreservesIncludedAcrossPages(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	requestCount := 0
-	setBundleIDPlatformTestServer(t, func(w http.ResponseWriter, req *http.Request) {
+	client := bundleIDPlatformTestClient(t, func(w http.ResponseWriter, req *http.Request) {
 		requestCount++
 		w.Header().Set("Content-Type", "application/json")
 		switch requestCount {
@@ -73,16 +62,10 @@ func TestBundleIDsListPaginatePreservesIncludedAcrossPages(t *testing.T) {
 		}
 	})
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	if err := root.Parse([]string{"bundle-ids", "list", "--include", "profiles", "--paginate", "--output", "json"}); err != nil {
-		t.Fatalf("parse error: %v", err)
+	stdout, stderr, err := runRootWithDeps(t, client, "bundle-ids", "list", "--include", "profiles", "--paginate", "--output", "json")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
 	}
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
 	if stderr != "" {
 		t.Fatalf("stderr = %q, want empty", stderr)
 	}
@@ -102,23 +85,16 @@ func TestBundleIDsListPaginatePreservesIncludedAcrossPages(t *testing.T) {
 }
 
 func TestBundleIDsListPaginatePreservesEmptyIncluded(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	setBundleIDPlatformTestServer(t, func(w http.ResponseWriter, req *http.Request) {
+	client := bundleIDPlatformTestClient(t, func(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = io.WriteString(w, `{"data":[],"included":[],"links":{}}`)
 	})
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	if err := root.Parse([]string{"bundle-ids", "list", "--include", "profiles", "--paginate", "--output", "json"}); err != nil {
-		t.Fatalf("parse error: %v", err)
+	stdout, stderr, err := runRootWithDeps(t, client, "bundle-ids", "list", "--include", "profiles", "--paginate", "--output", "json")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
 	}
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
 	if stderr != "" {
 		t.Fatalf("stderr = %q, want empty", stderr)
 	}
@@ -129,23 +105,16 @@ func TestBundleIDsListPaginatePreservesEmptyIncluded(t *testing.T) {
 }
 
 func TestBundleIDsListSparseRelationshipResponseOmitsAttributes(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	setBundleIDPlatformTestServer(t, func(w http.ResponseWriter, req *http.Request) {
+	client := bundleIDPlatformTestClient(t, func(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = io.WriteString(w, `{"data":[{"type":"bundleIds","id":"bundle-1","relationships":{"profiles":{"data":{"type":"profiles","id":"profile-1"}}}}],"links":{}}`)
 	})
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	if err := root.Parse([]string{"bundle-ids", "list", "--fields", "profiles", "--include", "profiles", "--output", "json"}); err != nil {
-		t.Fatalf("parse error: %v", err)
+	stdout, stderr, err := runRootWithDeps(t, client, "bundle-ids", "list", "--fields", "profiles", "--include", "profiles", "--output", "json")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
 	}
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
 	if stderr != "" {
 		t.Fatalf("stderr = %q, want empty", stderr)
 	}
@@ -156,11 +125,10 @@ func TestBundleIDsListSparseRelationshipResponseOmitsAttributes(t *testing.T) {
 }
 
 func TestBundleIDsListSplitPaginatesEveryChunk(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	identifiers := makeLongBundleIDIdentifierFilter()
 	requestCount := 0
-	setBundleIDPlatformTestServer(t, func(w http.ResponseWriter, req *http.Request) {
+	client := bundleIDPlatformTestClient(t, func(w http.ResponseWriter, req *http.Request) {
 		requestCount++
 		w.Header().Set("Content-Type", "application/json")
 		switch requestCount {
@@ -184,16 +152,10 @@ func TestBundleIDsListSplitPaginatesEveryChunk(t *testing.T) {
 		}
 	})
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	if err := root.Parse([]string{"bundle-ids", "list", "--identifier", identifiers, "--paginate", "--output", "json"}); err != nil {
-		t.Fatalf("parse error: %v", err)
+	stdout, stderr, err := runRootWithDeps(t, client, "bundle-ids", "list", "--identifier", identifiers, "--paginate", "--output", "json")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
 	}
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
 	if stderr != "" {
 		t.Fatalf("stderr = %q, want empty", stderr)
 	}

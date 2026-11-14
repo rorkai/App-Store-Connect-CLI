@@ -1,8 +1,6 @@
 package cmdtest
 
 import (
-	"context"
-	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -12,53 +10,32 @@ import (
 )
 
 func TestUsersListNormalizesRoles(t *testing.T) {
-	setupAuth(t)
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/users", "filter[roles]=DEVELOPER,APP_MANAGER"), asctest.JSON(http.StatusOK, `{"data":[]}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	if err := root.Parse([]string{"users", "list", "--role", " developer, app_manager ", "--output", "json"}); err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-	if err := root.Run(context.Background()); err != nil {
+	if _, _, err := runRootWithDeps(t, stubClient(t, reg), "users", "list", "--role", " developer, app_manager ", "--output", "json"); err != nil {
 		t.Fatalf("run error: %v", err)
 	}
 }
 
 func TestUsersUpdateNormalizesRoles(t *testing.T) {
-	setupAuth(t)
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/users/user-1"),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"users","id":"user-1","attributes":{"roles":["DEVELOPER"],"provisioningAllowed":true}}}`))
 	reg.Register(asctest.PATCH("/v1/users/user-1").JSONBody(`{"data":{"type":"users","id":"user-1","attributes":{"roles":["DEVELOPER","APP_MANAGER"],"provisioningAllowed":true}}}`),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"users","id":"user-1","attributes":{"roles":["DEVELOPER","APP_MANAGER"]}}}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	if err := root.Parse([]string{"users", "update", "--id", "user-1", "--roles", "developer,app_manager", "--output", "json"}); err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-	if err := root.Run(context.Background()); err != nil {
+	if _, _, err := runRootWithDeps(t, stubClient(t, reg), "users", "update", "--id", "user-1", "--roles", "developer,app_manager", "--output", "json"); err != nil {
 		t.Fatalf("run error: %v", err)
 	}
 }
 
 func TestUsersInviteNormalizesRoles(t *testing.T) {
-	setupAuth(t)
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.POST("/v1/userInvitations").JSONBody(`{"data":{"type":"userInvitations","attributes":{"email":"user@example.com","firstName":"Jane","lastName":"Doe","roles":["DEVELOPER"],"allAppsVisible":true}}}`),
 		asctest.JSON(http.StatusCreated, `{"data":{"type":"userInvitations","id":"invite-1","attributes":{"roles":["DEVELOPER"]}}}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	if err := root.Parse([]string{"users", "invite", "--email", "user@example.com", "--first-name", "Jane", "--last-name", "Doe", "--roles", "developer", "--all-apps", "--output", "json"}); err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-	if err := root.Run(context.Background()); err != nil {
+	if _, _, err := runRootWithDeps(t, stubClient(t, reg), "users", "invite", "--email", "user@example.com", "--first-name", "Jane", "--last-name", "Doe", "--roles", "developer", "--all-apps", "--output", "json"); err != nil {
 		t.Fatalf("run error: %v", err)
 	}
 }
@@ -79,11 +56,10 @@ func TestUsersCommandsRejectInvalidRolesWithUsageExit(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			stdout, stderr := captureOutput(t, func() {
-				if code := rootcmd.Run(test.args, "1.2.3"); code != rootcmd.ExitUsage {
-					t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
-				}
-			})
+			stdout, stderr, code := runWithDeps(t, stubClient(t, asctest.NewRegistry(t)), test.args...)
+			if code != rootcmd.ExitUsage {
+				t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
+			}
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
 			}

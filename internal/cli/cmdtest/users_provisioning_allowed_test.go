@@ -1,9 +1,7 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
-	"io"
 	"net/http"
 	"reflect"
 	"testing"
@@ -117,8 +115,6 @@ func TestUsersProvisioningAllowedRequestBody(t *testing.T) {
 	for _, command := range commands {
 		for _, value := range values {
 			t.Run(command.name+" "+value.name, func(t *testing.T) {
-				setupAuth(t)
-
 				wantAttrs := map[string]any{}
 				for key, attr := range command.wantAttrs {
 					wantAttrs[key] = attr
@@ -131,7 +127,6 @@ func TestUsersProvisioningAllowedRequestBody(t *testing.T) {
 				}
 
 				reg := asctest.NewRegistry(t)
-				reg.Install()
 				if wantGet {
 					reg.Register(asctest.GET(command.path),
 						asctest.JSON(http.StatusOK, `{"data":{"type":"users","id":"user-1","attributes":{"roles":["APP_MANAGER"],"provisioningAllowed":`+command.current+`}}}`))
@@ -148,16 +143,9 @@ func TestUsersProvisioningAllowedRequestBody(t *testing.T) {
 				}
 				reg.Register(write(command.path).JSONBody(string(wantBody)), asctest.JSON(command.status, command.response))
 
-				root := RootCommand("1.2.3")
-				root.FlagSet.SetOutput(io.Discard)
-				if err := root.Parse(append(append([]string{}, command.args...), value.args...)); err != nil {
-					t.Fatalf("parse error: %v", err)
+				if _, _, err := runRootWithDeps(t, stubClient(t, reg), append(append([]string{}, command.args...), value.args...)...); err != nil {
+					t.Fatalf("run error: %v", err)
 				}
-				captureOutput(t, func() {
-					if err := root.Run(context.Background()); err != nil {
-						t.Fatalf("run error: %v", err)
-					}
-				})
 				requests := reg.Requests()
 				gotGet := false
 				for _, req := range requests {

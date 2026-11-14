@@ -32,6 +32,7 @@ func TestSelfLinkCoverageSendsExtractedID(t *testing.T) {
 		wantPath string
 		wantID   string
 		bodies   map[string]string
+		deps     bool // the command is built on shared.Deps: stub its client and read its deps streams
 	}{
 		{
 			name:     "builds info",
@@ -199,6 +200,7 @@ func TestSelfLinkCoverageSendsExtractedID(t *testing.T) {
 			bodies: map[string]string{
 				"/v1/users/user-1": `{"data":{"type":"users","id":"user-1","attributes":{"username":"dev@example.com"}}}`,
 			},
+			deps: true,
 		},
 		{
 			name:     "reviews view",
@@ -252,19 +254,26 @@ func TestSelfLinkCoverageSendsExtractedID(t *testing.T) {
 				_, _ = io.WriteString(w, body)
 			}))
 			t.Cleanup(server.Close)
-			installDefaultTransportForServer(t, server)
 
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
 			args := append(append([]string(nil), test.args...), "--output", "json")
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v (requests %q)", err, recorder.requested())
-				}
-			})
+			var stdout, stderr string
+			var err error
+			if test.deps {
+				stdout, stderr, err = runRootWithDeps(t, stubServerClient(t, server), args...)
+			} else {
+				installDefaultTransportForServer(t, server)
+				root := RootCommand("1.2.3")
+				root.FlagSet.SetOutput(io.Discard)
+				stdout, stderr = captureOutput(t, func() {
+					if parseErr := root.Parse(args); parseErr != nil {
+						t.Fatalf("parse error: %v", parseErr)
+					}
+					err = root.Run(context.Background())
+				})
+			}
+			if err != nil {
+				t.Fatalf("run error: %v (requests %q)", err, recorder.requested())
+			}
 			if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)
 			}

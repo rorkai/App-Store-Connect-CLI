@@ -1,7 +1,6 @@
 package cmdtest
 
 import (
-	"context"
 	"errors"
 	"flag"
 	"io"
@@ -16,10 +15,9 @@ import (
 )
 
 func TestBundleIDsListEmitsQuerySurface(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	setBundleIDPlatformTestServer(t, func(w http.ResponseWriter, req *http.Request) {
+	client := bundleIDPlatformTestClient(t, func(w http.ResponseWriter, req *http.Request) {
 		if req.Method != http.MethodGet || req.URL.Path != "/v1/bundleIds" {
 			t.Fatalf("expected GET /v1/bundleIds, got %s %s", req.Method, req.URL.Path)
 		}
@@ -49,8 +47,6 @@ func TestBundleIDsListEmitsQuerySurface(t *testing.T) {
 		_, _ = io.WriteString(w, `{"data":[{"type":"bundleIds","id":"bundle-1"}]}`)
 	})
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
 	args := []string{
 		"bundle-ids", "list",
 		"--name", "Example,Other",
@@ -69,14 +65,10 @@ func TestBundleIDsListEmitsQuerySurface(t *testing.T) {
 		"--limit", "25",
 		"--output", "json",
 	}
-	if err := root.Parse(args); err != nil {
-		t.Fatalf("parse error: %v", err)
+	stdout, stderr, err := runRootWithDeps(t, client, args...)
+	if err != nil {
+		t.Fatalf("run error: %v", err)
 	}
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
 	if stderr != "" {
 		t.Fatalf("stderr = %q, want empty", stderr)
 	}
@@ -90,10 +82,10 @@ func TestBundleIDsListRejectsInvalidQueryBeforeClient(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	clientFactoryCalls := 0
-	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+	client := func() (*asc.Client, error) {
 		clientFactoryCalls++
 		return nil, errors.New("client factory must not run during validation")
-	}))
+	}
 
 	tests := []struct {
 		name string
@@ -118,17 +110,10 @@ func TestBundleIDsListRejectsInvalidQueryBeforeClient(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(append([]string{"bundle-ids", "list"}, test.args...)); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if got := rootcmd.ExitCodeFromError(err); got != rootcmd.ExitUsage {
-					t.Fatalf("exit code = %d, want %d (err=%v)", got, rootcmd.ExitUsage, err)
-				}
-			})
+			stdout, stderr, err := runRootWithDeps(t, client, append([]string{"bundle-ids", "list"}, test.args...)...)
+			if got := rootcmd.ExitCodeFromError(err); got != rootcmd.ExitUsage {
+				t.Fatalf("exit code = %d, want %d (err=%v)", got, rootcmd.ExitUsage, err)
+			}
 			if stdout != "" {
 				t.Fatalf("stdout = %q, want empty", stdout)
 			}
@@ -147,10 +132,10 @@ func TestBundleIDsListIncludeRequirementsUseConciseUsageErrors(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	clientFactoryCalls := 0
-	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+	client := func() (*asc.Client, error) {
 		clientFactoryCalls++
 		return nil, errors.New("client factory must not run during validation")
-	}))
+	}
 
 	tests := []struct {
 		name      string
@@ -192,16 +177,7 @@ func TestBundleIDsListIncludeRequirementsUseConciseUsageErrors(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			var runErr error
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(append([]string{"bundle-ids", "list"}, test.args...)); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				runErr = root.Run(context.Background())
-			})
+			stdout, stderr, runErr := runRootWithDeps(t, client, append([]string{"bundle-ids", "list"}, test.args...)...)
 
 			if runErr == nil || !shared.IsReportedUsageError(runErr) || errors.Is(runErr, flag.ErrHelp) {
 				t.Fatalf("run error = %v, want reported usage error without flag.ErrHelp", runErr)
