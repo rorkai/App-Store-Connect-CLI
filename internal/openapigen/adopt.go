@@ -55,6 +55,12 @@ func Adopt(spec *Spec, b *Bindings, dir string, tags []string, report io.Writer)
 	if err != nil {
 		return nil, err
 	}
+	bound := map[string]bool{}
+	for _, f := range b.Families {
+		for _, op := range f.Operations {
+			bound[op.Operation] = true
+		}
+	}
 	for _, tag := range tags {
 		ops := spec.Operations(tag)
 		if len(ops) == 0 {
@@ -64,8 +70,12 @@ func Adopt(spec *Spec, b *Bindings, dir string, tags []string, report io.Writer)
 		var adoptedTypes []string
 		for _, op := range ops {
 			candidates := p.methods[op.Method+" "+pathFormat(op.Path)]
+			if bound[op.ID] {
+				fmt.Fprintf(report, "%s\t%s\talready generated\n", tag, op.ID)
+				continue
+			}
 			if len(candidates) == 0 {
-				fmt.Fprintf(report, "%s\t%s\tno method\n", tag, op.ID)
+				fmt.Fprintf(report, "%s\t%s\tno method (new name would be %s)\n", tag, op.ID, defaultName(spec, op))
 				continue
 			}
 			for _, d := range candidates {

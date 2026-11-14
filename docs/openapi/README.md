@@ -53,4 +53,6 @@ generated files or the bindings by hand.
   operation of a tag it renders the method from the spec and the choices read
   out of the existing method, and replaces the existing method only when both
   are the same Go tokens; types are handled the same way. It prints what it
-  generated and why it kept the rest. Add `-dry-run` to only print the report.
+  generated, why it kept the rest, and the name the rule in
+  `internal/openapigen/names.go` gives each operation that has no method yet.
+  Add `-dry-run` to only print the report.
