@@ -34,6 +34,7 @@ func TestAppFieldsAcceptEveryOpenAPIValue(t *testing.T) {
 			specPath:    "/v1/bundleIds",
 			requestPath: "/v1/bundleIds",
 			args:        []string{"bundle-ids", "list", "--include", "app"},
+			deps: true,
 		},
 		{
 			name:        "product-pages custom-pages list",
@@ -53,6 +54,7 @@ func TestAppFieldsAcceptEveryOpenAPIValue(t *testing.T) {
 			specPath:    "/v1/users",
 			requestPath: "/v1/users",
 			args:        []string{"users", "list", "--include", "visibleApps"},
+			deps: true,
 			rejected: []string{
 				"appStoreIcon",
 				"performanceOverviews",

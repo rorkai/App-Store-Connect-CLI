@@ -1,19 +1,22 @@
 package bundleids
 
 import (
+	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"flag"
 	"reflect"
 	"strings"
 	"testing"
 
+	"encoding/json"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestBundleIDsGetCommand_MissingID(t *testing.T) {
-	cmd := BundleIDsGetCommand()
+	d, stdout, stderr := newTestDeps()
+	cmd := newBundleIDsGetCommand(d)
 
 	if err := cmd.FlagSet.Parse([]string{}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
@@ -22,10 +25,12 @@ func TestBundleIDsGetCommand_MissingID(t *testing.T) {
 	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --id is missing, got %v", err)
 	}
+	assertUsageOutput(t, stdout, stderr, "Error: --id is required\n")
 }
 
 func TestBundleIDsCreateCommand_MissingIdentifier(t *testing.T) {
-	cmd := BundleIDsCreateCommand()
+	d, stdout, stderr := newTestDeps()
+	cmd := newBundleIDsCreateCommand(d)
 
 	if err := cmd.FlagSet.Parse([]string{"--name", "Example"}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
@@ -34,10 +39,12 @@ func TestBundleIDsCreateCommand_MissingIdentifier(t *testing.T) {
 	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --identifier is missing, got %v", err)
 	}
+	assertUsageOutput(t, stdout, stderr, "Error: --identifier is required\n")
 }
 
 func TestBundleIDsCreateCommand_MissingName(t *testing.T) {
-	cmd := BundleIDsCreateCommand()
+	d, stdout, stderr := newTestDeps()
+	cmd := newBundleIDsCreateCommand(d)
 
 	if err := cmd.FlagSet.Parse([]string{"--identifier", "com.example.app"}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
@@ -46,10 +53,12 @@ func TestBundleIDsCreateCommand_MissingName(t *testing.T) {
 	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --name is missing, got %v", err)
 	}
+	assertUsageOutput(t, stdout, stderr, "Error: --name is required\n")
 }
 
 func TestBundleIDsCreateCommand_UsesBundleIDPlatformContract(t *testing.T) {
-	cmd := BundleIDsCreateCommand()
+	d, _, _ := newTestDeps()
+	cmd := newBundleIDsCreateCommand(d)
 	platformFlag := cmd.FlagSet.Lookup("platform")
 	if platformFlag == nil {
 		t.Fatal("expected --platform flag")
@@ -76,7 +85,8 @@ func TestBundleIDsCreateCommand_UsesBundleIDPlatformContract(t *testing.T) {
 }
 
 func TestBundleIDsUpdateCommand_MissingID(t *testing.T) {
-	cmd := BundleIDsUpdateCommand()
+	d, stdout, stderr := newTestDeps()
+	cmd := newBundleIDsUpdateCommand(d)
 
 	if err := cmd.FlagSet.Parse([]string{"--name", "New Name"}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
@@ -85,10 +95,12 @@ func TestBundleIDsUpdateCommand_MissingID(t *testing.T) {
 	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --id is missing, got %v", err)
 	}
+	assertUsageOutput(t, stdout, stderr, "Error: --id is required\n")
 }
 
 func TestBundleIDsUpdateCommand_MissingName(t *testing.T) {
-	cmd := BundleIDsUpdateCommand()
+	d, stdout, stderr := newTestDeps()
+	cmd := newBundleIDsUpdateCommand(d)
 
 	if err := cmd.FlagSet.Parse([]string{"--id", "BUNDLE_ID"}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
@@ -97,10 +109,12 @@ func TestBundleIDsUpdateCommand_MissingName(t *testing.T) {
 	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --name is missing, got %v", err)
 	}
+	assertUsageOutput(t, stdout, stderr, "Error: --name is required\n")
 }
 
 func TestBundleIDsDeleteCommand_MissingConfirm(t *testing.T) {
-	cmd := BundleIDsDeleteCommand()
+	d, stdout, stderr := newTestDeps()
+	cmd := newBundleIDsDeleteCommand(d)
 
 	if err := cmd.FlagSet.Parse([]string{"--id", "BUNDLE_ID"}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
@@ -109,10 +123,12 @@ func TestBundleIDsDeleteCommand_MissingConfirm(t *testing.T) {
 	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --confirm is missing, got %v", err)
 	}
+	assertUsageOutput(t, stdout, stderr, "Error: --confirm is required\n")
 }
 
 func TestBundleIDsCapabilitiesAddCommand_MissingBundle(t *testing.T) {
-	cmd := BundleIDsCapabilitiesAddCommand()
+	d, stdout, stderr := newTestDeps()
+	cmd := newBundleIDsCapabilitiesAddCommand(d)
 
 	if err := cmd.FlagSet.Parse([]string{"--capability", "ICLOUD"}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
@@ -121,10 +137,12 @@ func TestBundleIDsCapabilitiesAddCommand_MissingBundle(t *testing.T) {
 	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --bundle is missing, got %v", err)
 	}
+	assertUsageOutput(t, stdout, stderr, "Error: --bundle is required\n")
 }
 
 func TestBundleIDsCapabilitiesAddCommand_MissingCapability(t *testing.T) {
-	cmd := BundleIDsCapabilitiesAddCommand()
+	d, stdout, stderr := newTestDeps()
+	cmd := newBundleIDsCapabilitiesAddCommand(d)
 
 	if err := cmd.FlagSet.Parse([]string{"--bundle", "BUNDLE_ID"}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
@@ -133,6 +151,7 @@ func TestBundleIDsCapabilitiesAddCommand_MissingCapability(t *testing.T) {
 	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --capability is missing, got %v", err)
 	}
+	assertUsageOutput(t, stdout, stderr, "Error: --capability is required\n")
 }
 
 func TestParseCapabilitySettingsRejectsInvalidStructure(t *testing.T) {
@@ -280,7 +299,8 @@ func TestParseCapabilitySettingsAcceptsForwardCompatibleKeysAndExactFields(t *te
 }
 
 func TestBundleIDsCapabilitiesRemoveCommand_MissingID(t *testing.T) {
-	cmd := BundleIDsCapabilitiesRemoveCommand()
+	d, stdout, stderr := newTestDeps()
+	cmd := newBundleIDsCapabilitiesRemoveCommand(d)
 
 	if err := cmd.FlagSet.Parse([]string{"--confirm"}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
@@ -289,10 +309,12 @@ func TestBundleIDsCapabilitiesRemoveCommand_MissingID(t *testing.T) {
 	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --id is missing, got %v", err)
 	}
+	assertUsageOutput(t, stdout, stderr, "Error: --id is required\n")
 }
 
 func TestBundleIDsCapabilitiesRemoveCommand_MissingConfirm(t *testing.T) {
-	cmd := BundleIDsCapabilitiesRemoveCommand()
+	d, stdout, stderr := newTestDeps()
+	cmd := newBundleIDsCapabilitiesRemoveCommand(d)
 
 	if err := cmd.FlagSet.Parse([]string{"--id", "CAPABILITY_ID"}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
@@ -301,6 +323,7 @@ func TestBundleIDsCapabilitiesRemoveCommand_MissingConfirm(t *testing.T) {
 	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --confirm is missing, got %v", err)
 	}
+	assertUsageOutput(t, stdout, stderr, "Error: --confirm is required\n")
 }
 
 func TestExtractBundleIDFromNextURL(t *testing.T) {
@@ -344,5 +367,20 @@ func TestExtractBundleIDFromNextURL_RejectsMalformedHost(t *testing.T) {
 				t.Fatalf("expected error for malformed URL %q", next)
 			}
 		})
+	}
+}
+
+func newTestDeps() (*shared.Deps, *bytes.Buffer, *bytes.Buffer) {
+	var stdout, stderr bytes.Buffer
+	return &shared.Deps{IO: &shared.IO{Out: &stdout, ErrOut: &stderr}}, &stdout, &stderr
+}
+
+func assertUsageOutput(t *testing.T, stdout, stderr *bytes.Buffer, wantStderr string) {
+	t.Helper()
+	if stdout.Len() != 0 {
+		t.Fatalf("stdout = %q, want empty", stdout.String())
+	}
+	if got := stderr.String(); got != wantStderr {
+		t.Fatalf("stderr = %q, want %q", got, wantStderr)
 	}
 }

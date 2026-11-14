@@ -155,13 +155,19 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 			return alternativedistribution.NewAlternativeDistributionCommand(d)
 		}),
 		commandFactory("webhooks", "Manage webhooks in App Store Connect.", webhooks.WebhooksCommand),
-		commandFactory("nominations", "Manage featuring nominations.", nominations.NominationsCommand),
-		commandFactory("bundle-ids", "Manage bundle IDs and capabilities.", bundleids.BundleIDsCommand),
+		commandFactory("nominations", "Manage featuring nominations.", func() *ffcli.Command {
+			return nominations.NewNominationsCommand(d)
+		}),
+		commandFactory("bundle-ids", "Manage bundle IDs and capabilities.", func() *ffcli.Command {
+			return bundleids.NewBundleIDsCommand(d)
+		}),
 		commandFactory("merchant-ids", "Manage merchant IDs and certificates.", merchantids.MerchantIDsCommand),
 		commandFactory("certificates", "Manage signing certificates.", certificates.CertificatesCommand),
 		commandFactory("pass-type-ids", "Manage pass type IDs.", passtypeids.PassTypeIDsCommand),
 		commandFactory("profiles", "Manage provisioning profiles.", profiles.ProfilesCommand),
-		commandFactory("users", "Manage users and invitations in App Store Connect.", users.UsersCommand),
+		commandFactory("users", "Manage users and invitations in App Store Connect.", func() *ffcli.Command {
+			return users.NewUsersCommand(d)
+		}),
 		commandFactory("actors", "Lookup actors (users, API keys) by ID.", func() *ffcli.Command {
 			return actors.NewActorsCommand(d)
 		}),
@@ -214,7 +220,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("submit", "Submission lifecycle tools; use `publish appstore --submit` to ship.", submit.SubmitCommand),
 		commandFactory("validate", "Canonical App Store submission readiness report.", validate.ValidateCommand),
 		commandFactory("xcode-cloud", "Trigger and monitor Xcode Cloud workflows.", xcodecloud.XcodeCloudCommand),
-		commandFactory("categories", "Manage App Store categories.", categories.CategoriesCommand),
+		commandFactory("categories", "Manage App Store categories.", func() *ffcli.Command {
+			return categories.NewCategoriesCommand(d)
+		}),
 		commandFactory("age-rating", "Manage App Store age rating declarations.", func() *ffcli.Command {
 			return agerating.NewAgeRatingCommand(d)
 		}),

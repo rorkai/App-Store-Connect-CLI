@@ -219,7 +219,7 @@ func TestBundleIDPlatformCommandsRejectGeneralPlatforms(t *testing.T) {
 	}{
 		{name: "devices list tvOS", args: []string{"devices", "list", "--platform", "TV_OS"}, deps: true},
 		{name: "devices register visionOS", args: []string{"devices", "register", "--name", "Invalid", "--udid", "INVALID", "--platform", "VISION_OS"}, deps: true},
-		{name: "bundle ID create tvOS", args: []string{"bundle-ids", "create", "--identifier", "com.example.invalid", "--name", "Invalid", "--platform", "TV_OS"}},
+		{name: "bundle ID create tvOS", args: []string{"bundle-ids", "create", "--identifier", "com.example.invalid", "--name", "Invalid", "--platform", "TV_OS"}, deps: true},
 	}
 
 	for _, tt := range tests {

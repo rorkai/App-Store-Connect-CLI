@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -13,12 +12,12 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// CategoriesGetCommand returns the category get subcommand.
-func CategoriesGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("categories view", flag.ExitOnError)
+// newCategoriesGetCommand returns the category get subcommand.
+func newCategoriesGetCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("categories view", flag.ExitOnError)
 
 	categoryID := shared.BindResourceIDFlag(fs, "category-id", "appCategories", "App category ID")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "view",
@@ -33,15 +32,15 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*categoryID)
 			if trimmedID == "" {
-				return shared.RequiredFlag("--category-id")
+				return d.RequiredFlag("--category-id")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("categories view: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAppCategory(requestCtx, trimmedID)
@@ -49,17 +48,17 @@ Examples:
 				return fmt.Errorf("categories view: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// CategoriesParentCommand returns the category parent subcommand.
-func CategoriesParentCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("categories parent", flag.ExitOnError)
+// newCategoriesParentCommand returns the category parent subcommand.
+func newCategoriesParentCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("categories parent", flag.ExitOnError)
 
 	categoryID := shared.BindResourceIDFlag(fs, "category-id", "appCategories", "App category ID")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "parent",
@@ -74,15 +73,15 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*categoryID)
 			if trimmedID == "" {
-				return shared.RequiredFlag("--category-id")
+				return d.RequiredFlag("--category-id")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("categories parent: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAppCategoryParent(requestCtx, trimmedID)
@@ -90,20 +89,20 @@ Examples:
 				return fmt.Errorf("categories parent: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// CategoriesSubcategoriesCommand returns the category subcategories subcommand.
-func CategoriesSubcategoriesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("categories subcategories", flag.ExitOnError)
+// newCategoriesSubcategoriesCommand returns the category subcategories subcommand.
+func newCategoriesSubcategoriesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("categories subcategories", flag.ExitOnError)
 
 	categoryID := shared.BindResourceIDFlag(fs, "category-id", "appCategories", "App category ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "subcategories",
@@ -118,28 +117,28 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("categories subcategories: %v", err)
+				return d.UsageErrorf("categories subcategories: %v", err)
 			}
-			if err := rejectCategorySubcategoriesNextFlagConflicts(fs, *next, "category-id", "limit"); err != nil {
+			if err := rejectCategorySubcategoriesNextFlagConflicts(d, fs, *next, "category-id", "limit"); err != nil {
 				return err
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				fmt.Fprintln(os.Stderr, "Error: --limit must be between 1 and 200")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --limit must be between 1 and 200")
 				return flag.ErrHelp
 			}
 
 			trimmedID := strings.TrimSpace(*categoryID)
 			trimmedNext := strings.TrimSpace(*next)
 			if trimmedID == "" && trimmedNext == "" {
-				return shared.RequiredFlag("--category-id")
+				return d.RequiredFlag("--category-id")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("categories subcategories: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			opts := []asc.AppCategoriesOption{
@@ -159,7 +158,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("categories subcategories: %w", err)
 				}
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetAppCategorySubcategories(requestCtx, trimmedID, opts...)
@@ -167,12 +166,12 @@ Examples:
 				return fmt.Errorf("categories subcategories: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-func rejectCategorySubcategoriesNextFlagConflicts(fs *flag.FlagSet, next string, names ...string) error {
+func rejectCategorySubcategoriesNextFlagConflicts(d *shared.Deps, fs *flag.FlagSet, next string, names ...string) error {
 	if strings.TrimSpace(next) == "" {
 		return nil
 	}
@@ -182,7 +181,7 @@ func rejectCategorySubcategoriesNextFlagConflicts(fs *flag.FlagSet, next string,
 	})
 	for _, name := range names {
 		if _, ok := provided[name]; ok {
-			return shared.UsageErrorf("categories subcategories: --next cannot be combined with --%s", name)
+			return d.UsageErrorf("categories subcategories: --next cannot be combined with --%s", name)
 		}
 	}
 	return nil

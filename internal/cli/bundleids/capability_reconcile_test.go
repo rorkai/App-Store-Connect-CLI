@@ -1,6 +1,7 @@
 package bundleids
 
 import (
+	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
@@ -23,8 +24,9 @@ import (
 )
 
 func TestReconcileUnknownEntitlementIsUsage(t *testing.T) {
+	d, _, _ := newReconcileDeps(nil)
 	path := writeEntitlements(t, map[string]any{"com.example.unknown": true})
-	cmd := capabilityReconcileCommand("plan", false)
+	cmd := capabilityReconcileCommand(d, "plan", false)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.Parse([]string{"--bundle", "BUNDLE", "--entitlements", path, "--output", "json"}); err != nil {
 		t.Fatal(err)
@@ -102,6 +104,7 @@ func TestResolveCapabilityBundleIDDoesNotMaskLookupError(t *testing.T) {
 }
 
 func TestReadDesiredEntitlementsMapsCapabilities(t *testing.T) {
+	d, _, _ := newReconcileDeps(nil)
 	tests := []struct {
 		name         string
 		entitlements map[string]any
@@ -150,7 +153,7 @@ func TestReadDesiredEntitlementsMapsCapabilities(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			desired, err := readDesiredEntitlements(writeEntitlements(t, test.entitlements), false)
+			desired, err := readDesiredEntitlements(d, writeEntitlements(t, test.entitlements), false)
 			if len(test.wantErr) > 0 {
 				for _, want := range test.wantErr {
 					if err == nil || !strings.Contains(err.Error(), want) {
@@ -174,12 +177,13 @@ func TestReadDesiredEntitlementsMapsCapabilities(t *testing.T) {
 }
 
 func TestReconcileCloudKitSettingsSurviveMultipleICloudEntitlements(t *testing.T) {
+	d, _, _ := newReconcileDeps(nil)
 	path := writeEntitlements(t, map[string]any{
 		"com.apple.developer.icloud-container-identifiers":   []string{"iCloud.example"},
 		"com.apple.developer.icloud-services":                []string{"CloudKit"},
 		"com.apple.developer.ubiquity-container-identifiers": []string{"iCloud.example"},
 	})
-	desired, err := readDesiredEntitlements(path, false)
+	desired, err := readDesiredEntitlements(d, path, false)
 	if err != nil {
 		t.Fatalf("read entitlements: %v", err)
 	}
@@ -201,10 +205,11 @@ func TestReconcileCloudKitSettingsSurviveMultipleICloudEntitlements(t *testing.T
 }
 
 func TestReconcilePrivateCloudComputePlansUsableWebCommand(t *testing.T) {
+	d, _, _ := newReconcileDeps(nil)
 	path := writeEntitlements(t, map[string]any{
 		"com.apple.developer.private-cloud-compute": true,
 	})
-	desired, err := readDesiredEntitlements(path, false)
+	desired, err := readDesiredEntitlements(d, path, false)
 	if err != nil {
 		t.Fatalf("read entitlements: %v", err)
 	}
@@ -221,6 +226,7 @@ func TestReconcilePrivateCloudComputePlansUsableWebCommand(t *testing.T) {
 }
 
 func TestReconcileRejectsWrongEntitlementValueKinds(t *testing.T) {
+	d, _, _ := newReconcileDeps(nil)
 	for _, tc := range []struct {
 		name  string
 		key   string
@@ -232,7 +238,7 @@ func TestReconcileRejectsWrongEntitlementValueKinds(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			path := writeEntitlements(t, map[string]any{tc.key: tc.value})
-			if _, err := readDesiredEntitlements(path, false); err == nil {
+			if _, err := readDesiredEntitlements(d, path, false); err == nil {
 				t.Fatalf("expected %q to reject value %#v", tc.key, tc.value)
 			}
 		})
@@ -240,6 +246,7 @@ func TestReconcileRejectsWrongEntitlementValueKinds(t *testing.T) {
 }
 
 func TestReconcileRejectsSymlinkedEntitlementsParent(t *testing.T) {
+	d, _, _ := newReconcileDeps(nil)
 	dir := t.TempDir()
 	realDir := filepath.Join(dir, "real")
 	if err := os.Mkdir(realDir, 0o700); err != nil {
@@ -257,16 +264,17 @@ func TestReconcileRejectsSymlinkedEntitlementsParent(t *testing.T) {
 	if err := os.Symlink(realDir, linkedDir); err != nil {
 		t.Skipf("create symlink: %v", err)
 	}
-	if _, err := readDesiredEntitlements(filepath.Join(linkedDir, "App.entitlements"), false); err == nil {
+	if _, err := readDesiredEntitlements(d, filepath.Join(linkedDir, "App.entitlements"), false); err == nil {
 		t.Fatal("expected symlinked parent to be rejected")
 	}
 }
 
 func TestReconcilePlanDoesNotAcceptConfirm(t *testing.T) {
-	if flag := capabilityReconcileCommand("plan", false).FlagSet.Lookup("confirm"); flag != nil {
+	d, _, _ := newReconcileDeps(nil)
+	if flag := capabilityReconcileCommand(d, "plan", false).FlagSet.Lookup("confirm"); flag != nil {
 		t.Fatal("plan must not advertise an ignored --confirm flag")
 	}
-	if flag := capabilityReconcileCommand("apply", true).FlagSet.Lookup("confirm"); flag == nil {
+	if flag := capabilityReconcileCommand(d, "apply", true).FlagSet.Lookup("confirm"); flag == nil {
 		t.Fatal("apply must require --confirm")
 	}
 }
@@ -296,18 +304,19 @@ func TestReconcileApplyAddsAndPreservesPushSettings(t *testing.T) {
 			return nil
 		}
 	})
-	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) { return client, nil }))
+	d, stdoutBuf, _ := newReconcileDeps(func() (*asc.Client, error) { return client, nil })
 	path := writeEntitlements(t, map[string]any{
 		"aps-environment": "production",
 		"com.apple.developer.default-data-protection": "NSFileProtectionComplete",
 	})
-	cmd := capabilityReconcileCommand("apply", true)
+	cmd := capabilityReconcileCommand(d, "apply", true)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.Parse([]string{"--bundle", "bundle-1", "--entitlements", path, "--confirm", "--output", "json"}); err != nil {
 		t.Fatal(err)
 	}
 	var runErr error
-	stdout, _ := captureReconcile(t, func() { runErr = cmd.Run(context.Background()) })
+	runErr = cmd.Run(context.Background())
+	stdout := stdoutBuf.String()
 	if runErr != nil {
 		t.Fatalf("apply: %v\n%s", runErr, stdout)
 	}
@@ -350,15 +359,16 @@ func TestReconcileApplyUpdatesProtectionWithoutDroppingAlternatives(t *testing.T
 			return nil
 		}
 	})
-	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) { return client, nil }))
+	d, stdoutBuf, _ := newReconcileDeps(func() (*asc.Client, error) { return client, nil })
 	path := writeEntitlements(t, map[string]any{"com.apple.developer.default-data-protection": "NSFileProtectionComplete"})
-	cmd := capabilityReconcileCommand("apply", true)
+	cmd := capabilityReconcileCommand(d, "apply", true)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.Parse([]string{"--bundle", "bundle-1", "--entitlements", path, "--confirm", "--output", "json"}); err != nil {
 		t.Fatal(err)
 	}
 	var runErr error
-	stdout, _ := captureReconcile(t, func() { runErr = cmd.Run(context.Background()) })
+	runErr = cmd.Run(context.Background())
+	stdout := stdoutBuf.String()
 	if runErr != nil || patches != 1 || !strings.Contains(stdout, `"status":"applied"`) {
 		t.Fatalf("error=%v patches=%d stdout=%s", runErr, patches, stdout)
 	}
@@ -475,8 +485,9 @@ func TestDataProtectionSettingsUsesASCOptionKeys(t *testing.T) {
 }
 
 func TestReconcileDataProtectionNoneDoesNotAddCapability(t *testing.T) {
+	d, _, _ := newReconcileDeps(nil)
 	path := writeEntitlements(t, map[string]any{"com.apple.developer.default-data-protection": "NSFileProtectionNone"})
-	desired, err := readDesiredEntitlements(path, false)
+	desired, err := readDesiredEntitlements(d, path, false)
 	if err != nil || len(desired) != 0 {
 		t.Fatalf("desired=%#v error=%v", desired, err)
 	}
@@ -512,18 +523,19 @@ func TestReconcileApplyPrintsPartialReceiptOnAPIFailure(t *testing.T) {
 			return nil
 		}
 	})
-	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) { return client, nil }))
+	d, stdoutBuf, _ := newReconcileDeps(func() (*asc.Client, error) { return client, nil })
 	path := writeEntitlements(t, map[string]any{
 		"aps-environment": "production",
 		"com.apple.developer.default-data-protection": "NSFileProtectionComplete",
 	})
-	cmd := capabilityReconcileCommand("apply", true)
+	cmd := capabilityReconcileCommand(d, "apply", true)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.Parse([]string{"--bundle", "bundle-1", "--entitlements", path, "--confirm", "--output", "json"}); err != nil {
 		t.Fatal(err)
 	}
 	var runErr error
-	stdout, _ := captureReconcile(t, func() { runErr = cmd.Run(context.Background()) })
+	runErr = cmd.Run(context.Background())
+	stdout := stdoutBuf.String()
 	if runErr == nil || posts != 2 {
 		t.Fatalf("error=%v posts=%d stdout=%s", runErr, posts, stdout)
 	}
@@ -560,18 +572,19 @@ func TestReconcileApplyRefusesWebOnlyCapabilityBeforeWrites(t *testing.T) {
 			return reconcileJSON(http.StatusCreated, `{"data":{"type":"bundleIdCapabilities","id":"created-1","attributes":{"capabilityType":"HEALTHKIT"}}}`)
 		}
 	})
-	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) { return client, nil }))
+	d, stdoutBuf, _ := newReconcileDeps(func() (*asc.Client, error) { return client, nil })
 	path := writeEntitlements(t, map[string]any{
 		"com.apple.developer.private-cloud-compute": true,
 		"com.apple.developer.healthkit":             true,
 	})
-	cmd := capabilityReconcileCommand("apply", true)
+	cmd := capabilityReconcileCommand(d, "apply", true)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.Parse([]string{"--bundle", "bundle-1", "--entitlements", path, "--confirm", "--output", "json"}); err != nil {
 		t.Fatal(err)
 	}
 	var runErr error
-	stdout, _ := captureReconcile(t, func() { runErr = cmd.Run(context.Background()) })
+	runErr = cmd.Run(context.Background())
+	stdout := stdoutBuf.String()
 	var reportedErr shared.ReportedError
 	if runErr == nil || !errors.As(runErr, &reportedErr) || writes != 0 {
 		t.Fatalf("error=%v writes=%d stdout=%s, want nonzero reported result with no writes", runErr, writes, stdout)
@@ -592,13 +605,15 @@ func TestReconcileApplyRefusesWebOnlyCapabilityBeforeWrites(t *testing.T) {
 }
 
 func TestReconcileApplyMissingConfirmPrintsOnce(t *testing.T) {
-	cmd := capabilityReconcileCommand("apply", true)
+	d, _, stderrBuf := newReconcileDeps(nil)
+	cmd := capabilityReconcileCommand(d, "apply", true)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.Parse([]string{"--bundle", "bundle-1", "--entitlements", "unused.plist"}); err != nil {
 		t.Fatal(err)
 	}
 	var runErr error
-	_, stderr := captureReconcile(t, func() { runErr = cmd.Run(context.Background()) })
+	runErr = cmd.Run(context.Background())
+	stderr := stderrBuf.String()
 	if runErr == nil || strings.Count(stderr, "--confirm is required") != 1 {
 		t.Fatalf("error=%v stderr=%q", runErr, stderr)
 	}
@@ -607,17 +622,17 @@ func TestReconcileApplyMissingConfirmPrintsOnce(t *testing.T) {
 func TestReconcileApplyRejectsInvalidOutputBeforeAPI(t *testing.T) {
 	path := writeEntitlements(t, map[string]any{"aps-environment": "production"})
 	var clientCalls int
-	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+	d, _, _ := newReconcileDeps(func() (*asc.Client, error) {
 		clientCalls++
 		return nil, io.EOF
-	}))
-	cmd := capabilityReconcileCommand("apply", true)
+	})
+	cmd := capabilityReconcileCommand(d, "apply", true)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.Parse([]string{"--bundle", "bundle-1", "--entitlements", path, "--confirm", "--output", "bogus"}); err != nil {
 		t.Fatal(err)
 	}
 	var runErr error
-	_, _ = captureReconcile(t, func() { runErr = cmd.Run(context.Background()) })
+	runErr = cmd.Run(context.Background())
 	if runErr == nil || !strings.Contains(runErr.Error(), "--output") || clientCalls != 0 {
 		t.Fatalf("error=%v clientCalls=%d", runErr, clientCalls)
 	}
@@ -665,34 +680,7 @@ func reconcileJSON(status int, body string) *http.Response {
 	return &http.Response{StatusCode: status, Header: http.Header{"Content-Type": []string{"application/json"}}, Body: io.NopCloser(strings.NewReader(body))}
 }
 
-func captureReconcile(t *testing.T, fn func()) (string, string) {
-	t.Helper()
-	stdout, err := os.CreateTemp(t.TempDir(), "stdout")
-	if err != nil {
-		t.Fatal(err)
-	}
-	stderr, err := os.CreateTemp(t.TempDir(), "stderr")
-	if err != nil {
-		t.Fatal(err)
-	}
-	old, oldErr := os.Stdout, os.Stderr
-	os.Stdout = stdout
-	os.Stderr = stderr
-	defer func() { os.Stdout, os.Stderr = old, oldErr }()
-	fn()
-	if err := stdout.Close(); err != nil {
-		t.Fatal(err)
-	}
-	data, err := os.ReadFile(stdout.Name())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := stderr.Close(); err != nil {
-		t.Fatal(err)
-	}
-	errData, err := os.ReadFile(stderr.Name())
-	if err != nil {
-		t.Fatal(err)
-	}
-	return string(data), string(errData)
+func newReconcileDeps(client func() (*asc.Client, error)) (*shared.Deps, *bytes.Buffer, *bytes.Buffer) {
+	var stdout, stderr bytes.Buffer
+	return &shared.Deps{Client: client, IO: &shared.IO{Out: &stdout, ErrOut: &stderr}, Timeout: shared.ContextWithTimeout}, &stdout, &stderr
 }

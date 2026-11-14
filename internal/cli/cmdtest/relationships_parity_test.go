@@ -17,14 +17,17 @@ func TestRelationshipCommandValidationErrors(t *testing.T) {
 		{
 			name: "bundle-ids app get missing id",
 			args: []string{"bundle-ids", "app", "get"},
+			deps: true,
 		},
 		{
 			name: "bundle-ids profiles list missing id",
 			args: []string{"bundle-ids", "profiles", "list"},
+			deps: true,
 		},
 		{
 			name: "users invites visible-apps list missing id",
 			args: []string{"users", "invites", "visible-apps", "list"},
+			deps: true,
 		},
 		{
 			name: "agreements territories list missing id",

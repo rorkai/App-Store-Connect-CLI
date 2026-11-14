@@ -20,9 +20,9 @@ func TestAccountSigningListsRejectNextQueryFlagsBeforeAuth(t *testing.T) {
 	}{
 		{name: "certificate type before next", args: []string{"certificates", "list", "--certificate-type", "IOS_DISTRIBUTION", "--next", nextURL}, wantErr: "certificates list: --next cannot be combined with --certificate-type"},
 		{name: "certificate explicit zero limit after next", args: []string{"certificates", "list", "--next", nextURL, "--limit", "0"}, wantErr: "certificates list: --next cannot be combined with --limit"},
-		{name: "user explicit empty email before next", args: []string{"users", "list", "--email", "", "--next", nextURL}, wantErr: "users list: --next cannot be combined with --email"},
-		{name: "user role after next", args: []string{"users", "list", "--next", nextURL, "--role", "ADMIN"}, wantErr: "users list: --next cannot be combined with --role"},
-		{name: "user limit", args: []string{"users", "list", "--next", nextURL, "--limit", "25"}, wantErr: "users list: --next cannot be combined with --limit"},
+		{name: "user explicit empty email before next", args: []string{"users", "list", "--email", "", "--next", nextURL}, wantErr: "users list: --next cannot be combined with --email", deps: true},
+		{name: "user role after next", args: []string{"users", "list", "--next", nextURL, "--role", "ADMIN"}, wantErr: "users list: --next cannot be combined with --role", deps: true},
+		{name: "user limit", args: []string{"users", "list", "--next", nextURL, "--limit", "25"}, wantErr: "users list: --next cannot be combined with --limit", deps: true},
 		{name: "actor id", args: []string{"actors", "list", "--next", nextURL, "--id", "actor-1"}, wantErr: "actors list: --next cannot be combined with --id", deps: true},
 		{name: "actor fields", args: []string{"actors", "list", "--next", nextURL, "--fields", "actorType"}, wantErr: "actors list: --next cannot be combined with --fields", deps: true},
 		{name: "actor limit", args: []string{"actors", "list", "--next", nextURL, "--limit", "25"}, wantErr: "actors list: --next cannot be combined with --limit", deps: true},
@@ -76,7 +76,7 @@ func TestAccountSigningListsValidateNextBeforeQueryConflicts(t *testing.T) {
 		deps bool // the command is built on shared.Deps: run it through RunWithDeps
 	}{
 		{name: "certificates", args: []string{"certificates", "list", "--next", invalidNext, "--limit", "201"}},
-		{name: "users", args: []string{"users", "list", "--next", invalidNext, "--limit", "201"}},
+		{name: "users", args: []string{"users", "list", "--next", invalidNext, "--limit", "201"}, deps: true},
 		{name: "actors", args: []string{"actors", "list", "--next", invalidNext, "--limit", "201"}, deps: true},
 		{name: "pass type ids", args: []string{"pass-type-ids", "list", "--next", invalidNext, "--limit", "201"}},
 		{name: "merchant ids", args: []string{"merchant-ids", "list", "--next", invalidNext, "--limit", "201"}},
