@@ -136,6 +136,33 @@ func TestCreateAppEvent(t *testing.T) {
 	}
 }
 
+func TestUpdateAppEvent(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"appEvents","id":"event-1","attributes":{"referenceName":"Updated"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPatch {
+			t.Fatalf("expected PATCH, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appEvents/event-1" {
+			t.Fatalf("expected path /v1/appEvents/event-1, got %s", req.URL.Path)
+		}
+		payload := decodeRequestBody(t, req)
+		data := requireMap(t, payload["data"], "data")
+		if requireString(t, data["id"], "data.id") != "event-1" {
+			t.Fatalf("unexpected id %v", data["id"])
+		}
+		attrs := requireMap(t, data["attributes"], "data.attributes")
+		if requireString(t, attrs["referenceName"], "referenceName") != "Updated" {
+			t.Fatalf("unexpected referenceName %v", attrs["referenceName"])
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	name := "Updated"
+	if _, err := client.UpdateAppEvent(context.Background(), "event-1", AppEventUpdateAttributes{ReferenceName: &name}); err != nil {
+		t.Fatalf("UpdateAppEvent() error: %v", err)
+	}
+}
+
 func TestGetAppEventLocalization(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":{"type":"appEventLocalizations","id":"loc-1","attributes":{"locale":"en-US"}}}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -180,6 +207,33 @@ func TestCreateAppEventLocalization(t *testing.T) {
 	attrs := AppEventLocalizationCreateAttributes{Locale: "en-US"}
 	if _, err := client.CreateAppEventLocalization(context.Background(), "event-1", attrs); err != nil {
 		t.Fatalf("CreateAppEventLocalization() error: %v", err)
+	}
+}
+
+func TestUpdateAppEventLocalization(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"appEventLocalizations","id":"loc-1","attributes":{"name":"Updated"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPatch {
+			t.Fatalf("expected PATCH, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appEventLocalizations/loc-1" {
+			t.Fatalf("expected path /v1/appEventLocalizations/loc-1, got %s", req.URL.Path)
+		}
+		payload := decodeRequestBody(t, req)
+		data := requireMap(t, payload["data"], "data")
+		if requireString(t, data["id"], "data.id") != "loc-1" {
+			t.Fatalf("unexpected id %v", data["id"])
+		}
+		attrs := requireMap(t, data["attributes"], "data.attributes")
+		if requireString(t, attrs["name"], "name") != "Updated" {
+			t.Fatalf("unexpected name %v", attrs["name"])
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	name := "Updated"
+	if _, err := client.UpdateAppEventLocalization(context.Background(), "loc-1", AppEventLocalizationUpdateAttributes{Name: &name}); err != nil {
+		t.Fatalf("UpdateAppEventLocalization() error: %v", err)
 	}
 }
 
@@ -276,6 +330,38 @@ func TestCreateAppEventVideoClip(t *testing.T) {
 
 	if _, err := client.CreateAppEventVideoClip(context.Background(), "loc-1", "clip.mov", 256, "EVENT_DETAILS_PAGE", "00:00:05.000"); err != nil {
 		t.Fatalf("CreateAppEventVideoClip() error: %v", err)
+	}
+}
+
+func TestUpdateAppEventVideoClip(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"appEventVideoClips","id":"clip-1","attributes":{"fileName":"clip.mov"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPatch {
+			t.Fatalf("expected PATCH, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appEventVideoClips/clip-1" {
+			t.Fatalf("expected path /v1/appEventVideoClips/clip-1, got %s", req.URL.Path)
+		}
+		payload := decodeRequestBody(t, req)
+		data := requireMap(t, payload["data"], "data")
+		attrs := requireMap(t, data["attributes"], "data.attributes")
+		if requireString(t, attrs["previewFrameTimeCode"], "previewFrameTimeCode") != "00:00:10.000" {
+			t.Fatalf("unexpected previewFrameTimeCode %v", attrs["previewFrameTimeCode"])
+		}
+		if !requireBool(t, attrs["uploaded"], "uploaded") {
+			t.Fatalf("expected uploaded true")
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	preview := "00:00:10.000"
+	uploaded := true
+	attrs := AppEventVideoClipUpdateAttributes{
+		PreviewFrameTimeCode: &preview,
+		Uploaded:             &uploaded,
+	}
+	if _, err := client.UpdateAppEventVideoClip(context.Background(), "clip-1", attrs); err != nil {
+		t.Fatalf("UpdateAppEventVideoClip() error: %v", err)
 	}
 }
 
