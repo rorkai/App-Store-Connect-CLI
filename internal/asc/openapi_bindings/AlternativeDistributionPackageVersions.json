@@ -1,0 +1,10 @@
+{
+  "tag": "AlternativeDistributionPackageVersions",
+  "file": "alternative_distribution_package_versions_gen.go",
+  "types": [
+    "AlternativeDistributionPackageVersionResponse"
+  ],
+  "operations": [
+    {"operation":"alternativeDistributionPackageVersions_getInstance","name":"GetAlternativeDistributionPackageVersion","params":["versionID"],"check":"require","parseErr":"failed to parse alternative distribution package version response"}
+  ]
+}

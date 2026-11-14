@@ -220,18 +220,6 @@ func (c *Client) GetAppAvailabilityV2(ctx context.Context, appID string) (*AppAv
 	})
 }
 
-// GetAppAvailabilityV2ByID retrieves app availability by ID.
-func (c *Client) GetAppAvailabilityV2ByID(ctx context.Context, availabilityID string) (*AppAvailabilityV2Response, error) {
-	availabilityID = strings.TrimSpace(availabilityID)
-	if availabilityID == "" {
-		return nil, fmt.Errorf("availabilityID is required")
-	}
-	return getJSON[AppAvailabilityV2Response](ctx, c, readRequest{
-		Path:     fmt.Sprintf("/v2/appAvailabilities/%s", availabilityID),
-		ParseErr: "failed to parse app availability response",
-	})
-}
-
 // GetTerritoryAvailabilities retrieves territory availabilities for an availability ID.
 func (c *Client) GetTerritoryAvailabilities(ctx context.Context, availabilityID string, opts ...TerritoryAvailabilitiesOption) (*TerritoryAvailabilitiesResponse, error) {
 	availabilityID = strings.TrimSpace(availabilityID)

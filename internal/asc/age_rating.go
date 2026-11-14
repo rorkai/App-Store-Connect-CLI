@@ -80,19 +80,11 @@ const (
 	AppStoreAgeRatingUnrated       AppStoreAgeRating = "UNRATED"
 )
 
-// AgeRatingDeclarationResponse is the response from age rating declaration endpoints.
-type AgeRatingDeclarationResponse = SingleResponse[AgeRatingDeclarationAttributes]
-
 // AgeRatingDeclarationUpdateData is the data portion of an update request.
 type AgeRatingDeclarationUpdateData struct {
 	Type       ResourceType                   `json:"type"`
 	ID         string                         `json:"id"`
 	Attributes AgeRatingDeclarationAttributes `json:"attributes"`
-}
-
-// AgeRatingDeclarationUpdateRequest is a request to update an age rating declaration.
-type AgeRatingDeclarationUpdateRequest struct {
-	Data AgeRatingDeclarationUpdateData `json:"data"`
 }
 
 // GetAgeRatingDeclarationForAppInfo retrieves the age rating declaration for an app info.

@@ -1,0 +1,12 @@
+{
+  "tag": "Actors",
+  "file": "actors_gen.go",
+  "types": [
+    "ActorAttributes",
+    "ActorResponse",
+    "ActorsResponse"
+  ],
+  "operations": [
+    {"operation":"actors_getCollection","name":"GetActors","options":"ActorsOption","query":"buildActorsQuery","nextContext":"actors"}
+  ]
+}

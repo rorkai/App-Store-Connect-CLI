@@ -60,11 +60,6 @@ func (c *Client) UpdateAccessibilityDeclaration(ctx context.Context, declaration
 	return sendJSON[AccessibilityDeclarationResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/accessibilityDeclarations/%s", declarationID), Payload: payload})
 }
 
-// DeleteAccessibilityDeclaration deletes an accessibility declaration by ID.
-func (c *Client) DeleteAccessibilityDeclaration(ctx context.Context, declarationID string) error {
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/accessibilityDeclarations/%s", strings.TrimSpace(declarationID)), nil)
-}
-
 // HasAccessibilityDeclarationUpdates reports whether any update attributes are set.
 func HasAccessibilityDeclarationUpdates(attrs AccessibilityDeclarationUpdateAttributes) bool {
 	return attrs.Publish != nil ||
