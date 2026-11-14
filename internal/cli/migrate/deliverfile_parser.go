@@ -265,8 +265,8 @@ var unappliedConfigKeys = []string{
 
 // notOptionValue matches text after an option name that is not a value: an
 // assignment ("= x", "||= x", "+= 1") or the rest of an expression ("- 1",
-// "<< x", "? a : b").
-var notOptionValue = regexp.MustCompile(`^(?:=|(?:\+|-|\*\*?|/|%|\|\|?|&&?|\^|<<|>>)=|(?:\+|-|\*\*?|/|%|\|\|?|&&?|\^|<=>|<=|>=|<<|>>|<|>|\?)\s)`)
+// "<< x", "!= x", "? a : b").
+var notOptionValue = regexp.MustCompile(`^(?:=|!=|!~|(?:\+|-|\*\*?|/|%|\|\|?|&&?|\^|<<|>>)=|(?:\+|-|\*\*?|/|%|\|\|?|&&?|\^|<=>|<=|>=|<<|>>|<|>|\?)\s)`)
 
 // isConfigOptionCall reports whether rest, the text that follows an option
 // name, sets the option: "name value" or "name(value)". "name: x" is a field
