@@ -263,3 +263,55 @@ func buildGCChallengeVersionReleasesQuery(query *gcChallengeVersionReleasesQuery
 	addLimit(values, query.limit)
 	return values.Encode()
 }
+
+// GCActivitiesOption sets the query of GET /v1/gameCenterDetails/{id}/gameCenterActivities (gameCenterDetails_gameCenterActivities_getToManyRelated) and GET /v1/gameCenterGroups/{id}/gameCenterActivities (gameCenterGroups_gameCenterActivities_getToManyRelated).
+type GCActivitiesOption func(*gcActivitiesQuery)
+
+type gcActivitiesQuery struct {
+	listQuery
+}
+
+func buildGCActivitiesQuery(query *gcActivitiesQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+// GCChallengesOption sets the query of GET /v1/gameCenterDetails/{id}/gameCenterChallenges (gameCenterDetails_gameCenterChallenges_getToManyRelated) and GET /v1/gameCenterGroups/{id}/gameCenterChallenges (gameCenterGroups_gameCenterChallenges_getToManyRelated).
+type GCChallengesOption func(*gcChallengesQuery)
+
+type gcChallengesQuery struct {
+	listQuery
+}
+
+func buildGCChallengesQuery(query *gcChallengesQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+// GCLeaderboardReleasesOption sets the query of GET /v1/gameCenterDetails/{id}/leaderboardReleases (gameCenterDetails_leaderboardReleases_getToManyRelated) and GET /v1/gameCenterLeaderboards/{id}/releases (gameCenterLeaderboards_releases_getToManyRelated).
+type GCLeaderboardReleasesOption func(*gcLeaderboardReleasesQuery)
+
+type gcLeaderboardReleasesQuery struct {
+	listQuery
+}
+
+func buildGCLeaderboardReleasesQuery(query *gcLeaderboardReleasesQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+// GCLeaderboardSetReleasesOption sets the query of GET /v1/gameCenterDetails/{id}/leaderboardSetReleases (gameCenterDetails_leaderboardSetReleases_getToManyRelated) and GET /v1/gameCenterLeaderboardSets/{id}/releases (gameCenterLeaderboardSets_releases_getToManyRelated).
+type GCLeaderboardSetReleasesOption func(*gcLeaderboardSetReleasesQuery)
+
+type gcLeaderboardSetReleasesQuery struct {
+	listQuery
+}
+
+func buildGCLeaderboardSetReleasesQuery(query *gcLeaderboardSetReleasesQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}

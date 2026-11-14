@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -65,4 +66,42 @@ func (c *Client) UpdateSubscriptionAppStoreReviewScreenshot(ctx context.Context,
 		Path:    fmt.Sprintf("/v1/subscriptionAppStoreReviewScreenshots/%s", strings.TrimSpace(screenshotID)),
 		Payload: payload,
 	})
+}
+
+// SubscriptionAppStoreReviewScreenshotOption sets the query of GET /v1/subscriptionAppStoreReviewScreenshots/{id} (subscriptionAppStoreReviewScreenshots_getInstance) and GET /v1/subscriptions/{id}/appStoreReviewScreenshot (subscriptions_appStoreReviewScreenshot_getToOneRelated).
+type SubscriptionAppStoreReviewScreenshotOption func(*subscriptionAppStoreReviewScreenshotQuery)
+
+type subscriptionAppStoreReviewScreenshotQuery struct {
+	fields             []string
+	subscriptionFields []string
+	include            []string
+}
+
+// WithSubscriptionAppStoreReviewScreenshotFields sets fields[subscriptionAppStoreReviewScreenshots].
+func WithSubscriptionAppStoreReviewScreenshotFields(fields []string) SubscriptionAppStoreReviewScreenshotOption {
+	return func(q *subscriptionAppStoreReviewScreenshotQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+// WithSubscriptionAppStoreReviewScreenshotSubscriptionFields sets fields[subscriptions].
+func WithSubscriptionAppStoreReviewScreenshotSubscriptionFields(fields []string) SubscriptionAppStoreReviewScreenshotOption {
+	return func(q *subscriptionAppStoreReviewScreenshotQuery) {
+		q.subscriptionFields = normalizeList(fields)
+	}
+}
+
+// WithSubscriptionAppStoreReviewScreenshotInclude sets include.
+func WithSubscriptionAppStoreReviewScreenshotInclude(include []string) SubscriptionAppStoreReviewScreenshotOption {
+	return func(q *subscriptionAppStoreReviewScreenshotQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
+func buildSubscriptionAppStoreReviewScreenshotQuery(query *subscriptionAppStoreReviewScreenshotQuery) string {
+	values := url.Values{}
+	addCSV(values, "fields[subscriptionAppStoreReviewScreenshots]", query.fields)
+	addCSV(values, "fields[subscriptions]", query.subscriptionFields)
+	addCSV(values, "include", query.include)
+	return values.Encode()
 }

@@ -17,5 +17,8 @@
     {"operation":"appStoreReviewAttachments_deleteInstance","name":"DeleteAppStoreReviewAttachment","params":["attachmentID"],"check":"require"},
     {"operation":"appStoreReviewAttachments_getInstance","name":"GetAppStoreReviewAttachment","params":["attachmentID"],"check":"require","checkFirst":true,"options":"AppStoreReviewAttachmentsOption","query":"buildAppStoreReviewAttachmentsQuery","single":true,"deviations":[{"problem":"sent query parameters [limit] that the operation does not define","reason":"Shares its option type and query builder with GetAppStoreReviewAttachmentsForReviewDetail, which pages with limit. asc review attachments-get, the only caller, sets fields, review detail fields and include, never a limit."}]},
     {"operation":"appStoreReviewAttachments_updateInstance","name":"UpdateAppStoreReviewAttachment","params":["attachmentID"],"check":"require","skipEmptyAttributes":true}
+  ],
+  "queries": [
+    {"operation":"appStoreReviewAttachments_getInstance","also":["appStoreReviewDetails_appStoreReviewAttachments_getToManyRelated"],"name":"AppStoreReviewAttachments","params":[{"name":"fields[appStoreReviewAttachments]","field":"fieldsAttachments","with":"WithAppStoreReviewAttachmentsFields","arg":"fields"},{"name":"fields[appStoreReviewDetails]","field":"fieldsReviewDetails","with":"WithAppStoreReviewAttachmentReviewDetailFields","arg":"fields"},{"name":"include"}],"deviations":[{"problem":"the query has a page size, the operation defines no limit","reason":"Shares its option type and query builder with GetAppStoreReviewAttachmentsForReviewDetail, which pages with limit. asc review attachments-get, the only caller, sets fields, review detail fields and include, never a limit."}]}
   ]
 }

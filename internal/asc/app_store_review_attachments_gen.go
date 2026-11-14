@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -89,4 +90,44 @@ func (c *Client) UpdateAppStoreReviewAttachment(ctx context.Context, attachmentI
 		Path:    fmt.Sprintf("/v1/appStoreReviewAttachments/%s", attachmentID),
 		Payload: payload,
 	})
+}
+
+// AppStoreReviewAttachmentsOption sets the query of GET /v1/appStoreReviewAttachments/{id} (appStoreReviewAttachments_getInstance) and GET /v1/appStoreReviewDetails/{id}/appStoreReviewAttachments (appStoreReviewDetails_appStoreReviewAttachments_getToManyRelated).
+type AppStoreReviewAttachmentsOption func(*appStoreReviewAttachmentsQuery)
+
+type appStoreReviewAttachmentsQuery struct {
+	listQuery
+	fieldsAttachments   []string
+	fieldsReviewDetails []string
+	include             []string
+}
+
+// WithAppStoreReviewAttachmentsFields sets fields[appStoreReviewAttachments].
+func WithAppStoreReviewAttachmentsFields(fields []string) AppStoreReviewAttachmentsOption {
+	return func(q *appStoreReviewAttachmentsQuery) {
+		q.fieldsAttachments = normalizeList(fields)
+	}
+}
+
+// WithAppStoreReviewAttachmentReviewDetailFields sets fields[appStoreReviewDetails].
+func WithAppStoreReviewAttachmentReviewDetailFields(fields []string) AppStoreReviewAttachmentsOption {
+	return func(q *appStoreReviewAttachmentsQuery) {
+		q.fieldsReviewDetails = normalizeList(fields)
+	}
+}
+
+// WithAppStoreReviewAttachmentsInclude sets include.
+func WithAppStoreReviewAttachmentsInclude(include []string) AppStoreReviewAttachmentsOption {
+	return func(q *appStoreReviewAttachmentsQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
+func buildAppStoreReviewAttachmentsQuery(query *appStoreReviewAttachmentsQuery) string {
+	values := url.Values{}
+	addCSV(values, "fields[appStoreReviewAttachments]", query.fieldsAttachments)
+	addCSV(values, "fields[appStoreReviewDetails]", query.fieldsReviewDetails)
+	addCSV(values, "include", query.include)
+	addLimit(values, query.limit)
+	return values.Encode()
 }

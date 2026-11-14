@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 )
 
@@ -46,4 +47,17 @@ func (c *Client) GetSubscriptionAvailability(ctx context.Context, availabilityID
 	return getJSON[SubscriptionAvailabilityResponse](ctx, c, readRequest{
 		Path: fmt.Sprintf("/v1/subscriptionAvailabilities/%s", availabilityID),
 	})
+}
+
+// SubscriptionAvailabilityTerritoriesOption sets the query of GET /v1/subscriptionAvailabilities/{id}/availableTerritories (subscriptionAvailabilities_availableTerritories_getToManyRelated) and GET /v1/subscriptionPlanAvailabilities/{id}/availableTerritories (subscriptionPlanAvailabilities_availableTerritories_getToManyRelated).
+type SubscriptionAvailabilityTerritoriesOption func(*subscriptionAvailabilityTerritoriesQuery)
+
+type subscriptionAvailabilityTerritoriesQuery struct {
+	listQuery
+}
+
+func buildSubscriptionAvailabilityTerritoriesQuery(query *subscriptionAvailabilityTerritoriesQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
 }

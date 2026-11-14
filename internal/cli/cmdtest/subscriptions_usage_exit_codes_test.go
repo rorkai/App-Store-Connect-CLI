@@ -233,6 +233,16 @@ func TestSubscriptionsInputValidationReturnsUsageExitCode(t *testing.T) {
 			args:    []string{"subscriptions", "versions", "images", "view"},
 			wantErr: "--id is required",
 		},
+		{
+			name:    "offers offer-codes generate output given a format",
+			args:    []string{"subscriptions", "offers", "offer-codes", "generate", "--output", "json"},
+			wantErr: "--output takes a path in this command, not an output format; use --output-format json to choose the format, or --output ./json to write to a path named json",
+		},
+		{
+			name:    "offers offer-codes values output given a format",
+			args:    []string{"subscriptions", "offers", "offer-codes", "values", "--output", "json"},
+			wantErr: "--output takes a path in this command, not an output format, and no flag here chooses json, table or markdown output; use --output ./json to write to a path named json",
+		},
 	}
 
 	for _, test := range tests {

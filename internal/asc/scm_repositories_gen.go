@@ -66,6 +66,19 @@ func (c *Client) GetScmRepositoryPullRequestsRelationships(ctx context.Context, 
 	})
 }
 
+// ScmRepositoriesOption sets the query of GET /v1/scmRepositories (scmRepositories_getCollection) and GET /v1/scmProviders/{id}/repositories (scmProviders_repositories_getToManyRelated).
+type ScmRepositoriesOption func(*scmRepositoriesQuery)
+
+type scmRepositoriesQuery struct {
+	listQuery
+}
+
+func buildScmRepositoriesQuery(query *scmRepositoriesQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
 // ScmGitReferencesOption sets the query of GET /v1/scmRepositories/{id}/gitReferences (scmRepositories_gitReferences_getToManyRelated).
 type ScmGitReferencesOption func(*scmGitReferencesQuery)
 

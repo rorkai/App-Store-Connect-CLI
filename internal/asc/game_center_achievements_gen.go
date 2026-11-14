@@ -159,3 +159,16 @@ func buildGCAchievementVersionsQuery(query *gcAchievementVersionsQuery) string {
 	addLimit(values, query.limit)
 	return values.Encode()
 }
+
+// GCAchievementReleasesOption sets the query of GET /v1/gameCenterAchievements/{id}/releases (gameCenterAchievements_releases_getToManyRelated) and GET /v1/gameCenterDetails/{id}/achievementReleases (gameCenterDetails_achievementReleases_getToManyRelated).
+type GCAchievementReleasesOption func(*gcAchievementReleasesQuery)
+
+type gcAchievementReleasesQuery struct {
+	listQuery
+}
+
+func buildGCAchievementReleasesQuery(query *gcAchievementReleasesQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}

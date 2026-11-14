@@ -42,6 +42,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := shared.RejectOutputFormatAsPath(*outputPath, "--output-format"); err != nil {
+				return err
+			}
 			trimmedOfferCodeID := strings.TrimSpace(*offerCodeID)
 			if trimmedOfferCodeID == "" {
 				fmt.Fprintf(os.Stderr, "Error: --offer-code-id is required\n\n")
@@ -142,6 +145,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := shared.RejectOutputFormatAsPath(*outputPath, ""); err != nil {
+				return err
+			}
 			trimmedID := strings.TrimSpace(*id)
 			if trimmedID == "" {
 				return shared.RequiredFlag("--batch-id")

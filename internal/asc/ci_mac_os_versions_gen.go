@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/url"
 )
 
 // CiMacOsVersionAttributes is the attributes object of the CiMacOsVersion schema.
@@ -40,4 +41,17 @@ func (c *Client) GetCiMacOsVersionXcodeVersions(ctx context.Context, macOsVersio
 		Next:        query.nextURL,
 		NextContext: "ciMacOsVersionXcodeVersions",
 	})
+}
+
+// CiMacOsVersionsOption sets the query of GET /v1/ciMacOsVersions (ciMacOsVersions_getCollection) and GET /v1/ciXcodeVersions/{id}/macOsVersions (ciXcodeVersions_macOsVersions_getToManyRelated).
+type CiMacOsVersionsOption func(*ciMacOsVersionsQuery)
+
+type ciMacOsVersionsQuery struct {
+	listQuery
+}
+
+func buildCiMacOsVersionsQuery(query *ciMacOsVersionsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
 }

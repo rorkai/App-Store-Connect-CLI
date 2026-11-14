@@ -35,14 +35,6 @@ type pricePointsQuery struct {
 	include   []string
 }
 
-type appPriceSchedulePricesQuery struct {
-	listQuery
-	include          []string
-	priceFields      []string
-	pricePointFields []string
-	territoryFields  []string
-}
-
 func buildPromotedPurchasesQuery(query *promotedPurchasesQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
@@ -83,16 +75,6 @@ func buildPricePointsQuery(query *pricePointsQuery) string {
 	return values.Encode()
 }
 
-func buildAppPriceSchedulePricesQuery(query *appPriceSchedulePricesQuery) string {
-	values := url.Values{}
-	addCSV(values, "include", query.include)
-	addCSV(values, "fields[appPrices]", query.priceFields)
-	addCSV(values, "fields[appPricePoints]", query.pricePointFields)
-	addCSV(values, "fields[territories]", query.territoryFields)
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
 // WinBackOffersOption is a functional option for win-back offer list endpoints.
 type WinBackOffersOption func(*winBackOffersQuery)
 
@@ -107,9 +89,6 @@ type LinkagesOption func(*linkagesQuery)
 
 // PricePointsOption is a functional option for GetAppPricePoints.
 type PricePointsOption func(*pricePointsQuery)
-
-// AppPriceSchedulePricesOption is a functional option for app price schedule price endpoints.
-type AppPriceSchedulePricesOption func(*appPriceSchedulePricesQuery)
 
 // WithWinBackOffersFields sets fields[winBackOffers] for win-back offer responses.
 func WithWinBackOffersFields(fields []string) WinBackOffersOption {
@@ -164,33 +143,5 @@ func WithPricePointsTerritory(territory string) PricePointsOption {
 func WithPricePointsInclude(include []string) PricePointsOption {
 	return func(q *pricePointsQuery) {
 		q.include = normalizeList(include)
-	}
-}
-
-// WithAppPriceSchedulePricesInclude sets include values for app schedule price responses.
-func WithAppPriceSchedulePricesInclude(include []string) AppPriceSchedulePricesOption {
-	return func(q *appPriceSchedulePricesQuery) {
-		q.include = normalizeList(include)
-	}
-}
-
-// WithAppPriceSchedulePricesFields sets fields[appPrices] for app schedule price responses.
-func WithAppPriceSchedulePricesFields(fields []string) AppPriceSchedulePricesOption {
-	return func(q *appPriceSchedulePricesQuery) {
-		q.priceFields = normalizeList(fields)
-	}
-}
-
-// WithAppPriceSchedulePricesPricePointFields sets fields[appPricePoints] for included app price points.
-func WithAppPriceSchedulePricesPricePointFields(fields []string) AppPriceSchedulePricesOption {
-	return func(q *appPriceSchedulePricesQuery) {
-		q.pricePointFields = normalizeList(fields)
-	}
-}
-
-// WithAppPriceSchedulePricesTerritoryFields sets fields[territories] for included territories.
-func WithAppPriceSchedulePricesTerritoryFields(fields []string) AppPriceSchedulePricesOption {
-	return func(q *appPriceSchedulePricesQuery) {
-		q.territoryFields = normalizeList(fields)
 	}
 }

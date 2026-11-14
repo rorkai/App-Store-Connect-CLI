@@ -495,7 +495,6 @@ Examples:
 				return shared.RequiredFlag("--name")
 			}
 			if err := signing.ValidateProfileNameLength(nameValue); err != nil {
-				fmt.Fprintf(os.Stderr, "Error: %s\n", err.Error())
 				return shared.UsageError(err.Error())
 			}
 			profileTypeValue := strings.ToUpper(strings.TrimSpace(*profileType))
@@ -579,6 +578,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := shared.RejectOutputFormatAsPath(*outputPath, "--output-format"); err != nil {
+				return err
+			}
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
 				return shared.RequiredFlag("--id")

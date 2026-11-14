@@ -115,19 +115,6 @@ type GameCenterAchievementLocalizationV2CreateData struct {
 // GameCenterAchievementLocalizationsResponse is the response from achievement localization list endpoints.
 type GameCenterAchievementLocalizationsResponse = Response[GameCenterAchievementLocalizationAttributes]
 
-// GCAchievementLocalizationsOption is a functional option for GetGameCenterAchievementLocalizations.
-type GCAchievementLocalizationsOption func(*gcAchievementLocalizationsQuery)
-
-type gcAchievementLocalizationsQuery struct {
-	listQuery
-}
-
-func buildGCAchievementLocalizationsQuery(query *gcAchievementLocalizationsQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
 // GameCenterAchievementReleaseAttributes represents a Game Center achievement release resource.
 type GameCenterAchievementReleaseAttributes struct {
 	Live bool `json:"live"`
@@ -135,19 +122,6 @@ type GameCenterAchievementReleaseAttributes struct {
 
 // GameCenterAchievementReleasesResponse is the response from achievement release list endpoints.
 type GameCenterAchievementReleasesResponse = Response[GameCenterAchievementReleaseAttributes]
-
-// GCAchievementReleasesOption is a functional option for GetGameCenterAchievementReleases.
-type GCAchievementReleasesOption func(*gcAchievementReleasesQuery)
-
-type gcAchievementReleasesQuery struct {
-	listQuery
-}
-
-func buildGCAchievementReleasesQuery(query *gcAchievementReleasesQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
 
 // GameCenterAchievementImageAttributes represents a Game Center achievement image resource.
 type GameCenterAchievementImageAttributes struct {

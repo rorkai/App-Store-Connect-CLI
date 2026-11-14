@@ -519,6 +519,11 @@ func TestAccountAndDistributionInputValidationReturnsUsageExitCode(t *testing.T)
 			deps:    true,
 		},
 		{
+			name:    "profiles create name too long",
+			args:    []string{"profiles", "create", "--name", "ppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp", "--profile-type", "IOS_APP_DEVELOPMENT", "--bundle", "BUNDLE_ID", "--certificate", "CERT_ID"},
+			wantErr: "profile name must be at most 64 characters; got 65",
+		},
+		{
 			name:    "profiles links certificates limit",
 			args:    []string{"profiles", "links", "certificates", "--id", "X", "--limit", "201"},
 			wantErr: "profiles links certificates: --limit must be between 1 and 200",
@@ -603,6 +608,16 @@ func TestAccountAndDistributionInputValidationReturnsUsageExitCode(t *testing.T)
 			args:    []string{"sandbox", "clear-history", "--email", "bad", "--confirm"},
 			wantErr: "sandbox clear-history: --email must be a valid email address",
 			deps:    true,
+		},
+		{
+			name:    "signing fetch create-missing-certificate without create-missing",
+			args:    []string{"signing", "fetch", "--bundle-id", "com.example.app", "--profile-type", "IOS_APP_STORE", "--create-missing-certificate"},
+			wantErr: "--create-missing-certificate requires --create-missing",
+		},
+		{
+			name:    "signing fetch match-extensions with create-missing-certificate",
+			args:    []string{"signing", "fetch", "--bundle-id", "com.example.app", "--profile-type", "IOS_APP_STORE", "--match-extensions", "--create-missing-certificate"},
+			wantErr: "--match-extensions cannot be combined with --create-missing-certificate; create the certificate with a single-bundle fetch first",
 		},
 		{
 			name:    "testflight crashes list limit",
@@ -773,6 +788,26 @@ func TestAccountAndDistributionInputValidationReturnsUsageExitCode(t *testing.T)
 			name:    "background-assets internal-beta-releases view without id",
 			args:    []string{"background-assets", "internal-beta-releases", "view"},
 			wantErr: "--id is required",
+		},
+		{
+			name:    "profiles download output given an uppercase format",
+			args:    []string{"profiles", "download", "--output", "JSON"},
+			wantErr: "--output takes a path in this command, not an output format; use --output-format json to choose the format, or --output ./JSON to write to a path named JSON",
+		},
+		{
+			name:    "profiles download output path named like a format",
+			args:    []string{"profiles", "download", "--output", "./json"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "signing fetch output given a format",
+			args:    []string{"signing", "fetch", "--output", "json"},
+			wantErr: "--output takes a path in this command, not an output format; use --format json to choose the format, or --output ./json to write to a path named json",
+		},
+		{
+			name:    "signing resign output given a format",
+			args:    []string{"signing", "resign", "--output", "markdown"},
+			wantErr: "--output takes a path in this command, not an output format; use --format markdown to choose the format, or --output ./markdown to write to a path named markdown",
 		},
 	}
 

@@ -98,14 +98,88 @@ var generatedQueries = map[string]generatedQuery{
 			"include":                     WithTerritoryAgeRatingsInclude,
 		},
 	},
+	"appPriceSchedules_automaticPrices_getToManyRelated": {
+		build: buildAppPriceSchedulePricesQuery,
+		options: map[string]any{
+			"include":                WithAppPriceSchedulePricesInclude,
+			"fields[appPrices]":      WithAppPriceSchedulePricesFields,
+			"fields[appPricePoints]": WithAppPriceSchedulePricesPricePointFields,
+			"fields[territories]":    WithAppPriceSchedulePricesTerritoryFields,
+		},
+	},
+	"appPriceSchedules_manualPrices_getToManyRelated": {
+		build: buildAppPriceSchedulePricesQuery,
+		options: map[string]any{
+			"include":                WithAppPriceSchedulePricesInclude,
+			"fields[appPrices]":      WithAppPriceSchedulePricesFields,
+			"fields[appPricePoints]": WithAppPriceSchedulePricesPricePointFields,
+			"fields[territories]":    WithAppPriceSchedulePricesTerritoryFields,
+		},
+	},
+	"appStoreReviewAttachments_getInstance": {
+		build: buildAppStoreReviewAttachmentsQuery,
+		options: map[string]any{
+			"fields[appStoreReviewAttachments]": WithAppStoreReviewAttachmentsFields,
+			"fields[appStoreReviewDetails]":     WithAppStoreReviewAttachmentReviewDetailFields,
+			"include":                           WithAppStoreReviewAttachmentsInclude,
+		},
+	},
+	"appStoreReviewDetails_appStoreReviewAttachments_getToManyRelated": {
+		build: buildAppStoreReviewAttachmentsQuery,
+		options: map[string]any{
+			"fields[appStoreReviewAttachments]": WithAppStoreReviewAttachmentsFields,
+			"fields[appStoreReviewDetails]":     WithAppStoreReviewAttachmentReviewDetailFields,
+			"include":                           WithAppStoreReviewAttachmentsInclude,
+		},
+	},
 	"appStoreVersionExperimentTreatmentLocalizations_appPreviewSets_getToManyRelated": {
 		build:   buildAppStoreVersionExperimentTreatmentLocalizationPreviewSetsQuery,
 		options: map[string]any{},
+	},
+	"appStoreVersionExperimentsV2_appStoreVersionExperimentTreatments_getToManyRelated": {
+		build:   buildAppStoreVersionExperimentTreatmentsQuery,
+		options: map[string]any{},
+	},
+	"appStoreVersionExperiments_appStoreVersionExperimentTreatments_getToManyRelated": {
+		build:   buildAppStoreVersionExperimentTreatmentsQuery,
+		options: map[string]any{},
+	},
+	"appStoreVersions_appStoreVersionExperimentsV2_getToManyRelated": {
+		build: buildAppStoreVersionExperimentsV2Query,
+		options: map[string]any{
+			"filter[state]": WithAppStoreVersionExperimentsV2State,
+		},
+	},
+	"appStoreVersions_appStoreVersionExperiments_getToManyRelated": {
+		build: buildAppStoreVersionExperimentsQuery,
+		options: map[string]any{
+			"filter[state]": WithAppStoreVersionExperimentsState,
+		},
+	},
+	"appTags_territories_getToManyRelated": {
+		build: buildTerritoriesQuery,
+		options: map[string]any{
+			"fields[territories]": WithTerritoriesFields,
+		},
+	},
+	"apps_accessibilityDeclarations_getToManyRelated": {
+		build: buildAccessibilityDeclarationsQuery,
+		options: map[string]any{
+			"filter[deviceFamily]":              WithAccessibilityDeclarationsDeviceFamilies,
+			"filter[state]":                     WithAccessibilityDeclarationsStates,
+			"fields[accessibilityDeclarations]": WithAccessibilityDeclarationsFields,
+		},
 	},
 	"apps_appClips_getToManyRelated": {
 		build: buildAppClipsQuery,
 		options: map[string]any{
 			"filter[bundleId]": WithAppClipsBundleIDs,
+		},
+	},
+	"apps_appStoreVersionExperimentsV2_getToManyRelated": {
+		build: buildAppStoreVersionExperimentsV2Query,
+		options: map[string]any{
+			"filter[state]": WithAppStoreVersionExperimentsV2State,
 		},
 	},
 	"apps_customerReviewSummarizations_getToManyRelated": {
@@ -118,6 +192,10 @@ var generatedQueries = map[string]generatedQuery{
 			"include":                              WithCustomerReviewSummarizationsInclude,
 		},
 	},
+	"apps_gameCenterEnabledVersions_getToManyRelated": {
+		build:   buildGCEnabledVersionsQuery,
+		options: map[string]any{},
+	},
 	"apps_getInstance": {
 		build: buildAppQuery,
 		options: map[string]any{
@@ -127,6 +205,21 @@ var generatedQueries = map[string]generatedQuery{
 			"fields[subscriptionGroups]": WithAppSubscriptionGroupFields,
 			"fields[retentionMessages]":  WithAppRetentionMessageFields,
 			"include":                    WithAppInclude,
+		},
+	},
+	"apps_perfPowerMetrics_getToManyRelated": {
+		build: buildPerfPowerMetricsQuery,
+		options: map[string]any{
+			"filter[platform]":   WithPerfPowerMetricsPlatforms,
+			"filter[metricType]": WithPerfPowerMetricsMetricTypes,
+			"filter[deviceType]": WithPerfPowerMetricsDeviceTypes,
+		},
+	},
+	"apps_searchKeywords_getToManyRelated": {
+		build: buildAppSearchKeywordsQuery,
+		options: map[string]any{
+			"filter[platform]": WithAppSearchKeywordsPlatforms,
+			"filter[locale]":   WithAppSearchKeywordsLocales,
 		},
 	},
 	"apps_webhooks_getToManyRelated": {
@@ -197,9 +290,24 @@ var generatedQueries = map[string]generatedQuery{
 		build:   buildBetaBuildUsagesQuery,
 		options: map[string]any{},
 	},
+	"builds_diagnosticSignatures_getToManyRelated": {
+		build: buildDiagnosticSignaturesQuery,
+		options: map[string]any{
+			"filter[diagnosticType]":       WithDiagnosticSignaturesDiagnosticTypes,
+			"fields[diagnosticSignatures]": WithDiagnosticSignaturesFields,
+		},
+	},
 	"builds_individualTesters_getToManyRelated": {
 		build:   buildBuildIndividualTestersQuery,
 		options: map[string]any{},
+	},
+	"builds_perfPowerMetrics_getToManyRelated": {
+		build: buildPerfPowerMetricsQuery,
+		options: map[string]any{
+			"filter[platform]":   WithPerfPowerMetricsPlatforms,
+			"filter[metricType]": WithPerfPowerMetricsMetricTypes,
+			"filter[deviceType]": WithPerfPowerMetricsDeviceTypes,
+		},
 	},
 	"bundleIds_profiles_getToManyRelated": {
 		build:   buildBundleIDProfilesQuery,
@@ -225,6 +333,18 @@ var generatedQueries = map[string]generatedQuery{
 		build:   buildCiBuildRunBuildsQuery,
 		options: map[string]any{},
 	},
+	"ciMacOsVersions_getCollection": {
+		build:   buildCiMacOsVersionsQuery,
+		options: map[string]any{},
+	},
+	"ciMacOsVersions_xcodeVersions_getToManyRelated": {
+		build:   buildCiXcodeVersionsQuery,
+		options: map[string]any{},
+	},
+	"ciProducts_additionalRepositories_getToManyRelated": {
+		build:   buildCiProductRepositoriesQuery,
+		options: map[string]any{},
+	},
 	"ciProducts_app_getToOneRelated": {
 		build: buildCiProductAppQuery,
 		options: map[string]any{
@@ -235,8 +355,20 @@ var generatedQueries = map[string]generatedQuery{
 			"include":                    WithCiProductAppInclude,
 		},
 	},
+	"ciProducts_primaryRepositories_getToManyRelated": {
+		build:   buildCiProductRepositoriesQuery,
+		options: map[string]any{},
+	},
 	"ciProducts_workflows_getToManyRelated": {
 		build:   buildCiWorkflowsQuery,
+		options: map[string]any{},
+	},
+	"ciXcodeVersions_getCollection": {
+		build:   buildCiXcodeVersionsQuery,
+		options: map[string]any{},
+	},
+	"ciXcodeVersions_macOsVersions_getToManyRelated": {
+		build:   buildCiMacOsVersionsQuery,
 		options: map[string]any{},
 	},
 	"diagnosticSignatures_logs_getToManyRelated": {
@@ -247,8 +379,20 @@ var generatedQueries = map[string]generatedQuery{
 		build:   buildEndUserLicenseAgreementTerritoriesQuery,
 		options: map[string]any{},
 	},
+	"gameCenterAchievementVersionsV2_localizations_getToManyRelated": {
+		build:   buildGCAchievementLocalizationsQuery,
+		options: map[string]any{},
+	},
 	"gameCenterAchievementsV2_versions_getToManyRelated": {
 		build:   buildGCAchievementVersionsQuery,
+		options: map[string]any{},
+	},
+	"gameCenterAchievements_localizations_getToManyRelated": {
+		build:   buildGCAchievementLocalizationsQuery,
+		options: map[string]any{},
+	},
+	"gameCenterAchievements_releases_getToManyRelated": {
+		build:   buildGCAchievementReleasesQuery,
 		options: map[string]any{},
 	},
 	"gameCenterActivities_versions_getToManyRelated": {
@@ -259,6 +403,10 @@ var generatedQueries = map[string]generatedQuery{
 		build:   buildGCActivityLocalizationsQuery,
 		options: map[string]any{},
 	},
+	"gameCenterAppVersions_compatibilityVersions_getToManyRelated": {
+		build:   buildGCAppVersionsQuery,
+		options: map[string]any{},
+	},
 	"gameCenterChallengeVersions_localizations_getToManyRelated": {
 		build:   buildGCChallengeLocalizationsQuery,
 		options: map[string]any{},
@@ -267,12 +415,48 @@ var generatedQueries = map[string]generatedQuery{
 		build:   buildGCChallengeVersionsQuery,
 		options: map[string]any{},
 	},
+	"gameCenterDetails_achievementReleases_getToManyRelated": {
+		build:   buildGCAchievementReleasesQuery,
+		options: map[string]any{},
+	},
 	"gameCenterDetails_activityReleases_getToManyRelated": {
 		build:   buildGCActivityVersionReleasesQuery,
 		options: map[string]any{},
 	},
 	"gameCenterDetails_challengeReleases_getToManyRelated": {
 		build:   buildGCChallengeVersionReleasesQuery,
+		options: map[string]any{},
+	},
+	"gameCenterDetails_gameCenterActivities_getToManyRelated": {
+		build:   buildGCActivitiesQuery,
+		options: map[string]any{},
+	},
+	"gameCenterDetails_gameCenterAppVersions_getToManyRelated": {
+		build:   buildGCAppVersionsQuery,
+		options: map[string]any{},
+	},
+	"gameCenterDetails_gameCenterChallenges_getToManyRelated": {
+		build:   buildGCChallengesQuery,
+		options: map[string]any{},
+	},
+	"gameCenterDetails_leaderboardReleases_getToManyRelated": {
+		build:   buildGCLeaderboardReleasesQuery,
+		options: map[string]any{},
+	},
+	"gameCenterDetails_leaderboardSetReleases_getToManyRelated": {
+		build:   buildGCLeaderboardSetReleasesQuery,
+		options: map[string]any{},
+	},
+	"gameCenterEnabledVersions_compatibleVersions_getToManyRelated": {
+		build:   buildGCEnabledVersionsQuery,
+		options: map[string]any{},
+	},
+	"gameCenterGroups_gameCenterActivities_getToManyRelated": {
+		build:   buildGCActivitiesQuery,
+		options: map[string]any{},
+	},
+	"gameCenterGroups_gameCenterChallenges_getToManyRelated": {
+		build:   buildGCChallengesQuery,
 		options: map[string]any{},
 	},
 	"gameCenterGroups_gameCenterDetails_getToManyRelated": {
@@ -292,16 +476,56 @@ var generatedQueries = map[string]generatedQuery{
 			"filter[gameCenterLeaderboard]":    WithGCLeaderboardSetMemberLocalizationsLeaderboardIDs,
 		},
 	},
+	"gameCenterLeaderboardSetVersionsV2_localizations_getToManyRelated": {
+		build:   buildGCLeaderboardSetLocalizationsQuery,
+		options: map[string]any{},
+	},
+	"gameCenterLeaderboardSetsV2_gameCenterLeaderboards_getToManyRelated": {
+		build:   buildGCLeaderboardSetMembersQuery,
+		options: map[string]any{},
+	},
 	"gameCenterLeaderboardSetsV2_versions_getToManyRelated": {
 		build:   buildGCLeaderboardSetVersionsQuery,
+		options: map[string]any{},
+	},
+	"gameCenterLeaderboardSets_gameCenterLeaderboards_getToManyRelated": {
+		build:   buildGCLeaderboardSetMembersQuery,
+		options: map[string]any{},
+	},
+	"gameCenterLeaderboardSets_localizations_getToManyRelated": {
+		build:   buildGCLeaderboardSetLocalizationsQuery,
+		options: map[string]any{},
+	},
+	"gameCenterLeaderboardSets_releases_getToManyRelated": {
+		build:   buildGCLeaderboardSetReleasesQuery,
+		options: map[string]any{},
+	},
+	"gameCenterLeaderboardVersionsV2_localizations_getToManyRelated": {
+		build:   buildGCLeaderboardLocalizationsQuery,
 		options: map[string]any{},
 	},
 	"gameCenterLeaderboardsV2_versions_getToManyRelated": {
 		build:   buildGCLeaderboardVersionsQuery,
 		options: map[string]any{},
 	},
+	"gameCenterLeaderboards_localizations_getToManyRelated": {
+		build:   buildGCLeaderboardLocalizationsQuery,
+		options: map[string]any{},
+	},
+	"gameCenterLeaderboards_releases_getToManyRelated": {
+		build:   buildGCLeaderboardReleasesQuery,
+		options: map[string]any{},
+	},
+	"gameCenterMatchmakingQueues_getCollection": {
+		build:   buildGCMatchmakingQueuesQuery,
+		options: map[string]any{},
+	},
 	"gameCenterMatchmakingRuleSets_getCollection": {
 		build:   buildGCMatchmakingRuleSetsQuery,
+		options: map[string]any{},
+	},
+	"gameCenterMatchmakingRuleSets_matchmakingQueues_getToManyRelated": {
+		build:   buildGCMatchmakingQueuesQuery,
 		options: map[string]any{},
 	},
 	"gameCenterMatchmakingRuleSets_rules_getToManyRelated": {
@@ -334,12 +558,32 @@ var generatedQueries = map[string]generatedQuery{
 		build:   buildScmProvidersQuery,
 		options: map[string]any{},
 	},
+	"scmProviders_repositories_getToManyRelated": {
+		build:   buildScmRepositoriesQuery,
+		options: map[string]any{},
+	},
+	"scmRepositories_getCollection": {
+		build:   buildScmRepositoriesQuery,
+		options: map[string]any{},
+	},
 	"scmRepositories_gitReferences_getToManyRelated": {
 		build:   buildScmGitReferencesQuery,
 		options: map[string]any{},
 	},
 	"scmRepositories_pullRequests_getToManyRelated": {
 		build:   buildScmPullRequestsQuery,
+		options: map[string]any{},
+	},
+	"subscriptionAppStoreReviewScreenshots_getInstance": {
+		build: buildSubscriptionAppStoreReviewScreenshotQuery,
+		options: map[string]any{
+			"fields[subscriptionAppStoreReviewScreenshots]": WithSubscriptionAppStoreReviewScreenshotFields,
+			"fields[subscriptions]":                         WithSubscriptionAppStoreReviewScreenshotSubscriptionFields,
+			"include":                                       WithSubscriptionAppStoreReviewScreenshotInclude,
+		},
+	},
+	"subscriptionAvailabilities_availableTerritories_getToManyRelated": {
+		build:   buildSubscriptionAvailabilityTerritoriesQuery,
 		options: map[string]any{},
 	},
 	"subscriptionGroups_subscriptionGroupLocalizations_getToManyRelated": {
@@ -361,6 +605,10 @@ var generatedQueries = map[string]generatedQuery{
 			"include":                         WithSubscriptionOfferCodePricesInclude,
 		},
 	},
+	"subscriptionPlanAvailabilities_availableTerritories_getToManyRelated": {
+		build:   buildSubscriptionAvailabilityTerritoriesQuery,
+		options: map[string]any{},
+	},
 	"subscriptionPricePoints_getInstance": {
 		build: buildSubscriptionPricePointDetailQuery,
 		options: map[string]any{
@@ -374,9 +622,27 @@ var generatedQueries = map[string]generatedQuery{
 			"include":                         WithSubscriptionPromotionalOfferPricesInclude,
 		},
 	},
+	"subscriptions_appStoreReviewScreenshot_getToOneRelated": {
+		build: buildSubscriptionAppStoreReviewScreenshotQuery,
+		options: map[string]any{
+			"fields[subscriptionAppStoreReviewScreenshots]": WithSubscriptionAppStoreReviewScreenshotFields,
+			"fields[subscriptions]":                         WithSubscriptionAppStoreReviewScreenshotSubscriptionFields,
+			"include":                                       WithSubscriptionAppStoreReviewScreenshotInclude,
+		},
+	},
 	"subscriptions_images_getToManyRelated": {
 		build:   buildSubscriptionImagesQuery,
 		options: map[string]any{},
+	},
+	"subscriptions_introductoryOffers_getToManyRelated": {
+		build: buildSubscriptionIntroductoryOffersQuery,
+		options: map[string]any{
+			"filter[territory]":                      WithSubscriptionIntroductoryOffersTerritories,
+			"fields[subscriptionIntroductoryOffers]": WithSubscriptionIntroductoryOffersFields,
+			"fields[subscriptions]":                  WithSubscriptionIntroductoryOffersSubscriptionFields,
+			"fields[subscriptionPricePoints]":        WithSubscriptionIntroductoryOffersPricePointFields,
+			"include":                                WithSubscriptionIntroductoryOffersInclude,
+		},
 	},
 	"subscriptions_offerCodes_getToManyRelated": {
 		build: buildSubscriptionOfferCodesQuery,
@@ -395,6 +661,12 @@ var generatedQueries = map[string]generatedQuery{
 	"subscriptions_subscriptionLocalizations_getToManyRelated": {
 		build:   buildSubscriptionLocalizationsQuery,
 		options: map[string]any{},
+	},
+	"territories_getCollection": {
+		build: buildTerritoriesQuery,
+		options: map[string]any{
+			"fields[territories]": WithTerritoriesFields,
+		},
 	},
 	"userInvitations_getCollection": {
 		build:   buildUserInvitationsQuery,

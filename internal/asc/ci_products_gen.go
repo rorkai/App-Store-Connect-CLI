@@ -87,6 +87,19 @@ func (c *Client) GetCiWorkflows(ctx context.Context, productID string, opts ...C
 	})
 }
 
+// CiProductRepositoriesOption sets the query of GET /v1/ciProducts/{id}/additionalRepositories (ciProducts_additionalRepositories_getToManyRelated) and GET /v1/ciProducts/{id}/primaryRepositories (ciProducts_primaryRepositories_getToManyRelated).
+type CiProductRepositoriesOption func(*ciProductRepositoriesQuery)
+
+type ciProductRepositoriesQuery struct {
+	listQuery
+}
+
+func buildCiProductRepositoriesQuery(query *ciProductRepositoriesQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
 // CiProductAppOption sets the query of GET /v1/ciProducts/{id}/app (ciProducts_app_getToOneRelated).
 type CiProductAppOption func(*ciProductAppQuery)
 

@@ -89,19 +89,6 @@ type GameCenterLeaderboardSetLocalizationV2CreateData struct {
 // GameCenterLeaderboardSetLocalizationsResponse is the response from leaderboard set localization list endpoints.
 type GameCenterLeaderboardSetLocalizationsResponse = Response[GameCenterLeaderboardSetLocalizationAttributes]
 
-// GCLeaderboardSetLocalizationsOption is a functional option for GetGameCenterLeaderboardSetLocalizations.
-type GCLeaderboardSetLocalizationsOption func(*gcLeaderboardSetLocalizationsQuery)
-
-type gcLeaderboardSetLocalizationsQuery struct {
-	listQuery
-}
-
-func buildGCLeaderboardSetLocalizationsQuery(query *gcLeaderboardSetLocalizationsQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
 // GameCenterLeaderboardSetReleaseAttributes represents a Game Center leaderboard set release resource.
 type GameCenterLeaderboardSetReleaseAttributes struct {
 	Live bool `json:"live"`
@@ -109,19 +96,6 @@ type GameCenterLeaderboardSetReleaseAttributes struct {
 
 // GameCenterLeaderboardSetReleasesResponse is the response from leaderboard set release list endpoints.
 type GameCenterLeaderboardSetReleasesResponse = Response[GameCenterLeaderboardSetReleaseAttributes]
-
-// GCLeaderboardSetReleasesOption is a functional option for GetGameCenterLeaderboardSetReleases.
-type GCLeaderboardSetReleasesOption func(*gcLeaderboardSetReleasesQuery)
-
-type gcLeaderboardSetReleasesQuery struct {
-	listQuery
-}
-
-func buildGCLeaderboardSetReleasesQuery(query *gcLeaderboardSetReleasesQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
 
 // GameCenterLeaderboardSetMembersUpdateRequest is a request to replace leaderboard set members.
 type GameCenterLeaderboardSetMembersUpdateRequest struct {
@@ -134,19 +108,6 @@ type GameCenterLeaderboardSetMembersUpdateResult struct {
 	MemberCount int      `json:"memberCount"`
 	MemberIDs   []string `json:"memberIds"`
 	Updated     bool     `json:"updated"`
-}
-
-// GCLeaderboardSetMembersOption is a functional option for GetGameCenterLeaderboardSetMembers.
-type GCLeaderboardSetMembersOption func(*gcLeaderboardSetMembersQuery)
-
-type gcLeaderboardSetMembersQuery struct {
-	listQuery
-}
-
-func buildGCLeaderboardSetMembersQuery(query *gcLeaderboardSetMembersQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
 }
 
 // GameCenterLeaderboardSetImageAttributes represents a Game Center leaderboard set image resource.

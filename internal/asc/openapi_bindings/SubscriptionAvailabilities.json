@@ -12,5 +12,8 @@
   "operations": [
     {"operation":"subscriptionAvailabilities_availableTerritories_getToManyRelated","name":"GetSubscriptionAvailabilityAvailableTerritories","params":["availabilityID"],"check":"require","options":"SubscriptionAvailabilityTerritoriesOption","query":"buildSubscriptionAvailabilityTerritoriesQuery","nextContext":"subscription-availability-territories"},
     {"operation":"subscriptionAvailabilities_getInstance","name":"GetSubscriptionAvailability","params":["availabilityID"],"check":"require"}
+  ],
+  "queries": [
+    {"operation":"subscriptionAvailabilities_availableTerritories_getToManyRelated","also":["subscriptionPlanAvailabilities_availableTerritories_getToManyRelated"],"name":"SubscriptionAvailabilityTerritories","deviations":[{"problem":"query parameters [fields[territories]] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."},{"operation":"subscriptionPlanAvailabilities_availableTerritories_getToManyRelated","problem":"query parameters [fields[territories]] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]}
   ]
 }

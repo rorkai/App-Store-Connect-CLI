@@ -633,8 +633,14 @@ func TestWebVersionAliasMutationsValidateBeforeSession(t *testing.T) {
 	if err := update.FlagSet.Parse([]string{"--product-id", "product", "--id", "alias", "--confirm"}); err != nil {
 		t.Fatalf("parse update: %v", err)
 	}
-	if err := update.Exec(context.Background(), nil); err == nil || !strings.Contains(err.Error(), "at least one version alias field is required") {
-		t.Fatalf("update error = %v", err)
+	_, stderr = captureOutput(t, func() {
+		err := update.Exec(context.Background(), nil)
+		if err == nil || !errors.Is(err, flag.ErrHelp) {
+			t.Fatalf("update error = %v", err)
+		}
+	})
+	if stderr != "Error: at least one of --name, --type, --build, or --locked is required\n" {
+		t.Fatalf("update stderr = %q", stderr)
 	}
 
 	delete := webVersionAliasDelete()

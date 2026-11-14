@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/url"
 )
 
 // GetCiXcodeVersions sends GET /v1/ciXcodeVersions (ciXcodeVersions_getCollection).
@@ -34,4 +35,17 @@ func (c *Client) GetCiXcodeVersionMacOsVersions(ctx context.Context, xcodeVersio
 		Next:        query.nextURL,
 		NextContext: "ciXcodeVersionMacOsVersions",
 	})
+}
+
+// CiXcodeVersionsOption sets the query of GET /v1/ciXcodeVersions (ciXcodeVersions_getCollection) and GET /v1/ciMacOsVersions/{id}/xcodeVersions (ciMacOsVersions_xcodeVersions_getToManyRelated).
+type CiXcodeVersionsOption func(*ciXcodeVersionsQuery)
+
+type ciXcodeVersionsQuery struct {
+	listQuery
+}
+
+func buildCiXcodeVersionsQuery(query *ciXcodeVersionsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
 }

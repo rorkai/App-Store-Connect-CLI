@@ -969,6 +969,31 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			wantErr: "--price-point-id is required",
 		},
 		{
+			name:    "web xcode-cloud settings next-build-number set zero value",
+			args:    []string{"web", "xcode-cloud", "settings", "next-build-number", "set", "--product-id", "PRODUCT_ID", "--value", "0"},
+			wantErr: "--value must be greater than 0",
+		},
+		{
+			name:    "web xcode-cloud settings version-aliases create without type",
+			args:    []string{"web", "xcode-cloud", "settings", "version-aliases", "create", "--product-id", "PRODUCT_ID", "--name", "Stable", "--build", "BUILD_ID"},
+			wantErr: "--type type is required",
+		},
+		{
+			name:    "web xcode-cloud settings version-aliases create invalid type",
+			args:    []string{"web", "xcode-cloud", "settings", "version-aliases", "create", "--product-id", "PRODUCT_ID", "--name", "Stable", "--build", "BUILD_ID", "--type", "bad"},
+			wantErr: "--type type must be macos_version or xcode_version",
+		},
+		{
+			name:    "web xcode-cloud settings version-aliases update without fields",
+			args:    []string{"web", "xcode-cloud", "settings", "version-aliases", "update", "--product-id", "PRODUCT_ID", "--id", "ALIAS_ID"},
+			wantErr: "at least one of --name, --type, --build, or --locked is required",
+		},
+		{
+			name:    "web xcode-cloud settings version-aliases update invalid type",
+			args:    []string{"web", "xcode-cloud", "settings", "version-aliases", "update", "--product-id", "PRODUCT_ID", "--id", "ALIAS_ID", "--type", "bad"},
+			wantErr: "--type type must be macos_version or xcode_version",
+		},
+		{
 			name:    "web xcode-cloud settings version-aliases view without product-id",
 			args:    []string{"web", "xcode-cloud", "settings", "version-aliases", "view"},
 			wantErr: "--product-id is required",
@@ -1084,6 +1109,21 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			name:    "app-events video-clips view without clip-id",
 			args:    []string{"app-events", "video-clips", "view"},
 			wantErr: "--clip-id is required",
+		},
+		{
+			name:    "performance download output given a format alias",
+			args:    []string{"performance", "download", "--output", "md"},
+			wantErr: "--output takes a path in this command, not an output format; use --output-format markdown to choose the format, or --output ./md to write to a path named md",
+		},
+		{
+			name:    "screenshots download output given a format",
+			args:    []string{"screenshots", "download", "--output", "json"},
+			wantErr: "--output takes a path in this command, not an output format; use --format json to choose the format, or --output ./json to write to a path named json",
+		},
+		{
+			name:    "video-previews download output given a format",
+			args:    []string{"video-previews", "download", "--output", "table"},
+			wantErr: "--output takes a path in this command, not an output format; use --format table to choose the format, or --output ./table to write to a path named table",
 		},
 	}
 

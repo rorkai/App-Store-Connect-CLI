@@ -733,37 +733,6 @@ func TestNominationUpdateRequest_JSON(t *testing.T) {
 	}
 }
 
-func TestBuildAccessibilityDeclarationsQuery(t *testing.T) {
-	query := &accessibilityDeclarationsQuery{}
-	opts := []AccessibilityDeclarationsOption{
-		WithAccessibilityDeclarationsDeviceFamilies([]string{"iphone", " ipad "}),
-		WithAccessibilityDeclarationsStates([]string{"draft", "published"}),
-		WithAccessibilityDeclarationsFields([]string{"deviceFamily", "state"}),
-		Limit[AccessibilityDeclarationsOption](5),
-	}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	values, err := url.ParseQuery(buildAccessibilityDeclarationsQuery(query))
-	if err != nil {
-		t.Fatalf("failed to parse query: %v", err)
-	}
-
-	if got := values.Get("filter[deviceFamily]"); got != "IPHONE,IPAD" {
-		t.Fatalf("expected filter[deviceFamily]=IPHONE,IPAD, got %q", got)
-	}
-	if got := values.Get("filter[state]"); got != "DRAFT,PUBLISHED" {
-		t.Fatalf("expected filter[state]=DRAFT,PUBLISHED, got %q", got)
-	}
-	if got := values.Get("fields[accessibilityDeclarations]"); got != "deviceFamily,state" {
-		t.Fatalf("expected fields[accessibilityDeclarations]=deviceFamily,state, got %q", got)
-	}
-	if got := values.Get("limit"); got != "5" {
-		t.Fatalf("expected limit=5, got %q", got)
-	}
-}
-
 func TestBuildAppEncryptionDeclarationsQuery(t *testing.T) {
 	query := &appEncryptionDeclarationsQuery{}
 	opts := []AppEncryptionDeclarationsOption{
@@ -1440,32 +1409,6 @@ func TestBuildBuildsQuery_WithPreReleaseVersions(t *testing.T) {
 	WithBuildsPreReleaseVersions([]string{"prv-1", " ", "prv-2"})(query)
 	if len(query.preReleaseVersionIDs) != 2 || query.preReleaseVersionIDs[0] != "prv-1" || query.preReleaseVersionIDs[1] != "prv-2" {
 		t.Fatalf("expected normalized pre-release version ids [prv-1 prv-2], got %v", query.preReleaseVersionIDs)
-	}
-}
-
-func TestBuildSubscriptionAvailabilityTerritoriesQuery(t *testing.T) {
-	query := &subscriptionAvailabilityTerritoriesQuery{}
-	opts := []SubscriptionAvailabilityTerritoriesOption{
-		Limit[SubscriptionAvailabilityTerritoriesOption](15),
-		NextURL[SubscriptionAvailabilityTerritoriesOption]("https://api.appstoreconnect.apple.com/v1/subscriptionAvailabilities/123/availableTerritories?cursor=abc"),
-	}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	if query.limit != 15 {
-		t.Fatalf("expected limit=15, got %d", query.limit)
-	}
-	if query.nextURL != "https://api.appstoreconnect.apple.com/v1/subscriptionAvailabilities/123/availableTerritories?cursor=abc" {
-		t.Fatalf("expected nextURL to be set, got %q", query.nextURL)
-	}
-
-	values, err := url.ParseQuery(buildSubscriptionAvailabilityTerritoriesQuery(query))
-	if err != nil {
-		t.Fatalf("failed to parse query: %v", err)
-	}
-	if got := values.Get("limit"); got != "15" {
-		t.Fatalf("expected limit=15, got %q", got)
 	}
 }
 

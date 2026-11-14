@@ -1410,6 +1410,23 @@ func NormalizeOutputFormat(format string) string {
 	}
 }
 
+// RejectOutputFormatAsPath reports a usage error when a command whose --output
+// flag takes a path is given an output format name there. formatFlag is the
+// command's flag that chooses json, table or markdown, or "" when it has none.
+func RejectOutputFormatAsPath(path, formatFlag string) error {
+	value := strings.TrimSpace(path)
+	format := NormalizeOutputFormat(value)
+	if format != "json" && format != "table" && format != "markdown" {
+		return nil
+	}
+	if formatFlag == "" {
+		fmt.Fprintf(os.Stderr, "Error: --output takes a path in this command, not an output format, and no flag here chooses json, table or markdown output; use --output ./%s to write to a path named %s\n", value, value)
+	} else {
+		fmt.Fprintf(os.Stderr, "Error: --output takes a path in this command, not an output format; use %s %s to choose the format, or --output ./%s to write to a path named %s\n", formatFlag, format, value, value)
+	}
+	return InvalidValueUsageError("--output")
+}
+
 // outputFormatEnumError reports an unsupported output format the way every
 // other enumerated flag reports one: the flag, its valid set, and the value
 // that was rejected. The message is self-sufficient, so callers do not need to

@@ -8,5 +8,8 @@
     {"operation":"ciMacOsVersions_getCollection","name":"GetCiMacOsVersions","options":"CiMacOsVersionsOption","query":"buildCiMacOsVersionsQuery","nextContext":"ciMacOsVersions"},
     {"operation":"ciMacOsVersions_getInstance","name":"GetCiMacOsVersion","params":["macOsVersionID"],"check":"raw"},
     {"operation":"ciMacOsVersions_xcodeVersions_getToManyRelated","name":"GetCiMacOsVersionXcodeVersions","params":["macOsVersionID"],"check":"raw","options":"CiXcodeVersionsOption","query":"buildCiXcodeVersionsQuery","nextContext":"ciMacOsVersionXcodeVersions"}
+  ],
+  "queries": [
+    {"operation":"ciMacOsVersions_getCollection","also":["ciXcodeVersions_macOsVersions_getToManyRelated"],"name":"CiMacOsVersions","deviations":[{"problem":"query parameters [fields[ciMacOsVersions] fields[ciXcodeVersions] include limit[xcodeVersions]] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."},{"operation":"ciXcodeVersions_macOsVersions_getToManyRelated","problem":"query parameters [fields[ciMacOsVersions] fields[ciXcodeVersions] include limit[xcodeVersions]] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]}
   ]
 }

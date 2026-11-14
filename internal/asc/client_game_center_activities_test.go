@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"os"
 	"path/filepath"
 	"testing"
@@ -439,24 +438,5 @@ func TestBuildRelationshipData(t *testing.T) {
 	}
 	if data[0].ID != "ach-1" || data[1].ID != "ach-2" {
 		t.Fatalf("unexpected relationship IDs: %+v", data)
-	}
-}
-
-func TestGCActivitiesOptions(t *testing.T) {
-	query := &gcActivitiesQuery{}
-	Limit[GCActivitiesOption](20)(query)
-	if query.limit != 20 {
-		t.Fatalf("expected limit 20, got %d", query.limit)
-	}
-	NextURL[GCActivitiesOption]("next")(query)
-	if query.nextURL != "next" {
-		t.Fatalf("expected nextURL set, got %q", query.nextURL)
-	}
-	values, err := url.ParseQuery(buildGCActivitiesQuery(query))
-	if err != nil {
-		t.Fatalf("parse query: %v", err)
-	}
-	if values.Get("limit") != "20" {
-		t.Fatalf("expected limit=20, got %q", values.Get("limit"))
 	}
 }
