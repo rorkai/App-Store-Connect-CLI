@@ -183,7 +183,7 @@ func renderQuery(spec *Spec, q *QueryBind) ([]queryPart, error) {
 	_, paged := defined["limit"]
 
 	option, structName := q.option(), q.structName()
-	var fields, withs, sends []string
+	var fields, sends []string
 	if paged {
 		fields = append(fields, "listQuery")
 	}
@@ -211,7 +211,6 @@ func renderQuery(spec *Spec, q *QueryBind) ([]queryPart, error) {
 			arg = field
 		}
 		fields = append(fields, field+" []string")
-		withs = append(withs, with)
 		parts = append(parts, queryPart{with, fmt.Sprintf("// %s sets %s.\nfunc %s(%s []string) %s {\nreturn func(q *%s) {\nq.%s = normalizeList(%s)\n}\n}\n\n",
 			with, p.Name, with, arg, option, structName, field, arg)})
 		sends = append(sends, fmt.Sprintf("addCSV(values, %s, query.%s)", strconv.Quote(p.Name), field))
