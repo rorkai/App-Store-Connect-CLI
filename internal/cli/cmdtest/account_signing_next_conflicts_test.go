@@ -63,18 +63,16 @@ func TestAccountSigningListsRejectNextQueryFlagsBeforeAuth(t *testing.T) {
 
 func TestAccountSigningListsValidateNextBeforeQueryConflicts(t *testing.T) {
 	const invalidNext = "http://api.appstoreconnect.apple.com/v1/resources?cursor=next"
-	// Hand-written lists report --next first; builder lists such as actors
-	// list check --limit first.
+	// The --next diagnostic must come first.
 	tests := []struct {
-		name           string
-		args           []string
-		wantDiagnostic string
+		name string
+		args []string
 	}{
-		{name: "certificates", args: []string{"certificates", "list", "--next", invalidNext, "--limit", "201"}, wantDiagnostic: "Error: certificates list: --next must be an App Store Connect URL"},
-		{name: "users", args: []string{"users", "list", "--next", invalidNext, "--limit", "201"}, wantDiagnostic: "Error: users list: --next must be an App Store Connect URL"},
-		{name: "actors", args: []string{"actors", "list", "--next", invalidNext, "--limit", "201"}, wantDiagnostic: "Error: actors list: --limit must be between 1 and 200"},
-		{name: "pass type ids", args: []string{"pass-type-ids", "list", "--next", invalidNext, "--limit", "201"}, wantDiagnostic: "Error: pass-type-ids list: --next must be an App Store Connect URL"},
-		{name: "merchant ids", args: []string{"merchant-ids", "list", "--next", invalidNext, "--limit", "201"}, wantDiagnostic: "Error: merchant-ids list: --next must be an App Store Connect URL"},
+		{name: "certificates", args: []string{"certificates", "list", "--next", invalidNext, "--limit", "201"}},
+		{name: "users", args: []string{"users", "list", "--next", invalidNext, "--limit", "201"}},
+		{name: "actors", args: []string{"actors", "list", "--next", invalidNext, "--limit", "201"}},
+		{name: "pass type ids", args: []string{"pass-type-ids", "list", "--next", invalidNext, "--limit", "201"}},
+		{name: "merchant ids", args: []string{"merchant-ids", "list", "--next", invalidNext, "--limit", "201"}},
 	}
 
 	for _, test := range tests {
@@ -89,8 +87,12 @@ func TestAccountSigningListsValidateNextBeforeQueryConflicts(t *testing.T) {
 			}
 			// A usage error renders the command usage page, which lists every
 			// flag, so the precedence assertion is scoped to the diagnostic line.
-			if diagnostic, _, _ := strings.Cut(stderr, "\n"); diagnostic != test.wantDiagnostic {
-				t.Fatalf("stderr diagnostic = %q, want %q", diagnostic, test.wantDiagnostic)
+			diagnostic, _, _ := strings.Cut(stderr, "\n")
+			if !strings.Contains(diagnostic, "--next must be an App Store Connect URL") {
+				t.Fatalf("stderr diagnostic = %q, want invalid --next error", diagnostic)
+			}
+			if strings.Contains(diagnostic, "--limit") {
+				t.Fatalf("stderr diagnostic = %q, want --next validation to take precedence", diagnostic)
 			}
 		})
 	}

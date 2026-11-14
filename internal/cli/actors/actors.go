@@ -62,6 +62,7 @@ Examples:
 		PaginateIgnoresLimit: true,
 		NoSpinner:            true,
 		NextConflicts:        []string{"id", "fields", "limit"},
+		NextBeforeLimit:      true,
 		Flags: func(fs *flag.FlagSet) func() error {
 			fields := fs.String("fields", "", "Fields to include: "+strings.Join(actorFieldsList(), ", "))
 			return func() (err error) {

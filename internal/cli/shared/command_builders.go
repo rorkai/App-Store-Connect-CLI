@@ -133,6 +133,8 @@ type PaginatedListCommandConfig struct {
 
 	// NextConflicts names flags that cannot be combined with --next.
 	NextConflicts []string
+	// NextBeforeLimit checks --next and its conflicts before --limit.
+	NextBeforeLimit bool
 	// Flags registers command-specific flags and returns their validation,
 	// which runs after the --limit, --next and parent checks. The returned
 	// function may be nil.
@@ -200,13 +202,24 @@ func BuildPaginatedListCommand(config PaginatedListCommandConfig) *ffcli.Command
 	}
 
 	cmd.Exec = func(ctx context.Context, args []string) error {
-		if *limit != 0 && (*limit < 1 || *limit > limitMax) {
-			return UsageErrorf("%s: --limit must be between 1 and %d", usageErrorPrefix(), limitMax)
+		checkLimit := func() error {
+			if *limit != 0 && (*limit < 1 || *limit > limitMax) {
+				return UsageErrorf("%s: --limit must be between 1 and %d", usageErrorPrefix(), limitMax)
+			}
+			return nil
+		}
+		if !config.NextBeforeLimit {
+			if err := checkLimit(); err != nil {
+				return err
+			}
 		}
 		if err := ValidateNextURL(*next); err != nil {
 			return UsageErrorf("%s: %v", usageErrorPrefix(), err)
 		}
 		if err := RejectNextFlagConflicts(fs, *next, usageErrorPrefix(), config.NextConflicts...); err != nil {
+			return err
+		}
+		if err := checkLimit(); err != nil {
 			return err
 		}
 

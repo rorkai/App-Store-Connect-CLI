@@ -306,14 +306,15 @@ func TestBuildPaginatedListCommandOptions(t *testing.T) {
 		secondPageURL = "https://api.appstoreconnect.apple.com/v1/items?cursor=BB"
 	)
 	tests := []struct {
-		name       string
-		topLevel   bool
-		args       []string
-		failCall   int
-		wantErr    string
-		wantStderr string
-		wantCalls  []builderTestCall
-		wantStdout string
+		name            string
+		topLevel        bool
+		nextBeforeLimit bool
+		args            []string
+		failCall        int
+		wantErr         string
+		wantStderr      string
+		wantCalls       []builderTestCall
+		wantStdout      string
 	}{
 		{
 			name:       "missing parent reports the required diagnostic before flag validation",
@@ -359,6 +360,23 @@ func TestBuildPaginatedListCommandOptions(t *testing.T) {
 			wantCalls: []builderTestCall{{parent: "parent-1", limit: 200}, {parent: "parent-1", next: secondPageURL}},
 		},
 		{
+			name:    "limit is checked before next",
+			args:    []string{"--next", "http://example.test/items", "--limit", "500"},
+			wantErr: "items list: --limit must be between 1 and 200",
+		},
+		{
+			name:            "next and its conflicts are checked before limit on request",
+			nextBeforeLimit: true,
+			args:            []string{"--next", nextURL, "--filter", "value", "--limit", "500"},
+			wantErr:         "items list: --next cannot be combined with --filter",
+		},
+		{
+			name:            "limit is still checked after next on request",
+			nextBeforeLimit: true,
+			args:            []string{"--id", "parent-1", "--limit", "500"},
+			wantErr:         "items list: --limit must be between 1 and 200",
+		},
+		{
 			name:       "top-level collection has no parent flag",
 			topLevel:   true,
 			wantCalls:  []builderTestCall{{}},
@@ -379,6 +397,7 @@ func TestBuildPaginatedListCommandOptions(t *testing.T) {
 				ShortUsage:           "asc items list [flags]",
 				ParentFlag:           "id",
 				TopLevel:             tt.topLevel,
+				NextBeforeLimit:      tt.nextBeforeLimit,
 				RequiredDiagnostic:   true,
 				PaginateIgnoresLimit: true,
 				NoSpinner:            true,
