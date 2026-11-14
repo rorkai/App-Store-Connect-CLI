@@ -2,7 +2,12 @@
   "tag": "InAppPurchasePriceSchedules",
   "file": "in_app_purchase_price_schedules_gen.go",
   "types": [
+    "InAppPurchasePriceScheduleCreateData",
+    "InAppPurchasePriceScheduleCreateRelationships",
     "InAppPurchasePriceScheduleResponse"
+  ],
+  "relationships": [
+    {"data":"InAppPurchasePriceScheduleCreateData","type":"InAppPurchasePriceScheduleCreateRelationships"}
   ],
   "operations": [
     {"operation":"inAppPurchasePriceSchedules_automaticPrices_getToManyRelated","name":"GetInAppPurchasePriceScheduleAutomaticPrices","params":["scheduleID"],"check":"require","options":"IAPPriceSchedulePricesOption","query":"buildIAPPriceSchedulePricesQuery","nextContext":"in-app-purchase-automatic-prices"},

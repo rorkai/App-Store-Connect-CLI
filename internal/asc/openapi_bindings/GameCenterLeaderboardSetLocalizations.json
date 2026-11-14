@@ -3,17 +3,25 @@
   "file": "game_center_leaderboard_set_localizations_gen.go",
   "types": [
     "GameCenterLeaderboardSetLocalizationCreateAttributes",
+    "GameCenterLeaderboardSetLocalizationCreateData",
     "GameCenterLeaderboardSetLocalizationCreateRequest",
+    "GameCenterLeaderboardSetLocalizationRelationships",
     "GameCenterLeaderboardSetLocalizationResponse",
     "GameCenterLeaderboardSetLocalizationUpdateAttributes",
     "GameCenterLeaderboardSetLocalizationUpdateData",
     "GameCenterLeaderboardSetLocalizationUpdateRequest",
-    "GameCenterLeaderboardSetLocalizationV2CreateRequest"
+    "GameCenterLeaderboardSetLocalizationV2CreateRequest",
+    "GameCenterLeaderboardSetLocalizationV2Relationships"
+  ],
+  "relationships": [
+    {"data":"GameCenterLeaderboardSetLocalizationCreateData","type":"*GameCenterLeaderboardSetLocalizationRelationships","omitempty":true},
+    {"data":"GameCenterLeaderboardSetLocalizationV2CreateData","type":"*GameCenterLeaderboardSetLocalizationV2Relationships","omitempty":true}
   ],
   "operations": [
     {"operation":"gameCenterLeaderboardSetLocalizationsV2_deleteInstance","name":"DeleteGameCenterLeaderboardSetLocalizationV2","params":["localizationID"]},
     {"operation":"gameCenterLeaderboardSetLocalizationsV2_getInstance","name":"GetGameCenterLeaderboardSetLocalizationV2","params":["localizationID"],"response":"GameCenterLeaderboardSetLocalizationResponse","deviations":[{"problem":"result data holds asc.GameCenterLeaderboardSetLocalizationAttributes, not the attributes of resource GameCenterLeaderboardSetLocalizationV2","reason":"GameCenterLeaderboardSetLocalizationAttributes is the hand-written attributes type, named without the version suffix of GameCenterLeaderboardSetLocalizationV2; the attribute names check passes for GameCenterLeaderboardSetLocalizationV2."}]},
     {"operation":"gameCenterLeaderboardSetLocalizationsV2_image_getToOneRelated","name":"GetGameCenterLeaderboardSetLocalizationImageV2","params":["localizationID"],"response":"GameCenterLeaderboardSetImageResponse","deviations":[{"problem":"result data holds asc.GameCenterLeaderboardSetImageAttributes, not the attributes of resource GameCenterLeaderboardSetImageV2","reason":"GameCenterLeaderboardSetImageAttributes is the hand-written attributes type, named without the version suffix of GameCenterLeaderboardSetImageV2; the attribute names check passes for GameCenterLeaderboardSetImageV2."}]},
+    {"operation":"gameCenterLeaderboardSetLocalizations_createInstance","name":"CreateGameCenterLeaderboardSetLocalization","params":["setID"],"links":["gameCenterLeaderboardSet"]},
     {"operation":"gameCenterLeaderboardSetLocalizations_deleteInstance","name":"DeleteGameCenterLeaderboardSetLocalization","params":["localizationID"]},
     {"operation":"gameCenterLeaderboardSetLocalizations_gameCenterLeaderboardSetImage_getToOneRelated","name":"GetGameCenterLeaderboardSetLocalizationImage","params":["localizationID"]},
     {"operation":"gameCenterLeaderboardSetLocalizations_getInstance","name":"GetGameCenterLeaderboardSetLocalization","params":["localizationID"]},

@@ -9,9 +9,21 @@ import (
 	"strings"
 )
 
+// AppEventVideoClipCreateData is the data object of the AppEventVideoClipCreateRequest schema.
+type AppEventVideoClipCreateData struct {
+	Type          ResourceType                      `json:"type"`
+	Attributes    AppEventVideoClipCreateAttributes `json:"attributes"`
+	Relationships *AppEventVideoClipRelationships   `json:"relationships"`
+}
+
 // AppEventVideoClipCreateRequest is the AppEventVideoClipCreateRequest schema.
 type AppEventVideoClipCreateRequest struct {
 	Data AppEventVideoClipCreateData `json:"data"`
+}
+
+// AppEventVideoClipRelationships is the data.relationships object of the AppEventVideoClipCreateRequest schema.
+type AppEventVideoClipRelationships struct {
+	AppEventLocalization *Relationship `json:"appEventLocalization"`
 }
 
 // AppEventVideoClipUpdateAttributes is the data.attributes object of the AppEventVideoClipUpdateRequest schema.

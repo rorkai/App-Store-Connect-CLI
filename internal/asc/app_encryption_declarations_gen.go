@@ -17,9 +17,21 @@ type AppEncryptionDeclarationCreateAttributes struct {
 	AvailableOnFrenchStore          bool   `json:"availableOnFrenchStore"`
 }
 
+// AppEncryptionDeclarationCreateData is the data object of the AppEncryptionDeclarationCreateRequest schema.
+type AppEncryptionDeclarationCreateData struct {
+	Type          ResourceType                             `json:"type"`
+	Attributes    AppEncryptionDeclarationCreateAttributes `json:"attributes"`
+	Relationships *AppEncryptionDeclarationRelationships   `json:"relationships"`
+}
+
 // AppEncryptionDeclarationCreateRequest is the AppEncryptionDeclarationCreateRequest schema.
 type AppEncryptionDeclarationCreateRequest struct {
 	Data AppEncryptionDeclarationCreateData `json:"data"`
+}
+
+// AppEncryptionDeclarationRelationships is the data.relationships object of the AppEncryptionDeclarationCreateRequest schema.
+type AppEncryptionDeclarationRelationships struct {
+	App *Relationship `json:"app"`
 }
 
 // AppEncryptionDeclarationResponse is the AppEncryptionDeclarationResponse schema.
@@ -70,6 +82,29 @@ func (c *Client) AddBuildsToAppEncryptionDeclaration(ctx context.Context, declar
 		}
 	}
 	return sendNoContent(ctx, c, http.MethodPost, fmt.Sprintf("/v1/appEncryptionDeclarations/%s/relationships/builds", declarationID), payload)
+}
+
+// CreateAppEncryptionDeclaration sends POST /v1/appEncryptionDeclarations (appEncryptionDeclarations_createInstance).
+func (c *Client) CreateAppEncryptionDeclaration(ctx context.Context, appID string, attrs AppEncryptionDeclarationCreateAttributes) (*AppEncryptionDeclarationResponse, error) {
+	payload := AppEncryptionDeclarationCreateRequest{
+		Data: AppEncryptionDeclarationCreateData{
+			Type:       ResourceTypeAppEncryptionDeclarations,
+			Attributes: attrs,
+			Relationships: &AppEncryptionDeclarationRelationships{
+				App: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeApps,
+						ID:   strings.TrimSpace(appID),
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[AppEncryptionDeclarationResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/appEncryptionDeclarations",
+		Payload: payload,
+	})
 }
 
 // GetAppEncryptionDeclaration sends GET /v1/appEncryptionDeclarations/{id} (appEncryptionDeclarations_getInstance).

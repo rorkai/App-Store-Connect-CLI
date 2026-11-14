@@ -1,6 +1,7 @@
 package asc
 
 import (
+	"cmp"
 	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
@@ -29,8 +30,12 @@ import (
 var contractSpecPath = filepath.Join("..", "..", "docs", "openapi", "latest.json")
 
 type contractFamily struct {
-	Tag        string               `json:"tag"`
-	Types      []string             `json:"types"`
+	Tag           string   `json:"tag"`
+	Types         []string `json:"types"`
+	Relationships []struct {
+		Data string `json:"data"`
+		Type string `json:"type"`
+	} `json:"relationships"`
 	Operations []*contractOpBinding `json:"operations"`
 }
 
@@ -41,10 +46,15 @@ type contractOpBinding struct {
 	Check      string   `json:"check"`
 	CheckFirst bool     `json:"checkFirst"`
 	Single     bool     `json:"single"`
+	Links      []string `json:"links"`
 	// SkipEmptyAttributes is set on an update that sends its attributes only
 	// when one of them is set.
 	SkipEmptyAttributes bool `json:"skipEmptyAttributes"`
-	Deviations          []struct {
+	Args                []struct {
+		Name      string `json:"name"`
+		Attribute string `json:"attribute"`
+	} `json:"args"`
+	Deviations []struct {
 		Problem string `json:"problem"`
 		Reason  string `json:"reason"`
 	} `json:"deviations"`
@@ -279,7 +289,18 @@ func TestGeneratedClientBindingsExistInSchema(t *testing.T) {
 				t.Errorf("%s: %s is bound to operation %s, which %s no longer has", family.Tag, b.Name, b.Operation, contractSpecPath)
 			}
 		}
+		relationshipsOf := map[string]string{}
+		for _, r := range family.Relationships {
+			relationshipsOf[strings.TrimPrefix(r.Type, "*")] = r.Data
+		}
 		for _, name := range family.Types {
+			if data, ok := relationshipsOf[name]; ok {
+				request := strings.TrimSuffix(data, "Data") + "Request"
+				if spec.property(spec.property(spec.schemas[request], "data"), "relationships") == nil {
+					t.Errorf("%s: type %s is the relationships of %s, which has none in %s", family.Tag, name, request, contractSpecPath)
+				}
+				continue
+			}
 			if !spec.hasTypeSchema(name) {
 				t.Errorf("%s: type %s has no schema in %s", family.Tag, name, contractSpecPath)
 			}
@@ -368,6 +389,7 @@ type contractCall struct {
 	args     []reflect.Value
 	pathArgs []string
 	ids      []string
+	links    []string     // relationships set from the last len(links) string arguments
 	attrs    []byte       // JSON of the attributes argument, if any
 	attrsArg reflect.Type // type of the attributes argument, if any
 	attrsAt  int          // index of the attributes argument in args
@@ -377,9 +399,11 @@ type contractCall struct {
 // newContractCall builds arguments from the method's parameter types: path
 // parameters (string, in path order), an ID list ([]string), attributes (a
 // struct, or a pointer to one, with every field set) and options (one
-// option that sets every field of the query).
+// option that sets every field of the query). Parameters the bindings list
+// as args follow the path parameters; each gets its own value, and together
+// they are the attributes the body must send.
 func newContractCall(name string, typ reflect.Type, b *contractOpBinding) (*contractCall, error) {
-	c := &contractCall{name: name}
+	c := &contractCall{name: name, links: b.Links}
 	if typ.NumIn() == 0 || typ.In(0) != reflect.TypeFor[context.Context]() {
 		return nil, fmt.Errorf("first parameter is not a context.Context")
 	}
@@ -392,10 +416,20 @@ func newContractCall(name string, typ reflect.Type, b *contractOpBinding) (*cont
 		}
 		c.query = opt
 	}
+	argAttrs, nArgs := map[string]any{}, 0
 	for i := 1; i < last; i++ {
 		in := typ.In(i)
 		c.params = append(c.params, in)
 		switch {
+		case len(c.pathArgs) == len(b.Params) && nArgs < len(b.Args):
+			arg := b.Args[nArgs]
+			nArgs++
+			value, err := contractArg(in, nArgs)
+			if err != nil {
+				return nil, fmt.Errorf("arg %s: %w", arg.Name, err)
+			}
+			argAttrs[cmp.Or(arg.Attribute, arg.Name)] = value.Interface()
+			c.args = append(c.args, value)
 		case in.Kind() == reflect.String:
 			value := fmt.Sprintf("path-%d", len(c.pathArgs)+1)
 			c.pathArgs = append(c.pathArgs, value)
@@ -421,7 +455,35 @@ func newContractCall(name string, typ reflect.Type, b *contractOpBinding) (*cont
 	if len(c.pathArgs) != len(b.Params) {
 		return nil, fmt.Errorf("%d string parameters, bindings name %d path parameters", len(c.pathArgs), len(b.Params))
 	}
+	if nArgs != len(b.Args) {
+		return nil, fmt.Errorf("%d args, bindings name %d", nArgs, len(b.Args))
+	}
+	if nArgs > 0 {
+		attrs, err := json.Marshal(argAttrs)
+		if err != nil {
+			return nil, err
+		}
+		c.attrs = attrs
+	}
 	return c, nil
+}
+
+// contractArg is the n-th scalar argument, distinct from the other args.
+func contractArg(typ reflect.Type, n int) (reflect.Value, error) {
+	v := reflect.New(typ).Elem()
+	switch v.Kind() {
+	case reflect.String:
+		v.SetString(fmt.Sprintf("arg-%d", n))
+	case reflect.Bool:
+		v.SetBool(n%2 == 1)
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		v.SetInt(int64(100 + n))
+	case reflect.Float32, reflect.Float64:
+		v.SetFloat(float64(n) + 0.5)
+	default:
+		return v, fmt.Errorf("type %s is not a scalar", typ)
+	}
+	return v, nil
 }
 
 // option returns one option value that runs set on the query.
@@ -834,6 +896,29 @@ func checkContractBody(spec *contractSpec, op *contractOperation, body []byte, c
 	}
 	if call.attrs != nil && !jsonEqual(data["attributes"], call.attrs) {
 		problems = append(problems, fmt.Sprintf("data.attributes is %s, the attributes argument was %s", data["attributes"], call.attrs))
+	}
+	return append(problems, checkContractLinks(spec, spec.property(dataSchema, "relationships"), data["relationships"], call)...)
+}
+
+// checkContractLinks checks that each linked ID argument is sent as the
+// linkage of its relationship, with a type the schema defines.
+func checkContractLinks(spec *contractSpec, schema *contractSchema, sent []byte, call *contractCall) []string {
+	var relationships map[string]struct {
+		Data json.RawMessage `json:"data"`
+	}
+	_ = json.Unmarshal(sent, &relationships)
+	var problems []string
+	for i, name := range call.links {
+		id := call.pathArgs[len(call.pathArgs)-len(call.links)+i]
+		var linkage struct {
+			Type string `json:"type"`
+			ID   string `json:"id"`
+		}
+		_ = json.Unmarshal(relationships[name].Data, &linkage)
+		types := spec.property(spec.property(spec.property(schema, name), "data"), "type")
+		if linkage.ID != id || types == nil || !slices.Contains(types.Enum, linkage.Type) {
+			problems = append(problems, fmt.Sprintf("data.relationships.%s.data is %s, want a linkage of the schema's type with ID %q", name, relationships[name].Data, id))
+		}
 	}
 	return problems
 }

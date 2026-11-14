@@ -3,6 +3,14 @@
   "file": "subscription_group_versions_gen.go",
   "types": [
     "SubscriptionGroupVersionAttributes",
+    "SubscriptionGroupVersionCreateData",
+    "SubscriptionGroupVersionCreateRelationships",
     "SubscriptionGroupVersionCreateRequest"
+  ],
+  "relationships": [
+    {"data":"SubscriptionGroupVersionCreateData","type":"SubscriptionGroupVersionCreateRelationships"}
+  ],
+  "operations": [
+    {"operation":"subscriptionGroupVersions_createInstance","name":"CreateSubscriptionGroupVersion","params":["groupID"],"check":"require","links":["subscriptionGroup"]}
   ]
 }

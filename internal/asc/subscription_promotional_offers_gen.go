@@ -9,6 +9,19 @@ import (
 	"strings"
 )
 
+// SubscriptionPromotionalOfferCreateData is the data object of the SubscriptionPromotionalOfferCreateRequest schema.
+type SubscriptionPromotionalOfferCreateData struct {
+	Type          ResourceType                                 `json:"type"`
+	Attributes    SubscriptionPromotionalOfferCreateAttributes `json:"attributes"`
+	Relationships SubscriptionPromotionalOfferRelationships    `json:"relationships"`
+}
+
+// SubscriptionPromotionalOfferRelationships is the data.relationships object of the SubscriptionPromotionalOfferCreateRequest schema.
+type SubscriptionPromotionalOfferRelationships struct {
+	Subscription Relationship     `json:"subscription"`
+	Prices       RelationshipList `json:"prices"`
+}
+
 // SubscriptionPromotionalOfferUpdateRequest is the SubscriptionPromotionalOfferUpdateRequest schema.
 type SubscriptionPromotionalOfferUpdateRequest struct {
 	Data SubscriptionPromotionalOfferUpdateData `json:"data"`

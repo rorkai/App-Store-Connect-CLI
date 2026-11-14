@@ -9,9 +9,21 @@ import (
 	"strings"
 )
 
+// SubscriptionCreateData is the data object of the SubscriptionCreateRequest schema.
+type SubscriptionCreateData struct {
+	Type          ResourceType                 `json:"type"`
+	Attributes    SubscriptionCreateAttributes `json:"attributes"`
+	Relationships *SubscriptionRelationships   `json:"relationships,omitempty"`
+}
+
 // SubscriptionCreateRequest is the SubscriptionCreateRequest schema.
 type SubscriptionCreateRequest struct {
 	Data SubscriptionCreateData `json:"data"`
+}
+
+// SubscriptionRelationships is the data.relationships object of the SubscriptionCreateRequest schema.
+type SubscriptionRelationships struct {
+	Group *Relationship `json:"group"`
 }
 
 // SubscriptionResponse is the SubscriptionResponse schema.
@@ -27,6 +39,29 @@ func (c *Client) GetSubscriptionAppStoreReviewScreenshotForSubscription(ctx cont
 	return getJSON[SubscriptionAppStoreReviewScreenshotResponse](ctx, c, readRequest{
 		Path:  fmt.Sprintf("/v1/subscriptions/%s/appStoreReviewScreenshot", subID),
 		Query: buildSubscriptionAppStoreReviewScreenshotQuery(query),
+	})
+}
+
+// CreateSubscription sends POST /v1/subscriptions (subscriptions_createInstance).
+func (c *Client) CreateSubscription(ctx context.Context, groupID string, attrs SubscriptionCreateAttributes) (*SubscriptionResponse, error) {
+	payload := SubscriptionCreateRequest{
+		Data: SubscriptionCreateData{
+			Type:       ResourceTypeSubscriptions,
+			Attributes: attrs,
+			Relationships: &SubscriptionRelationships{
+				Group: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeSubscriptionGroups,
+						ID:   strings.TrimSpace(groupID),
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[SubscriptionResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/subscriptions",
+		Payload: payload,
 	})
 }
 

@@ -13,6 +13,19 @@ type InAppPurchaseAvailabilityCreateAttributes struct {
 	AvailableInNewTerritories bool `json:"availableInNewTerritories"`
 }
 
+// InAppPurchaseAvailabilityCreateData is the data object of the InAppPurchaseAvailabilityCreateRequest schema.
+type InAppPurchaseAvailabilityCreateData struct {
+	Type          ResourceType                                 `json:"type"`
+	Attributes    InAppPurchaseAvailabilityCreateAttributes    `json:"attributes"`
+	Relationships InAppPurchaseAvailabilityCreateRelationships `json:"relationships"`
+}
+
+// InAppPurchaseAvailabilityCreateRelationships is the data.relationships object of the InAppPurchaseAvailabilityCreateRequest schema.
+type InAppPurchaseAvailabilityCreateRelationships struct {
+	InAppPurchase        Relationship     `json:"inAppPurchase"`
+	AvailableTerritories RelationshipList `json:"availableTerritories"`
+}
+
 // InAppPurchaseAvailabilityCreateRequest is the InAppPurchaseAvailabilityCreateRequest schema.
 type InAppPurchaseAvailabilityCreateRequest struct {
 	Data InAppPurchaseAvailabilityCreateData `json:"data"`

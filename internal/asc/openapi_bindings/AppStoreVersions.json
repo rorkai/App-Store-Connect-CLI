@@ -2,9 +2,13 @@
   "tag": "AppStoreVersions",
   "file": "app_store_versions_gen.go",
   "types": [
+    "AppStoreVersionCreateData",
     "AppStoreVersionCreateRequest",
     "AppStoreVersionResponse",
     "AppStoreVersionUpdateRequest"
+  ],
+  "relationships": [
+    {"data":"AppStoreVersionCreateData","type":"*AppStoreVersionCreateRelationships"}
   ],
   "operations": [
     {"operation":"appStoreVersions_alternativeDistributionPackage_getToOneRelated","name":"GetAlternativeDistributionPackageForVersion","params":["versionID"],"check":"require","parseErr":"failed to parse alternative distribution package response"},

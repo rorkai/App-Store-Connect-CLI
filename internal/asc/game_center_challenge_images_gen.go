@@ -9,9 +9,22 @@ import (
 	"strings"
 )
 
+// GameCenterChallengeImageCreateData is the data object of the GameCenterChallengeImageCreateRequest schema.
+type GameCenterChallengeImageCreateData struct {
+	Type          ResourceType                             `json:"type"`
+	Attributes    GameCenterChallengeImageCreateAttributes `json:"attributes"`
+	Relationships *GameCenterChallengeImageRelationships   `json:"relationships"`
+}
+
 // GameCenterChallengeImageCreateRequest is the GameCenterChallengeImageCreateRequest schema.
 type GameCenterChallengeImageCreateRequest struct {
 	Data GameCenterChallengeImageCreateData `json:"data"`
+}
+
+// GameCenterChallengeImageRelationships is the data.relationships object of the GameCenterChallengeImageCreateRequest schema.
+type GameCenterChallengeImageRelationships struct {
+	Localization *Relationship `json:"localization,omitempty"`
+	Version      *Relationship `json:"version,omitempty"`
 }
 
 // GameCenterChallengeImageResponse is the GameCenterChallengeImageResponse schema.
@@ -43,5 +56,23 @@ func (c *Client) DeleteGameCenterChallengeImage(ctx context.Context, imageID str
 func (c *Client) GetGameCenterChallengeImage(ctx context.Context, imageID string) (*GameCenterChallengeImageResponse, error) {
 	return getJSON[GameCenterChallengeImageResponse](ctx, c, readRequest{
 		Path: fmt.Sprintf("/v1/gameCenterChallengeImages/%s", strings.TrimSpace(imageID)),
+	})
+}
+
+// UpdateGameCenterChallengeImage sends PATCH /v1/gameCenterChallengeImages/{id} (gameCenterChallengeImages_updateInstance).
+func (c *Client) UpdateGameCenterChallengeImage(ctx context.Context, imageID string, uploaded bool) (*GameCenterChallengeImageResponse, error) {
+	payload := GameCenterChallengeImageUpdateRequest{
+		Data: GameCenterChallengeImageUpdateData{
+			Type: ResourceTypeGameCenterChallengeImages,
+			ID:   strings.TrimSpace(imageID),
+			Attributes: &GameCenterChallengeImageUpdateAttributes{
+				Uploaded: &uploaded,
+			},
+		},
+	}
+	return sendJSON[GameCenterChallengeImageResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/gameCenterChallengeImages/%s", strings.TrimSpace(imageID)),
+		Payload: payload,
 	})
 }

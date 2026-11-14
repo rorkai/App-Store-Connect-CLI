@@ -9,9 +9,21 @@ import (
 	"strings"
 )
 
+// GameCenterLeaderboardImageCreateData is the data object of the GameCenterLeaderboardImageCreateRequest schema.
+type GameCenterLeaderboardImageCreateData struct {
+	Type          ResourceType                               `json:"type"`
+	Attributes    GameCenterLeaderboardImageCreateAttributes `json:"attributes"`
+	Relationships *GameCenterLeaderboardImageRelationships   `json:"relationships"`
+}
+
 // GameCenterLeaderboardImageCreateRequest is the GameCenterLeaderboardImageCreateRequest schema.
 type GameCenterLeaderboardImageCreateRequest struct {
 	Data GameCenterLeaderboardImageCreateData `json:"data"`
+}
+
+// GameCenterLeaderboardImageRelationships is the data.relationships object of the GameCenterLeaderboardImageCreateRequest schema.
+type GameCenterLeaderboardImageRelationships struct {
+	GameCenterLeaderboardLocalization *Relationship `json:"gameCenterLeaderboardLocalization"`
 }
 
 // GameCenterLeaderboardImageResponse is the GameCenterLeaderboardImageResponse schema.
@@ -39,6 +51,11 @@ type GameCenterLeaderboardImageV2CreateRequest struct {
 	Data GameCenterLeaderboardImageV2CreateData `json:"data"`
 }
 
+// GameCenterLeaderboardImageV2Relationships is the data.relationships object of the GameCenterLeaderboardImageV2CreateRequest schema.
+type GameCenterLeaderboardImageV2Relationships struct {
+	Localization *Relationship `json:"localization"`
+}
+
 // DeleteGameCenterLeaderboardImageV2 sends DELETE /v2/gameCenterLeaderboardImages/{id} (gameCenterLeaderboardImagesV2_deleteInstance).
 func (c *Client) DeleteGameCenterLeaderboardImageV2(ctx context.Context, imageID string) error {
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v2/gameCenterLeaderboardImages/%s", strings.TrimSpace(imageID)), nil)
@@ -60,5 +77,23 @@ func (c *Client) DeleteGameCenterLeaderboardImage(ctx context.Context, imageID s
 func (c *Client) GetGameCenterLeaderboardImage(ctx context.Context, imageID string) (*GameCenterLeaderboardImageResponse, error) {
 	return getJSON[GameCenterLeaderboardImageResponse](ctx, c, readRequest{
 		Path: fmt.Sprintf("/v1/gameCenterLeaderboardImages/%s", strings.TrimSpace(imageID)),
+	})
+}
+
+// UpdateGameCenterLeaderboardImage sends PATCH /v1/gameCenterLeaderboardImages/{id} (gameCenterLeaderboardImages_updateInstance).
+func (c *Client) UpdateGameCenterLeaderboardImage(ctx context.Context, imageID string, uploaded bool) (*GameCenterLeaderboardImageResponse, error) {
+	payload := GameCenterLeaderboardImageUpdateRequest{
+		Data: GameCenterLeaderboardImageUpdateData{
+			Type: ResourceTypeGameCenterLeaderboardImages,
+			ID:   strings.TrimSpace(imageID),
+			Attributes: &GameCenterLeaderboardImageUpdateAttributes{
+				Uploaded: &uploaded,
+			},
+		},
+	}
+	return sendJSON[GameCenterLeaderboardImageResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/gameCenterLeaderboardImages/%s", strings.TrimSpace(imageID)),
+		Payload: payload,
 	})
 }

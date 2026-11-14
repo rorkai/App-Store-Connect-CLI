@@ -9,6 +9,7 @@
     "AppClipAdvancedExperienceImageUpdateRequest"
   ],
   "operations": [
+    {"operation":"appClipAdvancedExperienceImages_createInstance","name":"CreateAppClipAdvancedExperienceImage","args":[{"name":"fileName"},{"name":"fileSize","type":"int64"}]},
     {"operation":"appClipAdvancedExperienceImages_getInstance","name":"GetAppClipAdvancedExperienceImage","params":["imageID"],"check":"require"}
   ]
 }

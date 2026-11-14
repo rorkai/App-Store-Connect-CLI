@@ -13,6 +13,11 @@ type AppPreviewCreateRequest struct {
 	Data AppPreviewCreateData `json:"data"`
 }
 
+// AppPreviewRelationships is the data.relationships object of the AppPreviewCreateRequest schema.
+type AppPreviewRelationships struct {
+	AppPreviewSet *Relationship `json:"appPreviewSet"`
+}
+
 // AppPreviewUpdateData is the data object of the AppPreviewUpdateRequest schema.
 type AppPreviewUpdateData struct {
 	Type       ResourceType                `json:"type"`
@@ -34,5 +39,42 @@ func (c *Client) DeleteAppPreview(ctx context.Context, previewID string) error {
 func (c *Client) GetAppPreview(ctx context.Context, previewID string) (*AppPreviewResponse, error) {
 	return getJSON[AppPreviewResponse](ctx, c, readRequest{
 		Path: fmt.Sprintf("/v1/appPreviews/%s", previewID),
+	})
+}
+
+// UpdateAppPreview sends PATCH /v1/appPreviews/{id} (appPreviews_updateInstance).
+func (c *Client) UpdateAppPreview(ctx context.Context, previewID string, uploaded bool, checksumHash string) (*AppPreviewResponse, error) {
+	payload := AppPreviewUpdateRequest{
+		Data: AppPreviewUpdateData{
+			Type: ResourceTypeAppPreviews,
+			ID:   previewID,
+			Attributes: &AppPreviewUpdateAttributes{
+				Uploaded:           &uploaded,
+				SourceFileChecksum: &checksumHash,
+			},
+		},
+	}
+	return sendJSON[AppPreviewResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/appPreviews/%s", previewID),
+		Payload: payload,
+	})
+}
+
+// SetAppPreviewFrameTimeCode sends PATCH /v1/appPreviews/{id} (appPreviews_updateInstance).
+func (c *Client) SetAppPreviewFrameTimeCode(ctx context.Context, previewID string, timeCode string) (*AppPreviewResponse, error) {
+	payload := AppPreviewUpdateRequest{
+		Data: AppPreviewUpdateData{
+			Type: ResourceTypeAppPreviews,
+			ID:   previewID,
+			Attributes: &AppPreviewUpdateAttributes{
+				PreviewFrameTimeCode: &timeCode,
+			},
+		},
+	}
+	return sendJSON[AppPreviewResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/appPreviews/%s", previewID),
+		Payload: payload,
 	})
 }

@@ -9,9 +9,21 @@ import (
 	"strings"
 )
 
+// GameCenterAchievementImageCreateData is the data object of the GameCenterAchievementImageCreateRequest schema.
+type GameCenterAchievementImageCreateData struct {
+	Type          ResourceType                               `json:"type"`
+	Attributes    GameCenterAchievementImageCreateAttributes `json:"attributes"`
+	Relationships *GameCenterAchievementImageRelationships   `json:"relationships"`
+}
+
 // GameCenterAchievementImageCreateRequest is the GameCenterAchievementImageCreateRequest schema.
 type GameCenterAchievementImageCreateRequest struct {
 	Data GameCenterAchievementImageCreateData `json:"data"`
+}
+
+// GameCenterAchievementImageRelationships is the data.relationships object of the GameCenterAchievementImageCreateRequest schema.
+type GameCenterAchievementImageRelationships struct {
+	GameCenterAchievementLocalization *Relationship `json:"gameCenterAchievementLocalization"`
 }
 
 // GameCenterAchievementImageResponse is the GameCenterAchievementImageResponse schema.
@@ -39,6 +51,11 @@ type GameCenterAchievementImageV2CreateRequest struct {
 	Data GameCenterAchievementImageV2CreateData `json:"data"`
 }
 
+// GameCenterAchievementImageV2Relationships is the data.relationships object of the GameCenterAchievementImageV2CreateRequest schema.
+type GameCenterAchievementImageV2Relationships struct {
+	Localization *Relationship `json:"localization"`
+}
+
 // DeleteGameCenterAchievementImageV2 sends DELETE /v2/gameCenterAchievementImages/{id} (gameCenterAchievementImagesV2_deleteInstance).
 func (c *Client) DeleteGameCenterAchievementImageV2(ctx context.Context, imageID string) error {
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v2/gameCenterAchievementImages/%s", strings.TrimSpace(imageID)), nil)
@@ -60,5 +77,23 @@ func (c *Client) DeleteGameCenterAchievementImage(ctx context.Context, imageID s
 func (c *Client) GetGameCenterAchievementImage(ctx context.Context, imageID string) (*GameCenterAchievementImageResponse, error) {
 	return getJSON[GameCenterAchievementImageResponse](ctx, c, readRequest{
 		Path: fmt.Sprintf("/v1/gameCenterAchievementImages/%s", strings.TrimSpace(imageID)),
+	})
+}
+
+// UpdateGameCenterAchievementImage sends PATCH /v1/gameCenterAchievementImages/{id} (gameCenterAchievementImages_updateInstance).
+func (c *Client) UpdateGameCenterAchievementImage(ctx context.Context, imageID string, uploaded bool) (*GameCenterAchievementImageResponse, error) {
+	payload := GameCenterAchievementImageUpdateRequest{
+		Data: GameCenterAchievementImageUpdateData{
+			Type: ResourceTypeGameCenterAchievementImages,
+			ID:   strings.TrimSpace(imageID),
+			Attributes: &GameCenterAchievementImageUpdateAttributes{
+				Uploaded: &uploaded,
+			},
+		},
+	}
+	return sendJSON[GameCenterAchievementImageResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/gameCenterAchievementImages/%s", strings.TrimSpace(imageID)),
+		Payload: payload,
 	})
 }

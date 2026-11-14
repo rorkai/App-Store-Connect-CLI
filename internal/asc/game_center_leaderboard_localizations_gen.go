@@ -9,9 +9,21 @@ import (
 	"strings"
 )
 
+// GameCenterLeaderboardLocalizationCreateData is the data object of the GameCenterLeaderboardLocalizationCreateRequest schema.
+type GameCenterLeaderboardLocalizationCreateData struct {
+	Type          ResourceType                                      `json:"type"`
+	Attributes    GameCenterLeaderboardLocalizationCreateAttributes `json:"attributes"`
+	Relationships *GameCenterLeaderboardLocalizationRelationships   `json:"relationships,omitempty"`
+}
+
 // GameCenterLeaderboardLocalizationCreateRequest is the GameCenterLeaderboardLocalizationCreateRequest schema.
 type GameCenterLeaderboardLocalizationCreateRequest struct {
 	Data GameCenterLeaderboardLocalizationCreateData `json:"data"`
+}
+
+// GameCenterLeaderboardLocalizationRelationships is the data.relationships object of the GameCenterLeaderboardLocalizationCreateRequest schema.
+type GameCenterLeaderboardLocalizationRelationships struct {
+	GameCenterLeaderboard *Relationship `json:"gameCenterLeaderboard"`
 }
 
 // GameCenterLeaderboardLocalizationResponse is the GameCenterLeaderboardLocalizationResponse schema.
@@ -34,6 +46,11 @@ type GameCenterLeaderboardLocalizationV2CreateRequest struct {
 	Data GameCenterLeaderboardLocalizationV2CreateData `json:"data"`
 }
 
+// GameCenterLeaderboardLocalizationV2Relationships is the data.relationships object of the GameCenterLeaderboardLocalizationV2CreateRequest schema.
+type GameCenterLeaderboardLocalizationV2Relationships struct {
+	Version *Relationship `json:"version"`
+}
+
 // DeleteGameCenterLeaderboardLocalizationV2 sends DELETE /v2/gameCenterLeaderboardLocalizations/{id} (gameCenterLeaderboardLocalizationsV2_deleteInstance).
 func (c *Client) DeleteGameCenterLeaderboardLocalizationV2(ctx context.Context, localizationID string) error {
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v2/gameCenterLeaderboardLocalizations/%s", strings.TrimSpace(localizationID)), nil)
@@ -50,6 +67,29 @@ func (c *Client) GetGameCenterLeaderboardLocalizationV2(ctx context.Context, loc
 func (c *Client) GetGameCenterLeaderboardLocalizationImageV2(ctx context.Context, localizationID string) (*GameCenterLeaderboardImageResponse, error) {
 	return getJSON[GameCenterLeaderboardImageResponse](ctx, c, readRequest{
 		Path: fmt.Sprintf("/v2/gameCenterLeaderboardLocalizations/%s/image", strings.TrimSpace(localizationID)),
+	})
+}
+
+// CreateGameCenterLeaderboardLocalization sends POST /v1/gameCenterLeaderboardLocalizations (gameCenterLeaderboardLocalizations_createInstance).
+func (c *Client) CreateGameCenterLeaderboardLocalization(ctx context.Context, leaderboardID string, attrs GameCenterLeaderboardLocalizationCreateAttributes) (*GameCenterLeaderboardLocalizationResponse, error) {
+	payload := GameCenterLeaderboardLocalizationCreateRequest{
+		Data: GameCenterLeaderboardLocalizationCreateData{
+			Type:       ResourceTypeGameCenterLeaderboardLocalizations,
+			Attributes: attrs,
+			Relationships: &GameCenterLeaderboardLocalizationRelationships{
+				GameCenterLeaderboard: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeGameCenterLeaderboards,
+						ID:   strings.TrimSpace(leaderboardID),
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[GameCenterLeaderboardLocalizationResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/gameCenterLeaderboardLocalizations",
+		Payload: payload,
 	})
 }
 

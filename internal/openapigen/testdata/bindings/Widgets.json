@@ -6,13 +6,23 @@
     "WidgetCreateAttributes",
     "WidgetCreateData",
     "WidgetCreateRequest",
+    "WidgetNoteCreateData",
+    "WidgetNoteRelationships",
+    "WidgetReleaseCreateData",
+    "WidgetReleaseCreateRelationships",
     "WidgetResponse",
     "WidgetUpdateAttributes",
     "WidgetUpdateData",
     "WidgetUpdateRequest",
     "WidgetsResponse"
   ],
+  "relationships": [
+    {"data":"WidgetNoteCreateData","type":"*WidgetNoteRelationships","omitempty":true},
+    {"data":"WidgetReleaseCreateData","type":"WidgetReleaseCreateRelationships"}
+  ],
   "operations": [
+    {"operation":"widgetNotes_createInstance","name":"CreateWidgetNote","params":["widgetID"],"check":"require","messages":["widget ID is required"],"links":["widget"]},
+    {"operation":"widgetReleases_createInstance","name":"CreateWidgetRelease","params":["widgetID","gadgetID","ownerID"],"links":["widget","gadget","owner"]},
     {"operation":"widgets_createInstance","name":"CreateWidget"},
     {"operation":"widgets_deleteInstance","name":"DeleteWidget","params":["widgetID"],"check":"trim"},
     {"operation":"widgets_gadgets_getToManyRelated","name":"GetWidgetGadgets","params":["widgetID"],"check":"require","messages":["widget ID is required"],"options":"GadgetsOption","query":"buildGadgetsQuery","nextContext":"widget-gadgets","response":"GadgetListResponse"},
@@ -32,6 +42,8 @@
     {"operation":"widgets_wrapper_getToOneRelated","name":"GetWidgetWrapper","params":["widgetID"],"query":"buildWrapperFieldsQuery","single":true},
     {"operation":"wizardsV2_updateInstance","name":"UpdateWizardV2","params":["wizardID"],"check":"trim","attrs":"value"},
     {"operation":"wizardsV3_updateInstance","name":"UpdateWizardV3","params":["wizardID"],"check":"require","attrs":"pointer"},
-    {"operation":"wizards_updateInstance","name":"UpdateWizard","params":["wizardID"],"check":"require","skipEmptyAttributes":true}
+    {"operation":"wizards_updateInstance","name":"UpdateWizard","params":["wizardID"],"check":"require","skipEmptyAttributes":true},
+    {"operation":"wrenches_createInstance","name":"CreateWrench","args":[{"name":"fileName"},{"name":"fileSize","type":"int64"}]},
+    {"operation":"wrenches_updateInstance","name":"UpdateWrench","params":["wrenchID"],"check":"require","args":[{"name":"uploaded"},{"name":"checksum","attribute":"sourceFileChecksum"}]}
   ]
 }

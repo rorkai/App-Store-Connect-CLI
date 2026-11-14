@@ -2,6 +2,18 @@
 
 package asc
 
+// AnalyticsReportRequestCreateData is the data object of the AnalyticsReportRequestCreateRequest schema.
+type AnalyticsReportRequestCreateData struct {
+	Type          ResourceType                              `json:"type"`
+	Attributes    AnalyticsReportRequestCreateAttributes    `json:"attributes"`
+	Relationships AnalyticsReportRequestCreateRelationships `json:"relationships"`
+}
+
+// AnalyticsReportRequestCreateRelationships is the data.relationships object of the AnalyticsReportRequestCreateRequest schema.
+type AnalyticsReportRequestCreateRelationships struct {
+	App Relationship `json:"app"`
+}
+
 // AnalyticsReportRequestCreateRequest is the AnalyticsReportRequestCreateRequest schema.
 type AnalyticsReportRequestCreateRequest struct {
 	Data AnalyticsReportRequestCreateData `json:"data"`

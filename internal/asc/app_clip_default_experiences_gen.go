@@ -9,6 +9,20 @@ import (
 	"strings"
 )
 
+// AppClipDefaultExperienceCreateData is the data object of the AppClipDefaultExperienceCreateRequest schema.
+type AppClipDefaultExperienceCreateData struct {
+	Type          ResourceType                                 `json:"type"`
+	Attributes    *AppClipDefaultExperienceCreateAttributes    `json:"attributes,omitempty"`
+	Relationships *AppClipDefaultExperienceCreateRelationships `json:"relationships"`
+}
+
+// AppClipDefaultExperienceCreateRelationships is the data.relationships object of the AppClipDefaultExperienceCreateRequest schema.
+type AppClipDefaultExperienceCreateRelationships struct {
+	AppClip                          *Relationship `json:"appClip"`
+	ReleaseWithAppStoreVersion       *Relationship `json:"releaseWithAppStoreVersion,omitempty"`
+	AppClipDefaultExperienceTemplate *Relationship `json:"appClipDefaultExperienceTemplate,omitempty"`
+}
+
 // AppClipDefaultExperienceCreateRequest is the AppClipDefaultExperienceCreateRequest schema.
 type AppClipDefaultExperienceCreateRequest struct {
 	Data AppClipDefaultExperienceCreateData `json:"data"`

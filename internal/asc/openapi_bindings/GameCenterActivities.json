@@ -2,9 +2,14 @@
   "tag": "GameCenterActivities",
   "file": "game_center_activities_gen.go",
   "types": [
+    "GameCenterActivityCreateData",
+    "GameCenterActivityRelationships",
     "GameCenterActivityResponse",
     "GameCenterActivityUpdateData",
     "GameCenterActivityUpdateRequest"
+  ],
+  "relationships": [
+    {"data":"GameCenterActivityCreateData","type":"*GameCenterActivityRelationships","omitempty":true}
   ],
   "operations": [
     {"operation":"gameCenterActivities_deleteInstance","name":"DeleteGameCenterActivity","params":["activityID"]},

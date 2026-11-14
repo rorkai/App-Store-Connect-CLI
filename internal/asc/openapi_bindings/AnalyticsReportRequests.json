@@ -2,6 +2,11 @@
   "tag": "AnalyticsReportRequests",
   "file": "analytics_report_requests_gen.go",
   "types": [
+    "AnalyticsReportRequestCreateData",
+    "AnalyticsReportRequestCreateRelationships",
     "AnalyticsReportRequestCreateRequest"
+  ],
+  "relationships": [
+    {"data":"AnalyticsReportRequestCreateData","type":"AnalyticsReportRequestCreateRelationships"}
   ]
 }

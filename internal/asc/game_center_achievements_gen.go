@@ -9,6 +9,13 @@ import (
 	"strings"
 )
 
+// GameCenterAchievementCreateData is the data object of the GameCenterAchievementCreateRequest schema.
+type GameCenterAchievementCreateData struct {
+	Type          ResourceType                          `json:"type"`
+	Attributes    GameCenterAchievementCreateAttributes `json:"attributes"`
+	Relationships *GameCenterAchievementRelationships   `json:"relationships,omitempty"`
+}
+
 // GameCenterAchievementCreateRequest is the GameCenterAchievementCreateRequest schema.
 type GameCenterAchievementCreateRequest struct {
 	Data GameCenterAchievementCreateData `json:"data"`
@@ -27,6 +34,13 @@ type GameCenterAchievementUpdateData struct {
 // GameCenterAchievementUpdateRequest is the GameCenterAchievementUpdateRequest schema.
 type GameCenterAchievementUpdateRequest struct {
 	Data GameCenterAchievementUpdateData `json:"data"`
+}
+
+// GameCenterAchievementV2Relationships is the data.relationships object of the GameCenterAchievementV2CreateRequest schema.
+type GameCenterAchievementV2Relationships struct {
+	GameCenterDetail *Relationship     `json:"gameCenterDetail,omitempty"`
+	GameCenterGroup  *Relationship     `json:"gameCenterGroup,omitempty"`
+	Versions         *RelationshipList `json:"versions"`
 }
 
 // DeleteGameCenterAchievementV2 sends DELETE /v2/gameCenterAchievements/{id} (gameCenterAchievementsV2_deleteInstance).
@@ -49,6 +63,29 @@ func (c *Client) GetGameCenterAchievementVersions(ctx context.Context, achieveme
 		Query:       buildGCAchievementVersionsQuery(query),
 		Next:        query.nextURL,
 		NextContext: "game-center-achievement-versions",
+	})
+}
+
+// CreateGameCenterAchievement sends POST /v1/gameCenterAchievements (gameCenterAchievements_createInstance).
+func (c *Client) CreateGameCenterAchievement(ctx context.Context, gcDetailID string, attrs GameCenterAchievementCreateAttributes) (*GameCenterAchievementResponse, error) {
+	payload := GameCenterAchievementCreateRequest{
+		Data: GameCenterAchievementCreateData{
+			Type:       ResourceTypeGameCenterAchievements,
+			Attributes: attrs,
+			Relationships: &GameCenterAchievementRelationships{
+				GameCenterDetail: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeGameCenterDetails,
+						ID:   strings.TrimSpace(gcDetailID),
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[GameCenterAchievementResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/gameCenterAchievements",
+		Payload: payload,
 	})
 }
 
