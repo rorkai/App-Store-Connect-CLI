@@ -127,8 +127,8 @@ Examples:
 			defer cancel()
 
 			opts := []asc.MerchantIDsOption{
-				asc.WithMerchantIDsLimit(*limit),
-				asc.WithMerchantIDsNextURL(*next),
+				asc.Limit[asc.MerchantIDsOption](*limit),
+				asc.NextURL[asc.MerchantIDsOption](*next),
 				asc.WithMerchantIDsSort(*sort),
 				asc.WithMerchantIDsFields(fieldsValue),
 				asc.WithMerchantIDsCertificateFields(certificateFieldsValue),
@@ -143,14 +143,14 @@ Examples:
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithMerchantIDsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.MerchantIDsOption](200))
 				firstPage, err := client.GetMerchantIDs(requestCtx, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("merchant-ids list: failed to fetch: %w", err)
 				}
 
 				paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetMerchantIDs(ctx, asc.WithMerchantIDsNextURL(nextURL))
+					return client.GetMerchantIDs(ctx, asc.NextURL[asc.MerchantIDsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("merchant-ids list: %w", err)

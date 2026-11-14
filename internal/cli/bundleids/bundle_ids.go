@@ -170,8 +170,8 @@ Examples:
 				asc.WithBundleIDsInclude(includeValues),
 				asc.WithBundleIDsProfilesLimit(*profilesLimit),
 				asc.WithBundleIDsCapabilitiesLimit(*capabilitiesLimit),
-				asc.WithBundleIDsLimit(*limit),
-				asc.WithBundleIDsNextURL(*next),
+				asc.Limit[asc.BundleIDsOption](*limit),
+				asc.NextURL[asc.BundleIDsOption](*next),
 				asc.WithBundleIDsSplitPagination(*paginate),
 			}
 			if err := asc.ValidateBundleIDsRequest(opts...); err != nil {
@@ -190,14 +190,14 @@ Examples:
 			defer cancel()
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithBundleIDsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.BundleIDsOption](200))
 				firstPage, err := client.GetBundleIDs(requestCtx, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("bundle-ids list: failed to fetch: %w", err)
 				}
 
 				paginated, err := asc.PaginateBundleIDs(requestCtx, firstPage, func(ctx context.Context, nextURL string) (*asc.BundleIDsResponse, error) {
-					return client.GetBundleIDs(ctx, asc.WithBundleIDsNextURL(nextURL))
+					return client.GetBundleIDs(ctx, asc.NextURL[asc.BundleIDsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("bundle-ids list: %w", err)

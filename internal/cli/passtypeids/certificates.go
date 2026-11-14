@@ -112,8 +112,8 @@ Examples:
 			defer cancel()
 
 			opts := []asc.PassTypeIDCertificatesOption{
-				asc.WithPassTypeIDCertificatesLimit(*limit),
-				asc.WithPassTypeIDCertificatesNextURL(*next),
+				asc.Limit[asc.PassTypeIDCertificatesOption](*limit),
+				asc.NextURL[asc.PassTypeIDCertificatesOption](*next),
 			}
 			displayNameValues := shared.SplitCSV(*displayName)
 			if len(displayNameValues) > 0 {
@@ -139,14 +139,14 @@ Examples:
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithPassTypeIDCertificatesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.PassTypeIDCertificatesOption](200))
 				firstPage, err := client.GetPassTypeIDCertificates(requestCtx, passTypeIDValue, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("pass-type-ids certificates list: failed to fetch: %w", err)
 				}
 
 				paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetPassTypeIDCertificates(ctx, passTypeIDValue, asc.WithPassTypeIDCertificatesNextURL(nextURL))
+					return client.GetPassTypeIDCertificates(ctx, passTypeIDValue, asc.NextURL[asc.PassTypeIDCertificatesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("pass-type-ids certificates list: %w", err)

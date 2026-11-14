@@ -507,48 +507,12 @@ type ActorsOption func(*actorsQuery)
 // UserInvitationsOption is a functional option for GetUserInvitations.
 type UserInvitationsOption func(*userInvitationsQuery)
 
-// WithBundleIDsLimit sets the max number of bundle IDs to return.
-func WithBundleIDsLimit(limit int) BundleIDsOption {
-	return func(q *bundleIDsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithBundleIDsNextURL uses a next page URL directly.
-func WithBundleIDsNextURL(next string) BundleIDsOption {
-	return func(q *bundleIDsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithBundleIDsSplitPagination controls whether split identifier requests follow links.next.
 // It defaults to enabled for direct client callers.
 func WithBundleIDsSplitPagination(enabled bool) BundleIDsOption {
 	return func(q *bundleIDsQuery) {
 		q.splitPagination = enabled
 		q.splitPaginationSet = true
-	}
-}
-
-// WithBundleIDProfilesLimit sets the max number of bundle ID profiles to return.
-func WithBundleIDProfilesLimit(limit int) BundleIDProfilesOption {
-	return func(q *bundleIDProfilesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithBundleIDProfilesNextURL uses a next page URL directly.
-func WithBundleIDProfilesNextURL(next string) BundleIDProfilesOption {
-	return func(q *bundleIDProfilesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
 	}
 }
 
@@ -652,24 +616,6 @@ func WithBundleIDsCapabilitiesLimit(limit int) BundleIDsOption {
 	}
 }
 
-// WithMerchantIDsLimit sets the max number of merchant IDs to return.
-func WithMerchantIDsLimit(limit int) MerchantIDsOption {
-	return func(q *merchantIDsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithMerchantIDsNextURL uses a next page URL directly.
-func WithMerchantIDsNextURL(next string) MerchantIDsOption {
-	return func(q *merchantIDsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithMerchantIDsFilterIdentifier filters merchant IDs by identifier (supports CSV).
 func WithMerchantIDsFilterIdentifier(identifier string) MerchantIDsOption {
 	return func(q *merchantIDsQuery) {
@@ -725,24 +671,6 @@ func WithMerchantIDsCertificatesLimit(limit int) MerchantIDsOption {
 	return func(q *merchantIDsQuery) {
 		if limit > 0 {
 			q.certificatesLimit = limit
-		}
-	}
-}
-
-// WithMerchantIDCertificatesLimit sets the max number of certificates to return.
-func WithMerchantIDCertificatesLimit(limit int) MerchantIDCertificatesOption {
-	return func(q *merchantIDCertificatesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithMerchantIDCertificatesNextURL uses a next page URL directly.
-func WithMerchantIDCertificatesNextURL(next string) MerchantIDCertificatesOption {
-	return func(q *merchantIDCertificatesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
 		}
 	}
 }
@@ -846,24 +774,6 @@ func WithMerchantIDCertificatesInclude(include []string) MerchantIDCertificatesO
 	}
 }
 
-// WithPassTypeIDsLimit sets the max number of pass type IDs to return.
-func WithPassTypeIDsLimit(limit int) PassTypeIDsOption {
-	return func(q *passTypeIDsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithPassTypeIDsNextURL uses a next page URL directly.
-func WithPassTypeIDsNextURL(next string) PassTypeIDsOption {
-	return func(q *passTypeIDsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithPassTypeIDsFilterIDs filters pass type IDs by ID(s).
 func WithPassTypeIDsFilterIDs(ids []string) PassTypeIDsOption {
 	return func(q *passTypeIDsQuery) {
@@ -963,24 +873,6 @@ func WithPassTypeIDCertificatesIncludeLimit(limit int) PassTypeIDOption {
 	}
 }
 
-// WithPassTypeIDCertificatesLimit sets the max number of certificates to return.
-func WithPassTypeIDCertificatesLimit(limit int) PassTypeIDCertificatesOption {
-	return func(q *passTypeIDCertificatesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithPassTypeIDCertificatesNextURL uses a next page URL directly.
-func WithPassTypeIDCertificatesNextURL(next string) PassTypeIDCertificatesOption {
-	return func(q *passTypeIDCertificatesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithPassTypeIDCertificatesFilterDisplayNames filters certificates by display name(s).
 func WithPassTypeIDCertificatesFilterDisplayNames(names []string) PassTypeIDCertificatesOption {
 	return func(q *passTypeIDCertificatesQuery) {
@@ -1036,33 +928,6 @@ func WithPassTypeIDCertificatesPassTypeIDFields(fields []string) PassTypeIDCerti
 func WithPassTypeIDCertificatesInclude(include []string) PassTypeIDCertificatesOption {
 	return func(q *passTypeIDCertificatesQuery) {
 		q.include = normalizeList(include)
-	}
-}
-
-// WithBundleIDCapabilitiesNextURL uses a next page URL directly.
-func WithBundleIDCapabilitiesNextURL(next string) BundleIDCapabilitiesOption {
-	return func(q *bundleIDCapabilitiesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
-// WithCertificatesLimit sets the max number of certificates to return.
-func WithCertificatesLimit(limit int) CertificatesOption {
-	return func(q *certificatesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithCertificatesNextURL uses a next page URL directly.
-func WithCertificatesNextURL(next string) CertificatesOption {
-	return func(q *certificatesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
 	}
 }
 
@@ -1130,24 +995,6 @@ func WithCertificatesFilterType(certType string) CertificatesOption {
 			return
 		}
 		q.certificateTypes = strings.Split(normalized, ",")
-	}
-}
-
-// WithProfilesLimit sets the max number of profiles to return.
-func WithProfilesLimit(limit int) ProfilesOption {
-	return func(q *profilesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithProfilesNextURL uses a next page URL directly.
-func WithProfilesNextURL(next string) ProfilesOption {
-	return func(q *profilesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
 	}
 }
 
@@ -1258,60 +1105,6 @@ func WithProfilesFilterType(profileType string) ProfilesOption {
 	}
 }
 
-// WithProfileCertificatesLimit sets the max number of profile certificates to return.
-func WithProfileCertificatesLimit(limit int) ProfileCertificatesOption {
-	return func(q *profileCertificatesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithProfileCertificatesNextURL uses a next page URL directly.
-func WithProfileCertificatesNextURL(next string) ProfileCertificatesOption {
-	return func(q *profileCertificatesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
-// WithProfileDevicesLimit sets the max number of profile devices to return.
-func WithProfileDevicesLimit(limit int) ProfileDevicesOption {
-	return func(q *profileDevicesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithProfileDevicesNextURL uses a next page URL directly.
-func WithProfileDevicesNextURL(next string) ProfileDevicesOption {
-	return func(q *profileDevicesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
-// WithUsersLimit sets the max number of users to return.
-func WithUsersLimit(limit int) UsersOption {
-	return func(q *usersQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithUsersNextURL uses a next page URL directly.
-func WithUsersNextURL(next string) UsersOption {
-	return func(q *usersQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithUsersEmail filters users by email/username.
 func WithUsersEmail(email string) UsersOption {
 	return func(q *usersQuery) {
@@ -1368,42 +1161,6 @@ func WithUsersVisibleAppsLimit(limit int) UsersOption {
 	return func(q *usersQuery) {
 		if limit > 0 {
 			q.visibleAppsLimit = limit
-		}
-	}
-}
-
-// WithUserVisibleAppsLimit sets the max number of visible apps to return.
-func WithUserVisibleAppsLimit(limit int) UserVisibleAppsOption {
-	return func(q *userVisibleAppsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithUserVisibleAppsNextURL uses a next page URL directly.
-func WithUserVisibleAppsNextURL(next string) UserVisibleAppsOption {
-	return func(q *userVisibleAppsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
-// WithUserInvitationVisibleAppsLimit sets the max number of invitation-visible apps to return.
-func WithUserInvitationVisibleAppsLimit(limit int) UserInvitationVisibleAppsOption {
-	return func(q *userInvitationVisibleAppsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithUserInvitationVisibleAppsNextURL uses a next page URL directly.
-func WithUserInvitationVisibleAppsNextURL(next string) UserInvitationVisibleAppsOption {
-	return func(q *userInvitationVisibleAppsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
 		}
 	}
 }
@@ -1508,23 +1265,5 @@ func WithDevicesSort(sort string) DevicesOption {
 func WithDevicesFields(fields []string) DevicesOption {
 	return func(q *devicesQuery) {
 		q.fields = normalizeList(fields)
-	}
-}
-
-// WithUserInvitationsLimit sets the max number of invitations to return.
-func WithUserInvitationsLimit(limit int) UserInvitationsOption {
-	return func(q *userInvitationsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithUserInvitationsNextURL uses a next page URL directly.
-func WithUserInvitationsNextURL(next string) UserInvitationsOption {
-	return func(q *userInvitationsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
 	}
 }

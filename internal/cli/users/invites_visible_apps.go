@@ -85,22 +85,22 @@ Examples:
 			defer cancel()
 
 			opts := []asc.UserInvitationVisibleAppsOption{
-				asc.WithUserInvitationVisibleAppsLimit(*limit),
-				asc.WithUserInvitationVisibleAppsNextURL(*next),
+				asc.Limit[asc.UserInvitationVisibleAppsOption](*limit),
+				asc.NextURL[asc.UserInvitationVisibleAppsOption](*next),
 			}
 
 			if *paginate {
 				if idValue == "" {
 					return shared.RequiredFlag("--id")
 				}
-				paginateOpts := append(opts, asc.WithUserInvitationVisibleAppsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.UserInvitationVisibleAppsOption](200))
 				firstPage, err := client.GetUserInvitationVisibleApps(requestCtx, idValue, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("users invites visible-apps list: failed to fetch: %w", err)
 				}
 
 				paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetUserInvitationVisibleApps(ctx, idValue, asc.WithUserInvitationVisibleAppsNextURL(nextURL))
+					return client.GetUserInvitationVisibleApps(ctx, idValue, asc.NextURL[asc.UserInvitationVisibleAppsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("users invites visible-apps list: %w", err)

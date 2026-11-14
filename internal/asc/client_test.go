@@ -1680,7 +1680,7 @@ func TestBuildMerchantIDsQuery(t *testing.T) {
 		WithMerchantIDsCertificateFields([]string{"certificateType"}),
 		WithMerchantIDsInclude([]string{"certificates"}),
 		WithMerchantIDsCertificatesLimit(10),
-		WithMerchantIDsLimit(5),
+		Limit[MerchantIDsOption](5),
 	}
 	for _, opt := range opts {
 		opt(query)
@@ -1727,7 +1727,7 @@ func TestBuildMerchantIDCertificatesQuery(t *testing.T) {
 		WithMerchantIDCertificatesFields([]string{"serialNumber"}),
 		WithMerchantIDCertificatesPassTypeFields([]string{"identifier"}),
 		WithMerchantIDCertificatesInclude([]string{"passTypeId"}),
-		WithMerchantIDCertificatesLimit(5),
+		Limit[MerchantIDCertificatesOption](5),
 	}
 	for _, opt := range opts {
 		opt(query)
@@ -1777,7 +1777,7 @@ func TestBuildPassTypeIDsQuery(t *testing.T) {
 		WithPassTypeIDsCertificateFields([]string{"certificateType"}),
 		WithPassTypeIDsInclude([]string{"certificates"}),
 		WithPassTypeIDsCertificatesLimit(5),
-		WithPassTypeIDsLimit(10),
+		Limit[PassTypeIDsOption](10),
 	}
 	for _, opt := range opts {
 		opt(query)
@@ -1827,7 +1827,7 @@ func TestBuildPassTypeIDCertificatesQuery(t *testing.T) {
 		WithPassTypeIDCertificatesFields([]string{"serialNumber"}),
 		WithPassTypeIDCertificatesPassTypeIDFields([]string{"identifier"}),
 		WithPassTypeIDCertificatesInclude([]string{"passTypeId"}),
-		WithPassTypeIDCertificatesLimit(5),
+		Limit[PassTypeIDCertificatesOption](5),
 	}
 	for _, opt := range opts {
 		opt(query)

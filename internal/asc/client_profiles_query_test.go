@@ -164,7 +164,7 @@ func TestGetProfiles_WithQuerySurface(t *testing.T) {
 		WithProfilesInclude([]string{"bundleId", "devices", "certificates"}),
 		WithProfilesDevicesLimit(7),
 		WithProfilesCertificatesLimit(9),
-		WithProfilesLimit(5),
+		Limit[ProfilesOption](5),
 	); err != nil {
 		t.Fatalf("GetProfiles() error: %v", err)
 	}
@@ -181,7 +181,7 @@ func TestGetProfiles_QueryOptionsAreIgnoredForNextURL(t *testing.T) {
 
 	if _, err := client.GetProfiles(
 		context.Background(),
-		WithProfilesNextURL(next),
+		NextURL[ProfilesOption](next),
 		WithProfilesFields([]string{"name"}),
 		WithProfilesInclude([]string{"devices"}),
 	); err != nil {

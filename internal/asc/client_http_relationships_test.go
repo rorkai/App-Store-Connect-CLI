@@ -38,7 +38,7 @@ func TestGetBundleIDProfiles_SendsRequest(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetBundleIDProfiles(context.Background(), "bid-1", WithBundleIDProfilesLimit(8)); err != nil {
+	if _, err := client.GetBundleIDProfiles(context.Background(), "bid-1", Limit[BundleIDProfilesOption](8)); err != nil {
 		t.Fatalf("GetBundleIDProfiles() error: %v", err)
 	}
 }
@@ -53,7 +53,7 @@ func TestGetBundleIDProfiles_UsesNextURL(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetBundleIDProfiles(context.Background(), "bid-1", WithBundleIDProfilesNextURL(next)); err != nil {
+	if _, err := client.GetBundleIDProfiles(context.Background(), "bid-1", NextURL[BundleIDProfilesOption](next)); err != nil {
 		t.Fatalf("GetBundleIDProfiles() error: %v", err)
 	}
 }
@@ -73,7 +73,7 @@ func TestGetUserInvitationVisibleApps_SendsRequest(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetUserInvitationVisibleApps(context.Background(), "invite-1", WithUserInvitationVisibleAppsLimit(12)); err != nil {
+	if _, err := client.GetUserInvitationVisibleApps(context.Background(), "invite-1", Limit[UserInvitationVisibleAppsOption](12)); err != nil {
 		t.Fatalf("GetUserInvitationVisibleApps() error: %v", err)
 	}
 }
