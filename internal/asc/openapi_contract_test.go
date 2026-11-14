@@ -26,7 +26,7 @@ import (
 // listed in openapi_bindings/) against docs/openapi/latest.json, which they
 // read independently of the generator.
 
-const contractSpecPath = "../../docs/openapi/latest.json"
+var contractSpecPath = filepath.Join("..", "..", "docs", "openapi", "latest.json")
 
 type contractFamily struct {
 	Tag        string               `json:"tag"`
