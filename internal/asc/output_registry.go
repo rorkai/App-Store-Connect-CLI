@@ -335,12 +335,13 @@ func registerRowsWithSingleToListAdapter[T any, U any](rows func(*U) ([]string, 
 // registerDirect registers a type that needs direct render control (multi-table output).
 // Typed-nil pointers are normalized to zero-value pointers before invocation.
 func registerDirect[T any](fn func(*T, func([]string, [][]string)) error) {
-	if fn == nil {
-		panicNilHelperFunction("direct render function", typeForPtr[T]())
+	var direct func(io.Writer, *T, func([]string, [][]string)) error
+	if fn != nil {
+		direct = func(_ io.Writer, v *T, render func([]string, [][]string)) error {
+			return fn(v, render)
+		}
 	}
-	registerDirectTo(func(_ io.Writer, v *T, render func([]string, [][]string)) error {
-		return fn(v, render)
-	})
+	registerDirectTo(direct)
 }
 
 // registerDirectTo is registerDirect for a renderer that also writes text
