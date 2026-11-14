@@ -12,16 +12,6 @@ type InAppPurchaseLocalizationUpdateAttributes struct {
 	Description *NullableString `json:"description,omitempty"`
 }
 
-type InAppPurchaseLocalizationCreateRelationships struct {
-	InAppPurchaseV2 Relationship `json:"inAppPurchaseV2"`
-}
-
-type InAppPurchaseLocalizationCreateData struct {
-	Type          ResourceType                                 `json:"type"`
-	Attributes    InAppPurchaseLocalizationCreateAttributes    `json:"attributes"`
-	Relationships InAppPurchaseLocalizationCreateRelationships `json:"relationships"`
-}
-
 // In-app purchase App Store review screenshots.
 type InAppPurchaseAppStoreReviewScreenshotAttributes struct {
 	FileSize           int64               `json:"fileSize,omitempty"`
@@ -41,30 +31,9 @@ type InAppPurchaseAppStoreReviewScreenshotCreateAttributes struct {
 	FileName string `json:"fileName"`
 }
 
-type InAppPurchaseAppStoreReviewScreenshotRelationships struct {
-	InAppPurchaseV2 Relationship `json:"inAppPurchaseV2"`
-}
-
-type InAppPurchaseAppStoreReviewScreenshotCreateData struct {
-	Type          ResourceType                                          `json:"type"`
-	Attributes    InAppPurchaseAppStoreReviewScreenshotCreateAttributes `json:"attributes"`
-	Relationships InAppPurchaseAppStoreReviewScreenshotRelationships    `json:"relationships"`
-}
-
 // In-app purchase availability.
 type InAppPurchaseAvailabilityAttributes struct {
 	AvailableInNewTerritories bool `json:"availableInNewTerritories"`
-}
-
-type InAppPurchaseAvailabilityCreateRelationships struct {
-	InAppPurchase        Relationship     `json:"inAppPurchase"`
-	AvailableTerritories RelationshipList `json:"availableTerritories"`
-}
-
-type InAppPurchaseAvailabilityCreateData struct {
-	Type          ResourceType                                 `json:"type"`
-	Attributes    InAppPurchaseAvailabilityCreateAttributes    `json:"attributes"`
-	Relationships InAppPurchaseAvailabilityCreateRelationships `json:"relationships"`
 }
 
 // In-app purchase content.
@@ -107,17 +76,6 @@ type InAppPurchasePriceSchedulePrice struct {
 type InAppPurchasePriceScheduleCreateRequest struct {
 	Data     InAppPurchasePriceScheduleCreateData     `json:"data"`
 	Included []InAppPurchasePriceInlineCreateResource `json:"included,omitempty"`
-}
-
-type InAppPurchasePriceScheduleCreateData struct {
-	Type          ResourceType                                  `json:"type"`
-	Relationships InAppPurchasePriceScheduleCreateRelationships `json:"relationships"`
-}
-
-type InAppPurchasePriceScheduleCreateRelationships struct {
-	InAppPurchase Relationship     `json:"inAppPurchase"`
-	BaseTerritory Relationship     `json:"baseTerritory"`
-	ManualPrices  RelationshipList `json:"manualPrices"`
 }
 
 type InAppPurchasePriceInlineCreateResource struct {
@@ -169,11 +127,6 @@ type InAppPurchaseOfferCodeCreateRequestAttributes struct {
 	CustomerEligibilities []string `json:"customerEligibilities"`
 }
 
-type InAppPurchaseOfferCodeCreateRelationships struct {
-	InAppPurchase Relationship     `json:"inAppPurchase"`
-	Prices        RelationshipList `json:"prices"`
-}
-
 type InAppPurchaseOfferPriceAttributes struct{}
 
 type InAppPurchaseOfferPricesResponse = Response[InAppPurchaseOfferPriceAttributes]
@@ -194,18 +147,6 @@ type (
 	InAppPurchaseOfferCodeCustomCodeResponse  = SingleResponse[InAppPurchaseOfferCodeCustomCodeAttributes]
 )
 
-// InAppPurchaseOfferCodeCustomCodeCreateRelationships describes relationships for creating custom codes.
-type InAppPurchaseOfferCodeCustomCodeCreateRelationships struct {
-	OfferCode Relationship `json:"offerCode"`
-}
-
-// InAppPurchaseOfferCodeCustomCodeCreateData is the data portion of a create request.
-type InAppPurchaseOfferCodeCustomCodeCreateData struct {
-	Type          ResourceType                                        `json:"type"`
-	Attributes    InAppPurchaseOfferCodeCustomCodeCreateAttributes    `json:"attributes"`
-	Relationships InAppPurchaseOfferCodeCustomCodeCreateRelationships `json:"relationships"`
-}
-
 type InAppPurchaseOfferCodeOneTimeUseCodeAttributes struct {
 	NumberOfCodes  int    `json:"numberOfCodes,omitempty"`
 	CreatedDate    string `json:"createdDate,omitempty"`
@@ -224,16 +165,4 @@ type InAppPurchaseOfferCodeOneTimeUseCodeCreateAttributes struct {
 	NumberOfCodes  int    `json:"numberOfCodes"`
 	ExpirationDate string `json:"expirationDate"`
 	Environment    string `json:"environment,omitempty"`
-}
-
-// InAppPurchaseOfferCodeOneTimeUseCodeCreateRelationships describes relationships for creating one-time use codes.
-type InAppPurchaseOfferCodeOneTimeUseCodeCreateRelationships struct {
-	OfferCode Relationship `json:"offerCode"`
-}
-
-// InAppPurchaseOfferCodeOneTimeUseCodeCreateData is the data portion of a create request.
-type InAppPurchaseOfferCodeOneTimeUseCodeCreateData struct {
-	Type          ResourceType                                            `json:"type"`
-	Attributes    InAppPurchaseOfferCodeOneTimeUseCodeCreateAttributes    `json:"attributes"`
-	Relationships InAppPurchaseOfferCodeOneTimeUseCodeCreateRelationships `json:"relationships"`
 }

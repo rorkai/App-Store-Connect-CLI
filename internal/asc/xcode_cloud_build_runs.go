@@ -106,21 +106,6 @@ type CiBuildRunResponse struct {
 	Links Links              `json:"links"`
 }
 
-// CiBuildRunCreateData is the data portion of a CI build run create request.
-type CiBuildRunCreateData struct {
-	Type          ResourceType                   `json:"type"`
-	Attributes    *CiBuildRunCreateAttributes    `json:"attributes,omitempty"`
-	Relationships *CiBuildRunCreateRelationships `json:"relationships,omitempty"`
-}
-
-// CiBuildRunCreateRelationships describes relationships for creating a CI build run.
-type CiBuildRunCreateRelationships struct {
-	BuildRun          *Relationship `json:"buildRun,omitempty"`
-	Workflow          *Relationship `json:"workflow,omitempty"`
-	SourceBranchOrTag *Relationship `json:"sourceBranchOrTag,omitempty"`
-	PullRequest       *Relationship `json:"pullRequest,omitempty"`
-}
-
 // Query types for Xcode Cloud endpoints
 
 type ciBuildRunsQuery struct {

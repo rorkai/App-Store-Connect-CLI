@@ -8,6 +8,19 @@ import (
 	"strings"
 )
 
+// AppPriceScheduleCreateData is the data object of the AppPriceScheduleCreateRequest schema.
+type AppPriceScheduleCreateData struct {
+	Type          ResourceType                        `json:"type"`
+	Relationships AppPriceScheduleCreateRelationships `json:"relationships"`
+}
+
+// AppPriceScheduleCreateRelationships is the data.relationships object of the AppPriceScheduleCreateRequest schema.
+type AppPriceScheduleCreateRelationships struct {
+	App           Relationship     `json:"app"`
+	BaseTerritory Relationship     `json:"baseTerritory"`
+	ManualPrices  RelationshipList `json:"manualPrices"`
+}
+
 // GetAppPriceScheduleAutomaticPrices sends GET /v1/appPriceSchedules/{id}/automaticPrices (appPriceSchedules_automaticPrices_getToManyRelated).
 func (c *Client) GetAppPriceScheduleAutomaticPrices(ctx context.Context, scheduleID string, opts ...AppPriceSchedulePricesOption) (*AppPricesResponse, error) {
 	query := applyOptions(opts)

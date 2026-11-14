@@ -2,14 +2,20 @@
   "tag": "GameCenterActivityImages",
   "file": "game_center_activity_images_gen.go",
   "types": [
+    "GameCenterActivityImageCreateData",
     "GameCenterActivityImageCreateRequest",
+    "GameCenterActivityImageRelationships",
     "GameCenterActivityImageResponse",
     "GameCenterActivityImageUpdateAttributes",
     "GameCenterActivityImageUpdateData",
     "GameCenterActivityImageUpdateRequest"
   ],
+  "relationships": [
+    {"data":"GameCenterActivityImageCreateData","type":"*GameCenterActivityImageRelationships"}
+  ],
   "operations": [
     {"operation":"gameCenterActivityImages_deleteInstance","name":"DeleteGameCenterActivityImage","params":["imageID"]},
-    {"operation":"gameCenterActivityImages_getInstance","name":"GetGameCenterActivityImage","params":["imageID"]}
+    {"operation":"gameCenterActivityImages_getInstance","name":"GetGameCenterActivityImage","params":["imageID"]},
+    {"operation":"gameCenterActivityImages_updateInstance","name":"UpdateGameCenterActivityImage","params":["imageID"],"args":[{"name":"uploaded"}]}
   ]
 }

@@ -2,12 +2,17 @@
   "tag": "Certificates",
   "file": "certificates_gen.go",
   "types": [
+    "CertificateCreateData",
+    "CertificateCreateRelationships",
     "CertificateCreateRequest",
     "CertificateResponse",
     "CertificateUpdateAttributes",
     "CertificateUpdateData",
     "CertificateUpdateRequest",
     "CertificatesResponse"
+  ],
+  "relationships": [
+    {"data":"CertificateCreateData","type":"*CertificateCreateRelationships","omitempty":true}
   ],
   "operations": [
     {"operation":"certificates_deleteInstance","name":"RevokeCertificate","params":["id"],"check":"trim"},

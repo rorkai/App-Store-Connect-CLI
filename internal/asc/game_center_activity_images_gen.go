@@ -9,9 +9,22 @@ import (
 	"strings"
 )
 
+// GameCenterActivityImageCreateData is the data object of the GameCenterActivityImageCreateRequest schema.
+type GameCenterActivityImageCreateData struct {
+	Type          ResourceType                            `json:"type"`
+	Attributes    GameCenterActivityImageCreateAttributes `json:"attributes"`
+	Relationships *GameCenterActivityImageRelationships   `json:"relationships"`
+}
+
 // GameCenterActivityImageCreateRequest is the GameCenterActivityImageCreateRequest schema.
 type GameCenterActivityImageCreateRequest struct {
 	Data GameCenterActivityImageCreateData `json:"data"`
+}
+
+// GameCenterActivityImageRelationships is the data.relationships object of the GameCenterActivityImageCreateRequest schema.
+type GameCenterActivityImageRelationships struct {
+	Localization *Relationship `json:"localization,omitempty"`
+	Version      *Relationship `json:"version,omitempty"`
 }
 
 // GameCenterActivityImageResponse is the GameCenterActivityImageResponse schema.
@@ -43,5 +56,23 @@ func (c *Client) DeleteGameCenterActivityImage(ctx context.Context, imageID stri
 func (c *Client) GetGameCenterActivityImage(ctx context.Context, imageID string) (*GameCenterActivityImageResponse, error) {
 	return getJSON[GameCenterActivityImageResponse](ctx, c, readRequest{
 		Path: fmt.Sprintf("/v1/gameCenterActivityImages/%s", strings.TrimSpace(imageID)),
+	})
+}
+
+// UpdateGameCenterActivityImage sends PATCH /v1/gameCenterActivityImages/{id} (gameCenterActivityImages_updateInstance).
+func (c *Client) UpdateGameCenterActivityImage(ctx context.Context, imageID string, uploaded bool) (*GameCenterActivityImageResponse, error) {
+	payload := GameCenterActivityImageUpdateRequest{
+		Data: GameCenterActivityImageUpdateData{
+			Type: ResourceTypeGameCenterActivityImages,
+			ID:   strings.TrimSpace(imageID),
+			Attributes: &GameCenterActivityImageUpdateAttributes{
+				Uploaded: &uploaded,
+			},
+		},
+	}
+	return sendJSON[GameCenterActivityImageResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/gameCenterActivityImages/%s", strings.TrimSpace(imageID)),
+		Payload: payload,
 	})
 }

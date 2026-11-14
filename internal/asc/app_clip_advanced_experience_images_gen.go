@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 )
 
@@ -35,6 +36,24 @@ type AppClipAdvancedExperienceImageUpdateData struct {
 // AppClipAdvancedExperienceImageUpdateRequest is the AppClipAdvancedExperienceImageUpdateRequest schema.
 type AppClipAdvancedExperienceImageUpdateRequest struct {
 	Data AppClipAdvancedExperienceImageUpdateData `json:"data"`
+}
+
+// CreateAppClipAdvancedExperienceImage sends POST /v1/appClipAdvancedExperienceImages (appClipAdvancedExperienceImages_createInstance).
+func (c *Client) CreateAppClipAdvancedExperienceImage(ctx context.Context, fileName string, fileSize int64) (*AppClipAdvancedExperienceImageResponse, error) {
+	payload := AppClipAdvancedExperienceImageCreateRequest{
+		Data: AppClipAdvancedExperienceImageCreateData{
+			Type: ResourceTypeAppClipAdvancedExperienceImages,
+			Attributes: AppClipAdvancedExperienceImageCreateAttributes{
+				FileName: fileName,
+				FileSize: fileSize,
+			},
+		},
+	}
+	return sendJSON[AppClipAdvancedExperienceImageResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/appClipAdvancedExperienceImages",
+		Payload: payload,
+	})
 }
 
 // GetAppClipAdvancedExperienceImage sends GET /v1/appClipAdvancedExperienceImages/{id} (appClipAdvancedExperienceImages_getInstance).

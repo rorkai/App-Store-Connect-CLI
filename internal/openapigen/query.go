@@ -307,14 +307,3 @@ func readGenerated(path string) ([]byte, error) {
 	}
 	return data, nil
 }
-
-// encodeLine encodes a binding as one JSON line.
-func encodeLine(v any) (string, error) {
-	var buf bytes.Buffer
-	enc := json.NewEncoder(&buf)
-	enc.SetEscapeHTML(false)
-	if err := enc.Encode(v); err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(buf.String()), nil
-}

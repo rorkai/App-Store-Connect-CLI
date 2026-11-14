@@ -3,6 +3,8 @@ package shared
 import (
 	"flag"
 	"fmt"
+	"io"
+	"os"
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -24,6 +26,16 @@ func NormalizeSubscriptionPlanType(value, source string) (asc.SubscriptionPlanTy
 // subscription offer create commands. The returned function validates the value
 // and yields an empty plan type only when the flag was not provided.
 func BindTargetSubscriptionPlanTypeFlag(fs *flag.FlagSet) func() (asc.SubscriptionPlanType, error) {
+	return bindTargetSubscriptionPlanTypeFlagTo(os.Stderr, fs)
+}
+
+// BindTargetSubscriptionPlanTypeFlag is BindTargetSubscriptionPlanTypeFlag
+// with the validation's "Error:" line written to d's stderr.
+func (d *Deps) BindTargetSubscriptionPlanTypeFlag(fs *flag.FlagSet) func() (asc.SubscriptionPlanType, error) {
+	return bindTargetSubscriptionPlanTypeFlagTo(d.IO.ErrOut, fs)
+}
+
+func bindTargetSubscriptionPlanTypeFlagTo(stderr io.Writer, fs *flag.FlagSet) func() (asc.SubscriptionPlanType, error) {
 	value := fs.String(targetSubscriptionPlanTypeFlagName, "", "Target subscription plan type: MONTHLY, UPFRONT")
 	return func() (asc.SubscriptionPlanType, error) {
 		provided := false
@@ -34,11 +46,11 @@ func BindTargetSubscriptionPlanTypeFlag(fs *flag.FlagSet) func() (asc.Subscripti
 			return "", nil
 		}
 		if strings.TrimSpace(*value) == "" {
-			return "", UsageErrorf("invalid value for --%s: cannot be empty", targetSubscriptionPlanTypeFlagName)
+			return "", usageErrorfTo(stderr, "invalid value for --%s: cannot be empty", targetSubscriptionPlanTypeFlagName)
 		}
 		planType, err := NormalizeSubscriptionPlanType(*value, "--"+targetSubscriptionPlanTypeFlagName)
 		if err != nil {
-			return "", UsageError(err.Error())
+			return "", usageErrorTo(stderr, err.Error())
 		}
 		return planType, nil
 	}

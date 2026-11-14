@@ -2,6 +2,8 @@ package shared
 
 import (
 	"flag"
+	"io"
+	"os"
 	"strings"
 )
 
@@ -33,12 +35,21 @@ func (f *LocalizationIncludeFlags) Provided() bool {
 
 // Resolve validates the flags and returns the include list and placements limit.
 func (f *LocalizationIncludeFlags) Resolve() ([]string, int, error) {
+	return f.resolveTo(os.Stderr)
+}
+
+// ResolveWith is Resolve with the "Error:" line written to d's stderr.
+func (f *LocalizationIncludeFlags) ResolveWith(d *Deps) ([]string, int, error) {
+	return f.resolveTo(d.IO.ErrOut)
+}
+
+func (f *LocalizationIncludeFlags) resolveTo(stderr io.Writer) ([]string, int, error) {
 	include, err := NormalizeSelection(f.include.String(), f.allowed, "--include")
 	if err != nil {
-		return nil, 0, UsageError(err.Error())
+		return nil, 0, usageErrorTo(stderr, err.Error())
 	}
 	if f.include.Provided() && len(include) == 0 {
-		return nil, 0, UsageError("--include must not be empty")
+		return nil, 0, usageErrorTo(stderr, "--include must not be empty")
 	}
 	limitProvided := false
 	f.fs.Visit(func(fl *flag.Flag) {
@@ -46,10 +57,10 @@ func (f *LocalizationIncludeFlags) Resolve() ([]string, int, error) {
 	})
 	if limitProvided {
 		if *f.placementsLimit < 1 || *f.placementsLimit > maxPlacementsLimit {
-			return nil, 0, UsageError("--placements-limit must be between 1 and 50")
+			return nil, 0, usageErrorTo(stderr, "--placements-limit must be between 1 and 50")
 		}
 		if !HasInclude(include, "placements") {
-			return nil, 0, UsageError("--placements-limit requires --include placements")
+			return nil, 0, usageErrorTo(stderr, "--placements-limit requires --include placements")
 		}
 	}
 	return include, *f.placementsLimit, nil

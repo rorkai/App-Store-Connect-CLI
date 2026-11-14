@@ -2,6 +2,19 @@
 
 package asc
 
+// RetentionOfferCreateData is the data object of the RetentionOfferCreateRequest schema.
+type RetentionOfferCreateData struct {
+	Type          ResourceType                      `json:"type"`
+	Attributes    RetentionOfferCreateAttributes    `json:"attributes"`
+	Relationships RetentionOfferCreateRelationships `json:"relationships"`
+}
+
+// RetentionOfferCreateRelationships is the data.relationships object of the RetentionOfferCreateRequest schema.
+type RetentionOfferCreateRelationships struct {
+	Subscription Relationship     `json:"subscription"`
+	Prices       RelationshipList `json:"prices"`
+}
+
 // RetentionOfferResponse is the RetentionOfferResponse schema.
 type RetentionOfferResponse = SingleResponse[RetentionOfferAttributes]
 

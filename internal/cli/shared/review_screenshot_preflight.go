@@ -16,6 +16,16 @@ import (
 // before any request. Documented but unconfirmed constraints (size and alpha)
 // and a payload that does not fully decode are printed to stderr as warnings.
 func PreflightReviewScreenshot(path string, file io.ReaderAt, size int64) error {
+	return preflightReviewScreenshotTo(os.Stderr, path, file, size)
+}
+
+// PreflightReviewScreenshot is PreflightReviewScreenshot with the warnings
+// written to d's stderr.
+func (d *Deps) PreflightReviewScreenshot(path string, file io.ReaderAt, size int64) error {
+	return preflightReviewScreenshotTo(d.IO.ErrOut, path, file, size)
+}
+
+func preflightReviewScreenshotTo(stderr io.Writer, path string, file io.ReaderAt, size int64) error {
 	warnings, err := asc.CheckReviewScreenshotImage(path, io.NewSectionReader(file, 0, size))
 	if err != nil {
 		return err
@@ -24,7 +34,7 @@ func PreflightReviewScreenshot(path string, file io.ReaderAt, size int64) error 
 		warnings = append(warnings, warning)
 	}
 	for _, warning := range warnings {
-		fmt.Fprintf(os.Stderr, "Warning: %s\n", warning)
+		fmt.Fprintf(stderr, "Warning: %s\n", warning)
 	}
 	return nil
 }
@@ -36,8 +46,18 @@ func PreflightReviewScreenshot(path string, file io.ReaderAt, size int64) error 
 // that supplied the screenshot for diagnostics. Commands under a re-parented
 // tree pass message through RewriteUsageMessage first.
 func ReviewScreenshotUsageError(parameter, message string) error {
+	return reviewScreenshotUsageErrorTo(os.Stderr, parameter, message)
+}
+
+// ReviewScreenshotUsageError is ReviewScreenshotUsageError with the "Error:"
+// line written to d's stderr.
+func (d *Deps) ReviewScreenshotUsageError(parameter, message string) error {
+	return reviewScreenshotUsageErrorTo(d.IO.ErrOut, parameter, message)
+}
+
+func reviewScreenshotUsageErrorTo(stderr io.Writer, parameter, message string) error {
 	message = strings.TrimSpace(SanitizeTerminal(message))
-	fmt.Fprintf(os.Stderr, "Error: %s\n", message)
+	fmt.Fprintf(stderr, "Error: %s\n", message)
 	return WithDiagnostic(NewReportedUsageError(UsageErrorInvalidValue, message), DiagnosticInvalidInput, parameter)
 }
 

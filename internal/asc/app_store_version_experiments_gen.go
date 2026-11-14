@@ -15,6 +15,18 @@ type AppStoreVersionExperimentCreateAttributes struct {
 	TrafficProportion int    `json:"trafficProportion"`
 }
 
+// AppStoreVersionExperimentCreateData is the data object of the AppStoreVersionExperimentCreateRequest schema.
+type AppStoreVersionExperimentCreateData struct {
+	Type          ResourceType                                  `json:"type"`
+	Attributes    AppStoreVersionExperimentCreateAttributes     `json:"attributes"`
+	Relationships *AppStoreVersionExperimentCreateRelationships `json:"relationships"`
+}
+
+// AppStoreVersionExperimentCreateRelationships is the data.relationships object of the AppStoreVersionExperimentCreateRequest schema.
+type AppStoreVersionExperimentCreateRelationships struct {
+	AppStoreVersion *Relationship `json:"appStoreVersion"`
+}
+
 // AppStoreVersionExperimentCreateRequest is the AppStoreVersionExperimentCreateRequest schema.
 type AppStoreVersionExperimentCreateRequest struct {
 	Data AppStoreVersionExperimentCreateData `json:"data"`
@@ -40,6 +52,18 @@ type AppStoreVersionExperimentUpdateData struct {
 // AppStoreVersionExperimentUpdateRequest is the AppStoreVersionExperimentUpdateRequest schema.
 type AppStoreVersionExperimentUpdateRequest struct {
 	Data AppStoreVersionExperimentUpdateData `json:"data"`
+}
+
+// AppStoreVersionExperimentV2CreateData is the data object of the AppStoreVersionExperimentV2CreateRequest schema.
+type AppStoreVersionExperimentV2CreateData struct {
+	Type          ResourceType                                    `json:"type"`
+	Attributes    AppStoreVersionExperimentV2CreateAttributes     `json:"attributes"`
+	Relationships *AppStoreVersionExperimentV2CreateRelationships `json:"relationships"`
+}
+
+// AppStoreVersionExperimentV2CreateRelationships is the data.relationships object of the AppStoreVersionExperimentV2CreateRequest schema.
+type AppStoreVersionExperimentV2CreateRelationships struct {
+	App *Relationship `json:"app"`
 }
 
 // AppStoreVersionExperimentV2CreateRequest is the AppStoreVersionExperimentV2CreateRequest schema.

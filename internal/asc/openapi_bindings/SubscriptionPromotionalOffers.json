@@ -2,7 +2,12 @@
   "tag": "SubscriptionPromotionalOffers",
   "file": "subscription_promotional_offers_gen.go",
   "types": [
+    "SubscriptionPromotionalOfferCreateData",
+    "SubscriptionPromotionalOfferRelationships",
     "SubscriptionPromotionalOfferUpdateRequest"
+  ],
+  "relationships": [
+    {"data":"SubscriptionPromotionalOfferCreateData","type":"SubscriptionPromotionalOfferRelationships"}
   ],
   "operations": [
     {"operation":"subscriptionPromotionalOffers_deleteInstance","name":"DeleteSubscriptionPromotionalOffer","params":["offerID"]}

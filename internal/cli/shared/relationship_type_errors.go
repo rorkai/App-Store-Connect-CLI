@@ -3,6 +3,7 @@ package shared
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -25,7 +26,17 @@ func RelationshipTypeFlagUsage(values []string) string {
 // every accepted relationship type and returns the shared missing-required
 // usage error so the command exits with usage semantics.
 func MissingRelationshipTypeUsageError(values []string) error {
-	fmt.Fprintf(os.Stderr, "Error: --type is required; must be one of: %s\n", RelationshipTypeValues(values))
+	return missingRelationshipTypeUsageErrorTo(os.Stderr, values)
+}
+
+// MissingRelationshipTypeUsageError is MissingRelationshipTypeUsageError with
+// the "Error:" line written to d's stderr.
+func (d *Deps) MissingRelationshipTypeUsageError(values []string) error {
+	return missingRelationshipTypeUsageErrorTo(d.IO.ErrOut, values)
+}
+
+func missingRelationshipTypeUsageErrorTo(stderr io.Writer, values []string) error {
+	fmt.Fprintf(stderr, "Error: --type is required; must be one of: %s\n", RelationshipTypeValues(values))
 	return MissingRequiredUsageError("--type")
 }
 
@@ -33,8 +44,18 @@ func MissingRelationshipTypeUsageError(values []string) error {
 // every accepted relationship type. Callers return their own usage error so
 // each links command keeps its existing error classification.
 func PrintInvalidRelationshipTypeError(value string, values []string) {
+	printInvalidRelationshipTypeErrorTo(os.Stderr, value, values)
+}
+
+// PrintInvalidRelationshipTypeError is PrintInvalidRelationshipTypeError
+// writing to d's stderr.
+func (d *Deps) PrintInvalidRelationshipTypeError(value string, values []string) {
+	printInvalidRelationshipTypeErrorTo(d.IO.ErrOut, value, values)
+}
+
+func printInvalidRelationshipTypeErrorTo(stderr io.Writer, value string, values []string) {
 	fmt.Fprintf(
-		os.Stderr,
+		stderr,
 		"Error: --type %q is not a valid relationship type; must be one of: %s\n",
 		value,
 		RelationshipTypeValues(values),

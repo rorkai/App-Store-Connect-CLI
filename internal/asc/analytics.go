@@ -122,21 +122,9 @@ func (r *AnalyticsReportRequestsResponse) GetData() any {
 	return r.Data
 }
 
-// AnalyticsReportRequestCreateData is the data portion of an analytics report request create.
-type AnalyticsReportRequestCreateData struct {
-	Type          ResourceType                              `json:"type"`
-	Attributes    AnalyticsReportRequestCreateAttributes    `json:"attributes"`
-	Relationships AnalyticsReportRequestCreateRelationships `json:"relationships"`
-}
-
 // AnalyticsReportRequestCreateAttributes describes attributes for creation.
 type AnalyticsReportRequestCreateAttributes struct {
 	AccessType AnalyticsAccessType `json:"accessType"`
-}
-
-// AnalyticsReportRequestCreateRelationships describes relationships for creation.
-type AnalyticsReportRequestCreateRelationships struct {
-	App Relationship `json:"app"`
 }
 
 // AnalyticsReportAttributes describes analytics report metadata.

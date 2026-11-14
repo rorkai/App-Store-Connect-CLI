@@ -3,17 +3,25 @@
   "file": "game_center_leaderboard_set_localizations_gen.go",
   "types": [
     "GameCenterLeaderboardSetLocalizationCreateAttributes",
+    "GameCenterLeaderboardSetLocalizationCreateData",
     "GameCenterLeaderboardSetLocalizationCreateRequest",
+    "GameCenterLeaderboardSetLocalizationRelationships",
     "GameCenterLeaderboardSetLocalizationResponse",
     "GameCenterLeaderboardSetLocalizationUpdateAttributes",
     "GameCenterLeaderboardSetLocalizationUpdateData",
     "GameCenterLeaderboardSetLocalizationUpdateRequest",
-    "GameCenterLeaderboardSetLocalizationV2CreateRequest"
+    "GameCenterLeaderboardSetLocalizationV2CreateRequest",
+    "GameCenterLeaderboardSetLocalizationV2Relationships"
+  ],
+  "relationships": [
+    {"data":"GameCenterLeaderboardSetLocalizationCreateData","type":"*GameCenterLeaderboardSetLocalizationRelationships","omitempty":true},
+    {"data":"GameCenterLeaderboardSetLocalizationV2CreateData","type":"*GameCenterLeaderboardSetLocalizationV2Relationships","omitempty":true}
   ],
   "operations": [
     {"operation":"gameCenterLeaderboardSetLocalizationsV2_deleteInstance","name":"DeleteGameCenterLeaderboardSetLocalizationV2","params":["localizationID"]},
     {"operation":"gameCenterLeaderboardSetLocalizationsV2_getInstance","name":"GetGameCenterLeaderboardSetLocalizationV2","params":["localizationID"],"response":"GameCenterLeaderboardSetLocalizationResponse"},
     {"operation":"gameCenterLeaderboardSetLocalizationsV2_image_getToOneRelated","name":"GetGameCenterLeaderboardSetLocalizationImageV2","params":["localizationID"],"response":"GameCenterLeaderboardSetImageResponse"},
+    {"operation":"gameCenterLeaderboardSetLocalizations_createInstance","name":"CreateGameCenterLeaderboardSetLocalization","params":["setID"],"links":["gameCenterLeaderboardSet"]},
     {"operation":"gameCenterLeaderboardSetLocalizations_deleteInstance","name":"DeleteGameCenterLeaderboardSetLocalization","params":["localizationID"]},
     {"operation":"gameCenterLeaderboardSetLocalizations_gameCenterLeaderboardSetImage_getToOneRelated","name":"GetGameCenterLeaderboardSetLocalizationImage","params":["localizationID"]},
     {"operation":"gameCenterLeaderboardSetLocalizations_getInstance","name":"GetGameCenterLeaderboardSetLocalization","params":["localizationID"]},

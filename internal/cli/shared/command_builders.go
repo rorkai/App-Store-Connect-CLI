@@ -346,6 +346,9 @@ type PricePointEqualizationsCommandConfig struct {
 	ErrorPrefix string
 
 	ContextTimeout func(context.Context) (context.Context, context.CancelFunc)
+	// Deps supplies the client, streams and timeout. It defaults to
+	// DefaultDeps().
+	Deps *Deps
 	// FetchPage receives the --include values for a first page and nil for a
 	// links.next page, which already carries them. The client ignores the
 	// sparse fields on a links.next page for the same reason.
@@ -355,6 +358,7 @@ type PricePointEqualizationsCommandConfig struct {
 // BuildPricePointEqualizationsCommand builds a standard equalizations list
 // command with shared help/examples and --limit/--next/--paginate semantics.
 func BuildPricePointEqualizationsCommand(config PricePointEqualizationsCommandConfig) *ffcli.Command {
+	d := builderDeps(config.Deps)
 	baseUsage := strings.TrimSpace(config.ShortUsage)
 	if baseUsage == "" {
 		baseUsage = "asc equalizations"
@@ -399,6 +403,7 @@ Examples:
 		LimitMax:       config.LimitMax,
 		ErrorPrefix:    config.ErrorPrefix,
 		ContextTimeout: config.ContextTimeout,
+		Deps:           d,
 		FetchPage: func(ctx context.Context, client *asc.Client, parentID string, limit int, next string) (asc.PaginatedResponse, error) {
 			var values []string
 			if strings.TrimSpace(next) == "" {
@@ -413,7 +418,7 @@ Examples:
 	cmd.Exec = func(ctx context.Context, args []string) error {
 		for _, value := range SplitCSV(*include) {
 			if value != "territory" {
-				return UsageError("--include must be: territory")
+				return d.UsageError("--include must be: territory")
 			}
 		}
 		prefix := commandErrorPrefixFromUsage(cmd.ShortUsage)
@@ -421,11 +426,11 @@ Examples:
 			prefix = config.ErrorPrefix
 		}
 		next := cmd.FlagSet.Lookup("next").Value.String()
-		if err := RejectNextFlagConflicts(cmd.FlagSet, next, prefix, "include"); err != nil {
+		if err := d.RejectNextFlagConflicts(cmd.FlagSet, next, prefix, "include"); err != nil {
 			return err
 		}
 		var err error
-		if included, err = includedFields.Resolve(prefix, next, SplitCSV(*include)); err != nil {
+		if included, err = includedFields.ResolveWith(d, prefix, next, SplitCSV(*include)); err != nil {
 			return err
 		}
 		return exec(ctx, args)

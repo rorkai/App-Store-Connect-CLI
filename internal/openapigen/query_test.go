@@ -170,10 +170,11 @@ func TestAdoptQueriesReplacesOnlyQueriesTheGeneratorReproduces(t *testing.T) {
 	}
 
 	_, testdata := loadTestdata(t)
-	want, err := encodeLine(testdata.Families[0].Queries[0])
+	lines, err := jsonLines(testdata.Families[0].Queries[:1])
 	if err != nil {
 		t.Fatal(err)
 	}
+	want := lines[0]
 	if got := readFile(t, filepath.Join(dir, "bindings", "Widgets.json")); !strings.Contains(got, "\"queries\": [\n    "+want+"\n  ]") {
 		t.Errorf("bindings after adopt:\n%s\nwant the query %s", got, want)
 	}

@@ -9,6 +9,12 @@ import (
 	"strings"
 )
 
+// GameCenterActivityVersionReleaseCreateData is the data object of the GameCenterActivityVersionReleaseCreateRequest schema.
+type GameCenterActivityVersionReleaseCreateData struct {
+	Type          ResourceType                                   `json:"type"`
+	Relationships *GameCenterActivityVersionReleaseRelationships `json:"relationships,omitempty"`
+}
+
 // GameCenterActivityVersionReleaseCreateRequest is the GameCenterActivityVersionReleaseCreateRequest schema.
 type GameCenterActivityVersionReleaseCreateRequest struct {
 	Data GameCenterActivityVersionReleaseCreateData `json:"data"`

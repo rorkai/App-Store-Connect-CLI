@@ -17,26 +17,6 @@ func (c *Client) GetGameCenterDetailID(ctx context.Context, appID string) (strin
 	return resp.Data.ID, nil
 }
 
-// CreateGameCenterAchievement creates a new Game Center achievement.
-func (c *Client) CreateGameCenterAchievement(ctx context.Context, gcDetailID string, attrs GameCenterAchievementCreateAttributes) (*GameCenterAchievementResponse, error) {
-	payload := GameCenterAchievementCreateRequest{
-		Data: GameCenterAchievementCreateData{
-			Type:       ResourceTypeGameCenterAchievements,
-			Attributes: attrs,
-			Relationships: &GameCenterAchievementRelationships{
-				GameCenterDetail: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeGameCenterDetails,
-						ID:   strings.TrimSpace(gcDetailID),
-					},
-				},
-			},
-		},
-	}
-
-	return sendJSON[GameCenterAchievementResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/gameCenterAchievements", Payload: payload})
-}
-
 // gameCenterDetailRelationship returns nil for an empty ID so a create that
 // inherits its parent from its members sends no gameCenterDetail.
 func gameCenterDetailRelationship(gcDetailID string) *Relationship {
@@ -79,76 +59,6 @@ func (c *Client) CreateGameCenterLeaderboardSet(ctx context.Context, gcDetailID 
 	return sendJSON[GameCenterLeaderboardSetResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/gameCenterLeaderboardSets", Payload: payload})
 }
 
-// CreateGameCenterLeaderboardLocalization creates a new Game Center leaderboard localization.
-func (c *Client) CreateGameCenterLeaderboardLocalization(ctx context.Context, leaderboardID string, attrs GameCenterLeaderboardLocalizationCreateAttributes) (*GameCenterLeaderboardLocalizationResponse, error) {
-	payload := GameCenterLeaderboardLocalizationCreateRequest{
-		Data: GameCenterLeaderboardLocalizationCreateData{
-			Type:       ResourceTypeGameCenterLeaderboardLocalizations,
-			Attributes: attrs,
-			Relationships: &GameCenterLeaderboardLocalizationRelationships{
-				GameCenterLeaderboard: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeGameCenterLeaderboards,
-						ID:   strings.TrimSpace(leaderboardID),
-					},
-				},
-			},
-		},
-	}
-
-	return sendJSON[GameCenterLeaderboardLocalizationResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/gameCenterLeaderboardLocalizations", Payload: payload})
-}
-
-// CreateGameCenterLeaderboardRelease creates a new Game Center leaderboard release.
-func (c *Client) CreateGameCenterLeaderboardRelease(ctx context.Context, gcDetailID, leaderboardID string) (*GameCenterLeaderboardReleaseResponse, error) {
-	payload := GameCenterLeaderboardReleaseCreateRequest{
-		Data: GameCenterLeaderboardReleaseCreateData{
-			Type: ResourceTypeGameCenterLeaderboardReleases,
-			Relationships: &GameCenterLeaderboardReleaseRelationships{
-				GameCenterDetail: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeGameCenterDetails,
-						ID:   strings.TrimSpace(gcDetailID),
-					},
-				},
-				GameCenterLeaderboard: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeGameCenterLeaderboards,
-						ID:   strings.TrimSpace(leaderboardID),
-					},
-				},
-			},
-		},
-	}
-
-	return sendJSON[GameCenterLeaderboardReleaseResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/gameCenterLeaderboardReleases", Payload: payload})
-}
-
-// CreateGameCenterAchievementRelease creates a new Game Center achievement release.
-func (c *Client) CreateGameCenterAchievementRelease(ctx context.Context, gcDetailID, achievementID string) (*GameCenterAchievementReleaseResponse, error) {
-	payload := GameCenterAchievementReleaseCreateRequest{
-		Data: GameCenterAchievementReleaseCreateData{
-			Type: ResourceTypeGameCenterAchievementReleases,
-			Relationships: &GameCenterAchievementReleaseRelationships{
-				GameCenterDetail: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeGameCenterDetails,
-						ID:   strings.TrimSpace(gcDetailID),
-					},
-				},
-				GameCenterAchievement: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeGameCenterAchievements,
-						ID:   strings.TrimSpace(achievementID),
-					},
-				},
-			},
-		},
-	}
-
-	return sendJSON[GameCenterAchievementReleaseResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/gameCenterAchievementReleases", Payload: payload})
-}
-
 // UpdateGameCenterLeaderboardSetMembers replaces all leaderboard members in a leaderboard set.
 func (c *Client) UpdateGameCenterLeaderboardSetMembers(ctx context.Context, setID string, leaderboardIDs []string) error {
 	leaderboardIDs = normalizeList(leaderboardIDs)
@@ -176,71 +86,6 @@ func (c *Client) SetGameCenterLeaderboardSetMembers(ctx context.Context, setID s
 	})
 }
 
-// CreateGameCenterLeaderboardSetRelease creates a new Game Center leaderboard set release.
-func (c *Client) CreateGameCenterLeaderboardSetRelease(ctx context.Context, gcDetailID, setID string) (*GameCenterLeaderboardSetReleaseResponse, error) {
-	payload := GameCenterLeaderboardSetReleaseCreateRequest{
-		Data: GameCenterLeaderboardSetReleaseCreateData{
-			Type: ResourceTypeGameCenterLeaderboardSetReleases,
-			Relationships: &GameCenterLeaderboardSetReleaseRelationships{
-				GameCenterDetail: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeGameCenterDetails,
-						ID:   strings.TrimSpace(gcDetailID),
-					},
-				},
-				GameCenterLeaderboardSet: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeGameCenterLeaderboardSets,
-						ID:   strings.TrimSpace(setID),
-					},
-				},
-			},
-		},
-	}
-
-	return sendJSON[GameCenterLeaderboardSetReleaseResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/gameCenterLeaderboardSetReleases", Payload: payload})
-}
-
-// CreateGameCenterLeaderboardSetLocalization creates a new Game Center leaderboard set localization.
-func (c *Client) CreateGameCenterLeaderboardSetLocalization(ctx context.Context, setID string, attrs GameCenterLeaderboardSetLocalizationCreateAttributes) (*GameCenterLeaderboardSetLocalizationResponse, error) {
-	payload := GameCenterLeaderboardSetLocalizationCreateRequest{
-		Data: GameCenterLeaderboardSetLocalizationCreateData{
-			Type:       ResourceTypeGameCenterLeaderboardSetLocalizations,
-			Attributes: attrs,
-			Relationships: &GameCenterLeaderboardSetLocalizationRelationships{
-				GameCenterLeaderboardSet: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeGameCenterLeaderboardSets,
-						ID:   strings.TrimSpace(setID),
-					},
-				},
-			},
-		},
-	}
-
-	return sendJSON[GameCenterLeaderboardSetLocalizationResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/gameCenterLeaderboardSetLocalizations", Payload: payload})
-}
-
-// CreateGameCenterAchievementLocalization creates a new Game Center achievement localization.
-func (c *Client) CreateGameCenterAchievementLocalization(ctx context.Context, achievementID string, attrs GameCenterAchievementLocalizationCreateAttributes) (*GameCenterAchievementLocalizationResponse, error) {
-	payload := GameCenterAchievementLocalizationCreateRequest{
-		Data: GameCenterAchievementLocalizationCreateData{
-			Type:       ResourceTypeGameCenterAchievementLocalizations,
-			Attributes: attrs,
-			Relationships: &GameCenterAchievementLocalizationRelationships{
-				GameCenterAchievement: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeGameCenterAchievements,
-						ID:   strings.TrimSpace(achievementID),
-					},
-				},
-			},
-		},
-	}
-
-	return sendJSON[GameCenterAchievementLocalizationResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/gameCenterAchievementLocalizations", Payload: payload})
-}
-
 // CreateGameCenterLeaderboardImage reserves an image upload for a leaderboard localization.
 func (c *Client) CreateGameCenterLeaderboardImage(ctx context.Context, localizationID string, fileName string, fileSize int64) (*GameCenterLeaderboardImageResponse, error) {
 	payload := GameCenterLeaderboardImageCreateRequest{
@@ -262,21 +107,6 @@ func (c *Client) CreateGameCenterLeaderboardImage(ctx context.Context, localizat
 	}
 
 	return sendJSON[GameCenterLeaderboardImageResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/gameCenterLeaderboardImages", Payload: payload})
-}
-
-// UpdateGameCenterLeaderboardImage commits an image upload.
-func (c *Client) UpdateGameCenterLeaderboardImage(ctx context.Context, imageID string, uploaded bool) (*GameCenterLeaderboardImageResponse, error) {
-	payload := GameCenterLeaderboardImageUpdateRequest{
-		Data: GameCenterLeaderboardImageUpdateData{
-			Type: ResourceTypeGameCenterLeaderboardImages,
-			ID:   strings.TrimSpace(imageID),
-			Attributes: &GameCenterLeaderboardImageUpdateAttributes{
-				Uploaded: &uploaded,
-			},
-		},
-	}
-
-	return sendJSON[GameCenterLeaderboardImageResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/gameCenterLeaderboardImages/%s", strings.TrimSpace(imageID)), Payload: payload})
 }
 
 // UploadGameCenterLeaderboardImage performs the full upload flow for a leaderboard image.
@@ -357,21 +187,6 @@ func (c *Client) CreateGameCenterAchievementImage(ctx context.Context, localizat
 	return sendJSON[GameCenterAchievementImageResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/gameCenterAchievementImages", Payload: payload})
 }
 
-// UpdateGameCenterAchievementImage updates a Game Center achievement image (used to commit upload).
-func (c *Client) UpdateGameCenterAchievementImage(ctx context.Context, imageID string, uploaded bool) (*GameCenterAchievementImageResponse, error) {
-	payload := GameCenterAchievementImageUpdateRequest{
-		Data: GameCenterAchievementImageUpdateData{
-			Type: ResourceTypeGameCenterAchievementImages,
-			ID:   strings.TrimSpace(imageID),
-			Attributes: &GameCenterAchievementImageUpdateAttributes{
-				Uploaded: &uploaded,
-			},
-		},
-	}
-
-	return sendJSON[GameCenterAchievementImageResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/gameCenterAchievementImages/%s", strings.TrimSpace(imageID)), Payload: payload})
-}
-
 // UploadGameCenterAchievementImage performs the complete upload flow: reserve, upload chunks, commit.
 func (c *Client) UploadGameCenterAchievementImage(ctx context.Context, localizationID string, filePath string) (*GameCenterAchievementImageUploadResult, error) {
 	// Validate the file
@@ -447,21 +262,6 @@ func (c *Client) CreateGameCenterLeaderboardSetImage(ctx context.Context, locali
 	}
 
 	return sendJSON[GameCenterLeaderboardSetImageResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/gameCenterLeaderboardSetImages", Payload: payload})
-}
-
-// UpdateGameCenterLeaderboardSetImage commits an image upload (sets uploaded=true).
-func (c *Client) UpdateGameCenterLeaderboardSetImage(ctx context.Context, imageID string, uploaded bool) (*GameCenterLeaderboardSetImageResponse, error) {
-	payload := GameCenterLeaderboardSetImageUpdateRequest{
-		Data: GameCenterLeaderboardSetImageUpdateData{
-			Type: ResourceTypeGameCenterLeaderboardSetImages,
-			ID:   strings.TrimSpace(imageID),
-			Attributes: &GameCenterLeaderboardSetImageUpdateAttributes{
-				Uploaded: &uploaded,
-			},
-		},
-	}
-
-	return sendJSON[GameCenterLeaderboardSetImageResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/gameCenterLeaderboardSetImages/%s", strings.TrimSpace(imageID)), Payload: payload})
 }
 
 // UploadGameCenterLeaderboardSetImage performs the full upload flow for a leaderboard set image.

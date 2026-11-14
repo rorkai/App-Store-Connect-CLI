@@ -2,8 +2,13 @@
   "tag": "AppClipDefaultExperiences",
   "file": "app_clip_default_experiences_gen.go",
   "types": [
+    "AppClipDefaultExperienceCreateData",
+    "AppClipDefaultExperienceCreateRelationships",
     "AppClipDefaultExperienceCreateRequest",
     "AppClipDefaultExperienceUpdateRequest"
+  ],
+  "relationships": [
+    {"data":"AppClipDefaultExperienceCreateData","type":"*AppClipDefaultExperienceCreateRelationships"}
   ],
   "operations": [
     {"operation":"appClipDefaultExperiences_appClipAppStoreReviewDetail_getToOneRelated","name":"GetAppClipDefaultExperienceReviewDetail","params":["experienceID"],"check":"require"},

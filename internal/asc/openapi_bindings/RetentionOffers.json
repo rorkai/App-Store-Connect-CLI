@@ -2,7 +2,12 @@
   "tag": "RetentionOffers",
   "file": "retention_offers_gen.go",
   "types": [
+    "RetentionOfferCreateData",
+    "RetentionOfferCreateRelationships",
     "RetentionOfferResponse",
     "RetentionOfferUpdateAttributes"
+  ],
+  "relationships": [
+    {"data":"RetentionOfferCreateData","type":"RetentionOfferCreateRelationships"}
   ]
 }

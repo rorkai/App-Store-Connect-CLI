@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"os"
 	"strconv"
@@ -54,11 +55,21 @@ func ResolveLatestBuild(ctx context.Context, client *asc.Client, opts LatestBuil
 // NormalizeLatestBuildSelectionOptions validates and normalizes the common
 // version/platform filters shared by latest-build selection workflows.
 func NormalizeLatestBuildSelectionOptions(appID, version, platform, processingState string, excludeExpired bool) (LatestBuildSelectionOptions, error) {
+	return normalizeLatestBuildSelectionOptionsTo(os.Stderr, appID, version, platform, processingState, excludeExpired)
+}
+
+// NormalizeLatestBuildSelectionOptions is NormalizeLatestBuildSelectionOptions
+// with the "Error:" line written to d's stderr.
+func (d *Deps) NormalizeLatestBuildSelectionOptions(appID, version, platform, processingState string, excludeExpired bool) (LatestBuildSelectionOptions, error) {
+	return normalizeLatestBuildSelectionOptionsTo(d.IO.ErrOut, appID, version, platform, processingState, excludeExpired)
+}
+
+func normalizeLatestBuildSelectionOptionsTo(stderr io.Writer, appID, version, platform, processingState string, excludeExpired bool) (LatestBuildSelectionOptions, error) {
 	if ResolveAppID(strings.TrimSpace(appID)) == "" {
-		return LatestBuildSelectionOptions{}, UsageError("--app is required (or set ASC_APP_ID)")
+		return LatestBuildSelectionOptions{}, usageErrorTo(stderr, "--app is required (or set ASC_APP_ID)")
 	}
 
-	processingStateValues, err := NormalizeBuildProcessingStateFilter(processingState, BuildProcessingStateFilterOptions{})
+	processingStateValues, err := normalizeBuildProcessingStateFilterTo(stderr, processingState, BuildProcessingStateFilterOptions{})
 	if err != nil {
 		return LatestBuildSelectionOptions{}, err
 	}
@@ -67,7 +78,7 @@ func NormalizeLatestBuildSelectionOptions(appID, version, platform, processingSt
 	if normalizedPlatform != "" {
 		normalizedPlatform, err = NormalizeAppStoreVersionPlatform(normalizedPlatform)
 		if err != nil {
-			return LatestBuildSelectionOptions{}, UsageError(err.Error())
+			return LatestBuildSelectionOptions{}, usageErrorTo(stderr, err.Error())
 		}
 	}
 
