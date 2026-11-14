@@ -1,15 +1,14 @@
 package cmdtest
 
 import (
-	"context"
 	"errors"
 	"flag"
-	"io"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 const batchImportConfirmError = "--confirm is required unless --dry-run is set"
@@ -75,27 +74,12 @@ func TestFileDrivenMutationsRequireConfirm(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			setupAuth(t)
 
-			originalTransport := http.DefaultTransport
-			t.Cleanup(func() {
-				http.DefaultTransport = originalTransport
-			})
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				t.Fatalf("unexpected HTTP request before the apply decision: %s %s", req.Method, req.URL.String())
-				return nil, nil
-			})
+			asctest.NewRegistry(t).Install()
 
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected usage error, got %v", err)
-				}
-			})
+			stdout, stderr, err := runCommand(t, test.args)
+			if !errors.Is(err, flag.ErrHelp) {
+				t.Fatalf("expected usage error, got %v", err)
+			}
 
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
@@ -155,27 +139,12 @@ func TestFileDrivenMutationsGateBeforeReadingInput(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			setupAuth(t)
 
-			originalTransport := http.DefaultTransport
-			t.Cleanup(func() {
-				http.DefaultTransport = originalTransport
-			})
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				t.Fatalf("unexpected HTTP request before the apply decision: %s %s", req.Method, req.URL.String())
-				return nil, nil
-			})
+			asctest.NewRegistry(t).Install()
 
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected usage error, got %v", err)
-				}
-			})
+			stdout, stderr, err := runCommand(t, test.args)
+			if !errors.Is(err, flag.ErrHelp) {
+				t.Fatalf("expected usage error, got %v", err)
+			}
 
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
@@ -195,32 +164,17 @@ func TestFileDrivenMutationsValidateFlagsBeforeConfirmGate(t *testing.T) {
 
 	pricesCSV := writeBatchImportFile(t, "prices.csv", "territory,price\nUSA,0.99\n")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("unexpected HTTP request during flag validation: %s %s", req.Method, req.URL.String())
-		return nil, nil
-	})
+	asctest.NewRegistry(t).Install()
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"subscriptions", "pricing", "prices", "import",
-			"--subscription-id", "6000000001",
-			"--input", pricesCSV,
-			"--start-date", "not-a-date",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected usage error, got %v", err)
-		}
+	stdout, stderr, err := runCommand(t, []string{
+		"subscriptions", "pricing", "prices", "import",
+		"--subscription-id", "6000000001",
+		"--input", pricesCSV,
+		"--start-date", "not-a-date",
 	})
+	if !errors.Is(err, flag.ErrHelp) {
+		t.Fatalf("expected usage error, got %v", err)
+	}
 
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
@@ -240,35 +194,21 @@ func TestFileDrivenMutationsAcceptDryRunWithConfirm(t *testing.T) {
 
 	offersCSV := writeBatchImportFile(t, "offers.csv", "territory\nUSA\n")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("unexpected HTTP request during dry run: %s %s", req.Method, req.URL.String())
-		return nil, nil
-	})
+	asctest.NewRegistry(t).Install()
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"subscriptions", "offers", "introductory", "import",
-			"--subscription-id", "6000000001",
-			"--input", offersCSV,
-			"--offer-duration", "ONE_WEEK",
-			"--offer-mode", "FREE_TRIAL",
-			"--number-of-periods", "1",
-			"--dry-run",
-			"--confirm",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
+	stdout, stderr, err := runCommand(t, []string{
+		"subscriptions", "offers", "introductory", "import",
+		"--subscription-id", "6000000001",
+		"--input", offersCSV,
+		"--offer-duration", "ONE_WEEK",
+		"--offer-mode", "FREE_TRIAL",
+		"--number-of-periods", "1",
+		"--dry-run",
+		"--confirm",
 	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
