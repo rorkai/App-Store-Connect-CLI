@@ -184,6 +184,64 @@ func buildSubscriptionImagesQuery(query *subscriptionImagesQuery) string {
 	return values.Encode()
 }
 
+// SubscriptionIntroductoryOffersOption sets the query of GET /v1/subscriptions/{id}/introductoryOffers (subscriptions_introductoryOffers_getToManyRelated).
+type SubscriptionIntroductoryOffersOption func(*subscriptionIntroductoryOffersQuery)
+
+type subscriptionIntroductoryOffersQuery struct {
+	listQuery
+	territories        []string
+	fields             []string
+	subscriptionFields []string
+	pricePointFields   []string
+	include            []string
+}
+
+// WithSubscriptionIntroductoryOffersTerritories sets filter[territory].
+func WithSubscriptionIntroductoryOffersTerritories(territories []string) SubscriptionIntroductoryOffersOption {
+	return func(q *subscriptionIntroductoryOffersQuery) {
+		q.territories = normalizeUpperList(territories)
+	}
+}
+
+// WithSubscriptionIntroductoryOffersFields sets fields[subscriptionIntroductoryOffers].
+func WithSubscriptionIntroductoryOffersFields(fields []string) SubscriptionIntroductoryOffersOption {
+	return func(q *subscriptionIntroductoryOffersQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+// WithSubscriptionIntroductoryOffersSubscriptionFields sets fields[subscriptions].
+func WithSubscriptionIntroductoryOffersSubscriptionFields(fields []string) SubscriptionIntroductoryOffersOption {
+	return func(q *subscriptionIntroductoryOffersQuery) {
+		q.subscriptionFields = normalizeList(fields)
+	}
+}
+
+// WithSubscriptionIntroductoryOffersPricePointFields sets fields[subscriptionPricePoints].
+func WithSubscriptionIntroductoryOffersPricePointFields(fields []string) SubscriptionIntroductoryOffersOption {
+	return func(q *subscriptionIntroductoryOffersQuery) {
+		q.pricePointFields = normalizeList(fields)
+	}
+}
+
+// WithSubscriptionIntroductoryOffersInclude sets include.
+func WithSubscriptionIntroductoryOffersInclude(include []string) SubscriptionIntroductoryOffersOption {
+	return func(q *subscriptionIntroductoryOffersQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
+func buildSubscriptionIntroductoryOffersQuery(query *subscriptionIntroductoryOffersQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[territory]", query.territories)
+	addCSV(values, "fields[subscriptionIntroductoryOffers]", query.fields)
+	addCSV(values, "fields[subscriptions]", query.subscriptionFields)
+	addCSV(values, "fields[subscriptionPricePoints]", query.pricePointFields)
+	addCSV(values, "include", query.include)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
 // SubscriptionOfferCodesOption sets the query of GET /v1/subscriptions/{id}/offerCodes (subscriptions_offerCodes_getToManyRelated).
 type SubscriptionOfferCodesOption func(*subscriptionOfferCodesQuery)
 

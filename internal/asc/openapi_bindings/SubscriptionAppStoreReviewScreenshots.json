@@ -15,5 +15,8 @@
     {"operation":"subscriptionAppStoreReviewScreenshots_deleteInstance","name":"DeleteSubscriptionAppStoreReviewScreenshot","params":["screenshotID"]},
     {"operation":"subscriptionAppStoreReviewScreenshots_getInstance","name":"GetSubscriptionAppStoreReviewScreenshot","params":["screenshotID"],"options":"SubscriptionAppStoreReviewScreenshotOption","query":"buildSubscriptionAppStoreReviewScreenshotQuery","single":true},
     {"operation":"subscriptionAppStoreReviewScreenshots_updateInstance","name":"UpdateSubscriptionAppStoreReviewScreenshot","params":["screenshotID"],"attrs":"value"}
+  ],
+  "queries": [
+    {"operation":"subscriptionAppStoreReviewScreenshots_getInstance","also":["subscriptions_appStoreReviewScreenshot_getToOneRelated"],"name":"SubscriptionAppStoreReviewScreenshot","params":[{"name":"fields[subscriptionAppStoreReviewScreenshots]"},{"name":"fields[subscriptions]","arg":"fields"},{"name":"include"}]}
   ]
 }

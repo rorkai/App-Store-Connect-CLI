@@ -142,19 +142,6 @@ type GameCenterLeaderboardLocalizationV2CreateData struct {
 // GameCenterLeaderboardLocalizationsResponse is the response from leaderboard localization list endpoints.
 type GameCenterLeaderboardLocalizationsResponse = Response[GameCenterLeaderboardLocalizationAttributes]
 
-// GCLeaderboardLocalizationsOption is a functional option for GetGameCenterLeaderboardLocalizations.
-type GCLeaderboardLocalizationsOption func(*gcLeaderboardLocalizationsQuery)
-
-type gcLeaderboardLocalizationsQuery struct {
-	listQuery
-}
-
-func buildGCLeaderboardLocalizationsQuery(query *gcLeaderboardLocalizationsQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
 // GameCenterLeaderboardReleaseAttributes represents a Game Center leaderboard release resource.
 type GameCenterLeaderboardReleaseAttributes struct {
 	Live bool `json:"live"`
@@ -162,19 +149,6 @@ type GameCenterLeaderboardReleaseAttributes struct {
 
 // GameCenterLeaderboardReleasesResponse is the response from leaderboard release list endpoints.
 type GameCenterLeaderboardReleasesResponse = Response[GameCenterLeaderboardReleaseAttributes]
-
-// GCLeaderboardReleasesOption is a functional option for GetGameCenterLeaderboardReleases.
-type GCLeaderboardReleasesOption func(*gcLeaderboardReleasesQuery)
-
-type gcLeaderboardReleasesQuery struct {
-	listQuery
-}
-
-func buildGCLeaderboardReleasesQuery(query *gcLeaderboardReleasesQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
 
 // GameCenterLeaderboardImageAttributes represents a Game Center leaderboard image resource.
 type GameCenterLeaderboardImageAttributes struct {

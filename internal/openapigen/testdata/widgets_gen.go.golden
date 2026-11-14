@@ -549,3 +549,43 @@ func buildWidgetOwnerQuery(query *widgetOwnerQuery) string {
 	addCSV(values, "fields[widgets]", query.fields)
 	return values.Encode()
 }
+
+// ZippersOption sets the query of GET /v1/zippers (zippers_getCollection), GET /v1/widgets/{id}/zippers (widgets_zippers_getToManyRelated) and GET /v1/yoyos/{id}/zippers (yoyos_zippers_getToManyRelated).
+type ZippersOption func(*zippersQuery)
+
+type zippersQuery struct {
+	listQuery
+	kinds  []string
+	makers []string
+	fields []string
+}
+
+// WithZippersKinds sets filter[kind].
+func WithZippersKinds(kinds []string) ZippersOption {
+	return func(q *zippersQuery) {
+		q.kinds = normalizeUpperList(kinds)
+	}
+}
+
+// WithZippersMakers sets filter[maker].
+func WithZippersMakers(makerIDs []string) ZippersOption {
+	return func(q *zippersQuery) {
+		q.makers = normalizeUniqueList(makerIDs)
+	}
+}
+
+// WithZippersFields sets fields[widgets].
+func WithZippersFields(fields []string) ZippersOption {
+	return func(q *zippersQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+func buildZippersQuery(query *zippersQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[kind]", query.kinds)
+	addCSV(values, "filter[maker]", query.makers)
+	addCSV(values, "fields[widgets]", query.fields)
+	addLimit(values, query.limit)
+	return values.Encode()
+}

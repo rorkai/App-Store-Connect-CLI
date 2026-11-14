@@ -6,5 +6,8 @@
   ],
   "operations": [
     {"operation":"territories_getCollection","name":"GetTerritories","options":"TerritoriesOption","query":"buildTerritoriesQuery","nextContext":"territories","parseErr":"failed to parse territories response"}
+  ],
+  "queries": [
+    {"operation":"territories_getCollection","also":["appTags_territories_getToManyRelated"],"name":"Territories","params":[{"name":"fields[territories]"}]}
   ]
 }

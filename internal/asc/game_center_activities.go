@@ -2,7 +2,6 @@ package asc
 
 import (
 	"encoding/json"
-	"net/url"
 )
 
 // GameCenterActivityAttributes represents a Game Center activity resource.
@@ -55,19 +54,6 @@ type GameCenterActivityVersionInlineCreate struct {
 
 // GameCenterActivitiesResponse is the response from activity list endpoints.
 type GameCenterActivitiesResponse = Response[GameCenterActivityAttributes]
-
-// GCActivitiesOption is a functional option for GetGameCenterActivities.
-type GCActivitiesOption func(*gcActivitiesQuery)
-
-type gcActivitiesQuery struct {
-	listQuery
-}
-
-func buildGCActivitiesQuery(query *gcActivitiesQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
 
 // GameCenterActivityVersionRelationships describes relationships for activity versions.
 type GameCenterActivityVersionRelationships struct {

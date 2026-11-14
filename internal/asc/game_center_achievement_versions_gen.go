@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 )
 
@@ -24,4 +25,17 @@ func (c *Client) GetGameCenterAchievementVersionLocalizations(ctx context.Contex
 		Next:        query.nextURL,
 		NextContext: "game-center-achievement-version-localizations",
 	})
+}
+
+// GCAchievementLocalizationsOption sets the query of GET /v2/gameCenterAchievementVersions/{id}/localizations (gameCenterAchievementVersionsV2_localizations_getToManyRelated) and GET /v1/gameCenterAchievements/{id}/localizations (gameCenterAchievements_localizations_getToManyRelated).
+type GCAchievementLocalizationsOption func(*gcAchievementLocalizationsQuery)
+
+type gcAchievementLocalizationsQuery struct {
+	listQuery
+}
+
+func buildGCAchievementLocalizationsQuery(query *gcAchievementLocalizationsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
 }

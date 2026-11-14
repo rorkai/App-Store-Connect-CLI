@@ -26,19 +26,6 @@ type GameCenterMatchmakingQueueUpdateData struct {
 	Relationships *GameCenterMatchmakingQueueRelationships    `json:"relationships,omitempty"`
 }
 
-// GCMatchmakingQueuesOption is a functional option for GetGameCenterMatchmakingQueues.
-type GCMatchmakingQueuesOption func(*gcMatchmakingQueuesQuery)
-
-type gcMatchmakingQueuesQuery struct {
-	listQuery
-}
-
-func buildGCMatchmakingQueuesQuery(query *gcMatchmakingQueuesQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
 // GameCenterMatchmakingRuleSetAttributes represents a matchmaking rule set resource.
 type GameCenterMatchmakingRuleSetAttributes struct {
 	ReferenceName       string `json:"referenceName"`

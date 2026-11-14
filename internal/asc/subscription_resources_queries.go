@@ -5,9 +5,6 @@ import (
 	"strings"
 )
 
-// SubscriptionIntroductoryOffersOption is a functional option for introductory offers list endpoints.
-type SubscriptionIntroductoryOffersOption func(*subscriptionIntroductoryOffersQuery)
-
 // SubscriptionPricePointsOption configures the subscription-scoped price-points endpoint.
 // It intentionally excludes equalization-only filters such as filter[subscription].
 type SubscriptionPricePointsOption interface {
@@ -42,9 +39,6 @@ func (subscriptionPricePointEqualizationsOnlyOption) subscriptionPricePointEqual
 // SubscriptionPricesOption is a functional option for subscription price list endpoints.
 type SubscriptionPricesOption func(*subscriptionPricesQuery)
 
-// SubscriptionAppStoreReviewScreenshotOption configures the subscription screenshot relationship endpoint.
-type SubscriptionAppStoreReviewScreenshotOption func(*subscriptionAppStoreReviewScreenshotQuery)
-
 // SubscriptionOfferCodeOption configures a subscription offer code detail read.
 type SubscriptionOfferCodeOption func(*subscriptionRelatedFieldsQuery)
 
@@ -54,15 +48,6 @@ type SubscriptionPromotionalOfferOption func(*subscriptionRelatedFieldsQuery)
 type subscriptionRelatedFieldsQuery struct {
 	parentFields []string
 	include      []string
-}
-
-type subscriptionIntroductoryOffersQuery struct {
-	listQuery
-	territories        []string
-	fields             []string
-	subscriptionFields []string
-	pricePointFields   []string
-	include            []string
 }
 
 type subscriptionPricePointsQuery struct {
@@ -85,47 +70,6 @@ type subscriptionPricesQuery struct {
 	priceFields      []string
 	pricePointFields []string
 	territoryFields  []string
-}
-
-type subscriptionAppStoreReviewScreenshotQuery struct {
-	fields             []string
-	subscriptionFields []string
-	include            []string
-}
-
-// WithSubscriptionIntroductoryOffersTerritories filters introductory offers by territory IDs.
-func WithSubscriptionIntroductoryOffersTerritories(territories []string) SubscriptionIntroductoryOffersOption {
-	return func(q *subscriptionIntroductoryOffersQuery) {
-		q.territories = normalizeUpperList(territories)
-	}
-}
-
-// WithSubscriptionIntroductoryOffersFields sets fields for returned introductory offers.
-func WithSubscriptionIntroductoryOffersFields(fields []string) SubscriptionIntroductoryOffersOption {
-	return func(q *subscriptionIntroductoryOffersQuery) {
-		q.fields = normalizeList(fields)
-	}
-}
-
-// WithSubscriptionIntroductoryOffersInclude sets introductory offer relationships to include.
-func WithSubscriptionIntroductoryOffersInclude(include []string) SubscriptionIntroductoryOffersOption {
-	return func(q *subscriptionIntroductoryOffersQuery) {
-		q.include = normalizeList(include)
-	}
-}
-
-// WithSubscriptionIntroductoryOffersSubscriptionFields sets fields[subscriptions] for included subscriptions.
-func WithSubscriptionIntroductoryOffersSubscriptionFields(fields []string) SubscriptionIntroductoryOffersOption {
-	return func(q *subscriptionIntroductoryOffersQuery) {
-		q.subscriptionFields = normalizeList(fields)
-	}
-}
-
-// WithSubscriptionIntroductoryOffersPricePointFields sets fields[subscriptionPricePoints] for included price points.
-func WithSubscriptionIntroductoryOffersPricePointFields(fields []string) SubscriptionIntroductoryOffersOption {
-	return func(q *subscriptionIntroductoryOffersQuery) {
-		q.pricePointFields = normalizeList(fields)
-	}
 }
 
 // WithSubscriptionPricePointsLimit sets the max number of price points to return.
@@ -257,29 +201,6 @@ func WithSubscriptionPricesTerritoryFields(fields []string) SubscriptionPricesOp
 	}
 }
 
-// WithSubscriptionAppStoreReviewScreenshotFields limits returned screenshot fields.
-func WithSubscriptionAppStoreReviewScreenshotFields(fields []string) SubscriptionAppStoreReviewScreenshotOption {
-	return func(q *subscriptionAppStoreReviewScreenshotQuery) {
-		q.fields = normalizeList(fields)
-	}
-}
-
-// WithSubscriptionAppStoreReviewScreenshotSubscriptionFields sets fields[subscriptions] for included subscriptions.
-// It is accepted by both screenshot detail and subscription relationship reads.
-func WithSubscriptionAppStoreReviewScreenshotSubscriptionFields(fields []string) SubscriptionAppStoreReviewScreenshotOption {
-	return func(q *subscriptionAppStoreReviewScreenshotQuery) {
-		q.subscriptionFields = normalizeList(fields)
-	}
-}
-
-// WithSubscriptionAppStoreReviewScreenshotInclude sets relationships to include.
-// It is accepted by both screenshot detail and subscription relationship reads.
-func WithSubscriptionAppStoreReviewScreenshotInclude(include []string) SubscriptionAppStoreReviewScreenshotOption {
-	return func(q *subscriptionAppStoreReviewScreenshotQuery) {
-		q.include = normalizeList(include)
-	}
-}
-
 // WithSubscriptionOfferCodeSubscriptionFields sets fields[subscriptions] on an offer code detail read.
 func WithSubscriptionOfferCodeSubscriptionFields(fields []string) SubscriptionOfferCodeOption {
 	return func(q *subscriptionRelatedFieldsQuery) {
@@ -306,17 +227,6 @@ func WithSubscriptionPromotionalOfferInclude(include []string) SubscriptionPromo
 	return func(q *subscriptionRelatedFieldsQuery) {
 		q.include = normalizeList(include)
 	}
-}
-
-func buildSubscriptionIntroductoryOffersQuery(query *subscriptionIntroductoryOffersQuery) string {
-	values := url.Values{}
-	addCSV(values, "filter[territory]", query.territories)
-	addCSV(values, "fields[subscriptionIntroductoryOffers]", query.fields)
-	addCSV(values, "fields[subscriptions]", query.subscriptionFields)
-	addCSV(values, "fields[subscriptionPricePoints]", query.pricePointFields)
-	addCSV(values, "include", query.include)
-	addLimit(values, query.limit)
-	return values.Encode()
 }
 
 func buildSubscriptionPricePointsQuery(query *subscriptionPricePointsQuery) string {
@@ -352,14 +262,6 @@ func buildSubscriptionPricesQuery(query *subscriptionPricesQuery) string {
 	addCSV(values, "fields[subscriptionPricePoints]", query.pricePointFields)
 	addCSV(values, "fields[territories]", query.territoryFields)
 	addLimit(values, query.limit)
-	return values.Encode()
-}
-
-func buildSubscriptionAppStoreReviewScreenshotQuery(query *subscriptionAppStoreReviewScreenshotQuery) string {
-	values := url.Values{}
-	addCSV(values, "fields[subscriptionAppStoreReviewScreenshots]", query.fields)
-	addCSV(values, "fields[subscriptions]", query.subscriptionFields)
-	addCSV(values, "include", query.include)
 	return values.Encode()
 }
 

@@ -218,9 +218,6 @@ type SubscriptionsOption func(*subscriptionsQuery)
 // SubscriptionOption is a functional option for GetSubscription.
 type SubscriptionOption func(*subscriptionQuery)
 
-// SubscriptionAvailabilityTerritoriesOption is a functional option for availability territory listings.
-type SubscriptionAvailabilityTerritoriesOption func(*subscriptionAvailabilityTerritoriesQuery)
-
 type subscriptionGroupsQuery struct {
 	listQuery
 	include            []string
@@ -267,10 +264,6 @@ type subscriptionQuery struct {
 	relatedFields SubscriptionRelatedFields
 	include       []string
 	versionLimit  int
-}
-
-type subscriptionAvailabilityTerritoriesQuery struct {
-	listQuery
 }
 
 // WithSubscriptionGroupsInclude includes related resources in group responses.
@@ -461,11 +454,5 @@ func buildSubscriptionQuery(query *subscriptionQuery) string {
 	addRelatedSparseFields(values, "fields[subscriptions]", query.fields, query.include, query.relatedFields.sparseFields()...)
 	addCSV(values, "fields[subscriptionVersions]", query.versionFields)
 	addNamedLimit(values, "limit[versions]", query.versionLimit)
-	return values.Encode()
-}
-
-func buildSubscriptionAvailabilityTerritoriesQuery(query *subscriptionAvailabilityTerritoriesQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
 	return values.Encode()
 }

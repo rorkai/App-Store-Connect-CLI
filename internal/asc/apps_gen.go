@@ -459,6 +459,46 @@ func (c *Client) GetAppWebhooks(ctx context.Context, appID string, opts ...Webho
 	})
 }
 
+// AccessibilityDeclarationsOption sets the query of GET /v1/apps/{id}/accessibilityDeclarations (apps_accessibilityDeclarations_getToManyRelated).
+type AccessibilityDeclarationsOption func(*accessibilityDeclarationsQuery)
+
+type accessibilityDeclarationsQuery struct {
+	listQuery
+	deviceFamilies []string
+	states         []string
+	fields         []string
+}
+
+// WithAccessibilityDeclarationsDeviceFamilies sets filter[deviceFamily].
+func WithAccessibilityDeclarationsDeviceFamilies(families []string) AccessibilityDeclarationsOption {
+	return func(q *accessibilityDeclarationsQuery) {
+		q.deviceFamilies = normalizeUpperList(families)
+	}
+}
+
+// WithAccessibilityDeclarationsStates sets filter[state].
+func WithAccessibilityDeclarationsStates(states []string) AccessibilityDeclarationsOption {
+	return func(q *accessibilityDeclarationsQuery) {
+		q.states = normalizeUpperList(states)
+	}
+}
+
+// WithAccessibilityDeclarationsFields sets fields[accessibilityDeclarations].
+func WithAccessibilityDeclarationsFields(fields []string) AccessibilityDeclarationsOption {
+	return func(q *accessibilityDeclarationsQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+func buildAccessibilityDeclarationsQuery(query *accessibilityDeclarationsQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[deviceFamily]", query.deviceFamilies)
+	addCSV(values, "filter[state]", query.states)
+	addCSV(values, "fields[accessibilityDeclarations]", query.fields)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
 // AppClipsOption sets the query of GET /v1/apps/{id}/appClips (apps_appClips_getToManyRelated).
 type AppClipsOption func(*appClipsQuery)
 
@@ -539,6 +579,19 @@ func buildCustomerReviewSummarizationsQuery(query *customerReviewSummarizationsQ
 	return values.Encode()
 }
 
+// GCEnabledVersionsOption sets the query of GET /v1/apps/{id}/gameCenterEnabledVersions (apps_gameCenterEnabledVersions_getToManyRelated) and GET /v1/gameCenterEnabledVersions/{id}/compatibleVersions (gameCenterEnabledVersions_compatibleVersions_getToManyRelated).
+type GCEnabledVersionsOption func(*gcEnabledVersionsQuery)
+
+type gcEnabledVersionsQuery struct {
+	listQuery
+}
+
+func buildGCEnabledVersionsQuery(query *gcEnabledVersionsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
 // AppOption sets the query of GET /v1/apps/{id} (apps_getInstance).
 type AppOption func(*appQuery)
 
@@ -601,6 +654,75 @@ func buildAppQuery(query *appQuery) string {
 	addCSV(values, "fields[subscriptionGroups]", query.subscriptionGroupFields)
 	addCSV(values, "fields[retentionMessages]", query.retentionMessageFields)
 	addCSV(values, "include", query.include)
+	return values.Encode()
+}
+
+// PerfPowerMetricsOption sets the query of GET /v1/apps/{id}/perfPowerMetrics (apps_perfPowerMetrics_getToManyRelated) and GET /v1/builds/{id}/perfPowerMetrics (builds_perfPowerMetrics_getToManyRelated).
+type PerfPowerMetricsOption func(*perfPowerMetricsQuery)
+
+type perfPowerMetricsQuery struct {
+	platforms   []string
+	metricTypes []string
+	deviceTypes []string
+}
+
+// WithPerfPowerMetricsPlatforms sets filter[platform].
+func WithPerfPowerMetricsPlatforms(platforms []string) PerfPowerMetricsOption {
+	return func(q *perfPowerMetricsQuery) {
+		q.platforms = normalizeUpperList(platforms)
+	}
+}
+
+// WithPerfPowerMetricsMetricTypes sets filter[metricType].
+func WithPerfPowerMetricsMetricTypes(types []string) PerfPowerMetricsOption {
+	return func(q *perfPowerMetricsQuery) {
+		q.metricTypes = normalizeUpperList(types)
+	}
+}
+
+// WithPerfPowerMetricsDeviceTypes sets filter[deviceType].
+func WithPerfPowerMetricsDeviceTypes(types []string) PerfPowerMetricsOption {
+	return func(q *perfPowerMetricsQuery) {
+		q.deviceTypes = normalizeList(types)
+	}
+}
+
+func buildPerfPowerMetricsQuery(query *perfPowerMetricsQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[platform]", query.platforms)
+	addCSV(values, "filter[metricType]", query.metricTypes)
+	addCSV(values, "filter[deviceType]", query.deviceTypes)
+	return values.Encode()
+}
+
+// AppSearchKeywordsOption sets the query of GET /v1/apps/{id}/searchKeywords (apps_searchKeywords_getToManyRelated).
+type AppSearchKeywordsOption func(*appSearchKeywordsQuery)
+
+type appSearchKeywordsQuery struct {
+	listQuery
+	platforms []string
+	locales   []string
+}
+
+// WithAppSearchKeywordsPlatforms sets filter[platform].
+func WithAppSearchKeywordsPlatforms(platforms []string) AppSearchKeywordsOption {
+	return func(q *appSearchKeywordsQuery) {
+		q.platforms = normalizeUpperList(platforms)
+	}
+}
+
+// WithAppSearchKeywordsLocales sets filter[locale].
+func WithAppSearchKeywordsLocales(locales []string) AppSearchKeywordsOption {
+	return func(q *appSearchKeywordsQuery) {
+		q.locales = normalizeList(locales)
+	}
+}
+
+func buildAppSearchKeywordsQuery(query *appSearchKeywordsQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[platform]", query.platforms)
+	addCSV(values, "filter[locale]", query.locales)
+	addLimit(values, query.limit)
 	return values.Encode()
 }
 

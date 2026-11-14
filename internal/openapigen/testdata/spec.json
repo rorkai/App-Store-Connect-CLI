@@ -218,6 +218,20 @@
         }
       }
     },
+    "/v1/widgets/{id}/zippers": {
+      "get": {
+        "tags": ["Widgets"],
+        "operationId": "widgets_zippers_getToManyRelated",
+        "parameters": [
+          {"name": "fields[widgets]", "in": "query", "schema": {"type": "array", "items": {"type": "string"}}, "style": "form", "explode": false},
+          {"name": "filter[color]", "in": "query", "schema": {"type": "array", "items": {"type": "string"}}, "style": "form", "explode": true},
+          {"name": "limit", "in": "query", "schema": {"type": "integer", "maximum": 200}, "style": "form"}
+        ],
+        "responses": {
+          "200": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WidgetsResponse"}}}}
+        }
+      }
+    },
     "/v1/yoyos": {
       "post": {
         "tags": ["Yoyos"],
@@ -242,6 +256,35 @@
         "requestBody": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/YoyoUpdateRequest"}}}},
         "responses": {
           "200": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/YoyoResponse"}}}}
+        }
+      }
+    },
+    "/v1/yoyos/{id}/zippers": {
+      "get": {
+        "tags": ["Yoyos"],
+        "operationId": "yoyos_zippers_getToManyRelated",
+        "parameters": [
+          {"name": "filter[kind]", "in": "query", "schema": {"type": "array", "items": {"type": "string"}}, "style": "form", "explode": false},
+          {"name": "fields[widgets]", "in": "query", "schema": {"type": "array", "items": {"type": "string"}}, "style": "form", "explode": false},
+          {"name": "limit", "in": "query", "schema": {"type": "integer", "maximum": 200}, "style": "form"}
+        ],
+        "responses": {
+          "200": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WidgetsResponse"}}}}
+        }
+      }
+    },
+    "/v1/zippers": {
+      "get": {
+        "tags": ["Widgets"],
+        "operationId": "zippers_getCollection",
+        "parameters": [
+          {"name": "filter[kind]", "in": "query", "schema": {"type": "array", "items": {"type": "string"}}, "style": "form", "explode": false},
+          {"name": "filter[maker]", "in": "query", "schema": {"type": "array", "items": {"type": "string"}}, "style": "form", "explode": false},
+          {"name": "fields[widgets]", "in": "query", "schema": {"type": "array", "items": {"type": "string"}}, "style": "form", "explode": false},
+          {"name": "limit", "in": "query", "schema": {"type": "integer", "maximum": 200}, "style": "form"}
+        ],
+        "responses": {
+          "200": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WidgetsResponse"}}}}
         }
       }
     }

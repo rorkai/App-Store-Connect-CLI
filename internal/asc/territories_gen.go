@@ -4,6 +4,7 @@ package asc
 
 import (
 	"context"
+	"net/url"
 )
 
 // TerritoryAttributes is the attributes object of the Territory schema.
@@ -21,4 +22,26 @@ func (c *Client) GetTerritories(ctx context.Context, opts ...TerritoriesOption) 
 		NextContext: "territories",
 		ParseErr:    "failed to parse territories response",
 	})
+}
+
+// TerritoriesOption sets the query of GET /v1/territories (territories_getCollection) and GET /v1/appTags/{id}/territories (appTags_territories_getToManyRelated).
+type TerritoriesOption func(*territoriesQuery)
+
+type territoriesQuery struct {
+	listQuery
+	fields []string
+}
+
+// WithTerritoriesFields sets fields[territories].
+func WithTerritoriesFields(fields []string) TerritoriesOption {
+	return func(q *territoriesQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+func buildTerritoriesQuery(query *territoriesQuery) string {
+	values := url.Values{}
+	addCSV(values, "fields[territories]", query.fields)
+	addLimit(values, query.limit)
+	return values.Encode()
 }

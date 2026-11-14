@@ -125,20 +125,6 @@ type appStoreVersionLocalizationScreenshotSetsQuery struct {
 	includeMedia bool
 }
 
-type appStoreVersionExperimentsQuery struct {
-	listQuery
-	states []string
-}
-
-type appStoreVersionExperimentsV2Query struct {
-	listQuery
-	states []string
-}
-
-type appStoreVersionExperimentTreatmentsQuery struct {
-	listQuery
-}
-
 type appStoreVersionExperimentTreatmentLocalizationsQuery struct {
 	listQuery
 	localizationRelatedQuery
@@ -148,18 +134,6 @@ type appStoreVersionExperimentTreatmentLocalizationScreenshotSetsQuery struct {
 	listQuery
 	includeMedia   bool
 	requestContext RequestContextFunc
-}
-
-type territoriesQuery struct {
-	listQuery
-	fields []string
-}
-
-type appStoreReviewAttachmentsQuery struct {
-	listQuery
-	fieldsAttachments   []string
-	fieldsReviewDetails []string
-	include             []string
 }
 
 func buildReviewQuery(opts []ReviewOption) string {
@@ -212,15 +186,6 @@ func addReviewSelection(values url.Values, query *reviewQuery) {
 	addCSV(values, "fields[customerReviews]", query.fields)
 	addCSV(values, "fields[customerReviewResponses]", query.responseFields)
 	addCSV(values, "fields[territories]", query.territoryFields)
-}
-
-func buildAppStoreReviewAttachmentsQuery(query *appStoreReviewAttachmentsQuery) string {
-	values := url.Values{}
-	addCSV(values, "fields[appStoreReviewAttachments]", query.fieldsAttachments)
-	addCSV(values, "fields[appStoreReviewDetails]", query.fieldsReviewDetails)
-	addCSV(values, "include", query.include)
-	addLimit(values, query.limit)
-	return values.Encode()
 }
 
 func buildAppStoreVersionsQuery(query *appStoreVersionsQuery) string {
@@ -366,26 +331,6 @@ func buildAppStoreVersionLocalizationScreenshotSetsQuery(query *appStoreVersionL
 	return values.Encode()
 }
 
-func buildAppStoreVersionExperimentsQuery(query *appStoreVersionExperimentsQuery) string {
-	values := url.Values{}
-	addCSV(values, "filter[state]", query.states)
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
-func buildAppStoreVersionExperimentsV2Query(query *appStoreVersionExperimentsV2Query) string {
-	values := url.Values{}
-	addCSV(values, "filter[state]", query.states)
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
-func buildAppStoreVersionExperimentTreatmentsQuery(query *appStoreVersionExperimentTreatmentsQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
 func buildAppStoreVersionExperimentTreatmentLocalizationsQuery(query *appStoreVersionExperimentTreatmentLocalizationsQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
@@ -399,13 +344,6 @@ func buildAppStoreVersionExperimentTreatmentLocalizationScreenshotSetsQuery(quer
 	if query.includeMedia {
 		addIncludedSetMedia(values, "appScreenshots")
 	}
-	return values.Encode()
-}
-
-func buildTerritoriesQuery(query *territoriesQuery) string {
-	values := url.Values{}
-	addCSV(values, "fields[territories]", query.fields)
-	addLimit(values, query.limit)
 	return values.Encode()
 }
 
@@ -481,44 +419,8 @@ type AppStoreVersionLocalizationScreenshotSetsOption func(*appStoreVersionLocali
 // AppStoreVersionExperimentTreatmentLocalizationScreenshotSetsOption is a functional option for treatment localization screenshot set list endpoints.
 type AppStoreVersionExperimentTreatmentLocalizationScreenshotSetsOption func(*appStoreVersionExperimentTreatmentLocalizationScreenshotSetsQuery)
 
-// AppStoreVersionExperimentsOption is a functional option for app store version experiment list endpoints (v1).
-type AppStoreVersionExperimentsOption func(*appStoreVersionExperimentsQuery)
-
-// AppStoreVersionExperimentsV2Option is a functional option for app store version experiment list endpoints (v2).
-type AppStoreVersionExperimentsV2Option func(*appStoreVersionExperimentsV2Query)
-
-// AppStoreVersionExperimentTreatmentsOption is a functional option for experiment treatment list endpoints.
-type AppStoreVersionExperimentTreatmentsOption func(*appStoreVersionExperimentTreatmentsQuery)
-
 // AppStoreVersionExperimentTreatmentLocalizationsOption is a functional option for treatment localization list endpoints.
 type AppStoreVersionExperimentTreatmentLocalizationsOption func(*appStoreVersionExperimentTreatmentLocalizationsQuery)
-
-// TerritoriesOption is a functional option for GetTerritories.
-type TerritoriesOption func(*territoriesQuery)
-
-// AppStoreReviewAttachmentsOption is a functional option for review attachments.
-type AppStoreReviewAttachmentsOption func(*appStoreReviewAttachmentsQuery)
-
-// WithAppStoreReviewAttachmentsFields includes specific attachment fields.
-func WithAppStoreReviewAttachmentsFields(fields []string) AppStoreReviewAttachmentsOption {
-	return func(q *appStoreReviewAttachmentsQuery) {
-		q.fieldsAttachments = normalizeList(fields)
-	}
-}
-
-// WithAppStoreReviewAttachmentReviewDetailFields includes fields for review detail when included.
-func WithAppStoreReviewAttachmentReviewDetailFields(fields []string) AppStoreReviewAttachmentsOption {
-	return func(q *appStoreReviewAttachmentsQuery) {
-		q.fieldsReviewDetails = normalizeList(fields)
-	}
-}
-
-// WithAppStoreReviewAttachmentsInclude includes related resources.
-func WithAppStoreReviewAttachmentsInclude(include []string) AppStoreReviewAttachmentsOption {
-	return func(q *appStoreReviewAttachmentsQuery) {
-		q.include = normalizeList(include)
-	}
-}
 
 // WithRatings filters reviews by one or more star ratings (1-5). Apple models
 // filter[rating] as a comma-separated array parameter, so several ratings match
@@ -808,13 +710,6 @@ func WithAppInfoLocalizationsIncludeLimit(limit int) AppInfoOption {
 	}
 }
 
-// WithTerritoriesFields sets fields[territories] for territory responses.
-func WithTerritoriesFields(fields []string) TerritoriesOption {
-	return func(q *territoriesQuery) {
-		q.fields = normalizeList(fields)
-	}
-}
-
 // WithAppCustomProductPagesVisible filters custom product pages by visibility.
 func WithAppCustomProductPagesVisible(values []string) AppCustomProductPagesOption {
 	return func(q *appCustomProductPagesQuery) {
@@ -908,20 +803,6 @@ func WithAppStoreVersionLocalizationScreenshotSetsIncludeScreenshots() AppStoreV
 func WithAppStoreVersionExperimentTreatmentLocalizationScreenshotSetsIncludeScreenshots() AppStoreVersionExperimentTreatmentLocalizationScreenshotSetsOption {
 	return func(q *appStoreVersionExperimentTreatmentLocalizationScreenshotSetsQuery) {
 		q.includeMedia = true
-	}
-}
-
-// WithAppStoreVersionExperimentsState filters experiments by state.
-func WithAppStoreVersionExperimentsState(states []string) AppStoreVersionExperimentsOption {
-	return func(q *appStoreVersionExperimentsQuery) {
-		q.states = normalizeUpperList(states)
-	}
-}
-
-// WithAppStoreVersionExperimentsV2State filters experiments by state (v2).
-func WithAppStoreVersionExperimentsV2State(states []string) AppStoreVersionExperimentsV2Option {
-	return func(q *appStoreVersionExperimentsV2Query) {
-		q.states = normalizeUpperList(states)
 	}
 }
 

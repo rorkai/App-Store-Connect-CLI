@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -44,6 +45,12 @@ func TestGenerateRejectsMalformedQueryBindings(t *testing.T) {
 		{"parameter bound twice", &QueryBind{Operation: "widgets_getCollection", Name: "X", Params: []*QueryParam{param("include", ""), param("include", "other")}}},
 		{"filter without a field name", &QueryBind{Operation: "widgets_getCollection", Name: "X", Params: []*QueryParam{param("filter[name]", "")}}},
 		{"a query that sends nothing", &QueryBind{Operation: "widgets_owner_getToOneRelated", Name: "X"}},
+		{"also names an unknown operation", &QueryBind{Operation: "zippers_getCollection", Also: []string{"widgets_missing"}, Name: "X"}},
+		{"also names a write", &QueryBind{Operation: "zippers_getCollection", Also: []string{"widgets_createInstance"}, Name: "X"}},
+		{"operation listed twice", &QueryBind{Operation: "zippers_getCollection", Also: []string{"zippers_getCollection"}, Name: "X"}},
+		{"parameter none of the reads defines", &QueryBind{Operation: "zippers_getCollection", Also: []string{"yoyos_zippers_getToManyRelated"}, Name: "X", Params: []*QueryParam{param("filter[size]", "sizes")}}},
+		{"parameter another read sends as repeated values", &QueryBind{Operation: "zippers_getCollection", Also: []string{"widgets_zippers_getToManyRelated"}, Name: "X", Params: []*QueryParam{param("filter[color]", "colors")}}},
+		{"unknown normalize", &QueryBind{Operation: "zippers_getCollection", Name: "X", Params: []*QueryParam{{Name: "filter[kind]", Field: "kinds", Normalize: "lower"}}}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -55,6 +62,17 @@ func TestGenerateRejectsMalformedQueryBindings(t *testing.T) {
 				t.Fatal("registry rendered an unknown operation")
 			}
 		})
+	}
+}
+
+func TestQueryRegistryRejectsAnOperationWithTwoQueries(t *testing.T) {
+	spec, _ := loadTestdata(t)
+	fam := &Family{Tag: "Widgets", Queries: []*QueryBind{
+		{Operation: "zippers_getCollection", Name: "Zippers"},
+		{Operation: "yoyos_zippers_getToManyRelated", Also: []string{"zippers_getCollection"}, Name: "YoyoZippers"},
+	}}
+	if _, err := renderQueryRegistry(spec, &Bindings{Families: []*Family{fam}}); err == nil || !strings.Contains(err.Error(), "zippers_getCollection has two queries") {
+		t.Fatalf("err = %v, want zippers_getCollection has two queries", err)
 	}
 }
 
@@ -132,9 +150,9 @@ func WithWidgetsIncluded(include []string) WidgetsOption {
 	return func(q *widgetsQuery) { q.include = normalizeList(include) }
 }
 
-// WithWidgetOwnerFields upper-cases its values, so the owner query stays hand-written.
+// WithWidgetOwnerFields upper-cases and de-duplicates its values, so the owner query stays hand-written.
 func WithWidgetOwnerFields(fields []string) OwnerOption {
-	return func(q *widgetOwnerQuery) { q.fields = normalizeUpperList(fields) }
+	return func(q *widgetOwnerQuery) { q.fields = normalizeUniqueList(normalizeUpperList(fields)) }
 }
 
 func buildWidgetsQuery(query *widgetsQuery) string {
@@ -213,5 +231,131 @@ func widgetsQueryForLogs() string { return buildWidgetsQuery(&widgetsQuery{}) }
 	}
 	if want := "Widgets\twidgets_getCollection\tquery buildWidgetsQuery\tkept: used by widgetsQueryForLogs"; !strings.Contains(report.String(), want) {
 		t.Errorf("report lacks %q:\n%s", want, report.String())
+	}
+}
+
+const handWrittenSharedQuery = `package asc
+
+import (
+	"context"
+	"fmt"
+	"net/url"
+)
+
+// GetZippers logs, so it stays hand-written.
+func (c *Client) GetZippers(ctx context.Context, opts ...ZippersOption) (*WidgetsResponse, error) {
+	query := applyOptions(opts)
+	fmt.Println("listing zippers")
+	return getJSON[WidgetsResponse](ctx, c, readRequest{Path: "/v1/zippers", Query: buildZippersQuery(query), Next: query.nextURL})
+}
+
+// GetWidgetZippers logs, so it stays hand-written.
+func (c *Client) GetWidgetZippers(ctx context.Context, widgetID string, opts ...ZippersOption) (*WidgetsResponse, error) {
+	query := applyOptions(opts)
+	fmt.Println("listing widget zippers")
+	return getJSON[WidgetsResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/widgets/%s/zippers", widgetID), Query: buildZippersQuery(query), Next: query.nextURL})
+}
+
+// GetYoyoZippers logs, so it stays hand-written.
+func (c *Client) GetYoyoZippers(ctx context.Context, yoyoID string, opts ...ZippersOption) (*WidgetsResponse, error) {
+	query := applyOptions(opts)
+	fmt.Println("listing yoyo zippers")
+	return getJSON[WidgetsResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/yoyos/%s/zippers", yoyoID), Query: buildZippersQuery(query), Next: query.nextURL})
+}
+
+// ZippersOption configures the zipper reads.
+type ZippersOption func(*zippersQuery)
+
+type zippersQuery struct {
+	listQuery
+	kinds  []string
+	makers []string
+	fields []string
+}
+
+// WithZippersKinds filters by kind.
+func WithZippersKinds(kinds []string) ZippersOption {
+	return func(q *zippersQuery) { q.kinds = normalizeUpperList(kinds) }
+}
+
+// WithZippersMakers filters by maker.
+func WithZippersMakers(makerIDs []string) ZippersOption {
+	return func(q *zippersQuery) { q.makers = normalizeUniqueList(makerIDs) }
+}
+
+// WithZippersFields selects widget fields.
+func WithZippersFields(fields []string) ZippersOption {
+	return func(q *zippersQuery) { q.fields = normalizeList(fields) }
+}
+
+func buildZippersQuery(query *zippersQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[kind]", query.kinds)
+	addCSV(values, "filter[maker]", query.makers)
+	addCSV(values, "fields[widgets]", query.fields)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+`
+
+func TestAdoptQueriesSharesABuilderAcrossReads(t *testing.T) {
+	dir := writeHandWritten(t, map[string]string{"queries.go": handWrittenSharedQuery})
+	spec, bindings := filepath.Join("testdata", "spec.json"), filepath.Join(dir, "bindings")
+	var report bytes.Buffer
+	if err := run(spec, bindings, dir, false, "Yoyos", false, &report); err != nil {
+		t.Fatal(err)
+	}
+	if want := "Yoyos\tyoyos_zippers_getToManyRelated\tquery buildZippersQuery\tkept: shared with zippers_getCollection, adopted with tag Widgets"; !strings.Contains(report.String(), want) {
+		t.Errorf("report lacks %q:\n%s", want, report.String())
+	}
+	if queries := readFile(t, filepath.Join(dir, "queries.go")); !strings.Contains(queries, "func buildZippersQuery(") {
+		t.Fatalf("adopting Yoyos removed the shared builder:\n%s", queries)
+	}
+
+	report.Reset()
+	if err := run(spec, bindings, dir, false, "Widgets", false, &report); err != nil {
+		t.Fatal(err)
+	}
+	for _, line := range []string{
+		"Widgets\twidgets_zippers_getToManyRelated\tquery buildZippersQuery\tgenerated",
+		"Widgets\tzippers_getCollection\tquery already generated",
+	} {
+		if !strings.Contains(report.String(), line) {
+			t.Errorf("report lacks %q:\n%s", line, report.String())
+		}
+	}
+	_, testdata := loadTestdata(t)
+	lines, err := jsonLines(testdata.Families[0].Queries[2:3])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := readFile(t, filepath.Join(bindings, "Widgets.json")); !strings.Contains(got, "\"queries\": [\n    "+lines[0]+"\n  ]") {
+		t.Errorf("bindings after adopt:\n%s\nwant the query %s", got, lines[0])
+	}
+	if generated := readFile(t, filepath.Join(dir, "widgets_gen.go")); strings.Count(generated, "func buildZippersQuery(") != 1 || strings.Count(generated, "type ZippersOption ") != 1 {
+		t.Errorf("widgets_gen.go:\n%s", generated)
+	}
+	queries := readFile(t, filepath.Join(dir, "queries.go"))
+	for _, gone := range []string{"ZippersOption func", "zippersQuery struct", "func WithZippers", "func buildZippersQuery"} {
+		if strings.Contains(queries, gone) {
+			t.Errorf("queries.go still declares %q:\n%s", gone, queries)
+		}
+	}
+	registry := readFile(t, filepath.Join(dir, queryRegistry))
+	for _, op := range []string{"zippers_getCollection", "widgets_zippers_getToManyRelated", "yoyos_zippers_getToManyRelated"} {
+		if !strings.Contains(registry, strconv.Quote(op)+": {\n\t\tbuild: buildZippersQuery,") {
+			t.Errorf("%s lacks %s:\n%s", queryRegistry, op, registry)
+		}
+	}
+
+	report.Reset()
+	if err := run(spec, bindings, dir, false, "Yoyos", true, &report); err != nil {
+		t.Fatal(err)
+	}
+	if want := "Yoyos\tyoyos_zippers_getToManyRelated\tquery already generated"; !strings.Contains(report.String(), want) {
+		t.Errorf("report lacks %q:\n%s", want, report.String())
+	}
+	if err := run(spec, bindings, dir, true, "", false, &report); err != nil {
+		t.Fatalf("check right after adopt: %v", err)
 	}
 }

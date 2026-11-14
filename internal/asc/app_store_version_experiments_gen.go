@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -212,4 +213,17 @@ func (c *Client) UpdateAppStoreVersionExperiment(ctx context.Context, experiment
 		Path:    fmt.Sprintf("/v1/appStoreVersionExperiments/%s", experimentID),
 		Payload: payload,
 	})
+}
+
+// AppStoreVersionExperimentTreatmentsOption sets the query of GET /v2/appStoreVersionExperiments/{id}/appStoreVersionExperimentTreatments (appStoreVersionExperimentsV2_appStoreVersionExperimentTreatments_getToManyRelated) and GET /v1/appStoreVersionExperiments/{id}/appStoreVersionExperimentTreatments (appStoreVersionExperiments_appStoreVersionExperimentTreatments_getToManyRelated).
+type AppStoreVersionExperimentTreatmentsOption func(*appStoreVersionExperimentTreatmentsQuery)
+
+type appStoreVersionExperimentTreatmentsQuery struct {
+	listQuery
+}
+
+func buildAppStoreVersionExperimentTreatmentsQuery(query *appStoreVersionExperimentTreatmentsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
 }

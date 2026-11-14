@@ -415,19 +415,6 @@ func ciProductsFieldsWithIncludes(fields, include []string) []string {
 	return combined
 }
 
-type ciProductRepositoriesQuery struct {
-	listQuery
-}
-
-// CiProductRepositoriesOption is a functional option for CI product repository lists.
-type CiProductRepositoriesOption func(*ciProductRepositoriesQuery)
-
-func buildCiProductRepositoriesQuery(query *ciProductRepositoriesQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
 // GetCiWorkflowRaw retrieves a CI workflow by ID as the unmodified Apple response body.
 // Duplicating a workflow needs fields that the typed CiWorkflowResource omits or
 // drops through omitempty, so the raw envelope is the only lossless source.

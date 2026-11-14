@@ -18,5 +18,8 @@
     {"operation":"gameCenterAppVersions_compatibilityVersions_getToManyRelated","name":"GetGameCenterAppVersionCompatibilityVersions","params":["appVersionID"],"check":"require","options":"GCAppVersionsOption","query":"buildGCAppVersionsQuery","nextContext":"game-center-app-version-compatibility"},
     {"operation":"gameCenterAppVersions_createInstance","name":"CreateGameCenterAppVersion","params":["appStoreVersionID"],"check":"require","links":["appStoreVersion"]},
     {"operation":"gameCenterAppVersions_getInstance","name":"GetGameCenterAppVersion","params":["appVersionID"]}
+  ],
+  "queries": [
+    {"operation":"gameCenterAppVersions_compatibilityVersions_getToManyRelated","also":["gameCenterDetails_gameCenterAppVersions_getToManyRelated"],"name":"GCAppVersions","deviations":[{"problem":"query parameters [fields[appStoreVersions] fields[gameCenterAppVersions] filter[enabled] include limit[compatibilityVersions]] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."},{"operation":"gameCenterDetails_gameCenterAppVersions_getToManyRelated","problem":"query parameters [fields[appStoreVersions] fields[gameCenterAppVersions] filter[enabled] include limit[compatibilityVersions]] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]}
   ]
 }

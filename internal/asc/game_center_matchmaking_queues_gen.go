@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -119,4 +120,17 @@ func (c *Client) GetGameCenterMatchmakingQueueSessions(ctx context.Context, queu
 		Next:        query.nextURL,
 		NextContext: "game-center-matchmaking-queue-sessions",
 	})
+}
+
+// GCMatchmakingQueuesOption sets the query of GET /v1/gameCenterMatchmakingQueues (gameCenterMatchmakingQueues_getCollection) and GET /v1/gameCenterMatchmakingRuleSets/{id}/matchmakingQueues (gameCenterMatchmakingRuleSets_matchmakingQueues_getToManyRelated).
+type GCMatchmakingQueuesOption func(*gcMatchmakingQueuesQuery)
+
+type gcMatchmakingQueuesQuery struct {
+	listQuery
+}
+
+func buildGCMatchmakingQueuesQuery(query *gcMatchmakingQueuesQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
 }

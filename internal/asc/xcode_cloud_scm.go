@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/url"
 	"strings"
 )
 
@@ -151,19 +150,6 @@ func (r *ScmPullRequestsResponse) GetData() any {
 type ScmPullRequestResponse struct {
 	Data  ScmPullRequestResource `json:"data"`
 	Links Links                  `json:"links"`
-}
-
-type scmRepositoriesQuery struct {
-	listQuery
-}
-
-// ScmRepositoriesOption is a functional option for GetScmRepositories.
-type ScmRepositoriesOption func(*scmRepositoriesQuery)
-
-func buildScmRepositoriesQuery(query *scmRepositoriesQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
 }
 
 // GetScmRepository retrieves an SCM repository by ID.

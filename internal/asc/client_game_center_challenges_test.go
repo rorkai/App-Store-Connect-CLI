@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"os"
 	"path/filepath"
 	"testing"
@@ -370,27 +369,5 @@ func TestCreateGameCenterChallengeVersionRelease(t *testing.T) {
 
 	if _, err := client.CreateGameCenterChallengeVersionRelease(context.Background(), "ver-1"); err != nil {
 		t.Fatalf("CreateGameCenterChallengeVersionRelease() error: %v", err)
-	}
-}
-
-func TestGCChallengesOptions(t *testing.T) {
-	query := &gcChallengesQuery{}
-	if got := buildGCChallengesQuery(query); got != "" {
-		t.Fatalf("expected empty query, got %q", got)
-	}
-	Limit[GCChallengesOption](25)(query)
-	if query.limit != 25 {
-		t.Fatalf("expected limit 25, got %d", query.limit)
-	}
-	NextURL[GCChallengesOption](" https://example.com/next ")(query)
-	if query.nextURL != "https://example.com/next" {
-		t.Fatalf("expected nextURL set, got %q", query.nextURL)
-	}
-	values, err := url.ParseQuery(buildGCChallengesQuery(query))
-	if err != nil {
-		t.Fatalf("parse query: %v", err)
-	}
-	if values.Get("limit") != "25" {
-		t.Fatalf("expected limit=25, got %q", values.Get("limit"))
 	}
 }

@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 )
 
@@ -72,4 +73,53 @@ func (c *Client) GetAppPriceScheduleManualPrices(ctx context.Context, scheduleID
 		NextContext: "appPriceScheduleManualPrices",
 		ParseErr:    "failed to parse manual prices response",
 	})
+}
+
+// AppPriceSchedulePricesOption sets the query of GET /v1/appPriceSchedules/{id}/automaticPrices (appPriceSchedules_automaticPrices_getToManyRelated) and GET /v1/appPriceSchedules/{id}/manualPrices (appPriceSchedules_manualPrices_getToManyRelated).
+type AppPriceSchedulePricesOption func(*appPriceSchedulePricesQuery)
+
+type appPriceSchedulePricesQuery struct {
+	listQuery
+	include          []string
+	priceFields      []string
+	pricePointFields []string
+	territoryFields  []string
+}
+
+// WithAppPriceSchedulePricesInclude sets include.
+func WithAppPriceSchedulePricesInclude(include []string) AppPriceSchedulePricesOption {
+	return func(q *appPriceSchedulePricesQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
+// WithAppPriceSchedulePricesFields sets fields[appPrices].
+func WithAppPriceSchedulePricesFields(fields []string) AppPriceSchedulePricesOption {
+	return func(q *appPriceSchedulePricesQuery) {
+		q.priceFields = normalizeList(fields)
+	}
+}
+
+// WithAppPriceSchedulePricesPricePointFields sets fields[appPricePoints].
+func WithAppPriceSchedulePricesPricePointFields(fields []string) AppPriceSchedulePricesOption {
+	return func(q *appPriceSchedulePricesQuery) {
+		q.pricePointFields = normalizeList(fields)
+	}
+}
+
+// WithAppPriceSchedulePricesTerritoryFields sets fields[territories].
+func WithAppPriceSchedulePricesTerritoryFields(fields []string) AppPriceSchedulePricesOption {
+	return func(q *appPriceSchedulePricesQuery) {
+		q.territoryFields = normalizeList(fields)
+	}
+}
+
+func buildAppPriceSchedulePricesQuery(query *appPriceSchedulePricesQuery) string {
+	values := url.Values{}
+	addCSV(values, "include", query.include)
+	addCSV(values, "fields[appPrices]", query.priceFields)
+	addCSV(values, "fields[appPricePoints]", query.pricePointFields)
+	addCSV(values, "fields[territories]", query.territoryFields)
+	addLimit(values, query.limit)
+	return values.Encode()
 }

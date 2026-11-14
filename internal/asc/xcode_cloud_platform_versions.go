@@ -1,9 +1,5 @@
 package asc
 
-import (
-	"net/url"
-)
-
 // CiTestDestinationKind represents the kind of test destination.
 type CiTestDestinationKind string
 
@@ -105,30 +101,4 @@ type CiXcodeVersionResponse struct {
 	Data     CiXcodeVersionResource   `json:"data"`
 	Included []CiMacOsVersionResource `json:"included,omitempty"`
 	Links    Links                    `json:"links"`
-}
-
-type ciMacOsVersionsQuery struct {
-	listQuery
-}
-
-// CiMacOsVersionsOption is a functional option for GetCiMacOsVersions.
-type CiMacOsVersionsOption func(*ciMacOsVersionsQuery)
-
-func buildCiMacOsVersionsQuery(query *ciMacOsVersionsQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
-type ciXcodeVersionsQuery struct {
-	listQuery
-}
-
-// CiXcodeVersionsOption is a functional option for GetCiXcodeVersions.
-type CiXcodeVersionsOption func(*ciXcodeVersionsQuery)
-
-func buildCiXcodeVersionsQuery(query *ciXcodeVersionsQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
 }

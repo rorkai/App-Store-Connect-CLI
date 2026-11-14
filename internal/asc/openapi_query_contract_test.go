@@ -73,22 +73,30 @@ var loadContractQueryParams = sync.OnceValues(func() (map[string]map[string]cont
 type contractQueryFamily struct {
 	Tag     string `json:"tag"`
 	Queries []struct {
-		Operation  string `json:"operation"`
-		Name       string `json:"name"`
+		Operation string   `json:"operation"`
+		Also      []string `json:"also"`
+		Name      string   `json:"name"`
+		Params    []struct {
+			Name      string `json:"name"`
+			Normalize string `json:"normalize"`
+		} `json:"params"`
 		Deviations []struct {
-			Problem string `json:"problem"`
-			Reason  string `json:"reason"`
+			Operation string `json:"operation"`
+			Problem   string `json:"problem"`
+			Reason    string `json:"reason"`
 		} `json:"deviations"`
 	} `json:"queries"`
 }
 
 // TestGeneratedQueriesMatchSchema calls every generated query builder with
-// each of its With options set to a synthetic list and checks that the
-// option sends exactly the parameter the schema defines for it, with the
-// list trimmed, without blank items and encoded as the schema says; that
-// limit is sent for an operation that pages; and that
-// every query parameter of the operation has an option. Differences recorded
-// in the bindings as deviations are excused exactly as for methods.
+// each of its With options set to a synthetic list and checks, for every read
+// the query serves, that the option sends exactly the parameter the schema
+// defines for it, with the list cleaned as its binding says (trimmed, without
+// blank items, and de-duplicated or upper-cased) and encoded as the schema
+// says; that limit is sent for an operation that pages; and that every query
+// parameter of the operation has an option. Differences recorded in the
+// bindings as deviations, on the read they concern, are excused exactly as
+// for methods.
 func TestGeneratedQueriesMatchSchema(t *testing.T) {
 	params, err := loadContractQueryParams()
 	if err != nil {
@@ -110,23 +118,37 @@ func TestGeneratedQueriesMatchSchema(t *testing.T) {
 			t.Fatalf("%s: %v", path, err)
 		}
 		for _, b := range family.Queries {
-			queries++
 			deviations += len(b.Deviations)
-			bound[b.Operation] = true
-			opParams, ok := params[b.Operation]
-			if !ok {
-				t.Errorf("query %s (%s): operation not in %s", b.Name, b.Operation, contractSpecPath)
-				continue
+			normalize := map[string]string{}
+			for _, p := range b.Params {
+				normalize[p.Name] = p.Normalize
 			}
-			binding := &contractOpBinding{Operation: b.Operation, Name: b.Name}
+			served := append([]string{b.Operation}, b.Also...)
 			for _, d := range b.Deviations {
-				binding.Deviations = append(binding.Deviations, struct {
-					Problem string `json:"problem"`
-					Reason  string `json:"reason"`
-				}{d.Problem, d.Reason})
+				if d.Operation != "" && !slices.Contains(b.Also, d.Operation) {
+					t.Errorf("query %s: deviation %q is recorded on %s, which the query does not serve", b.Name, d.Problem, d.Operation)
+				}
 			}
-			for _, problem := range unrecordedContractProblems(family.Tag, binding, checkGeneratedQuery(b.Operation, opParams)) {
-				t.Errorf("query of %s (build%sQuery): %s", b.Operation, b.Name, problem)
+			for _, operation := range served {
+				queries++
+				bound[operation] = true
+				opParams, ok := params[operation]
+				if !ok {
+					t.Errorf("query %s (%s): operation not in %s", b.Name, operation, contractSpecPath)
+					continue
+				}
+				binding := &contractOpBinding{Operation: operation, Name: b.Name}
+				for _, d := range b.Deviations {
+					if d.Operation == operation || d.Operation == "" && operation == b.Operation {
+						binding.Deviations = append(binding.Deviations, struct {
+							Problem string `json:"problem"`
+							Reason  string `json:"reason"`
+						}{d.Problem, d.Reason})
+					}
+				}
+				for _, problem := range unrecordedContractProblems(family.Tag, binding, checkGeneratedQuery(operation, opParams, normalize)) {
+					t.Errorf("query of %s (build%sQuery): %s", operation, b.Name, problem)
+				}
 			}
 		}
 	}
@@ -136,21 +158,27 @@ func TestGeneratedQueriesMatchSchema(t *testing.T) {
 		}
 	}
 	if queries != len(generatedQueries) {
-		t.Errorf("%d queries in the bindings, %d in generatedQueries", queries, len(generatedQueries))
+		t.Errorf("%d reads served by the queries in the bindings, %d in generatedQueries", queries, len(generatedQueries))
 	}
-	t.Logf("%d generated queries checked, %d recorded deviations", queries, deviations)
+	t.Logf("%d reads of generated queries checked, %d recorded deviations", queries, deviations)
 }
 
 // contractQueryValues is the synthetic list every With option is called
-// with; a generated option sends it as contractQuerySent.
+// with; a generated option sends it as contractQuerySent says for the
+// option's normalize binding.
 var (
-	contractQueryValues = []string{" contract-1 ", "", "contract-2"}
-	contractQuerySent   = []string{"contract-1", "contract-2"}
+	contractQueryValues = []string{" contract-1 ", "", "contract-2", "contract-1"}
+	contractQuerySent   = map[string][]string{
+		"":       {"contract-1", "contract-2", "contract-1"},
+		"unique": {"contract-1", "contract-2"},
+		"upper":  {"CONTRACT-1", "CONTRACT-2", "CONTRACT-1"},
+	}
 )
 
 // checkGeneratedQuery returns every difference between what the generated
-// query of an operation sends and what the schema defines.
-func checkGeneratedQuery(operation string, params map[string]contractQueryParam) []string {
+// query of an operation sends and what the schema defines. normalize holds
+// the normalize binding of each parameter.
+func checkGeneratedQuery(operation string, params map[string]contractQueryParam, normalize map[string]string) []string {
 	query, ok := generatedQueries[operation]
 	if !ok {
 		return []string{"not in generatedQueries"}
@@ -172,7 +200,7 @@ func checkGeneratedQuery(operation string, params map[string]contractQueryParam)
 
 	send := func(apply func(q reflect.Value)) url.Values {
 		q := reflect.New(queryType.Elem())
-		if pages {
+		if paged {
 			q.Interface().(pager).page().limit = contractLimit
 		}
 		apply(q)
@@ -205,11 +233,16 @@ func checkGeneratedQuery(operation string, params map[string]contractQueryParam)
 			problems = append(problems, fmt.Sprintf("%s is a %s, not a func([]string) option of %s", label, typ, queryType))
 			continue
 		}
+		sent, ok := contractQuerySent[normalize[name]]
+		if !ok {
+			problems = append(problems, fmt.Sprintf("%s has unknown normalize %q", label, normalize[name]))
+			continue
+		}
 		set := option.Call([]reflect.Value{reflect.ValueOf(slices.Clone(contractQueryValues))})[0]
 		got := send(func(q reflect.Value) { set.Call([]reflect.Value{q}) })
 		want := url.Values{}
 		maps.Copy(want, base)
-		want[name] = contractQueryEncoding(param)
+		want[name] = contractQueryEncoding(param, sent)
 		if !reflect.DeepEqual(got, want) {
 			problems = append(problems, fmt.Sprintf("%s(%q) sent %v, want %v", label, contractQueryValues, got, want))
 		}
@@ -230,9 +263,9 @@ func checkGeneratedQuery(operation string, params map[string]contractQueryParam)
 
 // contractQueryEncoding is how the schema sends the list: an array in form
 // style without explode is one comma-separated value.
-func contractQueryEncoding(param contractQueryParam) []string {
+func contractQueryEncoding(param contractQueryParam, sent []string) []string {
 	if param.Schema != nil && param.Schema.Type == "array" && param.Explode != nil && !*param.Explode {
-		return []string{strings.Join(contractQuerySent, ",")}
+		return []string{strings.Join(sent, ",")}
 	}
-	return slices.Clone(contractQuerySent)
+	return slices.Clone(sent)
 }
