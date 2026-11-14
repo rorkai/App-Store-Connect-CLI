@@ -122,18 +122,6 @@ type AppInfosResponse = Response[AppInfoAttributes]
 // AppInfoResponse is the response from app info detail endpoints.
 type AppInfoResponse = SingleResponse[AppInfoAttributes]
 
-// BetaGroupsResponse is the response from beta groups endpoints.
-type BetaGroupsResponse = Response[BetaGroupAttributes]
-
-// BetaGroupResponse is the response from beta group detail/creates.
-type BetaGroupResponse = SingleResponse[BetaGroupAttributes]
-
-// BetaTestersResponse is the response from beta testers endpoints.
-type BetaTestersResponse = Response[BetaTesterAttributes]
-
-// BetaTesterResponse is the response from beta tester detail/creates.
-type BetaTesterResponse = SingleResponse[BetaTesterAttributes]
-
 // BetaTesterInvitationResponse is the response from beta tester invitations.
 type BetaTesterInvitationResponse = SingleResponse[struct{}]
 
@@ -612,22 +600,6 @@ type BetaGroupCreateData struct {
 	Relationships *BetaGroupRelationships   `json:"relationships"`
 }
 
-// BetaGroupCreateAttributes describes attributes accepted when creating a beta group.
-type BetaGroupCreateAttributes struct {
-	Name                   string `json:"name"`
-	IsInternalGroup        *bool  `json:"isInternalGroup,omitempty"`
-	HasAccessToAllBuilds   *bool  `json:"hasAccessToAllBuilds,omitempty"`
-	PublicLinkEnabled      *bool  `json:"publicLinkEnabled,omitempty"`
-	PublicLinkLimitEnabled *bool  `json:"publicLinkLimitEnabled,omitempty"`
-	PublicLinkLimit        *int   `json:"publicLinkLimit,omitempty"`
-	FeedbackEnabled        *bool  `json:"feedbackEnabled,omitempty"`
-}
-
-// BetaGroupCreateRequest is a request to create a beta group.
-type BetaGroupCreateRequest struct {
-	Data BetaGroupCreateData `json:"data"`
-}
-
 // BetaGroupUpdateAttributes describes attributes for updating a beta group.
 type BetaGroupUpdateAttributes struct {
 	Name                                 string `json:"name,omitempty"`
@@ -637,18 +609,6 @@ type BetaGroupUpdateAttributes struct {
 	FeedbackEnabled                      *bool  `json:"feedbackEnabled,omitempty"`
 	IOSBuildsAvailableForAppleSiliconMac *bool  `json:"iosBuildsAvailableForAppleSiliconMac,omitempty"`
 	IOSBuildsAvailableForAppleVision     *bool  `json:"iosBuildsAvailableForAppleVision,omitempty"`
-}
-
-// BetaGroupUpdateData is the data portion of a beta group update request.
-type BetaGroupUpdateData struct {
-	Type       ResourceType               `json:"type"`
-	ID         string                     `json:"id"`
-	Attributes *BetaGroupUpdateAttributes `json:"attributes,omitempty"`
-}
-
-// BetaGroupUpdateRequest is a request to update a beta group.
-type BetaGroupUpdateRequest struct {
-	Data BetaGroupUpdateData `json:"data"`
 }
 
 // BetaGroupRelationships describes relationships for beta groups.
@@ -678,11 +638,6 @@ type BetaTesterCreateData struct {
 	Relationships *BetaTesterCreateRelationships `json:"relationships,omitempty"`
 }
 
-// BetaTesterCreateRequest is a request to create a beta tester.
-type BetaTesterCreateRequest struct {
-	Data BetaTesterCreateData `json:"data"`
-}
-
 // BetaTesterInvitationCreateRelationships describes relationships for invitations.
 type BetaTesterInvitationCreateRelationships struct {
 	App        *Relationship `json:"app"`
@@ -693,11 +648,6 @@ type BetaTesterInvitationCreateRelationships struct {
 type BetaTesterInvitationCreateData struct {
 	Type          ResourceType                             `json:"type"`
 	Relationships *BetaTesterInvitationCreateRelationships `json:"relationships"`
-}
-
-// BetaTesterInvitationCreateRequest is a request to create a beta tester invitation.
-type BetaTesterInvitationCreateRequest struct {
-	Data BetaTesterInvitationCreateData `json:"data"`
 }
 
 // GetFeedback retrieves TestFlight feedback
@@ -751,17 +701,6 @@ func (c *Client) GetBetaGroups(ctx context.Context, appID string, opts ...BetaGr
 	query := applyOptions(opts)
 	return getJSON[BetaGroupsResponse](ctx, c, readRequest{
 		Path:        fmt.Sprintf("/v1/apps/%s/betaGroups", appID),
-		Query:       buildBetaGroupsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "betaGroups",
-	})
-}
-
-// ListBetaGroups retrieves beta groups using the top-level /v1/betaGroups endpoint (global list).
-func (c *Client) ListBetaGroups(ctx context.Context, opts ...BetaGroupsOption) (*BetaGroupsResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[BetaGroupsResponse](ctx, c, readRequest{
-		Path:        "/v1/betaGroups",
 		Query:       buildBetaGroupsQuery(query),
 		Next:        query.nextURL,
 		NextContext: "betaGroups",

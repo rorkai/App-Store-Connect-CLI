@@ -1,0 +1,20 @@
+{
+  "tag": "Builds",
+  "file": "builds_gen.go",
+  "types": [
+    "BuildResponse",
+    "BuildsResponse"
+  ],
+  "operations": [
+    {"operation":"builds_appEncryptionDeclaration_getToOneRelated","name":"GetBuildAppEncryptionDeclaration","params":["buildID"],"check":"require","response":"AppEncryptionDeclarationResponse"},
+    {"operation":"builds_appStoreVersion_getToOneRelationship","name":"GetBuildAppStoreVersionRelationship","params":["buildID"],"check":"require","parseErr":"failed to parse appStoreVersion relationship response"},
+    {"operation":"builds_app_getToOneRelated","name":"GetBuildApp","params":["buildID"],"check":"require","response":"AppResponse"},
+    {"operation":"builds_app_getToOneRelationship","name":"GetBuildAppRelationship","params":["buildID"],"check":"require","parseErr":"failed to parse app relationship response"},
+    {"operation":"builds_buildBetaDetail_getToOneRelated","name":"GetBuildBuildBetaDetail","params":["buildID"],"check":"require"},
+    {"operation":"builds_buildBetaDetail_getToOneRelationship","name":"GetBuildBuildBetaDetailRelationship","params":["buildID"],"check":"require","parseErr":"failed to parse buildBetaDetail relationship response"},
+    {"operation":"builds_icons_getToManyRelated","name":"GetBuildIcons","params":["buildID"],"check":"require","options":"BuildIconsOption","query":"buildListQuery","nextContext":"buildIcons","response":"BuildIconsResponse"},
+    {"operation":"builds_individualTesters_getToManyRelated","name":"GetBuildIndividualTesters","params":["buildID"],"check":"require","options":"BuildIndividualTestersOption","query":"buildBuildIndividualTestersQuery","nextContext":"buildIndividualTesters","response":"BetaTestersResponse"},
+    {"operation":"builds_preReleaseVersion_getToOneRelated","name":"GetBuildPreReleaseVersion","params":["buildID"],"check":"require","response":"PreReleaseVersionResponse"},
+    {"operation":"builds_preReleaseVersion_getToOneRelationship","name":"GetBuildPreReleaseVersionRelationship","params":["buildID"],"check":"require","parseErr":"failed to parse preReleaseVersion relationship response"}
+  ]
+}

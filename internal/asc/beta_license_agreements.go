@@ -8,11 +8,6 @@ import (
 	"strings"
 )
 
-// BetaLicenseAgreementAttributes describes a beta license agreement.
-type BetaLicenseAgreementAttributes struct {
-	AgreementText string `json:"agreementText,omitempty"`
-}
-
 // BetaLicenseAgreementRelationships describes beta license agreement relationships.
 type BetaLicenseAgreementRelationships struct {
 	App *Relationship `json:"app,omitempty"`
@@ -39,34 +34,6 @@ type BetaLicenseAgreementResponse struct {
 	Data     BetaLicenseAgreementResource `json:"data"`
 	Links    Links                        `json:"links"`
 	Included json.RawMessage              `json:"included,omitempty"`
-}
-
-// BetaLicenseAgreementUpdateAttributes describes fields for updating a beta license agreement.
-type BetaLicenseAgreementUpdateAttributes struct {
-	AgreementText *string `json:"agreementText,omitempty"`
-}
-
-// BetaLicenseAgreementUpdateData is the data portion of a beta license agreement update request.
-type BetaLicenseAgreementUpdateData struct {
-	Type       ResourceType                          `json:"type"`
-	ID         string                                `json:"id"`
-	Attributes *BetaLicenseAgreementUpdateAttributes `json:"attributes,omitempty"`
-}
-
-// BetaLicenseAgreementUpdateRequest is a request to update a beta license agreement.
-type BetaLicenseAgreementUpdateRequest struct {
-	Data BetaLicenseAgreementUpdateData `json:"data"`
-}
-
-// GetBetaLicenseAgreements retrieves beta license agreements with optional filters.
-func (c *Client) GetBetaLicenseAgreements(ctx context.Context, opts ...BetaLicenseAgreementsOption) (*BetaLicenseAgreementsResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[BetaLicenseAgreementsResponse](ctx, c, readRequest{
-		Path:        "/v1/betaLicenseAgreements",
-		Query:       buildBetaLicenseAgreementsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "betaLicenseAgreements",
-	})
 }
 
 // GetBetaLicenseAgreement retrieves a beta license agreement by ID.

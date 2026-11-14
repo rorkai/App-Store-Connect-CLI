@@ -406,12 +406,6 @@ func splitBundleIDsIdentifierFilter(query *bundleIDsQuery) ([][]string, error) {
 	return chunks, nil
 }
 
-// GetBundleID retrieves a single bundle ID by ID.
-func (c *Client) GetBundleID(ctx context.Context, id string) (*BundleIDResponse, error) {
-	id = strings.TrimSpace(id)
-	return getJSON[BundleIDResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/bundleIds/%s", id)})
-}
-
 // CreateBundleID creates a new bundle ID.
 func (c *Client) CreateBundleID(ctx context.Context, attrs BundleIDCreateAttributes) (*BundleIDResponse, error) {
 	request := BundleIDCreateRequest{
@@ -434,12 +428,6 @@ func (c *Client) UpdateBundleID(ctx context.Context, id string, attrs BundleIDUp
 		},
 	}
 	return sendJSON[BundleIDResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/bundleIds/%s", id), Payload: request})
-}
-
-// DeleteBundleID deletes a bundle ID by ID.
-func (c *Client) DeleteBundleID(ctx context.Context, id string) error {
-	id = strings.TrimSpace(id)
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/bundleIds/%s", id), nil)
 }
 
 // GetBundleIDCapabilities retrieves capabilities for a bundle ID.
@@ -488,23 +476,6 @@ func (c *Client) UpdateBundleIDCapability(ctx context.Context, capabilityID stri
 		},
 	}
 	return sendJSON[BundleIDCapabilityResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/bundleIdCapabilities/%s", capabilityID), Payload: request})
-}
-
-// DeleteBundleIDCapability deletes a bundle ID capability by ID.
-func (c *Client) DeleteBundleIDCapability(ctx context.Context, capabilityID string) error {
-	capabilityID = strings.TrimSpace(capabilityID)
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/bundleIdCapabilities/%s", capabilityID), nil)
-}
-
-// GetCertificates retrieves the list of certificates.
-func (c *Client) GetCertificates(ctx context.Context, opts ...CertificatesOption) (*CertificatesResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[CertificatesResponse](ctx, c, readRequest{
-		Path:        "/v1/certificates",
-		Query:       buildCertificatesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "certificates",
-	})
 }
 
 // GetCertificate retrieves a single certificate by ID.
@@ -608,12 +579,6 @@ func (c *Client) UpdateCertificate(ctx context.Context, id string, attrs Certifi
 		},
 	}
 	return sendJSON[CertificateResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/certificates/%s", id), Payload: request})
-}
-
-// RevokeCertificate revokes a certificate by ID.
-func (c *Client) RevokeCertificate(ctx context.Context, id string) error {
-	id = strings.TrimSpace(id)
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/certificates/%s", id), nil)
 }
 
 // RegisterDevice registers a new device.

@@ -1,0 +1,7 @@
+{
+  "tag": "BundleIdCapabilities",
+  "file": "bundle_id_capabilities_gen.go",
+  "operations": [
+    {"operation":"bundleIdCapabilities_deleteInstance","name":"DeleteBundleIDCapability","params":["capabilityID"],"check":"trim"}
+  ]
+}

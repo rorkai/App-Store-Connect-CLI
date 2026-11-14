@@ -394,34 +394,6 @@ type CertificateCreateData struct {
 	Relationships *CertificateCreateRelationships `json:"relationships,omitempty"`
 }
 
-// CertificateCreateRequest is a request to create a certificate.
-type CertificateCreateRequest struct {
-	Data CertificateCreateData `json:"data"`
-}
-
-// CertificateUpdateAttributes describes attributes for updating a certificate.
-type CertificateUpdateAttributes struct {
-	Activated *bool `json:"activated,omitempty"`
-}
-
-// CertificateUpdateData is the data portion of a certificate update request.
-type CertificateUpdateData struct {
-	Type       ResourceType                 `json:"type"`
-	ID         string                       `json:"id"`
-	Attributes *CertificateUpdateAttributes `json:"attributes,omitempty"`
-}
-
-// CertificateUpdateRequest is a request to update a certificate.
-type CertificateUpdateRequest struct {
-	Data CertificateUpdateData `json:"data"`
-}
-
-// CertificatesResponse is the response from certificates list endpoint.
-type CertificatesResponse = Response[CertificateAttributes]
-
-// CertificateResponse is the response from certificate detail endpoint.
-type CertificateResponse = SingleResponse[CertificateAttributes]
-
 // ProfileState represents profile state values.
 type ProfileState string
 

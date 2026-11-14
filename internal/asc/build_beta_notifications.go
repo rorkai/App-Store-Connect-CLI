@@ -44,11 +44,6 @@ type BuildBetaNotificationCreateData struct {
 	Relationships BuildBetaNotificationRelationships `json:"relationships"`
 }
 
-// BuildBetaNotificationCreateRequest is a request to create a build beta notification.
-type BuildBetaNotificationCreateRequest struct {
-	Data BuildBetaNotificationCreateData `json:"data"`
-}
-
 // CreateBuildBetaNotification creates a build beta notification for a build.
 func (c *Client) CreateBuildBetaNotification(ctx context.Context, buildID string) (*BuildBetaNotificationResponse, error) {
 	buildID = strings.TrimSpace(buildID)

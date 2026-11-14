@@ -1,0 +1,8 @@
+{
+  "tag": "CiProducts",
+  "file": "ci_products_gen.go",
+  "operations": [
+    {"operation":"ciProducts_deleteInstance","name":"DeleteCiProduct","params":["productID"],"check":"trim"},
+    {"operation":"ciProducts_getCollection","name":"GetCiProducts","options":"CiProductsOption","query":"buildCiProductsQuery","nextContext":"ciProducts"}
+  ]
+}

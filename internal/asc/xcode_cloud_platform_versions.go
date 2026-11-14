@@ -14,12 +14,6 @@ const (
 	CiTestDestinationKindMac       CiTestDestinationKind = "MAC"
 )
 
-// CiMacOsVersionAttributes describes a CI macOS version resource.
-type CiMacOsVersionAttributes struct {
-	Version string `json:"version,omitempty"`
-	Name    string `json:"name,omitempty"`
-}
-
 // CiMacOsVersionRelationships describes relationships for a CI macOS version.
 type CiMacOsVersionRelationships struct {
 	XcodeVersions *RelationshipList `json:"xcodeVersions,omitempty"`
@@ -139,18 +133,6 @@ func buildCiXcodeVersionsQuery(query *ciXcodeVersionsQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
 	return values.Encode()
-}
-
-// GetCiMacOsVersions retrieves the list of CI macOS versions.
-func (c *Client) GetCiMacOsVersions(ctx context.Context, opts ...CiMacOsVersionsOption) (*CiMacOsVersionsResponse, error) {
-	query := applyOptions(opts)
-
-	return getJSON[CiMacOsVersionsResponse](ctx, c, readRequest{
-		Path:        "/v1/ciMacOsVersions",
-		Query:       buildCiMacOsVersionsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "ciMacOsVersions",
-	})
 }
 
 // GetCiMacOsVersion retrieves a CI macOS version by ID.

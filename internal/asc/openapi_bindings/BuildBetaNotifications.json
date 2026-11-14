@@ -1,0 +1,7 @@
+{
+  "tag": "BuildBetaNotifications",
+  "file": "build_beta_notifications_gen.go",
+  "types": [
+    "BuildBetaNotificationCreateRequest"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "tag": "BundleIds",
+  "file": "bundle_ids_gen.go",
+  "operations": [
+    {"operation":"bundleIds_app_getToOneRelated","name":"GetBundleIDApp","params":["bundleID"],"check":"trim","response":"AppResponse"},
+    {"operation":"bundleIds_deleteInstance","name":"DeleteBundleID","params":["id"],"check":"trim"},
+    {"operation":"bundleIds_getInstance","name":"GetBundleID","params":["id"],"check":"trim","response":"BundleIDResponse"},
+    {"operation":"bundleIds_profiles_getToManyRelated","name":"GetBundleIDProfiles","params":["bundleID"],"options":"BundleIDProfilesOption","query":"buildBundleIDProfilesQuery","nextContext":"bundleIdProfiles","response":"ProfilesResponse"}
+  ]
+}
