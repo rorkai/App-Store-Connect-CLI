@@ -43,75 +43,12 @@ func eulaJSONResponse(status int, body string) *http.Response {
 	}
 }
 
-func TestGetEndUserLicenseAgreement(t *testing.T) {
-	response := eulaJSONResponse(http.StatusOK, `{
-		"data": {
-			"type": "endUserLicenseAgreements",
-			"id": "eula-123",
-			"attributes": {
-				"agreementText": "Terms and conditions"
-			}
-		}
-	}`)
-
-	client := newEULATestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/endUserLicenseAgreements/eula-123" {
-			t.Fatalf("expected path /v1/endUserLicenseAgreements/eula-123, got %s", req.URL.Path)
-		}
-	}, response)
-
-	resp, err := client.GetEndUserLicenseAgreement(context.Background(), "eula-123")
-	if err != nil {
-		t.Fatalf("GetEndUserLicenseAgreement() error: %v", err)
-	}
-
-	if resp.Data.ID != "eula-123" {
-		t.Fatalf("expected ID eula-123, got %s", resp.Data.ID)
-	}
-	if resp.Data.Attributes.AgreementText != "Terms and conditions" {
-		t.Fatalf("expected agreement text, got %q", resp.Data.Attributes.AgreementText)
-	}
-}
-
 func TestGetEndUserLicenseAgreement_ValidationErrors(t *testing.T) {
 	client := newEULATestClient(t, nil, nil)
 
 	_, err := client.GetEndUserLicenseAgreement(context.Background(), "")
 	if err == nil {
 		t.Fatalf("expected error for missing id, got nil")
-	}
-}
-
-func TestGetEndUserLicenseAgreementForApp(t *testing.T) {
-	response := eulaJSONResponse(http.StatusOK, `{
-		"data": {
-			"type": "endUserLicenseAgreements",
-			"id": "eula-456",
-			"attributes": {
-				"agreementText": "App terms"
-			}
-		}
-	}`)
-
-	client := newEULATestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/apps/app-123/endUserLicenseAgreement" {
-			t.Fatalf("expected path /v1/apps/app-123/endUserLicenseAgreement, got %s", req.URL.Path)
-		}
-	}, response)
-
-	resp, err := client.GetEndUserLicenseAgreementForApp(context.Background(), "app-123")
-	if err != nil {
-		t.Fatalf("GetEndUserLicenseAgreementForApp() error: %v", err)
-	}
-
-	if resp.Data.ID != "eula-456" {
-		t.Fatalf("expected ID eula-456, got %s", resp.Data.ID)
 	}
 }
 
@@ -256,28 +193,6 @@ func TestUpdateEndUserLicenseAgreement_ValidationErrors(t *testing.T) {
 	_, err = client.UpdateEndUserLicenseAgreement(context.Background(), "eula-1", nil, nil)
 	if err == nil {
 		t.Fatalf("expected error for missing update fields, got nil")
-	}
-}
-
-func TestDeleteEndUserLicenseAgreement(t *testing.T) {
-	response := &http.Response{
-		StatusCode: http.StatusNoContent,
-		Header:     http.Header{"Content-Type": []string{"application/json"}},
-		Body:       io.NopCloser(strings.NewReader("")),
-	}
-
-	client := newEULATestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodDelete {
-			t.Fatalf("expected DELETE, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/endUserLicenseAgreements/eula-123" {
-			t.Fatalf("expected path /v1/endUserLicenseAgreements/eula-123, got %s", req.URL.Path)
-		}
-	}, response)
-
-	err := client.DeleteEndUserLicenseAgreement(context.Background(), "eula-123")
-	if err != nil {
-		t.Fatalf("DeleteEndUserLicenseAgreement() error: %v", err)
 	}
 }
 

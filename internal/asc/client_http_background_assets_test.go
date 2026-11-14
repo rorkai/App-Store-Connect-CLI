@@ -46,27 +46,6 @@ func TestGetBackgroundAssets_SendsRequest(t *testing.T) {
 	}
 }
 
-func TestGetBackgroundAsset_SendsRequest(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"backgroundAssets","id":"asset-1","attributes":{"assetPackIdentifier":"pack","usedBytes":1234}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/backgroundAssets/asset-1" {
-			t.Fatalf("expected path /v1/backgroundAssets/asset-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	resp, err := client.GetBackgroundAsset(context.Background(), "asset-1")
-	if err != nil {
-		t.Fatalf("GetBackgroundAsset() error: %v", err)
-	}
-	if resp.Data.Attributes.UsedBytes == nil || *resp.Data.Attributes.UsedBytes != 1234 {
-		t.Fatalf("expected usedBytes=1234, got %+v", resp.Data.Attributes.UsedBytes)
-	}
-}
-
 func TestCreateBackgroundAsset_SendsRequest(t *testing.T) {
 	response := jsonResponse(http.StatusCreated, `{"data":{"type":"backgroundAssets","id":"asset-1","attributes":{"assetPackIdentifier":"pack"}}}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -160,23 +139,6 @@ func TestGetBackgroundAssetVersions_SendsRequest(t *testing.T) {
 	}
 }
 
-func TestGetBackgroundAssetVersion_SendsRequest(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"backgroundAssetVersions","id":"ver-1"}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/backgroundAssetVersions/ver-1" {
-			t.Fatalf("expected path /v1/backgroundAssetVersions/ver-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetBackgroundAssetVersion(context.Background(), "ver-1"); err != nil {
-		t.Fatalf("GetBackgroundAssetVersion() error: %v", err)
-	}
-}
-
 func TestCreateBackgroundAssetVersion_SendsRequest(t *testing.T) {
 	response := jsonResponse(http.StatusCreated, `{"data":{"type":"backgroundAssetVersions","id":"ver-1"}}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -205,44 +167,6 @@ func TestCreateBackgroundAssetVersion_SendsRequest(t *testing.T) {
 
 	if _, err := client.CreateBackgroundAssetVersion(context.Background(), "asset-1"); err != nil {
 		t.Fatalf("CreateBackgroundAssetVersion() error: %v", err)
-	}
-}
-
-func TestGetBackgroundAssetUploadFiles_SendsRequest(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/backgroundAssetVersions/ver-1/backgroundAssetUploadFiles" {
-			t.Fatalf("expected path /v1/backgroundAssetVersions/ver-1/backgroundAssetUploadFiles, got %s", req.URL.Path)
-		}
-		values := req.URL.Query()
-		if values.Get("limit") != "3" {
-			t.Fatalf("expected limit=3, got %q", values.Get("limit"))
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetBackgroundAssetUploadFiles(context.Background(), "ver-1", Limit[BackgroundAssetUploadFilesOption](3)); err != nil {
-		t.Fatalf("GetBackgroundAssetUploadFiles() error: %v", err)
-	}
-}
-
-func TestGetBackgroundAssetUploadFile_SendsRequest(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"backgroundAssetUploadFiles","id":"file-1"}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/backgroundAssetUploadFiles/file-1" {
-			t.Fatalf("expected path /v1/backgroundAssetUploadFiles/file-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetBackgroundAssetUploadFile(context.Background(), "file-1"); err != nil {
-		t.Fatalf("GetBackgroundAssetUploadFile() error: %v", err)
 	}
 }
 

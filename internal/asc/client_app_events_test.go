@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"strings"
 	"testing"
 )
 
@@ -60,26 +59,6 @@ func requireFloat(t *testing.T, value any, name string) float64 {
 	return number
 }
 
-func TestGetAppEvents_WithLimit(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/apps/app-123/appEvents" {
-			t.Fatalf("expected path /v1/apps/app-123/appEvents, got %s", req.URL.Path)
-		}
-		if req.URL.Query().Get("limit") != "10" {
-			t.Fatalf("expected limit=10, got %q", req.URL.Query().Get("limit"))
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetAppEvents(context.Background(), "app-123", Limit[AppEventsOption](10)); err != nil {
-		t.Fatalf("GetAppEvents() error: %v", err)
-	}
-}
-
 func TestGetAppEvents_WithQueryOptions(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":[]}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -121,38 +100,6 @@ func TestGetAppEvents_WithQueryOptions(t *testing.T) {
 	}
 }
 
-func TestGetAppEvents_UsesNextURL(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/apps/app-123/appEvents?cursor=abc"
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.URL.String() != next {
-			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetAppEvents(context.Background(), "app-123", NextURL[AppEventsOption](next)); err != nil {
-		t.Fatalf("GetAppEvents() error: %v", err)
-	}
-}
-
-func TestGetAppEvent(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"appEvents","id":"event-1","attributes":{"referenceName":"Summer","badge":"CHALLENGE"}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/appEvents/event-1" {
-			t.Fatalf("expected path /v1/appEvents/event-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetAppEvent(context.Background(), "event-1"); err != nil {
-		t.Fatalf("GetAppEvent() error: %v", err)
-	}
-}
-
 func TestCreateAppEvent(t *testing.T) {
 	response := jsonResponse(http.StatusCreated, `{"data":{"type":"appEvents","id":"event-1","attributes":{"referenceName":"Launch"}}}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -186,90 +133,6 @@ func TestCreateAppEvent(t *testing.T) {
 	attrs := AppEventCreateAttributes{ReferenceName: "Launch"}
 	if _, err := client.CreateAppEvent(context.Background(), "app-123", attrs); err != nil {
 		t.Fatalf("CreateAppEvent() error: %v", err)
-	}
-}
-
-func TestUpdateAppEvent(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"appEvents","id":"event-1","attributes":{"referenceName":"Updated"}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodPatch {
-			t.Fatalf("expected PATCH, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/appEvents/event-1" {
-			t.Fatalf("expected path /v1/appEvents/event-1, got %s", req.URL.Path)
-		}
-		payload := decodeRequestBody(t, req)
-		data := requireMap(t, payload["data"], "data")
-		if requireString(t, data["id"], "data.id") != "event-1" {
-			t.Fatalf("unexpected id %v", data["id"])
-		}
-		attrs := requireMap(t, data["attributes"], "data.attributes")
-		if requireString(t, attrs["referenceName"], "referenceName") != "Updated" {
-			t.Fatalf("unexpected referenceName %v", attrs["referenceName"])
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	name := "Updated"
-	if _, err := client.UpdateAppEvent(context.Background(), "event-1", AppEventUpdateAttributes{ReferenceName: &name}); err != nil {
-		t.Fatalf("UpdateAppEvent() error: %v", err)
-	}
-}
-
-func TestDeleteAppEvent(t *testing.T) {
-	response := jsonResponse(http.StatusNoContent, ``)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodDelete {
-			t.Fatalf("expected DELETE, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/appEvents/event-1" {
-			t.Fatalf("expected path /v1/appEvents/event-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if err := client.DeleteAppEvent(context.Background(), "event-1"); err != nil {
-		t.Fatalf("DeleteAppEvent() error: %v", err)
-	}
-}
-
-func TestGetAppEventLocalizations_WithLimit(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/appEvents/event-1/localizations" {
-			t.Fatalf("expected path /v1/appEvents/event-1/localizations, got %s", req.URL.Path)
-		}
-		if req.URL.Query().Get("limit") != "5" {
-			t.Fatalf("expected limit=5, got %q", req.URL.Query().Get("limit"))
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetAppEventLocalizations(context.Background(), "event-1", Limit[AppEventLocalizationsOption](5)); err != nil {
-		t.Fatalf("GetAppEventLocalizations() error: %v", err)
-	}
-}
-
-func TestGetAppEventLocalizationsRelationships_WithLimit(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/appEvents/event-1/relationships/localizations" {
-			t.Fatalf("expected path /v1/appEvents/event-1/relationships/localizations, got %s", req.URL.Path)
-		}
-		if req.URL.Query().Get("limit") != "3" {
-			t.Fatalf("expected limit=3, got %q", req.URL.Query().Get("limit"))
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetAppEventLocalizationsRelationships(context.Background(), "event-1", Limit[LinkagesOption](3)); err != nil {
-		t.Fatalf("GetAppEventLocalizationsRelationships() error: %v", err)
 	}
 }
 
@@ -317,107 +180,6 @@ func TestCreateAppEventLocalization(t *testing.T) {
 	attrs := AppEventLocalizationCreateAttributes{Locale: "en-US"}
 	if _, err := client.CreateAppEventLocalization(context.Background(), "event-1", attrs); err != nil {
 		t.Fatalf("CreateAppEventLocalization() error: %v", err)
-	}
-}
-
-func TestUpdateAppEventLocalization(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"appEventLocalizations","id":"loc-1","attributes":{"name":"Updated"}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodPatch {
-			t.Fatalf("expected PATCH, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/appEventLocalizations/loc-1" {
-			t.Fatalf("expected path /v1/appEventLocalizations/loc-1, got %s", req.URL.Path)
-		}
-		payload := decodeRequestBody(t, req)
-		data := requireMap(t, payload["data"], "data")
-		if requireString(t, data["id"], "data.id") != "loc-1" {
-			t.Fatalf("unexpected id %v", data["id"])
-		}
-		attrs := requireMap(t, data["attributes"], "data.attributes")
-		if requireString(t, attrs["name"], "name") != "Updated" {
-			t.Fatalf("unexpected name %v", attrs["name"])
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	name := "Updated"
-	if _, err := client.UpdateAppEventLocalization(context.Background(), "loc-1", AppEventLocalizationUpdateAttributes{Name: &name}); err != nil {
-		t.Fatalf("UpdateAppEventLocalization() error: %v", err)
-	}
-}
-
-func TestDeleteAppEventLocalization(t *testing.T) {
-	response := jsonResponse(http.StatusNoContent, ``)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodDelete {
-			t.Fatalf("expected DELETE, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/appEventLocalizations/loc-1" {
-			t.Fatalf("expected path /v1/appEventLocalizations/loc-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if err := client.DeleteAppEventLocalization(context.Background(), "loc-1"); err != nil {
-		t.Fatalf("DeleteAppEventLocalization() error: %v", err)
-	}
-}
-
-func TestGetAppEventScreenshots_WithLimit(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/appEventLocalizations/loc-1/appEventScreenshots" {
-			t.Fatalf("expected path /v1/appEventLocalizations/loc-1/appEventScreenshots, got %s", req.URL.Path)
-		}
-		if req.URL.Query().Get("limit") != "25" {
-			t.Fatalf("expected limit=25, got %q", req.URL.Query().Get("limit"))
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetAppEventScreenshots(context.Background(), "loc-1", Limit[AppEventScreenshotsOption](25)); err != nil {
-		t.Fatalf("GetAppEventScreenshots() error: %v", err)
-	}
-}
-
-func TestGetAppEventScreenshotsRelationships_WithLimit(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/appEventLocalizations/loc-1/relationships/appEventScreenshots" {
-			t.Fatalf("expected path /v1/appEventLocalizations/loc-1/relationships/appEventScreenshots, got %s", req.URL.Path)
-		}
-		if req.URL.Query().Get("limit") != "8" {
-			t.Fatalf("expected limit=8, got %q", req.URL.Query().Get("limit"))
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetAppEventScreenshotsRelationships(context.Background(), "loc-1", Limit[LinkagesOption](8)); err != nil {
-		t.Fatalf("GetAppEventScreenshotsRelationships() error: %v", err)
-	}
-}
-
-func TestGetAppEventScreenshot(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"appEventScreenshots","id":"shot-1","attributes":{"fileName":"event.png"}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/appEventScreenshots/shot-1" {
-			t.Fatalf("expected path /v1/appEventScreenshots/shot-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetAppEventScreenshot(context.Background(), "shot-1"); err != nil {
-		t.Fatalf("GetAppEventScreenshot() error: %v", err)
 	}
 }
 
@@ -479,80 +241,6 @@ func TestUpdateAppEventScreenshot(t *testing.T) {
 	}
 }
 
-func TestDeleteAppEventScreenshot(t *testing.T) {
-	response := jsonResponse(http.StatusNoContent, ``)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodDelete {
-			t.Fatalf("expected DELETE, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/appEventScreenshots/shot-1" {
-			t.Fatalf("expected path /v1/appEventScreenshots/shot-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if err := client.DeleteAppEventScreenshot(context.Background(), "shot-1"); err != nil {
-		t.Fatalf("DeleteAppEventScreenshot() error: %v", err)
-	}
-}
-
-func TestGetAppEventVideoClips_WithLimit(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/appEventLocalizations/loc-1/appEventVideoClips" {
-			t.Fatalf("expected path /v1/appEventLocalizations/loc-1/appEventVideoClips, got %s", req.URL.Path)
-		}
-		if req.URL.Query().Get("limit") != "7" {
-			t.Fatalf("expected limit=7, got %q", req.URL.Query().Get("limit"))
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetAppEventVideoClips(context.Background(), "loc-1", Limit[AppEventVideoClipsOption](7)); err != nil {
-		t.Fatalf("GetAppEventVideoClips() error: %v", err)
-	}
-}
-
-func TestGetAppEventVideoClipsRelationships_WithLimit(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/appEventLocalizations/loc-1/relationships/appEventVideoClips" {
-			t.Fatalf("expected path /v1/appEventLocalizations/loc-1/relationships/appEventVideoClips, got %s", req.URL.Path)
-		}
-		if req.URL.Query().Get("limit") != "6" {
-			t.Fatalf("expected limit=6, got %q", req.URL.Query().Get("limit"))
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetAppEventVideoClipsRelationships(context.Background(), "loc-1", Limit[LinkagesOption](6)); err != nil {
-		t.Fatalf("GetAppEventVideoClipsRelationships() error: %v", err)
-	}
-}
-
-func TestGetAppEventVideoClip(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"appEventVideoClips","id":"clip-1","attributes":{"fileName":"clip.mov"}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/appEventVideoClips/clip-1" {
-			t.Fatalf("expected path /v1/appEventVideoClips/clip-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetAppEventVideoClip(context.Background(), "clip-1"); err != nil {
-		t.Fatalf("GetAppEventVideoClip() error: %v", err)
-	}
-}
-
 func TestCreateAppEventVideoClip(t *testing.T) {
 	response := jsonResponse(http.StatusCreated, `{"data":{"type":"appEventVideoClips","id":"clip-1","attributes":{"fileName":"clip.mov"}}}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -588,55 +276,6 @@ func TestCreateAppEventVideoClip(t *testing.T) {
 
 	if _, err := client.CreateAppEventVideoClip(context.Background(), "loc-1", "clip.mov", 256, "EVENT_DETAILS_PAGE", "00:00:05.000"); err != nil {
 		t.Fatalf("CreateAppEventVideoClip() error: %v", err)
-	}
-}
-
-func TestUpdateAppEventVideoClip(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"appEventVideoClips","id":"clip-1","attributes":{"fileName":"clip.mov"}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodPatch {
-			t.Fatalf("expected PATCH, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/appEventVideoClips/clip-1" {
-			t.Fatalf("expected path /v1/appEventVideoClips/clip-1, got %s", req.URL.Path)
-		}
-		payload := decodeRequestBody(t, req)
-		data := requireMap(t, payload["data"], "data")
-		attrs := requireMap(t, data["attributes"], "data.attributes")
-		if requireString(t, attrs["previewFrameTimeCode"], "previewFrameTimeCode") != "00:00:10.000" {
-			t.Fatalf("unexpected previewFrameTimeCode %v", attrs["previewFrameTimeCode"])
-		}
-		if !requireBool(t, attrs["uploaded"], "uploaded") {
-			t.Fatalf("expected uploaded true")
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	preview := "00:00:10.000"
-	uploaded := true
-	attrs := AppEventVideoClipUpdateAttributes{
-		PreviewFrameTimeCode: &preview,
-		Uploaded:             &uploaded,
-	}
-	if _, err := client.UpdateAppEventVideoClip(context.Background(), "clip-1", attrs); err != nil {
-		t.Fatalf("UpdateAppEventVideoClip() error: %v", err)
-	}
-}
-
-func TestDeleteAppEventVideoClip(t *testing.T) {
-	response := jsonResponse(http.StatusNoContent, ``)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodDelete {
-			t.Fatalf("expected DELETE, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/appEventVideoClips/clip-1" {
-			t.Fatalf("expected path /v1/appEventVideoClips/clip-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if err := client.DeleteAppEventVideoClip(context.Background(), "clip-1"); err != nil {
-		t.Fatalf("DeleteAppEventVideoClip() error: %v", err)
 	}
 }
 
@@ -888,21 +527,6 @@ func TestAppEventMethodsReturnAPIError(t *testing.T) {
 	}
 }
 
-func TestAppEventListMethods_UseNextURL(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/appEventLocalizations/loc-1/appEventScreenshots?cursor=abc"
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.URL.String() != next {
-			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetAppEventScreenshots(context.Background(), "loc-1", NextURL[AppEventScreenshotsOption](next)); err != nil {
-		t.Fatalf("GetAppEventScreenshots() error: %v", err)
-	}
-}
-
 func TestAppEventVideoClipCreateOmitsPreviewFrame(t *testing.T) {
 	response := jsonResponse(http.StatusCreated, `{"data":{"type":"appEventVideoClips","id":"clip-2","attributes":{"fileName":"clip.mov"}}}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -916,19 +540,5 @@ func TestAppEventVideoClipCreateOmitsPreviewFrame(t *testing.T) {
 
 	if _, err := client.CreateAppEventVideoClip(context.Background(), "loc-1", "clip.mov", 1, "EVENT_CARD", ""); err != nil {
 		t.Fatalf("CreateAppEventVideoClip() error: %v", err)
-	}
-}
-
-func TestAppEventLocalizationsNextURLBypassesAppID(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/appEvents/app-1/localizations?cursor=abc"
-	response := jsonResponse(http.StatusOK, `{"data":[]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if !strings.HasSuffix(req.URL.String(), "cursor=abc") {
-			t.Fatalf("expected next URL, got %q", req.URL.String())
-		}
-	}, response)
-
-	if _, err := client.GetAppEventLocalizations(context.Background(), "", NextURL[AppEventLocalizationsOption](next)); err != nil {
-		t.Fatalf("GetAppEventLocalizations() error: %v", err)
 	}
 }

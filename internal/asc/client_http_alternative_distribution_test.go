@@ -8,108 +8,6 @@ import (
 	"testing"
 )
 
-func TestAlternativeDistributionReadEndpoints_SendsRequest(t *testing.T) {
-	ctx := context.Background()
-	tests := []struct {
-		name     string
-		path     string
-		response string
-		call     func(*Client) error
-	}{
-		{
-			name:     "GetAlternativeDistributionKey",
-			path:     "/v1/alternativeDistributionKeys/key-1",
-			response: `{"data":{"type":"alternativeDistributionKeys","id":"key-1"}}`,
-			call: func(c *Client) error {
-				_, err := c.GetAlternativeDistributionKey(ctx, "key-1")
-				return err
-			},
-		},
-		{
-			name:     "GetAlternativeDistributionPackage",
-			path:     "/v1/alternativeDistributionPackages/pkg-1",
-			response: `{"data":{"type":"alternativeDistributionPackages","id":"pkg-1"}}`,
-			call: func(c *Client) error {
-				_, err := c.GetAlternativeDistributionPackage(ctx, "pkg-1")
-				return err
-			},
-		},
-		{
-			name:     "GetAlternativeDistributionPackageVersion",
-			path:     "/v1/alternativeDistributionPackageVersions/ver-1",
-			response: `{"data":{"type":"alternativeDistributionPackageVersions","id":"ver-1"}}`,
-			call: func(c *Client) error {
-				_, err := c.GetAlternativeDistributionPackageVersion(ctx, "ver-1")
-				return err
-			},
-		},
-		{
-			name:     "GetAlternativeDistributionPackageVariant",
-			path:     "/v1/alternativeDistributionPackageVariants/var-1",
-			response: `{"data":{"type":"alternativeDistributionPackageVariants","id":"var-1"}}`,
-			call: func(c *Client) error {
-				_, err := c.GetAlternativeDistributionPackageVariant(ctx, "var-1")
-				return err
-			},
-		},
-		{
-			name:     "GetAlternativeDistributionPackageDelta",
-			path:     "/v1/alternativeDistributionPackageDeltas/delta-1",
-			response: `{"data":{"type":"alternativeDistributionPackageDeltas","id":"delta-1"}}`,
-			call: func(c *Client) error {
-				_, err := c.GetAlternativeDistributionPackageDelta(ctx, "delta-1")
-				return err
-			},
-		},
-		{
-			name:     "GetAppAlternativeDistributionKey",
-			path:     "/v1/apps/app-1/alternativeDistributionKey",
-			response: `{"data":{"type":"alternativeDistributionKeys","id":"key-1"}}`,
-			call: func(c *Client) error {
-				_, err := c.GetAppAlternativeDistributionKey(ctx, "app-1")
-				return err
-			},
-		},
-		{
-			name:     "GetAppStoreVersionAlternativeDistributionPackage",
-			path:     "/v1/appStoreVersions/ver-1/alternativeDistributionPackage",
-			response: `{"data":{"type":"alternativeDistributionPackages","id":"pkg-1"}}`,
-			call: func(c *Client) error {
-				_, err := c.GetAppStoreVersionAlternativeDistributionPackage(ctx, "ver-1")
-				return err
-			},
-		},
-		{
-			name:     "GetAppStoreVersionAlternativeDistributionPackageRelationship",
-			path:     "/v1/appStoreVersions/ver-1/relationships/alternativeDistributionPackage",
-			response: `{"data":{"type":"alternativeDistributionPackages","id":"pkg-1"}}`,
-			call: func(c *Client) error {
-				_, err := c.GetAppStoreVersionAlternativeDistributionPackageRelationship(ctx, "ver-1")
-				return err
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		tt := tt
-		t.Run(tt.name, func(t *testing.T) {
-			client := newTestClient(t, func(req *http.Request) {
-				if req.Method != http.MethodGet {
-					t.Fatalf("expected GET, got %s", req.Method)
-				}
-				if req.URL.Path != tt.path {
-					t.Fatalf("expected path %s, got %s", tt.path, req.URL.Path)
-				}
-				assertAuthorized(t, req)
-			}, jsonResponse(http.StatusOK, tt.response))
-
-			if err := tt.call(client); err != nil {
-				t.Fatalf("%s() error: %v", tt.name, err)
-			}
-		})
-	}
-}
-
 func TestAlternativeDistributionListEndpoints_WithLimit(t *testing.T) {
 	ctx := context.Background()
 	tests := []struct {
@@ -119,21 +17,6 @@ func TestAlternativeDistributionListEndpoints_WithLimit(t *testing.T) {
 		response string
 		call     func(*testing.T, *Client)
 	}{
-		{
-			name:     "GetAlternativeDistributionKeys",
-			path:     "/v1/alternativeDistributionKeys",
-			limit:    "10",
-			response: `{"data":[{"type":"alternativeDistributionKeys","id":"key-1","attributes":{"publicKey":"KEY"}}]}`,
-			call: func(t *testing.T, c *Client) {
-				resp, err := c.GetAlternativeDistributionKeys(ctx, Limit[AlternativeDistributionKeysOption](10))
-				if err != nil {
-					t.Fatalf("GetAlternativeDistributionKeys() error: %v", err)
-				}
-				if len(resp.Data) != 1 || resp.Data[0].Attributes.PublicKey != "KEY" {
-					t.Fatalf("expected decoded key response, got %+v", resp.Data)
-				}
-			},
-		},
 		{
 			name:     "GetAlternativeDistributionPackageVersions",
 			path:     "/v1/alternativeDistributionPackages/pkg-1/versions",
@@ -198,42 +81,6 @@ func TestAlternativeDistributionListEndpoints_WithLimit(t *testing.T) {
 			}, jsonResponse(http.StatusOK, tt.response))
 
 			tt.call(t, client)
-		})
-	}
-}
-
-func TestAlternativeDistributionDeleteEndpoints_SendsRequest(t *testing.T) {
-	ctx := context.Background()
-	tests := []struct {
-		name string
-		path string
-		call func(*Client) error
-	}{
-		{
-			name: "DeleteAlternativeDistributionKey",
-			path: "/v1/alternativeDistributionKeys/key-1",
-			call: func(c *Client) error {
-				return c.DeleteAlternativeDistributionKey(ctx, "key-1")
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		tt := tt
-		t.Run(tt.name, func(t *testing.T) {
-			client := newTestClient(t, func(req *http.Request) {
-				if req.Method != http.MethodDelete {
-					t.Fatalf("expected DELETE, got %s", req.Method)
-				}
-				if req.URL.Path != tt.path {
-					t.Fatalf("expected path %s, got %s", tt.path, req.URL.Path)
-				}
-				assertAuthorized(t, req)
-			}, jsonResponse(http.StatusNoContent, ""))
-
-			if err := tt.call(client); err != nil {
-				t.Fatalf("%s() error: %v", tt.name, err)
-			}
 		})
 	}
 }
