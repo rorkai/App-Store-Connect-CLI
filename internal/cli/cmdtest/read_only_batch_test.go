@@ -2,7 +2,6 @@ package cmdtest
 
 import (
 	"encoding/json"
-	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/readonly"
 )
 
@@ -19,23 +19,16 @@ func TestReadOnlyAppInfoEditBatchPreservesCreateAndUpdateRefusals(t *testing.T) 
 	t.Setenv(readonly.EnvVar, "1")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet {
-			t.Errorf("mutation escaped read-only client: %s %s", req.Method, req.URL.Path)
-			return nil, io.ErrUnexpectedEOF
-		}
-		switch req.URL.Path {
-		case "/v1/appStoreVersions/ver-1":
-			return jsonResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"ver-1","attributes":{"platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`)
-		case "/v1/appStoreVersions/ver-1/appStoreVersionLocalizations":
-			return jsonResponse(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US"}}]}`)
-		case "/v1/apps/app-1/appStoreVersions":
-			return jsonResponse(http.StatusOK, `{"data":[]}`)
-		default:
-			t.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
-			return nil, io.ErrUnexpectedEOF
-		}
-	}))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreVersions/ver-1"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"ver-1","attributes":{"platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`))
+	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[appStoreState]=READY_FOR_SALE,DEVELOPER_REMOVED_FROM_SALE,REMOVED_FROM_SALE", "filter[platform]=IOS", "limit=1"),
+		asctest.JSON(http.StatusOK, `{"data":[]}`))
+	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[appVersionState]=READY_FOR_DISTRIBUTION", "filter[platform]=IOS", "limit=1"),
+		asctest.JSON(http.StatusOK, `{"data":[]}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/ver-1/appStoreVersionLocalizations", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US"}}]}`))
 	var code int
 	stdout, stderr := captureOutput(t, func() {
 		code = cmd.Run([]string{"apps", "info", "edit", "--app", "app-1", "--version-id", "ver-1", "--locales", "en-US,de-DE", "--description", "Updated", "--output", "json"}, "1.0.0")
@@ -65,13 +58,10 @@ func TestReadOnlyVersionLocalizationImportPreservesCreateAndUpdateRefusals(t *te
 	setupAuth(t)
 	t.Setenv(readonly.EnvVar, "1")
 	file := writeLocalizationImportFile(t, `{"de-DE":{"name":"New"},"en-US":{"name":"Updated"}}`)
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet || req.URL.Path != "/v1/subscriptionVersions/ver-1/localizations" {
-			t.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
-			return nil, io.ErrUnexpectedEOF
-		}
-		return jsonResponse(http.StatusOK, `{"data":[{"type":"subscriptionLocalizations","id":"loc-en","attributes":{"locale":"en-US","name":"Old"}}]}`)
-	}))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/subscriptionVersions/ver-1/localizations", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"subscriptionLocalizations","id":"loc-en","attributes":{"locale":"en-US","name":"Old"}}]}`))
 	var code int
 	stdout, stderr := captureOutput(t, func() {
 		code = cmd.Run([]string{"subscriptions", "versions", "localizations", "import", "--version-id", "ver-1", "--file", file, "--confirm", "--output", "json"}, "1.0.0")
@@ -104,27 +94,24 @@ func TestReadOnlyPriceImportAfterEarlierFailureExitsReadOnly(t *testing.T) {
 			if err := os.WriteFile(input, []byte("territory,price\nUSA,19.99\nJPN,19.99\n"), 0o600); err != nil {
 				t.Fatal(err)
 			}
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				if req.Method != http.MethodGet {
-					t.Errorf("mutation escaped read-only client: %s %s", req.Method, req.URL.Path)
-					return nil, io.ErrUnexpectedEOF
-				}
-				switch req.URL.Path {
-				case "/v1/subscriptions/8000000001/prices":
-					return jsonResponse(http.StatusOK, `{"data":[],"links":{}}`)
-				case "/v1/subscriptions/8000000001/pricePoints":
-					if req.URL.Query().Get("filter[territory]") == "USA" {
-						if firstFailure == "API failure" {
-							return jsonResponse(http.StatusBadRequest, `{"errors":[{"status":"400","code":"INVALID_REQUEST","title":"Invalid request"}]}`)
-						}
-						return jsonResponse(http.StatusOK, `{"data":[],"links":{}}`)
-					}
-					return jsonResponse(http.StatusOK, `{"data":[{"type":"subscriptionPricePoints","id":"pp-jpn","attributes":{"customerPrice":"19.99"}}],"links":{}}`)
-				default:
-					t.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
-					return nil, io.ErrUnexpectedEOF
-				}
-			}))
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			prices := asctest.GET("/v1/subscriptions/8000000001/prices",
+				"fields[subscriptionPrices]=startDate,preserved,planType,territory,subscriptionPricePoint",
+				"filter[planType]=UPFRONT", "include=territory,subscriptionPricePoint", "limit=200")
+			pricePoints := func(territory string) asctest.Matcher {
+				return asctest.GET("/v1/subscriptions/8000000001/pricePoints",
+					"fields[subscriptionPricePoints]=customerPrice", "filter[territory]="+territory, "limit=200")
+			}
+			usaPricePoints := asctest.JSON(http.StatusOK, `{"data":[],"links":{}}`)
+			if firstFailure == "API failure" {
+				usaPricePoints = asctest.JSON(http.StatusBadRequest, `{"errors":[{"status":"400","code":"INVALID_REQUEST","title":"Invalid request"}]}`)
+			}
+			reg.Register(prices, asctest.JSON(http.StatusOK, `{"data":[],"links":{}}`))
+			reg.Register(pricePoints("USA"), usaPricePoints)
+			reg.Register(pricePoints("JPN"),
+				asctest.JSON(http.StatusOK, `{"data":[{"type":"subscriptionPricePoints","id":"pp-jpn","attributes":{"customerPrice":"19.99"}}],"links":{}}`))
+			reg.Register(prices, asctest.JSON(http.StatusOK, `{"data":[],"links":{}}`))
 			var code int
 			stdout, stderr := captureOutput(t, func() {
 				code = cmd.Run([]string{"subscriptions", "pricing", "prices", "import", "--subscription-id", "8000000001", "--input", input, "--confirm", "--output", "json"}, "1.0.0")
