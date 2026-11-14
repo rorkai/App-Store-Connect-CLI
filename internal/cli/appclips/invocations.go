@@ -75,8 +75,7 @@ Examples:
 
 			buildBundleValue := strings.TrimSpace(*buildBundleID)
 			if buildBundleValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --build-bundle-id is required")
-				return shared.MissingRequiredUsageError("--build-bundle-id")
+				return shared.RequiredFlag("--build-bundle-id")
 			}
 
 			client, err := appClipsClientFactory()
@@ -149,8 +148,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			invocationValue := strings.TrimSpace(*invocationID)
 			if invocationValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --invocation-id is required")
-				return shared.MissingRequiredUsageError("--invocation-id")
+				return shared.RequiredFlag("--invocation-id")
 			}
 
 			client, err := appClipsClientFactory()
@@ -198,14 +196,12 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			buildBundleValue := strings.TrimSpace(*buildBundleID)
 			if buildBundleValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --build-bundle-id is required")
-				return shared.MissingRequiredUsageError("--build-bundle-id")
+				return shared.RequiredFlag("--build-bundle-id")
 			}
 
 			urlValue := strings.TrimSpace(*url)
 			if urlValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --url is required")
-				return shared.MissingRequiredUsageError("--url")
+				return shared.RequiredFlag("--url")
 			}
 
 			localizationValues := shared.SplitCSV(localizationIDs.String())
@@ -272,8 +268,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			invocationValue := strings.TrimSpace(*invocationID)
 			if invocationValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --invocation-id is required")
-				return shared.MissingRequiredUsageError("--invocation-id")
+				return shared.RequiredFlag("--invocation-id")
 			}
 
 			visited := map[string]bool{}
@@ -327,8 +322,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			invocationValue := strings.TrimSpace(*invocationID)
 			if invocationValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --invocation-id is required")
-				return shared.MissingRequiredUsageError("--invocation-id")
+				return shared.RequiredFlag("--invocation-id")
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required to delete")

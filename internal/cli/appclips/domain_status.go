@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -58,8 +57,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			buildBundleValue := strings.TrimSpace(*buildBundleID)
 			if buildBundleValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --build-bundle-id is required")
-				return shared.MissingRequiredUsageError("--build-bundle-id")
+				return shared.RequiredFlag("--build-bundle-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -105,8 +103,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			buildBundleValue := strings.TrimSpace(*buildBundleID)
 			if buildBundleValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --build-bundle-id is required")
-				return shared.MissingRequiredUsageError("--build-bundle-id")
+				return shared.RequiredFlag("--build-bundle-id")
 			}
 
 			client, err := shared.GetASCClient()
