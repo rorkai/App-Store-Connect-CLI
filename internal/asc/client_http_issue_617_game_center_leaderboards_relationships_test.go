@@ -11,10 +11,6 @@ import (
 func TestIssue617_GameCenterLeaderboardRelationshipEndpoints_Mutations(t *testing.T) {
 	ctx := context.Background()
 
-	type toOneRequest struct {
-		Data ResourceData `json:"data"`
-	}
-
 	tests := []struct {
 		name       string
 		wantMethod string

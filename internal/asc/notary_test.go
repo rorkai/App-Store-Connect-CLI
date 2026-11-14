@@ -44,23 +44,6 @@ const (
 	testSubmissionID = "550e8400-e29b-41d4-a716-446655440000"
 )
 
-type cancelAfterReadSeeker struct {
-	reader *bytes.Reader
-	cancel context.CancelFunc
-}
-
-func (r *cancelAfterReadSeeker) Read(p []byte) (int, error) {
-	n, err := r.reader.Read(p)
-	if n > 0 {
-		r.cancel()
-	}
-	return n, err
-}
-
-func (r *cancelAfterReadSeeker) Seek(offset int64, whence int) (int64, error) {
-	return r.reader.Seek(offset, whence)
-}
-
 func TestGenerateNotaryJWT(t *testing.T) {
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
