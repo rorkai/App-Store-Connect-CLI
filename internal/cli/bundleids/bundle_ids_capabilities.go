@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"os"
 	"slices"
 	"strings"
 
@@ -16,9 +15,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// BundleIDsCapabilitiesCommand returns the bundle IDs capabilities command group.
-func BundleIDsCapabilitiesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("capabilities", flag.ExitOnError)
+// newBundleIDsCapabilitiesCommand returns the bundle IDs capabilities command group.
+func newBundleIDsCapabilitiesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("capabilities", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "capabilities",
@@ -34,11 +33,11 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			BundleIDsCapabilitiesListCommand(),
-			BundleIDsCapabilitiesAddCommand(),
-			BundleIDsCapabilitiesUpdateCommand(),
-			BundleIDsCapabilitiesRemoveCommand(),
-			BundleIDsCapabilitiesReconcileCommand(),
+			newBundleIDsCapabilitiesListCommand(d),
+			newBundleIDsCapabilitiesAddCommand(d),
+			newBundleIDsCapabilitiesUpdateCommand(d),
+			newBundleIDsCapabilitiesRemoveCommand(d),
+			newBundleIDsCapabilitiesReconcileCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -46,14 +45,14 @@ Examples:
 	}
 }
 
-// BundleIDsCapabilitiesListCommand returns the bundle IDs capabilities list subcommand.
-func BundleIDsCapabilitiesListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
+// newBundleIDsCapabilitiesListCommand returns the bundle IDs capabilities list subcommand.
+func newBundleIDsCapabilitiesListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("list", flag.ExitOnError)
 
 	bundleID := shared.BindResourceIDFlag(fs, "bundle", "bundleIds", "Bundle ID")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -68,19 +67,19 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("bundle-ids capabilities list: %v", err)
+				return d.UsageErrorf("bundle-ids capabilities list: %v", err)
 			}
 			bundleValue := strings.TrimSpace(*bundleID)
 			if bundleValue == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--bundle")
+				return d.RequiredFlag("--bundle")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("bundle-ids capabilities list: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			opts := []asc.BundleIDCapabilitiesOption{
@@ -100,7 +99,7 @@ Examples:
 					return fmt.Errorf("bundle-ids capabilities list: %w", err)
 				}
 
-				return shared.PrintOutput(paginated, *output.Output, *output.Pretty)
+				return d.PrintOutput(paginated, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetBundleIDCapabilities(requestCtx, bundleValue, opts...)
@@ -108,20 +107,20 @@ Examples:
 				return fmt.Errorf("bundle-ids capabilities list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// BundleIDsCapabilitiesAddCommand returns the bundle IDs capabilities add subcommand.
-func BundleIDsCapabilitiesAddCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("add", flag.ExitOnError)
+// newBundleIDsCapabilitiesAddCommand returns the bundle IDs capabilities add subcommand.
+func newBundleIDsCapabilitiesAddCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("add", flag.ExitOnError)
 
 	bundleID := shared.BindResourceIDFlag(fs, "bundle", "bundleIds", "Bundle ID")
 	capability := fs.String("capability", "", "Capability type (e.g., ICLOUD, IN_APP_PURCHASE)")
 	settings := fs.String("settings", "", "Capability settings as a structure-validated JSON array (optional)")
 	ifExists := shared.BindIfExistsFlag(fs, shared.IfExistsSkip, shared.IfExistsUpdate)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "add",
@@ -152,29 +151,29 @@ the API cannot create, even when that capability is already enabled.`,
 		Exec: func(ctx context.Context, args []string) error {
 			bundleValue := strings.TrimSpace(*bundleID)
 			if bundleValue == "" {
-				return shared.RequiredFlag("--bundle")
+				return d.RequiredFlag("--bundle")
 			}
 			capabilityValue := strings.ToUpper(strings.TrimSpace(*capability))
 			if capabilityValue == "" {
-				return shared.RequiredFlag("--capability")
+				return d.RequiredFlag("--capability")
 			}
 
 			settingsValue, err := parseCapabilitySettings(*settings)
 			if err != nil {
-				return shared.UsageErrorf("bundle-ids capabilities add: %v", err)
+				return d.UsageErrorf("bundle-ids capabilities add: %v", err)
 			}
 
-			ifExistsMode, err := shared.ParseIfExistsMode(*ifExists, shared.IfExistsSkip, shared.IfExistsUpdate)
+			ifExistsMode, err := d.ParseIfExistsMode(*ifExists, shared.IfExistsSkip, shared.IfExistsUpdate)
 			if err != nil {
 				return err
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("bundle-ids capabilities add: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			attrs := asc.BundleIDCapabilityCreateAttributes{
@@ -204,23 +203,23 @@ the API cannot create, even when that capability is already enabled.`,
 					resp = updated
 					outcome = "updated it in place"
 				}
-				fmt.Fprintf(os.Stderr, "bundle-ids capabilities add: capability %s already enabled on bundle ID %s as %s; %s (--if-exists %s)\n",
+				fmt.Fprintf(d.IO.ErrOut, "bundle-ids capabilities add: capability %s already enabled on bundle ID %s as %s; %s (--if-exists %s)\n",
 					capabilityValue, bundleValue, existing.Data.ID, outcome, ifExistsMode)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// BundleIDsCapabilitiesUpdateCommand returns the bundle IDs capabilities update subcommand.
-func BundleIDsCapabilitiesUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("update", flag.ExitOnError)
+// newBundleIDsCapabilitiesUpdateCommand returns the bundle IDs capabilities update subcommand.
+func newBundleIDsCapabilitiesUpdateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("update", flag.ExitOnError)
 
 	id := shared.BindResourceIDFlag(fs, "id", "bundleIdCapabilities", "Capability ID")
 	capabilityType := fs.String("capability", "", "Capability type (e.g., ICLOUD, IN_APP_PURCHASE)")
 	settings := fs.String("settings", "", "Capability settings as a structure-validated JSON array")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -240,27 +239,27 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
 
 			capabilityValue := strings.ToUpper(strings.TrimSpace(*capabilityType))
 			settingsValue, err := parseCapabilitySettings(*settings)
 			if err != nil {
-				return shared.UsageErrorf("bundle-ids capabilities update: %v", err)
+				return d.UsageErrorf("bundle-ids capabilities update: %v", err)
 			}
 
 			// Treat empty settings arrays as no-op updates.
 			if capabilityValue == "" && len(settingsValue) == 0 {
-				fmt.Fprintln(os.Stderr, "Error: at least one update field is required (--capability or --settings)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: at least one update field is required (--capability or --settings)")
 				return shared.MissingRequiredUsageError("")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("bundle-ids capabilities update: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			attrs := asc.BundleIDCapabilityUpdateAttributes{
@@ -272,14 +271,15 @@ Examples:
 				return fmt.Errorf("bundle-ids capabilities update: failed to update: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// BundleIDsCapabilitiesRemoveCommand returns the bundle IDs capabilities remove subcommand.
-func BundleIDsCapabilitiesRemoveCommand() *ffcli.Command {
+// newBundleIDsCapabilitiesRemoveCommand returns the bundle IDs capabilities remove subcommand.
+func newBundleIDsCapabilitiesRemoveCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		Deps:        d,
 		FlagSetName: "remove",
 		Name:        "remove",
 		ShortUsage:  "asc bundle-ids capabilities remove --id \"CAPABILITY_ID\" --confirm",

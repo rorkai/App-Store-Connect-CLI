@@ -1080,7 +1080,11 @@ func TestUsersValidationErrors(t *testing.T) {
 		},
 	}
 
-	runValidationTests(t, tests)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assertUsageExitWithDeps(t, stubClient(t, asctest.NewRegistry(t)), test.args, test.wantErr)
+		})
+	}
 }
 
 func TestPricingValidationErrors(t *testing.T) {

@@ -1,9 +1,11 @@
 package users
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestExtractUserIDFromNextURL(t *testing.T) {
@@ -97,24 +99,24 @@ func TestExtractUserInvitationIDFromNextURL_RejectsMalformedHost(t *testing.T) {
 func TestUsersCommands_DefaultOutputJSON(t *testing.T) {
 	commands := []*struct {
 		name string
-		cmd  func() *ffcli.Command
+		cmd  func(*shared.Deps) *ffcli.Command
 	}{
-		{"list", UsersListCommand},
-		{"get", UsersGetCommand},
-		{"update", UsersUpdateCommand},
-		{"delete", UsersDeleteCommand},
-		{"invite", UsersInviteCommand},
-		{"invites list", UsersInvitesListCommand},
-		{"invites get", UsersInvitesGetCommand},
-		{"invites revoke", UsersInvitesRevokeCommand},
-		{"invites visible-apps list", UsersInvitesVisibleAppsListCommand},
-		{"visible-apps list", UsersVisibleAppsListCommand},
-		{"visible-apps get", UsersVisibleAppsGetCommand},
+		{"list", newUsersListCommand},
+		{"get", newUsersGetCommand},
+		{"update", newUsersUpdateCommand},
+		{"delete", newUsersDeleteCommand},
+		{"invite", newUsersInviteCommand},
+		{"invites list", newUsersInvitesListCommand},
+		{"invites get", newUsersInvitesGetCommand},
+		{"invites revoke", newUsersInvitesRevokeCommand},
+		{"invites visible-apps list", newUsersInvitesVisibleAppsListCommand},
+		{"visible-apps list", newUsersVisibleAppsListCommand},
+		{"visible-apps get", newUsersVisibleAppsGetCommand},
 	}
 
 	for _, tc := range commands {
 		t.Run(tc.name, func(t *testing.T) {
-			cmd := tc.cmd()
+			cmd := tc.cmd(&shared.Deps{IO: &shared.IO{Out: &bytes.Buffer{}, ErrOut: &bytes.Buffer{}}})
 			f := cmd.FlagSet.Lookup("output")
 			if f == nil {
 				t.Fatalf("expected --output flag to be defined")

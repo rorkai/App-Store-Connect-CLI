@@ -13,7 +13,6 @@ import (
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestUsersUpdateSendsRolesAndVisibleAppsInOneRequest(t *testing.T) {
@@ -54,19 +53,14 @@ func TestUsersUpdateSendsRolesAndVisibleAppsInOneRequest(t *testing.T) {
 	}))
 	defer server.Close()
 
-	setUsersUpdateTestClient(t, server)
-
-	var exitCode int
-	stdout, stderr := captureOutput(t, func() {
-		exitCode = rootcmd.Run([]string{
-			"users", "update",
-			"--id", "user-1",
-			"--roles", "developer",
-			"--visible-app", "app-2, app-1",
-			"--confirm",
-			"--output", "json",
-		}, "1.2.3")
-	})
+	stdout, stderr, exitCode := runWithDeps(t, usersUpdateTestClient(t, server),
+		"users", "update",
+		"--id", "user-1",
+		"--roles", "developer",
+		"--visible-app", "app-2, app-1",
+		"--confirm",
+		"--output", "json",
+	)
 
 	mu.Lock()
 	gotRequests := append([]string(nil), requests...)
@@ -136,17 +130,13 @@ func TestUsersUpdateRolesOnlyDoesNotRequireConfirm(t *testing.T) {
 		_, _ = w.Write([]byte(`{"data":{"type":"users","id":"user-1","attributes":{"roles":["DEVELOPER"],"allAppsVisible":true,"provisioningAllowed":false}},"links":{}}`))
 	}))
 	defer server.Close()
-	setUsersUpdateTestClient(t, server)
 
-	var exitCode int
-	stdout, stderr := captureOutput(t, func() {
-		exitCode = rootcmd.Run([]string{
-			"users", "update",
-			"--id", "user-1",
-			"--roles", "developer",
-			"--output", "json",
-		}, "1.2.3")
-	})
+	stdout, stderr, exitCode := runWithDeps(t, usersUpdateTestClient(t, server),
+		"users", "update",
+		"--id", "user-1",
+		"--roles", "developer",
+		"--output", "json",
+	)
 
 	mu.Lock()
 	gotRequestCount := requestCount
@@ -198,13 +188,9 @@ func TestUsersUpdateVisibleAppsConfirmPairingFailsBeforeHTTP(t *testing.T) {
 				http.Error(w, "unexpected request", http.StatusInternalServerError)
 			}))
 			defer server.Close()
-			setUsersUpdateTestClient(t, server)
 
-			var exitCode int
-			stdout, stderr := captureOutput(t, func() {
-				args := append([]string{"users", "update", "--id", "user-1"}, tt.args...)
-				exitCode = rootcmd.Run(append(args, "--output", "json"), "1.2.3")
-			})
+			args := append([]string{"users", "update", "--id", "user-1"}, tt.args...)
+			stdout, stderr, exitCode := runWithDeps(t, usersUpdateTestClient(t, server), append(args, "--output", "json")...)
 
 			mu.Lock()
 			gotRequestCount := requestCount
@@ -263,19 +249,15 @@ func TestUsersUpdateRejectedRequestDoesNotChangeAccess(t *testing.T) {
 		}
 	}))
 	defer server.Close()
-	setUsersUpdateTestClient(t, server)
 
-	var exitCode int
-	stdout, stderr := captureOutput(t, func() {
-		exitCode = rootcmd.Run([]string{
-			"users", "update",
-			"--id", "user-1",
-			"--roles", "developer",
-			"--visible-app", "app-after",
-			"--confirm",
-			"--output", "json",
-		}, "1.2.3")
-	})
+	stdout, stderr, exitCode := runWithDeps(t, usersUpdateTestClient(t, server),
+		"users", "update",
+		"--id", "user-1",
+		"--roles", "developer",
+		"--visible-app", "app-after",
+		"--confirm",
+		"--output", "json",
+	)
 
 	mu.Lock()
 	gotRequestCount := requestCount
@@ -301,7 +283,7 @@ func TestUsersUpdateRejectedRequestDoesNotChangeAccess(t *testing.T) {
 	}
 }
 
-func setUsersUpdateTestClient(t *testing.T, server *httptest.Server) {
+func usersUpdateTestClient(t *testing.T, server *httptest.Server) func() (*asc.Client, error) {
 	t.Helper()
 	serverURL, err := url.Parse(server.URL)
 	if err != nil {
@@ -327,7 +309,7 @@ func setUsersUpdateTestClient(t *testing.T, server *httptest.Server) {
 	if err != nil {
 		t.Fatalf("create test client: %v", err)
 	}
-	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+	return func() (*asc.Client, error) {
 		return client, nil
-	}))
+	}
 }

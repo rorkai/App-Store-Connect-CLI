@@ -32,6 +32,7 @@ func TestSelfLinkCoverageSendsExtractedID(t *testing.T) {
 		wantPath string
 		wantID   string
 		bodies   map[string]string
+		deps     bool // the command is built on shared.Deps: stub its client and read its deps streams
 	}{
 		{
 			name:     "builds info",
@@ -199,6 +200,7 @@ func TestSelfLinkCoverageSendsExtractedID(t *testing.T) {
 			bodies: map[string]string{
 				"/v1/users/user-1": `{"data":{"type":"users","id":"user-1","attributes":{"username":"dev@example.com"}}}`,
 			},
+			deps: true,
 		},
 		{
 			name:     "reviews view",
@@ -252,19 +254,26 @@ func TestSelfLinkCoverageSendsExtractedID(t *testing.T) {
 				_, _ = io.WriteString(w, body)
 			}))
 			t.Cleanup(server.Close)
-			installDefaultTransportForServer(t, server)
 
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
 			args := append(append([]string(nil), test.args...), "--output", "json")
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v (requests %q)", err, recorder.requested())
-				}
-			})
+			var stdout, stderr string
+			var err error
+			if test.deps {
+				stdout, stderr, err = runRootWithDeps(t, stubServerClient(t, server), args...)
+			} else {
+				installDefaultTransportForServer(t, server)
+				root := RootCommand("1.2.3")
+				root.FlagSet.SetOutput(io.Discard)
+				stdout, stderr = captureOutput(t, func() {
+					if parseErr := root.Parse(args); parseErr != nil {
+						t.Fatalf("parse error: %v", parseErr)
+					}
+					err = root.Run(context.Background())
+				})
+			}
+			if err != nil {
+				t.Fatalf("run error: %v (requests %q)", err, recorder.requested())
+			}
 			if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)
 			}
@@ -407,7 +416,7 @@ func TestSelfLinkCoverageRejectsWrongType(t *testing.T) {
 		{args: []string{"app-setup", "localizations", "upload"}, flag: "version", wantType: "appStoreVersions"},
 		{args: []string{"app-setup", "categories", "set"}, flag: "app-info", wantType: "appInfos"},
 		{args: []string{"app-setup", "categories", "set"}, flag: "primary", wantType: "appCategories"},
-		{args: []string{"categories", "set"}, flag: "secondary-subcategory-two", wantType: "appCategories"},
+		{args: []string{"categories", "set"}, flag: "secondary-subcategory-two", wantType: "appCategories", deps: true},
 		{args: []string{"metadata", "keywords", "audit"}, flag: "app-info", wantType: "appInfos"},
 		// Shared command builders.
 		{args: []string{"xcode-cloud", "products", "view"}, flag: "id", wantType: "ciProducts"},
@@ -447,8 +456,8 @@ func TestSelfLinkCoverageRejectsWrongType(t *testing.T) {
 		{args: []string{"builds", "uploads", "view"}, flag: "id", wantType: "buildUploads"},
 		{args: []string{"builds", "uploads", "files", "view"}, flag: "id", wantType: "buildUploadFiles"},
 		{args: []string{"builds", "uploads", "files", "list"}, flag: "upload", wantType: "buildUploads"},
-		{args: []string{"bundle-ids", "capabilities", "update"}, flag: "id", wantType: "bundleIdCapabilities"},
-		{args: []string{"bundle-ids", "capabilities", "reconcile", "plan"}, flag: "bundle", wantType: "bundleIds"},
+		{args: []string{"bundle-ids", "capabilities", "update"}, flag: "id", wantType: "bundleIdCapabilities", deps: true},
+		{args: []string{"bundle-ids", "capabilities", "reconcile", "plan"}, flag: "bundle", wantType: "bundleIds", deps: true},
 		{args: []string{"certificates", "view"}, flag: "id", wantType: "certificates"},
 		{args: []string{"devices", "view"}, flag: "id", wantType: "devices", deps: true},
 		{args: []string{"encryption", "declarations", "view"}, flag: "id", wantType: "appEncryptionDeclarations"},
@@ -467,7 +476,7 @@ func TestSelfLinkCoverageRejectsWrongType(t *testing.T) {
 		{args: []string{"game-center", "matchmaking", "teams", "update"}, flag: "id", wantType: "gameCenterMatchmakingTeams"},
 		{args: []string{"iap", "pricing", "availabilities", "view"}, flag: "id", wantType: "inAppPurchaseAvailabilities"},
 		{args: []string{"iap", "versions", "submit"}, flag: "submission", wantType: "reviewSubmissions"},
-		{args: []string{"nominations", "view"}, flag: "id", wantType: "nominations"},
+		{args: []string{"nominations", "view"}, flag: "id", wantType: "nominations", deps: true},
 		{args: []string{"pricing", "availability", "view"}, flag: "id", wantType: "appAvailabilities"},
 		{args: []string{"pricing", "schedule", "view"}, flag: "id", wantType: "appPriceSchedules"},
 		{args: []string{"profiles", "view"}, flag: "id", wantType: "profiles"},
@@ -504,15 +513,15 @@ func TestSelfLinkCoverageRejectsWrongType(t *testing.T) {
 		{args: []string{"testflight", "review", "submissions", "view"}, flag: "id", wantType: "betaAppReviewSubmissions"},
 		{args: []string{"testflight", "testers", "view"}, flag: "id", wantType: "betaTesters"},
 		{args: []string{"testflight", "testers", "list"}, flag: "group", wantType: "betaGroups"},
-		{args: []string{"users", "view"}, flag: "id", wantType: "users"},
-		{args: []string{"users", "invites", "view"}, flag: "id", wantType: "userInvitations"},
+		{args: []string{"users", "view"}, flag: "id", wantType: "users", deps: true},
+		{args: []string{"users", "invites", "view"}, flag: "id", wantType: "userInvitations", deps: true},
 		{args: []string{"versions", "phased-release", "update"}, flag: "id", wantType: "appStoreVersionPhasedReleases"},
 		// --app flags that bypassed the shared app resolver.
 		{args: []string{"performance", "download"}, flag: "app", wantType: "apps"},
 		{args: []string{"signing", "fetch"}, flag: "app", wantType: "apps"},
 		{args: []string{"app-setup", "info", "set"}, flag: "app", wantType: "apps"},
 		{args: []string{"app-setup", "categories", "set"}, flag: "app", wantType: "apps"},
-		{args: []string{"categories", "set"}, flag: "app", wantType: "apps"},
+		{args: []string{"categories", "set"}, flag: "app", wantType: "apps", deps: true},
 	}
 
 	for _, test := range tests {

@@ -1,7 +1,6 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -14,22 +13,19 @@ import (
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestCategoriesListRejectsInvalidLimit(t *testing.T) {
 	clientFactoryCalled := false
-	restore := shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+	client := func() (*asc.Client, error) {
 		clientFactoryCalled = true
 		return nil, errors.New("client factory must not run during validation")
-	})
-	defer restore()
+	}
 
-	stdout, stderr := captureOutput(t, func() {
-		if code := rootcmd.Run([]string{"categories", "list", "--limit", "0"}, "1.2.3"); code != rootcmd.ExitUsage {
-			t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, client, "categories", "list", "--limit", "0")
+	if code != rootcmd.ExitUsage {
+		t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
+	}
 	if stdout != "" {
 		t.Fatalf("stdout = %q, want empty", stdout)
 	}
@@ -42,7 +38,6 @@ func TestCategoriesListRejectsInvalidLimit(t *testing.T) {
 }
 
 func TestCategoriesListDefaultsToMaximumPageSize(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -59,17 +54,11 @@ func TestCategoriesListDefaultsToMaximumPageSize(t *testing.T) {
 		_, _ = io.WriteString(w, `{"data":[{"type":"appCategories","id":"category-default"}],"links":{"next":""}}`)
 	}))
 	t.Cleanup(server.Close)
-	installDefaultTransportForServer(t, server)
 
-	root := RootCommand("1.2.3")
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"categories", "list", "--output", "json"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, stubServerClient(t, server), "categories", "list", "--output", "json")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 	if stderr != "" {
 		t.Fatalf("stderr = %q, want empty", stderr)
 	}
@@ -77,7 +66,6 @@ func TestCategoriesListDefaultsToMaximumPageSize(t *testing.T) {
 }
 
 func TestCategoriesListPaginateAggregatesPages(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	const secondURL = "https://api.appstoreconnect.apple.com/v1/appCategories?cursor=BQ&limit=200"
@@ -110,17 +98,11 @@ func TestCategoriesListPaginateAggregatesPages(t *testing.T) {
 		}
 	}))
 	t.Cleanup(server.Close)
-	installDefaultTransportForServer(t, server)
 
-	root := RootCommand("1.2.3")
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"categories", "list", "--paginate", "--output", "json"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, stubServerClient(t, server), "categories", "list", "--paginate", "--output", "json")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 	if stderr != "" {
 		t.Fatalf("stderr = %q, want empty", stderr)
 	}
@@ -155,7 +137,6 @@ func TestCategoriesListPaginateAggregatesPages(t *testing.T) {
 }
 
 func TestCategoriesListPaginateFromNextCursor(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	const firstURL = "https://api.appstoreconnect.apple.com/v1/appCategories?cursor=AQ&limit=200"
@@ -182,17 +163,11 @@ func TestCategoriesListPaginateFromNextCursor(t *testing.T) {
 		}
 	}))
 	t.Cleanup(server.Close)
-	installDefaultTransportForServer(t, server)
 
-	root := RootCommand("1.2.3")
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"categories", "list", "--paginate", "--next", firstURL, "--output", "json"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, stubServerClient(t, server), "categories", "list", "--paginate", "--next", firstURL, "--output", "json")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 	if stderr != "" {
 		t.Fatalf("stderr = %q, want empty", stderr)
 	}

@@ -1,9 +1,7 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
-	"io"
 	"net/http"
 	"testing"
 
@@ -36,22 +34,10 @@ func TestUsersCommandsWarnDeprecatedAccessToReportsRole(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			setupAuth(t)
-
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			reg.Register(tt.request, asctest.JSON(http.StatusOK, tt.response))
 
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			var runErr error
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(tt.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				runErr = root.Run(context.Background())
-			})
+			stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), tt.args...)
 			if runErr != nil {
 				t.Fatalf("run error: %v; stderr=%q stdout=%q", runErr, stderr, stdout)
 			}
