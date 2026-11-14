@@ -9,6 +9,13 @@ import (
 	"strings"
 )
 
+// ProfileCreateData is the data object of the ProfileCreateRequest schema.
+type ProfileCreateData struct {
+	Type          ResourceType                `json:"type"`
+	Attributes    ProfileCreateAttributes     `json:"attributes"`
+	Relationships *ProfileCreateRelationships `json:"relationships"`
+}
+
 // ProfileCreateRequest is the ProfileCreateRequest schema.
 type ProfileCreateRequest struct {
 	Data ProfileCreateData `json:"data"`

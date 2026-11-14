@@ -25,11 +25,6 @@ type GameCenterAppVersionCreateAttributes struct {
 	Enabled *bool `json:"enabled,omitempty"`
 }
 
-// GameCenterAppVersionRelationships describes relationships for Game Center app versions.
-type GameCenterAppVersionRelationships struct {
-	AppStoreVersion *Relationship `json:"appStoreVersion"`
-}
-
 // GameCenterAppVersionCreateData is the data portion of an app version create request.
 type GameCenterAppVersionCreateData struct {
 	Type          ResourceType                          `json:"type"`

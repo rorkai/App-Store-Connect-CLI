@@ -17,6 +17,13 @@ type GameCenterChallengeCreateAttributes struct {
 	Repeatable       *bool  `json:"repeatable,omitempty"`
 }
 
+// GameCenterChallengeCreateData is the data object of the GameCenterChallengeCreateRequest schema.
+type GameCenterChallengeCreateData struct {
+	Type          ResourceType                        `json:"type"`
+	Attributes    GameCenterChallengeCreateAttributes `json:"attributes"`
+	Relationships *GameCenterChallengeRelationships   `json:"relationships,omitempty"`
+}
+
 // GameCenterChallengeResponse is the GameCenterChallengeResponse schema.
 type GameCenterChallengeResponse = SingleResponse[GameCenterChallengeAttributes]
 

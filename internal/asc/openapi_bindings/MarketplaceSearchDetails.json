@@ -4,11 +4,16 @@
   "types": [
     "MarketplaceSearchDetailAttributes",
     "MarketplaceSearchDetailCreateAttributes",
+    "MarketplaceSearchDetailCreateData",
+    "MarketplaceSearchDetailCreateRelationships",
     "MarketplaceSearchDetailCreateRequest",
     "MarketplaceSearchDetailResponse",
     "MarketplaceSearchDetailUpdateAttributes",
     "MarketplaceSearchDetailUpdateData",
     "MarketplaceSearchDetailUpdateRequest"
+  ],
+  "relationships": [
+    {"data":"MarketplaceSearchDetailCreateData","type":"*MarketplaceSearchDetailCreateRelationships"}
   ],
   "operations": [
     {"operation":"marketplaceSearchDetails_deleteInstance","name":"DeleteMarketplaceSearchDetail","params":["detailID"],"check":"require"}

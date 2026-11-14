@@ -26,19 +26,6 @@ type EndUserLicenseAgreementResponse struct {
 	Links Links                           `json:"links"`
 }
 
-// EndUserLicenseAgreementCreateRelationships describes relationships for EULA creation.
-type EndUserLicenseAgreementCreateRelationships struct {
-	App         Relationship     `json:"app"`
-	Territories RelationshipList `json:"territories"`
-}
-
-// EndUserLicenseAgreementCreateData is the data portion of an EULA create request.
-type EndUserLicenseAgreementCreateData struct {
-	Type          ResourceType                               `json:"type"`
-	Attributes    EndUserLicenseAgreementCreateAttributes    `json:"attributes"`
-	Relationships EndUserLicenseAgreementCreateRelationships `json:"relationships"`
-}
-
 // EndUserLicenseAgreementUpdateRelationships describes relationships for updating an EULA.
 type EndUserLicenseAgreementUpdateRelationships struct {
 	Territories *RelationshipList `json:"territories,omitempty"`

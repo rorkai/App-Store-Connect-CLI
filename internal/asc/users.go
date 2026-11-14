@@ -153,18 +153,6 @@ type UserInvitationCreateAttributes struct {
 	ProvisioningAllowed *bool    `json:"provisioningAllowed,omitempty"`
 }
 
-// UserInvitationCreateRelationships describes relationships for creating a user invitation.
-type UserInvitationCreateRelationships struct {
-	VisibleApps *RelationshipList `json:"visibleApps,omitempty"`
-}
-
-// UserInvitationCreateData is the data portion of a user invitation create request.
-type UserInvitationCreateData struct {
-	Type          ResourceType                       `json:"type"`
-	Attributes    UserInvitationCreateAttributes     `json:"attributes"`
-	Relationships *UserInvitationCreateRelationships `json:"relationships,omitempty"`
-}
-
 // UserDeleteResult represents CLI output for user deletion.
 type UserDeleteResult struct {
 	ID      string `json:"id"`

@@ -47,12 +47,6 @@ type GameCenterLeaderboardSetMemberLocalizationCreateAttributes struct {
 	Locale string `json:"locale"`
 }
 
-// GameCenterLeaderboardSetMemberLocalizationRelationships describes relationships for member localizations.
-type GameCenterLeaderboardSetMemberLocalizationRelationships struct {
-	GameCenterLeaderboardSet *Relationship `json:"gameCenterLeaderboardSet"`
-	GameCenterLeaderboard    *Relationship `json:"gameCenterLeaderboard"`
-}
-
 // GameCenterLeaderboardSetMemberLocalizationCreateData is the data portion of a member localization create request.
 type GameCenterLeaderboardSetMemberLocalizationCreateData struct {
 	Type          ResourceType                                               `json:"type"`

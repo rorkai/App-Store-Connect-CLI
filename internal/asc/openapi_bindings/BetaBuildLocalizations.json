@@ -3,9 +3,13 @@
   "file": "beta_build_localizations_gen.go",
   "types": [
     "BetaBuildLocalizationCreateRequest",
+    "BetaBuildLocalizationRelationships",
     "BetaBuildLocalizationResponse",
     "BetaBuildLocalizationUpdateRequest",
     "BetaBuildLocalizationsResponse"
+  ],
+  "relationships": [
+    {"data":"BetaBuildLocalizationCreateData","type":"*BetaBuildLocalizationRelationships"}
   ],
   "operations": [
     {"operation":"betaBuildLocalizations_build_getToOneRelated","name":"GetBetaBuildLocalizationBuild","params":["localizationID"],"check":"require","response":"BuildResponse"},

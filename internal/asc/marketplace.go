@@ -10,18 +10,6 @@ import (
 // MarketplaceSearchDetailsResponse is the response for marketplace search detail list formatting.
 type MarketplaceSearchDetailsResponse = Response[MarketplaceSearchDetailAttributes]
 
-// MarketplaceSearchDetailCreateRelationships describes relationships for create requests.
-type MarketplaceSearchDetailCreateRelationships struct {
-	App *Relationship `json:"app"`
-}
-
-// MarketplaceSearchDetailCreateData is the data payload for create requests.
-type MarketplaceSearchDetailCreateData struct {
-	Type          ResourceType                                `json:"type"`
-	Attributes    MarketplaceSearchDetailCreateAttributes     `json:"attributes"`
-	Relationships *MarketplaceSearchDetailCreateRelationships `json:"relationships"`
-}
-
 // MarketplaceSearchDetailDeleteResult represents CLI output for search detail deletions.
 type MarketplaceSearchDetailDeleteResult struct {
 	ID      string `json:"id"`

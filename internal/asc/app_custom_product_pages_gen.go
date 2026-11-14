@@ -14,6 +14,13 @@ type AppCustomProductPageCreateAttributes struct {
 	Name string `json:"name"`
 }
 
+// AppCustomProductPageCreateData is the data object of the AppCustomProductPageCreateRequest schema.
+type AppCustomProductPageCreateData struct {
+	Type          ResourceType                             `json:"type"`
+	Attributes    AppCustomProductPageCreateAttributes     `json:"attributes"`
+	Relationships *AppCustomProductPageCreateRelationships `json:"relationships"`
+}
+
 // AppCustomProductPageResponse is the AppCustomProductPageResponse schema.
 type AppCustomProductPageResponse = SingleResponse[AppCustomProductPageAttributes]
 

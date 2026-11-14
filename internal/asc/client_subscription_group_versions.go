@@ -106,22 +106,6 @@ func buildSubscriptionGroupVersionLocalizationsQuery(q *subscriptionGroupVersion
 	return values.Encode()
 }
 
-// CreateSubscriptionGroupVersion creates a discrete version owned by a group.
-func (c *Client) CreateSubscriptionGroupVersion(ctx context.Context, groupID string) (*SubscriptionGroupVersionResponse, error) {
-	groupID = strings.TrimSpace(groupID)
-	if groupID == "" {
-		return nil, fmt.Errorf("groupID is required")
-	}
-	payload := SubscriptionGroupVersionCreateRequest{Data: SubscriptionGroupVersionCreateData{
-		Type: ResourceTypeSubscriptionGroupVersions,
-		Relationships: SubscriptionGroupVersionCreateRelationships{SubscriptionGroup: Relationship{Data: ResourceData{
-			Type: ResourceTypeSubscriptionGroups,
-			ID:   groupID,
-		}}},
-	}}
-	return sendJSON[SubscriptionGroupVersionResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/subscriptionGroupVersions", Payload: payload})
-}
-
 // GetSubscriptionGroupVersion retrieves a version by ID.
 func (c *Client) GetSubscriptionGroupVersion(ctx context.Context, versionID string, opts ...SubscriptionGroupVersionsOption) (*SubscriptionGroupVersionResponse, error) {
 	versionID = strings.TrimSpace(versionID)

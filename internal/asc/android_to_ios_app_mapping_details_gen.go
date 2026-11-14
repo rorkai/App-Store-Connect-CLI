@@ -9,6 +9,13 @@ import (
 	"strings"
 )
 
+// AndroidToIosAppMappingDetailCreateData is the data object of the AndroidToIosAppMappingDetailCreateRequest schema.
+type AndroidToIosAppMappingDetailCreateData struct {
+	Type          ResourceType                                    `json:"type"`
+	Attributes    AndroidToIosAppMappingDetailCreateAttributes    `json:"attributes"`
+	Relationships AndroidToIosAppMappingDetailCreateRelationships `json:"relationships"`
+}
+
 // AndroidToIosAppMappingDetailCreateRequest is the AndroidToIosAppMappingDetailCreateRequest schema.
 type AndroidToIosAppMappingDetailCreateRequest struct {
 	Data AndroidToIosAppMappingDetailCreateData `json:"data"`

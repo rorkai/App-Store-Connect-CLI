@@ -14,6 +14,11 @@ type BetaBuildLocalizationCreateRequest struct {
 	Data BetaBuildLocalizationCreateData `json:"data"`
 }
 
+// BetaBuildLocalizationRelationships is the data.relationships object of the BetaBuildLocalizationCreateRequest schema.
+type BetaBuildLocalizationRelationships struct {
+	Build *Relationship `json:"build"`
+}
+
 // BetaBuildLocalizationResponse is the BetaBuildLocalizationResponse schema.
 type BetaBuildLocalizationResponse = SingleResponse[BetaBuildLocalizationAttributes]
 

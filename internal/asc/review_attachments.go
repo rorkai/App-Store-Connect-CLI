@@ -26,18 +26,6 @@ type AppStoreReviewAttachmentCreateAttributes struct {
 	FileName string `json:"fileName"`
 }
 
-// AppStoreReviewAttachmentRelationships describes attachment relationships.
-type AppStoreReviewAttachmentRelationships struct {
-	AppStoreReviewDetail *Relationship `json:"appStoreReviewDetail"`
-}
-
-// AppStoreReviewAttachmentCreateData is the data portion of a create request.
-type AppStoreReviewAttachmentCreateData struct {
-	Type          ResourceType                             `json:"type"`
-	Attributes    AppStoreReviewAttachmentCreateAttributes `json:"attributes"`
-	Relationships *AppStoreReviewAttachmentRelationships   `json:"relationships"`
-}
-
 // AppStoreReviewAttachmentDeleteResult represents CLI output for deletions.
 type AppStoreReviewAttachmentDeleteResult struct {
 	ID      string `json:"id"`

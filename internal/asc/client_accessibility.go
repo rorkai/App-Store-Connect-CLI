@@ -7,26 +7,6 @@ import (
 	"strings"
 )
 
-// CreateAccessibilityDeclaration creates a new accessibility declaration.
-func (c *Client) CreateAccessibilityDeclaration(ctx context.Context, appID string, attrs AccessibilityDeclarationCreateAttributes) (*AccessibilityDeclarationResponse, error) {
-	payload := AccessibilityDeclarationCreateRequest{
-		Data: AccessibilityDeclarationCreateData{
-			Type:       ResourceTypeAccessibilityDeclarations,
-			Attributes: attrs,
-			Relationships: &AccessibilityDeclarationRelationships{
-				App: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeApps,
-						ID:   strings.TrimSpace(appID),
-					},
-				},
-			},
-		},
-	}
-
-	return sendJSON[AccessibilityDeclarationResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/accessibilityDeclarations", Payload: payload})
-}
-
 // UpdateAccessibilityDeclaration updates an accessibility declaration by ID.
 func (c *Client) UpdateAccessibilityDeclaration(ctx context.Context, declarationID string, attrs AccessibilityDeclarationUpdateAttributes) (*AccessibilityDeclarationResponse, error) {
 	declarationID = strings.TrimSpace(declarationID)

@@ -2,9 +2,14 @@
   "tag": "SubscriptionIntroductoryOffers",
   "file": "subscription_introductory_offers_gen.go",
   "types": [
+    "SubscriptionIntroductoryOfferCreateData",
     "SubscriptionIntroductoryOfferCreateRequest",
+    "SubscriptionIntroductoryOfferRelationships",
     "SubscriptionIntroductoryOfferUpdateAttributes",
     "SubscriptionIntroductoryOfferUpdateRequest"
+  ],
+  "relationships": [
+    {"data":"SubscriptionIntroductoryOfferCreateData","type":"*SubscriptionIntroductoryOfferRelationships","omitempty":true}
   ],
   "operations": [
     {"operation":"subscriptionIntroductoryOffers_deleteInstance","name":"DeleteSubscriptionIntroductoryOffer","params":["offerID"]}

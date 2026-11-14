@@ -2,10 +2,18 @@
   "tag": "InAppPurchaseLocalizations",
   "file": "in_app_purchase_localizations_gen.go",
   "types": [
+    "InAppPurchaseLocalizationCreateData",
+    "InAppPurchaseLocalizationCreateRelationships",
     "InAppPurchaseLocalizationCreateRequest",
     "InAppPurchaseLocalizationResponse",
+    "InAppPurchaseLocalizationV2CreateData",
+    "InAppPurchaseLocalizationV2CreateRelationships",
     "InAppPurchaseLocalizationV2CreateRequest",
     "InAppPurchaseLocalizationV2UpdateRequest"
+  ],
+  "relationships": [
+    {"data":"InAppPurchaseLocalizationCreateData","type":"InAppPurchaseLocalizationCreateRelationships"},
+    {"data":"InAppPurchaseLocalizationV2CreateData","type":"InAppPurchaseLocalizationV2CreateRelationships"}
   ],
   "operations": [
     {"operation":"inAppPurchaseLocalizationsV2_deleteInstance","name":"DeleteInAppPurchaseLocalizationV2","params":["localizationID"],"check":"require"}

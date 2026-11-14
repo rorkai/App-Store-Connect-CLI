@@ -17,6 +17,12 @@ type InAppPurchaseOfferCodeAttributes struct {
 	Active                bool     `json:"active,omitempty"`
 }
 
+// InAppPurchaseOfferCodeCreateRelationships is the data.relationships object of the InAppPurchaseOfferCodeCreateRequest schema.
+type InAppPurchaseOfferCodeCreateRelationships struct {
+	InAppPurchase Relationship     `json:"inAppPurchase"`
+	Prices        RelationshipList `json:"prices"`
+}
+
 // InAppPurchaseOfferCodeUpdateAttributes is the data.attributes object of the InAppPurchaseOfferCodeUpdateRequest schema.
 type InAppPurchaseOfferCodeUpdateAttributes struct {
 	Active *bool `json:"active,omitempty"`

@@ -40,20 +40,6 @@ type GameCenterAchievementRelationships struct {
 	GameCenterDetail *Relationship `json:"gameCenterDetail"`
 }
 
-// GameCenterAchievementV2Relationships describes relationships for v2 achievements.
-type GameCenterAchievementV2Relationships struct {
-	GameCenterDetail *Relationship     `json:"gameCenterDetail,omitempty"`
-	GameCenterGroup  *Relationship     `json:"gameCenterGroup,omitempty"`
-	Versions         *RelationshipList `json:"versions"`
-}
-
-// GameCenterAchievementCreateData is the data portion of an achievement create request.
-type GameCenterAchievementCreateData struct {
-	Type          ResourceType                          `json:"type"`
-	Attributes    GameCenterAchievementCreateAttributes `json:"attributes"`
-	Relationships *GameCenterAchievementRelationships   `json:"relationships,omitempty"`
-}
-
 // GameCenterAchievementV2CreateData is the data portion of a v2 achievement create request.
 type GameCenterAchievementV2CreateData struct {
 	Type          ResourceType                          `json:"type"`
@@ -144,23 +130,6 @@ type GameCenterAchievementLocalizationAttributes struct {
 	AfterEarnedDescription  string `json:"afterEarnedDescription,omitempty"`
 }
 
-// GameCenterAchievementLocalizationRelationships describes relationships for achievement localizations.
-type GameCenterAchievementLocalizationRelationships struct {
-	GameCenterAchievement *Relationship `json:"gameCenterAchievement"`
-}
-
-// GameCenterAchievementLocalizationCreateData is the data portion of a localization create request.
-type GameCenterAchievementLocalizationCreateData struct {
-	Type          ResourceType                                      `json:"type"`
-	Attributes    GameCenterAchievementLocalizationCreateAttributes `json:"attributes"`
-	Relationships *GameCenterAchievementLocalizationRelationships   `json:"relationships,omitempty"`
-}
-
-// GameCenterAchievementLocalizationV2Relationships describes relationships for v2 achievement localizations.
-type GameCenterAchievementLocalizationV2Relationships struct {
-	Version *Relationship `json:"version"`
-}
-
 // GameCenterAchievementLocalizationV2CreateData is the data portion of a v2 localization create request.
 type GameCenterAchievementLocalizationV2CreateData struct {
 	Type          ResourceType                                      `json:"type"`
@@ -193,18 +162,6 @@ func buildGCAchievementLocalizationsQuery(query *gcAchievementLocalizationsQuery
 // GameCenterAchievementReleaseAttributes represents a Game Center achievement release resource.
 type GameCenterAchievementReleaseAttributes struct {
 	Live bool `json:"live"`
-}
-
-// GameCenterAchievementReleaseRelationships describes relationships for achievement releases.
-type GameCenterAchievementReleaseRelationships struct {
-	GameCenterDetail      *Relationship `json:"gameCenterDetail"`
-	GameCenterAchievement *Relationship `json:"gameCenterAchievement"`
-}
-
-// GameCenterAchievementReleaseCreateData is the data portion of an achievement release create request.
-type GameCenterAchievementReleaseCreateData struct {
-	Type          ResourceType                               `json:"type"`
-	Relationships *GameCenterAchievementReleaseRelationships `json:"relationships"`
 }
 
 // GameCenterAchievementReleasesResponse is the response from achievement release list endpoints.
@@ -242,23 +199,6 @@ type GameCenterAchievementImageAttributes struct {
 type GameCenterAchievementImageCreateAttributes struct {
 	FileSize int64  `json:"fileSize"`
 	FileName string `json:"fileName"`
-}
-
-// GameCenterAchievementImageRelationships describes relationships for achievement images.
-type GameCenterAchievementImageRelationships struct {
-	GameCenterAchievementLocalization *Relationship `json:"gameCenterAchievementLocalization"`
-}
-
-// GameCenterAchievementImageCreateData is the data portion of an image create (reserve) request.
-type GameCenterAchievementImageCreateData struct {
-	Type          ResourceType                               `json:"type"`
-	Attributes    GameCenterAchievementImageCreateAttributes `json:"attributes"`
-	Relationships *GameCenterAchievementImageRelationships   `json:"relationships"`
-}
-
-// GameCenterAchievementImageV2Relationships describes relationships for v2 achievement images.
-type GameCenterAchievementImageV2Relationships struct {
-	Localization *Relationship `json:"localization"`
 }
 
 // GameCenterAchievementImageV2CreateData is the data portion of a v2 image create (reserve) request.

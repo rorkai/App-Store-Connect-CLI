@@ -5,8 +5,15 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 )
+
+// GameCenterChallengeVersionCreateData is the data object of the GameCenterChallengeVersionCreateRequest schema.
+type GameCenterChallengeVersionCreateData struct {
+	Type          ResourceType                             `json:"type"`
+	Relationships *GameCenterChallengeVersionRelationships `json:"relationships,omitempty"`
+}
 
 // GameCenterChallengeVersionCreateRequest is the GameCenterChallengeVersionCreateRequest schema.
 type GameCenterChallengeVersionCreateRequest struct {
@@ -15,6 +22,28 @@ type GameCenterChallengeVersionCreateRequest struct {
 
 // GameCenterChallengeVersionResponse is the GameCenterChallengeVersionResponse schema.
 type GameCenterChallengeVersionResponse = SingleResponse[GameCenterChallengeVersionAttributes]
+
+// CreateGameCenterChallengeVersion sends POST /v1/gameCenterChallengeVersions (gameCenterChallengeVersions_createInstance).
+func (c *Client) CreateGameCenterChallengeVersion(ctx context.Context, challengeID string) (*GameCenterChallengeVersionResponse, error) {
+	payload := GameCenterChallengeVersionCreateRequest{
+		Data: GameCenterChallengeVersionCreateData{
+			Type: ResourceTypeGameCenterChallengeVersions,
+			Relationships: &GameCenterChallengeVersionRelationships{
+				Challenge: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeGameCenterChallenges,
+						ID:   strings.TrimSpace(challengeID),
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[GameCenterChallengeVersionResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/gameCenterChallengeVersions",
+		Payload: payload,
+	})
+}
 
 // GetGameCenterChallengeVersionDefaultImage sends GET /v1/gameCenterChallengeVersions/{id}/defaultImage (gameCenterChallengeVersions_defaultImage_getToOneRelated).
 func (c *Client) GetGameCenterChallengeVersionDefaultImage(ctx context.Context, versionID string) (*GameCenterChallengeVersionDefaultImageResponse, error) {

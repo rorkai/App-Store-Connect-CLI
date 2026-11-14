@@ -9,9 +9,22 @@ import (
 	"strings"
 )
 
+// GameCenterActivityImageCreateData is the data object of the GameCenterActivityImageCreateRequest schema.
+type GameCenterActivityImageCreateData struct {
+	Type          ResourceType                            `json:"type"`
+	Attributes    GameCenterActivityImageCreateAttributes `json:"attributes"`
+	Relationships *GameCenterActivityImageRelationships   `json:"relationships"`
+}
+
 // GameCenterActivityImageCreateRequest is the GameCenterActivityImageCreateRequest schema.
 type GameCenterActivityImageCreateRequest struct {
 	Data GameCenterActivityImageCreateData `json:"data"`
+}
+
+// GameCenterActivityImageRelationships is the data.relationships object of the GameCenterActivityImageCreateRequest schema.
+type GameCenterActivityImageRelationships struct {
+	Localization *Relationship `json:"localization,omitempty"`
+	Version      *Relationship `json:"version,omitempty"`
 }
 
 // GameCenterActivityImageResponse is the GameCenterActivityImageResponse schema.

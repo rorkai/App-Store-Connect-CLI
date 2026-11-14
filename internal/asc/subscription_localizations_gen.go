@@ -17,9 +17,21 @@ type SubscriptionLocalizationAttributes struct {
 	State       string `json:"state,omitempty"`
 }
 
+// SubscriptionLocalizationCreateData is the data object of the SubscriptionLocalizationCreateRequest schema.
+type SubscriptionLocalizationCreateData struct {
+	Type          ResourceType                             `json:"type"`
+	Attributes    SubscriptionLocalizationCreateAttributes `json:"attributes"`
+	Relationships *SubscriptionLocalizationRelationships   `json:"relationships,omitempty"`
+}
+
 // SubscriptionLocalizationCreateRequest is the SubscriptionLocalizationCreateRequest schema.
 type SubscriptionLocalizationCreateRequest struct {
 	Data SubscriptionLocalizationCreateData `json:"data"`
+}
+
+// SubscriptionLocalizationRelationships is the data.relationships object of the SubscriptionLocalizationCreateRequest schema.
+type SubscriptionLocalizationRelationships struct {
+	Subscription *Relationship `json:"subscription"`
 }
 
 // SubscriptionLocalizationV2Attributes is the attributes object of the SubscriptionLocalizationV2 schema.
@@ -27,6 +39,13 @@ type SubscriptionLocalizationV2Attributes struct {
 	Name        string `json:"name,omitempty"`
 	Locale      string `json:"locale,omitempty"`
 	Description string `json:"description,omitempty"`
+}
+
+// SubscriptionLocalizationV2CreateData is the data object of the SubscriptionLocalizationV2CreateRequest schema.
+type SubscriptionLocalizationV2CreateData struct {
+	Type          ResourceType                               `json:"type"`
+	Attributes    SubscriptionLocalizationV2CreateAttributes `json:"attributes"`
+	Relationships *SubscriptionVersionRelationship           `json:"relationships"`
 }
 
 // SubscriptionLocalizationV2CreateRequest is the SubscriptionLocalizationV2CreateRequest schema.
@@ -58,5 +77,32 @@ func (c *Client) GetSubscriptionLocalizationV2(ctx context.Context, localization
 	return getJSON[SubscriptionLocalizationV2Response](ctx, c, readRequest{
 		Path:  fmt.Sprintf("/v2/subscriptionLocalizations/%s", localizationID),
 		Query: buildSubscriptionLocalizationV2Query(query),
+	})
+}
+
+// CreateSubscriptionLocalization sends POST /v1/subscriptionLocalizations (subscriptionLocalizations_createInstance).
+func (c *Client) CreateSubscriptionLocalization(ctx context.Context, subscriptionID string, attrs SubscriptionLocalizationCreateAttributes) (*SubscriptionLocalizationResponse, error) {
+	subscriptionID = strings.TrimSpace(subscriptionID)
+	if subscriptionID == "" {
+		return nil, fmt.Errorf("subscription ID is required")
+	}
+	payload := SubscriptionLocalizationCreateRequest{
+		Data: SubscriptionLocalizationCreateData{
+			Type:       ResourceTypeSubscriptionLocalizations,
+			Attributes: attrs,
+			Relationships: &SubscriptionLocalizationRelationships{
+				Subscription: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeSubscriptions,
+						ID:   subscriptionID,
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[SubscriptionLocalizationResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/subscriptionLocalizations",
+		Payload: payload,
 	})
 }

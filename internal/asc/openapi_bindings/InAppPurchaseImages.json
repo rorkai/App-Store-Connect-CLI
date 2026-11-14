@@ -2,9 +2,14 @@
   "tag": "InAppPurchaseImages",
   "file": "in_app_purchase_images_gen.go",
   "types": [
+    "InAppPurchaseImageV2CreateData",
+    "InAppPurchaseImageV2CreateRelationships",
     "InAppPurchaseImageV2CreateRequest",
     "InAppPurchaseImageV2UpdateData",
     "InAppPurchaseImageV2UpdateRequest"
+  ],
+  "relationships": [
+    {"data":"InAppPurchaseImageV2CreateData","type":"InAppPurchaseImageV2CreateRelationships"}
   ],
   "operations": [
     {"operation":"inAppPurchaseImagesV2_deleteInstance","name":"DeleteInAppPurchaseImageV2","params":["imageID"],"check":"require"}

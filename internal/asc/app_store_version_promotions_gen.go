@@ -2,6 +2,12 @@
 
 package asc
 
+// AppStoreVersionPromotionCreateData is the data object of the AppStoreVersionPromotionCreateRequest schema.
+type AppStoreVersionPromotionCreateData struct {
+	Type          ResourceType                          `json:"type"`
+	Relationships AppStoreVersionPromotionRelationships `json:"relationships"`
+}
+
 // AppStoreVersionPromotionCreateRequest is the AppStoreVersionPromotionCreateRequest schema.
 type AppStoreVersionPromotionCreateRequest struct {
 	Data AppStoreVersionPromotionCreateData `json:"data"`
