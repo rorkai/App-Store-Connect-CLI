@@ -445,77 +445,29 @@ Examples:
 
 // GameCenterChallengeVersionsListCommand returns the challenge versions list subcommand.
 func GameCenterChallengeVersionsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
-
-	challengeID := shared.BindResourceIDFlag(fs, "challenge-id", "gameCenterChallenges", "Game Center challenge ID")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc game-center challenges versions list --challenge-id \"CHALLENGE_ID\"",
-		ShortHelp:  "List versions for a Game Center challenge.",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "list",
+		Name:        "list",
+		ShortUsage:  "asc game-center challenges versions list --challenge-id \"CHALLENGE_ID\"",
+		ShortHelp:   "List versions for a Game Center challenge.",
 		LongHelp: `List versions for a Game Center challenge.
 
 Examples:
   asc game-center challenges versions list --challenge-id "CHALLENGE_ID"
   asc game-center challenges versions list --challenge-id "CHALLENGE_ID" --limit 50
   asc game-center challenges versions list --challenge-id "CHALLENGE_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("game-center challenges versions list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("game-center challenges versions list: %v", err)
-			}
-
-			id := strings.TrimSpace(*challengeID)
-			if id == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--challenge-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center challenges versions list: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			opts := []asc.GCChallengeVersionsOption{
-				asc.WithGCChallengeVersionsLimit(*limit),
-				asc.WithGCChallengeVersionsNextURL(*next),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.WithGCChallengeVersionsLimit(200))
-				firstPage, err := client.GetGameCenterChallengeVersions(requestCtx, id, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("game-center challenges versions list: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterChallengeVersions(ctx, id, asc.WithGCChallengeVersionsNextURL(nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("game-center challenges versions list: %w", err)
-				}
-
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetGameCenterChallengeVersions(requestCtx, id, opts...)
-			if err != nil {
-				return fmt.Errorf("game-center challenges versions list: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		ParentFlag:           "challenge-id",
+		ParentUsage:          "Game Center challenge ID",
+		ParentType:           "gameCenterChallenges",
+		RequiredDiagnostic:   true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		ErrorPrefix:          "game-center challenges versions list",
+		FetchErrorPrefix:     "game-center challenges versions list: failed to fetch",
+		FetchPage: func(ctx context.Context, client *asc.Client, challengeId string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetGameCenterChallengeVersions(ctx, challengeId, asc.WithGCChallengeVersionsLimit(limit), asc.WithGCChallengeVersionsNextURL(next))
 		},
-	}
+	})
 }
 
 // GameCenterChallengeVersionsGetCommand returns the challenge versions get subcommand.
@@ -634,77 +586,29 @@ Examples:
 
 // GameCenterChallengeLocalizationsListCommand returns the challenge localizations list subcommand.
 func GameCenterChallengeLocalizationsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
-
-	versionID := shared.BindResourceIDFlag(fs, "version-id", "gameCenterChallengeVersions", "Game Center challenge version ID")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc game-center challenges localizations list --version-id \"VERSION_ID\"",
-		ShortHelp:  "List localizations for a challenge version.",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "list",
+		Name:        "list",
+		ShortUsage:  "asc game-center challenges localizations list --version-id \"VERSION_ID\"",
+		ShortHelp:   "List localizations for a challenge version.",
 		LongHelp: `List localizations for a challenge version.
 
 Examples:
   asc game-center challenges localizations list --version-id "VERSION_ID"
   asc game-center challenges localizations list --version-id "VERSION_ID" --limit 50
   asc game-center challenges localizations list --version-id "VERSION_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("game-center challenges localizations list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("game-center challenges localizations list: %v", err)
-			}
-
-			id := strings.TrimSpace(*versionID)
-			if id == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--version-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center challenges localizations list: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			opts := []asc.GCChallengeLocalizationsOption{
-				asc.WithGCChallengeLocalizationsLimit(*limit),
-				asc.WithGCChallengeLocalizationsNextURL(*next),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.WithGCChallengeLocalizationsLimit(200))
-				firstPage, err := client.GetGameCenterChallengeLocalizations(requestCtx, id, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("game-center challenges localizations list: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterChallengeLocalizations(ctx, id, asc.WithGCChallengeLocalizationsNextURL(nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("game-center challenges localizations list: %w", err)
-				}
-
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetGameCenterChallengeLocalizations(requestCtx, id, opts...)
-			if err != nil {
-				return fmt.Errorf("game-center challenges localizations list: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		ParentFlag:           "version-id",
+		ParentUsage:          "Game Center challenge version ID",
+		ParentType:           "gameCenterChallengeVersions",
+		RequiredDiagnostic:   true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		ErrorPrefix:          "game-center challenges localizations list",
+		FetchErrorPrefix:     "game-center challenges localizations list: failed to fetch",
+		FetchPage: func(ctx context.Context, client *asc.Client, versionId string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetGameCenterChallengeLocalizations(ctx, versionId, asc.WithGCChallengeLocalizationsLimit(limit), asc.WithGCChallengeLocalizationsNextURL(next))
 		},
-	}
+	})
 }
 
 // GameCenterChallengeLocalizationsGetCommand returns the challenge localizations get subcommand.
