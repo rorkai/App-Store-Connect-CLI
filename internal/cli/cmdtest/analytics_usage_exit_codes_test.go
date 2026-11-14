@@ -205,6 +205,21 @@ func TestAnalyticsInputValidationReturnsUsageExitCode(t *testing.T) {
 			args:    []string{"analytics", "request", "--app", "APP_ID", "--reuse-existing"},
 			wantErr: "--access-type is required",
 		},
+		{
+			name:    "sales output given a format",
+			args:    []string{"analytics", "sales", "--output", "json"},
+			wantErr: "--output takes a path in this command, not an output format; use --output-format json to choose the format, or --output ./json to write to a path named json",
+		},
+		{
+			name:    "download output given a format",
+			args:    []string{"analytics", "download", "--output", "table"},
+			wantErr: "--output takes a path in this command, not an output format; use --output-format table to choose the format, or --output ./table to write to a path named table",
+		},
+		{
+			name:    "finance reports output given a format",
+			args:    []string{"finance", "reports", "--output", "markdown"},
+			wantErr: "--output takes a path in this command, not an output format; use --output-format markdown to choose the format, or --output ./markdown to write to a path named markdown",
+		},
 	}
 
 	for _, test := range tests {

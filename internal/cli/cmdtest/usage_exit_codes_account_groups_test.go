@@ -774,6 +774,26 @@ func TestAccountAndDistributionInputValidationReturnsUsageExitCode(t *testing.T)
 			args:    []string{"background-assets", "internal-beta-releases", "view"},
 			wantErr: "--id is required",
 		},
+		{
+			name:    "profiles download output given an uppercase format",
+			args:    []string{"profiles", "download", "--output", "JSON"},
+			wantErr: "--output takes a path in this command, not an output format; use --output-format json to choose the format, or --output ./JSON to write to a path named JSON",
+		},
+		{
+			name:    "profiles download output path named like a format",
+			args:    []string{"profiles", "download", "--output", "./json"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "signing fetch output given a format",
+			args:    []string{"signing", "fetch", "--output", "json"},
+			wantErr: "--output takes a path in this command, not an output format; use --format json to choose the format, or --output ./json to write to a path named json",
+		},
+		{
+			name:    "signing resign output given a format",
+			args:    []string{"signing", "resign", "--output", "markdown"},
+			wantErr: "--output takes a path in this command, not an output format; use --format markdown to choose the format, or --output ./markdown to write to a path named markdown",
+		},
 	}
 
 	for _, test := range tests {

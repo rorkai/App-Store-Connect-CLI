@@ -579,6 +579,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := shared.RejectOutputFormatAsPath(*outputPath, "--output-format"); err != nil {
+				return err
+			}
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
 				return shared.RequiredFlag("--id")
