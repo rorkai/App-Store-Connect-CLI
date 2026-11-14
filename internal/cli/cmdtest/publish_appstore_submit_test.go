@@ -830,6 +830,8 @@ func TestPublishAppStoreSubmitPreflightUsesPublishTimeoutOverride(t *testing.T) 
 
 	var localizationBudget time.Duration
 	var subscriptionBudget time.Duration
+	var appInfosBudget time.Duration
+	var versionBudget time.Duration
 
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		if resp, err, ok := respondToPublishAppLookup(t, req); ok {
@@ -884,7 +886,21 @@ func TestPublishAppStoreSubmitPreflightUsesPublishTimeoutOverride(t *testing.T) 
 			localizationBudget = time.Until(deadline)
 			return jsonResponse(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US","description":"Description","keywords":"keyword","supportUrl":"https://example.com/support","whatsNew":"Bug fixes"}}]}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appInfos":
-			return jsonResponse(http.StatusOK, submitPreflightAppInfosJSON("app-1", completeAgeRatingAttributes))
+			deadline, _ := req.Context().Deadline()
+			appInfosBudget = time.Until(deadline)
+			timer := time.NewTimer(600 * time.Millisecond)
+			defer timer.Stop()
+			select {
+			case <-req.Context().Done():
+				return nil, req.Context().Err()
+			case <-timer.C:
+			}
+			appInfos := strings.Replace(submitPreflightAppInfosJSON("app-1", completeAgeRatingAttributes), `],"included"`, `,{"type":"appInfos","id":"info-2","attributes":{"state":"READY_FOR_DISTRIBUTION"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}},"appInfoLocalizations":{"data":[]},"primaryCategory":{"data":null}}}],"included"`, 1)
+			return jsonResponse(http.StatusOK, appInfos)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1":
+			deadline, _ := req.Context().Deadline()
+			versionBudget = time.Until(deadline)
+			return jsonResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS","appVersionState":"PREPARE_FOR_SUBMISSION"}}}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/subscriptionGroups":
 			deadline, ok := req.Context().Deadline()
 			if !ok {
@@ -941,6 +957,9 @@ func TestPublishAppStoreSubmitPreflightUsesPublishTimeoutOverride(t *testing.T) 
 	}
 	if localizationBudget < 700*time.Millisecond {
 		t.Fatalf("expected localization preflight to use publish timeout budget, got %v", localizationBudget)
+	}
+	if appInfosBudget < 700*time.Millisecond || versionBudget < 700*time.Millisecond {
+		t.Fatalf("expected each age rating preflight request to get its own publish timeout budget, got app infos %v, version %v", appInfosBudget, versionBudget)
 	}
 	if subscriptionBudget < 700*time.Millisecond {
 		t.Fatalf("expected subscription preflight to use publish timeout budget, got %v", subscriptionBudget)

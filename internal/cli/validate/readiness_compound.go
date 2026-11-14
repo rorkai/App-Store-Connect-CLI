@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
@@ -270,8 +271,10 @@ func fetchAppInfoReadinessData(ctx context.Context, client *asc.Client, appID st
 
 // FetchAgeRatingDeclaration reads the app's age rating declaration the way
 // `asc validate` does, choosing the app info that matches the version when the
-// app has more than one. It returns nil when no declaration exists.
-func FetchAgeRatingDeclaration(ctx context.Context, client *asc.Client, appID, versionID string) (*validation.AgeRatingDeclaration, error) {
+// app has more than one. It returns nil when no declaration exists. A positive
+// requestTimeout gives each request that budget instead of the default timeout.
+func FetchAgeRatingDeclaration(ctx context.Context, client *asc.Client, appID, versionID string, requestTimeout time.Duration) (*validation.AgeRatingDeclaration, error) {
+	ctx = context.WithValue(ctx, readinessRequestTimeoutKey{}, requestTimeout)
 	data, err := fetchAppInfoReadinessData(ctx, client, appID)
 	if err != nil {
 		return nil, err

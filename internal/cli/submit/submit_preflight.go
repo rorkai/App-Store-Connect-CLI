@@ -79,9 +79,7 @@ func runSubmissionAgeRatingPreflight(
 	requestTimeout time.Duration,
 	retryCommand string,
 ) error {
-	fetchCtx, fetchCancel := submitPreflightRequestContext(ctx, requestTimeout)
-	declaration, err := validatecli.FetchAgeRatingDeclaration(fetchCtx, client, appID, versionID)
-	fetchCancel()
+	declaration, err := validatecli.FetchAgeRatingDeclaration(ctx, client, appID, versionID, requestTimeout)
 	if err != nil {
 		return fmt.Errorf("age rating preflight: %w", err)
 	}

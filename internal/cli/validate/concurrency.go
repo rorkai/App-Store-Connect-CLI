@@ -3,6 +3,7 @@ package validate
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
@@ -10,6 +11,10 @@ import (
 const readinessConcurrencyLimit = 4
 
 type readinessRequestGateKey struct{}
+
+// readinessRequestTimeoutKey carries a caller's per-request budget that
+// replaces the default request timeout for each readiness request.
+type readinessRequestTimeoutKey struct{}
 
 type readinessRequestGate struct {
 	sem chan struct{}
@@ -38,7 +43,13 @@ func doReadinessRequest[T any](ctx context.Context, request func(context.Context
 		}
 	}
 
-	requestCtx, cancel := shared.ContextWithTimeout(ctx)
+	var requestCtx context.Context
+	var cancel context.CancelFunc
+	if timeout, _ := ctx.Value(readinessRequestTimeoutKey{}).(time.Duration); timeout > 0 {
+		requestCtx, cancel = shared.ContextWithTimeoutDuration(shared.ContextWithoutTimeout(ctx), timeout)
+	} else {
+		requestCtx, cancel = shared.ContextWithTimeout(ctx)
+	}
 	defer cancel()
 	return request(requestCtx)
 }
