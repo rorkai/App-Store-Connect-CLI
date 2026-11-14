@@ -177,7 +177,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("versions", "Manage App Store versions.", versions.VersionsCommand),
 		commandFactory("product-pages", "Manage custom product pages and product page experiments.", productpages.ProductPagesCommand),
 		commandFactory("routing-coverage", "Manage routing app coverage files.", routingcoverage.RoutingCoverageCommand),
-		commandFactory("eula", "Manage End User License Agreements (EULA).", eula.EULACommand),
+		commandFactory("eula", "Manage End User License Agreements (EULA).", func() *ffcli.Command {
+			return eula.NewEULACommand(d)
+		}),
 		commandFactory("agreements", "Manage agreements in App Store Connect.", func() *ffcli.Command {
 			return agreements.NewAgreementsCommand(d)
 		}),
@@ -190,7 +192,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("asset-library", "Inspect Asset Library media and specifications, and upload images and videos.", assetlibrary.Command),
 		commandFactory("background-assets", "Manage background assets.", backgroundassets.BackgroundAssetsCommand),
 		commandFactory("build-localizations", "Manage build release notes localizations.", buildlocalizations.BuildLocalizationsCommand),
-		commandFactory("sandbox", "Manage sandbox testers in App Store Connect.", sandbox.SandboxCommand),
+		commandFactory("sandbox", "Manage sandbox testers in App Store Connect.", func() *ffcli.Command {
+			return sandbox.NewSandboxCommand(d)
+		}),
 		commandFactory("signing", "Manage signing certificates and profiles.", signing.SigningCommand),
 		commandFactory("notarization", "Manage macOS notarization submissions.", notarization.NotarizationCommand),
 		commandFactory("iap", "Manage in-app purchases in App Store Connect.", iap.IAPCommand),
@@ -208,7 +212,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("notify", "Send notifications to external services.", notify.NotifyCommand),
 		commandFactory("game-center", "Manage Game Center resources in App Store Connect.", gamecenter.GameCenterCommand),
 		commandFactory("capabilities", "Show CLI, API, web-only, and public-API-limited capability coverage.", capabilities.Command),
-		commandFactory("schema", "Inspect App Store Connect API endpoint schemas at runtime.", schema.SchemaCommand),
+		commandFactory("schema", "Inspect App Store Connect API endpoint schemas at runtime.", func() *ffcli.Command {
+			return schema.NewSchemaCommand(d)
+		}),
 		commandFactory("api", "Send an authenticated raw request to the App Store Connect API.", apicmd.Command),
 		commandFactory("telemetry", "Manage CLI telemetry settings.", telemetrycmd.TelemetryCommand),
 		commandFactory("search", "Search asc commands and examples for agent-oriented command discovery.", func() *ffcli.Command {

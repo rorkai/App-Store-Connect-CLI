@@ -9,10 +9,7 @@ import (
 )
 
 func TestSandboxListNormalizesTerritoryFilter(t *testing.T) {
-	setupAuth(t)
-
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v2/sandboxTesters"), asctest.JSON(http.StatusOK, `{
 		"data":[
 			{"type":"sandboxTesters","id":"tester-usa","attributes":{"email":"usa@example.com","territory":"USA"}},
@@ -20,7 +17,7 @@ func TestSandboxListNormalizesTerritoryFilter(t *testing.T) {
 		]
 	}`))
 
-	stdout, stderr, err := runCommand(t, []string{"sandbox", "list", "--territory", "United States"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "sandbox", "list", "--territory", "United States")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -35,10 +32,7 @@ func TestSandboxListNormalizesTerritoryFilter(t *testing.T) {
 }
 
 func TestSandboxListAllowsEmptyTerritoryFilter(t *testing.T) {
-	setupAuth(t)
-
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v2/sandboxTesters"), asctest.JSON(http.StatusOK, `{
 		"data":[
 			{"type":"sandboxTesters","id":"tester-usa","attributes":{"territory":"USA"}},
@@ -46,7 +40,7 @@ func TestSandboxListAllowsEmptyTerritoryFilter(t *testing.T) {
 		]
 	}`))
 
-	stdout, stderr, err := runCommand(t, []string{"sandbox", "list", "--territory="})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "sandbox", "list", "--territory=")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -117,7 +111,6 @@ func TestSandboxListKeepsFiltersAcrossPagination(t *testing.T) {
 
 func runSandboxListFilterPagination(t *testing.T, filterArgs []string, initialNext, firstData, secondData string) (string, string, []string) {
 	t.Helper()
-	setupAuth(t)
 
 	secondURL := "https://api.appstoreconnect.apple.com/v2/sandboxTesters?cursor=page-2"
 	firstQuery := "limit=200"
@@ -125,7 +118,6 @@ func runSandboxListFilterPagination(t *testing.T, filterArgs []string, initialNe
 		firstQuery = "cursor=page-1"
 	}
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v2/sandboxTesters", firstQuery), asctest.JSON(http.StatusOK, `{"data":[`+firstData+`],"links":{"next":"`+secondURL+`"}}`))
 	reg.Register(asctest.GET("/v2/sandboxTesters", "cursor=page-2"), asctest.JSON(http.StatusOK, `{"data":[`+secondData+`]}`))
 
@@ -135,7 +127,7 @@ func runSandboxListFilterPagination(t *testing.T, filterArgs []string, initialNe
 		args = append(args, "--next", initialNext)
 	}
 
-	stdout, stderr, err := runCommand(t, args)
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), args...)
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}

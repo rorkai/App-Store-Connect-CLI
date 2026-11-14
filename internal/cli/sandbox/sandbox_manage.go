@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -13,13 +12,13 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// SandboxGetCommand returns the sandbox view subcommand.
-func SandboxGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
+// newSandboxGetCommand returns the sandbox view subcommand built on d.
+func newSandboxGetCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("view", flag.ExitOnError)
 
 	testerID := shared.BindResourceIDFlag(fs, "id", "sandboxTesters", "Sandbox tester ID")
 	email := fs.String("email", "", "Tester email address")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "view",
@@ -34,21 +33,21 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*testerID) == "" && strings.TrimSpace(*email) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id or --email is required")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --id or --email is required")
 				return shared.MissingRequiredUsageError("")
 			}
 			if strings.TrimSpace(*email) != "" {
 				if err := validateSandboxEmail(*email); err != nil {
-					return shared.UsageErrorf("sandbox view: %v", err)
+					return d.UsageErrorf("sandbox view: %v", err)
 				}
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("sandbox view: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			var response *asc.SandboxTesterResponse
@@ -61,14 +60,14 @@ Examples:
 				return fmt.Errorf("sandbox view: %w", err)
 			}
 
-			return shared.PrintOutput(response, *output.Output, *output.Pretty)
+			return d.PrintOutput(response, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// SandboxUpdateCommand returns the sandbox update subcommand.
-func SandboxUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("update", flag.ExitOnError)
+// newSandboxUpdateCommand returns the sandbox update subcommand built on d.
+func newSandboxUpdateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("update", flag.ExitOnError)
 
 	testerID := shared.BindResourceIDFlag(fs, "id", "sandboxTesters", "Sandbox tester ID")
 	email := fs.String("email", "", "Tester email address")
@@ -76,7 +75,7 @@ func SandboxUpdateCommand() *ffcli.Command {
 	subscriptionRenewalRate := fs.String("subscription-renewal-rate", "", "Subscription renewal rate (MONTHLY_RENEWAL_EVERY_ONE_HOUR, MONTHLY_RENEWAL_EVERY_THIRTY_MINUTES, MONTHLY_RENEWAL_EVERY_FIFTEEN_MINUTES, MONTHLY_RENEWAL_EVERY_FIVE_MINUTES, MONTHLY_RENEWAL_EVERY_THREE_MINUTES)")
 	var interruptPurchases shared.OptionalBool
 	fs.Var(&interruptPurchases, "interrupt-purchases", "Interrupt purchases (true/false)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -92,35 +91,35 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*testerID) == "" && strings.TrimSpace(*email) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id or --email is required")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --id or --email is required")
 				return shared.MissingRequiredUsageError("")
 			}
 			if strings.TrimSpace(*email) != "" {
 				if err := validateSandboxEmail(*email); err != nil {
-					return shared.UsageErrorf("sandbox update: %v", err)
+					return d.UsageErrorf("sandbox update: %v", err)
 				}
 			}
 
 			normalizedTerritory, err := normalizeSandboxTerritoryFilter(*territory)
 			if err != nil {
-				return shared.UsageErrorf("sandbox update: %v", err)
+				return d.UsageErrorf("sandbox update: %v", err)
 			}
 			normalizedRate, err := normalizeSandboxRenewalRate(*subscriptionRenewalRate)
 			if err != nil {
-				return shared.UsageErrorf("sandbox update: %v", err)
+				return d.UsageErrorf("sandbox update: %v", err)
 			}
 
 			if !interruptPurchases.IsSet() && normalizedTerritory == "" && normalizedRate == "" {
-				fmt.Fprintln(os.Stderr, "Error: --territory, --interrupt-purchases, or --subscription-renewal-rate is required")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --territory, --interrupt-purchases, or --subscription-renewal-rate is required")
 				return shared.MissingRequiredUsageError("")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return err
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resolvedID := strings.TrimSpace(*testerID)
@@ -153,19 +152,20 @@ Examples:
 				return fmt.Errorf("sandbox update: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// SandboxClearHistoryCommand returns the sandbox clear-history subcommand.
-func SandboxClearHistoryCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("clear-history", flag.ExitOnError)
+// newSandboxClearHistoryCommand returns the sandbox clear-history
+// subcommand built on d.
+func newSandboxClearHistoryCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("clear-history", flag.ExitOnError)
 
 	testerID := shared.BindResourceIDFlag(fs, "id", "sandboxTesters", "Sandbox tester ID")
 	email := fs.String("email", "", "Tester email address")
 	confirm := fs.Bool("confirm", false, "Confirm clearing purchase history")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "clear-history",
@@ -180,24 +180,24 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if !*confirm {
-				return shared.RequiredFlag("--confirm")
+				return d.RequiredFlag("--confirm")
 			}
 			if strings.TrimSpace(*testerID) == "" && strings.TrimSpace(*email) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id or --email is required")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --id or --email is required")
 				return shared.MissingRequiredUsageError("")
 			}
 			if strings.TrimSpace(*email) != "" {
 				if err := validateSandboxEmail(*email); err != nil {
-					return shared.UsageErrorf("sandbox clear-history: %v", err)
+					return d.UsageErrorf("sandbox clear-history: %v", err)
 				}
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return err
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resolvedID := strings.TrimSpace(*testerID)
@@ -222,7 +222,7 @@ Examples:
 				Cleared:   true,
 			}
 
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }

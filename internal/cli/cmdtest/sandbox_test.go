@@ -5,23 +5,19 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestSandboxViewByEmailStopsOnRepeatedNextURL(t *testing.T) {
-	setupAuth(t)
 	const repeatedNext = "https://api.appstoreconnect.apple.com/v2/sandboxTesters?cursor=repeat"
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v2/sandboxTesters", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[],"links":{"next":"`+repeatedNext+`"}}`))
 	reg.Register(asctest.GET("/v2/sandboxTesters", "cursor=repeat"), asctest.JSON(http.StatusOK, `{"data":[],"links":{"next":"`+repeatedNext+`"}}`))
 
-	stdout, stderr := captureOutput(t, func() {
-		if code := cmd.Run([]string{"sandbox", "view", "--email", "tester@example.com"}, "1.2.3"); code == 0 {
-			t.Fatal("expected repeated pagination failure")
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, stubClient(t, reg), "sandbox", "view", "--email", "tester@example.com")
+	if code == 0 {
+		t.Fatal("expected repeated pagination failure")
+	}
 
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
@@ -35,7 +31,7 @@ func TestSandboxViewByEmailStopsOnRepeatedNextURL(t *testing.T) {
 }
 
 func TestSandboxUsageErrors(t *testing.T) {
-	runUsageExitCases(t, []usageExitCase{
+	for _, test := range []usageExitCase{
 		{
 			name:    "ViewMissingIDAndEmail",
 			args:    []string{"sandbox", "view"},
@@ -61,5 +57,9 @@ func TestSandboxUsageErrors(t *testing.T) {
 			args:    []string{"sandbox", "clear-history", "--confirm"},
 			wantErr: "--id or --email is required",
 		},
-	})
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			assertUsageExitWithDeps(t, nil, test.args, test.wantErr)
+		})
+	}
 }
