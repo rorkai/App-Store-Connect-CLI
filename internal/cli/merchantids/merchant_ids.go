@@ -353,51 +353,28 @@ Examples:
 
 // MerchantIDsDeleteCommand returns the merchant IDs delete subcommand.
 func MerchantIDsDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("delete", flag.ExitOnError)
-
-	merchantID := shared.BindResourceIDFlag(fs, "merchant-id", "merchantIds", "Merchant ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc merchant-ids delete --merchant-id \"MERCHANT_ID\" --confirm",
-		ShortHelp:  "Delete a merchant ID.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "delete",
+		Name:        "delete",
+		ShortUsage:  "asc merchant-ids delete --merchant-id \"MERCHANT_ID\" --confirm",
+		ShortHelp:   "Delete a merchant ID.",
 		LongHelp: `Delete a merchant ID.
 
 Examples:
   asc merchant-ids delete --merchant-id "MERCHANT_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			merchantIDValue := strings.TrimSpace(*merchantID)
-			if merchantIDValue == "" {
-				return shared.RequiredFlag("--merchant-id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("merchant-ids delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteMerchantID(requestCtx, merchantIDValue); err != nil {
-				return fmt.Errorf("merchant-ids delete: failed to delete: %w", err)
-			}
-
-			result := &asc.MerchantIDDeleteResult{
-				ID:      merchantIDValue,
-				Deleted: true,
-			}
-
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "merchant-id",
+		IDUsage:            "Merchant ID",
+		IDType:             "merchantIds",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "merchant-ids delete",
+		DeleteErrorPrefix:  "merchant-ids delete: failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteMerchantID(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.MerchantIDDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
 
 var merchantIDSortValues = []string{"name", "-name", "identifier", "-identifier"}

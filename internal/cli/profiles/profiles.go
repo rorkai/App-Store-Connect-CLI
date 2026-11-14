@@ -539,51 +539,28 @@ Examples:
 
 // ProfilesDeleteCommand returns the profiles delete subcommand.
 func ProfilesDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("delete", flag.ExitOnError)
-
-	id := shared.BindResourceIDFlag(fs, "id", "profiles", "Profile ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc profiles delete --id \"PROFILE_ID\" --confirm",
-		ShortHelp:  "Delete a provisioning profile.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "delete",
+		Name:        "delete",
+		ShortUsage:  "asc profiles delete --id \"PROFILE_ID\" --confirm",
+		ShortHelp:   "Delete a provisioning profile.",
 		LongHelp: `Delete a provisioning profile.
 
 Examples:
   asc profiles delete --id "PROFILE_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			idValue := strings.TrimSpace(*id)
-			if idValue == "" {
-				return shared.RequiredFlag("--id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("profiles delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteProfile(requestCtx, idValue); err != nil {
-				return fmt.Errorf("profiles delete: failed to delete: %w", err)
-			}
-
-			result := &asc.ProfileDeleteResult{
-				ID:      idValue,
-				Deleted: true,
-			}
-
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "id",
+		IDUsage:            "Profile ID",
+		IDType:             "profiles",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "profiles delete",
+		DeleteErrorPrefix:  "profiles delete: failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteProfile(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.ProfileDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
 
 // ProfilesDownloadCommand returns the profiles download subcommand.

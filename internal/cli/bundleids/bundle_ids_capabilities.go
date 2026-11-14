@@ -279,51 +279,28 @@ Examples:
 
 // BundleIDsCapabilitiesRemoveCommand returns the bundle IDs capabilities remove subcommand.
 func BundleIDsCapabilitiesRemoveCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("remove", flag.ExitOnError)
-
-	id := shared.BindResourceIDFlag(fs, "id", "bundleIdCapabilities", "Capability ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "remove",
-		ShortUsage: "asc bundle-ids capabilities remove --id \"CAPABILITY_ID\" --confirm",
-		ShortHelp:  "Remove a capability from a bundle ID.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "remove",
+		Name:        "remove",
+		ShortUsage:  "asc bundle-ids capabilities remove --id \"CAPABILITY_ID\" --confirm",
+		ShortHelp:   "Remove a capability from a bundle ID.",
 		LongHelp: `Remove a capability from a bundle ID.
 
 Examples:
   asc bundle-ids capabilities remove --id "CAPABILITY_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			idValue := strings.TrimSpace(*id)
-			if idValue == "" {
-				return shared.RequiredFlag("--id")
-			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("bundle-ids capabilities remove: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteBundleIDCapability(requestCtx, idValue); err != nil {
-				return fmt.Errorf("bundle-ids capabilities remove: failed to delete: %w", err)
-			}
-
-			result := &asc.BundleIDCapabilityDeleteResult{
-				ID:      idValue,
-				Deleted: true,
-			}
-
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "id",
+		IDUsage:            "Capability ID",
+		IDType:             "bundleIdCapabilities",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "bundle-ids capabilities remove",
+		DeleteErrorPrefix:  "bundle-ids capabilities remove: failed to delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteBundleIDCapability(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.BundleIDCapabilityDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
 
 func parseCapabilitySettings(value string) ([]asc.CapabilitySetting, error) {
