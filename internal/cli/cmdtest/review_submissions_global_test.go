@@ -1,12 +1,12 @@
 package cmdtest
 
 import (
-	"context"
-	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestReviewSubmissionsListSelectorRequests(t *testing.T) {
@@ -62,34 +62,18 @@ func TestReviewSubmissionsListSelectorRequests(t *testing.T) {
 			t.Setenv("ASC_APP_ID", test.envAppID)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-			originalTransport := http.DefaultTransport
-			t.Cleanup(func() { http.DefaultTransport = originalTransport })
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				if req.Method != http.MethodGet || req.URL.Path != test.wantPath {
-					t.Fatalf("request = %s %s, want GET %s", req.Method, req.URL.Path, test.wantPath)
-				}
-				for key, want := range test.wantQuery {
-					if got := req.URL.Query().Get(key); got != want {
-						t.Fatalf("%s = %q, want %q", key, got, want)
-					}
-				}
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body:       io.NopCloser(strings.NewReader(test.body)),
-					Header:     http.Header{"Content-Type": []string{"application/json"}},
-				}, nil
-			})
+			query := []string{}
+			for key, want := range test.wantQuery {
+				query = append(query, key+"="+want)
+			}
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET(test.wantPath, query...), asctest.JSON(http.StatusOK, test.body))
 
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
+			stdout, stderr, err := runCommand(t, test.args)
+			if err != nil {
+				t.Fatalf("run error: %v", err)
+			}
 			if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)
 			}
@@ -106,12 +90,14 @@ func TestReviewSubmissionsItemFieldsAutomaticallyIncludeItems(t *testing.T) {
 		args       []string
 		path       string
 		wantFields string
+		extraQuery []string
 	}{
 		{
 			name:       "global list",
 			args:       []string{"review", "submissions-list", "--global", "--app", "app-1", "--item-fields", "subscriptionVersion"},
 			path:       "/v1/reviewSubmissions",
 			wantFields: "subscriptionVersion",
+			extraQuery: []string{"filter[app]=app-1"},
 		},
 		{
 			name:       "detail",
@@ -127,39 +113,18 @@ func TestReviewSubmissionsItemFieldsAutomaticallyIncludeItems(t *testing.T) {
 			t.Setenv("ASC_APP_ID", "")
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-			originalTransport := http.DefaultTransport
-			t.Cleanup(func() { http.DefaultTransport = originalTransport })
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				if req.Method != http.MethodGet || req.URL.Path != test.path {
-					t.Fatalf("request = %s %s, want GET %s", req.Method, req.URL.Path, test.path)
-				}
-				if got := req.URL.Query().Get("include"); got != "items" {
-					t.Fatalf("include = %q, want items", got)
-				}
-				if got := req.URL.Query().Get("fields[reviewSubmissionItems]"); got != test.wantFields {
-					t.Fatalf("fields[reviewSubmissionItems] = %q, want %q", got, test.wantFields)
-				}
-				body := `{"data":{"type":"reviewSubmissions","id":"submission-1"}}`
-				if strings.Contains(test.name, "list") {
-					body = `{"data":[],"links":{"self":"/v1/reviewSubmissions"}}`
-				}
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body:       io.NopCloser(strings.NewReader(body)),
-					Header:     http.Header{"Content-Type": []string{"application/json"}},
-				}, nil
-			})
+			body := `{"data":{"type":"reviewSubmissions","id":"submission-1"}}`
+			if strings.Contains(test.name, "list") {
+				body = `{"data":[],"links":{"self":"/v1/reviewSubmissions"}}`
+			}
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET(test.path, append([]string{"include=items", "fields[reviewSubmissionItems]=" + test.wantFields}, test.extraQuery...)...), asctest.JSON(http.StatusOK, body))
 
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-			_, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
+			_, stderr, err := runCommand(t, test.args)
+			if err != nil {
+				t.Fatalf("run error: %v", err)
+			}
 			if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)
 			}
@@ -230,46 +195,27 @@ func TestReviewItemsVersionFieldsAutomaticallyIncludeRelatedResources(t *testing
 			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-			originalTransport := http.DefaultTransport
-			t.Cleanup(func() { http.DefaultTransport = originalTransport })
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				if req.Method != http.MethodGet || req.URL.Path != "/v1/reviewSubmissions/submission-1/items" {
-					t.Fatalf("request = %s %s, want GET /v1/reviewSubmissions/submission-1/items", req.Method, req.URL.Path)
-				}
-				if got := req.URL.Query().Get("include"); got != test.wantInclude {
-					t.Fatalf("include = %q, want %q", got, test.wantInclude)
-				}
-				if got := req.URL.Query().Get(test.wantQueryName); got != test.field {
-					t.Fatalf("%s = %q, want %q", test.wantQueryName, got, test.field)
-				}
-				if got := req.URL.Query().Get("fields[reviewSubmissionItems]"); got != test.wantItemFields {
-					t.Fatalf("fields[reviewSubmissionItems] = %q, want %q", got, test.wantItemFields)
-				}
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body:       io.NopCloser(strings.NewReader(`{"data":[],"links":{"self":"/v1/reviewSubmissions/submission-1/items"}}`)),
-					Header:     http.Header{"Content-Type": []string{"application/json"}},
-				}, nil
-			})
+			query := []string{"include=" + test.wantInclude, test.wantQueryName + "=" + test.field}
+			if test.wantItemFields != "" {
+				query = append(query, "fields[reviewSubmissionItems]="+test.wantItemFields)
+			}
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET("/v1/reviewSubmissions/submission-1/items", query...),
+				asctest.JSON(http.StatusOK, `{"data":[],"links":{"self":"/v1/reviewSubmissions/submission-1/items"}}`))
 
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-			_, stderr := captureOutput(t, func() {
-				args := []string{"review", "items", "list", "--submission", "submission-1"}
-				if test.itemFields != "" {
-					args = append(args, "--fields", test.itemFields)
-				}
-				if test.include != "" {
-					args = append(args, "--include", test.include)
-				}
-				args = append(args, test.flag, test.field)
-				if err := root.Parse(args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
+			args := []string{"review", "items", "list", "--submission", "submission-1"}
+			if test.itemFields != "" {
+				args = append(args, "--fields", test.itemFields)
+			}
+			if test.include != "" {
+				args = append(args, "--include", test.include)
+			}
+			args = append(args, test.flag, test.field)
+			_, stderr, err := runCommand(t, args)
+			if err != nil {
+				t.Fatalf("run error: %v", err)
+			}
 			if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)
 			}
@@ -282,52 +228,17 @@ func TestReviewSubmissionsListGlobalPaginate(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/reviewSubmissions", "filter[app]=app-1", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"reviewSubmissions","id":"rs-1","attributes":{"platform":"IOS"}}],"links":{"self":"/v1/reviewSubmissions","next":"https://api.appstoreconnect.apple.com/v1/reviewSubmissions?cursor=page2"}}`))
+	reg.Register(asctest.GET("/v1/reviewSubmissions", "cursor=page2"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"reviewSubmissions","id":"rs-2","attributes":{"platform":"MAC_OS"}}],"links":{"self":"/v1/reviewSubmissions"}}`))
 
-	callCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		callCount++
-		switch callCount {
-		case 1:
-			if req.URL.Path != "/v1/reviewSubmissions" {
-				t.Fatalf("expected path /v1/reviewSubmissions, got %s", req.URL.Path)
-			}
-			if req.URL.Query().Get("filter[app]") != "app-1" {
-				t.Fatalf("expected filter[app]=app-1, got %q", req.URL.Query().Get("filter[app]"))
-			}
-			body := `{"data":[{"type":"reviewSubmissions","id":"rs-1","attributes":{"platform":"IOS"}}],"links":{"self":"/v1/reviewSubmissions","next":"https://api.appstoreconnect.apple.com/v1/reviewSubmissions?cursor=page2"}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 2:
-			body := `{"data":[{"type":"reviewSubmissions","id":"rs-2","attributes":{"platform":"MAC_OS"}}],"links":{"self":"/v1/reviewSubmissions"}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected request count %d", callCount)
-			return nil, nil
-		}
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"review", "submissions-list", "--global", "--app", "app-1", "--paginate"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"review", "submissions-list", "--global", "--app", "app-1", "--paginate"})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)

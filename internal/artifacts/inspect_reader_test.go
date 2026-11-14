@@ -65,12 +65,12 @@ func TestInspectLargeArtifactsReadOnlyMetadata(t *testing.T) {
 			}
 			reader := &artifactReadBudget{ReaderAt: file, remaining: 256 << 10}
 			if kind == "ipa" {
-				manifest, err := InspectIPA(reader, stat.Size(), false, false)
+				manifest, err := InspectIPAWithOptions(reader, stat.Size(), IPAOptions{IncludeEntitlements: false, IncludeProfile: false})
 				if err != nil || manifest.BundleID != "com.example.large" || manifest.Status != "unsigned" {
 					t.Fatalf("manifest=%+v err=%v", manifest, err)
 				}
 			} else {
-				manifest, err := InspectPKG(reader, stat.Size())
+				manifest, err := inspectPKG(reader, stat.Size(), nil)
 				if err != nil || manifest.ProductID != "com.example.large" || manifest.Status != "readable" {
 					t.Fatalf("manifest=%+v err=%v", manifest, err)
 				}
@@ -89,7 +89,7 @@ func TestInspectIPARejectsExcessiveDirectoryBeforeAllocation(t *testing.T) {
 			} else {
 				binary.LittleEndian.PutUint32(end[12:16], maxZIPDirectoryBytes+1)
 			}
-			manifest, err := InspectIPA(bytes.NewReader(data), int64(len(data)), false, false)
+			manifest, err := InspectIPAWithOptions(bytes.NewReader(data), int64(len(data)), IPAOptions{IncludeEntitlements: false, IncludeProfile: false})
 			if err == nil || !strings.Contains(err.Error(), "limit") || manifest.Status != "unreadable" {
 				t.Fatalf("manifest=%+v err=%v", manifest, err)
 			}
@@ -99,7 +99,7 @@ func TestInspectIPARejectsExcessiveDirectoryBeforeAllocation(t *testing.T) {
 
 func TestInspectPKGRejectsFileTruncatedAfterStat(t *testing.T) {
 	data := writeXar(t, map[string][]byte{"PackageInfo": []byte(`<pkg-info identifier="com.example.large"/>`)})
-	manifest, err := InspectPKG(bytes.NewReader(data[:len(data)-1]), int64(len(data)))
+	manifest, err := inspectPKG(bytes.NewReader(data[:len(data)-1]), int64(len(data)), nil)
 	if err == nil || manifest.Status != "unreadable" {
 		t.Fatalf("manifest=%+v err=%v", manifest, err)
 	}
@@ -136,7 +136,7 @@ func TestInspectIPABoundsDirectoryWithFalseSize(t *testing.T) {
 	data := buffer.Bytes()
 	end := data[len(data)-22:]
 	binary.LittleEndian.PutUint32(end[12:16], 1)
-	manifest, err := InspectIPA(bytes.NewReader(data), int64(len(data)), false, false)
+	manifest, err := InspectIPAWithOptions(bytes.NewReader(data), int64(len(data)), IPAOptions{IncludeEntitlements: false, IncludeProfile: false})
 	if err == nil || !strings.Contains(err.Error(), "metadata read limit") || manifest.Status != "unreadable" {
 		t.Fatalf("manifest=%+v err=%v", manifest, err)
 	}

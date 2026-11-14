@@ -14,7 +14,7 @@ import (
 func TestReplaceStateFileWaitsForConcurrentReader(t *testing.T) {
 	setTelemetryTestHome(t)
 
-	if _, err := EnsureInstallID(); err != nil {
+	if _, err := ensureInstallID(lockTimeout); err != nil {
 		t.Fatalf("EnsureInstallID() error = %v", err)
 	}
 	path, err := StatePath()

@@ -6,26 +6,16 @@ import (
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestSandboxViewByEmailStopsOnRepeatedNextURL(t *testing.T) {
 	setupAuth(t)
-	requests := 0
 	const repeatedNext = "https://api.appstoreconnect.apple.com/v2/sandboxTesters?cursor=repeat"
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requests++
-		if req.Method != http.MethodGet || req.URL.Path != "/v2/sandboxTesters" {
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-		}
-		switch requests {
-		case 1:
-			return jsonHTTPResponse(http.StatusOK, `{"data":[],"links":{"next":"`+repeatedNext+`"}}`), nil
-		case 2:
-			return jsonHTTPResponse(http.StatusOK, `{"data":[],"links":{"next":"`+repeatedNext+`"}}`), nil
-		default:
-			return jsonHTTPResponse(http.StatusBadRequest, `{"errors":[{"status":"400","title":"unexpected repeated request"}]}`), nil
-		}
-	}))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v2/sandboxTesters", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[],"links":{"next":"`+repeatedNext+`"}}`))
+	reg.Register(asctest.GET("/v2/sandboxTesters", "cursor=repeat"), asctest.JSON(http.StatusOK, `{"data":[],"links":{"next":"`+repeatedNext+`"}}`))
 
 	stdout, stderr := captureOutput(t, func() {
 		if code := cmd.Run([]string{"sandbox", "view", "--email", "tester@example.com"}, "1.2.3"); code == 0 {
@@ -36,7 +26,7 @@ func TestSandboxViewByEmailStopsOnRepeatedNextURL(t *testing.T) {
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
-	if requests != 2 {
+	if requests := len(reg.Requests()); requests != 2 {
 		t.Fatalf("expected repeated next URL to stop before third request, got %d", requests)
 	}
 	if !strings.Contains(stderr, "detected repeated pagination URL") {

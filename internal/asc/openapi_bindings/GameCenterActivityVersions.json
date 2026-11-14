@@ -1,0 +1,17 @@
+{
+  "tag": "GameCenterActivityVersions",
+  "file": "game_center_activity_versions_gen.go",
+  "types": [
+    "GameCenterActivityVersionCreateAttributes",
+    "GameCenterActivityVersionCreateRequest",
+    "GameCenterActivityVersionResponse",
+    "GameCenterActivityVersionUpdateAttributes",
+    "GameCenterActivityVersionUpdateData",
+    "GameCenterActivityVersionUpdateRequest"
+  ],
+  "operations": [
+    {"operation":"gameCenterActivityVersions_defaultImage_getToOneRelated","name":"GetGameCenterActivityVersionDefaultImage","params":["versionID"],"response":"GameCenterActivityVersionDefaultImageResponse"},
+    {"operation":"gameCenterActivityVersions_getInstance","name":"GetGameCenterActivityVersion","params":["versionID"]},
+    {"operation":"gameCenterActivityVersions_localizations_getToManyRelated","name":"GetGameCenterActivityLocalizations","params":["versionID"],"options":"GCActivityLocalizationsOption","query":"buildGCActivityLocalizationsQuery","nextContext":"game-center-activity-localizations"}
+  ]
+}

@@ -50,23 +50,6 @@ func Normalize(raw string) (string, error) {
 	return lookup.id, nil
 }
 
-func NormalizeMany(values []string) ([]string, error) {
-	if len(values) == 0 {
-		return nil, nil
-	}
-
-	normalized := make([]string, 0, len(values))
-	for _, value := range values {
-		id, err := Normalize(value)
-		if err != nil {
-			return nil, err
-		}
-		normalized = append(normalized, id)
-	}
-
-	return normalized, nil
-}
-
 func territoryNameMap() map[string]nameLookup {
 	nameMapOnce.Do(func() {
 		names := make(map[string]nameLookup)

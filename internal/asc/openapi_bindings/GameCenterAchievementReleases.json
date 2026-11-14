@@ -1,0 +1,12 @@
+{
+  "tag": "GameCenterAchievementReleases",
+  "file": "game_center_achievement_releases_gen.go",
+  "types": [
+    "GameCenterAchievementReleaseCreateRequest",
+    "GameCenterAchievementReleaseResponse"
+  ],
+  "operations": [
+    {"operation":"gameCenterAchievementReleases_deleteInstance","name":"DeleteGameCenterAchievementRelease","params":["releaseID"]},
+    {"operation":"gameCenterAchievementReleases_getInstance","name":"GetGameCenterAchievementRelease","params":["releaseID"]}
+  ]
+}

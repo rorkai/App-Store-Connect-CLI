@@ -9,29 +9,15 @@ import (
 	"testing"
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestBundleIDCapabilitiesSettingsValidationStopsBeforeHTTP(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		status := http.StatusOK
-		if req.Method == http.MethodPost {
-			status = http.StatusCreated
-		}
-		return &http.Response{
-			StatusCode: status,
-			Body:       io.NopCloser(strings.NewReader(`{"data":{"type":"bundleIdCapabilities","id":"cap1","attributes":{"capabilityType":"ICLOUD"}}}`)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
 
 	tests := []struct {
 		name        string
@@ -104,7 +90,7 @@ func TestBundleIDCapabilitiesSettingsValidationStopsBeforeHTTP(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			requestCount = 0
+			requestsBefore := len(reg.Requests())
 			root := RootCommand("1.2.3")
 			root.FlagSet.SetOutput(io.Discard)
 
@@ -128,7 +114,7 @@ func TestBundleIDCapabilitiesSettingsValidationStopsBeforeHTTP(t *testing.T) {
 			if got := rootcmd.ExitCodeFromError(runErr); got != rootcmd.ExitUsage {
 				t.Fatalf("exit code = %d, want %d (err=%v)", got, rootcmd.ExitUsage, runErr)
 			}
-			if requestCount != 0 {
+			if requestCount := len(reg.Requests()) - requestsBefore; requestCount != 0 {
 				t.Fatalf("HTTP request count = %d, want 0", requestCount)
 			}
 		})
@@ -139,30 +125,11 @@ func TestBundleIDCapabilitiesAddWithSettings(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodPost || req.URL.Path != "/v1/bundleIdCapabilities" {
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-		}
-		payload, err := io.ReadAll(req.Body)
-		if err != nil {
-			t.Fatalf("read body: %v", err)
-		}
-		wantPayload := `{"data":{"type":"bundleIdCapabilities","attributes":{"capabilityType":"MARZIPAN","settings":[{"key":"ENABLED_FOR_MAC_APP_SETUP","options":[{"key":"USE_IOS_APPID","enabled":true}]}]},"relationships":{"bundleId":{"data":{"type":"bundleIds","id":"bundle1"}}}}}` + "\n"
-		if string(payload) != wantPayload {
-			t.Fatalf("request body = %q, want %q", payload, wantPayload)
-		}
-		return &http.Response{
-			StatusCode: http.StatusCreated,
-			Body: io.NopCloser(strings.NewReader(
-				`{"data":{"type":"bundleIdCapabilities","id":"cap1","attributes":{"capabilityType":"MARZIPAN","settings":[{"key":"ENABLED_FOR_MAC_APP_SETUP","options":[{"key":"USE_IOS_APPID","enabled":true}]}]}}}`,
-			)),
-			Header: http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
+	wantPayload := `{"data":{"type":"bundleIdCapabilities","attributes":{"capabilityType":"MARZIPAN","settings":[{"key":"ENABLED_FOR_MAC_APP_SETUP","options":[{"key":"USE_IOS_APPID","enabled":true}]}]},"relationships":{"bundleId":{"data":{"type":"bundleIds","id":"bundle1"}}}}}` + "\n"
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.POST("/v1/bundleIdCapabilities").JSONBody(wantPayload),
+		asctest.JSON(http.StatusCreated, `{"data":{"type":"bundleIdCapabilities","id":"cap1","attributes":{"capabilityType":"MARZIPAN","settings":[{"key":"ENABLED_FOR_MAC_APP_SETUP","options":[{"key":"USE_IOS_APPID","enabled":true}]}]}}}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -179,6 +146,9 @@ func TestBundleIDCapabilitiesAddWithSettings(t *testing.T) {
 			t.Fatalf("run error: %v", err)
 		}
 	})
+	if payload := reg.Requests()[0].Body; string(payload) != wantPayload {
+		t.Fatalf("request body = %q, want %q", payload, wantPayload)
+	}
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
@@ -196,34 +166,11 @@ func TestBundleIDCapabilitiesUpdateSuccessOutput(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodPatch {
-			t.Fatalf("expected PATCH, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/bundleIdCapabilities/cap1" {
-			t.Fatalf("expected path /v1/bundleIdCapabilities/cap1, got %s", req.URL.Path)
-		}
-		payload, err := io.ReadAll(req.Body)
-		if err != nil {
-			t.Fatalf("read body error: %v", err)
-		}
-		wantPayload := `{"data":{"type":"bundleIdCapabilities","id":"cap1","attributes":{"settings":[{"key":"APP_GROUP_IDENTIFIERS","allowedInstances":"FUTURE_INSTANCE_MODE","options":[{"key":"group.com.example.shared","enabled":true}]}]}}}` + "\n"
-		if string(payload) != wantPayload {
-			t.Fatalf("request body = %q, want %q", payload, wantPayload)
-		}
-
-		respBody := `{"data":{"type":"bundleIdCapabilities","id":"cap1","attributes":{"capabilityType":"APP_GROUPS","settings":[{"key":"APP_GROUP_IDENTIFIERS","allowedInstances":"FUTURE_INSTANCE_MODE","options":[{"key":"group.com.example.shared","enabled":true}]}]}}}`
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(respBody)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
+	wantPayload := `{"data":{"type":"bundleIdCapabilities","id":"cap1","attributes":{"settings":[{"key":"APP_GROUP_IDENTIFIERS","allowedInstances":"FUTURE_INSTANCE_MODE","options":[{"key":"group.com.example.shared","enabled":true}]}]}}}` + "\n"
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.PATCH("/v1/bundleIdCapabilities/cap1").JSONBody(wantPayload),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"bundleIdCapabilities","id":"cap1","attributes":{"capabilityType":"APP_GROUPS","settings":[{"key":"APP_GROUP_IDENTIFIERS","allowedInstances":"FUTURE_INSTANCE_MODE","options":[{"key":"group.com.example.shared","enabled":true}]}]}}}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -236,6 +183,9 @@ func TestBundleIDCapabilitiesUpdateSuccessOutput(t *testing.T) {
 			t.Fatalf("run error: %v", err)
 		}
 	})
+	if payload := reg.Requests()[0].Body; string(payload) != wantPayload {
+		t.Fatalf("request body = %q, want %q", payload, wantPayload)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -257,30 +207,10 @@ func TestBundleIDCapabilitiesUpdateWithCapabilityType(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodPatch {
-			t.Fatalf("expected PATCH, got %s", req.Method)
-		}
-		payload, err := io.ReadAll(req.Body)
-		if err != nil {
-			t.Fatalf("read body error: %v", err)
-		}
-		if !strings.Contains(string(payload), `"capabilityType":"PUSH_NOTIFICATIONS"`) {
-			t.Fatalf("expected capabilityType in body, got %s", string(payload))
-		}
-
-		respBody := `{"data":{"type":"bundleIdCapabilities","id":"cap1","attributes":{"capabilityType":"PUSH_NOTIFICATIONS"}}}`
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(respBody)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.PATCH("/v1/bundleIdCapabilities/cap1").JSONBody(`{"data":{"type":"bundleIdCapabilities","id":"cap1","attributes":{"capabilityType":"PUSH_NOTIFICATIONS"}}}`),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"bundleIdCapabilities","id":"cap1","attributes":{"capabilityType":"PUSH_NOTIFICATIONS"}}}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)

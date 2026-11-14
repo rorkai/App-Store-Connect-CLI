@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 type adsRoundTripFunc func(*http.Request) (*http.Response, error)
@@ -132,10 +134,7 @@ func TestAdsRejectsInvalidInputBeforeNetwork(t *testing.T) {
 			if !test.noToken {
 				t.Setenv("ASC_ADS_ACCESS_TOKEN", "ACCESS")
 			}
-			installDefaultTransport(t, adsRoundTripFunc(func(req *http.Request) (*http.Response, error) {
-				t.Fatalf("unexpected network request: %s %s", req.Method, req.URL.String())
-				return nil, nil
-			}))
+			asctest.NewRegistry(t).Install()
 
 			assertUsageExit(t, test.args, test.wantErr)
 		})
@@ -242,10 +241,7 @@ func TestAdsPlatformAPIRequestRequiresConfirmForKnownImpactMutations(t *testing.
 			t.Setenv("ASC_ADS_ACCESS_TOKEN", "ACCESS")
 			t.Setenv("ASC_ADS_AD_ACCOUNT_ID", "AD_ACCOUNT")
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))
-			installDefaultTransport(t, adsRoundTripFunc(func(req *http.Request) (*http.Response, error) {
-				t.Fatalf("unexpected network request: %s %s", req.Method, req.URL.String())
-				return nil, nil
-			}))
+			asctest.NewRegistry(t).Install()
 
 			root := RootCommand("dev")
 			if err := root.Parse(tt.args); err != nil {
@@ -274,10 +270,7 @@ func TestAdsPlatformAPIRequestRequiresConfirmForDelegationReplacement(t *testing
 	t.Setenv("ASC_ADS_ACCESS_TOKEN", "ACCESS")
 	t.Setenv("ASC_ADS_AD_ACCOUNT_ID", "AD_ACCOUNT")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(tempDir, "missing.json"))
-	installDefaultTransport(t, adsRoundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("unexpected network request: %s %s", req.Method, req.URL.String())
-		return nil, nil
-	}))
+	asctest.NewRegistry(t).Install()
 
 	root := RootCommand("dev")
 	if err := root.Parse([]string{
@@ -389,10 +382,7 @@ func TestAdsPlatformAPIRequestKeepsUnconditionalConfirmationBeforePayloadRead(t 
 	isolateAdsGuideEnv(t)
 	t.Setenv("ASC_ADS_ACCESS_TOKEN", "ACCESS")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))
-	installDefaultTransport(t, adsRoundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("unexpected network request: %s %s", req.Method, req.URL.String())
-		return nil, nil
-	}))
+	asctest.NewRegistry(t).Install()
 
 	missingPayload := filepath.Join(t.TempDir(), "missing.json")
 	stdout, stderr, err := runAdsEvalCommand(

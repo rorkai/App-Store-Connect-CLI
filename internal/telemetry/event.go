@@ -117,12 +117,6 @@ type EventContext struct {
 // invocations of the executable.
 var processSessionID = uuid.NewString()
 
-func BuildEvent(commandName, version string, duration time.Duration, exitCode int) (Event, bool) {
-	return BuildEventWithContext(commandName, version, duration, exitCode, EventContext{
-		InvocationShape: InvocationShapeLeaf,
-	})
-}
-
 func BuildEventWithContext(
 	commandName, version string,
 	duration time.Duration,

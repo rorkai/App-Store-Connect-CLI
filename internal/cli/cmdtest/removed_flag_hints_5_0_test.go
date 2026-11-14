@@ -1,12 +1,11 @@
 package cmdtest
 
 import (
-	"errors"
-	"net/http"
 	"strings"
 	"testing"
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 // TestRemovedFlagAliasesNameTheirReplacement locks the 5.3.2 unknown-flag
@@ -16,10 +15,7 @@ import (
 // generic edit-distance suggestion.
 func TestRemovedFlagAliasesNameTheirReplacement(t *testing.T) {
 	setupUsageExitCodeEnv(t)
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("removed aliases must fail before HTTP: %s %s", req.Method, req.URL.String())
-		return nil, errors.New("unexpected request")
-	}))
+	asctest.NewRegistry(t).Install()
 
 	tests := []struct {
 		name string

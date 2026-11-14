@@ -176,12 +176,6 @@ func (c *Client) GetPreReleaseVersions(ctx context.Context, appID string, opts .
 	})
 }
 
-// GetPreReleaseVersion retrieves a TestFlight pre-release version by ID.
-func (c *Client) GetPreReleaseVersion(ctx context.Context, id string) (*PreReleaseVersionResponse, error) {
-	id = strings.TrimSpace(id)
-	return getJSON[PreReleaseVersionResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/preReleaseVersions/%s", id)})
-}
-
 // GetAppStoreVersion retrieves an app store version by ID.
 func (c *Client) GetAppStoreVersion(ctx context.Context, versionID string, opts ...AppStoreVersionOption) (*AppStoreVersionResponse, error) {
 	query := applyOptions(opts)

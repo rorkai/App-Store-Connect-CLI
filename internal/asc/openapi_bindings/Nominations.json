@@ -1,0 +1,14 @@
+{
+  "tag": "Nominations",
+  "file": "nominations_gen.go",
+  "types": [
+    "NominationCreateRequest",
+    "NominationResponse",
+    "NominationUpdateRequest",
+    "NominationsResponse"
+  ],
+  "operations": [
+    {"operation":"nominations_deleteInstance","name":"DeleteNomination","params":["nominationID"],"check":"require"},
+    {"operation":"nominations_getCollection","name":"GetNominations","options":"NominationsOption","query":"buildNominationsQuery","nextContext":"nominations"}
+  ]
+}

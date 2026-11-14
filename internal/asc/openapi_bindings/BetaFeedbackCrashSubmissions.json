@@ -1,0 +1,9 @@
+{
+  "tag": "BetaFeedbackCrashSubmissions",
+  "file": "beta_feedback_crash_submissions_gen.go",
+  "operations": [
+    {"operation":"betaFeedbackCrashSubmissions_crashLog_getToOneRelated","name":"GetBetaFeedbackCrashSubmissionCrashLog","params":["submissionID"],"check":"require"},
+    {"operation":"betaFeedbackCrashSubmissions_deleteInstance","name":"DeleteBetaFeedbackCrashSubmission","params":["submissionID"],"check":"require"},
+    {"operation":"betaFeedbackCrashSubmissions_getInstance","name":"GetBetaFeedbackCrashSubmission","params":["submissionID"],"check":"require"}
+  ]
+}

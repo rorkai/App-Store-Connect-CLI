@@ -1,0 +1,7 @@
+{
+  "tag": "CiArtifacts",
+  "file": "ci_artifacts_gen.go",
+  "types": [
+    "CiArtifactAttributes"
+  ]
+}

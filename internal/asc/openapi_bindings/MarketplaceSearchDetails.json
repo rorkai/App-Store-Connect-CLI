@@ -1,0 +1,16 @@
+{
+  "tag": "MarketplaceSearchDetails",
+  "file": "marketplace_search_details_gen.go",
+  "types": [
+    "MarketplaceSearchDetailAttributes",
+    "MarketplaceSearchDetailCreateAttributes",
+    "MarketplaceSearchDetailCreateRequest",
+    "MarketplaceSearchDetailResponse",
+    "MarketplaceSearchDetailUpdateAttributes",
+    "MarketplaceSearchDetailUpdateData",
+    "MarketplaceSearchDetailUpdateRequest"
+  ],
+  "operations": [
+    {"operation":"marketplaceSearchDetails_deleteInstance","name":"DeleteMarketplaceSearchDetail","params":["detailID"],"check":"require"}
+  ]
+}

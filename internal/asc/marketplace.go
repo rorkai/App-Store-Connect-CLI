@@ -7,21 +7,8 @@ import (
 	"strings"
 )
 
-// MarketplaceSearchDetailAttributes describes marketplace search detail attributes.
-type MarketplaceSearchDetailAttributes struct {
-	CatalogURL string `json:"catalogUrl,omitempty"`
-}
-
 // MarketplaceSearchDetailsResponse is the response for marketplace search detail list formatting.
 type MarketplaceSearchDetailsResponse = Response[MarketplaceSearchDetailAttributes]
-
-// MarketplaceSearchDetailResponse is the response for marketplace search detail endpoints.
-type MarketplaceSearchDetailResponse = SingleResponse[MarketplaceSearchDetailAttributes]
-
-// MarketplaceSearchDetailCreateAttributes describes attributes for creating search details.
-type MarketplaceSearchDetailCreateAttributes struct {
-	CatalogURL string `json:"catalogUrl"`
-}
 
 // MarketplaceSearchDetailCreateRelationships describes relationships for create requests.
 type MarketplaceSearchDetailCreateRelationships struct {
@@ -35,78 +22,10 @@ type MarketplaceSearchDetailCreateData struct {
 	Relationships *MarketplaceSearchDetailCreateRelationships `json:"relationships"`
 }
 
-// MarketplaceSearchDetailCreateRequest is a request to create search details.
-type MarketplaceSearchDetailCreateRequest struct {
-	Data MarketplaceSearchDetailCreateData `json:"data"`
-}
-
-// MarketplaceSearchDetailUpdateAttributes describes fields for updating search details.
-type MarketplaceSearchDetailUpdateAttributes struct {
-	CatalogURL *string `json:"catalogUrl,omitempty"`
-}
-
-// MarketplaceSearchDetailUpdateData is the data payload for update requests.
-type MarketplaceSearchDetailUpdateData struct {
-	Type       ResourceType                             `json:"type"`
-	ID         string                                   `json:"id"`
-	Attributes *MarketplaceSearchDetailUpdateAttributes `json:"attributes,omitempty"`
-}
-
-// MarketplaceSearchDetailUpdateRequest is a request to update search details.
-type MarketplaceSearchDetailUpdateRequest struct {
-	Data MarketplaceSearchDetailUpdateData `json:"data"`
-}
-
 // MarketplaceSearchDetailDeleteResult represents CLI output for search detail deletions.
 type MarketplaceSearchDetailDeleteResult struct {
 	ID      string `json:"id"`
 	Deleted bool   `json:"deleted"`
-}
-
-// MarketplaceWebhookAttributes describes marketplace webhook attributes.
-type MarketplaceWebhookAttributes struct {
-	EndpointURL string `json:"endpointUrl,omitempty"`
-}
-
-// MarketplaceWebhooksResponse is the response from marketplace webhooks list endpoint.
-type MarketplaceWebhooksResponse = Response[MarketplaceWebhookAttributes]
-
-// MarketplaceWebhookResponse is the response from marketplace webhook detail endpoint.
-type MarketplaceWebhookResponse = SingleResponse[MarketplaceWebhookAttributes]
-
-// MarketplaceWebhookCreateAttributes describes attributes for creating a webhook.
-type MarketplaceWebhookCreateAttributes struct {
-	EndpointURL string `json:"endpointUrl"`
-	Secret      string `json:"secret"`
-}
-
-// MarketplaceWebhookCreateData is the data payload for create requests.
-type MarketplaceWebhookCreateData struct {
-	Type       ResourceType                       `json:"type"`
-	Attributes MarketplaceWebhookCreateAttributes `json:"attributes"`
-}
-
-// MarketplaceWebhookCreateRequest is a request to create a webhook.
-type MarketplaceWebhookCreateRequest struct {
-	Data MarketplaceWebhookCreateData `json:"data"`
-}
-
-// MarketplaceWebhookUpdateAttributes describes fields for updating a webhook.
-type MarketplaceWebhookUpdateAttributes struct {
-	EndpointURL *string `json:"endpointUrl,omitempty"`
-	Secret      *string `json:"secret,omitempty"`
-}
-
-// MarketplaceWebhookUpdateData is the data payload for update requests.
-type MarketplaceWebhookUpdateData struct {
-	Type       ResourceType                        `json:"type"`
-	ID         string                              `json:"id"`
-	Attributes *MarketplaceWebhookUpdateAttributes `json:"attributes,omitempty"`
-}
-
-// MarketplaceWebhookUpdateRequest is a request to update a webhook.
-type MarketplaceWebhookUpdateRequest struct {
-	Data MarketplaceWebhookUpdateData `json:"data"`
 }
 
 // MarketplaceWebhookDeleteResult represents CLI output for webhook deletions.
@@ -185,29 +104,6 @@ func (c *Client) UpdateMarketplaceSearchDetail(ctx context.Context, detailID str
 		Path:     fmt.Sprintf("/v1/marketplaceSearchDetails/%s", detailID),
 		Payload:  payload,
 		ParseErr: "failed to parse marketplace search detail response",
-	})
-}
-
-// DeleteMarketplaceSearchDetail deletes marketplace search details by ID.
-func (c *Client) DeleteMarketplaceSearchDetail(ctx context.Context, detailID string) error {
-	detailID = strings.TrimSpace(detailID)
-	if detailID == "" {
-		return fmt.Errorf("detailID is required")
-	}
-
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/marketplaceSearchDetails/%s", detailID), nil)
-}
-
-// GetMarketplaceWebhooks retrieves marketplace webhooks.
-func (c *Client) GetMarketplaceWebhooks(ctx context.Context, opts ...MarketplaceWebhooksOption) (*MarketplaceWebhooksResponse, error) {
-	query := applyOptions(opts)
-
-	return getJSON[MarketplaceWebhooksResponse](ctx, c, readRequest{
-		Path:        "/v1/marketplaceWebhooks",
-		Query:       buildMarketplaceWebhooksQuery(query),
-		Next:        query.nextURL,
-		NextContext: "marketplaceWebhooks",
-		ParseErr:    "failed to parse marketplace webhooks response",
 	})
 }
 
@@ -303,14 +199,4 @@ func (c *Client) UpdateMarketplaceWebhook(ctx context.Context, webhookID string,
 		Payload:  payload,
 		ParseErr: "failed to parse marketplace webhook response",
 	})
-}
-
-// DeleteMarketplaceWebhook deletes a marketplace webhook by ID.
-func (c *Client) DeleteMarketplaceWebhook(ctx context.Context, webhookID string) error {
-	webhookID = strings.TrimSpace(webhookID)
-	if webhookID == "" {
-		return fmt.Errorf("webhookID is required")
-	}
-
-	return sendNoContent(ctx, c, "DELETE", fmt.Sprintf("/v1/marketplaceWebhooks/%s", webhookID), nil)
 }

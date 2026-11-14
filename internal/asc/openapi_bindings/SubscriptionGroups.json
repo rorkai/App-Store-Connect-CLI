@@ -1,0 +1,15 @@
+{
+  "tag": "SubscriptionGroups",
+  "file": "subscription_groups_gen.go",
+  "types": [
+    "SubscriptionGroupCreateAttributes",
+    "SubscriptionGroupCreateRequest",
+    "SubscriptionGroupResponse",
+    "SubscriptionGroupUpdateAttributes",
+    "SubscriptionGroupUpdateRequest"
+  ],
+  "operations": [
+    {"operation":"subscriptionGroups_deleteInstance","name":"DeleteSubscriptionGroup","params":["groupID"]},
+    {"operation":"subscriptionGroups_subscriptions_getToManyRelated","name":"GetSubscriptions","params":["groupID"],"options":"SubscriptionsOption","query":"buildSubscriptionsQuery","nextContext":"subscriptions"}
+  ]
+}

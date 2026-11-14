@@ -16,10 +16,10 @@ func TestValidateSandboxEmail(t *testing.T) {
 }
 
 func TestNormalizeSandboxTerritory(t *testing.T) {
-	if got, err := normalizeSandboxTerritory("usa"); err != nil || got != "USA" {
+	if got, err := NormalizeSandboxTerritoryCode("usa"); err != nil || got != "USA" {
 		t.Fatalf("expected USA, got %q err %v", got, err)
 	}
-	if _, err := normalizeSandboxTerritory("ZZZ"); err == nil {
+	if _, err := NormalizeSandboxTerritoryCode("ZZZ"); err == nil {
 		t.Fatalf("expected error for invalid territory")
 	}
 }

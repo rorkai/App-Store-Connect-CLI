@@ -1,0 +1,11 @@
+{
+  "tag": "AlternativeDistributionPackageVariants",
+  "file": "alternative_distribution_package_variants_gen.go",
+  "types": [
+    "AlternativeDistributionPackageVariantAttributes",
+    "AlternativeDistributionPackageVariantResponse"
+  ],
+  "operations": [
+    {"operation":"alternativeDistributionPackageVariants_getInstance","name":"GetAlternativeDistributionPackageVariant","params":["variantID"],"check":"require","parseErr":"failed to parse alternative distribution package variant response"}
+  ]
+}

@@ -14,21 +14,6 @@ type GameCenterChallengeAttributes struct {
 	Repeatable       bool   `json:"repeatable,omitempty"`
 }
 
-// GameCenterChallengeCreateAttributes describes attributes for creating a challenge.
-type GameCenterChallengeCreateAttributes struct {
-	ReferenceName    string `json:"referenceName"`
-	VendorIdentifier string `json:"vendorIdentifier"`
-	ChallengeType    string `json:"challengeType"`
-	Repeatable       *bool  `json:"repeatable,omitempty"`
-}
-
-// GameCenterChallengeUpdateAttributes describes attributes for updating a challenge.
-type GameCenterChallengeUpdateAttributes struct {
-	ReferenceName *string `json:"referenceName,omitempty"`
-	Archived      *bool   `json:"archived,omitempty"`
-	Repeatable    *bool   `json:"repeatable,omitempty"`
-}
-
 // GameCenterChallengeRelationships describes relationships for challenges.
 type GameCenterChallengeRelationships struct {
 	GameCenterDetail *Relationship     `json:"gameCenterDetail,omitempty"`
@@ -72,16 +57,8 @@ type GameCenterChallengeUpdateData struct {
 	Relationships *GameCenterChallengeUpdateRelationships `json:"relationships,omitempty"`
 }
 
-// GameCenterChallengeUpdateRequest is a request to update a challenge.
-type GameCenterChallengeUpdateRequest struct {
-	Data GameCenterChallengeUpdateData `json:"data"`
-}
-
 // GameCenterChallengesResponse is the response from challenge list endpoints.
 type GameCenterChallengesResponse = Response[GameCenterChallengeAttributes]
-
-// GameCenterChallengeResponse is the response from challenge detail endpoints.
-type GameCenterChallengeResponse = SingleResponse[GameCenterChallengeAttributes]
 
 // GameCenterChallengeDeleteResult represents CLI output for challenge deletions.
 type GameCenterChallengeDeleteResult struct {
@@ -119,16 +96,8 @@ type GameCenterChallengeVersionCreateData struct {
 	Relationships *GameCenterChallengeVersionRelationships `json:"relationships,omitempty"`
 }
 
-// GameCenterChallengeVersionCreateRequest is a request to create a challenge version.
-type GameCenterChallengeVersionCreateRequest struct {
-	Data GameCenterChallengeVersionCreateData `json:"data"`
-}
-
 // GameCenterChallengeVersionsResponse is the response from version list endpoints.
 type GameCenterChallengeVersionsResponse = Response[GameCenterChallengeVersionAttributes]
-
-// GameCenterChallengeVersionResponse is the response from version detail endpoints.
-type GameCenterChallengeVersionResponse = SingleResponse[GameCenterChallengeVersionAttributes]
 
 // GCChallengeVersionsOption is a functional option for GetGameCenterChallengeVersions.
 type GCChallengeVersionsOption func(*gcChallengeVersionsQuery)
@@ -157,12 +126,6 @@ type GameCenterChallengeLocalizationCreateAttributes struct {
 	Description string `json:"description"`
 }
 
-// GameCenterChallengeLocalizationUpdateAttributes describes attributes for updating a localization.
-type GameCenterChallengeLocalizationUpdateAttributes struct {
-	Name        *string `json:"name,omitempty"`
-	Description *string `json:"description,omitempty"`
-}
-
 // GameCenterChallengeLocalizationRelationships describes relationships for challenge localizations.
 type GameCenterChallengeLocalizationRelationships struct {
 	Version *Relationship `json:"version"`
@@ -175,28 +138,8 @@ type GameCenterChallengeLocalizationCreateData struct {
 	Relationships *GameCenterChallengeLocalizationRelationships   `json:"relationships,omitempty"`
 }
 
-// GameCenterChallengeLocalizationCreateRequest is a request to create a localization.
-type GameCenterChallengeLocalizationCreateRequest struct {
-	Data GameCenterChallengeLocalizationCreateData `json:"data"`
-}
-
-// GameCenterChallengeLocalizationUpdateData is the data portion of a localization update request.
-type GameCenterChallengeLocalizationUpdateData struct {
-	Type       ResourceType                                     `json:"type"`
-	ID         string                                           `json:"id"`
-	Attributes *GameCenterChallengeLocalizationUpdateAttributes `json:"attributes,omitempty"`
-}
-
-// GameCenterChallengeLocalizationUpdateRequest is a request to update a localization.
-type GameCenterChallengeLocalizationUpdateRequest struct {
-	Data GameCenterChallengeLocalizationUpdateData `json:"data"`
-}
-
 // GameCenterChallengeLocalizationsResponse is the response from localization list endpoints.
 type GameCenterChallengeLocalizationsResponse = Response[GameCenterChallengeLocalizationAttributes]
-
-// GameCenterChallengeLocalizationResponse is the response from localization detail endpoints.
-type GameCenterChallengeLocalizationResponse = SingleResponse[GameCenterChallengeLocalizationAttributes]
 
 // GameCenterChallengeLocalizationDeleteResult represents CLI output for localization deletions.
 type GameCenterChallengeLocalizationDeleteResult struct {
@@ -232,11 +175,6 @@ type GameCenterChallengeImageCreateAttributes struct {
 	FileName string `json:"fileName"`
 }
 
-// GameCenterChallengeImageUpdateAttributes describes attributes for committing an image upload.
-type GameCenterChallengeImageUpdateAttributes struct {
-	Uploaded *bool `json:"uploaded,omitempty"`
-}
-
 // GameCenterChallengeImageRelationships describes relationships for challenge images.
 type GameCenterChallengeImageRelationships struct {
 	Localization *Relationship `json:"localization,omitempty"`
@@ -250,28 +188,8 @@ type GameCenterChallengeImageCreateData struct {
 	Relationships *GameCenterChallengeImageRelationships   `json:"relationships"`
 }
 
-// GameCenterChallengeImageCreateRequest is a request to reserve an image upload.
-type GameCenterChallengeImageCreateRequest struct {
-	Data GameCenterChallengeImageCreateData `json:"data"`
-}
-
-// GameCenterChallengeImageUpdateData is the data portion of an image update (commit) request.
-type GameCenterChallengeImageUpdateData struct {
-	Type       ResourceType                              `json:"type"`
-	ID         string                                    `json:"id"`
-	Attributes *GameCenterChallengeImageUpdateAttributes `json:"attributes,omitempty"`
-}
-
-// GameCenterChallengeImageUpdateRequest is a request to commit an image upload.
-type GameCenterChallengeImageUpdateRequest struct {
-	Data GameCenterChallengeImageUpdateData `json:"data"`
-}
-
 // GameCenterChallengeImagesResponse is the response from challenge image list endpoints.
 type GameCenterChallengeImagesResponse = Response[GameCenterChallengeImageAttributes]
-
-// GameCenterChallengeImageResponse is the response from challenge image detail endpoints.
-type GameCenterChallengeImageResponse = SingleResponse[GameCenterChallengeImageAttributes]
 
 // GameCenterChallengeVersionDefaultImageResponse preserves a missing default image as null.
 type GameCenterChallengeVersionDefaultImageResponse struct {
@@ -312,16 +230,8 @@ type GameCenterChallengeVersionReleaseCreateData struct {
 	Relationships *GameCenterChallengeVersionReleaseRelationships `json:"relationships,omitempty"`
 }
 
-// GameCenterChallengeVersionReleaseCreateRequest is a request to create a release.
-type GameCenterChallengeVersionReleaseCreateRequest struct {
-	Data GameCenterChallengeVersionReleaseCreateData `json:"data"`
-}
-
 // GameCenterChallengeVersionReleasesResponse is the response from release list endpoints.
 type GameCenterChallengeVersionReleasesResponse = Response[GameCenterChallengeVersionReleaseAttributes]
-
-// GameCenterChallengeVersionReleaseResponse is the response from release detail endpoints.
-type GameCenterChallengeVersionReleaseResponse = SingleResponse[GameCenterChallengeVersionReleaseAttributes]
 
 // GameCenterChallengeVersionReleaseDeleteResult represents CLI output for release deletions.
 type GameCenterChallengeVersionReleaseDeleteResult struct {

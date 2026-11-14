@@ -8,22 +8,6 @@ import (
 	"strings"
 )
 
-// GetGameCenterChallenges retrieves the list of Game Center challenges for a Game Center detail.
-func (c *Client) GetGameCenterChallenges(ctx context.Context, gcDetailID string, opts ...GCChallengesOption) (*GameCenterChallengesResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[GameCenterChallengesResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/gameCenterDetails/%s/gameCenterChallenges", strings.TrimSpace(gcDetailID)),
-		Query:       buildGCChallengesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "game-center-challenges",
-	})
-}
-
-// GetGameCenterChallenge retrieves a Game Center challenge by ID.
-func (c *Client) GetGameCenterChallenge(ctx context.Context, challengeID string) (*GameCenterChallengeResponse, error) {
-	return getJSON[GameCenterChallengeResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/gameCenterChallenges/%s", strings.TrimSpace(challengeID))})
-}
-
 // CreateGameCenterChallenge creates a new Game Center challenge.
 func (c *Client) CreateGameCenterChallenge(ctx context.Context, gcDetailID string, attrs GameCenterChallengeCreateAttributes, leaderboardID string, groupID string, createInitialVersion bool) (*GameCenterChallengeResponse, error) {
 	const initialVersionID = "${challengeVer1}"
@@ -114,27 +98,6 @@ func (c *Client) UpdateGameCenterChallenge(ctx context.Context, challengeID stri
 	return sendJSON[GameCenterChallengeResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/gameCenterChallenges/%s", strings.TrimSpace(challengeID)), Payload: payload})
 }
 
-// DeleteGameCenterChallenge deletes a Game Center challenge.
-func (c *Client) DeleteGameCenterChallenge(ctx context.Context, challengeID string) error {
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/gameCenterChallenges/%s", strings.TrimSpace(challengeID)), nil)
-}
-
-// GetGameCenterChallengeVersions retrieves the list of challenge versions for a challenge.
-func (c *Client) GetGameCenterChallengeVersions(ctx context.Context, challengeID string, opts ...GCChallengeVersionsOption) (*GameCenterChallengeVersionsResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[GameCenterChallengeVersionsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/gameCenterChallenges/%s/versions", strings.TrimSpace(challengeID)),
-		Query:       buildGCChallengeVersionsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "game-center-challenge-versions",
-	})
-}
-
-// GetGameCenterChallengeVersion retrieves a challenge version by ID.
-func (c *Client) GetGameCenterChallengeVersion(ctx context.Context, versionID string) (*GameCenterChallengeVersionResponse, error) {
-	return getJSON[GameCenterChallengeVersionResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/gameCenterChallengeVersions/%s", strings.TrimSpace(versionID))})
-}
-
 // CreateGameCenterChallengeVersion creates a new challenge version.
 func (c *Client) CreateGameCenterChallengeVersion(ctx context.Context, challengeID string) (*GameCenterChallengeVersionResponse, error) {
 	payload := GameCenterChallengeVersionCreateRequest{
@@ -152,32 +115,6 @@ func (c *Client) CreateGameCenterChallengeVersion(ctx context.Context, challenge
 	}
 
 	return sendJSON[GameCenterChallengeVersionResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/gameCenterChallengeVersions", Payload: payload})
-}
-
-// GetGameCenterChallengeLocalizations retrieves the list of localizations for a challenge version.
-func (c *Client) GetGameCenterChallengeLocalizations(ctx context.Context, versionID string, opts ...GCChallengeLocalizationsOption) (*GameCenterChallengeLocalizationsResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[GameCenterChallengeLocalizationsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/gameCenterChallengeVersions/%s/localizations", strings.TrimSpace(versionID)),
-		Query:       buildGCChallengeLocalizationsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "game-center-challenge-localizations",
-	})
-}
-
-// GetGameCenterChallengeLocalization retrieves a challenge localization by ID.
-func (c *Client) GetGameCenterChallengeLocalization(ctx context.Context, localizationID string) (*GameCenterChallengeLocalizationResponse, error) {
-	return getJSON[GameCenterChallengeLocalizationResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/gameCenterChallengeLocalizations/%s", strings.TrimSpace(localizationID))})
-}
-
-// GetGameCenterChallengeLocalizationImage retrieves the image for a challenge localization.
-func (c *Client) GetGameCenterChallengeLocalizationImage(ctx context.Context, localizationID string) (*GameCenterChallengeImageResponse, error) {
-	return getJSON[GameCenterChallengeImageResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/gameCenterChallengeLocalizations/%s/image", strings.TrimSpace(localizationID))})
-}
-
-// GetGameCenterChallengeVersionDefaultImage retrieves the default image for a challenge version.
-func (c *Client) GetGameCenterChallengeVersionDefaultImage(ctx context.Context, versionID string) (*GameCenterChallengeVersionDefaultImageResponse, error) {
-	return getJSON[GameCenterChallengeVersionDefaultImageResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/gameCenterChallengeVersions/%s/defaultImage", strings.TrimSpace(versionID))})
 }
 
 // CreateGameCenterChallengeLocalization creates a new challenge localization.
@@ -198,29 +135,6 @@ func (c *Client) CreateGameCenterChallengeLocalization(ctx context.Context, vers
 	}
 
 	return sendJSON[GameCenterChallengeLocalizationResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/gameCenterChallengeLocalizations", Payload: payload})
-}
-
-// UpdateGameCenterChallengeLocalization updates a challenge localization.
-func (c *Client) UpdateGameCenterChallengeLocalization(ctx context.Context, localizationID string, attrs GameCenterChallengeLocalizationUpdateAttributes) (*GameCenterChallengeLocalizationResponse, error) {
-	payload := GameCenterChallengeLocalizationUpdateRequest{
-		Data: GameCenterChallengeLocalizationUpdateData{
-			Type:       ResourceTypeGameCenterChallengeLocalizations,
-			ID:         strings.TrimSpace(localizationID),
-			Attributes: &attrs,
-		},
-	}
-
-	return sendJSON[GameCenterChallengeLocalizationResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/gameCenterChallengeLocalizations/%s", strings.TrimSpace(localizationID)), Payload: payload})
-}
-
-// DeleteGameCenterChallengeLocalization deletes a challenge localization.
-func (c *Client) DeleteGameCenterChallengeLocalization(ctx context.Context, localizationID string) error {
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/gameCenterChallengeLocalizations/%s", strings.TrimSpace(localizationID)), nil)
-}
-
-// GetGameCenterChallengeImage retrieves a challenge image by ID.
-func (c *Client) GetGameCenterChallengeImage(ctx context.Context, imageID string) (*GameCenterChallengeImageResponse, error) {
-	return getJSON[GameCenterChallengeImageResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/gameCenterChallengeImages/%s", strings.TrimSpace(imageID))})
 }
 
 // CreateGameCenterChallengeImage reserves a challenge image upload.
@@ -265,11 +179,6 @@ func (c *Client) UpdateGameCenterChallengeImage(ctx context.Context, imageID str
 	}
 
 	return sendJSON[GameCenterChallengeImageResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/gameCenterChallengeImages/%s", strings.TrimSpace(imageID)), Payload: payload})
-}
-
-// DeleteGameCenterChallengeImage deletes a challenge image.
-func (c *Client) DeleteGameCenterChallengeImage(ctx context.Context, imageID string) error {
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/gameCenterChallengeImages/%s", strings.TrimSpace(imageID)), nil)
 }
 
 // UploadGameCenterChallengeImage performs the full upload flow for a challenge image.
@@ -320,22 +229,6 @@ func (c *Client) UploadGameCenterChallengeImage(ctx context.Context, localizatio
 	return result, nil
 }
 
-// GetGameCenterChallengeVersionRelease retrieves a challenge version release by ID.
-func (c *Client) GetGameCenterChallengeVersionRelease(ctx context.Context, releaseID string) (*GameCenterChallengeVersionReleaseResponse, error) {
-	return getJSON[GameCenterChallengeVersionReleaseResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/gameCenterChallengeVersionReleases/%s", strings.TrimSpace(releaseID))})
-}
-
-// GetGameCenterChallengeVersionReleases retrieves challenge releases for a Game Center detail.
-func (c *Client) GetGameCenterChallengeVersionReleases(ctx context.Context, gcDetailID string, opts ...GCChallengeVersionReleasesOption) (*GameCenterChallengeVersionReleasesResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[GameCenterChallengeVersionReleasesResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/gameCenterDetails/%s/challengeReleases", strings.TrimSpace(gcDetailID)),
-		Query:       buildGCChallengeVersionReleasesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "game-center-challenge-releases",
-	})
-}
-
 // CreateGameCenterChallengeVersionRelease creates a new challenge version release.
 func (c *Client) CreateGameCenterChallengeVersionRelease(ctx context.Context, versionID string) (*GameCenterChallengeVersionReleaseResponse, error) {
 	payload := GameCenterChallengeVersionReleaseCreateRequest{
@@ -353,9 +246,4 @@ func (c *Client) CreateGameCenterChallengeVersionRelease(ctx context.Context, ve
 	}
 
 	return sendJSON[GameCenterChallengeVersionReleaseResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/gameCenterChallengeVersionReleases", Payload: payload})
-}
-
-// DeleteGameCenterChallengeVersionRelease deletes a challenge version release.
-func (c *Client) DeleteGameCenterChallengeVersionRelease(ctx context.Context, releaseID string) error {
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/gameCenterChallengeVersionReleases/%s", strings.TrimSpace(releaseID)), nil)
 }

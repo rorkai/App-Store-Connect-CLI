@@ -1,0 +1,10 @@
+{
+  "tag": "ScmPullRequests",
+  "file": "scm_pull_requests_gen.go",
+  "types": [
+    "ScmPullRequestAttributes"
+  ],
+  "operations": [
+    {"operation":"scmPullRequests_getInstance","name":"GetScmPullRequest","params":["pullRequestID"]}
+  ]
+}

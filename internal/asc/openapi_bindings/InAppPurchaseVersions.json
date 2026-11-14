@@ -1,0 +1,11 @@
+{
+  "tag": "InAppPurchaseVersions",
+  "file": "in_app_purchase_versions_gen.go",
+  "types": [
+    "InAppPurchaseVersionAttributes",
+    "InAppPurchaseVersionCreateRequest"
+  ],
+  "operations": [
+    {"operation":"inAppPurchaseVersions_image_getToOneRelationship","name":"GetInAppPurchaseVersionImageRelationship","params":["versionID"],"check":"require"}
+  ]
+}

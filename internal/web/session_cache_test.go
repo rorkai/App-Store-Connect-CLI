@@ -4167,7 +4167,7 @@ func TestPersistSessionKeepsNewerCookieWrittenByAnotherProcess(t *testing.T) {
 
 func TestCachedSessionRejectsDifferentAppleAccount(t *testing.T) {
 	withFileSessionCache(t)
-	if _, err := ImportSessionBundle(validTestBundle(time.Now().Add(time.Hour))); err != nil {
+	if _, err := ImportSessionBundleWithOptions(validTestBundle(time.Now().Add(time.Hour)), false); err != nil {
 		t.Fatal(err)
 	}
 

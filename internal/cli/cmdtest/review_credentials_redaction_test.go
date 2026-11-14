@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 // Unique sentinels make a leak unambiguous: no fixture, help text, or unrelated
@@ -68,12 +70,9 @@ func TestReviewDetailsGetRedactsDemoAccountPasswordInEveryFormat(t *testing.T) {
 		t.Run(format.name, func(t *testing.T) {
 			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-			stubTransport(t, func(req *http.Request) (*http.Response, error) {
-				if req.Method != http.MethodGet || req.URL.Path != "/v1/appStoreReviewDetails/detail-1" {
-					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-				}
-				return jsonResponse(http.StatusOK, appStoreReviewDetailJSON())
-			})
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET("/v1/appStoreReviewDetails/detail-1"), asctest.JSON(http.StatusOK, appStoreReviewDetailJSON()))
 
 			root := RootCommand("1.2.3")
 			root.FlagSet.SetOutput(io.Discard)
@@ -105,26 +104,19 @@ func TestReviewDetailsGetRedactsDemoAccountPasswordInEveryFormat(t *testing.T) {
 func TestReviewDetailsGetIncludesDemoAccountPasswordWithIncludeSensitive(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	stubTransport(t, func(req *http.Request) (*http.Response, error) {
-		return jsonResponse(http.StatusOK, appStoreReviewDetailJSON())
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreReviewDetails/detail-1"), asctest.JSON(http.StatusOK, appStoreReviewDetailJSON()))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"review", "details-get",
-			"--id", "detail-1",
-			"--output", "json",
-			"--include-sensitive",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
+	stdout, stderr, err := runCommand(t, []string{
+		"review", "details-get",
+		"--id", "detail-1",
+		"--output", "json",
+		"--include-sensitive",
 	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	var payload struct {
 		Data struct {
@@ -147,24 +139,14 @@ func TestReviewDetailsGetIncludesDemoAccountPasswordWithIncludeSensitive(t *test
 func TestReviewDetailsForVersionRedactsDemoAccountPassword(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	stubTransport(t, func(req *http.Request) (*http.Response, error) {
-		if req.URL.Path != "/v1/appStoreVersions/version-1/appStoreReviewDetail" {
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-		}
-		return jsonResponse(http.StatusOK, appStoreReviewDetailJSON())
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreReviewDetail"), asctest.JSON(http.StatusOK, appStoreReviewDetailJSON()))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"review", "details-for-version", "--version-id", "version-1", "--output", "json"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"review", "details-for-version", "--version-id", "version-1", "--output", "json"})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	assertNoSentinel(t, "stdout", appStoreDemoPasswordSentinel, stdout)
 	assertNoSentinel(t, "stderr", appStoreDemoPasswordSentinel, stderr)
@@ -175,14 +157,16 @@ func TestReviewDetailsForVersionRedactsDemoAccountPassword(t *testing.T) {
 
 func TestIncludedReviewDetailsRedactDemoAccountPasswordByDefault(t *testing.T) {
 	tests := []struct {
-		name string
-		path string
-		args []string
-		body string
+		name  string
+		path  string
+		query []string
+		args  []string
+		body  string
 	}{
 		{
-			name: "versions view",
-			path: "/v1/appStoreVersions/version-1",
+			name:  "versions view",
+			path:  "/v1/appStoreVersions/version-1",
+			query: []string{"include=appStoreReviewDetail"},
 			args: []string{
 				"versions", "view", "--version-id", "version-1",
 				"--include", "appStoreReviewDetail", "--output", "json",
@@ -191,8 +175,9 @@ func TestIncludedReviewDetailsRedactDemoAccountPasswordByDefault(t *testing.T) {
 				includedAppStoreReviewDetailJSON() + `]}`,
 		},
 		{
-			name: "review attachment list",
-			path: "/v1/appStoreReviewDetails/detail-1/appStoreReviewAttachments",
+			name:  "review attachment list",
+			path:  "/v1/appStoreReviewDetails/detail-1/appStoreReviewAttachments",
+			query: []string{"fields[appStoreReviewDetails]=demoAccountPassword", "include=appStoreReviewDetail"},
 			args: []string{
 				"review", "attachments-list", "--review-detail", "detail-1",
 				"--include", "appStoreReviewDetail", "--detail-fields", "demoAccountPassword", "--output", "json",
@@ -200,8 +185,9 @@ func TestIncludedReviewDetailsRedactDemoAccountPasswordByDefault(t *testing.T) {
 			body: `{"data":[],"included":[` + includedAppStoreReviewDetailJSON() + `]}`,
 		},
 		{
-			name: "review attachment get",
-			path: "/v1/appStoreReviewAttachments/attachment-1",
+			name:  "review attachment get",
+			path:  "/v1/appStoreReviewAttachments/attachment-1",
+			query: []string{"fields[appStoreReviewDetails]=demoAccountPassword", "include=appStoreReviewDetail"},
 			args: []string{
 				"review", "attachments-get", "--id", "attachment-1",
 				"--include", "appStoreReviewDetail", "--detail-fields", "demoAccountPassword", "--output", "json",
@@ -215,12 +201,9 @@ func TestIncludedReviewDetailsRedactDemoAccountPasswordByDefault(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-			stubTransport(t, func(req *http.Request) (*http.Response, error) {
-				if req.URL.Path != test.path {
-					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-				}
-				return jsonResponse(http.StatusOK, test.body)
-			})
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET(test.path, test.query...), asctest.JSON(http.StatusOK, test.body))
 
 			root := RootCommand("1.2.3")
 			root.FlagSet.SetOutput(io.Discard)
@@ -246,44 +229,28 @@ func TestReviewDetailsCreateSendsPasswordButRedactsResponse(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	sentRealPassword := false
-	stubTransport(t, func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodPost || req.URL.Path != "/v1/appStoreReviewDetails" {
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-		}
-		payload, err := io.ReadAll(req.Body)
-		if err != nil {
-			t.Fatalf("read body error: %v", err)
-		}
-		if strings.Contains(string(payload), `"demoAccountPassword":"`+appStoreDemoPasswordSentinel+`"`) {
-			sentRealPassword = true
-		}
-		return jsonResponse(http.StatusCreated, appStoreReviewDetailJSON())
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.POST("/v1/appStoreReviewDetails"), asctest.JSON(http.StatusCreated, appStoreReviewDetailJSON()))
+
+	stdout, stderr, err := runCommand(t, []string{
+		"review", "details-create",
+		"--version-id", "version-1",
+		"--contact-first-name", "Dev",
+		"--contact-last-name", "Support",
+		"--contact-email", "dev@example.com",
+		"--contact-phone", "+1 408 555 0100",
+		"--output", "json",
+		"--demo-account-required=true",
+		"--demo-account-name", "reviewer@example.com",
+		"--demo-account-password", appStoreDemoPasswordSentinel,
 	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"review", "details-create",
-			"--version-id", "version-1",
-			"--contact-first-name", "Dev",
-			"--contact-last-name", "Support",
-			"--contact-email", "dev@example.com",
-			"--contact-phone", "+1 408 555 0100",
-			"--output", "json",
-			"--demo-account-required=true",
-			"--demo-account-name", "reviewer@example.com",
-			"--demo-account-password", appStoreDemoPasswordSentinel,
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
+	requests := reg.Requests()
+	sentRealPassword := len(requests) == 1 && strings.Contains(string(requests[0].Body), `"demoAccountPassword":"`+appStoreDemoPasswordSentinel+`"`)
 	if !sentRealPassword {
 		t.Fatal("expected the create request payload to carry the explicitly supplied password")
 	}
@@ -295,38 +262,22 @@ func TestReviewDetailsUpdateSendsPasswordButRedactsResponse(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	sentRealPassword := false
-	stubTransport(t, func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodPatch || req.URL.Path != "/v1/appStoreReviewDetails/detail-1" {
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-		}
-		payload, err := io.ReadAll(req.Body)
-		if err != nil {
-			t.Fatalf("read body error: %v", err)
-		}
-		if strings.Contains(string(payload), `"demoAccountPassword":"`+appStoreDemoPasswordSentinel+`"`) {
-			sentRealPassword = true
-		}
-		return jsonResponse(http.StatusOK, appStoreReviewDetailJSON())
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.PATCH("/v1/appStoreReviewDetails/detail-1"), asctest.JSON(http.StatusOK, appStoreReviewDetailJSON()))
+
+	stdout, stderr, err := runCommand(t, []string{
+		"review", "details-update",
+		"--id", "detail-1",
+		"--output", "json",
+		"--demo-account-password", appStoreDemoPasswordSentinel,
 	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"review", "details-update",
-			"--id", "detail-1",
-			"--output", "json",
-			"--demo-account-password", appStoreDemoPasswordSentinel,
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
+	requests := reg.Requests()
+	sentRealPassword := len(requests) == 1 && strings.Contains(string(requests[0].Body), `"demoAccountPassword":"`+appStoreDemoPasswordSentinel+`"`)
 	if !sentRealPassword {
 		t.Fatal("expected the update request payload to carry the explicitly supplied password")
 	}
@@ -337,21 +288,14 @@ func TestReviewDetailsUpdateSendsPasswordButRedactsResponse(t *testing.T) {
 func TestTestFlightReviewViewRedactsDemoAccountPassword(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	stubTransport(t, func(req *http.Request) (*http.Response, error) {
-		return jsonResponse(http.StatusOK, betaAppReviewDetailsJSON())
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/betaAppReviewDetails", "filter[app]=app-1"), asctest.JSON(http.StatusOK, betaAppReviewDetailsJSON()))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"testflight", "review", "view", "--app", "app-1", "--output", "json"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"testflight", "review", "view", "--app", "app-1", "--output", "json"})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	assertNoSentinel(t, "stdout", testFlightDemoPasswordSentinel, stdout)
 	assertNoSentinel(t, "stderr", testFlightDemoPasswordSentinel, stderr)
@@ -364,38 +308,22 @@ func TestTestFlightReviewEditSendsPasswordButRedactsResponse(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	sentRealPassword := false
-	stubTransport(t, func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodPatch {
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-		}
-		payload, err := io.ReadAll(req.Body)
-		if err != nil {
-			t.Fatalf("read body error: %v", err)
-		}
-		if strings.Contains(string(payload), `"demoAccountPassword":"`+testFlightDemoPasswordSentinel+`"`) {
-			sentRealPassword = true
-		}
-		return jsonResponse(http.StatusOK, betaAppReviewDetailJSON())
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.PATCH("/v1/betaAppReviewDetails/detail-1"), asctest.JSON(http.StatusOK, betaAppReviewDetailJSON()))
+
+	stdout, stderr, err := runCommand(t, []string{
+		"testflight", "review", "edit",
+		"--id", "detail-1",
+		"--output", "json",
+		"--demo-account-password", testFlightDemoPasswordSentinel,
 	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"testflight", "review", "edit",
-			"--id", "detail-1",
-			"--output", "json",
-			"--demo-account-password", testFlightDemoPasswordSentinel,
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
+	requests := reg.Requests()
+	sentRealPassword := len(requests) == 1 && strings.Contains(string(requests[0].Body), `"demoAccountPassword":"`+testFlightDemoPasswordSentinel+`"`)
 	if !sentRealPassword {
 		t.Fatal("expected the update request payload to carry the explicitly supplied password")
 	}
@@ -406,26 +334,19 @@ func TestTestFlightReviewEditSendsPasswordButRedactsResponse(t *testing.T) {
 func TestTestFlightReviewViewIncludesDemoAccountPasswordWithIncludeSensitive(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	stubTransport(t, func(req *http.Request) (*http.Response, error) {
-		return jsonResponse(http.StatusOK, betaAppReviewDetailsJSON())
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/betaAppReviewDetails", "filter[app]=app-1"), asctest.JSON(http.StatusOK, betaAppReviewDetailsJSON()))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"testflight", "review", "view",
-			"--app", "app-1",
-			"--output", "json",
-			"--include-sensitive",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
+	stdout, stderr, err := runCommand(t, []string{
+		"testflight", "review", "view",
+		"--app", "app-1",
+		"--output", "json",
+		"--include-sensitive",
 	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if !strings.Contains(stdout, testFlightDemoPasswordSentinel) {
 		t.Fatalf("expected real password with --include-sensitive, got %q", stdout)

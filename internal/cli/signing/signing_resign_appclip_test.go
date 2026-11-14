@@ -67,11 +67,11 @@ func TestSigningResignAppClipClaimsSurvivePostSignNestedFixture(t *testing.T) {
 	}
 	defer tree.Close()
 
-	mainTarget, err := inspectSigningResignTarget(context.Background(), tree, "Payload/App.app", "application")
+	mainTarget, err := inspectSigningResignTargetWithEntitlements(context.Background(), tree, "Payload/App.app", "application", true)
 	if err != nil {
 		t.Fatalf("inspect signed main target: %v", err)
 	}
-	clipTarget, err := inspectSigningResignTarget(context.Background(), tree, "Payload/App.app/AppClips/Clip.app", "app-clip")
+	clipTarget, err := inspectSigningResignTargetWithEntitlements(context.Background(), tree, "Payload/App.app/AppClips/Clip.app", "app-clip", true)
 	if err != nil {
 		t.Fatalf("inspect signed App Clip target: %v", err)
 	}

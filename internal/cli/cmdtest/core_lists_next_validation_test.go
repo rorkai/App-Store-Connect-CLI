@@ -1,14 +1,14 @@
 package cmdtest
 
 import (
-	"context"
-	"io"
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 type invalidNextURLCase struct {
@@ -52,16 +52,9 @@ func runInvalidNextURLCases(t *testing.T, cases []invalidNextURLCase) {
 func assertInvalidNextURLRun(t *testing.T, args []string, wantErr, wantWarning string) {
 	t.Helper()
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
+	asctest.NewRegistry(t).Install()
 
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse(args); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	stdout, stderr, runErr := runCommand(t, args)
 
 	if runErr == nil || !strings.Contains(runErr.Error(), wantErr) {
 		t.Fatalf("expected error %q, got %v", wantErr, runErr)
@@ -121,48 +114,25 @@ func runPaginateFromNextCases(t *testing.T, cases []paginateFromNextCase) {
 				args = append(append([]string{}, tc.args...), "--next", tc.firstURL)
 			}
 
-			requestCount := 0
-			transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				if requestCount >= len(pages) {
-					t.Fatalf("unexpected extra request: %s %s", req.Method, req.URL.String())
+			reg := asctest.NewRegistry(t)
+			for _, page := range pages {
+				pageURL, err := url.Parse(page.url)
+				if err != nil {
+					t.Fatalf("parse page URL %q: %v", page.url, err)
 				}
-				page := pages[requestCount]
-				requestCount++
-				if req.Method != http.MethodGet || req.URL.String() != page.url {
-					t.Fatalf("request %d = %s %s, want GET %s", requestCount, req.Method, req.URL.String(), page.url)
-				}
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body:       io.NopCloser(strings.NewReader(page.body)),
-					Header:     http.Header{"Content-Type": []string{"application/json"}},
-				}, nil
-			})
+				reg.Register(asctest.GET(pageURL.EscapedPath(), pageURL.RawQuery), asctest.JSON(http.StatusOK, page.body))
+			}
 
 			var stdout, stderr string
+			var runErr error
 			if tc.deps {
-				var runErr error
-				stdout, stderr, runErr = runRootWithDeps(t, stubClient(t, transport), args...)
-				if runErr != nil {
-					t.Fatalf("run error: %v", runErr)
-				}
+				stdout, stderr, runErr = runRootWithDeps(t, stubClient(t, reg), args...)
 			} else {
-				originalTransport := http.DefaultTransport
-				t.Cleanup(func() {
-					http.DefaultTransport = originalTransport
-				})
-				http.DefaultTransport = transport
-
-				root := RootCommand("1.2.3")
-				root.FlagSet.SetOutput(io.Discard)
-
-				stdout, stderr = captureOutput(t, func() {
-					if err := root.Parse(args); err != nil {
-						t.Fatalf("parse error: %v", err)
-					}
-					if err := root.Run(context.Background()); err != nil {
-						t.Fatalf("run error: %v", err)
-					}
-				})
+				reg.Install()
+				stdout, stderr, runErr = runCommand(t, args)
+			}
+			if runErr != nil {
+				t.Fatalf("run error: %v", runErr)
 			}
 
 			if stderr != tc.wantStderr {

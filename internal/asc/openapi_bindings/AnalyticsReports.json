@@ -1,0 +1,7 @@
+{
+  "tag": "AnalyticsReports",
+  "file": "analytics_reports_gen.go",
+  "types": [
+    "AnalyticsReportResponse"
+  ]
+}

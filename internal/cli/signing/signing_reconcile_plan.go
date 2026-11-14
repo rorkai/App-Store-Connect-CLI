@@ -235,10 +235,6 @@ func planDesiredDevices(desired []signingDeviceInput, remote []asc.Resource[asc.
 	return result, actions, blockers
 }
 
-func selectReconcileCertificate(certificates []asc.Resource[asc.CertificateAttributes], explicitID string, now time.Time, minimumValidityDays int) (*signingCertificateRef, []string) {
-	return selectReconcileCertificateWithFingerprint(certificates, explicitID, "", now, minimumValidityDays)
-}
-
 func selectReconcileCertificateWithFingerprint(certificates []asc.Resource[asc.CertificateAttributes], explicitID, explicitSHA256 string, now time.Time, minimumValidityDays int) (*signingCertificateRef, []string) {
 	minimumExpiration := now.Add(time.Duration(minimumValidityDays) * 24 * time.Hour)
 	var eligible []asc.Resource[asc.CertificateAttributes]

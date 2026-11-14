@@ -1,0 +1,31 @@
+{
+  "tag": "GameCenterDetails",
+  "file": "game_center_details_gen.go",
+  "types": [
+    "GameCenterDetailCreateAttributes",
+    "GameCenterDetailCreateRequest",
+    "GameCenterDetailResponse",
+    "GameCenterDetailUpdateAttributes",
+    "GameCenterDetailUpdateRequest"
+  ],
+  "operations": [
+    {"operation":"gameCenterDetails_achievementReleases_getToManyRelated","name":"GetGameCenterDetailsAchievementReleases","params":["gcDetailID"],"options":"GCAchievementReleasesOption","query":"buildGCAchievementReleasesQuery","nextContext":"game-center-details-achievement-releases"},
+    {"operation":"gameCenterDetails_activityReleases_getToManyRelated","name":"GetGameCenterActivityVersionReleases","params":["gcDetailID"],"options":"GCActivityVersionReleasesOption","query":"buildGCActivityVersionReleasesQuery","nextContext":"game-center-activity-releases"},
+    {"operation":"gameCenterDetails_challengeReleases_getToManyRelated","name":"GetGameCenterChallengeVersionReleases","params":["gcDetailID"],"options":"GCChallengeVersionReleasesOption","query":"buildGCChallengeVersionReleasesQuery","nextContext":"game-center-challenge-releases"},
+    {"operation":"gameCenterDetails_classicMatchmakingRequests_getMetrics","name":"GetGameCenterDetailsClassicMatchmakingRequests","params":["gcDetailID"],"options":"GCMatchmakingMetricsOption","query":"buildGCMatchmakingQueueRequestsQuery","nextContext":"game-center-details-classic-matchmaking-requests","response":"GameCenterMetricsResponse"},
+    {"operation":"gameCenterDetails_gameCenterAchievementsV2_getToManyRelated","name":"GetGameCenterDetailsAchievementsV2","params":["gcDetailID"],"options":"GCAchievementsOption","query":"buildGCAchievementsQuery","nextContext":"game-center-details-achievements-v2","response":"GameCenterAchievementsResponse"},
+    {"operation":"gameCenterDetails_gameCenterAchievements_getToManyRelated","name":"GetGameCenterAchievements","params":["gcDetailID"],"options":"GCAchievementsOption","query":"buildGCAchievementsQuery","nextContext":"game-center-achievements"},
+    {"operation":"gameCenterDetails_gameCenterActivities_getToManyRelated","name":"GetGameCenterActivities","params":["gcDetailID"],"options":"GCActivitiesOption","query":"buildGCActivitiesQuery","nextContext":"game-center-activities"},
+    {"operation":"gameCenterDetails_gameCenterAppVersions_getToManyRelated","name":"GetGameCenterDetailGameCenterAppVersions","params":["detailID"],"check":"require","options":"GCAppVersionsOption","query":"buildGCAppVersionsQuery","nextContext":"game-center-detail-app-versions"},
+    {"operation":"gameCenterDetails_gameCenterChallenges_getToManyRelated","name":"GetGameCenterChallenges","params":["gcDetailID"],"options":"GCChallengesOption","query":"buildGCChallengesQuery","nextContext":"game-center-challenges"},
+    {"operation":"gameCenterDetails_gameCenterGroup_getToOneRelated","name":"GetGameCenterDetailGameCenterGroup","params":["detailID"]},
+    {"operation":"gameCenterDetails_gameCenterLeaderboardSetsV2_getToManyRelated","name":"GetGameCenterDetailsLeaderboardSetsV2","params":["gcDetailID"],"options":"GCLeaderboardSetsOption","query":"buildGCLeaderboardSetsQuery","nextContext":"game-center-details-leaderboard-sets-v2","response":"GameCenterLeaderboardSetsResponse"},
+    {"operation":"gameCenterDetails_gameCenterLeaderboardSets_getToManyRelated","name":"GetGameCenterLeaderboardSets","params":["gcDetailID"],"options":"GCLeaderboardSetsOption","query":"buildGCLeaderboardSetsQuery","nextContext":"game-center-leaderboard-sets"},
+    {"operation":"gameCenterDetails_gameCenterLeaderboardsV2_getToManyRelated","name":"GetGameCenterDetailsLeaderboardsV2","params":["gcDetailID"],"options":"GCLeaderboardsOption","query":"buildGCLeaderboardsQuery","nextContext":"game-center-details-leaderboards-v2","response":"GameCenterLeaderboardsResponse"},
+    {"operation":"gameCenterDetails_gameCenterLeaderboards_getToManyRelated","name":"GetGameCenterLeaderboards","params":["gcDetailID"],"options":"GCLeaderboardsOption","query":"buildGCLeaderboardsQuery","nextContext":"game-center-leaderboards"},
+    {"operation":"gameCenterDetails_getInstance","name":"GetGameCenterDetail","params":["detailID"]},
+    {"operation":"gameCenterDetails_leaderboardReleases_getToManyRelated","name":"GetGameCenterDetailsLeaderboardReleases","params":["gcDetailID"],"options":"GCLeaderboardReleasesOption","query":"buildGCLeaderboardReleasesQuery","nextContext":"game-center-details-leaderboard-releases"},
+    {"operation":"gameCenterDetails_leaderboardSetReleases_getToManyRelated","name":"GetGameCenterDetailsLeaderboardSetReleases","params":["gcDetailID"],"options":"GCLeaderboardSetReleasesOption","query":"buildGCLeaderboardSetReleasesQuery","nextContext":"game-center-details-leaderboard-set-releases"},
+    {"operation":"gameCenterDetails_ruleBasedMatchmakingRequests_getMetrics","name":"GetGameCenterDetailsRuleBasedMatchmakingRequests","params":["gcDetailID"],"options":"GCMatchmakingMetricsOption","query":"buildGCMatchmakingQueueRequestsQuery","nextContext":"game-center-details-rule-based-matchmaking-requests","response":"GameCenterMetricsResponse"}
+  ]
+}

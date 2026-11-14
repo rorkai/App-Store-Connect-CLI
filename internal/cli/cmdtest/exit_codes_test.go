@@ -1,7 +1,6 @@
 package cmdtest
 
 import (
-	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -10,6 +9,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestRun_IntroductoryOffersImportInvalidStartDateReturnsExitUsage(t *testing.T) {
@@ -45,47 +45,18 @@ func TestRun_IntroductoryOffersImportPartialFailureReturnsExitError(t *testing.T
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	getCount := 0
-	postCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/8000000003/introductoryOffers" {
-			getCount++
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(`{"data":[]}`)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		}
-		if req.Method != http.MethodPost || req.URL.Path != "/v1/subscriptionIntroductoryOffers" {
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-		}
-		postCount++
-
-		switch postCount {
-		case 1:
-			body := `{"data":{"type":"subscriptionIntroductoryOffers","id":"offer-1"}}`
-			return &http.Response{
-				StatusCode: http.StatusCreated,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 2:
-			body := `{"errors":[{"status":"422","title":"Unprocessable Entity","detail":"invalid intro offer"}]}`
-			return &http.Response{
-				StatusCode: http.StatusUnprocessableEntity,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected POST count %d", postCount)
-			return nil, nil
-		}
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	offersRead := asctest.GET("/v1/subscriptions/8000000003/introductoryOffers",
+		"fields[subscriptionIntroductoryOffers]=startDate,endDate,duration,offerMode,numberOfPeriods,targetSubscriptionPlanType,territory,subscriptionPricePoint",
+		"include=territory,subscriptionPricePoint", "limit=200")
+	offerCreate := func(territory string) asctest.Matcher {
+		return asctest.POST("/v1/subscriptionIntroductoryOffers").JSONBody(`{"data":{"type":"subscriptionIntroductoryOffers","attributes":{"duration":"ONE_WEEK","offerMode":"FREE_TRIAL","numberOfPeriods":1,"targetSubscriptionPlanType":"UPFRONT"},"relationships":{"subscription":{"data":{"type":"subscriptions","id":"8000000003"}},"territory":{"data":{"type":"territories","id":"` + territory + `"}}}}}`)
+	}
+	reg.Register(offersRead, asctest.JSON(http.StatusOK, `{"data":[]}`))
+	reg.Register(offerCreate("USA"), asctest.JSON(http.StatusCreated, `{"data":{"type":"subscriptionIntroductoryOffers","id":"offer-1"}}`))
+	reg.Register(offerCreate("AFG"), asctest.JSON(http.StatusUnprocessableEntity, `{"errors":[{"status":"422","title":"Unprocessable Entity","detail":"invalid intro offer"}]}`))
+	reg.Register(offersRead, asctest.JSON(http.StatusOK, `{"data":[]}`))
 
 	csvPath := filepath.Join(t.TempDir(), "offers.csv")
 	if err := os.WriteFile(csvPath, []byte("territory\nUSA\nAFG\n"), 0o600); err != nil {
@@ -112,6 +83,15 @@ func TestRun_IntroductoryOffersImportPartialFailureReturnsExitError(t *testing.T
 	}
 	if !strings.Contains(stdout, `"failed":1`) {
 		t.Fatalf("expected failure summary in stdout, got %q", stdout)
+	}
+	getCount, postCount := 0, 0
+	for _, req := range reg.Requests() {
+		switch req.Method {
+		case http.MethodGet:
+			getCount++
+		case http.MethodPost:
+			postCount++
+		}
 	}
 	if getCount != 2 || postCount != 2 {
 		t.Fatalf("expected initial GET, two POSTs, and one readback GET; got GET=%d POST=%d", getCount, postCount)

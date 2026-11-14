@@ -50,7 +50,7 @@ func TestEmitQueuesEventAndSwallowsWorkerStartErrors(t *testing.T) {
 		return errors.New("process unavailable")
 	})
 
-	Emit("asc builds list", "1.2.3", time.Millisecond, 0)
+	EmitWithContext("asc builds list", "1.2.3", time.Millisecond, 0, EventContext{InvocationShape: InvocationShapeLeaf})
 	if !workerStarted {
 		t.Fatal("expected maintenance worker start")
 	}
@@ -86,7 +86,7 @@ func TestEmitQueuesEventWithoutForegroundHTTPDelivery(t *testing.T) {
 		return nil
 	})
 
-	Emit("asc builds list", "1.2.3", time.Millisecond, 0)
+	EmitWithContext("asc builds list", "1.2.3", time.Millisecond, 0, EventContext{InvocationShape: InvocationShapeLeaf})
 
 	if transportCalls != 0 {
 		t.Fatalf("foreground HTTP transport calls = %d, want 0", transportCalls)
@@ -113,7 +113,7 @@ func TestEmitHonorsDisabledEnv(t *testing.T) {
 		return nil
 	})
 
-	Emit("asc builds list", "1.2.3", time.Millisecond, 0)
+	EmitWithContext("asc builds list", "1.2.3", time.Millisecond, 0, EventContext{InvocationShape: InvocationShapeLeaf})
 	if records := readDefaultSpool(t); len(records) != 0 {
 		t.Fatalf("spool records = %d, want 0 when disabled", len(records))
 	}
@@ -131,7 +131,7 @@ func TestEmitMarksEphemeralRuntimeWithoutDisabling(t *testing.T) {
 		return nil
 	})
 
-	Emit("asc builds list", "1.2.3", time.Millisecond, 0)
+	EmitWithContext("asc builds list", "1.2.3", time.Millisecond, 0, EventContext{InvocationShape: InvocationShapeLeaf})
 	records := readDefaultSpool(t)
 	if len(records) != 1 {
 		t.Fatalf("spool records = %d, want 1", len(records))
@@ -156,7 +156,7 @@ func TestEmitCapturesEndpointOverrideInSpool(t *testing.T) {
 	t.Setenv(endpointEnvVar, "https://override.example.test/events")
 	stubMaintenanceWorkerStart(t, func() error { return nil })
 
-	Emit("asc builds list", "1.2.3", time.Millisecond, 0)
+	EmitWithContext("asc builds list", "1.2.3", time.Millisecond, 0, EventContext{InvocationShape: InvocationShapeLeaf})
 	records := readDefaultSpool(t)
 	if len(records) != 1 {
 		t.Fatalf("spool records = %d, want 1", len(records))
@@ -186,7 +186,7 @@ func TestEmitSkipsDefaultEndpointForUnstampedBuild(t *testing.T) {
 			t.Setenv(endpointEnvVar, test.endpoint)
 			stubMaintenanceWorkerStart(t, func() error { return nil })
 
-			Emit("asc workflow run", unstampedVersion, time.Millisecond, 0)
+			EmitWithContext("asc workflow run", unstampedVersion, time.Millisecond, 0, EventContext{InvocationShape: InvocationShapeLeaf})
 			if records := readDefaultSpool(t); len(records) != test.wantRecords {
 				t.Fatalf("spool records = %d, want %d", len(records), test.wantRecords)
 			}
@@ -205,7 +205,7 @@ func TestEmitDoesNotSpoolCredentialBearingEndpoint(t *testing.T) {
 		return nil
 	})
 
-	Emit("asc builds list", "1.2.3", time.Millisecond, 0)
+	EmitWithContext("asc builds list", "1.2.3", time.Millisecond, 0, EventContext{InvocationShape: InvocationShapeLeaf})
 	if records := readDefaultSpool(t); len(records) != 0 {
 		t.Fatalf("spool records = %d, want 0 for invalid endpoint", len(records))
 	}

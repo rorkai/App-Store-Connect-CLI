@@ -16,7 +16,7 @@ func TestInspectIPARejectsMalformedProfileEntitlements(t *testing.T) {
 				"Payload/Demo.app/Info.plist":               plistXML(t, map[string]any{"CFBundleIdentifier": "com.example.demo"}),
 				"Payload/Demo.app/embedded.mobileprovision": malformedProfile(t, value),
 			})
-			manifest, err := InspectIPA(bytes.NewReader(ipa), int64(len(ipa)), true, true)
+			manifest, err := InspectIPAWithOptions(bytes.NewReader(ipa), int64(len(ipa)), IPAOptions{IncludeEntitlements: true, IncludeProfile: true})
 			if err == nil || manifest.Status != "unreadable" {
 				t.Fatalf("manifest=%+v err=%v", manifest, err)
 			}
@@ -32,7 +32,7 @@ func TestInspectIPAUsesOnlySelectedAppMetadata(t *testing.T) {
 		"Payload/Demo.app/PlugIns/Widget.appex/Info.plist":           plistXML(t, map[string]any{"CFBundleIdentifier": "com.example.demo.widget"}),
 		"Payload/Demo.app/PlugIns/Widget.appex/Resources/Info.plist": []byte("not a bundle plist"),
 	})
-	manifest, err := InspectIPA(bytes.NewReader(ipa), int64(len(ipa)), true, true)
+	manifest, err := InspectIPAWithOptions(bytes.NewReader(ipa), int64(len(ipa)), IPAOptions{IncludeEntitlements: true, IncludeProfile: true})
 	if err != nil || manifest.Status != "unsigned" || manifest.TeamID != "" || len(manifest.NestedBundles) != 1 {
 		t.Fatalf("manifest=%+v err=%v", manifest, err)
 	}
@@ -43,7 +43,7 @@ func TestInspectIPAProfileExpirationRFC3339(t *testing.T) {
 		"Payload/Demo.app/Info.plist":               plistXML(t, map[string]any{"CFBundleIdentifier": "com.example.demo"}),
 		"Payload/Demo.app/embedded.mobileprovision": plistXML(t, map[string]any{"ExpirationDate": time.Date(2030, 1, 1, 0, 0, 0, 0, time.UTC), "Entitlements": map[string]any{}}),
 	})
-	manifest, err := InspectIPA(bytes.NewReader(ipa), int64(len(ipa)), false, true)
+	manifest, err := InspectIPAWithOptions(bytes.NewReader(ipa), int64(len(ipa)), IPAOptions{IncludeEntitlements: false, IncludeProfile: true})
 	if err != nil || manifest.Profile == nil || manifest.Profile.ExpirationDate != "2030-01-01T00:00:00Z" {
 		t.Fatalf("manifest=%+v err=%v", manifest, err)
 	}
@@ -54,7 +54,7 @@ func TestInspectIPARejectsAmbiguousMainApp(t *testing.T) {
 		"Payload/Demo.app/Info.plist":  plistXML(t, map[string]any{"CFBundleIdentifier": "com.example.demo"}),
 		"Payload/Other.app/Info.plist": plistXML(t, map[string]any{"CFBundleIdentifier": "com.example.other"}),
 	})
-	manifest, err := InspectIPA(bytes.NewReader(ipa), int64(len(ipa)), false, false)
+	manifest, err := InspectIPAWithOptions(bytes.NewReader(ipa), int64(len(ipa)), IPAOptions{IncludeEntitlements: false, IncludeProfile: false})
 	if err == nil || manifest.Status != "unreadable" {
 		t.Fatalf("manifest=%+v err=%v", manifest, err)
 	}
@@ -63,7 +63,7 @@ func TestInspectIPARejectsAmbiguousMainApp(t *testing.T) {
 func TestInspectIPARejectsExcessivePlistNesting(t *testing.T) {
 	data := []byte(`<plist>` + strings.Repeat(`<array>`, 130) + strings.Repeat(`</array>`, 130) + `</plist>`)
 	ipa := zipArtifact(t, map[string][]byte{"Payload/Demo.app/Info.plist": data})
-	_, err := InspectIPA(bytes.NewReader(ipa), int64(len(ipa)), false, false)
+	_, err := InspectIPAWithOptions(bytes.NewReader(ipa), int64(len(ipa)), IPAOptions{IncludeEntitlements: false, IncludeProfile: false})
 	if err == nil || !strings.Contains(err.Error(), "nesting depth") {
 		t.Fatalf("err=%v", err)
 	}
@@ -82,7 +82,7 @@ func TestInspectPKGDoesNotReadPayload(t *testing.T) {
 		"PackageInfo": []byte(`<pkg-info identifier="com.example.demo" version="1.0"/>`),
 		"Payload":     make([]byte, maxXarFileBytes+1),
 	})
-	manifest, err := InspectPKG(bytes.NewReader(pkg), int64(len(pkg)))
+	manifest, err := inspectPKG(bytes.NewReader(pkg), int64(len(pkg)), nil)
 	if err != nil || manifest.ProductID != "com.example.demo" {
 		t.Fatalf("manifest=%+v err=%v", manifest, err)
 	}

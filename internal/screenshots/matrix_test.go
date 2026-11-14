@@ -71,7 +71,7 @@ func TestLoadMatrixPlanAndExpand_UsesStableAxisOrder(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadPlan() error = %v", err)
 	}
-	cells, err := ExpandMatrix(matrix, base)
+	cells, err := expandMatrix(matrix, base, "")
 	if err != nil {
 		t.Fatalf("ExpandMatrix() error = %v", err)
 	}
@@ -293,7 +293,7 @@ func TestExpandMatrixPreservesLiteralOutputDirectorySpelling(t *testing.T) {
 		ContentVariants: []MatrixContentVariant{{ID: "default"}},
 		Output:          MatrixOutput{RawDir: "raw screenshots ", FramedDir: "framed screenshots ", ReviewDir: "review screenshots "},
 	}
-	cells, err := ExpandMatrix(plan, base)
+	cells, err := expandMatrix(plan, base, "")
 	if err != nil {
 		t.Fatalf("ExpandMatrix() error = %v", err)
 	}
@@ -650,7 +650,7 @@ func TestValidateMatrixPlan_RejectsUnsafeAndConflictingValues(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := ValidateMatrixPlan(&tc.plan, base)
+			err := validateMatrixPlan(&tc.plan, base, "")
 			if err == nil || !strings.Contains(err.Error(), tc.want) {
 				t.Fatalf("ValidateMatrixPlan() error = %v, want substring %q", err, tc.want)
 			}
@@ -661,13 +661,13 @@ func TestValidateMatrixPlan_RejectsUnsafeAndConflictingValues(t *testing.T) {
 		{Action: ActionScreenshot, Name: stringPtr("Home")},
 		{Action: ActionScreenshot, Name: stringPtr("home")},
 	}
-	if err := ValidateMatrixPlan(&MatrixPlan{
+	if err := validateMatrixPlan(&MatrixPlan{
 		Version:         1,
 		Devices:         []MatrixDevice{{ID: "phone", UDID: "u"}},
 		Locales:         []string{"en-US"},
 		Appearances:     []string{"light"},
 		ContentVariants: []MatrixContentVariant{{ID: "default"}},
-	}, &caseInsensitiveScreenshots); err == nil || !strings.Contains(err.Error(), "unique") {
+	}, &caseInsensitiveScreenshots, ""); err == nil || !strings.Contains(err.Error(), "unique") {
 		t.Fatalf("ValidateMatrixPlan() error = %v, want case-insensitive screenshot-name collision", err)
 	}
 }
@@ -781,7 +781,7 @@ func TestValidateMatrixPlanFrameMappings(t *testing.T) {
 				ContentVariants: []MatrixContentVariant{{ID: "default"}},
 				Output:          MatrixOutput{Frame: tc.frame},
 			}
-			err := ValidateMatrixPlan(plan, base)
+			err := validateMatrixPlan(plan, base, "")
 			if tc.wantErr == "" {
 				if err != nil {
 					t.Fatalf("ValidateMatrixPlan() error = %v, want syntax-only frame validation", err)
@@ -3125,7 +3125,7 @@ func TestValidateMatrixPlanExecutionSettings(t *testing.T) {
 			if err != nil {
 				t.Fatalf("LoadMatrixPlan() error = %v", err)
 			}
-			err = ValidateMatrixPlan(plan, base)
+			err = validateMatrixPlan(plan, base, "")
 			if tt.wantErr == "" {
 				if err != nil {
 					t.Fatalf("ValidateMatrixPlan() error = %v, want accepted", err)
@@ -3545,7 +3545,7 @@ func TestValidateMatrixPlanBoundsRetryBackoffMillisecondsToDuration(t *testing.T
 				ContentVariants: []MatrixContentVariant{{ID: "default"}},
 				Execution:       MatrixExecution{RetryBackoffMS: int(test.value)},
 			}
-			err := ValidateMatrixPlan(plan, base)
+			err := validateMatrixPlan(plan, base, "")
 			if test.wantErr {
 				if err == nil || !strings.Contains(err.Error(), "execution.retry_backoff_ms exceeds maximum duration") {
 					t.Fatalf("ValidateMatrixPlan() error = %v, want retry-backoff overflow rejection", err)
