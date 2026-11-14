@@ -172,8 +172,7 @@ Examples:
 			}
 			agreementValue := strings.TrimSpace(*agreementText)
 			if agreementValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --agreement-text is required")
-				return shared.MissingRequiredUsageError("--agreement-text")
+				return shared.RequiredFlag("--agreement-text")
 			}
 
 			territoryIDs, err := shared.NormalizeASCTerritoryCSV(territories.String())
@@ -181,8 +180,7 @@ Examples:
 				return shared.UsageError(err.Error())
 			}
 			if len(territoryIDs) == 0 {
-				fmt.Fprintln(os.Stderr, "Error: --territory is required")
-				return shared.MissingRequiredUsageError("--territory")
+				return shared.RequiredFlag("--territory")
 			}
 
 			client, err := shared.GetASCClient()
@@ -226,8 +224,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			var agreementValue *string
@@ -284,12 +281,10 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()

@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"slices"
 	"strconv"
 	"strings"
@@ -50,8 +49,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			vid := strings.TrimSpace(*versionID)
 			if vid == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version is required")
-				return shared.MissingRequiredUsageError("--version")
+				return shared.RequiredFlag("--version")
 			}
 
 			client, err := shared.GetASCClient()

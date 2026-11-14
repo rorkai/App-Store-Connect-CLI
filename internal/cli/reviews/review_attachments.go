@@ -72,8 +72,7 @@ Examples:
 
 			reviewDetailValue := strings.TrimSpace(*reviewDetailID)
 			if reviewDetailValue == "" && nextValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --review-detail is required")
-				return shared.MissingRequiredUsageError("--review-detail")
+				return shared.RequiredFlag("--review-detail")
 			}
 
 			client, err := shared.GetASCClient()
@@ -165,8 +164,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			attachmentValue := strings.TrimSpace(*attachmentID)
 			if attachmentValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			fieldsValue, err := normalizeReviewAttachmentFields(*fields)
@@ -234,14 +232,12 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			reviewDetailValue := strings.TrimSpace(*reviewDetailID)
 			if reviewDetailValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --review-detail is required")
-				return shared.MissingRequiredUsageError("--review-detail")
+				return shared.RequiredFlag("--review-detail")
 			}
 
 			pathValue := strings.TrimSpace(*filePath)
 			if pathValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --file is required")
-				return shared.MissingRequiredUsageError("--file")
+				return shared.RequiredFlag("--file")
 			}
 
 			info, err := os.Lstat(pathValue)
@@ -344,12 +340,10 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			attachmentValue := strings.TrimSpace(*attachmentID)
 			if attachmentValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()

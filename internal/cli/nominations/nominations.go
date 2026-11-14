@@ -105,8 +105,7 @@ Examples:
 				return shared.UsageErrorf("nominations list: %v", err)
 			}
 			if len(statusValues) == 0 && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --status is required")
-				return shared.MissingRequiredUsageError("--status")
+				return shared.RequiredFlag("--status")
 			}
 
 			typeValues, err := normalizeNominationTypes(shared.SplitCSVUpper(*nomType))
@@ -230,8 +229,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*nominationID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if *inAppEventsLimit != 0 && (*inAppEventsLimit < 1 || *inAppEventsLimit > 50) {
 				return shared.UsageError("nominations view: --in-app-events-limit must be between 1 and 50")
@@ -352,24 +350,20 @@ Examples:
 
 			trimmedName := strings.TrimSpace(*name)
 			if trimmedName == "" {
-				fmt.Fprintln(os.Stderr, "Error: --name is required")
-				return shared.MissingRequiredUsageError("--name")
+				return shared.RequiredFlag("--name")
 			}
 
 			trimmedDescription := strings.TrimSpace(*description)
 			if trimmedDescription == "" {
-				fmt.Fprintln(os.Stderr, "Error: --description is required")
-				return shared.MissingRequiredUsageError("--description")
+				return shared.RequiredFlag("--description")
 			}
 
 			if !visited["submitted"] {
-				fmt.Fprintln(os.Stderr, "Error: --submitted is required")
-				return shared.MissingRequiredUsageError("--submitted")
+				return shared.RequiredFlag("--submitted")
 			}
 
 			if strings.TrimSpace(*nomType) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --type is required")
-				return shared.MissingRequiredUsageError("--type")
+				return shared.RequiredFlag("--type")
 			}
 
 			normalizedType, err := normalizeNominationType(*nomType)
@@ -501,8 +495,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*nominationID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			visited := map[string]bool{}
@@ -544,8 +537,7 @@ Examples:
 				}
 				if visited["type"] {
 					if strings.TrimSpace(*nomType) == "" {
-						fmt.Fprintln(os.Stderr, "Error: --type is required")
-						return shared.MissingRequiredUsageError("--type")
+						return shared.RequiredFlag("--type")
 					}
 					normalized, err := normalizeNominationType(*nomType)
 					if err != nil {
@@ -693,8 +685,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*nominationID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required to delete")
