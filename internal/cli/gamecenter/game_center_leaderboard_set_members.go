@@ -39,77 +39,29 @@ Examples:
 
 // GameCenterLeaderboardSetMembersListCommand returns the members list subcommand.
 func GameCenterLeaderboardSetMembersListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
-
-	setID := shared.BindResourceIDFlag(fs, "set-id", "gameCenterLeaderboardSets", "Game Center leaderboard set ID")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc game-center leaderboard-sets members list --set-id \"SET_ID\"",
-		ShortHelp:  "List leaderboards in a leaderboard set.",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "list",
+		Name:        "list",
+		ShortUsage:  "asc game-center leaderboard-sets members list --set-id \"SET_ID\"",
+		ShortHelp:   "List leaderboards in a leaderboard set.",
 		LongHelp: `List leaderboards in a leaderboard set.
 
 Examples:
   asc game-center leaderboard-sets members list --set-id "SET_ID"
   asc game-center leaderboard-sets members list --set-id "SET_ID" --limit 50
   asc game-center leaderboard-sets members list --set-id "SET_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("game-center leaderboard-sets members list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("game-center leaderboard-sets members list: %v", err)
-			}
-
-			id := strings.TrimSpace(*setID)
-			if id == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--set-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center leaderboard-sets members list: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			opts := []asc.GCLeaderboardSetMembersOption{
-				asc.WithGCLeaderboardSetMembersLimit(*limit),
-				asc.WithGCLeaderboardSetMembersNextURL(*next),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.WithGCLeaderboardSetMembersLimit(200))
-				firstPage, err := client.GetGameCenterLeaderboardSetMembers(requestCtx, id, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("game-center leaderboard-sets members list: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterLeaderboardSetMembers(ctx, id, asc.WithGCLeaderboardSetMembersNextURL(nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("game-center leaderboard-sets members list: %w", err)
-				}
-
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetGameCenterLeaderboardSetMembers(requestCtx, id, opts...)
-			if err != nil {
-				return fmt.Errorf("game-center leaderboard-sets members list: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		ParentFlag:           "set-id",
+		ParentUsage:          "Game Center leaderboard set ID",
+		ParentType:           "gameCenterLeaderboardSets",
+		RequiredDiagnostic:   true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		ErrorPrefix:          "game-center leaderboard-sets members list",
+		FetchErrorPrefix:     "game-center leaderboard-sets members list: failed to fetch",
+		FetchPage: func(ctx context.Context, client *asc.Client, setId string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetGameCenterLeaderboardSetMembers(ctx, setId, asc.WithGCLeaderboardSetMembersLimit(limit), asc.WithGCLeaderboardSetMembersNextURL(next))
 		},
-	}
+	})
 }
 
 // GameCenterLeaderboardSetMembersSetCommand returns the members set subcommand.
