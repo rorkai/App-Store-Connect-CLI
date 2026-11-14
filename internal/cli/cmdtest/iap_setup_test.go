@@ -10,10 +10,12 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 type iapSetupOutput struct {
@@ -696,6 +698,9 @@ func TestIAPSetupRefreshesContextsAcrossPricingAndVerification(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("ASC_TIMEOUT", "80ms")
 	t.Setenv("ASC_TIMEOUT_SECONDS", "")
+	t.Cleanup(shared.SetPricingNowForTesting(func() time.Time {
+		return time.Date(2026, 3, 2, 0, 0, 0, 0, time.UTC)
+	}))
 
 	originalTransport := http.DefaultTransport
 	t.Cleanup(func() {
@@ -828,8 +833,10 @@ func TestIAPSetupRefreshesContextsAcrossPricingAndVerification(t *testing.T) {
 		}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
+		var runErr error
+		synctest.Test(t, func(*testing.T) { runErr = root.Run(context.Background()) })
+		if runErr != nil {
+			t.Fatalf("run error: %v", runErr)
 		}
 	})
 
@@ -953,8 +960,10 @@ func TestIAPSetupRefreshesContextsAcrossLocalizationCreationAndVerification(t *t
 		}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
+		var runErr error
+		synctest.Test(t, func(*testing.T) { runErr = root.Run(context.Background()) })
+		if runErr != nil {
+			t.Fatalf("run error: %v", runErr)
 		}
 	})
 
