@@ -139,41 +139,22 @@ Examples:
 
 // AppClipsGetCommand returns the app clips get subcommand.
 func AppClipsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	appClipID := shared.BindResourceIDFlag(fs, "id", "appClips", "App Clip ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc app-clips view --id \"CLIP_ID\"",
-		ShortHelp:  "View App Clip details by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc app-clips view --id \"CLIP_ID\"",
+		ShortHelp:   "View App Clip details by ID.",
 		LongHelp: `View App Clip details by ID.
 
 Examples:
   asc app-clips view --id "CLIP_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			idValue := strings.TrimSpace(*appClipID)
-			if idValue == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("app-clips view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetAppClip(requestCtx, idValue)
-			if err != nil {
-				return fmt.Errorf("app-clips view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage:            "App Clip ID",
+		IDType:             "appClips",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "app-clips view",
+		FetchErrorPrefix:   "app-clips view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetAppClip(ctx, id)
 		},
-	}
+	})
 }

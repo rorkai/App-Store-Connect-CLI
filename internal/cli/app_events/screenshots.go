@@ -211,43 +211,25 @@ Examples:
 
 // AppEventScreenshotsGetCommand returns the app event screenshots get subcommand.
 func AppEventScreenshotsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("screenshots view", flag.ExitOnError)
-
-	screenshotID := shared.BindResourceIDFlag(fs, "screenshot-id", "appEventScreenshots", "App event screenshot ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc app-events screenshots view --screenshot-id \"SHOT_ID\"",
-		ShortHelp:  "View an in-app event screenshot by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "screenshots view",
+		Name:        "view",
+		ShortUsage:  "asc app-events screenshots view --screenshot-id \"SHOT_ID\"",
+		ShortHelp:   "View an in-app event screenshot by ID.",
 		LongHelp: `View an in-app event screenshot by ID.
 
 Examples:
   asc app-events screenshots view --screenshot-id "SHOT_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*screenshotID)
-			if id == "" {
-				return shared.RequiredFlag("--screenshot-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("app-events screenshots view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetAppEventScreenshot(requestCtx, id)
-			if err != nil {
-				return fmt.Errorf("app-events screenshots view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDFlag:             "screenshot-id",
+		IDUsage:            "App event screenshot ID",
+		IDType:             "appEventScreenshots",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "app-events screenshots view",
+		FetchErrorPrefix:   "app-events screenshots view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetAppEventScreenshot(ctx, id)
 		},
-	}
+	})
 }
 
 // AppEventScreenshotsCreateCommand returns the app event screenshots create subcommand.

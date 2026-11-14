@@ -204,78 +204,69 @@ Examples:
 
 // NominationsGetCommand returns the nominations view subcommand.
 func NominationsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("nominations view", flag.ExitOnError)
+	var (
+		inAppEventsLimit, relatedAppsLimit, supportedTerritoriesLimit *int
+		fieldsValue, includeValues                                    []string
+		included                                                      asc.IncludedFields
+	)
 
-	nominationID := shared.BindResourceIDFlag(fs, "id", "nominations", "Nomination ID (required)")
-	fields := fs.String("fields", "", "Fields to include: "+strings.Join(nominationFieldsList(), ", "))
-	include := fs.String("include", "", "Include related resources: "+strings.Join(nominationIncludeList(), ", "))
-	includedFields := shared.BindIncludedFieldFlags(fs, nominationIncludedResources)
-	inAppEventsLimit := fs.Int("in-app-events-limit", 0, "Maximum included in-app events (1-50)")
-	relatedAppsLimit := fs.Int("related-apps-limit", 0, "Maximum included related apps (1-50)")
-	supportedTerritoriesLimit := fs.Int("supported-territories-limit", 0, "Maximum included supported territories (1-200)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc nominations view --id NOMINATION_ID [flags]",
-		ShortHelp:  "View a featuring nomination by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "nominations view",
+		Name:        "view",
+		ShortUsage:  "asc nominations view --id NOMINATION_ID [flags]",
+		ShortHelp:   "View a featuring nomination by ID.",
 		LongHelp: `View a featuring nomination by ID.
 
 Examples:
   asc nominations view --id "NOMINATION_ID"
   asc nominations view --id "NOMINATION_ID" --include relatedApps`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			trimmedID := strings.TrimSpace(*nominationID)
-			if trimmedID == "" {
-				return shared.RequiredFlag("--id")
+		IDUsage:            "Nomination ID (required)",
+		IDType:             "nominations",
+		RequiredDiagnostic: true,
+		Flags: func(fs *flag.FlagSet) func() error {
+			fields := fs.String("fields", "", "Fields to include: "+strings.Join(nominationFieldsList(), ", "))
+			include := fs.String("include", "", "Include related resources: "+strings.Join(nominationIncludeList(), ", "))
+			includedFields := shared.BindIncludedFieldFlags(fs, nominationIncludedResources)
+			inAppEventsLimit = fs.Int("in-app-events-limit", 0, "Maximum included in-app events (1-50)")
+			relatedAppsLimit = fs.Int("related-apps-limit", 0, "Maximum included related apps (1-50)")
+			supportedTerritoriesLimit = fs.Int("supported-territories-limit", 0, "Maximum included supported territories (1-200)")
+			return func() (err error) {
+				if *inAppEventsLimit != 0 && (*inAppEventsLimit < 1 || *inAppEventsLimit > 50) {
+					return shared.UsageError("nominations view: --in-app-events-limit must be between 1 and 50")
+				}
+				if *relatedAppsLimit != 0 && (*relatedAppsLimit < 1 || *relatedAppsLimit > 50) {
+					return shared.UsageError("nominations view: --related-apps-limit must be between 1 and 50")
+				}
+				if *supportedTerritoriesLimit != 0 && (*supportedTerritoriesLimit < 1 || *supportedTerritoriesLimit > 200) {
+					return shared.UsageError("nominations view: --supported-territories-limit must be between 1 and 200")
+				}
+				if fieldsValue, err = normalizeNominationFields(*fields); err != nil {
+					return shared.UsageErrorf("nominations view: %v", err)
+				}
+				if includeValues, err = normalizeNominationInclude(*include); err != nil {
+					return shared.UsageErrorf("nominations view: %v", err)
+				}
+				if included, err = includedFields.Resolve("nominations view", "", includeValues); err != nil {
+					return err
+				}
+				if *inAppEventsLimit != 0 && !shared.HasInclude(includeValues, "inAppEvents") {
+					fmt.Fprintf(os.Stderr, "Error: --in-app-events-limit requires --include inAppEvents\n\n")
+					return flag.ErrHelp
+				}
+				if *relatedAppsLimit != 0 && !shared.HasInclude(includeValues, "relatedApps") {
+					fmt.Fprintf(os.Stderr, "Error: --related-apps-limit requires --include relatedApps\n\n")
+					return flag.ErrHelp
+				}
+				if *supportedTerritoriesLimit != 0 && !shared.HasInclude(includeValues, "supportedTerritories") {
+					fmt.Fprintf(os.Stderr, "Error: --supported-territories-limit requires --include supportedTerritories\n\n")
+					return flag.ErrHelp
+				}
+				return nil
 			}
-			if *inAppEventsLimit != 0 && (*inAppEventsLimit < 1 || *inAppEventsLimit > 50) {
-				return shared.UsageError("nominations view: --in-app-events-limit must be between 1 and 50")
-			}
-			if *relatedAppsLimit != 0 && (*relatedAppsLimit < 1 || *relatedAppsLimit > 50) {
-				return shared.UsageError("nominations view: --related-apps-limit must be between 1 and 50")
-			}
-			if *supportedTerritoriesLimit != 0 && (*supportedTerritoriesLimit < 1 || *supportedTerritoriesLimit > 200) {
-				return shared.UsageError("nominations view: --supported-territories-limit must be between 1 and 200")
-			}
-
-			fieldsValue, err := normalizeNominationFields(*fields)
-			if err != nil {
-				return shared.UsageErrorf("nominations view: %v", err)
-			}
-
-			includeValues, err := normalizeNominationInclude(*include)
-			if err != nil {
-				return shared.UsageErrorf("nominations view: %v", err)
-			}
-			included, err := includedFields.Resolve("nominations view", "", includeValues)
-			if err != nil {
-				return err
-			}
-
-			if *inAppEventsLimit != 0 && !shared.HasInclude(includeValues, "inAppEvents") {
-				fmt.Fprintf(os.Stderr, "Error: --in-app-events-limit requires --include inAppEvents\n\n")
-				return flag.ErrHelp
-			}
-			if *relatedAppsLimit != 0 && !shared.HasInclude(includeValues, "relatedApps") {
-				fmt.Fprintf(os.Stderr, "Error: --related-apps-limit requires --include relatedApps\n\n")
-				return flag.ErrHelp
-			}
-			if *supportedTerritoriesLimit != 0 && !shared.HasInclude(includeValues, "supportedTerritories") {
-				fmt.Fprintf(os.Stderr, "Error: --supported-territories-limit requires --include supportedTerritories\n\n")
-				return flag.ErrHelp
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("nominations view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
+		},
+		ErrorPrefix:      "nominations view",
+		FetchErrorPrefix: "nominations view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			opts := []asc.NominationsOption{asc.WithIncludedFields[asc.NominationsOption](included)}
 			if len(fieldsValue) > 0 {
 				opts = append(opts, asc.WithNominationsFields(fieldsValue))
@@ -292,15 +283,9 @@ Examples:
 			if *supportedTerritoriesLimit > 0 {
 				opts = append(opts, asc.WithNominationsSupportedTerritoriesLimit(*supportedTerritoriesLimit))
 			}
-
-			resp, err := client.GetNomination(requestCtx, trimmedID, opts...)
-			if err != nil {
-				return fmt.Errorf("nominations view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return client.GetNomination(ctx, id, opts...)
 		},
-	}
+	})
 }
 
 // NominationsCreateCommand returns the nominations create subcommand.

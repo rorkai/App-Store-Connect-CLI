@@ -40,42 +40,25 @@ Examples:
 
 // AnalyticsReportsGetCommand retrieves a specific analytics report.
 func AnalyticsReportsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	reportID := shared.BindResourceIDFlag(fs, "report-id", "analyticsReports", "Analytics report ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc analytics reports view --report-id \"REPORT_ID\" [flags]",
-		ShortHelp:  "View an analytics report by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc analytics reports view --report-id \"REPORT_ID\" [flags]",
+		ShortHelp:   "View an analytics report by ID.",
 		LongHelp: `View an analytics report by ID.
 
 Examples:
   asc analytics reports view --report-id "REPORT_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if strings.TrimSpace(*reportID) == "" {
-				return shared.RequiredFlag("--report-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("analytics reports view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetAnalyticsReport(requestCtx, strings.TrimSpace(*reportID))
-			if err != nil {
-				return fmt.Errorf("analytics reports view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDFlag:             "report-id",
+		IDUsage:            "Analytics report ID",
+		IDType:             "analyticsReports",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "analytics reports view",
+		FetchErrorPrefix:   "analytics reports view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetAnalyticsReport(ctx, id)
 		},
-	}
+	})
 }
 
 // AnalyticsReportsRelationshipsCommand lists instance links for a report.

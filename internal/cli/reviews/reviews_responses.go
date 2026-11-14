@@ -89,43 +89,25 @@ Examples:
 
 // ReviewsResponseGetCommand returns the reviews response view subcommand.
 func ReviewsResponseGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	responseID := shared.BindResourceIDFlag(fs, "id", "customerReviewResponses", "Customer review response ID (required)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc reviews response view [flags]",
-		ShortHelp:  "View a customer review response by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc reviews response view [flags]",
+		ShortHelp:   "View a customer review response by ID.",
 		LongHelp: `View a customer review response by ID.
 
 Examples:
   asc reviews response view --id "RESPONSE_ID"
   asc reviews response view --id "RESPONSE_ID" --output table`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if strings.TrimSpace(*responseID) == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("reviews response view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetCustomerReviewResponse(requestCtx, strings.TrimSpace(*responseID))
-			if err != nil {
-				return fmt.Errorf("reviews response view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage:            "Customer review response ID (required)",
+		IDType:             "customerReviewResponses",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "reviews response view",
+		FetchErrorPrefix:   "reviews response view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetCustomerReviewResponse(ctx, id)
 		},
-	}
+	})
 }
 
 // ReviewsResponseDeleteCommand returns the reviews response delete subcommand.
