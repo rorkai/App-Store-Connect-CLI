@@ -217,6 +217,33 @@
           "200": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WrenchResponse"}}}}
         }
       }
+    },
+    "/v1/yoyos": {
+      "post": {
+        "tags": ["Yoyos"],
+        "operationId": "yoyos_createInstance",
+        "requestBody": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/YoyoCreateRequest"}}}},
+        "responses": {
+          "201": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/YoyoResponse"}}}}
+        }
+      }
+    },
+    "/v1/yoyos/{id}": {
+      "get": {
+        "tags": ["Yoyos"],
+        "operationId": "yoyos_getInstance",
+        "responses": {
+          "200": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/YoyoResponse"}}}}
+        }
+      },
+      "patch": {
+        "tags": ["Yoyos"],
+        "operationId": "yoyos_updateInstance",
+        "requestBody": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/YoyoUpdateRequest"}}}},
+        "responses": {
+          "200": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/YoyoResponse"}}}}
+        }
+      }
     }
   },
   "components": {
@@ -455,6 +482,113 @@
           }
         },
         "required": ["data"]
+      },
+      "YoyoColor": {"type": "string", "enum": ["RED", "BLUE"]},
+      "YoyoState": {"type": "string", "enum": ["NEW", "USED"]},
+      "YoyoKind": {"type": "string", "enum": ["CLASSIC", "LOOPING"]},
+      "YoyoNote": {"type": "string"},
+      "YoyoImage": {"type": "object", "properties": {"templateUrl": {"type": "string"}, "width": {"type": "integer"}}},
+      "YoyoPart": {"type": "object", "properties": {"name": {"type": "string"}}},
+      "YoyoSize": {"type": "object", "properties": {"diameter": {"type": "number"}}},
+      "YoyoLabels": {"type": "object", "additionalProperties": {"type": "string"}},
+      "Yoyo": {
+        "type": "object",
+        "properties": {
+          "type": {"type": "string", "enum": ["yoyos"]},
+          "id": {"type": "string"},
+          "attributes": {
+            "type": "object",
+            "properties": {
+              "name": {"type": "string"},
+              "color": {"$ref": "#/components/schemas/YoyoColor"},
+              "state": {"$ref": "#/components/schemas/YoyoState"},
+              "kind": {"$ref": "#/components/schemas/YoyoKind"},
+              "image": {"$ref": "#/components/schemas/YoyoImage"},
+              "parts": {"type": "array", "items": {"$ref": "#/components/schemas/YoyoPart"}},
+              "colors": {"type": "array", "items": {"$ref": "#/components/schemas/YoyoColor"}},
+              "size": {"$ref": "#/components/schemas/YoyoSize"}
+            }
+          }
+        },
+        "required": ["id", "type"]
+      },
+      "YoyoResponse": {
+        "type": "object",
+        "properties": {"data": {"$ref": "#/components/schemas/Yoyo"}},
+        "required": ["data"]
+      },
+      "YoyoCreateRequest": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "type": {"type": "string", "enum": ["yoyos"]},
+              "attributes": {
+                "type": "object",
+                "properties": {
+                  "color": {"$ref": "#/components/schemas/YoyoColor"},
+                  "size": {"$ref": "#/components/schemas/YoyoSize"},
+                  "parts": {"type": "array", "items": {"$ref": "#/components/schemas/YoyoPart"}},
+                  "state": {"$ref": "#/components/schemas/YoyoState"},
+                  "image": {"$ref": "#/components/schemas/YoyoImage"}
+                },
+                "required": ["color", "parts", "size"]
+              }
+            },
+            "required": ["attributes", "type"]
+          }
+        },
+        "required": ["data"]
+      },
+      "YoyoUpdateRequest": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "type": {"type": "string", "enum": ["yoyos"]},
+              "id": {"type": "string"},
+              "attributes": {
+                "type": "object",
+                "properties": {
+                  "color": {"$ref": "#/components/schemas/YoyoColor"},
+                  "size": {"$ref": "#/components/schemas/YoyoSize"},
+                  "kind": {"$ref": "#/components/schemas/YoyoKind"},
+                  "colors": {"type": "array", "items": {"$ref": "#/components/schemas/YoyoColor"}}
+                }
+              }
+            },
+            "required": ["id", "type"]
+          }
+        },
+        "required": ["data"]
+      },
+      "YoyoOdd": {
+        "type": "object",
+        "properties": {
+          "type": {"type": "string", "enum": ["yoyoOdds"]},
+          "id": {"type": "string"},
+          "attributes": {
+            "type": "object",
+            "properties": {
+              "labels": {"$ref": "#/components/schemas/YoyoLabels"}
+            }
+          }
+        }
+      },
+      "YoyoPlain": {
+        "type": "object",
+        "properties": {
+          "type": {"type": "string", "enum": ["yoyoPlains"]},
+          "id": {"type": "string"},
+          "attributes": {
+            "type": "object",
+            "properties": {
+              "note": {"$ref": "#/components/schemas/YoyoNote"}
+            }
+          }
+        }
       }
     }
   }
