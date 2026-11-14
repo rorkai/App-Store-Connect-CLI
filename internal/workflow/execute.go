@@ -120,6 +120,11 @@ func recordErrorHook(ctx context.Context, command string, env map[string]string,
 		defer cancel()
 	}
 
+	env = mergeEnv(env, map[string]string{
+		"ASC_WORKFLOW_NAME":        opts.WorkflowName,
+		"ASC_WORKFLOW_FAILED_STEP": result.FailedStep,
+		"ASC_WORKFLOW_ERROR":       result.Error,
+	})
 	ehr, hookErr := runHookAndRecord(hookCtx, command, env, opts.DryRun, opts.Stdout, opts.Stderr)
 	if ehr == nil {
 		return
