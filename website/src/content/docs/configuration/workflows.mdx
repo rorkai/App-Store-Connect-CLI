@@ -214,7 +214,7 @@ Steps can be defined in two formats:
   `"continued_on_error": true`. The run can still succeed and the `error` hook
   does not run for that failure. A tolerated timeout does not make the run
   terminal, and `--resume` never runs a tolerated step again. A canceled run
-  still stops.
+  still stops. Explicit `null` is rejected.
 </ParamField>
 
 ## Bounded retry and timeout

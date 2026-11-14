@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -64,6 +65,7 @@ func TestValidate_RetryAndTimeoutPaths(t *testing.T) {
 		{"empty timeout", `{"run":"echo ok","timeout":""}`, "invalid_step_timeout", "workflows.main.steps[0].timeout"},
 		{"null timeout", `{"run":"echo ok","timeout":null}`, "invalid_step_timeout", "workflows.main.steps[0].timeout"},
 		{"mixed-case null timeout", `{"run":"echo ok","Timeout":null}`, "invalid_step_timeout", "workflows.main.steps[0].timeout"},
+		{"null continue_on_error", `{"run":"echo ok","continue_on_error":null}`, "invalid_step_continue_on_error", "workflows.main.steps[0].continue_on_error"},
 		{"retry on workflow", `{"workflow":"child","retry":{"max_attempts":2,"delay":"1s"}}`, "step_retry_on_workflow", "workflows.main.steps[0].retry"},
 		{"timeout on workflow", `{"workflow":"child","timeout":"1s"}`, "step_timeout_on_workflow", "workflows.main.steps[0].timeout"},
 	}
@@ -523,6 +525,67 @@ func TestRun_ToleratedTimeoutStaysRecoverableAndIsNotRepeatedOnResume(t *testing
 	}
 	if got := readFileOrEmpty(t, counterPath); got != "x" {
 		t.Fatalf("resume repeated the tolerated step: %q", got)
+	}
+}
+
+func TestRun_ResumeReplaysToleratedSubWorkflowSteps(t *testing.T) {
+	dir := t.TempDir()
+	counterPath := filepath.Join(dir, "counter")
+	allowPath := filepath.Join(dir, "allow")
+	def, workflowPath := loadWorkflowForRetryTest(t, fmt.Sprintf(`{
+		"env": {"COUNTER": %q, "ALLOW": %q},
+		"workflows": {
+			"main": {"steps": [
+				{"workflow": "notify", "continue_on_error": true},
+				{"name": "gate", "run": "test -f \"$ALLOW\""}
+			]},
+			"notify": {"steps": [
+				{"name": "ping", "run": "printf p >> \"$COUNTER\""},
+				{"name": "post", "run": "printf o >> \"$COUNTER\"; exit 4"},
+				{"name": "never", "run": "printf n >> \"$COUNTER\""}
+			]}
+		}
+	}`, counterPath, allowPath))
+
+	opts := runOpts("main")
+	opts.WorkflowFile = workflowPath
+	opts.StateDir = filepath.Join(dir, "runs")
+	first, err := Run(context.Background(), def, opts)
+	if err == nil || first.FailedStep != "gate" || !first.Recoverable {
+		t.Fatalf("expected gate to fail recoverably, got err=%v result=%+v", err, first)
+	}
+	if writeErr := os.WriteFile(allowPath, []byte("ok"), 0o600); writeErr != nil {
+		t.Fatalf("write allow file: %v", writeErr)
+	}
+	resumeOpts := runOpts("main")
+	resumeOpts.WorkflowFile = workflowPath
+	resumeOpts.StateDir = opts.StateDir
+	resumeOpts.ResumeRunID = first.RunID
+	resumed, resumeErr := Run(context.Background(), def, resumeOpts)
+	if resumeErr != nil {
+		t.Fatalf("resume: %v", resumeErr)
+	}
+
+	describe := func(steps []StepResult) []string {
+		out := make([]string, 0, len(steps))
+		for _, step := range steps {
+			out = append(out, fmt.Sprintf("%s:%s:%v", step.Name, step.Status, step.ContinuedOnError))
+		}
+		return out
+	}
+	wantFirst := []string{"ping:ok:false", "post:error:true", "gate:error:false"}
+	wantResumed := []string{"ping:resumed:false", "post:resumed:true", "gate:ok:false"}
+	if got := describe(first.Steps); !slices.Equal(got, wantFirst) {
+		t.Fatalf("first run steps = %v, want %v", got, wantFirst)
+	}
+	if got := describe(resumed.Steps); !slices.Equal(got, wantResumed) {
+		t.Fatalf("resumed run steps = %v, want %v", got, wantResumed)
+	}
+	if resumed.Steps[1].Error == "" {
+		t.Fatalf("expected the replayed failure to keep its error: %+v", resumed.Steps[1])
+	}
+	if got := readFileOrEmpty(t, counterPath); got != "po" {
+		t.Fatalf("expected each child step to run once and never to stay unrun, got %q", got)
 	}
 }
 
