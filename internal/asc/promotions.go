@@ -24,11 +24,6 @@ type AppStoreVersionPromotionCreateData struct {
 	Relationships AppStoreVersionPromotionRelationships `json:"relationships"`
 }
 
-// AppStoreVersionPromotionCreateRequest is a request to create a version promotion.
-type AppStoreVersionPromotionCreateRequest struct {
-	Data AppStoreVersionPromotionCreateData `json:"data"`
-}
-
 // AppStoreVersionPromotionResponse is the response from promotion create endpoints.
 type AppStoreVersionPromotionResponse struct {
 	Data  Resource[AppStoreVersionPromotionAttributes] `json:"data"`
