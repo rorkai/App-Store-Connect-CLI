@@ -14,12 +14,10 @@ type PromotedPurchaseGetOption func(*promotedPurchaseGetQuery)
 type iapReviewScreenshotQuery struct {
 	screenshotFields []string
 	iapFields        []string
-	include          []string
 }
 
 type iapContentQuery struct {
 	iapFields []string
-	include   []string
 }
 
 type promotedPurchaseGetQuery struct {
@@ -38,19 +36,9 @@ func WithIAPReviewScreenshotIAPFields(fields []string) IAPReviewScreenshotOption
 	return func(q *iapReviewScreenshotQuery) { q.iapFields = normalizeUniqueList(fields) }
 }
 
-// WithIAPReviewScreenshotInclude sets the exact screenshot relationship include set.
-func WithIAPReviewScreenshotInclude(include []string) IAPReviewScreenshotOption {
-	return func(q *iapReviewScreenshotQuery) { q.include = normalizeUniqueList(include) }
-}
-
 // WithIAPContentIAPFields sets fields[inAppPurchases] for included IAPs.
 func WithIAPContentIAPFields(fields []string) IAPContentOption {
 	return func(q *iapContentQuery) { q.iapFields = normalizeUniqueList(fields) }
-}
-
-// WithIAPContentInclude sets the exact content relationship include set.
-func WithIAPContentInclude(include []string) IAPContentOption {
-	return func(q *iapContentQuery) { q.include = normalizeUniqueList(include) }
 }
 
 // WithPromotedPurchaseIAPFields sets fields[inAppPurchases] for an included IAP.
@@ -72,14 +60,14 @@ func buildIAPReviewScreenshotQuery(query *iapReviewScreenshotQuery) string {
 	values := url.Values{}
 	addCSV(values, "fields[inAppPurchaseAppStoreReviewScreenshots]", query.screenshotFields)
 	addCSV(values, "fields[inAppPurchases]", query.iapFields)
-	addCSV(values, "include", includeWhenFieldsSelected(query.include, "inAppPurchaseV2", query.iapFields))
+	addCSV(values, "include", includeWhenFieldsSelected(nil, "inAppPurchaseV2", query.iapFields))
 	return values.Encode()
 }
 
 func buildIAPContentQuery(query *iapContentQuery) string {
 	values := url.Values{}
 	addCSV(values, "fields[inAppPurchases]", query.iapFields)
-	addCSV(values, "include", includeWhenFieldsSelected(query.include, "inAppPurchaseV2", query.iapFields))
+	addCSV(values, "include", includeWhenFieldsSelected(nil, "inAppPurchaseV2", query.iapFields))
 	return values.Encode()
 }
 

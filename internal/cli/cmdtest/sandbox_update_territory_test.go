@@ -9,10 +9,7 @@ import (
 )
 
 func TestSandboxUpdateNormalizesTerritory(t *testing.T) {
-	setupAuth(t)
-
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.PATCH("/v2/sandboxTesters/tester-1").JSONBody(`{"data":{"type":"sandboxTesters","id":"tester-1","attributes":{"territory":"USA"}}}`), asctest.JSON(http.StatusOK, `{
 		"data":{
 			"type":"sandboxTesters",
@@ -21,7 +18,7 @@ func TestSandboxUpdateNormalizesTerritory(t *testing.T) {
 		}
 	}`))
 
-	stdout, stderr, err := runCommand(t, []string{"sandbox", "update", "--id", "tester-1", "--territory", "US"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "sandbox", "update", "--id", "tester-1", "--territory", "US")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}

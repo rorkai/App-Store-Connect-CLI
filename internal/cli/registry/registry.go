@@ -152,20 +152,28 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		}),
 		commandFactory("app-setup", "Post-create app setup automation.", apps.AppSetupCommand),
 		commandFactory("app-tags", "Inspect Apple-generated App Store discoverability tags.", apps.AppTagsCommand),
-		commandFactory("marketplace", "Manage marketplace resources.", marketplace.MarketplaceCommand),
-		commandFactory("alternative-distribution", "Manage alternative distribution resources.", alternativedistribution.Command),
+		commandFactory("marketplace", "Manage marketplace resources.", func() *ffcli.Command {
+			return marketplace.NewMarketplaceCommand(d)
+		}),
+		commandFactory("alternative-distribution", "Manage alternative distribution resources.", func() *ffcli.Command {
+			return alternativedistribution.NewAlternativeDistributionCommand(d)
+		}),
 		commandFactory("webhooks", "Manage webhooks in App Store Connect.", webhooks.WebhooksCommand),
 		commandFactory("nominations", "Manage featuring nominations.", nominations.NominationsCommand),
 		commandFactory("bundle-ids", "Manage bundle IDs and capabilities.", bundleids.BundleIDsCommand),
 		commandFactory("merchant-ids", "Manage merchant IDs and certificates.", merchantids.MerchantIDsCommand),
 		commandFactory("certificates", "Manage signing certificates.", certificates.CertificatesCommand),
-		commandFactory("pass-type-ids", "Manage pass type IDs.", passtypeids.PassTypeIDsCommand),
+		commandFactory("pass-type-ids", "Manage pass type IDs.", func() *ffcli.Command {
+			return passtypeids.NewPassTypeIDsCommand(d)
+		}),
 		commandFactory("profiles", "Manage provisioning profiles.", profiles.ProfilesCommand),
 		commandFactory("users", "Manage users and invitations in App Store Connect.", users.UsersCommand),
 		commandFactory("actors", "Lookup actors (users, API keys) by ID.", func() *ffcli.Command {
 			return actors.NewActorsCommand(d)
 		}),
-		commandFactory("devices", "Manage devices in App Store Connect.", devices.DevicesCommand),
+		commandFactory("devices", "Manage devices in App Store Connect.", func() *ffcli.Command {
+			return devices.NewDevicesCommand(d)
+		}),
 		commandFactory("testflight", "Manage TestFlight workflows.", testflight.TestFlightCommand),
 		commandFactory("builds", "Manage builds in App Store Connect.", builds.BuildsCommand),
 		commandFactory("build-bundles", "Manage build bundles and App Clip data.", func() *ffcli.Command {
@@ -176,12 +184,20 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("workflow", "Run multi-step automation workflows.", workflow.WorkflowCommand),
 		commandFactory("xcode", "Local Xcode build/archive/export and signing-settings helpers.", xcode.XcodeCommand),
 		commandFactory("distribute", "Plan, execute, inspect, and publish iOS distribution artifacts.", distribute.DistributeCommand),
-		commandFactory("ipa-info", "Inspect a local IPA without contacting App Store Connect.", artifacts.IPAInfoCommand),
-		commandFactory("pkg-info", "Inspect a local flat package or product archive without contacting Apple.", artifacts.PKGInfoCommand),
+		commandFactory("ipa-info", "Inspect a local IPA without contacting App Store Connect.", func() *ffcli.Command {
+			return artifacts.NewIPAInfoCommand(d)
+		}),
+		commandFactory("pkg-info", "Inspect a local flat package or product archive without contacting Apple.", func() *ffcli.Command {
+			return artifacts.NewPKGInfoCommand(d)
+		}),
 		commandFactory("versions", "Manage App Store versions.", versions.VersionsCommand),
-		commandFactory("product-pages", "Manage custom product pages and product page experiments.", productpages.ProductPagesCommand),
+		commandFactory("product-pages", "Manage custom product pages and product page experiments.", func() *ffcli.Command {
+			return productpages.NewProductPagesCommand(d)
+		}),
 		commandFactory("routing-coverage", "Manage routing app coverage files.", routingcoverage.RoutingCoverageCommand),
-		commandFactory("eula", "Manage End User License Agreements (EULA).", eula.EULACommand),
+		commandFactory("eula", "Manage End User License Agreements (EULA).", func() *ffcli.Command {
+			return eula.NewEULACommand(d)
+		}),
 		commandFactory("agreements", "Manage agreements in App Store Connect.", func() *ffcli.Command {
 			return agreements.NewAgreementsCommand(d)
 		}),
@@ -196,7 +212,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("build-localizations", "Manage build release notes localizations.", func() *ffcli.Command {
 			return buildlocalizations.NewBuildLocalizationsCommand(d)
 		}),
-		commandFactory("sandbox", "Manage sandbox testers in App Store Connect.", sandbox.SandboxCommand),
+		commandFactory("sandbox", "Manage sandbox testers in App Store Connect.", func() *ffcli.Command {
+			return sandbox.NewSandboxCommand(d)
+		}),
 		commandFactory("signing", "Manage signing certificates and profiles.", signing.SigningCommand),
 		commandFactory("notarization", "Manage macOS notarization submissions.", notarization.NotarizationCommand),
 		commandFactory("iap", "Manage in-app purchases in App Store Connect.", iap.IAPCommand),
@@ -208,13 +226,17 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("xcode-cloud", "Trigger and monitor Xcode Cloud workflows.", xcodecloud.XcodeCloudCommand),
 		commandFactory("categories", "Manage App Store categories.", categories.CategoriesCommand),
 		commandFactory("age-rating", "Manage App Store age rating declarations.", agerating.AgeRatingCommand),
-		commandFactory("accessibility", "Manage accessibility declarations.", accessibility.AccessibilityCommand),
+		commandFactory("accessibility", "Manage accessibility declarations.", func() *ffcli.Command {
+			return accessibility.NewAccessibilityCommand(d)
+		}),
 		commandFactory("encryption", "Manage app encryption declarations and documents.", encryption.EncryptionCommand),
 		commandFactory("migrate", "Migrate metadata from/to fastlane format.", migrate.MigrateCommand),
 		commandFactory("notify", "Send notifications to external services.", notify.NotifyCommand),
 		commandFactory("game-center", "Manage Game Center resources in App Store Connect.", gamecenter.GameCenterCommand),
 		commandFactory("capabilities", "Show CLI, API, web-only, and public-API-limited capability coverage.", capabilities.Command),
-		commandFactory("schema", "Inspect App Store Connect API endpoint schemas at runtime.", schema.SchemaCommand),
+		commandFactory("schema", "Inspect App Store Connect API endpoint schemas at runtime.", func() *ffcli.Command {
+			return schema.NewSchemaCommand(d)
+		}),
 		commandFactory("api", "Send an authenticated raw request to the App Store Connect API.", apicmd.Command),
 		commandFactory("telemetry", "Manage CLI telemetry settings.", telemetrycmd.TelemetryCommand),
 		commandFactory("search", "Search asc commands and examples for agent-oriented command discovery.", func() *ffcli.Command {
@@ -227,7 +249,7 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 			return VersionCommand(version)
 		}),
 		commandFactory("completion", "Print shell completion scripts.", func() *ffcli.Command {
-			return completion.CompletionCommand(catalog.All, func() *flag.FlagSet {
+			return completion.NewCompletionCommand(d, catalog.All, func() *flag.FlagSet {
 				return catalog.rootFlagSet
 			})
 		}),

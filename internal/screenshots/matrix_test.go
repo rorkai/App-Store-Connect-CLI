@@ -4559,7 +4559,7 @@ ln -s "$MATRIX_OUTSIDE" "$scratch"
 	name := "home"
 	plan := &Plan{
 		Version: 1,
-		App:     PlanApp{BundleID: "com.example.app", OutputDir: destinationPath},
+		App:     PlanApp{BundleID: "com.example.app", UDID: "SIM-UDID", OutputDir: destinationPath},
 		Steps:   []PlanStep{{Action: ActionScreenshot, Name: &name}},
 	}
 	result, err := runPlanWithRoot(context.Background(), plan, root)

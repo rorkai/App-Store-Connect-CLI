@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"slices"
 	"strings"
 
@@ -14,9 +13,10 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// AccessibilityCommand returns the accessibility declarations command.
-func AccessibilityCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("accessibility", flag.ExitOnError)
+// NewAccessibilityCommand returns the accessibility declarations command built
+// on d.
+func NewAccessibilityCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("accessibility", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "accessibility",
@@ -33,11 +33,11 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			AccessibilityListCommand(),
-			AccessibilityGetCommand(),
-			AccessibilityCreateCommand(),
-			AccessibilityUpdateCommand(),
-			AccessibilityDeleteCommand(),
+			newAccessibilityListCommand(d),
+			newAccessibilityGetCommand(d),
+			newAccessibilityCreateCommand(d),
+			newAccessibilityUpdateCommand(d),
+			newAccessibilityDeleteCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -45,9 +45,9 @@ Examples:
 	}
 }
 
-// AccessibilityListCommand returns the accessibility list subcommand.
-func AccessibilityListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
+// newAccessibilityListCommand returns the accessibility list subcommand.
+func newAccessibilityListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("list", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	deviceFamily := fs.String("device-family", "", "Filter by device family(s), comma-separated: "+strings.Join(accessibilityDeviceFamilyList(), ", "))
@@ -56,7 +56,7 @@ func AccessibilityListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -73,42 +73,42 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("accessibility list: %v", err)
+				return d.UsageErrorf("accessibility list: %v", err)
 			}
-			if err := rejectAccessibilityNextFlagConflicts(fs, *next, "app", "device-family", "state", "fields", "limit"); err != nil {
+			if err := rejectAccessibilityNextFlagConflicts(d, fs, *next, "app", "device-family", "state", "fields", "limit"); err != nil {
 				return err
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("accessibility list: --limit must be between 1 and 200")
+				return d.UsageError("accessibility list: --limit must be between 1 and 200")
 			}
 
 			deviceFamilies, err := normalizeAccessibilityDeviceFamilies(shared.SplitCSVUpper(*deviceFamily))
 			if err != nil {
-				return shared.UsageErrorf("accessibility list: %v", err)
+				return d.UsageErrorf("accessibility list: %v", err)
 			}
 
 			states, err := normalizeAccessibilityStates(shared.SplitCSVUpper(*state))
 			if err != nil {
-				return shared.UsageErrorf("accessibility list: %v", err)
+				return d.UsageErrorf("accessibility list: %v", err)
 			}
 
 			fieldsValue, err := normalizeAccessibilityDeclarationFields(*fields)
 			if err != nil {
-				return shared.UsageErrorf("accessibility list: %v", err)
+				return d.UsageErrorf("accessibility list: %v", err)
 			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("accessibility list: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			opts := []asc.AccessibilityDeclarationsOption{
@@ -133,7 +133,7 @@ Examples:
 					return fmt.Errorf("accessibility list: %w", err)
 				}
 
-				return shared.PrintOutput(pages, *output.Output, *output.Pretty)
+				return d.PrintOutput(pages, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetAccessibilityDeclarations(requestCtx, resolvedAppID, opts...)
@@ -141,12 +141,12 @@ Examples:
 				return fmt.Errorf("accessibility list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-func rejectAccessibilityNextFlagConflicts(fs *flag.FlagSet, next string, names ...string) error {
+func rejectAccessibilityNextFlagConflicts(d *shared.Deps, fs *flag.FlagSet, next string, names ...string) error {
 	if strings.TrimSpace(next) == "" {
 		return nil
 	}
@@ -156,14 +156,14 @@ func rejectAccessibilityNextFlagConflicts(fs *flag.FlagSet, next string, names .
 	})
 	for _, name := range names {
 		if _, ok := provided[name]; ok {
-			return shared.UsageErrorf("accessibility list: --next cannot be combined with --%s", name)
+			return d.UsageErrorf("accessibility list: --next cannot be combined with --%s", name)
 		}
 	}
 	return nil
 }
 
-// AccessibilityGetCommand returns the accessibility view subcommand.
-func AccessibilityGetCommand() *ffcli.Command {
+// newAccessibilityGetCommand returns the accessibility view subcommand.
+func newAccessibilityGetCommand(d *shared.Deps) *ffcli.Command {
 	var fieldsValue []string
 
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
@@ -183,22 +183,23 @@ Examples:
 			fields := fs.String("fields", "", "Fields to include: "+strings.Join(accessibilityDeclarationFieldList(), ", "))
 			return func() (err error) {
 				if fieldsValue, err = normalizeAccessibilityDeclarationFields(*fields); err != nil {
-					return shared.UsageErrorf("accessibility view: %v", err)
+					return d.UsageErrorf("accessibility view: %v", err)
 				}
 				return nil
 			}
 		},
 		ErrorPrefix:      "accessibility view",
 		FetchErrorPrefix: "accessibility view: failed to fetch",
+		Deps:             d,
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetAccessibilityDeclaration(ctx, id, fieldsValue)
 		},
 	})
 }
 
-// AccessibilityCreateCommand returns the accessibility create subcommand.
-func AccessibilityCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
+// newAccessibilityCreateCommand returns the accessibility create subcommand.
+func newAccessibilityCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("create", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	deviceFamily := fs.String("device-family", "", "Device family: "+strings.Join(accessibilityDeviceFamilyList(), ", "))
@@ -211,7 +212,7 @@ func AccessibilityCreateCommand() *ffcli.Command {
 	supportsSufficientContrast := fs.String("supports-sufficient-contrast", "", "Supports sufficient contrast (true/false)")
 	supportsVoiceControl := fs.String("supports-voice-control", "", "Supports voice control (true/false)")
 	supportsVoiceover := fs.String("supports-voiceover", "", "Supports voiceover (true/false)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -227,18 +228,18 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
 			}
 
 			deviceFamilyValue := strings.TrimSpace(*deviceFamily)
 			if deviceFamilyValue == "" {
-				return shared.RequiredFlag("--device-family")
+				return d.RequiredFlag("--device-family")
 			}
 
 			normalizedDeviceFamily, err := normalizeAccessibilityDeviceFamily(deviceFamilyValue)
 			if err != nil {
-				return shared.UsageErrorf("accessibility create: %v", err)
+				return d.UsageErrorf("accessibility create: %v", err)
 			}
 
 			attrs, err := buildAccessibilityDeclarationCreateAttributes(normalizedDeviceFamily, map[string]string{
@@ -253,15 +254,15 @@ Examples:
 				"supports-voiceover":                         *supportsVoiceover,
 			})
 			if err != nil {
-				return shared.UsageErrorf("accessibility create: %v", err)
+				return d.UsageErrorf("accessibility create: %v", err)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("accessibility create: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateAccessibilityDeclaration(requestCtx, resolvedAppID, attrs)
@@ -269,14 +270,14 @@ Examples:
 				return fmt.Errorf("accessibility create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// AccessibilityUpdateCommand returns the accessibility update subcommand.
-func AccessibilityUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("update", flag.ExitOnError)
+// newAccessibilityUpdateCommand returns the accessibility update subcommand.
+func newAccessibilityUpdateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("update", flag.ExitOnError)
 
 	id := shared.BindResourceIDFlag(fs, "id", "accessibilityDeclarations", "Accessibility declaration ID (required)")
 	publish := fs.String("publish", "", "Publish declaration (true/false)")
@@ -289,7 +290,7 @@ func AccessibilityUpdateCommand() *ffcli.Command {
 	supportsSufficientContrast := fs.String("supports-sufficient-contrast", "", "Supports sufficient contrast (true/false)")
 	supportsVoiceControl := fs.String("supports-voice-control", "", "Supports voice control (true/false)")
 	supportsVoiceover := fs.String("supports-voiceover", "", "Supports voiceover (true/false)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -305,7 +306,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
 
 			attrs, err := buildAccessibilityDeclarationUpdateAttributes(map[string]string{
@@ -321,19 +322,19 @@ Examples:
 				"supports-voiceover":                         *supportsVoiceover,
 			})
 			if err != nil {
-				return shared.UsageErrorf("accessibility update: %v", err)
+				return d.UsageErrorf("accessibility update: %v", err)
 			}
 
 			if !asc.HasAccessibilityDeclarationUpdates(attrs) {
-				return shared.UsageError("accessibility update: at least one update flag is required")
+				return d.UsageError("accessibility update: at least one update flag is required")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("accessibility update: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.UpdateAccessibilityDeclaration(requestCtx, idValue, attrs)
@@ -341,13 +342,13 @@ Examples:
 				return fmt.Errorf("accessibility update: failed to update: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// AccessibilityDeleteCommand returns the accessibility delete subcommand.
-func AccessibilityDeleteCommand() *ffcli.Command {
+// newAccessibilityDeleteCommand returns the accessibility delete subcommand.
+func newAccessibilityDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
 		FlagSetName: "delete",
 		Name:        "delete",
@@ -363,6 +364,7 @@ Examples:
 		RequiredDiagnostic: true,
 		ErrorPrefix:        "accessibility delete",
 		DeleteErrorPrefix:  "accessibility delete: failed to delete",
+		Deps:               d,
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteAccessibilityDeclaration(ctx, id)
 		},

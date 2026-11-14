@@ -50,7 +50,7 @@ func TestSelfLinkRemainingFlagsSendExtractedID(t *testing.T) {
 		wantPath string
 		wantID   string
 		bodies   map[string]string
-		deps     bool // the command is built on shared.Deps: run it on test deps
+		deps     bool // the command is built on shared.Deps: stub its client and read its deps streams
 	}{
 		{
 			name:     "webhooks view",
@@ -87,6 +87,7 @@ func TestSelfLinkRemainingFlagsSendExtractedID(t *testing.T) {
 			bodies: map[string]string{
 				"/v1/appCustomProductPages/page-1": `{"data":{"type":"appCustomProductPages","id":"page-1","attributes":{"name":"Winter","visible":true}}}`,
 			},
+			deps: true,
 		},
 		{
 			name:     "android-ios-mapping view",
@@ -106,6 +107,7 @@ func TestSelfLinkRemainingFlagsSendExtractedID(t *testing.T) {
 			bodies: map[string]string{
 				"/v1/alternativeDistributionDomains/domain-1": `{"data":{"type":"alternativeDistributionDomains","id":"domain-1","attributes":{"domain":"example.com"}}}`,
 			},
+			deps: true,
 		},
 		{
 			name:     "merchant-ids view",
@@ -185,24 +187,22 @@ func TestSelfLinkRemainingFlagsSendExtractedID(t *testing.T) {
 
 			args := append(append([]string(nil), test.args...), "--output", "json")
 			var stdout, stderr string
+			var err error
 			if test.deps {
-				var err error
-				stdout, stderr, err = runRootWithDeps(t, stubClient(t, serverTransport(t, server)), args...)
-				if err != nil {
-					t.Fatalf("run error: %v (requests %q)", err, recorder.requested())
-				}
+				stdout, stderr, err = runRootWithDeps(t, stubServerClient(t, server), args...)
 			} else {
 				installDefaultTransportForServer(t, server)
 				root := RootCommand("1.2.3")
 				root.FlagSet.SetOutput(io.Discard)
 				stdout, stderr = captureOutput(t, func() {
-					if err := root.Parse(args); err != nil {
-						t.Fatalf("parse error: %v", err)
+					if parseErr := root.Parse(args); parseErr != nil {
+						t.Fatalf("parse error: %v", parseErr)
 					}
-					if err := root.Run(context.Background()); err != nil {
-						t.Fatalf("run error: %v (requests %q)", err, recorder.requested())
-					}
+					err = root.Run(context.Background())
 				})
+			}
+			if err != nil {
+				t.Fatalf("run error: %v (requests %q)", err, recorder.requested())
 			}
 			if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)
@@ -241,7 +241,7 @@ func TestSelfLinkRemainingFlagsRejectWrongType(t *testing.T) {
 		flag    string
 		value   string
 		wantErr string
-		deps    bool // the command is built on shared.Deps: run it on test deps
+		deps    bool // the command is built on shared.Deps: run it through RunWithDeps
 	}{
 		{
 			name:    "webhooks view rejects apps link",
@@ -263,6 +263,7 @@ func TestSelfLinkRemainingFlagsRejectWrongType(t *testing.T) {
 			flag:    "webhook-id",
 			value:   selfLinkTestBase + "/v1/webhooks/webhook-1",
 			wantErr: "expected a self-link of type marketplaceWebhooks, got webhooks",
+			deps:    true,
 		},
 		{
 			name:    "certificates create rejects apps link for merchant",
@@ -291,6 +292,7 @@ func TestSelfLinkRemainingFlagsRejectWrongType(t *testing.T) {
 			flag:    "pass-type-id",
 			value:   selfLinkTestBase + "/v1/certificates/certificate-1",
 			wantErr: "expected a self-link of type passTypeIds, got certificates",
+			deps:    true,
 		},
 		{
 			name:    "reviews respond rejects apps link",
@@ -326,6 +328,7 @@ func TestSelfLinkRemainingFlagsRejectWrongType(t *testing.T) {
 			flag:    "domain-id",
 			value:   "https://appstoreconnect.apple.com/v1/alternativeDistributionDomains/domain-1",
 			wantErr: "api.appstoreconnect.apple.com",
+			deps:    true,
 		},
 		{
 			name:    "background-assets versions list rejects version link",
@@ -368,6 +371,7 @@ func TestSelfLinkRemainingFlagsRejectWrongType(t *testing.T) {
 			flag:    "custom-page-id",
 			value:   selfLinkTestBase + "/v1/appCustomProductPageVersions/version-1",
 			wantErr: "expected a self-link of type appCustomProductPages, got appCustomProductPageVersions",
+			deps:    true,
 		},
 		{
 			name:    "product-pages experiments view rejects version link",
@@ -375,6 +379,7 @@ func TestSelfLinkRemainingFlagsRejectWrongType(t *testing.T) {
 			flag:    "experiment-id",
 			value:   selfLinkTestBase + "/v1/appStoreVersions/version-1",
 			wantErr: "expected a self-link of type appStoreVersionExperiments, got appStoreVersions",
+			deps:    true,
 		},
 		{
 			name:    "app-events view rejects localization link",

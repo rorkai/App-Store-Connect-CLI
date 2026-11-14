@@ -24,6 +24,7 @@ import (
 	"howett.net/plist"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestDeviceURLCallbackRegistersAndSkipsDuplicates(t *testing.T) {
@@ -45,6 +46,7 @@ func TestDeviceURLCallbackRegistersAndSkipsDuplicates(t *testing.T) {
 		platform: "IOS",
 		confirm:  true,
 		client:   client,
+		timeout:  shared.ContextWithTimeout,
 		seen:     map[string]struct{}{},
 	}
 	body := []byte(`{"UDID":"ABCDEF0123456789","PRODUCT":"iPhone"}`)
@@ -77,7 +79,7 @@ func TestDeviceURLCollectOnlyRoundTripsRegisterBatch(t *testing.T) {
 	if err := writeDeviceRegistrationBatch(path, records); err != nil {
 		t.Fatal(err)
 	}
-	parsed, err := readDeviceBatchTSV(path, "IOS")
+	parsed, err := readDeviceBatchTSV(newTestDeps(), path, "IOS")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,7 +90,7 @@ func TestDeviceURLCollectOnlyRoundTripsRegisterBatch(t *testing.T) {
 
 func TestDeviceURLListenStaysOnLoopback(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "devices.tsv")
-	result, err := serveDeviceRegistration(context.Background(), deviceURLServeOptions{
+	result, err := serveDeviceRegistration(context.Background(), newTestDeps(), deviceURLServeOptions{
 		Listen:     "127.0.0.1:0",
 		TTL:        20 * time.Millisecond,
 		Platform:   "IOS",
@@ -103,10 +105,10 @@ func TestDeviceURLListenStaysOnLoopback(t *testing.T) {
 	if _, err := os.Stat(path); err != nil {
 		t.Fatal(err)
 	}
-	if err := validateDeviceRegisterListen("0.0.0.0:8080", false); err == nil {
+	if err := validateDeviceRegisterListen(newTestDeps(), "0.0.0.0:8080", false); err == nil {
 		t.Fatal("expected public bind without explicit listen to be rejected")
 	}
-	if err := validateDeviceRegisterListen("0.0.0.0:8080", true); err != nil {
+	if err := validateDeviceRegisterListen(newTestDeps(), "0.0.0.0:8080", true); err != nil {
 		t.Fatalf("explicit public bind rejected: %v", err)
 	}
 }
@@ -178,7 +180,7 @@ func TestDeviceURLSignedCallback(t *testing.T) {
 		}
 		return deviceURLJSON(http.StatusCreated, `{"data":{"type":"devices","id":"dev-signed"}}`)
 	})
-	server := &deviceURLServer{token: "token", platform: "IOS", confirm: true, client: client, seen: map[string]struct{}{}}
+	server := &deviceURLServer{token: "token", platform: "IOS", confirm: true, client: client, timeout: shared.ContextWithTimeout, seen: map[string]struct{}{}}
 	req := httptest.NewRequest(http.MethodPost, "/callback?token="+mustDeviceCallbackToken(t, server), bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/pkcs7-signature")
 	response := httptest.NewRecorder()
@@ -204,7 +206,7 @@ func TestDeviceURLCallbackRetriesAfterAPIFailure(t *testing.T) {
 				posts++
 				return deviceURLJSON(http.StatusCreated, `{"data":{"type":"devices","id":"dev-retry"}}`)
 			})
-			server := &deviceURLServer{token: "token", platform: "IOS", confirm: true, client: client, seen: map[string]struct{}{}}
+			server := &deviceURLServer{token: "token", platform: "IOS", confirm: true, client: client, timeout: shared.ContextWithTimeout, seen: map[string]struct{}{}}
 			token := mustDeviceCallbackToken(t, server)
 			for attempt, step := range []struct {
 				token      string
@@ -247,7 +249,7 @@ func TestDeviceURLCallbackRequestTimeout(t *testing.T) {
 				<-req.Context().Done()
 				return deviceURLJSON(http.StatusForbidden, `{"errors":[]}`)
 			})
-			server := &deviceURLServer{token: "token", platform: "IOS", confirm: true, client: client, seen: map[string]struct{}{}}
+			server := &deviceURLServer{token: "token", platform: "IOS", confirm: true, client: client, timeout: shared.ContextWithTimeout, seen: map[string]struct{}{}}
 			response := httptest.NewRecorder()
 			server.callback(response, httptest.NewRequest(http.MethodPost, "/callback?token="+mustDeviceCallbackToken(t, server), strings.NewReader(`{"UDID":"ABCDEF0123456789"}`)))
 			if response.Code != http.StatusBadGateway {
@@ -336,21 +338,22 @@ func TestDeviceURLCallbackRejectsOversizedBody(t *testing.T) {
 // startDeviceURLTestSession exercises the real listener, callback, and shutdown path.
 func startDeviceURLTestSession(t *testing.T, client *asc.Client) (string, context.CancelFunc, <-chan error) {
 	t.Helper()
-	return startDeviceURLTestRunner(t, func(ctx context.Context) error {
-		_, err := serveDeviceRegistration(ctx, deviceURLServeOptions{Listen: "127.0.0.1:0", TTL: time.Minute, Platform: "IOS", Confirm: true, Client: client})
+	d, urls := newDeviceURLTestDeps(t, io.Discard)
+	return startDeviceURLTestRunner(t, urls, func(ctx context.Context) error {
+		_, err := serveDeviceRegistration(ctx, d, deviceURLServeOptions{Listen: "127.0.0.1:0", TTL: time.Minute, Platform: "IOS", Confirm: true, Client: client})
 		return err
 	})
 }
 
-func startDeviceURLTestRunner(t *testing.T, run func(context.Context) error) (string, context.CancelFunc, <-chan error) {
+// newDeviceURLTestDeps returns deps that write stdout to out and stderr to a
+// pipe, and the page URLs a session prints to that stderr.
+func newDeviceURLTestDeps(t *testing.T, out io.Writer) (*shared.Deps, <-chan string) {
 	t.Helper()
 	read, write, err := os.Pipe()
 	if err != nil {
 		t.Fatal(err)
 	}
-	savedStderr := os.Stderr
-	os.Stderr = write
-	t.Cleanup(func() { os.Stderr = savedStderr; write.Close(); read.Close() })
+	t.Cleanup(func() { write.Close(); read.Close() })
 	urls := make(chan string, 1)
 	go func() {
 		scanner := bufio.NewScanner(read)
@@ -360,6 +363,11 @@ func startDeviceURLTestRunner(t *testing.T, run func(context.Context) error) (st
 			}
 		}
 	}()
+	return &shared.Deps{IO: &shared.IO{Out: out, ErrOut: write}, Timeout: shared.ContextWithTimeout}, urls
+}
+
+func startDeviceURLTestRunner(t *testing.T, urls <-chan string, run func(context.Context) error) (string, context.CancelFunc, <-chan error) {
+	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	done := make(chan error, 1)
@@ -422,12 +430,13 @@ func TestDeviceURLSessionReportsUnrecoveredAPIFailure(t *testing.T) {
 }
 
 func TestDeviceURLCommandHonorsName(t *testing.T) {
-	cmd := DevicesRegisterCommand()
+	d, urls := newDeviceURLTestDeps(t, io.Discard)
+	cmd := newDevicesRegisterCommand(d)
 	path := filepath.Join(t.TempDir(), "devices.tsv")
 	if err := cmd.FlagSet.Parse([]string{"--via-url", "--name", `QA "Phone"`, "--output-file", path}); err != nil {
 		t.Fatal(err)
 	}
-	pageURL, cancel, done := startDeviceURLTestRunner(t, func(ctx context.Context) error { return cmd.Exec(ctx, nil) })
+	pageURL, cancel, done := startDeviceURLTestRunner(t, urls, func(ctx context.Context) error { return cmd.Exec(ctx, nil) })
 	resp, err := http.Post(deviceURLProfileCallback(t, pageURL), "application/json", strings.NewReader(`{"UDID":"ABC123","PRODUCT":"iPhone"}`))
 	if err != nil {
 		t.Fatal(err)
@@ -447,7 +456,7 @@ func TestDeviceURLCommandHonorsName(t *testing.T) {
 	if record.Name != `QA "Phone"` {
 		t.Fatalf("--name ignored: %q", record.Name)
 	}
-	rows, err := readDeviceBatchTSV(path, "IOS")
+	rows, err := readDeviceBatchTSV(newTestDeps(), path, "IOS")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -603,9 +612,10 @@ func TestDeviceURLStreamsReceiptPerArrival(t *testing.T) {
 	streamRead, streamWrite := io.Pipe()
 	t.Cleanup(func() { streamRead.Close() })
 	lines := scanDeviceURLLines(streamRead)
-	pageURL, cancel, done := startDeviceURLTestRunner(t, func(ctx context.Context) error {
+	d, urls := newDeviceURLTestDeps(t, io.Discard)
+	pageURL, cancel, done := startDeviceURLTestRunner(t, urls, func(ctx context.Context) error {
 		defer streamWrite.Close()
-		_, err := serveDeviceRegistration(ctx, deviceURLServeOptions{Listen: "127.0.0.1:0", TTL: time.Minute, Platform: "IOS", Confirm: true, Client: client, Stream: streamWrite})
+		_, err := serveDeviceRegistration(ctx, d, deviceURLServeOptions{Listen: "127.0.0.1:0", TTL: time.Minute, Platform: "IOS", Confirm: true, Client: client, Stream: streamWrite})
 		return err
 	})
 
@@ -651,17 +661,16 @@ func TestDeviceURLCommandStreamsJSONLinesThenSummary(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	savedStdout := os.Stdout
-	os.Stdout = stdoutWrite
-	t.Cleanup(func() { os.Stdout = savedStdout; stdoutWrite.Close(); stdoutRead.Close() })
+	t.Cleanup(func() { stdoutWrite.Close(); stdoutRead.Close() })
 	lines := scanDeviceURLLines(stdoutRead)
 
-	cmd := DevicesRegisterCommand()
+	d, urls := newDeviceURLTestDeps(t, stdoutWrite)
+	cmd := newDevicesRegisterCommand(d)
 	path := filepath.Join(t.TempDir(), "devices.tsv")
 	if err := cmd.FlagSet.Parse([]string{"--via-url", "--stream", "--output", "json", "--output-file", path}); err != nil {
 		t.Fatal(err)
 	}
-	pageURL, cancel, done := startDeviceURLTestRunner(t, func(ctx context.Context) error { return cmd.Exec(ctx, nil) })
+	pageURL, cancel, done := startDeviceURLTestRunner(t, urls, func(ctx context.Context) error { return cmd.Exec(ctx, nil) })
 	postDeviceURLCallback(t, deviceURLProfileCallback(t, pageURL), "ABC123")
 
 	// The arrival receipt reaches stdout while the session is still running.

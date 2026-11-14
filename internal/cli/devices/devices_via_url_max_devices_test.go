@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -15,6 +16,7 @@ import (
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func deviceURLCallbackStatus(server *deviceURLServer, token, udid string) (int, string) {
@@ -117,6 +119,7 @@ func TestDeviceURLMaxDevicesIgnoresDevicesAlreadyInAppStoreConnect(t *testing.T)
 		platform:   "IOS",
 		confirm:    true,
 		client:     client,
+		timeout:    shared.ContextWithTimeout,
 		publicURL:  "http://127.0.0.1:1",
 		seen:       map[string]struct{}{},
 		maxDevices: 1,
@@ -153,8 +156,9 @@ func TestDeviceURLMaxDevicesSessionExitsWithoutWaitingForTTL(t *testing.T) {
 		return deviceURLJSON(http.StatusCreated, `{"data":{"type":"devices","id":"dev-1"}}`)
 	})
 	results := make(chan *asc.DeviceURLRegistrationResult, 1)
-	pageURL, _, done := startDeviceURLTestRunner(t, func(ctx context.Context) error {
-		result, err := serveDeviceRegistration(ctx, deviceURLServeOptions{Listen: "127.0.0.1:0", TTL: time.Hour, Platform: "IOS", Confirm: true, Client: client, MaxDevices: 1})
+	d, urls := newDeviceURLTestDeps(t, io.Discard)
+	pageURL, _, done := startDeviceURLTestRunner(t, urls, func(ctx context.Context) error {
+		result, err := serveDeviceRegistration(ctx, d, deviceURLServeOptions{Listen: "127.0.0.1:0", TTL: time.Hour, Platform: "IOS", Confirm: true, Client: client, MaxDevices: 1})
 		results <- result
 		return err
 	})
@@ -189,17 +193,16 @@ func TestDeviceURLCommandMaxDevicesStreamsThenSummary(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	savedStdout := os.Stdout
-	os.Stdout = stdoutWrite
-	t.Cleanup(func() { os.Stdout = savedStdout; stdoutWrite.Close(); stdoutRead.Close() })
+	t.Cleanup(func() { stdoutWrite.Close(); stdoutRead.Close() })
 	lines := scanDeviceURLLines(stdoutRead)
 
-	cmd := DevicesRegisterCommand()
+	d, urls := newDeviceURLTestDeps(t, stdoutWrite)
+	cmd := newDevicesRegisterCommand(d)
 	path := filepath.Join(t.TempDir(), "devices.tsv")
 	if err := cmd.FlagSet.Parse([]string{"--via-url", "--max-devices", "2", "--stream", "--output", "json", "--output-file", path, "--ttl", "1h"}); err != nil {
 		t.Fatal(err)
 	}
-	pageURL, _, done := startDeviceURLTestRunner(t, func(ctx context.Context) error { return cmd.Exec(ctx, nil) })
+	pageURL, _, done := startDeviceURLTestRunner(t, urls, func(ctx context.Context) error { return cmd.Exec(ctx, nil) })
 	for _, udid := range []string{"ABC123", "ABC123", "DEF456"} {
 		if status, body := postDeviceURLCallback(t, deviceURLProfileCallback(t, pageURL), udid); status != http.StatusOK {
 			t.Fatalf("callback %s status=%d body=%s", udid, status, body)
@@ -231,7 +234,7 @@ func TestDeviceURLCommandMaxDevicesStreamsThenSummary(t *testing.T) {
 	if !summary.CollectOnly || len(summary.Devices) != 2 || summary.Devices[0].UDID != "ABC123" || summary.Devices[1].UDID != "DEF456" {
 		t.Fatalf("final summary = %#v", summary)
 	}
-	rows, err := readDeviceBatchTSV(path, "IOS")
+	rows, err := readDeviceBatchTSV(newTestDeps(), path, "IOS")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -251,7 +254,7 @@ func TestDeviceURLCommandMaxDevicesValidation(t *testing.T) {
 		{[]string{"--name", "x", "--udid", "ABC", "--platform", "IOS", "--max-devices", "2"}, "--max-devices requires --via-url"},
 	} {
 		t.Run(strings.Join(tc.args, " "), func(t *testing.T) {
-			cmd := DevicesRegisterCommand()
+			cmd := newDevicesRegisterCommand(newTestDeps())
 			if err := cmd.FlagSet.Parse(tc.args); err != nil {
 				t.Fatal(err)
 			}

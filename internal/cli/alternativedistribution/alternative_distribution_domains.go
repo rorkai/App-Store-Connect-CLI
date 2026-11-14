@@ -12,9 +12,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// AlternativeDistributionDomainsCommand returns the domains command group.
-func AlternativeDistributionDomainsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("domains", flag.ExitOnError)
+// newAlternativeDistributionDomainsCommand returns the domains command group.
+func newAlternativeDistributionDomainsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("domains", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "domains",
@@ -30,10 +30,10 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			AlternativeDistributionDomainsListCommand(),
-			AlternativeDistributionDomainsGetCommand(),
-			AlternativeDistributionDomainsCreateCommand(),
-			AlternativeDistributionDomainsDeleteCommand(),
+			newAlternativeDistributionDomainsListCommand(d),
+			newAlternativeDistributionDomainsGetCommand(d),
+			newAlternativeDistributionDomainsCreateCommand(d),
+			newAlternativeDistributionDomainsDeleteCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -41,9 +41,10 @@ Examples:
 	}
 }
 
-// AlternativeDistributionDomainsListCommand returns the domains list subcommand.
-func AlternativeDistributionDomainsListCommand() *ffcli.Command {
+// newAlternativeDistributionDomainsListCommand returns the domains list subcommand.
+func newAlternativeDistributionDomainsListCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		Deps:        d,
 		FlagSetName: "list",
 		Name:        "list",
 		ShortUsage:  "asc alternative-distribution domains list [flags]",
@@ -69,9 +70,10 @@ Examples:
 	})
 }
 
-// AlternativeDistributionDomainsGetCommand returns the domains get subcommand.
-func AlternativeDistributionDomainsGetCommand() *ffcli.Command {
+// newAlternativeDistributionDomainsGetCommand returns the domains get subcommand.
+func newAlternativeDistributionDomainsGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		Deps:        d,
 		FlagSetName: "view",
 		Name:        "view",
 		ShortUsage:  "asc alternative-distribution domains view --domain-id \"DOMAIN_ID\"",
@@ -92,13 +94,13 @@ Examples:
 	})
 }
 
-// AlternativeDistributionDomainsCreateCommand returns the domains create subcommand.
-func AlternativeDistributionDomainsCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
+// newAlternativeDistributionDomainsCreateCommand returns the domains create subcommand.
+func newAlternativeDistributionDomainsCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("create", flag.ExitOnError)
 
 	domain := fs.String("domain", "", "Domain name")
 	referenceName := fs.String("reference-name", "", "Reference name for the domain")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -113,20 +115,20 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			domainValue := strings.TrimSpace(*domain)
 			if domainValue == "" {
-				return shared.RequiredFlag("--domain")
+				return d.RequiredFlag("--domain")
 			}
 
 			referenceValue := strings.TrimSpace(*referenceName)
 			if referenceValue == "" {
-				return shared.RequiredFlag("--reference-name")
+				return d.RequiredFlag("--reference-name")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("alternative-distribution domains create: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateAlternativeDistributionDomain(requestCtx, domainValue, referenceValue)
@@ -134,14 +136,15 @@ Examples:
 				return fmt.Errorf("alternative-distribution domains create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// AlternativeDistributionDomainsDeleteCommand returns the domains delete subcommand.
-func AlternativeDistributionDomainsDeleteCommand() *ffcli.Command {
+// newAlternativeDistributionDomainsDeleteCommand returns the domains delete subcommand.
+func newAlternativeDistributionDomainsDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		Deps:        d,
 		FlagSetName: "delete",
 		Name:        "delete",
 		ShortUsage:  "asc alternative-distribution domains delete --domain-id \"DOMAIN_ID\" --confirm",

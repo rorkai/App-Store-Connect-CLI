@@ -6,7 +6,6 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"encoding/json"
-	"errors"
 	"io"
 	"net/http"
 	"strings"
@@ -306,48 +305,5 @@ func TestGetGameCenterLeaderboardLocalizations_WithLimit(t *testing.T) {
 	_, err := client.GetGameCenterLeaderboardLocalizations(context.Background(), "lb-123", Limit[GCLeaderboardLocalizationsOption](50))
 	if err != nil {
 		t.Fatalf("GetGameCenterLeaderboardLocalizations() error: %v", err)
-	}
-}
-
-func TestGetAllGameCenterLeaderboardLocalizations_FollowsPagination(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/gameCenterLeaderboards/lb-123/localizations?cursor=abc"
-	client := newTestClient(
-		t, func(req *http.Request) {
-			assertAuthorized(t, req)
-		},
-		jsonResponse(http.StatusOK, `{"data":[{"type":"gameCenterLeaderboardLocalizations","id":"loc-1","attributes":{"locale":"en-US"}}],"links":{"next":"`+next+`"}}`),
-		jsonResponse(http.StatusOK, `{"data":[{"type":"gameCenterLeaderboardLocalizations","id":"loc-2","attributes":{"locale":"ja"}}]}`),
-	)
-
-	resp, err := client.GetAllGameCenterLeaderboardLocalizations(context.Background(), "lb-123")
-	if err != nil {
-		t.Fatalf("GetAllGameCenterLeaderboardLocalizations() error: %v", err)
-	}
-	if len(resp.Data) != 2 {
-		t.Fatalf("expected 2 localizations, got %d", len(resp.Data))
-	}
-	if resp.Data[0].ID != "loc-1" || resp.Data[1].ID != "loc-2" {
-		t.Fatalf("expected aggregated localizations loc-1 and loc-2, got %q and %q", resp.Data[0].ID, resp.Data[1].ID)
-	}
-}
-
-func TestGetAllGameCenterLeaderboardLocalizations_RejectsRepeatedNextURL(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/gameCenterLeaderboards/lb-123/localizations?cursor=repeat"
-	requests := 0
-	client := newTestClient(
-		t, func(req *http.Request) {
-			requests++
-			assertAuthorized(t, req)
-		},
-		jsonResponse(http.StatusOK, `{"data":[{"type":"gameCenterLeaderboardLocalizations","id":"loc-1","attributes":{"locale":"en-US"}}],"links":{"next":"`+next+`"}}`),
-		jsonResponse(http.StatusOK, `{"data":[{"type":"gameCenterLeaderboardLocalizations","id":"loc-2","attributes":{"locale":"ja"}}],"links":{"next":"`+next+`"}}`),
-	)
-
-	_, err := client.GetAllGameCenterLeaderboardLocalizations(context.Background(), "lb-123")
-	if !errors.Is(err, ErrRepeatedPaginationURL) {
-		t.Fatalf("expected ErrRepeatedPaginationURL, got %v", err)
-	}
-	if requests != 2 {
-		t.Fatalf("expected repeated next URL to stop after two requests, got %d", requests)
 	}
 }

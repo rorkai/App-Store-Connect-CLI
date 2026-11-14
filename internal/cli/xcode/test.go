@@ -42,6 +42,7 @@ func XcodeTestCommand() *ffcli.Command {
 
 	workspacePath := fs.String("workspace", "", "Path to .xcworkspace directory")
 	projectPath := fs.String("project", "", "Path to .xcodeproj directory")
+	packagePath := fs.String("package-path", "", "Path to a Swift package directory that contains Package.swift")
 	scheme := fs.String("scheme", "", "Xcode scheme name (required except for test-without-building)")
 	action := fs.String("action", string(localxcode.TestActionTest), "Xcode test action: test, build-for-testing, or test-without-building")
 	configuration := fs.String("configuration", "", "Build configuration (for example Debug or Release)")
@@ -67,9 +68,10 @@ func XcodeTestCommand() *ffcli.Command {
 		ShortHelp:  "Run local Xcode tests and report structured results.",
 		LongHelp: `Run a local Xcode test action and report structured results.
 
-For test and build-for-testing, provide exactly one of --workspace or --project,
-plus --scheme and at least one --destination. The default action is test. Use
---action build-for-testing to produce test products, or use
+For test and build-for-testing, provide exactly one of --workspace, --project,
+or --package-path, plus --scheme and at least one --destination. With
+--package-path, xcodebuild runs from that directory. The default action is
+test. Use --action build-for-testing to produce test products, or use
 --action test-without-building with an existing --xctestrun file. Test actions
 write a new .xcresult bundle automatically when --result-bundle-path is omitted.
 The test-without-building action rejects project/build controls, including
@@ -83,6 +85,7 @@ changes project files.
 Examples:
   asc xcode test --project App.xcodeproj --scheme App --destination 'platform=iOS Simulator,name=iPhone 17 Pro' --output json
   asc xcode test --workspace App.xcworkspace --scheme App --destination 'platform=iOS Simulator,name=iPhone 17 Pro' --destination 'platform=iOS Simulator,name=iPad Pro (13-inch)'
+  asc xcode test --package-path ./MyPackage --scheme MyPackage --destination 'platform=macOS' --output json
   asc xcode test --project App.xcodeproj --scheme App --action build-for-testing --destination 'platform=iOS Simulator,name=iPhone 17 Pro'
   asc xcode test --action test-without-building --xctestrun App_iphonesimulator.xctestrun --destination 'platform=iOS Simulator,name=iPhone 17 Pro'`,
 		FlagSet:   fs,
@@ -95,12 +98,13 @@ Examples:
 				fmt.Fprintln(os.Stderr, "Error: xcode test does not accept positional arguments")
 				return flag.ErrHelp
 			}
-			if emptyFlag := firstExplicitlyEmptyFlag(fs, "workspace", "project", "scheme", "action", "configuration", "test-plan", "xctestrun", "derived-data-path", "result-bundle-path"); emptyFlag != "" {
+			if emptyFlag := firstExplicitlyEmptyFlag(fs, "workspace", "project", "package-path", "scheme", "action", "configuration", "test-plan", "xctestrun", "derived-data-path", "result-bundle-path"); emptyFlag != "" {
 				return shared.UsageErrorf("--%s must not be empty", emptyFlag)
 			}
 			opts := localxcode.TestOptions{
 				WorkspacePath:    strings.TrimSpace(*workspacePath),
 				ProjectPath:      strings.TrimSpace(*projectPath),
+				PackagePath:      strings.TrimSpace(*packagePath),
 				Scheme:           strings.TrimSpace(*scheme),
 				Action:           strings.TrimSpace(*action),
 				Configuration:    strings.TrimSpace(*configuration),
@@ -118,6 +122,11 @@ Examples:
 			}
 			if err := localxcode.ValidateTestOptions(opts); err != nil {
 				return shared.UsageError(err.Error())
+			}
+			if opts.PackagePath != "" {
+				if err := localxcode.ValidateTestPackagePath(opts.PackagePath); err != nil {
+					return shared.UsageError(err.Error())
+				}
 			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
 				return shared.UsageError(err.Error())
@@ -154,6 +163,7 @@ func toXcodeTestResult(result *localxcode.TestResult) *asc.XcodeTestResult {
 	output := &asc.XcodeTestResult{
 		Workspace:        result.WorkspacePath,
 		Project:          result.ProjectPath,
+		PackagePath:      result.PackagePath,
 		Scheme:           result.Scheme,
 		Action:           result.Action,
 		Configuration:    result.Configuration,

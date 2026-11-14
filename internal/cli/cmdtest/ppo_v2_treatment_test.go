@@ -20,7 +20,6 @@ func TestPPOTreatmentCreateRelationshipVersion(t *testing.T) {
 				key += "V2"
 			}
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			called := false
 			reg.Register(asctest.POST("/v1/appStoreVersionExperimentTreatments").JSONBody(`{"data":{"type":"appStoreVersionExperimentTreatments","attributes":{"name":"Header"},"relationships":{"`+key+`":{"data":{"type":"appStoreVersionExperiments","id":"exp-1"}}}}}`),
 				func(req *http.Request) (*http.Response, error) {
@@ -31,7 +30,7 @@ func TestPPOTreatmentCreateRelationshipVersion(t *testing.T) {
 			if v2 {
 				args = append(args, "--v2")
 			}
-			_, _, err := runCommand(t, args)
+			_, _, err := runRootWithDeps(t, stubClient(t, reg), args...)
 			if err != nil || !called {
 				t.Fatalf("create failed: %v called=%v", err, called)
 			}

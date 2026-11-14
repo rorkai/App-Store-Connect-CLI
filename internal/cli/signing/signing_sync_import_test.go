@@ -284,6 +284,28 @@ func TestSigningSyncImportDryRunListsWithoutDestination(t *testing.T) {
 	}
 }
 
+func TestSigningSyncImportSkipsInstallerCertificateFolder(t *testing.T) {
+	fixture := newOpenSSLImportFixture(t, 1)
+	if err := os.Rename(filepath.Join(fixture.dir, "certs", "development"), filepath.Join(fixture.dir, "certs", "mac_installer_distribution")); err != nil {
+		t.Fatal(err)
+	}
+	stdout, stderr, err := runSigningSyncImport(t, "--source", fixture.dir, "--source-password", importSourcePassword,
+		"--repo", "file:///nonexistent/signing.git", "--dry-run", "--output", "json")
+	if err != nil {
+		t.Fatalf("dry run: %v\nstderr=%s", err, stderr)
+	}
+	if !strings.Contains(stderr, "Warning: skipping installer certificate folder certs/mac_installer_distribution") {
+		t.Fatalf("stderr = %q, want installer folder warning", stderr)
+	}
+	var result asc.SigningSyncImportResult
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Certificates) != 1 || result.Certificates[0].SHA256 != fixture.distributionSHA {
+		t.Fatalf("certificates = %+v, want only the distribution certificate", result.Certificates)
+	}
+}
+
 func TestSigningSyncImportDryRunRejectsExpandedArtifactLimit(t *testing.T) {
 	fixture := newOpenSSLImportFixture(t, 127)
 	stdout, _, err := runSigningSyncImport(t, "--source", fixture.dir, "--source-password", importSourcePassword,
@@ -422,16 +444,6 @@ func TestSigningSyncImportFailuresWriteNothing(t *testing.T) {
 			name:                 "unsupported certificate directory",
 			certificateDirectory: "developmnt",
 			wantErr:              "unsupported certificate directory certs/developmnt",
-		},
-		{
-			name:                 "developer ID installer cannot be pulled",
-			certificateDirectory: "developer_id_installer",
-			wantErr:              "unsupported certificate directory certs/developer_id_installer",
-		},
-		{
-			name:                 "Mac installer distribution cannot be pulled",
-			certificateDirectory: "mac_installer_distribution",
-			wantErr:              "unsupported certificate directory certs/mac_installer_distribution",
 		},
 		{
 			name: "symlink escaping the source",

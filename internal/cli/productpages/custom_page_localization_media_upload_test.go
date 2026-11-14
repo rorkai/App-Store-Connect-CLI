@@ -26,6 +26,7 @@ import (
 
 	"github.com/kballard/go-shellquote"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 type customPageUploadRoundTripFunc func(*http.Request) (*http.Response, error)
@@ -117,13 +118,12 @@ func TestExecuteCustomPageScreenshotUpload_SyncDeletesExistingScreenshotsAndReor
 	})
 
 	client := newCustomPageTestClient(t)
-	origFactory := customPageMediaClientFactory
-	customPageMediaClientFactory = func() (*asc.Client, error) { return client, nil }
-	t.Cleanup(func() {
-		customPageMediaClientFactory = origFactory
-	})
+	d := &shared.Deps{
+		Client:  func() (*asc.Client, error) { return client, nil },
+		Timeout: shared.ContextWithTimeout,
+	}
 
-	result, err := executeCustomPageScreenshotUpload(context.Background(), "loc-1", dir, "IPHONE_65", true)
+	result, err := executeCustomPageScreenshotUpload(context.Background(), d, "loc-1", dir, "IPHONE_65", true)
 	if err != nil {
 		t.Fatalf("executeCustomPageScreenshotUpload() error: %v", err)
 	}
@@ -175,13 +175,12 @@ func TestExecuteCustomPageScreenshotUploadFullSetQuotesReplacementPath(t *testin
 	httpClient := server.Client()
 	httpClient.Transport = customPageBaseURLRoundTripper{target: serverURL, next: httpClient.Transport}
 	client := newCustomPageTestClientWithHTTPClient(t, httpClient)
-	origFactory := customPageMediaClientFactory
-	customPageMediaClientFactory = func() (*asc.Client, error) { return client, nil }
-	t.Cleanup(func() {
-		customPageMediaClientFactory = origFactory
-	})
+	d := &shared.Deps{
+		Client:  func() (*asc.Client, error) { return client, nil },
+		Timeout: shared.ContextWithTimeout,
+	}
 
-	_, err := executeCustomPageScreenshotUpload(context.Background(), "loc-1", trickyPath, "IPHONE_65", false)
+	_, err := executeCustomPageScreenshotUpload(context.Background(), d, "loc-1", trickyPath, "IPHONE_65", false)
 	if err == nil {
 		t.Fatal("expected full screenshot set error")
 	}

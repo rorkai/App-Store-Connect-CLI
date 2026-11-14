@@ -12,9 +12,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// CustomPageLocalizationsCommand returns the custom page localizations command group.
-func CustomPageLocalizationsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("localizations", flag.ExitOnError)
+// newCustomPageLocalizationsCommand returns the custom page localizations command group.
+func newCustomPageLocalizationsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("localizations", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "localizations",
@@ -31,14 +31,14 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			CustomPageLocalizationsListCommand(),
-			CustomPageLocalizationsGetCommand(),
-			CustomPageLocalizationsCreateCommand(),
-			CustomPageLocalizationsUpdateCommand(),
-			CustomPageLocalizationsDeleteCommand(),
-			CustomPageLocalizationsSearchKeywordsCommand(),
-			CustomPageLocalizationsPreviewSetsCommand(),
-			CustomPageLocalizationsScreenshotSetsCommand(),
+			newCustomPageLocalizationsListCommand(d),
+			newCustomPageLocalizationsGetCommand(d),
+			newCustomPageLocalizationsCreateCommand(d),
+			newCustomPageLocalizationsUpdateCommand(d),
+			newCustomPageLocalizationsDeleteCommand(d),
+			newCustomPageLocalizationsSearchKeywordsCommand(d),
+			newCustomPageLocalizationsPreviewSetsCommand(d),
+			newCustomPageLocalizationsScreenshotSetsCommand(d),
 			shared.CreativePlacementsCommand("appCustomProductPageLocalizations", "product-pages custom-pages localizations", "a custom product page localization"),
 		},
 		Exec: func(ctx context.Context, args []string) error {
@@ -51,16 +51,16 @@ func customPageLocalizationIncludeList() []string {
 	return []string{"appCustomProductPageVersion", "appScreenshotSets", "appPreviewSets", "searchKeywords", "placements"}
 }
 
-// CustomPageLocalizationsListCommand returns the custom page localizations list subcommand.
-func CustomPageLocalizationsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("custom-page-localizations list", flag.ExitOnError)
+// newCustomPageLocalizationsListCommand returns the custom page localizations list subcommand.
+func newCustomPageLocalizationsListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("custom-page-localizations list", flag.ExitOnError)
 
 	versionID := shared.BindResourceIDFlag(fs, "custom-page-version-id", "appCustomProductPageVersions", "Custom product page version ID")
 	include := shared.BindLocalizationIncludeFlags(fs, "Include related resources", customPageLocalizationIncludeList())
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -76,12 +76,12 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > productPagesMaxLimit) {
-				return shared.UsageErrorf("custom-pages localizations list: --limit must be between 1 and %d", productPagesMaxLimit)
+				return d.UsageErrorf("custom-pages localizations list: --limit must be between 1 and %d", productPagesMaxLimit)
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("custom-pages localizations list: %v", err)
+				return d.UsageErrorf("custom-pages localizations list: %v", err)
 			}
-			if err := shared.RejectNextFlagConflicts(fs, *next, "custom-pages localizations list", "include", "placements-limit"); err != nil {
+			if err := d.RejectNextFlagConflicts(fs, *next, "custom-pages localizations list", "include", "placements-limit"); err != nil {
 				return err
 			}
 			includeValues, placementsLimit, err := include.Resolve()
@@ -91,15 +91,15 @@ Examples:
 
 			trimmedID := strings.TrimSpace(*versionID)
 			if trimmedID == "" {
-				return shared.RequiredFlag("--custom-page-version-id")
+				return d.RequiredFlag("--custom-page-version-id")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("custom-pages localizations list: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			opts := []asc.AppCustomProductPageLocalizationsOption{
@@ -123,7 +123,7 @@ Examples:
 					return fmt.Errorf("custom-pages localizations list: %w", err)
 				}
 
-				return shared.PrintOutput(paginated, *output.Output, *output.Pretty)
+				return d.PrintOutput(paginated, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetAppCustomProductPageLocalizations(requestCtx, trimmedID, opts...)
@@ -131,18 +131,18 @@ Examples:
 				return fmt.Errorf("custom-pages localizations list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// CustomPageLocalizationsGetCommand returns the custom page localizations get subcommand.
-func CustomPageLocalizationsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("custom-page-localizations view", flag.ExitOnError)
+// newCustomPageLocalizationsGetCommand returns the custom page localizations get subcommand.
+func newCustomPageLocalizationsGetCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("custom-page-localizations view", flag.ExitOnError)
 
 	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appCustomProductPageLocalizations", "Custom product page localization ID")
 	include := shared.BindLocalizationIncludeFlags(fs, "Include related resources", customPageLocalizationIncludeList())
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "view",
@@ -158,19 +158,19 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*localizationID)
 			if trimmedID == "" {
-				return shared.RequiredFlag("--localization-id")
+				return d.RequiredFlag("--localization-id")
 			}
 			includeValues, placementsLimit, err := include.Resolve()
 			if err != nil {
 				return err
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("custom-pages localizations view: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAppCustomProductPageLocalization(requestCtx, trimmedID, asc.WithLocalizationReadInclude(includeValues), asc.WithLocalizationReadPlacementsLimit(placementsLimit))
@@ -178,19 +178,19 @@ Examples:
 				return fmt.Errorf("custom-pages localizations view: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// CustomPageLocalizationsCreateCommand returns the custom page localizations create subcommand.
-func CustomPageLocalizationsCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("custom-page-localizations create", flag.ExitOnError)
+// newCustomPageLocalizationsCreateCommand returns the custom page localizations create subcommand.
+func newCustomPageLocalizationsCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("custom-page-localizations create", flag.ExitOnError)
 
 	versionID := shared.BindResourceIDFlag(fs, "custom-page-version-id", "appCustomProductPageVersions", "Custom product page version ID")
 	locale := fs.String("locale", "", "Localization locale (e.g., en-US)")
 	promotionalText := fs.String("promotional-text", "", "Promotional text")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -206,20 +206,20 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*versionID)
 			if trimmedID == "" {
-				return shared.RequiredFlag("--custom-page-version-id")
+				return d.RequiredFlag("--custom-page-version-id")
 			}
 
 			localeValue := strings.TrimSpace(*locale)
 			if localeValue == "" {
-				return shared.RequiredFlag("--locale")
+				return d.RequiredFlag("--locale")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("custom-pages localizations create: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateAppCustomProductPageLocalization(requestCtx, trimmedID, localeValue, strings.TrimSpace(*promotionalText))
@@ -227,18 +227,18 @@ Examples:
 				return fmt.Errorf("custom-pages localizations create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// CustomPageLocalizationsUpdateCommand returns the custom page localizations update subcommand.
-func CustomPageLocalizationsUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("custom-page-localizations update", flag.ExitOnError)
+// newCustomPageLocalizationsUpdateCommand returns the custom page localizations update subcommand.
+func newCustomPageLocalizationsUpdateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("custom-page-localizations update", flag.ExitOnError)
 
 	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appCustomProductPageLocalizations", "Custom product page localization ID")
 	promotionalText := fs.String("promotional-text", "", "Update promotional text")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -253,24 +253,24 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*localizationID)
 			if trimmedID == "" {
-				return shared.RequiredFlag("--localization-id")
+				return d.RequiredFlag("--localization-id")
 			}
 
 			promoValue := strings.TrimSpace(*promotionalText)
 			if promoValue == "" {
-				return shared.RequiredFlag("--promotional-text")
+				return d.RequiredFlag("--promotional-text")
 			}
 
 			attrs := asc.AppCustomProductPageLocalizationUpdateAttributes{
 				PromotionalText: &promoValue,
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("custom-pages localizations update: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.UpdateAppCustomProductPageLocalization(requestCtx, trimmedID, attrs)
@@ -278,14 +278,15 @@ Examples:
 				return fmt.Errorf("custom-pages localizations update: failed to update: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// CustomPageLocalizationsDeleteCommand returns the custom page localizations delete subcommand.
-func CustomPageLocalizationsDeleteCommand() *ffcli.Command {
+// newCustomPageLocalizationsDeleteCommand returns the custom page localizations delete subcommand.
+func newCustomPageLocalizationsDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		Deps:        d,
 		FlagSetName: "custom-page-localizations delete",
 		Name:        "delete",
 		ShortUsage:  "asc product-pages custom-pages localizations delete --localization-id \"LOCALIZATION_ID\" --confirm",

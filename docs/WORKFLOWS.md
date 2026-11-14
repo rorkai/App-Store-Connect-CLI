@@ -225,7 +225,7 @@ Create `.asc/workflow.json`:
         },
         {
           "name": "archive",
-          "run": "asc xcode archive --project \"$PROJECT_PATH\" --scheme \"$SCHEME\" --configuration \"$CONFIGURATION\" --archive-path \".asc/artifacts/App-$VERSION-${steps.resolve_next_build.BUILD_NUMBER}.xcarchive\" --clean --overwrite --xcodebuild-flag=-destination --xcodebuild-flag=generic/platform=iOS --xcodebuild-flag=-allowProvisioningUpdates --xcodebuild-flag=MARKETING_VERSION=$VERSION --xcodebuild-flag=CURRENT_PROJECT_VERSION=${steps.resolve_next_build.BUILD_NUMBER} --output json",
+          "run": "asc xcode archive --project \"$PROJECT_PATH\" --scheme \"$SCHEME\" --configuration \"$CONFIGURATION\" --archive-path \".asc/artifacts/App-$VERSION-${steps.resolve_next_build.BUILD_NUMBER}.xcarchive\" --clean --overwrite --destination generic/platform=iOS --xcodebuild-flag=-allowProvisioningUpdates --xcodebuild-flag=MARKETING_VERSION=$VERSION --xcodebuild-flag=CURRENT_PROJECT_VERSION=${steps.resolve_next_build.BUILD_NUMBER} --output json",
           "outputs": {
             "ARCHIVE_PATH": "$.archive_path",
             "VERSION": "$.version",
@@ -359,6 +359,12 @@ Retry and timeout are supported only on `run` steps. Workflow-call steps and the
 Caller cancellation stops a running process tree or retry delay immediately.
 The error hook runs only after the final attempt fails; `after_all` still runs
 only after success.
+
+The error hook's environment also carries `ASC_WORKFLOW_NAME`,
+`ASC_WORKFLOW_FAILED_STEP` (the result's `failed_step`), and `ASC_WORKFLOW_ERROR`
+(the result's `error`). They are set only for that hook and replace any `env`
+entry or run parameter with the same name, for example
+`"error": "asc notify slack --message \"$ASC_WORKFLOW_NAME failed at $ASC_WORKFLOW_FAILED_STEP: $ASC_WORKFLOW_ERROR\""`.
 
 Use retry only when you have explicitly decided the command is safe to repeat.
 The runner does not infer whether a shell command is read-only, idempotent, or a

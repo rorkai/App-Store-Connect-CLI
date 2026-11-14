@@ -14,10 +14,7 @@ type schemaEndpoint struct {
 }
 
 func TestSchemaSupportsDocumentedTrailingPrettyFlag(t *testing.T) {
-	var code int
-	stdout, stderr := captureOutput(t, func() {
-		code = rootcmd.Run([]string{"schema", "builds", "--pretty"}, "1.2.3")
-	})
+	stdout, stderr, code := runWithDeps(t, nil, "schema", "builds", "--pretty")
 
 	if code != 0 {
 		t.Fatalf("expected exit code 0, got %d with stderr %q", code, stderr)
@@ -39,10 +36,7 @@ func TestSchemaSupportsDocumentedTrailingPrettyFlag(t *testing.T) {
 }
 
 func TestSchemaSupportsMethodFlagAfterQuery(t *testing.T) {
-	var code int
-	stdout, stderr := captureOutput(t, func() {
-		code = rootcmd.Run([]string{"schema", "apps", "--method", "POST"}, "1.2.3")
-	})
+	stdout, stderr, code := runWithDeps(t, nil, "schema", "apps", "--method", "POST")
 
 	if code != 0 {
 		t.Fatalf("expected exit code 0, got %d with stderr %q", code, stderr)
@@ -78,10 +72,7 @@ func TestSchemaExactQueriesReturnSingleEndpoint(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.query, func(t *testing.T) {
-			var code int
-			stdout, stderr := captureOutput(t, func() {
-				code = rootcmd.Run([]string{"schema", tt.query}, "1.2.3")
-			})
+			stdout, stderr, code := runWithDeps(t, nil, "schema", tt.query)
 
 			if code != 0 {
 				t.Fatalf("expected exit code 0, got %d with stderr %q", code, stderr)
@@ -116,7 +107,7 @@ func TestSchemaRejectsInvalidArgumentsWithUsageExit(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(strings.Join(tt.args, " "), func(t *testing.T) {
-			assertUsageExit(t, tt.args, tt.wantErr)
+			assertUsageExitWithDeps(t, nil, tt.args, tt.wantErr)
 		})
 	}
 }
@@ -133,10 +124,7 @@ func TestSchemaQueriesWithoutMatchesReturnEmptyJSONArray(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var code int
-			stdout, stderr := captureOutput(t, func() {
-				code = rootcmd.Run(tt.args, "1.2.3")
-			})
+			stdout, stderr, code := runWithDeps(t, nil, tt.args...)
 
 			if code != 0 {
 				t.Fatalf("expected exit code 0, got %d with stderr %q", code, stderr)
@@ -152,10 +140,7 @@ func TestSchemaQueriesWithoutMatchesReturnEmptyJSONArray(t *testing.T) {
 }
 
 func TestSchemaPreservesFuzzyQueries(t *testing.T) {
-	var code int
-	stdout, stderr := captureOutput(t, func() {
-		code = rootcmd.Run([]string{"schema", "builds"}, "1.2.3")
-	})
+	stdout, stderr, code := runWithDeps(t, nil, "schema", "builds")
 
 	if code != 0 {
 		t.Fatalf("expected exit code 0, got %d with stderr %q", code, stderr)
@@ -186,12 +171,10 @@ func TestSchemaPreservesFuzzyQueries(t *testing.T) {
 func TestRun_SchemaValidMethodReturnsSuccess(t *testing.T) {
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 
-	stdout, stderr := captureOutput(t, func() {
-		code := rootcmd.Run([]string{"schema", "--list", "--method", "DELETE"}, "1.0.0")
-		if code != rootcmd.ExitSuccess {
-			t.Fatalf("expected exit code %d, got %d", rootcmd.ExitSuccess, code)
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, nil, "schema", "--list", "--method", "DELETE")
+	if code != rootcmd.ExitSuccess {
+		t.Fatalf("expected exit code %d, got %d", rootcmd.ExitSuccess, code)
+	}
 
 	if strings.TrimSpace(stderr) != "" {
 		t.Fatalf("expected empty stderr, got: %s", stderr)

@@ -30,13 +30,10 @@ func TestEULANormalizesTerritories(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			setupAuth(t)
-
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			reg.Register(test.request, asctest.JSON(test.status, `{"data":{"type":"endUserLicenseAgreements","id":"eula-1","attributes":{"agreementText":"Terms"}}}`))
 
-			if _, _, err := runCommand(t, test.args); err != nil {
+			if _, _, err := runRootWithDeps(t, stubClient(t, reg), test.args...); err != nil {
 				t.Fatalf("run error: %v", err)
 			}
 		})

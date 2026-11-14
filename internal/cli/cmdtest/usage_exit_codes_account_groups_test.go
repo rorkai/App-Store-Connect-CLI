@@ -75,56 +75,67 @@ func TestAccountAndDistributionInputValidationReturnsUsageExitCode(t *testing.T)
 			name:    "alternative-distribution domains list limit",
 			args:    []string{"alternative-distribution", "domains", "list", "--limit", "201"},
 			wantErr: "alternative-distribution domains list: --limit must be between 1 and 200",
+			deps:    true,
 		},
 		{
 			name:    "alternative-distribution domains list next",
 			args:    []string{"alternative-distribution", "domains", "list", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
 			wantErr: "alternative-distribution domains list: --next must be an App Store Connect URL",
+			deps:    true,
 		},
 		{
 			name:    "alternative-distribution keys list limit",
 			args:    []string{"alternative-distribution", "keys", "list", "--limit", "201"},
 			wantErr: "alternative-distribution keys list: --limit must be between 1 and 200",
+			deps:    true,
 		},
 		{
 			name:    "alternative-distribution keys list next",
 			args:    []string{"alternative-distribution", "keys", "list", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
 			wantErr: "alternative-distribution keys list: --next must be an App Store Connect URL",
+			deps:    true,
 		},
 		{
 			name:    "alternative-distribution keys create both key sources",
 			args:    []string{"alternative-distribution", "keys", "create", "--app", "APP_ID", "--public-key", "KEY", "--public-key-path", "key.pem"},
 			wantErr: "alternative-distribution keys create: only one of --public-key or --public-key-path is allowed",
+			deps:    true,
 		},
 		{
 			name:    "alternative-distribution packages versions deltas limit",
 			args:    []string{"alternative-distribution", "packages", "versions", "deltas", "--version-id", "V", "--limit", "201"},
 			wantErr: "alternative-distribution packages versions deltas: --limit must be between 1 and 200",
+			deps:    true,
 		},
 		{
 			name:    "alternative-distribution packages versions deltas next",
 			args:    []string{"alternative-distribution", "packages", "versions", "deltas", "--version-id", "V", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
 			wantErr: "alternative-distribution packages versions deltas: --next must be an App Store Connect URL",
+			deps:    true,
 		},
 		{
 			name:    "alternative-distribution packages versions list limit",
 			args:    []string{"alternative-distribution", "packages", "versions", "list", "--package-id", "P", "--limit", "201"},
 			wantErr: "alternative-distribution packages versions list: --limit must be between 1 and 200",
+			deps:    true,
 		},
 		{
 			name:    "alternative-distribution packages versions list next",
 			args:    []string{"alternative-distribution", "packages", "versions", "list", "--package-id", "P", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
 			wantErr: "alternative-distribution packages versions list: --next must be an App Store Connect URL",
+			deps:    true,
 		},
 		{
 			name:    "alternative-distribution packages versions variants limit",
 			args:    []string{"alternative-distribution", "packages", "versions", "variants", "--version-id", "V", "--limit", "201"},
 			wantErr: "alternative-distribution packages versions variants: --limit must be between 1 and 200",
+			deps:    true,
 		},
 		{
 			name:    "alternative-distribution packages versions variants next",
 			args:    []string{"alternative-distribution", "packages", "versions", "variants", "--version-id", "V", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
 			wantErr: "alternative-distribution packages versions variants: --next must be an App Store Connect URL",
+			deps:    true,
 		},
 		{
 			name:    "android-ios-mapping list limit",
@@ -240,11 +251,13 @@ func TestAccountAndDistributionInputValidationReturnsUsageExitCode(t *testing.T)
 			name:    "devices view invalid fields",
 			args:    []string{"devices", "view", "--id", "DEVICE_ID", "--fields", "bad"},
 			wantErr: "devices view: --fields must be one of: addedDate, deviceClass, model, name, platform, status, udid",
+			deps:    true,
 		},
 		{
 			name:    "devices update invalid status",
 			args:    []string{"devices", "update", "--id", "DEVICE_ID", "--status", "bad"},
 			wantErr: "devices update: --status must be one of: ENABLED, DISABLED",
+			deps:    true,
 		},
 		{
 			name:    "iap promoted-purchases list next",
@@ -340,6 +353,7 @@ func TestAccountAndDistributionInputValidationReturnsUsageExitCode(t *testing.T)
 			name:    "marketplace search-details view invalid fields",
 			args:    []string{"marketplace", "search-details", "view", "--app", "APP_ID", "--fields", "bad"},
 			wantErr: "marketplace search-details view: --fields must be one of: catalogUrl",
+			deps:    true,
 		},
 		{
 			name:    "nominations list invalid status",
@@ -355,31 +369,37 @@ func TestAccountAndDistributionInputValidationReturnsUsageExitCode(t *testing.T)
 			name:    "pass-type-ids certificates list limit",
 			args:    []string{"pass-type-ids", "certificates", "list", "--pass-type-id", "P", "--limit", "201"},
 			wantErr: "pass-type-ids certificates list: --limit must be between 1 and 200",
+			deps:    true,
 		},
 		{
 			name:    "pass-type-ids certificates view limit",
 			args:    []string{"pass-type-ids", "certificates", "view", "--pass-type-id", "P", "--limit", "201"},
 			wantErr: "pass-type-ids certificates view: --limit must be between 1 and 200",
+			deps:    true,
 		},
 		{
 			name:    "pass-type-ids list limit",
 			args:    []string{"pass-type-ids", "list", "--limit", "201"},
 			wantErr: "pass-type-ids list: --limit must be between 1 and 200",
+			deps:    true,
 		},
 		{
 			name:    "pass-type-ids list limit-certificates",
 			args:    []string{"pass-type-ids", "list", "--limit-certificates", "51"},
 			wantErr: "pass-type-ids list: --limit-certificates must be between 1 and 50",
+			deps:    true,
 		},
 		{
 			name:    "pass-type-ids list next",
 			args:    []string{"pass-type-ids", "list", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
 			wantErr: "pass-type-ids list: --next must be an App Store Connect URL",
+			deps:    true,
 		},
 		{
 			name:    "pass-type-ids view limit-certificates",
 			args:    []string{"pass-type-ids", "view", "--pass-type-id", "P", "--limit-certificates", "51"},
 			wantErr: "pass-type-ids view: --limit-certificates must be between 1 and 50",
+			deps:    true,
 		},
 		{
 			name:    "profiles links certificates limit",
@@ -435,31 +455,37 @@ func TestAccountAndDistributionInputValidationReturnsUsageExitCode(t *testing.T)
 			name:    "sandbox list limit",
 			args:    []string{"sandbox", "list", "--limit", "201"},
 			wantErr: "sandbox list: --limit must be between 1 and 200",
+			deps:    true,
 		},
 		{
 			name:    "sandbox list next",
 			args:    []string{"sandbox", "list", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
 			wantErr: "sandbox list: --next must be an App Store Connect URL",
+			deps:    true,
 		},
 		{
 			name:    "sandbox list invalid email",
 			args:    []string{"sandbox", "list", "--email", "bad"},
 			wantErr: "sandbox list: --email must be a valid email address",
+			deps:    true,
 		},
 		{
 			name:    "sandbox view invalid email",
 			args:    []string{"sandbox", "view", "--email", "bad"},
 			wantErr: "sandbox view: --email must be a valid email address",
+			deps:    true,
 		},
 		{
 			name:    "sandbox update invalid renewal rate",
 			args:    []string{"sandbox", "update", "--id", "TESTER_ID", "--subscription-renewal-rate", "bad"},
 			wantErr: "sandbox update: --subscription-renewal-rate must be one of: MONTHLY_RENEWAL_EVERY_FIFTEEN_MINUTES, MONTHLY_RENEWAL_EVERY_FIVE_MINUTES, MONTHLY_RENEWAL_EVERY_ONE_HOUR, MONTHLY_RENEWAL_EVERY_THIRTY_MINUTES, MONTHLY_RENEWAL_EVERY_THREE_MINUTES",
+			deps:    true,
 		},
 		{
 			name:    "sandbox clear-history invalid email",
 			args:    []string{"sandbox", "clear-history", "--email", "bad", "--confirm"},
 			wantErr: "sandbox clear-history: --email must be a valid email address",
+			deps:    true,
 		},
 		{
 			name:    "testflight crashes list limit",
@@ -670,7 +696,7 @@ func TestMarketplaceWebhooksInputValidationReturnsUsageExitCode(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			stdout, stderr, runErr := runCommand(t, test.args)
+			stdout, stderr, runErr := runRootWithDeps(t, nil, test.args...)
 
 			if runErr == nil {
 				t.Fatal("expected error, got nil")

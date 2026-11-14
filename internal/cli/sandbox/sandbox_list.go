@@ -12,16 +12,16 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// SandboxListCommand returns the sandbox list subcommand.
-func SandboxListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
+// newSandboxListCommand returns the sandbox list subcommand built on d.
+func newSandboxListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("list", flag.ExitOnError)
 
 	email := fs.String("email", "", "Filter by tester email")
 	territory := fs.String("territory", "", "Filter by territory (accepts alpha-2, alpha-3, or exact English country name)")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -39,27 +39,27 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("sandbox list: --limit must be between 1 and 200")
+				return d.UsageError("sandbox list: --limit must be between 1 and 200")
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("sandbox list: %v", err)
+				return d.UsageErrorf("sandbox list: %v", err)
 			}
 			if strings.TrimSpace(*email) != "" {
 				if err := validateSandboxEmail(*email); err != nil {
-					return shared.UsageErrorf("sandbox list: %v", err)
+					return d.UsageErrorf("sandbox list: %v", err)
 				}
 			}
 			normalizedTerritory, err := normalizeSandboxTerritoryFilter(*territory)
 			if err != nil {
-				return shared.UsageErrorf("sandbox list: %v", err)
+				return d.UsageErrorf("sandbox list: %v", err)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return err
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			opts := []asc.SandboxTestersOption{
@@ -92,7 +92,7 @@ Examples:
 					return fmt.Errorf("sandbox list: %w", err)
 				}
 
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetSandboxTesters(requestCtx, opts...)
@@ -100,7 +100,7 @@ Examples:
 				return fmt.Errorf("sandbox list: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

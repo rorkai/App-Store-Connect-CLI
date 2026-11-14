@@ -15,15 +15,16 @@ func TestReadDeviceBatchTSVAcceptsHeaderCommentsBlankRowsAndDefaultPlatform(t *t
 		"00008110-001234567890001E\tPersonal iPhone\tios",
 		"  # disabled device",
 		"A1:B2:C3\tBuild Mac\t",
+		"00006000-001A2B3C4D5E801E\tWork Mac\t Mac ",
 		"",
 	}, "\n"))
 
-	records, err := readDeviceBatchTSV(path, "MAC_OS")
+	records, err := readDeviceBatchTSV(newTestDeps(), path, "MAC_OS")
 	if err != nil {
 		t.Fatalf("readDeviceBatchTSV() error: %v", err)
 	}
-	if len(records) != 2 {
-		t.Fatalf("expected 2 records, got %d: %+v", len(records), records)
+	if len(records) != 3 {
+		t.Fatalf("expected 3 records, got %d: %+v", len(records), records)
 	}
 	if records[0].Row != 4 || records[0].UDID != "00008110-001234567890001E" || records[0].Name != "Personal iPhone" || records[0].Platform != "IOS" {
 		t.Fatalf("unexpected first record: %+v", records[0])
@@ -31,12 +32,15 @@ func TestReadDeviceBatchTSVAcceptsHeaderCommentsBlankRowsAndDefaultPlatform(t *t
 	if records[1].Row != 6 || records[1].UDID != "A1:B2:C3" || records[1].Name != "Build Mac" || records[1].Platform != "MAC_OS" {
 		t.Fatalf("unexpected second record: %+v", records[1])
 	}
+	if records[2].Row != 7 || records[2].Platform != "MAC_OS" {
+		t.Fatalf("unexpected third record: %+v", records[2])
+	}
 }
 
 func TestReadDeviceBatchTSVAcceptsHeaderlessRows(t *testing.T) {
 	path := writeDeviceBatchTestFile(t, "UDID-1\tDevice One\nUDID-2\tDevice Two\tmac_os\n")
 
-	records, err := readDeviceBatchTSV(path, "IOS")
+	records, err := readDeviceBatchTSV(newTestDeps(), path, "IOS")
 	if err != nil {
 		t.Fatalf("readDeviceBatchTSV() error: %v", err)
 	}
@@ -65,7 +69,7 @@ func TestReadDeviceBatchTSVRejectsInvalidRowsBeforeMutation(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			path := writeDeviceBatchTestFile(t, test.contents)
-			_, err := readDeviceBatchTSV(path, test.defaultPlatform)
+			_, err := readDeviceBatchTSV(newTestDeps(), path, test.defaultPlatform)
 			if err == nil || !strings.Contains(err.Error(), test.want) {
 				t.Fatalf("expected error containing %q, got %v", test.want, err)
 			}
@@ -76,7 +80,7 @@ func TestReadDeviceBatchTSVRejectsInvalidRowsBeforeMutation(t *testing.T) {
 func TestReadDeviceBatchTSVFromReaderRejectsInputBeyondLimit(t *testing.T) {
 	contents := "UDID-1\tDevice One\tIOS\n#" + strings.Repeat("x", maxDeviceBatchFileSize)
 
-	_, err := readDeviceBatchTSVFromReader(strings.NewReader(contents), "IOS")
+	_, err := readDeviceBatchTSVFromReader(newTestDeps(), strings.NewReader(contents), "IOS")
 	if err == nil || !strings.Contains(err.Error(), "device file exceeds") {
 		t.Fatalf("expected size-limit error, got %v", err)
 	}

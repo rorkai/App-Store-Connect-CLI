@@ -6,8 +6,8 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -197,7 +197,7 @@ func getEndpointAction(endpoint Endpoint) string {
 	return "list"
 }
 
-func normalizeMethodFilter(raw string) (string, error) {
+func normalizeMethodFilter(d *shared.Deps, raw string) (string, error) {
 	method := strings.ToUpper(strings.TrimSpace(raw))
 	if method == "" {
 		return "", nil
@@ -207,13 +207,13 @@ func normalizeMethodFilter(raw string) (string, error) {
 	case http.MethodGet, http.MethodPost, http.MethodPatch, http.MethodDelete:
 		return method, nil
 	default:
-		return "", shared.UsageErrorf("invalid --method %q (allowed: GET, POST, PATCH, DELETE)", method)
+		return "", d.UsageErrorf("invalid --method %q (allowed: GET, POST, PATCH, DELETE)", method)
 	}
 }
 
-// SchemaCommand returns the schema command.
-func SchemaCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("schema", flag.ExitOnError)
+// NewSchemaCommand returns the schema command built on d.
+func NewSchemaCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("schema", flag.ExitOnError)
 	listAll := fs.Bool("list", false, "List all endpoints (compact summary)")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 	method := fs.String("method", "", "Filter by HTTP method (GET, POST, PATCH, DELETE)")
@@ -247,7 +247,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			queryArgs, err := shared.ParseInterspersedFlags(fs, args)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
 			endpoints, err := loadIndex()
@@ -255,29 +255,29 @@ Examples:
 				return err
 			}
 
-			methodFilter, err := normalizeMethodFilter(*method)
+			methodFilter, err := normalizeMethodFilter(d, *method)
 			if err != nil {
 				return err
 			}
 
 			if *listAll {
 				if len(queryArgs) > 0 {
-					return shared.UsageError("--list does not accept a query")
+					return d.UsageError("--list does not accept a query")
 				}
-				return listEndpoints(endpoints, methodFilter, *pretty)
+				return listEndpoints(d.IO.Out, endpoints, methodFilter, *pretty)
 			}
 
 			if len(queryArgs) == 0 || strings.TrimSpace(strings.Join(queryArgs, " ")) == "" {
-				return shared.UsageError("query argument is required (or use --list)")
+				return d.UsageError("query argument is required (or use --list)")
 			}
 
 			query := strings.Join(queryArgs, " ")
-			return queryEndpoints(endpoints, query, methodFilter, *pretty)
+			return queryEndpoints(d.IO.Out, endpoints, query, methodFilter, *pretty)
 		},
 	}
 }
 
-func listEndpoints(endpoints []Endpoint, methodFilter string, pretty bool) error {
+func listEndpoints(w io.Writer, endpoints []Endpoint, methodFilter string, pretty bool) error {
 	type summary struct {
 		Method         string `json:"method"`
 		Path           string `json:"path"`
@@ -298,10 +298,10 @@ func listEndpoints(endpoints []Endpoint, methodFilter string, pretty bool) error
 		})
 	}
 
-	return printJSON(results, pretty)
+	return printJSON(w, results, pretty)
 }
 
-func queryEndpoints(endpoints []Endpoint, query, methodFilter string, pretty bool) error {
+func queryEndpoints(w io.Writer, endpoints []Endpoint, query, methodFilter string, pretty bool) error {
 	results := make([]Endpoint, 0)
 	for _, e := range endpoints {
 		if methodFilter != "" && e.Method != methodFilter {
@@ -312,11 +312,11 @@ func queryEndpoints(endpoints []Endpoint, query, methodFilter string, pretty boo
 		}
 	}
 
-	return printJSON(results, pretty)
+	return printJSON(w, results, pretty)
 }
 
-func printJSON(data any, pretty bool) error {
-	enc := json.NewEncoder(os.Stdout)
+func printJSON(w io.Writer, data any, pretty bool) error {
+	enc := json.NewEncoder(w)
 	if pretty {
 		enc.SetIndent("", "  ")
 	}

@@ -21,24 +21,12 @@ func TestGetAppWebhooks_SendsRequest(t *testing.T) {
 		if values.Get("limit") != "5" {
 			t.Fatalf("expected limit=5, got %q", values.Get("limit"))
 		}
-		if values.Get("fields[webhooks]") != "name,url" {
-			t.Fatalf("expected fields[webhooks]=name,url, got %q", values.Get("fields[webhooks]"))
-		}
-		if values.Get("fields[apps]") != "name" {
-			t.Fatalf("expected fields[apps]=name, got %q", values.Get("fields[apps]"))
-		}
-		if values.Get("include") != "app" {
-			t.Fatalf("expected include=app, got %q", values.Get("include"))
-		}
 		assertAuthorized(t, req)
 	}, response)
 
 	_, err := client.GetAppWebhooks(
 		context.Background(), "app-1",
 		Limit[WebhooksOption](5),
-		WithWebhooksFields([]string{"name", "url"}),
-		WithWebhooksAppFields([]string{"name"}),
-		WithWebhooksInclude([]string{"app"}),
 	)
 	if err != nil {
 		t.Fatalf("GetAppWebhooks() error: %v", err)
@@ -199,28 +187,12 @@ func TestGetWebhookDeliveries_SendsRequest(t *testing.T) {
 		if values.Get("limit") != "3" {
 			t.Fatalf("expected limit=3, got %q", values.Get("limit"))
 		}
-		if values.Get("filter[deliveryState]") != "FAILED" {
-			t.Fatalf("expected filter[deliveryState]=FAILED, got %q", values.Get("filter[deliveryState]"))
-		}
-		if values.Get("fields[webhookDeliveries]") != "deliveryState,createdDate" {
-			t.Fatalf("unexpected webhook delivery fields: %q", values.Get("fields[webhookDeliveries]"))
-		}
-		if values.Get("fields[webhookEvents]") != "eventType" {
-			t.Fatalf("unexpected webhook event fields: %q", values.Get("fields[webhookEvents]"))
-		}
-		if values.Get("include") != "event" {
-			t.Fatalf("unexpected include: %q", values.Get("include"))
-		}
 		assertAuthorized(t, req)
 	}, response)
 
 	_, err := client.GetWebhookDeliveries(
 		context.Background(), "wh-1",
 		Limit[WebhookDeliveriesOption](3),
-		WithWebhookDeliveriesDeliveryStates([]string{"failed"}),
-		WithWebhookDeliveriesFields([]string{"deliveryState", "createdDate"}),
-		WithWebhookDeliveriesEventFields([]string{"eventType"}),
-		WithWebhookDeliveriesInclude([]string{"event"}),
 	)
 	if err != nil {
 		t.Fatalf("GetWebhookDeliveries() error: %v", err)

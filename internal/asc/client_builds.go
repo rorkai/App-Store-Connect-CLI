@@ -456,12 +456,6 @@ func (c *Client) ExpireBuild(ctx context.Context, buildID string) (*BuildRespons
 	return c.UpdateBuild(ctx, buildID, BuildUpdateAttributes{Expired: &expired})
 }
 
-// AddBetaGroupsToBuild adds beta groups to a build for TestFlight distribution.
-func (c *Client) AddBetaGroupsToBuild(ctx context.Context, buildID string, groupIDs []string) error {
-	_, err := c.AddBetaGroupsToBuildWithNotify(ctx, buildID, groupIDs, false)
-	return err
-}
-
 // BuildBetaGroupsNotificationAction describes how notify=true was satisfied.
 type BuildBetaGroupsNotificationAction string
 

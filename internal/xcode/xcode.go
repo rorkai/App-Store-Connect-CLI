@@ -72,15 +72,19 @@ func signingCaseInsensitiveVolumeForRuntime(path string) (bool, bool) {
 const xcodebuildErrorTailLimit = 64 * 1024
 
 type ArchiveOptions struct {
-	WorkspacePath  string
-	ProjectPath    string
-	Scheme         string
-	Configuration  string
-	ArchivePath    string
-	Clean          bool
-	Overwrite      bool
-	XcodebuildArgs []string
-	LogWriter      io.Writer
+	WorkspacePath    string
+	ProjectPath      string
+	Scheme           string
+	Configuration    string
+	Destination      string
+	DerivedDataPath  string
+	ResultBundlePath string
+	ArchivePath      string
+	Clean            bool
+	NoCodeSigning    bool
+	Overwrite        bool
+	XcodebuildArgs   []string
+	LogWriter        io.Writer
 }
 
 type ArchiveResult struct {
@@ -266,6 +270,14 @@ func preflightWritableParent(path, description string) error {
 func Archive(ctx context.Context, opts ArchiveOptions) (*ArchiveResult, error) {
 	opts = normalizeArchiveOptions(opts)
 	if err := validateArchiveOptions(opts); err != nil {
+		return nil, err
+	}
+	resultBundlePath, err := resolveBuildResultBundlePath(opts.ResultBundlePath)
+	if err != nil {
+		return nil, err
+	}
+	opts.ResultBundlePath = resultBundlePath
+	if err := validateBuildResultBundleDestination(resultBundlePath); err != nil {
 		return nil, err
 	}
 	if err := ensureXcodeAvailable(ctx); err != nil {
@@ -629,6 +641,31 @@ func ValidateExportXcodebuildArgs(args []string) error {
 	return nil
 }
 
+// ValidateArchiveXcodebuildArgs rejects a passthrough argument that names the
+// same xcodebuild argument as a typed archive flag that is also set.
+func ValidateArchiveXcodebuildArgs(opts ArchiveOptions) error {
+	opts = normalizeArchiveOptions(opts)
+	for _, typed := range []struct {
+		set      bool
+		flag     string
+		flags    []string
+		settings []string
+	}{
+		{set: opts.Destination != "", flag: "--destination", flags: []string{"-destination"}},
+		{set: opts.DerivedDataPath != "", flag: "--derived-data-path", flags: []string{"-deriveddatapath"}},
+		{set: opts.ResultBundlePath != "", flag: "--result-bundle-path", flags: []string{"-resultbundlepath"}},
+		{set: opts.NoCodeSigning, flag: "--no-code-signing", settings: []string{"code_signing_allowed"}},
+	} {
+		if !typed.set {
+			continue
+		}
+		if raw := firstReservedPassthroughArgument(opts.XcodebuildArgs, typed.flags, nil, typed.settings); raw != "" {
+			return fmt.Errorf("%s conflicts with --xcodebuild-flag %q; use one", typed.flag, raw)
+		}
+	}
+	return nil
+}
+
 func reservedExportPassthroughArgument(args []string) string {
 	if reserved := reservedBuildPassthroughArgument(args); reserved != "" {
 		return reserved
@@ -708,6 +745,9 @@ func normalizeArchiveOptions(opts ArchiveOptions) ArchiveOptions {
 	opts.ProjectPath = normalizeDirectoryPath(opts.ProjectPath)
 	opts.Scheme = strings.TrimSpace(opts.Scheme)
 	opts.Configuration = strings.TrimSpace(opts.Configuration)
+	opts.Destination = strings.TrimSpace(opts.Destination)
+	opts.DerivedDataPath = normalizeDirectoryPath(opts.DerivedDataPath)
+	opts.ResultBundlePath = normalizeDirectoryPath(opts.ResultBundlePath)
 	opts.ArchivePath = normalizeDirectoryPath(opts.ArchivePath)
 	return opts
 }
@@ -893,7 +933,19 @@ func buildArchiveCommand(opts ArchiveOptions) []string {
 	if trimmed := strings.TrimSpace(opts.Configuration); trimmed != "" {
 		args = append(args, "-configuration", trimmed)
 	}
+	if opts.Destination != "" {
+		args = append(args, "-destination", opts.Destination)
+	}
+	if opts.DerivedDataPath != "" {
+		args = append(args, "-derivedDataPath", opts.DerivedDataPath)
+	}
+	if opts.ResultBundlePath != "" {
+		args = append(args, "-resultBundlePath", opts.ResultBundlePath)
+	}
 	args = append(args, cloneStrings(opts.XcodebuildArgs)...)
+	if opts.NoCodeSigning {
+		args = append(args, "CODE_SIGNING_ALLOWED=NO")
+	}
 	if opts.Clean {
 		args = append(args, "clean")
 	}
@@ -1016,6 +1068,10 @@ func runXcodebuildWithEnvironment(ctx context.Context, args, environment []strin
 
 func runXcodebuildForBuild(ctx context.Context, args []string, logWriter io.Writer) error {
 	return runCommandWithBoundedOutputMode(ctx, "xcodebuild", args, logWriter, summarizeAction(args), "xcodebuild", true)
+}
+
+func runXcodebuildForTest(ctx context.Context, dir string, args []string, logWriter io.Writer) error {
+	return runCommandWithBoundedOutputEnvironmentMode(ctx, "xcodebuild", args, nil, dir, logWriter, summarizeAction(args), "xcodebuild", true)
 }
 
 func runAltoolValidate(ctx context.Context, args []string, logWriter io.Writer) error {
@@ -1563,18 +1619,18 @@ func parseBuildStatusMetadataField(line string) (string, string, bool) {
 }
 
 func runCommandWithBoundedOutput(ctx context.Context, name string, args []string, logWriter io.Writer, action string, commandLabel string) error {
-	return runCommandWithBoundedOutputEnvironmentMode(ctx, name, args, nil, logWriter, action, commandLabel, false)
+	return runCommandWithBoundedOutputEnvironmentMode(ctx, name, args, nil, "", logWriter, action, commandLabel, false)
 }
 
 func runCommandWithBoundedOutputMode(ctx context.Context, name string, args []string, logWriter io.Writer, action string, commandLabel string, preserveProcessError bool) error {
-	return runCommandWithBoundedOutputEnvironmentMode(ctx, name, args, nil, logWriter, action, commandLabel, preserveProcessError)
+	return runCommandWithBoundedOutputEnvironmentMode(ctx, name, args, nil, "", logWriter, action, commandLabel, preserveProcessError)
 }
 
 func runCommandWithBoundedOutputEnvironment(ctx context.Context, name string, args, environment []string, logWriter io.Writer, action string, commandLabel string, terminateProcessGroup bool) error {
-	return runCommandWithBoundedOutputEnvironmentMode(ctx, name, args, environment, logWriter, action, commandLabel, false, terminateProcessGroup)
+	return runCommandWithBoundedOutputEnvironmentMode(ctx, name, args, environment, "", logWriter, action, commandLabel, false, terminateProcessGroup)
 }
 
-func runCommandWithBoundedOutputEnvironmentMode(ctx context.Context, name string, args, environment []string, logWriter io.Writer, action string, commandLabel string, preserveProcessError bool, terminateProcessGroup ...bool) error {
+func runCommandWithBoundedOutputEnvironmentMode(ctx context.Context, name string, args, environment []string, dir string, logWriter io.Writer, action string, commandLabel string, preserveProcessError bool, terminateProcessGroup ...bool) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -1582,6 +1638,7 @@ func runCommandWithBoundedOutputEnvironmentMode(ctx context.Context, name string
 	if err != nil {
 		return err
 	}
+	cmd.Dir = dir
 	outputWindow := newXcodeDiagnosticBuffer(xcodebuildErrorTailLimit, logWriter)
 	cmd.Stdout = outputWindow
 	cmd.Stderr = outputWindow

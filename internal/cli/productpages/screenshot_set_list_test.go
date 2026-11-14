@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 type screenshotSetDeadlineRoundTripper struct {
@@ -51,7 +52,7 @@ func TestScreenshotSetListResultFetchesNestedScreenshots(t *testing.T) {
 	httpClient.Transport = customPageBaseURLRoundTripper{target: serverURL, next: httpClient.Transport}
 	client := newCustomPageTestClientWithHTTPClient(t, httpClient)
 
-	result, err := screenshotSetListResult(context.Background(), client, "custom-loc-1", &asc.AppScreenshotSetsResponse{
+	result, err := screenshotSetListResult(context.Background(), &shared.Deps{Timeout: shared.ContextWithTimeout}, client, "custom-loc-1", &asc.AppScreenshotSetsResponse{
 		Data: []asc.Resource[asc.AppScreenshotSetAttributes]{
 			{ID: "set-1", Attributes: asc.AppScreenshotSetAttributes{ScreenshotDisplayType: "APP_IPHONE_65"}},
 		},
@@ -99,7 +100,7 @@ func TestScreenshotSetListResultRenewsNestedRequestTimeouts(t *testing.T) {
 
 	var err error
 	synctest.Test(t, func(*testing.T) {
-		_, err = screenshotSetListResult(context.Background(), client, "custom-loc-1", &asc.AppScreenshotSetsResponse{
+		_, err = screenshotSetListResult(context.Background(), &shared.Deps{Timeout: shared.ContextWithTimeout}, client, "custom-loc-1", &asc.AppScreenshotSetsResponse{
 			Data: []asc.Resource[asc.AppScreenshotSetAttributes]{
 				{ID: "set-1"},
 				{ID: "set-2"},

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
-	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -33,7 +32,6 @@ func TestDevicesRegisterBatchPaginatesAndSkipsNormalizedDuplicates(t *testing.T)
 	}
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(devicesListRequest(), asctest.JSON(http.StatusOK, `{"data":[],"links":{"next":"https://api.appstoreconnect.apple.com/v1/devices?cursor=page-2"}}`))
 	reg.Register(asctest.GET("/v1/devices", "cursor=page-2"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"devices","id":"device-existing","attributes":{"name":"Existing Phone","udid":"EXISTING1","platform":"IOS","status":"ENABLED"}}]}`))
@@ -42,16 +40,7 @@ func TestDevicesRegisterBatchPaginatesAndSkipsNormalizedDuplicates(t *testing.T)
 	reg.Register(deviceCreateRequest("Build Mac", "DD:EE:FF", "MAC_OS"),
 		asctest.JSON(http.StatusCreated, `{"data":{"type":"devices","id":"device-DDEEFF","attributes":{"name":"Build Mac","udid":"DD:EE:FF","platform":"MAC_OS"}}}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	if err := root.Parse([]string{"devices", "register-batch", "--file", inputPath, "--output", "json", "--confirm"}); err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-
-	var runErr error
-	stdout, _ := captureOutput(t, func() {
-		runErr = root.Run(context.Background())
-	})
+	stdout, _, runErr := runRootWithDeps(t, stubClient(t, reg), "devices", "register-batch", "--file", inputPath, "--output", "json", "--confirm")
 	if runErr != nil {
 		t.Fatalf("run error: %v", runErr)
 	}
@@ -110,14 +99,7 @@ func TestDevicesRegisterBatchValidatesEveryRowBeforeNetwork(t *testing.T) {
 		t.Fatalf("write input: %v", err)
 	}
 
-	asctest.NewRegistry(t).Install()
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	if err := root.Parse([]string{"devices", "register-batch", "--file", inputPath, "--confirm"}); err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-	err := root.Run(context.Background())
+	_, _, err := runRootWithDeps(t, stubClient(t, asctest.NewRegistry(t)), "devices", "register-batch", "--file", inputPath, "--confirm")
 	if err == nil || !strings.Contains(err.Error(), "line 2") || !strings.Contains(err.Error(), "--platform") {
 		t.Fatalf("expected line-specific validation error, got %v", err)
 	}
@@ -133,19 +115,12 @@ func TestDevicesRegisterBatchDryRunPlansWithoutCreating(t *testing.T) {
 	}
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(devicesListRequest(), asctest.JSON(http.StatusOK, `{"data":[]}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	if err := root.Parse([]string{"devices", "register-batch", "--file", inputPath, "--platform", "ios", "--dry-run"}); err != nil {
-		t.Fatalf("parse error: %v", err)
+	stdout, _, err := runRootWithDeps(t, stubClient(t, reg), "devices", "register-batch", "--file", inputPath, "--platform", "ios", "--dry-run")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
 	}
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
 	if !strings.Contains(stdout, `"planned":1`) || !strings.Contains(stdout, `"status":"planned"`) {
 		t.Fatalf("expected planned dry-run output, got %q", stdout)
 	}
@@ -177,21 +152,12 @@ func TestDevicesRegisterBatchContinuesAfterIsolatedFailure(t *testing.T) {
 			}
 
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			reg.Register(devicesListRequest(), asctest.JSON(http.StatusOK, `{"data":[]}`))
 			reg.Register(deviceCreateRequest("Device One", "UDID-1", "IOS"), func(*http.Request) (*http.Response, error) { return test.failFirst() })
 			reg.Register(deviceCreateRequest("Device Two", "UDID-2", "IOS"),
 				asctest.JSON(http.StatusCreated, `{"data":{"type":"devices","id":"device-2","attributes":{"name":"Device Two","udid":"UDID-2","platform":"IOS"}}}`))
 
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-			if err := root.Parse([]string{"devices", "register-batch", "--file", inputPath, "--confirm"}); err != nil {
-				t.Fatalf("parse error: %v", err)
-			}
-			var runErr error
-			stdout, _ := captureOutput(t, func() {
-				runErr = root.Run(context.Background())
-			})
+			stdout, _, runErr := runRootWithDeps(t, stubClient(t, reg), "devices", "register-batch", "--file", inputPath, "--confirm")
 			if runErr == nil {
 				t.Fatal("expected reported partial failure")
 			}
@@ -215,20 +181,11 @@ func TestDevicesRegisterBatchStopsAfterAPIFailureWhenRequested(t *testing.T) {
 	}
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(devicesListRequest(), asctest.JSON(http.StatusOK, `{"data":[]}`))
 	reg.Register(deviceCreateRequest("Device One", "UDID-1", "IOS"),
 		asctest.JSON(http.StatusUnprocessableEntity, `{"errors":[{"status":"422","code":"ENTITY_ERROR","detail":"invalid device"}]}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	if err := root.Parse([]string{"devices", "register-batch", "--file", inputPath, "--continue-on-error=false", "--confirm"}); err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-	var runErr error
-	stdout, _ := captureOutput(t, func() {
-		runErr = root.Run(context.Background())
-	})
+	stdout, _, runErr := runRootWithDeps(t, stubClient(t, reg), "devices", "register-batch", "--file", inputPath, "--continue-on-error=false", "--confirm")
 	if runErr == nil {
 		t.Fatal("expected reported registration failure")
 	}
@@ -252,17 +209,7 @@ func TestDevicesRegisterBatchRequiresConfirmBeforeReadingFileOrNetwork(t *testin
 	setupAuth(t)
 	missingPath := filepath.Join(t.TempDir(), "missing.txt")
 
-	asctest.NewRegistry(t).Install()
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	if err := root.Parse([]string{"devices", "register-batch", "--file", missingPath}); err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		runErr = root.Run(context.Background())
-	})
+	stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, asctest.NewRegistry(t)), "devices", "register-batch", "--file", missingPath)
 	if !errors.Is(runErr, flag.ErrHelp) || runErr.Error() != "--confirm is required unless --dry-run is set" {
 		t.Fatalf("run error = %v, want exact confirmation usage error", runErr)
 	}

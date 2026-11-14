@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"os"
 	"os/exec"
 	"runtime"
 	"slices"
@@ -30,9 +29,9 @@ var (
 	}
 )
 
-// DevicesCommand returns the devices command with subcommands.
-func DevicesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("devices", flag.ExitOnError)
+// NewDevicesCommand returns the devices command with subcommands built on d.
+func NewDevicesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("devices", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "devices",
@@ -50,12 +49,12 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			DevicesListCommand(),
-			DevicesGetCommand(),
-			DevicesLocalUDIDCommand(),
-			DevicesRegisterCommand(),
-			DevicesRegisterBatchCommand(),
-			DevicesUpdateCommand(),
+			newDevicesListCommand(d),
+			newDevicesGetCommand(d),
+			newDevicesLocalUDIDCommand(d),
+			newDevicesRegisterCommand(d),
+			newDevicesRegisterBatchCommand(d),
+			newDevicesUpdateCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -63,8 +62,8 @@ Examples:
 	}
 }
 
-// DevicesListCommand returns the devices list subcommand.
-func DevicesListCommand() *ffcli.Command {
+// newDevicesListCommand returns the devices list subcommand.
+func newDevicesListCommand(d *shared.Deps) *ffcli.Command {
 	var (
 		name, udid, ids, sort *string
 		platformValues        []string
@@ -73,6 +72,7 @@ func DevicesListCommand() *ffcli.Command {
 	)
 
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		Deps:        d,
 		FlagSetName: "list",
 		Name:        "list",
 		ShortUsage:  "asc devices list [flags]",
@@ -102,17 +102,17 @@ Examples:
 
 			return func() error {
 				if err := shared.ValidateSort(*sort, "id", "-id", "name", "-name", "platform", "-platform", "status", "-status", "udid", "-udid"); err != nil {
-					return shared.UsageErrorf("devices list: %v", err)
+					return d.UsageErrorf("devices list: %v", err)
 				}
 				var err error
 				if platformValues, err = normalizeDevicePlatforms(shared.SplitCSV(*platform)); err != nil {
-					return fmt.Errorf("devices list: %w", shared.UsageError(err.Error()))
+					return fmt.Errorf("devices list: %w", d.UsageError(err.Error()))
 				}
 				if statusValue, err = normalizeDeviceStatus(*status); err != nil {
-					return shared.UsageErrorf("devices list: %v", err)
+					return d.UsageErrorf("devices list: %v", err)
 				}
 				if fieldsValue, err = normalizeDeviceFields(*fields); err != nil {
-					return shared.UsageErrorf("devices list: %v", err)
+					return d.UsageErrorf("devices list: %v", err)
 				}
 				return nil
 			}
@@ -144,11 +144,12 @@ Examples:
 	})
 }
 
-// DevicesGetCommand returns the devices view subcommand.
-func DevicesGetCommand() *ffcli.Command {
+// newDevicesGetCommand returns the devices view subcommand.
+func newDevicesGetCommand(d *shared.Deps) *ffcli.Command {
 	var fieldsValue []string
 
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		Deps:        d,
 		FlagSetName: "view",
 		Name:        "view",
 		ShortUsage:  "asc devices view --id DEVICE_ID",
@@ -165,7 +166,7 @@ Examples:
 			fields := fs.String("fields", "", "Fields to include: addedDate, deviceClass, model, name, platform, status, udid")
 			return func() (err error) {
 				if fieldsValue, err = normalizeDeviceFields(*fields); err != nil {
-					return shared.UsageErrorf("devices view: %v", err)
+					return d.UsageErrorf("devices view: %v", err)
 				}
 				return nil
 			}
@@ -178,11 +179,11 @@ Examples:
 	})
 }
 
-// DevicesLocalUDIDCommand returns the devices local-udid subcommand.
-func DevicesLocalUDIDCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("local-udid", flag.ExitOnError)
+// newDevicesLocalUDIDCommand returns the devices local-udid subcommand.
+func newDevicesLocalUDIDCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("local-udid", flag.ExitOnError)
 
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "local-udid",
@@ -206,14 +207,14 @@ Examples:
 				Platform: "MAC_OS",
 			}
 
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// DevicesRegisterCommand returns the devices register subcommand.
-func DevicesRegisterCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("register", flag.ExitOnError)
+// newDevicesRegisterCommand returns the devices register subcommand.
+func newDevicesRegisterCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("register", flag.ExitOnError)
 
 	name := fs.String("name", "", "Device name")
 	udid := fs.String("udid", "", "Device UDID (required unless --udid-from-system or --via-url)")
@@ -227,7 +228,7 @@ func DevicesRegisterCommand() *ffcli.Command {
 	maxDevices := fs.Int("max-devices", 0, "With --via-url, end the session after N (at least 1) new devices are registered or collected; unbounded when unset")
 	stream := fs.Bool("stream", false, "With --via-url, write one JSON receipt line per device arrival before the final summary (requires --output json)")
 	platform := fs.String("platform", "", "Device platform: "+strings.Join(devicePlatformList(), ", "))
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "register",
@@ -256,7 +257,7 @@ Examples:
 					}
 				})
 				if unused != "" {
-					return shared.UsageErrorf("--%s requires --via-url", unused)
+					return d.UsageErrorf("--%s requires --via-url", unused)
 				}
 			}
 			if *viaURL {
@@ -266,10 +267,10 @@ Examples:
 				}
 				if *stream {
 					if format != "json" {
-						return shared.UsageError("--stream requires --output json")
+						return d.UsageError("--stream requires --output json")
 					}
 					if *output.Pretty {
-						return shared.UsageError("--stream cannot be combined with --pretty")
+						return d.UsageError("--stream cannot be combined with --pretty")
 					}
 				}
 				maxDevicesSet := false
@@ -279,7 +280,7 @@ Examples:
 					}
 				})
 				if maxDevicesSet && *maxDevices < 1 {
-					return shared.UsageError("--max-devices must be at least 1")
+					return d.UsageError("--max-devices must be at least 1")
 				}
 				options := deviceURLServeOptions{
 					Name:           nameValue,
@@ -291,11 +292,11 @@ Examples:
 					OutputFile:     strings.TrimSpace(*outputFile),
 					MaxDevices:     *maxDevices,
 				}
-				if err := validateDeviceURLServeOptions(options); err != nil {
+				if err := validateDeviceURLServeOptions(d, options); err != nil {
 					return err
 				}
 				if strings.TrimSpace(*udid) != "" || *udidFromSystem {
-					return shared.UsageError("--via-url cannot be combined with --udid or --udid-from-system")
+					return d.UsageError("--via-url cannot be combined with --udid or --udid-from-system")
 				}
 				platformValue := strings.TrimSpace(*platform)
 				if platformValue == "" {
@@ -303,15 +304,15 @@ Examples:
 				}
 				platformValue, err = normalizeDevicePlatform(platformValue)
 				if err != nil {
-					return fmt.Errorf("devices register: %w", shared.UsageError(err.Error()))
+					return fmt.Errorf("devices register: %w", d.UsageError(err.Error()))
 				}
 				if !*confirm && strings.TrimSpace(*outputFile) == "" {
-					fmt.Fprintln(os.Stderr, "Error: --output-file is required without --confirm")
+					fmt.Fprintln(d.IO.ErrOut, "Error: --output-file is required without --confirm")
 					return shared.MissingRequiredUsageError("--output-file")
 				}
 				var client *asc.Client
 				if *confirm {
-					created, err := shared.GetASCClient()
+					created, err := d.Client()
 					if err != nil {
 						return fmt.Errorf("devices register: %w", err)
 					}
@@ -320,23 +321,23 @@ Examples:
 				options.Platform = platformValue
 				options.Client = client
 				if *stream {
-					options.Stream = os.Stdout
+					options.Stream = d.IO.Out
 				}
-				result, err := serveDeviceRegistration(ctx, options)
+				result, err := serveDeviceRegistration(ctx, d, options)
 				if result != nil {
-					if printErr := shared.PrintOutput(result, *output.Output, *output.Pretty); printErr != nil && err == nil {
+					if printErr := d.PrintOutput(result, *output.Output, *output.Pretty); printErr != nil && err == nil {
 						return printErr
 					}
 				}
 				return err
 			}
 			if nameValue == "" {
-				return shared.RequiredFlag("--name")
+				return d.RequiredFlag("--name")
 			}
 
 			udidValue := strings.TrimSpace(*udid)
 			if *udidFromSystem && udidValue != "" {
-				fmt.Fprintln(os.Stderr, "Error: --udid and --udid-from-system are mutually exclusive")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --udid and --udid-from-system are mutually exclusive")
 				return flag.ErrHelp
 			}
 			if *udidFromSystem {
@@ -347,7 +348,7 @@ Examples:
 				udidValue = localUDID
 			}
 			if udidValue == "" {
-				return shared.RequiredFlag("--udid")
+				return d.RequiredFlag("--udid")
 			}
 
 			platformValue := strings.TrimSpace(*platform)
@@ -355,24 +356,24 @@ Examples:
 				platformValue = "MAC_OS"
 			}
 			if platformValue == "" {
-				return shared.RequiredFlag("--platform")
+				return d.RequiredFlag("--platform")
 			}
 			if *udidFromSystem && strings.ToUpper(platformValue) != "MAC_OS" {
-				fmt.Fprintln(os.Stderr, "Error: --udid-from-system requires --platform MAC_OS")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --udid-from-system requires --platform MAC_OS")
 				return flag.ErrHelp
 			}
 
 			platformValue, err := normalizeDevicePlatform(platformValue)
 			if err != nil {
-				return fmt.Errorf("devices register: %w", shared.UsageError(err.Error()))
+				return fmt.Errorf("devices register: %w", d.UsageError(err.Error()))
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("devices register: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			existingDevice, err := findExistingDeviceByNormalizedUDID(requestCtx, client, udidValue, platformValue)
@@ -380,7 +381,7 @@ Examples:
 				return fmt.Errorf("devices register: failed to check existing devices: %w", err)
 			}
 			if existingDevice != nil {
-				return shared.PrintOutput(existingDevice, *output.Output, *output.Pretty)
+				return d.PrintOutput(existingDevice, *output.Output, *output.Pretty)
 			}
 
 			attrs := asc.DeviceCreateAttributes{
@@ -394,7 +395,7 @@ Examples:
 				return fmt.Errorf("devices register: failed to register: %w", err)
 			}
 
-			return shared.PrintOutput(device, *output.Output, *output.Pretty)
+			return d.PrintOutput(device, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -444,14 +445,14 @@ func normalizeDeviceUDIDForComparison(value string) string {
 	return strings.ToUpper(value)
 }
 
-// DevicesUpdateCommand returns the devices update subcommand.
-func DevicesUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("update", flag.ExitOnError)
+// newDevicesUpdateCommand returns the devices update subcommand.
+func newDevicesUpdateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("update", flag.ExitOnError)
 
 	id := shared.BindResourceIDFlag(fs, "id", "devices", "Device ID")
 	name := fs.String("name", "", "Device name")
 	status := fs.String("status", "", "Device status: ENABLED, DISABLED")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -467,27 +468,27 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
 
 			nameValue := strings.TrimSpace(*name)
 			statusRaw := strings.TrimSpace(*status)
 			if nameValue == "" && statusRaw == "" {
-				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
+				fmt.Fprintln(d.IO.ErrOut, "Error: at least one update flag is required")
 				return shared.MissingRequiredUsageError("")
 			}
 
 			statusValue, err := normalizeDeviceStatus(statusRaw)
 			if err != nil {
-				return shared.UsageErrorf("devices update: %v", err)
+				return d.UsageErrorf("devices update: %v", err)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("devices update: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			attrs := asc.DeviceUpdateAttributes{}
@@ -504,7 +505,7 @@ Examples:
 				return fmt.Errorf("devices update: failed to update: %w", err)
 			}
 
-			return shared.PrintOutput(device, *output.Output, *output.Pretty)
+			return d.PrintOutput(device, *output.Output, *output.Pretty)
 		},
 	}
 }

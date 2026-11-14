@@ -129,7 +129,7 @@ func TestBetaTestersCSVUsageErrorDiagnostics(t *testing.T) {
 				_, err := validateBetaTestersCSVHeader([]string{"email", "mystery"})
 				return err
 			},
-			wantError: "unknown CSV column \"mystery\" (allowed: email, first_name, last_name, groups, _asc_formula_escaping)",
+			wantError: "unknown CSV column \"mystery\" (allowed: email, first_name, last_name, groups, _asc_formula_escaping; installed_version and install_date are ignored)",
 		},
 		{
 			name: "duplicate column",

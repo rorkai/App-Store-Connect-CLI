@@ -177,13 +177,16 @@ func TestXcodeTestValidationErrorsAreUsageErrors(t *testing.T) {
 		return nil, nil
 	}
 
+	packageWithoutManifest := t.TempDir()
 	tests := []struct {
 		name string
 		args []string
 		want string
 	}{
-		{name: "missing selector", args: []string{"--scheme", "Demo", "--destination", "generic/platform=iOS"}, want: "exactly one of --workspace or --project"},
-		{name: "both selectors", args: []string{"--project", "Demo.xcodeproj", "--workspace", "Demo.xcworkspace", "--scheme", "Demo", "--destination", "generic/platform=iOS"}, want: "exactly one of --workspace or --project"},
+		{name: "missing selector", args: []string{"--scheme", "Demo", "--destination", "generic/platform=iOS"}, want: "exactly one of --workspace, --project, or --package-path"},
+		{name: "both selectors", args: []string{"--project", "Demo.xcodeproj", "--workspace", "Demo.xcworkspace", "--scheme", "Demo", "--destination", "generic/platform=iOS"}, want: "exactly one of --workspace, --project, or --package-path"},
+		{name: "package and project", args: []string{"--package-path", "DemoPackage", "--project", "Demo.xcodeproj", "--scheme", "Demo", "--destination", "generic/platform=iOS"}, want: "exactly one of --workspace, --project, or --package-path"},
+		{name: "package without manifest", args: []string{"--package-path", packageWithoutManifest, "--scheme", "Demo", "--destination", "generic/platform=iOS"}, want: "--package-path must contain a Package.swift file"},
 		{name: "missing scheme", args: []string{"--project", "Demo.xcodeproj", "--destination", "generic/platform=iOS"}, want: "--scheme is required"},
 		{name: "missing destination", args: []string{"--project", "Demo.xcodeproj", "--scheme", "Demo"}, want: "--destination is required"},
 		{name: "invalid action", args: []string{"--project", "Demo.xcodeproj", "--scheme", "Demo", "--destination", "generic/platform=iOS", "--action", "archive"}, want: "--action must be one of"},

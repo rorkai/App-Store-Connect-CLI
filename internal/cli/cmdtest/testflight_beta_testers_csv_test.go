@@ -532,35 +532,52 @@ func TestTestFlightBetaTestersImport_FailedMutationsCountOnlyAsFailed(t *testing
 }
 
 func TestTestFlightBetaTestersImport_FastlaneHeaderAndSemicolonGroups(t *testing.T) {
-	setupAuth(t)
-
-	reg := asctest.NewRegistry(t)
-	reg.Install()
-	reg.Register(asctest.GET("/v1/apps/app-1/betaGroups", "limit=200"),
-		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"Beta"}},{"type":"betaGroups","id":"group-2","attributes":{"name":"Core, Team"}}]}`))
-	reg.Register(asctest.GET("/v1/betaTesters", "filter[apps]=app-1", "limit=200"),
-		asctest.JSON(http.StatusOK, `{"data":[]}`))
-	reg.Register(asctest.POST("/v1/betaTesters").JSONBody(`{"data":{"type":"betaTesters","attributes":{"firstName":"Grace","lastName":"Hopper","email":"grace@example.com"},"relationships":{"betaGroups":{"data":[{"type":"betaGroups","id":"group-1"},{"type":"betaGroups","id":"group-2"}]}}}}`),
-		asctest.JSON(http.StatusCreated, `{"data":{"type":"betaTesters","id":"tester-new","attributes":{"email":"grace@example.com"}}}`))
-
-	csvPath := filepath.Join(t.TempDir(), "fastlane.csv")
-	csvBody := "" +
-		"First,Last,Email,Groups\n" +
-		"Grace,Hopper,grace@example.com,\"Beta;Core, Team\"\n"
-	if err := os.WriteFile(csvPath, []byte(csvBody), 0o600); err != nil {
-		t.Fatalf("WriteFile() error: %v", err)
+	tests := []struct {
+		name       string
+		csvBody    string
+		wantStderr string
+	}{
+		{
+			name:    "title-case header aliases",
+			csvBody: "First,Last,Email,Groups\nGrace,Hopper,grace@example.com,\"Beta;Core, Team\"\n",
+		},
+		{
+			name:       "installed version and install date columns are ignored",
+			csvBody:    "First,Last,Email,Groups,Installed Version,Install Date\nGrace,Hopper,grace@example.com,\"Beta;Core, Team\",1.2 (34),2026-01-02\n",
+			wantStderr: "Note: ignoring CSV columns: Installed Version, Install Date\n",
+		},
 	}
 
-	stdout, stderr, err := runCommand(t, []string{"testflight", "testers", "import", "--app", "app-1", "--input", csvPath, "--confirm"})
-	if err != nil {
-		t.Fatalf("run error: %v", err)
-	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			setupAuth(t)
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
-	if !strings.Contains(stdout, `"created":1`) || strings.Contains(stdout, `"failed":1`) {
-		t.Fatalf("expected created=1 and failed=0, got %q", stdout)
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET("/v1/apps/app-1/betaGroups", "limit=200"),
+				asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"Beta"}},{"type":"betaGroups","id":"group-2","attributes":{"name":"Core, Team"}}]}`))
+			reg.Register(asctest.GET("/v1/betaTesters", "filter[apps]=app-1", "limit=200"),
+				asctest.JSON(http.StatusOK, `{"data":[]}`))
+			reg.Register(asctest.POST("/v1/betaTesters").JSONBody(`{"data":{"type":"betaTesters","attributes":{"firstName":"Grace","lastName":"Hopper","email":"grace@example.com"},"relationships":{"betaGroups":{"data":[{"type":"betaGroups","id":"group-1"},{"type":"betaGroups","id":"group-2"}]}}}}`),
+				asctest.JSON(http.StatusCreated, `{"data":{"type":"betaTesters","id":"tester-new","attributes":{"email":"grace@example.com"}}}`))
+
+			csvPath := filepath.Join(t.TempDir(), "testers.csv")
+			if err := os.WriteFile(csvPath, []byte(test.csvBody), 0o600); err != nil {
+				t.Fatalf("WriteFile() error: %v", err)
+			}
+
+			stdout, stderr, err := runCommand(t, []string{"testflight", "testers", "import", "--app", "app-1", "--input", csvPath, "--confirm"})
+			if err != nil {
+				t.Fatalf("run error: %v", err)
+			}
+
+			if stderr != test.wantStderr {
+				t.Fatalf("stderr = %q, want %q", stderr, test.wantStderr)
+			}
+			if !strings.Contains(stdout, `"created":1`) || strings.Contains(stdout, `"failed":1`) {
+				t.Fatalf("expected created=1 and failed=0, got %q", stdout)
+			}
+		})
 	}
 }
 

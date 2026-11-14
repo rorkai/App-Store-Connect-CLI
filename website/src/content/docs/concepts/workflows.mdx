@@ -363,6 +363,20 @@ Runs **only** on workflow failure:
 
 Use for error notifications or rollback logic.
 
+The error hook also receives `ASC_WORKFLOW_NAME` (the workflow that was run),
+`ASC_WORKFLOW_FAILED_STEP` (the result's `failed_step`: a step name, a step key
+such as `release[2]`, `before_all`, or `after_all`), and `ASC_WORKFLOW_ERROR`
+(the result's `error`). They are set only for this hook and replace any `env`
+entry or run parameter with the same name. Reference them as quoted shell
+variables so the message is never parsed as part of the command:
+
+```json
+{
+  "error": "asc notify slack --message \"$ASC_WORKFLOW_NAME failed at $ASC_WORKFLOW_FAILED_STEP: $ASC_WORKFLOW_ERROR\"",
+  "workflows": {...}
+}
+```
+
 <Warning>
   Hooks run via `bash` (with `pipefail`) or `sh`. At least one shell must be in `PATH`.
 </Warning>
