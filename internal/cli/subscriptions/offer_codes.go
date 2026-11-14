@@ -517,43 +517,25 @@ Examples:
 
 // SubscriptionsOfferCodesOneTimeCodesGetCommand returns the offer code one-time use codes get subcommand.
 func SubscriptionsOfferCodesOneTimeCodesGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("offer-codes one-time-codes view", flag.ExitOnError)
-
-	oneTimeCodeID := shared.BindResourceIDFlag(fs, "batch-id", "subscriptionOfferCodeOneTimeUseCodes", "One-time use code batch ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc subscriptions offer-codes one-time-codes view --batch-id \"ONE_TIME_USE_CODE_ID\"",
-		ShortHelp:  "View a one-time use code batch by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "offer-codes one-time-codes view",
+		Name:        "view",
+		ShortUsage:  "asc subscriptions offer-codes one-time-codes view --batch-id \"ONE_TIME_USE_CODE_ID\"",
+		ShortHelp:   "View a one-time use code batch by ID.",
 		LongHelp: `View a one-time use code batch by ID.
 
 Examples:
   asc subscriptions offer-codes one-time-codes view --batch-id "ONE_TIME_USE_CODE_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*oneTimeCodeID)
-			if id == "" {
-				return shared.RequiredFlag("--batch-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("subscriptions offer-codes one-time-codes view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetSubscriptionOfferCodeOneTimeUseCode(requestCtx, id)
-			if err != nil {
-				return fmt.Errorf("subscriptions offer-codes one-time-codes view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDFlag:             "batch-id",
+		IDUsage:            "One-time use code batch ID",
+		IDType:             "subscriptionOfferCodeOneTimeUseCodes",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "subscriptions offer-codes one-time-codes view",
+		FetchErrorPrefix:   "subscriptions offer-codes one-time-codes view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetSubscriptionOfferCodeOneTimeUseCode(ctx, id)
 		},
-	}
+	})
 }
 
 // SubscriptionsOfferCodesOneTimeCodesUpdateCommand returns the one-time use code batch update subcommand.

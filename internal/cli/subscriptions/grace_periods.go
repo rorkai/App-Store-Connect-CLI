@@ -40,43 +40,24 @@ Examples:
 
 // SubscriptionsGracePeriodsGetCommand returns the grace period get subcommand.
 func SubscriptionsGracePeriodsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("grace-periods view", flag.ExitOnError)
-
-	gracePeriodID := shared.BindResourceIDFlag(fs, "id", "subscriptionGracePeriods", "Subscription grace period ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc subscriptions grace-periods view --id \"GRACE_PERIOD_ID\"",
-		ShortHelp:  "View a subscription grace period by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "grace-periods view",
+		Name:        "view",
+		ShortUsage:  "asc subscriptions grace-periods view --id \"GRACE_PERIOD_ID\"",
+		ShortHelp:   "View a subscription grace period by ID.",
 		LongHelp: `View a subscription grace period by ID.
 
 Examples:
   asc subscriptions grace-periods view --id "GRACE_PERIOD_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*gracePeriodID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("subscriptions grace-periods view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetSubscriptionGracePeriod(requestCtx, id)
-			if err != nil {
-				return fmt.Errorf("subscriptions grace-periods view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage:            "Subscription grace period ID",
+		IDType:             "subscriptionGracePeriods",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "subscriptions grace-periods view",
+		FetchErrorPrefix:   "subscriptions grace-periods view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetSubscriptionGracePeriod(ctx, id)
 		},
-	}
+	})
 }
 
 // SubscriptionsGracePeriodsUpdateCommand returns the grace period update subcommand.
