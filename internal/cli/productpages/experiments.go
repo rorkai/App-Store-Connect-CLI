@@ -136,8 +136,7 @@ Examples:
 
 			trimmedVersionID := strings.TrimSpace(*versionID)
 			if trimmedVersionID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return shared.MissingRequiredUsageError("--version-id")
+				return shared.RequiredFlag("--version-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -203,8 +202,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*experimentID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --experiment-id is required")
-				return shared.MissingRequiredUsageError("--experiment-id")
+				return shared.RequiredFlag("--experiment-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -259,8 +257,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			nameValue := strings.TrimSpace(*name)
 			if nameValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --name is required")
-				return shared.MissingRequiredUsageError("--name")
+				return shared.RequiredFlag("--name")
 			}
 
 			trafficValue, err := parseTrafficProportion(*trafficProportion)
@@ -300,8 +297,7 @@ Examples:
 
 			trimmedVersionID := strings.TrimSpace(*versionID)
 			if trimmedVersionID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return shared.MissingRequiredUsageError("--version-id")
+				return shared.RequiredFlag("--version-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -350,8 +346,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*experimentID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --experiment-id is required")
-				return shared.MissingRequiredUsageError("--experiment-id")
+				return shared.RequiredFlag("--experiment-id")
 			}
 
 			attrsName := strings.TrimSpace(*name)
@@ -444,12 +439,10 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*experimentID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --experiment-id is required")
-				return shared.MissingRequiredUsageError("--experiment-id")
+				return shared.RequiredFlag("--experiment-id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()

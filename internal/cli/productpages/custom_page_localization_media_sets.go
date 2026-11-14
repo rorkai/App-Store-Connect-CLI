@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -64,8 +63,7 @@ Examples:
 			trimmedID := strings.TrimSpace(*localizationID)
 			trimmedNext := strings.TrimSpace(*next)
 			if trimmedID == "" && trimmedNext == "" {
-				fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
-				return shared.MissingRequiredUsageError("--localization-id")
+				return shared.RequiredFlag("--localization-id")
 			}
 			if *limit != 0 && (*limit < 1 || *limit > productPagesMaxLimit) {
 				return shared.UsageErrorf("custom-pages localizations preview-sets list: --limit must be between 1 and %d", productPagesMaxLimit)
@@ -166,8 +164,7 @@ Examples:
 			trimmedNext := strings.TrimSpace(*next)
 			if *includeScreenshots {
 				if trimmedID == "" {
-					fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
-					return shared.MissingRequiredUsageError("--localization-id")
+					return shared.RequiredFlag("--localization-id")
 				}
 				if trimmedNext != "" {
 					return shared.UsageError("custom-pages localizations screenshot-sets list: --include-screenshots cannot be combined with --next")
@@ -177,8 +174,7 @@ Examples:
 				}
 			}
 			if trimmedID == "" && trimmedNext == "" {
-				fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
-				return shared.MissingRequiredUsageError("--localization-id")
+				return shared.RequiredFlag("--localization-id")
 			}
 			if *limit != 0 && (*limit < 1 || *limit > productPagesMaxLimit) {
 				return shared.UsageErrorf("custom-pages localizations screenshot-sets list: --limit must be between 1 and %d", productPagesMaxLimit)

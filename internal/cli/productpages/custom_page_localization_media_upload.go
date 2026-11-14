@@ -287,18 +287,15 @@ type localizationPreviewUpload struct {
 func uploadLocalizationPreviews(ctx context.Context, opts localizationPreviewUploadOptions) (*localizationPreviewUpload, error) {
 	trimmedLocalizationID := strings.TrimSpace(opts.localizationID)
 	if trimmedLocalizationID == "" {
-		fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
-		return nil, shared.MissingRequiredUsageError("--localization-id")
+		return nil, shared.RequiredFlag("--localization-id")
 	}
 	trimmedPath := strings.TrimSpace(opts.path)
 	if trimmedPath == "" {
-		fmt.Fprintln(os.Stderr, "Error: --path is required")
-		return nil, shared.MissingRequiredUsageError("--path")
+		return nil, shared.RequiredFlag("--path")
 	}
 	trimmedDeviceType := strings.TrimSpace(opts.deviceType)
 	if trimmedDeviceType == "" {
-		fmt.Fprintln(os.Stderr, "Error: --device-type is required")
-		return nil, shared.MissingRequiredUsageError("--device-type")
+		return nil, shared.RequiredFlag("--device-type")
 	}
 
 	previewType, err := assets.NormalizePreviewType(trimmedDeviceType)

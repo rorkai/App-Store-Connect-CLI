@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -71,8 +70,7 @@ Examples:
 
 			trimmedID := strings.TrimSpace(*customPageID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --custom-page-id is required")
-				return shared.MissingRequiredUsageError("--custom-page-id")
+				return shared.RequiredFlag("--custom-page-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -135,8 +133,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*versionID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --custom-page-version-id is required")
-				return shared.MissingRequiredUsageError("--custom-page-version-id")
+				return shared.RequiredFlag("--custom-page-version-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -179,8 +176,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*customPageID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --custom-page-id is required")
-				return shared.MissingRequiredUsageError("--custom-page-id")
+				return shared.RequiredFlag("--custom-page-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -222,14 +218,12 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*versionID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --custom-page-version-id is required")
-				return shared.MissingRequiredUsageError("--custom-page-version-id")
+				return shared.RequiredFlag("--custom-page-version-id")
 			}
 
 			deepLinkValue := strings.TrimSpace(*deepLink)
 			if deepLinkValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --deep-link is required")
-				return shared.MissingRequiredUsageError("--deep-link")
+				return shared.RequiredFlag("--deep-link")
 			}
 
 			attrs := asc.AppCustomProductPageVersionUpdateAttributes{

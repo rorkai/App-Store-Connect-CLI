@@ -266,8 +266,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*customPageID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --custom-page-id is required")
-				return shared.MissingRequiredUsageError("--custom-page-id")
+				return shared.RequiredFlag("--custom-page-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -323,8 +322,7 @@ Examples:
 
 			nameValue := strings.TrimSpace(*name)
 			if nameValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --name is required")
-				return shared.MissingRequiredUsageError("--name")
+				return shared.RequiredFlag("--name")
 			}
 
 			template := asc.AppCustomProductPageTemplate{AppStoreVersionID: strings.TrimSpace(*fromVersion), CustomPageID: strings.TrimSpace(*fromCustomPage)}
@@ -374,8 +372,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*customPageID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --custom-page-id is required")
-				return shared.MissingRequiredUsageError("--custom-page-id")
+				return shared.RequiredFlag("--custom-page-id")
 			}
 
 			attrs := asc.AppCustomProductPageUpdateAttributes{}
@@ -430,12 +427,10 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*customPageID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --custom-page-id is required")
-				return shared.MissingRequiredUsageError("--custom-page-id")
+				return shared.RequiredFlag("--custom-page-id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()
