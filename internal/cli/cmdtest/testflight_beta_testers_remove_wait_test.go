@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func setupBetaTesterRemoveWaitEnv(t *testing.T) {
@@ -209,37 +211,22 @@ func TestBetaTestersRemoveWaitValidatesDurations(t *testing.T) {
 func TestBetaTestersExportForwardsNameFilters(t *testing.T) {
 	setupBetaTesterRemoveWaitEnv(t)
 
-	var gotQuery string
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		gotQuery = req.URL.RawQuery
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(`{"data":[],"links":{}}`)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/betaTesters", "filter[apps]=app-1", "filter[firstName]=Ada", "filter[lastName]=Lovelace", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[],"links":{}}`))
 
 	csvPath := filepath.Join(t.TempDir(), "testers.csv")
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
+	if _, _, err := runCommand(t, []string{
+		"testflight", "testers", "export",
+		"--app", "app-1", "--first-name", "Ada", "--last-name", "Lovelace",
+		"--output", csvPath,
+	}); err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
-	captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"testflight", "testers", "export",
-			"--app", "app-1", "--first-name", "Ada", "--last-name", "Lovelace",
-			"--output", csvPath,
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
+	requests := reg.Requests()
+	gotQuery := requests[len(requests)-1].URL.RawQuery
 	for _, want := range []string{"filter%5BfirstName%5D=Ada", "filter%5BlastName%5D=Lovelace"} {
 		if !strings.Contains(gotQuery, want) {
 			t.Fatalf("expected %s in query, got %q", want, gotQuery)

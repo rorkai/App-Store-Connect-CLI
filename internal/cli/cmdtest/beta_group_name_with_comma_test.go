@@ -1,13 +1,13 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
-	"io"
 	"net/http"
 	"path/filepath"
 	"slices"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestBetaGroupFlagResolvesWholeNameBeforeSplittingOnCommas(t *testing.T) {
@@ -44,53 +44,40 @@ func TestBetaGroupFlagResolvesWholeNameBeforeSplittingOnCommas(t *testing.T) {
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 			t.Setenv("ASC_APP_ID", "")
 
-			originalTransport := http.DefaultTransport
-			t.Cleanup(func() {
-				http.DefaultTransport = originalTransport
-			})
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			if test.args[0] == "builds" {
+				reg.Register(asctest.GET("/v1/builds/build-1/app"),
+					asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"123"}}`))
+			}
+			reg.Register(asctest.GET("/v1/apps/123/betaGroups", "limit=200"),
+				asctest.JSON(http.StatusOK, `{"data":[`+
+					`{"type":"betaGroups","id":"group-staff","attributes":{"name":"Staff","isInternalGroup":true}},`+
+					`{"type":"betaGroups","id":"group-family","attributes":{"name":"Family & Friends","isInternalGroup":true}},`+
+					`{"type":"betaGroups","id":"group-comma","attributes":{"name":"Staff, Family & Friends","isInternalGroup":true}}]}`))
+			reg.Register(asctest.GET("/v1/builds/build-1"),
+				asctest.JSON(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"version":"42","processingState":"VALID","expired":false}}}`))
+			reg.Register(asctest.POST("/v1/builds/build-1/relationships/betaGroups"),
+				asctest.JSON(http.StatusNoContent, ""))
 
+			_, stderr, err := runCommand(t, test.args)
+			if err != nil {
+				t.Fatalf("run error: %v", err)
+			}
+
+			var payload struct {
+				Data []struct {
+					ID string `json:"id"`
+				} `json:"data"`
+			}
+			requests := reg.Requests()
+			if err := json.Unmarshal(requests[len(requests)-1].Body, &payload); err != nil {
+				t.Fatalf("failed to decode group assignment payload: %v", err)
+			}
 			var addedIDs []string
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				switch {
-				case req.Method == http.MethodGet && req.URL.Path == "/v1/builds/build-1/app":
-					return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"apps","id":"123"}}`), nil
-				case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/123/betaGroups":
-					return jsonHTTPResponse(http.StatusOK, `{"data":[`+
-						`{"type":"betaGroups","id":"group-staff","attributes":{"name":"Staff","isInternalGroup":true}},`+
-						`{"type":"betaGroups","id":"group-family","attributes":{"name":"Family & Friends","isInternalGroup":true}},`+
-						`{"type":"betaGroups","id":"group-comma","attributes":{"name":"Staff, Family & Friends","isInternalGroup":true}}]}`), nil
-				case req.Method == http.MethodGet && req.URL.Path == "/v1/builds/build-1":
-					return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"version":"42","processingState":"VALID","expired":false}}}`), nil
-				case req.Method == http.MethodPost && req.URL.Path == "/v1/builds/build-1/relationships/betaGroups":
-					var payload struct {
-						Data []struct {
-							ID string `json:"id"`
-						} `json:"data"`
-					}
-					if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-						t.Fatalf("failed to decode group assignment payload: %v", err)
-					}
-					for _, item := range payload.Data {
-						addedIDs = append(addedIDs, item.ID)
-					}
-					return jsonHTTPResponse(http.StatusNoContent, ""), nil
-				default:
-					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-					return nil, nil
-				}
-			})
-
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			_, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
+			for _, item := range payload.Data {
+				addedIDs = append(addedIDs, item.ID)
+			}
 
 			if !slices.Equal(addedIDs, test.wantIDs) {
 				t.Fatalf("added group IDs = %v, want %v (stderr %q)", addedIDs, test.wantIDs, stderr)

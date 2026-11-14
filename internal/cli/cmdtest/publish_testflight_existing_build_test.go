@@ -1,12 +1,12 @@
 package cmdtest
 
 import (
-	"context"
-	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestPublishTestflightExistingBuildIDSkipsUpload(t *testing.T) {
@@ -14,73 +14,24 @@ func TestPublishTestflightExistingBuildIDSkipsUpload(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/123/betaGroups", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"External","isInternalGroup":false}}]}`))
+	reg.Register(asctest.GET("/v1/builds/build-1"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"version":"42","processingState":"VALID"}}}`))
+	reg.Register(asctest.POST("/v1/builds/build-1/relationships/betaGroups").JSONBody(`{"data":[{"type":"betaGroups","id":"group-1"}]}`),
+		asctest.JSON(http.StatusNoContent, ""))
 
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		switch requestCount {
-		case 1:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/123/betaGroups" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			body := `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"External","isInternalGroup":false}}]}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 2:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds/build-1" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			body := `{"data":{"type":"builds","id":"build-1","attributes":{"version":"42","processingState":"VALID"}}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 3:
-			if req.Method != http.MethodPost || req.URL.Path != "/v1/builds/build-1/relationships/betaGroups" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			payload, err := io.ReadAll(req.Body)
-			if err != nil {
-				t.Fatalf("failed to read group assignment payload: %v", err)
-			}
-			if !strings.Contains(string(payload), `"id":"group-1"`) {
-				t.Fatalf("expected group assignment payload to include group-1, got %s", string(payload))
-			}
-			return &http.Response{
-				StatusCode: http.StatusNoContent,
-				Body:       io.NopCloser(strings.NewReader("")),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected request count %d", requestCount)
-			return nil, nil
-		}
+	stdout, stderr, err := runCommand(t, []string{
+		"publish", "testflight",
+		"--app", "123",
+		"--build-id", "build-1",
+		"--group", "group-1",
 	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"publish", "testflight",
-			"--app", "123",
-			"--build-id", "build-1",
-			"--group", "group-1",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -104,55 +55,26 @@ func TestPublishTestflightExistingBuildDoesNotRetryPostUploadPropagationError(t 
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/123/betaGroups", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"External","isInternalGroup":false}}]}`))
+	reg.Register(asctest.GET("/v1/builds/build-1"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"version":"42","processingState":"VALID"}}}`))
+	reg.Register(asctest.POST("/v1/builds/build-1/relationships/betaGroups").JSONBody(`{"data":[{"type":"betaGroups","id":"group-1"}]}`),
+		asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"The specified resource does not exist","detail":"There is no resource of type 'builds' with id 'build-1'"}]}`))
 
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		switch requestCount {
-		case 1:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/123/betaGroups" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"External","isInternalGroup":false}}]}`), nil
-		case 2:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds/build-1" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"version":"42","processingState":"VALID"}}}`), nil
-		case 3:
-			if req.Method != http.MethodPost || req.URL.Path != "/v1/builds/build-1/relationships/betaGroups" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			return jsonHTTPResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"The specified resource does not exist","detail":"There is no resource of type 'builds' with id 'build-1'"}]}`), nil
-		default:
-			t.Fatalf("existing-build mode unexpectedly retried with request %d: %s %s", requestCount, req.Method, req.URL.String())
-			return nil, nil
-		}
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"publish", "testflight",
-			"--app", "123",
-			"--build-id", "build-1",
-			"--group", "group-1",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
+	stdout, stderr, runErr := runCommand(t, []string{
+		"publish", "testflight",
+		"--app", "123",
+		"--build-id", "build-1",
+		"--group", "group-1",
 	})
 
 	if runErr == nil || !strings.Contains(runErr.Error(), "failed to add groups") {
 		t.Fatalf("expected existing-build relationship failure, got %v", runErr)
 	}
-	if requestCount != 3 {
+	if requestCount := len(reg.Requests()); requestCount != 3 {
 		t.Fatalf("request count = %d, want 3 with no confirming GET or retry", requestCount)
 	}
 	if stdout != "" || stderr != "" {
@@ -165,73 +87,24 @@ func TestPublishTestflightExistingBuildIDAllowsInternalGroup(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/123/betaGroups", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-internal","attributes":{"name":"Internal","isInternalGroup":true}}]}`))
+	reg.Register(asctest.GET("/v1/builds/build-1"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"version":"42","processingState":"VALID"}}}`))
+	reg.Register(asctest.POST("/v1/builds/build-1/relationships/betaGroups").JSONBody(`{"data":[{"type":"betaGroups","id":"group-internal"}]}`),
+		asctest.JSON(http.StatusNoContent, ""))
 
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		switch requestCount {
-		case 1:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/123/betaGroups" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			body := `{"data":[{"type":"betaGroups","id":"group-internal","attributes":{"name":"Internal","isInternalGroup":true}}]}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 2:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds/build-1" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			body := `{"data":{"type":"builds","id":"build-1","attributes":{"version":"42","processingState":"VALID"}}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 3:
-			if req.Method != http.MethodPost || req.URL.Path != "/v1/builds/build-1/relationships/betaGroups" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			payload, err := io.ReadAll(req.Body)
-			if err != nil {
-				t.Fatalf("failed to read group assignment payload: %v", err)
-			}
-			if !strings.Contains(string(payload), `"id":"group-internal"`) {
-				t.Fatalf("expected group assignment payload to include internal group, got %s", string(payload))
-			}
-			return &http.Response{
-				StatusCode: http.StatusNoContent,
-				Body:       io.NopCloser(strings.NewReader("")),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected request count %d", requestCount)
-			return nil, nil
-		}
+	stdout, stderr, err := runCommand(t, []string{
+		"publish", "testflight",
+		"--app", "123",
+		"--build-id", "build-1",
+		"--group", "group-internal",
 	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"publish", "testflight",
-			"--app", "123",
-			"--build-id", "build-1",
-			"--group", "group-internal",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -246,109 +119,34 @@ func TestPublishTestflightExistingBuildIDNotifyUsesBuildBetaNotificationsEndpoin
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/123/betaGroups", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-internal","attributes":{"name":"Internal","isInternalGroup":true}}]}`))
+	reg.Register(asctest.GET("/v1/builds/build-1"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"version":"42","processingState":"VALID"}}}`))
+	reg.Register(asctest.POST("/v1/builds/build-1/relationships/betaGroups").JSONBody(`{"data":[{"type":"betaGroups","id":"group-internal"}]}`),
+		asctest.JSON(http.StatusNoContent, ""))
+	reg.Register(asctest.GET("/v1/builds/build-1/buildBetaDetail"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"buildBetaDetails","id":"detail-1","attributes":{"autoNotifyEnabled":false}}}`))
+	reg.Register(asctest.POST("/v1/buildBetaNotifications").JSONBody(`{"data":{"type":"buildBetaNotifications","relationships":{"build":{"data":{"type":"builds","id":"build-1"}}}}}`),
+		asctest.JSON(http.StatusCreated, `{"data":{"type":"buildBetaNotifications","id":"notif-1"}}`))
 
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		switch requestCount {
-		case 1:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/123/betaGroups" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			body := `{"data":[{"type":"betaGroups","id":"group-internal","attributes":{"name":"Internal","isInternalGroup":true}}]}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 2:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds/build-1" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			body := `{"data":{"type":"builds","id":"build-1","attributes":{"version":"42","processingState":"VALID"}}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 3:
-			if req.Method != http.MethodPost || req.URL.Path != "/v1/builds/build-1/relationships/betaGroups" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			if req.URL.RawQuery != "" {
-				t.Fatalf("expected no query string, got %q", req.URL.RawQuery)
-			}
-			payload, err := io.ReadAll(req.Body)
-			if err != nil {
-				t.Fatalf("failed to read group assignment payload: %v", err)
-			}
-			if !strings.Contains(string(payload), `"id":"group-internal"`) {
-				t.Fatalf("expected group assignment payload to include internal group, got %s", string(payload))
-			}
-			return &http.Response{
-				StatusCode: http.StatusNoContent,
-				Body:       io.NopCloser(strings.NewReader("")),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 4:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds/build-1/buildBetaDetail" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			body := `{"data":{"type":"buildBetaDetails","id":"detail-1","attributes":{"autoNotifyEnabled":false}}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 5:
-			if req.Method != http.MethodPost || req.URL.Path != "/v1/buildBetaNotifications" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			payload, err := io.ReadAll(req.Body)
-			if err != nil {
-				t.Fatalf("failed to read beta notification payload: %v", err)
-			}
-			if !strings.Contains(string(payload), `"type":"buildBetaNotifications"`) || !strings.Contains(string(payload), `"id":"build-1"`) {
-				t.Fatalf("expected build beta notification payload for build-1, got %s", string(payload))
-			}
-			body := `{"data":{"type":"buildBetaNotifications","id":"notif-1"}}`
-			return &http.Response{
-				StatusCode: http.StatusCreated,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected request count %d", requestCount)
-			return nil, nil
-		}
+	stdout, stderr, err := runCommand(t, []string{
+		"publish", "testflight",
+		"--app", "123",
+		"--build-id", "build-1",
+		"--group", "group-internal",
+		"--notify",
 	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"publish", "testflight",
-			"--app", "123",
-			"--build-id", "build-1",
-			"--group", "group-internal",
-			"--notify",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	if requestCount != 5 {
+	if requestCount := len(reg.Requests()); requestCount != 5 {
 		t.Fatalf("expected group lookup, build fetch, group assignment, build beta detail fetch, and beta notification; got %d requests", requestCount)
 	}
 	if !strings.Contains(stdout, `"groupIds":["group-internal"]`) {
@@ -367,78 +165,26 @@ func TestPublishTestflightExistingBuildIDAddsInternalGroupWithAccessToAllBuilds(
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/123/betaGroups", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-internal","attributes":{"name":"Internal","isInternalGroup":true,"hasAccessToAllBuilds":true}}]}`))
+	reg.Register(asctest.GET("/v1/builds/build-1"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"version":"42","processingState":"VALID"}}}`))
+	reg.Register(asctest.POST("/v1/builds/build-1/relationships/betaGroups").JSONBody(`{"data":[{"type":"betaGroups","id":"group-internal"}]}`),
+		asctest.JSON(http.StatusNoContent, ""))
+
+	stdout, stderr, err := runCommand(t, []string{
+		"publish", "testflight",
+		"--app", "123",
+		"--build-id", "build-1",
+		"--group", "group-internal",
 	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		switch requestCount {
-		case 1:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/123/betaGroups" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			body := `{"data":[{"type":"betaGroups","id":"group-internal","attributes":{"name":"Internal","isInternalGroup":true,"hasAccessToAllBuilds":true}}]}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 2:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds/build-1" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			body := `{"data":{"type":"builds","id":"build-1","attributes":{"version":"42","processingState":"VALID"}}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 3:
-			if req.Method != http.MethodPost || req.URL.Path != "/v1/builds/build-1/relationships/betaGroups" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			if req.URL.RawQuery != "" {
-				t.Fatalf("expected no query string, got %q", req.URL.RawQuery)
-			}
-			payload, err := io.ReadAll(req.Body)
-			if err != nil {
-				t.Fatalf("failed to read group assignment payload: %v", err)
-			}
-			if !strings.Contains(string(payload), `"id":"group-internal"`) {
-				t.Fatalf("expected group assignment payload to include internal group, got %s", string(payload))
-			}
-			return &http.Response{
-				StatusCode: http.StatusNoContent,
-				Body:       io.NopCloser(strings.NewReader("")),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected request count %d", requestCount)
-			return nil, nil
-		}
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"publish", "testflight",
-			"--app", "123",
-			"--build-id", "build-1",
-			"--group", "group-internal",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
-	if requestCount != 3 {
+	if requestCount := len(reg.Requests()); requestCount != 3 {
 		t.Fatalf("expected group lookup, build fetch, and group assignment; got %d requests", requestCount)
 	}
 	if !strings.Contains(stdout, `"buildId":"build-1"`) {
@@ -466,109 +212,34 @@ func TestPublishTestflightExistingBuildIDWithInternalAllBuildsGroupStillNotifies
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/123/betaGroups", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-internal","attributes":{"name":"Internal","isInternalGroup":true,"hasAccessToAllBuilds":true}}]}`))
+	reg.Register(asctest.GET("/v1/builds/build-1"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"version":"42","processingState":"VALID"}}}`))
+	reg.Register(asctest.POST("/v1/builds/build-1/relationships/betaGroups").JSONBody(`{"data":[{"type":"betaGroups","id":"group-internal"}]}`),
+		asctest.JSON(http.StatusNoContent, ""))
+	reg.Register(asctest.GET("/v1/builds/build-1/buildBetaDetail"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"buildBetaDetails","id":"detail-1","attributes":{"autoNotifyEnabled":false}}}`))
+	reg.Register(asctest.POST("/v1/buildBetaNotifications").JSONBody(`{"data":{"type":"buildBetaNotifications","relationships":{"build":{"data":{"type":"builds","id":"build-1"}}}}}`),
+		asctest.JSON(http.StatusCreated, `{"data":{"type":"buildBetaNotifications","id":"notif-1"}}`))
 
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		switch requestCount {
-		case 1:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/123/betaGroups" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			body := `{"data":[{"type":"betaGroups","id":"group-internal","attributes":{"name":"Internal","isInternalGroup":true,"hasAccessToAllBuilds":true}}]}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 2:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds/build-1" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			body := `{"data":{"type":"builds","id":"build-1","attributes":{"version":"42","processingState":"VALID"}}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 3:
-			if req.Method != http.MethodPost || req.URL.Path != "/v1/builds/build-1/relationships/betaGroups" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			if req.URL.RawQuery != "" {
-				t.Fatalf("expected no query string, got %q", req.URL.RawQuery)
-			}
-			payload, err := io.ReadAll(req.Body)
-			if err != nil {
-				t.Fatalf("failed to read group assignment payload: %v", err)
-			}
-			if !strings.Contains(string(payload), `"id":"group-internal"`) {
-				t.Fatalf("expected group assignment payload to include internal group, got %s", string(payload))
-			}
-			return &http.Response{
-				StatusCode: http.StatusNoContent,
-				Body:       io.NopCloser(strings.NewReader("")),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 4:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds/build-1/buildBetaDetail" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			body := `{"data":{"type":"buildBetaDetails","id":"detail-1","attributes":{"autoNotifyEnabled":false}}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 5:
-			if req.Method != http.MethodPost || req.URL.Path != "/v1/buildBetaNotifications" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			payload, err := io.ReadAll(req.Body)
-			if err != nil {
-				t.Fatalf("failed to read beta notification payload: %v", err)
-			}
-			if !strings.Contains(string(payload), `"type":"buildBetaNotifications"`) || !strings.Contains(string(payload), `"id":"build-1"`) {
-				t.Fatalf("expected build beta notification payload for build-1, got %s", string(payload))
-			}
-			body := `{"data":{"type":"buildBetaNotifications","id":"notif-1"}}`
-			return &http.Response{
-				StatusCode: http.StatusCreated,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected request count %d", requestCount)
-			return nil, nil
-		}
+	stdout, stderr, err := runCommand(t, []string{
+		"publish", "testflight",
+		"--app", "123",
+		"--build-id", "build-1",
+		"--group", "group-internal",
+		"--notify",
 	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"publish", "testflight",
-			"--app", "123",
-			"--build-id", "build-1",
-			"--group", "group-internal",
-			"--notify",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	if requestCount != 5 {
+	if requestCount := len(reg.Requests()); requestCount != 5 {
 		t.Fatalf("expected group lookup, build fetch, group assignment, build beta detail fetch, and beta notification; got %d requests", requestCount)
 	}
 	if !strings.Contains(stdout, `"groupIds":["group-internal"]`) {
@@ -587,92 +258,32 @@ func TestPublishTestflightExistingBuildIDNotifySkipsManualNotificationWhenAutoNo
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/123/betaGroups", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-internal","attributes":{"name":"Internal","isInternalGroup":true,"hasAccessToAllBuilds":true}}]}`))
+	reg.Register(asctest.GET("/v1/builds/build-1"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"version":"42","processingState":"VALID"}}}`))
+	reg.Register(asctest.POST("/v1/builds/build-1/relationships/betaGroups").JSONBody(`{"data":[{"type":"betaGroups","id":"group-internal"}]}`),
+		asctest.JSON(http.StatusNoContent, ""))
+	reg.Register(asctest.GET("/v1/builds/build-1/buildBetaDetail"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"buildBetaDetails","id":"detail-1","attributes":{"autoNotifyEnabled":true}}}`))
 
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		switch requestCount {
-		case 1:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/123/betaGroups" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			body := `{"data":[{"type":"betaGroups","id":"group-internal","attributes":{"name":"Internal","isInternalGroup":true,"hasAccessToAllBuilds":true}}]}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 2:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds/build-1" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			body := `{"data":{"type":"builds","id":"build-1","attributes":{"version":"42","processingState":"VALID"}}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 3:
-			if req.Method != http.MethodPost || req.URL.Path != "/v1/builds/build-1/relationships/betaGroups" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			if req.URL.RawQuery != "" {
-				t.Fatalf("expected no query string, got %q", req.URL.RawQuery)
-			}
-			payload, err := io.ReadAll(req.Body)
-			if err != nil {
-				t.Fatalf("failed to read group assignment payload: %v", err)
-			}
-			if !strings.Contains(string(payload), `"id":"group-internal"`) {
-				t.Fatalf("expected group assignment payload to include internal group, got %s", string(payload))
-			}
-			return &http.Response{
-				StatusCode: http.StatusNoContent,
-				Body:       io.NopCloser(strings.NewReader("")),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 4:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds/build-1/buildBetaDetail" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			body := `{"data":{"type":"buildBetaDetails","id":"detail-1","attributes":{"autoNotifyEnabled":true}}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected request count %d", requestCount)
-			return nil, nil
-		}
+	stdout, stderr, err := runCommand(t, []string{
+		"publish", "testflight",
+		"--app", "123",
+		"--build-id", "build-1",
+		"--group", "group-internal",
+		"--notify",
 	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"publish", "testflight",
-			"--app", "123",
-			"--build-id", "build-1",
-			"--group", "group-internal",
-			"--notify",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	if requestCount != 4 {
+	if requestCount := len(reg.Requests()); requestCount != 4 {
 		t.Fatalf("expected group lookup, build fetch, group assignment, and build beta detail fetch; got %d requests", requestCount)
 	}
 	if !strings.Contains(stdout, `"groupIds":["group-internal"]`) {
@@ -691,82 +302,26 @@ func TestPublishTestflightExistingBuildIDAddsInternalAndExternalGroupsWhenIntern
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/123/betaGroups", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-internal","attributes":{"name":"Internal","isInternalGroup":true,"hasAccessToAllBuilds":true}},{"type":"betaGroups","id":"group-external","attributes":{"name":"External","isInternalGroup":false}}]}`))
+	reg.Register(asctest.GET("/v1/builds/build-1"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"version":"42","processingState":"VALID"}}}`))
+	reg.Register(asctest.POST("/v1/builds/build-1/relationships/betaGroups").JSONBody(`{"data":[{"type":"betaGroups","id":"group-internal"},{"type":"betaGroups","id":"group-external"}]}`),
+		asctest.JSON(http.StatusNoContent, ""))
+
+	stdout, stderr, err := runCommand(t, []string{
+		"publish", "testflight",
+		"--app", "123",
+		"--build-id", "build-1",
+		"--group", "group-internal,group-external",
 	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		switch requestCount {
-		case 1:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/123/betaGroups" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			body := `{"data":[{"type":"betaGroups","id":"group-internal","attributes":{"name":"Internal","isInternalGroup":true,"hasAccessToAllBuilds":true}},{"type":"betaGroups","id":"group-external","attributes":{"name":"External","isInternalGroup":false}}]}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 2:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds/build-1" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			body := `{"data":{"type":"builds","id":"build-1","attributes":{"version":"42","processingState":"VALID"}}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 3:
-			if req.Method != http.MethodPost || req.URL.Path != "/v1/builds/build-1/relationships/betaGroups" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			if req.URL.RawQuery != "" {
-				t.Fatalf("expected no query string, got %q", req.URL.RawQuery)
-			}
-			payload, err := io.ReadAll(req.Body)
-			if err != nil {
-				t.Fatalf("failed to read group assignment payload: %v", err)
-			}
-			bodyText := string(payload)
-			if !strings.Contains(bodyText, `"id":"group-internal"`) {
-				t.Fatalf("expected payload to include internal group, got %s", bodyText)
-			}
-			if !strings.Contains(bodyText, `"id":"group-external"`) {
-				t.Fatalf("expected payload to include external group, got %s", bodyText)
-			}
-			return &http.Response{
-				StatusCode: http.StatusNoContent,
-				Body:       io.NopCloser(strings.NewReader("")),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected request count %d", requestCount)
-			return nil, nil
-		}
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"publish", "testflight",
-			"--app", "123",
-			"--build-id", "build-1",
-			"--group", "group-internal,group-external",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
-	if requestCount != 3 {
+	if requestCount := len(reg.Requests()); requestCount != 3 {
 		t.Fatalf("expected group lookup, build fetch, and group assignment; got %d requests", requestCount)
 	}
 	if !strings.Contains(stdout, `"groupIds":["group-internal","group-external"]`) {
@@ -788,97 +343,29 @@ func TestPublishTestflightExistingBuildIDNotifyTreatsAutoNotifyConflictAsAlready
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/123/betaGroups", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-internal","attributes":{"name":"Internal","isInternalGroup":true,"hasAccessToAllBuilds":true}}]}`))
+	reg.Register(asctest.GET("/v1/builds/build-1"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"version":"42","processingState":"VALID"}}}`))
+	reg.Register(asctest.POST("/v1/builds/build-1/relationships/betaGroups").JSONBody(`{"data":[{"type":"betaGroups","id":"group-internal"}]}`),
+		asctest.JSON(http.StatusNoContent, ""))
+	reg.Register(asctest.GET("/v1/builds/build-1/buildBetaDetail"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"buildBetaDetails","id":"detail-1","attributes":{"autoNotifyEnabled":false}}}`))
+	reg.Register(asctest.POST("/v1/buildBetaNotifications").JSONBody(`{"data":{"type":"buildBetaNotifications","relationships":{"build":{"data":{"type":"builds","id":"build-1"}}}}}`),
+		asctest.JSON(http.StatusConflict, `{"errors":[{"code":"STATE_ERROR.ENTITY_STATE_INVALID","title":"There is a problem with the request entity","detail":"Auto-notify already enabled"}]}`))
 
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		switch requestCount {
-		case 1:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/123/betaGroups" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			body := `{"data":[{"type":"betaGroups","id":"group-internal","attributes":{"name":"Internal","isInternalGroup":true,"hasAccessToAllBuilds":true}}]}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 2:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds/build-1" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			body := `{"data":{"type":"builds","id":"build-1","attributes":{"version":"42","processingState":"VALID"}}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 3:
-			if req.Method != http.MethodPost || req.URL.Path != "/v1/builds/build-1/relationships/betaGroups" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			if req.URL.RawQuery != "" {
-				t.Fatalf("expected no query string, got %q", req.URL.RawQuery)
-			}
-			payload, err := io.ReadAll(req.Body)
-			if err != nil {
-				t.Fatalf("failed to read group assignment payload: %v", err)
-			}
-			if !strings.Contains(string(payload), `"id":"group-internal"`) {
-				t.Fatalf("expected group assignment payload to include internal group, got %s", string(payload))
-			}
-			return &http.Response{
-				StatusCode: http.StatusNoContent,
-				Body:       io.NopCloser(strings.NewReader("")),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 4:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds/build-1/buildBetaDetail" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			body := `{"data":{"type":"buildBetaDetails","id":"detail-1","attributes":{"autoNotifyEnabled":false}}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 5:
-			if req.Method != http.MethodPost || req.URL.Path != "/v1/buildBetaNotifications" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			body := `{"errors":[{"code":"STATE_ERROR.ENTITY_STATE_INVALID","title":"There is a problem with the request entity","detail":"Auto-notify already enabled"}]}`
-			return &http.Response{
-				StatusCode: http.StatusConflict,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected request count %d", requestCount)
-			return nil, nil
-		}
+	stdout, stderr, err := runCommand(t, []string{
+		"publish", "testflight",
+		"--app", "123",
+		"--build-id", "build-1",
+		"--group", "group-internal",
+		"--notify",
 	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"publish", "testflight",
-			"--app", "123",
-			"--build-id", "build-1",
-			"--group", "group-internal",
-			"--notify",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -892,7 +379,7 @@ func TestPublishTestflightExistingBuildIDNotifyTreatsAutoNotifyConflictAsAlready
 	if !strings.Contains(stdout, `"notificationAction":"auto_notify_enabled"`) {
 		t.Fatalf("expected notificationAction=auto_notify_enabled in output, got %q", stdout)
 	}
-	if requestCount != 5 {
+	if requestCount := len(reg.Requests()); requestCount != 5 {
 		t.Fatalf("expected 5 requests, got %d", requestCount)
 	}
 }
@@ -902,85 +389,25 @@ func TestPublishTestflightExistingBuildIDNotifyPreservesPartialSuccessMessageWhe
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/123/betaGroups", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-internal","attributes":{"name":"Internal","isInternalGroup":true,"hasAccessToAllBuilds":true}}]}`))
+	reg.Register(asctest.GET("/v1/builds/build-1"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"version":"42","processingState":"VALID"}}}`))
+	reg.Register(asctest.POST("/v1/builds/build-1/relationships/betaGroups").JSONBody(`{"data":[{"type":"betaGroups","id":"group-internal"}]}`),
+		asctest.JSON(http.StatusNoContent, ""))
+	reg.Register(asctest.GET("/v1/builds/build-1/buildBetaDetail"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"buildBetaDetails","id":"detail-1","attributes":{"autoNotifyEnabled":false}}}`))
+	reg.Register(asctest.POST("/v1/buildBetaNotifications").JSONBody(`{"data":{"type":"buildBetaNotifications","relationships":{"build":{"data":{"type":"builds","id":"build-1"}}}}}`),
+		asctest.JSON(http.StatusServiceUnavailable, `{"errors":[{"code":"INTERNAL_ERROR","title":"Service unavailable","detail":"email delivery temporarily unavailable"}]}`))
 
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		switch requestCount {
-		case 1:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/123/betaGroups" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			body := `{"data":[{"type":"betaGroups","id":"group-internal","attributes":{"name":"Internal","isInternalGroup":true,"hasAccessToAllBuilds":true}}]}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 2:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds/build-1" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			body := `{"data":{"type":"builds","id":"build-1","attributes":{"version":"42","processingState":"VALID"}}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 3:
-			if req.Method != http.MethodPost || req.URL.Path != "/v1/builds/build-1/relationships/betaGroups" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			return &http.Response{
-				StatusCode: http.StatusNoContent,
-				Body:       io.NopCloser(strings.NewReader("")),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 4:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds/build-1/buildBetaDetail" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			body := `{"data":{"type":"buildBetaDetails","id":"detail-1","attributes":{"autoNotifyEnabled":false}}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 5:
-			if req.Method != http.MethodPost || req.URL.Path != "/v1/buildBetaNotifications" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			body := `{"errors":[{"code":"INTERNAL_ERROR","title":"Service unavailable","detail":"email delivery temporarily unavailable"}]}`
-			return &http.Response{
-				StatusCode: http.StatusServiceUnavailable,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected request count %d", requestCount)
-			return nil, nil
-		}
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"publish", "testflight",
-			"--app", "123",
-			"--build-id", "build-1",
-			"--group", "group-internal",
-			"--notify",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
+	stdout, stderr, runErr := runCommand(t, []string{
+		"publish", "testflight",
+		"--app", "123",
+		"--build-id", "build-1",
+		"--group", "group-internal",
+		"--notify",
 	})
 
 	if runErr == nil {
@@ -1001,7 +428,7 @@ func TestPublishTestflightExistingBuildIDNotifyPreservesPartialSuccessMessageWhe
 	if !strings.Contains(runErr.Error(), "Service unavailable: email delivery temporarily unavailable") {
 		t.Fatalf("expected underlying notification error, got %v", runErr)
 	}
-	if requestCount != 5 {
+	if requestCount := len(reg.Requests()); requestCount != 5 {
 		t.Fatalf("expected 5 requests, got %d", requestCount)
 	}
 }
@@ -1011,101 +438,30 @@ func TestPublishTestflightExistingBuildNumberResolvesAndWaits(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/123/betaGroups", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"External","isInternalGroup":false}}]}`))
+	reg.Register(asctest.GET("/v1/builds", "filter[app]=123", "filter[preReleaseVersion.platform]=IOS", "filter[processingState]=PROCESSING,FAILED,INVALID,VALID", "filter[version]=42", "limit=1", "sort=-uploadedDate"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"builds","id":"build-42","attributes":{"version":"42","processingState":"PROCESSING"}}]}`))
+	reg.Register(asctest.GET("/v1/builds/build-42"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"builds","id":"build-42","attributes":{"version":"42","processingState":"PROCESSING"}}}`))
+	reg.Register(asctest.GET("/v1/builds/build-42"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"builds","id":"build-42","attributes":{"version":"42","processingState":"VALID"}}}`))
+	reg.Register(asctest.POST("/v1/builds/build-42/relationships/betaGroups").JSONBody(`{"data":[{"type":"betaGroups","id":"group-1"}]}`),
+		asctest.JSON(http.StatusNoContent, ""))
 
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		switch requestCount {
-		case 1:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/123/betaGroups" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			body := `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"External","isInternalGroup":false}}]}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 2:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			query := req.URL.Query()
-			if query.Get("filter[app]") != "123" {
-				t.Fatalf("expected filter[app]=123, got %q", query.Get("filter[app]"))
-			}
-			if query.Get("filter[version]") != "42" {
-				t.Fatalf("expected filter[version]=42, got %q", query.Get("filter[version]"))
-			}
-			if query.Get("filter[preReleaseVersion.platform]") != "IOS" {
-				t.Fatalf("expected filter[preReleaseVersion.platform]=IOS, got %q", query.Get("filter[preReleaseVersion.platform]"))
-			}
-			if query.Get("filter[processingState]") != "PROCESSING,FAILED,INVALID,VALID" {
-				t.Fatalf("expected all processing states filter, got %q", query.Get("filter[processingState]"))
-			}
-			body := `{"data":[{"type":"builds","id":"build-42","attributes":{"version":"42","processingState":"PROCESSING"}}]}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 3:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds/build-42" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			body := `{"data":{"type":"builds","id":"build-42","attributes":{"version":"42","processingState":"PROCESSING"}}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 4:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds/build-42" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			body := `{"data":{"type":"builds","id":"build-42","attributes":{"version":"42","processingState":"VALID"}}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 5:
-			if req.Method != http.MethodPost || req.URL.Path != "/v1/builds/build-42/relationships/betaGroups" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			return &http.Response{
-				StatusCode: http.StatusNoContent,
-				Body:       io.NopCloser(strings.NewReader("")),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected request count %d", requestCount)
-			return nil, nil
-		}
+	stdout, stderr, err := runCommand(t, []string{
+		"publish", "testflight",
+		"--app", "123",
+		"--build-number", "42",
+		"--group", "group-1",
+		"--wait",
+		"--poll-interval", "1ms",
 	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"publish", "testflight",
-			"--app", "123",
-			"--build-number", "42",
-			"--group", "group-1",
-			"--wait",
-			"--poll-interval", "1ms",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -1126,119 +482,34 @@ func TestPublishTestflightExistingBuildNumberNotifyUsesBuildBetaNotificationsEnd
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/123/betaGroups", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"External","isInternalGroup":false}}]}`))
+	reg.Register(asctest.GET("/v1/builds", "filter[app]=123", "filter[preReleaseVersion.platform]=IOS", "filter[processingState]=PROCESSING,FAILED,INVALID,VALID", "filter[version]=42", "limit=1", "sort=-uploadedDate"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"builds","id":"build-42","attributes":{"version":"42","processingState":"VALID"}}]}`))
+	reg.Register(asctest.POST("/v1/builds/build-42/relationships/betaGroups").JSONBody(`{"data":[{"type":"betaGroups","id":"group-1"}]}`),
+		asctest.JSON(http.StatusNoContent, ""))
+	reg.Register(asctest.GET("/v1/builds/build-42/buildBetaDetail"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"buildBetaDetails","id":"detail-42","attributes":{"autoNotifyEnabled":false}}}`))
+	reg.Register(asctest.POST("/v1/buildBetaNotifications").JSONBody(`{"data":{"type":"buildBetaNotifications","relationships":{"build":{"data":{"type":"builds","id":"build-42"}}}}}`),
+		asctest.JSON(http.StatusCreated, `{"data":{"type":"buildBetaNotifications","id":"notif-42"}}`))
 
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		switch requestCount {
-		case 1:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/123/betaGroups" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			body := `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"External","isInternalGroup":false}}]}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 2:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			query := req.URL.Query()
-			if query.Get("filter[app]") != "123" {
-				t.Fatalf("expected filter[app]=123, got %q", query.Get("filter[app]"))
-			}
-			if query.Get("filter[version]") != "42" {
-				t.Fatalf("expected filter[version]=42, got %q", query.Get("filter[version]"))
-			}
-			if query.Get("filter[preReleaseVersion.platform]") != "IOS" {
-				t.Fatalf("expected filter[preReleaseVersion.platform]=IOS, got %q", query.Get("filter[preReleaseVersion.platform]"))
-			}
-			if query.Get("filter[processingState]") != "PROCESSING,FAILED,INVALID,VALID" {
-				t.Fatalf("expected all processing states filter, got %q", query.Get("filter[processingState]"))
-			}
-			body := `{"data":[{"type":"builds","id":"build-42","attributes":{"version":"42","processingState":"VALID"}}]}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 3:
-			if req.Method != http.MethodPost || req.URL.Path != "/v1/builds/build-42/relationships/betaGroups" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			payload, err := io.ReadAll(req.Body)
-			if err != nil {
-				t.Fatalf("failed to read group assignment payload: %v", err)
-			}
-			if !strings.Contains(string(payload), `"id":"group-1"`) {
-				t.Fatalf("expected group assignment payload to include group-1, got %s", string(payload))
-			}
-			return &http.Response{
-				StatusCode: http.StatusNoContent,
-				Body:       io.NopCloser(strings.NewReader("")),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 4:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds/build-42/buildBetaDetail" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			body := `{"data":{"type":"buildBetaDetails","id":"detail-42","attributes":{"autoNotifyEnabled":false}}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 5:
-			if req.Method != http.MethodPost || req.URL.Path != "/v1/buildBetaNotifications" {
-				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
-			}
-			payload, err := io.ReadAll(req.Body)
-			if err != nil {
-				t.Fatalf("failed to read beta notification payload: %v", err)
-			}
-			if !strings.Contains(string(payload), `"type":"buildBetaNotifications"`) || !strings.Contains(string(payload), `"id":"build-42"`) {
-				t.Fatalf("expected build beta notification payload for build-42, got %s", string(payload))
-			}
-			body := `{"data":{"type":"buildBetaNotifications","id":"notif-42"}}`
-			return &http.Response{
-				StatusCode: http.StatusCreated,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected request count %d", requestCount)
-			return nil, nil
-		}
+	stdout, stderr, err := runCommand(t, []string{
+		"publish", "testflight",
+		"--app", "123",
+		"--build-number", "42",
+		"--group", "group-1",
+		"--notify",
 	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"publish", "testflight",
-			"--app", "123",
-			"--build-number", "42",
-			"--group", "group-1",
-			"--notify",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	if requestCount != 5 {
+	if requestCount := len(reg.Requests()); requestCount != 5 {
 		t.Fatalf("expected build lookup, group assignment, build beta detail fetch, and beta notification; got %d requests", requestCount)
 	}
 	if !strings.Contains(stdout, `"buildId":"build-42"`) {
