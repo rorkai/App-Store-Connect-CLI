@@ -61,43 +61,25 @@ Examples:
 
 // PhasedReleaseGetCommand returns the get subcommand.
 func PhasedReleaseGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("phased-release view", flag.ExitOnError)
-
-	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID (required)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc versions phased-release view [flags]",
-		ShortHelp:  "View phased release status for an app store version.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "phased-release view",
+		Name:        "view",
+		ShortUsage:  "asc versions phased-release view [flags]",
+		ShortHelp:   "View phased release status for an app store version.",
 		LongHelp: `View phased release status for an app store version.
 
 Examples:
   asc versions phased-release view --version-id "VERSION_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			version := strings.TrimSpace(*versionID)
-			if version == "" {
-				return shared.RequiredFlag("--version-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("phased-release view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetAppStoreVersionPhasedRelease(requestCtx, version)
-			if err != nil {
-				return fmt.Errorf("phased-release view: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDFlag:             "version-id",
+		IDUsage:            "App Store version ID (required)",
+		IDType:             "appStoreVersions",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "phased-release view",
+		FetchErrorPrefix:   "phased-release view",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetAppStoreVersionPhasedRelease(ctx, id)
 		},
-	}
+	})
 }
 
 // PhasedReleaseCreateCommand returns the create subcommand.
