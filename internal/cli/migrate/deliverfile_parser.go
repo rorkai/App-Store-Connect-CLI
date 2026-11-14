@@ -94,7 +94,8 @@ func parseDeliverfileReader(path string, reader io.Reader) (DeliverfileConfig, e
 			}
 			config.SkipScreenshots = parsed
 		default:
-			if slices.Contains(unappliedConfigKeys, key) {
+			assignment := strings.HasPrefix(strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), key)), "=")
+			if slices.Contains(unappliedConfigKeys, key) && !assignment {
 				config.IgnoredKeys = append(config.IgnoredKeys, IgnoredConfigKey{Key: key, Value: value, Line: lineNumber})
 			}
 		}
