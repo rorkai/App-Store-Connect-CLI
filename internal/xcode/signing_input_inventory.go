@@ -650,48 +650,41 @@ func (inv *signingEntitlementInventory) projectXCConfigCandidates(configuration 
 
 // appendProjectExpressionForTargets expands a project-level xcconfig
 // entitlement expression in the context of each target configuration with the
-// same name. It reports whether the assignment needs no further handling.
+// same name, skipping targets that define their own unconditional entitlement.
+// If any expansion fails, the raw value is kept as a lexical candidate. It
+// reports whether any target configuration has that name; when none does, the
+// caller handles the assignment like any other.
 func (inv *signingEntitlementInventory) appendProjectExpressionForTargets(configuration *versionConfiguration, assignment xcconfigAssignment) (bool, error) {
-	expandedForTarget := false
-	targetExpansionFailed := false
-	matchingTargetCount := 0
-	shadowedTargetCount := 0
+	inherited := false
+	expansionFailed := false
 	for _, targetConfiguration := range inv.project.configurations {
 		if targetConfiguration.projectLevel || targetConfiguration.name != configuration.name {
 			continue
 		}
-		matchingTargetCount++
+		inherited = true
 		if signingConfigurationDefinesUnconditionalEntitlement(inv.project, targetConfiguration, inv.configFiles, inv.resolver) {
-			shadowedTargetCount++
 			continue
 		}
-		expanded, failed, err := inv.appendProjectExpressionForTarget(configuration, targetConfiguration, assignment)
+		failed, err := inv.appendProjectExpressionForTarget(configuration, targetConfiguration, assignment)
 		if err != nil {
 			return false, err
 		}
 		if failed {
-			targetExpansionFailed = true
-		}
-		if expanded {
-			expandedForTarget = true
+			expansionFailed = true
 		}
 	}
-	if matchingTargetCount > 0 && shadowedTargetCount == matchingTargetCount {
-		return true, nil
-	}
-	if targetExpansionFailed {
+	if expansionFailed {
 		if lexicalErr := inv.appendLexicalEntitlementCandidate(assignment.value); lexicalErr != nil {
 			return false, lexicalErr
 		}
-		return true, nil
 	}
-	return expandedForTarget, nil
+	return inherited, nil
 }
 
 // appendProjectExpressionForTarget appends the values a project-level xcconfig
-// expression yields for one target configuration. It reports whether the
-// expression and its project seeds expanded, and whether any step failed.
-func (inv *signingEntitlementInventory) appendProjectExpressionForTarget(configuration, targetConfiguration *versionConfiguration, assignment xcconfigAssignment) (bool, bool, error) {
+// expression yields for one target configuration and reports whether any step
+// failed.
+func (inv *signingEntitlementInventory) appendProjectExpressionForTarget(configuration, targetConfiguration *versionConfiguration, assignment xcconfigAssignment) (bool, error) {
 	expanded, _, expandErr := inv.resolver.expandDirectAssignmentWithSourceContext(
 		configuration,
 		targetConfiguration,
@@ -702,7 +695,7 @@ func (inv *signingEntitlementInventory) appendProjectExpressionForTarget(configu
 		true,
 	)
 	if expandErr != nil {
-		return false, true, nil
+		return true, nil
 	}
 	projectSeeds, projectSeedErr := signingProjectPBXInheritedEntitlementValues(
 		configuration,
@@ -711,7 +704,7 @@ func (inv *signingEntitlementInventory) appendProjectExpressionForTarget(configu
 		inv.resolver,
 	)
 	if projectSeedErr != nil {
-		return false, true, nil
+		return true, nil
 	}
 	failed := false
 	for _, projectSeed := range projectSeeds {
@@ -730,11 +723,11 @@ func (inv *signingEntitlementInventory) appendProjectExpressionForTarget(configu
 		}
 		for _, targetValue := range targetValues {
 			if err := inv.appendEntitlements(targetValue); err != nil {
-				return false, false, err
+				return false, err
 			}
 		}
 	}
-	return true, failed, nil
+	return failed, nil
 }
 
 // inventoryUnassociatedXCConfigs covers configFiles entries whose key is not a
