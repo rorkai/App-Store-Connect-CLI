@@ -801,7 +801,7 @@ func checkContractAttributeFields(call *contractCall, response contractResponse,
 		args[call.attrsAt] = v
 		requests, _, err := call.invoke(args, response)
 		if err != nil || len(requests) != 1 {
-			return nil, fmt.Errorf("sent %v (error: %v)", requests, err)
+			return nil, fmt.Errorf("sent %v (error: %w)", requests, err)
 		}
 		var body struct {
 			Data struct {
