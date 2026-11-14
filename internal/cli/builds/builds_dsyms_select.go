@@ -476,7 +476,7 @@ func preReleaseVersionsByID(included []byte) map[string]preReleaseVersionSummary
 	if len(included) == 0 {
 		return nil
 	}
-	var items []asc.Resource[asc.PreReleaseVersionAttributes]
+	var items []asc.Resource[asc.PrereleaseVersionAttributes]
 	if err := json.Unmarshal(included, &items); err != nil {
 		return nil
 	}

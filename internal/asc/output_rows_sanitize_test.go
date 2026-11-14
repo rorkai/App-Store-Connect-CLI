@@ -49,7 +49,7 @@ func TestCustomerReviewResponseRowsRemoveTerminalControls(t *testing.T) {
 	resp := &CustomerReviewResponseResponse{
 		Data: CustomerReviewResponseResource{
 			ID: "RESPONSE\x1b[31mID",
-			Attributes: CustomerReviewResponseAttributes{
+			Attributes: CustomerReviewResponseV1Attributes{
 				ResponseBody: hostileText,
 				State:        "PUBLISHED\u202e",
 				LastModified: "2026-01-01T00:00:00Z",

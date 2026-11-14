@@ -354,7 +354,7 @@ func fetchAppSchedulePriceEntries(
 	return entries, values, currencies, nil
 }
 
-func parseAppPriceEntries(resources []asc.Resource[asc.AppPriceAttributes]) []appPriceEntry {
+func parseAppPriceEntries(resources []asc.Resource[asc.AppPriceV2Attributes]) []appPriceEntry {
 	entries := make([]appPriceEntry, 0, len(resources))
 	for _, item := range resources {
 		decodedMeta, decodedOK := decodeAppPriceResourceMetadata(item.ID)

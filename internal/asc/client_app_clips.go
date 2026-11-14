@@ -264,8 +264,8 @@ type (
 	BetaAppClipInvocationLocalizationResponse     = SingleResponse[BetaAppClipInvocationLocalizationAttributes]
 )
 
-// AppClipDefaultExperienceReviewDetailLinkageResponse is the response for review detail relationships.
-type AppClipDefaultExperienceReviewDetailLinkageResponse struct {
+// AppClipDefaultExperienceAppClipAppStoreReviewDetailLinkageResponse is the response for review detail relationships.
+type AppClipDefaultExperienceAppClipAppStoreReviewDetailLinkageResponse struct {
 	Data  ResourceData `json:"data"`
 	Links Links        `json:"links"`
 }
@@ -276,8 +276,8 @@ type AppClipDefaultExperienceReleaseWithAppStoreVersionLinkageResponse struct {
 	Links Links        `json:"links"`
 }
 
-// AppClipDefaultExperienceLocalizationHeaderImageLinkageResponse is the response for header image relationships.
-type AppClipDefaultExperienceLocalizationHeaderImageLinkageResponse struct {
+// AppClipDefaultExperienceLocalizationAppClipHeaderImageLinkageResponse is the response for header image relationships.
+type AppClipDefaultExperienceLocalizationAppClipHeaderImageLinkageResponse struct {
 	Data  ResourceData `json:"data"`
 	Links Links        `json:"links"`
 }

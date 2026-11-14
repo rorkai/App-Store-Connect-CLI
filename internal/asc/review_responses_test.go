@@ -181,7 +181,7 @@ func TestGetCustomerReviewResponseForReview_ValidationErrors(t *testing.T) {
 }
 
 func TestCustomerReviewPublishedResponseID(t *testing.T) {
-	review := Resource[ReviewAttributes]{
+	review := Resource[CustomerReviewAttributes]{
 		ID: "review-1",
 		Relationships: json.RawMessage(`{
 			"response": {
@@ -203,7 +203,7 @@ func TestCustomerReviewPublishedResponseID(t *testing.T) {
 }
 
 func TestCustomerReviewPublishedResponseIDReturnsFalseWhenUnset(t *testing.T) {
-	review := Resource[ReviewAttributes]{
+	review := Resource[CustomerReviewAttributes]{
 		ID: "review-1",
 		Relationships: json.RawMessage(`{
 			"response": {

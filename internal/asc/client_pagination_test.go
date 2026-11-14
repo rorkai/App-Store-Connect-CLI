@@ -684,7 +684,7 @@ func TestPaginateAll_BuildsPreservesIncluded(t *testing.T) {
 		t.Fatalf("expected 2 builds, got %d", len(builds.Data))
 	}
 
-	var included []Resource[PreReleaseVersionAttributes]
+	var included []Resource[PrereleaseVersionAttributes]
 	if err := json.Unmarshal(builds.Included, &included); err != nil {
 		t.Fatalf("expected merged included payload to be valid JSON, got %v", err)
 	}

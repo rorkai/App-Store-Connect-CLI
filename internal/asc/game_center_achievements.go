@@ -75,12 +75,6 @@ func buildGCAchievementsQuery(query *gcAchievementsQuery) string {
 	return values.Encode()
 }
 
-// GameCenterAchievementVersionAttributes represents a v2 achievement version resource.
-type GameCenterAchievementVersionAttributes struct {
-	Version int                    `json:"version,omitempty"`
-	State   GameCenterVersionState `json:"state,omitempty"`
-}
-
 // GameCenterAchievementVersionRelationships describes relationships for achievement versions.
 type GameCenterAchievementVersionRelationships struct {
 	Achievement *Relationship `json:"achievement,omitempty"`
@@ -98,10 +92,10 @@ type GameCenterAchievementVersionCreateRequest struct {
 }
 
 // GameCenterAchievementVersionsResponse is the response from achievement version list endpoints.
-type GameCenterAchievementVersionsResponse = Response[GameCenterAchievementVersionAttributes]
+type GameCenterAchievementVersionsResponse = Response[GameCenterAchievementVersionV2Attributes]
 
 // GameCenterAchievementVersionResponse is the response from achievement version detail endpoints.
-type GameCenterAchievementVersionResponse = SingleResponse[GameCenterAchievementVersionAttributes]
+type GameCenterAchievementVersionResponse = SingleResponse[GameCenterAchievementVersionV2Attributes]
 
 // GameCenterAchievementLocalizationAttributes represents a Game Center achievement localization.
 type GameCenterAchievementLocalizationAttributes struct {

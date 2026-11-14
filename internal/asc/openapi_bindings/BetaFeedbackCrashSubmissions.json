@@ -1,9 +1,12 @@
 {
   "tag": "BetaFeedbackCrashSubmissions",
   "file": "beta_feedback_crash_submissions_gen.go",
+  "types": [
+    "BetaFeedbackCrashSubmissionResponse"
+  ],
   "operations": [
     {"operation":"betaFeedbackCrashSubmissions_crashLog_getToOneRelated","name":"GetBetaFeedbackCrashSubmissionCrashLog","params":["submissionID"],"check":"require"},
     {"operation":"betaFeedbackCrashSubmissions_deleteInstance","name":"DeleteBetaFeedbackCrashSubmission","params":["submissionID"],"check":"require"},
-    {"operation":"betaFeedbackCrashSubmissions_getInstance","name":"GetBetaFeedbackCrashSubmission","params":["submissionID"],"check":"require","deviations":[{"problem":"result data holds asc.CrashAttributes, not the attributes of resource BetaFeedbackCrashSubmission","reason":"CrashAttributes is the hand-written attributes type of BetaFeedbackCrashSubmission under a shorter exported name; the attribute names check above passes for it."}]}
+    {"operation":"betaFeedbackCrashSubmissions_getInstance","name":"GetBetaFeedbackCrashSubmission","params":["submissionID"],"check":"require"}
   ]
 }

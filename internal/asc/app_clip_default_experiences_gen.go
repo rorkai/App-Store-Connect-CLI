@@ -61,9 +61,9 @@ func (c *Client) GetAppClipDefaultExperienceReviewDetail(ctx context.Context, ex
 }
 
 // GetAppClipDefaultExperienceReviewDetailRelationship sends GET /v1/appClipDefaultExperiences/{id}/relationships/appClipAppStoreReviewDetail (appClipDefaultExperiences_appClipAppStoreReviewDetail_getToOneRelationship).
-func (c *Client) GetAppClipDefaultExperienceReviewDetailRelationship(ctx context.Context, experienceID string) (*AppClipDefaultExperienceReviewDetailLinkageResponse, error) {
+func (c *Client) GetAppClipDefaultExperienceReviewDetailRelationship(ctx context.Context, experienceID string) (*AppClipDefaultExperienceAppClipAppStoreReviewDetailLinkageResponse, error) {
 	experienceID = strings.TrimSpace(experienceID)
-	return getJSON[AppClipDefaultExperienceReviewDetailLinkageResponse](ctx, c, readRequest{
+	return getJSON[AppClipDefaultExperienceAppClipAppStoreReviewDetailLinkageResponse](ctx, c, readRequest{
 		Path: fmt.Sprintf("/v1/appClipDefaultExperiences/%s/relationships/appClipAppStoreReviewDetail", experienceID),
 	})
 }

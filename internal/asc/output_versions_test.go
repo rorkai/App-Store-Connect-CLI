@@ -206,14 +206,14 @@ func TestPreReleaseVersionsRows_UsesDisplayPlatform(t *testing.T) {
 		Data: []PreReleaseVersion{
 			{
 				ID: "prv-1",
-				Attributes: PreReleaseVersionAttributes{
+				Attributes: PrereleaseVersionAttributes{
 					Version:  "1.0",
 					Platform: PlatformTVOS,
 				},
 			},
 			{
 				ID: "prv-2",
-				Attributes: PreReleaseVersionAttributes{
+				Attributes: PrereleaseVersionAttributes{
 					Version:  "2.0",
 					Platform: Platform("CAR_OS"),
 				},

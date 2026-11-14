@@ -383,12 +383,12 @@ func runOutputRegistryHelperRegistrations(t *testing.T) {
 
 	t.Run("built-in helper registrations", func(t *testing.T) {
 		t.Run("single linkage", func(t *testing.T) {
-			handler := requireOutputHandlerFor[AppStoreVersionSubmissionLinkageResponse](
+			handler := requireOutputHandlerFor[AppStoreVersionAppStoreVersionSubmissionLinkageResponse](
 				t,
 				"AppStoreVersionSubmissionLinkageResponse",
 			)
 
-			headers, rows, err := handler(&AppStoreVersionSubmissionLinkageResponse{
+			headers, rows, err := handler(&AppStoreVersionAppStoreVersionSubmissionLinkageResponse{
 				Data: ResourceData{
 					Type: ResourceType("appStoreVersionSubmissions"),
 					ID:   "submission-123",

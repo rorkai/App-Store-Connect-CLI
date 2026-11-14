@@ -15,7 +15,7 @@
   ],
   "operations": [
     {"operation":"appClipDefaultExperienceLocalizations_appClipHeaderImage_getToOneRelated","name":"GetAppClipDefaultExperienceLocalizationHeaderImage","params":["localizationID"],"check":"require"},
-    {"operation":"appClipDefaultExperienceLocalizations_appClipHeaderImage_getToOneRelationship","name":"GetAppClipDefaultExperienceLocalizationHeaderImageRelationship","params":["localizationID"],"check":"trim","response":"AppClipDefaultExperienceLocalizationHeaderImageLinkageResponse","deviations":[{"problem":"result AppClipDefaultExperienceLocalizationHeaderImageLinkageResponse is not the AppClipDefaultExperienceLocalizationAppClipHeaderImageLinkageResponse linkage response","reason":"AppClipDefaultExperienceLocalizationHeaderImageLinkageResponse is the hand-written type of the AppClipDefaultExperienceLocalizationAppClipHeaderImageLinkageResponse schema under a shorter exported name; it holds the same single linkage."}]},
+    {"operation":"appClipDefaultExperienceLocalizations_appClipHeaderImage_getToOneRelationship","name":"GetAppClipDefaultExperienceLocalizationHeaderImageRelationship","params":["localizationID"],"check":"trim"},
     {"operation":"appClipDefaultExperienceLocalizations_createInstance","name":"CreateAppClipDefaultExperienceLocalization","params":["experienceID"],"check":"require","links":["appClipDefaultExperience"]},
     {"operation":"appClipDefaultExperienceLocalizations_deleteInstance","name":"DeleteAppClipDefaultExperienceLocalization","params":["localizationID"],"check":"require"},
     {"operation":"appClipDefaultExperienceLocalizations_getInstance","name":"GetAppClipDefaultExperienceLocalization","params":["localizationID"],"check":"require"},

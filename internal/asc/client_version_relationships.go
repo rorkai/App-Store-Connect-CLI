@@ -12,8 +12,8 @@ type AppStoreVersionAgeRatingDeclarationLinkageResponse struct {
 	Links Links        `json:"links"`
 }
 
-// AppStoreVersionReviewDetailLinkageResponse is the response for review detail relationships.
-type AppStoreVersionReviewDetailLinkageResponse struct {
+// AppStoreVersionAppStoreReviewDetailLinkageResponse is the response for review detail relationships.
+type AppStoreVersionAppStoreReviewDetailLinkageResponse struct {
 	Data  ResourceData `json:"data"`
 	Links Links        `json:"links"`
 }
@@ -30,8 +30,8 @@ type AppStoreVersionBuildLinkageResponse struct {
 	Links Links        `json:"links"`
 }
 
-// AppStoreVersionSubmissionLinkageResponse is the response for submission relationships.
-type AppStoreVersionSubmissionLinkageResponse struct {
+// AppStoreVersionAppStoreVersionSubmissionLinkageResponse is the response for submission relationships.
+type AppStoreVersionAppStoreVersionSubmissionLinkageResponse struct {
 	Data  ResourceData `json:"data"`
 	Links Links        `json:"links"`
 }

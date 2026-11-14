@@ -278,12 +278,12 @@ func (a AppStoreVersionAttributes) MarshalJSON() ([]byte, error) {
 	return a.api.marshal(alias(a))
 }
 
-func (a *ReviewAttributes) UnmarshalJSON(data []byte) error {
-	type alias ReviewAttributes
+func (a *CustomerReviewAttributes) UnmarshalJSON(data []byte) error {
+	type alias CustomerReviewAttributes
 	return unmarshalAPIAttributes(data, (*alias)(a), &a.api)
 }
 
-func (a ReviewAttributes) MarshalJSON() ([]byte, error) {
-	type alias ReviewAttributes
+func (a CustomerReviewAttributes) MarshalJSON() ([]byte, error) {
+	type alias CustomerReviewAttributes
 	return a.api.marshal(alias(a))
 }

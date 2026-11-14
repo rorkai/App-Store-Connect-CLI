@@ -62,9 +62,9 @@ func (c *Client) GetAppClipDefaultExperienceLocalizationHeaderImage(ctx context.
 }
 
 // GetAppClipDefaultExperienceLocalizationHeaderImageRelationship sends GET /v1/appClipDefaultExperienceLocalizations/{id}/relationships/appClipHeaderImage (appClipDefaultExperienceLocalizations_appClipHeaderImage_getToOneRelationship).
-func (c *Client) GetAppClipDefaultExperienceLocalizationHeaderImageRelationship(ctx context.Context, localizationID string) (*AppClipDefaultExperienceLocalizationHeaderImageLinkageResponse, error) {
+func (c *Client) GetAppClipDefaultExperienceLocalizationHeaderImageRelationship(ctx context.Context, localizationID string) (*AppClipDefaultExperienceLocalizationAppClipHeaderImageLinkageResponse, error) {
 	localizationID = strings.TrimSpace(localizationID)
-	return getJSON[AppClipDefaultExperienceLocalizationHeaderImageLinkageResponse](ctx, c, readRequest{
+	return getJSON[AppClipDefaultExperienceLocalizationAppClipHeaderImageLinkageResponse](ctx, c, readRequest{
 		Path: fmt.Sprintf("/v1/appClipDefaultExperienceLocalizations/%s/relationships/appClipHeaderImage", localizationID),
 	})
 }

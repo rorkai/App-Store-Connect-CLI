@@ -63,7 +63,7 @@ func (c *Client) CreateAppPriceSchedule(ctx context.Context, appID string, attrs
 		included = append(included, AppPriceCreateResource{
 			Type: ResourceTypeAppPrices,
 			ID:   localID,
-			Attributes: AppPriceAttributes{
+			Attributes: AppPriceV2Attributes{
 				StartDate: strings.TrimSpace(price.StartDate),
 				EndDate:   strings.TrimSpace(price.EndDate),
 			},

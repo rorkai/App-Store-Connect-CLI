@@ -9,6 +9,12 @@ import (
 	"strings"
 )
 
+// GameCenterAchievementVersionV2Attributes is the attributes object of the GameCenterAchievementVersionV2 schema.
+type GameCenterAchievementVersionV2Attributes struct {
+	Version int                    `json:"version,omitempty"`
+	State   GameCenterVersionState `json:"state,omitempty"`
+}
+
 // GetGameCenterAchievementVersion sends GET /v2/gameCenterAchievementVersions/{id} (gameCenterAchievementVersionsV2_getInstance).
 func (c *Client) GetGameCenterAchievementVersion(ctx context.Context, versionID string) (*GameCenterAchievementVersionResponse, error) {
 	return getJSON[GameCenterAchievementVersionResponse](ctx, c, readRequest{

@@ -10,8 +10,8 @@ import (
 	"strings"
 )
 
-// FeedbackAttributes describes beta feedback screenshot submissions.
-type FeedbackAttributes struct {
+// BetaFeedbackScreenshotSubmissionAttributes describes beta feedback screenshot submissions.
+type BetaFeedbackScreenshotSubmissionAttributes struct {
 	CreatedDate             string                    `json:"createdDate"`
 	Comment                 string                    `json:"comment"`
 	Email                   string                    `json:"email"`
@@ -43,8 +43,8 @@ type FeedbackScreenshotImage struct {
 	ExpirationDate string `json:"expirationDate,omitempty"`
 }
 
-// CrashAttributes describes beta feedback crash submissions.
-type CrashAttributes struct {
+// BetaFeedbackCrashSubmissionAttributes describes beta feedback crash submissions.
+type BetaFeedbackCrashSubmissionAttributes struct {
 	CreatedDate             string               `json:"createdDate"`
 	Comment                 string               `json:"comment"`
 	Email                   string               `json:"email"`
@@ -68,8 +68,8 @@ type CrashAttributes struct {
 	CrashLog                string               `json:"crashLog,omitempty"`
 }
 
-// ReviewAttributes describes App Store customer reviews.
-type ReviewAttributes struct {
+// CustomerReviewAttributes describes App Store customer reviews.
+type CustomerReviewAttributes struct {
 	Rating           int    `json:"rating"`
 	Title            string `json:"title"`
 	Body             string `json:"body"`
@@ -81,16 +81,13 @@ type ReviewAttributes struct {
 }
 
 // FeedbackResponse is the response from beta feedback screenshots endpoint.
-type FeedbackResponse = Response[FeedbackAttributes]
+type FeedbackResponse = Response[BetaFeedbackScreenshotSubmissionAttributes]
 
 // CrashesResponse is the response from beta feedback crashes endpoint.
-type CrashesResponse = Response[CrashAttributes]
+type CrashesResponse = Response[BetaFeedbackCrashSubmissionAttributes]
 
 // ReviewsResponse is the response from customer reviews endpoint.
-type ReviewsResponse = Response[ReviewAttributes]
-
-// CustomerReviewResponse is the response from customer review detail endpoint.
-type CustomerReviewResponse = SingleResponse[ReviewAttributes]
+type ReviewsResponse = Response[CustomerReviewAttributes]
 
 // AppStoreVersionLocalizationsResponse is the response from app store version localizations endpoints.
 type AppStoreVersionLocalizationsResponse = Response[AppStoreVersionLocalizationAttributes]

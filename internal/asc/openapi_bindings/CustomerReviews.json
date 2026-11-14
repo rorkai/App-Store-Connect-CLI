@@ -1,7 +1,10 @@
 {
   "tag": "CustomerReviews",
   "file": "customer_reviews_gen.go",
+  "types": [
+    "CustomerReviewResponse"
+  ],
   "operations": [
-    {"operation":"customerReviews_response_getToOneRelated","name":"GetCustomerReviewResponseForReview","params":["reviewID"],"check":"require","response":"CustomerReviewResponseResponse","deviations":[{"problem":"result data holds asc.CustomerReviewResponseAttributes, not the attributes of resource CustomerReviewResponseV1","reason":"CustomerReviewResponseAttributes is the hand-written attributes type, named without the version suffix of CustomerReviewResponseV1; the attribute names check passes for CustomerReviewResponseV1."}]}
+    {"operation":"customerReviews_response_getToOneRelated","name":"GetCustomerReviewResponseForReview","params":["reviewID"],"check":"require","response":"CustomerReviewResponseResponse"}
   ]
 }

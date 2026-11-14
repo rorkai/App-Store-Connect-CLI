@@ -8,6 +8,9 @@ import (
 	"strings"
 )
 
+// CustomerReviewResponse is the CustomerReviewResponse schema.
+type CustomerReviewResponse = SingleResponse[CustomerReviewAttributes]
+
 // GetCustomerReviewResponseForReview sends GET /v1/customerReviews/{id}/response (customerReviews_response_getToOneRelated).
 func (c *Client) GetCustomerReviewResponseForReview(ctx context.Context, reviewID string) (*CustomerReviewResponseResponse, error) {
 	reviewID = strings.TrimSpace(reviewID)

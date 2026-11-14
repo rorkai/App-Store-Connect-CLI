@@ -7,10 +7,10 @@ import (
 
 func TestPrintTable_GameCenterAchievementVersions(t *testing.T) {
 	resp := &GameCenterAchievementVersionsResponse{
-		Data: []Resource[GameCenterAchievementVersionAttributes]{
+		Data: []Resource[GameCenterAchievementVersionV2Attributes]{
 			{
 				ID: "ver-1",
-				Attributes: GameCenterAchievementVersionAttributes{
+				Attributes: GameCenterAchievementVersionV2Attributes{
 					Version: 2,
 					State:   GameCenterVersionStateReadyForReview,
 				},
@@ -32,10 +32,10 @@ func TestPrintTable_GameCenterAchievementVersions(t *testing.T) {
 
 func TestPrintMarkdown_GameCenterLeaderboardVersions(t *testing.T) {
 	resp := &GameCenterLeaderboardVersionsResponse{
-		Data: []Resource[GameCenterLeaderboardVersionAttributes]{
+		Data: []Resource[GameCenterLeaderboardVersionV2Attributes]{
 			{
 				ID: "ver-2",
-				Attributes: GameCenterLeaderboardVersionAttributes{
+				Attributes: GameCenterLeaderboardVersionV2Attributes{
 					Version: 5,
 					State:   GameCenterVersionStateInReview,
 				},
@@ -57,10 +57,10 @@ func TestPrintMarkdown_GameCenterLeaderboardVersions(t *testing.T) {
 
 func TestPrintTable_GameCenterLeaderboardSetVersions(t *testing.T) {
 	resp := &GameCenterLeaderboardSetVersionsResponse{
-		Data: []Resource[GameCenterLeaderboardSetVersionAttributes]{
+		Data: []Resource[GameCenterLeaderboardSetVersionV2Attributes]{
 			{
 				ID: "ver-3",
-				Attributes: GameCenterLeaderboardSetVersionAttributes{
+				Attributes: GameCenterLeaderboardSetVersionV2Attributes{
 					Version: 1,
 					State:   GameCenterVersionStateLive,
 				},

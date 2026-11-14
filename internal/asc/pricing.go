@@ -5,8 +5,8 @@ type AppPriceScheduleAttributes struct {
 	// Usually empty - data is in relationships.
 }
 
-// AppPriceAttributes describes a price schedule entry.
-type AppPriceAttributes struct {
+// AppPriceV2Attributes describes a price schedule entry.
+type AppPriceV2Attributes struct {
 	StartDate string `json:"startDate,omitempty"`
 	EndDate   string `json:"endDate,omitempty"`
 	Manual    bool   `json:"manual,omitempty"`
@@ -32,7 +32,7 @@ type (
 	TerritoryResponse               = SingleResponse[TerritoryAttributes]
 	AppPricePointsV3Response        = Response[AppPricePointV3Attributes]
 	AppPriceScheduleResponse        = SingleResponse[AppPriceScheduleAttributes]
-	AppPricesResponse               = Response[AppPriceAttributes]
+	AppPricesResponse               = Response[AppPriceV2Attributes]
 	AppAvailabilityV2Response       = SingleResponse[AppAvailabilityV2Attributes]
 	TerritoryAvailabilitiesResponse = Response[TerritoryAvailabilityAttributes]
 	TerritoryAvailabilityResponse   = SingleResponse[TerritoryAvailabilityAttributes]
@@ -65,7 +65,7 @@ type AppPriceScheduleCreateRequest struct {
 type AppPriceCreateResource struct {
 	Type          ResourceType          `json:"type"`
 	ID            string                `json:"id,omitempty"`
-	Attributes    AppPriceAttributes    `json:"attributes"`
+	Attributes    AppPriceV2Attributes  `json:"attributes"`
 	Relationships AppPriceRelationships `json:"relationships"`
 }
 
