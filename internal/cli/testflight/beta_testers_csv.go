@@ -966,7 +966,7 @@ func validateBetaTestersCSVHeader(header []string) (map[string]int, error) {
 		canonical, ok := canonicalBetaTestersCSVColumn(col)
 		if !ok {
 			return nil, shared.WithDiagnostic(
-				shared.UsageErrorf("unknown CSV column %q (allowed: email, first_name, last_name, groups, %s)", col, betaTestersFormulaEscapingColumn),
+				shared.UsageErrorf("unknown CSV column %q (allowed: email, first_name, last_name, groups, %s; installed_version and install_date are ignored)", col, betaTestersFormulaEscapingColumn),
 				shared.DiagnosticFileInvalidFormat,
 				"--input",
 			)
