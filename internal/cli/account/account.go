@@ -16,9 +16,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// AccountCommand returns the account command group.
-func AccountCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("account", flag.ExitOnError)
+// NewAccountCommand returns the account command group built on d.
+func NewAccountCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("account", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "account",
@@ -33,7 +33,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			accountStatusCommand(),
+			accountStatusCommand(d),
 		},
 		Exec: func(_ context.Context, _ []string) error {
 			return flag.ErrHelp
@@ -41,11 +41,11 @@ Examples:
 	}
 }
 
-func accountStatusCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("account status", flag.ExitOnError)
+func accountStatusCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("account status", flag.ExitOnError)
 
 	appID := fs.String("app", "", "Optional app ID for access probe (or ASC_APP_ID env)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "status",
@@ -66,17 +66,17 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
-			resp, err := collectAccountStatus(ctx, resolvedAppID)
+			resp, err := collectAccountStatus(ctx, d, resolvedAppID)
 			if err != nil {
 				return fmt.Errorf("account status: %w", err)
 			}
 
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				resp,
 				*output.Output,
 				*output.Pretty,
-				func() error { renderAccountStatus(resp, false); return nil },
-				func() error { renderAccountStatus(resp, true); return nil },
+				func() error { renderAccountStatus(d, resp, false); return nil },
+				func() error { renderAccountStatus(d, resp, true); return nil },
 			)
 		},
 	}
@@ -101,11 +101,11 @@ type accountCheck struct {
 	Message string `json:"message"`
 }
 
-func collectAccountStatus(ctx context.Context, appID string) (*accountStatusResponse, error) {
+func collectAccountStatus(ctx context.Context, d *shared.Deps, appID string) (*accountStatusResponse, error) {
 	checks := make([]accountCheck, 0, 3)
 	checks = append(checks, authHealthCheck())
 
-	apiCheck, err := apiAccessCheck(ctx, appID)
+	apiCheck, err := apiAccessCheck(ctx, d, appID)
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +117,7 @@ func collectAccountStatus(ctx context.Context, appID string) (*accountStatusResp
 	return &accountStatusResponse{
 		Summary:     summary,
 		Checks:      checks,
-		GeneratedAt: time.Now().UTC().Format(time.RFC3339),
+		GeneratedAt: d.Now().UTC().Format(time.RFC3339),
 	}, nil
 }
 
@@ -148,8 +148,8 @@ func authHealthCheck() accountCheck {
 	}
 }
 
-func apiAccessCheck(ctx context.Context, appID string) (accountCheck, error) {
-	client, err := shared.GetASCClient()
+func apiAccessCheck(ctx context.Context, d *shared.Deps, appID string) (accountCheck, error) {
+	client, err := d.Client()
 	if err != nil {
 		return accountCheck{
 			Name:    "api_access",
@@ -158,7 +158,7 @@ func apiAccessCheck(ctx context.Context, appID string) (accountCheck, error) {
 		}, nil
 	}
 
-	requestCtx, cancel := shared.ContextWithTimeout(ctx)
+	requestCtx, cancel := d.Timeout(ctx)
 	defer cancel()
 
 	if strings.TrimSpace(appID) != "" {
@@ -272,7 +272,7 @@ func errorsIsNotFound(err error) bool {
 	return errors.Is(err, asc.ErrNotFound) || asc.IsNotFound(err)
 }
 
-func renderAccountStatus(resp *accountStatusResponse, markdown bool) {
+func renderAccountStatus(d *shared.Deps, resp *accountStatusResponse, markdown bool) {
 	summaryRows := [][]string{
 		{"health", resp.Summary.Health},
 		{"nextAction", resp.Summary.NextAction},
@@ -280,11 +280,11 @@ func renderAccountStatus(resp *accountStatusResponse, markdown bool) {
 		{"warningCount", strconv.Itoa(resp.Summary.WarningCount)},
 		{"generatedAt", resp.GeneratedAt},
 	}
-	shared.RenderSection("Summary", []string{"field", "value"}, summaryRows, markdown)
+	d.RenderSection("Summary", []string{"field", "value"}, summaryRows, markdown)
 
 	checkRows := make([][]string, 0, len(resp.Checks))
 	for _, check := range resp.Checks {
 		checkRows = append(checkRows, []string{check.Name, check.Status, check.Message})
 	}
-	shared.RenderSection("Checks", []string{"check", "status", "message"}, checkRows, markdown)
+	d.RenderSection("Checks", []string{"check", "status", "message"}, checkRows, markdown)
 }

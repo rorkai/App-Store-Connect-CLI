@@ -129,7 +129,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("auth", "Manage authentication for the App Store Connect API.", auth.AuthCommand),
 		commandFactory("doctor", "Diagnose authentication configuration issues.", auth.AuthDoctorCommand),
 		commandFactory("web", "Apple web-session workflows, including finance report downloads.", web.WebCommand),
-		commandFactory("account", "Inspect account-level health and access signals.", account.AccountCommand),
+		commandFactory("account", "Inspect account-level health and access signals.", func() *ffcli.Command {
+			return account.NewAccountCommand(d)
+		}),
 		commandFactory("install-skills", "Install the asc skill pack globally for App Store Connect workflows.", install.InstallSkillsCommand),
 		commandFactory("init", "Initialize asc helper docs in the current repo.", initcmd.InitCommand),
 		commandFactory("docs", "Access embedded documentation guides and reference helpers.", docs.DocsCommand),
