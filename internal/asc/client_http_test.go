@@ -2770,6 +2770,40 @@ func TestGetBuilds_WithVersionFilter(t *testing.T) {
 	}
 }
 
+func TestGetBuilds_WithPreReleaseVersionVersionFilter(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"builds","id":"build-24","attributes":{"version":"2","uploadedDate":"2026-03-02T18:01:00Z"}}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/builds" {
+			t.Fatalf("expected path /v1/builds, got %s", req.URL.Path)
+		}
+		values := req.URL.Query()
+		if values.Get("filter[app]") != "123" {
+			t.Fatalf("expected filter[app]=123, got %q", values.Get("filter[app]"))
+		}
+		if values.Get("filter[preReleaseVersion.version]") != "2.4.0" {
+			t.Fatalf(
+				"expected filter[preReleaseVersion.version]=2.4.0, got %q",
+				values.Get("filter[preReleaseVersion.version]"),
+			)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	builds, err := client.GetBuilds(context.Background(), "123", func(q *buildsQuery) { q.preReleaseVersion = "2.4.0" })
+	if err != nil {
+		t.Fatalf("GetBuilds() error: %v", err)
+	}
+	if len(builds.Data) != 1 {
+		t.Fatalf("expected 1 build, got %d", len(builds.Data))
+	}
+	if builds.Data[0].ID != "build-24" {
+		t.Fatalf("expected build ID build-24, got %s", builds.Data[0].ID)
+	}
+}
+
 func TestGetBuilds_WithProcessingStateFilter(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":[{"type":"builds","id":"build-processing","attributes":{"version":"42","processingState":"PROCESSING","uploadedDate":"2026-01-20T00:00:00Z"}}]}`)
 	client := newTestClient(t, func(req *http.Request) {
