@@ -303,50 +303,31 @@ Examples:
 
 // AppClipInvocationsDeleteCommand deletes a beta App Clip invocation.
 func AppClipInvocationsDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("delete", flag.ExitOnError)
+	d := shared.DefaultDeps()
+	d.Client = func() (*asc.Client, error) { return appClipsClientFactory() }
 
-	invocationID := shared.BindResourceIDFlag(fs, "invocation-id", "betaAppClipInvocations", "Invocation ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc app-clips invocations delete --invocation-id \"INVOCATION_ID\" --confirm",
-		ShortHelp:  "Delete a beta App Clip invocation.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "delete",
+		Name:        "delete",
+		ShortUsage:  "asc app-clips invocations delete --invocation-id \"INVOCATION_ID\" --confirm",
+		ShortHelp:   "Delete a beta App Clip invocation.",
 		LongHelp: `Delete a beta App Clip invocation.
 
 Examples:
   asc app-clips invocations delete --invocation-id "INVOCATION_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			invocationValue := strings.TrimSpace(*invocationID)
-			if invocationValue == "" {
-				return shared.RequiredFlag("--invocation-id")
-			}
-			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required to delete")
-				return shared.MissingRequiredUsageError("--confirm")
-			}
-
-			client, err := appClipsClientFactory()
-			if err != nil {
-				return fmt.Errorf("app-clips invocations delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteBetaAppClipInvocation(requestCtx, invocationValue); err != nil {
-				return fmt.Errorf("app-clips invocations delete: failed to delete: %w", err)
-			}
-
-			result := &asc.BetaAppClipInvocationDeleteResult{
-				ID:      invocationValue,
-				Deleted: true,
-			}
-
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:                 "invocation-id",
+		IDUsage:                "Invocation ID",
+		IDType:                 "betaAppClipInvocations",
+		RequiredDiagnostic:     true,
+		ConfirmRequiredMessage: "--confirm is required to delete",
+		ErrorPrefix:            "app-clips invocations delete",
+		DeleteErrorPrefix:      "app-clips invocations delete: failed to delete",
+		Deps:                   d,
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteBetaAppClipInvocation(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.BetaAppClipInvocationDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }

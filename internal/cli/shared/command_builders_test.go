@@ -557,13 +557,15 @@ func TestBuildConfirmDeleteCommandOptions(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name          string
-		args          []string
-		deleteErr     error
-		wantErr       string
-		wantParameter string
-		wantStderr    string
-		wantStdout    string
+		name             string
+		args             []string
+		configure        func(*ConfirmDeleteCommandConfig)
+		deleteErr        error
+		wantErr          string
+		wantParameter    string
+		wantStderr       string
+		wantStdout       string
+		wantConfirmUsage string
 	}{
 		{
 			name:          "missing id reports the required diagnostic",
@@ -578,6 +580,34 @@ func TestBuildConfirmDeleteCommandOptions(t *testing.T) {
 			wantErr:       "--confirm",
 			wantParameter: "--confirm",
 			wantStderr:    "Error: --confirm is required\n",
+		},
+		{
+			name: "missing confirm reports the configured message",
+			args: []string{"--id", "item-1"},
+			configure: func(c *ConfirmDeleteCommandConfig) {
+				c.ConfirmRequiredMessage = "--confirm is required to delete"
+			},
+			wantErr:       "--confirm",
+			wantParameter: "--confirm",
+			wantStderr:    "Error: --confirm is required to delete\n",
+		},
+		{
+			name: "missing confirm returns the configured message as a usage error",
+			args: []string{"--id", "item-1"},
+			configure: func(c *ConfirmDeleteCommandConfig) {
+				c.RequiredDiagnostic = false
+				c.ConfirmRequiredMessage = "--confirm is required to delete"
+			},
+			wantErr: "--confirm is required to delete",
+		},
+		{
+			name: "confirm flag uses the configured usage",
+			args: []string{"--id", "item-1", "--confirm"},
+			configure: func(c *ConfirmDeleteCommandConfig) {
+				c.ConfirmUsage = "Confirm removal"
+			},
+			wantStdout:       `{"deleted":"true","id":"item-1"}` + "\n",
+			wantConfirmUsage: "Confirm removal",
 		},
 		{
 			name:      "delete error uses the delete prefix",
@@ -597,7 +627,7 @@ func TestBuildConfirmDeleteCommandOptions(t *testing.T) {
 			t.Parallel()
 
 			var stdout, stderr bytes.Buffer
-			cmd := BuildConfirmDeleteCommand(ConfirmDeleteCommandConfig{
+			config := ConfirmDeleteCommandConfig{
 				FlagSetName:        "delete",
 				Name:               "delete",
 				ShortUsage:         "asc items delete --id ITEM_ID --confirm",
@@ -611,7 +641,18 @@ func TestBuildConfirmDeleteCommandOptions(t *testing.T) {
 				Result: func(id string) any {
 					return map[string]string{"id": id, "deleted": "true"}
 				},
-			})
+			}
+			if tt.configure != nil {
+				tt.configure(&config)
+			}
+			cmd := BuildConfirmDeleteCommand(config)
+			wantConfirmUsage := tt.wantConfirmUsage
+			if wantConfirmUsage == "" {
+				wantConfirmUsage = "Confirm deletion"
+			}
+			if got := cmd.FlagSet.Lookup("confirm").Usage; got != wantConfirmUsage {
+				t.Fatalf("--confirm usage = %q, want %q", got, wantConfirmUsage)
+			}
 			if err := cmd.FlagSet.Parse(append(tt.args, "--output", "json")); err != nil {
 				t.Fatalf("parse flags: %v", err)
 			}

@@ -206,16 +206,11 @@ Examples:
 
 // PhasedReleaseDeleteCommand returns the delete subcommand.
 func PhasedReleaseDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("phased-release delete", flag.ExitOnError)
-
-	phasedID := shared.BindResourceIDFlag(fs, "id", "appStoreVersionPhasedReleases", "Phased release ID (required)")
-	confirm := fs.Bool("confirm", false, "Confirm deletion (required)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "delete",
-		ShortUsage: "asc versions phased-release delete [flags]",
-		ShortHelp:  "Delete a phased release.",
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		FlagSetName: "phased-release delete",
+		Name:        "delete",
+		ShortUsage:  "asc versions phased-release delete [flags]",
+		ShortHelp:   "Delete a phased release.",
 		LongHelp: `Delete a phased release.
 
 This removes the phased release configuration. The app will release to all users
@@ -223,36 +218,17 @@ immediately when it goes live (no gradual rollout).
 
 Examples:
   asc versions phased-release delete --id "PHASED_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*phasedID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("phased-release delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteAppStoreVersionPhasedRelease(requestCtx, id); err != nil {
-				return fmt.Errorf("phased-release delete: %w", err)
-			}
-
-			result := &asc.AppStoreVersionPhasedReleaseDeleteResult{
-				ID:      id,
-				Deleted: true,
-			}
-
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "id",
+		IDUsage:            "Phased release ID (required)",
+		IDType:             "appStoreVersionPhasedReleases",
+		RequiredDiagnostic: true,
+		ConfirmUsage:       "Confirm deletion (required)",
+		ErrorPrefix:        "phased-release delete",
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteAppStoreVersionPhasedRelease(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.AppStoreVersionPhasedReleaseDeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
