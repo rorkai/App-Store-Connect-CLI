@@ -59,12 +59,10 @@ func parseDeliverfileReader(path string, reader io.Reader) (DeliverfileConfig, e
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
+		heredocEnd = heredocTerminator(line)
 		key, value, ok := parseDeliverfileLine(line)
 		if !ok {
 			continue
-		}
-		if match := heredocStart.FindStringSubmatch(strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), key))); match != nil {
-			heredocEnd = match[1]
 		}
 		switch key {
 		case "metadata_path":
@@ -273,10 +271,32 @@ var unappliedConfigKeys = []string{
 	"app_clip_default_experience_subtitle", "app_clip_default_experience_action",
 }
 
-// heredocStart matches a value that opens a multi-line text, such as
-// "<<~TEXT" or "(<<~TEXT". The lines up to the closing word are text, not
-// options. It is anchored so that "<<" inside a quoted value does not count.
-var heredocStart = regexp.MustCompile(`^\(?\s*<<[~-]?["']?([A-Za-z_][A-Za-z0-9_]*)["']?`)
+// heredocStart matches the marker that opens a multi-line text, such as
+// "<<~TEXT". The lines up to the closing word are text, not options.
+var heredocStart = regexp.MustCompile(`^<<[~-]?["']?([A-Za-z_][A-Za-z0-9_]*)["']?`)
+
+// heredocTerminator returns the closing word of a multi-line text that line
+// opens, or "". A marker inside a quoted string does not count.
+func heredocTerminator(line string) string {
+	var quote byte
+	for i := 0; i < len(line); i++ {
+		switch c := line[i]; {
+		case quote != 0 && c == '\\':
+			i++
+		case quote != 0:
+			if c == quote {
+				quote = 0
+			}
+		case c == '"' || c == '\'':
+			quote = c
+		case c == '<':
+			if match := heredocStart.FindStringSubmatch(line[i:]); match != nil {
+				return match[1]
+			}
+		}
+	}
+	return ""
+}
 
 // isConfigOptionCall reports whether rest, the text that follows an option
 // name, sets the option: "name value" or "name(value)". Text that starts with

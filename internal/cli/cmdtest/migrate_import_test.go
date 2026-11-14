@@ -1840,7 +1840,7 @@ func TestMigrateImportDryRunDeliverfileSkipScreenshotsAllowsMissingFastlaneScree
 	}
 	writeFile(t, filepath.Join(metadataDir, "description.txt"), "English description")
 	configPath := filepath.Join(fastlaneDir, "Deliverfile")
-	writeFile(t, configPath, "submit_for_review true\nskip_screenshots true\nphased_release false\nmetadata_path \"./metadata\"\nprice_tier 0\nreset_ratings = ENV[\"RESET\"]\nif reset_ratings\n  automatic_release true\nend\napp_review_information(\n  name: \"Ada\",\n  description: \"notes\"\n)\nprice_tier += 1\nsubmit_for_review ||= false\ndescription <<~TEXT\n  reset_ratings true\nTEXT\nname \"see <<NOTE below\"\nlanguages [\"en-US\"]\n")
+	writeFile(t, configPath, "submit_for_review true\nskip_screenshots true\nphased_release false\nmetadata_path \"./metadata\"\nprice_tier 0\nreset_ratings = ENV[\"RESET\"]\nif reset_ratings\n  automatic_release true\nend\napp_review_information(\n  name: \"Ada\",\n  description: \"notes\"\n)\nprice_tier += 1\nsubmit_for_review ||= false\ndescription <<~TEXT\n  reset_ratings true\nTEXT\nname \"see <<NOTE below\"\nlanguages [\"en-US\"]\ntrade_representative_contact_information(\n  notes: <<~NOTES\n    submit_for_review true\n  NOTES\n)\n")
 
 	rootCmd := RootCommand("1.2.3")
 	rootCmd.FlagSet.SetOutput(io.Discard)
@@ -1893,6 +1893,7 @@ func TestMigrateImportDryRunDeliverfileSkipScreenshotsAllowsMissingFastlaneScree
 		{Path: configPath, Reason: "line 16: description is not applied by import"},
 		{Path: configPath, Reason: "line 19: name is not applied by import"},
 		{Path: configPath, Reason: "line 20: languages is not applied by import"},
+		{Path: configPath, Reason: "line 21: trade_representative_contact_information is not applied by import"},
 	}
 	var gotIgnored []migrate.SkippedItem
 	for _, skipped := range result.Skipped {
