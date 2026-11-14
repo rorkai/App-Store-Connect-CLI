@@ -320,11 +320,6 @@ func (c *Client) UploadGameCenterChallengeImage(ctx context.Context, localizatio
 	return result, nil
 }
 
-// GetGameCenterChallengeVersionRelease retrieves a challenge version release by ID.
-func (c *Client) GetGameCenterChallengeVersionRelease(ctx context.Context, releaseID string) (*GameCenterChallengeVersionReleaseResponse, error) {
-	return getJSON[GameCenterChallengeVersionReleaseResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/gameCenterChallengeVersionReleases/%s", strings.TrimSpace(releaseID))})
-}
-
 // GetGameCenterChallengeVersionReleases retrieves challenge releases for a Game Center detail.
 func (c *Client) GetGameCenterChallengeVersionReleases(ctx context.Context, gcDetailID string, opts ...GCChallengeVersionReleasesOption) (*GameCenterChallengeVersionReleasesResponse, error) {
 	query := applyOptions(opts)

@@ -7,17 +7,6 @@ import (
 	"strings"
 )
 
-// GetGameCenterAppVersions retrieves the list of Game Center app versions.
-func (c *Client) GetGameCenterAppVersions(ctx context.Context, opts ...GCAppVersionsOption) (*GameCenterAppVersionsResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[GameCenterAppVersionsResponse](ctx, c, readRequest{
-		Path:        "/v1/gameCenterAppVersions",
-		Query:       buildGCAppVersionsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "game-center-app-versions",
-	})
-}
-
 // GetGameCenterAppVersion retrieves a Game Center app version by ID.
 func (c *Client) GetGameCenterAppVersion(ctx context.Context, appVersionID string) (*GameCenterAppVersionResponse, error) {
 	return getJSON[GameCenterAppVersionResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/gameCenterAppVersions/%s", strings.TrimSpace(appVersionID))})
@@ -101,9 +90,4 @@ func (c *Client) UpdateGameCenterAppVersion(ctx context.Context, appVersionID st
 	}
 
 	return sendJSON[GameCenterAppVersionResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/gameCenterAppVersions/%s", appVersionID), Payload: payload})
-}
-
-// GetAppStoreVersionGameCenterAppVersion retrieves the related Game Center app version.
-func (c *Client) GetAppStoreVersionGameCenterAppVersion(ctx context.Context, versionID string) (*GameCenterAppVersionResponse, error) {
-	return getJSON[GameCenterAppVersionResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appStoreVersions/%s/gameCenterAppVersion", strings.TrimSpace(versionID))})
 }

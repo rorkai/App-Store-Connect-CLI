@@ -255,27 +255,6 @@ func (c *Client) DeleteGameCenterLeaderboardLocalization(ctx context.Context, lo
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/gameCenterLeaderboardLocalizations/%s", strings.TrimSpace(localizationID)), nil)
 }
 
-// GetAllGameCenterLeaderboardLocalizations retrieves all leaderboard localizations using automatic pagination.
-func (c *Client) GetAllGameCenterLeaderboardLocalizations(ctx context.Context, leaderboardID string, opts ...GCLeaderboardLocalizationsOption) (*GameCenterLeaderboardLocalizationsResponse, error) {
-	firstPage, err := c.GetGameCenterLeaderboardLocalizations(ctx, leaderboardID, opts...)
-	if err != nil {
-		return nil, err
-	}
-
-	result, err := PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (PaginatedResponse, error) {
-		return c.GetGameCenterLeaderboardLocalizations(ctx, leaderboardID, WithGCLeaderboardLocalizationsNextURL(nextURL))
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	resp, ok := result.(*GameCenterLeaderboardLocalizationsResponse)
-	if !ok {
-		return nil, fmt.Errorf("unexpected paginated response type %T", result)
-	}
-	return resp, nil
-}
-
 // GetGameCenterLeaderboardReleases retrieves the list of releases for a Game Center leaderboard.
 func (c *Client) GetGameCenterLeaderboardReleases(ctx context.Context, leaderboardID string, opts ...GCLeaderboardReleasesOption) (*GameCenterLeaderboardReleasesResponse, error) {
 	query := applyOptions(opts)
@@ -285,11 +264,6 @@ func (c *Client) GetGameCenterLeaderboardReleases(ctx context.Context, leaderboa
 		Next:        query.nextURL,
 		NextContext: "game-center-leaderboard-releases",
 	})
-}
-
-// GetGameCenterLeaderboardRelease retrieves a leaderboard release by ID.
-func (c *Client) GetGameCenterLeaderboardRelease(ctx context.Context, releaseID string) (*GameCenterLeaderboardReleaseResponse, error) {
-	return getJSON[GameCenterLeaderboardReleaseResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/gameCenterLeaderboardReleases/%s", strings.TrimSpace(releaseID))})
 }
 
 // CreateGameCenterLeaderboardRelease creates a new Game Center leaderboard release.
@@ -331,11 +305,6 @@ func (c *Client) GetGameCenterAchievementReleases(ctx context.Context, achieveme
 		Next:        query.nextURL,
 		NextContext: "game-center-achievement-releases",
 	})
-}
-
-// GetGameCenterAchievementRelease retrieves an achievement release by ID.
-func (c *Client) GetGameCenterAchievementRelease(ctx context.Context, releaseID string) (*GameCenterAchievementReleaseResponse, error) {
-	return getJSON[GameCenterAchievementReleaseResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/gameCenterAchievementReleases/%s", strings.TrimSpace(releaseID))})
 }
 
 // CreateGameCenterAchievementRelease creates a new Game Center achievement release.
@@ -415,11 +384,6 @@ func (c *Client) GetGameCenterLeaderboardSetReleases(ctx context.Context, setID 
 		Next:        query.nextURL,
 		NextContext: "game-center-leaderboard-set-releases",
 	})
-}
-
-// GetGameCenterLeaderboardSetRelease retrieves a leaderboard set release by ID.
-func (c *Client) GetGameCenterLeaderboardSetRelease(ctx context.Context, releaseID string) (*GameCenterLeaderboardSetReleaseResponse, error) {
-	return getJSON[GameCenterLeaderboardSetReleaseResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/gameCenterLeaderboardSetReleases/%s", strings.TrimSpace(releaseID))})
 }
 
 // CreateGameCenterLeaderboardSetRelease creates a new Game Center leaderboard set release.
@@ -573,11 +537,6 @@ func (c *Client) UpdateGameCenterAchievementLocalization(ctx context.Context, lo
 // DeleteGameCenterAchievementLocalization deletes a Game Center achievement localization.
 func (c *Client) DeleteGameCenterAchievementLocalization(ctx context.Context, localizationID string) error {
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/gameCenterAchievementLocalizations/%s", strings.TrimSpace(localizationID)), nil)
-}
-
-// GetGameCenterLeaderboardImage retrieves a Game Center leaderboard image by ID.
-func (c *Client) GetGameCenterLeaderboardImage(ctx context.Context, imageID string) (*GameCenterLeaderboardImageResponse, error) {
-	return getJSON[GameCenterLeaderboardImageResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/gameCenterLeaderboardImages/%s", strings.TrimSpace(imageID))})
 }
 
 // CreateGameCenterLeaderboardImage reserves an image upload for a leaderboard localization.
@@ -778,11 +737,6 @@ func (c *Client) UploadGameCenterAchievementImage(ctx context.Context, localizat
 		AssetDeliveryState: state,
 		Uploaded:           true,
 	}, nil
-}
-
-// GetGameCenterLeaderboardSetImage retrieves a Game Center leaderboard set image by ID.
-func (c *Client) GetGameCenterLeaderboardSetImage(ctx context.Context, imageID string) (*GameCenterLeaderboardSetImageResponse, error) {
-	return getJSON[GameCenterLeaderboardSetImageResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/gameCenterLeaderboardSetImages/%s", strings.TrimSpace(imageID))})
 }
 
 // CreateGameCenterLeaderboardSetImage reserves an image upload slot for a leaderboard set localization.

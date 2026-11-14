@@ -443,11 +443,6 @@ func (c *Client) UploadGameCenterActivityImage(ctx context.Context, localization
 	return result, nil
 }
 
-// GetGameCenterActivityVersionRelease retrieves an activity version release by ID.
-func (c *Client) GetGameCenterActivityVersionRelease(ctx context.Context, releaseID string) (*GameCenterActivityVersionReleaseResponse, error) {
-	return getJSON[GameCenterActivityVersionReleaseResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/gameCenterActivityVersionReleases/%s", strings.TrimSpace(releaseID))})
-}
-
 // GetGameCenterActivityVersionReleases retrieves activity releases for a Game Center detail.
 func (c *Client) GetGameCenterActivityVersionReleases(ctx context.Context, gcDetailID string, opts ...GCActivityVersionReleasesOption) (*GameCenterActivityVersionReleasesResponse, error) {
 	query := applyOptions(opts)

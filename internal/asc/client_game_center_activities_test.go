@@ -687,23 +687,6 @@ func TestUploadGameCenterActivityImage(t *testing.T) {
 	}
 }
 
-func TestGetGameCenterActivityVersionRelease(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterActivityVersionReleases","id":"rel-1","attributes":{"live":true}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/gameCenterActivityVersionReleases/rel-1" {
-			t.Fatalf("expected path /v1/gameCenterActivityVersionReleases/rel-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetGameCenterActivityVersionRelease(context.Background(), "rel-1"); err != nil {
-		t.Fatalf("GetGameCenterActivityVersionRelease() error: %v", err)
-	}
-}
-
 func TestGetGameCenterActivityVersionReleases_WithLimit(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":[]}`)
 	client := newTestClient(t, func(req *http.Request) {
