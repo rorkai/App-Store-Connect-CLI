@@ -26,6 +26,11 @@ any flag:
 | `Error: --a, --b, or --c is required` | 8 |
 | other wording (`provide at least one update flag`, `at least one update field is required (...)`, `(e.g. --a)`, `... or a matching --clear-* flag`, `at least one version field is required (...)`) | 6 |
 
+Four commands already printed this line and are unchanged:
+`asc game-center app-versions update`, `asc game-center details update`,
+`asc game-center leaderboard-sets localizations update`, and
+`asc game-center leaderboard-sets member-localizations update`.
+
 The list contains exactly the flags that let the command proceed on their own,
 in the order the command defines them. `--clear-*` switches are listed like any
 other update flag. Flags that only select the resource or modify another flag,
@@ -41,7 +46,7 @@ the old line exactly should match the start of the new one,
 command.
 
 <details>
-<summary>All 72 commands</summary>
+<summary>All 72 changed commands</summary>
 
 | Command | Flags now listed |
 | --- | --- |
