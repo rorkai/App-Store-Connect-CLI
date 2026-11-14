@@ -250,15 +250,6 @@ func TestGetAppPriceScheduleManualPrices_WithQueryOptions(t *testing.T) {
 			t.Fatalf("expected path /v1/appPriceSchedules/schedule-1/manualPrices, got %s", req.URL.Path)
 		}
 		query := req.URL.Query()
-		if query.Get("filter[startDate]") != "2024-01-01" {
-			t.Fatalf("expected filter[startDate]=2024-01-01, got %q", query.Get("filter[startDate]"))
-		}
-		if query.Get("filter[endDate]") != "2024-12-31" {
-			t.Fatalf("expected filter[endDate]=2024-12-31, got %q", query.Get("filter[endDate]"))
-		}
-		if query.Get("filter[territory]") != "USA" {
-			t.Fatalf("expected filter[territory]=USA, got %q", query.Get("filter[territory]"))
-		}
 		if query.Get("include") != "appPricePoint,territory" {
 			t.Fatalf("expected include query, got %q", query.Get("include"))
 		}
@@ -279,9 +270,6 @@ func TestGetAppPriceScheduleManualPrices_WithQueryOptions(t *testing.T) {
 	if _, err := client.GetAppPriceScheduleManualPrices(
 		context.Background(),
 		"schedule-1",
-		WithAppPriceSchedulePricesStartDate("2024-01-01"),
-		WithAppPriceSchedulePricesEndDate("2024-12-31"),
-		WithAppPriceSchedulePricesTerritory("usa"),
 		WithAppPriceSchedulePricesInclude([]string{"appPricePoint", "territory"}),
 		WithAppPriceSchedulePricesFields([]string{"manual", "startDate", "endDate", "appPricePoint", "territory"}),
 		WithAppPriceSchedulePricesPricePointFields([]string{"customerPrice", "proceeds", "territory"}),

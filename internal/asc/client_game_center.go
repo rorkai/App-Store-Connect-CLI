@@ -99,27 +99,6 @@ func (c *Client) CreateGameCenterLeaderboardLocalization(ctx context.Context, le
 	return sendJSON[GameCenterLeaderboardLocalizationResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/gameCenterLeaderboardLocalizations", Payload: payload})
 }
 
-// GetAllGameCenterLeaderboardLocalizations retrieves all leaderboard localizations using automatic pagination.
-func (c *Client) GetAllGameCenterLeaderboardLocalizations(ctx context.Context, leaderboardID string, opts ...GCLeaderboardLocalizationsOption) (*GameCenterLeaderboardLocalizationsResponse, error) {
-	firstPage, err := c.GetGameCenterLeaderboardLocalizations(ctx, leaderboardID, opts...)
-	if err != nil {
-		return nil, err
-	}
-
-	result, err := PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (PaginatedResponse, error) {
-		return c.GetGameCenterLeaderboardLocalizations(ctx, leaderboardID, NextURL[GCLeaderboardLocalizationsOption](nextURL))
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	resp, ok := result.(*GameCenterLeaderboardLocalizationsResponse)
-	if !ok {
-		return nil, fmt.Errorf("unexpected paginated response type %T", result)
-	}
-	return resp, nil
-}
-
 // CreateGameCenterLeaderboardRelease creates a new Game Center leaderboard release.
 func (c *Client) CreateGameCenterLeaderboardRelease(ctx context.Context, gcDetailID, leaderboardID string) (*GameCenterLeaderboardReleaseResponse, error) {
 	payload := GameCenterLeaderboardReleaseCreateRequest{

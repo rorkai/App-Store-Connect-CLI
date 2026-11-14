@@ -410,12 +410,6 @@ type AppClipDefaultExperienceReleaseWithAppStoreVersionLinkageResponse struct {
 	Links Links        `json:"links"`
 }
 
-// AppClipDefaultExperienceReleaseWithAppStoreVersionRelationshipUpdateRequest is a request to update the
-// releaseWithAppStoreVersion relationship on a default experience.
-type AppClipDefaultExperienceReleaseWithAppStoreVersionRelationshipUpdateRequest struct {
-	Data ResourceData `json:"data"`
-}
-
 // AppClipDefaultExperienceLocalizationHeaderImageLinkageResponse is the response for header image relationships.
 type AppClipDefaultExperienceLocalizationHeaderImageLinkageResponse struct {
 	Data  ResourceData `json:"data"`
@@ -522,26 +516,6 @@ func (c *Client) GetAppClipDefaultExperience(ctx context.Context, experienceID s
 	}
 
 	return getJSON[AppClipDefaultExperienceResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/appClipDefaultExperiences/%s", experienceID), Query: buildAppClipDefaultExperienceQuery(query)})
-}
-
-// UpdateAppClipDefaultExperienceReleaseWithAppStoreVersionRelationship updates the releaseWithAppStoreVersion relationship.
-func (c *Client) UpdateAppClipDefaultExperienceReleaseWithAppStoreVersionRelationship(ctx context.Context, experienceID, versionID string) error {
-	experienceID = strings.TrimSpace(experienceID)
-	versionID = strings.TrimSpace(versionID)
-	if experienceID == "" {
-		return fmt.Errorf("experienceID is required")
-	}
-	if versionID == "" {
-		return fmt.Errorf("versionID is required")
-	}
-
-	request := AppClipDefaultExperienceReleaseWithAppStoreVersionRelationshipUpdateRequest{
-		Data: ResourceData{
-			Type: ResourceTypeAppStoreVersions,
-			ID:   versionID,
-		},
-	}
-	return sendNoContent(ctx, c, http.MethodPatch, fmt.Sprintf("/v1/appClipDefaultExperiences/%s/relationships/releaseWithAppStoreVersion", experienceID), request)
 }
 
 // CreateAppClipDefaultExperience creates a default experience for an App Clip.

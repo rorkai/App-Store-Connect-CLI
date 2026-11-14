@@ -32,28 +32,6 @@ func TestBuildSubscriptionIntroductoryOffersQueryFieldsAndInclude(t *testing.T) 
 	}
 }
 
-func TestBuildSubscriptionLocalizationQueriesFields(t *testing.T) {
-	subscriptionQuery := &subscriptionLocalizationsQuery{}
-	WithSubscriptionLocalizationsFields([]string{"name", "locale", "description"})(subscriptionQuery)
-	subscriptionValues, err := url.ParseQuery(buildSubscriptionLocalizationsQuery(subscriptionQuery))
-	if err != nil {
-		t.Fatalf("parse subscription localization query: %v", err)
-	}
-	if got := subscriptionValues.Get("fields[subscriptionLocalizations]"); got != "name,locale,description" {
-		t.Fatalf("unexpected subscription localization fields: %q", got)
-	}
-
-	groupQuery := &subscriptionGroupLocalizationsQuery{}
-	WithSubscriptionGroupLocalizationsFields([]string{"name", "locale", "customAppName"})(groupQuery)
-	groupValues, err := url.ParseQuery(buildSubscriptionGroupLocalizationsQuery(groupQuery))
-	if err != nil {
-		t.Fatalf("parse group localization query: %v", err)
-	}
-	if got := groupValues.Get("fields[subscriptionGroupLocalizations]"); got != "name,locale,customAppName" {
-		t.Fatalf("unexpected group localization fields: %q", got)
-	}
-}
-
 func TestBuildSubscriptionPricesQuery(t *testing.T) {
 	tests := []struct {
 		name string

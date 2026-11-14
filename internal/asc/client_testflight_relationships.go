@@ -2,9 +2,6 @@ package asc
 
 import (
 	"context"
-	"fmt"
-	"net/http"
-	"strings"
 )
 
 // GetBetaGroupBetaTestersRelationships retrieves beta tester linkages for a beta group.
@@ -15,54 +12,6 @@ func (c *Client) GetBetaGroupBetaTestersRelationships(ctx context.Context, group
 // GetBetaGroupBuildsRelationships retrieves build linkages for a beta group.
 func (c *Client) GetBetaGroupBuildsRelationships(ctx context.Context, groupID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
 	return c.getBetaGroupLinkages(ctx, groupID, "builds", opts...)
-}
-
-// AddBuildsToBetaGroup adds builds to a beta group.
-func (c *Client) AddBuildsToBetaGroup(ctx context.Context, groupID string, buildIDs []string) error {
-	groupID = strings.TrimSpace(groupID)
-	buildIDs = normalizeList(buildIDs)
-	if groupID == "" {
-		return fmt.Errorf("groupID is required")
-	}
-	if len(buildIDs) == 0 {
-		return fmt.Errorf("buildIDs are required")
-	}
-
-	payload := RelationshipRequest{
-		Data: make([]RelationshipData, len(buildIDs)),
-	}
-	for i, id := range buildIDs {
-		payload.Data[i] = RelationshipData{
-			Type: ResourceTypeBuilds,
-			ID:   id,
-		}
-	}
-
-	return sendNoContent(ctx, c, http.MethodPost, fmt.Sprintf("/v1/betaGroups/%s/relationships/builds", groupID), payload)
-}
-
-// RemoveBuildsFromBetaGroup removes builds from a beta group.
-func (c *Client) RemoveBuildsFromBetaGroup(ctx context.Context, groupID string, buildIDs []string) error {
-	groupID = strings.TrimSpace(groupID)
-	buildIDs = normalizeList(buildIDs)
-	if groupID == "" {
-		return fmt.Errorf("groupID is required")
-	}
-	if len(buildIDs) == 0 {
-		return fmt.Errorf("buildIDs are required")
-	}
-
-	payload := RelationshipRequest{
-		Data: make([]RelationshipData, len(buildIDs)),
-	}
-	for i, id := range buildIDs {
-		payload.Data[i] = RelationshipData{
-			Type: ResourceTypeBuilds,
-			ID:   id,
-		}
-	}
-
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/betaGroups/%s/relationships/builds", groupID), payload)
 }
 
 // GetBetaTesterAppsRelationships retrieves app linkages for a beta tester.

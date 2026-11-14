@@ -13,11 +13,6 @@ type appQuery struct {
 	include                 []string
 }
 
-type appInfoLocalizationQuery struct {
-	appInfoFields []string
-	include       []string
-}
-
 type ageRatingDeclarationQuery struct {
 	fields []string
 }
@@ -33,9 +28,6 @@ type ciProductAppQuery struct {
 // AppOption configures an app detail request.
 type AppOption func(*appQuery)
 
-// AppInfoLocalizationOption configures an app info localization detail request.
-type AppInfoLocalizationOption func(*appInfoLocalizationQuery)
-
 // AgeRatingDeclarationOption configures an age rating declaration read request.
 type AgeRatingDeclarationOption func(*ageRatingDeclarationQuery)
 
@@ -49,13 +41,6 @@ func buildAppQuery(query *appQuery) string {
 	addCSV(values, "fields[inAppPurchases]", query.inAppPurchaseFields)
 	addCSV(values, "fields[subscriptionGroups]", query.subscriptionGroupFields)
 	addCSV(values, "fields[retentionMessages]", query.retentionMessageFields)
-	addCSV(values, "include", query.include)
-	return values.Encode()
-}
-
-func buildAppInfoLocalizationQuery(query *appInfoLocalizationQuery) string {
-	values := url.Values{}
-	addCSV(values, "fields[appInfos]", query.appInfoFields)
 	addCSV(values, "include", query.include)
 	return values.Encode()
 }
@@ -104,16 +89,6 @@ func WithAppRetentionMessageFields(fields []string) AppOption {
 // WithAppInclude includes related resources in an app detail response.
 func WithAppInclude(include []string) AppOption {
 	return func(q *appQuery) { q.include = normalizeList(include) }
-}
-
-// WithAppInfoLocalizationAppInfoFields sets fields[appInfos].
-func WithAppInfoLocalizationAppInfoFields(fields []string) AppInfoLocalizationOption {
-	return func(q *appInfoLocalizationQuery) { q.appInfoFields = normalizeList(fields) }
-}
-
-// WithAppInfoLocalizationInclude includes related resources.
-func WithAppInfoLocalizationInclude(include []string) AppInfoLocalizationOption {
-	return func(q *appInfoLocalizationQuery) { q.include = normalizeList(include) }
 }
 
 // WithAgeRatingDeclarationFields sets fields[ageRatingDeclarations].

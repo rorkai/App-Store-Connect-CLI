@@ -303,12 +303,6 @@ func TestGetPassTypeIDCertificates_WithFilters(t *testing.T) {
 		if values.Get("fields[certificates]") != "serialNumber,certificateType" {
 			t.Fatalf("expected fields[certificates], got %q", values.Get("fields[certificates]"))
 		}
-		if values.Get("fields[passTypeIds]") != "identifier" {
-			t.Fatalf("expected fields[passTypeIds], got %q", values.Get("fields[passTypeIds]"))
-		}
-		if values.Get("include") != "passTypeId" {
-			t.Fatalf("expected include passTypeId, got %q", values.Get("include"))
-		}
 		if values.Get("limit") != "25" {
 			t.Fatalf("expected limit=25, got %q", values.Get("limit"))
 		}
@@ -324,8 +318,6 @@ func TestGetPassTypeIDCertificates_WithFilters(t *testing.T) {
 		WithPassTypeIDCertificatesFilterIDs([]string{"c1", "c2"}),
 		WithPassTypeIDCertificatesSort("-displayName"),
 		WithPassTypeIDCertificatesFields([]string{"serialNumber", "certificateType"}),
-		WithPassTypeIDCertificatesPassTypeIDFields([]string{"identifier"}),
-		WithPassTypeIDCertificatesInclude([]string{"passTypeId"}),
 		Limit[PassTypeIDCertificatesOption](25),
 	)
 	if err != nil {

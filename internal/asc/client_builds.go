@@ -284,10 +284,10 @@ func (c *Client) GetBuilds(ctx context.Context, appID string, opts ...BuildsOpti
 	} else {
 		values := url.Values{}
 		// Use /v1/builds endpoint when sorting, limiting, or filtering by
-		// version/preReleaseVersion.version/processingState/preReleaseVersion/platform/
+		// version/processingState/preReleaseVersion/platform/
 		// betaAppReviewSubmission.betaReviewState/expired,
 		// since /v1/apps/{id}/builds doesn't support these
-		if query.sort != "" || query.limit > 0 || query.version != "" || query.preReleaseVersion != "" || len(query.processingStates) > 0 || len(query.preReleasePlatforms) > 0 || len(query.preReleaseVersionIDs) > 0 || len(query.betaReviewStates) > 0 || query.expired != nil || query.buildAudienceType != "" || len(query.include) > 0 {
+		if query.sort != "" || query.limit > 0 || query.version != "" || len(query.processingStates) > 0 || len(query.preReleasePlatforms) > 0 || len(query.preReleaseVersionIDs) > 0 || len(query.betaReviewStates) > 0 || query.expired != nil || query.buildAudienceType != "" || len(query.include) > 0 {
 			path = "/v1/builds"
 			values.Set("filter[app]", appID)
 			if query.sort != "" {
@@ -298,9 +298,6 @@ func (c *Client) GetBuilds(ctx context.Context, appID string, opts ...BuildsOpti
 			}
 			if query.version != "" {
 				values.Set("filter[version]", query.version)
-			}
-			if query.preReleaseVersion != "" {
-				values.Set("filter[preReleaseVersion.version]", query.preReleaseVersion)
 			}
 			if query.buildAudienceType != "" {
 				values.Set("filter[buildAudienceType]", string(query.buildAudienceType))
@@ -454,12 +451,6 @@ func buildUpdateMatchesCurrent(resp *BuildResponse, attrs BuildUpdateAttributes)
 func (c *Client) ExpireBuild(ctx context.Context, buildID string) (*BuildResponse, error) {
 	expired := true
 	return c.UpdateBuild(ctx, buildID, BuildUpdateAttributes{Expired: &expired})
-}
-
-// AddBetaGroupsToBuild adds beta groups to a build for TestFlight distribution.
-func (c *Client) AddBetaGroupsToBuild(ctx context.Context, buildID string, groupIDs []string) error {
-	_, err := c.AddBetaGroupsToBuildWithNotify(ctx, buildID, groupIDs, false)
-	return err
 }
 
 // BuildBetaGroupsNotificationAction describes how notify=true was satisfied.

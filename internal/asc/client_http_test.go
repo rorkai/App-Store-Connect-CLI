@@ -1267,8 +1267,8 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			call: func(c *Client) error {
 				return discardResult(c.GetDevices(
 					ctx,
-					WithDevicesFilterUDIDs([]string{"UDID1", "UDID2"}),
-					WithDevicesFilterPlatforms([]string{"ios"}),
+					WithDevicesUDIDs([]string{"UDID1", "UDID2"}),
+					WithDevicesPlatforms([]string{"ios"}),
 					WithDevicesFilterStatuses([]string{"enabled"}),
 				))
 			},
@@ -1291,7 +1291,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 				return discardResult(c.GetDevices(
 					ctx,
 					WithDevicesNames([]string{"My iPhone"}),
-					WithDevicesPlatform("IOS"),
+					WithDevicesPlatforms([]string{"IOS"}),
 					WithDevicesStatus("ENABLED"),
 					WithDevicesUDIDs([]string{"UDID-1", "UDID-2"}),
 					WithDevicesIDs([]string{"device-1"}),
@@ -1364,32 +1364,6 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 					WithAppEncryptionDeclarationsFields([]string{"appDescription", "exempt"}),
 					WithAppEncryptionDeclarationsDocumentFields([]string{"fileName", "fileSize"}),
 					WithAppEncryptionDeclarationsInclude([]string{"app", "builds"}),
-					Limit[AppEncryptionDeclarationsOption](5),
-					WithAppEncryptionDeclarationsBuildLimit(10),
-				))
-			},
-		},
-		{
-			name: "GetAppEncryptionDeclarationsForAppResource",
-			path: "/v1/apps/app-1/appEncryptionDeclarations",
-			query: map[string]string{
-				"filter[app]":                               "",
-				"filter[builds]":                            "build-1,build-2",
-				"fields[appEncryptionDeclarations]":         "appDescription,exempt",
-				"fields[appEncryptionDeclarationDocuments]": "fileName,fileSize",
-				"include":       "appEncryptionDeclarationDocument",
-				"limit":         "5",
-				"limit[builds]": "10",
-			},
-			body: `{"data":[{"type":"appEncryptionDeclarations","id":"decl-1","attributes":{"appDescription":"Uses TLS"}}]}`,
-			call: func(c *Client) error {
-				return discardResult(c.GetAppEncryptionDeclarationsForApp(
-					ctx,
-					"app-1",
-					WithAppEncryptionDeclarationsBuildIDs([]string{"build-1", "build-2"}),
-					WithAppEncryptionDeclarationsFields([]string{"appDescription", "exempt"}),
-					WithAppEncryptionDeclarationsDocumentFields([]string{"fileName", "fileSize"}),
-					WithAppEncryptionDeclarationsInclude([]string{"appEncryptionDeclarationDocument"}),
 					Limit[AppEncryptionDeclarationsOption](5),
 					WithAppEncryptionDeclarationsBuildLimit(10),
 				))
@@ -1553,12 +1527,6 @@ func TestGetEndpoints_SendRequest(t *testing.T) {
 			path: "/v1/appStoreVersions/1/build",
 			body: `{"data":{"type":"builds","id":"BUILD_123","attributes":{"version":"1.0.0","uploadedDate":"2026-01-20T00:00:00Z"}}}`,
 			call: func(c *Client) error { return discardResult(c.GetAppStoreVersionBuild(ctx, "1")) },
-		},
-		{
-			name: "GetAppStoreVersionSubmissionResource",
-			path: "/v1/appStoreVersionSubmissions/SUBMIT_123",
-			body: `{"data":{"type":"appStoreVersionSubmissions","id":"SUBMIT_123","relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"VERSION_123"}}}}}`,
-			call: func(c *Client) error { return discardResult(c.GetAppStoreVersionSubmissionResource(ctx, "SUBMIT_123")) },
 		},
 		{
 			name: "GetAppStoreVersionSubmissionForVersion",
@@ -1737,12 +1705,6 @@ func TestGetEndpoints_SendRequest(t *testing.T) {
 			call: func(c *Client) error {
 				return discardResult(c.GetUser(ctx, "user-1", WithUsersInclude([]string{"visibleApps"})))
 			},
-		},
-		{
-			name: "GetBetaAppReviewDetail",
-			path: "/v1/betaAppReviewDetails/detail-1",
-			body: `{"data":{"type":"betaAppReviewDetails","id":"detail-1","attributes":{"contactEmail":"dev@example.com"}}}`,
-			call: func(c *Client) error { return discardResult(c.GetBetaAppReviewDetail(ctx, "detail-1")) },
 		},
 		{
 			name: "GetBetaAppReviewSubmission",
@@ -2776,40 +2738,6 @@ func TestGetBuilds_WithVersionFilter(t *testing.T) {
 	}
 }
 
-func TestGetBuilds_WithPreReleaseVersionVersionFilter(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":[{"type":"builds","id":"build-24","attributes":{"version":"2","uploadedDate":"2026-03-02T18:01:00Z"}}]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/builds" {
-			t.Fatalf("expected path /v1/builds, got %s", req.URL.Path)
-		}
-		values := req.URL.Query()
-		if values.Get("filter[app]") != "123" {
-			t.Fatalf("expected filter[app]=123, got %q", values.Get("filter[app]"))
-		}
-		if values.Get("filter[preReleaseVersion.version]") != "2.4.0" {
-			t.Fatalf(
-				"expected filter[preReleaseVersion.version]=2.4.0, got %q",
-				values.Get("filter[preReleaseVersion.version]"),
-			)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	builds, err := client.GetBuilds(context.Background(), "123", WithBuildsPreReleaseVersionVersion("2.4.0"))
-	if err != nil {
-		t.Fatalf("GetBuilds() error: %v", err)
-	}
-	if len(builds.Data) != 1 {
-		t.Fatalf("expected 1 build, got %d", len(builds.Data))
-	}
-	if builds.Data[0].ID != "build-24" {
-		t.Fatalf("expected build ID build-24, got %s", builds.Data[0].ID)
-	}
-}
-
 func TestGetBuilds_WithProcessingStateFilter(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":[{"type":"builds","id":"build-processing","attributes":{"version":"42","processingState":"PROCESSING","uploadedDate":"2026-01-20T00:00:00Z"}}]}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -3219,8 +3147,8 @@ func TestAddBetaGroupsToBuild_SendsRequest(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if err := client.AddBetaGroupsToBuild(context.Background(), "build-1", []string{"group-1", "group-2"}); err != nil {
-		t.Fatalf("AddBetaGroupsToBuild() error: %v", err)
+	if _, err := client.AddBetaGroupsToBuildWithNotify(context.Background(), "build-1", []string{"group-1", "group-2"}, false); err != nil {
+		t.Fatalf("AddBetaGroupsToBuildWithNotify() error: %v", err)
 	}
 }
 
@@ -5130,7 +5058,7 @@ func TestGetReviews_BuildsQuery(t *testing.T) {
 	}, response)
 
 	opts := []ReviewOption{
-		WithRating(5),
+		WithRatings([]int{5}),
 		WithTerritory("us"),
 		WithReviewSort("-createdDate"),
 		Limit[ReviewOption](25),
@@ -6116,57 +6044,6 @@ func TestSetAppPreviewFrameTimeCode(t *testing.T) {
 	}
 }
 
-func TestCreateAppStoreVersionSubmission(t *testing.T) {
-	response := jsonResponse(http.StatusCreated, `{"data":{"type":"appStoreVersionSubmissions","id":"SUBMIT_123","attributes":{"createdDate":"2026-01-20T00:00:00Z"}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodPost {
-			t.Fatalf("expected POST, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/appStoreVersionSubmissions" {
-			t.Fatalf("expected path /v1/appStoreVersionSubmissions, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	result, err := client.CreateAppStoreVersionSubmission(context.Background(), AppStoreVersionSubmissionCreateRequest{
-		Data: AppStoreVersionSubmissionCreateData{
-			Type: ResourceTypeAppStoreVersionSubmissions,
-			Relationships: &AppStoreVersionSubmissionRelationships{
-				AppStoreVersion: &Relationship{
-					Data: ResourceData{Type: ResourceTypeAppStoreVersions, ID: "VERSION_123"},
-				},
-			},
-		},
-	})
-	if err != nil {
-		t.Fatalf("CreateAppStoreVersionSubmission() error: %v", err)
-	}
-	if result.Data.ID != "SUBMIT_123" {
-		t.Fatalf("expected submission ID SUBMIT_123, got %s", result.Data.ID)
-	}
-}
-
-func TestGetAppStoreVersionSubmission(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"appStoreVersionSubmissions","id":"SUBMIT_123","attributes":{"createdDate":"2026-01-20T00:00:00Z"}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/appStoreVersionSubmissions/SUBMIT_123" {
-			t.Fatalf("expected path /v1/appStoreVersionSubmissions/SUBMIT_123, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	result, err := client.GetAppStoreVersionSubmission(context.Background(), "SUBMIT_123")
-	if err != nil {
-		t.Fatalf("GetAppStoreVersionSubmission() error: %v", err)
-	}
-	if result.Data.ID != "SUBMIT_123" {
-		t.Fatalf("expected submission ID SUBMIT_123, got %s", result.Data.ID)
-	}
-}
-
 func TestBuildUploadMethods_ErrorResponse(t *testing.T) {
 	ctx := context.Background()
 	errorBody := `{"errors":[{"code":"BAD_REQUEST","title":"Bad Request","detail":"nope"}]}`
@@ -6238,29 +6115,6 @@ func TestBuildUploadMethods_ErrorResponse(t *testing.T) {
 						},
 					},
 				})
-				return err
-			},
-		},
-		{
-			name: "CreateAppStoreVersionSubmission",
-			call: func(c *Client) error {
-				_, err := c.CreateAppStoreVersionSubmission(ctx, AppStoreVersionSubmissionCreateRequest{
-					Data: AppStoreVersionSubmissionCreateData{
-						Type: ResourceTypeAppStoreVersionSubmissions,
-						Relationships: &AppStoreVersionSubmissionRelationships{
-							AppStoreVersion: &Relationship{
-								Data: ResourceData{Type: ResourceTypeAppStoreVersions, ID: "VERSION_123"},
-							},
-						},
-					},
-				})
-				return err
-			},
-		},
-		{
-			name: "GetAppStoreVersionSubmission",
-			call: func(c *Client) error {
-				_, err := c.GetAppStoreVersionSubmission(ctx, "SUBMIT_123")
 				return err
 			},
 		},
@@ -7783,45 +7637,6 @@ func TestUpdateCertificate_SendsRequest(t *testing.T) {
 	attrs := CertificateUpdateAttributes{Activated: &activated}
 	if _, err := client.UpdateCertificate(context.Background(), "c1", attrs); err != nil {
 		t.Fatalf("UpdateCertificate() error: %v", err)
-	}
-}
-
-func TestRegisterDevice_SendsRequest(t *testing.T) {
-	response := jsonResponse(http.StatusCreated, `{"data":{"type":"devices","id":"d1","attributes":{"name":"Device","udid":"UDID","platform":"UNIVERSAL","status":"ENABLED"}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodPost {
-			t.Fatalf("expected POST, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/devices" {
-			t.Fatalf("expected path /v1/devices, got %s", req.URL.Path)
-		}
-		body, err := io.ReadAll(req.Body)
-		if err != nil {
-			t.Fatalf("read body error: %v", err)
-		}
-		var payload DeviceCreateRequest
-		if err := json.Unmarshal(body, &payload); err != nil {
-			t.Fatalf("decode body error: %v", err)
-		}
-		if payload.Data.Type != ResourceTypeDevices {
-			t.Fatalf("expected type devices, got %q", payload.Data.Type)
-		}
-		if payload.Data.Attributes.UDID != "UDID" {
-			t.Fatalf("expected udid UDID, got %q", payload.Data.Attributes.UDID)
-		}
-		if payload.Data.Attributes.Platform != DevicePlatformUniversal {
-			t.Fatalf("expected platform UNIVERSAL, got %q", payload.Data.Attributes.Platform)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	attrs := DeviceCreateAttributes{
-		Name:     "Device",
-		UDID:     "UDID",
-		Platform: DevicePlatformUniversal,
-	}
-	if _, err := client.RegisterDevice(context.Background(), attrs); err != nil {
-		t.Fatalf("RegisterDevice() error: %v", err)
 	}
 }
 
@@ -10204,6 +10019,7 @@ func TestCreateWinBackOffer_SendsRequest(t *testing.T) {
 	}, response)
 
 	waitBetween := 6
+	sinceMinimum, sinceMaximum := 3, 12
 	req := WinBackOfferCreateRequest{
 		Data: WinBackOfferCreateData{
 			Type: ResourceTypeWinBackOffers,
@@ -10214,7 +10030,7 @@ func TestCreateWinBackOffer_SendsRequest(t *testing.T) {
 				OfferMode:     SubscriptionOfferModePayAsYouGo,
 				PeriodCount:   1,
 				CustomerEligibilityPaidSubscriptionDurationInMonths: 6,
-				CustomerEligibilityTimeSinceLastSubscribedInMonths:  NewIntegerRange(3, 12),
+				CustomerEligibilityTimeSinceLastSubscribedInMonths:  IntegerRange{Minimum: &sinceMinimum, Maximum: &sinceMaximum},
 				CustomerEligibilityWaitBetweenOffersInMonths:        &waitBetween,
 				StartDate: "2026-02-01",
 				Priority:  WinBackOfferPriorityHigh,
