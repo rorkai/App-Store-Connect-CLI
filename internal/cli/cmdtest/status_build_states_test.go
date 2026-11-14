@@ -1,105 +1,76 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
-	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
 	"testing"
-)
 
-// statusBuildStateRequestCounts records every status request path so the
-// internal-state and expiry fields can be proven to reuse data already in hand.
-type statusBuildStateRequestCounts struct {
-	builds                   lockedCounter
-	buildBetaDetails         lockedCounter
-	betaAppReviewSubmissions lockedCounter
-}
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
+)
 
 // installStatusBuildStateTransport serves a latest build that is expired and
 // still processing for internal testers while an older build is the only one
 // distributed externally.
-func installStatusBuildStateTransport(t *testing.T) *statusBuildStateRequestCounts {
+func installStatusBuildStateTransport(t *testing.T) *asctest.Registry {
 	t.Helper()
 
-	counts := &statusBuildStateRequestCounts{}
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch req.URL.Path {
-		case "/v1/builds":
-			counts.builds.Inc()
-			if req.URL.Query().Get("filter[betaAppReviewSubmission.betaReviewState]") != "" {
-				return statusJSONResponse(`{"data":[],"links":{"next":""}}`), nil
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/builds", "filter[app]=6748252780", "include=preReleaseVersion,buildBetaDetail", "limit=50", "sort=-uploadedDate"), asctest.JSON(http.StatusOK, `{
+		"data":[
+			{
+				"type":"builds",
+				"id":"build-2",
+				"attributes":{
+					"version":"45",
+					"uploadedDate":"2026-02-20T00:00:00Z",
+					"processingState":"VALID",
+					"expired":true
+				},
+				"relationships":{
+					"preReleaseVersion":{"data":{"type":"preReleaseVersions","id":"train-1.2.3-ios"}},
+					"buildBetaDetail":{"data":{"type":"buildBetaDetails","id":"bbd-2"}}
+				}
+			},
+			{
+				"type":"builds",
+				"id":"build-1",
+				"attributes":{
+					"version":"44",
+					"uploadedDate":"2026-02-19T00:00:00Z",
+					"processingState":"VALID",
+					"expired":false
+				},
+				"relationships":{
+					"preReleaseVersion":{"data":{"type":"preReleaseVersions","id":"train-1.2.3-ios"}},
+					"buildBetaDetail":{"data":{"type":"buildBetaDetails","id":"bbd-1"}}
+				}
 			}
-			if got := req.URL.Query().Get("include"); got != "preReleaseVersion,buildBetaDetail" {
-				t.Fatalf("expected snapshot builds to include preReleaseVersion,buildBetaDetail, got include=%q", got)
-			}
-			return statusJSONResponse(`{
-				"data":[
-					{
-						"type":"builds",
-						"id":"build-2",
-						"attributes":{
-							"version":"45",
-							"uploadedDate":"2026-02-20T00:00:00Z",
-							"processingState":"VALID",
-							"expired":true
-						},
-						"relationships":{
-							"preReleaseVersion":{"data":{"type":"preReleaseVersions","id":"train-1.2.3-ios"}},
-							"buildBetaDetail":{"data":{"type":"buildBetaDetails","id":"bbd-2"}}
-						}
-					},
-					{
-						"type":"builds",
-						"id":"build-1",
-						"attributes":{
-							"version":"44",
-							"uploadedDate":"2026-02-19T00:00:00Z",
-							"processingState":"VALID",
-							"expired":false
-						},
-						"relationships":{
-							"preReleaseVersion":{"data":{"type":"preReleaseVersions","id":"train-1.2.3-ios"}},
-							"buildBetaDetail":{"data":{"type":"buildBetaDetails","id":"bbd-1"}}
-						}
-					}
-				],
-				"included":[
-					{"type":"preReleaseVersions","id":"train-1.2.3-ios","attributes":{"version":"1.2.3","platform":"IOS"}},
-					{"type":"buildBetaDetails","id":"bbd-1","attributes":{"internalBuildState":"IN_BETA_TESTING","externalBuildState":"IN_BETA_TESTING"}},
-					{"type":"buildBetaDetails","id":"bbd-2","attributes":{"internalBuildState":"PROCESSING","externalBuildState":"NOT_READY_FOR_TESTING"}}
-				],
-				"links":{"next":""}
-			}`), nil
-		case "/v1/buildBetaDetails":
-			counts.buildBetaDetails.Inc()
-			return statusJSONResponse(`{"data":[],"links":{"next":""}}`), nil
-		case "/v1/betaAppReviewSubmissions":
-			counts.betaAppReviewSubmissions.Inc()
-			return statusJSONResponse(`{"data":[],"links":{"next":""}}`), nil
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	}))
-
-	return counts
+		],
+		"included":[
+			{"type":"preReleaseVersions","id":"train-1.2.3-ios","attributes":{"version":"1.2.3","platform":"IOS"}},
+			{"type":"buildBetaDetails","id":"bbd-1","attributes":{"internalBuildState":"IN_BETA_TESTING","externalBuildState":"IN_BETA_TESTING"}},
+			{"type":"buildBetaDetails","id":"bbd-2","attributes":{"internalBuildState":"PROCESSING","externalBuildState":"NOT_READY_FOR_TESTING"}}
+		],
+		"links":{"next":""}
+	}`))
+	reg.Register(asctest.GET("/v1/betaAppReviewSubmissions", "filter[build]=build-2,build-1", "include=build", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[],"links":{"next":""}}`))
+	reg.Register(asctest.GET("/v1/builds", "filter[app]=6748252780", "filter[betaAppReviewSubmission.betaReviewState]=WAITING_FOR_REVIEW,IN_REVIEW", "include=preReleaseVersion", "limit=50"), asctest.JSON(http.StatusOK, `{"data":[],"links":{"next":""}}`))
+	return reg
 }
 
-// assertStatusBuildStateRequestCounts pins the request budget so surfacing the
-// new fields cannot silently add API calls.
-func assertStatusBuildStateRequestCounts(t *testing.T, counts *statusBuildStateRequestCounts) {
+func assertStatusBuildStateRequestCounts(t *testing.T, reg *asctest.Registry) {
 	t.Helper()
 
-	if got := counts.builds.Load(); got != 2 {
+	if got := countStatusRequests(reg, "/v1/builds"); got != 2 {
 		t.Fatalf("expected 2 build requests (snapshot plus active beta review scan), got %d", got)
 	}
-	if got := counts.buildBetaDetails.Load(); got != 0 {
+	if got := countStatusRequests(reg, "/v1/buildBetaDetails"); got != 0 {
 		t.Fatalf("expected no build beta details requests (states come from included buildBetaDetail), got %d", got)
 	}
-	if got := counts.betaAppReviewSubmissions.Load(); got != 1 {
+	if got := countStatusRequests(reg, "/v1/betaAppReviewSubmissions"); got != 1 {
 		t.Fatalf("expected 1 beta app review submissions request, got %d", got)
 	}
 }
@@ -109,19 +80,12 @@ func TestStatusJSONSurfacesLatestBuildInternalStateAndExpiry(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	counts := installStatusBuildStateTransport(t)
+	reg := installStatusBuildStateTransport(t)
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"status", "--app", "6748252780", "--include", "builds,testflight", "--output", "json"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"status", "--app", "6748252780", "--include", "builds,testflight", "--output", "json"})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -158,7 +122,7 @@ func TestStatusJSONSurfacesLatestBuildInternalStateAndExpiry(t *testing.T) {
 		t.Fatalf("expected external distribution fields to keep describing build-1, got %+v", payload.TestFlight)
 	}
 
-	assertStatusBuildStateRequestCounts(t, counts)
+	assertStatusBuildStateRequestCounts(t, reg)
 }
 
 func TestStatusTableSurfacesLatestBuildInternalStateAndExpiry(t *testing.T) {
@@ -166,19 +130,12 @@ func TestStatusTableSurfacesLatestBuildInternalStateAndExpiry(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	counts := installStatusBuildStateTransport(t)
+	reg := installStatusBuildStateTransport(t)
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"status", "--app", "6748252780", "--include", "builds,testflight", "--output", "table"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"status", "--app", "6748252780", "--include", "builds,testflight", "--output", "table"})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -195,5 +152,5 @@ func TestStatusTableSurfacesLatestBuildInternalStateAndExpiry(t *testing.T) {
 		}
 	}
 
-	assertStatusBuildStateRequestCounts(t, counts)
+	assertStatusBuildStateRequestCounts(t, reg)
 }
