@@ -8,113 +8,36 @@ import (
 	"io"
 	"net/http"
 	"path/filepath"
-	"slices"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestSubscriptionsOfferCodesCreateNormalizesValuesAndBuildsPayload(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.POST("/v1/subscriptionOfferCodes").JSONBody(`{"data":{"type":"subscriptionOfferCodes","attributes":{"name":"Spring Promo","offerEligibility":"REPLACE_INTRO_OFFERS","customerEligibilities":["NEW","EXISTING"],"duration":"ONE_MONTH","offerMode":"PAY_AS_YOU_GO","numberOfPeriods":2,"autoRenewEnabled":true},"relationships":{"subscription":{"data":{"type":"subscriptions","id":"8000000001"}},"prices":{"data":[{"type":"subscriptionOfferCodePrices","id":"${local-price-1}"}]}}},"included":[{"type":"subscriptionOfferCodePrices","id":"${local-price-1}","relationships":{"territory":{"data":{"type":"territories","id":"USA"}},"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"pp-us"}}}}]}`),
+		asctest.JSON(http.StatusCreated, `{"data":{"type":"subscriptionOfferCodes","id":"sub-offer-1","attributes":{"name":"Spring Promo","active":true}}}`))
+
+	stdout, stderr, err := runCommand(t, []string{
+		"subscriptions", "offers", "offer-codes", "create",
+		"--subscription-id", "8000000001",
+		"--name", "Spring Promo",
+		"--offer-eligibility", "replace_intro_offers",
+		"--customer-eligibilities", "new,existing",
+		"--offer-duration", "one_month",
+		"--offer-mode", "pay_as_you_go",
+		"--number-of-periods", "2",
+		"--prices", "usa:pp-us",
+		"--auto-renew-enabled", "true",
 	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodPost {
-			t.Fatalf("expected POST, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/subscriptionOfferCodes" {
-			t.Fatalf("expected path /v1/subscriptionOfferCodes, got %s", req.URL.Path)
-		}
-
-		rawBody, err := io.ReadAll(req.Body)
-		if err != nil {
-			t.Fatalf("read body error: %v", err)
-		}
-
-		var payload map[string]any
-		if err := json.Unmarshal(rawBody, &payload); err != nil {
-			t.Fatalf("decode request body: %v\nbody=%s", err, string(rawBody))
-		}
-
-		data := payload["data"].(map[string]any)
-		attrs := data["attributes"].(map[string]any)
-		if attrs["name"] != "Spring Promo" {
-			t.Fatalf("expected name Spring Promo, got %#v", attrs["name"])
-		}
-		if attrs["offerEligibility"] != "REPLACE_INTRO_OFFERS" {
-			t.Fatalf("expected normalized offerEligibility REPLACE_INTRO_OFFERS, got %#v", attrs["offerEligibility"])
-		}
-		if attrs["duration"] != "ONE_MONTH" {
-			t.Fatalf("expected normalized duration ONE_MONTH, got %#v", attrs["duration"])
-		}
-		if attrs["offerMode"] != "PAY_AS_YOU_GO" {
-			t.Fatalf("expected normalized offerMode PAY_AS_YOU_GO, got %#v", attrs["offerMode"])
-		}
-		if attrs["numberOfPeriods"] != float64(2) {
-			t.Fatalf("expected numberOfPeriods 2, got %#v", attrs["numberOfPeriods"])
-		}
-		if attrs["autoRenewEnabled"] != true {
-			t.Fatalf("expected autoRenewEnabled true, got %#v", attrs["autoRenewEnabled"])
-		}
-
-		eligibilityItems := attrs["customerEligibilities"].([]any)
-		gotEligibilities := make([]string, 0, len(eligibilityItems))
-		for _, item := range eligibilityItems {
-			gotEligibilities = append(gotEligibilities, item.(string))
-		}
-		wantEligibilities := []string{"NEW", "EXISTING"}
-		if !slices.Equal(gotEligibilities, wantEligibilities) {
-			t.Fatalf("expected customer eligibilities %v, got %v", wantEligibilities, gotEligibilities)
-		}
-
-		subscriptionRelationship := data["relationships"].(map[string]any)["subscription"].(map[string]any)["data"].(map[string]any)
-		if subscriptionRelationship["id"] != "8000000001" {
-			t.Fatalf("expected subscription id 8000000001, got %#v", subscriptionRelationship["id"])
-		}
-
-		included := payload["included"].([]any)
-		if len(included) != 1 {
-			t.Fatalf("expected 1 included price object, got %d", len(included))
-		}
-		territory := included[0].(map[string]any)["relationships"].(map[string]any)["territory"].(map[string]any)["data"].(map[string]any)
-		if territory["id"] != "USA" {
-			t.Fatalf("expected normalized territory id USA, got %#v", territory["id"])
-		}
-
-		body := `{"data":{"type":"subscriptionOfferCodes","id":"sub-offer-1","attributes":{"name":"Spring Promo","active":true}}}`
-		return &http.Response{
-			StatusCode: http.StatusCreated,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"subscriptions", "offers", "offer-codes", "create",
-			"--subscription-id", "8000000001",
-			"--name", "Spring Promo",
-			"--offer-eligibility", "replace_intro_offers",
-			"--customer-eligibilities", "new,existing",
-			"--offer-duration", "one_month",
-			"--offer-mode", "pay_as_you_go",
-			"--number-of-periods", "2",
-			"--prices", "usa:pp-us",
-			"--auto-renew-enabled", "true",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -137,99 +60,25 @@ func TestSubscriptionsOfferCodesCreateFreeTrialIncludesTerritoryOnlyPrice(t *tes
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.POST("/v1/subscriptionOfferCodes").JSONBody(`{"data":{"type":"subscriptionOfferCodes","attributes":{"name":"One Year Free","offerEligibility":"STACK_WITH_INTRO_OFFERS","customerEligibilities":["NEW"],"duration":"ONE_YEAR","offerMode":"FREE_TRIAL","numberOfPeriods":1},"relationships":{"subscription":{"data":{"type":"subscriptions","id":"8000000001"}},"prices":{"data":[{"type":"subscriptionOfferCodePrices","id":"${local-price-1}"}]}}},"included":[{"type":"subscriptionOfferCodePrices","id":"${local-price-1}","relationships":{"territory":{"data":{"type":"territories","id":"DEU"}}}}]}`),
+		asctest.JSON(http.StatusCreated, `{"data":{"type":"subscriptionOfferCodes","id":"sub-offer-ft-1","attributes":{"name":"One Year Free","active":true}}}`))
+
+	stdout, stderr, err := runCommand(t, []string{
+		"subscriptions", "offers", "offer-codes", "create",
+		"--subscription-id", "8000000001",
+		"--name", "One Year Free",
+		"--offer-eligibility", "stack_with_intro_offers",
+		"--customer-eligibilities", "new",
+		"--offer-duration", "one_year",
+		"--offer-mode", "free_trial",
+		"--number-of-periods", "1",
+		"--prices", "de",
 	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		rawBody, err := io.ReadAll(req.Body)
-		if err != nil {
-			t.Fatalf("read body error: %v", err)
-		}
-
-		var payload map[string]any
-		if err := json.Unmarshal(rawBody, &payload); err != nil {
-			t.Fatalf("decode request body: %v\nbody=%s", err, string(rawBody))
-		}
-
-		data, ok := payload["data"].(map[string]any)
-		if !ok {
-			t.Fatalf("expected payload.data to be an object, got %T", payload["data"])
-		}
-		attrs, ok := data["attributes"].(map[string]any)
-		if !ok {
-			t.Fatalf("expected payload.data.attributes to be an object, got %T", data["attributes"])
-		}
-		if attrs["offerMode"] != "FREE_TRIAL" {
-			t.Fatalf("expected offerMode FREE_TRIAL, got %#v", attrs["offerMode"])
-		}
-
-		relationships, ok := data["relationships"].(map[string]any)
-		if !ok {
-			t.Fatalf("expected payload.data.relationships to be an object, got %T", data["relationships"])
-		}
-		pricesRelationship, ok := relationships["prices"].(map[string]any)
-		if !ok {
-			t.Fatalf("expected prices relationship for FREE_TRIAL, got %#v", relationships["prices"])
-		}
-		priceRefs, ok := pricesRelationship["data"].([]any)
-		if !ok || len(priceRefs) != 1 {
-			t.Fatalf("expected one price relationship, got %#v", pricesRelationship["data"])
-		}
-		included, ok := payload["included"].([]any)
-		if !ok || len(included) != 1 {
-			t.Fatalf("expected one included price, got %#v", payload["included"])
-		}
-		includedPrice, ok := included[0].(map[string]any)
-		if !ok {
-			t.Fatalf("expected included price object, got %T", included[0])
-		}
-		priceRelationships, ok := includedPrice["relationships"].(map[string]any)
-		if !ok {
-			t.Fatalf("expected included price relationships, got %T", includedPrice["relationships"])
-		}
-		territory, ok := priceRelationships["territory"].(map[string]any)
-		if !ok {
-			t.Fatalf("expected territory relationship, got %#v", priceRelationships["territory"])
-		}
-		territoryData, ok := territory["data"].(map[string]any)
-		if !ok || territoryData["id"] != "DEU" {
-			t.Fatalf("expected normalized territory DEU, got %#v", territory["data"])
-		}
-		if _, ok := priceRelationships["subscriptionPricePoint"]; ok {
-			t.Fatalf("expected subscriptionPricePoint to be omitted, got %#v", priceRelationships["subscriptionPricePoint"])
-		}
-
-		body := `{"data":{"type":"subscriptionOfferCodes","id":"sub-offer-ft-1","attributes":{"name":"One Year Free","active":true}}}`
-		return &http.Response{
-			StatusCode: http.StatusCreated,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"subscriptions", "offers", "offer-codes", "create",
-			"--subscription-id", "8000000001",
-			"--name", "One Year Free",
-			"--offer-eligibility", "stack_with_intro_offers",
-			"--customer-eligibilities", "new",
-			"--offer-duration", "one_year",
-			"--offer-mode", "free_trial",
-			"--number-of-periods", "1",
-			"--prices", "de",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -300,45 +149,21 @@ func TestSubscriptionsOfferCodesCreateReturnsCreateFailure(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.POST("/v1/subscriptionOfferCodes").JSONBody(`{"data":{"type":"subscriptionOfferCodes","attributes":{"name":"Spring Promo","offerEligibility":"REPLACE_INTRO_OFFERS","customerEligibilities":["NEW"],"duration":"ONE_MONTH","offerMode":"PAY_AS_YOU_GO","numberOfPeriods":1},"relationships":{"subscription":{"data":{"type":"subscriptions","id":"8000000001"}},"prices":{"data":[{"type":"subscriptionOfferCodePrices","id":"${local-price-1}"}]}}},"included":[{"type":"subscriptionOfferCodePrices","id":"${local-price-1}","relationships":{"territory":{"data":{"type":"territories","id":"USA"}},"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"pp-us"}}}}]}`),
+		asctest.JSON(http.StatusUnprocessableEntity, `{"errors":[{"status":"422","title":"Unprocessable Entity","detail":"invalid offer settings"}]}`))
 
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodPost {
-			t.Fatalf("expected POST, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/subscriptionOfferCodes" {
-			t.Fatalf("expected path /v1/subscriptionOfferCodes, got %s", req.URL.Path)
-		}
-		body := `{"errors":[{"status":"422","title":"Unprocessable Entity","detail":"invalid offer settings"}]}`
-		return &http.Response{
-			StatusCode: http.StatusUnprocessableEntity,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"subscriptions", "offers", "offer-codes", "create",
-			"--subscription-id", "8000000001",
-			"--name", "Spring Promo",
-			"--offer-eligibility", "replace_intro_offers",
-			"--customer-eligibilities", "new",
-			"--offer-duration", "one_month",
-			"--offer-mode", "pay_as_you_go",
-			"--number-of-periods", "1",
-			"--prices", "usa:pp-us",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
+	stdout, _, runErr := runCommand(t, []string{
+		"subscriptions", "offers", "offer-codes", "create",
+		"--subscription-id", "8000000001",
+		"--name", "Spring Promo",
+		"--offer-eligibility", "replace_intro_offers",
+		"--customer-eligibilities", "new",
+		"--offer-duration", "one_month",
+		"--offer-mode", "pay_as_you_go",
+		"--number-of-periods", "1",
+		"--prices", "usa:pp-us",
 	})
 
 	if runErr == nil {
@@ -358,60 +183,20 @@ func TestSubscriptionsOfferCodesListPaginateReturnsSecondPageFailure(t *testing.
 
 	const nextURL = "https://api.appstoreconnect.apple.com/v1/subscriptions/8000000001/offerCodes?cursor=AQ&limit=200"
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/subscriptions/8000000001/offerCodes", "limit=200"),
+		asctest.JSON(http.StatusOK, `{
+			"data":[{"type":"subscriptionOfferCodes","id":"code-1"}],
+			"links":{"next":"`+nextURL+`"}
+		}`))
+	reg.Register(asctest.GET("/v1/subscriptions/8000000001/offerCodes", "cursor=AQ", "limit=200"),
+		asctest.JSON(http.StatusInternalServerError, `{"errors":[{"status":"500","title":"Server Error","detail":"page 2 failed"}]}`))
 
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		switch requestCount {
-		case 1:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/subscriptions/8000000001/offerCodes" {
-				t.Fatalf("unexpected first request: %s %s", req.Method, req.URL.String())
-			}
-			if req.URL.Query().Get("limit") != "200" {
-				t.Fatalf("expected limit 200 for first paginated request, got %q", req.URL.Query().Get("limit"))
-			}
-			body := `{
-				"data":[{"type":"subscriptionOfferCodes","id":"code-1"}],
-				"links":{"next":"` + nextURL + `"}
-			}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 2:
-			if req.Method != http.MethodGet || req.URL.String() != nextURL {
-				t.Fatalf("unexpected second request: %s %s", req.Method, req.URL.String())
-			}
-			body := `{"errors":[{"status":"500","title":"Server Error","detail":"page 2 failed"}]}`
-			return &http.Response{
-				StatusCode: http.StatusInternalServerError,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected extra request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"subscriptions", "offers", "offer-codes", "list",
-			"--subscription-id", "8000000001",
-			"--paginate",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
+	stdout, _, runErr := runCommand(t, []string{
+		"subscriptions", "offers", "offer-codes", "list",
+		"--subscription-id", "8000000001",
+		"--paginate",
 	})
 
 	if runErr == nil {
@@ -479,25 +264,8 @@ func TestSubscriptionsOfferCodesListOutputErrors(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/subscriptions/8000000001/offerCodes" {
-			t.Fatalf("expected path /v1/subscriptions/8000000001/offerCodes, got %s", req.URL.Path)
-		}
-		body := `{"data":[{"type":"subscriptionOfferCodes","id":"code-1"}],"links":{"next":""}}`
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
 
 	tests := []struct {
 		name    string
@@ -549,58 +317,23 @@ func TestSubscriptionsOfferCodesListPaginateFromNextWithoutSubscription(t *testi
 	const firstURL = "https://api.appstoreconnect.apple.com/v1/subscriptions/8000000001/offerCodes?cursor=AQ&limit=200"
 	const secondURL = "https://api.appstoreconnect.apple.com/v1/subscriptions/8000000001/offerCodes?cursor=BQ&limit=200"
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/subscriptions/8000000001/offerCodes", "cursor=AQ", "limit=200"),
+		asctest.JSON(http.StatusOK, `{
+			"data":[{"type":"subscriptionOfferCodes","id":"sub-code-next-1"}],
+			"links":{"next":"`+secondURL+`"}
+		}`))
+	reg.Register(asctest.GET("/v1/subscriptions/8000000001/offerCodes", "cursor=BQ", "limit=200"),
+		asctest.JSON(http.StatusOK, `{
+			"data":[{"type":"subscriptionOfferCodes","id":"sub-code-next-2"}],
+			"links":{"next":""}
+		}`))
 
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		switch requestCount {
-		case 1:
-			if req.Method != http.MethodGet || req.URL.String() != firstURL {
-				t.Fatalf("unexpected first request: %s %s", req.Method, req.URL.String())
-			}
-			body := `{
-				"data":[{"type":"subscriptionOfferCodes","id":"sub-code-next-1"}],
-				"links":{"next":"` + secondURL + `"}
-			}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 2:
-			if req.Method != http.MethodGet || req.URL.String() != secondURL {
-				t.Fatalf("unexpected second request: %s %s", req.Method, req.URL.String())
-			}
-			body := `{
-				"data":[{"type":"subscriptionOfferCodes","id":"sub-code-next-2"}],
-				"links":{"next":""}
-			}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected extra request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"subscriptions", "offers", "offer-codes", "list", "--paginate", "--next", firstURL}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"subscriptions", "offers", "offer-codes", "list", "--paginate", "--next", firstURL})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -614,44 +347,22 @@ func TestSubscriptionsOfferCodesListTableOutput(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/subscriptions/8000000001/offerCodes" {
-			t.Fatalf("expected path /v1/subscriptions/8000000001/offerCodes, got %s", req.URL.Path)
-		}
-		body := `{
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/subscriptions/8000000001/offerCodes"),
+		asctest.JSON(http.StatusOK, `{
 			"data":[{"type":"subscriptionOfferCodes","id":"sub-code-table-1","attributes":{"name":"Spring","offerEligibility":"REPLACE_INTRO_OFFERS","customerEligibilities":["NEW","EXISTING"],"duration":"ONE_MONTH","offerMode":"FREE_TRIAL","numberOfPeriods":1,"active":true,"totalNumberOfCodes":500,"productionCodeCount":300,"sandboxCodeCount":200}}],
 			"links":{"next":""}
-		}`
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
+		}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"subscriptions", "offers", "offer-codes", "list",
-			"--subscription-id", "8000000001",
-			"--output", "table",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
+	stdout, stderr, err := runCommand(t, []string{
+		"subscriptions", "offers", "offer-codes", "list",
+		"--subscription-id", "8000000001",
+		"--output", "table",
 	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -679,44 +390,22 @@ func TestSubscriptionsOfferCodesListMarkdownOutput(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/subscriptions/8000000001/offerCodes" {
-			t.Fatalf("expected path /v1/subscriptions/8000000001/offerCodes, got %s", req.URL.Path)
-		}
-		body := `{
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/subscriptions/8000000001/offerCodes"),
+		asctest.JSON(http.StatusOK, `{
 			"data":[{"type":"subscriptionOfferCodes","id":"sub-code-md-1","attributes":{"name":"Spring","active":true}}],
 			"links":{"next":""}
-		}`
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
+		}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"subscriptions", "offers", "offer-codes", "list",
-			"--subscription-id", "8000000001",
-			"--output", "markdown",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
+	stdout, stderr, err := runCommand(t, []string{
+		"subscriptions", "offers", "offer-codes", "list",
+		"--subscription-id", "8000000001",
+		"--output", "markdown",
 	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
