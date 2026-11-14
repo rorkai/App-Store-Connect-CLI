@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared/errfmt"
 )
 
@@ -183,12 +184,7 @@ func TestAssetLibraryVideoUploadRejectsInvalidTimeCodeBeforeHTTP(t *testing.T) {
 	if err := os.WriteFile(videoPath, []byte("video"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	original := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = original })
-	http.DefaultTransport = roundTripFunc(func(*http.Request) (*http.Response, error) {
-		t.Fatal("invalid time code caused HTTP")
-		return nil, nil
-	})
+	asctest.NewRegistry(t).Install()
 	for _, timeCode := range []string{"  ", "3s", "00:00:03"} {
 		stdout, stderr, err := runAssetLibrary(t, "asset-library", "videos", "upload", "--library-id", "lib", "--file", videoPath, "--time-code", timeCode)
 		want := "asset-library videos upload: --time-code must be HH:MM:SS:FF or HH:MM:SS.mmm"
@@ -215,11 +211,10 @@ printf '%s' '{"streams":[{"codec_type":"video","codec_name":"h264","width":1920,
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
-	original := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = original })
-	calls := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) { calls++; return jsonResponse(400, `{"errors":[]}`) })
+	reg := asctest.NewRegistry(t)
+	reg.Install()
 	_, stderr, err := runAssetLibrary(t, "asset-library", "videos", "upload", "--library-id", "library", "--file", file)
+	calls := len(reg.Requests())
 	if err == nil || !strings.Contains(stderr, "container") || calls != 0 {
 		t.Fatalf("expected pre-auth container rejection, calls=%d err=%v stderr=%s", calls, err, stderr)
 	}

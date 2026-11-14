@@ -17,6 +17,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared/errfmt"
 )
 
@@ -290,9 +291,7 @@ func TestAssetLibraryImageUploadRejectsInvalidImageBeforeHTTP(t *testing.T) {
 			if err := os.WriteFile(path, tc.content, 0o600); err != nil {
 				t.Fatal(err)
 			}
-			original := http.DefaultTransport
-			t.Cleanup(func() { http.DefaultTransport = original })
-			http.DefaultTransport = roundTripFunc(func(*http.Request) (*http.Response, error) { t.Fatal("invalid image caused HTTP"); return nil, nil })
+			asctest.NewRegistry(t).Install()
 			stdout, stderr, err := runAssetLibrary(t, "asset-library", "images", "upload", "--library-id", "lib", "--file", path)
 			if !isUsageClassError(err) || stdout != "" || stderr == "" {
 				t.Fatalf("err=%v stdout=%q stderr=%q", err, stdout, stderr)
@@ -308,12 +307,7 @@ func TestAssetLibraryUploadRejectsBlankReferenceNameBeforeHTTP(t *testing.T) {
 	if err := os.WriteFile(videoPath, []byte("video"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	original := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = original })
-	http.DefaultTransport = roundTripFunc(func(*http.Request) (*http.Response, error) {
-		t.Fatal("blank reference name caused HTTP")
-		return nil, nil
-	})
+	asctest.NewRegistry(t).Install()
 	for _, tc := range []struct{ kind, file string }{{"images", imagePath}, {"videos", videoPath}} {
 		t.Run(tc.kind, func(t *testing.T) {
 			stdout, stderr, err := runAssetLibrary(t, "asset-library", tc.kind, "upload", "--library-id", "lib", "--file", tc.file, "--reference-name", "  ")
