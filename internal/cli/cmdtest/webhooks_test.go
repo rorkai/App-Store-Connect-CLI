@@ -69,7 +69,7 @@ func TestWebhooksValidationErrors(t *testing.T) {
 		{
 			name:    "update missing fields",
 			args:    []string{"webhooks", "update", "--webhook-id", "wh-1"},
-			wantErr: "--name, --url, --secret, --events, or --enabled is required",
+			wantErr: "at least one update flag is required (--name, --url, --secret, --events, --enabled)",
 		},
 		{
 			name:    "update invalid event",

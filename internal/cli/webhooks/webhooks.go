@@ -308,8 +308,7 @@ Examples:
 			}
 
 			if !hasUpdate {
-				fmt.Fprintln(os.Stderr, "Error: --name, --url, --secret, --events, or --enabled is required")
-				return shared.MissingRequiredUsageError("")
+				return shared.UpdateFlagRequired(fs, name, url, secret, events, &enabled)
 			}
 
 			client, err := shared.GetASCClient()

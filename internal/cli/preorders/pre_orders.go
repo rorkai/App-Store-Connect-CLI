@@ -323,8 +323,7 @@ Examples:
 				hasAttr = true
 			}
 			if !hasAttr {
-				fmt.Fprintln(os.Stderr, "Error: at least one of --release-date, --pre-order-enabled, or --available is required")
-				return shared.MissingRequiredUsageError("")
+				return shared.UpdateFlagRequired(fs, releaseDate, &preOrderEnabled, &available)
 			}
 
 			client, err := shared.GetASCClient()

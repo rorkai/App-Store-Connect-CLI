@@ -503,8 +503,7 @@ Examples:
 			hasRelationshipUpdates := visited["app"] || visited["in-app-events"] || visited["supported-territories"]
 
 			if !hasAttributeUpdates && !hasRelationshipUpdates {
-				fmt.Fprintln(d.IO.ErrOut, "Error: at least one update flag is required")
-				return shared.MissingRequiredUsageError("")
+				return d.UpdateFlagRequired(fs, name, nomType, description, submitted, archived, publishStartDate, publishEndDate, deviceFamilies, locales, supplementalMaterialsURIs, hasInAppEvents, launchInSelectMarketsFirst, notes, preOrderEnabled, appIDs, inAppEvents, supportedTerritories)
 			}
 			if !visited["submitted"] && !visited["archived"] {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --submitted or --archived is required by Apple's live API")

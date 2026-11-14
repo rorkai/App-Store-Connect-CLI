@@ -198,8 +198,7 @@ Examples:
 
 			checksumValue := strings.TrimSpace(*checksum)
 			if checksumValue == "" && !uploaded.IsSet() {
-				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
-				return shared.MissingRequiredUsageError("")
+				return shared.UpdateFlagRequired(fs, checksum, &uploaded)
 			}
 
 			client, err := shared.GetASCClient()

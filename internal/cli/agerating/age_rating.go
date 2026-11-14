@@ -301,7 +301,7 @@ Examples:
 			}
 
 			if !hasAgeRatingUpdates(attributes) {
-				return d.UsageError("age-rating edit: at least one update flag is required")
+				return d.UpdateFlagRequired(fs, allNone, advertising, gambling, healthOrWellnessTopics, lootBox, messagingAndChat, parentalControls, ageAssurance, socialMedia, socialMediaAgeRestricted, unrestrictedWebAccess, userGeneratedContent, alcoholTobaccoDrug, contests, gamblingSimulated, gunsOrOtherWeapons, medicalTreatment, profanityHumor, sexualContentNudity, sexualContentGraphicNudity, horrorFear, matureSuggestive, violenceCartoon, violenceRealistic, violenceRealisticGraphic, kidsAgeBand, ageRatingOverride, ageRatingOverrideV2, koreaAgeRatingOverride, gracNumber, clearGracNumber, developerAgeRatingInfoURL)
 			}
 
 			client, err := d.Client()

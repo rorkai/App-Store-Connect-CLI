@@ -158,8 +158,7 @@ Examples:
 				visited["demo-account-required"] ||
 				visited["notes"]
 			if !hasUpdates {
-				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
-				return shared.MissingRequiredUsageError("")
+				return shared.UpdateFlagRequired(fs, contactFirstName, contactLastName, contactEmail, contactPhone, demoAccountName, demoAccountPassword, demoAccountRequired, notes)
 			}
 
 			attrs := asc.BetaAppReviewDetailUpdateAttributes{}
@@ -640,8 +639,7 @@ External distribution is managed through group assignment:
 
 			hasUpdates := visited["auto-notify"]
 			if !hasUpdates {
-				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
-				return shared.MissingRequiredUsageError("")
+				return shared.UpdateFlagRequired(fs, autoNotify)
 			}
 
 			attrs := asc.BuildBetaDetailUpdateAttributes{}

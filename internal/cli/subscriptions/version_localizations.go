@@ -287,7 +287,7 @@ Examples:
 				return shared.UsageError("--description cannot be used with --clear-description")
 			}
 			if !name.set && !description.set && !*clearName && !*clearDescription {
-				return shared.UsageError("at least one of --name, --description, --clear-name, or --clear-description is required")
+				return shared.UpdateFlagRequired(fs, &name, &description, clearName, clearDescription)
 			}
 			attrs := asc.SubscriptionLocalizationV2UpdateAttributes{}
 			if name.set {

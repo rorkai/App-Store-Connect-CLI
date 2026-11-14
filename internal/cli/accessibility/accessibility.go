@@ -323,7 +323,7 @@ Examples:
 			}
 
 			if !asc.HasAccessibilityDeclarationUpdates(attrs) {
-				return d.UsageError("accessibility update: at least one update flag is required")
+				return d.UpdateFlagRequired(fs, publish, supportsAudioDescriptions, supportsCaptions, supportsDarkInterface, supportsDifferentiateWithoutColorAlone, supportsLargerText, supportsReducedMotion, supportsSufficientContrast, supportsVoiceControl, supportsVoiceover)
 			}
 
 			client, err := d.Client()

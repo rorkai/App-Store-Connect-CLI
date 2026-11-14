@@ -313,8 +313,7 @@ Examples:
 
 			whatsNewValue := strings.TrimSpace(*whatsNew)
 			if whatsNewValue == "" {
-				fmt.Fprintln(d.IO.ErrOut, "Error: at least one update flag is required")
-				return shared.MissingRequiredUsageError("--whats-new")
+				return d.UpdateFlagRequired(fs, whatsNew)
 			}
 
 			attrs := asc.AppStoreVersionLocalizationAttributes{

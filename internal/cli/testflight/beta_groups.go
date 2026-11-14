@@ -1180,8 +1180,7 @@ Examples:
 				iosBuildsAvailableForAppleSiliconMac.IsSet() ||
 				iosBuildsAvailableForAppleVision.IsSet()
 			if !hasUpdates {
-				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
-				return shared.MissingRequiredUsageError("")
+				return shared.UpdateFlagRequired(fs, name, publicLinkEnabled, publicLinkLimitEnabled, publicLinkLimit, feedbackEnabled, &iosBuildsAvailableForAppleSiliconMac, &iosBuildsAvailableForAppleVision)
 			}
 
 			if visited["public-link-limit-enabled"] && *publicLinkLimitEnabled && !visited["public-link-limit"] {

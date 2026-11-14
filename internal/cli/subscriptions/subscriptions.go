@@ -373,8 +373,7 @@ Examples:
 
 			name := strings.TrimSpace(*referenceName)
 			if name == "" {
-				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
-				return shared.MissingRequiredUsageError("--reference-name")
+				return shared.UpdateFlagRequired(fs, referenceName)
 			}
 
 			client, err := shared.GetASCClient()
@@ -845,8 +844,7 @@ Examples:
 			}
 
 			if name == "" && note == "" && period == "" && !*familySharable && !groupLevel.IsSet() && len(markets) == 0 && seatStatus == "" {
-				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
-				return shared.MissingRequiredUsageError("")
+				return shared.UpdateFlagRequired(fs, referenceName, reviewNote, subscriptionPeriod, &groupLevel, familySharable, marketSettings, multiSeatStatus)
 			}
 
 			client, err := shared.GetASCClient()

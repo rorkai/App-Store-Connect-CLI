@@ -1861,7 +1861,7 @@ func TestAccessibilityValidationErrors(t *testing.T) {
 		{
 			name:    "accessibility update missing updates",
 			args:    []string{"accessibility", "update", "--id", "DECLARATION_ID"},
-			wantErr: "Error: accessibility update: at least one update flag is required",
+			wantErr: "Error: at least one update flag is required (--publish, --supports-audio-descriptions, --supports-captions, --supports-dark-interface, --supports-differentiate-without-color-alone, --supports-larger-text, --supports-reduced-motion, --supports-sufficient-contrast, --supports-voice-control, --supports-voiceover)",
 		},
 	}
 
@@ -2189,7 +2189,7 @@ func TestAndroidIosMappingValidationErrors(t *testing.T) {
 		{
 			name:    "android-ios-mapping update missing updates",
 			args:    []string{"android-ios-mapping", "update", "--mapping-id", "MAP_ID"},
-			wantErr: "Error: android-ios-mapping update: at least one update flag is required",
+			wantErr: "Error: at least one update flag is required (--android-package-name, --fingerprints, --clear-android-package-name, --clear-fingerprints)",
 		},
 	}
 
@@ -3132,7 +3132,7 @@ func TestAppsValidationErrors(t *testing.T) {
 		{
 			name:    "apps update missing fields",
 			args:    []string{"apps", "update", "--id", "APP_ID"},
-			wantErr: "Error: at least one update field is required (--bundle-id, --primary-locale, --content-rights, --accessibility-url, --subscription-status-url, --sandbox-subscription-status-url, --streamlined-purchasing-enabled)",
+			wantErr: "Error: at least one update flag is required (--bundle-id, --primary-locale, --content-rights, --accessibility-url, --subscription-status-url, --sandbox-subscription-status-url, --streamlined-purchasing-enabled)",
 		},
 		{
 			name:    "apps update invalid content rights",
@@ -3170,7 +3170,7 @@ func TestAppSetupInfoSetValidationErrors(t *testing.T) {
 		{
 			name:    "app-setup info set missing updates",
 			args:    []string{"app-setup", "info", "set", "--app", "APP_ID"},
-			wantErr: "Error: provide at least one update flag",
+			wantErr: "Error: at least one update flag is required (--bundle-id, --primary-locale, --name, --subtitle, --privacy-policy-url, --privacy-choices-url, --privacy-policy-text, --content-rights)",
 		},
 		{
 			name:    "app-setup info set invalid content rights",

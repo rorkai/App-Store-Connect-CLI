@@ -421,7 +421,7 @@ Examples:
 				return fmt.Errorf("%s: %w", errorPrefix, shared.WithDiagnostic(shared.UsageError("--removed cannot be combined with --clear-removed"), shared.DiagnosticConflictingInput, ""))
 			}
 			if !resolvedProvided && !removedProvided && !*clearResolved && !*clearRemoved {
-				return fmt.Errorf("%s: %w", errorPrefix, shared.WithDiagnostic(shared.UsageError("at least one of --resolved, --removed, --clear-resolved, or --clear-removed is required"), shared.DiagnosticRequiredInputMissing, ""))
+				return fmt.Errorf("%s: %w", errorPrefix, shared.UpdateFlagRequired(fs, resolved, removed, clearResolved, clearRemoved))
 			}
 
 			attrs := asc.ReviewSubmissionItemUpdateAttributes{}

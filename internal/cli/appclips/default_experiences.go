@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -273,8 +272,7 @@ Examples:
 			})
 
 			if !visited["action"] && !visited["release-version-id"] {
-				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
-				return shared.MissingRequiredUsageError("")
+				return shared.UpdateFlagRequired(fs, action, releaseVersionID)
 			}
 
 			var attrs *asc.AppClipDefaultExperienceUpdateAttributes

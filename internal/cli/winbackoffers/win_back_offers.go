@@ -673,8 +673,7 @@ Examples:
 			}
 
 			if !hasUpdates {
-				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
-				return shared.MissingRequiredUsageError("")
+				return shared.UpdateFlagRequired(fs, &eligibilityPaidMonths, &eligibilityLastSubscribedMin, &eligibilityLastSubscribedMax, &eligibilityWaitMonths, startDate, endDate, priority, promotionIntent)
 			}
 
 			client, err := shared.GetASCClient()

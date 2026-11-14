@@ -171,8 +171,7 @@ Examples:
 			}
 
 			if !hasUpdate {
-				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required (--enabled)")
-				return shared.MissingRequiredUsageError("--enabled")
+				return shared.UpdateFlagRequired(fs, enabled)
 			}
 
 			client, err := shared.GetASCClient()

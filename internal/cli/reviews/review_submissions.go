@@ -415,7 +415,7 @@ Examples:
 				return shared.WithDiagnostic(shared.UsageError("--canceled cannot be combined with --clear-canceled"), shared.DiagnosticConflictingInput, "")
 			}
 			if !platformProvided && !submittedProvided && !canceledProvided && !*clearPlatform && !*clearSubmitted && !*clearCanceled {
-				return shared.WithDiagnostic(shared.UsageError("at least one update flag is required: --platform, --submitted, --canceled, or a matching --clear-* flag"), shared.DiagnosticRequiredInputMissing, "")
+				return shared.UpdateFlagRequired(fs, platform, submitted, canceled, clearPlatform, clearSubmitted, clearCanceled)
 			}
 			if canceledProvided && *canceled && !*confirm {
 				return shared.WithDiagnostic(shared.UsageError("--confirm is required when --canceled=true"), shared.DiagnosticRequiredInputMissing, "--confirm")

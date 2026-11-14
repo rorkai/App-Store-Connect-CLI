@@ -54,7 +54,7 @@ func TestLocalizationsUpdateValidationErrors(t *testing.T) {
 		{
 			name:    "missing version field",
 			args:    []string{"localizations", "update", "--version", "ver-1", "--locale", "en-US"},
-			wantErr: "at least one version field",
+			wantErr: "at least one update flag is required (--description, --keywords, --whats-new, --promotional-text, --clear-promotional-text, --support-url, --marketing-url)",
 		},
 		{
 			name:    "app-info missing app",

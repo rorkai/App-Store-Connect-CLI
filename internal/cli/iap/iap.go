@@ -518,8 +518,7 @@ Examples:
 				return flag.ErrHelp
 			}
 			if name == "" && note == "" && !*familySharable {
-				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
-				return shared.MissingRequiredUsageError("")
+				return shared.UpdateFlagRequired(fs, refName, familySharable, reviewNote)
 			}
 
 			client, err := shared.GetASCClient()

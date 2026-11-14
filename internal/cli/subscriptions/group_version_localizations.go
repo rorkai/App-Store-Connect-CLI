@@ -234,8 +234,7 @@ func SubscriptionsGroupsVersionLocalizationsUpdateCommand() *ffcli.Command {
 				return shared.WithDiagnostic(shared.InvalidValueUsageError("--custom-app-name"), shared.DiagnosticConflictingInput, "--custom-app-name")
 			}
 			if !nameSet && !customNameSet && !*clearName && !*clearCustomAppName {
-				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
-				return shared.MissingRequiredUsageError("")
+				return shared.UpdateFlagRequired(fs, name, customAppName, clearName, clearCustomAppName)
 			}
 			attrs := asc.SubscriptionGroupLocalizationV2UpdateAttributes{}
 			if nameSet {

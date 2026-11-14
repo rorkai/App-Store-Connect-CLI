@@ -499,8 +499,7 @@ Examples:
 			}
 
 			if !hasUpdate {
-				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
-				return shared.MissingRequiredUsageError("")
+				return shared.UpdateFlagRequired(fs, name, eventType, start, end, publishStart, territories, deepLink, purchaseRequirement, primaryLocale, priority, purpose)
 			}
 
 			client, err := appEventsClientFactory()

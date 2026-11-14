@@ -207,8 +207,7 @@ Examples:
 			}
 
 			if !hasUpdate && strings.TrimSpace(*ruleSetID) == "" && strings.TrimSpace(*experimentRuleSetID) == "" {
-				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
-				return shared.MissingRequiredUsageError("")
+				return shared.UpdateFlagRequired(fs, ruleSetID, experimentRuleSetID, classicBundleIDs)
 			}
 
 			client, err := shared.GetASCClient()
@@ -424,8 +423,7 @@ Examples:
 			}
 
 			if !hasUpdate {
-				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
-				return shared.MissingRequiredUsageError("")
+				return shared.UpdateFlagRequired(fs, minPlayers, maxPlayers)
 			}
 
 			client, err := shared.GetASCClient()
@@ -696,8 +694,7 @@ Examples:
 			}
 
 			if !hasUpdate {
-				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
-				return shared.MissingRequiredUsageError("")
+				return shared.UpdateFlagRequired(fs, description, expression, weight)
 			}
 
 			client, err := shared.GetASCClient()
@@ -902,8 +899,7 @@ Examples:
 				hasUpdate = true
 			}
 			if !hasUpdate {
-				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
-				return shared.MissingRequiredUsageError("")
+				return shared.UpdateFlagRequired(fs, minPlayers, maxPlayers)
 			}
 
 			client, err := shared.GetASCClient()

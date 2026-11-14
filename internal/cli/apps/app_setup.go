@@ -133,8 +133,7 @@ Examples:
 				privacyPolicyTextValue != ""
 
 			if !hasAppUpdate && !hasLocalization {
-				fmt.Fprintln(os.Stderr, "Error: provide at least one update flag")
-				return flag.ErrHelp
+				return shared.UpdateFlagRequired(fs, bundleID, primaryLocale, name, subtitle, privacyPolicyURL, privacyChoicesURL, privacyPolicyText, contentRights)
 			}
 			if primaryLocaleValue != "" {
 				if err := shared.ValidateBuildLocalizationLocale(primaryLocaleValue); err != nil {

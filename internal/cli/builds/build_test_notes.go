@@ -322,8 +322,7 @@ Examples:
 
 			whatsNewValue := strings.TrimSpace(*whatsNew)
 			if whatsNewValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
-				return shared.MissingRequiredUsageError("--whats-new")
+				return shared.UpdateFlagRequired(fs, whatsNew)
 			}
 			whatsNewValue, normalizeErr := shared.NormalizeTestNotesForCommand(os.Stderr, whatsNewValue)
 			if normalizeErr != nil {

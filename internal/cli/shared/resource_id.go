@@ -78,6 +78,10 @@ func BindResourceIDFlag(fs *flag.FlagSet, name, resourceType, usage string) *str
 	return target
 }
 
+func (v *resourceIDValue) storage() any {
+	return v.target
+}
+
 func (v *resourceIDValue) String() string {
 	if v == nil || v.target == nil {
 		return ""

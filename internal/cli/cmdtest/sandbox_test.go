@@ -45,7 +45,7 @@ func TestSandboxUsageErrors(t *testing.T) {
 		{
 			name:    "UpdateMissingUpdateFields",
 			args:    []string{"sandbox", "update", "--id", "tester-1"},
-			wantErr: "--territory, --interrupt-purchases, or --subscription-renewal-rate is required",
+			wantErr: "at least one update flag is required (--territory, --subscription-renewal-rate, --interrupt-purchases)",
 		},
 		{
 			name:    "ClearHistoryMissingConfirm",

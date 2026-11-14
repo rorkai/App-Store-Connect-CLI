@@ -268,8 +268,7 @@ Examples:
 				visited["privacy-policy-url"] ||
 				visited["tv-os-privacy-policy"]
 			if !hasUpdates {
-				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
-				return shared.MissingRequiredUsageError("")
+				return shared.UpdateFlagRequired(fs, description, feedbackEmail, marketingURL, privacyPolicyURL, tvOsPrivacyPolicy)
 			}
 
 			attrs := asc.BetaAppLocalizationUpdateAttributes{}

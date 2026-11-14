@@ -591,8 +591,7 @@ func retentionMessageLocalizationsCommand() *ffcli.Command {
 						return nil, err
 					}
 					if attrs.Header == nil && attrs.Body == nil {
-						fmt.Fprintln(os.Stderr, "Error: --header, --body, --clear-header, or --clear-body is required")
-						return nil, shared.MissingRequiredUsageError("--header", "--body")
+						return nil, shared.UpdateFlagRequired(fs, header, body, clearHeader, clearBody)
 					}
 					return func(ctx context.Context, client *asc.Client) (any, error) {
 						return client.UpdateRetentionMessageLocalization(ctx, value, attrs)

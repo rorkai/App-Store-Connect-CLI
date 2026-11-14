@@ -186,7 +186,7 @@ func TestReviewCommandItemsValidationErrors(t *testing.T) {
 		{
 			name:    "review items-update missing update",
 			args:    []string{"review", "items-update", "--id", "ITEM_ID"},
-			wantErr: "at least one of --resolved, --removed, --clear-resolved, or --clear-removed is required",
+			wantErr: "at least one update flag is required (--resolved, --removed, --clear-resolved, --clear-removed)",
 		},
 		{
 			name:    "review items-remove missing id",
@@ -211,7 +211,7 @@ func TestReviewCommandItemsValidationErrors(t *testing.T) {
 		{
 			name:    "nested review items update missing update",
 			args:    []string{"review", "items", "update", "--id", "ITEM_ID"},
-			wantErr: "at least one of --resolved, --removed, --clear-resolved, or --clear-removed is required",
+			wantErr: "at least one update flag is required (--resolved, --removed, --clear-resolved, --clear-removed)",
 		},
 		{
 			name:    "nested review items remove missing confirm",

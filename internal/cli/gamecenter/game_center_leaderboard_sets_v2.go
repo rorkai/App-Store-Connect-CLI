@@ -303,8 +303,7 @@ Examples:
 			}
 
 			if !hasUpdate {
-				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
-				return shared.MissingRequiredUsageError("--reference-name")
+				return shared.UpdateFlagRequired(fs, referenceName)
 			}
 
 			client, err := shared.GetASCClient()

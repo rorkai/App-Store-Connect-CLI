@@ -194,7 +194,7 @@ func TestReviewItemsUpdateValidatesSchemaFlagsBeforeAuth(t *testing.T) {
 		args []string
 		want string
 	}{
-		{name: "missing update", args: []string{"--id", "item-1"}, want: "at least one of --resolved, --removed, --clear-resolved, or --clear-removed is required"},
+		{name: "missing update", args: []string{"--id", "item-1"}, want: "at least one update flag is required (--resolved, --removed, --clear-resolved, --clear-removed)"},
 		{name: "invalid resolved", args: []string{"--id", "item-1", "--resolved", "yes"}, want: "--resolved must be true or false"},
 		{name: "invalid removed", args: []string{"--id", "item-1", "--removed", "no"}, want: "--removed must be true or false"},
 		{name: "resolved conflict", args: []string{"--id", "item-1", "--resolved", "false", "--clear-resolved"}, want: "--resolved cannot be combined with --clear-resolved"},
@@ -209,9 +209,12 @@ func TestReviewItemsUpdateValidatesSchemaFlagsBeforeAuth(t *testing.T) {
 			})
 			defer restore()
 
-			err := ReviewItemsUpdateCommand().ParseAndRun(context.Background(), test.args)
-			if err == nil || !errors.Is(err, flag.ErrHelp) || !strings.Contains(err.Error(), test.want) {
-				t.Fatalf("error = %v, want usage error containing %q", err, test.want)
+			var err error
+			stderr := captureReviewDiagnosticStderr(t, func() {
+				err = ReviewItemsUpdateCommand().ParseAndRun(context.Background(), test.args)
+			})
+			if err == nil || !errors.Is(err, flag.ErrHelp) || !strings.Contains(stderr, "Error: "+test.want) {
+				t.Fatalf("error = %v, stderr = %q, want usage error printing %q", err, stderr, test.want)
 			}
 			if factoryCalled {
 				t.Fatal("client factory called before update validation")

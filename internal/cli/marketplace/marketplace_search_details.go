@@ -151,8 +151,7 @@ Examples:
 			})
 
 			if !visited["catalog-url"] {
-				fmt.Fprintln(d.IO.ErrOut, "Error: at least one update flag is required")
-				return shared.MissingRequiredUsageError("")
+				return d.UpdateFlagRequired(fs, catalogURL)
 			}
 
 			attrs := asc.MarketplaceSearchDetailUpdateAttributes{}

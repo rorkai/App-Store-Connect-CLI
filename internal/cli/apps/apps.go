@@ -309,8 +309,7 @@ Examples:
 				attrs.StreamlinedPurchasingEnabled = &value
 			}
 			if attrs == (asc.AppUpdateAttributes{}) {
-				fmt.Fprintln(os.Stderr, "Error: at least one update field is required (--bundle-id, --primary-locale, --content-rights, --accessibility-url, --subscription-status-url, --sandbox-subscription-status-url, --streamlined-purchasing-enabled)")
-				return shared.MissingRequiredUsageError("")
+				return shared.UpdateFlagRequired(fs, bundleID, primaryLocale, contentRights, accessibilityURL, subscriptionStatusURL, sandboxSubscriptionStatusURL, &streamlinedPurchasing)
 			}
 
 			client, err := shared.GetASCClient()
