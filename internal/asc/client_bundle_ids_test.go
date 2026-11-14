@@ -52,7 +52,7 @@ func TestGetBundleIDs_WithQuerySurface(t *testing.T) {
 		WithBundleIDsInclude([]string{"profiles", "bundleIdCapabilities", "app"}),
 		WithBundleIDsProfilesLimit(7),
 		WithBundleIDsCapabilitiesLimit(8),
-		WithBundleIDsLimit(25),
+		Limit[BundleIDsOption](25),
 	)
 	if err != nil {
 		t.Fatalf("GetBundleIDs() error: %v", err)

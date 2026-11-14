@@ -296,7 +296,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetBundleIDs",
 			next: "https://api.appstoreconnect.apple.com/v1/bundleIds?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetBundleIDs(ctx, WithBundleIDsNextURL(next))
+				_, err := c.GetBundleIDs(ctx, NextURL[BundleIDsOption](next))
 				return err
 			},
 		},
@@ -320,7 +320,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetCertificates",
 			next: "https://api.appstoreconnect.apple.com/v1/certificates?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetCertificates(ctx, WithCertificatesNextURL(next))
+				_, err := c.GetCertificates(ctx, NextURL[CertificatesOption](next))
 				return err
 			},
 		},
@@ -328,7 +328,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetProfiles",
 			next: "https://api.appstoreconnect.apple.com/v1/profiles?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetProfiles(ctx, WithProfilesNextURL(next))
+				_, err := c.GetProfiles(ctx, NextURL[ProfilesOption](next))
 				return err
 			},
 		},
@@ -344,7 +344,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetUsers",
 			next: "https://api.appstoreconnect.apple.com/v1/users?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetUsers(ctx, WithUsersNextURL(next))
+				_, err := c.GetUsers(ctx, NextURL[UsersOption](next))
 				return err
 			},
 		},
@@ -1028,7 +1028,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			path:  "/v1/bundleIds",
 			query: map[string]string{"limit": "10"},
 			body:  `{"data":[{"type":"bundleIds","id":"b1","attributes":{"name":"Demo","identifier":"com.example.demo","platform":"IOS"}}]}`,
-			call:  func(c *Client) error { return discardResult(c.GetBundleIDs(ctx, WithBundleIDsLimit(10))) },
+			call:  func(c *Client) error { return discardResult(c.GetBundleIDs(ctx, Limit[BundleIDsOption](10))) },
 		},
 		{
 			name:  "GetInAppPurchases_WithLimit",
@@ -1061,7 +1061,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 					WithMerchantIDsCertificateFields([]string{"certificateType", "serialNumber"}),
 					WithMerchantIDsInclude([]string{"certificates"}),
 					WithMerchantIDsCertificatesLimit(10),
-					WithMerchantIDsLimit(5),
+					Limit[MerchantIDsOption](5),
 				))
 			},
 		},
@@ -1092,7 +1092,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 					WithMerchantIDCertificatesFields([]string{"serialNumber"}),
 					WithMerchantIDCertificatesPassTypeFields([]string{"identifier"}),
 					WithMerchantIDCertificatesInclude([]string{"passTypeId"}),
-					WithMerchantIDCertificatesLimit(5),
+					Limit[MerchantIDCertificatesOption](5),
 				))
 			},
 		},
@@ -1134,7 +1134,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 					ctx,
 					WithProfilesTypes([]string{"IOS_APP_DEVELOPMENT", "IOS_APP_STORE"}),
 					WithProfilesStates([]string{"ACTIVE", "INVALID"}),
-					WithProfilesLimit(5),
+					Limit[ProfilesOption](5),
 				))
 			},
 		},
@@ -1208,7 +1208,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 					ctx,
 					WithUsersEmail("user@example.com"),
 					WithUsersRoles([]string{"developer", " app_manager "}),
-					WithUsersLimit(5),
+					Limit[UsersOption](5),
 				))
 			},
 		},
@@ -7907,7 +7907,7 @@ func TestGetProfileRelatedResources_SendsRequest(t *testing.T) {
 				}
 			},
 			call: func(c *Client) error {
-				_, err := c.GetProfileCertificates(ctx, "p1", WithProfileCertificatesLimit(5))
+				_, err := c.GetProfileCertificates(ctx, "p1", Limit[ProfileCertificatesOption](5))
 				return err
 			},
 		},
@@ -7921,7 +7921,7 @@ func TestGetProfileRelatedResources_SendsRequest(t *testing.T) {
 				}
 			},
 			call: func(c *Client) error {
-				_, err := c.GetProfileCertificates(ctx, "p1", WithProfileCertificatesLimit(5), WithProfileCertificatesNextURL(nextCerts))
+				_, err := c.GetProfileCertificates(ctx, "p1", Limit[ProfileCertificatesOption](5), NextURL[ProfileCertificatesOption](nextCerts))
 				return err
 			},
 		},
@@ -7941,7 +7941,7 @@ func TestGetProfileRelatedResources_SendsRequest(t *testing.T) {
 				}
 			},
 			call: func(c *Client) error {
-				_, err := c.GetProfileDevices(ctx, "p1", WithProfileDevicesLimit(10))
+				_, err := c.GetProfileDevices(ctx, "p1", Limit[ProfileDevicesOption](10))
 				return err
 			},
 		},
@@ -7955,7 +7955,7 @@ func TestGetProfileRelatedResources_SendsRequest(t *testing.T) {
 				}
 			},
 			call: func(c *Client) error {
-				_, err := c.GetProfileDevices(ctx, "p1", WithProfileDevicesLimit(10), WithProfileDevicesNextURL(nextDevices))
+				_, err := c.GetProfileDevices(ctx, "p1", Limit[ProfileDevicesOption](10), NextURL[ProfileDevicesOption](nextDevices))
 				return err
 			},
 		},

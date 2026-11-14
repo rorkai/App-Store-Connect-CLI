@@ -49,7 +49,7 @@ func TestEnterpriseClientUsesEnterpriseHostAudienceAndNextLinks(t *testing.T) {
 		t.Fatalf("GetCertificates() error: %v", err)
 	}
 	all, err := PaginateAll(ctx, first, func(ctx context.Context, nextURL string) (PaginatedResponse, error) {
-		return client.GetCertificates(ctx, WithCertificatesNextURL(nextURL))
+		return client.GetCertificates(ctx, NextURL[CertificatesOption](nextURL))
 	})
 	if err != nil {
 		t.Fatalf("PaginateAll() error: %v", err)
@@ -83,7 +83,7 @@ func TestClientRejectsAbsoluteURLOnTheOtherAPIHost(t *testing.T) {
 				client.UseEnterpriseProgramAPI()
 			}
 
-			_, err := client.GetCertificates(context.Background(), WithCertificatesNextURL(test.target))
+			_, err := client.GetCertificates(context.Background(), NextURL[CertificatesOption](test.target))
 			if err == nil || !strings.Contains(err.Error(), "rejected request URL") {
 				t.Fatalf("GetCertificates() error = %v", err)
 			}

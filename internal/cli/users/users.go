@@ -169,19 +169,19 @@ Examples:
 				asc.WithUsersAppFields(appFieldsValue),
 				asc.WithUsersInclude(includeValue),
 				asc.WithUsersVisibleAppsLimit(*visibleAppsLimit),
-				asc.WithUsersLimit(*limit),
-				asc.WithUsersNextURL(*next),
+				asc.Limit[asc.UsersOption](*limit),
+				asc.NextURL[asc.UsersOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithUsersLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.UsersOption](200))
 				firstPage, err := client.GetUsers(requestCtx, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("users list: failed to fetch: %w", err)
 				}
 
 				users, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetUsers(ctx, asc.WithUsersNextURL(nextURL))
+					return client.GetUsers(ctx, asc.NextURL[asc.UsersOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("users list: %w", err)
@@ -606,19 +606,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.UserInvitationsOption{
-				asc.WithUserInvitationsLimit(*limit),
-				asc.WithUserInvitationsNextURL(*next),
+				asc.Limit[asc.UserInvitationsOption](*limit),
+				asc.NextURL[asc.UserInvitationsOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithUserInvitationsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.UserInvitationsOption](200))
 				firstPage, err := client.GetUserInvitations(requestCtx, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("users invites list: failed to fetch: %w", err)
 				}
 
 				invites, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetUserInvitations(ctx, asc.WithUserInvitationsNextURL(nextURL))
+					return client.GetUserInvitations(ctx, asc.NextURL[asc.UserInvitationsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("users invites list: %w", err)

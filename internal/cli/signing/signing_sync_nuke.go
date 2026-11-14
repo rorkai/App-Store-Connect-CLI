@@ -247,9 +247,9 @@ func listSigningNukeProfiles(ctx context.Context, client *asc.Client, profileTyp
 	seenNext := make(map[string]struct{})
 	for {
 		requestCtx, cancel := shared.ContextWithTimeout(ctx)
-		options := []asc.ProfilesOption{asc.WithProfilesNextURL(next)}
+		options := []asc.ProfilesOption{asc.NextURL[asc.ProfilesOption](next)}
 		if next == "" {
-			options = append(options, asc.WithProfilesFilterType(profileType), asc.WithProfilesLimit(200))
+			options = append(options, asc.WithProfilesFilterType(profileType), asc.Limit[asc.ProfilesOption](200))
 		}
 		response, err := client.GetProfiles(requestCtx, options...)
 		cancel()
@@ -288,9 +288,9 @@ func listSigningNukeCertificates(ctx context.Context, client *asc.Client, certif
 	seenNext := make(map[string]struct{})
 	for {
 		requestCtx, cancel := shared.ContextWithTimeout(ctx)
-		options := []asc.CertificatesOption{asc.WithCertificatesNextURL(next)}
+		options := []asc.CertificatesOption{asc.NextURL[asc.CertificatesOption](next)}
 		if next == "" {
-			options = append(options, asc.WithCertificatesFilterType(certificateTypes), asc.WithCertificatesLimit(200))
+			options = append(options, asc.WithCertificatesFilterType(certificateTypes), asc.Limit[asc.CertificatesOption](200))
 		}
 		response, err := client.GetCertificates(requestCtx, options...)
 		cancel()

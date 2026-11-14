@@ -88,10 +88,10 @@ Examples:
 			paginated, err := shared.PaginateWithSpinner(
 				requestCtx,
 				func(ctx context.Context) (asc.PaginatedResponse, error) {
-					return client.GetCertificates(ctx, asc.WithCertificatesTypes(developerIDCheckTypes), asc.WithCertificatesLimit(200))
+					return client.GetCertificates(ctx, asc.WithCertificatesTypes(developerIDCheckTypes), asc.Limit[asc.CertificatesOption](200))
 				},
 				func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetCertificates(ctx, asc.WithCertificatesNextURL(nextURL))
+					return client.GetCertificates(ctx, asc.NextURL[asc.CertificatesOption](nextURL))
 				},
 			)
 			if err != nil {

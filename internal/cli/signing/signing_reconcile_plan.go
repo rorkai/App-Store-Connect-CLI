@@ -175,8 +175,8 @@ func getAllReconcileCertificates(ctx context.Context, client *asc.Client) ([]asc
 		page, err := client.GetCertificates(
 			ctx,
 			asc.WithCertificatesFilterType(reconcileCertificateType),
-			asc.WithCertificatesLimit(200),
-			asc.WithCertificatesNextURL(next),
+			asc.Limit[asc.CertificatesOption](200),
+			asc.NextURL[asc.CertificatesOption](next),
 		)
 		if err != nil {
 			return nil, err
@@ -474,7 +474,7 @@ func getAllBundleIDCapabilities(ctx context.Context, client *asc.Client, bundleI
 	var result []asc.Resource[asc.BundleIDCapabilityAttributes]
 	next := ""
 	for {
-		page, err := client.GetBundleIDCapabilities(ctx, bundleID, asc.WithBundleIDCapabilitiesNextURL(next))
+		page, err := client.GetBundleIDCapabilities(ctx, bundleID, asc.NextURL[asc.BundleIDCapabilitiesOption](next))
 		if err != nil {
 			return nil, err
 		}
@@ -490,7 +490,7 @@ func findExactReconcileBundleID(ctx context.Context, client *asc.Client, identif
 	next := ""
 	var exact []asc.Resource[asc.BundleIDAttributes]
 	for {
-		page, err := client.GetBundleIDs(ctx, asc.WithBundleIDsFilterIdentifier(identifier), asc.WithBundleIDsLimit(200), asc.WithBundleIDsNextURL(next))
+		page, err := client.GetBundleIDs(ctx, asc.WithBundleIDsFilterIdentifier(identifier), asc.Limit[asc.BundleIDsOption](200), asc.NextURL[asc.BundleIDsOption](next))
 		if err != nil {
 			return nil, err
 		}
@@ -579,7 +579,7 @@ func getAllBundleProfiles(ctx context.Context, client *asc.Client, bundleID stri
 	var result []asc.Resource[asc.ProfileAttributes]
 	next := ""
 	for {
-		page, err := client.GetBundleIDProfiles(ctx, bundleID, asc.WithBundleIDProfilesLimit(200), asc.WithBundleIDProfilesNextURL(next))
+		page, err := client.GetBundleIDProfiles(ctx, bundleID, asc.Limit[asc.BundleIDProfilesOption](200), asc.NextURL[asc.BundleIDProfilesOption](next))
 		if err != nil {
 			return nil, err
 		}
@@ -596,7 +596,7 @@ func getAllProfileCertificateIDs(ctx context.Context, client *asc.Client, profil
 	var result []string
 	next := ""
 	for {
-		page, err := client.GetProfileCertificates(ctx, profileID, asc.WithProfileCertificatesLimit(200), asc.WithProfileCertificatesNextURL(next))
+		page, err := client.GetProfileCertificates(ctx, profileID, asc.Limit[asc.ProfileCertificatesOption](200), asc.NextURL[asc.ProfileCertificatesOption](next))
 		if err != nil {
 			return nil, err
 		}
@@ -616,7 +616,7 @@ func getAllProfileDeviceIDs(ctx context.Context, client *asc.Client, profileID s
 	var result []string
 	next := ""
 	for {
-		page, err := client.GetProfileDevices(ctx, profileID, asc.WithProfileDevicesLimit(200), asc.WithProfileDevicesNextURL(next))
+		page, err := client.GetProfileDevices(ctx, profileID, asc.Limit[asc.ProfileDevicesOption](200), asc.NextURL[asc.ProfileDevicesOption](next))
 		if err != nil {
 			return nil, err
 		}

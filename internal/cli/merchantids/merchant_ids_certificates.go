@@ -115,8 +115,8 @@ Examples:
 			defer cancel()
 
 			opts := []asc.MerchantIDCertificatesOption{
-				asc.WithMerchantIDCertificatesLimit(*limit),
-				asc.WithMerchantIDCertificatesNextURL(*next),
+				asc.Limit[asc.MerchantIDCertificatesOption](*limit),
+				asc.NextURL[asc.MerchantIDCertificatesOption](*next),
 				asc.WithMerchantIDCertificatesFilterDisplayName(*displayName),
 				asc.WithMerchantIDCertificatesFilterCertificateTypes(*certificateType),
 				asc.WithMerchantIDCertificatesFilterSerialNumbers(*serialNumber),
@@ -128,14 +128,14 @@ Examples:
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithMerchantIDCertificatesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.MerchantIDCertificatesOption](200))
 				firstPage, err := client.GetMerchantIDCertificates(requestCtx, merchantIDValue, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("merchant-ids certificates list: failed to fetch: %w", err)
 				}
 
 				paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetMerchantIDCertificates(ctx, merchantIDValue, asc.WithMerchantIDCertificatesNextURL(nextURL))
+					return client.GetMerchantIDCertificates(ctx, merchantIDValue, asc.NextURL[asc.MerchantIDCertificatesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("merchant-ids certificates list: %w", err)

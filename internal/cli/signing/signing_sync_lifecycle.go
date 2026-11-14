@@ -118,9 +118,9 @@ func listProfileDevices(ctx context.Context, client *asc.Client, profileID strin
 	page := 1
 	seenNext := make(map[string]struct{})
 	for {
-		options := []asc.ProfileDevicesOption{asc.WithProfileDevicesNextURL(next)}
+		options := []asc.ProfileDevicesOption{asc.NextURL[asc.ProfileDevicesOption](next)}
 		if next == "" {
-			options = append(options, asc.WithProfileDevicesLimit(200))
+			options = append(options, asc.Limit[asc.ProfileDevicesOption](200))
 		}
 		response, err := client.GetProfileDevices(ctx, profileID, options...)
 		if err != nil {
@@ -187,7 +187,7 @@ func findLatestExpiredProfile(ctx context.Context, client *asc.Client, bundleIDR
 	page := 1
 	seenNext := make(map[string]struct{})
 	for {
-		profiles, err := client.GetBundleIDProfiles(ctx, bundleIDResourceID, asc.WithBundleIDProfilesLimit(200), asc.WithBundleIDProfilesNextURL(next))
+		profiles, err := client.GetBundleIDProfiles(ctx, bundleIDResourceID, asc.Limit[asc.BundleIDProfilesOption](200), asc.NextURL[asc.BundleIDProfilesOption](next))
 		if err != nil {
 			return nil, err
 		}

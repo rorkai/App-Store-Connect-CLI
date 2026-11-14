@@ -171,8 +171,8 @@ Examples:
 			defer cancel()
 
 			opts := []asc.CertificatesOption{
-				asc.WithCertificatesLimit(*limit),
-				asc.WithCertificatesNextURL(*next),
+				asc.Limit[asc.CertificatesOption](*limit),
+				asc.NextURL[asc.CertificatesOption](*next),
 			}
 			if len(displayNames) > 0 {
 				opts = append(opts, asc.WithCertificatesFilterDisplayNames(displayNames))
@@ -202,14 +202,14 @@ Examples:
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithCertificatesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.CertificatesOption](200))
 				paginated, err := shared.PaginateWithSpinner(
 					requestCtx,
 					func(ctx context.Context) (asc.PaginatedResponse, error) {
 						return client.GetCertificates(ctx, paginateOpts...)
 					},
 					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return client.GetCertificates(ctx, asc.WithCertificatesNextURL(nextURL))
+						return client.GetCertificates(ctx, asc.NextURL[asc.CertificatesOption](nextURL))
 					},
 				)
 				if err != nil {

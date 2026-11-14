@@ -299,7 +299,7 @@ func listBundleCapabilities(ctx context.Context, client *asc.Client, bundleID st
 		return nil, err
 	}
 	paginated, err := asc.PaginateAll(ctx, first, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetBundleIDCapabilities(ctx, bundleID, asc.WithBundleIDCapabilitiesNextURL(nextURL))
+		return client.GetBundleIDCapabilities(ctx, bundleID, asc.NextURL[asc.BundleIDCapabilitiesOption](nextURL))
 	})
 	if err != nil {
 		return nil, err

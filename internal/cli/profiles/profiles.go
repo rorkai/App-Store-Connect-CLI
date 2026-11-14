@@ -231,8 +231,8 @@ profiles reference. It cannot be combined with --next. With --fields, both
 			defer cancel()
 
 			opts := []asc.ProfilesOption{
-				asc.WithProfilesLimit(*limit),
-				asc.WithProfilesNextURL(*next),
+				asc.Limit[asc.ProfilesOption](*limit),
+				asc.NextURL[asc.ProfilesOption](*next),
 				asc.WithProfilesStates(profileStates),
 			}
 			if strings.TrimSpace(*name) != "" {
@@ -270,14 +270,14 @@ profiles reference. It cannot be combined with --next. With --fields, both
 			}
 
 			if *paginate || *staleOnly {
-				paginateOpts := append(opts, asc.WithProfilesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.ProfilesOption](200))
 				paginated, err := shared.PaginateWithSpinner(
 					requestCtx,
 					func(ctx context.Context) (asc.PaginatedResponse, error) {
 						return client.GetProfiles(ctx, paginateOpts...)
 					},
 					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return client.GetProfiles(ctx, asc.WithProfilesNextURL(nextURL))
+						return client.GetProfiles(ctx, asc.NextURL[asc.ProfilesOption](nextURL))
 					},
 				)
 				if err != nil {

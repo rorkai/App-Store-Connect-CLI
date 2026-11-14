@@ -129,8 +129,8 @@ Examples:
 			defer cancel()
 
 			opts := []asc.PassTypeIDsOption{
-				asc.WithPassTypeIDsLimit(*limit),
-				asc.WithPassTypeIDsNextURL(*next),
+				asc.Limit[asc.PassTypeIDsOption](*limit),
+				asc.NextURL[asc.PassTypeIDsOption](*next),
 			}
 			idsValue := shared.SplitCSV(*ids)
 			if len(idsValue) > 0 {
@@ -159,14 +159,14 @@ Examples:
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithPassTypeIDsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.PassTypeIDsOption](200))
 				firstPage, err := client.GetPassTypeIDs(requestCtx, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("pass-type-ids list: failed to fetch: %w", err)
 				}
 
 				paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetPassTypeIDs(ctx, asc.WithPassTypeIDsNextURL(nextURL))
+					return client.GetPassTypeIDs(ctx, asc.NextURL[asc.PassTypeIDsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("pass-type-ids list: %w", err)

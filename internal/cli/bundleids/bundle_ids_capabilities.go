@@ -85,7 +85,7 @@ Examples:
 			defer cancel()
 
 			opts := []asc.BundleIDCapabilitiesOption{
-				asc.WithBundleIDCapabilitiesNextURL(*next),
+				asc.NextURL[asc.BundleIDCapabilitiesOption](*next),
 			}
 
 			if *paginate {
@@ -95,7 +95,7 @@ Examples:
 				}
 
 				paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetBundleIDCapabilities(ctx, bundleValue, asc.WithBundleIDCapabilitiesNextURL(nextURL))
+					return client.GetBundleIDCapabilities(ctx, bundleValue, asc.NextURL[asc.BundleIDCapabilitiesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("bundle-ids capabilities list: %w", err)
@@ -503,7 +503,7 @@ func findExistingBundleIDCapability(ctx context.Context, client *asc.Client, bun
 		return nil, false, err
 	}
 	allPages, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetBundleIDCapabilities(ctx, bundleID, asc.WithBundleIDCapabilitiesNextURL(nextURL))
+		return client.GetBundleIDCapabilities(ctx, bundleID, asc.NextURL[asc.BundleIDCapabilitiesOption](nextURL))
 	})
 	if err != nil {
 		return nil, false, err
