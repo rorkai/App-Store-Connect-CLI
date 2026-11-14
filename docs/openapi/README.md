@@ -61,7 +61,11 @@ by hand.
   client methods that send a request no operation in `latest.json` describes,
   and the hand-written attribute structs that lack an attribute of their
   resource and neither keep unmodeled attributes (`apiAttributes`) nor encode
-  themselves. It changes nothing and never fails.
+  themselves. It changes nothing and never fails. It follows request paths
+  written as string literals (including `+` concatenation), through helpers
+  that take a path segment or the HTTP method from their callers and through
+  package functions that return a path; a path assembled without any `/v…`
+  literal is not seen.
 - To move hand-written code of more tags to the generator, run
   `cd internal/asc && go run ../openapigen -adopt <Tag>[,<Tag>...]`. For each
   operation of a tag it renders the method from the spec and the choices read

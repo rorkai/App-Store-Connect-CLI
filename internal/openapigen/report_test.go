@@ -55,6 +55,31 @@ func (c *Client) AddWidgetGadgets(ctx context.Context, id string) error {
 	return c.changeWidgetGadgets(ctx, http.MethodPost, id)
 }
 
+func (c *Client) GetWidgetsPage(ctx context.Context) error {
+	return getJSON[X](ctx, c, readRequest{Path: widgetsPath()})
+}
+
+func (c *Client) GetSprocketsPage(ctx context.Context) error {
+	return getJSON[X](ctx, c, readRequest{Path: sprocketsPath()})
+}
+
+func widgetIDFromNext(next string) string {
+	id, _ := strings.CutPrefix(next, "/v1/gizmos/")
+	return id
+}
+
+func (c *Client) GetWidgetFromNext(ctx context.Context, next string) error {
+	return c.GetWidget(ctx, widgetIDFromNext(next))
+}
+
+func widgetsPath() string {
+	return "/v1/widgets"
+}
+
+func sprocketsPath() string {
+	return "/v1/sprockets"
+}
+
 type WidgetAttributes struct {
 	Name  string ` + "`json:\"name\"`" + `
 	Count int    ` + "`json:\"count\"`" + `
@@ -84,10 +109,11 @@ func TestReportListsOnlyWhatTheSpecDoesNotBack(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := "method\tAddWidgetGadgets\tPOST /v1/widgets/%s/relationships/gadgets (through changeWidgetGadgets)\tno spec operation\n" +
+		"method\tGetSprocketsPage\tGET /v1/sprockets (through sprocketsPath)\tno spec operation\n" +
 		"method\tGetWidgetOrphans\tGET /v1/widgets/%s/orphans\tno spec operation\n" +
 		"method\tUpdateWidgetGizmos\tPATCH /v1/widgets/%s/relationships/%s (through updateWidgetRelationship)\tno spec operation\n" +
 		"type\tWidgetAttributes\tWidget\tlacks enabled, apiKeyId, tags\n" +
-		"4 hand-written methods or types without spec backing\n"
+		"5 hand-written methods or types without spec backing\n"
 	if out.String() != want {
 		t.Errorf("report:\n%s\nwant:\n%s", out.String(), want)
 	}

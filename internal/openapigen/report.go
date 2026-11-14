@@ -28,7 +28,7 @@ func Report(spec *Spec, dir string, w io.Writer) error {
 	}
 	var lines []string
 	for _, f := range src.funcs {
-		if f.generated || !f.method {
+		if f.generated {
 			continue
 		}
 		for _, t := range f.templates {
@@ -36,9 +36,9 @@ func Report(spec *Spec, dir string, w io.Writer) error {
 				// A helper that takes the HTTP method as an argument is
 				// resolved with the methods its callers pass.
 				for _, caller := range src.callers[f.name] {
-					withVerbs := template{verbs: caller.verbs, path: t.path}
-					if !caller.generated && len(caller.verbs) > 0 && !spec.matchesTemplate(withVerbs, caller.literalsWith(f), false) {
-						lines = append(lines, fmt.Sprintf("method\t%s\t%s %s (through %s)\tno spec operation", caller.name, strings.Join(caller.verbs, ","), t.path, f.name))
+					withVerbs := template{verbs: src.verbsOf(caller), path: t.path}
+					if !caller.generated && len(withVerbs.verbs) > 0 && !spec.matchesTemplate(withVerbs, caller.literalsWith(f), false) {
+						lines = append(lines, fmt.Sprintf("method\t%s\t%s %s (through %s)\tno spec operation", caller.name, strings.Join(withVerbs.verbs, ","), t.path, f.name))
 					}
 				}
 				continue
@@ -190,7 +190,9 @@ func (src *reportSource) index(f *reportFunc, body *ast.BlockStmt) {
 		case *ast.BasicLit:
 			v := stringLit(x)
 			f.literals[v] = true
-			if strings.HasPrefix(v, "/v") {
+			// A literal that ends in "/" is a prefix to parse or
+			// concatenate onto, not a request path by itself.
+			if strings.HasPrefix(v, "/v") && !strings.HasSuffix(v, "/") {
 				path, _, _ := strings.Cut(v, "?")
 				f.paths = append(f.paths, path)
 			} else if httpMethods[v] {
@@ -254,25 +256,29 @@ func concatPath(x *ast.BinaryExpr) (string, bool) {
 	return path, strings.HasPrefix(path, "/v")
 }
 
-// templatesOf pairs the path literals of f with its HTTP methods, or with
-// those of the helpers it passes the path to, such as getJSON. A template
-// without methods is left to the callers that pass the method.
+// templatesOf pairs the path literals of f with the HTTP methods it sends. A
+// template without methods, such as one in a helper that takes the method as
+// an argument or only returns the path, is left to its callers.
 func (src *reportSource) templatesOf(f *reportFunc) []template {
-	if len(f.paths) == 0 {
-		return nil
-	}
-	verbs := f.verbs
-	if len(verbs) == 0 {
-		for _, name := range f.callees {
-			verbs = append(verbs, src.funcs[name].verbs...)
-		}
-		verbs = dedupe(sortedCopy(verbs))
-	}
 	var out []template
+	verbs := src.verbsOf(f)
 	for _, p := range dedupe(sortedCopy(f.paths)) {
 		out = append(out, template{verbs: verbs, path: p})
 	}
 	return out
+}
+
+// verbsOf is the HTTP methods in f, or else those of the helpers it calls
+// directly, such as getJSON.
+func (src *reportSource) verbsOf(f *reportFunc) []string {
+	if len(f.verbs) > 0 {
+		return f.verbs
+	}
+	var verbs []string
+	for _, name := range f.callees {
+		verbs = append(verbs, src.funcs[name].verbs...)
+	}
+	return dedupe(sortedCopy(verbs))
 }
 
 // matchesTemplate reports whether some operation has one of the template's
