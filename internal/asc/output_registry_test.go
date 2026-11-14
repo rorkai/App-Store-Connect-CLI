@@ -110,7 +110,7 @@ func TestCommandOutputTypesHaveTableRenderers(t *testing.T) {
 		typeKey[GameCenterLeaderboardSetImageResponse](),
 		typeKey[GameCenterLeaderboardSetMemberLocalizationsResponse](),
 		typeKey[GameCenterLeaderboardSetMemberLocalizationResponse](),
-		typeKey[GameCenterLeaderboardSetMemberLocalizationDeleteResult](),
+		typeKey[DeleteResult](),
 		typeKey[GameCenterLeaderboardSetMembersUpdateResult](),
 		typeKey[RetentionMessagesResponse](),
 		typeKey[RetentionMessageVersionResponse](),
@@ -416,22 +416,6 @@ func runOutputRegistryHelperRegistrations(t *testing.T) {
 			}
 			assertRowContains(t, headers, rows, "release-1", "READY_FOR_SALE")
 		})
-
-		t.Run("id/bool", func(t *testing.T) {
-			handler := requireOutputHandlerFor[AlternativeDistributionDomainDeleteResult](
-				t,
-				"AlternativeDistributionDomainDeleteResult",
-			)
-
-			headers, rows, err := handler(&AlternativeDistributionDomainDeleteResult{
-				ID:      "domain-1",
-				Deleted: true,
-			})
-			if err != nil {
-				t.Fatalf("handler returned error: %v", err)
-			}
-			assertRowContains(t, headers, rows, "domain-1", "true")
-		})
 	})
 
 	t.Run("single-resource helper", func(t *testing.T) {
@@ -718,32 +702,6 @@ func runOutputRegistryPanicScenarios(t *testing.T) {
 				registerIDStateRows[state](func(*state) (string, string) {
 					return "id", "value"
 				}, nil)
-			})
-			assertRegistryTypeAbsent(t, key)
-		})
-
-		t.Run("id/bool nil rows", func(t *testing.T) {
-			type idBool struct{}
-			key := typeKey[idBool]()
-			cleanupRegistryTypes(t, key)
-
-			expectNilRegistryPanic(t, "id/bool rows function", func() {
-				registerIDBoolRows[idBool](func(*idBool) (string, bool) {
-					return "id", true
-				}, nil)
-			})
-			assertRegistryTypeAbsent(t, key)
-		})
-
-		t.Run("id/bool nil extractor", func(t *testing.T) {
-			type idBool struct{}
-			key := typeKey[idBool]()
-			cleanupRegistryTypes(t, key)
-
-			expectNilRegistryPanic(t, "id/bool extractor", func() {
-				registerIDBoolRows[idBool](nil, func(id string, deleted bool) ([]string, [][]string) {
-					return []string{"id", "deleted"}, [][]string{{id, fmt.Sprintf("%t", deleted)}}
-				})
 			})
 			assertRegistryTypeAbsent(t, key)
 		})

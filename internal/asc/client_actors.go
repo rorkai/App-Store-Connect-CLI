@@ -31,13 +31,6 @@ func (c *Client) GetActor(ctx context.Context, actorID string, fields []string) 
 	return nil, fmt.Errorf("actor not found")
 }
 
-func (c *Client) getActorByID(ctx context.Context, actorID string, fields []string) (*ActorResponse, error) {
-	return getJSON[ActorResponse](ctx, c, readRequest{
-		Path:  fmt.Sprintf("/v1/actors/%s", actorID),
-		Query: buildActorsFieldsQuery(fields),
-	})
-}
-
 func actorIDCandidates(actorID string) []string {
 	if strings.Contains(actorID, ":") {
 		return []string{actorID}

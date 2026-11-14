@@ -26,12 +26,6 @@ type GameCenterMatchmakingQueueUpdateData struct {
 	Relationships *GameCenterMatchmakingQueueRelationships    `json:"relationships,omitempty"`
 }
 
-// GameCenterMatchmakingQueueDeleteResult represents CLI output for queue deletions.
-type GameCenterMatchmakingQueueDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
 // GCMatchmakingQueuesOption is a functional option for GetGameCenterMatchmakingQueues.
 type GCMatchmakingQueuesOption func(*gcMatchmakingQueuesQuery)
 
@@ -53,12 +47,6 @@ type GameCenterMatchmakingRuleSetAttributes struct {
 	MaxPlayers          int    `json:"maxPlayers"`
 }
 
-// GameCenterMatchmakingRuleSetDeleteResult represents CLI output for rule set deletions.
-type GameCenterMatchmakingRuleSetDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
 // GameCenterMatchmakingRuleAttributes represents a matchmaking rule resource.
 type GameCenterMatchmakingRuleAttributes struct {
 	ReferenceName string  `json:"referenceName"`
@@ -76,12 +64,6 @@ type GameCenterMatchmakingRuleRelationships struct {
 // GameCenterMatchmakingRulesResponse is the response from rule list endpoints.
 type GameCenterMatchmakingRulesResponse = Response[GameCenterMatchmakingRuleAttributes]
 
-// GameCenterMatchmakingRuleDeleteResult represents CLI output for rule deletions.
-type GameCenterMatchmakingRuleDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
 // GameCenterMatchmakingTeamAttributes represents a matchmaking team resource.
 type GameCenterMatchmakingTeamAttributes struct {
 	ReferenceName string `json:"referenceName"`
@@ -96,12 +78,6 @@ type GameCenterMatchmakingTeamRelationships struct {
 
 // GameCenterMatchmakingTeamsResponse is the response from team list endpoints.
 type GameCenterMatchmakingTeamsResponse = Response[GameCenterMatchmakingTeamAttributes]
-
-// GameCenterMatchmakingTeamDeleteResult represents CLI output for team deletions.
-type GameCenterMatchmakingTeamDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
 
 // GameCenterMetricsDataPoint represents a metrics data point.
 type GameCenterMetricsDataPoint struct {

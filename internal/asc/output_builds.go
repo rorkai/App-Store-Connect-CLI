@@ -36,12 +36,6 @@ type BuildIndividualTestersUpdateResult struct {
 	Action    string   `json:"action"`
 }
 
-// BuildUploadDeleteResult represents CLI output for build upload deletions.
-type BuildUploadDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
 // BuildsCountResult represents the output of the builds count command.
 type BuildsCountResult struct {
 	AppID string `json:"appId"`
@@ -407,12 +401,6 @@ func buildBetaGroupsUpdateRows(result *BuildBetaGroupsUpdateResult) ([]string, [
 func buildIndividualTestersUpdateRows(result *BuildIndividualTestersUpdateResult) ([]string, [][]string) {
 	headers := []string{"Build ID", "Tester IDs", "Action"}
 	rows := [][]string{{result.BuildID, strings.Join(result.TesterIDs, ", "), result.Action}}
-	return headers, rows
-}
-
-func buildUploadDeleteResultRows(result *BuildUploadDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
 }
 

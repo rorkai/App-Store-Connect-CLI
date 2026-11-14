@@ -9,6 +9,12 @@ import (
 	"strings"
 )
 
+// ScmProviderAttributes is the attributes object of the ScmProvider schema.
+type ScmProviderAttributes struct {
+	ScmProviderType *ScmProviderType `json:"scmProviderType,omitempty"`
+	URL             string           `json:"url,omitempty"`
+}
+
 // GetScmProviders sends GET /v1/scmProviders (scmProviders_getCollection).
 func (c *Client) GetScmProviders(ctx context.Context, opts ...ScmProvidersOption) (*ScmProvidersResponse, error) {
 	query := applyOptions(opts)

@@ -243,12 +243,11 @@ Examples:
 		IDType:             "appStoreVersionExperimentTreatmentLocalizations",
 		RequiredDiagnostic: true,
 		ErrorPrefix:        "experiments treatments localizations delete",
-		DeleteErrorPrefix:  "experiments treatments localizations delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteAppStoreVersionExperimentTreatmentLocalization(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.AppStoreVersionExperimentTreatmentLocalizationDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }

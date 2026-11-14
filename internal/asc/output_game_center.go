@@ -23,12 +23,6 @@ func gameCenterAchievementsRows(resp *GameCenterAchievementsResponse) ([]string,
 	return headers, rows
 }
 
-func gameCenterAchievementDeleteResultRows(result *GameCenterAchievementDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	return headers, rows
-}
-
 func gameCenterLeaderboardsRows(resp *GameCenterLeaderboardsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Reference Name", "Vendor ID", "Formatter", "Sort", "Submission Type", "Archived"}
 	rows := make([][]string, 0, len(resp.Data))
@@ -46,12 +40,6 @@ func gameCenterLeaderboardsRows(resp *GameCenterLeaderboardsResponse) ([]string,
 	return headers, rows
 }
 
-func gameCenterLeaderboardDeleteResultRows(result *GameCenterLeaderboardDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	return headers, rows
-}
-
 func gameCenterLeaderboardSetsRows(resp *GameCenterLeaderboardSetsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Reference Name", "Vendor ID"}
 	rows := make([][]string, 0, len(resp.Data))
@@ -62,12 +50,6 @@ func gameCenterLeaderboardSetsRows(resp *GameCenterLeaderboardSetsResponse) ([]s
 			item.Attributes.VendorIdentifier,
 		})
 	}
-	return headers, rows
-}
-
-func gameCenterLeaderboardSetDeleteResultRows(result *GameCenterLeaderboardSetDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
 }
 
@@ -88,12 +70,6 @@ func gameCenterLeaderboardLocalizationsRows(resp *GameCenterLeaderboardLocalizat
 	return headers, rows
 }
 
-func gameCenterLeaderboardLocalizationDeleteResultRows(result *GameCenterLeaderboardLocalizationDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	return headers, rows
-}
-
 func gameCenterLeaderboardReleasesRows(resp *GameCenterLeaderboardReleasesResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Live"}
 	rows := make([][]string, 0, len(resp.Data))
@@ -103,12 +79,6 @@ func gameCenterLeaderboardReleasesRows(resp *GameCenterLeaderboardReleasesRespon
 			fmt.Sprintf("%t", item.Attributes.Live),
 		})
 	}
-	return headers, rows
-}
-
-func gameCenterLeaderboardReleaseDeleteResultRows(result *GameCenterLeaderboardReleaseDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
 }
 
@@ -124,12 +94,6 @@ func gameCenterAchievementReleasesRows(resp *GameCenterAchievementReleasesRespon
 	return headers, rows
 }
 
-func gameCenterAchievementReleaseDeleteResultRows(result *GameCenterAchievementReleaseDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	return headers, rows
-}
-
 func gameCenterLeaderboardSetReleasesRows(resp *GameCenterLeaderboardSetReleasesResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Live"}
 	rows := make([][]string, 0, len(resp.Data))
@@ -139,12 +103,6 @@ func gameCenterLeaderboardSetReleasesRows(resp *GameCenterLeaderboardSetReleases
 			fmt.Sprintf("%t", item.Attributes.Live),
 		})
 	}
-	return headers, rows
-}
-
-func gameCenterLeaderboardSetReleaseDeleteResultRows(result *GameCenterLeaderboardSetReleaseDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
 }
 
@@ -158,12 +116,6 @@ func gameCenterLeaderboardSetLocalizationsRows(resp *GameCenterLeaderboardSetLoc
 			compactWhitespace(item.Attributes.Name),
 		})
 	}
-	return headers, rows
-}
-
-func gameCenterLeaderboardSetLocalizationDeleteResultRows(result *GameCenterLeaderboardSetLocalizationDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
 }
 
@@ -182,12 +134,6 @@ func gameCenterAchievementLocalizationsRows(resp *GameCenterAchievementLocalizat
 	return headers, rows
 }
 
-func gameCenterAchievementLocalizationDeleteResultRows(result *GameCenterAchievementLocalizationDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	return headers, rows
-}
-
 func gameCenterLeaderboardImageUploadResultRows(result *GameCenterLeaderboardImageUploadResult) ([]string, [][]string) {
 	headers := []string{"ID", "Localization ID", "File Name", "File Size", "Delivery State", "Uploaded"}
 	rows := [][]string{{
@@ -198,12 +144,6 @@ func gameCenterLeaderboardImageUploadResultRows(result *GameCenterLeaderboardIma
 		result.AssetDeliveryState,
 		fmt.Sprintf("%t", result.Uploaded),
 	}}
-	return headers, rows
-}
-
-func gameCenterLeaderboardImageDeleteResultRows(result *GameCenterLeaderboardImageDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
 }
 
@@ -220,12 +160,6 @@ func gameCenterAchievementImageUploadResultRows(result *GameCenterAchievementIma
 	return headers, rows
 }
 
-func gameCenterAchievementImageDeleteResultRows(result *GameCenterAchievementImageDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	return headers, rows
-}
-
 func gameCenterLeaderboardSetImageUploadResultRows(result *GameCenterLeaderboardSetImageUploadResult) ([]string, [][]string) {
 	headers := []string{"ID", "Localization ID", "File Name", "File Size", "Delivery State", "Uploaded"}
 	rows := [][]string{{
@@ -236,12 +170,6 @@ func gameCenterLeaderboardSetImageUploadResultRows(result *GameCenterLeaderboard
 		result.AssetDeliveryState,
 		fmt.Sprintf("%t", result.Uploaded),
 	}}
-	return headers, rows
-}
-
-func gameCenterLeaderboardSetImageDeleteResultRows(result *GameCenterLeaderboardSetImageDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
 }
 
@@ -258,12 +186,6 @@ func gameCenterChallengesRows(resp *GameCenterChallengesResponse) ([]string, [][
 			fmt.Sprintf("%t", item.Attributes.Archived),
 		})
 	}
-	return headers, rows
-}
-
-func gameCenterChallengeDeleteResultRows(result *GameCenterChallengeDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
 }
 
@@ -333,12 +255,6 @@ func gameCenterChallengeLocalizationsRows(resp *GameCenterChallengeLocalizations
 	return headers, rows
 }
 
-func gameCenterChallengeLocalizationDeleteResultRows(result *GameCenterChallengeLocalizationDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	return headers, rows
-}
-
 func gameCenterChallengeImagesRows(resp *GameCenterChallengeImagesResponse) ([]string, [][]string) {
 	headers := []string{"ID", "File Name", "File Size", "Delivery State"}
 	rows := make([][]string, 0, len(resp.Data))
@@ -374,24 +290,12 @@ func gameCenterChallengeImageUploadResultRows(result *GameCenterChallengeImageUp
 	return headers, rows
 }
 
-func gameCenterChallengeImageDeleteResultRows(result *GameCenterChallengeImageDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	return headers, rows
-}
-
 func gameCenterChallengeReleasesRows(resp *GameCenterChallengeVersionReleasesResponse) ([]string, [][]string) {
 	headers := []string{"ID"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		rows = append(rows, []string{item.ID})
 	}
-	return headers, rows
-}
-
-func gameCenterChallengeReleaseDeleteResultRows(result *GameCenterChallengeVersionReleaseDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
 }
 
@@ -410,12 +314,6 @@ func gameCenterActivitiesRows(resp *GameCenterActivitiesResponse) ([]string, [][
 			fmt.Sprintf("%t", item.Attributes.Archived),
 		})
 	}
-	return headers, rows
-}
-
-func gameCenterActivityDeleteResultRows(result *GameCenterActivityDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
 }
 
@@ -444,12 +342,6 @@ func gameCenterActivityLocalizationsRows(resp *GameCenterActivityLocalizationsRe
 			compactWhitespace(item.Attributes.Description),
 		})
 	}
-	return headers, rows
-}
-
-func gameCenterActivityLocalizationDeleteResultRows(result *GameCenterActivityLocalizationDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
 }
 
@@ -488,24 +380,12 @@ func gameCenterActivityImageUploadResultRows(result *GameCenterActivityImageUplo
 	return headers, rows
 }
 
-func gameCenterActivityImageDeleteResultRows(result *GameCenterActivityImageDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	return headers, rows
-}
-
 func gameCenterActivityReleasesRows(resp *GameCenterActivityVersionReleasesResponse) ([]string, [][]string) {
 	headers := []string{"ID"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		rows = append(rows, []string{item.ID})
 	}
-	return headers, rows
-}
-
-func gameCenterActivityReleaseDeleteResultRows(result *GameCenterActivityVersionReleaseDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
 }
 
@@ -518,12 +398,6 @@ func gameCenterGroupsRows(resp *GameCenterGroupsResponse) ([]string, [][]string)
 			compactWhitespace(item.Attributes.ReferenceName),
 		})
 	}
-	return headers, rows
-}
-
-func gameCenterGroupDeleteResultRows(result *GameCenterGroupDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
 }
 
@@ -585,12 +459,6 @@ func gameCenterMatchmakingQueuesRows(resp *GameCenterMatchmakingQueuesResponse) 
 	return headers, rows
 }
 
-func gameCenterMatchmakingQueueDeleteResultRows(result *GameCenterMatchmakingQueueDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	return headers, rows
-}
-
 func gameCenterMatchmakingRuleSetsRows(resp *GameCenterMatchmakingRuleSetsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Reference Name", "Language", "Min Players", "Max Players"}
 	rows := make([][]string, 0, len(resp.Data))
@@ -603,12 +471,6 @@ func gameCenterMatchmakingRuleSetsRows(resp *GameCenterMatchmakingRuleSetsRespon
 			fmt.Sprintf("%d", item.Attributes.MaxPlayers),
 		})
 	}
-	return headers, rows
-}
-
-func gameCenterMatchmakingRuleSetDeleteResultRows(result *GameCenterMatchmakingRuleSetDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
 }
 
@@ -626,12 +488,6 @@ func gameCenterMatchmakingRulesRows(resp *GameCenterMatchmakingRulesResponse) ([
 	return headers, rows
 }
 
-func gameCenterMatchmakingRuleDeleteResultRows(result *GameCenterMatchmakingRuleDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	return headers, rows
-}
-
 func gameCenterMatchmakingTeamsRows(resp *GameCenterMatchmakingTeamsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Reference Name", "Min Players", "Max Players"}
 	rows := make([][]string, 0, len(resp.Data))
@@ -643,12 +499,6 @@ func gameCenterMatchmakingTeamsRows(resp *GameCenterMatchmakingTeamsResponse) ([
 			fmt.Sprintf("%d", item.Attributes.MaxPlayers),
 		})
 	}
-	return headers, rows
-}
-
-func gameCenterMatchmakingTeamDeleteResultRows(result *GameCenterMatchmakingTeamDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
 }
 
@@ -763,10 +613,6 @@ func gameCenterLeaderboardSetMemberLocalizationsRows(resp *GameCenterLeaderboard
 		rows = append(rows, []string{item.ID, item.Attributes.Locale, compactWhitespace(item.Attributes.Name)})
 	}
 	return headers, rows
-}
-
-func gameCenterLeaderboardSetMemberLocalizationDeleteResultRows(result *GameCenterLeaderboardSetMemberLocalizationDeleteResult) ([]string, [][]string) {
-	return []string{"ID", "Deleted"}, [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 }
 
 func gameCenterLeaderboardSetMembersUpdateResultRows(result *GameCenterLeaderboardSetMembersUpdateResult) ([]string, [][]string) {

@@ -173,30 +173,6 @@ func TestSubscriptionPricesRowsPreservesExplicitFalse(t *testing.T) {
 	}
 }
 
-func TestPrintTable_SubscriptionPriceDeleteResult(t *testing.T) {
-	result := &SubscriptionPriceDeleteResult{ID: "price-1", Deleted: true}
-
-	output := captureStdout(t, func() error {
-		return PrintTable(result)
-	})
-
-	if !strings.Contains(output, "Deleted") {
-		t.Fatalf("expected deleted column in output, got: %s", output)
-	}
-}
-
-func TestPrintMarkdown_SubscriptionPriceDeleteResult(t *testing.T) {
-	result := &SubscriptionPriceDeleteResult{ID: "price-1", Deleted: true}
-
-	output := captureStdout(t, func() error {
-		return PrintMarkdown(result)
-	})
-
-	if !strings.Contains(output, "ID") || !strings.Contains(output, "Deleted") {
-		t.Fatalf("expected markdown header, got: %s", output)
-	}
-}
-
 func TestPrintTable_SubscriptionIntroductoryOfferCreateSummary(t *testing.T) {
 	result := &SubscriptionIntroductoryOfferCreateSummary{
 		SubscriptionID: "sub-1",

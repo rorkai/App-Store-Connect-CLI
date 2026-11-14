@@ -56,23 +56,3 @@ type AccessibilityDeclarationAttributes struct {
 
 // AccessibilityDeclarationsResponse is the response from accessibility declarations list.
 type AccessibilityDeclarationsResponse = Response[AccessibilityDeclarationAttributes]
-
-// AccessibilityDeclarationCreateAttributes describes create attributes.
-type AccessibilityDeclarationCreateAttributes struct {
-	DeviceFamily                           DeviceFamily `json:"deviceFamily"`
-	SupportsAudioDescriptions              *bool        `json:"supportsAudioDescriptions,omitempty"`
-	SupportsCaptions                       *bool        `json:"supportsCaptions,omitempty"`
-	SupportsDarkInterface                  *bool        `json:"supportsDarkInterface,omitempty"`
-	SupportsDifferentiateWithoutColorAlone *bool        `json:"supportsDifferentiateWithoutColorAlone,omitempty"`
-	SupportsLargerText                     *bool        `json:"supportsLargerText,omitempty"`
-	SupportsReducedMotion                  *bool        `json:"supportsReducedMotion,omitempty"`
-	SupportsSufficientContrast             *bool        `json:"supportsSufficientContrast,omitempty"`
-	SupportsVoiceControl                   *bool        `json:"supportsVoiceControl,omitempty"`
-	SupportsVoiceover                      *bool        `json:"supportsVoiceover,omitempty"`
-}
-
-// AccessibilityDeclarationDeleteResult represents CLI output for deletions.
-type AccessibilityDeclarationDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}

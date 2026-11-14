@@ -6,6 +6,7 @@
     "BackgroundAssetUploadFileCreateRelationships",
     "BackgroundAssetUploadFileCreateRequest",
     "BackgroundAssetUploadFileResponse",
+    "BackgroundAssetUploadFileUpdateAttributes",
     "BackgroundAssetUploadFileUpdateData",
     "BackgroundAssetUploadFileUpdateRequest"
   ],
@@ -13,6 +14,7 @@
     {"data":"BackgroundAssetUploadFileCreateData","type":"BackgroundAssetUploadFileCreateRelationships"}
   ],
   "operations": [
-    {"operation":"backgroundAssetUploadFiles_getInstance","name":"GetBackgroundAssetUploadFile","params":["uploadFileID"],"check":"require","messages":["background asset upload file ID is required"]}
+    {"operation":"backgroundAssetUploadFiles_getInstance","name":"GetBackgroundAssetUploadFile","params":["uploadFileID"],"check":"require","messages":["background asset upload file ID is required"]},
+    {"operation":"backgroundAssetUploadFiles_updateInstance","name":"UpdateBackgroundAssetUploadFile","params":["uploadFileID"],"check":"require","messages":["background asset upload file ID is required"],"skipEmptyAttributes":true}
   ]
 }

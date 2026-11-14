@@ -2,6 +2,7 @@
   "tag": "GameCenterChallengeVersions",
   "file": "game_center_challenge_versions_gen.go",
   "types": [
+    "GameCenterChallengeVersionAttributes",
     "GameCenterChallengeVersionCreateData",
     "GameCenterChallengeVersionCreateRequest",
     "GameCenterChallengeVersionResponse"

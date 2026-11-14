@@ -949,66 +949,6 @@ func TestPrintMarkdown_CiXcodeVersions(t *testing.T) {
 	}
 }
 
-func TestPrintTable_CiWorkflowDeleteResult(t *testing.T) {
-	result := &CiWorkflowDeleteResult{ID: "wf-1", Deleted: true}
-
-	output := captureXcodeCloudStdout(t, func() error {
-		return PrintTable(result)
-	})
-
-	if !strings.Contains(output, "Deleted") {
-		t.Fatalf("expected header in output, got: %s", output)
-	}
-	if !strings.Contains(output, "wf-1") {
-		t.Fatalf("expected ID in output, got: %s", output)
-	}
-}
-
-func TestPrintMarkdown_CiWorkflowDeleteResult(t *testing.T) {
-	result := &CiWorkflowDeleteResult{ID: "wf-2", Deleted: true}
-
-	output := captureXcodeCloudStdout(t, func() error {
-		return PrintMarkdown(result)
-	})
-
-	if !strings.Contains(output, "ID") || !strings.Contains(output, "Deleted") {
-		t.Fatalf("expected markdown header in output, got: %s", output)
-	}
-	if !strings.Contains(output, "wf-2") {
-		t.Fatalf("expected ID in output, got: %s", output)
-	}
-}
-
-func TestPrintTable_CiProductDeleteResult(t *testing.T) {
-	result := &CiProductDeleteResult{ID: "prod-1", Deleted: true}
-
-	output := captureXcodeCloudStdout(t, func() error {
-		return PrintTable(result)
-	})
-
-	if !strings.Contains(output, "Deleted") {
-		t.Fatalf("expected header in output, got: %s", output)
-	}
-	if !strings.Contains(output, "prod-1") {
-		t.Fatalf("expected ID in output, got: %s", output)
-	}
-}
-
-func TestPrintMarkdown_CiProductDeleteResult(t *testing.T) {
-	result := &CiProductDeleteResult{ID: "prod-2", Deleted: true}
-
-	output := captureXcodeCloudStdout(t, func() error {
-		return PrintMarkdown(result)
-	})
-
-	if !strings.Contains(output, "ID") || !strings.Contains(output, "Deleted") {
-		t.Fatalf("expected markdown header in output, got: %s", output)
-	}
-	if !strings.Contains(output, "prod-2") {
-		t.Fatalf("expected ID in output, got: %s", output)
-	}
-}
-
 func TestBuildCiBuildRunsQuery(t *testing.T) {
 	query := &ciBuildRunsQuery{}
 	Limit[CiBuildRunsOption](10)(query)

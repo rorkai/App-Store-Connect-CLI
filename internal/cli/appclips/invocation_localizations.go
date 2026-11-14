@@ -205,10 +205,9 @@ Examples:
 // AppClipInvocationLocalizationsDeleteCommand deletes a localization.
 func AppClipInvocationLocalizationsDeleteCommand() *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc app-clips invocations localizations delete --localization-id \"LOC_ID\" --confirm",
-		ShortHelp:   "Delete a beta App Clip invocation localization.",
+		Name:       "delete",
+		ShortUsage: "asc app-clips invocations localizations delete --localization-id \"LOC_ID\" --confirm",
+		ShortHelp:  "Delete a beta App Clip invocation localization.",
 		LongHelp: `Delete a beta App Clip invocation localization.
 
 Examples:
@@ -218,13 +217,11 @@ Examples:
 		IDType:                 "betaAppClipInvocationLocalizations",
 		RequiredDiagnostic:     true,
 		ConfirmRequiredMessage: "--confirm is required to delete",
-		ErrorPrefix:            "app-clips invocations localizations delete",
-		DeleteErrorPrefix:      "app-clips invocations localizations delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteBetaAppClipInvocationLocalization(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.BetaAppClipInvocationLocalizationDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }

@@ -356,8 +356,6 @@ Examples:
 		IDUsage:            "Promotional offer ID",
 		IDType:             "subscriptionPromotionalOffers",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "subscriptions promotional-offers delete",
-		DeleteErrorPrefix:  "subscriptions promotional-offers delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteSubscriptionPromotionalOffer(ctx, id)
 		},

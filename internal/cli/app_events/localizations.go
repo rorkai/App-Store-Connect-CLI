@@ -159,8 +159,6 @@ Examples:
 				return err
 			}
 		},
-		ErrorPrefix:      "app-events localizations view",
-		FetchErrorPrefix: "app-events localizations view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetAppEventLocalization(ctx, id, asc.WithLocalizationReadInclude(includeValues), asc.WithLocalizationReadPlacementsLimit(placementsLimit))
 		},
@@ -311,13 +309,11 @@ Examples:
 		IDUsage:            "App event localization ID",
 		IDType:             "appEventLocalizations",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "app-events localizations delete",
-		DeleteErrorPrefix:  "app-events localizations delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteAppEventLocalization(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.AppEventLocalizationDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }

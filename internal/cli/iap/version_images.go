@@ -212,8 +212,6 @@ func IAPVersionImagesDeleteCommand() *ffcli.Command {
 		IDUsage:            "Image ID",
 		IDType:             "inAppPurchaseImages",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "iap versions images delete",
-		DeleteErrorPrefix:  "iap versions images delete: failed to delete",
 		Deps:               d,
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteInAppPurchaseImageV2(ctx, id)

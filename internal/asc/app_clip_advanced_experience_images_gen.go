@@ -66,3 +66,26 @@ func (c *Client) GetAppClipAdvancedExperienceImage(ctx context.Context, imageID 
 		Path: fmt.Sprintf("/v1/appClipAdvancedExperienceImages/%s", imageID),
 	})
 }
+
+// UpdateAppClipAdvancedExperienceImage sends PATCH /v1/appClipAdvancedExperienceImages/{id} (appClipAdvancedExperienceImages_updateInstance).
+func (c *Client) UpdateAppClipAdvancedExperienceImage(ctx context.Context, imageID string, uploaded bool, checksumHash string) (*AppClipAdvancedExperienceImageResponse, error) {
+	imageID = strings.TrimSpace(imageID)
+	if imageID == "" {
+		return nil, fmt.Errorf("imageID is required")
+	}
+	payload := AppClipAdvancedExperienceImageUpdateRequest{
+		Data: AppClipAdvancedExperienceImageUpdateData{
+			Type: ResourceTypeAppClipAdvancedExperienceImages,
+			ID:   imageID,
+			Attributes: &AppClipAdvancedExperienceImageUpdateAttributes{
+				Uploaded:           &uploaded,
+				SourceFileChecksum: &checksumHash,
+			},
+		},
+	}
+	return sendJSON[AppClipAdvancedExperienceImageResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/appClipAdvancedExperienceImages/%s", imageID),
+		Payload: payload,
+	})
+}

@@ -127,10 +127,9 @@ Examples:
 // GameCenterDetailsGetCommand returns the details get subcommand.
 func GameCenterDetailsGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc game-center details view --id \"DETAIL_ID\"",
-		ShortHelp:   "View a Game Center detail by ID.",
+		Name:       "view",
+		ShortUsage: "asc game-center details view --id \"DETAIL_ID\"",
+		ShortHelp:  "View a Game Center detail by ID.",
 		LongHelp: `View a Game Center detail by ID.
 
 Examples:
@@ -138,8 +137,6 @@ Examples:
 		IDUsage:            "Game Center detail ID",
 		IDType:             "gameCenterDetails",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center details view",
-		FetchErrorPrefix:   "game-center details view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterDetail(ctx, id)
 		},
@@ -311,10 +308,9 @@ Examples:
 // GameCenterDetailsAppVersionsListCommand returns the details app-versions list subcommand.
 func GameCenterDetailsAppVersionsListCommand() *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "list",
-		Name:        "list",
-		ShortUsage:  "asc game-center details app-versions list --id \"DETAIL_ID\"",
-		ShortHelp:   "List Game Center app versions for a detail.",
+		Name:       "list",
+		ShortUsage: "asc game-center details app-versions list --id \"DETAIL_ID\"",
+		ShortHelp:  "List Game Center app versions for a detail.",
 		LongHelp: `List Game Center app versions for a detail.
 
 Examples:
@@ -327,8 +323,6 @@ Examples:
 		RequiredDiagnostic:   true,
 		PaginateIgnoresLimit: true,
 		NoSpinner:            true,
-		ErrorPrefix:          "game-center details app-versions list",
-		FetchErrorPrefix:     "game-center details app-versions list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, id string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterDetailGameCenterAppVersions(ctx, id, asc.Limit[asc.GCAppVersionsOption](limit), asc.NextURL[asc.GCAppVersionsOption](next))
 		},
@@ -361,10 +355,9 @@ Examples:
 // GameCenterDetailsGroupGetCommand returns the details group get subcommand.
 func GameCenterDetailsGroupGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc game-center details group view --id \"DETAIL_ID\"",
-		ShortHelp:   "View the Game Center group for a detail.",
+		Name:       "view",
+		ShortUsage: "asc game-center details group view --id \"DETAIL_ID\"",
+		ShortHelp:  "View the Game Center group for a detail.",
 		LongHelp: `View the Game Center group for a detail.
 
 Examples:
@@ -372,8 +365,6 @@ Examples:
 		IDUsage:            "Game Center detail ID",
 		IDType:             "gameCenterDetails",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center details group view",
-		FetchErrorPrefix:   "game-center details group view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterDetailGameCenterGroup(ctx, id)
 		},
@@ -406,10 +397,9 @@ Examples:
 // GameCenterDetailsAchievementsV2ListCommand returns the achievements v2 list subcommand.
 func GameCenterDetailsAchievementsV2ListCommand() *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "list",
-		Name:        "list",
-		ShortUsage:  "asc game-center details achievements-v2 list --id \"DETAIL_ID\"",
-		ShortHelp:   "List v2 achievements for a Game Center detail.",
+		Name:       "list",
+		ShortUsage: "asc game-center details achievements-v2 list --id \"DETAIL_ID\"",
+		ShortHelp:  "List v2 achievements for a Game Center detail.",
 		LongHelp: `List v2 achievements for a Game Center detail.
 
 Examples:
@@ -422,8 +412,6 @@ Examples:
 		RequiredDiagnostic:   true,
 		PaginateIgnoresLimit: true,
 		NoSpinner:            true,
-		ErrorPrefix:          "game-center details achievements-v2 list",
-		FetchErrorPrefix:     "game-center details achievements-v2 list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, id string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterDetailsAchievementsV2(ctx, id, asc.Limit[asc.GCAchievementsOption](limit), asc.NextURL[asc.GCAchievementsOption](next))
 		},
@@ -456,10 +444,9 @@ Examples:
 // GameCenterDetailsLeaderboardsV2ListCommand returns the leaderboards v2 list subcommand.
 func GameCenterDetailsLeaderboardsV2ListCommand() *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "list",
-		Name:        "list",
-		ShortUsage:  "asc game-center details leaderboards-v2 list --id \"DETAIL_ID\"",
-		ShortHelp:   "List v2 leaderboards for a Game Center detail.",
+		Name:       "list",
+		ShortUsage: "asc game-center details leaderboards-v2 list --id \"DETAIL_ID\"",
+		ShortHelp:  "List v2 leaderboards for a Game Center detail.",
 		LongHelp: `List v2 leaderboards for a Game Center detail.
 
 Examples:
@@ -472,8 +459,6 @@ Examples:
 		RequiredDiagnostic:   true,
 		PaginateIgnoresLimit: true,
 		NoSpinner:            true,
-		ErrorPrefix:          "game-center details leaderboards-v2 list",
-		FetchErrorPrefix:     "game-center details leaderboards-v2 list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, id string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterDetailsLeaderboardsV2(ctx, id, asc.Limit[asc.GCLeaderboardsOption](limit), asc.NextURL[asc.GCLeaderboardsOption](next))
 		},
@@ -506,10 +491,9 @@ Examples:
 // GameCenterDetailsLeaderboardSetsV2ListCommand returns the leaderboard sets v2 list subcommand.
 func GameCenterDetailsLeaderboardSetsV2ListCommand() *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "list",
-		Name:        "list",
-		ShortUsage:  "asc game-center details leaderboard-sets-v2 list --id \"DETAIL_ID\"",
-		ShortHelp:   "List v2 leaderboard sets for a Game Center detail.",
+		Name:       "list",
+		ShortUsage: "asc game-center details leaderboard-sets-v2 list --id \"DETAIL_ID\"",
+		ShortHelp:  "List v2 leaderboard sets for a Game Center detail.",
 		LongHelp: `List v2 leaderboard sets for a Game Center detail.
 
 Examples:
@@ -522,8 +506,6 @@ Examples:
 		RequiredDiagnostic:   true,
 		PaginateIgnoresLimit: true,
 		NoSpinner:            true,
-		ErrorPrefix:          "game-center details leaderboard-sets-v2 list",
-		FetchErrorPrefix:     "game-center details leaderboard-sets-v2 list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, id string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterDetailsLeaderboardSetsV2(ctx, id, asc.Limit[asc.GCLeaderboardSetsOption](limit), asc.NextURL[asc.GCLeaderboardSetsOption](next))
 		},
@@ -556,10 +538,9 @@ Examples:
 // GameCenterDetailsAchievementReleasesListCommand returns the achievement releases list subcommand.
 func GameCenterDetailsAchievementReleasesListCommand() *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "list",
-		Name:        "list",
-		ShortUsage:  "asc game-center details achievement-releases list --id \"DETAIL_ID\"",
-		ShortHelp:   "List achievement releases for a Game Center detail.",
+		Name:       "list",
+		ShortUsage: "asc game-center details achievement-releases list --id \"DETAIL_ID\"",
+		ShortHelp:  "List achievement releases for a Game Center detail.",
 		LongHelp: `List achievement releases for a Game Center detail.
 
 Examples:
@@ -572,8 +553,6 @@ Examples:
 		RequiredDiagnostic:   true,
 		PaginateIgnoresLimit: true,
 		NoSpinner:            true,
-		ErrorPrefix:          "game-center details achievement-releases list",
-		FetchErrorPrefix:     "game-center details achievement-releases list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, id string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterDetailsAchievementReleases(ctx, id, asc.Limit[asc.GCAchievementReleasesOption](limit), asc.NextURL[asc.GCAchievementReleasesOption](next))
 		},
@@ -606,10 +585,9 @@ Examples:
 // GameCenterDetailsLeaderboardReleasesListCommand returns the leaderboard releases list subcommand.
 func GameCenterDetailsLeaderboardReleasesListCommand() *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "list",
-		Name:        "list",
-		ShortUsage:  "asc game-center details leaderboard-releases list --id \"DETAIL_ID\"",
-		ShortHelp:   "List leaderboard releases for a Game Center detail.",
+		Name:       "list",
+		ShortUsage: "asc game-center details leaderboard-releases list --id \"DETAIL_ID\"",
+		ShortHelp:  "List leaderboard releases for a Game Center detail.",
 		LongHelp: `List leaderboard releases for a Game Center detail.
 
 Examples:
@@ -622,8 +600,6 @@ Examples:
 		RequiredDiagnostic:   true,
 		PaginateIgnoresLimit: true,
 		NoSpinner:            true,
-		ErrorPrefix:          "game-center details leaderboard-releases list",
-		FetchErrorPrefix:     "game-center details leaderboard-releases list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, id string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterDetailsLeaderboardReleases(ctx, id, asc.Limit[asc.GCLeaderboardReleasesOption](limit), asc.NextURL[asc.GCLeaderboardReleasesOption](next))
 		},
@@ -656,10 +632,9 @@ Examples:
 // GameCenterDetailsLeaderboardSetReleasesListCommand returns the leaderboard set releases list subcommand.
 func GameCenterDetailsLeaderboardSetReleasesListCommand() *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "list",
-		Name:        "list",
-		ShortUsage:  "asc game-center details leaderboard-set-releases list --id \"DETAIL_ID\"",
-		ShortHelp:   "List leaderboard set releases for a Game Center detail.",
+		Name:       "list",
+		ShortUsage: "asc game-center details leaderboard-set-releases list --id \"DETAIL_ID\"",
+		ShortHelp:  "List leaderboard set releases for a Game Center detail.",
 		LongHelp: `List leaderboard set releases for a Game Center detail.
 
 Examples:
@@ -672,8 +647,6 @@ Examples:
 		RequiredDiagnostic:   true,
 		PaginateIgnoresLimit: true,
 		NoSpinner:            true,
-		ErrorPrefix:          "game-center details leaderboard-set-releases list",
-		FetchErrorPrefix:     "game-center details leaderboard-set-releases list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, id string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterDetailsLeaderboardSetReleases(ctx, id, asc.Limit[asc.GCLeaderboardSetReleasesOption](limit), asc.NextURL[asc.GCLeaderboardSetReleasesOption](next))
 		},

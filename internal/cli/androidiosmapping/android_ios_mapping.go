@@ -133,11 +133,10 @@ func newAndroidIosMappingGetCommand(d *shared.Deps) *ffcli.Command {
 	var fieldValues []string
 
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		Deps:        d,
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc android-ios-mapping view --mapping-id \"MAPPING_ID\"",
-		ShortHelp:   "View an Android-to-iOS app mapping by ID.",
+		Deps:       d,
+		Name:       "view",
+		ShortUsage: "asc android-ios-mapping view --mapping-id \"MAPPING_ID\"",
+		ShortHelp:  "View an Android-to-iOS app mapping by ID.",
 		LongHelp: `View an Android-to-iOS app mapping by ID.
 
 Examples:
@@ -155,8 +154,6 @@ Examples:
 				return nil
 			}
 		},
-		ErrorPrefix:      "android-ios-mapping view",
-		FetchErrorPrefix: "android-ios-mapping view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetAndroidToIosAppMappingDetail(ctx, id, asc.WithAndroidToIosAppMappingDetailsFields(fieldValues))
 		},
@@ -308,11 +305,10 @@ Examples:
 // on d.
 func newAndroidIosMappingDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		Deps:        d,
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc android-ios-mapping delete --mapping-id \"MAPPING_ID\" --confirm",
-		ShortHelp:   "Delete an Android-to-iOS app mapping.",
+		Deps:       d,
+		Name:       "delete",
+		ShortUsage: "asc android-ios-mapping delete --mapping-id \"MAPPING_ID\" --confirm",
+		ShortHelp:  "Delete an Android-to-iOS app mapping.",
 		LongHelp: `Delete an Android-to-iOS app mapping.
 
 Examples:
@@ -321,12 +317,12 @@ Examples:
 		IDUsage:            "Mapping ID",
 		IDType:             "androidToIosAppMappingDetails",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "android-ios-mapping delete",
+		DeleteErrorPrefix:  "android-ios-mapping delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteAndroidToIosAppMappingDetail(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.AndroidToIosAppMappingDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }

@@ -10,6 +10,23 @@ import (
 	"strings"
 )
 
+// WebhookAttributes is the attributes object of the Webhook schema.
+type WebhookAttributes struct {
+	Enabled    bool               `json:"enabled,omitempty"`
+	EventTypes []WebhookEventType `json:"eventTypes,omitempty"`
+	Name       string             `json:"name,omitempty"`
+	URL        string             `json:"url,omitempty"`
+}
+
+// WebhookCreateAttributes is the data.attributes object of the WebhookCreateRequest schema.
+type WebhookCreateAttributes struct {
+	Enabled    bool               `json:"enabled"`
+	EventTypes []WebhookEventType `json:"eventTypes"`
+	Name       string             `json:"name"`
+	Secret     string             `json:"secret"`
+	URL        string             `json:"url"`
+}
+
 // WebhookCreateData is the data object of the WebhookCreateRequest schema.
 type WebhookCreateData struct {
 	Type          ResourceType               `json:"type"`
@@ -29,6 +46,15 @@ type WebhookCreateRequest struct {
 
 // WebhookResponse is the WebhookResponse schema.
 type WebhookResponse = SingleResponse[WebhookAttributes]
+
+// WebhookUpdateAttributes is the data.attributes object of the WebhookUpdateRequest schema.
+type WebhookUpdateAttributes struct {
+	Enabled    *bool              `json:"enabled,omitempty"`
+	EventTypes []WebhookEventType `json:"eventTypes,omitempty"`
+	Name       *string            `json:"name,omitempty"`
+	Secret     *string            `json:"secret,omitempty"`
+	URL        *string            `json:"url,omitempty"`
+}
 
 // WebhookUpdateData is the data object of the WebhookUpdateRequest schema.
 type WebhookUpdateData struct {

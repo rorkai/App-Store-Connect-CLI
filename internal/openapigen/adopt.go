@@ -79,12 +79,20 @@ func Adopt(spec *Spec, b *Bindings, dir string, tags []string, report io.Writer)
 		// view holds the relationships records the family has and the ones
 		// the hand-written data types of its creates declare.
 		view := &Family{}
+		// fixed holds the Go type of each schema the family's generated
+		// types reference.
+		fixed := map[string]string{}
 		for _, f := range b.Families {
 			if f.Tag == tag {
 				view.Relationships = slices.Clone(f.Relationships)
+				view.RefTypes = slices.Clone(f.RefTypes)
+				for _, name := range f.Types {
+					fixRefTypes(spec, f, name, fixed)
+				}
 			}
 		}
 		recorded := len(view.Relationships)
+		recordedRefs := len(view.RefTypes)
 		p.recordRelationships(spec, ops, view)
 		for _, op := range ops {
 			candidates := p.methods[op.Method+" "+pathFormat(op.Path)]
@@ -119,7 +127,14 @@ func Adopt(spec *Spec, b *Bindings, dir string, tags []string, report io.Writer)
 			if !ok || d.adopted {
 				continue
 			}
-			src, err := renderType(spec, view, name)
+			refs, reason := refTypesOf(spec, view, fixed, name, d)
+			if reason != "" {
+				fmt.Fprintf(report, "%s\ttype %s\tkept: %s\n", tag, name, reason)
+				continue
+			}
+			withRefs := *view
+			withRefs.RefTypes = refs
+			src, err := renderType(spec, &withRefs, name)
 			if err != nil {
 				fmt.Fprintf(report, "%s\ttype %s\tkept: %v\n", tag, name, err)
 				continue
@@ -130,6 +145,8 @@ func Adopt(spec *Spec, b *Bindings, dir string, tags []string, report io.Writer)
 			}
 			d.adopt()
 			adoptedTypes = append(adoptedTypes, name)
+			view.RefTypes = refs
+			fixRefTypes(spec, view, name, fixed)
 			fmt.Fprintf(report, "%s\ttype %s\tgenerated\n", tag, name)
 		}
 		var adoptedRels []*RelBind
@@ -148,6 +165,7 @@ func Adopt(spec *Spec, b *Bindings, dir string, tags []string, report io.Writer)
 			fam.Types = append(fam.Types, adoptedTypes...)
 			fam.Relationships = append(fam.Relationships, adoptedRels...)
 			fam.Queries = append(fam.Queries, adoptedQueries...)
+			fam.RefTypes = append(fam.RefTypes, view.RefTypes[recordedRefs:]...)
 			adopted = append(adopted, fam)
 		}
 	}
@@ -429,6 +447,91 @@ func (p *pkg) recordRelationships(spec *Spec, ops []*Operation, fam *Family) {
 	}
 }
 
+// refTypesOf returns the family's records of referenced schemas plus the ones
+// a hand-written attributes type declares: the Go type of each attribute that
+// references a schema, without its list or pointer. A schema that a generated
+// type or another field already gives another Go type keeps the type
+// hand-written, because that choice is per field.
+func refTypesOf(spec *Spec, fam *Family, fixed map[string]string, name string, d *decl) ([]*RefType, string) {
+	refs := slices.Clone(fam.RefTypes)
+	attrs := attributesOf(spec, name)
+	st, ok := d.node.(*ast.GenDecl).Specs[0].(*ast.TypeSpec).Type.(*ast.StructType)
+	if attrs == nil || !ok {
+		return refs, ""
+	}
+	fields := map[string]string{}
+	for _, f := range st.Fields.List {
+		if f.Tag == nil {
+			continue
+		}
+		tag, _ := strconv.Unquote(f.Tag.Value)
+		jsonName, _, _ := strings.Cut(reflect.StructTag(tag).Get("json"), ",")
+		fields[jsonName] = strings.TrimPrefix(strings.TrimPrefix(exprString(f.Type), "[]"), "*")
+	}
+	for _, prop := range attrs.Properties {
+		schema, typ := refSchema(prop.Schema), fields[prop.Name]
+		if schema == "" || typ == "" {
+			continue
+		}
+		current := (&Family{RefTypes: refs}).refType(schema)
+		if want, ok := fixed[schema]; ok && want != typ {
+			return nil, fmt.Sprintf("schema %s is %s here and %s in a generated type", schema, typ, want)
+		}
+		if typ == current {
+			continue
+		}
+		if current != schema {
+			return nil, fmt.Sprintf("schema %s is %s here and %s in another field", schema, typ, current)
+		}
+		r := &RefType{Schema: schema, Type: typ}
+		if err := checkRefType(spec, r); err != nil {
+			return nil, err.Error()
+		}
+		refs = append(refs, r)
+	}
+	return refs, ""
+}
+
+// fixRefTypes adds the Go type of each schema a generated type references.
+func fixRefTypes(spec *Spec, fam *Family, name string, fixed map[string]string) {
+	attrs := attributesOf(spec, name)
+	if attrs == nil {
+		return
+	}
+	for _, prop := range attrs.Properties {
+		if schema := refSchema(prop.Schema); schema != "" {
+			fixed[schema] = fam.refType(schema)
+		}
+	}
+}
+
+// attributesOf returns the attributes schema an <X>Attributes type renders
+// from, or nil.
+func attributesOf(spec *Spec, name string) *Schema {
+	base, ok := strings.CutSuffix(name, "Attributes")
+	if !ok {
+		return nil
+	}
+	if data, err := requestData(spec, base+"Request"); err == nil {
+		return data.Properties.Get("attributes")
+	}
+	if resource, ok := spec.Schema(base); ok {
+		return resource.Properties.Get("attributes")
+	}
+	return nil
+}
+
+// refSchema names the schema an attribute or its list items reference, or "".
+func refSchema(s *Schema) string {
+	if s.Type == "array" && s.Items != nil {
+		s = s.Items
+	}
+	if s.Ref == "" {
+		return ""
+	}
+	return refName(s.Ref)
+}
+
 // compositeLit returns the literal of T{...} or &T{...}.
 func compositeLit(expr ast.Expr) *ast.CompositeLit {
 	if u, ok := expr.(*ast.UnaryExpr); ok && u.Op == token.AND {
@@ -707,7 +810,7 @@ func pruneImports(src []byte) ([]byte, error) {
 			continue
 		}
 		for _, s := range unused {
-			cut = append(cut, [2]int{fset.Position(s.Pos()).Offset, fset.Position(s.End()).Offset})
+			cut = append(cut, wholeLines(src, fset.Position(s.Pos()).Offset, fset.Position(s.End()).Offset))
 		}
 	}
 	if !other {
@@ -717,4 +820,16 @@ func pruneImports(src []byte) ([]byte, error) {
 		src = append(src[:cut[i][0]:cut[i][0]], src[cut[i][1]:]...)
 	}
 	return format.Source(src)
+}
+
+// wholeLines widens the span from:to to the lines it is on when nothing else
+// is on them, so a removed import leaves no blank line that would split its
+// import group.
+func wholeLines(src []byte, from, to int) [2]int {
+	start := bytes.LastIndexByte(src[:from], '\n') + 1
+	end := bytes.IndexByte(src[to:], '\n')
+	if end < 0 || len(bytes.TrimSpace(src[start:from])) > 0 || len(bytes.TrimSpace(src[to:to+end])) > 0 {
+		return [2]int{from, to}
+	}
+	return [2]int{start, to + end + 1}
 }

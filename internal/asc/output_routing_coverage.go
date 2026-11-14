@@ -1,7 +1,5 @@
 package asc
 
-import "fmt"
-
 type routingAppCoverageField struct {
 	Name  string
 	Value string
@@ -30,10 +28,4 @@ func routingAppCoverageFields(resp *RoutingAppCoverageResponse) []routingAppCove
 		{Name: "Source File Checksum", Value: fallbackValue(attrs.SourceFileChecksum)},
 		{Name: "Delivery State", Value: formatAssetDeliveryState(attrs.AssetDeliveryState)},
 	}
-}
-
-func routingAppCoverageDeleteResultRows(result *RoutingAppCoverageDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	return headers, rows
 }

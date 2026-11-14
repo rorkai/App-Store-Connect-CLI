@@ -2,6 +2,7 @@
   "tag": "AppStoreVersionExperimentTreatments",
   "file": "app_store_version_experiment_treatments_gen.go",
   "types": [
+    "AppStoreVersionExperimentTreatmentAttributes",
     "AppStoreVersionExperimentTreatmentCreateData",
     "AppStoreVersionExperimentTreatmentCreateRelationships",
     "AppStoreVersionExperimentTreatmentCreateRequest",

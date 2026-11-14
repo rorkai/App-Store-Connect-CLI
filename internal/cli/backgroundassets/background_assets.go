@@ -109,7 +109,7 @@ Examples:
 			if strings.TrimSpace(*archived) != "" {
 				value, err := shared.ParseBoolFlag(*archived, "--archived")
 				if err != nil {
-					return fmt.Errorf("background-assets list: %w", err)
+					return shared.UsageErrorf("background-assets list: %v", err)
 				}
 				archivedFilter = []string{strconv.FormatBool(value)}
 			}
@@ -171,10 +171,9 @@ Examples:
 // BackgroundAssetsGetCommand returns the background assets get subcommand.
 func BackgroundAssetsGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc background-assets view --id \"ASSET_ID\"",
-		ShortHelp:   "View a background asset by ID.",
+		Name:       "view",
+		ShortUsage: "asc background-assets view --id \"ASSET_ID\"",
+		ShortHelp:  "View a background asset by ID.",
 		LongHelp: `View a background asset by ID.
 
 Examples:
@@ -182,8 +181,6 @@ Examples:
 		IDUsage:            "Background asset ID",
 		IDType:             "backgroundAssets",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "background-assets view",
-		FetchErrorPrefix:   "background-assets view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetBackgroundAsset(ctx, id)
 		},
@@ -267,7 +264,7 @@ Examples:
 			}
 			archivedValue, err := shared.ParseBoolFlag(*archived, "--archived")
 			if err != nil {
-				return fmt.Errorf("background-assets update: %w", err)
+				return shared.UsageErrorf("background-assets update: %v", err)
 			}
 
 			client, err := shared.GetASCClient()

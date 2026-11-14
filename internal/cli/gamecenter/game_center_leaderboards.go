@@ -138,10 +138,9 @@ Examples:
 // GameCenterLeaderboardImagesDeleteCommand returns the leaderboard images delete subcommand.
 func GameCenterLeaderboardImagesDeleteCommand() *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc game-center leaderboards images delete --id \"IMAGE_ID\" --confirm",
-		ShortHelp:   "Delete a Game Center leaderboard image.",
+		Name:       "delete",
+		ShortUsage: "asc game-center leaderboards images delete --id \"IMAGE_ID\" --confirm",
+		ShortHelp:  "Delete a Game Center leaderboard image.",
 		LongHelp: `Delete a Game Center leaderboard image.
 
 Examples:
@@ -150,13 +149,11 @@ Examples:
 		IDUsage:            "Game Center leaderboard image ID",
 		IDType:             "gameCenterLeaderboardImages",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center leaderboards images delete",
-		DeleteErrorPrefix:  "game-center leaderboards images delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteGameCenterLeaderboardImage(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.GameCenterLeaderboardImageDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }
@@ -262,10 +259,9 @@ func GameCenterLeaderboardsGetCommand() *ffcli.Command {
 	var v2 *bool
 
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc game-center leaderboards view --id \"LEADERBOARD_ID\" [--v2]",
-		ShortHelp:   "View a Game Center leaderboard by ID.",
+		Name:       "view",
+		ShortUsage: "asc game-center leaderboards view --id \"LEADERBOARD_ID\" [--v2]",
+		ShortHelp:  "View a Game Center leaderboard by ID.",
 		LongHelp: `View a Game Center leaderboard by ID.
 
 Examples:
@@ -278,8 +274,6 @@ Examples:
 			v2 = fs.Bool("v2", false, "Use v2 leaderboards endpoint")
 			return nil
 		},
-		ErrorPrefix:      "game-center leaderboards view",
-		FetchErrorPrefix: "game-center leaderboards view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			if *v2 {
 				return client.GetGameCenterLeaderboardV2(ctx, id)
@@ -691,7 +685,7 @@ Examples:
 				}
 			}
 
-			result := &asc.GameCenterLeaderboardDeleteResult{
+			result := &asc.DeleteResult{
 				ID:      id,
 				Deleted: true,
 			}
@@ -815,10 +809,9 @@ Examples:
 // GameCenterLeaderboardGroupLeaderboardGetCommand returns the group leaderboard get subcommand.
 func GameCenterLeaderboardGroupLeaderboardGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc game-center leaderboards group-leaderboard view --id \"LEADERBOARD_ID\"",
-		ShortHelp:   "View a group leaderboard by leaderboard ID.",
+		Name:       "view",
+		ShortUsage: "asc game-center leaderboards group-leaderboard view --id \"LEADERBOARD_ID\"",
+		ShortHelp:  "View a group leaderboard by leaderboard ID.",
 		LongHelp: `View a group leaderboard by leaderboard ID.
 
 Examples:
@@ -826,8 +819,6 @@ Examples:
 		IDUsage:            "Game Center leaderboard ID",
 		IDType:             "gameCenterLeaderboards",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center leaderboards group-leaderboard view",
-		FetchErrorPrefix:   "game-center leaderboards group-leaderboard view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterLeaderboardGroupLeaderboard(ctx, id)
 		},
@@ -864,10 +855,9 @@ Examples:
 // GameCenterLeaderboardReleasesListCommand returns the releases list subcommand.
 func GameCenterLeaderboardReleasesListCommand() *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "list",
-		Name:        "list",
-		ShortUsage:  "asc game-center leaderboards releases list --leaderboard-id \"LEADERBOARD_ID\"",
-		ShortHelp:   "List releases for a Game Center leaderboard.",
+		Name:       "list",
+		ShortUsage: "asc game-center leaderboards releases list --leaderboard-id \"LEADERBOARD_ID\"",
+		ShortHelp:  "List releases for a Game Center leaderboard.",
 		LongHelp: `List releases for a Game Center leaderboard.
 
 Examples:
@@ -880,8 +870,6 @@ Examples:
 		RequiredDiagnostic:   true,
 		PaginateIgnoresLimit: true,
 		NoSpinner:            true,
-		ErrorPrefix:          "game-center leaderboards releases list",
-		FetchErrorPrefix:     "game-center leaderboards releases list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, leaderboardId string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterLeaderboardReleases(ctx, leaderboardId, asc.Limit[asc.GCLeaderboardReleasesOption](limit), asc.NextURL[asc.GCLeaderboardReleasesOption](next))
 		},
@@ -947,10 +935,9 @@ Examples:
 // GameCenterLeaderboardReleasesDeleteCommand returns the releases delete subcommand.
 func GameCenterLeaderboardReleasesDeleteCommand() *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc game-center leaderboards releases delete --id \"RELEASE_ID\" --confirm",
-		ShortHelp:   "Delete a Game Center leaderboard release.",
+		Name:       "delete",
+		ShortUsage: "asc game-center leaderboards releases delete --id \"RELEASE_ID\" --confirm",
+		ShortHelp:  "Delete a Game Center leaderboard release.",
 		LongHelp: `Delete a Game Center leaderboard release.
 
 Examples:
@@ -959,13 +946,11 @@ Examples:
 		IDUsage:            "Game Center leaderboard release ID",
 		IDType:             "gameCenterLeaderboardReleases",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center leaderboards releases delete",
-		DeleteErrorPrefix:  "game-center leaderboards releases delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteGameCenterLeaderboardRelease(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.GameCenterLeaderboardReleaseDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }

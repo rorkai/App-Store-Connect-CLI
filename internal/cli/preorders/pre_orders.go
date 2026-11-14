@@ -103,11 +103,11 @@ Examples:
   asc pre-orders list --availability "AVAILABILITY_ID" --limit 175
   asc pre-orders list --availability "AVAILABILITY_ID" --paginate
   asc pre-orders list --next "NEXT_URL"`,
-		ParentFlag:  "availability",
-		ParentUsage: "App availability ID",
-		ParentType:  "appAvailabilities",
-		LimitMax:    200,
-		ErrorPrefix: "pre-orders list",
+		ParentFlag:       "availability",
+		ParentUsage:      "App availability ID",
+		ParentType:       "appAvailabilities",
+		LimitMax:         200,
+		FetchErrorPrefix: "pre-orders list",
 		FetchPage: func(ctx context.Context, client *asc.Client, availabilityID string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := make([]asc.TerritoryAvailabilitiesOption, 0, 2)
 			if limit > 0 {
@@ -179,7 +179,7 @@ Examples:
 
 			normalizedReleaseDate, err := normalizePreOrderReleaseDate(*releaseDate)
 			if err != nil {
-				return fmt.Errorf("pre-orders enable: %w", err)
+				return shared.UsageErrorf("pre-orders enable: %v", err)
 			}
 
 			territories, err := shared.NormalizeASCTerritoryCSV(*territory)
@@ -301,7 +301,7 @@ Examples:
 			if strings.TrimSpace(*releaseDate) != "" {
 				normalizedReleaseDate, err := normalizePreOrderReleaseDate(*releaseDate)
 				if err != nil {
-					return fmt.Errorf("pre-orders update: %w", err)
+					return shared.UsageErrorf("pre-orders update: %v", err)
 				}
 				attrs.ReleaseDate = &normalizedReleaseDate
 				hasAttr = true

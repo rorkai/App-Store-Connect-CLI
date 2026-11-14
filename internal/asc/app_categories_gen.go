@@ -8,6 +8,11 @@ import (
 	"strings"
 )
 
+// AppCategoryAttributes is the attributes object of the AppCategory schema.
+type AppCategoryAttributes struct {
+	Platforms []Platform `json:"platforms,omitempty"`
+}
+
 // GetAppCategories sends GET /v1/appCategories (appCategories_getCollection).
 func (c *Client) GetAppCategories(ctx context.Context, opts ...AppCategoriesOption) (*AppCategoriesResponse, error) {
 	query := applyOptions(opts)

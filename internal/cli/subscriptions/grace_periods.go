@@ -52,8 +52,6 @@ Examples:
 		IDUsage:            "Subscription grace period ID",
 		IDType:             "subscriptionGracePeriods",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "subscriptions grace-periods view",
-		FetchErrorPrefix:   "subscriptions grace-periods view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetSubscriptionGracePeriod(ctx, id)
 		},

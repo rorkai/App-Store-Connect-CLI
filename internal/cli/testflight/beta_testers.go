@@ -333,10 +333,9 @@ func rejectBetaTestersNextFlagConflicts(fs *flag.FlagSet, next, command string, 
 // BetaTestersGetCommand returns the beta testers get subcommand.
 func BetaTestersGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc testflight beta-testers view --id \"TESTER_ID\" [flags]",
-		ShortHelp:   "View a TestFlight beta tester by ID.",
+		Name:       "view",
+		ShortUsage: "asc testflight beta-testers view --id \"TESTER_ID\" [flags]",
+		ShortHelp:  "View a TestFlight beta tester by ID.",
 		LongHelp: `View a TestFlight beta tester by ID.
 
 Examples:
@@ -347,7 +346,6 @@ See also: asc testflight beta-testers beta-groups list --id "TESTER_ID" for the 
 		IDType:             "betaTesters",
 		RequiredDiagnostic: true,
 		ErrorPrefix:        "beta-testers view",
-		FetchErrorPrefix:   "beta-testers view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetBetaTester(ctx, id)
 		},

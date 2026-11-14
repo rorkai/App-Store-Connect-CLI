@@ -29,18 +29,3 @@ func TestPrintTable_PassTypeIDs(t *testing.T) {
 		t.Fatalf("expected pass type ID values, got: %s", output)
 	}
 }
-
-func TestPrintTable_PassTypeIDDeleteResult(t *testing.T) {
-	result := &PassTypeIDDeleteResult{ID: "pass-1", Deleted: true}
-
-	output := captureStdout(t, func() error {
-		return PrintTable(result)
-	})
-
-	if !strings.Contains(output, "ID") || !strings.Contains(output, "Deleted") {
-		t.Fatalf("expected delete headers, got: %s", output)
-	}
-	if !strings.Contains(output, "pass-1") || !strings.Contains(output, "true") {
-		t.Fatalf("expected delete values, got: %s", output)
-	}
-}

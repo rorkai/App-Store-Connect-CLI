@@ -244,8 +244,6 @@ Examples:
 		IDUsage:            "Review screenshot ID",
 		IDType:             "subscriptionAppStoreReviewScreenshots",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "subscriptions review-screenshots delete",
-		DeleteErrorPrefix:  "subscriptions review-screenshots delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteSubscriptionAppStoreReviewScreenshot(ctx, id)
 		},

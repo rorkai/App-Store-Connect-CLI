@@ -34,34 +34,8 @@ var ValidWebhookEventTypes = []string{
 	string(WebhookEventBuildUploadStateUpdated),
 }
 
-// WebhookAttributes describes a webhook resource.
-type WebhookAttributes struct {
-	Enabled    bool               `json:"enabled,omitempty"`
-	EventTypes []WebhookEventType `json:"eventTypes,omitempty"`
-	Name       string             `json:"name,omitempty"`
-	URL        string             `json:"url,omitempty"`
-}
-
 // WebhooksResponse is the response from webhook list endpoints.
 type WebhooksResponse = Response[WebhookAttributes]
-
-// WebhookCreateAttributes describes attributes for creating a webhook.
-type WebhookCreateAttributes struct {
-	Enabled    bool               `json:"enabled"`
-	EventTypes []WebhookEventType `json:"eventTypes"`
-	Name       string             `json:"name"`
-	Secret     string             `json:"secret"`
-	URL        string             `json:"url"`
-}
-
-// WebhookUpdateAttributes describes attributes for updating a webhook.
-type WebhookUpdateAttributes struct {
-	Enabled    *bool              `json:"enabled,omitempty"`
-	EventTypes []WebhookEventType `json:"eventTypes,omitempty"`
-	Name       *string            `json:"name,omitempty"`
-	Secret     *string            `json:"secret,omitempty"`
-	URL        *string            `json:"url,omitempty"`
-}
 
 // WebhookDeliveryRequest describes the delivery request payload.
 type WebhookDeliveryRequest struct {

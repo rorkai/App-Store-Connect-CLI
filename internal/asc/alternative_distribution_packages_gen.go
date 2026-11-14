@@ -9,6 +9,11 @@ import (
 	"strings"
 )
 
+// AlternativeDistributionPackageAttributes is the attributes object of the AlternativeDistributionPackage schema.
+type AlternativeDistributionPackageAttributes struct {
+	SourceFileChecksum *Checksums `json:"sourceFileChecksum,omitempty"`
+}
+
 // AlternativeDistributionPackageCreateData is the data object of the AlternativeDistributionPackageCreateRequest schema.
 type AlternativeDistributionPackageCreateData struct {
 	Type          ResourceType                                      `json:"type"`

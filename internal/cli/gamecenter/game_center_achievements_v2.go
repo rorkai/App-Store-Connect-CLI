@@ -165,10 +165,9 @@ Examples:
 // GameCenterAchievementVersionsV2ListCommand returns the achievement versions v2 list subcommand.
 func GameCenterAchievementVersionsV2ListCommand() *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "list",
-		Name:        "list",
-		ShortUsage:  "asc game-center achievements v2 versions list --achievement-id \"ACH_ID\"",
-		ShortHelp:   "List versions for a Game Center achievement (v2).",
+		Name:       "list",
+		ShortUsage: "asc game-center achievements v2 versions list --achievement-id \"ACH_ID\"",
+		ShortHelp:  "List versions for a Game Center achievement (v2).",
 		LongHelp: `List versions for a Game Center achievement (v2).
 
 Examples:
@@ -180,8 +179,6 @@ Examples:
 		RequiredDiagnostic:   true,
 		PaginateIgnoresLimit: true,
 		NoSpinner:            true,
-		ErrorPrefix:          "game-center achievements v2 versions list",
-		FetchErrorPrefix:     "game-center achievements v2 versions list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, achievementId string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterAchievementVersions(ctx, achievementId, asc.Limit[asc.GCAchievementVersionsOption](limit), asc.NextURL[asc.GCAchievementVersionsOption](next))
 		},
@@ -191,10 +188,9 @@ Examples:
 // GameCenterAchievementVersionsV2GetCommand returns the achievement versions v2 get subcommand.
 func GameCenterAchievementVersionsV2GetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc game-center achievements v2 versions view --id \"VERSION_ID\"",
-		ShortHelp:   "View a Game Center achievement version (v2) by ID.",
+		Name:       "view",
+		ShortUsage: "asc game-center achievements v2 versions view --id \"VERSION_ID\"",
+		ShortHelp:  "View a Game Center achievement version (v2) by ID.",
 		LongHelp: `View a Game Center achievement version (v2) by ID.
 
 Examples:
@@ -202,8 +198,6 @@ Examples:
 		IDUsage:            "Game Center achievement version ID",
 		IDType:             "gameCenterAchievementVersions",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center achievements v2 versions view",
-		FetchErrorPrefix:   "game-center achievements v2 versions view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterAchievementVersion(ctx, id)
 		},
@@ -282,10 +276,9 @@ Examples:
 // GameCenterAchievementLocalizationsV2ListCommand returns the achievement localizations v2 list subcommand.
 func GameCenterAchievementLocalizationsV2ListCommand() *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "list",
-		Name:        "list",
-		ShortUsage:  "asc game-center achievements v2 localizations list --version-id \"VER_ID\"",
-		ShortHelp:   "List localizations for an achievement version (v2).",
+		Name:       "list",
+		ShortUsage: "asc game-center achievements v2 localizations list --version-id \"VER_ID\"",
+		ShortHelp:  "List localizations for an achievement version (v2).",
 		LongHelp: `List localizations for an achievement version (v2).
 
 Examples:
@@ -297,8 +290,6 @@ Examples:
 		RequiredDiagnostic:   true,
 		PaginateIgnoresLimit: true,
 		NoSpinner:            true,
-		ErrorPrefix:          "game-center achievements v2 localizations list",
-		FetchErrorPrefix:     "game-center achievements v2 localizations list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, versionId string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterAchievementVersionLocalizations(ctx, versionId, asc.Limit[asc.GCAchievementLocalizationsOption](limit), asc.NextURL[asc.GCAchievementLocalizationsOption](next))
 		},
@@ -308,10 +299,9 @@ Examples:
 // GameCenterAchievementLocalizationsV2GetCommand returns the achievement localizations v2 get subcommand.
 func GameCenterAchievementLocalizationsV2GetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc game-center achievements v2 localizations view --id \"LOC_ID\"",
-		ShortHelp:   "View a Game Center achievement localization (v2) by ID.",
+		Name:       "view",
+		ShortUsage: "asc game-center achievements v2 localizations view --id \"LOC_ID\"",
+		ShortHelp:  "View a Game Center achievement localization (v2) by ID.",
 		LongHelp: `View a Game Center achievement localization (v2) by ID.
 
 Examples:
@@ -319,8 +309,6 @@ Examples:
 		IDUsage:            "Game Center achievement localization ID",
 		IDType:             "gameCenterAchievementLocalizations",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center achievements v2 localizations view",
-		FetchErrorPrefix:   "game-center achievements v2 localizations view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterAchievementLocalizationV2(ctx, id)
 		},
@@ -470,10 +458,9 @@ Examples:
 // GameCenterAchievementLocalizationsV2DeleteCommand returns the achievement localizations v2 delete subcommand.
 func GameCenterAchievementLocalizationsV2DeleteCommand() *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc game-center achievements v2 localizations delete --id \"LOC_ID\" --confirm",
-		ShortHelp:   "Delete a Game Center achievement localization (v2).",
+		Name:       "delete",
+		ShortUsage: "asc game-center achievements v2 localizations delete --id \"LOC_ID\" --confirm",
+		ShortHelp:  "Delete a Game Center achievement localization (v2).",
 		LongHelp: `Delete a Game Center achievement localization (v2).
 
 Examples:
@@ -482,13 +469,11 @@ Examples:
 		IDUsage:            "Game Center achievement localization ID",
 		IDType:             "gameCenterAchievementLocalizations",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center achievements v2 localizations delete",
-		DeleteErrorPrefix:  "game-center achievements v2 localizations delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteGameCenterAchievementLocalizationV2(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.GameCenterAchievementLocalizationDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }
@@ -630,10 +615,9 @@ Examples:
 // GameCenterAchievementImagesV2DeleteCommand returns the achievement images v2 delete subcommand.
 func GameCenterAchievementImagesV2DeleteCommand() *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc game-center achievements v2 images delete --id \"IMAGE_ID\" --confirm",
-		ShortHelp:   "Delete a Game Center achievement image (v2).",
+		Name:       "delete",
+		ShortUsage: "asc game-center achievements v2 images delete --id \"IMAGE_ID\" --confirm",
+		ShortHelp:  "Delete a Game Center achievement image (v2).",
 		LongHelp: `Delete a Game Center achievement image (v2).
 
 Examples:
@@ -642,13 +626,11 @@ Examples:
 		IDUsage:            "Game Center achievement image ID",
 		IDType:             "gameCenterAchievementImages",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center achievements v2 images delete",
-		DeleteErrorPrefix:  "game-center achievements v2 images delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteGameCenterAchievementImageV2(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.GameCenterAchievementImageDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }

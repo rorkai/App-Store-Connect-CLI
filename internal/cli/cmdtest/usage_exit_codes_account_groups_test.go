@@ -208,6 +208,16 @@ func TestAccountAndDistributionInputValidationReturnsUsageExitCode(t *testing.T)
 			wantErr: "background-assets versions list: --next must be an App Store Connect URL",
 		},
 		{
+			name:    "background-assets list invalid archived",
+			args:    []string{"background-assets", "list", "--app", "123456789", "--archived", "maybe"},
+			wantErr: "background-assets list: --archived must be true or false",
+		},
+		{
+			name:    "background-assets update invalid archived",
+			args:    []string{"background-assets", "update", "--id", "BACKGROUND_ASSET_ID", "--archived", "maybe"},
+			wantErr: "background-assets update: --archived must be true or false",
+		},
+		{
 			name:    "bundle-ids capabilities list next",
 			args:    []string{"bundle-ids", "capabilities", "list", "--bundle", "B", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
 			deps:    true,
@@ -251,6 +261,11 @@ func TestAccountAndDistributionInputValidationReturnsUsageExitCode(t *testing.T)
 			name:    "certificates update invalid activated",
 			args:    []string{"certificates", "update", "--id", "CERT_ID", "--activated", "bad"},
 			wantErr: "certificates update: --activated must be true or false",
+		},
+		{
+			name:    "certificates export p12-out same as input",
+			args:    []string{"certificates", "export", "--certificate", "same.cer", "--private-key", "key.pem", "--password-file", "password.txt", "--p12-out", "same.cer"},
+			wantErr: `certificates export: --p12-out must differ from input path "same.cer"`,
 		},
 		{
 			name:    "devices view invalid fields",
@@ -313,6 +328,51 @@ func TestAccountAndDistributionInputValidationReturnsUsageExitCode(t *testing.T)
 			name:    "merchant-ids list next",
 			args:    []string{"merchant-ids", "list", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
 			wantErr: "merchant-ids list: --next must be an App Store Connect URL",
+		},
+		{
+			name:    "merchant-ids certificates list invalid fields",
+			args:    []string{"merchant-ids", "certificates", "list", "--merchant-id", "M", "--fields", "bad"},
+			wantErr: "merchant-ids certificates list: --fields must be one of: name, certificateType, displayName, serialNumber, platform, expirationDate, certificateContent, activated, passTypeId",
+		},
+		{
+			name:    "merchant-ids certificates list invalid include",
+			args:    []string{"merchant-ids", "certificates", "list", "--merchant-id", "M", "--include", "bad"},
+			wantErr: "merchant-ids certificates list: --include must be one of: passTypeId",
+		},
+		{
+			name:    "merchant-ids certificates list invalid pass-type-fields",
+			args:    []string{"merchant-ids", "certificates", "list", "--merchant-id", "M", "--pass-type-fields", "bad"},
+			wantErr: "merchant-ids certificates list: --pass-type-fields must be one of: name, identifier, certificates",
+		},
+		{
+			name:    "merchant-ids list invalid fields",
+			args:    []string{"merchant-ids", "list", "--fields", "bad"},
+			wantErr: "merchant-ids list: --fields must be one of: name, identifier, certificates",
+		},
+		{
+			name:    "merchant-ids list invalid certificate-fields",
+			args:    []string{"merchant-ids", "list", "--certificate-fields", "bad"},
+			wantErr: "merchant-ids list: --certificate-fields must be one of: name, certificateType, displayName, serialNumber, platform, expirationDate, certificateContent, activated, passTypeId",
+		},
+		{
+			name:    "merchant-ids list invalid include",
+			args:    []string{"merchant-ids", "list", "--include", "bad"},
+			wantErr: "merchant-ids list: --include must be one of: certificates",
+		},
+		{
+			name:    "merchant-ids view invalid fields",
+			args:    []string{"merchant-ids", "view", "--merchant-id", "M", "--fields", "bad"},
+			wantErr: "merchant-ids view: --fields must be one of: name, identifier, certificates",
+		},
+		{
+			name:    "merchant-ids view invalid certificate-fields",
+			args:    []string{"merchant-ids", "view", "--merchant-id", "M", "--certificate-fields", "bad"},
+			wantErr: "merchant-ids view: --certificate-fields must be one of: name, certificateType, displayName, serialNumber, platform, expirationDate, certificateContent, activated, passTypeId",
+		},
+		{
+			name:    "merchant-ids view invalid include",
+			args:    []string{"merchant-ids", "view", "--merchant-id", "M", "--include", "bad"},
+			wantErr: "merchant-ids view: --include must be one of: certificates",
 		},
 		{
 			name:    "nominations list in-app-events-limit",
@@ -414,6 +474,48 @@ func TestAccountAndDistributionInputValidationReturnsUsageExitCode(t *testing.T)
 			name:    "pass-type-ids view limit-certificates",
 			args:    []string{"pass-type-ids", "view", "--pass-type-id", "P", "--limit-certificates", "51"},
 			wantErr: "pass-type-ids view: --limit-certificates must be between 1 and 50",
+			deps:    true,
+		},
+		{
+			name:    "pass-type-ids certificates list invalid fields",
+			args:    []string{"pass-type-ids", "certificates", "list", "--pass-type-id", "P", "--fields", "bad"},
+			wantErr: "pass-type-ids certificates list: --fields must be one of: name, certificateType, displayName, serialNumber, platform, expirationDate, certificateContent, activated, passTypeId",
+			deps:    true,
+		},
+		{
+			name:    "pass-type-ids list invalid fields",
+			args:    []string{"pass-type-ids", "list", "--fields", "bad"},
+			wantErr: "pass-type-ids list: --fields must be one of: name, identifier, certificates",
+			deps:    true,
+		},
+		{
+			name:    "pass-type-ids list invalid certificate-fields",
+			args:    []string{"pass-type-ids", "list", "--certificate-fields", "bad"},
+			wantErr: "pass-type-ids list: --certificate-fields must be one of: name, certificateType, displayName, serialNumber, platform, expirationDate, certificateContent, activated, passTypeId",
+			deps:    true,
+		},
+		{
+			name:    "pass-type-ids list invalid include",
+			args:    []string{"pass-type-ids", "list", "--include", "bad"},
+			wantErr: "pass-type-ids list: --include must be one of: certificates",
+			deps:    true,
+		},
+		{
+			name:    "pass-type-ids view invalid fields",
+			args:    []string{"pass-type-ids", "view", "--pass-type-id", "P", "--fields", "bad"},
+			wantErr: "pass-type-ids view: --fields must be one of: name, identifier, certificates",
+			deps:    true,
+		},
+		{
+			name:    "pass-type-ids view invalid certificate-fields",
+			args:    []string{"pass-type-ids", "view", "--pass-type-id", "P", "--certificate-fields", "bad"},
+			wantErr: "pass-type-ids view: --certificate-fields must be one of: name, certificateType, displayName, serialNumber, platform, expirationDate, certificateContent, activated, passTypeId",
+			deps:    true,
+		},
+		{
+			name:    "pass-type-ids view invalid include",
+			args:    []string{"pass-type-ids", "view", "--pass-type-id", "P", "--include", "bad"},
+			wantErr: "pass-type-ids view: --include must be one of: certificates",
 			deps:    true,
 		},
 		{
@@ -630,6 +732,11 @@ func TestAccountAndDistributionInputValidationReturnsUsageExitCode(t *testing.T)
 			args:    []string{"users", "view", "--id", "USER_ID", "--include", "bad"},
 			deps:    true,
 			wantErr: "users view: --include must be one of: visibleApps",
+		},
+		{
+			name:    "xcode export-options generate invalid archive path",
+			args:    []string{"xcode", "export-options", "generate", "--archive-path", "App.zip"},
+			wantErr: "xcode export-options generate: --archive-path must end with .xcarchive",
 		},
 		{
 			name:    "xcode-cloud artifacts list limit",

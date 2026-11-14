@@ -47,8 +47,6 @@ Examples:
 		IDUsage:            "Default experience localization ID",
 		IDType:             "appClipDefaultExperienceLocalizations",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "app-clips default-experiences header-image view",
-		FetchErrorPrefix:   "app-clips default-experiences header-image view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetAppClipDefaultExperienceLocalizationHeaderImage(ctx, id)
 		},

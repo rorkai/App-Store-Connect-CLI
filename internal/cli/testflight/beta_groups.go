@@ -1108,10 +1108,9 @@ func optionalBetaGroupCreateBool(value shared.OptionalBool) *bool {
 // BetaGroupsGetCommand returns the beta groups get subcommand.
 func BetaGroupsGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc testflight beta-groups view [flags]",
-		ShortHelp:   "View a TestFlight beta group by ID.",
+		Name:       "view",
+		ShortUsage: "asc testflight beta-groups view [flags]",
+		ShortHelp:  "View a TestFlight beta group by ID.",
 		LongHelp: `View a TestFlight beta group by ID.
 
 Examples:
@@ -1120,7 +1119,6 @@ Examples:
 		IDType:             "betaGroups",
 		RequiredDiagnostic: true,
 		ErrorPrefix:        "beta-groups view",
-		FetchErrorPrefix:   "beta-groups view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetBetaGroup(ctx, id)
 		},
@@ -1278,7 +1276,7 @@ Examples:
 				return fmt.Errorf("beta-groups delete: failed to delete: %w", err)
 			}
 
-			result := &asc.BetaGroupDeleteResult{ID: strings.TrimSpace(*id), Deleted: true}
+			result := &asc.DeleteResult{ID: strings.TrimSpace(*id), Deleted: true}
 			if err := shared.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
 				return err
 			}

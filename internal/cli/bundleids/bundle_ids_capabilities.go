@@ -279,11 +279,10 @@ Examples:
 // newBundleIDsCapabilitiesRemoveCommand returns the bundle IDs capabilities remove subcommand.
 func newBundleIDsCapabilitiesRemoveCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		Deps:        d,
-		FlagSetName: "remove",
-		Name:        "remove",
-		ShortUsage:  "asc bundle-ids capabilities remove --id \"CAPABILITY_ID\" --confirm",
-		ShortHelp:   "Remove a capability from a bundle ID.",
+		Deps:       d,
+		Name:       "remove",
+		ShortUsage: "asc bundle-ids capabilities remove --id \"CAPABILITY_ID\" --confirm",
+		ShortHelp:  "Remove a capability from a bundle ID.",
 		LongHelp: `Remove a capability from a bundle ID.
 
 Examples:
@@ -292,13 +291,11 @@ Examples:
 		IDUsage:            "Capability ID",
 		IDType:             "bundleIdCapabilities",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "bundle-ids capabilities remove",
-		DeleteErrorPrefix:  "bundle-ids capabilities remove: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteBundleIDCapability(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.BundleIDCapabilityDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }

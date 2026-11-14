@@ -2,11 +2,16 @@
   "tag": "SubscriptionGracePeriods",
   "file": "subscription_grace_periods_gen.go",
   "types": [
+    "SubscriptionGracePeriodAttributes",
     "SubscriptionGracePeriodResponse",
+    "SubscriptionGracePeriodUpdateAttributes",
     "SubscriptionGracePeriodUpdateRequest"
   ],
   "operations": [
     {"operation":"subscriptionGracePeriods_getInstance","name":"GetSubscriptionGracePeriod","params":["gracePeriodID"],"check":"require","messages":["grace period ID is required"]},
     {"operation":"subscriptionGracePeriods_updateInstance","name":"UpdateSubscriptionGracePeriod","params":["gracePeriodID"],"attrs":"value"}
+  ],
+  "refTypes": [
+    {"schema":"SubscriptionGracePeriodDuration","type":"string"}
   ]
 }

@@ -99,10 +99,9 @@ Examples:
 // GameCenterLeaderboardSetLocalizationsListCommand returns the localizations list subcommand.
 func GameCenterLeaderboardSetLocalizationsListCommand() *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "list",
-		Name:        "list",
-		ShortUsage:  "asc game-center leaderboard-sets localizations list --set-id \"SET_ID\"",
-		ShortHelp:   "List localizations for a Game Center leaderboard set.",
+		Name:       "list",
+		ShortUsage: "asc game-center leaderboard-sets localizations list --set-id \"SET_ID\"",
+		ShortHelp:  "List localizations for a Game Center leaderboard set.",
 		LongHelp: `List localizations for a Game Center leaderboard set.
 
 Examples:
@@ -115,8 +114,6 @@ Examples:
 		RequiredDiagnostic:   true,
 		PaginateIgnoresLimit: true,
 		NoSpinner:            true,
-		ErrorPrefix:          "game-center leaderboard-sets localizations list",
-		FetchErrorPrefix:     "game-center leaderboard-sets localizations list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, setId string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterLeaderboardSetLocalizations(ctx, setId, asc.Limit[asc.GCLeaderboardSetLocalizationsOption](limit), asc.NextURL[asc.GCLeaderboardSetLocalizationsOption](next))
 		},
@@ -126,10 +123,9 @@ Examples:
 // GameCenterLeaderboardSetLocalizationsGetCommand returns the localizations get subcommand.
 func GameCenterLeaderboardSetLocalizationsGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc game-center leaderboard-sets localizations view --id \"LOC_ID\"",
-		ShortHelp:   "View a Game Center leaderboard set localization by ID.",
+		Name:       "view",
+		ShortUsage: "asc game-center leaderboard-sets localizations view --id \"LOC_ID\"",
+		ShortHelp:  "View a Game Center leaderboard set localization by ID.",
 		LongHelp: `View a Game Center leaderboard set localization by ID.
 
 Examples:
@@ -137,8 +133,6 @@ Examples:
 		IDUsage:            "Game Center leaderboard set localization ID",
 		IDType:             "gameCenterLeaderboardSetLocalizations",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center leaderboard-sets localizations view",
-		FetchErrorPrefix:   "game-center leaderboard-sets localizations view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterLeaderboardSetLocalization(ctx, id)
 		},
@@ -263,10 +257,9 @@ Examples:
 // GameCenterLeaderboardSetLocalizationsDeleteCommand returns the localizations delete subcommand.
 func GameCenterLeaderboardSetLocalizationsDeleteCommand() *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc game-center leaderboard-sets localizations delete --id \"LOC_ID\" --confirm",
-		ShortHelp:   "Delete a Game Center leaderboard set localization.",
+		Name:       "delete",
+		ShortUsage: "asc game-center leaderboard-sets localizations delete --id \"LOC_ID\" --confirm",
+		ShortHelp:  "Delete a Game Center leaderboard set localization.",
 		LongHelp: `Delete a Game Center leaderboard set localization.
 
 Examples:
@@ -275,13 +268,11 @@ Examples:
 		IDUsage:            "Game Center leaderboard set localization ID",
 		IDType:             "gameCenterLeaderboardSetLocalizations",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center leaderboard-sets localizations delete",
-		DeleteErrorPrefix:  "game-center leaderboard-sets localizations delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteGameCenterLeaderboardSetLocalization(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.GameCenterLeaderboardSetLocalizationDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }
@@ -376,10 +367,9 @@ Examples:
 // GameCenterLeaderboardSetsGetCommand returns the leaderboard-sets get subcommand.
 func GameCenterLeaderboardSetsGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc game-center leaderboard-sets view --id \"SET_ID\"",
-		ShortHelp:   "View a Game Center leaderboard set by ID.",
+		Name:       "view",
+		ShortUsage: "asc game-center leaderboard-sets view --id \"SET_ID\"",
+		ShortHelp:  "View a Game Center leaderboard set by ID.",
 		LongHelp: `View a Game Center leaderboard set by ID.
 
 Examples:
@@ -387,8 +377,6 @@ Examples:
 		IDUsage:            "Game Center leaderboard set ID",
 		IDType:             "gameCenterLeaderboardSets",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center leaderboard-sets view",
-		FetchErrorPrefix:   "game-center leaderboard-sets view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterLeaderboardSet(ctx, id)
 		},
@@ -542,10 +530,9 @@ Examples:
 // GameCenterLeaderboardSetsDeleteCommand returns the leaderboard-sets delete subcommand.
 func GameCenterLeaderboardSetsDeleteCommand() *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc game-center leaderboard-sets delete --id \"SET_ID\" --confirm",
-		ShortHelp:   "Delete a Game Center leaderboard set.",
+		Name:       "delete",
+		ShortUsage: "asc game-center leaderboard-sets delete --id \"SET_ID\" --confirm",
+		ShortHelp:  "Delete a Game Center leaderboard set.",
 		LongHelp: `Delete a Game Center leaderboard set.
 
 Examples:
@@ -554,13 +541,11 @@ Examples:
 		IDUsage:            "Game Center leaderboard set ID",
 		IDType:             "gameCenterLeaderboardSets",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center leaderboard-sets delete",
-		DeleteErrorPrefix:  "game-center leaderboard-sets delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteGameCenterLeaderboardSet(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.GameCenterLeaderboardSetDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }
@@ -597,10 +582,9 @@ Examples:
 // GameCenterLeaderboardSetReleasesListCommand returns the leaderboard-sets releases list subcommand.
 func GameCenterLeaderboardSetReleasesListCommand() *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "list",
-		Name:        "list",
-		ShortUsage:  "asc game-center leaderboard-sets releases list --set-id \"SET_ID\"",
-		ShortHelp:   "List releases for a Game Center leaderboard set.",
+		Name:       "list",
+		ShortUsage: "asc game-center leaderboard-sets releases list --set-id \"SET_ID\"",
+		ShortHelp:  "List releases for a Game Center leaderboard set.",
 		LongHelp: `List releases for a Game Center leaderboard set.
 
 Examples:
@@ -613,8 +597,6 @@ Examples:
 		RequiredDiagnostic:   true,
 		PaginateIgnoresLimit: true,
 		NoSpinner:            true,
-		ErrorPrefix:          "game-center leaderboard-sets releases list",
-		FetchErrorPrefix:     "game-center leaderboard-sets releases list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, setId string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterLeaderboardSetReleases(ctx, setId, asc.Limit[asc.GCLeaderboardSetReleasesOption](limit), asc.NextURL[asc.GCLeaderboardSetReleasesOption](next))
 		},
@@ -680,10 +662,9 @@ Examples:
 // GameCenterLeaderboardSetReleasesDeleteCommand returns the leaderboard-sets releases delete subcommand.
 func GameCenterLeaderboardSetReleasesDeleteCommand() *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc game-center leaderboard-sets releases delete --id \"RELEASE_ID\" --confirm",
-		ShortHelp:   "Delete a Game Center leaderboard set release.",
+		Name:       "delete",
+		ShortUsage: "asc game-center leaderboard-sets releases delete --id \"RELEASE_ID\" --confirm",
+		ShortHelp:  "Delete a Game Center leaderboard set release.",
 		LongHelp: `Delete a Game Center leaderboard set release.
 
 Examples:
@@ -692,13 +673,11 @@ Examples:
 		IDUsage:            "Game Center leaderboard set release ID",
 		IDType:             "gameCenterLeaderboardSetReleases",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center leaderboard-sets releases delete",
-		DeleteErrorPrefix:  "game-center leaderboard-sets releases delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteGameCenterLeaderboardSetRelease(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.GameCenterLeaderboardSetReleaseDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }
@@ -729,10 +708,9 @@ Examples:
 // GameCenterLeaderboardSetGroupLeaderboardSetGetCommand returns the group leaderboard set get subcommand.
 func GameCenterLeaderboardSetGroupLeaderboardSetGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc game-center leaderboard-sets group-leaderboard-set view --id \"SET_ID\"",
-		ShortHelp:   "View a group leaderboard set by leaderboard set ID.",
+		Name:       "view",
+		ShortUsage: "asc game-center leaderboard-sets group-leaderboard-set view --id \"SET_ID\"",
+		ShortHelp:  "View a group leaderboard set by leaderboard set ID.",
 		LongHelp: `View a group leaderboard set by leaderboard set ID.
 
 Examples:
@@ -740,8 +718,6 @@ Examples:
 		IDUsage:            "Game Center leaderboard set ID",
 		IDType:             "gameCenterLeaderboardSets",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center leaderboard-sets group-leaderboard-set view",
-		FetchErrorPrefix:   "game-center leaderboard-sets group-leaderboard-set view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterLeaderboardSetGroupLeaderboardSet(ctx, id)
 		},
@@ -774,10 +750,9 @@ Examples:
 // GameCenterLeaderboardSetLocalizationImageGetCommand returns the localization image get subcommand.
 func GameCenterLeaderboardSetLocalizationImageGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc game-center leaderboard-sets localizations image view --id \"LOC_ID\"",
-		ShortHelp:   "View a leaderboard set localization image.",
+		Name:       "view",
+		ShortUsage: "asc game-center leaderboard-sets localizations image view --id \"LOC_ID\"",
+		ShortHelp:  "View a leaderboard set localization image.",
 		LongHelp: `View a leaderboard set localization image.
 
 Examples:
@@ -785,8 +760,6 @@ Examples:
 		IDUsage:            "Game Center leaderboard set localization ID",
 		IDType:             "gameCenterLeaderboardSetLocalizations",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center leaderboard-sets localizations image view",
-		FetchErrorPrefix:   "game-center leaderboard-sets localizations image view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterLeaderboardSetLocalizationImage(ctx, id)
 		},
@@ -833,10 +806,9 @@ func GameCenterLeaderboardSetMemberLocalizationsListCommand() *ffcli.Command {
 	var leaderboardID *string
 
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "list",
-		Name:        "list",
-		ShortUsage:  "asc game-center leaderboard-sets member-localizations list --set-id \"SET_ID\" --leaderboard-id \"LEADERBOARD_ID\"",
-		ShortHelp:   "List leaderboard set member localizations.",
+		Name:       "list",
+		ShortUsage: "asc game-center leaderboard-sets member-localizations list --set-id \"SET_ID\" --leaderboard-id \"LEADERBOARD_ID\"",
+		ShortHelp:  "List leaderboard set member localizations.",
 		LongHelp: `List leaderboard set member localizations.
 
 Examples:
@@ -859,8 +831,6 @@ Examples:
 				return nil
 			}
 		},
-		ErrorPrefix:      "game-center leaderboard-sets member-localizations list",
-		FetchErrorPrefix: "game-center leaderboard-sets member-localizations list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, setID string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := []asc.GCLeaderboardSetMemberLocalizationsOption{
 				asc.Limit[asc.GCLeaderboardSetMemberLocalizationsOption](limit),
@@ -880,10 +850,9 @@ Examples:
 // GameCenterLeaderboardSetMemberLocalizationsGetCommand returns the member localization view subcommand.
 func GameCenterLeaderboardSetMemberLocalizationsGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc game-center leaderboard-sets member-localizations view --id \"LOCALIZATION_ID\"",
-		ShortHelp:   "View a leaderboard set member localization by ID.",
+		Name:       "view",
+		ShortUsage: "asc game-center leaderboard-sets member-localizations view --id \"LOCALIZATION_ID\"",
+		ShortHelp:  "View a leaderboard set member localization by ID.",
 		LongHelp: `View a leaderboard set member localization by ID.
 
 App Store Connect does not expose a direct instance GET. This command resolves
@@ -895,8 +864,6 @@ Examples:
 		IDUsage:            "Leaderboard set member localization ID",
 		IDType:             "gameCenterLeaderboardSetMemberLocalizations",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center leaderboard-sets member-localizations view",
-		FetchErrorPrefix:   "game-center leaderboard-sets member-localizations view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterLeaderboardSetMemberLocalization(ctx, id)
 		},
@@ -1027,10 +994,9 @@ Examples:
 // GameCenterLeaderboardSetMemberLocalizationsDeleteCommand returns the member localizations delete subcommand.
 func GameCenterLeaderboardSetMemberLocalizationsDeleteCommand() *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc game-center leaderboard-sets member-localizations delete --id \"LOCALIZATION_ID\" --confirm",
-		ShortHelp:   "Delete a leaderboard set member localization.",
+		Name:       "delete",
+		ShortUsage: "asc game-center leaderboard-sets member-localizations delete --id \"LOCALIZATION_ID\" --confirm",
+		ShortHelp:  "Delete a leaderboard set member localization.",
 		LongHelp: `Delete a leaderboard set member localization.
 
 Examples:
@@ -1039,13 +1005,11 @@ Examples:
 		IDUsage:            "Leaderboard set member localization ID",
 		IDType:             "gameCenterLeaderboardSetMemberLocalizations",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center leaderboard-sets member-localizations delete",
-		DeleteErrorPrefix:  "game-center leaderboard-sets member-localizations delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteGameCenterLeaderboardSetMemberLocalization(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.GameCenterLeaderboardSetMemberLocalizationDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }
@@ -1076,10 +1040,9 @@ Examples:
 // GameCenterLeaderboardSetMemberLocalizationsLeaderboardGetCommand returns the member localization leaderboard get subcommand.
 func GameCenterLeaderboardSetMemberLocalizationsLeaderboardGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc game-center leaderboard-sets member-localizations leaderboard view --id \"LOCALIZATION_ID\"",
-		ShortHelp:   "View a leaderboard for a member localization.",
+		Name:       "view",
+		ShortUsage: "asc game-center leaderboard-sets member-localizations leaderboard view --id \"LOCALIZATION_ID\"",
+		ShortHelp:  "View a leaderboard for a member localization.",
 		LongHelp: `View a leaderboard for a member localization.
 
 Examples:
@@ -1087,8 +1050,6 @@ Examples:
 		IDUsage:            "Leaderboard set member localization ID",
 		IDType:             "gameCenterLeaderboardSetMemberLocalizations",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center leaderboard-sets member-localizations leaderboard view",
-		FetchErrorPrefix:   "game-center leaderboard-sets member-localizations leaderboard view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterLeaderboardSetMemberLocalizationLeaderboard(ctx, id)
 		},
@@ -1121,10 +1082,9 @@ Examples:
 // GameCenterLeaderboardSetMemberLocalizationsLeaderboardSetGetCommand returns the member localization leaderboard set get subcommand.
 func GameCenterLeaderboardSetMemberLocalizationsLeaderboardSetGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc game-center leaderboard-sets member-localizations leaderboard-set view --id \"LOCALIZATION_ID\"",
-		ShortHelp:   "View a leaderboard set for a member localization.",
+		Name:       "view",
+		ShortUsage: "asc game-center leaderboard-sets member-localizations leaderboard-set view --id \"LOCALIZATION_ID\"",
+		ShortHelp:  "View a leaderboard set for a member localization.",
 		LongHelp: `View a leaderboard set for a member localization.
 
 Examples:
@@ -1132,8 +1092,6 @@ Examples:
 		IDUsage:            "Leaderboard set member localization ID",
 		IDType:             "gameCenterLeaderboardSetMemberLocalizations",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center leaderboard-sets member-localizations leaderboard-set view",
-		FetchErrorPrefix:   "game-center leaderboard-sets member-localizations leaderboard-set view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterLeaderboardSetMemberLocalizationLeaderboardSet(ctx, id)
 		},

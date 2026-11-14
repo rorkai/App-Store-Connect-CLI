@@ -10,6 +10,12 @@ import (
 	"strings"
 )
 
+// GameCenterChallengeVersionAttributes is the attributes object of the GameCenterChallengeVersion schema.
+type GameCenterChallengeVersionAttributes struct {
+	Version int                    `json:"version,omitempty"`
+	State   GameCenterVersionState `json:"state,omitempty"`
+}
+
 // GameCenterChallengeVersionCreateData is the data object of the GameCenterChallengeVersionCreateRequest schema.
 type GameCenterChallengeVersionCreateData struct {
 	Type          ResourceType                             `json:"type"`

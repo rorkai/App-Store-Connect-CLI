@@ -89,11 +89,6 @@ const (
 	AppClipAdvancedExperienceLanguageZH AppClipAdvancedExperienceLanguage = "ZH"
 )
 
-// AppClipDefaultExperienceAttributes describes App Clip default experience attributes.
-type AppClipDefaultExperienceAttributes struct {
-	Action AppClipAction `json:"action,omitempty"`
-}
-
 // AppClipAdvancedExperienceAttributes describes advanced experience attributes.
 type AppClipAdvancedExperienceAttributes struct {
 	Link string `json:"link,omitempty"`
@@ -126,16 +121,6 @@ type AppClipHeaderImageAttributes struct {
 	ImageAsset         *ImageAsset         `json:"imageAsset,omitempty"`
 	UploadOperations   []UploadOperation   `json:"uploadOperations,omitempty"`
 	AssetDeliveryState *AssetDeliveryState `json:"assetDeliveryState,omitempty"`
-}
-
-// AppClipDefaultExperienceCreateAttributes describes default experience create attributes.
-type AppClipDefaultExperienceCreateAttributes struct {
-	Action *AppClipAction `json:"action,omitempty"`
-}
-
-// AppClipDefaultExperienceUpdateAttributes describes default experience update attributes.
-type AppClipDefaultExperienceUpdateAttributes struct {
-	Action *AppClipAction `json:"action,omitempty"`
 }
 
 // AppClipAdvancedExperienceCreateAttributes describes advanced experience create attributes.
@@ -317,40 +302,10 @@ type AppClipHeaderImageUploadResult struct {
 	Uploaded           bool   `json:"uploaded"`
 }
 
-// AppClipDefaultExperienceDeleteResult represents default experience deletion.
-type AppClipDefaultExperienceDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
-// AppClipDefaultExperienceLocalizationDeleteResult represents localization deletion.
-type AppClipDefaultExperienceLocalizationDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
 // AppClipAdvancedExperienceRemoveResult represents advanced experience removal.
 type AppClipAdvancedExperienceRemoveResult struct {
 	ID      string `json:"id"`
 	Removed bool   `json:"removed"`
-}
-
-// AppClipHeaderImageDeleteResult represents header image deletion.
-type AppClipHeaderImageDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
-// BetaAppClipInvocationDeleteResult represents invocation deletion.
-type BetaAppClipInvocationDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
-// BetaAppClipInvocationLocalizationDeleteResult represents localization deletion.
-type BetaAppClipInvocationLocalizationDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
 }
 
 // GetAppClips retrieves App Clips for an app.
@@ -651,27 +606,6 @@ func (c *Client) DeleteAppClipAdvancedExperience(ctx context.Context, experience
 	return err
 }
 
-// UpdateAppClipAdvancedExperienceImage commits an upload.
-func (c *Client) UpdateAppClipAdvancedExperienceImage(ctx context.Context, imageID string, uploaded bool, checksumHash string) (*AppClipAdvancedExperienceImageResponse, error) {
-	imageID = strings.TrimSpace(imageID)
-	if imageID == "" {
-		return nil, fmt.Errorf("imageID is required")
-	}
-
-	payload := AppClipAdvancedExperienceImageUpdateRequest{
-		Data: AppClipAdvancedExperienceImageUpdateData{
-			Type: ResourceTypeAppClipAdvancedExperienceImages,
-			ID:   imageID,
-			Attributes: &AppClipAdvancedExperienceImageUpdateAttributes{
-				SourceFileChecksum: &checksumHash,
-				Uploaded:           &uploaded,
-			},
-		},
-	}
-
-	return sendJSON[AppClipAdvancedExperienceImageResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/appClipAdvancedExperienceImages/%s", imageID), Payload: payload})
-}
-
 // UploadAppClipAdvancedExperienceImage performs the full upload flow for an image.
 func (c *Client) UploadAppClipAdvancedExperienceImage(ctx context.Context, filePath string) (*AppClipAdvancedExperienceImageUploadResult, error) {
 	if err := ValidateImageFile(filePath); err != nil {
@@ -722,52 +656,6 @@ func (c *Client) UploadAppClipAdvancedExperienceImage(ctx context.Context, fileP
 		AssetDeliveryState: state,
 		Uploaded:           true,
 	}, nil
-}
-
-// CreateAppClipHeaderImage reserves a header image upload.
-func (c *Client) CreateAppClipHeaderImage(ctx context.Context, localizationID string, fileName string, fileSize int64) (*AppClipHeaderImageResponse, error) {
-	localizationID = strings.TrimSpace(localizationID)
-	if localizationID == "" {
-		return nil, fmt.Errorf("localizationID is required")
-	}
-
-	payload := AppClipHeaderImageCreateRequest{
-		Data: AppClipHeaderImageCreateData{
-			Type:       ResourceTypeAppClipHeaderImages,
-			Attributes: AppClipHeaderImageCreateAttributes{FileName: fileName, FileSize: fileSize},
-			Relationships: &AppClipHeaderImageRelationships{
-				AppClipDefaultExperienceLocalization: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeAppClipDefaultExperienceLocalizations,
-						ID:   localizationID,
-					},
-				},
-			},
-		},
-	}
-
-	return sendJSON[AppClipHeaderImageResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/appClipHeaderImages", Payload: payload})
-}
-
-// UpdateAppClipHeaderImage commits a header image upload.
-func (c *Client) UpdateAppClipHeaderImage(ctx context.Context, imageID string, uploaded bool, checksumHash string) (*AppClipHeaderImageResponse, error) {
-	imageID = strings.TrimSpace(imageID)
-	if imageID == "" {
-		return nil, fmt.Errorf("imageID is required")
-	}
-
-	payload := AppClipHeaderImageUpdateRequest{
-		Data: AppClipHeaderImageUpdateData{
-			Type: ResourceTypeAppClipHeaderImages,
-			ID:   imageID,
-			Attributes: &AppClipHeaderImageUpdateAttributes{
-				SourceFileChecksum: &checksumHash,
-				Uploaded:           &uploaded,
-			},
-		},
-	}
-
-	return sendJSON[AppClipHeaderImageResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/appClipHeaderImages/%s", imageID), Payload: payload})
 }
 
 // UploadAppClipHeaderImage performs the full upload flow for a header image.

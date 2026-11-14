@@ -322,10 +322,9 @@ Examples:
 // ReviewDetailsAttachmentsDeleteCommand returns the review attachments delete subcommand.
 func ReviewDetailsAttachmentsDeleteCommand() *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		FlagSetName: "attachments-delete",
-		Name:        "attachments-delete",
-		ShortUsage:  "asc review attachments-delete --id \"ATTACHMENT_ID\" --confirm",
-		ShortHelp:   "Delete a review attachment.",
+		Name:       "attachments-delete",
+		ShortUsage: "asc review attachments-delete --id \"ATTACHMENT_ID\" --confirm",
+		ShortHelp:  "Delete a review attachment.",
 		LongHelp: `Delete a review attachment.
 
 Examples:
@@ -334,13 +333,11 @@ Examples:
 		IDUsage:            "Review attachment ID (required)",
 		IDType:             "appStoreReviewAttachments",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "review attachments-delete",
-		DeleteErrorPrefix:  "review attachments-delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteAppStoreReviewAttachment(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.AppStoreReviewAttachmentDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }

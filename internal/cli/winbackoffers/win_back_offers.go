@@ -152,15 +152,15 @@ Examples:
 
 			fieldsValue, err := normalizeWinBackOfferFields(*fields, "--fields")
 			if err != nil {
-				return fmt.Errorf("win-back-offers list: %w", err)
+				return shared.UsageErrorfCtx(ctx, "win-back-offers list: %v", err)
 			}
 			priceFieldsValue, err := normalizeWinBackOfferPriceFields(*priceFields, "--price-fields")
 			if err != nil {
-				return fmt.Errorf("win-back-offers list: %w", err)
+				return shared.UsageErrorfCtx(ctx, "win-back-offers list: %v", err)
 			}
 			includeValue, err := normalizeWinBackOfferInclude(*include, "--include")
 			if err != nil {
-				return fmt.Errorf("win-back-offers list: %w", err)
+				return shared.UsageErrorfCtx(ctx, "win-back-offers list: %v", err)
 			}
 			if len(priceFieldsValue) > 0 && !shared.HasInclude(includeValue, "prices") {
 				fmt.Fprintln(os.Stderr, "Error: --price-fields requires --include prices")
@@ -236,18 +236,17 @@ Examples:
 // WinBackOffersGetCommand returns the win-back offers get subcommand.
 func WinBackOffersGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc win-back-offers view --id OFFER_ID",
-		ShortHelp:   "View a win-back offer by ID.",
+		Name:       "view",
+		ShortUsage: "asc win-back-offers view --id OFFER_ID",
+		ShortHelp:  "View a win-back offer by ID.",
 		LongHelp: `View a win-back offer by ID.
 
 Examples:
   asc win-back-offers view --id "OFFER_ID"`,
-		IDFlag:      "id",
-		IDUsage:     "Win-back offer ID",
-		IDType:      "winBackOffers",
-		ErrorPrefix: "win-back-offers view",
+		IDFlag:           "id",
+		IDUsage:          "Win-back offer ID",
+		IDType:           "winBackOffers",
+		FetchErrorPrefix: "win-back-offers view",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetWinBackOffer(ctx, id)
 		},
@@ -699,10 +698,9 @@ Examples:
 // WinBackOffersDeleteCommand returns the win-back offers delete subcommand.
 func WinBackOffersDeleteCommand() *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc win-back-offers delete --id OFFER_ID --confirm",
-		ShortHelp:   "Delete a win-back offer.",
+		Name:       "delete",
+		ShortUsage: "asc win-back-offers delete --id OFFER_ID --confirm",
+		ShortHelp:  "Delete a win-back offer.",
 		LongHelp: `Delete a win-back offer.
 
 Examples:
@@ -711,13 +709,11 @@ Examples:
 		IDUsage:            "Win-back offer ID",
 		IDType:             "winBackOffers",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "win-back-offers delete",
-		DeleteErrorPrefix:  "win-back-offers delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteWinBackOffer(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.WinBackOfferDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }
@@ -766,19 +762,19 @@ Examples:
 
 			fieldsValue, err := normalizeWinBackOfferPriceFields(*fields, "--fields")
 			if err != nil {
-				return fmt.Errorf("win-back-offers prices: %w", err)
+				return shared.UsageErrorfCtx(ctx, "win-back-offers prices: %v", err)
 			}
 			territoryFieldsValue, err := normalizeWinBackOfferTerritoryFields(*territoryFields, "--territory-fields")
 			if err != nil {
-				return fmt.Errorf("win-back-offers prices: %w", err)
+				return shared.UsageErrorfCtx(ctx, "win-back-offers prices: %v", err)
 			}
 			pricePointFieldsValue, err := normalizeWinBackOfferSubscriptionPricePointFields(*pricePointFields, "--price-point-fields")
 			if err != nil {
-				return fmt.Errorf("win-back-offers prices: %w", err)
+				return shared.UsageErrorfCtx(ctx, "win-back-offers prices: %v", err)
 			}
 			includeValue, err := normalizeWinBackOfferPriceInclude(*include, "--include")
 			if err != nil {
-				return fmt.Errorf("win-back-offers prices: %w", err)
+				return shared.UsageErrorfCtx(ctx, "win-back-offers prices: %v", err)
 			}
 			territoryFilter, err := shared.NormalizeASCTerritoryCSV(*territories)
 			if err != nil {
@@ -841,20 +837,19 @@ Examples:
 // WinBackOffersPricesRelationshipsCommand returns the price links subcommand.
 func WinBackOffersPricesRelationshipsCommand() *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "prices-links",
-		Name:        "prices-links",
-		ShortUsage:  "asc win-back-offers prices-links --id OFFER_ID [flags]",
-		ShortHelp:   "List price relationships for a win-back offer.",
+		Name:       "prices-links",
+		ShortUsage: "asc win-back-offers prices-links --id OFFER_ID [flags]",
+		ShortHelp:  "List price relationships for a win-back offer.",
 		LongHelp: `List price relationships for a win-back offer.
 
 Examples:
   asc win-back-offers prices-links --id "OFFER_ID"
   asc win-back-offers prices-links --id "OFFER_ID" --paginate`,
-		ParentFlag:  "id",
-		ParentUsage: "Win-back offer ID",
-		ParentType:  "winBackOffers",
-		LimitMax:    winBackOffersMaxLimit,
-		ErrorPrefix: "win-back-offers prices-links",
+		ParentFlag:       "id",
+		ParentUsage:      "Win-back offer ID",
+		ParentType:       "winBackOffers",
+		LimitMax:         winBackOffersMaxLimit,
+		FetchErrorPrefix: "win-back-offers prices-links",
 		FetchPage: func(ctx context.Context, client *asc.Client, offerID string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := []asc.LinkagesOption{
 				asc.Limit[asc.LinkagesOption](limit),

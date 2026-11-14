@@ -100,15 +100,15 @@ Examples:
 
 			fieldsValue, err := normalizePassTypeIDFields(*fields, "--fields")
 			if err != nil {
-				return fmt.Errorf("pass-type-ids list: %w", err)
+				return d.UsageErrorf("pass-type-ids list: %v", err)
 			}
 			certificateFieldsValue, err := normalizeCertificateFields(*certificateFields, "--certificate-fields")
 			if err != nil {
-				return fmt.Errorf("pass-type-ids list: %w", err)
+				return d.UsageErrorf("pass-type-ids list: %v", err)
 			}
 			includeValue, err := normalizePassTypeIDInclude(*include)
 			if err != nil {
-				return fmt.Errorf("pass-type-ids list: %w", err)
+				return d.UsageErrorf("pass-type-ids list: %v", err)
 			}
 			if len(certificateFieldsValue) > 0 && !shared.HasInclude(includeValue, "certificates") {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --certificate-fields requires --include certificates")
@@ -216,15 +216,15 @@ Examples:
 
 			fieldsValue, err := normalizePassTypeIDFields(*fields, "--fields")
 			if err != nil {
-				return fmt.Errorf("pass-type-ids view: %w", err)
+				return d.UsageErrorf("pass-type-ids view: %v", err)
 			}
 			certificateFieldsValue, err := normalizeCertificateFields(*certificateFields, "--certificate-fields")
 			if err != nil {
-				return fmt.Errorf("pass-type-ids view: %w", err)
+				return d.UsageErrorf("pass-type-ids view: %v", err)
 			}
 			includeValue, err := normalizePassTypeIDInclude(*include)
 			if err != nil {
-				return fmt.Errorf("pass-type-ids view: %w", err)
+				return d.UsageErrorf("pass-type-ids view: %v", err)
 			}
 			if len(certificateFieldsValue) > 0 && !shared.HasInclude(includeValue, "certificates") {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --certificate-fields requires --include certificates")
@@ -369,10 +369,9 @@ Examples:
 // newPassTypeIDsDeleteCommand returns the pass type IDs delete subcommand.
 func newPassTypeIDsDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc pass-type-ids delete --pass-type-id \"PASS_ID\" --confirm",
-		ShortHelp:   "Delete a pass type ID.",
+		Name:       "delete",
+		ShortUsage: "asc pass-type-ids delete --pass-type-id \"PASS_ID\" --confirm",
+		ShortHelp:  "Delete a pass type ID.",
 		LongHelp: `Delete a pass type ID.
 
 Examples:
@@ -381,14 +380,12 @@ Examples:
 		IDUsage:            "Pass type ID",
 		IDType:             "passTypeIds",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "pass-type-ids delete",
-		DeleteErrorPrefix:  "pass-type-ids delete: failed to delete",
 		Deps:               d,
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeletePassTypeID(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.PassTypeIDDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }

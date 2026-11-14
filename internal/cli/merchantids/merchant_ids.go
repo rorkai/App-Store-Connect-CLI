@@ -99,15 +99,15 @@ Examples:
 
 			fieldsValue, err := normalizeMerchantIDFields(*fields, "--fields")
 			if err != nil {
-				return fmt.Errorf("merchant-ids list: %w", err)
+				return shared.UsageErrorf("merchant-ids list: %v", err)
 			}
 			certificateFieldsValue, err := normalizeCertificateFields(*certificateFields, "--certificate-fields")
 			if err != nil {
-				return fmt.Errorf("merchant-ids list: %w", err)
+				return shared.UsageErrorf("merchant-ids list: %v", err)
 			}
 			includeValue, err := normalizeMerchantIDInclude(*include, "--include")
 			if err != nil {
-				return fmt.Errorf("merchant-ids list: %w", err)
+				return shared.UsageErrorf("merchant-ids list: %v", err)
 			}
 			if len(certificateFieldsValue) > 0 && !shared.HasInclude(includeValue, "certificates") {
 				fmt.Fprintln(os.Stderr, "Error: --certificate-fields requires --include certificates")
@@ -201,15 +201,15 @@ Examples:
 
 			fieldsValue, err := normalizeMerchantIDFields(*fields, "--fields")
 			if err != nil {
-				return fmt.Errorf("merchant-ids view: %w", err)
+				return shared.UsageErrorf("merchant-ids view: %v", err)
 			}
 			certificateFieldsValue, err := normalizeCertificateFields(*certificateFields, "--certificate-fields")
 			if err != nil {
-				return fmt.Errorf("merchant-ids view: %w", err)
+				return shared.UsageErrorf("merchant-ids view: %v", err)
 			}
 			includeValue, err := normalizeMerchantIDInclude(*include, "--include")
 			if err != nil {
-				return fmt.Errorf("merchant-ids view: %w", err)
+				return shared.UsageErrorf("merchant-ids view: %v", err)
 			}
 			if len(certificateFieldsValue) > 0 && !shared.HasInclude(includeValue, "certificates") {
 				fmt.Fprintln(os.Stderr, "Error: --certificate-fields requires --include certificates")
@@ -354,10 +354,9 @@ Examples:
 // MerchantIDsDeleteCommand returns the merchant IDs delete subcommand.
 func MerchantIDsDeleteCommand() *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc merchant-ids delete --merchant-id \"MERCHANT_ID\" --confirm",
-		ShortHelp:   "Delete a merchant ID.",
+		Name:       "delete",
+		ShortUsage: "asc merchant-ids delete --merchant-id \"MERCHANT_ID\" --confirm",
+		ShortHelp:  "Delete a merchant ID.",
 		LongHelp: `Delete a merchant ID.
 
 Examples:
@@ -366,13 +365,11 @@ Examples:
 		IDUsage:            "Merchant ID",
 		IDType:             "merchantIds",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "merchant-ids delete",
-		DeleteErrorPrefix:  "merchant-ids delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteMerchantID(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.MerchantIDDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }

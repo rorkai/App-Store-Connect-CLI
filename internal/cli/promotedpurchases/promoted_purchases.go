@@ -131,11 +131,10 @@ Examples:
 // newPromotedPurchasesGetCommand returns the promoted purchases get subcommand.
 func newPromotedPurchasesGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		Deps:        d,
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc promoted-purchases view --promoted-purchase-id PROMO_ID",
-		ShortHelp:   "View a promoted purchase by ID.",
+		Deps:       d,
+		Name:       "view",
+		ShortUsage: "asc promoted-purchases view --promoted-purchase-id PROMO_ID",
+		ShortHelp:  "View a promoted purchase by ID.",
 		LongHelp: `View a promoted purchase by ID.
 
 Examples:
@@ -144,8 +143,6 @@ Examples:
 		IDUsage:            "Promoted purchase ID",
 		IDType:             "promotedPurchases",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "promoted-purchases view",
-		FetchErrorPrefix:   "promoted-purchases view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetPromotedPurchase(ctx, id)
 		},
@@ -355,7 +352,7 @@ Examples:
 				return fmt.Errorf("promoted-purchases delete: failed to delete: %w", err)
 			}
 
-			result := &asc.PromotedPurchaseDeleteResult{
+			result := &asc.DeleteResult{
 				ID:      idValue,
 				Deleted: true,
 			}

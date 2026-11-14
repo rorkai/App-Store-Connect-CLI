@@ -53,8 +53,6 @@ Examples:
 		IDUsage:            "App Store version ID (required)",
 		IDType:             "appStoreVersions",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "routing-coverage view",
-		FetchErrorPrefix:   "routing-coverage view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetRoutingAppCoverageForVersion(ctx, id)
 		},
@@ -166,13 +164,11 @@ Examples:
 		IDUsage:            "Routing app coverage ID (required)",
 		IDType:             "routingAppCoverages",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "routing-coverage delete",
-		DeleteErrorPrefix:  "routing-coverage delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteRoutingAppCoverage(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.RoutingAppCoverageDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }

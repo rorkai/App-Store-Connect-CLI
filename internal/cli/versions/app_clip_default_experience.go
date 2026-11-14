@@ -47,8 +47,6 @@ Examples:
 		IDUsage:            "App Store version ID",
 		IDType:             "appStoreVersions",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "versions app-clip-default-experience view",
-		FetchErrorPrefix:   "versions app-clip-default-experience view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetAppStoreVersionAppClipDefaultExperience(ctx, id)
 		},

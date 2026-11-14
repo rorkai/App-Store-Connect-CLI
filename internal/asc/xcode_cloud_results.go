@@ -152,14 +152,6 @@ type CiTestResultResponse struct {
 	Links Links                `json:"links"`
 }
 
-// CiIssueAttributes describes a CI issue resource.
-type CiIssueAttributes struct {
-	IssueType  string        `json:"issueType,omitempty"`
-	Message    string        `json:"message,omitempty"`
-	FileSource *FileLocation `json:"fileSource,omitempty"`
-	Category   string        `json:"category,omitempty"`
-}
-
 // CiIssueResource represents a CI issue resource.
 type CiIssueResource struct {
 	Type       ResourceType      `json:"type"`

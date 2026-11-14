@@ -135,10 +135,9 @@ Examples:
 // BetaAppLocalizationsGetCommand returns the get subcommand.
 func BetaAppLocalizationsGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc beta-app-localizations view --id \"LOCALIZATION_ID\"",
-		ShortHelp:   "View a beta app localization by ID.",
+		Name:       "view",
+		ShortUsage: "asc beta-app-localizations view --id \"LOCALIZATION_ID\"",
+		ShortHelp:  "View a beta app localization by ID.",
 		LongHelp: `View a beta app localization by ID.
 
 Examples:
@@ -146,8 +145,6 @@ Examples:
 		IDUsage:            "Beta app localization ID",
 		IDType:             "betaAppLocalizations",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "beta-app-localizations view",
-		FetchErrorPrefix:   "beta-app-localizations view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetBetaAppLocalization(ctx, id)
 		},
@@ -318,10 +315,9 @@ Examples:
 // BetaAppLocalizationsDeleteCommand returns the delete subcommand.
 func BetaAppLocalizationsDeleteCommand() *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc beta-app-localizations delete --id \"LOCALIZATION_ID\" --confirm",
-		ShortHelp:   "Delete a beta app localization.",
+		Name:       "delete",
+		ShortUsage: "asc beta-app-localizations delete --id \"LOCALIZATION_ID\" --confirm",
+		ShortHelp:  "Delete a beta app localization.",
 		LongHelp: `Delete a beta app localization.
 
 Examples:
@@ -330,13 +326,11 @@ Examples:
 		IDUsage:            "Beta app localization ID",
 		IDType:             "betaAppLocalizations",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "beta-app-localizations delete",
-		DeleteErrorPrefix:  "beta-app-localizations delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteBetaAppLocalization(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.BetaAppLocalizationDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }

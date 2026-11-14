@@ -252,15 +252,6 @@ func buildIAPLocalizationV2Query(q *iapLocalizationV2Query) string {
 	return values.Encode()
 }
 
-func (c *Client) GetInAppPurchaseVersion(ctx context.Context, versionID string, opts ...IAPVersionGetOption) (*InAppPurchaseVersionResponse, error) {
-	versionID = strings.TrimSpace(versionID)
-	if versionID == "" {
-		return nil, fmt.Errorf("versionID is required")
-	}
-	q := applyOptions(opts)
-	return getJSON[InAppPurchaseVersionResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/inAppPurchaseVersions/%s", versionID), Query: buildIAPVersionGetQuery(q)})
-}
-
 func (c *Client) GetInAppPurchaseVersions(ctx context.Context, iapID string, opts ...IAPVersionsOption) (*InAppPurchaseVersionsResponse, error) {
 	return c.getInAppPurchaseVersions(ctx, iapID, false, opts...)
 }
@@ -308,45 +299,8 @@ func (c *Client) GetInAppPurchaseVersionsRelationships(ctx context.Context, iapI
 	return c.getResourceLinkages(ctx, iapID, "versions", "iapID", "/v2/inAppPurchases/%s/relationships/%s", "inAppPurchaseVersionsRelationships", opts...)
 }
 
-func (c *Client) GetInAppPurchaseVersionImage(ctx context.Context, versionID string, opts ...IAPVersionImageOption) (*InAppPurchaseImageV2Response, error) {
-	versionID = strings.TrimSpace(versionID)
-	if versionID == "" {
-		return nil, fmt.Errorf("versionID is required")
-	}
-	q := applyOptions(opts)
-	return getJSON[InAppPurchaseImageV2Response](ctx, c, readRequest{Path: fmt.Sprintf("/v1/inAppPurchaseVersions/%s/image", versionID), Query: buildIAPImageFieldsQuery(q)})
-}
-
-func (c *Client) GetInAppPurchaseVersionImages(ctx context.Context, versionID string, opts ...IAPVersionImagesOption) (*InAppPurchaseImagesV2Response, error) {
-	q := applyOptions(opts)
-	versionID = strings.TrimSpace(versionID)
-	if q.nextURL == "" && versionID == "" {
-		return nil, fmt.Errorf("versionID is required")
-	}
-	return getJSON[InAppPurchaseImagesV2Response](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/inAppPurchaseVersions/%s/images", versionID),
-		Query:       buildIAPVersionImagesQuery(q),
-		Next:        q.nextURL,
-		NextContext: "in-app-purchase-version-images",
-	})
-}
-
 func (c *Client) GetInAppPurchaseVersionImagesRelationships(ctx context.Context, versionID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
 	return c.getResourceLinkages(ctx, versionID, "images", "versionID", "/v1/inAppPurchaseVersions/%s/relationships/%s", "inAppPurchaseVersionImagesRelationships", opts...)
-}
-
-func (c *Client) GetInAppPurchaseVersionLocalizations(ctx context.Context, versionID string, opts ...IAPVersionLocalizationsOption) (*InAppPurchaseLocalizationsResponse, error) {
-	q := applyOptions(opts)
-	versionID = strings.TrimSpace(versionID)
-	if q.nextURL == "" && versionID == "" {
-		return nil, fmt.Errorf("versionID is required")
-	}
-	return getJSON[InAppPurchaseLocalizationsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/inAppPurchaseVersions/%s/localizations", versionID),
-		Query:       buildIAPVersionLocalizationsQuery(q),
-		Next:        q.nextURL,
-		NextContext: "in-app-purchase-version-localizations",
-	})
 }
 
 func (c *Client) GetInAppPurchaseVersionLocalizationsRelationships(ctx context.Context, versionID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
@@ -368,15 +322,6 @@ func (c *Client) CreateInAppPurchaseLocalizationV2(ctx context.Context, versionI
 	}
 	payload := InAppPurchaseLocalizationV2CreateRequest{Data: InAppPurchaseLocalizationV2CreateData{Type: ResourceTypeInAppPurchaseLocalizations, Attributes: attrs, Relationships: InAppPurchaseLocalizationV2CreateRelationships{Version: Relationship{Data: ResourceData{Type: ResourceTypeInAppPurchaseVersions, ID: versionID}}}}}
 	return sendJSON[InAppPurchaseLocalizationResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v2/inAppPurchaseLocalizations", Payload: payload})
-}
-
-func (c *Client) GetInAppPurchaseLocalizationV2(ctx context.Context, localizationID string, opts ...IAPLocalizationV2Option) (*InAppPurchaseLocalizationResponse, error) {
-	localizationID = strings.TrimSpace(localizationID)
-	if localizationID == "" {
-		return nil, fmt.Errorf("localizationID is required")
-	}
-	q := applyOptions(opts)
-	return getJSON[InAppPurchaseLocalizationResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v2/inAppPurchaseLocalizations/%s", localizationID), Query: buildIAPLocalizationV2Query(q)})
 }
 
 func (c *Client) UpdateInAppPurchaseLocalizationV2(ctx context.Context, localizationID string, attrs InAppPurchaseLocalizationUpdateAttributes) (*InAppPurchaseLocalizationResponse, error) {
@@ -405,13 +350,4 @@ func (c *Client) CreateInAppPurchaseImageV2(ctx context.Context, versionID, file
 	}
 	payload := InAppPurchaseImageV2CreateRequest{Data: InAppPurchaseImageV2CreateData{Type: ResourceTypeInAppPurchaseImages, Attributes: InAppPurchaseImageV2CreateAttributes{FileName: fileName, FileSize: fileSize}, Relationships: InAppPurchaseImageV2CreateRelationships{Version: Relationship{Data: ResourceData{Type: ResourceTypeInAppPurchaseVersions, ID: versionID}}}}}
 	return sendJSON[InAppPurchaseImageV2Response](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v2/inAppPurchaseImages", Payload: payload})
-}
-
-func (c *Client) GetInAppPurchaseImageV2(ctx context.Context, imageID string, opts ...IAPImageV2Option) (*InAppPurchaseImageV2Response, error) {
-	imageID = strings.TrimSpace(imageID)
-	if imageID == "" {
-		return nil, fmt.Errorf("imageID is required")
-	}
-	q := applyOptions(opts)
-	return getJSON[InAppPurchaseImageV2Response](ctx, c, readRequest{Path: fmt.Sprintf("/v2/inAppPurchaseImages/%s", imageID), Query: buildIAPImageFieldsQuery(q)})
 }

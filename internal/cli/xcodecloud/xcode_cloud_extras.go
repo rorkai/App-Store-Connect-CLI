@@ -77,19 +77,18 @@ Examples:
 
 func XcodeCloudProductsGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc xcode-cloud products view --id \"PRODUCT_ID\"",
-		ShortHelp:   "View details for a product.",
+		Name:       "view",
+		ShortUsage: "asc xcode-cloud products view --id \"PRODUCT_ID\"",
+		ShortHelp:  "View details for a product.",
 		LongHelp: `View details for a product.
 
 Examples:
   asc xcode-cloud products view --id "PRODUCT_ID"
   asc xcode-cloud products view --id "PRODUCT_ID" --output table`,
-		IDFlag:      "id",
-		IDUsage:     "Product ID",
-		IDType:      "ciProducts",
-		ErrorPrefix: "xcode-cloud products view",
+		IDFlag:           "id",
+		IDUsage:          "Product ID",
+		IDType:           "ciProducts",
+		FetchErrorPrefix: "xcode-cloud products view",
 		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
 			return contextWithXcodeCloudTimeout(ctx, 0)
 		},
@@ -182,21 +181,20 @@ Examples:
 
 func XcodeCloudProductsBuildRunsCommand() *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "build-runs",
-		Name:        "build-runs",
-		ShortUsage:  "asc xcode-cloud products build-runs [flags]",
-		ShortHelp:   "List build runs for a product.",
+		Name:       "build-runs",
+		ShortUsage: "asc xcode-cloud products build-runs [flags]",
+		ShortHelp:  "List build runs for a product.",
 		LongHelp: `List build runs for a product.
 
 Examples:
   asc xcode-cloud products build-runs --id "PRODUCT_ID"
   asc xcode-cloud products build-runs --id "PRODUCT_ID" --limit 50
   asc xcode-cloud products build-runs --id "PRODUCT_ID" --paginate`,
-		ParentFlag:  "id",
-		ParentUsage: "Product ID",
-		ParentType:  "ciProducts",
-		LimitMax:    200,
-		ErrorPrefix: "xcode-cloud products build-runs",
+		ParentFlag:       "id",
+		ParentUsage:      "Product ID",
+		ParentType:       "ciProducts",
+		LimitMax:         200,
+		FetchErrorPrefix: "xcode-cloud products build-runs",
 		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
 			return contextWithXcodeCloudTimeout(ctx, 0)
 		},
@@ -212,21 +210,20 @@ Examples:
 
 func XcodeCloudProductsWorkflowsCommand() *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "workflows",
-		Name:        "workflows",
-		ShortUsage:  "asc xcode-cloud products workflows [flags]",
-		ShortHelp:   "List workflows for a product.",
+		Name:       "workflows",
+		ShortUsage: "asc xcode-cloud products workflows [flags]",
+		ShortHelp:  "List workflows for a product.",
 		LongHelp: `List workflows for a product.
 
 Examples:
   asc xcode-cloud products workflows --id "PRODUCT_ID"
   asc xcode-cloud products workflows --id "PRODUCT_ID" --limit 50
   asc xcode-cloud products workflows --id "PRODUCT_ID" --paginate`,
-		ParentFlag:  "id",
-		ParentUsage: "Product ID",
-		ParentType:  "ciProducts",
-		LimitMax:    200,
-		ErrorPrefix: "xcode-cloud products workflows",
+		ParentFlag:       "id",
+		ParentUsage:      "Product ID",
+		ParentType:       "ciProducts",
+		LimitMax:         200,
+		FetchErrorPrefix: "xcode-cloud products workflows",
 		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
 			return contextWithXcodeCloudTimeout(ctx, 0)
 		},
@@ -242,21 +239,20 @@ Examples:
 
 func XcodeCloudProductsPrimaryRepositoriesCommand() *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "primary-repositories",
-		Name:        "primary-repositories",
-		ShortUsage:  "asc xcode-cloud products primary-repositories [flags]",
-		ShortHelp:   "List primary repositories for a product.",
+		Name:       "primary-repositories",
+		ShortUsage: "asc xcode-cloud products primary-repositories [flags]",
+		ShortHelp:  "List primary repositories for a product.",
 		LongHelp: `List primary repositories for a product.
 
 Examples:
   asc xcode-cloud products primary-repositories --id "PRODUCT_ID"
   asc xcode-cloud products primary-repositories --id "PRODUCT_ID" --limit 50
   asc xcode-cloud products primary-repositories --id "PRODUCT_ID" --paginate`,
-		ParentFlag:  "id",
-		ParentUsage: "Product ID",
-		ParentType:  "ciProducts",
-		LimitMax:    200,
-		ErrorPrefix: "xcode-cloud products primary-repositories",
+		ParentFlag:       "id",
+		ParentUsage:      "Product ID",
+		ParentType:       "ciProducts",
+		LimitMax:         200,
+		FetchErrorPrefix: "xcode-cloud products primary-repositories",
 		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
 			return contextWithXcodeCloudTimeout(ctx, 0)
 		},
@@ -272,21 +268,20 @@ Examples:
 
 func XcodeCloudProductsAdditionalRepositoriesCommand() *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "additional-repositories",
-		Name:        "additional-repositories",
-		ShortUsage:  "asc xcode-cloud products additional-repositories [flags]",
-		ShortHelp:   "List additional repositories for a product.",
+		Name:       "additional-repositories",
+		ShortUsage: "asc xcode-cloud products additional-repositories [flags]",
+		ShortHelp:  "List additional repositories for a product.",
 		LongHelp: `List additional repositories for a product.
 
 Examples:
   asc xcode-cloud products additional-repositories --id "PRODUCT_ID"
   asc xcode-cloud products additional-repositories --id "PRODUCT_ID" --limit 50
   asc xcode-cloud products additional-repositories --id "PRODUCT_ID" --paginate`,
-		ParentFlag:  "id",
-		ParentUsage: "Product ID",
-		ParentType:  "ciProducts",
-		LimitMax:    200,
-		ErrorPrefix: "xcode-cloud products additional-repositories",
+		ParentFlag:       "id",
+		ParentUsage:      "Product ID",
+		ParentType:       "ciProducts",
+		LimitMax:         200,
+		FetchErrorPrefix: "xcode-cloud products additional-repositories",
 		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
 			return contextWithXcodeCloudTimeout(ctx, 0)
 		},
@@ -302,18 +297,17 @@ Examples:
 
 func XcodeCloudProductsDeleteCommand() *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc xcode-cloud products delete --id \"PRODUCT_ID\" --confirm",
-		ShortHelp:   "Delete a product.",
+		Name:       "delete",
+		ShortUsage: "asc xcode-cloud products delete --id \"PRODUCT_ID\" --confirm",
+		ShortHelp:  "Delete a product.",
 		LongHelp: `Delete a product.
 
 Examples:
   asc xcode-cloud products delete --id "PRODUCT_ID" --confirm`,
-		IDFlag:      "id",
-		IDUsage:     "Product ID",
-		IDType:      "ciProducts",
-		ErrorPrefix: "xcode-cloud products delete",
+		IDFlag:            "id",
+		IDUsage:           "Product ID",
+		IDType:            "ciProducts",
+		DeleteErrorPrefix: "xcode-cloud products delete",
 		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
 			return contextWithXcodeCloudTimeout(ctx, 0)
 		},
@@ -324,7 +318,7 @@ Examples:
 			return nil
 		},
 		Result: func(id string) any {
-			return &asc.CiProductDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }
@@ -655,19 +649,18 @@ Examples:
 
 func XcodeCloudMacOSVersionsGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc xcode-cloud macos-versions view --id \"MACOS_VERSION_ID\"",
-		ShortHelp:   "View details for a macOS version.",
+		Name:       "view",
+		ShortUsage: "asc xcode-cloud macos-versions view --id \"MACOS_VERSION_ID\"",
+		ShortHelp:  "View details for a macOS version.",
 		LongHelp: `View details for a macOS version.
 
 Examples:
   asc xcode-cloud macos-versions view --id "MACOS_VERSION_ID"
   asc xcode-cloud macos-versions view --id "MACOS_VERSION_ID" --output table`,
-		IDFlag:      "id",
-		IDUsage:     "macOS version ID",
-		IDType:      "ciMacOsVersions",
-		ErrorPrefix: "xcode-cloud macos-versions view",
+		IDFlag:           "id",
+		IDUsage:          "macOS version ID",
+		IDType:           "ciMacOsVersions",
+		FetchErrorPrefix: "xcode-cloud macos-versions view",
 		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
 			return contextWithXcodeCloudTimeout(ctx, 0)
 		},
@@ -679,21 +672,20 @@ Examples:
 
 func XcodeCloudMacOSVersionsXcodeVersionsCommand() *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "xcode-versions",
-		Name:        "xcode-versions",
-		ShortUsage:  "asc xcode-cloud macos-versions xcode-versions [flags]",
-		ShortHelp:   "List Xcode versions for a macOS version.",
+		Name:       "xcode-versions",
+		ShortUsage: "asc xcode-cloud macos-versions xcode-versions [flags]",
+		ShortHelp:  "List Xcode versions for a macOS version.",
 		LongHelp: `List Xcode versions for a macOS version.
 
 Examples:
   asc xcode-cloud macos-versions xcode-versions --id "MACOS_VERSION_ID"
   asc xcode-cloud macos-versions xcode-versions --id "MACOS_VERSION_ID" --limit 50
   asc xcode-cloud macos-versions xcode-versions --id "MACOS_VERSION_ID" --paginate`,
-		ParentFlag:  "id",
-		ParentUsage: "macOS version ID",
-		ParentType:  "ciMacOsVersions",
-		LimitMax:    200,
-		ErrorPrefix: "xcode-cloud macos-versions xcode-versions",
+		ParentFlag:       "id",
+		ParentUsage:      "macOS version ID",
+		ParentType:       "ciMacOsVersions",
+		LimitMax:         200,
+		FetchErrorPrefix: "xcode-cloud macos-versions xcode-versions",
 		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
 			return contextWithXcodeCloudTimeout(ctx, 0)
 		},
@@ -784,19 +776,18 @@ Examples:
 
 func XcodeCloudXcodeVersionsGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc xcode-cloud xcode-versions view --id \"XCODE_VERSION_ID\"",
-		ShortHelp:   "View details for an Xcode version.",
+		Name:       "view",
+		ShortUsage: "asc xcode-cloud xcode-versions view --id \"XCODE_VERSION_ID\"",
+		ShortHelp:  "View details for an Xcode version.",
 		LongHelp: `View details for an Xcode version.
 
 Examples:
   asc xcode-cloud xcode-versions view --id "XCODE_VERSION_ID"
   asc xcode-cloud xcode-versions view --id "XCODE_VERSION_ID" --output table`,
-		IDFlag:      "id",
-		IDUsage:     "Xcode version ID",
-		IDType:      "ciXcodeVersions",
-		ErrorPrefix: "xcode-cloud xcode-versions view",
+		IDFlag:           "id",
+		IDUsage:          "Xcode version ID",
+		IDType:           "ciXcodeVersions",
+		FetchErrorPrefix: "xcode-cloud xcode-versions view",
 		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
 			return contextWithXcodeCloudTimeout(ctx, 0)
 		},
@@ -808,21 +799,20 @@ Examples:
 
 func XcodeCloudXcodeVersionsMacOSVersionsCommand() *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "macos-versions",
-		Name:        "macos-versions",
-		ShortUsage:  "asc xcode-cloud xcode-versions macos-versions [flags]",
-		ShortHelp:   "List macOS versions for an Xcode version.",
+		Name:       "macos-versions",
+		ShortUsage: "asc xcode-cloud xcode-versions macos-versions [flags]",
+		ShortHelp:  "List macOS versions for an Xcode version.",
 		LongHelp: `List macOS versions for an Xcode version.
 
 Examples:
   asc xcode-cloud xcode-versions macos-versions --id "XCODE_VERSION_ID"
   asc xcode-cloud xcode-versions macos-versions --id "XCODE_VERSION_ID" --limit 50
   asc xcode-cloud xcode-versions macos-versions --id "XCODE_VERSION_ID" --paginate`,
-		ParentFlag:  "id",
-		ParentUsage: "Xcode version ID",
-		ParentType:  "ciXcodeVersions",
-		LimitMax:    200,
-		ErrorPrefix: "xcode-cloud xcode-versions macos-versions",
+		ParentFlag:       "id",
+		ParentUsage:      "Xcode version ID",
+		ParentType:       "ciXcodeVersions",
+		LimitMax:         200,
+		FetchErrorPrefix: "xcode-cloud xcode-versions macos-versions",
 		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
 			return contextWithXcodeCloudTimeout(ctx, 0)
 		},

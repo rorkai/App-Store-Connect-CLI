@@ -47,8 +47,6 @@ Examples:
 		IDUsage:            "App Store Connect app ID (or ASC_APP_ID env)",
 		ResolveApp:         true,
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "apps subscription-grace-period view",
-		FetchErrorPrefix:   "apps subscription-grace-period view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, appID string) (any, error) {
 			return client.GetAppSubscriptionGracePeriod(ctx, appID)
 		},

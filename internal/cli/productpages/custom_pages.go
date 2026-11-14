@@ -422,12 +422,11 @@ Examples:
 		IDType:             "appCustomProductPages",
 		RequiredDiagnostic: true,
 		ErrorPrefix:        "custom-pages delete",
-		DeleteErrorPrefix:  "custom-pages delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteAppCustomProductPage(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.AppCustomProductPageDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }

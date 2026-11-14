@@ -9,6 +9,16 @@ import (
 	"strings"
 )
 
+// GameCenterLeaderboardLocalizationCreateAttributes is the data.attributes object of the GameCenterLeaderboardLocalizationCreateRequest schema.
+type GameCenterLeaderboardLocalizationCreateAttributes struct {
+	Locale                  string  `json:"locale"`
+	Name                    string  `json:"name"`
+	FormatterOverride       *string `json:"formatterOverride,omitempty"`
+	FormatterSuffix         *string `json:"formatterSuffix,omitempty"`
+	FormatterSuffixSingular *string `json:"formatterSuffixSingular,omitempty"`
+	Description             *string `json:"description,omitempty"`
+}
+
 // GameCenterLeaderboardLocalizationCreateData is the data object of the GameCenterLeaderboardLocalizationCreateRequest schema.
 type GameCenterLeaderboardLocalizationCreateData struct {
 	Type          ResourceType                                      `json:"type"`
@@ -28,6 +38,15 @@ type GameCenterLeaderboardLocalizationRelationships struct {
 
 // GameCenterLeaderboardLocalizationResponse is the GameCenterLeaderboardLocalizationResponse schema.
 type GameCenterLeaderboardLocalizationResponse = SingleResponse[GameCenterLeaderboardLocalizationAttributes]
+
+// GameCenterLeaderboardLocalizationUpdateAttributes is the data.attributes object of the GameCenterLeaderboardLocalizationUpdateRequest schema.
+type GameCenterLeaderboardLocalizationUpdateAttributes struct {
+	Name                    *string `json:"name,omitempty"`
+	FormatterOverride       *string `json:"formatterOverride,omitempty"`
+	FormatterSuffix         *string `json:"formatterSuffix,omitempty"`
+	FormatterSuffixSingular *string `json:"formatterSuffixSingular,omitempty"`
+	Description             *string `json:"description,omitempty"`
+}
 
 // GameCenterLeaderboardLocalizationUpdateData is the data object of the GameCenterLeaderboardLocalizationUpdateRequest schema.
 type GameCenterLeaderboardLocalizationUpdateData struct {

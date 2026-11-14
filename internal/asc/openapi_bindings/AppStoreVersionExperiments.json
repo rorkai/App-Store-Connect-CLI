@@ -10,6 +10,7 @@
     "AppStoreVersionExperimentUpdateAttributes",
     "AppStoreVersionExperimentUpdateData",
     "AppStoreVersionExperimentUpdateRequest",
+    "AppStoreVersionExperimentV2CreateAttributes",
     "AppStoreVersionExperimentV2CreateData",
     "AppStoreVersionExperimentV2CreateRelationships",
     "AppStoreVersionExperimentV2CreateRequest",

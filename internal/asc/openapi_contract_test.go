@@ -528,7 +528,7 @@ func (c *contractCall) invoke(args []reflect.Value, response contractResponse) (
 		issuerID:   "ISS456",
 		privateKey: key,
 	}
-	out := reflect.ValueOf(client).MethodByName(c.name).Call(append([]reflect.Value{reflect.ValueOf(context.Background())}, args...))
+	out := clientMethod(client, c.name).Call(append([]reflect.Value{reflect.ValueOf(context.Background())}, args...))
 	callErr, _ := out[len(out)-1].Interface().(error)
 	var result any
 	if len(out) == 2 {
@@ -537,12 +537,27 @@ func (c *contractCall) invoke(args []reflect.Value, response contractResponse) (
 	return requests, result, callErr
 }
 
+// unexportedClientMethods are the bound methods that reflection cannot reach
+// by name because they are unexported.
+var unexportedClientMethods = map[string]func(*Client) any{
+	"getActorByID": func(c *Client) any { return c.getActorByID },
+}
+
+// clientMethod returns the named method of the client, or an invalid value
+// when it has none or it is unexported and not in unexportedClientMethods.
+func clientMethod(client *Client, name string) reflect.Value {
+	if method, ok := unexportedClientMethods[name]; ok {
+		return reflect.ValueOf(method(client))
+	}
+	return reflect.ValueOf(client).MethodByName(name)
+}
+
 // checkGeneratedOperation returns every difference between what the method
 // sends and what the schema defines for the operation.
 func checkGeneratedOperation(spec *contractSpec, op *contractOperation, b *contractOpBinding) []string {
-	method := reflect.ValueOf(&Client{}).MethodByName(b.Name)
+	method := clientMethod(&Client{}, b.Name)
 	if !method.IsValid() {
-		return []string{"no such method on *Client"}
+		return []string{"no such method on *Client; list an unexported one in unexportedClientMethods"}
 	}
 	call, err := newContractCall(b.Name, method.Type(), b)
 	if err != nil {

@@ -7,7 +7,8 @@
     "ActorsResponse"
   ],
   "operations": [
-    {"operation":"actors_getCollection","name":"GetActors","options":"ActorsOption","query":"buildActorsQuery","nextContext":"actors"}
+    {"operation":"actors_getCollection","name":"GetActors","options":"ActorsOption","query":"buildActorsQuery","nextContext":"actors"},
+    {"operation":"actors_getInstance","name":"getActorByID","params":["actorID"],"check":"raw","query":"buildActorsFieldsQuery","single":true}
   ],
   "queries": [
     {"operation":"actors_getCollection","name":"Actors","params":[{"name":"filter[id]","field":"ids"},{"name":"fields[actors]"}]}

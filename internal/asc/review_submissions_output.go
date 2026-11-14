@@ -1,7 +1,6 @@
 package asc
 
 import (
-	"fmt"
 	"strconv"
 )
 
@@ -37,12 +36,6 @@ func reviewSubmissionItemsRows(resp *ReviewSubmissionItemsResponse) ([]string, [
 			SanitizeTerminalText(submissionID),
 		})
 	}
-	return headers, rows
-}
-
-func reviewSubmissionItemDeleteResultRows(result *ReviewSubmissionItemDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
 }
 

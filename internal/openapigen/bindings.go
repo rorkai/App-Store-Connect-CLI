@@ -26,6 +26,16 @@ type Family struct {
 	Relationships []*RelBind   `json:"relationships,omitempty"`
 	Operations    []*OpBind    `json:"operations,omitempty"`
 	Queries       []*QueryBind `json:"queries,omitempty"`
+	RefTypes      []*RefType   `json:"refTypes,omitempty"`
+}
+
+// RefType is the Go type of the attributes that reference an enum or object
+// schema, when it is not the type of the schema's name: another type name, or
+// "string" for an enum without a Go type. One record holds for every type of
+// the family.
+type RefType struct {
+	Schema string `json:"schema"`
+	Type   string `json:"type"`
 }
 
 // RelBind is the relationships field of a create's data type, as the
@@ -162,11 +172,12 @@ func bindingsFile(dir, tag string) string {
 }
 
 // Encode returns the family file in a stable order, one operation or type per
-// line so that a diff shows each binding that changed.
+// line so that a diff shows each binding that changed. Methods bound to one
+// operation keep the order they were adopted in.
 func (f *Family) Encode() ([]byte, error) {
 	sort.Strings(f.Types)
-	sort.Slice(f.Relationships, func(i, j int) bool { return f.Relationships[i].Data < f.Relationships[j].Data })
-	sort.Slice(f.Operations, func(i, j int) bool { return f.Operations[i].Operation < f.Operations[j].Operation })
+	sort.SliceStable(f.Relationships, func(i, j int) bool { return f.Relationships[i].Data < f.Relationships[j].Data })
+	sort.SliceStable(f.Operations, func(i, j int) bool { return f.Operations[i].Operation < f.Operations[j].Operation })
 	fields := []string{`"tag": ` + jsonString(f.Tag), `"file": ` + jsonString(f.File)}
 	if len(f.Types) > 0 {
 		var types []string
@@ -189,13 +200,21 @@ func (f *Family) Encode() ([]byte, error) {
 	if len(ops) > 0 {
 		fields = append(fields, "\"operations\": [\n    "+strings.Join(ops, ",\n    ")+"\n  ]")
 	}
-	sort.Slice(f.Queries, func(i, j int) bool { return f.Queries[i].Operation < f.Queries[j].Operation })
+	sort.SliceStable(f.Queries, func(i, j int) bool { return f.Queries[i].Operation < f.Queries[j].Operation })
 	queries, err := jsonLines(f.Queries)
 	if err != nil {
 		return nil, err
 	}
 	if len(queries) > 0 {
 		fields = append(fields, "\"queries\": [\n    "+strings.Join(queries, ",\n    ")+"\n  ]")
+	}
+	sort.Slice(f.RefTypes, func(i, j int) bool { return f.RefTypes[i].Schema < f.RefTypes[j].Schema })
+	refTypes, err := jsonLines(f.RefTypes)
+	if err != nil {
+		return nil, err
+	}
+	if len(refTypes) > 0 {
+		fields = append(fields, "\"refTypes\": [\n    "+strings.Join(refTypes, ",\n    ")+"\n  ]")
 	}
 	return []byte("{\n  " + strings.Join(fields, ",\n  ") + "\n}\n"), nil
 }
@@ -255,6 +274,16 @@ func (f *Family) relationshipsNamed(name string) *RelBind {
 		}
 	}
 	return nil
+}
+
+// refType is the Go type of the attributes that reference a schema.
+func (f *Family) refType(schema string) string {
+	for _, r := range f.RefTypes {
+		if r.Schema == schema {
+			return r.Type
+		}
+	}
+	return schema
 }
 
 // Family returns the family for a tag, adding it if missing.

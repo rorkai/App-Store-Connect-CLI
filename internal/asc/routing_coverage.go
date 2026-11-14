@@ -22,12 +22,6 @@ type RoutingAppCoverageCreateAttributes struct {
 	FileName string `json:"fileName"`
 }
 
-// RoutingAppCoverageDeleteResult represents CLI output for deletions.
-type RoutingAppCoverageDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
 // CreateRoutingAppCoverage creates a routing app coverage upload reservation.
 func (c *Client) CreateRoutingAppCoverage(ctx context.Context, versionID, fileName string, fileSize int64) (*RoutingAppCoverageResponse, error) {
 	versionID = strings.TrimSpace(versionID)

@@ -4,6 +4,7 @@ package asc
 
 import (
 	"context"
+	"fmt"
 	"net/url"
 )
 
@@ -30,6 +31,14 @@ func (c *Client) GetActors(ctx context.Context, opts ...ActorsOption) (*ActorsRe
 		Query:       buildActorsQuery(query),
 		Next:        query.nextURL,
 		NextContext: "actors",
+	})
+}
+
+// getActorByID sends GET /v1/actors/{id} (actors_getInstance).
+func (c *Client) getActorByID(ctx context.Context, actorID string, fields []string) (*ActorResponse, error) {
+	return getJSON[ActorResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/actors/%s", actorID),
+		Query: buildActorsFieldsQuery(fields),
 	})
 }
 

@@ -80,6 +80,41 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			wantErr: "app-clips advanced-experiences list: --next must be an App Store Connect URL",
 		},
 		{
+			name:    "app-clips advanced-experiences list invalid action",
+			args:    []string{"app-clips", "advanced-experiences", "list", "--app-clip-id", "CLIP_ID", "--action", "bad"},
+			wantErr: `app-clips advanced-experiences list: invalid action "BAD"`,
+		},
+		{
+			name:    "app-clips advanced-experiences create invalid default language",
+			args:    []string{"app-clips", "advanced-experiences", "create", "--link", "https://example.com", "--default-language", "bad"},
+			wantErr: `app-clips advanced-experiences create: invalid default language "bad"`,
+		},
+		{
+			name:    "app-clips advanced-experiences create invalid action",
+			args:    []string{"app-clips", "advanced-experiences", "create", "--link", "https://example.com", "--default-language", "EN", "--is-powered-by", "--header-image-id", "IMAGE_ID", "--localization-id", "LOC_ID", "--action", "bad"},
+			wantErr: `app-clips advanced-experiences create: invalid action "bad"`,
+		},
+		{
+			name:    "app-clips advanced-experiences create invalid category",
+			args:    []string{"app-clips", "advanced-experiences", "create", "--link", "https://example.com", "--default-language", "EN", "--is-powered-by", "--header-image-id", "IMAGE_ID", "--localization-id", "LOC_ID", "--category", "bad"},
+			wantErr: `app-clips advanced-experiences create: invalid category "bad"`,
+		},
+		{
+			name:    "app-clips advanced-experiences update invalid action",
+			args:    []string{"app-clips", "advanced-experiences", "update", "--experience-id", "EXP_ID", "--action", "bad"},
+			wantErr: `app-clips advanced-experiences update: invalid action "bad"`,
+		},
+		{
+			name:    "app-clips advanced-experiences update invalid category",
+			args:    []string{"app-clips", "advanced-experiences", "update", "--experience-id", "EXP_ID", "--category", "bad"},
+			wantErr: `app-clips advanced-experiences update: invalid category "bad"`,
+		},
+		{
+			name:    "app-clips advanced-experiences update invalid default language",
+			args:    []string{"app-clips", "advanced-experiences", "update", "--experience-id", "EXP_ID", "--default-language", "bad"},
+			wantErr: `app-clips advanced-experiences update: invalid default language "bad"`,
+		},
+		{
 			name:    "app-clips advanced-experiences-links limit",
 			args:    []string{"app-clips", "advanced-experiences-links", "--limit", "201"},
 			wantErr: "app-clips advanced-experiences-links: --limit must be between 1 and 200",
@@ -285,6 +320,11 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			wantErr: `app-setup info set: invalid locale "!!!bad!!!": must match pattern like en or en-US`,
 		},
 		{
+			name:    "app-setup localizations upload invalid type",
+			args:    []string{"app-setup", "localizations", "upload", "--version", "VERSION_ID", "--path", ".", "--type", "bad"},
+			wantErr: `app-setup localizations upload: --type must be "version" or "app-info"`,
+		},
+		{
 			name:    "app-tags links limit",
 			args:    []string{"app-tags", "links", "--limit", "201"},
 			wantErr: "app-tags links: --limit must be between 1 and 200",
@@ -378,6 +418,11 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			name:    "apps search-keywords list invalid locale",
 			args:    []string{"apps", "search-keywords", "list", "--app", "APP_ID", "--locale", "!!!bad!!!"},
 			wantErr: `apps search-keywords list: invalid locale "!!!bad!!!": must match pattern like en or en-US`,
+		},
+		{
+			name:    "apps search-keywords list invalid platform",
+			args:    []string{"apps", "search-keywords", "list", "--app", "APP_ID", "--platform", "ANDROID"},
+			wantErr: "apps search-keywords list: --platform must be one of: IOS, MAC_OS, TV_OS, VISION_OS",
 		},
 		{
 			name:    "build-bundles app-clip invocations list limit",
@@ -619,6 +664,16 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			wantErr: "performance metrics view: --platform must be one of: IOS",
 		},
 		{
+			name:    "pre-orders enable invalid release date",
+			args:    []string{"pre-orders", "enable", "--app", "APP_ID", "--territory", "USA", "--release-date", "01/02/2026"},
+			wantErr: "pre-orders enable: --release-date must be in YYYY-MM-DD format",
+		},
+		{
+			name:    "pre-orders update invalid release date",
+			args:    []string{"pre-orders", "update", "--territory-availability", "TA_ID", "--release-date", "01/02/2026"},
+			wantErr: "pre-orders update: --release-date must be in YYYY-MM-DD format",
+		},
+		{
 			name:    "product-pages custom-pages list limit",
 			args:    []string{"product-pages", "custom-pages", "list", "--limit", "201"},
 			wantErr: "custom-pages list: --limit must be between 1 and 200",
@@ -822,6 +877,11 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			name:    "reviews summarizations invalid fields",
 			args:    []string{"reviews", "summarizations", "--app", "123456789", "--fields", "bad"},
 			wantErr: "reviews summarizations: --fields must be one of: createdDate, locale, platform, text",
+		},
+		{
+			name:    "versions create invalid platform",
+			args:    []string{"versions", "create", "--app", "APP_ID", "--version", "1.0", "--platform", "ANDROID"},
+			wantErr: "versions create: --platform must be one of: IOS, MAC_OS, TV_OS, VISION_OS",
 		},
 		{
 			name:    "versions customer-reviews list limit",

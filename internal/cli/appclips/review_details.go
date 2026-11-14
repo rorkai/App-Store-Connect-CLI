@@ -43,10 +43,9 @@ Examples:
 // AppClipReviewDetailsGetCommand gets review details by ID.
 func AppClipReviewDetailsGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc app-clips review-details view --id \"DETAIL_ID\"",
-		ShortHelp:   "View App Clip review details by ID.",
+		Name:       "view",
+		ShortUsage: "asc app-clips review-details view --id \"DETAIL_ID\"",
+		ShortHelp:  "View App Clip review details by ID.",
 		LongHelp: `View App Clip review details by ID.
 
 Examples:
@@ -54,8 +53,6 @@ Examples:
 		IDUsage:            "Review detail ID",
 		IDType:             "appClipAppStoreReviewDetails",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "app-clips review-details view",
-		FetchErrorPrefix:   "app-clips review-details view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetAppClipAppStoreReviewDetail(ctx, id)
 		},

@@ -292,6 +292,44 @@ func TestAdoptReplacesOnlyCodeTheGeneratorReproduces(t *testing.T) {
 	}
 }
 
+func TestAdoptLeavesNoBlankLineWhereItRemovesAnImport(t *testing.T) {
+	src := `package asc
+
+import (
+	"context"
+	"fmt"
+	"strings"
+)
+
+// GetWidgetOwner fetches the owner of a widget as given.
+func (c *Client) GetWidgetOwner(ctx context.Context, widgetID string) (*WidgetResponse, error) {
+	return getJSON[WidgetResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/widgets/%s/owner", widgetID)})
+}
+
+func widgetName(ctx context.Context, name string) string {
+	return strings.TrimSpace(name)
+}
+`
+	want := `package asc
+
+import (
+	"context"
+	"strings"
+)
+
+func widgetName(ctx context.Context, name string) string {
+	return strings.TrimSpace(name)
+}
+`
+	dir := writeHandWritten(t, map[string]string{"owner.go": src})
+	if err := runAdopt(dir, false); err != nil {
+		t.Fatal(err)
+	}
+	if got := readFile(t, filepath.Join(dir, "owner.go")); got != want {
+		t.Errorf("owner.go after adopt:\n%s", got)
+	}
+}
+
 func TestAdoptIntoAnExistingFamilyLeavesItUpToDate(t *testing.T) {
 	deviation := `{"problem":"sent query parameters [filter[x]] that the operation does not define","reason":"kept on purpose"}`
 	existing := `{"tag": "Widgets", "file": "widgets_gen.go", "operations": [{"operation": "widgets_updateInstance", "name": "UpdateWidget", "params": ["widgetID"], "deviations": [` + deviation + `]}]}`
@@ -661,5 +699,117 @@ func TestAdoptBindsScalarArgumentsToAttributes(t *testing.T) {
 		if !strings.Contains(string(got), want) {
 			t.Errorf("bindings lack %s:\n%s", want, got)
 		}
+	}
+}
+
+const handWrittenYoyoAttributes = `
+// YoyoAttributes describes a yoyo.
+type YoyoAttributes struct {
+	Name   string      ` + "`json:\"name,omitempty\"`" + `
+	Color  YoyoColor   ` + "`json:\"color,omitempty\"`" + `
+	State  YoyoStatus  ` + "`json:\"state,omitempty\"`" + `
+	Kind   string      ` + "`json:\"kind,omitempty\"`" + `
+	Image  *YoyoImage  ` + "`json:\"image,omitempty\"`" + `
+	Parts  []YoyoPart  ` + "`json:\"parts,omitempty\"`" + `
+	Colors []YoyoColor ` + "`json:\"colors,omitempty\"`" + `
+	Size   *YoyoSize   ` + "`json:\"size,omitempty\"`" + `
+}
+`
+
+const handWrittenYoyoCreateAttributes = `
+// YoyoCreateAttributes calls the state YoyoState, after its schema.
+type YoyoCreateAttributes struct {
+	Color YoyoColor  ` + "`json:\"color\"`" + `
+	Size  YoyoSize   ` + "`json:\"size\"`" + `
+	Parts []YoyoPart ` + "`json:\"parts\"`" + `
+	State *YoyoState ` + "`json:\"state,omitempty\"`" + `
+	Image *YoyoImage ` + "`json:\"image,omitempty\"`" + `
+}
+`
+
+const handWrittenYoyoUpdateAttributes = `
+// YoyoUpdateAttributes has a string kind.
+type YoyoUpdateAttributes struct {
+	Color  *YoyoColor  ` + "`json:\"color,omitempty\"`" + `
+	Size   *YoyoSize   ` + "`json:\"size,omitempty\"`" + `
+	Kind   *string     ` + "`json:\"kind,omitempty\"`" + `
+	Colors []YoyoColor ` + "`json:\"colors,omitempty\"`" + `
+}
+`
+
+func TestAdoptRecordsTheGoTypesOfReferencedSchemas(t *testing.T) {
+	tests := []struct {
+		name     string
+		types    string
+		existing string
+		adopted  string
+		records  string
+		kept     string
+	}{
+		{
+			name:    "a schema typed one way in one type and another way in the next",
+			types:   handWrittenYoyoAttributes + handWrittenYoyoCreateAttributes + handWrittenYoyoUpdateAttributes,
+			adopted: "YoyoAttributes,YoyoUpdateAttributes",
+			records: `{"schema":"YoyoKind","type":"string"},{"schema":"YoyoState","type":"YoyoStatus"}`,
+			kept:    "Yoyos\ttype YoyoCreateAttributes\tkept: schema YoyoState is YoyoState here and YoyoStatus in a generated type\n",
+		},
+		{
+			name:    "records of a type that stays hand-written",
+			types:   strings.Replace(handWrittenYoyoAttributes, "name,omitempty", "name", 1) + handWrittenYoyoCreateAttributes + handWrittenYoyoUpdateAttributes,
+			adopted: "YoyoCreateAttributes,YoyoUpdateAttributes",
+			records: `{"schema":"YoyoKind","type":"string"}`,
+			kept:    "Yoyos\ttype YoyoAttributes\tkept: differs at token",
+		},
+		{
+			name:     "a schema the family already generates by its name",
+			types:    handWrittenYoyoUpdateAttributes,
+			existing: `{"tag": "Yoyos", "file": "yoyos_gen.go", "types": ["YoyoAttributes"]}`,
+			kept:     "Yoyos\ttype YoyoUpdateAttributes\tkept: schema YoyoKind is string here and YoyoKind in a generated type\n",
+		},
+		{
+			name:  "a Go type a record cannot name",
+			types: strings.Replace(handWrittenYoyoUpdateAttributes, "*YoyoSize ", "*[]float64", 1),
+			kept:  "Yoyos\ttype YoyoUpdateAttributes\tkept: schema YoyoSize is recorded as \"[]float64\", not a type name\n",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			files := map[string]string{"types.go": "package asc\n" + tt.types}
+			if tt.existing != "" {
+				files["bindings/Yoyos.json"] = tt.existing
+			}
+			dir := writeHandWritten(t, files)
+			var report strings.Builder
+			if err := run(filepath.Join("testdata", "spec.json"), filepath.Join(dir, "bindings"), dir, false, "Yoyos", false, &report); err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(report.String(), tt.kept) {
+				t.Errorf("report lacks %q:\n%s", tt.kept, report.String())
+			}
+			bindings, err := LoadBindings(filepath.Join(dir, "bindings"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tt.adopted == "" {
+				switch {
+				case tt.existing == "" && len(bindings.Families) > 0:
+					t.Errorf("adopt wrote bindings for %s", bindings.Families[0].Tag)
+				case tt.existing != "" && readFile(t, filepath.Join(dir, "bindings", "Yoyos.json")) != tt.existing:
+					t.Error("adopt rewrote the bindings")
+				}
+				return
+			}
+			fam := bindings.Families[0]
+			records, err := jsonLines(fam.RefTypes)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if strings.Join(fam.Types, ",") != tt.adopted || strings.Join(records, ",") != tt.records {
+				t.Errorf("adopted types %v with records %v, want %s with %s", fam.Types, records, tt.adopted, tt.records)
+			}
+			if err := run(filepath.Join("testdata", "spec.json"), filepath.Join(dir, "bindings"), dir, true, "", false, io.Discard); err != nil {
+				t.Errorf("check right after adopt: %v", err)
+			}
+		})
 	}
 }

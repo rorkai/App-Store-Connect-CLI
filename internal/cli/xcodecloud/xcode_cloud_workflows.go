@@ -86,19 +86,18 @@ Examples:
 
 func XcodeCloudWorkflowsGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc xcode-cloud workflows view --id \"WORKFLOW_ID\"",
-		ShortHelp:   "View details for a workflow.",
+		Name:       "view",
+		ShortUsage: "asc xcode-cloud workflows view --id \"WORKFLOW_ID\"",
+		ShortHelp:  "View details for a workflow.",
 		LongHelp: `View details for a workflow.
 
 Examples:
   asc xcode-cloud workflows view --id "WORKFLOW_ID"
   asc xcode-cloud workflows view --id "WORKFLOW_ID" --output table`,
-		IDFlag:      "id",
-		IDUsage:     "Workflow ID",
-		IDType:      "ciWorkflows",
-		ErrorPrefix: "xcode-cloud workflows view",
+		IDFlag:           "id",
+		IDUsage:          "Workflow ID",
+		IDType:           "ciWorkflows",
+		FetchErrorPrefix: "xcode-cloud workflows view",
 		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
 			return contextWithXcodeCloudTimeout(ctx, 0)
 		},
@@ -110,19 +109,18 @@ Examples:
 
 func XcodeCloudWorkflowsRepositoryCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "repository",
-		Name:        "repository",
-		ShortUsage:  "asc xcode-cloud workflows repository --id \"WORKFLOW_ID\"",
-		ShortHelp:   "Get the repository for a workflow.",
+		Name:       "repository",
+		ShortUsage: "asc xcode-cloud workflows repository --id \"WORKFLOW_ID\"",
+		ShortHelp:  "Get the repository for a workflow.",
 		LongHelp: `Get the repository for a workflow.
 
 Examples:
   asc xcode-cloud workflows repository --id "WORKFLOW_ID"
   asc xcode-cloud workflows repository --id "WORKFLOW_ID" --output table`,
-		IDFlag:      "id",
-		IDUsage:     "Workflow ID",
-		IDType:      "ciWorkflows",
-		ErrorPrefix: "xcode-cloud workflows repository",
+		IDFlag:           "id",
+		IDUsage:          "Workflow ID",
+		IDType:           "ciWorkflows",
+		FetchErrorPrefix: "xcode-cloud workflows repository",
 		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
 			return contextWithXcodeCloudTimeout(ctx, 0)
 		},
@@ -233,18 +231,17 @@ Examples:
 
 func XcodeCloudWorkflowsDeleteCommand() *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc xcode-cloud workflows delete --id \"WORKFLOW_ID\" --confirm",
-		ShortHelp:   "Delete a workflow.",
+		Name:       "delete",
+		ShortUsage: "asc xcode-cloud workflows delete --id \"WORKFLOW_ID\" --confirm",
+		ShortHelp:  "Delete a workflow.",
 		LongHelp: `Delete a workflow.
 
 Examples:
   asc xcode-cloud workflows delete --id "WORKFLOW_ID" --confirm`,
-		IDFlag:      "id",
-		IDUsage:     "Workflow ID",
-		IDType:      "ciWorkflows",
-		ErrorPrefix: "xcode-cloud workflows delete",
+		IDFlag:            "id",
+		IDUsage:           "Workflow ID",
+		IDType:            "ciWorkflows",
+		DeleteErrorPrefix: "xcode-cloud workflows delete",
 		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
 			return contextWithXcodeCloudTimeout(ctx, 0)
 		},
@@ -255,7 +252,7 @@ Examples:
 			return nil
 		},
 		Result: func(id string) any {
-			return &asc.CiWorkflowDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }

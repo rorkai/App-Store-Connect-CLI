@@ -1,16 +1,9 @@
 package asc
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 )
-
-// WebhookDeleteResult represents CLI output for webhook deletions.
-type WebhookDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
 
 func webhookEventTypes(values []WebhookEventType) string {
 	if len(values) == 0 {
@@ -50,12 +43,6 @@ func webhookDeliveriesRows(resp *WebhookDeliveriesResponse) ([]string, [][]strin
 			compactWhitespace(item.Attributes.ErrorMessage),
 		})
 	}
-	return headers, rows
-}
-
-func webhookDeleteResultRows(result *WebhookDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
 }
 

@@ -45,21 +45,20 @@ Examples:
 // OfferCodeCustomCodesListCommand returns the custom codes list subcommand.
 func OfferCodeCustomCodesListCommand() *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "list",
-		Name:        "list",
-		ShortUsage:  "asc offer-codes custom-codes list [flags]",
-		ShortHelp:   "List custom codes for a subscription offer.",
+		Name:       "list",
+		ShortUsage: "asc offer-codes custom-codes list [flags]",
+		ShortHelp:  "List custom codes for a subscription offer.",
 		LongHelp: `List custom codes for a subscription offer.
 
 Examples:
   asc offer-codes custom-codes list --offer-code-id "OFFER_CODE_ID"
   asc offer-codes custom-codes list --offer-code-id "OFFER_CODE_ID" --limit 50
   asc offer-codes custom-codes list --offer-code-id "OFFER_CODE_ID" --paginate`,
-		ParentFlag:  "offer-code-id",
-		ParentUsage: "Subscription offer code ID (required)",
-		ParentType:  "subscriptionOfferCodes",
-		LimitMax:    offerCodesMaxLimit,
-		ErrorPrefix: "offer-codes custom-codes list",
+		ParentFlag:       "offer-code-id",
+		ParentUsage:      "Subscription offer code ID (required)",
+		ParentType:       "subscriptionOfferCodes",
+		LimitMax:         offerCodesMaxLimit,
+		FetchErrorPrefix: "offer-codes custom-codes list",
 		FetchPage: func(ctx context.Context, client *asc.Client, offerCodeID string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := []asc.SubscriptionOfferCodeCustomCodesOption{
 				asc.Limit[asc.SubscriptionOfferCodeCustomCodesOption](limit),
@@ -77,18 +76,17 @@ Examples:
 // OfferCodeCustomCodesGetCommand returns the custom codes get subcommand.
 func OfferCodeCustomCodesGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc offer-codes custom-codes view --custom-code-id ID",
-		ShortHelp:   "View a custom code by ID.",
+		Name:       "view",
+		ShortUsage: "asc offer-codes custom-codes view --custom-code-id ID",
+		ShortHelp:  "View a custom code by ID.",
 		LongHelp: `View a custom code by ID.
 
 Examples:
   asc offer-codes custom-codes view --custom-code-id "CUSTOM_CODE_ID"`,
-		IDFlag:      "custom-code-id",
-		IDUsage:     "Custom code ID (required)",
-		IDType:      "subscriptionOfferCodeCustomCodes",
-		ErrorPrefix: "offer-codes custom-codes view",
+		IDFlag:           "custom-code-id",
+		IDUsage:          "Custom code ID (required)",
+		IDType:           "subscriptionOfferCodeCustomCodes",
+		FetchErrorPrefix: "offer-codes custom-codes view",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetSubscriptionOfferCodeCustomCode(ctx, id)
 		},

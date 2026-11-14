@@ -40,10 +40,9 @@ Examples:
 // GameCenterLeaderboardSetMembersListCommand returns the members list subcommand.
 func GameCenterLeaderboardSetMembersListCommand() *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "list",
-		Name:        "list",
-		ShortUsage:  "asc game-center leaderboard-sets members list --set-id \"SET_ID\"",
-		ShortHelp:   "List leaderboards in a leaderboard set.",
+		Name:       "list",
+		ShortUsage: "asc game-center leaderboard-sets members list --set-id \"SET_ID\"",
+		ShortHelp:  "List leaderboards in a leaderboard set.",
 		LongHelp: `List leaderboards in a leaderboard set.
 
 Examples:
@@ -56,8 +55,6 @@ Examples:
 		RequiredDiagnostic:   true,
 		PaginateIgnoresLimit: true,
 		NoSpinner:            true,
-		ErrorPrefix:          "game-center leaderboard-sets members list",
-		FetchErrorPrefix:     "game-center leaderboard-sets members list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, setId string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterLeaderboardSetMembers(ctx, setId, asc.Limit[asc.GCLeaderboardSetMembersOption](limit), asc.NextURL[asc.GCLeaderboardSetMembersOption](next))
 		},

@@ -224,6 +224,7 @@ Examples:
 		RequiredDiagnostic: true,
 		ConfirmUsage:       "Confirm deletion (required)",
 		ErrorPrefix:        "phased-release delete",
+		DeleteErrorPrefix:  "phased-release delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteAppStoreVersionPhasedRelease(ctx, id)
 		},

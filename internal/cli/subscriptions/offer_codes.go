@@ -530,8 +530,6 @@ Examples:
 		IDUsage:            "One-time use code batch ID",
 		IDType:             "subscriptionOfferCodeOneTimeUseCodes",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "subscriptions offer-codes one-time-codes view",
-		FetchErrorPrefix:   "subscriptions offer-codes one-time-codes view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetSubscriptionOfferCodeOneTimeUseCode(ctx, id)
 		},

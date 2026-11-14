@@ -315,12 +315,6 @@ type ReviewSubmissionItemUpdateData struct {
 	Attributes ReviewSubmissionItemUpdateAttributes `json:"attributes"`
 }
 
-// ReviewSubmissionItemDeleteResult represents CLI output for review submission item deletions.
-type ReviewSubmissionItemDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
 // ReviewSubmissionItemsCursorSubmissionID extracts the owner of a review item continuation.
 func ReviewSubmissionItemsCursorSubmissionID(next string) (string, error) {
 	parsed, err := url.Parse(strings.TrimSpace(next))

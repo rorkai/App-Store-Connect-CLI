@@ -1,7 +1,5 @@
 package asc
 
-import "fmt"
-
 type accessibilityDeclarationField struct {
 	Name  string
 	Value string
@@ -60,10 +58,4 @@ func accessibilityDeclarationFields(resp *AccessibilityDeclarationResponse) []ac
 		{Name: "Supports Voice Control", Value: formatOptionalBool(attrs.SupportsVoiceControl)},
 		{Name: "Supports Voiceover", Value: formatOptionalBool(attrs.SupportsVoiceover)},
 	}
-}
-
-func accessibilityDeclarationDeleteResultRows(result *AccessibilityDeclarationDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	return headers, rows
 }

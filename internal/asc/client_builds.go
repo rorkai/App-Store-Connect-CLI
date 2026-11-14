@@ -176,12 +176,6 @@ type BuildUploadFilesResponse = Response[BuildUploadFileAttributes]
 // BuildUploadFileResponse is the response from build upload file endpoint.
 type BuildUploadFileResponse = SingleResourceResponse[BuildUploadFileAttributes]
 
-// BuildUploadFileUpdateAttributes describes the attributes to update on a build upload file.
-type BuildUploadFileUpdateAttributes struct {
-	SourceFileChecksums *Checksums `json:"sourceFileChecksums,omitempty"`
-	Uploaded            *bool      `json:"uploaded,omitempty"`
-}
-
 // UploadOperation represents a file upload operation with presigned URL.
 type UploadOperation struct {
 	Method         string       `json:"method"`

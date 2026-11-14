@@ -18,9 +18,3 @@ type GameCenterLeaderboardSetMemberLocalizationCreateData struct {
 	Attributes    GameCenterLeaderboardSetMemberLocalizationCreateAttributes `json:"attributes"`
 	Relationships *GameCenterLeaderboardSetMemberLocalizationRelationships   `json:"relationships"`
 }
-
-// GameCenterLeaderboardSetMemberLocalizationDeleteResult represents CLI output for member localization deletions.
-type GameCenterLeaderboardSetMemberLocalizationDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}

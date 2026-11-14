@@ -152,10 +152,9 @@ func rejectWebhooksListNextFlagConflicts(fs *flag.FlagSet, next string, names ..
 // WebhooksGetCommand returns the webhooks view subcommand.
 func WebhooksGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc webhooks view --webhook-id \"WEBHOOK_ID\" [flags]",
-		ShortHelp:   "View a webhook by ID.",
+		Name:       "view",
+		ShortUsage: "asc webhooks view --webhook-id \"WEBHOOK_ID\" [flags]",
+		ShortHelp:  "View a webhook by ID.",
 		LongHelp: `View a webhook by ID.
 
 Examples:
@@ -164,8 +163,6 @@ Examples:
 		IDUsage:            "Webhook ID",
 		IDType:             "webhooks",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "webhooks view",
-		FetchErrorPrefix:   "webhooks view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetWebhook(ctx, id)
 		},
@@ -372,7 +369,7 @@ Examples:
 				return fmt.Errorf("webhooks delete: failed to delete: %w", err)
 			}
 
-			result := &asc.WebhookDeleteResult{ID: trimmedID, Deleted: true}
+			result := &asc.DeleteResult{ID: trimmedID, Deleted: true}
 			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}

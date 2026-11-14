@@ -143,10 +143,9 @@ Examples:
 // GameCenterChallengesGetCommand returns the challenges get subcommand.
 func GameCenterChallengesGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc game-center challenges view --id \"CHALLENGE_ID\"",
-		ShortHelp:   "View a Game Center challenge by ID.",
+		Name:       "view",
+		ShortUsage: "asc game-center challenges view --id \"CHALLENGE_ID\"",
+		ShortHelp:  "View a Game Center challenge by ID.",
 		LongHelp: `View a Game Center challenge by ID.
 
 Examples:
@@ -154,8 +153,6 @@ Examples:
 		IDUsage:            "Game Center challenge ID",
 		IDType:             "gameCenterChallenges",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center challenges view",
-		FetchErrorPrefix:   "game-center challenges view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterChallenge(ctx, id)
 		},
@@ -349,10 +346,9 @@ Examples:
 // GameCenterChallengesDeleteCommand returns the challenges delete subcommand.
 func GameCenterChallengesDeleteCommand() *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc game-center challenges delete --id \"CHALLENGE_ID\" --confirm",
-		ShortHelp:   "Delete a Game Center challenge.",
+		Name:       "delete",
+		ShortUsage: "asc game-center challenges delete --id \"CHALLENGE_ID\" --confirm",
+		ShortHelp:  "Delete a Game Center challenge.",
 		LongHelp: `Delete a Game Center challenge.
 
 Examples:
@@ -361,13 +357,11 @@ Examples:
 		IDUsage:            "Game Center challenge ID",
 		IDType:             "gameCenterChallenges",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center challenges delete",
-		DeleteErrorPrefix:  "game-center challenges delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteGameCenterChallenge(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.GameCenterChallengeDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }
@@ -404,10 +398,9 @@ Examples:
 // GameCenterChallengeVersionsListCommand returns the challenge versions list subcommand.
 func GameCenterChallengeVersionsListCommand() *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "list",
-		Name:        "list",
-		ShortUsage:  "asc game-center challenges versions list --challenge-id \"CHALLENGE_ID\"",
-		ShortHelp:   "List versions for a Game Center challenge.",
+		Name:       "list",
+		ShortUsage: "asc game-center challenges versions list --challenge-id \"CHALLENGE_ID\"",
+		ShortHelp:  "List versions for a Game Center challenge.",
 		LongHelp: `List versions for a Game Center challenge.
 
 Examples:
@@ -420,8 +413,6 @@ Examples:
 		RequiredDiagnostic:   true,
 		PaginateIgnoresLimit: true,
 		NoSpinner:            true,
-		ErrorPrefix:          "game-center challenges versions list",
-		FetchErrorPrefix:     "game-center challenges versions list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, challengeId string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterChallengeVersions(ctx, challengeId, asc.Limit[asc.GCChallengeVersionsOption](limit), asc.NextURL[asc.GCChallengeVersionsOption](next))
 		},
@@ -431,10 +422,9 @@ Examples:
 // GameCenterChallengeVersionsGetCommand returns the challenge versions get subcommand.
 func GameCenterChallengeVersionsGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc game-center challenges versions view --id \"VERSION_ID\"",
-		ShortHelp:   "View a Game Center challenge version by ID.",
+		Name:       "view",
+		ShortUsage: "asc game-center challenges versions view --id \"VERSION_ID\"",
+		ShortHelp:  "View a Game Center challenge version by ID.",
 		LongHelp: `View a Game Center challenge version by ID.
 
 Examples:
@@ -442,8 +432,6 @@ Examples:
 		IDUsage:            "Game Center challenge version ID",
 		IDType:             "gameCenterChallengeVersions",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center challenges versions view",
-		FetchErrorPrefix:   "game-center challenges versions view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterChallengeVersion(ctx, id)
 		},
@@ -526,10 +514,9 @@ Examples:
 // GameCenterChallengeLocalizationsListCommand returns the challenge localizations list subcommand.
 func GameCenterChallengeLocalizationsListCommand() *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "list",
-		Name:        "list",
-		ShortUsage:  "asc game-center challenges localizations list --version-id \"VERSION_ID\"",
-		ShortHelp:   "List localizations for a challenge version.",
+		Name:       "list",
+		ShortUsage: "asc game-center challenges localizations list --version-id \"VERSION_ID\"",
+		ShortHelp:  "List localizations for a challenge version.",
 		LongHelp: `List localizations for a challenge version.
 
 Examples:
@@ -542,8 +529,6 @@ Examples:
 		RequiredDiagnostic:   true,
 		PaginateIgnoresLimit: true,
 		NoSpinner:            true,
-		ErrorPrefix:          "game-center challenges localizations list",
-		FetchErrorPrefix:     "game-center challenges localizations list: failed to fetch",
 		FetchPage: func(ctx context.Context, client *asc.Client, versionId string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterChallengeLocalizations(ctx, versionId, asc.Limit[asc.GCChallengeLocalizationsOption](limit), asc.NextURL[asc.GCChallengeLocalizationsOption](next))
 		},
@@ -553,10 +538,9 @@ Examples:
 // GameCenterChallengeLocalizationsGetCommand returns the challenge localizations get subcommand.
 func GameCenterChallengeLocalizationsGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc game-center challenges localizations view --id \"LOCALIZATION_ID\"",
-		ShortHelp:   "View a challenge localization by ID.",
+		Name:       "view",
+		ShortUsage: "asc game-center challenges localizations view --id \"LOCALIZATION_ID\"",
+		ShortHelp:  "View a challenge localization by ID.",
 		LongHelp: `View a challenge localization by ID.
 
 Examples:
@@ -564,8 +548,6 @@ Examples:
 		IDUsage:            "Game Center challenge localization ID",
 		IDType:             "gameCenterChallengeLocalizations",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center challenges localizations view",
-		FetchErrorPrefix:   "game-center challenges localizations view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterChallengeLocalization(ctx, id)
 		},
@@ -699,10 +681,9 @@ Examples:
 // GameCenterChallengeLocalizationsDeleteCommand returns the challenge localizations delete subcommand.
 func GameCenterChallengeLocalizationsDeleteCommand() *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc game-center challenges localizations delete --id \"LOCALIZATION_ID\" --confirm",
-		ShortHelp:   "Delete a challenge localization.",
+		Name:       "delete",
+		ShortUsage: "asc game-center challenges localizations delete --id \"LOCALIZATION_ID\" --confirm",
+		ShortHelp:  "Delete a challenge localization.",
 		LongHelp: `Delete a challenge localization.
 
 Examples:
@@ -711,13 +692,11 @@ Examples:
 		IDUsage:            "Game Center challenge localization ID",
 		IDType:             "gameCenterChallengeLocalizations",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center challenges localizations delete",
-		DeleteErrorPrefix:  "game-center challenges localizations delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteGameCenterChallengeLocalization(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.GameCenterChallengeLocalizationDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }
@@ -805,10 +784,9 @@ Examples:
 // GameCenterChallengeImagesGetCommand returns the challenge images get subcommand.
 func GameCenterChallengeImagesGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc game-center challenges images view --id \"IMAGE_ID\"",
-		ShortHelp:   "View a challenge image by ID.",
+		Name:       "view",
+		ShortUsage: "asc game-center challenges images view --id \"IMAGE_ID\"",
+		ShortHelp:  "View a challenge image by ID.",
 		LongHelp: `View a challenge image by ID.
 
 Examples:
@@ -816,8 +794,6 @@ Examples:
 		IDUsage:            "Challenge image ID",
 		IDType:             "gameCenterChallengeImages",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center challenges images view",
-		FetchErrorPrefix:   "game-center challenges images view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterChallengeImage(ctx, id)
 		},
@@ -827,10 +803,9 @@ Examples:
 // GameCenterChallengeImagesDeleteCommand returns the challenge images delete subcommand.
 func GameCenterChallengeImagesDeleteCommand() *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc game-center challenges images delete --id \"IMAGE_ID\" --confirm",
-		ShortHelp:   "Delete a challenge image.",
+		Name:       "delete",
+		ShortUsage: "asc game-center challenges images delete --id \"IMAGE_ID\" --confirm",
+		ShortHelp:  "Delete a challenge image.",
 		LongHelp: `Delete a challenge image.
 
 Examples:
@@ -839,13 +814,11 @@ Examples:
 		IDUsage:            "Challenge image ID",
 		IDType:             "gameCenterChallengeImages",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center challenges images delete",
-		DeleteErrorPrefix:  "game-center challenges images delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteGameCenterChallengeImage(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.GameCenterChallengeImageDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }
@@ -880,10 +853,9 @@ Examples:
 // GameCenterChallengeReleasesListCommand returns the challenge releases list subcommand.
 func GameCenterChallengeReleasesListCommand() *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "list",
-		Name:        "list",
-		ShortUsage:  "asc game-center challenges releases list --app \"APP_ID\"",
-		ShortHelp:   "List releases for Game Center challenges.",
+		Name:       "list",
+		ShortUsage: "asc game-center challenges releases list --app \"APP_ID\"",
+		ShortHelp:  "List releases for Game Center challenges.",
 		LongHelp: `List releases for Game Center challenges.
 
 Examples:
@@ -896,8 +868,6 @@ Examples:
 		RequiredDiagnostic:   true,
 		PaginateIgnoresLimit: true,
 		NoSpinner:            true,
-		ErrorPrefix:          "game-center challenges releases list",
-		FetchErrorPrefix:     "game-center challenges releases list: failed to fetch",
 		LookupParent:         gameCenterDetailParent("game-center challenges releases list"),
 		FetchPage: func(ctx context.Context, client *asc.Client, gcDetailID string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterChallengeVersionReleases(ctx, gcDetailID, asc.Limit[asc.GCChallengeVersionReleasesOption](limit), asc.NextURL[asc.GCChallengeVersionReleasesOption](next))
@@ -949,10 +919,9 @@ Examples:
 // GameCenterChallengeReleasesDeleteCommand returns the challenge releases delete subcommand.
 func GameCenterChallengeReleasesDeleteCommand() *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc game-center challenges releases delete --id \"RELEASE_ID\" --confirm",
-		ShortHelp:   "Delete a Game Center challenge release.",
+		Name:       "delete",
+		ShortUsage: "asc game-center challenges releases delete --id \"RELEASE_ID\" --confirm",
+		ShortHelp:  "Delete a Game Center challenge release.",
 		LongHelp: `Delete a Game Center challenge release.
 
 Examples:
@@ -961,13 +930,11 @@ Examples:
 		IDUsage:            "Game Center challenge release ID",
 		IDType:             "gameCenterChallengeVersionReleases",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center challenges releases delete",
-		DeleteErrorPrefix:  "game-center challenges releases delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteGameCenterChallengeVersionRelease(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.GameCenterChallengeVersionReleaseDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }
@@ -998,10 +965,9 @@ Examples:
 // GameCenterChallengeLocalizationImageGetCommand returns the challenge localization image get subcommand.
 func GameCenterChallengeLocalizationImageGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc game-center challenges localizations image view --id \"LOC_ID\"",
-		ShortHelp:   "View a challenge localization image.",
+		Name:       "view",
+		ShortUsage: "asc game-center challenges localizations image view --id \"LOC_ID\"",
+		ShortHelp:  "View a challenge localization image.",
 		LongHelp: `View a challenge localization image.
 
 Examples:
@@ -1009,8 +975,6 @@ Examples:
 		IDUsage:            "Game Center challenge localization ID",
 		IDType:             "gameCenterChallengeLocalizations",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center challenges localizations image view",
-		FetchErrorPrefix:   "game-center challenges localizations image view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterChallengeLocalizationImage(ctx, id)
 		},
@@ -1043,10 +1007,9 @@ Examples:
 // GameCenterChallengeVersionDefaultImageGetCommand returns the challenge version default image get subcommand.
 func GameCenterChallengeVersionDefaultImageGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc game-center challenges versions default-image view --id \"VERSION_ID\"",
-		ShortHelp:   "View a default image for a challenge version.",
+		Name:       "view",
+		ShortUsage: "asc game-center challenges versions default-image view --id \"VERSION_ID\"",
+		ShortHelp:  "View a default image for a challenge version.",
 		LongHelp: `View a default image for a challenge version.
 
 Examples:
@@ -1054,8 +1017,6 @@ Examples:
 		IDUsage:            "Game Center challenge version ID",
 		IDType:             "gameCenterChallengeVersions",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center challenges versions default-image view",
-		FetchErrorPrefix:   "game-center challenges versions default-image view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterChallengeVersionDefaultImage(ctx, id)
 		},

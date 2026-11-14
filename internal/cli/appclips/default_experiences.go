@@ -138,10 +138,9 @@ func AppClipDefaultExperiencesGetCommand() *ffcli.Command {
 	)
 
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc app-clips default-experiences view --experience-id \"EXP_ID\"",
-		ShortHelp:   "View a default experience by ID.",
+		Name:       "view",
+		ShortUsage: "asc app-clips default-experiences view --experience-id \"EXP_ID\"",
+		ShortHelp:  "View a default experience by ID.",
 		LongHelp: `View a default experience by ID.
 
 Examples:
@@ -166,8 +165,6 @@ Examples:
 				return err
 			}
 		},
-		ErrorPrefix:      "app-clips default-experiences view",
-		FetchErrorPrefix: "app-clips default-experiences view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetAppClipDefaultExperience(ctx, id, asc.WithAppClipDefaultExperienceInclude(includeValue), asc.WithIncludedFields[asc.AppClipDefaultExperienceOption](included))
 		},
@@ -312,10 +309,9 @@ Examples:
 // AppClipDefaultExperiencesDeleteCommand deletes a default experience.
 func AppClipDefaultExperiencesDeleteCommand() *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc app-clips default-experiences delete --experience-id \"EXP_ID\" --confirm",
-		ShortHelp:   "Delete a default experience.",
+		Name:       "delete",
+		ShortUsage: "asc app-clips default-experiences delete --experience-id \"EXP_ID\" --confirm",
+		ShortHelp:  "Delete a default experience.",
 		LongHelp: `Delete a default experience.
 
 Examples:
@@ -325,13 +321,11 @@ Examples:
 		IDType:                 "appClipDefaultExperiences",
 		RequiredDiagnostic:     true,
 		ConfirmRequiredMessage: "--confirm is required to delete",
-		ErrorPrefix:            "app-clips default-experiences delete",
-		DeleteErrorPrefix:      "app-clips default-experiences delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteAppClipDefaultExperience(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.AppClipDefaultExperienceDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }

@@ -3,6 +3,7 @@
   "file": "users_gen.go",
   "types": [
     "UserResponse",
+    "UserUpdateAttributes",
     "UserUpdateRequest",
     "UsersResponse"
   ],
@@ -16,5 +17,8 @@
   ],
   "queries": [
     {"operation":"users_visibleApps_getToManyRelated","name":"UserVisibleApps","deviations":[{"problem":"query parameters [fields[apps]] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]}
+  ],
+  "refTypes": [
+    {"schema":"UserRole","type":"string"}
   ]
 }

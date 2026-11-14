@@ -8,12 +8,6 @@ import (
 	"strings"
 )
 
-// ScmProviderAttributes describes an SCM provider resource.
-type ScmProviderAttributes struct {
-	ScmProviderType *ScmProviderType `json:"scmProviderType,omitempty"`
-	URL             string           `json:"url,omitempty"`
-}
-
 // ScmProviderType describes the SCM provider type metadata.
 type ScmProviderType struct {
 	Kind        string `json:"kind,omitempty"`
@@ -87,14 +81,6 @@ func (r *ScmRepositoriesResponse) GetLinks() *Links {
 // GetData returns the data field for aggregation.
 func (r *ScmRepositoriesResponse) GetData() any {
 	return r.Data
-}
-
-// ScmGitReferenceAttributes describes an SCM git reference resource.
-type ScmGitReferenceAttributes struct {
-	Name          string `json:"name,omitempty"`
-	CanonicalName string `json:"canonicalName,omitempty"`
-	IsDeleted     bool   `json:"isDeleted,omitempty"`
-	Kind          string `json:"kind,omitempty"` // BRANCH or TAG
 }
 
 // ScmGitReferenceRelationships describes relationships for an SCM git reference.

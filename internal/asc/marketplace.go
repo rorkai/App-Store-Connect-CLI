@@ -10,18 +10,6 @@ import (
 // MarketplaceSearchDetailsResponse is the response for marketplace search detail list formatting.
 type MarketplaceSearchDetailsResponse = Response[MarketplaceSearchDetailAttributes]
 
-// MarketplaceSearchDetailDeleteResult represents CLI output for search detail deletions.
-type MarketplaceSearchDetailDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
-// MarketplaceWebhookDeleteResult represents CLI output for webhook deletions.
-type MarketplaceWebhookDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
 // CreateMarketplaceSearchDetail creates marketplace search details for an app.
 func (c *Client) CreateMarketplaceSearchDetail(ctx context.Context, appID, catalogURL string) (*MarketplaceSearchDetailResponse, error) {
 	appID = strings.TrimSpace(appID)

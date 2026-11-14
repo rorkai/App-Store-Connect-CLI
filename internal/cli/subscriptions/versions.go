@@ -264,8 +264,6 @@ Examples:
 				return err
 			}
 		},
-		ErrorPrefix:      "subscriptions versions view",
-		FetchErrorPrefix: "subscriptions versions view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetSubscriptionVersion(
 				ctx, id,

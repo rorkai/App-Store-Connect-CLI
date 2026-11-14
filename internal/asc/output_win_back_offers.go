@@ -6,12 +6,6 @@ import (
 	"strconv"
 )
 
-// WinBackOfferDeleteResult represents CLI output for win-back offer deletions.
-type WinBackOfferDeleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}
-
 func winBackOffersRows(resp *WinBackOffersResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Reference Name", "Offer ID", "Duration", "Mode", "Periods", "Paid Months", "Last Subscribed", "Wait Months", "Start Date", "End Date", "Priority", "Promotion Intent", "Target Plan Type"}
 	rows := make([][]string, 0, len(resp.Data))
@@ -48,12 +42,6 @@ func winBackOfferPricesRows(resp *WinBackOfferPricesResponse) ([]string, [][]str
 		rows = append(rows, []string{item.ID, territoryID, pricePointID})
 	}
 	return headers, rows, nil
-}
-
-func winBackOfferDeleteResultRows(result *WinBackOfferDeleteResult) ([]string, [][]string) {
-	headers := []string{"ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	return headers, rows
 }
 
 func offerPriceRelationshipIDs(raw json.RawMessage) (string, string, error) {

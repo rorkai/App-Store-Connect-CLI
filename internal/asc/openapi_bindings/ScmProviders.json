@@ -1,6 +1,9 @@
 {
   "tag": "ScmProviders",
   "file": "scm_providers_gen.go",
+  "types": [
+    "ScmProviderAttributes"
+  ],
   "operations": [
     {"operation":"scmProviders_getCollection","name":"GetScmProviders","options":"ScmProvidersOption","query":"buildScmProvidersQuery","nextContext":"scmProviders"},
     {"operation":"scmProviders_getInstance","name":"GetScmProvider","params":["providerID"]},

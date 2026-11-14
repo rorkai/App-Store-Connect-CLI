@@ -9,6 +9,14 @@ import (
 	"strings"
 )
 
+// AppStoreVersionExperimentTreatmentAttributes is the attributes object of the AppStoreVersionExperimentTreatment schema.
+type AppStoreVersionExperimentTreatmentAttributes struct {
+	Name         string      `json:"name,omitempty"`
+	AppIcon      *ImageAsset `json:"appIcon,omitempty"`
+	AppIconName  string      `json:"appIconName,omitempty"`
+	PromotedDate string      `json:"promotedDate,omitempty"`
+}
+
 // AppStoreVersionExperimentTreatmentCreateData is the data object of the AppStoreVersionExperimentTreatmentCreateRequest schema.
 type AppStoreVersionExperimentTreatmentCreateData struct {
 	Type          ResourceType                                           `json:"type"`

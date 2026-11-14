@@ -117,11 +117,10 @@ Examples:
 // newAlternativeDistributionPackageVersionsGetCommand returns the package versions get subcommand.
 func newAlternativeDistributionPackageVersionsGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		Deps:        d,
-		FlagSetName: "view",
-		Name:        "view",
-		ShortUsage:  "asc alternative-distribution packages versions view --version-id \"VERSION_ID\"",
-		ShortHelp:   "View an alternative distribution package version.",
+		Deps:       d,
+		Name:       "view",
+		ShortUsage: "asc alternative-distribution packages versions view --version-id \"VERSION_ID\"",
+		ShortHelp:  "View an alternative distribution package version.",
 		LongHelp: `View an alternative distribution package version.
 
 Examples:
@@ -130,8 +129,6 @@ Examples:
 		IDUsage:            "Alternative distribution package version ID",
 		IDType:             "alternativeDistributionPackageVersions",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "alternative-distribution packages versions view",
-		FetchErrorPrefix:   "alternative-distribution packages versions view: failed to fetch",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetAlternativeDistributionPackageVersion(ctx, id)
 		},

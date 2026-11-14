@@ -542,7 +542,7 @@ be combined with skip, which would leave the build unattached.`,
 
 			normalizedPlatform, err := shared.NormalizeAppStoreVersionPlatform(*platform)
 			if err != nil {
-				return fmt.Errorf("versions create: %w", err)
+				return shared.UsageErrorf("versions create: %v", err)
 			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
@@ -957,7 +957,7 @@ Examples:
 		RequiredDiagnostic:     true,
 		ConfirmUsage:           "Confirm deletion (required)",
 		ConfirmRequiredMessage: "--confirm is required to delete a version",
-		ErrorPrefix:            "versions delete",
+		DeleteErrorPrefix:      "versions delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteAppStoreVersion(ctx, id)
 		},

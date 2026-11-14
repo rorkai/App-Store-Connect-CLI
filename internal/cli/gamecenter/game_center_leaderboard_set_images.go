@@ -89,10 +89,9 @@ Examples:
 // GameCenterLeaderboardSetImagesDeleteCommand returns the images delete subcommand.
 func GameCenterLeaderboardSetImagesDeleteCommand() *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc game-center leaderboard-sets images delete --id \"IMAGE_ID\" --confirm",
-		ShortHelp:   "Delete a leaderboard set image.",
+		Name:       "delete",
+		ShortUsage: "asc game-center leaderboard-sets images delete --id \"IMAGE_ID\" --confirm",
+		ShortHelp:  "Delete a leaderboard set image.",
 		LongHelp: `Delete a leaderboard set image.
 
 Examples:
@@ -101,13 +100,11 @@ Examples:
 		IDUsage:            "Leaderboard set image ID",
 		IDType:             "gameCenterLeaderboardSetImages",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "game-center leaderboard-sets images delete",
-		DeleteErrorPrefix:  "game-center leaderboard-sets images delete: failed to delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteGameCenterLeaderboardSetImage(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.GameCenterLeaderboardSetImageDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }

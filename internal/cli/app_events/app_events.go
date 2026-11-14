@@ -527,10 +527,9 @@ func AppEventsDeleteCommand() *ffcli.Command {
 	d.Client = func() (*asc.Client, error) { return appEventsClientFactory() }
 
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		FlagSetName: "delete",
-		Name:        "delete",
-		ShortUsage:  "asc app-events delete --event-id \"EVENT_ID\" --confirm",
-		ShortHelp:   "Delete an in-app event.",
+		Name:       "delete",
+		ShortUsage: "asc app-events delete --event-id \"EVENT_ID\" --confirm",
+		ShortHelp:  "Delete an in-app event.",
 		LongHelp: `Delete an in-app event.
 
 Examples:
@@ -539,14 +538,12 @@ Examples:
 		IDUsage:            "App event ID",
 		IDType:             "appEvents",
 		RequiredDiagnostic: true,
-		ErrorPrefix:        "app-events delete",
-		DeleteErrorPrefix:  "app-events delete: failed to delete",
 		Deps:               d,
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteAppEvent(ctx, id)
 		},
 		Result: func(id string) any {
-			return &asc.AppEventDeleteResult{ID: id, Deleted: true}
+			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
 }
