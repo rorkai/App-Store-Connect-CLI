@@ -79,15 +79,3 @@ func (c *Client) GetPassTypeIDCertificatesRelationships(ctx context.Context, pas
 		opts...,
 	)
 }
-
-// GetCertificatePassTypeID retrieves the pass type ID for a certificate.
-func (c *Client) GetCertificatePassTypeID(ctx context.Context, certificateID string) (*PassTypeIDResponse, error) {
-	certificateID = strings.TrimSpace(certificateID)
-	return getJSON[PassTypeIDResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/certificates/%s/passTypeId", certificateID)})
-}
-
-// GetCertificatePassTypeIDRelationship retrieves the pass type ID linkage for a certificate.
-func (c *Client) GetCertificatePassTypeIDRelationship(ctx context.Context, certificateID string) (*CertificatePassTypeIDLinkageResponse, error) {
-	certificateID = strings.TrimSpace(certificateID)
-	return getJSON[CertificatePassTypeIDLinkageResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/certificates/%s/relationships/passTypeId", certificateID)})
-}

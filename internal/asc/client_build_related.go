@@ -26,16 +26,6 @@ func (e MissingBuildBetaAppReviewSubmissionError) Unwrap() error {
 	return ErrNotFound
 }
 
-// GetBuildApp retrieves the app for a build.
-func (c *Client) GetBuildApp(ctx context.Context, buildID string) (*AppResponse, error) {
-	buildID = strings.TrimSpace(buildID)
-	if buildID == "" {
-		return nil, fmt.Errorf("buildID is required")
-	}
-
-	return getJSON[AppResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/builds/%s/app", buildID)})
-}
-
 // GetBuildBetaAppReviewSubmission retrieves the beta app review submission for a build.
 func (c *Client) GetBuildBetaAppReviewSubmission(ctx context.Context, buildID string) (*BetaAppReviewSubmissionResponse, error) {
 	buildID = strings.TrimSpace(buildID)
@@ -66,41 +56,4 @@ func (c *Client) GetBuildBetaAppReviewSubmission(ctx context.Context, buildID st
 	}
 
 	return &response, nil
-}
-
-// GetBuildBuildBetaDetail retrieves the build beta detail for a build.
-func (c *Client) GetBuildBuildBetaDetail(ctx context.Context, buildID string) (*BuildBetaDetailResponse, error) {
-	buildID = strings.TrimSpace(buildID)
-	if buildID == "" {
-		return nil, fmt.Errorf("buildID is required")
-	}
-
-	return getJSON[BuildBetaDetailResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/builds/%s/buildBetaDetail", buildID)})
-}
-
-// GetBuildIcons retrieves build icons for a build.
-func (c *Client) GetBuildIcons(ctx context.Context, buildID string, opts ...BuildIconsOption) (*BuildIconsResponse, error) {
-	query := applyOptions(opts)
-
-	buildID = strings.TrimSpace(buildID)
-	if query.nextURL == "" && buildID == "" {
-		return nil, fmt.Errorf("buildID is required")
-	}
-
-	return getJSON[BuildIconsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/builds/%s/icons", buildID),
-		Query:       buildListQuery(query),
-		Next:        query.nextURL,
-		NextContext: "buildIcons",
-	})
-}
-
-// GetBuildPreReleaseVersion retrieves the pre-release version for a build.
-func (c *Client) GetBuildPreReleaseVersion(ctx context.Context, buildID string) (*PreReleaseVersionResponse, error) {
-	buildID = strings.TrimSpace(buildID)
-	if buildID == "" {
-		return nil, fmt.Errorf("buildID is required")
-	}
-
-	return getJSON[PreReleaseVersionResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/builds/%s/preReleaseVersion", buildID)})
 }

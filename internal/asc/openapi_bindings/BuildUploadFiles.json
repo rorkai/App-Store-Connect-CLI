@@ -1,0 +1,12 @@
+{
+  "tag": "BuildUploadFiles",
+  "file": "build_upload_files_gen.go",
+  "types": [
+    "BuildUploadFileCreateRequest",
+    "BuildUploadFileUpdateData",
+    "BuildUploadFileUpdateRequest"
+  ],
+  "operations": [
+    {"operation":"buildUploadFiles_getInstance","name":"GetBuildUploadFile","params":["id"],"check":"require"}
+  ]
+}
