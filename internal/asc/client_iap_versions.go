@@ -329,14 +329,6 @@ func (c *Client) GetInAppPurchaseVersionImage(ctx context.Context, versionID str
 	return getJSON[InAppPurchaseImageV2Response](ctx, c, readRequest{Path: fmt.Sprintf("/v1/inAppPurchaseVersions/%s/image", versionID), Query: buildIAPImageFieldsQuery(q)})
 }
 
-func (c *Client) GetInAppPurchaseVersionImageRelationship(ctx context.Context, versionID string) (*InAppPurchaseVersionImageLinkageResponse, error) {
-	versionID = strings.TrimSpace(versionID)
-	if versionID == "" {
-		return nil, fmt.Errorf("versionID is required")
-	}
-	return getJSON[InAppPurchaseVersionImageLinkageResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/inAppPurchaseVersions/%s/relationships/image", versionID)})
-}
-
 func (c *Client) GetInAppPurchaseVersionImages(ctx context.Context, versionID string, opts ...IAPVersionImagesOption) (*InAppPurchaseImagesV2Response, error) {
 	q := applyOptions(opts)
 	versionID = strings.TrimSpace(versionID)
@@ -411,14 +403,6 @@ func (c *Client) UpdateInAppPurchaseLocalizationV2(ctx context.Context, localiza
 	return sendJSON[InAppPurchaseLocalizationResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v2/inAppPurchaseLocalizations/%s", localizationID), Payload: payload})
 }
 
-func (c *Client) DeleteInAppPurchaseLocalizationV2(ctx context.Context, localizationID string) error {
-	localizationID = strings.TrimSpace(localizationID)
-	if localizationID == "" {
-		return fmt.Errorf("localizationID is required")
-	}
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v2/inAppPurchaseLocalizations/%s", localizationID), nil)
-}
-
 func (c *Client) CreateInAppPurchaseImageV2(ctx context.Context, versionID, fileName string, fileSize int64) (*InAppPurchaseImageV2Response, error) {
 	versionID = strings.TrimSpace(versionID)
 	fileName = strings.TrimSpace(fileName)
@@ -454,12 +438,4 @@ func (c *Client) UpdateInAppPurchaseImageV2(ctx context.Context, imageID string,
 		payload.Data.Attributes = &attrs
 	}
 	return sendJSON[InAppPurchaseImageV2Response](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v2/inAppPurchaseImages/%s", imageID), Payload: payload})
-}
-
-func (c *Client) DeleteInAppPurchaseImageV2(ctx context.Context, imageID string) error {
-	imageID = strings.TrimSpace(imageID)
-	if imageID == "" {
-		return fmt.Errorf("imageID is required")
-	}
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v2/inAppPurchaseImages/%s", imageID), nil)
 }

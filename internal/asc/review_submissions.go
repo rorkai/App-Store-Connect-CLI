@@ -138,11 +138,6 @@ type ReviewSubmissionCreateData struct {
 	Relationships *ReviewSubmissionCreateRelationships `json:"relationships"`
 }
 
-// ReviewSubmissionCreateRequest is a request to create a review submission.
-type ReviewSubmissionCreateRequest struct {
-	Data ReviewSubmissionCreateData `json:"data"`
-}
-
 // ReviewSubmissionUpdateAttributes describes attributes for updating a review submission.
 type ReviewSubmissionUpdateAttributes struct {
 	Platform  *NullablePlatform `json:"platform,omitempty"`
@@ -155,11 +150,6 @@ type ReviewSubmissionUpdateData struct {
 	Type       ResourceType                     `json:"type"`
 	ID         string                           `json:"id"`
 	Attributes ReviewSubmissionUpdateAttributes `json:"attributes"`
-}
-
-// ReviewSubmissionUpdateRequest is a request to update a review submission.
-type ReviewSubmissionUpdateRequest struct {
-	Data ReviewSubmissionUpdateData `json:"data"`
 }
 
 // GetReviewSubmissions retrieves review submissions for an app.
@@ -213,19 +203,6 @@ func (c *Client) getReviewSubmissions(ctx context.Context, appID string, strict 
 	}
 
 	return &response, nil
-}
-
-// ListReviewSubmissions retrieves review submissions using the top-level /v1/reviewSubmissions endpoint.
-// App Store Connect requires filter[app] for this endpoint, so callers should pass WithReviewSubmissionsApps.
-func (c *Client) ListReviewSubmissions(ctx context.Context, opts ...ReviewSubmissionsOption) (*ReviewSubmissionsResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[ReviewSubmissionsResponse](ctx, c, readRequest{
-		Path:        "/v1/reviewSubmissions",
-		Query:       buildReviewSubmissionsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "reviewSubmissions",
-		ParseErr:    "failed to parse review submissions response",
-	})
 }
 
 // GetReviewSubmission retrieves a review submission by ID.

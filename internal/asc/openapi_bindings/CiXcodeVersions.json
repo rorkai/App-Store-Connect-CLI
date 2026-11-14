@@ -1,0 +1,7 @@
+{
+  "tag": "CiXcodeVersions",
+  "file": "ci_xcode_versions_gen.go",
+  "operations": [
+    {"operation":"ciXcodeVersions_getCollection","name":"GetCiXcodeVersions","options":"CiXcodeVersionsOption","query":"buildCiXcodeVersionsQuery","nextContext":"ciXcodeVersions"}
+  ]
+}

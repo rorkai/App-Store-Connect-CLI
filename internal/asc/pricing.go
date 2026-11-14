@@ -176,14 +176,6 @@ type TerritoryAvailabilityUpdateRequest struct {
 // EndAppAvailabilityPreOrderAttributes describes the end pre-order response attributes.
 type EndAppAvailabilityPreOrderAttributes struct{}
 
-// EndAppAvailabilityPreOrderResponse is the response from end pre-order requests.
-type EndAppAvailabilityPreOrderResponse = SingleResponse[EndAppAvailabilityPreOrderAttributes]
-
-// EndAppAvailabilityPreOrderCreateRequest is a request to end app availability pre-orders.
-type EndAppAvailabilityPreOrderCreateRequest struct {
-	Data EndAppAvailabilityPreOrderCreateData `json:"data"`
-}
-
 // EndAppAvailabilityPreOrderCreateData is the data portion of a pre-order end request.
 type EndAppAvailabilityPreOrderCreateData struct {
 	Type          ResourceType                            `json:"type"`

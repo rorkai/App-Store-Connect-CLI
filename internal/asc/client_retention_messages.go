@@ -77,13 +77,6 @@ type RetentionMessageLinkageResponse struct {
 	Links Links         `json:"links"`
 }
 
-// RetentionMessageLocalizationCreateAttributes describes a localization create request.
-type RetentionMessageLocalizationCreateAttributes struct {
-	Locale string  `json:"locale"`
-	Header *string `json:"header,omitempty"`
-	Body   *string `json:"body,omitempty"`
-}
-
 // RetentionMessageLocalizationUpdateAttributes describes a localization update
 // request; a NullableString with a nil Value clears the text.
 type RetentionMessageLocalizationUpdateAttributes struct {

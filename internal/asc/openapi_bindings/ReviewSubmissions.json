@@ -1,0 +1,11 @@
+{
+  "tag": "ReviewSubmissions",
+  "file": "review_submissions_gen.go",
+  "types": [
+    "ReviewSubmissionCreateRequest",
+    "ReviewSubmissionUpdateRequest"
+  ],
+  "operations": [
+    {"operation":"reviewSubmissions_getCollection","name":"ListReviewSubmissions","options":"ReviewSubmissionsOption","query":"buildReviewSubmissionsQuery","nextContext":"reviewSubmissions","parseErr":"failed to parse review submissions response"}
+  ]
+}
