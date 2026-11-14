@@ -1,9 +1,7 @@
 package cmdtest
 
 import (
-	"context"
 	"errors"
-	"io"
 	"net/http"
 	"path/filepath"
 	"reflect"
@@ -12,97 +10,77 @@ import (
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
+const (
+	addGroupsInternalGroupsBody = `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"QA","isInternalGroup":true}}]}`
+	addGroupsExternalGroupsBody = `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"QA","isInternalGroup":false}}]}`
+	addGroupsReadyBuildBody     = `{"data":{"type":"builds","id":"build-1","attributes":{"processingState":"VALID","expired":false,"buildAudienceType":"APP_STORE_ELIGIBLE","usesNonExemptEncryption":false}}}`
+	addGroupsReadyDetailBody    = `{"data":{"type":"buildBetaDetails","id":"detail-1","attributes":{"externalBuildState":"READY_FOR_BETA_TESTING"}}}`
+)
+
 type addGroupsDiagnosticsFixture struct {
-	t *testing.T
-
-	external              bool
-	groupInput            string
-	groupsBody            string
-	postStatus            int
-	postBody              string
-	buildStatus           int
-	buildBody             string
-	preflightBuildStatus  int
-	preflightBuildBody    string
-	detailStatus          int
-	detailBody            string
-	preflightDetailStatus int
-	preflightDetailBody   string
-
-	postCount   int
-	buildReads  int
-	detailReads int
-	requests    []string
+	reg        *asctest.Registry
+	groupInput string
 }
 
-func (f *addGroupsDiagnosticsFixture) transport() roundTripFunc {
-	return func(req *http.Request) (*http.Response, error) {
-		request := req.Method + " " + req.URL.Path
-		f.requests = append(f.requests, request)
-		switch request {
-		case "GET /v1/builds/build-1/app":
-			return jsonResponse(http.StatusOK, `{"data":{"type":"apps","id":"app-1"}}`)
-		case "GET /v1/apps/app-1/betaGroups":
-			if req.URL.Query().Get("cursor") == "UNNEEDED" {
-				return nil, io.ErrUnexpectedEOF
-			}
-			if f.groupsBody != "" {
-				return jsonResponse(http.StatusOK, f.groupsBody)
-			}
-			isInternal := !f.external
-			return jsonResponse(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"QA","isInternalGroup":`+boolString(isInternal)+`}}]}`)
-		case "POST /v1/builds/build-1/relationships/betaGroups":
-			f.postCount++
-			status := f.postStatus
-			if status == 0 {
-				status = http.StatusNoContent
-			}
-			return jsonResponse(status, f.postBody)
-		case "GET /v1/builds/build-1":
-			f.buildReads++
-			status := f.buildStatus
-			body := f.buildBody
-			if f.preflightBuildBody != "" && f.buildReads == 1 {
-				status = f.preflightBuildStatus
-				body = f.preflightBuildBody
-			}
-			if status == 0 {
-				status = http.StatusOK
-			}
-			if body == "" {
-				body = `{"data":{"type":"builds","id":"build-1","attributes":{"processingState":"VALID","expired":false,"buildAudienceType":"APP_STORE_ELIGIBLE","usesNonExemptEncryption":false}}}`
-			}
-			return jsonResponse(status, body)
-		case "GET /v1/builds/build-1/buildBetaDetail":
-			f.detailReads++
-			status := f.detailStatus
-			body := f.detailBody
-			if f.preflightDetailBody != "" && f.detailReads == 1 {
-				status = f.preflightDetailStatus
-				body = f.preflightDetailBody
-			}
-			if status == 0 {
-				status = http.StatusOK
-			}
-			if body == "" {
-				body = `{"data":{"type":"buildBetaDetails","id":"detail-1","attributes":{"externalBuildState":"READY_FOR_BETA_TESTING"}}}`
-			}
-			return jsonResponse(status, body)
-		default:
-			f.t.Fatalf("unexpected request %s", request)
-			return nil, nil
+func newAddGroupsDiagnosticsFixture(t *testing.T) *addGroupsDiagnosticsFixture {
+	t.Helper()
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	return &addGroupsDiagnosticsFixture{reg: reg}
+}
+
+func (f *addGroupsDiagnosticsFixture) groups(body string) *addGroupsDiagnosticsFixture {
+	registerAddGroupsLookups(f.reg, body)
+	return f
+}
+
+func (f *addGroupsDiagnosticsFixture) build(status int, body string) *addGroupsDiagnosticsFixture {
+	f.reg.Register(asctest.GET("/v1/builds/build-1"), asctest.JSON(status, body))
+	return f
+}
+
+func (f *addGroupsDiagnosticsFixture) detail(status int, body string) *addGroupsDiagnosticsFixture {
+	f.reg.Register(asctest.GET("/v1/builds/build-1/buildBetaDetail"), asctest.JSON(status, body))
+	return f
+}
+
+func (f *addGroupsDiagnosticsFixture) post(status int, body string) *addGroupsDiagnosticsFixture {
+	f.reg.Register(asctest.POST("/v1/builds/build-1/relationships/betaGroups").JSONBody(`{"data":[{"type":"betaGroups","id":"group-1"}]}`), asctest.JSON(status, body))
+	return f
+}
+
+func (f *addGroupsDiagnosticsFixture) requests() []string {
+	var requests []string
+	for _, req := range f.reg.Requests() {
+		requests = append(requests, req.Method+" "+req.URL.Path)
+	}
+	return requests
+}
+
+func (f *addGroupsDiagnosticsFixture) count(request string) int {
+	n := 0
+	for _, got := range f.requests() {
+		if got == request {
+			n++
 		}
 	}
+	return n
 }
 
-func boolString(value bool) string {
-	if value {
-		return "true"
-	}
-	return "false"
+func (f *addGroupsDiagnosticsFixture) postCount() int {
+	return f.count("POST /v1/builds/build-1/relationships/betaGroups")
+}
+
+func (f *addGroupsDiagnosticsFixture) buildReads() int {
+	return f.count("GET /v1/builds/build-1")
+}
+
+func (f *addGroupsDiagnosticsFixture) detailReads() int {
+	return f.count("GET /v1/builds/build-1/buildBetaDetail")
 }
 
 func runAddGroupsDiagnostics(t *testing.T, fixture *addGroupsDiagnosticsFixture) (string, string, error) {
@@ -114,39 +92,26 @@ func runAddGroupsDiagnosticsArgs(t *testing.T, fixture *addGroupsDiagnosticsFixt
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	http.DefaultTransport = fixture.transport()
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		groupInput := fixture.groupInput
-		if groupInput == "" {
-			groupInput = "group-1"
-		}
-		args := []string{
-			"builds", "add-groups",
-			"--build-id", "build-1",
-			"--group", groupInput,
-		}
-		args = append(args, extraArgs...)
-		args = append(args, "--output", "json")
-		if err := root.Parse(args); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-	return stdout, stderr, runErr
+	groupInput := fixture.groupInput
+	if groupInput == "" {
+		groupInput = "group-1"
+	}
+	args := []string{
+		"builds", "add-groups",
+		"--build-id", "build-1",
+		"--group", groupInput,
+	}
+	args = append(args, extraArgs...)
+	args = append(args, "--output", "json")
+	return runCommand(t, args)
 }
 
 func TestBuildsAddGroupsExactIDDoesNotFetchUnneededGroupPage(t *testing.T) {
 	t.Setenv("ASC_MAX_RETRIES", "0")
-	fixture := &addGroupsDiagnosticsFixture{
-		t:          t,
-		groupsBody: `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"QA","isInternalGroup":true}}],"links":{"next":"https://api.appstoreconnect.apple.com/v1/apps/app-1/betaGroups?cursor=UNNEEDED"}}`,
-	}
+	fixture := newAddGroupsDiagnosticsFixture(t).
+		groups(`{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"QA","isInternalGroup":true}}],"links":{"next":"https://api.appstoreconnect.apple.com/v1/apps/app-1/betaGroups?cursor=UNNEEDED"}}`).
+		build(http.StatusOK, addGroupsReadyBuildBody).
+		post(http.StatusNoContent, "")
 	stdout, stderr, runErr := runAddGroupsDiagnostics(t, fixture)
 	if runErr != nil {
 		t.Fatalf("exact group ID failed: %v (stderr=%q)", runErr, stderr)
@@ -157,18 +122,16 @@ func TestBuildsAddGroupsExactIDDoesNotFetchUnneededGroupPage(t *testing.T) {
 		"GET /v1/builds/build-1",
 		"POST /v1/builds/build-1/relationships/betaGroups",
 	}
-	if !reflect.DeepEqual(fixture.requests, wantRequests) || !strings.Contains(stdout, `"groupIds":["group-1"]`) {
-		t.Fatalf("requests = %v, stdout = %q", fixture.requests, stdout)
+	if !reflect.DeepEqual(fixture.requests(), wantRequests) || !strings.Contains(stdout, `"groupIds":["group-1"]`) {
+		t.Fatalf("requests = %v, stdout = %q", fixture.requests(), stdout)
 	}
 }
 
 func TestBuildsAddGroupsDryRunDoesNotPostAndReportsAdvisoryState(t *testing.T) {
-	fixture := &addGroupsDiagnosticsFixture{
-		t:          t,
-		external:   true,
-		buildBody:  `{"data":{"type":"builds","id":"build-1","attributes":{"processingState":"PROCESSING","expired":false}}}`,
-		detailBody: `{"data":{"type":"buildBetaDetails","id":"detail-1","attributes":{"externalBuildState":"MISSING_EXPORT_COMPLIANCE"}}}`,
-	}
+	fixture := newAddGroupsDiagnosticsFixture(t).
+		groups(addGroupsExternalGroupsBody).
+		build(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"processingState":"PROCESSING","expired":false}}}`).
+		detail(http.StatusOK, `{"data":{"type":"buildBetaDetails","id":"detail-1","attributes":{"externalBuildState":"MISSING_EXPORT_COMPLIANCE"}}}`)
 	stdout, stderr, runErr := runAddGroupsDiagnosticsArgs(t, fixture, "--dry-run")
 	if runErr != nil {
 		t.Fatalf("unexpected error: %v (stderr=%q)", runErr, stderr)
@@ -179,11 +142,11 @@ func TestBuildsAddGroupsDryRunDoesNotPostAndReportsAdvisoryState(t *testing.T) {
 		"GET /v1/builds/build-1",
 		"GET /v1/builds/build-1/buildBetaDetail",
 	}
-	if !reflect.DeepEqual(fixture.requests, wantRequests) {
-		t.Fatalf("requests = %v, want %v", fixture.requests, wantRequests)
+	if !reflect.DeepEqual(fixture.requests(), wantRequests) {
+		t.Fatalf("requests = %v, want %v", fixture.requests(), wantRequests)
 	}
-	if fixture.postCount != 0 {
-		t.Fatalf("postCount = %d, want zero", fixture.postCount)
+	if fixture.postCount() != 0 {
+		t.Fatalf("postCount = %d, want zero", fixture.postCount())
 	}
 	for _, want := range []string{`"groupIds":["group-1"]`, `"action":"would-add"`, `"dryRun":true`} {
 		if !strings.Contains(stdout, want) {
@@ -206,12 +169,11 @@ func TestBuildsAddGroupsDryRunDoesNotPostAndReportsAdvisoryState(t *testing.T) {
 }
 
 func TestBuildsAddGroupsDryRunSkipsInternalAndPlansExternal(t *testing.T) {
-	fixture := &addGroupsDiagnosticsFixture{
-		t:          t,
-		groupInput: "group-internal,group-external",
-		groupsBody: `{"data":[{"type":"betaGroups","id":"group-internal","attributes":{"name":"Internal","isInternalGroup":true}},{"type":"betaGroups","id":"group-external","attributes":{"name":"External","isInternalGroup":false}}]}`,
-		buildBody:  `{"data":{"type":"builds","id":"build-1","attributes":{"processingState":"VALID","expired":false}}}`,
-	}
+	fixture := newAddGroupsDiagnosticsFixture(t).
+		groups(`{"data":[{"type":"betaGroups","id":"group-internal","attributes":{"name":"Internal","isInternalGroup":true}},{"type":"betaGroups","id":"group-external","attributes":{"name":"External","isInternalGroup":false}}]}`).
+		build(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"processingState":"VALID","expired":false}}}`).
+		detail(http.StatusOK, addGroupsReadyDetailBody)
+	fixture.groupInput = "group-internal,group-external"
 	stdout, stderr, runErr := runAddGroupsDiagnosticsArgs(t, fixture, "--skip-internal", "--dry-run")
 	if runErr != nil {
 		t.Fatalf("unexpected error: %v (stderr=%q)", runErr, stderr)
@@ -222,8 +184,8 @@ func TestBuildsAddGroupsDryRunSkipsInternalAndPlansExternal(t *testing.T) {
 		"GET /v1/builds/build-1",
 		"GET /v1/builds/build-1/buildBetaDetail",
 	}
-	if !reflect.DeepEqual(fixture.requests, wantRequests) {
-		t.Fatalf("requests = %v, want %v", fixture.requests, wantRequests)
+	if !reflect.DeepEqual(fixture.requests(), wantRequests) {
+		t.Fatalf("requests = %v, want %v", fixture.requests(), wantRequests)
 	}
 	for _, want := range []string{`"groupIds":["group-external"]`, `"action":"would-add"`, `"dryRun":true`} {
 		if !strings.Contains(stdout, want) {
@@ -236,10 +198,8 @@ func TestBuildsAddGroupsDryRunSkipsInternalAndPlansExternal(t *testing.T) {
 }
 
 func TestBuildsAddGroupsDryRunAllInternalIsNoOp(t *testing.T) {
-	fixture := &addGroupsDiagnosticsFixture{
-		t:          t,
-		groupsBody: `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"Internal","isInternalGroup":true}}]}`,
-	}
+	fixture := newAddGroupsDiagnosticsFixture(t).
+		groups(`{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"Internal","isInternalGroup":true}}]}`)
 	stdout, stderr, runErr := runAddGroupsDiagnosticsArgs(t, fixture, "--skip-internal", "--dry-run")
 	if runErr != nil {
 		t.Fatalf("unexpected error: %v (stderr=%q)", runErr, stderr)
@@ -248,8 +208,8 @@ func TestBuildsAddGroupsDryRunAllInternalIsNoOp(t *testing.T) {
 		"GET /v1/builds/build-1/app",
 		"GET /v1/apps/app-1/betaGroups",
 	}
-	if !reflect.DeepEqual(fixture.requests, wantRequests) {
-		t.Fatalf("requests = %v, want %v", fixture.requests, wantRequests)
+	if !reflect.DeepEqual(fixture.requests(), wantRequests) {
+		t.Fatalf("requests = %v, want %v", fixture.requests(), wantRequests)
 	}
 	for _, want := range []string{`"groupIds":[]`, `"action":"no-op"`, `"dryRun":true`} {
 		if !strings.Contains(stdout, want) {
@@ -272,11 +232,9 @@ func TestBuildsAddGroupsSkippedInternalDiagnosticsSanitizeProviderID(t *testing.
 		{name: "dry-run", dryRun: true},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
-			fixture := &addGroupsDiagnosticsFixture{
-				t:          t,
-				groupInput: groupID,
-				groupsBody: `{"data":[{"type":"betaGroups","id":"group-control-\u001b[31mID\nNEXT","attributes":{"name":"QA-\u001b[31mNAME\nINJECT","isInternalGroup":true}}]}`,
-			}
+			fixture := newAddGroupsDiagnosticsFixture(t).
+				groups(`{"data":[{"type":"betaGroups","id":"group-control-\u001b[31mID\nNEXT","attributes":{"name":"QA-\u001b[31mNAME\nINJECT","isInternalGroup":true}}]}`)
+			fixture.groupInput = groupID
 			args := []string{"--skip-internal"}
 			if testCase.dryRun {
 				args = append(args, "--dry-run")
@@ -299,8 +257,8 @@ func TestBuildsAddGroupsSkippedInternalDiagnosticsSanitizeProviderID(t *testing.
 			}
 
 			if testCase.dryRun {
-				if fixture.postCount != 0 {
-					t.Fatalf("postCount = %d, want zero for dry-run", fixture.postCount)
+				if fixture.postCount() != 0 {
+					t.Fatalf("postCount = %d, want zero for dry-run", fixture.postCount())
 				}
 				if !strings.Contains(stdout, `"action":"no-op"`) || !strings.Contains(stdout, `"dryRun":true`) {
 					t.Fatalf("stdout = %q, want dry-run no-op receipt", stdout)
@@ -311,7 +269,7 @@ func TestBuildsAddGroupsSkippedInternalDiagnosticsSanitizeProviderID(t *testing.
 }
 
 func TestBuildsAddGroupsDryRunRejectsSubmitBeforeNetwork(t *testing.T) {
-	fixture := &addGroupsDiagnosticsFixture{t: t, external: true}
+	fixture := newAddGroupsDiagnosticsFixture(t)
 	_, stderr, runErr := runAddGroupsDiagnosticsArgs(t, fixture, "--submit", "--confirm", "--dry-run")
 	if runErr == nil {
 		t.Fatal("expected --submit/--dry-run conflict")
@@ -319,8 +277,8 @@ func TestBuildsAddGroupsDryRunRejectsSubmitBeforeNetwork(t *testing.T) {
 	if rootcmd.ExitCodeFromError(runErr) != 2 {
 		t.Fatalf("exit code = %d, want usage exit 2", rootcmd.ExitCodeFromError(runErr))
 	}
-	if len(fixture.requests) != 0 {
-		t.Fatalf("requests = %v, want no network requests", fixture.requests)
+	if len(fixture.requests()) != 0 {
+		t.Fatalf("requests = %v, want no network requests", fixture.requests())
 	}
 	if !strings.Contains(stderr, "--submit cannot be used with --dry-run") {
 		t.Fatalf("stderr = %q, want conflict message", stderr)
@@ -328,18 +286,15 @@ func TestBuildsAddGroupsDryRunRejectsSubmitBeforeNetwork(t *testing.T) {
 }
 
 func TestBuildsAddGroupsDryRunKeepsPreviewSuccessfulWhenStateReadFails(t *testing.T) {
-	fixture := &addGroupsDiagnosticsFixture{
-		t:           t,
-		external:    false,
-		buildStatus: http.StatusInternalServerError,
-		buildBody:   `{"errors":[{"status":"500","code":"UNEXPECTED_ERROR","detail":"Unavailable."}]}`,
-	}
+	fixture := newAddGroupsDiagnosticsFixture(t).
+		groups(addGroupsInternalGroupsBody).
+		build(http.StatusInternalServerError, `{"errors":[{"status":"500","code":"UNEXPECTED_ERROR","detail":"Unavailable."}]}`)
 	stdout, stderr, runErr := runAddGroupsDiagnosticsArgs(t, fixture, "--dry-run")
 	if runErr != nil {
 		t.Fatalf("unexpected error: %v (stderr=%q)", runErr, stderr)
 	}
-	if fixture.postCount != 0 || fixture.buildReads != 1 || fixture.detailReads != 0 {
-		t.Fatalf("requests = %v, want no POST and one best-effort build read", fixture.requests)
+	if fixture.postCount() != 0 || fixture.buildReads() != 1 || fixture.detailReads() != 0 {
+		t.Fatalf("requests = %v, want no POST and one best-effort build read", fixture.requests())
 	}
 	if !strings.Contains(stdout, `"dryRun":true`) || !strings.Contains(stderr, "readiness is unknown") {
 		t.Fatalf("stdout=%q stderr=%q, want dry-run receipt and unknown readiness", stdout, stderr)
@@ -347,13 +302,17 @@ func TestBuildsAddGroupsDryRunKeepsPreviewSuccessfulWhenStateReadFails(t *testin
 }
 
 func TestBuildsAddGroupsSuccessPreflightsStateBeforePost(t *testing.T) {
-	fixture := &addGroupsDiagnosticsFixture{t: t, external: true}
+	fixture := newAddGroupsDiagnosticsFixture(t).
+		groups(addGroupsExternalGroupsBody).
+		build(http.StatusOK, addGroupsReadyBuildBody).
+		detail(http.StatusOK, addGroupsReadyDetailBody).
+		post(http.StatusNoContent, "")
 	stdout, stderr, runErr := runAddGroupsDiagnostics(t, fixture)
 	if runErr != nil {
 		t.Fatalf("unexpected error: %v (stderr=%q)", runErr, stderr)
 	}
-	if fixture.postCount != 1 || fixture.buildReads != 1 || fixture.detailReads != 1 {
-		t.Fatalf("requests = %v, want one preflight build/detail read and one POST", fixture.requests)
+	if fixture.postCount() != 1 || fixture.buildReads() != 1 || fixture.detailReads() != 1 {
+		t.Fatalf("requests = %v, want one preflight build/detail read and one POST", fixture.requests())
 	}
 	if !strings.Contains(stdout, `"groupIds":["group-1"]`) {
 		t.Fatalf("stdout = %q, want assignment receipt", stdout)
@@ -363,18 +322,17 @@ func TestBuildsAddGroupsSuccessPreflightsStateBeforePost(t *testing.T) {
 func TestBuildsAddGroupsSubmitBlocksInFlightReviewBeforeAnyPost(t *testing.T) {
 	for _, state := range []string{"WAITING_FOR_BETA_REVIEW", "IN_BETA_REVIEW"} {
 		t.Run(state, func(t *testing.T) {
-			fixture := &addGroupsDiagnosticsFixture{
-				t:          t,
-				external:   true,
-				detailBody: `{"data":{"type":"buildBetaDetails","id":"detail-1","attributes":{"externalBuildState":"` + state + `"}}}`,
-			}
+			fixture := newAddGroupsDiagnosticsFixture(t).
+				groups(addGroupsExternalGroupsBody).
+				build(http.StatusOK, addGroupsReadyBuildBody).
+				detail(http.StatusOK, `{"data":{"type":"buildBetaDetails","id":"detail-1","attributes":{"externalBuildState":"`+state+`"}}}`)
 
 			_, stderr, runErr := runAddGroupsDiagnosticsArgs(t, fixture, "--submit", "--confirm")
 			if runErr == nil {
 				t.Fatal("expected in-flight review state to block assignment")
 			}
-			if fixture.postCount != 0 {
-				t.Fatalf("postCount = %d, want zero relationship or submission POSTs", fixture.postCount)
+			if fixture.postCount() != 0 {
+				t.Fatalf("postCount = %d, want zero relationship or submission POSTs", fixture.postCount())
 			}
 			wantRequests := []string{
 				"GET /v1/builds/build-1/app",
@@ -382,8 +340,8 @@ func TestBuildsAddGroupsSubmitBlocksInFlightReviewBeforeAnyPost(t *testing.T) {
 				"GET /v1/builds/build-1",
 				"GET /v1/builds/build-1/buildBetaDetail",
 			}
-			if !reflect.DeepEqual(fixture.requests, wantRequests) {
-				t.Fatalf("requests = %v, want read-only preflight requests %v", fixture.requests, wantRequests)
+			if !reflect.DeepEqual(fixture.requests(), wantRequests) {
+				t.Fatalf("requests = %v, want read-only preflight requests %v", fixture.requests(), wantRequests)
 			}
 			if !strings.Contains(stderr, state) || !strings.Contains(stderr, "awaiting beta app review") {
 				t.Fatalf("stderr = %q, want state-specific preflight diagnostic", stderr)
@@ -393,16 +351,13 @@ func TestBuildsAddGroupsSubmitBlocksInFlightReviewBeforeAnyPost(t *testing.T) {
 }
 
 func TestBuildsAddGroupsDiagnoses422AfterAssignment(t *testing.T) {
-	fixture := &addGroupsDiagnosticsFixture{
-		t:                   t,
-		external:            true,
-		postStatus:          http.StatusUnprocessableEntity,
-		postBody:            `{"errors":[{"status":"422","code":"STATE_ERROR.ENTITY_STATE_INVALID","detail":"The build is not ready.","meta":{"associatedErrors":{"betaGroups":[{"code":"BETA_GROUP_INVALID","detail":"The selected beta group is not eligible."}]}}}]}`,
-		buildBody:           `{"data":{"type":"builds","id":"build-1","attributes":{"processingState":"FAILED","expired":false}}}`,
-		detailBody:          `{"data":{"type":"buildBetaDetails","id":"detail-1","attributes":{"externalBuildState":"MISSING_EXPORT_COMPLIANCE"}}}`,
-		preflightBuildBody:  `{"data":{"type":"builds","id":"build-1","attributes":{"processingState":"VALID","expired":false,"buildAudienceType":"APP_STORE_ELIGIBLE","usesNonExemptEncryption":false}}}`,
-		preflightDetailBody: `{"data":{"type":"buildBetaDetails","id":"detail-1","attributes":{"externalBuildState":"READY_FOR_BETA_TESTING"}}}`,
-	}
+	fixture := newAddGroupsDiagnosticsFixture(t).
+		groups(addGroupsExternalGroupsBody).
+		build(http.StatusOK, addGroupsReadyBuildBody).
+		detail(http.StatusOK, addGroupsReadyDetailBody).
+		post(http.StatusUnprocessableEntity, `{"errors":[{"status":"422","code":"STATE_ERROR.ENTITY_STATE_INVALID","detail":"The build is not ready.","meta":{"associatedErrors":{"betaGroups":[{"code":"BETA_GROUP_INVALID","detail":"The selected beta group is not eligible."}]}}}]}`).
+		build(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"processingState":"FAILED","expired":false}}}`).
+		detail(http.StatusOK, `{"data":{"type":"buildBetaDetails","id":"detail-1","attributes":{"externalBuildState":"MISSING_EXPORT_COMPLIANCE"}}}`)
 	_, stderr, runErr := runAddGroupsDiagnostics(t, fixture)
 	if runErr == nil {
 		t.Fatal("expected HTTP 422 failure")
@@ -416,8 +371,8 @@ func TestBuildsAddGroupsDiagnoses422AfterAssignment(t *testing.T) {
 		"GET /v1/builds/build-1",
 		"GET /v1/builds/build-1/buildBetaDetail",
 	}
-	if !reflect.DeepEqual(fixture.requests, wantRequests) {
-		t.Fatalf("requests = %v, want %v", fixture.requests, wantRequests)
+	if !reflect.DeepEqual(fixture.requests(), wantRequests) {
+		t.Fatalf("requests = %v, want %v", fixture.requests(), wantRequests)
 	}
 	if rootcmd.ExitCodeFromError(runErr) != rootcmd.HTTPStatusToExitCode(http.StatusUnprocessableEntity) {
 		t.Fatalf("exit code = %d, want HTTP 422 mapping", rootcmd.ExitCodeFromError(runErr))
@@ -449,12 +404,11 @@ func TestBuildsAddGroupsDiagnoses422AfterAssignment(t *testing.T) {
 }
 
 func TestBuildsAddGroups422NamesInternalGroupWithAccessToAllBuilds(t *testing.T) {
-	fixture := &addGroupsDiagnosticsFixture{
-		t:          t,
-		groupsBody: `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"QA","isInternalGroup":true,"hasAccessToAllBuilds":true}}]}`,
-		postStatus: http.StatusUnprocessableEntity,
-		postBody:   `{"errors":[{"status":"422","code":"ENTITY_ERROR.RELATIONSHIP.INVALID","title":"Builds cannot be assigned to this internal group.","detail":"Cannot add internal group to a build."}]}`,
-	}
+	fixture := newAddGroupsDiagnosticsFixture(t).
+		groups(`{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"QA","isInternalGroup":true,"hasAccessToAllBuilds":true}}]}`).
+		build(http.StatusOK, addGroupsReadyBuildBody).
+		post(http.StatusUnprocessableEntity, `{"errors":[{"status":"422","code":"ENTITY_ERROR.RELATIONSHIP.INVALID","title":"Builds cannot be assigned to this internal group.","detail":"Cannot add internal group to a build."}]}`).
+		build(http.StatusOK, addGroupsReadyBuildBody)
 	_, stderr, runErr := runAddGroupsDiagnostics(t, fixture)
 	if runErr == nil {
 		t.Fatal("expected HTTP 422 failure")
@@ -466,18 +420,17 @@ func TestBuildsAddGroups422NamesInternalGroupWithAccessToAllBuilds(t *testing.T)
 }
 
 func TestBuildsAddGroupsNon422DoesNotReadPostFailureDiagnostics(t *testing.T) {
-	fixture := &addGroupsDiagnosticsFixture{
-		t:          t,
-		external:   true,
-		postStatus: http.StatusConflict,
-		postBody:   `{"errors":[{"status":"409","code":"ENTITY_ERROR.RELATIONSHIP.INVALID","detail":"Conflict."}]}`,
-	}
+	fixture := newAddGroupsDiagnosticsFixture(t).
+		groups(addGroupsExternalGroupsBody).
+		build(http.StatusOK, addGroupsReadyBuildBody).
+		detail(http.StatusOK, addGroupsReadyDetailBody).
+		post(http.StatusConflict, `{"errors":[{"status":"409","code":"ENTITY_ERROR.RELATIONSHIP.INVALID","detail":"Conflict."}]}`)
 	_, _, runErr := runAddGroupsDiagnostics(t, fixture)
 	if runErr == nil {
 		t.Fatal("expected HTTP 409 failure")
 	}
-	if fixture.postCount != 1 || fixture.buildReads != 1 || fixture.detailReads != 1 {
-		t.Fatalf("requests = %v, want one preflight build/detail read and one POST", fixture.requests)
+	if fixture.postCount() != 1 || fixture.buildReads() != 1 || fixture.detailReads() != 1 {
+		t.Fatalf("requests = %v, want one preflight build/detail read and one POST", fixture.requests())
 	}
 	var apiErr *asc.APIError
 	if !errors.As(runErr, &apiErr) || apiErr.StatusCode != http.StatusConflict {
@@ -486,21 +439,17 @@ func TestBuildsAddGroupsNon422DoesNotReadPostFailureDiagnostics(t *testing.T) {
 }
 
 func TestBuildsAddGroupsDiagnosticReadFailurePreserves422(t *testing.T) {
-	fixture := &addGroupsDiagnosticsFixture{
-		t:                  t,
-		external:           false,
-		postStatus:         http.StatusUnprocessableEntity,
-		postBody:           `{"errors":[{"status":"422","code":"STATE_ERROR.ENTITY_STATE_INVALID","detail":"The build is not ready."}]}`,
-		buildStatus:        http.StatusInternalServerError,
-		buildBody:          `{"errors":[{"status":"500","code":"UNEXPECTED_ERROR","detail":"Unavailable."}]}`,
-		preflightBuildBody: `{"data":{"type":"builds","id":"build-1","attributes":{"processingState":"VALID","expired":false}}}`,
-	}
+	fixture := newAddGroupsDiagnosticsFixture(t).
+		groups(addGroupsInternalGroupsBody).
+		build(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"processingState":"VALID","expired":false}}}`).
+		post(http.StatusUnprocessableEntity, `{"errors":[{"status":"422","code":"STATE_ERROR.ENTITY_STATE_INVALID","detail":"The build is not ready."}]}`).
+		build(http.StatusInternalServerError, `{"errors":[{"status":"500","code":"UNEXPECTED_ERROR","detail":"Unavailable."}]}`)
 	_, stderr, runErr := runAddGroupsDiagnostics(t, fixture)
 	if runErr == nil {
 		t.Fatal("expected HTTP 422 failure")
 	}
-	if fixture.postCount != 1 || fixture.buildReads != 2 || fixture.detailReads != 0 {
-		t.Fatalf("requests = %v, want one preflight build read, one POST, and one diagnostic build read", fixture.requests)
+	if fixture.postCount() != 1 || fixture.buildReads() != 2 || fixture.detailReads() != 0 {
+		t.Fatalf("requests = %v, want one preflight build read, one POST, and one diagnostic build read", fixture.requests())
 	}
 	if rootcmd.ExitCodeFromError(runErr) != rootcmd.HTTPStatusToExitCode(http.StatusUnprocessableEntity) {
 		t.Fatalf("exit code = %d, want original HTTP 422 mapping (stderr=%q)", rootcmd.ExitCodeFromError(runErr), stderr)
@@ -512,18 +461,15 @@ func TestBuildsAddGroupsDiagnosticReadFailurePreserves422(t *testing.T) {
 }
 
 func TestBuildsAddGroupsPreflightBlocksProcessingBeforePost(t *testing.T) {
-	fixture := &addGroupsDiagnosticsFixture{
-		t:          t,
-		external:   true,
-		buildBody:  `{"data":{"type":"builds","id":"build-1","attributes":{"processingState":"PROCESSING","expired":false,"buildAudienceType":"APP_STORE_ELIGIBLE","usesNonExemptEncryption":false}}}`,
-		detailBody: `{"data":{"type":"buildBetaDetails","id":"detail-1","attributes":{"externalBuildState":"PROCESSING"}}}`,
-	}
+	fixture := newAddGroupsDiagnosticsFixture(t).
+		groups(addGroupsExternalGroupsBody).
+		build(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"processingState":"PROCESSING","expired":false,"buildAudienceType":"APP_STORE_ELIGIBLE","usesNonExemptEncryption":false}}}`)
 	_, stderr, runErr := runAddGroupsDiagnostics(t, fixture)
 	if runErr == nil {
 		t.Fatal("expected processing preflight failure")
 	}
-	if fixture.postCount != 0 {
-		t.Fatalf("postCount = %d, want zero", fixture.postCount)
+	if fixture.postCount() != 0 {
+		t.Fatalf("postCount = %d, want zero", fixture.postCount())
 	}
 	if rootcmd.ExitCodeFromError(runErr) != rootcmd.ExitError {
 		t.Fatalf("exit code = %d, want validation exit", rootcmd.ExitCodeFromError(runErr))
@@ -534,16 +480,15 @@ func TestBuildsAddGroupsPreflightBlocksProcessingBeforePost(t *testing.T) {
 }
 
 func TestBuildsAddGroupsPreflightBlocksExpiredInternalBuildWithoutDetailRead(t *testing.T) {
-	fixture := &addGroupsDiagnosticsFixture{
-		t:         t,
-		buildBody: `{"data":{"type":"builds","id":"build-1","attributes":{"processingState":"VALID","expired":true}}}`,
-	}
+	fixture := newAddGroupsDiagnosticsFixture(t).
+		groups(addGroupsInternalGroupsBody).
+		build(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"processingState":"VALID","expired":true}}}`)
 	_, stderr, runErr := runAddGroupsDiagnostics(t, fixture)
 	if runErr == nil {
 		t.Fatal("expected expired preflight failure")
 	}
-	if fixture.postCount != 0 || fixture.detailReads != 0 {
-		t.Fatalf("postCount=%d detailReads=%d, want zero post and detail reads", fixture.postCount, fixture.detailReads)
+	if fixture.postCount() != 0 || fixture.detailReads() != 0 {
+		t.Fatalf("postCount=%d detailReads=%d, want zero post and detail reads", fixture.postCount(), fixture.detailReads())
 	}
 	if !strings.Contains(stderr, "has expired") {
 		t.Fatalf("stderr = %q, want expiration diagnostic", stderr)
@@ -551,18 +496,16 @@ func TestBuildsAddGroupsPreflightBlocksExpiredInternalBuildWithoutDetailRead(t *
 }
 
 func TestBuildsAddGroupsPreflightBlocksExternalReviewNotReady(t *testing.T) {
-	fixture := &addGroupsDiagnosticsFixture{
-		t:          t,
-		external:   true,
-		buildBody:  `{"data":{"type":"builds","id":"build-1","attributes":{"processingState":"VALID","expired":false,"buildAudienceType":"APP_STORE_ELIGIBLE","usesNonExemptEncryption":false}}}`,
-		detailBody: `{"data":{"type":"buildBetaDetails","id":"detail-1","attributes":{"externalBuildState":"WAITING_FOR_BETA_REVIEW"}}}`,
-	}
+	fixture := newAddGroupsDiagnosticsFixture(t).
+		groups(addGroupsExternalGroupsBody).
+		build(http.StatusOK, addGroupsReadyBuildBody).
+		detail(http.StatusOK, `{"data":{"type":"buildBetaDetails","id":"detail-1","attributes":{"externalBuildState":"WAITING_FOR_BETA_REVIEW"}}}`)
 	_, stderr, runErr := runAddGroupsDiagnostics(t, fixture)
 	if runErr == nil {
 		t.Fatal("expected beta review preflight failure")
 	}
-	if fixture.postCount != 0 {
-		t.Fatalf("postCount = %d, want zero", fixture.postCount)
+	if fixture.postCount() != 0 {
+		t.Fatalf("postCount = %d, want zero", fixture.postCount())
 	}
 	if !strings.Contains(stderr, "WAITING_FOR_BETA_REVIEW") || !strings.Contains(stderr, "asc builds info") {
 		t.Fatalf("stderr = %q, want review state and remediation", stderr)
@@ -570,18 +513,16 @@ func TestBuildsAddGroupsPreflightBlocksExternalReviewNotReady(t *testing.T) {
 }
 
 func TestBuildsAddGroupsPreflightBlocksMissingEncryptionEvidence(t *testing.T) {
-	fixture := &addGroupsDiagnosticsFixture{
-		t:          t,
-		external:   true,
-		buildBody:  `{"data":{"type":"builds","id":"build-1","attributes":{"processingState":"VALID","expired":false,"buildAudienceType":"APP_STORE_ELIGIBLE"}}}`,
-		detailBody: `{"data":{"type":"buildBetaDetails","id":"detail-1","attributes":{"externalBuildState":"READY_FOR_BETA_TESTING"}}}`,
-	}
+	fixture := newAddGroupsDiagnosticsFixture(t).
+		groups(addGroupsExternalGroupsBody).
+		build(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"processingState":"VALID","expired":false,"buildAudienceType":"APP_STORE_ELIGIBLE"}}}`).
+		detail(http.StatusOK, addGroupsReadyDetailBody)
 	_, stderr, runErr := runAddGroupsDiagnostics(t, fixture)
 	if runErr == nil {
 		t.Fatal("expected missing encryption preflight failure")
 	}
-	if fixture.postCount != 0 {
-		t.Fatalf("postCount = %d, want zero", fixture.postCount)
+	if fixture.postCount() != 0 {
+		t.Fatalf("postCount = %d, want zero", fixture.postCount())
 	}
 	if !strings.Contains(stderr, "usesNonExemptEncryption") || !strings.Contains(stderr, "asc builds update") {
 		t.Fatalf("stderr = %q, want encryption evidence and remediation", stderr)
@@ -589,18 +530,15 @@ func TestBuildsAddGroupsPreflightBlocksMissingEncryptionEvidence(t *testing.T) {
 }
 
 func TestBuildsAddGroupsPreflightFailsClosedWhenBuildStateUnavailable(t *testing.T) {
-	fixture := &addGroupsDiagnosticsFixture{
-		t:           t,
-		external:    false,
-		buildStatus: http.StatusServiceUnavailable,
-		buildBody:   `{"errors":[{"status":"503","code":"SERVICE_UNAVAILABLE","detail":"temporarily unavailable"}]}`,
-	}
+	fixture := newAddGroupsDiagnosticsFixture(t).
+		groups(addGroupsInternalGroupsBody).
+		build(http.StatusServiceUnavailable, `{"errors":[{"status":"503","code":"SERVICE_UNAVAILABLE","detail":"temporarily unavailable"}]}`)
 	_, stderr, runErr := runAddGroupsDiagnostics(t, fixture)
 	if runErr == nil {
 		t.Fatal("expected unavailable preflight failure")
 	}
-	if fixture.postCount != 0 {
-		t.Fatalf("postCount = %d, want zero", fixture.postCount)
+	if fixture.postCount() != 0 {
+		t.Fatalf("postCount = %d, want zero", fixture.postCount())
 	}
 	if rootcmd.ExitCodeFromError(runErr) != rootcmd.HTTPStatusToExitCode(http.StatusServiceUnavailable) {
 		t.Fatalf("exit code = %d, want provider HTTP 503 exit", rootcmd.ExitCodeFromError(runErr))
@@ -614,19 +552,16 @@ func TestBuildsAddGroupsPreflightFailsClosedWhenBuildStateUnavailable(t *testing
 }
 
 func TestBuildsAddGroupsPreflightFailsClosedWhenExternalStateUnavailable(t *testing.T) {
-	fixture := &addGroupsDiagnosticsFixture{
-		t:            t,
-		external:     true,
-		buildBody:    `{"data":{"type":"builds","id":"build-1","attributes":{"processingState":"VALID","expired":false,"buildAudienceType":"APP_STORE_ELIGIBLE","usesNonExemptEncryption":false}}}`,
-		detailStatus: http.StatusServiceUnavailable,
-		detailBody:   `{"errors":[{"status":"503","code":"SERVICE_UNAVAILABLE","detail":"temporarily unavailable"}]}`,
-	}
+	fixture := newAddGroupsDiagnosticsFixture(t).
+		groups(addGroupsExternalGroupsBody).
+		build(http.StatusOK, addGroupsReadyBuildBody).
+		detail(http.StatusServiceUnavailable, `{"errors":[{"status":"503","code":"SERVICE_UNAVAILABLE","detail":"temporarily unavailable"}]}`)
 	_, stderr, runErr := runAddGroupsDiagnostics(t, fixture)
 	if runErr == nil {
 		t.Fatal("expected unavailable external-state preflight failure")
 	}
-	if fixture.postCount != 0 {
-		t.Fatalf("postCount = %d, want zero", fixture.postCount)
+	if fixture.postCount() != 0 {
+		t.Fatalf("postCount = %d, want zero", fixture.postCount())
 	}
 	if !strings.Contains(stderr, "cannot verify external beta state for build build-1") {
 		t.Fatalf("stderr = %q, want fail-closed external-state diagnostic", stderr)
