@@ -45,18 +45,20 @@ func (d *decl) adopt() {
 	d.file.removed = append(d.file.removed, d.node)
 }
 
-// Adopt replaces hand-written methods and types of the given tags whose
-// source equals what the generator renders. It adds their bindings, and
-// reports every operation and type it leaves hand-written, with the reason.
-func Adopt(spec *Spec, b *Bindings, dir string, tags []string, dryRun bool, report io.Writer) error {
+// Adopt finds the hand-written methods and types of the given tags whose
+// source equals what the generator renders, adds their bindings, and reports
+// every operation and type it leaves hand-written, with the reason. It writes
+// nothing: it returns the new contents of each hand-written file it would
+// change, nil for a file left empty.
+func Adopt(spec *Spec, b *Bindings, dir string, tags []string, report io.Writer) (map[string][]byte, error) {
 	p, err := loadPackage(dir)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	for _, tag := range tags {
 		ops := spec.Operations(tag)
 		if len(ops) == 0 {
-			return fmt.Errorf("no operations tagged %s", tag)
+			return nil, fmt.Errorf("no operations tagged %s", tag)
 		}
 		var adoptedOps []*OpBind
 		var adoptedTypes []string
@@ -104,10 +106,7 @@ func Adopt(spec *Spec, b *Bindings, dir string, tags []string, dryRun bool, repo
 			fam.Types = append(fam.Types, adoptedTypes...)
 		}
 	}
-	if dryRun {
-		return nil
-	}
-	return p.removeAdopted()
+	return p.edits()
 }
 
 func loadPackage(dir string) (*pkg, error) {
@@ -375,9 +374,10 @@ func goTokens(src []byte) []string {
 	}
 }
 
-// removeAdopted deletes adopted declarations with their doc comments, drops
-// imports nothing uses any more, and deletes files left without declarations.
-func (p *pkg) removeAdopted() error {
+// edits deletes adopted declarations with their doc comments and drops
+// imports nothing uses any more, returning the new file contents.
+func (p *pkg) edits() (map[string][]byte, error) {
+	out := map[string][]byte{}
 	for _, pf := range p.files {
 		if len(pf.removed) == 0 {
 			continue
@@ -396,23 +396,16 @@ func (p *pkg) removeAdopted() error {
 					start = n.Doc.Pos()
 				}
 			}
-			src = append(src[:p.fset.Position(start).Offset:p.fset.Position(start).Offset], src[p.fset.Position(node.End()).Offset:]...)
+			from, to := p.fset.Position(start).Offset, p.fset.Position(node.End()).Offset
+			src = append(src[:from:from], src[to:]...)
 		}
-		out, err := pruneImports(src)
+		edited, err := pruneImports(src)
 		if err != nil {
-			return fmt.Errorf("%s: %w", pf.path, err)
+			return nil, fmt.Errorf("%s: %w", pf.path, err)
 		}
-		if out == nil {
-			if err := os.Remove(pf.path); err != nil {
-				return err
-			}
-			continue
-		}
-		if err := os.WriteFile(pf.path, out, 0o644); err != nil {
-			return err
-		}
+		out[pf.path] = edited
 	}
-	return nil
+	return out, nil
 }
 
 // pruneImports removes unused imports and formats the file. It returns nil

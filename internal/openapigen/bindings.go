@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 )
@@ -96,6 +97,15 @@ func (b *Bindings) Encode() ([]byte, error) {
 func jsonString(s string) string {
 	data, _ := json.Marshal(s)
 	return string(data)
+}
+
+func (b *Bindings) produces(dir, path string) bool {
+	for _, f := range b.Families {
+		if filepath.Join(dir, f.File) == path {
+			return true
+		}
+	}
+	return false
 }
 
 // Family returns the family for a tag, adding it if missing.
