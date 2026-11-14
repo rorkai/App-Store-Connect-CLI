@@ -1,7 +1,0 @@
-{
-  "tag": "GameCenterPlayerAchievementSubmissions",
-  "file": "game_center_player_achievement_submissions_gen.go",
-  "types": [
-    "GameCenterPlayerAchievementSubmissionCreateRequest"
-  ]
-}

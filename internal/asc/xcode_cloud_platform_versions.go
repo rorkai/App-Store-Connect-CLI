@@ -14,12 +14,6 @@ const (
 	CiTestDestinationKindMac       CiTestDestinationKind = "MAC"
 )
 
-// CiMacOsVersionAttributes describes a CI macOS version resource.
-type CiMacOsVersionAttributes struct {
-	Version string `json:"version,omitempty"`
-	Name    string `json:"name,omitempty"`
-}
-
 // CiMacOsVersionRelationships describes relationships for a CI macOS version.
 type CiMacOsVersionRelationships struct {
 	XcodeVersions *RelationshipList `json:"xcodeVersions,omitempty"`
@@ -141,18 +135,6 @@ func buildCiXcodeVersionsQuery(query *ciXcodeVersionsQuery) string {
 	return values.Encode()
 }
 
-// GetCiMacOsVersions retrieves the list of CI macOS versions.
-func (c *Client) GetCiMacOsVersions(ctx context.Context, opts ...CiMacOsVersionsOption) (*CiMacOsVersionsResponse, error) {
-	query := applyOptions(opts)
-
-	return getJSON[CiMacOsVersionsResponse](ctx, c, readRequest{
-		Path:        "/v1/ciMacOsVersions",
-		Query:       buildCiMacOsVersionsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "ciMacOsVersions",
-	})
-}
-
 // GetCiMacOsVersion retrieves a CI macOS version by ID.
 func (c *Client) GetCiMacOsVersion(ctx context.Context, macOsVersionID string) (*CiMacOsVersionResponse, error) {
 	return getJSON[CiMacOsVersionResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/ciMacOsVersions/%s", macOsVersionID)})
@@ -167,18 +149,6 @@ func (c *Client) GetCiMacOsVersionXcodeVersions(ctx context.Context, macOsVersio
 		Query:       buildCiXcodeVersionsQuery(query),
 		Next:        query.nextURL,
 		NextContext: "ciMacOsVersionXcodeVersions",
-	})
-}
-
-// GetCiXcodeVersions retrieves the list of CI Xcode versions.
-func (c *Client) GetCiXcodeVersions(ctx context.Context, opts ...CiXcodeVersionsOption) (*CiXcodeVersionsResponse, error) {
-	query := applyOptions(opts)
-
-	return getJSON[CiXcodeVersionsResponse](ctx, c, readRequest{
-		Path:        "/v1/ciXcodeVersions",
-		Query:       buildCiXcodeVersionsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "ciXcodeVersions",
 	})
 }
 

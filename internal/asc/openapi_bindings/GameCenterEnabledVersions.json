@@ -1,8 +1,0 @@
-{
-  "tag": "GameCenterEnabledVersions",
-  "file": "game_center_enabled_versions_gen.go",
-  "operations": [
-    {"operation":"gameCenterEnabledVersions_compatibleVersions_getToManyRelated","name":"GetGameCenterEnabledVersionCompatibleVersions","params":["enabledVersionID"],"check":"require","options":"GCEnabledVersionsOption","query":"buildGCEnabledVersionsQuery","nextContext":"game-center-enabled-versions-compatibility"},
-    {"operation":"gameCenterEnabledVersions_compatibleVersions_replaceToManyRelationship","name":"UpdateGameCenterEnabledVersionCompatibleVersionsRelationship","params":["enabledVersionID"],"ids":"compatibleIDs"}
-  ]
-}

@@ -36,39 +36,9 @@ func (c *Client) GetSubscriptionVersion(ctx context.Context, versionID string, o
 	})
 }
 
-// GetSubscriptionVersions retrieves versions for a subscription.
-func (c *Client) GetSubscriptionVersions(ctx context.Context, subscriptionID string, opts ...SubscriptionVersionsOption) (*SubscriptionVersionsResponse, error) {
-	query := applyOptions(opts)
-	subscriptionID = strings.TrimSpace(subscriptionID)
-	if query.nextURL == "" && subscriptionID == "" {
-		return nil, fmt.Errorf("subscription ID is required")
-	}
-	return getJSON[SubscriptionVersionsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/subscriptions/%s/versions", subscriptionID),
-		Query:       buildSubscriptionVersionsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "subscriptionVersions",
-	})
-}
-
 // GetSubscriptionVersionsRelationships retrieves version linkages for a subscription.
 func (c *Client) GetSubscriptionVersionsRelationships(ctx context.Context, subscriptionID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
 	return c.getSubscriptionVersionLinkages(ctx, subscriptionID, "/v1/subscriptions/%s/relationships/versions", "subscriptionVersionsRelationships", opts...)
-}
-
-// GetSubscriptionVersionLocalizations retrieves localizations for a version.
-func (c *Client) GetSubscriptionVersionLocalizations(ctx context.Context, versionID string, opts ...SubscriptionVersionLocalizationsOption) (*SubscriptionLocalizationsV2Response, error) {
-	query := applyOptions(opts)
-	versionID = strings.TrimSpace(versionID)
-	if query.nextURL == "" && versionID == "" {
-		return nil, fmt.Errorf("version ID is required")
-	}
-	return getJSON[SubscriptionLocalizationsV2Response](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/subscriptionVersions/%s/localizations", versionID),
-		Query:       buildSubscriptionVersionLocalizationsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "subscriptionVersionLocalizations",
-	})
 }
 
 // GetSubscriptionVersionLocalizationsRelationships retrieves localization linkages for a version.
@@ -86,30 +56,6 @@ func (c *Client) GetSubscriptionVersionImage(ctx context.Context, versionID stri
 	return getJSON[SubscriptionImageV2Response](ctx, c, readRequest{
 		Path:  fmt.Sprintf("/v1/subscriptionVersions/%s/image", versionID),
 		Query: buildSubscriptionImageV2Query(query),
-	})
-}
-
-// GetSubscriptionVersionImageRelationship retrieves the singular image linkage.
-func (c *Client) GetSubscriptionVersionImageRelationship(ctx context.Context, versionID string) (*SubscriptionVersionImageLinkageResponse, error) {
-	versionID = strings.TrimSpace(versionID)
-	if versionID == "" {
-		return nil, fmt.Errorf("version ID is required")
-	}
-	return getJSON[SubscriptionVersionImageLinkageResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/subscriptionVersions/%s/relationships/image", versionID)})
-}
-
-// GetSubscriptionVersionImages retrieves all images for a version.
-func (c *Client) GetSubscriptionVersionImages(ctx context.Context, versionID string, opts ...SubscriptionVersionImagesOption) (*SubscriptionImagesV2Response, error) {
-	query := applyOptions(opts)
-	versionID = strings.TrimSpace(versionID)
-	if query.nextURL == "" && versionID == "" {
-		return nil, fmt.Errorf("version ID is required")
-	}
-	return getJSON[SubscriptionImagesV2Response](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/subscriptionVersions/%s/images", versionID),
-		Query:       buildSubscriptionVersionImagesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "subscriptionVersionImages",
 	})
 }
 
@@ -182,15 +128,6 @@ func (c *Client) UpdateSubscriptionLocalizationV2(ctx context.Context, localizat
 	return sendJSON[SubscriptionLocalizationV2Response](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v2/subscriptionLocalizations/%s", localizationID), Payload: payload})
 }
 
-// DeleteSubscriptionLocalizationV2 deletes a version-scoped localization.
-func (c *Client) DeleteSubscriptionLocalizationV2(ctx context.Context, localizationID string) error {
-	localizationID = strings.TrimSpace(localizationID)
-	if localizationID == "" {
-		return fmt.Errorf("localization ID is required")
-	}
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v2/subscriptionLocalizations/%s", localizationID), nil)
-}
-
 // CreateSubscriptionImageV2 reserves a version-scoped image upload.
 func (c *Client) CreateSubscriptionImageV2(ctx context.Context, versionID, fileName string, fileSize int64) (*SubscriptionImageV2Response, error) {
 	versionID = strings.TrimSpace(versionID)
@@ -243,13 +180,4 @@ func (c *Client) UpdateSubscriptionImageV2(ctx context.Context, imageID string, 
 		Attributes: attrs,
 	}}
 	return sendJSON[SubscriptionImageV2Response](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v2/subscriptionImages/%s", imageID), Payload: payload})
-}
-
-// DeleteSubscriptionImageV2 deletes a version-scoped image.
-func (c *Client) DeleteSubscriptionImageV2(ctx context.Context, imageID string) error {
-	imageID = strings.TrimSpace(imageID)
-	if imageID == "" {
-		return fmt.Errorf("image ID is required")
-	}
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v2/subscriptionImages/%s", imageID), nil)
 }

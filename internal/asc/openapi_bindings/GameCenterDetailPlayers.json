@@ -1,0 +1,7 @@
+{
+  "tag": "GameCenterDetailPlayers",
+  "file": "game_center_detail_players_gen.go",
+  "types": [
+    "GameCenterDetailPlayerResponse"
+  ]
+}

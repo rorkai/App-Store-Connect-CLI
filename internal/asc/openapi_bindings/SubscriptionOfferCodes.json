@@ -1,0 +1,11 @@
+{
+  "tag": "SubscriptionOfferCodes",
+  "file": "subscription_offer_codes_gen.go",
+  "types": [
+    "SubscriptionOfferCodeUpdateAttributes",
+    "SubscriptionOfferCodeUpdateRequest"
+  ],
+  "operations": [
+    {"operation":"subscriptionOfferCodes_customCodes_getToManyRelated","name":"GetSubscriptionOfferCodeCustomCodes","params":["offerCodeID"],"options":"SubscriptionOfferCodeCustomCodesOption","query":"buildSubscriptionOfferCodeCustomCodesQuery","nextContext":"subscriptionOfferCodeCustomCodes"}
+  ]
+}

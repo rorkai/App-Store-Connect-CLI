@@ -1,0 +1,10 @@
+{
+  "tag": "BetaRecruitmentCriterionOptions",
+  "file": "beta_recruitment_criterion_options_gen.go",
+  "types": [
+    "BetaRecruitmentCriterionOptionsResponse"
+  ],
+  "operations": [
+    {"operation":"betaRecruitmentCriterionOptions_getCollection","name":"GetBetaRecruitmentCriterionOptions","options":"BetaRecruitmentCriterionOptionsOption","query":"buildBetaRecruitmentCriterionOptionsQuery","nextContext":"betaRecruitmentCriterionOptions"}
+  ]
+}

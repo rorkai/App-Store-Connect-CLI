@@ -1,0 +1,15 @@
+{
+  "tag": "GameCenterChallengeImages",
+  "file": "game_center_challenge_images_gen.go",
+  "types": [
+    "GameCenterChallengeImageCreateRequest",
+    "GameCenterChallengeImageResponse",
+    "GameCenterChallengeImageUpdateAttributes",
+    "GameCenterChallengeImageUpdateData",
+    "GameCenterChallengeImageUpdateRequest"
+  ],
+  "operations": [
+    {"operation":"gameCenterChallengeImages_deleteInstance","name":"DeleteGameCenterChallengeImage","params":["imageID"]},
+    {"operation":"gameCenterChallengeImages_getInstance","name":"GetGameCenterChallengeImage","params":["imageID"]}
+  ]
+}

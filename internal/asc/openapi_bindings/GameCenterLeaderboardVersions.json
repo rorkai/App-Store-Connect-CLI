@@ -1,8 +1,0 @@
-{
-  "tag": "GameCenterLeaderboardVersions",
-  "file": "game_center_leaderboard_versions_gen.go",
-  "operations": [
-    {"operation":"gameCenterLeaderboardVersionsV2_getInstance","name":"GetGameCenterLeaderboardVersion","params":["versionID"],"response":"GameCenterLeaderboardVersionResponse"},
-    {"operation":"gameCenterLeaderboardVersionsV2_localizations_getToManyRelated","name":"GetGameCenterLeaderboardVersionLocalizations","params":["versionID"],"options":"GCLeaderboardLocalizationsOption","query":"buildGCLeaderboardLocalizationsQuery","nextContext":"game-center-leaderboard-version-localizations","response":"GameCenterLeaderboardLocalizationsResponse"}
-  ]
-}

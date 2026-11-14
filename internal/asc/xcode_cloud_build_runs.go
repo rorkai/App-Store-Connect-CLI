@@ -107,16 +107,6 @@ type CiBuildRunResponse struct {
 	Links Links              `json:"links"`
 }
 
-// CiBuildRunCreateRequest is a request to create a CI build run.
-type CiBuildRunCreateRequest struct {
-	Data CiBuildRunCreateData `json:"data"`
-}
-
-// CiBuildRunCreateAttributes are optional attributes for creating a CI build run.
-type CiBuildRunCreateAttributes struct {
-	Clean *bool `json:"clean,omitempty"`
-}
-
 // CiBuildRunCreateData is the data portion of a CI build run create request.
 type CiBuildRunCreateData struct {
 	Type          ResourceType                   `json:"type"`

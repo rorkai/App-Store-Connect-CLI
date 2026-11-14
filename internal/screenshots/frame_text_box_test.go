@@ -66,7 +66,7 @@ func TestTextBoxAndFontFileConvertToRendererConfigGolden(t *testing.T) {
 			if err := os.WriteFile(input, []byte("png"), 0o644); err != nil {
 				t.Fatal(err)
 			}
-			configPath, _, err := createDefaultKoubouConfigAt(input, spec, &canvas, workDir)
+			configPath, _, err := createDefaultKoubouConfigAtRoot(input, spec, &canvas, workDir, nil)
 			if err != nil {
 				t.Fatal(err)
 			}

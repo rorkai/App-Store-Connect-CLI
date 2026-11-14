@@ -1,7 +1,0 @@
-{
-  "tag": "GameCenterScoreModerations",
-  "file": "game_center_score_moderations_gen.go",
-  "types": [
-    "GameCenterScoreModerationResponse"
-  ]
-}

@@ -40,3 +40,11 @@ func (c *Client) RemoveGameCenterEnabledVersionCompatibleVersions(ctx context.Co
 	}
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/gameCenterEnabledVersions/%s/relationships/compatibleVersions", enabledVersionID), payload)
 }
+
+// UpdateGameCenterEnabledVersionCompatibleVersionsRelationship replaces the compatibleVersions relationship.
+func (c *Client) UpdateGameCenterEnabledVersionCompatibleVersionsRelationship(ctx context.Context, enabledVersionID string, compatibleIDs []string) error {
+	payload := RelationshipRequest{
+		Data: buildRelationshipData(ResourceTypeGameCenterEnabledVersions, compatibleIDs),
+	}
+	return sendNoContent(ctx, c, http.MethodPatch, fmt.Sprintf("/v1/gameCenterEnabledVersions/%s/relationships/compatibleVersions", strings.TrimSpace(enabledVersionID)), payload)
+}

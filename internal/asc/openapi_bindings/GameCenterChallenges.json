@@ -1,0 +1,15 @@
+{
+  "tag": "GameCenterChallenges",
+  "file": "game_center_challenges_gen.go",
+  "types": [
+    "GameCenterChallengeCreateAttributes",
+    "GameCenterChallengeResponse",
+    "GameCenterChallengeUpdateAttributes",
+    "GameCenterChallengeUpdateRequest"
+  ],
+  "operations": [
+    {"operation":"gameCenterChallenges_deleteInstance","name":"DeleteGameCenterChallenge","params":["challengeID"]},
+    {"operation":"gameCenterChallenges_getInstance","name":"GetGameCenterChallenge","params":["challengeID"]},
+    {"operation":"gameCenterChallenges_versions_getToManyRelated","name":"GetGameCenterChallengeVersions","params":["challengeID"],"options":"GCChallengeVersionsOption","query":"buildGCChallengeVersionsQuery","nextContext":"game-center-challenge-versions"}
+  ]
+}

@@ -20,16 +20,6 @@ func buildGCDetailsQuery(query *gcDetailsQuery) string {
 	return values.Encode()
 }
 
-// GameCenterDetailCreateAttributes describes attributes for creating a Game Center detail.
-type GameCenterDetailCreateAttributes struct {
-	ChallengeEnabled *bool `json:"challengeEnabled,omitempty"`
-}
-
-// GameCenterDetailUpdateAttributes describes attributes for updating a Game Center detail.
-type GameCenterDetailUpdateAttributes struct {
-	ChallengeEnabled *bool `json:"challengeEnabled,omitempty"`
-}
-
 // GameCenterDetailCreateRelationships describes relationships for creating a Game Center detail.
 type GameCenterDetailCreateRelationships struct {
 	App *Relationship `json:"app"`
@@ -51,20 +41,10 @@ type GameCenterDetailCreateData struct {
 	Relationships *GameCenterDetailCreateRelationships `json:"relationships"`
 }
 
-// GameCenterDetailCreateRequest is a request to create a Game Center detail.
-type GameCenterDetailCreateRequest struct {
-	Data GameCenterDetailCreateData `json:"data"`
-}
-
 // GameCenterDetailUpdateData is the data portion of a detail update request.
 type GameCenterDetailUpdateData struct {
 	Type          ResourceType                         `json:"type"`
 	ID            string                               `json:"id"`
 	Attributes    *GameCenterDetailUpdateAttributes    `json:"attributes,omitempty"`
 	Relationships *GameCenterDetailUpdateRelationships `json:"relationships,omitempty"`
-}
-
-// GameCenterDetailUpdateRequest is a request to update a Game Center detail.
-type GameCenterDetailUpdateRequest struct {
-	Data GameCenterDetailUpdateData `json:"data"`
 }

@@ -8,18 +8,6 @@ import (
 	"strings"
 )
 
-// GetTerritories retrieves available territories.
-func (c *Client) GetTerritories(ctx context.Context, opts ...TerritoriesOption) (*TerritoriesResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[TerritoriesResponse](ctx, c, readRequest{
-		Path:        "/v1/territories",
-		Query:       buildTerritoriesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "territories",
-		ParseErr:    "failed to parse territories response",
-	})
-}
-
 // GetAppPricePoints retrieves app price points for an app.
 func (c *Client) GetAppPricePoints(ctx context.Context, appID string, opts ...PricePointsOption) (*AppPricePointsV3Response, error) {
 	query := applyOptions(opts)
@@ -216,18 +204,6 @@ func (c *Client) GetAppAvailabilityV2(ctx context.Context, appID string) (*AppAv
 	appID = strings.TrimSpace(appID)
 	return getJSON[AppAvailabilityV2Response](ctx, c, readRequest{
 		Path:     fmt.Sprintf("/v1/apps/%s/appAvailabilityV2", appID),
-		ParseErr: "failed to parse app availability response",
-	})
-}
-
-// GetAppAvailabilityV2ByID retrieves app availability by ID.
-func (c *Client) GetAppAvailabilityV2ByID(ctx context.Context, availabilityID string) (*AppAvailabilityV2Response, error) {
-	availabilityID = strings.TrimSpace(availabilityID)
-	if availabilityID == "" {
-		return nil, fmt.Errorf("availabilityID is required")
-	}
-	return getJSON[AppAvailabilityV2Response](ctx, c, readRequest{
-		Path:     fmt.Sprintf("/v2/appAvailabilities/%s", availabilityID),
 		ParseErr: "failed to parse app availability response",
 	})
 }

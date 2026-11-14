@@ -1,0 +1,10 @@
+{
+  "tag": "CiMacOsVersions",
+  "file": "ci_mac_os_versions_gen.go",
+  "types": [
+    "CiMacOsVersionAttributes"
+  ],
+  "operations": [
+    {"operation":"ciMacOsVersions_getCollection","name":"GetCiMacOsVersions","options":"CiMacOsVersionsOption","query":"buildCiMacOsVersionsQuery","nextContext":"ciMacOsVersions"}
+  ]
+}

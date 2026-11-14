@@ -45,9 +45,6 @@ type WebhookAttributes struct {
 // WebhooksResponse is the response from webhook list endpoints.
 type WebhooksResponse = Response[WebhookAttributes]
 
-// WebhookResponse is the response from webhook detail endpoints.
-type WebhookResponse = SingleResponse[WebhookAttributes]
-
 // WebhookCreateAttributes describes attributes for creating a webhook.
 type WebhookCreateAttributes struct {
 	Enabled    bool               `json:"enabled"`
@@ -69,11 +66,6 @@ type WebhookCreateData struct {
 	Relationships WebhookCreateRelationships `json:"relationships"`
 }
 
-// WebhookCreateRequest is a request to create a webhook.
-type WebhookCreateRequest struct {
-	Data WebhookCreateData `json:"data"`
-}
-
 // WebhookUpdateAttributes describes attributes for updating a webhook.
 type WebhookUpdateAttributes struct {
 	Enabled    *bool              `json:"enabled,omitempty"`
@@ -81,18 +73,6 @@ type WebhookUpdateAttributes struct {
 	Name       *string            `json:"name,omitempty"`
 	Secret     *string            `json:"secret,omitempty"`
 	URL        *string            `json:"url,omitempty"`
-}
-
-// WebhookUpdateData is the data portion of a webhook update request.
-type WebhookUpdateData struct {
-	Type       ResourceType             `json:"type"`
-	ID         string                   `json:"id"`
-	Attributes *WebhookUpdateAttributes `json:"attributes,omitempty"`
-}
-
-// WebhookUpdateRequest is a request to update a webhook.
-type WebhookUpdateRequest struct {
-	Data WebhookUpdateData `json:"data"`
 }
 
 // WebhookDeliveryRequest describes the delivery request payload.
@@ -123,9 +103,6 @@ type WebhookDeliveriesResponse = Response[WebhookDeliveryAttributes]
 // WebhookDeliveriesLinkagesResponse is the response from webhook delivery relationship endpoints.
 type WebhookDeliveriesLinkagesResponse = LinkagesResponse
 
-// WebhookDeliveryResponse is the response from webhook delivery endpoints.
-type WebhookDeliveryResponse = SingleResponse[WebhookDeliveryAttributes]
-
 // WebhookDeliveryCreateRelationships describes relationships for delivery create requests.
 type WebhookDeliveryCreateRelationships struct {
 	Template Relationship `json:"template"`
@@ -135,11 +112,6 @@ type WebhookDeliveryCreateRelationships struct {
 type WebhookDeliveryCreateData struct {
 	Type          ResourceType                       `json:"type"`
 	Relationships WebhookDeliveryCreateRelationships `json:"relationships"`
-}
-
-// WebhookDeliveryCreateRequest is a request to create a webhook delivery.
-type WebhookDeliveryCreateRequest struct {
-	Data WebhookDeliveryCreateData `json:"data"`
 }
 
 // WebhookPingResponse is the response from webhook ping endpoints.
@@ -154,9 +126,4 @@ type WebhookPingCreateRelationships struct {
 type WebhookPingCreateData struct {
 	Type          ResourceType                   `json:"type"`
 	Relationships WebhookPingCreateRelationships `json:"relationships"`
-}
-
-// WebhookPingCreateRequest is a request to create a webhook ping.
-type WebhookPingCreateRequest struct {
-	Data WebhookPingCreateData `json:"data"`
 }

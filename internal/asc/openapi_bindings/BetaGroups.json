@@ -1,0 +1,19 @@
+{
+  "tag": "BetaGroups",
+  "file": "beta_groups_gen.go",
+  "types": [
+    "BetaGroupCreateAttributes",
+    "BetaGroupCreateRequest",
+    "BetaGroupResponse",
+    "BetaGroupUpdateData",
+    "BetaGroupUpdateRequest",
+    "BetaGroupsResponse"
+  ],
+  "operations": [
+    {"operation":"betaGroups_app_getToOneRelated","name":"GetBetaGroupApp","params":["groupID"],"check":"require","response":"AppResponse"},
+    {"operation":"betaGroups_betaRecruitmentCriteria_getToOneRelated","name":"GetBetaGroupBetaRecruitmentCriteria","params":["groupID"],"check":"require","response":"BetaRecruitmentCriteriaResponse"},
+    {"operation":"betaGroups_betaRecruitmentCriterionCompatibleBuildCheck_getToOneRelated","name":"GetBetaGroupBetaRecruitmentCriterionCompatibleBuildCheck","params":["groupID"],"check":"require"},
+    {"operation":"betaGroups_getCollection","name":"ListBetaGroups","options":"BetaGroupsOption","query":"buildBetaGroupsQuery","nextContext":"betaGroups"},
+    {"operation":"betaGroups_publicLinkUsages_getMetrics","name":"GetBetaGroupPublicLinkUsages","params":["groupID"],"check":"require","response":"BetaGroupPublicLinkUsagesResponse"}
+  ]
+}

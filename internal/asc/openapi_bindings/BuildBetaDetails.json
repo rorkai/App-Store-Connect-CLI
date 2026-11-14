@@ -1,0 +1,17 @@
+{
+  "tag": "BuildBetaDetails",
+  "file": "build_beta_details_gen.go",
+  "types": [
+    "BuildBetaDetailResponse",
+    "BuildBetaDetailUpdateAttributes",
+    "BuildBetaDetailUpdateData",
+    "BuildBetaDetailUpdateRequest",
+    "BuildBetaDetailsResponse"
+  ],
+  "operations": [
+    {"operation":"buildBetaDetails_build_getToOneRelated","name":"GetBuildBetaDetailBuild","params":["detailID"],"check":"require"},
+    {"operation":"buildBetaDetails_getCollection","name":"GetBuildBetaDetails","options":"BuildBetaDetailsOption","query":"buildBuildBetaDetailsQuery","nextContext":"buildBetaDetails"},
+    {"operation":"buildBetaDetails_getInstance","name":"GetBuildBetaDetail","params":["detailID"],"check":"require"},
+    {"operation":"buildBetaDetails_updateInstance","name":"UpdateBuildBetaDetail","params":["detailID"],"check":"require"}
+  ]
+}

@@ -37,20 +37,6 @@ type AppEncryptionDeclarationAttributes struct {
 	CodeValue                       string                        `json:"codeValue,omitempty"`
 }
 
-// AppEncryptionDeclarationsResponse is the response for encryption declaration lists.
-type AppEncryptionDeclarationsResponse = Response[AppEncryptionDeclarationAttributes]
-
-// AppEncryptionDeclarationResponse is the response for encryption declaration endpoints.
-type AppEncryptionDeclarationResponse = SingleResponse[AppEncryptionDeclarationAttributes]
-
-// AppEncryptionDeclarationCreateAttributes describes create attributes.
-type AppEncryptionDeclarationCreateAttributes struct {
-	AppDescription                  string `json:"appDescription"`
-	ContainsProprietaryCryptography bool   `json:"containsProprietaryCryptography"`
-	ContainsThirdPartyCryptography  bool   `json:"containsThirdPartyCryptography"`
-	AvailableOnFrenchStore          bool   `json:"availableOnFrenchStore"`
-}
-
 // AppEncryptionDeclarationRelationships describes declaration relationships.
 type AppEncryptionDeclarationRelationships struct {
 	App *Relationship `json:"app"`
@@ -61,11 +47,6 @@ type AppEncryptionDeclarationCreateData struct {
 	Type          ResourceType                             `json:"type"`
 	Attributes    AppEncryptionDeclarationCreateAttributes `json:"attributes"`
 	Relationships *AppEncryptionDeclarationRelationships   `json:"relationships"`
-}
-
-// AppEncryptionDeclarationCreateRequest is a request to create an encryption declaration.
-type AppEncryptionDeclarationCreateRequest struct {
-	Data AppEncryptionDeclarationCreateData `json:"data"`
 }
 
 // AppEncryptionDeclarationBuildsUpdateResult represents CLI output for build assignments.
@@ -86,9 +67,6 @@ type AppEncryptionDeclarationDocumentAttributes struct {
 	AssetDeliveryState *AppMediaAssetState `json:"assetDeliveryState,omitempty"`
 }
 
-// AppEncryptionDeclarationDocumentResponse is the response for document endpoints.
-type AppEncryptionDeclarationDocumentResponse = SingleResponse[AppEncryptionDeclarationDocumentAttributes]
-
 // AppEncryptionDeclarationDocumentCreateAttributes describes create attributes.
 type AppEncryptionDeclarationDocumentCreateAttributes struct {
 	FileSize int64  `json:"fileSize"`
@@ -105,29 +83,6 @@ type AppEncryptionDeclarationDocumentCreateData struct {
 	Type          ResourceType                                     `json:"type"`
 	Attributes    AppEncryptionDeclarationDocumentCreateAttributes `json:"attributes"`
 	Relationships *AppEncryptionDeclarationDocumentRelationships   `json:"relationships"`
-}
-
-// AppEncryptionDeclarationDocumentCreateRequest is a request to create a document.
-type AppEncryptionDeclarationDocumentCreateRequest struct {
-	Data AppEncryptionDeclarationDocumentCreateData `json:"data"`
-}
-
-// AppEncryptionDeclarationDocumentUpdateAttributes describes update attributes.
-type AppEncryptionDeclarationDocumentUpdateAttributes struct {
-	SourceFileChecksum *string `json:"sourceFileChecksum,omitempty"`
-	Uploaded           *bool   `json:"uploaded,omitempty"`
-}
-
-// AppEncryptionDeclarationDocumentUpdateData is the data portion of an update request.
-type AppEncryptionDeclarationDocumentUpdateData struct {
-	Type       ResourceType                                      `json:"type"`
-	ID         string                                            `json:"id"`
-	Attributes *AppEncryptionDeclarationDocumentUpdateAttributes `json:"attributes,omitempty"`
-}
-
-// AppEncryptionDeclarationDocumentUpdateRequest is a request to update a document.
-type AppEncryptionDeclarationDocumentUpdateRequest struct {
-	Data AppEncryptionDeclarationDocumentUpdateData `json:"data"`
 }
 
 // GetAppEncryptionDeclarations retrieves encryption declarations for an app.

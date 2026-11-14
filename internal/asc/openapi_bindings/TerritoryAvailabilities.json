@@ -1,0 +1,8 @@
+{
+  "tag": "TerritoryAvailabilities",
+  "file": "territory_availabilities_gen.go",
+  "types": [
+    "TerritoryAvailabilityUpdateData",
+    "TerritoryAvailabilityUpdateRequest"
+  ]
+}

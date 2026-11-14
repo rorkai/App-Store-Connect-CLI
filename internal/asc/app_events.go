@@ -138,27 +138,12 @@ type AppEventUpdateAttributes struct {
 	TerritorySchedules  []AppEventTerritorySchedule `json:"territorySchedules,omitempty"`
 }
 
-// AppEventLocalizationAttributes represents app event localization attributes.
-type AppEventLocalizationAttributes struct {
-	Locale           string `json:"locale,omitempty"`
-	Name             string `json:"name,omitempty"`
-	ShortDescription string `json:"shortDescription,omitempty"`
-	LongDescription  string `json:"longDescription,omitempty"`
-}
-
 // AppEventLocalizationCreateAttributes describes attributes for creating localizations.
 type AppEventLocalizationCreateAttributes struct {
 	Locale           string `json:"locale"`
 	Name             string `json:"name,omitempty"`
 	ShortDescription string `json:"shortDescription,omitempty"`
 	LongDescription  string `json:"longDescription,omitempty"`
-}
-
-// AppEventLocalizationUpdateAttributes describes attributes for updating localizations.
-type AppEventLocalizationUpdateAttributes struct {
-	Name             *string `json:"name,omitempty"`
-	ShortDescription *string `json:"shortDescription,omitempty"`
-	LongDescription  *string `json:"longDescription,omitempty"`
 }
 
 // AppEventScreenshotAttributes represents app event screenshot attributes.

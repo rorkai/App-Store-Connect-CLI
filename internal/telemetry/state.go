@@ -65,10 +65,6 @@ func ReadStatus() (Status, error) {
 	}, nil
 }
 
-func EnsureInstallID() (string, error) {
-	return ensureInstallID(lockTimeout)
-}
-
 func ensureInstallID(wait time.Duration) (string, error) {
 	path, err := StatePath()
 	if err != nil {

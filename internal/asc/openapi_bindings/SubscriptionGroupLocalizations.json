@@ -1,0 +1,16 @@
+{
+  "tag": "SubscriptionGroupLocalizations",
+  "file": "subscription_group_localizations_gen.go",
+  "types": [
+    "SubscriptionGroupLocalizationAttributes",
+    "SubscriptionGroupLocalizationCreateRequest",
+    "SubscriptionGroupLocalizationV2Attributes",
+    "SubscriptionGroupLocalizationV2CreateRequest",
+    "SubscriptionGroupLocalizationV2UpdateData",
+    "SubscriptionGroupLocalizationV2UpdateRequest"
+  ],
+  "operations": [
+    {"operation":"subscriptionGroupLocalizationsV2_deleteInstance","name":"DeleteSubscriptionGroupLocalizationV2","params":["localizationID"],"check":"require"},
+    {"operation":"subscriptionGroupLocalizationsV2_updateInstance","name":"UpdateSubscriptionGroupLocalizationV2","params":["localizationID"],"check":"require"}
+  ]
+}

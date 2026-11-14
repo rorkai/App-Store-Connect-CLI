@@ -74,11 +74,6 @@ func (c *Client) GetInAppPurchaseV2(ctx context.Context, iapID string, opts ...I
 	return getJSON[InAppPurchaseV2Response](ctx, c, readRequest{Path: fmt.Sprintf("/v2/inAppPurchases/%s", iapID), Query: buildInAppPurchaseGetQuery(query)})
 }
 
-// GetInAppPurchase retrieves a legacy in-app purchase by ID.
-func (c *Client) GetInAppPurchase(ctx context.Context, iapID string) (*InAppPurchaseResponse, error) {
-	return getJSON[InAppPurchaseResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/inAppPurchases/%s", strings.TrimSpace(iapID))})
-}
-
 // CreateInAppPurchaseV2 creates a new in-app purchase.
 func (c *Client) CreateInAppPurchaseV2(ctx context.Context, appID string, attrs InAppPurchaseV2CreateAttributes) (*InAppPurchaseV2Response, error) {
 	payload := InAppPurchaseV2CreateRequest{
@@ -97,35 +92,4 @@ func (c *Client) CreateInAppPurchaseV2(ctx context.Context, appID string, attrs 
 	}
 
 	return sendJSON[InAppPurchaseV2Response](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v2/inAppPurchases", Payload: payload})
-}
-
-// UpdateInAppPurchaseV2 updates an existing in-app purchase.
-func (c *Client) UpdateInAppPurchaseV2(ctx context.Context, iapID string, attrs InAppPurchaseV2UpdateAttributes) (*InAppPurchaseV2Response, error) {
-	payload := InAppPurchaseV2UpdateRequest{
-		Data: InAppPurchaseV2UpdateData{
-			Type:       ResourceTypeInAppPurchases,
-			ID:         strings.TrimSpace(iapID),
-			Attributes: &attrs,
-		},
-	}
-
-	return sendJSON[InAppPurchaseV2Response](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v2/inAppPurchases/%s", strings.TrimSpace(iapID)), Payload: payload})
-}
-
-// DeleteInAppPurchaseV2 deletes an in-app purchase.
-func (c *Client) DeleteInAppPurchaseV2(ctx context.Context, iapID string) error {
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v2/inAppPurchases/%s", strings.TrimSpace(iapID)), nil)
-}
-
-// GetInAppPurchaseLocalizations fetches localizations for an IAP.
-//
-// Deprecated: Use GetInAppPurchaseVersionLocalizations with an in-app purchase version ID.
-func (c *Client) GetInAppPurchaseLocalizations(ctx context.Context, iapID string, opts ...IAPLocalizationsOption) (*InAppPurchaseLocalizationsResponse, error) {
-	query := applyOptions(opts)
-	return getJSON[InAppPurchaseLocalizationsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v2/inAppPurchases/%s/inAppPurchaseLocalizations", strings.TrimSpace(iapID)),
-		Query:       buildIAPLocalizationsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "in-app-purchase-localizations",
-	})
 }

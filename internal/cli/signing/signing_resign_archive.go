@@ -623,10 +623,6 @@ func discoverSigningResignArchiveWithEntitlements(ctx context.Context, reader *z
 	return archive, nil
 }
 
-func inspectSigningResignTarget(ctx context.Context, tree rootfs.Root, relativePath, kind string) (signingResignTarget, error) {
-	return inspectSigningResignTargetWithEntitlements(ctx, tree, relativePath, kind, true)
-}
-
 func inspectSigningResignTargetWithEntitlements(ctx context.Context, tree rootfs.Root, relativePath, kind string, readEntitlements bool) (signingResignTarget, error) {
 	if err := ctx.Err(); err != nil {
 		return signingResignTarget{}, err

@@ -134,49 +134,6 @@ func (c *Client) UpdateInAppPurchaseAppStoreReviewScreenshot(ctx context.Context
 	return sendJSON[InAppPurchaseAppStoreReviewScreenshotResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/inAppPurchaseAppStoreReviewScreenshots/%s", screenshotID), Payload: payload})
 }
 
-// DeleteInAppPurchaseAppStoreReviewScreenshot deletes a review screenshot by ID.
-func (c *Client) DeleteInAppPurchaseAppStoreReviewScreenshot(ctx context.Context, screenshotID string) error {
-	screenshotID = strings.TrimSpace(screenshotID)
-	if screenshotID == "" {
-		return fmt.Errorf("screenshotID is required")
-	}
-	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/inAppPurchaseAppStoreReviewScreenshots/%s", screenshotID), nil)
-}
-
-// GetInAppPurchaseAvailability retrieves availability for an in-app purchase.
-func (c *Client) GetInAppPurchaseAvailability(ctx context.Context, iapID string) (*InAppPurchaseAvailabilityResponse, error) {
-	iapID = strings.TrimSpace(iapID)
-	if iapID == "" {
-		return nil, fmt.Errorf("iapID is required")
-	}
-	return getJSON[InAppPurchaseAvailabilityResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v2/inAppPurchases/%s/inAppPurchaseAvailability", iapID)})
-}
-
-// GetInAppPurchaseAvailabilityByID retrieves an in-app purchase availability by ID.
-func (c *Client) GetInAppPurchaseAvailabilityByID(ctx context.Context, availabilityID string) (*InAppPurchaseAvailabilityResponse, error) {
-	availabilityID = strings.TrimSpace(availabilityID)
-	if availabilityID == "" {
-		return nil, fmt.Errorf("availabilityID is required")
-	}
-	return getJSON[InAppPurchaseAvailabilityResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/inAppPurchaseAvailabilities/%s", availabilityID)})
-}
-
-// GetInAppPurchaseAvailabilityAvailableTerritories lists available territories for an availability.
-func (c *Client) GetInAppPurchaseAvailabilityAvailableTerritories(ctx context.Context, availabilityID string, opts ...IAPAvailabilityTerritoriesOption) (*TerritoriesResponse, error) {
-	query := applyOptions(opts)
-
-	availabilityID = strings.TrimSpace(availabilityID)
-	if query.nextURL == "" && availabilityID == "" {
-		return nil, fmt.Errorf("availabilityID is required")
-	}
-	return getJSON[TerritoriesResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/inAppPurchaseAvailabilities/%s/availableTerritories", availabilityID),
-		Query:       buildIAPAvailabilityTerritoriesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "in-app-purchase-availability-territories",
-	})
-}
-
 // CreateInAppPurchaseAvailability creates or updates availability for an in-app purchase.
 func (c *Client) CreateInAppPurchaseAvailability(ctx context.Context, iapID string, availableInNewTerritories bool, territories []string) (*InAppPurchaseAvailabilityResponse, error) {
 	iapID = strings.TrimSpace(iapID)
@@ -240,38 +197,6 @@ func (c *Client) GetInAppPurchaseContentByID(ctx context.Context, contentID stri
 	return getJSON[InAppPurchaseContentResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/inAppPurchaseContents/%s", contentID), Query: buildIAPContentQuery(query)})
 }
 
-// GetInAppPurchasePricePoints retrieves price points for an in-app purchase.
-func (c *Client) GetInAppPurchasePricePoints(ctx context.Context, iapID string, opts ...IAPPricePointsOption) (*InAppPurchasePricePointsResponse, error) {
-	query := applyOptions(opts)
-
-	iapID = strings.TrimSpace(iapID)
-	if query.nextURL == "" && iapID == "" {
-		return nil, fmt.Errorf("iapID is required")
-	}
-	return getJSON[InAppPurchasePricePointsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v2/inAppPurchases/%s/pricePoints", iapID),
-		Query:       buildIAPPricePointsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "in-app-purchase-price-points",
-	})
-}
-
-// GetInAppPurchasePricePointEqualizations retrieves equalized price points for a price point.
-func (c *Client) GetInAppPurchasePricePointEqualizations(ctx context.Context, pricePointID string, opts ...IAPPricePointsOption) (*InAppPurchasePricePointsResponse, error) {
-	query := applyOptions(opts)
-
-	pricePointID = strings.TrimSpace(pricePointID)
-	if query.nextURL == "" && pricePointID == "" {
-		return nil, fmt.Errorf("pricePointID is required")
-	}
-	return getJSON[InAppPurchasePricePointsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/inAppPurchasePricePoints/%s/equalizations", pricePointID),
-		Query:       buildIAPPricePointsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "in-app-purchase-price-point-equalizations",
-	})
-}
-
 // GetInAppPurchasePriceSchedule retrieves the price schedule for an IAP.
 func (c *Client) GetInAppPurchasePriceSchedule(ctx context.Context, iapID string, opts ...IAPPriceScheduleOption) (*InAppPurchasePriceScheduleResponse, error) {
 	query := applyOptions(opts)
@@ -303,47 +228,6 @@ func (c *Client) GetInAppPurchasePromotedPurchase(ctx context.Context, iapID str
 
 	query := applyOptions(opts)
 	return getJSON[PromotedPurchaseResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v2/inAppPurchases/%s/promotedPurchase", iapID), Query: buildPromotedPurchaseGetQuery(query)})
-}
-
-// GetInAppPurchasePriceScheduleBaseTerritory retrieves base territory for a schedule.
-func (c *Client) GetInAppPurchasePriceScheduleBaseTerritory(ctx context.Context, scheduleID string) (*TerritoryResponse, error) {
-	scheduleID = strings.TrimSpace(scheduleID)
-	if scheduleID == "" {
-		return nil, fmt.Errorf("scheduleID is required")
-	}
-	return getJSON[TerritoryResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/inAppPurchasePriceSchedules/%s/baseTerritory", scheduleID)})
-}
-
-// GetInAppPurchasePriceScheduleManualPrices retrieves manual prices for a schedule.
-func (c *Client) GetInAppPurchasePriceScheduleManualPrices(ctx context.Context, scheduleID string, opts ...IAPPriceSchedulePricesOption) (*InAppPurchasePricesResponse, error) {
-	query := applyOptions(opts)
-
-	scheduleID = strings.TrimSpace(scheduleID)
-	if query.nextURL == "" && scheduleID == "" {
-		return nil, fmt.Errorf("scheduleID is required")
-	}
-	return getJSON[InAppPurchasePricesResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/inAppPurchasePriceSchedules/%s/manualPrices", scheduleID),
-		Query:       buildIAPPriceSchedulePricesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "in-app-purchase-manual-prices",
-	})
-}
-
-// GetInAppPurchasePriceScheduleAutomaticPrices retrieves automatic prices for a schedule.
-func (c *Client) GetInAppPurchasePriceScheduleAutomaticPrices(ctx context.Context, scheduleID string, opts ...IAPPriceSchedulePricesOption) (*InAppPurchasePricesResponse, error) {
-	query := applyOptions(opts)
-
-	scheduleID = strings.TrimSpace(scheduleID)
-	if query.nextURL == "" && scheduleID == "" {
-		return nil, fmt.Errorf("scheduleID is required")
-	}
-	return getJSON[InAppPurchasePricesResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/inAppPurchasePriceSchedules/%s/automaticPrices", scheduleID),
-		Query:       buildIAPPriceSchedulePricesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "in-app-purchase-automatic-prices",
-	})
 }
 
 // CreateInAppPurchasePriceSchedule creates an IAP price schedule.
@@ -421,47 +305,6 @@ func (c *Client) CreateInAppPurchasePriceSchedule(ctx context.Context, iapID str
 	return sendJSON[InAppPurchasePriceScheduleResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/inAppPurchasePriceSchedules", Payload: payload})
 }
 
-// GetInAppPurchaseOfferCodes retrieves offer codes for an in-app purchase.
-func (c *Client) GetInAppPurchaseOfferCodes(ctx context.Context, iapID string, opts ...IAPOfferCodesOption) (*InAppPurchaseOfferCodesResponse, error) {
-	query := applyOptions(opts)
-
-	iapID = strings.TrimSpace(iapID)
-	if query.nextURL == "" && iapID == "" {
-		return nil, fmt.Errorf("iapID is required")
-	}
-	return getJSON[InAppPurchaseOfferCodesResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v2/inAppPurchases/%s/offerCodes", iapID),
-		Query:       buildIAPOfferCodesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "in-app-purchase-offer-codes",
-	})
-}
-
-// GetInAppPurchaseOfferCodeCustomCodes retrieves custom codes for an offer code.
-func (c *Client) GetInAppPurchaseOfferCodeCustomCodes(ctx context.Context, offerCodeID string, opts ...IAPOfferCodeCustomCodesOption) (*InAppPurchaseOfferCodeCustomCodesResponse, error) {
-	query := applyOptions(opts)
-
-	offerCodeID = strings.TrimSpace(offerCodeID)
-	if query.nextURL == "" && offerCodeID == "" {
-		return nil, fmt.Errorf("offerCodeID is required")
-	}
-	return getJSON[InAppPurchaseOfferCodeCustomCodesResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/inAppPurchaseOfferCodes/%s/customCodes", offerCodeID),
-		Query:       buildIAPOfferCodeCustomCodesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "in-app-purchase-offer-code-custom-codes",
-	})
-}
-
-// GetInAppPurchaseOfferCodeCustomCode retrieves a custom code by ID.
-func (c *Client) GetInAppPurchaseOfferCodeCustomCode(ctx context.Context, customCodeID string) (*InAppPurchaseOfferCodeCustomCodeResponse, error) {
-	customCodeID = strings.TrimSpace(customCodeID)
-	if customCodeID == "" {
-		return nil, fmt.Errorf("customCodeID is required")
-	}
-	return getJSON[InAppPurchaseOfferCodeCustomCodeResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/inAppPurchaseOfferCodeCustomCodes/%s", customCodeID)})
-}
-
 // CreateInAppPurchaseOfferCodeCustomCode creates a custom code for an offer code.
 func (c *Client) CreateInAppPurchaseOfferCodeCustomCode(ctx context.Context, req InAppPurchaseOfferCodeCustomCodeCreateRequest) (*InAppPurchaseOfferCodeCustomCodeResponse, error) {
 	offerCodeID := strings.TrimSpace(req.Data.Relationships.OfferCode.Data.ID)
@@ -499,31 +342,6 @@ func (c *Client) UpdateInAppPurchaseOfferCodeCustomCode(ctx context.Context, cus
 	}
 
 	return sendJSON[InAppPurchaseOfferCodeCustomCodeResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/inAppPurchaseOfferCodeCustomCodes/%s", customCodeID), Payload: payload})
-}
-
-// GetInAppPurchaseOfferCodeOneTimeUseCodes retrieves one-time use codes for an offer code.
-func (c *Client) GetInAppPurchaseOfferCodeOneTimeUseCodes(ctx context.Context, offerCodeID string, opts ...IAPOfferCodeOneTimeUseCodesOption) (*InAppPurchaseOfferCodeOneTimeUseCodesResponse, error) {
-	query := applyOptions(opts)
-
-	offerCodeID = strings.TrimSpace(offerCodeID)
-	if query.nextURL == "" && offerCodeID == "" {
-		return nil, fmt.Errorf("offerCodeID is required")
-	}
-	return getJSON[InAppPurchaseOfferCodeOneTimeUseCodesResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/inAppPurchaseOfferCodes/%s/oneTimeUseCodes", offerCodeID),
-		Query:       buildIAPOfferCodeOneTimeUseCodesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "in-app-purchase-offer-code-one-time-use-codes",
-	})
-}
-
-// GetInAppPurchaseOfferCodeOneTimeUseCode retrieves a one-time use code batch by ID.
-func (c *Client) GetInAppPurchaseOfferCodeOneTimeUseCode(ctx context.Context, oneTimeUseCodeID string) (*InAppPurchaseOfferCodeOneTimeUseCodeResponse, error) {
-	oneTimeUseCodeID = strings.TrimSpace(oneTimeUseCodeID)
-	if oneTimeUseCodeID == "" {
-		return nil, fmt.Errorf("oneTimeUseCodeID is required")
-	}
-	return getJSON[InAppPurchaseOfferCodeOneTimeUseCodeResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/inAppPurchaseOfferCodeOneTimeUseCodes/%s", oneTimeUseCodeID)})
 }
 
 // CreateInAppPurchaseOfferCodeOneTimeUseCode generates a new one-time use code batch.
@@ -565,31 +383,6 @@ func (c *Client) UpdateInAppPurchaseOfferCodeOneTimeUseCode(ctx context.Context,
 	}
 
 	return sendJSON[InAppPurchaseOfferCodeOneTimeUseCodeResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/inAppPurchaseOfferCodeOneTimeUseCodes/%s", oneTimeUseCodeID), Payload: payload})
-}
-
-// GetInAppPurchaseOfferCodePrices retrieves prices for an offer code.
-func (c *Client) GetInAppPurchaseOfferCodePrices(ctx context.Context, offerCodeID string, opts ...IAPOfferCodePricesOption) (*InAppPurchaseOfferPricesResponse, error) {
-	query := applyOptions(opts)
-
-	offerCodeID = strings.TrimSpace(offerCodeID)
-	if query.nextURL == "" && offerCodeID == "" {
-		return nil, fmt.Errorf("offerCodeID is required")
-	}
-	return getJSON[InAppPurchaseOfferPricesResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/inAppPurchaseOfferCodes/%s/prices", offerCodeID),
-		Query:       buildIAPOfferCodePricesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "in-app-purchase-offer-code-prices",
-	})
-}
-
-// GetInAppPurchaseOfferCode retrieves an offer code by ID.
-func (c *Client) GetInAppPurchaseOfferCode(ctx context.Context, offerCodeID string) (*InAppPurchaseOfferCodeResponse, error) {
-	offerCodeID = strings.TrimSpace(offerCodeID)
-	if offerCodeID == "" {
-		return nil, fmt.Errorf("offerCodeID is required")
-	}
-	return getJSON[InAppPurchaseOfferCodeResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/inAppPurchaseOfferCodes/%s", offerCodeID)})
 }
 
 // CreateInAppPurchaseOfferCode creates an offer code.

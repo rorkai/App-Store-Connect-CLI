@@ -1,0 +1,8 @@
+{
+  "tag": "GameCenterAchievementVersions",
+  "file": "game_center_achievement_versions_gen.go",
+  "operations": [
+    {"operation":"gameCenterAchievementVersionsV2_getInstance","name":"GetGameCenterAchievementVersion","params":["versionID"],"response":"GameCenterAchievementVersionResponse"},
+    {"operation":"gameCenterAchievementVersionsV2_localizations_getToManyRelated","name":"GetGameCenterAchievementVersionLocalizations","params":["versionID"],"options":"GCAchievementLocalizationsOption","query":"buildGCAchievementLocalizationsQuery","nextContext":"game-center-achievement-version-localizations","response":"GameCenterAchievementLocalizationsResponse"}
+  ]
+}

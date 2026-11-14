@@ -37,6 +37,11 @@ type GameCenterLeaderboardEntrySubmissionCreateData struct {
 	Attributes GameCenterLeaderboardEntrySubmissionAttributes `json:"attributes"`
 }
 
+// GameCenterLeaderboardEntrySubmissionCreateRequest is a request to submit a leaderboard entry.
+type GameCenterLeaderboardEntrySubmissionCreateRequest struct {
+	Data GameCenterLeaderboardEntrySubmissionCreateData `json:"data"`
+}
+
 // CreateGameCenterLeaderboardEntrySubmission submits a leaderboard entry.
 func (c *Client) CreateGameCenterLeaderboardEntrySubmission(ctx context.Context, attrs GameCenterLeaderboardEntrySubmissionAttributes) (*GameCenterLeaderboardEntrySubmissionResponse, error) {
 	attrs.VendorIdentifier = strings.TrimSpace(attrs.VendorIdentifier)
@@ -115,6 +120,11 @@ type GameCenterPlayerAchievementSubmissionResponse struct {
 type GameCenterPlayerAchievementSubmissionCreateData struct {
 	Type       ResourceType                                    `json:"type"`
 	Attributes GameCenterPlayerAchievementSubmissionAttributes `json:"attributes"`
+}
+
+// GameCenterPlayerAchievementSubmissionCreateRequest is a request to submit player achievements.
+type GameCenterPlayerAchievementSubmissionCreateRequest struct {
+	Data GameCenterPlayerAchievementSubmissionCreateData `json:"data"`
 }
 
 // CreateGameCenterPlayerAchievementSubmission submits a player achievement.

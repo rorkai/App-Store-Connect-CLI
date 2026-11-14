@@ -15,10 +15,10 @@ func TestBezelConfigIncludesTitleOverlay(t *testing.T) {
 	if err := os.WriteFile(input, []byte("png"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	configPath, _, err := createDefaultKoubouConfigAt(input, frameDeviceKoubouSpecs[FrameDeviceIPhoneAir], &CanvasOptions{
+	configPath, _, err := createDefaultKoubouConfigAtRoot(input, frameDeviceKoubouSpecs[FrameDeviceIPhoneAir], &CanvasOptions{
 		Title:    "Home",
 		Subtitle: "Fast",
-	}, dir)
+	}, dir, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -160,7 +160,7 @@ func TestBezelBackgroundAppliesToEveryDevice(t *testing.T) {
 			if err := os.MkdirAll(workDir, 0o700); err != nil {
 				t.Fatal(err)
 			}
-			configPath, _, err := createDefaultKoubouConfigAt(input, frameDeviceKoubouSpecs[FrameDeviceIPhone17Pro], test.canvas, workDir)
+			configPath, _, err := createDefaultKoubouConfigAtRoot(input, frameDeviceKoubouSpecs[FrameDeviceIPhone17Pro], test.canvas, workDir, nil)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -212,7 +212,7 @@ func TestOverlayFixtureConvertsToRendererConfigGolden(t *testing.T) {
 	if err := os.WriteFile(input, []byte("png"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	configPath, metadata, err := createDefaultKoubouConfigAt(input, spec, &canvas, workDir)
+	configPath, metadata, err := createDefaultKoubouConfigAtRoot(input, spec, &canvas, workDir, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -269,7 +269,7 @@ func TestGeneratedContentItemsAnchorOnCenter(t *testing.T) {
 			if err := os.WriteFile(input, []byte("png"), 0o644); err != nil {
 				t.Fatal(err)
 			}
-			configPath, _, err := createDefaultKoubouConfigAt(input, frameDeviceKoubouSpecs[test.device], test.canvas, workDir)
+			configPath, _, err := createDefaultKoubouConfigAtRoot(input, frameDeviceKoubouSpecs[test.device], test.canvas, workDir, nil)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -332,7 +332,7 @@ func TestWatchAndTVRendererConfigGolden(t *testing.T) {
 					t.Fatal(err)
 				}
 				canvas := &CanvasOptions{Title: test.title, Subtitle: test.subtitle, TextPosition: position}
-				configPath, metadata, err := createDefaultKoubouConfigAt(input, spec, canvas, workDir)
+				configPath, metadata, err := createDefaultKoubouConfigAtRoot(input, spec, canvas, workDir, nil)
 				if err != nil {
 					t.Fatal(err)
 				}

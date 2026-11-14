@@ -1,0 +1,11 @@
+{
+  "tag": "SubscriptionPrices",
+  "file": "subscription_prices_gen.go",
+  "types": [
+    "SubscriptionPriceCreateRequest",
+    "SubscriptionPriceResponse"
+  ],
+  "operations": [
+    {"operation":"subscriptionPrices_deleteInstance","name":"DeleteSubscriptionPrice","params":["priceID"]}
+  ]
+}

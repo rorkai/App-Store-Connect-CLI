@@ -1,0 +1,10 @@
+{
+  "tag": "SubscriptionPromotionalOffers",
+  "file": "subscription_promotional_offers_gen.go",
+  "types": [
+    "SubscriptionPromotionalOfferUpdateRequest"
+  ],
+  "operations": [
+    {"operation":"subscriptionPromotionalOffers_deleteInstance","name":"DeleteSubscriptionPromotionalOffer","params":["offerID"]}
+  ]
+}
