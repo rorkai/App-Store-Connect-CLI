@@ -21,12 +21,6 @@ type appsQuery struct {
 	include                 []string
 }
 
-type appSearchKeywordsQuery struct {
-	listQuery
-	platforms []string
-	locales   []string
-}
-
 type appClipDefaultExperienceQuery struct {
 	includedFieldsQuery
 	include []string
@@ -59,13 +53,6 @@ type nominationsQuery struct {
 type betaAppClipInvocationQuery struct {
 	include            []string
 	localizationsLimit int
-}
-
-type accessibilityDeclarationsQuery struct {
-	listQuery
-	deviceFamilies []string
-	states         []string
-	fields         []string
 }
 
 type appEncryptionDeclarationsQuery struct {
@@ -171,15 +158,6 @@ func buildNominationsDetailQuery(query *nominationsQuery) string {
 	return values.Encode()
 }
 
-func buildAccessibilityDeclarationsQuery(query *accessibilityDeclarationsQuery) string {
-	values := url.Values{}
-	addCSV(values, "filter[deviceFamily]", query.deviceFamilies)
-	addCSV(values, "filter[state]", query.states)
-	addCSV(values, "fields[accessibilityDeclarations]", query.fields)
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
 func buildAccessibilityDeclarationsFieldsQuery(fields []string) string {
 	values := url.Values{}
 	addCSV(values, "fields[accessibilityDeclarations]", fields)
@@ -209,19 +187,8 @@ func buildAppEncryptionDeclarationDocumentFieldsQuery(fields []string) string {
 	return values.Encode()
 }
 
-func buildAppSearchKeywordsQuery(query *appSearchKeywordsQuery) string {
-	values := url.Values{}
-	addCSV(values, "filter[platform]", query.platforms)
-	addCSV(values, "filter[locale]", query.locales)
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
 // AppsOption is a functional option for GetApps.
 type AppsOption func(*appsQuery)
-
-// AppSearchKeywordsOption is a functional option for GetAppSearchKeywords.
-type AppSearchKeywordsOption func(*appSearchKeywordsQuery)
 
 // AppClipDefaultExperienceOption is a functional option for GetAppClipDefaultExperience.
 type AppClipDefaultExperienceOption func(*appClipDefaultExperienceQuery)
@@ -235,32 +202,8 @@ type AppTagsOption func(*appTagsQuery)
 // NominationsOption is a functional option for nominations endpoints.
 type NominationsOption func(*nominationsQuery)
 
-// AccessibilityDeclarationsOption is a functional option for accessibility declarations.
-type AccessibilityDeclarationsOption func(*accessibilityDeclarationsQuery)
-
 // AppEncryptionDeclarationsOption is a functional option for encryption declarations.
 type AppEncryptionDeclarationsOption func(*appEncryptionDeclarationsQuery)
-
-// WithAccessibilityDeclarationsDeviceFamilies filters declarations by device family.
-func WithAccessibilityDeclarationsDeviceFamilies(families []string) AccessibilityDeclarationsOption {
-	return func(q *accessibilityDeclarationsQuery) {
-		q.deviceFamilies = normalizeUpperList(families)
-	}
-}
-
-// WithAccessibilityDeclarationsStates filters declarations by state.
-func WithAccessibilityDeclarationsStates(states []string) AccessibilityDeclarationsOption {
-	return func(q *accessibilityDeclarationsQuery) {
-		q.states = normalizeUpperList(states)
-	}
-}
-
-// WithAccessibilityDeclarationsFields includes specific fields.
-func WithAccessibilityDeclarationsFields(fields []string) AccessibilityDeclarationsOption {
-	return func(q *accessibilityDeclarationsQuery) {
-		q.fields = normalizeList(fields)
-	}
-}
 
 // WithAppEncryptionDeclarationsBuildIDs filters declarations by build IDs.
 func WithAppEncryptionDeclarationsBuildIDs(ids []string) AppEncryptionDeclarationsOption {
@@ -377,20 +320,6 @@ func WithAppsRetentionMessageFields(fields []string) AppsOption {
 func WithAppsInclude(include []string) AppsOption {
 	return func(q *appsQuery) {
 		q.include = normalizeList(include)
-	}
-}
-
-// WithAppSearchKeywordsPlatforms filters app keywords by platform(s).
-func WithAppSearchKeywordsPlatforms(platforms []string) AppSearchKeywordsOption {
-	return func(q *appSearchKeywordsQuery) {
-		q.platforms = normalizeUpperList(platforms)
-	}
-}
-
-// WithAppSearchKeywordsLocales filters app keywords by locale(s).
-func WithAppSearchKeywordsLocales(locales []string) AppSearchKeywordsOption {
-	return func(q *appSearchKeywordsQuery) {
-		q.locales = normalizeList(locales)
 	}
 }
 

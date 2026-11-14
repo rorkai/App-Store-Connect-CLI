@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -97,4 +98,17 @@ func (c *Client) GetGameCenterAppVersion(ctx context.Context, appVersionID strin
 	return getJSON[GameCenterAppVersionResponse](ctx, c, readRequest{
 		Path: fmt.Sprintf("/v1/gameCenterAppVersions/%s", strings.TrimSpace(appVersionID)),
 	})
+}
+
+// GCAppVersionsOption sets the query of GET /v1/gameCenterAppVersions/{id}/compatibilityVersions (gameCenterAppVersions_compatibilityVersions_getToManyRelated) and GET /v1/gameCenterDetails/{id}/gameCenterAppVersions (gameCenterDetails_gameCenterAppVersions_getToManyRelated).
+type GCAppVersionsOption func(*gcAppVersionsQuery)
+
+type gcAppVersionsQuery struct {
+	listQuery
+}
+
+func buildGCAppVersionsQuery(query *gcAppVersionsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
 }

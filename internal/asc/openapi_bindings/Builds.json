@@ -25,6 +25,7 @@
   ],
   "queries": [
     {"operation":"builds_betaBuildUsages_getMetrics","name":"BetaBuildUsages"},
+    {"operation":"builds_diagnosticSignatures_getToManyRelated","name":"DiagnosticSignatures","params":[{"name":"filter[diagnosticType]","field":"diagnosticTypes","arg":"types","normalize":"upper"},{"name":"fields[diagnosticSignatures]"}]},
     {"operation":"builds_individualTesters_getToManyRelated","name":"BuildIndividualTesters","deviations":[{"problem":"query parameters [fields[betaTesters]] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]}
   ]
 }

@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 )
 
@@ -24,4 +25,17 @@ func (c *Client) GetGameCenterLeaderboardVersionLocalizations(ctx context.Contex
 		Next:        query.nextURL,
 		NextContext: "game-center-leaderboard-version-localizations",
 	})
+}
+
+// GCLeaderboardLocalizationsOption sets the query of GET /v2/gameCenterLeaderboardVersions/{id}/localizations (gameCenterLeaderboardVersionsV2_localizations_getToManyRelated) and GET /v1/gameCenterLeaderboards/{id}/localizations (gameCenterLeaderboards_localizations_getToManyRelated).
+type GCLeaderboardLocalizationsOption func(*gcLeaderboardLocalizationsQuery)
+
+type gcLeaderboardLocalizationsQuery struct {
+	listQuery
+}
+
+func buildGCLeaderboardLocalizationsQuery(query *gcLeaderboardLocalizationsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
 }

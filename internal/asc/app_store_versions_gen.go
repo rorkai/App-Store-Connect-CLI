@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -251,4 +252,48 @@ func (c *Client) GetAppStoreVersionRoutingAppCoverageRelationship(ctx context.Co
 		Path:     fmt.Sprintf("/v1/appStoreVersions/%s/relationships/routingAppCoverage", versionID),
 		ParseErr: "failed to parse routingAppCoverage relationship response",
 	})
+}
+
+// AppStoreVersionExperimentsV2Option sets the query of GET /v1/appStoreVersions/{id}/appStoreVersionExperimentsV2 (appStoreVersions_appStoreVersionExperimentsV2_getToManyRelated) and GET /v1/apps/{id}/appStoreVersionExperimentsV2 (apps_appStoreVersionExperimentsV2_getToManyRelated).
+type AppStoreVersionExperimentsV2Option func(*appStoreVersionExperimentsV2Query)
+
+type appStoreVersionExperimentsV2Query struct {
+	listQuery
+	states []string
+}
+
+// WithAppStoreVersionExperimentsV2State sets filter[state].
+func WithAppStoreVersionExperimentsV2State(states []string) AppStoreVersionExperimentsV2Option {
+	return func(q *appStoreVersionExperimentsV2Query) {
+		q.states = normalizeUpperList(states)
+	}
+}
+
+func buildAppStoreVersionExperimentsV2Query(query *appStoreVersionExperimentsV2Query) string {
+	values := url.Values{}
+	addCSV(values, "filter[state]", query.states)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+// AppStoreVersionExperimentsOption sets the query of GET /v1/appStoreVersions/{id}/appStoreVersionExperiments (appStoreVersions_appStoreVersionExperiments_getToManyRelated).
+type AppStoreVersionExperimentsOption func(*appStoreVersionExperimentsQuery)
+
+type appStoreVersionExperimentsQuery struct {
+	listQuery
+	states []string
+}
+
+// WithAppStoreVersionExperimentsState sets filter[state].
+func WithAppStoreVersionExperimentsState(states []string) AppStoreVersionExperimentsOption {
+	return func(q *appStoreVersionExperimentsQuery) {
+		q.states = normalizeUpperList(states)
+	}
+}
+
+func buildAppStoreVersionExperimentsQuery(query *appStoreVersionExperimentsQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[state]", query.states)
+	addLimit(values, query.limit)
+	return values.Encode()
 }

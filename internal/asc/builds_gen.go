@@ -251,6 +251,37 @@ func buildBetaBuildUsagesQuery(query *betaBuildUsagesQuery) string {
 	return values.Encode()
 }
 
+// DiagnosticSignaturesOption sets the query of GET /v1/builds/{id}/diagnosticSignatures (builds_diagnosticSignatures_getToManyRelated).
+type DiagnosticSignaturesOption func(*diagnosticSignaturesQuery)
+
+type diagnosticSignaturesQuery struct {
+	listQuery
+	diagnosticTypes []string
+	fields          []string
+}
+
+// WithDiagnosticSignaturesDiagnosticTypes sets filter[diagnosticType].
+func WithDiagnosticSignaturesDiagnosticTypes(types []string) DiagnosticSignaturesOption {
+	return func(q *diagnosticSignaturesQuery) {
+		q.diagnosticTypes = normalizeUpperList(types)
+	}
+}
+
+// WithDiagnosticSignaturesFields sets fields[diagnosticSignatures].
+func WithDiagnosticSignaturesFields(fields []string) DiagnosticSignaturesOption {
+	return func(q *diagnosticSignaturesQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+func buildDiagnosticSignaturesQuery(query *diagnosticSignaturesQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[diagnosticType]", query.diagnosticTypes)
+	addCSV(values, "fields[diagnosticSignatures]", query.fields)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
 // BuildIndividualTestersOption sets the query of GET /v1/builds/{id}/individualTesters (builds_individualTesters_getToManyRelated).
 type BuildIndividualTestersOption func(*buildIndividualTestersQuery)
 

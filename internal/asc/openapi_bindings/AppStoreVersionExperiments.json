@@ -32,5 +32,8 @@
     {"operation":"appStoreVersionExperiments_deleteInstance","name":"DeleteAppStoreVersionExperiment","params":["experimentID"],"check":"require"},
     {"operation":"appStoreVersionExperiments_getInstance","name":"GetAppStoreVersionExperiment","params":["experimentID"],"check":"require"},
     {"operation":"appStoreVersionExperiments_updateInstance","name":"UpdateAppStoreVersionExperiment","params":["experimentID"],"check":"require","skipEmptyAttributes":true}
+  ],
+  "queries": [
+    {"operation":"appStoreVersionExperimentsV2_appStoreVersionExperimentTreatments_getToManyRelated","also":["appStoreVersionExperiments_appStoreVersionExperimentTreatments_getToManyRelated"],"name":"AppStoreVersionExperimentTreatments","deviations":[{"problem":"query parameters [fields[appStoreVersionExperimentTreatmentLocalizations] fields[appStoreVersionExperimentTreatments] fields[appStoreVersionExperiments] include limit[appStoreVersionExperimentTreatmentLocalizations]] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."},{"operation":"appStoreVersionExperiments_appStoreVersionExperimentTreatments_getToManyRelated","problem":"query parameters [fields[appStoreVersionExperimentTreatmentLocalizations] fields[appStoreVersionExperimentTreatments] fields[appStoreVersionExperiments] include limit[appStoreVersionExperimentTreatmentLocalizations]] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]}
   ]
 }

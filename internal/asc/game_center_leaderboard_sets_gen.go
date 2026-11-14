@@ -206,6 +206,19 @@ func (c *Client) UpdateGameCenterLeaderboardSet(ctx context.Context, setID strin
 	})
 }
 
+// GCLeaderboardSetMembersOption sets the query of GET /v2/gameCenterLeaderboardSets/{id}/gameCenterLeaderboards (gameCenterLeaderboardSetsV2_gameCenterLeaderboards_getToManyRelated) and GET /v1/gameCenterLeaderboardSets/{id}/gameCenterLeaderboards (gameCenterLeaderboardSets_gameCenterLeaderboards_getToManyRelated).
+type GCLeaderboardSetMembersOption func(*gcLeaderboardSetMembersQuery)
+
+type gcLeaderboardSetMembersQuery struct {
+	listQuery
+}
+
+func buildGCLeaderboardSetMembersQuery(query *gcLeaderboardSetMembersQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
 // GCLeaderboardSetVersionsOption sets the query of GET /v2/gameCenterLeaderboardSets/{id}/versions (gameCenterLeaderboardSetsV2_versions_getToManyRelated).
 type GCLeaderboardSetVersionsOption func(*gcLeaderboardSetVersionsQuery)
 

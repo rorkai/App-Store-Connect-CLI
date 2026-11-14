@@ -2,7 +2,6 @@ package asc
 
 import (
 	"encoding/json"
-	"net/url"
 )
 
 // GameCenterChallengeAttributes represents a Game Center challenge resource.
@@ -52,19 +51,6 @@ type GameCenterChallengeUpdateData struct {
 
 // GameCenterChallengesResponse is the response from challenge list endpoints.
 type GameCenterChallengesResponse = Response[GameCenterChallengeAttributes]
-
-// GCChallengesOption is a functional option for GetGameCenterChallenges.
-type GCChallengesOption func(*gcChallengesQuery)
-
-type gcChallengesQuery struct {
-	listQuery
-}
-
-func buildGCChallengesQuery(query *gcChallengesQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
 
 // GameCenterChallengeVersionRelationships describes relationships for challenge versions.
 type GameCenterChallengeVersionRelationships struct {
