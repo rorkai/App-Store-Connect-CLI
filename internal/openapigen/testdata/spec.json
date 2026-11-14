@@ -11,6 +11,8 @@
           {"name": "fields[gadgets]", "in": "query", "schema": {"type": "array", "items": {"type": "string"}}, "style": "form", "explode": false},
           {"name": "include", "in": "query", "schema": {"type": "array", "items": {"type": "string"}}, "style": "form", "explode": false},
           {"name": "sort", "in": "query", "schema": {"type": "array", "items": {"type": "string"}}, "style": "form", "explode": false},
+          {"name": "filter[color]", "in": "query", "schema": {"type": "array", "items": {"type": "string"}}, "style": "form", "explode": true},
+          {"name": "filter[shape]", "in": "query", "schema": {"type": "array", "items": {"type": "string"}}, "style": "form"},
           {"name": "limit", "in": "query", "schema": {"type": "integer", "maximum": 200}, "style": "form"}
         ],
         "responses": {

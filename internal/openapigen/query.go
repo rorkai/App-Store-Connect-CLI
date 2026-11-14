@@ -28,8 +28,8 @@ type QueryBind struct {
 }
 
 // QueryParam is one query parameter with an option. The parameter must be an
-// array of strings in the spec: the option normalizes the list and the
-// builder sends it comma-separated.
+// array of strings sent in form style without explode: the option normalizes
+// the list and the builder sends it comma-separated.
 type QueryParam struct {
 	Name string `json:"name"`
 	// Field is the query struct field; default "include" for include,
@@ -69,9 +69,11 @@ func lowerInitial(name string) string {
 
 // queryParam is a query parameter of an operation in the spec.
 type queryParam struct {
-	Name   string `json:"name"`
-	In     string `json:"in"`
-	Schema struct {
+	Name    string `json:"name"`
+	In      string `json:"in"`
+	Style   string `json:"style"`
+	Explode *bool  `json:"explode"`
+	Schema  struct {
 		Type  string `json:"type"`
 		Items *struct {
 			Type string `json:"type"`
@@ -198,6 +200,8 @@ func renderQuery(spec *Spec, q *QueryBind) ([]queryPart, error) {
 			return nil, fmt.Errorf("limit is set by Limit, not by a parameter binding")
 		case sp.Schema.Type != "array" || sp.Schema.Items == nil || sp.Schema.Items.Type != "string":
 			return nil, fmt.Errorf("parameter %s is not an array of strings", p.Name)
+		case sp.Explode == nil || *sp.Explode || (sp.Style != "" && sp.Style != "form"):
+			return nil, fmt.Errorf("parameter %s is not sent as one comma-separated value (form style, explode false)", p.Name)
 		case seen[p.Name]:
 			return nil, fmt.Errorf("parameter %s is bound twice", p.Name)
 		}

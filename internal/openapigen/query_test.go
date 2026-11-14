@@ -39,6 +39,8 @@ func TestGenerateRejectsMalformedQueryBindings(t *testing.T) {
 		{"parameter the operation does not define", &QueryBind{Operation: "widgets_getCollection", Name: "X", Params: []*QueryParam{param("filter[size]", "sizes")}}},
 		{"limit bound as a parameter", &QueryBind{Operation: "widgets_getCollection", Name: "X", Params: []*QueryParam{param("limit", "limit")}}},
 		{"parameter that is not a string array", &QueryBind{Operation: "widgets_owner_getToOneRelated", Name: "X", Params: []*QueryParam{param("exists[name]", "named")}}},
+		{"array sent as repeated values", &QueryBind{Operation: "widgets_getCollection", Name: "X", Params: []*QueryParam{param("filter[color]", "colors")}}},
+		{"array without explode, which defaults to repeated values", &QueryBind{Operation: "widgets_getCollection", Name: "X", Params: []*QueryParam{param("filter[shape]", "shapes")}}},
 		{"parameter bound twice", &QueryBind{Operation: "widgets_getCollection", Name: "X", Params: []*QueryParam{param("include", ""), param("include", "other")}}},
 		{"filter without a field name", &QueryBind{Operation: "widgets_getCollection", Name: "X", Params: []*QueryParam{param("filter[name]", "")}}},
 		{"a query that sends nothing", &QueryBind{Operation: "widgets_owner_getToOneRelated", Name: "X"}},
