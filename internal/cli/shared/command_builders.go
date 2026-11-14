@@ -404,6 +404,12 @@ type ConfirmDeleteCommandConfig struct {
 	// RequiredDiagnostic reports a missing ID flag or --confirm with the
 	// required-input diagnostic instead of a plain usage error.
 	RequiredDiagnostic bool
+	// ConfirmUsage is the --confirm flag usage. It defaults to
+	// "Confirm deletion".
+	ConfirmUsage string
+	// ConfirmRequiredMessage reports a missing --confirm. It defaults to
+	// "--confirm is required".
+	ConfirmRequiredMessage string
 
 	ErrorPrefix string
 	// DeleteErrorPrefix wraps errors returned by Delete. It defaults to
@@ -433,9 +439,17 @@ func BuildConfirmDeleteCommand(config ConfirmDeleteCommandConfig) *ffcli.Command
 	if idUsage == "" {
 		idUsage = "Resource ID"
 	}
+	confirmUsage := config.ConfirmUsage
+	if confirmUsage == "" {
+		confirmUsage = "Confirm deletion"
+	}
+	confirmRequired := config.ConfirmRequiredMessage
+	if confirmRequired == "" {
+		confirmRequired = "--confirm is required"
+	}
 
 	id := bindBuilderIDFlag(fs, idFlagName, config.IDType, idUsage)
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
+	confirm := fs.Bool("confirm", false, confirmUsage)
 	output := d.BindOutputFlags(fs)
 
 	timeout := builderTimeout(d, config.ContextTimeout)
@@ -454,7 +468,7 @@ func BuildConfirmDeleteCommand(config ConfirmDeleteCommandConfig) *ffcli.Command
 				return missingBuilderFlag(d, config.RequiredDiagnostic, idFlagName)
 			}
 			if !*confirm {
-				return missingBuilderFlag(d, config.RequiredDiagnostic, "confirm")
+				return missingBuilderConfirm(d, config.RequiredDiagnostic, confirmRequired)
 			}
 
 			client, err := d.Client()
@@ -513,6 +527,14 @@ func missingBuilderFlag(d *Deps, diagnostic bool, name string) error {
 	}
 	fmt.Fprintf(d.IO.ErrOut, "Error: --%s is required\n", name)
 	return MissingRequiredUsageError("--" + name)
+}
+
+func missingBuilderConfirm(d *Deps, diagnostic bool, message string) error {
+	if !diagnostic {
+		return UsageError(message)
+	}
+	fmt.Fprintf(d.IO.ErrOut, "Error: %s\n", message)
+	return MissingRequiredUsageError("--confirm")
 }
 
 // bindBuilderIDFlag registers a builder's ID flag, accepting the resource's
