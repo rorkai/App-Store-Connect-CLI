@@ -75,12 +75,6 @@ func buildGCAchievementsQuery(query *gcAchievementsQuery) string {
 	return values.Encode()
 }
 
-// GameCenterAchievementVersionV2Attributes represents a v2 achievement version resource.
-type GameCenterAchievementVersionV2Attributes struct {
-	Version int                    `json:"version,omitempty"`
-	State   GameCenterVersionState `json:"state,omitempty"`
-}
-
 // GameCenterAchievementVersionRelationships describes relationships for achievement versions.
 type GameCenterAchievementVersionRelationships struct {
 	Achievement *Relationship `json:"achievement,omitempty"`

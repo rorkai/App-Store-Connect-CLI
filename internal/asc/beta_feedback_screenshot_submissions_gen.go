@@ -9,6 +9,9 @@ import (
 	"strings"
 )
 
+// BetaFeedbackScreenshotSubmissionResponse is the BetaFeedbackScreenshotSubmissionResponse schema.
+type BetaFeedbackScreenshotSubmissionResponse = SingleResponse[BetaFeedbackScreenshotSubmissionAttributes]
+
 // DeleteBetaFeedbackScreenshotSubmission sends DELETE /v1/betaFeedbackScreenshotSubmissions/{id} (betaFeedbackScreenshotSubmissions_deleteInstance).
 func (c *Client) DeleteBetaFeedbackScreenshotSubmission(ctx context.Context, submissionID string) error {
 	submissionID = strings.TrimSpace(submissionID)

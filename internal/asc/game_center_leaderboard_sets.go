@@ -51,12 +51,6 @@ func buildGCLeaderboardSetsQuery(query *gcLeaderboardSetsQuery) string {
 	return values.Encode()
 }
 
-// GameCenterLeaderboardSetVersionV2Attributes represents a v2 leaderboard set version resource.
-type GameCenterLeaderboardSetVersionV2Attributes struct {
-	Version int                    `json:"version,omitempty"`
-	State   GameCenterVersionState `json:"state,omitempty"`
-}
-
 // GameCenterLeaderboardSetVersionRelationships describes relationships for leaderboard set versions.
 type GameCenterLeaderboardSetVersionRelationships struct {
 	LeaderboardSet *Relationship `json:"leaderboardSet,omitempty"`

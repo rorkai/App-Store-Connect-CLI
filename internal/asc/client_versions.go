@@ -67,17 +67,8 @@ type AppStoreVersionCreateRelationships struct {
 // AppStoreVersionsResponse is the response from app store versions endpoints.
 type AppStoreVersionsResponse = Response[AppStoreVersionAttributes]
 
-// PrereleaseVersionAttributes describes TestFlight pre-release version metadata.
-type PrereleaseVersionAttributes struct {
-	Version  string   `json:"version,omitempty"`
-	Platform Platform `json:"platform,omitempty"`
-}
-
 // PreReleaseVersion represents a pre-release version resource.
 type PreReleaseVersion = Resource[PrereleaseVersionAttributes]
-
-// PreReleaseVersionsResponse is the response from pre-release versions endpoints.
-type PreReleaseVersionsResponse = Response[PrereleaseVersionAttributes]
 
 // PreReleaseVersionResponse is the response from pre-release version detail.
 type PreReleaseVersionResponse = SingleResponse[PrereleaseVersionAttributes]

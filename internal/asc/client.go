@@ -89,9 +89,6 @@ type CrashesResponse = Response[BetaFeedbackCrashSubmissionAttributes]
 // ReviewsResponse is the response from customer reviews endpoint.
 type ReviewsResponse = Response[CustomerReviewAttributes]
 
-// CustomerReviewResponse is the response from customer review detail endpoint.
-type CustomerReviewResponse = SingleResponse[CustomerReviewAttributes]
-
 // AppStoreVersionLocalizationsResponse is the response from app store version localizations endpoints.
 type AppStoreVersionLocalizationsResponse = Response[AppStoreVersionLocalizationAttributes]
 

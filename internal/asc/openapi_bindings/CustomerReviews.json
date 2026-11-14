@@ -1,6 +1,9 @@
 {
   "tag": "CustomerReviews",
   "file": "customer_reviews_gen.go",
+  "types": [
+    "CustomerReviewResponse"
+  ],
   "operations": [
     {"operation":"customerReviews_response_getToOneRelated","name":"GetCustomerReviewResponseForReview","params":["reviewID"],"check":"require","response":"CustomerReviewResponseResponse"}
   ]

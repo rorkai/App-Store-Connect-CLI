@@ -8,6 +8,15 @@ import (
 	"strings"
 )
 
+// PreReleaseVersionsResponse is the PreReleaseVersionsResponse schema.
+type PreReleaseVersionsResponse = Response[PrereleaseVersionAttributes]
+
+// PrereleaseVersionAttributes is the attributes object of the PrereleaseVersion schema.
+type PrereleaseVersionAttributes struct {
+	Version  string   `json:"version,omitempty"`
+	Platform Platform `json:"platform,omitempty"`
+}
+
 // GetPreReleaseVersionApp sends GET /v1/preReleaseVersions/{id}/app (preReleaseVersions_app_getToOneRelated).
 func (c *Client) GetPreReleaseVersionApp(ctx context.Context, versionID string) (*AppResponse, error) {
 	versionID = strings.TrimSpace(versionID)

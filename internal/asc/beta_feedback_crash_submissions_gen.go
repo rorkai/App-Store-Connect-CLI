@@ -9,6 +9,9 @@ import (
 	"strings"
 )
 
+// BetaFeedbackCrashSubmissionResponse is the BetaFeedbackCrashSubmissionResponse schema.
+type BetaFeedbackCrashSubmissionResponse = SingleResponse[BetaFeedbackCrashSubmissionAttributes]
+
 // GetBetaFeedbackCrashSubmissionCrashLog sends GET /v1/betaFeedbackCrashSubmissions/{id}/crashLog (betaFeedbackCrashSubmissions_crashLog_getToOneRelated).
 func (c *Client) GetBetaFeedbackCrashSubmissionCrashLog(ctx context.Context, submissionID string) (*BetaCrashLogResponse, error) {
 	submissionID = strings.TrimSpace(submissionID)

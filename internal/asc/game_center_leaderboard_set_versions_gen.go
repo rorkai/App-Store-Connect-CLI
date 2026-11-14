@@ -8,6 +8,12 @@ import (
 	"strings"
 )
 
+// GameCenterLeaderboardSetVersionV2Attributes is the attributes object of the GameCenterLeaderboardSetVersionV2 schema.
+type GameCenterLeaderboardSetVersionV2Attributes struct {
+	Version int                    `json:"version,omitempty"`
+	State   GameCenterVersionState `json:"state,omitempty"`
+}
+
 // GetGameCenterLeaderboardSetVersion sends GET /v2/gameCenterLeaderboardSetVersions/{id} (gameCenterLeaderboardSetVersionsV2_getInstance).
 func (c *Client) GetGameCenterLeaderboardSetVersion(ctx context.Context, versionID string) (*GameCenterLeaderboardSetVersionResponse, error) {
 	return getJSON[GameCenterLeaderboardSetVersionResponse](ctx, c, readRequest{
