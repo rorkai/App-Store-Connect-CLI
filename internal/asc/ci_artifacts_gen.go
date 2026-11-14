@@ -2,10 +2,22 @@
 
 package asc
 
+import (
+	"context"
+	"fmt"
+)
+
 // CiArtifactAttributes is the attributes object of the CiArtifact schema.
 type CiArtifactAttributes struct {
 	FileType    string `json:"fileType,omitempty"`
 	FileName    string `json:"fileName,omitempty"`
 	FileSize    int    `json:"fileSize,omitempty"`
 	DownloadURL string `json:"downloadUrl,omitempty"`
+}
+
+// GetCiArtifact sends GET /v1/ciArtifacts/{id} (ciArtifacts_getInstance).
+func (c *Client) GetCiArtifact(ctx context.Context, artifactID string) (*CiArtifactResponse, error) {
+	return getJSON[CiArtifactResponse](ctx, c, readRequest{
+		Path: fmt.Sprintf("/v1/ciArtifacts/%s", artifactID),
+	})
 }

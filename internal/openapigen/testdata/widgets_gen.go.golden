@@ -126,6 +126,27 @@ func (c *Client) GetWidget(ctx context.Context, widgetID string) (*WidgetRespons
 	})
 }
 
+// GetWidgetOwner sends GET /v1/widgets/{id}/owner (widgets_owner_getToOneRelated).
+func (c *Client) GetWidgetOwner(ctx context.Context, widgetID string) (*WidgetResponse, error) {
+	return getJSON[WidgetResponse](ctx, c, readRequest{
+		Path: fmt.Sprintf("/v1/widgets/%s/owner", widgetID),
+	})
+}
+
+// GetWidgetParts sends GET /v1/widgets/{id}/parts (widgets_parts_getToManyRelated).
+func (c *Client) GetWidgetParts(ctx context.Context, widgetID string, opts ...PartsOption) (*GadgetListResponse, error) {
+	widgetID = strings.TrimSpace(widgetID)
+	if widgetID == "" {
+		return nil, fmt.Errorf("widgetID is required")
+	}
+	query := applyOptions(opts)
+	return getJSON[GadgetListResponse](ctx, c, readRequest{
+		Path:  fmt.Sprintf("/v1/widgets/%s/parts", widgetID),
+		Query: buildPartsQuery(query),
+		Next:  query.nextURL,
+	})
+}
+
 // UpdateWidget sends PATCH /v1/widgets/{id} (widgets_updateInstance).
 func (c *Client) UpdateWidget(ctx context.Context, widgetID string, attrs WidgetUpdateAttributes) (*WidgetResponse, error) {
 	payload := WidgetUpdateRequest{

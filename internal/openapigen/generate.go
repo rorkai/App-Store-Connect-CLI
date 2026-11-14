@@ -181,6 +181,14 @@ func renderMethod(spec *Spec, b *OpBind) (string, error) {
 	if len(b.Params) != strings.Count(op.Path, "{") {
 		return "", fmt.Errorf("%d params for path %s", len(b.Params), op.Path)
 	}
+	switch b.Check {
+	case checkInline, checkTrim, checkRequire, checkRaw:
+	default:
+		return "", fmt.Errorf("unknown check style %q", b.Check)
+	}
+	if b.CheckFirst && (op.Method != "GET" || b.Options == "" || (b.Check != checkTrim && b.Check != checkRequire)) {
+		return "", fmt.Errorf("checkFirst needs a paged read with trim or require checks")
+	}
 	m := &method{b: b, op: op}
 	if len(b.Params) > 0 {
 		m.params = append(m.params, strings.Join(b.Params, ", ")+" string")
@@ -243,6 +251,9 @@ func renderMethod(spec *Spec, b *OpBind) (string, error) {
 func (m *method) read(response string) string {
 	m.result = "(*" + response + ", error)"
 	fields := []string{"Path: " + m.path()}
+	if m.b.CheckFirst {
+		m.checks()
+	}
 	if m.b.Options != "" {
 		m.params = append(m.params, "opts ..."+m.b.Options)
 		m.pre = append(m.pre, "query := applyOptions(opts)")
@@ -254,13 +265,15 @@ func (m *method) read(response string) string {
 	if m.b.ParseErr != "" {
 		fields = append(fields, "ParseErr: "+strconv.Quote(m.b.ParseErr))
 	}
-	m.checks()
+	if !m.b.CheckFirst {
+		m.checks()
+	}
 	return fmt.Sprintf("return getJSON[%s](ctx, c, readRequest{\n%s,\n})", response, strings.Join(fields, ",\n"))
 }
 
 // checks adds the trim and blank checks of the path parameters.
 func (m *method) checks() {
-	if m.b.Check == checkInline {
+	if m.b.Check == checkInline || m.b.Check == checkRaw {
 		return
 	}
 	for _, p := range m.b.Params {
@@ -279,7 +292,7 @@ func (m *method) checks() {
 			msg = m.b.Messages[i]
 		}
 		cond := p + ` == ""`
-		if m.b.Options != "" {
+		if m.b.Options != "" && !m.b.CheckFirst {
 			cond = `query.nextURL == "" && ` + cond
 		}
 		m.pre = append(m.pre, fmt.Sprintf("if %s {\nreturn %sfmt.Errorf(%s)\n}", cond, zero, strconv.Quote(msg)))

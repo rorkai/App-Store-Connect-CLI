@@ -460,69 +460,11 @@ func buildCiProductRepositoriesQuery(query *ciProductRepositoriesQuery) string {
 	return values.Encode()
 }
 
-// GetCiProduct retrieves a CI product by ID.
-func (c *Client) GetCiProduct(ctx context.Context, productID string) (*CiProductResponse, error) {
-	return getJSON[CiProductResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/ciProducts/%s", productID)})
-}
-
 // GetCiProductApp retrieves the app for a CI product.
 func (c *Client) GetCiProductApp(ctx context.Context, productID string, opts ...CiProductAppOption) (*AppResponse, error) {
 	query := applyOptions(opts)
 
 	return getJSON[AppResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/ciProducts/%s/app", productID), Query: buildCiProductAppQuery(query)})
-}
-
-// GetCiProductBuildRuns retrieves build runs for a CI product.
-func (c *Client) GetCiProductBuildRuns(ctx context.Context, productID string, opts ...CiBuildRunsOption) (*CiBuildRunsResponse, error) {
-	query := applyOptions(opts)
-
-	return getJSON[CiBuildRunsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/ciProducts/%s/buildRuns", productID),
-		Query:       buildCiBuildRunsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "ciProductBuildRuns",
-	})
-}
-
-// GetCiProductPrimaryRepositories retrieves primary repositories for a CI product.
-func (c *Client) GetCiProductPrimaryRepositories(ctx context.Context, productID string, opts ...CiProductRepositoriesOption) (*ScmRepositoriesResponse, error) {
-	query := applyOptions(opts)
-
-	return getJSON[ScmRepositoriesResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/ciProducts/%s/primaryRepositories", productID),
-		Query:       buildCiProductRepositoriesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "ciProductPrimaryRepositories",
-	})
-}
-
-// GetCiProductAdditionalRepositories retrieves additional repositories for a CI product.
-func (c *Client) GetCiProductAdditionalRepositories(ctx context.Context, productID string, opts ...CiProductRepositoriesOption) (*ScmRepositoriesResponse, error) {
-	query := applyOptions(opts)
-
-	return getJSON[ScmRepositoriesResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/ciProducts/%s/additionalRepositories", productID),
-		Query:       buildCiProductRepositoriesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "ciProductAdditionalRepositories",
-	})
-}
-
-// GetCiWorkflows retrieves CI workflows for a product.
-func (c *Client) GetCiWorkflows(ctx context.Context, productID string, opts ...CiWorkflowsOption) (*CiWorkflowsResponse, error) {
-	query := applyOptions(opts)
-
-	return getJSON[CiWorkflowsResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/ciProducts/%s/workflows", productID),
-		Query:       buildCiWorkflowsQuery(query),
-		Next:        query.nextURL,
-		NextContext: "ciWorkflows",
-	})
-}
-
-// GetCiWorkflow retrieves a CI workflow by ID.
-func (c *Client) GetCiWorkflow(ctx context.Context, workflowID string) (*CiWorkflowResponse, error) {
-	return getJSON[CiWorkflowResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/ciWorkflows/%s", workflowID)})
 }
 
 // GetCiWorkflowRaw retrieves a CI workflow by ID as the unmodified Apple response body.

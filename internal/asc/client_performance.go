@@ -113,23 +113,6 @@ func (c *Client) fetchPerfPowerMetrics(ctx context.Context, path string) (*PerfP
 	return &PerfPowerMetricsResponse{Data: data}, nil
 }
 
-// GetDiagnosticSignaturesForBuild retrieves diagnostic signatures for a build.
-func (c *Client) GetDiagnosticSignaturesForBuild(ctx context.Context, buildID string, opts ...DiagnosticSignaturesOption) (*DiagnosticSignaturesResponse, error) {
-	buildID = strings.TrimSpace(buildID)
-	if buildID == "" {
-		return nil, fmt.Errorf("build ID is required")
-	}
-
-	query := applyOptions(opts)
-	return getJSON[DiagnosticSignaturesResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/builds/%s/diagnosticSignatures", buildID),
-		Query:       buildDiagnosticSignaturesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "diagnosticSignatures",
-		ParseErr:    "failed to parse diagnostic signatures response",
-	})
-}
-
 // GetDiagnosticSignatureLogs retrieves diagnostic logs for a signature.
 func (c *Client) GetDiagnosticSignatureLogs(ctx context.Context, signatureID string, opts ...DiagnosticLogsOption) (*DiagnosticLogsResponse, error) {
 	signatureID = strings.TrimSpace(signatureID)

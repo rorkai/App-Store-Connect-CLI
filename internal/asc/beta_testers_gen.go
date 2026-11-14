@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 )
 
@@ -61,5 +62,17 @@ func (c *Client) GetBetaTesterBuilds(ctx context.Context, testerID string, opts 
 		Query:       buildListQuery(query),
 		Next:        query.nextURL,
 		NextContext: "betaTesterBuilds",
+	})
+}
+
+// DeleteBetaTester sends DELETE /v1/betaTesters/{id} (betaTesters_deleteInstance).
+func (c *Client) DeleteBetaTester(ctx context.Context, testerID string) error {
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/betaTesters/%s", testerID), nil)
+}
+
+// GetBetaTester sends GET /v1/betaTesters/{id} (betaTesters_getInstance).
+func (c *Client) GetBetaTester(ctx context.Context, testerID string) (*BetaTesterResponse, error) {
+	return getJSON[BetaTesterResponse](ctx, c, readRequest{
+		Path: fmt.Sprintf("/v1/betaTesters/%s", testerID),
 	})
 }

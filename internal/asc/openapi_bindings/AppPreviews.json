@@ -5,5 +5,9 @@
     "AppPreviewCreateRequest",
     "AppPreviewUpdateData",
     "AppPreviewUpdateRequest"
+  ],
+  "operations": [
+    {"operation":"appPreviews_deleteInstance","name":"DeleteAppPreview","params":["previewID"],"check":"raw"},
+    {"operation":"appPreviews_getInstance","name":"GetAppPreview","params":["previewID"],"check":"raw"}
   ]
 }

@@ -237,32 +237,6 @@ func (c *Client) GetScmRepository(ctx context.Context, repositoryID string) (*Sc
 	return &response.Data, nil
 }
 
-// GetScmRepositoryGitReferencesRelationships retrieves git reference linkages for a repository.
-func (c *Client) GetScmRepositoryGitReferencesRelationships(ctx context.Context, repositoryID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	repositoryID = strings.TrimSpace(repositoryID)
-	query := applyOptions(opts)
-
-	return getJSON[LinkagesResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/scmRepositories/%s/relationships/gitReferences", repositoryID),
-		Query:       buildLinkagesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "scmRepositoryGitReferencesRelationships",
-	})
-}
-
-// GetScmRepositoryPullRequestsRelationships retrieves pull request linkages for a repository.
-func (c *Client) GetScmRepositoryPullRequestsRelationships(ctx context.Context, repositoryID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	repositoryID = strings.TrimSpace(repositoryID)
-	query := applyOptions(opts)
-
-	return getJSON[LinkagesResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/scmRepositories/%s/relationships/pullRequests", repositoryID),
-		Query:       buildLinkagesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "scmRepositoryPullRequestsRelationships",
-	})
-}
-
 // ResolveGitReferenceByName finds a git reference (branch or tag) by name.
 // Returns an error if no reference or multiple references match the name.
 func (c *Client) ResolveGitReferenceByName(ctx context.Context, repositoryID, refName string) (*ScmGitReferenceResource, error) {

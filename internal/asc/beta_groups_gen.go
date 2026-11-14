@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 )
 
@@ -75,6 +76,33 @@ func (c *Client) GetBetaGroupBetaRecruitmentCriterionCompatibleBuildCheck(ctx co
 	})
 }
 
+// GetBetaGroupTesters sends GET /v1/betaGroups/{id}/betaTesters (betaGroups_betaTesters_getToManyRelated).
+func (c *Client) GetBetaGroupTesters(ctx context.Context, groupID string, opts ...BetaGroupTestersOption) (*BetaTestersResponse, error) {
+	query := applyOptions(opts)
+	return getJSON[BetaTestersResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/betaGroups/%s/betaTesters", groupID),
+		Query:       buildBetaGroupTestersQuery(query),
+		Next:        query.nextURL,
+		NextContext: "betaGroupTesters",
+	})
+}
+
+// GetBetaGroupBuilds sends GET /v1/betaGroups/{id}/builds (betaGroups_builds_getToManyRelated).
+func (c *Client) GetBetaGroupBuilds(ctx context.Context, groupID string, opts ...BetaGroupBuildsOption) (*BuildsResponse, error) {
+	query := applyOptions(opts)
+	return getJSON[BuildsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/betaGroups/%s/builds", groupID),
+		Query:       buildBetaGroupBuildsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "betaGroupBuilds",
+	})
+}
+
+// DeleteBetaGroup sends DELETE /v1/betaGroups/{id} (betaGroups_deleteInstance).
+func (c *Client) DeleteBetaGroup(ctx context.Context, groupID string) error {
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/betaGroups/%s", groupID), nil)
+}
+
 // ListBetaGroups sends GET /v1/betaGroups (betaGroups_getCollection).
 func (c *Client) ListBetaGroups(ctx context.Context, opts ...BetaGroupsOption) (*BetaGroupsResponse, error) {
 	query := applyOptions(opts)
@@ -83,6 +111,13 @@ func (c *Client) ListBetaGroups(ctx context.Context, opts ...BetaGroupsOption) (
 		Query:       buildBetaGroupsQuery(query),
 		Next:        query.nextURL,
 		NextContext: "betaGroups",
+	})
+}
+
+// GetBetaGroup sends GET /v1/betaGroups/{id} (betaGroups_getInstance).
+func (c *Client) GetBetaGroup(ctx context.Context, groupID string) (*BetaGroupResponse, error) {
+	return getJSON[BetaGroupResponse](ctx, c, readRequest{
+		Path: fmt.Sprintf("/v1/betaGroups/%s", groupID),
 	})
 }
 

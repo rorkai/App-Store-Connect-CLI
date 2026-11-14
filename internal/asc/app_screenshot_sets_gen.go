@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 )
 
@@ -25,5 +26,17 @@ func (c *Client) GetAppScreenshotSetAppScreenshotsRelationships(ctx context.Cont
 		Query:       buildLinkagesQuery(query),
 		Next:        query.nextURL,
 		NextContext: "appScreenshotsRelationships",
+	})
+}
+
+// DeleteAppScreenshotSet sends DELETE /v1/appScreenshotSets/{id} (appScreenshotSets_deleteInstance).
+func (c *Client) DeleteAppScreenshotSet(ctx context.Context, setID string) error {
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/appScreenshotSets/%s", setID), nil)
+}
+
+// GetAppScreenshotSet sends GET /v1/appScreenshotSets/{id} (appScreenshotSets_getInstance).
+func (c *Client) GetAppScreenshotSet(ctx context.Context, setID string) (*AppScreenshotSetResponse, error) {
+	return getJSON[AppScreenshotSetResponse](ctx, c, readRequest{
+		Path: fmt.Sprintf("/v1/appScreenshotSets/%s", setID),
 	})
 }

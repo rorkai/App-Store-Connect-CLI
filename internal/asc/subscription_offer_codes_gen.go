@@ -28,3 +28,15 @@ func (c *Client) GetSubscriptionOfferCodeCustomCodes(ctx context.Context, offerC
 		NextContext: "subscriptionOfferCodeCustomCodes",
 	})
 }
+
+// GetSubscriptionOfferCodeOneTimeUseCodes sends GET /v1/subscriptionOfferCodes/{id}/oneTimeUseCodes (subscriptionOfferCodes_oneTimeUseCodes_getToManyRelated).
+func (c *Client) GetSubscriptionOfferCodeOneTimeUseCodes(ctx context.Context, offerCodeID string, opts ...SubscriptionOfferCodeOneTimeUseCodesOption) (*SubscriptionOfferCodeOneTimeUseCodesResponse, error) {
+	offerCodeID = strings.TrimSpace(offerCodeID)
+	query := applyOptions(opts)
+	return getJSON[SubscriptionOfferCodeOneTimeUseCodesResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/subscriptionOfferCodes/%s/oneTimeUseCodes", offerCodeID),
+		Query:       buildSubscriptionOfferCodeOneTimeUseCodesQuery(query),
+		Next:        query.nextURL,
+		NextContext: "offer codes",
+	})
+}

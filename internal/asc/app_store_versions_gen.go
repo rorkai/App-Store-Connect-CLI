@@ -134,6 +134,31 @@ func (c *Client) GetAppStoreVersionExperiments(ctx context.Context, versionID st
 	})
 }
 
+// GetAppStoreVersionLocalizations sends GET /v1/appStoreVersions/{id}/appStoreVersionLocalizations (appStoreVersions_appStoreVersionLocalizations_getToManyRelated).
+func (c *Client) GetAppStoreVersionLocalizations(ctx context.Context, versionID string, opts ...AppStoreVersionLocalizationsOption) (*AppStoreVersionLocalizationsResponse, error) {
+	query := applyOptions(opts)
+	return getJSON[AppStoreVersionLocalizationsResponse](ctx, c, readRequest{
+		Path:        fmt.Sprintf("/v1/appStoreVersions/%s/appStoreVersionLocalizations", versionID),
+		Query:       buildAppStoreVersionLocalizationsQuery(query),
+		Next:        query.nextURL,
+		NextContext: "appStoreVersionLocalizations",
+	})
+}
+
+// GetAppStoreVersionPhasedRelease sends GET /v1/appStoreVersions/{id}/appStoreVersionPhasedRelease (appStoreVersions_appStoreVersionPhasedRelease_getToOneRelated).
+func (c *Client) GetAppStoreVersionPhasedRelease(ctx context.Context, versionID string) (*AppStoreVersionPhasedReleaseResponse, error) {
+	return getJSON[AppStoreVersionPhasedReleaseResponse](ctx, c, readRequest{
+		Path: fmt.Sprintf("/v1/appStoreVersions/%s/appStoreVersionPhasedRelease", versionID),
+	})
+}
+
+// GetAppStoreVersionSubmissionForVersion sends GET /v1/appStoreVersions/{id}/appStoreVersionSubmission (appStoreVersions_appStoreVersionSubmission_getToOneRelated).
+func (c *Client) GetAppStoreVersionSubmissionForVersion(ctx context.Context, versionID string) (*AppStoreVersionSubmissionResourceResponse, error) {
+	return getJSON[AppStoreVersionSubmissionResourceResponse](ctx, c, readRequest{
+		Path: fmt.Sprintf("/v1/appStoreVersions/%s/appStoreVersionSubmission", versionID),
+	})
+}
+
 // GetAppStoreVersionSubmissionRelationship sends GET /v1/appStoreVersions/{id}/relationships/appStoreVersionSubmission (appStoreVersions_appStoreVersionSubmission_getToOneRelationship).
 func (c *Client) GetAppStoreVersionSubmissionRelationship(ctx context.Context, versionID string) (*AppStoreVersionSubmissionLinkageResponse, error) {
 	versionID = strings.TrimSpace(versionID)
@@ -143,6 +168,13 @@ func (c *Client) GetAppStoreVersionSubmissionRelationship(ctx context.Context, v
 	return getJSON[AppStoreVersionSubmissionLinkageResponse](ctx, c, readRequest{
 		Path:     fmt.Sprintf("/v1/appStoreVersions/%s/relationships/appStoreVersionSubmission", versionID),
 		ParseErr: "failed to parse appStoreVersionSubmission relationship response",
+	})
+}
+
+// GetAppStoreVersionBuild sends GET /v1/appStoreVersions/{id}/build (appStoreVersions_build_getToOneRelated).
+func (c *Client) GetAppStoreVersionBuild(ctx context.Context, versionID string) (*BuildResponse, error) {
+	return getJSON[BuildResponse](ctx, c, readRequest{
+		Path: fmt.Sprintf("/v1/appStoreVersions/%s/build", versionID),
 	})
 }
 

@@ -1,0 +1,7 @@
+{
+  "tag": "AppStoreVersionSubmissions",
+  "file": "app_store_version_submissions_gen.go",
+  "operations": [
+    {"operation":"appStoreVersionSubmissions_deleteInstance","name":"DeleteAppStoreVersionSubmission","params":["id"],"check":"raw"}
+  ]
+}

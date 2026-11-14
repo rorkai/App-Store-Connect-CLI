@@ -38,6 +38,8 @@ type contractOpBinding struct {
 	Operation  string   `json:"operation"`
 	Name       string   `json:"name"`
 	Params     []string `json:"params"`
+	Check      string   `json:"check"`
+	CheckFirst bool     `json:"checkFirst"`
 	Deviations []struct {
 		Problem string `json:"problem"`
 		Reason  string `json:"reason"`
@@ -508,7 +510,7 @@ func checkGeneratedOperation(spec *contractSpec, op *contractOperation, b *contr
 	}
 	problems = append(problems, checkContractQuery(op, req.url.Query(), call.query != nil)...)
 	if call.query != nil {
-		problems = append(problems, checkContractNextURL(call, op.path, response)...)
+		problems = append(problems, checkContractNextURL(call, op.path, response, b.CheckFirst && b.Check == "require")...)
 	}
 	return append(problems, checkContractBody(spec, op, req.body, call)...)
 }
@@ -567,19 +569,23 @@ func allowsMapKeyName(allowed map[string]bool, name string) bool {
 }
 
 // checkContractNextURL calls a paged read with a next URL and blank path
-// parameters, as pagination does, and checks that it fetches that URL.
-func checkContractNextURL(call *contractCall, path string, response contractResponse) []string {
+// parameters, as pagination does, and checks that it fetches that URL. A read
+// that requires its path parameters before applying options gets them.
+func checkContractNextURL(call *contractCall, path string, response contractResponse, requiresPathParams bool) []string {
 	next := "https://api.appstoreconnect.apple.com" + contractPath(path, call.pathArgs) + "?cursor=contract"
-	var args []reflect.Value
-	for _, typ := range call.params {
-		args = append(args, reflect.Zero(typ))
+	args, with := slices.Clone(call.args), "the path parameters"
+	if !requiresPathParams {
+		args, with = nil, "blank path parameters"
+		for _, typ := range call.params {
+			args = append(args, reflect.Zero(typ))
+		}
 	}
 	args = append(args, call.option(func(q reflect.Value) {
 		q.Interface().(pager).page().nextURL = next
 	}))
 	requests, _, err := call.invoke(args, response)
 	if err != nil || len(requests) != 1 || requests[0].url.String() != next {
-		return []string{fmt.Sprintf("with a next URL and blank path parameters sent %v, want one request to %s (error: %v)", requests, next, err)}
+		return []string{fmt.Sprintf("with a next URL and %s sent %v, want one request to %s (error: %v)", with, requests, next, err)}
 	}
 	return nil
 }

@@ -9,6 +9,8 @@
   "operations": [
     {"operation":"betaTesters_apps_getToManyRelated","name":"GetBetaTesterApps","params":["testerID"],"check":"require","options":"BetaTesterAppsOption","query":"buildListQuery","nextContext":"betaTesterApps","response":"AppsResponse"},
     {"operation":"betaTesters_betaGroups_getToManyRelated","name":"GetBetaTesterBetaGroups","params":["testerID"],"check":"require","options":"BetaTesterBetaGroupsOption","query":"buildListQuery","nextContext":"betaTesterBetaGroups","response":"BetaGroupsResponse"},
-    {"operation":"betaTesters_builds_getToManyRelated","name":"GetBetaTesterBuilds","params":["testerID"],"check":"require","options":"BetaTesterBuildsOption","query":"buildListQuery","nextContext":"betaTesterBuilds","response":"BuildsResponse"}
+    {"operation":"betaTesters_builds_getToManyRelated","name":"GetBetaTesterBuilds","params":["testerID"],"check":"require","options":"BetaTesterBuildsOption","query":"buildListQuery","nextContext":"betaTesterBuilds","response":"BuildsResponse"},
+    {"operation":"betaTesters_deleteInstance","name":"DeleteBetaTester","params":["testerID"],"check":"raw"},
+    {"operation":"betaTesters_getInstance","name":"GetBetaTester","params":["testerID"],"check":"raw"}
   ]
 }

@@ -44,18 +44,6 @@ type SubscriptionOfferCodeOneTimeUseCodeCreateData struct {
 	Relationships SubscriptionOfferCodeOneTimeUseCodeCreateRelationships `json:"relationships"`
 }
 
-// GetSubscriptionOfferCodeOneTimeUseCodes retrieves one-time use offer code batches for an offer code.
-func (c *Client) GetSubscriptionOfferCodeOneTimeUseCodes(ctx context.Context, offerCodeID string, opts ...SubscriptionOfferCodeOneTimeUseCodesOption) (*SubscriptionOfferCodeOneTimeUseCodesResponse, error) {
-	offerCodeID = strings.TrimSpace(offerCodeID)
-	query := applyOptions(opts)
-	return getJSON[SubscriptionOfferCodeOneTimeUseCodesResponse](ctx, c, readRequest{
-		Path:        fmt.Sprintf("/v1/subscriptionOfferCodes/%s/oneTimeUseCodes", offerCodeID),
-		Query:       buildSubscriptionOfferCodeOneTimeUseCodesQuery(query),
-		Next:        query.nextURL,
-		NextContext: "offer codes",
-	})
-}
-
 // CreateSubscriptionOfferCodeOneTimeUseCode generates a new one-time use offer code batch.
 func (c *Client) CreateSubscriptionOfferCodeOneTimeUseCode(ctx context.Context, req SubscriptionOfferCodeOneTimeUseCodeCreateRequest) (*SubscriptionOfferCodeOneTimeUseCodeResponse, error) {
 	return sendJSON[SubscriptionOfferCodeOneTimeUseCodeResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/subscriptionOfferCodeOneTimeUseCodes", Payload: req})

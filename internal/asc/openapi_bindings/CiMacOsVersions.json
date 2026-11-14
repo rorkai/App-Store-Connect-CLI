@@ -5,6 +5,8 @@
     "CiMacOsVersionAttributes"
   ],
   "operations": [
-    {"operation":"ciMacOsVersions_getCollection","name":"GetCiMacOsVersions","options":"CiMacOsVersionsOption","query":"buildCiMacOsVersionsQuery","nextContext":"ciMacOsVersions"}
+    {"operation":"ciMacOsVersions_getCollection","name":"GetCiMacOsVersions","options":"CiMacOsVersionsOption","query":"buildCiMacOsVersionsQuery","nextContext":"ciMacOsVersions"},
+    {"operation":"ciMacOsVersions_getInstance","name":"GetCiMacOsVersion","params":["macOsVersionID"],"check":"raw"},
+    {"operation":"ciMacOsVersions_xcodeVersions_getToManyRelated","name":"GetCiMacOsVersionXcodeVersions","params":["macOsVersionID"],"check":"raw","options":"CiXcodeVersionsOption","query":"buildCiXcodeVersionsQuery","nextContext":"ciMacOsVersionXcodeVersions"}
   ]
 }

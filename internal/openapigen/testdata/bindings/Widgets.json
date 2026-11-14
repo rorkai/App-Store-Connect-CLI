@@ -19,6 +19,8 @@
     {"operation":"widgets_gadgets_replaceToManyRelationship","name":"UpdateWidgetGadgets","params":["widgetID"],"ids":"gadgetIDs"},
     {"operation":"widgets_getCollection","name":"GetWidgets","options":"WidgetsOption","query":"buildWidgetsQuery","nextContext":"widgets"},
     {"operation":"widgets_getInstance","name":"GetWidget","params":["widgetID"],"check":"require","parseErr":"failed to parse widget response"},
+    {"operation":"widgets_owner_getToOneRelated","name":"GetWidgetOwner","params":["widgetID"],"check":"raw"},
+    {"operation":"widgets_parts_getToManyRelated","name":"GetWidgetParts","params":["widgetID"],"check":"require","checkFirst":true,"options":"PartsOption","query":"buildPartsQuery","response":"GadgetListResponse"},
     {"operation":"widgets_updateInstance","name":"UpdateWidget","params":["widgetID"]}
   ]
 }

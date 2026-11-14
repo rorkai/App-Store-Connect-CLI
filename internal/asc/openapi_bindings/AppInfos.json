@@ -6,6 +6,7 @@
   ],
   "operations": [
     {"operation":"appInfos_ageRatingDeclaration_getToOneRelationship","name":"GetAppInfoAgeRatingDeclarationRelationship","params":["appInfoID"],"check":"require","parseErr":"failed to parse ageRatingDeclaration relationship response"},
+    {"operation":"appInfos_appInfoLocalizations_getToManyRelated","name":"GetAppInfoLocalizations","params":["appInfoID"],"check":"raw","options":"AppInfoLocalizationsOption","query":"buildAppInfoLocalizationsQuery","nextContext":"appInfoLocalizations"},
     {"operation":"appInfos_primaryCategory_getToOneRelated","name":"GetAppInfoPrimaryCategory","params":["appInfoID"],"check":"require"},
     {"operation":"appInfos_primaryCategory_getToOneRelationship","name":"GetAppInfoPrimaryCategoryRelationship","params":["appInfoID"],"check":"require","parseErr":"failed to parse primaryCategory relationship response"},
     {"operation":"appInfos_primarySubcategoryOne_getToOneRelated","name":"GetAppInfoPrimarySubcategoryOne","params":["appInfoID"],"check":"require"},
