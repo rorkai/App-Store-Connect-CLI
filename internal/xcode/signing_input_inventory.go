@@ -207,219 +207,8 @@ func (inv *signingEntitlementInventory) collect(requests []signingRequest) error
 		}
 	}
 	for _, configuration := range inv.project.configurations {
-		selected := inv.selectedIDs[configuration.id]
-		for _, key := range matchingBuildSettingKeys(configuration.buildSettings, "CODE_SIGN_ENTITLEMENTS") {
-			if _, ok := configuration.buildSettings[key].(string); !ok {
-				// Xcode project values can be arbitrary serialized objects, but
-				// signing can only safely inventory a scalar entitlement path. Do
-				// not silently drop a list/object value: it may name a protected
-				// input that would otherwise be overwritten by an artifact.
-				return fmt.Errorf("target %q configuration %q has a non-string CODE_SIGN_ENTITLEMENTS value", configuration.target, configuration.name)
-			}
-		}
-		authorized := signingConfigurationSourcesAuthorized(inv.project, configuration, inv.configFiles)
-		if configuration.projectLevel {
-			// Do not resolve the project configuration itself: it cannot see
-			// target-supplied settings such as PRODUCT_NAME. Still inventory
-			// literal project assignments, including conditional-only paths,
-			// before artifact publication. Expressions are expanded later
-			// through each inheriting target configuration.
-			for _, key := range matchingBuildSettingKeys(configuration.buildSettings, "CODE_SIGN_ENTITLEMENTS") {
-				value, ok := configuration.buildSettings[key].(string)
-				if !ok || strings.Contains(value, "$(") || strings.Contains(value, "${") {
-					continue
-				}
-				if err := inv.appendEntitlements(value); err != nil {
-					return err
-				}
-			}
-			continue
-		}
-		if authorized {
-			value, _, err := inv.resolver.resolveSetting(configuration, "CODE_SIGN_ENTITLEMENTS")
-			if err == nil {
-				if err := inv.appendResolvedEntitlements(configuration, "CODE_SIGN_ENTITLEMENTS", value, false); err != nil {
-					if lexicalErr := inv.appendLexicalEntitlementCandidate(value); lexicalErr != nil {
-						return lexicalErr
-					}
-					if selected {
-						return err
-					}
-					inv.inputBlockers = append(inv.inputBlockers, fmt.Sprintf("target %q configuration %q has an unresolved CODE_SIGN_ENTITLEMENTS input: %v", configuration.target, configuration.name, err))
-				} else {
-					inv.resolvedEntitlementConfigurations[configuration.id] = true
-				}
-			} else if !errors.Is(err, errVersionSettingNotFound) {
-				resolutionErr := fmt.Errorf("resolve CODE_SIGN_ENTITLEMENTS for target %q configuration %q: %w", configuration.target, configuration.name, err)
-				if selected {
-					return resolutionErr
-				}
-				// An unselected configuration whose effective entitlement value
-				// cannot be resolved may still have more than one semantically
-				// possible assignment (for example, an unconditional value and a
-				// divergent SDK-conditional value). The later assignment scan must
-				// retain every live candidate for alias protection instead of
-				// assuming the conditional assignment is the whole input set.
-				inv.uncertainEntitlementConfigurations[configuration.id] = true
-				inv.inputBlockers = append(inv.inputBlockers, resolutionErr.Error())
-			}
-		}
-		for _, key := range matchingBuildSettingKeys(configuration.buildSettings, "CODE_SIGN_ENTITLEMENTS") {
-			value, ok := configuration.buildSettings[key].(string)
-			if ok {
-				if !authorized && !selected && (strings.Contains(value, "$(") || strings.Contains(value, "${")) {
-					inv.inputBlockers = append(inv.inputBlockers, fmt.Sprintf("target %q configuration %q has unresolved CODE_SIGN_ENTITLEMENTS reference; signing scope is uncertain", configuration.target, configuration.name))
-					continue
-				}
-				if err := inv.appendResolvedEntitlements(configuration, key, value, false); err != nil {
-					if lexicalErr := inv.appendLexicalEntitlementCandidate(value); lexicalErr != nil {
-						return lexicalErr
-					}
-					if isSigningConditionalEntitlementKey(key) {
-						if !selected {
-							inv.inputBlockers = append(inv.inputBlockers, fmt.Sprintf("target %q configuration %q has an unresolved conditional CODE_SIGN_ENTITLEMENTS input; signing scope is uncertain", configuration.target, configuration.name))
-							continue
-						}
-						return newSigningConditionalEntitlementError(err)
-					}
-					if selected {
-						return err
-					}
-					inv.inputBlockers = append(inv.inputBlockers, fmt.Sprintf("target %q configuration %q has an unresolved CODE_SIGN_ENTITLEMENTS input: %v", configuration.target, configuration.name, err))
-				}
-			}
-		}
-		// An unconditional inherited target assignment can consume any
-		// project-level entitlement assignment when the project fallback is
-		// genuinely uncertain. The effective resolver intentionally reports one
-		// value (or falls back to its first literal) for callers that need a
-		// single setting, but the artifact alias inventory must retain every
-		// concrete composition that Xcode may select. Same-object conditional
-		// assignments inherit through the target's unconditional slot, and a
-		// target xcconfig can provide the lower value, so neither case should be
-		// cross-composed with project seeds here.
-		for _, key := range matchingBuildSettingKeys(configuration.buildSettings, "CODE_SIGN_ENTITLEMENTS") {
-			if key != "CODE_SIGN_ENTITLEMENTS" {
-				continue
-			}
-			value, ok := configuration.buildSettings[key].(string)
-			if !ok || !signingValueInherits(value) {
-				continue
-			}
-			if _, err := inv.resolver.resolveLowerSettingWithContext(configuration, configuration, "CODE_SIGN_ENTITLEMENTS"); err == nil {
-				continue
-			}
-			if files := inv.configFiles[configuration.id]; len(files) > 0 {
-				if signingConfigurationXCConfigHasLiveUnconditionalEntitlementOverride(configuration, files, inv.resolver) {
-					continue
-				}
-			}
-			for _, projectCfg := range inv.project.configurations {
-				if !projectCfg.projectLevel || projectCfg.name != configuration.name {
-					continue
-				}
-				for _, projectKey := range matchingBuildSettingKeys(projectCfg.buildSettings, "CODE_SIGN_ENTITLEMENTS") {
-					projectValue, ok := projectCfg.buildSettings[projectKey].(string)
-					if !ok {
-						continue
-					}
-					if strings.Contains(projectValue, "$(") || strings.Contains(projectValue, "${") {
-						expanded, _, expandErr := inv.resolver.expandDirectAssignmentWithContext(
-							projectCfg,
-							configuration,
-							"CODE_SIGN_ENTITLEMENTS",
-							projectKey,
-							projectValue,
-							map[string]bool{"CODE_SIGN_ENTITLEMENTS": true},
-						)
-						if expandErr != nil {
-							// The later project-expression scan applies the same
-							// fail-closed lexical handling for an unresolved seed.
-							// Do not invent a composed path here when the target
-							// context cannot resolve the project reference.
-							continue
-						}
-						projectValue = expanded
-					}
-					composed := strings.ReplaceAll(value, "$(inherited)", projectValue)
-					composed = strings.ReplaceAll(composed, "${inherited}", projectValue)
-					if err := inv.appendResolvedEntitlements(configuration, key, composed, false); err != nil {
-						if lexicalErr := inv.appendLexicalEntitlementCandidate(composed); lexicalErr != nil {
-							return lexicalErr
-						}
-						if selected {
-							return err
-						}
-						inv.inputBlockers = append(inv.inputBlockers, fmt.Sprintf("target %q configuration %q has an unresolved inherited CODE_SIGN_ENTITLEMENTS input: %v", configuration.target, configuration.name, err))
-					}
-				}
-				projectFiles := inv.configFiles[projectCfg.id]
-				if signingConfigurationDefinesUnconditionalPBXEntitlement(projectCfg) {
-					continue
-				}
-				if len(projectFiles) == 0 {
-					continue
-				}
-				projectValues, projectErr := signingProjectXCConfigEntitlementValues(projectCfg, configuration, projectFiles, inv.resolver)
-				if projectErr != nil {
-					return fmt.Errorf("resolve project-level CODE_SIGN_ENTITLEMENTS for target %q configuration %q: %w", configuration.target, configuration.name, projectErr)
-				}
-				for _, projectValue := range projectValues {
-					composed := strings.ReplaceAll(value, "$(inherited)", projectValue)
-					composed = strings.ReplaceAll(composed, "${inherited}", projectValue)
-					if err := inv.appendResolvedEntitlements(configuration, key, composed, false); err != nil {
-						if lexicalErr := inv.appendLexicalEntitlementCandidate(composed); lexicalErr != nil {
-							return lexicalErr
-						}
-						if selected {
-							return err
-						}
-						inv.inputBlockers = append(inv.inputBlockers, fmt.Sprintf("target %q configuration %q has an unresolved inherited CODE_SIGN_ENTITLEMENTS input: %v", configuration.target, configuration.name, err))
-					}
-				}
-			}
-		}
-		targetDefinesUnconditional := signingConfigurationDefinesUnconditionalEntitlement(inv.project, configuration, inv.configFiles, inv.resolver)
-		if targetDefinesUnconditional {
-			continue
-		}
-		for _, projectCfg := range inv.project.configurations {
-			if !projectCfg.projectLevel || projectCfg.name != configuration.name {
-				continue
-			}
-			for _, key := range matchingBuildSettingKeys(projectCfg.buildSettings, "CODE_SIGN_ENTITLEMENTS") {
-				value, ok := projectCfg.buildSettings[key].(string)
-				if !ok || (!strings.Contains(value, "$(") && !strings.Contains(value, "${")) {
-					continue
-				}
-				expanded, _, err := inv.resolver.expandDirectAssignmentWithContext(
-					projectCfg,
-					configuration,
-					"CODE_SIGN_ENTITLEMENTS",
-					key,
-					value,
-					map[string]bool{"CODE_SIGN_ENTITLEMENTS": true},
-				)
-				if err == nil {
-					err = inv.appendEntitlements(expanded)
-				}
-				if err != nil {
-					if lexicalErr := inv.appendLexicalEntitlementCandidate(value); lexicalErr != nil {
-						return lexicalErr
-					}
-					if isSigningConditionalEntitlementKey(key) {
-						if !selected {
-							inv.inputBlockers = append(inv.inputBlockers, fmt.Sprintf("target %q configuration %q has an unresolved inherited project CODE_SIGN_ENTITLEMENTS input; signing scope is uncertain", configuration.target, configuration.name))
-							continue
-						}
-						return newSigningConditionalEntitlementError(err)
-					}
-					if selected {
-						return err
-					}
-					inv.inputBlockers = append(inv.inputBlockers, fmt.Sprintf("target %q configuration %q has an unresolved inherited project CODE_SIGN_ENTITLEMENTS input: %v", configuration.target, configuration.name, err))
-				}
-			}
+		if err := inv.inventoryConfigurationSettings(configuration); err != nil {
+			return err
 		}
 	}
 	entitlementCandidatesByConfiguration := make(map[string]map[string]map[int]bool)
@@ -653,6 +442,275 @@ func (inv *signingEntitlementInventory) collect(requests []signingRequest) error
 			}
 		}
 	}
+	return nil
+}
+
+// inventoryConfigurationSettings collects the entitlement paths that one
+// configuration's PBX build settings can select, including compositions with
+// the project-level configuration that the target inherits.
+func (inv *signingEntitlementInventory) inventoryConfigurationSettings(configuration *versionConfiguration) error {
+	selected := inv.selectedIDs[configuration.id]
+	for _, key := range matchingBuildSettingKeys(configuration.buildSettings, "CODE_SIGN_ENTITLEMENTS") {
+		if _, ok := configuration.buildSettings[key].(string); !ok {
+			// Xcode project values can be arbitrary serialized objects, but
+			// signing can only safely inventory a scalar entitlement path. Do
+			// not silently drop a list/object value: it may name a protected
+			// input that would otherwise be overwritten by an artifact.
+			return fmt.Errorf("target %q configuration %q has a non-string CODE_SIGN_ENTITLEMENTS value", configuration.target, configuration.name)
+		}
+	}
+	if configuration.projectLevel {
+		return inv.appendProjectLiteralEntitlements(configuration)
+	}
+	authorized := signingConfigurationSourcesAuthorized(inv.project, configuration, inv.configFiles)
+	if authorized {
+		if err := inv.appendEffectiveEntitlements(configuration, selected); err != nil {
+			return err
+		}
+	}
+	if err := inv.appendTargetEntitlementAssignments(configuration, authorized, selected); err != nil {
+		return err
+	}
+	if err := inv.appendInheritedProjectCompositions(configuration, selected); err != nil {
+		return err
+	}
+	if signingConfigurationDefinesUnconditionalEntitlement(inv.project, configuration, inv.configFiles, inv.resolver) {
+		return nil
+	}
+	return inv.appendInheritedProjectExpressions(configuration, selected)
+}
+
+// appendProjectLiteralEntitlements does not resolve the project configuration
+// itself: it cannot see target-supplied settings such as PRODUCT_NAME. It
+// still inventories literal project assignments, including conditional-only
+// paths, before artifact publication. Expressions are expanded later through
+// each inheriting target configuration.
+func (inv *signingEntitlementInventory) appendProjectLiteralEntitlements(configuration *versionConfiguration) error {
+	for _, key := range matchingBuildSettingKeys(configuration.buildSettings, "CODE_SIGN_ENTITLEMENTS") {
+		value, ok := configuration.buildSettings[key].(string)
+		if !ok || strings.Contains(value, "$(") || strings.Contains(value, "${") {
+			continue
+		}
+		if err := inv.appendEntitlements(value); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (inv *signingEntitlementInventory) appendEffectiveEntitlements(configuration *versionConfiguration, selected bool) error {
+	value, _, err := inv.resolver.resolveSetting(configuration, "CODE_SIGN_ENTITLEMENTS")
+	if err != nil {
+		if errors.Is(err, errVersionSettingNotFound) {
+			return nil
+		}
+		resolutionErr := fmt.Errorf("resolve CODE_SIGN_ENTITLEMENTS for target %q configuration %q: %w", configuration.target, configuration.name, err)
+		if selected {
+			return resolutionErr
+		}
+		// An unselected configuration whose effective entitlement value
+		// cannot be resolved may still have more than one semantically
+		// possible assignment (for example, an unconditional value and a
+		// divergent SDK-conditional value). The later assignment scan must
+		// retain every live candidate for alias protection instead of
+		// assuming the conditional assignment is the whole input set.
+		inv.uncertainEntitlementConfigurations[configuration.id] = true
+		inv.inputBlockers = append(inv.inputBlockers, resolutionErr.Error())
+		return nil
+	}
+	if err := inv.appendResolvedEntitlements(configuration, "CODE_SIGN_ENTITLEMENTS", value, false); err != nil {
+		if lexicalErr := inv.appendLexicalEntitlementCandidate(value); lexicalErr != nil {
+			return lexicalErr
+		}
+		if selected {
+			return err
+		}
+		inv.inputBlockers = append(inv.inputBlockers, fmt.Sprintf("target %q configuration %q has an unresolved CODE_SIGN_ENTITLEMENTS input: %v", configuration.target, configuration.name, err))
+		return nil
+	}
+	inv.resolvedEntitlementConfigurations[configuration.id] = true
+	return nil
+}
+
+func (inv *signingEntitlementInventory) appendTargetEntitlementAssignments(configuration *versionConfiguration, authorized, selected bool) error {
+	for _, key := range matchingBuildSettingKeys(configuration.buildSettings, "CODE_SIGN_ENTITLEMENTS") {
+		value, ok := configuration.buildSettings[key].(string)
+		if !ok {
+			continue
+		}
+		if !authorized && !selected && (strings.Contains(value, "$(") || strings.Contains(value, "${")) {
+			inv.inputBlockers = append(inv.inputBlockers, fmt.Sprintf("target %q configuration %q has unresolved CODE_SIGN_ENTITLEMENTS reference; signing scope is uncertain", configuration.target, configuration.name))
+			continue
+		}
+		err := inv.appendResolvedEntitlements(configuration, key, value, false)
+		if err == nil {
+			continue
+		}
+		if lexicalErr := inv.appendLexicalEntitlementCandidate(value); lexicalErr != nil {
+			return lexicalErr
+		}
+		if isSigningConditionalEntitlementKey(key) {
+			if selected {
+				return newSigningConditionalEntitlementError(err)
+			}
+			inv.inputBlockers = append(inv.inputBlockers, fmt.Sprintf("target %q configuration %q has an unresolved conditional CODE_SIGN_ENTITLEMENTS input; signing scope is uncertain", configuration.target, configuration.name))
+			continue
+		}
+		if selected {
+			return err
+		}
+		inv.inputBlockers = append(inv.inputBlockers, fmt.Sprintf("target %q configuration %q has an unresolved CODE_SIGN_ENTITLEMENTS input: %v", configuration.target, configuration.name, err))
+	}
+	return nil
+}
+
+// appendInheritedProjectCompositions handles an unconditional inherited target
+// assignment, which can consume any project-level entitlement assignment when
+// the project fallback is genuinely uncertain. The effective resolver
+// intentionally reports one value (or falls back to its first literal) for
+// callers that need a single setting, but the artifact alias inventory must
+// retain every concrete composition that Xcode may select. Same-object
+// conditional assignments inherit through the target's unconditional slot,
+// and a target xcconfig can provide the lower value, so neither case should be
+// cross-composed with project seeds here.
+func (inv *signingEntitlementInventory) appendInheritedProjectCompositions(configuration *versionConfiguration, selected bool) error {
+	value, ok := configuration.buildSettings["CODE_SIGN_ENTITLEMENTS"].(string)
+	if !ok || !signingValueInherits(value) {
+		return nil
+	}
+	if _, err := inv.resolver.resolveLowerSettingWithContext(configuration, configuration, "CODE_SIGN_ENTITLEMENTS"); err == nil {
+		return nil
+	}
+	if files := inv.configFiles[configuration.id]; len(files) > 0 &&
+		signingConfigurationXCConfigHasLiveUnconditionalEntitlementOverride(configuration, files, inv.resolver) {
+		return nil
+	}
+	for _, projectCfg := range inv.project.configurations {
+		if !projectCfg.projectLevel || projectCfg.name != configuration.name {
+			continue
+		}
+		if err := inv.appendCompositionsWithProjectConfiguration(configuration, projectCfg, value, selected); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (inv *signingEntitlementInventory) appendCompositionsWithProjectConfiguration(configuration, projectCfg *versionConfiguration, value string, selected bool) error {
+	for _, projectKey := range matchingBuildSettingKeys(projectCfg.buildSettings, "CODE_SIGN_ENTITLEMENTS") {
+		projectValue, ok := projectCfg.buildSettings[projectKey].(string)
+		if !ok {
+			continue
+		}
+		if strings.Contains(projectValue, "$(") || strings.Contains(projectValue, "${") {
+			expanded, _, expandErr := inv.resolver.expandDirectAssignmentWithContext(
+				projectCfg,
+				configuration,
+				"CODE_SIGN_ENTITLEMENTS",
+				projectKey,
+				projectValue,
+				map[string]bool{"CODE_SIGN_ENTITLEMENTS": true},
+			)
+			if expandErr != nil {
+				// The later project-expression scan applies the same
+				// fail-closed lexical handling for an unresolved seed.
+				// Do not invent a composed path here when the target
+				// context cannot resolve the project reference.
+				continue
+			}
+			projectValue = expanded
+		}
+		if err := inv.appendInheritedComposition(configuration, value, projectValue, selected); err != nil {
+			return err
+		}
+	}
+	if signingConfigurationDefinesUnconditionalPBXEntitlement(projectCfg) {
+		return nil
+	}
+	projectFiles := inv.configFiles[projectCfg.id]
+	if len(projectFiles) == 0 {
+		return nil
+	}
+	projectValues, projectErr := signingProjectXCConfigEntitlementValues(projectCfg, configuration, projectFiles, inv.resolver)
+	if projectErr != nil {
+		return fmt.Errorf("resolve project-level CODE_SIGN_ENTITLEMENTS for target %q configuration %q: %w", configuration.target, configuration.name, projectErr)
+	}
+	for _, projectValue := range projectValues {
+		if err := inv.appendInheritedComposition(configuration, value, projectValue, selected); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// appendInheritedComposition substitutes inherited for the $(inherited) token
+// in the target's unconditional value and appends the result.
+func (inv *signingEntitlementInventory) appendInheritedComposition(configuration *versionConfiguration, value, inherited string, selected bool) error {
+	composed := strings.ReplaceAll(value, "$(inherited)", inherited)
+	composed = strings.ReplaceAll(composed, "${inherited}", inherited)
+	err := inv.appendResolvedEntitlements(configuration, "CODE_SIGN_ENTITLEMENTS", composed, false)
+	if err == nil {
+		return nil
+	}
+	if lexicalErr := inv.appendLexicalEntitlementCandidate(composed); lexicalErr != nil {
+		return lexicalErr
+	}
+	if selected {
+		return err
+	}
+	inv.inputBlockers = append(inv.inputBlockers, fmt.Sprintf("target %q configuration %q has an unresolved inherited CODE_SIGN_ENTITLEMENTS input: %v", configuration.target, configuration.name, err))
+	return nil
+}
+
+// appendInheritedProjectExpressions expands each project-level entitlement
+// expression that the target inherits in the target's context.
+func (inv *signingEntitlementInventory) appendInheritedProjectExpressions(configuration *versionConfiguration, selected bool) error {
+	for _, projectCfg := range inv.project.configurations {
+		if !projectCfg.projectLevel || projectCfg.name != configuration.name {
+			continue
+		}
+		for _, key := range matchingBuildSettingKeys(projectCfg.buildSettings, "CODE_SIGN_ENTITLEMENTS") {
+			value, ok := projectCfg.buildSettings[key].(string)
+			if !ok || (!strings.Contains(value, "$(") && !strings.Contains(value, "${")) {
+				continue
+			}
+			if err := inv.appendInheritedProjectExpression(configuration, projectCfg, key, value, selected); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (inv *signingEntitlementInventory) appendInheritedProjectExpression(configuration, projectCfg *versionConfiguration, key, value string, selected bool) error {
+	expanded, _, err := inv.resolver.expandDirectAssignmentWithContext(
+		projectCfg,
+		configuration,
+		"CODE_SIGN_ENTITLEMENTS",
+		key,
+		value,
+		map[string]bool{"CODE_SIGN_ENTITLEMENTS": true},
+	)
+	if err == nil {
+		err = inv.appendEntitlements(expanded)
+	}
+	if err == nil {
+		return nil
+	}
+	if lexicalErr := inv.appendLexicalEntitlementCandidate(value); lexicalErr != nil {
+		return lexicalErr
+	}
+	if isSigningConditionalEntitlementKey(key) {
+		if selected {
+			return newSigningConditionalEntitlementError(err)
+		}
+		inv.inputBlockers = append(inv.inputBlockers, fmt.Sprintf("target %q configuration %q has an unresolved inherited project CODE_SIGN_ENTITLEMENTS input; signing scope is uncertain", configuration.target, configuration.name))
+		return nil
+	}
+	if selected {
+		return err
+	}
+	inv.inputBlockers = append(inv.inputBlockers, fmt.Sprintf("target %q configuration %q has an unresolved inherited project CODE_SIGN_ENTITLEMENTS input: %v", configuration.target, configuration.name, err))
 	return nil
 }
 
