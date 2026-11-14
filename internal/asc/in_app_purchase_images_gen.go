@@ -9,6 +9,18 @@ import (
 	"strings"
 )
 
+// InAppPurchaseImageV2CreateData is the data object of the InAppPurchaseImageV2CreateRequest schema.
+type InAppPurchaseImageV2CreateData struct {
+	Type          ResourceType                            `json:"type"`
+	Attributes    InAppPurchaseImageV2CreateAttributes    `json:"attributes"`
+	Relationships InAppPurchaseImageV2CreateRelationships `json:"relationships"`
+}
+
+// InAppPurchaseImageV2CreateRelationships is the data.relationships object of the InAppPurchaseImageV2CreateRequest schema.
+type InAppPurchaseImageV2CreateRelationships struct {
+	Version Relationship `json:"version"`
+}
+
 // InAppPurchaseImageV2CreateRequest is the InAppPurchaseImageV2CreateRequest schema.
 type InAppPurchaseImageV2CreateRequest struct {
 	Data InAppPurchaseImageV2CreateData `json:"data"`

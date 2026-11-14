@@ -2,16 +2,24 @@
   "tag": "GameCenterLeaderboardLocalizations",
   "file": "game_center_leaderboard_localizations_gen.go",
   "types": [
+    "GameCenterLeaderboardLocalizationCreateData",
     "GameCenterLeaderboardLocalizationCreateRequest",
+    "GameCenterLeaderboardLocalizationRelationships",
     "GameCenterLeaderboardLocalizationResponse",
     "GameCenterLeaderboardLocalizationUpdateData",
     "GameCenterLeaderboardLocalizationUpdateRequest",
-    "GameCenterLeaderboardLocalizationV2CreateRequest"
+    "GameCenterLeaderboardLocalizationV2CreateRequest",
+    "GameCenterLeaderboardLocalizationV2Relationships"
+  ],
+  "relationships": [
+    {"data":"GameCenterLeaderboardLocalizationCreateData","type":"*GameCenterLeaderboardLocalizationRelationships","omitempty":true},
+    {"data":"GameCenterLeaderboardLocalizationV2CreateData","type":"*GameCenterLeaderboardLocalizationV2Relationships","omitempty":true}
   ],
   "operations": [
     {"operation":"gameCenterLeaderboardLocalizationsV2_deleteInstance","name":"DeleteGameCenterLeaderboardLocalizationV2","params":["localizationID"]},
     {"operation":"gameCenterLeaderboardLocalizationsV2_getInstance","name":"GetGameCenterLeaderboardLocalizationV2","params":["localizationID"],"response":"GameCenterLeaderboardLocalizationResponse"},
     {"operation":"gameCenterLeaderboardLocalizationsV2_image_getToOneRelated","name":"GetGameCenterLeaderboardLocalizationImageV2","params":["localizationID"],"response":"GameCenterLeaderboardImageResponse"},
+    {"operation":"gameCenterLeaderboardLocalizations_createInstance","name":"CreateGameCenterLeaderboardLocalization","params":["leaderboardID"],"links":["gameCenterLeaderboard"]},
     {"operation":"gameCenterLeaderboardLocalizations_deleteInstance","name":"DeleteGameCenterLeaderboardLocalization","params":["localizationID"]},
     {"operation":"gameCenterLeaderboardLocalizations_gameCenterLeaderboardImage_getToOneRelated","name":"GetGameCenterLeaderboardLocalizationImage","params":["localizationID"]},
     {"operation":"gameCenterLeaderboardLocalizations_getInstance","name":"GetGameCenterLeaderboardLocalization","params":["localizationID"]},

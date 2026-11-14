@@ -51,23 +51,3 @@ func (c *Client) getInAppPurchasesV2(ctx context.Context, appID string, strict b
 
 	return &response, nil
 }
-
-// CreateInAppPurchaseV2 creates a new in-app purchase.
-func (c *Client) CreateInAppPurchaseV2(ctx context.Context, appID string, attrs InAppPurchaseV2CreateAttributes) (*InAppPurchaseV2Response, error) {
-	payload := InAppPurchaseV2CreateRequest{
-		Data: InAppPurchaseV2CreateData{
-			Type:       ResourceTypeInAppPurchases,
-			Attributes: attrs,
-			Relationships: &InAppPurchaseV2Relationships{
-				App: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeApps,
-						ID:   strings.TrimSpace(appID),
-					},
-				},
-			},
-		},
-	}
-
-	return sendJSON[InAppPurchaseV2Response](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v2/inAppPurchases", Payload: payload})
-}

@@ -2,9 +2,15 @@
   "tag": "SubscriptionVersions",
   "file": "subscription_versions_gen.go",
   "types": [
-    "SubscriptionVersionCreateRequest"
+    "SubscriptionVersionCreateData",
+    "SubscriptionVersionCreateRequest",
+    "SubscriptionVersionRelationships"
+  ],
+  "relationships": [
+    {"data":"SubscriptionVersionCreateData","type":"*SubscriptionVersionRelationships"}
   ],
   "operations": [
+    {"operation":"subscriptionVersions_createInstance","name":"CreateSubscriptionVersion","params":["subscriptionID"],"check":"require","messages":["subscription ID is required"],"links":["subscription"]},
     {"operation":"subscriptionVersions_getInstance","name":"GetSubscriptionVersion","params":["versionID"],"check":"require","checkFirst":true,"messages":["version ID is required"],"options":"SubscriptionVersionOption","query":"buildSubscriptionVersionQuery","single":true},
     {"operation":"subscriptionVersions_image_getToOneRelated","name":"GetSubscriptionVersionImage","params":["versionID"],"check":"require","checkFirst":true,"messages":["version ID is required"],"options":"SubscriptionImageV2Option","query":"buildSubscriptionImageV2Query","single":true},
     {"operation":"subscriptionVersions_image_getToOneRelationship","name":"GetSubscriptionVersionImageRelationship","params":["versionID"],"check":"require","messages":["version ID is required"]},

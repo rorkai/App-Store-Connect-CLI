@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 )
@@ -19,10 +20,20 @@ type Bindings struct {
 
 // Family is one spec tag generated into one file.
 type Family struct {
-	Tag        string    `json:"tag"`
-	File       string    `json:"file"`
-	Types      []string  `json:"types,omitempty"`
-	Operations []*OpBind `json:"operations,omitempty"`
+	Tag           string     `json:"tag"`
+	File          string     `json:"file"`
+	Types         []string   `json:"types,omitempty"`
+	Relationships []*RelBind `json:"relationships,omitempty"`
+	Operations    []*OpBind  `json:"operations,omitempty"`
+}
+
+// RelBind is the relationships field of a create's data type, as the
+// hand-written data type declares it. The data type, the relationships type
+// it names and the create method all render from it.
+type RelBind struct {
+	Data      string `json:"data"`                // data type, such as "AppEventCreateData"
+	Type      string `json:"type"`                // Go type of the field; "*R" for a pointer
+	OmitEmpty bool   `json:"omitempty,omitempty"` // the field's tag has omitempty
 }
 
 // Check styles for path parameters.
@@ -36,10 +47,12 @@ const (
 // OpBind binds one spec operation to one client method. Empty fields take the
 // default rule documented next to each field.
 type OpBind struct {
-	Operation string   `json:"operation"`
-	Name      string   `json:"name"`
-	Params    []string `json:"params,omitempty"` // Go names of the path parameters, in path order
-	Check     string   `json:"check,omitempty"`  // checkInline, checkTrim, checkRequire or checkRaw
+	Operation string `json:"operation"`
+	Name      string `json:"name"`
+	// Params are the Go names of the path parameters in path order, then of
+	// the IDs a create links.
+	Params []string `json:"params,omitempty"`
+	Check  string   `json:"check,omitempty"` // checkInline, checkTrim, checkRequire or checkRaw
 	// CheckFirst runs the trim and require checks of a read before its
 	// options, so a next URL does not lift the require check of a paged read.
 	CheckFirst bool `json:"checkFirst,omitempty"`
@@ -51,7 +64,10 @@ type OpBind struct {
 	ParseErr    string   `json:"parseErr,omitempty"`    // default "failed to parse response"
 	Response    string   `json:"response,omitempty"`    // Go decode type; default the spec schema name
 	IDs         string   `json:"ids,omitempty"`         // ID list parameter of a relationship change
-	IDList      *IDList  `json:"idList,omitempty"`      // how a relationship change handles its ID list
+	// Links are the to-one relationships a create sets, one for each of the
+	// last len(Links) Params.
+	Links  []string `json:"links,omitempty"`
+	IDList *IDList  `json:"idList,omitempty"` // how a relationship change handles its ID list
 	// Single marks a read of one resource that sends a query and follows no
 	// next URL. Its builder takes the options, or a fields []string argument
 	// when there is no option type.
@@ -127,6 +143,7 @@ func bindingsFile(dir, tag string) string {
 // line so that a diff shows each binding that changed.
 func (f *Family) Encode() ([]byte, error) {
 	sort.Strings(f.Types)
+	sort.Slice(f.Relationships, func(i, j int) bool { return f.Relationships[i].Data < f.Relationships[j].Data })
 	sort.Slice(f.Operations, func(i, j int) bool { return f.Operations[i].Operation < f.Operations[j].Operation })
 	fields := []string{`"tag": ` + jsonString(f.Tag), `"file": ` + jsonString(f.File)}
 	if len(f.Types) > 0 {
@@ -136,20 +153,36 @@ func (f *Family) Encode() ([]byte, error) {
 		}
 		fields = append(fields, "\"types\": [\n    "+strings.Join(types, ",\n    ")+"\n  ]")
 	}
-	if len(f.Operations) > 0 {
-		var ops []string
-		for _, op := range f.Operations {
-			var buf bytes.Buffer
-			enc := json.NewEncoder(&buf)
-			enc.SetEscapeHTML(false)
-			if err := enc.Encode(op); err != nil {
-				return nil, err
-			}
-			ops = append(ops, strings.TrimSpace(buf.String()))
-		}
+	rels, err := jsonLines(f.Relationships)
+	if err != nil {
+		return nil, err
+	}
+	ops, err := jsonLines(f.Operations)
+	if err != nil {
+		return nil, err
+	}
+	if len(rels) > 0 {
+		fields = append(fields, "\"relationships\": [\n    "+strings.Join(rels, ",\n    ")+"\n  ]")
+	}
+	if len(ops) > 0 {
 		fields = append(fields, "\"operations\": [\n    "+strings.Join(ops, ",\n    ")+"\n  ]")
 	}
 	return []byte("{\n  " + strings.Join(fields, ",\n  ") + "\n}\n"), nil
+}
+
+// jsonLines encodes each item as one line of JSON.
+func jsonLines[T any](items []T) ([]string, error) {
+	var lines []string
+	for _, item := range items {
+		var buf bytes.Buffer
+		enc := json.NewEncoder(&buf)
+		enc.SetEscapeHTML(false)
+		if err := enc.Encode(item); err != nil {
+			return nil, err
+		}
+		lines = append(lines, strings.TrimSpace(buf.String()))
+	}
+	return lines, nil
 }
 
 func jsonString(s string) string {
@@ -164,6 +197,34 @@ func (b *Bindings) produces(dir, path string) bool {
 		}
 	}
 	return false
+}
+
+// relationshipsOf returns the relationships record of a data type. A record
+// must name a type such as "R" or "*R".
+func (f *Family) relationshipsOf(data string) (*RelBind, error) {
+	for _, r := range f.Relationships {
+		if r.Data != data {
+			continue
+		}
+		if !typeName.MatchString(r.Type) {
+			return nil, fmt.Errorf("relationships of %s have type %q, not a type name", data, r.Type)
+		}
+		return r, nil
+	}
+	return nil, fmt.Errorf("no relationships record for %s", data)
+}
+
+var typeName = regexp.MustCompile(`^\*?[A-Z][A-Za-z0-9]*$`)
+
+// relationshipsNamed returns the record whose field has the named Go type,
+// or nil.
+func (f *Family) relationshipsNamed(name string) *RelBind {
+	for _, r := range f.Relationships {
+		if strings.TrimPrefix(r.Type, "*") == name {
+			return r
+		}
+	}
+	return nil
 }
 
 // Family returns the family for a tag, adding it if missing.

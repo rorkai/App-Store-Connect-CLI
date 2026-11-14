@@ -3,11 +3,16 @@
   "file": "promoted_purchases_gen.go",
   "types": [
     "PromotedPurchaseCreateAttributes",
+    "PromotedPurchaseCreateData",
+    "PromotedPurchaseCreateRelationships",
     "PromotedPurchaseCreateRequest",
     "PromotedPurchaseResponse",
     "PromotedPurchaseUpdateAttributes",
     "PromotedPurchaseUpdateData",
     "PromotedPurchaseUpdateRequest"
+  ],
+  "relationships": [
+    {"data":"PromotedPurchaseCreateData","type":"PromotedPurchaseCreateRelationships"}
   ],
   "operations": [
     {"operation":"promotedPurchases_deleteInstance","name":"DeletePromotedPurchase","params":["promotedPurchaseID"]},

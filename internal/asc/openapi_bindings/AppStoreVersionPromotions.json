@@ -2,6 +2,10 @@
   "tag": "AppStoreVersionPromotions",
   "file": "app_store_version_promotions_gen.go",
   "types": [
+    "AppStoreVersionPromotionCreateData",
     "AppStoreVersionPromotionCreateRequest"
+  ],
+  "relationships": [
+    {"data":"AppStoreVersionPromotionCreateData","type":"AppStoreVersionPromotionRelationships"}
   ]
 }

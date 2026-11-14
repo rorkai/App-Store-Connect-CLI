@@ -11,6 +11,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -69,6 +71,16 @@ func Adopt(spec *Spec, b *Bindings, dir string, tags []string, report io.Writer)
 		}
 		var adoptedOps []*OpBind
 		var adoptedTypes []string
+		// view holds the relationships records the family has and the ones
+		// the hand-written data types of its creates declare.
+		view := &Family{}
+		for _, f := range b.Families {
+			if f.Tag == tag {
+				view.Relationships = slices.Clone(f.Relationships)
+			}
+		}
+		recorded := len(view.Relationships)
+		p.recordRelationships(spec, ops, view)
 		for _, op := range ops {
 			candidates := p.methods[op.Method+" "+pathFormat(op.Path)]
 			if bound[op.ID] {
@@ -83,7 +95,7 @@ func Adopt(spec *Spec, b *Bindings, dir string, tags []string, report io.Writer)
 				if d.adopted {
 					continue
 				}
-				bind, reason := deriveOp(spec, op, d)
+				bind, reason := p.deriveOp(spec, view, op, d)
 				if reason != "" {
 					fmt.Fprintf(report, "%s\t%s\t%s\tkept: %s\n", tag, op.ID, d.name, reason)
 					continue
@@ -93,12 +105,16 @@ func Adopt(spec *Spec, b *Bindings, dir string, tags []string, report io.Writer)
 				fmt.Fprintf(report, "%s\t%s\t%s\tgenerated\n", tag, op.ID, d.name)
 			}
 		}
-		for _, name := range typeCandidates(spec, ops) {
+		names := typeCandidates(spec, ops)
+		for _, r := range view.Relationships[recorded:] {
+			names = append(names, strings.TrimPrefix(r.Type, "*"))
+		}
+		for _, name := range names {
 			d, ok := p.types[name]
 			if !ok || d.adopted {
 				continue
 			}
-			src, err := renderType(spec, name)
+			src, err := renderType(spec, view, name)
 			if err != nil {
 				fmt.Fprintf(report, "%s\ttype %s\tkept: %v\n", tag, name, err)
 				continue
@@ -111,10 +127,20 @@ func Adopt(spec *Spec, b *Bindings, dir string, tags []string, report io.Writer)
 			adoptedTypes = append(adoptedTypes, name)
 			fmt.Fprintf(report, "%s\ttype %s\tgenerated\n", tag, name)
 		}
+		var adoptedRels []*RelBind
+		for _, r := range view.Relationships[recorded:] {
+			if slices.Contains(adoptedTypes, r.Data) || slices.Contains(adoptedTypes, strings.TrimPrefix(r.Type, "*")) || slices.ContainsFunc(adoptedOps, func(op *OpBind) bool {
+				o, _ := spec.Operation(op.Operation)
+				return strings.TrimSuffix(o.Request, "Request")+"Data" == r.Data
+			}) {
+				adoptedRels = append(adoptedRels, r)
+			}
+		}
 		if len(adoptedOps)+len(adoptedTypes) > 0 {
 			fam := b.Family(tag, fileName(tag))
 			fam.Operations = append(fam.Operations, adoptedOps...)
 			fam.Types = append(fam.Types, adoptedTypes...)
+			fam.Relationships = append(fam.Relationships, adoptedRels...)
 			adopted = append(adopted, fam)
 		}
 	}
@@ -227,7 +253,7 @@ func pathFormat(template string) string {
 // deriveOp reads the binding choices out of a hand-written method, renders
 // the method from them, and accepts the binding only when the two are the
 // same tokens.
-func deriveOp(spec *Spec, op *Operation, d *decl) (*OpBind, string) {
+func (p *pkg) deriveOp(spec *Spec, fam *Family, op *Operation, d *decl) (*OpBind, string) {
 	fn := d.node.(*ast.FuncDecl)
 	b := &OpBind{Operation: op.ID, Name: fn.Name.Name}
 	for i, field := range fn.Type.Params.List {
@@ -249,7 +275,7 @@ func deriveOp(spec *Spec, op *Operation, d *decl) (*OpBind, string) {
 		}
 	}
 
-	var messages []string
+	var messages, links []string
 	var trimmed, next bool
 	var trimAt, optionsAt token.Pos
 	list := &IDList{}
@@ -274,6 +300,10 @@ func deriveOp(spec *Spec, op *Operation, d *decl) (*OpBind, string) {
 				b.NextContext = stringLit(n.Value)
 			case "ParseErr":
 				b.ParseErr = stringLit(n.Value)
+			default:
+				if lit := compositeLit(n.Value); lit != nil && exprString(lit.Type) == "Relationship" {
+					links = append(links, key.Name)
+				}
 			}
 		case *ast.IndexExpr:
 			if fun := exprString(n.X); (fun == "getJSON" || fun == "sendJSON") && exprString(n.Index) != op.Response {
@@ -307,6 +337,7 @@ func deriveOp(spec *Spec, op *Operation, d *decl) (*OpBind, string) {
 		b.IDList = list
 	}
 	b.CheckFirst = b.Options != "" && trimAt.IsValid() && optionsAt.IsValid() && trimAt < optionsAt
+	b.Links = linkNames(spec, op, links)
 	b.Single = op.Method == "GET" && b.Query != "" && !next
 	for i, msg := range messages {
 		if i >= len(b.Params) || msg != b.Params[i]+" is required" {
@@ -315,7 +346,7 @@ func deriveOp(spec *Spec, op *Operation, d *decl) (*OpBind, string) {
 		}
 	}
 
-	src, err := renderMethod(spec, b)
+	src, err := renderMethod(spec, fam, b)
 	if err != nil {
 		return nil, err.Error()
 	}
@@ -323,6 +354,61 @@ func deriveOp(spec *Spec, op *Operation, d *decl) (*OpBind, string) {
 		return nil, "differs at " + diff
 	}
 	return b, ""
+}
+
+// linkNames maps the Go fields of Relationship literals a create sets, in
+// body order, to the relationship names of its request.
+func linkNames(spec *Spec, op *Operation, fields []string) []string {
+	data, err := requestData(spec, op.Request)
+	if err != nil || data.Properties.Get("relationships") == nil {
+		return nil
+	}
+	var links []string
+	for _, field := range fields {
+		for _, rel := range data.Properties.Get("relationships").Properties {
+			if goName(rel.Name) == field {
+				links = append(links, rel.Name)
+			}
+		}
+	}
+	return links
+}
+
+// recordRelationships adds to the family the relationships field of the
+// hand-written data type of each create with relationships it does not
+// record yet.
+func (p *pkg) recordRelationships(spec *Spec, ops []*Operation, fam *Family) {
+	for _, op := range ops {
+		data, err := requestData(spec, op.Request)
+		name := strings.TrimSuffix(op.Request, "Request") + "Data"
+		recorded := slices.ContainsFunc(fam.Relationships, func(r *RelBind) bool { return r.Data == name })
+		if op.Method != "POST" || err != nil || data.Properties.Get("relationships") == nil || recorded {
+			continue
+		}
+		d, ok := p.types[name]
+		if !ok {
+			continue
+		}
+		st, ok := d.node.(*ast.GenDecl).Specs[0].(*ast.TypeSpec).Type.(*ast.StructType)
+		if !ok {
+			continue
+		}
+		for _, f := range st.Fields.List {
+			if len(f.Names) == 1 && f.Names[0].Name == "Relationships" && f.Tag != nil {
+				tag, _ := strconv.Unquote(f.Tag.Value)
+				fam.Relationships = append(fam.Relationships, &RelBind{Data: name, Type: exprString(f.Type), OmitEmpty: reflect.StructTag(tag).Get("json") == "relationships,omitempty"})
+			}
+		}
+	}
+}
+
+// compositeLit returns the literal of T{...} or &T{...}.
+func compositeLit(expr ast.Expr) *ast.CompositeLit {
+	if u, ok := expr.(*ast.UnaryExpr); ok && u.Op == token.AND {
+		expr = u.X
+	}
+	lit, _ := expr.(*ast.CompositeLit)
+	return lit
 }
 
 // readIDList records what a node does with the ID list of a relationship

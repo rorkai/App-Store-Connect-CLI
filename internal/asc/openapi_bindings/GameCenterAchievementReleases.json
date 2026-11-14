@@ -2,10 +2,16 @@
   "tag": "GameCenterAchievementReleases",
   "file": "game_center_achievement_releases_gen.go",
   "types": [
+    "GameCenterAchievementReleaseCreateData",
     "GameCenterAchievementReleaseCreateRequest",
+    "GameCenterAchievementReleaseRelationships",
     "GameCenterAchievementReleaseResponse"
   ],
+  "relationships": [
+    {"data":"GameCenterAchievementReleaseCreateData","type":"*GameCenterAchievementReleaseRelationships"}
+  ],
   "operations": [
+    {"operation":"gameCenterAchievementReleases_createInstance","name":"CreateGameCenterAchievementRelease","params":["gcDetailID","achievementID"],"links":["gameCenterDetail","gameCenterAchievement"]},
     {"operation":"gameCenterAchievementReleases_deleteInstance","name":"DeleteGameCenterAchievementRelease","params":["releaseID"]},
     {"operation":"gameCenterAchievementReleases_getInstance","name":"GetGameCenterAchievementRelease","params":["releaseID"]}
   ]

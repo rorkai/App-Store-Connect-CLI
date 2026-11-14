@@ -227,26 +227,6 @@ func (c *Client) UpdateGameCenterActivityVersion(ctx context.Context, versionID 
 	return sendJSON[GameCenterActivityVersionResponse](ctx, c, writeRequest{Method: http.MethodPatch, Path: fmt.Sprintf("/v1/gameCenterActivityVersions/%s", strings.TrimSpace(versionID)), Payload: payload})
 }
 
-// CreateGameCenterActivityLocalization creates a new activity localization.
-func (c *Client) CreateGameCenterActivityLocalization(ctx context.Context, versionID string, attrs GameCenterActivityLocalizationCreateAttributes) (*GameCenterActivityLocalizationResponse, error) {
-	payload := GameCenterActivityLocalizationCreateRequest{
-		Data: GameCenterActivityLocalizationCreateData{
-			Type:       ResourceTypeGameCenterActivityLocalizations,
-			Attributes: attrs,
-			Relationships: &GameCenterActivityLocalizationRelationships{
-				Version: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeGameCenterActivityVersions,
-						ID:   strings.TrimSpace(versionID),
-					},
-				},
-			},
-		},
-	}
-
-	return sendJSON[GameCenterActivityLocalizationResponse](ctx, c, writeRequest{Method: http.MethodPost, Path: "/v1/gameCenterActivityLocalizations", Payload: payload})
-}
-
 // CreateGameCenterActivityImage reserves an activity image upload.
 // Pass exactly one of localizationID or versionID; a version target sets the version's default image.
 func (c *Client) CreateGameCenterActivityImage(ctx context.Context, localizationID, versionID, fileName string, fileSize int64) (*GameCenterActivityImageResponse, error) {
