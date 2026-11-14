@@ -300,21 +300,28 @@ func testSendHTTPEventHonorsConfiguredTimeoutBelowCap(t *testing.T) {
 }
 
 func TestSendHTTPEventAllowsSlowCollectorResponse(t *testing.T) {
-	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		time.Sleep(350 * time.Millisecond)
-		w.WriteHeader(http.StatusAccepted)
-	}))
-	t.Cleanup(server.Close)
-
 	originalClient := http.DefaultClient
-	http.DefaultClient = server.Client()
+	http.DefaultClient = &http.Client{
+		Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+			select {
+			case <-request.Context().Done():
+				return nil, request.Context().Err()
+			case <-time.After(350 * time.Millisecond):
+				return &http.Response{StatusCode: http.StatusAccepted, Body: http.NoBody, Request: request}, nil
+			}
+		}),
+	}
 	t.Cleanup(func() { http.DefaultClient = originalClient })
 
 	t.Setenv("ASC_TIMEOUT", "")
 	t.Setenv("ASC_TIMEOUT_SECONDS", "")
 	setTelemetryTestHome(t)
 
-	if err := sendHTTPEventToEndpoint(Event{}, server.URL); err != nil {
+	var err error
+	synctest.Test(t, func(*testing.T) {
+		err = sendHTTPEventToEndpoint(Event{}, "https://telemetry.example.test/events")
+	})
+	if err != nil {
 		t.Fatalf("sendHTTPEvent() error = %v, want slow collector response accepted", err)
 	}
 }
