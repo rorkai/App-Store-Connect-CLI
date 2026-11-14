@@ -17,6 +17,10 @@ import (
 // signing repository could not be decrypted with the supplied password.
 var ErrOpenSSLRepositoryDecrypt = errors.New("wrong password or not an OpenSSL-encrypted signing file")
 
+// ErrOpenSSLRepositoryContent reports that a v2 file decrypted and passed its
+// integrity check, so the password is right, but accept rejected its content.
+var ErrOpenSSLRepositoryContent = errors.New("decrypted file is not the expected signing artifact")
+
 const (
 	openSSLV1Header        = "Salted__"
 	openSSLSaltSize        = 8
@@ -59,8 +63,11 @@ func DecryptOpenSSLRepositoryFile(data []byte, password string, accept func([]by
 		return nil, ErrOpenSSLRepositoryDecrypt
 	}
 	plaintext, ok := decryptOpenSSLV2(decoded, password)
-	if !ok || !accept(plaintext) {
+	if !ok {
 		return nil, ErrOpenSSLRepositoryDecrypt
+	}
+	if !accept(plaintext) {
+		return nil, ErrOpenSSLRepositoryContent
 	}
 	return plaintext, nil
 }

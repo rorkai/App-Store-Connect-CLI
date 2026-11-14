@@ -698,22 +698,27 @@ func syncPullCommand() *ffcli.Command {
 	passwordFile := fs.String("password-file", "", "Protected file containing the repository encryption password (or set ASC_SIGNING_SYNC_PASSWORD)")
 	branch := fs.String("branch", "main", "Git branch")
 	outputDir := fs.String("output-dir", "./signing", "Output directory for decrypted files")
+	sourceFormat := fs.String("source-format", "", "Set to openssl to read an OpenSSL-encrypted signing repository laid out as certs/<type>/ and profiles/<type>/ from --repo (a Git URL or local checkout; --branch then defaults to master) instead of a signing sync store; read-only, Git only")
 	storageFlags := bindSigningSyncStorageFlags(fs)
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "pull",
-		ShortUsage: "asc signing sync pull [--storage STORAGE] [storage options] [--bundle-id ID | --targets-file PATH] [--profile-type TYPE] [--password-file PATH] [--output-dir DIR]",
+		ShortUsage: "asc signing sync pull [--storage STORAGE] [storage options] [--source-format openssl] [--bundle-id ID | --targets-file PATH] [--profile-type TYPE] [--password-file PATH] [--output-dir DIR]",
 		ShortHelp:  "Pull and decrypt signing assets from the selected storage.",
 		FlagSet:    fs,
 		UsageFunc:  shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			repo := strings.TrimSpace(*repoURL)
+			provided := providedSigningSyncFlags(fs)
+			openSSLSource, sourceBranch, err := parseSigningPullSourceFormat(provided, *sourceFormat, *storageFlags.storage, repo, *branch)
+			if err != nil {
+				return err
+			}
 			storageSelection, err := parseSigningSyncStorage(fs, storageFlags, repo, *branch)
 			if err != nil {
 				return err
 			}
-			provided := providedSigningSyncFlags(fs)
 			bundle := strings.TrimSpace(*bundleID)
 			profile := strings.ToUpper(strings.TrimSpace(*profileType))
 			bundleProvided := provided["bundle-id"]
@@ -764,6 +769,13 @@ func syncPullCommand() *ffcli.Command {
 			outDir := strings.TrimSpace(*outputDir)
 			if outDir == "" {
 				outDir = "./signing"
+			}
+			if openSSLSource {
+				result, err := pullOpenSSLSigningSource(ctx, repo, sourceBranch, pass, outDir, selectedBundleIDs, profile, targetsProvided)
+				if err != nil {
+					return err
+				}
+				return shared.PrintOutput(&result, *output.Output, *output.Pretty)
 			}
 
 			transport, err := storageSelection.transport(ctx)
