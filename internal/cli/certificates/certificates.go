@@ -171,8 +171,8 @@ Examples:
 			defer cancel()
 
 			opts := []asc.CertificatesOption{
-				asc.WithCertificatesLimit(*limit),
-				asc.WithCertificatesNextURL(*next),
+				asc.Limit[asc.CertificatesOption](*limit),
+				asc.NextURL[asc.CertificatesOption](*next),
 			}
 			if len(displayNames) > 0 {
 				opts = append(opts, asc.WithCertificatesFilterDisplayNames(displayNames))
@@ -202,14 +202,14 @@ Examples:
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithCertificatesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.CertificatesOption](200))
 				paginated, err := shared.PaginateWithSpinner(
 					requestCtx,
 					func(ctx context.Context) (asc.PaginatedResponse, error) {
 						return client.GetCertificates(ctx, paginateOpts...)
 					},
 					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return client.GetCertificates(ctx, asc.WithCertificatesNextURL(nextURL))
+						return client.GetCertificates(ctx, asc.NextURL[asc.CertificatesOption](nextURL))
 					},
 				)
 				if err != nil {
@@ -231,61 +231,45 @@ Examples:
 
 // CertificatesGetCommand returns the certificates view subcommand.
 func CertificatesGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
+	var (
+		includeValues []string
+		included      asc.IncludedFields
+	)
 
-	id := shared.BindResourceIDFlag(fs, "id", "certificates", "Certificate ID")
-	include := fs.String("include", "", "Include related resources: passTypeId")
-	includedFields := shared.BindIncludedFieldFlags(fs, map[string]string{"passTypeId": "passTypeIds"})
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc certificates view --id \"CERT_ID\" [flags]",
-		ShortHelp:  "View a signing certificate by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc certificates view --id \"CERT_ID\" [flags]",
+		ShortHelp:   "View a signing certificate by ID.",
 		LongHelp: `View a signing certificate by ID.
 
 Examples:
   asc certificates view --id "CERT_ID"
   asc certificates view --id "CERT_ID" --include passTypeId`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			idValue := strings.TrimSpace(*id)
-			if idValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
-			}
-
-			includeValues, err := normalizeCertificatesInclude(*include)
-			if err != nil {
-				return shared.UsageErrorf("certificates view: %v", err)
-			}
-			included, err := includedFields.Resolve("certificates view", "", includeValues)
-			if err != nil {
+		IDUsage:            "Certificate ID",
+		IDType:             "certificates",
+		RequiredDiagnostic: true,
+		Flags: func(fs *flag.FlagSet) func() error {
+			include := fs.String("include", "", "Include related resources: passTypeId")
+			includedFields := shared.BindIncludedFieldFlags(fs, map[string]string{"passTypeId": "passTypeIds"})
+			return func() (err error) {
+				if includeValues, err = normalizeCertificatesInclude(*include); err != nil {
+					return shared.UsageErrorf("certificates view: %v", err)
+				}
+				included, err = includedFields.Resolve("certificates view", "", includeValues)
 				return err
 			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("certificates view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
+		},
+		ErrorPrefix:      "certificates view",
+		FetchErrorPrefix: "certificates view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			opts := []asc.CertificatesOption{asc.WithIncludedFields[asc.CertificatesOption](included)}
 			if len(includeValues) > 0 {
 				opts = append(opts, asc.WithCertificatesInclude(includeValues))
 			}
-
-			resp, err := client.GetCertificate(requestCtx, idValue, opts...)
-			if err != nil {
-				return fmt.Errorf("certificates view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return client.GetCertificate(ctx, id, opts...)
 		},
-	}
+	})
 }
 
 // certificateCreateSpec describes an entry point for POST /v1/certificates.
@@ -374,13 +358,11 @@ func newCertificateCreateCommand(spec certificateCreateSpec) *ffcli.Command {
 		Exec: func(ctx context.Context, args []string) error {
 			merchantIDValue := strings.TrimSpace(*merchantID)
 			if spec.requireMerchant && merchantIDValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --merchant-id is required")
-				return shared.MissingRequiredUsageError("--merchant-id")
+				return shared.RequiredFlag("--merchant-id")
 			}
 			certificateValue := strings.ToUpper(strings.TrimSpace(*certificateType))
 			if certificateValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --certificate-type is required")
-				return shared.MissingRequiredUsageError("--certificate-type")
+				return shared.RequiredFlag("--certificate-type")
 			}
 			// Every relationship check runs before --generate-csr writes a
 			// private key and CSR for a request App Store Connect would refuse.
@@ -521,8 +503,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			activatedValue, err := shared.ParseOptionalBoolFlag("--activated", *activated)
@@ -530,8 +511,7 @@ Examples:
 				return shared.UsageErrorf("certificates update: %v", err)
 			}
 			if activatedValue == nil {
-				fmt.Fprintln(os.Stderr, "Error: --activated is required")
-				return shared.MissingRequiredUsageError("--activated")
+				return shared.RequiredFlag("--activated")
 			}
 
 			client, err := shared.GetASCClient()
@@ -575,12 +555,10 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()

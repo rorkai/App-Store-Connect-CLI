@@ -28,7 +28,7 @@ func ResolveAppIDWithExactLookup(ctx context.Context, client appLookupClient, ap
 		return "", fmt.Errorf("app lookup client is required for non-numeric --app values")
 	}
 
-	byBundle, err := client.GetApps(ctx, asc.WithAppsBundleIDs([]string{resolved}), asc.WithAppsLimit(2))
+	byBundle, err := client.GetApps(ctx, asc.WithAppsBundleIDs([]string{resolved}), asc.Limit[asc.AppsOption](2))
 	if err != nil {
 		return "", fmt.Errorf("resolve app by bundle ID: %w", err)
 	}
@@ -94,7 +94,7 @@ func ResolveAppIDWithLookup(ctx context.Context, client appLookupClient, appID s
 		return "", fmt.Errorf("app lookup client is required for non-numeric --app values")
 	}
 
-	byBundle, err := client.GetApps(ctx, asc.WithAppsBundleIDs([]string{resolved}), asc.WithAppsLimit(2))
+	byBundle, err := client.GetApps(ctx, asc.WithAppsBundleIDs([]string{resolved}), asc.Limit[asc.AppsOption](2))
 	if err != nil {
 		return "", fmt.Errorf("resolve app by bundle ID: %w", err)
 	}
@@ -173,7 +173,7 @@ func findExactAppNameMatches(ctx context.Context, client appLookupClient, name s
 		return nil, nil
 	}
 
-	opts := []asc.AppsOption{asc.WithAppsLimit(200)}
+	opts := []asc.AppsOption{asc.Limit[asc.AppsOption](200)}
 	if useNameFilter {
 		opts = append(opts, asc.WithAppsNames([]string{name}))
 	}
@@ -212,7 +212,7 @@ func findExactAppNameMatches(ctx context.Context, client appLookupClient, name s
 		ctx,
 		firstPage,
 		func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-			return client.GetApps(ctx, asc.WithAppsNextURL(nextURL))
+			return client.GetApps(ctx, asc.NextURL[asc.AppsOption](nextURL))
 		},
 		func(page asc.PaginatedResponse) error {
 			resp, ok := page.(*asc.AppsResponse)
@@ -236,7 +236,7 @@ func findFuzzyAppNameMatches(ctx context.Context, client appLookupClient, name s
 		return nil, false, nil
 	}
 
-	resp, err := client.GetApps(ctx, asc.WithAppsNames([]string{name}), asc.WithAppsLimit(2))
+	resp, err := client.GetApps(ctx, asc.WithAppsNames([]string{name}), asc.Limit[asc.AppsOption](2))
 	if err != nil {
 		return nil, false, err
 	}

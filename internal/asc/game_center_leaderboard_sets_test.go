@@ -280,7 +280,7 @@ func TestGetGameCenterLeaderboardSets_WithLimit(t *testing.T) {
 		}
 	}, response)
 
-	_, err := client.GetGameCenterLeaderboardSets(context.Background(), "gc-detail-123", Limit[GCLeaderboardSetsOption](50))
+	_, err := client.GetGameCenterLeaderboardSets(context.Background(), "gc-detail-123", WithGCLeaderboardSetsLimit(50))
 	if err != nil {
 		t.Fatalf("GetGameCenterLeaderboardSets() error: %v", err)
 	}
@@ -304,7 +304,7 @@ func TestGetGameCenterLeaderboardSets_UsesNextURL(t *testing.T) {
 		}
 	}, response)
 
-	_, err := client.GetGameCenterLeaderboardSets(context.Background(), "gc-detail-123", NextURL[GCLeaderboardSetsOption](nextURL))
+	_, err := client.GetGameCenterLeaderboardSets(context.Background(), "gc-detail-123", WithGCLeaderboardSetsNextURL(nextURL))
 	if err != nil {
 		t.Fatalf("GetGameCenterLeaderboardSets() error: %v", err)
 	}

@@ -31,7 +31,7 @@ func TestGetTerritories(t *testing.T) {
 		}
 	}, jsonResponse(http.StatusOK, string(body)))
 
-	result, err := client.GetTerritories(context.Background(), WithTerritoriesLimit(5))
+	result, err := client.GetTerritories(context.Background(), Limit[TerritoriesOption](5))
 	if err != nil {
 		t.Fatalf("GetTerritories() error: %v", err)
 	}
@@ -68,7 +68,7 @@ func TestGetAppPricePoints_WithTerritory(t *testing.T) {
 	result, err := client.GetAppPricePoints(
 		context.Background(), "app-1",
 		WithPricePointsTerritory("usa"),
-		WithPricePointsLimit(10),
+		Limit[PricePointsOption](10),
 	)
 	if err != nil {
 		t.Fatalf("GetAppPricePoints() error: %v", err)
@@ -155,7 +155,7 @@ func TestGetAppPricePointEqualizations_WithQueryOptions(t *testing.T) {
 			}
 		}, jsonResponse(http.StatusOK, string(body)))
 
-		if _, err := client.GetAppPricePointEqualizations(context.Background(), "pp-1", WithPricePointsLimit(175)); err != nil {
+		if _, err := client.GetAppPricePointEqualizations(context.Background(), "pp-1", Limit[PricePointsOption](175)); err != nil {
 			t.Fatalf("GetAppPricePointEqualizations() error: %v", err)
 		}
 	})
@@ -173,7 +173,7 @@ func TestGetAppPricePointEqualizations_WithQueryOptions(t *testing.T) {
 			}
 		}, jsonResponse(http.StatusOK, string(body)))
 
-		if _, err := client.GetAppPricePointEqualizations(context.Background(), "pp-1", WithPricePointsNextURL(nextURL)); err != nil {
+		if _, err := client.GetAppPricePointEqualizations(context.Background(), "pp-1", NextURL[PricePointsOption](nextURL)); err != nil {
 			t.Fatalf("GetAppPricePointEqualizations() error: %v", err)
 		}
 	})
@@ -286,7 +286,7 @@ func TestGetAppPriceScheduleManualPrices_WithQueryOptions(t *testing.T) {
 		WithAppPriceSchedulePricesFields([]string{"manual", "startDate", "endDate", "appPricePoint", "territory"}),
 		WithAppPriceSchedulePricesPricePointFields([]string{"customerPrice", "proceeds", "territory"}),
 		WithAppPriceSchedulePricesTerritoryFields([]string{"currency"}),
-		WithAppPriceSchedulePricesLimit(200),
+		Limit[AppPriceSchedulePricesOption](200),
 	); err != nil {
 		t.Fatalf("GetAppPriceScheduleManualPrices() error: %v", err)
 	}
@@ -328,7 +328,7 @@ func TestGetAppPriceScheduleAutomaticPrices_WithOptions(t *testing.T) {
 		WithAppPriceSchedulePricesFields([]string{"manual", "startDate", "endDate", "appPricePoint", "territory"}),
 		WithAppPriceSchedulePricesPricePointFields([]string{"customerPrice", "proceeds", "territory"}),
 		WithAppPriceSchedulePricesTerritoryFields([]string{"currency"}),
-		WithAppPriceSchedulePricesLimit(200),
+		Limit[AppPriceSchedulePricesOption](200),
 	); err != nil {
 		t.Fatalf("GetAppPriceScheduleAutomaticPrices() error: %v", err)
 	}

@@ -28,7 +28,7 @@ func TestGetSandboxTesters_WithFilters(t *testing.T) {
 		context.Background(),
 		WithSandboxTestersEmail("tester@example.com"),
 		WithSandboxTestersTerritory("usa"),
-		WithSandboxTestersLimit(10),
+		Limit[SandboxTestersOption](10),
 	)
 	if err != nil {
 		t.Fatalf("GetSandboxTesters() error: %v", err)
@@ -51,7 +51,7 @@ func TestGetSandboxTesters_UsesNextURL(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetSandboxTesters(context.Background(), WithSandboxTestersNextURL(next)); err != nil {
+	if _, err := client.GetSandboxTesters(context.Background(), NextURL[SandboxTestersOption](next)); err != nil {
 		t.Fatalf("GetSandboxTesters() error: %v", err)
 	}
 }

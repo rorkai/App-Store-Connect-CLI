@@ -126,8 +126,8 @@ Examples:
 			defer cancel()
 
 			opts := []asc.BackgroundAssetsOption{
-				asc.WithBackgroundAssetsLimit(*limit),
-				asc.WithBackgroundAssetsNextURL(*next),
+				asc.Limit[asc.BackgroundAssetsOption](*limit),
+				asc.NextURL[asc.BackgroundAssetsOption](*next),
 				asc.WithBackgroundAssetsFilterVersionsPlatforms(versionsPlatforms),
 				asc.WithBackgroundAssetsSort(*sortBy),
 			}
@@ -142,14 +142,14 @@ Examples:
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithBackgroundAssetsLimit(backgroundAssetsMaxLimit))
+				paginateOpts := append(opts, asc.Limit[asc.BackgroundAssetsOption](backgroundAssetsMaxLimit))
 				firstPage, err := client.GetBackgroundAssets(requestCtx, resolvedAppID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("background-assets list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetBackgroundAssets(ctx, resolvedAppID, asc.WithBackgroundAssetsNextURL(nextURL))
+					return client.GetBackgroundAssets(ctx, resolvedAppID, asc.NextURL[asc.BackgroundAssetsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("background-assets list: %w", err)
@@ -170,44 +170,24 @@ Examples:
 
 // BackgroundAssetsGetCommand returns the background assets get subcommand.
 func BackgroundAssetsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	assetID := shared.BindResourceIDFlag(fs, "id", "backgroundAssets", "Background asset ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc background-assets view --id \"ASSET_ID\"",
-		ShortHelp:  "View a background asset by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc background-assets view --id \"ASSET_ID\"",
+		ShortHelp:   "View a background asset by ID.",
 		LongHelp: `View a background asset by ID.
 
 Examples:
   asc background-assets view --id "ASSET_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			assetIDValue := strings.TrimSpace(*assetID)
-			if assetIDValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("background-assets view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetBackgroundAsset(requestCtx, assetIDValue)
-			if err != nil {
-				return fmt.Errorf("background-assets view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage:            "Background asset ID",
+		IDType:             "backgroundAssets",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "background-assets view",
+		FetchErrorPrefix:   "background-assets view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetBackgroundAsset(ctx, id)
 		},
-	}
+	})
 }
 
 // BackgroundAssetsCreateCommand returns the background assets create subcommand.
@@ -237,8 +217,7 @@ Examples:
 
 			assetPackIdentifierValue := strings.TrimSpace(*assetPackIdentifier)
 			if assetPackIdentifierValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --asset-pack-identifier is required")
-				return shared.MissingRequiredUsageError("--asset-pack-identifier")
+				return shared.RequiredFlag("--asset-pack-identifier")
 			}
 
 			client, err := shared.GetASCClient()
@@ -280,13 +259,11 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			assetIDValue := strings.TrimSpace(*assetID)
 			if assetIDValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			if strings.TrimSpace(*archived) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --archived is required")
-				return shared.MissingRequiredUsageError("--archived")
+				return shared.RequiredFlag("--archived")
 			}
 			archivedValue, err := shared.ParseBoolFlag(*archived, "--archived")
 			if err != nil {

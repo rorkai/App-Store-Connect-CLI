@@ -70,8 +70,7 @@ Example:
 		Exec: func(ctx context.Context, args []string) error {
 			pid := strings.TrimSpace(*productID)
 			if pid == "" {
-				fmt.Fprintln(os.Stderr, "Error: --product-id is required")
-				return shared.MissingRequiredUsageError("--product-id")
+				return shared.RequiredFlag("--product-id")
 			}
 
 			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, sessionFlags)
@@ -326,13 +325,11 @@ Example:
 		Exec: func(ctx context.Context, args []string) error {
 			pid := strings.TrimSpace(*productID)
 			if pid == "" {
-				fmt.Fprintln(os.Stderr, "Error: --product-id is required")
-				return shared.MissingRequiredUsageError("--product-id")
+				return shared.RequiredFlag("--product-id")
 			}
 			id := strings.TrimSpace(*aliasID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, sessionFlags)
@@ -383,16 +380,14 @@ Example:
 		Exec: func(ctx context.Context, args []string) error {
 			pid := strings.TrimSpace(*productID)
 			if pid == "" {
-				fmt.Fprintln(os.Stderr, "Error: --product-id is required")
-				return shared.MissingRequiredUsageError("--product-id")
+				return shared.RequiredFlag("--product-id")
 			}
 			normalizedName, err := webVersionAliasNameFlag("name", *name)
 			if err != nil {
 				return err
 			}
 			if *build == "" {
-				fmt.Fprintln(os.Stderr, "Error: --build is required")
-				return shared.MissingRequiredUsageError("--build")
+				return shared.RequiredFlag("--build")
 			}
 			normalizedType, err := webVersionAliasType(*typeValue)
 			if err != nil {
@@ -400,8 +395,7 @@ Example:
 				return shared.UsageError("--type " + err.Error())
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, sessionFlags)
@@ -470,13 +464,11 @@ Example:
 		Exec: func(ctx context.Context, args []string) error {
 			pid := strings.TrimSpace(*productID)
 			if pid == "" {
-				fmt.Fprintln(os.Stderr, "Error: --product-id is required")
-				return shared.MissingRequiredUsageError("--product-id")
+				return shared.RequiredFlag("--product-id")
 			}
 			id := strings.TrimSpace(*aliasID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			fieldProvided := versionAliasFlagProvided(fs, "name") || versionAliasFlagProvided(fs, "type") || versionAliasFlagProvided(fs, "build") || versionAliasFlagProvided(fs, "locked")
 			if !fieldProvided {
@@ -492,8 +484,7 @@ Example:
 				}
 			}
 			if versionAliasFlagProvided(fs, "build") && *build == "" {
-				fmt.Fprintln(os.Stderr, "Error: --build is required")
-				return shared.MissingRequiredUsageError("--build")
+				return shared.RequiredFlag("--build")
 			}
 			var normalizedType string
 			if versionAliasFlagProvided(fs, "type") {
@@ -505,8 +496,7 @@ Example:
 				}
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, sessionFlags)
@@ -582,17 +572,14 @@ Example:
 		Exec: func(ctx context.Context, args []string) error {
 			pid := strings.TrimSpace(*productID)
 			if pid == "" {
-				fmt.Fprintln(os.Stderr, "Error: --product-id is required")
-				return shared.MissingRequiredUsageError("--product-id")
+				return shared.RequiredFlag("--product-id")
 			}
 			id := strings.TrimSpace(*aliasID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, sessionFlags)

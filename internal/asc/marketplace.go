@@ -219,7 +219,7 @@ func (c *Client) GetMarketplaceWebhook(ctx context.Context, webhookID string) (*
 		return nil, fmt.Errorf("webhookID is required")
 	}
 
-	firstPage, err := c.GetMarketplaceWebhooks(ctx, WithMarketplaceWebhooksLimit(200))
+	firstPage, err := c.GetMarketplaceWebhooks(ctx, Limit[MarketplaceWebhooksOption](200))
 	if err != nil {
 		return nil, err
 	}
@@ -227,7 +227,7 @@ func (c *Client) GetMarketplaceWebhook(ctx context.Context, webhookID string) (*
 	stop := errors.New("marketplace webhook found")
 	var resource Resource[MarketplaceWebhookAttributes]
 	err = PaginateEach(ctx, firstPage, func(ctx context.Context, nextURL string) (PaginatedResponse, error) {
-		return c.GetMarketplaceWebhooks(ctx, WithMarketplaceWebhooksNextURL(nextURL))
+		return c.GetMarketplaceWebhooks(ctx, NextURL[MarketplaceWebhooksOption](nextURL))
 	}, func(page PaginatedResponse) error {
 		webhooks, ok := page.(*MarketplaceWebhooksResponse)
 		if !ok {

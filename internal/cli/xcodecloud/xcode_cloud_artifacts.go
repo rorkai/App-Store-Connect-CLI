@@ -81,8 +81,8 @@ Examples:
 				"xcode-cloud artifacts list",
 				func(ctx context.Context, client *asc.Client, resolvedActionID string, limit int, next string) (asc.PaginatedResponse, error) {
 					opts := []asc.CiArtifactsOption{
-						asc.WithCiArtifactsLimit(limit),
-						asc.WithCiArtifactsNextURL(next),
+						asc.Limit[asc.CiArtifactsOption](limit),
+						asc.NextURL[asc.CiArtifactsOption](next),
 					}
 					return client.GetCiBuildActionArtifacts(ctx, resolvedActionID, opts...)
 				},
@@ -140,13 +140,11 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			pathValue := strings.TrimSpace(*path)
 			if pathValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --path is required")
-				return shared.MissingRequiredUsageError("--path")
+				return shared.RequiredFlag("--path")
 			}
 			if err := validateArtifactDestination(pathValue, *overwrite); err != nil {
 				return fmt.Errorf("xcode-cloud artifacts download: %w", err)

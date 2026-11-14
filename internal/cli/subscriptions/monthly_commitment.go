@@ -719,13 +719,13 @@ func subscriptionPlanAvailabilityTerritories(
 	seenNextURLs := make(map[string]struct{})
 	nextURL := ""
 	for {
-		opts := []asc.LinkagesOption{asc.WithLinkagesLimit(200)}
+		opts := []asc.LinkagesOption{asc.Limit[asc.LinkagesOption](200)}
 		if nextURL != "" {
 			if _, seen := seenNextURLs[nextURL]; seen {
 				return nil, fmt.Errorf("repeated pagination URL: %s", nextURL)
 			}
 			seenNextURLs[nextURL] = struct{}{}
-			opts = []asc.LinkagesOption{asc.WithLinkagesNextURL(nextURL)}
+			opts = []asc.LinkagesOption{asc.NextURL[asc.LinkagesOption](nextURL)}
 		}
 
 		requestCtx, cancel := shared.ContextWithTimeout(ctx)

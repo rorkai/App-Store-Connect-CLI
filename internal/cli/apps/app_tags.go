@@ -160,8 +160,8 @@ Examples:
 
 			opts := []asc.AppTagsOption{
 				asc.WithAppTagsVisibleInAppStore(visibleValues),
-				asc.WithAppTagsLimit(*limit),
-				asc.WithAppTagsNextURL(*next),
+				asc.Limit[asc.AppTagsOption](*limit),
+				asc.NextURL[asc.AppTagsOption](*next),
 			}
 			if strings.TrimSpace(*sort) != "" {
 				opts = append(opts, asc.WithAppTagsSort(*sort))
@@ -180,14 +180,14 @@ Examples:
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithAppTagsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.AppTagsOption](200))
 				firstPage, err := client.GetAppTags(requestCtx, resolvedAppID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("app-tags list: failed to fetch: %w", err)
 				}
 
 				paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppTags(ctx, resolvedAppID, asc.WithAppTagsNextURL(nextURL))
+					return client.GetAppTags(ctx, resolvedAppID, asc.NextURL[asc.AppTagsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("app-tags list: %w", err)
@@ -233,8 +233,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*tagID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
@@ -311,7 +310,7 @@ Examples:
 					territoryOpts = append(territoryOpts, asc.WithTerritoriesFields(territoryFieldsValue))
 				}
 				if *territoryLimit > 0 {
-					territoryOpts = append(territoryOpts, asc.WithTerritoriesLimit(*territoryLimit))
+					territoryOpts = append(territoryOpts, asc.Limit[asc.TerritoriesOption](*territoryLimit))
 				}
 
 				territories, err := client.GetAppTagTerritories(requestCtx, trimmedID, territoryOpts...)
@@ -355,8 +354,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*tagID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			visited := map[string]bool{}
@@ -364,12 +362,10 @@ Examples:
 				visited[f.Name] = true
 			})
 			if !visited["visible-in-app-store"] {
-				fmt.Fprintln(os.Stderr, "Error: --visible-in-app-store is required")
-				return shared.MissingRequiredUsageError("--visible-in-app-store")
+				return shared.RequiredFlag("--visible-in-app-store")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()
@@ -423,8 +419,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*tagID)
 			if trimmedID == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return shared.UsageError("app-tags territories: --limit must be between 1 and 200")
@@ -452,22 +447,22 @@ Examples:
 			defer cancel()
 
 			opts := []asc.TerritoriesOption{
-				asc.WithTerritoriesLimit(*limit),
-				asc.WithTerritoriesNextURL(*next),
+				asc.Limit[asc.TerritoriesOption](*limit),
+				asc.NextURL[asc.TerritoriesOption](*next),
 			}
 			if len(fieldsValue) > 0 {
 				opts = append(opts, asc.WithTerritoriesFields(fieldsValue))
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithTerritoriesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.TerritoriesOption](200))
 				firstPage, err := client.GetAppTagTerritories(requestCtx, trimmedID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("app-tags territories: failed to fetch: %w", err)
 				}
 
 				territories, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppTagTerritories(ctx, trimmedID, asc.WithTerritoriesNextURL(nextURL))
+					return client.GetAppTagTerritories(ctx, trimmedID, asc.NextURL[asc.TerritoriesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("app-tags territories: %w", err)
@@ -512,8 +507,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*tagID)
 			if trimmedID == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return shared.UsageError("app-tags territories-links: --limit must be between 1 and 200")
@@ -533,19 +527,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.LinkagesOption{
-				asc.WithLinkagesLimit(*limit),
-				asc.WithLinkagesNextURL(*next),
+				asc.Limit[asc.LinkagesOption](*limit),
+				asc.NextURL[asc.LinkagesOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithLinkagesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.LinkagesOption](200))
 				firstPage, err := client.GetAppTagTerritoriesRelationships(requestCtx, trimmedID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("app-tags territories-links: failed to fetch: %w", err)
 				}
 
 				linkages, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppTagTerritoriesRelationships(ctx, trimmedID, asc.WithLinkagesNextURL(nextURL))
+					return client.GetAppTagTerritoriesRelationships(ctx, trimmedID, asc.NextURL[asc.LinkagesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("app-tags territories-links: %w", err)
@@ -611,19 +605,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.LinkagesOption{
-				asc.WithLinkagesLimit(*limit),
-				asc.WithLinkagesNextURL(*next),
+				asc.Limit[asc.LinkagesOption](*limit),
+				asc.NextURL[asc.LinkagesOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithLinkagesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.LinkagesOption](200))
 				firstPage, err := client.GetAppTagsRelationshipsForApp(requestCtx, resolvedAppID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("app-tags links: failed to fetch: %w", err)
 				}
 
 				linkages, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppTagsRelationshipsForApp(ctx, resolvedAppID, asc.WithLinkagesNextURL(nextURL))
+					return client.GetAppTagsRelationshipsForApp(ctx, resolvedAppID, asc.NextURL[asc.LinkagesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("app-tags links: %w", err)
@@ -732,7 +726,7 @@ func territoryFieldsList() []string {
 }
 
 func findAppTagByID(ctx context.Context, client *asc.Client, appID, tagID string, opts ...asc.AppTagsOption) (*asc.AppTagResponse, error) {
-	baseOpts := append([]asc.AppTagsOption{asc.WithAppTagsLimit(200)}, opts...)
+	baseOpts := append([]asc.AppTagsOption{asc.Limit[asc.AppTagsOption](200)}, opts...)
 	resp, err := client.GetAppTags(ctx, appID, baseOpts...)
 	if err != nil {
 		return nil, err
@@ -749,7 +743,7 @@ func findAppTagByID(ctx context.Context, client *asc.Client, appID, tagID string
 			break
 		}
 
-		resp, err = client.GetAppTags(ctx, appID, asc.WithAppTagsNextURL(resp.Links.Next))
+		resp, err = client.GetAppTags(ctx, appID, asc.NextURL[asc.AppTagsOption](resp.Links.Next))
 		if err != nil {
 			return nil, err
 		}

@@ -166,19 +166,19 @@ Examples:
 				asc.WithAppEventsLocalizationFields(localizationFieldValues),
 				asc.WithAppEventsInclude(includeValues),
 				asc.WithAppEventsLocalizationsLimit(*localizationsLimit),
-				asc.WithAppEventsLimit(*limit),
-				asc.WithAppEventsNextURL(*next),
+				asc.Limit[asc.AppEventsOption](*limit),
+				asc.NextURL[asc.AppEventsOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithAppEventsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.AppEventsOption](200))
 				firstPage, err := client.GetAppEvents(requestCtx, resolvedAppID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("app-events list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppEvents(ctx, resolvedAppID, asc.WithAppEventsNextURL(nextURL))
+					return client.GetAppEvents(ctx, resolvedAppID, asc.NextURL[asc.AppEventsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("app-events list: %w", err)
@@ -216,8 +216,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*eventID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --event-id is required")
-				return shared.MissingRequiredUsageError("--event-id")
+				return shared.RequiredFlag("--event-id")
 			}
 
 			client, err := appEventsClientFactory()
@@ -278,8 +277,7 @@ Examples:
 
 			nameValue := strings.TrimSpace(*name)
 			if nameValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --name is required")
-				return shared.MissingRequiredUsageError("--name")
+				return shared.RequiredFlag("--name")
 			}
 
 			normalizedBadge, err := normalizeAppEventBadge(*eventType)
@@ -413,8 +411,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*eventID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --event-id is required")
-				return shared.MissingRequiredUsageError("--event-id")
+				return shared.RequiredFlag("--event-id")
 			}
 
 			var (
@@ -545,12 +542,10 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*eventID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --event-id is required")
-				return shared.MissingRequiredUsageError("--event-id")
+				return shared.RequiredFlag("--event-id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := appEventsClientFactory()

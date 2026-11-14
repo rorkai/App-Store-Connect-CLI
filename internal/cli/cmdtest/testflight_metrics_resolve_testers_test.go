@@ -1,13 +1,13 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
-	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 const resolveTestersMetricsBody = `{
@@ -42,71 +42,22 @@ func setResolveTestersEnv(t *testing.T) {
 func TestTestFlightMetricsBetaTesterUsagesResolveTesters(t *testing.T) {
 	setResolveTestersEnv(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/app-123/metrics/betaTesterUsages", "groupBy=betaTesters"),
+		asctest.JSON(http.StatusOK, resolveTestersMetricsBody))
+	reg.Register(asctest.GET("/v1/betaTesters", "filter[id]=tester-2", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaTesters","id":"tester-2","attributes":{"firstName":"Grace","lastName":"Hopper","email":"grace@example.com","inviteType":"PUBLIC_LINK","state":"INVITED"}}],"links":{"next":""}}`))
 
-	callCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		callCount++
-		switch callCount {
-		case 1:
-			if req.Method != http.MethodGet {
-				t.Fatalf("expected GET, got %s", req.Method)
-			}
-			if req.URL.Path != "/v1/apps/app-123/metrics/betaTesterUsages" {
-				t.Fatalf("expected metrics path, got %s", req.URL.Path)
-			}
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(resolveTestersMetricsBody)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 2:
-			if req.Method != http.MethodGet {
-				t.Fatalf("expected GET, got %s", req.Method)
-			}
-			if req.URL.Path != "/v1/betaTesters" {
-				t.Fatalf("expected path /v1/betaTesters, got %s", req.URL.Path)
-			}
-			values := req.URL.Query()
-			// tester-1 is satisfied from the metrics page's included resources,
-			// so only tester-2 needs a follow-up lookup.
-			if got := values.Get("filter[id]"); got != "tester-2" {
-				t.Fatalf("expected filter[id]=tester-2, got %q", got)
-			}
-			if got := values.Get("limit"); got != "200" {
-				t.Fatalf("expected limit=200, got %q", got)
-			}
-			body := `{"data":[{"type":"betaTesters","id":"tester-2","attributes":{"firstName":"Grace","lastName":"Hopper","email":"grace@example.com","inviteType":"PUBLIC_LINK","state":"INVITED"}}],"links":{"next":""}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected request %d to %s", callCount, req.URL.String())
-			return nil, nil
-		}
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"testflight", "metrics", "app-testers", "--app", "app-123", "--resolve-testers"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"testflight", "metrics", "app-testers", "--app", "app-123", "--resolve-testers"})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	if callCount != 2 {
+	if callCount := len(reg.Requests()); callCount != 2 {
 		t.Fatalf("expected 2 requests, got %d", callCount)
 	}
 
@@ -151,38 +102,15 @@ func TestTestFlightMetricsBetaTesterUsagesResolveTesters(t *testing.T) {
 func TestTestFlightMetricsBetaTesterUsagesWithoutResolveTestersOmitsSidecar(t *testing.T) {
 	setResolveTestersEnv(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/app-123/metrics/betaTesterUsages", "groupBy=betaTesters"),
+		asctest.JSON(http.StatusOK, resolveTestersMetricsBody))
 
-	callCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		callCount++
-		if callCount > 1 {
-			t.Fatalf("unexpected request %d to %s", callCount, req.URL.String())
-		}
-		if req.URL.Path != "/v1/apps/app-123/metrics/betaTesterUsages" {
-			t.Fatalf("expected metrics path, got %s", req.URL.Path)
-		}
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(resolveTestersMetricsBody)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"testflight", "metrics", "app-testers", "--app", "app-123"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"testflight", "metrics", "app-testers", "--app", "app-123"})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)

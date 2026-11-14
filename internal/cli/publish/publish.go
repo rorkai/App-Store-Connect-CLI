@@ -1101,7 +1101,7 @@ func findPublishBuildByNumber(ctx context.Context, client *asc.Client, appID, bu
 	opts := []asc.BuildsOption{
 		asc.WithBuildsBuildNumber(buildNumber),
 		asc.WithBuildsSort("-uploadedDate"),
-		asc.WithBuildsLimit(1),
+		asc.Limit[asc.BuildsOption](1),
 		asc.WithBuildsProcessingStates([]string{
 			asc.BuildProcessingStateProcessing,
 			asc.BuildProcessingStateFailed,

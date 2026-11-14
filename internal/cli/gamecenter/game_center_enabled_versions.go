@@ -83,14 +83,14 @@ Examples:
 			defer cancel()
 
 			opts := []asc.GCEnabledVersionsOption{
-				asc.Limit[asc.GCEnabledVersionsOption](*limit),
-				asc.NextURL[asc.GCEnabledVersionsOption](*next),
+				asc.WithGCEnabledVersionsLimit(*limit),
+				asc.WithGCEnabledVersionsNextURL(*next),
 			}
 
 			if *paginate {
-				paginateOpts := []asc.GCEnabledVersionsOption{asc.NextURL[asc.GCEnabledVersionsOption](*next)}
+				paginateOpts := []asc.GCEnabledVersionsOption{asc.WithGCEnabledVersionsNextURL(*next)}
 				if nextURL == "" {
-					paginateOpts = []asc.GCEnabledVersionsOption{asc.Limit[asc.GCEnabledVersionsOption](200)}
+					paginateOpts = []asc.GCEnabledVersionsOption{asc.WithGCEnabledVersionsLimit(200)}
 				}
 				firstPage, err := client.GetAppGameCenterEnabledVersions(requestCtx, resolvedAppID, paginateOpts...)
 				if err != nil {
@@ -98,7 +98,7 @@ Examples:
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppGameCenterEnabledVersions(ctx, resolvedAppID, asc.NextURL[asc.GCEnabledVersionsOption](nextURL))
+					return client.GetAppGameCenterEnabledVersions(ctx, resolvedAppID, asc.WithGCEnabledVersionsNextURL(nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("game-center enabled-versions list: %w", err)
@@ -149,8 +149,7 @@ Examples:
 			id := strings.TrimSpace(*enabledVersionID)
 			nextURL := strings.TrimSpace(*next)
 			if id == "" && nextURL == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -162,14 +161,14 @@ Examples:
 			defer cancel()
 
 			opts := []asc.GCEnabledVersionsOption{
-				asc.Limit[asc.GCEnabledVersionsOption](*limit),
-				asc.NextURL[asc.GCEnabledVersionsOption](*next),
+				asc.WithGCEnabledVersionsLimit(*limit),
+				asc.WithGCEnabledVersionsNextURL(*next),
 			}
 
 			if *paginate {
-				paginateOpts := []asc.GCEnabledVersionsOption{asc.NextURL[asc.GCEnabledVersionsOption](*next)}
+				paginateOpts := []asc.GCEnabledVersionsOption{asc.WithGCEnabledVersionsNextURL(*next)}
 				if nextURL == "" {
-					paginateOpts = []asc.GCEnabledVersionsOption{asc.Limit[asc.GCEnabledVersionsOption](200)}
+					paginateOpts = []asc.GCEnabledVersionsOption{asc.WithGCEnabledVersionsLimit(200)}
 				}
 				firstPage, err := client.GetGameCenterEnabledVersionCompatibleVersions(requestCtx, id, paginateOpts...)
 				if err != nil {
@@ -177,7 +176,7 @@ Examples:
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterEnabledVersionCompatibleVersions(ctx, id, asc.NextURL[asc.GCEnabledVersionsOption](nextURL))
+					return client.GetGameCenterEnabledVersionCompatibleVersions(ctx, id, asc.WithGCEnabledVersionsNextURL(nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("game-center enabled-versions compatible-versions: %w", err)

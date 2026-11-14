@@ -88,7 +88,7 @@ func resolveWebAppCreateConflict(ctx context.Context, client *asc.Client, opts A
 	readCtx, cancel := shared.ContextWithTimeout(ctx)
 	defer cancel()
 
-	byBundleID, err := client.GetApps(readCtx, asc.WithAppsBundleIDs([]string{opts.BundleID}), asc.WithAppsLimit(200))
+	byBundleID, err := client.GetApps(readCtx, asc.WithAppsBundleIDs([]string{opts.BundleID}), asc.Limit[asc.AppsOption](200))
 	if err != nil {
 		return nil, true, fmt.Errorf("%w (read-back after conflict failed: %w)", createErr, err)
 	}
@@ -112,7 +112,7 @@ func resolveWebAppCreateConflict(ctx context.Context, client *asc.Client, opts A
 		)
 	}
 
-	bySKU, err := client.GetApps(readCtx, asc.WithAppsSKUs([]string{opts.SKU}), asc.WithAppsLimit(200))
+	bySKU, err := client.GetApps(readCtx, asc.WithAppsSKUs([]string{opts.SKU}), asc.Limit[asc.AppsOption](200))
 	if err != nil {
 		return nil, true, fmt.Errorf("%w (read-back after conflict failed: %w)", createErr, err)
 	}

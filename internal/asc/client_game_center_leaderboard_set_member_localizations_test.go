@@ -34,7 +34,7 @@ func TestGetGameCenterLeaderboardSetMemberLocalizations_WithFilters(t *testing.T
 	}, response)
 
 	opts := []GCLeaderboardSetMemberLocalizationsOption{
-		Limit[GCLeaderboardSetMemberLocalizationsOption](5),
+		WithGCLeaderboardSetMemberLocalizationsLimit(5),
 		WithGCLeaderboardSetMemberLocalizationsLeaderboardSetIDs([]string{"set-1"}),
 		WithGCLeaderboardSetMemberLocalizationsLeaderboardIDs([]string{"lb-1", "lb-2"}),
 	}
@@ -54,7 +54,7 @@ func TestGetGameCenterLeaderboardSetMemberLocalizations_UsesNextURL(t *testing.T
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetGameCenterLeaderboardSetMemberLocalizations(context.Background(), NextURL[GCLeaderboardSetMemberLocalizationsOption](next)); err != nil {
+	if _, err := client.GetGameCenterLeaderboardSetMemberLocalizations(context.Background(), WithGCLeaderboardSetMemberLocalizationsNextURL(next)); err != nil {
 		t.Fatalf("GetGameCenterLeaderboardSetMemberLocalizations() error: %v", err)
 	}
 }
@@ -474,11 +474,11 @@ func TestDeleteGameCenterLeaderboardSetMemberLocalization_ReturnsAPIError(t *tes
 
 func TestGCLeaderboardSetMemberLocalizationsOptions(t *testing.T) {
 	query := &gcLeaderboardSetMemberLocalizationsQuery{}
-	Limit[GCLeaderboardSetMemberLocalizationsOption](10)(query)
+	WithGCLeaderboardSetMemberLocalizationsLimit(10)(query)
 	if query.limit != 10 {
 		t.Fatalf("expected limit 10, got %d", query.limit)
 	}
-	NextURL[GCLeaderboardSetMemberLocalizationsOption]("next")(query)
+	WithGCLeaderboardSetMemberLocalizationsNextURL("next")(query)
 	if query.nextURL != "next" {
 		t.Fatalf("expected nextURL set, got %q", query.nextURL)
 	}

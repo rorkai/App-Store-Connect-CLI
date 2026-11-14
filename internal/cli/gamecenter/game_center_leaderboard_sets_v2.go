@@ -111,19 +111,19 @@ Examples:
 			}
 
 			opts := []asc.GCLeaderboardSetsOption{
-				asc.Limit[asc.GCLeaderboardSetsOption](*limit),
-				asc.NextURL[asc.GCLeaderboardSetsOption](*next),
+				asc.WithGCLeaderboardSetsLimit(*limit),
+				asc.WithGCLeaderboardSetsNextURL(*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.Limit[asc.GCLeaderboardSetsOption](200))
+				paginateOpts := append(opts, asc.WithGCLeaderboardSetsLimit(200))
 				firstPage, err := client.GetGameCenterLeaderboardSetsV2(requestCtx, gcDetailID, group, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("game-center leaderboard-sets v2 list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterLeaderboardSetsV2(ctx, gcDetailID, group, asc.NextURL[asc.GCLeaderboardSetsOption](nextURL))
+					return client.GetGameCenterLeaderboardSetsV2(ctx, gcDetailID, group, asc.WithGCLeaderboardSetsNextURL(nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("game-center leaderboard-sets v2 list: %w", err)
@@ -144,44 +144,24 @@ Examples:
 
 // GameCenterLeaderboardSetsV2GetCommand returns the leaderboard-sets v2 get subcommand.
 func GameCenterLeaderboardSetsV2GetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	setID := shared.BindResourceIDFlag(fs, "id", "gameCenterLeaderboardSets", "Game Center leaderboard set ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc game-center leaderboard-sets v2 view --id \"SET_ID\"",
-		ShortHelp:  "View a Game Center leaderboard set (v2) by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc game-center leaderboard-sets v2 view --id \"SET_ID\"",
+		ShortHelp:   "View a Game Center leaderboard set (v2) by ID.",
 		LongHelp: `View a Game Center leaderboard set (v2) by ID.
 
 Examples:
   asc game-center leaderboard-sets v2 view --id "SET_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*setID)
-			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center leaderboard-sets v2 view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetGameCenterLeaderboardSetV2(requestCtx, id)
-			if err != nil {
-				return fmt.Errorf("game-center leaderboard-sets v2 view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage:            "Game Center leaderboard set ID",
+		IDType:             "gameCenterLeaderboardSets",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center leaderboard-sets v2 view",
+		FetchErrorPrefix:   "game-center leaderboard-sets v2 view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetGameCenterLeaderboardSetV2(ctx, id)
 		},
-	}
+	})
 }
 
 // GameCenterLeaderboardSetsV2CreateCommand returns the leaderboard-sets v2 create subcommand.
@@ -248,14 +228,12 @@ Examples:
 
 			name := strings.TrimSpace(*referenceName)
 			if name == "" {
-				fmt.Fprintln(os.Stderr, "Error: --reference-name is required")
-				return shared.MissingRequiredUsageError("--reference-name")
+				return shared.RequiredFlag("--reference-name")
 			}
 
 			vendor := strings.TrimSpace(*vendorID)
 			if vendor == "" {
-				fmt.Fprintln(os.Stderr, "Error: --vendor-id is required")
-				return shared.MissingRequiredUsageError("--vendor-id")
+				return shared.RequiredFlag("--vendor-id")
 			}
 			if group != "" && !strings.HasPrefix(vendor, "grp.") {
 				fmt.Fprintln(os.Stderr, "Error: --vendor-id must start with \"grp.\" when using --group-id")
@@ -315,8 +293,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*setID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			attrs := asc.GameCenterLeaderboardSetUpdateAttributes{}
@@ -372,12 +349,10 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*setID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()
@@ -429,77 +404,28 @@ Examples:
 
 // GameCenterLeaderboardSetMembersV2ListCommand returns the members v2 list subcommand.
 func GameCenterLeaderboardSetMembersV2ListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
-
-	setID := shared.BindResourceIDFlag(fs, "set-id", "gameCenterLeaderboardSets", "Game Center leaderboard set ID")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc game-center leaderboard-sets v2 members list --set-id \"SET_ID\"",
-		ShortHelp:  "List leaderboards in a leaderboard set (v2).",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "list",
+		Name:        "list",
+		ShortUsage:  "asc game-center leaderboard-sets v2 members list --set-id \"SET_ID\"",
+		ShortHelp:   "List leaderboards in a leaderboard set (v2).",
 		LongHelp: `List leaderboards in a leaderboard set (v2).
 
 Examples:
   asc game-center leaderboard-sets v2 members list --set-id "SET_ID"
   asc game-center leaderboard-sets v2 members list --set-id "SET_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("game-center leaderboard-sets v2 members list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("game-center leaderboard-sets v2 members list: %v", err)
-			}
-
-			id := strings.TrimSpace(*setID)
-			if id == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --set-id is required")
-				return shared.MissingRequiredUsageError("--set-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center leaderboard-sets v2 members list: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			opts := []asc.GCLeaderboardSetMembersOption{
-				asc.Limit[asc.GCLeaderboardSetMembersOption](*limit),
-				asc.NextURL[asc.GCLeaderboardSetMembersOption](*next),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.Limit[asc.GCLeaderboardSetMembersOption](200))
-				firstPage, err := client.GetGameCenterLeaderboardSetMembersV2(requestCtx, id, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("game-center leaderboard-sets v2 members list: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterLeaderboardSetMembersV2(ctx, id, asc.NextURL[asc.GCLeaderboardSetMembersOption](nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("game-center leaderboard-sets v2 members list: %w", err)
-				}
-
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetGameCenterLeaderboardSetMembersV2(requestCtx, id, opts...)
-			if err != nil {
-				return fmt.Errorf("game-center leaderboard-sets v2 members list: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		ParentFlag:           "set-id",
+		ParentUsage:          "Game Center leaderboard set ID",
+		ParentType:           "gameCenterLeaderboardSets",
+		RequiredDiagnostic:   true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		ErrorPrefix:          "game-center leaderboard-sets v2 members list",
+		FetchErrorPrefix:     "game-center leaderboard-sets v2 members list: failed to fetch",
+		FetchPage: func(ctx context.Context, client *asc.Client, setId string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetGameCenterLeaderboardSetMembersV2(ctx, setId, asc.WithGCLeaderboardSetMembersLimit(limit), asc.WithGCLeaderboardSetMembersNextURL(next))
 		},
-	}
+	})
 }
 
 // GameCenterLeaderboardSetMembersV2SetCommand returns the members v2 set subcommand.
@@ -529,13 +455,11 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*setID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --set-id is required")
-				return shared.MissingRequiredUsageError("--set-id")
+				return shared.RequiredFlag("--set-id")
 			}
 
 			if !flagPassed(fs, "leaderboard-ids") {
-				fmt.Fprintln(os.Stderr, "Error: --leaderboard-ids is required")
-				return shared.MissingRequiredUsageError("--leaderboard-ids")
+				return shared.RequiredFlag("--leaderboard-ids")
 			}
 
 			if err := validateGameCenterReplacementConfirm(fs, *confirm); err != nil {
@@ -596,119 +520,50 @@ Examples:
 
 // GameCenterLeaderboardSetVersionsV2ListCommand returns the leaderboard set versions v2 list subcommand.
 func GameCenterLeaderboardSetVersionsV2ListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
-
-	setID := shared.BindResourceIDFlag(fs, "set-id", "gameCenterLeaderboardSets", "Game Center leaderboard set ID")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc game-center leaderboard-sets v2 versions list --set-id \"SET_ID\"",
-		ShortHelp:  "List versions for a leaderboard set (v2).",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "list",
+		Name:        "list",
+		ShortUsage:  "asc game-center leaderboard-sets v2 versions list --set-id \"SET_ID\"",
+		ShortHelp:   "List versions for a leaderboard set (v2).",
 		LongHelp: `List versions for a leaderboard set (v2).
 
 Examples:
   asc game-center leaderboard-sets v2 versions list --set-id "SET_ID"
   asc game-center leaderboard-sets v2 versions list --set-id "SET_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("game-center leaderboard-sets v2 versions list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("game-center leaderboard-sets v2 versions list: %v", err)
-			}
-
-			id := strings.TrimSpace(*setID)
-			if id == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --set-id is required")
-				return shared.MissingRequiredUsageError("--set-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center leaderboard-sets v2 versions list: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			opts := []asc.GCLeaderboardSetVersionsOption{
-				asc.Limit[asc.GCLeaderboardSetVersionsOption](*limit),
-				asc.NextURL[asc.GCLeaderboardSetVersionsOption](*next),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.Limit[asc.GCLeaderboardSetVersionsOption](200))
-				firstPage, err := client.GetGameCenterLeaderboardSetVersions(requestCtx, id, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("game-center leaderboard-sets v2 versions list: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterLeaderboardSetVersions(ctx, id, asc.NextURL[asc.GCLeaderboardSetVersionsOption](nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("game-center leaderboard-sets v2 versions list: %w", err)
-				}
-
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetGameCenterLeaderboardSetVersions(requestCtx, id, opts...)
-			if err != nil {
-				return fmt.Errorf("game-center leaderboard-sets v2 versions list: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		ParentFlag:           "set-id",
+		ParentUsage:          "Game Center leaderboard set ID",
+		ParentType:           "gameCenterLeaderboardSets",
+		RequiredDiagnostic:   true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		ErrorPrefix:          "game-center leaderboard-sets v2 versions list",
+		FetchErrorPrefix:     "game-center leaderboard-sets v2 versions list: failed to fetch",
+		FetchPage: func(ctx context.Context, client *asc.Client, setId string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetGameCenterLeaderboardSetVersions(ctx, setId, asc.WithGCLeaderboardSetVersionsLimit(limit), asc.WithGCLeaderboardSetVersionsNextURL(next))
 		},
-	}
+	})
 }
 
 // GameCenterLeaderboardSetVersionsV2GetCommand returns the leaderboard set versions v2 get subcommand.
 func GameCenterLeaderboardSetVersionsV2GetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	versionID := shared.BindResourceIDFlag(fs, "id", "gameCenterLeaderboardSetVersions", "Game Center leaderboard set version ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc game-center leaderboard-sets v2 versions view --id \"VERSION_ID\"",
-		ShortHelp:  "View a Game Center leaderboard set version (v2) by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc game-center leaderboard-sets v2 versions view --id \"VERSION_ID\"",
+		ShortHelp:   "View a Game Center leaderboard set version (v2) by ID.",
 		LongHelp: `View a Game Center leaderboard set version (v2) by ID.
 
 Examples:
   asc game-center leaderboard-sets v2 versions view --id "VERSION_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*versionID)
-			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center leaderboard-sets v2 versions view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetGameCenterLeaderboardSetVersion(requestCtx, id)
-			if err != nil {
-				return fmt.Errorf("game-center leaderboard-sets v2 versions view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage:            "Game Center leaderboard set version ID",
+		IDType:             "gameCenterLeaderboardSetVersions",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center leaderboard-sets v2 versions view",
+		FetchErrorPrefix:   "game-center leaderboard-sets v2 versions view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetGameCenterLeaderboardSetVersion(ctx, id)
 		},
-	}
+	})
 }
 
 // GameCenterLeaderboardSetVersionsV2CreateCommand returns the leaderboard set versions v2 create subcommand.
@@ -731,8 +586,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*setID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --set-id is required")
-				return shared.MissingRequiredUsageError("--set-id")
+				return shared.RequiredFlag("--set-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -783,119 +637,50 @@ Examples:
 
 // GameCenterLeaderboardSetLocalizationsV2ListCommand returns the leaderboard set localizations v2 list subcommand.
 func GameCenterLeaderboardSetLocalizationsV2ListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
-
-	versionID := shared.BindResourceIDFlag(fs, "version-id", "gameCenterLeaderboardSetVersions", "Game Center leaderboard set version ID")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc game-center leaderboard-sets v2 localizations list --version-id \"VER_ID\"",
-		ShortHelp:  "List localizations for a leaderboard set version (v2).",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "list",
+		Name:        "list",
+		ShortUsage:  "asc game-center leaderboard-sets v2 localizations list --version-id \"VER_ID\"",
+		ShortHelp:   "List localizations for a leaderboard set version (v2).",
 		LongHelp: `List localizations for a leaderboard set version (v2).
 
 Examples:
   asc game-center leaderboard-sets v2 localizations list --version-id "VER_ID"
   asc game-center leaderboard-sets v2 localizations list --version-id "VER_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("game-center leaderboard-sets v2 localizations list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("game-center leaderboard-sets v2 localizations list: %v", err)
-			}
-
-			id := strings.TrimSpace(*versionID)
-			if id == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return shared.MissingRequiredUsageError("--version-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center leaderboard-sets v2 localizations list: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			opts := []asc.GCLeaderboardSetLocalizationsOption{
-				asc.Limit[asc.GCLeaderboardSetLocalizationsOption](*limit),
-				asc.NextURL[asc.GCLeaderboardSetLocalizationsOption](*next),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.Limit[asc.GCLeaderboardSetLocalizationsOption](200))
-				firstPage, err := client.GetGameCenterLeaderboardSetVersionLocalizations(requestCtx, id, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("game-center leaderboard-sets v2 localizations list: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetGameCenterLeaderboardSetVersionLocalizations(ctx, id, asc.NextURL[asc.GCLeaderboardSetLocalizationsOption](nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("game-center leaderboard-sets v2 localizations list: %w", err)
-				}
-
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetGameCenterLeaderboardSetVersionLocalizations(requestCtx, id, opts...)
-			if err != nil {
-				return fmt.Errorf("game-center leaderboard-sets v2 localizations list: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		ParentFlag:           "version-id",
+		ParentUsage:          "Game Center leaderboard set version ID",
+		ParentType:           "gameCenterLeaderboardSetVersions",
+		RequiredDiagnostic:   true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		ErrorPrefix:          "game-center leaderboard-sets v2 localizations list",
+		FetchErrorPrefix:     "game-center leaderboard-sets v2 localizations list: failed to fetch",
+		FetchPage: func(ctx context.Context, client *asc.Client, versionId string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetGameCenterLeaderboardSetVersionLocalizations(ctx, versionId, asc.WithGCLeaderboardSetLocalizationsLimit(limit), asc.WithGCLeaderboardSetLocalizationsNextURL(next))
 		},
-	}
+	})
 }
 
 // GameCenterLeaderboardSetLocalizationsV2GetCommand returns the leaderboard set localizations v2 get subcommand.
 func GameCenterLeaderboardSetLocalizationsV2GetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	localizationID := shared.BindResourceIDFlag(fs, "id", "gameCenterLeaderboardSetLocalizations", "Game Center leaderboard set localization ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc game-center leaderboard-sets v2 localizations view --id \"LOC_ID\"",
-		ShortHelp:  "View a Game Center leaderboard set localization (v2) by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc game-center leaderboard-sets v2 localizations view --id \"LOC_ID\"",
+		ShortHelp:   "View a Game Center leaderboard set localization (v2) by ID.",
 		LongHelp: `View a Game Center leaderboard set localization (v2) by ID.
 
 Examples:
   asc game-center leaderboard-sets v2 localizations view --id "LOC_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*localizationID)
-			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center leaderboard-sets v2 localizations view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetGameCenterLeaderboardSetLocalizationV2(requestCtx, id)
-			if err != nil {
-				return fmt.Errorf("game-center leaderboard-sets v2 localizations view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage:            "Game Center leaderboard set localization ID",
+		IDType:             "gameCenterLeaderboardSetLocalizations",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "game-center leaderboard-sets v2 localizations view",
+		FetchErrorPrefix:   "game-center leaderboard-sets v2 localizations view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetGameCenterLeaderboardSetLocalizationV2(ctx, id)
 		},
-	}
+	})
 }
 
 // GameCenterLeaderboardSetLocalizationsV2CreateCommand returns the leaderboard set localizations v2 create subcommand.
@@ -920,20 +705,17 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*versionID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return shared.MissingRequiredUsageError("--version-id")
+				return shared.RequiredFlag("--version-id")
 			}
 
 			localeVal := strings.TrimSpace(*locale)
 			if localeVal == "" {
-				fmt.Fprintln(os.Stderr, "Error: --locale is required")
-				return shared.MissingRequiredUsageError("--locale")
+				return shared.RequiredFlag("--locale")
 			}
 
 			nameVal := strings.TrimSpace(*name)
 			if nameVal == "" {
-				fmt.Fprintln(os.Stderr, "Error: --name is required")
-				return shared.MissingRequiredUsageError("--name")
+				return shared.RequiredFlag("--name")
 			}
 
 			attrs := asc.GameCenterLeaderboardSetLocalizationCreateAttributes{
@@ -980,14 +762,12 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*localizationID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			nameVal := strings.TrimSpace(*name)
 			if nameVal == "" {
-				fmt.Fprintln(os.Stderr, "Error: --name is required")
-				return shared.MissingRequiredUsageError("--name")
+				return shared.RequiredFlag("--name")
 			}
 
 			attrs := asc.GameCenterLeaderboardSetLocalizationUpdateAttributes{
@@ -1033,12 +813,10 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*localizationID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()
@@ -1114,14 +892,12 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			locID := strings.TrimSpace(*localizationID)
 			if locID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
-				return shared.MissingRequiredUsageError("--localization-id")
+				return shared.RequiredFlag("--localization-id")
 			}
 
 			file := strings.TrimSpace(*filePath)
 			if file == "" {
-				fmt.Fprintln(os.Stderr, "Error: --file is required")
-				return shared.MissingRequiredUsageError("--file")
+				return shared.RequiredFlag("--file")
 			}
 
 			client, err := shared.GetASCClient()
@@ -1220,12 +996,10 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*imageID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()

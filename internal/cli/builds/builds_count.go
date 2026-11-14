@@ -129,7 +129,7 @@ Examples:
 
 			// Request only 1 item first — if ASC includes meta.paging.total, we can
 			// answer in a single fast request regardless of app size.
-			probeOpts := append([]asc.BuildsOption{asc.WithBuildsLimit(1)}, filterOpts...)
+			probeOpts := append([]asc.BuildsOption{asc.Limit[asc.BuildsOption](1)}, filterOpts...)
 			resp, err := client.GetBuilds(requestCtx, resolvedAppID, probeOpts...)
 			if err != nil {
 				return fmt.Errorf("builds count: failed to fetch: %w", err)
@@ -143,14 +143,14 @@ Examples:
 
 			// Some ASC responses omit paging.total. Fall back to paginating and
 			// counting matching pages incrementally instead of failing.
-			paginateOpts := append([]asc.BuildsOption{asc.WithBuildsLimit(200)}, filterOpts...)
+			paginateOpts := append([]asc.BuildsOption{asc.Limit[asc.BuildsOption](200)}, filterOpts...)
 			total, err = countBuildsViaPagination(
 				requestCtx,
 				func(ctx context.Context) (asc.PaginatedResponse, error) {
 					return client.GetBuilds(ctx, resolvedAppID, paginateOpts...)
 				},
 				func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetBuilds(ctx, resolvedAppID, asc.WithBuildsNextURL(nextURL))
+					return client.GetBuilds(ctx, resolvedAppID, asc.NextURL[asc.BuildsOption](nextURL))
 				},
 			)
 			if err != nil {

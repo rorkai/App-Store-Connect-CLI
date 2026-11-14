@@ -107,8 +107,8 @@ Examples:
 			defer cancel()
 
 			opts := []asc.BuildUploadsOption{
-				asc.WithBuildUploadsLimit(*limit),
-				asc.WithBuildUploadsNextURL(*next),
+				asc.Limit[asc.BuildUploadsOption](*limit),
+				asc.NextURL[asc.BuildUploadsOption](*next),
 				asc.WithBuildUploadsCFBundleShortVersionStrings(shared.SplitCSV(*shortVersion)),
 				asc.WithBuildUploadsCFBundleVersions(shared.SplitCSV(*bundleVersion)),
 				asc.WithBuildUploadsPlatforms(platforms),
@@ -119,14 +119,14 @@ Examples:
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithBuildUploadsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.BuildUploadsOption](200))
 				resp, err := shared.PaginateWithSpinner(
 					requestCtx,
 					func(ctx context.Context) (asc.PaginatedResponse, error) {
 						return client.GetBuildUploads(ctx, resolvedAppID, paginateOpts...)
 					},
 					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return client.GetBuildUploads(ctx, resolvedAppID, asc.WithBuildUploadsNextURL(nextURL))
+						return client.GetBuildUploads(ctx, resolvedAppID, asc.NextURL[asc.BuildUploadsOption](nextURL))
 					},
 				)
 				if err != nil {
@@ -147,44 +147,24 @@ Examples:
 
 // BuildsUploadsViewCommand returns the builds uploads view subcommand.
 func BuildsUploadsViewCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("uploads view", flag.ExitOnError)
-
-	id := shared.BindResourceIDFlag(fs, "id", "buildUploads", "Build upload ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc builds uploads view --id \"UPLOAD_ID\"",
-		ShortHelp:  "View a build upload by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "uploads view",
+		Name:        "view",
+		ShortUsage:  "asc builds uploads view --id \"UPLOAD_ID\"",
+		ShortHelp:   "View a build upload by ID.",
 		LongHelp: `View a build upload by ID.
 
 Examples:
   asc builds uploads view --id "UPLOAD_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			uploadID := strings.TrimSpace(*id)
-			if uploadID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("builds uploads view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetBuildUpload(requestCtx, uploadID)
-			if err != nil {
-				return fmt.Errorf("builds uploads view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage:            "Build upload ID",
+		IDType:             "buildUploads",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "builds uploads view",
+		FetchErrorPrefix:   "builds uploads view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetBuildUpload(ctx, id)
 		},
-	}
+	})
 }
 
 // BuildsUploadsDeleteCommand returns the builds uploads delete subcommand.
@@ -208,12 +188,10 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			uploadID := strings.TrimSpace(*id)
 			if uploadID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()
@@ -295,8 +273,7 @@ Examples:
 
 			uploadValue := strings.TrimSpace(*uploadID)
 			if uploadValue == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --upload is required")
-				return shared.MissingRequiredUsageError("--upload")
+				return shared.RequiredFlag("--upload")
 			}
 
 			client, err := shared.GetASCClient()
@@ -308,24 +285,23 @@ Examples:
 			defer cancel()
 
 			opts := []asc.BuildUploadFilesOption{
-				asc.WithBuildUploadFilesLimit(*limit),
-				asc.WithBuildUploadFilesNextURL(*next),
+				asc.Limit[asc.BuildUploadFilesOption](*limit),
+				asc.NextURL[asc.BuildUploadFilesOption](*next),
 			}
 
 			if *paginate {
 				if uploadValue == "" {
-					fmt.Fprintln(os.Stderr, "Error: --upload is required")
-					return shared.MissingRequiredUsageError("--upload")
+					return shared.RequiredFlag("--upload")
 				}
 
-				paginateOpts := append(opts, asc.WithBuildUploadFilesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.BuildUploadFilesOption](200))
 				resp, err := shared.PaginateWithSpinner(
 					requestCtx,
 					func(ctx context.Context) (asc.PaginatedResponse, error) {
 						return client.GetBuildUploadFiles(ctx, uploadValue, paginateOpts...)
 					},
 					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return client.GetBuildUploadFiles(ctx, uploadValue, asc.WithBuildUploadFilesNextURL(nextURL))
+						return client.GetBuildUploadFiles(ctx, uploadValue, asc.NextURL[asc.BuildUploadFilesOption](nextURL))
 					},
 				)
 				if err != nil {
@@ -347,42 +323,22 @@ Examples:
 
 // BuildsUploadFilesViewCommand returns the build upload files view subcommand.
 func BuildsUploadFilesViewCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("files view", flag.ExitOnError)
-
-	id := shared.BindResourceIDFlag(fs, "id", "buildUploadFiles", "Build upload file ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc builds uploads files view --id \"FILE_ID\"",
-		ShortHelp:  "View a build upload file by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "files view",
+		Name:        "view",
+		ShortUsage:  "asc builds uploads files view --id \"FILE_ID\"",
+		ShortHelp:   "View a build upload file by ID.",
 		LongHelp: `View a build upload file by ID.
 
 Examples:
   asc builds uploads files view --id "FILE_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			fileID := strings.TrimSpace(*id)
-			if fileID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("builds uploads files view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetBuildUploadFile(requestCtx, fileID)
-			if err != nil {
-				return fmt.Errorf("builds uploads files view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage:            "Build upload file ID",
+		IDType:             "buildUploadFiles",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "builds uploads files view",
+		FetchErrorPrefix:   "builds uploads files view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetBuildUploadFile(ctx, id)
 		},
-	}
+	})
 }

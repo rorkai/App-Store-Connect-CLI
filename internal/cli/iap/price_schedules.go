@@ -198,8 +198,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*scheduleID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --schedule-id is required")
-				return shared.MissingRequiredUsageError("--schedule-id")
+				return shared.RequiredFlag("--schedule-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -249,13 +248,11 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			iapValue := strings.TrimSpace(*iapID)
 			if iapValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --iap-id is required")
-				return shared.MissingRequiredUsageError("--iap-id")
+				return shared.RequiredFlag("--iap-id")
 			}
 			baseTerritoryValue := strings.TrimSpace(*baseTerritory)
 			if baseTerritoryValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --base-territory is required")
-				return shared.MissingRequiredUsageError("--base-territory")
+				return shared.RequiredFlag("--base-territory")
 			}
 			baseTerritoryValue, err := ascterritory.Normalize(baseTerritoryValue)
 			if err != nil {
@@ -400,8 +397,7 @@ Examples:
 
 			id := strings.TrimSpace(*scheduleID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --schedule-id is required")
-				return shared.MissingRequiredUsageError("--schedule-id")
+				return shared.RequiredFlag("--schedule-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -421,19 +417,19 @@ Examples:
 			}
 
 			opts := []asc.IAPPriceSchedulePricesOption{
-				asc.WithIAPPriceSchedulePricesLimit(*limit),
-				asc.WithIAPPriceSchedulePricesNextURL(*next),
+				asc.Limit[asc.IAPPriceSchedulePricesOption](*limit),
+				asc.NextURL[asc.IAPPriceSchedulePricesOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithIAPPriceSchedulePricesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.IAPPriceSchedulePricesOption](200))
 				firstPage, err := client.GetInAppPurchasePriceScheduleManualPrices(requestCtx, id, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("iap pricing schedules manual-prices: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetInAppPurchasePriceScheduleManualPrices(ctx, id, asc.WithIAPPriceSchedulePricesNextURL(nextURL))
+					return client.GetInAppPurchasePriceScheduleManualPrices(ctx, id, asc.NextURL[asc.IAPPriceSchedulePricesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("iap pricing schedules manual-prices: %w", err)
@@ -489,8 +485,7 @@ Examples:
 
 			id := strings.TrimSpace(*scheduleID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --schedule-id is required")
-				return shared.MissingRequiredUsageError("--schedule-id")
+				return shared.RequiredFlag("--schedule-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -510,19 +505,19 @@ Examples:
 			}
 
 			opts := []asc.IAPPriceSchedulePricesOption{
-				asc.WithIAPPriceSchedulePricesLimit(*limit),
-				asc.WithIAPPriceSchedulePricesNextURL(*next),
+				asc.Limit[asc.IAPPriceSchedulePricesOption](*limit),
+				asc.NextURL[asc.IAPPriceSchedulePricesOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithIAPPriceSchedulePricesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.IAPPriceSchedulePricesOption](200))
 				firstPage, err := client.GetInAppPurchasePriceScheduleAutomaticPrices(requestCtx, id, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("iap pricing schedules automatic-prices: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetInAppPurchasePriceScheduleAutomaticPrices(ctx, id, asc.WithIAPPriceSchedulePricesNextURL(nextURL))
+					return client.GetInAppPurchasePriceScheduleAutomaticPrices(ctx, id, asc.NextURL[asc.IAPPriceSchedulePricesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("iap pricing schedules automatic-prices: %w", err)

@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 	"sync"
 
@@ -46,15 +45,22 @@ func rootLongHelp() string {
 
 // RootCommand returns the root command
 func RootCommand(version string) *ffcli.Command {
-	catalog := registry.NewCatalog(version)
-	root := newRootCommand(version, catalog.All())
+	return RootCommandWithDeps(version, shared.DefaultDeps())
+}
+
+// RootCommandWithDeps returns the root command with the commands that take
+// dependencies built on d.
+func RootCommandWithDeps(version string, d *shared.Deps) *ffcli.Command {
+	catalog := registry.NewCatalogWithDeps(version, d)
+	root := newRootCommand(version, d, catalog.All())
 	catalog.SetCompletionRootFlagSet(root.FlagSet)
 	return root
 }
 
 func rootCommandForArgs(version string, args []string) *ffcli.Command {
-	catalog := registry.NewCatalog(version)
-	root := newRootCommand(version, catalog.MetadataCommands())
+	d := shared.DefaultDeps()
+	catalog := registry.NewCatalogWithDeps(version, d)
+	root := newRootCommand(version, d, catalog.MetadataCommands())
 	catalog.SetCompletionRootFlagSet(root.FlagSet)
 	// Command discovery must understand the same liberal `--bool false` form
 	// as final parsing. Otherwise the separated value looks positional and the
@@ -76,14 +82,14 @@ func rootCommandForArgs(version string, args []string) *ffcli.Command {
 	return root
 }
 
-func newRootCommand(version string, subcommands []*ffcli.Command) *ffcli.Command {
+func newRootCommand(version string, d *shared.Deps, subcommands []*ffcli.Command) *ffcli.Command {
 	versionRequested = false
 	root := &ffcli.Command{
 		Name:        "asc",
 		ShortUsage:  "asc <subcommand> [flags]",
 		ShortHelp:   "asc is a fast, lightweight CLI for App Store Connect from Rork.",
 		LongHelp:    rootLongHelp(),
-		FlagSet:     flag.NewFlagSet("asc", flag.ExitOnError),
+		FlagSet:     d.NewFlagSet("asc", flag.ExitOnError),
 		UsageFunc:   RootUsageFunc,
 		Subcommands: subcommands,
 	}
@@ -103,7 +109,7 @@ func newRootCommand(version string, subcommands []*ffcli.Command) *ffcli.Command
 
 	root.Exec = func(ctx context.Context, args []string) error {
 		if versionRequested {
-			fmt.Fprintln(os.Stdout, version)
+			fmt.Fprintln(d.IO.Out, version)
 			return nil
 		}
 		if len(args) > 0 {
@@ -117,12 +123,12 @@ func newRootCommand(version string, subcommands []*ffcli.Command) *ffcli.Command
 				}
 			})
 			unknown := shared.SanitizeTerminal(args[0])
-			fmt.Fprintf(os.Stderr, "Unknown command: %s\n\n", unknown)
+			fmt.Fprintf(d.IO.ErrOut, "Unknown command: %s\n\n", unknown)
 			if suggestions := suggest.Commands(args[0], rootSubcommandNames); len(suggestions) > 0 {
 				for i, suggestion := range suggestions {
 					suggestions[i] = shared.SanitizeTerminal(suggestion)
 				}
-				fmt.Fprintf(os.Stderr, "Did you mean: %s\n\n", strings.Join(suggestions, ", "))
+				fmt.Fprintf(d.IO.ErrOut, "Did you mean: %s\n\n", strings.Join(suggestions, ", "))
 			}
 		}
 		return flag.ErrHelp

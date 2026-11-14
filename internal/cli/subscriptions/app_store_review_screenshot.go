@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -61,8 +60,7 @@ Examples:
 			}
 			id := strings.TrimSpace(*subscriptionID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --subscription-id is required")
-				return shared.MissingRequiredUsageError("--subscription-id")
+				return shared.RequiredFlag("--subscription-id")
 			}
 
 			client, err := shared.GetASCClient()

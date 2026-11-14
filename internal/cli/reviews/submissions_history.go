@@ -96,13 +96,13 @@ Examples:
 			defer cancel()
 
 			opts := []asc.ReviewSubmissionsOption{
-				asc.WithReviewSubmissionsLimit(*limit),
+				asc.Limit[asc.ReviewSubmissionsOption](*limit),
 				asc.WithReviewSubmissionsPlatforms(platforms),
 				asc.WithReviewSubmissionsStates(states),
 				asc.WithReviewSubmissionsInclude([]string{"appStoreVersionForReview"}),
 			}
 			if *paginate {
-				opts = append(opts, asc.WithReviewSubmissionsLimit(200))
+				opts = append(opts, asc.Limit[asc.ReviewSubmissionsOption](200))
 			}
 
 			submissions, versionContexts, err := fetchReviewSubmissions(requestCtx, client, resolvedAppID, opts, *paginate)
@@ -163,7 +163,7 @@ func fetchReviewSubmissions(ctx context.Context, client *asc.Client, appID strin
 			}
 			seenNext[nextURL] = struct{}{}
 
-			nextResp, err := client.GetReviewSubmissions(ctx, appID, asc.WithReviewSubmissionsNextURL(nextURL))
+			nextResp, err := client.GetReviewSubmissions(ctx, appID, asc.NextURL[asc.ReviewSubmissionsOption](nextURL))
 			if err != nil {
 				return fmt.Errorf("page %d: %w", page+1, err)
 			}
@@ -305,7 +305,7 @@ func fetchAllSubmissionItems(ctx context.Context, client *asc.Client, submission
 	firstPage, err := client.GetReviewSubmissionItems(
 		ctx,
 		submissionID,
-		asc.WithReviewSubmissionItemsLimit(200),
+		asc.Limit[asc.ReviewSubmissionItemsOption](200),
 		asc.WithReviewSubmissionItemsFields(reviewSubmissionItemHistoryFields()),
 		asc.WithReviewSubmissionItemsInclude(reviewSubmissionItemHistoryIncludes()),
 	)
@@ -317,7 +317,7 @@ func fetchAllSubmissionItems(ctx context.Context, client *asc.Client, submission
 	}
 
 	resp, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetReviewSubmissionItems(ctx, submissionID, asc.WithReviewSubmissionItemsNextURL(nextURL))
+		return client.GetReviewSubmissionItems(ctx, submissionID, asc.NextURL[asc.ReviewSubmissionItemsOption](nextURL))
 	})
 	if err != nil {
 		return nil, err

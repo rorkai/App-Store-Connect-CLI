@@ -1,7 +1,5 @@
 package asc
 
-import "strings"
-
 // BetaLicenseAgreementsOption is a functional option for beta license agreements.
 type BetaLicenseAgreementsOption func(*betaLicenseAgreementsQuery)
 
@@ -33,24 +31,6 @@ func WithBetaLicenseAgreementsAppFields(fields []string) BetaLicenseAgreementsOp
 func WithBetaLicenseAgreementsInclude(include []string) BetaLicenseAgreementsOption {
 	return func(q *betaLicenseAgreementsQuery) {
 		q.include = normalizeList(include)
-	}
-}
-
-// WithBetaLicenseAgreementsLimit sets the max number of beta license agreements to return.
-func WithBetaLicenseAgreementsLimit(limit int) BetaLicenseAgreementsOption {
-	return func(q *betaLicenseAgreementsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithBetaLicenseAgreementsNextURL uses a next page URL directly.
-func WithBetaLicenseAgreementsNextURL(next string) BetaLicenseAgreementsOption {
-	return func(q *betaLicenseAgreementsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
 	}
 }
 

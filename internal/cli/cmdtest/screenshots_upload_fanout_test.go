@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestScreenshotsUploadAppScopedModeRequiresVersionSelector(t *testing.T) {
@@ -134,27 +135,14 @@ func testScreenshotsUploadVersionIDPlatform(t *testing.T, selector string) {
 	}
 	writePNG(t, filepath.Join(localeDir, "01-home.png"), 2880, 1800)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-mac":
-			if req.URL.Query().Get("include") != "app" {
-				t.Fatalf("expected owned version lookup, got %s %s", req.Method, req.URL)
-			}
-			return screenshotsUploadJSONResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-mac","attributes":{"platform":"MAC_OS","versionString":"2.0.0"},"relationships":{"app":{"data":{"type":"apps","id":"123456789"}}}}}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-mac/appStoreVersionLocalizations":
-			return screenshotsUploadJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US"}}],"links":{}}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersionLocalizations/loc-en/appScreenshotSets":
-			return screenshotsUploadJSONResponse(http.StatusOK, `{"data":[],"links":{}}`)
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-mac", "include=app"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-mac","attributes":{"platform":"MAC_OS","versionString":"2.0.0"},"relationships":{"app":{"data":{"type":"apps","id":"123456789"}}}}}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-mac/appStoreVersionLocalizations", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US"}}],"links":{}}`))
+	reg.Register(asctest.GET("/v1/appStoreVersionLocalizations/loc-en/appScreenshotSets"),
+		asctest.JSON(http.StatusOK, `{"data":[],"links":{}}`))
 
 	var payload struct {
 		VersionID   string `json:"versionId"`

@@ -75,8 +75,7 @@ Examples:
 
 			buildBundleValue := strings.TrimSpace(*buildBundleID)
 			if buildBundleValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --build-bundle-id is required")
-				return shared.MissingRequiredUsageError("--build-bundle-id")
+				return shared.RequiredFlag("--build-bundle-id")
 			}
 
 			client, err := appClipsClientFactory()
@@ -88,12 +87,12 @@ Examples:
 			defer cancel()
 
 			opts := []asc.BetaAppClipInvocationsOption{
-				asc.WithBetaAppClipInvocationsLimit(*limit),
-				asc.WithBetaAppClipInvocationsNextURL(*next),
+				asc.Limit[asc.BetaAppClipInvocationsOption](*limit),
+				asc.NextURL[asc.BetaAppClipInvocationsOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithBetaAppClipInvocationsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.BetaAppClipInvocationsOption](200))
 				firstPage, err := client.GetBuildBundleBetaAppClipInvocations(requestCtx, buildBundleValue, paginateOpts...)
 				if err != nil {
 					if asc.IsNotFound(err) {
@@ -105,7 +104,7 @@ Examples:
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetBuildBundleBetaAppClipInvocations(ctx, buildBundleValue, asc.WithBetaAppClipInvocationsNextURL(nextURL))
+					return client.GetBuildBundleBetaAppClipInvocations(ctx, buildBundleValue, asc.NextURL[asc.BetaAppClipInvocationsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("app-clips invocations list: %w", err)
@@ -149,8 +148,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			invocationValue := strings.TrimSpace(*invocationID)
 			if invocationValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --invocation-id is required")
-				return shared.MissingRequiredUsageError("--invocation-id")
+				return shared.RequiredFlag("--invocation-id")
 			}
 
 			client, err := appClipsClientFactory()
@@ -198,14 +196,12 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			buildBundleValue := strings.TrimSpace(*buildBundleID)
 			if buildBundleValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --build-bundle-id is required")
-				return shared.MissingRequiredUsageError("--build-bundle-id")
+				return shared.RequiredFlag("--build-bundle-id")
 			}
 
 			urlValue := strings.TrimSpace(*url)
 			if urlValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --url is required")
-				return shared.MissingRequiredUsageError("--url")
+				return shared.RequiredFlag("--url")
 			}
 
 			localizationValues := shared.SplitCSV(localizationIDs.String())
@@ -272,8 +268,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			invocationValue := strings.TrimSpace(*invocationID)
 			if invocationValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --invocation-id is required")
-				return shared.MissingRequiredUsageError("--invocation-id")
+				return shared.RequiredFlag("--invocation-id")
 			}
 
 			visited := map[string]bool{}
@@ -327,8 +322,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			invocationValue := strings.TrimSpace(*invocationID)
 			if invocationValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --invocation-id is required")
-				return shared.MissingRequiredUsageError("--invocation-id")
+				return shared.RequiredFlag("--invocation-id")
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required to delete")

@@ -75,7 +75,7 @@ func TestGetAppEvents_WithLimit(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetAppEvents(context.Background(), "app-123", WithAppEventsLimit(10)); err != nil {
+	if _, err := client.GetAppEvents(context.Background(), "app-123", Limit[AppEventsOption](10)); err != nil {
 		t.Fatalf("GetAppEvents() error: %v", err)
 	}
 }
@@ -115,7 +115,7 @@ func TestGetAppEvents_WithQueryOptions(t *testing.T) {
 		WithAppEventsLocalizationFields([]string{"locale", "name"}),
 		WithAppEventsInclude([]string{"localizations"}),
 		WithAppEventsLocalizationsLimit(10),
-		WithAppEventsLimit(25),
+		Limit[AppEventsOption](25),
 	); err != nil {
 		t.Fatalf("GetAppEvents() error: %v", err)
 	}
@@ -131,7 +131,7 @@ func TestGetAppEvents_UsesNextURL(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetAppEvents(context.Background(), "app-123", WithAppEventsNextURL(next)); err != nil {
+	if _, err := client.GetAppEvents(context.Background(), "app-123", NextURL[AppEventsOption](next)); err != nil {
 		t.Fatalf("GetAppEvents() error: %v", err)
 	}
 }
@@ -248,7 +248,7 @@ func TestGetAppEventLocalizations_WithLimit(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetAppEventLocalizations(context.Background(), "event-1", WithAppEventLocalizationsLimit(5)); err != nil {
+	if _, err := client.GetAppEventLocalizations(context.Background(), "event-1", Limit[AppEventLocalizationsOption](5)); err != nil {
 		t.Fatalf("GetAppEventLocalizations() error: %v", err)
 	}
 }
@@ -268,7 +268,7 @@ func TestGetAppEventLocalizationsRelationships_WithLimit(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetAppEventLocalizationsRelationships(context.Background(), "event-1", WithLinkagesLimit(3)); err != nil {
+	if _, err := client.GetAppEventLocalizationsRelationships(context.Background(), "event-1", Limit[LinkagesOption](3)); err != nil {
 		t.Fatalf("GetAppEventLocalizationsRelationships() error: %v", err)
 	}
 }
@@ -379,7 +379,7 @@ func TestGetAppEventScreenshots_WithLimit(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetAppEventScreenshots(context.Background(), "loc-1", WithAppEventScreenshotsLimit(25)); err != nil {
+	if _, err := client.GetAppEventScreenshots(context.Background(), "loc-1", Limit[AppEventScreenshotsOption](25)); err != nil {
 		t.Fatalf("GetAppEventScreenshots() error: %v", err)
 	}
 }
@@ -399,7 +399,7 @@ func TestGetAppEventScreenshotsRelationships_WithLimit(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetAppEventScreenshotsRelationships(context.Background(), "loc-1", WithLinkagesLimit(8)); err != nil {
+	if _, err := client.GetAppEventScreenshotsRelationships(context.Background(), "loc-1", Limit[LinkagesOption](8)); err != nil {
 		t.Fatalf("GetAppEventScreenshotsRelationships() error: %v", err)
 	}
 }
@@ -511,7 +511,7 @@ func TestGetAppEventVideoClips_WithLimit(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetAppEventVideoClips(context.Background(), "loc-1", WithAppEventVideoClipsLimit(7)); err != nil {
+	if _, err := client.GetAppEventVideoClips(context.Background(), "loc-1", Limit[AppEventVideoClipsOption](7)); err != nil {
 		t.Fatalf("GetAppEventVideoClips() error: %v", err)
 	}
 }
@@ -531,7 +531,7 @@ func TestGetAppEventVideoClipsRelationships_WithLimit(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetAppEventVideoClipsRelationships(context.Background(), "loc-1", WithLinkagesLimit(6)); err != nil {
+	if _, err := client.GetAppEventVideoClipsRelationships(context.Background(), "loc-1", Limit[LinkagesOption](6)); err != nil {
 		t.Fatalf("GetAppEventVideoClipsRelationships() error: %v", err)
 	}
 }
@@ -646,25 +646,25 @@ func TestAppEventListMethods_InvalidNextURL(t *testing.T) {
 	}, jsonResponse(http.StatusOK, `{"data":[]}`))
 
 	next := "https://example.com/steal"
-	if _, err := client.GetAppEvents(context.Background(), "app-123", WithAppEventsNextURL(next)); err == nil {
+	if _, err := client.GetAppEvents(context.Background(), "app-123", NextURL[AppEventsOption](next)); err == nil {
 		t.Fatal("expected error for invalid next URL")
 	}
-	if _, err := client.GetAppEventLocalizations(context.Background(), "event-1", WithAppEventLocalizationsNextURL(next)); err == nil {
+	if _, err := client.GetAppEventLocalizations(context.Background(), "event-1", NextURL[AppEventLocalizationsOption](next)); err == nil {
 		t.Fatal("expected error for invalid next URL")
 	}
-	if _, err := client.GetAppEventScreenshots(context.Background(), "loc-1", WithAppEventScreenshotsNextURL(next)); err == nil {
+	if _, err := client.GetAppEventScreenshots(context.Background(), "loc-1", NextURL[AppEventScreenshotsOption](next)); err == nil {
 		t.Fatal("expected error for invalid next URL")
 	}
-	if _, err := client.GetAppEventVideoClips(context.Background(), "loc-1", WithAppEventVideoClipsNextURL(next)); err == nil {
+	if _, err := client.GetAppEventVideoClips(context.Background(), "loc-1", NextURL[AppEventVideoClipsOption](next)); err == nil {
 		t.Fatal("expected error for invalid next URL")
 	}
-	if _, err := client.GetAppEventLocalizationsRelationships(context.Background(), "event-1", WithLinkagesNextURL(next)); err == nil {
+	if _, err := client.GetAppEventLocalizationsRelationships(context.Background(), "event-1", NextURL[LinkagesOption](next)); err == nil {
 		t.Fatal("expected error for invalid next URL")
 	}
-	if _, err := client.GetAppEventScreenshotsRelationships(context.Background(), "loc-1", WithLinkagesNextURL(next)); err == nil {
+	if _, err := client.GetAppEventScreenshotsRelationships(context.Background(), "loc-1", NextURL[LinkagesOption](next)); err == nil {
 		t.Fatal("expected error for invalid next URL")
 	}
-	if _, err := client.GetAppEventVideoClipsRelationships(context.Background(), "loc-1", WithLinkagesNextURL(next)); err == nil {
+	if _, err := client.GetAppEventVideoClipsRelationships(context.Background(), "loc-1", NextURL[LinkagesOption](next)); err == nil {
 		t.Fatal("expected error for invalid next URL")
 	}
 }
@@ -898,7 +898,7 @@ func TestAppEventListMethods_UseNextURL(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetAppEventScreenshots(context.Background(), "loc-1", WithAppEventScreenshotsNextURL(next)); err != nil {
+	if _, err := client.GetAppEventScreenshots(context.Background(), "loc-1", NextURL[AppEventScreenshotsOption](next)); err != nil {
 		t.Fatalf("GetAppEventScreenshots() error: %v", err)
 	}
 }
@@ -928,7 +928,7 @@ func TestAppEventLocalizationsNextURLBypassesAppID(t *testing.T) {
 		}
 	}, response)
 
-	if _, err := client.GetAppEventLocalizations(context.Background(), "", WithAppEventLocalizationsNextURL(next)); err != nil {
+	if _, err := client.GetAppEventLocalizations(context.Background(), "", NextURL[AppEventLocalizationsOption](next)); err != nil {
 		t.Fatalf("GetAppEventLocalizations() error: %v", err)
 	}
 }

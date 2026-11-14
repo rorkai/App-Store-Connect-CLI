@@ -284,12 +284,10 @@ Example:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 			if strings.TrimSpace(*planPath) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --plan is required")
-				return shared.MissingRequiredUsageError("--plan")
+				return shared.RequiredFlag("--plan")
 			}
 			receipt, err := executeSigningReconcileApply(ctx, *planPath)
 			if err != nil {

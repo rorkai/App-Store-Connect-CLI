@@ -96,8 +96,8 @@ Examples:
 			defer cancel()
 
 			opts := []asc.BetaAppLocalizationsOption{
-				asc.WithBetaAppLocalizationsLimit(*limit),
-				asc.WithBetaAppLocalizationsNextURL(*next),
+				asc.Limit[asc.BetaAppLocalizationsOption](*limit),
+				asc.NextURL[asc.BetaAppLocalizationsOption](*next),
 			}
 			if resolvedAppID != "" {
 				opts = append(opts, asc.WithBetaAppLocalizationAppIDs([]string{resolvedAppID}))
@@ -107,14 +107,14 @@ Examples:
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithBetaAppLocalizationsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.BetaAppLocalizationsOption](200))
 				firstPage, err := client.GetBetaAppLocalizations(requestCtx, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("beta-app-localizations list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetBetaAppLocalizations(ctx, asc.WithBetaAppLocalizationsNextURL(nextURL))
+					return client.GetBetaAppLocalizations(ctx, asc.NextURL[asc.BetaAppLocalizationsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("beta-app-localizations list: %w", err)
@@ -134,44 +134,24 @@ Examples:
 
 // BetaAppLocalizationsGetCommand returns the get subcommand.
 func BetaAppLocalizationsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	id := shared.BindResourceIDFlag(fs, "id", "betaAppLocalizations", "Beta app localization ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc beta-app-localizations view --id \"LOCALIZATION_ID\"",
-		ShortHelp:  "View a beta app localization by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc beta-app-localizations view --id \"LOCALIZATION_ID\"",
+		ShortHelp:   "View a beta app localization by ID.",
 		LongHelp: `View a beta app localization by ID.
 
 Examples:
   asc beta-app-localizations view --id "LOCALIZATION_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			idValue := strings.TrimSpace(*id)
-			if idValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("beta-app-localizations view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetBetaAppLocalization(requestCtx, idValue)
-			if err != nil {
-				return fmt.Errorf("beta-app-localizations view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage:            "Beta app localization ID",
+		IDType:             "betaAppLocalizations",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "beta-app-localizations view",
+		FetchErrorPrefix:   "beta-app-localizations view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetBetaAppLocalization(ctx, id)
 		},
-	}
+	})
 }
 
 // BetaAppLocalizationsCreateCommand returns the create subcommand.
@@ -207,8 +187,7 @@ Examples:
 
 			localeValue := strings.TrimSpace(*locale)
 			if localeValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --locale is required")
-				return shared.MissingRequiredUsageError("--locale")
+				return shared.RequiredFlag("--locale")
 			}
 			if err := shared.ValidateBuildLocalizationLocale(localeValue); err != nil {
 				return shared.UsageErrorfCtx(ctx, "beta-app-localizations create: %v", err)
@@ -278,8 +257,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			visited := map[string]bool{}
@@ -358,12 +336,10 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()

@@ -203,8 +203,8 @@ Examples:
 			defer cancel()
 
 			opts := []asc.BetaTestersOption{
-				asc.WithBetaTestersLimit(*limit),
-				asc.WithBetaTestersNextURL(*next),
+				asc.Limit[asc.BetaTestersOption](*limit),
+				asc.NextURL[asc.BetaTestersOption](*next),
 			}
 
 			if strings.TrimSpace(*buildID) != "" {
@@ -259,14 +259,14 @@ Examples:
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithBetaTestersLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.BetaTestersOption](200))
 				testers, err := shared.PaginateWithSpinner(
 					requestCtx,
 					func(ctx context.Context) (asc.PaginatedResponse, error) {
 						return client.GetBetaTesters(ctx, resolvedAppID, paginateOpts...)
 					},
 					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return client.GetBetaTesters(ctx, resolvedAppID, asc.WithBetaTestersNextURL(nextURL))
+						return client.GetBetaTesters(ctx, resolvedAppID, asc.NextURL[asc.BetaTestersOption](nextURL))
 					},
 				)
 				if err != nil {
@@ -331,46 +331,26 @@ func rejectBetaTestersNextFlagConflicts(fs *flag.FlagSet, next string, names ...
 
 // BetaTestersGetCommand returns the beta testers get subcommand.
 func BetaTestersGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	id := shared.BindResourceIDFlag(fs, "id", "betaTesters", "Beta tester ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc testflight beta-testers view --id \"TESTER_ID\" [flags]",
-		ShortHelp:  "View a TestFlight beta tester by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc testflight beta-testers view --id \"TESTER_ID\" [flags]",
+		ShortHelp:   "View a TestFlight beta tester by ID.",
 		LongHelp: `View a TestFlight beta tester by ID.
 
 Examples:
   asc testflight beta-testers view --id "TESTER_ID"
 
 See also: asc testflight beta-testers beta-groups list --id "TESTER_ID" for the tester's group membership.`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			idValue := strings.TrimSpace(*id)
-			if idValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("beta-testers view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			tester, err := client.GetBetaTester(requestCtx, idValue)
-			if err != nil {
-				return fmt.Errorf("beta-testers view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(tester, *output.Output, *output.Pretty)
+		IDUsage:            "Beta tester ID",
+		IDType:             "betaTesters",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "beta-testers view",
+		FetchErrorPrefix:   "beta-testers view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetBetaTester(ctx, id)
 		},
-	}
+	})
 }
 
 // BetaTestersAddCommand returns the beta testers add subcommand.
@@ -418,8 +398,7 @@ Examples:
 				return shared.MissingRequiredUsageError("--app")
 			}
 			if strings.TrimSpace(*email) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --email is required")
-				return shared.MissingRequiredUsageError("--email")
+				return shared.RequiredFlag("--email")
 			}
 			if !hasGroup && (group.Provided() || len(buildIDs) == 0) {
 				fmt.Fprintln(os.Stderr, "Error: --group is required unless --build-id is set")
@@ -490,12 +469,10 @@ Examples:
 				return shared.MissingRequiredUsageError("--app")
 			}
 			if strings.TrimSpace(*email) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --email is required")
-				return shared.MissingRequiredUsageError("--email")
+				return shared.RequiredFlag("--email")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 			waitFlagsProvided := make([]string, 0, 2)
 			fs.Visit(func(f *flag.Flag) {
@@ -606,14 +583,12 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			testerID := strings.TrimSpace(*id)
 			if testerID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			groupIDs := shared.SplitCSV(groups.String())
 			if len(groupIDs) == 0 {
-				fmt.Fprintln(os.Stderr, "Error: --group is required")
-				return shared.MissingRequiredUsageError("--group")
+				return shared.RequiredFlag("--group")
 			}
 
 			client, err := shared.GetASCClient()
@@ -680,18 +655,15 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			testerID := strings.TrimSpace(*id)
 			if testerID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			groupIDs := shared.SplitCSV(groups.String())
 			if len(groupIDs) == 0 {
-				fmt.Fprintln(os.Stderr, "Error: --group is required")
-				return shared.MissingRequiredUsageError("--group")
+				return shared.RequiredFlag("--group")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()
@@ -744,14 +716,12 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			testerID := strings.TrimSpace(*id)
 			if testerID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			parsedBuildIDs := shared.SplitCSV(*buildIDs)
 			if len(parsedBuildIDs) == 0 {
-				fmt.Fprintln(os.Stderr, "Error: --build-id is required")
-				return shared.MissingRequiredUsageError("--build-id")
+				return shared.RequiredFlag("--build-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -805,18 +775,15 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			testerID := strings.TrimSpace(*id)
 			if testerID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			parsedBuildIDs := shared.SplitCSV(*buildIDs)
 			if len(parsedBuildIDs) == 0 {
-				fmt.Fprintln(os.Stderr, "Error: --build-id is required")
-				return shared.MissingRequiredUsageError("--build-id")
+				return shared.RequiredFlag("--build-id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()
@@ -870,18 +837,15 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			testerID := strings.TrimSpace(*id)
 			if testerID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			appIDs := shared.SplitCSV(apps.String())
 			if len(appIDs) == 0 {
-				fmt.Fprintln(os.Stderr, "Error: --app is required")
-				return shared.MissingRequiredUsageError("--app")
+				return shared.RequiredFlag("--app")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()
@@ -939,8 +903,7 @@ Examples:
 				return shared.MissingRequiredUsageError("--app")
 			}
 			if strings.TrimSpace(*email) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --email is required")
-				return shared.MissingRequiredUsageError("--email")
+				return shared.RequiredFlag("--email")
 			}
 
 			client, err := shared.GetASCClient()

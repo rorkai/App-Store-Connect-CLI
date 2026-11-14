@@ -111,8 +111,8 @@ Examples:
 			}
 
 			opts := []asc.BetaBuildLocalizationsOption{
-				asc.WithBetaBuildLocalizationsLimit(*limit),
-				asc.WithBetaBuildLocalizationsNextURL(*next),
+				asc.Limit[asc.BetaBuildLocalizationsOption](*limit),
+				asc.NextURL[asc.BetaBuildLocalizationsOption](*next),
 			}
 			if len(locales) > 0 {
 				opts = append(opts, asc.WithBetaBuildLocalizationLocales(locales))
@@ -126,7 +126,7 @@ Examples:
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithBetaBuildLocalizationsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.BetaBuildLocalizationsOption](200))
 				requestCtx, cancel := shared.ContextWithTimeout(ctx)
 				defer cancel()
 				resp, err := shared.PaginateWithSpinner(
@@ -135,7 +135,7 @@ Examples:
 						return client.ListBetaBuildLocalizations(ctx, paginateOpts...)
 					},
 					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return client.ListBetaBuildLocalizations(ctx, asc.WithBetaBuildLocalizationsNextURL(nextURL))
+						return client.ListBetaBuildLocalizations(ctx, asc.NextURL[asc.BetaBuildLocalizationsOption](nextURL))
 					},
 				)
 				if err != nil {
@@ -245,8 +245,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			localeValue := strings.TrimSpace(*locale)
 			if localeValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --locale is required")
-				return shared.MissingRequiredUsageError("--locale")
+				return shared.RequiredFlag("--locale")
 			}
 			if err := shared.ValidateBuildLocalizationLocale(localeValue); err != nil {
 				return shared.UsageErrorf("builds test-notes create: %v", err)
@@ -257,8 +256,7 @@ Examples:
 
 			whatsNewValue := strings.TrimSpace(*whatsNew)
 			if whatsNewValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --whats-new is required")
-				return shared.MissingRequiredUsageError("--whats-new")
+				return shared.RequiredFlag("--whats-new")
 			}
 			whatsNewValue, normalizeErr := shared.NormalizeTestNotesForCommand(os.Stderr, whatsNewValue)
 			if normalizeErr != nil {
@@ -397,8 +395,7 @@ Examples:
 				return fmt.Errorf("builds test-notes delete: %w", err)
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()
@@ -497,7 +494,7 @@ func resolveTestNotesLocalization(ctx context.Context, client *asc.Client, selec
 		requestCtx,
 		asc.WithBetaBuildLocalizationBuildIDs([]string{buildResp.Data.ID}),
 		asc.WithBetaBuildLocalizationLocales([]string{strings.TrimSpace(locale)}),
-		asc.WithBetaBuildLocalizationsLimit(200),
+		asc.Limit[asc.BetaBuildLocalizationsOption](200),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve localization: %w", err)

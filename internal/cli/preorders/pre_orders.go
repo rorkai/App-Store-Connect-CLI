@@ -111,10 +111,10 @@ Examples:
 		FetchPage: func(ctx context.Context, client *asc.Client, availabilityID string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := make([]asc.TerritoryAvailabilitiesOption, 0, 2)
 			if limit > 0 {
-				opts = append(opts, asc.WithTerritoryAvailabilitiesLimit(limit))
+				opts = append(opts, asc.Limit[asc.TerritoryAvailabilitiesOption](limit))
 			}
 			if strings.TrimSpace(next) != "" {
-				opts = append(opts, asc.WithTerritoryAvailabilitiesNextURL(next))
+				opts = append(opts, asc.NextURL[asc.TerritoryAvailabilitiesOption](next))
 			}
 			return client.GetTerritoryAvailabilities(ctx, availabilityID, opts...)
 		},
@@ -171,12 +171,10 @@ Examples:
 				return shared.MissingRequiredUsageError("--app")
 			}
 			if strings.TrimSpace(*territory) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --territory is required")
-				return shared.MissingRequiredUsageError("--territory")
+				return shared.RequiredFlag("--territory")
 			}
 			if strings.TrimSpace(*releaseDate) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --release-date is required")
-				return shared.MissingRequiredUsageError("--release-date")
+				return shared.RequiredFlag("--release-date")
 			}
 
 			normalizedReleaseDate, err := normalizePreOrderReleaseDate(*releaseDate)
@@ -212,12 +210,12 @@ Examples:
 			if availabilityID == "" {
 				return fmt.Errorf("pre-orders enable: app availability ID missing from response")
 			}
-			firstPage, err := client.GetTerritoryAvailabilities(requestCtx, availabilityID, asc.WithTerritoryAvailabilitiesLimit(200))
+			firstPage, err := client.GetTerritoryAvailabilities(requestCtx, availabilityID, asc.Limit[asc.TerritoryAvailabilitiesOption](200))
 			if err != nil {
 				return fmt.Errorf("pre-orders enable: %w", err)
 			}
 			paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-				return client.GetTerritoryAvailabilities(ctx, availabilityID, asc.WithTerritoryAvailabilitiesNextURL(nextURL))
+				return client.GetTerritoryAvailabilities(ctx, availabilityID, asc.NextURL[asc.TerritoryAvailabilitiesOption](nextURL))
 			})
 			if err != nil {
 				return fmt.Errorf("pre-orders enable: %w", err)
@@ -294,8 +292,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*territoryAvailabilityID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --territory-availability is required")
-				return shared.MissingRequiredUsageError("--territory-availability")
+				return shared.RequiredFlag("--territory-availability")
 			}
 
 			attrs := asc.TerritoryAvailabilityUpdateAttributes{}
@@ -368,8 +365,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*territoryAvailabilityID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --territory-availability is required")
-				return shared.MissingRequiredUsageError("--territory-availability")
+				return shared.RequiredFlag("--territory-availability")
 			}
 
 			preOrderEnabled := false
@@ -415,12 +411,10 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			ids := shared.SplitCSV(*territoryAvailabilityIDs)
 			if len(ids) == 0 {
-				fmt.Fprintln(os.Stderr, "Error: --territory-availability is required")
-				return shared.MissingRequiredUsageError("--territory-availability")
+				return shared.RequiredFlag("--territory-availability")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()

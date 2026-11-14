@@ -59,7 +59,7 @@ func subscriptionGroupVersionLocalizationOptions(includeValue, fieldsValue, vers
 		asc.WithSubscriptionGroupVersionLocalizationsInclude(include),
 		asc.WithSubscriptionGroupVersionLocalizationsFields(fields),
 		asc.WithSubscriptionGroupVersionLocalizationsVersionFields(versionFields),
-		asc.WithSubscriptionGroupVersionLocalizationsLimit(limit),
+		asc.Limit[asc.SubscriptionGroupVersionLocalizationsOption](limit),
 		asc.WithSubscriptionGroupVersionLocalizationsNextURL(next),
 	}, nil
 }
@@ -84,8 +84,7 @@ func SubscriptionsGroupsVersionLocalizationsListCommand() *ffcli.Command {
 				return shared.UsageError("subscriptions groups versions localizations list: --next cannot be combined with --version-id")
 			}
 			if id == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return shared.MissingRequiredUsageError("--version-id")
+				return shared.RequiredFlag("--version-id")
 			}
 			if strings.TrimSpace(*next) != "" && subscriptionGroupAnyFlagSet(fs, "include", "fields", "version-fields", "limit") {
 				return shared.UsageError("subscriptions groups versions localizations list: --next cannot be combined with query flags")
@@ -136,18 +135,15 @@ func SubscriptionsGroupsVersionLocalizationsCreateCommand() *ffcli.Command {
 		Exec: func(ctx context.Context, args []string) error {
 			vid := strings.TrimSpace(*versionID)
 			if vid == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return shared.MissingRequiredUsageError("--version-id")
+				return shared.RequiredFlag("--version-id")
 			}
 			nameValue := strings.TrimSpace(*name)
 			if nameValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --name is required")
-				return shared.MissingRequiredUsageError("--name")
+				return shared.RequiredFlag("--name")
 			}
 			localeValue := strings.TrimSpace(*locale)
 			if localeValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --locale is required")
-				return shared.MissingRequiredUsageError("--locale")
+				return shared.RequiredFlag("--locale")
 			}
 			client, err := subscriptionGroupVersionClientFactory()
 			if err != nil {
@@ -182,8 +178,7 @@ func SubscriptionsGroupsVersionLocalizationsViewCommand() *ffcli.Command {
 		Exec: func(ctx context.Context, args []string) error {
 			value := strings.TrimSpace(*id)
 			if value == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			opts, err := subscriptionGroupVersionLocalizationOptions(*include, *fields, *versionFields, 0, "")
 			if err != nil {
@@ -229,8 +224,7 @@ func SubscriptionsGroupsVersionLocalizationsUpdateCommand() *ffcli.Command {
 		Exec: func(ctx context.Context, args []string) error {
 			value := strings.TrimSpace(*id)
 			if value == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			nameSet := subscriptionGroupFlagSet(fs, "name")
 			customNameSet := subscriptionGroupFlagSet(fs, "custom-app-name")
@@ -286,12 +280,10 @@ func SubscriptionsGroupsVersionLocalizationsDeleteCommand() *ffcli.Command {
 		Exec: func(ctx context.Context, args []string) error {
 			value := strings.TrimSpace(*id)
 			if value == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 			client, err := subscriptionGroupVersionClientFactory()
 			if err != nil {

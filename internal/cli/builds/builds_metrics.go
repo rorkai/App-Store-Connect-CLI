@@ -93,8 +93,8 @@ Examples:
 			}
 
 			opts := []asc.BetaBuildUsagesOption{
-				asc.WithBetaBuildUsagesLimit(*limit),
-				asc.WithBetaBuildUsagesNextURL(*next),
+				asc.Limit[asc.BetaBuildUsagesOption](*limit),
+				asc.NextURL[asc.BetaBuildUsagesOption](*next),
 			}
 
 			resp, err := client.GetBuildBetaUsagesMetrics(requestCtx, buildID, opts...)

@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -82,8 +81,7 @@ Examples:
 				)
 			}
 			if testerValue == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --tester-id is required")
-				return shared.MissingRequiredUsageError("--tester-id")
+				return shared.RequiredFlag("--tester-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -95,23 +93,22 @@ Examples:
 			defer cancel()
 
 			opts := []asc.BetaTesterAppsOption{
-				asc.WithBetaTesterAppsLimit(*limit),
-				asc.WithBetaTesterAppsNextURL(*next),
+				asc.Limit[asc.BetaTesterAppsOption](*limit),
+				asc.NextURL[asc.BetaTesterAppsOption](*next),
 			}
 
 			if *paginate {
 				if testerValue == "" {
-					fmt.Fprintln(os.Stderr, "Error: --tester-id is required")
-					return shared.MissingRequiredUsageError("--tester-id")
+					return shared.RequiredFlag("--tester-id")
 				}
-				paginateOpts := append(opts, asc.WithBetaTesterAppsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.BetaTesterAppsOption](200))
 				resp, err := shared.PaginateWithSpinner(
 					requestCtx,
 					func(ctx context.Context) (asc.PaginatedResponse, error) {
 						return client.GetBetaTesterApps(ctx, testerValue, paginateOpts...)
 					},
 					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return client.GetBetaTesterApps(ctx, testerValue, asc.WithBetaTesterAppsNextURL(nextURL))
+						return client.GetBetaTesterApps(ctx, testerValue, asc.NextURL[asc.BetaTesterAppsOption](nextURL))
 					},
 				)
 				if err != nil {
@@ -199,8 +196,7 @@ Examples:
 				)
 			}
 			if testerValue == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --tester-id is required")
-				return shared.MissingRequiredUsageError("--tester-id")
+				return shared.RequiredFlag("--tester-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -212,23 +208,22 @@ Examples:
 			defer cancel()
 
 			opts := []asc.BetaTesterBetaGroupsOption{
-				asc.WithBetaTesterBetaGroupsLimit(*limit),
-				asc.WithBetaTesterBetaGroupsNextURL(*next),
+				asc.Limit[asc.BetaTesterBetaGroupsOption](*limit),
+				asc.NextURL[asc.BetaTesterBetaGroupsOption](*next),
 			}
 
 			if *paginate {
 				if testerValue == "" {
-					fmt.Fprintln(os.Stderr, "Error: --tester-id is required")
-					return shared.MissingRequiredUsageError("--tester-id")
+					return shared.RequiredFlag("--tester-id")
 				}
-				paginateOpts := append(opts, asc.WithBetaTesterBetaGroupsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.BetaTesterBetaGroupsOption](200))
 				resp, err := shared.PaginateWithSpinner(
 					requestCtx,
 					func(ctx context.Context) (asc.PaginatedResponse, error) {
 						return client.GetBetaTesterBetaGroups(ctx, testerValue, paginateOpts...)
 					},
 					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return client.GetBetaTesterBetaGroups(ctx, testerValue, asc.WithBetaTesterBetaGroupsNextURL(nextURL))
+						return client.GetBetaTesterBetaGroups(ctx, testerValue, asc.NextURL[asc.BetaTesterBetaGroupsOption](nextURL))
 					},
 				)
 				if err != nil {
@@ -316,8 +311,7 @@ Examples:
 				)
 			}
 			if testerValue == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --tester-id is required")
-				return shared.MissingRequiredUsageError("--tester-id")
+				return shared.RequiredFlag("--tester-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -329,23 +323,22 @@ Examples:
 			defer cancel()
 
 			opts := []asc.BetaTesterBuildsOption{
-				asc.WithBetaTesterBuildsLimit(*limit),
-				asc.WithBetaTesterBuildsNextURL(*next),
+				asc.Limit[asc.BetaTesterBuildsOption](*limit),
+				asc.NextURL[asc.BetaTesterBuildsOption](*next),
 			}
 
 			if *paginate {
 				if testerValue == "" {
-					fmt.Fprintln(os.Stderr, "Error: --tester-id is required")
-					return shared.MissingRequiredUsageError("--tester-id")
+					return shared.RequiredFlag("--tester-id")
 				}
-				paginateOpts := append(opts, asc.WithBetaTesterBuildsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.BetaTesterBuildsOption](200))
 				resp, err := shared.PaginateWithSpinner(
 					requestCtx,
 					func(ctx context.Context) (asc.PaginatedResponse, error) {
 						return client.GetBetaTesterBuilds(ctx, testerValue, paginateOpts...)
 					},
 					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return client.GetBetaTesterBuilds(ctx, testerValue, asc.WithBetaTesterBuildsNextURL(nextURL))
+						return client.GetBetaTesterBuilds(ctx, testerValue, asc.NextURL[asc.BetaTesterBuildsOption](nextURL))
 					},
 				)
 				if err != nil {

@@ -145,13 +145,11 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			iapValue := strings.TrimSpace(*iapID)
 			if iapValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --iap-id is required")
-				return shared.MissingRequiredUsageError("--iap-id")
+				return shared.RequiredFlag("--iap-id")
 			}
 			pathValue := strings.TrimSpace(*filePath)
 			if pathValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --file is required")
-				return shared.MissingRequiredUsageError("--file")
+				return shared.RequiredFlag("--file")
 			}
 
 			file, info, err := openImageFile(pathValue)
@@ -250,8 +248,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*screenshotID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --screenshot-id is required")
-				return shared.MissingRequiredUsageError("--screenshot-id")
+				return shared.RequiredFlag("--screenshot-id")
 			}
 			fileProvided := false
 			fs.Visit(func(f *flag.Flag) {
@@ -263,8 +260,7 @@ Examples:
 			checksumValue := strings.TrimSpace(*checksum)
 			if fileProvided {
 				if strings.TrimSpace(*filePath) == "" {
-					fmt.Fprintln(os.Stderr, "Error: --file is required")
-					return shared.MissingRequiredUsageError("--file")
+					return shared.RequiredFlag("--file")
 				}
 				if checksumValue != "" || uploaded.IsSet() {
 					return shared.UsageError("--file cannot be combined with --checksum or --uploaded")
@@ -433,12 +429,10 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			screenshotValue := strings.TrimSpace(*screenshotID)
 			if screenshotValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --screenshot-id is required")
-				return shared.MissingRequiredUsageError("--screenshot-id")
+				return shared.RequiredFlag("--screenshot-id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()

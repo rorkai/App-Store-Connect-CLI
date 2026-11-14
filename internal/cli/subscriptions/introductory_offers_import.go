@@ -70,12 +70,10 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*subscriptionID) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --subscription-id is required")
-				return shared.MissingRequiredUsageError("--subscription-id")
+				return shared.RequiredFlag("--subscription-id")
 			}
 			if strings.TrimSpace(*inputPath) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --input is required")
-				return shared.MissingRequiredUsageError("--input")
+				return shared.RequiredFlag("--input")
 			}
 			normalizedOfferDuration := ""
 			if strings.TrimSpace(*offerDuration) != "" {
@@ -418,14 +416,14 @@ func fetchSubscriptionIntroductoryOfferImportState(ctx context.Context, client *
 				return nil, err
 			}
 			return shared.RetryReadWithFreshTimeout(ctx, func(requestCtx context.Context) (*asc.SubscriptionIntroductoryOffersResponse, error) {
-				return client.GetSubscriptionIntroductoryOffers(requestCtx, subscriptionID, asc.WithSubscriptionIntroductoryOffersNextURL(mergedNext))
+				return client.GetSubscriptionIntroductoryOffers(requestCtx, subscriptionID, asc.NextURL[asc.SubscriptionIntroductoryOffersOption](mergedNext))
 			})
 		}
 		return shared.RetryReadWithFreshTimeout(ctx, func(requestCtx context.Context) (*asc.SubscriptionIntroductoryOffersResponse, error) {
 			return client.GetSubscriptionIntroductoryOffers(
 				requestCtx,
 				subscriptionID,
-				asc.WithSubscriptionIntroductoryOffersLimit(200),
+				asc.Limit[asc.SubscriptionIntroductoryOffersOption](200),
 				asc.WithSubscriptionIntroductoryOffersFields([]string{"startDate", "endDate", "duration", "offerMode", "numberOfPeriods", "targetSubscriptionPlanType", "territory", "subscriptionPricePoint"}),
 				asc.WithSubscriptionIntroductoryOffersInclude([]string{"territory", "subscriptionPricePoint"}),
 			)

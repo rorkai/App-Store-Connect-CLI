@@ -2,6 +2,7 @@ package asc
 
 import (
 	"net/url"
+	"strings"
 )
 
 // GameCenterGroupAttributes represents a Game Center group resource.
@@ -60,6 +61,24 @@ type GCGroupsOption func(*gcGroupsQuery)
 type gcGroupsQuery struct {
 	listQuery
 	gameCenterDetailIDs []string
+}
+
+// WithGCGroupsLimit sets the max number of groups to return.
+func WithGCGroupsLimit(limit int) GCGroupsOption {
+	return func(q *gcGroupsQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithGCGroupsNextURL uses a next page URL directly.
+func WithGCGroupsNextURL(next string) GCGroupsOption {
+	return func(q *gcGroupsQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
 }
 
 // WithGCGroupsGameCenterDetailIDs filters groups by Game Center detail IDs.

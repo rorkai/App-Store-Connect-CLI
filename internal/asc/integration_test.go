@@ -35,7 +35,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		versions, err := client.GetAppStoreVersions(ctx, appID, WithAppStoreVersionsLimit(50))
+		versions, err := client.GetAppStoreVersions(ctx, appID, Limit[AppStoreVersionsOption](50))
 		if err != nil {
 			t.Fatalf("failed to fetch app store versions: %v", err)
 		}
@@ -51,7 +51,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 			t.Skip("no app store version id available")
 		}
 
-		localizations, err := client.GetAppStoreVersionLocalizations(ctx, selected.ID, WithAppStoreVersionLocalizationsLimit(1))
+		localizations, err := client.GetAppStoreVersionLocalizations(ctx, selected.ID, Limit[AppStoreVersionLocalizationsOption](1))
 		if err != nil {
 			t.Fatalf("failed to fetch app store version localizations: %v", err)
 		}
@@ -69,7 +69,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		providers, err := client.GetScmProviders(ctx, WithScmProvidersLimit(1))
+		providers, err := client.GetScmProviders(ctx, Limit[ScmProvidersOption](1))
 		if err != nil {
 			if errors.Is(err, ErrForbidden) || errors.Is(err, ErrNotFound) {
 				t.Skipf("scm providers unavailable: %v", err)
@@ -94,7 +94,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 		}
 		assertASCLink(t, provider.Links.Self)
 
-		repos, err := client.GetScmProviderRepositories(ctx, providerID, WithScmRepositoriesLimit(1))
+		repos, err := client.GetScmProviderRepositories(ctx, providerID, Limit[ScmRepositoriesOption](1))
 		if err != nil {
 			t.Fatalf("failed to fetch scm provider repositories: %v", err)
 		}
@@ -115,7 +115,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 			t.Fatal("expected scm repository data")
 		}
 
-		gitReferences, err := client.GetScmGitReferences(ctx, repoID, WithScmGitReferencesLimit(1))
+		gitReferences, err := client.GetScmGitReferences(ctx, repoID, Limit[ScmGitReferencesOption](1))
 		if err != nil {
 			t.Fatalf("failed to fetch scm git references: %v", err)
 		}
@@ -137,7 +137,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 		}
 		assertASCLink(t, gitRef.Links.Self)
 
-		gitRefRel, err := client.GetScmRepositoryGitReferencesRelationships(ctx, repoID, WithLinkagesLimit(1))
+		gitRefRel, err := client.GetScmRepositoryGitReferencesRelationships(ctx, repoID, Limit[LinkagesOption](1))
 		if err != nil {
 			t.Fatalf("failed to fetch scm git reference relationships: %v", err)
 		}
@@ -146,7 +146,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 			assertASCLink(t, gitRefRel.Links.Next)
 		}
 
-		pullRequests, err := client.GetScmRepositoryPullRequests(ctx, repoID, WithScmPullRequestsLimit(1))
+		pullRequests, err := client.GetScmRepositoryPullRequests(ctx, repoID, Limit[ScmPullRequestsOption](1))
 		if err != nil {
 			t.Fatalf("failed to fetch scm pull requests: %v", err)
 		}
@@ -168,7 +168,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 		}
 		assertASCLink(t, pullRequest.Links.Self)
 
-		pullRequestRel, err := client.GetScmRepositoryPullRequestsRelationships(ctx, repoID, WithLinkagesLimit(1))
+		pullRequestRel, err := client.GetScmRepositoryPullRequestsRelationships(ctx, repoID, Limit[LinkagesOption](1))
 		if err != nil {
 			t.Fatalf("failed to fetch scm pull request relationships: %v", err)
 		}
@@ -182,7 +182,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		requests, err := client.GetAnalyticsReportRequests(ctx, appID, WithAnalyticsReportRequestsLimit(1))
+		requests, err := client.GetAnalyticsReportRequests(ctx, appID, Limit[AnalyticsReportRequestsOption](1))
 		if err != nil {
 			t.Fatalf("failed to fetch analytics report requests: %v", err)
 		}
@@ -203,7 +203,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 			t.Fatal("expected analytics report request data")
 		}
 
-		reports, err := client.GetAnalyticsReports(ctx, requestID, WithAnalyticsReportsLimit(1))
+		reports, err := client.GetAnalyticsReports(ctx, requestID, Limit[AnalyticsReportsOption](1))
 		if err != nil {
 			t.Fatalf("failed to fetch analytics reports: %v", err)
 		}
@@ -225,7 +225,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 		}
 		assertASCLink(t, report.Links.Self)
 
-		instancesRel, err := client.GetAnalyticsReportInstancesRelationships(ctx, reportID, WithLinkagesLimit(1))
+		instancesRel, err := client.GetAnalyticsReportInstancesRelationships(ctx, reportID, Limit[LinkagesOption](1))
 		if err != nil {
 			t.Fatalf("failed to fetch analytics report instance relationships: %v", err)
 		}
@@ -234,7 +234,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 			assertASCLink(t, instancesRel.Links.Next)
 		}
 
-		instances, err := client.GetAnalyticsReportInstances(ctx, reportID, WithAnalyticsReportInstancesLimit(1))
+		instances, err := client.GetAnalyticsReportInstances(ctx, reportID, Limit[AnalyticsReportInstancesOption](1))
 		if err != nil {
 			t.Fatalf("failed to fetch analytics report instances: %v", err)
 		}
@@ -256,7 +256,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 		}
 		assertASCLink(t, instance.Links.Self)
 
-		segmentsRel, err := client.GetAnalyticsReportInstanceSegmentsRelationships(ctx, instanceID, WithLinkagesLimit(1))
+		segmentsRel, err := client.GetAnalyticsReportInstanceSegmentsRelationships(ctx, instanceID, Limit[LinkagesOption](1))
 		if err != nil {
 			t.Fatalf("failed to fetch analytics report instance segment relationships: %v", err)
 		}
@@ -265,7 +265,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 			assertASCLink(t, segmentsRel.Links.Next)
 		}
 
-		segments, err := client.GetAnalyticsReportSegments(ctx, instanceID, WithAnalyticsReportSegmentsLimit(1))
+		segments, err := client.GetAnalyticsReportSegments(ctx, instanceID, Limit[AnalyticsReportSegmentsOption](1))
 		if err != nil {
 			t.Fatalf("failed to fetch analytics report segments: %v", err)
 		}
@@ -292,7 +292,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		feedback, err := client.GetFeedback(ctx, appID, WithFeedbackLimit(1))
+		feedback, err := client.GetFeedback(ctx, appID, Limit[FeedbackOption](1))
 		if err != nil {
 			t.Fatalf("failed to fetch feedback: %v", err)
 		}
@@ -308,7 +308,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 		if feedback.Links.Next != "" {
 			nextCtx, nextCancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer nextCancel()
-			nextFeedback, err := client.GetFeedback(nextCtx, appID, WithFeedbackNextURL(feedback.Links.Next))
+			nextFeedback, err := client.GetFeedback(nextCtx, appID, NextURL[FeedbackOption](feedback.Links.Next))
 			if err != nil {
 				t.Fatalf("failed to fetch feedback next page: %v", err)
 			}
@@ -331,7 +331,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 				filteredCtx,
 				appID,
 				WithFeedbackDeviceModels([]string{first.DeviceModel}),
-				WithFeedbackLimit(5),
+				Limit[FeedbackOption](5),
 			)
 			if err != nil {
 				t.Fatalf("failed to fetch filtered feedback by device model: %v", err)
@@ -354,7 +354,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 				filteredCtx,
 				appID,
 				WithFeedbackOSVersions([]string{first.OSVersion}),
-				WithFeedbackLimit(5),
+				Limit[FeedbackOption](5),
 			)
 			if err != nil {
 				t.Fatalf("failed to fetch filtered feedback by os version: %v", err)
@@ -377,7 +377,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 				filteredCtx,
 				appID,
 				WithFeedbackAppPlatforms([]string{first.AppPlatform}),
-				WithFeedbackLimit(5),
+				Limit[FeedbackOption](5),
 			)
 			if err != nil {
 				t.Fatalf("failed to fetch filtered feedback by app platform: %v", err)
@@ -400,7 +400,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 				filteredCtx,
 				appID,
 				WithFeedbackDevicePlatforms([]string{first.DevicePlatform}),
-				WithFeedbackLimit(5),
+				Limit[FeedbackOption](5),
 			)
 			if err != nil {
 				t.Fatalf("failed to fetch filtered feedback by device platform: %v", err)
@@ -422,7 +422,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 			sortedCtx,
 			appID,
 			WithFeedbackSort("-createdDate"),
-			WithFeedbackLimit(5),
+			Limit[FeedbackOption](5),
 		)
 		if err != nil {
 			t.Fatalf("failed to fetch sorted feedback: %v", err)
@@ -445,7 +445,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		crashes, err := client.GetCrashes(ctx, appID, WithCrashLimit(1))
+		crashes, err := client.GetCrashes(ctx, appID, Limit[CrashOption](1))
 		if err != nil {
 			t.Fatalf("failed to fetch crashes: %v", err)
 		}
@@ -461,7 +461,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 		if crashes.Links.Next != "" {
 			nextCtx, nextCancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer nextCancel()
-			nextCrashes, err := client.GetCrashes(nextCtx, appID, WithCrashNextURL(crashes.Links.Next))
+			nextCrashes, err := client.GetCrashes(nextCtx, appID, NextURL[CrashOption](crashes.Links.Next))
 			if err != nil {
 				t.Fatalf("failed to fetch crashes next page: %v", err)
 			}
@@ -484,7 +484,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 				filteredCtx,
 				appID,
 				WithCrashDeviceModels([]string{first.DeviceModel}),
-				WithCrashLimit(5),
+				Limit[CrashOption](5),
 			)
 			if err != nil {
 				t.Fatalf("failed to fetch filtered crashes by device model: %v", err)
@@ -507,7 +507,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 				filteredCtx,
 				appID,
 				WithCrashOSVersions([]string{first.OSVersion}),
-				WithCrashLimit(5),
+				Limit[CrashOption](5),
 			)
 			if err != nil {
 				t.Fatalf("failed to fetch filtered crashes by os version: %v", err)
@@ -530,7 +530,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 				filteredCtx,
 				appID,
 				WithCrashAppPlatforms([]string{first.AppPlatform}),
-				WithCrashLimit(5),
+				Limit[CrashOption](5),
 			)
 			if err != nil {
 				t.Fatalf("failed to fetch filtered crashes by app platform: %v", err)
@@ -553,7 +553,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 				filteredCtx,
 				appID,
 				WithCrashDevicePlatforms([]string{first.DevicePlatform}),
-				WithCrashLimit(5),
+				Limit[CrashOption](5),
 			)
 			if err != nil {
 				t.Fatalf("failed to fetch filtered crashes by device platform: %v", err)
@@ -575,7 +575,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 			sortedCtx,
 			appID,
 			WithCrashSort("-createdDate"),
-			WithCrashLimit(5),
+			Limit[CrashOption](5),
 		)
 		if err != nil {
 			t.Fatalf("failed to fetch sorted crashes: %v", err)
@@ -598,7 +598,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		reviews, err := client.GetReviews(ctx, appID, WithLimit(1))
+		reviews, err := client.GetReviews(ctx, appID, Limit[ReviewOption](1))
 		if err != nil {
 			t.Fatalf("failed to fetch reviews: %v", err)
 		}
@@ -614,7 +614,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 		if reviews.Links.Next != "" {
 			nextCtx, nextCancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer nextCancel()
-			nextReviews, err := client.GetReviews(nextCtx, appID, WithNextURL(reviews.Links.Next))
+			nextReviews, err := client.GetReviews(nextCtx, appID, NextURL[ReviewOption](reviews.Links.Next))
 			if err != nil {
 				t.Fatalf("failed to fetch reviews next page: %v", err)
 			}
@@ -637,7 +637,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 				filteredCtx,
 				appID,
 				WithRating(first.Rating),
-				WithLimit(5),
+				Limit[ReviewOption](5),
 			)
 			if err != nil {
 				t.Fatalf("failed to fetch filtered reviews by rating: %v", err)
@@ -660,7 +660,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 				filteredCtx,
 				appID,
 				WithTerritory(first.Territory),
-				WithLimit(5),
+				Limit[ReviewOption](5),
 			)
 			if err != nil {
 				t.Fatalf("failed to fetch filtered reviews by territory: %v", err)
@@ -682,7 +682,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 			sortedCtx,
 			appID,
 			WithReviewSort("-createdDate"),
-			WithLimit(5),
+			Limit[ReviewOption](5),
 		)
 		if err != nil {
 			t.Fatalf("failed to fetch sorted reviews: %v", err)
@@ -705,7 +705,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		builds, err := client.GetBuilds(ctx, appID, WithBuildsLimit(5))
+		builds, err := client.GetBuilds(ctx, appID, Limit[BuildsOption](5))
 		if err != nil {
 			t.Fatalf("failed to fetch builds: %v", err)
 		}
@@ -745,7 +745,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 			sortedCtx,
 			appID,
 			WithBuildsSort("-uploadedDate"),
-			WithBuildsLimit(5),
+			Limit[BuildsOption](5),
 		)
 		if err != nil {
 			t.Fatalf("failed to fetch sorted builds: %v", err)

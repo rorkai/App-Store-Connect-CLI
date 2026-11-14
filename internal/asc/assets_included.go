@@ -141,7 +141,7 @@ func (c *Client) AppScreenshotSetsWithScreenshots(ctx context.Context, response 
 				return nil, fmt.Errorf("failed to fetch screenshots for set %s: %w", set.ID, err)
 			}
 			requestCtx, cancel := requestContextFor(ctx, requestContext)
-			linkages, err := c.GetAppScreenshotSetAppScreenshotsRelationships(requestCtx, set.ID, WithLinkagesLimit(200))
+			linkages, err := c.GetAppScreenshotSetAppScreenshotsRelationships(requestCtx, set.ID, Limit[LinkagesOption](200))
 			cancel()
 			if err != nil {
 				return nil, fmt.Errorf("failed to fetch screenshot order for set %s: %w", set.ID, err)
@@ -169,7 +169,7 @@ func (c *Client) AppPreviewSetsWithPreviews(ctx context.Context, response *AppPr
 				return nil, fmt.Errorf("failed to fetch previews for set %s: %w", set.ID, err)
 			}
 			requestCtx, cancel = requestContextFor(ctx, requestContext)
-			linkages, err := c.GetAppPreviewSetAppPreviewsRelationships(requestCtx, set.ID, WithLinkagesLimit(200))
+			linkages, err := c.GetAppPreviewSetAppPreviewsRelationships(requestCtx, set.ID, Limit[LinkagesOption](200))
 			cancel()
 			if err != nil {
 				return nil, fmt.Errorf("failed to fetch preview order for set %s: %w", set.ID, err)

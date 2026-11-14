@@ -1,13 +1,13 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
-	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestGameCenterAchievementsValidationErrors(t *testing.T) {
@@ -44,37 +44,15 @@ func TestGameCenterAchievementsListNoDetailReturnsEmptyList(t *testing.T) {
 
 	expectedURL := "https://api.appstoreconnect.apple.com/v1/apps/APP_ID/gameCenterDetail"
 
-	callCount := &lockedCounter{}
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if callCount.Inc() > 1 {
-			t.Fatalf("unexpected extra request: %s %s", req.Method, req.URL.String())
-		}
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.String() != expectedURL {
-			t.Fatalf("expected URL %s, got %s", expectedURL, req.URL.String())
-		}
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/APP_ID/gameCenterDetail"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"gameCenterDetails","id":"","attributes":{}},"links":{"self":"`+expectedURL+`"}}`))
 
-		body := `{"data":{"type":"gameCenterDetails","id":"","attributes":{}},"links":{"self":"` + expectedURL + `"}}`
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	}))
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"game-center", "achievements", "list", "--app", "APP_ID"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"game-center", "achievements", "list", "--app", "APP_ID"})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if !strings.Contains(stderr, "Warning: no Game Center detail exists for this app") {
 		t.Fatalf("expected warning in stderr, got %q", stderr)

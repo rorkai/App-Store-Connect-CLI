@@ -77,8 +77,7 @@ Examples:
 			resolvedAppID := shared.ResolveAppID(*appID)
 			nextValue := strings.TrimSpace(*next)
 			if nextValue == "" && testerValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --tester-id is required")
-				return shared.MissingRequiredUsageError("--tester-id")
+				return shared.RequiredFlag("--tester-id")
 			}
 			if nextValue == "" && resolvedAppID == "" {
 				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
@@ -94,8 +93,8 @@ Examples:
 			defer cancel()
 
 			opts := []asc.BetaTesterUsagesOption{
-				asc.WithBetaTesterUsagesLimit(*limit),
-				asc.WithBetaTesterUsagesNextURL(*next),
+				asc.Limit[asc.BetaTesterUsagesOption](*limit),
+				asc.NextURL[asc.BetaTesterUsagesOption](*next),
 				asc.WithBetaTesterUsagesPeriod(periodValue),
 				asc.WithBetaTesterUsagesAppID(resolvedAppID),
 			}

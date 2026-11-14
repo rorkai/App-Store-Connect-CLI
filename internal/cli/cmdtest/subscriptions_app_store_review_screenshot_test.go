@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestSubscriptionsReviewAppStoreScreenshotViewNullRelationshipReturnsNotFound(t *testing.T) {
@@ -52,15 +53,10 @@ func TestSubscriptionsReviewAppStoreScreenshotViewPrintsPopulatedRelationship(t 
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet || req.URL.Path != "/v1/subscriptions/6759789602/appStoreReviewScreenshot" {
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-		}
-		return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"subscriptionAppStoreReviewScreenshots","id":"shot-1","attributes":{"fileName":"review.png"}},"links":{"self":"https://api.appstoreconnect.apple.com/v1/subscriptions/6759789602/appStoreReviewScreenshot"}}`), nil
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/subscriptions/6759789602/appStoreReviewScreenshot"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"subscriptionAppStoreReviewScreenshots","id":"shot-1","attributes":{"fileName":"review.png"}},"links":{"self":"https://api.appstoreconnect.apple.com/v1/subscriptions/6759789602/appStoreReviewScreenshot"}}`))
 
 	stdout, stderr := captureOutput(t, func() {
 		code := cmd.Run([]string{

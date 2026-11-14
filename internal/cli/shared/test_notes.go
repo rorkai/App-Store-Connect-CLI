@@ -222,7 +222,7 @@ func UpsertBetaBuildLocalization(ctx context.Context, client *asc.Client, buildI
 
 	resp, err := client.GetBetaBuildLocalizations(
 		ctx, buildID,
-		asc.WithBetaBuildLocalizationsLimit(200),
+		asc.Limit[asc.BetaBuildLocalizationsOption](200),
 	)
 	if err != nil {
 		return nil, err
@@ -325,7 +325,7 @@ func hasBetaAppLocalization(ctx context.Context, client *asc.Client, appID, loca
 		ctx,
 		asc.WithBetaAppLocalizationAppIDs([]string{appID}),
 		asc.WithBetaAppLocalizationLocales([]string{locale}),
-		asc.WithBetaAppLocalizationsLimit(200),
+		asc.Limit[asc.BetaAppLocalizationsOption](200),
 	)
 	if err != nil {
 		return false, fmt.Errorf("failed to look up TestFlight app localization %q for app %q: %w", locale, appID, err)

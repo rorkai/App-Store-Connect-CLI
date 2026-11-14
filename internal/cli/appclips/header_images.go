@@ -42,44 +42,24 @@ Examples:
 
 // AppClipHeaderImagesGetCommand retrieves a header image by ID.
 func AppClipHeaderImagesGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	imageID := shared.BindResourceIDFlag(fs, "id", "appClipHeaderImages", "Header image ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc app-clips header-images view --id \"IMAGE_ID\"",
-		ShortHelp:  "View a header image by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc app-clips header-images view --id \"IMAGE_ID\"",
+		ShortHelp:   "View a header image by ID.",
 		LongHelp: `View a header image by ID.
 
 Examples:
   asc app-clips header-images view --id "IMAGE_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			idValue := strings.TrimSpace(*imageID)
-			if idValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("app-clips header-images view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetAppClipHeaderImage(requestCtx, idValue)
-			if err != nil {
-				return fmt.Errorf("app-clips header-images view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage:            "Header image ID",
+		IDType:             "appClipHeaderImages",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "app-clips header-images view",
+		FetchErrorPrefix:   "app-clips header-images view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetAppClipHeaderImage(ctx, id)
 		},
-	}
+	})
 }
 
 // AppClipHeaderImagesCreateCommand uploads a header image.
@@ -105,14 +85,12 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			locValue := strings.TrimSpace(*localizationID)
 			if locValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
-				return shared.MissingRequiredUsageError("--localization-id")
+				return shared.RequiredFlag("--localization-id")
 			}
 
 			fileValue := strings.TrimSpace(*filePath)
 			if fileValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --file is required")
-				return shared.MissingRequiredUsageError("--file")
+				return shared.RequiredFlag("--file")
 			}
 
 			client, err := shared.GetASCClient()
@@ -154,8 +132,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*imageID)
 			if idValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required to delete")

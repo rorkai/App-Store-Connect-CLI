@@ -24,7 +24,7 @@ func TestBuildBuildBundlesQuery(t *testing.T) {
 
 func TestBuildBuildBundleFileSizesQuery(t *testing.T) {
 	query := &buildBundleFileSizesQuery{}
-	WithBuildBundleFileSizesLimit(100)(query)
+	Limit[BuildBundleFileSizesOption](100)(query)
 
 	values, err := url.ParseQuery(buildBuildBundleFileSizesQuery(query))
 	if err != nil {
@@ -37,7 +37,7 @@ func TestBuildBuildBundleFileSizesQuery(t *testing.T) {
 
 func TestBuildBetaAppClipInvocationsQuery(t *testing.T) {
 	query := &betaAppClipInvocationsQuery{}
-	WithBetaAppClipInvocationsLimit(50)(query)
+	Limit[BetaAppClipInvocationsOption](50)(query)
 
 	values, err := url.ParseQuery(buildBetaAppClipInvocationsQuery(query))
 	if err != nil {

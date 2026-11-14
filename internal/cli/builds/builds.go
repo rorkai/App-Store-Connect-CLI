@@ -59,8 +59,7 @@ sending that request.`,
 
 			groupInputs := shared.SplitCSV(groups.String())
 			if len(groupInputs) == 0 {
-				fmt.Fprintln(os.Stderr, "Error: --group is required")
-				return shared.MissingRequiredUsageError("--group")
+				return shared.RequiredFlag("--group")
 			}
 			if *submit && *dryRun {
 				return shared.WithDiagnostic(
@@ -290,12 +289,10 @@ Examples:
 
 			groupIDs := shared.SplitCSV(groups.String())
 			if len(groupIDs) == 0 {
-				fmt.Fprintln(os.Stderr, "Error: --group is required")
-				return shared.MissingRequiredUsageError("--group")
+				return shared.RequiredFlag("--group")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()

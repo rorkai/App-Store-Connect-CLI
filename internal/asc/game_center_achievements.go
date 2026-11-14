@@ -2,6 +2,7 @@ package asc
 
 import (
 	"net/url"
+	"strings"
 )
 
 // GameCenterAchievementAttributes represents a Game Center achievement resource.
@@ -109,6 +110,24 @@ type gcAchievementsQuery struct {
 	listQuery
 }
 
+// WithGCAchievementsLimit sets the max number of achievements to return.
+func WithGCAchievementsLimit(limit int) GCAchievementsOption {
+	return func(q *gcAchievementsQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithGCAchievementsNextURL uses a next page URL directly.
+func WithGCAchievementsNextURL(next string) GCAchievementsOption {
+	return func(q *gcAchievementsQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
 func buildGCAchievementsQuery(query *gcAchievementsQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
@@ -148,6 +167,24 @@ type GCAchievementVersionsOption func(*gcAchievementVersionsQuery)
 
 type gcAchievementVersionsQuery struct {
 	listQuery
+}
+
+// WithGCAchievementVersionsLimit sets the max number of versions to return.
+func WithGCAchievementVersionsLimit(limit int) GCAchievementVersionsOption {
+	return func(q *gcAchievementVersionsQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithGCAchievementVersionsNextURL uses a next page URL directly.
+func WithGCAchievementVersionsNextURL(next string) GCAchievementVersionsOption {
+	return func(q *gcAchievementVersionsQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
 }
 
 func buildGCAchievementVersionsQuery(query *gcAchievementVersionsQuery) string {
@@ -244,6 +281,24 @@ type gcAchievementLocalizationsQuery struct {
 	listQuery
 }
 
+// WithGCAchievementLocalizationsLimit sets the max number of localizations to return.
+func WithGCAchievementLocalizationsLimit(limit int) GCAchievementLocalizationsOption {
+	return func(q *gcAchievementLocalizationsQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithGCAchievementLocalizationsNextURL uses a next page URL directly.
+func WithGCAchievementLocalizationsNextURL(next string) GCAchievementLocalizationsOption {
+	return func(q *gcAchievementLocalizationsQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
 func buildGCAchievementLocalizationsQuery(query *gcAchievementLocalizationsQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
@@ -289,6 +344,24 @@ type GCAchievementReleasesOption func(*gcAchievementReleasesQuery)
 
 type gcAchievementReleasesQuery struct {
 	listQuery
+}
+
+// WithGCAchievementReleasesLimit sets the max number of achievement releases to return.
+func WithGCAchievementReleasesLimit(limit int) GCAchievementReleasesOption {
+	return func(q *gcAchievementReleasesQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithGCAchievementReleasesNextURL uses a next page URL directly.
+func WithGCAchievementReleasesNextURL(next string) GCAchievementReleasesOption {
+	return func(q *gcAchievementReleasesQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
 }
 
 func buildGCAchievementReleasesQuery(query *gcAchievementReleasesQuery) string {

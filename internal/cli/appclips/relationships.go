@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -44,8 +43,7 @@ Examples:
 
 			appClipValue := strings.TrimSpace(*appClipID)
 			if appClipValue == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app-clip-id is required")
-				return shared.MissingRequiredUsageError("--app-clip-id")
+				return shared.RequiredFlag("--app-clip-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -57,19 +55,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.LinkagesOption{
-				asc.WithLinkagesLimit(*limit),
-				asc.WithLinkagesNextURL(*next),
+				asc.Limit[asc.LinkagesOption](*limit),
+				asc.NextURL[asc.LinkagesOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithLinkagesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.LinkagesOption](200))
 				firstPage, err := client.GetAppClipDefaultExperiencesRelationships(requestCtx, appClipValue, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("app-clips default-experiences-links: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppClipDefaultExperiencesRelationships(ctx, appClipValue, asc.WithLinkagesNextURL(nextURL))
+					return client.GetAppClipDefaultExperiencesRelationships(ctx, appClipValue, asc.NextURL[asc.LinkagesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("app-clips default-experiences-links: %w", err)
@@ -119,8 +117,7 @@ Examples:
 
 			appClipValue := strings.TrimSpace(*appClipID)
 			if appClipValue == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app-clip-id is required")
-				return shared.MissingRequiredUsageError("--app-clip-id")
+				return shared.RequiredFlag("--app-clip-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -132,19 +129,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.LinkagesOption{
-				asc.WithLinkagesLimit(*limit),
-				asc.WithLinkagesNextURL(*next),
+				asc.Limit[asc.LinkagesOption](*limit),
+				asc.NextURL[asc.LinkagesOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithLinkagesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.LinkagesOption](200))
 				firstPage, err := client.GetAppClipAdvancedExperiencesRelationships(requestCtx, appClipValue, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("app-clips advanced-experiences-links: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppClipAdvancedExperiencesRelationships(ctx, appClipValue, asc.WithLinkagesNextURL(nextURL))
+					return client.GetAppClipAdvancedExperiencesRelationships(ctx, appClipValue, asc.NextURL[asc.LinkagesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("app-clips advanced-experiences-links: %w", err)

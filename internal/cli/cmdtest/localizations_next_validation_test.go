@@ -1,14 +1,14 @@
 package cmdtest
 
 import (
-	"context"
-	"io"
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestLocalizationsListsRejectsInvalidNextURL(t *testing.T) {
@@ -89,22 +89,10 @@ func TestBuildLocalizationsListNextWithBuildID(t *testing.T) {
 			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-			originalTransport := http.DefaultTransport
-			t.Cleanup(func() {
-				http.DefaultTransport = originalTransport
-			})
-
 			wantRequests := append([]string{"https://api.appstoreconnect.apple.com/v1/builds/build-1/appStoreVersion"}, tc.wantPages...)
-			requestCount := 0
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				if requestCount >= len(wantRequests) {
-					t.Fatalf("unexpected extra request: %s %s", req.Method, req.URL.String())
-				}
-				want := wantRequests[requestCount]
-				requestCount++
-				if req.Method != http.MethodGet || req.URL.String() != want {
-					t.Fatalf("request %d = %s %s, want GET %s", requestCount, req.Method, req.URL.String(), want)
-				}
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			for _, want := range wantRequests {
 				body := `{"data":{"type":"appStoreVersions","id":"version-1"}}`
 				switch want {
 				case firstURL:
@@ -112,23 +100,14 @@ func TestBuildLocalizationsListNextWithBuildID(t *testing.T) {
 				case secondURL:
 					body = `{"data":[{"type":"appStoreVersionLocalizations","id":"page-2"}],"links":{"next":""}}`
 				}
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body:       io.NopCloser(strings.NewReader(body)),
-					Header:     http.Header{"Content-Type": []string{"application/json"}},
-				}, nil
-			})
-
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			var runErr error
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse([]string{"build-localizations", "list", "--build-id", "build-1", "--paginate", "--next", tc.next}); err != nil {
-					t.Fatalf("parse error: %v", err)
+				wantURL, err := url.Parse(want)
+				if err != nil {
+					t.Fatalf("parse %s: %v", want, err)
 				}
-				runErr = root.Run(context.Background())
-			})
+				reg.Register(asctest.GET(wantURL.EscapedPath(), strings.Split(wantURL.RawQuery, "&")...), asctest.JSON(http.StatusOK, body))
+			}
+
+			stdout, stderr, runErr := runCommand(t, []string{"build-localizations", "list", "--build-id", "build-1", "--paginate", "--next", tc.next})
 
 			if tc.wantErr != "" {
 				if got := rootcmd.ExitCodeFromError(runErr); got != rootcmd.ExitUsage {
@@ -146,8 +125,14 @@ func TestBuildLocalizationsListNextWithBuildID(t *testing.T) {
 			if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)
 			}
-			if requestCount != len(wantRequests) {
+			requests := reg.Requests()
+			if requestCount := len(requests); requestCount != len(wantRequests) {
 				t.Fatalf("requests = %d, want %d", requestCount, len(wantRequests))
+			}
+			for index, req := range requests {
+				if req.Method != http.MethodGet || req.URL.String() != wantRequests[index] {
+					t.Fatalf("request %d = %s %s, want GET %s", index+1, req.Method, req.URL.String(), wantRequests[index])
+				}
 			}
 			for _, needle := range []string{`"id":"page-1"`, `"id":"page-2"`} {
 				if !strings.Contains(stdout, needle) {

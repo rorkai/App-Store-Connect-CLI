@@ -133,8 +133,7 @@ Examples:
 				}
 			}
 			if submissionValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --submission is required")
-				return shared.MissingRequiredUsageError("--submission")
+				return shared.RequiredFlag("--submission")
 			}
 
 			client, err := reviewItemsClientFactory()
@@ -146,14 +145,14 @@ Examples:
 			defer cancel()
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithReviewSubmissionItemsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.ReviewSubmissionItemsOption](200))
 				resp, err := shared.PaginateWithSpinner(
 					requestCtx,
 					func(ctx context.Context) (asc.PaginatedResponse, error) {
 						return client.GetReviewSubmissionItems(ctx, submissionValue, paginateOpts...)
 					},
 					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return client.GetReviewSubmissionItems(ctx, submissionValue, asc.WithReviewSubmissionItemsNextURL(nextURL))
+						return client.GetReviewSubmissionItems(ctx, submissionValue, asc.NextURL[asc.ReviewSubmissionItemsOption](nextURL))
 					},
 				)
 				if err != nil {
@@ -272,8 +271,8 @@ func reviewItemsListOptions(limit int, next, fields, include, iapVersionFields, 
 	addVersionRelationship(groupFields, "subscriptionGroupVersion")
 
 	return []asc.ReviewSubmissionItemsOption{
-		asc.WithReviewSubmissionItemsLimit(limit),
-		asc.WithReviewSubmissionItemsNextURL(next),
+		asc.Limit[asc.ReviewSubmissionItemsOption](limit),
+		asc.NextURL[asc.ReviewSubmissionItemsOption](next),
 		asc.WithReviewSubmissionItemsFields(itemFields),
 		asc.WithReviewSubmissionItemsInclude(includes),
 		asc.WithReviewSubmissionItemsInAppPurchaseVersionFields(iapFields),
@@ -325,16 +324,13 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*submissionID) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --submission is required")
-				return shared.MissingRequiredUsageError("--submission")
+				return shared.RequiredFlag("--submission")
 			}
 			if strings.TrimSpace(*itemType) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --item-type is required")
-				return shared.MissingRequiredUsageError("--item-type")
+				return shared.RequiredFlag("--item-type")
 			}
 			if strings.TrimSpace(*itemID) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --item-id is required")
-				return shared.MissingRequiredUsageError("--item-id")
+				return shared.RequiredFlag("--item-id")
 			}
 
 			normalizedType, err := normalizeReviewSubmissionItemType(*itemType)
@@ -414,8 +410,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*itemID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			resolvedProvided := reviewFlagWasProvided(fs, "resolved")
 			removedProvided := reviewFlagWasProvided(fs, "removed")
@@ -517,8 +512,7 @@ Examples:
 				return shared.MissingRequiredUsageError("--confirm")
 			}
 			if strings.TrimSpace(*itemID) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			client, err := reviewItemsClientFactory()
@@ -730,7 +724,7 @@ func findExistingReviewSubmissionItem(
 	}
 	opts := []asc.ReviewSubmissionItemsOption{
 		asc.WithReviewSubmissionItemsInclude([]string{relationshipName}),
-		asc.WithReviewSubmissionItemsLimit(200),
+		asc.Limit[asc.ReviewSubmissionItemsOption](200),
 	}
 	// The read-back is mutation evidence (a match turns the 409 into success),
 	// so every page goes through the strict JSON:API envelope validation the
@@ -742,7 +736,7 @@ func findExistingReviewSubmissionItem(
 	var found *asc.ReviewSubmissionItemResponse
 	itemFound := errors.New("review submission item found")
 	err = asc.PaginateEach(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetReviewSubmissionItemsStrict(ctx, submissionID, asc.WithReviewSubmissionItemsNextURL(nextURL))
+		return client.GetReviewSubmissionItemsStrict(ctx, submissionID, asc.NextURL[asc.ReviewSubmissionItemsOption](nextURL))
 	}, func(page asc.PaginatedResponse) error {
 		items := page.(*asc.ReviewSubmissionItemsResponse)
 		for _, candidate := range items.Data {

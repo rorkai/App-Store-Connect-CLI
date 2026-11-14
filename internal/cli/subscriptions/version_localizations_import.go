@@ -42,7 +42,7 @@ func SubscriptionsGroupsVersionLocalizationsImportCommand() *ffcli.Command {
 func subscriptionVersionLocalizationImportOps(client *asc.Client) shared.VersionLocalizationImportOps {
 	return shared.VersionLocalizationImportOps{
 		List: func(ctx context.Context, versionID string) ([]shared.VersionLocalization, error) {
-			first, err := client.GetSubscriptionVersionLocalizations(ctx, versionID, asc.WithSubscriptionVersionLocalizationsLimit(200))
+			first, err := client.GetSubscriptionVersionLocalizations(ctx, versionID, asc.Limit[asc.SubscriptionVersionLocalizationsOption](200))
 			if err != nil {
 				return nil, err
 			}
@@ -87,7 +87,7 @@ func subscriptionVersionLocalizationImportOps(client *asc.Client) shared.Version
 func subscriptionGroupVersionLocalizationImportOps(client *asc.Client) shared.VersionLocalizationImportOps {
 	return shared.VersionLocalizationImportOps{
 		List: func(ctx context.Context, versionID string) ([]shared.VersionLocalization, error) {
-			first, err := client.GetSubscriptionGroupVersionLocalizations(ctx, versionID, asc.WithSubscriptionGroupVersionLocalizationsLimit(200))
+			first, err := client.GetSubscriptionGroupVersionLocalizations(ctx, versionID, asc.Limit[asc.SubscriptionGroupVersionLocalizationsOption](200))
 			if err != nil {
 				return nil, err
 			}

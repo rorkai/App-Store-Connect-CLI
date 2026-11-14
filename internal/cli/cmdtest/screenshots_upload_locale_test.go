@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -65,12 +66,7 @@ func TestScreenshotsUploadLocaleUsageErrorsExitBeforeRequests(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			originalTransport := http.DefaultTransport
-			t.Cleanup(func() { http.DefaultTransport = originalTransport })
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				t.Fatalf("usage error must not send requests, got %s %s", req.Method, req.URL.String())
-				return nil, nil
-			})
+			asctest.NewRegistry(t).Install()
 			stdout, stderr, runErr := runRootCommand(t, test.args)
 			if runErr == nil {
 				t.Fatal("expected usage error")
@@ -135,17 +131,12 @@ func TestScreenshotsUploadMissingRemoteLocalizationIsResourceNotFound(t *testing
 			}
 			writePNG(t, filepath.Join(imageDir, "01-home.png"), 1242, 2688)
 
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				switch {
-				case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/123456789/appStoreVersions":
-					return statusJSONResponse(`{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"platform":"IOS","versionString":"1.2.3"}}],"links":{}}`), nil
-				case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
-					return statusJSONResponse(`{"data":` + test.localizations + `,"links":{}}`), nil
-				default:
-					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-					return nil, nil
-				}
-			}))
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "filter[platform]=IOS", "filter[versionString]=1.2.3", "limit=10"),
+				asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"platform":"IOS","versionString":"1.2.3"}}],"links":{}}`))
+			reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "limit=200"),
+				asctest.JSON(http.StatusOK, `{"data":`+test.localizations+`,"links":{}}`))
 
 			args := []string{
 				"screenshots", "upload",

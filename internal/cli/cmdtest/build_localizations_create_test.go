@@ -1,21 +1,16 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
-	"io"
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestBuildLocalizationsCreateWarnsForIncompleteCreate(t *testing.T) {
 	setupAuth(t)
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
 
 	var seenPayload struct {
 		Data struct {
@@ -33,53 +28,35 @@ func TestBuildLocalizationsCreateWarnsForIncompleteCreate(t *testing.T) {
 		} `json:"data"`
 	}
 
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/builds/build-1/appStoreVersion":
-			body := `{"data":{"type":"appStoreVersions","id":"version-1"}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case req.Method == http.MethodPost && req.URL.Path == "/v1/appStoreVersionLocalizations":
-			if err := json.NewDecoder(req.Body).Decode(&seenPayload); err != nil {
-				t.Fatalf("decode payload: %v", err)
-			}
-			body := `{"data":{"type":"appStoreVersionLocalizations","id":"loc-build-1","attributes":{"locale":"en-US","whatsNew":"Bug fixes"}}}`
-			return &http.Response{
-				StatusCode: http.StatusCreated,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/builds/build-1/appStoreVersion"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-1"}}`))
+	reg.Register(asctest.POST("/v1/appStoreVersionLocalizations").JSONBody(`{"data":{"type":"appStoreVersionLocalizations","attributes":{"locale":"en-US","whatsNew":"Bug fixes"},"relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"version-1"}}}}}`),
+		asctest.JSON(http.StatusCreated, `{"data":{"type":"appStoreVersionLocalizations","id":"loc-build-1","attributes":{"locale":"en-US","whatsNew":"Bug fixes"}}}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"build-localizations", "create",
-			"--build-id", "build-1",
-			"--locale", "en-US",
-			"--whats-new", "Bug fixes",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
+	stdout, stderr, err := runCommand(t, []string{
+		"build-localizations", "create",
+		"--build-id", "build-1",
+		"--locale", "en-US",
+		"--whats-new", "Bug fixes",
 	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if !strings.Contains(stderr, "created locale en-US now participates in submission validation") {
 		t.Fatalf("expected create warning on stderr, got %q", stderr)
 	}
 	if !strings.Contains(stderr, "description, keywords, supportUrl") {
 		t.Fatalf("expected missing submit fields in warning, got %q", stderr)
+	}
+	for _, req := range reg.Requests() {
+		if req.Method == http.MethodPost {
+			if err := json.Unmarshal(req.Body, &seenPayload); err != nil {
+				t.Fatalf("decode payload: %v", err)
+			}
+		}
 	}
 	if seenPayload.Data.Attributes.Locale != "en-US" {
 		t.Fatalf("expected locale en-US, got %q", seenPayload.Data.Attributes.Locale)

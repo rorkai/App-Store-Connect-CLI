@@ -3,6 +3,7 @@ package shared
 import (
 	"errors"
 	"flag"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -132,6 +133,23 @@ func TestMissingRequiredUsageErrorCarriesStructuredDiagnostic(t *testing.T) {
 				t.Fatalf("DiagnosticFromError() = %+v", diagnostic)
 			}
 		})
+	}
+}
+
+func TestRequiredFlagPrintsErrorLineAndReturnsMissingRequiredUsageError(t *testing.T) {
+	var err error
+	stdout, stderr := captureOutput(t, func() {
+		err = RequiredFlag("--app")
+	})
+
+	if stdout != "" {
+		t.Fatalf("RequiredFlag() stdout = %q, want empty", stdout)
+	}
+	if want := "Error: --app is required\n"; stderr != want {
+		t.Fatalf("RequiredFlag() stderr = %q, want %q", stderr, want)
+	}
+	if want := MissingRequiredUsageError("--app"); !reflect.DeepEqual(err, want) {
+		t.Fatalf("RequiredFlag() = %#v, want %#v", err, want)
 	}
 }
 

@@ -67,8 +67,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			versionIDValue := strings.TrimSpace(*versionID)
 			if versionIDValue == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return shared.MissingRequiredUsageError("--version-id")
+				return shared.RequiredFlag("--version-id")
 			}
 			if *limit != 0 && (*limit < 1 || *limit > backgroundAssetsMaxLimit) {
 				return shared.UsageErrorf("background-assets upload-files list: --limit must be between 1 and %d", backgroundAssetsMaxLimit)
@@ -86,19 +85,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.BackgroundAssetUploadFilesOption{
-				asc.WithBackgroundAssetUploadFilesLimit(*limit),
-				asc.WithBackgroundAssetUploadFilesNextURL(*next),
+				asc.Limit[asc.BackgroundAssetUploadFilesOption](*limit),
+				asc.NextURL[asc.BackgroundAssetUploadFilesOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithBackgroundAssetUploadFilesLimit(backgroundAssetsMaxLimit))
+				paginateOpts := append(opts, asc.Limit[asc.BackgroundAssetUploadFilesOption](backgroundAssetsMaxLimit))
 				firstPage, err := client.GetBackgroundAssetUploadFiles(requestCtx, versionIDValue, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("background-assets upload-files list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetBackgroundAssetUploadFiles(ctx, versionIDValue, asc.WithBackgroundAssetUploadFilesNextURL(nextURL))
+					return client.GetBackgroundAssetUploadFiles(ctx, versionIDValue, asc.NextURL[asc.BackgroundAssetUploadFilesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("background-assets upload-files list: %w", err)
@@ -119,44 +118,25 @@ Examples:
 
 // BackgroundAssetsUploadFilesGetCommand returns the upload files get subcommand.
 func BackgroundAssetsUploadFilesGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	uploadFileID := shared.BindResourceIDFlag(fs, "upload-file-id", "backgroundAssetUploadFiles", "Background asset upload file ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc background-assets upload-files view --upload-file-id \"UPLOAD_FILE_ID\"",
-		ShortHelp:  "View a background asset upload file by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc background-assets upload-files view --upload-file-id \"UPLOAD_FILE_ID\"",
+		ShortHelp:   "View a background asset upload file by ID.",
 		LongHelp: `View a background asset upload file by ID.
 
 Examples:
   asc background-assets upload-files view --upload-file-id "UPLOAD_FILE_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			uploadFileIDValue := strings.TrimSpace(*uploadFileID)
-			if uploadFileIDValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --upload-file-id is required")
-				return shared.MissingRequiredUsageError("--upload-file-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("background-assets upload-files view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetBackgroundAssetUploadFile(requestCtx, uploadFileIDValue)
-			if err != nil {
-				return fmt.Errorf("background-assets upload-files view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDFlag:             "upload-file-id",
+		IDUsage:            "Background asset upload file ID",
+		IDType:             "backgroundAssetUploadFiles",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "background-assets upload-files view",
+		FetchErrorPrefix:   "background-assets upload-files view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetBackgroundAssetUploadFile(ctx, id)
 		},
-	}
+	})
 }
 
 // BackgroundAssetsUploadFilesCreateCommand returns the upload files create subcommand.
@@ -183,19 +163,16 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			versionIDValue := strings.TrimSpace(*versionID)
 			if versionIDValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return shared.MissingRequiredUsageError("--version-id")
+				return shared.RequiredFlag("--version-id")
 			}
 
 			pathValue := strings.TrimSpace(*filePath)
 			if pathValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --file is required")
-				return shared.MissingRequiredUsageError("--file")
+				return shared.RequiredFlag("--file")
 			}
 
 			if strings.TrimSpace(*assetType) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --asset-type is required")
-				return shared.MissingRequiredUsageError("--asset-type")
+				return shared.RequiredFlag("--asset-type")
 			}
 
 			typeValue, err := normalizeBackgroundAssetUploadFileAssetType(*assetType)
@@ -298,14 +275,12 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			uploadFileIDValue := strings.TrimSpace(*uploadFileID)
 			if uploadFileIDValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --upload-file-id is required")
-				return shared.MissingRequiredUsageError("--upload-file-id")
+				return shared.RequiredFlag("--upload-file-id")
 			}
 
 			uploadedValue := strings.TrimSpace(*uploaded)
 			if uploadedValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --uploaded is required")
-				return shared.MissingRequiredUsageError("--uploaded")
+				return shared.RequiredFlag("--uploaded")
 			}
 			uploadedBool, err := shared.ParseBoolFlag(uploadedValue, "--uploaded")
 			if err != nil {

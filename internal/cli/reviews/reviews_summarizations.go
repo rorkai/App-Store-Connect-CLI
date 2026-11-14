@@ -75,8 +75,7 @@ Examples:
 				return shared.WithDiagnostic(shared.UsageErrorf("reviews summarizations: %v", err), shared.DiagnosticInvalidInput, "--platform")
 			}
 			if len(platformValues) == 0 && nextValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --platform is required")
-				return shared.MissingRequiredUsageError("--platform")
+				return shared.RequiredFlag("--platform")
 			}
 
 			client, err := shared.GetASCClient()
@@ -93,14 +92,14 @@ Examples:
 				asc.WithCustomerReviewSummarizationsFields(fieldsValue),
 				asc.WithCustomerReviewSummarizationsTerritoryFields(shared.SplitCSV(*territoryFields)),
 				asc.WithCustomerReviewSummarizationsInclude(shared.SplitCSV(*include)),
-				asc.WithCustomerReviewSummarizationsLimit(*limit),
-				asc.WithCustomerReviewSummarizationsNextURL(*next),
+				asc.Limit[asc.CustomerReviewSummarizationsOption](*limit),
+				asc.NextURL[asc.CustomerReviewSummarizationsOption](*next),
 			}
 
 			if *paginate {
 				paginateOpts := opts
 				if nextValue == "" {
-					paginateOpts = append(paginateOpts, asc.WithCustomerReviewSummarizationsLimit(200))
+					paginateOpts = append(paginateOpts, asc.Limit[asc.CustomerReviewSummarizationsOption](200))
 				}
 				summaries, err := shared.PaginateWithSpinner(
 					requestCtx,
@@ -108,7 +107,7 @@ Examples:
 						return client.GetCustomerReviewSummarizations(ctx, resolvedAppID, paginateOpts...)
 					},
 					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return client.GetCustomerReviewSummarizations(ctx, "", asc.WithCustomerReviewSummarizationsNextURL(nextURL))
+						return client.GetCustomerReviewSummarizations(ctx, "", asc.NextURL[asc.CustomerReviewSummarizationsOption](nextURL))
 					},
 				)
 				if err != nil {

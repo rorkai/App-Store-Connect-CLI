@@ -1,10 +1,8 @@
 package cmdtest
 
 import (
-	"context"
 	"errors"
 	"flag"
-	"io"
 	"net/http"
 	"net/url"
 	"path/filepath"
@@ -12,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -55,65 +54,17 @@ func TestTestFlightRecruitmentSetUpdatesExisting(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/betaGroups/group-1/betaRecruitmentCriteria"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"betaRecruitmentCriteria","id":"criteria-1","attributes":{"deviceFamilyOsVersionFilters":[{"deviceFamily":"IPHONE","minimumOsInclusive":"26"}]}}}`))
+	reg.Register(asctest.PATCH("/v1/betaRecruitmentCriteria/criteria-1").JSONBody(`{"data":{"type":"betaRecruitmentCriteria","id":"criteria-1","attributes":{"deviceFamilyOsVersionFilters":[{"deviceFamily":"IPHONE","minimumOsInclusive":"26"}]}}}`),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"betaRecruitmentCriteria","id":"criteria-1","attributes":{"deviceFamilyOsVersionFilters":[{"deviceFamily":"IPHONE","minimumOsInclusive":"26"}]}}}`))
 
-	callCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		callCount++
-		switch callCount {
-		case 1:
-			if req.Method != http.MethodGet {
-				t.Fatalf("expected GET, got %s", req.Method)
-			}
-			if req.URL.Path != "/v1/betaGroups/group-1/betaRecruitmentCriteria" {
-				t.Fatalf("expected path /v1/betaGroups/group-1/betaRecruitmentCriteria, got %s", req.URL.Path)
-			}
-			body := `{"data":{"type":"betaRecruitmentCriteria","id":"criteria-1","attributes":{"deviceFamilyOsVersionFilters":[{"deviceFamily":"IPHONE","minimumOsInclusive":"26"}]}}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 2:
-			if req.Method != http.MethodPatch {
-				t.Fatalf("expected PATCH, got %s", req.Method)
-			}
-			if req.URL.Path != "/v1/betaRecruitmentCriteria/criteria-1" {
-				t.Fatalf("expected path /v1/betaRecruitmentCriteria/criteria-1, got %s", req.URL.Path)
-			}
-			payload, err := io.ReadAll(req.Body)
-			if err != nil {
-				t.Fatalf("read body error: %v", err)
-			}
-			if !strings.Contains(string(payload), `"deviceFamilyOsVersionFilters"`) {
-				t.Fatalf("expected filters in body, got %s", string(payload))
-			}
-			body := `{"data":{"type":"betaRecruitmentCriteria","id":"criteria-1","attributes":{"deviceFamilyOsVersionFilters":[{"deviceFamily":"IPHONE","minimumOsInclusive":"26"}]}}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected request count %d", callCount)
-			return nil, nil
-		}
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"testflight", "recruitment", "set", "--group", "group-1", "--os-version-filter", "IPHONE=26"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"testflight", "recruitment", "set", "--group", "group-1", "--os-version-filter", "IPHONE=26"})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -127,65 +78,17 @@ func TestTestFlightRecruitmentSetCreatesWhenMissing(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/betaGroups/group-2/betaRecruitmentCriteria"),
+		asctest.JSON(http.StatusNotFound, `{"errors":[{"code":"NOT_FOUND","title":"Not Found"}]}`))
+	reg.Register(asctest.POST("/v1/betaRecruitmentCriteria").JSONBody(`{"data":{"type":"betaRecruitmentCriteria","attributes":{"deviceFamilyOsVersionFilters":[{"deviceFamily":"IPHONE","minimumOsInclusive":"26"}]},"relationships":{"betaGroup":{"data":{"type":"betaGroups","id":"group-2"}}}}}`),
+		asctest.JSON(http.StatusCreated, `{"data":{"type":"betaRecruitmentCriteria","id":"criteria-2","attributes":{"deviceFamilyOsVersionFilters":[{"deviceFamily":"IPHONE","minimumOsInclusive":"26"}]}}}`))
 
-	callCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		callCount++
-		switch callCount {
-		case 1:
-			if req.Method != http.MethodGet {
-				t.Fatalf("expected GET, got %s", req.Method)
-			}
-			if req.URL.Path != "/v1/betaGroups/group-2/betaRecruitmentCriteria" {
-				t.Fatalf("expected path /v1/betaGroups/group-2/betaRecruitmentCriteria, got %s", req.URL.Path)
-			}
-			body := `{"errors":[{"code":"NOT_FOUND","title":"Not Found"}]}`
-			return &http.Response{
-				StatusCode: http.StatusNotFound,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 2:
-			if req.Method != http.MethodPost {
-				t.Fatalf("expected POST, got %s", req.Method)
-			}
-			if req.URL.Path != "/v1/betaRecruitmentCriteria" {
-				t.Fatalf("expected path /v1/betaRecruitmentCriteria, got %s", req.URL.Path)
-			}
-			payload, err := io.ReadAll(req.Body)
-			if err != nil {
-				t.Fatalf("read body error: %v", err)
-			}
-			if !strings.Contains(string(payload), `"id":"group-2"`) {
-				t.Fatalf("expected group id in body, got %s", string(payload))
-			}
-			body := `{"data":{"type":"betaRecruitmentCriteria","id":"criteria-2","attributes":{"deviceFamilyOsVersionFilters":[{"deviceFamily":"IPHONE","minimumOsInclusive":"26"}]}}}`
-			return &http.Response{
-				StatusCode: http.StatusCreated,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected request count %d", callCount)
-			return nil, nil
-		}
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"testflight", "recruitment", "set", "--group", "group-2", "--os-version-filter", "IPHONE=26"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"testflight", "recruitment", "set", "--group", "group-2", "--os-version-filter", "IPHONE=26"})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -199,30 +102,12 @@ func TestTestFlightRecruitmentSetReturnsErrorOnFetchFailure(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/betaGroups/group-3/betaRecruitmentCriteria"),
+		asctest.JSON(http.StatusForbidden, `{"errors":[{"code":"FORBIDDEN","title":"Forbidden"}]}`))
 
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		body := `{"errors":[{"code":"FORBIDDEN","title":"Forbidden"}]}`
-		return &http.Response{
-			StatusCode: http.StatusForbidden,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"testflight", "recruitment", "set", "--group", "group-3", "--os-version-filter", "IPHONE=26"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	stdout, stderr, runErr := runCommand(t, []string{"testflight", "recruitment", "set", "--group", "group-3", "--os-version-filter", "IPHONE=26"})
 
 	if runErr == nil {
 		t.Fatal("expected error, got nil")

@@ -79,13 +79,13 @@ func (c *Client) ListAppInfoCandidatesForApp(ctx context.Context, appID string) 
 		ctx,
 		appID,
 		WithAppInfoFields([]string{"state"}),
-		WithAppInfosLimit(200),
+		Limit[AppInfoOption](200),
 	)
 	if err != nil {
 		return nil, err
 	}
 	allPages, err := PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (PaginatedResponse, error) {
-		return c.GetAppInfos(ctx, appID, WithAppInfosNextURL(nextURL))
+		return c.GetAppInfos(ctx, appID, NextURL[AppInfoOption](nextURL))
 	})
 	if err != nil {
 		return nil, err

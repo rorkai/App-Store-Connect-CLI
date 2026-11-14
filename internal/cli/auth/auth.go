@@ -288,7 +288,7 @@ func doctorMigrationSuggestionResolver() authsvc.MigrationSuggestionResolver {
 			appsResp, err := client.GetApps(
 				requestCtx,
 				asc.WithAppsBundleIDs([]string{appIdentifier}),
-				asc.WithAppsLimit(1),
+				asc.Limit[asc.AppsOption](1),
 			)
 			if err == nil && len(appsResp.Data) > 0 {
 				appID = strings.TrimSpace(appsResp.Data[0].ID)
@@ -304,7 +304,7 @@ func doctorMigrationSuggestionResolver() authsvc.MigrationSuggestionResolver {
 			versionsResp, err := client.GetAppStoreVersions(
 				requestCtx, appID,
 				asc.WithAppStoreVersionsVersionStrings([]string{versionString}),
-				asc.WithAppStoreVersionsLimit(1),
+				asc.Limit[asc.AppStoreVersionsOption](1),
 			)
 			if err == nil && len(versionsResp.Data) > 0 {
 				result.VersionID = strings.TrimSpace(versionsResp.Data[0].ID)
@@ -314,13 +314,13 @@ func doctorMigrationSuggestionResolver() authsvc.MigrationSuggestionResolver {
 		if needsBuildLookup {
 			buildOpts := []asc.BuildsOption{
 				asc.WithBuildsSort("-uploadedDate"),
-				asc.WithBuildsLimit(1),
+				asc.Limit[asc.BuildsOption](1),
 			}
 			if versionString != "" {
 				preReleaseResp, err := client.GetPreReleaseVersions(
 					requestCtx, appID,
 					asc.WithPreReleaseVersionsVersion(versionString),
-					asc.WithPreReleaseVersionsLimit(1),
+					asc.Limit[asc.PreReleaseVersionsOption](1),
 				)
 				if err == nil && len(preReleaseResp.Data) > 0 {
 					buildOpts = append(buildOpts, asc.WithBuildsPreReleaseVersion(preReleaseResp.Data[0].ID))
@@ -407,10 +407,10 @@ func credentialProbeName(keyType string) string {
 func probeCredential(ctx context.Context, client *asc.Client, keyType string) error {
 	if config.IsEnterpriseCredentialKeyType(keyType) {
 		client.UseEnterpriseProgramAPI()
-		_, err := client.GetBundleIDs(ctx, asc.WithBundleIDsLimit(1))
+		_, err := client.GetBundleIDs(ctx, asc.Limit[asc.BundleIDsOption](1))
 		return err
 	}
-	_, err := client.GetApps(ctx, asc.WithAppsLimit(1))
+	_, err := client.GetApps(ctx, asc.Limit[asc.AppsOption](1))
 	return err
 }
 
@@ -642,8 +642,7 @@ so commands continue to work even if the original .p8 file is removed.`,
 				*name = profileName
 			}
 			if strings.TrimSpace(*name) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --name is required")
-				return shared.MissingRequiredUsageError("--name")
+				return shared.RequiredFlag("--name")
 			}
 			trimmedKeyID := strings.TrimSpace(*keyID)
 			if !flagWasSet(fs, "key-id") {
@@ -669,16 +668,14 @@ so commands continue to work even if the original .p8 file is removed.`,
 			}
 			trimmedIssuerID := strings.TrimSpace(*issuerID)
 			if normalizedKeyType != config.CredentialKeyTypeIndividual && trimmedIssuerID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --issuer-id is required")
-				return shared.MissingRequiredUsageError("--issuer-id")
+				return shared.RequiredFlag("--issuer-id")
 			}
 			if normalizedKeyType == config.CredentialKeyTypeIndividual && trimmedIssuerID != "" {
 				return shared.WithDiagnostic(shared.UsageError("--issuer-id must be omitted when --key-type individual"), shared.DiagnosticConflictingInput, "--issuer-id")
 			}
 			*issuerID = trimmedIssuerID
 			if strings.TrimSpace(*keyPath) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --private-key is required")
-				return shared.MissingRequiredUsageError("--private-key")
+				return shared.RequiredFlag("--private-key")
 			}
 			if *skipValidation && *network {
 				return shared.WithDiagnostic(shared.UsageError("--skip-validation and --network are mutually exclusive"), shared.DiagnosticConflictingInput, "--skip-validation")
@@ -983,8 +980,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedName := strings.TrimSpace(*name)
 			if trimmedName == "" {
-				fmt.Fprintln(os.Stderr, "Error: --name is required")
-				return shared.MissingRequiredUsageError("--name")
+				return shared.RequiredFlag("--name")
 			}
 
 			credentials, err := listCredentialSummaries()

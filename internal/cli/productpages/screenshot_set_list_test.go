@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -70,7 +71,7 @@ func TestScreenshotSetListResultRenewsNestedRequestTimeouts(t *testing.T) {
 	t.Setenv("ASC_TIMEOUT", "500ms")
 
 	callCount := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		if req.Method != http.MethodGet || !strings.HasPrefix(req.URL.Path, "/v1/appScreenshotSets/set-") {
 			t.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
 			w.WriteHeader(http.StatusInternalServerError)
@@ -83,29 +84,27 @@ func TestScreenshotSetListResultRenewsNestedRequestTimeouts(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_, _ = io.WriteString(w, `{"data":[]}`)
-	}))
-	t.Cleanup(server.Close)
+	})
 
-	serverURL, err := url.Parse(server.URL)
-	if err != nil {
-		t.Fatalf("parse test server URL: %v", err)
-	}
 	deadlines := make([]time.Duration, 0, 4)
-	httpClient := server.Client()
-	httpClient.Transport = screenshotSetDeadlineRoundTripper{
+	httpClient := &http.Client{Transport: screenshotSetDeadlineRoundTripper{
 		deadlines: &deadlines,
-		next: customPageBaseURLRoundTripper{
-			target: serverURL,
-			next:   httpClient.Transport,
-		},
-	}
+		next: customPageUploadRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, req)
+			return response.Result(), nil
+		}),
+	}}
 	client := newCustomPageTestClientWithHTTPClient(t, httpClient)
 
-	_, err = screenshotSetListResult(context.Background(), client, "custom-loc-1", &asc.AppScreenshotSetsResponse{
-		Data: []asc.Resource[asc.AppScreenshotSetAttributes]{
-			{ID: "set-1"},
-			{ID: "set-2"},
-		},
+	var err error
+	synctest.Test(t, func(*testing.T) {
+		_, err = screenshotSetListResult(context.Background(), client, "custom-loc-1", &asc.AppScreenshotSetsResponse{
+			Data: []asc.Resource[asc.AppScreenshotSetAttributes]{
+				{ID: "set-1"},
+				{ID: "set-2"},
+			},
+		})
 	})
 	if err != nil {
 		t.Fatalf("screenshotSetListResult() error: %v", err)
@@ -113,7 +112,7 @@ func TestScreenshotSetListResultRenewsNestedRequestTimeouts(t *testing.T) {
 	if len(deadlines) != 4 {
 		t.Fatalf("recorded %d nested request deadlines, want 4", len(deadlines))
 	}
-	if deadlines[1] < 350*time.Millisecond {
-		t.Fatalf("second nested request inherited the first request deadline: %s", deadlines[1])
+	if deadlines[1] != 500*time.Millisecond {
+		t.Fatalf("second nested request inherited the first request deadline: %s remaining, want 500ms", deadlines[1])
 	}
 }

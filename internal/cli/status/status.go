@@ -590,7 +590,7 @@ func fillBuildsAndTestFlight(ctx context.Context, client *asc.Client, appID stri
 	}
 	buildOpts := []asc.BuildsOption{
 		asc.WithBuildsSort("-uploadedDate"),
-		asc.WithBuildsLimit(50),
+		asc.Limit[asc.BuildsOption](50),
 		asc.WithBuildsInclude(buildIncludes),
 	}
 	if platform != "" {
@@ -743,7 +743,7 @@ func fetchBetaReviewSubmissionsForStatus(
 	seenSubmissions := make(map[string]struct{})
 	appendSubmissions := func(firstPage *asc.BetaAppReviewSubmissionsResponse) error {
 		paginated, err := asc.PaginateAll(ctx, firstPage, func(pageCtx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-			return client.GetBetaAppReviewSubmissions(pageCtx, asc.WithBetaAppReviewSubmissionsNextURL(nextURL))
+			return client.GetBetaAppReviewSubmissions(pageCtx, asc.NextURL[asc.BetaAppReviewSubmissionsOption](nextURL))
 		})
 		if err != nil {
 			return err
@@ -775,7 +775,7 @@ func fetchBetaReviewSubmissionsForStatus(
 			ctx,
 			asc.WithBetaAppReviewSubmissionsBuildIDs(buildIDs),
 			asc.WithBetaAppReviewSubmissionsIncludeBuild(),
-			asc.WithBetaAppReviewSubmissionsLimit(200),
+			asc.Limit[asc.BetaAppReviewSubmissionsOption](200),
 		)
 		if err != nil {
 			return nil, err
@@ -787,7 +787,7 @@ func fetchBetaReviewSubmissionsForStatus(
 
 	activeBuildOpts := []asc.BuildsOption{
 		asc.WithBuildsBetaReviewStates([]string{"WAITING_FOR_REVIEW", "IN_REVIEW"}),
-		asc.WithBuildsLimit(50),
+		asc.Limit[asc.BuildsOption](50),
 		asc.WithBuildsInclude([]string{"preReleaseVersion"}),
 	}
 	if platform != "" {
@@ -799,7 +799,7 @@ func fetchBetaReviewSubmissionsForStatus(
 	}
 
 	err = asc.PaginateEach(ctx, activeBuilds, func(pageCtx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetBuilds(pageCtx, appID, asc.WithBuildsNextURL(nextURL))
+		return client.GetBuilds(pageCtx, appID, asc.NextURL[asc.BuildsOption](nextURL))
 	}, func(page asc.PaginatedResponse) error {
 		buildPage, ok := page.(*asc.BuildsResponse)
 		if !ok {
@@ -825,7 +825,7 @@ func fetchBetaReviewSubmissionsForStatus(
 			ctx,
 			asc.WithBetaAppReviewSubmissionsBuildIDs(olderActiveBuildIDs),
 			asc.WithBetaAppReviewSubmissionsIncludeBuild(),
-			asc.WithBetaAppReviewSubmissionsLimit(200),
+			asc.Limit[asc.BetaAppReviewSubmissionsOption](200),
 		)
 		if err != nil {
 			return err
@@ -1013,7 +1013,7 @@ func sameBetaReviewVersionTrain(first, second *betaReviewBuildStatus) bool {
 }
 
 func fillAppStoreAndPhasedRelease(ctx context.Context, client *asc.Client, appID string, platform string, includes includeSet, resp *dashboardResponse) error {
-	versionOpts := []asc.AppStoreVersionsOption{asc.WithAppStoreVersionsLimit(200)}
+	versionOpts := []asc.AppStoreVersionsOption{asc.Limit[asc.AppStoreVersionsOption](200)}
 	if platform != "" {
 		versionOpts = append(versionOpts, asc.WithAppStoreVersionsPlatforms([]string{platform}))
 	}
@@ -1101,7 +1101,7 @@ func fillSubmissionAndReview(ctx context.Context, client *asc.Client, appID stri
 }
 
 func fetchStatusReviewSubmissions(ctx context.Context, client *asc.Client, appID string, platform string, watchMode bool) ([]asc.ReviewSubmissionResource, error) {
-	opts := []asc.ReviewSubmissionsOption{asc.WithReviewSubmissionsLimit(200)}
+	opts := []asc.ReviewSubmissionsOption{asc.Limit[asc.ReviewSubmissionsOption](200)}
 	if platform != "" {
 		opts = append(opts, asc.WithReviewSubmissionsPlatforms([]string{platform}))
 	}

@@ -3,9 +3,6 @@ package versions
 import (
 	"context"
 	"flag"
-	"fmt"
-	"os"
-	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
@@ -38,75 +35,29 @@ Examples:
 
 // VersionsExperimentsV2ListCommand lists v2 experiments for a version.
 func VersionsExperimentsV2ListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("experiments-v2 list", flag.ExitOnError)
-
-	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc versions experiments-v2 list --version-id \"VERSION_ID\" [flags]",
-		ShortHelp:  "List v2 experiments for an app store version.",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "experiments-v2 list",
+		Name:        "list",
+		ShortUsage:  "asc versions experiments-v2 list --version-id \"VERSION_ID\" [flags]",
+		ShortHelp:   "List v2 experiments for an app store version.",
 		LongHelp: `List v2 experiments for an app store version.
 
 Examples:
   asc versions experiments-v2 list --version-id "VERSION_ID"
   asc versions experiments-v2 list --version-id "VERSION_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("versions experiments-v2 list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("versions experiments-v2 list: %v", err)
-			}
-
-			versionValue := strings.TrimSpace(*versionID)
-			if versionValue == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return shared.MissingRequiredUsageError("--version-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("versions experiments-v2 list: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			opts := []asc.AppStoreVersionExperimentsV2Option{
-				asc.WithAppStoreVersionExperimentsV2Limit(*limit),
-				asc.WithAppStoreVersionExperimentsV2NextURL(*next),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.WithAppStoreVersionExperimentsV2Limit(200))
-				firstPage, err := client.GetAppStoreVersionExperimentsV2ForVersion(requestCtx, versionValue, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("versions experiments-v2 list: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppStoreVersionExperimentsV2ForVersion(ctx, versionValue, asc.WithAppStoreVersionExperimentsV2NextURL(nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("versions experiments-v2 list: %w", err)
-				}
-
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetAppStoreVersionExperimentsV2ForVersion(requestCtx, versionValue, opts...)
-			if err != nil {
-				return fmt.Errorf("versions experiments-v2 list: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		ParentFlag:           "version-id",
+		ParentUsage:          "App Store version ID",
+		ParentType:           "appStoreVersions",
+		RequiredDiagnostic:   true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		ErrorPrefix:          "versions experiments-v2 list",
+		FetchErrorPrefix:     "versions experiments-v2 list: failed to fetch",
+		FetchPage: func(ctx context.Context, client *asc.Client, parentID string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetAppStoreVersionExperimentsV2ForVersion(ctx, parentID,
+				asc.Limit[asc.AppStoreVersionExperimentsV2Option](limit),
+				asc.NextURL[asc.AppStoreVersionExperimentsV2Option](next),
+			)
 		},
-	}
+	})
 }

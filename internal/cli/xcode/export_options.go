@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 
@@ -107,8 +106,7 @@ Examples:
 
 			trimmedArchivePath := strings.TrimSpace(*archivePath)
 			if trimmedArchivePath == "" {
-				fmt.Fprintln(os.Stderr, "Error: --archive-path is required")
-				return shared.MissingRequiredUsageError("--archive-path")
+				return shared.RequiredFlag("--archive-path")
 			}
 			outputPathSet := false
 			fs.Visit(func(f *flag.Flag) {
@@ -124,8 +122,7 @@ Examples:
 				}
 			}
 			if trimmedOutputPath == "" {
-				fmt.Fprintln(os.Stderr, "Error: --output-path is required")
-				return shared.MissingRequiredUsageError("--output-path")
+				return shared.RequiredFlag("--output-path")
 			}
 
 			result, err := runGenerateExportOptions(ctx, localxcode.ExportOptionsGenerateOptions{

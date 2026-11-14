@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -16,135 +17,74 @@ func TestPricingScheduleManualPricesResolvedJSON(t *testing.T) {
 
 	const secondURL = "https://api.appstoreconnect.apple.com/v1/appPriceSchedules/schedule-1/manualPrices?cursor=Mg"
 
-	requestCount := 0
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		switch requestCount {
-		case 1:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/appPriceSchedules/schedule-1/manualPrices" {
-				t.Fatalf("unexpected first request: %s %s", req.Method, req.URL.String())
-			}
-			query := req.URL.Query()
-			if query.Get("include") != "appPricePoint,territory" {
-				t.Fatalf("unexpected include query: %q", query.Get("include"))
-			}
-			if query.Get("fields[appPrices]") != "manual,startDate,endDate,appPricePoint,territory" {
-				t.Fatalf("unexpected price fields: %q", query.Get("fields[appPrices]"))
-			}
-			if query.Get("fields[appPricePoints]") != "customerPrice,proceeds,territory" {
-				t.Fatalf("unexpected price point fields: %q", query.Get("fields[appPricePoints]"))
-			}
-			body := `{
-				"data":[
-					{
-						"type":"appPrices",
-						"id":"manual-price-usa",
-						"attributes":{"startDate":"2025-01-01","manual":true},
-						"relationships":{
-							"territory":{"data":{"type":"territories","id":"USA"}},
-							"appPricePoint":{"data":{"type":"appPricePoints","id":"pp-manual-usa"}}
-						}
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appPriceSchedules/schedule-1/manualPrices", pricingCurrentPriceQuery...),
+		asctest.JSON(http.StatusOK, `{
+			"data":[
+				{
+					"type":"appPrices",
+					"id":"manual-price-usa",
+					"attributes":{"startDate":"2025-01-01","manual":true},
+					"relationships":{
+						"territory":{"data":{"type":"territories","id":"USA"}},
+						"appPricePoint":{"data":{"type":"appPricePoints","id":"pp-manual-usa"}}
 					}
-				],
-				"included":[
-					{"type":"appPricePoints","id":"pp-manual-usa","attributes":{"customerPrice":"9.99","proceeds":"8.49"}},
-					{"type":"territories","id":"USA","attributes":{"currency":"USD"}}
-				],
-				"links":{"next":"` + secondURL + `"}
-			}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 2:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/appPriceSchedules/schedule-1/manualPrices" {
-				t.Fatalf("unexpected second request: %s %s", req.Method, req.URL.String())
-			}
-			query := req.URL.Query()
-			if query.Get("cursor") != "Mg" {
-				t.Fatalf("expected cursor=Mg, got %q", query.Get("cursor"))
-			}
-			if query.Get("include") != "appPricePoint,territory" {
-				t.Fatalf("unexpected paginated include query: %q", query.Get("include"))
-			}
-			if query.Get("fields[appPrices]") != "manual,startDate,endDate,appPricePoint,territory" {
-				t.Fatalf("unexpected paginated price fields: %q", query.Get("fields[appPrices]"))
-			}
-			if query.Get("fields[appPricePoints]") != "customerPrice,proceeds,territory" {
-				t.Fatalf("unexpected paginated price point fields: %q", query.Get("fields[appPricePoints]"))
-			}
-			body := `{
-				"data":[
-					{
-						"type":"appPrices",
-						"id":"manual-price-gbr",
-						"attributes":{"startDate":"2024-06-01","manual":true},
-						"relationships":{
-							"territory":{"data":{"type":"territories","id":"GBR"}},
-							"appPricePoint":{"data":{"type":"appPricePoints","id":"pp-manual-gbr"}}
-						}
+				}
+			],
+			"included":[
+				{"type":"appPricePoints","id":"pp-manual-usa","attributes":{"customerPrice":"9.99","proceeds":"8.49"}},
+				{"type":"territories","id":"USA","attributes":{"currency":"USD"}}
+			],
+			"links":{"next":"`+secondURL+`"}
+		}`))
+	reg.Register(asctest.GET("/v1/appPriceSchedules/schedule-1/manualPrices", append([]string{"cursor=Mg"}, pricingCurrentPriceQuery...)...),
+		asctest.JSON(http.StatusOK, `{
+			"data":[
+				{
+					"type":"appPrices",
+					"id":"manual-price-gbr",
+					"attributes":{"startDate":"2024-06-01","manual":true},
+					"relationships":{
+						"territory":{"data":{"type":"territories","id":"GBR"}},
+						"appPricePoint":{"data":{"type":"appPricePoints","id":"pp-manual-gbr"}}
 					}
-				],
-				"included":[
-					{"type":"appPricePoints","id":"pp-manual-gbr","attributes":{"customerPrice":"7.99","proceeds":"6.79"}},
-					{"type":"territories","id":"GBR","attributes":{"currency":"GBP"}}
-				],
-				"links":{"next":""}
-			}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 3:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/appPriceSchedules/schedule-1/automaticPrices" {
-				t.Fatalf("unexpected third request: %s %s", req.Method, req.URL.String())
-			}
-			body := `{
-				"data":[
-					{
-						"type":"appPrices",
-						"id":"automatic-price-usa",
-						"attributes":{"startDate":"2025-01-01","manual":false},
-						"relationships":{
-							"territory":{"data":{"type":"territories","id":"USA"}},
-							"appPricePoint":{"data":{"type":"appPricePoints","id":"pp-automatic-usa"}}
-						}
+				}
+			],
+			"included":[
+				{"type":"appPricePoints","id":"pp-manual-gbr","attributes":{"customerPrice":"7.99","proceeds":"6.79"}},
+				{"type":"territories","id":"GBR","attributes":{"currency":"GBP"}}
+			],
+			"links":{"next":""}
+		}`))
+	reg.Register(asctest.GET("/v1/appPriceSchedules/schedule-1/automaticPrices", pricingCurrentPriceQuery...),
+		asctest.JSON(http.StatusOK, `{
+			"data":[
+				{
+					"type":"appPrices",
+					"id":"automatic-price-usa",
+					"attributes":{"startDate":"2025-01-01","manual":false},
+					"relationships":{
+						"territory":{"data":{"type":"territories","id":"USA"}},
+						"appPricePoint":{"data":{"type":"appPricePoints","id":"pp-automatic-usa"}}
 					}
-				],
-				"included":[
-					{"type":"appPricePoints","id":"pp-automatic-usa","attributes":{"customerPrice":"4.99","proceeds":"3.49"}},
-					{"type":"territories","id":"USA","attributes":{"currency":"USD"}}
-				],
-				"links":{"next":""}
-			}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected extra request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	}))
+				}
+			],
+			"included":[
+				{"type":"appPricePoints","id":"pp-automatic-usa","attributes":{"customerPrice":"4.99","proceeds":"3.49"}},
+				{"type":"territories","id":"USA","attributes":{"currency":"USD"}}
+			],
+			"links":{"next":""}
+		}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"pricing", "schedule", "manual-prices",
-			"--schedule", "schedule-1",
-			"--resolved",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
+	stdout, stderr, err := runCommand(t, []string{
+		"pricing", "schedule", "manual-prices",
+		"--schedule", "schedule-1",
+		"--resolved",
 	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -171,86 +111,56 @@ func TestPricingScheduleManualPricesResolvedJSON(t *testing.T) {
 func TestPricingScheduleAutomaticPricesResolvedTable(t *testing.T) {
 	setupAuth(t)
 
-	requestCount := 0
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		switch requestCount {
-		case 1:
-			if req.URL.Path != "/v1/appPriceSchedules/schedule-1/automaticPrices" {
-				t.Fatalf("unexpected first request: %s", req.URL.String())
-			}
-			body := `{
-				"data":[
-					{
-						"type":"appPrices",
-						"id":"automatic-price-usa",
-						"attributes":{"startDate":"2025-01-01","manual":false},
-						"relationships":{
-							"territory":{"data":{"type":"territories","id":"USA"}},
-							"appPricePoint":{"data":{"type":"appPricePoints","id":"pp-automatic-usa"}}
-						}
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appPriceSchedules/schedule-1/automaticPrices", pricingCurrentPriceQuery...),
+		asctest.JSON(http.StatusOK, `{
+			"data":[
+				{
+					"type":"appPrices",
+					"id":"automatic-price-usa",
+					"attributes":{"startDate":"2025-01-01","manual":false},
+					"relationships":{
+						"territory":{"data":{"type":"territories","id":"USA"}},
+						"appPricePoint":{"data":{"type":"appPricePoints","id":"pp-automatic-usa"}}
 					}
-				],
-				"included":[
-					{"type":"appPricePoints","id":"pp-automatic-usa","attributes":{"customerPrice":"4.99","proceeds":"3.49"}},
-					{"type":"territories","id":"USA","attributes":{"currency":"USD"}}
-				],
-				"links":{"next":""}
-			}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 2:
-			if req.URL.Path != "/v1/appPriceSchedules/schedule-1/manualPrices" {
-				t.Fatalf("unexpected second request: %s", req.URL.String())
-			}
-			body := `{
-				"data":[
-					{
-						"type":"appPrices",
-						"id":"manual-price-usa",
-						"attributes":{"startDate":"2025-01-01","manual":true},
-						"relationships":{
-							"territory":{"data":{"type":"territories","id":"USA"}},
-							"appPricePoint":{"data":{"type":"appPricePoints","id":"pp-manual-usa"}}
-						}
+				}
+			],
+			"included":[
+				{"type":"appPricePoints","id":"pp-automatic-usa","attributes":{"customerPrice":"4.99","proceeds":"3.49"}},
+				{"type":"territories","id":"USA","attributes":{"currency":"USD"}}
+			],
+			"links":{"next":""}
+		}`))
+	reg.Register(asctest.GET("/v1/appPriceSchedules/schedule-1/manualPrices", pricingCurrentPriceQuery...),
+		asctest.JSON(http.StatusOK, `{
+			"data":[
+				{
+					"type":"appPrices",
+					"id":"manual-price-usa",
+					"attributes":{"startDate":"2025-01-01","manual":true},
+					"relationships":{
+						"territory":{"data":{"type":"territories","id":"USA"}},
+						"appPricePoint":{"data":{"type":"appPricePoints","id":"pp-manual-usa"}}
 					}
-				],
-				"included":[
-					{"type":"appPricePoints","id":"pp-manual-usa","attributes":{"customerPrice":"9.99","proceeds":"8.49"}},
-					{"type":"territories","id":"USA","attributes":{"currency":"USD"}}
-				],
-				"links":{"next":""}
-			}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected extra request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	}))
+				}
+			],
+			"included":[
+				{"type":"appPricePoints","id":"pp-manual-usa","attributes":{"customerPrice":"9.99","proceeds":"8.49"}},
+				{"type":"territories","id":"USA","attributes":{"currency":"USD"}}
+			],
+			"links":{"next":""}
+		}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"pricing", "schedule", "automatic-prices",
-			"--schedule", "schedule-1",
-			"--resolved",
-			"--output", "table",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
+	stdout, stderr, err := runCommand(t, []string{
+		"pricing", "schedule", "automatic-prices",
+		"--schedule", "schedule-1",
+		"--resolved",
+		"--output", "table",
 	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -295,36 +205,18 @@ func TestPricingScheduleManualPricesResolvedRejectsNext(t *testing.T) {
 func TestPricingScheduleManualPricesRawOutputUnchanged(t *testing.T) {
 	setupAuth(t)
 
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet || req.URL.Path != "/v1/appPriceSchedules/schedule-1/manualPrices" {
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-		}
-		if req.URL.RawQuery != "" {
-			t.Fatalf("expected raw request without resolved query fields, got %q", req.URL.RawQuery)
-		}
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appPriceSchedules/schedule-1/manualPrices"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appPrices","id":"price-raw"}],"links":{"next":""}}`))
 
-		body := `{"data":[{"type":"appPrices","id":"price-raw"}],"links":{"next":""}}`
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	}))
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"pricing", "schedule", "manual-prices",
-			"--schedule", "schedule-1",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
+	stdout, stderr, err := runCommand(t, []string{
+		"pricing", "schedule", "manual-prices",
+		"--schedule", "schedule-1",
 	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)

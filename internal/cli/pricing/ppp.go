@@ -71,27 +71,27 @@ func appPPPSurface(client *asc.Client, appID string) shared.PriceSchedulePPPSurf
 		LadderBatch: func(ctx context.Context, territories []string) (map[string][]shared.PriceLadderCandidate, error) {
 			return shared.CollectPricePointsByTerritory(ctx, territories, func(requestCtx context.Context, next string) (*asc.AppPricePointsV3Response, error) {
 				if next != "" {
-					return client.GetAppPricePoints(requestCtx, appID, asc.WithPricePointsNextURL(next))
+					return client.GetAppPricePoints(requestCtx, appID, asc.NextURL[asc.PricePointsOption](next))
 				}
 				return client.GetAppPricePoints(
 					requestCtx,
 					appID,
 					asc.WithPricePointsTerritory(strings.Join(territories, ",")),
 					asc.WithPricePointsInclude([]string{"territory"}),
-					asc.WithPricePointsLimit(200),
+					asc.Limit[asc.PricePointsOption](200),
 				)
 			}, appCustomerPrice)
 		},
 		Equalizations: func(ctx context.Context, pricePointID string) (map[string][]shared.PriceLadderCandidate, error) {
 			return shared.CollectPricePointsByTerritory(ctx, nil, func(requestCtx context.Context, next string) (*asc.AppPricePointsV3Response, error) {
 				if next != "" {
-					return client.GetAppPricePointEqualizations(requestCtx, pricePointID, asc.WithPricePointsNextURL(next))
+					return client.GetAppPricePointEqualizations(requestCtx, pricePointID, asc.NextURL[asc.PricePointsOption](next))
 				}
 				return client.GetAppPricePointEqualizations(
 					requestCtx,
 					pricePointID,
 					asc.WithPricePointsInclude([]string{"territory"}),
-					asc.WithPricePointsLimit(200),
+					asc.Limit[asc.PricePointsOption](200),
 				)
 			}, appCustomerPrice)
 		},

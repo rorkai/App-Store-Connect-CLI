@@ -158,17 +158,17 @@ func executeReviewsList(ctx context.Context, appID, output string, pretty bool, 
 
 	opts := make([]asc.ReviewOption, 0, len(filterOpts)+2)
 	opts = append(opts, filterOpts...)
-	opts = append(opts, asc.WithLimit(limit), asc.WithNextURL(next))
+	opts = append(opts, asc.Limit[asc.ReviewOption](limit), asc.NextURL[asc.ReviewOption](next))
 
 	if paginate {
-		paginateOpts := append(opts, asc.WithLimit(200))
+		paginateOpts := append(opts, asc.Limit[asc.ReviewOption](200))
 		reviews, err := shared.PaginateWithSpinner(
 			requestCtx,
 			func(ctx context.Context) (asc.PaginatedResponse, error) {
 				return client.GetReviews(ctx, appID, paginateOpts...)
 			},
 			func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-				return client.GetReviews(ctx, appID, asc.WithNextURL(nextURL))
+				return client.GetReviews(ctx, appID, asc.NextURL[asc.ReviewOption](nextURL))
 			},
 		)
 		if err != nil {

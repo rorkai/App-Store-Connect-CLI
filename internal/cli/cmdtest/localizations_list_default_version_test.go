@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func installLocalizationsDefaultVersionTransport(t *testing.T, versionsByQuery map[string]string, log *[]string) {
@@ -151,27 +152,23 @@ func TestLocalizationsListDefaultVersionUsageErrors(t *testing.T) {
 // would waste a request, could announce a version the page does not belong to,
 // and could fail a valid continuation when the app's defaults are ambiguous.
 func TestLocalizationsListNextContinuationSkipsDefaultVersionLookup(t *testing.T) {
-	var log []string
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		log = append(log, req.URL.Path)
-		if req.URL.Path != "/v1/appStoreVersions/ver-page2/appStoreVersionLocalizations" {
-			t.Fatalf("unexpected path: %s", req.URL.Path)
-		}
-		return jsonResponse(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-2","attributes":{"locale":"ja"}}],"links":{"next":""}}`)
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreVersions/ver-page2/appStoreVersionLocalizations", "cursor=NEXT"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-2","attributes":{"locale":"ja"}}],"links":{"next":""}}`))
 
 	nextURL := "https://api.appstoreconnect.apple.com/v1/appStoreVersions/ver-page2/appStoreVersionLocalizations?cursor=NEXT"
 	stdout, stderr, runErr := runRootCommand(t, []string{"localizations", "list", "--next", nextURL})
 	if runErr != nil {
 		t.Fatalf("Run() error = %v", runErr)
+	}
+	var log []string
+	for _, req := range reg.Requests() {
+		log = append(log, req.URL.Path)
 	}
 	for _, path := range log {
 		if strings.HasSuffix(path, "/appStoreVersions") {

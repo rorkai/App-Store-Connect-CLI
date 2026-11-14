@@ -208,7 +208,7 @@ func fetchVersionLocalizations(ctx context.Context, client *asc.Client, versionI
 	firstPage, err := client.GetAppStoreVersionLocalizations(
 		ctx,
 		versionID,
-		asc.WithAppStoreVersionLocalizationsLimit(200),
+		asc.Limit[asc.AppStoreVersionLocalizationsOption](200),
 	)
 	if err != nil {
 		return nil, err
@@ -223,7 +223,7 @@ func fetchVersionLocalizations(ctx context.Context, client *asc.Client, versionI
 				return client.GetAppStoreVersionLocalizations(
 					ctx,
 					"",
-					asc.WithAppStoreVersionLocalizationsNextURL(nextURL),
+					asc.NextURL[asc.AppStoreVersionLocalizationsOption](nextURL),
 				)
 			},
 		)

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestSubscriptionsPricePointsListPaginateUsesPerPageTimeout(t *testing.T) {
@@ -259,18 +260,14 @@ func TestSubscriptionsPricePointsListStreamOutput(t *testing.T) {
 func TestSubscriptionsPricePointsListStreamAcceptsNormalizedJSONOutput(t *testing.T) {
 	setupAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		body := `{"data":[{"type":"subscriptionPricePoints","id":"pp-1"}],"links":{}}`
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/subscriptions/8000000001/pricePoints", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"subscriptionPricePoints","id":"pp-1"}],"links":{}}`))
+	reg.Register(asctest.GET("/v1/subscriptions/8000000001/pricePoints", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"subscriptionPricePoints","id":"pp-1"}],"links":{}}`))
+	reg.Register(asctest.GET("/v1/subscriptions/8000000001/pricePoints", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"subscriptionPricePoints","id":"pp-1"}],"links":{}}`))
 
 	for _, tc := range []struct {
 		name  string
@@ -313,55 +310,18 @@ func TestSubscriptionsPricePointsListStreamRejectsRepeatedNextURL(t *testing.T) 
 
 	const repeatedNextURL = "https://api.appstoreconnect.apple.com/v1/subscriptions/8000000001/pricePoints?cursor=AQ&limit=200"
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/subscriptions/8000000001/pricePoints", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"subscriptionPricePoints","id":"pp-1"}],"links":{"next":"`+repeatedNextURL+`"}}`))
+	reg.Register(asctest.GET("/v1/subscriptions/8000000001/pricePoints", "cursor=AQ", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"subscriptionPricePoints","id":"pp-2"}],"links":{"next":"`+repeatedNextURL+`"}}`))
 
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		switch requestCount {
-		case 1:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/subscriptions/8000000001/pricePoints" {
-				t.Fatalf("unexpected first request: %s %s", req.Method, req.URL.String())
-			}
-			body := `{"data":[{"type":"subscriptionPricePoints","id":"pp-1"}],"links":{"next":"` + repeatedNextURL + `"}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 2:
-			if req.Method != http.MethodGet || req.URL.String() != repeatedNextURL {
-				t.Fatalf("unexpected second request: %s %s", req.Method, req.URL.String())
-			}
-			body := `{"data":[{"type":"subscriptionPricePoints","id":"pp-2"}],"links":{"next":"` + repeatedNextURL + `"}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected extra request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"subscriptions", "pricing", "price-points", "list",
-			"--subscription-id", "8000000001",
-			"--paginate",
-			"--stream",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
+	stdout, _, runErr := runCommand(t, []string{
+		"subscriptions", "pricing", "price-points", "list",
+		"--subscription-id", "8000000001",
+		"--paginate",
+		"--stream",
 	})
 
 	if runErr == nil {
@@ -387,55 +347,18 @@ func TestSubscriptionsPricePointsListStreamReturnsSecondPageFailure(t *testing.T
 
 	const nextURL = "https://api.appstoreconnect.apple.com/v1/subscriptions/8000000001/pricePoints?cursor=AQ&limit=200"
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/subscriptions/8000000001/pricePoints", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"subscriptionPricePoints","id":"pp-1"}],"links":{"next":"`+nextURL+`"}}`))
+	reg.Register(asctest.GET("/v1/subscriptions/8000000001/pricePoints", "cursor=AQ", "limit=200"),
+		asctest.JSON(http.StatusInternalServerError, `{"errors":[{"status":"500","title":"Server Error","detail":"page 2 failed"}]}`))
 
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		switch requestCount {
-		case 1:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/subscriptions/8000000001/pricePoints" {
-				t.Fatalf("unexpected first request: %s %s", req.Method, req.URL.String())
-			}
-			body := `{"data":[{"type":"subscriptionPricePoints","id":"pp-1"}],"links":{"next":"` + nextURL + `"}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 2:
-			if req.Method != http.MethodGet || req.URL.String() != nextURL {
-				t.Fatalf("unexpected second request: %s %s", req.Method, req.URL.String())
-			}
-			body := `{"errors":[{"status":"500","title":"Server Error","detail":"page 2 failed"}]}`
-			return &http.Response{
-				StatusCode: http.StatusInternalServerError,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected extra request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"subscriptions", "pricing", "price-points", "list",
-			"--subscription-id", "8000000001",
-			"--paginate",
-			"--stream",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
+	stdout, _, runErr := runCommand(t, []string{
+		"subscriptions", "pricing", "price-points", "list",
+		"--subscription-id", "8000000001",
+		"--paginate",
+		"--stream",
 	})
 
 	if runErr == nil {
@@ -462,56 +385,21 @@ func TestSubscriptionsPricePointsListPaginateFromNextWithoutSubscription(t *test
 	const firstURL = "https://api.appstoreconnect.apple.com/v1/subscriptions/8000000001/pricePoints?cursor=AQ&limit=200"
 	const secondURL = "https://api.appstoreconnect.apple.com/v1/subscriptions/8000000001/pricePoints?cursor=BQ&limit=200"
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/subscriptions/8000000001/pricePoints", "cursor=AQ", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"subscriptionPricePoints","id":"pp-next-1"}],"links":{"next":"`+secondURL+`"}}`))
+	reg.Register(asctest.GET("/v1/subscriptions/8000000001/pricePoints", "cursor=BQ", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"subscriptionPricePoints","id":"pp-next-2"}],"links":{"next":""}}`))
 
-	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		switch requestCount {
-		case 1:
-			if req.Method != http.MethodGet || req.URL.String() != firstURL {
-				t.Fatalf("unexpected first request: %s %s", req.Method, req.URL.String())
-			}
-			body := `{"data":[{"type":"subscriptionPricePoints","id":"pp-next-1"}],"links":{"next":"` + secondURL + `"}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 2:
-			if req.Method != http.MethodGet || req.URL.String() != secondURL {
-				t.Fatalf("unexpected second request: %s %s", req.Method, req.URL.String())
-			}
-			body := `{"data":[{"type":"subscriptionPricePoints","id":"pp-next-2"}],"links":{"next":""}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected extra request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
+	stdout, stderr, err := runCommand(t, []string{
+		"subscriptions", "pricing", "price-points", "list",
+		"--paginate",
+		"--next", firstURL,
 	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"subscriptions", "pricing", "price-points", "list",
-			"--paginate",
-			"--next", firstURL,
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -524,44 +412,20 @@ func TestSubscriptionsPricePointsListPaginateFromNextWithoutSubscription(t *test
 func TestSubscriptionsPricePointsListTerritoryFilter(t *testing.T) {
 	setupAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/subscriptions/8000000001/pricePoints", "filter[territory]=USA"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"subscriptionPricePoints","id":"pp-usa","attributes":{"customerPrice":"9.99","proceeds":"8.49"}}],"links":{}}`))
+
+	stdout, stderr, err := runCommand(t, []string{
+		"subscriptions", "pricing", "price-points", "list",
+		"--subscription-id", "8000000001",
+		"--territory", "United States",
+		"--output", "json",
 	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.URL.Path != "/v1/subscriptions/8000000001/pricePoints" {
-			t.Fatalf("unexpected path: %s", req.URL.Path)
-		}
-		query := req.URL.Query()
-		if query.Get("filter[territory]") != "USA" {
-			t.Fatalf("expected filter[territory]=USA, got %q", query.Get("filter[territory]"))
-		}
-
-		body := `{"data":[{"type":"subscriptionPricePoints","id":"pp-usa","attributes":{"customerPrice":"9.99","proceeds":"8.49"}}],"links":{}}`
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"subscriptions", "pricing", "price-points", "list",
-			"--subscription-id", "8000000001",
-			"--territory", "United States",
-			"--output", "json",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)

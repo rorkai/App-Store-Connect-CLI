@@ -68,8 +68,7 @@ Examples:
 			trimmedID := strings.TrimSpace(*localizationID)
 			trimmedNext := strings.TrimSpace(*next)
 			if trimmedID == "" && trimmedNext == "" {
-				fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
-				return shared.MissingRequiredUsageError("--localization-id")
+				return shared.RequiredFlag("--localization-id")
 			}
 			if *limit != 0 && (*limit < 1 || *limit > productPagesMaxLimit) {
 				return shared.UsageErrorf("experiments treatments localizations preview-sets list: --limit must be between 1 and %d", productPagesMaxLimit)
@@ -87,19 +86,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.AppStoreVersionExperimentTreatmentLocalizationPreviewSetsOption{
-				asc.WithAppStoreVersionExperimentTreatmentLocalizationPreviewSetsLimit(*limit),
-				asc.WithAppStoreVersionExperimentTreatmentLocalizationPreviewSetsNextURL(*next),
+				asc.Limit[asc.AppStoreVersionExperimentTreatmentLocalizationPreviewSetsOption](*limit),
+				asc.NextURL[asc.AppStoreVersionExperimentTreatmentLocalizationPreviewSetsOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithAppStoreVersionExperimentTreatmentLocalizationPreviewSetsLimit(productPagesMaxLimit))
+				paginateOpts := append(opts, asc.Limit[asc.AppStoreVersionExperimentTreatmentLocalizationPreviewSetsOption](productPagesMaxLimit))
 				firstPage, err := client.GetAppStoreVersionExperimentTreatmentLocalizationPreviewSets(requestCtx, trimmedID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("experiments treatments localizations preview-sets list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppStoreVersionExperimentTreatmentLocalizationPreviewSets(ctx, trimmedID, asc.WithAppStoreVersionExperimentTreatmentLocalizationPreviewSetsNextURL(nextURL))
+					return client.GetAppStoreVersionExperimentTreatmentLocalizationPreviewSets(ctx, trimmedID, asc.NextURL[asc.AppStoreVersionExperimentTreatmentLocalizationPreviewSetsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("experiments treatments localizations preview-sets list: %w", err)
@@ -212,8 +211,7 @@ Examples:
 			trimmedNext := strings.TrimSpace(*next)
 			if *includeScreenshots {
 				if trimmedID == "" {
-					fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
-					return shared.MissingRequiredUsageError("--localization-id")
+					return shared.RequiredFlag("--localization-id")
 				}
 				if trimmedNext != "" {
 					return shared.UsageError("experiments treatments localizations screenshot-sets list: --include-screenshots cannot be combined with --next")
@@ -223,8 +221,7 @@ Examples:
 				}
 			}
 			if trimmedID == "" && trimmedNext == "" {
-				fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
-				return shared.MissingRequiredUsageError("--localization-id")
+				return shared.RequiredFlag("--localization-id")
 			}
 			if *limit != 0 && (*limit < 1 || *limit > productPagesMaxLimit) {
 				return shared.UsageErrorf("experiments treatments localizations screenshot-sets list: --limit must be between 1 and %d", productPagesMaxLimit)
@@ -239,8 +236,8 @@ Examples:
 			}
 
 			opts := []asc.AppStoreVersionExperimentTreatmentLocalizationScreenshotSetsOption{
-				asc.WithAppStoreVersionExperimentTreatmentLocalizationScreenshotSetsLimit(*limit),
-				asc.WithAppStoreVersionExperimentTreatmentLocalizationScreenshotSetsNextURL(*next),
+				asc.Limit[asc.AppStoreVersionExperimentTreatmentLocalizationScreenshotSetsOption](*limit),
+				asc.NextURL[asc.AppStoreVersionExperimentTreatmentLocalizationScreenshotSetsOption](*next),
 			}
 			if *includeScreenshots {
 				opts = append(opts, asc.WithAppStoreVersionExperimentTreatmentLocalizationScreenshotSetsIncludeScreenshots())
@@ -251,7 +248,7 @@ Examples:
 				paginateOpts = append(paginateOpts, opts...)
 				paginateOpts = append(
 					paginateOpts,
-					asc.WithAppStoreVersionExperimentTreatmentLocalizationScreenshotSetsLimit(productPagesMaxLimit),
+					asc.Limit[asc.AppStoreVersionExperimentTreatmentLocalizationScreenshotSetsOption](productPagesMaxLimit),
 					asc.WithAppStoreVersionExperimentTreatmentLocalizationScreenshotSetsRequestContext(shared.ContextWithTimeout),
 				)
 				resp, err := client.GetAllAppStoreVersionExperimentTreatmentLocalizationScreenshotSets(ctx, trimmedID, paginateOpts...)

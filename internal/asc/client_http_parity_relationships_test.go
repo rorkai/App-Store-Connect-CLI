@@ -241,7 +241,7 @@ func TestParityRelatedListRequests_WithLimit(t *testing.T) {
 			path:  "/v1/apps/app-1/betaAppLocalizations",
 			limit: "10",
 			call: func(client *Client) error {
-				_, err := client.GetAppBetaAppLocalizations(ctx, "app-1", WithAppBetaAppLocalizationsLimit(10))
+				_, err := client.GetAppBetaAppLocalizations(ctx, "app-1", Limit[AppBetaAppLocalizationsOption](10))
 				return err
 			},
 		},
@@ -250,7 +250,7 @@ func TestParityRelatedListRequests_WithLimit(t *testing.T) {
 			path:  "/v1/apps/app-1/preReleaseVersions",
 			limit: "5",
 			call: func(client *Client) error {
-				_, err := client.GetAppPreReleaseVersions(ctx, "app-1", WithAppPreReleaseVersionsLimit(5))
+				_, err := client.GetAppPreReleaseVersions(ctx, "app-1", Limit[AppPreReleaseVersionsOption](5))
 				return err
 			},
 		},
@@ -259,7 +259,7 @@ func TestParityRelatedListRequests_WithLimit(t *testing.T) {
 			path:  "/v1/betaTesters/tester-1/apps",
 			limit: "3",
 			call: func(client *Client) error {
-				_, err := client.GetBetaTesterApps(ctx, "tester-1", WithBetaTesterAppsLimit(3))
+				_, err := client.GetBetaTesterApps(ctx, "tester-1", Limit[BetaTesterAppsOption](3))
 				return err
 			},
 		},
@@ -268,7 +268,7 @@ func TestParityRelatedListRequests_WithLimit(t *testing.T) {
 			path:  "/v1/betaTesters/tester-1/betaGroups",
 			limit: "4",
 			call: func(client *Client) error {
-				_, err := client.GetBetaTesterBetaGroups(ctx, "tester-1", WithBetaTesterBetaGroupsLimit(4))
+				_, err := client.GetBetaTesterBetaGroups(ctx, "tester-1", Limit[BetaTesterBetaGroupsOption](4))
 				return err
 			},
 		},
@@ -277,7 +277,7 @@ func TestParityRelatedListRequests_WithLimit(t *testing.T) {
 			path:  "/v1/betaTesters/tester-1/builds",
 			limit: "6",
 			call: func(client *Client) error {
-				_, err := client.GetBetaTesterBuilds(ctx, "tester-1", WithBetaTesterBuildsLimit(6))
+				_, err := client.GetBetaTesterBuilds(ctx, "tester-1", Limit[BetaTesterBuildsOption](6))
 				return err
 			},
 		},
@@ -286,7 +286,7 @@ func TestParityRelatedListRequests_WithLimit(t *testing.T) {
 			path:  "/v1/builds/build-1/icons",
 			limit: "9",
 			call: func(client *Client) error {
-				_, err := client.GetBuildIcons(ctx, "build-1", WithBuildIconsLimit(9))
+				_, err := client.GetBuildIcons(ctx, "build-1", Limit[BuildIconsOption](9))
 				return err
 			},
 		},
@@ -295,7 +295,7 @@ func TestParityRelatedListRequests_WithLimit(t *testing.T) {
 			path:  "/v1/preReleaseVersions/pre-1/builds",
 			limit: "7",
 			call: func(client *Client) error {
-				_, err := client.GetPreReleaseVersionBuilds(ctx, "pre-1", WithPreReleaseVersionBuildsLimit(7))
+				_, err := client.GetPreReleaseVersionBuilds(ctx, "pre-1", Limit[PreReleaseVersionBuildsOption](7))
 				return err
 			},
 		},
@@ -320,7 +320,7 @@ func TestParityRelatedListRequests_UsesNextURL(t *testing.T) {
 			name: "GetAppBetaAppLocalizations",
 			next: "https://api.appstoreconnect.apple.com/v1/apps/app-1/betaAppLocalizations?cursor=next",
 			call: func(client *Client) error {
-				_, err := client.GetAppBetaAppLocalizations(ctx, "app-1", WithAppBetaAppLocalizationsNextURL("https://api.appstoreconnect.apple.com/v1/apps/app-1/betaAppLocalizations?cursor=next"))
+				_, err := client.GetAppBetaAppLocalizations(ctx, "app-1", NextURL[AppBetaAppLocalizationsOption]("https://api.appstoreconnect.apple.com/v1/apps/app-1/betaAppLocalizations?cursor=next"))
 				return err
 			},
 		},
@@ -328,7 +328,7 @@ func TestParityRelatedListRequests_UsesNextURL(t *testing.T) {
 			name: "GetAppPreReleaseVersions",
 			next: "https://api.appstoreconnect.apple.com/v1/apps/app-1/preReleaseVersions?cursor=next",
 			call: func(client *Client) error {
-				_, err := client.GetAppPreReleaseVersions(ctx, "app-1", WithAppPreReleaseVersionsNextURL("https://api.appstoreconnect.apple.com/v1/apps/app-1/preReleaseVersions?cursor=next"))
+				_, err := client.GetAppPreReleaseVersions(ctx, "app-1", NextURL[AppPreReleaseVersionsOption]("https://api.appstoreconnect.apple.com/v1/apps/app-1/preReleaseVersions?cursor=next"))
 				return err
 			},
 		},
@@ -336,7 +336,7 @@ func TestParityRelatedListRequests_UsesNextURL(t *testing.T) {
 			name: "GetBetaTesterApps",
 			next: "https://api.appstoreconnect.apple.com/v1/betaTesters/tester-1/apps?cursor=next",
 			call: func(client *Client) error {
-				_, err := client.GetBetaTesterApps(ctx, "tester-1", WithBetaTesterAppsNextURL("https://api.appstoreconnect.apple.com/v1/betaTesters/tester-1/apps?cursor=next"))
+				_, err := client.GetBetaTesterApps(ctx, "tester-1", NextURL[BetaTesterAppsOption]("https://api.appstoreconnect.apple.com/v1/betaTesters/tester-1/apps?cursor=next"))
 				return err
 			},
 		},
@@ -344,7 +344,7 @@ func TestParityRelatedListRequests_UsesNextURL(t *testing.T) {
 			name: "GetBetaTesterBetaGroups",
 			next: "https://api.appstoreconnect.apple.com/v1/betaTesters/tester-1/betaGroups?cursor=next",
 			call: func(client *Client) error {
-				_, err := client.GetBetaTesterBetaGroups(ctx, "tester-1", WithBetaTesterBetaGroupsNextURL("https://api.appstoreconnect.apple.com/v1/betaTesters/tester-1/betaGroups?cursor=next"))
+				_, err := client.GetBetaTesterBetaGroups(ctx, "tester-1", NextURL[BetaTesterBetaGroupsOption]("https://api.appstoreconnect.apple.com/v1/betaTesters/tester-1/betaGroups?cursor=next"))
 				return err
 			},
 		},
@@ -352,7 +352,7 @@ func TestParityRelatedListRequests_UsesNextURL(t *testing.T) {
 			name: "GetBetaTesterBuilds",
 			next: "https://api.appstoreconnect.apple.com/v1/betaTesters/tester-1/builds?cursor=next",
 			call: func(client *Client) error {
-				_, err := client.GetBetaTesterBuilds(ctx, "tester-1", WithBetaTesterBuildsNextURL("https://api.appstoreconnect.apple.com/v1/betaTesters/tester-1/builds?cursor=next"))
+				_, err := client.GetBetaTesterBuilds(ctx, "tester-1", NextURL[BetaTesterBuildsOption]("https://api.appstoreconnect.apple.com/v1/betaTesters/tester-1/builds?cursor=next"))
 				return err
 			},
 		},
@@ -360,7 +360,7 @@ func TestParityRelatedListRequests_UsesNextURL(t *testing.T) {
 			name: "GetBuildIcons",
 			next: "https://api.appstoreconnect.apple.com/v1/builds/build-1/icons?cursor=next",
 			call: func(client *Client) error {
-				_, err := client.GetBuildIcons(ctx, "build-1", WithBuildIconsNextURL("https://api.appstoreconnect.apple.com/v1/builds/build-1/icons?cursor=next"))
+				_, err := client.GetBuildIcons(ctx, "build-1", NextURL[BuildIconsOption]("https://api.appstoreconnect.apple.com/v1/builds/build-1/icons?cursor=next"))
 				return err
 			},
 		},
@@ -368,7 +368,7 @@ func TestParityRelatedListRequests_UsesNextURL(t *testing.T) {
 			name: "GetPreReleaseVersionBuilds",
 			next: "https://api.appstoreconnect.apple.com/v1/preReleaseVersions/pre-1/builds?cursor=next",
 			call: func(client *Client) error {
-				_, err := client.GetPreReleaseVersionBuilds(ctx, "pre-1", WithPreReleaseVersionBuildsNextURL("https://api.appstoreconnect.apple.com/v1/preReleaseVersions/pre-1/builds?cursor=next"))
+				_, err := client.GetPreReleaseVersionBuilds(ctx, "pre-1", NextURL[PreReleaseVersionBuildsOption]("https://api.appstoreconnect.apple.com/v1/preReleaseVersions/pre-1/builds?cursor=next"))
 				return err
 			},
 		},
@@ -407,7 +407,7 @@ func TestGetAppBetaTesterUsagesMetrics_OmitsAppFilter(t *testing.T) {
 		context.Background(),
 		"app-1",
 		WithBetaTesterUsagesPeriod("P7D"),
-		WithBetaTesterUsagesLimit(5),
+		Limit[BetaTesterUsagesOption](5),
 		WithBetaTesterUsagesAppID("ignored"),
 	)
 	if err != nil {

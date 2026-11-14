@@ -2,7 +2,6 @@ package asc
 
 import (
 	"net/url"
-	"strings"
 )
 
 type perfPowerMetricsQuery struct {
@@ -73,24 +72,6 @@ func WithPerfPowerMetricsDeviceTypes(types []string) PerfPowerMetricsOption {
 	}
 }
 
-// WithDiagnosticSignaturesLimit sets the max number of diagnostic signatures to return.
-func WithDiagnosticSignaturesLimit(limit int) DiagnosticSignaturesOption {
-	return func(q *diagnosticSignaturesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithDiagnosticSignaturesNextURL uses a next page URL directly.
-func WithDiagnosticSignaturesNextURL(next string) DiagnosticSignaturesOption {
-	return func(q *diagnosticSignaturesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithDiagnosticSignaturesDiagnosticTypes filters diagnostic signatures by type.
 func WithDiagnosticSignaturesDiagnosticTypes(types []string) DiagnosticSignaturesOption {
 	return func(q *diagnosticSignaturesQuery) {
@@ -102,14 +83,5 @@ func WithDiagnosticSignaturesDiagnosticTypes(types []string) DiagnosticSignature
 func WithDiagnosticSignaturesFields(fields []string) DiagnosticSignaturesOption {
 	return func(q *diagnosticSignaturesQuery) {
 		q.fields = normalizeList(fields)
-	}
-}
-
-// WithDiagnosticLogsLimit sets the max number of diagnostic logs to return.
-func WithDiagnosticLogsLimit(limit int) DiagnosticLogsOption {
-	return func(q *diagnosticLogsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
 	}
 }

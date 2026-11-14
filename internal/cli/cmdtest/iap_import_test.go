@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 const iapImportTwoProductsFile = `{
@@ -276,20 +277,10 @@ func TestIAPImportWithoutSkipExistingFailsBeforeAnyCreate(t *testing.T) {
 	filePath := writeIAPImportFile(t, dir, iapImportTwoProductsFile)
 	writeIAPImportScreenshot(t, dir)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-
-	mutations := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet {
-			mutations++
-			t.Fatalf("unexpected mutation: %s %s", req.Method, req.URL.String())
-		}
-		if req.URL.Path != "/v1/apps/123456789/inAppPurchasesV2" {
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-		}
-		return jsonResponse(http.StatusOK, `{"data":[{"type":"inAppPurchases","id":"existing-1","attributes":{"productId":"com.example.pro"}}]}`)
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/123456789/inAppPurchasesV2", "fields[inAppPurchases]=productId", "filter[productId]=com.example.coins,com.example.pro", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"inAppPurchases","id":"existing-1","attributes":{"productId":"com.example.pro"}}]}`))
 
 	stdout, _, runErr := runIAPImport(t, []string{
 		"iap", "import",
@@ -308,7 +299,7 @@ func TestIAPImportWithoutSkipExistingFailsBeforeAnyCreate(t *testing.T) {
 	if !strings.Contains(runErr.Error(), "com.example.pro") || !strings.Contains(runErr.Error(), "--skip-existing") {
 		t.Fatalf("expected the conflicting product ID and remedy in the error, got %v", runErr)
 	}
-	if mutations != 0 {
+	if mutations := len(reg.Requests()) - countIAPImportRequests(reg, http.MethodGet, "/v1/apps/123456789/inAppPurchasesV2"); mutations != 0 {
 		t.Fatalf("expected zero mutations, got %d", mutations)
 	}
 	if stdout != "" {
@@ -405,15 +396,10 @@ func TestIAPImportDryRunPerformsNoCreates(t *testing.T) {
 	filePath := writeIAPImportFile(t, dir, iapImportTwoProductsFile)
 	writeIAPImportScreenshot(t, dir)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/123456789/inAppPurchasesV2" {
-			t.Fatalf("unexpected request during dry run: %s %s", req.Method, req.URL.String())
-		}
-		return jsonResponse(http.StatusOK, `{"data":[]}`)
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/123456789/inAppPurchasesV2", "fields[inAppPurchases]=productId", "filter[productId]=com.example.coins,com.example.pro", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[]}`))
 
 	stdout, stderr, runErr := runIAPImport(t, []string{
 		"iap", "import",
@@ -459,12 +445,7 @@ func TestIAPImportRequiresConfirm(t *testing.T) {
 	filePath := writeIAPImportFile(t, dir, iapImportTwoProductsFile)
 	writeIAPImportScreenshot(t, dir)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("unexpected HTTP request before the apply decision: %s %s", req.Method, req.URL.String())
-		return nil, nil
-	})
+	asctest.NewRegistry(t).Install()
 
 	stdout, stderr, runErr := runIAPImport(t, []string{
 		"iap", "import",
@@ -556,12 +537,7 @@ func TestIAPImportRejectsInvalidFilesBeforeAnyRequest(t *testing.T) {
 			filePath := writeIAPImportFile(t, dir, test.contents)
 			writeIAPImportScreenshot(t, dir)
 
-			originalTransport := http.DefaultTransport
-			t.Cleanup(func() { http.DefaultTransport = originalTransport })
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				t.Fatalf("unexpected HTTP request for an invalid file: %s %s", req.Method, req.URL.String())
-				return nil, nil
-			})
+			asctest.NewRegistry(t).Install()
 
 			stdout, stderr, runErr := runIAPImport(t, []string{
 				"iap", "import",
@@ -596,12 +572,7 @@ func TestIAPImportRejectsScreenshotOutsideTheImportRoot(t *testing.T) {
 		outside,
 	))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("unexpected HTTP request for an out-of-root screenshot: %s %s", req.Method, req.URL.String())
-		return nil, nil
-	})
+	asctest.NewRegistry(t).Install()
 
 	stdout, stderr, runErr := runIAPImport(t, []string{
 		"iap", "import",
@@ -629,25 +600,17 @@ func TestIAPImportReportsAcceptedProductWhenCreateResponseHasNoID(t *testing.T) 
 	dir := t.TempDir()
 	filePath := writeIAPImportFile(t, dir, `{"products":[{"type":"CONSUMABLE","referenceName":"Coins","productId":"com.example.coins"}]}`)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	createCalls := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/123456789/inAppPurchasesV2":
-			return jsonResponse(http.StatusOK, `{"data":[]}`)
-		case req.Method == http.MethodPost && req.URL.Path == "/v2/inAppPurchases":
-			createCalls++
-			return jsonResponse(http.StatusCreated, `{"data":{"type":"inAppPurchases","attributes":{}}}`)
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/123456789/inAppPurchasesV2", "fields[inAppPurchases]=productId", "filter[productId]=com.example.coins", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[]}`))
+	reg.Register(asctest.POST("/v2/inAppPurchases").JSONBody(`{"data":{"type":"inAppPurchases","attributes":{"name":"Coins","productId":"com.example.coins","inAppPurchaseType":"CONSUMABLE"},"relationships":{"app":{"data":{"type":"apps","id":"123456789"}}}}}`),
+		asctest.JSON(http.StatusCreated, `{"data":{"type":"inAppPurchases","attributes":{}}}`))
 
 	stdout, _, runErr := runIAPImport(t, []string{
 		"iap", "import", "--app", "123456789", "--file", filePath, "--confirm", "--output", "json",
 	})
+	createCalls := countIAPImportRequests(reg, http.MethodPost, "/v2/inAppPurchases")
 	if runErr == nil || !strings.Contains(runErr.Error(), "response did not include an id") || createCalls != 1 {
 		t.Fatalf("run error = %v, create calls = %d; want one accepted create with missing ID", runErr, createCalls)
 	}
@@ -687,26 +650,16 @@ func TestIAPImportReportsProductCreatedBeforeALocalizationFailure(t *testing.T) 
   ]
 }`)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-
-	productCreates := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/123456789/inAppPurchasesV2":
-			return jsonResponse(http.StatusOK, `{"data":[]}`)
-		case req.Method == http.MethodPost && req.URL.Path == "/v2/inAppPurchases":
-			productCreates++
-			return jsonResponse(http.StatusCreated, `{"data":{"type":"inAppPurchases","id":"iap-1","attributes":{}}}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v2/inAppPurchases/iap-1/versions":
-			return jsonResponse(http.StatusOK, `{"data":[{"type":"inAppPurchaseVersions","id":"version-1","attributes":{}}]}`)
-		case req.Method == http.MethodPost && req.URL.Path == "/v2/inAppPurchaseLocalizations":
-			return jsonResponse(http.StatusConflict, `{"errors":[{"status":"409","code":"ENTITY_ERROR","title":"Conflict","detail":"locale rejected"}]}`)
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/123456789/inAppPurchasesV2", "fields[inAppPurchases]=productId", "filter[productId]=com.example.coins,com.example.gems", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[]}`))
+	reg.Register(asctest.POST("/v2/inAppPurchases").JSONBody(`{"data":{"type":"inAppPurchases","attributes":{"name":"Coins","productId":"com.example.coins","inAppPurchaseType":"CONSUMABLE"},"relationships":{"app":{"data":{"type":"apps","id":"123456789"}}}}}`),
+		asctest.JSON(http.StatusCreated, `{"data":{"type":"inAppPurchases","id":"iap-1","attributes":{}}}`))
+	reg.Register(asctest.GET("/v2/inAppPurchases/iap-1/versions", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"inAppPurchaseVersions","id":"version-1","attributes":{}}]}`))
+	reg.Register(asctest.POST("/v2/inAppPurchaseLocalizations").JSONBody(`{"data":{"type":"inAppPurchaseLocalizations","attributes":{"name":"Coins","locale":"en-US"},"relationships":{"version":{"data":{"type":"inAppPurchaseVersions","id":"version-1"}}}}}`),
+		asctest.JSON(http.StatusConflict, `{"errors":[{"status":"409","code":"ENTITY_ERROR","title":"Conflict","detail":"locale rejected"}]}`))
 
 	stdout, _, runErr := runIAPImport(t, []string{
 		"iap", "import",
@@ -718,7 +671,7 @@ func TestIAPImportReportsProductCreatedBeforeALocalizationFailure(t *testing.T) 
 	if runErr == nil {
 		t.Fatal("expected the localization failure to return an error")
 	}
-	if productCreates != 1 {
+	if productCreates := countIAPImportRequests(reg, http.MethodPost, "/v2/inAppPurchases"); productCreates != 1 {
 		t.Fatalf("expected the import to stop after the failing product, got %d creates", productCreates)
 	}
 
@@ -758,25 +711,14 @@ func TestIAPImportStopsOnMidImportFailureAndReportsCreatedProducts(t *testing.T)
   ]
 }`)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-
-	productCreates := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/123456789/inAppPurchasesV2":
-			return jsonResponse(http.StatusOK, `{"data":[]}`)
-		case req.Method == http.MethodPost && req.URL.Path == "/v2/inAppPurchases":
-			productCreates++
-			if productCreates == 2 {
-				return jsonResponse(http.StatusConflict, `{"errors":[{"status":"409","code":"ENTITY_ERROR","title":"Conflict","detail":"product rejected"}]}`)
-			}
-			return jsonResponse(http.StatusCreated, fmt.Sprintf(`{"data":{"type":"inAppPurchases","id":"iap-%d","attributes":{}}}`, productCreates))
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/123456789/inAppPurchasesV2", "fields[inAppPurchases]=productId", "filter[productId]=com.example.coins,com.example.gems,com.example.stars", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[]}`))
+	reg.Register(asctest.POST("/v2/inAppPurchases").JSONBody(`{"data":{"type":"inAppPurchases","attributes":{"name":"Coins","productId":"com.example.coins","inAppPurchaseType":"CONSUMABLE"},"relationships":{"app":{"data":{"type":"apps","id":"123456789"}}}}}`),
+		asctest.JSON(http.StatusCreated, `{"data":{"type":"inAppPurchases","id":"iap-1","attributes":{}}}`))
+	reg.Register(asctest.POST("/v2/inAppPurchases").JSONBody(`{"data":{"type":"inAppPurchases","attributes":{"name":"Gems","productId":"com.example.gems","inAppPurchaseType":"CONSUMABLE"},"relationships":{"app":{"data":{"type":"apps","id":"123456789"}}}}}`),
+		asctest.JSON(http.StatusConflict, `{"errors":[{"status":"409","code":"ENTITY_ERROR","title":"Conflict","detail":"product rejected"}]}`))
 
 	stdout, _, runErr := runIAPImport(t, []string{
 		"iap", "import",
@@ -788,7 +730,7 @@ func TestIAPImportStopsOnMidImportFailureAndReportsCreatedProducts(t *testing.T)
 	if runErr == nil {
 		t.Fatal("expected a mid-import failure to return an error")
 	}
-	if productCreates != 2 {
+	if productCreates := countIAPImportRequests(reg, http.MethodPost, "/v2/inAppPurchases"); productCreates != 2 {
 		t.Fatalf("expected the import to stop after the failing product, got %d creates", productCreates)
 	}
 
@@ -814,4 +756,14 @@ func TestIAPImportStopsOnMidImportFailureAndReportsCreatedProducts(t *testing.T)
 	if len(receipt.Products) != 2 || receipt.Products[1].Status != "failed" {
 		t.Fatalf("expected the import to stop before later products, got %+v", receipt.Products)
 	}
+}
+
+func countIAPImportRequests(reg *asctest.Registry, method, path string) int {
+	count := 0
+	for _, req := range reg.Requests() {
+		if req.Method == method && req.URL.Path == path {
+			count++
+		}
+	}
+	return count
 }

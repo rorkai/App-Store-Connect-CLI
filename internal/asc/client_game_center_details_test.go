@@ -25,7 +25,7 @@ func TestGameCenterDetailListEndpoints_WithLimit(t *testing.T) {
 			limit:    "30",
 			response: `{"data":[{"type":"gameCenterDetails","id":"detail-1","attributes":{"arcadeEnabled":true}}]}`,
 			call: func(t *testing.T, c *Client) {
-				resp, err := c.GetGameCenterGroupGameCenterDetails(ctx, "group-1", Limit[GCDetailsOption](30))
+				resp, err := c.GetGameCenterGroupGameCenterDetails(ctx, "group-1", WithGCDetailsLimit(30))
 				if err != nil {
 					t.Fatalf("GetGameCenterGroupGameCenterDetails() error: %v", err)
 				}
@@ -40,7 +40,7 @@ func TestGameCenterDetailListEndpoints_WithLimit(t *testing.T) {
 			limit:    "12",
 			response: `{"data":[{"type":"gameCenterAchievementReleases","id":"rel-1"}]}`,
 			call: func(t *testing.T, c *Client) {
-				resp, err := c.GetGameCenterDetailsAchievementReleases(ctx, "detail-1", Limit[GCAchievementReleasesOption](12))
+				resp, err := c.GetGameCenterDetailsAchievementReleases(ctx, "detail-1", WithGCAchievementReleasesLimit(12))
 				if err != nil {
 					t.Fatalf("GetGameCenterDetailsAchievementReleases() error: %v", err)
 				}
@@ -55,7 +55,7 @@ func TestGameCenterDetailListEndpoints_WithLimit(t *testing.T) {
 			limit:    "15",
 			response: `{"data":[{"type":"gameCenterLeaderboardReleases","id":"rel-1"}]}`,
 			call: func(t *testing.T, c *Client) {
-				resp, err := c.GetGameCenterDetailsLeaderboardReleases(ctx, "detail-1", Limit[GCLeaderboardReleasesOption](15))
+				resp, err := c.GetGameCenterDetailsLeaderboardReleases(ctx, "detail-1", WithGCLeaderboardReleasesLimit(15))
 				if err != nil {
 					t.Fatalf("GetGameCenterDetailsLeaderboardReleases() error: %v", err)
 				}
@@ -70,7 +70,7 @@ func TestGameCenterDetailListEndpoints_WithLimit(t *testing.T) {
 			limit:    "18",
 			response: `{"data":[{"type":"gameCenterLeaderboardSetReleases","id":"rel-1"}]}`,
 			call: func(t *testing.T, c *Client) {
-				resp, err := c.GetGameCenterDetailsLeaderboardSetReleases(ctx, "detail-1", Limit[GCLeaderboardSetReleasesOption](18))
+				resp, err := c.GetGameCenterDetailsLeaderboardSetReleases(ctx, "detail-1", WithGCLeaderboardSetReleasesLimit(18))
 				if err != nil {
 					t.Fatalf("GetGameCenterDetailsLeaderboardSetReleases() error: %v", err)
 				}
@@ -85,7 +85,7 @@ func TestGameCenterDetailListEndpoints_WithLimit(t *testing.T) {
 			limit:    "20",
 			response: `{"data":[{"type":"gameCenterAchievements","id":"ach-1"}]}`,
 			call: func(t *testing.T, c *Client) {
-				resp, err := c.GetGameCenterDetailsAchievementsV2(ctx, "detail-1", Limit[GCAchievementsOption](20))
+				resp, err := c.GetGameCenterDetailsAchievementsV2(ctx, "detail-1", WithGCAchievementsLimit(20))
 				if err != nil {
 					t.Fatalf("GetGameCenterDetailsAchievementsV2() error: %v", err)
 				}
@@ -100,7 +100,7 @@ func TestGameCenterDetailListEndpoints_WithLimit(t *testing.T) {
 			limit:    "25",
 			response: `{"data":[{"type":"gameCenterLeaderboards","id":"lb-1"}]}`,
 			call: func(t *testing.T, c *Client) {
-				resp, err := c.GetGameCenterDetailsLeaderboardsV2(ctx, "detail-1", Limit[GCLeaderboardsOption](25))
+				resp, err := c.GetGameCenterDetailsLeaderboardsV2(ctx, "detail-1", WithGCLeaderboardsLimit(25))
 				if err != nil {
 					t.Fatalf("GetGameCenterDetailsLeaderboardsV2() error: %v", err)
 				}
@@ -115,7 +115,7 @@ func TestGameCenterDetailListEndpoints_WithLimit(t *testing.T) {
 			limit:    "30",
 			response: `{"data":[{"type":"gameCenterLeaderboardSets","id":"set-1"}]}`,
 			call: func(t *testing.T, c *Client) {
-				resp, err := c.GetGameCenterDetailsLeaderboardSetsV2(ctx, "detail-1", Limit[GCLeaderboardSetsOption](30))
+				resp, err := c.GetGameCenterDetailsLeaderboardSetsV2(ctx, "detail-1", WithGCLeaderboardSetsLimit(30))
 				if err != nil {
 					t.Fatalf("GetGameCenterDetailsLeaderboardSetsV2() error: %v", err)
 				}
@@ -160,7 +160,7 @@ func TestGameCenterDetailListEndpoints_UseNextURL(t *testing.T) {
 			next:     "https://api.appstoreconnect.apple.com/v1/gameCenterGroups/group-1/gameCenterDetails?cursor=next",
 			response: `{"data":[{"type":"gameCenterDetails","id":"detail-1","attributes":{"arcadeEnabled":true}}]}`,
 			call: func(t *testing.T, c *Client, next string) {
-				resp, err := c.GetGameCenterGroupGameCenterDetails(ctx, "", NextURL[GCDetailsOption](next))
+				resp, err := c.GetGameCenterGroupGameCenterDetails(ctx, "", WithGCDetailsNextURL(next))
 				if err != nil {
 					t.Fatalf("GetGameCenterGroupGameCenterDetails() error: %v", err)
 				}
@@ -174,7 +174,7 @@ func TestGameCenterDetailListEndpoints_UseNextURL(t *testing.T) {
 			next:     "https://api.appstoreconnect.apple.com/v1/gameCenterDetails/detail-1/metrics/ruleBasedMatchmakingRequests?cursor=next",
 			response: `{"data":[{"dataPoints":[{"start":"2026-01-01","end":"2026-01-02","values":{"count":1}}],"dimensions":{"result":{"data":{"id":"MATCHED"}}}}]}`,
 			call: func(t *testing.T, c *Client, next string) {
-				resp, err := c.GetGameCenterDetailsRuleBasedMatchmakingRequests(ctx, "detail-1", NextURL[GCMatchmakingMetricsOption](next))
+				resp, err := c.GetGameCenterDetailsRuleBasedMatchmakingRequests(ctx, "detail-1", WithGCMatchmakingMetricsNextURL(next))
 				if err != nil {
 					t.Fatalf("GetGameCenterDetailsRuleBasedMatchmakingRequests() error: %v", err)
 				}
@@ -236,11 +236,11 @@ func TestGetGameCenterDetailGameCenterGroup(t *testing.T) {
 
 func TestGCDetailsOptions(t *testing.T) {
 	query := &gcDetailsQuery{}
-	Limit[GCDetailsOption](8)(query)
+	WithGCDetailsLimit(8)(query)
 	if query.limit != 8 {
 		t.Fatalf("expected limit 8, got %d", query.limit)
 	}
-	NextURL[GCDetailsOption]("next")(query)
+	WithGCDetailsNextURL("next")(query)
 	if query.nextURL != "next" {
 		t.Fatalf("expected nextURL set, got %q", query.nextURL)
 	}
@@ -283,7 +283,7 @@ func TestGetGameCenterDetailsClassicMatchmakingRequests_WithQuery(t *testing.T) 
 		WithGCMatchmakingMetricsGroupBy([]string{"result"}),
 		WithGCMatchmakingMetricsFilterResult("MATCHED"),
 		WithGCMatchmakingMetricsSort([]string{"-count"}),
-		Limit[GCMatchmakingMetricsOption](50),
+		WithGCMatchmakingMetricsLimit(50),
 	}
 
 	if _, err := client.GetGameCenterDetailsClassicMatchmakingRequests(context.Background(), "detail-1", opts...); err != nil {

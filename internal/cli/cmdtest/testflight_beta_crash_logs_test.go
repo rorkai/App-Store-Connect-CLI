@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestTestFlightCrashesLogNotFoundPointsToCrashSubmissions(t *testing.T) {
@@ -23,12 +24,10 @@ func TestTestFlightCrashesLogNotFoundPointsToCrashSubmissions(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			setupAuth(t)
 			detail := "There is no resource of type '" + test.kind + "' with id 'missing'"
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				if req.Method != http.MethodGet || req.URL.Path != test.path {
-					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-				}
-				return jsonResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"The specified resource does not exist","detail":"`+detail+`"}]}`)
-			}))
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET(test.path),
+				asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"The specified resource does not exist","detail":"`+detail+`"}]}`))
 
 			var code int
 			stdout, stderr := captureOutput(t, func() {

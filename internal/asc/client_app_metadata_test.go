@@ -38,7 +38,7 @@ func TestGetAppSearchKeywords_SendsRequestWithFilters(t *testing.T) {
 		"app-1",
 		WithAppSearchKeywordsPlatforms([]string{"ios", "MAC_OS"}),
 		WithAppSearchKeywordsLocales([]string{"en-US", "ja"}),
-		WithAppSearchKeywordsLimit(5),
+		Limit[AppSearchKeywordsOption](5),
 	)
 	if err != nil {
 		t.Fatalf("GetAppSearchKeywords() error: %v", err)
@@ -56,7 +56,7 @@ func TestAppMetadataListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetAppSearchKeywords",
 			next: "https://api.appstoreconnect.apple.com/v1/apps/app-1/searchKeywords?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetAppSearchKeywords(ctx, "", WithAppSearchKeywordsNextURL(next))
+				_, err := c.GetAppSearchKeywords(ctx, "", NextURL[AppSearchKeywordsOption](next))
 				return err
 			},
 		},
@@ -64,7 +64,7 @@ func TestAppMetadataListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetAppStoreVersionLocalizationPreviewSetsRelationships",
 			next: "https://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations/loc-1/relationships/appPreviewSets?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetAppStoreVersionLocalizationPreviewSetsRelationships(ctx, "", WithLinkagesNextURL(next))
+				_, err := c.GetAppStoreVersionLocalizationPreviewSetsRelationships(ctx, "", NextURL[LinkagesOption](next))
 				return err
 			},
 		},
@@ -72,7 +72,7 @@ func TestAppMetadataListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetAppStoreVersionLocalizationScreenshotSetsRelationships",
 			next: "https://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations/loc-1/relationships/appScreenshotSets?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetAppStoreVersionLocalizationScreenshotSetsRelationships(ctx, "", WithLinkagesNextURL(next))
+				_, err := c.GetAppStoreVersionLocalizationScreenshotSetsRelationships(ctx, "", NextURL[LinkagesOption](next))
 				return err
 			},
 		},
@@ -80,7 +80,7 @@ func TestAppMetadataListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetAppCategorySubcategories",
 			next: "https://api.appstoreconnect.apple.com/v1/appCategories/GAMES/subcategories?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetAppCategorySubcategories(ctx, "", WithAppCategoriesNextURL(next))
+				_, err := c.GetAppCategorySubcategories(ctx, "", NextURL[AppCategoriesOption](next))
 				return err
 			},
 		},
@@ -88,7 +88,7 @@ func TestAppMetadataListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetAppInfoTerritoryAgeRatings",
 			next: "https://api.appstoreconnect.apple.com/v1/appInfos/info-1/territoryAgeRatings?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetAppInfoTerritoryAgeRatings(ctx, "", WithTerritoryAgeRatingsNextURL(next))
+				_, err := c.GetAppInfoTerritoryAgeRatings(ctx, "", NextURL[TerritoryAgeRatingsOption](next))
 				return err
 			},
 		},
@@ -207,7 +207,7 @@ func TestGetAppStoreVersionLocalizationPreviewSets_SendsRequestWithLimit(t *test
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetAppStoreVersionLocalizationPreviewSets(context.Background(), "loc-1", WithAppStoreVersionLocalizationPreviewSetsLimit(10)); err != nil {
+	if _, err := client.GetAppStoreVersionLocalizationPreviewSets(context.Background(), "loc-1", Limit[AppStoreVersionLocalizationPreviewSetsOption](10)); err != nil {
 		t.Fatalf("GetAppStoreVersionLocalizationPreviewSets() error: %v", err)
 	}
 }
@@ -227,7 +227,7 @@ func TestGetAppStoreVersionLocalizationScreenshotSets_SendsRequestWithLimit(t *t
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetAppStoreVersionLocalizationScreenshotSets(context.Background(), "loc-1", WithAppStoreVersionLocalizationScreenshotSetsLimit(5)); err != nil {
+	if _, err := client.GetAppStoreVersionLocalizationScreenshotSets(context.Background(), "loc-1", Limit[AppStoreVersionLocalizationScreenshotSetsOption](5)); err != nil {
 		t.Fatalf("GetAppStoreVersionLocalizationScreenshotSets() error: %v", err)
 	}
 }
@@ -366,7 +366,7 @@ func TestGetAppStoreVersionRelationshipLists_SendsRequestWithLimit(t *testing.T)
 		{
 			name: "experiments v1",
 			call: func(ctx context.Context, client *Client) error {
-				_, err := client.GetAppStoreVersionExperimentsRelationships(ctx, "version-1", WithLinkagesLimit(20))
+				_, err := client.GetAppStoreVersionExperimentsRelationships(ctx, "version-1", Limit[LinkagesOption](20))
 				return err
 			},
 			path: "/v1/appStoreVersions/version-1/relationships/appStoreVersionExperiments",
@@ -374,7 +374,7 @@ func TestGetAppStoreVersionRelationshipLists_SendsRequestWithLimit(t *testing.T)
 		{
 			name: "experiments v2",
 			call: func(ctx context.Context, client *Client) error {
-				_, err := client.GetAppStoreVersionExperimentsV2Relationships(ctx, "version-1", WithLinkagesLimit(20))
+				_, err := client.GetAppStoreVersionExperimentsV2Relationships(ctx, "version-1", Limit[LinkagesOption](20))
 				return err
 			},
 			path: "/v1/appStoreVersions/version-1/relationships/appStoreVersionExperimentsV2",
@@ -382,7 +382,7 @@ func TestGetAppStoreVersionRelationshipLists_SendsRequestWithLimit(t *testing.T)
 		{
 			name: "customer reviews",
 			call: func(ctx context.Context, client *Client) error {
-				_, err := client.GetAppStoreVersionCustomerReviewsRelationships(ctx, "version-1", WithLinkagesLimit(20))
+				_, err := client.GetAppStoreVersionCustomerReviewsRelationships(ctx, "version-1", Limit[LinkagesOption](20))
 				return err
 			},
 			path: "/v1/appStoreVersions/version-1/relationships/customerReviews",
@@ -444,7 +444,7 @@ func TestAppStoreVersionListEndpoints_WithLimit(t *testing.T) {
 			limit:    "12",
 			response: `{"data":[{"type":"appStoreVersionExperiments","id":"exp-1"}]}`,
 			call: func(t *testing.T, c *Client) {
-				resp, err := c.GetAppStoreVersionExperimentsV2ForVersion(ctx, "version-1", WithAppStoreVersionExperimentsV2Limit(12))
+				resp, err := c.GetAppStoreVersionExperimentsV2ForVersion(ctx, "version-1", Limit[AppStoreVersionExperimentsV2Option](12))
 				if err != nil {
 					t.Fatalf("GetAppStoreVersionExperimentsV2ForVersion() error: %v", err)
 				}
@@ -459,7 +459,7 @@ func TestAppStoreVersionListEndpoints_WithLimit(t *testing.T) {
 			limit:    "5",
 			response: `{"data":[{"type":"customerReviews","id":"review-1","attributes":{"rating":5,"title":"Great"}}]}`,
 			call: func(t *testing.T, c *Client) {
-				resp, err := c.GetAppStoreVersionCustomerReviews(ctx, "version-1", WithLimit(5))
+				resp, err := c.GetAppStoreVersionCustomerReviews(ctx, "version-1", Limit[ReviewOption](5))
 				if err != nil {
 					t.Fatalf("GetAppStoreVersionCustomerReviews() error: %v", err)
 				}
@@ -808,7 +808,7 @@ func TestGetAppInfoTerritoryAgeRatings_SendsRequest(t *testing.T) {
 		WithTerritoryAgeRatingsFields([]string{"appStoreAgeRating", "territory"}),
 		WithTerritoryAgeRatingsTerritoryFields([]string{"currency"}),
 		WithTerritoryAgeRatingsInclude([]string{"territory"}),
-		WithTerritoryAgeRatingsLimit(10),
+		Limit[TerritoryAgeRatingsOption](10),
 	)
 	if err != nil {
 		t.Fatalf("GetAppInfoTerritoryAgeRatings() error: %v", err)

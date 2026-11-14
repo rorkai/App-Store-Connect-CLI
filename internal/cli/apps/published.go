@@ -80,12 +80,12 @@ Examples:
 
 // fetchAllAppsForPublishedAudit retrieves every app record across all result pages.
 func fetchAllAppsForPublishedAudit(ctx context.Context, client *asc.Client) (*asc.AppsResponse, error) {
-	firstPage, err := client.GetApps(ctx, asc.WithAppsLimit(200), asc.WithAppsSort("name"))
+	firstPage, err := client.GetApps(ctx, asc.Limit[asc.AppsOption](200), asc.WithAppsSort("name"))
 	if err != nil {
 		return nil, err
 	}
 	allPages, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetApps(ctx, asc.WithAppsNextURL(nextURL))
+		return client.GetApps(ctx, asc.NextURL[asc.AppsOption](nextURL))
 	})
 	if err != nil {
 		return nil, err
@@ -211,12 +211,12 @@ func auditPublishedApp(ctx context.Context, client *asc.Client, appID string) (s
 		return "", 0, fmt.Errorf("availability response did not include an ID")
 	}
 
-	firstPage, err := client.GetTerritoryAvailabilities(ctx, availabilityID, asc.WithTerritoryAvailabilitiesLimit(200))
+	firstPage, err := client.GetTerritoryAvailabilities(ctx, availabilityID, asc.Limit[asc.TerritoryAvailabilitiesOption](200))
 	if err != nil {
 		return availabilityID, 0, fmt.Errorf("fetch territory availabilities: %w", err)
 	}
 	allPages, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetTerritoryAvailabilities(ctx, availabilityID, asc.WithTerritoryAvailabilitiesNextURL(nextURL))
+		return client.GetTerritoryAvailabilities(ctx, availabilityID, asc.NextURL[asc.TerritoryAvailabilitiesOption](nextURL))
 	})
 	if err != nil {
 		return availabilityID, 0, fmt.Errorf("fetch territory availabilities: %w", err)

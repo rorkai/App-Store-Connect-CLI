@@ -16,6 +16,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func readCSVRecords(t *testing.T, path string) [][]string {
@@ -37,36 +39,10 @@ func readCSVRecords(t *testing.T, path string) [][]string {
 func TestTestFlightBetaTestersExport_WritesDeterministicCSV(t *testing.T) {
 	setupAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/betaTesters" {
-			t.Fatalf("expected path /v1/betaTesters, got %s", req.URL.Path)
-		}
-		q := req.URL.Query()
-		if q.Get("filter[apps]") != "app-1" {
-			t.Fatalf("expected filter[apps]=app-1, got %q", q.Get("filter[apps]"))
-		}
-		if q.Get("limit") != "200" {
-			t.Fatalf("expected limit=200, got %q", q.Get("limit"))
-		}
-
-		body := `{"data":[` +
-			`{"type":"betaTesters","id":"tester-2","attributes":{"email":"b@example.com","firstName":"B","lastName":"Bee"}},` +
-			`{"type":"betaTesters","id":"tester-1","attributes":{"email":"a@example.com","firstName":"A","lastName":"Aye"}}` +
-			`]}`
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/betaTesters", "filter[apps]=app-1", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaTesters","id":"tester-2","attributes":{"email":"b@example.com","firstName":"B","lastName":"Bee"}},{"type":"betaTesters","id":"tester-1","attributes":{"email":"a@example.com","firstName":"A","lastName":"Aye"}}]}`))
 
 	outPath := filepath.Join(t.TempDir(), "testers.csv")
 
@@ -120,56 +96,23 @@ func TestTestFlightBetaTestersExport_WritesDeterministicCSV(t *testing.T) {
 func TestTestFlightBetaTestersExport_IncludeGroupsAddsColumn(t *testing.T) {
 	setupAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	// Group membership reads run concurrently, so match requests by path and
-	// avoid t.Fatalf on transport goroutines.
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		var body string
-		switch {
-		case req.Method != http.MethodGet:
-		case req.URL.Path == "/v1/apps/app-1/betaGroups":
-			if req.URL.Query().Get("limit") != "200" {
-				t.Errorf("expected limit=200, got %q", req.URL.Query().Get("limit"))
-				return nil, fmt.Errorf("unexpected limit")
-			}
-			body = `{"data":[` +
-				`{"type":"betaGroups","id":"group-1","attributes":{"name":"Alpha"}},` +
-				`{"type":"betaGroups","id":"group-2","attributes":{"name":"Beta"}}` +
-				`]}`
-		case req.URL.Path == "/v1/betaTesters":
-			body = `{"data":[` +
-				`{"type":"betaTesters","id":"tester-2","attributes":{"email":"b@example.com","firstName":"B","lastName":"Bee"}},` +
-				`{"type":"betaTesters","id":"tester-1","attributes":{"email":"a@example.com","firstName":"A","lastName":"Aye"}}` +
-				`]}`
-		case req.URL.Path == "/v1/betaGroups/group-1/betaTesters":
-			body = `{"data":[{"type":"betaTesters","id":"tester-1"}]}`
-		case req.URL.Path == "/v1/betaGroups/group-2/betaTesters":
-			body = `{"data":[{"type":"betaTesters","id":"tester-1"},{"type":"betaTesters","id":"tester-2"}]}`
-		}
-		if body == "" {
-			t.Errorf("unexpected request: %s %s", req.Method, req.URL)
-			return nil, fmt.Errorf("unexpected request")
-		}
-		return jsonHTTPResponse(http.StatusOK, body), nil
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/app-1/betaGroups", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"Alpha"}},{"type":"betaGroups","id":"group-2","attributes":{"name":"Beta"}}]}`))
+	reg.Register(asctest.GET("/v1/betaTesters", "filter[apps]=app-1", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaTesters","id":"tester-2","attributes":{"email":"b@example.com","firstName":"B","lastName":"Bee"}},{"type":"betaTesters","id":"tester-1","attributes":{"email":"a@example.com","firstName":"A","lastName":"Aye"}}]}`))
+	reg.Register(asctest.GET("/v1/betaGroups/group-1/betaTesters", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaTesters","id":"tester-1"}]}`))
+	reg.Register(asctest.GET("/v1/betaGroups/group-2/betaTesters", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaTesters","id":"tester-1"},{"type":"betaTesters","id":"tester-2"}]}`))
 
 	outPath := filepath.Join(t.TempDir(), "testers.csv")
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"testflight", "testers", "export", "--app", "app-1", "--output", outPath, "--include-groups"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"testflight", "testers", "export", "--app", "app-1", "--output", outPath, "--include-groups"})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -268,14 +211,7 @@ func TestTestFlightBetaTestersExport_IncludeGroupsRenewsRequestTimeout(t *testin
 func TestTestFlightBetaTestersImport_InvalidSchemaReturnsUsageError(t *testing.T) {
 	setupAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("unexpected HTTP request: %s %s", req.Method, req.URL.String())
-		return nil, nil
-	})
+	asctest.NewRegistry(t).Install()
 
 	csvPath := filepath.Join(t.TempDir(), "input.csv")
 	if err := os.WriteFile(csvPath, []byte("email,unknown\nx@example.com,value\n"), 0o600); err != nil {
@@ -306,43 +242,12 @@ func TestTestFlightBetaTestersImport_InvalidSchemaReturnsUsageError(t *testing.T
 func TestTestFlightBetaTestersImport_DryRun_NoMutations(t *testing.T) {
 	setupAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	callCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		callCount++
-		switch callCount {
-		case 1:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/app-1/betaGroups" {
-				t.Fatalf("unexpected request 1: %s %s", req.Method, req.URL.Path)
-			}
-			body := `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"Beta"}}]}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 2:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/betaTesters" {
-				t.Fatalf("unexpected request 2: %s %s", req.Method, req.URL.Path)
-			}
-			body := `{"data":[{"type":"betaTesters","id":"tester-1","attributes":{"email":"existing@example.com"}}]}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			if req.Method != http.MethodGet {
-				t.Fatalf("unexpected mutation request %d: %s %s", callCount, req.Method, req.URL.Path)
-			}
-			t.Fatalf("unexpected request count %d: %s %s", callCount, req.Method, req.URL.Path)
-			return nil, nil
-		}
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/app-1/betaGroups", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"Beta"}}]}`))
+	reg.Register(asctest.GET("/v1/betaTesters", "filter[apps]=app-1", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaTesters","id":"tester-1","attributes":{"email":"existing@example.com"}}]}`))
 
 	csvPath := filepath.Join(t.TempDir(), "input.csv")
 	csvBody := "" +
@@ -393,70 +298,16 @@ func TestTestFlightBetaTestersImport_DryRun_NoMutations(t *testing.T) {
 func TestTestFlightBetaTestersImport_CreateAssignAndInvite(t *testing.T) {
 	setupAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	callCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		callCount++
-		switch callCount {
-		case 1:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/app-1/betaGroups" {
-				t.Fatalf("unexpected request 1: %s %s", req.Method, req.URL.Path)
-			}
-			body := `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"Beta"}}]}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 2:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/betaTesters" {
-				t.Fatalf("unexpected request 2: %s %s", req.Method, req.URL.Path)
-			}
-			body := `{"data":[]}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 3:
-			if req.Method != http.MethodPost || req.URL.Path != "/v1/betaTesters" {
-				t.Fatalf("unexpected request 3: %s %s", req.Method, req.URL.Path)
-			}
-			payload, err := io.ReadAll(req.Body)
-			if err != nil {
-				t.Fatalf("ReadAll() error: %v", err)
-			}
-			if !strings.Contains(string(payload), `"email":"new@example.com"`) {
-				t.Fatalf("expected email in body, got %s", string(payload))
-			}
-			if !strings.Contains(string(payload), `"id":"group-1"`) {
-				t.Fatalf("expected group id in body, got %s", string(payload))
-			}
-			body := `{"data":{"type":"betaTesters","id":"tester-new","attributes":{"email":"new@example.com"}}}`
-			return &http.Response{
-				StatusCode: http.StatusCreated,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 4:
-			if req.Method != http.MethodPost || req.URL.Path != "/v1/betaTesterInvitations" {
-				t.Fatalf("unexpected request 4: %s %s", req.Method, req.URL.Path)
-			}
-			body := `{"data":{"type":"betaTesterInvitations","id":"invite-1"}}`
-			return &http.Response{
-				StatusCode: http.StatusCreated,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected request count %d", callCount)
-			return nil, nil
-		}
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/app-1/betaGroups", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"Beta"}}]}`))
+	reg.Register(asctest.GET("/v1/betaTesters", "filter[apps]=app-1", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[]}`))
+	reg.Register(asctest.POST("/v1/betaTesters").JSONBody(`{"data":{"type":"betaTesters","attributes":{"firstName":"New","lastName":"Tester","email":"new@example.com"},"relationships":{"betaGroups":{"data":[{"type":"betaGroups","id":"group-1"}]}}}}`),
+		asctest.JSON(http.StatusCreated, `{"data":{"type":"betaTesters","id":"tester-new","attributes":{"email":"new@example.com"}}}`))
+	reg.Register(asctest.POST("/v1/betaTesterInvitations").JSONBody(`{"data":{"type":"betaTesterInvitations","relationships":{"app":{"data":{"type":"apps","id":"app-1"}},"betaTester":{"data":{"type":"betaTesters","id":"tester-new"}}}}}`),
+		asctest.JSON(http.StatusCreated, `{"data":{"type":"betaTesterInvitations","id":"invite-1"}}`))
 
 	csvPath := filepath.Join(t.TempDir(), "input.csv")
 	csvBody := "" +
@@ -466,17 +317,10 @@ func TestTestFlightBetaTestersImport_CreateAssignAndInvite(t *testing.T) {
 		t.Fatalf("WriteFile() error: %v", err)
 	}
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"testflight", "testers", "import", "--app", "app-1", "--input", csvPath, "--invite", "--confirm"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"testflight", "testers", "import", "--app", "app-1", "--input", csvPath, "--invite", "--confirm"})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -628,22 +472,18 @@ func TestTestFlightBetaTestersImport_FailedMutationsCountOnlyAsFailed(t *testing
 		t.Run(test.name, func(t *testing.T) {
 			setupAuth(t)
 
-			callCount := 0
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				callCount++
-				if callCount > len(test.steps) {
-					t.Fatalf("unexpected request %d: %s %s", callCount, req.Method, req.URL.Path)
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			for _, step := range test.steps {
+				matcher := asctest.POST(step.path)
+				switch {
+				case step.method == http.MethodGet && step.path == "/v1/betaTesters":
+					matcher = asctest.GET(step.path, "filter[apps]=app-1", "limit=200")
+				case step.method == http.MethodGet:
+					matcher = asctest.GET(step.path, "limit=200")
 				}
-				want := test.steps[callCount-1]
-				if req.Method != want.method || req.URL.Path != want.path {
-					t.Fatalf("request %d = %s %s, want %s %s", callCount, req.Method, req.URL.Path, want.method, want.path)
-				}
-				return &http.Response{
-					StatusCode: want.status,
-					Body:       io.NopCloser(strings.NewReader(want.body)),
-					Header:     http.Header{"Content-Type": []string{"application/json"}},
-				}, nil
-			}))
+				reg.Register(matcher, asctest.JSON(step.status, step.body))
+			}
 
 			csvPath := filepath.Join(t.TempDir(), "input.csv")
 			if err := os.WriteFile(csvPath, []byte(test.csv), 0o600); err != nil {
@@ -669,8 +509,14 @@ func TestTestFlightBetaTestersImport_FailedMutationsCountOnlyAsFailed(t *testing
 			if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)
 			}
-			if callCount != len(test.steps) {
+			requests := reg.Requests()
+			if callCount := len(requests); callCount != len(test.steps) {
 				t.Fatalf("requests = %d, want %d", callCount, len(test.steps))
+			}
+			for index, req := range requests {
+				if want := test.steps[index]; req.Method != want.method || req.URL.Path != want.path {
+					t.Fatalf("request %d = %s %s, want %s %s", index+1, req.Method, req.URL.Path, want.method, want.path)
+				}
 			}
 			var summary map[string]any
 			if err := json.Unmarshal([]byte(stdout), &summary); err != nil {
@@ -688,62 +534,14 @@ func TestTestFlightBetaTestersImport_FailedMutationsCountOnlyAsFailed(t *testing
 func TestTestFlightBetaTestersImport_FastlaneHeaderAndSemicolonGroups(t *testing.T) {
 	setupAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	callCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		callCount++
-		switch callCount {
-		case 1:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/app-1/betaGroups" {
-				t.Fatalf("unexpected request 1: %s %s", req.Method, req.URL.Path)
-			}
-			body := `{"data":[` +
-				`{"type":"betaGroups","id":"group-1","attributes":{"name":"Beta"}},` +
-				`{"type":"betaGroups","id":"group-2","attributes":{"name":"Core, Team"}}` +
-				`]}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 2:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/betaTesters" {
-				t.Fatalf("unexpected request 2: %s %s", req.Method, req.URL.Path)
-			}
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(`{"data":[]}`)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 3:
-			if req.Method != http.MethodPost || req.URL.Path != "/v1/betaTesters" {
-				t.Fatalf("unexpected request 3: %s %s", req.Method, req.URL.Path)
-			}
-			payload, err := io.ReadAll(req.Body)
-			if err != nil {
-				t.Fatalf("ReadAll() error: %v", err)
-			}
-			bodyText := string(payload)
-			if !strings.Contains(bodyText, `"email":"grace@example.com"`) {
-				t.Fatalf("expected email in payload, got %s", bodyText)
-			}
-			if !strings.Contains(bodyText, `"id":"group-1"`) || !strings.Contains(bodyText, `"id":"group-2"`) {
-				t.Fatalf("expected both groups in payload, got %s", bodyText)
-			}
-			return &http.Response{
-				StatusCode: http.StatusCreated,
-				Body:       io.NopCloser(strings.NewReader(`{"data":{"type":"betaTesters","id":"tester-new","attributes":{"email":"grace@example.com"}}}`)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected request count %d", callCount)
-			return nil, nil
-		}
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/app-1/betaGroups", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"Beta"}},{"type":"betaGroups","id":"group-2","attributes":{"name":"Core, Team"}}]}`))
+	reg.Register(asctest.GET("/v1/betaTesters", "filter[apps]=app-1", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[]}`))
+	reg.Register(asctest.POST("/v1/betaTesters").JSONBody(`{"data":{"type":"betaTesters","attributes":{"firstName":"Grace","lastName":"Hopper","email":"grace@example.com"},"relationships":{"betaGroups":{"data":[{"type":"betaGroups","id":"group-1"},{"type":"betaGroups","id":"group-2"}]}}}}`),
+		asctest.JSON(http.StatusCreated, `{"data":{"type":"betaTesters","id":"tester-new","attributes":{"email":"grace@example.com"}}}`))
 
 	csvPath := filepath.Join(t.TempDir(), "fastlane.csv")
 	csvBody := "" +
@@ -753,17 +551,10 @@ func TestTestFlightBetaTestersImport_FastlaneHeaderAndSemicolonGroups(t *testing
 		t.Fatalf("WriteFile() error: %v", err)
 	}
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"testflight", "testers", "import", "--app", "app-1", "--input", csvPath, "--confirm"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"testflight", "testers", "import", "--app", "app-1", "--input", csvPath, "--confirm"})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -776,46 +567,12 @@ func TestTestFlightBetaTestersImport_FastlaneHeaderAndSemicolonGroups(t *testing
 func TestTestFlightBetaTestersImport_HeaderlessFastlaneFormat(t *testing.T) {
 	setupAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	callCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		callCount++
-		switch callCount {
-		case 1:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/betaTesters" {
-				t.Fatalf("unexpected request 1: %s %s", req.Method, req.URL.Path)
-			}
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(`{"data":[]}`)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 2:
-			if req.Method != http.MethodPost || req.URL.Path != "/v1/betaTesters" {
-				t.Fatalf("unexpected request 2: %s %s", req.Method, req.URL.Path)
-			}
-			payload, err := io.ReadAll(req.Body)
-			if err != nil {
-				t.Fatalf("ReadAll() error: %v", err)
-			}
-			bodyText := string(payload)
-			if !strings.Contains(bodyText, `"firstName":"Linus"`) || !strings.Contains(bodyText, `"lastName":"Torvalds"`) {
-				t.Fatalf("expected names in payload, got %s", bodyText)
-			}
-			return &http.Response{
-				StatusCode: http.StatusCreated,
-				Body:       io.NopCloser(strings.NewReader(`{"data":{"type":"betaTesters","id":"tester-linus","attributes":{"email":"linus@example.com"}}}`)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected request count %d", callCount)
-			return nil, nil
-		}
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/betaTesters", "filter[apps]=app-1", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[]}`))
+	reg.Register(asctest.POST("/v1/betaTesters").JSONBody(`{"data":{"type":"betaTesters","attributes":{"firstName":"Linus","lastName":"Torvalds","email":"linus@example.com"}}}`),
+		asctest.JSON(http.StatusCreated, `{"data":{"type":"betaTesters","id":"tester-linus","attributes":{"email":"linus@example.com"}}}`))
 
 	csvPath := filepath.Join(t.TempDir(), "headerless.csv")
 	csvBody := "Linus,Torvalds,linus@example.com\n"
@@ -823,17 +580,10 @@ func TestTestFlightBetaTestersImport_HeaderlessFastlaneFormat(t *testing.T) {
 		t.Fatalf("WriteFile() error: %v", err)
 	}
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"testflight", "testers", "import", "--app", "app-1", "--input", csvPath, "--confirm"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runCommand(t, []string{"testflight", "testers", "import", "--app", "app-1", "--input", csvPath, "--confirm"})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -846,26 +596,10 @@ func TestTestFlightBetaTestersImport_HeaderlessFastlaneFormat(t *testing.T) {
 func TestTestFlightBetaTestersImport_InvalidEmailFailsRow(t *testing.T) {
 	setupAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	callCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		callCount++
-		if callCount > 1 {
-			t.Fatalf("unexpected request count %d: %s %s", callCount, req.Method, req.URL.Path)
-		}
-		if req.Method != http.MethodGet || req.URL.Path != "/v1/betaTesters" {
-			t.Fatalf("unexpected request 1: %s %s", req.Method, req.URL.Path)
-		}
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(`{"data":[]}`)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/betaTesters", "filter[apps]=app-1", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[]}`))
 
 	csvPath := filepath.Join(t.TempDir(), "invalid-email.csv")
 	csvBody := "" +
@@ -875,16 +609,7 @@ func TestTestFlightBetaTestersImport_InvalidEmailFailsRow(t *testing.T) {
 		t.Fatalf("WriteFile() error: %v", err)
 	}
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"testflight", "testers", "import", "--app", "app-1", "--input", csvPath, "--confirm"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	stdout, stderr, runErr := runCommand(t, []string{"testflight", "testers", "import", "--app", "app-1", "--input", csvPath, "--confirm"})
 
 	if runErr == nil {
 		t.Fatal("expected error for invalid email")

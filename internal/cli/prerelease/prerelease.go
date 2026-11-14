@@ -95,8 +95,8 @@ Examples:
 			defer cancel()
 
 			opts := []asc.PreReleaseVersionsOption{
-				asc.WithPreReleaseVersionsLimit(*limit),
-				asc.WithPreReleaseVersionsNextURL(nextValue),
+				asc.Limit[asc.PreReleaseVersionsOption](*limit),
+				asc.NextURL[asc.PreReleaseVersionsOption](nextValue),
 			}
 
 			if len(platforms) > 0 {
@@ -108,7 +108,7 @@ Examples:
 
 			if *paginate {
 				// Fetch first page with limit set for consistent pagination
-				paginateOpts := append(opts, asc.WithPreReleaseVersionsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.PreReleaseVersionsOption](200))
 				firstPage, err := client.GetPreReleaseVersions(requestCtx, resolvedAppID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("pre-release-versions list: failed to fetch: %w", err)
@@ -116,7 +116,7 @@ Examples:
 
 				// Fetch all remaining pages
 				versions, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetPreReleaseVersions(ctx, resolvedAppID, asc.WithPreReleaseVersionsNextURL(nextURL))
+					return client.GetPreReleaseVersions(ctx, resolvedAppID, asc.NextURL[asc.PreReleaseVersionsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("pre-release-versions list: %w", err)
@@ -137,42 +137,22 @@ Examples:
 
 // PreReleaseVersionsGetCommand returns the pre-release versions get subcommand.
 func PreReleaseVersionsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("pre-release-versions view", flag.ExitOnError)
-
-	id := shared.BindResourceIDFlag(fs, "id", "preReleaseVersions", "Pre-release version ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc pre-release-versions view [flags]",
-		ShortHelp:  "View a TestFlight pre-release version by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "pre-release-versions view",
+		Name:        "view",
+		ShortUsage:  "asc pre-release-versions view [flags]",
+		ShortHelp:   "View a TestFlight pre-release version by ID.",
 		LongHelp: `View a TestFlight pre-release version by ID.
 
 Examples:
   asc pre-release-versions view --id "PR_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			idValue := strings.TrimSpace(*id)
-			if idValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("pre-release-versions view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			version, err := client.GetPreReleaseVersion(requestCtx, idValue)
-			if err != nil {
-				return fmt.Errorf("pre-release-versions view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(version, *output.Output, *output.Pretty)
+		IDUsage:            "Pre-release version ID",
+		IDType:             "preReleaseVersions",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "pre-release-versions view",
+		FetchErrorPrefix:   "pre-release-versions view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetPreReleaseVersion(ctx, id)
 		},
-	}
+	})
 }

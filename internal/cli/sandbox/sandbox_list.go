@@ -63,8 +63,8 @@ Examples:
 			defer cancel()
 
 			opts := []asc.SandboxTestersOption{
-				asc.WithSandboxTestersLimit(*limit),
-				asc.WithSandboxTestersNextURL(*next),
+				asc.Limit[asc.SandboxTestersOption](*limit),
+				asc.NextURL[asc.SandboxTestersOption](*next),
 			}
 			if strings.TrimSpace(*email) != "" {
 				opts = append(opts, asc.WithSandboxTestersEmail(*email))
@@ -76,7 +76,7 @@ Examples:
 			// Sandbox testers use a different response type - need to handle separately
 			if *paginate {
 				// Fetch first page with limit set for consistent pagination
-				paginateOpts := append(opts, asc.WithSandboxTestersLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.SandboxTestersOption](200))
 				firstPage, err := client.GetSandboxTesters(requestCtx, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("sandbox list: failed to fetch: %w", err)
@@ -85,7 +85,7 @@ Examples:
 				// Fetch all remaining pages
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 					continuationOpts := append([]asc.SandboxTestersOption(nil), opts...)
-					continuationOpts = append(continuationOpts, asc.WithSandboxTestersNextURL(nextURL))
+					continuationOpts = append(continuationOpts, asc.NextURL[asc.SandboxTestersOption](nextURL))
 					return client.GetSandboxTesters(ctx, continuationOpts...)
 				})
 				if err != nil {

@@ -11,7 +11,6 @@ import (
 	"io"
 	"math/big"
 	"net/url"
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -180,14 +179,12 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*subID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --subscription-id is required")
-				return shared.MissingRequiredUsageError("--subscription-id")
+				return shared.RequiredFlag("--subscription-id")
 			}
 
 			inputValue := strings.TrimSpace(*inputPath)
 			if inputValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --input is required")
-				return shared.MissingRequiredUsageError("--input")
+				return shared.RequiredFlag("--input")
 			}
 
 			defaultStartDate := ""
@@ -506,14 +503,14 @@ func fetchSubscriptionPriceImportStateForPlans(ctx context.Context, client *asc.
 				return nil, err
 			}
 			return shared.RetryReadWithFreshTimeout(ctx, func(requestCtx context.Context) (*asc.SubscriptionPricesResponse, error) {
-				return client.GetSubscriptionPrices(requestCtx, subscriptionID, asc.WithSubscriptionPricesNextURL(mergedNext))
+				return client.GetSubscriptionPrices(requestCtx, subscriptionID, asc.NextURL[asc.SubscriptionPricesOption](mergedNext))
 			})
 		}
 		return shared.RetryReadWithFreshTimeout(ctx, func(requestCtx context.Context) (*asc.SubscriptionPricesResponse, error) {
 			return client.GetSubscriptionPrices(
 				requestCtx,
 				subscriptionID,
-				asc.WithSubscriptionPricesLimit(200),
+				asc.Limit[asc.SubscriptionPricesOption](200),
 				asc.WithSubscriptionPricesPlanType(planFilter),
 				asc.WithSubscriptionPricesFields([]string{"startDate", "preserved", "planType", "territory", "subscriptionPricePoint"}),
 				asc.WithSubscriptionPricesInclude([]string{"territory", "subscriptionPricePoint"}),

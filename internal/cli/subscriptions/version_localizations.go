@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -91,8 +90,7 @@ func SubscriptionsVersionLocalizationsListCommand() *ffcli.Command {
 			}
 			id := strings.TrimSpace(*versionID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return shared.MissingRequiredUsageError("--version-id")
+				return shared.RequiredFlag("--version-id")
 			}
 			client, err := shared.GetASCClient()
 			if err != nil {
@@ -106,7 +104,7 @@ func SubscriptionsVersionLocalizationsListCommand() *ffcli.Command {
 			}
 			resp, err := client.GetSubscriptionVersionLocalizations(
 				requestCtx, id,
-				asc.WithSubscriptionVersionLocalizationsLimit(firstPageLimit),
+				asc.Limit[asc.SubscriptionVersionLocalizationsOption](firstPageLimit),
 				asc.WithSubscriptionVersionLocalizationsNextURL(*next),
 				asc.WithSubscriptionVersionLocalizationsFields(fieldValues),
 				asc.WithSubscriptionVersionLocalizationsVersionFields(versionFieldValues),
@@ -156,8 +154,7 @@ func SubscriptionsVersionLocalizationsLinksCommand() *ffcli.Command {
 			}
 			id := strings.TrimSpace(*versionID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return shared.MissingRequiredUsageError("--version-id")
+				return shared.RequiredFlag("--version-id")
 			}
 			client, err := shared.GetASCClient()
 			if err != nil {
@@ -169,13 +166,13 @@ func SubscriptionsVersionLocalizationsLinksCommand() *ffcli.Command {
 			if *paginate && firstPageLimit == 0 {
 				firstPageLimit = 200
 			}
-			resp, err := client.GetSubscriptionVersionLocalizationsRelationships(requestCtx, id, asc.WithLinkagesLimit(firstPageLimit), asc.WithLinkagesNextURL(*next))
+			resp, err := client.GetSubscriptionVersionLocalizationsRelationships(requestCtx, id, asc.Limit[asc.LinkagesOption](firstPageLimit), asc.NextURL[asc.LinkagesOption](*next))
 			if err != nil {
 				return fmt.Errorf("subscriptions versions localizations links: failed to fetch: %w", err)
 			}
 			if *paginate {
 				aggregated, err := asc.PaginateAll(requestCtx, resp, func(pageCtx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetSubscriptionVersionLocalizationsRelationships(pageCtx, id, asc.WithLinkagesNextURL(nextURL))
+					return client.GetSubscriptionVersionLocalizationsRelationships(pageCtx, id, asc.NextURL[asc.LinkagesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("subscriptions versions localizations links: %w", err)
@@ -189,51 +186,38 @@ func SubscriptionsVersionLocalizationsLinksCommand() *ffcli.Command {
 
 // SubscriptionsVersionLocalizationsViewCommand views a v2 localization.
 func SubscriptionsVersionLocalizationsViewCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("versions localizations view", flag.ExitOnError)
-	id := shared.BindResourceIDFlag(fs, "id", "subscriptionLocalizations", "Subscription localization ID")
-	fields := fs.String("fields", "", "Sparse fields for subscriptionLocalizations")
-	versionFields := fs.String("version-fields", "", "Sparse fields for included subscriptionVersions")
-	include := fs.String("include", "", "Include relationships: version")
-	output := shared.BindOutputFlags(fs)
-	return &ffcli.Command{
-		Name: "view", ShortUsage: "asc subscriptions versions localizations view --id \"LOCALIZATION_ID\"", ShortHelp: "View a version-scoped localization.",
-		LongHelp: "View a version-scoped subscription localization by ID.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			localizationID := strings.TrimSpace(*id)
-			if localizationID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
-			}
-			fieldValues, err := normalizeSelectionFlag(fs, *fields, "--fields", subscriptionVersionLocalizationFieldsList())
-			if err != nil {
+	var fieldValues, versionFieldValues, includeValues []string
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "versions localizations view",
+		Name:        "view", ShortUsage: "asc subscriptions versions localizations view --id \"LOCALIZATION_ID\"", ShortHelp: "View a version-scoped localization.",
+		LongHelp: "View a version-scoped subscription localization by ID.",
+		IDUsage:  "Subscription localization ID", IDType: "subscriptionLocalizations", RequiredDiagnostic: true,
+		Flags: func(fs *flag.FlagSet) func() error {
+			fields := fs.String("fields", "", "Sparse fields for subscriptionLocalizations")
+			versionFields := fs.String("version-fields", "", "Sparse fields for included subscriptionVersions")
+			include := fs.String("include", "", "Include relationships: version")
+			return func() (err error) {
+				if fieldValues, err = normalizeSelectionFlag(fs, *fields, "--fields", subscriptionVersionLocalizationFieldsList()); err != nil {
+					return err
+				}
+				if versionFieldValues, err = normalizeSelectionFlag(fs, *versionFields, "--version-fields", subscriptionVersionFieldsList()); err != nil {
+					return err
+				}
+				includeValues, err = normalizeSelectionFlag(fs, *include, "--include", subscriptionLocalizationV2IncludeList())
 				return err
 			}
-			versionFieldValues, err := normalizeSelectionFlag(fs, *versionFields, "--version-fields", subscriptionVersionFieldsList())
-			if err != nil {
-				return err
-			}
-			includeValues, err := normalizeSelectionFlag(fs, *include, "--include", subscriptionLocalizationV2IncludeList())
-			if err != nil {
-				return err
-			}
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("subscriptions versions localizations view: %w", err)
-			}
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-			resp, err := client.GetSubscriptionLocalizationV2(
-				requestCtx, localizationID,
+		},
+		ErrorPrefix:      "subscriptions versions localizations view",
+		FetchErrorPrefix: "subscriptions versions localizations view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetSubscriptionLocalizationV2(
+				ctx, id,
 				asc.WithSubscriptionLocalizationV2Fields(fieldValues),
 				asc.WithSubscriptionLocalizationV2VersionFields(versionFieldValues),
 				asc.WithSubscriptionLocalizationV2Include(includeValues),
 			)
-			if err != nil {
-				return fmt.Errorf("subscriptions versions localizations view: failed to fetch: %w", err)
-			}
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
-	}
+	})
 }
 
 // SubscriptionsVersionLocalizationsCreateCommand creates a v2 localization.
@@ -251,16 +235,13 @@ func SubscriptionsVersionLocalizationsCreateCommand() *ffcli.Command {
 		Exec: func(ctx context.Context, args []string) error {
 			id, localeValue, nameValue := strings.TrimSpace(*versionID), strings.TrimSpace(*locale), strings.TrimSpace(*name)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return shared.MissingRequiredUsageError("--version-id")
+				return shared.RequiredFlag("--version-id")
 			}
 			if localeValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --locale is required")
-				return shared.MissingRequiredUsageError("--locale")
+				return shared.RequiredFlag("--locale")
 			}
 			if nameValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --name is required")
-				return shared.MissingRequiredUsageError("--name")
+				return shared.RequiredFlag("--name")
 			}
 			attrs := asc.SubscriptionLocalizationV2CreateAttributes{Name: nameValue, Locale: localeValue}
 			if description.set {
@@ -301,8 +282,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			localizationID := strings.TrimSpace(*id)
 			if localizationID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if name.set && *clearName {
 				return shared.UsageError("--name cannot be used with --clear-name")
@@ -351,12 +331,10 @@ func SubscriptionsVersionLocalizationsDeleteCommand() *ffcli.Command {
 		Exec: func(ctx context.Context, args []string) error {
 			localizationID := strings.TrimSpace(*id)
 			if localizationID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 			client, err := shared.GetASCClient()
 			if err != nil {

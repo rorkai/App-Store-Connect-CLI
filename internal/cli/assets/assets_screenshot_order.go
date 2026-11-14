@@ -245,13 +245,13 @@ func GetOrderedAppScreenshotIDs(ctx context.Context, client *asc.Client, setID s
 		return nil, fmt.Errorf("client is required")
 	}
 
-	firstPage, err := client.GetAppScreenshotSetAppScreenshotsRelationships(ctx, setID, asc.WithLinkagesLimit(200))
+	firstPage, err := client.GetAppScreenshotSetAppScreenshotsRelationships(ctx, setID, asc.Limit[asc.LinkagesOption](200))
 	if err != nil {
 		return nil, err
 	}
 
 	return collectOrderedLinkageIDs(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetAppScreenshotSetAppScreenshotsRelationships(ctx, "", asc.WithLinkagesNextURL(nextURL))
+		return client.GetAppScreenshotSetAppScreenshotsRelationships(ctx, "", asc.NextURL[asc.LinkagesOption](nextURL))
 	})
 }
 

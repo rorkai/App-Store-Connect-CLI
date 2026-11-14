@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -59,8 +58,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*instanceID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --instance-id is required")
-				return shared.MissingRequiredUsageError("--instance-id")
+				return shared.RequiredFlag("--instance-id")
 			}
 			var err error
 			id, err = asc.ValidateResourcePathSegment(id)
@@ -117,8 +115,7 @@ Examples:
 
 			id := strings.TrimSpace(*instanceID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --instance-id is required")
-				return shared.MissingRequiredUsageError("--instance-id")
+				return shared.RequiredFlag("--instance-id")
 			}
 			if id != "" {
 				var err error
@@ -137,19 +134,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.LinkagesOption{
-				asc.WithLinkagesLimit(*limit),
-				asc.WithLinkagesNextURL(*next),
+				asc.Limit[asc.LinkagesOption](*limit),
+				asc.NextURL[asc.LinkagesOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithLinkagesLimit(analyticsMaxLimit))
+				paginateOpts := append(opts, asc.Limit[asc.LinkagesOption](analyticsMaxLimit))
 				resp, err := shared.PaginateWithSpinner(
 					requestCtx,
 					func(ctx context.Context) (asc.PaginatedResponse, error) {
 						return client.GetAnalyticsReportInstanceSegmentsRelationships(ctx, id, paginateOpts...)
 					},
 					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return client.GetAnalyticsReportInstanceSegmentsRelationships(ctx, id, asc.WithLinkagesNextURL(nextURL))
+						return client.GetAnalyticsReportInstanceSegmentsRelationships(ctx, id, asc.NextURL[asc.LinkagesOption](nextURL))
 					},
 				)
 				if err != nil {

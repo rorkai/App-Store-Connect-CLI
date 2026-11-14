@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -40,8 +39,7 @@ func ShotsReviewGenerateCommand() *ffcli.Command {
 		Exec: func(ctx context.Context, args []string) error {
 			framed := *framedDir
 			if strings.TrimSpace(framed) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --framed-dir is required")
-				return shared.MissingRequiredUsageError("--framed-dir")
+				return shared.RequiredFlag("--framed-dir")
 			}
 
 			result, err := screenshots.GenerateReview(ctx, screenshots.ReviewRequest{

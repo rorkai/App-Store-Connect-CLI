@@ -42,44 +42,24 @@ Examples:
 
 // AppClipReviewDetailsGetCommand gets review details by ID.
 func AppClipReviewDetailsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	detailID := shared.BindResourceIDFlag(fs, "id", "appClipAppStoreReviewDetails", "Review detail ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc app-clips review-details view --id \"DETAIL_ID\"",
-		ShortHelp:  "View App Clip review details by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc app-clips review-details view --id \"DETAIL_ID\"",
+		ShortHelp:   "View App Clip review details by ID.",
 		LongHelp: `View App Clip review details by ID.
 
 Examples:
   asc app-clips review-details view --id "DETAIL_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			detailValue := strings.TrimSpace(*detailID)
-			if detailValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("app-clips review-details view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetAppClipAppStoreReviewDetail(requestCtx, detailValue)
-			if err != nil {
-				return fmt.Errorf("app-clips review-details view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage:            "Review detail ID",
+		IDType:             "appClipAppStoreReviewDetails",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "app-clips review-details view",
+		FetchErrorPrefix:   "app-clips review-details view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetAppClipAppStoreReviewDetail(ctx, id)
 		},
-	}
+	})
 }
 
 // AppClipReviewDetailsCreateCommand creates review details.
@@ -103,14 +83,12 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			experienceValue := strings.TrimSpace(*experienceID)
 			if experienceValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --experience-id is required")
-				return shared.MissingRequiredUsageError("--experience-id")
+				return shared.RequiredFlag("--experience-id")
 			}
 
 			urlValues := shared.SplitCSV(urls.String())
 			if len(urlValues) == 0 {
-				fmt.Fprintln(os.Stderr, "Error: --url is required")
-				return shared.MissingRequiredUsageError("--url")
+				return shared.RequiredFlag("--url")
 			}
 
 			client, err := shared.GetASCClient()
@@ -153,8 +131,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			detailValue := strings.TrimSpace(*detailID)
 			if detailValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			visited := map[string]bool{}

@@ -10,6 +10,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -472,14 +473,8 @@ func TestScopedPromotedPurchaseExplicitEmptyFieldsFailBeforeAuth441(t *testing.T
 			t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))
 
-			requests := 0
-			originalTransport := http.DefaultTransport
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				requests++
-				t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-				return nil, nil
-			})
-			t.Cleanup(func() { http.DefaultTransport = originalTransport })
+			reg := asctest.NewRegistry(t)
+			reg.Install()
 
 			stdout, stderr := captureOutput(t, func() {
 				if code := cmd.Run(tt.args, "1.2.3"); code != cmd.ExitUsage {
@@ -489,7 +484,7 @@ func TestScopedPromotedPurchaseExplicitEmptyFieldsFailBeforeAuth441(t *testing.T
 			if strings.TrimSpace(stdout) != "" {
 				t.Fatalf("stdout = %q, want empty", stdout)
 			}
-			if requests != 0 {
+			if requests := len(reg.Requests()); requests != 0 {
 				t.Fatalf("requests = %d, want 0", requests)
 			}
 			if want := tt.flag + " must not be empty"; !strings.Contains(stderr, want) {

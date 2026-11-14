@@ -4,11 +4,11 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -40,44 +40,24 @@ Examples:
 
 // AppClipAdvancedExperienceImagesGetCommand retrieves an image by ID.
 func AppClipAdvancedExperienceImagesGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	imageID := shared.BindResourceIDFlag(fs, "id", "appClipAdvancedExperienceImages", "Image ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc app-clips advanced-experiences images view --id \"IMAGE_ID\"",
-		ShortHelp:  "View an advanced experience image by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc app-clips advanced-experiences images view --id \"IMAGE_ID\"",
+		ShortHelp:   "View an advanced experience image by ID.",
 		LongHelp: `View an advanced experience image by ID.
 
 Examples:
   asc app-clips advanced-experiences images view --id "IMAGE_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			idValue := strings.TrimSpace(*imageID)
-			if idValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("app-clips advanced-experiences images view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetAppClipAdvancedExperienceImage(requestCtx, idValue)
-			if err != nil {
-				return fmt.Errorf("app-clips advanced-experiences images view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage:            "Image ID",
+		IDType:             "appClipAdvancedExperienceImages",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "app-clips advanced-experiences images view",
+		FetchErrorPrefix:   "app-clips advanced-experiences images view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetAppClipAdvancedExperienceImage(ctx, id)
 		},
-	}
+	})
 }
 
 // AppClipAdvancedExperienceImagesCreateCommand uploads an image.
@@ -107,8 +87,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			fileValue := strings.TrimSpace(*filePath)
 			if fileValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --file is required")
-				return shared.MissingRequiredUsageError("--file")
+				return shared.RequiredFlag("--file")
 			}
 
 			client, err := appClipsClientFactory()

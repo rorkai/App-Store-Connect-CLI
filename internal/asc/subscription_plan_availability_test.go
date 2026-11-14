@@ -181,7 +181,7 @@ func TestGetSubscriptionPlanAvailabilitiesForSubscriptionSupportsPaginationOptio
 		if _, err := client.GetSubscriptionPlanAvailabilitiesForSubscription(
 			context.Background(),
 			"sub-1",
-			WithSubscriptionPlanAvailabilitiesLimit(200),
+			Limit[SubscriptionPlanAvailabilitiesOption](200),
 		); err != nil {
 			t.Fatalf("GetSubscriptionPlanAvailabilitiesForSubscription() error: %v", err)
 		}
@@ -198,7 +198,7 @@ func TestGetSubscriptionPlanAvailabilitiesForSubscriptionSupportsPaginationOptio
 		if _, err := client.GetSubscriptionPlanAvailabilitiesForSubscription(
 			context.Background(),
 			"sub-1",
-			WithSubscriptionPlanAvailabilitiesNextURL(next),
+			NextURL[SubscriptionPlanAvailabilitiesOption](next),
 		); err != nil {
 			t.Fatalf("GetSubscriptionPlanAvailabilitiesForSubscription() error: %v", err)
 		}
@@ -247,7 +247,7 @@ func TestGetSubscriptionPlanAvailabilityAvailableTerritoriesRelationships(t *tes
 	resp, err := client.GetSubscriptionPlanAvailabilityAvailableTerritoriesRelationships(
 		context.Background(),
 		"plan-1",
-		WithLinkagesLimit(200),
+		Limit[LinkagesOption](200),
 	)
 	if err != nil {
 		t.Fatalf("GetSubscriptionPlanAvailabilityAvailableTerritoriesRelationships() error: %v", err)
@@ -301,7 +301,7 @@ func TestGetSubscriptionPlanAvailabilitiesForSubscriptionIgnoresIncludeWithNextU
 	if _, err := client.GetSubscriptionPlanAvailabilitiesForSubscription(
 		context.Background(),
 		"sub-1",
-		WithSubscriptionPlanAvailabilitiesNextURL(next),
+		NextURL[SubscriptionPlanAvailabilitiesOption](next),
 		WithSubscriptionPlanAvailabilitiesIncludeAvailableTerritories(),
 	); err != nil {
 		t.Fatalf("GetSubscriptionPlanAvailabilitiesForSubscription() error: %v", err)

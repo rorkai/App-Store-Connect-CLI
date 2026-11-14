@@ -448,7 +448,7 @@ func (r backgroundAssetSubmitResolver) listAssets(ctx context.Context, sel backg
 			filter[strings.TrimSpace(id)] = struct{}{}
 		}
 		opts := []asc.BackgroundAssetsOption{
-			asc.WithBackgroundAssetsLimit(backgroundAssetsMaxLimit),
+			asc.Limit[asc.BackgroundAssetsOption](backgroundAssetsMaxLimit),
 			asc.WithBackgroundAssetsFilterArchived([]string{"false"}),
 		}
 		all, err := fetchAllBackgroundAssets(ctx, r.client, sel.appID, opts...)
@@ -478,7 +478,7 @@ func (r backgroundAssetSubmitResolver) listAssets(ctx context.Context, sel backg
 	}
 
 	opts := []asc.BackgroundAssetsOption{
-		asc.WithBackgroundAssetsLimit(backgroundAssetsMaxLimit),
+		asc.Limit[asc.BackgroundAssetsOption](backgroundAssetsMaxLimit),
 		asc.WithBackgroundAssetsFilterArchived([]string{"false"}),
 	}
 	if len(sel.assetPackIdentifiers) > 0 {
@@ -566,7 +566,7 @@ func fetchAllBackgroundAssets(ctx context.Context, client backgroundAssetSubmitC
 	resp, err := asc.PaginateAll(ctx, first, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		pageCtx, pageCancel := backgroundAssetSubmitRequestContext(ctx)
 		defer pageCancel()
-		return client.GetBackgroundAssets(pageCtx, appID, asc.WithBackgroundAssetsNextURL(nextURL))
+		return client.GetBackgroundAssets(pageCtx, appID, asc.NextURL[asc.BackgroundAssetsOption](nextURL))
 	})
 	if err != nil {
 		return nil, fmt.Errorf("paginate background assets: %w", err)
@@ -580,7 +580,7 @@ func fetchAllBackgroundAssets(ctx context.Context, client backgroundAssetSubmitC
 func fetchAlreadyAttachedBackgroundAssetVersions(ctx context.Context, client backgroundAssetSubmitClient, submissionID string) (map[string]struct{}, error) {
 	attached := map[string]struct{}{}
 	opts := []asc.ReviewSubmissionItemsOption{
-		asc.WithReviewSubmissionItemsLimit(backgroundAssetsMaxLimit),
+		asc.Limit[asc.ReviewSubmissionItemsOption](backgroundAssetsMaxLimit),
 		asc.WithReviewSubmissionItemsInclude([]string{"backgroundAssetVersion"}),
 	}
 	firstCtx, firstCancel := backgroundAssetSubmitRequestContext(ctx)
@@ -622,7 +622,7 @@ func fetchAlreadyAttachedBackgroundAssetVersions(ctx context.Context, client bac
 		}
 		seenNext[nextURL] = struct{}{}
 		pageCtx, pageCancel := backgroundAssetSubmitRequestContext(ctx)
-		page, err = client.GetReviewSubmissionItemsStrict(pageCtx, submissionID, asc.WithReviewSubmissionItemsNextURL(nextURL), asc.WithReviewSubmissionItemsInclude([]string{"backgroundAssetVersion"}))
+		page, err = client.GetReviewSubmissionItemsStrict(pageCtx, submissionID, asc.NextURL[asc.ReviewSubmissionItemsOption](nextURL), asc.WithReviewSubmissionItemsInclude([]string{"backgroundAssetVersion"}))
 		pageCancel()
 		if err != nil {
 			return nil, fmt.Errorf("paginate submission items: page %d: %w", pageNumber+1, err)
@@ -632,7 +632,7 @@ func fetchAlreadyAttachedBackgroundAssetVersions(ctx context.Context, client bac
 }
 
 func fetchAllBackgroundAssetVersions(ctx context.Context, client backgroundAssetSubmitClient, backgroundAssetID string) ([]ascBackgroundAssetVersionItem, error) {
-	opts := []asc.BackgroundAssetVersionsOption{asc.WithBackgroundAssetVersionsLimit(backgroundAssetsMaxLimit)}
+	opts := []asc.BackgroundAssetVersionsOption{asc.Limit[asc.BackgroundAssetVersionsOption](backgroundAssetsMaxLimit)}
 	firstCtx, firstCancel := backgroundAssetSubmitRequestContext(ctx)
 	first, err := client.GetBackgroundAssetVersions(firstCtx, backgroundAssetID, opts...)
 	firstCancel()
@@ -642,7 +642,7 @@ func fetchAllBackgroundAssetVersions(ctx context.Context, client backgroundAsset
 	resp, err := asc.PaginateAll(ctx, first, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		pageCtx, pageCancel := backgroundAssetSubmitRequestContext(ctx)
 		defer pageCancel()
-		return client.GetBackgroundAssetVersions(pageCtx, backgroundAssetID, asc.WithBackgroundAssetVersionsNextURL(nextURL))
+		return client.GetBackgroundAssetVersions(pageCtx, backgroundAssetID, asc.NextURL[asc.BackgroundAssetVersionsOption](nextURL))
 	})
 	if err != nil {
 		return nil, fmt.Errorf("paginate versions: %w", err)

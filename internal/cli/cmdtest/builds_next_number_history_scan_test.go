@@ -5,12 +5,12 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -78,7 +78,7 @@ func setBuildHistoryScanTestClient(t *testing.T, pages map[string]string) *build
 	t.Setenv("ASC_TIMEOUT_SECONDS", "")
 	t.Setenv("ASC_MAX_RETRIES", "0")
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		if req.Method != http.MethodGet {
 			t.Errorf("request method = %s, want GET", req.Method)
 		}
@@ -106,21 +106,15 @@ func setBuildHistoryScanTestClient(t *testing.T, pages map[string]string) *build
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_, _ = io.WriteString(w, body)
-	}))
-	t.Cleanup(server.Close)
+	})
 
-	serverURL, err := url.Parse(server.URL)
-	if err != nil {
-		t.Fatalf("parse test server URL: %v", err)
-	}
 	rewrite := roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		if got := req.URL.Scheme + "://" + req.URL.Host; got != asc.BaseURL {
 			t.Errorf("request origin = %s, want %s", got, asc.BaseURL)
 		}
-		cloned := req.Clone(req.Context())
-		cloned.URL.Scheme = serverURL.Scheme
-		cloned.URL.Host = serverURL.Host
-		return server.Client().Transport.RoundTrip(cloned)
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, req)
+		return response.Result(), nil
 	})
 	recorder := &buildHistoryScanRecorder{base: rewrite}
 
@@ -149,10 +143,10 @@ func requireFreshBuildHistoryScanDeadlines(t *testing.T, recorder *buildHistoryS
 		if !request.hasDeadline {
 			t.Fatalf("request %d (%s cursor=%q) had no deadline, want a per-request deadline", i+1, request.path, request.cursor)
 		}
-		if request.remaining <= buildHistoryScanTimeout/2 {
+		if request.remaining != buildHistoryScanTimeout {
 			t.Fatalf(
-				"request %d (%s cursor=%q) remaining deadline = %s, want more than %s from a refreshed deadline",
-				i+1, request.path, request.cursor, request.remaining, buildHistoryScanTimeout/2,
+				"request %d (%s cursor=%q) remaining deadline = %s, want the full %s of a refreshed deadline",
+				i+1, request.path, request.cursor, request.remaining, buildHistoryScanTimeout,
 			)
 		}
 		if request.path == "/v1/builds" {
@@ -203,7 +197,7 @@ func TestBuildsNextBuildNumberRefreshesDeadlinesAcrossHistoryPages(t *testing.T)
 		if err := root.Parse([]string{"builds", "next-build-number", "--app", "100000001", "--output", "json"}); err != nil {
 			t.Fatalf("parse: %v", err)
 		}
-		runErr = root.Run(context.Background())
+		synctest.Test(t, func(*testing.T) { runErr = root.Run(context.Background()) })
 	})
 	if runErr != nil {
 		t.Fatalf("run: %v", runErr)
@@ -246,7 +240,7 @@ func TestBuildsNextBuildNumberSkipsUnparseableHistoricalBuildNumbers(t *testing.
 		if err := root.Parse([]string{"builds", "next-build-number", "--app", "100000001", "--output", "json"}); err != nil {
 			t.Fatalf("parse: %v", err)
 		}
-		runErr = root.Run(context.Background())
+		synctest.Test(t, func(*testing.T) { runErr = root.Run(context.Background()) })
 	})
 	if runErr != nil {
 		t.Fatalf("run: %v", runErr)

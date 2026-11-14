@@ -35,7 +35,7 @@ func TestGetAppWebhooks_SendsRequest(t *testing.T) {
 
 	_, err := client.GetAppWebhooks(
 		context.Background(), "app-1",
-		WithWebhooksLimit(5),
+		Limit[WebhooksOption](5),
 		WithWebhooksFields([]string{"name", "url"}),
 		WithWebhooksAppFields([]string{"name"}),
 		WithWebhooksInclude([]string{"app"}),
@@ -55,7 +55,7 @@ func TestGetAppWebhooks_UsesNextURL(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetAppWebhooks(context.Background(), "app-1", WithWebhooksNextURL(next)); err != nil {
+	if _, err := client.GetAppWebhooks(context.Background(), "app-1", NextURL[WebhooksOption](next)); err != nil {
 		t.Fatalf("GetAppWebhooks() error: %v", err)
 	}
 }
@@ -216,7 +216,7 @@ func TestGetWebhookDeliveries_SendsRequest(t *testing.T) {
 
 	_, err := client.GetWebhookDeliveries(
 		context.Background(), "wh-1",
-		WithWebhookDeliveriesLimit(3),
+		Limit[WebhookDeliveriesOption](3),
 		WithWebhookDeliveriesDeliveryStates([]string{"failed"}),
 		WithWebhookDeliveriesFields([]string{"deliveryState", "createdDate"}),
 		WithWebhookDeliveriesEventFields([]string{"eventType"}),
@@ -243,7 +243,7 @@ func TestGetWebhookDeliveriesRelationships_SendsRequest(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetWebhookDeliveriesRelationships(context.Background(), "wh-1", WithLinkagesLimit(7)); err != nil {
+	if _, err := client.GetWebhookDeliveriesRelationships(context.Background(), "wh-1", Limit[LinkagesOption](7)); err != nil {
 		t.Fatalf("GetWebhookDeliveriesRelationships() error: %v", err)
 	}
 }
@@ -258,7 +258,7 @@ func TestGetWebhookDeliveriesRelationships_UsesNextURL(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetWebhookDeliveriesRelationships(context.Background(), "wh-1", WithLinkagesNextURL(next)); err != nil {
+	if _, err := client.GetWebhookDeliveriesRelationships(context.Background(), "wh-1", NextURL[LinkagesOption](next)); err != nil {
 		t.Fatalf("GetWebhookDeliveriesRelationships() error: %v", err)
 	}
 }

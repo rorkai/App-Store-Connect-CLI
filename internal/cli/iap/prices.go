@@ -128,13 +128,13 @@ Examples:
 				}
 				iaps = []asc.Resource[asc.InAppPurchaseV2Attributes]{resp.Data}
 			} else {
-				firstPage, err := client.GetInAppPurchasesV2(requestCtx, resolvedAppID, asc.WithIAPLimit(200))
+				firstPage, err := client.GetInAppPurchasesV2(requestCtx, resolvedAppID, asc.Limit[asc.IAPOption](200))
 				if err != nil {
 					return fmt.Errorf("iap prices: failed to fetch IAP list: %w", err)
 				}
 
 				paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetInAppPurchasesV2(ctx, resolvedAppID, asc.WithIAPNextURL(nextURL))
+					return client.GetInAppPurchasesV2(ctx, resolvedAppID, asc.NextURL[asc.IAPOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("iap prices: paginate IAP list: %w", err)
@@ -343,13 +343,13 @@ func fetchAllSchedulePriceEntries(ctx context.Context, client *asc.Client, sched
 type schedulePriceFetcher func(context.Context, ...asc.IAPPriceSchedulePricesOption) (*asc.InAppPurchasePricesResponse, error)
 
 func fetchSchedulePriceEntries(ctx context.Context, fetch schedulePriceFetcher) ([]iapPriceEntry, error) {
-	firstPage, err := fetch(ctx, asc.WithIAPPriceSchedulePricesLimit(200))
+	firstPage, err := fetch(ctx, asc.Limit[asc.IAPPriceSchedulePricesOption](200))
 	if err != nil {
 		return nil, err
 	}
 
 	paginated, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return fetch(ctx, asc.WithIAPPriceSchedulePricesNextURL(nextURL))
+		return fetch(ctx, asc.NextURL[asc.IAPPriceSchedulePricesOption](nextURL))
 	})
 	if err != nil {
 		return nil, err
@@ -413,14 +413,14 @@ func fetchIAPPricePointValues(
 		asc.WithIAPPricePointsFields([]string{"customerPrice", "proceeds", "territory"}),
 		asc.WithIAPPricePointsInclude([]string{"territory"}),
 		asc.WithIAPPricePointsTerritoryFields([]string{"currency"}),
-		asc.WithIAPPricePointsLimit(8000),
+		asc.Limit[asc.IAPPricePointsOption](8000),
 	)
 	if err != nil {
 		return nil, "", fmt.Errorf("fetch price points: %w", err)
 	}
 
 	paginated, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetInAppPurchasePricePoints(ctx, iapID, asc.WithIAPPricePointsNextURL(nextURL))
+		return client.GetInAppPurchasePricePoints(ctx, iapID, asc.NextURL[asc.IAPPricePointsOption](nextURL))
 	})
 	if err != nil {
 		return nil, "", fmt.Errorf("paginate price points: %w", err)
@@ -466,13 +466,13 @@ func fetchManualSchedulePricePointValues(
 				asc.WithIAPPriceSchedulePricesFields([]string{"manual", "inAppPurchasePricePoint", "territory"}),
 				asc.WithIAPPriceSchedulePricesPricePointFields([]string{"customerPrice", "proceeds", "territory"}),
 				asc.WithIAPPriceSchedulePricesTerritoryFields([]string{"currency"}),
-				asc.WithIAPPriceSchedulePricesLimit(200),
+				asc.Limit[asc.IAPPriceSchedulePricesOption](200),
 			)
 		}
 		return client.GetInAppPurchasePriceScheduleManualPrices(
 			ctx,
 			scheduleID,
-			asc.WithIAPPriceSchedulePricesNextURL(nextURL),
+			asc.NextURL[asc.IAPPriceSchedulePricesOption](nextURL),
 		)
 	}
 

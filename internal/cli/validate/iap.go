@@ -69,7 +69,7 @@ func runValidateIAP(ctx context.Context, opts validateIAPOptions) error {
 	firstCtx, firstCancel := shared.ContextWithTimeout(ctx)
 	defer firstCancel()
 
-	firstPage, err := client.GetInAppPurchasesV2(firstCtx, opts.AppID, asc.WithIAPLimit(200))
+	firstPage, err := client.GetInAppPurchasesV2(firstCtx, opts.AppID, asc.Limit[asc.IAPOption](200))
 	if err != nil {
 		return fmt.Errorf("validate iap: failed to fetch in-app purchases: %w", err)
 	}
@@ -77,7 +77,7 @@ func runValidateIAP(ctx context.Context, opts validateIAPOptions) error {
 	paginated, err := asc.PaginateAll(ctx, firstPage, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		pageCtx, pageCancel := shared.ContextWithTimeout(ctx)
 		defer pageCancel()
-		return client.GetInAppPurchasesV2(pageCtx, opts.AppID, asc.WithIAPNextURL(nextURL))
+		return client.GetInAppPurchasesV2(pageCtx, opts.AppID, asc.NextURL[asc.IAPOption](nextURL))
 	})
 	if err != nil {
 		return fmt.Errorf("validate iap: paginate in-app purchases: %w", err)

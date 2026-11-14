@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -98,19 +97,19 @@ Examples:
 			}
 
 			opts := []asc.BuildIndividualTestersOption{
-				asc.WithBuildIndividualTestersLimit(*limit),
-				asc.WithBuildIndividualTestersNextURL(*next),
+				asc.Limit[asc.BuildIndividualTestersOption](*limit),
+				asc.NextURL[asc.BuildIndividualTestersOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithBuildIndividualTestersLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.BuildIndividualTestersOption](200))
 				resp, err := shared.PaginateWithSpinner(
 					requestCtx,
 					func(ctx context.Context) (asc.PaginatedResponse, error) {
 						return client.GetBuildIndividualTesters(ctx, buildID, paginateOpts...)
 					},
 					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return client.GetBuildIndividualTesters(ctx, buildID, asc.WithBuildIndividualTestersNextURL(nextURL))
+						return client.GetBuildIndividualTesters(ctx, buildID, asc.NextURL[asc.BuildIndividualTestersOption](nextURL))
 					},
 				)
 				if err != nil {
@@ -157,8 +156,7 @@ Examples:
 
 			testerIDs := shared.SplitCSV(testers.String())
 			if len(testerIDs) == 0 {
-				fmt.Fprintln(os.Stderr, "Error: --tester is required")
-				return shared.MissingRequiredUsageError("--tester")
+				return shared.RequiredFlag("--tester")
 			}
 
 			client, err := shared.GetASCClient()
@@ -217,12 +215,10 @@ Examples:
 
 			testerIDs := shared.SplitCSV(testers.String())
 			if len(testerIDs) == 0 {
-				fmt.Fprintln(os.Stderr, "Error: --tester is required")
-				return shared.MissingRequiredUsageError("--tester")
+				return shared.RequiredFlag("--tester")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()

@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -75,8 +74,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			assetIDValue := strings.TrimSpace(*assetID)
 			if assetIDValue == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --background-asset-id is required")
-				return shared.MissingRequiredUsageError("--background-asset-id")
+				return shared.RequiredFlag("--background-asset-id")
 			}
 			if *limit != 0 && (*limit < 1 || *limit > backgroundAssetsMaxLimit) {
 				return shared.UsageErrorf("background-assets versions list: --limit must be between 1 and %d", backgroundAssetsMaxLimit)
@@ -124,8 +122,8 @@ Examples:
 			defer cancel()
 
 			opts := []asc.BackgroundAssetVersionsOption{
-				asc.WithBackgroundAssetVersionsLimit(*limit),
-				asc.WithBackgroundAssetVersionsNextURL(*next),
+				asc.Limit[asc.BackgroundAssetVersionsOption](*limit),
+				asc.NextURL[asc.BackgroundAssetVersionsOption](*next),
 				asc.WithBackgroundAssetVersionsFilterPlatforms(platforms),
 				asc.WithBackgroundAssetVersionsFilterState(states),
 				asc.WithBackgroundAssetVersionsFilterVersion(versions),
@@ -139,14 +137,14 @@ Examples:
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithBackgroundAssetVersionsLimit(backgroundAssetsMaxLimit))
+				paginateOpts := append(opts, asc.Limit[asc.BackgroundAssetVersionsOption](backgroundAssetsMaxLimit))
 				firstPage, err := client.GetBackgroundAssetVersions(requestCtx, assetIDValue, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("background-assets versions list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetBackgroundAssetVersions(ctx, assetIDValue, asc.WithBackgroundAssetVersionsNextURL(nextURL))
+					return client.GetBackgroundAssetVersions(ctx, assetIDValue, asc.NextURL[asc.BackgroundAssetVersionsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("background-assets versions list: %w", err)
@@ -167,44 +165,25 @@ Examples:
 
 // BackgroundAssetsVersionsGetCommand returns the versions get subcommand.
 func BackgroundAssetsVersionsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	versionID := shared.BindResourceIDFlag(fs, "version-id", "backgroundAssetVersions", "Background asset version ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc background-assets versions view --version-id \"VERSION_ID\"",
-		ShortHelp:  "View a background asset version by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc background-assets versions view --version-id \"VERSION_ID\"",
+		ShortHelp:   "View a background asset version by ID.",
 		LongHelp: `View a background asset version by ID.
 
 Examples:
   asc background-assets versions view --version-id "VERSION_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			versionIDValue := strings.TrimSpace(*versionID)
-			if versionIDValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return shared.MissingRequiredUsageError("--version-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("background-assets versions view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetBackgroundAssetVersion(requestCtx, versionIDValue)
-			if err != nil {
-				return fmt.Errorf("background-assets versions view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDFlag:             "version-id",
+		IDUsage:            "Background asset version ID",
+		IDType:             "backgroundAssetVersions",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "background-assets versions view",
+		FetchErrorPrefix:   "background-assets versions view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetBackgroundAssetVersion(ctx, id)
 		},
-	}
+	})
 }
 
 // BackgroundAssetsVersionsCreateCommand returns the versions create subcommand.
@@ -227,8 +206,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			assetIDValue := strings.TrimSpace(*assetID)
 			if assetIDValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --background-asset-id is required")
-				return shared.MissingRequiredUsageError("--background-asset-id")
+				return shared.RequiredFlag("--background-asset-id")
 			}
 
 			client, err := shared.GetASCClient()

@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestCategoriesSetFailsWhenAppInfoIsAmbiguous(t *testing.T) {
@@ -15,37 +17,16 @@ func TestCategoriesSetFailsWhenAppInfoIsAmbiguous(t *testing.T) {
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 	t.Setenv("ASC_PROFILE", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/apps/app-1/appInfos" {
-			t.Fatalf("unexpected request path %s", req.URL.Path)
-		}
-		return jsonResponse(http.StatusOK, `{
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/app-1/appInfos"), asctest.JSON(http.StatusOK, `{
 			"data":[
 				{"type":"appInfos","id":"info-live","attributes":{"state":"READY_FOR_DISTRIBUTION"}},
 				{"type":"appInfos","id":"info-rejected","attributes":{"state":"REJECTED"}}
 			]
-		}`)
-	})
+		}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"categories", "set", "--app", "app-1", "--primary", "GAMES", "--output", "json"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
+	stdout, stderr, runErr := runCommand(t, []string{"categories", "set", "--app", "app-1", "--primary", "GAMES", "--output", "json"})
 	if runErr == nil {
 		t.Fatal("expected run error, got nil")
 	}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -41,43 +40,25 @@ Examples:
 
 // AnalyticsReportsGetCommand retrieves a specific analytics report.
 func AnalyticsReportsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	reportID := shared.BindResourceIDFlag(fs, "report-id", "analyticsReports", "Analytics report ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc analytics reports view --report-id \"REPORT_ID\" [flags]",
-		ShortHelp:  "View an analytics report by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc analytics reports view --report-id \"REPORT_ID\" [flags]",
+		ShortHelp:   "View an analytics report by ID.",
 		LongHelp: `View an analytics report by ID.
 
 Examples:
   asc analytics reports view --report-id "REPORT_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if strings.TrimSpace(*reportID) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --report-id is required")
-				return shared.MissingRequiredUsageError("--report-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("analytics reports view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetAnalyticsReport(requestCtx, strings.TrimSpace(*reportID))
-			if err != nil {
-				return fmt.Errorf("analytics reports view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDFlag:             "report-id",
+		IDUsage:            "Analytics report ID",
+		IDType:             "analyticsReports",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "analytics reports view",
+		FetchErrorPrefix:   "analytics reports view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetAnalyticsReport(ctx, id)
 		},
-	}
+	})
 }
 
 // AnalyticsReportsRelationshipsCommand lists instance links for a report.
@@ -111,8 +92,7 @@ Examples:
 
 			id := strings.TrimSpace(*reportID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --report-id is required")
-				return shared.MissingRequiredUsageError("--report-id")
+				return shared.RequiredFlag("--report-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -124,19 +104,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.LinkagesOption{
-				asc.WithLinkagesLimit(*limit),
-				asc.WithLinkagesNextURL(*next),
+				asc.Limit[asc.LinkagesOption](*limit),
+				asc.NextURL[asc.LinkagesOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithLinkagesLimit(analyticsMaxLimit))
+				paginateOpts := append(opts, asc.Limit[asc.LinkagesOption](analyticsMaxLimit))
 				resp, err := shared.PaginateWithSpinner(
 					requestCtx,
 					func(ctx context.Context) (asc.PaginatedResponse, error) {
 						return client.GetAnalyticsReportInstancesRelationships(ctx, id, paginateOpts...)
 					},
 					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return client.GetAnalyticsReportInstancesRelationships(ctx, id, asc.WithLinkagesNextURL(nextURL))
+						return client.GetAnalyticsReportInstancesRelationships(ctx, id, asc.NextURL[asc.LinkagesOption](nextURL))
 					},
 				)
 				if err != nil {

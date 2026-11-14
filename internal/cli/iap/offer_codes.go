@@ -83,8 +83,7 @@ Examples:
 
 			iapValue := strings.TrimSpace(*iapID)
 			if iapValue == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --iap-id is required")
-				return shared.MissingRequiredUsageError("--iap-id")
+				return shared.RequiredFlag("--iap-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -103,19 +102,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.IAPOfferCodesOption{
-				asc.WithIAPOfferCodesLimit(*limit),
-				asc.WithIAPOfferCodesNextURL(*next),
+				asc.Limit[asc.IAPOfferCodesOption](*limit),
+				asc.NextURL[asc.IAPOfferCodesOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithIAPOfferCodesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.IAPOfferCodesOption](200))
 				firstPage, err := client.GetInAppPurchaseOfferCodes(requestCtx, iapValue, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("iap offer-codes list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetInAppPurchaseOfferCodes(ctx, iapValue, asc.WithIAPOfferCodesNextURL(nextURL))
+					return client.GetInAppPurchaseOfferCodes(ctx, iapValue, asc.NextURL[asc.IAPOfferCodesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("iap offer-codes list: %w", err)
@@ -136,44 +135,25 @@ Examples:
 
 // IAPOfferCodesGetCommand returns the offer codes get subcommand.
 func IAPOfferCodesGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("offer-codes view", flag.ExitOnError)
-
-	offerCodeID := shared.BindResourceIDFlag(fs, "offer-code-id", "inAppPurchaseOfferCodes", "Offer code ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc iap offer-codes view --offer-code-id \"CODE_ID\"",
-		ShortHelp:  "View an offer code by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "offer-codes view",
+		Name:        "view",
+		ShortUsage:  "asc iap offer-codes view --offer-code-id \"CODE_ID\"",
+		ShortHelp:   "View an offer code by ID.",
 		LongHelp: `View an offer code by ID.
 
 Examples:
   asc iap offer-codes view --offer-code-id "CODE_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			offerCodeValue := strings.TrimSpace(*offerCodeID)
-			if offerCodeValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --offer-code-id is required")
-				return shared.MissingRequiredUsageError("--offer-code-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("iap offer-codes view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetInAppPurchaseOfferCode(requestCtx, offerCodeValue)
-			if err != nil {
-				return fmt.Errorf("iap offer-codes view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDFlag:             "offer-code-id",
+		IDUsage:            "Offer code ID",
+		IDType:             "inAppPurchaseOfferCodes",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "iap offer-codes view",
+		FetchErrorPrefix:   "iap offer-codes view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetInAppPurchaseOfferCode(ctx, id)
 		},
-	}
+	})
 }
 
 // IAPOfferCodesCreateCommand returns the offer codes create subcommand.
@@ -202,14 +182,12 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			iapValue := strings.TrimSpace(*iapID)
 			if iapValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --iap-id is required")
-				return shared.MissingRequiredUsageError("--iap-id")
+				return shared.RequiredFlag("--iap-id")
 			}
 
 			nameValue := strings.TrimSpace(*name)
 			if nameValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --name is required")
-				return shared.MissingRequiredUsageError("--name")
+				return shared.RequiredFlag("--name")
 			}
 
 			parsedEligibilities, err := parseOfferCodeEligibilities(*eligibilities)
@@ -227,8 +205,7 @@ Examples:
 				return flag.ErrHelp
 			}
 			if len(priceEntries) == 0 {
-				fmt.Fprintln(os.Stderr, "Error: --prices is required")
-				return shared.MissingRequiredUsageError("--prices")
+				return shared.RequiredFlag("--prices")
 			}
 
 			client, err := shared.GetASCClient()
@@ -280,8 +257,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			offerCodeValue := strings.TrimSpace(*offerCodeID)
 			if offerCodeValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --offer-code-id is required")
-				return shared.MissingRequiredUsageError("--offer-code-id")
+				return shared.RequiredFlag("--offer-code-id")
 			}
 			if !active.IsSet() {
 				fmt.Fprintln(os.Stderr, "Error: --active is required (true or false)")

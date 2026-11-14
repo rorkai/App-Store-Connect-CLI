@@ -1,51 +1,44 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
-	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestTestFlightBetaTestersListSendsSortIncludeAndInviteType(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	var captured *http.Request
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		captured = req
-		return okJSONResponse(`{"data":[],"links":{}}`), nil
-	}))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/betaTesters", "filter[apps]=app-1", "filter[inviteType]=EMAIL,PUBLIC_LINK", "include=betaGroups", "sort=-lastName"),
+		asctest.JSON(http.StatusOK, `{"data":[],"links":{}}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"testflight", "testers", "list",
-			"--app", "app-1",
-			"--sort", "-lastName",
-			"--include", "betaGroups",
-			"--invite-type", "EMAIL,PUBLIC_LINK",
-			"--output", "json",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
+	_, stderr, err := runCommand(t, []string{
+		"testflight", "testers", "list",
+		"--app", "app-1",
+		"--sort", "-lastName",
+		"--include", "betaGroups",
+		"--invite-type", "EMAIL,PUBLIC_LINK",
+		"--output", "json",
 	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 	if !strings.Contains(stderr, "included relationships can be partial") {
 		t.Fatalf("expected included-relationship completeness warning, got %q", stderr)
 	}
-	if captured == nil {
+	requests := reg.Requests()
+	if len(requests) == 0 {
 		t.Fatal("expected an outbound request")
 	}
+	captured := requests[len(requests)-1]
 
 	query := captured.URL.Query()
 	if got := query.Get("sort"); got != "-lastName" {
@@ -66,34 +59,28 @@ func TestTestFlightBetaTestersListLowercaseInviteTypeIsNormalized(t *testing.T) 
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	var captured *http.Request
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		captured = req
-		return okJSONResponse(`{"data":[],"links":{}}`), nil
-	}))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/betaTesters", "filter[apps]=app-1", "filter[inviteType]=PUBLIC_LINK"),
+		asctest.JSON(http.StatusOK, `{"data":[],"links":{}}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"testflight", "testers", "list",
-			"--app", "app-1",
-			"--invite-type", "public_link",
-			"--output", "json",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
+	_, stderr, err := runCommand(t, []string{
+		"testflight", "testers", "list",
+		"--app", "app-1",
+		"--invite-type", "public_link",
+		"--output", "json",
 	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	if captured == nil {
+	requests := reg.Requests()
+	if len(requests) == 0 {
 		t.Fatal("expected an outbound request")
 	}
+	captured := requests[len(requests)-1]
 	if got := captured.URL.Query().Get("filter[inviteType]"); got != "PUBLIC_LINK" {
 		t.Fatalf("expected filter[inviteType]=PUBLIC_LINK, got %q", got)
 	}
@@ -116,27 +103,21 @@ func TestTestFlightBetaTestersListNotesIncludeIsJSONOnly(t *testing.T) {
 			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				return okJSONResponse(`{"data":[{"type":"betaTesters","id":"tester-1","attributes":{"email":"tester@example.com"}}],` +
-					`"included":[{"type":"betaGroups","id":"group-a","attributes":{"name":"Alpha"}}],"links":{}}`), nil
-			}))
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET("/v1/betaTesters", "filter[apps]=app-1", "include=betaGroups"),
+				asctest.JSON(http.StatusOK, `{"data":[{"type":"betaTesters","id":"tester-1","attributes":{"email":"tester@example.com"}}],`+
+					`"included":[{"type":"betaGroups","id":"group-a","attributes":{"name":"Alpha"}}],"links":{}}`))
 
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			_, stderr := captureOutput(t, func() {
-				if err := root.Parse([]string{
-					"testflight", "testers", "list",
-					"--app", "app-1",
-					"--include", "betaGroups",
-					"--output", test.format,
-				}); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
+			_, stderr, err := runCommand(t, []string{
+				"testflight", "testers", "list",
+				"--app", "app-1",
+				"--include", "betaGroups",
+				"--output", test.format,
 			})
+			if err != nil {
+				t.Fatalf("run error: %v", err)
+			}
 
 			gotNote := strings.Contains(stderr, "included resources are only rendered in JSON output")
 			if gotNote != test.wantNote {
@@ -154,28 +135,19 @@ func TestTestFlightBetaTestersListNotesNextURLIncludedResourcesAreJSONOnly(t *te
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	const nextURL = "https://api.appstoreconnect.apple.com/v1/betaTesters?cursor=AQ&include=betaGroups"
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.URL.String() != nextURL {
-			t.Fatalf("unexpected request URL %q", req.URL.String())
-		}
-		return okJSONResponse(`{"data":[],"included":[{"type":"betaGroups","id":"group-a"}],"links":{}}`), nil
-	}))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/betaTesters", "cursor=AQ", "include=betaGroups"),
+		asctest.JSON(http.StatusOK, `{"data":[],"included":[{"type":"betaGroups","id":"group-a"}],"links":{}}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"testflight", "testers", "list",
-			"--next", nextURL,
-			"--output", "table",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
+	_, stderr, err := runCommand(t, []string{
+		"testflight", "testers", "list",
+		"--next", nextURL,
+		"--output", "table",
 	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 	if !strings.Contains(stderr, "included resources are only rendered in JSON output") {
 		t.Fatalf("expected JSON-only included-resource note, got %q", stderr)
 	}
@@ -216,10 +188,7 @@ func TestTestFlightBetaTestersListRejectsInvalidFilterValues(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-				return nil, nil
-			}))
+			asctest.NewRegistry(t).Install()
 
 			stdout, stderr := captureOutput(t, func() {
 				if code := cmd.Run(test.args, "1.2.3"); code != cmd.ExitUsage {
@@ -270,10 +239,7 @@ func TestTestFlightBetaTestersListRejectsFiltersWithNextURL(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-				return nil, nil
-			}))
+			asctest.NewRegistry(t).Install()
 
 			stdout, stderr := captureOutput(t, func() {
 				if code := cmd.Run(test.args, "1.2.3"); code != cmd.ExitUsage {
@@ -296,53 +262,29 @@ func TestTestFlightBetaTestersListPaginateMergesIncludedBetaGroups(t *testing.T)
 
 	const secondURL = "https://api.appstoreconnect.apple.com/v1/betaTesters?cursor=BQ&filter%5Bapps%5D=app-1&include=betaGroups&limit=200"
 
-	requestCount := 0
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		switch requestCount {
-		case 1:
-			query := req.URL.Query()
-			if got := query.Get("include"); got != "betaGroups" {
-				t.Fatalf("expected first page include=betaGroups, got %q", got)
-			}
-			if got := query.Get("limit"); got != "200" {
-				t.Fatalf("expected first page limit=200, got %q", got)
-			}
-			return okJSONResponse(`{"data":[{"type":"betaTesters","id":"tester-1","relationships":{"betaGroups":{"data":[{"type":"betaGroups","id":"group-a"}]}}}],` +
-				`"included":[{"type":"betaGroups","id":"group-a","attributes":{"name":"Alpha"}}],` +
-				`"links":{"next":"` + secondURL + `"}}`), nil
-		case 2:
-			if req.URL.String() != secondURL {
-				t.Fatalf("unexpected second request URL %q", req.URL.String())
-			}
-			return okJSONResponse(`{"data":[{"type":"betaTesters","id":"tester-2","relationships":{"betaGroups":{"data":[{"type":"betaGroups","id":"group-b"}]}}}],` +
-				`"included":[{"type":"betaGroups","id":"group-a","attributes":{"name":"Alpha updated"}},{"type":"betaGroups","id":"group-b","attributes":{"name":"Bravo"}}],` +
-				`"links":{}}`), nil
-		default:
-			t.Fatalf("unexpected extra request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	}))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/betaTesters", "filter[apps]=app-1", "include=betaGroups", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaTesters","id":"tester-1","relationships":{"betaGroups":{"data":[{"type":"betaGroups","id":"group-a"}]}}}],`+
+			`"included":[{"type":"betaGroups","id":"group-a","attributes":{"name":"Alpha"}}],`+
+			`"links":{"next":"`+secondURL+`"}}`))
+	reg.Register(asctest.GET("/v1/betaTesters", "cursor=BQ", "filter[apps]=app-1", "include=betaGroups", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaTesters","id":"tester-2","relationships":{"betaGroups":{"data":[{"type":"betaGroups","id":"group-b"}]}}}],`+
+			`"included":[{"type":"betaGroups","id":"group-a","attributes":{"name":"Alpha updated"}},{"type":"betaGroups","id":"group-b","attributes":{"name":"Bravo"}}],`+
+			`"links":{}}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"testflight", "testers", "list",
-			"--app", "app-1",
-			"--include", "betaGroups",
-			"--paginate",
-			"--output", "json",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
+	stdout, _, err := runCommand(t, []string{
+		"testflight", "testers", "list",
+		"--app", "app-1",
+		"--include", "betaGroups",
+		"--paginate",
+		"--output", "json",
 	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
-	if requestCount != 2 {
+	if requestCount := len(reg.Requests()); requestCount != 2 {
 		t.Fatalf("expected 2 requests, got %d", requestCount)
 	}
 

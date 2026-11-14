@@ -4,20 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestSubscriptionsIntroductoryOffersImport_InvalidInputReturnsUsage(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("unexpected HTTP request: %s %s", req.Method, req.URL.String())
-		return nil, nil
-	}))
+	asctest.NewRegistry(t).Install()
 
 	importArgs := func(body string, extra ...string) []string {
 		args := []string{
@@ -189,14 +187,7 @@ func writeTempIntroOffersCSV(t *testing.T, body string) string {
 func TestSubscriptionsIntroductoryOffersImport_DryRunUsesDefaultsWithoutMutations(t *testing.T) {
 	setupAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		t.Fatalf("unexpected HTTP request: %s %s", req.Method, req.URL.String())
-		return nil, nil
-	})
+	asctest.NewRegistry(t).Install()
 
 	csvPath := writeTempIntroOffersCSV(t, "territory\nUSA\nAfghanistan\n")
 

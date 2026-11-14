@@ -98,8 +98,7 @@ Examples:
 			versionValue := strings.TrimSpace(*versionID)
 			nextValue := strings.TrimSpace(*next)
 			if versionValue == "" && nextValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			if kind == relationshipSingle && (nextValue != "" || *paginate || *limit != 0) {
@@ -140,18 +139,18 @@ Examples:
 				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			case relationshipList:
 				opts := []asc.LinkagesOption{
-					asc.WithLinkagesLimit(*limit),
-					asc.WithLinkagesNextURL(*next),
+					asc.Limit[asc.LinkagesOption](*limit),
+					asc.NextURL[asc.LinkagesOption](*next),
 				}
 
 				if *paginate {
-					paginateOpts := append(opts, asc.WithLinkagesLimit(200))
+					paginateOpts := append(opts, asc.Limit[asc.LinkagesOption](200))
 					firstPage, err := getPreReleaseRelationshipList(requestCtx, client, relationshipType, versionValue, paginateOpts...)
 					if err != nil {
 						return fmt.Errorf("pre-release-versions relationships view: failed to fetch: %w", shared.DescribeRelationshipLookupFailure(err, relationshipType, parent))
 					}
 					resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						page, err := getPreReleaseRelationshipList(ctx, client, relationshipType, versionValue, asc.WithLinkagesNextURL(nextURL))
+						page, err := getPreReleaseRelationshipList(ctx, client, relationshipType, versionValue, asc.NextURL[asc.LinkagesOption](nextURL))
 						if err != nil {
 							return nil, shared.DescribeRelationshipLookupFailure(err, relationshipType, pageParent)
 						}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -92,8 +91,7 @@ Examples:
 
 			trimmedID := strings.TrimSpace(*versionID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --custom-page-version-id is required")
-				return shared.MissingRequiredUsageError("--custom-page-version-id")
+				return shared.RequiredFlag("--custom-page-version-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -105,21 +103,21 @@ Examples:
 			defer cancel()
 
 			opts := []asc.AppCustomProductPageLocalizationsOption{
-				asc.WithAppCustomProductPageLocalizationsLimit(*limit),
-				asc.WithAppCustomProductPageLocalizationsNextURL(*next),
+				asc.Limit[asc.AppCustomProductPageLocalizationsOption](*limit),
+				asc.NextURL[asc.AppCustomProductPageLocalizationsOption](*next),
 				asc.WithAppCustomProductPageLocalizationsInclude(includeValues),
 				asc.WithAppCustomProductPageLocalizationsPlacementsLimit(placementsLimit),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithAppCustomProductPageLocalizationsLimit(productPagesMaxLimit))
+				paginateOpts := append(opts, asc.Limit[asc.AppCustomProductPageLocalizationsOption](productPagesMaxLimit))
 				firstPage, err := client.GetAppCustomProductPageLocalizations(requestCtx, trimmedID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("custom-pages localizations list: failed to fetch: %w", err)
 				}
 
 				paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppCustomProductPageLocalizations(ctx, trimmedID, asc.WithAppCustomProductPageLocalizationsNextURL(nextURL))
+					return client.GetAppCustomProductPageLocalizations(ctx, trimmedID, asc.NextURL[asc.AppCustomProductPageLocalizationsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("custom-pages localizations list: %w", err)
@@ -160,8 +158,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*localizationID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
-				return shared.MissingRequiredUsageError("--localization-id")
+				return shared.RequiredFlag("--localization-id")
 			}
 			includeValues, placementsLimit, err := include.Resolve()
 			if err != nil {
@@ -209,14 +206,12 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*versionID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --custom-page-version-id is required")
-				return shared.MissingRequiredUsageError("--custom-page-version-id")
+				return shared.RequiredFlag("--custom-page-version-id")
 			}
 
 			localeValue := strings.TrimSpace(*locale)
 			if localeValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --locale is required")
-				return shared.MissingRequiredUsageError("--locale")
+				return shared.RequiredFlag("--locale")
 			}
 
 			client, err := shared.GetASCClient()
@@ -258,14 +253,12 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*localizationID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
-				return shared.MissingRequiredUsageError("--localization-id")
+				return shared.RequiredFlag("--localization-id")
 			}
 
 			promoValue := strings.TrimSpace(*promotionalText)
 			if promoValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --promotional-text is required")
-				return shared.MissingRequiredUsageError("--promotional-text")
+				return shared.RequiredFlag("--promotional-text")
 			}
 
 			attrs := asc.AppCustomProductPageLocalizationUpdateAttributes{
@@ -311,12 +304,10 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*localizationID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
-				return shared.MissingRequiredUsageError("--localization-id")
+				return shared.RequiredFlag("--localization-id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()

@@ -160,7 +160,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetApps",
 			next: "https://api.appstoreconnect.apple.com/v1/apps?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetApps(ctx, WithAppsLimit(5), WithAppsSort("name"), WithAppsNextURL(next))
+				_, err := c.GetApps(ctx, Limit[AppsOption](5), WithAppsSort("name"), NextURL[AppsOption](next))
 				return err
 			},
 		},
@@ -168,7 +168,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetAppInfos",
 			next: "https://api.appstoreconnect.apple.com/v1/apps/app-1/appInfos?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetAppInfos(ctx, "app-1", WithAppInfosNextURL(next))
+				_, err := c.GetAppInfos(ctx, "app-1", NextURL[AppInfoOption](next))
 				return err
 			},
 		},
@@ -176,7 +176,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetAppTags",
 			next: "https://api.appstoreconnect.apple.com/v1/apps/123/appTags?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetAppTags(ctx, "123", WithAppTagsLimit(5), WithAppTagsNextURL(next))
+				_, err := c.GetAppTags(ctx, "123", Limit[AppTagsOption](5), NextURL[AppTagsOption](next))
 				return err
 			},
 		},
@@ -184,7 +184,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetAppTagTerritories",
 			next: "https://api.appstoreconnect.apple.com/v1/appTags/tag-1/territories?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetAppTagTerritories(ctx, "tag-1", WithTerritoriesNextURL(next))
+				_, err := c.GetAppTagTerritories(ctx, "tag-1", NextURL[TerritoriesOption](next))
 				return err
 			},
 		},
@@ -192,7 +192,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetSubscriptionOfferCodeOneTimeUseCodes",
 			next: "https://api.appstoreconnect.apple.com/v1/subscriptionOfferCodes/123/oneTimeUseCodes?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetSubscriptionOfferCodeOneTimeUseCodes(ctx, "123", WithSubscriptionOfferCodeOneTimeUseCodesNextURL(next))
+				_, err := c.GetSubscriptionOfferCodeOneTimeUseCodes(ctx, "123", NextURL[SubscriptionOfferCodeOneTimeUseCodesOption](next))
 				return err
 			},
 		},
@@ -200,7 +200,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetSubscriptionOfferCodeCustomCodes",
 			next: "https://api.appstoreconnect.apple.com/v1/subscriptionOfferCodes/123/customCodes?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetSubscriptionOfferCodeCustomCodes(ctx, "123", WithSubscriptionOfferCodeCustomCodesNextURL(next))
+				_, err := c.GetSubscriptionOfferCodeCustomCodes(ctx, "123", NextURL[SubscriptionOfferCodeCustomCodesOption](next))
 				return err
 			},
 		},
@@ -208,7 +208,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetSubscriptionOfferCodePrices",
 			next: "https://api.appstoreconnect.apple.com/v1/subscriptionOfferCodes/123/prices?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetSubscriptionOfferCodePrices(ctx, "123", WithSubscriptionOfferCodePricesNextURL(next))
+				_, err := c.GetSubscriptionOfferCodePrices(ctx, "123", NextURL[SubscriptionOfferCodePricesOption](next))
 				return err
 			},
 		},
@@ -216,7 +216,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetBuilds",
 			next: "https://api.appstoreconnect.apple.com/v1/builds?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetBuilds(ctx, "123", WithBuildsLimit(5), WithBuildsSort("uploadedDate"), WithBuildsNextURL(next))
+				_, err := c.GetBuilds(ctx, "123", Limit[BuildsOption](5), WithBuildsSort("uploadedDate"), NextURL[BuildsOption](next))
 				return err
 			},
 		},
@@ -224,7 +224,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetAppStoreVersions",
 			next: "https://api.appstoreconnect.apple.com/v1/apps/123/appStoreVersions?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetAppStoreVersions(ctx, "123", WithAppStoreVersionsNextURL(next))
+				_, err := c.GetAppStoreVersions(ctx, "123", NextURL[AppStoreVersionsOption](next))
 				return err
 			},
 		},
@@ -232,7 +232,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetPreReleaseVersions",
 			next: "https://api.appstoreconnect.apple.com/v1/preReleaseVersions?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetPreReleaseVersions(ctx, "123", WithPreReleaseVersionsNextURL(next))
+				_, err := c.GetPreReleaseVersions(ctx, "123", NextURL[PreReleaseVersionsOption](next))
 				return err
 			},
 		},
@@ -240,7 +240,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetBetaGroups",
 			next: "https://api.appstoreconnect.apple.com/v1/apps/123/betaGroups?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetBetaGroups(ctx, "123", WithBetaGroupsLimit(5), WithBetaGroupsNextURL(next))
+				_, err := c.GetBetaGroups(ctx, "123", Limit[BetaGroupsOption](5), NextURL[BetaGroupsOption](next))
 				return err
 			},
 		},
@@ -248,7 +248,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetBetaGroupBuilds",
 			next: "https://api.appstoreconnect.apple.com/v1/betaGroups/group-1/builds?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetBetaGroupBuilds(ctx, "group-1", WithBetaGroupBuildsNextURL(next))
+				_, err := c.GetBetaGroupBuilds(ctx, "group-1", NextURL[BetaGroupBuildsOption](next))
 				return err
 			},
 		},
@@ -256,7 +256,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetBetaGroupTesters",
 			next: "https://api.appstoreconnect.apple.com/v1/betaGroups/group-1/betaTesters?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetBetaGroupTesters(ctx, "group-1", WithBetaGroupTestersNextURL(next))
+				_, err := c.GetBetaGroupTesters(ctx, "group-1", NextURL[BetaGroupTestersOption](next))
 				return err
 			},
 		},
@@ -264,7 +264,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetBetaTesters",
 			next: "https://api.appstoreconnect.apple.com/v1/betaTesters?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetBetaTesters(ctx, "123", WithBetaTestersLimit(5), WithBetaTestersNextURL(next))
+				_, err := c.GetBetaTesters(ctx, "123", Limit[BetaTestersOption](5), NextURL[BetaTestersOption](next))
 				return err
 			},
 		},
@@ -272,7 +272,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetCiWorkflows",
 			next: "https://api.appstoreconnect.apple.com/v1/ciProducts/prod-1/workflows?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetCiWorkflows(ctx, "prod-1", WithCiWorkflowsNextURL(next))
+				_, err := c.GetCiWorkflows(ctx, "prod-1", NextURL[CiWorkflowsOption](next))
 				return err
 			},
 		},
@@ -280,7 +280,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetScmProviders",
 			next: "https://api.appstoreconnect.apple.com/v1/scmProviders?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetScmProviders(ctx, WithScmProvidersNextURL(next))
+				_, err := c.GetScmProviders(ctx, NextURL[ScmProvidersOption](next))
 				return err
 			},
 		},
@@ -288,7 +288,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetScmRepositories",
 			next: "https://api.appstoreconnect.apple.com/v1/scmRepositories?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetScmRepositories(ctx, WithScmRepositoriesNextURL(next))
+				_, err := c.GetScmRepositories(ctx, NextURL[ScmRepositoriesOption](next))
 				return err
 			},
 		},
@@ -296,7 +296,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetBundleIDs",
 			next: "https://api.appstoreconnect.apple.com/v1/bundleIds?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetBundleIDs(ctx, WithBundleIDsNextURL(next))
+				_, err := c.GetBundleIDs(ctx, NextURL[BundleIDsOption](next))
 				return err
 			},
 		},
@@ -304,7 +304,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetInAppPurchasesV2",
 			next: "https://api.appstoreconnect.apple.com/v1/apps/123/inAppPurchasesV2?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetInAppPurchasesV2(ctx, "123", WithIAPNextURL(next))
+				_, err := c.GetInAppPurchasesV2(ctx, "123", NextURL[IAPOption](next))
 				return err
 			},
 		},
@@ -312,7 +312,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetInAppPurchases",
 			next: "https://api.appstoreconnect.apple.com/v1/apps/123/inAppPurchases?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetInAppPurchases(ctx, "123", WithIAPNextURL(next))
+				_, err := c.GetInAppPurchases(ctx, "123", NextURL[IAPOption](next))
 				return err
 			},
 		},
@@ -320,7 +320,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetCertificates",
 			next: "https://api.appstoreconnect.apple.com/v1/certificates?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetCertificates(ctx, WithCertificatesNextURL(next))
+				_, err := c.GetCertificates(ctx, NextURL[CertificatesOption](next))
 				return err
 			},
 		},
@@ -328,7 +328,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetProfiles",
 			next: "https://api.appstoreconnect.apple.com/v1/profiles?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetProfiles(ctx, WithProfilesNextURL(next))
+				_, err := c.GetProfiles(ctx, NextURL[ProfilesOption](next))
 				return err
 			},
 		},
@@ -336,7 +336,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetSubscriptionGroups",
 			next: "https://api.appstoreconnect.apple.com/v1/apps/app-1/subscriptionGroups?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetSubscriptionGroups(ctx, "app-1", WithSubscriptionGroupsNextURL(next))
+				_, err := c.GetSubscriptionGroups(ctx, "app-1", NextURL[SubscriptionGroupsOption](next))
 				return err
 			},
 		},
@@ -344,7 +344,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetUsers",
 			next: "https://api.appstoreconnect.apple.com/v1/users?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetUsers(ctx, WithUsersNextURL(next))
+				_, err := c.GetUsers(ctx, NextURL[UsersOption](next))
 				return err
 			},
 		},
@@ -352,7 +352,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetBetaAppReviewDetails",
 			next: "https://api.appstoreconnect.apple.com/v1/betaAppReviewDetails?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetBetaAppReviewDetails(ctx, "app-1", WithBetaAppReviewDetailsNextURL(next))
+				_, err := c.GetBetaAppReviewDetails(ctx, "app-1", NextURL[BetaAppReviewDetailsOption](next))
 				return err
 			},
 		},
@@ -368,7 +368,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetSubscriptionWinBackOffers",
 			next: "https://api.appstoreconnect.apple.com/v1/subscriptions/sub-1/winBackOffers?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetSubscriptionWinBackOffers(ctx, "sub-1", WithWinBackOffersNextURL(next))
+				_, err := c.GetSubscriptionWinBackOffers(ctx, "sub-1", NextURL[WinBackOffersOption](next))
 				return err
 			},
 		},
@@ -376,7 +376,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "ListBetaGroups",
 			next: "https://api.appstoreconnect.apple.com/v1/betaGroups?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.ListBetaGroups(ctx, WithBetaGroupsNextURL(next))
+				_, err := c.ListBetaGroups(ctx, NextURL[BetaGroupsOption](next))
 				return err
 			},
 		},
@@ -384,7 +384,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "ListBetaBuildLocalizations",
 			next: "https://api.appstoreconnect.apple.com/v1/betaBuildLocalizations?cursor=xyz",
 			call: func(c *Client, next string) error {
-				_, err := c.ListBetaBuildLocalizations(ctx, WithBetaBuildLocalizationsNextURL(next))
+				_, err := c.ListBetaBuildLocalizations(ctx, NextURL[BetaBuildLocalizationsOption](next))
 				return err
 			},
 		},
@@ -392,7 +392,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			name: "ListReviewSubmissions",
 			next: "https://api.appstoreconnect.apple.com/v1/reviewSubmissions?cursor=def",
 			call: func(c *Client, next string) error {
-				_, err := c.ListReviewSubmissions(ctx, WithReviewSubmissionsNextURL(next))
+				_, err := c.ListReviewSubmissions(ctx, NextURL[ReviewSubmissionsOption](next))
 				return err
 			},
 		},
@@ -471,7 +471,9 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			path:  "/v1/apps",
 			query: map[string]string{"sort": "-name", "limit": "10"},
 			body:  `{"data":[{"type":"apps","id":"1","attributes":{"name":"Demo","bundleId":"com.example.demo","sku":"SKU1"}}]}`,
-			call:  func(c *Client) error { return discardResult(c.GetApps(ctx, WithAppsLimit(10), WithAppsSort("-name"))) },
+			call: func(c *Client) error {
+				return discardResult(c.GetApps(ctx, Limit[AppsOption](10), WithAppsSort("-name")))
+			},
 		},
 		{
 			name: "GetApps_WithFilters",
@@ -510,7 +512,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 					"123",
 					WithAppTagsVisibleInAppStore([]string{"true"}),
 					WithAppTagsSort("name"),
-					WithAppTagsLimit(5),
+					Limit[AppTagsOption](5),
 					WithAppTagsFields([]string{"name", "visibleInAppStore"}),
 					WithAppTagsInclude([]string{"territories"}),
 					WithAppTagsTerritoryFields([]string{"currency"}),
@@ -528,7 +530,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 					ctx,
 					"tag-1",
 					WithTerritoriesFields([]string{"currency"}),
-					WithTerritoriesLimit(5),
+					Limit[TerritoriesOption](5),
 				))
 			},
 		},
@@ -538,7 +540,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "5"},
 			body:  `{"data":[{"type":"territories","id":"USA"}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetAppTagTerritoriesRelationships(ctx, "tag-1", WithLinkagesLimit(5)))
+				return discardResult(c.GetAppTagTerritoriesRelationships(ctx, "tag-1", Limit[LinkagesOption](5)))
 			},
 		},
 		{
@@ -547,7 +549,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "5"},
 			body:  `{"data":[{"type":"appTags","id":"tag-1"}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetAppTagsRelationshipsForApp(ctx, "app-1", WithLinkagesLimit(5)))
+				return discardResult(c.GetAppTagsRelationshipsForApp(ctx, "app-1", Limit[LinkagesOption](5)))
 			},
 		},
 		{
@@ -556,7 +558,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "5"},
 			body:  `{"data":[{"type":"promotedPurchases","id":"promo-1"}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetAppPromotedPurchases(ctx, "app-1", WithPromotedPurchasesLimit(5)))
+				return discardResult(c.GetAppPromotedPurchases(ctx, "app-1", Limit[PromotedPurchasesOption](5)))
 			},
 		},
 		{
@@ -565,7 +567,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "5"},
 			body:  `{"data":[{"type":"subscriptionOfferCodeOneTimeUseCodes","id":"1","attributes":{"numberOfCodes":5}}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetSubscriptionOfferCodeOneTimeUseCodes(ctx, "123", WithSubscriptionOfferCodeOneTimeUseCodesLimit(5)))
+				return discardResult(c.GetSubscriptionOfferCodeOneTimeUseCodes(ctx, "123", Limit[SubscriptionOfferCodeOneTimeUseCodesOption](5)))
 			},
 		},
 		{
@@ -574,7 +576,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"filter[app]": "123", "sort": "-uploadedDate", "limit": "5"},
 			body:  `{"data":[{"type":"builds","id":"1","attributes":{"version":"1.0","uploadedDate":"2026-01-20T00:00:00Z"}}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetBuilds(ctx, "123", WithBuildsLimit(5), WithBuildsSort("-uploadedDate")))
+				return discardResult(c.GetBuilds(ctx, "123", Limit[BuildsOption](5), WithBuildsSort("-uploadedDate")))
 			},
 		},
 		{
@@ -592,7 +594,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 				return discardResult(c.GetAppStoreVersions(
 					ctx,
 					"123",
-					WithAppStoreVersionsLimit(5),
+					Limit[AppStoreVersionsOption](5),
 					WithAppStoreVersionsPlatforms([]string{"IOS"}),
 					WithAppStoreVersionsVersionStrings([]string{"1.0.0"}),
 					WithAppStoreVersionsStates([]string{"READY_FOR_REVIEW"}),
@@ -605,7 +607,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			path:  "/v1/apps/123/betaGroups",
 			query: map[string]string{"limit": "10"},
 			body:  `{"data":[{"type":"betaGroups","id":"1","attributes":{"name":"Beta"}}]}`,
-			call:  func(c *Client) error { return discardResult(c.GetBetaGroups(ctx, "123", WithBetaGroupsLimit(10))) },
+			call:  func(c *Client) error { return discardResult(c.GetBetaGroups(ctx, "123", Limit[BetaGroupsOption](10))) },
 		},
 		{
 			name:  "GetBetaGroupBuilds_WithLimit",
@@ -613,7 +615,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "50"},
 			body:  `{"data":[{"type":"builds","id":"build-1","attributes":{"version":"1.0","uploadedDate":"2026-01-20T00:00:00Z"}}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetBetaGroupBuilds(ctx, "group-1", WithBetaGroupBuildsLimit(50)))
+				return discardResult(c.GetBetaGroupBuilds(ctx, "group-1", Limit[BetaGroupBuildsOption](50)))
 			},
 		},
 		{
@@ -622,7 +624,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "20"},
 			body:  `{"data":[{"type":"betaTesters","id":"tester-1","attributes":{"email":"tester@example.com"}}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetBetaGroupTesters(ctx, "group-1", WithBetaGroupTestersLimit(20)))
+				return discardResult(c.GetBetaGroupTesters(ctx, "group-1", Limit[BetaGroupTestersOption](20)))
 			},
 		},
 		{
@@ -640,7 +642,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 					ctx,
 					"123",
 					WithBetaTestersEmail("tester@example.com"),
-					WithBetaTestersLimit(5),
+					Limit[BetaTestersOption](5),
 				))
 			},
 		},
@@ -693,7 +695,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 					ctx,
 					"version-1",
 					WithAppStoreVersionLocalizationLocales([]string{"en-US"}),
-					WithAppStoreVersionLocalizationsLimit(10),
+					Limit[AppStoreVersionLocalizationsOption](10),
 				))
 			},
 		},
@@ -707,7 +709,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 					ctx,
 					"build-1",
 					WithBetaBuildLocalizationLocales([]string{"en-US"}),
-					WithBetaBuildLocalizationsLimit(5),
+					Limit[BetaBuildLocalizationsOption](5),
 				))
 			},
 		},
@@ -721,7 +723,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 					ctx,
 					WithBetaAppLocalizationAppIDs([]string{"app-1"}),
 					WithBetaAppLocalizationLocales([]string{"en-US"}),
-					WithBetaAppLocalizationsLimit(5),
+					Limit[BetaAppLocalizationsOption](5),
 				))
 			},
 		},
@@ -735,7 +737,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 					ctx,
 					"app-info-1",
 					WithAppInfoLocalizationLocales([]string{"en-US"}),
-					WithAppInfoLocalizationsLimit(5),
+					Limit[AppInfoLocalizationsOption](5),
 				))
 			},
 		},
@@ -777,7 +779,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 					WithBuildUploadsPlatforms([]string{"ios", "mac_os"}),
 					WithBuildUploadsStates([]string{"uploaded", "failed"}),
 					WithBuildUploadsSort("uploadedDate"),
-					WithBuildUploadsLimit(5),
+					Limit[BuildUploadsOption](5),
 				))
 			},
 		},
@@ -787,7 +789,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "15"},
 			body:  `{"data":[{"type":"buildUploadFiles","id":"FILE_123","attributes":{"fileName":"app.ipa","fileSize":1234,"uti":"com.apple.ipa","assetType":"ASSET"}}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetBuildUploadFiles(ctx, "UPLOAD_123", WithBuildUploadFilesLimit(15)))
+				return discardResult(c.GetBuildUploadFiles(ctx, "UPLOAD_123", Limit[BuildUploadFilesOption](15)))
 			},
 		},
 		{
@@ -796,7 +798,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "10"},
 			body:  `{"data":[{"type":"betaTesters","id":"TESTER_1","attributes":{"email":"tester@example.com"}}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetBuildIndividualTesters(ctx, "BUILD_123", WithBuildIndividualTestersLimit(10)))
+				return discardResult(c.GetBuildIndividualTesters(ctx, "BUILD_123", Limit[BuildIndividualTestersOption](10)))
 			},
 		},
 		{
@@ -805,7 +807,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"filter[app]": "app-1", "limit": "25"},
 			body:  `{"data":[{"type":"ciProducts","id":"prod-1"}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetCiProducts(ctx, WithCiProductsAppID("app-1"), WithCiProductsLimit(25)))
+				return discardResult(c.GetCiProducts(ctx, WithCiProductsAppID("app-1"), Limit[CiProductsOption](25)))
 			},
 		},
 		{
@@ -814,7 +816,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "50"},
 			body:  `{"data":[{"type":"ciBuildRuns","id":"run-1"}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetCiProductBuildRuns(ctx, "prod-1", WithCiBuildRunsLimit(50)))
+				return discardResult(c.GetCiProductBuildRuns(ctx, "prod-1", Limit[CiBuildRunsOption](50)))
 			},
 		},
 		{
@@ -823,7 +825,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "10"},
 			body:  `{"data":[{"type":"scmRepositories","id":"repo-1"}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetCiProductPrimaryRepositories(ctx, "prod-1", WithCiProductRepositoriesLimit(10)))
+				return discardResult(c.GetCiProductPrimaryRepositories(ctx, "prod-1", Limit[CiProductRepositoriesOption](10)))
 			},
 		},
 		{
@@ -832,7 +834,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "5"},
 			body:  `{"data":[{"type":"scmRepositories","id":"repo-2"}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetCiProductAdditionalRepositories(ctx, "prod-1", WithCiProductRepositoriesLimit(5)))
+				return discardResult(c.GetCiProductAdditionalRepositories(ctx, "prod-1", Limit[CiProductRepositoriesOption](5)))
 			},
 		},
 		{
@@ -840,7 +842,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			path:  "/v1/scmProviders",
 			query: map[string]string{"limit": "25"},
 			body:  `{"data":[{"type":"scmProviders","id":"provider-1"}]}`,
-			call:  func(c *Client) error { return discardResult(c.GetScmProviders(ctx, WithScmProvidersLimit(25))) },
+			call:  func(c *Client) error { return discardResult(c.GetScmProviders(ctx, Limit[ScmProvidersOption](25))) },
 		},
 		{
 			name:  "GetScmProviderRepositories_WithLimit",
@@ -848,7 +850,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "10"},
 			body:  `{"data":[{"type":"scmRepositories","id":"repo-1"}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetScmProviderRepositories(ctx, "provider-1", WithScmRepositoriesLimit(10)))
+				return discardResult(c.GetScmProviderRepositories(ctx, "provider-1", Limit[ScmRepositoriesOption](10)))
 			},
 		},
 		{
@@ -856,7 +858,9 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			path:  "/v1/scmRepositories",
 			query: map[string]string{"limit": "10"},
 			body:  `{"data":[{"type":"scmRepositories","id":"repo-1"}]}`,
-			call:  func(c *Client) error { return discardResult(c.GetScmRepositories(ctx, WithScmRepositoriesLimit(10))) },
+			call: func(c *Client) error {
+				return discardResult(c.GetScmRepositories(ctx, Limit[ScmRepositoriesOption](10)))
+			},
 		},
 		{
 			name:  "GetScmRepositoryGitReferencesRelationships_WithLimit",
@@ -864,7 +868,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "5"},
 			body:  `{"data":[]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetScmRepositoryGitReferencesRelationships(ctx, "repo-1", WithLinkagesLimit(5)))
+				return discardResult(c.GetScmRepositoryGitReferencesRelationships(ctx, "repo-1", Limit[LinkagesOption](5)))
 			},
 		},
 		{
@@ -873,7 +877,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "20"},
 			body:  `{"data":[{"type":"scmPullRequests","id":"pr-1"}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetScmRepositoryPullRequests(ctx, "repo-1", WithScmPullRequestsLimit(20)))
+				return discardResult(c.GetScmRepositoryPullRequests(ctx, "repo-1", Limit[ScmPullRequestsOption](20)))
 			},
 		},
 		{
@@ -882,7 +886,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "20"},
 			body:  `{"data":[]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetScmRepositoryPullRequestsRelationships(ctx, "repo-1", WithLinkagesLimit(20)))
+				return discardResult(c.GetScmRepositoryPullRequestsRelationships(ctx, "repo-1", Limit[LinkagesOption](20)))
 			},
 		},
 		{
@@ -891,7 +895,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "100"},
 			body:  `{"data":[{"type":"scmGitReferences","id":"ref-1"}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetScmGitReferences(ctx, "  repo-1  ", WithScmGitReferencesLimit(100)))
+				return discardResult(c.GetScmGitReferences(ctx, "  repo-1  ", Limit[ScmGitReferencesOption](100)))
 			},
 		},
 		{
@@ -899,7 +903,9 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			path:  "/v1/ciWorkflows/wf-1/buildRuns",
 			query: map[string]string{"limit": "50"},
 			body:  `{"data":[{"type":"ciBuildRuns","id":"run-1","attributes":{"number":1}}]}`,
-			call:  func(c *Client) error { return discardResult(c.GetCiBuildRuns(ctx, "wf-1", WithCiBuildRunsLimit(50))) },
+			call: func(c *Client) error {
+				return discardResult(c.GetCiBuildRuns(ctx, "wf-1", Limit[CiBuildRunsOption](50)))
+			},
 		},
 		{
 			name:  "GetCiBuildRuns_WithSort",
@@ -916,7 +922,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "10"},
 			body:  `{"data":[{"type":"builds","id":"build-1"}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetCiBuildRunBuilds(ctx, "run-1", WithCiBuildRunBuildsLimit(10)))
+				return discardResult(c.GetCiBuildRunBuilds(ctx, "run-1", Limit[CiBuildRunBuildsOption](10)))
 			},
 		},
 		{
@@ -925,7 +931,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "20"},
 			body:  `{"data":[{"type":"ciArtifacts","id":"art-1"}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetCiBuildActionArtifacts(ctx, "action-1", WithCiArtifactsLimit(20)))
+				return discardResult(c.GetCiBuildActionArtifacts(ctx, "action-1", Limit[CiArtifactsOption](20)))
 			},
 		},
 		{
@@ -934,7 +940,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "30"},
 			body:  `{"data":[{"type":"ciTestResults","id":"test-1"}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetCiBuildActionTestResults(ctx, "action-1", WithCiTestResultsLimit(30)))
+				return discardResult(c.GetCiBuildActionTestResults(ctx, "action-1", Limit[CiTestResultsOption](30)))
 			},
 		},
 		{
@@ -943,7 +949,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "40"},
 			body:  `{"data":[{"type":"ciIssues","id":"issue-1"}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetCiBuildActionIssues(ctx, "action-1", WithCiIssuesLimit(40)))
+				return discardResult(c.GetCiBuildActionIssues(ctx, "action-1", Limit[CiIssuesOption](40)))
 			},
 		},
 		{
@@ -951,7 +957,9 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			path:  "/v1/ciMacOsVersions",
 			query: map[string]string{"limit": "5"},
 			body:  `{"data":[{"type":"ciMacOsVersions","id":"macos-1"}]}`,
-			call:  func(c *Client) error { return discardResult(c.GetCiMacOsVersions(ctx, WithCiMacOsVersionsLimit(5))) },
+			call: func(c *Client) error {
+				return discardResult(c.GetCiMacOsVersions(ctx, Limit[CiMacOsVersionsOption](5)))
+			},
 		},
 		{
 			name:  "GetCiMacOsVersionXcodeVersions_WithLimit",
@@ -959,7 +967,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "20"},
 			body:  `{"data":[{"type":"ciXcodeVersions","id":"xcode-1"}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetCiMacOsVersionXcodeVersions(ctx, "macos-1", WithCiXcodeVersionsLimit(20)))
+				return discardResult(c.GetCiMacOsVersionXcodeVersions(ctx, "macos-1", Limit[CiXcodeVersionsOption](20)))
 			},
 		},
 		{
@@ -967,7 +975,9 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			path:  "/v1/ciXcodeVersions",
 			query: map[string]string{"limit": "10"},
 			body:  `{"data":[{"type":"ciXcodeVersions","id":"xcode-1"}]}`,
-			call:  func(c *Client) error { return discardResult(c.GetCiXcodeVersions(ctx, WithCiXcodeVersionsLimit(10))) },
+			call: func(c *Client) error {
+				return discardResult(c.GetCiXcodeVersions(ctx, Limit[CiXcodeVersionsOption](10)))
+			},
 		},
 		{
 			name:  "GetCiXcodeVersionMacOsVersions_WithLimit",
@@ -975,7 +985,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "15"},
 			body:  `{"data":[{"type":"ciMacOsVersions","id":"macos-1"}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetCiXcodeVersionMacOsVersions(ctx, "xcode-1", WithCiMacOsVersionsLimit(15)))
+				return discardResult(c.GetCiXcodeVersionMacOsVersions(ctx, "xcode-1", Limit[CiMacOsVersionsOption](15)))
 			},
 		},
 		{
@@ -992,7 +1002,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			path:  "/v1/apps/123/inAppPurchasesV2",
 			query: map[string]string{"limit": "10"},
 			body:  `{"data":[{"type":"inAppPurchases","id":"iap-1","attributes":{"name":"Pro","productId":"com.example.pro","inAppPurchaseType":"CONSUMABLE"}}]}`,
-			call:  func(c *Client) error { return discardResult(c.GetInAppPurchasesV2(ctx, "123", WithIAPLimit(10))) },
+			call:  func(c *Client) error { return discardResult(c.GetInAppPurchasesV2(ctx, "123", Limit[IAPOption](10))) },
 		},
 		{
 			name:  "GetInAppPurchasesV2_WithProductIDAndNameFilters",
@@ -1019,7 +1029,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 					"123",
 					WithIAPProductIDs([]string{"com.example.pro"}),
 					WithIAPNames([]string{"Pro"}),
-					WithIAPNextURL("https://api.appstoreconnect.apple.com/v1/apps/123/inAppPurchasesV2?cursor=abc"),
+					NextURL[IAPOption]("https://api.appstoreconnect.apple.com/v1/apps/123/inAppPurchasesV2?cursor=abc"),
 				))
 			},
 		},
@@ -1028,14 +1038,14 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			path:  "/v1/bundleIds",
 			query: map[string]string{"limit": "10"},
 			body:  `{"data":[{"type":"bundleIds","id":"b1","attributes":{"name":"Demo","identifier":"com.example.demo","platform":"IOS"}}]}`,
-			call:  func(c *Client) error { return discardResult(c.GetBundleIDs(ctx, WithBundleIDsLimit(10))) },
+			call:  func(c *Client) error { return discardResult(c.GetBundleIDs(ctx, Limit[BundleIDsOption](10))) },
 		},
 		{
 			name:  "GetInAppPurchases_WithLimit",
 			path:  "/v1/apps/123/inAppPurchases",
 			query: map[string]string{"limit": "10"},
 			body:  `{"data":[{"type":"inAppPurchases","id":"iap-1","attributes":{"referenceName":"Pro","productId":"com.example.pro","inAppPurchaseType":"CONSUMABLE"}}]}`,
-			call:  func(c *Client) error { return discardResult(c.GetInAppPurchases(ctx, "123", WithIAPLimit(10))) },
+			call:  func(c *Client) error { return discardResult(c.GetInAppPurchases(ctx, "123", Limit[IAPOption](10))) },
 		},
 		{
 			name: "GetMerchantIDs_WithFilters",
@@ -1061,7 +1071,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 					WithMerchantIDsCertificateFields([]string{"certificateType", "serialNumber"}),
 					WithMerchantIDsInclude([]string{"certificates"}),
 					WithMerchantIDsCertificatesLimit(10),
-					WithMerchantIDsLimit(5),
+					Limit[MerchantIDsOption](5),
 				))
 			},
 		},
@@ -1092,7 +1102,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 					WithMerchantIDCertificatesFields([]string{"serialNumber"}),
 					WithMerchantIDCertificatesPassTypeFields([]string{"identifier"}),
 					WithMerchantIDCertificatesInclude([]string{"passTypeId"}),
-					WithMerchantIDCertificatesLimit(5),
+					Limit[MerchantIDCertificatesOption](5),
 				))
 			},
 		},
@@ -1102,7 +1112,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "5"},
 			body:  `{"data":[{"type":"certificates","id":"c1"}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetMerchantIDCertificatesRelationships(ctx, "m1", WithLinkagesLimit(5)))
+				return discardResult(c.GetMerchantIDCertificatesRelationships(ctx, "m1", Limit[LinkagesOption](5)))
 			},
 		},
 		{
@@ -1134,7 +1144,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 					ctx,
 					WithProfilesTypes([]string{"IOS_APP_DEVELOPMENT", "IOS_APP_STORE"}),
 					WithProfilesStates([]string{"ACTIVE", "INVALID"}),
-					WithProfilesLimit(5),
+					Limit[ProfilesOption](5),
 				))
 			},
 		},
@@ -1144,7 +1154,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "5"},
 			body:  `{"data":[{"type":"inAppPurchaseLocalizations","id":"loc-1","attributes":{"name":"Pro","locale":"en-US"}}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetInAppPurchaseLocalizations(ctx, "iap-1", WithIAPLocalizationsLimit(5)))
+				return discardResult(c.GetInAppPurchaseLocalizations(ctx, "iap-1", Limit[IAPLocalizationsOption](5)))
 			},
 		},
 		{
@@ -1153,7 +1163,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "20"},
 			body:  `{"data":[{"type":"subscriptionGroups","id":"group-1","attributes":{"referenceName":"Premium"}}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetSubscriptionGroups(ctx, "app-1", WithSubscriptionGroupsLimit(20)))
+				return discardResult(c.GetSubscriptionGroups(ctx, "app-1", Limit[SubscriptionGroupsOption](20)))
 			},
 		},
 		{
@@ -1162,7 +1172,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "5"},
 			body:  `{"data":[{"type":"subscriptions","id":"sub-1","attributes":{"name":"Monthly","productId":"com.example.sub.monthly"}}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetSubscriptions(ctx, "group-1", WithSubscriptionsLimit(5)))
+				return discardResult(c.GetSubscriptions(ctx, "group-1", Limit[SubscriptionsOption](5)))
 			},
 		},
 		{
@@ -1190,7 +1200,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 					"group-1",
 					WithSubscriptionsProductIDs([]string{"com.example.sub.monthly"}),
 					WithSubscriptionsNames([]string{"Monthly"}),
-					WithSubscriptionsNextURL("https://api.appstoreconnect.apple.com/v1/subscriptionGroups/group-1/subscriptions?cursor=abc"),
+					NextURL[SubscriptionsOption]("https://api.appstoreconnect.apple.com/v1/subscriptionGroups/group-1/subscriptions?cursor=abc"),
 				))
 			},
 		},
@@ -1208,7 +1218,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 					ctx,
 					WithUsersEmail("user@example.com"),
 					WithUsersRoles([]string{"developer", " app_manager "}),
-					WithUsersLimit(5),
+					Limit[UsersOption](5),
 				))
 			},
 		},
@@ -1224,7 +1234,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "7"},
 			body:  `{"data":[{"type":"apps","id":"app-1"}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetUserVisibleAppsRelationships(ctx, "user-1", WithLinkagesLimit(7)))
+				return discardResult(c.GetUserVisibleAppsRelationships(ctx, "user-1", Limit[LinkagesOption](7)))
 			},
 		},
 		{
@@ -1233,7 +1243,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"filter[app]": "app-1", "limit": "10"},
 			body:  `{"data":[{"type":"betaAppReviewDetails","id":"detail-1","attributes":{"contactEmail":"dev@example.com"}}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetBetaAppReviewDetails(ctx, "app-1", WithBetaAppReviewDetailsLimit(10)))
+				return discardResult(c.GetBetaAppReviewDetails(ctx, "app-1", Limit[BetaAppReviewDetailsOption](10)))
 			},
 		},
 		{
@@ -1242,7 +1252,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "5"},
 			body:  `{"data":[{"type":"betaRecruitmentCriterionOptions","id":"opt-1","attributes":{"identifier":"OPTION_1","name":"Option 1"}}]}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetBetaRecruitmentCriterionOptions(ctx, WithBetaRecruitmentCriterionOptionsLimit(5)))
+				return discardResult(c.GetBetaRecruitmentCriterionOptions(ctx, Limit[BetaRecruitmentCriterionOptionsOption](5)))
 			},
 		},
 		{
@@ -1308,7 +1318,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 					WithAccessibilityDeclarationsDeviceFamilies([]string{"iphone", "ipad"}),
 					WithAccessibilityDeclarationsStates([]string{"draft"}),
 					WithAccessibilityDeclarationsFields([]string{"deviceFamily", "state"}),
-					WithAccessibilityDeclarationsLimit(2),
+					Limit[AccessibilityDeclarationsOption](2),
 				))
 			},
 		},
@@ -1329,7 +1339,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 					WithAppStoreReviewAttachmentsFields([]string{"fileName", "fileSize"}),
 					WithAppStoreReviewAttachmentReviewDetailFields([]string{"contactEmail", "notes"}),
 					WithAppStoreReviewAttachmentsInclude([]string{"appStoreReviewDetail"}),
-					WithAppStoreReviewAttachmentsLimit(5),
+					Limit[AppStoreReviewAttachmentsOption](5),
 				))
 			},
 		},
@@ -1354,7 +1364,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 					WithAppEncryptionDeclarationsFields([]string{"appDescription", "exempt"}),
 					WithAppEncryptionDeclarationsDocumentFields([]string{"fileName", "fileSize"}),
 					WithAppEncryptionDeclarationsInclude([]string{"app", "builds"}),
-					WithAppEncryptionDeclarationsLimit(5),
+					Limit[AppEncryptionDeclarationsOption](5),
 					WithAppEncryptionDeclarationsBuildLimit(10),
 				))
 			},
@@ -1380,7 +1390,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 					WithAppEncryptionDeclarationsFields([]string{"appDescription", "exempt"}),
 					WithAppEncryptionDeclarationsDocumentFields([]string{"fileName", "fileSize"}),
 					WithAppEncryptionDeclarationsInclude([]string{"appEncryptionDeclarationDocument"}),
-					WithAppEncryptionDeclarationsLimit(5),
+					Limit[AppEncryptionDeclarationsOption](5),
 					WithAppEncryptionDeclarationsBuildLimit(10),
 				))
 			},
@@ -1400,7 +1410,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 					"build-1",
 					WithDiagnosticSignaturesDiagnosticTypes([]string{"HANGS"}),
 					WithDiagnosticSignaturesFields([]string{"diagnosticType", "signature"}),
-					WithDiagnosticSignaturesLimit(50),
+					Limit[DiagnosticSignaturesOption](50),
 				))
 			},
 		},
@@ -1414,7 +1424,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 					ctx,
 					"app-1",
 					WithAndroidToIosAppMappingDetailsFields([]string{"packageName"}),
-					WithAndroidToIosAppMappingDetailsLimit(20),
+					Limit[AndroidToIosAppMappingDetailsOption](20),
 				))
 			},
 		},
@@ -1424,7 +1434,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "5"},
 			body:  `{"data":[{"type":"winBackOffers","id":"offer-1"}],"links":{"self":"https://example.com"}}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetSubscriptionWinBackOffers(ctx, "sub-1", WithWinBackOffersLimit(5)))
+				return discardResult(c.GetSubscriptionWinBackOffers(ctx, "sub-1", Limit[WinBackOffersOption](5)))
 			},
 		},
 		{
@@ -1433,7 +1443,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "10"},
 			body:  `{"data":[{"type":"winBackOfferPrices","id":"price-1"}],"links":{"self":"https://example.com"}}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetWinBackOfferPrices(ctx, "offer-1", WithWinBackOfferPricesLimit(10)))
+				return discardResult(c.GetWinBackOfferPrices(ctx, "offer-1", Limit[WinBackOfferPricesOption](10)))
 			},
 		},
 		{
@@ -1442,7 +1452,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "2"},
 			body:  `{"data":[{"type":"winBackOfferPrices","id":"price-1"}],"links":{"self":"https://example.com"}}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetWinBackOfferPricesRelationships(ctx, "offer-1", WithLinkagesLimit(2)))
+				return discardResult(c.GetWinBackOfferPricesRelationships(ctx, "offer-1", Limit[LinkagesOption](2)))
 			},
 		},
 		{
@@ -1451,7 +1461,7 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "3"},
 			body:  `{"data":[{"type":"winBackOffers","id":"offer-1"}],"links":{"self":"https://example.com"}}`,
 			call: func(c *Client) error {
-				return discardResult(c.GetSubscriptionWinBackOffersRelationships(ctx, "sub-1", WithLinkagesLimit(3)))
+				return discardResult(c.GetSubscriptionWinBackOffersRelationships(ctx, "sub-1", Limit[LinkagesOption](3)))
 			},
 		},
 		{
@@ -1857,7 +1867,7 @@ func TestGetEndpoints_SendRequest(t *testing.T) {
 					ctx,
 					"map-1",
 					WithAndroidToIosAppMappingDetailsFields([]string{"packageName"}),
-					WithAndroidToIosAppMappingDetailsLimit(20),
+					Limit[AndroidToIosAppMappingDetailsOption](20),
 				))
 			},
 		},
@@ -2754,7 +2764,7 @@ func TestGetBuilds_WithVersionFilter(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	builds, err := client.GetBuilds(context.Background(), "123", WithBuildsVersion("42"), WithBuildsLimit(1))
+	builds, err := client.GetBuilds(context.Background(), "123", WithBuildsVersion("42"), Limit[BuildsOption](1))
 	if err != nil {
 		t.Fatalf("GetBuilds() error: %v", err)
 	}
@@ -2888,7 +2898,7 @@ func TestGetBuilds_WithPreReleaseVersion(t *testing.T) {
 
 	builds, err := client.GetBuilds(
 		context.Background(), "123",
-		WithBuildsLimit(1),
+		Limit[BuildsOption](1),
 		WithBuildsSort("-uploadedDate"),
 		WithBuildsPreReleaseVersion("prv-456"),
 	)
@@ -3067,7 +3077,7 @@ func TestGetPreReleaseVersions_WithFilters(t *testing.T) {
 	result, err := client.GetPreReleaseVersions(
 		context.Background(),
 		"123",
-		WithPreReleaseVersionsLimit(5),
+		Limit[PreReleaseVersionsOption](5),
 		WithPreReleaseVersionsPlatform("ios"),
 		WithPreReleaseVersionsVersion("1.0.0"),
 	)
@@ -4978,7 +4988,7 @@ func TestGetFeedback_BuildsQuery(t *testing.T) {
 		WithFeedbackBuildIDs([]string{"build-1"}),
 		WithFeedbackBuildPreReleaseVersionIDs([]string{"pre-1"}),
 		WithFeedbackTesterIDs([]string{"tester-1"}),
-		WithFeedbackLimit(10),
+		Limit[FeedbackOption](10),
 		WithFeedbackSort("-createdDate"),
 	}
 
@@ -5088,7 +5098,7 @@ func TestGetCrashes_BuildsQuery(t *testing.T) {
 		WithCrashBuildIDs([]string{"build-2"}),
 		WithCrashBuildPreReleaseVersionIDs([]string{"pre-2"}),
 		WithCrashTesterIDs([]string{"tester-2"}),
-		WithCrashLimit(5),
+		Limit[CrashOption](5),
 		WithCrashSort("createdDate"),
 	}
 
@@ -5123,7 +5133,7 @@ func TestGetReviews_BuildsQuery(t *testing.T) {
 		WithRating(5),
 		WithTerritory("us"),
 		WithReviewSort("-createdDate"),
-		WithLimit(25),
+		Limit[ReviewOption](25),
 	}
 
 	if _, err := client.GetReviews(context.Background(), "123", opts...); err != nil {
@@ -5462,7 +5472,7 @@ func TestGetBuildBetaUsagesMetrics_WithLimit(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	resp, err := client.GetBuildBetaUsagesMetrics(context.Background(), "build-1", WithBetaBuildUsagesLimit(7))
+	resp, err := client.GetBuildBetaUsagesMetrics(context.Background(), "build-1", Limit[BetaBuildUsagesOption](7))
 	if err != nil {
 		t.Fatalf("GetBuildBetaUsagesMetrics() error: %v", err)
 	}
@@ -5497,7 +5507,7 @@ func TestGetBetaTesterUsagesMetrics_WithFilters(t *testing.T) {
 		context.Background(), "tester-1",
 		WithBetaTesterUsagesPeriod("P30D"),
 		WithBetaTesterUsagesAppID("app-1"),
-		WithBetaTesterUsagesLimit(20),
+		Limit[BetaTesterUsagesOption](20),
 	)
 	if err != nil {
 		t.Fatalf("GetBetaTesterUsagesMetrics() error: %v", err)
@@ -5532,7 +5542,7 @@ func TestGetAppBetaTesterUsagesMetrics_WithPeriodAndLimit(t *testing.T) {
 	resp, err := client.GetAppBetaTesterUsagesMetrics(
 		context.Background(), "app-1",
 		WithBetaTesterUsagesPeriod("P90D"),
-		WithBetaTesterUsagesLimit(12),
+		Limit[BetaTesterUsagesOption](12),
 	)
 	if err != nil {
 		t.Fatalf("GetAppBetaTesterUsagesMetrics() error: %v", err)
@@ -7907,7 +7917,7 @@ func TestGetProfileRelatedResources_SendsRequest(t *testing.T) {
 				}
 			},
 			call: func(c *Client) error {
-				_, err := c.GetProfileCertificates(ctx, "p1", WithProfileCertificatesLimit(5))
+				_, err := c.GetProfileCertificates(ctx, "p1", Limit[ProfileCertificatesOption](5))
 				return err
 			},
 		},
@@ -7921,7 +7931,7 @@ func TestGetProfileRelatedResources_SendsRequest(t *testing.T) {
 				}
 			},
 			call: func(c *Client) error {
-				_, err := c.GetProfileCertificates(ctx, "p1", WithProfileCertificatesLimit(5), WithProfileCertificatesNextURL(nextCerts))
+				_, err := c.GetProfileCertificates(ctx, "p1", Limit[ProfileCertificatesOption](5), NextURL[ProfileCertificatesOption](nextCerts))
 				return err
 			},
 		},
@@ -7941,7 +7951,7 @@ func TestGetProfileRelatedResources_SendsRequest(t *testing.T) {
 				}
 			},
 			call: func(c *Client) error {
-				_, err := c.GetProfileDevices(ctx, "p1", WithProfileDevicesLimit(10))
+				_, err := c.GetProfileDevices(ctx, "p1", Limit[ProfileDevicesOption](10))
 				return err
 			},
 		},
@@ -7955,7 +7965,7 @@ func TestGetProfileRelatedResources_SendsRequest(t *testing.T) {
 				}
 			},
 			call: func(c *Client) error {
-				_, err := c.GetProfileDevices(ctx, "p1", WithProfileDevicesLimit(10), WithProfileDevicesNextURL(nextDevices))
+				_, err := c.GetProfileDevices(ctx, "p1", Limit[ProfileDevicesOption](10), NextURL[ProfileDevicesOption](nextDevices))
 				return err
 			},
 		},
@@ -7992,7 +8002,7 @@ func TestGetProfileRelatedResources_SendsRequest(t *testing.T) {
 				}
 			},
 			call: func(c *Client) error {
-				_, err := c.GetProfileCertificatesRelationships(ctx, "p1", WithLinkagesLimit(2))
+				_, err := c.GetProfileCertificatesRelationships(ctx, "p1", Limit[LinkagesOption](2))
 				return err
 			},
 		},
@@ -8012,7 +8022,7 @@ func TestGetProfileRelatedResources_SendsRequest(t *testing.T) {
 				}
 			},
 			call: func(c *Client) error {
-				_, err := c.GetProfileDevicesRelationships(ctx, "p1", WithLinkagesLimit(3))
+				_, err := c.GetProfileDevicesRelationships(ctx, "p1", Limit[LinkagesOption](3))
 				return err
 			},
 		},
@@ -10063,7 +10073,7 @@ func TestGetDiagnosticSignatureLogs(t *testing.T) {
 		}
 	}, response)
 
-	_, err := client.GetDiagnosticSignatureLogs(context.Background(), "diag-1", WithDiagnosticLogsLimit(20))
+	_, err := client.GetDiagnosticSignatureLogs(context.Background(), "diag-1", Limit[DiagnosticLogsOption](20))
 	if err != nil {
 		t.Fatalf("GetDiagnosticSignatureLogs() error: %v", err)
 	}
@@ -10415,7 +10425,7 @@ func TestListBetaGroupsGlobal_UsesV1BetaGroupsPath(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	resp, err := client.ListBetaGroups(context.Background(), WithBetaGroupsLimit(50))
+	resp, err := client.ListBetaGroups(context.Background(), Limit[BetaGroupsOption](50))
 	if err != nil {
 		t.Fatalf("ListBetaGroups() error: %v", err)
 	}
@@ -10443,7 +10453,7 @@ func TestListBetaBuildLocalizationsGlobal_UsesV1BetaBuildLocalizationsPath(t *te
 		assertAuthorized(t, req)
 	}, response)
 
-	resp, err := client.ListBetaBuildLocalizations(context.Background(), WithBetaBuildLocalizationsLimit(25))
+	resp, err := client.ListBetaBuildLocalizations(context.Background(), Limit[BetaBuildLocalizationsOption](25))
 	if err != nil {
 		t.Fatalf("ListBetaBuildLocalizations() error: %v", err)
 	}
@@ -10471,7 +10481,7 @@ func TestListReviewSubmissionsGlobal_UsesV1ReviewSubmissionsPath(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	resp, err := client.ListReviewSubmissions(context.Background(), WithReviewSubmissionsLimit(10))
+	resp, err := client.ListReviewSubmissions(context.Background(), Limit[ReviewSubmissionsOption](10))
 	if err != nil {
 		t.Fatalf("ListReviewSubmissions() error: %v", err)
 	}

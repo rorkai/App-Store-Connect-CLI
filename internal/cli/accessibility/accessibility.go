@@ -115,19 +115,19 @@ Examples:
 				asc.WithAccessibilityDeclarationsDeviceFamilies(deviceFamilies),
 				asc.WithAccessibilityDeclarationsStates(states),
 				asc.WithAccessibilityDeclarationsFields(fieldsValue),
-				asc.WithAccessibilityDeclarationsLimit(*limit),
-				asc.WithAccessibilityDeclarationsNextURL(*next),
+				asc.Limit[asc.AccessibilityDeclarationsOption](*limit),
+				asc.NextURL[asc.AccessibilityDeclarationsOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithAccessibilityDeclarationsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.AccessibilityDeclarationsOption](200))
 				firstPage, err := client.GetAccessibilityDeclarations(requestCtx, resolvedAppID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("accessibility list: failed to fetch: %w", err)
 				}
 
 				pages, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAccessibilityDeclarations(ctx, resolvedAppID, asc.WithAccessibilityDeclarationsNextURL(nextURL))
+					return client.GetAccessibilityDeclarations(ctx, resolvedAppID, asc.NextURL[asc.AccessibilityDeclarationsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("accessibility list: %w", err)
@@ -164,51 +164,36 @@ func rejectAccessibilityNextFlagConflicts(fs *flag.FlagSet, next string, names .
 
 // AccessibilityGetCommand returns the accessibility view subcommand.
 func AccessibilityGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
+	var fieldsValue []string
 
-	id := shared.BindResourceIDFlag(fs, "id", "accessibilityDeclarations", "Accessibility declaration ID (required)")
-	fields := fs.String("fields", "", "Fields to include: "+strings.Join(accessibilityDeclarationFieldList(), ", "))
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc accessibility view --id DECLARATION_ID",
-		ShortHelp:  "View an accessibility declaration by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc accessibility view --id DECLARATION_ID",
+		ShortHelp:   "View an accessibility declaration by ID.",
 		LongHelp: `View an accessibility declaration by ID.
 
 Examples:
   asc accessibility view --id "DECLARATION_ID"
   asc accessibility view --id "DECLARATION_ID" --fields "deviceFamily,state"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			idValue := strings.TrimSpace(*id)
-			if idValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+		IDUsage:            "Accessibility declaration ID (required)",
+		IDType:             "accessibilityDeclarations",
+		RequiredDiagnostic: true,
+		Flags: func(fs *flag.FlagSet) func() error {
+			fields := fs.String("fields", "", "Fields to include: "+strings.Join(accessibilityDeclarationFieldList(), ", "))
+			return func() (err error) {
+				if fieldsValue, err = normalizeAccessibilityDeclarationFields(*fields); err != nil {
+					return shared.UsageErrorf("accessibility view: %v", err)
+				}
+				return nil
 			}
-
-			fieldsValue, err := normalizeAccessibilityDeclarationFields(*fields)
-			if err != nil {
-				return shared.UsageErrorf("accessibility view: %v", err)
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("accessibility view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetAccessibilityDeclaration(requestCtx, idValue, fieldsValue)
-			if err != nil {
-				return fmt.Errorf("accessibility view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
-	}
+		ErrorPrefix:      "accessibility view",
+		FetchErrorPrefix: "accessibility view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetAccessibilityDeclaration(ctx, id, fieldsValue)
+		},
+	})
 }
 
 // AccessibilityCreateCommand returns the accessibility create subcommand.
@@ -248,8 +233,7 @@ Examples:
 
 			deviceFamilyValue := strings.TrimSpace(*deviceFamily)
 			if deviceFamilyValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --device-family is required")
-				return shared.MissingRequiredUsageError("--device-family")
+				return shared.RequiredFlag("--device-family")
 			}
 
 			normalizedDeviceFamily, err := normalizeAccessibilityDeviceFamily(deviceFamilyValue)
@@ -321,8 +305,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			attrs, err := buildAccessibilityDeclarationUpdateAttributes(map[string]string{
@@ -384,12 +367,10 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()

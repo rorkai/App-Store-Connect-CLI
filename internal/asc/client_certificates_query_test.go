@@ -103,7 +103,7 @@ func TestGetCertificates_SendsQuerySurface(t *testing.T) {
 		WithCertificatesFields([]string{"displayName", "serialNumber"}),
 		WithCertificatesPassTypeIDFields([]string{"name", "identifier"}),
 		WithCertificatesInclude([]string{"passTypeId"}),
-		WithCertificatesLimit(5),
+		Limit[CertificatesOption](5),
 	); err != nil {
 		t.Fatalf("GetCertificates() error: %v", err)
 	}
@@ -163,8 +163,8 @@ func TestGetCertificate_RejectsCollectionQueryOptionsBeforeRequest(t *testing.T)
 		option CertificatesOption
 		want   string
 	}{
-		{name: "limit", option: WithCertificatesLimit(5), want: "limit option cannot be used with GetCertificate"},
-		{name: "next URL", option: WithCertificatesNextURL("https://api.appstoreconnect.apple.com/v1/certificates?cursor=next"), want: "next URL option cannot be used with GetCertificate"},
+		{name: "limit", option: Limit[CertificatesOption](5), want: "limit option cannot be used with GetCertificate"},
+		{name: "next URL", option: NextURL[CertificatesOption]("https://api.appstoreconnect.apple.com/v1/certificates?cursor=next"), want: "next URL option cannot be used with GetCertificate"},
 		{name: "certificate type", option: WithCertificatesTypes([]string{"IOS_DISTRIBUTION"}), want: "certificate type option cannot be used with GetCertificate"},
 		{name: "display name", option: WithCertificatesFilterDisplayNames([]string{"Alpha"}), want: "display name option cannot be used with GetCertificate"},
 		{name: "serial number", option: WithCertificatesFilterSerialNumbers([]string{"SN1"}), want: "serial number option cannot be used with GetCertificate"},

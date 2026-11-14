@@ -119,18 +119,18 @@ Examples:
 				asc.WithTerritoryAgeRatingsFields(fieldsValue),
 				asc.WithTerritoryAgeRatingsTerritoryFields(territoryFieldsValue),
 				asc.WithTerritoryAgeRatingsInclude(includeValue),
-				asc.WithTerritoryAgeRatingsLimit(*limit),
-				asc.WithTerritoryAgeRatingsNextURL(*next),
+				asc.Limit[asc.TerritoryAgeRatingsOption](*limit),
+				asc.NextURL[asc.TerritoryAgeRatingsOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithTerritoryAgeRatingsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.TerritoryAgeRatingsOption](200))
 				firstPage, err := client.GetAppInfoTerritoryAgeRatings(requestCtx, resolvedInfoID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("apps info territory-age-ratings list: failed to fetch: %w", err)
 				}
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppInfoTerritoryAgeRatings(ctx, resolvedInfoID, asc.WithTerritoryAgeRatingsNextURL(nextURL))
+					return client.GetAppInfoTerritoryAgeRatings(ctx, resolvedInfoID, asc.NextURL[asc.TerritoryAgeRatingsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("apps info territory-age-ratings list: %w", err)

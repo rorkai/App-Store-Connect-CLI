@@ -171,12 +171,12 @@ Examples:
 				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			case relationshipList:
 				opts := []asc.LinkagesOption{
-					asc.WithLinkagesLimit(*limit),
-					asc.WithLinkagesNextURL(*next),
+					asc.Limit[asc.LinkagesOption](*limit),
+					asc.NextURL[asc.LinkagesOption](*next),
 				}
 
 				if *paginate {
-					paginateOpts := append(opts, asc.WithLinkagesLimit(200))
+					paginateOpts := append(opts, asc.Limit[asc.LinkagesOption](200))
 					resp, err := shared.PaginateWithSpinner(
 						requestCtx,
 						func(ctx context.Context) (asc.PaginatedResponse, error) {
@@ -187,7 +187,7 @@ Examples:
 							return page, nil
 						},
 						func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-							page, err := getBuildRelationshipList(ctx, client, relationshipType, buildID, asc.WithLinkagesNextURL(nextURL))
+							page, err := getBuildRelationshipList(ctx, client, relationshipType, buildID, asc.NextURL[asc.LinkagesOption](nextURL))
 							if err != nil {
 								return nil, shared.DescribeRelationshipLookupFailure(err, relationshipType, pageParent)
 							}

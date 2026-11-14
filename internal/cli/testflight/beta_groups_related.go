@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -65,8 +64,7 @@ Examples:
 				)
 			}
 			if groupValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --group-id is required")
-				return shared.MissingRequiredUsageError("--group-id")
+				return shared.RequiredFlag("--group-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -141,8 +139,7 @@ Examples:
 				)
 			}
 			if groupValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --group-id is required")
-				return shared.MissingRequiredUsageError("--group-id")
+				return shared.RequiredFlag("--group-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -217,8 +214,7 @@ Examples:
 				)
 			}
 			if groupValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --group-id is required")
-				return shared.MissingRequiredUsageError("--group-id")
+				return shared.RequiredFlag("--group-id")
 			}
 
 			client, err := shared.GetASCClient()

@@ -191,14 +191,14 @@ func buildSubscriptionsReport(ctx context.Context, client *asc.Client, opts Subs
 
 func fetchPricingTerritories(ctx context.Context, client *asc.Client) ([]string, error) {
 	firstPage, err := doReadinessRequest(ctx, func(requestCtx context.Context) (*asc.TerritoriesResponse, error) {
-		return client.GetTerritories(requestCtx, asc.WithTerritoriesLimit(200))
+		return client.GetTerritories(requestCtx, asc.Limit[asc.TerritoriesOption](200))
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch App Store pricing territories: %w", err)
 	}
 	allPages, err := asc.PaginateAll(ctx, firstPage, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		return doReadinessRequest(ctx, func(requestCtx context.Context) (asc.PaginatedResponse, error) {
-			return client.GetTerritories(requestCtx, asc.WithTerritoriesNextURL(nextURL))
+			return client.GetTerritories(requestCtx, asc.NextURL[asc.TerritoriesOption](nextURL))
 		})
 	})
 	if err != nil {

@@ -127,8 +127,8 @@ Examples:
 			defer cancel()
 
 			opts := []asc.MerchantIDsOption{
-				asc.WithMerchantIDsLimit(*limit),
-				asc.WithMerchantIDsNextURL(*next),
+				asc.Limit[asc.MerchantIDsOption](*limit),
+				asc.NextURL[asc.MerchantIDsOption](*next),
 				asc.WithMerchantIDsSort(*sort),
 				asc.WithMerchantIDsFields(fieldsValue),
 				asc.WithMerchantIDsCertificateFields(certificateFieldsValue),
@@ -143,14 +143,14 @@ Examples:
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithMerchantIDsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.MerchantIDsOption](200))
 				firstPage, err := client.GetMerchantIDs(requestCtx, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("merchant-ids list: failed to fetch: %w", err)
 				}
 
 				paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetMerchantIDs(ctx, asc.WithMerchantIDsNextURL(nextURL))
+					return client.GetMerchantIDs(ctx, asc.NextURL[asc.MerchantIDsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("merchant-ids list: %w", err)
@@ -193,8 +193,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			merchantIDValue := strings.TrimSpace(*merchantID)
 			if merchantIDValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --merchant-id is required")
-				return shared.MissingRequiredUsageError("--merchant-id")
+				return shared.RequiredFlag("--merchant-id")
 			}
 			if *certificatesLimit != 0 && (*certificatesLimit < 1 || *certificatesLimit > 50) {
 				return shared.UsageError("merchant-ids view: --certificates-limit must be between 1 and 50")
@@ -267,13 +266,11 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			identifierValue := strings.TrimSpace(*identifier)
 			if identifierValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --identifier is required")
-				return shared.MissingRequiredUsageError("--identifier")
+				return shared.RequiredFlag("--identifier")
 			}
 			nameValue := strings.TrimSpace(*name)
 			if nameValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --name is required")
-				return shared.MissingRequiredUsageError("--name")
+				return shared.RequiredFlag("--name")
 			}
 
 			client, err := shared.GetASCClient()
@@ -320,13 +317,11 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			merchantIDValue := strings.TrimSpace(*merchantID)
 			if merchantIDValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --merchant-id is required")
-				return shared.MissingRequiredUsageError("--merchant-id")
+				return shared.RequiredFlag("--merchant-id")
 			}
 			nameValue := strings.TrimSpace(*name)
 			if nameValue == "" && !*clearName {
-				fmt.Fprintln(os.Stderr, "Error: --name is required")
-				return shared.MissingRequiredUsageError("--name")
+				return shared.RequiredFlag("--name")
 			}
 			if nameValue != "" && *clearName {
 				fmt.Fprintln(os.Stderr, "Error: --name cannot be used with --clear-name")
@@ -377,12 +372,10 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			merchantIDValue := strings.TrimSpace(*merchantID)
 			if merchantIDValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --merchant-id is required")
-				return shared.MissingRequiredUsageError("--merchant-id")
+				return shared.RequiredFlag("--merchant-id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()

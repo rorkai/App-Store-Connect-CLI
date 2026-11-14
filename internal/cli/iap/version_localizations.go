@@ -36,8 +36,7 @@ func IAPVersionLocalizationsListCommand() *ffcli.Command {
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*versionID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return shared.MissingRequiredUsageError("--version-id")
+				return shared.RequiredFlag("--version-id")
 			}
 			if err := rejectIAPVersionNextFlagConflicts(
 				fs, *next, "iap versions localizations list",
@@ -74,7 +73,7 @@ func IAPVersionLocalizationsListCommand() *ffcli.Command {
 				firstPageLimit = 200
 			}
 			opts := []asc.IAPVersionLocalizationsOption{
-				asc.WithIAPVersionLocalizationsLimit(firstPageLimit),
+				asc.Limit[asc.IAPVersionLocalizationsOption](firstPageLimit),
 				asc.WithIAPVersionLocalizationsNextURL(*next),
 				asc.WithIAPVersionLocalizationsInclude(includes),
 				asc.WithIAPVersionLocalizationsFields(localizationFieldValues),
@@ -110,18 +109,15 @@ func IAPVersionLocalizationsCreateCommand() *ffcli.Command {
 		Exec: func(ctx context.Context, args []string) error {
 			vid := strings.TrimSpace(*versionID)
 			if vid == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return shared.MissingRequiredUsageError("--version-id")
+				return shared.RequiredFlag("--version-id")
 			}
 			nameValue := strings.TrimSpace(*name)
 			if nameValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --name is required")
-				return shared.MissingRequiredUsageError("--name")
+				return shared.RequiredFlag("--name")
 			}
 			localeValue := strings.TrimSpace(*locale)
 			if localeValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --locale is required")
-				return shared.MissingRequiredUsageError("--locale")
+				return shared.RequiredFlag("--locale")
 			}
 			client, err := iapVersionClientFactory()
 			if err != nil {
@@ -154,8 +150,7 @@ func IAPVersionLocalizationsViewCommand() *ffcli.Command {
 		Exec: func(ctx context.Context, args []string) error {
 			value := strings.TrimSpace(*id)
 			if value == "" {
-				fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
-				return shared.MissingRequiredUsageError("--localization-id")
+				return shared.RequiredFlag("--localization-id")
 			}
 			includes, err := shared.NormalizeSelection(*include, []string{"version"}, "--include")
 			if err != nil {
@@ -212,8 +207,7 @@ func IAPVersionLocalizationsUpdateCommand() *ffcli.Command {
 		Exec: func(ctx context.Context, args []string) error {
 			value := strings.TrimSpace(*id)
 			if value == "" {
-				fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
-				return shared.MissingRequiredUsageError("--localization-id")
+				return shared.RequiredFlag("--localization-id")
 			}
 			nameSet, descriptionSet := flagSet(fs, "name"), flagSet(fs, "description")
 			if nameSet && *clearName {
@@ -264,12 +258,10 @@ func IAPVersionLocalizationsDeleteCommand() *ffcli.Command {
 		Exec: func(ctx context.Context, args []string) error {
 			value := strings.TrimSpace(*id)
 			if value == "" {
-				fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
-				return shared.MissingRequiredUsageError("--localization-id")
+				return shared.RequiredFlag("--localization-id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 			client, err := iapVersionClientFactory()
 			if err != nil {

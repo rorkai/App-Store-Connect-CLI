@@ -177,7 +177,7 @@ func uploadScreenshotsFanout(ctx context.Context, cfg screenshotUploadFanoutConf
 	}
 
 	requestCtx, cancel := cfg.RequestContext(ctx)
-	localizationsResp, err := cfg.Client.GetAppStoreVersionLocalizations(requestCtx, cfg.VersionID, asc.WithAppStoreVersionLocalizationsLimit(200))
+	localizationsResp, err := cfg.Client.GetAppStoreVersionLocalizations(requestCtx, cfg.VersionID, asc.Limit[asc.AppStoreVersionLocalizationsOption](200))
 	cancel()
 	if err != nil {
 		return zero, fmt.Errorf("fetch version localizations: %w", err)

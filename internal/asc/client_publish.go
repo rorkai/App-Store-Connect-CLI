@@ -71,7 +71,7 @@ func (c *Client) FindOrCreateAppStoreVersion(ctx context.Context, appID, version
 		ctx, appID,
 		WithAppStoreVersionsVersionStrings([]string{version}),
 		WithAppStoreVersionsPlatforms([]string{platformValue}),
-		WithAppStoreVersionsLimit(10),
+		Limit[AppStoreVersionsOption](10),
 	)
 	if err != nil {
 		return nil, err

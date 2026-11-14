@@ -73,8 +73,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			merchantIDValue := strings.TrimSpace(*merchantID)
 			if merchantIDValue == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --merchant-id is required")
-				return shared.MissingRequiredUsageError("--merchant-id")
+				return shared.RequiredFlag("--merchant-id")
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return shared.UsageError("merchant-ids certificates list: --limit must be between 1 and 200")
@@ -115,8 +114,8 @@ Examples:
 			defer cancel()
 
 			opts := []asc.MerchantIDCertificatesOption{
-				asc.WithMerchantIDCertificatesLimit(*limit),
-				asc.WithMerchantIDCertificatesNextURL(*next),
+				asc.Limit[asc.MerchantIDCertificatesOption](*limit),
+				asc.NextURL[asc.MerchantIDCertificatesOption](*next),
 				asc.WithMerchantIDCertificatesFilterDisplayName(*displayName),
 				asc.WithMerchantIDCertificatesFilterCertificateTypes(*certificateType),
 				asc.WithMerchantIDCertificatesFilterSerialNumbers(*serialNumber),
@@ -128,14 +127,14 @@ Examples:
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithMerchantIDCertificatesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.MerchantIDCertificatesOption](200))
 				firstPage, err := client.GetMerchantIDCertificates(requestCtx, merchantIDValue, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("merchant-ids certificates list: failed to fetch: %w", err)
 				}
 
 				paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetMerchantIDCertificates(ctx, merchantIDValue, asc.WithMerchantIDCertificatesNextURL(nextURL))
+					return client.GetMerchantIDCertificates(ctx, merchantIDValue, asc.NextURL[asc.MerchantIDCertificatesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("merchant-ids certificates list: %w", err)
@@ -185,8 +184,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			merchantIDValue := strings.TrimSpace(*merchantID)
 			if merchantIDValue == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --merchant-id is required")
-				return shared.MissingRequiredUsageError("--merchant-id")
+				return shared.RequiredFlag("--merchant-id")
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return shared.UsageError("merchant-ids certificates view: --limit must be between 1 and 200")
@@ -204,19 +202,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.LinkagesOption{
-				asc.WithLinkagesLimit(*limit),
-				asc.WithLinkagesNextURL(*next),
+				asc.Limit[asc.LinkagesOption](*limit),
+				asc.NextURL[asc.LinkagesOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithLinkagesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.LinkagesOption](200))
 				firstPage, err := client.GetMerchantIDCertificatesRelationships(requestCtx, merchantIDValue, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("merchant-ids certificates view: failed to fetch: %w", err)
 				}
 
 				paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetMerchantIDCertificatesRelationships(ctx, merchantIDValue, asc.WithLinkagesNextURL(nextURL))
+					return client.GetMerchantIDCertificatesRelationships(ctx, merchantIDValue, asc.NextURL[asc.LinkagesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("merchant-ids certificates view: %w", err)

@@ -41,9 +41,9 @@ func fetchAvailableTerritoryDetails(ctx context.Context, client *asc.Client, app
 	for {
 		territoryResp, requestErr := doReadinessRequest(ctx, func(requestCtx context.Context) (*asc.TerritoryAvailabilitiesResponse, error) {
 			if strings.TrimSpace(nextURL) != "" {
-				return client.GetTerritoryAvailabilities(requestCtx, availabilityID, asc.WithTerritoryAvailabilitiesNextURL(nextURL))
+				return client.GetTerritoryAvailabilities(requestCtx, availabilityID, asc.NextURL[asc.TerritoryAvailabilitiesOption](nextURL))
 			}
-			return client.GetTerritoryAvailabilities(requestCtx, availabilityID, asc.WithTerritoryAvailabilitiesLimit(200))
+			return client.GetTerritoryAvailabilities(requestCtx, availabilityID, asc.Limit[asc.TerritoryAvailabilitiesOption](200))
 		})
 		err = requestErr
 		if err != nil {

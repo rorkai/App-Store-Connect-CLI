@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestIAPPriceSchedulesGetRejectsInvalidInclude(t *testing.T) {
@@ -39,67 +41,24 @@ func TestIAPPriceSchedulesGetRejectsInvalidInclude(t *testing.T) {
 func TestIAPPriceSchedulesGetByIDWithIncludeOptions(t *testing.T) {
 	setupAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/inAppPurchasePriceSchedules/schedule-1", "fields[inAppPurchasePriceSchedules]=baseTerritory,manualPrices,automaticPrices", "fields[inAppPurchasePrices]=startDate,endDate,manual,inAppPurchasePricePoint,territory", "fields[territories]=currency", "include=baseTerritory,manualPrices,automaticPrices", "limit[automaticPrices]=25", "limit[manualPrices]=25"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"inAppPurchasePriceSchedules","id":"schedule-1"}}`))
+
+	stdout, stderr, err := runCommand(t, []string{
+		"iap", "pricing", "schedules", "view",
+		"--schedule-id", "schedule-1",
+		"--include", "baseTerritory,manualPrices,automaticPrices",
+		"--schedule-fields", "baseTerritory,manualPrices,automaticPrices",
+		"--territory-fields", "currency",
+		"--price-fields", "startDate,endDate,manual,inAppPurchasePricePoint,territory",
+		"--manual-prices-limit", "25",
+		"--automatic-prices-limit", "25",
 	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/inAppPurchasePriceSchedules/schedule-1" {
-			t.Fatalf("unexpected path: %s", req.URL.Path)
-		}
-
-		query := req.URL.Query()
-		if query.Get("include") != "baseTerritory,manualPrices,automaticPrices" {
-			t.Fatalf("unexpected include query: %q", query.Get("include"))
-		}
-		if query.Get("fields[inAppPurchasePriceSchedules]") != "baseTerritory,manualPrices,automaticPrices" {
-			t.Fatalf("unexpected schedule fields query: %q", query.Get("fields[inAppPurchasePriceSchedules]"))
-		}
-		if query.Get("fields[territories]") != "currency" {
-			t.Fatalf("unexpected territory fields query: %q", query.Get("fields[territories]"))
-		}
-		if query.Get("fields[inAppPurchasePrices]") != "startDate,endDate,manual,inAppPurchasePricePoint,territory" {
-			t.Fatalf("unexpected price fields query: %q", query.Get("fields[inAppPurchasePrices]"))
-		}
-		if query.Get("limit[manualPrices]") != "25" {
-			t.Fatalf("unexpected manual limit query: %q", query.Get("limit[manualPrices]"))
-		}
-		if query.Get("limit[automaticPrices]") != "25" {
-			t.Fatalf("unexpected automatic limit query: %q", query.Get("limit[automaticPrices]"))
-		}
-
-		body := `{"data":{"type":"inAppPurchasePriceSchedules","id":"schedule-1"}}`
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"iap", "pricing", "schedules", "view",
-			"--schedule-id", "schedule-1",
-			"--include", "baseTerritory,manualPrices,automaticPrices",
-			"--schedule-fields", "baseTerritory,manualPrices,automaticPrices",
-			"--territory-fields", "currency",
-			"--price-fields", "startDate,endDate,manual,inAppPurchasePricePoint,territory",
-			"--manual-prices-limit", "25",
-			"--automatic-prices-limit", "25",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -112,30 +71,15 @@ func TestIAPPriceSchedulesGetByIDWithIncludeOptions(t *testing.T) {
 func TestIAPPriceSchedulesGetUsesCanonicalErrorPrefix(t *testing.T) {
 	setupAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v2/inAppPurchases/9000000001/iapPriceSchedule"),
+		asctest.JSON(http.StatusInternalServerError, `{"errors":[{"status":"500","code":"INTERNAL_ERROR","title":"boom"}]}`))
 
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		return &http.Response{
-			StatusCode: http.StatusInternalServerError,
-			Body:       io.NopCloser(strings.NewReader(`{"errors":[{"status":"500","code":"INTERNAL_ERROR","title":"boom"}]}`)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	if err := root.Parse([]string{
+	_, _, err := runCommand(t, []string{
 		"iap", "pricing", "schedules", "view",
 		"--iap-id", "9000000001",
-	}); err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-
-	err := root.Run(context.Background())
+	})
 	if err == nil {
 		t.Fatal("expected fetch error")
 	}

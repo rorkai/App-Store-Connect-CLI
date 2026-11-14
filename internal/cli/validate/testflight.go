@@ -51,8 +51,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			buildValue := strings.TrimSpace(*buildID)
 			if buildValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --build-id is required")
-				return shared.MissingRequiredUsageError("--build-id")
+				return shared.RequiredFlag("--build-id")
 			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
@@ -134,7 +133,7 @@ func runValidateTestFlight(ctx context.Context, opts validateTestFlightOptions) 
 
 	var betaBuildLocalizations []validation.BetaBuildLocalization
 	if build != nil {
-		locsResp, err := client.GetBetaBuildLocalizations(requestCtx, build.ID, asc.WithBetaBuildLocalizationsLimit(200))
+		locsResp, err := client.GetBetaBuildLocalizations(requestCtx, build.ID, asc.Limit[asc.BetaBuildLocalizationsOption](200))
 		if err != nil {
 			return fmt.Errorf("validate testflight: failed to fetch beta build localizations: %w", err)
 		}

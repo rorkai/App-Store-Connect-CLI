@@ -76,8 +76,7 @@ func SubscriptionsGroupsVersionsCreateCommand() *ffcli.Command {
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*groupID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --group-id is required")
-				return shared.MissingRequiredUsageError("--group-id")
+				return shared.RequiredFlag("--group-id")
 			}
 			client, err := subscriptionGroupVersionClientFactory()
 			if err != nil {
@@ -147,7 +146,7 @@ func subscriptionGroupVersionOptions(stateValue, includeValue, fieldsValue, grou
 		asc.WithSubscriptionGroupVersionsFields(fields),
 		asc.WithSubscriptionGroupVersionsGroupFields(groupFields),
 		asc.WithSubscriptionGroupVersionsLocalizationFields(localizationFields),
-		asc.WithSubscriptionGroupVersionsLimit(limit),
+		asc.Limit[asc.SubscriptionGroupVersionsOption](limit),
 		asc.WithSubscriptionGroupVersionsLocalizationsLimit(localizationsLimit),
 		asc.WithSubscriptionGroupVersionsNextURL(next),
 	}, nil
@@ -181,8 +180,7 @@ func SubscriptionsGroupsVersionsListCommand() *ffcli.Command {
 				return shared.UsageError("subscriptions groups versions list: --next cannot be combined with --group-id")
 			}
 			if id == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --group-id is required")
-				return shared.MissingRequiredUsageError("--group-id")
+				return shared.RequiredFlag("--group-id")
 			}
 			if strings.TrimSpace(*next) != "" && subscriptionGroupAnyFlagSet(fs, "state", "include", "fields", "group-fields", "localization-fields", "limit", "localizations-limit") {
 				return shared.UsageError("subscriptions groups versions list: --next cannot be combined with query flags")
@@ -235,8 +233,7 @@ func SubscriptionsGroupsVersionsViewCommand() *ffcli.Command {
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*versionID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return shared.MissingRequiredUsageError("--version-id")
+				return shared.RequiredFlag("--version-id")
 			}
 			opts, err := subscriptionGroupVersionOptions("", *include, *fields, *groupFields, *localizationFields, 0, *localizationsLimit, "")
 			if err != nil {
@@ -317,7 +314,7 @@ func subscriptionsGroupsVersionLinkagesCommand(name string, groupOwned bool) *ff
 				firstPageLimit = 200
 			}
 			fetch := func(ctx context.Context, nextURL string) (*asc.LinkagesResponse, error) {
-				opts := []asc.LinkagesOption{asc.WithLinkagesLimit(firstPageLimit), asc.WithLinkagesNextURL(nextURL)}
+				opts := []asc.LinkagesOption{asc.Limit[asc.LinkagesOption](firstPageLimit), asc.NextURL[asc.LinkagesOption](nextURL)}
 				if groupOwned {
 					return client.GetSubscriptionGroupVersionsRelationships(ctx, id, opts...)
 				}

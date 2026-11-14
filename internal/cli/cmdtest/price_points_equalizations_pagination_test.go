@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 type pricePointEqualizationsCommandCase struct {
@@ -83,34 +85,16 @@ func TestPricePointEqualizationsLimit(t *testing.T) {
 
 	for _, tt := range pricePointEqualizationsCommandCases() {
 		t.Run(tt.name, func(t *testing.T) {
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				if req.Method != http.MethodGet || req.URL.Path != tt.requestPath {
-					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-				}
-				if got := req.URL.Query().Get("limit"); got != tt.limitValue {
-					t.Fatalf("expected limit=%s, got %q", tt.limitValue, got)
-				}
-
-				body := `{"data":[{"id":"eq-limit"}],"links":{"next":""}}`
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body:       io.NopCloser(strings.NewReader(body)),
-					Header:     http.Header{"Content-Type": []string{"application/json"}},
-				}, nil
-			}))
-
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET(tt.requestPath, "limit="+tt.limitValue),
+				asctest.JSON(http.StatusOK, `{"data":[{"id":"eq-limit"}],"links":{"next":""}}`))
 
 			args := append(append([]string{}, tt.argsPrefix...), "--"+tt.parentFlag, tt.parentValue, "--limit", tt.limitValue, "--output", "json")
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
+			stdout, stderr, err := runCommand(t, args)
+			if err != nil {
+				t.Fatalf("run error: %v", err)
+			}
 
 			if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)
@@ -161,67 +145,26 @@ func TestPricePointEqualizationsPaginate(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			secondURL := strings.Replace(tt.nextURL, "cursor=AQ", "cursor=BQ", 1)
 
-			requestCount := 0
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				requestCount++
-				switch requestCount {
-				case 1:
-					if req.Method != http.MethodGet || req.URL.Path != tt.requestPath {
-						t.Fatalf("unexpected first request: %s %s", req.Method, req.URL.String())
-					}
-					wantQuery := "limit=" + strconv.Itoa(tt.limitMax)
-					if req.URL.RawQuery != wantQuery {
-						t.Fatalf("expected first page %s, got %q", wantQuery, req.URL.RawQuery)
-					}
-					body := `{"data":[{"id":"eq-1"}],"links":{"next":"` + tt.nextURL + `"}}`
-					return &http.Response{
-						StatusCode: http.StatusOK,
-						Body:       io.NopCloser(strings.NewReader(body)),
-						Header:     http.Header{"Content-Type": []string{"application/json"}},
-					}, nil
-				case 2:
-					if req.Method != http.MethodGet || req.URL.String() != tt.nextURL {
-						t.Fatalf("unexpected second request: %s %s", req.Method, req.URL.String())
-					}
-					body := `{"data":[{"id":"eq-2"}],"links":{"next":"` + secondURL + `"}}`
-					return &http.Response{
-						StatusCode: http.StatusOK,
-						Body:       io.NopCloser(strings.NewReader(body)),
-						Header:     http.Header{"Content-Type": []string{"application/json"}},
-					}, nil
-				case 3:
-					if req.Method != http.MethodGet || req.URL.String() != secondURL {
-						t.Fatalf("unexpected third request: %s %s", req.Method, req.URL.String())
-					}
-					body := `{"data":[{"id":"eq-3"}],"links":{"next":""}}`
-					return &http.Response{
-						StatusCode: http.StatusOK,
-						Body:       io.NopCloser(strings.NewReader(body)),
-						Header:     http.Header{"Content-Type": []string{"application/json"}},
-					}, nil
-				default:
-					t.Fatalf("unexpected extra request: %s %s", req.Method, req.URL.String())
-					return nil, nil
-				}
-			}))
-
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
+			maxLimit := "limit=" + strconv.Itoa(tt.limitMax)
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET(tt.requestPath, maxLimit),
+				asctest.JSON(http.StatusOK, `{"data":[{"id":"eq-1"}],"links":{"next":"`+tt.nextURL+`"}}`))
+			reg.Register(asctest.GET(tt.requestPath, "cursor=AQ", maxLimit),
+				asctest.JSON(http.StatusOK, `{"data":[{"id":"eq-2"}],"links":{"next":"`+secondURL+`"}}`))
+			reg.Register(asctest.GET(tt.requestPath, "cursor=BQ", maxLimit),
+				asctest.JSON(http.StatusOK, `{"data":[{"id":"eq-3"}],"links":{"next":""}}`))
 
 			args := append(append([]string{}, tt.argsPrefix...), "--"+tt.parentFlag, tt.parentValue, "--paginate", "--output", "json")
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
+			stdout, stderr, err := runCommand(t, args)
+			if err != nil {
+				t.Fatalf("run error: %v", err)
+			}
 
 			if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)
 			}
-			if requestCount != 3 {
+			if requestCount := len(reg.Requests()); requestCount != 3 {
 				t.Fatalf("expected 3 paginated requests, got %d", requestCount)
 			}
 			for _, want := range []string{`"id":"eq-1"`, `"id":"eq-2"`, `"id":"eq-3"`} {
@@ -238,57 +181,23 @@ func TestPricePointEqualizationsPaginateRespectsRequestedLimit(t *testing.T) {
 
 	for _, tt := range pricePointEqualizationsCommandCases() {
 		t.Run(tt.name, func(t *testing.T) {
-			requestCount := 0
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				requestCount++
-				switch requestCount {
-				case 1:
-					if req.Method != http.MethodGet || req.URL.Path != tt.requestPath {
-						t.Fatalf("unexpected first request: %s %s", req.Method, req.URL.String())
-					}
-					wantQuery := "limit=" + tt.limitValue
-					if req.URL.RawQuery != wantQuery {
-						t.Fatalf("expected first page %s, got %q", wantQuery, req.URL.RawQuery)
-					}
-					body := `{"data":[{"id":"eq-custom-limit-1"}],"links":{"next":"` + tt.nextURL + `"}}`
-					return &http.Response{
-						StatusCode: http.StatusOK,
-						Body:       io.NopCloser(strings.NewReader(body)),
-						Header:     http.Header{"Content-Type": []string{"application/json"}},
-					}, nil
-				case 2:
-					if req.Method != http.MethodGet || req.URL.String() != tt.nextURL {
-						t.Fatalf("unexpected second request: %s %s", req.Method, req.URL.String())
-					}
-					body := `{"data":[{"id":"eq-custom-limit-2"}],"links":{"next":""}}`
-					return &http.Response{
-						StatusCode: http.StatusOK,
-						Body:       io.NopCloser(strings.NewReader(body)),
-						Header:     http.Header{"Content-Type": []string{"application/json"}},
-					}, nil
-				default:
-					t.Fatalf("unexpected extra request: %s %s", req.Method, req.URL.String())
-					return nil, nil
-				}
-			}))
-
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET(tt.requestPath, "limit="+tt.limitValue),
+				asctest.JSON(http.StatusOK, `{"data":[{"id":"eq-custom-limit-1"}],"links":{"next":"`+tt.nextURL+`"}}`))
+			reg.Register(asctest.GET(tt.requestPath, "cursor=AQ", "limit="+strconv.Itoa(tt.limitMax)),
+				asctest.JSON(http.StatusOK, `{"data":[{"id":"eq-custom-limit-2"}],"links":{"next":""}}`))
 
 			args := append(append([]string{}, tt.argsPrefix...), "--"+tt.parentFlag, tt.parentValue, "--paginate", "--limit", tt.limitValue, "--output", "json")
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
+			stdout, stderr, err := runCommand(t, args)
+			if err != nil {
+				t.Fatalf("run error: %v", err)
+			}
 
 			if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)
 			}
-			if requestCount != 2 {
+			if requestCount := len(reg.Requests()); requestCount != 2 {
 				t.Fatalf("expected 2 paginated requests, got %d", requestCount)
 			}
 			for _, want := range []string{`"id":"eq-custom-limit-1"`, `"id":"eq-custom-limit-2"`} {
@@ -305,42 +214,22 @@ func TestPricePointEqualizationsWithoutPaginateUsesSinglePage(t *testing.T) {
 
 	for _, tt := range pricePointEqualizationsCommandCases() {
 		t.Run(tt.name, func(t *testing.T) {
-			requestCount := 0
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				requestCount++
-				if req.Method != http.MethodGet || req.URL.Path != tt.requestPath {
-					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-				}
-				if req.URL.RawQuery != "" {
-					t.Fatalf("expected empty query without --paginate, got %q", req.URL.RawQuery)
-				}
-
-				body := `{"data":[{"id":"eq-1"}],"links":{"next":"` + tt.nextURL + `"}}`
-				return &http.Response{
-					StatusCode: http.StatusOK,
-					Body:       io.NopCloser(strings.NewReader(body)),
-					Header:     http.Header{"Content-Type": []string{"application/json"}},
-				}, nil
-			}))
-
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET(tt.requestPath),
+				asctest.JSON(http.StatusOK, `{"data":[{"id":"eq-1"}],"links":{"next":"`+tt.nextURL+`"}}`))
 
 			args := append(append([]string{}, tt.argsPrefix...), "--"+tt.parentFlag, tt.parentValue, "--output", "json")
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
+			stdout, stderr, err := runCommand(t, args)
+			if err != nil {
+				t.Fatalf("run error: %v", err)
+			}
 
 			wantWarning := "Warning: showing 1 results; more pages exist (use --paginate or --next where supported)\n"
 			if stderr != wantWarning {
 				t.Fatalf("expected truncation warning on stderr, got %q", stderr)
 			}
-			if requestCount != 1 {
+			if requestCount := len(reg.Requests()); requestCount != 1 {
 				t.Fatalf("expected exactly one request without --paginate, got %d", requestCount)
 			}
 			if !strings.Contains(stdout, `"id":"eq-1"`) {
@@ -405,53 +294,24 @@ func TestPricePointEqualizationsPaginateFromNextWithoutParentID(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			secondURL := strings.Replace(tt.nextURL, "cursor=AQ", "cursor=BQ", 1)
 
-			requestCount := 0
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				requestCount++
-				switch requestCount {
-				case 1:
-					if req.Method != http.MethodGet || req.URL.String() != tt.nextURL {
-						t.Fatalf("unexpected first request: %s %s", req.Method, req.URL.String())
-					}
-					body := `{"data":[{"id":"eq-next-1"}],"links":{"next":"` + secondURL + `"}}`
-					return &http.Response{
-						StatusCode: http.StatusOK,
-						Body:       io.NopCloser(strings.NewReader(body)),
-						Header:     http.Header{"Content-Type": []string{"application/json"}},
-					}, nil
-				case 2:
-					if req.Method != http.MethodGet || req.URL.String() != secondURL {
-						t.Fatalf("unexpected second request: %s %s", req.Method, req.URL.String())
-					}
-					body := `{"data":[{"id":"eq-next-2"}],"links":{"next":""}}`
-					return &http.Response{
-						StatusCode: http.StatusOK,
-						Body:       io.NopCloser(strings.NewReader(body)),
-						Header:     http.Header{"Content-Type": []string{"application/json"}},
-					}, nil
-				default:
-					t.Fatalf("unexpected extra request: %s %s", req.Method, req.URL.String())
-					return nil, nil
-				}
-			}))
-
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
+			maxLimit := "limit=" + strconv.Itoa(tt.limitMax)
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET(tt.requestPath, "cursor=AQ", maxLimit),
+				asctest.JSON(http.StatusOK, `{"data":[{"id":"eq-next-1"}],"links":{"next":"`+secondURL+`"}}`))
+			reg.Register(asctest.GET(tt.requestPath, "cursor=BQ", maxLimit),
+				asctest.JSON(http.StatusOK, `{"data":[{"id":"eq-next-2"}],"links":{"next":""}}`))
 
 			args := append(append([]string{}, tt.argsPrefix...), "--paginate", "--next", tt.nextURL, "--output", "json")
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
+			stdout, stderr, err := runCommand(t, args)
+			if err != nil {
+				t.Fatalf("run error: %v", err)
+			}
 
 			if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)
 			}
-			if requestCount != 2 {
+			if requestCount := len(reg.Requests()); requestCount != 2 {
 				t.Fatalf("expected 2 paginated requests from --next, got %d", requestCount)
 			}
 			for _, want := range []string{`"id":"eq-next-1"`, `"id":"eq-next-2"`} {

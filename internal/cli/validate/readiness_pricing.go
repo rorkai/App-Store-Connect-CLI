@@ -28,14 +28,14 @@ func fetchCurrentAppPaidPricingEvidence(ctx context.Context, client *asc.Client,
 			asc.WithAppPriceSchedulePricesInclude([]string{"appPricePoint"}),
 			asc.WithAppPriceSchedulePricesFields([]string{"manual", "startDate", "endDate", "appPricePoint"}),
 			asc.WithAppPriceSchedulePricesPricePointFields([]string{"customerPrice"}),
-			asc.WithAppPriceSchedulePricesLimit(limit),
+			asc.Limit[asc.AppPriceSchedulePricesOption](limit),
 		}
 		if strings.TrimSpace(nextURL) != "" {
 			merged, err := shared.MergeNextURLQuery(nextURL, query)
 			if err != nil {
 				return nil, err
 			}
-			opts = []asc.AppPriceSchedulePricesOption{asc.WithAppPriceSchedulePricesNextURL(merged)}
+			opts = []asc.AppPriceSchedulePricesOption{asc.NextURL[asc.AppPriceSchedulePricesOption](merged)}
 		}
 		return doReadinessRequest(ctx, func(requestCtx context.Context) (*asc.AppPricesResponse, error) {
 			return client.GetAppPriceScheduleManualPrices(requestCtx, scheduleID, opts...)

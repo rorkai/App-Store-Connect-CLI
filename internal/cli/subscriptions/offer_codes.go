@@ -92,8 +92,7 @@ Examples:
 
 			id := strings.TrimSpace(*subscriptionID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --subscription-id is required")
-				return shared.MissingRequiredUsageError("--subscription-id")
+				return shared.RequiredFlag("--subscription-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -112,8 +111,8 @@ Examples:
 			defer cancel()
 
 			opts := []asc.SubscriptionOfferCodesOption{
-				asc.WithSubscriptionOfferCodesLimit(*limit),
-				asc.WithSubscriptionOfferCodesNextURL(*next),
+				asc.Limit[asc.SubscriptionOfferCodesOption](*limit),
+				asc.NextURL[asc.SubscriptionOfferCodesOption](*next),
 				asc.WithSubscriptionOfferCodesSubscriptionFields(selectedSubscriptionFields),
 				asc.WithSubscriptionOfferCodesInclude(includeRelationshipForFields(selectedSubscriptionFields, "subscription")),
 			}
@@ -121,7 +120,7 @@ Examples:
 			if *paginate {
 				paginateOpts := opts
 				if strings.TrimSpace(*next) == "" {
-					paginateOpts = append(paginateOpts, asc.WithSubscriptionOfferCodesLimit(200))
+					paginateOpts = append(paginateOpts, asc.Limit[asc.SubscriptionOfferCodesOption](200))
 				}
 				firstPage, err := client.GetSubscriptionOfferCodes(requestCtx, id, paginateOpts...)
 				if err != nil {
@@ -129,7 +128,7 @@ Examples:
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetSubscriptionOfferCodes(ctx, id, asc.WithSubscriptionOfferCodesNextURL(nextURL))
+					return client.GetSubscriptionOfferCodes(ctx, id, asc.NextURL[asc.SubscriptionOfferCodesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("subscriptions offer-codes list: %w", err)
@@ -209,8 +208,7 @@ Examples:
 			}
 			id := strings.TrimSpace(*offerCodeID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --offer-code-id is required")
-				return shared.MissingRequiredUsageError("--offer-code-id")
+				return shared.RequiredFlag("--offer-code-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -268,14 +266,12 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*subscriptionID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --subscription-id is required")
-				return shared.MissingRequiredUsageError("--subscription-id")
+				return shared.RequiredFlag("--subscription-id")
 			}
 
 			nameValue := strings.TrimSpace(*name)
 			if nameValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --name is required")
-				return shared.MissingRequiredUsageError("--name")
+				return shared.RequiredFlag("--name")
 			}
 
 			eligibility, err := normalizeSubscriptionOfferEligibility(*offerEligibility, true)
@@ -313,8 +309,7 @@ Examples:
 				return flag.ErrHelp
 			}
 			if len(priceEntries) == 0 {
-				fmt.Fprintln(os.Stderr, "Error: --prices is required")
-				return shared.MissingRequiredUsageError("--prices")
+				return shared.RequiredFlag("--prices")
 			}
 
 			planType, err := targetPlanType()
@@ -381,12 +376,10 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*offerCodeID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --offer-code-id is required")
-				return shared.MissingRequiredUsageError("--offer-code-id")
+				return shared.RequiredFlag("--offer-code-id")
 			}
 			if !active.IsSet() {
-				fmt.Fprintln(os.Stderr, "Error: --active is required")
-				return shared.MissingRequiredUsageError("--active")
+				return shared.RequiredFlag("--active")
 			}
 
 			client, err := shared.GetASCClient()
@@ -479,8 +472,7 @@ Examples:
 
 			id := strings.TrimSpace(*offerCodeID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --offer-code-id is required")
-				return shared.MissingRequiredUsageError("--offer-code-id")
+				return shared.RequiredFlag("--offer-code-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -492,19 +484,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.SubscriptionOfferCodeOneTimeUseCodesOption{
-				asc.WithSubscriptionOfferCodeOneTimeUseCodesLimit(*limit),
-				asc.WithSubscriptionOfferCodeOneTimeUseCodesNextURL(*next),
+				asc.Limit[asc.SubscriptionOfferCodeOneTimeUseCodesOption](*limit),
+				asc.NextURL[asc.SubscriptionOfferCodeOneTimeUseCodesOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithSubscriptionOfferCodeOneTimeUseCodesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.SubscriptionOfferCodeOneTimeUseCodesOption](200))
 				firstPage, err := client.GetSubscriptionOfferCodeOneTimeUseCodes(requestCtx, id, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("subscriptions offer-codes one-time-codes list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetSubscriptionOfferCodeOneTimeUseCodes(ctx, id, asc.WithSubscriptionOfferCodeOneTimeUseCodesNextURL(nextURL))
+					return client.GetSubscriptionOfferCodeOneTimeUseCodes(ctx, id, asc.NextURL[asc.SubscriptionOfferCodeOneTimeUseCodesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("subscriptions offer-codes one-time-codes list: %w", err)
@@ -525,44 +517,25 @@ Examples:
 
 // SubscriptionsOfferCodesOneTimeCodesGetCommand returns the offer code one-time use codes get subcommand.
 func SubscriptionsOfferCodesOneTimeCodesGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("offer-codes one-time-codes view", flag.ExitOnError)
-
-	oneTimeCodeID := shared.BindResourceIDFlag(fs, "batch-id", "subscriptionOfferCodeOneTimeUseCodes", "One-time use code batch ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc subscriptions offer-codes one-time-codes view --batch-id \"ONE_TIME_USE_CODE_ID\"",
-		ShortHelp:  "View a one-time use code batch by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "offer-codes one-time-codes view",
+		Name:        "view",
+		ShortUsage:  "asc subscriptions offer-codes one-time-codes view --batch-id \"ONE_TIME_USE_CODE_ID\"",
+		ShortHelp:   "View a one-time use code batch by ID.",
 		LongHelp: `View a one-time use code batch by ID.
 
 Examples:
   asc subscriptions offer-codes one-time-codes view --batch-id "ONE_TIME_USE_CODE_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*oneTimeCodeID)
-			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --batch-id is required")
-				return shared.MissingRequiredUsageError("--batch-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("subscriptions offer-codes one-time-codes view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetSubscriptionOfferCodeOneTimeUseCode(requestCtx, id)
-			if err != nil {
-				return fmt.Errorf("subscriptions offer-codes one-time-codes view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDFlag:             "batch-id",
+		IDUsage:            "One-time use code batch ID",
+		IDType:             "subscriptionOfferCodeOneTimeUseCodes",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "subscriptions offer-codes one-time-codes view",
+		FetchErrorPrefix:   "subscriptions offer-codes one-time-codes view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetSubscriptionOfferCodeOneTimeUseCode(ctx, id)
 		},
-	}
+	})
 }
 
 // SubscriptionsOfferCodesOneTimeCodesUpdateCommand returns the one-time use code batch update subcommand.
@@ -628,8 +601,7 @@ Examples:
 
 			id := strings.TrimSpace(*offerCodeID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --offer-code-id is required")
-				return shared.MissingRequiredUsageError("--offer-code-id")
+				return shared.RequiredFlag("--offer-code-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -641,8 +613,8 @@ Examples:
 			defer cancel()
 
 			opts := []asc.SubscriptionOfferCodePricesOption{
-				asc.WithSubscriptionOfferCodePricesLimit(*limit),
-				asc.WithSubscriptionOfferCodePricesNextURL(*next),
+				asc.Limit[asc.SubscriptionOfferCodePricesOption](*limit),
+				asc.NextURL[asc.SubscriptionOfferCodePricesOption](*next),
 				asc.WithSubscriptionOfferCodePricesPricePointFields(selectedPricePointFields),
 				asc.WithSubscriptionOfferCodePricesInclude(includeRelationshipForFields(selectedPricePointFields, "subscriptionPricePoint")),
 			}
@@ -650,7 +622,7 @@ Examples:
 			if *paginate {
 				paginateOpts := opts
 				if strings.TrimSpace(*next) == "" {
-					paginateOpts = append(paginateOpts, asc.WithSubscriptionOfferCodePricesLimit(200))
+					paginateOpts = append(paginateOpts, asc.Limit[asc.SubscriptionOfferCodePricesOption](200))
 				}
 				firstPage, err := client.GetSubscriptionOfferCodePrices(requestCtx, id, paginateOpts...)
 				if err != nil {
@@ -658,7 +630,7 @@ Examples:
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetSubscriptionOfferCodePrices(ctx, id, asc.WithSubscriptionOfferCodePricesNextURL(nextURL))
+					return client.GetSubscriptionOfferCodePrices(ctx, id, asc.NextURL[asc.SubscriptionOfferCodePricesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("subscriptions offer-codes prices: %w", err)

@@ -13,6 +13,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/creack/pty"
@@ -821,9 +822,6 @@ func TestLoginWithOptionalTwoFactorReappliesTimeoutAfterDelayedCommand(t *testin
 		submitTwoFactorCodeFn = origSubmit
 	})
 
-	requestCtx, cancel := shared.ContextWithTimeoutDuration(context.Background(), 30*time.Millisecond)
-	t.Cleanup(cancel)
-
 	webLoginFn = func(ctx context.Context, creds webcore.LoginCredentials) (*webcore.AuthSession, error) {
 		return &webcore.AuthSession{}, &webcore.TwoFactorRequiredError{}
 	}
@@ -851,21 +849,28 @@ func TestLoginWithOptionalTwoFactorReappliesTimeoutAfterDelayedCommand(t *testin
 		if ctx.Err() != nil {
 			t.Fatalf("expected fresh verification context, got %v", ctx.Err())
 		}
-		if deadline, ok := ctx.Deadline(); !ok || time.Until(deadline) <= 0 {
-			t.Fatalf("expected verification context to have a future deadline, got ok=%v deadline=%v", ok, deadline)
+		if deadline, ok := ctx.Deadline(); !ok || time.Until(deadline) != 30*time.Millisecond {
+			t.Fatalf("expected verification context to have a fresh 30ms deadline, got ok=%v deadline=%v", ok, deadline)
 		}
 		return nil
 	}
 
-	session, err := loginWithOptionalTwoFactor(requestCtx, "user@example.com", "secret", "", nil, nil, "osascript ./get-2fa.scpt")
+	var session *webcore.AuthSession
+	var err, requestErr error
+	synctest.Test(t, func(*testing.T) {
+		requestCtx, cancel := shared.ContextWithTimeoutDuration(context.Background(), 30*time.Millisecond)
+		defer cancel()
+		session, err = loginWithOptionalTwoFactor(requestCtx, "user@example.com", "secret", "", nil, nil, "osascript ./get-2fa.scpt")
+		requestErr = requestCtx.Err()
+	})
 	if err != nil {
 		t.Fatalf("loginWithOptionalTwoFactor returned error: %v", err)
 	}
 	if session == nil {
 		t.Fatal("expected non-nil session")
 	}
-	if !errors.Is(requestCtx.Err(), context.DeadlineExceeded) {
-		t.Fatalf("expected original request context to time out, got %v", requestCtx.Err())
+	if !errors.Is(requestErr, context.DeadlineExceeded) {
+		t.Fatalf("expected original request context to time out, got %v", requestErr)
 	}
 }
 
@@ -3318,15 +3323,18 @@ func TestReadRotatedTwoFactorCodeReportsGenuineCallerCancellation(t *testing.T) 
 		return "111111", nil
 	}
 
-	parent, cancelParent := context.WithCancel(context.Background())
-	loginCtx, cancel := shared.ContextWithTimeoutDuration(parent, 5*time.Second)
-	defer cancel()
-	go func() {
-		time.Sleep(20 * time.Millisecond)
-		cancelParent()
-	}()
+	var err error
+	synctest.Test(t, func(*testing.T) {
+		parent, cancelParent := context.WithCancel(context.Background())
+		loginCtx, cancel := shared.ContextWithTimeoutDuration(parent, 5*time.Second)
+		defer cancel()
+		go func() {
+			time.Sleep(20 * time.Millisecond)
+			cancelParent()
+		}()
 
-	_, err := readRotatedTwoFactorCodeFromCommand(loginCtx, "print-code", "111111")
+		_, err = readRotatedTwoFactorCodeFromCommand(loginCtx, "print-code", "111111")
+	})
 	if err == nil {
 		t.Fatal("expected the cancelled caller to fail")
 	}

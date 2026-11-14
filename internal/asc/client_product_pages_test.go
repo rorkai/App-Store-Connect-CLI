@@ -23,7 +23,7 @@ func TestAppCustomProductPageListEndpoints_WithLimit(t *testing.T) {
 			limit:    "10",
 			response: `{"data":[{"type":"appCustomProductPages","id":"page-1","attributes":{"name":"Summer"}}]}`,
 			call: func(t *testing.T, c *Client) {
-				resp, err := c.GetAppCustomProductPages(ctx, "app-1", WithAppCustomProductPagesLimit(10))
+				resp, err := c.GetAppCustomProductPages(ctx, "app-1", Limit[AppCustomProductPagesOption](10))
 				if err != nil {
 					t.Fatalf("GetAppCustomProductPages() error: %v", err)
 				}
@@ -38,7 +38,7 @@ func TestAppCustomProductPageListEndpoints_WithLimit(t *testing.T) {
 			limit:    "5",
 			response: `{"data":[{"type":"appCustomProductPageVersions","id":"version-1","attributes":{"deepLink":"https://example.com/deeplink"}}]}`,
 			call: func(t *testing.T, c *Client) {
-				resp, err := c.GetAppCustomProductPageVersions(ctx, "page-1", WithAppCustomProductPageVersionsLimit(5))
+				resp, err := c.GetAppCustomProductPageVersions(ctx, "page-1", Limit[AppCustomProductPageVersionsOption](5))
 				if err != nil {
 					t.Fatalf("GetAppCustomProductPageVersions() error: %v", err)
 				}
@@ -53,7 +53,7 @@ func TestAppCustomProductPageListEndpoints_WithLimit(t *testing.T) {
 			limit:    "20",
 			response: `{"data":[{"type":"appCustomProductPageLocalizations","id":"loc-1","attributes":{"locale":"en-US"}}]}`,
 			call: func(t *testing.T, c *Client) {
-				resp, err := c.GetAppCustomProductPageLocalizations(ctx, "version-1", WithAppCustomProductPageLocalizationsLimit(20))
+				resp, err := c.GetAppCustomProductPageLocalizations(ctx, "version-1", Limit[AppCustomProductPageLocalizationsOption](20))
 				if err != nil {
 					t.Fatalf("GetAppCustomProductPageLocalizations() error: %v", err)
 				}
@@ -119,7 +119,7 @@ func TestGetAppCustomProductPages_SendsQuerySurface(t *testing.T) {
 		WithAppCustomProductPagesVersionFields([]string{"version", "state"}),
 		WithAppCustomProductPagesInclude([]string{"app", "appCustomProductPageVersions"}),
 		WithAppCustomProductPagesVersionsLimit(25),
-		WithAppCustomProductPagesLimit(10),
+		Limit[AppCustomProductPagesOption](10),
 	)
 	if err != nil {
 		t.Fatalf("GetAppCustomProductPages() error: %v", err)
@@ -493,7 +493,7 @@ func TestGetAppCustomProductPageLocalizationAssetSets_SendsRequest(t *testing.T)
 			path:  "/v1/appCustomProductPageLocalizations/loc-1/appPreviewSets",
 			limit: "5",
 			call: func(c *Client) error {
-				_, err := c.GetAppCustomProductPageLocalizationPreviewSets(ctx, "loc-1", WithAppCustomProductPageLocalizationPreviewSetsLimit(5))
+				_, err := c.GetAppCustomProductPageLocalizationPreviewSets(ctx, "loc-1", Limit[AppCustomProductPageLocalizationPreviewSetsOption](5))
 				return err
 			},
 		},
@@ -510,7 +510,7 @@ func TestGetAppCustomProductPageLocalizationAssetSets_SendsRequest(t *testing.T)
 			path:  "/v1/appCustomProductPageLocalizations/loc-1/appScreenshotSets",
 			limit: "7",
 			call: func(c *Client) error {
-				_, err := c.GetAppCustomProductPageLocalizationScreenshotSets(ctx, "loc-1", WithAppCustomProductPageLocalizationScreenshotSetsLimit(7))
+				_, err := c.GetAppCustomProductPageLocalizationScreenshotSets(ctx, "loc-1", Limit[AppCustomProductPageLocalizationScreenshotSetsOption](7))
 				return err
 			},
 		},
@@ -551,7 +551,7 @@ func TestGetAppCustomProductPageLocalizationAssetSets_UsesNextURL(t *testing.T) 
 			name: "preview sets",
 			next: "https://api.appstoreconnect.apple.com/v1/appCustomProductPageLocalizations/loc-1/appPreviewSets?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetAppCustomProductPageLocalizationPreviewSets(ctx, "", WithAppCustomProductPageLocalizationPreviewSetsNextURL(next))
+				_, err := c.GetAppCustomProductPageLocalizationPreviewSets(ctx, "", NextURL[AppCustomProductPageLocalizationPreviewSetsOption](next))
 				return err
 			},
 		},
@@ -559,7 +559,7 @@ func TestGetAppCustomProductPageLocalizationAssetSets_UsesNextURL(t *testing.T) 
 			name: "screenshot sets",
 			next: "https://api.appstoreconnect.apple.com/v1/appCustomProductPageLocalizations/loc-1/appScreenshotSets?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetAppCustomProductPageLocalizationScreenshotSets(ctx, "", WithAppCustomProductPageLocalizationScreenshotSetsNextURL(next))
+				_, err := c.GetAppCustomProductPageLocalizationScreenshotSets(ctx, "", NextURL[AppCustomProductPageLocalizationScreenshotSetsOption](next))
 				return err
 			},
 		},
@@ -1032,7 +1032,7 @@ func TestAppStoreVersionExperimentTreatmentListEndpoints_WithLimit(t *testing.T)
 			limit:    "15",
 			response: `{"data":[{"type":"appStoreVersionExperimentTreatments","id":"treat-1","attributes":{"name":"Variant A"}}]}`,
 			call: func(t *testing.T, c *Client) {
-				resp, err := c.GetAppStoreVersionExperimentTreatments(ctx, "exp-1", WithAppStoreVersionExperimentTreatmentsLimit(15))
+				resp, err := c.GetAppStoreVersionExperimentTreatments(ctx, "exp-1", Limit[AppStoreVersionExperimentTreatmentsOption](15))
 				if err != nil {
 					t.Fatalf("GetAppStoreVersionExperimentTreatments() error: %v", err)
 				}
@@ -1047,7 +1047,7 @@ func TestAppStoreVersionExperimentTreatmentListEndpoints_WithLimit(t *testing.T)
 			limit:    "10",
 			response: `{"data":[{"type":"appStoreVersionExperimentTreatments","id":"treat-1","attributes":{"name":"Variant A"}}]}`,
 			call: func(t *testing.T, c *Client) {
-				resp, err := c.GetAppStoreVersionExperimentTreatmentsV2(ctx, "exp-1", WithAppStoreVersionExperimentTreatmentsLimit(10))
+				resp, err := c.GetAppStoreVersionExperimentTreatmentsV2(ctx, "exp-1", Limit[AppStoreVersionExperimentTreatmentsOption](10))
 				if err != nil {
 					t.Fatalf("GetAppStoreVersionExperimentTreatmentsV2() error: %v", err)
 				}
@@ -1062,7 +1062,7 @@ func TestAppStoreVersionExperimentTreatmentListEndpoints_WithLimit(t *testing.T)
 			limit:    "8",
 			response: `{"data":[{"type":"appStoreVersionExperimentTreatmentLocalizations","id":"tloc-1","attributes":{"locale":"en-US"}}]}`,
 			call: func(t *testing.T, c *Client) {
-				resp, err := c.GetAppStoreVersionExperimentTreatmentLocalizations(ctx, "treat-1", WithAppStoreVersionExperimentTreatmentLocalizationsLimit(8))
+				resp, err := c.GetAppStoreVersionExperimentTreatmentLocalizations(ctx, "treat-1", Limit[AppStoreVersionExperimentTreatmentLocalizationsOption](8))
 				if err != nil {
 					t.Fatalf("GetAppStoreVersionExperimentTreatmentLocalizations() error: %v", err)
 				}
@@ -1077,7 +1077,7 @@ func TestAppStoreVersionExperimentTreatmentListEndpoints_WithLimit(t *testing.T)
 			limit:    "6",
 			response: `{"data":[{"type":"appPreviewSets","id":"preview-1"}]}`,
 			call: func(t *testing.T, c *Client) {
-				resp, err := c.GetAppStoreVersionExperimentTreatmentLocalizationPreviewSets(ctx, "tloc-1", WithAppStoreVersionExperimentTreatmentLocalizationPreviewSetsLimit(6))
+				resp, err := c.GetAppStoreVersionExperimentTreatmentLocalizationPreviewSets(ctx, "tloc-1", Limit[AppStoreVersionExperimentTreatmentLocalizationPreviewSetsOption](6))
 				if err != nil {
 					t.Fatalf("GetAppStoreVersionExperimentTreatmentLocalizationPreviewSets() error: %v", err)
 				}
@@ -1092,7 +1092,7 @@ func TestAppStoreVersionExperimentTreatmentListEndpoints_WithLimit(t *testing.T)
 			limit:    "4",
 			response: `{"data":[{"type":"appScreenshotSets","id":"shot-1"}]}`,
 			call: func(t *testing.T, c *Client) {
-				resp, err := c.GetAppStoreVersionExperimentTreatmentLocalizationScreenshotSets(ctx, "tloc-1", WithAppStoreVersionExperimentTreatmentLocalizationScreenshotSetsLimit(4))
+				resp, err := c.GetAppStoreVersionExperimentTreatmentLocalizationScreenshotSets(ctx, "tloc-1", Limit[AppStoreVersionExperimentTreatmentLocalizationScreenshotSetsOption](4))
 				if err != nil {
 					t.Fatalf("GetAppStoreVersionExperimentTreatmentLocalizationScreenshotSets() error: %v", err)
 				}

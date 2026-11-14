@@ -105,14 +105,12 @@ Examples:
 			}
 
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			keywordValue := strings.TrimSpace(keywords.String())
 			if keywordValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --keywords is required")
-				return shared.MissingRequiredUsageError("--keywords")
+				return shared.RequiredFlag("--keywords")
 			}
 			if err := shared.ValidateVersionLocalizationAttributes(asc.AppStoreVersionLocalizationAttributes{Keywords: keywordValue}); err != nil {
 				return shared.UsageError(err.Error())
@@ -151,7 +149,7 @@ Examples:
 func resolveSearchKeywordsVersionID(ctx context.Context, client *asc.Client, appID, version, platform string) (string, error) {
 	opts := []asc.AppStoreVersionsOption{
 		asc.WithAppStoreVersionsVersionStrings([]string{version}),
-		asc.WithAppStoreVersionsLimit(200),
+		asc.Limit[asc.AppStoreVersionsOption](200),
 	}
 	if platform != "" {
 		opts = append(opts, asc.WithAppStoreVersionsPlatforms([]string{platform}))
@@ -162,7 +160,7 @@ func resolveSearchKeywordsVersionID(ctx context.Context, client *asc.Client, app
 		return "", fmt.Errorf("failed to resolve App Store version: %w", err)
 	}
 	allPages, err := asc.PaginateAll(ctx, firstPage, func(pageCtx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetAppStoreVersions(pageCtx, appID, asc.WithAppStoreVersionsNextURL(nextURL))
+		return client.GetAppStoreVersions(pageCtx, appID, asc.NextURL[asc.AppStoreVersionsOption](nextURL))
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to resolve App Store version: %w", err)
@@ -202,13 +200,13 @@ func resolveSearchKeywordsLocalizationID(ctx context.Context, client *asc.Client
 		ctx,
 		versionID,
 		asc.WithAppStoreVersionLocalizationLocales([]string{locale}),
-		asc.WithAppStoreVersionLocalizationsLimit(200),
+		asc.Limit[asc.AppStoreVersionLocalizationsOption](200),
 	)
 	if err != nil {
 		return "", fmt.Errorf("failed to resolve version localization: %w", err)
 	}
 	allPages, err := asc.PaginateAll(ctx, firstPage, func(pageCtx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetAppStoreVersionLocalizations(pageCtx, versionID, asc.WithAppStoreVersionLocalizationsNextURL(nextURL))
+		return client.GetAppStoreVersionLocalizations(pageCtx, versionID, asc.NextURL[asc.AppStoreVersionLocalizationsOption](nextURL))
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to resolve version localization: %w", err)
@@ -294,8 +292,8 @@ Examples:
 			defer cancel()
 
 			opts := []asc.AppSearchKeywordsOption{
-				asc.WithAppSearchKeywordsLimit(*limit),
-				asc.WithAppSearchKeywordsNextURL(*next),
+				asc.Limit[asc.AppSearchKeywordsOption](*limit),
+				asc.NextURL[asc.AppSearchKeywordsOption](*next),
 			}
 			if len(platforms) > 0 {
 				opts = append(opts, asc.WithAppSearchKeywordsPlatforms(platforms))
@@ -305,14 +303,14 @@ Examples:
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithAppSearchKeywordsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.AppSearchKeywordsOption](200))
 				firstPage, err := client.GetAppSearchKeywords(requestCtx, resolvedAppID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("apps search-keywords list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppSearchKeywords(ctx, resolvedAppID, asc.WithAppSearchKeywordsNextURL(nextURL))
+					return client.GetAppSearchKeywords(ctx, resolvedAppID, asc.NextURL[asc.AppSearchKeywordsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("apps search-keywords list: %w", err)

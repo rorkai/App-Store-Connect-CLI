@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"net/url"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -66,8 +65,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedBuildID := strings.TrimSpace(*buildID)
 			if trimmedBuildID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --build-id is required")
-				return shared.MissingRequiredUsageError("--build-id")
+				return shared.RequiredFlag("--build-id")
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return shared.UsageError("performance diagnostics list: --limit must be between 1 and 200")
@@ -99,19 +97,19 @@ Examples:
 			opts := []asc.DiagnosticSignaturesOption{
 				asc.WithDiagnosticSignaturesDiagnosticTypes(diagnosticTypes),
 				asc.WithDiagnosticSignaturesFields(fieldValues),
-				asc.WithDiagnosticSignaturesLimit(*limit),
-				asc.WithDiagnosticSignaturesNextURL(*next),
+				asc.Limit[asc.DiagnosticSignaturesOption](*limit),
+				asc.NextURL[asc.DiagnosticSignaturesOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithDiagnosticSignaturesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.DiagnosticSignaturesOption](200))
 				firstPage, err := client.GetDiagnosticSignaturesForBuild(requestCtx, trimmedBuildID, paginateOpts...)
 				if err != nil {
 					return diagnosticsListFetchError(trimmedBuildID, err)
 				}
 
 				paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetDiagnosticSignaturesForBuild(ctx, trimmedBuildID, asc.WithDiagnosticSignaturesNextURL(nextURL))
+					return client.GetDiagnosticSignaturesForBuild(ctx, trimmedBuildID, asc.NextURL[asc.DiagnosticSignaturesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("performance diagnostics list: %w", err)
@@ -186,8 +184,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*signatureID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return shared.UsageError("performance diagnostics view: --limit must be between 1 and 200")
@@ -201,7 +198,7 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			resp, err := client.GetDiagnosticSignatureLogs(requestCtx, trimmedID, asc.WithDiagnosticLogsLimit(*limit))
+			resp, err := client.GetDiagnosticSignatureLogs(requestCtx, trimmedID, asc.Limit[asc.DiagnosticLogsOption](*limit))
 			if err != nil {
 				return fmt.Errorf("performance diagnostics view: %w", err)
 			}

@@ -1,15 +1,13 @@
 package cmdtest
 
 import (
-	"context"
-	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
-	"sync/atomic"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestTestFlightConfigExportResolvesAppByBundleID(t *testing.T) {
@@ -19,91 +17,19 @@ func TestTestFlightConfigExportResolvesAppByBundleID(t *testing.T) {
 
 	outputPath := filepath.Join(t.TempDir(), "sync.yaml")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=com.example.sync", "limit=2"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"apps","id":"app-sync"}]}`))
+	reg.Register(asctest.GET("/v1/apps/app-sync/betaGroups", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[],"links":{"next":""}}`))
+	reg.Register(asctest.GET("/v1/apps/app-sync"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"app-sync","attributes":{"name":"Sync Demo","bundleId":"com.example.sync"}}}`))
 
-	var callCount atomic.Int32
-	// GetApp runs on its own goroutine, so failures must not use t.Fatalf here.
-	fail := func(format string, args ...any) error {
-		t.Errorf(format, args...)
-		return fmt.Errorf(format, args...)
+	stdout, stderr, err := runCommand(t, []string{"testflight", "config", "export", "--app", "com.example.sync", "--output", outputPath})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
 	}
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		// The app and beta group reads run concurrently, so match them by path.
-		count := callCount.Add(1)
-		if (count == 2 || count == 3) && req.URL.Path == "/v1/apps/app-sync/betaGroups" {
-			count = 3
-		} else if count == 3 {
-			count = 2
-		}
-		switch count {
-		case 1:
-			if req.Method != http.MethodGet {
-				return nil, fail("expected GET, got %s", req.Method)
-			}
-			if req.URL.Path != "/v1/apps" {
-				return nil, fail("expected path /v1/apps, got %s", req.URL.Path)
-			}
-			query := req.URL.Query()
-			if query.Get("filter[bundleId]") != "com.example.sync" {
-				return nil, fail("expected bundle filter com.example.sync, got %q", query.Get("filter[bundleId]"))
-			}
-			if query.Get("limit") != "2" {
-				return nil, fail("expected limit=2, got %q", query.Get("limit"))
-			}
-			body := `{"data":[{"type":"apps","id":"app-sync"}]}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 2:
-			if req.Method != http.MethodGet {
-				return nil, fail("expected GET, got %s", req.Method)
-			}
-			if req.URL.Path != "/v1/apps/app-sync" {
-				return nil, fail("expected path /v1/apps/app-sync, got %s", req.URL.Path)
-			}
-			body := `{"data":{"type":"apps","id":"app-sync","attributes":{"name":"Sync Demo","bundleId":"com.example.sync"}}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 3:
-			if req.Method != http.MethodGet {
-				return nil, fail("expected GET, got %s", req.Method)
-			}
-			if req.URL.Path != "/v1/apps/app-sync/betaGroups" {
-				return nil, fail("expected path /v1/apps/app-sync/betaGroups, got %s", req.URL.Path)
-			}
-			if req.URL.Query().Get("limit") != "200" {
-				return nil, fail("expected limit=200, got %q", req.URL.Query().Get("limit"))
-			}
-			body := `{"data":[],"links":{"next":""}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			return nil, fail("unexpected request count %d", count)
-		}
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"testflight", "config", "export", "--app", "com.example.sync", "--output", outputPath}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -127,63 +53,18 @@ func TestTestFlightConfigExportLookupNotFoundByName(t *testing.T) {
 
 	outputPath := filepath.Join(t.TempDir(), "sync.yaml")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=Missing App", "limit=2"),
+		asctest.JSON(http.StatusOK, `{"data":[]}`))
+	reg.Register(asctest.GET("/v1/apps", "filter[name]=Missing App", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[]}`))
+	reg.Register(asctest.GET("/v1/apps", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[]}`))
+	reg.Register(asctest.GET("/v1/apps", "filter[name]=Missing App", "limit=2"),
+		asctest.JSON(http.StatusOK, `{"data":[]}`))
 
-	callCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		callCount++
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/apps" {
-			t.Fatalf("expected path /v1/apps, got %s", req.URL.Path)
-		}
-
-		query := req.URL.Query()
-		switch callCount {
-		case 1:
-			if query.Get("filter[bundleId]") != "Missing App" {
-				t.Fatalf("expected bundle lookup for Missing App, got %q", query.Get("filter[bundleId]"))
-			}
-		case 2:
-			if query.Get("filter[name]") != "Missing App" {
-				t.Fatalf("expected name lookup for Missing App, got %q", query.Get("filter[name]"))
-			}
-		case 3:
-			// Full-scan fallback request (no name filter) for exact-name matching.
-			if query.Get("filter[name]") != "" {
-				t.Fatalf("expected fallback full scan without name filter, got %q", query.Get("filter[name]"))
-			}
-		case 4:
-			// Legacy fuzzy fallback request for backward compatibility.
-			if query.Get("filter[name]") != "Missing App" {
-				t.Fatalf("expected legacy fuzzy lookup for Missing App, got %q", query.Get("filter[name]"))
-			}
-		default:
-			t.Fatalf("unexpected request count %d", callCount)
-		}
-
-		body := `{"data":[]}`
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{"testflight", "config", "export", "--app", "Missing App", "--output", outputPath}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	stdout, _, runErr := runCommand(t, []string{"testflight", "config", "export", "--app", "Missing App", "--output", outputPath})
 
 	if runErr == nil {
 		t.Fatal("expected lookup not found error, got nil")
@@ -206,52 +87,14 @@ func TestTestFlightConfigExportLookupAmbiguousName(t *testing.T) {
 
 	outputPath := filepath.Join(t.TempDir(), "sync.yaml")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=Ambiguous App", "limit=2"),
+		asctest.JSON(http.StatusOK, `{"data":[]}`))
+	reg.Register(asctest.GET("/v1/apps", "filter[name]=Ambiguous App", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"apps","id":"app-1","attributes":{"name":"Ambiguous App"}},{"type":"apps","id":"app-2","attributes":{"name":"Ambiguous App"}}]}`))
 
-	callCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		callCount++
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/apps" {
-			t.Fatalf("expected path /v1/apps, got %s", req.URL.Path)
-		}
-
-		switch callCount {
-		case 1:
-			body := `{"data":[]}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 2:
-			body := `{"data":[{"type":"apps","id":"app-1","attributes":{"name":"Ambiguous App"}},{"type":"apps","id":"app-2","attributes":{"name":"Ambiguous App"}}]}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected request count %d", callCount)
-			return nil, nil
-		}
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{"testflight", "config", "export", "--app", "Ambiguous App", "--output", outputPath}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	stdout, _, runErr := runCommand(t, []string{"testflight", "config", "export", "--app", "Ambiguous App", "--output", outputPath})
 
 	if runErr == nil {
 		t.Fatal("expected ambiguous lookup error, got nil")

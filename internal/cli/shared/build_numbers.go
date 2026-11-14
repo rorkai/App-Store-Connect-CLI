@@ -224,7 +224,7 @@ func resolveLatestBuildSelection(ctx context.Context, client *asc.Client, opts L
 	if !hasPreReleaseFilters {
 		buildOpts := []asc.BuildsOption{
 			asc.WithBuildsSort("-uploadedDate"),
-			asc.WithBuildsLimit(200),
+			asc.Limit[asc.BuildsOption](200),
 		}
 		if len(opts.ProcessingStateValues) > 0 {
 			buildOpts = append(buildOpts, asc.WithBuildsProcessingStates(opts.ProcessingStateValues))
@@ -246,7 +246,7 @@ func resolveLatestBuildSelection(ctx context.Context, client *asc.Client, opts L
 	} else if len(preReleaseVersionIDs) == 1 {
 		buildOpts := []asc.BuildsOption{
 			asc.WithBuildsSort("-uploadedDate"),
-			asc.WithBuildsLimit(1),
+			asc.Limit[asc.BuildsOption](1),
 			asc.WithBuildsPreReleaseVersion(preReleaseVersionIDs[0]),
 		}
 		if len(opts.ProcessingStateValues) > 0 {
@@ -280,7 +280,7 @@ func resolveLatestBuildSelection(ctx context.Context, client *asc.Client, opts L
 		for _, prvID := range preReleaseVersionIDs {
 			buildOpts := []asc.BuildsOption{
 				asc.WithBuildsSort("-uploadedDate"),
-				asc.WithBuildsLimit(1),
+				asc.Limit[asc.BuildsOption](1),
 				asc.WithBuildsPreReleaseVersion(prvID),
 			}
 			if len(opts.ProcessingStateValues) > 0 {
@@ -440,7 +440,7 @@ func findHighestProcessedBuildNumber(
 
 	buildOpts := []asc.BuildsOption{
 		asc.WithBuildsSort("-uploadedDate"),
-		asc.WithBuildsLimit(200),
+		asc.Limit[asc.BuildsOption](200),
 	}
 	if len(selection.PreReleaseVersionIDs) > 0 {
 		buildOpts = append(buildOpts, asc.WithBuildsPreReleaseVersions(selection.PreReleaseVersionIDs))
@@ -484,7 +484,7 @@ func findHighestProcessedBuildNumber(
 	err = asc.PaginateEach(ctx, builds, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		requestCtx, cancel := contextWithTimeout(ctx)
 		defer cancel()
-		return client.GetBuilds(requestCtx, selection.ResolvedAppID, asc.WithBuildsNextURL(nextURL))
+		return client.GetBuilds(requestCtx, selection.ResolvedAppID, asc.NextURL[asc.BuildsOption](nextURL))
 	}, func(page asc.PaginatedResponse) error {
 		resp, ok := page.(*asc.BuildsResponse)
 		if !ok {
@@ -580,9 +580,9 @@ func findPreReleaseVersionIDsForVersions(ctx context.Context, client *asc.Client
 
 	if versionFilter != "" {
 		opts = append(opts, asc.WithPreReleaseVersionsVersion(versionFilter))
-		opts = append(opts, asc.WithPreReleaseVersionsLimit(200))
+		opts = append(opts, asc.Limit[asc.PreReleaseVersionsOption](200))
 	} else {
-		opts = append(opts, asc.WithPreReleaseVersionsLimit(200))
+		opts = append(opts, asc.Limit[asc.PreReleaseVersionsOption](200))
 	}
 
 	if platform != "" {
@@ -634,7 +634,7 @@ func findPreReleaseVersionIDsForVersions(ctx context.Context, client *asc.Client
 	fetchNext := func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		requestCtx, cancel := contextWithTimeout(ctx)
 		defer cancel()
-		return client.GetPreReleaseVersions(requestCtx, appID, asc.WithPreReleaseVersionsNextURL(nextURL))
+		return client.GetPreReleaseVersions(requestCtx, appID, asc.NextURL[asc.PreReleaseVersionsOption](nextURL))
 	}
 	consumePage := func(page asc.PaginatedResponse) error {
 		resp, ok := page.(*asc.PreReleaseVersionsResponse)
@@ -789,7 +789,7 @@ func findMostRecentlyUploadedBuild(ctx context.Context, client *asc.Client, appI
 		seenProbeURLs[nextURL] = struct{}{}
 
 		nextPageCtx, nextPageCancel := contextWithTimeout(ctx)
-		nextPage, err := client.GetBuilds(nextPageCtx, appID, asc.WithBuildsNextURL(nextURL))
+		nextPage, err := client.GetBuilds(nextPageCtx, appID, asc.NextURL[asc.BuildsOption](nextURL))
 		nextPageCancel()
 		if err != nil {
 			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
@@ -894,7 +894,7 @@ func ParseBuildTimestamp(value string) (time.Time, error) {
 func findLatestBuildUploadNumber(ctx context.Context, client *asc.Client, appID string, versions []string, platform string) (buildNumber, *string, bool, error) {
 	opts := []asc.BuildUploadsOption{
 		asc.WithBuildUploadsStates([]string{"AWAITING_UPLOAD", "PROCESSING", "COMPLETE"}),
-		asc.WithBuildUploadsLimit(200),
+		asc.Limit[asc.BuildUploadsOption](200),
 	}
 	if len(versions) > 0 {
 		opts = append(opts, asc.WithBuildUploadsCFBundleShortVersionStrings(versions))
@@ -936,7 +936,7 @@ func findLatestBuildUploadNumber(ctx context.Context, client *asc.Client, appID 
 	err = asc.PaginateEach(ctx, uploads, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		requestCtx, cancel := contextWithTimeout(ctx)
 		defer cancel()
-		return client.GetBuildUploads(requestCtx, appID, asc.WithBuildUploadsNextURL(nextURL))
+		return client.GetBuildUploads(requestCtx, appID, asc.NextURL[asc.BuildUploadsOption](nextURL))
 	}, func(page asc.PaginatedResponse) error {
 		resp, ok := page.(*asc.BuildUploadsResponse)
 		if !ok {

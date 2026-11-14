@@ -202,8 +202,8 @@ Examples:
 		},
 		FetchPage: func(ctx context.Context, client *asc.Client, productID string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := []asc.CiBuildRunsOption{
-				asc.WithCiBuildRunsLimit(limit),
-				asc.WithCiBuildRunsNextURL(next),
+				asc.Limit[asc.CiBuildRunsOption](limit),
+				asc.NextURL[asc.CiBuildRunsOption](next),
 			}
 			return client.GetCiProductBuildRuns(ctx, productID, opts...)
 		},
@@ -232,8 +232,8 @@ Examples:
 		},
 		FetchPage: func(ctx context.Context, client *asc.Client, productID string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := []asc.CiWorkflowsOption{
-				asc.WithCiWorkflowsLimit(limit),
-				asc.WithCiWorkflowsNextURL(next),
+				asc.Limit[asc.CiWorkflowsOption](limit),
+				asc.NextURL[asc.CiWorkflowsOption](next),
 			}
 			return client.GetCiWorkflows(ctx, productID, opts...)
 		},
@@ -262,8 +262,8 @@ Examples:
 		},
 		FetchPage: func(ctx context.Context, client *asc.Client, productID string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := []asc.CiProductRepositoriesOption{
-				asc.WithCiProductRepositoriesLimit(limit),
-				asc.WithCiProductRepositoriesNextURL(next),
+				asc.Limit[asc.CiProductRepositoriesOption](limit),
+				asc.NextURL[asc.CiProductRepositoriesOption](next),
 			}
 			return client.GetCiProductPrimaryRepositories(ctx, productID, opts...)
 		},
@@ -292,8 +292,8 @@ Examples:
 		},
 		FetchPage: func(ctx context.Context, client *asc.Client, productID string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := []asc.CiProductRepositoriesOption{
-				asc.WithCiProductRepositoriesLimit(limit),
-				asc.WithCiProductRepositoriesNextURL(next),
+				asc.Limit[asc.CiProductRepositoriesOption](limit),
+				asc.NextURL[asc.CiProductRepositoriesOption](next),
 			}
 			return client.GetCiProductAdditionalRepositories(ctx, productID, opts...)
 		},
@@ -412,8 +412,8 @@ func xcodeCloudProductsList(ctx context.Context, flags ciProductsListFlags) erro
 			asc.WithCiProductsScmRepositoryFields(scmRepositoryFields),
 			asc.WithCiProductsInclude(include),
 			asc.WithCiProductsPrimaryRepositoriesLimit(*flags.primaryRepositoriesLimit),
-			asc.WithCiProductsLimit(*flags.limit),
-			asc.WithCiProductsNextURL(next),
+			asc.Limit[asc.CiProductsOption](*flags.limit),
+			asc.NextURL[asc.CiProductsOption](next),
 		}
 		if next == "" && strings.TrimSpace(appID) != "" {
 			opts = append(opts, asc.WithCiProductsAppID(appID))
@@ -439,14 +439,14 @@ func xcodeCloudProductsList(ctx context.Context, flags ciProductsListFlags) erro
 	}
 
 	if *flags.paginate {
-		paginateOpts := append(opts, asc.WithCiProductsLimit(200))
+		paginateOpts := append(opts, asc.Limit[asc.CiProductsOption](200))
 		paginatedResp, err := shared.PaginateWithSpinner(
 			requestCtx,
 			func(ctx context.Context) (asc.PaginatedResponse, error) {
 				return client.GetCiProducts(ctx, paginateOpts...)
 			},
 			func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-				return client.GetCiProducts(ctx, asc.WithCiProductsNextURL(nextURL))
+				return client.GetCiProducts(ctx, asc.NextURL[asc.CiProductsOption](nextURL))
 			},
 		)
 		if err != nil {
@@ -699,8 +699,8 @@ Examples:
 		},
 		FetchPage: func(ctx context.Context, client *asc.Client, macOSVersionID string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := []asc.CiXcodeVersionsOption{
-				asc.WithCiXcodeVersionsLimit(limit),
-				asc.WithCiXcodeVersionsNextURL(next),
+				asc.Limit[asc.CiXcodeVersionsOption](limit),
+				asc.NextURL[asc.CiXcodeVersionsOption](next),
 			}
 			return client.GetCiMacOsVersionXcodeVersions(ctx, macOSVersionID, opts...)
 		},
@@ -719,12 +719,12 @@ func xcodeCloudMacOSVersionsList(ctx context.Context, limit int, next string, pa
 		func(ctx context.Context, client *asc.Client, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetCiMacOsVersions(
 				ctx,
-				asc.WithCiMacOsVersionsLimit(limit),
-				asc.WithCiMacOsVersionsNextURL(next),
+				asc.Limit[asc.CiMacOsVersionsOption](limit),
+				asc.NextURL[asc.CiMacOsVersionsOption](next),
 			)
 		},
 		func(ctx context.Context, client *asc.Client, next string) (asc.PaginatedResponse, error) {
-			return client.GetCiMacOsVersions(ctx, asc.WithCiMacOsVersionsNextURL(next))
+			return client.GetCiMacOsVersions(ctx, asc.NextURL[asc.CiMacOsVersionsOption](next))
 		},
 	)
 }
@@ -828,8 +828,8 @@ Examples:
 		},
 		FetchPage: func(ctx context.Context, client *asc.Client, xcodeVersionID string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := []asc.CiMacOsVersionsOption{
-				asc.WithCiMacOsVersionsLimit(limit),
-				asc.WithCiMacOsVersionsNextURL(next),
+				asc.Limit[asc.CiMacOsVersionsOption](limit),
+				asc.NextURL[asc.CiMacOsVersionsOption](next),
 			}
 			return client.GetCiXcodeVersionMacOsVersions(ctx, xcodeVersionID, opts...)
 		},
@@ -848,12 +848,12 @@ func xcodeCloudXcodeVersionsList(ctx context.Context, limit int, next string, pa
 		func(ctx context.Context, client *asc.Client, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetCiXcodeVersions(
 				ctx,
-				asc.WithCiXcodeVersionsLimit(limit),
-				asc.WithCiXcodeVersionsNextURL(next),
+				asc.Limit[asc.CiXcodeVersionsOption](limit),
+				asc.NextURL[asc.CiXcodeVersionsOption](next),
 			)
 		},
 		func(ctx context.Context, client *asc.Client, next string) (asc.PaginatedResponse, error) {
-			return client.GetCiXcodeVersions(ctx, asc.WithCiXcodeVersionsNextURL(next))
+			return client.GetCiXcodeVersions(ctx, asc.NextURL[asc.CiXcodeVersionsOption](next))
 		},
 	)
 }

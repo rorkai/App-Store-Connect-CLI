@@ -24,7 +24,7 @@ func findOrCreatePublishAppStoreVersion(ctx context.Context, client *asc.Client,
 				appID,
 				asc.WithAppStoreVersionsVersionStrings([]string{version}),
 				asc.WithAppStoreVersionsPlatforms([]string{platformValue}),
-				asc.WithAppStoreVersionsLimit(10),
+				asc.Limit[asc.AppStoreVersionsOption](10),
 			)
 		})
 		if err != nil {

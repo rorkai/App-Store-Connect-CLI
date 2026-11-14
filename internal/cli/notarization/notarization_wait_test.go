@@ -12,6 +12,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -186,23 +187,27 @@ func TestWaitForNotarizationReportsLastTransientFailureAtDeadline(t *testing.T) 
 }
 
 func TestWaitForNotarizationReportsCancellationSeparatelyFromTimeout(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		writeNotaryStatus(t, w, asc.NotaryStatusInProgress)
-	}))
-	t.Cleanup(server.Close)
-
-	client := newNotarizationTestClient(t, server)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	go func() {
-		time.Sleep(20 * time.Millisecond)
-		cancel()
-	}()
-	defer cancel()
+	})
+	client := newNotarizationTestClientWithHTTPClient(t, &http.Client{Transport: notarizationRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, req)
+		return response.Result(), nil
+	})}, asc.NotaryBaseURL)
 
 	var waitErr error
 	captureNotarizationStderr(t, func() {
-		_, waitErr = waitForNotarization(ctx, client, testNotarizationSubmissionID, 5*time.Millisecond)
+		synctest.Test(t, func(*testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			go func() {
+				time.Sleep(20 * time.Millisecond)
+				cancel()
+			}()
+			defer cancel()
+
+			_, waitErr = waitForNotarization(ctx, client, testNotarizationSubmissionID, 5*time.Millisecond)
+		})
 	})
 
 	if waitErr == nil {
@@ -214,6 +219,12 @@ func TestWaitForNotarizationReportsCancellationSeparatelyFromTimeout(t *testing.
 	if strings.Contains(waitErr.Error(), "timed out") {
 		t.Fatalf("waitForNotarization() error = %v, cancellation must not be reported as a timeout", waitErr)
 	}
+}
+
+type notarizationRoundTripFunc func(*http.Request) (*http.Response, error)
+
+func (fn notarizationRoundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return fn(req)
 }
 
 // expiringContext reports an expired deadline once its parent is canceled, so

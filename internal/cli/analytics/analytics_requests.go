@@ -44,8 +44,7 @@ Examples:
 				return shared.MissingRequiredUsageError("--app")
 			}
 			if strings.TrimSpace(*accessType) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --access-type is required")
-				return shared.MissingRequiredUsageError("--access-type")
+				return shared.RequiredFlag("--access-type")
 			}
 			normalizedAccessType, err := normalizeAnalyticsAccessType(*accessType)
 			if err != nil {
@@ -173,22 +172,22 @@ Examples:
 				}
 			} else {
 				opts := []asc.AnalyticsReportRequestsOption{
-					asc.WithAnalyticsReportRequestsLimit(*limit),
-					asc.WithAnalyticsReportRequestsNextURL(*next),
+					asc.Limit[asc.AnalyticsReportRequestsOption](*limit),
+					asc.NextURL[asc.AnalyticsReportRequestsOption](*next),
 				}
 				if normalizedAccessType != "" {
 					opts = append(opts, asc.WithAnalyticsReportRequestsAccessType(normalizedAccessType))
 				}
 
 				if *paginate {
-					paginateOpts := append(opts, asc.WithAnalyticsReportRequestsLimit(200))
+					paginateOpts := append(opts, asc.Limit[asc.AnalyticsReportRequestsOption](200))
 					paginated, err := shared.PaginateWithSpinner(
 						requestCtx,
 						func(ctx context.Context) (asc.PaginatedResponse, error) {
 							return client.GetAnalyticsReportRequests(ctx, resolvedAppID, paginateOpts...)
 						},
 						func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-							return client.GetAnalyticsReportRequests(ctx, resolvedAppID, asc.WithAnalyticsReportRequestsNextURL(nextURL))
+							return client.GetAnalyticsReportRequests(ctx, resolvedAppID, asc.NextURL[asc.AnalyticsReportRequestsOption](nextURL))
 						},
 					)
 					if err != nil {
@@ -263,13 +262,13 @@ func createOrReuseAnalyticsReportRequest(ctx context.Context, client *asc.Client
 }
 
 func listAnalyticsReportRequestsForReuse(ctx context.Context, client *asc.Client, appID string) (*asc.AnalyticsReportRequestsResponse, error) {
-	existing, err := client.GetAnalyticsReportRequests(ctx, appID, asc.WithAnalyticsReportRequestsLimit(200))
+	existing, err := client.GetAnalyticsReportRequests(ctx, appID, asc.Limit[asc.AnalyticsReportRequestsOption](200))
 	if err != nil {
 		return nil, fmt.Errorf("failed to list requests: %w", err)
 	}
 
 	paginated, err := asc.PaginateAll(ctx, existing, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetAnalyticsReportRequests(ctx, appID, asc.WithAnalyticsReportRequestsNextURL(nextURL))
+		return client.GetAnalyticsReportRequests(ctx, appID, asc.NextURL[asc.AnalyticsReportRequestsOption](nextURL))
 	})
 	if err != nil {
 		return nil, err
@@ -342,15 +341,13 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*requestID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --request-id is required")
-				return shared.MissingRequiredUsageError("--request-id")
+				return shared.RequiredFlag("--request-id")
 			}
 			if err := validateAnalyticsRequestID(id); err != nil {
 				return shared.UsageErrorf("analytics requests delete: %v", err)
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()
@@ -445,8 +442,7 @@ Examples:
 				}
 			})
 			if strings.TrimSpace(*requestID) == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --request-id is required")
-				return shared.MissingRequiredUsageError("--request-id")
+				return shared.RequiredFlag("--request-id")
 			}
 			if strings.TrimSpace(*requestID) != "" {
 				if err := validateAnalyticsRequestID(*requestID); err != nil {
@@ -567,12 +563,10 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*requestID) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --request-id is required")
-				return shared.MissingRequiredUsageError("--request-id")
+				return shared.RequiredFlag("--request-id")
 			}
 			if strings.TrimSpace(*instanceID) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --instance-id is required")
-				return shared.MissingRequiredUsageError("--instance-id")
+				return shared.RequiredFlag("--instance-id")
 			}
 			if err := validateAnalyticsRequestID(*requestID); err != nil {
 				return shared.UsageErrorf("analytics download: %v", err)

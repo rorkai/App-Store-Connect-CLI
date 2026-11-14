@@ -19,7 +19,7 @@ func fetchIAPs(ctx context.Context, client *asc.Client, appID string, strict boo
 		get = client.GetInAppPurchasesV2Strict
 	}
 	firstPage, err := doReadinessRequest(ctx, func(requestCtx context.Context) (*asc.InAppPurchasesV2Response, error) {
-		return get(requestCtx, strings.TrimSpace(appID), asc.WithIAPLimit(200))
+		return get(requestCtx, strings.TrimSpace(appID), asc.Limit[asc.IAPOption](200))
 	})
 	if err != nil {
 		return nil, err
@@ -28,7 +28,7 @@ func fetchIAPs(ctx context.Context, client *asc.Client, appID string, strict boo
 	total, hasTotal := asc.ParsePagingTotalOK(firstPage.Meta)
 	paginated, err := asc.PaginateAll(ctx, firstPage, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		return doReadinessRequest(ctx, func(requestCtx context.Context) (asc.PaginatedResponse, error) {
-			page, err := get(requestCtx, strings.TrimSpace(appID), asc.WithIAPNextURL(nextURL))
+			page, err := get(requestCtx, strings.TrimSpace(appID), asc.NextURL[asc.IAPOption](nextURL))
 			if page != nil {
 				if n, ok := asc.ParsePagingTotalOK(page.Meta); ok && (!hasTotal || n > total) {
 					total, hasTotal = n, true

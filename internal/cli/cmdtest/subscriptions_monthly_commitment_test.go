@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -121,35 +122,19 @@ func TestSubscriptionsPricingAvailabilityEditMonthlyCommitmentRequiresConfirmati
 func TestSubscriptionsPricingMonthlyCommitmentListFiltersPlanType(t *testing.T) {
 	setupAuth(t)
 
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.URL.Path != "/v1/subscriptions/8000000001/planAvailabilities" || req.Method != http.MethodGet {
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-		if got := req.URL.Query().Get("filter[planType]"); got != "" {
-			t.Fatalf("expected no server-side planType filter, got %q", got)
-		}
-		body := `{"data":[
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/subscriptions/8000000001/planAvailabilities"),
+		asctest.JSON(http.StatusOK, `{"data":[
 			{"type":"subscriptionPlanAvailabilities","id":"plan-monthly","attributes":{"planType":"MONTHLY","availableInNewTerritories":true}},
 			{"type":"subscriptionPlanAvailabilities","id":"plan-upfront","attributes":{"planType":"UPFRONT","availableInNewTerritories":false}}
-		]}`
-		return jsonResponse(http.StatusOK, body)
-	}))
+		]}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"subscriptions", "pricing", "monthly-commitment", "list",
-			"--subscription-id", "8000000001",
-			"--plan-type", "UPFRONT",
-			"--output", "json",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
+	stdout, stderr, runErr := runCommand(t, []string{
+		"subscriptions", "pricing", "monthly-commitment", "list",
+		"--subscription-id", "8000000001",
+		"--plan-type", "UPFRONT",
+		"--output", "json",
 	})
 	if runErr != nil {
 		t.Fatalf("run error: %v; stderr=%q stdout=%q", runErr, stderr, stdout)
@@ -229,39 +214,26 @@ func TestSubscriptionsPricingMonthlyCommitmentDisableFiltersExcludedTerritories(
 func TestSubscriptionsPricingMonthlyCommitmentEnableRejectsPriceOutsideRange(t *testing.T) {
 	setupAuth(t)
 
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.URL.Path == "/v1/subscriptions/8000000001" && req.Method == http.MethodGet:
-			body := `{"data":{"type":"subscriptions","id":"8000000001","attributes":{"name":"Yearly","productId":"com.example.yearly","subscriptionPeriod":"ONE_YEAR","state":"APPROVED"}}}`
-			return jsonResponse(http.StatusOK, body)
-		case req.URL.Path == "/v1/subscriptions/8000000001/prices" && req.Method == http.MethodGet:
-			if got := req.URL.Query().Get("filter[territory]"); got != "NOR" {
-				t.Fatalf("expected price territory NOR, got %q", got)
-			}
-			if got := req.URL.Query().Get("filter[planType]"); got != "UPFRONT" {
-				t.Fatalf("expected upfront planType filter, got %q", got)
-			}
-			body := `{
-				"data":[{
-					"type":"subscriptionPrices","id":"price-1",
-					"attributes":{"startDate":"2024-01-01"},
-					"relationships":{
-						"territory":{"data":{"type":"territories","id":"NOR"}},
-						"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"pp-1"}}
-					}
-				}],
-				"included":[
-					{"type":"subscriptionPricePoints","id":"pp-1","attributes":{"customerPrice":"120.00"}},
-					{"type":"territories","id":"NOR","attributes":{"currency":"NOK"}}
-				],
-				"links":{"next":""}
-			}`
-			return jsonResponse(http.StatusOK, body)
-		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	}))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/subscriptions/8000000001"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"subscriptions","id":"8000000001","attributes":{"name":"Yearly","productId":"com.example.yearly","subscriptionPeriod":"ONE_YEAR","state":"APPROVED"}}}`))
+	reg.Register(asctest.GET("/v1/subscriptions/8000000001/prices", "fields[subscriptionPricePoints]=customerPrice,proceeds,proceedsYear2", "fields[territories]=currency", "filter[planType]=UPFRONT", "filter[territory]=NOR", "include=subscriptionPricePoint,territory", "limit=200"),
+		asctest.JSON(http.StatusOK, `{
+			"data":[{
+				"type":"subscriptionPrices","id":"price-1",
+				"attributes":{"startDate":"2024-01-01"},
+				"relationships":{
+					"territory":{"data":{"type":"territories","id":"NOR"}},
+					"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"pp-1"}}
+				}
+			}],
+			"included":[
+				{"type":"subscriptionPricePoints","id":"pp-1","attributes":{"customerPrice":"120.00"}},
+				{"type":"territories","id":"NOR","attributes":{"currency":"NOK"}}
+			],
+			"links":{"next":""}
+		}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)

@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -95,8 +94,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			pid := strings.TrimSpace(*productID)
 			if pid == "" {
-				fmt.Fprintln(os.Stderr, "Error: --product-id is required")
-				return shared.MissingRequiredUsageError("--product-id")
+				return shared.RequiredFlag("--product-id")
 			}
 
 			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, sessionFlags)
@@ -172,18 +170,15 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			pid := strings.TrimSpace(*productID)
 			if pid == "" {
-				fmt.Fprintln(os.Stderr, "Error: --product-id is required")
-				return shared.MissingRequiredUsageError("--product-id")
+				return shared.RequiredFlag("--product-id")
 			}
 			varName := strings.TrimSpace(*name)
 			if varName == "" {
-				fmt.Fprintln(os.Stderr, "Error: --name is required")
-				return shared.MissingRequiredUsageError("--name")
+				return shared.RequiredFlag("--name")
 			}
 			varValue := *value
 			if varValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --value is required")
-				return shared.MissingRequiredUsageError("--value")
+				return shared.RequiredFlag("--value")
 			}
 
 			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, sessionFlags)
@@ -305,17 +300,14 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			pid := strings.TrimSpace(*productID)
 			if pid == "" {
-				fmt.Fprintln(os.Stderr, "Error: --product-id is required")
-				return shared.MissingRequiredUsageError("--product-id")
+				return shared.RequiredFlag("--product-id")
 			}
 			varName := strings.TrimSpace(*name)
 			if varName == "" {
-				fmt.Fprintln(os.Stderr, "Error: --name is required")
-				return shared.MissingRequiredUsageError("--name")
+				return shared.RequiredFlag("--name")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, sessionFlags)

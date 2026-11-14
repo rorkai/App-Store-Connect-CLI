@@ -235,8 +235,8 @@ Examples:
 			defer cancel()
 
 			opts := []asc.IAPOption{
-				asc.WithIAPLimit(*limit),
-				asc.WithIAPNextURL(*next),
+				asc.Limit[asc.IAPOption](*limit),
+				asc.NextURL[asc.IAPOption](*next),
 				asc.WithIAPProductIDs(productIDValues),
 				asc.WithIAPNames(nameValues),
 				asc.WithIAPStates(stateValues),
@@ -250,7 +250,7 @@ Examples:
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithIAPLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.IAPOption](200))
 				if *legacy {
 					firstPage, err := client.GetInAppPurchases(requestCtx, resolvedAppID, paginateOpts...)
 					if err != nil {
@@ -258,7 +258,7 @@ Examples:
 					}
 
 					resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return client.GetInAppPurchases(ctx, resolvedAppID, asc.WithIAPNextURL(nextURL))
+						return client.GetInAppPurchases(ctx, resolvedAppID, asc.NextURL[asc.IAPOption](nextURL))
 					})
 					if err != nil {
 						return fmt.Errorf("iap list: %w", err)
@@ -273,7 +273,7 @@ Examples:
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetInAppPurchasesV2(ctx, resolvedAppID, asc.WithIAPNextURL(nextURL))
+					return client.GetInAppPurchasesV2(ctx, resolvedAppID, asc.NextURL[asc.IAPOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("iap list: %w", err)
@@ -334,8 +334,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*iapID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if *versionsLimit != 0 && (*versionsLimit < 1 || *versionsLimit > 50) {
 				return shared.UsageError("iap view: --versions-limit must be between 1 and 50")
@@ -442,14 +441,12 @@ Examples:
 
 			name := strings.TrimSpace(*refName)
 			if name == "" {
-				fmt.Fprintln(os.Stderr, "Error: --ref-name is required")
-				return shared.MissingRequiredUsageError("--ref-name")
+				return shared.RequiredFlag("--ref-name")
 			}
 
 			product := strings.TrimSpace(*productID)
 			if product == "" {
-				fmt.Fprintln(os.Stderr, "Error: --product-id is required")
-				return shared.MissingRequiredUsageError("--product-id")
+				return shared.RequiredFlag("--product-id")
 			}
 
 			note := strings.TrimSpace(*reviewNote)
@@ -511,8 +508,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*iapID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			name := strings.TrimSpace(*refName)
@@ -577,12 +573,10 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*iapID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()

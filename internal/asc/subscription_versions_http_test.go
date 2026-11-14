@@ -36,7 +36,7 @@ func TestSubscriptionVersionReadOperations(t *testing.T) {
 			query:    map[string]string{"filter[state]": "PREPARE_FOR_SUBMISSION", "limit": "7", "include": "localizations"},
 			response: `{"data":[{"type":"subscriptionVersions","id":"ver-1","attributes":{"version":1}}],"links":{}}`,
 			call: func(c *Client) error {
-				_, err := c.GetSubscriptionVersions(ctx, "sub-1", WithSubscriptionVersionsStates([]SubscriptionVersionState{SubscriptionVersionStatePrepareForSubmission}), WithSubscriptionVersionsLimit(7), WithSubscriptionVersionsInclude([]string{"localizations"}))
+				_, err := c.GetSubscriptionVersions(ctx, "sub-1", WithSubscriptionVersionsStates([]SubscriptionVersionState{SubscriptionVersionStatePrepareForSubmission}), Limit[SubscriptionVersionsOption](7), WithSubscriptionVersionsInclude([]string{"localizations"}))
 				return err
 			},
 		},
@@ -44,7 +44,7 @@ func TestSubscriptionVersionReadOperations(t *testing.T) {
 			name: "subscription versions linkage", path: "/v1/subscriptions/sub-1/relationships/versions", query: map[string]string{"limit": "8"},
 			response: `{"data":[{"type":"subscriptionVersions","id":"ver-1"}],"links":{}}`,
 			call: func(c *Client) error {
-				_, err := c.GetSubscriptionVersionsRelationships(ctx, "sub-1", WithLinkagesLimit(8))
+				_, err := c.GetSubscriptionVersionsRelationships(ctx, "sub-1", Limit[LinkagesOption](8))
 				return err
 			},
 		},
@@ -52,7 +52,7 @@ func TestSubscriptionVersionReadOperations(t *testing.T) {
 			name: "version localizations related", path: "/v1/subscriptionVersions/ver-1/localizations", query: map[string]string{"limit": "9", "include": "version", "fields[subscriptionLocalizations]": "name,locale"},
 			response: `{"data":[{"type":"subscriptionLocalizations","id":"loc-1","attributes":{"name":"Pro","locale":"en-US"}}],"links":{}}`,
 			call: func(c *Client) error {
-				resp, err := c.GetSubscriptionVersionLocalizations(ctx, "ver-1", WithSubscriptionVersionLocalizationsLimit(9), WithSubscriptionVersionLocalizationsInclude([]string{"version"}), WithSubscriptionVersionLocalizationsFields([]string{"name", "locale"}))
+				resp, err := c.GetSubscriptionVersionLocalizations(ctx, "ver-1", Limit[SubscriptionVersionLocalizationsOption](9), WithSubscriptionVersionLocalizationsInclude([]string{"version"}), WithSubscriptionVersionLocalizationsFields([]string{"name", "locale"}))
 				if err == nil && resp.Data[0].Attributes.Locale != "en-US" {
 					t.Fatalf("localization not decoded")
 				}
@@ -63,7 +63,7 @@ func TestSubscriptionVersionReadOperations(t *testing.T) {
 			name: "version localizations linkage", path: "/v1/subscriptionVersions/ver-1/relationships/localizations", query: map[string]string{"limit": "10"},
 			response: `{"data":[{"type":"subscriptionLocalizations","id":"loc-1"}],"links":{}}`,
 			call: func(c *Client) error {
-				_, err := c.GetSubscriptionVersionLocalizationsRelationships(ctx, "ver-1", WithLinkagesLimit(10))
+				_, err := c.GetSubscriptionVersionLocalizationsRelationships(ctx, "ver-1", Limit[LinkagesOption](10))
 				return err
 			},
 		},
@@ -93,7 +93,7 @@ func TestSubscriptionVersionReadOperations(t *testing.T) {
 			name: "version plural images related", path: "/v1/subscriptionVersions/ver-1/images", query: map[string]string{"limit": "11", "fields[subscriptionImages]": "fileName"},
 			response: `{"data":[{"type":"subscriptionImages","id":"img-1","attributes":{"fileName":"image.png"}}],"links":{}}`,
 			call: func(c *Client) error {
-				_, err := c.GetSubscriptionVersionImages(ctx, "ver-1", WithSubscriptionVersionImagesLimit(11), WithSubscriptionVersionImagesFields([]string{"fileName"}))
+				_, err := c.GetSubscriptionVersionImages(ctx, "ver-1", Limit[SubscriptionVersionImagesOption](11), WithSubscriptionVersionImagesFields([]string{"fileName"}))
 				return err
 			},
 		},
@@ -101,7 +101,7 @@ func TestSubscriptionVersionReadOperations(t *testing.T) {
 			name: "version plural images linkage", path: "/v1/subscriptionVersions/ver-1/relationships/images", query: map[string]string{"limit": "12"},
 			response: `{"data":[{"type":"subscriptionImages","id":"img-1"}],"links":{}}`,
 			call: func(c *Client) error {
-				_, err := c.GetSubscriptionVersionImagesRelationships(ctx, "ver-1", WithLinkagesLimit(12))
+				_, err := c.GetSubscriptionVersionImagesRelationships(ctx, "ver-1", Limit[LinkagesOption](12))
 				return err
 			},
 		},

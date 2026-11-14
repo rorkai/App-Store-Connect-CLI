@@ -86,14 +86,12 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			vid := strings.TrimSpace(*versionID)
 			if vid == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return shared.MissingRequiredUsageError("--version-id")
+				return shared.RequiredFlag("--version-id")
 			}
 
 			inputValue := strings.TrimSpace(*inputPath)
 			if inputValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --input is required")
-				return shared.MissingRequiredUsageError("--input")
+				return shared.RequiredFlag("--input")
 			}
 
 			entries, err := readMetadataKeywordsPushEntries(inputValue)
@@ -112,7 +110,7 @@ Examples:
 			}
 
 			listCtx, listCancel := shared.ContextWithTimeout(ctx)
-			existing, err := client.GetAppStoreVersionLocalizations(listCtx, vid, asc.WithAppStoreVersionLocalizationsLimit(200))
+			existing, err := client.GetAppStoreVersionLocalizations(listCtx, vid, asc.Limit[asc.AppStoreVersionLocalizationsOption](200))
 			listCancel()
 			if err != nil {
 				return fmt.Errorf("metadata keywords push: failed to fetch localizations: %w", err)

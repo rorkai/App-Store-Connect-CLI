@@ -3,6 +3,7 @@ package asc
 import (
 	"net/url"
 	"strconv"
+	"strings"
 )
 
 // GameCenterAppVersionAttributes represents a Game Center app version resource.
@@ -22,6 +23,24 @@ type GCAppVersionsOption func(*gcAppVersionsQuery)
 type gcAppVersionsQuery struct {
 	listQuery
 	enabled []string
+}
+
+// WithGCAppVersionsLimit sets the max number of app versions to return.
+func WithGCAppVersionsLimit(limit int) GCAppVersionsOption {
+	return func(q *gcAppVersionsQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithGCAppVersionsNextURL uses a next page URL directly.
+func WithGCAppVersionsNextURL(next string) GCAppVersionsOption {
+	return func(q *gcAppVersionsQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
 }
 
 // WithGCAppVersionsEnabled filters by enabled status.

@@ -1,13 +1,12 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
-	"io"
 	"net/http"
 	"path/filepath"
-	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestIAPOfferCodesCodeCreateValidationErrors(t *testing.T) {
@@ -88,74 +87,20 @@ func TestIAPOfferCodesCustomCodesCreateSuccess(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.POST("/v1/inAppPurchaseOfferCodeCustomCodes").JSONBody(`{"data":{"type":"inAppPurchaseOfferCodeCustomCodes","attributes":{"customCode":"SUMMER26","numberOfCodes":100},"relationships":{"offerCode":{"data":{"type":"inAppPurchaseOfferCodes","id":"offer-1"}}}}}`),
+		asctest.JSON(http.StatusCreated, `{"data":{"type":"inAppPurchaseOfferCodeCustomCodes","id":"cc-1","attributes":{"customCode":"SUMMER26","numberOfCodes":100,"active":true}}}`))
+
+	stdout, stderr, err := runCommand(t, []string{
+		"iap", "offer-codes", "custom-codes", "create",
+		"--offer-code-id", "offer-1",
+		"--custom-code", "SUMMER26",
+		"--quantity", "100",
 	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodPost {
-			t.Fatalf("expected POST, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/inAppPurchaseOfferCodeCustomCodes" {
-			t.Fatalf("expected path /v1/inAppPurchaseOfferCodeCustomCodes, got %s", req.URL.Path)
-		}
-
-		rawBody, err := io.ReadAll(req.Body)
-		if err != nil {
-			t.Fatalf("read body error: %v", err)
-		}
-
-		var payload map[string]any
-		if err := json.Unmarshal(rawBody, &payload); err != nil {
-			t.Fatalf("decode request body: %v\nbody=%s", err, string(rawBody))
-		}
-
-		data := payload["data"].(map[string]any)
-		if data["type"] != "inAppPurchaseOfferCodeCustomCodes" {
-			t.Fatalf("expected type inAppPurchaseOfferCodeCustomCodes, got %v", data["type"])
-		}
-		attrs := data["attributes"].(map[string]any)
-		if attrs["customCode"] != "SUMMER26" {
-			t.Fatalf("expected customCode SUMMER26, got %v", attrs["customCode"])
-		}
-		if attrs["numberOfCodes"].(float64) != 100 {
-			t.Fatalf("expected numberOfCodes 100, got %v", attrs["numberOfCodes"])
-		}
-
-		relationships := data["relationships"].(map[string]any)
-		offerCode := relationships["offerCode"].(map[string]any)["data"].(map[string]any)
-		if offerCode["type"] != "inAppPurchaseOfferCodes" {
-			t.Fatalf("expected relationship type inAppPurchaseOfferCodes, got %v", offerCode["type"])
-		}
-		if offerCode["id"] != "offer-1" {
-			t.Fatalf("expected offerCode id offer-1, got %v", offerCode["id"])
-		}
-
-		body := `{"data":{"type":"inAppPurchaseOfferCodeCustomCodes","id":"cc-1","attributes":{"customCode":"SUMMER26","numberOfCodes":100,"active":true}}}`
-		return &http.Response{
-			StatusCode: http.StatusCreated,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"iap", "offer-codes", "custom-codes", "create",
-			"--offer-code-id", "offer-1",
-			"--custom-code", "SUMMER26",
-			"--quantity", "100",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -188,53 +133,21 @@ func TestIAPOfferCodesOneTimeCodesCreateSandboxEnvironmentSuccess(t *testing.T) 
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.POST("/v1/inAppPurchaseOfferCodeOneTimeUseCodes").JSONBody(`{"data":{"type":"inAppPurchaseOfferCodeOneTimeUseCodes","attributes":{"numberOfCodes":100,"expirationDate":"2026-12-31","environment":"SANDBOX"},"relationships":{"offerCode":{"data":{"type":"inAppPurchaseOfferCodes","id":"offer-1"}}}}}`),
+		asctest.JSON(http.StatusCreated, `{"data":{"type":"inAppPurchaseOfferCodeOneTimeUseCodes","id":"otuc-2","attributes":{"numberOfCodes":100,"expirationDate":"2026-12-31","active":true,"environment":"SANDBOX"}}}`))
+
+	stdout, stderr, err := runCommand(t, []string{
+		"iap", "offer-codes", "one-time-codes", "create",
+		"--offer-code-id", "offer-1",
+		"--quantity", "100",
+		"--expiration-date", "2026-12-31",
+		"--environment", "sandbox",
 	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		rawBody, err := io.ReadAll(req.Body)
-		if err != nil {
-			t.Fatalf("read body error: %v", err)
-		}
-
-		var payload map[string]any
-		if err := json.Unmarshal(rawBody, &payload); err != nil {
-			t.Fatalf("decode request body: %v\nbody=%s", err, string(rawBody))
-		}
-
-		data := payload["data"].(map[string]any)
-		attrs := data["attributes"].(map[string]any)
-		if attrs["environment"] != "SANDBOX" {
-			t.Fatalf("expected environment SANDBOX, got %v", attrs["environment"])
-		}
-
-		body := `{"data":{"type":"inAppPurchaseOfferCodeOneTimeUseCodes","id":"otuc-2","attributes":{"numberOfCodes":100,"expirationDate":"2026-12-31","active":true,"environment":"SANDBOX"}}}`
-		return &http.Response{
-			StatusCode: http.StatusCreated,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"iap", "offer-codes", "one-time-codes", "create",
-			"--offer-code-id", "offer-1",
-			"--quantity", "100",
-			"--expiration-date", "2026-12-31",
-			"--environment", "sandbox",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -259,74 +172,20 @@ func TestIAPOfferCodesOneTimeCodesCreateSuccess(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.POST("/v1/inAppPurchaseOfferCodeOneTimeUseCodes").JSONBody(`{"data":{"type":"inAppPurchaseOfferCodeOneTimeUseCodes","attributes":{"numberOfCodes":500,"expirationDate":"2026-09-30"},"relationships":{"offerCode":{"data":{"type":"inAppPurchaseOfferCodes","id":"offer-1"}}}}}`),
+		asctest.JSON(http.StatusCreated, `{"data":{"type":"inAppPurchaseOfferCodeOneTimeUseCodes","id":"otuc-1","attributes":{"numberOfCodes":500,"expirationDate":"2026-09-30","active":true}}}`))
+
+	stdout, stderr, err := runCommand(t, []string{
+		"iap", "offer-codes", "one-time-codes", "create",
+		"--offer-code-id", "offer-1",
+		"--quantity", "500",
+		"--expiration-date", "2026-09-30",
 	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodPost {
-			t.Fatalf("expected POST, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/inAppPurchaseOfferCodeOneTimeUseCodes" {
-			t.Fatalf("expected path /v1/inAppPurchaseOfferCodeOneTimeUseCodes, got %s", req.URL.Path)
-		}
-
-		rawBody, err := io.ReadAll(req.Body)
-		if err != nil {
-			t.Fatalf("read body error: %v", err)
-		}
-
-		var payload map[string]any
-		if err := json.Unmarshal(rawBody, &payload); err != nil {
-			t.Fatalf("decode request body: %v\nbody=%s", err, string(rawBody))
-		}
-
-		data := payload["data"].(map[string]any)
-		if data["type"] != "inAppPurchaseOfferCodeOneTimeUseCodes" {
-			t.Fatalf("expected type inAppPurchaseOfferCodeOneTimeUseCodes, got %v", data["type"])
-		}
-		attrs := data["attributes"].(map[string]any)
-		if attrs["numberOfCodes"].(float64) != 500 {
-			t.Fatalf("expected numberOfCodes 500, got %v", attrs["numberOfCodes"])
-		}
-		if attrs["expirationDate"] != "2026-09-30" {
-			t.Fatalf("expected expirationDate 2026-09-30, got %v", attrs["expirationDate"])
-		}
-
-		relationships := data["relationships"].(map[string]any)
-		offerCode := relationships["offerCode"].(map[string]any)["data"].(map[string]any)
-		if offerCode["type"] != "inAppPurchaseOfferCodes" {
-			t.Fatalf("expected relationship type inAppPurchaseOfferCodes, got %v", offerCode["type"])
-		}
-		if offerCode["id"] != "offer-1" {
-			t.Fatalf("expected offerCode id offer-1, got %v", offerCode["id"])
-		}
-
-		body := `{"data":{"type":"inAppPurchaseOfferCodeOneTimeUseCodes","id":"otuc-1","attributes":{"numberOfCodes":500,"expirationDate":"2026-09-30","active":true}}}`
-		return &http.Response{
-			StatusCode: http.StatusCreated,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"iap", "offer-codes", "one-time-codes", "create",
-			"--offer-code-id", "offer-1",
-			"--quantity", "500",
-			"--expiration-date", "2026-09-30",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)

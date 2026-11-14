@@ -303,7 +303,7 @@ func TestGetGameCenterLeaderboardLocalizations_WithLimit(t *testing.T) {
 		}
 	}, response)
 
-	_, err := client.GetGameCenterLeaderboardLocalizations(context.Background(), "lb-123", Limit[GCLeaderboardLocalizationsOption](50))
+	_, err := client.GetGameCenterLeaderboardLocalizations(context.Background(), "lb-123", WithGCLeaderboardLocalizationsLimit(50))
 	if err != nil {
 		t.Fatalf("GetGameCenterLeaderboardLocalizations() error: %v", err)
 	}

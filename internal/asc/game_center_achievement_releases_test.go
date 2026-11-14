@@ -96,7 +96,7 @@ func TestGetGameCenterAchievementReleases_WithLimit(t *testing.T) {
 		}
 	}, response)
 
-	_, err := client.GetGameCenterAchievementReleases(context.Background(), "ach-123", Limit[GCAchievementReleasesOption](50))
+	_, err := client.GetGameCenterAchievementReleases(context.Background(), "ach-123", WithGCAchievementReleasesLimit(50))
 	if err != nil {
 		t.Fatalf("GetGameCenterAchievementReleases() error: %v", err)
 	}
@@ -112,7 +112,7 @@ func TestGetGameCenterAchievementReleases_WithNextURL(t *testing.T) {
 		}
 	}, response)
 
-	_, err := client.GetGameCenterAchievementReleases(context.Background(), "ach-123", NextURL[GCAchievementReleasesOption](nextURL))
+	_, err := client.GetGameCenterAchievementReleases(context.Background(), "ach-123", WithGCAchievementReleasesNextURL(nextURL))
 	if err != nil {
 		t.Fatalf("GetGameCenterAchievementReleases() error: %v", err)
 	}
@@ -214,21 +214,21 @@ func TestWithGCAchievementReleasesLimit(t *testing.T) {
 	query := &gcAchievementReleasesQuery{}
 
 	// Valid limit
-	Limit[GCAchievementReleasesOption](100)(query)
+	WithGCAchievementReleasesLimit(100)(query)
 	if query.limit != 100 {
 		t.Fatalf("expected limit 100, got %d", query.limit)
 	}
 
 	// Invalid limit (0) should not change
 	query2 := &gcAchievementReleasesQuery{}
-	Limit[GCAchievementReleasesOption](0)(query2)
+	WithGCAchievementReleasesLimit(0)(query2)
 	if query2.limit != 0 {
 		t.Fatalf("expected limit 0 (unchanged), got %d", query2.limit)
 	}
 
 	// Negative limit should not change
 	query3 := &gcAchievementReleasesQuery{}
-	Limit[GCAchievementReleasesOption](-5)(query3)
+	WithGCAchievementReleasesLimit(-5)(query3)
 	if query3.limit != 0 {
 		t.Fatalf("expected limit 0 (unchanged), got %d", query3.limit)
 	}
@@ -239,21 +239,21 @@ func TestWithGCAchievementReleasesNextURL(t *testing.T) {
 
 	// Valid URL
 	url := "https://api.appstoreconnect.apple.com/v1/gameCenterAchievements/ach-123/releases?cursor=xyz"
-	NextURL[GCAchievementReleasesOption](url)(query)
+	WithGCAchievementReleasesNextURL(url)(query)
 	if query.nextURL != url {
 		t.Fatalf("expected nextURL %s, got %s", url, query.nextURL)
 	}
 
 	// Empty URL should not set
 	query2 := &gcAchievementReleasesQuery{}
-	NextURL[GCAchievementReleasesOption]("")(query2)
+	WithGCAchievementReleasesNextURL("")(query2)
 	if query2.nextURL != "" {
 		t.Fatalf("expected empty nextURL, got %s", query2.nextURL)
 	}
 
 	// Whitespace URL should not set
 	query3 := &gcAchievementReleasesQuery{}
-	NextURL[GCAchievementReleasesOption]("   ")(query3)
+	WithGCAchievementReleasesNextURL("   ")(query3)
 	if query3.nextURL != "" {
 		t.Fatalf("expected empty nextURL, got %s", query3.nextURL)
 	}

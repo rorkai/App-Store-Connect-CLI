@@ -146,8 +146,8 @@ Examples:
 			defer cancel()
 
 			opts := []asc.ReviewSubmissionsOption{
-				asc.WithReviewSubmissionsLimit(*limit),
-				asc.WithReviewSubmissionsNextURL(*next),
+				asc.Limit[asc.ReviewSubmissionsOption](*limit),
+				asc.NextURL[asc.ReviewSubmissionsOption](*next),
 				asc.WithReviewSubmissionsPlatforms(platforms),
 				asc.WithReviewSubmissionsStates(states),
 				asc.WithReviewSubmissionsItemFields(normalizedItemFields),
@@ -160,14 +160,14 @@ Examples:
 
 			if *global {
 				if *paginate {
-					paginateOpts := append(opts, asc.WithReviewSubmissionsLimit(200))
+					paginateOpts := append(opts, asc.Limit[asc.ReviewSubmissionsOption](200))
 					resp, err := shared.PaginateWithSpinner(
 						requestCtx,
 						func(ctx context.Context) (asc.PaginatedResponse, error) {
 							return client.ListReviewSubmissions(ctx, paginateOpts...)
 						},
 						func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-							return client.ListReviewSubmissions(ctx, asc.WithReviewSubmissionsNextURL(nextURL))
+							return client.ListReviewSubmissions(ctx, asc.NextURL[asc.ReviewSubmissionsOption](nextURL))
 						},
 					)
 					if err != nil {
@@ -186,14 +186,14 @@ Examples:
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithReviewSubmissionsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.ReviewSubmissionsOption](200))
 				resp, err := shared.PaginateWithSpinner(
 					requestCtx,
 					func(ctx context.Context) (asc.PaginatedResponse, error) {
 						return client.GetReviewSubmissions(ctx, resolvedAppID, paginateOpts...)
 					},
 					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return client.GetReviewSubmissions(ctx, resolvedAppID, asc.WithReviewSubmissionsNextURL(nextURL))
+						return client.GetReviewSubmissions(ctx, resolvedAppID, asc.NextURL[asc.ReviewSubmissionsOption](nextURL))
 					},
 				)
 				if err != nil {
@@ -253,8 +253,7 @@ Examples:
 				normalizedIncludes = append(normalizedIncludes, "items")
 			}
 			if strings.TrimSpace(*submissionID) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			client, err := reviewSubmissionsClientFactory()
@@ -399,8 +398,7 @@ Examples:
 			}
 			trimmedID := strings.TrimSpace(*submissionID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			platformProvided := reviewFlagWasProvided(fs, "platform")
@@ -498,8 +496,7 @@ Examples:
 				return shared.MissingRequiredUsageError("--confirm")
 			}
 			if strings.TrimSpace(*submissionID) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			client, err := reviewSubmissionsClientFactory()
@@ -547,8 +544,7 @@ Examples:
 				return shared.MissingRequiredUsageError("--confirm")
 			}
 			if strings.TrimSpace(*submissionID) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			client, err := reviewSubmissionsClientFactory()
@@ -603,8 +599,7 @@ Examples:
 			}
 			trimmedID := strings.TrimSpace(*submissionID)
 			if trimmedID == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("review submissions-items-ids: %w", shared.WithDiagnostic(shared.UsageError("--limit must be between 1 and 200"), shared.DiagnosticInvalidInput, "--limit"))
@@ -619,19 +614,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.LinkagesOption{
-				asc.WithLinkagesLimit(*limit),
-				asc.WithLinkagesNextURL(*next),
+				asc.Limit[asc.LinkagesOption](*limit),
+				asc.NextURL[asc.LinkagesOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithLinkagesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.LinkagesOption](200))
 				resp, err := shared.PaginateWithSpinner(
 					requestCtx,
 					func(ctx context.Context) (asc.PaginatedResponse, error) {
 						return client.GetReviewSubmissionItemsRelationships(ctx, trimmedID, paginateOpts...)
 					},
 					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return client.GetReviewSubmissionItemsRelationships(ctx, trimmedID, asc.WithLinkagesNextURL(nextURL))
+						return client.GetReviewSubmissionItemsRelationships(ctx, trimmedID, asc.NextURL[asc.LinkagesOption](nextURL))
 					},
 				)
 				if err != nil {

@@ -128,14 +128,12 @@ Examples:
 		Exec: func(ctx context.Context, args []string) (runErr error) {
 			bundle := strings.TrimSpace(*bundleID)
 			if bundle == "" {
-				fmt.Fprintln(os.Stderr, "Error: --bundle-id is required")
-				return shared.MissingRequiredUsageError("--bundle-id")
+				return shared.RequiredFlag("--bundle-id")
 			}
 
 			profType := strings.TrimSpace(*profileType)
 			if profType == "" {
-				fmt.Fprintln(os.Stderr, "Error: --profile-type is required")
-				return shared.MissingRequiredUsageError("--profile-type")
+				return shared.RequiredFlag("--profile-type")
 			}
 			profType = strings.ToUpper(profType)
 			if *matchExtensions && *strictMatch {
@@ -192,8 +190,7 @@ Examples:
 				return shared.UsageError(err.Error())
 			}
 			if *createMissingCertificate && strings.TrimSpace(*identityPasswordFile) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --identity-password-file is required")
-				return shared.MissingRequiredUsageError("--identity-password-file")
+				return shared.RequiredFlag("--identity-password-file")
 			}
 			if *createMissing && isDevelopmentProfile(profType) && strings.TrimSpace(*deviceIDs) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --device is required for development profiles")
@@ -847,9 +844,9 @@ func listSigningBundleIDs(ctx context.Context, client *asc.Client, identifier st
 	next := ""
 	page := 1
 	for {
-		opts := []asc.BundleIDsOption{asc.WithBundleIDsFilterIdentifier(identifier), asc.WithBundleIDsLimit(200)}
+		opts := []asc.BundleIDsOption{asc.WithBundleIDsFilterIdentifier(identifier), asc.Limit[asc.BundleIDsOption](200)}
 		if next != "" {
-			opts = []asc.BundleIDsOption{asc.WithBundleIDsNextURL(next)}
+			opts = []asc.BundleIDsOption{asc.NextURL[asc.BundleIDsOption](next)}
 		}
 		resp, err := client.GetBundleIDs(ctx, opts...)
 		if err != nil {
@@ -910,8 +907,8 @@ func findCertificates(ctx context.Context, client *asc.Client, profileType, cert
 		resp, err := client.GetCertificates(
 			ctx,
 			asc.WithCertificatesFilterType(certType),
-			asc.WithCertificatesLimit(200),
-			asc.WithCertificatesNextURL(next),
+			asc.Limit[asc.CertificatesOption](200),
+			asc.NextURL[asc.CertificatesOption](next),
 		)
 		if err != nil {
 			return nil, err
@@ -1431,7 +1428,7 @@ func findStaleSigningProfiles(ctx context.Context, client *asc.Client, bundleIDR
 	seenNext := make(map[string]struct{})
 	now := signingFetchNowFn()
 	for {
-		profiles, err := client.GetBundleIDProfiles(ctx, bundleIDResourceID, asc.WithBundleIDProfilesLimit(200), asc.WithBundleIDProfilesNextURL(next))
+		profiles, err := client.GetBundleIDProfiles(ctx, bundleIDResourceID, asc.Limit[asc.BundleIDProfilesOption](200), asc.NextURL[asc.BundleIDProfilesOption](next))
 		if err != nil {
 			return nil, err
 		}
@@ -1486,8 +1483,8 @@ func findActiveProfiles(ctx context.Context, client *asc.Client, bundleIDResourc
 		profiles, err := client.GetBundleIDProfiles(
 			ctx,
 			bundleIDResourceID,
-			asc.WithBundleIDProfilesLimit(200),
-			asc.WithBundleIDProfilesNextURL(next),
+			asc.Limit[asc.BundleIDProfilesOption](200),
+			asc.NextURL[asc.BundleIDProfilesOption](next),
 		)
 		if err != nil {
 			return nil, err
@@ -1537,8 +1534,8 @@ func findProfileCertificates(ctx context.Context, client *asc.Client, profileID,
 		response, err := client.GetProfileCertificates(
 			ctx,
 			profileID,
-			asc.WithProfileCertificatesLimit(200),
-			asc.WithProfileCertificatesNextURL(next),
+			asc.Limit[asc.ProfileCertificatesOption](200),
+			asc.NextURL[asc.ProfileCertificatesOption](next),
 		)
 		if err != nil {
 			return nil, err

@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -72,8 +71,7 @@ func SubscriptionsVersionImagesListCommand() *ffcli.Command {
 			}
 			id := strings.TrimSpace(*versionID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return shared.MissingRequiredUsageError("--version-id")
+				return shared.RequiredFlag("--version-id")
 			}
 			client, err := shared.GetASCClient()
 			if err != nil {
@@ -86,7 +84,7 @@ func SubscriptionsVersionImagesListCommand() *ffcli.Command {
 				firstPageLimit = 200
 			}
 			resp, err := client.GetSubscriptionVersionImages(requestCtx, id,
-				asc.WithSubscriptionVersionImagesLimit(firstPageLimit), asc.WithSubscriptionVersionImagesNextURL(*next), asc.WithSubscriptionVersionImagesFields(fieldValues))
+				asc.Limit[asc.SubscriptionVersionImagesOption](firstPageLimit), asc.WithSubscriptionVersionImagesNextURL(*next), asc.WithSubscriptionVersionImagesFields(fieldValues))
 			if err != nil {
 				return fmt.Errorf("subscriptions versions images list: failed to fetch: %w", err)
 			}
@@ -116,8 +114,7 @@ func SubscriptionsVersionImagesPrimaryCommand() *ffcli.Command {
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*versionID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return shared.MissingRequiredUsageError("--version-id")
+				return shared.RequiredFlag("--version-id")
 			}
 			fieldValues, err := normalizeSelectionFlag(fs, *fields, "--fields", subscriptionVersionImageFieldsList())
 			if err != nil {
@@ -165,8 +162,7 @@ func SubscriptionsVersionImagesLinksCommand() *ffcli.Command {
 			}
 			id := strings.TrimSpace(*versionID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return shared.MissingRequiredUsageError("--version-id")
+				return shared.RequiredFlag("--version-id")
 			}
 			client, err := shared.GetASCClient()
 			if err != nil {
@@ -178,13 +174,13 @@ func SubscriptionsVersionImagesLinksCommand() *ffcli.Command {
 			if *paginate && firstPageLimit == 0 {
 				firstPageLimit = 200
 			}
-			resp, err := client.GetSubscriptionVersionImagesRelationships(requestCtx, id, asc.WithLinkagesLimit(firstPageLimit), asc.WithLinkagesNextURL(*next))
+			resp, err := client.GetSubscriptionVersionImagesRelationships(requestCtx, id, asc.Limit[asc.LinkagesOption](firstPageLimit), asc.NextURL[asc.LinkagesOption](*next))
 			if err != nil {
 				return fmt.Errorf("subscriptions versions images links: failed to fetch: %w", err)
 			}
 			if *paginate {
 				aggregated, err := asc.PaginateAll(requestCtx, resp, func(pageCtx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetSubscriptionVersionImagesRelationships(pageCtx, id, asc.WithLinkagesNextURL(nextURL))
+					return client.GetSubscriptionVersionImagesRelationships(pageCtx, id, asc.NextURL[asc.LinkagesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("subscriptions versions images links: %w", err)
@@ -207,8 +203,7 @@ func SubscriptionsVersionImagesPrimaryLinkCommand() *ffcli.Command {
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*versionID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return shared.MissingRequiredUsageError("--version-id")
+				return shared.RequiredFlag("--version-id")
 			}
 			client, err := shared.GetASCClient()
 			if err != nil {
@@ -227,36 +222,25 @@ func SubscriptionsVersionImagesPrimaryLinkCommand() *ffcli.Command {
 
 // SubscriptionsVersionImagesViewCommand views a v2 image.
 func SubscriptionsVersionImagesViewCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("versions images view", flag.ExitOnError)
-	id := shared.BindResourceIDFlag(fs, "id", "subscriptionImages", "Subscription image ID")
-	fields := fs.String("fields", "", "Sparse fields for subscriptionImages")
-	output := shared.BindOutputFlags(fs)
-	return &ffcli.Command{
-		Name: "view", ShortUsage: "asc subscriptions versions images view --id \"IMAGE_ID\"", ShortHelp: "View a version-scoped image.",
-		LongHelp: "View a version-scoped subscription image by ID.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			imageID := strings.TrimSpace(*id)
-			if imageID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
-			}
-			fieldValues, err := normalizeSelectionFlag(fs, *fields, "--fields", subscriptionVersionImageFieldsList())
-			if err != nil {
+	var fieldValues []string
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "versions images view",
+		Name:        "view", ShortUsage: "asc subscriptions versions images view --id \"IMAGE_ID\"", ShortHelp: "View a version-scoped image.",
+		LongHelp: "View a version-scoped subscription image by ID.",
+		IDUsage:  "Subscription image ID", IDType: "subscriptionImages", RequiredDiagnostic: true,
+		Flags: func(fs *flag.FlagSet) func() error {
+			fields := fs.String("fields", "", "Sparse fields for subscriptionImages")
+			return func() (err error) {
+				fieldValues, err = normalizeSelectionFlag(fs, *fields, "--fields", subscriptionVersionImageFieldsList())
 				return err
 			}
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("subscriptions versions images view: %w", err)
-			}
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-			resp, err := client.GetSubscriptionImageV2(requestCtx, imageID, asc.WithSubscriptionImageV2Fields(fieldValues))
-			if err != nil {
-				return fmt.Errorf("subscriptions versions images view: failed to fetch: %w", err)
-			}
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
-	}
+		ErrorPrefix:      "subscriptions versions images view",
+		FetchErrorPrefix: "subscriptions versions images view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetSubscriptionImageV2(ctx, id, asc.WithSubscriptionImageV2Fields(fieldValues))
+		},
+	})
 }
 
 // SubscriptionsVersionImagesUploadCommand reserves, uploads, and commits a v2 image.
@@ -271,12 +255,10 @@ func SubscriptionsVersionImagesUploadCommand() *ffcli.Command {
 		Exec: func(ctx context.Context, args []string) error {
 			id, pathValue := strings.TrimSpace(*versionID), strings.TrimSpace(*filePath)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return shared.MissingRequiredUsageError("--version-id")
+				return shared.RequiredFlag("--version-id")
 			}
 			if pathValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --file is required")
-				return shared.MissingRequiredUsageError("--file")
+				return shared.RequiredFlag("--file")
 			}
 			file, info, err := openSubscriptionImageFile(pathValue)
 			if err != nil {
@@ -326,8 +308,7 @@ func SubscriptionsVersionImagesUpdateCommand() *ffcli.Command {
 		Exec: func(ctx context.Context, args []string) error {
 			imageID := strings.TrimSpace(*id)
 			if imageID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if !uploaded.IsSet() {
 				return shared.UsageError("--uploaded is required")
@@ -360,12 +341,10 @@ func SubscriptionsVersionImagesDeleteCommand() *ffcli.Command {
 		Exec: func(ctx context.Context, args []string) error {
 			imageID := strings.TrimSpace(*id)
 			if imageID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 			client, err := shared.GetASCClient()
 			if err != nil {

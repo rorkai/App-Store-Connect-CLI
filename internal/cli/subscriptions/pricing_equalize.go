@@ -77,13 +77,11 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			subID := strings.TrimSpace(*subscriptionID)
 			if subID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --subscription-id is required")
-				return shared.MissingRequiredUsageError("--subscription-id")
+				return shared.RequiredFlag("--subscription-id")
 			}
 			price := strings.TrimSpace(*basePrice)
 			if price == "" {
-				fmt.Fprintln(os.Stderr, "Error: --base-price is required")
-				return shared.MissingRequiredUsageError("--base-price")
+				return shared.RequiredFlag("--base-price")
 			}
 			if err := shared.ValidateFinitePriceFlag("--base-price", price); err != nil {
 				return shared.UsageError(err.Error())
@@ -902,7 +900,7 @@ func subscriptionExists(ctx context.Context, client *asc.Client, subID string) (
 
 func fetchPricingTerritories(ctx context.Context, client *asc.Client) ([]string, error) {
 	firstCtx, firstCancel := shared.ContextWithTimeout(ctx)
-	firstPage, err := client.GetTerritories(firstCtx, asc.WithTerritoriesLimit(200))
+	firstPage, err := client.GetTerritories(firstCtx, asc.Limit[asc.TerritoriesOption](200))
 	firstCancel()
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch pricing territories: %w", err)
@@ -911,7 +909,7 @@ func fetchPricingTerritories(ctx context.Context, client *asc.Client) ([]string,
 	allPages, err := asc.PaginateAll(ctx, firstPage, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		pageCtx, pageCancel := shared.ContextWithTimeout(ctx)
 		defer pageCancel()
-		return client.GetTerritories(pageCtx, asc.WithTerritoriesNextURL(nextURL))
+		return client.GetTerritories(pageCtx, asc.NextURL[asc.TerritoriesOption](nextURL))
 	})
 	if err != nil {
 		return nil, fmt.Errorf("paginate pricing territories: %w", err)
@@ -941,7 +939,7 @@ func fetchPricingTerritories(ctx context.Context, client *asc.Client) ([]string,
 
 func fetchSubscriptionAvailabilityTerritories(ctx context.Context, client *asc.Client, availabilityID string) (map[string]struct{}, error) {
 	territoriesCtx, territoriesCancel := shared.ContextWithTimeout(ctx)
-	firstPage, err := client.GetSubscriptionAvailabilityAvailableTerritories(territoriesCtx, availabilityID, asc.WithSubscriptionAvailabilityTerritoriesLimit(200))
+	firstPage, err := client.GetSubscriptionAvailabilityAvailableTerritories(territoriesCtx, availabilityID, asc.Limit[asc.SubscriptionAvailabilityTerritoriesOption](200))
 	territoriesCancel()
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch availability territories: %w", err)
@@ -950,7 +948,7 @@ func fetchSubscriptionAvailabilityTerritories(ctx context.Context, client *asc.C
 	allPages, err := asc.PaginateAll(ctx, firstPage, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		pageCtx, pageCancel := shared.ContextWithTimeout(ctx)
 		defer pageCancel()
-		return client.GetSubscriptionAvailabilityAvailableTerritories(pageCtx, availabilityID, asc.WithSubscriptionAvailabilityTerritoriesNextURL(nextURL))
+		return client.GetSubscriptionAvailabilityAvailableTerritories(pageCtx, availabilityID, asc.NextURL[asc.SubscriptionAvailabilityTerritoriesOption](nextURL))
 	})
 	if err != nil {
 		return nil, fmt.Errorf("paginate availability territories: %w", err)

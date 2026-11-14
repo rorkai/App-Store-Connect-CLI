@@ -253,7 +253,7 @@ func buildReviewSnapshot(ctx context.Context, client *asc.Client, appID, version
 		}
 	}
 
-	submissionOpts := []asc.ReviewSubmissionsOption{asc.WithReviewSubmissionsLimit(200)}
+	submissionOpts := []asc.ReviewSubmissionsOption{asc.Limit[asc.ReviewSubmissionsOption](200)}
 	if versionContext != nil && strings.TrimSpace(versionContext.Platform) != "" {
 		submissionOpts = append(submissionOpts, asc.WithReviewSubmissionsPlatforms([]string{versionContext.Platform}))
 	} else if strings.TrimSpace(platform) != "" {
@@ -293,7 +293,7 @@ func resolveReviewVersion(ctx context.Context, client *asc.Client, appID, versio
 		return &versionContext, nil
 	}
 
-	opts := []asc.AppStoreVersionsOption{asc.WithAppStoreVersionsLimit(200)}
+	opts := []asc.AppStoreVersionsOption{asc.Limit[asc.AppStoreVersionsOption](200)}
 	if strings.TrimSpace(version) != "" {
 		opts = append(opts, asc.WithAppStoreVersionsVersionStrings([]string{strings.TrimSpace(version)}))
 	}
@@ -396,7 +396,7 @@ func summarizeReviewSubmissionItems(ctx context.Context, client *asc.Client, sub
 	resp, err := client.GetReviewSubmissionItems(
 		ctx,
 		submissionID,
-		asc.WithReviewSubmissionItemsLimit(200),
+		asc.Limit[asc.ReviewSubmissionItemsOption](200),
 		asc.WithReviewSubmissionItemsInclude([]string{"appStoreVersion"}),
 		asc.WithReviewSubmissionItemsFields([]string{"state", "appStoreVersion"}),
 	)
@@ -406,7 +406,7 @@ func summarizeReviewSubmissionItems(ctx context.Context, client *asc.Client, sub
 
 	trimReviewSubmissionItemsNextURL(resp)
 	err = asc.PaginateEach(ctx, resp, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		nextPage, err := client.GetReviewSubmissionItems(ctx, submissionID, asc.WithReviewSubmissionItemsNextURL(strings.TrimSpace(nextURL)))
+		nextPage, err := client.GetReviewSubmissionItems(ctx, submissionID, asc.NextURL[asc.ReviewSubmissionItemsOption](strings.TrimSpace(nextURL)))
 		if err != nil {
 			return nil, err
 		}

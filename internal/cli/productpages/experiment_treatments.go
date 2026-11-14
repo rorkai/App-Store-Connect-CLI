@@ -76,8 +76,7 @@ Examples:
 
 			trimmedID := strings.TrimSpace(*experimentID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --experiment-id is required")
-				return shared.MissingRequiredUsageError("--experiment-id")
+				return shared.RequiredFlag("--experiment-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -89,12 +88,12 @@ Examples:
 			defer cancel()
 
 			opts := []asc.AppStoreVersionExperimentTreatmentsOption{
-				asc.WithAppStoreVersionExperimentTreatmentsLimit(*limit),
-				asc.WithAppStoreVersionExperimentTreatmentsNextURL(*next),
+				asc.Limit[asc.AppStoreVersionExperimentTreatmentsOption](*limit),
+				asc.NextURL[asc.AppStoreVersionExperimentTreatmentsOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithAppStoreVersionExperimentTreatmentsLimit(productPagesMaxLimit))
+				paginateOpts := append(opts, asc.Limit[asc.AppStoreVersionExperimentTreatmentsOption](productPagesMaxLimit))
 				var firstPage *asc.AppStoreVersionExperimentTreatmentsResponse
 				if *v2 {
 					firstPage, err = client.GetAppStoreVersionExperimentTreatmentsV2(requestCtx, trimmedID, paginateOpts...)
@@ -107,9 +106,9 @@ Examples:
 
 				paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 					if *v2 {
-						return client.GetAppStoreVersionExperimentTreatmentsV2(ctx, trimmedID, asc.WithAppStoreVersionExperimentTreatmentsNextURL(nextURL))
+						return client.GetAppStoreVersionExperimentTreatmentsV2(ctx, trimmedID, asc.NextURL[asc.AppStoreVersionExperimentTreatmentsOption](nextURL))
 					}
-					return client.GetAppStoreVersionExperimentTreatments(ctx, trimmedID, asc.WithAppStoreVersionExperimentTreatmentsNextURL(nextURL))
+					return client.GetAppStoreVersionExperimentTreatments(ctx, trimmedID, asc.NextURL[asc.AppStoreVersionExperimentTreatmentsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("experiments treatments list: %w", err)
@@ -153,8 +152,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*treatmentID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --treatment-id is required")
-				return shared.MissingRequiredUsageError("--treatment-id")
+				return shared.RequiredFlag("--treatment-id")
 			}
 
 			client, err := shared.GetASCClient()
@@ -200,14 +198,12 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*experimentID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --experiment-id is required")
-				return shared.MissingRequiredUsageError("--experiment-id")
+				return shared.RequiredFlag("--experiment-id")
 			}
 
 			nameValue := strings.TrimSpace(*name)
 			if nameValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --name is required")
-				return shared.MissingRequiredUsageError("--name")
+				return shared.RequiredFlag("--name")
 			}
 
 			client, err := shared.GetASCClient()
@@ -256,8 +252,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*treatmentID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --treatment-id is required")
-				return shared.MissingRequiredUsageError("--treatment-id")
+				return shared.RequiredFlag("--treatment-id")
 			}
 
 			nameValue := strings.TrimSpace(*name)
@@ -314,12 +309,10 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*treatmentID)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --treatment-id is required")
-				return shared.MissingRequiredUsageError("--treatment-id")
+				return shared.RequiredFlag("--treatment-id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()

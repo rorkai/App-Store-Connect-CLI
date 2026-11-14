@@ -297,14 +297,14 @@ func fetchAppSchedulePriceEntries(
 			asc.WithAppPriceSchedulePricesFields([]string{"manual", "startDate", "endDate", "appPricePoint", "territory"}),
 			asc.WithAppPriceSchedulePricesPricePointFields([]string{"customerPrice", "proceeds", "territory"}),
 			asc.WithAppPriceSchedulePricesTerritoryFields([]string{"currency"}),
-			asc.WithAppPriceSchedulePricesLimit(limit),
+			asc.Limit[asc.AppPriceSchedulePricesOption](limit),
 		}
 		if strings.TrimSpace(nextURL) != "" {
 			mergedNextURL, err := shared.MergeNextURLQuery(nextURL, appSchedulePricesQuery(limit))
 			if err != nil {
 				return nil, err
 			}
-			opts = []asc.AppPriceSchedulePricesOption{asc.WithAppPriceSchedulePricesNextURL(mergedNextURL)}
+			opts = []asc.AppPriceSchedulePricesOption{asc.NextURL[asc.AppPriceSchedulePricesOption](mergedNextURL)}
 		}
 
 		var page *asc.AppPricesResponse

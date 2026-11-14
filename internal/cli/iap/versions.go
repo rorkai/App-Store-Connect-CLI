@@ -109,8 +109,7 @@ func IAPVersionsCreateCommand() *ffcli.Command {
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*iapID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --iap-id is required")
-				return shared.MissingRequiredUsageError("--iap-id")
+				return shared.RequiredFlag("--iap-id")
 			}
 			client, err := iapVersionClientFactory()
 			if err != nil {
@@ -201,7 +200,7 @@ func iapVersionQueryOptions(stateValue, includeValue string, limit, imagesLimit,
 	return []asc.IAPVersionsOption{
 		asc.WithIAPVersionsStates(states),
 		asc.WithIAPVersionsInclude(include),
-		asc.WithIAPVersionsLimit(limit),
+		asc.Limit[asc.IAPVersionsOption](limit),
 		asc.WithIAPVersionsImagesLimit(imagesLimit),
 		asc.WithIAPVersionsLocalizationsLimit(localizationsLimit),
 		asc.WithIAPVersionsNextURL(next),
@@ -232,8 +231,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*iapID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --iap-id is required")
-				return shared.MissingRequiredUsageError("--iap-id")
+				return shared.RequiredFlag("--iap-id")
 			}
 			if err := rejectIAPVersionNextFlagConflicts(
 				fs, *next, "iap versions list",
@@ -288,8 +286,7 @@ func IAPVersionsViewCommand() *ffcli.Command {
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*versionID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return shared.MissingRequiredUsageError("--version-id")
+				return shared.RequiredFlag("--version-id")
 			}
 			if *imagesLimit != 0 && (*imagesLimit < 1 || *imagesLimit > 50) {
 				return shared.UsageError("iap versions view: --images-limit must be between 1 and 50")
@@ -339,8 +336,7 @@ func IAPVersionImageCommand() *ffcli.Command {
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*versionID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return shared.MissingRequiredUsageError("--version-id")
+				return shared.RequiredFlag("--version-id")
 			}
 			fields, err := shared.NormalizeSelection(*imageFields, iapVersionImageFields, "--image-fields")
 			if err != nil {
@@ -373,17 +369,14 @@ func IAPVersionSubmitCommand() *ffcli.Command {
 		Exec: func(ctx context.Context, args []string) error {
 			vid := strings.TrimSpace(*versionID)
 			if vid == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return shared.MissingRequiredUsageError("--version-id")
+				return shared.RequiredFlag("--version-id")
 			}
 			sid := strings.TrimSpace(*submissionID)
 			if sid == "" {
-				fmt.Fprintln(os.Stderr, "Error: --submission is required")
-				return shared.MissingRequiredUsageError("--submission")
+				return shared.RequiredFlag("--submission")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 			client, err := iapVersionClientFactory()
 			if err != nil {
@@ -417,8 +410,7 @@ func iapVersionImageLinkageCommand() *ffcli.Command {
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*versionID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return shared.MissingRequiredUsageError("--version-id")
+				return shared.RequiredFlag("--version-id")
 			}
 			client, err := iapVersionClientFactory()
 			if err != nil {
@@ -489,13 +481,13 @@ func iapVersionLinkagesCommand(name string, parentIAP bool) *ffcli.Command {
 			if *paginate && firstPageLimit == 0 {
 				firstPageLimit = 200
 			}
-			resp, err := fetchPage(requestCtx, asc.WithLinkagesLimit(firstPageLimit), asc.WithLinkagesNextURL(*next))
+			resp, err := fetchPage(requestCtx, asc.Limit[asc.LinkagesOption](firstPageLimit), asc.NextURL[asc.LinkagesOption](*next))
 			if err != nil {
 				return fmt.Errorf("iap versions links %s: failed to fetch: %w", name, err)
 			}
 			if *paginate {
 				aggregated, err := asc.PaginateAll(requestCtx, resp, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return fetchPage(ctx, asc.WithLinkagesNextURL(nextURL))
+					return fetchPage(ctx, asc.NextURL[asc.LinkagesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("iap versions links %s: %w", name, err)

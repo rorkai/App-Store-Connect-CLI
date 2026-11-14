@@ -1,42 +1,26 @@
 package cmdtest
 
 import (
-	"context"
-	"encoding/json"
-	"fmt"
-	"io"
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestGameCenterBlockedPlayersList(t *testing.T) {
 	for _, format := range []string{"json", "table", "markdown"} {
 		t.Run(format, func(t *testing.T) {
 			setupAuth(t)
-			calls := 0
-			installDefaultTransport(t, roundTripFunc(func(r *http.Request) (*http.Response, error) {
-				calls++
-				if r.Method != http.MethodGet || r.URL.Path != "/v1/gameCenterDetails/detail-45/blockedPlayers" {
-					t.Errorf("request %s %s", r.Method, r.URL)
-				}
-				if calls == 1 && (r.URL.Query().Get("fields[gameCenterDetailPlayers]") != "nickname,blocked,bundleId" || r.URL.Query().Get("limit") != "1") {
-					t.Errorf("query=%s", r.URL.RawQuery)
-				}
-				if calls == 2 && r.URL.Query().Get("cursor") != "page2" {
-					t.Errorf("query=%s", r.URL.RawQuery)
-				}
-				next := "null"
-				if calls == 1 {
-					next = `"https://api.appstoreconnect.apple.com/v1/gameCenterDetails/detail-45/blockedPlayers?cursor=page2"`
-				}
-				body := fmt.Sprintf(`{"data":[{"type":"gameCenterDetailPlayers","id":"player-%d","attributes":{"nickname":"Runner","blocked":true,"bundleId":"com.example.game"}}],"links":{"next":%s}}`, calls, next)
-				return &http.Response{StatusCode: 200, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(body))}, nil
-			}))
-			var runErr error
-			out, stderr := captureOutput(t, func() {
-				runErr = RootCommand("test").ParseAndRun(context.Background(), []string{"game-center", "details", "blocked-players", "list", "--detail-id", "detail-45", "--fields", "nickname,blocked,bundleId", "--limit", "1", "--paginate", "--output", format})
-			})
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET("/v1/gameCenterDetails/detail-45/blockedPlayers", "fields[gameCenterDetailPlayers]=nickname,blocked,bundleId", "limit=1"),
+				asctest.JSON(http.StatusOK, `{"data":[{"type":"gameCenterDetailPlayers","id":"player-1","attributes":{"nickname":"Runner","blocked":true,"bundleId":"com.example.game"}}],"links":{"next":"https://api.appstoreconnect.apple.com/v1/gameCenterDetails/detail-45/blockedPlayers?cursor=page2"}}`))
+			reg.Register(asctest.GET("/v1/gameCenterDetails/detail-45/blockedPlayers", "cursor=page2"),
+				asctest.JSON(http.StatusOK, `{"data":[{"type":"gameCenterDetailPlayers","id":"player-2","attributes":{"nickname":"Runner","blocked":true,"bundleId":"com.example.game"}}],"links":{"next":null}}`))
+
+			out, stderr, runErr := runCommand(t, []string{"game-center", "details", "blocked-players", "list", "--detail-id", "detail-45", "--fields", "nickname,blocked,bundleId", "--limit", "1", "--paginate", "--output", format})
+			calls := len(reg.Requests())
 			if runErr != nil || stderr != "" || calls != 2 || !strings.Contains(out, "player-2") || !strings.Contains(out, "com.example.game") {
 				t.Fatalf("run=%v calls=%d stdout=%s stderr=%s", runErr, calls, out, stderr)
 			}
@@ -45,43 +29,20 @@ func TestGameCenterBlockedPlayersList(t *testing.T) {
 }
 
 func TestGameCenterBlockedPlayersUpdate(t *testing.T) {
-	for _, tt := range []struct{ name, blocked, bundle string }{
-		{"block", "true", "com.example.game"}, {"unblock", "false", ""},
+	for _, tt := range []struct{ name, blocked, bundle, wantAttrs string }{
+		{"block", "true", "com.example.game", `{"blocked":true,"bundleId":"com.example.game"}`}, {"unblock", "false", "", `{"blocked":false}`},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			setupAuth(t)
-			installDefaultTransport(t, roundTripFunc(func(r *http.Request) (*http.Response, error) {
-				if r.Method != http.MethodPatch || r.URL.Path != "/v1/gameCenterDetailPlayers/player-45" {
-					t.Errorf("request %s %s", r.Method, r.URL)
-				}
-				var got struct {
-					Data struct {
-						Type, ID   string
-						Attributes map[string]any
-					}
-				}
-				if err := json.NewDecoder(r.Body).Decode(&got); err != nil {
-					t.Fatal(err)
-				}
-				if got.Data.Type != "gameCenterDetailPlayers" || got.Data.ID != "player-45" || got.Data.Attributes["blocked"] != (tt.blocked == "true") {
-					t.Errorf("payload=%+v", got)
-				}
-				if tt.bundle == "" {
-					if len(got.Data.Attributes) != 1 {
-						t.Errorf("unexpected attributes=%v", got.Data.Attributes)
-					}
-				} else if got.Data.Attributes["bundleId"] != tt.bundle || len(got.Data.Attributes) != 2 {
-					t.Errorf("attributes=%v", got.Data.Attributes)
-				}
-				body := fmt.Sprintf(`{"data":{"type":"gameCenterDetailPlayers","id":"player-45","attributes":{"nickname":"","blocked":%s,"bundleId":"com.example.game"}}}`, tt.blocked)
-				return &http.Response{StatusCode: 200, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(body))}, nil
-			}))
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.PATCH("/v1/gameCenterDetailPlayers/player-45").JSONBody(`{"data":{"type":"gameCenterDetailPlayers","id":"player-45","attributes":`+tt.wantAttrs+`}}`),
+				asctest.JSON(http.StatusOK, `{"data":{"type":"gameCenterDetailPlayers","id":"player-45","attributes":{"nickname":"","blocked":`+tt.blocked+`,"bundleId":"com.example.game"}}}`))
 			args := []string{"game-center", "details", "blocked-players", "update", "--id", "player-45", "--blocked", tt.blocked, "--confirm", "--output", "json"}
 			if tt.bundle != "" {
 				args = append(args, "--bundle-id", tt.bundle)
 			}
-			var runErr error
-			out, stderr := captureOutput(t, func() { runErr = RootCommand("test").ParseAndRun(context.Background(), args) })
+			out, stderr, runErr := runCommand(t, args)
 			if runErr != nil || stderr != "" || !strings.Contains(out, `"blocked":`+tt.blocked) || !strings.Contains(out, `"nickname":""`) {
 				t.Fatalf("run=%v out=%s stderr=%s", runErr, out, stderr)
 			}
@@ -120,16 +81,10 @@ func TestGameCenterBlockedPlayersNextAndErrors(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			setupAuth(t)
-			installDefaultTransport(t, roundTripFunc(func(r *http.Request) (*http.Response, error) {
-				if r.URL.Query().Get("cursor") != "next" {
-					t.Errorf("query=%s", r.URL.RawQuery)
-				}
-				return &http.Response{StatusCode: tt.status, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(tt.body))}, nil
-			}))
-			var runErr error
-			out, stderr := captureOutput(t, func() {
-				runErr = RootCommand("test").ParseAndRun(context.Background(), []string{"game-center", "details", "blocked-players", "list", "--next", "https://api.appstoreconnect.apple.com/v1/gameCenterDetails/d/blockedPlayers?cursor=next", "--output", "json"})
-			})
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.GET("/v1/gameCenterDetails/d/blockedPlayers", "cursor=next"), asctest.JSON(tt.status, tt.body))
+			out, stderr, runErr := runCommand(t, []string{"game-center", "details", "blocked-players", "list", "--next", "https://api.appstoreconnect.apple.com/v1/gameCenterDetails/d/blockedPlayers?cursor=next", "--output", "json"})
 			if tt.name == "next only" {
 				if runErr != nil || stderr != "" || !strings.Contains(out, tt.want) {
 					t.Fatalf("run=%v stdout=%s stderr=%s", runErr, out, stderr)

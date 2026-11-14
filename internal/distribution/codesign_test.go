@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"go.mozilla.org/pkcs7"
@@ -455,14 +456,16 @@ func TestRunCodeSignInvocationUsesIndependentDeadlines(t *testing.T) {
 	}
 	t.Cleanup(func() { runCodeSignTool = runBoundedTool })
 
-	if _, err := runCodeSignInvocation(context.Background(), "codesign", "--verify"); err != nil {
-		t.Fatal(err)
-	}
-	time.Sleep(2 * time.Millisecond)
-	if _, err := runCodeSignInvocation(context.Background(), "lipo", "-archs"); err != nil {
-		t.Fatal(err)
-	}
-	if len(deadlines) != 2 || !deadlines[1].After(deadlines[0]) {
+	synctest.Test(t, func(t *testing.T) {
+		if _, err := runCodeSignInvocation(context.Background(), "codesign", "--verify"); err != nil {
+			t.Fatal(err)
+		}
+		time.Sleep(2 * time.Millisecond)
+		if _, err := runCodeSignInvocation(context.Background(), "lipo", "-archs"); err != nil {
+			t.Fatal(err)
+		}
+	})
+	if len(deadlines) != 2 || deadlines[1].Sub(deadlines[0]) != 2*time.Millisecond {
 		t.Fatalf("invocation deadlines = %#v, want a fresh deadline for every tool call", deadlines)
 	}
 }

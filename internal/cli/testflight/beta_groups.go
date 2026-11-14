@@ -578,8 +578,8 @@ Examples:
 			}
 
 			opts := []asc.BetaGroupsOption{
-				asc.WithBetaGroupsLimit(*limit),
-				asc.WithBetaGroupsNextURL(*next),
+				asc.Limit[asc.BetaGroupsOption](*limit),
+				asc.NextURL[asc.BetaGroupsOption](*next),
 			}
 			if internalFilter != nil {
 				opts = append(opts, asc.WithBetaGroupsIsInternal(*internalFilter))
@@ -657,13 +657,13 @@ Examples:
 				// Fetch with Apple's maximum page size before applying the
 				// stable client-side cap. Passing a small --limit here would
 				// make a large filtered set require one request per page.
-				firstPageOpts := append(slices.Clone(opts), asc.WithBetaGroupsLimit(200))
+				firstPageOpts := append(slices.Clone(opts), asc.Limit[asc.BetaGroupsOption](200))
 				firstPage, err := listPage(requestCtx, firstPageOpts...)
 				if err != nil {
 					return fmt.Errorf("beta-groups list: failed to fetch: %w", err)
 				}
 				groups, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return listPage(ctx, asc.WithBetaGroupsNextURL(nextURL))
+					return listPage(ctx, asc.NextURL[asc.BetaGroupsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("beta-groups list: %w", err)
@@ -676,14 +676,14 @@ Examples:
 			}
 
 			if *paginate {
-				paginateOpts := append(slices.Clone(opts), asc.WithBetaGroupsLimit(200))
+				paginateOpts := append(slices.Clone(opts), asc.Limit[asc.BetaGroupsOption](200))
 				groups, err := shared.PaginateWithSpinner(
 					requestCtx,
 					func(ctx context.Context) (asc.PaginatedResponse, error) {
 						return firstPage(ctx, paginateOpts...)
 					},
 					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return listPage(ctx, asc.WithBetaGroupsNextURL(nextURL))
+						return listPage(ctx, asc.NextURL[asc.BetaGroupsOption](nextURL))
 					},
 				)
 				if err != nil {
@@ -712,12 +712,12 @@ Examples:
 // after shared.NormalizeBetaGroupName, joined for filter[name], where a comma
 // means OR.
 func appleBetaGroupNameSpelling(ctx context.Context, client *asc.Client, appID, name string) (string, error) {
-	firstPage, err := client.GetBetaGroups(ctx, appID, asc.WithBetaGroupsLimit(200), asc.WithBetaGroupsFields([]string{"name"}))
+	firstPage, err := client.GetBetaGroups(ctx, appID, asc.Limit[asc.BetaGroupsOption](200), asc.WithBetaGroupsFields([]string{"name"}))
 	if err != nil {
 		return "", err
 	}
 	all, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetBetaGroups(ctx, appID, asc.WithBetaGroupsNextURL(nextURL))
+		return client.GetBetaGroups(ctx, appID, asc.NextURL[asc.BetaGroupsOption](nextURL))
 	})
 	if err != nil {
 		return "", err
@@ -829,8 +829,7 @@ func BuildGroupsListCommand(config BuildGroupsListCommandConfig) *ffcli.Command 
 				return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticInvalidInput, "--build-id")
 			}
 			if resolvedBuildID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --build-id is required")
-				return shared.MissingRequiredUsageError("--build-id")
+				return shared.RequiredFlag("--build-id")
 			}
 
 			return runBuildGroupMembershipList(
@@ -942,8 +941,7 @@ Examples:
 				return shared.MissingRequiredUsageError("--app")
 			}
 			if strings.TrimSpace(*name) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --name is required")
-				return shared.MissingRequiredUsageError("--name")
+				return shared.RequiredFlag("--name")
 			}
 
 			visited := map[string]bool{}
@@ -1081,12 +1079,12 @@ func listBetaGroupIDsByName(ctx context.Context, client *asc.Client, appID, name
 // listAllBetaGroupsByName follows every page, so the before and after lists
 // compare whole sets.
 func listAllBetaGroupsByName(ctx context.Context, client *asc.Client, appID, name string) ([]asc.Resource[asc.BetaGroupAttributes], error) {
-	firstPage, err := client.ListBetaGroups(ctx, asc.WithBetaGroupsApps([]string{appID}), asc.WithBetaGroupsName(name), asc.WithBetaGroupsLimit(200))
+	firstPage, err := client.ListBetaGroups(ctx, asc.WithBetaGroupsApps([]string{appID}), asc.WithBetaGroupsName(name), asc.Limit[asc.BetaGroupsOption](200))
 	if err != nil {
 		return nil, err
 	}
 	all, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.ListBetaGroups(ctx, asc.WithBetaGroupsNextURL(nextURL))
+		return client.ListBetaGroups(ctx, asc.NextURL[asc.BetaGroupsOption](nextURL))
 	})
 	if err != nil {
 		return nil, err
@@ -1108,43 +1106,24 @@ func optionalBetaGroupCreateBool(value shared.OptionalBool) *bool {
 
 // BetaGroupsGetCommand returns the beta groups get subcommand.
 func BetaGroupsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	id := shared.BindResourceIDFlag(fs, "id", "betaGroups", "Beta group ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc testflight beta-groups view [flags]",
-		ShortHelp:  "View a TestFlight beta group by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc testflight beta-groups view [flags]",
+		ShortHelp:   "View a TestFlight beta group by ID.",
 		LongHelp: `View a TestFlight beta group by ID.
 
 Examples:
   asc testflight beta-groups view --id "GROUP_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if strings.TrimSpace(*id) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("beta-groups view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			group, err := client.GetBetaGroup(requestCtx, strings.TrimSpace(*id))
-			if err != nil {
-				return fmt.Errorf("beta-groups view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(group, *output.Output, *output.Pretty)
+		IDUsage:            "Beta group ID",
+		IDType:             "betaGroups",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "beta-groups view",
+		FetchErrorPrefix:   "beta-groups view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetBetaGroup(ctx, id)
 		},
-	}
+	})
 }
 
 // BetaGroupsUpdateCommand returns the beta groups update subcommand.
@@ -1181,8 +1160,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*id)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 
 			visited := map[string]bool{}
@@ -1280,8 +1258,7 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*id) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return shared.MissingRequiredUsageError("--id")
+				return shared.RequiredFlag("--id")
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required to delete")
@@ -1344,8 +1321,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			groupID := strings.TrimSpace(*group)
 			if groupID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --group is required")
-				return shared.MissingRequiredUsageError("--group")
+				return shared.RequiredFlag("--group")
 			}
 
 			testerIDs := shared.SplitCSV(tester.String())
@@ -1378,7 +1354,7 @@ Examples:
 						requestCtx,
 						appID,
 						asc.WithBetaTestersEmail(testerEmail),
-						asc.WithBetaTestersLimit(2),
+						asc.Limit[asc.BetaTestersOption](2),
 					)
 					if err != nil {
 						return fmt.Errorf("beta-groups add-testers: failed to resolve tester email %q: %w", testerEmail, err)
@@ -1501,18 +1477,15 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			groupID := strings.TrimSpace(*group)
 			if groupID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --group is required")
-				return shared.MissingRequiredUsageError("--group")
+				return shared.RequiredFlag("--group")
 			}
 
 			testerIDs := shared.SplitCSV(tester.String())
 			if len(testerIDs) == 0 {
-				fmt.Fprintln(os.Stderr, "Error: --tester is required")
-				return shared.MissingRequiredUsageError("--tester")
+				return shared.RequiredFlag("--tester")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()

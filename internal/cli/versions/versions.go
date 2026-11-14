@@ -167,13 +167,13 @@ Examples:
 			defer cancel()
 
 			opts := []asc.AppStoreVersionsOption{
-				asc.WithAppStoreVersionsLimit(*limit),
+				asc.Limit[asc.AppStoreVersionsOption](*limit),
 				asc.WithAppStoreVersionsPlatforms(platforms),
 				asc.WithAppStoreVersionsVersionStrings(shared.SplitCSV(*version)),
 				asc.WithAppStoreVersionsStates(states),
 				asc.WithAppStoreVersionsInclude(includeValues),
 				asc.WithIncludedFields[asc.AppStoreVersionsOption](included),
-				asc.WithAppStoreVersionsNextURL(*next),
+				asc.NextURL[asc.AppStoreVersionsOption](*next),
 			}
 
 			if *paginate || *latest {
@@ -181,7 +181,7 @@ Examples:
 				// largest page to keep automatic pagination efficient.
 				paginateOpts := opts
 				if *limit == 0 {
-					paginateOpts = append(paginateOpts, asc.WithAppStoreVersionsLimit(200))
+					paginateOpts = append(paginateOpts, asc.Limit[asc.AppStoreVersionsOption](200))
 				}
 				firstPage, err := client.GetAppStoreVersions(requestCtx, resolvedAppID, paginateOpts...)
 				if err != nil {
@@ -190,7 +190,7 @@ Examples:
 
 				// Fetch all remaining pages
 				versions, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppStoreVersions(ctx, resolvedAppID, asc.WithAppStoreVersionsNextURL(nextURL))
+					return client.GetAppStoreVersions(ctx, resolvedAppID, asc.NextURL[asc.AppStoreVersionsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("versions list: %w", err)
@@ -397,8 +397,7 @@ equivalent to --include appStoreVersionSubmission.`,
 				return shared.UsageError("--version-id cannot be combined with --app, --version, or --platform")
 			}
 			if trimmedID == "" && !lookupRequested {
-				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return shared.MissingRequiredUsageError("--version-id")
+				return shared.RequiredFlag("--version-id")
 			}
 
 			resolvedAppID := ""
@@ -538,8 +537,7 @@ be combined with skip, which would leave the build unattached.`,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*versionString) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version is required")
-				return shared.MissingRequiredUsageError("--version")
+				return shared.RequiredFlag("--version")
 			}
 
 			normalizedPlatform, err := shared.NormalizeAppStoreVersionPlatform(*platform)
@@ -796,7 +794,7 @@ func findExistingAppStoreVersion(ctx context.Context, client *asc.Client, appID,
 		ctx, appID,
 		asc.WithAppStoreVersionsVersionStrings([]string{versionString}),
 		asc.WithAppStoreVersionsPlatforms([]string{platform}),
-		asc.WithAppStoreVersionsLimit(10),
+		asc.Limit[asc.AppStoreVersionsOption](10),
 	)
 	if err != nil {
 		return nil, false, err
@@ -863,8 +861,7 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*versionID) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return shared.MissingRequiredUsageError("--version-id")
+				return shared.RequiredFlag("--version-id")
 			}
 
 			normalizedReleaseType, err := normalizeAppStoreVersionReleaseType(*releaseType)
@@ -963,8 +960,7 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*versionID) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return shared.MissingRequiredUsageError("--version-id")
+				return shared.RequiredFlag("--version-id")
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required to delete a version")

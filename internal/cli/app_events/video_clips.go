@@ -99,18 +99,18 @@ Examples:
 			}
 
 			opts := []asc.LinkagesOption{
-				asc.WithLinkagesLimit(*limit),
-				asc.WithLinkagesNextURL(*next),
+				asc.Limit[asc.LinkagesOption](*limit),
+				asc.NextURL[asc.LinkagesOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithLinkagesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.LinkagesOption](200))
 				firstPage, err := client.GetAppEventVideoClipsRelationships(requestCtx, resolvedLocalizationID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("app-events video-clips links: failed to fetch: %w", err)
 				}
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppEventVideoClipsRelationships(ctx, resolvedLocalizationID, asc.WithLinkagesNextURL(nextURL))
+					return client.GetAppEventVideoClipsRelationships(ctx, resolvedLocalizationID, asc.NextURL[asc.LinkagesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("app-events video-clips links: %w", err)
@@ -181,19 +181,19 @@ Examples:
 			}
 
 			opts := []asc.AppEventVideoClipsOption{
-				asc.WithAppEventVideoClipsLimit(*limit),
-				asc.WithAppEventVideoClipsNextURL(*next),
+				asc.Limit[asc.AppEventVideoClipsOption](*limit),
+				asc.NextURL[asc.AppEventVideoClipsOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithAppEventVideoClipsLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.AppEventVideoClipsOption](200))
 				firstPage, err := client.GetAppEventVideoClips(requestCtx, resolvedLocalizationID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("app-events video-clips list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppEventVideoClips(ctx, resolvedLocalizationID, asc.WithAppEventVideoClipsNextURL(nextURL))
+					return client.GetAppEventVideoClips(ctx, resolvedLocalizationID, asc.NextURL[asc.AppEventVideoClipsOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("app-events video-clips list: %w", err)
@@ -214,44 +214,25 @@ Examples:
 
 // AppEventVideoClipsGetCommand returns the app event video clips get subcommand.
 func AppEventVideoClipsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("video-clips view", flag.ExitOnError)
-
-	clipID := shared.BindResourceIDFlag(fs, "clip-id", "appEventVideoClips", "App event video clip ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc app-events video-clips view --clip-id \"CLIP_ID\"",
-		ShortHelp:  "View an in-app event video clip by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "video-clips view",
+		Name:        "view",
+		ShortUsage:  "asc app-events video-clips view --clip-id \"CLIP_ID\"",
+		ShortHelp:   "View an in-app event video clip by ID.",
 		LongHelp: `View an in-app event video clip by ID.
 
 Examples:
   asc app-events video-clips view --clip-id "CLIP_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*clipID)
-			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --clip-id is required")
-				return shared.MissingRequiredUsageError("--clip-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("app-events video-clips view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetAppEventVideoClip(requestCtx, id)
-			if err != nil {
-				return fmt.Errorf("app-events video-clips view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDFlag:             "clip-id",
+		IDUsage:            "App event video clip ID",
+		IDType:             "appEventVideoClips",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "app-events video-clips view",
+		FetchErrorPrefix:   "app-events video-clips view: failed to fetch",
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetAppEventVideoClip(ctx, id)
 		},
-	}
+	})
 }
 
 // AppEventVideoClipsCreateCommand returns the app event video clips create subcommand.
@@ -281,8 +262,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			pathValue := strings.TrimSpace(*path)
 			if pathValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --path is required")
-				return shared.MissingRequiredUsageError("--path")
+				return shared.RequiredFlag("--path")
 			}
 			if strings.TrimSpace(*localizationID) == "" && strings.TrimSpace(*eventID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --event-id or --localization-id is required")
@@ -378,13 +358,11 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*clipID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --clip-id is required")
-				return shared.MissingRequiredUsageError("--clip-id")
+				return shared.RequiredFlag("--clip-id")
 			}
 			tc := strings.TrimSpace(*timeCode)
 			if tc == "" {
-				fmt.Fprintln(os.Stderr, "Error: --time-code is required")
-				return shared.MissingRequiredUsageError("--time-code")
+				return shared.RequiredFlag("--time-code")
 			}
 			if err := validateVideoClipTimeCode("time-code", tc); err != nil {
 				return err
@@ -456,12 +434,10 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*clipID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --clip-id is required")
-				return shared.MissingRequiredUsageError("--clip-id")
+				return shared.RequiredFlag("--clip-id")
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return shared.MissingRequiredUsageError("--confirm")
+				return shared.RequiredFlag("--confirm")
 			}
 
 			client, err := shared.GetASCClient()

@@ -611,24 +611,6 @@ func WithAppStoreReviewAttachmentsInclude(include []string) AppStoreReviewAttach
 	}
 }
 
-// WithAppStoreReviewAttachmentsLimit sets the max number of attachments to return.
-func WithAppStoreReviewAttachmentsLimit(limit int) AppStoreReviewAttachmentsOption {
-	return func(q *appStoreReviewAttachmentsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithAppStoreReviewAttachmentsNextURL uses a next page URL directly.
-func WithAppStoreReviewAttachmentsNextURL(next string) AppStoreReviewAttachmentsOption {
-	return func(q *appStoreReviewAttachmentsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithRating filters reviews by a single star rating (1-5).
 func WithRating(rating int) ReviewOption {
 	return WithRatings([]int{rating})
@@ -719,42 +701,6 @@ func WithReviewTerritoryFields(fields []string) ReviewOption {
 	}
 }
 
-// WithLimit sets the max number of reviews to return.
-func WithLimit(limit int) ReviewOption {
-	return func(r *reviewQuery) {
-		if limit > 0 {
-			r.limit = limit
-		}
-	}
-}
-
-// WithNextURL uses a next page URL directly.
-func WithNextURL(next string) ReviewOption {
-	return func(r *reviewQuery) {
-		if strings.TrimSpace(next) != "" {
-			r.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
-// WithAppStoreVersionsLimit sets the max number of versions to return.
-func WithAppStoreVersionsLimit(limit int) AppStoreVersionsOption {
-	return func(q *appStoreVersionsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithAppStoreVersionsNextURL uses a next page URL directly.
-func WithAppStoreVersionsNextURL(next string) AppStoreVersionsOption {
-	return func(q *appStoreVersionsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithAppStoreVersionsPlatforms filters versions by platform.
 func WithAppStoreVersionsPlatforms(platforms []string) AppStoreVersionsOption {
 	return func(q *appStoreVersionsQuery) {
@@ -820,24 +766,6 @@ func WithAppStoreVersionLocalizationsIncludeLimit(limit int) AppStoreVersionOpti
 	}
 }
 
-// WithReviewSubmissionsLimit sets the max number of review submissions to return.
-func WithReviewSubmissionsLimit(limit int) ReviewSubmissionsOption {
-	return func(q *reviewSubmissionsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithReviewSubmissionsNextURL uses a next page URL directly.
-func WithReviewSubmissionsNextURL(next string) ReviewSubmissionsOption {
-	return func(q *reviewSubmissionsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithReviewSubmissionsPlatforms filters review submissions by platform.
 func WithReviewSubmissionsPlatforms(platforms []string) ReviewSubmissionsOption {
 	return func(q *reviewSubmissionsQuery) {
@@ -887,15 +815,6 @@ func WithReviewSubmissionInclude(include []string) ReviewSubmissionOption {
 	}
 }
 
-// WithReviewSubmissionItemsLimit sets the max number of review submission items to return.
-func WithReviewSubmissionItemsLimit(limit int) ReviewSubmissionItemsOption {
-	return func(q *reviewSubmissionItemsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
 // WithReviewSubmissionItemsFields sets fields[reviewSubmissionItems] for item responses.
 func WithReviewSubmissionItemsFields(fields []string) ReviewSubmissionItemsOption {
 	return func(q *reviewSubmissionItemsQuery) {
@@ -931,33 +850,6 @@ func WithReviewSubmissionItemsInclude(include []string) ReviewSubmissionItemsOpt
 	}
 }
 
-// WithReviewSubmissionItemsNextURL uses a next page URL directly.
-func WithReviewSubmissionItemsNextURL(next string) ReviewSubmissionItemsOption {
-	return func(q *reviewSubmissionItemsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
-// WithAppStoreVersionLocalizationsLimit sets the max number of localizations to return.
-func WithAppStoreVersionLocalizationsLimit(limit int) AppStoreVersionLocalizationsOption {
-	return func(q *appStoreVersionLocalizationsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithAppStoreVersionLocalizationsNextURL uses a next page URL directly.
-func WithAppStoreVersionLocalizationsNextURL(next string) AppStoreVersionLocalizationsOption {
-	return func(q *appStoreVersionLocalizationsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithAppStoreVersionLocalizationLocales filters version localizations by locale.
 func WithAppStoreVersionLocalizationLocales(locales []string) AppStoreVersionLocalizationsOption {
 	return func(q *appStoreVersionLocalizationsQuery) {
@@ -978,24 +870,6 @@ func WithAppStoreVersionLocalizationsInclude(include []string) AppStoreVersionLo
 func WithAppStoreVersionLocalizationsPlacementsLimit(limit int) AppStoreVersionLocalizationsOption {
 	return func(q *appStoreVersionLocalizationsQuery) {
 		q.placementsLimit = limit
-	}
-}
-
-// WithAppInfoLocalizationsLimit sets the max number of app info localizations to return.
-func WithAppInfoLocalizationsLimit(limit int) AppInfoLocalizationsOption {
-	return func(q *appInfoLocalizationsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithAppInfoLocalizationsNextURL uses a next page URL directly.
-func WithAppInfoLocalizationsNextURL(next string) AppInfoLocalizationsOption {
-	return func(q *appInfoLocalizationsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
 	}
 }
 
@@ -1024,24 +898,6 @@ func WithAppInfoLocalizationsInclude(include []string) AppInfoLocalizationsOptio
 func WithAppInfoFields(fields []string) AppInfoOption {
 	return func(q *appInfoQuery) {
 		q.fields = normalizeList(fields)
-	}
-}
-
-// WithAppInfosLimit sets the maximum number of app info records to return.
-func WithAppInfosLimit(limit int) AppInfoOption {
-	return func(q *appInfoQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithAppInfosNextURL uses an app info continuation URL directly.
-func WithAppInfosNextURL(next string) AppInfoOption {
-	return func(q *appInfoQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
 	}
 }
 
@@ -1090,73 +946,10 @@ func WithTerritoryAgeRatingsInclude(include []string) TerritoryAgeRatingsOption 
 	}
 }
 
-// WithTerritoryAgeRatingsLimit sets the max number of territory age ratings to return.
-func WithTerritoryAgeRatingsLimit(limit int) TerritoryAgeRatingsOption {
-	return func(q *territoryAgeRatingsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithTerritoryAgeRatingsNextURL uses a next page URL directly.
-func WithTerritoryAgeRatingsNextURL(next string) TerritoryAgeRatingsOption {
-	return func(q *territoryAgeRatingsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
-// WithTerritoriesLimit sets the max number of territories to return.
-func WithTerritoriesLimit(limit int) TerritoriesOption {
-	return func(q *territoriesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithTerritoriesNextURL uses a next page URL directly.
-func WithTerritoriesNextURL(next string) TerritoriesOption {
-	return func(q *territoriesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithTerritoriesFields sets fields[territories] for territory responses.
 func WithTerritoriesFields(fields []string) TerritoriesOption {
 	return func(q *territoriesQuery) {
 		q.fields = normalizeList(fields)
-	}
-}
-
-// WithEndUserLicenseAgreementTerritoriesLimit sets the max number of territories to return.
-func WithEndUserLicenseAgreementTerritoriesLimit(limit int) EndUserLicenseAgreementTerritoriesOption {
-	return func(q *endUserLicenseAgreementTerritoriesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithEndUserLicenseAgreementTerritoriesNextURL uses a next page URL directly.
-func WithEndUserLicenseAgreementTerritoriesNextURL(next string) EndUserLicenseAgreementTerritoriesOption {
-	return func(q *endUserLicenseAgreementTerritoriesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
-// WithAppCustomProductPagesLimit sets the max number of custom product pages to return.
-func WithAppCustomProductPagesLimit(limit int) AppCustomProductPagesOption {
-	return func(q *appCustomProductPagesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
 	}
 }
 
@@ -1204,42 +997,6 @@ func WithAppCustomProductPagesVersionsLimit(limit int) AppCustomProductPagesOpti
 	}
 }
 
-// WithAppCustomProductPagesNextURL uses a next page URL directly.
-func WithAppCustomProductPagesNextURL(next string) AppCustomProductPagesOption {
-	return func(q *appCustomProductPagesQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
-// WithAppCustomProductPageVersionsLimit sets the max number of versions to return.
-func WithAppCustomProductPageVersionsLimit(limit int) AppCustomProductPageVersionsOption {
-	return func(q *appCustomProductPageVersionsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithAppCustomProductPageVersionsNextURL uses a next page URL directly.
-func WithAppCustomProductPageVersionsNextURL(next string) AppCustomProductPageVersionsOption {
-	return func(q *appCustomProductPageVersionsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
-// WithAppCustomProductPageLocalizationsLimit sets the max number of localizations to return.
-func WithAppCustomProductPageLocalizationsLimit(limit int) AppCustomProductPageLocalizationsOption {
-	return func(q *appCustomProductPageLocalizationsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
 // WithAppCustomProductPageLocalizationsSearchKeywords includes up to limit
 // search keywords per localization in each localization's relationships.
 func WithAppCustomProductPageLocalizationsSearchKeywords(limit int) AppCustomProductPageLocalizationsOption {
@@ -1264,64 +1021,10 @@ func WithAppCustomProductPageLocalizationsPlacementsLimit(limit int) AppCustomPr
 	}
 }
 
-// WithAppCustomProductPageLocalizationsNextURL uses a next page URL directly.
-func WithAppCustomProductPageLocalizationsNextURL(next string) AppCustomProductPageLocalizationsOption {
-	return func(q *appCustomProductPageLocalizationsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
-// WithAppCustomProductPageLocalizationPreviewSetsLimit sets the max number of preview sets to return.
-func WithAppCustomProductPageLocalizationPreviewSetsLimit(limit int) AppCustomProductPageLocalizationPreviewSetsOption {
-	return func(q *appCustomProductPageLocalizationPreviewSetsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithAppCustomProductPageLocalizationPreviewSetsNextURL uses a next page URL directly.
-func WithAppCustomProductPageLocalizationPreviewSetsNextURL(next string) AppCustomProductPageLocalizationPreviewSetsOption {
-	return func(q *appCustomProductPageLocalizationPreviewSetsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
-// WithAppCustomProductPageLocalizationScreenshotSetsLimit sets the max number of screenshot sets to return.
-func WithAppCustomProductPageLocalizationScreenshotSetsLimit(limit int) AppCustomProductPageLocalizationScreenshotSetsOption {
-	return func(q *appCustomProductPageLocalizationScreenshotSetsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
 // WithAppCustomProductPageLocalizationScreenshotSetsIncludeScreenshots includes each set's screenshots.
 func WithAppCustomProductPageLocalizationScreenshotSetsIncludeScreenshots() AppCustomProductPageLocalizationScreenshotSetsOption {
 	return func(q *appCustomProductPageLocalizationScreenshotSetsQuery) {
 		q.includeMedia = true
-	}
-}
-
-// WithAppCustomProductPageLocalizationScreenshotSetsNextURL uses a next page URL directly.
-func WithAppCustomProductPageLocalizationScreenshotSetsNextURL(next string) AppCustomProductPageLocalizationScreenshotSetsOption {
-	return func(q *appCustomProductPageLocalizationScreenshotSetsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
-// WithAppStoreVersionLocalizationPreviewSetsLimit sets the max number of preview sets to return.
-func WithAppStoreVersionLocalizationPreviewSetsLimit(limit int) AppStoreVersionLocalizationPreviewSetsOption {
-	return func(q *appStoreVersionLocalizationPreviewSetsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
 	}
 }
 
@@ -1332,64 +1035,10 @@ func WithAppStoreVersionLocalizationPreviewSetsIncludePreviews() AppStoreVersion
 	}
 }
 
-// WithAppStoreVersionLocalizationPreviewSetsNextURL uses a next page URL directly.
-func WithAppStoreVersionLocalizationPreviewSetsNextURL(next string) AppStoreVersionLocalizationPreviewSetsOption {
-	return func(q *appStoreVersionLocalizationPreviewSetsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
-// WithAppStoreVersionLocalizationScreenshotSetsLimit sets the max number of screenshot sets to return.
-func WithAppStoreVersionLocalizationScreenshotSetsLimit(limit int) AppStoreVersionLocalizationScreenshotSetsOption {
-	return func(q *appStoreVersionLocalizationScreenshotSetsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
 // WithAppStoreVersionLocalizationScreenshotSetsIncludeScreenshots includes each set's screenshots.
 func WithAppStoreVersionLocalizationScreenshotSetsIncludeScreenshots() AppStoreVersionLocalizationScreenshotSetsOption {
 	return func(q *appStoreVersionLocalizationScreenshotSetsQuery) {
 		q.includeMedia = true
-	}
-}
-
-// WithAppStoreVersionLocalizationScreenshotSetsNextURL uses a next page URL directly.
-func WithAppStoreVersionLocalizationScreenshotSetsNextURL(next string) AppStoreVersionLocalizationScreenshotSetsOption {
-	return func(q *appStoreVersionLocalizationScreenshotSetsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
-// WithAppStoreVersionExperimentTreatmentLocalizationPreviewSetsLimit sets the max number of preview sets to return.
-func WithAppStoreVersionExperimentTreatmentLocalizationPreviewSetsLimit(limit int) AppStoreVersionExperimentTreatmentLocalizationPreviewSetsOption {
-	return func(q *appStoreVersionExperimentTreatmentLocalizationPreviewSetsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithAppStoreVersionExperimentTreatmentLocalizationPreviewSetsNextURL uses a next page URL directly.
-func WithAppStoreVersionExperimentTreatmentLocalizationPreviewSetsNextURL(next string) AppStoreVersionExperimentTreatmentLocalizationPreviewSetsOption {
-	return func(q *appStoreVersionExperimentTreatmentLocalizationPreviewSetsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
-// WithAppStoreVersionExperimentTreatmentLocalizationScreenshotSetsLimit sets the max number of screenshot sets to return.
-func WithAppStoreVersionExperimentTreatmentLocalizationScreenshotSetsLimit(limit int) AppStoreVersionExperimentTreatmentLocalizationScreenshotSetsOption {
-	return func(q *appStoreVersionExperimentTreatmentLocalizationScreenshotSetsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
 	}
 }
 
@@ -1400,33 +1049,6 @@ func WithAppStoreVersionExperimentTreatmentLocalizationScreenshotSetsIncludeScre
 	}
 }
 
-// WithAppStoreVersionExperimentTreatmentLocalizationScreenshotSetsNextURL uses a next page URL directly.
-func WithAppStoreVersionExperimentTreatmentLocalizationScreenshotSetsNextURL(next string) AppStoreVersionExperimentTreatmentLocalizationScreenshotSetsOption {
-	return func(q *appStoreVersionExperimentTreatmentLocalizationScreenshotSetsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
-// WithAppStoreVersionExperimentsLimit sets the max number of experiments to return.
-func WithAppStoreVersionExperimentsLimit(limit int) AppStoreVersionExperimentsOption {
-	return func(q *appStoreVersionExperimentsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithAppStoreVersionExperimentsNextURL uses a next page URL directly.
-func WithAppStoreVersionExperimentsNextURL(next string) AppStoreVersionExperimentsOption {
-	return func(q *appStoreVersionExperimentsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithAppStoreVersionExperimentsState filters experiments by state.
 func WithAppStoreVersionExperimentsState(states []string) AppStoreVersionExperimentsOption {
 	return func(q *appStoreVersionExperimentsQuery) {
@@ -1434,55 +1056,10 @@ func WithAppStoreVersionExperimentsState(states []string) AppStoreVersionExperim
 	}
 }
 
-// WithAppStoreVersionExperimentsV2Limit sets the max number of experiments to return (v2).
-func WithAppStoreVersionExperimentsV2Limit(limit int) AppStoreVersionExperimentsV2Option {
-	return func(q *appStoreVersionExperimentsV2Query) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithAppStoreVersionExperimentsV2NextURL uses a next page URL directly (v2).
-func WithAppStoreVersionExperimentsV2NextURL(next string) AppStoreVersionExperimentsV2Option {
-	return func(q *appStoreVersionExperimentsV2Query) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
 // WithAppStoreVersionExperimentsV2State filters experiments by state (v2).
 func WithAppStoreVersionExperimentsV2State(states []string) AppStoreVersionExperimentsV2Option {
 	return func(q *appStoreVersionExperimentsV2Query) {
 		q.states = normalizeUpperList(states)
-	}
-}
-
-// WithAppStoreVersionExperimentTreatmentsLimit sets the max number of treatments to return.
-func WithAppStoreVersionExperimentTreatmentsLimit(limit int) AppStoreVersionExperimentTreatmentsOption {
-	return func(q *appStoreVersionExperimentTreatmentsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
-// WithAppStoreVersionExperimentTreatmentsNextURL uses a next page URL directly.
-func WithAppStoreVersionExperimentTreatmentsNextURL(next string) AppStoreVersionExperimentTreatmentsOption {
-	return func(q *appStoreVersionExperimentTreatmentsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
-	}
-}
-
-// WithAppStoreVersionExperimentTreatmentLocalizationsLimit sets the max number of treatment localizations to return.
-func WithAppStoreVersionExperimentTreatmentLocalizationsLimit(limit int) AppStoreVersionExperimentTreatmentLocalizationsOption {
-	return func(q *appStoreVersionExperimentTreatmentLocalizationsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
 	}
 }
 
@@ -1497,15 +1074,6 @@ func WithAppStoreVersionExperimentTreatmentLocalizationsInclude(include []string
 func WithAppStoreVersionExperimentTreatmentLocalizationsPlacementsLimit(limit int) AppStoreVersionExperimentTreatmentLocalizationsOption {
 	return func(q *appStoreVersionExperimentTreatmentLocalizationsQuery) {
 		q.placementsLimit = limit
-	}
-}
-
-// WithAppStoreVersionExperimentTreatmentLocalizationsNextURL uses a next page URL directly.
-func WithAppStoreVersionExperimentTreatmentLocalizationsNextURL(next string) AppStoreVersionExperimentTreatmentLocalizationsOption {
-	return func(q *appStoreVersionExperimentTreatmentLocalizationsQuery) {
-		if strings.TrimSpace(next) != "" {
-			q.nextURL = strings.TrimSpace(next)
-		}
 	}
 }
 

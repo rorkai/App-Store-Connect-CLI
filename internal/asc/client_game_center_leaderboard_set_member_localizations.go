@@ -50,7 +50,7 @@ func (c *Client) GetGameCenterLeaderboardSetMemberLocalization(ctx context.Conte
 		ctx,
 		WithGCLeaderboardSetMemberLocalizationsLeaderboardIDs([]string{leaderboardID}),
 		WithGCLeaderboardSetMemberLocalizationsLeaderboardSetIDs([]string{leaderboardSetID}),
-		Limit[GCLeaderboardSetMemberLocalizationsOption](200),
+		WithGCLeaderboardSetMemberLocalizationsLimit(200),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("list member localizations: %w", err)
@@ -59,7 +59,7 @@ func (c *Client) GetGameCenterLeaderboardSetMemberLocalization(ctx context.Conte
 	var match *GameCenterLeaderboardSetMemberLocalizationResponse
 	errFound := errors.New("member localization found")
 	err = PaginateEach(ctx, firstPage, func(ctx context.Context, nextURL string) (PaginatedResponse, error) {
-		return c.GetGameCenterLeaderboardSetMemberLocalizations(ctx, NextURL[GCLeaderboardSetMemberLocalizationsOption](nextURL))
+		return c.GetGameCenterLeaderboardSetMemberLocalizations(ctx, WithGCLeaderboardSetMemberLocalizationsNextURL(nextURL))
 	}, func(page PaginatedResponse) error {
 		localizations, ok := page.(*GameCenterLeaderboardSetMemberLocalizationsResponse)
 		if !ok {

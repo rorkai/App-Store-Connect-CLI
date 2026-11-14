@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"flag"
-	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -32,8 +30,7 @@ func IAPPricingPPPCommand() *ffcli.Command {
 			return shared.PriceSchedulePPPResource{
 				Validate: func() error {
 					if strings.TrimSpace(*iapID) == "" {
-						fmt.Fprintln(os.Stderr, "Error: --iap-id is required")
-						return shared.MissingRequiredUsageError("--iap-id")
+						return shared.RequiredFlag("--iap-id")
 					}
 					return shared.RequireAppForStableSelector(shared.ResolveAppID(*appID), strings.TrimSpace(*iapID), "--iap-id")
 				},
@@ -77,7 +74,7 @@ func iapPPPSurface(client *asc.Client, iapID string) shared.PriceSchedulePPPSurf
 		LadderBatch: func(ctx context.Context, territories []string) (map[string][]shared.PriceLadderCandidate, error) {
 			return shared.CollectPricePointsByTerritory(ctx, territories, func(requestCtx context.Context, next string) (*asc.InAppPurchasePricePointsResponse, error) {
 				if next != "" {
-					return client.GetInAppPurchasePricePoints(requestCtx, iapID, asc.WithIAPPricePointsNextURL(next))
+					return client.GetInAppPurchasePricePoints(requestCtx, iapID, asc.NextURL[asc.IAPPricePointsOption](next))
 				}
 				return client.GetInAppPurchasePricePoints(
 					requestCtx,
@@ -85,21 +82,21 @@ func iapPPPSurface(client *asc.Client, iapID string) shared.PriceSchedulePPPSurf
 					asc.WithIAPPricePointsTerritory(strings.Join(territories, ",")),
 					asc.WithIAPPricePointsFields([]string{"customerPrice", "territory"}),
 					asc.WithIAPPricePointsInclude([]string{"territory"}),
-					asc.WithIAPPricePointsLimit(8000),
+					asc.Limit[asc.IAPPricePointsOption](8000),
 				)
 			}, iapCustomerPrice)
 		},
 		Equalizations: func(ctx context.Context, pricePointID string) (map[string][]shared.PriceLadderCandidate, error) {
 			return shared.CollectPricePointsByTerritory(ctx, nil, func(requestCtx context.Context, next string) (*asc.InAppPurchasePricePointsResponse, error) {
 				if next != "" {
-					return client.GetInAppPurchasePricePointEqualizations(requestCtx, pricePointID, asc.WithIAPPricePointsNextURL(next))
+					return client.GetInAppPurchasePricePointEqualizations(requestCtx, pricePointID, asc.NextURL[asc.IAPPricePointsOption](next))
 				}
 				return client.GetInAppPurchasePricePointEqualizations(
 					requestCtx,
 					pricePointID,
 					asc.WithIAPPricePointsFields([]string{"customerPrice", "territory"}),
 					asc.WithIAPPricePointsInclude([]string{"territory"}),
-					asc.WithIAPPricePointsLimit(8000),
+					asc.Limit[asc.IAPPricePointsOption](8000),
 				)
 			}, iapCustomerPrice)
 		},

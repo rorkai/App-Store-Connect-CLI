@@ -53,16 +53,13 @@ Examples:
 				return shared.MissingRequiredUsageError("--vendor")
 			}
 			if strings.TrimSpace(*reportType) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --type is required")
-				return shared.MissingRequiredUsageError("--type")
+				return shared.RequiredFlag("--type")
 			}
 			if strings.TrimSpace(*reportSubType) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --subtype is required")
-				return shared.MissingRequiredUsageError("--subtype")
+				return shared.RequiredFlag("--subtype")
 			}
 			if strings.TrimSpace(*frequency) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --frequency is required")
-				return shared.MissingRequiredUsageError("--frequency")
+				return shared.RequiredFlag("--frequency")
 			}
 			salesType, err := normalizeSalesReportType(*reportType)
 			if err != nil {

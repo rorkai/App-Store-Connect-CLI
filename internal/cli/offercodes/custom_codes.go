@@ -62,8 +62,8 @@ Examples:
 		ErrorPrefix: "offer-codes custom-codes list",
 		FetchPage: func(ctx context.Context, client *asc.Client, offerCodeID string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := []asc.SubscriptionOfferCodeCustomCodesOption{
-				asc.WithSubscriptionOfferCodeCustomCodesLimit(limit),
-				asc.WithSubscriptionOfferCodeCustomCodesNextURL(next),
+				asc.Limit[asc.SubscriptionOfferCodeCustomCodesOption](limit),
+				asc.NextURL[asc.SubscriptionOfferCodeCustomCodesOption](next),
 			}
 			resp, err := client.GetSubscriptionOfferCodeCustomCodes(ctx, offerCodeID, opts...)
 			if err != nil {
@@ -119,19 +119,16 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedOfferCodeID := strings.TrimSpace(*offerCodeID)
 			if trimmedOfferCodeID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --offer-code-id is required")
-				return shared.MissingRequiredUsageError("--offer-code-id")
+				return shared.RequiredFlag("--offer-code-id")
 			}
 
 			trimmedCode := strings.TrimSpace(*code)
 			if trimmedCode == "" {
-				fmt.Fprintln(os.Stderr, "Error: --code is required")
-				return shared.MissingRequiredUsageError("--code")
+				return shared.RequiredFlag("--code")
 			}
 
 			if *quantity <= 0 {
-				fmt.Fprintln(os.Stderr, "Error: --quantity is required")
-				return shared.MissingRequiredUsageError("--quantity")
+				return shared.RequiredFlag("--quantity")
 			}
 
 			var normalizedExpiration *string

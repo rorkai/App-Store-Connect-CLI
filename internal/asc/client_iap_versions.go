@@ -64,14 +64,6 @@ type iapLocalizationV2Query struct {
 	include            []string
 }
 
-func WithIAPVersionsLimit(limit int) IAPVersionsOption {
-	return func(q *iapVersionsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
 func WithIAPVersionsNextURL(next string) IAPVersionsOption {
 	return func(q *iapVersionsQuery) { q.nextURL = strings.TrimSpace(next) }
 }
@@ -156,28 +148,12 @@ func WithIAPVersionImageFields(fields []string) IAPVersionImageOption {
 	return func(q *iapImageFieldsQuery) { q.fields = normalizeUniqueList(fields) }
 }
 
-func WithIAPVersionImagesLimit(limit int) IAPVersionImagesOption {
-	return func(q *iapVersionImagesQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
-}
-
 func WithIAPVersionImagesNextURL(next string) IAPVersionImagesOption {
 	return func(q *iapVersionImagesQuery) { q.nextURL = strings.TrimSpace(next) }
 }
 
 func WithIAPVersionImagesFields(fields []string) IAPVersionImagesOption {
 	return func(q *iapVersionImagesQuery) { q.fields = normalizeUniqueList(fields) }
-}
-
-func WithIAPVersionLocalizationsLimit(limit int) IAPVersionLocalizationsOption {
-	return func(q *iapVersionLocalizationsQuery) {
-		if limit > 0 {
-			q.limit = limit
-		}
-	}
 }
 
 func WithIAPVersionLocalizationsNextURL(next string) IAPVersionLocalizationsOption {

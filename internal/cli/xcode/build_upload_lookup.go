@@ -35,7 +35,7 @@ func findRecentBuildUploadID(ctx context.Context, client *asc.Client, appID, ver
 		asc.WithBuildUploadsCFBundleVersions([]string{buildNumber}),
 		asc.WithBuildUploadsPlatforms([]string{platform}),
 		asc.WithBuildUploadsSort("-uploadedDate"),
-		asc.WithBuildUploadsLimit(buildUploadLookupLimit),
+		asc.Limit[asc.BuildUploadsOption](buildUploadLookupLimit),
 	)
 	if err != nil {
 		return "", false, err
@@ -63,7 +63,7 @@ func findRecentBuildUploadID(ctx context.Context, client *asc.Client, appID, ver
 		if nextURL == "" {
 			return "", false, nil
 		}
-		resp, err = client.GetBuildUploads(ctx, appID, asc.WithBuildUploadsNextURL(nextURL))
+		resp, err = client.GetBuildUploads(ctx, appID, asc.NextURL[asc.BuildUploadsOption](nextURL))
 		if err != nil {
 			return "", false, err
 		}

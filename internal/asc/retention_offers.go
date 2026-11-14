@@ -254,25 +254,12 @@ func (c *Client) UpdateRetentionOffer(ctx context.Context, offerID string, attrs
 }
 
 func (c *Client) sendRetentionOffer(ctx context.Context, method, path string, payload any) (*RetentionOfferResponse, error) {
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-	data, err := c.do(ctx, method, path, body)
-	if err != nil {
-		return nil, err
-	}
-	var response RetentionOfferResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-	return &response, nil
+	return sendJSON[RetentionOfferResponse](ctx, c, writeRequest{Method: method, Path: path, Payload: payload})
 }
 
 // DeleteRetentionOffer deletes a retention offer.
 func (c *Client) DeleteRetentionOffer(ctx context.Context, offerID string) error {
-	_, err := c.do(ctx, http.MethodDelete, "/v1/retentionOffers/"+strings.TrimSpace(offerID), nil)
-	return err
+	return sendNoContent(ctx, c, http.MethodDelete, "/v1/retentionOffers/"+strings.TrimSpace(offerID), nil)
 }
 
 // GetRetentionOfferPrices lists the prices of a retention offer.
@@ -326,13 +313,7 @@ func (c *Client) RemoveSubscriptionRetentionMessageOffers(ctx context.Context, s
 }
 
 func (c *Client) changeSubscriptionRetentionMessageOffers(ctx context.Context, method, subscriptionID string, offerIDs []string) error {
-	body, err := BuildRequestBody(RelationshipRequest{Data: buildRelationshipData(ResourceTypeRetentionOffers, offerIDs)})
-	if err != nil {
-		return err
-	}
-	path := fmt.Sprintf("/v1/subscriptions/%s/relationships/retentionMessageOffers", strings.TrimSpace(subscriptionID))
-	_, err = c.do(ctx, method, path, body)
-	return err
+	return sendNoContent(ctx, c, method, fmt.Sprintf("/v1/subscriptions/%s/relationships/retentionMessageOffers", strings.TrimSpace(subscriptionID)), RelationshipRequest{Data: buildRelationshipData(ResourceTypeRetentionOffers, offerIDs)})
 }
 
 func (c *Client) getRetentionResource(ctx context.Context, path string, out any) error {

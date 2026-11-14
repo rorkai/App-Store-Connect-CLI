@@ -14,6 +14,7 @@ import (
 
 	cmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -104,21 +105,9 @@ func TestLocalizationsUpdateByResourceIDSkipsDiscovery(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			setupLocUpdateAuth(t)
 
-			originalTransport := http.DefaultTransport
-			t.Cleanup(func() { http.DefaultTransport = originalTransport })
-
-			requestCount := 0
-			http.DefaultTransport = locUpdateRoundTripFunc(func(req *http.Request) (*http.Response, error) {
-				requestCount++
-				if req.Method != http.MethodPatch || req.URL.Path != test.path {
-					return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
-				}
-				body, _ := io.ReadAll(req.Body)
-				if !strings.Contains(string(body), test.wantBody) {
-					t.Fatalf("unexpected patch body: %s", body)
-				}
-				return locUpdateJSONResponse(test.response)
-			})
+			reg := asctest.NewRegistry(t)
+			reg.Install()
+			reg.Register(asctest.PATCH(test.path), asctest.JSON(http.StatusOK, test.response))
 
 			stdout, stderr := captureOutput(t, func() {
 				args := append([]string{"localizations", "update", "--id", "loc-1"}, test.args...)
@@ -130,8 +119,12 @@ func TestLocalizationsUpdateByResourceIDSkipsDiscovery(t *testing.T) {
 			if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)
 			}
-			if requestCount != 1 {
+			requests := reg.Requests()
+			if requestCount := len(requests); requestCount != 1 {
 				t.Fatalf("request count = %d, want one direct PATCH", requestCount)
+			}
+			if !strings.Contains(string(requests[0].Body), test.wantBody) {
+				t.Fatalf("unexpected patch body: %s", requests[0].Body)
 			}
 			if !strings.Contains(stdout, `"id":"loc-1"`) {
 				t.Fatalf("expected updated localization output, got %q", stdout)
@@ -178,15 +171,8 @@ func TestLocalizationsUpdateResourceIDRejectsDiscoverySelectorsBeforeAuth(t *tes
 func TestLocalizationsUpdate_RejectsUnsupportedLocaleWithSuggestion(t *testing.T) {
 	setupLocUpdateAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-
-	requestCount := 0
-	http.DefaultTransport = locUpdateRoundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-		return nil, nil
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
 
 	stdout, stderr := captureOutput(t, func() {
 		code := cmd.Run([]string{
@@ -208,7 +194,7 @@ func TestLocalizationsUpdate_RejectsUnsupportedLocaleWithSuggestion(t *testing.T
 			t.Fatalf("expected stderr to contain %q, got %q", want, stderr)
 		}
 	}
-	if requestCount != 0 {
+	if requestCount := len(reg.Requests()); requestCount != 0 {
 		t.Fatalf("expected no HTTP requests, got %d", requestCount)
 	}
 }
@@ -296,10 +282,7 @@ func TestKeywordWritersRejectOverLimitKeywordsBeforeAuthResolution(t *testing.T)
 			t.Setenv("ASC_PRIVATE_KEY_B64", "")
 			t.Setenv("ASC_APP_ID", "")
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
-				return nil, nil
-			}))
+			asctest.NewRegistry(t).Install()
 			args := test.args(t)
 
 			stdout, stderr := captureOutput(t, func() {
@@ -369,22 +352,12 @@ func TestLocalizationsUpdate_RejectsInvalidVersionFieldsBeforeClientCreation(t *
 func TestLocalizationsUpdate_AllowsForwardCompatibleLocaleCodes(t *testing.T) {
 	setupLocUpdateAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-
-	var patchBody string
-	http.DefaultTransport = locUpdateRoundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/ver-1/appStoreVersionLocalizations":
-			return locUpdateJSONResponse(`{"data":[{"type":"appStoreVersionLocalizations","id":"loc-forward","attributes":{"locale":"zh-Hant-HK","description":"Old"}}],"links":{}}`)
-		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appStoreVersionLocalizations/loc-forward":
-			body, _ := io.ReadAll(req.Body)
-			patchBody = string(body)
-			return locUpdateJSONResponse(`{"data":{"type":"appStoreVersionLocalizations","id":"loc-forward","attributes":{"locale":"zh-Hant-HK","description":"Updated description"}}}`)
-		default:
-			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
-		}
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreVersions/ver-1/appStoreVersionLocalizations", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-forward","attributes":{"locale":"zh-Hant-HK","description":"Old"}}],"links":{}}`))
+	reg.Register(asctest.PATCH("/v1/appStoreVersionLocalizations/loc-forward").JSONBody(`{"data":{"type":"appStoreVersionLocalizations","id":"loc-forward","attributes":{"description":"Updated description"}}}`),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreVersionLocalizations","id":"loc-forward","attributes":{"locale":"zh-Hant-HK","description":"Updated description"}}}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -406,6 +379,12 @@ func TestLocalizationsUpdate_AllowsForwardCompatibleLocaleCodes(t *testing.T) {
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
+	var patchBody string
+	for _, req := range reg.Requests() {
+		if req.Method == http.MethodPatch {
+			patchBody = string(req.Body)
+		}
+	}
 	if !strings.Contains(patchBody, "Updated description") {
 		t.Fatalf("expected patch body to contain updated description, got %s", patchBody)
 	}
@@ -417,30 +396,14 @@ func TestLocalizationsUpdate_AllowsForwardCompatibleLocaleCodes(t *testing.T) {
 func TestLocalizationsUpdateAppInfoSubtitle(t *testing.T) {
 	setupLocUpdateAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-
-	var patchBody string
-	http.DefaultTransport = locUpdateRoundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		// Resolve app info ID
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appInfos":
-			return locUpdateJSONResponse(`{"data":[{"type":"appInfos","id":"appinfo-1","attributes":{}}]}`)
-
-		// List existing localizations
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appInfos/appinfo-1/appInfoLocalizations":
-			return locUpdateJSONResponse(`{"data":[{"type":"appInfoLocalizations","id":"loc-en","attributes":{"locale":"en-US","name":"MyApp","subtitle":"Old"}}],"links":{}}`)
-
-		// Update localization
-		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appInfoLocalizations/loc-en":
-			body, _ := io.ReadAll(req.Body)
-			patchBody = string(body)
-			return locUpdateJSONResponse(`{"data":{"type":"appInfoLocalizations","id":"loc-en","attributes":{"locale":"en-US","name":"MyApp","subtitle":"New Subtitle"}}}`)
-
-		default:
-			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
-		}
-	})
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/app-1/appInfos"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfos","id":"appinfo-1","attributes":{}}]}`))
+	reg.Register(asctest.GET("/v1/appInfos/appinfo-1/appInfoLocalizations", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfoLocalizations","id":"loc-en","attributes":{"locale":"en-US","name":"MyApp","subtitle":"Old"}}],"links":{}}`))
+	reg.Register(asctest.PATCH("/v1/appInfoLocalizations/loc-en").JSONBody(`{"data":{"type":"appInfoLocalizations","id":"loc-en","attributes":{"subtitle":"New Subtitle"}}}`),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"appInfoLocalizations","id":"loc-en","attributes":{"locale":"en-US","name":"MyApp","subtitle":"New Subtitle"}}}`))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -461,6 +424,12 @@ func TestLocalizationsUpdateAppInfoSubtitle(t *testing.T) {
 	})
 
 	// Verify the PATCH body contains subtitle
+	var patchBody string
+	for _, req := range reg.Requests() {
+		if req.Method == http.MethodPatch {
+			patchBody = string(req.Body)
+		}
+	}
 	if !strings.Contains(patchBody, "New Subtitle") {
 		t.Fatalf("expected subtitle in PATCH body, got: %s", patchBody)
 	}
@@ -475,36 +444,20 @@ func TestLocalizationsUpdateAppInfoSubtitle(t *testing.T) {
 func TestLocalizationsUpdateAppInfoFailsWhenAppInfoIsAmbiguous(t *testing.T) {
 	setupLocUpdateAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-
-	http.DefaultTransport = locUpdateRoundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appInfos":
-			return locUpdateJSONResponse(`{"data":[
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/app-1/appInfos"),
+		asctest.JSON(http.StatusOK, `{"data":[
 				{"type":"appInfos","id":"appinfo-live","attributes":{"state":"READY_FOR_SALE"}},
 				{"type":"appInfos","id":"appinfo-rejected","attributes":{"state":"REJECTED"}}
-			]}`)
-		default:
-			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
-		}
-	})
+			]}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"localizations", "update",
-			"--type", "app-info",
-			"--app", "app-1",
-			"--locale", "en-US",
-			"--subtitle", "New Subtitle",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
+	stdout, stderr, runErr := runCommand(t, []string{
+		"localizations", "update",
+		"--type", "app-info",
+		"--app", "app-1",
+		"--locale", "en-US",
+		"--subtitle", "New Subtitle",
 	})
 
 	if runErr == nil {
@@ -531,40 +484,19 @@ func TestLocalizationsUpdateAppInfoFailsWhenAppInfoIsAmbiguous(t *testing.T) {
 func TestLocalizationsUpdateVersionErrorIncludesAttemptedFields(t *testing.T) {
 	setupLocUpdateAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appStoreVersions/ver-1/appStoreVersionLocalizations", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-fr","attributes":{"locale":"fr-FR","description":"Old","supportUrl":"https://example.com/support-old"}}],"links":{}}`))
+	reg.Register(asctest.PATCH("/v1/appStoreVersionLocalizations/loc-fr").JSONBody(`{"data":{"type":"appStoreVersionLocalizations","id":"loc-fr","attributes":{"description":"Updated description","supportUrl":"https://example.com/support-new"}}}`),
+		asctest.JSON(http.StatusConflict, `{"errors":[{"status":"409","code":"ENTITY_ERROR.INVALID","title":"One or more parameters passed to the function were not valid.","detail":"(-50)"}]}`))
 
-	http.DefaultTransport = locUpdateRoundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/ver-1/appStoreVersionLocalizations":
-			return locUpdateJSONResponse(`{"data":[{"type":"appStoreVersionLocalizations","id":"loc-fr","attributes":{"locale":"fr-FR","description":"Old","supportUrl":"https://example.com/support-old"}}],"links":{}}`)
-		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appStoreVersionLocalizations/loc-fr":
-			body := `{"errors":[{"status":"409","code":"ENTITY_ERROR.INVALID","title":"One or more parameters passed to the function were not valid.","detail":"(-50)"}]}`
-			return &http.Response{
-				StatusCode: http.StatusConflict,
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-				Body:       io.NopCloser(strings.NewReader(body)),
-			}, nil
-		default:
-			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
-		}
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"localizations", "update",
-			"--version", "ver-1",
-			"--locale", "fr-FR",
-			"--description", "Updated description",
-			"--support-url", "https://example.com/support-new",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
+	stdout, stderr, runErr := runCommand(t, []string{
+		"localizations", "update",
+		"--version", "ver-1",
+		"--locale", "fr-FR",
+		"--description", "Updated description",
+		"--support-url", "https://example.com/support-new",
 	})
 
 	if runErr == nil {
@@ -616,42 +548,21 @@ func TestLocalizationsUpdateMissingAppInfoLocaleSuggestsCreation(t *testing.T) {
 func TestLocalizationsUpdateAppInfoErrorIncludesResolvedEndpoint(t *testing.T) {
 	setupLocUpdateAuth(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/app-1/appInfos"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfos","id":"appinfo-1","attributes":{}}]}`))
+	reg.Register(asctest.GET("/v1/appInfos/appinfo-1/appInfoLocalizations", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfoLocalizations","id":"loc-en","attributes":{"locale":"en-US","name":"Old Name"}}],"links":{}}`))
+	reg.Register(asctest.PATCH("/v1/appInfoLocalizations/loc-en").JSONBody(`{"data":{"type":"appInfoLocalizations","id":"loc-en","attributes":{"name":"New Name"}}}`),
+		asctest.JSON(http.StatusConflict, `{"errors":[{"status":"409","code":"ENTITY_ERROR.INVALID","title":"One or more parameters passed to the function were not valid.","detail":"(-50)"}]}`))
 
-	http.DefaultTransport = locUpdateRoundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appInfos":
-			return locUpdateJSONResponse(`{"data":[{"type":"appInfos","id":"appinfo-1","attributes":{}}]}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appInfos/appinfo-1/appInfoLocalizations":
-			return locUpdateJSONResponse(`{"data":[{"type":"appInfoLocalizations","id":"loc-en","attributes":{"locale":"en-US","name":"Old Name"}}],"links":{}}`)
-		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appInfoLocalizations/loc-en":
-			body := `{"errors":[{"status":"409","code":"ENTITY_ERROR.INVALID","title":"One or more parameters passed to the function were not valid.","detail":"(-50)"}]}`
-			return &http.Response{
-				StatusCode: http.StatusConflict,
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-				Body:       io.NopCloser(strings.NewReader(body)),
-			}, nil
-		default:
-			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
-		}
-	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"localizations", "update",
-			"--type", "app-info",
-			"--app", "app-1",
-			"--locale", "en-US",
-			"--name", "New Name",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
+	stdout, stderr, runErr := runCommand(t, []string{
+		"localizations", "update",
+		"--type", "app-info",
+		"--app", "app-1",
+		"--locale", "en-US",
+		"--name", "New Name",
 	})
 
 	if runErr == nil {
