@@ -1,71 +1,54 @@
 package cmdtest
 
 import (
-	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
-	"sync"
-	"sync/atomic"
 	"testing"
 
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/handlertest"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
+
+const territoryAvailabilitiesFields = "fields[territoryAvailabilities]=available,releaseDate,preOrderEnabled,preOrderPublishDate,contentStatuses,territory"
+
+func registerTerritoryAvailabilitiesRead(reg *asctest.Registry, body string) {
+	reg.Register(asctest.GET("/v2/appAvailabilities/availability-1/territoryAvailabilities", territoryAvailabilitiesFields, "include=territory", "limit=200"),
+		asctest.JSON(http.StatusOK, body))
+}
 
 func TestPricingAvailabilityEditNormalizesTerritories(t *testing.T) {
 	setupAuth(t)
-	fixture := handlertest.New(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
+	territories := func(usAvailable, frAvailable bool) string {
+		return fmt.Sprintf(`{
+			"data":[
+				{"type":"territoryAvailabilities","id":"ta-us","attributes":{"available":%t},"relationships":{"territory":{"data":{"type":"territories","id":"USA"}}}},
+				{"type":"territoryAvailabilities","id":"ta-fr","attributes":{"available":%t},"relationships":{"territory":{"data":{"type":"territories","id":"FRA"}}}}
+			],
+			"links":{"next":""}
+		}`, usAvailable, frAvailable)
+	}
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/app-1/appAvailabilityV2"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"appAvailabilities","id":"availability-1","attributes":{"availableInNewTerritories":false}}}`))
+	registerTerritoryAvailabilitiesRead(reg, territories(false, false))
+	for _, id := range []string{"ta-us", "ta-fr"} {
+		reg.Register(asctest.PATCH("/v1/territoryAvailabilities/"+id).JSONBody(`{"data":{"type":"territoryAvailabilities","id":"`+id+`","attributes":{"available":true}}}`),
+			asctest.JSON(http.StatusOK, `{"data":{"type":"territoryAvailabilities","id":"patched","attributes":{"available":true}}}`))
+	}
+	registerTerritoryAvailabilitiesRead(reg, territories(true, true))
 
-	var patchedMu sync.Mutex
-	patched := map[string]bool{}
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appAvailabilityV2":
-			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"appAvailabilities","id":"availability-1","attributes":{"availableInNewTerritories":false}}}`), nil
-		case req.Method == http.MethodGet && req.URL.Path == "/v2/appAvailabilities/availability-1/territoryAvailabilities":
-			patchedMu.Lock()
-			usAvailable := patched["ta-us"]
-			frAvailable := patched["ta-fr"]
-			patchedMu.Unlock()
-			return jsonHTTPResponse(http.StatusOK, fmt.Sprintf(`{
-				"data":[
-					{"type":"territoryAvailabilities","id":"ta-us","attributes":{"available":%t},"relationships":{"territory":{"data":{"type":"territories","id":"USA"}}}},
-					{"type":"territoryAvailabilities","id":"ta-fr","attributes":{"available":%t},"relationships":{"territory":{"data":{"type":"territories","id":"FRA"}}}}
-				],
-				"links":{"next":""}
-			}`, usAvailable, frAvailable)), nil
-		case req.Method == http.MethodPatch && strings.HasPrefix(req.URL.Path, "/v1/territoryAvailabilities/"):
-			patchedMu.Lock()
-			patched[strings.TrimPrefix(req.URL.Path, "/v1/territoryAvailabilities/")] = true
-			patchedMu.Unlock()
-			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"territoryAvailabilities","id":"patched","attributes":{"available":true}}}`), nil
-		default:
-			return nil, fixture.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
-		}
+	stdout, stderr, err := runCommand(t, []string{
+		"pricing", "availability", "edit",
+		"--app", "app-1",
+		"--territory", "US,France",
+		"--available", "true",
+		"--available-in-new-territories", "false",
 	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"pricing", "availability", "edit",
-			"--app", "app-1",
-			"--territory", "US,France",
-			"--available", "true",
-			"--available-in-new-territories", "false",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" && !strings.Contains(stderr, "Updating availability for") {
 		t.Fatalf("unexpected stderr %q", stderr)
@@ -73,59 +56,36 @@ func TestPricingAvailabilityEditNormalizesTerritories(t *testing.T) {
 	if stdout == "" {
 		t.Fatal("expected command output")
 	}
-	patchedMu.Lock()
-	defer patchedMu.Unlock()
-	if !patched["ta-us"] || !patched["ta-fr"] {
-		t.Fatalf("expected normalized territories to be patched, got %#v", patched)
-	}
 }
 
 func TestPricingAvailabilityEditSkipsNoOpWithoutNewTerritoriesGuard(t *testing.T) {
 	setupAuth(t)
-	fixture := handlertest.New(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/app-1/appAvailabilityV2"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"appAvailabilities","id":"availability-1","attributes":{"availableInNewTerritories":true}}}`))
+	registerTerritoryAvailabilitiesRead(reg, `{
+		"data":[
+			{"type":"territoryAvailabilities","id":"ta-us","attributes":{"available":true},"relationships":{"territory":{"data":{"type":"territories","id":"USA"}}}}
+		],
+		"links":{"next":""}
+	}`)
 
-	var patches atomic.Int32
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appAvailabilityV2":
-			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"appAvailabilities","id":"availability-1","attributes":{"availableInNewTerritories":true}}}`), nil
-		case req.Method == http.MethodGet && req.URL.Path == "/v2/appAvailabilities/availability-1/territoryAvailabilities":
-			return jsonHTTPResponse(http.StatusOK, `{
-				"data":[
-					{"type":"territoryAvailabilities","id":"ta-us","attributes":{"available":true},"relationships":{"territory":{"data":{"type":"territories","id":"USA"}}}}
-				],
-				"links":{"next":""}
-			}`), nil
-		case req.Method == http.MethodPatch:
-			patches.Add(1)
-			return nil, fixture.Errorf("no-op territory should not be patched: %s", req.URL.Path)
-		default:
-			return nil, fixture.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
-		}
+	stdout, stderr, err := runCommand(t, []string{
+		"pricing", "availability", "edit",
+		"--app", "app-1",
+		"--territory", "US",
+		"--available", "true",
 	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"pricing", "availability", "edit",
-			"--app", "app-1",
-			"--territory", "US",
-			"--available", "true",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
+	for _, req := range reg.Requests() {
+		if req.Method == http.MethodPatch {
+			t.Fatalf("expected no PATCH requests, got %s %s", req.Method, req.URL)
 		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-
-	if got := patches.Load(); got != 0 {
-		t.Fatalf("expected no PATCH requests, got %d", got)
 	}
 	if stdout == "" {
 		t.Fatal("expected command output")
@@ -137,139 +97,65 @@ func TestPricingAvailabilityEditSkipsNoOpWithoutNewTerritoriesGuard(t *testing.T
 
 func TestPricingAvailabilityEditRejectsMismatchedNewTerritoriesGuardBeforeTerritoryRead(t *testing.T) {
 	setupAuth(t)
-	fixture := handlertest.New(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/app-1/appAvailabilityV2"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"appAvailabilities","id":"availability-1","attributes":{"availableInNewTerritories":true}}}`))
 
-	var territoryReads atomic.Int32
-	var patches atomic.Int32
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appAvailabilityV2":
-			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"appAvailabilities","id":"availability-1","attributes":{"availableInNewTerritories":true}}}`), nil
-		case req.Method == http.MethodGet && req.URL.Path == "/v2/appAvailabilities/availability-1/territoryAvailabilities":
-			territoryReads.Add(1)
-			return nil, fixture.Errorf("policy mismatch should fail before territory reads")
-		case req.Method == http.MethodPatch:
-			patches.Add(1)
-			return nil, fixture.Errorf("policy mismatch should not patch %s", req.URL.Path)
-		default:
-			return nil, fixture.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
-		}
+	_, _, err := runCommand(t, []string{
+		"pricing", "availability", "edit",
+		"--app", "app-1",
+		"--territory", "US",
+		"--available", "true",
+		"--available-in-new-territories", "false",
 	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, _ = captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"pricing", "availability", "edit",
-			"--app", "app-1",
-			"--territory", "US",
-			"--available", "true",
-			"--available-in-new-territories", "false",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if err == nil {
-			t.Fatal("expected policy mismatch error")
-		}
-		if !strings.Contains(err.Error(), "does not match the existing policy (current value: true)") {
-			t.Fatalf("expected policy mismatch error, got %v", err)
-		}
-	})
-
-	if got := territoryReads.Load(); got != 0 {
-		t.Fatalf("expected no territory reads, got %d", got)
+	if err == nil {
+		t.Fatal("expected policy mismatch error")
 	}
-	if got := patches.Load(); got != 0 {
-		t.Fatalf("expected no PATCH requests, got %d", got)
+	if !strings.Contains(err.Error(), "does not match the existing policy (current value: true)") {
+		t.Fatalf("expected policy mismatch error, got %v", err)
+	}
+
+	if got := len(reg.Requests()); got != 1 {
+		t.Fatalf("expected no territory reads or PATCH requests, got %d requests", got)
 	}
 }
 
 func TestPricingAvailabilityEditContinuesAfterFailureAndVerifiesFinalState(t *testing.T) {
 	setupAuth(t)
-	fixture := handlertest.New(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-
-	var mu sync.Mutex
-	states := map[string]bool{"USA": false, "FRA": false, "DEU": false}
-	patched := map[string]int{}
-
-	territoryResponse := func() *http.Response {
-		mu.Lock()
-		defer mu.Unlock()
-		data := make([]map[string]any, 0, 3)
-		for _, territoryID := range []string{"USA", "FRA", "DEU"} {
-			data = append(data, map[string]any{
-				"type":       "territoryAvailabilities",
-				"id":         "ta-" + strings.ToLower(territoryID),
-				"attributes": map[string]any{"available": states[territoryID]},
-				"relationships": map[string]any{
-					"territory": map[string]any{"data": map[string]any{"type": "territories", "id": territoryID}},
-				},
-			})
-		}
-		body, err := json.Marshal(map[string]any{"data": data, "links": map[string]string{"next": ""}})
-		if err != nil {
-			return fixture.Response("marshal territory response: %v", err)
-		}
-		return jsonHTTPResponse(http.StatusOK, string(body))
+	territories := func(usa, fra, deu bool) string {
+		return fmt.Sprintf(`{"data":[`+
+			`{"type":"territoryAvailabilities","id":"ta-usa","attributes":{"available":%t},"relationships":{"territory":{"data":{"type":"territories","id":"USA"}}}},`+
+			`{"type":"territoryAvailabilities","id":"ta-fra","attributes":{"available":%t},"relationships":{"territory":{"data":{"type":"territories","id":"FRA"}}}},`+
+			`{"type":"territoryAvailabilities","id":"ta-deu","attributes":{"available":%t},"relationships":{"territory":{"data":{"type":"territories","id":"DEU"}}}}`+
+			`],"links":{"next":""}}`, usa, fra, deu)
 	}
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appAvailabilityV2":
-			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"appAvailabilities","id":"availability-1","attributes":{"availableInNewTerritories":false}}}`), nil
-		case req.Method == http.MethodGet && req.URL.Path == "/v2/appAvailabilities/availability-1/territoryAvailabilities":
-			return territoryResponse(), nil
-		case req.Method == http.MethodPatch && strings.HasPrefix(req.URL.Path, "/v1/territoryAvailabilities/ta-"):
-			territoryID := strings.ToUpper(strings.TrimPrefix(req.URL.Path, "/v1/territoryAvailabilities/ta-"))
-			mu.Lock()
-			patched[territoryID]++
-			if territoryID != "FRA" {
-				states[territoryID] = true
-			}
-			mu.Unlock()
-			if territoryID == "FRA" {
-				return jsonHTTPResponse(http.StatusUnprocessableEntity, `{"errors":[{"status":"422","code":"ENTITY_ERROR","title":"Invalid"}]}`), nil
-			}
-			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"territoryAvailabilities","id":"patched","attributes":{"available":true}}}`), nil
-		default:
-			return nil, fixture.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/app-1/appAvailabilityV2"),
+		asctest.JSON(http.StatusOK, `{"data":{"type":"appAvailabilities","id":"availability-1","attributes":{"availableInNewTerritories":false}}}`))
+	registerTerritoryAvailabilitiesRead(reg, territories(false, false, false))
+	for _, id := range []string{"ta-usa", "ta-fra", "ta-deu"} {
+		resp := asctest.JSON(http.StatusOK, `{"data":{"type":"territoryAvailabilities","id":"patched","attributes":{"available":true}}}`)
+		if id == "ta-fra" {
+			resp = asctest.JSON(http.StatusUnprocessableEntity, `{"errors":[{"status":"422","code":"ENTITY_ERROR","title":"Invalid"}]}`)
 		}
+		reg.Register(asctest.PATCH("/v1/territoryAvailabilities/"+id).JSONBody(`{"data":{"type":"territoryAvailabilities","id":"`+id+`","attributes":{"available":true}}}`), resp)
+	}
+	registerTerritoryAvailabilitiesRead(reg, territories(true, false, true))
+
+	_, _, err := runCommand(t, []string{
+		"pricing", "availability", "edit",
+		"--app", "app-1",
+		"--all-territories",
+		"--available", "true",
 	})
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, _ = captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"pricing", "availability", "edit",
-			"--app", "app-1",
-			"--all-territories",
-			"--available", "true",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if err == nil {
-			t.Fatal("expected partial failure")
-		}
-		if !strings.Contains(err.Error(), "updated 2, skipped 0, failed 1 (FRA)") {
-			t.Fatalf("expected verified partial-failure summary, got %v", err)
-		}
-	})
-
-	mu.Lock()
-	defer mu.Unlock()
-	for _, territoryID := range []string{"USA", "FRA", "DEU"} {
-		if patched[territoryID] != 1 {
-			t.Fatalf("expected one PATCH for %s, got %#v", territoryID, patched)
-		}
+	if err == nil {
+		t.Fatal("expected partial failure")
+	}
+	if !strings.Contains(err.Error(), "updated 2, skipped 0, failed 1 (FRA)") {
+		t.Fatalf("expected verified partial-failure summary, got %v", err)
 	}
 }
