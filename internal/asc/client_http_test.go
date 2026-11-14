@@ -157,14 +157,6 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 		call func(*Client, string) error
 	}{
 		{
-			name: "GetApps",
-			next: "https://api.appstoreconnect.apple.com/v1/apps?cursor=abc",
-			call: func(c *Client, next string) error {
-				_, err := c.GetApps(ctx, Limit[AppsOption](5), WithAppsSort("name"), NextURL[AppsOption](next))
-				return err
-			},
-		},
-		{
 			name: "GetAppInfos",
 			next: "https://api.appstoreconnect.apple.com/v1/apps/app-1/appInfos?cursor=abc",
 			call: func(c *Client, next string) error {
@@ -173,34 +165,10 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			},
 		},
 		{
-			name: "GetAppTags",
-			next: "https://api.appstoreconnect.apple.com/v1/apps/123/appTags?cursor=abc",
-			call: func(c *Client, next string) error {
-				_, err := c.GetAppTags(ctx, "123", Limit[AppTagsOption](5), NextURL[AppTagsOption](next))
-				return err
-			},
-		},
-		{
-			name: "GetAppTagTerritories",
-			next: "https://api.appstoreconnect.apple.com/v1/appTags/tag-1/territories?cursor=abc",
-			call: func(c *Client, next string) error {
-				_, err := c.GetAppTagTerritories(ctx, "tag-1", NextURL[TerritoriesOption](next))
-				return err
-			},
-		},
-		{
 			name: "GetSubscriptionOfferCodeOneTimeUseCodes",
 			next: "https://api.appstoreconnect.apple.com/v1/subscriptionOfferCodes/123/oneTimeUseCodes?cursor=abc",
 			call: func(c *Client, next string) error {
 				_, err := c.GetSubscriptionOfferCodeOneTimeUseCodes(ctx, "123", NextURL[SubscriptionOfferCodeOneTimeUseCodesOption](next))
-				return err
-			},
-		},
-		{
-			name: "GetSubscriptionOfferCodeCustomCodes",
-			next: "https://api.appstoreconnect.apple.com/v1/subscriptionOfferCodes/123/customCodes?cursor=abc",
-			call: func(c *Client, next string) error {
-				_, err := c.GetSubscriptionOfferCodeCustomCodes(ctx, "123", NextURL[SubscriptionOfferCodeCustomCodesOption](next))
 				return err
 			},
 		},
@@ -277,22 +245,6 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			},
 		},
 		{
-			name: "GetScmProviders",
-			next: "https://api.appstoreconnect.apple.com/v1/scmProviders?cursor=abc",
-			call: func(c *Client, next string) error {
-				_, err := c.GetScmProviders(ctx, NextURL[ScmProvidersOption](next))
-				return err
-			},
-		},
-		{
-			name: "GetScmRepositories",
-			next: "https://api.appstoreconnect.apple.com/v1/scmRepositories?cursor=abc",
-			call: func(c *Client, next string) error {
-				_, err := c.GetScmRepositories(ctx, NextURL[ScmRepositoriesOption](next))
-				return err
-			},
-		},
-		{
 			name: "GetBundleIDs",
 			next: "https://api.appstoreconnect.apple.com/v1/bundleIds?cursor=abc",
 			call: func(c *Client, next string) error {
@@ -309,90 +261,10 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 			},
 		},
 		{
-			name: "GetInAppPurchases",
-			next: "https://api.appstoreconnect.apple.com/v1/apps/123/inAppPurchases?cursor=abc",
-			call: func(c *Client, next string) error {
-				_, err := c.GetInAppPurchases(ctx, "123", NextURL[IAPOption](next))
-				return err
-			},
-		},
-		{
-			name: "GetCertificates",
-			next: "https://api.appstoreconnect.apple.com/v1/certificates?cursor=abc",
-			call: func(c *Client, next string) error {
-				_, err := c.GetCertificates(ctx, NextURL[CertificatesOption](next))
-				return err
-			},
-		},
-		{
-			name: "GetProfiles",
-			next: "https://api.appstoreconnect.apple.com/v1/profiles?cursor=abc",
-			call: func(c *Client, next string) error {
-				_, err := c.GetProfiles(ctx, NextURL[ProfilesOption](next))
-				return err
-			},
-		},
-		{
-			name: "GetSubscriptionGroups",
-			next: "https://api.appstoreconnect.apple.com/v1/apps/app-1/subscriptionGroups?cursor=abc",
-			call: func(c *Client, next string) error {
-				_, err := c.GetSubscriptionGroups(ctx, "app-1", NextURL[SubscriptionGroupsOption](next))
-				return err
-			},
-		},
-		{
-			name: "GetUsers",
-			next: "https://api.appstoreconnect.apple.com/v1/users?cursor=abc",
-			call: func(c *Client, next string) error {
-				_, err := c.GetUsers(ctx, NextURL[UsersOption](next))
-				return err
-			},
-		},
-		{
 			name: "GetBetaAppReviewDetails",
 			next: "https://api.appstoreconnect.apple.com/v1/betaAppReviewDetails?cursor=abc",
 			call: func(c *Client, next string) error {
 				_, err := c.GetBetaAppReviewDetails(ctx, "app-1", NextURL[BetaAppReviewDetailsOption](next))
-				return err
-			},
-		},
-		{
-			name: "GetDevices",
-			next: "https://api.appstoreconnect.apple.com/v1/devices?cursor=abc",
-			call: func(c *Client, next string) error {
-				_, err := c.GetDevices(ctx, NextURL[DevicesOption](next))
-				return err
-			},
-		},
-		{
-			name: "GetSubscriptionWinBackOffers",
-			next: "https://api.appstoreconnect.apple.com/v1/subscriptions/sub-1/winBackOffers?cursor=abc",
-			call: func(c *Client, next string) error {
-				_, err := c.GetSubscriptionWinBackOffers(ctx, "sub-1", NextURL[WinBackOffersOption](next))
-				return err
-			},
-		},
-		{
-			name: "ListBetaGroups",
-			next: "https://api.appstoreconnect.apple.com/v1/betaGroups?cursor=abc",
-			call: func(c *Client, next string) error {
-				_, err := c.ListBetaGroups(ctx, NextURL[BetaGroupsOption](next))
-				return err
-			},
-		},
-		{
-			name: "ListBetaBuildLocalizations",
-			next: "https://api.appstoreconnect.apple.com/v1/betaBuildLocalizations?cursor=xyz",
-			call: func(c *Client, next string) error {
-				_, err := c.ListBetaBuildLocalizations(ctx, NextURL[BetaBuildLocalizationsOption](next))
-				return err
-			},
-		},
-		{
-			name: "ListReviewSubmissions",
-			next: "https://api.appstoreconnect.apple.com/v1/reviewSubmissions?cursor=def",
-			call: func(c *Client, next string) error {
-				_, err := c.ListReviewSubmissions(ctx, NextURL[ReviewSubmissionsOption](next))
 				return err
 			},
 		},
@@ -401,11 +273,7 @@ func TestListEndpoints_UseNextURL(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			body := `{"data":[]}`
-			if tt.name == "ListReviewSubmissions" {
-				body = `{"data":[],"links":{"self":"https://api.appstoreconnect.apple.com/v1/reviewSubmissions"}}`
-			}
-			response := jsonResponse(http.StatusOK, body)
+			response := jsonResponse(http.StatusOK, `{"data":[]}`)
 			client := newTestClient(t, func(req *http.Request) {
 				if req.URL.String() != tt.next {
 					t.Fatalf("expected next URL %q, got %q", tt.next, req.URL.String())
@@ -550,15 +418,6 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			body:  `{"data":[{"type":"appTags","id":"tag-1"}]}`,
 			call: func(c *Client) error {
 				return discardResult(c.GetAppTagsRelationshipsForApp(ctx, "app-1", Limit[LinkagesOption](5)))
-			},
-		},
-		{
-			name:  "GetAppPromotedPurchases_WithLimit",
-			path:  "/v1/apps/app-1/promotedPurchases",
-			query: map[string]string{"limit": "5"},
-			body:  `{"data":[{"type":"promotedPurchases","id":"promo-1"}]}`,
-			call: func(c *Client) error {
-				return discardResult(c.GetAppPromotedPurchases(ctx, "app-1", Limit[PromotedPurchasesOption](5)))
 			},
 		},
 		{
@@ -784,24 +643,6 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			},
 		},
 		{
-			name:  "GetBuildUploadFiles_WithLimit",
-			path:  "/v1/buildUploads/UPLOAD_123/buildUploadFiles",
-			query: map[string]string{"limit": "15"},
-			body:  `{"data":[{"type":"buildUploadFiles","id":"FILE_123","attributes":{"fileName":"app.ipa","fileSize":1234,"uti":"com.apple.ipa","assetType":"ASSET"}}]}`,
-			call: func(c *Client) error {
-				return discardResult(c.GetBuildUploadFiles(ctx, "UPLOAD_123", Limit[BuildUploadFilesOption](15)))
-			},
-		},
-		{
-			name:  "GetBuildIndividualTesters_WithLimit",
-			path:  "/v1/builds/BUILD_123/individualTesters",
-			query: map[string]string{"limit": "10"},
-			body:  `{"data":[{"type":"betaTesters","id":"TESTER_1","attributes":{"email":"tester@example.com"}}]}`,
-			call: func(c *Client) error {
-				return discardResult(c.GetBuildIndividualTesters(ctx, "BUILD_123", Limit[BuildIndividualTestersOption](10)))
-			},
-		},
-		{
 			name:  "GetCiProducts_WithAppFilterAndLimit",
 			path:  "/v1/ciProducts",
 			query: map[string]string{"filter[app]": "app-1", "limit": "25"},
@@ -838,46 +679,12 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			},
 		},
 		{
-			name:  "GetScmProviders_WithLimit",
-			path:  "/v1/scmProviders",
-			query: map[string]string{"limit": "25"},
-			body:  `{"data":[{"type":"scmProviders","id":"provider-1"}]}`,
-			call:  func(c *Client) error { return discardResult(c.GetScmProviders(ctx, Limit[ScmProvidersOption](25))) },
-		},
-		{
-			name:  "GetScmProviderRepositories_WithLimit",
-			path:  "/v1/scmProviders/provider-1/repositories",
-			query: map[string]string{"limit": "10"},
-			body:  `{"data":[{"type":"scmRepositories","id":"repo-1"}]}`,
-			call: func(c *Client) error {
-				return discardResult(c.GetScmProviderRepositories(ctx, "provider-1", Limit[ScmRepositoriesOption](10)))
-			},
-		},
-		{
-			name:  "GetScmRepositories_WithLimit",
-			path:  "/v1/scmRepositories",
-			query: map[string]string{"limit": "10"},
-			body:  `{"data":[{"type":"scmRepositories","id":"repo-1"}]}`,
-			call: func(c *Client) error {
-				return discardResult(c.GetScmRepositories(ctx, Limit[ScmRepositoriesOption](10)))
-			},
-		},
-		{
 			name:  "GetScmRepositoryGitReferencesRelationships_WithLimit",
 			path:  "/v1/scmRepositories/repo-1/relationships/gitReferences",
 			query: map[string]string{"limit": "5"},
 			body:  `{"data":[]}`,
 			call: func(c *Client) error {
 				return discardResult(c.GetScmRepositoryGitReferencesRelationships(ctx, "repo-1", Limit[LinkagesOption](5)))
-			},
-		},
-		{
-			name:  "GetScmRepositoryPullRequests_WithLimit",
-			path:  "/v1/scmRepositories/repo-1/pullRequests",
-			query: map[string]string{"limit": "20"},
-			body:  `{"data":[{"type":"scmPullRequests","id":"pr-1"}]}`,
-			call: func(c *Client) error {
-				return discardResult(c.GetScmRepositoryPullRequests(ctx, "repo-1", Limit[ScmPullRequestsOption](20)))
 			},
 		},
 		{
@@ -953,30 +760,12 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			},
 		},
 		{
-			name:  "GetCiMacOsVersions_WithLimit",
-			path:  "/v1/ciMacOsVersions",
-			query: map[string]string{"limit": "5"},
-			body:  `{"data":[{"type":"ciMacOsVersions","id":"macos-1"}]}`,
-			call: func(c *Client) error {
-				return discardResult(c.GetCiMacOsVersions(ctx, Limit[CiMacOsVersionsOption](5)))
-			},
-		},
-		{
 			name:  "GetCiMacOsVersionXcodeVersions_WithLimit",
 			path:  "/v1/ciMacOsVersions/macos-1/xcodeVersions",
 			query: map[string]string{"limit": "20"},
 			body:  `{"data":[{"type":"ciXcodeVersions","id":"xcode-1"}]}`,
 			call: func(c *Client) error {
 				return discardResult(c.GetCiMacOsVersionXcodeVersions(ctx, "macos-1", Limit[CiXcodeVersionsOption](20)))
-			},
-		},
-		{
-			name:  "GetCiXcodeVersions_WithLimit",
-			path:  "/v1/ciXcodeVersions",
-			query: map[string]string{"limit": "10"},
-			body:  `{"data":[{"type":"ciXcodeVersions","id":"xcode-1"}]}`,
-			call: func(c *Client) error {
-				return discardResult(c.GetCiXcodeVersions(ctx, Limit[CiXcodeVersionsOption](10)))
 			},
 		},
 		{
@@ -1039,13 +828,6 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			query: map[string]string{"limit": "10"},
 			body:  `{"data":[{"type":"bundleIds","id":"b1","attributes":{"name":"Demo","identifier":"com.example.demo","platform":"IOS"}}]}`,
 			call:  func(c *Client) error { return discardResult(c.GetBundleIDs(ctx, Limit[BundleIDsOption](10))) },
-		},
-		{
-			name:  "GetInAppPurchases_WithLimit",
-			path:  "/v1/apps/123/inAppPurchases",
-			query: map[string]string{"limit": "10"},
-			body:  `{"data":[{"type":"inAppPurchases","id":"iap-1","attributes":{"referenceName":"Pro","productId":"com.example.pro","inAppPurchaseType":"CONSUMABLE"}}]}`,
-			call:  func(c *Client) error { return discardResult(c.GetInAppPurchases(ctx, "123", Limit[IAPOption](10))) },
 		},
 		{
 			name: "GetMerchantIDs_WithFilters",
@@ -1149,33 +931,6 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			},
 		},
 		{
-			name:  "GetInAppPurchaseLocalizations_WithLimit",
-			path:  "/v2/inAppPurchases/iap-1/inAppPurchaseLocalizations",
-			query: map[string]string{"limit": "5"},
-			body:  `{"data":[{"type":"inAppPurchaseLocalizations","id":"loc-1","attributes":{"name":"Pro","locale":"en-US"}}]}`,
-			call: func(c *Client) error {
-				return discardResult(c.GetInAppPurchaseLocalizations(ctx, "iap-1", Limit[IAPLocalizationsOption](5)))
-			},
-		},
-		{
-			name:  "GetSubscriptionGroups_WithLimit",
-			path:  "/v1/apps/app-1/subscriptionGroups",
-			query: map[string]string{"limit": "20"},
-			body:  `{"data":[{"type":"subscriptionGroups","id":"group-1","attributes":{"referenceName":"Premium"}}]}`,
-			call: func(c *Client) error {
-				return discardResult(c.GetSubscriptionGroups(ctx, "app-1", Limit[SubscriptionGroupsOption](20)))
-			},
-		},
-		{
-			name:  "GetSubscriptions_WithLimit",
-			path:  "/v1/subscriptionGroups/group-1/subscriptions",
-			query: map[string]string{"limit": "5"},
-			body:  `{"data":[{"type":"subscriptions","id":"sub-1","attributes":{"name":"Monthly","productId":"com.example.sub.monthly"}}]}`,
-			call: func(c *Client) error {
-				return discardResult(c.GetSubscriptions(ctx, "group-1", Limit[SubscriptionsOption](5)))
-			},
-		},
-		{
 			name:  "GetSubscriptions_WithProductIDAndNameFilters",
 			path:  "/v1/subscriptionGroups/group-1/subscriptions",
 			query: map[string]string{"filter[productId]": "com.example.sub.monthly", "filter[name]": "Monthly"},
@@ -1244,15 +999,6 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			body:  `{"data":[{"type":"betaAppReviewDetails","id":"detail-1","attributes":{"contactEmail":"dev@example.com"}}]}`,
 			call: func(c *Client) error {
 				return discardResult(c.GetBetaAppReviewDetails(ctx, "app-1", Limit[BetaAppReviewDetailsOption](10)))
-			},
-		},
-		{
-			name:  "GetBetaRecruitmentCriterionOptions_WithLimit",
-			path:  "/v1/betaRecruitmentCriterionOptions",
-			query: map[string]string{"limit": "5"},
-			body:  `{"data":[{"type":"betaRecruitmentCriterionOptions","id":"opt-1","attributes":{"identifier":"OPTION_1","name":"Option 1"}}]}`,
-			call: func(c *Client) error {
-				return discardResult(c.GetBetaRecruitmentCriterionOptions(ctx, Limit[BetaRecruitmentCriterionOptionsOption](5)))
 			},
 		},
 		{
@@ -1429,42 +1175,6 @@ func TestListEndpoints_SendRequest(t *testing.T) {
 			},
 		},
 		{
-			name:  "GetSubscriptionWinBackOffers_WithLimit",
-			path:  "/v1/subscriptions/sub-1/winBackOffers",
-			query: map[string]string{"limit": "5"},
-			body:  `{"data":[{"type":"winBackOffers","id":"offer-1"}],"links":{"self":"https://example.com"}}`,
-			call: func(c *Client) error {
-				return discardResult(c.GetSubscriptionWinBackOffers(ctx, "sub-1", Limit[WinBackOffersOption](5)))
-			},
-		},
-		{
-			name:  "GetWinBackOfferPrices_WithLimit",
-			path:  "/v1/winBackOffers/offer-1/prices",
-			query: map[string]string{"limit": "10"},
-			body:  `{"data":[{"type":"winBackOfferPrices","id":"price-1"}],"links":{"self":"https://example.com"}}`,
-			call: func(c *Client) error {
-				return discardResult(c.GetWinBackOfferPrices(ctx, "offer-1", Limit[WinBackOfferPricesOption](10)))
-			},
-		},
-		{
-			name:  "GetWinBackOfferPricesRelationships",
-			path:  "/v1/winBackOffers/offer-1/relationships/prices",
-			query: map[string]string{"limit": "2"},
-			body:  `{"data":[{"type":"winBackOfferPrices","id":"price-1"}],"links":{"self":"https://example.com"}}`,
-			call: func(c *Client) error {
-				return discardResult(c.GetWinBackOfferPricesRelationships(ctx, "offer-1", Limit[LinkagesOption](2)))
-			},
-		},
-		{
-			name:  "GetSubscriptionWinBackOffersRelationships",
-			path:  "/v1/subscriptions/sub-1/relationships/winBackOffers",
-			query: map[string]string{"limit": "3"},
-			body:  `{"data":[{"type":"winBackOffers","id":"offer-1"}],"links":{"self":"https://example.com"}}`,
-			call: func(c *Client) error {
-				return discardResult(c.GetSubscriptionWinBackOffersRelationships(ctx, "sub-1", Limit[LinkagesOption](3)))
-			},
-		},
-		{
 			name:    "ListBetaGroupsGlobal_NoOptions",
 			path:    "/v1/betaGroups",
 			noQuery: true,
@@ -1520,18 +1230,6 @@ func TestGetEndpoints_SendRequest(t *testing.T) {
 			call: func(c *Client) error { return discardResult(c.GetApp(ctx, "123")) },
 		},
 		{
-			name: "GetSubscriptionOfferCodeOneTimeUseCode",
-			path: "/v1/subscriptionOfferCodeOneTimeUseCodes/code-1",
-			body: `{"data":{"type":"subscriptionOfferCodeOneTimeUseCodes","id":"code-1","attributes":{"numberOfCodes":5}}}`,
-			call: func(c *Client) error { return discardResult(c.GetSubscriptionOfferCodeOneTimeUseCode(ctx, "code-1")) },
-		},
-		{
-			name: "GetSubscriptionOfferCodeCustomCode",
-			path: "/v1/subscriptionOfferCodeCustomCodes/custom-1",
-			body: `{"data":{"type":"subscriptionOfferCodeCustomCodes","id":"custom-1","attributes":{"customCode":"SPRING"}}}`,
-			call: func(c *Client) error { return discardResult(c.GetSubscriptionOfferCodeCustomCode(ctx, "custom-1")) },
-		},
-		{
 			name: "GetAppStoreVersion_WithCompoundReadOptions",
 			path: "/v1/appStoreVersions/1",
 			query: map[string]string{
@@ -1581,12 +1279,6 @@ func TestGetEndpoints_SendRequest(t *testing.T) {
 			call: func(c *Client) error { return discardResult(c.GetBetaBuildLocalization(ctx, "loc-1")) },
 		},
 		{
-			name: "GetBetaAppLocalization_ByID",
-			path: "/v1/betaAppLocalizations/loc-1",
-			body: `{"data":{"type":"betaAppLocalizations","id":"loc-1","attributes":{"locale":"en-US"}}}`,
-			call: func(c *Client) error { return discardResult(c.GetBetaAppLocalization(ctx, "loc-1")) },
-		},
-		{
 			name: "GetAgeRatingDeclarationForAppInfo",
 			path: "/v1/appInfos/info-1/ageRatingDeclaration",
 			body: `{"data":{"type":"ageRatingDeclarations","id":"age-1","attributes":{"gambling":false}}}`,
@@ -1599,40 +1291,16 @@ func TestGetEndpoints_SendRequest(t *testing.T) {
 			call: func(c *Client) error { return discardResult(c.GetCustomerReview(ctx, "review-1")) },
 		},
 		{
-			name: "GetBuildUploadFile",
-			path: "/v1/buildUploadFiles/FILE_123",
-			body: `{"data":{"type":"buildUploadFiles","id":"FILE_123","attributes":{"fileName":"app.ipa","fileSize":1234,"uti":"com.apple.ipa","assetType":"ASSET"}}}`,
-			call: func(c *Client) error { return discardResult(c.GetBuildUploadFile(ctx, "FILE_123")) },
-		},
-		{
 			name: "GetCiProductApp",
 			path: "/v1/ciProducts/prod-1/app",
 			body: `{"data":{"type":"apps","id":"app-1"}}`,
 			call: func(c *Client) error { return discardResult(c.GetCiProductApp(ctx, "prod-1")) },
 		},
 		{
-			name: "GetScmProvider",
-			path: "/v1/scmProviders/provider-1",
-			body: `{"data":{"type":"scmProviders","id":"provider-1"}}`,
-			call: func(c *Client) error { return discardResult(c.GetScmProvider(ctx, "provider-1")) },
-		},
-		{
 			name: "GetScmRepository",
 			path: "/v1/scmRepositories/repo-1",
 			body: `{"data":{"type":"scmRepositories","id":"repo-1"}}`,
 			call: func(c *Client) error { return discardResult(c.GetScmRepository(ctx, "  repo-1  ")) },
-		},
-		{
-			name: "GetScmGitReference",
-			path: "/v1/scmGitReferences/ref-1",
-			body: `{"data":{"type":"scmGitReferences","id":"ref-1"}}`,
-			call: func(c *Client) error { return discardResult(c.GetScmGitReference(ctx, "ref-1")) },
-		},
-		{
-			name: "GetScmPullRequest",
-			path: "/v1/scmPullRequests/pr-1",
-			body: `{"data":{"type":"scmPullRequests","id":"pr-1"}}`,
-			call: func(c *Client) error { return discardResult(c.GetScmPullRequest(ctx, "pr-1")) },
 		},
 		{
 			name:  "GetCiBuildRun_WithIncludeAndFields",
@@ -1685,18 +1353,6 @@ func TestGetEndpoints_SendRequest(t *testing.T) {
 			call: func(c *Client) error { return discardResult(c.GetCiXcodeVersion(ctx, "xcode-1")) },
 		},
 		{
-			name: "GetInAppPurchase",
-			path: "/v1/inAppPurchases/iap-1",
-			body: `{"data":{"type":"inAppPurchases","id":"iap-1","attributes":{"referenceName":"Pro","productId":"com.example.pro"}}}`,
-			call: func(c *Client) error { return discardResult(c.GetInAppPurchase(ctx, "iap-1")) },
-		},
-		{
-			name: "GetBundleID_SendsRequest",
-			path: "/v1/bundleIds/b1",
-			body: `{"data":{"type":"bundleIds","id":"b1","attributes":{"name":"Demo","identifier":"com.example.demo","platform":"IOS"}}}`,
-			call: func(c *Client) error { return discardResult(c.GetBundleID(ctx, "b1")) },
-		},
-		{
 			name: "GetMerchantID_SendsRequest",
 			path: "/v1/merchantIds/m1",
 			query: map[string]string{
@@ -1733,18 +1389,6 @@ func TestGetEndpoints_SendRequest(t *testing.T) {
 			},
 		},
 		{
-			name: "GetBetaAppReviewDetail",
-			path: "/v1/betaAppReviewDetails/detail-1",
-			body: `{"data":{"type":"betaAppReviewDetails","id":"detail-1","attributes":{"contactEmail":"dev@example.com"}}}`,
-			call: func(c *Client) error { return discardResult(c.GetBetaAppReviewDetail(ctx, "detail-1")) },
-		},
-		{
-			name: "GetBetaAppReviewSubmission",
-			path: "/v1/betaAppReviewSubmissions/submission-1",
-			body: `{"data":{"type":"betaAppReviewSubmissions","id":"submission-1","attributes":{"betaReviewState":"IN_REVIEW"}}}`,
-			call: func(c *Client) error { return discardResult(c.GetBetaAppReviewSubmission(ctx, "submission-1")) },
-		},
-		{
 			name:  "GetDevice_WithFields",
 			path:  "/v1/devices/device-1",
 			query: map[string]string{"fields[devices]": "name,udid"},
@@ -1778,18 +1422,6 @@ func TestGetEndpoints_SendRequest(t *testing.T) {
 			},
 		},
 		{
-			name: "GetRoutingAppCoverage",
-			path: "/v1/routingAppCoverages/cover-1",
-			body: `{"data":{"type":"routingAppCoverages","id":"cover-1","attributes":{"fileName":"coverage.geojson"}}}`,
-			call: func(c *Client) error { return discardResult(c.GetRoutingAppCoverage(ctx, "cover-1")) },
-		},
-		{
-			name: "GetRoutingAppCoverageForVersion",
-			path: "/v1/appStoreVersions/version-1/routingAppCoverage",
-			body: `{"data":{"type":"routingAppCoverages","id":"cover-1","attributes":{"fileName":"coverage.geojson"}}}`,
-			call: func(c *Client) error { return discardResult(c.GetRoutingAppCoverageForVersion(ctx, "version-1")) },
-		},
-		{
 			name: "GetAppEncryptionDeclaration",
 			path: "/v1/appEncryptionDeclarations/decl-1",
 			query: map[string]string{
@@ -1811,26 +1443,6 @@ func TestGetEndpoints_SendRequest(t *testing.T) {
 			},
 		},
 		{
-			name: "GetAppEncryptionDeclarationApp",
-			path: "/v1/appEncryptionDeclarations/decl-1/app",
-			body: `{"data":{"type":"apps","id":"app-1"}}`,
-			call: func(c *Client) error { return discardResult(c.GetAppEncryptionDeclarationApp(ctx, "decl-1")) },
-		},
-		{
-			name: "GetAppEncryptionDeclarationDocumentForDeclaration",
-			path: "/v1/appEncryptionDeclarations/decl-1/appEncryptionDeclarationDocument",
-			body: `{"data":{"type":"appEncryptionDeclarationDocuments","id":"doc-1","attributes":{"fileName":"export.pdf"}}}`,
-			call: func(c *Client) error {
-				return discardResult(c.GetAppEncryptionDeclarationDocumentForDeclaration(ctx, "decl-1"))
-			},
-		},
-		{
-			name: "GetBuildAppEncryptionDeclaration",
-			path: "/v1/builds/build-1/appEncryptionDeclaration",
-			body: `{"data":{"type":"appEncryptionDeclarations","id":"decl-1","attributes":{"appDescription":"Uses TLS"}}}`,
-			call: func(c *Client) error { return discardResult(c.GetBuildAppEncryptionDeclaration(ctx, "build-1")) },
-		},
-		{
 			name:  "GetAppEncryptionDeclarationDocument",
 			path:  "/v1/appEncryptionDeclarationDocuments/doc-1",
 			query: map[string]string{"fields[appEncryptionDeclarationDocuments]": "fileName,fileSize"},
@@ -1838,18 +1450,6 @@ func TestGetEndpoints_SendRequest(t *testing.T) {
 			call: func(c *Client) error {
 				return discardResult(c.GetAppEncryptionDeclarationDocument(ctx, "doc-1", []string{"fileName", "fileSize"}))
 			},
-		},
-		{
-			name: "GetAppStoreReviewDetail",
-			path: "/v1/appStoreReviewDetails/detail-1",
-			body: `{"data":{"type":"appStoreReviewDetails","id":"detail-1","attributes":{"contactEmail":"dev@example.com"}}}`,
-			call: func(c *Client) error { return discardResult(c.GetAppStoreReviewDetail(ctx, "detail-1")) },
-		},
-		{
-			name: "GetAppStoreReviewDetailForVersion",
-			path: "/v1/appStoreVersions/version-1/appStoreReviewDetail",
-			body: `{"data":{"type":"appStoreReviewDetails","id":"detail-1","attributes":{"contactEmail":"dev@example.com"}}}`,
-			call: func(c *Client) error { return discardResult(c.GetAppStoreReviewDetailForVersion(ctx, "version-1")) },
 		},
 		{
 			name:  "GetAndroidToIosAppMappingDetail",
@@ -1866,12 +1466,6 @@ func TestGetEndpoints_SendRequest(t *testing.T) {
 			},
 		},
 		{
-			name: "GetWinBackOffer",
-			path: "/v1/winBackOffers/offer-1",
-			body: `{"data":{"type":"winBackOffers","id":"offer-1"}}`,
-			call: func(c *Client) error { return discardResult(c.GetWinBackOffer(ctx, "offer-1")) },
-		},
-		{
 			name: "GetPromotedPurchase_SendsRequest",
 			path: "/v1/promotedPurchases/promo-1",
 			body: `{"data":{"type":"promotedPurchases","id":"promo-1","attributes":{"visibleForAllUsers":true,"enabled":false}}}`,
@@ -1884,11 +1478,6 @@ func TestDeleteEndpoints_SendRequest(t *testing.T) {
 	ctx := context.Background()
 	runEndpointRequestCases(t, http.MethodDelete, http.StatusNoContent, []endpointRequestCase{
 		{
-			name: "DeleteAppStoreVersion",
-			path: "/v1/appStoreVersions/VERSION_123",
-			call: func(c *Client) error { return c.DeleteAppStoreVersion(ctx, "VERSION_123") },
-		},
-		{
 			name: "DeleteAppStoreVersionLocalization_SendsRequest",
 			path: "/v1/appStoreVersionLocalizations/loc-1",
 			call: func(c *Client) error { return c.DeleteAppStoreVersionLocalization(ctx, "loc-1") },
@@ -1897,16 +1486,6 @@ func TestDeleteEndpoints_SendRequest(t *testing.T) {
 			name: "DeleteBetaBuildLocalization_SendsRequest",
 			path: "/v1/betaBuildLocalizations/loc-1",
 			call: func(c *Client) error { return c.DeleteBetaBuildLocalization(ctx, "loc-1") },
-		},
-		{
-			name: "DeleteBetaAppLocalization_SendsRequest",
-			path: "/v1/betaAppLocalizations/loc-1",
-			call: func(c *Client) error { return c.DeleteBetaAppLocalization(ctx, "loc-1") },
-		},
-		{
-			name: "DeleteBuildUpload",
-			path: "/v1/buildUploads/UPLOAD_123",
-			call: func(c *Client) error { return c.DeleteBuildUpload(ctx, "UPLOAD_123") },
 		},
 		{
 			name: "DeleteAppScreenshotSet",
@@ -1932,96 +1511,6 @@ func TestDeleteEndpoints_SendRequest(t *testing.T) {
 			name: "DeleteAppStoreVersionSubmission",
 			path: "/v1/appStoreVersionSubmissions/SUBMIT_123",
 			call: func(c *Client) error { return c.DeleteAppStoreVersionSubmission(ctx, "SUBMIT_123") },
-		},
-		{
-			name: "DeleteCiProduct",
-			path: "/v1/ciProducts/prod-1",
-			call: func(c *Client) error { return c.DeleteCiProduct(ctx, "prod-1") },
-		},
-		{
-			name: "DeleteCiWorkflow",
-			path: "/v1/ciWorkflows/wf-1",
-			call: func(c *Client) error { return c.DeleteCiWorkflow(ctx, "wf-1") },
-		},
-		{
-			name: "DeleteBundleID_SendsRequest",
-			path: "/v1/bundleIds/b1",
-			call: func(c *Client) error { return c.DeleteBundleID(ctx, "b1") },
-		},
-		{
-			name: "DeleteMerchantID_SendsRequest",
-			path: "/v1/merchantIds/m1",
-			call: func(c *Client) error { return c.DeleteMerchantID(ctx, "m1") },
-		},
-		{
-			name: "DeleteBundleIDCapability_SendsRequest",
-			path: "/v1/bundleIdCapabilities/cap1",
-			call: func(c *Client) error { return c.DeleteBundleIDCapability(ctx, "cap1") },
-		},
-		{
-			name: "RevokeCertificate_SendsRequest",
-			path: "/v1/certificates/c1",
-			call: func(c *Client) error { return c.RevokeCertificate(ctx, "c1") },
-		},
-		{
-			name: "DeleteProfile_SendsRequest",
-			path: "/v1/profiles/p1",
-			call: func(c *Client) error { return c.DeleteProfile(ctx, "p1") },
-		},
-		{
-			name: "DeleteInAppPurchaseV2",
-			path: "/v2/inAppPurchases/iap-1",
-			call: func(c *Client) error { return c.DeleteInAppPurchaseV2(ctx, "iap-1") },
-		},
-		{
-			name: "DeleteSubscriptionGroup",
-			path: "/v1/subscriptionGroups/group-1",
-			call: func(c *Client) error { return c.DeleteSubscriptionGroup(ctx, "group-1") },
-		},
-		{
-			name: "DeleteSubscription",
-			path: "/v1/subscriptions/sub-1",
-			call: func(c *Client) error { return c.DeleteSubscription(ctx, "sub-1") },
-		},
-		{
-			name: "DeleteUser_SendsRequest",
-			path: "/v1/users/user-1",
-			call: func(c *Client) error { return c.DeleteUser(ctx, "user-1") },
-		},
-		{
-			name: "DeleteBetaRecruitmentCriteria_SendsRequest",
-			path: "/v1/betaRecruitmentCriteria/criteria-1",
-			call: func(c *Client) error { return c.DeleteBetaRecruitmentCriteria(ctx, "criteria-1") },
-		},
-		{
-			name: "DeleteAccessibilityDeclaration",
-			path: "/v1/accessibilityDeclarations/decl-1",
-			call: func(c *Client) error { return c.DeleteAccessibilityDeclaration(ctx, "decl-1") },
-		},
-		{
-			name: "DeleteAppStoreReviewAttachment",
-			path: "/v1/appStoreReviewAttachments/att-1",
-			call: func(c *Client) error { return c.DeleteAppStoreReviewAttachment(ctx, "att-1") },
-		},
-		{
-			name: "DeleteRoutingAppCoverage",
-			path: "/v1/routingAppCoverages/cover-1",
-			call: func(c *Client) error { return c.DeleteRoutingAppCoverage(ctx, "cover-1") },
-		},
-		{
-			name: "DeleteAndroidToIosAppMappingDetail",
-			path: "/v1/androidToIosAppMappingDetails/map-1",
-			call: func(c *Client) error { return c.DeleteAndroidToIosAppMappingDetail(ctx, "map-1") },
-		},
-		{
-			name: "DeleteWinBackOffer_SendsRequest",
-			path: "/v1/winBackOffers/offer-1",
-			call: func(c *Client) error { return c.DeleteWinBackOffer(ctx, "offer-1") },
-		},
-		{
-			name: "DeletePromotedPurchase_SendsRequest",
-			path: "/v1/promotedPurchases/promo-1",
-			call: func(c *Client) error { return c.DeletePromotedPurchase(ctx, "promo-1") },
 		},
 	})
 }
@@ -4080,20 +3569,6 @@ func TestBetaDeletionEndpoints_SendsRequest(t *testing.T) {
 				return c.DeleteBetaTester(ctx, "bt-1")
 			},
 		},
-		{
-			name: "DeleteBetaFeedbackCrashSubmission",
-			path: "/v1/betaFeedbackCrashSubmissions/sub-1",
-			call: func(c *Client) error {
-				return c.DeleteBetaFeedbackCrashSubmission(ctx, "sub-1")
-			},
-		},
-		{
-			name: "DeleteBetaFeedbackScreenshotSubmission",
-			path: "/v1/betaFeedbackScreenshotSubmissions/sub-1",
-			call: func(c *Client) error {
-				return c.DeleteBetaFeedbackScreenshotSubmission(ctx, "sub-1")
-			},
-		},
 	}
 
 	for _, tt := range tests {
@@ -4668,40 +4143,6 @@ func TestCreateBetaAppLocalization_SendsRequest(t *testing.T) {
 	}
 	if _, err := client.CreateBetaAppLocalization(context.Background(), "app-1", attrs); err != nil {
 		t.Fatalf("CreateBetaAppLocalization() error: %v", err)
-	}
-}
-
-func TestUpdateBetaAppLocalization_SendsRequest(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"betaAppLocalizations","id":"loc-1","attributes":{"description":"Updated"}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodPatch {
-			t.Fatalf("expected PATCH, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/betaAppLocalizations/loc-1" {
-			t.Fatalf("expected path /v1/betaAppLocalizations/loc-1, got %s", req.URL.Path)
-		}
-		body, err := io.ReadAll(req.Body)
-		if err != nil {
-			t.Fatalf("read body error: %v", err)
-		}
-		var payload BetaAppLocalizationUpdateRequest
-		if err := json.Unmarshal(body, &payload); err != nil {
-			t.Fatalf("decode body error: %v", err)
-		}
-		if payload.Data.Type != ResourceTypeBetaAppLocalizations {
-			t.Fatalf("expected type betaAppLocalizations, got %q", payload.Data.Type)
-		}
-		if payload.Data.ID != "loc-1" {
-			t.Fatalf("expected id loc-1, got %q", payload.Data.ID)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	attrs := BetaAppLocalizationUpdateAttributes{
-		Description: func() *string { v := "Updated"; return &v }(),
-	}
-	if _, err := client.UpdateBetaAppLocalization(context.Background(), "loc-1", attrs); err != nil {
-		t.Fatalf("UpdateBetaAppLocalization() error: %v", err)
 	}
 }
 
@@ -5543,27 +4984,6 @@ func TestGetAppBetaTesterUsagesMetrics_WithPeriodAndLimit(t *testing.T) {
 	}
 	if len(resp.Data) == 0 {
 		t.Fatalf("expected response data")
-	}
-}
-
-func TestGetBetaCrashLog(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"betaCrashLogs","id":"log-1","attributes":{"logText":"crash log"}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/betaCrashLogs/log-1" {
-			t.Fatalf("expected path /v1/betaCrashLogs/log-1, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	resp, err := client.GetBetaCrashLog(context.Background(), "log-1")
-	if err != nil {
-		t.Fatalf("GetBetaCrashLog() error: %v", err)
-	}
-	if resp.Data.ID != "log-1" {
-		t.Fatalf("expected log ID log-1, got %q", resp.Data.ID)
 	}
 }
 
@@ -7766,23 +7186,6 @@ func TestGetProfileRelatedResources_SendsRequest(t *testing.T) {
 		call     func(*Client) error
 	}{
 		{
-			name:     "GetProfileBundleID",
-			response: `{"data":{"type":"bundleIds","id":"b1","attributes":{"name":"Bundle","identifier":"com.example"}}}`,
-			check: func(t *testing.T, req *http.Request) {
-				t.Helper()
-				if req.Method != http.MethodGet {
-					t.Fatalf("expected GET, got %s", req.Method)
-				}
-				if req.URL.Path != "/v1/profiles/p1/bundleId" {
-					t.Fatalf("expected path /v1/profiles/p1/bundleId, got %s", req.URL.Path)
-				}
-			},
-			call: func(c *Client) error {
-				_, err := c.GetProfileBundleID(ctx, "p1")
-				return err
-			},
-		},
-		{
 			name:     "GetProfileCertificates",
 			response: `{"data":[{"type":"certificates","id":"c1","attributes":{"name":"Cert","certificateType":"IOS_DISTRIBUTION"}}]}`,
 			check: func(t *testing.T, req *http.Request) {
@@ -7847,23 +7250,6 @@ func TestGetProfileRelatedResources_SendsRequest(t *testing.T) {
 			},
 			call: func(c *Client) error {
 				_, err := c.GetProfileDevices(ctx, "p1", Limit[ProfileDevicesOption](10), NextURL[ProfileDevicesOption](nextDevices))
-				return err
-			},
-		},
-		{
-			name:     "GetProfileBundleIDRelationship",
-			response: `{"data":{"type":"bundleIds","id":"b1"}}`,
-			check: func(t *testing.T, req *http.Request) {
-				t.Helper()
-				if req.Method != http.MethodGet {
-					t.Fatalf("expected GET, got %s", req.Method)
-				}
-				if req.URL.Path != "/v1/profiles/p1/relationships/bundleId" {
-					t.Fatalf("expected path /v1/profiles/p1/relationships/bundleId, got %s", req.URL.Path)
-				}
-			},
-			call: func(c *Client) error {
-				_, err := c.GetProfileBundleIDRelationship(ctx, "p1")
 				return err
 			},
 		},
@@ -8006,35 +7392,6 @@ func TestCreateInAppPurchaseV2(t *testing.T) {
 	}
 	if _, err := client.CreateInAppPurchaseV2(context.Background(), "app-1", attrs); err != nil {
 		t.Fatalf("CreateInAppPurchaseV2() error: %v", err)
-	}
-}
-
-func TestUpdateInAppPurchaseV2(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"inAppPurchases","id":"iap-1","attributes":{"name":"Pro","productId":"com.example.pro","inAppPurchaseType":"CONSUMABLE"}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodPatch {
-			t.Fatalf("expected PATCH, got %s", req.Method)
-		}
-		if req.URL.Path != "/v2/inAppPurchases/iap-1" {
-			t.Fatalf("expected path /v2/inAppPurchases/iap-1, got %s", req.URL.Path)
-		}
-		var payload InAppPurchaseV2UpdateRequest
-		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-			t.Fatalf("failed to decode request: %v", err)
-		}
-		if payload.Data.ID != "iap-1" || payload.Data.Type != ResourceTypeInAppPurchases {
-			t.Fatalf("unexpected payload: %+v", payload.Data)
-		}
-		if payload.Data.Attributes == nil || payload.Data.Attributes.Name == nil || *payload.Data.Attributes.Name != "New Name" {
-			t.Fatalf("expected name update, got %+v", payload.Data.Attributes)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	name := "New Name"
-	attrs := InAppPurchaseV2UpdateAttributes{Name: &name}
-	if _, err := client.UpdateInAppPurchaseV2(context.Background(), "iap-1", attrs); err != nil {
-		t.Fatalf("UpdateInAppPurchaseV2() error: %v", err)
 	}
 }
 
@@ -9219,39 +8576,6 @@ func TestGetBuildBetaDetail(t *testing.T) {
 	}
 }
 
-func TestUpdateBuildBetaDetail_SendsRequest(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"buildBetaDetails","id":"detail-1","attributes":{"autoNotifyEnabled":true}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodPatch {
-			t.Fatalf("expected PATCH, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/buildBetaDetails/detail-1" {
-			t.Fatalf("expected path /v1/buildBetaDetails/detail-1, got %s", req.URL.Path)
-		}
-		var payload BuildBetaDetailUpdateRequest
-		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-			t.Fatalf("failed to decode request: %v", err)
-		}
-		if payload.Data.Type != ResourceTypeBuildBetaDetails {
-			t.Fatalf("expected type buildBetaDetails, got %q", payload.Data.Type)
-		}
-		if payload.Data.ID != "detail-1" {
-			t.Fatalf("expected id detail-1, got %q", payload.Data.ID)
-		}
-		if payload.Data.Attributes == nil || payload.Data.Attributes.AutoNotifyEnabled == nil {
-			t.Fatalf("expected autoNotifyEnabled attribute")
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	enabled := true
-	if _, err := client.UpdateBuildBetaDetail(context.Background(), "detail-1", BuildBetaDetailUpdateAttributes{
-		AutoNotifyEnabled: &enabled,
-	}); err != nil {
-		t.Fatalf("UpdateBuildBetaDetail() error: %v", err)
-	}
-}
-
 func TestCreateBetaRecruitmentCriteria_SendsRequest(t *testing.T) {
 	response := jsonResponse(http.StatusCreated, `{"data":{"type":"betaRecruitmentCriteria","id":"criteria-1","attributes":{"lastModifiedDate":"2026-01-21T00:00:00Z"}}}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -9399,43 +8723,6 @@ func TestBetaGroupTesterUsageDimensionDataAcceptsSchemaString(t *testing.T) {
 	}
 	if response.Data[0].Dimensions.BetaTesters.Data.ID != "tester-1" {
 		t.Fatalf("unexpected tester ID: %+v", response.Data[0].Dimensions.BetaTesters.Data)
-	}
-}
-
-func TestCreateDevice_SendsRequest(t *testing.T) {
-	response := jsonResponse(http.StatusCreated, `{"data":{"type":"devices","id":"device-1","attributes":{"name":"My iPhone","platform":"IOS","udid":"UDID-1","status":"ENABLED"}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodPost {
-			t.Fatalf("expected POST, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/devices" {
-			t.Fatalf("expected path /v1/devices, got %s", req.URL.Path)
-		}
-		var payload DeviceCreateRequest
-		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-			t.Fatalf("failed to decode request: %v", err)
-		}
-		if payload.Data.Type != ResourceTypeDevices {
-			t.Fatalf("expected type devices, got %q", payload.Data.Type)
-		}
-		if payload.Data.Attributes.Name != "My iPhone" {
-			t.Fatalf("expected name My iPhone, got %q", payload.Data.Attributes.Name)
-		}
-		if payload.Data.Attributes.UDID != "UDID-1" {
-			t.Fatalf("expected udid UDID-1, got %q", payload.Data.Attributes.UDID)
-		}
-		if payload.Data.Attributes.Platform != DevicePlatformIOS {
-			t.Fatalf("expected platform IOS, got %q", payload.Data.Attributes.Platform)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.CreateDevice(context.Background(), DeviceCreateAttributes{
-		Name:     "My iPhone",
-		UDID:     "UDID-1",
-		Platform: DevicePlatformIOS,
-	}); err != nil {
-		t.Fatalf("CreateDevice() error: %v", err)
 	}
 }
 
@@ -10286,92 +9573,6 @@ func TestUpdatePromotedPurchase_SendsRequest(t *testing.T) {
 	attrs := PromotedPurchaseUpdateAttributes{Enabled: &enabled}
 	if _, err := client.UpdatePromotedPurchase(context.Background(), "promo-1", attrs); err != nil {
 		t.Fatalf("UpdatePromotedPurchase() error: %v", err)
-	}
-}
-
-// --- Global list endpoint tests ---
-
-func TestListBetaGroupsGlobal_UsesV1BetaGroupsPath(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":[{"type":"betaGroups","id":"bg-1","attributes":{"name":"Global Beta"}}]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/betaGroups" {
-			t.Fatalf("expected path /v1/betaGroups, got %s", req.URL.Path)
-		}
-		values := req.URL.Query()
-		if values.Get("limit") != "50" {
-			t.Fatalf("expected limit=50, got %q", values.Get("limit"))
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	resp, err := client.ListBetaGroups(context.Background(), Limit[BetaGroupsOption](50))
-	if err != nil {
-		t.Fatalf("ListBetaGroups() error: %v", err)
-	}
-	if len(resp.Data) != 1 {
-		t.Fatalf("expected 1 beta group, got %d", len(resp.Data))
-	}
-	if resp.Data[0].ID != "bg-1" {
-		t.Fatalf("expected id bg-1, got %s", resp.Data[0].ID)
-	}
-}
-
-func TestListBetaBuildLocalizationsGlobal_UsesV1BetaBuildLocalizationsPath(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":[{"type":"betaBuildLocalizations","id":"bbl-1","attributes":{"locale":"en-US","whatsNew":"Test"}}]}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/betaBuildLocalizations" {
-			t.Fatalf("expected path /v1/betaBuildLocalizations, got %s", req.URL.Path)
-		}
-		values := req.URL.Query()
-		if values.Get("limit") != "25" {
-			t.Fatalf("expected limit=25, got %q", values.Get("limit"))
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	resp, err := client.ListBetaBuildLocalizations(context.Background(), Limit[BetaBuildLocalizationsOption](25))
-	if err != nil {
-		t.Fatalf("ListBetaBuildLocalizations() error: %v", err)
-	}
-	if len(resp.Data) != 1 {
-		t.Fatalf("expected 1 localization, got %d", len(resp.Data))
-	}
-	if resp.Data[0].ID != "bbl-1" {
-		t.Fatalf("expected id bbl-1, got %s", resp.Data[0].ID)
-	}
-}
-
-func TestListReviewSubmissionsGlobal_UsesV1ReviewSubmissionsPath(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":[{"type":"reviewSubmissions","id":"rs-1","attributes":{"platform":"IOS","state":"READY_FOR_REVIEW"}}],"links":{"self":"https://api.appstoreconnect.apple.com/v1/reviewSubmissions"}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/reviewSubmissions" {
-			t.Fatalf("expected path /v1/reviewSubmissions, got %s", req.URL.Path)
-		}
-		values := req.URL.Query()
-		if values.Get("limit") != "10" {
-			t.Fatalf("expected limit=10, got %q", values.Get("limit"))
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	resp, err := client.ListReviewSubmissions(context.Background(), Limit[ReviewSubmissionsOption](10))
-	if err != nil {
-		t.Fatalf("ListReviewSubmissions() error: %v", err)
-	}
-	if len(resp.Data) != 1 {
-		t.Fatalf("expected 1 submission, got %d", len(resp.Data))
-	}
-	if resp.Data[0].ID != "rs-1" {
-		t.Fatalf("expected id rs-1, got %s", resp.Data[0].ID)
 	}
 }
 

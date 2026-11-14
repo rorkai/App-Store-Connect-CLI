@@ -7,8 +7,13 @@
     "BetaTestersResponse"
   ],
   "operations": [
+    {"operation":"betaTesters_apps_deleteToManyRelationship","name":"RemoveBetaTesterFromApps","params":["testerID"],"check":"require","messages":["tester ID is required"],"ids":"appIDs","idList":{"normalize":true,"message":"app IDs are required","payload":"resourceList","item":"appID"}},
     {"operation":"betaTesters_apps_getToManyRelated","name":"GetBetaTesterApps","params":["testerID"],"check":"require","options":"BetaTesterAppsOption","query":"buildListQuery","nextContext":"betaTesterApps","response":"AppsResponse"},
+    {"operation":"betaTesters_betaGroups_createToManyRelationship","name":"AddBetaTesterToGroups","params":["testerID"],"check":"require","messages":["tester ID is required"],"ids":"groupIDs","idList":{"normalize":true,"message":"group IDs are required","payload":"resourceList","item":"groupID"}},
+    {"operation":"betaTesters_betaGroups_deleteToManyRelationship","name":"RemoveBetaTesterFromGroups","params":["testerID"],"check":"require","messages":["tester ID is required"],"ids":"groupIDs","idList":{"normalize":true,"message":"group IDs are required","payload":"resourceList","item":"groupID"}},
     {"operation":"betaTesters_betaGroups_getToManyRelated","name":"GetBetaTesterBetaGroups","params":["testerID"],"check":"require","options":"BetaTesterBetaGroupsOption","query":"buildListQuery","nextContext":"betaTesterBetaGroups","response":"BetaGroupsResponse"},
+    {"operation":"betaTesters_builds_createToManyRelationship","name":"AddBuildsToBetaTester","params":["testerID"],"check":"require","messages":["tester ID is required"],"ids":"buildIDs","idList":{"normalize":true,"message":"build IDs are required","payload":"resourceList","item":"buildID"}},
+    {"operation":"betaTesters_builds_deleteToManyRelationship","name":"RemoveBuildsFromBetaTester","params":["testerID"],"check":"require","messages":["tester ID is required"],"ids":"buildIDs","idList":{"normalize":true,"message":"build IDs are required","payload":"resourceList","item":"buildID"}},
     {"operation":"betaTesters_builds_getToManyRelated","name":"GetBetaTesterBuilds","params":["testerID"],"check":"require","options":"BetaTesterBuildsOption","query":"buildListQuery","nextContext":"betaTesterBuilds","response":"BuildsResponse"},
     {"operation":"betaTesters_deleteInstance","name":"DeleteBetaTester","params":["testerID"],"check":"raw"},
     {"operation":"betaTesters_getInstance","name":"GetBetaTester","params":["testerID"],"check":"raw"}

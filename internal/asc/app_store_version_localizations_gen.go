@@ -94,6 +94,50 @@ func (c *Client) GetAppStoreVersionLocalization(ctx context.Context, localizatio
 	})
 }
 
+// AddAppStoreVersionLocalizationSearchKeywords sends POST /v1/appStoreVersionLocalizations/{id}/relationships/searchKeywords (appStoreVersionLocalizations_searchKeywords_createToManyRelationship).
+func (c *Client) AddAppStoreVersionLocalizationSearchKeywords(ctx context.Context, localizationID string, keywords []string) error {
+	localizationID = strings.TrimSpace(localizationID)
+	keywords = normalizeList(keywords)
+	if localizationID == "" {
+		return fmt.Errorf("localizationID is required")
+	}
+	if len(keywords) == 0 {
+		return fmt.Errorf("keywords are required")
+	}
+	payload := RelationshipRequest{
+		Data: make([]RelationshipData, 0, len(keywords)),
+	}
+	for _, keyword := range keywords {
+		payload.Data = append(payload.Data, RelationshipData{
+			Type: ResourceTypeAppKeywords,
+			ID:   keyword,
+		})
+	}
+	return sendNoContent(ctx, c, http.MethodPost, fmt.Sprintf("/v1/appStoreVersionLocalizations/%s/relationships/searchKeywords", localizationID), payload)
+}
+
+// DeleteAppStoreVersionLocalizationSearchKeywords sends DELETE /v1/appStoreVersionLocalizations/{id}/relationships/searchKeywords (appStoreVersionLocalizations_searchKeywords_deleteToManyRelationship).
+func (c *Client) DeleteAppStoreVersionLocalizationSearchKeywords(ctx context.Context, localizationID string, keywords []string) error {
+	localizationID = strings.TrimSpace(localizationID)
+	keywords = normalizeList(keywords)
+	if localizationID == "" {
+		return fmt.Errorf("localizationID is required")
+	}
+	if len(keywords) == 0 {
+		return fmt.Errorf("keywords are required")
+	}
+	payload := RelationshipRequest{
+		Data: make([]RelationshipData, 0, len(keywords)),
+	}
+	for _, keyword := range keywords {
+		payload.Data = append(payload.Data, RelationshipData{
+			Type: ResourceTypeAppKeywords,
+			ID:   keyword,
+		})
+	}
+	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/appStoreVersionLocalizations/%s/relationships/searchKeywords", localizationID), payload)
+}
+
 // GetAppStoreVersionLocalizationSearchKeywords sends GET /v1/appStoreVersionLocalizations/{id}/searchKeywords (appStoreVersionLocalizations_searchKeywords_getToManyRelated).
 func (c *Client) GetAppStoreVersionLocalizationSearchKeywords(ctx context.Context, localizationID string) (*AppKeywordsResponse, error) {
 	localizationID = strings.TrimSpace(localizationID)

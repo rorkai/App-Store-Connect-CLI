@@ -147,7 +147,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("finance", "Download payments and financial reports.", finance.FinanceCommand),
 		commandFactory("apps", "List and manage apps in App Store Connect.", apps.AppsCommand),
 		commandFactory("app-clips", "Manage App Clip experiences and invocations.", appclips.AppClipsCommand),
-		commandFactory("android-ios-mapping", "Manage Android-to-iOS app mapping details.", androidiosmapping.AndroidIosMappingCommand),
+		commandFactory("android-ios-mapping", "Manage Android-to-iOS app mapping details.", func() *ffcli.Command {
+			return androidiosmapping.NewAndroidIosMappingCommand(d)
+		}),
 		commandFactory("app-setup", "Post-create app setup automation.", apps.AppSetupCommand),
 		commandFactory("app-tags", "Inspect Apple-generated App Store discoverability tags.", apps.AppTagsCommand),
 		commandFactory("marketplace", "Manage marketplace resources.", func() *ffcli.Command {
@@ -174,7 +176,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		}),
 		commandFactory("testflight", "Manage TestFlight workflows.", testflight.TestFlightCommand),
 		commandFactory("builds", "Manage builds in App Store Connect.", builds.BuildsCommand),
-		commandFactory("build-bundles", "Manage build bundles and App Clip data.", buildbundles.BuildBundlesCommand),
+		commandFactory("build-bundles", "Manage build bundles and App Clip data.", func() *ffcli.Command {
+			return buildbundles.NewBuildBundlesCommand(d)
+		}),
 		commandFactory("publish", "High-level publish workflows for TestFlight and App Store.", publish.PublishCommand),
 		commandFactory("release", "Run high-level App Store release workflows.", release.ReleaseCommand),
 		commandFactory("workflow", "Run multi-step automation workflows.", workflow.WorkflowCommand),
@@ -205,7 +209,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("video-previews", "Manage App Store app preview videos.", videopreviews.VideoPreviewsCommand),
 		commandFactory("asset-library", "Inspect Asset Library media and specifications, and upload images and videos.", assetlibrary.Command),
 		commandFactory("background-assets", "Manage background assets.", backgroundassets.BackgroundAssetsCommand),
-		commandFactory("build-localizations", "Manage build release notes localizations.", buildlocalizations.BuildLocalizationsCommand),
+		commandFactory("build-localizations", "Manage build release notes localizations.", func() *ffcli.Command {
+			return buildlocalizations.NewBuildLocalizationsCommand(d)
+		}),
 		commandFactory("sandbox", "Manage sandbox testers in App Store Connect.", func() *ffcli.Command {
 			return sandbox.NewSandboxCommand(d)
 		}),

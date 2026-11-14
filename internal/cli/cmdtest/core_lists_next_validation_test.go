@@ -159,7 +159,7 @@ func TestCoreListsRejectsInvalidNextURL(t *testing.T) {
 		{args: []string{"nominations", "list", "--status", "DRAFT"}, wantErr: "nominations list: --next"},
 		{args: []string{"accessibility", "list"}, wantErr: "accessibility list: --next", deps: true},
 		{args: []string{"actors", "list"}, wantErr: "actors list: --next", deps: true},
-		{args: []string{"android-ios-mapping", "list", "--app", "app-1"}, wantErr: "android-ios-mapping list: --next"},
+		{args: []string{"android-ios-mapping", "list", "--app", "app-1"}, wantErr: "android-ios-mapping list: --next", deps: true},
 		{args: []string{"testflight", "feedback", "list"}, wantErr: "testflight feedback list: --next"},
 		{args: []string{"testflight", "crashes", "list"}, wantErr: "testflight crashes list: --next"},
 		{args: []string{"agreements", "territories", "list"}, wantErr: "agreements territories list: --next", deps: true},
@@ -200,6 +200,7 @@ func TestCoreListsPaginateFromNext(t *testing.T) {
 			args:     []string{"android-ios-mapping", "list", "--app", "app-1"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/apps/app-1/androidToIosAppMappingDetails?cursor=AQ&limit=200",
 			dataType: "androidToIosAppMappingDetails",
+			deps:     true,
 		},
 		{
 			args:     []string{"testflight", "feedback", "list"},
