@@ -8,42 +8,26 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 func TestPricingScheduleManualPricesLimit(t *testing.T) {
 	setupAuth(t)
 
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet || req.URL.Path != "/v1/appPriceSchedules/schedule-1/manualPrices" {
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-		}
-		if req.URL.Query().Get("limit") != "175" {
-			t.Fatalf("expected limit=175, got %q", req.URL.Query().Get("limit"))
-		}
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appPriceSchedules/schedule-1/manualPrices", "limit=175"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appPrices","id":"manual-price-175"}],"links":{"next":""}}`))
 
-		body := `{"data":[{"type":"appPrices","id":"manual-price-175"}],"links":{"next":""}}`
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	}))
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"pricing", "schedule", "manual-prices",
-			"--schedule", "schedule-1",
-			"--limit", "175",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
+	stdout, stderr, err := runCommand(t, []string{
+		"pricing", "schedule", "manual-prices",
+		"--schedule", "schedule-1",
+		"--limit", "175",
 	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -56,54 +40,23 @@ func TestPricingScheduleManualPricesLimit(t *testing.T) {
 func TestPricingScheduleManualPricesPaginate(t *testing.T) {
 	setupAuth(t)
 
-	const firstURL = "https://api.appstoreconnect.apple.com/v1/appPriceSchedules/schedule-1/manualPrices?limit=200"
 	const secondURL = "https://api.appstoreconnect.apple.com/v1/appPriceSchedules/schedule-1/manualPrices?cursor=Mg"
 
-	requestCount := 0
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requestCount++
-		switch requestCount {
-		case 1:
-			if req.Method != http.MethodGet || req.URL.String() != firstURL {
-				t.Fatalf("unexpected first request: %s %s", req.Method, req.URL.String())
-			}
-			body := `{"data":[{"type":"appPrices","id":"manual-price-1"}],"links":{"next":"` + secondURL + `"}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		case 2:
-			if req.Method != http.MethodGet || req.URL.String() != secondURL {
-				t.Fatalf("unexpected second request: %s %s", req.Method, req.URL.String())
-			}
-			body := `{"data":[{"type":"appPrices","id":"manual-price-2"}],"links":{"next":""}}`
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader(body)),
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-			}, nil
-		default:
-			t.Fatalf("unexpected extra request: %s %s", req.Method, req.URL.String())
-			return nil, nil
-		}
-	}))
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appPriceSchedules/schedule-1/manualPrices", "limit=200"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appPrices","id":"manual-price-1"}],"links":{"next":"`+secondURL+`"}}`))
+	reg.Register(asctest.GET("/v1/appPriceSchedules/schedule-1/manualPrices", "cursor=Mg"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appPrices","id":"manual-price-2"}],"links":{"next":""}}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"pricing", "schedule", "manual-prices",
-			"--schedule", "schedule-1",
-			"--paginate",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
+	stdout, stderr, err := runCommand(t, []string{
+		"pricing", "schedule", "manual-prices",
+		"--schedule", "schedule-1",
+		"--paginate",
 	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -118,33 +71,18 @@ func TestPricingScheduleAutomaticPricesNext(t *testing.T) {
 
 	const nextURL = "https://api.appstoreconnect.apple.com/v1/appPriceSchedules/schedule-1/automaticPrices?cursor=Mg"
 
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet || req.URL.String() != nextURL {
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-		}
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/appPriceSchedules/schedule-1/automaticPrices", "cursor=Mg"),
+		asctest.JSON(http.StatusOK, `{"data":[{"type":"appPrices","id":"automatic-price-next"}],"links":{"next":""}}`))
 
-		body := `{"data":[{"type":"appPrices","id":"automatic-price-next"}],"links":{"next":""}}`
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	}))
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"pricing", "schedule", "automatic-prices",
-			"--next", nextURL,
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
+	stdout, stderr, err := runCommand(t, []string{
+		"pricing", "schedule", "automatic-prices",
+		"--next", nextURL,
 	})
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
