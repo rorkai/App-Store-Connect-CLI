@@ -225,7 +225,10 @@
             "name": "platform",
             "in": "query",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "enum": [
+                "IOS,OSX"
+              ]
             },
             "required": true
           }
@@ -416,7 +419,10 @@
             "name": "isVendorTaxReportReq",
             "in": "query",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "enum": [
+                "true"
+              ]
             },
             "required": true
           },
@@ -440,7 +446,10 @@
             "name": "reportTypes",
             "in": "query",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "enum": [
+                ""
+              ]
             },
             "required": true
           },
@@ -1283,7 +1292,10 @@
             "name": "isRememberMeEnabled",
             "in": "query",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "enum": [
+                "false"
+              ]
             },
             "required": true
           }
@@ -1668,9 +1680,12 @@
             "name": "limit",
             "in": "query",
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "enum": [
+                100
+              ]
             },
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -1760,7 +1775,7 @@
             "schema": {
               "type": "string"
             },
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -1803,7 +1818,7 @@
             "schema": {
               "type": "string"
             },
-            "required": false
+            "required": true
           },
           {
             "name": "start",
@@ -1811,7 +1826,7 @@
             "schema": {
               "type": "string"
             },
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -1861,7 +1876,7 @@
             "schema": {
               "type": "string"
             },
-            "required": false
+            "required": true
           },
           {
             "name": "end_year",
@@ -1869,7 +1884,7 @@
             "schema": {
               "type": "string"
             },
-            "required": false
+            "required": true
           },
           {
             "name": "start_month",
@@ -1877,7 +1892,7 @@
             "schema": {
               "type": "string"
             },
-            "required": false
+            "required": true
           },
           {
             "name": "start_year",
@@ -1885,7 +1900,7 @@
             "schema": {
               "type": "string"
             },
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -1982,7 +1997,10 @@
             "name": "limit",
             "in": "query",
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "enum": [
+                100
+              ]
             },
             "required": true
           }
@@ -2478,7 +2496,7 @@
             "schema": {
               "type": "string"
             },
-            "required": false
+            "required": true
           },
           {
             "name": "start",
@@ -2486,7 +2504,7 @@
             "schema": {
               "type": "string"
             },
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -2543,17 +2561,23 @@
             "name": "include_deleted",
             "in": "query",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "enum": [
+                "false"
+              ]
             },
-            "required": false
+            "required": true
           },
           {
             "name": "limit",
             "in": "query",
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "enum": [
+                100
+              ]
             },
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -2758,7 +2782,12 @@
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "createdBy",
+                  "provider",
+                  "revokedBy"
+                ]
               }
             },
             "style": "form",
@@ -2769,7 +2798,10 @@
             "name": "limit",
             "in": "query",
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "enum": [
+                2000
+              ]
             },
             "required": true
           },
@@ -2779,7 +2811,11 @@
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "-isActive",
+                  "-revokingDate"
+                ]
               }
             },
             "style": "form",
@@ -2887,7 +2923,10 @@
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "privateKey"
+                ]
               }
             },
             "style": "form",
@@ -2900,7 +2939,10 @@
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "provider"
+                ]
               }
             },
             "style": "form",
@@ -2989,7 +3031,10 @@
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "appBundleVersions"
+                ]
               }
             },
             "style": "form",
@@ -3000,7 +3045,10 @@
             "name": "limit",
             "in": "query",
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "enum": [
+                300
+              ]
             },
             "required": true
           }
@@ -3048,20 +3096,26 @@
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "grouping"
+                ]
               }
             },
             "style": "form",
             "explode": false,
-            "required": false
+            "required": true
           },
           {
             "name": "limit",
             "in": "query",
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "enum": [
+                200
+              ]
             },
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -3105,9 +3159,12 @@
             "name": "limit",
             "in": "query",
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "enum": [
+                200
+              ]
             },
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -3151,9 +3208,12 @@
             "name": "limit",
             "in": "query",
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "enum": [
+                200
+              ]
             },
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -3514,9 +3574,12 @@
             "name": "limit",
             "in": "query",
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "enum": [
+                200
+              ]
             },
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -3573,20 +3636,26 @@
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "appSandboxEntitlement"
+                ]
               }
             },
             "style": "form",
             "explode": false,
-            "required": false
+            "required": true
           },
           {
             "name": "limit",
             "in": "query",
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "enum": [
+                200
+              ]
             },
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -3643,7 +3712,15 @@
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "app",
+                  "appStoreState",
+                  "appVersionState",
+                  "createdDate",
+                  "platform",
+                  "versionString"
+                ]
               }
             },
             "style": "form",
@@ -3656,12 +3733,16 @@
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "app",
+                  "appStoreReviewDetail"
+                ]
               }
             },
             "style": "form",
             "explode": false,
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -3852,20 +3933,27 @@
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "category",
+                  "enabledConditions"
+                ]
               }
             },
             "style": "form",
             "explode": false,
-            "required": false
+            "required": true
           },
           {
             "name": "limit[enabledConditions]",
             "in": "query",
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "enum": [
+                100
+              ]
             },
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -4055,7 +4143,13 @@
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "appStoreState",
+                  "appVersionState",
+                  "platform",
+                  "versionString"
+                ]
               }
             },
             "style": "form",
@@ -4068,7 +4162,17 @@
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "appStoreLegacyStatus",
+                  "bundleId",
+                  "displayableVersions",
+                  "distributionType",
+                  "educationDiscountType",
+                  "marketplace",
+                  "name",
+                  "removed"
+                ]
               }
             },
             "style": "form",
@@ -4081,7 +4185,13 @@
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "appTransferRequest",
+                  "displayableVersions",
+                  "iosAppToAppStoreOnVisionOsOptInSetting",
+                  "iosAppToMacAppStoreOptInSetting"
+                ]
               }
             },
             "style": "form",
@@ -4092,7 +4202,10 @@
             "name": "limit[displayableVersions]",
             "in": "query",
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "enum": [
+                20
+              ]
             },
             "required": false
           }
@@ -4260,12 +4373,19 @@
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "appStoreState",
+                  "appVersionState",
+                  "createdDate",
+                  "platform",
+                  "versionString"
+                ]
               }
             },
             "style": "form",
             "explode": false,
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -4320,7 +4440,10 @@
             "name": "limit",
             "in": "query",
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "enum": [
+                100
+              ]
             },
             "required": true
           }
@@ -4428,20 +4551,28 @@
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "category",
+                  "dataProtection",
+                  "purpose"
+                ]
               }
             },
             "style": "form",
             "explode": false,
-            "required": false
+            "required": true
           },
           {
             "name": "limit",
             "in": "query",
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "enum": [
+                500
+              ]
             },
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -4498,20 +4629,28 @@
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "productId",
+                  "referenceName",
+                  "state"
+                ]
               }
             },
             "style": "form",
             "explode": false,
-            "required": false
+            "required": true
           },
           {
             "name": "limit",
             "in": "query",
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "enum": [
+                300
+              ]
             },
-            "required": false
+            "required": true
           },
           {
             "name": "sort",
@@ -4519,12 +4658,15 @@
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "referenceName"
+                ]
               }
             },
             "style": "form",
             "explode": false,
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -4581,20 +4723,26 @@
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "productId"
+                ]
               }
             },
             "style": "form",
             "explode": false,
-            "required": false
+            "required": true
           },
           {
             "name": "limit",
             "in": "query",
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "enum": [
+                300
+              ]
             },
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -4651,12 +4799,21 @@
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "APP_MESSAGE_ARB",
+                  "APP_MESSAGE_ARC",
+                  "APP_MESSAGE_COMM",
+                  "APP_MESSAGE_INFORMATIONAL",
+                  "REJECTION_BINARY",
+                  "REJECTION_METADATA",
+                  "REJECTION_REVIEW_SUBMISSION"
+                ]
               }
             },
             "style": "form",
             "explode": false,
-            "required": false
+            "required": true
           },
           {
             "name": "include",
@@ -4664,20 +4821,30 @@
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "app",
+                  "appMessageThreadDetail",
+                  "appStoreVersions",
+                  "betaBackgroundAssetReviewSubmission",
+                  "build"
+                ]
               }
             },
             "style": "form",
             "explode": false,
-            "required": false
+            "required": true
           },
           {
             "name": "limit[appStoreVersions]",
             "in": "query",
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "enum": [
+                2000
+              ]
             },
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -4734,28 +4901,41 @@
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "appStoreVersionForReview",
+                  "createdByActor",
+                  "items",
+                  "lastUpdatedByActor",
+                  "submittedByActor"
+                ]
               }
             },
             "style": "form",
             "explode": false,
-            "required": false
+            "required": true
           },
           {
             "name": "limit",
             "in": "query",
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "enum": [
+                2000
+              ]
             },
-            "required": false
+            "required": true
           },
           {
             "name": "limit[items]",
             "in": "query",
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "enum": [
+                0
+              ]
             },
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -4812,12 +4992,19 @@
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "isAppStoreReviewInProgress",
+                  "name",
+                  "productId",
+                  "state",
+                  "submitWithNextAppStoreVersion"
+                ]
               }
             },
             "style": "form",
             "explode": false,
-            "required": false
+            "required": true
           },
           {
             "name": "include",
@@ -4825,28 +5012,37 @@
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "subscriptions"
+                ]
               }
             },
             "style": "form",
             "explode": false,
-            "required": false
+            "required": true
           },
           {
             "name": "limit",
             "in": "query",
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "enum": [
+                300
+              ]
             },
-            "required": false
+            "required": true
           },
           {
             "name": "limit[subscriptions]",
             "in": "query",
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "enum": [
+                1000
+              ]
             },
-            "required": false
+            "required": true
           },
           {
             "name": "sort",
@@ -4854,12 +5050,15 @@
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "referenceName"
+                ]
               }
             },
             "style": "form",
             "explode": false,
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -4916,7 +5115,10 @@
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "bundleIdCapabilities"
+                ]
               }
             },
             "style": "form",
@@ -5164,20 +5366,28 @@
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "category",
+                  "enabledConditions",
+                  "inAppPurchaseV2"
+                ]
               }
             },
             "style": "form",
             "explode": false,
-            "required": false
+            "required": true
           },
           {
             "name": "limit[enabledConditions]",
             "in": "query",
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "enum": [
+                100
+              ]
             },
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -5561,7 +5771,7 @@
             },
             "style": "form",
             "explode": false,
-            "required": false
+            "required": true
           },
           {
             "name": "include",
@@ -5569,12 +5779,15 @@
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "reviewSubmission"
+                ]
               }
             },
             "style": "form",
             "explode": false,
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -5631,20 +5844,27 @@
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "fromActor",
+                  "resolutionCenterMessageAttachments"
+                ]
               }
             },
             "style": "form",
             "explode": false,
-            "required": false
+            "required": true
           },
           {
             "name": "limit[resolutionCenterMessageAttachments]",
             "in": "query",
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "enum": [
+                1000
+              ]
             },
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -5701,28 +5921,39 @@
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "fromActor",
+                  "rejections",
+                  "resolutionCenterMessageAttachments"
+                ]
               }
             },
             "style": "form",
             "explode": false,
-            "required": false
+            "required": true
           },
           {
             "name": "limit[rejections]",
             "in": "query",
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "enum": [
+                2000
+              ]
             },
-            "required": false
+            "required": true
           },
           {
             "name": "limit[resolutionCenterMessageAttachments]",
             "in": "query",
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "enum": [
+                1000
+              ]
             },
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -5775,7 +6006,7 @@
             },
             "style": "form",
             "explode": false,
-            "required": false
+            "required": true
           },
           {
             "name": "include",
@@ -5783,28 +6014,49 @@
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "appBundleVersion",
+                  "appCustomProductPageVersion",
+                  "appEvent",
+                  "appStoreVersion",
+                  "appStoreVersionExperiment",
+                  "backgroundAssetVersions",
+                  "build",
+                  "gameCenterAchievementVersions",
+                  "gameCenterActivityVersions",
+                  "gameCenterChallengeVersions",
+                  "gameCenterLeaderboardSetVersions",
+                  "gameCenterLeaderboardVersions",
+                  "rejectionAttachments"
+                ]
               }
             },
             "style": "form",
             "explode": false,
-            "required": false
+            "required": true
           },
           {
             "name": "limit",
             "in": "query",
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "enum": [
+                2000
+              ]
             },
-            "required": false
+            "required": true
           },
           {
             "name": "limit[rejectionAttachments]",
             "in": "query",
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "enum": [
+                1000
+              ]
             },
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -5909,20 +6161,38 @@
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "appCustomProductPageVersion",
+                  "appEvent",
+                  "appStoreVersion",
+                  "appStoreVersionExperiment",
+                  "backgroundAssetVersion",
+                  "gameCenterAchievementVersion",
+                  "gameCenterActivityVersion",
+                  "gameCenterChallengeVersion",
+                  "gameCenterLeaderboardSetVersion",
+                  "gameCenterLeaderboardVersion",
+                  "inAppPurchaseVersion",
+                  "subscriptionGroupVersion",
+                  "subscriptionVersion"
+                ]
               }
             },
             "style": "form",
             "explode": false,
-            "required": false
+            "required": true
           },
           {
             "name": "limit",
             "in": "query",
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "enum": [
+                200
+              ]
             },
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -6087,7 +6357,7 @@
             },
             "style": "form",
             "explode": false,
-            "required": false
+            "required": true
           },
           {
             "name": "include",
@@ -6095,20 +6365,26 @@
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "territory"
+                ]
               }
             },
             "style": "form",
             "explode": false,
-            "required": false
+            "required": true
           },
           {
             "name": "limit",
             "in": "query",
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "enum": [
+                200
+              ]
             },
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -6308,20 +6584,26 @@
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "availableTerritories"
+                ]
               }
             },
             "style": "form",
             "explode": false,
-            "required": false
+            "required": true
           },
           {
             "name": "limit[availableTerritories]",
             "in": "query",
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "enum": [
+                200
+              ]
             },
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -6383,7 +6665,7 @@
             },
             "style": "form",
             "explode": false,
-            "required": false
+            "required": true
           },
           {
             "name": "include",
@@ -6391,20 +6673,26 @@
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "territory"
+                ]
               }
             },
             "style": "form",
             "explode": false,
-            "required": false
+            "required": true
           },
           {
             "name": "limit",
             "in": "query",
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "enum": [
+                1000
+              ]
             },
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -6466,7 +6754,7 @@
             },
             "style": "form",
             "explode": false,
-            "required": false
+            "required": true
           },
           {
             "name": "include",
@@ -6474,20 +6762,27 @@
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "subscriptionPricePoint",
+                  "territory"
+                ]
               }
             },
             "style": "form",
             "explode": false,
-            "required": false
+            "required": true
           },
           {
             "name": "limit",
             "in": "query",
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "enum": [
+                200
+              ]
             },
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -6533,12 +6828,16 @@
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "ADDON",
+                  "APPLICATION"
+                ]
               }
             },
             "style": "form",
             "explode": false,
-            "required": false
+            "required": true
           },
           {
             "name": "include",
@@ -6546,28 +6845,38 @@
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "conditions",
+                  "subcategories"
+                ]
               }
             },
             "style": "form",
             "explode": false,
-            "required": false
+            "required": true
           },
           {
             "name": "limit[conditions]",
             "in": "query",
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "enum": [
+                100
+              ]
             },
-            "required": false
+            "required": true
           },
           {
             "name": "limit[subcategories]",
             "in": "query",
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "enum": [
+                100
+              ]
             },
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -6612,7 +6921,10 @@
             "name": "limit",
             "in": "query",
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "enum": [
+                200
+              ]
             },
             "required": true
           }
@@ -6819,18 +7131,26 @@
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "createdByActor",
+                  "revokedByActor",
+                  "visibleApps"
+                ]
               }
             },
             "style": "form",
             "explode": false,
-            "required": false
+            "required": true
           },
           {
             "name": "limit",
             "in": "query",
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "enum": [
+                2000
+              ]
             },
             "required": false
           },
@@ -6838,7 +7158,10 @@
             "name": "limit[visibleApps]",
             "in": "query",
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "enum": [
+                3
+              ]
             },
             "required": false
           }
@@ -7041,20 +7364,26 @@
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "territory"
+                ]
               }
             },
             "style": "form",
             "explode": false,
-            "required": false
+            "required": true
           },
           {
             "name": "limit",
             "in": "query",
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "enum": [
+                200
+              ]
             },
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -7111,7 +7440,10 @@
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "inAppPurchaseTaxCategoryInfo"
+                ]
               }
             },
             "style": "form",
@@ -7171,7 +7503,10 @@
             "name": "limit",
             "in": "query",
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "enum": [
+                200
+              ]
             },
             "required": true
           }
@@ -7244,7 +7579,11 @@
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "person",
+                  "provider"
+                ]
               }
             },
             "style": "form",
@@ -7255,7 +7594,10 @@
             "name": "limit",
             "in": "query",
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "enum": [
+                2000
+              ]
             },
             "required": true
           }
@@ -7314,7 +7656,11 @@
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "person",
+                  "provider"
+                ]
               }
             },
             "style": "form",
@@ -7363,7 +7709,10 @@
             "name": "hostname",
             "in": "query",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "enum": [
+                "itunesconnect.apple.com"
+              ]
             },
             "required": true
           }
@@ -7829,7 +8178,10 @@
             "name": "limit",
             "in": "query",
             "schema": {
-              "type": "integer"
+              "type": "integer",
+              "enum": [
+                50
+              ]
             },
             "required": true
           }
@@ -7919,7 +8271,7 @@
             "schema": {
               "type": "string"
             },
-            "required": false
+            "required": true
           },
           {
             "name": "teamId",
@@ -7927,7 +8279,7 @@
             "schema": {
               "type": "string"
             },
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -8444,10 +8796,10 @@
               "schema": {
                 "oneOf": [
                   {
-                    "$ref": "#/components/schemas/CreateDeveloperServiceIDRequest"
+                    "$ref": "#/components/schemas/DeveloperPortalReadRequest"
                   },
                   {
-                    "$ref": "#/components/schemas/DeveloperPortalReadRequest"
+                    "$ref": "#/components/schemas/CreateDeveloperServiceIDRequest"
                   }
                 ]
               }
@@ -8463,10 +8815,10 @@
                 "schema": {
                   "oneOf": [
                     {
-                      "$ref": "#/components/schemas/DeveloperBundleIdResponse"
+                      "$ref": "#/components/schemas/DeveloperBundleIdsResponse"
                     },
                     {
-                      "$ref": "#/components/schemas/DeveloperBundleIdsResponse"
+                      "$ref": "#/components/schemas/DeveloperBundleIdResponse"
                     }
                   ]
                 }
@@ -8640,7 +8992,10 @@
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "websitepushId"
+                ]
               }
             },
             "style": "form",
@@ -8868,7 +9223,10 @@
             "schema": {
               "type": "array",
               "items": {
-                "type": "string"
+                "type": "string",
+                "enum": [
+                  "websitepushIdCapabilities"
+                ]
               }
             },
             "style": "form",

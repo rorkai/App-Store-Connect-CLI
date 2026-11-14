@@ -55,7 +55,8 @@ services accept or return:
   the client decodes. A property is `required` only where the client fails
   without it (`data` on lists the client pages through).
 - Enums appear only where the code sends a fixed value or holds an explicit
-  list; other strings are plain `string`.
+  list; other strings are plain `string`. A query parameter is `required`
+  when every request to the operation carries it.
 - Success responses are `2XX` because the client treats any status below 400
   as success. Errors are a `default` response; only the JSON:API hosts carry
   the `ErrorResponse` body the client reads.
@@ -117,6 +118,9 @@ whose `X-HTTP-Method-Override` header names the real action), and
 4. Run `make update-openapi`. It sorts paths and schemas, writes the file in
    canonical form, and regenerates `web/paths.txt`.
 5. Run `make check-docs`.
+
+CI runs the full test suite for any change to `web/latest.json`, so the drift
+test also guards schema-only changes.
 
 The drift test reads the `internal/web` source with `go/ast`. From each
 exported function and method it follows calls into unexported functions of
