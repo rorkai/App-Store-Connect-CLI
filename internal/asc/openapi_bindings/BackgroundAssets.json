@@ -16,6 +16,7 @@
   ],
   "operations": [
     {"operation":"backgroundAssets_getInstance","name":"GetBackgroundAsset","params":["id"],"check":"require","messages":["background asset ID is required"]},
+    {"operation":"backgroundAssets_updateInstance","name":"UpdateBackgroundAsset","params":["id"],"check":"require","messages":["background asset ID is required"],"skipEmptyAttributes":true},
     {"operation":"backgroundAssets_versions_getToManyRelated","name":"GetBackgroundAssetVersions","params":["backgroundAssetID"],"options":"BackgroundAssetVersionsOption","query":"buildBackgroundAssetVersionsQuery","nextContext":"backgroundAssetVersions"}
   ]
 }

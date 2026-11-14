@@ -30,21 +30,3 @@ func (c *Client) CreateAndroidToIosAppMappingDetail(ctx context.Context, appID s
 
 	return sendJSON[AndroidToIosAppMappingDetailResponse](ctx, c, writeRequest{Method: "POST", Path: "/v1/androidToIosAppMappingDetails", Payload: request})
 }
-
-// UpdateAndroidToIosAppMappingDetail updates an existing mapping.
-func (c *Client) UpdateAndroidToIosAppMappingDetail(ctx context.Context, id string, attrs AndroidToIosAppMappingDetailUpdateAttributes) (*AndroidToIosAppMappingDetailResponse, error) {
-	id = strings.TrimSpace(id)
-	if id == "" {
-		return nil, fmt.Errorf("mapping ID is required")
-	}
-
-	payload := AndroidToIosAppMappingDetailUpdateRequest{
-		Data: AndroidToIosAppMappingDetailUpdateData{
-			Type:       ResourceTypeAndroidToIosAppMappingDetails,
-			ID:         id,
-			Attributes: &attrs,
-		},
-	}
-
-	return sendJSON[AndroidToIosAppMappingDetailResponse](ctx, c, writeRequest{Method: "PATCH", Path: fmt.Sprintf("/v1/androidToIosAppMappingDetails/%s", id), Payload: payload})
-}

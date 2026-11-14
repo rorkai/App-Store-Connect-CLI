@@ -13,6 +13,7 @@
   ],
   "operations": [
     {"operation":"inAppPurchaseImagesV2_deleteInstance","name":"DeleteInAppPurchaseImageV2","params":["imageID"],"check":"require"},
+    {"operation":"inAppPurchaseImagesV2_getInstance","name":"GetInAppPurchaseImageV2","params":["imageID"],"check":"require","checkFirst":true,"options":"IAPImageV2Option","query":"buildIAPImageFieldsQuery","single":true},
     {"operation":"inAppPurchaseImagesV2_updateInstance","name":"UpdateInAppPurchaseImageV2","params":["imageID"],"check":"require","skipEmptyAttributes":true}
   ]
 }

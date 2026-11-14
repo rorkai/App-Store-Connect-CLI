@@ -12,6 +12,10 @@
   ],
   "operations": [
     {"operation":"inAppPurchaseVersions_createInstance","name":"CreateInAppPurchaseVersion","params":["iapID"],"check":"require","links":["inAppPurchase"]},
-    {"operation":"inAppPurchaseVersions_image_getToOneRelationship","name":"GetInAppPurchaseVersionImageRelationship","params":["versionID"],"check":"require"}
+    {"operation":"inAppPurchaseVersions_getInstance","name":"GetInAppPurchaseVersion","params":["versionID"],"check":"require","checkFirst":true,"options":"IAPVersionGetOption","query":"buildIAPVersionGetQuery","single":true},
+    {"operation":"inAppPurchaseVersions_image_getToOneRelated","name":"GetInAppPurchaseVersionImage","params":["versionID"],"check":"require","checkFirst":true,"options":"IAPVersionImageOption","query":"buildIAPImageFieldsQuery","single":true},
+    {"operation":"inAppPurchaseVersions_image_getToOneRelationship","name":"GetInAppPurchaseVersionImageRelationship","params":["versionID"],"check":"require"},
+    {"operation":"inAppPurchaseVersions_images_getToManyRelated","name":"GetInAppPurchaseVersionImages","params":["versionID"],"check":"require","options":"IAPVersionImagesOption","query":"buildIAPVersionImagesQuery","nextContext":"in-app-purchase-version-images"},
+    {"operation":"inAppPurchaseVersions_localizations_getToManyRelated","name":"GetInAppPurchaseVersionLocalizations","params":["versionID"],"check":"require","options":"IAPVersionLocalizationsOption","query":"buildIAPVersionLocalizationsQuery","nextContext":"in-app-purchase-version-localizations","response":"InAppPurchaseLocalizationsResponse","deviations":[{"problem":"result data holds asc.InAppPurchaseLocalizationAttributes, not the attributes of resource InAppPurchaseLocalizationV2","reason":"InAppPurchaseLocalizationAttributes is the hand-written attributes type that the v1 and v2 in-app purchase localization reads share, named without the version suffix of InAppPurchaseLocalizationV2; the attribute names check passes for InAppPurchaseLocalizationV2. Reached by asc iap versions localizations list and import."}]}
   ]
 }

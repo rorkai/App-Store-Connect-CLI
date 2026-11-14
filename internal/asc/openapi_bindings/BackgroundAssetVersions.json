@@ -12,6 +12,7 @@
   ],
   "operations": [
     {"operation":"backgroundAssetVersions_backgroundAssetUploadFiles_getToManyRelated","name":"GetBackgroundAssetUploadFiles","params":["versionID"],"options":"BackgroundAssetUploadFilesOption","query":"buildBackgroundAssetUploadFilesQuery","nextContext":"backgroundAssetUploadFiles"},
+    {"operation":"backgroundAssetVersions_createInstance","name":"CreateBackgroundAssetVersion","params":["backgroundAssetID"],"check":"require","messages":["background asset ID is required"],"links":["backgroundAsset"]},
     {"operation":"backgroundAssetVersions_getInstance","name":"GetBackgroundAssetVersion","params":["versionID"],"check":"require","messages":["background asset version ID is required"]}
   ],
   "queries": [
