@@ -148,7 +148,7 @@
             "schema": {
               "type": "string"
             },
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -227,7 +227,7 @@
             "schema": {
               "type": "string"
             },
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -348,9 +348,9 @@
             "name": "month",
             "in": "query",
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
-            "required": false
+            "required": true
           },
           {
             "name": "year",
@@ -358,7 +358,7 @@
             "schema": {
               "type": "string"
             },
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -418,15 +418,15 @@
             "schema": {
               "type": "string"
             },
-            "required": false
+            "required": true
           },
           {
             "name": "month",
             "in": "query",
             "schema": {
-              "type": "string"
+              "type": "integer"
             },
-            "required": false
+            "required": true
           },
           {
             "name": "regionCurrencyIds",
@@ -434,7 +434,7 @@
             "schema": {
               "type": "string"
             },
-            "required": false
+            "required": true
           },
           {
             "name": "reportTypes",
@@ -442,7 +442,7 @@
             "schema": {
               "type": "string"
             },
-            "required": false
+            "required": true
           },
           {
             "name": "year",
@@ -450,7 +450,7 @@
             "schema": {
               "type": "string"
             },
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -1245,7 +1245,7 @@
             "schema": {
               "type": "string"
             },
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -1285,7 +1285,7 @@
             "schema": {
               "type": "string"
             },
-            "required": false
+            "required": true
           }
         ],
         "requestBody": {
@@ -1984,7 +1984,7 @@
             "schema": {
               "type": "integer"
             },
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -2176,9 +2176,10 @@
             "name": "next_build_number",
             "in": "query",
             "schema": {
-              "type": "string"
+              "type": "integer",
+              "minimum": 1
             },
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -2640,6 +2641,16 @@
           "CiWorkflows"
         ],
         "operationId": "ciWorkflows_replaceInstance",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CiWorkflowReplaceRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "2XX": {
             "description": "Success. The client reads no fields from the body."
@@ -2752,7 +2763,7 @@
             },
             "style": "form",
             "explode": false,
-            "required": false
+            "required": true
           },
           {
             "name": "limit",
@@ -2760,7 +2771,7 @@
             "schema": {
               "type": "integer"
             },
-            "required": false
+            "required": true
           },
           {
             "name": "sort",
@@ -2773,7 +2784,7 @@
             },
             "style": "form",
             "explode": false,
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -2983,7 +2994,7 @@
             },
             "style": "form",
             "explode": false,
-            "required": false
+            "required": true
           },
           {
             "name": "limit",
@@ -2991,7 +3002,7 @@
             "schema": {
               "type": "integer"
             },
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -4311,7 +4322,7 @@
             "schema": {
               "type": "integer"
             },
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -4910,7 +4921,7 @@
             },
             "style": "form",
             "explode": false,
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -6603,7 +6614,7 @@
             "schema": {
               "type": "integer"
             },
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -7105,7 +7116,7 @@
             },
             "style": "form",
             "explode": false,
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -7162,7 +7173,7 @@
             "schema": {
               "type": "integer"
             },
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -7238,7 +7249,7 @@
             },
             "style": "form",
             "explode": false,
-            "required": false
+            "required": true
           },
           {
             "name": "limit",
@@ -7246,7 +7257,7 @@
             "schema": {
               "type": "integer"
             },
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -7308,7 +7319,7 @@
             },
             "style": "form",
             "explode": false,
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -7354,7 +7365,7 @@
             "schema": {
               "type": "string"
             },
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -7630,7 +7641,7 @@
             "schema": {
               "type": "string"
             },
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -7682,7 +7693,7 @@
             "schema": {
               "type": "string"
             },
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -7820,7 +7831,7 @@
             "schema": {
               "type": "integer"
             },
-            "required": false
+            "required": true
           }
         ],
         "responses": {
@@ -12976,6 +12987,11 @@
           }
         },
         "additionalProperties": true
+      },
+      "CiWorkflowReplaceRequest": {
+        "type": "object",
+        "title": "CiWorkflowReplaceRequest",
+        "description": "A JSON document the client sends without modelling its fields."
       },
       "CiWorkflowResponse": {
         "type": "object",
