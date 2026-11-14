@@ -43,16 +43,15 @@ func TestPassTypeIDsCertificateQueryFlagsRequireIncludeBeforeClient(t *testing.T
 	}
 
 	clientFactoryCalls := 0
-	client := func() (*asc.Client, error) {
-		clientFactoryCalls++
-		return nil, errors.New("client factory must not run during validation")
-	}
 
 	for _, command := range commands {
 		for _, flagCase := range flags {
 			t.Run(command.name+"/"+flagCase.name, func(t *testing.T) {
 				args := append(append([]string(nil), command.args...), flagCase.args...)
-				stdout, stderr, code := runWithDeps(t, client, args...)
+				stdout, stderr, code := runWithDeps(t, func() (*asc.Client, error) {
+					clientFactoryCalls++
+					return nil, errors.New("client factory must not run during validation")
+				}, args...)
 
 				if code != rootcmd.ExitUsage {
 					t.Errorf("exit code = %d, want %d", code, rootcmd.ExitUsage)
