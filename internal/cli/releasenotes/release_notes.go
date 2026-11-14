@@ -91,8 +91,7 @@ Examples:
 
 			until := strings.TrimSpace(*untilRef)
 			if until == "" {
-				fmt.Fprintln(os.Stderr, "Error: --until-ref is required")
-				return shared.MissingRequiredUsageError("--until-ref")
+				return shared.RequiredFlag("--until-ref")
 			}
 
 			formatValue := strings.ToLower(strings.TrimSpace(*format))
