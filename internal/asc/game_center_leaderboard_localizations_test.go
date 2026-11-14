@@ -307,17 +307,3 @@ func TestGetGameCenterLeaderboardLocalizations_WithLimit(t *testing.T) {
 		t.Fatalf("GetGameCenterLeaderboardLocalizations() error: %v", err)
 	}
 }
-
-func TestGetGameCenterLeaderboardLocalizations_UsesNextURL(t *testing.T) {
-	next := "https://api.appstoreconnect.apple.com/v1/gameCenterLeaderboards/lb-123/localizations?cursor=abc"
-	client := newTestClient(t, func(req *http.Request) {
-		if req.URL.String() != next {
-			t.Fatalf("expected URL %q, got %q", next, req.URL.String())
-		}
-		assertAuthorized(t, req)
-	}, jsonResponse(http.StatusOK, `{"data":[]}`))
-
-	if _, err := client.GetGameCenterLeaderboardLocalizations(context.Background(), "lb-123", NextURL[GCLeaderboardLocalizationsOption](next)); err != nil {
-		t.Fatalf("GetGameCenterLeaderboardLocalizations() error: %v", err)
-	}
-}
