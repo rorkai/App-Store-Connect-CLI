@@ -94,11 +94,7 @@ func parseDeliverfileReader(path string, reader io.Reader) (DeliverfileConfig, e
 			}
 			config.SkipScreenshots = parsed
 		default:
-			// An option is written as a call. "name = x" is an assignment and
-			// "name: x" is a field inside a multi-line value.
-			rest := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), key))
-			isCall := !strings.HasPrefix(rest, "=") && !strings.HasPrefix(rest, ":")
-			if slices.Contains(unappliedConfigKeys, key) && isCall {
+			if slices.Contains(unappliedConfigKeys, key) && isConfigOptionCall(strings.TrimPrefix(strings.TrimSpace(line), key)) {
 				config.IgnoredKeys = append(config.IgnoredKeys, IgnoredConfigKey{Key: key, Value: value, Line: lineNumber})
 			}
 		}
@@ -264,6 +260,32 @@ var unappliedConfigKeys = []string{
 	"release_notes", "privacy_url", "apple_tv_privacy_policy", "support_url", "marketing_url", "languages",
 	"ignore_language_directory_validation", "precheck_include_in_app_purchases",
 	"app_clip_default_experience_subtitle", "app_clip_default_experience_action",
+}
+
+// isConfigOptionCall reports whether rest, the text that follows an option
+// name, sets the option: "name value" or "name(value)". Text that starts with
+// an operator ("name = x", "name ||= x", "name += 1") is an assignment or an
+// expression, and "name: x" is a field inside a multi-line value.
+func isConfigOptionCall(rest string) bool {
+	if rest == "" || rest[0] == '(' {
+		return true
+	}
+	if rest[0] != ' ' && rest[0] != '\t' {
+		return false
+	}
+	value := strings.TrimSpace(rest)
+	if value == "" {
+		return true
+	}
+	switch first := value[0]; {
+	case strings.ContainsRune("\"'[{:(_", rune(first)):
+		return true
+	case first >= '0' && first <= '9', first >= 'a' && first <= 'z', first >= 'A' && first <= 'Z':
+		return true
+	case first == '-' && len(value) > 1 && value[1] >= '0' && value[1] <= '9':
+		return true
+	}
+	return false
 }
 
 func ignoredConfigKeyItems(path string, keys []IgnoredConfigKey) []SkippedItem {
