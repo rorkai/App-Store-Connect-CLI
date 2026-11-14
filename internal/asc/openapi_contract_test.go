@@ -74,18 +74,75 @@ func (m *contractMedia) schema(spec *contractSpec) *contractSchema {
 	return spec.resolve(m.Content["application/json"].Schema)
 }
 
-// response is the success status of the operation and a body of the shape
-// its schema defines: a document whose data is a list or an object.
-func (op *contractOperation) response(spec *contractSpec) (int, string) {
+const contractResourceID = "resource-1"
+
+// contractResponse is the success response of an operation: a document with
+// one resource of the schema's type that has every attribute the schema
+// defines.
+type contractResponse struct {
+	status   int
+	body     string
+	resource *contractSchema // nil for a response without a document
+}
+
+func (op *contractOperation) response(spec *contractSpec) (contractResponse, error) {
 	for _, status := range []int{http.StatusOK, http.StatusCreated} {
-		if schema := op.Responses[strconv.Itoa(status)].schema(spec); schema != nil {
-			if data := spec.property(schema, "data"); data != nil && data.Type == "array" {
-				return status, `{"data":[]}`
-			}
-			return status, `{"data":{}}`
+		schema := op.Responses[strconv.Itoa(status)].schema(spec)
+		if schema == nil {
+			continue
 		}
+		data := spec.property(schema, "data")
+		if data == nil {
+			return contractResponse{}, fmt.Errorf("response %d has no data", status)
+		}
+		resource := data
+		if data.Type == "array" {
+			resource = spec.resolve(data.Items)
+		}
+		item := map[string]any{"id": contractResourceID}
+		if types := spec.property(resource, "type"); types != nil && len(types.Enum) > 0 {
+			item["type"] = types.Enum[0]
+		}
+		if attrs := spec.property(resource, "attributes"); attrs != nil {
+			item["attributes"] = spec.sample(attrs)
+		}
+		var document any = map[string]any{"data": item}
+		if data.Type == "array" {
+			document = map[string]any{"data": []any{item}}
+		}
+		body, err := json.Marshal(document)
+		return contractResponse{status: status, body: string(body), resource: resource}, err
 	}
-	return http.StatusNoContent, ""
+	return contractResponse{status: http.StatusNoContent}, nil
+}
+
+// sample is a non-zero JSON value of the schema's type.
+func (s *contractSpec) sample(schema *contractSchema) any {
+	schema = s.resolve(schema)
+	switch {
+	case schema == nil:
+		return nil
+	case len(schema.Enum) > 0:
+		return schema.Enum[0]
+	case schema.Type == "string":
+		return "value"
+	case schema.Type == "integer":
+		return 2
+	case schema.Type == "number":
+		return 2.5
+	case schema.Type == "boolean":
+		return true
+	case schema.Type == "array":
+		return []any{s.sample(schema.Items)}
+	}
+	if len(schema.Properties) == 0 {
+		return map[string]any{"key": "value"}
+	}
+	object := map[string]any{}
+	for name, prop := range schema.Properties {
+		object[name] = s.sample(prop)
+	}
+	return object
 }
 
 type contractSpec struct {
@@ -323,10 +380,12 @@ func (r contractRequest) String() string { return r.method + " " + r.url.String(
 
 // invoke calls the method on a client that records every request and answers
 // each with the given response; args follow ctx and may end with one option.
-func (c *contractCall) invoke(args []reflect.Value, status int, response string) ([]contractRequest, error) {
+// It returns the requests, the method's result other than its error, and the
+// error.
+func (c *contractCall) invoke(args []reflect.Value, response contractResponse) ([]contractRequest, any, error) {
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	var mu sync.Mutex
 	var requests []contractRequest
@@ -339,7 +398,7 @@ func (c *contractCall) invoke(args []reflect.Value, status int, response string)
 			mu.Lock()
 			requests = append(requests, contractRequest{method: req.Method, url: req.URL, body: body})
 			mu.Unlock()
-			return jsonResponse(status, response), nil
+			return jsonResponse(response.status, response.body), nil
 		})},
 		keyID:      "KEY123",
 		issuerID:   "ISS456",
@@ -347,7 +406,11 @@ func (c *contractCall) invoke(args []reflect.Value, status int, response string)
 	}
 	out := reflect.ValueOf(client).MethodByName(c.name).Call(append([]reflect.Value{reflect.ValueOf(context.Background())}, args...))
 	callErr, _ := out[len(out)-1].Interface().(error)
-	return requests, callErr
+	var result any
+	if len(out) == 2 {
+		result = out[0].Interface()
+	}
+	return requests, result, callErr
 }
 
 // checkGeneratedOperation returns every difference between what the method
@@ -372,8 +435,11 @@ func checkGeneratedOperation(spec *contractSpec, op *contractOperation, b *contr
 			page.nextURL = ""
 		}))
 	}
-	status, response := op.response(spec)
-	requests, callErr := call.invoke(args, status, response)
+	response, err := op.response(spec)
+	if err != nil {
+		return []string{err.Error()}
+	}
+	requests, result, callErr := call.invoke(args, response)
 	if fillErr != nil {
 		return []string{"cannot fill the options: " + fillErr.Error()}
 	}
@@ -384,7 +450,9 @@ func checkGeneratedOperation(spec *contractSpec, op *contractOperation, b *contr
 
 	var problems []string
 	if callErr != nil {
-		problems = append(problems, fmt.Sprintf("failed on a %d response of the schema's shape %s: %v", status, response, callErr))
+		problems = append(problems, fmt.Sprintf("failed on the schema's %d response %s: %v", response.status, response.body, callErr))
+	} else {
+		problems = append(problems, checkContractResult(spec, result, response)...)
 	}
 	if req.method != op.method {
 		problems = append(problems, fmt.Sprintf("sent %s, the operation is %s", req.method, op.method))
@@ -394,7 +462,7 @@ func checkGeneratedOperation(spec *contractSpec, op *contractOperation, b *contr
 	}
 	problems = append(problems, checkContractQuery(op, req.url.Query(), call.query != nil)...)
 	if call.query != nil {
-		problems = append(problems, checkContractNextURL(call, op.path, status, response)...)
+		problems = append(problems, checkContractNextURL(call, op.path, response)...)
 	}
 	return append(problems, checkContractBody(spec, op, req.body, call)...)
 }
@@ -428,6 +496,9 @@ func checkContractQuery(op *contractOperation, query url.Values, paged bool) []s
 	if len(unknown) > 0 {
 		problems = append(problems, fmt.Sprintf("sent query parameters %v that the operation does not define", unknown))
 	}
+	if allowed["limit"] && !paged {
+		problems = append(problems, "the operation pages with limit, the method takes no options")
+	}
 	if paged && allowed["limit"] && query.Get("limit") != strconv.Itoa(contractLimit) {
 		problems = append(problems, fmt.Sprintf("sent limit=%q with a limit option of %d", query.Get("limit"), contractLimit))
 	}
@@ -436,7 +507,7 @@ func checkContractQuery(op *contractOperation, query url.Values, paged bool) []s
 
 // checkContractNextURL calls a paged read with a next URL and blank path
 // parameters, as pagination does, and checks that it fetches that URL.
-func checkContractNextURL(call *contractCall, path string, status int, response string) []string {
+func checkContractNextURL(call *contractCall, path string, response contractResponse) []string {
 	next := "https://api.appstoreconnect.apple.com" + contractPath(path, call.pathArgs) + "?cursor=contract"
 	var args []reflect.Value
 	for _, typ := range call.params {
@@ -445,9 +516,65 @@ func checkContractNextURL(call *contractCall, path string, status int, response 
 	args = append(args, call.option(func(q reflect.Value) {
 		q.Interface().(pager).page().nextURL = next
 	}))
-	requests, err := call.invoke(args, status, response)
+	requests, _, err := call.invoke(args, response)
 	if err != nil || len(requests) != 1 || requests[0].url.String() != next {
 		return []string{fmt.Sprintf("with a next URL and blank path parameters sent %v, want one request to %s (error: %v)", requests, next, err)}
+	}
+	return nil
+}
+
+// checkContractResult checks that the method returns the resource of the
+// response: its ID, and every attribute the schema defines and no other, so a
+// method that decodes into another resource's type fails.
+func checkContractResult(spec *contractSpec, result any, response contractResponse) []string {
+	if response.resource == nil {
+		if result != nil {
+			return []string{fmt.Sprintf("returns %T for an operation without a response document", result)}
+		}
+		return nil
+	}
+	encoded, err := json.Marshal(result)
+	if err != nil {
+		return []string{fmt.Sprintf("cannot encode the result %T: %v", result, err)}
+	}
+	var document struct {
+		Data json.RawMessage `json:"data"`
+	}
+	if err := json.Unmarshal(encoded, &document); err != nil {
+		return []string{fmt.Sprintf("result %T is not a document: %v", result, err)}
+	}
+	var items []struct {
+		ID         string                     `json:"id"`
+		Attributes map[string]json.RawMessage `json:"attributes"`
+	}
+	if err := json.Unmarshal(document.Data, &items); err != nil {
+		items = items[:0]
+		var item struct {
+			ID         string                     `json:"id"`
+			Attributes map[string]json.RawMessage `json:"attributes"`
+		}
+		if err := json.Unmarshal(document.Data, &item); err != nil {
+			return []string{fmt.Sprintf("result %T has data %s", result, document.Data)}
+		}
+		items = append(items, item)
+	}
+	if len(items) != 1 || items[0].ID != contractResourceID {
+		return []string{fmt.Sprintf("result %T does not hold the response resource: %s", result, encoded)}
+	}
+	var want []string
+	if attrs := spec.property(response.resource, "attributes"); attrs != nil {
+		for name := range attrs.Properties {
+			want = append(want, name)
+		}
+	}
+	var got []string
+	for name := range items[0].Attributes {
+		got = append(got, name)
+	}
+	sort.Strings(want)
+	sort.Strings(got)
+	if !slices.Equal(got, want) {
+		return []string{fmt.Sprintf("result %T has attributes %v, the schema's resource has %v", result, got, want)}
 	}
 	return nil
 }
