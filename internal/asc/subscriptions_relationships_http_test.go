@@ -19,7 +19,7 @@ func TestSubscriptionRelationshipEndpoints(t *testing.T) {
 			{
 				name: "subscription prices",
 				call: func(c *Client) error {
-					_, err := c.GetSubscriptionPricesRelationships(context.Background(), "sub-1", WithLinkagesLimit(5))
+					_, err := c.GetSubscriptionPricesRelationships(context.Background(), "sub-1", Limit[LinkagesOption](5))
 					return err
 				},
 				wantPath: "/v1/subscriptions/sub-1/relationships/prices",

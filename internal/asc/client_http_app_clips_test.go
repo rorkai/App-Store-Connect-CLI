@@ -266,7 +266,7 @@ func TestGetAppClipDefaultExperiencesRelationships(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetAppClipDefaultExperiencesRelationships(context.Background(), "clip-1", WithLinkagesLimit(10)); err != nil {
+	if _, err := client.GetAppClipDefaultExperiencesRelationships(context.Background(), "clip-1", Limit[LinkagesOption](10)); err != nil {
 		t.Fatalf("GetAppClipDefaultExperiencesRelationships() error: %v", err)
 	}
 }
@@ -287,7 +287,7 @@ func TestGetAppClipAdvancedExperiencesRelationships(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetAppClipAdvancedExperiencesRelationships(context.Background(), "clip-1", WithLinkagesLimit(20)); err != nil {
+	if _, err := client.GetAppClipAdvancedExperiencesRelationships(context.Background(), "clip-1", Limit[LinkagesOption](20)); err != nil {
 		t.Fatalf("GetAppClipAdvancedExperiencesRelationships() error: %v", err)
 	}
 }

@@ -65,11 +65,11 @@ func ResolveTiers(ctx context.Context, client *asc.Client, appID, territory stri
 		},
 		func(nextURL string) (tierPage, error) {
 			opts := []asc.PricePointsOption{
-				asc.WithPricePointsLimit(200),
+				asc.Limit[asc.PricePointsOption](200),
 				asc.WithPricePointsTerritory(normalizedTerritory),
 			}
 			if nextURL != "" {
-				opts = []asc.PricePointsOption{asc.WithPricePointsNextURL(nextURL)}
+				opts = []asc.PricePointsOption{asc.NextURL[asc.PricePointsOption](nextURL)}
 			}
 			resp, err := client.GetAppPricePoints(ctx, normalizedAppID, opts...)
 			if err != nil {
@@ -275,11 +275,11 @@ func ResolveFreeAppPricePoint(ctx context.Context, client *asc.Client, appID, te
 
 	return resolveFreeAppPricePointWithFetcher(normalizedTerritory, func(nextURL string) (freePricePointPage, error) {
 		opts := []asc.PricePointsOption{
-			asc.WithPricePointsLimit(200),
+			asc.Limit[asc.PricePointsOption](200),
 			asc.WithPricePointsTerritory(normalizedTerritory),
 		}
 		if nextURL != "" {
-			opts = []asc.PricePointsOption{asc.WithPricePointsNextURL(nextURL)}
+			opts = []asc.PricePointsOption{asc.NextURL[asc.PricePointsOption](nextURL)}
 		}
 		resp, err := client.GetAppPricePoints(ctx, normalizedAppID, opts...)
 		if err != nil {

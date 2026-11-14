@@ -133,8 +133,8 @@ Examples:
 			defer cancel()
 
 			opts := []asc.LinkagesOption{
-				asc.WithLinkagesLimit(*limit),
-				asc.WithLinkagesNextURL(*next),
+				asc.Limit[asc.LinkagesOption](*limit),
+				asc.NextURL[asc.LinkagesOption](*next),
 			}
 
 			if *paginate {
@@ -142,14 +142,14 @@ Examples:
 					fmt.Fprintln(os.Stderr, "Error: --id is required")
 					return shared.MissingRequiredUsageError("--id")
 				}
-				paginateOpts := append(opts, asc.WithLinkagesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.LinkagesOption](200))
 				firstPage, err := client.GetProfileCertificatesRelationships(requestCtx, idValue, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("profiles links certificates: failed to fetch: %w", err)
 				}
 
 				paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetProfileCertificatesRelationships(ctx, idValue, asc.WithLinkagesNextURL(nextURL))
+					return client.GetProfileCertificatesRelationships(ctx, idValue, asc.NextURL[asc.LinkagesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("profiles links certificates: %w", err)
@@ -218,8 +218,8 @@ Examples:
 			defer cancel()
 
 			opts := []asc.LinkagesOption{
-				asc.WithLinkagesLimit(*limit),
-				asc.WithLinkagesNextURL(*next),
+				asc.Limit[asc.LinkagesOption](*limit),
+				asc.NextURL[asc.LinkagesOption](*next),
 			}
 
 			if *paginate {
@@ -227,14 +227,14 @@ Examples:
 					fmt.Fprintln(os.Stderr, "Error: --id is required")
 					return shared.MissingRequiredUsageError("--id")
 				}
-				paginateOpts := append(opts, asc.WithLinkagesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.LinkagesOption](200))
 				firstPage, err := client.GetProfileDevicesRelationships(requestCtx, idValue, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("profiles links devices: failed to fetch: %w", err)
 				}
 
 				paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetProfileDevicesRelationships(ctx, idValue, asc.WithLinkagesNextURL(nextURL))
+					return client.GetProfileDevicesRelationships(ctx, idValue, asc.NextURL[asc.LinkagesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("profiles links devices: %w", err)

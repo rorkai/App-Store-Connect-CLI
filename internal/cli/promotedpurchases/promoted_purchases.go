@@ -92,19 +92,19 @@ Examples:
 			defer cancel()
 
 			opts := []asc.PromotedPurchasesOption{
-				asc.WithPromotedPurchasesLimit(*limit),
-				asc.WithPromotedPurchasesNextURL(*next),
+				asc.Limit[asc.PromotedPurchasesOption](*limit),
+				asc.NextURL[asc.PromotedPurchasesOption](*next),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithPromotedPurchasesLimit(200))
+				paginateOpts := append(opts, asc.Limit[asc.PromotedPurchasesOption](200))
 				firstPage, err := client.GetAppPromotedPurchases(requestCtx, resolvedAppID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("promoted-purchases list: failed to fetch: %w", err)
 				}
 
 				paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppPromotedPurchases(ctx, resolvedAppID, asc.WithPromotedPurchasesNextURL(nextURL))
+					return client.GetAppPromotedPurchases(ctx, resolvedAppID, asc.NextURL[asc.PromotedPurchasesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("promoted-purchases list: %w", err)

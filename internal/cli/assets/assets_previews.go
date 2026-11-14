@@ -1235,13 +1235,13 @@ func getOrderedAppPreviewIDs(ctx context.Context, client *asc.Client, setID stri
 		return nil, fmt.Errorf("client is required")
 	}
 
-	firstPage, err := client.GetAppPreviewSetAppPreviewsRelationships(ctx, setID, asc.WithLinkagesLimit(200))
+	firstPage, err := client.GetAppPreviewSetAppPreviewsRelationships(ctx, setID, asc.Limit[asc.LinkagesOption](200))
 	if err != nil {
 		return nil, err
 	}
 
 	return collectOrderedLinkageIDs(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetAppPreviewSetAppPreviewsRelationships(ctx, "", asc.WithLinkagesNextURL(nextURL))
+		return client.GetAppPreviewSetAppPreviewsRelationships(ctx, "", asc.NextURL[asc.LinkagesOption](nextURL))
 	})
 }
 

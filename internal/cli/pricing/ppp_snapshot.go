@@ -22,7 +22,7 @@ func readAppPPPSchedule(ctx context.Context, client *asc.Client, appID string) (
 	snapshot := shared.PPPScheduleSnapshot{BaseTerritory: base.Data.ID}
 	for index, fetch := range []appSchedulePriceFetcher{client.GetAppPriceScheduleManualPrices, client.GetAppPriceScheduleAutomaticPrices} {
 		first, err := fetch(requestCtx, schedule.Data.ID,
-			asc.WithAppPriceSchedulePricesLimit(200),
+			asc.Limit[asc.AppPriceSchedulePricesOption](200),
 			asc.WithAppPriceSchedulePricesInclude([]string{"appPricePoint", "territory"}),
 			asc.WithAppPriceSchedulePricesFields([]string{"manual", "startDate", "endDate", "appPricePoint", "territory"}),
 			asc.WithAppPriceSchedulePricesPricePointFields([]string{"customerPrice", "proceeds", "territory"}),
@@ -35,7 +35,7 @@ func readAppPPPSchedule(ctx context.Context, client *asc.Client, appID string) (
 			if err != nil {
 				return nil, err
 			}
-			return fetch(ctx, schedule.Data.ID, asc.WithAppPriceSchedulePricesNextURL(next))
+			return fetch(ctx, schedule.Data.ID, asc.NextURL[asc.AppPriceSchedulePricesOption](next))
 		}, func(page asc.PaginatedResponse) error {
 			typed, ok := page.(*asc.AppPricesResponse)
 			if !ok {

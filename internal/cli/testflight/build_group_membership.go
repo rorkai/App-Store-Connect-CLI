@@ -173,7 +173,7 @@ func lookupBuildGroupMembershipByInverseRelationships(
 }
 
 func betaGroupContainsBuild(ctx context.Context, client *asc.Client, groupID, buildID string) (bool, error) {
-	page, err := client.GetBetaGroupBuildsRelationships(ctx, groupID, asc.WithLinkagesLimit(200))
+	page, err := client.GetBetaGroupBuildsRelationships(ctx, groupID, asc.Limit[asc.LinkagesOption](200))
 	if err != nil {
 		return false, err
 	}
@@ -194,7 +194,7 @@ func betaGroupContainsBuild(ctx context.Context, client *asc.Client, groupID, bu
 		}
 		seenNext[nextURL] = struct{}{}
 		pageNumber++
-		page, err = client.GetBetaGroupBuildsRelationships(ctx, groupID, asc.WithLinkagesNextURL(nextURL))
+		page, err = client.GetBetaGroupBuildsRelationships(ctx, groupID, asc.NextURL[asc.LinkagesOption](nextURL))
 		if err != nil {
 			return false, fmt.Errorf("page %d: %w", pageNumber, err)
 		}

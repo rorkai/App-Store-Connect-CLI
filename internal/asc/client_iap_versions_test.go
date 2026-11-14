@@ -105,7 +105,7 @@ func TestInAppPurchaseVersionEndpoints(t *testing.T) {
 			name: "versions linkages", method: http.MethodGet, path: "/v2/inAppPurchases/iap-1/relationships/versions", responseCode: http.StatusOK,
 			responseBody: `{"data":[{"type":"inAppPurchaseVersions","id":"version-1"}]}`, query: map[string]string{"limit": "4"},
 			call: func(c *Client) error {
-				_, err := c.GetInAppPurchaseVersionsRelationships(context.Background(), "iap-1", WithLinkagesLimit(4))
+				_, err := c.GetInAppPurchaseVersionsRelationships(context.Background(), "iap-1", Limit[LinkagesOption](4))
 				return err
 			},
 		},
@@ -138,7 +138,7 @@ func TestInAppPurchaseVersionEndpoints(t *testing.T) {
 			name: "images linkages", method: http.MethodGet, path: "/v1/inAppPurchaseVersions/version-1/relationships/images", responseCode: http.StatusOK,
 			responseBody: `{"data":[{"type":"inAppPurchaseImages","id":"image-1"}]}`, query: map[string]string{"limit": "8"},
 			call: func(c *Client) error {
-				_, err := c.GetInAppPurchaseVersionImagesRelationships(context.Background(), "version-1", WithLinkagesLimit(8))
+				_, err := c.GetInAppPurchaseVersionImagesRelationships(context.Background(), "version-1", Limit[LinkagesOption](8))
 				return err
 			},
 		},
@@ -154,7 +154,7 @@ func TestInAppPurchaseVersionEndpoints(t *testing.T) {
 			name: "localizations linkages", method: http.MethodGet, path: "/v1/inAppPurchaseVersions/version-1/relationships/localizations", responseCode: http.StatusOK,
 			responseBody: `{"data":[{"type":"inAppPurchaseLocalizations","id":"loc-1"}]}`, query: map[string]string{"limit": "10"},
 			call: func(c *Client) error {
-				_, err := c.GetInAppPurchaseVersionLocalizationsRelationships(context.Background(), "version-1", WithLinkagesLimit(10))
+				_, err := c.GetInAppPurchaseVersionLocalizationsRelationships(context.Background(), "version-1", Limit[LinkagesOption](10))
 				return err
 			},
 		},

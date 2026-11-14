@@ -347,8 +347,8 @@ Examples:
 		},
 		FetchPage: func(ctx context.Context, client *asc.Client, repoID string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := []asc.LinkagesOption{
-				asc.WithLinkagesLimit(limit),
-				asc.WithLinkagesNextURL(next),
+				asc.Limit[asc.LinkagesOption](limit),
+				asc.NextURL[asc.LinkagesOption](next),
 			}
 			resp, err := client.GetScmRepositoryGitReferencesRelationships(ctx, repoID, opts...)
 			if err != nil {
@@ -380,8 +380,8 @@ Examples:
 		},
 		FetchPage: func(ctx context.Context, client *asc.Client, repoID string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := []asc.LinkagesOption{
-				asc.WithLinkagesLimit(limit),
-				asc.WithLinkagesNextURL(next),
+				asc.Limit[asc.LinkagesOption](limit),
+				asc.NextURL[asc.LinkagesOption](next),
 			}
 			resp, err := client.GetScmRepositoryPullRequestsRelationships(ctx, repoID, opts...)
 			if err != nil {

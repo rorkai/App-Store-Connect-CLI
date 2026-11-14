@@ -34,7 +34,7 @@ func TestIssue622_MetadataRelationshipEndpoints_GET(t *testing.T) {
 				}
 			},
 			call: func(client *Client) error {
-				_, err := client.GetAppPreviewSetAppPreviewsRelationships(ctx, "set-1", WithLinkagesLimit(5))
+				_, err := client.GetAppPreviewSetAppPreviewsRelationships(ctx, "set-1", Limit[LinkagesOption](5))
 				return err
 			},
 		},

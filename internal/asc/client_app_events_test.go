@@ -268,7 +268,7 @@ func TestGetAppEventLocalizationsRelationships_WithLimit(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetAppEventLocalizationsRelationships(context.Background(), "event-1", WithLinkagesLimit(3)); err != nil {
+	if _, err := client.GetAppEventLocalizationsRelationships(context.Background(), "event-1", Limit[LinkagesOption](3)); err != nil {
 		t.Fatalf("GetAppEventLocalizationsRelationships() error: %v", err)
 	}
 }
@@ -399,7 +399,7 @@ func TestGetAppEventScreenshotsRelationships_WithLimit(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetAppEventScreenshotsRelationships(context.Background(), "loc-1", WithLinkagesLimit(8)); err != nil {
+	if _, err := client.GetAppEventScreenshotsRelationships(context.Background(), "loc-1", Limit[LinkagesOption](8)); err != nil {
 		t.Fatalf("GetAppEventScreenshotsRelationships() error: %v", err)
 	}
 }
@@ -531,7 +531,7 @@ func TestGetAppEventVideoClipsRelationships_WithLimit(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetAppEventVideoClipsRelationships(context.Background(), "loc-1", WithLinkagesLimit(6)); err != nil {
+	if _, err := client.GetAppEventVideoClipsRelationships(context.Background(), "loc-1", Limit[LinkagesOption](6)); err != nil {
 		t.Fatalf("GetAppEventVideoClipsRelationships() error: %v", err)
 	}
 }
@@ -658,13 +658,13 @@ func TestAppEventListMethods_InvalidNextURL(t *testing.T) {
 	if _, err := client.GetAppEventVideoClips(context.Background(), "loc-1", WithAppEventVideoClipsNextURL(next)); err == nil {
 		t.Fatal("expected error for invalid next URL")
 	}
-	if _, err := client.GetAppEventLocalizationsRelationships(context.Background(), "event-1", WithLinkagesNextURL(next)); err == nil {
+	if _, err := client.GetAppEventLocalizationsRelationships(context.Background(), "event-1", NextURL[LinkagesOption](next)); err == nil {
 		t.Fatal("expected error for invalid next URL")
 	}
-	if _, err := client.GetAppEventScreenshotsRelationships(context.Background(), "loc-1", WithLinkagesNextURL(next)); err == nil {
+	if _, err := client.GetAppEventScreenshotsRelationships(context.Background(), "loc-1", NextURL[LinkagesOption](next)); err == nil {
 		t.Fatal("expected error for invalid next URL")
 	}
-	if _, err := client.GetAppEventVideoClipsRelationships(context.Background(), "loc-1", WithLinkagesNextURL(next)); err == nil {
+	if _, err := client.GetAppEventVideoClipsRelationships(context.Background(), "loc-1", NextURL[LinkagesOption](next)); err == nil {
 		t.Fatal("expected error for invalid next URL")
 	}
 }

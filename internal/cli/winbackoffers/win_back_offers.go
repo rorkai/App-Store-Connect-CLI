@@ -199,8 +199,8 @@ Examples:
 			defer cancel()
 
 			opts := []asc.WinBackOffersOption{
-				asc.WithWinBackOffersLimit(*limit),
-				asc.WithWinBackOffersNextURL(*next),
+				asc.Limit[asc.WinBackOffersOption](*limit),
+				asc.NextURL[asc.WinBackOffersOption](*next),
 				asc.WithWinBackOffersFields(fieldsValue),
 				asc.WithWinBackOffersPriceFields(priceFieldsValue),
 				asc.WithWinBackOffersInclude(includeValue),
@@ -208,14 +208,14 @@ Examples:
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithWinBackOffersLimit(winBackOffersMaxLimit))
+				paginateOpts := append(opts, asc.Limit[asc.WinBackOffersOption](winBackOffersMaxLimit))
 				firstPage, err := client.GetSubscriptionWinBackOffers(requestCtx, id, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("win-back-offers list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetSubscriptionWinBackOffers(ctx, id, asc.WithWinBackOffersNextURL(nextURL))
+					return client.GetSubscriptionWinBackOffers(ctx, id, asc.NextURL[asc.WinBackOffersOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("win-back-offers list: %w", err)
@@ -840,8 +840,8 @@ Examples:
 			defer cancel()
 
 			opts := []asc.WinBackOfferPricesOption{
-				asc.WithWinBackOfferPricesLimit(*limit),
-				asc.WithWinBackOfferPricesNextURL(*next),
+				asc.Limit[asc.WinBackOfferPricesOption](*limit),
+				asc.NextURL[asc.WinBackOfferPricesOption](*next),
 				asc.WithWinBackOfferPricesTerritoryFilter(territoryFilter),
 				asc.WithWinBackOfferPricesFields(fieldsValue),
 				asc.WithWinBackOfferPricesTerritoryFields(territoryFieldsValue),
@@ -850,14 +850,14 @@ Examples:
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithWinBackOfferPricesLimit(winBackOffersMaxLimit))
+				paginateOpts := append(opts, asc.Limit[asc.WinBackOfferPricesOption](winBackOffersMaxLimit))
 				firstPage, err := client.GetWinBackOfferPrices(requestCtx, trimmedID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("win-back-offers prices: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetWinBackOfferPrices(ctx, trimmedID, asc.WithWinBackOfferPricesNextURL(nextURL))
+					return client.GetWinBackOfferPrices(ctx, trimmedID, asc.NextURL[asc.WinBackOfferPricesOption](nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("win-back-offers prices: %w", err)
@@ -895,8 +895,8 @@ Examples:
 		ErrorPrefix: "win-back-offers prices-links",
 		FetchPage: func(ctx context.Context, client *asc.Client, offerID string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := []asc.LinkagesOption{
-				asc.WithLinkagesLimit(limit),
-				asc.WithLinkagesNextURL(next),
+				asc.Limit[asc.LinkagesOption](limit),
+				asc.NextURL[asc.LinkagesOption](next),
 			}
 			return client.GetWinBackOfferPricesRelationships(ctx, offerID, opts...)
 		},
@@ -961,8 +961,8 @@ Examples:
 
 			fetchPage := func(ctx context.Context, perPage int, nextURL string) (asc.PaginatedResponse, error) {
 				opts := []asc.LinkagesOption{
-					asc.WithLinkagesLimit(perPage),
-					asc.WithLinkagesNextURL(nextURL),
+					asc.Limit[asc.LinkagesOption](perPage),
+					asc.NextURL[asc.LinkagesOption](nextURL),
 				}
 				return client.GetSubscriptionWinBackOffersRelationships(ctx, id, opts...)
 			}

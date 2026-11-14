@@ -137,7 +137,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 		}
 		assertASCLink(t, gitRef.Links.Self)
 
-		gitRefRel, err := client.GetScmRepositoryGitReferencesRelationships(ctx, repoID, WithLinkagesLimit(1))
+		gitRefRel, err := client.GetScmRepositoryGitReferencesRelationships(ctx, repoID, Limit[LinkagesOption](1))
 		if err != nil {
 			t.Fatalf("failed to fetch scm git reference relationships: %v", err)
 		}
@@ -168,7 +168,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 		}
 		assertASCLink(t, pullRequest.Links.Self)
 
-		pullRequestRel, err := client.GetScmRepositoryPullRequestsRelationships(ctx, repoID, WithLinkagesLimit(1))
+		pullRequestRel, err := client.GetScmRepositoryPullRequestsRelationships(ctx, repoID, Limit[LinkagesOption](1))
 		if err != nil {
 			t.Fatalf("failed to fetch scm pull request relationships: %v", err)
 		}
@@ -225,7 +225,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 		}
 		assertASCLink(t, report.Links.Self)
 
-		instancesRel, err := client.GetAnalyticsReportInstancesRelationships(ctx, reportID, WithLinkagesLimit(1))
+		instancesRel, err := client.GetAnalyticsReportInstancesRelationships(ctx, reportID, Limit[LinkagesOption](1))
 		if err != nil {
 			t.Fatalf("failed to fetch analytics report instance relationships: %v", err)
 		}
@@ -256,7 +256,7 @@ func TestIntegrationEndpoints(t *testing.T) {
 		}
 		assertASCLink(t, instance.Links.Self)
 
-		segmentsRel, err := client.GetAnalyticsReportInstanceSegmentsRelationships(ctx, instanceID, WithLinkagesLimit(1))
+		segmentsRel, err := client.GetAnalyticsReportInstanceSegmentsRelationships(ctx, instanceID, Limit[LinkagesOption](1))
 		if err != nil {
 			t.Fatalf("failed to fetch analytics report instance segment relationships: %v", err)
 		}

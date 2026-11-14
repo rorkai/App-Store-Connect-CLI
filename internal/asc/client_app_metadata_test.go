@@ -64,7 +64,7 @@ func TestAppMetadataListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetAppStoreVersionLocalizationPreviewSetsRelationships",
 			next: "https://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations/loc-1/relationships/appPreviewSets?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetAppStoreVersionLocalizationPreviewSetsRelationships(ctx, "", WithLinkagesNextURL(next))
+				_, err := c.GetAppStoreVersionLocalizationPreviewSetsRelationships(ctx, "", NextURL[LinkagesOption](next))
 				return err
 			},
 		},
@@ -72,7 +72,7 @@ func TestAppMetadataListEndpoints_UseNextURL(t *testing.T) {
 			name: "GetAppStoreVersionLocalizationScreenshotSetsRelationships",
 			next: "https://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations/loc-1/relationships/appScreenshotSets?cursor=abc",
 			call: func(c *Client, next string) error {
-				_, err := c.GetAppStoreVersionLocalizationScreenshotSetsRelationships(ctx, "", WithLinkagesNextURL(next))
+				_, err := c.GetAppStoreVersionLocalizationScreenshotSetsRelationships(ctx, "", NextURL[LinkagesOption](next))
 				return err
 			},
 		},
@@ -366,7 +366,7 @@ func TestGetAppStoreVersionRelationshipLists_SendsRequestWithLimit(t *testing.T)
 		{
 			name: "experiments v1",
 			call: func(ctx context.Context, client *Client) error {
-				_, err := client.GetAppStoreVersionExperimentsRelationships(ctx, "version-1", WithLinkagesLimit(20))
+				_, err := client.GetAppStoreVersionExperimentsRelationships(ctx, "version-1", Limit[LinkagesOption](20))
 				return err
 			},
 			path: "/v1/appStoreVersions/version-1/relationships/appStoreVersionExperiments",
@@ -374,7 +374,7 @@ func TestGetAppStoreVersionRelationshipLists_SendsRequestWithLimit(t *testing.T)
 		{
 			name: "experiments v2",
 			call: func(ctx context.Context, client *Client) error {
-				_, err := client.GetAppStoreVersionExperimentsV2Relationships(ctx, "version-1", WithLinkagesLimit(20))
+				_, err := client.GetAppStoreVersionExperimentsV2Relationships(ctx, "version-1", Limit[LinkagesOption](20))
 				return err
 			},
 			path: "/v1/appStoreVersions/version-1/relationships/appStoreVersionExperimentsV2",
@@ -382,7 +382,7 @@ func TestGetAppStoreVersionRelationshipLists_SendsRequestWithLimit(t *testing.T)
 		{
 			name: "customer reviews",
 			call: func(ctx context.Context, client *Client) error {
-				_, err := client.GetAppStoreVersionCustomerReviewsRelationships(ctx, "version-1", WithLinkagesLimit(20))
+				_, err := client.GetAppStoreVersionCustomerReviewsRelationships(ctx, "version-1", Limit[LinkagesOption](20))
 				return err
 			},
 			path: "/v1/appStoreVersions/version-1/relationships/customerReviews",

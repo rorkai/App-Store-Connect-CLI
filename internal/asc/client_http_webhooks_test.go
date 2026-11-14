@@ -243,7 +243,7 @@ func TestGetWebhookDeliveriesRelationships_SendsRequest(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetWebhookDeliveriesRelationships(context.Background(), "wh-1", WithLinkagesLimit(7)); err != nil {
+	if _, err := client.GetWebhookDeliveriesRelationships(context.Background(), "wh-1", Limit[LinkagesOption](7)); err != nil {
 		t.Fatalf("GetWebhookDeliveriesRelationships() error: %v", err)
 	}
 }
@@ -258,7 +258,7 @@ func TestGetWebhookDeliveriesRelationships_UsesNextURL(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetWebhookDeliveriesRelationships(context.Background(), "wh-1", WithLinkagesNextURL(next)); err != nil {
+	if _, err := client.GetWebhookDeliveriesRelationships(context.Background(), "wh-1", NextURL[LinkagesOption](next)); err != nil {
 		t.Fatalf("GetWebhookDeliveriesRelationships() error: %v", err)
 	}
 }

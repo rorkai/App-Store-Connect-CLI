@@ -317,7 +317,7 @@ func subscriptionsGroupsVersionLinkagesCommand(name string, groupOwned bool) *ff
 				firstPageLimit = 200
 			}
 			fetch := func(ctx context.Context, nextURL string) (*asc.LinkagesResponse, error) {
-				opts := []asc.LinkagesOption{asc.WithLinkagesLimit(firstPageLimit), asc.WithLinkagesNextURL(nextURL)}
+				opts := []asc.LinkagesOption{asc.Limit[asc.LinkagesOption](firstPageLimit), asc.NextURL[asc.LinkagesOption](nextURL)}
 				if groupOwned {
 					return client.GetSubscriptionGroupVersionsRelationships(ctx, id, opts...)
 				}

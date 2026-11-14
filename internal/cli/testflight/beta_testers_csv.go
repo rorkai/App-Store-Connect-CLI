@@ -770,7 +770,7 @@ func betaTesterGroupConflictAlreadySatisfied(
 	}
 
 	requestCtx, cancel := shared.ContextWithTimeout(ctx)
-	first, err := client.GetBetaTesterBetaGroupsRelationships(requestCtx, testerID, asc.WithLinkagesLimit(200))
+	first, err := client.GetBetaTesterBetaGroupsRelationships(requestCtx, testerID, asc.Limit[asc.LinkagesOption](200))
 	cancel()
 	if err != nil {
 		return false, err
@@ -779,7 +779,7 @@ func betaTesterGroupConflictAlreadySatisfied(
 	all, err := asc.PaginateAll(ctx, first, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		requestCtx, cancel := shared.ContextWithTimeout(ctx)
 		defer cancel()
-		return client.GetBetaTesterBetaGroupsRelationships(requestCtx, testerID, asc.WithLinkagesNextURL(nextURL))
+		return client.GetBetaTesterBetaGroupsRelationships(requestCtx, testerID, asc.NextURL[asc.LinkagesOption](nextURL))
 	})
 	if err != nil {
 		return false, err
