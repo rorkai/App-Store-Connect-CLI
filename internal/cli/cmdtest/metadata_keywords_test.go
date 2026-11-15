@@ -25,24 +25,17 @@ func TestMetadataKeywordsImportJSONDryRun(t *testing.T) {
 		t.Fatalf("write input: %v", err)
 	}
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"metadata", "keywords", "import",
-			"--dir", dir,
-			"--version", "1.2.3",
-			"--input", inputPath,
-			"--format", "json",
-			"--dry-run",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, nil,
+		"metadata", "keywords", "import",
+		"--dir", dir,
+		"--version", "1.2.3",
+		"--input", inputPath,
+		"--format", "json",
+		"--dry-run",
+	)
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}

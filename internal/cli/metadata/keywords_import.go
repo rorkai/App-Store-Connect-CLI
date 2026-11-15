@@ -26,7 +26,7 @@ const (
 	keywordImportFormatAstroCSV = "astro-csv"
 )
 
-type metadataKeywordImportParser func([]byte, string) (metadataKeywordImportedData, error)
+type metadataKeywordImportParser func(*shared.Deps, []byte, string) (metadataKeywordImportedData, error)
 
 var metadataKeywordImportFormats = map[string]metadataKeywordImportParser{
 	keywordImportFormatCSV:      parseMetadataKeywordCSV,
@@ -87,9 +87,9 @@ type MetadataKeywordSideDataArtifact struct {
 	Records []MetadataKeywordSideDataRecord `json:"records"`
 }
 
-// MetadataKeywordsImportCommand returns the keywords import subcommand.
-func MetadataKeywordsImportCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("metadata keywords import", flag.ExitOnError)
+// newMetadataKeywordsImportCommand returns the keywords import subcommand.
+func newMetadataKeywordsImportCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("metadata keywords import", flag.ExitOnError)
 
 	dir := fs.String("dir", "", "Metadata root directory (required)")
 	version := fs.String("version", "", "App version string (for example 1.2.3)")
@@ -98,7 +98,7 @@ func MetadataKeywordsImportCommand() *ffcli.Command {
 	locale := fs.String("locale", "", "Default locale for inputs without a locale column/field")
 	sideDataReportFile := fs.String("side-data-report-file", "", "Optional path to write side-data report JSON when research fields are present")
 	dryRun := fs.Bool("dry-run", false, "Preview local file changes without writing files")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "import",
@@ -117,9 +117,9 @@ Examples:
   asc metadata keywords import --dir "./metadata" --version "1.2.3" --format json --input "./keywords.json"
   asc metadata keywords import --dir "./metadata" --version "1.2.3" --format text --locale "fr-FR" --input "./keywords.txt" --dry-run`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			result, err := executeMetadataKeywordsImport(metadataKeywordsImportOptions{
+			result, err := executeMetadataKeywordsImport(d, metadataKeywordsImportOptions{
 				Dir:                *dir,
 				Version:            *version,
 				Input:              *input,
@@ -135,15 +135,15 @@ Examples:
 				}
 				return fmt.Errorf("metadata keywords import: %w", err)
 			}
-			if err := shared.PrintOutputWithRenderers(
+			if err := d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
 				func() error {
-					return printMetadataKeywordFileResultTable("Keyword Import", result.Results, result.DetectedLocales, result.Issues, result.Dir, result.Version, result.DryRun, result.SideDataRecordCount, result.SideDataReportPath)
+					return printMetadataKeywordFileResultTable(d, "Keyword Import", result.Results, result.DetectedLocales, result.Issues, result.Dir, result.Version, result.DryRun, result.SideDataRecordCount, result.SideDataReportPath)
 				},
 				func() error {
-					return printMetadataKeywordFileResultMarkdown("Keyword Import", result.Results, result.DetectedLocales, result.Issues, result.Dir, result.Version, result.DryRun, result.SideDataRecordCount, result.SideDataReportPath)
+					return printMetadataKeywordFileResultMarkdown(d, "Keyword Import", result.Results, result.DetectedLocales, result.Issues, result.Dir, result.Version, result.DryRun, result.SideDataRecordCount, result.SideDataReportPath)
 				},
 			); err != nil {
 				return err
@@ -156,34 +156,34 @@ Examples:
 	}
 }
 
-func executeMetadataKeywordsImport(opts metadataKeywordsImportOptions) (MetadataKeywordsImportResult, error) {
-	payload, err := executeMetadataKeywordsImportWithState(opts)
+func executeMetadataKeywordsImport(d *shared.Deps, opts metadataKeywordsImportOptions) (MetadataKeywordsImportResult, error) {
+	payload, err := executeMetadataKeywordsImportWithState(d, opts)
 	if err != nil {
 		return MetadataKeywordsImportResult{}, err
 	}
 	return payload.result, nil
 }
 
-func executeMetadataKeywordsImportWithState(opts metadataKeywordsImportOptions) (keywordImportPayload, error) {
-	dirValue, versionValue, err := validateMetadataKeywordDirVersion(opts.Dir, opts.Version)
+func executeMetadataKeywordsImportWithState(d *shared.Deps, opts metadataKeywordsImportOptions) (keywordImportPayload, error) {
+	dirValue, versionValue, err := validateMetadataKeywordDirVersion(d, opts.Dir, opts.Version)
 	if err != nil {
 		return keywordImportPayload{}, err
 	}
 	inputValue := strings.TrimSpace(opts.Input)
 	if inputValue == "" {
-		return keywordImportPayload{}, shared.UsageError("--input is required")
+		return keywordImportPayload{}, d.UsageError("--input is required")
 	}
 	formatValue, err := resolveMetadataKeywordImportFormat(inputValue, opts.Format)
 	if err != nil {
-		return keywordImportPayload{}, shared.UsageError(err.Error())
+		return keywordImportPayload{}, d.UsageError(err.Error())
 	}
 
-	imported, err := readMetadataKeywordImportInput(inputValue, formatValue, strings.TrimSpace(opts.DefaultLocale))
+	imported, err := readMetadataKeywordImportInput(d, inputValue, formatValue, strings.TrimSpace(opts.DefaultLocale))
 	if err != nil {
 		return keywordImportPayload{}, err
 	}
 
-	states, results, plans, issues, err := buildMetadataKeywordWriteResults(dirValue, versionValue, imported.locales, opts.Overwrite)
+	states, results, plans, issues, err := buildMetadataKeywordWriteResults(d, dirValue, versionValue, imported.locales, opts.Overwrite)
 	if err != nil {
 		return keywordImportPayload{}, err
 	}
@@ -193,6 +193,7 @@ func executeMetadataKeywordsImportWithState(opts metadataKeywordsImportOptions) 
 		}
 	}
 	sideDataReportPath, sideDataRecordCount, err := maybeWriteMetadataKeywordSideDataReport(
+		d,
 		dirValue,
 		versionValue,
 		inputValue,
@@ -225,6 +226,7 @@ func executeMetadataKeywordsImportWithState(opts metadataKeywordsImportOptions) 
 }
 
 func maybeWriteMetadataKeywordSideDataReport(
+	d *shared.Deps,
 	dir string,
 	version string,
 	input string,
@@ -237,7 +239,7 @@ func maybeWriteMetadataKeywordSideDataReport(
 		return "", 0, nil
 	}
 
-	path, err := resolveMetadataKeywordSideDataReportPath(dir, version, reportFile)
+	path, err := resolveMetadataKeywordSideDataReportPath(d, dir, version, reportFile)
 	if err != nil {
 		return "", 0, err
 	}
@@ -265,13 +267,13 @@ func maybeWriteMetadataKeywordSideDataReport(
 	return path, len(records), nil
 }
 
-func resolveMetadataKeywordSideDataReportPath(dir string, version string, reportFile string) (string, error) {
+func resolveMetadataKeywordSideDataReportPath(d *shared.Deps, dir string, version string, reportFile string) (string, error) {
 	if strings.TrimSpace(reportFile) != "" {
 		return strings.TrimSpace(reportFile), nil
 	}
 	resolvedVersion, err := validatePathSegment("version", version)
 	if err != nil {
-		return "", shared.UsageError(err.Error())
+		return "", d.UsageError(err.Error())
 	}
 	return filepath.Join(strings.TrimSpace(dir), "reports", "metadata-keywords-side-data", resolvedVersion+".json"), nil
 }
@@ -313,37 +315,37 @@ func metadataKeywordImportFormatList() []string {
 	return formats
 }
 
-func readMetadataKeywordImportInput(inputPath, format, defaultLocale string) (metadataKeywordImportedData, error) {
-	data, err := readMetadataKeywordInputBytes(inputPath)
+func readMetadataKeywordImportInput(d *shared.Deps, inputPath, format, defaultLocale string) (metadataKeywordImportedData, error) {
+	data, err := readMetadataKeywordInputBytes(d, inputPath)
 	if err != nil {
 		return metadataKeywordImportedData{}, err
 	}
 	if len(strings.TrimSpace(string(data))) == 0 {
-		return metadataKeywordImportedData{}, shared.UsageError("import input is empty")
+		return metadataKeywordImportedData{}, d.UsageError("import input is empty")
 	}
 
 	parser, ok := metadataKeywordImportFormats[format]
 	if !ok {
-		return metadataKeywordImportedData{}, shared.UsageErrorf("unsupported import format %q", format)
+		return metadataKeywordImportedData{}, d.UsageErrorf("unsupported import format %q", format)
 	}
-	raw, err := parser(data, defaultLocale)
+	raw, err := parser(d, data, defaultLocale)
 	if err != nil {
 		return metadataKeywordImportedData{}, err
 	}
-	return normalizeImportedMetadataKeywords(raw, defaultLocale)
+	return normalizeImportedMetadataKeywords(d, raw, defaultLocale)
 }
 
-func readMetadataKeywordInputBytes(inputPath string) ([]byte, error) {
+func readMetadataKeywordInputBytes(d *shared.Deps, inputPath string) ([]byte, error) {
 	inputValue := strings.TrimSpace(inputPath)
 	if inputValue == "-" {
-		return io.ReadAll(os.Stdin)
+		return io.ReadAll(d.IO.In)
 	}
 	return readFileNoFollow(inputValue)
 }
 
-func parseMetadataKeywordText(data []byte, defaultLocale string) (metadataKeywordImportedData, error) {
+func parseMetadataKeywordText(d *shared.Deps, data []byte, defaultLocale string) (metadataKeywordImportedData, error) {
 	if strings.TrimSpace(defaultLocale) == "" {
-		return metadataKeywordImportedData{}, shared.UsageError("--locale is required for text input")
+		return metadataKeywordImportedData{}, d.UsageError("--locale is required for text input")
 	}
 	return metadataKeywordImportedData{
 		locales: map[string][]string{
@@ -352,8 +354,9 @@ func parseMetadataKeywordText(data []byte, defaultLocale string) (metadataKeywor
 	}, nil
 }
 
-func parseMetadataKeywordCSV(data []byte, defaultLocale string) (metadataKeywordImportedData, error) {
+func parseMetadataKeywordCSV(d *shared.Deps, data []byte, defaultLocale string) (metadataKeywordImportedData, error) {
 	return parseMetadataKeywordCSVWithHeaders(
+		d,
 		data,
 		defaultLocale,
 		[]string{"locale", "lang", "language"},
@@ -362,8 +365,9 @@ func parseMetadataKeywordCSV(data []byte, defaultLocale string) (metadataKeyword
 	)
 }
 
-func parseMetadataKeywordAstroCSV(data []byte, defaultLocale string) (metadataKeywordImportedData, error) {
+func parseMetadataKeywordAstroCSV(d *shared.Deps, data []byte, defaultLocale string) (metadataKeywordImportedData, error) {
 	return parseMetadataKeywordCSVWithHeaders(
+		d,
 		data,
 		defaultLocale,
 		[]string{"locale", "lang", "language"},
@@ -373,6 +377,7 @@ func parseMetadataKeywordAstroCSV(data []byte, defaultLocale string) (metadataKe
 }
 
 func parseMetadataKeywordCSVWithHeaders(
+	d *shared.Deps,
 	data []byte,
 	defaultLocale string,
 	localeHeaders []string,
@@ -385,10 +390,10 @@ func parseMetadataKeywordCSVWithHeaders(
 
 	rows, err := reader.ReadAll()
 	if err != nil {
-		return metadataKeywordImportedData{}, shared.UsageErrorf("invalid csv input: %v", err)
+		return metadataKeywordImportedData{}, d.UsageErrorf("invalid csv input: %v", err)
 	}
 	if len(rows) == 0 {
-		return metadataKeywordImportedData{}, shared.UsageError("csv input is empty")
+		return metadataKeywordImportedData{}, d.UsageError("csv input is empty")
 	}
 
 	headerIndex := make(map[string]int, len(rows[0]))
@@ -400,7 +405,7 @@ func parseMetadataKeywordCSVWithHeaders(
 	keywordsIdx, hasKeywords := metadataKeywordHeaderIndex(headerIndex, keywordsHeaders...)
 	keywordIdx, hasKeyword := metadataKeywordHeaderIndex(headerIndex, keywordHeaders...)
 	if !hasKeywords && !hasKeyword {
-		return metadataKeywordImportedData{}, shared.UsageError(`csv input requires a "keywords" or "keyword" column`)
+		return metadataKeywordImportedData{}, d.UsageError(`csv input requires a "keywords" or "keyword" column`)
 	}
 
 	result := make(map[string][]string)
@@ -418,7 +423,7 @@ func parseMetadataKeywordCSVWithHeaders(
 			}
 		}
 		if rowLocale == "" {
-			return metadataKeywordImportedData{}, shared.UsageErrorf("csv row %d is missing a locale (set --locale or add a locale column)", rowIndex+2)
+			return metadataKeywordImportedData{}, d.UsageErrorf("csv row %d is missing a locale (set --locale or add a locale column)", rowIndex+2)
 		}
 
 		var tokens []string
@@ -460,19 +465,19 @@ func parseMetadataKeywordCSVWithHeaders(
 	}, nil
 }
 
-func parseMetadataKeywordJSON(data []byte, defaultLocale string) (metadataKeywordImportedData, error) {
+func parseMetadataKeywordJSON(d *shared.Deps, data []byte, defaultLocale string) (metadataKeywordImportedData, error) {
 	var payload any
 	if err := json.Unmarshal(data, &payload); err != nil {
-		return metadataKeywordImportedData{}, shared.UsageErrorf("invalid json input: %v", err)
+		return metadataKeywordImportedData{}, d.UsageErrorf("invalid json input: %v", err)
 	}
-	result, err := collectMetadataKeywordJSON(payload, strings.TrimSpace(defaultLocale))
+	result, err := collectMetadataKeywordJSON(d, payload, strings.TrimSpace(defaultLocale))
 	if err != nil {
 		return metadataKeywordImportedData{}, err
 	}
 	return result, nil
 }
 
-func collectMetadataKeywordJSON(payload any, defaultLocale string) (metadataKeywordImportedData, error) {
+func collectMetadataKeywordJSON(d *shared.Deps, payload any, defaultLocale string) (metadataKeywordImportedData, error) {
 	switch value := payload.(type) {
 	case []any:
 		result := make(map[string][]string)
@@ -480,7 +485,7 @@ func collectMetadataKeywordJSON(payload any, defaultLocale string) (metadataKeyw
 		for idx, item := range value {
 			locale, keywords, fields, err := parseMetadataKeywordJSONObject(item, defaultLocale)
 			if err != nil {
-				return metadataKeywordImportedData{}, shared.UsageErrorf("json item %d: %v", idx, err)
+				return metadataKeywordImportedData{}, d.UsageErrorf("json item %d: %v", idx, err)
 			}
 			result[locale] = append(result[locale], keywords...)
 			if len(fields) > 0 {
@@ -494,7 +499,7 @@ func collectMetadataKeywordJSON(payload any, defaultLocale string) (metadataKeyw
 		return metadataKeywordImportedData{locales: result, sideData: sideData}, nil
 	case map[string]any:
 		if nested, ok := value["localizations"]; ok {
-			return collectMetadataKeywordJSON(nested, defaultLocale)
+			return collectMetadataKeywordJSON(d, nested, defaultLocale)
 		}
 		if looksLikeMetadataKeywordLocalizationObject(value) {
 			locale, keywords, fields, err := parseMetadataKeywordJSONObject(value, defaultLocale)
@@ -526,7 +531,7 @@ func collectMetadataKeywordJSON(payload any, defaultLocale string) (metadataKeyw
 			if object, ok := rawKeywords.(map[string]any); ok && looksLikeMetadataKeywordLocalizationObject(object) {
 				locale, keywords, fields, err := parseMetadataKeywordJSONObject(object, rawLocale)
 				if err != nil {
-					return metadataKeywordImportedData{}, shared.UsageErrorf("json locale %q: %v", rawLocale, err)
+					return metadataKeywordImportedData{}, d.UsageErrorf("json locale %q: %v", rawLocale, err)
 				}
 				result[locale] = append(result[locale], keywords...)
 				if len(fields) > 0 {
@@ -540,13 +545,13 @@ func collectMetadataKeywordJSON(payload any, defaultLocale string) (metadataKeyw
 			}
 			keywords, err := decodeMetadataKeywordValue(rawKeywords)
 			if err != nil {
-				return metadataKeywordImportedData{}, shared.UsageErrorf("json locale %q: %v", rawLocale, err)
+				return metadataKeywordImportedData{}, d.UsageErrorf("json locale %q: %v", rawLocale, err)
 			}
 			result[rawLocale] = append(result[rawLocale], keywords...)
 		}
 		return metadataKeywordImportedData{locales: result, sideData: sideData}, nil
 	default:
-		return metadataKeywordImportedData{}, shared.UsageError("json input must be an object or array")
+		return metadataKeywordImportedData{}, d.UsageError("json input must be an object or array")
 	}
 }
 
@@ -636,7 +641,7 @@ func decodeMetadataKeywordValue(raw any) ([]string, error) {
 	}
 }
 
-func normalizeImportedMetadataKeywords(raw metadataKeywordImportedData, defaultLocale string) (metadataKeywordImportedData, error) {
+func normalizeImportedMetadataKeywords(d *shared.Deps, raw metadataKeywordImportedData, defaultLocale string) (metadataKeywordImportedData, error) {
 	result := make(map[string][]string, len(raw.locales))
 	locales := make([]string, 0, len(raw.locales))
 	for locale := range raw.locales {
@@ -650,17 +655,17 @@ func normalizeImportedMetadataKeywords(raw metadataKeywordImportedData, defaultL
 			resolvedLocale = strings.TrimSpace(defaultLocale)
 		}
 		if resolvedLocale == "" {
-			return metadataKeywordImportedData{}, shared.UsageError("locale is required for imported keywords")
+			return metadataKeywordImportedData{}, d.UsageError("locale is required for imported keywords")
 		}
 
 		canonicalLocale, err := validateMetadataKeywordLocale(resolvedLocale)
 		if err != nil {
-			return metadataKeywordImportedData{}, shared.UsageError(err.Error())
+			return metadataKeywordImportedData{}, d.UsageError(err.Error())
 		}
 
 		normalizedKeywords, err := normalizeMetadataKeywordTokensPreserveDuplicates(keywords)
 		if err != nil {
-			return metadataKeywordImportedData{}, shared.UsageErrorf("locale %q: %v", canonicalLocale, err)
+			return metadataKeywordImportedData{}, d.UsageErrorf("locale %q: %v", canonicalLocale, err)
 		}
 		result[canonicalLocale] = append(result[canonicalLocale], normalizedKeywords...)
 	}
@@ -668,12 +673,12 @@ func normalizeImportedMetadataKeywords(raw metadataKeywordImportedData, defaultL
 	for locale, keywords := range result {
 		normalizedKeywords, err := normalizeMetadataKeywordTokensPreserveDuplicates(keywords)
 		if err != nil {
-			return metadataKeywordImportedData{}, shared.UsageErrorf("locale %q: %v", locale, err)
+			return metadataKeywordImportedData{}, d.UsageErrorf("locale %q: %v", locale, err)
 		}
 		result[locale] = normalizedKeywords
 	}
 	if len(result) == 0 {
-		return metadataKeywordImportedData{}, shared.UsageError("no keywords were found in the import input")
+		return metadataKeywordImportedData{}, d.UsageError("no keywords were found in the import input")
 	}
 	sideData := make([]MetadataKeywordSideDataRecord, 0, len(raw.sideData))
 	for _, record := range raw.sideData {
@@ -684,14 +689,14 @@ func normalizeImportedMetadataKeywords(raw metadataKeywordImportedData, defaultL
 		if resolvedLocale != "" {
 			canonicalLocale, err := validateMetadataKeywordLocale(resolvedLocale)
 			if err != nil {
-				return metadataKeywordImportedData{}, shared.UsageError(err.Error())
+				return metadataKeywordImportedData{}, d.UsageError(err.Error())
 			}
 			record.Locale = canonicalLocale
 		}
 		if len(record.Keywords) > 0 {
 			normalizedKeywords, err := normalizeMetadataKeywordTokensPreserveDuplicates(record.Keywords)
 			if err != nil {
-				return metadataKeywordImportedData{}, shared.UsageErrorf("locale %q: %v", record.Locale, err)
+				return metadataKeywordImportedData{}, d.UsageErrorf("locale %q: %v", record.Locale, err)
 			}
 			record.Keywords = normalizedKeywords
 		}

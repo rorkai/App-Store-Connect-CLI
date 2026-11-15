@@ -443,7 +443,7 @@ func TestSelfLinkCoverageRejectsWrongType(t *testing.T) {
 		{args: []string{"app-setup", "categories", "set"}, flag: "app-info", wantType: "appInfos"},
 		{args: []string{"app-setup", "categories", "set"}, flag: "primary", wantType: "appCategories"},
 		{args: []string{"categories", "set"}, flag: "secondary-subcategory-two", wantType: "appCategories", deps: true},
-		{args: []string{"metadata", "keywords", "audit"}, flag: "app-info", wantType: "appInfos"},
+		{args: []string{"metadata", "keywords", "audit"}, flag: "app-info", wantType: "appInfos", deps: true},
 		// Shared command builders.
 		{args: []string{"xcode-cloud", "products", "view"}, flag: "id", wantType: "ciProducts", deps: true},
 		{args: []string{"xcode-cloud", "products", "workflows"}, flag: "id", wantType: "ciProducts", deps: true},

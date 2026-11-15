@@ -85,7 +85,7 @@ func TestBuildMetadataKeywordFieldNormalizesMixedInput(t *testing.T) {
 }
 
 func TestParseMetadataKeywordJSONAcceptsLocaleMapObjectsWithSideData(t *testing.T) {
-	got, err := parseMetadataKeywordJSON([]byte(`{
+	got, err := parseMetadataKeywordJSON(metadataTestDeps(), []byte(`{
 		"en-US": {
 			"keywords": ["habit tracker", "mood journal"],
 			"popularity": 42,
@@ -128,7 +128,7 @@ func TestResolveMetadataKeywordImportFormatAcceptsPreset(t *testing.T) {
 
 func TestParseMetadataKeywordAstroCSVUsesKeywordColumn(t *testing.T) {
 	data := []byte("Keyword,Notes,Popularity,Difficulty,Position,Apps in Ranking\nhabit tracker,high intent,42,31,7,App A\nmood journal,secondary,35,28,9,App B\n")
-	got, err := parseMetadataKeywordAstroCSV(data, "en-US")
+	got, err := parseMetadataKeywordAstroCSV(metadataTestDeps(), data, "en-US")
 	if err != nil {
 		t.Fatalf("parseMetadataKeywordAstroCSV() error: %v", err)
 	}

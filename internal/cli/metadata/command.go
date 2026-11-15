@@ -58,7 +58,7 @@ Examples:
 			newMetadataApproveCommand(d),
 			newMetadataApplyCommand(d),
 			newMetadataStatusCommand(d),
-			MetadataKeywordsCommand(),
+			newMetadataKeywordsCommand(d),
 			newMetadataPushCommand(d),
 			newMetadataValidateCommand(d),
 		},

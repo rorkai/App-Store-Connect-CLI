@@ -17,7 +17,7 @@ func TestReadMetadataKeywordsPushEntriesSupportsStringAndObjectValues(t *testing
 		t.Fatalf("WriteFile() error: %v", err)
 	}
 
-	entries, err := readMetadataKeywordsPushEntries(inputPath)
+	entries, err := readMetadataKeywordsPushEntries(metadataTestDeps(), inputPath)
 	if err != nil {
 		t.Fatalf("readMetadataKeywordsPushEntries() error: %v", err)
 	}
@@ -38,7 +38,7 @@ func TestReadMetadataKeywordsPushEntriesRejectsInvalidEntryShape(t *testing.T) {
 		t.Fatalf("WriteFile() error: %v", err)
 	}
 
-	_, err := readMetadataKeywordsPushEntries(inputPath)
+	_, err := readMetadataKeywordsPushEntries(metadataTestDeps(), inputPath)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -53,7 +53,7 @@ func TestReadMetadataKeywordsPushEntriesRejectsJSONNullKeywords(t *testing.T) {
 		t.Fatalf("WriteFile() error: %v", err)
 	}
 
-	_, err := readMetadataKeywordsPushEntries(inputPath)
+	_, err := readMetadataKeywordsPushEntries(metadataTestDeps(), inputPath)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -68,7 +68,7 @@ func TestReadMetadataKeywordsPushEntriesRejectsUnsupportedLocale(t *testing.T) {
 		t.Fatalf("WriteFile() error: %v", err)
 	}
 
-	_, err := readMetadataKeywordsPushEntries(inputPath)
+	_, err := readMetadataKeywordsPushEntries(metadataTestDeps(), inputPath)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -83,7 +83,7 @@ func TestReadMetadataKeywordsPushEntriesRejectsEmptyKeywords(t *testing.T) {
 		t.Fatalf("WriteFile() error: %v", err)
 	}
 
-	_, err := readMetadataKeywordsPushEntries(inputPath)
+	_, err := readMetadataKeywordsPushEntries(metadataTestDeps(), inputPath)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}

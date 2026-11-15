@@ -59,15 +59,15 @@ type metadataKeywordsPlanOptions struct {
 	LocalState           map[string]keywordLocalState
 }
 
-// MetadataKeywordsPlanCommand returns the keywords plan subcommand.
-func MetadataKeywordsPlanCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("metadata keywords plan", flag.ExitOnError)
+// newMetadataKeywordsPlanCommand returns the keywords plan subcommand.
+func newMetadataKeywordsPlanCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("metadata keywords plan", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	version := fs.String("version", "", "App version string (for example 1.2.3)")
 	platform := fs.String("platform", "", "Optional platform: IOS, MAC_OS, TV_OS, or VISION_OS")
 	dir := fs.String("dir", "", "Metadata root directory (required)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "plan",
@@ -82,9 +82,9 @@ Examples:
   asc metadata keywords plan --app "APP_ID" --version "1.2.3" --dir "./metadata"
   asc metadata keywords plan --app "APP_ID" --version "1.2.3" --platform IOS --dir "./metadata"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			return runMetadataKeywordsPlanLikeCommand(ctx, "metadata keywords plan", metadataKeywordsPlanOptions{
+			return runMetadataKeywordsPlanLikeCommand(ctx, d, "metadata keywords plan", metadataKeywordsPlanOptions{
 				AppID:    *appID,
 				Version:  *version,
 				Platform: *platform,
@@ -95,15 +95,15 @@ Examples:
 	}
 }
 
-// MetadataKeywordsDiffCommand returns the keywords diff subcommand.
-func MetadataKeywordsDiffCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("metadata keywords diff", flag.ExitOnError)
+// newMetadataKeywordsDiffCommand returns the keywords diff subcommand.
+func newMetadataKeywordsDiffCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("metadata keywords diff", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	version := fs.String("version", "", "App version string (for example 1.2.3)")
 	platform := fs.String("platform", "", "Optional platform: IOS, MAC_OS, TV_OS, or VISION_OS")
 	dir := fs.String("dir", "", "Metadata root directory (required)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "diff",
@@ -118,9 +118,9 @@ Examples:
   asc metadata keywords diff --app "APP_ID" --version "1.2.3" --dir "./metadata"
   asc metadata keywords diff --app "APP_ID" --version "1.2.3" --platform IOS --dir "./metadata"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			return runMetadataKeywordsPlanLikeCommand(ctx, "metadata keywords diff", metadataKeywordsPlanOptions{
+			return runMetadataKeywordsPlanLikeCommand(ctx, d, "metadata keywords diff", metadataKeywordsPlanOptions{
 				AppID:    *appID,
 				Version:  *version,
 				Platform: *platform,
@@ -133,33 +133,34 @@ Examples:
 
 func runMetadataKeywordsPlanLikeCommand(
 	ctx context.Context,
+	d *shared.Deps,
 	errorPrefix string,
 	opts metadataKeywordsPlanOptions,
 	output shared.OutputFlags,
 ) error {
-	result, err := executeMetadataKeywordsPlan(ctx, opts)
+	result, err := executeMetadataKeywordsPlan(ctx, d, opts)
 	if err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return err
 		}
 		return fmt.Errorf("%s: %w", errorPrefix, err)
 	}
-	return shared.PrintOutputWithRenderers(
+	return d.PrintOutputWithRenderers(
 		result,
 		*output.Output,
 		*output.Pretty,
-		func() error { return printMetadataKeywordsPlanTable(result) },
-		func() error { return printMetadataKeywordsPlanMarkdown(result) },
+		func() error { return printMetadataKeywordsPlanTable(d, result) },
+		func() error { return printMetadataKeywordsPlanMarkdown(d, result) },
 	)
 }
 
-func validateMetadataKeywordsRemoteInputs(appID string, version string, dir string, platform string) (string, string, string, string, error) {
+func validateMetadataKeywordsRemoteInputs(d *shared.Deps, appID string, version string, dir string, platform string) (string, string, string, string, error) {
 	resolvedAppID := shared.ResolveAppID(appID)
 	if resolvedAppID == "" {
-		return "", "", "", "", shared.UsageError("--app is required (or set ASC_APP_ID)")
+		return "", "", "", "", d.UsageError("--app is required (or set ASC_APP_ID)")
 	}
 
-	dirValue, versionValue, err := validateMetadataKeywordDirVersion(dir, version)
+	dirValue, versionValue, err := validateMetadataKeywordDirVersion(d, dir, version)
 	if err != nil {
 		return "", "", "", "", err
 	}
@@ -168,7 +169,7 @@ func validateMetadataKeywordsRemoteInputs(appID string, version string, dir stri
 	if platformValue != "" {
 		normalizedPlatform, platformErr := shared.NormalizeAppStoreVersionPlatform(platformValue)
 		if platformErr != nil {
-			return "", "", "", "", shared.UsageError(platformErr.Error())
+			return "", "", "", "", d.UsageError(platformErr.Error())
 		}
 		platformValue = normalizedPlatform
 	}
@@ -176,34 +177,34 @@ func validateMetadataKeywordsRemoteInputs(appID string, version string, dir stri
 	return resolvedAppID, versionValue, dirValue, platformValue, nil
 }
 
-func executeMetadataKeywordsPlan(ctx context.Context, opts metadataKeywordsPlanOptions) (MetadataKeywordsPlanResult, error) {
-	resolvedAppID, versionValue, dirValue, platformValue, err := validateMetadataKeywordsRemoteInputs(opts.AppID, opts.Version, opts.Dir, opts.Platform)
+func executeMetadataKeywordsPlan(ctx context.Context, d *shared.Deps, opts metadataKeywordsPlanOptions) (MetadataKeywordsPlanResult, error) {
+	resolvedAppID, versionValue, dirValue, platformValue, err := validateMetadataKeywordsRemoteInputs(d, opts.AppID, opts.Version, opts.Dir, opts.Platform)
 	if err != nil {
 		return MetadataKeywordsPlanResult{}, err
 	}
 	if opts.Apply {
-		if err := shared.RequireConfirm(opts.Confirm); err != nil {
+		if err := d.RequireConfirm(opts.Confirm); err != nil {
 			return MetadataKeywordsPlanResult{}, err
 		}
 	}
 
 	localState := opts.LocalState
 	if len(localState) == 0 {
-		localState, err = loadMetadataKeywordLocalState(dirValue, versionValue)
+		localState, err = loadMetadataKeywordLocalState(d, dirValue, versionValue)
 		if err != nil {
 			return MetadataKeywordsPlanResult{}, err
 		}
 	}
 
-	client, err := shared.GetASCClient()
+	client, err := d.Client()
 	if err != nil {
 		return MetadataKeywordsPlanResult{}, fmt.Errorf("auth: %w", err)
 	}
 
-	requestCtx, cancel := shared.ContextWithTimeout(ctx)
+	requestCtx, cancel := d.Timeout(ctx)
 	defer cancel()
 
-	versionIDValue, _, err := resolveVersionID(requestCtx, shared.DefaultDeps(), client, resolvedAppID, versionValue, platformValue)
+	versionIDValue, _, err := resolveVersionID(requestCtx, d, client, resolvedAppID, versionValue, platformValue)
 	if err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return MetadataKeywordsPlanResult{}, err
@@ -211,7 +212,7 @@ func executeMetadataKeywordsPlan(ctx context.Context, opts metadataKeywordsPlanO
 		return MetadataKeywordsPlanResult{}, err
 	}
 
-	remoteVersionItems, err := fetchVersionLocalizations(ctx, shared.DefaultDeps(), client, versionIDValue)
+	remoteVersionItems, err := fetchVersionLocalizations(ctx, d, client, versionIDValue)
 	if err != nil {
 		return MetadataKeywordsPlanResult{}, err
 	}
@@ -230,7 +231,7 @@ func executeMetadataKeywordsPlan(ctx context.Context, opts metadataKeywordsPlanO
 	sortPlanItems(updates)
 	submitOpts := shared.SubmitReadinessOptions{}
 	if versionCreateWarningsNeedUpdateContext(localPatches, remoteVersion) {
-		readinessCtx, readinessCancel := shared.ContextWithTimeout(ctx)
+		readinessCtx, readinessCancel := d.Timeout(ctx)
 		submitOpts = shared.ResolveSubmitReadinessOptionsForVersionBestEffort(readinessCtx, client, versionIDValue, resolvedAppID, platformValue)
 		readinessCancel()
 	}
@@ -252,7 +253,7 @@ func executeMetadataKeywordsPlan(ctx context.Context, opts metadataKeywordsPlanO
 		return result, nil
 	}
 
-	applySummary := applyMetadataKeywordChanges(ctx, client, versionIDValue, versionValue, localPatches, filteredRemoteItems)
+	applySummary := applyMetadataKeywordChanges(ctx, d, client, versionIDValue, versionValue, localPatches, filteredRemoteItems)
 	result.DryRun = false
 	result.Total = applySummary.Total
 	result.Succeeded = applySummary.Succeeded
@@ -264,11 +265,11 @@ func executeMetadataKeywordsPlan(ctx context.Context, opts metadataKeywordsPlanO
 		return result, nil
 	}
 	result.Results = applySummary.Results
-	artifactPath, err := writeMetadataKeywordsApplyFailureArtifact(result, opts.FailureArtifactScope)
+	artifactPath, err := writeMetadataKeywordsApplyFailureArtifact(d, result, opts.FailureArtifactScope)
 	if err != nil {
 		artifactErr := fmt.Errorf("write failure artifact: %w", err)
 		if result.refused != nil {
-			fmt.Fprintf(os.Stderr, "Warning: %s\n", shared.SanitizeTerminal(artifactErr.Error()))
+			fmt.Fprintf(d.IO.ErrOut, "Warning: %s\n", shared.SanitizeTerminal(artifactErr.Error()))
 		}
 		return result, shared.NewErrorWithCause(artifactErr, result.refused)
 	}
@@ -276,16 +277,16 @@ func executeMetadataKeywordsPlan(ctx context.Context, opts metadataKeywordsPlanO
 	return result, nil
 }
 
-func loadMetadataKeywordLocalState(dir, version string) (map[string]keywordLocalState, error) {
+func loadMetadataKeywordLocalState(d *shared.Deps, dir, version string) (map[string]keywordLocalState, error) {
 	resolvedVersion, err := validatePathSegment("version", version)
 	if err != nil {
-		return nil, shared.UsageError(err.Error())
+		return nil, d.UsageError(err.Error())
 	}
 	versionPath := filepath.Join(strings.TrimSpace(dir), versionDirName, resolvedVersion)
 	entries, err := os.ReadDir(versionPath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return nil, shared.UsageErrorf("no version localization files found in %s", versionPath)
+			return nil, d.UsageErrorf("no version localization files found in %s", versionPath)
 		}
 		return nil, fmt.Errorf("failed to read %s: %w", versionPath, err)
 	}
@@ -302,16 +303,16 @@ func loadMetadataKeywordLocalState(dir, version string) (map[string]keywordLocal
 		}
 		locale, localeErr := validateMetadataKeywordLocale(rawLocale)
 		if localeErr != nil {
-			return nil, shared.UsageErrorf("invalid metadata keywords file %q: %v", entry.Name(), localeErr)
+			return nil, d.UsageErrorf("invalid metadata keywords file %q: %v", entry.Name(), localeErr)
 		}
 		if err := recordCanonicalLocaleFile(seenLocales, locale, entry.Name()); err != nil {
-			return nil, shared.UsageError(err.Error())
+			return nil, d.UsageError(err.Error())
 		}
 
 		path := filepath.Join(versionPath, entry.Name())
 		localization, readErr := ReadVersionLocalizationFile(path)
 		if readErr != nil {
-			return nil, shared.UsageErrorf("invalid metadata schema in %s: %v", path, readErr)
+			return nil, d.UsageErrorf("invalid metadata schema in %s: %v", path, readErr)
 		}
 		if strings.TrimSpace(localization.Keywords) == "" {
 			continue
@@ -319,7 +320,7 @@ func loadMetadataKeywordLocalState(dir, version string) (map[string]keywordLocal
 		states[locale] = buildMetadataKeywordLocalState(locale, path, localization)
 	}
 	if len(states) == 0 {
-		return nil, shared.UsageErrorf("no keyword metadata files with a non-empty keywords field were found in %s", versionPath)
+		return nil, d.UsageErrorf("no keyword metadata files with a non-empty keywords field were found in %s", versionPath)
 	}
 	return states, nil
 }
@@ -381,21 +382,21 @@ func buildMetadataKeywordWarnings(states map[string]keywordLocalState, remote ma
 	return warnings
 }
 
-func printMetadataKeywordsPlanTable(result MetadataKeywordsPlanResult) error {
-	fmt.Printf("App ID: %s\n", result.AppID)
-	fmt.Printf("Version: %s\n", result.Version)
-	fmt.Printf("Dir: %s\n", result.Dir)
-	fmt.Printf("Dry Run: %t\n\n", result.DryRun)
+func printMetadataKeywordsPlanTable(d *shared.Deps, result MetadataKeywordsPlanResult) error {
+	fmt.Fprintf(d.IO.Out, "App ID: %s\n", result.AppID)
+	fmt.Fprintf(d.IO.Out, "Version: %s\n", result.Version)
+	fmt.Fprintf(d.IO.Out, "Dir: %s\n", result.Dir)
+	fmt.Fprintf(d.IO.Out, "Dry Run: %t\n\n", result.DryRun)
 	if result.Applied {
-		fmt.Printf("Applied: %t\n\n", result.Applied)
+		fmt.Fprintf(d.IO.Out, "Applied: %t\n\n", result.Applied)
 	}
 	if result.Total > 0 {
-		fmt.Printf("Succeeded: %d\n", result.Succeeded)
-		fmt.Printf("Failed: %d\n", result.Failed)
+		fmt.Fprintf(d.IO.Out, "Succeeded: %d\n", result.Succeeded)
+		fmt.Fprintf(d.IO.Out, "Failed: %d\n", result.Failed)
 		if result.FailureArtifactPath != "" {
-			fmt.Printf("Failure Artifact: %s\n", result.FailureArtifactPath)
+			fmt.Fprintf(d.IO.Out, "Failure Artifact: %s\n", result.FailureArtifactPath)
 		}
-		fmt.Println()
+		fmt.Fprintln(d.IO.Out)
 	}
 
 	pushResult := PushPlanResult{
@@ -409,38 +410,38 @@ func printMetadataKeywordsPlanTable(result MetadataKeywordsPlanResult) error {
 		APICalls: result.APICalls,
 		Actions:  result.Actions,
 	}
-	asc.RenderTable([]string{"change", "key", "scope", "locale", "version", "field", "reason", "from", "to"}, buildPlanRows(pushResult))
+	asc.RenderTableTo(d.IO.Out, []string{"change", "key", "scope", "locale", "version", "field", "reason", "from", "to"}, buildPlanRows(pushResult))
 	if len(result.APICalls) > 0 {
-		fmt.Println()
-		asc.RenderTable([]string{"operation", "scope", "count"}, buildAPICallRows(result.APICalls))
+		fmt.Fprintln(d.IO.Out)
+		asc.RenderTableTo(d.IO.Out, []string{"operation", "scope", "count"}, buildAPICallRows(result.APICalls))
 	}
 	if len(result.Results) > 0 {
-		fmt.Println()
-		asc.RenderTable([]string{"locale", "action", "status", "localizationId", "error"}, buildMetadataKeywordMutationRows(result.Results))
+		fmt.Fprintln(d.IO.Out)
+		asc.RenderTableTo(d.IO.Out, []string{"locale", "action", "status", "localizationId", "error"}, buildMetadataKeywordMutationRows(result.Results))
 	} else if len(result.Actions) > 0 {
-		fmt.Println()
-		asc.RenderTable([]string{"scope", "locale", "version", "action", "localizationId"}, buildApplyActionRows(result.Actions))
+		fmt.Fprintln(d.IO.Out)
+		asc.RenderTableTo(d.IO.Out, []string{"scope", "locale", "version", "action", "localizationId"}, buildApplyActionRows(result.Actions))
 	}
 	if len(result.Warnings) > 0 {
-		fmt.Println()
-		asc.RenderTable([]string{"action", "locale", "message", "missingFields"}, buildMetadataKeywordWarningRows(result.Warnings))
+		fmt.Fprintln(d.IO.Out)
+		asc.RenderTableTo(d.IO.Out, []string{"action", "locale", "message", "missingFields"}, buildMetadataKeywordWarningRows(result.Warnings))
 	}
 	return nil
 }
 
-func printMetadataKeywordsPlanMarkdown(result MetadataKeywordsPlanResult) error {
-	fmt.Printf("**App ID:** %s\n\n", result.AppID)
-	fmt.Printf("**Version:** %s\n\n", result.Version)
-	fmt.Printf("**Dir:** %s\n\n", result.Dir)
-	fmt.Printf("**Dry Run:** %t\n\n", result.DryRun)
+func printMetadataKeywordsPlanMarkdown(d *shared.Deps, result MetadataKeywordsPlanResult) error {
+	fmt.Fprintf(d.IO.Out, "**App ID:** %s\n\n", result.AppID)
+	fmt.Fprintf(d.IO.Out, "**Version:** %s\n\n", result.Version)
+	fmt.Fprintf(d.IO.Out, "**Dir:** %s\n\n", result.Dir)
+	fmt.Fprintf(d.IO.Out, "**Dry Run:** %t\n\n", result.DryRun)
 	if result.Applied {
-		fmt.Printf("**Applied:** %t\n\n", result.Applied)
+		fmt.Fprintf(d.IO.Out, "**Applied:** %t\n\n", result.Applied)
 	}
 	if result.Total > 0 {
-		fmt.Printf("**Succeeded:** %d\n\n", result.Succeeded)
-		fmt.Printf("**Failed:** %d\n\n", result.Failed)
+		fmt.Fprintf(d.IO.Out, "**Succeeded:** %d\n\n", result.Succeeded)
+		fmt.Fprintf(d.IO.Out, "**Failed:** %d\n\n", result.Failed)
 		if result.FailureArtifactPath != "" {
-			fmt.Printf("**Failure Artifact:** %s\n\n", result.FailureArtifactPath)
+			fmt.Fprintf(d.IO.Out, "**Failure Artifact:** %s\n\n", result.FailureArtifactPath)
 		}
 	}
 
@@ -455,21 +456,21 @@ func printMetadataKeywordsPlanMarkdown(result MetadataKeywordsPlanResult) error 
 		APICalls: result.APICalls,
 		Actions:  result.Actions,
 	}
-	asc.RenderMarkdown([]string{"change", "key", "scope", "locale", "version", "field", "reason", "from", "to"}, buildPlanRows(pushResult))
+	asc.RenderMarkdownTo(d.IO.Out, []string{"change", "key", "scope", "locale", "version", "field", "reason", "from", "to"}, buildPlanRows(pushResult))
 	if len(result.APICalls) > 0 {
-		fmt.Println()
-		asc.RenderMarkdown([]string{"operation", "scope", "count"}, buildAPICallRows(result.APICalls))
+		fmt.Fprintln(d.IO.Out)
+		asc.RenderMarkdownTo(d.IO.Out, []string{"operation", "scope", "count"}, buildAPICallRows(result.APICalls))
 	}
 	if len(result.Results) > 0 {
-		fmt.Println()
-		asc.RenderMarkdown([]string{"locale", "action", "status", "localizationId", "error"}, buildMetadataKeywordMutationRows(result.Results))
+		fmt.Fprintln(d.IO.Out)
+		asc.RenderMarkdownTo(d.IO.Out, []string{"locale", "action", "status", "localizationId", "error"}, buildMetadataKeywordMutationRows(result.Results))
 	} else if len(result.Actions) > 0 {
-		fmt.Println()
-		asc.RenderMarkdown([]string{"scope", "locale", "version", "action", "localizationId"}, buildApplyActionRows(result.Actions))
+		fmt.Fprintln(d.IO.Out)
+		asc.RenderMarkdownTo(d.IO.Out, []string{"scope", "locale", "version", "action", "localizationId"}, buildApplyActionRows(result.Actions))
 	}
 	if len(result.Warnings) > 0 {
-		fmt.Println()
-		asc.RenderMarkdown([]string{"action", "locale", "message", "missingFields"}, buildMetadataKeywordWarningRows(result.Warnings))
+		fmt.Fprintln(d.IO.Out)
+		asc.RenderMarkdownTo(d.IO.Out, []string{"action", "locale", "message", "missingFields"}, buildMetadataKeywordWarningRows(result.Warnings))
 	}
 	return nil
 }

@@ -17,9 +17,9 @@ type MetadataKeywordsSyncResult struct {
 	Plan   *MetadataKeywordsPlanResult  `json:"plan,omitempty"`
 }
 
-// MetadataKeywordsSyncCommand returns the keywords sync subcommand.
-func MetadataKeywordsSyncCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("metadata keywords sync", flag.ExitOnError)
+// newMetadataKeywordsSyncCommand returns the keywords sync subcommand.
+func newMetadataKeywordsSyncCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("metadata keywords sync", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	version := fs.String("version", "", "App version string (for example 1.2.3)")
@@ -31,7 +31,7 @@ func MetadataKeywordsSyncCommand() *ffcli.Command {
 	sideDataReportFile := fs.String("side-data-report-file", "", "Optional path to write side-data report JSON when research fields are present")
 	dryRun := fs.Bool("dry-run", false, "Preview import and remote keyword changes without writing or mutating")
 	confirm := fs.Bool("confirm", false, "Confirm remote keyword mutations after import")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "sync",
@@ -52,13 +52,13 @@ Examples:
   asc metadata keywords sync --app "APP_ID" --version "1.2.3" --platform IOS --dir "./metadata" --input "./keywords.json" --format json --confirm
   asc metadata keywords sync --app "APP_ID" --version "1.2.3" --dir "./metadata" --format text --locale "en-US" --input "./keywords.txt" --dry-run`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID, versionValue, dirValue, platformValue, err := validateMetadataKeywordsRemoteInputs(*appID, *version, *dir, *platform)
+			resolvedAppID, versionValue, dirValue, platformValue, err := validateMetadataKeywordsRemoteInputs(d, *appID, *version, *dir, *platform)
 			if err != nil {
 				return fmt.Errorf("metadata keywords sync: %w", err)
 			}
-			importPayload, err := executeMetadataKeywordsImportWithState(metadataKeywordsImportOptions{
+			importPayload, err := executeMetadataKeywordsImportWithState(d, metadataKeywordsImportOptions{
 				Dir:                *dir,
 				Version:            *version,
 				Input:              *input,
@@ -76,19 +76,19 @@ Examples:
 			}
 			if !importPayload.result.Valid {
 				result := MetadataKeywordsSyncResult{Import: importPayload.result}
-				if err := shared.PrintOutputWithRenderers(
+				if err := d.PrintOutputWithRenderers(
 					result,
 					*output.Output,
 					*output.Pretty,
-					func() error { return printMetadataKeywordsSyncTable(result) },
-					func() error { return printMetadataKeywordsSyncMarkdown(result) },
+					func() error { return printMetadataKeywordsSyncTable(d, result) },
+					func() error { return printMetadataKeywordsSyncMarkdown(d, result) },
 				); err != nil {
 					return err
 				}
 				return shared.NewReportedError(fmt.Errorf("metadata keywords sync: found %d import issue(s)", len(importPayload.result.Issues)))
 			}
 
-			planResult, err := executeMetadataKeywordsPlan(ctx, metadataKeywordsPlanOptions{
+			planResult, err := executeMetadataKeywordsPlan(ctx, d, metadataKeywordsPlanOptions{
 				AppID:                resolvedAppID,
 				Version:              versionValue,
 				Platform:             platformValue,
@@ -110,12 +110,12 @@ Examples:
 				Import: importPayload.result,
 				Plan:   &planResult,
 			}
-			if printErr := shared.PrintOutputWithRenderers(
+			if printErr := d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return printMetadataKeywordsSyncTable(result) },
-				func() error { return printMetadataKeywordsSyncMarkdown(result) },
+				func() error { return printMetadataKeywordsSyncTable(d, result) },
+				func() error { return printMetadataKeywordsSyncMarkdown(d, result) },
 			); printErr != nil {
 				return printErr
 			}
@@ -130,24 +130,24 @@ Examples:
 	}
 }
 
-func printMetadataKeywordsSyncTable(result MetadataKeywordsSyncResult) error {
-	if err := printMetadataKeywordFileResultTable("Keyword Import", result.Import.Results, result.Import.DetectedLocales, result.Import.Issues, result.Import.Dir, result.Import.Version, result.Import.DryRun, result.Import.SideDataRecordCount, result.Import.SideDataReportPath); err != nil {
+func printMetadataKeywordsSyncTable(d *shared.Deps, result MetadataKeywordsSyncResult) error {
+	if err := printMetadataKeywordFileResultTable(d, "Keyword Import", result.Import.Results, result.Import.DetectedLocales, result.Import.Issues, result.Import.Dir, result.Import.Version, result.Import.DryRun, result.Import.SideDataRecordCount, result.Import.SideDataReportPath); err != nil {
 		return err
 	}
 	if result.Plan == nil {
 		return nil
 	}
-	fmt.Println()
-	return printMetadataKeywordsPlanTable(*result.Plan)
+	fmt.Fprintln(d.IO.Out)
+	return printMetadataKeywordsPlanTable(d, *result.Plan)
 }
 
-func printMetadataKeywordsSyncMarkdown(result MetadataKeywordsSyncResult) error {
-	if err := printMetadataKeywordFileResultMarkdown("Keyword Import", result.Import.Results, result.Import.DetectedLocales, result.Import.Issues, result.Import.Dir, result.Import.Version, result.Import.DryRun, result.Import.SideDataRecordCount, result.Import.SideDataReportPath); err != nil {
+func printMetadataKeywordsSyncMarkdown(d *shared.Deps, result MetadataKeywordsSyncResult) error {
+	if err := printMetadataKeywordFileResultMarkdown(d, "Keyword Import", result.Import.Results, result.Import.DetectedLocales, result.Import.Issues, result.Import.Dir, result.Import.Version, result.Import.DryRun, result.Import.SideDataRecordCount, result.Import.SideDataReportPath); err != nil {
 		return err
 	}
 	if result.Plan == nil {
 		return nil
 	}
-	fmt.Println()
-	return printMetadataKeywordsPlanMarkdown(*result.Plan)
+	fmt.Fprintln(d.IO.Out)
+	return printMetadataKeywordsPlanMarkdown(d, *result.Plan)
 }

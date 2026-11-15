@@ -53,16 +53,16 @@ func shouldPrintMetadataKeywordsPlanResult(result MetadataKeywordsPlanResult, er
 	return result.Total > 0 || result.Succeeded > 0 || result.Failed > 0 || len(result.Results) > 0 || result.FailureArtifactPath != ""
 }
 
-// MetadataKeywordsApplyCommand returns the keywords apply subcommand.
-func MetadataKeywordsApplyCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("metadata keywords apply", flag.ExitOnError)
+// newMetadataKeywordsApplyCommand returns the keywords apply subcommand.
+func newMetadataKeywordsApplyCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("metadata keywords apply", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	version := fs.String("version", "", "App version string (for example 1.2.3)")
 	platform := fs.String("platform", "", "Optional platform: IOS, MAC_OS, TV_OS, or VISION_OS")
 	dir := fs.String("dir", "", "Metadata root directory (required)")
 	confirm := fs.Bool("confirm", false, "Confirm remote keyword mutations")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "apply",
@@ -77,9 +77,9 @@ Examples:
   asc metadata keywords apply --app "APP_ID" --version "1.2.3" --dir "./metadata" --confirm
   asc metadata keywords apply --app "APP_ID" --version "1.2.3" --platform IOS --dir "./metadata" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			result, err := executeMetadataKeywordsPlan(ctx, metadataKeywordsPlanOptions{
+			result, err := executeMetadataKeywordsPlan(ctx, d, metadataKeywordsPlanOptions{
 				AppID:                *appID,
 				Version:              *version,
 				Platform:             *platform,
@@ -95,12 +95,12 @@ Examples:
 			if !shouldPrintMetadataKeywordsPlanResult(result, err) {
 				return fmt.Errorf("metadata keywords apply: %w", err)
 			}
-			if printErr := shared.PrintOutputWithRenderers(
+			if printErr := d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return printMetadataKeywordsPlanTable(result) },
-				func() error { return printMetadataKeywordsPlanMarkdown(result) },
+				func() error { return printMetadataKeywordsPlanTable(d, result) },
+				func() error { return printMetadataKeywordsPlanMarkdown(d, result) },
 			); printErr != nil {
 				return printErr
 			}
@@ -117,6 +117,7 @@ Examples:
 
 func applyMetadataKeywordChanges(
 	ctx context.Context,
+	d *shared.Deps,
 	client *asc.Client,
 	versionID string,
 	version string,
@@ -173,7 +174,7 @@ func applyMetadataKeywordChanges(
 				createLoc = localPatch.createLocalization
 			}
 
-			createCtx, createCancel := shared.ContextWithTimeout(ctx)
+			createCtx, createCancel := d.Timeout(ctx)
 			resp, createErr := client.CreateAppStoreVersionLocalization(createCtx, versionID, versionAttributes(locale, createLoc, true))
 			createCancel()
 			if createErr != nil {
@@ -203,7 +204,7 @@ func applyMetadataKeywordChanges(
 		case remoteExists:
 			result.Action = "update"
 
-			updateCtx, updateCancel := shared.ContextWithTimeout(ctx)
+			updateCtx, updateCancel := d.Timeout(ctx)
 			resp, updateErr := client.UpdateAppStoreVersionLocalization(updateCtx, remoteState.id, versionAttributes(locale, localPatch.localization, false))
 			updateCancel()
 			if updateErr != nil {
@@ -242,7 +243,7 @@ func applyMetadataKeywordChanges(
 	return summary
 }
 
-func writeMetadataKeywordsApplyFailureArtifact(result MetadataKeywordsPlanResult, scope string) (string, error) {
+func writeMetadataKeywordsApplyFailureArtifact(d *shared.Deps, result MetadataKeywordsPlanResult, scope string) (string, error) {
 	scope = strings.TrimSpace(scope)
 	if scope == "" {
 		scope = "metadata-keywords-apply"
@@ -256,7 +257,7 @@ func writeMetadataKeywordsApplyFailureArtifact(result MetadataKeywordsPlanResult
 		Total:       result.Total,
 		Succeeded:   result.Succeeded,
 		Failed:      result.Failed,
-		GeneratedAt: time.Now().UTC().Format(time.RFC3339),
+		GeneratedAt: d.Now().UTC().Format(time.RFC3339),
 		Results:     append([]MetadataKeywordsMutationResult(nil), result.Results...),
 	}
 
@@ -269,7 +270,7 @@ func writeMetadataKeywordsApplyFailureArtifact(result MetadataKeywordsPlanResult
 		".asc",
 		"reports",
 		scope,
-		fmt.Sprintf("failures-%d.json", time.Now().UTC().UnixNano()),
+		fmt.Sprintf("failures-%d.json", d.Now().UTC().UnixNano()),
 	)
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return "", err
