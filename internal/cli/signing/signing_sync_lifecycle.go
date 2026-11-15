@@ -179,8 +179,8 @@ func diffDeviceIDs(current, desired []string) (added, removed []string) {
 
 // findLatestExpiredProfile returns the profile of the given type whose
 // expiration date passed most recently, or nil when none has expired.
-func findLatestExpiredProfile(ctx context.Context, client *asc.Client, bundleIDResourceID, profileType string) (*asc.Resource[asc.ProfileAttributes], error) {
-	now := signingFetchNowFn()
+func findLatestExpiredProfile(ctx context.Context, client *asc.Client, bundleIDResourceID, profileType string, clock func() time.Time) (*asc.Resource[asc.ProfileAttributes], error) {
+	now := clock()
 	var selected *asc.Resource[asc.ProfileAttributes]
 	var selectedExpiry string
 	next := ""
