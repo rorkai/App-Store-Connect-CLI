@@ -101,8 +101,7 @@ func TestAssetsScreenshotsDownloadCommandRequiredFlags(t *testing.T) {
 				t.Fatalf("parse error: %v", err)
 			}
 
-			var runErr error
-			runErr = cmd.Exec(context.Background(), cmd.FlagSet.Args())
+			runErr := cmd.Exec(context.Background(), cmd.FlagSet.Args())
 			stdout, stderr := stdoutBuf.String(), stderrBuf.String()
 
 			if stdout != "" {
@@ -172,8 +171,7 @@ func TestAssetsScreenshotsDownloadCommandIncludesPaginatedSetsAndScreenshots(t *
 		t.Fatalf("parse error: %v", err)
 	}
 
-	var runErr error
-	runErr = cmd.Exec(context.Background(), cmd.FlagSet.Args())
+	runErr := cmd.Exec(context.Background(), cmd.FlagSet.Args())
 	stdout, stderr := stdoutBuf.String(), stderrBuf.String()
 	if runErr != nil {
 		t.Fatalf("download command error: %v (stdout=%q, stderr=%q)", runErr, stdout, stderr)
@@ -315,8 +313,7 @@ func TestAssetsScreenshotsSizesCommandRejectsAllWithDisplayType(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	var runErr error
-	runErr = cmd.Exec(context.Background(), cmd.FlagSet.Args())
+	runErr := cmd.Exec(context.Background(), cmd.FlagSet.Args())
 	stdout, stderr := stdoutBuf.String(), stderrBuf.String()
 
 	if stdout != "" {
@@ -365,8 +362,7 @@ func TestAssetsScreenshotsUploadCommandValidatesFlagsBeforeUpload(t *testing.T) 
 				t.Fatalf("parse error: %v", err)
 			}
 
-			var runErr error
-			runErr = cmd.Exec(context.Background(), cmd.FlagSet.Args())
+			runErr := cmd.Exec(context.Background(), cmd.FlagSet.Args())
 			stdout, stderr := stdoutBuf.String(), stderrBuf.String()
 
 			if stdout != "" {
