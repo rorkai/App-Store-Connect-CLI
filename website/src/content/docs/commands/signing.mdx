@@ -181,6 +181,13 @@ asc signing fetch \
   --pretty
 ```
 
+An active Apple Distribution (`DISTRIBUTION`) or iOS distribution
+(`IOS_DISTRIBUTION`) certificate satisfies the lookup, and nothing is created.
+When neither exists, iOS and tvOS profiles get a cross-platform
+`DISTRIBUTION` certificate (`DEVELOPMENT` for development profiles).
+In-house profiles still get `IOS_DISTRIBUTION`. The created type is the first one in `--certificate-type`, so pass
+`--certificate-type IOS_DISTRIBUTION,DISTRIBUTION` to create the legacy type.
+
 The identity password must come from a protected 0600-or-more-restrictive file;
 it is never accepted as a flag value. One trailing LF or CRLF is removed, and
 the remaining password must not be empty. Use `--key-out`, `--csr-out`, or
@@ -237,12 +244,12 @@ asc signing fetch \
 
 | Profile type | Use | Inferred certificate type | Devices when creating |
 | --- | --- | --- | --- |
-| `IOS_APP_STORE` | iOS App Store and TestFlight | iOS distribution | No |
-| `IOS_APP_DEVELOPMENT` | iOS development | iOS development | Yes |
-| `IOS_APP_ADHOC` | iOS release testing on registered devices | iOS distribution | Yes |
-| `TVOS_APP_STORE` | tvOS App Store | iOS distribution | No |
-| `TVOS_APP_DEVELOPMENT` | tvOS development | iOS development | Yes |
-| `TVOS_APP_ADHOC` | tvOS release testing | iOS distribution | Yes |
+| `IOS_APP_STORE` | iOS App Store and TestFlight | Apple Distribution or iOS distribution | No |
+| `IOS_APP_DEVELOPMENT` | iOS development | Apple Development or iOS development | Yes |
+| `IOS_APP_ADHOC` | iOS release testing on registered devices | Apple Distribution or iOS distribution | Yes |
+| `TVOS_APP_STORE` | tvOS App Store | Apple Distribution or iOS distribution | No |
+| `TVOS_APP_DEVELOPMENT` | tvOS development | Apple Development or iOS development | Yes |
+| `TVOS_APP_ADHOC` | tvOS release testing | Apple Distribution or iOS distribution | Yes |
 | `MAC_APP_STORE` | Mac App Store | Mac distribution | No |
 | `MAC_APP_DEVELOPMENT` | macOS development | Mac development | Yes |
 | `MAC_APP_DIRECT` | Developer ID distribution | Developer ID Application | No |
