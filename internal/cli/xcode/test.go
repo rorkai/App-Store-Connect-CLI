@@ -59,6 +59,14 @@ func XcodeTestCommand() *ffcli.Command {
 	clean := fs.Bool("clean", false, "Run clean before the selected Xcode action")
 	noCodeSigning := fs.Bool("no-code-signing", false, "Set CODE_SIGNING_ALLOWED=NO explicitly")
 	codeCoverage := fs.Bool("code-coverage", false, "Enable code coverage and report line coverage from the result bundle")
+	retryTestsOnFailure := fs.Bool("retry-tests-on-failure", false, "Retry failed tests (up to --test-iterations, or 3 times)")
+	testIterations := fs.Int("test-iterations", 0, "Run tests this many times, or retry up to this many times with --retry-tests-on-failure (at least 1)")
+	var parallelTesting shared.OptionalBool
+	fs.Var(&parallelTesting, "parallel-testing", "Turn parallel testing on or off, overriding the scheme: true or false")
+	parallelTestingWorkers := fs.Int("parallel-testing-workers", 0, "Exact number of parallel test runners (at least 1)")
+	addressSanitizer := fs.Bool("address-sanitizer", false, "Enable the address sanitizer (cannot be combined with --thread-sanitizer)")
+	threadSanitizer := fs.Bool("thread-sanitizer", false, "Enable the thread sanitizer")
+	undefinedBehaviorSanitizer := fs.Bool("undefined-behavior-sanitizer", false, "Enable the undefined behavior sanitizer")
 	var xcodebuildFlags exactTestStringFlag
 	fs.Var(&xcodebuildFlags, "xcodebuild-flag", "Pass a raw argument through to xcodebuild (repeatable)")
 	output := shared.BindOutputFlags(fs)
@@ -84,6 +92,11 @@ test-without-building, the result adds overall and per-target line coverage
 read with xccov; if coverage cannot be read, a warning is printed on stderr and
 the test outcome is unchanged.
 
+--retry-tests-on-failure, --test-iterations, --parallel-testing,
+--parallel-testing-workers, and the --address-sanitizer, --thread-sanitizer,
+and --undefined-behavior-sanitizer flags pass the matching xcodebuild test
+options. Each conflicts with a --xcodebuild-flag for the same option.
+
 Xcode diagnostics are written to stderr and the selected structured result
 format is written to stdout. This command never calls App Store Connect or
 changes project files.
@@ -93,7 +106,8 @@ Examples:
   asc xcode test --workspace App.xcworkspace --scheme App --destination 'platform=iOS Simulator,name=iPhone 17 Pro' --destination 'platform=iOS Simulator,name=iPad Pro (13-inch)'
   asc xcode test --package-path ./MyPackage --scheme MyPackage --destination 'platform=macOS' --output json
   asc xcode test --project App.xcodeproj --scheme App --action build-for-testing --destination 'platform=iOS Simulator,name=iPhone 17 Pro'
-  asc xcode test --action test-without-building --xctestrun App_iphonesimulator.xctestrun --destination 'platform=iOS Simulator,name=iPhone 17 Pro'`,
+  asc xcode test --action test-without-building --xctestrun App_iphonesimulator.xctestrun --destination 'platform=iOS Simulator,name=iPhone 17 Pro'
+  asc xcode test --project App.xcodeproj --scheme App --destination 'platform=iOS Simulator,name=iPhone 17 Pro' --retry-tests-on-failure --test-iterations 3`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -106,6 +120,15 @@ Examples:
 			}
 			if emptyFlag := firstExplicitlyEmptyFlag(fs, "workspace", "project", "package-path", "scheme", "action", "configuration", "test-plan", "xctestrun", "derived-data-path", "result-bundle-path"); emptyFlag != "" {
 				return shared.UsageErrorf("--%s must not be empty", emptyFlag)
+			}
+			var nonPositiveFlag string
+			fs.Visit(func(f *flag.Flag) {
+				if nonPositiveFlag == "" && ((f.Name == "test-iterations" && *testIterations < 1) || (f.Name == "parallel-testing-workers" && *parallelTestingWorkers < 1)) {
+					nonPositiveFlag = f.Name
+				}
+			})
+			if nonPositiveFlag != "" {
+				return shared.UsageErrorf("--%s must be at least 1", nonPositiveFlag)
 			}
 			opts := localxcode.TestOptions{
 				WorkspacePath:    strings.TrimSpace(*workspacePath),
@@ -126,6 +149,17 @@ Examples:
 				CodeCoverage:     *codeCoverage,
 				XcodebuildArgs:   []string(xcodebuildFlags),
 				LogWriter:        os.Stderr,
+
+				RetryTestsOnFailure:        *retryTestsOnFailure,
+				TestIterations:             *testIterations,
+				ParallelTestingWorkers:     *parallelTestingWorkers,
+				AddressSanitizer:           *addressSanitizer,
+				ThreadSanitizer:            *threadSanitizer,
+				UndefinedBehaviorSanitizer: *undefinedBehaviorSanitizer,
+			}
+			if parallelTesting.IsSet() {
+				enabled := parallelTesting.Value()
+				opts.ParallelTesting = &enabled
 			}
 			if err := localxcode.ValidateTestOptions(opts); err != nil {
 				return shared.UsageError(err.Error())

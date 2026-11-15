@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -321,6 +322,103 @@ func TestXcodeTestJUnitExitsNonZeroWhenBundleHasFailedTests(t *testing.T) {
 			}
 			if stderr != wantStderr {
 				t.Fatalf("stderr = %q, want %q", stderr, wantStderr)
+			}
+		})
+	}
+}
+
+func TestXcodeTestTypedRunFlagsReachXcodebuild(t *testing.T) {
+	if runtime.GOOS != "darwin" {
+		t.Skip("xcode test runs xcodebuild on macOS only")
+	}
+	tests := []struct {
+		name     string
+		args     []string
+		wantArgs []string
+		wantErr  string
+	}{
+		{name: "retry", args: []string{"--retry-tests-on-failure"}, wantArgs: []string{"-retry-tests-on-failure"}},
+		{name: "iterations", args: []string{"--test-iterations", "5"}, wantArgs: []string{"-test-iterations", "5"}},
+		{name: "parallel on", args: []string{"--parallel-testing=true"}, wantArgs: []string{"-parallel-testing-enabled", "YES"}},
+		{name: "parallel off", args: []string{"--parallel-testing=false"}, wantArgs: []string{"-parallel-testing-enabled", "NO"}},
+		{name: "workers", args: []string{"--parallel-testing-workers", "4"}, wantArgs: []string{"-parallel-testing-worker-count", "4"}},
+		{name: "address sanitizer", args: []string{"--address-sanitizer"}, wantArgs: []string{"-enableAddressSanitizer", "YES"}},
+		{name: "thread sanitizer", args: []string{"--thread-sanitizer"}, wantArgs: []string{"-enableThreadSanitizer", "YES"}},
+		{name: "undefined behavior sanitizer", args: []string{"--undefined-behavior-sanitizer"}, wantArgs: []string{"-enableUndefinedBehaviorSanitizer", "YES"}},
+		{name: "raw passthrough alone", args: []string{"--xcodebuild-flag=-parallel-testing-enabled", "--xcodebuild-flag=NO"}, wantArgs: []string{"-parallel-testing-enabled", "NO"}},
+		{name: "address and thread sanitizers", args: []string{"--address-sanitizer", "--thread-sanitizer"}, wantErr: "--address-sanitizer and --thread-sanitizer cannot be used together"},
+		{name: "zero iterations", args: []string{"--test-iterations", "0"}, wantErr: "--test-iterations must be at least 1"},
+		{name: "typed and raw retry", args: []string{"--retry-tests-on-failure", "--xcodebuild-flag=-retry-tests-on-failure"}, wantErr: `--retry-tests-on-failure conflicts with --xcodebuild-flag "-retry-tests-on-failure"; use one`},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			developerDir := filepath.Join(t.TempDir(), "Xcode.app", "Contents", "Developer")
+			binDir := filepath.Join(developerDir, "usr", "bin")
+			if err := os.MkdirAll(binDir, 0o755); err != nil {
+				t.Fatalf("create fake developer directory: %v", err)
+			}
+			recordPath := filepath.Join(t.TempDir(), "args.txt")
+			script := "#!/bin/sh\n" +
+				"if [ \"$1\" = \"-version\" ]; then\n" +
+				"  printf 'Xcode 16.0\\nBuild version 16A1\\n'\n" +
+				"  exit 0\n" +
+				"fi\n" +
+				"printf '%s\\n' \"$@\" > '" + recordPath + "'\n"
+			if err := os.WriteFile(filepath.Join(binDir, "xcodebuild"), []byte(script), 0o755); err != nil {
+				t.Fatalf("write fake xcodebuild: %v", err)
+			}
+			fakeXcrun := filepath.Join(t.TempDir(), "xcrun")
+			xcrunScript := "#!/bin/sh\nif [ \"$1\" = \"--find\" ] && [ \"$2\" = \"xcodebuild\" ]; then\n  printf '%s\\n' \"$DEVELOPER_DIR/usr/bin/xcodebuild\"\n  exit 0\nfi\nexit 2\n"
+			if err := os.WriteFile(fakeXcrun, []byte(xcrunScript), 0o700); err != nil {
+				t.Fatalf("write fake trusted xcrun: %v", err)
+			}
+			t.Cleanup(localxcode.OverrideTrustedXcrunPathForTesting(fakeXcrun))
+			t.Setenv("DEVELOPER_DIR", developerDir)
+
+			projectPath := filepath.Join(t.TempDir(), "Demo.xcodeproj")
+			if err := os.Mkdir(projectPath, 0o755); err != nil {
+				t.Fatalf("create project: %v", err)
+			}
+			derivedDataPath := filepath.Join(t.TempDir(), "DerivedData")
+			args := append([]string{
+				"xcode", "test", "--action", "build-for-testing",
+				"--project", projectPath, "--scheme", "Demo", "--destination", "platform=macOS",
+				"--derived-data-path", derivedDataPath, "--output", "json",
+			}, test.args...)
+
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+			var runErr error
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				runErr = root.Run(context.Background())
+			})
+			recorded, readErr := os.ReadFile(recordPath)
+			if test.wantErr != "" {
+				if got := rootcmd.ExitCodeFromError(runErr); got != rootcmd.ExitUsage {
+					t.Fatalf("exit code = %d, want %d (err %v)", got, rootcmd.ExitUsage, runErr)
+				}
+				assertUsageExitOutput(t, stdout, stderr, test.wantErr)
+				if readErr == nil {
+					t.Fatalf("xcodebuild ran with %q, want no run", recorded)
+				}
+				return
+			}
+			if runErr != nil {
+				t.Fatalf("run error = %v, stderr = %q", runErr, stderr)
+			}
+			if readErr != nil {
+				t.Fatalf("read recorded xcodebuild args: %v", readErr)
+			}
+			want := append([]string{
+				"-project", projectPath, "-scheme", "Demo", "-destination", "platform=macOS",
+				"-derivedDataPath", derivedDataPath,
+			}, test.wantArgs...)
+			want = append(want, "build-for-testing")
+			if got := strings.Split(strings.TrimSuffix(string(recorded), "\n"), "\n"); !slices.Equal(got, want) {
+				t.Fatalf("xcodebuild args = %q, want %q", got, want)
 			}
 		})
 	}
