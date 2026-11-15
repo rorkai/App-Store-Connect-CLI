@@ -29,7 +29,7 @@ Examples:
   asc routing-coverage create --version-id "VERSION_ID" --file ./coverage.geojson
   asc routing-coverage delete --id "COVERAGE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newRoutingCoverageGetCommand(d),
 			newRoutingCoverageInfoCommand(d),
@@ -78,7 +78,7 @@ func newRoutingCoverageInfoCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc routing-coverage info --id "COVERAGE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			coverageValue := strings.TrimSpace(*coverageID)
 			if coverageValue == "" {
@@ -119,7 +119,7 @@ func newRoutingCoverageCreateCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc routing-coverage create --version-id "VERSION_ID" --file ./coverage.geojson`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			versionValue := strings.TrimSpace(*versionID)
 			if versionValue == "" {

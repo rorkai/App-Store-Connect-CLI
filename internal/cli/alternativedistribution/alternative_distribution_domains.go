@@ -26,7 +26,7 @@ Examples:
   asc alternative-distribution domains create --domain "example.com" --reference-name "Example"
   asc alternative-distribution domains delete --domain-id "DOMAIN_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newAlternativeDistributionDomainsListCommand(d),
 			newAlternativeDistributionDomainsGetCommand(d),

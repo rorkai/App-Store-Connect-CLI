@@ -50,7 +50,7 @@ Examples:
   asc age-rating audit --app "123456789,987654321"
   asc age-rating audit --output table`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			appProvided := false
 			fs.Visit(func(parsed *flag.Flag) {

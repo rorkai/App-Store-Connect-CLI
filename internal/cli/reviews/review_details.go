@@ -42,7 +42,7 @@ func newReviewDetailsGetCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc review details-get --id "DETAIL_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			detailValue := strings.TrimSpace(*detailID)
 			if detailValue == "" {
@@ -84,7 +84,7 @@ func newReviewDetailsForVersionCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc review details-for-version --version-id "VERSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			versionValue := strings.TrimSpace(*versionID)
 			if versionValue == "" {
@@ -178,7 +178,7 @@ skip reads the existing detail back, prints it unchanged, and exits 0. update
 applies the same flags to the existing detail with asc review details-update.
 Any other 409 keeps failing.`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			versionValue := strings.TrimSpace(*versionID)
 			if versionValue == "" {
@@ -361,7 +361,7 @@ Examples:
   asc review details-update --id "DETAIL_ID" --notes "Reviewer can use the guest flow from the welcome screen."
   asc review details-update --id "DETAIL_ID" --demo-account-required=true --demo-account-name "reviewer@example.com" --demo-account-password "rotated-password" --notes "This account has full reviewer access."`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			detailValue := strings.TrimSpace(*detailID)
 			if detailValue == "" {

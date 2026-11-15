@@ -26,7 +26,7 @@ Examples:
   asc marketplace webhooks list
   asc marketplace webhooks view --webhook-id "WEBHOOK_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newMarketplaceWebhooksListCommand(d),
 			newMarketplaceWebhooksGetCommand(d),
@@ -120,7 +120,7 @@ func newMarketplaceWebhooksCreateCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc marketplace webhooks create --url "https://example.com/webhook" --secret "placeholder123"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			warnMarketplaceWebhooksDeprecated(d)
 
@@ -170,7 +170,7 @@ Examples:
   asc marketplace webhooks update --webhook-id "WEBHOOK_ID" --url "https://example.com/webhook"
   asc marketplace webhooks update --webhook-id "WEBHOOK_ID" --secret "new-secret"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			warnMarketplaceWebhooksDeprecated(d)
 
@@ -233,7 +233,7 @@ func newMarketplaceWebhooksDeleteCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc marketplace webhooks delete --webhook-id "WEBHOOK_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			warnMarketplaceWebhooksDeprecated(d)
 

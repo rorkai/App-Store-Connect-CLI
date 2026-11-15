@@ -26,7 +26,7 @@ Examples:
   asc product-pages experiments list --version-id "VERSION_ID"
   asc product-pages experiments create --version-id "VERSION_ID" --name "Icon Test" --traffic-proportion 25`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newCustomPagesCommand(d),
 			newExperimentsCommand(d),

@@ -26,7 +26,7 @@ func NewAgreementsCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc agreements territories list --id "EULA_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newAgreementsTerritoriesCommand(d),
 		},
@@ -50,7 +50,7 @@ func newAgreementsTerritoriesCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc agreements territories list --id "EULA_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newAgreementsTerritoriesListCommand(d),
 		},

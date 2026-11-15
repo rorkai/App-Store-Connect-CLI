@@ -165,7 +165,7 @@ Examples:
   asc reviews respond-batch --app "123456789" --file replies.json --response-state unresponded --confirm`,
 			reviewBatchMaxFileBytes, reviewBatchMaxTargets, reviewBatchMaxResponseBytes),
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if strings.TrimSpace(resolvedAppID) == "" {

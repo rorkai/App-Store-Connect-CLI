@@ -63,7 +63,7 @@ Examples:
   asc review submit --app "123456789" --version "1.2.3" --build-number "46" --wait --confirm
   asc review submit --app "123456789" --version-id "VERSION_ID" --build-id "BUILD_ID" --dry-run`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {

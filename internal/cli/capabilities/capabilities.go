@@ -85,7 +85,7 @@ Examples:
   asc capabilities --area release,monetization --output markdown
   asc capabilities --output json --pretty`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			filter, err := parseCapabilityFilter(d, *status, *area)
 			if err != nil {

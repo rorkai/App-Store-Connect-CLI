@@ -26,7 +26,7 @@ Examples:
   asc xcode-cloud scm repositories list
   asc xcode-cloud scm repositories git-references --repo-id "REPO_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newXcodeCloudScmProvidersCommand(d),
 			newXcodeCloudScmRepositoriesCommand(d),
@@ -165,7 +165,7 @@ Examples:
   asc xcode-cloud scm repositories view --id "REPO_ID"
   asc xcode-cloud scm repositories git-references --repo-id "REPO_ID"`,
 	)
-	cmd.UsageFunc = shared.VisibleUsageFunc
+	cmd.UsageFunc = d.VisibleUsageFunc
 	cmd.Subcommands = []*ffcli.Command{
 		newXcodeCloudScmRepositoriesListCommand(d),
 		newXcodeCloudScmRepositoriesGetCommand(d),
@@ -316,7 +316,7 @@ Examples:
   asc xcode-cloud scm repositories links git-references --repo-id "REPO_ID"
   asc xcode-cloud scm repositories links pull-requests --repo-id "REPO_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newXcodeCloudScmRepositoriesRelationshipsGitReferencesCommand(d),
 			newXcodeCloudScmRepositoriesRelationshipsPullRequestsCommand(d),
@@ -406,7 +406,7 @@ func newXcodeCloudScmGitReferencesCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc xcode-cloud scm git-references view --id "REF_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newXcodeCloudScmGitReferencesGetCommand(d),
 		},
@@ -452,7 +452,7 @@ func newXcodeCloudScmPullRequestsCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc xcode-cloud scm pull-requests view --id "PR_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newXcodeCloudScmPullRequestsGetCommand(d),
 		},

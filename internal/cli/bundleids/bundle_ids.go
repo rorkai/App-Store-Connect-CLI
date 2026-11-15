@@ -32,7 +32,7 @@ Examples:
   asc bundle-ids delete --id "BUNDLE_ID" --confirm
   asc bundle-ids capabilities list --bundle "BUNDLE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newBundleIDsListCommand(d),
 			newBundleIDsGetCommand(d),
@@ -86,7 +86,7 @@ Examples:
   asc bundle-ids list --limit 10
   asc bundle-ids list --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "bundle-ids list", 200, "name", "platform", "identifier", "seed-id", "id", "sort", "fields", "profile-fields", "capability-fields", "app-fields", "include", "profiles-limit", "capabilities-limit", "limit"); err != nil {
 				return err
@@ -281,7 +281,7 @@ Examples:
   asc bundle-ids create --identifier "com.example.app" --name "Example" --platform IOS
   asc bundle-ids create --identifier "com.example.app" --name "Example" --seed-id "ABCDE12345"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			identifierValue := strings.TrimSpace(*identifier)
 			if identifierValue == "" {

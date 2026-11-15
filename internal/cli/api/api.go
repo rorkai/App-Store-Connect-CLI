@@ -67,7 +67,7 @@ Examples:
   asc api PATCH /v1/apps/APP_ID --confirm --body-file update.json
   asc api DELETE /v1/betaGroups/GROUP_ID --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			positional, err := shared.ParseInterspersedFlags(fs, args)
 			if err != nil {
