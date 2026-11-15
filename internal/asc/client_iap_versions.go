@@ -210,18 +210,18 @@ func buildIAPVersionsQuery(q *iapVersionsQuery) string {
 	return values.Encode()
 }
 
-func buildIAPVersionGetQuery(q *iapVersionGetQuery) string {
+func buildIAPVersionGetQuery(query *iapVersionGetQuery) string {
 	values := url.Values{}
-	addCSV(values, "fields[inAppPurchaseVersions]", q.versionFields)
-	addCSV(values, "fields[inAppPurchases]", q.iapFields)
-	addCSV(values, "fields[inAppPurchaseImages]", q.imageFields)
-	addCSV(values, "fields[inAppPurchaseLocalizations]", q.localizationFields)
-	addCSV(values, "include", q.include)
-	if q.imagesLimit > 0 {
-		values.Set("limit[images]", strconv.Itoa(q.imagesLimit))
+	addCSV(values, "fields[inAppPurchaseVersions]", query.versionFields)
+	addCSV(values, "fields[inAppPurchases]", query.iapFields)
+	addCSV(values, "fields[inAppPurchaseImages]", query.imageFields)
+	addCSV(values, "fields[inAppPurchaseLocalizations]", query.localizationFields)
+	addCSV(values, "include", query.include)
+	if query.imagesLimit > 0 {
+		values.Set("limit[images]", strconv.Itoa(query.imagesLimit))
 	}
-	if q.localizationsLimit > 0 {
-		values.Set("limit[localizations]", strconv.Itoa(q.localizationsLimit))
+	if query.localizationsLimit > 0 {
+		values.Set("limit[localizations]", strconv.Itoa(query.localizationsLimit))
 	}
 	return values.Encode()
 }
@@ -248,11 +248,11 @@ func buildIAPVersionLocalizationsQuery(q *iapVersionLocalizationsQuery) string {
 	return values.Encode()
 }
 
-func buildIAPLocalizationV2Query(q *iapLocalizationV2Query) string {
+func buildIAPLocalizationV2Query(query *iapLocalizationV2Query) string {
 	values := url.Values{}
-	addCSV(values, "fields[inAppPurchaseLocalizations]", q.localizationFields)
-	addCSV(values, "fields[inAppPurchaseVersions]", q.versionFields)
-	addCSV(values, "include", q.include)
+	addCSV(values, "fields[inAppPurchaseLocalizations]", query.localizationFields)
+	addCSV(values, "fields[inAppPurchaseVersions]", query.versionFields)
+	addCSV(values, "include", query.include)
 	return values.Encode()
 }
 
