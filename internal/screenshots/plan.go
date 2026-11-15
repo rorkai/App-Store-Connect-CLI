@@ -40,6 +40,7 @@ const (
 	PlanErrMissingBundleID    PlanValidationCode = "missing_bundle_id"
 	PlanErrMissingSteps       PlanValidationCode = "missing_steps"
 	PlanErrNegativeDelay      PlanValidationCode = "negative_post_action_delay"
+	PlanErrInvalidStatusBar   PlanValidationCode = "invalid_status_bar"
 	PlanErrMissingAction      PlanValidationCode = "missing_action"
 	PlanErrTapMissingTarget   PlanValidationCode = "tap_missing_target"
 	PlanErrTypeMissingText    PlanValidationCode = "type_missing_text"
@@ -97,7 +98,8 @@ type PlanApp struct {
 
 // PlanDefaults defines default timing behavior.
 type PlanDefaults struct {
-	PostActionDelayMS int `json:"post_action_delay_ms,omitempty"`
+	PostActionDelayMS int    `json:"post_action_delay_ms,omitempty"`
+	StatusBar         string `json:"status_bar,omitempty"`
 }
 
 // PlanStep is one executable action in the plan.
@@ -169,6 +171,16 @@ func validatePlan(plan *Plan) error {
 	}
 	if plan.Defaults.PostActionDelayMS < 0 {
 		return newPlanValidationError(PlanErrNegativeDelay, 0, "defaults.post_action_delay_ms must be >= 0")
+	}
+	plan.Defaults.StatusBar = strings.TrimSpace(strings.ToLower(plan.Defaults.StatusBar))
+	switch plan.Defaults.StatusBar {
+	case "", "screenshot", "low-battery", "no-service", "charging":
+	default:
+		return newPlanValidationError(
+			PlanErrInvalidStatusBar,
+			0,
+			fmt.Sprintf("defaults.status_bar %q must be one of screenshot, low-battery, no-service, charging", plan.Defaults.StatusBar),
+		)
 	}
 
 	for i := range plan.Steps {
