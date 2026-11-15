@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"slices"
 	"strings"
 
@@ -14,9 +13,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// AppsInfoTerritoryAgeRatingsCommand returns the apps info territory-age-ratings command group.
-func AppsInfoTerritoryAgeRatingsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("apps info territory-age-ratings", flag.ExitOnError)
+// newAppsInfoTerritoryAgeRatingsCommand returns the apps info territory-age-ratings command group.
+func newAppsInfoTerritoryAgeRatingsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("apps info territory-age-ratings", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "territory-age-ratings",
@@ -28,9 +27,9 @@ Examples:
   asc apps info territory-age-ratings list --app "APP_ID"
   asc apps info territory-age-ratings list --info-id "APP_INFO_ID" --include territory --territory-fields currency`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			AppsInfoTerritoryAgeRatingsListCommand(),
+			newAppsInfoTerritoryAgeRatingsListCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -38,9 +37,9 @@ Examples:
 	}
 }
 
-// AppsInfoTerritoryAgeRatingsListCommand returns the list subcommand for territory age ratings.
-func AppsInfoTerritoryAgeRatingsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("apps info territory-age-ratings list", flag.ExitOnError)
+// newAppsInfoTerritoryAgeRatingsListCommand returns the list subcommand for territory age ratings.
+func newAppsInfoTerritoryAgeRatingsListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("apps info territory-age-ratings list", flag.ExitOnError)
 
 	appID := shared.BindResourceIDFlag(fs, "app", "apps", "App Store Connect app ID (or ASC_APP_ID env)")
 	infoID := shared.BindResourceIDFlag(fs, "info-id", "appInfos", "App Info ID (optional override)")
@@ -50,7 +49,7 @@ func AppsInfoTerritoryAgeRatingsListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -63,47 +62,47 @@ Examples:
   asc apps info territory-age-ratings list --info-id "APP_INFO_ID" --include territory --territory-fields currency
   asc apps info territory-age-ratings list --app "APP_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "apps info territory-age-ratings list", 200, "fields", "territory-fields", "include"); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "apps info territory-age-ratings list", 200, "fields", "territory-fields", "include"); err != nil {
 				return err
 			}
 			infoIDValue := strings.TrimSpace(*infoID)
 
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && infoIDValue == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app or --info-id is required (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app or --info-id is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("")
 			}
 
 			fieldsValue, err := normalizeTerritoryAgeRatingFields(*fields)
 			if err != nil {
-				return shared.UsageErrorf("apps info territory-age-ratings list: %v", err)
+				return d.UsageErrorf("apps info territory-age-ratings list: %v", err)
 			}
 			territoryFieldsValue, err := normalizeTerritoryFields(*territoryFields)
 			if err != nil {
-				return shared.UsageErrorf("apps info territory-age-ratings list: %v", err)
+				return d.UsageErrorf("apps info territory-age-ratings list: %v", err)
 			}
 			includeValue, err := normalizeTerritoryAgeRatingInclude(*include)
 			if err != nil {
-				return shared.UsageErrorf("apps info territory-age-ratings list: %v", err)
+				return d.UsageErrorf("apps info territory-age-ratings list: %v", err)
 			}
 			if len(territoryFieldsValue) > 0 && !contains(includeValue, "territory") {
-				fmt.Fprintln(os.Stderr, "Error: --territory-fields requires --include territory")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --territory-fields requires --include territory")
 				return flag.ErrHelp
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("apps info territory-age-ratings list: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resolvedInfoID := infoIDValue
 			if resolvedInfoID == "" && strings.TrimSpace(*next) == "" {
-				resolvedInfoID, err = shared.ResolveAppInfoIDWithFlag(requestCtx, client, resolvedAppID, infoIDValue, "--info-id")
+				resolvedInfoID, err = d.ResolveAppInfoIDWithFlag(requestCtx, client, resolvedAppID, infoIDValue, "--info-id")
 				if err != nil {
 					return fmt.Errorf("apps info territory-age-ratings list: %w", err)
 				}
@@ -129,7 +128,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("apps info territory-age-ratings list: %w", err)
 				}
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetAppInfoTerritoryAgeRatings(requestCtx, resolvedInfoID, opts...)
@@ -137,7 +136,7 @@ Examples:
 				return fmt.Errorf("apps info territory-age-ratings list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

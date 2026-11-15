@@ -284,12 +284,14 @@ func includedFieldsCases() []includedFieldsCase {
 			command: []string{"apps", "app-encryption-declarations", "list"}, selector: []string{"--id", "app-1"},
 			include: "app,builds", path: "/v1/appEncryptionDeclarations", query: map[string]string{"filter[app]": "app-1"},
 			flags: encryptionIncludedFieldFlags,
+			deps:  true,
 		},
 		{
 			name: "apps info view", operation: "appInfos_getInstance", resource: true,
 			command: []string{"apps", "info", "view"}, selector: []string{"--info-id", "info-1"}, nextSelector: []string{"--info-id", "info-1"},
 			include: "app,appInfoLocalizations,primaryCategory", path: "/v1/appInfos/info-1",
 			flags: map[string]string{"app-fields": "apps", "app-info-localization-fields": "appInfoLocalizations", "category-fields": "appCategories"},
+			deps:  true,
 		},
 		{
 			name: "review submissions list", operation: "apps_reviewSubmissions_getToManyRelated",

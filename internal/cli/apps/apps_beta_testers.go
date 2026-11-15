@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
@@ -12,14 +11,14 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// AppsRemoveBetaTestersCommand returns the apps remove-beta-testers subcommand.
-func AppsRemoveBetaTestersCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("remove-beta-testers", flag.ExitOnError)
+// newAppsRemoveBetaTestersCommand returns the apps remove-beta-testers subcommand.
+func newAppsRemoveBetaTestersCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("remove-beta-testers", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	testers := shared.BindOnceCSVFlag(fs, "tester", "Comma-separated beta tester IDs")
 	confirm := fs.Bool("confirm", false, "Confirm removal")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "remove-beta-testers",
@@ -31,28 +30,28 @@ Examples:
   asc apps remove-beta-testers --app "APP_ID" --tester "TESTER_ID" --confirm
   asc apps remove-beta-testers --app "APP_ID" --tester "TESTER_ID1,TESTER_ID2" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
-				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
+				fmt.Fprintf(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return shared.MissingRequiredUsageError("--app")
 			}
 
 			testerIDs := shared.SplitCSV(testers.String())
 			if len(testerIDs) == 0 {
-				return shared.RequiredFlag("--tester")
+				return d.RequiredFlag("--tester")
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("apps remove-beta-testers: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			if err := client.RemoveBetaTestersFromApp(requestCtx, resolvedAppID, testerIDs); err != nil {
@@ -65,7 +64,7 @@ Examples:
 				Action:    "removed",
 			}
 
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }

@@ -9,9 +9,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// AppsSubscriptionGracePeriodCommand returns the subscription grace period command group.
-func AppsSubscriptionGracePeriodCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("subscription-grace-period", flag.ExitOnError)
+// newAppsSubscriptionGracePeriodCommand returns the subscription grace period command group.
+func newAppsSubscriptionGracePeriodCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("subscription-grace-period", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "subscription-grace-period",
@@ -22,9 +22,9 @@ func AppsSubscriptionGracePeriodCommand() *ffcli.Command {
 Examples:
   asc apps subscription-grace-period view --app "APP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			AppsSubscriptionGracePeriodGetCommand(),
+			newAppsSubscriptionGracePeriodGetCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -32,9 +32,10 @@ Examples:
 	}
 }
 
-// AppsSubscriptionGracePeriodGetCommand returns the subscription grace period get subcommand.
-func AppsSubscriptionGracePeriodGetCommand() *ffcli.Command {
+// newAppsSubscriptionGracePeriodGetCommand returns the subscription grace period get subcommand.
+func newAppsSubscriptionGracePeriodGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		Deps:        d,
 		FlagSetName: "subscription-grace-period view",
 		Name:        "view",
 		ShortUsage:  "asc apps subscription-grace-period view --app \"APP_ID\"",

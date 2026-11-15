@@ -199,6 +199,7 @@ func TestRun_UsageValidationErrorsReturnExitUsage(t *testing.T) {
 			name:    "apps info view conflicting version flags",
 			args:    []string{"apps", "info", "view", "--app", "APP_ID", "--version", "1.0.0", "--version-id", "VERSION_ID"},
 			wantErr: "--version and --version-id are mutually exclusive",
+			deps:    true,
 		},
 		{
 			name:    "performance download mutually exclusive selectors",
@@ -299,16 +300,19 @@ func TestRun_UsageValidationErrorsReturnExitUsage(t *testing.T) {
 			name:    "apps public view missing app",
 			args:    []string{"apps", "public", "view"},
 			wantErr: "--app is required",
+			deps:    true,
 		},
 		{
 			name:    "apps public search invalid limit",
 			args:    []string{"apps", "public", "search", "--term", "focus", "--limit", "0"},
 			wantErr: "--limit must be between 1 and 200",
+			deps:    true,
 		},
 		{
 			name:    "apps public rank invalid platform",
 			args:    []string{"apps", "public", "rank", "--app", "123", "--term", "focus", "--platform", "MAC_OS"},
 			wantErr: "--platform must be one of: IOS, TV_OS",
+			deps:    true,
 		},
 		{
 			name:    "reviews ratings rejects positional args",
@@ -326,11 +330,13 @@ func TestRun_UsageValidationErrorsReturnExitUsage(t *testing.T) {
 			name:    "apps public view unsupported country",
 			args:    []string{"apps", "public", "view", "--app", "123", "--country", "zz"},
 			wantErr: "unsupported country code",
+			deps:    true,
 		},
 		{
 			name:    "apps public view signed app id",
 			args:    []string{"apps", "public", "view", "--app", "-123"},
 			wantErr: "--app must be a numeric App Store app ID",
+			deps:    true,
 		},
 		{
 			name:    "subscriptions offer-codes create non-free-trial without prices",

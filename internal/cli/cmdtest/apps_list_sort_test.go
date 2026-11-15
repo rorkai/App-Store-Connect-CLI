@@ -28,10 +28,9 @@ func TestAppsListSortsBySKU(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			reg.Register(asctest.GET("/v1/apps", "sort="+test.want), asctest.JSON(http.StatusOK, `{"data":[]}`))
 
-			_, stderr, err := runCommand(t, test.args)
+			_, stderr, err := runRootWithDeps(t, stubClient(t, reg), test.args...)
 			if err != nil {
 				t.Fatalf("run error: %v", err)
 			}

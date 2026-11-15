@@ -12,8 +12,8 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// AppEncryptionDeclarationsCommand returns the app-encryption-declarations command group.
-func AppEncryptionDeclarationsCommand() *ffcli.Command {
+// newAppEncryptionDeclarationsCommand returns the app-encryption-declarations command group.
+func newAppEncryptionDeclarationsCommand(d *shared.Deps) *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "app-encryption-declarations",
 		ShortUsage: "asc apps app-encryption-declarations <subcommand> [flags]",
@@ -23,9 +23,9 @@ func AppEncryptionDeclarationsCommand() *ffcli.Command {
 Examples:
   asc apps app-encryption-declarations list --id "APP_ID"
   asc apps app-encryption-declarations list --id "APP_ID" --include appEncryptionDeclarationDocument`,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			AppEncryptionDeclarationsListCommand(),
+			newAppEncryptionDeclarationsListCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -33,8 +33,8 @@ Examples:
 	}
 }
 
-// AppEncryptionDeclarationsListCommand returns the list subcommand.
-func AppEncryptionDeclarationsListCommand() *ffcli.Command {
+// newAppEncryptionDeclarationsListCommand returns the list subcommand.
+func newAppEncryptionDeclarationsListCommand(d *shared.Deps) *ffcli.Command {
 	var (
 		builds                                         *string
 		buildLimit                                     *int
@@ -43,6 +43,7 @@ func AppEncryptionDeclarationsListCommand() *ffcli.Command {
 	)
 
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		Deps:        d,
 		FlagSetName: "apps app-encryption-declarations list",
 		Name:        "list",
 		ShortUsage:  "asc apps app-encryption-declarations list --id \"APP_ID\" [flags]",
@@ -71,23 +72,23 @@ Examples:
 			buildLimit = fs.Int("build-limit", 0, "Maximum included builds per declaration (1-50)")
 			return func() error {
 				if *buildLimit != 0 && (*buildLimit < 1 || *buildLimit > 50) {
-					return shared.UsageError("apps app-encryption-declarations list: --build-limit must be between 1 and 50")
+					return d.UsageError("apps app-encryption-declarations list: --build-limit must be between 1 and 50")
 				}
 
 				var err error
 				fieldsValue, err = normalizeAppEncryptionDeclarationFields(*fields)
 				if err != nil {
-					return shared.UsageErrorf("apps app-encryption-declarations list: %v", err)
+					return d.UsageErrorf("apps app-encryption-declarations list: %v", err)
 				}
 				documentFieldsValue, err = normalizeAppEncryptionDeclarationDocumentFields(*documentFields)
 				if err != nil {
-					return shared.UsageErrorf("apps app-encryption-declarations list: %v", err)
+					return d.UsageErrorf("apps app-encryption-declarations list: %v", err)
 				}
 				includeValue, err = normalizeAppEncryptionDeclarationInclude(*include)
 				if err != nil {
-					return shared.UsageErrorf("apps app-encryption-declarations list: %v", err)
+					return d.UsageErrorf("apps app-encryption-declarations list: %v", err)
 				}
-				included, err = includedFields.Resolve("apps app-encryption-declarations list", next.String(), includeValue)
+				included, err = includedFields.ResolveWith(d, "apps app-encryption-declarations list", next.String(), includeValue)
 				return err
 			}
 		},

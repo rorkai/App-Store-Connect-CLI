@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -14,15 +13,15 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/validation"
 )
 
-// AppsRenameCommand returns the apps rename subcommand.
-func AppsRenameCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("apps rename", flag.ExitOnError)
+// newAppsRenameCommand returns the apps rename subcommand.
+func newAppsRenameCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("apps rename", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	appInfoID := shared.BindResourceIDFlag(fs, "app-info", "appInfos", "App Info ID (optional override)")
 	locale := fs.String("locale", "", "App name locale (e.g., en-US) (required)")
 	name := fs.String("name", "", "New localized app name (required)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "rename",
@@ -37,36 +36,36 @@ Examples:
   asc apps rename --app "APP_ID" --locale "en-US" --name "New Name"
   asc apps rename --app "APP_ID" --app-info "APP_INFO_ID" --locale "fr-FR" --name "Nouveau nom"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := strings.TrimSpace(shared.ResolveAppID(*appID))
 			if resolvedAppID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
 			}
 			localeValue := strings.TrimSpace(*locale)
 			if localeValue == "" {
-				return shared.RequiredFlag("--locale")
+				return d.RequiredFlag("--locale")
 			}
 			nameValue := strings.TrimSpace(*name)
 			if nameValue == "" {
-				return shared.RequiredFlag("--name")
+				return d.RequiredFlag("--name")
 			}
 			if err := shared.ValidateBuildLocalizationLocale(localeValue); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			for _, issue := range validation.AppInfoLocalizationLengthIssues(validation.AppInfoLocalization{Name: nameValue}) {
-				return shared.UsageErrorf("--%s exceeds %d %s", issue.Field, issue.Limit, issue.Unit)
+				return d.UsageErrorf("--%s exceeds %d %s", issue.Field, issue.Limit, issue.Unit)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("apps rename: %w", err)
 			}
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
-			plan, err := shared.PlanAppInfoLocalizationUpsert(
+			plan, err := d.PlanAppInfoLocalizationUpsert(
 				requestCtx,
 				client,
 				resolvedAppID,
@@ -93,7 +92,7 @@ Examples:
 				Action:         action,
 				LocalizationID: strings.TrimSpace(resp.Data.ID),
 			}
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }

@@ -98,11 +98,13 @@ func TestUpdateWithoutUpdateFlagsListsEveryUpdateFlag(t *testing.T) {
 			name:  "apps info edit",
 			args:  []string{"apps", "info", "edit", "--app", "123456789", "--locale", "en-US"},
 			flags: "--copy-from-locale, --from-dir, --description, --keywords, --support-url, --marketing-url, --promotional-text, --whats-new",
+			deps:  true,
 		},
 		{
 			name:  "apps update",
 			args:  []string{"apps", "update", "--id", "ID"},
 			flags: "--bundle-id, --primary-locale, --content-rights, --accessibility-url, --subscription-status-url, --sandbox-subscription-status-url, --streamlined-purchasing-enabled",
+			deps:  true,
 		},
 		{
 			name:  "build-localizations update",

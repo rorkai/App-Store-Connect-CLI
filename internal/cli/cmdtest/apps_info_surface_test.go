@@ -14,7 +14,6 @@ func TestAppsInfoViewIncludeFailsWhenAppInfoIsAmbiguous(t *testing.T) {
 	t.Setenv("ASC_PROFILE", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-1/appInfos"), asctest.JSON(http.StatusOK, `{
 				"data":[
 					{"type":"appInfos","id":"info-live","attributes":{"state":"READY_FOR_DISTRIBUTION"}},
@@ -22,7 +21,7 @@ func TestAppsInfoViewIncludeFailsWhenAppInfoIsAmbiguous(t *testing.T) {
 				]
 			}`))
 
-	stdout, stderr, runErr := runCommand(t, []string{"apps", "info", "view", "--app", "app-1", "--include", "primaryCategory", "--output", "json"})
+	stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), "apps", "info", "view", "--app", "app-1", "--include", "primaryCategory", "--output", "json")
 
 	if runErr == nil {
 		t.Fatal("expected run error, got nil")

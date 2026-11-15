@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 
@@ -44,9 +43,9 @@ type publicSearchOutput struct {
 	Results []itunes.SearchResult `json:"results"`
 }
 
-// AppsPublicCommand returns the public App Store subtree.
-func AppsPublicCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("apps public", flag.ExitOnError)
+// newAppsPublicCommand returns the public App Store subtree.
+func newAppsPublicCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("apps public", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "public",
@@ -64,14 +63,14 @@ Examples:
   asc apps public descriptions --app "1479784361"
   asc apps public storefronts list`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			AppsPublicViewCommand(),
-			AppsPublicSearchCommand(),
-			AppsPublicRankCommand(),
-			AppsPublicPricesCommand(),
-			AppsPublicDescriptionsCommand(),
-			AppsPublicStorefrontsCommand(),
+			newAppsPublicViewCommand(d),
+			newAppsPublicSearchCommand(d),
+			newAppsPublicRankCommand(d),
+			newAppsPublicPricesCommand(d),
+			newAppsPublicDescriptionsCommand(d),
+			newAppsPublicStorefrontsCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -79,13 +78,13 @@ Examples:
 	}
 }
 
-// AppsPublicViewCommand returns the public metadata view command.
-func AppsPublicViewCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("apps public view", flag.ExitOnError)
+// newAppsPublicViewCommand returns the public metadata view command.
+func newAppsPublicViewCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("apps public view", flag.ExitOnError)
 
 	appID := fs.String("app", "", "Public App Store app ID")
 	country := fs.String("country", "us", "Storefront country code (ISO alpha-2, e.g. us, gb, de)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "view",
@@ -100,21 +99,21 @@ Examples:
   asc apps public view --app "1479784361" --country de
   asc apps public view --app "1479784361" --output markdown`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID, err := resolvePublicAppID(*appID)
 			if err != nil {
-				fmt.Fprintln(os.Stderr, "Error: "+err.Error())
+				fmt.Fprintln(d.IO.ErrOut, "Error: "+err.Error())
 				return flag.ErrHelp
 			}
 
 			normalizedCountry, err := normalizePublicCountry(*country)
 			if err != nil {
-				fmt.Fprintln(os.Stderr, "Error: "+err.Error())
+				fmt.Fprintln(d.IO.ErrOut, "Error: "+err.Error())
 				return flag.ErrHelp
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			client := newPublicItunesClient()
@@ -126,23 +125,23 @@ Examples:
 				return fmt.Errorf("apps public view: %w", err)
 			}
 
-			return shared.PrintOutputWithRenderers(app, *output.Output, *output.Pretty, func() error {
-				return renderPublicAppFieldTable(appFields(app))
+			return d.PrintOutputWithRenderers(app, *output.Output, *output.Pretty, func() error {
+				return renderPublicAppFieldTable(d, appFields(app))
 			}, func() error {
-				return renderPublicAppFieldMarkdown(appFields(app))
+				return renderPublicAppFieldMarkdown(d, appFields(app))
 			})
 		},
 	}
 }
 
-// AppsPublicSearchCommand returns the public search command.
-func AppsPublicSearchCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("apps public search", flag.ExitOnError)
+// newAppsPublicSearchCommand returns the public search command.
+func newAppsPublicSearchCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("apps public search", flag.ExitOnError)
 
 	term := fs.String("term", "", "Search term")
 	country := fs.String("country", "us", "Storefront country code (ISO alpha-2, e.g. us, gb, de)")
 	limit := fs.Int("limit", 20, "Maximum results (1-200)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "search",
@@ -157,23 +156,23 @@ Examples:
   asc apps public search --term "focus" --country de --limit 10
   asc apps public search --term "habit tracker" --output table`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit < 1 || *limit > 200 {
-				return shared.UsageError("apps public search: --limit must be between 1 and 200")
+				return d.UsageError("apps public search: --limit must be between 1 and 200")
 			}
 			termValue := strings.TrimSpace(*term)
 			if termValue == "" {
-				return shared.RequiredFlag("--term")
+				return d.RequiredFlag("--term")
 			}
 
 			normalizedCountry, err := normalizePublicCountry(*country)
 			if err != nil {
-				fmt.Fprintln(os.Stderr, "Error: "+err.Error())
+				fmt.Fprintln(d.IO.ErrOut, "Error: "+err.Error())
 				return flag.ErrHelp
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			client := newPublicItunesClient()
@@ -189,22 +188,22 @@ Examples:
 				Results: results,
 			}
 
-			return shared.PrintOutputWithRenderers(payload, *output.Output, *output.Pretty, func() error {
-				return renderPublicSearchTable(payload)
+			return d.PrintOutputWithRenderers(payload, *output.Output, *output.Pretty, func() error {
+				return renderPublicSearchTable(d, payload)
 			}, func() error {
-				return renderPublicSearchMarkdown(payload)
+				return renderPublicSearchMarkdown(d, payload)
 			})
 		},
 	}
 }
 
-// AppsPublicPricesCommand returns the public price command.
-func AppsPublicPricesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("apps public prices", flag.ExitOnError)
+// newAppsPublicPricesCommand returns the public price command.
+func newAppsPublicPricesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("apps public prices", flag.ExitOnError)
 
 	appID := fs.String("app", "", "Public App Store app ID")
 	country := fs.String("country", "us", "Storefront country code (ISO alpha-2, e.g. us, gb, de)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "prices",
@@ -219,20 +218,20 @@ Examples:
   asc apps public prices --app "1479784361" --country jp
   asc apps public prices --app "1479784361" --output markdown`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID, err := resolvePublicAppID(*appID)
 			if err != nil {
-				fmt.Fprintln(os.Stderr, "Error: "+err.Error())
+				fmt.Fprintln(d.IO.ErrOut, "Error: "+err.Error())
 				return flag.ErrHelp
 			}
 			normalizedCountry, err := normalizePublicCountry(*country)
 			if err != nil {
-				fmt.Fprintln(os.Stderr, "Error: "+err.Error())
+				fmt.Fprintln(d.IO.ErrOut, "Error: "+err.Error())
 				return flag.ErrHelp
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			client := newPublicItunesClient()
@@ -255,22 +254,22 @@ Examples:
 				IsFree:         app.Price == 0,
 			}
 
-			return shared.PrintOutputWithRenderers(payload, *output.Output, *output.Pretty, func() error {
-				return renderPublicAppFieldTable(appFieldsFromPrice(payload))
+			return d.PrintOutputWithRenderers(payload, *output.Output, *output.Pretty, func() error {
+				return renderPublicAppFieldTable(d, appFieldsFromPrice(payload))
 			}, func() error {
-				return renderPublicAppFieldMarkdown(appFieldsFromPrice(payload))
+				return renderPublicAppFieldMarkdown(d, appFieldsFromPrice(payload))
 			})
 		},
 	}
 }
 
-// AppsPublicDescriptionsCommand returns the public description command.
-func AppsPublicDescriptionsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("apps public descriptions", flag.ExitOnError)
+// newAppsPublicDescriptionsCommand returns the public description command.
+func newAppsPublicDescriptionsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("apps public descriptions", flag.ExitOnError)
 
 	appID := fs.String("app", "", "Public App Store app ID")
 	country := fs.String("country", "us", "Storefront country code (ISO alpha-2, e.g. us, gb, de)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "descriptions",
@@ -285,20 +284,20 @@ Examples:
   asc apps public descriptions --app "1479784361" --country fr
   asc apps public descriptions --app "1479784361" --output table`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID, err := resolvePublicAppID(*appID)
 			if err != nil {
-				fmt.Fprintln(os.Stderr, "Error: "+err.Error())
+				fmt.Fprintln(d.IO.ErrOut, "Error: "+err.Error())
 				return flag.ErrHelp
 			}
 			normalizedCountry, err := normalizePublicCountry(*country)
 			if err != nil {
-				fmt.Fprintln(os.Stderr, "Error: "+err.Error())
+				fmt.Fprintln(d.IO.ErrOut, "Error: "+err.Error())
 				return flag.ErrHelp
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			client := newPublicItunesClient()
@@ -319,18 +318,18 @@ Examples:
 				Description: app.Description,
 			}
 
-			return shared.PrintOutputWithRenderers(payload, *output.Output, *output.Pretty, func() error {
-				return renderPublicAppFieldTable(appFieldsFromDescription(payload))
+			return d.PrintOutputWithRenderers(payload, *output.Output, *output.Pretty, func() error {
+				return renderPublicAppFieldTable(d, appFieldsFromDescription(payload))
 			}, func() error {
-				return renderPublicAppFieldMarkdown(appFieldsFromDescription(payload))
+				return renderPublicAppFieldMarkdown(d, appFieldsFromDescription(payload))
 			})
 		},
 	}
 }
 
-// AppsPublicStorefrontsCommand returns the storefronts command group.
-func AppsPublicStorefrontsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("apps public storefronts", flag.ExitOnError)
+// newAppsPublicStorefrontsCommand returns the storefronts command group.
+func newAppsPublicStorefrontsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("apps public storefronts", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "storefronts",
@@ -344,9 +343,9 @@ Examples:
   asc apps public storefronts list
   asc apps public storefronts list --output markdown`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			AppsPublicStorefrontsListCommand(),
+			newAppsPublicStorefrontsListCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -354,10 +353,10 @@ Examples:
 	}
 }
 
-// AppsPublicStorefrontsListCommand returns the storefront list command.
-func AppsPublicStorefrontsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("apps public storefronts list", flag.ExitOnError)
-	output := shared.BindOutputFlags(fs)
+// newAppsPublicStorefrontsListCommand returns the storefront list command.
+func newAppsPublicStorefrontsListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("apps public storefronts list", flag.ExitOnError)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -371,13 +370,13 @@ Examples:
   asc apps public storefronts list
   asc apps public storefronts list --output table`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			storefronts := itunes.ListStorefronts()
-			return shared.PrintOutputWithRenderers(storefronts, *output.Output, *output.Pretty, func() error {
-				return renderPublicStorefrontsTable(storefronts)
+			return d.PrintOutputWithRenderers(storefronts, *output.Output, *output.Pretty, func() error {
+				return renderPublicStorefrontsTable(d, storefronts)
 			}, func() error {
-				return renderPublicStorefrontsMarkdown(storefronts)
+				return renderPublicStorefrontsMarkdown(d, storefronts)
 			})
 		},
 	}
@@ -473,17 +472,17 @@ func appFieldsFromDescription(app publicAppDescription) [][]string {
 	}
 }
 
-func renderPublicAppFieldTable(rows [][]string) error {
-	asc.RenderTable([]string{"Field", "Value"}, rows)
+func renderPublicAppFieldTable(d *shared.Deps, rows [][]string) error {
+	asc.RenderTableTo(d.IO.Out, []string{"Field", "Value"}, rows)
 	return nil
 }
 
-func renderPublicAppFieldMarkdown(rows [][]string) error {
-	asc.RenderMarkdown([]string{"Field", "Value"}, rows)
+func renderPublicAppFieldMarkdown(d *shared.Deps, rows [][]string) error {
+	asc.RenderMarkdownTo(d.IO.Out, []string{"Field", "Value"}, rows)
 	return nil
 }
 
-func renderPublicSearchTable(payload publicSearchOutput) error {
+func renderPublicSearchTable(d *shared.Deps, payload publicSearchOutput) error {
 	fmt.Printf("\nTerm: %s\n", payload.Term)
 	fmt.Printf("Country: %s\n", payload.Country)
 	fmt.Printf("Limit: %d\n\n", payload.Limit)
@@ -507,13 +506,13 @@ func renderPublicSearchTable(payload publicSearchOutput) error {
 	for _, result := range payload.Results {
 		rows = append(rows, searchResultRows(result))
 	}
-	asc.RenderTable(headers, rows)
+	asc.RenderTableTo(d.IO.Out, headers, rows)
 	return nil
 }
 
-func renderPublicSearchMarkdown(payload publicSearchOutput) error {
+func renderPublicSearchMarkdown(d *shared.Deps, payload publicSearchOutput) error {
 	fmt.Printf("## Search Results\n\n")
-	asc.RenderMarkdown([]string{"Field", "Value"}, [][]string{
+	asc.RenderMarkdownTo(d.IO.Out, []string{"Field", "Value"}, [][]string{
 		{"Term", payload.Term},
 		{"Country", payload.Country},
 		{"Limit", strconv.Itoa(payload.Limit)},
@@ -539,7 +538,7 @@ func renderPublicSearchMarkdown(payload publicSearchOutput) error {
 	for _, result := range payload.Results {
 		rows = append(rows, searchResultRows(result))
 	}
-	asc.RenderMarkdown(headers, rows)
+	asc.RenderMarkdownTo(d.IO.Out, headers, rows)
 	return nil
 }
 
@@ -561,22 +560,22 @@ func searchResultRows(result itunes.SearchResult) []string {
 	}
 }
 
-func renderPublicStorefrontsTable(storefronts []itunes.Storefront) error {
+func renderPublicStorefrontsTable(d *shared.Deps, storefronts []itunes.Storefront) error {
 	headers := []string{"Country", "Country Name", "Storefront ID"}
 	rows := make([][]string, 0, len(storefronts))
 	for _, storefront := range storefronts {
 		rows = append(rows, []string{storefront.Country, storefront.CountryName, storefront.StorefrontID})
 	}
-	asc.RenderTable(headers, rows)
+	asc.RenderTableTo(d.IO.Out, headers, rows)
 	return nil
 }
 
-func renderPublicStorefrontsMarkdown(storefronts []itunes.Storefront) error {
+func renderPublicStorefrontsMarkdown(d *shared.Deps, storefronts []itunes.Storefront) error {
 	headers := []string{"Country", "Country Name", "Storefront ID"}
 	rows := make([][]string, 0, len(storefronts))
 	for _, storefront := range storefronts {
 		rows = append(rows, []string{storefront.Country, storefront.CountryName, storefront.StorefrontID})
 	}
-	asc.RenderMarkdown(headers, rows)
+	asc.RenderMarkdownTo(d.IO.Out, headers, rows)
 	return nil
 }

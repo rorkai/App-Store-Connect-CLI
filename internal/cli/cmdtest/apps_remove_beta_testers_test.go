@@ -42,11 +42,10 @@ func TestAppsRemoveBetaTestersOutput(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.DELETE("/v1/apps/app-1/relationships/betaTesters").JSONBody(`{"data":[{"type":"betaTesters","id":"tester-1"},{"type":"betaTesters","id":"tester-2"}]}`),
 		asctest.JSON(http.StatusNoContent, ""))
 
-	stdout, stderr, err := runCommand(t, []string{"apps", "remove-beta-testers", "--app", "app-1", "--tester", "tester-1,tester-2", "--confirm"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "apps", "remove-beta-testers", "--app", "app-1", "--tester", "tester-1,tester-2", "--confirm")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}

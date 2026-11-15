@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 
@@ -25,15 +24,15 @@ type publicRankOutput struct {
 	ResultCount int    `json:"resultCount"`
 }
 
-// AppsPublicRankCommand returns the public app ranking command.
-func AppsPublicRankCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("apps public rank", flag.ExitOnError)
+// newAppsPublicRankCommand returns the public app ranking command.
+func newAppsPublicRankCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("apps public rank", flag.ExitOnError)
 
 	appID := fs.String("app", "", "Public App Store app ID")
 	term := fs.String("term", "", "Search term")
 	platform := fs.String("platform", "", "Search platform: IOS or TV_OS")
 	country := fs.String("country", "us", "Storefront country code (ISO alpha-2, e.g. us, gb, de)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "rank",
@@ -51,33 +50,33 @@ Examples:
   asc apps public rank --app "1234567890" --term "focus timer" --country us --platform TV_OS
   asc apps public rank --app "1234567890" --term "meditation" --country gb --platform tv_os --output table`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID, err := resolvePublicAppID(*appID)
 			if err != nil {
-				fmt.Fprintln(os.Stderr, "Error: "+err.Error())
+				fmt.Fprintln(d.IO.ErrOut, "Error: "+err.Error())
 				return flag.ErrHelp
 			}
 			termValue := strings.TrimSpace(*term)
 			if termValue == "" {
-				return shared.RequiredFlag("--term")
+				return d.RequiredFlag("--term")
 			}
 			platformValue, err := normalizePublicRankPlatform(*platform)
 			if err != nil {
-				fmt.Fprintln(os.Stderr, "Error: "+err.Error())
+				fmt.Fprintln(d.IO.ErrOut, "Error: "+err.Error())
 				return flag.ErrHelp
 			}
 			normalizedCountry, err := normalizePublicCountry(*country)
 			if err != nil {
-				fmt.Fprintln(os.Stderr, "Error: "+err.Error())
+				fmt.Fprintln(d.IO.ErrOut, "Error: "+err.Error())
 				return flag.ErrHelp
 			}
 			if platformValue == itunes.PublicSearchPlatformTVOS && strings.TrimSpace(itunes.Storefronts[normalizedCountry]) == "" {
-				fmt.Fprintf(os.Stderr, "Error: TV_OS ranking is unavailable for storefront %s\n", strings.ToUpper(normalizedCountry))
+				fmt.Fprintf(d.IO.ErrOut, "Error: TV_OS ranking is unavailable for storefront %s\n", strings.ToUpper(normalizedCountry))
 				return flag.ErrHelp
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			client := newPublicItunesClient()
@@ -100,10 +99,10 @@ Examples:
 				ResultCount: rankResult.ResultCount,
 			}
 
-			return shared.PrintOutputWithRenderers(payload, *output.Output, *output.Pretty, func() error {
-				return renderPublicRankTable(payload)
+			return d.PrintOutputWithRenderers(payload, *output.Output, *output.Pretty, func() error {
+				return renderPublicRankTable(d, payload)
 			}, func() error {
-				return renderPublicRankMarkdown(payload)
+				return renderPublicRankMarkdown(d, payload)
 			})
 		},
 	}
@@ -124,13 +123,13 @@ func normalizePublicRankPlatform(value string) (itunes.PublicSearchPlatform, err
 	}
 }
 
-func renderPublicRankTable(payload publicRankOutput) error {
-	asc.RenderTable(publicRankHeaders(), [][]string{publicRankRow(payload)})
+func renderPublicRankTable(d *shared.Deps, payload publicRankOutput) error {
+	asc.RenderTableTo(d.IO.Out, publicRankHeaders(), [][]string{publicRankRow(payload)})
 	return nil
 }
 
-func renderPublicRankMarkdown(payload publicRankOutput) error {
-	asc.RenderMarkdown(publicRankHeaders(), [][]string{publicRankRow(payload)})
+func renderPublicRankMarkdown(d *shared.Deps, payload publicRankOutput) error {
+	asc.RenderMarkdownTo(d.IO.Out, publicRankHeaders(), [][]string{publicRankRow(payload)})
 	return nil
 }
 

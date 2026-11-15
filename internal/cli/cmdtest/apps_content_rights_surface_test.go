@@ -41,7 +41,6 @@ func TestAppsContentRightsViewTableShowsDeclaration(t *testing.T) {
 	t.Setenv("ASC_PROFILE", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-1"), asctest.JSON(http.StatusOK, `{
 				"data":{
 					"type":"apps",
@@ -55,7 +54,7 @@ func TestAppsContentRightsViewTableShowsDeclaration(t *testing.T) {
 				}
 			}`))
 
-	stdout, stderr, runErr := runCommand(t, []string{"apps", "content-rights", "view", "--app", "app-1", "--output", "table"})
+	stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), "apps", "content-rights", "view", "--app", "app-1", "--output", "table")
 
 	if runErr != nil {
 		t.Fatalf("run error: %v", runErr)

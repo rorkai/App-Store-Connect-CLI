@@ -6,7 +6,8 @@ import (
 )
 
 func TestAppsCommandRegistersPublished(t *testing.T) {
-	cmd := AppsCommand()
+	d, _ := newAppsTestDeps()
+	cmd := NewAppsCommand(d)
 	for _, subcommand := range cmd.Subcommands {
 		if subcommand.Name == "published" {
 			if !strings.Contains(cmd.LongHelp, "asc apps published") {
@@ -19,7 +20,8 @@ func TestAppsCommandRegistersPublished(t *testing.T) {
 }
 
 func TestAppsPublishedCommandDefaultsToJSON(t *testing.T) {
-	cmd := AppsPublishedCommand()
+	d, _ := newAppsTestDeps()
+	cmd := newAppsPublishedCommand(d)
 
 	output := cmd.FlagSet.Lookup("output")
 	if output == nil {

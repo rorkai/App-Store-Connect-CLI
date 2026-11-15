@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 	"sync"
@@ -22,12 +21,10 @@ const (
 	appsPublishedWorkers      = 4
 )
 
-var appsPublishedClientFactory = shared.GetASCClient
-
-// AppsPublishedCommand returns the account-wide published-app audit command.
-func AppsPublishedCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("apps published", flag.ExitOnError)
-	output := shared.BindOutputFlags(fs)
+// newAppsPublishedCommand returns the account-wide published-app audit command.
+func newAppsPublishedCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("apps published", flag.ExitOnError)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "published",
@@ -45,14 +42,14 @@ Examples:
   asc apps published --output table
   asc apps published --output markdown`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			client, err := appsPublishedClientFactory()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("apps published: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithResolvedTimeout(ctx, appsPublishedAuditTimeout)
+			requestCtx, cancel := d.ResolvedTimeout(ctx, appsPublishedAuditTimeout)
 			defer cancel()
 			appsResponse, err := fetchAllAppsForPublishedAudit(requestCtx, client)
 			if err != nil {
@@ -62,12 +59,12 @@ Examples:
 			report, auditErr := auditPublishedApps(requestCtx, client, appsResponse.Data)
 			if strings.EqualFold(strings.TrimSpace(*output.Output), "json") {
 				fmt.Fprintf(
-					os.Stderr,
+					d.IO.ErrOut,
 					"%s\n",
 					asc.PublishedAppsSummary(report),
 				)
 			}
-			if err := shared.PrintOutput(&report, *output.Output, *output.Pretty); err != nil {
+			if err := d.PrintOutput(&report, *output.Output, *output.Pretty); err != nil {
 				return err
 			}
 			if auditErr != nil {

@@ -130,6 +130,7 @@ func TestUnknownFlagSuggestsTheIntendedFlag(t *testing.T) {
 			args: []string{"apps", "list", "--path", "PRIVATE_VALUE"},
 			want: "Error: unknown flag `--path` for `asc apps list`\n" +
 				"For help:\n  asc apps list --help\n",
+			deps: true,
 		},
 		{
 			name: "no comparable flag leaves the Try block out",
