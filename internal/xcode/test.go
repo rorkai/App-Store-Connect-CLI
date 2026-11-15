@@ -1314,8 +1314,32 @@ func parseRawTestNode(node rawTestNode) (TestCase, error) {
 	}, nil
 }
 
+// testNodeFailureMessage returns the first failure message under a test case.
+// When the case has device, argument, or repetition variants, it instead lists
+// every failure message in tree order, one line each, prefixed by its variant.
 func testNodeFailureMessage(children []rawTestNode) string {
+	var lines []string
+	attributed := false
+	appendTestNodeFailureMessages(&lines, &attributed, children, "")
+	if len(lines) == 0 {
+		return ""
+	}
+	if !attributed {
+		return lines[0]
+	}
+	return boundTestMessage(strings.Join(lines, "\n"))
+}
+
+func appendTestNodeFailureMessages(lines *[]string, attributed *bool, children []rawTestNode, variant string) {
 	for _, child := range children {
+		childVariant := variant
+		if label := testNodeVariantLabel(child); label != "" {
+			*attributed = true
+			if childVariant != "" {
+				childVariant += ", "
+			}
+			childVariant += label
+		}
 		if strings.EqualFold(strings.TrimSpace(child.NodeType), "failure message") {
 			message := child.Name
 			if strings.TrimSpace(message) == "" {
@@ -1325,12 +1349,27 @@ func testNodeFailureMessage(children []rawTestNode) string {
 				message = child.FailureMessage
 			}
 			if strings.TrimSpace(message) != "" {
-				return boundTestMessage(message)
+				message = boundTestMessage(message)
+				if variant != "" {
+					message = variant + ": " + message
+				}
+				*lines = append(*lines, message)
 			}
 		}
-		if message := testNodeFailureMessage(child.Children); message != "" {
-			return message
-		}
+		appendTestNodeFailureMessages(lines, attributed, child.Children, childVariant)
+	}
+}
+
+func testNodeVariantLabel(node rawTestNode) string {
+	name := strings.TrimSpace(node.Name)
+	if name == "" {
+		return ""
+	}
+	switch strings.ToLower(strings.TrimSpace(node.NodeType)) {
+	case "device", "repetition":
+		return name
+	case "arguments":
+		return "argument '" + name + "'"
 	}
 	return ""
 }
