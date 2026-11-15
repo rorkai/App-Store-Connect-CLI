@@ -52,6 +52,7 @@
   "queries": [
     {"operation":"widgets_getCollection","name":"Widgets","params":[{"name":"filter[name]","field":"names"},{"name":"fields[widgets]"},{"name":"fields[gadgets]","arg":"fields"},{"name":"include","with":"WithWidgetsIncluded"}]},
     {"operation":"widgets_owner_getToOneRelated","name":"WidgetOwner","option":"OwnerOption","params":[{"name":"fields[widgets]"}]},
-    {"operation":"zippers_getCollection","also":["widgets_zippers_getToManyRelated","yoyos_zippers_getToManyRelated"],"name":"Zippers","params":[{"name":"filter[kind]","field":"kinds","normalize":"upper"},{"name":"filter[maker]","field":"makers","arg":"makerIDs","normalize":"unique"},{"name":"fields[widgets]"}]}
+    {"operation":"zippers_getCollection","also":["widgets_zippers_getToManyRelated","yoyos_zippers_getToManyRelated"],"name":"Zippers","params":[{"name":"filter[kind]","field":"kinds","normalize":"upper"},{"name":"filter[maker]","field":"makers","arg":"makerIDs","normalize":"unique"},{"name":"fields[widgets]"}]},
+    {"operation":"zippers_sprockets_getToManyRelated","name":"WidgetSprockets","params":[{"name":"filter[label]","field":"label","type":"string"},{"name":"granularity","field":"granularity","arg":"value","type":"string"},{"name":"fields[widgets]"},{"name":"exists[owner]","field":"ownerExists","arg":"exists","type":"bool"},{"name":"limit[teeth]","field":"teethLimit","arg":"limit","type":"int"}]}
   ]
 }

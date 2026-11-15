@@ -51,6 +51,13 @@ func TestGenerateRejectsMalformedQueryBindings(t *testing.T) {
 		{"parameter none of the reads defines", &QueryBind{Operation: "zippers_getCollection", Also: []string{"yoyos_zippers_getToManyRelated"}, Name: "X", Params: []*QueryParam{param("filter[size]", "sizes")}}},
 		{"parameter another read sends as repeated values", &QueryBind{Operation: "zippers_getCollection", Also: []string{"widgets_zippers_getToManyRelated"}, Name: "X", Params: []*QueryParam{param("filter[color]", "colors")}}},
 		{"unknown normalize", &QueryBind{Operation: "zippers_getCollection", Name: "X", Params: []*QueryParam{{Name: "filter[kind]", Field: "kinds", Normalize: "lower"}}}},
+		{"unknown type", &QueryBind{Operation: "zippers_sprockets_getToManyRelated", Name: "X", Params: []*QueryParam{{Name: "granularity", Field: "granularity", Type: "float"}}}},
+		{"string option for an integer", &QueryBind{Operation: "zippers_sprockets_getToManyRelated", Name: "X", Params: []*QueryParam{{Name: "limit[teeth]", Field: "teeth", Type: "string"}}}},
+		{"integer option for a boolean", &QueryBind{Operation: "zippers_sprockets_getToManyRelated", Name: "X", Params: []*QueryParam{{Name: "exists[owner]", Field: "owner", Type: "int"}}}},
+		{"boolean option for a string", &QueryBind{Operation: "zippers_sprockets_getToManyRelated", Name: "X", Params: []*QueryParam{{Name: "granularity", Field: "granularity", Type: "bool"}}}},
+		{"integer option for an array", &QueryBind{Operation: "zippers_sprockets_getToManyRelated", Name: "X", Params: []*QueryParam{{Name: "filter[label]", Field: "label", Type: "int"}}}},
+		{"string option for an array sent as repeated values", &QueryBind{Operation: "zippers_sprockets_getToManyRelated", Name: "X", Params: []*QueryParam{{Name: "filter[color]", Field: "color", Type: "string"}}}},
+		{"string option that normalizes a list", &QueryBind{Operation: "zippers_sprockets_getToManyRelated", Name: "X", Params: []*QueryParam{{Name: "filter[label]", Field: "label", Type: "string", Normalize: "upper"}}}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -357,5 +364,143 @@ func TestAdoptQueriesSharesABuilderAcrossReads(t *testing.T) {
 	}
 	if err := run(spec, bindings, dir, true, "", false, &report); err != nil {
 		t.Fatalf("check right after adopt: %v", err)
+	}
+}
+
+const handWrittenScalarQuery = `package asc
+
+import (
+	"context"
+	"fmt"
+	"net/url"
+	"strconv"
+	"strings"
+)
+
+// GetWidgetSprockets logs, so it stays hand-written.
+func (c *Client) GetWidgetSprockets(ctx context.Context, zipperID string, opts ...WidgetSprocketsOption) (*WidgetsResponse, error) {
+	query := applyOptions(opts)
+	fmt.Println("listing sprockets")
+	return getJSON[WidgetsResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/zippers/%s/sprockets", zipperID), Query: buildWidgetSprocketsQuery(query), Next: query.nextURL})
+}
+
+// WidgetSprocketsOption configures GetWidgetSprockets.
+type WidgetSprocketsOption func(*widgetSprocketsQuery)
+
+type widgetSprocketsQuery struct {
+	listQuery
+	label       string
+	granularity string
+	fields      []string
+	ownerExists *bool
+	teethLimit  int
+}
+
+// WithWidgetSprocketsLabel filters by label.
+func WithWidgetSprocketsLabel(label string) WidgetSprocketsOption {
+	return func(q *widgetSprocketsQuery) {
+		if strings.TrimSpace(label) != "" {
+			q.label = strings.TrimSpace(label)
+		}
+	}
+}
+
+// WithWidgetSprocketsGranularity sets the granularity.
+func WithWidgetSprocketsGranularity(value string) WidgetSprocketsOption {
+	return func(q *widgetSprocketsQuery) {
+		if strings.TrimSpace(value) != "" {
+			q.granularity = strings.TrimSpace(value)
+		}
+	}
+}
+
+// WithWidgetSprocketsFields selects widget fields.
+func WithWidgetSprocketsFields(fields []string) WidgetSprocketsOption {
+	return func(q *widgetSprocketsQuery) { q.fields = normalizeList(fields) }
+}
+
+// WithWidgetSprocketsTeethLimit limits the included teeth.
+func WithWidgetSprocketsTeethLimit(limit int) WidgetSprocketsOption {
+	return func(q *widgetSprocketsQuery) {
+		if limit > 0 {
+			q.teethLimit = limit
+		}
+	}
+}
+
+// WithWidgetSprocketsOwnerExists filters by whether an owner exists.
+func WithWidgetSprocketsOwnerExists(exists bool) WidgetSprocketsOption {
+	return func(q *widgetSprocketsQuery) { q.ownerExists = &exists }
+}
+
+func buildWidgetSprocketsQuery(query *widgetSprocketsQuery) string {
+	values := url.Values{}
+	if strings.TrimSpace(query.label) != "" {
+		values.Set("filter[label]", strings.TrimSpace(query.label))
+	}
+	if strings.TrimSpace(query.granularity) != "" {
+		values.Set("granularity", strings.TrimSpace(query.granularity))
+	}
+	addCSV(values, "fields[widgets]", query.fields)
+	if query.ownerExists != nil {
+		values.Set("exists[owner]", strconv.FormatBool(*query.ownerExists))
+	}
+	addLimit(values, query.limit)
+	if query.teethLimit > 0 {
+		values.Set("limit[teeth]", strconv.Itoa(query.teethLimit))
+	}
+	return values.Encode()
+}
+`
+
+func TestAdoptQueriesAdoptsScalarOptions(t *testing.T) {
+	dir := writeHandWritten(t, map[string]string{"queries.go": handWrittenScalarQuery})
+	var report bytes.Buffer
+	if err := run(filepath.Join("testdata", "spec.json"), filepath.Join(dir, "bindings"), dir, false, "Widgets", false, &report); err != nil {
+		t.Fatal(err)
+	}
+	if want := "Widgets\tzippers_sprockets_getToManyRelated\tquery buildWidgetSprocketsQuery\tgenerated"; !strings.Contains(report.String(), want) {
+		t.Errorf("report lacks %q:\n%s", want, report.String())
+	}
+	_, testdata := loadTestdata(t)
+	lines, err := jsonLines(testdata.Families[0].Queries[3:4])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := readFile(t, filepath.Join(dir, "bindings", "Widgets.json")); !strings.Contains(got, "\"queries\": [\n    "+lines[0]+"\n  ]") {
+		t.Errorf("bindings after adopt:\n%s\nwant the query %s", got, lines[0])
+	}
+	queries := readFile(t, filepath.Join(dir, "queries.go"))
+	for _, gone := range []string{"WidgetSprocketsOption func", "widgetSprocketsQuery struct", "func WithWidgetSprockets", "func buildWidgetSprocketsQuery", `"strconv"`} {
+		if strings.Contains(queries, gone) {
+			t.Errorf("queries.go still declares %q:\n%s", gone, queries)
+		}
+	}
+	if err := run(filepath.Join("testdata", "spec.json"), filepath.Join(dir, "bindings"), dir, true, "", false, &report); err != nil {
+		t.Fatalf("check right after adopt: %v", err)
+	}
+}
+
+func TestAdoptQueriesKeepsScalarOptionsWrittenAnotherWay(t *testing.T) {
+	for _, tt := range []struct{ name, from, to, kept string }{
+		{"a blank string clears the field", "if strings.TrimSpace(label) != \"\" {\n\t\t\tq.label = strings.TrimSpace(label)\n\t\t}", "q.label = strings.TrimSpace(label)", "WithWidgetSprocketsLabel differs at"},
+		{"an integer kept when not positive", "if limit > 0 {\n\t\t\tq.teethLimit = limit\n\t\t}", "q.teethLimit = limit", "WithWidgetSprocketsTeethLimit differs at"},
+		{"a string sent untrimmed", "if strings.TrimSpace(query.granularity) != \"\" {\n\t\tvalues.Set(\"granularity\", strings.TrimSpace(query.granularity))", "if query.granularity != \"\" {\n\t\tvalues.Set(\"granularity\", query.granularity)", "buildWidgetSprocketsQuery differs at"},
+		{"an integer field the builder does not know", "\tteethLimit  int\n", "\tteethLimit  int64\n", "field teethLimit is a int64"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			if !strings.Contains(handWrittenScalarQuery, tt.from) {
+				t.Fatalf("fixture lacks %q", tt.from)
+			}
+			src := strings.Replace(handWrittenScalarQuery, tt.from, tt.to, 1)
+			dir := writeHandWritten(t, map[string]string{"queries.go": src})
+			var report bytes.Buffer
+			if err := run(filepath.Join("testdata", "spec.json"), filepath.Join(dir, "bindings"), dir, false, "Widgets", true, &report); err != nil {
+				t.Fatal(err)
+			}
+			if want := "Widgets\tzippers_sprockets_getToManyRelated\tquery buildWidgetSprocketsQuery\tkept: " + tt.kept; !strings.Contains(report.String(), want) {
+				t.Errorf("report lacks %q:\n%s", want, report.String())
+			}
+		})
 	}
 }

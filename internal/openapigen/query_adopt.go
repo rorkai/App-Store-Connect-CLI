@@ -248,23 +248,30 @@ func (qi *queryIndex) derive(spec *Spec, builder string) (*QueryBind, []*decl, s
 		withs[d.name] = d
 	}
 	parts := map[string]*decl{od.name: od, structName: sd, builder: bd}
+	fieldTypes := map[string]string{}
+	if st, ok := sd.node.(*ast.GenDecl).Specs[0].(*ast.TypeSpec).Type.(*ast.StructType); ok {
+		for _, f := range st.Fields.List {
+			for _, n := range f.Names {
+				fieldTypes[n.Name] = exprString(f.Type)
+			}
+		}
+	}
 	for _, stmt := range fn.Body.List {
-		call, ok := stmt.(*ast.ExprStmt)
-		if !ok {
+		p := sentParam(stmt, fn.Type.Params.List[0].Names[0].Name)
+		if p == nil {
 			continue
 		}
-		c, ok := call.X.(*ast.CallExpr)
-		if !ok || exprString(c.Fun) != "addCSV" || len(c.Args) != 3 {
-			continue
+		if ifStmt, ok := stmt.(*ast.IfStmt); ok && ifStmt != nil {
+			typ, ok := scalarOfField[fieldTypes[p.Field]]
+			if !ok {
+				return nil, nil, fmt.Sprintf("field %s is a %s", p.Field, fieldTypes[p.Field])
+			}
+			p.Type = typ
 		}
-		sel, ok := c.Args[2].(*ast.SelectorExpr)
-		if !ok {
-			continue
-		}
-		p := &QueryParam{Name: stringLit(c.Args[1]), Field: sel.Sel.Name}
-		with := settingWith(withs, sel.Sel.Name)
+		field := p.Field
+		with := settingWith(withs, field)
 		if with == nil {
-			return nil, nil, "no option sets " + sel.Sel.Name
+			return nil, nil, "no option sets " + field
 		}
 		delete(withs, with.name)
 		parts[with.name] = with
@@ -272,7 +279,9 @@ func (qi *queryIndex) derive(spec *Spec, builder string) (*QueryBind, []*decl, s
 		if len(wf.Type.Params.List) == 1 && len(wf.Type.Params.List[0].Names) == 1 {
 			p.Arg = wf.Type.Params.List[0].Names[0].Name
 		}
-		p.Normalize = normalizeOf(wf, sel.Sel.Name)
+		if p.Type == "" {
+			p.Normalize = normalizeOf(wf, field)
+		}
 		if q.field(spec, op, &QueryParam{Name: p.Name}) == p.Field {
 			p.Field = ""
 		}
@@ -307,6 +316,52 @@ func (qi *queryIndex) derive(spec *Spec, builder string) (*QueryBind, []*decl, s
 		return nil, nil, "the generated query has fewer declarations"
 	}
 	return q, out, ""
+}
+
+// scalarOfField is the QueryParam.Type of a query field by its Go type.
+var scalarOfField = map[string]string{"string": "string", "int": "int", "*bool": "bool"}
+
+// sentParam returns the parameter a builder statement sends from a field of
+// its query, with the parameter name and the field: a list sent by addCSV, or
+// a value sent by values.Set inside an if. It returns nil for any other
+// statement, which the token comparison then rejects.
+func sentParam(stmt ast.Stmt, query string) *QueryParam {
+	var call *ast.CallExpr
+	switch stmt := stmt.(type) {
+	case *ast.ExprStmt:
+		c, ok := stmt.X.(*ast.CallExpr)
+		if !ok || exprString(c.Fun) != "addCSV" || len(c.Args) != 3 {
+			return nil
+		}
+		if sel, ok := c.Args[2].(*ast.SelectorExpr); ok {
+			return &QueryParam{Name: stringLit(c.Args[1]), Field: sel.Sel.Name}
+		}
+		return nil
+	case *ast.IfStmt:
+		if stmt.Init != nil || stmt.Else != nil || len(stmt.Body.List) != 1 {
+			return nil
+		}
+		set, ok := stmt.Body.List[0].(*ast.ExprStmt)
+		if !ok {
+			return nil
+		}
+		if call, ok = set.X.(*ast.CallExpr); !ok || exprString(call.Fun) != "values.Set" || len(call.Args) != 2 {
+			return nil
+		}
+	default:
+		return nil
+	}
+	var field string
+	ast.Inspect(call.Args[1], func(x ast.Node) bool {
+		if sel, ok := x.(*ast.SelectorExpr); ok && field == "" && exprString(sel.X) == query {
+			field = sel.Sel.Name
+		}
+		return field == ""
+	})
+	if field == "" || stringLit(call.Args[0]) == "" {
+		return nil
+	}
+	return &QueryParam{Name: stringLit(call.Args[0]), Field: field}
 }
 
 // settingWith returns the With function that assigns the query field.
