@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strings"
 
@@ -291,7 +292,7 @@ Examples:
 // a terminal stays a terminal for the commands they run; an injected stderr
 // receives their output through a pipe.
 func stepOutput(d *shared.Deps) io.Writer {
-	if d.IO.ErrOut == shared.DefaultDeps().IO.ErrOut {
+	if reflect.TypeOf(d.IO.ErrOut) == reflect.TypeOf(shared.DefaultDeps().IO.ErrOut) {
 		return os.Stderr
 	}
 	return d.IO.ErrOut
