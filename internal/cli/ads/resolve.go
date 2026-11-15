@@ -19,7 +19,7 @@ type commonFlags struct {
 	AdAccount  *string
 }
 
-func resolvePlatformClientAndAdAccountID(ctx context.Context, flags commonFlags, contextKind appleads.ContextKind) (*appleads.Client, string, error) {
+func resolvePlatformClientAndAdAccountID(ctx context.Context, d *shared.Deps, flags commonFlags, contextKind appleads.ContextKind) (*appleads.Client, string, error) {
 	credentials, err := resolveCredentials(flags)
 	if err != nil {
 		return nil, "", err
@@ -31,7 +31,7 @@ func resolvePlatformClientAndAdAccountID(ctx context.Context, flags commonFlags,
 			return nil, "", err
 		}
 		if adAccountID == "" && contextKind == appleads.ContextAdAccount {
-			return nil, "", shared.UsageError("--ad-account is required (or set ASC_ADS_AD_ACCOUNT_ID or an Ads profile ad_account_id)")
+			return nil, "", d.UsageError("--ad-account is required (or set ASC_ADS_AD_ACCOUNT_ID or an Ads profile ad_account_id)")
 		}
 		credentials.AdAccountID = adAccountID
 	}
@@ -243,10 +243,6 @@ func normalizeOrgIDWithSource(raw, source string) (string, string, error) {
 		return "", "", nil
 	}
 	return trimmed, source, nil
-}
-
-func requestContext(ctx context.Context) (context.Context, context.CancelFunc) {
-	return shared.ContextWithTimeout(ctx)
 }
 
 func parseBoolEnv(name string) bool {
