@@ -1197,6 +1197,53 @@ func TestDepsTerminalHelpersMatchProcessVariantsOnDepsStreams(t *testing.T) {
 	}
 }
 
+func TestDefaultDepsStdinMatchesProcessStdin(t *testing.T) {
+	const payload = `{"data":{"type":"apps"}}`
+	// useStdin makes the process stdin a pipe holding payload, a terminal
+	// when tty is true.
+	useStdin := func(t *testing.T, tty bool) {
+		r, w, err := os.Pipe()
+		if err != nil {
+			t.Fatalf("pipe: %v", err)
+		}
+		if _, err := w.WriteString(payload); err != nil {
+			t.Fatalf("write stdin: %v", err)
+		}
+		_ = w.Close()
+		previousStdin, previousIsTerminal := os.Stdin, isTerminal
+		stdinFD := int(r.Fd())
+		os.Stdin = r
+		isTerminal = func(fd int) bool {
+			if fd == stdinFD {
+				return tty
+			}
+			return previousIsTerminal(fd)
+		}
+		t.Cleanup(func() {
+			isTerminal = previousIsTerminal
+			os.Stdin = previousStdin
+			_ = r.Close()
+		})
+	}
+
+	for _, tty := range []bool{false, true} {
+		t.Run(fmt.Sprintf("stdin_tty=%t", tty), func(t *testing.T) {
+			useStdin(t, tty)
+			want, wantErr := ReadJSONFilePayloadKind("-", JSONPayloadAny)
+
+			useStdin(t, tty)
+			d := DefaultDeps()
+			if d.IO.StdinTTY != tty {
+				t.Fatalf("DefaultDeps().IO.StdinTTY = %t, want %t", d.IO.StdinTTY, tty)
+			}
+			got, gotErr := d.ReadJSONFilePayloadKind("-", JSONPayloadAny)
+			if !reflect.DeepEqual(got, want) || !reflect.DeepEqual(gotErr, wantErr) {
+				t.Fatalf("deps read = %q, %v; want %q, %v", got, gotErr, want, wantErr)
+			}
+		})
+	}
+}
+
 type emptyBuildPreflightClient struct{}
 
 func (emptyBuildPreflightClient) GetBuild(context.Context, string, ...asc.BuildOption) (*asc.BuildResponse, error) {
