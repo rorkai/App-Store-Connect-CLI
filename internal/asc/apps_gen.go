@@ -608,6 +608,81 @@ func buildAppEventsQuery(query *appEventsQuery) string {
 	return values.Encode()
 }
 
+// AppTagsOption sets the query of GET /v1/apps/{id}/appTags (apps_appTags_getToManyRelated).
+type AppTagsOption func(*appTagsQuery)
+
+type appTagsQuery struct {
+	listQuery
+	visibleInAppStore []string
+	sort              string
+	fields            []string
+	territoryFields   []string
+	include           []string
+	territoryLimit    int
+}
+
+// WithAppTagsVisibleInAppStore sets filter[visibleInAppStore].
+func WithAppTagsVisibleInAppStore(values []string) AppTagsOption {
+	return func(q *appTagsQuery) {
+		q.visibleInAppStore = normalizeList(values)
+	}
+}
+
+// WithAppTagsSort sets sort.
+func WithAppTagsSort(sort string) AppTagsOption {
+	return func(q *appTagsQuery) {
+		if strings.TrimSpace(sort) != "" {
+			q.sort = strings.TrimSpace(sort)
+		}
+	}
+}
+
+// WithAppTagsFields sets fields[appTags].
+func WithAppTagsFields(fields []string) AppTagsOption {
+	return func(q *appTagsQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+// WithAppTagsTerritoryFields sets fields[territories].
+func WithAppTagsTerritoryFields(fields []string) AppTagsOption {
+	return func(q *appTagsQuery) {
+		q.territoryFields = normalizeList(fields)
+	}
+}
+
+// WithAppTagsInclude sets include.
+func WithAppTagsInclude(include []string) AppTagsOption {
+	return func(q *appTagsQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
+// WithAppTagsTerritoryLimit sets limit[territories].
+func WithAppTagsTerritoryLimit(limit int) AppTagsOption {
+	return func(q *appTagsQuery) {
+		if limit > 0 {
+			q.territoryLimit = limit
+		}
+	}
+}
+
+func buildAppTagsQuery(query *appTagsQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[visibleInAppStore]", query.visibleInAppStore)
+	if strings.TrimSpace(query.sort) != "" {
+		values.Set("sort", strings.TrimSpace(query.sort))
+	}
+	addCSV(values, "fields[appTags]", query.fields)
+	addCSV(values, "fields[territories]", query.territoryFields)
+	addCSV(values, "include", query.include)
+	addLimit(values, query.limit)
+	if query.territoryLimit > 0 {
+		values.Set("limit[territories]", strconv.Itoa(query.territoryLimit))
+	}
+	return values.Encode()
+}
+
 // BetaTesterUsagesOption sets the query of GET /v1/apps/{id}/metrics/betaTesterUsages (apps_betaTesterUsages_getMetrics) and GET /v1/betaTesters/{id}/metrics/betaTesterUsages (betaTesters_betaTesterUsages_getMetrics).
 type BetaTesterUsagesOption func(*betaTesterUsagesQuery)
 
@@ -740,6 +815,122 @@ type gcEnabledVersionsQuery struct {
 
 func buildGCEnabledVersionsQuery(query *gcEnabledVersionsQuery) string {
 	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+// AppsOption sets the query of GET /v1/apps (apps_getCollection).
+type AppsOption func(*appsQuery)
+
+type appsQuery struct {
+	listQuery
+	bundleIDs               []string
+	names                   []string
+	skus                    []string
+	versionStates           []string
+	reviewSubmissionStates  []string
+	sort                    string
+	appInfoFields           []string
+	inAppPurchaseFields     []string
+	subscriptionGroupFields []string
+	retentionMessageFields  []string
+	include                 []string
+}
+
+// WithAppsBundleIDs sets filter[bundleId].
+func WithAppsBundleIDs(bundleIDs []string) AppsOption {
+	return func(q *appsQuery) {
+		q.bundleIDs = normalizeList(bundleIDs)
+	}
+}
+
+// WithAppsNames sets filter[name].
+func WithAppsNames(names []string) AppsOption {
+	return func(q *appsQuery) {
+		q.names = normalizeList(names)
+	}
+}
+
+// WithAppsSKUs sets filter[sku].
+func WithAppsSKUs(skus []string) AppsOption {
+	return func(q *appsQuery) {
+		q.skus = normalizeList(skus)
+	}
+}
+
+// WithAppsVersionStates sets filter[appStoreVersions.appVersionState].
+func WithAppsVersionStates(states []string) AppsOption {
+	return func(q *appsQuery) {
+		q.versionStates = normalizeUpperList(states)
+	}
+}
+
+// WithAppsReviewSubmissionStates sets filter[reviewSubmissions.state].
+func WithAppsReviewSubmissionStates(states []string) AppsOption {
+	return func(q *appsQuery) {
+		q.reviewSubmissionStates = normalizeUpperList(states)
+	}
+}
+
+// WithAppsSort sets sort.
+func WithAppsSort(sort string) AppsOption {
+	return func(q *appsQuery) {
+		if strings.TrimSpace(sort) != "" {
+			q.sort = strings.TrimSpace(sort)
+		}
+	}
+}
+
+// WithAppsAppInfoFields sets fields[appInfos].
+func WithAppsAppInfoFields(fields []string) AppsOption {
+	return func(q *appsQuery) {
+		q.appInfoFields = normalizeList(fields)
+	}
+}
+
+// WithAppsInAppPurchaseFields sets fields[inAppPurchases].
+func WithAppsInAppPurchaseFields(fields []string) AppsOption {
+	return func(q *appsQuery) {
+		q.inAppPurchaseFields = normalizeList(fields)
+	}
+}
+
+// WithAppsSubscriptionGroupFields sets fields[subscriptionGroups].
+func WithAppsSubscriptionGroupFields(fields []string) AppsOption {
+	return func(q *appsQuery) {
+		q.subscriptionGroupFields = normalizeList(fields)
+	}
+}
+
+// WithAppsRetentionMessageFields sets fields[retentionMessages].
+func WithAppsRetentionMessageFields(fields []string) AppsOption {
+	return func(q *appsQuery) {
+		q.retentionMessageFields = normalizeList(fields)
+	}
+}
+
+// WithAppsInclude sets include.
+func WithAppsInclude(include []string) AppsOption {
+	return func(q *appsQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
+func buildAppsQuery(query *appsQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[bundleId]", query.bundleIDs)
+	addCSV(values, "filter[name]", query.names)
+	addCSV(values, "filter[sku]", query.skus)
+	addCSV(values, "filter[appStoreVersions.appVersionState]", query.versionStates)
+	addCSV(values, "filter[reviewSubmissions.state]", query.reviewSubmissionStates)
+	if strings.TrimSpace(query.sort) != "" {
+		values.Set("sort", strings.TrimSpace(query.sort))
+	}
+	addCSV(values, "fields[appInfos]", query.appInfoFields)
+	addCSV(values, "fields[inAppPurchases]", query.inAppPurchaseFields)
+	addCSV(values, "fields[subscriptionGroups]", query.subscriptionGroupFields)
+	addCSV(values, "fields[retentionMessages]", query.retentionMessageFields)
+	addCSV(values, "include", query.include)
 	addLimit(values, query.limit)
 	return values.Encode()
 }

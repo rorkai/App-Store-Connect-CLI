@@ -6,6 +6,8 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
+	"strconv"
 	"strings"
 )
 
@@ -116,4 +118,86 @@ func (c *Client) GetSubscriptionVersionLocalizations(ctx context.Context, versio
 		Next:        query.nextURL,
 		NextContext: "subscriptionVersionLocalizations",
 	})
+}
+
+// SubscriptionVersionOption sets the query of GET /v1/subscriptionVersions/{id} (subscriptionVersions_getInstance).
+type SubscriptionVersionOption func(*subscriptionVersionQuery)
+
+type subscriptionVersionQuery struct {
+	fields             []string
+	subscriptionFields []string
+	imageFields        []string
+	localizationFields []string
+	include            []string
+	imageLimit         int
+	localizationLimit  int
+}
+
+// WithSubscriptionVersionFields sets fields[subscriptionVersions].
+func WithSubscriptionVersionFields(fields []string) SubscriptionVersionOption {
+	return func(q *subscriptionVersionQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+// WithSubscriptionVersionSubscriptionFields sets fields[subscriptions].
+func WithSubscriptionVersionSubscriptionFields(fields []string) SubscriptionVersionOption {
+	return func(q *subscriptionVersionQuery) {
+		q.subscriptionFields = normalizeList(fields)
+	}
+}
+
+// WithSubscriptionVersionImageFields sets fields[subscriptionImages].
+func WithSubscriptionVersionImageFields(fields []string) SubscriptionVersionOption {
+	return func(q *subscriptionVersionQuery) {
+		q.imageFields = normalizeList(fields)
+	}
+}
+
+// WithSubscriptionVersionLocalizationFields sets fields[subscriptionLocalizations].
+func WithSubscriptionVersionLocalizationFields(fields []string) SubscriptionVersionOption {
+	return func(q *subscriptionVersionQuery) {
+		q.localizationFields = normalizeList(fields)
+	}
+}
+
+// WithSubscriptionVersionInclude sets include.
+func WithSubscriptionVersionInclude(include []string) SubscriptionVersionOption {
+	return func(q *subscriptionVersionQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
+// WithSubscriptionVersionImageLimit sets limit[images].
+func WithSubscriptionVersionImageLimit(limit int) SubscriptionVersionOption {
+	return func(q *subscriptionVersionQuery) {
+		if limit > 0 {
+			q.imageLimit = limit
+		}
+	}
+}
+
+// WithSubscriptionVersionLocalizationLimit sets limit[localizations].
+func WithSubscriptionVersionLocalizationLimit(limit int) SubscriptionVersionOption {
+	return func(q *subscriptionVersionQuery) {
+		if limit > 0 {
+			q.localizationLimit = limit
+		}
+	}
+}
+
+func buildSubscriptionVersionQuery(query *subscriptionVersionQuery) string {
+	values := url.Values{}
+	addCSV(values, "fields[subscriptionVersions]", query.fields)
+	addCSV(values, "fields[subscriptions]", query.subscriptionFields)
+	addCSV(values, "fields[subscriptionImages]", query.imageFields)
+	addCSV(values, "fields[subscriptionLocalizations]", query.localizationFields)
+	addCSV(values, "include", query.include)
+	if query.imageLimit > 0 {
+		values.Set("limit[images]", strconv.Itoa(query.imageLimit))
+	}
+	if query.localizationLimit > 0 {
+		values.Set("limit[localizations]", strconv.Itoa(query.localizationLimit))
+	}
+	return values.Encode()
 }

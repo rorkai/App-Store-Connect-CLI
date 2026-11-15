@@ -3,7 +3,6 @@ package asc
 import (
 	"context"
 	"net/url"
-	"strings"
 )
 
 // CiBuildRunExecutionProgress represents the execution progress of a build run.
@@ -108,14 +107,6 @@ type CiBuildRunResponse struct {
 
 // Query types for Xcode Cloud endpoints
 
-type ciBuildRunsQuery struct {
-	listQuery
-	sort string
-}
-
-// CiBuildRunsOption is a functional option for GetCiBuildRuns.
-type CiBuildRunsOption func(*ciBuildRunsQuery)
-
 type ciBuildRunGetQuery struct {
 	include           []string
 	fieldsCiBuildRuns []string
@@ -136,24 +127,6 @@ func WithCiBuildRunFields(fields ...string) CiBuildRunGetOption {
 	return func(q *ciBuildRunGetQuery) {
 		q.fieldsCiBuildRuns = normalizeUniqueList(append(q.fieldsCiBuildRuns, fields...))
 	}
-}
-
-// WithCiBuildRunsSort sets the sort order for build runs.
-func WithCiBuildRunsSort(sort string) CiBuildRunsOption {
-	return func(q *ciBuildRunsQuery) {
-		if strings.TrimSpace(sort) != "" {
-			q.sort = strings.TrimSpace(sort)
-		}
-	}
-}
-
-func buildCiBuildRunsQuery(query *ciBuildRunsQuery) string {
-	values := url.Values{}
-	if strings.TrimSpace(query.sort) != "" {
-		values.Set("sort", strings.TrimSpace(query.sort))
-	}
-	addLimit(values, query.limit)
-	return values.Encode()
 }
 
 func buildCiBuildRunGetQuery(query *ciBuildRunGetQuery) string {

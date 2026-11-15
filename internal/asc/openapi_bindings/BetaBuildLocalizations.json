@@ -16,5 +16,8 @@
     {"operation":"betaBuildLocalizations_deleteInstance","name":"DeleteBetaBuildLocalization","params":["localizationID"],"check":"raw"},
     {"operation":"betaBuildLocalizations_getCollection","name":"ListBetaBuildLocalizations","options":"BetaBuildLocalizationsOption","query":"buildBetaBuildLocalizationsQuery","nextContext":"betaBuildLocalizations"},
     {"operation":"betaBuildLocalizations_getInstance","name":"GetBetaBuildLocalization","params":["localizationID"],"check":"raw"}
+  ],
+  "queries": [
+    {"operation":"betaBuildLocalizations_getCollection","also":["builds_betaBuildLocalizations_getToManyRelated"],"name":"BetaBuildLocalizations","params":[{"name":"filter[build]","field":"buildIDs","with":"WithBetaBuildLocalizationBuildIDs","arg":"ids"},{"name":"filter[locale]","field":"locales","with":"WithBetaBuildLocalizationLocales"}]}
   ]
 }
