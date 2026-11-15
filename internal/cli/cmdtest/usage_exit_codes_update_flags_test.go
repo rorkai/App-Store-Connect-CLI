@@ -324,6 +324,7 @@ func TestUpdateWithoutUpdateFlagsListsEveryUpdateFlag(t *testing.T) {
 			name:  "subscriptions grace-periods update",
 			args:  []string{"subscriptions", "grace-periods", "update", "--id", "ID"},
 			flags: "--opt-in, --sandbox-opt-in, --duration, --renewal-type",
+			deps:  true,
 		},
 		{
 			name:  "subscriptions groups update",
@@ -356,6 +357,7 @@ func TestUpdateWithoutUpdateFlagsListsEveryUpdateFlag(t *testing.T) {
 			name:  "subscriptions promoted-purchases update",
 			args:  []string{"subscriptions", "promoted-purchases", "update", "--promoted-purchase-id", "ID"},
 			flags: "--visible-for-all-users, --enabled",
+			deps:  true,
 		},
 		{
 			name:  "subscriptions retention-messages localizations update",
@@ -377,6 +379,7 @@ func TestUpdateWithoutUpdateFlagsListsEveryUpdateFlag(t *testing.T) {
 			name:  "subscriptions versions localizations update",
 			args:  []string{"subscriptions", "versions", "localizations", "update", "--id", "ID"},
 			flags: "--name, --description, --clear-name, --clear-description",
+			deps:  true,
 		},
 		{
 			name:  "testflight app-localizations update",

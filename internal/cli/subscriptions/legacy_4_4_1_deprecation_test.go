@@ -69,8 +69,8 @@ func captureSubscriptionsLegacy441Stderr(t *testing.T, run func()) string {
 func TestSubscriptionVersionScoped441CommandsAreNotDeprecated(t *testing.T) {
 	testDeps, _ := newSubscriptionsTestDeps()
 	commands := []*ffcli.Command{
-		SubscriptionsVersionImagesListCommand(),
-		SubscriptionsVersionLocalizationsListCommand(),
+		newSubscriptionsVersionImagesListCommand(testDeps),
+		newSubscriptionsVersionLocalizationsListCommand(testDeps),
 		newSubscriptionsGroupsVersionLocalizationsCommand(testDeps),
 		newSubscriptionsGroupsVersionLocalizationsListCommand(testDeps),
 	}

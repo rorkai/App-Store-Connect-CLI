@@ -37,21 +37,16 @@ func relationshipLimitCommandCases() []relationshipLimitCommandCase {
 			canonical: []string{"versions-limit"}, removed: []string{"version-limit"},
 		},
 		{
-			name: "subscription versions list", command: processCommand(SubscriptionsVersionsListCommand),
+			name: "subscription versions list", command: newSubscriptionsVersionsListCommand,
 			baseArgs:  []string{"--subscription-id", "sub-1"},
 			canonical: []string{"images-limit", "localizations-limit"}, removed: []string{"image-limit", "localization-limit"},
 		},
 		{
-			name: "subscription versions view", command: processCommand(SubscriptionsVersionsViewCommand),
+			name: "subscription versions view", command: newSubscriptionsVersionsViewCommand,
 			baseArgs:  []string{"--id", "version-1"},
 			canonical: []string{"images-limit", "localizations-limit"}, removed: []string{"image-limit", "localization-limit"},
 		},
 	}
-}
-
-// processCommand adapts a constructor that is not built on shared.Deps yet.
-func processCommand(build func() *ffcli.Command) func(*shared.Deps) *ffcli.Command {
-	return func(*shared.Deps) *ffcli.Command { return build() }
 }
 
 // relationshipLimitDeps returns deps whose client fails, and the deps' stderr.
@@ -186,8 +181,8 @@ func TestSubscriptionRelationshipLimitsConflictWithOpaqueNext(t *testing.T) {
 		canonical string
 	}{
 		{name: "subscription versions", command: newSubscriptionsListCommand, canonical: "versions-limit"},
-		{name: "version images", command: processCommand(SubscriptionsVersionsListCommand), canonical: "images-limit"},
-		{name: "version localizations", command: processCommand(SubscriptionsVersionsListCommand), canonical: "localizations-limit"},
+		{name: "version images", command: newSubscriptionsVersionsListCommand, canonical: "images-limit"},
+		{name: "version localizations", command: newSubscriptionsVersionsListCommand, canonical: "localizations-limit"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

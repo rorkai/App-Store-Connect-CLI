@@ -9,9 +9,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// SubscriptionsVersionLocalizationsImportCommand creates or updates
+// newSubscriptionsVersionLocalizationsImportCommand creates or updates
 // subscription version localizations from a JSON file.
-func SubscriptionsVersionLocalizationsImportCommand() *ffcli.Command {
+func newSubscriptionsVersionLocalizationsImportCommand(d *shared.Deps) *ffcli.Command {
 	return shared.NewVersionLocalizationImportCommand(shared.VersionLocalizationImportConfig{
 		CommandPath:         "subscriptions versions localizations import",
 		VersionResourceType: "subscriptionVersions",
@@ -19,7 +19,8 @@ func SubscriptionsVersionLocalizationsImportCommand() *ffcli.Command {
 		ResourceType:        "subscriptionLocalizations",
 		OptionalField:       "description",
 		ExampleValues:       `{"en-US": {"name": "Premium", "description": "All features"}, "de-DE": {"name": "Premium"}}`,
-		NewClient:           shared.GetASCClient,
+		NewClient:           d.Client,
+		Deps:                d,
 		Ops:                 subscriptionVersionLocalizationImportOps,
 	})
 }

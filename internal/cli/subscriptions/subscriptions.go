@@ -58,9 +58,9 @@ Examples:
 			SubscriptionsPricingCommand(),
 			SubscriptionsOffersCommand(),
 			SubscriptionsReviewCommand(),
-			SubscriptionsPromotedPurchasesCommand(),
-			SubscriptionsVersionsCommand(),
-			SubscriptionsGracePeriodsCommand(),
+			newSubscriptionsPromotedPurchasesCommand(d),
+			newSubscriptionsVersionsCommand(d),
+			newSubscriptionsGracePeriodsCommand(d),
 			SubscriptionsRetentionMessagesCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
@@ -390,7 +390,7 @@ Examples:
 				fmt.Fprintln(d.IO.ErrOut, "Error: --group-id or --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("")
 			}
-			if err := validateRelationshipLimitWith(d, "--versions-limit", *versionsLimit); err != nil {
+			if err := validateRelationshipLimit(d, "--versions-limit", *versionsLimit); err != nil {
 				return err
 			}
 			if id != "" && appFlag != "" {
@@ -635,7 +635,7 @@ Examples:
 			include := fs.String("include", "", "Include relationships (comma-separated): "+strings.Join(subscriptionIncludeList(), ", "))
 			versionsLimit := fs.Int("versions-limit", 0, "Maximum included versions (1-50)")
 			return func() error {
-				if err := validateRelationshipLimitWith(d, "--versions-limit", *versionsLimit); err != nil {
+				if err := validateRelationshipLimit(d, "--versions-limit", *versionsLimit); err != nil {
 					return err
 				}
 				fieldValues, err := normalizeSelectionFlagWith(d, fs, *fields, "--fields", subscriptionFieldsList())

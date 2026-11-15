@@ -72,6 +72,7 @@ func TestUnknownFlagSuggestsTheIntendedFlag(t *testing.T) {
 			want: "Error: unknown flag `--version-id` for `asc subscriptions versions view`\n" +
 				"Try:\n  --id\n" +
 				"For help:\n  asc subscriptions versions view --help\n",
+			deps: true,
 		},
 		{
 			name: "profiles list --bundle-id",

@@ -13,10 +13,9 @@ import (
 )
 
 func TestSubscriptionsMissingRequiredInputExposesStructuredDiagnostic(t *testing.T) {
-	var err error
-	stderr := captureSubscriptionsDiagnosticStderr(t, func() {
-		err = SubscriptionsVersionLocalizationsViewCommand().ParseAndRun(context.Background(), nil)
-	})
+	d, stderrBuf := newSubscriptionsTestDeps()
+	err := newSubscriptionsVersionLocalizationsViewCommand(d).ParseAndRun(context.Background(), nil)
+	stderr := stderrBuf.String()
 	if !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("error = %v, want flag.ErrHelp contract", err)
 	}
