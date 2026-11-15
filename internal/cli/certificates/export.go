@@ -198,7 +198,7 @@ func runCertificateExport(_ context.Context, d *shared.Deps, opts certificateExp
 		certificateExportTestHookAfterParentPinned()
 	}
 
-	certificateInput, err := readCertificateExportInput(certificatePath, "certificate", false)
+	certificateInput, err := readCertificateExportInput(d.OSPath(certificatePath), "certificate", false)
 	if err != nil {
 		return nil, err
 	}
@@ -215,7 +215,7 @@ func runCertificateExport(_ context.Context, d *shared.Deps, opts certificateExp
 		return nil, fmt.Errorf("certificate must be a leaf certificate")
 	}
 
-	privateKeyInput, err := readCertificateExportInput(privateKeyPath, "private key", true)
+	privateKeyInput, err := readCertificateExportInput(d.OSPath(privateKeyPath), "private key", true)
 	if err != nil {
 		return nil, err
 	}
@@ -230,7 +230,7 @@ func runCertificateExport(_ context.Context, d *shared.Deps, opts certificateExp
 
 	var csrMatched *bool
 	if csrPath != "" {
-		csrInput, readErr := readCertificateExportInput(csrPath, "CSR", false)
+		csrInput, readErr := readCertificateExportInput(d.OSPath(csrPath), "CSR", false)
 		if readErr != nil {
 			return nil, readErr
 		}
@@ -246,7 +246,7 @@ func runCertificateExport(_ context.Context, d *shared.Deps, opts certificateExp
 		csrMatched = &matched
 	}
 
-	passwordInput, err := readCertificateExportInput(passwordPath, "password", true)
+	passwordInput, err := readCertificateExportInput(d.OSPath(passwordPath), "password", true)
 	if err != nil {
 		return nil, err
 	}
@@ -348,7 +348,7 @@ func preflightCertificateExportDestination(d *shared.Deps, output string, force 
 		}
 	}
 
-	info, err := os.Lstat(output)
+	info, err := os.Lstat(d.OSPath(output))
 	if errors.Is(err, os.ErrNotExist) {
 		return nil
 	}
@@ -369,7 +369,7 @@ func preflightCertificateExportDestination(d *shared.Deps, output string, force 
 	}
 
 	for _, input := range inputs {
-		inputInfo, statErr := os.Stat(input)
+		inputInfo, statErr := os.Stat(d.OSPath(input))
 		if statErr != nil {
 			continue
 		}

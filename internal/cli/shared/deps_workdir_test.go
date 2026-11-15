@@ -65,10 +65,20 @@ func TestDepsAbsMatchesFilepathAbs(t *testing.T) {
 			if err != nil || got != wantInProcessDir {
 				t.Fatalf("DefaultDeps().Abs(%q) = %q, %v; want %q", path, got, err, wantInProcessDir)
 			}
+			if got := DefaultDeps().OSPath(path); got != path {
+				t.Fatalf("DefaultDeps().OSPath(%q) = %q, want the path as given", path, got)
+			}
 			injected := &Deps{Getwd: func() (string, error) { return depsDir, nil }}
 			got, err = injected.Abs(path)
 			if err != nil || got != wantInDepsDir {
 				t.Fatalf("Abs(%q) with Getwd %q = %q, %v; want %q (filepath.Abs in that directory)", path, depsDir, got, err, wantInDepsDir)
+			}
+			wantOSPath := wantInDepsDir
+			if wantInDepsDir == wantInProcessDir {
+				wantOSPath = path
+			}
+			if got := injected.OSPath(path); got != wantOSPath {
+				t.Fatalf("OSPath(%q) with Getwd %q = %q, want %q", path, depsDir, got, wantOSPath)
 			}
 			failing := &Deps{Getwd: func() (string, error) { return "", errGetwd }}
 			got, err = failing.Abs(path)

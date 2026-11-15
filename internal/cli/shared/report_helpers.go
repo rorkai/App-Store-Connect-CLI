@@ -81,16 +81,8 @@ func DecompressGzipFile(sourcePath, destPath string) (int64, error) {
 // DecompressGzipFile is DecompressGzipFile with relative paths resolved
 // against d's working directory.
 func (d *Deps) DecompressGzipFile(sourcePath, destPath string) (int64, error) {
-	source := sourcePath
-	if source != "" {
-		absolute, err := d.Abs(source)
-		if err != nil {
-			return 0, fmt.Errorf("resolve path %q: %w", sourcePath, err)
-		}
-		source = absolute
-	}
 	workingDir, _ := d.Getwd()
-	in, err := rootfs.OpenFileIn(workingDir, source)
+	in, err := rootfs.OpenFileIn(workingDir, d.OSPath(sourcePath))
 	if err != nil {
 		return 0, err
 	}
