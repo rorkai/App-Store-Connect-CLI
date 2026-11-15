@@ -212,7 +212,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 			return agreements.NewAgreementsCommand(d)
 		}),
 		commandFactory("pricing", "Manage app pricing and availability.", pricing.PricingCommand),
-		commandFactory("pre-orders", "Manage app pre-orders.", preorders.PreOrdersCommand),
+		commandFactory("pre-orders", "Manage app pre-orders.", func() *ffcli.Command {
+			return preorders.NewPreOrdersCommand(d)
+		}),
 		commandFactory("localizations", "Manage App Store localization metadata.", localizations.LocalizationsCommand),
 		commandFactory("metadata", "Manage app metadata with deterministic workflows and keyword tooling.", metadata.MetadataCommand),
 		commandFactory("screenshots", "Upload and manage App Store screenshots, including local capture, framing, and matrices.", screenshots.ScreenshotsCommand),

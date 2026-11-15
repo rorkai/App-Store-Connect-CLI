@@ -21,6 +21,7 @@ func TestRemovedFlagAliasesNameTheirReplacement(t *testing.T) {
 		name string
 		args []string
 		want string
+		deps bool // the command is built on shared.Deps: run it on test deps
 	}{
 		{
 			name: "localizations list --version-id",
@@ -71,6 +72,7 @@ func TestRemovedFlagAliasesNameTheirReplacement(t *testing.T) {
 			name: "pre-orders enable --available-in-new-territories has no replacement",
 			args: []string{"pre-orders", "enable", "--app", "app-1", "--territory", "USA", "--release-date", "2026-06-01", "--available-in-new-territories", "true"},
 			want: "Error: `--available-in-new-territories` was removed in 5.0.0; pre-orders are enabled by patching territory availabilities (see migrate-to-5-0)\nFor help:\n  asc pre-orders enable --help\n",
+			deps: true,
 		},
 		{
 			name: "web --two-factor-code matches a historical web command",
@@ -82,9 +84,14 @@ func TestRemovedFlagAliasesNameTheirReplacement(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			var code int
-			stdout, stderr := captureOutput(t, func() {
-				code = rootcmd.Run(test.args, "5.3.2")
-			})
+			var stdout, stderr string
+			if test.deps {
+				stdout, stderr, code = runWithDeps(t, nil, test.args...)
+			} else {
+				stdout, stderr = captureOutput(t, func() {
+					code = rootcmd.Run(test.args, "5.3.2")
+				})
+			}
 			if code != rootcmd.ExitUsage {
 				t.Fatalf("exit code = %d, want %d; stderr=%q", code, rootcmd.ExitUsage, stderr)
 			}
