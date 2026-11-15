@@ -8,12 +8,12 @@ import (
 
 type appsQuery struct {
 	listQuery
-	sort                    string
 	bundleIDs               []string
 	names                   []string
 	skus                    []string
 	versionStates           []string
 	reviewSubmissionStates  []string
+	sort                    string
 	appInfoFields           []string
 	inAppPurchaseFields     []string
 	subscriptionGroupFields []string
