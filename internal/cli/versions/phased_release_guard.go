@@ -26,9 +26,9 @@ type phasedReleaseCheckResult struct {
 
 var phasedReleaseGuardRunCheck = runPhasedReleaseCheck
 
-// PhasedReleaseGuardCommand returns the guard subcommand.
-func PhasedReleaseGuardCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("phased-release guard", flag.ExitOnError)
+// newPhasedReleaseGuardCommand returns the guard subcommand.
+func newPhasedReleaseGuardCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("phased-release guard", flag.ExitOnError)
 
 	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID (required)")
 	pollInterval := fs.Duration("poll-interval", 15*time.Minute, "Time between health checks")
@@ -37,7 +37,7 @@ func PhasedReleaseGuardCommand() *ffcli.Command {
 	completeOnDay := fs.Int("complete-on-day", 0, "Complete the release when a check passes on or after this rollout day (1-7, 0 = never)")
 	confirm := fs.Bool("confirm", false, "Allow the guard to pause or complete the phased release")
 	dryRun := fs.Bool("dry-run", false, "Run checks and report what the guard would do without changing the phased release")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "guard",
@@ -74,40 +74,41 @@ Examples:
   asc versions phased-release guard --version-id "VERSION_ID" --confirm --poll-interval 30m -- ./scripts/health-check.sh
   asc versions phased-release guard --version-id "VERSION_ID" --confirm --complete-on-day 5 -- ./scripts/health-check.sh --threshold 99.5`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			version := strings.TrimSpace(*versionID)
 			if version == "" {
-				return shared.RequiredFlag("--version-id")
+				return d.RequiredFlag("--version-id")
 			}
 			if len(args) == 0 {
-				return shared.UsageError("a check command is required after --")
+				return d.UsageError("a check command is required after --")
 			}
 			if *confirm && *dryRun {
-				return shared.UsageError("--confirm and --dry-run are mutually exclusive")
+				return d.UsageError("--confirm and --dry-run are mutually exclusive")
 			}
-			if err := shared.RequireConfirmUnlessDryRun(*dryRun, *confirm); err != nil {
+			if err := d.RequireConfirmUnlessDryRun(*dryRun, *confirm); err != nil {
 				return err
 			}
 			if *pollInterval <= 0 {
-				return shared.UsageError("--poll-interval must be greater than 0")
+				return d.UsageError("--poll-interval must be greater than 0")
 			}
 			if *checkTimeout <= 0 {
-				return shared.UsageError("--check-timeout must be greater than 0")
+				return d.UsageError("--check-timeout must be greater than 0")
 			}
 			if *maxPolls < 0 {
-				return shared.UsageError("--max-polls must be greater than or equal to 0")
+				return d.UsageError("--max-polls must be greater than or equal to 0")
 			}
 			if *completeOnDay < 0 || *completeOnDay > 7 {
-				return shared.UsageError("--complete-on-day must be between 1 and 7")
+				return d.UsageError("--complete-on-day must be between 1 and 7")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("phased-release guard: %w", err)
 			}
 
 			guard := phasedReleaseGuard{
+				d:             d,
 				client:        client,
 				command:       args,
 				pollInterval:  *pollInterval,
@@ -123,7 +124,7 @@ Examples:
 			if err := guard.run(ctx); err != nil {
 				return fmt.Errorf("phased-release guard: %w", err)
 			}
-			if err := shared.PrintOutput(guard.result, *output.Output, *output.Pretty); err != nil {
+			if err := d.PrintOutput(guard.result, *output.Output, *output.Pretty); err != nil {
 				return err
 			}
 			if outcome := guard.result.Outcome; outcome == "paused" || outcome == "would-pause" {
@@ -135,6 +136,7 @@ Examples:
 }
 
 type phasedReleaseGuard struct {
+	d             *shared.Deps
 	client        *asc.Client
 	command       []string
 	pollInterval  time.Duration
@@ -148,19 +150,17 @@ func (g *phasedReleaseGuard) run(ctx context.Context) error {
 	polls := 0
 	var nextReadAt time.Time
 	_, err := asc.PollUntilTolerant(ctx, g.pollInterval, func(ctx context.Context) (struct{}, bool, error) {
-		if delay := time.Until(nextReadAt); delay > 0 {
-			timer := time.NewTimer(delay)
-			defer timer.Stop()
+		if delay := nextReadAt.Sub(g.d.Now()); delay > 0 {
 			select {
 			case <-ctx.Done():
 				return struct{}{}, false, ctx.Err()
-			case <-timer.C:
+			case <-g.d.After(delay):
 			}
 		}
-		nextReadAt = time.Now().Add(g.pollInterval)
+		nextReadAt = g.d.Now().Add(g.pollInterval)
 		resp, err := g.fetch(ctx)
 		if err != nil {
-			nextReadAt = time.Now().Add(max(g.pollInterval, asc.GetRetryAfter(err)))
+			nextReadAt = g.d.Now().Add(max(g.pollInterval, asc.GetRetryAfter(err)))
 			return struct{}{}, false, phasedReleaseFetchError{err}
 		}
 		done, err := g.step(ctx, resp)
@@ -190,7 +190,7 @@ func (g *phasedReleaseGuard) tolerateFetchError(ctx context.Context, err error) 
 }
 
 func (g *phasedReleaseGuard) fetch(ctx context.Context) (*asc.AppStoreVersionPhasedReleaseResponse, error) {
-	requestCtx, cancel := shared.ContextWithTimeout(ctx)
+	requestCtx, cancel := g.d.Timeout(ctx)
 	defer cancel()
 	return g.client.GetAppStoreVersionPhasedRelease(requestCtx, g.result.VersionID)
 }
@@ -218,13 +218,13 @@ func (g *phasedReleaseGuard) step(ctx context.Context, resp *asc.AppStoreVersion
 	var target asc.PhasedReleaseState
 	switch {
 	case ran.TimedOut:
-		fmt.Fprintf(os.Stderr, "phased-release guard: check %d timed out after %s on day %d\n", number, g.checkTimeout, day)
+		fmt.Fprintf(g.d.IO.ErrOut, "phased-release guard: check %d timed out after %s on day %d\n", number, g.checkTimeout, day)
 		target = asc.PhasedReleaseStatePaused
 	case ran.ExitCode != 0:
-		fmt.Fprintf(os.Stderr, "phased-release guard: check %d failed with exit status %d on day %d\n", number, ran.ExitCode, day)
+		fmt.Fprintf(g.d.IO.ErrOut, "phased-release guard: check %d failed with exit status %d on day %d\n", number, ran.ExitCode, day)
 		target = asc.PhasedReleaseStatePaused
 	default:
-		fmt.Fprintf(os.Stderr, "phased-release guard: check %d passed on day %d\n", number, day)
+		fmt.Fprintf(g.d.IO.ErrOut, "phased-release guard: check %d passed on day %d\n", number, day)
 		if g.completeOnDay > 0 && day >= g.completeOnDay {
 			target = asc.PhasedReleaseStateComplete
 		}
@@ -244,17 +244,15 @@ func (g *phasedReleaseGuard) step(ctx context.Context, resp *asc.AppStoreVersion
 	} else {
 		var retryAt time.Time
 		current, err := asc.PollUntilTolerant(ctx, asc.DefaultBaseDelay, func(ctx context.Context) (*asc.AppStoreVersionPhasedReleaseResponse, bool, error) {
-			if delay := time.Until(retryAt); delay > 0 {
-				timer := time.NewTimer(delay)
-				defer timer.Stop()
+			if delay := retryAt.Sub(g.d.Now()); delay > 0 {
 				select {
 				case <-ctx.Done():
 					return nil, false, ctx.Err()
-				case <-timer.C:
+				case <-g.d.After(delay):
 				}
 			}
 			current, err := g.fetch(ctx)
-			retryAt = time.Now().Add(asc.GetRetryAfter(err))
+			retryAt = g.d.Now().Add(asc.GetRetryAfter(err))
 			return current, err == nil, err
 		}, asc.PollOptions{Tolerate: asc.IsTransientWaitError})
 		if err != nil {
@@ -264,7 +262,7 @@ func (g *phasedReleaseGuard) step(ctx context.Context, resp *asc.AppStoreVersion
 			g.result.Checks = append(g.result.Checks, check)
 			return true, err
 		}
-		requestCtx, cancel := shared.ContextWithTimeout(ctx)
+		requestCtx, cancel := g.d.Timeout(ctx)
 		updated, err := g.client.UpdateAppStoreVersionPhasedRelease(requestCtx, g.result.PhasedReleaseID, target)
 		cancel()
 		if err != nil {
@@ -312,6 +310,7 @@ func runPhasedReleaseCheck(ctx context.Context, timeout time.Duration, argv, env
 
 	cmd := exec.CommandContext(checkCtx, argv[0], argv[1:]...)
 	cmd.Env = append(os.Environ(), env...)
+	// The check writes to the process stderr so it keeps the terminal.
 	cmd.Stdout = os.Stderr
 	cmd.Stderr = os.Stderr
 	cmd.WaitDelay = phasedReleaseCheckWaitDelay

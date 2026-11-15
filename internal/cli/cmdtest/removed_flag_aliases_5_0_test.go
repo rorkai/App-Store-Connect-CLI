@@ -21,8 +21,8 @@ func TestRemovedFlagAliasesAreUnknownFlags(t *testing.T) {
 		args      []string
 		deps      bool // the command is built on shared.Deps: run it on test deps
 	}{
-		{path: []string{"versions", "update"}, alias: "id", canonical: "version-id", args: []string{"--id", "version-1", "--copyright", "2026 Example"}},
-		{path: []string{"versions", "attach-build"}, alias: "build", canonical: "build-id", args: []string{"--version-id", "version-1", "--build", "build-1"}},
+		{path: []string{"versions", "update"}, alias: "id", canonical: "version-id", args: []string{"--id", "version-1", "--copyright", "2026 Example"}, deps: true},
+		{path: []string{"versions", "attach-build"}, alias: "build", canonical: "build-id", args: []string{"--version-id", "version-1", "--build", "build-1"}, deps: true},
 		{path: []string{"apps", "app-encryption-declarations", "list"}, alias: "build", canonical: "build-id", args: []string{"--id", "app-1", "--build", "build-1"}},
 		{path: []string{"encryption", "declarations", "list"}, alias: "build", canonical: "build-id", args: []string{"--app", "app-1", "--build", "build-1"}, deps: true},
 		{path: []string{"encryption", "declarations", "assign-builds"}, alias: "build", canonical: "build-id", args: []string{"--id", "decl-1", "--build", "build-1"}, deps: true},

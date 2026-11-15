@@ -368,6 +368,7 @@ func TestIfExistsRejectsUnsupportedModeBeforeHTTP(t *testing.T) {
 			name: "versions create",
 			args: []string{"versions", "create", "--app", "app-1", "--version", "2.0.0", "--if-exists", "merge"},
 			want: "Error: --if-exists must be one of fail, skip, update",
+			deps: true,
 		},
 		{
 			name: "localizations create",

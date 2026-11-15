@@ -12,8 +12,8 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// VersionsPromotionsCommand returns the promotions command group.
-func VersionsPromotionsCommand() *ffcli.Command {
+// newVersionsPromotionsCommand returns the promotions command group.
+func newVersionsPromotionsCommand(d *shared.Deps) *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "promotions",
 		ShortUsage: "asc versions promotions <subcommand> [flags]",
@@ -25,9 +25,9 @@ app store version promotions, so this CLI exposes create only.
 
 Examples:
   asc versions promotions create --version-id "VERSION_ID" --treatment-id "TREATMENT_ID"`,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			VersionsPromotionsCreateCommand(),
+			newVersionsPromotionsCreateCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -35,13 +35,13 @@ Examples:
 	}
 }
 
-// VersionsPromotionsCreateCommand returns the create subcommand.
-func VersionsPromotionsCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("versions promotions create", flag.ExitOnError)
+// newVersionsPromotionsCreateCommand returns the create subcommand.
+func newVersionsPromotionsCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("versions promotions create", flag.ExitOnError)
 
 	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID (required)")
 	treatmentID := shared.BindResourceIDFlag(fs, "treatment-id", "appStoreVersionExperimentTreatments", "App Store version experiment treatment ID (required)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -52,23 +52,23 @@ func VersionsPromotionsCreateCommand() *ffcli.Command {
 Examples:
   asc versions promotions create --version-id "VERSION_ID" --treatment-id "TREATMENT_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			version := strings.TrimSpace(*versionID)
 			if version == "" {
-				return shared.RequiredFlag("--version-id")
+				return d.RequiredFlag("--version-id")
 			}
 			treatment := strings.TrimSpace(*treatmentID)
 			if treatment == "" {
-				return shared.RequiredFlag("--treatment-id")
+				return d.RequiredFlag("--treatment-id")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("versions promotions create: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateAppStoreVersionPromotion(requestCtx, version, treatment)
@@ -82,7 +82,7 @@ Examples:
 				TreatmentID: treatment,
 			}
 
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }

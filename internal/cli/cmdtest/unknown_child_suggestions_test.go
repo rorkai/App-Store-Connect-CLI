@@ -29,6 +29,7 @@ func TestUnknownChildSuggestionsAcrossCommandGroups(t *testing.T) {
 				"  asc versions view --version-id VERSION_ID\n" +
 				"For help:\n" +
 				"  asc versions --help\n",
+			deps: true,
 		},
 		{
 			name: "builds",

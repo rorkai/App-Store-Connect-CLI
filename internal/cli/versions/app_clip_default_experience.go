@@ -9,9 +9,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// VersionsAppClipDefaultExperienceCommand returns the app clip default experience command group.
-func VersionsAppClipDefaultExperienceCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("app-clip-default-experience", flag.ExitOnError)
+// newVersionsAppClipDefaultExperienceCommand returns the app clip default experience command group.
+func newVersionsAppClipDefaultExperienceCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("app-clip-default-experience", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "app-clip-default-experience",
@@ -22,9 +22,9 @@ func VersionsAppClipDefaultExperienceCommand() *ffcli.Command {
 Examples:
   asc versions app-clip-default-experience view --version-id "VERSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			VersionsAppClipDefaultExperienceGetCommand(),
+			newVersionsAppClipDefaultExperienceGetCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -32,9 +32,10 @@ Examples:
 	}
 }
 
-// VersionsAppClipDefaultExperienceGetCommand gets the App Clip default experience for a version.
-func VersionsAppClipDefaultExperienceGetCommand() *ffcli.Command {
+// newVersionsAppClipDefaultExperienceGetCommand gets the App Clip default experience for a version.
+func newVersionsAppClipDefaultExperienceGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		Deps:        d,
 		FlagSetName: "app-clip-default-experience view",
 		Name:        "view",
 		ShortUsage:  "asc versions app-clip-default-experience view --version-id \"VERSION_ID\"",

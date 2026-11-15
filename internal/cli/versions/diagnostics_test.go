@@ -4,16 +4,14 @@ import (
 	"context"
 	"errors"
 	"flag"
-	"io"
-	"os"
-	"strings"
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestVersionsMissingRequiredInputExposesStructuredDiagnostic(t *testing.T) {
-	err := VersionsViewCommand().ParseAndRun(context.Background(), nil)
+	d, _ := newVersionsTestDeps(nil)
+	err := newVersionsViewCommand(d).ParseAndRun(context.Background(), nil)
 	if !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("error = %v, want flag.ErrHelp contract", err)
 	}
@@ -107,15 +105,14 @@ func TestVersionsLinksInvalidInputExposesStructuredDiagnostics(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			command := VersionsRelationshipsCommand()
+			d, stderrBuf := newVersionsTestDeps(nil)
+			command := newVersionsRelationshipsCommand(d)
 			if err := command.FlagSet.Parse(test.args); err != nil {
 				t.Fatalf("parse flags: %v", err)
 			}
 
-			var err error
-			stderr := captureVersionsDiagnosticStderr(t, func() {
-				err = command.Exec(context.Background(), nil)
-			})
+			err := command.Exec(context.Background(), nil)
+			stderr := stderrBuf.String()
 			if err == nil {
 				t.Fatal("expected error")
 			}
@@ -138,37 +135,4 @@ func TestVersionsLinksInvalidInputExposesStructuredDiagnostics(t *testing.T) {
 			}
 		})
 	}
-}
-
-func captureVersionsDiagnosticStderr(t *testing.T, fn func()) string {
-	t.Helper()
-
-	reader, writer, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("create stderr pipe: %v", err)
-	}
-	readResult := make(chan []byte, 1)
-	readError := make(chan error, 1)
-	go func() {
-		data, readErr := io.ReadAll(reader)
-		readResult <- data
-		readError <- readErr
-	}()
-
-	original := os.Stderr
-	os.Stderr = writer
-	defer func() { os.Stderr = original }()
-	fn()
-	if err := writer.Close(); err != nil {
-		t.Fatalf("close stderr writer: %v", err)
-	}
-	os.Stderr = original
-	data := <-readResult
-	if err := <-readError; err != nil {
-		t.Fatalf("read stderr: %v", err)
-	}
-	if err := reader.Close(); err != nil {
-		t.Fatalf("close stderr reader: %v", err)
-	}
-	return strings.ReplaceAll(string(data), "\r\n", "\n")
 }

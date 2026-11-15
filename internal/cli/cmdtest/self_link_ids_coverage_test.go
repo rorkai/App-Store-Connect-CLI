@@ -53,6 +53,7 @@ func TestSelfLinkCoverageSendsExtractedID(t *testing.T) {
 			bodies: map[string]string{
 				"/v1/appStoreVersions/version-1": `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.0","platform":"IOS"}}}`,
 			},
+			deps: true,
 		},
 		{
 			name:     "testflight crashes view",
@@ -541,7 +542,7 @@ func TestSelfLinkCoverageRejectsWrongType(t *testing.T) {
 		{args: []string{"testflight", "testers", "list"}, flag: "group", wantType: "betaGroups", deps: true},
 		{args: []string{"users", "view"}, flag: "id", wantType: "users", deps: true},
 		{args: []string{"users", "invites", "view"}, flag: "id", wantType: "userInvitations", deps: true},
-		{args: []string{"versions", "phased-release", "update"}, flag: "id", wantType: "appStoreVersionPhasedReleases"},
+		{args: []string{"versions", "phased-release", "update"}, flag: "id", wantType: "appStoreVersionPhasedReleases", deps: true},
 		// --app flags that bypassed the shared app resolver.
 		{args: []string{"performance", "download"}, flag: "app", wantType: "apps", deps: true},
 		{args: []string{"signing", "fetch"}, flag: "app", wantType: "apps"},

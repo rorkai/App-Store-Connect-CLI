@@ -11,7 +11,8 @@ import (
 )
 
 func TestVersionsCommand_PrefersViewAndRemovesLegacyGet(t *testing.T) {
-	cmd := VersionsCommand()
+	d, _ := newVersionsTestDeps(nil)
+	cmd := NewVersionsCommand(d)
 
 	var viewCmd *ffcli.Command
 	for _, sub := range cmd.Subcommands {
