@@ -20,7 +20,6 @@ func TestGameCenterRelationshipReplacementRequiresConfirm(t *testing.T) {
 	tests := []struct {
 		name string
 		args []string
-		deps bool // the command is built on shared.Deps: run it on test deps
 	}{
 		{
 			name: "groups achievements set",
@@ -33,12 +32,10 @@ func TestGameCenterRelationshipReplacementRequiresConfirm(t *testing.T) {
 		{
 			name: "leaderboard-sets members set",
 			args: []string{"game-center", "leaderboard-sets", "members", "set", "--set-id", "set-1", "--leaderboard-ids", "leaderboard-1"},
-			deps: true,
 		},
 		{
 			name: "leaderboard-sets v2 members set",
 			args: []string{"game-center", "leaderboard-sets", "v2", "members", "set", "--set-id", "set-1", "--leaderboard-ids", "leaderboard-1"},
-			deps: true,
 		},
 	}
 
@@ -50,17 +47,7 @@ func TestGameCenterRelationshipReplacementRequiresConfirm(t *testing.T) {
 				return nil, errors.New("poison client factory called")
 			}
 
-			var code int
-			var stdout, stderr string
-			if test.deps {
-				stdout, stderr, code = runWithDeps(t, poison, test.args...)
-			} else {
-				restore := shared.SetASCClientFactoryForTesting(poison)
-				t.Cleanup(restore)
-				stdout, stderr = captureOutput(t, func() {
-					code = rootcmd.Run(test.args, "5.0.0")
-				})
-			}
+			stdout, stderr, code := runWithDeps(t, poison, test.args...)
 
 			if code != rootcmd.ExitUsage {
 				t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
@@ -148,16 +135,12 @@ func TestGameCenterGroupChallengesSetIsRemoved(t *testing.T) {
 	}
 
 	factoryCalled := false
-	restore := shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+	poison := func() (*asc.Client, error) {
 		factoryCalled = true
 		return nil, errors.New("poison client factory called")
-	})
-	t.Cleanup(restore)
+	}
 
-	var code int
-	stdout, stderr := captureOutput(t, func() {
-		code = rootcmd.Run([]string{"game-center", "groups", "challenges", "set", "--group-id", "group-1", "--ids", "challenge-1"}, "5.0.0")
-	})
+	stdout, stderr, code := runWithDeps(t, poison, "game-center", "groups", "challenges", "set", "--group-id", "group-1", "--ids", "challenge-1")
 
 	if code != rootcmd.ExitUsage {
 		t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
