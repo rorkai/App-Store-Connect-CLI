@@ -149,14 +149,14 @@ Examples:
 				return err
 			}
 
-			workDir, err := os.Getwd()
+			workDir, err := d.Getwd()
 			if err != nil {
 				return fmt.Errorf("migrate import: %w", err)
 			}
 
 			inputs, skipped, err := resolveImportInputs(importInputOptions{
 				WorkDir:                   workDir,
-				FastlaneDir:               *fastlaneDir,
+				FastlaneDir:               d.OSPath(*fastlaneDir),
 				SkipScreenshots:           *skipScreenshots,
 				AllowExternalMetadata:     *allowExternalMetadata,
 				AllowExternalScreenshots:  *allowExternalScreenshots,
@@ -195,28 +195,28 @@ Examples:
 			var reviewInfo *ReviewInformation
 			var copyright string
 			if metadataDir != "" {
-				localeDirs, metadataSkipped, err := scanFastlaneMetadataLocaleDirs(metadataDir)
+				localeDirs, metadataSkipped, err := scanFastlaneMetadataLocaleDirs(d, metadataDir)
 				if err != nil {
 					return fmt.Errorf("migrate import: %w", err)
 				}
 				skipped = append(skipped, metadataSkipped...)
 
-				localizations, err = readFastlaneMetadataFromLocaleDirs(metadataDir, localeDirs)
+				localizations, err = readFastlaneMetadataFromLocaleDirs(d, metadataDir, localeDirs)
 				if err != nil {
 					return fmt.Errorf("migrate import: %w", err)
 				}
-				appInfoLocs, err = readFastlaneAppInfoMetadataFromLocaleDirs(metadataDir, localeDirs)
+				appInfoLocs, err = readFastlaneAppInfoMetadataFromLocaleDirs(d, metadataDir, localeDirs)
 				if err != nil {
 					return fmt.Errorf("migrate import: %w", err)
 				}
 
-				reviewInfo, err = readFastlaneReviewInformation(metadataDir)
+				reviewInfo, err = readFastlaneReviewInformation(d, metadataDir)
 				if err != nil {
 					return fmt.Errorf("migrate import: %w", err)
 				}
 
 				var copyrightSkipped []SkippedItem
-				copyright, copyrightSkipped, err = readCopyrightFile(metadataDir)
+				copyright, copyrightSkipped, err = readCopyrightFile(d, metadataDir)
 				if err != nil {
 					return fmt.Errorf("migrate import: %w", err)
 				}
@@ -234,7 +234,7 @@ Examples:
 				}
 			}
 			var previews []PreviewLayout
-			fastlaneRoot := strings.TrimSpace(*fastlaneDir)
+			fastlaneRoot := d.OSPath(strings.TrimSpace(*fastlaneDir))
 			if fastlaneRoot == "" {
 				fastlaneRoot = workDir
 				if inputs.DeliverfilePath != "" {
@@ -273,7 +273,7 @@ Examples:
 			var screenshotPlan []ScreenshotPlan
 			var skippedScreenshots []SkippedItem
 			if screenshotsDir != "" {
-				screenshotPlan, skippedScreenshots, err = discoverScreenshotPlanForUpload(screenshotsDir)
+				screenshotPlan, skippedScreenshots, err = discoverScreenshotPlanForUpload(d, screenshotsDir)
 				if err != nil {
 					return fmt.Errorf("migrate import: %w", err)
 				}
@@ -666,7 +666,7 @@ Examples:
 			}
 
 			// Create output directory structure beneath the operator-selected root
-			root, err := newMigrateExportRoot(*outputDir)
+			root, err := newMigrateExportRoot(d.OSPath(*outputDir))
 			if err != nil {
 				return fmt.Errorf("migrate export: %w", err)
 			}
@@ -881,21 +881,21 @@ type MigrateExportResult struct {
 }
 
 // readFastlaneMetadata reads metadata from a fastlane metadata directory.
-func readFastlaneMetadata(metadataDir string) ([]FastlaneLocalization, error) {
-	localeDirs, _, err := scanFastlaneMetadataLocaleDirs(metadataDir)
+func readFastlaneMetadata(d *shared.Deps, metadataDir string) ([]FastlaneLocalization, error) {
+	localeDirs, _, err := scanFastlaneMetadataLocaleDirs(d, metadataDir)
 	if err != nil {
 		return nil, err
 	}
-	return readFastlaneMetadataFromLocaleDirs(metadataDir, localeDirs)
+	return readFastlaneMetadataFromLocaleDirs(d, metadataDir, localeDirs)
 }
 
 // readFastlaneAppInfoMetadata reads app-level metadata (name, subtitle) from fastlane structure.
-func readFastlaneAppInfoMetadata(metadataDir string) ([]AppInfoFastlaneLocalization, error) {
-	localeDirs, _, err := scanFastlaneMetadataLocaleDirs(metadataDir)
+func readFastlaneAppInfoMetadata(d *shared.Deps, metadataDir string) ([]AppInfoFastlaneLocalization, error) {
+	localeDirs, _, err := scanFastlaneMetadataLocaleDirs(d, metadataDir)
 	if err != nil {
 		return nil, err
 	}
-	return readFastlaneAppInfoMetadataFromLocaleDirs(metadataDir, localeDirs)
+	return readFastlaneAppInfoMetadataFromLocaleDirs(d, metadataDir, localeDirs)
 }
 
 // newMigrateContentRoot anchors metadata and screenshot reads for dir so
@@ -906,12 +906,12 @@ func readFastlaneAppInfoMetadata(metadataDir string) ([]AppInfoFastlaneLocalizat
 // directory so every component below it is validated; an operator-selected
 // directory outside the working directory is its own trusted root. The returned
 // prefix is the root-relative content directory.
-func newMigrateContentRoot(dir string) (rootfs.Root, string, error) {
-	absolute, err := filepath.Abs(dir)
+func newMigrateContentRoot(d *shared.Deps, dir string) (rootfs.Root, string, error) {
+	absolute, err := d.Abs(dir)
 	if err != nil {
 		return rootfs.Root{}, "", err
 	}
-	if cwd, cwdErr := os.Getwd(); cwdErr == nil {
+	if cwd, cwdErr := d.Getwd(); cwdErr == nil {
 		if root, rootErr := rootfs.New(cwd); rootErr == nil {
 			if relative, relErr := filepath.Rel(root.Path(), absolute); relErr == nil {
 				if relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
@@ -1167,8 +1167,8 @@ var appLevelMetadataFiles = map[string]string{
 
 // readCopyrightFile reads the metadata folder's copyright.txt. An empty file
 // is reported as skipped so it never clears the version's copyright.
-func readCopyrightFile(metadataDir string) (string, []SkippedItem, error) {
-	root, prefix, err := newMigrateContentRoot(metadataDir)
+func readCopyrightFile(d *shared.Deps, metadataDir string) (string, []SkippedItem, error) {
+	root, prefix, err := newMigrateContentRoot(d, metadataDir)
 	if err != nil {
 		return "", nil, err
 	}
@@ -1205,8 +1205,8 @@ var localeMetadataFiles = []string{
 	"support_url.txt", "marketing_url.txt", "name.txt", "subtitle.txt", "privacy_url.txt",
 }
 
-func scanFastlaneMetadataLocaleDirs(metadataDir string) ([]fastlaneLocaleDir, []SkippedItem, error) {
-	root, prefix, err := newMigrateContentRoot(metadataDir)
+func scanFastlaneMetadataLocaleDirs(d *shared.Deps, metadataDir string) ([]fastlaneLocaleDir, []SkippedItem, error) {
+	root, prefix, err := newMigrateContentRoot(d, metadataDir)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1362,8 +1362,8 @@ func defaultLocaleDirName(localeDirs []fastlaneLocaleDir) string {
 	return ""
 }
 
-func readFastlaneMetadataFromLocaleDirs(metadataDir string, localeDirs []fastlaneLocaleDir) ([]FastlaneLocalization, error) {
-	root, prefix, err := newMigrateContentRoot(metadataDir)
+func readFastlaneMetadataFromLocaleDirs(d *shared.Deps, metadataDir string, localeDirs []fastlaneLocaleDir) ([]FastlaneLocalization, error) {
+	root, prefix, err := newMigrateContentRoot(d, metadataDir)
 	if err != nil {
 		return nil, err
 	}
@@ -1422,8 +1422,8 @@ func readFastlaneMetadataFromLocaleDirs(metadataDir string, localeDirs []fastlan
 	return localizations, nil
 }
 
-func readFastlaneAppInfoMetadataFromLocaleDirs(metadataDir string, localeDirs []fastlaneLocaleDir) ([]AppInfoFastlaneLocalization, error) {
-	root, prefix, err := newMigrateContentRoot(metadataDir)
+func readFastlaneAppInfoMetadataFromLocaleDirs(d *shared.Deps, metadataDir string, localeDirs []fastlaneLocaleDir) ([]AppInfoFastlaneLocalization, error) {
+	root, prefix, err := newMigrateContentRoot(d, metadataDir)
 	if err != nil {
 		return nil, err
 	}
@@ -1506,7 +1506,7 @@ Examples:
 				return d.RequiredFlag("--fastlane-dir")
 			}
 
-			workDir, err := os.Getwd()
+			workDir, err := d.Getwd()
 			if err != nil {
 				return fmt.Errorf("migrate validate: %w", err)
 			}
@@ -1516,7 +1516,7 @@ Examples:
 			// checking a directory the import step never reads.
 			inputs, skipped, err := resolveImportInputs(importInputOptions{
 				WorkDir:               workDir,
-				FastlaneDir:           *fastlaneDir,
+				FastlaneDir:           d.OSPath(*fastlaneDir),
 				MetadataOnly:          true,
 				AllowExternalMetadata: *allowExternalMetadata,
 			})
@@ -1540,7 +1540,7 @@ Examples:
 			var localizations []FastlaneLocalization
 			var appInfoLocs []AppInfoFastlaneLocalization
 			if metadataDir != "" {
-				localeDirs, metadataSkipped, err := scanFastlaneMetadataLocaleDirs(metadataDir)
+				localeDirs, metadataSkipped, err := scanFastlaneMetadataLocaleDirs(d, metadataDir)
 				if err != nil {
 					if os.IsNotExist(err) {
 						return fmt.Errorf("migrate validate: metadata directory not found: %s", metadataDir)
@@ -1549,18 +1549,18 @@ Examples:
 				}
 				skipped = append(skipped, metadataSkipped...)
 
-				localizations, err = readFastlaneMetadataFromLocaleDirs(metadataDir, localeDirs)
+				localizations, err = readFastlaneMetadataFromLocaleDirs(d, metadataDir, localeDirs)
 				if err != nil {
 					return fmt.Errorf("migrate validate: %w", err)
 				}
 
 				// Read App Info metadata (name, subtitle)
-				appInfoLocs, err = readFastlaneAppInfoMetadataFromLocaleDirs(metadataDir, localeDirs)
+				appInfoLocs, err = readFastlaneAppInfoMetadataFromLocaleDirs(d, metadataDir, localeDirs)
 				if err != nil {
 					return fmt.Errorf("migrate validate: %w", err)
 				}
 
-				_, copyrightSkipped, err := readCopyrightFile(metadataDir)
+				_, copyrightSkipped, err := readCopyrightFile(d, metadataDir)
 				if err != nil {
 					return fmt.Errorf("migrate validate: %w", err)
 				}
@@ -1577,7 +1577,7 @@ Examples:
 					defer clip.Close()
 				}
 			}
-			previews, err := readPreviewLayout(*fastlaneDir)
+			previews, err := readPreviewLayout(d.OSPath(*fastlaneDir))
 			if err != nil {
 				return fmt.Errorf("migrate validate: %w", err)
 			}

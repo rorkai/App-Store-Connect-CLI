@@ -48,6 +48,7 @@ func TestCommandsResolveRelativePathsAgainstDepsWorkingDirectory(t *testing.T) {
 		args    []string
 		files   map[string]string
 		want    map[string]string
+		exist   []string
 		wantErr func(dir string) string
 	}{
 		{
@@ -94,12 +95,60 @@ func TestCommandsResolveRelativePathsAgainstDepsWorkingDirectory(t *testing.T) {
 			files:   map[string]string{"iap.json": `{"products":[]}`},
 			wantErr: func(string) string { return "the import file must contain at least one product" },
 		},
+		{
+			name:    "reviews digest",
+			args:    []string{"reviews", "digest", "--app", "app-1", "--state-file", "state.json"},
+			files:   map[string]string{"state.json": "{}"},
+			wantErr: func(string) string { return "has no valid cursor" },
+		},
+		{
+			name:  "docs init",
+			args:  []string{"docs", "init", "--path", "ASC.md", "--link=false"},
+			exist: []string{"ASC.md"},
+		},
+		{
+			name:  "certificates csr generate",
+			args:  []string{"certificates", "csr", "generate", "--key-out", "cert.key", "--csr-out", "cert.csr", "--output", "json"},
+			exist: []string{"cert.key", "cert.csr"},
+		},
+		{
+			name:    "encryption declarations exempt-declare",
+			args:    []string{"encryption", "declarations", "exempt-declare", "--plist", "Info.plist"},
+			files:   map[string]string{"Info.plist": "not a plist"},
+			wantErr: func(string) string { return "failed to decode plist" },
+		},
+		{
+			name:  "migrate validate",
+			args:  []string{"migrate", "validate", "--fastlane-dir", "fastlane"},
+			files: map[string]string{filepath.Join("fastlane", "metadata", "en-US", "name.txt"): "App"},
+		},
+		{
+			name:    "testflight testers import",
+			args:    []string{"testflight", "testers", "import", "--app", "123456789", "--input", "testers.csv", "--dry-run"},
+			files:   map[string]string{"testers.csv": ""},
+			wantErr: func(string) string { return "CSV" },
+		},
+		{
+			name:    "subscriptions pricing prices import",
+			args:    []string{"subscriptions", "pricing", "prices", "import", "--subscription-id", "SUB_ID", "--input", "prices.csv", "--dry-run"},
+			files:   map[string]string{"prices.csv": "x"},
+			wantErr: func(string) string { return `CSV header must include required column "territory"` },
+		},
+		{
+			name:    "subscriptions offers introductory import",
+			args:    []string{"subscriptions", "offers", "introductory", "import", "--subscription-id", "SUB_ID", "--input", "offers.csv", "--dry-run"},
+			files:   map[string]string{"offers.csv": "x"},
+			wantErr: func(string) string { return `unknown CSV column "x"` },
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			processDir, depsDir := t.TempDir(), t.TempDir()
 			t.Chdir(processDir)
 			for name, content := range test.files {
+				if err := os.MkdirAll(filepath.Dir(filepath.Join(depsDir, name)), 0o755); err != nil {
+					t.Fatalf("create the directory of %s: %v", name, err)
+				}
 				if err := os.WriteFile(filepath.Join(depsDir, name), []byte(content), 0o600); err != nil {
 					t.Fatalf("write %s: %v", name, err)
 				}
@@ -124,6 +173,11 @@ func TestCommandsResolveRelativePathsAgainstDepsWorkingDirectory(t *testing.T) {
 				data, err := os.ReadFile(filepath.Join(depsDir, name))
 				if err != nil || string(data) != content {
 					t.Fatalf("%s in the deps working directory = %q, %v; want the report", name, data, err)
+				}
+			}
+			for _, name := range test.exist {
+				if _, err := os.Stat(filepath.Join(depsDir, name)); err != nil {
+					t.Fatalf("%s in the deps working directory: %v", name, err)
 				}
 			}
 			if entries, err := os.ReadDir(processDir); err != nil || len(entries) != 0 {

@@ -185,7 +185,7 @@ func downloadDSYMSelection(ctx context.Context, d *shared.Deps, client *asc.Clie
 			}
 			continue
 		}
-		if err := os.MkdirAll(dirValue, 0o755); err != nil {
+		if err := os.MkdirAll(d.OSPath(dirValue), 0o755); err != nil {
 			return fmt.Errorf("builds dsyms: failed to create output directory: %w", err)
 		}
 		saved, err := saveDSYMBundles(ctx, d, downloadable, target, dirValue, selection.Multi)
@@ -342,7 +342,7 @@ func uniqueDSYMFileName(name, buildID string, used map[string]struct{}) string {
 }
 
 func saveOneDSYM(ctx context.Context, d *shared.Deps, rawURL, destPath string) (int64, string, bool, error) {
-	size, sum, exists, err := hashRegularFile(destPath)
+	size, sum, exists, err := hashRegularFile(d.OSPath(destPath))
 	if err != nil {
 		return 0, "", false, err
 	}
@@ -358,11 +358,11 @@ func saveOneDSYM(ctx context.Context, d *shared.Deps, rawURL, destPath string) (
 		}
 		return 0, "", false, fmt.Errorf("output file already exists with different content")
 	}
-	written, err := downloadDSYM(downloadCtx, d.HTTPTransport(), rawURL, destPath)
+	written, err := downloadDSYM(downloadCtx, d, rawURL, destPath)
 	if err != nil {
 		return 0, "", false, err
 	}
-	_, sum, _, err = hashRegularFile(destPath)
+	_, sum, _, err = hashRegularFile(d.OSPath(destPath))
 	if err != nil {
 		return written, "", false, err
 	}
@@ -425,7 +425,7 @@ func displayBundleID(bundleID string, index int) string {
 	return fmt.Sprintf("bundle %d", index)
 }
 
-func downloadDSYM(ctx context.Context, transport http.RoundTripper, rawURL, destPath string) (int64, error) {
+func downloadDSYM(ctx context.Context, d *shared.Deps, rawURL, destPath string) (int64, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
 		return 0, urlsanitize.NewTransportError(
@@ -435,7 +435,7 @@ func downloadDSYM(ctx context.Context, transport http.RoundTripper, rawURL, dest
 		)
 	}
 
-	resp, err := dsymHTTPClient(transport).Do(req)
+	resp, err := dsymHTTPClient(d.HTTPTransport()).Do(req)
 	if err != nil {
 		return 0, urlsanitize.NewTransportError(
 			"dSYM download request",
@@ -449,7 +449,7 @@ func downloadDSYM(ctx context.Context, transport http.RoundTripper, rawURL, dest
 		return 0, fmt.Errorf("download returned HTTP %d", resp.StatusCode)
 	}
 
-	return shared.WriteStreamToFile(destPath, resp.Body)
+	return d.WriteStreamToFile(destPath, resp.Body)
 }
 
 // dsymHTTPClient returns the client for dSYM downloads. It has no timeout of

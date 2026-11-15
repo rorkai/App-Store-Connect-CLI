@@ -70,7 +70,7 @@ func runMigrateLowFDHelper(t *testing.T) {
 		t.Fatalf("Setrlimit() error = %v", err)
 	}
 
-	plans, _, err := discoverScreenshotPlanForUpload(os.Getenv(migrateLowFDDirEnv))
+	plans, _, err := discoverScreenshotPlanForUpload(migrateTestDeps(), os.Getenv(migrateLowFDDirEnv))
 	if err != nil {
 		t.Fatalf("discoverScreenshotPlanForUpload() error = %v", err)
 	}
