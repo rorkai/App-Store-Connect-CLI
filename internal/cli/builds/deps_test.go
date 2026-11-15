@@ -9,8 +9,9 @@ import (
 )
 
 // newBuildsTestDeps returns deps that write to buffers and take their client
-// from client, with the process clock and timeouts.
-func newBuildsTestDeps(client func() (*asc.Client, error)) (*shared.Deps, *bytes.Buffer, *bytes.Buffer) {
+// from client, with the process clock and timeouts. It returns the stderr
+// buffer.
+func newBuildsTestDeps(client func() (*asc.Client, error)) (*shared.Deps, *bytes.Buffer) {
 	var stdout, stderr bytes.Buffer
 	return &shared.Deps{
 		Client:        client,
@@ -18,5 +19,5 @@ func newBuildsTestDeps(client func() (*asc.Client, error)) (*shared.Deps, *bytes
 		Now:           time.Now,
 		Timeout:       shared.ContextWithTimeout,
 		UploadTimeout: shared.ContextWithUploadTimeout,
-	}, &stdout, &stderr
+	}, &stderr
 }

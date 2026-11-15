@@ -14,7 +14,7 @@ func TestBuildsCountCommand_MissingApp(t *testing.T) {
 	isolateBuildsAuthEnv(t)
 	t.Setenv("ASC_APP_ID", "")
 
-	d, _, _ := newBuildsTestDeps(nil)
+	d, _ := newBuildsTestDeps(nil)
 	cmd := newBuildsCountCommand(d)
 
 	if err := cmd.FlagSet.Parse([]string{}); err != nil {
@@ -30,7 +30,7 @@ func TestBuildsCountCommand_MissingApp(t *testing.T) {
 func TestBuildsCountCommand_InvalidProcessingState(t *testing.T) {
 	isolateBuildsAuthEnv(t)
 
-	d, _, _ := newBuildsTestDeps(nil)
+	d, _ := newBuildsTestDeps(nil)
 	cmd := newBuildsCountCommand(d)
 
 	if err := cmd.FlagSet.Parse([]string{"--app", "123456789", "--processing-state", "INVALID_STATE"}); err != nil {
@@ -52,7 +52,7 @@ func TestBuildsCountCommand_InvalidProcessingState(t *testing.T) {
 func TestBuildsCountCommand_InvalidPlatform(t *testing.T) {
 	isolateBuildsAuthEnv(t)
 
-	d, _, _ := newBuildsTestDeps(nil)
+	d, _ := newBuildsTestDeps(nil)
 	cmd := newBuildsCountCommand(d)
 
 	if err := cmd.FlagSet.Parse([]string{"--app", "123456789", "--platform", "NOT_A_PLATFORM"}); err != nil {
@@ -69,7 +69,7 @@ func TestBuildsCountCommand_UsesAppIDEnv(t *testing.T) {
 	isolateBuildsAuthEnv(t)
 	t.Setenv("ASC_APP_ID", "env-app-id")
 
-	d, _, _ := newBuildsTestDeps(func() (*asc.Client, error) { return nil, errors.New("no credentials") })
+	d, _ := newBuildsTestDeps(func() (*asc.Client, error) { return nil, errors.New("no credentials") })
 	cmd := newBuildsCountCommand(d)
 
 	if err := cmd.FlagSet.Parse([]string{}); err != nil {
@@ -83,7 +83,7 @@ func TestBuildsCountCommand_UsesAppIDEnv(t *testing.T) {
 }
 
 func TestBuildsCountCommand_FlagsExist(t *testing.T) {
-	d, _, _ := newBuildsTestDeps(nil)
+	d, _ := newBuildsTestDeps(nil)
 	cmd := newBuildsCountCommand(d)
 
 	required := []string{"app", "version", "build-number", "platform", "processing-state", "exclude-expired", "not-expired", "output"}
@@ -95,7 +95,7 @@ func TestBuildsCountCommand_FlagsExist(t *testing.T) {
 }
 
 func TestBuildsCountCommand_NoLimitFlag(t *testing.T) {
-	d, _, _ := newBuildsTestDeps(nil)
+	d, _ := newBuildsTestDeps(nil)
 	cmd := newBuildsCountCommand(d)
 
 	if cmd.FlagSet.Lookup("limit") != nil {
@@ -104,7 +104,7 @@ func TestBuildsCountCommand_NoLimitFlag(t *testing.T) {
 }
 
 func TestBuildsCountCommand_NoPaginateFlag(t *testing.T) {
-	d, _, _ := newBuildsTestDeps(nil)
+	d, _ := newBuildsTestDeps(nil)
 	cmd := newBuildsCountCommand(d)
 
 	if cmd.FlagSet.Lookup("paginate") != nil {
@@ -130,7 +130,7 @@ func TestCountBuildsViaPaginationCountsEachPage(t *testing.T) {
 	}
 
 	nextCalls := 0
-	d, _, _ := newBuildsTestDeps(nil)
+	d, _ := newBuildsTestDeps(nil)
 	total, err := countBuildsViaPagination(
 		context.Background(),
 		d,

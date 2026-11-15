@@ -15,7 +15,7 @@ import (
 )
 
 func TestBuildsListCommand_VersionAndBuildNumberDescriptions(t *testing.T) {
-	d, _, _ := newBuildsTestDeps(nil)
+	d, _ := newBuildsTestDeps(nil)
 	cmd := newBuildsListCommand(d)
 
 	versionFlag := cmd.FlagSet.Lookup("version")
@@ -55,7 +55,7 @@ func TestBuildsAddGroupsCommandDryRunHelpDescribesNoMutation(t *testing.T) {
 }
 
 func TestBuildsListCommand_HelpMentionsCombinedFilters(t *testing.T) {
-	d, _, _ := newBuildsTestDeps(nil)
+	d, _ := newBuildsTestDeps(nil)
 	cmd := newBuildsListCommand(d)
 	if !strings.Contains(cmd.LongHelp, `--version "1.2.3" --build-number "123"`) {
 		t.Fatalf("expected long help to include combined version/build-number example, got %q", cmd.LongHelp)
@@ -63,7 +63,7 @@ func TestBuildsListCommand_HelpMentionsCombinedFilters(t *testing.T) {
 }
 
 func TestBuildsListQueryFlagsAreRegistered(t *testing.T) {
-	d, _, _ := newBuildsTestDeps(nil)
+	d, _ := newBuildsTestDeps(nil)
 	for _, test := range []struct {
 		name string
 		cmd  *ffcli.Command
@@ -83,7 +83,7 @@ func TestBuildsListQueryFlagsAreRegistered(t *testing.T) {
 }
 
 func TestBuildsUploadCommand_HelpShowsConcurrencyDefaultOnce(t *testing.T) {
-	d, _, _ := newBuildsTestDeps(nil)
+	d, _ := newBuildsTestDeps(nil)
 	cmd := newBuildsUploadCommand(d)
 	usage := cmd.UsageFunc(cmd)
 
@@ -107,7 +107,7 @@ func TestBuildsUploadCommand_HelpShowsConcurrencyDefaultOnce(t *testing.T) {
 }
 
 func TestBuildsUploadCommandHasExplicitSensitiveOutputOptIn(t *testing.T) {
-	d, _, _ := newBuildsTestDeps(nil)
+	d, _ := newBuildsTestDeps(nil)
 	cmd := newBuildsUploadCommand(d)
 	flag := cmd.FlagSet.Lookup("include-sensitive")
 	if flag == nil {
@@ -119,7 +119,7 @@ func TestBuildsUploadCommandHasExplicitSensitiveOutputOptIn(t *testing.T) {
 }
 
 func TestBuildsUploadCommandAppHelpDescribesExactIPAIdentityLookup(t *testing.T) {
-	d, _, _ := newBuildsTestDeps(nil)
+	d, _ := newBuildsTestDeps(nil)
 	cmd := newBuildsUploadCommand(d)
 	appFlag := cmd.FlagSet.Lookup("app")
 	if appFlag == nil {
@@ -133,7 +133,7 @@ func TestBuildsUploadCommandAppHelpDescribesExactIPAIdentityLookup(t *testing.T)
 }
 
 func TestBuildsUploadCommandTestNotesHelpDescribesDiscoveryOnlyWait(t *testing.T) {
-	d, _, _ := newBuildsTestDeps(nil)
+	d, _ := newBuildsTestDeps(nil)
 	cmd := newBuildsUploadCommand(d)
 	testNotesFlag := cmd.FlagSet.Lookup("test-notes")
 	if testNotesFlag == nil {
@@ -148,7 +148,7 @@ func TestBuildsUploadCommandTestNotesHelpDescribesDiscoveryOnlyWait(t *testing.T
 }
 
 func TestBuildsListCommand_ProcessingStateFlagDescription(t *testing.T) {
-	d, _, _ := newBuildsTestDeps(nil)
+	d, _ := newBuildsTestDeps(nil)
 	cmd := newBuildsListCommand(d)
 
 	processingStateFlag := cmd.FlagSet.Lookup("processing-state")
@@ -162,7 +162,7 @@ func TestBuildsListCommand_ProcessingStateFlagDescription(t *testing.T) {
 }
 
 func TestBuildsListCommand_ExcludeExpiredFlagsExist(t *testing.T) {
-	d, _, _ := newBuildsTestDeps(nil)
+	d, _ := newBuildsTestDeps(nil)
 	cmd := newBuildsListCommand(d)
 
 	excludeExpiredFlag := cmd.FlagSet.Lookup("exclude-expired")
@@ -222,7 +222,7 @@ func TestNormalizeBuildProcessingStateFilter(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			d, _, _ := newBuildsTestDeps(nil)
+			d, _ := newBuildsTestDeps(nil)
 			got, err := normalizeBuildProcessingStateFilter(d, test.input)
 			if test.wantErr {
 				if err == nil {
