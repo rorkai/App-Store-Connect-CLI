@@ -189,7 +189,7 @@ func runCertificateExport(_ context.Context, d *shared.Deps, opts certificateExp
 	// Pin the destination parent before any input is read so the validated
 	// directory chain cannot be swapped for a symlink while inputs are parsed
 	// or the PKCS#12 is encoded. Publication happens through this handle.
-	outputParent, outputBase, err := pinCertificateExportDestination(p12Out)
+	outputParent, outputBase, err := pinCertificateExportDestination(d, p12Out)
 	if err != nil {
 		return nil, err
 	}
@@ -330,16 +330,16 @@ func isCertificateExportDirectoryPath(path string) bool {
 }
 
 func preflightCertificateExportDestination(d *shared.Deps, output string, force bool, inputs ...string) error {
-	outputAbs, err := filepath.Abs(output)
+	outputAbs, err := d.Abs(output)
 	if err != nil {
 		return fmt.Errorf("resolve --p12-out: %w", err)
 	}
 	outputAbs = filepath.Clean(outputAbs)
-	if err := rejectCertificateExportSymlinkedParent(outputAbs); err != nil {
+	if err := rejectCertificateExportSymlinkedParent(d, outputAbs); err != nil {
 		return err
 	}
 	for _, input := range inputs {
-		inputAbs, absErr := filepath.Abs(input)
+		inputAbs, absErr := d.Abs(input)
 		if absErr != nil {
 			return fmt.Errorf("resolve input path: %w", absErr)
 		}
@@ -384,8 +384,8 @@ func preflightCertificateExportDestination(d *shared.Deps, output string, force 
 // parents through a selected, anchored no-follow traversal before any input is
 // read. Components below the first missing parent do not exist yet; the
 // pinned write-time walk creates them.
-func rejectCertificateExportSymlinkedParent(output string) error {
-	parent, err := openCertificateExportDestinationParent(output, false)
+func rejectCertificateExportSymlinkedParent(d *shared.Deps, output string) error {
+	parent, err := openCertificateExportDestinationParent(d, output, false)
 	if err != nil {
 		return err
 	}
@@ -400,13 +400,13 @@ func rejectCertificateExportSymlinkedParent(output string) error {
 // components through the pinned roots. The returned root is held from before
 // the first input read until publication so a concurrent swap of a checked
 // parent cannot redirect where the identity is written.
-func pinCertificateExportDestination(output string) (*os.Root, string, error) {
-	outputAbs, err := filepath.Abs(output)
+func pinCertificateExportDestination(d *shared.Deps, output string) (*os.Root, string, error) {
+	outputAbs, err := d.Abs(output)
 	if err != nil {
 		return nil, "", fmt.Errorf("resolve --p12-out: %w", err)
 	}
 	outputAbs = filepath.Clean(outputAbs)
-	parent, err := openCertificateExportDestinationParent(outputAbs, true)
+	parent, err := openCertificateExportDestinationParent(d, outputAbs, true)
 	if err != nil {
 		return nil, "", err
 	}
@@ -423,12 +423,13 @@ func pinCertificateExportDestination(output string) (*os.Root, string, error) {
 // pinned traversal so no path-based MkdirAll can be redirected by a concurrent
 // symlink swap. The final output entry is checked separately by
 // preflightCertificateExportDestination and the rooted writer.
-func openCertificateExportDestinationParent(output string, createMissing bool) (*os.Root, error) {
+func openCertificateExportDestinationParent(d *shared.Deps, output string, createMissing bool) (*os.Root, error) {
 	output = certificateExportRootPath(output)
 	volumeRoot := filepath.VolumeName(output) + string(filepath.Separator)
 	rootPath := volumeRoot
-	for _, candidate := range []string{certificateExportWorkingDirectory(), os.TempDir()} {
-		candidateAbs, err := filepath.Abs(candidate)
+	workingDirectory, _ := d.Getwd()
+	for _, candidate := range []string{workingDirectory, os.TempDir()} {
+		candidateAbs, err := d.Abs(candidate)
 		if err != nil {
 			continue
 		}
@@ -539,14 +540,6 @@ func verifyCertificateExportDescent(parent *os.Root, component string, opened *o
 		return fmt.Errorf("--p12-out parent %q changed during inspection", componentPath)
 	}
 	return nil
-}
-
-func certificateExportWorkingDirectory() string {
-	workingDirectory, err := os.Getwd()
-	if err != nil {
-		return ""
-	}
-	return workingDirectory
 }
 
 func certificateExportPathWithinRoot(root, path string) bool {

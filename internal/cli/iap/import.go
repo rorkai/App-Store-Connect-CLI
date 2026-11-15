@@ -169,7 +169,7 @@ Examples:
 // anchored at the file's own directory, so neither the document nor any
 // screenshot it names can select a file outside the operator-selected tree.
 func loadIAPImportPlan(d *shared.Deps, path string) (rootfs.Root, []iapImportPlannedProduct, error) {
-	absolute, err := filepath.Abs(path)
+	absolute, err := d.Abs(path)
 	if err != nil {
 		return rootfs.Root{}, nil, d.UsageErrorf("iap import: resolve --file %q: %v", path, err)
 	}

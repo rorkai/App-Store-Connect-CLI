@@ -2,7 +2,6 @@ package testflight
 
 import (
 	"context"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -10,6 +9,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 type testFlightSyncStub struct {
@@ -382,32 +382,18 @@ func TestPullTestFlightConfig_BuildFilterAlsoFiltersBuildDetails(t *testing.T) {
 
 func TestResolveTestFlightOutputPath(t *testing.T) {
 	cwd := t.TempDir()
-	original, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Getwd() error: %v", err)
-	}
-	if err := os.Chdir(cwd); err != nil {
-		t.Fatalf("Chdir() error: %v", err)
-	}
-	t.Cleanup(func() {
-		_ = os.Chdir(original)
-	})
+	d := &shared.Deps{Getwd: func() (string, error) { return cwd, nil }}
 
-	got, err := resolveTestFlightOutputPath("configs/testflight.yaml")
+	got, err := resolveTestFlightOutputPath(d, "configs/testflight.yaml")
 	if err != nil {
 		t.Fatalf("resolveTestFlightOutputPath() error: %v", err)
 	}
-	// Resolve symlinks on cwd to match the resolved output path (macOS /var -> /private/var)
-	cwdResolved, err := filepath.EvalSymlinks(cwd)
-	if err != nil {
-		t.Fatalf("EvalSymlinks() error: %v", err)
-	}
-	want := filepath.Join(cwdResolved, "configs", "testflight.yaml")
+	want := filepath.Join(cwd, "configs", "testflight.yaml")
 	if got != want {
 		t.Fatalf("expected %q, got %q", want, got)
 	}
 
-	if _, err := resolveTestFlightOutputPath("../outside.yaml"); err == nil {
+	if _, err := resolveTestFlightOutputPath(d, "../outside.yaml"); err == nil {
 		t.Fatalf("expected traversal error")
 	}
 }

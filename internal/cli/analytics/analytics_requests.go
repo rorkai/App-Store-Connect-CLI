@@ -644,7 +644,7 @@ Examples:
 
 			var decompressedSize int64
 			if *decompress {
-				decompressedSize, err = shared.DecompressGzipFile(compressedPath, decompressedPath)
+				decompressedSize, err = d.DecompressGzipFile(compressedPath, decompressedPath)
 				if err != nil {
 					return fmt.Errorf("analytics download: %w", err)
 				}

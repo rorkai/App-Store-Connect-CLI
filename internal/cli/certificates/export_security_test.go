@@ -456,7 +456,7 @@ func TestOpenCertificateExportDestinationParentAllowsDarwinPrivateAliases(t *tes
 	for _, alias := range []string{"/tmp", "/var"} {
 		t.Run(filepath.Base(alias), func(t *testing.T) {
 			output := filepath.Join(alias, "asc-certificate-export-alias-test.p12")
-			parent, err := openCertificateExportDestinationParent(output, false)
+			parent, err := openCertificateExportDestinationParent(certificatesTestDeps(nil), output, false)
 			if err != nil {
 				t.Fatalf("openCertificateExportDestinationParent(%q) error = %v, want known macOS alias accepted", output, err)
 			}
@@ -467,5 +467,41 @@ func TestOpenCertificateExportDestinationParentAllowsDarwinPrivateAliases(t *tes
 				t.Fatalf("close rooted alias parent: %v", err)
 			}
 		})
+	}
+}
+
+func TestRunCertificateExportAnchorsDestinationAtDepsWorkingDirectory(t *testing.T) {
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatalf("resolve temporary directory: %v", err)
+	}
+	artifacts := newCertificateExportTestArtifacts(t, time.Now().Add(-time.Hour), time.Now().Add(time.Hour))
+	certificatePath := filepath.Join(dir, "push.cer")
+	privateKeyPath := filepath.Join(dir, "push.key")
+	passwordPath := filepath.Join(dir, "password")
+	writeCertificateExportTestFiles(t, certificatePath, privateKeyPath, "", passwordPath, artifacts, []byte("password"))
+	realDir := filepath.Join(dir, "real")
+	if err := os.Mkdir(realDir, 0o700); err != nil {
+		t.Fatalf("create directory: %v", err)
+	}
+	workingDir := filepath.Join(dir, "link")
+	if err := os.Symlink(realDir, workingDir); err != nil {
+		t.Skipf("create symlink: %v", err)
+	}
+	options := certificateExportOptions{
+		CertificatePath: certificatePath,
+		PrivateKeyPath:  privateKeyPath,
+		PasswordPath:    passwordPath,
+		P12Out:          "push.p12",
+	}
+	t.Chdir(t.TempDir())
+
+	d := certificatesTestDeps(nil)
+	d.Getwd = func() (string, error) { return workingDir, nil }
+	if _, err := runCertificateExport(context.TODO(), d, options); err != nil {
+		t.Fatalf("runCertificateExport() with the destination's parent as working directory error = %v, want it anchored there", err)
+	}
+	if info, err := os.Lstat(filepath.Join(realDir, "push.p12")); err != nil || !info.Mode().IsRegular() {
+		t.Fatalf("p12 output = %v, %v; want a regular file", info, err)
 	}
 }

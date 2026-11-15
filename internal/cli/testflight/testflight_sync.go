@@ -160,7 +160,7 @@ Examples:
 				return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticConflictingInput, "--tester")
 			}
 
-			resolvedOutputPath, err := resolveTestFlightOutputPath(outputValue)
+			resolvedOutputPath, err := resolveTestFlightOutputPath(d, outputValue)
 			if err != nil {
 				return fmt.Errorf("testflight sync pull: %w", err)
 			}
@@ -732,7 +732,7 @@ func formatTesterName(firstName, lastName string) string {
 	}
 }
 
-func resolveTestFlightOutputPath(outputPath string) (string, error) {
+func resolveTestFlightOutputPath(d *shared.Deps, outputPath string) (string, error) {
 	trimmed := strings.TrimSpace(outputPath)
 	if trimmed == "" {
 		return "", fmt.Errorf("output path is required")
@@ -741,7 +741,7 @@ func resolveTestFlightOutputPath(outputPath string) (string, error) {
 		return "", fmt.Errorf("output path must be a file")
 	}
 
-	cwd, err := os.Getwd()
+	cwd, err := d.Getwd()
 	if err != nil {
 		return "", fmt.Errorf("resolve output path: %w", err)
 	}

@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 )
 
@@ -71,9 +72,9 @@ func TestPrepareRoutingCoverageFileFingerprintsValidatedSnapshot(t *testing.T) {
 	if err := os.WriteFile(path, []byte(originalContent), 0o600); err != nil {
 		t.Fatalf("write fixture: %v", err)
 	}
-	t.Chdir(root)
+	d := &shared.Deps{Getwd: func() (string, error) { return root, nil }}
 
-	prepared, err := prepareRoutingCoverageFile(path, func(reader io.Reader, algorithm asc.ChecksumAlgorithm) (*asc.Checksum, error) {
+	prepared, err := prepareRoutingCoverageFile(d, path, func(reader io.Reader, algorithm asc.ChecksumAlgorithm) (*asc.Checksum, error) {
 		if err := os.WriteFile(path, []byte(changedContent), 0o600); err != nil {
 			return nil, err
 		}
@@ -319,5 +320,33 @@ func TestVerifyPreparedRoutingCoverageSourceRejectsAppendDuringChecksum(t *testi
 	})
 	if err == nil || !strings.Contains(err.Error(), "file changed after validation") {
 		t.Fatalf("verifyPreparedRoutingCoverageSourceWithChecksum() error = %v, want changed-file diagnostic", err)
+	}
+}
+
+func TestPrepareRoutingCoverageFileResolvesAgainstDepsWorkingDirectory(t *testing.T) {
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatalf("resolve temporary directory: %v", err)
+	}
+	realDir := filepath.Join(dir, "real")
+	if err := os.Mkdir(realDir, 0o700); err != nil {
+		t.Fatalf("create directory: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(realDir, "coverage.geojson"), []byte(validRoutingCoverageGeoJSON), 0o600); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+	workingDir := filepath.Join(dir, "link")
+	if err := os.Symlink(realDir, workingDir); err != nil {
+		t.Skipf("symlinks are unavailable: %v", err)
+	}
+	t.Chdir(t.TempDir())
+	d := &shared.Deps{Getwd: func() (string, error) { return workingDir, nil }}
+
+	prepared, err := prepareRoutingCoverageFile(d, "coverage.geojson", asc.ComputeChecksumFromReader)
+	if err != nil {
+		t.Fatalf("prepareRoutingCoverageFile() error: %v", err)
+	}
+	if want := filepath.Join(workingDir, "coverage.geojson"); prepared.Path != want {
+		t.Fatalf("prepared path = %q, want %q", prepared.Path, want)
 	}
 }
