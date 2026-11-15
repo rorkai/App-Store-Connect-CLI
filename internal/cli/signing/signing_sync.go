@@ -280,7 +280,7 @@ func syncPushCommand() *ffcli.Command {
 			if err := validateSigningSyncLifecycleFlags(profType, storageSelection.kind, *deviceIDs, *renewExpired, *forceForNewDevices, *includeMacInProfiles); err != nil {
 				return err
 			}
-			if err := rejectDeviceWithoutCreateMissing(*deviceIDs, *createMissing || *renewExpired || *forceForNewDevices); err != nil {
+			if err := rejectDeviceWithoutCreateMissing(shared.DefaultDeps(), *deviceIDs, *createMissing || *renewExpired || *forceForNewDevices); err != nil {
 				return err
 			}
 			if *createMissing && !*forceForNewDevices && isDevelopmentProfile(profType) && strings.TrimSpace(*deviceIDs) == "" {

@@ -41,16 +41,15 @@ var signingFetchNowFn = time.Now
 
 // rejectDeviceWithoutCreateMissing fails before any App Store Connect call when
 // device IDs were supplied but could never be applied.
-func rejectDeviceWithoutCreateMissing(deviceIDs string, createMissing bool) error {
+func rejectDeviceWithoutCreateMissing(d *shared.Deps, deviceIDs string, createMissing bool) error {
 	if !createMissing && strings.TrimSpace(deviceIDs) != "" {
-		return shared.UsageError(deviceWithoutCreateMissingError)
+		return d.UsageError(deviceWithoutCreateMissingError)
 	}
 	return nil
 }
 
-// SigningFetchCommand returns the signing fetch subcommand.
-func SigningFetchCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("fetch", flag.ExitOnError)
+func newSigningFetchCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("fetch", flag.ExitOnError)
 
 	appID := shared.BindResourceIDFlag(fs, "app", "apps", "App Store Connect app ID (optional); when set, --bundle-id must be this app's bundle ID")
 	bundleID := fs.String("bundle-id", "", "Bundle identifier (e.g., com.example.app) - required")
@@ -72,7 +71,7 @@ func SigningFetchCommand() *ffcli.Command {
 	p12Out := fs.String("p12-out", "", "PKCS#12 output path (default: <output>/<type>.p12)")
 	p12Encoding := fs.String("p12-encoding", string(shared.PKCS12EncodingModern), shared.PKCS12EncodingFlagUsage+" (requires --create-missing-certificate)")
 	force := fs.Bool("force", false, "Replace existing key, CSR, and p12 output files")
-	output := shared.BindOutputFlagsWith(fs, "format", shared.DefaultOutputFormat(), "Output format for metadata: json, table, markdown")
+	output := shared.BindOutputFlagsWith(fs, "format", d.DefaultOutputFormat(), "Output format for metadata: json, table, markdown")
 
 	return &ffcli.Command{
 		Name:       "fetch",
@@ -130,27 +129,27 @@ Examples:
   asc signing fetch --bundle-id com.example.app --profile-type IOS_APP_STORE --delete-stale-profiles --dry-run
   asc signing fetch --bundle-id com.example.app --profile-type IOS_APP_STORE --delete-stale-profiles --confirm --create-missing`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) (runErr error) {
-			if err := shared.RejectOutputFormatAsPath(*outputPath, "--format"); err != nil {
+			if err := d.RejectOutputFormatAsPath(*outputPath, "--format"); err != nil {
 				return err
 			}
 			bundle := strings.TrimSpace(*bundleID)
 			if bundle == "" {
-				return shared.RequiredFlag("--bundle-id")
+				return d.RequiredFlag("--bundle-id")
 			}
 
 			profType := strings.TrimSpace(*profileType)
 			if profType == "" {
-				return shared.RequiredFlag("--profile-type")
+				return d.RequiredFlag("--profile-type")
 			}
 			profType = strings.ToUpper(profType)
 			if *matchExtensions && *strictMatch {
-				return shared.UsageError("--match-extensions and --strict-match-identifier are mutually exclusive")
+				return d.UsageError("--match-extensions and --strict-match-identifier are mutually exclusive")
 			}
 			if *matchExtensions && *createMissingCertificate {
 				const message = "--match-extensions cannot be combined with --create-missing-certificate; create the certificate with a single-bundle fetch first"
-				return shared.UsageError(message)
+				return d.UsageError(message)
 			}
 			if !*deleteStale {
 				for _, dependent := range []struct {
@@ -159,13 +158,13 @@ Examples:
 				}{{"--confirm", *confirm}, {"--dry-run", *dryRun}} {
 					if dependent.set {
 						message := dependent.name + " requires --delete-stale-profiles"
-						fmt.Fprintln(os.Stderr, "Error: "+message)
+						fmt.Fprintln(d.IO.ErrOut, "Error: "+message)
 						return shared.NewReportedUsageError(shared.UsageErrorInvalidValue, message)
 					}
 				}
 			}
 			if *deleteStale && !*confirm && !*dryRun {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required with --delete-stale-profiles")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --confirm is required with --delete-stale-profiles")
 				return shared.MissingRequiredUsageError("--confirm")
 			}
 			if *deleteStale {
@@ -173,26 +172,26 @@ Examples:
 				// later fetch fail deterministically is rejected before them.
 				if _, err := resolveSigningCertificateTypes(profType, *certType); err != nil {
 					message := fmt.Sprintf("--delete-stale-profiles: %v", err)
-					fmt.Fprintln(os.Stderr, "Error: "+message)
+					fmt.Fprintln(d.IO.ErrOut, "Error: "+message)
 					return shared.NewReportedUsageError(shared.UsageErrorInvalidValue, message)
 				}
 			}
-			if err := rejectDeviceWithoutCreateMissing(*deviceIDs, *createMissing); err != nil {
+			if err := rejectDeviceWithoutCreateMissing(d, *deviceIDs, *createMissing); err != nil {
 				return err
 			}
 			if *allDevices {
 				if !*createMissing {
-					return shared.UsageError("--all-devices requires --create-missing because devices are only applied to profiles this command creates")
+					return d.UsageError("--all-devices requires --create-missing because devices are only applied to profiles this command creates")
 				}
 				if !isDeviceProfileType(profType) {
-					return shared.UsageErrorf("--all-devices requires a development or ad hoc profile type; %s profiles have no device list", profType)
+					return d.UsageErrorf("--all-devices requires a development or ad hoc profile type; %s profiles have no device list", profType)
 				}
 				if strings.TrimSpace(*deviceIDs) != "" {
-					return shared.UsageError("--all-devices and --device are mutually exclusive")
+					return d.UsageError("--all-devices and --device are mutually exclusive")
 				}
 			}
 			if *createMissingCertificate && !*createMissing {
-				return shared.UsageError("--create-missing-certificate requires --create-missing")
+				return d.UsageError("--create-missing-certificate requires --create-missing")
 			}
 			p12EncodingSet := false
 			fs.Visit(func(f *flag.Flag) {
@@ -201,17 +200,17 @@ Examples:
 				}
 			})
 			if p12EncodingSet && !*createMissingCertificate {
-				return shared.UsageError("--p12-encoding requires --create-missing-certificate")
+				return d.UsageError("--p12-encoding requires --create-missing-certificate")
 			}
 			encoding, err := shared.ParsePKCS12Encoding(*p12Encoding)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			if *createMissingCertificate && strings.TrimSpace(*identityPasswordFile) == "" {
-				return shared.RequiredFlag("--identity-password-file")
+				return d.RequiredFlag("--identity-password-file")
 			}
 			if *createMissing && isDevelopmentProfile(profType) && strings.TrimSpace(*deviceIDs) == "" && !*allDevices {
-				fmt.Fprintln(os.Stderr, "Error: --device or --all-devices is required for development and ad hoc profiles")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --device or --all-devices is required for development and ad hoc profiles")
 				return shared.MissingRequiredUsageError("--device")
 			}
 
@@ -257,7 +256,7 @@ Examples:
 			emitted := false
 			emit := func() error {
 				emitted = true
-				return shared.PrintOutput(result, *output.Output, *output.Pretty)
+				return d.PrintOutput(result, *output.Output, *output.Pretty)
 			}
 			// Stale-profile deletions are irreversible, so their receipt is
 			// printed even when a later step of the fetch fails.
@@ -268,12 +267,12 @@ Examples:
 				_ = emit()
 			}()
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("signing fetch: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			// Only an explicit --app is cross-checked. The ASC_APP_ID or config
@@ -295,7 +294,7 @@ Examples:
 				return fmt.Errorf("signing fetch: %w", err)
 			}
 			if len(bundleIDs) > 1 {
-				batch, batchErr := fetchMatchedSigningBundles(ctx, client, bundleIDs, matchedSigningFetchOptions{
+				batch, batchErr := fetchMatchedSigningBundles(ctx, d, client, bundleIDs, matchedSigningFetchOptions{
 					ProfileType:     profType,
 					OutputDir:       outputDir,
 					CertificateType: *certType,
@@ -307,9 +306,9 @@ Examples:
 					PrepareOutput:   prepareOutputDir,
 				})
 				if *dryRun {
-					fmt.Fprintf(os.Stderr, "Dry run: would delete %d stale profile(s) across %d bundle ID(s); nothing was deleted, created, or written\n", batchStalePlanned(batch), len(bundleIDs))
+					fmt.Fprintf(d.IO.ErrOut, "Dry run: would delete %d stale profile(s) across %d bundle ID(s); nothing was deleted, created, or written\n", batchStalePlanned(batch), len(bundleIDs))
 				}
-				if err := shared.PrintOutput(batch, *output.Output, *output.Pretty); err != nil {
+				if err := d.PrintOutput(batch, *output.Output, *output.Pretty); err != nil {
 					return err
 				}
 				return batchErr
@@ -328,7 +327,7 @@ Examples:
 					Deleted: []asc.SigningStaleProfile{},
 				}
 				if *dryRun {
-					fmt.Fprintf(os.Stderr, "Dry run: would delete %d stale profile(s); nothing was deleted, created, or written\n", len(planned))
+					fmt.Fprintf(d.IO.ErrOut, "Dry run: would delete %d stale profile(s); nothing was deleted, created, or written\n", len(planned))
 					return emit()
 				}
 				// The output directory is the one deterministic local check that
@@ -533,6 +532,7 @@ type writtenSigningFile struct {
 // certificate an earlier target already wrote.
 func fetchMatchedSigningBundles(
 	ctx context.Context,
+	d *shared.Deps,
 	client *asc.Client,
 	bundleIDs []asc.Resource[asc.BundleIDAttributes],
 	opts matchedSigningFetchOptions,
@@ -549,7 +549,7 @@ func fetchMatchedSigningBundles(
 
 	stale := make([]*asc.SigningFetchStaleProfiles, len(bundleIDs))
 	if opts.DeleteStale {
-		done, err := deleteMatchedStaleProfiles(ctx, client, bundleIDs, identifiers, opts, stale, batch)
+		done, err := deleteMatchedStaleProfiles(ctx, d, client, bundleIDs, identifiers, opts, stale, batch)
 		if done || err != nil {
 			return batch, err
 		}
@@ -557,7 +557,7 @@ func fetchMatchedSigningBundles(
 
 	writtenCertificates := make(map[string]string)
 	for i, item := range bundleIDs {
-		result, err := fetchMatchedSigningBundle(ctx, client, item, identifiers[i], opts, writtenCertificates)
+		result, err := fetchMatchedSigningBundle(ctx, d, client, item, identifiers[i], opts, writtenCertificates)
 		if err != nil {
 			failure := asc.SigningFetchBatchFailure{BundleID: identifiers[i], Error: err.Error(), StaleProfiles: stale[i]}
 			if result != nil {
@@ -583,6 +583,7 @@ func fetchMatchedSigningBundles(
 // done reports that the batch is complete and must not continue to fetch.
 func deleteMatchedStaleProfiles(
 	ctx context.Context,
+	d *shared.Deps,
 	client *asc.Client,
 	bundleIDs []asc.Resource[asc.BundleIDAttributes],
 	identifiers []string,
@@ -591,7 +592,7 @@ func deleteMatchedStaleProfiles(
 	batch *asc.SigningFetchBatchResult,
 ) (bool, error) {
 	for i, item := range bundleIDs {
-		planCtx, cancel := shared.ContextWithTimeout(ctx)
+		planCtx, cancel := d.Timeout(ctx)
 		planned, err := findStaleSigningProfiles(planCtx, client, item.ID, opts.ProfileType)
 		cancel()
 		if err != nil {
@@ -625,7 +626,7 @@ func deleteMatchedStaleProfiles(
 	}
 	failed, planned := 0, 0
 	for i := range bundleIDs {
-		deleteCtx, cancel := shared.ContextWithTimeout(ctx)
+		deleteCtx, cancel := d.Timeout(ctx)
 		deleteStaleSigningProfiles(deleteCtx, client, stale[i])
 		cancel()
 		failed += len(stale[i].Failed)
@@ -656,13 +657,14 @@ func batchStalePlanned(batch *asc.SigningFetchBatchResult) int {
 
 func fetchMatchedSigningBundle(
 	ctx context.Context,
+	d *shared.Deps,
 	client *asc.Client,
 	item asc.Resource[asc.BundleIDAttributes],
 	identifier string,
 	opts matchedSigningFetchOptions,
 	writtenCertificates map[string]string,
 ) (*asc.SigningFetchResult, error) {
-	requestCtx, cancel := shared.ContextWithTimeout(ctx)
+	requestCtx, cancel := d.Timeout(ctx)
 	defer cancel()
 
 	// Certificates written for an earlier target are reused, so only the

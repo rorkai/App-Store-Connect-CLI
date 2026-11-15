@@ -340,6 +340,7 @@ func TestSelfLinkCoverageAppFlagsSendExtractedID(t *testing.T) {
 			args:     []string{"signing", "fetch", "--app", appLink, "--bundle-id", "com.example.app", "--profile-type", "IOS_APP_STORE"},
 			request:  asctest.GET("/v1/apps/123456789"),
 			wantPath: "GET /v1/apps/123456789",
+			deps:     true,
 		},
 		{
 			name:     "app-setup info set",
@@ -545,7 +546,7 @@ func TestSelfLinkCoverageRejectsWrongType(t *testing.T) {
 		{args: []string{"versions", "phased-release", "update"}, flag: "id", wantType: "appStoreVersionPhasedReleases", deps: true},
 		// --app flags that bypassed the shared app resolver.
 		{args: []string{"performance", "download"}, flag: "app", wantType: "apps", deps: true},
-		{args: []string{"signing", "fetch"}, flag: "app", wantType: "apps"},
+		{args: []string{"signing", "fetch"}, flag: "app", wantType: "apps", deps: true},
 		{args: []string{"app-setup", "info", "set"}, flag: "app", wantType: "apps"},
 		{args: []string{"app-setup", "categories", "set"}, flag: "app", wantType: "apps"},
 		{args: []string{"categories", "set"}, flag: "app", wantType: "apps", deps: true},
