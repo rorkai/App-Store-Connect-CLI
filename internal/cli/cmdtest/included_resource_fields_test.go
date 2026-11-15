@@ -188,6 +188,7 @@ func includedFieldsCases() []includedFieldsCase {
 		{
 			name: "certificates view", operation: "certificates_getInstance", resource: true, noNext: true,
 			command: []string{"certificates", "view"}, selector: []string{"--id", "certificate-1"},
+			deps:    true,
 			include: "passTypeId", path: "/v1/certificates/certificate-1",
 			flags: map[string]string{"pass-type-id-fields": "passTypeIds"},
 		},
@@ -260,6 +261,7 @@ func includedFieldsCases() []includedFieldsCase {
 		{
 			name: "testflight testers list", operation: "betaTesters_getCollection",
 			command: []string{"testflight", "testers", "list"}, selector: []string{"--app", "app-1"},
+			deps:    true,
 			include: "apps,betaGroups,builds", path: "/v1/betaTesters", query: map[string]string{"filter[apps]": "app-1"},
 			flags: map[string]string{"app-fields": "apps", "beta-group-fields": "betaGroups", "build-fields": "builds"},
 		},
@@ -346,12 +348,14 @@ func includedFieldsCases() []includedFieldsCase {
 		{
 			name: "iap list", operation: "apps_inAppPurchasesV2_getToManyRelated",
 			command: []string{"iap", "list"}, selector: []string{"--app", "app-1"},
+			deps:    true,
 			include: iapListIncludes, path: "/v1/apps/app-1/inAppPurchasesV2",
 			flags: iapListIncludedFieldFlags,
 		},
 		{
 			name: "iap view", operation: "inAppPurchasesV2_getInstance", resource: true, noNext: true,
 			command: []string{"iap", "view"}, selector: []string{"--id", "iap-1"},
+			deps:    true,
 			include: iapListIncludes + ",pricePoints", path: "/v2/inAppPurchases/iap-1",
 			flags: withFlag(iapListIncludedFieldFlags, "iap-price-point-fields", "inAppPurchasePricePoints"),
 		},

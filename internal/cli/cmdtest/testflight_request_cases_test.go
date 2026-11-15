@@ -22,6 +22,7 @@ type testFlightRequestCase struct {
 	respBody   string
 	wantStdout []string
 	wantStderr string
+	deps       bool // the command is built on shared.Deps: run it on test deps
 }
 
 func runTestFlightRequestCases(t *testing.T, tests []testFlightRequestCase) {
@@ -29,7 +30,6 @@ func runTestFlightRequestCases(t *testing.T, tests []testFlightRequestCase) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			setupAuth(t)
 			t.Setenv("ASC_APP_ID", "")
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
@@ -54,14 +54,24 @@ func runTestFlightRequestCases(t *testing.T, tests []testFlightRequestCase) {
 				matcher = matcher.JSONBody(test.wantBody)
 			}
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			reg.Register(matcher, asctest.JSON(status, test.respBody))
 
-			stdout, stderr := captureOutput(t, func() {
-				if code := cmd.Run(test.args, "1.2.3"); code != cmd.ExitSuccess {
+			var stdout, stderr string
+			if test.deps {
+				var code int
+				stdout, stderr, code = runWithDeps(t, stubClient(t, reg), test.args...)
+				if code != cmd.ExitSuccess {
 					t.Fatalf("exit code = %d, want %d", code, cmd.ExitSuccess)
 				}
-			})
+			} else {
+				setupAuth(t)
+				reg.Install()
+				stdout, stderr = captureOutput(t, func() {
+					if code := cmd.Run(test.args, "1.2.3"); code != cmd.ExitSuccess {
+						t.Fatalf("exit code = %d, want %d", code, cmd.ExitSuccess)
+					}
+				})
+			}
 
 			requests := reg.Requests()
 			if len(requests) != 1 {

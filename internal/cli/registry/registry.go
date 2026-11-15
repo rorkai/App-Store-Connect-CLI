@@ -132,7 +132,7 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("account", "Inspect account-level health and access signals.", func() *ffcli.Command {
 			return account.NewAccountCommand(d)
 		}),
-		commandFactory("install-skills", "Install the asc skill pack globally for App Store Connect workflows.", install.InstallSkillsCommand),
+		commandFactory("install-skills", "Install the asc skill pack globally for App Store Connect workflows.", func() *ffcli.Command { return install.NewInstallSkillsCommand(d) }),
 		commandFactory("init", "Initialize asc helper docs in the current repo.", func() *ffcli.Command {
 			return initcmd.NewInitCommand(d)
 		}),
@@ -195,8 +195,8 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("bundle-ids", "Manage bundle IDs and capabilities.", func() *ffcli.Command {
 			return bundleids.NewBundleIDsCommand(d)
 		}),
-		commandFactory("merchant-ids", "Manage merchant IDs and certificates.", merchantids.MerchantIDsCommand),
-		commandFactory("certificates", "Manage signing certificates.", certificates.CertificatesCommand),
+		commandFactory("merchant-ids", "Manage merchant IDs and certificates.", func() *ffcli.Command { return merchantids.NewMerchantIDsCommand(d) }),
+		commandFactory("certificates", "Manage signing certificates.", func() *ffcli.Command { return certificates.NewCertificatesCommand(d) }),
 		commandFactory("pass-type-ids", "Manage pass type IDs.", func() *ffcli.Command {
 			return passtypeids.NewPassTypeIDsCommand(d)
 		}),
@@ -212,7 +212,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("devices", "Manage devices in App Store Connect.", func() *ffcli.Command {
 			return devices.NewDevicesCommand(d)
 		}),
-		commandFactory("testflight", "Manage TestFlight workflows.", testflight.TestFlightCommand),
+		commandFactory("testflight", "Manage TestFlight workflows.", func() *ffcli.Command {
+			return testflight.NewTestFlightCommand(d)
+		}),
 		commandFactory("builds", "Manage builds in App Store Connect.", builds.BuildsCommand),
 		commandFactory("build-bundles", "Manage build bundles and App Clip data.", func() *ffcli.Command {
 			return buildbundles.NewBuildBundlesCommand(d)
@@ -267,12 +269,16 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		}),
 		commandFactory("signing", "Manage signing certificates and profiles.", signing.SigningCommand),
 		commandFactory("notarization", "Manage macOS notarization submissions.", notarization.NotarizationCommand),
-		commandFactory("iap", "Manage in-app purchases in App Store Connect.", iap.IAPCommand),
+		commandFactory("iap", "Manage in-app purchases in App Store Connect.", func() *ffcli.Command {
+			return iap.NewIAPCommand(d)
+		}),
 		commandFactory("storekit", "Manage StoreKit server APIs with In-App Purchase API keys.", func() *ffcli.Command {
 			return storekitcmd.NewCommand(d)
 		}),
 		commandFactory("app-events", "Manage App Store in-app events.", app_events.Command),
-		commandFactory("subscriptions", "Manage subscription groups and subscriptions.", subscriptions.SubscriptionsCommand),
+		commandFactory("subscriptions", "Manage subscription groups and subscriptions.", func() *ffcli.Command {
+			return subscriptions.NewSubscriptionsCommand(d)
+		}),
 		commandFactory("submit", "Submission lifecycle tools; use `publish appstore --submit` to ship.", func() *ffcli.Command {
 			return submit.NewSubmitCommand(d)
 		}),

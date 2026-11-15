@@ -1,9 +1,7 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
-	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -12,20 +10,13 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
-func runBetaGroupsList(t *testing.T, args ...string) (string, string) {
+func runBetaGroupsList(t *testing.T, reg *asctest.Registry, args ...string) (string, string) {
 	t.Helper()
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse(append([]string{"testflight", "groups", "list"}, args...)); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), append([]string{"testflight", "groups", "list"}, args...)...)
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 	return stdout, stderr
 }
 
@@ -33,19 +24,17 @@ func runBetaGroupsList(t *testing.T, args ...string) (string, string) {
 // app-scoped internal/external filter is applied server-side through
 // GET /v1/betaGroups instead of being post-filtered client-side.
 func TestBetaGroupsListAppScopedInternalFilterUsesTopLevelEndpoint(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	const nextURL = "https://api.appstoreconnect.apple.com/v1/betaGroups?cursor=page2&filter%5Bapp%5D=app-1&filter%5BisInternalGroup%5D=true&limit=200"
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/betaGroups", "filter[app]=app-1", "filter[isInternalGroup]=true", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"bg-int-1","attributes":{"name":"Internal 1","isInternalGroup":true}}],`+
 			`"links":{"next":"`+nextURL+`"}}`))
 	reg.Register(asctest.GET("/v1/betaGroups", "cursor=page2", "filter[app]=app-1", "filter[isInternalGroup]=true", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"bg-int-2","attributes":{"name":"Internal 2","isInternalGroup":true}}]}`))
 
-	stdout, stderr := runBetaGroupsList(t, "--app", "app-1", "--internal")
+	stdout, stderr := runBetaGroupsList(t, reg, "--app", "app-1", "--internal")
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -62,12 +51,10 @@ func TestBetaGroupsListAppScopedInternalFilterUsesTopLevelEndpoint(t *testing.T)
 // filtered aggregate fetches with the maximum page size before applying the
 // final --limit cap.
 func TestBetaGroupsListAppScopedExternalFilterUsesMaxPageSize(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	const nextURL = "https://api.appstoreconnect.apple.com/v1/betaGroups?cursor=page2&filter%5Bapp%5D=app-1&filter%5BisInternalGroup%5D=false&limit=200"
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/betaGroups", "filter[app]=app-1", "filter[isInternalGroup]=false", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[`+
 			`{"type":"betaGroups","id":"bg-ext-1","attributes":{"name":"External 1","isInternalGroup":false}},`+
@@ -76,7 +63,7 @@ func TestBetaGroupsListAppScopedExternalFilterUsesMaxPageSize(t *testing.T) {
 	reg.Register(asctest.GET("/v1/betaGroups", "cursor=page2", "filter[app]=app-1", "filter[isInternalGroup]=false", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"bg-ext-3","attributes":{"name":"External 3","isInternalGroup":false}}]}`))
 
-	stdout, stderr := runBetaGroupsList(t, "--app", "app-1", "--external", "--limit", "2")
+	stdout, stderr := runBetaGroupsList(t, reg, "--app", "app-1", "--external", "--limit", "2")
 
 	wantWarning := "Warning: showing 2 of 3 filtered groups (--limit 2); rerun without --limit for all\n"
 	if stderr != wantWarning {
@@ -102,19 +89,17 @@ func TestBetaGroupsListAppScopedExternalFilterUsesMaxPageSize(t *testing.T) {
 // TestBetaGroupsListAppScopedFilterPaginates proves --paginate still aggregates
 // every page while filtering server-side.
 func TestBetaGroupsListAppScopedFilterPaginatesBeforeApplyingLimit(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	const nextURL = "https://api.appstoreconnect.apple.com/v1/betaGroups?cursor=page2"
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/betaGroups", "filter[app]=app-1", "filter[isInternalGroup]=true", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"bg-int-1","attributes":{"name":"Internal 1","isInternalGroup":true}}],`+
 			`"links":{"next":"`+nextURL+`"}}`))
 	reg.Register(asctest.GET("/v1/betaGroups", "cursor=page2"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"bg-int-2","attributes":{"name":"Internal 2","isInternalGroup":true}}]}`))
 
-	stdout, stderr := runBetaGroupsList(t, "--app", "app-1", "--internal", "--paginate", "--limit", "1")
+	stdout, stderr := runBetaGroupsList(t, reg, "--app", "app-1", "--internal", "--paginate", "--limit", "1")
 
 	wantWarning := "Warning: showing 1 of 2 filtered groups (--limit 1); rerun without --limit for all\n"
 	if stderr != wantWarning {
@@ -129,19 +114,17 @@ func TestBetaGroupsListAppScopedFilterPaginatesBeforeApplyingLimit(t *testing.T)
 }
 
 func TestBetaGroupsListAppScopedFilterKeepsStableSemanticsWithSparseFields(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	const nextURL = "https://api.appstoreconnect.apple.com/v1/betaGroups?cursor=page2&filter%5Bapp%5D=app-1&filter%5BisInternalGroup%5D=true&fields%5BbetaGroups%5D=name&limit=200"
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/betaGroups", "fields[betaGroups]=name", "filter[app]=app-1", "filter[isInternalGroup]=true", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"bg-int-1","attributes":{"name":"Internal 1"}}],`+
 			`"links":{"next":"`+nextURL+`"}}`))
 	reg.Register(asctest.GET("/v1/betaGroups", "cursor=page2", "fields[betaGroups]=name", "filter[app]=app-1", "filter[isInternalGroup]=true", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"bg-int-2","attributes":{"name":"Internal 2"}}]}`))
 
-	stdout, stderr := runBetaGroupsList(t, "--app", "app-1", "--internal", "--fields", "name", "--paginate", "--limit", "1")
+	stdout, stderr := runBetaGroupsList(t, reg, "--app", "app-1", "--internal", "--fields", "name", "--paginate", "--limit", "1")
 
 	wantWarning := "Warning: showing 1 of 2 filtered groups (--limit 1); rerun without --limit for all\n"
 	if stderr != wantWarning {
@@ -158,16 +141,14 @@ func TestBetaGroupsListAppScopedFilterKeepsStableSemanticsWithSparseFields(t *te
 // TestBetaGroupsListNextStillPagesWithoutQueryFlags proves a bare --next keeps
 // following the cursor URL verbatim.
 func TestBetaGroupsListNextStillPagesWithoutQueryFlags(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	const nextURL = "https://api.appstoreconnect.apple.com/v1/betaGroups?cursor=page3&filter%5Bapp%5D=app-1&filter%5BisInternalGroup%5D=true"
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/betaGroups", "cursor=page3", "filter[app]=app-1", "filter[isInternalGroup]=true"),
 		asctest.JSON(http.StatusOK, `{"data":[]}`))
 
-	stdout, stderr := runBetaGroupsList(t, "--next", nextURL)
+	stdout, stderr := runBetaGroupsList(t, reg, "--next", nextURL)
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -196,22 +177,20 @@ func TestBetaGroupsListNextRejectsQueryFlags(t *testing.T) {
 	}
 	for _, test := range tests {
 		args := append([]string{"testflight", "groups", "list", "--next", nextURL}, test.flag...)
-		assertUsageExit(t, args, test.wantErr)
+		assertUsageExitWithDeps(t, nil, args, test.wantErr)
 	}
 }
 
 // TestBetaGroupsListUnfilteredAppScopedPathUnchanged proves the plain
 // app-scoped listing keeps using GET /v1/apps/{id}/betaGroups.
 func TestBetaGroupsListUnfilteredAppScopedPathUnchanged(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-1/betaGroups", "limit=5"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"bg-scoped","attributes":{"name":"Scoped"}}]}`))
 
-	stdout, stderr := runBetaGroupsList(t, "--app", "app-1", "--limit", "5")
+	stdout, stderr := runBetaGroupsList(t, reg, "--app", "app-1", "--limit", "5")
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)

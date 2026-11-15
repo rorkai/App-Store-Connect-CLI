@@ -1,12 +1,10 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -16,8 +14,6 @@ import (
 )
 
 func TestTestFlightBetaTestersViewPreservesEmptyAppDevices(t *testing.T) {
-	setupAuth(t)
-
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		if req.Method != http.MethodGet || req.URL.Path != "/v1/betaTesters/tester-1" {
 			t.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
@@ -29,28 +25,10 @@ func TestTestFlightBetaTestersViewPreservesEmptyAppDevices(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	serverURL, err := url.Parse(server.URL)
+	stdout, stderr, err := runRootWithDeps(t, stubServerClient(t, server), "testflight", "testers", "view", "--id", "tester-1", "--output", "json")
 	if err != nil {
-		t.Fatalf("parse server URL: %v", err)
+		t.Fatalf("run error: %v", err)
 	}
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		cloned := req.Clone(req.Context())
-		cloned.URL.Scheme = serverURL.Scheme
-		cloned.URL.Host = serverURL.Host
-		return server.Client().Transport.RoundTrip(cloned)
-	}))
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"testflight", "testers", "view", "--id", "tester-1", "--output", "json"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
@@ -70,18 +48,16 @@ func TestTestFlightBetaTestersViewPreservesEmptyAppDevices(t *testing.T) {
 }
 
 func TestTestFlightBetaTestersAddOutput(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-1/betaGroups", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"Beta"}}]}`))
 	reg.Register(asctest.POST("/v1/betaTesters").JSONBody(`{"data":{"type":"betaTesters","attributes":{"email":"tester@example.com"},"relationships":{"betaGroups":{"data":[{"type":"betaGroups","id":"group-1"}]}}}}`),
 		asctest.JSON(http.StatusCreated, `{"data":{"type":"betaTesters","id":"tester-1","attributes":{"email":"tester@example.com"}}}`))
 
-	stdout, stderr, err := runCommand(t, []string{"testflight", "testers", "add", "--app", "app-1", "--email", "tester@example.com", "--group", "Beta"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "testflight", "testers", "add", "--app", "app-1", "--email", "tester@example.com", "--group", "Beta")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -95,7 +71,6 @@ func TestTestFlightBetaTestersAddOutput(t *testing.T) {
 }
 
 func TestTestFlightBetaTestersAddSendsRelationshipsInOneCreate(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
@@ -136,7 +111,6 @@ func TestTestFlightBetaTestersAddSendsRelationshipsInOneCreate(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			if len(test.wantRequests) > 1 {
 				reg.Register(asctest.GET("/v1/apps/app-1/betaGroups", "limit=200"),
 					asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"Beta"}}]}`))
@@ -145,7 +119,7 @@ func TestTestFlightBetaTestersAddSendsRelationshipsInOneCreate(t *testing.T) {
 				asctest.JSON(http.StatusCreated, `{"data":{"type":"betaTesters","id":"tester-1","attributes":{"email":"tester@example.com"}}}`))
 
 			args := append([]string{"testflight", "testers", "add", "--email", "tester@example.com"}, test.args...)
-			if _, _, err := runCommand(t, args); err != nil {
+			if _, _, err := runRootWithDeps(t, stubClient(t, reg), args...); err != nil {
 				t.Fatalf("run error: %v", err)
 			}
 			var requests []string
@@ -165,11 +139,8 @@ func TestTestFlightBetaTestersAddSendsRelationshipsInOneCreate(t *testing.T) {
 }
 
 func TestBetaCreateRejectsEmptyRelationshipFlagsBeforeRequest(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-
-	asctest.NewRegistry(t).Install()
 
 	tests := []struct {
 		name    string
@@ -205,24 +176,22 @@ func TestBetaCreateRejectsEmptyRelationshipFlagsBeforeRequest(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			assertUsageExit(t, test.args, test.wantErr)
+			assertUsageExitWithDeps(t, nil, test.args, test.wantErr)
 		})
 	}
 }
 
 func TestTestFlightBetaTestersRemoveOutput(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/betaTesters", "filter[apps]=app-1", "filter[email]=tester@example.com"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaTesters","id":"tester-2","attributes":{"email":"tester@example.com"}}]}`))
 	reg.Register(asctest.DELETE("/v1/betaTesters/tester-2"),
 		asctest.JSON(http.StatusNoContent, ""))
 
-	stdout, stderr, err := runCommand(t, []string{"testflight", "testers", "remove", "--app", "app-1", "--email", "tester@example.com", "--confirm"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "testflight", "testers", "remove", "--app", "app-1", "--email", "tester@example.com", "--confirm")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -236,18 +205,16 @@ func TestTestFlightBetaTestersRemoveOutput(t *testing.T) {
 }
 
 func TestTestFlightBetaTestersListWithGroupUsesOnlyGroupFilter(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-1/betaGroups", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"Beta"}}]}`))
 	reg.Register(asctest.GET("/v1/betaTesters", "filter[betaGroups]=group-1"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaTesters","id":"tester-1","attributes":{"email":"tester@example.com"}}]}`))
 
-	stdout, stderr, err := runCommand(t, []string{"testflight", "testers", "list", "--app", "app-1", "--group", "Beta"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "testflight", "testers", "list", "--app", "app-1", "--group", "Beta")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -265,23 +232,23 @@ func TestTestFlightBetaTestersSelectorUsageErrors(t *testing.T) {
 		{
 			name:    "ListRejectsGroupAndBuildID",
 			args:    []string{"testflight", "testers", "list", "--app", "app-1", "--group", "group-1", "--build-id", "build-1"},
+			deps:    true,
 			wantErr: "Error: --group cannot be combined with --build-id",
 		},
 		{
 			name:    "ExportRejectsGroupAndBuildID",
 			args:    []string{"testflight", "testers", "export", "--app", "app-1", "--group", "group-1", "--build-id", "build-1", "--output", "/tmp/testers.csv"},
+			deps:    true,
 			wantErr: "Error: --group cannot be combined with --build-id",
 		},
 	})
 }
 
 func TestTestFlightBetaTestersInviteOutput(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/betaTesters", "filter[apps]=app-1", "filter[email]=tester@example.com"),
 		asctest.JSON(http.StatusOK, `{"data":[]}`))
 	reg.Register(asctest.GET("/v1/apps/app-1/betaGroups", "limit=200"),
@@ -291,7 +258,7 @@ func TestTestFlightBetaTestersInviteOutput(t *testing.T) {
 	reg.Register(asctest.POST("/v1/betaTesterInvitations").JSONBody(`{"data":{"type":"betaTesterInvitations","relationships":{"app":{"data":{"type":"apps","id":"app-1"}},"betaTester":{"data":{"type":"betaTesters","id":"tester-9"}}}}}`),
 		asctest.JSON(http.StatusCreated, `{"data":{"type":"betaTesterInvitations","id":"invite-1"}}`))
 
-	stdout, stderr, err := runCommand(t, []string{"testflight", "testers", "invite", "--app", "app-1", "--email", "tester@example.com", "--group", "Beta"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "testflight", "testers", "invite", "--app", "app-1", "--email", "tester@example.com", "--group", "Beta")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}

@@ -4,14 +4,18 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"io"
+	"strings"
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestMerchantIDsValidationErrors(t *testing.T) {
+	d := &shared.Deps{IO: &shared.IO{In: strings.NewReader(""), Out: io.Discard, ErrOut: io.Discard}}
+
 	t.Run("list invalid limit", func(t *testing.T) {
-		cmd := MerchantIDsListCommand()
+		cmd := newMerchantIDsListCommand(d)
 		if err := cmd.FlagSet.Parse([]string{"--limit", "300"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
@@ -22,7 +26,7 @@ func TestMerchantIDsValidationErrors(t *testing.T) {
 	})
 
 	t.Run("get missing merchant-id", func(t *testing.T) {
-		cmd := MerchantIDsGetCommand()
+		cmd := newMerchantIDsGetCommand(d)
 		if err := cmd.FlagSet.Parse([]string{}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
@@ -32,7 +36,7 @@ func TestMerchantIDsValidationErrors(t *testing.T) {
 	})
 
 	t.Run("create missing identifier", func(t *testing.T) {
-		cmd := MerchantIDsCreateCommand()
+		cmd := newMerchantIDsCreateCommand(d)
 		if err := cmd.FlagSet.Parse([]string{"--name", "Example"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
@@ -42,7 +46,7 @@ func TestMerchantIDsValidationErrors(t *testing.T) {
 	})
 
 	t.Run("update conflicting flags", func(t *testing.T) {
-		cmd := MerchantIDsUpdateCommand()
+		cmd := newMerchantIDsUpdateCommand(d)
 		if err := cmd.FlagSet.Parse([]string{"--merchant-id", "MID", "--name", "Example", "--clear-name"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
@@ -52,7 +56,7 @@ func TestMerchantIDsValidationErrors(t *testing.T) {
 	})
 
 	t.Run("delete missing confirm", func(t *testing.T) {
-		cmd := MerchantIDsDeleteCommand()
+		cmd := newMerchantIDsDeleteCommand(d)
 		if err := cmd.FlagSet.Parse([]string{"--merchant-id", "MID"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
@@ -62,7 +66,7 @@ func TestMerchantIDsValidationErrors(t *testing.T) {
 	})
 
 	t.Run("certificates list missing merchant-id", func(t *testing.T) {
-		cmd := MerchantIDsCertificatesListCommand()
+		cmd := newMerchantIDsCertificatesListCommand(d)
 		if err := cmd.FlagSet.Parse([]string{}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -19,8 +18,6 @@ var iapVersionStates = []string{
 }
 
 var iapVersionIncludes = []string{"inAppPurchase", "image", "images", "localizations"}
-
-var iapVersionClientFactory = shared.GetASCClient
 
 var (
 	iapVersionFields             = []string{"version", "state", "inAppPurchase", "image", "images", "localizations"}
@@ -75,9 +72,9 @@ func normalizeIAPVersionFieldFlags(flags iapVersionFieldFlagValues) (iapVersionF
 	return selections, nil
 }
 
-// IAPVersionsCommand returns the IAP versions command group.
-func IAPVersionsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("versions", flag.ExitOnError)
+// newIAPVersionsCommand returns the IAP versions command group.
+func newIAPVersionsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("versions", flag.ExitOnError)
 	return &ffcli.Command{
 		Name:       "versions",
 		ShortUsage: "asc iap versions <subcommand> [flags]",
@@ -91,18 +88,15 @@ Examples:
   asc iap versions submit --version-id "VERSION_ID" --submission "SUBMISSION_ID" --confirm`,
 		FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			IAPVersionsCreateCommand(), IAPVersionsListCommand(), IAPVersionsViewCommand(),
-			IAPVersionImageCommand(), IAPVersionImagesCommand(), IAPVersionLocalizationsCommand(),
-			IAPVersionLinksCommand(), IAPVersionSubmitCommand(),
+			newIAPVersionsCreateCommand(d), newIAPVersionsListCommand(d), newIAPVersionsViewCommand(d),
+			newIAPVersionImageCommand(d), newIAPVersionImagesCommand(d), newIAPVersionLocalizationsCommand(d),
+			newIAPVersionLinksCommand(d), newIAPVersionSubmitCommand(d),
 		},
 		Exec: func(context.Context, []string) error { return flag.ErrHelp },
 	}
 }
 
-func IAPVersionsCreateCommand() *ffcli.Command {
-	d := shared.DefaultDeps()
-	d.Client = func() (*asc.Client, error) { return iapVersionClientFactory() }
-
+func newIAPVersionsCreateCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildCreateCommand(shared.WriteCommandConfig{
 		FlagSetName: "versions create",
 		Name:        "create",
@@ -180,12 +174,12 @@ func iapVersionQueryOptions(stateValue, includeValue string, limit, imagesLimit,
 	}, nil
 }
 
-func IAPVersionsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("versions list", flag.ExitOnError)
+func newIAPVersionsListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("versions list", flag.ExitOnError)
 	iapID := shared.BindResourceIDFlag(fs, "iap-id", "inAppPurchases", "In-app purchase ID")
 	state, include, limit, imagesLimit, localizationsLimit, next, paginate := bindIAPVersionQueryFlags(fs)
 	fieldFlags := bindIAPVersionFieldFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "list", ShortUsage: `asc iap versions list --iap-id "IAP_ID" [flags]`, ShortHelp: "List versions for an in-app purchase.",
 		LongHelp: `List versions for an in-app purchase.
@@ -198,12 +192,12 @@ Examples:
   asc iap versions list --iap-id "IAP_ID"
   asc iap versions list --iap-id "IAP_ID" --state PREPARE_FOR_SUBMISSION --paginate`, FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "iap versions list", 200, "state", "include", "limit", "images-limit", "localizations-limit", "version-fields", "iap-fields", "image-fields", "localization-fields"); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "iap versions list", 200, "state", "include", "limit", "images-limit", "localizations-limit", "version-fields", "iap-fields", "image-fields", "localization-fields"); err != nil {
 				return err
 			}
 			id := strings.TrimSpace(*iapID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--iap-id")
+				return d.RequiredFlag("--iap-id")
 			}
 			firstPageLimit := *limit
 			if *paginate && firstPageLimit == 0 && strings.TrimSpace(*next) == "" {
@@ -211,13 +205,13 @@ Examples:
 			}
 			opts, err := iapVersionQueryOptions(*state, *include, firstPageLimit, *imagesLimit, *localizationsLimit, *next, fieldFlags)
 			if err != nil {
-				return shared.UsageError("iap versions list: " + err.Error())
+				return d.UsageError("iap versions list: " + err.Error())
 			}
-			client, err := iapVersionClientFactory()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("iap versions list: %w", err)
 			}
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 			resp, err := client.GetInAppPurchaseVersions(requestCtx, id, opts...)
 			if err != nil {
@@ -230,17 +224,14 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("iap versions list: %w", err)
 				}
-				return shared.PrintOutput(aggregated, *output.Output, *output.Pretty)
+				return d.PrintOutput(aggregated, *output.Output, *output.Pretty)
 			}
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-func IAPVersionsViewCommand() *ffcli.Command {
-	d := shared.DefaultDeps()
-	d.Client = func() (*asc.Client, error) { return iapVersionClientFactory() }
-
+func newIAPVersionsViewCommand(d *shared.Deps) *ffcli.Command {
 	var opts []asc.IAPVersionGetOption
 
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
@@ -261,18 +252,18 @@ func IAPVersionsViewCommand() *ffcli.Command {
 			fieldFlags := bindIAPVersionFieldFlags(fs)
 			return func() error {
 				if *imagesLimit != 0 && (*imagesLimit < 1 || *imagesLimit > 50) {
-					return shared.UsageError("iap versions view: --images-limit must be between 1 and 50")
+					return d.UsageError("iap versions view: --images-limit must be between 1 and 50")
 				}
 				if *localizationsLimit != 0 && (*localizationsLimit < 1 || *localizationsLimit > 50) {
-					return shared.UsageError("iap versions view: --localizations-limit must be between 1 and 50")
+					return d.UsageError("iap versions view: --localizations-limit must be between 1 and 50")
 				}
 				includes, err := shared.NormalizeSelection(*include, iapVersionIncludes, "--include")
 				if err != nil {
-					return shared.UsageError("iap versions view: " + err.Error())
+					return d.UsageError("iap versions view: " + err.Error())
 				}
 				fields, err := normalizeIAPVersionFieldFlags(fieldFlags)
 				if err != nil {
-					return shared.UsageError("iap versions view: " + err.Error())
+					return d.UsageError("iap versions view: " + err.Error())
 				}
 				opts = []asc.IAPVersionGetOption{
 					asc.WithIAPVersionGetInclude(includes),
@@ -292,109 +283,109 @@ func IAPVersionsViewCommand() *ffcli.Command {
 	})
 }
 
-func IAPVersionImageCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("versions image", flag.ExitOnError)
+func newIAPVersionImageCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("versions image", flag.ExitOnError)
 	versionID := shared.BindResourceIDFlag(fs, "version-id", "inAppPurchaseVersions", "In-app purchase version ID")
 	imageFields := fs.String("image-fields", "", "fields[inAppPurchaseImages] (comma-separated)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "image", ShortUsage: `asc iap versions image --version-id "VERSION_ID"`, ShortHelp: "View the primary image for an IAP version.", LongHelp: "View the primary image for an IAP version.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*versionID)
 			if id == "" {
-				return shared.RequiredFlag("--version-id")
+				return d.RequiredFlag("--version-id")
 			}
 			fields, err := shared.NormalizeSelection(*imageFields, iapVersionImageFields, "--image-fields")
 			if err != nil {
-				return shared.UsageError("iap versions image: " + err.Error())
+				return d.UsageError("iap versions image: " + err.Error())
 			}
-			client, err := iapVersionClientFactory()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("iap versions image: %w", err)
 			}
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 			resp, err := client.GetInAppPurchaseVersionImage(requestCtx, id, asc.WithIAPVersionImageFields(fields))
 			if err != nil {
 				return fmt.Errorf("iap versions image: failed to fetch: %w", err)
 			}
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-func IAPVersionSubmitCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("versions submit", flag.ExitOnError)
+func newIAPVersionSubmitCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("versions submit", flag.ExitOnError)
 	versionID := shared.BindResourceIDFlag(fs, "version-id", "inAppPurchaseVersions", "In-app purchase version ID")
 	submissionID := shared.BindResourceIDFlag(fs, "submission", "reviewSubmissions", "Review submission ID")
 	confirm := fs.Bool("confirm", false, "Confirm adding the version to review")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "submit", ShortUsage: `asc iap versions submit --version-id "VERSION_ID" --submission "SUBMISSION_ID" --confirm`, ShortHelp: "Add an IAP version to a review submission.",
 		LongHelp: "Add an IAP version to a review submission. This version-scoped workflow replaces the deprecated product-scoped submission resource.\n\nExamples:\n  asc iap versions submit --version-id \"VERSION_ID\" --submission \"SUBMISSION_ID\" --confirm", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			vid := strings.TrimSpace(*versionID)
 			if vid == "" {
-				return shared.RequiredFlag("--version-id")
+				return d.RequiredFlag("--version-id")
 			}
 			sid := strings.TrimSpace(*submissionID)
 			if sid == "" {
-				return shared.RequiredFlag("--submission")
+				return d.RequiredFlag("--submission")
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
-			client, err := iapVersionClientFactory()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("iap versions submit: %w", err)
 			}
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 			resp, err := client.CreateReviewSubmissionItem(requestCtx, sid, asc.ReviewSubmissionItemTypeInAppPurchaseVersion, vid)
 			if err != nil {
 				return fmt.Errorf("iap versions submit: failed to add review item: %w", err)
 			}
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-func IAPVersionLinksCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("versions links", flag.ExitOnError)
+func newIAPVersionLinksCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("versions links", flag.ExitOnError)
 	return &ffcli.Command{
 		Name: "links", ShortUsage: "asc iap versions links <subcommand> [flags]", ShortHelp: "View raw IAP version relationship linkages.", LongHelp: "View raw IAP version relationship linkages.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
-		Subcommands: []*ffcli.Command{iapVersionLinkagesCommand("versions", true), iapVersionImageLinkageCommand(), iapVersionLinkagesCommand("images", false), iapVersionLinkagesCommand("localizations", false)}, Exec: func(context.Context, []string) error { return flag.ErrHelp },
+		Subcommands: []*ffcli.Command{iapVersionLinkagesCommand(d, "versions", true), iapVersionImageLinkageCommand(d), iapVersionLinkagesCommand(d, "images", false), iapVersionLinkagesCommand(d, "localizations", false)}, Exec: func(context.Context, []string) error { return flag.ErrHelp },
 	}
 }
 
-func iapVersionImageLinkageCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("versions links image", flag.ExitOnError)
+func iapVersionImageLinkageCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("versions links image", flag.ExitOnError)
 	versionID := shared.BindResourceIDFlag(fs, "version-id", "inAppPurchaseVersions", "In-app purchase version ID")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "image", ShortUsage: `asc iap versions links image --version-id "VERSION_ID"`, ShortHelp: "View the primary image linkage.", LongHelp: "View the primary image linkage.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*versionID)
 			if id == "" {
-				return shared.RequiredFlag("--version-id")
+				return d.RequiredFlag("--version-id")
 			}
-			client, err := iapVersionClientFactory()
+			client, err := d.Client()
 			if err != nil {
 				return err
 			}
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 			resp, err := client.GetInAppPurchaseVersionImageRelationship(requestCtx, id)
 			if err != nil {
 				return fmt.Errorf("iap versions links image: failed to fetch: %w", err)
 			}
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-func iapVersionLinkagesCommand(name string, parentIAP bool) *ffcli.Command {
-	fs := flag.NewFlagSet("versions links "+name, flag.ExitOnError)
+func iapVersionLinkagesCommand(d *shared.Deps, name string, parentIAP bool) *ffcli.Command {
+	fs := d.NewFlagSet("versions links "+name, flag.ExitOnError)
 	idFlag := "version-id"
 	idType := "inAppPurchaseVersions"
 	idHelp := "In-app purchase version ID"
@@ -407,23 +398,23 @@ func iapVersionLinkagesCommand(name string, parentIAP bool) *ffcli.Command {
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: name, ShortUsage: fmt.Sprintf("asc iap versions links %s --%s \"ID\"", name, idFlag), ShortHelp: "View relationship linkages.", LongHelp: "View relationship linkages.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "iap versions links "+name, 200, "limit"); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "iap versions links "+name, 200, "limit"); err != nil {
 				return err
 			}
 			value := strings.TrimSpace(*id)
 			if value == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintf(os.Stderr, "Error: --%s is required\n", idFlag)
+				fmt.Fprintf(d.IO.ErrOut, "Error: --%s is required\n", idFlag)
 				return shared.MissingRequiredUsageError("--" + idFlag)
 			}
-			client, err := iapVersionClientFactory()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("iap versions links %s: %w", name, err)
 			}
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 			fetchPage := func(pageCtx context.Context, opts ...asc.LinkagesOption) (*asc.LinkagesResponse, error) {
 				if parentIAP {
@@ -449,9 +440,9 @@ func iapVersionLinkagesCommand(name string, parentIAP bool) *ffcli.Command {
 				if err != nil {
 					return fmt.Errorf("iap versions links %s: %w", name, err)
 				}
-				return shared.PrintOutput(aggregated, *output.Output, *output.Pretty)
+				return d.PrintOutput(aggregated, *output.Output, *output.Pretty)
 			}
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

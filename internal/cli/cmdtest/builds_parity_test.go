@@ -240,7 +240,11 @@ func TestTestFlightRelationshipsValidationErrors(t *testing.T) {
 		},
 	}
 
-	runValidationTests(t, tests)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assertUsageExitWithDeps(t, nil, test.args, test.wantErr)
+		})
+	}
 }
 
 func TestTestFlightMetricsInvalidPeriodReturnsValidationError(t *testing.T) {
@@ -318,6 +322,7 @@ func TestParityRelatedCommandsValidationErrors(t *testing.T) {
 		name    string
 		args    []string
 		wantErr string
+		deps    bool // the command is built on shared.Deps: run it on test deps
 	}{
 		{
 			name:    "builds app view missing build id",
@@ -347,31 +352,37 @@ func TestParityRelatedCommandsValidationErrors(t *testing.T) {
 		{
 			name:    "groups app view missing group-id",
 			args:    []string{"testflight", "groups", "app", "view"},
+			deps:    true,
 			wantErr: "--group-id is required",
 		},
 		{
 			name:    "groups recruitment view missing group-id",
 			args:    []string{"testflight", "groups", "recruitment", "view"},
+			deps:    true,
 			wantErr: "--group-id is required",
 		},
 		{
 			name:    "groups compatibility view missing group-id",
 			args:    []string{"testflight", "groups", "compatibility", "view"},
+			deps:    true,
 			wantErr: "--group-id is required",
 		},
 		{
 			name:    "testers apps list missing tester-id",
 			args:    []string{"testflight", "testers", "apps", "list"},
+			deps:    true,
 			wantErr: "--tester-id is required",
 		},
 		{
 			name:    "testers groups list missing tester-id",
 			args:    []string{"testflight", "testers", "groups", "list"},
+			deps:    true,
 			wantErr: "--tester-id is required",
 		},
 		{
 			name:    "testers builds list missing tester-id",
 			args:    []string{"testflight", "testers", "builds", "list"},
+			deps:    true,
 			wantErr: "--tester-id is required",
 		},
 		{
@@ -401,5 +412,13 @@ func TestParityRelatedCommandsValidationErrors(t *testing.T) {
 		},
 	}
 
-	runValidationTests(t, tests)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if test.deps {
+				assertUsageExitWithDeps(t, nil, test.args, test.wantErr)
+				return
+			}
+			assertUsageExit(t, test.args, test.wantErr)
+		})
+	}
 }

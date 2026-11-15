@@ -27,9 +27,21 @@ type QueryBind struct {
 	Name   string        `json:"name"`
 	Option string        `json:"option,omitempty"` // default <Name>Option
 	Params []*QueryParam `json:"params,omitempty"`
+	// Builders are more builders of the same query struct and options, for
+	// reads that define fewer of its parameters, such as the detail read of a
+	// list. Each builder sends only the parameters its reads define.
+	Builders []*QueryBuilder `json:"builders,omitempty"`
 	// Deviations are known differences from the schema that the query test
 	// in internal/asc pins. They change no generated code.
 	Deviations []QueryDeviation `json:"deviations,omitempty"`
+}
+
+// QueryBuilder is one more builder of a query: build<Name>Query, serving
+// Operation and Also.
+type QueryBuilder struct {
+	Operation string   `json:"operation"`
+	Also      []string `json:"also,omitempty"`
+	Name      string   `json:"name"`
 }
 
 // QueryDeviation is a Deviation of one read a query serves; Operation is
@@ -115,8 +127,35 @@ func (q *QueryBind) option() string {
 
 func (q *QueryBind) builder() string { return "build" + q.Name + "Query" }
 
-// operations are the reads the query serves, its own first.
+// operations are the reads the query's own builder serves, its own first.
 func (q *QueryBind) operations() []string { return append([]string{q.Operation}, q.Also...) }
+
+// queryBuilder is one builder of a query and the reads it serves; render
+// fills in the parameters they define and whether one of them pages.
+type queryBuilder struct {
+	name       string
+	operations []string
+	defined    map[string]bool
+	paged      bool
+}
+
+// builders are the query's own builder, then its Builders.
+func (q *QueryBind) builders() []queryBuilder {
+	out := []queryBuilder{{name: q.builder(), operations: q.operations()}}
+	for _, b := range q.Builders {
+		out = append(out, queryBuilder{name: "build" + b.Name + "Query", operations: append([]string{b.Operation}, b.Also...)})
+	}
+	return out
+}
+
+// reads are the reads every builder of the query serves.
+func (q *QueryBind) reads() []string {
+	var out []string
+	for _, b := range q.builders() {
+		out = append(out, b.operations...)
+	}
+	return out
+}
 
 func (q *QueryBind) structName() string { return lowerInitial(q.Name) + "Query" }
 
@@ -235,41 +274,55 @@ func renderQuery(spec *Spec, q *QueryBind) ([]queryPart, error) {
 	var ops []*Operation
 	defined := map[string][]queryParam{}
 	paged := false
-	for _, id := range q.operations() {
-		op, ok := spec.Operation(id)
+	var builders []queryBuilder
+	for i, b := range q.builders() {
 		switch {
-		case !ok:
-			return nil, fmt.Errorf("operation %s not in spec", id)
-		case op.Method != "GET":
-			return nil, fmt.Errorf("query of a %s operation %s", op.Method, id)
-		case slices.Contains(ops, op):
-			return nil, fmt.Errorf("operation %s listed twice", id)
+		case i > 0 && q.Builders[i-1].Name == "":
+			return nil, fmt.Errorf("builder of %s without a name", b.operations[0])
+		case slices.ContainsFunc(builders, func(other queryBuilder) bool { return other.name == b.name }):
+			return nil, fmt.Errorf("builder %s bound twice", b.name)
 		}
-		ops = append(ops, op)
-		specParams, err := spec.queryParams(op)
-		if err != nil {
-			return nil, err
+		b.defined = map[string]bool{}
+		for _, id := range b.operations {
+			op, ok := spec.Operation(id)
+			switch {
+			case !ok:
+				return nil, fmt.Errorf("operation %s not in spec", id)
+			case op.Method != "GET":
+				return nil, fmt.Errorf("query of a %s operation %s", op.Method, id)
+			case slices.Contains(ops, op):
+				return nil, fmt.Errorf("operation %s listed twice", id)
+			}
+			ops = append(ops, op)
+			specParams, err := spec.queryParams(op)
+			if err != nil {
+				return nil, err
+			}
+			for _, p := range specParams {
+				defined[p.Name] = append(defined[p.Name], p)
+				b.defined[p.Name] = true
+				b.paged = b.paged || p.Name == "limit"
+			}
 		}
-		for _, p := range specParams {
-			defined[p.Name] = append(defined[p.Name], p)
-			paged = paged || p.Name == "limit"
-		}
+		paged = paged || b.paged
+		builders = append(builders, b)
 	}
 	op := ops[0]
 
 	option, structName := q.option(), q.structName()
-	var fields, sends, nestedLimits []string
+	var fields []string
 	if paged {
 		fields = append(fields, "listQuery")
 	}
 	var parts []queryPart
+	var sent []paramSend
 	seen := map[string]bool{}
 	for _, p := range q.Params {
 		normalize, known := listNormalizers[p.Normalize]
 		scalar, isScalar := scalarParams[p.Type]
 		switch {
 		case len(defined[p.Name]) == 0:
-			return nil, fmt.Errorf("parameter %s is not defined by %s", p.Name, strings.Join(q.operations(), " or "))
+			return nil, fmt.Errorf("parameter %s is not defined by %s", p.Name, strings.Join(q.reads(), " or "))
 		case p.Name == "limit":
 			return nil, fmt.Errorf("limit is set by Limit, not by a parameter binding")
 		case seen[p.Name]:
@@ -299,24 +352,13 @@ func renderQuery(spec *Spec, q *QueryBind) ([]queryPart, error) {
 			fields = append(fields, field+" "+scalar.goType)
 			parts = append(parts, queryPart{with, fmt.Sprintf("// %s sets %s.\nfunc %s(%s %s) %s {\nreturn func(q *%s) {\n%s\n}\n}\n\n",
 				with, p.Name, with, arg, scalar.argType(), option, structName, fmt.Sprintf(scalar.set, arg, field))})
-			if p.Type == "int" {
-				nestedLimits = append(nestedLimits, fmt.Sprintf(scalar.send, field, strconv.Quote(p.Name)))
-			} else {
-				sends = append(sends, fmt.Sprintf(scalar.send, field, strconv.Quote(p.Name)))
-			}
+			sent = append(sent, paramSend{p.Name, fmt.Sprintf(scalar.send, field, strconv.Quote(p.Name)), p.Type == "int"})
 			continue
 		}
 		fields = append(fields, field+" []string")
 		parts = append(parts, queryPart{with, fmt.Sprintf("// %s sets %s.\nfunc %s(%s []string) %s {\nreturn func(q *%s) {\nq.%s = %s(%s)\n}\n}\n\n",
 			with, p.Name, with, arg, option, structName, field, normalize, arg)})
-		sends = append(sends, fmt.Sprintf("addCSV(values, %s, query.%s)", strconv.Quote(p.Name), field))
-	}
-	if paged {
-		sends = append(sends, "addLimit(values, query.limit)")
-	}
-	sends = append(sends, nestedLimits...)
-	if len(sends) == 0 {
-		return nil, fmt.Errorf("query sends nothing")
+		sent = append(sent, paramSend{p.Name, fmt.Sprintf("addCSV(values, %s, query.%s)", strconv.Quote(p.Name), field), false})
 	}
 	var reads []string
 	for _, op := range ops {
@@ -326,13 +368,39 @@ func renderQuery(spec *Spec, q *QueryBind) ([]queryPart, error) {
 	if n := len(reads); n > 1 {
 		served = strings.Join(reads[:n-1], ", ") + " and " + reads[n-1]
 	}
-	head := []queryPart{
+	parts = append([]queryPart{
 		{option, fmt.Sprintf("// %s sets the query of %s.\ntype %s func(*%s)\n\n", option, served, option, structName)},
 		{structName, fmt.Sprintf("type %s struct {\n%s\n}\n\n", structName, strings.Join(fields, "\n"))},
+	}, parts...)
+	for _, b := range builders {
+		var sends, nestedLimits []string
+		for _, s := range sent {
+			switch {
+			case !b.defined[s.name]:
+			case s.nestedLimit:
+				nestedLimits = append(nestedLimits, s.stmt)
+			default:
+				sends = append(sends, s.stmt)
+			}
+		}
+		if b.paged {
+			sends = append(sends, "addLimit(values, query.limit)")
+		}
+		sends = append(sends, nestedLimits...)
+		if len(sends) == 0 {
+			return nil, fmt.Errorf("%s sends nothing", b.name)
+		}
+		parts = append(parts, queryPart{b.name, fmt.Sprintf("func %s(query *%s) string {\nvalues := url.Values{}\n%s\nreturn values.Encode()\n}\n\n",
+			b.name, structName, strings.Join(sends, "\n"))})
 	}
-	builder := queryPart{q.builder(), fmt.Sprintf("func %s(query *%s) string {\nvalues := url.Values{}\n%s\nreturn values.Encode()\n}\n\n",
-		q.builder(), structName, strings.Join(sends, "\n"))}
-	return append(append(head, parts...), builder), nil
+	return parts, nil
+}
+
+// paramSend is the builder statement that sends a bound parameter; an
+// integer is a nested limit, sent after limit.
+type paramSend struct {
+	name, stmt  string
+	nestedLimit bool
 }
 
 // checkParamSchema checks that a read's parameter is sent as its binding
@@ -377,12 +445,15 @@ func renderQueryRegistry(spec *Spec, bindings *Bindings) ([]byte, error) {
 	type entry struct {
 		operation string
 		query     *QueryBind
+		builder   string
 	}
 	var entries []entry
 	for _, fam := range bindings.Families {
 		for _, q := range fam.Queries {
-			for _, id := range q.operations() {
-				entries = append(entries, entry{id, q})
+			for _, b := range q.builders() {
+				for _, id := range b.operations {
+					entries = append(entries, entry{id, q, b.name})
+				}
 			}
 		}
 	}
@@ -405,7 +476,7 @@ func renderQueryRegistry(spec *Spec, bindings *Bindings) ([]byte, error) {
 		if !ok {
 			return nil, fmt.Errorf("query %s: operation not in spec", q.Operation)
 		}
-		fmt.Fprintf(&out, "%s: {\nbuild: %s,\noptions: map[string]any{\n", strconv.Quote(e.operation), q.builder())
+		fmt.Fprintf(&out, "%s: {\nbuild: %s,\noptions: map[string]any{\n", strconv.Quote(e.operation), e.builder)
 		for _, p := range q.Params {
 			fmt.Fprintf(&out, "%s: %s,\n", strconv.Quote(p.Name), q.with(q.field(spec, op, p), p))
 		}

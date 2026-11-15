@@ -35,6 +35,7 @@ func TestUnknownFlagSuggestsTheIntendedFlag(t *testing.T) {
 			want: "Error: unknown flag `--group` for `asc subscriptions list`\n" +
 				"Try:\n  --group-id\n" +
 				"For help:\n  asc subscriptions list --help\n",
+			deps: true,
 		},
 		{
 			name: "builds groups list --app",
@@ -71,6 +72,7 @@ func TestUnknownFlagSuggestsTheIntendedFlag(t *testing.T) {
 			want: "Error: unknown flag `--version-id` for `asc subscriptions versions view`\n" +
 				"Try:\n  --id\n" +
 				"For help:\n  asc subscriptions versions view --help\n",
+			deps: true,
 		},
 		{
 			name: "profiles list --bundle-id",
@@ -92,10 +94,12 @@ func TestUnknownFlagSuggestsTheIntendedFlag(t *testing.T) {
 			want: "Error: unknown flag `--group` for `asc subscriptions list`\n" +
 				"Try:\n  --group-id\n" +
 				"For help:\n  asc subscriptions list --help\n",
+			deps: true,
 		},
 		{
 			name: "a path-valued --output answers --path",
 			args: []string{"testflight", "testers", "export", "--app", "app-1", "--path", "PRIVATE_VALUE"},
+			deps: true,
 			want: "Error: unknown flag `--path` for `asc testflight testers export`\n" +
 				"Try:\n  --output\n" +
 				"For help:\n  asc testflight testers export --help\n",

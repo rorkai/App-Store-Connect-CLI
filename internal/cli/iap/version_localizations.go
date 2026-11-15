@@ -12,16 +12,16 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-func IAPVersionLocalizationsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("versions localizations", flag.ExitOnError)
+func newIAPVersionLocalizationsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("versions localizations", flag.ExitOnError)
 	return &ffcli.Command{
 		Name: "localizations", ShortUsage: "asc iap versions localizations <subcommand> [flags]", ShortHelp: "Manage version-scoped IAP localizations.", LongHelp: "Manage version-scoped IAP localizations.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
-		Subcommands: []*ffcli.Command{IAPVersionLocalizationsListCommand(), IAPVersionLocalizationsCreateCommand(), IAPVersionLocalizationsViewCommand(), IAPVersionLocalizationsUpdateCommand(), IAPVersionLocalizationsDeleteCommand(), IAPVersionLocalizationsImportCommand()}, Exec: func(context.Context, []string) error { return flag.ErrHelp },
+		Subcommands: []*ffcli.Command{newIAPVersionLocalizationsListCommand(d), newIAPVersionLocalizationsCreateCommand(d), newIAPVersionLocalizationsViewCommand(d), newIAPVersionLocalizationsUpdateCommand(d), newIAPVersionLocalizationsDeleteCommand(d), newIAPVersionLocalizationsImportCommand(d)}, Exec: func(context.Context, []string) error { return flag.ErrHelp },
 	}
 }
 
-func IAPVersionLocalizationsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("versions localizations list", flag.ExitOnError)
+func newIAPVersionLocalizationsListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("versions localizations list", flag.ExitOnError)
 	versionID := shared.BindResourceIDFlag(fs, "version-id", "inAppPurchaseVersions", "In-app purchase version ID")
 	include := fs.String("include", "", "Include relationship: version")
 	localizationFields := fs.String("localization-fields", "", "fields[inAppPurchaseLocalizations] (comma-separated)")
@@ -29,34 +29,34 @@ func IAPVersionLocalizationsListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "list", ShortUsage: `asc iap versions localizations list --version-id "VERSION_ID" [flags]`, ShortHelp: "List localizations for an IAP version.", LongHelp: "List localizations for an IAP version.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "iap versions localizations list", 200, "limit", "include", "localization-fields", "version-fields"); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "iap versions localizations list", 200, "limit", "include", "localization-fields", "version-fields"); err != nil {
 				return err
 			}
 			id := strings.TrimSpace(*versionID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--version-id")
+				return d.RequiredFlag("--version-id")
 			}
 			includes, err := shared.NormalizeSelection(*include, []string{"version"}, "--include")
 			if err != nil {
-				return shared.UsageError("iap versions localizations list: " + err.Error())
+				return d.UsageError("iap versions localizations list: " + err.Error())
 			}
 			localizationFieldValues, err := shared.NormalizeSelection(*localizationFields, iapVersionLocalizationFields, "--localization-fields")
 			if err != nil {
-				return shared.UsageError("iap versions localizations list: " + err.Error())
+				return d.UsageError("iap versions localizations list: " + err.Error())
 			}
 			versionFieldValues, err := shared.NormalizeSelection(*versionFields, iapVersionFields, "--version-fields")
 			if err != nil {
-				return shared.UsageError("iap versions localizations list: " + err.Error())
+				return d.UsageError("iap versions localizations list: " + err.Error())
 			}
-			client, err := iapVersionClientFactory()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("iap versions localizations list: %w", err)
 			}
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 			firstPageLimit := *limit
 			if *paginate && firstPageLimit == 0 {
@@ -80,40 +80,40 @@ func IAPVersionLocalizationsListCommand() *ffcli.Command {
 				if err != nil {
 					return fmt.Errorf("iap versions localizations list: %w", err)
 				}
-				return shared.PrintOutput(aggregated, *output.Output, *output.Pretty)
+				return d.PrintOutput(aggregated, *output.Output, *output.Pretty)
 			}
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-func IAPVersionLocalizationsCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("versions localizations create", flag.ExitOnError)
+func newIAPVersionLocalizationsCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("versions localizations create", flag.ExitOnError)
 	versionID := shared.BindResourceIDFlag(fs, "version-id", "inAppPurchaseVersions", "In-app purchase version ID")
 	name := fs.String("name", "", "Localization name")
 	locale := fs.String("locale", "", "Locale (for example, en-US)")
 	description := fs.String("description", "", "Description")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "create", ShortUsage: `asc iap versions localizations create --version-id "VERSION_ID" --name "Name" --locale "en-US"`, ShortHelp: "Create a localization for an IAP version.", LongHelp: "Create a localization for an IAP version.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			vid := strings.TrimSpace(*versionID)
 			if vid == "" {
-				return shared.RequiredFlag("--version-id")
+				return d.RequiredFlag("--version-id")
 			}
 			nameValue := strings.TrimSpace(*name)
 			if nameValue == "" {
-				return shared.RequiredFlag("--name")
+				return d.RequiredFlag("--name")
 			}
 			localeValue := strings.TrimSpace(*locale)
 			if localeValue == "" {
-				return shared.RequiredFlag("--locale")
+				return d.RequiredFlag("--locale")
 			}
-			client, err := iapVersionClientFactory()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("iap versions localizations create: %w", err)
 			}
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 			attrs := asc.InAppPurchaseLocalizationV2CreateAttributes{Name: nameValue, Locale: localeValue}
 			if descriptionValue := strings.TrimSpace(*description); descriptionValue != "" {
@@ -123,15 +123,12 @@ func IAPVersionLocalizationsCreateCommand() *ffcli.Command {
 			if err != nil {
 				return fmt.Errorf("iap versions localizations create: failed to create: %w", err)
 			}
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-func IAPVersionLocalizationsViewCommand() *ffcli.Command {
-	d := shared.DefaultDeps()
-	d.Client = func() (*asc.Client, error) { return iapVersionClientFactory() }
-
+func newIAPVersionLocalizationsViewCommand(d *shared.Deps) *ffcli.Command {
 	var includes, localizationFieldValues, versionFieldValues []string
 
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
@@ -152,15 +149,15 @@ func IAPVersionLocalizationsViewCommand() *ffcli.Command {
 			return func() (err error) {
 				includes, err = shared.NormalizeSelection(*include, []string{"version"}, "--include")
 				if err != nil {
-					return shared.UsageError("iap versions localizations view: " + err.Error())
+					return d.UsageError("iap versions localizations view: " + err.Error())
 				}
 				localizationFieldValues, err = shared.NormalizeSelection(*localizationFields, iapVersionLocalizationFields, "--localization-fields")
 				if err != nil {
-					return shared.UsageError("iap versions localizations view: " + err.Error())
+					return d.UsageError("iap versions localizations view: " + err.Error())
 				}
 				versionFieldValues, err = shared.NormalizeSelection(*versionFields, iapVersionFields, "--version-fields")
 				if err != nil {
-					return shared.UsageError("iap versions localizations view: " + err.Error())
+					return d.UsageError("iap versions localizations view: " + err.Error())
 				}
 				return nil
 			}
@@ -186,30 +183,30 @@ func flagSet(fs *flag.FlagSet, name string) bool {
 	return found
 }
 
-func IAPVersionLocalizationsUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("versions localizations update", flag.ExitOnError)
+func newIAPVersionLocalizationsUpdateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("versions localizations update", flag.ExitOnError)
 	id := shared.BindResourceIDFlag(fs, "localization-id", "inAppPurchaseLocalizations", "Localization ID")
 	name := fs.String("name", "", "Localization name")
 	clearName := fs.Bool("clear-name", false, "Clear the localization name")
 	description := fs.String("description", "", "Description")
 	clearDescription := fs.Bool("clear-description", false, "Clear the description")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "update", ShortUsage: `asc iap versions localizations update --localization-id "LOCALIZATION_ID" [flags]`, ShortHelp: "Update a version-scoped IAP localization.", LongHelp: "Update a version-scoped IAP localization.\n\nExamples:\n  asc iap versions localizations update --localization-id \"LOCALIZATION_ID\" --name \"New Name\"\n  asc iap versions localizations update --localization-id \"LOCALIZATION_ID\" --clear-description", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			value := strings.TrimSpace(*id)
 			if value == "" {
-				return shared.RequiredFlag("--localization-id")
+				return d.RequiredFlag("--localization-id")
 			}
 			nameSet, descriptionSet := flagSet(fs, "name"), flagSet(fs, "description")
 			if nameSet && *clearName {
-				return shared.UsageError("iap versions localizations update: --name and --clear-name are mutually exclusive")
+				return d.UsageError("iap versions localizations update: --name and --clear-name are mutually exclusive")
 			}
 			if descriptionSet && *clearDescription {
-				return shared.UsageError("iap versions localizations update: --description and --clear-description are mutually exclusive")
+				return d.UsageError("iap versions localizations update: --description and --clear-description are mutually exclusive")
 			}
 			if !nameSet && !descriptionSet && !*clearName && !*clearDescription {
-				return shared.UpdateFlagRequired(fs, name, clearName, description, clearDescription)
+				return d.UpdateFlagRequired(fs, name, clearName, description, clearDescription)
 			}
 			attrs := asc.InAppPurchaseLocalizationUpdateAttributes{}
 			if nameSet {
@@ -224,25 +221,22 @@ func IAPVersionLocalizationsUpdateCommand() *ffcli.Command {
 			} else if *clearDescription {
 				attrs.Description = &asc.NullableString{}
 			}
-			client, err := iapVersionClientFactory()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("iap versions localizations update: %w", err)
 			}
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 			resp, err := client.UpdateInAppPurchaseLocalizationV2(requestCtx, value, attrs)
 			if err != nil {
 				return fmt.Errorf("iap versions localizations update: failed to update: %w", err)
 			}
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-func IAPVersionLocalizationsDeleteCommand() *ffcli.Command {
-	d := shared.DefaultDeps()
-	d.Client = func() (*asc.Client, error) { return iapVersionClientFactory() }
-
+func newIAPVersionLocalizationsDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
 		FlagSetName:        "versions localizations delete",
 		Name:               "delete",

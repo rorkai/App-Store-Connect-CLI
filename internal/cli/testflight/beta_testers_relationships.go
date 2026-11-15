@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -23,9 +22,9 @@ var betaTesterRelationshipKinds = map[string]relationshipKind{
 	"builds":     relationshipList,
 }
 
-// BetaTestersRelationshipsCommand returns the beta-testers relationships command group.
-func BetaTestersRelationshipsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("relationships", flag.ExitOnError)
+// newBetaTestersRelationshipsCommand returns the beta-testers relationships command group built on d.
+func newBetaTestersRelationshipsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("relationships", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "relationships",
@@ -39,7 +38,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			BetaTestersRelationshipsGetCommand(),
+			newBetaTestersRelationshipsGetCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -47,9 +46,9 @@ Examples:
 	}
 }
 
-// BetaTestersRelationshipsGetCommand returns the beta-testers relationships get subcommand.
-func BetaTestersRelationshipsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("relationships view", flag.ExitOnError)
+// newBetaTestersRelationshipsGetCommand returns the beta-testers relationships get subcommand built on d.
+func newBetaTestersRelationshipsGetCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("relationships view", flag.ExitOnError)
 
 	testerID := shared.BindResourceIDFlag(fs, "tester-id", "betaTesters", "Beta tester ID")
 	aliasID := shared.BindResourceIDFlag(fs, "id", "betaTesters", "Beta tester ID (alias of --tester-id)")
@@ -57,7 +56,7 @@ func BetaTestersRelationshipsGetCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "view",
@@ -71,18 +70,18 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "testflight beta-testers relationships view", 200); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "testflight beta-testers relationships view", 200); err != nil {
 				return err
 			}
 
 			relationshipType := strings.TrimSpace(*relType)
 			if relationshipType == "" {
-				return shared.MissingRelationshipTypeUsageError(relationshipTypeList(betaTesterRelationshipKinds))
+				return d.MissingRelationshipTypeUsageError(relationshipTypeList(betaTesterRelationshipKinds))
 			}
 
 			kind, ok := betaTesterRelationshipKinds[relationshipType]
 			if !ok {
-				shared.PrintInvalidRelationshipTypeError(relationshipType, relationshipTypeList(betaTesterRelationshipKinds))
+				d.PrintInvalidRelationshipTypeError(relationshipType, relationshipTypeList(betaTesterRelationshipKinds))
 				return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticInvalidInput, "--type")
 			}
 
@@ -92,7 +91,7 @@ Examples:
 				testerValue = aliasValue
 			} else if aliasValue != "" && aliasValue != testerValue {
 				return shared.WithDiagnostic(
-					shared.UsageErrorCtx(ctx, "testflight beta-testers relationships view: --tester-id and --id must match"),
+					d.UsageErrorCtx(ctx, "testflight beta-testers relationships view: --tester-id and --id must match"),
 					shared.DiagnosticConflictingInput,
 					"",
 				)
@@ -100,20 +99,20 @@ Examples:
 
 			nextValue := strings.TrimSpace(*next)
 			if testerValue == "" && nextValue == "" {
-				return shared.RequiredFlag("--tester-id")
+				return d.RequiredFlag("--tester-id")
 			}
 
 			if kind == relationshipSingle && (nextValue != "" || *paginate || *limit != 0) {
-				fmt.Fprintln(os.Stderr, "Error: --limit, --next, and --paginate are only valid for to-many relationships")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --limit, --next, and --paginate are only valid for to-many relationships")
 				return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticConflictingInput, "")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("testflight beta-testers relationships view: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			opts := []asc.LinkagesOption{
@@ -139,7 +138,7 @@ Examples:
 
 			if *paginate {
 				paginateOpts := append(opts, asc.Limit[asc.LinkagesOption](200))
-				resp, err := shared.PaginateWithSpinner(
+				resp, err := d.PaginateWithSpinner(
 					requestCtx,
 					func(ctx context.Context) (asc.PaginatedResponse, error) {
 						page, err := getBetaTesterRelationshipList(ctx, client, relationshipType, testerValue, paginateOpts...)
@@ -160,14 +159,14 @@ Examples:
 					return fmt.Errorf("testflight beta-testers relationships view: %w", err)
 				}
 
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := getBetaTesterRelationshipList(requestCtx, client, relationshipType, testerValue, opts...)
 			if err != nil {
 				return fmt.Errorf("testflight beta-testers relationships view: %w", shared.DescribeRelationshipLookupFailure(err, relationshipType, parent))
 			}
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

@@ -4,10 +4,10 @@ import "testing"
 
 func TestTestFlightListsRejectsInvalidNextURL(t *testing.T) {
 	runInvalidNextURLCases(t, []invalidNextURLCase{
-		{args: []string{"testflight", "testers", "apps", "list"}, wantErr: "testflight testers apps list: --next"},
-		{args: []string{"testflight", "testers", "groups", "list"}, wantErr: "testflight testers groups list: --next"},
-		{args: []string{"testflight", "testers", "builds", "list"}, wantErr: "testflight testers builds list: --next"},
-		{args: []string{"testflight", "testers", "metrics"}, wantErr: "testflight testers metrics: --next"},
+		{args: []string{"testflight", "testers", "apps", "list"}, wantErr: "testflight testers apps list: --next", deps: true},
+		{args: []string{"testflight", "testers", "groups", "list"}, wantErr: "testflight testers groups list: --next", deps: true},
+		{args: []string{"testflight", "testers", "builds", "list"}, wantErr: "testflight testers builds list: --next", deps: true},
+		{args: []string{"testflight", "testers", "metrics"}, wantErr: "testflight testers metrics: --next", deps: true},
 		{args: []string{"testflight", "metrics", "app-testers"}, wantErr: "testflight metrics app-testers: --next"},
 		{args: []string{"testflight", "review", "view"}, wantErr: "testflight review view: --next"},
 	})
@@ -17,36 +17,43 @@ func TestTestFlightListsPaginateFromNext(t *testing.T) {
 	runPaginateFromNextCases(t, []paginateFromNextCase{
 		{
 			args:     []string{"testflight", "groups", "list"},
+			deps:     true,
 			firstURL: "https://api.appstoreconnect.apple.com/v1/betaGroups?cursor=AQ&limit=200",
 			dataType: "betaGroups",
 		},
 		{
 			args:     []string{"testflight", "testers", "list"},
+			deps:     true,
 			firstURL: "https://api.appstoreconnect.apple.com/v1/betaTesters?cursor=AQ&limit=200",
 			dataType: "betaTesters",
 		},
 		{
 			args:     []string{"testflight", "groups", "links", "view", "--group-id", "group-1", "--type", "betaTesters"},
+			deps:     true,
 			firstURL: "https://api.appstoreconnect.apple.com/v1/betaGroups/group-1/relationships/betaTesters?cursor=AQ&limit=200",
 			dataType: "betaTesters",
 		},
 		{
 			args:     []string{"testflight", "testers", "links", "view", "--tester-id", "tester-1", "--type", "apps"},
+			deps:     true,
 			firstURL: "https://api.appstoreconnect.apple.com/v1/betaTesters/tester-1/relationships/apps?cursor=AQ&limit=200",
 			dataType: "apps",
 		},
 		{
 			args:     []string{"testflight", "testers", "apps", "list", "--tester-id", "tester-1"},
+			deps:     true,
 			firstURL: "https://api.appstoreconnect.apple.com/v1/betaTesters/tester-1/apps?cursor=AQ&limit=200",
 			dataType: "apps",
 		},
 		{
 			args:     []string{"testflight", "testers", "groups", "list", "--tester-id", "tester-1"},
+			deps:     true,
 			firstURL: "https://api.appstoreconnect.apple.com/v1/betaTesters/tester-1/betaGroups?cursor=AQ&limit=200",
 			dataType: "betaGroups",
 		},
 		{
 			args:     []string{"testflight", "testers", "builds", "list", "--tester-id", "tester-1"},
+			deps:     true,
 			firstURL: "https://api.appstoreconnect.apple.com/v1/betaTesters/tester-1/builds?cursor=AQ&limit=200",
 			dataType: "builds",
 		},
@@ -57,6 +64,7 @@ func TestTestFlightListsPaginateFromNext(t *testing.T) {
 		},
 		{
 			args:       []string{"testflight", "testers", "metrics"},
+			deps:       true,
 			firstURL:   "https://api.appstoreconnect.apple.com/v1/betaTesters/tester-1/metrics/betaTesterUsages?cursor=AQ&limit=2",
 			dataType:   "betaTesterUsages",
 			singlePage: true,

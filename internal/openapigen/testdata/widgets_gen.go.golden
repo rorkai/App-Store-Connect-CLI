@@ -733,3 +733,69 @@ func buildWidgetSprocketsQuery(query *widgetSprocketsQuery) string {
 	}
 	return values.Encode()
 }
+
+// ZipperTeethOption sets the query of GET /v1/zippers/{id}/teeth (zippers_teeth_getToManyRelated) and GET /v1/teeth/{id} (teeth_getInstance).
+type ZipperTeethOption func(*zipperTeethQuery)
+
+type zipperTeethQuery struct {
+	listQuery
+	pitches    []string
+	fields     []string
+	sort       string
+	gearsLimit int
+}
+
+// WithZipperTeethPitches sets filter[pitch].
+func WithZipperTeethPitches(pitches []string) ZipperTeethOption {
+	return func(q *zipperTeethQuery) {
+		q.pitches = normalizeList(pitches)
+	}
+}
+
+// WithZipperTeethFields sets fields[widgets].
+func WithZipperTeethFields(fields []string) ZipperTeethOption {
+	return func(q *zipperTeethQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+// WithZipperTeethSort sets sort.
+func WithZipperTeethSort(sort string) ZipperTeethOption {
+	return func(q *zipperTeethQuery) {
+		if strings.TrimSpace(sort) != "" {
+			q.sort = strings.TrimSpace(sort)
+		}
+	}
+}
+
+// WithZipperTeethGearsLimit sets limit[gears].
+func WithZipperTeethGearsLimit(limit int) ZipperTeethOption {
+	return func(q *zipperTeethQuery) {
+		if limit > 0 {
+			q.gearsLimit = limit
+		}
+	}
+}
+
+func buildZipperTeethQuery(query *zipperTeethQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[pitch]", query.pitches)
+	addCSV(values, "fields[widgets]", query.fields)
+	if strings.TrimSpace(query.sort) != "" {
+		values.Set("sort", strings.TrimSpace(query.sort))
+	}
+	addLimit(values, query.limit)
+	if query.gearsLimit > 0 {
+		values.Set("limit[gears]", strconv.Itoa(query.gearsLimit))
+	}
+	return values.Encode()
+}
+
+func buildZipperToothQuery(query *zipperTeethQuery) string {
+	values := url.Values{}
+	addCSV(values, "fields[widgets]", query.fields)
+	if query.gearsLimit > 0 {
+		values.Set("limit[gears]", strconv.Itoa(query.gearsLimit))
+	}
+	return values.Encode()
+}

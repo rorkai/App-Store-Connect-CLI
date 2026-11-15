@@ -4,13 +4,15 @@ import (
 	"context"
 	"testing"
 	"time"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestContextWithBuildGroupMembershipTimeoutUsesBulkDefault(t *testing.T) {
 	t.Setenv("ASC_TIMEOUT", "")
 	t.Setenv("ASC_TIMEOUT_SECONDS", "")
 
-	ctx, cancel := contextWithBuildGroupMembershipTimeout(context.Background())
+	ctx, cancel := contextWithBuildGroupMembershipTimeout(context.Background(), &shared.Deps{ResolveTimeout: shared.ResolveTimeoutSetting})
 	defer cancel()
 	deadline, ok := ctx.Deadline()
 	remaining := time.Until(deadline)
@@ -23,7 +25,7 @@ func TestContextWithBuildGroupMembershipTimeoutHonorsASCOverride(t *testing.T) {
 	t.Setenv("ASC_TIMEOUT", "90s")
 	t.Setenv("ASC_TIMEOUT_SECONDS", "")
 
-	ctx, cancel := contextWithBuildGroupMembershipTimeout(context.Background())
+	ctx, cancel := contextWithBuildGroupMembershipTimeout(context.Background(), &shared.Deps{ResolveTimeout: shared.ResolveTimeoutSetting})
 	defer cancel()
 	deadline, ok := ctx.Deadline()
 	remaining := time.Until(deadline)

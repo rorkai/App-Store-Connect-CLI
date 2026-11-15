@@ -11,47 +11,47 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// GameCenterBlockedPlayersCommand returns the blocked player management group.
-func GameCenterBlockedPlayersCommand() *ffcli.Command {
-	return &ffcli.Command{Name: "blocked-players", ShortUsage: "asc game-center details blocked-players <subcommand> [flags]", ShortHelp: "List blocked players and manage player blocking.", FlagSet: flag.NewFlagSet("blocked-players", flag.ExitOnError), UsageFunc: shared.DefaultUsageFunc, Subcommands: []*ffcli.Command{gameCenterBlockedPlayersListCommand(), gameCenterBlockedPlayersUpdateCommand()}, Exec: func(context.Context, []string) error { return flag.ErrHelp }}
+// newGameCenterBlockedPlayersCommand returns the blocked player management group.
+func newGameCenterBlockedPlayersCommand(d *shared.Deps) *ffcli.Command {
+	return &ffcli.Command{Name: "blocked-players", ShortUsage: "asc game-center details blocked-players <subcommand> [flags]", ShortHelp: "List blocked players and manage player blocking.", FlagSet: d.NewFlagSet("blocked-players", flag.ExitOnError), UsageFunc: shared.DefaultUsageFunc, Subcommands: []*ffcli.Command{gameCenterBlockedPlayersListCommand(d), gameCenterBlockedPlayersUpdateCommand(d)}, Exec: func(context.Context, []string) error { return flag.ErrHelp }}
 }
 
-func gameCenterBlockedPlayersListCommand() *ffcli.Command {
+func gameCenterBlockedPlayersListCommand(d *shared.Deps) *ffcli.Command {
 	const command = "game-center details blocked-players list"
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
+	fs := d.NewFlagSet("list", flag.ExitOnError)
 	id := shared.BindResourceIDFlag(fs, "detail-id", "gameCenterDetails", "Game Center detail ID")
 	fields := fs.String("fields", "", "Fields: nickname, blocked, bundleId")
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{Name: "list", ShortUsage: "asc " + command + " --detail-id ID [flags]", ShortHelp: "List only blocked players for a Game Center detail.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc, Exec: func(ctx context.Context, args []string) error {
 		provided := map[string]bool{}
 		fs.Visit(func(f *flag.Flag) { provided[f.Name] = true })
 		if provided["limit"] && (*limit < 1 || *limit > 200) {
-			return shared.UsageError(command + ": --limit must be between 1 and 200")
+			return d.UsageError(command + ": --limit must be between 1 and 200")
 		}
-		if err := shared.ValidatePaginationFlags(ctx, fs, command, 200, "fields", "limit"); err != nil {
+		if err := d.ValidatePaginationFlags(ctx, fs, command, 200, "fields", "limit"); err != nil {
 			return err
 		}
 		nextURL := strings.TrimSpace(*next)
 		detailID := strings.TrimSpace(*id)
 		if detailID == "" && nextURL == "" {
-			return shared.UsageError(command + ": --detail-id is required")
+			return d.UsageError(command + ": --detail-id is required")
 		}
 		selected, err := shared.NormalizeSelection(*fields, []string{"nickname", "blocked", "bundleId"}, "--fields")
 		if err != nil {
-			return shared.UsageError(err.Error())
+			return d.UsageError(err.Error())
 		}
 		if provided["fields"] && len(selected) == 0 {
-			return shared.UsageError("--fields must not be empty")
+			return d.UsageError("--fields must not be empty")
 		}
-		client, err := shared.GetASCClient()
+		client, err := d.Client()
 		if err != nil {
 			return fmt.Errorf("%s: %w", command, err)
 		}
 		fetch := func(ctx context.Context, q asc.GCBlockedPlayersQuery) (*asc.GameCenterDetailPlayersResponse, error) {
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 			return client.GetGameCenterBlockedPlayers(requestCtx, detailID, q)
 		}
@@ -70,28 +70,28 @@ func gameCenterBlockedPlayersListCommand() *ffcli.Command {
 			if err != nil {
 				return fmt.Errorf("%s: %w", command, err)
 			}
-			return shared.PrintOutput(all, *output.Output, *output.Pretty)
+			return d.PrintOutput(all, *output.Output, *output.Pretty)
 		}
-		return shared.PrintOutput(first, *output.Output, *output.Pretty)
+		return d.PrintOutput(first, *output.Output, *output.Pretty)
 	}}
 }
 
-func gameCenterBlockedPlayersUpdateCommand() *ffcli.Command {
+func gameCenterBlockedPlayersUpdateCommand(d *shared.Deps) *ffcli.Command {
 	const command = "game-center details blocked-players update"
-	fs := flag.NewFlagSet("update", flag.ExitOnError)
+	fs := d.NewFlagSet("update", flag.ExitOnError)
 	id := shared.BindResourceIDFlag(fs, "id", "gameCenterDetailPlayers", "Game Center player ID")
 	var blocked shared.OptionalBool
 	fs.Var(&blocked, "blocked", "Block or unblock the player (true/false)")
 	bundleID := fs.String("bundle-id", "", "Optional bundleId attribute to send with the update")
 	confirm := fs.Bool("confirm", false, "Confirm player blocking change")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{Name: "update", ShortUsage: "asc " + command + " --id ID --blocked true|false --confirm", ShortHelp: "Block or unblock a Game Center player.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc, Exec: func(ctx context.Context, args []string) error {
 		playerID := strings.TrimSpace(*id)
 		if playerID == "" {
-			return shared.UsageError(command + ": --id is required")
+			return d.UsageError(command + ": --id is required")
 		}
 		if !blocked.IsSet() {
-			return shared.UsageError(command + ": --blocked is required")
+			return d.UsageError(command + ": --blocked is required")
 		}
 		var bundle *string
 		if flagPassed(fs, "bundle-id") {
@@ -99,21 +99,21 @@ func gameCenterBlockedPlayersUpdateCommand() *ffcli.Command {
 			bundle = &value
 		}
 		if bundle != nil && *bundle == "" {
-			return shared.UsageError("--bundle-id must not be empty")
+			return d.UsageError("--bundle-id must not be empty")
 		}
-		if err := validateGameCenterReplacementConfirm(shared.DefaultDeps(), fs, *confirm); err != nil {
+		if err := validateGameCenterReplacementConfirm(d, fs, *confirm); err != nil {
 			return err
 		}
-		client, err := shared.GetASCClient()
+		client, err := d.Client()
 		if err != nil {
 			return fmt.Errorf("%s: %w", command, err)
 		}
-		requestCtx, cancel := shared.ContextWithTimeout(ctx)
+		requestCtx, cancel := d.Timeout(ctx)
 		defer cancel()
 		response, err := client.UpdateGameCenterDetailPlayer(requestCtx, playerID, blocked.Value(), bundle)
 		if err != nil {
 			return fmt.Errorf("%s: %w", command, err)
 		}
-		return shared.PrintOutput(response, *output.Output, *output.Pretty)
+		return d.PrintOutput(response, *output.Output, *output.Pretty)
 	}}
 }

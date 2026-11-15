@@ -4,10 +4,12 @@ import (
 	"context"
 	"testing"
 	"time"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestContextWithAssetUploadTimeout(t *testing.T) {
-	ctx, cancel := contextWithAssetUploadTimeout(context.Background())
+	ctx, cancel := contextWithAssetUploadTimeout(context.Background(), &shared.Deps{ResolveTimeout: shared.ResolveTimeoutSetting})
 	defer cancel()
 
 	deadline, ok := ctx.Deadline()

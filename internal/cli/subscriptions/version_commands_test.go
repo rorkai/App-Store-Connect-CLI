@@ -3,7 +3,8 @@ package subscriptions
 import "testing"
 
 func TestSubscriptionsVersionsCommand_Surface(t *testing.T) {
-	cmd := SubscriptionsVersionsCommand()
+	d, _ := newSubscriptionsTestDeps()
+	cmd := newSubscriptionsVersionsCommand(d)
 	want := map[string]bool{
 		"create":        false,
 		"list":          false,

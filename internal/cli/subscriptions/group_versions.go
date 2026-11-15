@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -23,12 +22,11 @@ var (
 	subscriptionGroupVersionFields             = []string{"version", "state", "subscriptionGroup", "localizations"}
 	subscriptionGroupVersionGroupFields        = []string{"referenceName", "subscriptions", "subscriptionGroupLocalizations", "versions"}
 	subscriptionGroupVersionLocalizationFields = []string{"name", "customAppName", "locale", "version"}
-	subscriptionGroupVersionClientFactory      = shared.GetASCClient
 )
 
-// SubscriptionsGroupsVersionsCommand returns the subscription group versions command group.
-func SubscriptionsGroupsVersionsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("groups versions", flag.ExitOnError)
+// newSubscriptionsGroupsVersionsCommand returns the subscription group versions command group.
+func newSubscriptionsGroupsVersionsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("groups versions", flag.ExitOnError)
 	return &ffcli.Command{
 		Name:       "versions",
 		ShortUsage: "asc subscriptions groups versions <subcommand> [flags]",
@@ -41,21 +39,18 @@ Examples:
   asc subscriptions groups versions view --version-id "VERSION_ID"`,
 		FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			SubscriptionsGroupsVersionsCreateCommand(),
-			SubscriptionsGroupsVersionsListCommand(),
-			SubscriptionsGroupsVersionsViewCommand(),
-			SubscriptionsGroupsVersionLocalizationsCommand(),
-			SubscriptionsGroupsVersionLinksCommand(),
+			newSubscriptionsGroupsVersionsCreateCommand(d),
+			newSubscriptionsGroupsVersionsListCommand(d),
+			newSubscriptionsGroupsVersionsViewCommand(d),
+			newSubscriptionsGroupsVersionLocalizationsCommand(d),
+			newSubscriptionsGroupsVersionLinksCommand(d),
 		},
 		Exec: func(context.Context, []string) error { return flag.ErrHelp },
 	}
 }
 
-// SubscriptionsGroupsVersionsCreateCommand creates a discrete version for a group.
-func SubscriptionsGroupsVersionsCreateCommand() *ffcli.Command {
-	d := shared.DefaultDeps()
-	d.Client = func() (*asc.Client, error) { return subscriptionGroupVersionClientFactory() }
-
+// newSubscriptionsGroupsVersionsCreateCommand creates a discrete version for a group.
+func newSubscriptionsGroupsVersionsCreateCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildCreateCommand(shared.WriteCommandConfig{
 		FlagSetName: "groups versions create",
 		Name:        "create",
@@ -138,22 +133,22 @@ func bindSubscriptionGroupVersionFlags(fs *flag.FlagSet) (state, include, fields
 	return
 }
 
-// SubscriptionsGroupsVersionsListCommand lists versions for a group.
-func SubscriptionsGroupsVersionsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("groups versions list", flag.ExitOnError)
+// newSubscriptionsGroupsVersionsListCommand lists versions for a group.
+func newSubscriptionsGroupsVersionsListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("groups versions list", flag.ExitOnError)
 	groupID := shared.BindResourceIDFlag(fs, "group-id", "subscriptionGroups", "Subscription group ID")
 	state, include, fields, groupFields, localizationFields, limit, localizationsLimit, next, paginate := bindSubscriptionGroupVersionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "list", ShortUsage: `asc subscriptions groups versions list --group-id "GROUP_ID" [flags]`, ShortHelp: "List versions for a subscription group.",
 		LongHelp: "List versions for a subscription group.\n\nExamples:\n  asc subscriptions groups versions list --group-id \"GROUP_ID\" --state PREPARE_FOR_SUBMISSION --paginate", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "subscriptions groups versions list", 200, "state", "include", "fields", "group-fields", "localization-fields", "limit", "localizations-limit"); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "subscriptions groups versions list", 200, "state", "include", "fields", "group-fields", "localization-fields", "limit", "localizations-limit"); err != nil {
 				return err
 			}
 			id := strings.TrimSpace(*groupID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--group-id")
+				return d.RequiredFlag("--group-id")
 			}
 			firstPageLimit := *limit
 			if *paginate && firstPageLimit == 0 {
@@ -161,13 +156,13 @@ func SubscriptionsGroupsVersionsListCommand() *ffcli.Command {
 			}
 			opts, err := subscriptionGroupVersionOptions(*state, *include, *fields, *groupFields, *localizationFields, firstPageLimit, *localizationsLimit, *next)
 			if err != nil {
-				return shared.UsageError("subscriptions groups versions list: " + err.Error())
+				return d.UsageError("subscriptions groups versions list: " + err.Error())
 			}
-			client, err := subscriptionGroupVersionClientFactory()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("subscriptions groups versions list: %w", err)
 			}
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 			resp, err := client.GetSubscriptionGroupVersions(requestCtx, id, opts...)
 			if err != nil {
@@ -180,18 +175,15 @@ func SubscriptionsGroupsVersionsListCommand() *ffcli.Command {
 				if err != nil {
 					return fmt.Errorf("subscriptions groups versions list: %w", err)
 				}
-				return shared.PrintOutput(aggregated, *output.Output, *output.Pretty)
+				return d.PrintOutput(aggregated, *output.Output, *output.Pretty)
 			}
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// SubscriptionsGroupsVersionsViewCommand retrieves a group version.
-func SubscriptionsGroupsVersionsViewCommand() *ffcli.Command {
-	d := shared.DefaultDeps()
-	d.Client = func() (*asc.Client, error) { return subscriptionGroupVersionClientFactory() }
-
+// newSubscriptionsGroupsVersionsViewCommand retrieves a group version.
+func newSubscriptionsGroupsVersionsViewCommand(d *shared.Deps) *ffcli.Command {
 	var opts []asc.SubscriptionGroupVersionsOption
 
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
@@ -214,7 +206,7 @@ func SubscriptionsGroupsVersionsViewCommand() *ffcli.Command {
 			return func() (err error) {
 				opts, err = subscriptionGroupVersionOptions("", *include, *fields, *groupFields, *localizationFields, 0, *localizationsLimit, "")
 				if err != nil {
-					return shared.UsageError("subscriptions groups versions view: " + err.Error())
+					return d.UsageError("subscriptions groups versions view: " + err.Error())
 				}
 				return nil
 			}
@@ -225,22 +217,22 @@ func SubscriptionsGroupsVersionsViewCommand() *ffcli.Command {
 	})
 }
 
-// SubscriptionsGroupsVersionLinksCommand groups raw relationship linkage reads.
-func SubscriptionsGroupsVersionLinksCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("groups versions links", flag.ExitOnError)
+// newSubscriptionsGroupsVersionLinksCommand groups raw relationship linkage reads.
+func newSubscriptionsGroupsVersionLinksCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("groups versions links", flag.ExitOnError)
 	return &ffcli.Command{
 		Name: "links", ShortUsage: "asc subscriptions groups versions links <subcommand> [flags]", ShortHelp: "View raw subscription group version linkages.", LongHelp: "View raw subscription group version linkages.",
 		FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			subscriptionsGroupsVersionLinkagesCommand("versions", true),
-			subscriptionsGroupsVersionLinkagesCommand("localizations", false),
+			subscriptionsGroupsVersionLinkagesCommand(d, "versions", true),
+			subscriptionsGroupsVersionLinkagesCommand(d, "localizations", false),
 		},
 		Exec: func(context.Context, []string) error { return flag.ErrHelp },
 	}
 }
 
-func subscriptionsGroupsVersionLinkagesCommand(name string, groupOwned bool) *ffcli.Command {
-	fs := flag.NewFlagSet("groups versions links "+name, flag.ExitOnError)
+func subscriptionsGroupsVersionLinkagesCommand(d *shared.Deps, name string, groupOwned bool) *ffcli.Command {
+	fs := d.NewFlagSet("groups versions links "+name, flag.ExitOnError)
 	var ownerID *string
 	requiredFlag := "--version-id"
 	if groupOwned {
@@ -252,24 +244,24 @@ func subscriptionsGroupsVersionLinkagesCommand(name string, groupOwned bool) *ff
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: name, ShortUsage: "asc subscriptions groups versions links " + name + " [flags]", ShortHelp: "View " + name + " relationship linkages.", LongHelp: "View " + name + " relationship linkages.",
 		FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "subscriptions groups versions links "+name, 200, "limit"); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "subscriptions groups versions links "+name, 200, "limit"); err != nil {
 				return err
 			}
 			id := strings.TrimSpace(*ownerID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintf(os.Stderr, "Error: %s is required\n", requiredFlag)
+				fmt.Fprintf(d.IO.ErrOut, "Error: %s is required\n", requiredFlag)
 				return shared.MissingRequiredUsageError(requiredFlag)
 			}
-			client, err := subscriptionGroupVersionClientFactory()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("subscriptions groups versions links %s: %w", name, err)
 			}
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 			firstPageLimit := *limit
 			if *paginate && firstPageLimit == 0 {
@@ -293,9 +285,9 @@ func subscriptionsGroupsVersionLinkagesCommand(name string, groupOwned bool) *ff
 				if err != nil {
 					return fmt.Errorf("subscriptions groups versions links %s: %w", name, err)
 				}
-				return shared.PrintOutput(aggregated, *output.Output, *output.Pretty)
+				return d.PrintOutput(aggregated, *output.Output, *output.Pretty)
 			}
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

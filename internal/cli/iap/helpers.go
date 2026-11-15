@@ -21,8 +21,8 @@ var validOfferCodeEligibilities = map[string]struct{}{
 	"CHURNED_SPENDER": {},
 }
 
-func contextWithAssetUploadTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
-	return shared.ContextWithResolvedTimeout(ctx, iapAssetUploadDefaultTimeout)
+func contextWithAssetUploadTimeout(ctx context.Context, d *shared.Deps) (context.Context, context.CancelFunc) {
+	return d.ResolvedTimeout(ctx, iapAssetUploadDefaultTimeout)
 }
 
 func openImageFile(path string) (*os.File, os.FileInfo, error) {

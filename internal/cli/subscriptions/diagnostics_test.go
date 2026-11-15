@@ -13,10 +13,9 @@ import (
 )
 
 func TestSubscriptionsMissingRequiredInputExposesStructuredDiagnostic(t *testing.T) {
-	var err error
-	stderr := captureSubscriptionsDiagnosticStderr(t, func() {
-		err = SubscriptionsVersionLocalizationsViewCommand().ParseAndRun(context.Background(), nil)
-	})
+	d, stderrBuf := newSubscriptionsTestDeps()
+	err := newSubscriptionsVersionLocalizationsViewCommand(d).ParseAndRun(context.Background(), nil)
+	stderr := stderrBuf.String()
 	if !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("error = %v, want flag.ErrHelp contract", err)
 	}
@@ -37,10 +36,9 @@ func TestSubscriptionsMissingRequiredInputExposesStructuredDiagnostic(t *testing
 }
 
 func TestSubscriptionsGroupUpdateMissingReferenceNameExposesStructuredDiagnostic(t *testing.T) {
-	var err error
-	stderr := captureSubscriptionsDiagnosticStderr(t, func() {
-		err = SubscriptionsGroupsUpdateCommand().ParseAndRun(context.Background(), []string{"--id", "group-1"})
-	})
+	d, stderrBuf := newSubscriptionsTestDeps()
+	err := newSubscriptionsGroupsUpdateCommand(d).ParseAndRun(context.Background(), []string{"--id", "group-1"})
+	stderr := stderrBuf.String()
 	if !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("error = %v, want flag.ErrHelp contract", err)
 	}
@@ -81,10 +79,9 @@ func TestSubscriptionsConflictingInputExposesStructuredDiagnostic(t *testing.T) 
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			var err error
-			stderr := captureSubscriptionsDiagnosticStderr(t, func() {
-				err = SubscriptionsGroupsVersionLocalizationsUpdateCommand().ParseAndRun(context.Background(), test.args)
-			})
+			d, stderrBuf := newSubscriptionsTestDeps()
+			err := newSubscriptionsGroupsVersionLocalizationsUpdateCommand(d).ParseAndRun(context.Background(), test.args)
+			stderr := stderrBuf.String()
 			if !errors.Is(err, flag.ErrHelp) {
 				t.Fatalf("error = %v, want flag.ErrHelp contract", err)
 			}
@@ -116,14 +113,17 @@ func TestSubscriptionsAlternativeSelectorsLeaveDiagnosticParameterEmpty(t *testi
 		command func() interface {
 			ParseAndRun(context.Context, []string) error
 		}
+		depsCommand func(*shared.Deps) interface {
+			ParseAndRun(context.Context, []string) error
+		}
 		wantMessage string
 	}{
 		{
 			name: "subscription list",
-			command: func() interface {
+			depsCommand: func(d *shared.Deps) interface {
 				ParseAndRun(context.Context, []string) error
 			} {
-				return SubscriptionsListCommand()
+				return newSubscriptionsListCommand(d)
 			},
 			wantMessage: "Error: --group-id or --app is required (or set ASC_APP_ID)\n",
 		},
@@ -150,9 +150,16 @@ func TestSubscriptionsAlternativeSelectorsLeaveDiagnosticParameterEmpty(t *testi
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			var err error
-			stderr := captureSubscriptionsDiagnosticStderr(t, func() {
-				err = test.command().ParseAndRun(context.Background(), nil)
-			})
+			var stderr string
+			if test.depsCommand != nil {
+				d, stderrBuf := newSubscriptionsTestDeps()
+				err = test.depsCommand(d).ParseAndRun(context.Background(), nil)
+				stderr = stderrBuf.String()
+			} else {
+				stderr = captureSubscriptionsDiagnosticStderr(t, func() {
+					err = test.command().ParseAndRun(context.Background(), nil)
+				})
+			}
 			if !errors.Is(err, flag.ErrHelp) {
 				t.Fatalf("error = %v, want flag.ErrHelp contract", err)
 			}

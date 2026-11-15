@@ -134,7 +134,7 @@ func TestBetaTesterCSVRoundTripsNeutralizedCells(t *testing.T) {
 		t.Fatalf("writeCSVFileAtomicNoSymlink() error: %v", err)
 	}
 
-	parsed, err := readBetaTestersCSV(outputPath)
+	parsed, err := readBetaTestersCSV(csvTestDeps(), outputPath)
 	if err != nil {
 		t.Fatalf("readBetaTestersCSV() error: %v", err)
 	}
@@ -170,7 +170,7 @@ func TestBetaTesterCSVImportPreservesUnmarkedLeadingApostrophes(t *testing.T) {
 		t.Fatalf("write csv: %v", err)
 	}
 
-	parsed, err := readBetaTestersCSV(inputPath)
+	parsed, err := readBetaTestersCSV(csvTestDeps(), inputPath)
 	if err != nil {
 		t.Fatalf("readBetaTestersCSV() error: %v", err)
 	}

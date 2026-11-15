@@ -2,13 +2,11 @@ package cmdtest
 
 import (
 	"bytes"
-	"context"
 	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -37,17 +35,11 @@ func readCSVRecords(t *testing.T, path string) [][]string {
 }
 
 func TestTestFlightBetaTestersExport_WritesDeterministicCSV(t *testing.T) {
-	setupAuth(t)
-
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/betaTesters", "filter[apps]=app-1", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaTesters","id":"tester-2","attributes":{"email":"b@example.com","firstName":"B","lastName":"Bee"}},{"type":"betaTesters","id":"tester-1","attributes":{"email":"a@example.com","firstName":"A","lastName":"Aye"}}]}`))
 
 	outPath := filepath.Join(t.TempDir(), "testers.csv")
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
 
 	type exportSummary struct {
 		AppID      string `json:"appId"`
@@ -55,14 +47,10 @@ func TestTestFlightBetaTestersExport_WritesDeterministicCSV(t *testing.T) {
 		Total      int    `json:"total"`
 	}
 
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"testflight", "testers", "export", "--app", "app-1", "--output", outPath}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "testflight", "testers", "export", "--app", "app-1", "--output", outPath)
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -94,10 +82,7 @@ func TestTestFlightBetaTestersExport_WritesDeterministicCSV(t *testing.T) {
 }
 
 func TestTestFlightBetaTestersExport_IncludeGroupsAddsColumn(t *testing.T) {
-	setupAuth(t)
-
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-1/betaGroups", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"Alpha"}},{"type":"betaGroups","id":"group-2","attributes":{"name":"Beta"}}]}`))
 	reg.Register(asctest.GET("/v1/betaTesters", "filter[apps]=app-1", "limit=200"),
@@ -109,7 +94,7 @@ func TestTestFlightBetaTestersExport_IncludeGroupsAddsColumn(t *testing.T) {
 
 	outPath := filepath.Join(t.TempDir(), "testers.csv")
 
-	stdout, stderr, err := runCommand(t, []string{"testflight", "testers", "export", "--app", "app-1", "--output", outPath, "--include-groups"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "testflight", "testers", "export", "--app", "app-1", "--output", outPath, "--include-groups")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -133,21 +118,15 @@ func TestTestFlightBetaTestersExport_IncludeGroupsAddsColumn(t *testing.T) {
 }
 
 func TestTestFlightBetaTestersExport_IncludeGroupsRenewsRequestTimeout(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_TIMEOUT", "500ms")
 	t.Setenv("ASC_TIMEOUT_SECONDS", "")
 	t.Setenv("ASC_MAX_RETRIES", "0")
-
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
 
 	// One group read as two sequential 300ms pages exceeds a single 500ms
 	// timeout, so the export only succeeds if each request renews it.
 	const requestDelay = 300 * time.Millisecond
 	var callCount atomic.Int32
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		callCount.Add(1)
 		if req.Method != http.MethodGet {
 			t.Errorf("unexpected request: %s %s", req.Method, req.URL)
@@ -176,17 +155,11 @@ func TestTestFlightBetaTestersExport_IncludeGroupsRenewsRequestTimeout(t *testin
 	})
 
 	outPath := filepath.Join(t.TempDir(), "testers.csv")
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
 
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"testflight", "testers", "export", "--app", "app-1", "--output", outPath, "--include-groups"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, transport), "testflight", "testers", "export", "--app", "app-1", "--output", outPath, "--include-groups")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -209,27 +182,17 @@ func TestTestFlightBetaTestersExport_IncludeGroupsRenewsRequestTimeout(t *testin
 }
 
 func TestTestFlightBetaTestersImport_InvalidSchemaReturnsUsageError(t *testing.T) {
-	setupAuth(t)
-
-	asctest.NewRegistry(t).Install()
+	reg := asctest.NewRegistry(t)
 
 	csvPath := filepath.Join(t.TempDir(), "input.csv")
 	if err := os.WriteFile(csvPath, []byte("email,unknown\nx@example.com,value\n"), 0o600); err != nil {
 		t.Fatalf("WriteFile() error: %v", err)
 	}
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"testflight", "testers", "import", "--app", "app-1", "--input", csvPath, "--dry-run"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "testflight", "testers", "import", "--app", "app-1", "--input", csvPath, "--dry-run")
+	if !errors.Is(err, flag.ErrHelp) {
+		t.Fatalf("expected ErrHelp, got %v", err)
+	}
 
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
@@ -240,10 +203,7 @@ func TestTestFlightBetaTestersImport_InvalidSchemaReturnsUsageError(t *testing.T
 }
 
 func TestTestFlightBetaTestersImport_DryRun_NoMutations(t *testing.T) {
-	setupAuth(t)
-
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-1/betaGroups", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"Beta"}}]}`))
 	reg.Register(asctest.GET("/v1/betaTesters", "filter[apps]=app-1", "limit=200"),
@@ -258,9 +218,6 @@ func TestTestFlightBetaTestersImport_DryRun_NoMutations(t *testing.T) {
 		t.Fatalf("WriteFile() error: %v", err)
 	}
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
 	type importSummary struct {
 		DryRun  bool `json:"dryRun"`
 		Total   int  `json:"total"`
@@ -270,14 +227,10 @@ func TestTestFlightBetaTestersImport_DryRun_NoMutations(t *testing.T) {
 		Failed  int  `json:"failed"`
 	}
 
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"testflight", "testers", "import", "--app", "app-1", "--input", csvPath, "--dry-run"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "testflight", "testers", "import", "--app", "app-1", "--input", csvPath, "--dry-run")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -296,10 +249,7 @@ func TestTestFlightBetaTestersImport_DryRun_NoMutations(t *testing.T) {
 }
 
 func TestTestFlightBetaTestersImport_CreateAssignAndInvite(t *testing.T) {
-	setupAuth(t)
-
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-1/betaGroups", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"Beta"}}]}`))
 	reg.Register(asctest.GET("/v1/betaTesters", "filter[apps]=app-1", "limit=200"),
@@ -317,7 +267,7 @@ func TestTestFlightBetaTestersImport_CreateAssignAndInvite(t *testing.T) {
 		t.Fatalf("WriteFile() error: %v", err)
 	}
 
-	stdout, stderr, err := runCommand(t, []string{"testflight", "testers", "import", "--app", "app-1", "--input", csvPath, "--invite", "--confirm"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "testflight", "testers", "import", "--app", "app-1", "--input", csvPath, "--invite", "--confirm")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -331,19 +281,13 @@ func TestTestFlightBetaTestersImport_CreateAssignAndInvite(t *testing.T) {
 }
 
 func TestTestFlightBetaTestersImport_RenewsRequestTimeoutForEachMutation(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_TIMEOUT", "500ms")
 	t.Setenv("ASC_TIMEOUT_SECONDS", "")
 	t.Setenv("ASC_MAX_RETRIES", "0")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
 	const requestDelay = 300 * time.Millisecond
 	callCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		callCount++
 		switch callCount {
 		case 1:
@@ -376,23 +320,16 @@ func TestTestFlightBetaTestersImport_RenewsRequestTimeoutForEachMutation(t *test
 		t.Fatalf("WriteFile() error: %v", err)
 	}
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
 	type importSummary struct {
 		Total   int `json:"total"`
 		Created int `json:"created"`
 		Failed  int `json:"failed"`
 	}
 
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"testflight", "testers", "import", "--app", "app-1", "--input", csvPath, "--confirm"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, transport), "testflight", "testers", "import", "--app", "app-1", "--input", csvPath, "--confirm")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -470,10 +407,7 @@ func TestTestFlightBetaTestersImport_FailedMutationsCountOnlyAsFailed(t *testing
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			setupAuth(t)
-
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			for _, step := range test.steps {
 				matcher := asctest.POST(step.path)
 				switch {
@@ -490,18 +424,9 @@ func TestTestFlightBetaTestersImport_FailedMutationsCountOnlyAsFailed(t *testing
 				t.Fatalf("WriteFile() error: %v", err)
 			}
 
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
 			args := append([]string{"testflight", "testers", "import", "--app", "app-1", "--input", csvPath}, test.extraArgs...)
 			args = append(args, "--confirm")
-			var runErr error
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				runErr = root.Run(context.Background())
-			})
+			stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), args...)
 
 			if _, ok := errors.AsType[ReportedError](runErr); !ok {
 				t.Fatalf("expected ReportedError, got %v", runErr)
@@ -550,10 +475,7 @@ func TestTestFlightBetaTestersImport_FastlaneHeaderAndSemicolonGroups(t *testing
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			setupAuth(t)
-
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			reg.Register(asctest.GET("/v1/apps/app-1/betaGroups", "limit=200"),
 				asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"Beta"}},{"type":"betaGroups","id":"group-2","attributes":{"name":"Core, Team"}}]}`))
 			reg.Register(asctest.GET("/v1/betaTesters", "filter[apps]=app-1", "limit=200"),
@@ -566,7 +488,7 @@ func TestTestFlightBetaTestersImport_FastlaneHeaderAndSemicolonGroups(t *testing
 				t.Fatalf("WriteFile() error: %v", err)
 			}
 
-			stdout, stderr, err := runCommand(t, []string{"testflight", "testers", "import", "--app", "app-1", "--input", csvPath, "--confirm"})
+			stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "testflight", "testers", "import", "--app", "app-1", "--input", csvPath, "--confirm")
 			if err != nil {
 				t.Fatalf("run error: %v", err)
 			}
@@ -582,10 +504,7 @@ func TestTestFlightBetaTestersImport_FastlaneHeaderAndSemicolonGroups(t *testing
 }
 
 func TestTestFlightBetaTestersImport_HeaderlessFastlaneFormat(t *testing.T) {
-	setupAuth(t)
-
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/betaTesters", "filter[apps]=app-1", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[]}`))
 	reg.Register(asctest.POST("/v1/betaTesters").JSONBody(`{"data":{"type":"betaTesters","attributes":{"firstName":"Linus","lastName":"Torvalds","email":"linus@example.com"}}}`),
@@ -597,7 +516,7 @@ func TestTestFlightBetaTestersImport_HeaderlessFastlaneFormat(t *testing.T) {
 		t.Fatalf("WriteFile() error: %v", err)
 	}
 
-	stdout, stderr, err := runCommand(t, []string{"testflight", "testers", "import", "--app", "app-1", "--input", csvPath, "--confirm"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "testflight", "testers", "import", "--app", "app-1", "--input", csvPath, "--confirm")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -611,10 +530,7 @@ func TestTestFlightBetaTestersImport_HeaderlessFastlaneFormat(t *testing.T) {
 }
 
 func TestTestFlightBetaTestersImport_InvalidEmailFailsRow(t *testing.T) {
-	setupAuth(t)
-
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/betaTesters", "filter[apps]=app-1", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[]}`))
 
@@ -626,7 +542,7 @@ func TestTestFlightBetaTestersImport_InvalidEmailFailsRow(t *testing.T) {
 		t.Fatalf("WriteFile() error: %v", err)
 	}
 
-	stdout, stderr, runErr := runCommand(t, []string{"testflight", "testers", "import", "--app", "app-1", "--input", csvPath, "--confirm"})
+	stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), "testflight", "testers", "import", "--app", "app-1", "--input", csvPath, "--confirm")
 
 	if runErr == nil {
 		t.Fatal("expected error for invalid email")

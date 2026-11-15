@@ -1,7 +1,6 @@
 package cmdtest
 
 import (
-	"context"
 	"errors"
 	"io"
 	"net/http"
@@ -12,11 +11,9 @@ import (
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestBetaGroupsListQuerySurfacePropagatesOpenAPIFiltersAndIncludes(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
@@ -50,33 +47,26 @@ func TestBetaGroupsListQuerySurfacePropagatesOpenAPIFiltersAndIncludes(t *testin
 		_, _ = io.WriteString(w, `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"QA"}}]}`)
 	}))
 	t.Cleanup(server.Close)
-	installDefaultTransportForServer(t, server)
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"testflight", "groups", "list", "--app", "app-1",
-			"--id", "group-1,group-2",
-			"--public-link-enabled", "true",
-			"--public-link-limit-enabled", "false",
-			"--public-link", "https://example.com/public",
-			"--fields", "name,publicLink",
-			"--app-fields", "name,bundleId",
-			"--build-fields", "version",
-			"--tester-fields", "email",
-			"--recruitment-criteria-fields", "lastModifiedDate",
-			"--include", "app,builds,betaTesters,betaRecruitmentCriteria",
-			"--testers-limit", "25",
-			"--builds-limit", "100",
-			"--output", "json",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, stubServerClient(t, server),
+		"testflight", "groups", "list", "--app", "app-1",
+		"--id", "group-1,group-2",
+		"--public-link-enabled", "true",
+		"--public-link-limit-enabled", "false",
+		"--public-link", "https://example.com/public",
+		"--fields", "name,publicLink",
+		"--app-fields", "name,bundleId",
+		"--build-fields", "version",
+		"--tester-fields", "email",
+		"--recruitment-criteria-fields", "lastModifiedDate",
+		"--include", "app,builds,betaTesters,betaRecruitmentCriteria",
+		"--testers-limit", "25",
+		"--builds-limit", "100",
+		"--output", "json",
+	)
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("stderr = %q, want empty", stderr)
@@ -110,13 +100,12 @@ func TestBetaGroupsListNextRejectsQuerySurfaceFlagsBeforeAuth(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			clientFactoryCalled := false
-			restore := shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+			client := func() (*asc.Client, error) {
 				clientFactoryCalled = true
 				return nil, errors.New("client factory must not run during validation")
-			})
-			defer restore()
+			}
 
-			assertUsageExit(t, append([]string{"testflight", "groups", "list", "--next", nextURL}, test.args...), test.wantErr)
+			assertUsageExitWithDeps(t, client, append([]string{"testflight", "groups", "list", "--next", nextURL}, test.args...), test.wantErr)
 			if clientFactoryCalled {
 				t.Fatal("client factory ran before --next conflict validation")
 			}
@@ -146,13 +135,12 @@ func TestBetaGroupsListQuerySurfaceRejectsInvalidValuesBeforeAuth(t *testing.T) 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			clientFactoryCalled := false
-			restore := shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+			client := func() (*asc.Client, error) {
 				clientFactoryCalled = true
 				return nil, errors.New("client factory must not run during validation")
-			})
-			defer restore()
+			}
 
-			assertUsageExit(t, append([]string{"testflight", "groups", "list", "--global"}, test.args...), test.want)
+			assertUsageExitWithDeps(t, client, append([]string{"testflight", "groups", "list", "--global"}, test.args...), test.want)
 			if clientFactoryCalled {
 				t.Fatal("client factory ran before query validation")
 			}

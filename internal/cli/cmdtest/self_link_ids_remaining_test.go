@@ -114,6 +114,7 @@ func TestSelfLinkRemainingFlagsSendExtractedID(t *testing.T) {
 		{
 			name:     "merchant-ids view",
 			args:     []string{"merchant-ids", "view", "--merchant-id", selfLinkTestBase + "/v1/merchantIds/merchant-1"},
+			deps:     true,
 			wantPath: "GET /v1/merchantIds/merchant-1",
 			wantID:   "merchant-1",
 			bodies: map[string]string{
@@ -152,6 +153,7 @@ func TestSelfLinkRemainingFlagsSendExtractedID(t *testing.T) {
 		{
 			name:     "testflight testers apps list",
 			args:     []string{"testflight", "testers", "apps", "list", "--tester-id", selfLinkTestBase + "/v1/betaTesters/tester-1"},
+			deps:     true,
 			wantPath: "GET /v1/betaTesters/tester-1/apps",
 			wantID:   "app-1",
 			bodies: map[string]string{
@@ -275,6 +277,7 @@ func TestSelfLinkRemainingFlagsRejectWrongType(t *testing.T) {
 		{
 			name:    "certificates create rejects apps link for merchant",
 			args:    []string{"certificates", "create"},
+			deps:    true,
 			flag:    "merchant-id",
 			value:   selfLinkTestBase + "/v1/apps/123",
 			wantErr: "expected a self-link of type merchantIds, got apps",
@@ -282,6 +285,7 @@ func TestSelfLinkRemainingFlagsRejectWrongType(t *testing.T) {
 		{
 			name:    "merchant-ids certificates create rejects apps link",
 			args:    []string{"merchant-ids", "certificates", "create"},
+			deps:    true,
 			flag:    "merchant-id",
 			value:   selfLinkTestBase + "/v1/apps/123",
 			wantErr: "expected a self-link of type merchantIds, got apps",
@@ -289,6 +293,7 @@ func TestSelfLinkRemainingFlagsRejectWrongType(t *testing.T) {
 		{
 			name:    "merchant-ids view rejects apps link",
 			args:    []string{"merchant-ids", "view"},
+			deps:    true,
 			flag:    "merchant-id",
 			value:   selfLinkTestBase + "/v1/apps/123",
 			wantErr: "expected a self-link of type merchantIds, got apps",
@@ -371,6 +376,7 @@ func TestSelfLinkRemainingFlagsRejectWrongType(t *testing.T) {
 			flag:    "rule-set-id",
 			value:   selfLinkTestBase + "/v1/gameCenterMatchmakingQueues/queue-1",
 			wantErr: "expected a self-link of type gameCenterMatchmakingRuleSets, got gameCenterMatchmakingQueues",
+			deps:    true,
 		},
 		{
 			name:    "app-clips default-experiences localizations list rejects app-clips link",
@@ -420,6 +426,7 @@ func TestSelfLinkRemainingFlagsRejectWrongType(t *testing.T) {
 		{
 			name:    "testflight testers apps list rejects apps link",
 			args:    []string{"testflight", "testers", "apps", "list"},
+			deps:    true,
 			flag:    "tester-id",
 			value:   selfLinkTestBase + "/v1/apps/123",
 			wantErr: "expected a self-link of type betaTesters, got apps",
@@ -427,6 +434,7 @@ func TestSelfLinkRemainingFlagsRejectWrongType(t *testing.T) {
 		{
 			name:    "testflight testers apps list rejects apps link on the --id alias",
 			args:    []string{"testflight", "testers", "apps", "list"},
+			deps:    true,
 			flag:    "id",
 			value:   selfLinkTestBase + "/v1/apps/123",
 			wantErr: "expected a self-link of type betaTesters, got apps",
@@ -487,16 +495,15 @@ func TestSelfLinkCertificateCreateSendsMerchantIDRelationship(t *testing.T) {
 			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 			var payload asc.CertificateCreateRequest
-			captureCertificateCreateRequest(t, &payload)
+			client := captureCertificateCreateRequest(t, &payload)
 			args := append(append([]string(nil), command...),
 				"--certificate-type", "APPLE_PAY_MERCHANT_IDENTITY",
 				"--merchant-id", selfLinkTestBase+"/v1/merchantIds/merchant-1",
 				"--csr", writeApplePayCSR(t), "--output", "json")
-			_, stderr := captureOutput(t, func() {
-				if code := rootcmd.Run(args, "1.2.3"); code != rootcmd.ExitSuccess {
-					t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitSuccess)
-				}
-			})
+			_, stderr, code := runWithDeps(t, client, args...)
+			if code != rootcmd.ExitSuccess {
+				t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitSuccess)
+			}
 			if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)
 			}

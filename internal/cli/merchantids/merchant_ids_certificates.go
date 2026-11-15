@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -14,9 +13,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// MerchantIDsCertificatesCommand returns the merchant ID certificates command with subcommands.
-func MerchantIDsCertificatesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("certificates", flag.ExitOnError)
+// newMerchantIDsCertificatesCommand returns the merchant ID certificates command with subcommands.
+func newMerchantIDsCertificatesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("certificates", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "certificates",
@@ -31,9 +30,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			MerchantIDsCertificatesListCommand(),
-			MerchantIDsCertificatesGetCommand(),
-			MerchantIDsCertificatesCreateCommand(),
+			newMerchantIDsCertificatesListCommand(d),
+			newMerchantIDsCertificatesGetCommand(d),
+			newMerchantIDsCertificatesCreateCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -41,8 +40,8 @@ Examples:
 	}
 }
 
-// MerchantIDsCertificatesListCommand returns the certificates list subcommand.
-func MerchantIDsCertificatesListCommand() *ffcli.Command {
+// newMerchantIDsCertificatesListCommand returns the certificates list subcommand.
+func newMerchantIDsCertificatesListCommand(d *shared.Deps) *ffcli.Command {
 	var (
 		displayName         *string
 		certificateType     *string
@@ -71,6 +70,7 @@ Examples:
 		PaginateIgnoresLimit: true,
 		NoSpinner:            true,
 		NextConflicts:        []string{"display-name", "certificate-type", "serial-number", "certificate-id", "sort", "fields", "pass-type-fields", "include"},
+		Deps:                 d,
 		Flags: func(fs *flag.FlagSet) func() error {
 			displayName = fs.String("display-name", "", "Filter by certificate display name(s), comma-separated")
 			certificateType = fs.String("certificate-type", "", "Filter by certificate type(s), comma-separated")
@@ -82,24 +82,24 @@ Examples:
 			include := fs.String("include", "", "Include related resources: "+strings.Join(certificateIncludeList(), ", "))
 			return func() error {
 				if err := shared.ValidateSort(*sort, certificateSortValues...); err != nil {
-					return shared.UsageErrorf("merchant-ids certificates list: %v", err)
+					return d.UsageErrorf("merchant-ids certificates list: %v", err)
 				}
 
 				var err error
 				fieldsValue, err = normalizeCertificateFields(*fields, "--fields")
 				if err != nil {
-					return shared.UsageErrorf("merchant-ids certificates list: %v", err)
+					return d.UsageErrorf("merchant-ids certificates list: %v", err)
 				}
 				passTypeFieldsValue, err = normalizePassTypeIDFields(*passTypeFields, "--pass-type-fields")
 				if err != nil {
-					return shared.UsageErrorf("merchant-ids certificates list: %v", err)
+					return d.UsageErrorf("merchant-ids certificates list: %v", err)
 				}
 				includeValue, err = normalizeCertificateInclude(*include, "--include")
 				if err != nil {
-					return shared.UsageErrorf("merchant-ids certificates list: %v", err)
+					return d.UsageErrorf("merchant-ids certificates list: %v", err)
 				}
 				if len(passTypeFieldsValue) > 0 && !shared.HasInclude(includeValue, "passTypeId") {
-					fmt.Fprintln(os.Stderr, "Error: --pass-type-fields requires --include passTypeId")
+					fmt.Fprintln(d.IO.ErrOut, "Error: --pass-type-fields requires --include passTypeId")
 					return flag.ErrHelp
 				}
 				return nil
@@ -122,15 +122,15 @@ Examples:
 	})
 }
 
-// MerchantIDsCertificatesCreateCommand returns the certificates create
+// newMerchantIDsCertificatesCreateCommand returns the certificates create
 // subcommand. The implementation lives in the certificates package so both
 // create paths share one CSR and relationship implementation.
-func MerchantIDsCertificatesCreateCommand() *ffcli.Command {
-	return certificates.MerchantIDCertificatesCreateCommand()
+func newMerchantIDsCertificatesCreateCommand(d *shared.Deps) *ffcli.Command {
+	return certificates.NewMerchantIDCertificatesCreateCommand(d)
 }
 
-// MerchantIDsCertificatesGetCommand returns the certificates relationships get subcommand.
-func MerchantIDsCertificatesGetCommand() *ffcli.Command {
+// newMerchantIDsCertificatesGetCommand returns the certificates relationships get subcommand.
+func newMerchantIDsCertificatesGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		FlagSetName: "certificates view",
 		Name:        "view",
@@ -147,6 +147,7 @@ Examples:
 		RequiredDiagnostic:   true,
 		PaginateIgnoresLimit: true,
 		NoSpinner:            true,
+		Deps:                 d,
 		FetchPage: func(ctx context.Context, client *asc.Client, merchantID string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetMerchantIDCertificatesRelationships(ctx, merchantID, asc.Limit[asc.LinkagesOption](limit), asc.NextURL[asc.LinkagesOption](next))
 		},
