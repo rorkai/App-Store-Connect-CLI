@@ -3,8 +3,6 @@ package gamecenter
 import (
 	"context"
 	"flag"
-	"fmt"
-	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
@@ -90,18 +88,8 @@ Examples:
 
 // GameCenterLeaderboardLocalizationsCreateCommand returns the leaderboard localizations create subcommand.
 func GameCenterLeaderboardLocalizationsCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
-
-	leaderboardID := shared.BindResourceIDFlag(fs, "leaderboard-id", "gameCenterLeaderboards", "Game Center leaderboard ID")
-	locale := fs.String("locale", "", "Locale (e.g., en-US, de-DE)")
-	name := fs.String("name", "", "Display name for the leaderboard in this locale")
-	formatterOverride := fs.String("formatter-override", "", "Override the default formatter (optional)")
-	formatterSuffix := fs.String("formatter-suffix", "", "Suffix to append to formatted score (optional)")
-	formatterSuffixSingular := fs.String("formatter-suffix-singular", "", "Singular suffix (optional)")
-	description := fs.String("description", "", "Description for the leaderboard in this locale (optional)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	var attrs asc.GameCenterLeaderboardLocalizationCreateAttributes
+	return shared.BuildCreateCommand(shared.WriteCommandConfig{
 		Name:       "create",
 		ShortUsage: "asc game-center leaderboards localizations create [flags]",
 		ShortHelp:  "Create a new Game Center leaderboard localization.",
@@ -110,84 +98,27 @@ func GameCenterLeaderboardLocalizationsCreateCommand() *ffcli.Command {
 Examples:
   asc game-center leaderboards localizations create --leaderboard-id "LEADERBOARD_ID" --locale en-US --name "High Score"
   asc game-center leaderboards localizations create --leaderboard-id "LEADERBOARD_ID" --locale de-DE --name "Highscore" --formatter-suffix " Punkte"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			lbID := strings.TrimSpace(*leaderboardID)
-			if lbID == "" {
-				return shared.RequiredFlag("--leaderboard-id")
-			}
-
-			localeVal := strings.TrimSpace(*locale)
-			if localeVal == "" {
-				return shared.RequiredFlag("--locale")
-			}
-
-			nameVal := strings.TrimSpace(*name)
-			if nameVal == "" {
-				return shared.RequiredFlag("--name")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center leaderboards localizations create: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			var formatterOverrideVal *string
-			if trimmed := strings.TrimSpace(*formatterOverride); trimmed != "" {
-				formatterOverrideVal = &trimmed
-			}
-
-			var formatterSuffixVal *string
-			if trimmed := strings.TrimSpace(*formatterSuffix); trimmed != "" {
-				formatterSuffixVal = &trimmed
-			}
-
-			var formatterSuffixSingularVal *string
-			if trimmed := strings.TrimSpace(*formatterSuffixSingular); trimmed != "" {
-				formatterSuffixSingularVal = &trimmed
-			}
-
-			var descriptionVal *string
-			if trimmed := strings.TrimSpace(*description); trimmed != "" {
-				descriptionVal = &trimmed
-			}
-
-			attrs := asc.GameCenterLeaderboardLocalizationCreateAttributes{
-				Locale:                  localeVal,
-				Name:                    nameVal,
-				FormatterOverride:       formatterOverrideVal,
-				FormatterSuffix:         formatterSuffixVal,
-				FormatterSuffixSingular: formatterSuffixSingularVal,
-				Description:             descriptionVal,
-			}
-
-			resp, err := client.CreateGameCenterLeaderboardLocalization(requestCtx, lbID, attrs)
-			if err != nil {
-				return fmt.Errorf("game-center leaderboards localizations create: failed to create: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDFlag:  "leaderboard-id",
+		IDUsage: "Game Center leaderboard ID",
+		IDType:  "gameCenterLeaderboards",
+		Fields: []shared.AttributeFlag{
+			shared.RequiredStringFlag(&attrs.Locale, "locale", "Locale (e.g., en-US, de-DE)"),
+			shared.RequiredStringFlag(&attrs.Name, "name", "Display name for the leaderboard in this locale"),
+			shared.OptionalStringFlag(&attrs.FormatterOverride, "formatter-override", "Override the default formatter (optional)"),
+			shared.OptionalStringFlag(&attrs.FormatterSuffix, "formatter-suffix", "Suffix to append to formatted score (optional)"),
+			shared.OptionalStringFlag(&attrs.FormatterSuffixSingular, "formatter-suffix-singular", "Singular suffix (optional)"),
+			shared.OptionalStringFlag(&attrs.Description, "description", "Description for the leaderboard in this locale (optional)"),
 		},
-	}
+		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.CreateGameCenterLeaderboardLocalization(ctx, id, attrs)
+		},
+	})
 }
 
 // GameCenterLeaderboardLocalizationsUpdateCommand returns the leaderboard localizations update subcommand.
 func GameCenterLeaderboardLocalizationsUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("update", flag.ExitOnError)
-
-	localizationID := shared.BindResourceIDFlag(fs, "id", "gameCenterLeaderboardLocalizations", "Game Center leaderboard localization ID")
-	name := fs.String("name", "", "Display name for the leaderboard in this locale")
-	formatterOverride := fs.String("formatter-override", "", "Override the default formatter")
-	formatterSuffix := fs.String("formatter-suffix", "", "Suffix to append to formatted score")
-	formatterSuffixSingular := fs.String("formatter-suffix-singular", "", "Singular suffix")
-	description := fs.String("description", "", "Description for the leaderboard in this locale")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	var attrs asc.GameCenterLeaderboardLocalizationUpdateAttributes
+	return shared.BuildUpdateCommand(shared.WriteCommandConfig{
 		Name:       "update",
 		ShortUsage: "asc game-center leaderboards localizations update [flags]",
 		ShortHelp:  "Update a Game Center leaderboard localization.",
@@ -196,67 +127,19 @@ func GameCenterLeaderboardLocalizationsUpdateCommand() *ffcli.Command {
 Examples:
   asc game-center leaderboards localizations update --id "LOCALIZATION_ID" --name "Top Score"
   asc game-center leaderboards localizations update --id "LOCALIZATION_ID" --formatter-suffix " pts"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*localizationID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			attrs := asc.GameCenterLeaderboardLocalizationUpdateAttributes{}
-			hasUpdate := false
-
-			if strings.TrimSpace(*name) != "" {
-				nameVal := strings.TrimSpace(*name)
-				attrs.Name = &nameVal
-				hasUpdate = true
-			}
-
-			if strings.TrimSpace(*formatterOverride) != "" {
-				val := strings.TrimSpace(*formatterOverride)
-				attrs.FormatterOverride = &val
-				hasUpdate = true
-			}
-
-			if strings.TrimSpace(*formatterSuffix) != "" {
-				val := strings.TrimSpace(*formatterSuffix)
-				attrs.FormatterSuffix = &val
-				hasUpdate = true
-			}
-
-			if strings.TrimSpace(*formatterSuffixSingular) != "" {
-				val := strings.TrimSpace(*formatterSuffixSingular)
-				attrs.FormatterSuffixSingular = &val
-				hasUpdate = true
-			}
-
-			if strings.TrimSpace(*description) != "" {
-				val := strings.TrimSpace(*description)
-				attrs.Description = &val
-				hasUpdate = true
-			}
-
-			if !hasUpdate {
-				return shared.UpdateFlagRequired(fs, name, formatterOverride, formatterSuffix, formatterSuffixSingular, description)
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center leaderboards localizations update: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.UpdateGameCenterLeaderboardLocalization(requestCtx, id, attrs)
-			if err != nil {
-				return fmt.Errorf("game-center leaderboards localizations update: failed to update: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage: "Game Center leaderboard localization ID",
+		IDType:  "gameCenterLeaderboardLocalizations",
+		Fields: []shared.AttributeFlag{
+			shared.OptionalStringFlag(&attrs.Name, "name", "Display name for the leaderboard in this locale"),
+			shared.OptionalStringFlag(&attrs.FormatterOverride, "formatter-override", "Override the default formatter"),
+			shared.OptionalStringFlag(&attrs.FormatterSuffix, "formatter-suffix", "Suffix to append to formatted score"),
+			shared.OptionalStringFlag(&attrs.FormatterSuffixSingular, "formatter-suffix-singular", "Singular suffix"),
+			shared.OptionalStringFlag(&attrs.Description, "description", "Description for the leaderboard in this locale"),
 		},
-	}
+		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.UpdateGameCenterLeaderboardLocalization(ctx, id, attrs)
+		},
+	})
 }
 
 // GameCenterLeaderboardLocalizationsDeleteCommand returns the leaderboard localizations delete subcommand.
