@@ -160,6 +160,9 @@ func TestGenerateRejectsWhatItCannotModel(t *testing.T) {
 		{"record of an object as a string", &Family{Types: []string{"YoyoAttributes"}, RefTypes: []*RefType{{Schema: "YoyoImage", Type: "string"}}}},
 		{"record of a schema that is neither an enum nor an object", &Family{RefTypes: []*RefType{{Schema: "YoyoNote", Type: "YoyoText"}}}},
 		{"schema recorded twice", &Family{Types: []string{"YoyoAttributes"}, RefTypes: []*RefType{{Schema: "YoyoState", Type: "YoyoStatus"}, {Schema: "YoyoState", Type: "YoyoPhase"}}}},
+		{"Go type that is no type name", &Family{GoTypes: []*GoType{{Schema: "ZebraV2UpdateAttributes", Type: "*ZebraUpdateAttributes"}}}},
+		{"Go type of a type the family generates", &Family{Types: []string{"ZebraV2CreateData"}, GoTypes: []*GoType{{Schema: "ZebraV2CreateData", Type: "ZebraCreateData"}}}},
+		{"Go type recorded twice", &Family{GoTypes: []*GoType{{Schema: "ZebraV2UpdateData", Type: "ZebraUpdateData"}, {Schema: "ZebraV2UpdateData", Type: "ZebraData"}}}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

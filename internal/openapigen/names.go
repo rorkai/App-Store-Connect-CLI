@@ -28,6 +28,14 @@ func goName(jsonName string) string {
 	return b.String()
 }
 
+var versionWord = regexp.MustCompile(`V[0-9]+([A-Z]|$)`)
+
+// withoutVersion drops the version word of a schema name:
+// "ZebraV2UpdateRequest" -> "ZebraUpdateRequest".
+func withoutVersion(name string) string {
+	return versionWord.ReplaceAllString(name, "$1")
+}
+
 func upperFirst(s string) string {
 	if s == "" {
 		return s

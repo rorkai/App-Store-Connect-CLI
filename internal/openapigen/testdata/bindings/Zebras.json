@@ -1,0 +1,29 @@
+{
+  "tag": "Zebras",
+  "file": "zebras_gen.go",
+  "types": [
+    "ZebraAttributes",
+    "ZebraCreateAttributes",
+    "ZebraCreateData",
+    "ZebraCreateRequest",
+    "ZebraResponse",
+    "ZebraUpdateAttributes",
+    "ZebraUpdateData",
+    "ZebraUpdateRequest",
+    "ZebraV2CreateData",
+    "ZebraV2CreateRequest"
+  ],
+  "operations": [
+    {"operation":"zebrasV2_createInstance","name":"CreateZebraV2","response":"ZebraResponse"},
+    {"operation":"zebrasV2_updateInstance","name":"UpdateZebraV2","params":["zebraID"],"check":"trim","response":"ZebraResponse"},
+    {"operation":"zebras_createInstance","name":"CreateZebra"},
+    {"operation":"zebras_updateInstance","name":"UpdateZebra","params":["zebraID"],"check":"trim"}
+  ],
+  "goTypes": [
+    {"schema":"ZebraV2Attributes","type":"ZebraAttributes"},
+    {"schema":"ZebraV2CreateAttributes","type":"ZebraCreateAttributes"},
+    {"schema":"ZebraV2UpdateAttributes","type":"ZebraUpdateAttributes"},
+    {"schema":"ZebraV2UpdateData","type":"ZebraUpdateData"},
+    {"schema":"ZebraV2UpdateRequest","type":"ZebraUpdateRequest"}
+  ]
+}

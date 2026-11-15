@@ -20,6 +20,9 @@ func Generate(spec *Spec, fam *Family) ([]byte, error) {
 	if err := checkRefTypes(spec, fam); err != nil {
 		return nil, fmt.Errorf("%s: %w", fam.Tag, err)
 	}
+	if err := checkGoTypes(fam); err != nil {
+		return nil, fmt.Errorf("%s: %w", fam.Tag, err)
+	}
 	var body bytes.Buffer
 	for _, name := range fam.Types {
 		src, err := renderType(spec, fam, name)
@@ -69,11 +72,11 @@ func renderType(spec *Spec, fam *Family, name string) (string, error) {
 		if many {
 			generic = "Response"
 		}
-		return fmt.Sprintf("// %s is the %s schema.\ntype %s = %s[%sAttributes]\n\n", name, name, name, generic, resource), nil
+		return fmt.Sprintf("// %s is the %s schema.\ntype %s = %s[%s]\n\n", name, name, name, generic, fam.goType(resource+"Attributes")), nil
 	}
 	if base, ok := strings.CutSuffix(name, "Request"); ok {
 		if _, found := spec.Schema(name); found {
-			return fmt.Sprintf("// %s is the %s schema.\ntype %s struct {\nData %sData `json:\"data\"`\n}\n\n", name, name, name, base), nil
+			return fmt.Sprintf("// %s is the %s schema.\ntype %s struct {\nData %s `json:\"data\"`\n}\n\n", name, name, name, fam.goType(base+"Data")), nil
 		}
 	}
 	if base, ok := strings.CutSuffix(name, "Data"); ok {
@@ -91,9 +94,9 @@ func renderType(spec *Spec, fam *Family, name string) (string, error) {
 				fields = append(fields, "ID string `json:\"id\"`")
 			case "attributes":
 				if data.requires("attributes") {
-					fields = append(fields, fmt.Sprintf("Attributes %sAttributes `json:\"attributes\"`", base))
+					fields = append(fields, fmt.Sprintf("Attributes %s `json:\"attributes\"`", fam.goType(base+"Attributes")))
 				} else {
-					fields = append(fields, fmt.Sprintf("Attributes *%sAttributes `json:\"attributes,omitempty\"`", base))
+					fields = append(fields, fmt.Sprintf("Attributes *%s `json:\"attributes,omitempty\"`", fam.goType(base+"Attributes")))
 				}
 			case "relationships":
 				rel, err := fam.relationshipsOf(name)
@@ -321,6 +324,24 @@ func checkRefType(spec *Spec, r *RefType) error {
 
 var refTypeName = regexp.MustCompile(`^[A-Z][A-Za-z0-9]*$`)
 
+// checkGoTypes rejects a Go type record that names no type, stands for a
+// type the family generates, or repeats a schema.
+func checkGoTypes(fam *Family) error {
+	seen := map[string]bool{}
+	for _, g := range fam.GoTypes {
+		switch {
+		case !refTypeName.MatchString(g.Type):
+			return fmt.Errorf("%s is recorded as Go type %q, not a type name", g.Schema, g.Type)
+		case slices.Contains(fam.Types, g.Schema):
+			return fmt.Errorf("%s is generated and recorded as Go type %s", g.Schema, g.Type)
+		case seen[g.Schema]:
+			return fmt.Errorf("%s is recorded twice", g.Schema)
+		}
+		seen[g.Schema] = true
+	}
+	return nil
+}
+
 // method collects the parts of one generated method.
 type method struct {
 	fam    *Family
@@ -367,7 +388,7 @@ func renderMethod(spec *Spec, fam *Family, b *OpBind) (string, error) {
 	}
 	response := b.Response
 	if response == "" {
-		response = op.Response
+		response = fam.goType(op.Response)
 	}
 
 	var call string
@@ -552,7 +573,7 @@ func (m *method) payload(spec *Spec) (string, error) {
 		}
 		fields = append(fields, attrs)
 	} else if attrs := data.Properties.Get("attributes"); attrs != nil {
-		typ := base + "Attributes"
+		typ := m.fam.goType(base + "Attributes")
 		if m.b.Attrs == attrsPointer {
 			typ = "*" + typ
 		}
@@ -570,7 +591,7 @@ func (m *method) payload(spec *Spec) (string, error) {
 		fields = append(fields, "Relationships: "+relationships)
 	}
 	m.checks()
-	return fmt.Sprintf("payload := %s{\nData: %sData{\n%s,\n},\n}", m.op.Request, base, strings.Join(fields, ",\n")) + step, nil
+	return fmt.Sprintf("payload := %s{\nData: %s{\n%s,\n},\n}", m.fam.goType(m.op.Request), m.fam.goType(base+"Data"), strings.Join(fields, ",\n")) + step, nil
 }
 
 // checkAttrs rejects attributes bindings the request data cannot take.
@@ -740,7 +761,7 @@ func (m *method) argAttributes(data *Schema, base string) (string, error) {
 		}
 		fields = append(fields, goName(name)+": "+value)
 	}
-	lit := fmt.Sprintf("%sAttributes{\n%s,\n}", base, strings.Join(fields, ",\n"))
+	lit := fmt.Sprintf("%s{\n%s,\n}", m.fam.goType(base+"Attributes"), strings.Join(fields, ",\n"))
 	if data.requires("attributes") {
 		return "Attributes: " + lit, nil
 	}

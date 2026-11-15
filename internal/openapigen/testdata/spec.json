@@ -287,6 +287,46 @@
           "200": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WidgetsResponse"}}}}
         }
       }
+    },
+    "/v1/zebras": {
+      "post": {
+        "tags": ["Zebras"],
+        "operationId": "zebras_createInstance",
+        "requestBody": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/ZebraCreateRequest"}}}},
+        "responses": {
+          "201": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/ZebraResponse"}}}}
+        }
+      }
+    },
+    "/v1/zebras/{id}": {
+      "patch": {
+        "tags": ["Zebras"],
+        "operationId": "zebras_updateInstance",
+        "requestBody": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/ZebraUpdateRequest"}}}},
+        "responses": {
+          "200": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/ZebraResponse"}}}}
+        }
+      }
+    },
+    "/v2/zebras": {
+      "post": {
+        "tags": ["Zebras"],
+        "operationId": "zebrasV2_createInstance",
+        "requestBody": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/ZebraV2CreateRequest"}}}},
+        "responses": {
+          "201": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/ZebraV2Response"}}}}
+        }
+      }
+    },
+    "/v2/zebras/{id}": {
+      "patch": {
+        "tags": ["Zebras"],
+        "operationId": "zebrasV2_updateInstance",
+        "requestBody": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/ZebraV2UpdateRequest"}}}},
+        "responses": {
+          "200": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/ZebraV2Response"}}}}
+        }
+      }
     }
   },
   "components": {
@@ -632,6 +672,128 @@
             }
           }
         }
+      },
+      "Zebra": {
+        "type": "object",
+        "properties": {
+          "type": {"type": "string", "enum": ["zebras"]},
+          "id": {"type": "string"},
+          "attributes": {
+            "type": "object",
+            "properties": {
+              "name": {"type": "string"},
+              "stripes": {"type": "integer"}
+            }
+          }
+        },
+        "required": ["id", "type"]
+      },
+      "ZebraResponse": {
+        "type": "object",
+        "properties": {"data": {"$ref": "#/components/schemas/Zebra"}},
+        "required": ["data"]
+      },
+      "ZebraCreateRequest": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "type": {"type": "string", "enum": ["zebras"]},
+              "attributes": {
+                "type": "object",
+                "properties": {
+                  "name": {"type": "string"},
+                  "stripes": {"type": "integer"}
+                },
+                "required": ["name"]
+              }
+            },
+            "required": ["attributes", "type"]
+          }
+        },
+        "required": ["data"]
+      },
+      "ZebraUpdateRequest": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "type": {"type": "string", "enum": ["zebras"]},
+              "id": {"type": "string"},
+              "attributes": {
+                "type": "object",
+                "properties": {
+                  "name": {"type": "string"}
+                }
+              }
+            },
+            "required": ["id", "type"]
+          }
+        },
+        "required": ["data"]
+      },
+      "ZebraV2": {
+        "type": "object",
+        "properties": {
+          "type": {"type": "string", "enum": ["zebras"]},
+          "id": {"type": "string"},
+          "attributes": {
+            "type": "object",
+            "properties": {
+              "name": {"type": "string"},
+              "stripes": {"type": "integer"}
+            }
+          }
+        },
+        "required": ["id", "type"]
+      },
+      "ZebraV2Response": {
+        "type": "object",
+        "properties": {"data": {"$ref": "#/components/schemas/ZebraV2"}},
+        "required": ["data"]
+      },
+      "ZebraV2CreateRequest": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "type": {"type": "string", "enum": ["zebras"]},
+              "attributes": {
+                "type": "object",
+                "properties": {
+                  "name": {"type": "string"},
+                  "stripes": {"type": "integer"}
+                },
+                "required": ["name"]
+              }
+            },
+            "required": ["attributes", "type"]
+          }
+        },
+        "required": ["data"]
+      },
+      "ZebraV2UpdateRequest": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "type": {"type": "string", "enum": ["zebras"]},
+              "id": {"type": "string"},
+              "attributes": {
+                "type": "object",
+                "properties": {
+                  "name": {"type": "string"}
+                }
+              }
+            },
+            "required": ["id", "type"]
+          }
+        },
+        "required": ["data"]
       }
     }
   }
