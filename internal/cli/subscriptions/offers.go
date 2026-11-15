@@ -9,9 +9,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// SubscriptionsOffersCommand returns the canonical offers family.
-func SubscriptionsOffersCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("offers", flag.ExitOnError)
+// newSubscriptionsOffersCommand returns the canonical offers family.
+func newSubscriptionsOffersCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("offers", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "offers",
@@ -57,7 +57,7 @@ Examples:
 				"win-back",
 				"Manage subscription win-back offers.",
 			),
-			SubscriptionsRetentionOffersCommand(),
+			newSubscriptionsRetentionOffersCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp

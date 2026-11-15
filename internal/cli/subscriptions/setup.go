@@ -7,7 +7,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"os"
 	"sort"
 	"strings"
 
@@ -19,8 +18,6 @@ import (
 	validatecmd "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/validate"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/validation"
 )
-
-var subscriptionsSetupClientFactory = shared.GetASCClient
 
 var errSubscriptionsSetupExistingResourceFound = errors.New("existing subscription setup resource found")
 
@@ -154,9 +151,9 @@ func newSubscriptionsSetupConflictError(format string, args ...any) error {
 	return subscriptionsSetupConflictError{message: fmt.Sprintf(format, args...)}
 }
 
-// SubscriptionsSetupCommand returns the high-level subscriptions bootstrap workflow command.
-func SubscriptionsSetupCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("setup", flag.ExitOnError)
+// newSubscriptionsSetupCommand returns the high-level subscriptions bootstrap workflow command.
+func newSubscriptionsSetupCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("setup", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	groupID := shared.BindResourceIDFlag(fs, "group-id", "subscriptionGroups", "Existing subscription group ID")
@@ -193,7 +190,7 @@ func SubscriptionsSetupCommand() *ffcli.Command {
 	enableMonthlyCommitment := fs.Bool("enable-monthly-commitment", false, "Also configure Monthly with 12-Month Commitment availability for ONE_YEAR subscriptions")
 	noVerify := fs.Bool("no-verify", false, "Skip post-create readback verification for faster execution")
 	repair := fs.Bool("repair", false, "Atomically rebuild and re-save the complete equalized price matrix")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	shared.HideFlagFromHelp(fs.Lookup("group-ref-name"))
 	shared.HideFlagFromHelp(fs.Lookup("ref-name"))
@@ -236,33 +233,33 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.RecoverBoolFlagTailArgs(fs, args, availableInNewTerritories); err != nil {
+			if err := d.RecoverBoolFlagTailArgs(fs, args, availableInNewTerritories); err != nil {
 				return err
 			}
 
 			groupReferenceNameValue, err := resolveSubscriptionsSetupAlias(*groupReferenceName, *groupRefNameAlias, "--group-reference-name", "--group-ref-name")
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			referenceNameValue, err := resolveSubscriptionsSetupAlias(*referenceName, *refNameAlias, "--reference-name", "--ref-name")
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			displayNameValue, err := resolveSubscriptionsSetupAlias(*displayName, *nameAlias, "--display-name", "--name")
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
 			priceTerritoryValue := strings.TrimSpace(*priceTerritory)
 			if priceTerritoryValue != "" {
 				priceTerritoryValue, err = ascterritory.Normalize(priceTerritoryValue)
 				if err != nil {
-					return shared.UsageError(err.Error())
+					return d.UsageError(err.Error())
 				}
 			}
 			territoryValues, err := shared.NormalizeASCTerritoryCSV(*territories)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
 			opts := subscriptionsSetupOptions{
@@ -294,50 +291,50 @@ Examples:
 			}
 
 			if opts.GroupID == "" && opts.GroupReferenceName == "" {
-				return shared.UsageError("one of --group-id or --group-reference-name is required")
+				return d.UsageError("one of --group-id or --group-reference-name is required")
 			}
 			if opts.GroupID != "" && opts.GroupReferenceName != "" {
-				return shared.UsageError("--group-id and --group-reference-name are mutually exclusive")
+				return d.UsageError("--group-id and --group-reference-name are mutually exclusive")
 			}
 			if opts.GroupID == "" && opts.AppID == "" {
-				return shared.UsageError("--app is required when creating a new group")
+				return d.UsageError("--app is required when creating a new group")
 			}
 			if opts.ReferenceName == "" {
-				return shared.UsageError("--reference-name is required")
+				return d.UsageError("--reference-name is required")
 			}
 			if opts.ProductID == "" {
-				return shared.UsageError("--product-id is required")
+				return d.UsageError("--product-id is required")
 			}
-			if err := validateSubscriptionReviewFlags(fs, opts.ReviewNote, opts.GroupLevel); err != nil {
+			if err := validateSubscriptionReviewFlags(d, fs, opts.ReviewNote, opts.GroupLevel); err != nil {
 				return err
 			}
 
 			normalizedPeriod, err := normalizeSubscriptionPeriod(*subscriptionPeriod, false)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			opts.SubscriptionPeriod = normalizedPeriod
 			if opts.EnableMonthlyCommitment && opts.SubscriptionPeriod != asc.SubscriptionPeriodOneYear {
-				return shared.UsageError("--enable-monthly-commitment requires --subscription-period ONE_YEAR")
+				return d.UsageError("--enable-monthly-commitment requires --subscription-period ONE_YEAR")
 			}
 			if opts.EnableMonthlyCommitment {
-				return shared.UsageError("--enable-monthly-commitment is not supported by setup yet; create the ONE_YEAR subscription first, then run `asc subscriptions pricing monthly-commitment enable`")
+				return d.UsageError("--enable-monthly-commitment is not supported by setup yet; create the ONE_YEAR subscription first, then run `asc subscriptions pricing monthly-commitment enable`")
 			}
 
 			if opts.hasLocalization() {
 				if opts.Locale == "" {
-					return shared.UsageError("--locale is required when localization flags are provided")
+					return d.UsageError("--locale is required when localization flags are provided")
 				}
 				if opts.DisplayName == "" {
-					return shared.UsageError("--display-name is required when localization flags are provided")
+					return d.UsageError("--display-name is required when localization flags are provided")
 				}
 			}
 			if opts.hasGroupLocalization() {
 				if opts.GroupLocale == "" {
-					return shared.UsageError("--group-locale is required when group localization flags are provided")
+					return d.UsageError("--group-locale is required when group localization flags are provided")
 				}
 				if opts.GroupDisplayName == "" {
-					return shared.UsageError("--group-display-name is required when group localization flags are provided")
+					return d.UsageError("--group-display-name is required when group localization flags are provided")
 				}
 			}
 			if opts.hasLocalization() || opts.hasGroupLocalization() {
@@ -348,27 +345,27 @@ Examples:
 				if opts.hasLocalization() && opts.hasGroupLocalization() {
 					guidance = "After setup, create or resolve subscription and group versions, then use `asc subscriptions versions localizations create --version-id \"SUBSCRIPTION_VERSION_ID\" --name \"NAME\" --locale \"LOCALE\"` and `asc subscriptions groups versions localizations create --version-id \"GROUP_VERSION_ID\" --name \"NAME\" --locale \"LOCALE\"`."
 				}
-				fmt.Fprintf(os.Stderr, "Warning: localization flags on `asc subscriptions setup` use deprecated v1 localization resources. %s\n", guidance)
+				fmt.Fprintf(d.IO.ErrOut, "Warning: localization flags on `asc subscriptions setup` use deprecated v1 localization resources. %s\n", guidance)
 			}
 			if opts.Repair && !opts.hasPricing(*startDate) {
-				return shared.UsageError("--repair requires pricing flags")
+				return d.UsageError("--repair requires pricing flags")
 			}
 			if opts.ReviewScreenshot != "" {
 				if err := validateSubscriptionReviewScreenshotFile(opts.ReviewScreenshot); err != nil {
-					return shared.ReviewScreenshotUsageError("--review-screenshot", fmt.Sprintf("invalid --review-screenshot: %v", err))
+					return d.ReviewScreenshotUsageError("--review-screenshot", fmt.Sprintf("invalid --review-screenshot: %v", err))
 				}
 			}
 
 			if err := shared.ValidateFinitePriceFlag("--price", opts.Price); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			if opts.Tier < 0 {
-				return shared.UsageError("--tier must be a positive integer")
+				return d.UsageError("--tier must be a positive integer")
 			}
 			hasPricing := opts.hasPricing(*startDate)
 			if hasPricing {
 				if opts.PriceTerritory == "" {
-					return shared.UsageError("--price-territory is required when pricing flags are provided")
+					return d.UsageError("--price-territory is required when pricing flags are provided")
 				}
 				selectorCount := 0
 				if opts.PricePointID != "" {
@@ -381,31 +378,31 @@ Examples:
 					selectorCount++
 				}
 				if selectorCount == 0 {
-					return shared.UsageError("one of --price-point-id, --tier, or --price is required when pricing flags are provided")
+					return d.UsageError("one of --price-point-id, --tier, or --price is required when pricing flags are provided")
 				}
 				if selectorCount > 1 {
-					return shared.UsageError("--price-point-id, --tier, and --price are mutually exclusive")
+					return d.UsageError("--price-point-id, --tier, and --price are mutually exclusive")
 				}
 			}
 
 			if strings.TrimSpace(*startDate) != "" {
 				normalizedStartDate, err := shared.NormalizeDate(*startDate, "--start-date")
 				if err != nil {
-					return shared.UsageError(err.Error())
+					return d.UsageError(err.Error())
 				}
 				opts.StartDate = normalizedStartDate
 			}
 
 			if opts.hasAvailability() && len(subscriptionsSetupAvailabilityTerritories(opts)) == 0 {
-				return shared.UsageError("--territories is required when availability flags are provided unless --price-territory can be used to derive availability")
+				return d.UsageError("--territories is required when availability flags are provided unless --price-territory can be used to derive availability")
 			}
 
-			result, runErr := executeSubscriptionsSetup(ctx, opts)
-			if printErr := printSubscriptionsSetupResult(&result, *output.Output, *output.Pretty); printErr != nil {
+			result, runErr := executeSubscriptionsSetup(ctx, d, opts)
+			if printErr := printSubscriptionsSetupResult(d, &result, *output.Output, *output.Pretty); printErr != nil {
 				return printErr
 			}
 			if runErr != nil {
-				writeSubscriptionsSetupFailure(os.Stderr, &result)
+				writeSubscriptionsSetupFailure(d.IO.ErrOut, &result)
 				return shared.NewStderrReportedError(runErr)
 			}
 			return nil
@@ -424,7 +421,7 @@ func writeSubscriptionsSetupFailure(w io.Writer, result *subscriptionsSetupResul
 	}
 }
 
-func executeSubscriptionsSetup(ctx context.Context, opts subscriptionsSetupOptions) (subscriptionsSetupResult, error) {
+func executeSubscriptionsSetup(ctx context.Context, d *shared.Deps, opts subscriptionsSetupOptions) (subscriptionsSetupResult, error) {
 	availabilityTerritories := subscriptionsSetupAvailabilityTerritories(opts)
 
 	result := subscriptionsSetupResult{
@@ -440,7 +437,7 @@ func executeSubscriptionsSetup(ctx context.Context, opts subscriptionsSetupOptio
 		Steps:              make([]subscriptionsSetupStepResult, 0, 7),
 	}
 
-	client, err := subscriptionsSetupClientFactory()
+	client, err := d.Client()
 	if err != nil {
 		result.Status = "error"
 		result.Error = err.Error()
@@ -455,7 +452,7 @@ func executeSubscriptionsSetup(ctx context.Context, opts subscriptionsSetupOptio
 
 	reusedGroup := strings.TrimSpace(opts.GroupID) != ""
 	if strings.TrimSpace(opts.GroupID) == "" {
-		groupCtx, groupCancel := shared.ContextWithTimeout(ctx)
+		groupCtx, groupCancel := d.Timeout(ctx)
 		groupID, found, err := findExistingSubscriptionSetupGroup(groupCtx, client, opts.AppID, opts.GroupReferenceName)
 		groupCancel()
 		if err != nil {
@@ -479,7 +476,7 @@ func executeSubscriptionsSetup(ctx context.Context, opts subscriptionsSetupOptio
 				Message: "used existing group",
 			})
 		} else {
-			groupCtx, groupCancel := shared.ContextWithTimeout(ctx)
+			groupCtx, groupCancel := d.Timeout(ctx)
 			groupResp, err := client.CreateSubscriptionGroup(groupCtx, opts.AppID, asc.SubscriptionGroupCreateAttributes{
 				ReferenceName: opts.GroupReferenceName,
 			})
@@ -518,7 +515,7 @@ func executeSubscriptionsSetup(ctx context.Context, opts subscriptionsSetupOptio
 			Message: "no group localization flags provided",
 		})
 	} else {
-		groupLocCtx, groupLocCancel := shared.ContextWithTimeout(ctx)
+		groupLocCtx, groupLocCancel := d.Timeout(ctx)
 		groupLocalization, found, err := findExistingSubscriptionSetupGroupLocalization(groupLocCtx, client, result.GroupID, opts.GroupLocale)
 		groupLocCancel()
 		if err != nil {
@@ -543,7 +540,7 @@ func executeSubscriptionsSetup(ctx context.Context, opts subscriptionsSetupOptio
 			if opts.GroupCustomAppName != "" {
 				attrs.CustomAppName = opts.GroupCustomAppName
 			}
-			groupLocCtx, groupLocCancel := shared.ContextWithTimeout(ctx)
+			groupLocCtx, groupLocCancel := d.Timeout(ctx)
 			groupLocalizationResp, err := client.CreateSubscriptionGroupLocalization(groupLocCtx, result.GroupID, attrs) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 			groupLocCancel()
 			if err != nil {
@@ -577,7 +574,7 @@ func executeSubscriptionsSetup(ctx context.Context, opts subscriptionsSetupOptio
 
 	reusedSubscription := false
 	if reusedGroup {
-		subCtx, subCancel := shared.ContextWithTimeout(ctx)
+		subCtx, subCancel := d.Timeout(ctx)
 		existingSub, found, err := findExistingSubscriptionSetupSubscription(subCtx, client, result.GroupID, opts.ProductID)
 		subCancel()
 		if err != nil {
@@ -614,7 +611,7 @@ func executeSubscriptionsSetup(ctx context.Context, opts subscriptionsSetupOptio
 		}
 	}
 	if !reusedSubscription {
-		subCtx, subCancel := shared.ContextWithTimeout(ctx)
+		subCtx, subCancel := d.Timeout(ctx)
 		subResp, err := client.CreateSubscription(subCtx, result.GroupID, subAttrs)
 		subCancel()
 		if err != nil {
@@ -642,8 +639,8 @@ func executeSubscriptionsSetup(ctx context.Context, opts subscriptionsSetupOptio
 	var preflightHasExistingPrices bool
 	pricePreflightDone := false
 	if reusedSubscription && opts.hasPricing(opts.StartDate) {
-		pricePointCtx, pricePointCancel := shared.ContextWithTimeout(ctx)
-		resolvedPricePointID, err := resolveExpectedSubscriptionSetupPricePoint(pricePointCtx, client, result.SubscriptionID, opts)
+		pricePointCtx, pricePointCancel := d.Timeout(ctx)
+		resolvedPricePointID, err := resolveExpectedSubscriptionSetupPricePoint(pricePointCtx, d, client, result.SubscriptionID, opts)
 		pricePointCancel()
 		if err != nil {
 			result.Status = "error"
@@ -661,7 +658,7 @@ func executeSubscriptionsSetup(ctx context.Context, opts subscriptionsSetupOptio
 			StartDate: opts.StartDate,
 			PlanType:  asc.SubscriptionPlanTypeUpfront,
 		}
-		priceCtx, priceCancel := shared.ContextWithTimeout(ctx)
+		priceCtx, priceCancel := d.Timeout(ctx)
 		preflightFoundPrice, preflightHasExistingPrices, err = findExistingSubscriptionSetupPrice(priceCtx, client, result.SubscriptionID, resolvedPricePointID, opts.PriceTerritory, priceAttrs)
 		priceCancel()
 		if err != nil {
@@ -698,7 +695,7 @@ func executeSubscriptionsSetup(ctx context.Context, opts subscriptionsSetupOptio
 		availabilityAttrs := asc.SubscriptionAvailabilityAttributes{
 			AvailableInNewTerritories: opts.AvailableInNewTerritories,
 		}
-		availabilityCtx, availabilityCancel := shared.ContextWithTimeout(ctx)
+		availabilityCtx, availabilityCancel := d.Timeout(ctx)
 		preflightAvailabilityID, preflightFoundAvailability, preflightHasAvailability, err = findExistingSubscriptionSetupAvailability(availabilityCtx, client, result.SubscriptionID, availabilityTerritories, availabilityAttrs)
 		availabilityCancel()
 		if err != nil {
@@ -736,7 +733,7 @@ func executeSubscriptionsSetup(ctx context.Context, opts subscriptionsSetupOptio
 	} else {
 		reusedLocalization := false
 		if reusedSubscription {
-			locCtx, locCancel := shared.ContextWithTimeout(ctx)
+			locCtx, locCancel := d.Timeout(ctx)
 			localization, found, err := findExistingSubscriptionSetupLocalization(locCtx, client, result.SubscriptionID, opts.Locale)
 			locCancel()
 			if err != nil {
@@ -773,7 +770,7 @@ func executeSubscriptionsSetup(ctx context.Context, opts subscriptionsSetupOptio
 			}
 		}
 		if !reusedLocalization {
-			locCtx, locCancel := shared.ContextWithTimeout(ctx)
+			locCtx, locCancel := d.Timeout(ctx)
 			locResp, err := client.CreateSubscriptionLocalization(locCtx, result.SubscriptionID, asc.SubscriptionLocalizationCreateAttributes{ //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 				Name:        opts.DisplayName,
 				Locale:      opts.Locale,
@@ -815,14 +812,14 @@ func executeSubscriptionsSetup(ctx context.Context, opts subscriptionsSetupOptio
 			return failSubscriptionsSetupStep(result, subscriptionsSetupStepUploadReviewScreenshot, err, "invalid review screenshot")
 		}
 		defer cleanupSnapshot()
-		if err := shared.PreflightReviewScreenshot(opts.ReviewScreenshot, snapshot, info.Size()); err != nil {
+		if err := d.PreflightReviewScreenshot(opts.ReviewScreenshot, snapshot, info.Size()); err != nil {
 			return failSubscriptionsSetupStep(result, subscriptionsSetupStepUploadReviewScreenshot, err, "invalid review screenshot")
 		}
 		checksum, err := asc.ComputeChecksumFromReader(io.NewSectionReader(snapshot, 0, info.Size()), asc.ChecksumAlgorithmMD5)
 		if err != nil {
 			return failSubscriptionsSetupStep(result, subscriptionsSetupStepUploadReviewScreenshot, err, "review screenshot checksum failed")
 		}
-		screenshotResp, err := createOrResumeSubscriptionReviewScreenshot(ctx, client, result.SubscriptionID, snapshot, info, checksum.Hash)
+		screenshotResp, err := createOrResumeSubscriptionReviewScreenshot(ctx, d, client, result.SubscriptionID, snapshot, info, checksum.Hash)
 		if err != nil {
 			return failSubscriptionsSetupStep(result, subscriptionsSetupStepUploadReviewScreenshot, err, "failed to upload review screenshot")
 		}
@@ -851,9 +848,9 @@ func executeSubscriptionsSetup(ctx context.Context, opts subscriptionsSetupOptio
 	} else {
 		resolvedPricePointID := preflightPricePointID
 		if !pricePreflightDone {
-			pricePointCtx, pricePointCancel := shared.ContextWithTimeout(ctx)
+			pricePointCtx, pricePointCancel := d.Timeout(ctx)
 			var err error
-			resolvedPricePointID, err = resolveExpectedSubscriptionSetupPricePoint(pricePointCtx, client, result.SubscriptionID, opts)
+			resolvedPricePointID, err = resolveExpectedSubscriptionSetupPricePoint(pricePointCtx, d, client, result.SubscriptionID, opts)
 			pricePointCancel()
 			if err != nil {
 				result.Status = "error"
@@ -885,7 +882,7 @@ func executeSubscriptionsSetup(ctx context.Context, opts subscriptionsSetupOptio
 				found = preflightFoundPrice
 				hasExistingPrices = preflightHasExistingPrices
 			} else {
-				priceCtx, priceCancel := shared.ContextWithTimeout(ctx)
+				priceCtx, priceCancel := d.Timeout(ctx)
 				found, hasExistingPrices, err = findExistingSubscriptionSetupPrice(priceCtx, client, result.SubscriptionID, result.ResolvedPricePointID, opts.PriceTerritory, priceAttrs)
 				priceCancel()
 				if err != nil {
@@ -913,7 +910,7 @@ func executeSubscriptionsSetup(ctx context.Context, opts subscriptionsSetupOptio
 			})
 			return result, err
 		}
-		matrixTerritories, mutated, err := ensureSubscriptionsSetupPriceMatrix(ctx, client, result.SubscriptionID, result.ResolvedPricePointID, opts.PriceTerritory, priceAttrs, opts.Repair)
+		matrixTerritories, mutated, err := ensureSubscriptionsSetupPriceMatrix(ctx, d, client, result.SubscriptionID, result.ResolvedPricePointID, opts.PriceTerritory, priceAttrs, opts.Repair)
 		if err != nil {
 			return failSubscriptionsSetupStep(result, subscriptionsSetupStepSetPrice, err, "failed to materialize complete price matrix")
 		}
@@ -948,7 +945,7 @@ func executeSubscriptionsSetup(ctx context.Context, opts subscriptionsSetupOptio
 				found = preflightFoundAvailability
 				hasExistingAvailability = preflightHasAvailability
 			} else {
-				availabilityCtx, availabilityCancel := shared.ContextWithTimeout(ctx)
+				availabilityCtx, availabilityCancel := d.Timeout(ctx)
 				existingAvailabilityID, found, hasExistingAvailability, err = findExistingSubscriptionSetupAvailability(availabilityCtx, client, result.SubscriptionID, availabilityTerritories, availabilityAttrs)
 				availabilityCancel()
 				if err != nil {
@@ -984,7 +981,7 @@ func executeSubscriptionsSetup(ctx context.Context, opts subscriptionsSetupOptio
 			})
 			return result, err
 		} else {
-			availabilityCtx, availabilityCancel := shared.ContextWithTimeout(ctx)
+			availabilityCtx, availabilityCancel := d.Timeout(ctx)
 			availabilityResp, err := client.CreateSubscriptionAvailability(availabilityCtx, result.SubscriptionID, availabilityTerritories, availabilityAttrs)
 			availabilityCancel()
 			if err != nil {
@@ -1018,7 +1015,7 @@ func executeSubscriptionsSetup(ctx context.Context, opts subscriptionsSetupOptio
 		return result, nil
 	}
 
-	verification, verifyStep, err := verifySubscriptionsSetupState(ctx, client, result, opts, availabilityTerritories, reusedSubscription)
+	verification, verifyStep, err := verifySubscriptionsSetupState(ctx, d, client, result, opts, availabilityTerritories, reusedSubscription)
 	if err != nil {
 		result.Status = "error"
 		result.Error = err.Error()
@@ -1041,10 +1038,10 @@ func executeSubscriptionsSetup(ctx context.Context, opts subscriptionsSetupOptio
 	return result, nil
 }
 
-func verifySubscriptionsSetupState(ctx context.Context, client *asc.Client, result subscriptionsSetupResult, opts subscriptionsSetupOptions, availabilityTerritories []string, reusedSubscription bool) (*subscriptionsSetupVerification, subscriptionsSetupStepResult, error) {
+func verifySubscriptionsSetupState(ctx context.Context, d *shared.Deps, client *asc.Client, result subscriptionsSetupResult, opts subscriptionsSetupOptions, availabilityTerritories []string, reusedSubscription bool) (*subscriptionsSetupVerification, subscriptionsSetupStepResult, error) {
 	verification := &subscriptionsSetupVerification{Status: "verified"}
 
-	groupCtx, groupCancel := shared.ContextWithTimeout(ctx)
+	groupCtx, groupCancel := d.Timeout(ctx)
 	groupResp, err := client.GetSubscriptionGroup(groupCtx, result.GroupID)
 	groupCancel()
 	if err != nil {
@@ -1058,7 +1055,7 @@ func verifySubscriptionsSetupState(ctx context.Context, client *asc.Client, resu
 		return verification, subscriptionsSetupStepResult{Name: subscriptionsSetupStepVerifyState, Status: "failed", Message: fmt.Sprintf("group reference mismatch: got %q", groupResp.Data.Attributes.ReferenceName)}, fmt.Errorf("group reference mismatch: got %q want %q", groupResp.Data.Attributes.ReferenceName, opts.GroupReferenceName)
 	}
 	if opts.hasGroupLocalization() {
-		groupLocCtx, groupLocCancel := shared.ContextWithTimeout(ctx)
+		groupLocCtx, groupLocCancel := d.Timeout(ctx)
 		groupLocalization, found, err := findExistingSubscriptionSetupGroupLocalization(groupLocCtx, client, result.GroupID, opts.GroupLocale)
 		groupLocCancel()
 		if err != nil {
@@ -1073,7 +1070,7 @@ func verifySubscriptionsSetupState(ctx context.Context, client *asc.Client, resu
 		verification.GroupLocalizationExists = &value
 	}
 
-	subCtx, subCancel := shared.ContextWithTimeout(ctx)
+	subCtx, subCancel := d.Timeout(ctx)
 	subResp, err := client.GetSubscription(subCtx, result.SubscriptionID)
 	subCancel()
 	if err != nil {
@@ -1112,7 +1109,7 @@ func verifySubscriptionsSetupState(ctx context.Context, client *asc.Client, resu
 	verification.SubscriptionExists = true
 
 	if opts.hasLocalization() {
-		locCtx, locCancel := shared.ContextWithTimeout(ctx)
+		locCtx, locCancel := d.Timeout(ctx)
 		locResp, err := client.GetSubscriptionLocalizations(locCtx, result.SubscriptionID, asc.Limit[asc.SubscriptionLocalizationsOption](200)) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 		locCancel()
 		if err != nil {
@@ -1138,7 +1135,7 @@ func verifySubscriptionsSetupState(ctx context.Context, client *asc.Client, resu
 	}
 
 	if opts.ReviewScreenshot != "" {
-		screenshotCtx, screenshotCancel := shared.ContextWithTimeout(ctx)
+		screenshotCtx, screenshotCancel := d.Timeout(ctx)
 		screenshotResp, err := client.GetSubscriptionAppStoreReviewScreenshotForSubscription(
 			screenshotCtx,
 			result.SubscriptionID,
@@ -1167,14 +1164,14 @@ func verifySubscriptionsSetupState(ctx context.Context, client *asc.Client, resu
 	}
 
 	if opts.hasPricing(opts.StartDate) {
-		pricePointCtx, pricePointCancel := shared.ContextWithTimeout(ctx)
-		expectedPrice, err := resolveExpectedSubscriptionSetupVerificationPrice(pricePointCtx, client, result.SubscriptionID, opts)
+		pricePointCtx, pricePointCancel := d.Timeout(ctx)
+		expectedPrice, err := resolveExpectedSubscriptionSetupVerificationPrice(pricePointCtx, d, client, result.SubscriptionID, opts)
 		pricePointCancel()
 		if err != nil {
 			verification.Status = "failed"
 			return verification, subscriptionsSetupStepResult{Name: subscriptionsSetupStepVerifyState, Status: "failed", Message: err.Error()}, err
 		}
-		summary, err := resolveSubscriptionPriceSummary(ctx, client, subWithGroup{Sub: subResp.Data}, opts.PriceTerritory)
+		summary, err := resolveSubscriptionPriceSummaryWith(ctx, d, client, subWithGroup{Sub: subResp.Data}, opts.PriceTerritory)
 		if err != nil {
 			verification.Status = "failed"
 			return verification, subscriptionsSetupStepResult{Name: subscriptionsSetupStepVerifyState, Status: "failed", Message: err.Error()}, fmt.Errorf("resolve current pricing: %w", err)
@@ -1197,7 +1194,7 @@ func verifySubscriptionsSetupState(ctx context.Context, client *asc.Client, resu
 	}
 
 	if len(availabilityTerritories) > 0 || reusedSubscription {
-		availabilityCtx, availabilityCancel := shared.ContextWithTimeout(ctx)
+		availabilityCtx, availabilityCancel := d.Timeout(ctx)
 		availabilityResp, err := client.GetSubscriptionAvailabilityForSubscription(availabilityCtx, result.SubscriptionID)
 		availabilityCancel()
 		if err != nil {
@@ -1218,7 +1215,7 @@ func verifySubscriptionsSetupState(ctx context.Context, client *asc.Client, resu
 				verification.Status = "failed"
 				return verification, subscriptionsSetupStepResult{Name: subscriptionsSetupStepVerifyState, Status: "failed", Message: "available-in-new-territories mismatch"}, fmt.Errorf("available-in-new-territories mismatch")
 			}
-			territoriesCtx, territoriesCancel := shared.ContextWithTimeout(ctx)
+			territoriesCtx, territoriesCancel := d.Timeout(ctx)
 			actualSet, actualTerritories, err := fetchSubscriptionSetupAvailabilityTerritories(territoriesCtx, client, resultID)
 			territoriesCancel()
 			if err != nil {
@@ -1239,8 +1236,8 @@ func verifySubscriptionsSetupState(ctx context.Context, client *asc.Client, resu
 	}
 
 	if opts.hasPricing(opts.StartDate) {
-		equalizationsCtx, equalizationsCancel := shared.ContextWithTimeout(ctx)
-		equalizations, err := fetchEqualizations(equalizationsCtx, client, result.ResolvedPricePointID, opts.PriceTerritory)
+		equalizationsCtx, equalizationsCancel := d.Timeout(ctx)
+		equalizations, err := fetchEqualizationsWith(equalizationsCtx, d, client, result.ResolvedPricePointID, opts.PriceTerritory)
 		equalizationsCancel()
 		if err != nil {
 			verification.Status = "failed"
@@ -1256,8 +1253,8 @@ func verifySubscriptionsSetupState(ctx context.Context, client *asc.Client, resu
 		for _, target := range expectedMatrix {
 			expectedTerritories = append(expectedTerritories, target.TerritoryID)
 		}
-		priceCtx, priceCancel := shared.ContextWithTimeout(ctx)
-		priceState, err := fetchSubscriptionPriceImportState(priceCtx, client, result.SubscriptionID)
+		priceCtx, priceCancel := d.Timeout(ctx)
+		priceState, err := fetchSubscriptionPriceImportStateForPlansWith(priceCtx, d, client, result.SubscriptionID, asc.SubscriptionPlanTypeUpfront)
 		priceCancel()
 		if err != nil {
 			verification.Status = "failed"
@@ -1286,8 +1283,8 @@ func verifySubscriptionsSetupState(ctx context.Context, client *asc.Client, resu
 			return verification, subscriptionsSetupStepResult{Name: subscriptionsSetupStepVerifyState, Status: "failed", Message: message}, fmt.Errorf("%s", message)
 		}
 	} else if len(verification.Territories) > 0 {
-		priceCtx, priceCancel := shared.ContextWithTimeout(ctx)
-		priceState, err := fetchSubscriptionPriceImportState(priceCtx, client, result.SubscriptionID)
+		priceCtx, priceCancel := d.Timeout(ctx)
+		priceState, err := fetchSubscriptionPriceImportStateForPlansWith(priceCtx, d, client, result.SubscriptionID, asc.SubscriptionPlanTypeUpfront)
 		priceCancel()
 		if err != nil {
 			verification.Status = "failed"
@@ -1419,10 +1416,10 @@ func validateExistingSubscriptionSetupGroupLocalization(localization asc.Resourc
 	return nil
 }
 
-func ensureSubscriptionsSetupPriceMatrix(ctx context.Context, client *asc.Client, subscriptionID, basePricePointID, baseTerritory string, attrs asc.SubscriptionPriceCreateAttributes, repair bool) ([]string, bool, error) {
+func ensureSubscriptionsSetupPriceMatrix(ctx context.Context, d *shared.Deps, client *asc.Client, subscriptionID, basePricePointID, baseTerritory string, attrs asc.SubscriptionPriceCreateAttributes, repair bool) ([]string, bool, error) {
 	baseTerritory = strings.ToUpper(strings.TrimSpace(baseTerritory))
-	equalizationsCtx, equalizationsCancel := shared.ContextWithTimeout(ctx)
-	equalizations, err := fetchEqualizations(equalizationsCtx, client, basePricePointID, baseTerritory)
+	equalizationsCtx, equalizationsCancel := d.Timeout(ctx)
+	equalizations, err := fetchEqualizationsWith(equalizationsCtx, d, client, basePricePointID, baseTerritory)
 	equalizationsCancel()
 	if err != nil {
 		return nil, false, err
@@ -1436,8 +1433,8 @@ func ensureSubscriptionsSetupPriceMatrix(ctx context.Context, client *asc.Client
 		territories = append(territories, target.TerritoryID)
 	}
 
-	stateCtx, stateCancel := shared.ContextWithTimeout(ctx)
-	state, err := fetchSubscriptionPriceImportState(stateCtx, client, subscriptionID)
+	stateCtx, stateCancel := d.Timeout(ctx)
+	state, err := fetchSubscriptionPriceImportStateForPlansWith(stateCtx, d, client, subscriptionID, asc.SubscriptionPlanTypeUpfront)
 	stateCancel()
 	if err != nil {
 		return nil, false, err
@@ -1448,14 +1445,15 @@ func ensureSubscriptionsSetupPriceMatrix(ctx context.Context, client *asc.Client
 	}
 	// The complete matrix PATCH may apply before a transport/5xx response is
 	// observed, so reconcile its exact state without replaying the write.
-	_, _, err = shared.RunReconciledMutationNoReplay(
+	_, _, err = shared.RunReconciledMutationNoReplayWith(
 		ctx,
+		d,
 		func(requestCtx context.Context) (struct{}, error) {
 			_, mutationErr := client.SetSubscriptionPriceMatrix(requestCtx, subscriptionID, matrix)
 			return struct{}{}, mutationErr
 		},
 		func(readbackCtx context.Context) (struct{}, bool, error) {
-			readbackState, readbackErr := fetchSubscriptionPriceImportState(readbackCtx, client, subscriptionID)
+			readbackState, readbackErr := fetchSubscriptionPriceImportStateForPlansWith(readbackCtx, d, client, subscriptionID, asc.SubscriptionPlanTypeUpfront)
 			if readbackErr != nil {
 				return struct{}{}, false, readbackErr
 			}
@@ -1884,12 +1882,12 @@ func subscriptionsSetupAvailabilityMessage(opts subscriptionsSetupOptions, terri
 	return ""
 }
 
-func resolveExpectedSubscriptionSetupPricePoint(ctx context.Context, client *asc.Client, subID string, opts subscriptionsSetupOptions) (string, error) {
+func resolveExpectedSubscriptionSetupPricePoint(ctx context.Context, d *shared.Deps, client *asc.Client, subID string, opts subscriptionsSetupOptions) (string, error) {
 	if opts.PricePointID != "" {
 		return opts.PricePointID, nil
 	}
 
-	tiers, err := shared.ResolveSubscriptionTiers(ctx, client, subID, opts.PriceTerritory, opts.RefreshTierCache)
+	tiers, err := d.ResolveSubscriptionTiers(ctx, client, subID, opts.PriceTerritory, opts.RefreshTierCache)
 	if err != nil {
 		return "", fmt.Errorf("subscriptions setup: resolve price point: %w", err)
 	}
@@ -1907,14 +1905,14 @@ func resolveExpectedSubscriptionSetupPricePoint(ctx context.Context, client *asc
 	return id, nil
 }
 
-func resolveExpectedSubscriptionSetupVerificationPrice(ctx context.Context, client *asc.Client, subID string, opts subscriptionsSetupOptions) (string, error) {
+func resolveExpectedSubscriptionSetupVerificationPrice(ctx context.Context, d *shared.Deps, client *asc.Client, subID string, opts subscriptionsSetupOptions) (string, error) {
 	if opts.Price != "" {
 		return opts.Price, nil
 	}
 	if opts.Tier == 0 && opts.PricePointID == "" {
 		return "", nil
 	}
-	tiers, err := shared.ResolveSubscriptionTiers(ctx, client, subID, opts.PriceTerritory, true)
+	tiers, err := d.ResolveSubscriptionTiers(ctx, client, subID, opts.PriceTerritory, true)
 	if err != nil {
 		return "", fmt.Errorf("resolve live tiers for verification: %w", err)
 	}
@@ -1934,24 +1932,24 @@ func resolveExpectedSubscriptionSetupVerificationPrice(ctx context.Context, clie
 	return "", fmt.Errorf("price point %q not found in %s during verification", opts.PricePointID, opts.PriceTerritory)
 }
 
-func printSubscriptionsSetupResult(result *subscriptionsSetupResult, format string, pretty bool) error {
+func printSubscriptionsSetupResult(d *shared.Deps, result *subscriptionsSetupResult, format string, pretty bool) error {
 	headers, rows := subscriptionsSetupResultRows(result)
 	diagnosticHeaders, diagnosticRows := subscriptionsSetupDiagnosticRows(result.Diagnostics)
-	return shared.PrintOutputWithRenderers(
+	return d.PrintOutputWithRenderers(
 		result,
 		format,
 		pretty,
 		func() error {
-			asc.RenderTable(headers, rows)
+			asc.RenderTableTo(d.IO.Out, headers, rows)
 			if len(diagnosticRows) > 0 {
-				asc.RenderTable(diagnosticHeaders, diagnosticRows)
+				asc.RenderTableTo(d.IO.Out, diagnosticHeaders, diagnosticRows)
 			}
 			return nil
 		},
 		func() error {
-			asc.RenderMarkdown(headers, rows)
+			asc.RenderMarkdownTo(d.IO.Out, headers, rows)
 			if len(diagnosticRows) > 0 {
-				asc.RenderMarkdown(diagnosticHeaders, diagnosticRows)
+				asc.RenderMarkdownTo(d.IO.Out, diagnosticHeaders, diagnosticRows)
 			}
 			return nil
 		},

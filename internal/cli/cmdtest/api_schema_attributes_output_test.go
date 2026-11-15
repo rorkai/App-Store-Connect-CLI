@@ -49,6 +49,7 @@ func TestJSONOutputKeepsAttributesFromTheAPISchema(t *testing.T) {
 			resource:  "subscriptionAppStoreReviewScreenshots",
 			attribute: "assetType",
 			value:     `"SCREENSHOT"`,
+			deps:      true,
 		},
 	}
 

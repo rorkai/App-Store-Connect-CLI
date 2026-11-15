@@ -23,9 +23,9 @@ func retentionOfferFieldsList() []string {
 	return []string{"referenceName", "offerId", "duration", "offerMode", "periodCount", "customerEligibilityPaidSubscriptionDurationInMonths", "customerEligibilityWaitBetweenOffersInMonths", "targetSubscriptionPlanType", "subscription", "prices"}
 }
 
-// SubscriptionsRetentionOffersCommand returns the retention offers command group.
-func SubscriptionsRetentionOffersCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("retention", flag.ExitOnError)
+// newSubscriptionsRetentionOffersCommand returns the retention offers command group.
+func newSubscriptionsRetentionOffersCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("retention", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "retention",
@@ -44,14 +44,14 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			retentionOffersListCommand("list", "List retention offers for a subscription.", (*asc.Client).GetSubscriptionRetentionOffers),
-			retentionOffersLinksCommand("links", "List retention offer relationships for a subscription.", (*asc.Client).GetSubscriptionRetentionOffersRelationships),
-			SubscriptionsRetentionOffersViewCommand(),
-			SubscriptionsRetentionOffersCreateCommand(),
-			SubscriptionsRetentionOffersUpdateCommand(),
-			SubscriptionsRetentionOffersDeleteCommand(),
-			SubscriptionsRetentionOfferPricesCommand(),
-			SubscriptionsRetentionMessageOffersCommand(),
+			retentionOffersListCommand(d, "list", "List retention offers for a subscription.", (*asc.Client).GetSubscriptionRetentionOffers),
+			retentionOffersLinksCommand(d, "links", "List retention offer relationships for a subscription.", (*asc.Client).GetSubscriptionRetentionOffersRelationships),
+			newSubscriptionsRetentionOffersViewCommand(d),
+			newSubscriptionsRetentionOffersCreateCommand(d),
+			newSubscriptionsRetentionOffersUpdateCommand(d),
+			newSubscriptionsRetentionOffersDeleteCommand(d),
+			newSubscriptionsRetentionOfferPricesCommand(d),
+			newSubscriptionsRetentionMessageOffersCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -59,10 +59,10 @@ Examples:
 	}
 }
 
-// SubscriptionsRetentionMessageOffersCommand returns the group for the offers
+// newSubscriptionsRetentionMessageOffersCommand returns the group for the offers
 // presented with a subscription's retention message.
-func SubscriptionsRetentionMessageOffersCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("presented", flag.ExitOnError)
+func newSubscriptionsRetentionMessageOffersCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("presented", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "presented",
@@ -82,10 +82,10 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			retentionOffersListCommand("presented list", "List the retention offers presented with a subscription's retention message.", (*asc.Client).GetSubscriptionRetentionMessageOffers),
-			retentionOffersLinksCommand("presented links", "List the relationships of the retention offers presented with a subscription's retention message.", (*asc.Client).GetSubscriptionRetentionMessageOffersRelationships),
-			retentionMessageOffersChangeCommand("add"),
-			retentionMessageOffersChangeCommand("remove"),
+			retentionOffersListCommand(d, "presented list", "List the retention offers presented with a subscription's retention message.", (*asc.Client).GetSubscriptionRetentionMessageOffers),
+			retentionOffersLinksCommand(d, "presented links", "List the relationships of the retention offers presented with a subscription's retention message.", (*asc.Client).GetSubscriptionRetentionMessageOffersRelationships),
+			retentionMessageOffersChangeCommand(d, "add"),
+			retentionMessageOffersChangeCommand(d, "remove"),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -97,8 +97,8 @@ type retentionOffersFetch func(*asc.Client, context.Context, string, ...asc.Rete
 
 // retentionOffersListCommand builds "list" and "presented list", which share
 // Apple's query parameters and response.
-func retentionOffersListCommand(path, shortHelp string, fetch retentionOffersFetch) *ffcli.Command {
-	fs := flag.NewFlagSet(path, flag.ExitOnError)
+func retentionOffersListCommand(d *shared.Deps, path, shortHelp string, fetch retentionOffersFetch) *ffcli.Command {
+	fs := d.NewFlagSet(path, flag.ExitOnError)
 
 	subscriptionID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID, product ID, or exact current name")
 	appID := addSubscriptionLookupAppFlag(fs)
@@ -106,7 +106,7 @@ func retentionOffersListCommand(path, shortHelp string, fetch retentionOffersFet
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	command := "subscriptions offers retention " + path
 	return &ffcli.Command{
@@ -122,31 +122,31 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, command, 200, "fields", "include", "prices-limit"); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, command, 200, "fields", "include", "prices-limit"); err != nil {
 				return err
 			}
 
 			id := strings.TrimSpace(*subscriptionID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				return shared.UsageError("--subscription-id is required")
+				return d.UsageError("--subscription-id is required")
 			}
 
-			opts, err := read.options(fs, command, *next)
+			opts, err := read.options(d, fs, command, *next)
 			if err != nil {
 				return err
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("%s: %w", command, err)
 			}
 			if strings.TrimSpace(*next) == "" {
-				if id, err = resolveSubscriptionLookupIDWithTimeout(ctx, client, *appID, id); err != nil {
+				if id, err = resolveSubscriptionLookupIDWithTimeoutWith(ctx, d, client, *appID, id); err != nil {
 					return err
 				}
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			opts = append(opts, asc.WithRetentionOffersLimit(*limit), asc.WithRetentionOffersNextURL(*next))
@@ -164,21 +164,21 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("%s: %w", command, err)
 				}
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := fetch(client, requestCtx, id, opts...)
 			if err != nil {
 				return fmt.Errorf("%s: failed to fetch: %w", command, err)
 			}
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
 type retentionOfferLinksFetch func(*asc.Client, context.Context, string, ...asc.LinkagesOption) (*asc.LinkagesResponse, error)
 
-func retentionOffersLinksCommand(path, shortHelp string, fetch retentionOfferLinksFetch) *ffcli.Command {
+func retentionOffersLinksCommand(d *shared.Deps, path, shortHelp string, fetch retentionOfferLinksFetch) *ffcli.Command {
 	command := "subscriptions offers retention " + path
 	cmd := shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		FlagSetName: path,
@@ -217,21 +217,21 @@ func bindRetentionOfferReadFlags(fs *flag.FlagSet) *retentionOfferReadFlags {
 	}
 }
 
-func (f *retentionOfferReadFlags) options(fs *flag.FlagSet, command, next string) ([]asc.RetentionOffersOption, error) {
-	fields, err := normalizeSelectionFlag(fs, *f.fields, "--fields", retentionOfferFieldsList())
+func (f *retentionOfferReadFlags) options(d *shared.Deps, fs *flag.FlagSet, command, next string) ([]asc.RetentionOffersOption, error) {
+	fields, err := normalizeSelectionFlagWith(d, fs, *f.fields, "--fields", retentionOfferFieldsList())
 	if err != nil {
 		return nil, err
 	}
-	include, err := normalizeSelectionFlag(fs, *f.include, "--include", []string{"prices", "subscription"})
+	include, err := normalizeSelectionFlagWith(d, fs, *f.include, "--include", []string{"prices", "subscription"})
 	if err != nil {
 		return nil, err
 	}
 	if *f.pricesLimit != 0 {
 		if *f.pricesLimit < 1 || *f.pricesLimit > retentionOffersPricesMaxLimit {
-			return nil, shared.UsageErrorf("%s: --prices-limit must be between 1 and %d", command, retentionOffersPricesMaxLimit)
+			return nil, d.UsageErrorf("%s: --prices-limit must be between 1 and %d", command, retentionOffersPricesMaxLimit)
 		}
 		if !shared.HasInclude(include, "prices") {
-			return nil, shared.UsageErrorf("%s: --prices-limit requires --include prices", command)
+			return nil, d.UsageErrorf("%s: --prices-limit requires --include prices", command)
 		}
 	}
 	includedFields, err := f.included.Resolve(command, next, include)
@@ -246,13 +246,13 @@ func (f *retentionOfferReadFlags) options(fs *flag.FlagSet, command, next string
 	}, nil
 }
 
-// SubscriptionsRetentionOffersViewCommand returns the retention offer view subcommand.
-func SubscriptionsRetentionOffersViewCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
+// newSubscriptionsRetentionOffersViewCommand returns the retention offer view subcommand.
+func newSubscriptionsRetentionOffersViewCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("view", flag.ExitOnError)
 
 	id := shared.BindResourceIDFlag(fs, "id", "retentionOffers", "Retention offer ID")
 	read := bindRetentionOfferReadFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	const command = "subscriptions offers retention view"
 	return &ffcli.Command{
@@ -267,34 +267,34 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			opts, err := read.options(fs, command, "")
+			opts, err := read.options(d, fs, command, "")
 			if err != nil {
 				return err
 			}
 			offerID := strings.TrimSpace(*id)
 			if offerID == "" {
-				return shared.UsageError("--id is required")
+				return d.UsageError("--id is required")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("%s: %w", command, err)
 			}
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetRetentionOffer(requestCtx, offerID, opts...)
 			if err != nil {
 				return fmt.Errorf("%s: failed to fetch: %w", command, err)
 			}
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// SubscriptionsRetentionOffersCreateCommand returns the retention offer create subcommand.
-func SubscriptionsRetentionOffersCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
+// newSubscriptionsRetentionOffersCreateCommand returns the retention offer create subcommand.
+func newSubscriptionsRetentionOffersCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("create", flag.ExitOnError)
 
 	subscriptionID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID, product ID, or exact current name")
 	appID := addSubscriptionLookupAppFlag(fs)
@@ -306,9 +306,9 @@ func SubscriptionsRetentionOffersCreateCommand() *ffcli.Command {
 	fs.Var(&periodCount, "period-count", "Number of offer periods (required)")
 	fs.Var(&paidMonths, "eligibility-paid-months", "Minimum months of paid subscription for eligibility: 1-24, 36, 48, or 60 (required)")
 	fs.Var(&waitMonths, "eligibility-wait-months", "Months to wait before redeeming another retention offer: 2-24")
-	targetPlanType := shared.BindTargetSubscriptionPlanTypeFlag(fs)
+	targetPlanType := d.BindTargetSubscriptionPlanTypeFlag(fs)
 	prices := shared.BindOnceCSVFlag(fs, "price", "Subscription price point ID(s), comma-separated, one per territory (required)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	const command = "subscriptions offers retention create"
 	return &ffcli.Command{
@@ -342,21 +342,21 @@ Examples:
 				{"price", prices.String()},
 			} {
 				if strings.TrimSpace(required.value) == "" {
-					return shared.UsageErrorf("--%s is required", required.name)
+					return d.UsageErrorf("--%s is required", required.name)
 				}
 			}
 			durationValue, ok := subscriptionOfferDurationMap[strings.ToUpper(strings.TrimSpace(*duration))]
 			if !ok {
-				return shared.UsageErrorf("%s: --duration must be one of: %s", command, strings.Join(subscriptionOfferDurationValues, ", "))
+				return d.UsageErrorf("%s: --duration must be one of: %s", command, strings.Join(subscriptionOfferDurationValues, ", "))
 			}
 			modeValue, ok := subscriptionOfferModeMap[strings.ToUpper(strings.TrimSpace(*offerMode))]
 			if !ok {
-				return shared.UsageErrorf("%s: --offer-mode must be one of: %s", command, strings.Join(subscriptionOfferModeValues, ", "))
+				return d.UsageErrorf("%s: --offer-mode must be one of: %s", command, strings.Join(subscriptionOfferModeValues, ", "))
 			}
 			if periodCount.value < 1 {
-				return shared.UsageErrorf("%s: --period-count must be greater than 0", command)
+				return d.UsageErrorf("%s: --period-count must be greater than 0", command)
 			}
-			if err := validateRetentionOfferEligibility(command, paidMonths, waitMonths); err != nil {
+			if err := validateRetentionOfferEligibility(d, command, paidMonths, waitMonths); err != nil {
 				return err
 			}
 			planType, err := targetPlanType()
@@ -365,14 +365,14 @@ Examples:
 			}
 			pricePointIDs := shared.SplitUniqueCSV(prices.String())
 			if len(pricePointIDs) == 0 {
-				return shared.UsageError("--price is required")
+				return d.UsageError("--price is required")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("%s: %w", command, err)
 			}
-			subscription, err := resolveSubscriptionLookupIDWithTimeout(ctx, client, *appID, strings.TrimSpace(*subscriptionID))
+			subscription, err := resolveSubscriptionLookupIDWithTimeoutWith(ctx, d, client, *appID, strings.TrimSpace(*subscriptionID))
 			if err != nil {
 				return err
 			}
@@ -411,27 +411,27 @@ Examples:
 				})
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateRetentionOffer(requestCtx, req)
 			if err != nil {
 				return fmt.Errorf("%s: failed to create: %w", command, err)
 			}
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// SubscriptionsRetentionOffersUpdateCommand returns the retention offer update subcommand.
-func SubscriptionsRetentionOffersUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("update", flag.ExitOnError)
+// newSubscriptionsRetentionOffersUpdateCommand returns the retention offer update subcommand.
+func newSubscriptionsRetentionOffersUpdateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("update", flag.ExitOnError)
 
 	id := shared.BindResourceIDFlag(fs, "id", "retentionOffers", "Retention offer ID")
 	var paidMonths, waitMonths optionalInt
 	fs.Var(&paidMonths, "eligibility-paid-months", "Minimum months of paid subscription for eligibility: 1-24, 36, 48, or 60")
 	fs.Var(&waitMonths, "eligibility-wait-months", "Months to wait before redeeming another retention offer: 2-24")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	const command = "subscriptions offers retention update"
 	return &ffcli.Command{
@@ -451,12 +451,12 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			offerID := strings.TrimSpace(*id)
 			if offerID == "" {
-				return shared.UsageError("--id is required")
+				return d.UsageError("--id is required")
 			}
 			if !paidMonths.set && !waitMonths.set {
-				return shared.UpdateFlagRequired(fs, &paidMonths, &waitMonths)
+				return d.UpdateFlagRequired(fs, &paidMonths, &waitMonths)
 			}
-			if err := validateRetentionOfferEligibility(command, paidMonths, waitMonths); err != nil {
+			if err := validateRetentionOfferEligibility(d, command, paidMonths, waitMonths); err != nil {
 				return err
 			}
 
@@ -468,36 +468,36 @@ Examples:
 				attrs.CustomerEligibilityWaitBetweenOffersInMonths = &waitMonths.value
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("%s: %w", command, err)
 			}
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.UpdateRetentionOffer(requestCtx, offerID, attrs)
 			if err != nil {
 				return fmt.Errorf("%s: failed to update: %w", command, err)
 			}
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
 // validateRetentionOfferEligibility enforces the eligibility values Apple's
 // retention messaging guide documents.
-func validateRetentionOfferEligibility(command string, paidMonths, waitMonths optionalInt) error {
+func validateRetentionOfferEligibility(d *shared.Deps, command string, paidMonths, waitMonths optionalInt) error {
 	if paidMonths.set && (paidMonths.value < 1 || paidMonths.value > 24) && !slices.Contains([]int{36, 48, 60}, paidMonths.value) {
-		return shared.UsageErrorf("%s: --eligibility-paid-months must be 1-24, 36, 48, or 60", command)
+		return d.UsageErrorf("%s: --eligibility-paid-months must be 1-24, 36, 48, or 60", command)
 	}
 	if waitMonths.set && (waitMonths.value < 2 || waitMonths.value > 24) {
-		return shared.UsageErrorf("%s: --eligibility-wait-months must be between 2 and 24", command)
+		return d.UsageErrorf("%s: --eligibility-wait-months must be between 2 and 24", command)
 	}
 	return nil
 }
 
-// SubscriptionsRetentionOffersDeleteCommand returns the retention offer delete subcommand.
-func SubscriptionsRetentionOffersDeleteCommand() *ffcli.Command {
+// newSubscriptionsRetentionOffersDeleteCommand returns the retention offer delete subcommand.
+func newSubscriptionsRetentionOffersDeleteCommand(d *shared.Deps) *ffcli.Command {
 	const command = "subscriptions offers retention delete"
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
 		Name:       "delete",
@@ -519,9 +519,9 @@ Examples:
 	})
 }
 
-// SubscriptionsRetentionOfferPricesCommand returns the retention offer prices group.
-func SubscriptionsRetentionOfferPricesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("prices", flag.ExitOnError)
+// newSubscriptionsRetentionOfferPricesCommand returns the retention offer prices group.
+func newSubscriptionsRetentionOfferPricesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("prices", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "prices",
@@ -535,7 +535,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			SubscriptionsRetentionOfferPricesListCommand(),
+			newSubscriptionsRetentionOfferPricesListCommand(d),
 			shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 				FlagSetName: "prices links",
 				Name:        "links",
@@ -561,9 +561,9 @@ Examples:
 	}
 }
 
-// SubscriptionsRetentionOfferPricesListCommand returns the retention offer prices list subcommand.
-func SubscriptionsRetentionOfferPricesListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("prices list", flag.ExitOnError)
+// newSubscriptionsRetentionOfferPricesListCommand returns the retention offer prices list subcommand.
+func newSubscriptionsRetentionOfferPricesListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("prices list", flag.ExitOnError)
 
 	id := shared.BindResourceIDFlag(fs, "id", "retentionOffers", "Retention offer ID")
 	territories := fs.String("territory", "", "Filter by territories, comma-separated (alpha-2, alpha-3, or exact English country names)")
@@ -573,7 +573,7 @@ func SubscriptionsRetentionOfferPricesListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	const command = "subscriptions offers retention prices list"
 	return &ffcli.Command{
@@ -588,20 +588,20 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, command, 200, "territory", "fields", "include"); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, command, 200, "territory", "fields", "include"); err != nil {
 				return err
 			}
 
 			offerID := strings.TrimSpace(*id)
 			if offerID == "" && strings.TrimSpace(*next) == "" {
-				return shared.UsageError("--id is required")
+				return d.UsageError("--id is required")
 			}
 
-			fieldsValue, err := normalizeSelectionFlag(fs, *fields, "--fields", []string{"territory", "subscriptionPricePoint"})
+			fieldsValue, err := normalizeSelectionFlagWith(d, fs, *fields, "--fields", []string{"territory", "subscriptionPricePoint"})
 			if err != nil {
 				return err
 			}
-			includeValue, err := normalizeSelectionFlag(fs, *include, "--include", []string{"subscriptionPricePoint", "territory"})
+			includeValue, err := normalizeSelectionFlagWith(d, fs, *include, "--include", []string{"subscriptionPricePoint", "territory"})
 			if err != nil {
 				return err
 			}
@@ -611,14 +611,14 @@ Examples:
 			}
 			territoryFilter, err := shared.NormalizeASCTerritoryCSV(*territories)
 			if err != nil {
-				return shared.UsageErrorf("%s: %v", command, err)
+				return d.UsageErrorf("%s: %v", command, err)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("%s: %w", command, err)
 			}
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			opts := []asc.RetentionOfferPricesOption{
@@ -643,27 +643,27 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("%s: %w", command, err)
 				}
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetRetentionOfferPrices(requestCtx, offerID, opts...)
 			if err != nil {
 				return fmt.Errorf("%s: failed to fetch: %w", command, err)
 			}
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
 // retentionMessageOffersChangeCommand builds "presented add" and "presented remove".
-func retentionMessageOffersChangeCommand(action string) *ffcli.Command {
-	fs := flag.NewFlagSet("presented "+action, flag.ExitOnError)
+func retentionMessageOffersChangeCommand(d *shared.Deps, action string) *ffcli.Command {
+	fs := d.NewFlagSet("presented "+action, flag.ExitOnError)
 
 	subscriptionID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID, product ID, or exact current name")
 	appID := addSubscriptionLookupAppFlag(fs)
 	offerIDs := shared.BindOnceCSVFlag(fs, "retention-offer-id", "Retention offer ID(s), comma-separated (required)")
 	var confirm *bool
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	command := "subscriptions offers retention presented " + action
 	shortHelp := "Present retention offers with a subscription's retention message."
@@ -694,33 +694,33 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*subscriptionID)
 			if id == "" {
-				return shared.UsageError("--subscription-id is required")
+				return d.UsageError("--subscription-id is required")
 			}
 			ids := shared.SplitUniqueCSV(offerIDs.String())
 			if len(ids) == 0 {
-				return shared.UsageError("--retention-offer-id is required")
+				return d.UsageError("--retention-offer-id is required")
 			}
 			if confirm != nil {
-				if err := shared.RequireConfirm(*confirm); err != nil {
+				if err := d.RequireConfirm(*confirm); err != nil {
 					return err
 				}
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("%s: %w", command, err)
 			}
-			if id, err = resolveSubscriptionLookupIDWithTimeout(ctx, client, *appID, id); err != nil {
+			if id, err = resolveSubscriptionLookupIDWithTimeoutWith(ctx, d, client, *appID, id); err != nil {
 				return err
 			}
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			if err := change(client, requestCtx, id, ids); err != nil {
 				return fmt.Errorf("%s: %w", command, err)
 			}
 			result := &asc.SubscriptionRetentionMessageOffersResult{SubscriptionID: id, RetentionOfferIDs: ids, Action: resultAction}
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }

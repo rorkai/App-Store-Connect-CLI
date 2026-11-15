@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"maps"
-	"os"
 	"slices"
 	"strconv"
 	"strings"
@@ -57,9 +56,9 @@ var (
 	retentionLocaleIncludes  = map[string]string{"retentionMessageVersion": "retentionMessageVersions"}
 )
 
-func retentionReadCommand(r retentionRead) *ffcli.Command {
+func retentionReadCommand(d *shared.Deps, r retentionRead) *ffcli.Command {
 	command := retentionMessagesCommandPrefix + " " + r.path
-	fs := flag.NewFlagSet(r.path, flag.ExitOnError)
+	fs := d.NewFlagSet(r.path, flag.ExitOnError)
 	ownerID := shared.BindResourceIDFlag(fs, r.ownerFlag, r.ownerType, r.ownerUsage)
 	var fields, include, next *string
 	if r.primary != "" {
@@ -86,7 +85,7 @@ func retentionReadCommand(r retentionRead) *ffcli.Command {
 		next = fs.String("next", "", shared.NextFlagUsage)
 		paginate = fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	}
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name:       r.path[strings.LastIndex(r.path, " ")+1:],
 		ShortUsage: "asc " + command + " --" + r.ownerFlag + " ID [flags]",
@@ -106,26 +105,26 @@ func retentionReadCommand(r retentionRead) *ffcli.Command {
 			for _, f := range r.filters {
 				conflicts = append(conflicts, f.flag)
 			}
-			if err := shared.ValidatePaginationFlags(ctx, fs, command, 200, conflicts...); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, command, 200, conflicts...); err != nil {
 				return err
 			}
 			if r.ownerType == "apps" && nextURL == "" {
 				id = shared.ResolveAppID(id)
 			}
 			if id == "" && nextURL == "" {
-				fmt.Fprintf(os.Stderr, "Error: --%s is required\n", r.ownerFlag)
+				fmt.Fprintf(d.IO.ErrOut, "Error: --%s is required\n", r.ownerFlag)
 				return shared.MissingRequiredUsageError("--" + r.ownerFlag)
 			}
 			opts := []asc.RetentionMessagesOption{asc.WithRetentionMessagesNextURL(nextURL)}
 			if fields != nil {
-				values, err := normalizeSelectionFlag(fs, *fields, "--fields", shared.IncludedResourceFields(r.primary))
+				values, err := normalizeSelectionFlagWith(d, fs, *fields, "--fields", shared.IncludedResourceFields(r.primary))
 				if err != nil {
 					return err
 				}
 				opts = append(opts, asc.WithRetentionMessagesQuery("fields["+r.primary+"]", values...))
 			}
 			if include != nil {
-				includes, err := normalizeSelectionFlag(fs, *include, "--include", includeNames)
+				includes, err := normalizeSelectionFlagWith(d, fs, *include, "--include", includeNames)
 				if err != nil {
 					return err
 				}
@@ -141,7 +140,7 @@ func retentionReadCommand(r retentionRead) *ffcli.Command {
 			for i, l := range r.limits {
 				if value := *limits[i]; value != 0 {
 					if value < 1 || value > 50 {
-						return shared.UsageErrorf("%s: --%s must be between 1 and 50", command, l.flag)
+						return d.UsageErrorf("%s: --%s must be between 1 and 50", command, l.flag)
 					}
 					opts = append(opts, asc.WithRetentionMessagesQuery(l.param, strconv.Itoa(value)))
 				}
@@ -150,7 +149,7 @@ func retentionReadCommand(r retentionRead) *ffcli.Command {
 				values := shared.SplitCSV(*filters[i])
 				if f.allowed != nil {
 					var err error
-					if values, err = normalizeSelectionFlag(fs, *filters[i], "--"+f.flag, f.allowed); err != nil {
+					if values, err = normalizeSelectionFlagWith(d, fs, *filters[i], "--"+f.flag, f.allowed); err != nil {
 						return err
 					}
 				}
@@ -165,11 +164,11 @@ func retentionReadCommand(r retentionRead) *ffcli.Command {
 					opts = append(opts, asc.WithRetentionMessagesQuery("limit", strconv.Itoa(pageLimit)))
 				}
 			}
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("%s: %w", command, err)
 			}
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 			resp, err := r.fetch(client, requestCtx, id, opts...)
 			if err != nil {
@@ -190,18 +189,18 @@ func retentionReadCommand(r retentionRead) *ffcli.Command {
 			if r.print != nil {
 				return r.print(resp, output)
 			}
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-func retentionGroupCommand(path, help string, subcommands ...*ffcli.Command) *ffcli.Command {
+func retentionGroupCommand(d *shared.Deps, path, help string, subcommands ...*ffcli.Command) *ffcli.Command {
 	return &ffcli.Command{
 		Name:        path[strings.LastIndex(path, " ")+1:],
 		ShortUsage:  "asc " + strings.TrimSpace(retentionMessagesCommandPrefix+" "+path) + " <subcommand> [flags]",
 		ShortHelp:   help,
 		LongHelp:    help,
-		FlagSet:     flag.NewFlagSet(path, flag.ExitOnError),
+		FlagSet:     d.NewFlagSet(path, flag.ExitOnError),
 		UsageFunc:   shared.DefaultUsageFunc,
 		Subcommands: subcommands,
 		Exec:        func(context.Context, []string) error { return flag.ErrHelp },
@@ -210,11 +209,11 @@ func retentionGroupCommand(path, help string, subcommands ...*ffcli.Command) *ff
 
 // retentionWriteCommand builds a mutation command; run validates flags and returns
 // the call to make once an authenticated client exists.
-func retentionWriteCommand(path, usage, help string, examples []string, bind func(*flag.FlagSet) func() (func(context.Context, *asc.Client) (any, error), error)) *ffcli.Command {
+func retentionWriteCommand(d *shared.Deps, path, usage, help string, examples []string, bind func(*flag.FlagSet) func() (func(context.Context, *asc.Client) (any, error), error)) *ffcli.Command {
 	command := retentionMessagesCommandPrefix + " " + path
-	fs := flag.NewFlagSet(path, flag.ExitOnError)
+	fs := d.NewFlagSet(path, flag.ExitOnError)
 	run := bind(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name:       path[strings.LastIndex(path, " ")+1:],
 		ShortUsage: "asc " + command + " " + usage,
@@ -227,25 +226,25 @@ func retentionWriteCommand(path, usage, help string, examples []string, bind fun
 			if err != nil {
 				return err
 			}
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("%s: %w", command, err)
 			}
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 			result, err := call(requestCtx, client)
 			if err != nil {
 				return fmt.Errorf("%s: %w", command, err)
 			}
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-func requiredRetentionValue(value *string, name string) (string, error) {
+func requiredRetentionValue(d *shared.Deps, value *string, name string) (string, error) {
 	trimmed := strings.TrimSpace(*value)
 	if trimmed == "" {
-		fmt.Fprintf(os.Stderr, "Error: --%s is required\n", name)
+		fmt.Fprintf(d.IO.ErrOut, "Error: --%s is required\n", name)
 		return "", shared.MissingRequiredUsageError("--" + name)
 	}
 	return trimmed, nil
@@ -253,40 +252,40 @@ func requiredRetentionValue(value *string, name string) (string, error) {
 
 // optionalRetentionText returns nil when the flag was not provided and enforces
 // Apple's documented character limit when it was.
-func optionalRetentionText(fs *flag.FlagSet, value *string, name string, maxLength int) (*string, error) {
+func optionalRetentionText(d *shared.Deps, fs *flag.FlagSet, value *string, name string, maxLength int) (*string, error) {
 	if !flagWasProvided(fs, name) {
 		return nil, nil
 	}
 	trimmed := strings.TrimSpace(*value)
 	if trimmed == "" {
-		return nil, shared.UsageErrorf("--%s must not be empty", name)
+		return nil, d.UsageErrorf("--%s must not be empty", name)
 	}
 	if utf8.RuneCountInString(trimmed) > maxLength {
-		return nil, shared.UsageErrorf("--%s must be at most %d characters", name, maxLength)
+		return nil, d.UsageErrorf("--%s must be at most %d characters", name, maxLength)
 	}
 	return &trimmed, nil
 }
 
-// SubscriptionsRetentionMessagesCommand returns the retention messages command group.
-func SubscriptionsRetentionMessagesCommand() *ffcli.Command {
-	group := retentionGroupCommand("", "Manage retention messages shown when people cancel a subscription.",
-		retentionReadCommand(retentionRead{
+// newSubscriptionsRetentionMessagesCommand returns the retention messages command group.
+func newSubscriptionsRetentionMessagesCommand(d *shared.Deps) *ffcli.Command {
+	group := retentionGroupCommand(d, "", "Manage retention messages shown when people cancel a subscription.",
+		retentionReadCommand(d, retentionRead{
 			path: "list", help: "List retention messages for an app.", list: true,
 			examples:  []string{`asc subscriptions retention-messages list --app "APP_ID"`, `asc subscriptions retention-messages list --app "APP_ID" --include versions --paginate`},
 			ownerFlag: "app", ownerType: "apps", ownerUsage: "App Store Connect app ID (or ASC_APP_ID env)",
 			primary: "retentionMessages", includes: retentionMessageIncludes, limits: retentionMessageLimits,
 			fetch: retentionFetch((*asc.Client).GetAppRetentionMessages),
 		}),
-		retentionReadCommand(retentionRead{
+		retentionReadCommand(d, retentionRead{
 			path: "view", help: "View a retention message.",
 			examples:  []string{`asc subscriptions retention-messages view --id "MESSAGE_ID" --include versions`},
 			ownerFlag: "id", ownerType: "retentionMessages", ownerUsage: "Retention message ID",
 			primary: "retentionMessages", includes: retentionMessageIncludes, limits: retentionMessageLimits,
 			fetch: retentionFetch((*asc.Client).GetRetentionMessage),
 		}),
-		retentionMessagesCreateCommand(),
-		retentionMessagesDeleteCommand(),
-		retentionReadCommand(retentionRead{
+		retentionMessagesCreateCommand(d),
+		retentionMessagesDeleteCommand(d),
+		retentionReadCommand(d, retentionRead{
 			path: "assigned", help: "View the retention message assigned to a subscription.",
 			examples:  []string{`asc subscriptions retention-messages assigned --subscription-id "SUB_ID"`},
 			ownerFlag: "subscription-id", ownerType: "subscriptions", ownerUsage: "Subscription ID",
@@ -298,12 +297,12 @@ func SubscriptionsRetentionMessagesCommand() *ffcli.Command {
 				if err != nil {
 					return err
 				}
-				return shared.PrintOutputRows(raw, *output.Output, *output.Pretty, headers, rows)
+				return d.PrintOutputRows(raw, *output.Output, *output.Pretty, headers, rows)
 			},
 		}),
-		retentionMessagesAssignCommand(),
-		retentionGroupCommand("subscriptions", "List subscriptions that use a retention message.",
-			retentionReadCommand(retentionRead{
+		retentionMessagesAssignCommand(d),
+		retentionGroupCommand(d, "subscriptions", "List subscriptions that use a retention message.",
+			retentionReadCommand(d, retentionRead{
 				path: "subscriptions list", help: "List subscriptions assigned to a retention message.", list: true,
 				examples:  []string{`asc subscriptions retention-messages subscriptions list --message-id "MESSAGE_ID" --state APPROVED`},
 				ownerFlag: "message-id", ownerType: "retentionMessages", ownerUsage: "Retention message ID",
@@ -317,9 +316,9 @@ func SubscriptionsRetentionMessagesCommand() *ffcli.Command {
 				fetch: retentionFetch((*asc.Client).GetRetentionMessageSubscriptions),
 			}),
 		),
-		retentionMessageVersionsCommand(),
-		retentionMessageLocalizationsCommand(),
-		retentionMessageLinksCommand(),
+		retentionMessageVersionsCommand(d),
+		retentionMessageLocalizationsCommand(d),
+		retentionMessageLinksCommand(d),
 	)
 	group.Name = "retention-messages"
 	group.LongHelp = `Manage retention messages shown when people cancel a subscription.
@@ -345,8 +344,8 @@ Examples:
 
 var subscriptionStates = []string{"MISSING_METADATA", "READY_TO_SUBMIT", "WAITING_FOR_REVIEW", "IN_REVIEW", "DEVELOPER_ACTION_NEEDED", "PENDING_BINARY_APPROVAL", "APPROVED", "DEVELOPER_REMOVED_FROM_SALE", "REMOVED_FROM_SALE", "REJECTED"}
 
-func retentionMessagesCreateCommand() *ffcli.Command {
-	return retentionWriteCommand("create", `--app "APP_ID" --reference-name NAME`,
+func retentionMessagesCreateCommand(d *shared.Deps) *ffcli.Command {
+	return retentionWriteCommand(d, "create", `--app "APP_ID" --reference-name NAME`,
 		"Create a retention message for an app.\n\nThe reference name (up to 64 characters) isn't shown to people and can't be changed later.",
 		[]string{`asc subscriptions retention-messages create --app "APP_ID" --reference-name "winter-stay"`},
 		func(fs *flag.FlagSet) func() (func(context.Context, *asc.Client) (any, error), error) {
@@ -354,14 +353,14 @@ func retentionMessagesCreateCommand() *ffcli.Command {
 			referenceName := fs.String("reference-name", "", "Reference name (up to 64 characters)")
 			return func() (func(context.Context, *asc.Client) (any, error), error) {
 				*appID = shared.ResolveAppID(*appID)
-				app, err := requiredRetentionValue(appID, "app")
+				app, err := requiredRetentionValue(d, appID, "app")
 				if err != nil {
 					return nil, err
 				}
-				if _, err := requiredRetentionValue(referenceName, "reference-name"); err != nil {
+				if _, err := requiredRetentionValue(d, referenceName, "reference-name"); err != nil {
 					return nil, err
 				}
-				name, err := optionalRetentionText(fs, referenceName, "reference-name", 64)
+				name, err := optionalRetentionText(d, fs, referenceName, "reference-name", 64)
 				if err != nil {
 					return nil, err
 				}
@@ -372,18 +371,18 @@ func retentionMessagesCreateCommand() *ffcli.Command {
 		})
 }
 
-func retentionDeleteCommand(path, ownerType, label string, del func(*asc.Client, context.Context, string) error) *ffcli.Command {
-	return retentionWriteCommand(path, `--id "ID" --confirm`, "Delete a "+label+".",
+func retentionDeleteCommand(d *shared.Deps, path, ownerType, label string, del func(*asc.Client, context.Context, string) error) *ffcli.Command {
+	return retentionWriteCommand(d, path, `--id "ID" --confirm`, "Delete a "+label+".",
 		[]string{"asc " + retentionMessagesCommandPrefix + " " + path + ` --id "ID" --confirm`},
 		func(fs *flag.FlagSet) func() (func(context.Context, *asc.Client) (any, error), error) {
 			id := shared.BindResourceIDFlag(fs, "id", ownerType, strings.ToUpper(label[:1])+label[1:]+" ID")
 			confirm := fs.Bool("confirm", false, "Confirm deletion")
 			return func() (func(context.Context, *asc.Client) (any, error), error) {
-				value, err := requiredRetentionValue(id, "id")
+				value, err := requiredRetentionValue(d, id, "id")
 				if err != nil {
 					return nil, err
 				}
-				if err := shared.RequireConfirm(*confirm); err != nil {
+				if err := d.RequireConfirm(*confirm); err != nil {
 					return nil, err
 				}
 				return func(ctx context.Context, client *asc.Client) (any, error) {
@@ -396,23 +395,23 @@ func retentionDeleteCommand(path, ownerType, label string, del func(*asc.Client,
 		})
 }
 
-func retentionMessagesDeleteCommand() *ffcli.Command {
-	return retentionDeleteCommand("delete", "retentionMessages", "retention message", (*asc.Client).DeleteRetentionMessage)
+func retentionMessagesDeleteCommand(d *shared.Deps) *ffcli.Command {
+	return retentionDeleteCommand(d, "delete", "retentionMessages", "retention message", (*asc.Client).DeleteRetentionMessage)
 }
 
-func retentionMessagesAssignCommand() *ffcli.Command {
-	return retentionWriteCommand("assign", `--subscription-id "SUB_ID" --message-id "MESSAGE_ID"`,
+func retentionMessagesAssignCommand(d *shared.Deps) *ffcli.Command {
+	return retentionWriteCommand(d, "assign", `--subscription-id "SUB_ID" --message-id "MESSAGE_ID"`,
 		"Assign a retention message to a subscription.\n\nA subscription has at most one retention message; assigning one replaces the current message.\nApple has no unassign request; deleting the message clears the assignment.\nAssign a message before presenting retention offers with it.",
 		[]string{`asc subscriptions retention-messages assign --subscription-id "SUB_ID" --message-id "MESSAGE_ID"`},
 		func(fs *flag.FlagSet) func() (func(context.Context, *asc.Client) (any, error), error) {
 			subscriptionID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID")
 			messageID := shared.BindResourceIDFlag(fs, "message-id", "retentionMessages", "Retention message ID")
 			return func() (func(context.Context, *asc.Client) (any, error), error) {
-				subscription, err := requiredRetentionValue(subscriptionID, "subscription-id")
+				subscription, err := requiredRetentionValue(d, subscriptionID, "subscription-id")
 				if err != nil {
 					return nil, err
 				}
-				message, err := requiredRetentionValue(messageID, "message-id")
+				message, err := requiredRetentionValue(d, messageID, "message-id")
 				if err != nil {
 					return nil, err
 				}
@@ -426,30 +425,30 @@ func retentionMessagesAssignCommand() *ffcli.Command {
 		})
 }
 
-func retentionMessageVersionsCommand() *ffcli.Command {
-	return retentionGroupCommand("versions", "Manage retention message versions.",
-		retentionReadCommand(retentionRead{
+func retentionMessageVersionsCommand(d *shared.Deps) *ffcli.Command {
+	return retentionGroupCommand(d, "versions", "Manage retention message versions.",
+		retentionReadCommand(d, retentionRead{
 			path: "versions list", help: "List versions of a retention message.", list: true,
 			examples:  []string{`asc subscriptions retention-messages versions list --message-id "MESSAGE_ID" --include localizations`},
 			ownerFlag: "message-id", ownerType: "retentionMessages", ownerUsage: "Retention message ID",
 			primary: "retentionMessageVersions", includes: retentionVersionIncludes, limits: retentionVersionLimits,
 			fetch: retentionFetch((*asc.Client).GetRetentionMessageVersions),
 		}),
-		retentionReadCommand(retentionRead{
+		retentionReadCommand(d, retentionRead{
 			path: "versions view", help: "View a retention message version and its review state.",
 			examples:  []string{`asc subscriptions retention-messages versions view --id "VERSION_ID" --include localizations,placement`},
 			ownerFlag: "id", ownerType: "retentionMessageVersions", ownerUsage: "Retention message version ID",
 			primary: "retentionMessageVersions", includes: retentionVersionIncludes, limits: retentionVersionLimits,
 			fetch: retentionFetch((*asc.Client).GetRetentionMessageVersion),
 		}),
-		retentionWriteCommand("versions create", `--message-id "MESSAGE_ID" [--placement-id "PLACEMENT_ID"]`,
+		retentionWriteCommand(d, "versions create", `--message-id "MESSAGE_ID" [--placement-id "PLACEMENT_ID"]`,
 			"Create a version of a retention message.\n\nA version starts in PREPARE_FOR_SUBMISSION and can't be modified or deleted after creation.\nTo change approved content, create a new version. Omit --placement-id for a text-only\nmessage, or add an image later with versions placement create.",
 			[]string{`asc subscriptions retention-messages versions create --message-id "MESSAGE_ID"`, `asc subscriptions retention-messages versions create --message-id "MESSAGE_ID" --placement-id "PLACEMENT_ID"`},
 			func(fs *flag.FlagSet) func() (func(context.Context, *asc.Client) (any, error), error) {
 				messageID := shared.BindResourceIDFlag(fs, "message-id", "retentionMessages", "Retention message ID")
 				placementID := shared.BindResourceIDFlag(fs, "placement-id", "appAssetLibraryPlacements", "Existing asset library placement ID (optional)")
 				return func() (func(context.Context, *asc.Client) (any, error), error) {
-					message, err := requiredRetentionValue(messageID, "message-id")
+					message, err := requiredRetentionValue(d, messageID, "message-id")
 					if err != nil {
 						return nil, err
 					}
@@ -458,8 +457,8 @@ func retentionMessageVersionsCommand() *ffcli.Command {
 					}, nil
 				}
 			}),
-		retentionGroupCommand("versions placement", "View or create the image placement of a retention message version.",
-			retentionReadCommand(retentionRead{
+		retentionGroupCommand(d, "versions placement", "View or create the image placement of a retention message version.",
+			retentionReadCommand(d, retentionRead{
 				path: "versions placement view", help: "View the asset library placement of a retention message version.",
 				examples:  []string{`asc subscriptions retention-messages versions placement view --version-id "VERSION_ID" --include image`},
 				ownerFlag: "version-id", ownerType: "retentionMessageVersions", ownerUsage: "Retention message version ID",
@@ -472,21 +471,21 @@ func retentionMessageVersionsCommand() *ffcli.Command {
 					if err != nil {
 						return err
 					}
-					return shared.PrintOutputRows(raw, *output.Output, *output.Pretty, headers, rows)
+					return d.PrintOutputRows(raw, *output.Output, *output.Pretty, headers, rows)
 				},
 			}),
-			retentionWriteCommand("versions placement create", `--version-id "VERSION_ID" --image-id "IMAGE_ID"`,
+			retentionWriteCommand(d, "versions placement create", `--version-id "VERSION_ID" --image-id "IMAGE_ID"`,
 				"Place an asset library image on a retention message version.\n\nRetention messages accept images only, with placement type RETENTION_MESSAGE_ASSET\nin the DEFAULT_PROFILE group, at most one image per version. Apple's current spec\nis 3840x2160 (PNG or JPEG) or 5244x2950 (PNG), no alpha channel; check it with\n  asc asset-library specs --placement-type RETENTION_MESSAGE_ASSET --feature RETENTION_MESSAGING\nUpload the image with \"asc asset-library images upload\" first; Apple can take\nlonger than the default upload wait to process it, so raise ASC_UPLOAD_TIMEOUT\nor check the image state with \"asc asset-library images view\" before placing it.\nThis does not submit the version for review.",
 				[]string{`asc subscriptions retention-messages versions placement create --version-id "VERSION_ID" --image-id "IMAGE_ID"`},
 				func(fs *flag.FlagSet) func() (func(context.Context, *asc.Client) (any, error), error) {
 					versionID := shared.BindResourceIDFlag(fs, "version-id", "retentionMessageVersions", "Retention message version ID")
 					imageID := shared.BindResourceIDFlag(fs, "image-id", "appAssetLibraryImages", "Uploaded asset library image ID")
 					return func() (func(context.Context, *asc.Client) (any, error), error) {
-						version, err := requiredRetentionValue(versionID, "version-id")
+						version, err := requiredRetentionValue(d, versionID, "version-id")
 						if err != nil {
 							return nil, err
 						}
-						image, err := requiredRetentionValue(imageID, "image-id")
+						image, err := requiredRetentionValue(d, imageID, "image-id")
 						if err != nil {
 							return nil, err
 						}
@@ -504,23 +503,23 @@ func retentionMessageVersionsCommand() *ffcli.Command {
 	)
 }
 
-func retentionMessageLocalizationsCommand() *ffcli.Command {
-	return retentionGroupCommand("localizations", "Manage localized retention message text.",
-		retentionReadCommand(retentionRead{
+func retentionMessageLocalizationsCommand(d *shared.Deps) *ffcli.Command {
+	return retentionGroupCommand(d, "localizations", "Manage localized retention message text.",
+		retentionReadCommand(d, retentionRead{
 			path: "localizations list", help: "List localizations of a retention message version.", list: true,
 			examples:  []string{`asc subscriptions retention-messages localizations list --version-id "VERSION_ID"`},
 			ownerFlag: "version-id", ownerType: "retentionMessageVersions", ownerUsage: "Retention message version ID",
 			primary: "retentionMessageLocalizations", includes: retentionLocaleIncludes,
 			fetch: retentionFetch((*asc.Client).GetRetentionMessageVersionLocalizations),
 		}),
-		retentionReadCommand(retentionRead{
+		retentionReadCommand(d, retentionRead{
 			path: "localizations view", help: "View a retention message localization.",
 			examples:  []string{`asc subscriptions retention-messages localizations view --id "LOCALIZATION_ID"`},
 			ownerFlag: "id", ownerType: "retentionMessageLocalizations", ownerUsage: "Retention message localization ID",
 			primary: "retentionMessageLocalizations", includes: retentionLocaleIncludes,
 			fetch: retentionFetch((*asc.Client).GetRetentionMessageLocalization),
 		}),
-		retentionWriteCommand("localizations create", `--version-id "VERSION_ID" --locale LOCALE [--header TEXT] [--body TEXT]`,
+		retentionWriteCommand(d, "localizations create", `--version-id "VERSION_ID" --locale LOCALE [--header TEXT] [--body TEXT]`,
 			"Create a localization for a retention message version.\n\nThe header can contain up to 66 characters and the body up to 144. Apple rejects\nnew localizations on an APPROVED version.",
 			[]string{`asc subscriptions retention-messages localizations create --version-id "VERSION_ID" --locale en-US --header "Your cortado is waiting" --body "Stay subscribed and keep your daily cortado coming."`},
 			func(fs *flag.FlagSet) func() (func(context.Context, *asc.Client) (any, error), error) {
@@ -529,19 +528,19 @@ func retentionMessageLocalizationsCommand() *ffcli.Command {
 				header := fs.String("header", "", "Header text (up to 66 characters)")
 				body := fs.String("body", "", "Body text (up to 144 characters)")
 				return func() (func(context.Context, *asc.Client) (any, error), error) {
-					version, err := requiredRetentionValue(versionID, "version-id")
+					version, err := requiredRetentionValue(d, versionID, "version-id")
 					if err != nil {
 						return nil, err
 					}
-					localeValue, err := requiredRetentionValue(locale, "locale")
+					localeValue, err := requiredRetentionValue(d, locale, "locale")
 					if err != nil {
 						return nil, err
 					}
 					attrs := asc.RetentionMessageLocalizationCreateAttributes{Locale: localeValue}
-					if attrs.Header, err = optionalRetentionText(fs, header, "header", 66); err != nil {
+					if attrs.Header, err = optionalRetentionText(d, fs, header, "header", 66); err != nil {
 						return nil, err
 					}
-					if attrs.Body, err = optionalRetentionText(fs, body, "body", 144); err != nil {
+					if attrs.Body, err = optionalRetentionText(d, fs, body, "body", 144); err != nil {
 						return nil, err
 					}
 					return func(ctx context.Context, client *asc.Client) (any, error) {
@@ -549,7 +548,7 @@ func retentionMessageLocalizationsCommand() *ffcli.Command {
 					}, nil
 				}
 			}),
-		retentionWriteCommand("localizations update", `--id "LOCALIZATION_ID" [--header TEXT | --clear-header] [--body TEXT | --clear-body]`,
+		retentionWriteCommand(d, "localizations update", `--id "LOCALIZATION_ID" [--header TEXT | --clear-header] [--body TEXT | --clear-body]`,
 			"Update the header or body of a retention message localization.\n\nThe locale can't be changed; delete the localization and create a new one instead.",
 			[]string{`asc subscriptions retention-messages localizations update --id "LOCALIZATION_ID" --body "Stay subscribed for one more month."`, `asc subscriptions retention-messages localizations update --id "LOCALIZATION_ID" --clear-header`},
 			func(fs *flag.FlagSet) func() (func(context.Context, *asc.Client) (any, error), error) {
@@ -559,12 +558,12 @@ func retentionMessageLocalizationsCommand() *ffcli.Command {
 				clearHeader := fs.Bool("clear-header", false, "Set the header to null")
 				clearBody := fs.Bool("clear-body", false, "Set the body to null")
 				nullable := func(value *string, name string, maxLength int, clear bool) (*asc.NullableString, error) {
-					text, err := optionalRetentionText(fs, value, name, maxLength)
+					text, err := optionalRetentionText(d, fs, value, name, maxLength)
 					switch {
 					case err != nil:
 						return nil, err
 					case text != nil && clear:
-						return nil, shared.UsageErrorf("--%s cannot be used with --clear-%s", name, name)
+						return nil, d.UsageErrorf("--%s cannot be used with --clear-%s", name, name)
 					case clear:
 						return &asc.NullableString{}, nil
 					case text != nil:
@@ -573,7 +572,7 @@ func retentionMessageLocalizationsCommand() *ffcli.Command {
 					return nil, nil
 				}
 				return func() (func(context.Context, *asc.Client) (any, error), error) {
-					value, err := requiredRetentionValue(id, "id")
+					value, err := requiredRetentionValue(d, id, "id")
 					if err != nil {
 						return nil, err
 					}
@@ -585,26 +584,26 @@ func retentionMessageLocalizationsCommand() *ffcli.Command {
 						return nil, err
 					}
 					if attrs.Header == nil && attrs.Body == nil {
-						return nil, shared.UpdateFlagRequired(fs, header, body, clearHeader, clearBody)
+						return nil, d.UpdateFlagRequired(fs, header, body, clearHeader, clearBody)
 					}
 					return func(ctx context.Context, client *asc.Client) (any, error) {
 						return client.UpdateRetentionMessageLocalization(ctx, value, attrs)
 					}, nil
 				}
 			}),
-		retentionDeleteCommand("localizations delete", "retentionMessageLocalizations", "retention message localization", (*asc.Client).DeleteRetentionMessageLocalization),
+		retentionDeleteCommand(d, "localizations delete", "retentionMessageLocalizations", "retention message localization", (*asc.Client).DeleteRetentionMessageLocalization),
 	)
 }
 
-func retentionMessageLinksCommand() *ffcli.Command {
+func retentionMessageLinksCommand(d *shared.Deps) *ffcli.Command {
 	link := func(name, help, ownerFlag, ownerType, ownerUsage string, list bool, fetch retentionFetcher) *ffcli.Command {
-		return retentionReadCommand(retentionRead{
+		return retentionReadCommand(d, retentionRead{
 			path: "links " + name, help: help, list: list,
 			examples:  []string{"asc " + retentionMessagesCommandPrefix + " links " + name + " --" + ownerFlag + ` "ID"`},
 			ownerFlag: ownerFlag, ownerType: ownerType, ownerUsage: ownerUsage, fetch: fetch,
 		})
 	}
-	return retentionGroupCommand("links", "View raw retention messaging relationship linkages.",
+	return retentionGroupCommand(d, "links", "View raw retention messaging relationship linkages.",
 		link("messages", "View retention message linkages for an app.", "app", "apps", "App Store Connect app ID (or ASC_APP_ID env)", true, retentionFetch((*asc.Client).GetAppRetentionMessagesRelationships)),
 		link("versions", "View version linkages for a retention message.", "message-id", "retentionMessages", "Retention message ID", true, retentionFetch((*asc.Client).GetRetentionMessageVersionsRelationships)),
 		link("subscriptions", "View subscription linkages for a retention message.", "message-id", "retentionMessages", "Retention message ID", true, retentionFetch((*asc.Client).GetRetentionMessageSubscriptionsRelationships)),
