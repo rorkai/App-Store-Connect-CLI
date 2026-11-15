@@ -64,7 +64,7 @@ Examples:
 			WebPrivacyCommand(),
 			WebReviewCommand(),
 			WebSubscriptionsCommand(),
-			WebAnalyticsCommand(),
+			newWebAnalyticsCommand(d),
 			WebXcodeCloudCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {

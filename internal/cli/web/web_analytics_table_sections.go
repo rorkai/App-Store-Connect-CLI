@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
@@ -16,7 +17,7 @@ type analyticsTableSection struct {
 	Rows    [][]string
 }
 
-func renderAnalyticsTableSections(sections ...analyticsTableSection) error {
+func renderAnalyticsTableSections(d *shared.Deps, sections ...analyticsTableSection) error {
 	printed := false
 	for _, section := range sections {
 		if len(section.Headers) == 0 {
@@ -27,14 +28,14 @@ func renderAnalyticsTableSections(sections ...analyticsTableSection) error {
 			continue
 		}
 		if printed {
-			fmt.Println()
+			fmt.Fprintln(d.IO.Out)
 		}
 		title := strings.TrimSpace(section.Title)
 		if title != "" {
-			fmt.Println(title)
-			fmt.Println(strings.Repeat("-", len(title)))
+			fmt.Fprintln(d.IO.Out, title)
+			fmt.Fprintln(d.IO.Out, strings.Repeat("-", len(title)))
 		}
-		asc.RenderTable(section.Headers, rows)
+		asc.RenderTableTo(d.IO.Out, section.Headers, rows)
 		printed = true
 	}
 	return nil

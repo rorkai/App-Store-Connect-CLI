@@ -44,7 +44,8 @@ func TestWebAnalyticsSourcesCommandOutputsJSON(t *testing.T) {
 		}, nil
 	}
 
-	cmd := WebAnalyticsSourcesCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebAnalyticsSourcesCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "app-1",
 		"--start", "2025-12-24",
@@ -54,7 +55,7 @@ func TestWebAnalyticsSourcesCommandOutputsJSON(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, _ := captureOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("exec error: %v", err)
 		}
@@ -102,7 +103,8 @@ func TestWebAnalyticsSalesCommandTableIncludesRevenueLabels(t *testing.T) {
 		}, nil
 	}
 
-	cmd := WebAnalyticsSalesCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebAnalyticsSalesCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "app-1",
 		"--start", "2025-12-24",
@@ -112,7 +114,7 @@ func TestWebAnalyticsSalesCommandTableIncludesRevenueLabels(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, _ := captureOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("exec error: %v", err)
 		}
@@ -155,7 +157,8 @@ func TestWebAnalyticsBenchmarksCommandTableIncludesPercentiles(t *testing.T) {
 		}, nil
 	}
 
-	cmd := WebAnalyticsBenchmarksCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebAnalyticsBenchmarksCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "app-1",
 		"--output", "table",
@@ -163,7 +166,7 @@ func TestWebAnalyticsBenchmarksCommandTableIncludesPercentiles(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, _ := captureOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("exec error: %v", err)
 		}
@@ -204,7 +207,8 @@ func TestWebAnalyticsProductPagesCommandOutputsCapabilityJSON(t *testing.T) {
 		}, nil
 	}
 
-	cmd := WebAnalyticsProductPagesCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := newWebAnalyticsProductPagesCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "app-1",
 		"--output", "json",
@@ -212,7 +216,7 @@ func TestWebAnalyticsProductPagesCommandOutputsCapabilityJSON(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, _ := captureOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("exec error: %v", err)
 		}

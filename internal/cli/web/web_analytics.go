@@ -62,9 +62,9 @@ type analyticsCohortsOutput struct {
 	Result    *webcore.AnalyticsCohortsResponse `json:"result"`
 }
 
-// WebAnalyticsCommand returns the analytics command group under `asc web`.
-func WebAnalyticsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web analytics", flag.ExitOnError)
+// newWebAnalyticsCommand returns the analytics command group under `asc web`.
+func newWebAnalyticsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web analytics", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "analytics",
@@ -87,21 +87,21 @@ Examples:
   asc web analytics retention --app "123456789" --start 2026-02-22 --end 2026-03-23
   asc web analytics cohorts --app "123456789" --start 2025-12-24 --end 2026-03-23 --measures cohort-download-to-paid-rate --periods d1,d7,d35`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			WebAnalyticsOverviewCommand(),
-			WebAnalyticsSourcesCommand(),
-			WebAnalyticsProductPagesCommand(),
-			WebAnalyticsInAppEventsCommand(),
-			WebAnalyticsAppClipsCommand(),
-			WebAnalyticsCampaignsCommand(),
-			WebAnalyticsSalesCommand(),
-			WebAnalyticsSubscriptionsCommand(),
-			WebAnalyticsOffersCommand(),
-			WebAnalyticsBenchmarksCommand(),
-			WebAnalyticsMetricsCommand(),
-			WebAnalyticsRetentionCommand(),
-			WebAnalyticsCohortsCommand(),
+			newWebAnalyticsOverviewCommand(d),
+			newWebAnalyticsSourcesCommand(d),
+			newWebAnalyticsProductPagesCommand(d),
+			newWebAnalyticsInAppEventsCommand(d),
+			newWebAnalyticsAppClipsCommand(d),
+			newWebAnalyticsCampaignsCommand(d),
+			newWebAnalyticsSalesCommand(d),
+			newWebAnalyticsSubscriptionsCommand(d),
+			newWebAnalyticsOffersCommand(d),
+			newWebAnalyticsBenchmarksCommand(d),
+			newWebAnalyticsMetricsCommand(d),
+			newWebAnalyticsRetentionCommand(d),
+			newWebAnalyticsCohortsCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -109,11 +109,11 @@ Examples:
 	}
 }
 
-// WebAnalyticsOverviewCommand recreates the analytics overview dashboard.
-func WebAnalyticsOverviewCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web analytics overview", flag.ExitOnError)
+// newWebAnalyticsOverviewCommand recreates the analytics overview dashboard.
+func newWebAnalyticsOverviewCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web analytics overview", flag.ExitOnError)
 	sessionFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	appID := fs.String("app", "", "App ID")
 	start := fs.String("start", "", "Start date (YYYY-MM-DD)")
 	end := fs.String("end", "", "End date (YYYY-MM-DD)")
@@ -129,42 +129,42 @@ func WebAnalyticsOverviewCommand() *ffcli.Command {
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID, startDate, endDate, err := resolveAnalyticsQueryFlags(*appID, *start, *end)
+			resolvedAppID, startDate, endDate, err := resolveAnalyticsQueryFlags(d, *appID, *start, *end)
 			if err != nil {
 				return err
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, sessionFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, sessionFlags)
 			defer cancel()
 			if err != nil {
 				return err
 			}
 			client := newAnalyticsClientFn(session)
-			result, err := withWebSpinnerValue("Loading analytics overview", func() (*webcore.AnalyticsOverview, error) {
+			result, err := withWebSpinnerValueWith(d, "Loading analytics overview", func() (*webcore.AnalyticsOverview, error) {
 				return getAnalyticsOverviewFn(requestCtx, client, resolvedAppID, startDate, endDate)
 			})
 			if err != nil {
 				return withWebAuthHint(err, "analytics overview")
 			}
 
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderAnalyticsOverviewTable(result) },
-				func() error { return renderAnalyticsOverviewMarkdown(result) },
+				func() error { return renderAnalyticsOverviewTable(d, result) },
+				func() error { return renderAnalyticsOverviewMarkdown(d, result) },
 			)
 		},
 	}
 }
 
-// WebAnalyticsSubscriptionsCommand recreates the subscriptions summary dashboard.
-func WebAnalyticsSubscriptionsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web analytics subscriptions", flag.ExitOnError)
+// newWebAnalyticsSubscriptionsCommand recreates the subscriptions summary dashboard.
+func newWebAnalyticsSubscriptionsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web analytics subscriptions", flag.ExitOnError)
 	sessionFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	appID := fs.String("app", "", "App ID")
 	start := fs.String("start", "", "Start date (YYYY-MM-DD)")
 	end := fs.String("end", "", "End date (YYYY-MM-DD)")
@@ -181,42 +181,42 @@ func WebAnalyticsSubscriptionsCommand() *ffcli.Command {
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID, startDate, endDate, err := resolveAnalyticsQueryFlags(*appID, *start, *end)
+			resolvedAppID, startDate, endDate, err := resolveAnalyticsQueryFlags(d, *appID, *start, *end)
 			if err != nil {
 				return err
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, sessionFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, sessionFlags)
 			defer cancel()
 			if err != nil {
 				return err
 			}
 			client := newAnalyticsClientFn(session)
-			result, err := withWebSpinnerValue("Loading subscriptions analytics", func() (*webcore.AnalyticsSubscriptionsSummary, error) {
+			result, err := withWebSpinnerValueWith(d, "Loading subscriptions analytics", func() (*webcore.AnalyticsSubscriptionsSummary, error) {
 				return getAnalyticsSubscriptionsSummaryFn(requestCtx, client, resolvedAppID, startDate, endDate)
 			})
 			if err != nil {
 				return withWebAuthHint(err, "analytics subscriptions")
 			}
 
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderAnalyticsSubscriptionsTable(result) },
-				func() error { return renderAnalyticsSubscriptionsMarkdown(result) },
+				func() error { return renderAnalyticsSubscriptionsTable(d, result) },
+				func() error { return renderAnalyticsSubscriptionsMarkdown(d, result) },
 			)
 		},
 	}
 }
 
-// WebAnalyticsMetricsCommand queries analytics measure series directly.
-func WebAnalyticsMetricsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web analytics metrics", flag.ExitOnError)
+// newWebAnalyticsMetricsCommand queries analytics measure series directly.
+func newWebAnalyticsMetricsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web analytics metrics", flag.ExitOnError)
 	sessionFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	appID := fs.String("app", "", "App ID")
 	start := fs.String("start", "", "Start date (YYYY-MM-DD)")
 	end := fs.String("end", "", "End date (YYYY-MM-DD)")
@@ -233,28 +233,28 @@ func WebAnalyticsMetricsCommand() *ffcli.Command {
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID, startDate, endDate, err := resolveAnalyticsQueryFlags(*appID, *start, *end)
+			resolvedAppID, startDate, endDate, err := resolveAnalyticsQueryFlags(d, *appID, *start, *end)
 			if err != nil {
 				return err
 			}
 			measureList := shared.SplitCSV(*measures)
 			if len(measureList) == 0 {
-				return shared.UsageError("--measures is required")
+				return d.UsageError("--measures is required")
 			}
-			resolvedFrequency, err := resolveAnalyticsFrequency(*frequency)
+			resolvedFrequency, err := resolveAnalyticsFrequency(d, *frequency)
 			if err != nil {
 				return err
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, sessionFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, sessionFlags)
 			defer cancel()
 			if err != nil {
 				return err
 			}
 			client := newAnalyticsClientFn(session)
-			result, err := withWebSpinnerValue("Loading analytics measures", func() (*webcore.AnalyticsMeasuresResponse, error) {
+			result, err := withWebSpinnerValueWith(d, "Loading analytics measures", func() (*webcore.AnalyticsMeasuresResponse, error) {
 				return getAnalyticsMeasuresFn(requestCtx, client, webcore.AnalyticsMeasuresRequest{
 					AppID:     resolvedAppID,
 					StartDate: startDate,
@@ -274,22 +274,22 @@ func WebAnalyticsMetricsCommand() *ffcli.Command {
 				Frequency: resolvedFrequency,
 				Result:    result,
 			}
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				payload,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderAnalyticsMetricsTable(payload) },
-				func() error { return renderAnalyticsMetricsMarkdown(payload) },
+				func() error { return renderAnalyticsMetricsTable(d, payload) },
+				func() error { return renderAnalyticsMetricsMarkdown(d, payload) },
 			)
 		},
 	}
 }
 
-// WebAnalyticsRetentionCommand queries analytics retention data.
-func WebAnalyticsRetentionCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web analytics retention", flag.ExitOnError)
+// newWebAnalyticsRetentionCommand queries analytics retention data.
+func newWebAnalyticsRetentionCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web analytics retention", flag.ExitOnError)
 	sessionFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	appID := fs.String("app", "", "App ID")
 	start := fs.String("start", "", "Start date (YYYY-MM-DD)")
 	end := fs.String("end", "", "End date (YYYY-MM-DD)")
@@ -305,24 +305,24 @@ func WebAnalyticsRetentionCommand() *ffcli.Command {
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID, startDate, endDate, err := resolveAnalyticsQueryFlags(*appID, *start, *end)
+			resolvedAppID, startDate, endDate, err := resolveAnalyticsQueryFlags(d, *appID, *start, *end)
 			if err != nil {
 				return err
 			}
-			resolvedFrequency, err := resolveAnalyticsFrequency(*frequency)
+			resolvedFrequency, err := resolveAnalyticsFrequency(d, *frequency)
 			if err != nil {
 				return err
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, sessionFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, sessionFlags)
 			defer cancel()
 			if err != nil {
 				return err
 			}
 			client := newAnalyticsClientFn(session)
-			result, err := withWebSpinnerValue("Loading analytics retention", func() (*webcore.AnalyticsRetentionResponse, error) {
+			result, err := withWebSpinnerValueWith(d, "Loading analytics retention", func() (*webcore.AnalyticsRetentionResponse, error) {
 				return getAnalyticsRetentionFn(requestCtx, client, webcore.AnalyticsRetentionRequest{
 					AppID:     resolvedAppID,
 					StartDate: startDate,
@@ -341,22 +341,22 @@ func WebAnalyticsRetentionCommand() *ffcli.Command {
 				Frequency: resolvedFrequency,
 				Result:    result,
 			}
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				payload,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderAnalyticsRetentionTable(payload) },
-				func() error { return renderAnalyticsRetentionMarkdown(payload) },
+				func() error { return renderAnalyticsRetentionTable(d, payload) },
+				func() error { return renderAnalyticsRetentionMarkdown(d, payload) },
 			)
 		},
 	}
 }
 
-// WebAnalyticsCohortsCommand queries analytics cohorts directly.
-func WebAnalyticsCohortsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web analytics cohorts", flag.ExitOnError)
+// newWebAnalyticsCohortsCommand queries analytics cohorts directly.
+func newWebAnalyticsCohortsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web analytics cohorts", flag.ExitOnError)
 	sessionFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	appID := fs.String("app", "", "App ID")
 	start := fs.String("start", "", "Start date (YYYY-MM-DD)")
 	end := fs.String("end", "", "End date (YYYY-MM-DD)")
@@ -375,32 +375,32 @@ func WebAnalyticsCohortsCommand() *ffcli.Command {
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID, startDate, endDate, err := resolveAnalyticsQueryFlags(*appID, *start, *end)
+			resolvedAppID, startDate, endDate, err := resolveAnalyticsQueryFlags(d, *appID, *start, *end)
 			if err != nil {
 				return err
 			}
 			measureList := shared.SplitCSV(*measures)
 			if len(measureList) == 0 {
-				return shared.UsageError("--measures is required")
+				return d.UsageError("--measures is required")
 			}
 			periodList := shared.SplitCSV(*periods)
 			if len(periodList) == 0 {
-				return shared.UsageError("--periods is required")
+				return d.UsageError("--periods is required")
 			}
-			resolvedFrequency, err := resolveAnalyticsFrequency(*frequency)
+			resolvedFrequency, err := resolveAnalyticsFrequency(d, *frequency)
 			if err != nil {
 				return err
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, sessionFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, sessionFlags)
 			defer cancel()
 			if err != nil {
 				return err
 			}
 			client := newAnalyticsClientFn(session)
-			result, err := withWebSpinnerValue("Loading analytics cohorts", func() (*webcore.AnalyticsCohortsResponse, error) {
+			result, err := withWebSpinnerValueWith(d, "Loading analytics cohorts", func() (*webcore.AnalyticsCohortsResponse, error) {
 				return getAnalyticsCohortsFn(requestCtx, client, webcore.AnalyticsCohortsRequest{
 					AppID:     resolvedAppID,
 					StartDate: startDate,
@@ -423,40 +423,40 @@ func WebAnalyticsCohortsCommand() *ffcli.Command {
 				Periods:   periodList,
 				Result:    result,
 			}
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				payload,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderAnalyticsCohortsTable(payload) },
-				func() error { return renderAnalyticsCohortsMarkdown(payload) },
+				func() error { return renderAnalyticsCohortsTable(d, payload) },
+				func() error { return renderAnalyticsCohortsMarkdown(d, payload) },
 			)
 		},
 	}
 }
 
-func resolveAnalyticsQueryFlags(appID, startDate, endDate string) (string, string, string, error) {
+func resolveAnalyticsQueryFlags(d *shared.Deps, appID, startDate, endDate string) (string, string, string, error) {
 	resolvedAppID := strings.TrimSpace(shared.ResolveAppID(appID))
 	if resolvedAppID == "" {
-		return "", "", "", shared.UsageError("--app is required")
+		return "", "", "", d.UsageError("--app is required")
 	}
 	if err := validateDateFlag("--start", startDate); err != nil {
-		return "", "", "", shared.UsageError(err.Error())
+		return "", "", "", d.UsageError(err.Error())
 	}
 	if err := validateDateFlag("--end", endDate); err != nil {
-		return "", "", "", shared.UsageError(err.Error())
+		return "", "", "", d.UsageError(err.Error())
 	}
 	startTime, _ := time.Parse("2006-01-02", strings.TrimSpace(startDate))
 	endTime, _ := time.Parse("2006-01-02", strings.TrimSpace(endDate))
 	if endTime.Before(startTime) {
-		return "", "", "", shared.UsageError("--end must be on or after --start")
+		return "", "", "", d.UsageError("--end must be on or after --start")
 	}
 	return resolvedAppID, strings.TrimSpace(startDate), strings.TrimSpace(endDate), nil
 }
 
-func resolveAnalyticsFrequency(value string) (string, error) {
+func resolveAnalyticsFrequency(d *shared.Deps, value string) (string, error) {
 	frequency, err := webcore.NormalizeAnalyticsFrequency(value)
 	if err != nil {
-		return "", shared.UsageError("--" + err.Error())
+		return "", d.UsageError("--" + err.Error())
 	}
 	return frequency, nil
 }
@@ -805,7 +805,7 @@ func buildAnalyticsOverviewRows(result *webcore.AnalyticsOverview) [][]string {
 	return rows
 }
 
-func renderAnalyticsOverviewTable(result *webcore.AnalyticsOverview) error {
+func renderAnalyticsOverviewTable(d *shared.Deps, result *webcore.AnalyticsOverview) error {
 	sections := []analyticsTableSection{
 		analyticsQuerySection("Overview", result.AppID, result.StartDate, result.EndDate),
 		analyticsMeasureSummarySection("Acquisition", result.Acquisition),
@@ -820,14 +820,14 @@ func renderAnalyticsOverviewTable(result *webcore.AnalyticsOverview) error {
 	for i := range result.AppUsageBreakdowns {
 		sections = append(sections, analyticsBreakdownSection("", &result.AppUsageBreakdowns[i]))
 	}
-	return renderAnalyticsTableSections(sections...)
+	return renderAnalyticsTableSections(d, sections...)
 }
 
-func renderAnalyticsOverviewMarkdown(result *webcore.AnalyticsOverview) error {
+func renderAnalyticsOverviewMarkdown(d *shared.Deps, result *webcore.AnalyticsOverview) error {
 	headers := []string{"Section", "Field", "Value", "Previous", "Change"}
 	rows := buildAnalyticsOverviewRows(result)
 	normalized := normalizeAnalyticsRows(rows, 5)
-	asc.RenderMarkdown(headers, normalized)
+	asc.RenderMarkdownTo(d.IO.Out, headers, normalized)
 	return nil
 }
 
@@ -858,7 +858,7 @@ func buildAnalyticsSubscriptionsRows(result *webcore.AnalyticsSubscriptionsSumma
 	return rows
 }
 
-func renderAnalyticsSubscriptionsTable(result *webcore.AnalyticsSubscriptionsSummary) error {
+func renderAnalyticsSubscriptionsTable(d *shared.Deps, result *webcore.AnalyticsSubscriptionsSummary) error {
 	sections := []analyticsTableSection{
 		analyticsQuerySection("Subscriptions", result.AppID, result.StartDate, result.EndDate),
 		analyticsMeasureSummarySection("Summary Cards", result.Summary),
@@ -866,12 +866,12 @@ func renderAnalyticsSubscriptionsTable(result *webcore.AnalyticsSubscriptionsSum
 		analyticsBreakdownSection("Active Plans by Subscription", result.ActivePlansBySubscription),
 		analyticsLatestCohortSection("Subscription Retention", result.SubscriptionRetention),
 	}
-	return renderAnalyticsTableSections(sections...)
+	return renderAnalyticsTableSections(d, sections...)
 }
 
-func renderAnalyticsSubscriptionsMarkdown(result *webcore.AnalyticsSubscriptionsSummary) error {
+func renderAnalyticsSubscriptionsMarkdown(d *shared.Deps, result *webcore.AnalyticsSubscriptionsSummary) error {
 	headers := []string{"Section", "Field", "Value", "Previous", "Change"}
-	asc.RenderMarkdown(headers, normalizeAnalyticsRows(buildAnalyticsSubscriptionsRows(result), 5))
+	asc.RenderMarkdownTo(d.IO.Out, headers, normalizeAnalyticsRows(buildAnalyticsSubscriptionsRows(result), 5))
 	return nil
 }
 
@@ -889,12 +889,13 @@ func buildAnalyticsMetricsRows(payload analyticsMetricsOutput) [][]string {
 	return rows
 }
 
-func renderAnalyticsMetricsTable(payload analyticsMetricsOutput) error {
+func renderAnalyticsMetricsTable(d *shared.Deps, payload analyticsMetricsOutput) error {
 	var results []webcore.AnalyticsMeasureResult
 	if payload.Result != nil {
 		results = payload.Result.Results
 	}
 	return renderAnalyticsTableSections(
+		d,
 		analyticsQuerySection(
 			"Metrics",
 			payload.AppID,
@@ -906,9 +907,9 @@ func renderAnalyticsMetricsTable(payload analyticsMetricsOutput) error {
 	)
 }
 
-func renderAnalyticsMetricsMarkdown(payload analyticsMetricsOutput) error {
+func renderAnalyticsMetricsMarkdown(d *shared.Deps, payload analyticsMetricsOutput) error {
 	headers := []string{"Section", "Field", "Value", "Previous", "Change"}
-	asc.RenderMarkdown(headers, normalizeAnalyticsRows(buildAnalyticsMetricsRows(payload), 5))
+	asc.RenderMarkdownTo(d.IO.Out, headers, normalizeAnalyticsRows(buildAnalyticsMetricsRows(payload), 5))
 	return nil
 }
 
@@ -935,8 +936,9 @@ func buildAnalyticsRetentionRows(payload analyticsRetentionOutput) [][]string {
 	return rows
 }
 
-func renderAnalyticsRetentionTable(payload analyticsRetentionOutput) error {
+func renderAnalyticsRetentionTable(d *shared.Deps, payload analyticsRetentionOutput) error {
 	return renderAnalyticsTableSections(
+		d,
 		analyticsQuerySection(
 			"Retention",
 			payload.AppID,
@@ -948,9 +950,9 @@ func renderAnalyticsRetentionTable(payload analyticsRetentionOutput) error {
 	)
 }
 
-func renderAnalyticsRetentionMarkdown(payload analyticsRetentionOutput) error {
+func renderAnalyticsRetentionMarkdown(d *shared.Deps, payload analyticsRetentionOutput) error {
 	headers := []string{"Cohort", "Date", "Retention", "Value"}
-	asc.RenderMarkdown(headers, normalizeAnalyticsRows(buildAnalyticsRetentionRows(payload), 4))
+	asc.RenderMarkdownTo(d.IO.Out, headers, normalizeAnalyticsRows(buildAnalyticsRetentionRows(payload), 4))
 	return nil
 }
 
@@ -1010,8 +1012,9 @@ func analyticsAnyValueString(measure string, raw any) string {
 	}
 }
 
-func renderAnalyticsCohortsTable(payload analyticsCohortsOutput) error {
+func renderAnalyticsCohortsTable(d *shared.Deps, payload analyticsCohortsOutput) error {
 	return renderAnalyticsTableSections(
+		d,
 		analyticsQuerySection(
 			"Cohorts",
 			payload.AppID,
@@ -1025,9 +1028,9 @@ func renderAnalyticsCohortsTable(payload analyticsCohortsOutput) error {
 	)
 }
 
-func renderAnalyticsCohortsMarkdown(payload analyticsCohortsOutput) error {
+func renderAnalyticsCohortsMarkdown(d *shared.Deps, payload analyticsCohortsOutput) error {
 	headers := []string{"Date", "Period", "Measure", "Value"}
-	asc.RenderMarkdown(headers, normalizeAnalyticsRows(buildAnalyticsCohortRows(payload), 4))
+	asc.RenderMarkdownTo(d.IO.Out, headers, normalizeAnalyticsRows(buildAnalyticsCohortRows(payload), 4))
 	return nil
 }
 

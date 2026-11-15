@@ -247,7 +247,8 @@ func TestWebCommandOperationSurvivesSlowInteractiveAuthentication(t *testing.T) 
 		return &webcore.AnalyticsOverview{AppID: appID, StartDate: startDate, EndDate: endDate}, nil
 	}
 
-	cmd := WebAnalyticsOverviewCommand()
+	d, _, _ := newWebTestDeps()
+	cmd := newWebAnalyticsOverviewCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--apple-id", "user@example.com",
 		"--app", "app-1",
