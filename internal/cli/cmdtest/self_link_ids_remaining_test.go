@@ -371,6 +371,7 @@ func TestSelfLinkRemainingFlagsRejectWrongType(t *testing.T) {
 			flag:    "rule-set-id",
 			value:   selfLinkTestBase + "/v1/gameCenterMatchmakingQueues/queue-1",
 			wantErr: "expected a self-link of type gameCenterMatchmakingRuleSets, got gameCenterMatchmakingQueues",
+			deps:    true,
 		},
 		{
 			name:    "app-clips default-experiences localizations list rejects app-clips link",

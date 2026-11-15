@@ -17,12 +17,11 @@ func TestGameCenterDetailsListNoDetailReturnsEmptyList(t *testing.T) {
 	expectedURL := "https://api.appstoreconnect.apple.com/v1/apps/APP_ID/gameCenterDetail"
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	// App Store Connect returns 200 with an empty id when no Game Center detail exists yet.
 	reg.Register(asctest.GET("/v1/apps/APP_ID/gameCenterDetail"),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"gameCenterDetails","id":"","attributes":{}},"links":{"self":"`+expectedURL+`"}}`))
 
-	stdout, stderr, err := runCommand(t, []string{"game-center", "details", "list", "--app", "APP_ID"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "game-center", "details", "list", "--app", "APP_ID")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
