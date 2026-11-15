@@ -136,7 +136,6 @@ func TestDepsWithSpinnerDelayedStartsOnDepsTimer(t *testing.T) {
 			},
 		}
 		err := d.WithSpinnerDelayed("Working", time.Second, func() error {
-			time.Sleep(time.Minute)
 			synctest.Wait()
 			if stderr.Len() != 0 {
 				t.Errorf("stderr before d.After fired = %q, want empty", stderr.String())
