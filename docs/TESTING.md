@@ -101,3 +101,5 @@ ASC_BYPASS_KEYCHAIN=1 go test -run TestName ./pkg  # Run specific test
 ```
 
 Always set `ASC_BYPASS_KEYCHAIN=1` for manual test commands so host keychain profiles cannot affect results. The `make test` target also sets it internally.
+
+A test must not depend on the absence of credentials: one that expects to fail at "no authentication" sent real requests to Apple with the key of a developer who had signed in (found 2026-11-15). Test binaries hide the developer's credentials, so even a bare `go test ./...` sees the machine as CI does: `internal/testguard` drops inherited `ASC_*` variables and bypasses the keychain as `make test` does, treats every `.asc` directory under `HOME`, the account's home and the directories above the test's working directory as absent (the config reads as not found, config writes and the web session cache fail), and refuses the system keychain. A test that wants a client injects one (`Deps.Client`, `SetASCClientFactoryForTesting`, or an `asctest` registry) and asserts that the command reached it. The built `asc` binary that `cmd` tests run is not a test binary, so `cmd`'s `TestMain` gives it a temporary `HOME` and config path.
