@@ -55,7 +55,7 @@ Examples:
 			newWebRemovedAppsCommand(d),
 			WebAppBundlesCommand(),
 			WebTeamsCommand(),
-			WebBundleIDsCommand(),
+			newWebBundleIDsCommand(d),
 			WebServiceIDsCommand(),
 			WebSignInKeysCommand(),
 			WebWebsitePushIDsCommand(),
