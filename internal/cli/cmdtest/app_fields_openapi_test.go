@@ -1,7 +1,6 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -27,35 +26,30 @@ func TestAppFieldsAcceptEveryOpenAPIValue(t *testing.T) {
 		requestPath string
 		args        []string
 		rejected    []string
-		deps        bool // the command is built on shared.Deps: stub its client and read its deps streams
 	}{
 		{
 			name:        "bundle-ids list",
 			specPath:    "/v1/bundleIds",
 			requestPath: "/v1/bundleIds",
 			args:        []string{"bundle-ids", "list", "--include", "app"},
-			deps:        true,
 		},
 		{
 			name:        "product-pages custom-pages list",
 			specPath:    "/v1/apps/{id}/appCustomProductPages",
 			requestPath: "/v1/apps/app-1/appCustomProductPages",
 			args:        []string{"product-pages", "custom-pages", "list", "--app", "app-1", "--include", "app"},
-			deps:        true,
 		},
 		{
 			name:        "testflight groups list",
 			specPath:    "/v1/betaGroups",
 			requestPath: "/v1/betaGroups",
 			args:        []string{"testflight", "groups", "list", "--app", "app-1", "--include", "app"},
-			deps:        true,
 		},
 		{
 			name:        "users list",
 			specPath:    "/v1/users",
 			requestPath: "/v1/users",
 			args:        []string{"users", "list", "--include", "visibleApps"},
-			deps:        true,
 			rejected: []string{
 				"appStoreIcon",
 				"performanceOverviews",
@@ -73,7 +67,6 @@ func TestAppFieldsAcceptEveryOpenAPIValue(t *testing.T) {
 			requestPath: "/v1/ciProducts",
 			args:        []string{"xcode-cloud", "products", "list", "--app", "123456789", "--include", "app"},
 			rejected:    []string{"assetLibrary"},
-			deps:        true,
 		},
 	}
 
@@ -85,7 +78,7 @@ func TestAppFieldsAcceptEveryOpenAPIValue(t *testing.T) {
 
 		t.Run(test.name, func(t *testing.T) {
 			appFields := strings.Join(accepted, ",")
-			stderr, requests, runErr := runAppFieldsCommand(t, test.args, appFields, test.requestPath, test.deps)
+			stderr, requests, runErr := runAppFieldsCommand(t, test.args, appFields, test.requestPath)
 			if runErr != nil {
 				t.Fatalf("run error: %v; stderr=%q", runErr, stderr)
 			}
@@ -96,7 +89,7 @@ func TestAppFieldsAcceptEveryOpenAPIValue(t *testing.T) {
 
 		for _, value := range rejected {
 			t.Run(test.name+" rejects "+value, func(t *testing.T) {
-				stderr, requests, runErr := runAppFieldsCommand(t, test.args, value, test.requestPath, test.deps)
+				stderr, requests, runErr := runAppFieldsCommand(t, test.args, value, test.requestPath)
 				if got := rootcmd.ExitCodeFromError(runErr); got != rootcmd.ExitUsage {
 					t.Fatalf("exit code = %d, want %d; err=%v stderr=%q", got, rootcmd.ExitUsage, runErr, stderr)
 				}
@@ -108,9 +101,8 @@ func TestAppFieldsAcceptEveryOpenAPIValue(t *testing.T) {
 	}
 }
 
-func runAppFieldsCommand(t *testing.T, commandArgs []string, appFields, requestPath string, deps bool) (string, int32, error) {
+func runAppFieldsCommand(t *testing.T, commandArgs []string, appFields, requestPath string) (string, int32, error) {
 	t.Helper()
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	var requests atomic.Int32
@@ -128,20 +120,7 @@ func runAppFieldsCommand(t *testing.T, commandArgs []string, appFields, requestP
 	t.Cleanup(server.Close)
 
 	args := append(append([]string{}, commandArgs...), "--app-fields", appFields, "--output", "json")
-	if deps {
-		_, stderr, runErr := runRootWithDeps(t, stubServerClient(t, server), args...)
-		return stderr, requests.Load(), runErr
-	}
-	installDefaultTransportForServer(t, server)
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	var runErr error
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse(args); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	_, stderr, runErr := runRootWithDeps(t, stubServerClient(t, server), args...)
 	return stderr, requests.Load(), runErr
 }
 
