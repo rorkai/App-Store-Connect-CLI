@@ -799,3 +799,72 @@ func buildZipperToothQuery(query *zipperTeethQuery) string {
 	}
 	return values.Encode()
 }
+
+// ZipperTogglesOption sets the query of GET /v1/zippers/{id}/toggles (zippers_toggles_getToManyRelated).
+type ZipperTogglesOption func(*zipperTogglesQuery)
+
+type zipperTogglesQuery struct {
+	listQuery
+	name  string
+	code  string
+	ids   string
+	kinds string
+}
+
+// WithZipperTogglesName sets filter[name].
+func WithZipperTogglesName(name string) ZipperTogglesOption {
+	return func(q *zipperTogglesQuery) {
+		normalized := normalizeCSVString(name)
+		if normalized != "" {
+			q.name = normalized
+		}
+	}
+}
+
+// WithZipperTogglesCode sets filter[code].
+func WithZipperTogglesCode(code string) ZipperTogglesOption {
+	return func(q *zipperTogglesQuery) {
+		normalized := normalizeUpperCSVString(code)
+		if normalized != "" {
+			q.code = normalized
+		}
+	}
+}
+
+// WithZipperTogglesIDs sets filter[id].
+func WithZipperTogglesIDs(ids []string) ZipperTogglesOption {
+	return func(q *zipperTogglesQuery) {
+		normalized := normalizeList(ids)
+		if len(normalized) > 0 {
+			q.ids = strings.Join(normalized, ",")
+		}
+	}
+}
+
+// WithZipperTogglesKinds sets filter[kind].
+func WithZipperTogglesKinds(values []string) ZipperTogglesOption {
+	return func(q *zipperTogglesQuery) {
+		normalized := normalizeUniqueList(values)
+		if len(normalized) > 0 {
+			q.kinds = strings.Join(normalized, ",")
+		}
+	}
+}
+
+func buildZipperTogglesQuery(query *zipperTogglesQuery) string {
+	values := url.Values{}
+	if strings.TrimSpace(query.name) != "" {
+		values.Set("filter[name]", strings.TrimSpace(query.name))
+	}
+	if strings.TrimSpace(query.code) != "" {
+		values.Set("filter[code]", strings.TrimSpace(query.code))
+	}
+	if strings.TrimSpace(query.ids) != "" {
+		values.Set("filter[id]", strings.TrimSpace(query.ids))
+	}
+	if strings.TrimSpace(query.kinds) != "" {
+		values.Set("filter[kind]", strings.TrimSpace(query.kinds))
+	}
+	addLimit(values, query.limit)
+	return values.Encode()
+}

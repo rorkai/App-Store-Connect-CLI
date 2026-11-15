@@ -74,37 +74,65 @@ type QueryParam struct {
 type scalarParam struct {
 	goType  string
 	schemas []string // the schema types it may send: "string" also sends one item of an array of strings
-	set     string   // body of the option's closure; %[1]s is the argument, %[2]s the field
+	set     string   // body of the option's closure; %[1]s is the argument, %[2]s the field, %[3]s the normalizer
 	send    string   // builder statement; %[1]s is the field, %[2]s the quoted parameter name
+	arg     string   // the argument's Go type when it is not goType without its pointer
+	// normalizers are the functions the option may clean its value with, by
+	// QueryParam.Normalize; none for an option that takes no Normalize.
+	normalizers map[string]string
 }
+
+// sendString is how a string field is sent: trimmed, and not at all when
+// blank.
+const sendString = "if strings.TrimSpace(query.%[1]s) != \"\" {\nvalues.Set(%[2]s, strings.TrimSpace(query.%[1]s))\n}"
 
 // scalarParams are the scalar options by QueryParam.Type. A string is
 // trimmed and a blank one leaves the field as it was; an integer is kept only
 // when positive and sent after limit; a boolean is sent as true or false once
-// set.
+// set. A csv option takes comma-separated values in one string and a csvList
+// option a list; both keep the cleaned values as one comma-separated string,
+// and leave the field as it was when no value is left.
 var scalarParams = map[string]scalarParam{
 	"string": {
 		"string",
 		[]string{"string", "array"},
 		"if strings.TrimSpace(%[1]s) != \"\" {\nq.%[2]s = strings.TrimSpace(%[1]s)\n}",
-		"if strings.TrimSpace(query.%[1]s) != \"\" {\nvalues.Set(%[2]s, strings.TrimSpace(query.%[1]s))\n}",
+		sendString, "", nil,
 	},
 	"int": {
 		"int",
 		[]string{"integer"},
 		"if %[1]s > 0 {\nq.%[2]s = %[1]s\n}",
-		"if query.%[1]s > 0 {\nvalues.Set(%[2]s, strconv.Itoa(query.%[1]s))\n}",
+		"if query.%[1]s > 0 {\nvalues.Set(%[2]s, strconv.Itoa(query.%[1]s))\n}", "", nil,
 	},
 	"bool": {
 		"*bool",
 		[]string{"boolean"},
 		"q.%[2]s = &%[1]s",
-		"if query.%[1]s != nil {\nvalues.Set(%[2]s, strconv.FormatBool(*query.%[1]s))\n}",
+		"if query.%[1]s != nil {\nvalues.Set(%[2]s, strconv.FormatBool(*query.%[1]s))\n}", "", nil,
+	},
+	"csv": {
+		"string",
+		[]string{"array"},
+		"normalized := %[3]s(%[1]s)\nif normalized != \"\" {\nq.%[2]s = normalized\n}",
+		sendString, "",
+		map[string]string{"": "normalizeCSVString", "upper": "normalizeUpperCSVString"},
+	},
+	"csvList": {
+		"string",
+		[]string{"array"},
+		"normalized := %[3]s(%[1]s)\nif len(normalized) > 0 {\nq.%[2]s = strings.Join(normalized, \",\")\n}",
+		sendString, "[]string", listNormalizers,
 	},
 }
 
 // argType is the Go type of a scalar option's argument.
-func (s scalarParam) argType() string { return strings.TrimPrefix(s.goType, "*") }
+func (s scalarParam) argType() string {
+	if s.arg != "" {
+		return s.arg
+	}
+	return strings.TrimPrefix(s.goType, "*")
+}
 
 // listNormalizers are the functions an option cleans its list with, by
 // QueryParam.Normalize.
@@ -331,8 +359,8 @@ func renderQuery(spec *Spec, q *QueryBind) ([]queryPart, error) {
 			return nil, fmt.Errorf("parameter %s has unknown normalize %q", p.Name, p.Normalize)
 		case p.Type != "" && !isScalar:
 			return nil, fmt.Errorf("parameter %s has unknown type %q", p.Name, p.Type)
-		case isScalar && p.Normalize != "":
-			return nil, fmt.Errorf("parameter %s of type %s cannot normalize a list", p.Name, p.Type)
+		case isScalar && p.Normalize != "" && scalar.normalizers[p.Normalize] == "":
+			return nil, fmt.Errorf("parameter %s of type %s cannot normalize %q", p.Name, p.Type, p.Normalize)
 		}
 		for _, sp := range defined[p.Name] {
 			if err := checkParamSchema(p, sp, scalar); err != nil {
@@ -351,7 +379,7 @@ func renderQuery(spec *Spec, q *QueryBind) ([]queryPart, error) {
 		if isScalar {
 			fields = append(fields, field+" "+scalar.goType)
 			parts = append(parts, queryPart{with, fmt.Sprintf("// %s sets %s.\nfunc %s(%s %s) %s {\nreturn func(q *%s) {\n%s\n}\n}\n\n",
-				with, p.Name, with, arg, scalar.argType(), option, structName, fmt.Sprintf(scalar.set, arg, field))})
+				with, p.Name, with, arg, scalar.argType(), option, structName, fmt.Sprintf(scalar.set, arg, field, scalar.normalizers[p.Normalize]))})
 			sent = append(sent, paramSend{p.Name, fmt.Sprintf(scalar.send, field, strconv.Quote(p.Name)), p.Type == "int"})
 			continue
 		}

@@ -61,6 +61,9 @@ func TestGenerateRejectsMalformedQueryBindings(t *testing.T) {
 		{"integer option for an array", &QueryBind{Operation: "zippers_sprockets_getToManyRelated", Name: "X", Params: []*QueryParam{{Name: "filter[label]", Field: "label", Type: "int"}}}},
 		{"string option for an array sent as repeated values", &QueryBind{Operation: "zippers_sprockets_getToManyRelated", Name: "X", Params: []*QueryParam{{Name: "filter[color]", Field: "color", Type: "string"}}}},
 		{"string option that normalizes a list", &QueryBind{Operation: "zippers_sprockets_getToManyRelated", Name: "X", Params: []*QueryParam{{Name: "filter[label]", Field: "label", Type: "string", Normalize: "upper"}}}},
+		{"comma-separated string for a string", &QueryBind{Operation: "zippers_sprockets_getToManyRelated", Name: "X", Params: []*QueryParam{{Name: "granularity", Field: "granularity", Type: "csv"}}}},
+		{"comma-separated list for an array sent as repeated values", &QueryBind{Operation: "zippers_sprockets_getToManyRelated", Name: "X", Params: []*QueryParam{{Name: "filter[color]", Field: "color", Type: "csvList"}}}},
+		{"comma-separated string that drops repeated values", &QueryBind{Operation: "zippers_sprockets_getToManyRelated", Name: "X", Params: []*QueryParam{{Name: "filter[label]", Field: "label", Type: "csv", Normalize: "unique"}}}},
 		{"builder without a name", teeth(&QueryBuilder{Operation: "teeth_getInstance"})},
 		{"builder named as the query's own", teeth(&QueryBuilder{Operation: "teeth_getInstance", Name: "X"})},
 		{"builder named twice", teeth(&QueryBuilder{Operation: "teeth_getInstance", Name: "Y"}, &QueryBuilder{Operation: "widgets_owner_getToOneRelated", Name: "Y"})},
@@ -661,6 +664,142 @@ func TestAdoptQueriesKeepsBuildersThatShareAQueryWrittenAnotherWay(t *testing.T)
 				t.Fatal(err)
 			}
 			if want := "kept: " + tt.kept; !strings.Contains(report.String(), want) {
+				t.Errorf("report lacks %q:\n%s", want, report.String())
+			}
+		})
+	}
+}
+
+const handWrittenCommaSeparatedQuery = `package asc
+
+import (
+	"context"
+	"fmt"
+	"net/url"
+	"strings"
+)
+
+// GetZipperToggles logs, so it stays hand-written.
+func (c *Client) GetZipperToggles(ctx context.Context, zipperID string, opts ...ZipperTogglesOption) (*WidgetsResponse, error) {
+	query := applyOptions(opts)
+	fmt.Println("listing toggles")
+	return getJSON[WidgetsResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/zippers/%s/toggles", zipperID), Query: buildZipperTogglesQuery(query), Next: query.nextURL})
+}
+
+// ZipperTogglesOption configures GetZipperToggles.
+type ZipperTogglesOption func(*zipperTogglesQuery)
+
+type zipperTogglesQuery struct {
+	listQuery
+	name  string
+	code  string
+	ids   string
+	kinds string
+}
+
+// WithZipperTogglesName filters by name (supports CSV).
+func WithZipperTogglesName(name string) ZipperTogglesOption {
+	return func(q *zipperTogglesQuery) {
+		normalized := normalizeCSVString(name)
+		if normalized != "" {
+			q.name = normalized
+		}
+	}
+}
+
+// WithZipperTogglesCode filters by code (supports CSV).
+func WithZipperTogglesCode(code string) ZipperTogglesOption {
+	return func(q *zipperTogglesQuery) {
+		normalized := normalizeUpperCSVString(code)
+		if normalized != "" {
+			q.code = normalized
+		}
+	}
+}
+
+// WithZipperTogglesIDs filters by ID.
+func WithZipperTogglesIDs(ids []string) ZipperTogglesOption {
+	return func(q *zipperTogglesQuery) {
+		normalized := normalizeList(ids)
+		if len(normalized) > 0 {
+			q.ids = strings.Join(normalized, ",")
+		}
+	}
+}
+
+// WithZipperTogglesKinds filters by kind.
+func WithZipperTogglesKinds(values []string) ZipperTogglesOption {
+	return func(q *zipperTogglesQuery) {
+		normalized := normalizeUniqueList(values)
+		if len(normalized) > 0 {
+			q.kinds = strings.Join(normalized, ",")
+		}
+	}
+}
+
+func buildZipperTogglesQuery(query *zipperTogglesQuery) string {
+	values := url.Values{}
+	if strings.TrimSpace(query.name) != "" {
+		values.Set("filter[name]", strings.TrimSpace(query.name))
+	}
+	if strings.TrimSpace(query.code) != "" {
+		values.Set("filter[code]", strings.TrimSpace(query.code))
+	}
+	if strings.TrimSpace(query.ids) != "" {
+		values.Set("filter[id]", strings.TrimSpace(query.ids))
+	}
+	if strings.TrimSpace(query.kinds) != "" {
+		values.Set("filter[kind]", strings.TrimSpace(query.kinds))
+	}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+`
+
+func TestAdoptQueriesAdoptsCommaSeparatedStringOptions(t *testing.T) {
+	dir := writeHandWritten(t, map[string]string{"queries.go": handWrittenCommaSeparatedQuery})
+	var report bytes.Buffer
+	if err := run(filepath.Join("testdata", "spec.json"), filepath.Join(dir, "bindings"), dir, false, "Widgets", false, &report); err != nil {
+		t.Fatal(err)
+	}
+	if want := "Widgets\tzippers_toggles_getToManyRelated\tquery buildZipperTogglesQuery\tgenerated"; !strings.Contains(report.String(), want) {
+		t.Errorf("report lacks %q:\n%s", want, report.String())
+	}
+	_, testdata := loadTestdata(t)
+	lines, err := jsonLines(testdata.Families[0].Queries[5:6])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := readFile(t, filepath.Join(dir, "bindings", "Widgets.json")); !strings.Contains(got, "\"queries\": [\n    "+lines[0]+"\n  ]") {
+		t.Errorf("bindings after adopt:\n%s\nwant the query %s", got, lines[0])
+	}
+	queries := readFile(t, filepath.Join(dir, "queries.go"))
+	for _, gone := range []string{"ZipperTogglesOption func", "zipperTogglesQuery struct", "func WithZipperToggles", "func buildZipperTogglesQuery"} {
+		if strings.Contains(queries, gone) {
+			t.Errorf("queries.go still declares %q:\n%s", gone, queries)
+		}
+	}
+	if err := run(filepath.Join("testdata", "spec.json"), filepath.Join(dir, "bindings"), dir, true, "", false, &report); err != nil {
+		t.Fatalf("check right after adopt: %v", err)
+	}
+}
+
+func TestAdoptQueriesKeepsCommaSeparatedOptionsWrittenAnotherWay(t *testing.T) {
+	for _, tt := range []struct{ name, from, to, kept string }{
+		{"a blank string clears the field", "normalized := normalizeCSVString(name)\n\t\tif normalized != \"\" {\n\t\t\tq.name = normalized\n\t\t}", "q.name = normalizeCSVString(name)", "WithZipperTogglesName differs at"},
+		{"an empty list clears the field", "normalized := normalizeList(ids)\n\t\tif len(normalized) > 0 {\n\t\t\tq.ids = strings.Join(normalized, \",\")\n\t\t}", "q.ids = strings.Join(normalizeList(ids), \",\")", "WithZipperTogglesIDs differs at"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			if !strings.Contains(handWrittenCommaSeparatedQuery, tt.from) {
+				t.Fatalf("fixture lacks %q", tt.from)
+			}
+			src := strings.Replace(handWrittenCommaSeparatedQuery, tt.from, tt.to, 1)
+			dir := writeHandWritten(t, map[string]string{"queries.go": src})
+			var report bytes.Buffer
+			if err := run(filepath.Join("testdata", "spec.json"), filepath.Join(dir, "bindings"), dir, false, "Widgets", true, &report); err != nil {
+				t.Fatal(err)
+			}
+			if want := "Widgets\tzippers_toggles_getToManyRelated\tquery buildZipperTogglesQuery\tkept: " + tt.kept; !strings.Contains(report.String(), want) {
 				t.Errorf("report lacks %q:\n%s", want, report.String())
 			}
 		})

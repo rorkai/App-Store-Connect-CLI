@@ -322,6 +322,22 @@
         }
       }
     },
+    "/v1/zippers/{id}/toggles": {
+      "get": {
+        "tags": ["Widgets"],
+        "operationId": "zippers_toggles_getToManyRelated",
+        "parameters": [
+          {"name": "filter[name]", "in": "query", "schema": {"type": "array", "items": {"type": "string"}}, "style": "form", "explode": false},
+          {"name": "filter[code]", "in": "query", "schema": {"type": "array", "items": {"type": "string"}}, "style": "form", "explode": false},
+          {"name": "filter[id]", "in": "query", "schema": {"type": "array", "items": {"type": "string"}}, "style": "form", "explode": false},
+          {"name": "filter[kind]", "in": "query", "schema": {"type": "array", "items": {"type": "string"}}, "style": "form", "explode": false},
+          {"name": "limit", "in": "query", "schema": {"type": "integer", "maximum": 200}, "style": "form"}
+        ],
+        "responses": {
+          "200": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WidgetsResponse"}}}}
+        }
+      }
+    },
     "/v1/teeth/{id}": {
       "get": {
         "tags": ["Widgets"],
