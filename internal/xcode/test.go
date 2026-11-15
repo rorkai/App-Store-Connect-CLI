@@ -1297,12 +1297,16 @@ func parseRawTestNode(node rawTestNode) (TestCase, error) {
 			return TestCase{}, fmt.Errorf("decode test case duration: %w", err)
 		}
 	}
-	message := node.Message
-	if strings.TrimSpace(message) == "" {
-		message = node.FailureMessage
-	}
-	if strings.TrimSpace(message) == "" {
-		message = testNodeFailureMessage(node.Children)
+	message, attributed := testNodeFailureMessage(node.Children)
+	if !attributed {
+		childMessage := message
+		message = node.Message
+		if strings.TrimSpace(message) == "" {
+			message = node.FailureMessage
+		}
+		if strings.TrimSpace(message) == "" {
+			message = childMessage
+		}
 	}
 	return TestCase{
 		Identifier: identifier,
@@ -1316,18 +1320,19 @@ func parseRawTestNode(node rawTestNode) (TestCase, error) {
 
 // testNodeFailureMessage returns the first failure message under a test case.
 // When the case has device, argument, or repetition variants, it instead lists
-// every failure message in tree order, one line each, prefixed by its variant.
-func testNodeFailureMessage(children []rawTestNode) string {
+// every failure message in tree order, one line each, prefixed by its variant,
+// and reports that the text is attributed.
+func testNodeFailureMessage(children []rawTestNode) (string, bool) {
 	var lines []string
 	attributed := false
 	appendTestNodeFailureMessages(&lines, &attributed, children, "")
 	if len(lines) == 0 {
-		return ""
+		return "", false
 	}
 	if !attributed {
-		return lines[0]
+		return lines[0], false
 	}
-	return boundTestMessage(strings.Join(lines, "\n"))
+	return boundTestMessage(strings.Join(lines, "\n")), true
 }
 
 func appendTestNodeFailureMessages(lines *[]string, attributed *bool, children []rawTestNode, variant string) {

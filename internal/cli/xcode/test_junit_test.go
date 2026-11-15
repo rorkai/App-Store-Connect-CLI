@@ -76,9 +76,9 @@ func TestXcodeTestJUnitWritesGoldenReportFromFixtureSummary(t *testing.T) {
 }
 
 const junitVariantSummaryFixture = `{
-  "totalTestCount": 4,
+  "totalTestCount": 5,
   "passedTests": 2,
-  "failedTests": 2,
+  "failedTests": 3,
   "skippedTests": 0,
   "expectedFailures": 0
 }`
@@ -127,6 +127,11 @@ const junitVariantCasesFixture = `{
               ]}
             ]},
             {"nodeType": "Arguments", "name": "3", "result": "Passed"}
+          ]}
+        ]},
+        {"nodeType": "Test Case", "nodeIdentifier": "withCaseMessage()", "name": "withCaseMessage()", "result": "Failed", "message": "case failed", "children": [
+          {"nodeType": "Device", "name": "iPhone 18 Pro", "result": "Failed", "children": [
+            {"nodeType": "Failure Message", "name": "Expectation failed: case on iPhone"}
           ]}
         ]},
         {"nodeType": "Test Suite", "name": "FlakyTests", "result": "Passed", "children": [
@@ -183,8 +188,8 @@ func TestXcodeTestJUnitAttributesFailuresToVariants(t *testing.T) {
 	if err := xml.Unmarshal(data, &suite); err != nil {
 		t.Fatalf("decode junit: %v\n%s", err, data)
 	}
-	if suite.Tests != 4 || suite.Failures != 2 {
-		t.Fatalf("tests=%d failures=%d, want 4 and 2:\n%s", suite.Tests, suite.Failures, data)
+	if suite.Tests != 5 || suite.Failures != 3 {
+		t.Fatalf("tests=%d failures=%d, want 5 and 3:\n%s", suite.Tests, suite.Failures, data)
 	}
 	want := map[string]string{
 		"greetsByName()": "",
@@ -192,6 +197,7 @@ func TestXcodeTestJUnitAttributesFailuresToVariants(t *testing.T) {
 			"iPhone 18 Pro, Retry 1: Expectation failed: fails on iPhone only",
 		"parameterised(value:)": "iPhone 18 Pro, argument '2', First Run: Expectation failed: value != 2\n" +
 			"My Mac, argument '2', First Run: Expectation failed: value != 2",
+		"withCaseMessage()":           "iPhone 18 Pro: Expectation failed: case on iPhone",
 		"testPassesOnSecondAttempt()": "",
 	}
 	for _, testCase := range suite.TestCases {
