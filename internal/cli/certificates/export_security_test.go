@@ -32,7 +32,7 @@ func TestRunCertificateExportRejectsWeakPrivateKeyPermissions(t *testing.T) {
 		t.Fatalf("chmod private key: %v", err)
 	}
 
-	_, err := runCertificateExport(context.TODO(), certificateExportOptions{
+	_, err := runCertificateExport(context.TODO(), certificatesTestDeps(nil), certificateExportOptions{
 		CertificatePath: certificatePath,
 		PrivateKeyPath:  privateKeyPath,
 		PasswordPath:    passwordPath,
@@ -61,7 +61,7 @@ func TestRunCertificateExportRejectsPasswordFileWithWeakPermissions(t *testing.T
 		t.Fatalf("chmod password: %v", err)
 	}
 
-	_, err := runCertificateExport(context.TODO(), certificateExportOptions{
+	_, err := runCertificateExport(context.TODO(), certificatesTestDeps(nil), certificateExportOptions{
 		CertificatePath: certificatePath,
 		PrivateKeyPath:  privateKeyPath,
 		PasswordPath:    passwordPath,
@@ -85,7 +85,7 @@ func TestRunCertificateExportRejectsSymlinkInputsAndDestination(t *testing.T) {
 		t.Skipf("symlinks are unavailable: %v", err)
 	}
 
-	_, err := runCertificateExport(context.TODO(), certificateExportOptions{
+	_, err := runCertificateExport(context.TODO(), certificatesTestDeps(nil), certificateExportOptions{
 		CertificatePath: certificatePath,
 		PrivateKeyPath:  privateKeyPath,
 		PasswordPath:    passwordPath,
@@ -108,7 +108,7 @@ func TestRunCertificateExportRejectsSymlinkInputsAndDestination(t *testing.T) {
 	if err := os.Symlink(destinationTarget, p12Path); err != nil {
 		t.Skipf("symlinks are unavailable: %v", err)
 	}
-	_, err = runCertificateExport(context.TODO(), certificateExportOptions{
+	_, err = runCertificateExport(context.TODO(), certificatesTestDeps(nil), certificateExportOptions{
 		CertificatePath: certificatePath,
 		PrivateKeyPath:  privateKeyPath,
 		PasswordPath:    passwordPath,
@@ -145,7 +145,7 @@ func TestRunCertificateExportRejectsSymlinkedDestinationParent(t *testing.T) {
 	}
 	p12Path := filepath.Join(linkedParent, "push.p12")
 
-	_, err := runCertificateExport(context.TODO(), certificateExportOptions{
+	_, err := runCertificateExport(context.TODO(), certificatesTestDeps(nil), certificateExportOptions{
 		CertificatePath: certificatePath,
 		PrivateKeyPath:  privateKeyPath,
 		PasswordPath:    passwordPath,
@@ -164,7 +164,7 @@ func TestCertificateExportPathAllowsUnixTrailingBackslash(t *testing.T) {
 		t.Skip("backslash is a path separator on Windows")
 	}
 	path := filepath.Join(t.TempDir(), "identity.p12") + `\`
-	if _, err := validateCertificateExportOutputPath(path); err != nil {
+	if _, err := validateCertificateExportOutputPath(certificatesTestDeps(nil), path); err != nil {
 		t.Fatalf("validateCertificateExportOutputPath(%q) error = %v, want accepted Unix filename", path, err)
 	}
 }
@@ -181,7 +181,7 @@ func TestRunCertificateExportWritesUnixTrailingBackslashFilename(t *testing.T) {
 	writeCertificateExportTestFiles(t, certificatePath, privateKeyPath, "", passwordPath, artifacts, []byte("password"))
 	p12Path := filepath.Join(dir, "identity.p12") + `\`
 
-	if _, err := runCertificateExport(context.TODO(), certificateExportOptions{
+	if _, err := runCertificateExport(context.TODO(), certificatesTestDeps(nil), certificateExportOptions{
 		CertificatePath: certificatePath,
 		PrivateKeyPath:  privateKeyPath,
 		PasswordPath:    passwordPath,
@@ -202,7 +202,7 @@ func TestRunCertificateExportRejectsInputOutputCollision(t *testing.T) {
 	passwordPath := filepath.Join(dir, "password")
 	writeCertificateExportTestFiles(t, certificatePath, privateKeyPath, "", passwordPath, artifacts, []byte("password"))
 
-	_, err := runCertificateExport(context.TODO(), certificateExportOptions{
+	_, err := runCertificateExport(context.TODO(), certificatesTestDeps(nil), certificateExportOptions{
 		CertificatePath: certificatePath,
 		PrivateKeyPath:  privateKeyPath,
 		PasswordPath:    passwordPath,
@@ -217,7 +217,7 @@ func TestRunCertificateExportRejectsInputOutputCollision(t *testing.T) {
 	if err := os.Link(certificatePath, hardlinkPath); err != nil {
 		t.Skipf("hardlinks are unavailable: %v", err)
 	}
-	_, err = runCertificateExport(context.TODO(), certificateExportOptions{
+	_, err = runCertificateExport(context.TODO(), certificatesTestDeps(nil), certificateExportOptions{
 		CertificatePath: certificatePath,
 		PrivateKeyPath:  privateKeyPath,
 		PasswordPath:    passwordPath,
@@ -320,7 +320,7 @@ func TestRunCertificateExportRejectsParentSwappedForSymlinkAfterPreflight(t *tes
 	}
 	defer func() { certificateExportTestHookAfterPreflight = nil }()
 
-	_, err := runCertificateExport(context.TODO(), certificateExportOptions{
+	_, err := runCertificateExport(context.TODO(), certificatesTestDeps(nil), certificateExportOptions{
 		CertificatePath: certificatePath,
 		PrivateKeyPath:  privateKeyPath,
 		PasswordPath:    passwordPath,
@@ -363,7 +363,7 @@ func TestRunCertificateExportRejectsMissingParentUnderSwappedAncestor(t *testing
 	}
 	defer func() { certificateExportTestHookAfterPreflight = nil }()
 
-	_, err := runCertificateExport(context.TODO(), certificateExportOptions{
+	_, err := runCertificateExport(context.TODO(), certificatesTestDeps(nil), certificateExportOptions{
 		CertificatePath: certificatePath,
 		PrivateKeyPath:  privateKeyPath,
 		PasswordPath:    passwordPath,
@@ -406,7 +406,7 @@ func TestRunCertificateExportPublishesIntoPinnedParentAfterSwap(t *testing.T) {
 	}
 	defer func() { certificateExportTestHookAfterParentPinned = nil }()
 
-	if _, err := runCertificateExport(context.TODO(), certificateExportOptions{
+	if _, err := runCertificateExport(context.TODO(), certificatesTestDeps(nil), certificateExportOptions{
 		CertificatePath: certificatePath,
 		PrivateKeyPath:  privateKeyPath,
 		PasswordPath:    passwordPath,
@@ -431,7 +431,7 @@ func TestRunCertificateExportCreatesMissingParentsThroughPinnedRoots(t *testing.
 	writeCertificateExportTestFiles(t, certificatePath, privateKeyPath, "", passwordPath, artifacts, []byte("password"))
 	p12Path := filepath.Join(dir, "new1", "new2", "push.p12")
 
-	if _, err := runCertificateExport(context.TODO(), certificateExportOptions{
+	if _, err := runCertificateExport(context.TODO(), certificatesTestDeps(nil), certificateExportOptions{
 		CertificatePath: certificatePath,
 		PrivateKeyPath:  privateKeyPath,
 		PasswordPath:    passwordPath,

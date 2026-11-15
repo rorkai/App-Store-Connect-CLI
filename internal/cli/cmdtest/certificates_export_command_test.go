@@ -21,8 +21,9 @@ import (
 	"testing"
 	"time"
 
-	certificatescli "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/certificates"
 	modernpkcs12 "software.sslmate.com/src/go-pkcs12"
+
+	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 )
 
 func TestCertificatesExport_JSONOutputAndPKCS12RoundTrip(t *testing.T) {
@@ -257,22 +258,16 @@ func TestCertificatesExport_RejectsInvalidOutputBeforeWriting(t *testing.T) {
 				t.Fatalf("write password: %v", err)
 			}
 
-			command := certificatescli.CertificatesExportCommand()
-			command.FlagSet.SetOutput(io.Discard)
-			stdout, stderr := captureOutput(t, func() {
-				if err := command.FlagSet.Parse(append([]string{
-					"--certificate", certificatePath,
-					"--private-key", privateKeyPath,
-					"--password-file", passwordPath,
-					"--p12-out", p12Path,
-				}, test.args...)); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := command.Exec(context.Background(), nil)
-				if !isUsageClassError(err) {
-					t.Fatalf("run error = %v, want usage error", err)
-				}
-			})
+			stdout, stderr, err := runRootWithDeps(t, nil, append([]string{
+				"certificates", "export",
+				"--certificate", certificatePath,
+				"--private-key", privateKeyPath,
+				"--password-file", passwordPath,
+				"--p12-out", p12Path,
+			}, test.args...)...)
+			if !isUsageClassError(err) {
+				t.Fatalf("run error = %v, want usage error", err)
+			}
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
 			}
@@ -303,23 +298,17 @@ func TestCertificatesExport_ForceRequiresConfirmBeforeWriting(t *testing.T) {
 		t.Fatalf("write password: %v", err)
 	}
 
-	command := certificatescli.CertificatesExportCommand()
-	command.FlagSet.SetOutput(io.Discard)
-	stdout, stderr := captureOutput(t, func() {
-		if err := command.FlagSet.Parse([]string{
-			"--certificate", certificatePath,
-			"--private-key", privateKeyPath,
-			"--password-file", passwordPath,
-			"--p12-out", p12Path,
-			"--force",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := command.Exec(context.Background(), nil)
-		if !isUsageClassError(err) {
-			t.Fatalf("run error = %v, want usage error", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, nil,
+		"certificates", "export",
+		"--certificate", certificatePath,
+		"--private-key", privateKeyPath,
+		"--password-file", passwordPath,
+		"--p12-out", p12Path,
+		"--force",
+	)
+	if !isUsageClassError(err) {
+		t.Fatalf("run error = %v, want usage error", err)
+	}
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
@@ -348,26 +337,26 @@ func TestCertificatesExport_ConfirmRequiresForceBeforeWriting(t *testing.T) {
 		t.Fatalf("write password: %v", err)
 	}
 
-	command := certificatescli.CertificatesExportCommand()
+	d, stdoutBuf, stderrBuf := newTestDeps(t, nil)
+	command := findSubcommand(rootcmd.RootCommandWithDeps("1.2.3", d), "certificates", "export")
 	command.FlagSet.SetOutput(io.Discard)
-	stdout, stderr := captureOutput(t, func() {
-		if err := command.FlagSet.Parse([]string{
-			"--certificate", certificatePath,
-			"--private-key", privateKeyPath,
-			"--password-file", passwordPath,
-			"--p12-out", p12Path,
-			"--confirm",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := command.Exec(context.Background(), nil)
-		if !isUsageClassError(err) {
-			t.Fatalf("run error = %v, want usage error", err)
-		}
-		if got, want := err.Error(), "--confirm requires --force"; got != want {
-			t.Fatalf("error = %q, want %q", got, want)
-		}
-	})
+	if err := command.FlagSet.Parse([]string{
+		"--certificate", certificatePath,
+		"--private-key", privateKeyPath,
+		"--password-file", passwordPath,
+		"--p12-out", p12Path,
+		"--confirm",
+	}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	err := command.Exec(context.Background(), nil)
+	stdout, stderr := stdoutBuf.String(), stderrBuf.String()
+	if !isUsageClassError(err) {
+		t.Fatalf("run error = %v, want usage error", err)
+	}
+	if got, want := err.Error(), "--confirm requires --force"; got != want {
+		t.Fatalf("error = %q, want %q", got, want)
+	}
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}

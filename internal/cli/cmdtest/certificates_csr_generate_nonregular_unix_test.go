@@ -3,8 +3,6 @@
 package cmdtest
 
 import (
-	"context"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -28,21 +26,13 @@ func TestCertificatesCSRGenerate_ForceRejectsNamedPipeOutputsBeforeWriting(t *te
 		t.Fatalf("Mkfifo(csrOut) error: %v", err)
 	}
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	var runErr error
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"certificates", "csr", "generate",
-			"--key-out", keyOut,
-			"--csr-out", csrOut,
-			"--force",
-			"--output", "json",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	stdout, _, runErr := runRootWithDeps(t, nil,
+		"certificates", "csr", "generate",
+		"--key-out", keyOut,
+		"--csr-out", csrOut,
+		"--force",
+		"--output", "json",
+	)
 
 	if runErr == nil || !strings.Contains(runErr.Error(), "write --csr-out") ||
 		!strings.Contains(runErr.Error(), csrOut) ||

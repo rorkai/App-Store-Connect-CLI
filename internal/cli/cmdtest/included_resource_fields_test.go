@@ -188,6 +188,7 @@ func includedFieldsCases() []includedFieldsCase {
 		{
 			name: "certificates view", operation: "certificates_getInstance", resource: true, noNext: true,
 			command: []string{"certificates", "view"}, selector: []string{"--id", "certificate-1"},
+			deps:    true,
 			include: "passTypeId", path: "/v1/certificates/certificate-1",
 			flags: map[string]string{"pass-type-id-fields": "passTypeIds"},
 		},
