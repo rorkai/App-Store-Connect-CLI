@@ -236,7 +236,7 @@ Examples:
 			var password []byte
 			if *createMissingCertificate {
 				var err error
-				password, err = readNonEmptyIdentityPasswordFile(*identityPasswordFile)
+				password, err = readNonEmptyIdentityPasswordFile(d, *identityPasswordFile)
 				if err != nil {
 					return fmt.Errorf("signing fetch: %w", err)
 				}
