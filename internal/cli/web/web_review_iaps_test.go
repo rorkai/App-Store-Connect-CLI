@@ -80,7 +80,6 @@ func TestWebReviewIAPsAttachRejectsNonNumericAppID(t *testing.T) {
 }
 
 func TestWebReviewIAPsAttachRejectsMatchedIAPWithoutIrisResourceID(t *testing.T) {
-
 	origResolveSession := resolveSessionFn
 	t.Cleanup(func() {
 		resolveSessionFn = origResolveSession
@@ -188,7 +187,6 @@ func TestWebReviewIAPsAttachRefusesIAPOutsideApp(t *testing.T) {
 }
 
 func TestWebReviewIAPsAttachRejectsAmbiguousSelectorBeforeMutation(t *testing.T) {
-
 	origResolveSession := resolveSessionFn
 	t.Cleanup(func() { resolveSessionFn = origResolveSession })
 
@@ -282,7 +280,6 @@ func TestReviewIAPAmbiguousSelectionBoundsProviderText(t *testing.T) {
 }
 
 func TestWebReviewIAPsAttachRejectsMissingOrWrongTypeBeforeMutation(t *testing.T) {
-
 	cases := []struct {
 		name    string
 		body    string
