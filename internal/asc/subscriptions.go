@@ -445,7 +445,9 @@ func buildSubscriptionsQuery(query *subscriptionsQuery) string {
 	addCSV(values, "filter[name]", query.names)
 	addRelatedSparseFields(values, "fields[subscriptions]", query.fields, query.include, query.relatedFields.sparseFields()...)
 	addCSV(values, "fields[subscriptionVersions]", query.versionFields)
-	addNamedLimit(values, "limit[versions]", query.versionLimit)
+	if query.versionLimit > 0 {
+		values.Set("limit[versions]", strconv.Itoa(query.versionLimit))
+	}
 	return values.Encode()
 }
 
@@ -453,6 +455,8 @@ func buildSubscriptionQuery(query *subscriptionQuery) string {
 	values := url.Values{}
 	addRelatedSparseFields(values, "fields[subscriptions]", query.fields, query.include, query.relatedFields.sparseFields()...)
 	addCSV(values, "fields[subscriptionVersions]", query.versionFields)
-	addNamedLimit(values, "limit[versions]", query.versionLimit)
+	if query.versionLimit > 0 {
+		values.Set("limit[versions]", strconv.Itoa(query.versionLimit))
+	}
 	return values.Encode()
 }

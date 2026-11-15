@@ -361,8 +361,8 @@ func buildDevicesQuery(query *devicesQuery) string {
 	}
 	addCSV(values, "filter[udid]", query.udids)
 	addCSV(values, "filter[id]", query.ids)
-	if query.sort != "" {
-		values.Set("sort", query.sort)
+	if strings.TrimSpace(query.sort) != "" {
+		values.Set("sort", strings.TrimSpace(query.sort))
 	}
 	addCSV(values, "fields[devices]", query.fields)
 	addLimit(values, query.limit)

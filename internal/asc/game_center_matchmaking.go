@@ -183,7 +183,9 @@ func WithGCMatchmakingMetricsFilterQueue(value string) GCMatchmakingMetricsOptio
 
 func buildGCMatchmakingQueueSizesQuery(query *gcMatchmakingMetricsQuery) string {
 	values := url.Values{}
-	addValue(values, "granularity", query.granularity)
+	if strings.TrimSpace(query.granularity) != "" {
+		values.Set("granularity", strings.TrimSpace(query.granularity))
+	}
 	addCSV(values, "sort", query.sort)
 	addLimit(values, query.limit)
 	return values.Encode()
@@ -191,10 +193,16 @@ func buildGCMatchmakingQueueSizesQuery(query *gcMatchmakingMetricsQuery) string 
 
 func buildGCMatchmakingQueueRequestsQuery(query *gcMatchmakingMetricsQuery) string {
 	values := url.Values{}
-	addValue(values, "granularity", query.granularity)
+	if strings.TrimSpace(query.granularity) != "" {
+		values.Set("granularity", strings.TrimSpace(query.granularity))
+	}
 	addCSV(values, "groupBy", query.groupBy)
-	addValue(values, "filter[result]", query.filterResult)
-	addValue(values, "filter[gameCenterDetail]", query.filterGameCenterDetail)
+	if strings.TrimSpace(query.filterResult) != "" {
+		values.Set("filter[result]", strings.TrimSpace(query.filterResult))
+	}
+	if strings.TrimSpace(query.filterGameCenterDetail) != "" {
+		values.Set("filter[gameCenterDetail]", strings.TrimSpace(query.filterGameCenterDetail))
+	}
 	addCSV(values, "sort", query.sort)
 	addLimit(values, query.limit)
 	return values.Encode()
@@ -202,7 +210,9 @@ func buildGCMatchmakingQueueRequestsQuery(query *gcMatchmakingMetricsQuery) stri
 
 func buildGCMatchmakingQueueSessionsQuery(query *gcMatchmakingMetricsQuery) string {
 	values := url.Values{}
-	addValue(values, "granularity", query.granularity)
+	if strings.TrimSpace(query.granularity) != "" {
+		values.Set("granularity", strings.TrimSpace(query.granularity))
+	}
 	addCSV(values, "sort", query.sort)
 	addLimit(values, query.limit)
 	return values.Encode()
@@ -210,10 +220,16 @@ func buildGCMatchmakingQueueSessionsQuery(query *gcMatchmakingMetricsQuery) stri
 
 func buildGCMatchmakingRuleMetricsQuery(query *gcMatchmakingMetricsQuery) string {
 	values := url.Values{}
-	addValue(values, "granularity", query.granularity)
+	if strings.TrimSpace(query.granularity) != "" {
+		values.Set("granularity", strings.TrimSpace(query.granularity))
+	}
 	addCSV(values, "groupBy", query.groupBy)
-	addValue(values, "filter[result]", query.filterResult)
-	addValue(values, "filter[gameCenterMatchmakingQueue]", query.filterGameCenterMatchmakingQueue)
+	if strings.TrimSpace(query.filterResult) != "" {
+		values.Set("filter[result]", strings.TrimSpace(query.filterResult))
+	}
+	if strings.TrimSpace(query.filterGameCenterMatchmakingQueue) != "" {
+		values.Set("filter[gameCenterMatchmakingQueue]", strings.TrimSpace(query.filterGameCenterMatchmakingQueue))
+	}
 	addCSV(values, "sort", query.sort)
 	addLimit(values, query.limit)
 	return values.Encode()
