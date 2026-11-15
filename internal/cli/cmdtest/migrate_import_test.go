@@ -888,6 +888,19 @@ func runMigrateImportWithOptions(t *testing.T, root string, options ...string) (
 	return stdout, stderr, runErr
 }
 
+func migrateImportDryRunPlan(t *testing.T, root string, options ...string) migrate.MigrateImportResult {
+	t.Helper()
+	stdout, stderr := runMigrateImportDryRun(t, append([]string{"--fastlane-dir", root}, options...)...)
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	var result migrate.MigrateImportResult
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatalf("unmarshal result: %v", err)
+	}
+	return result
+}
+
 func assertMigrateImportError(t *testing.T, stdout, stderr string, runErr error, wantError string) {
 	t.Helper()
 	if runErr == nil {
@@ -2134,6 +2147,118 @@ func TestMigrateImportDryRunConfigReleaseHints(t *testing.T) {
 			}
 			if !slices.Equal(got, test.want) {
 				t.Fatalf("configuration hints = %q, want %q", got, test.want)
+			}
+		})
+	}
+}
+
+func TestMigrateImportDryRunReportsMissingScreenshotsDirAsSkipped(t *testing.T) {
+	root := writeMigrateImportMetadata(t, validMigrateAppInfoMetadata())
+
+	result := migrateImportDryRunPlan(t, root)
+
+	if len(result.MetadataFiles) != 2 {
+		t.Fatalf("expected metadata plan to survive missing screenshots dir, got %+v", result.MetadataFiles)
+	}
+	want := migrate.SkippedItem{Path: filepath.Join(root, "screenshots"), Reason: "default screenshots directory not found"}
+	if !slices.Contains(result.Skipped, want) {
+		t.Fatalf("skipped = %+v, want %+v", result.Skipped, want)
+	}
+}
+
+func TestMigrateImportDryRunSkipsAppClipReviewInformationDir(t *testing.T) {
+	root := writeMigrateImportMetadata(t, validMigrateAppInfoMetadata())
+	clipReviewDir := filepath.Join(root, "metadata", "app_clip_review_information")
+	if err := os.MkdirAll(clipReviewDir, 0o755); err != nil {
+		t.Fatalf("mkdir App Clip review information: %v", err)
+	}
+	writeFile(t, filepath.Join(clipReviewDir, "invocation_urls.txt"), "https://example.com/clip")
+
+	result := migrateImportDryRunPlan(t, root, "--skip-screenshots")
+
+	if !slices.Equal(result.Locales, []string{"en-US", "ja"}) {
+		t.Fatalf("locales = %v, want only the locale directories", result.Locales)
+	}
+	want := migrate.SkippedItem{Path: clipReviewDir, Reason: "App Clip review information is not imported; set invocation URLs with asc app-clips review-details"}
+	if !slices.Contains(result.Skipped, want) {
+		t.Fatalf("skipped = %+v, want %+v", result.Skipped, want)
+	}
+}
+
+func TestMigrateImportDryRunReadsIMessageAndAppleTVScreenshotDirs(t *testing.T) {
+	root := writeMigrateImportMetadata(t, validMigrateAppInfoMetadata())
+	for dir, size := range map[string][2]int{
+		"en-US":          {1290, 2796},
+		"iMessage/en-US": {1290, 2796},
+		"appleTV/en-US":  {3840, 2160},
+	} {
+		localeDir := filepath.Join(root, "screenshots", filepath.FromSlash(dir))
+		if err := os.MkdirAll(localeDir, 0o755); err != nil {
+			t.Fatalf("mkdir screenshots %s: %v", dir, err)
+		}
+		writePNGForMigrate(t, filepath.Join(localeDir, "1.png"), size[0], size[1])
+	}
+	// The folder names the platform, so a device name in the file name does
+	// not move the file to another screenshot set.
+	writePNGForMigrate(t, filepath.Join(root, "screenshots", "appleTV", "en-US", "vision pro.png"), 3840, 2160)
+
+	result := migrateImportDryRunPlan(t, root)
+
+	var got []string
+	for _, plan := range result.ScreenshotPlan {
+		got = append(got, plan.Locale+" "+plan.DisplayType)
+	}
+	want := []string{"en-US APP_APPLE_TV", "en-US APP_IPHONE_67", "en-US IMESSAGE_APP_IPHONE_67"}
+	if !slices.Equal(got, want) {
+		t.Fatalf("screenshot plan = %v, want %v", got, want)
+	}
+}
+
+func TestMigrateImportDryRunRejectsMalformedScreenshotFolders(t *testing.T) {
+	tests := []struct {
+		name    string
+		prepare func(t *testing.T, root string)
+		wantErr string
+	}{
+		{
+			name: "phone-sized file in the appleTV folder",
+			prepare: func(t *testing.T, root string) {
+				dir := filepath.Join(root, "screenshots", "appleTV", "en-US")
+				if err := os.MkdirAll(dir, 0o755); err != nil {
+					t.Fatalf("mkdir screenshots: %v", err)
+				}
+				writePNGForMigrate(t, filepath.Join(dir, "1.png"), 1290, 2796)
+			},
+			wantErr: "is 1290x2796, which is not an Apple TV screenshot size",
+		},
+		{
+			name: "screenshots is a file, not a folder",
+			prepare: func(t *testing.T, root string) {
+				writeFile(t, filepath.Join(root, "screenshots"), "not a folder")
+			},
+			wantErr: "expected directory: ",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := writeMigrateImportMetadata(t, validMigrateAppInfoMetadata())
+			test.prepare(t, root)
+
+			rootCmd := RootCommand("1.2.3")
+			rootCmd.FlagSet.SetOutput(io.Discard)
+			var runErr error
+			stdout, _ := captureOutput(t, func() {
+				if err := rootCmd.Parse([]string{"migrate", "import", "--app", "APP_ID", "--version-id", "VERSION_ID", "--fastlane-dir", root, "--dry-run"}); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				runErr = rootCmd.Run(context.Background())
+			})
+
+			if runErr == nil || !strings.Contains(runErr.Error(), test.wantErr) {
+				t.Fatalf("run error = %v, want it to contain %q", runErr, test.wantErr)
+			}
+			if stdout != "" {
+				t.Fatalf("expected no plan on stdout, got %q", stdout)
 			}
 		})
 	}

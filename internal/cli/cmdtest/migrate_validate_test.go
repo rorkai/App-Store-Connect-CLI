@@ -186,3 +186,25 @@ func runMigrateValidate(t *testing.T, fastlaneDir string) migrate.MigrateValidat
 	}
 	return result
 }
+
+func TestMigrateValidateRejectsMissingMetadataDir(t *testing.T) {
+	root := t.TempDir()
+	rootCmd := RootCommand("1.2.3")
+	rootCmd.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	stdout, _ := captureOutput(t, func() {
+		if err := rootCmd.Parse([]string{"migrate", "validate", "--fastlane-dir", root}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = rootCmd.Run(context.Background())
+	})
+
+	want := "migrate validate: metadata directory not found: " + filepath.Join(root, "metadata")
+	if runErr == nil || runErr.Error() != want {
+		t.Fatalf("run error = %v, want %q", runErr, want)
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+}
