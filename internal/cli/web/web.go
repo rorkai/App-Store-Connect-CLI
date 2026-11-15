@@ -58,7 +58,7 @@ Examples:
 			newWebBundleIDsCommand(d),
 			newWebServiceIDsCommand(d),
 			WebSignInKeysCommand(),
-			WebWebsitePushIDsCommand(),
+			newWebWebsitePushIDsCommand(d),
 			WebICloudContainersCommand(),
 			newWebAppGroupsCommand(d),
 			WebPrivacyCommand(),
