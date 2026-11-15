@@ -1,13 +1,10 @@
 package xcode
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"flag"
-	"io"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -15,6 +12,8 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	localxcode "github.com/rudrankriyam/App-Store-Connect-CLI/internal/xcode"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestXcodeVersionViewCommandOutputsResult(t *testing.T) {
@@ -293,20 +292,21 @@ func TestXcodeVersionBumpCommandSupportsTargetFlag(t *testing.T) {
 }
 
 func TestXcodeVersionCommandsExposeStructuredScopeAndRemoteFlags(t *testing.T) {
+	d := newXcodeTestDeps(nil)
 	for name, command := range map[string]*ffcli.Command{
-		"view": xcodeVersionViewCommand(),
-		"edit": xcodeVersionEditCommand(),
-		"bump": xcodeVersionBumpCommand(),
+		"view": xcodeVersionViewCommand(d),
+		"edit": xcodeVersionEditCommand(d),
+		"bump": xcodeVersionBumpCommand(d),
 	} {
 		if command.FlagSet.Lookup("configuration") == nil {
 			t.Fatalf("expected %s command to expose --configuration", name)
 		}
 	}
 
-	if xcodeVersionEditCommand().FlagSet.Lookup("target") == nil {
+	if xcodeVersionEditCommand(d).FlagSet.Lookup("target") == nil {
 		t.Fatal("expected edit command to expose --target")
 	}
-	for _, command := range []*ffcli.Command{xcodeVersionEditCommand(), xcodeVersionBumpCommand()} {
+	for _, command := range []*ffcli.Command{xcodeVersionEditCommand(d), xcodeVersionBumpCommand(d)} {
 		for _, flagName := range []string{"next-build-number", "app", "platform", "processing-state", "exclude-expired", "initial-build-number"} {
 			if command.FlagSet.Lookup(flagName) == nil {
 				t.Fatalf("expected %s command to expose --%s", command.Name, flagName)
@@ -376,7 +376,7 @@ func TestXcodeVersionEditResolvesAndAppliesRemoteSafeBuildNumber(t *testing.T) {
 		}
 		return "2.4.0", nil
 	}
-	runResolveXcodeNextBuildNumber = func(ctx context.Context, opts xcodeRemoteBuildNumberOptions) (string, error) {
+	runResolveXcodeNextBuildNumber = func(ctx context.Context, _ *shared.Deps, opts xcodeRemoteBuildNumberOptions) (string, error) {
 		if opts.AppID != "com.example.demo" || opts.Version != expectedFilter || opts.Platform != "IOS" {
 			t.Fatalf("unexpected remote selection options: %#v", opts)
 		}
@@ -473,7 +473,7 @@ func TestXcodeVersionEditRemoteNumberRejectsDivergentLocalVersions(t *testing.T)
 	runGetConsistentMarketingVersion = func(ctx context.Context, opts localxcode.GetVersionOptions) (string, error) {
 		return "", errors.New("MARKETING_VERSION has differing values")
 	}
-	runResolveXcodeNextBuildNumber = func(ctx context.Context, opts xcodeRemoteBuildNumberOptions) (string, error) {
+	runResolveXcodeNextBuildNumber = func(ctx context.Context, _ *shared.Deps, opts xcodeRemoteBuildNumberOptions) (string, error) {
 		t.Fatal("remote lookup ran with a divergent local version scope")
 		return "", nil
 	}
@@ -499,7 +499,7 @@ func TestXcodeVersionEditValidatesLocalMutationBeforeRemoteLookup(t *testing.T) 
 	})
 
 	remoteCalled := false
-	runResolveXcodeNextBuildNumber = func(ctx context.Context, opts xcodeRemoteBuildNumberOptions) (string, error) {
+	runResolveXcodeNextBuildNumber = func(ctx context.Context, _ *shared.Deps, opts xcodeRemoteBuildNumberOptions) (string, error) {
 		remoteCalled = true
 		return "108", nil
 	}
@@ -528,7 +528,7 @@ func TestXcodeVersionEditValidatesProjectBeforeRemoteLookup(t *testing.T) {
 	})
 
 	remoteCalled := false
-	runResolveXcodeNextBuildNumber = func(ctx context.Context, opts xcodeRemoteBuildNumberOptions) (string, error) {
+	runResolveXcodeNextBuildNumber = func(ctx context.Context, _ *shared.Deps, opts xcodeRemoteBuildNumberOptions) (string, error) {
 		remoteCalled = true
 		return "108", nil
 	}
@@ -586,7 +586,7 @@ func TestXcodeVersionBumpResolvesAndAppliesRemoteSafeBuildNumber(t *testing.T) {
 		}
 		return "3.0.0", nil
 	}
-	runResolveXcodeNextBuildNumber = func(ctx context.Context, opts xcodeRemoteBuildNumberOptions) (string, error) {
+	runResolveXcodeNextBuildNumber = func(ctx context.Context, _ *shared.Deps, opts xcodeRemoteBuildNumberOptions) (string, error) {
 		if opts.AppID != "123456789" || opts.Version != "3.0.0" || opts.InitialBuildNumber != 7 {
 			t.Fatalf("unexpected remote options: %#v", opts)
 		}
@@ -646,7 +646,7 @@ func TestXcodeVersionBumpRemoteNumberRejectsDivergentLocalVersions(t *testing.T)
 	runGetConsistentMarketingVersion = func(ctx context.Context, opts localxcode.GetVersionOptions) (string, error) {
 		return "", errors.New("MARKETING_VERSION has differing values")
 	}
-	runResolveXcodeNextBuildNumber = func(ctx context.Context, opts xcodeRemoteBuildNumberOptions) (string, error) {
+	runResolveXcodeNextBuildNumber = func(ctx context.Context, _ *shared.Deps, opts xcodeRemoteBuildNumberOptions) (string, error) {
 		t.Fatal("remote lookup ran with a divergent local version scope")
 		return "", nil
 	}
@@ -685,7 +685,7 @@ func TestXcodeVersionBumpValidatesBuildBaselineBeforeRemoteLookup(t *testing.T) 
 		t.Fatal("marketing-version lookup ran before build-baseline validation")
 		return "", nil
 	}
-	runResolveXcodeNextBuildNumber = func(ctx context.Context, opts xcodeRemoteBuildNumberOptions) (string, error) {
+	runResolveXcodeNextBuildNumber = func(ctx context.Context, _ *shared.Deps, opts xcodeRemoteBuildNumberOptions) (string, error) {
 		t.Fatal("remote lookup ran before build-baseline validation")
 		return "", nil
 	}
@@ -719,9 +719,10 @@ func TestXcodeVersionEditRemoteNumberRequiresApp(t *testing.T) {
 func runXcodeVersionCommand(t *testing.T, args []string) (string, string, error) {
 	t.Helper()
 
-	cmd := XcodeVersionCommand()
+	d := newXcodeTestDeps(nil)
+	cmd := newXcodeVersionCommand(d)
 	var runErr error
-	stdout, stderr := captureXcodeVersionOutput(t, func() {
+	stdout, stderr := captureXcodeVersionOutput(t, d, func() {
 		if err := cmd.Parse(args); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
@@ -730,51 +731,9 @@ func runXcodeVersionCommand(t *testing.T, args []string) (string, string, error)
 	return stdout, stderr, runErr
 }
 
-func captureXcodeVersionOutput(t *testing.T, fn func()) (string, string) {
+func captureXcodeVersionOutput(t *testing.T, d *shared.Deps, fn func()) (string, string) {
 	t.Helper()
 
-	oldStdout := os.Stdout
-	oldStderr := os.Stderr
-
-	stdoutR, stdoutW, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("stdout pipe error: %v", err)
-	}
-	stderrR, stderrW, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("stderr pipe error: %v", err)
-	}
-
-	os.Stdout = stdoutW
-	os.Stderr = stderrW
-
-	stdoutCh := make(chan string, 1)
-	stderrCh := make(chan string, 1)
-
-	go func() {
-		var buf bytes.Buffer
-		_, _ = io.Copy(&buf, stdoutR)
-		_ = stdoutR.Close()
-		stdoutCh <- buf.String()
-	}()
-	go func() {
-		var buf bytes.Buffer
-		_, _ = io.Copy(&buf, stderrR)
-		_ = stderrR.Close()
-		stderrCh <- buf.String()
-	}()
-
-	defer func() {
-		os.Stdout = oldStdout
-		os.Stderr = oldStderr
-		_ = stdoutW.Close()
-		_ = stderrW.Close()
-	}()
-
 	fn()
-
-	_ = stdoutW.Close()
-	_ = stderrW.Close()
-
-	return <-stdoutCh, <-stderrCh
+	return depsOutput(d)
 }

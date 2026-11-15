@@ -2,7 +2,6 @@ package cmdtest
 
 import (
 	"archive/zip"
-	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -13,7 +12,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -86,27 +84,27 @@ func TestDistributeApplyWellFormedUnequalConfirmationExitsUsage(t *testing.T) {
 }
 
 func TestDistributeInspectRequiresIPAAndRejectsInvalidOutput(t *testing.T) {
-	assertUsageExit(t, []string{"distribute", "inspect"}, "--ipa is required")
-	assertUsageExit(t, []string{"distribute", "inspect", "--ipa", "missing.ipa", "--output", "yaml"}, `--output must be one of`)
-	assertUsageExit(t, []string{"distribute", "inspect", "unexpected", "--ipa", "missing.ipa"}, `unexpected argument "unexpected"`)
+	assertUsageExitWithDeps(t, nil, []string{"distribute", "inspect"}, "--ipa is required")
+	assertUsageExitWithDeps(t, nil, []string{"distribute", "inspect", "--ipa", "missing.ipa", "--output", "yaml"}, `--output must be one of`)
+	assertUsageExitWithDeps(t, nil, []string{"distribute", "inspect", "unexpected", "--ipa", "missing.ipa"}, `unexpected argument "unexpected"`)
 }
 
 func TestDistributePrepareRejectsCredentialSourceURLBeforeFilesystemAccess(t *testing.T) {
-	assertUsageExit(t, []string{
+	assertUsageExitWithDeps(t, nil, []string{
 		"distribute", "prepare", "--ipa", "missing.ipa", "--source-url", "https://token@example.com/revision",
 	}, "user information is not allowed")
-	assertUsageExit(t, []string{
+	assertUsageExitWithDeps(t, nil, []string{
 		"distribute", "prepare", "--ipa", "missing.ipa", "--source-url", "https://example.com/revision?token=secret",
 	}, "query and fragment are not allowed")
-	assertUsageExit(t, []string{
+	assertUsageExitWithDeps(t, nil, []string{
 		"distribute", "prepare", "--ipa", "missing.ipa", "--source-url", "https://:443/path",
 	}, "must be an absolute HTTPS URL")
-	assertUsageExit(t, []string{"distribute", "prepare", "unexpected", "--ipa", "missing.ipa"}, `unexpected argument "unexpected"`)
+	assertUsageExitWithDeps(t, nil, []string{"distribute", "prepare", "unexpected", "--ipa", "missing.ipa"}, `unexpected argument "unexpected"`)
 }
 
 func TestDistributeInspectJSONPrivacyAndExplicitDisclosure(t *testing.T) {
 	ipa := writeDistributionIPA(t, "private-device-udid")
-	stdout, stderr, runErr := runRootCommand(t, []string{"distribute", "inspect", "--output", "json", "--ipa", ipa})
+	stdout, stderr, runErr := runRootWithDeps(t, nil, "distribute", "inspect", "--output", "json", "--ipa", ipa)
 	if runErr != nil {
 		t.Fatalf("run error = %v; stderr=%s", runErr, stderr)
 	}
@@ -131,7 +129,7 @@ func TestDistributeInspectJSONPrivacyAndExplicitDisclosure(t *testing.T) {
 		t.Fatalf("unexpected portable signer verification: %#v", result.Signing.CodeSignatureVerification)
 	}
 
-	stdout, stderr, runErr = runRootCommand(t, []string{"distribute", "inspect", "--ipa", ipa, "--include-devices", "--output", "json"})
+	stdout, stderr, runErr = runRootWithDeps(t, nil, "distribute", "inspect", "--ipa", ipa, "--include-devices", "--output", "json")
 	if runErr != nil || stderr != "" {
 		t.Fatalf("run error=%v stderr=%q", runErr, stderr)
 	}
@@ -144,7 +142,7 @@ func TestDistributeInspectTableAndMarkdownDeviceDisclosure(t *testing.T) {
 	ipa := writeDistributionIPA(t, "private-device-udid")
 	for _, format := range []string{"table", "markdown"} {
 		t.Run(format, func(t *testing.T) {
-			stdout, stderr, runErr := runRootCommand(t, []string{"distribute", "inspect", "--ipa", ipa, "--output", format})
+			stdout, stderr, runErr := runRootWithDeps(t, nil, "distribute", "inspect", "--ipa", ipa, "--output", format)
 			if runErr != nil || stderr != "" {
 				t.Fatalf("run error=%v stderr=%q", runErr, stderr)
 			}
@@ -163,9 +161,9 @@ func TestDistributeInspectTableAndMarkdownDeviceDisclosure(t *testing.T) {
 				}
 			}
 
-			stdout, stderr, runErr = runRootCommand(t, []string{
+			stdout, stderr, runErr = runRootWithDeps(t, nil,
 				"distribute", "inspect", "--ipa", ipa, "--include-devices", "--output", format,
-			})
+			)
 			if runErr != nil || stderr != "" {
 				t.Fatalf("run with --include-devices error=%v stderr=%q", runErr, stderr)
 			}
@@ -217,7 +215,7 @@ func TestDistributePrepareFailsClosedForUnverifiedFixture(t *testing.T) {
 		"distribute", "prepare", "--ipa", ipa, "--output-dir", outputDir,
 		"--title", "Preview", "--channel", "pull-request-7", "--source-revision", "abcdef", "--output", "json",
 	}
-	stdout, stderr, runErr := runRootCommand(t, args)
+	stdout, stderr, runErr := runRootWithDeps(t, nil, args...)
 	if runErr == nil || !strings.Contains(runErr.Error(), "complete main-app signature verification") {
 		t.Fatalf("run error=%v stderr=%q", runErr, stderr)
 	}
@@ -235,15 +233,7 @@ func TestDistributeInspectRejectsSymlinkIPA(t *testing.T) {
 	if err := os.Symlink(ipa, link); err != nil {
 		t.Fatal(err)
 	}
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	var runErr error
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{"distribute", "inspect", "--ipa", link, "--output", "json"}); err != nil {
-			t.Fatal(err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	stdout, _, runErr := runRootWithDeps(t, nil, "distribute", "inspect", "--ipa", link, "--output", "json")
 	if runErr == nil || errors.Is(runErr, flag.ErrHelp) {
 		t.Fatalf("expected runtime symlink error, got %v", runErr)
 	}

@@ -25,7 +25,7 @@ func newBetaTestersAppsCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc testflight beta-testers apps list --tester-id "TESTER_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newBetaTestersAppsListCommand(d),
 		},
@@ -56,7 +56,7 @@ Examples:
   asc testflight beta-testers apps list --tester-id "TESTER_ID"
   asc testflight beta-testers apps list --tester-id "TESTER_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "testflight beta-testers apps list", 200); err != nil {
 				return err
@@ -133,7 +133,7 @@ func newBetaTestersBetaGroupsCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc testflight beta-testers beta-groups list --tester-id "TESTER_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newBetaTestersBetaGroupsListCommand(d),
 		},
@@ -164,7 +164,7 @@ Examples:
   asc testflight beta-testers beta-groups list --tester-id "TESTER_ID"
   asc testflight beta-testers beta-groups list --tester-id "TESTER_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "testflight beta-testers beta-groups list", 200); err != nil {
 				return err
@@ -241,7 +241,7 @@ func newBetaTestersBuildsCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc testflight beta-testers builds list --tester-id "TESTER_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newBetaTestersBuildsListCommand(d),
 		},
@@ -272,7 +272,7 @@ Examples:
   asc testflight beta-testers builds list --tester-id "TESTER_ID"
   asc testflight beta-testers builds list --tester-id "TESTER_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "testflight beta-testers builds list", 200); err != nil {
 				return err

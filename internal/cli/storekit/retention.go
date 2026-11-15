@@ -43,7 +43,7 @@ Examples:
 			endpointCommand(d),
 			performanceCommand(d),
 		},
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec:      func(ctx context.Context, args []string) error { return flag.ErrHelp },
 	}
 }
@@ -58,7 +58,7 @@ func imagesCommand(d *shared.Deps) *ffcli.Command {
 		Subcommands: []*ffcli.Command{
 			imagesListCommand(d), imagesUploadCommand(d), imagesDeleteCommand(d),
 		},
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec:      func(ctx context.Context, args []string) error { return flag.ErrHelp },
 	}
 }
@@ -67,7 +67,7 @@ func imagesListCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("storekit retention-messaging images list", flag.ExitOnError)
 	common := bindCommonFlags(fs)
 	output := d.BindOutputFlags(fs)
-	return leafCommand("list", "asc storekit retention-messaging images list --environment ENV [flags]", "List retention images.", fs, func(ctx context.Context, args []string) error {
+	return leafCommand(d, "list", "asc storekit retention-messaging images list --environment ENV [flags]", "List retention images.", fs, func(ctx context.Context, args []string) error {
 		client, _, err := resolveClient(ctx, d, common)
 		if err != nil {
 			return usageOrWrap(d, "storekit retention-messaging images list", err)
@@ -93,7 +93,7 @@ func imagesUploadCommand(d *shared.Deps) *ffcli.Command {
 	size := fs.String("image-size", string(storekitapi.ImageSizeFull), "Image size: FULL_SIZE or BULLET_POINT")
 	common := bindCommonFlags(fs)
 	output := d.BindOutputFlags(fs)
-	return leafCommand("upload", "asc storekit retention-messaging images upload --image-id UUID --file IMAGE.png --environment ENV [flags]", "Upload a PNG retention image.", fs, func(ctx context.Context, args []string) error {
+	return leafCommand(d, "upload", "asc storekit retention-messaging images upload --image-id UUID --file IMAGE.png --environment ENV [flags]", "Upload a PNG retention image.", fs, func(ctx context.Context, args []string) error {
 		if err := requireFlag(d, "--image-id", *imageID); err != nil {
 			return err
 		}
@@ -131,7 +131,7 @@ func imagesDeleteCommand(d *shared.Deps) *ffcli.Command {
 	confirm := fs.Bool("confirm", false, "Confirm image deletion")
 	common := bindCommonFlags(fs)
 	output := d.BindOutputFlags(fs)
-	return leafCommand("delete", "asc storekit retention-messaging images delete --image-id UUID --environment ENV --confirm [flags]", "Delete a retention image.", fs, func(ctx context.Context, args []string) error {
+	return leafCommand(d, "delete", "asc storekit retention-messaging images delete --image-id UUID --environment ENV --confirm [flags]", "Delete a retention image.", fs, func(ctx context.Context, args []string) error {
 		if err := requireFlag(d, "--image-id", *imageID); err != nil {
 			return err
 		}
@@ -164,7 +164,7 @@ func messagesCommand(d *shared.Deps) *ffcli.Command {
 		Subcommands: []*ffcli.Command{
 			messagesListCommand(d), messagesUploadCommand(d), messagesDeleteCommand(d),
 		},
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec:      func(ctx context.Context, args []string) error { return flag.ErrHelp },
 	}
 }
@@ -173,7 +173,7 @@ func messagesListCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("storekit retention-messaging messages list", flag.ExitOnError)
 	common := bindCommonFlags(fs)
 	output := d.BindOutputFlags(fs)
-	return leafCommand("list", "asc storekit retention-messaging messages list --environment ENV [flags]", "List retention messages.", fs, func(ctx context.Context, args []string) error {
+	return leafCommand(d, "list", "asc storekit retention-messaging messages list --environment ENV [flags]", "List retention messages.", fs, func(ctx context.Context, args []string) error {
 		client, _, err := resolveClient(ctx, d, common)
 		if err != nil {
 			return usageOrWrap(d, "storekit retention-messaging messages list", err)
@@ -198,7 +198,7 @@ func messagesUploadCommand(d *shared.Deps) *ffcli.Command {
 	file := fs.String("file", "", "Path to a retention message JSON file")
 	common := bindCommonFlags(fs)
 	output := d.BindOutputFlags(fs)
-	return leafCommand("upload", "asc storekit retention-messaging messages upload --message-id UUID --file MESSAGE.json --environment ENV [flags]", "Upload a retention message.", fs, func(ctx context.Context, args []string) error {
+	return leafCommand(d, "upload", "asc storekit retention-messaging messages upload --message-id UUID --file MESSAGE.json --environment ENV [flags]", "Upload a retention message.", fs, func(ctx context.Context, args []string) error {
 		if err := requireFlag(d, "--message-id", *messageID); err != nil {
 			return err
 		}
@@ -231,7 +231,7 @@ func messagesDeleteCommand(d *shared.Deps) *ffcli.Command {
 	confirm := fs.Bool("confirm", false, "Confirm message deletion")
 	common := bindCommonFlags(fs)
 	output := d.BindOutputFlags(fs)
-	return leafCommand("delete", "asc storekit retention-messaging messages delete --message-id UUID --environment ENV --confirm [flags]", "Delete a retention message.", fs, func(ctx context.Context, args []string) error {
+	return leafCommand(d, "delete", "asc storekit retention-messaging messages delete --message-id UUID --environment ENV --confirm [flags]", "Delete a retention message.", fs, func(ctx context.Context, args []string) error {
 		if err := requireFlag(d, "--message-id", *messageID); err != nil {
 			return err
 		}
@@ -264,7 +264,7 @@ func defaultsCommand(d *shared.Deps) *ffcli.Command {
 		Subcommands: []*ffcli.Command{
 			defaultViewCommand(d), defaultSetCommand(d), defaultDeleteCommand(d),
 		},
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec:      func(ctx context.Context, args []string) error { return flag.ErrHelp },
 	}
 }
@@ -278,7 +278,7 @@ func defaultViewCommand(d *shared.Deps) *ffcli.Command {
 	productID, locale := bindDefaultFlags(fs)
 	common := bindCommonFlags(fs)
 	output := d.BindOutputFlags(fs)
-	return leafCommand("view", "asc storekit retention-messaging defaults view --product-id ID --locale LOCALE --environment ENV [flags]", "View the default retention message.", fs, func(ctx context.Context, args []string) error {
+	return leafCommand(d, "view", "asc storekit retention-messaging defaults view --product-id ID --locale LOCALE --environment ENV [flags]", "View the default retention message.", fs, func(ctx context.Context, args []string) error {
 		if err := validateDefaultInvocation(d, *productID, *locale); err != nil {
 			return err
 		}
@@ -302,7 +302,7 @@ func defaultSetCommand(d *shared.Deps) *ffcli.Command {
 	messageID := fs.String("message-id", "", "Approved retention message UUID")
 	common := bindCommonFlags(fs)
 	output := d.BindOutputFlags(fs)
-	return leafCommand("set", "asc storekit retention-messaging defaults set --product-id ID --locale LOCALE --message-id UUID --environment ENV [flags]", "Set the default retention message.", fs, func(ctx context.Context, args []string) error {
+	return leafCommand(d, "set", "asc storekit retention-messaging defaults set --product-id ID --locale LOCALE --message-id UUID --environment ENV [flags]", "Set the default retention message.", fs, func(ctx context.Context, args []string) error {
 		if err := validateDefaultInvocation(d, *productID, *locale); err != nil {
 			return err
 		}
@@ -332,7 +332,7 @@ func defaultDeleteCommand(d *shared.Deps) *ffcli.Command {
 	confirm := fs.Bool("confirm", false, "Confirm default deletion")
 	common := bindCommonFlags(fs)
 	output := d.BindOutputFlags(fs)
-	return leafCommand("delete", "asc storekit retention-messaging defaults delete --product-id ID --locale LOCALE --environment ENV --confirm [flags]", "Delete the default retention message.", fs, func(ctx context.Context, args []string) error {
+	return leafCommand(d, "delete", "asc storekit retention-messaging defaults delete --product-id ID --locale LOCALE --environment ENV --confirm [flags]", "Delete the default retention message.", fs, func(ctx context.Context, args []string) error {
 		if err := validateDefaultInvocation(d, *productID, *locale); err != nil {
 			return err
 		}
@@ -363,7 +363,7 @@ func endpointCommand(d *shared.Deps) *ffcli.Command {
 		Subcommands: []*ffcli.Command{
 			endpointViewCommand(d), endpointSetCommand(d), endpointDeleteCommand(d),
 		},
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec:      func(ctx context.Context, args []string) error { return flag.ErrHelp },
 	}
 }
@@ -372,7 +372,7 @@ func endpointViewCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("storekit retention-messaging endpoint view", flag.ExitOnError)
 	common := bindCommonFlags(fs)
 	output := d.BindOutputFlags(fs)
-	return leafCommand("view", "asc storekit retention-messaging endpoint view --environment ENV [flags]", "View the realtime retention endpoint URL.", fs, func(ctx context.Context, args []string) error {
+	return leafCommand(d, "view", "asc storekit retention-messaging endpoint view --environment ENV [flags]", "View the realtime retention endpoint URL.", fs, func(ctx context.Context, args []string) error {
 		client, _, err := resolveClient(ctx, d, common)
 		if err != nil {
 			return usageOrWrap(d, "storekit retention-messaging endpoint view", err)
@@ -392,7 +392,7 @@ func endpointSetCommand(d *shared.Deps) *ffcli.Command {
 	realtimeURL := fs.String("url", "", "Complete HTTPS Get Retention Message endpoint URL")
 	common := bindCommonFlags(fs)
 	output := d.BindOutputFlags(fs)
-	return leafCommand("set", "asc storekit retention-messaging endpoint set --url HTTPS_URL --environment ENV [flags]", "Set the realtime retention endpoint URL.", fs, func(ctx context.Context, args []string) error {
+	return leafCommand(d, "set", "asc storekit retention-messaging endpoint set --url HTTPS_URL --environment ENV [flags]", "Set the realtime retention endpoint URL.", fs, func(ctx context.Context, args []string) error {
 		if err := requireFlag(d, "--url", *realtimeURL); err != nil {
 			return err
 		}
@@ -418,7 +418,7 @@ func endpointDeleteCommand(d *shared.Deps) *ffcli.Command {
 	confirm := fs.Bool("confirm", false, "Confirm endpoint URL deletion")
 	common := bindCommonFlags(fs)
 	output := d.BindOutputFlags(fs)
-	return leafCommand("delete", "asc storekit retention-messaging endpoint delete --environment ENV --confirm [flags]", "Delete the realtime retention endpoint URL.", fs, func(ctx context.Context, args []string) error {
+	return leafCommand(d, "delete", "asc storekit retention-messaging endpoint delete --environment ENV --confirm [flags]", "Delete the realtime retention endpoint URL.", fs, func(ctx context.Context, args []string) error {
 		if err := d.RequireConfirm(*confirm); err != nil {
 			return err
 		}
@@ -448,7 +448,7 @@ Apple exposes these operations only in the sandbox environment.`,
 		Subcommands: []*ffcli.Command{
 			performanceStartCommand(d), performanceViewCommand(d), performanceWaitCommand(d),
 		},
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec:      func(ctx context.Context, args []string) error { return flag.ErrHelp },
 	}
 }
@@ -461,7 +461,7 @@ func performanceStartCommand(d *shared.Deps) *ffcli.Command {
 	timeout := fs.Duration("timeout", 10*time.Minute, "Maximum wait time")
 	common := bindCommonFlags(fs)
 	output := d.BindOutputFlags(fs)
-	return leafCommand("start", "asc storekit retention-messaging performance start --original-transaction-id ID --environment sandbox [flags]", "Start a sandbox endpoint performance test.", fs, func(ctx context.Context, args []string) error {
+	return leafCommand(d, "start", "asc storekit retention-messaging performance start --original-transaction-id ID --environment sandbox [flags]", "Start a sandbox endpoint performance test.", fs, func(ctx context.Context, args []string) error {
 		if err := requireFlag(d, "--original-transaction-id", *originalTransactionID); err != nil {
 			return err
 		}
@@ -499,7 +499,7 @@ func performanceViewCommand(d *shared.Deps) *ffcli.Command {
 	requestID := fs.String("request-id", "", "Performance test request ID")
 	common := bindCommonFlags(fs)
 	output := d.BindOutputFlags(fs)
-	return leafCommand("view", "asc storekit retention-messaging performance view --request-id ID --environment sandbox [flags]", "View a sandbox performance test result.", fs, func(ctx context.Context, args []string) error {
+	return leafCommand(d, "view", "asc storekit retention-messaging performance view --request-id ID --environment sandbox [flags]", "View a sandbox performance test result.", fs, func(ctx context.Context, args []string) error {
 		if err := requireFlag(d, "--request-id", *requestID); err != nil {
 			return err
 		}
@@ -527,7 +527,7 @@ func performanceWaitCommand(d *shared.Deps) *ffcli.Command {
 	timeout := fs.Duration("timeout", 10*time.Minute, "Maximum wait time")
 	common := bindCommonFlags(fs)
 	output := d.BindOutputFlags(fs)
-	return leafCommand("wait", "asc storekit retention-messaging performance wait --request-id ID --environment sandbox [flags]", "Wait for a sandbox performance test to finish.", fs, func(ctx context.Context, args []string) error {
+	return leafCommand(d, "wait", "asc storekit retention-messaging performance wait --request-id ID --environment sandbox [flags]", "Wait for a sandbox performance test to finish.", fs, func(ctx context.Context, args []string) error {
 		if err := requireFlag(d, "--request-id", *requestID); err != nil {
 			return err
 		}
@@ -546,8 +546,8 @@ func performanceWaitCommand(d *shared.Deps) *ffcli.Command {
 	})
 }
 
-func leafCommand(name, usage, help string, fs *flag.FlagSet, exec func(context.Context, []string) error) *ffcli.Command {
-	return &ffcli.Command{Name: name, ShortUsage: usage, ShortHelp: help, FlagSet: fs, UsageFunc: shared.DefaultUsageFunc, Exec: exec}
+func leafCommand(d *shared.Deps, name, usage, help string, fs *flag.FlagSet, exec func(context.Context, []string) error) *ffcli.Command {
+	return &ffcli.Command{Name: name, ShortUsage: usage, ShortHelp: help, FlagSet: fs, UsageFunc: d.DefaultUsageFunc, Exec: exec}
 }
 
 func requireFlag(d *shared.Deps, name, value string) error {

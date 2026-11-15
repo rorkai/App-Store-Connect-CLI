@@ -25,7 +25,7 @@ func newPreReleaseVersionsAppCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc pre-release-versions app view --id "PR_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newPreReleaseVersionsAppGetCommand(d),
 		},
@@ -69,7 +69,7 @@ func newPreReleaseVersionsBuildsCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc pre-release-versions builds list --id "PR_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newPreReleaseVersionsBuildsListCommand(d),
 		},
@@ -99,7 +99,7 @@ Examples:
   asc pre-release-versions builds list --id "PR_ID"
   asc pre-release-versions builds list --id "PR_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "pre-release-versions builds list", 200); err != nil {
 				return err

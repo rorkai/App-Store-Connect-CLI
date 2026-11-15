@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
-	"os"
 	"slices"
 	"strconv"
 	"strings"
@@ -18,14 +17,14 @@ import (
 // GET /v1/appScreenshotSets/{id}/appScreenshots.
 var screenshotSetListFields = []string{"fileSize", "fileName", "sourceFileChecksum", "imageAsset", "assetToken", "assetType", "uploadOperations", "assetDeliveryState", "appScreenshotSet"}
 
-func executeScreenshotSetListCommand(ctx context.Context, setID, fields string, limit int, paginate bool, output shared.OutputFlags) error {
+func executeScreenshotSetListCommand(ctx context.Context, d *shared.Deps, setID, fields string, limit int, paginate bool, output shared.OutputFlags) error {
 	query := url.Values{}
 	if strings.TrimSpace(fields) != "" {
 		values := strings.Split(fields, ",")
 		for i, value := range values {
 			value = strings.TrimSpace(value)
 			if !slices.Contains(screenshotSetListFields, value) {
-				return shared.UsageErrorf("screenshots list: --fields must be one of: %s", strings.Join(screenshotSetListFields, ", "))
+				return d.UsageErrorf("screenshots list: --fields must be one of: %s", strings.Join(screenshotSetListFields, ", "))
 			}
 			values[i] = value
 		}
@@ -42,15 +41,15 @@ func executeScreenshotSetListCommand(ctx context.Context, setID, fields string, 
 		target += "?" + query.Encode()
 	}
 
-	client, err := shared.GetASCClient()
+	client, err := d.Client()
 	if err != nil {
 		return fmt.Errorf("screenshots list: %w", err)
 	}
 	var response []byte
 	if paginate {
-		response, err = client.RawPaginatedGET(ctx, target, shared.ContextWithTimeout)
+		response, err = client.RawPaginatedGET(ctx, target, d.Timeout)
 	} else {
-		requestCtx, cancel := shared.ContextWithTimeout(ctx)
+		requestCtx, cancel := d.Timeout(ctx)
 		defer cancel()
 		response, err = client.RawRequest(requestCtx, "GET", target, nil)
 	}
@@ -63,11 +62,11 @@ func executeScreenshotSetListCommand(ctx context.Context, setID, fields string, 
 		} `json:"links"`
 	}
 	if err := json.Unmarshal(response, &page); err == nil && page.Links.Next != "" {
-		fmt.Fprintln(os.Stderr, "Warning: more pages exist; use --paginate to list every screenshot in the set")
+		fmt.Fprintln(d.IO.ErrOut, "Warning: more pages exist; use --paginate to list every screenshot in the set")
 	}
 	headers, rows, err := asc.AppScreenshotRows(response)
 	if err != nil {
 		return fmt.Errorf("screenshots list: %w", err)
 	}
-	return shared.PrintOutputRows(json.RawMessage(response), *output.Output, *output.Pretty, headers, rows)
+	return d.PrintOutputRows(json.RawMessage(response), *output.Output, *output.Pretty, headers, rows)
 }

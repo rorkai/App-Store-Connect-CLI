@@ -544,7 +544,7 @@ func OpenValidatedSessionBundle(ctx context.Context, bundle *SessionBundle) (*Au
 		return nil, fmt.Errorf("%w: %w", ErrSessionBundleValidationFailed, err)
 	}
 
-	client, info, ok, err := validatePersistedSessionReadOnly(ctx, sess)
+	client, info, ok, err := validatePersistedSessionReadOnly(ctx, sess, http.DefaultTransport)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrSessionBundleValidationFailed, err)
 	}

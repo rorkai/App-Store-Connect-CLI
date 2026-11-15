@@ -29,7 +29,7 @@ Examples:
   asc iap offer-codes custom-codes create --offer-code-id "OFFER_CODE_ID" --custom-code "SUMMER26" --quantity 100
   asc iap offer-codes custom-codes update --custom-code-id "CUSTOM_CODE_ID" --active false`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newIAPOfferCodesCustomCodesListCommand(d),
 			newIAPOfferCodesCustomCodesGetCommand(d),
@@ -112,7 +112,7 @@ Examples:
   asc iap offer-codes custom-codes create --offer-code-id "OFFER_CODE_ID" --custom-code "SUMMER26" --quantity 100
   asc iap offer-codes custom-codes create --offer-code-id "OFFER_CODE_ID" --custom-code "HOLIDAY2026" --quantity 50 --expiration-date "2026-12-31"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*offerCodeID)
 			if id == "" {
@@ -215,7 +215,7 @@ Examples:
   asc iap offer-codes one-time-codes update --one-time-code-id "ONE_TIME_USE_CODE_ID" --active false --confirm
   asc iap offer-codes one-time-codes values --one-time-code-id "ONE_TIME_USE_CODE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newIAPOfferCodesOneTimeCodesListCommand(d),
 			newIAPOfferCodesOneTimeCodesGetCommand(d),
@@ -300,7 +300,7 @@ Examples:
   asc iap offer-codes one-time-codes create --offer-code-id "OFFER_CODE_ID" --quantity 500 --expiration-date "2026-09-30"
   asc iap offer-codes one-time-codes create --offer-code-id "OFFER_CODE_ID" --quantity 100 --expiration-date "2026-12-31" --environment SANDBOX`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*offerCodeID)
 			if id == "" {
@@ -402,7 +402,7 @@ func newIAPOfferCodesOneTimeCodesValuesCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc iap offer-codes one-time-codes values --one-time-code-id "ONE_TIME_USE_CODE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*oneTimeCodeID)
 			if id == "" {

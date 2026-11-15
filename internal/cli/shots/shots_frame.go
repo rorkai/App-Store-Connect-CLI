@@ -55,9 +55,9 @@ var (
 	shotsFrameIntoFn = screenshots.FrameIntoOutputRoot
 )
 
-// ShotsFrameCommand returns the screenshots frame subcommand.
-func ShotsFrameCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("frame", flag.ExitOnError)
+// NewShotsFrameCommand returns the screenshots frame subcommand.
+func NewShotsFrameCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("frame", flag.ExitOnError)
 	inputPath := fs.String("input", "", "Path to raw screenshot PNG (required unless --input-dir or --config is set)")
 	inputDir := fs.String("input-dir", "", "Directory of raw screenshot PNGs to frame in one batch (non-recursive)")
 	configPath := fs.String("config", "", "Path to Koubou YAML config (optional)")
@@ -84,7 +84,7 @@ func ShotsFrameCommand() *ffcli.Command {
 	overlayConfig := fs.String("overlay-config", "", "JSON overlay config with default and data[] title, keyword, background, and textBox entries")
 	resume := fs.Bool("resume", false, "Skip inputs whose source hash and render settings match .asc/reports/screenshots-frame/state.json")
 	parallelWorkers := fs.Int("parallel-workers", 1, "Frame up to N --input-dir screenshots at once (1 to the CPU count)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	watch := fs.Bool("watch", false, "Watch config and asset files for changes, auto-regenerate (requires --config)")
 	watchDebounce := fs.Duration("watch-debounce", 500*time.Millisecond, "Debounce delay between change detection and regeneration")
 	watchReviewDir := fs.String("watch-review-dir", "", "Auto-regenerate review HTML in this directory on each watch cycle")
@@ -118,7 +118,7 @@ in input order.
 Use --watch with --config to start a live watcher that auto-regenerates
 framed screenshots whenever the YAML config or referenced raw assets change.`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			// Keep path values literal after validating emptiness. Trimming a
 			// valid path can select a different filesystem entry.
@@ -166,15 +166,15 @@ framed screenshots whenever the YAML config or referenced raw assets change.`,
 				}
 			})
 			if !configSet && !inputSet && !inputDirSet {
-				fmt.Fprintln(os.Stderr, "Error: --input is required when --config is not set")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --input is required when --config is not set")
 				return shared.MissingRequiredUsageError("--input")
 			}
 			if configSet && inputSet {
-				fmt.Fprintln(os.Stderr, "Error: use either --input or --config, not both")
+				fmt.Fprintln(d.IO.ErrOut, "Error: use either --input or --config, not both")
 				return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticConflictingInput, "--config")
 			}
 			if *watch && !configSet {
-				fmt.Fprintln(os.Stderr, "Error: --watch requires --config")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --watch requires --config")
 				return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticConflictingInput, "--watch")
 			}
 			if *watch && len(watchUnsupportedFlags) > 0 {
@@ -182,44 +182,44 @@ framed screenshots whenever the YAML config or referenced raw assets change.`,
 				if len(watchUnsupportedFlags) == 1 {
 					parameter = watchUnsupportedFlags[0]
 				}
-				return shared.WithDiagnostic(shared.UsageError(fmt.Sprintf(
+				return shared.WithDiagnostic(d.UsageError(fmt.Sprintf(
 					"%s cannot be used with --watch; watch mode regenerates from the Koubou YAML config",
 					strings.Join(watchUnsupportedFlags, ", "),
 				)), shared.DiagnosticConflictingInput, parameter)
 			}
 			if inputDirSet && (inputSet || configSet) {
-				return shared.WithDiagnostic(shared.UsageError("use either --input, --input-dir, or --config"), shared.DiagnosticConflictingInput, "--input-dir")
+				return shared.WithDiagnostic(d.UsageError("use either --input, --input-dir, or --config"), shared.DiagnosticConflictingInput, "--input-dir")
 			}
 			if parallelWorkersSet && !inputDirSet {
-				return shared.WithDiagnostic(shared.UsageError("--parallel-workers requires --input-dir"), shared.DiagnosticConflictingInput, "--parallel-workers")
+				return shared.WithDiagnostic(d.UsageError("--parallel-workers requires --input-dir"), shared.DiagnosticConflictingInput, "--parallel-workers")
 			}
 			if maxWorkers := runtime.NumCPU(); *parallelWorkers < 1 || *parallelWorkers > maxWorkers {
-				return shared.WithDiagnostic(shared.UsageError(fmt.Sprintf("--parallel-workers must be between 1 and %d", maxWorkers)), shared.DiagnosticInvalidInput, "--parallel-workers")
+				return shared.WithDiagnostic(d.UsageError(fmt.Sprintf("--parallel-workers must be between 1 and %d", maxWorkers)), shared.DiagnosticInvalidInput, "--parallel-workers")
 			}
 			if inputDirSet && (strings.TrimSpace(*outputPath) != "" || strings.TrimSpace(*name) != "") {
-				return shared.WithDiagnostic(shared.UsageError("--output-path and --name cannot be used with --input-dir; outputs are named <input>-<device>.png in --output-dir"), shared.DiagnosticConflictingInput, "--input-dir")
+				return shared.WithDiagnostic(d.UsageError("--output-path and --name cannot be used with --input-dir; outputs are named <input>-<device>.png in --output-dir"), shared.DiagnosticConflictingInput, "--input-dir")
 			}
 			if !*watch {
 				switch {
 				case watchDebounceSet:
-					return shared.WithDiagnostic(shared.UsageError("--watch-debounce requires --watch"), shared.DiagnosticConflictingInput, "--watch-debounce")
+					return shared.WithDiagnostic(d.UsageError("--watch-debounce requires --watch"), shared.DiagnosticConflictingInput, "--watch-debounce")
 				case watchReviewDirSet:
-					return shared.WithDiagnostic(shared.UsageError("--watch-review-dir requires --watch"), shared.DiagnosticConflictingInput, "--watch-review-dir")
+					return shared.WithDiagnostic(d.UsageError("--watch-review-dir requires --watch"), shared.DiagnosticConflictingInput, "--watch-review-dir")
 				case watchRawDirSet:
-					return shared.WithDiagnostic(shared.UsageError("--watch-raw-dir requires --watch"), shared.DiagnosticConflictingInput, "--watch-raw-dir")
+					return shared.WithDiagnostic(d.UsageError("--watch-raw-dir requires --watch"), shared.DiagnosticConflictingInput, "--watch-raw-dir")
 				}
 			}
 			if watchRawDirSet && !watchReviewDirSet {
-				return shared.WithDiagnostic(shared.UsageError("--watch-raw-dir requires --watch-review-dir"), shared.DiagnosticConflictingInput, "--watch-raw-dir")
+				return shared.WithDiagnostic(d.UsageError("--watch-raw-dir requires --watch-review-dir"), shared.DiagnosticConflictingInput, "--watch-raw-dir")
 			}
 			if watchReviewDirSet && strings.TrimSpace(*watchReviewDir) == "" {
-				return shared.WithDiagnostic(shared.UsageError("--watch-review-dir must not be empty"), shared.DiagnosticInvalidInput, "--watch-review-dir")
+				return shared.WithDiagnostic(d.UsageError("--watch-review-dir must not be empty"), shared.DiagnosticInvalidInput, "--watch-review-dir")
 			}
 			if watchDebounceSet && *watchDebounce <= 0 {
-				return shared.WithDiagnostic(shared.UsageError("--watch-debounce must be greater than 0"), shared.DiagnosticInvalidInput, "--watch-debounce")
+				return shared.WithDiagnostic(d.UsageError("--watch-debounce must be greater than 0"), shared.DiagnosticInvalidInput, "--watch-debounce")
 			}
 			if configSet {
-				absConfig, err := filepath.Abs(configVal)
+				absConfig, err := d.Abs(configVal)
 				if err != nil {
 					return fmt.Errorf("screenshots frame: resolve config path: %w", err)
 				}
@@ -231,12 +231,10 @@ framed screenshots whenever the YAML config or referenced raw assets change.`,
 			if *watch {
 				watchCtx, stop := signal.NotifyContext(ctx, os.Interrupt)
 				defer stop()
-				var opts *screenshots.WatchOptions
+				opts := &screenshots.WatchOptions{Stderr: d.IO.ErrOut}
 				if reviewDir := *watchReviewDir; strings.TrimSpace(reviewDir) != "" {
-					opts = &screenshots.WatchOptions{
-						ReviewOutputDir: reviewDir,
-						ReviewRawDir:    *watchRawDir,
-					}
+					opts.ReviewOutputDir = userPath(d, reviewDir)
+					opts.ReviewRawDir = userPath(d, *watchRawDir)
 				}
 				return screenshots.WatchAndRegenerate(watchCtx, configVal, *watchDebounce, nil, opts)
 			}
@@ -244,7 +242,7 @@ framed screenshots whenever the YAML config or referenced raw assets change.`,
 			deviceVal, err := screenshots.ParseFrameDevice(*device)
 			if err != nil {
 				fmt.Fprintf(
-					os.Stderr,
+					d.IO.ErrOut,
 					"Error: --device must be one of: %s\n",
 					strings.Join(screenshots.FrameDeviceValues(), ", "),
 				)
@@ -271,17 +269,17 @@ framed screenshots whenever the YAML config or referenced raw assets change.`,
 			fontSet := strings.TrimSpace(*font) != ""
 			frameColorSet := strings.TrimSpace(*frameColor) != ""
 			if hasCanvasFlags && configSet {
-				fmt.Fprintf(os.Stderr, "Error: --title, --subtitle, --bg-color, --title-color, --subtitle-color cannot be used with --config; set these in the YAML config instead\n")
+				fmt.Fprintf(d.IO.ErrOut, "Error: --title, --subtitle, --bg-color, --title-color, --subtitle-color cannot be used with --config; set these in the YAML config instead\n")
 				return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticConflictingInput, "--config")
 			}
 			if configSet && (frameColorSet || fontSet || textPositionSet) {
-				return shared.WithDiagnostic(shared.UsageError("--frame-color, --font, and --text-position cannot be used with --config; set the frame, font, and text positions in the YAML config instead"), shared.DiagnosticConflictingInput, "--config")
+				return shared.WithDiagnostic(d.UsageError("--frame-color, --font, and --text-position cannot be used with --config; set the frame, font, and text positions in the YAML config instead"), shared.DiagnosticConflictingInput, "--config")
 			}
 			textBoxDetailSet := textBoxColorSet || textBoxPaddingSet || textBoxRadiusSet
 			if configSet && (*textBox || textBoxDetailSet) {
-				return shared.WithDiagnostic(shared.UsageError("--text-box, --text-box-color, --text-box-padding, and --text-box-radius cannot be used with --config; set box on the text items in the YAML config instead"), shared.DiagnosticConflictingInput, "--config")
+				return shared.WithDiagnostic(d.UsageError("--text-box, --text-box-color, --text-box-padding, and --text-box-radius cannot be used with --config; set box on the text items in the YAML config instead"), shared.DiagnosticConflictingInput, "--config")
 			}
-			boxFlags, err := parseTextBoxFlags(*textBox, textBoxFlagValues{
+			boxFlags, err := parseTextBoxFlags(d, *textBox, textBoxFlagValues{
 				color:      *textBoxColor,
 				colorSet:   textBoxColorSet,
 				padding:    *textBoxPadding,
@@ -295,33 +293,33 @@ framed screenshots whenever the YAML config or referenced raw assets change.`,
 
 			frameColorID, err := screenshots.ResolveFrameColor(deviceVal, *frameColor)
 			if err != nil {
-				return shared.WithDiagnostic(shared.UsageError("--frame-color: "+err.Error()), shared.DiagnosticInvalidInput, "--frame-color")
+				return shared.WithDiagnostic(d.UsageError("--frame-color: "+err.Error()), shared.DiagnosticInvalidInput, "--frame-color")
 			}
 			textPositionVal, err := screenshots.ParseTextPosition(*textPosition)
 			if err != nil {
-				return shared.WithDiagnostic(shared.UsageError("--text-position: "+err.Error()), shared.DiagnosticInvalidInput, "--text-position")
+				return shared.WithDiagnostic(d.UsageError("--text-position: "+err.Error()), shared.DiagnosticInvalidInput, "--text-position")
 			}
 			hasTextSource := strings.TrimSpace(*title) != "" || strings.TrimSpace(*subtitle) != "" || strings.TrimSpace(*overlayConfig) != ""
 			if fontSet && !hasTextSource {
-				return shared.WithDiagnostic(shared.UsageError("--font requires --title, --subtitle, or --overlay-config"), shared.DiagnosticConflictingInput, "--font")
+				return shared.WithDiagnostic(d.UsageError("--font requires --title, --subtitle, or --overlay-config"), shared.DiagnosticConflictingInput, "--font")
 			}
 			if textPositionSet && !hasTextSource {
-				return shared.WithDiagnostic(shared.UsageError("--text-position requires --title, --subtitle, or --overlay-config"), shared.DiagnosticConflictingInput, "--text-position")
+				return shared.WithDiagnostic(d.UsageError("--text-position requires --title, --subtitle, or --overlay-config"), shared.DiagnosticConflictingInput, "--text-position")
 			}
 			if *textBox && !hasTextSource {
-				return shared.WithDiagnostic(shared.UsageError("--text-box requires --title, --subtitle, or --overlay-config"), shared.DiagnosticConflictingInput, "--text-box")
+				return shared.WithDiagnostic(d.UsageError("--text-box requires --title, --subtitle, or --overlay-config"), shared.DiagnosticConflictingInput, "--text-box")
 			}
 			if textBoxDetailSet && !*textBox && strings.TrimSpace(*overlayConfig) == "" {
 				parameter := boxFlags.firstDetailFlag()
-				return shared.WithDiagnostic(shared.UsageError(parameter+" requires --text-box or an --overlay-config textBox entry"), shared.DiagnosticConflictingInput, parameter)
+				return shared.WithDiagnostic(d.UsageError(parameter+" requires --text-box or an --overlay-config textBox entry"), shared.DiagnosticConflictingInput, parameter)
 			}
 			fontFamily := strings.TrimSpace(*font)
 			var fontFile *screenshots.FontFile
 			if fontSet && screenshots.IsFontFilePath(fontFamily) {
 				// Keep the path literal; only the family-name form is trimmed.
-				fontFile, err = screenshots.LoadFontFile(*font)
+				fontFile, err = screenshots.LoadFontFile(userPath(d, *font))
 				if err != nil {
-					return shared.WithDiagnostic(shared.UsageError("--font: "+err.Error()), shared.DiagnosticInvalidInput, "--font")
+					return shared.WithDiagnostic(d.UsageError("--font: "+err.Error()), shared.DiagnosticInvalidInput, "--font")
 				}
 				fontFamily = ""
 			}
@@ -341,6 +339,7 @@ framed screenshots whenever the YAML config or referenced raw assets change.`,
 			}
 
 			settings := frameRenderSettings{
+				deps:            d,
 				device:          deviceVal,
 				frameColor:      frameColorID,
 				base:            baseCanvas,
@@ -350,25 +349,25 @@ framed screenshots whenever the YAML config or referenced raw assets change.`,
 			}
 			if strings.TrimSpace(*overlayConfig) != "" {
 				if configSet {
-					fmt.Fprintln(os.Stderr, "Error: --overlay-config cannot be used with --config")
+					fmt.Fprintln(d.IO.ErrOut, "Error: --overlay-config cannot be used with --config")
 					return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticConflictingInput, "--overlay-config")
 				}
-				loaded, hash, err := screenshots.LoadOverlayConfig(*overlayConfig)
+				loaded, hash, err := screenshots.LoadOverlayConfig(userPath(d, *overlayConfig))
 				if err != nil {
 					return fmt.Errorf("screenshots frame: %w", err)
 				}
 				if err := screenshots.ValidateOverlayTextBoxes(loaded, *textBox); err != nil {
-					return shared.WithDiagnostic(shared.UsageError("--overlay-config: "+err.Error()), shared.DiagnosticInvalidInput, "--overlay-config")
+					return shared.WithDiagnostic(d.UsageError("--overlay-config: "+err.Error()), shared.DiagnosticInvalidInput, "--overlay-config")
 				}
 				if textBoxDetailSet && !*textBox && !screenshots.OverlayEnablesTextBox(loaded) {
 					parameter := boxFlags.firstDetailFlag()
-					return shared.WithDiagnostic(shared.UsageError(parameter+" requires --text-box or an --overlay-config textBox entry"), shared.DiagnosticConflictingInput, parameter)
+					return shared.WithDiagnostic(d.UsageError(parameter+" requires --text-box or an --overlay-config textBox entry"), shared.DiagnosticConflictingInput, parameter)
 				}
 				settings.overlay = &loaded
 				settings.overlayHash = hash
 			}
 			if *resume && configSet {
-				fmt.Fprintln(os.Stderr, "Error: --resume cannot be used with --config")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --resume cannot be used with --config")
 				return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticConflictingInput, "--resume")
 			}
 
@@ -387,7 +386,7 @@ framed screenshots whenever the YAML config or referenced raw assets change.`,
 			absInput := ""
 			if inputSet {
 				var err error
-				absInput, err = filepath.Abs(inputVal)
+				absInput, err = d.Abs(inputVal)
 				if err != nil {
 					return fmt.Errorf("screenshots frame: resolve input path: %w", err)
 				}
@@ -398,7 +397,7 @@ framed screenshots whenever the YAML config or referenced raw assets change.`,
 				outputDevice = screenshots.ResolveFrameDeviceFromConfig(configVal, outputDevice)
 			}
 
-			outPath, err := resolveOutputPath(*outputPath, *outputDir, *name, absInput, outputDevice)
+			outPath, err := resolveOutputPath(d, *outputPath, *outputDir, *name, absInput, outputDevice)
 			if err != nil {
 				return fmt.Errorf("screenshots frame: %w", err)
 			}
@@ -411,7 +410,7 @@ framed screenshots whenever the YAML config or referenced raw assets change.`,
 				return err
 			}
 
-			timeoutCtx, cancel := shared.ContextWithTimeout(ctx)
+			timeoutCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			request := screenshots.FrameRequest{
@@ -426,7 +425,7 @@ framed screenshots whenever the YAML config or referenced raw assets change.`,
 			}
 
 			if *resume && inputSet {
-				root, err := frameResumeRoot()
+				root, err := frameResumeRoot(d)
 				if err != nil {
 					return err
 				}
@@ -451,18 +450,18 @@ framed screenshots whenever the YAML config or referenced raw assets change.`,
 				if err != nil {
 					return classifyFrameError(err)
 				}
-				return shared.PrintOutput(framed, *output.Output, *output.Pretty)
+				return d.PrintOutput(framed, *output.Output, *output.Pretty)
 			}
 
 			if inputSet {
-				warnFrameAspectMismatch(absInput, absInput, deviceVal)
+				warnFrameAspectMismatch(d, absInput, absInput, deviceVal)
 			}
 			result, err := shotsFrameFn(timeoutCtx, request)
 			if err != nil {
 				return classifyFrameError(fmt.Errorf("screenshots frame: %w", err))
 			}
 
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -488,6 +487,7 @@ func classifyFrameError(err error) error {
 // frameRenderSettings are the render inputs shared by every framed file in
 // one invocation. Per-file overlays are resolved by canvasFor.
 type frameRenderSettings struct {
+	deps            *shared.Deps
 	device          screenshots.FrameDevice
 	frameColor      string
 	base            *screenshots.CanvasOptions
@@ -503,7 +503,8 @@ type frameRenderSettings struct {
 // a box), so the flags never go unused. With
 // --input-dir it is enough for one input to carry text.
 func (settings frameRenderSettings) requireStyledText(hasText bool) error {
-	if err := settings.textBox.requireUsed(); err != nil {
+	d := settings.deps
+	if err := settings.textBox.requireUsed(d); err != nil {
 		return err
 	}
 	if hasText || settings.overlay == nil {
@@ -511,11 +512,11 @@ func (settings frameRenderSettings) requireStyledText(hasText bool) error {
 	}
 	switch {
 	case settings.fontSet:
-		return shared.WithDiagnostic(shared.UsageError("--font has no effect: --overlay-config supplies no title or keyword for the framed input"), shared.DiagnosticConflictingInput, "--font")
+		return shared.WithDiagnostic(d.UsageError("--font has no effect: --overlay-config supplies no title or keyword for the framed input"), shared.DiagnosticConflictingInput, "--font")
 	case settings.textPositionSet:
-		return shared.WithDiagnostic(shared.UsageError("--text-position has no effect: --overlay-config supplies no title or keyword for the framed input"), shared.DiagnosticConflictingInput, "--text-position")
+		return shared.WithDiagnostic(d.UsageError("--text-position has no effect: --overlay-config supplies no title or keyword for the framed input"), shared.DiagnosticConflictingInput, "--text-position")
 	case settings.textBox.enabled:
-		return shared.WithDiagnostic(shared.UsageError("--text-box has no effect: --overlay-config supplies no title or keyword for the framed input"), shared.DiagnosticConflictingInput, "--text-box")
+		return shared.WithDiagnostic(d.UsageError("--text-box has no effect: --overlay-config supplies no title or keyword for the framed input"), shared.DiagnosticConflictingInput, "--text-box")
 	}
 	return nil
 }
@@ -523,6 +524,7 @@ func (settings frameRenderSettings) requireStyledText(hasText bool) error {
 // canvasFor merges the --overlay-config entry matching inputPath under the
 // explicit text flags and validates the resulting text options.
 func (settings frameRenderSettings) canvasFor(inputPath string) (*screenshots.CanvasOptions, error) {
+	d := settings.deps
 	var canvasOpts *screenshots.CanvasOptions
 	if settings.base != nil {
 		copied := *settings.base
@@ -552,11 +554,11 @@ func (settings frameRenderSettings) canvasFor(inputPath string) (*screenshots.Ca
 		canvasOpts.TextPosition = screenshots.TextPositionTop
 	}
 	if canvasOpts != nil && canvasOpts.TitleColor != "" && canvasOpts.Title == "" {
-		fmt.Fprintln(os.Stderr, "Error: --title-color requires --title")
+		fmt.Fprintln(d.IO.ErrOut, "Error: --title-color requires --title")
 		return nil, shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticConflictingInput, "--title-color")
 	}
 	if canvasOpts != nil && canvasOpts.SubtitleColor != "" && canvasOpts.Subtitle == "" {
-		fmt.Fprintln(os.Stderr, "Error: --subtitle-color requires --subtitle")
+		fmt.Fprintln(d.IO.ErrOut, "Error: --subtitle-color requires --subtitle")
 		return nil, shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticConflictingInput, "--subtitle-color")
 	}
 	return canvasOpts, nil
@@ -566,13 +568,13 @@ func (settings frameRenderSettings) canvasFor(inputPath string) (*screenshots.Ca
 // does not match device's screen aspect ratio, because Koubou then letterboxes
 // it inside the frame. displayPath names the input as the operator selected
 // it. Unreadable inputs are left for the render to report.
-func warnFrameAspectMismatch(displayPath, readPath string, device screenshots.FrameDevice) {
+func warnFrameAspectMismatch(d *shared.Deps, displayPath, readPath string, device screenshots.FrameDevice) {
 	mismatch, err := screenshots.CheckFrameInputAspect(readPath, device)
 	if err != nil || mismatch == nil {
 		return
 	}
 	fmt.Fprintf(
-		os.Stderr,
+		d.IO.ErrOut,
 		"Warning: %s is %dx%d, but %s screenshots are %dx%d; the image will be letterboxed inside the device screen\n",
 		displayPath,
 		mismatch.InputWidth,
@@ -586,6 +588,16 @@ func warnFrameAspectMismatch(displayPath, readPath string, device screenshots.Fr
 // frameInputOpener snapshots one framed input so hashing and rendering read
 // the same bytes.
 type frameInputOpener func(context.Context) (*screenshots.FrameInputSnapshot, error)
+
+// userPath returns path as the operating system should open it relative to
+// d's working directory; a blank path stays blank so callers keep their
+// defaults.
+func userPath(d *shared.Deps, path string) string {
+	if strings.TrimSpace(path) == "" {
+		return path
+	}
+	return d.OSPath(path)
+}
 
 // frameResumeStore is the loaded resume state for one invocation. The caller
 // holds the cross-process resume lock; mu serializes the renders of one
@@ -642,7 +654,7 @@ func frameSnapshot(ctx context.Context, open frameInputOpener, request screensho
 			return finish(&result, nil)
 		}
 	}
-	warnFrameAspectMismatch(request.InputPath, snapshot.Path(), settings.device)
+	warnFrameAspectMismatch(settings.deps, request.InputPath, snapshot.Path(), settings.device)
 	request.InputPath = snapshot.Path()
 	var result *screenshots.FrameResult
 	if outputRoot != nil {
@@ -690,8 +702,8 @@ func frameResumeFingerprint(sourceHash string, settings frameRenderSettings, can
 	return screenshots.FingerprintFrameResume(fp)
 }
 
-func frameResumeRoot() (rootfs.Root, error) {
-	workingDirectory, err := os.Getwd()
+func frameResumeRoot(d *shared.Deps) (rootfs.Root, error) {
+	workingDirectory, err := d.Getwd()
 	if err != nil {
 		return rootfs.Root{}, fmt.Errorf("screenshots frame: resolve resume root: %w", err)
 	}
@@ -702,10 +714,10 @@ func frameResumeRoot() (rootfs.Root, error) {
 	return root, nil
 }
 
-func resolveOutputPath(explicitPath, outputDir, name, inputPath, device string) (string, error) {
+func resolveOutputPath(d *shared.Deps, explicitPath, outputDir, name, inputPath, device string) (string, error) {
 	explicit := explicitPath
 	if strings.TrimSpace(explicit) != "" {
-		absPath, err := filepath.Abs(explicit)
+		absPath, err := d.Abs(explicit)
 		if err != nil {
 			return "", fmt.Errorf("resolve output path: %w", err)
 		}
@@ -733,7 +745,7 @@ func resolveOutputPath(explicitPath, outputDir, name, inputPath, device string) 
 		baseName = "screenshot"
 	}
 
-	absDir, err := filepath.Abs(dir)
+	absDir, err := d.Abs(dir)
 	if err != nil {
 		return "", fmt.Errorf("resolve output directory: %w", err)
 	}

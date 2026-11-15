@@ -2,6 +2,7 @@ package validate
 
 import (
 	"context"
+	"net/http"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/validation"
@@ -25,7 +26,9 @@ func SetDeepValidationTestHooks(
 	previousLoader := loadDeepSessionFn
 	previousFactory := deepWebClientFactory
 	if loader != nil {
-		loadDeepSessionFn = loader
+		loadDeepSessionFn = func(ctx context.Context, _ http.RoundTripper, appleID string) (*webcore.AuthSession, bool, error) {
+			return loader(ctx, appleID)
+		}
 	}
 	if client != nil {
 		deepWebClientFactory = func(*webcore.AuthSession) deepWebClient { return client }

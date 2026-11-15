@@ -37,7 +37,7 @@ Examples:
   asc game-center activities images upload --localization-id "LOCALIZATION_ID" --file path/to/image.png
   asc game-center activities releases list --app "APP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterActivitiesListCommand(d),
 			newGameCenterActivitiesGetCommand(d),
@@ -133,7 +133,7 @@ Examples:
   asc game-center activities create --app "APP_ID" --reference-name "Weekly" --vendor-id "com.example.weekly" --create-initial-version true --initial-fallback-url "https://example.com/fallback"
   asc game-center activities create --group-id "GROUP_ID" --reference-name "Weekly" --vendor-id "grp.com.example.weekly"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			group := strings.TrimSpace(*groupID)
 			if group != "" && strings.TrimSpace(*appID) != "" {
@@ -266,7 +266,7 @@ Examples:
   asc game-center activities update --id "ACTIVITY_ID" --archived true
   asc game-center activities update --id "ACTIVITY_ID" --properties @file:properties.json`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*activityID)
 			if id == "" {
@@ -385,7 +385,7 @@ Examples:
   asc game-center activities achievements set --activity-id "ACTIVITY_ID" --ids "ACH_1,ACH_2"
   asc game-center activities achievements set --activity-id "ACTIVITY_ID" --ids "ACH_1" --remove --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterActivityAchievementsSetCommand(d),
 		},
@@ -417,7 +417,7 @@ Examples:
   asc game-center activities achievements set --activity-id "ACTIVITY_ID" --ids "ACH_1" --v2
   asc game-center activities achievements set --activity-id "ACTIVITY_ID" --ids "ACH_1" --remove --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*activityID)
 			if id == "" {
@@ -480,7 +480,7 @@ Examples:
   asc game-center activities leaderboards set --activity-id "ACTIVITY_ID" --ids "LB_1,LB_2"
   asc game-center activities leaderboards set --activity-id "ACTIVITY_ID" --ids "LB_1" --remove --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterActivityLeaderboardsSetCommand(d),
 		},
@@ -512,7 +512,7 @@ Examples:
   asc game-center activities leaderboards set --activity-id "ACTIVITY_ID" --ids "LB_1" --v2
   asc game-center activities leaderboards set --activity-id "ACTIVITY_ID" --ids "LB_1" --remove --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*activityID)
 			if id == "" {
@@ -576,7 +576,7 @@ Examples:
   asc game-center activities versions update --id "VERSION_ID" --fallback-url "https://example.com"
   asc game-center activities versions default-image view --id "VERSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterActivityVersionsListCommand(d),
 			newGameCenterActivityVersionsGetCommand(d),
@@ -700,7 +700,7 @@ Examples:
   asc game-center activities localizations delete --id "LOC_ID" --confirm
   asc game-center activities localizations image view --id "LOC_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterActivityLocalizationsListCommand(d),
 			newGameCenterActivityLocalizationsGetCommand(d),
@@ -850,7 +850,7 @@ Examples:
   asc game-center activities images view --id "IMAGE_ID"
   asc game-center activities images delete --id "IMAGE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterActivityImagesUploadCommand(d),
 			newGameCenterActivityImagesGetCommand(d),
@@ -883,7 +883,7 @@ Examples:
   asc game-center activities images upload --localization-id "LOCALIZATION_ID" --file path/to/image.png
   asc game-center activities images upload --version-id "VERSION_ID" --file path/to/image.png`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			locID := strings.TrimSpace(*localizationID)
 			verID := strings.TrimSpace(*versionID)
@@ -973,7 +973,7 @@ Examples:
   asc game-center activities releases create --version-id "VERSION_ID"
   asc game-center activities releases delete --id "RELEASE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterActivityReleasesListCommand(d),
 			newGameCenterActivityReleasesCreateCommand(d),
@@ -1068,7 +1068,7 @@ func newGameCenterActivityLocalizationImageCommand(d *shared.Deps) *ffcli.Comman
 Examples:
   asc game-center activities localizations image view --id "LOC_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterActivityLocalizationImageGetCommand(d),
 		},
@@ -1111,7 +1111,7 @@ func newGameCenterActivityVersionDefaultImageCommand(d *shared.Deps) *ffcli.Comm
 Examples:
   asc game-center activities versions default-image view --id "VERSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterActivityVersionDefaultImageGetCommand(d),
 		},

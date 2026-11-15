@@ -287,11 +287,10 @@ func TestEnterpriseKeyRefusesAltool(t *testing.T) {
 		t.Fatalf("write ipa: %v", err)
 	}
 
-	_, stderr := captureOutput(t, func() {
-		if code := rootcmd.Run([]string{"xcode", "validate", "--ipa", ipaPath}, "1.2.3"); code == rootcmd.ExitSuccess {
-			t.Fatal("xcode validate succeeded on an Enterprise key")
-		}
-	})
+	_, stderr, code := runWithDeps(t, nil, "xcode", "validate", "--ipa", ipaPath)
+	if code == rootcmd.ExitSuccess {
+		t.Fatal("xcode validate succeeded on an Enterprise key")
+	}
 	if !strings.Contains(stderr, "not available on the Enterprise Program API") {
 		t.Fatalf("stderr = %q", stderr)
 	}

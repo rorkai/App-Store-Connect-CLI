@@ -87,7 +87,7 @@ Examples:
   asc iap pricing summary --iap-id "IAP_ID"
   asc iap pricing summary --app "APP_ID" --territory "France" --output table`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			requestedIAPID := strings.TrimSpace(*iapID)
 			requestedAppID := strings.TrimSpace(*appID)

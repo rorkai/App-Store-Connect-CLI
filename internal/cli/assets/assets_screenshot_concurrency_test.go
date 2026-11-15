@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestConcurrentScreenshotUploadPreservesOrderAndSpeedsUp(t *testing.T) {
@@ -45,7 +46,7 @@ func TestConcurrentScreenshotUploadPreservesOrderAndSpeedsUp(t *testing.T) {
 	var elapsed time.Duration
 	synctest.Test(t, func(*testing.T) {
 		start := time.Now()
-		progress, err = uploadScreenshotsWithOrderStateWithOpenedFiles(withScreenshotUploadConcurrency(context.Background(), 4), nil, "set", nil, files, "", false, false, nil)
+		progress, err = uploadScreenshotsWithOrderStateWithOpenedFiles(withScreenshotUploadConcurrency(context.Background(), 4), shared.ContextWithTimeout, nil, "set", nil, files, "", false, false, nil)
 		elapsed = time.Since(start)
 	})
 	if err != nil {
@@ -95,6 +96,7 @@ func TestConcurrentScreenshotUploadAggregatesCleanupFailures(t *testing.T) {
 
 	progress, err := uploadScreenshotsWithOrderStateWithOpenedFiles(
 		withScreenshotUploadConcurrency(context.Background(), 4),
+		shared.ContextWithTimeout,
 		client, "set", nil, files, "", false, false, nil,
 	)
 	if !errors.Is(err, uploadErr) {
@@ -128,7 +130,7 @@ func TestCleanupScreenshotAssetsUsesFreshBoundedContext(t *testing.T) {
 		w.WriteHeader(http.StatusNoContent)
 	}))
 
-	remaining, err := cleanupScreenshotAssets(ctx, client, []screenshotPendingAsset{{AssetID: "asset-1"}})
+	remaining, err := cleanupScreenshotAssets(ctx, shared.ContextWithTimeout, client, []screenshotPendingAsset{{AssetID: "asset-1"}})
 	if err != nil {
 		t.Fatalf("cleanupScreenshotAssets() error: %v", err)
 	}
@@ -158,7 +160,7 @@ func TestCleanupScreenshotAssetsUsesBoundedTimeout(t *testing.T) {
 	var elapsed time.Duration
 	synctest.Test(t, func(*testing.T) {
 		started := time.Now()
-		remaining, err = cleanupScreenshotAssets(context.Background(), client, []screenshotPendingAsset{{AssetID: "asset-1"}})
+		remaining, err = cleanupScreenshotAssets(context.Background(), shared.ContextWithTimeout, client, []screenshotPendingAsset{{AssetID: "asset-1"}})
 		elapsed = time.Since(started)
 	})
 	if err == nil {
@@ -232,7 +234,7 @@ func TestConcurrentScreenshotUploadReservesScreenshotsInFileOrder(t *testing.T) 
 
 	uploads := map[string]func(context.Context, *asc.Client) error{
 		"upload": func(ctx context.Context, client *asc.Client) error {
-			_, err := uploadScreenshotsWithOrderStateWithOpenedFiles(withScreenshotUploadConcurrency(ctx, 4), client, "set", nil, files, sourceRoot, false, false, nil)
+			_, err := uploadScreenshotsWithOrderStateWithOpenedFiles(withScreenshotUploadConcurrency(ctx, 4), shared.ContextWithTimeout, client, "set", nil, files, sourceRoot, false, false, nil)
 			return err
 		},
 		// migrate rebuilds each upload context from a parent without the reservation turn.

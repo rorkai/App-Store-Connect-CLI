@@ -39,7 +39,7 @@ Examples:
   asc game-center achievements images upload --localization-id "LOC_ID" --file "path/to/image.png"
   asc game-center achievements images delete --id "IMAGE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterAchievementsListCommand(d),
 			newGameCenterAchievementsGetCommand(d),
@@ -80,7 +80,7 @@ Examples:
   asc game-center achievements list --app "APP_ID" --limit 50
   asc game-center achievements list --app "APP_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "game-center achievements list", 200); err != nil {
 				return err
@@ -211,7 +211,7 @@ Examples:
   asc game-center achievements create --app "APP_ID" --reference-name "Ranked" --vendor-id "com.example.ranked" --points 10 --activity-properties '{"mode":"ranked"}'
   asc game-center achievements create --group-id "GROUP_ID" --reference-name "Group Win" --vendor-id "grp.com.example.groupwin" --points 10 --v2`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			group := strings.TrimSpace(*groupID)
 			if group != "" && strings.TrimSpace(*appID) != "" {
@@ -319,7 +319,7 @@ Examples:
   asc game-center achievements update --id "ACHIEVEMENT_ID" --activity-properties @file:properties.json
   asc game-center achievements update --id "ACHIEVEMENT_ID" --points 20 --v2`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*achievementID)
 			if id == "" {
@@ -429,7 +429,7 @@ Examples:
   asc game-center achievements delete --id "ACHIEVEMENT_ID" --confirm
   asc game-center achievements delete --id "ACHIEVEMENT_ID" --confirm --v2`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*achievementID)
 			if id == "" {
@@ -492,7 +492,7 @@ Examples:
   asc game-center achievements submit --vendor-id "com.example.achievement" --percentage 100 --bundle-id "com.example.app" --scoped-player-id "PLAYER_ID" --pre-released true
   asc game-center achievements submit --vendor-id "com.example.achievement" --percentage 100 --bundle-id "com.example.app" --scoped-player-id "PLAYER_ID" --submitted-date "2025-01-10T12:34:56Z"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			vendorValue := strings.TrimSpace(*vendorID)
 			if vendorValue == "" {
@@ -569,7 +569,7 @@ Examples:
   asc game-center achievements localizations image view --id "LOC_ID"
   asc game-center achievements localizations achievement view --id "LOC_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterAchievementLocalizationsListCommand(d),
 			newGameCenterAchievementLocalizationsGetCommand(d),
@@ -723,7 +723,7 @@ Examples:
   asc game-center achievements releases create --app "APP_ID" --achievement-id "ACHIEVEMENT_ID"
   asc game-center achievements releases delete --id "RELEASE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterAchievementReleasesListCommand(d),
 			newGameCenterAchievementReleasesCreateCommand(d),
@@ -777,7 +777,7 @@ func newGameCenterAchievementReleasesCreateCommand(d *shared.Deps) *ffcli.Comman
 Examples:
   asc game-center achievements releases create --app "APP_ID" --achievement-id "ACHIEVEMENT_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
@@ -853,7 +853,7 @@ Examples:
   asc game-center achievements images view --id "IMAGE_ID"
   asc game-center achievements images delete --id "IMAGE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterAchievementImagesUploadCommand(d),
 			newGameCenterAchievementImagesGetCommand(d),
@@ -884,7 +884,7 @@ The image file will be validated, reserved, uploaded in chunks, and committed.
 Examples:
   asc game-center achievements images upload --localization-id "LOC_ID" --file "path/to/image.png"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			locID := strings.TrimSpace(*localizationID)
 			if locID == "" {
@@ -972,7 +972,7 @@ func newGameCenterAchievementGroupAchievementCommand(d *shared.Deps) *ffcli.Comm
 Examples:
   asc game-center achievements group-achievement view --id "ACHIEVEMENT_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterAchievementGroupAchievementGetCommand(d),
 		},
@@ -1015,7 +1015,7 @@ func newGameCenterAchievementLocalizationImageCommand(d *shared.Deps) *ffcli.Com
 Examples:
   asc game-center achievements localizations image view --id "LOC_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterAchievementLocalizationImageGetCommand(d),
 		},
@@ -1058,7 +1058,7 @@ func newGameCenterAchievementLocalizationAchievementCommand(d *shared.Deps) *ffc
 Examples:
   asc game-center achievements localizations achievement view --id "LOC_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterAchievementLocalizationAchievementGetCommand(d),
 		},

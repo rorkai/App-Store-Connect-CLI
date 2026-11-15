@@ -33,7 +33,7 @@ func TestShotsReviewGenerate_JSON(t *testing.T) {
 		t.Fatalf("WriteFile(approved.json) error: %v", err)
 	}
 
-	root := RootCommand("1.2.3")
+	root, rootStdout, rootStderr := shotsRootWithDeps(t)
 	if err := root.Parse([]string{
 		"screenshots", "review-generate",
 		"--raw-dir", rawDir,
@@ -44,11 +44,10 @@ func TestShotsReviewGenerate_JSON(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	if err := root.Run(context.Background()); err != nil {
+		t.Fatalf("run error: %v", err)
+	}
+	stdout, stderr := rootStdout.String(), rootStderr.String()
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
@@ -98,7 +97,7 @@ func TestShotsReviewGenerate_MissingFramedDir(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
 
 	missingDir := filepath.Join(t.TempDir(), "missing-framed")
-	root := RootCommand("1.2.3")
+	root, _, rootStderr := shotsRootWithDeps(t)
 	if err := root.Parse([]string{
 		"screenshots", "review-generate",
 		"--framed-dir", missingDir,
@@ -107,15 +106,14 @@ func TestShotsReviewGenerate_MissingFramedDir(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	_, stderr := captureOutput(t, func() {
-		err := root.Run(context.Background())
-		if err == nil {
-			t.Fatal("expected error for missing framed directory")
-		}
-		if !strings.Contains(err.Error(), "read framed directory") {
-			t.Fatalf("unexpected error: %v", err)
-		}
-	})
+	err := root.Run(context.Background())
+	if err == nil {
+		t.Fatal("expected error for missing framed directory")
+	}
+	if !strings.Contains(err.Error(), "read framed directory") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	stderr := rootStderr.String()
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
@@ -137,7 +135,7 @@ func TestShotsReviewGeneratePreservesWhitespaceApprovalPath(t *testing.T) {
 		t.Fatalf("write whitespace approval file: %v", err)
 	}
 
-	root := RootCommand("1.2.3")
+	root, rootStdout, rootStderr := shotsRootWithDeps(t)
 	if err := root.Parse([]string{
 		"screenshots", "review-generate",
 		"--framed-dir", framedDir,
@@ -147,11 +145,10 @@ func TestShotsReviewGeneratePreservesWhitespaceApprovalPath(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	if err := root.Run(context.Background()); err != nil {
+		t.Fatalf("run error: %v", err)
+	}
+	stdout, stderr := rootStdout.String(), rootStderr.String()
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}

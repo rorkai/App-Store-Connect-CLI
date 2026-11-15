@@ -60,6 +60,7 @@ func releaseTestDeps() *shared.Deps {
 		UploadTimeout:  shared.ContextWithUploadTimeout,
 		ResolveTimeout: shared.ResolveTimeoutSetting,
 		After:          time.After,
+		Getwd:          os.Getwd,
 	}
 }
 
@@ -372,7 +373,7 @@ func TestExecuteStageResumesPartialCheckpointAfterRemovingRoutingCoverage(t *tes
 	if metadataRuns != 1 || readinessRuns != 1 {
 		t.Fatalf("executeStage() reruns metadata=%d readiness=%d, want 1 each", metadataRuns, readinessRuns)
 	}
-	saved, err := loadCheckpoint(checkpointPath)
+	saved, err := loadCheckpoint(releaseTestDeps(), checkpointPath)
 	if err != nil {
 		t.Fatalf("load checkpoint: %v", err)
 	}
@@ -546,7 +547,7 @@ func TestExecuteStageResumesCheckpointAfterAddingRoutingCoverage(t *testing.T) {
 		t.Fatalf("executeStage() routing step = %#v, want newly applied coverage", result.Steps[3])
 	}
 
-	saved, err := loadCheckpoint(checkpointPath)
+	saved, err := loadCheckpoint(releaseTestDeps(), checkpointPath)
 	if err != nil {
 		t.Fatalf("load checkpoint: %v", err)
 	}
