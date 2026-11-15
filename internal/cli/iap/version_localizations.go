@@ -129,7 +129,6 @@ func newIAPVersionLocalizationsCreateCommand(d *shared.Deps) *ffcli.Command {
 }
 
 func newIAPVersionLocalizationsViewCommand(d *shared.Deps) *ffcli.Command {
-
 	var includes, localizationFieldValues, versionFieldValues []string
 
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
@@ -238,7 +237,6 @@ func newIAPVersionLocalizationsUpdateCommand(d *shared.Deps) *ffcli.Command {
 }
 
 func newIAPVersionLocalizationsDeleteCommand(d *shared.Deps) *ffcli.Command {
-
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
 		FlagSetName:        "versions localizations delete",
 		Name:               "delete",

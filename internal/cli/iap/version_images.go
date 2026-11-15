@@ -126,7 +126,6 @@ func newIAPVersionImagesCreateCommand(d *shared.Deps) *ffcli.Command {
 }
 
 func newIAPVersionImagesViewCommand(d *shared.Deps) *ffcli.Command {
-
 	var fields []string
 
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
@@ -191,7 +190,6 @@ func newIAPVersionImagesUpdateCommand(d *shared.Deps) *ffcli.Command {
 }
 
 func newIAPVersionImagesDeleteCommand(d *shared.Deps) *ffcli.Command {
-
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
 		FlagSetName:        "versions images delete",
 		Name:               "delete",
