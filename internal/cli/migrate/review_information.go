@@ -51,8 +51,8 @@ func (info *ReviewInformation) redactedCopy() *ReviewInformation {
 	return &safe
 }
 
-func readFastlaneReviewInformation(metadataDir string) (*ReviewInformation, error) {
-	root, prefix, err := newMigrateContentRoot(metadataDir)
+func readFastlaneReviewInformation(d *shared.Deps, metadataDir string) (*ReviewInformation, error) {
+	root, prefix, err := newMigrateContentRoot(d, metadataDir)
 	if err != nil {
 		return nil, err
 	}

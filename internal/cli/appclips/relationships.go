@@ -32,7 +32,7 @@ Examples:
   asc app-clips default-experiences-links --app-clip-id "CLIP_ID"
   asc app-clips default-experiences-links --app-clip-id "CLIP_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "app-clips default-experiences-links", 200); err != nil {
 				return err
@@ -103,7 +103,7 @@ Examples:
   asc app-clips advanced-experiences-links --app-clip-id "CLIP_ID"
   asc app-clips advanced-experiences-links --app-clip-id "CLIP_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "app-clips advanced-experiences-links", 200); err != nil {
 				return err

@@ -63,7 +63,11 @@ func TestNotifySlackValidationErrors(t *testing.T) {
 			t.Setenv("ASC_SLACK_WEBHOOK", test.webhook)
 			t.Setenv("ASC_SLACK_WEBHOOK_ALLOW_LOCALHOST", "")
 
-			stderr := assertExitStderr(t, test.args, rootcmd.ExitUsage, test.wantErr)
+			stdout, stderr, code := runWithDeps(t, nil, test.args...)
+			if code != rootcmd.ExitUsage {
+				t.Fatalf("expected exit code %d, got %d", rootcmd.ExitUsage, code)
+			}
+			assertUsageExitOutput(t, stdout, stderr, test.wantErr)
 			if test.wantExact && stderr != test.wantErr+"\n" {
 				t.Fatalf("stderr = %q, want only %q", stderr, test.wantErr+"\n")
 			}
@@ -146,10 +150,7 @@ func TestNotifySlackSendsPayload(t *testing.T) {
 				t.Setenv("ASC_SLACK_WEBHOOK", server.URL)
 			}
 
-			var exitCode int
-			stdout, stderr := captureOutput(t, func() {
-				exitCode = rootcmd.Run(args, "1.2.3")
-			})
+			stdout, stderr, exitCode := runWithDeps(t, nil, args...)
 
 			if exitCode != rootcmd.ExitSuccess {
 				t.Fatalf("expected exit code %d, got %d with stderr %q", rootcmd.ExitSuccess, exitCode, stderr)
@@ -205,10 +206,7 @@ func TestNotifySlackRejectsNullBlocksBeforeRequest(t *testing.T) {
 			args := []string{"notify", "slack", "--webhook", server.URL, "--message", "Hello"}
 			args = append(args, test.blocksArgs...)
 
-			var exitCode int
-			stdout, stderr := captureOutput(t, func() {
-				exitCode = rootcmd.Run(args, "1.2.3")
-			})
+			stdout, stderr, exitCode := runWithDeps(t, nil, args...)
 
 			if exitCode != rootcmd.ExitUsage {
 				t.Fatalf("expected exit code %d, got %d", rootcmd.ExitUsage, exitCode)

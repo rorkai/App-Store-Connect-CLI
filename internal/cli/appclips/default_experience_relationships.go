@@ -24,7 +24,7 @@ Examples:
   asc app-clips default-experiences links app-store-review-detail --experience-id "EXP_ID"
   asc app-clips default-experiences links release-with-app-store-version --experience-id "EXP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newAppClipDefaultExperienceReviewDetailRelationshipCommand(d),
 			newAppClipDefaultExperienceReleaseWithAppStoreVersionRelationshipCommand(d),
@@ -51,7 +51,7 @@ func newAppClipDefaultExperienceReviewDetailRelationshipCommand(d *shared.Deps) 
 Examples:
   asc app-clips default-experiences links app-store-review-detail --experience-id "EXP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			experienceValue := strings.TrimSpace(*experienceID)
 			if experienceValue == "" {
@@ -92,7 +92,7 @@ func newAppClipDefaultExperienceReleaseWithAppStoreVersionRelationshipCommand(d 
 Examples:
   asc app-clips default-experiences links release-with-app-store-version --experience-id "EXP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			experienceValue := strings.TrimSpace(*experienceID)
 			if experienceValue == "" {

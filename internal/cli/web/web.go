@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -12,9 +11,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// WebCommand returns the web command group.
-func WebCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web", flag.ExitOnError)
+// NewWebCommand returns the web command group built on d.
+func NewWebCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "web",
@@ -43,7 +42,7 @@ Examples:
   asc web subscriptions availability remove-from-sale --subscription-id "SUB_ID" --confirm
   asc web analytics overview --app "123456789" --start 2025-12-24 --end 2026-03-23`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			WebAuthCommand(),
 			WebAgreementsCommand(),
@@ -51,7 +50,7 @@ Examples:
 			WebFinanceCommand(),
 			WebIAPCommand(),
 			WebAPIKeysCommand(),
-			WebSandboxCommand(),
+			newWebSandboxCommand(d),
 			WebAppsCommand(),
 			WebRemovedAppsCommand(),
 			WebAppBundlesCommand(),
@@ -72,7 +71,7 @@ Examples:
 			if len(args) == 0 {
 				return flag.ErrHelp
 			}
-			fmt.Fprintf(os.Stderr, "Unknown subcommand: %s\n\n", strings.TrimSpace(args[0]))
+			fmt.Fprintf(d.IO.ErrOut, "Unknown subcommand: %s\n\n", strings.TrimSpace(args[0]))
 			return flag.ErrHelp
 		},
 	}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -47,11 +46,11 @@ func normalizeSigningExportMethod(value string) (string, error) {
 	}
 }
 
-// XcodeSigningCommand returns the local Xcode signing-settings
+// newXcodeSigningCommand returns the local Xcode signing-settings
 // plan/apply command group. It edits only project build settings; credentials,
 // profiles, and certificates remain owned by the asc signing commands.
-func XcodeSigningCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("signing", flag.ExitOnError)
+func newXcodeSigningCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("signing", flag.ExitOnError)
 	return &ffcli.Command{
 		Name:       "signing",
 		ShortUsage: "asc xcode signing <subcommand> [flags]",
@@ -70,10 +69,10 @@ Examples:
   asc xcode signing apply --plan .asc/xcode/signing/plan.json --confirm
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			xcodeSigningPlanCommand(),
-			xcodeSigningApplyCommand(),
+			xcodeSigningPlanCommand(d),
+			xcodeSigningApplyCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -81,8 +80,8 @@ Examples:
 	}
 }
 
-func xcodeSigningPlanCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("plan", flag.ExitOnError)
+func xcodeSigningPlanCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("plan", flag.ExitOnError)
 	project := fs.String("project", "", "Path to the .xcodeproj to plan (required)")
 	settingsFile := fs.String("settings-file", "", "Strict JSON signing settings manifest; required unless --profile is set")
 	var profiles stringListFlag
@@ -95,7 +94,7 @@ func xcodeSigningPlanCommand() *ffcli.Command {
 	stateDir := fs.String("state-dir", ".asc/xcode/signing", "Directory for plan and receipt artifacts")
 	allowExternalXCConfig := fs.Bool("allow-external-xcconfig", false, "Allow updating xcconfig files outside the project directory")
 	overwrite := fs.Bool("overwrite", false, "Replace an existing plan artifact and --export-options-out file")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "plan",
@@ -122,13 +121,13 @@ Examples:
   asc xcode signing plan --project ./App.xcodeproj --profile ./signing/App.mobileprovision --configuration Release
   asc xcode signing plan --project ./App.xcodeproj --settings-file .asc/xcode-signing.json --overwrite --output markdown`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*project) == "" {
-				return shared.RequiredFlag("--project")
+				return d.RequiredFlag("--project")
 			}
 			if strings.TrimSpace(*settingsFile) == "" && len(profiles) == 0 {
-				fmt.Fprintln(os.Stderr, "Error: --settings-file or --profile is required")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --settings-file or --profile is required")
 				return shared.MissingRequiredUsageError("--settings-file")
 			}
 			if len(profiles) == 0 {
@@ -144,24 +143,24 @@ Examples:
 					{"--skip-target", strings.Join(skipTargets, ",")},
 				} {
 					if strings.TrimSpace(item.value) != "" {
-						return shared.UsageErrorf("%s requires --profile", item.name)
+						return d.UsageErrorf("%s requires --profile", item.name)
 					}
 				}
 			}
 			method, err := normalizeSigningExportMethod(*exportMethod)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			// An explicitly empty value must not fall back to the flag default;
 			// silently relocating the plan and receipt would hide where the
 			// artifacts were written.
 			if strings.TrimSpace(*stateDir) == "" {
-				return shared.UsageErrorf("--state-dir must not be empty")
+				return d.UsageErrorf("--state-dir must not be empty")
 			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
-			exportOptionsPath := strings.TrimSpace(*exportOptionsOut)
+			exportOptionsPath := osPath(d, strings.TrimSpace(*exportOptionsOut))
 			if exportOptionsPath != "" {
 				// Reject an unwritable or existing destination before the plan
 				// artifact is published, so a failure leaves nothing behind.
@@ -170,18 +169,18 @@ Examples:
 				}
 			}
 			plan, err := runBuildSigningPlan(localxcode.SigningPlanOptions{
-				ProjectPath:           strings.TrimSpace(*project),
-				SettingsFilePath:      strings.TrimSpace(*settingsFile),
-				ProfilePaths:          []string(profiles),
+				ProjectPath:           osPath(d, strings.TrimSpace(*project)),
+				SettingsFilePath:      osPath(d, strings.TrimSpace(*settingsFile)),
+				ProfilePaths:          osPaths(d, profiles),
 				Configuration:         strings.TrimSpace(*configuration),
 				ExportMethod:          method,
 				SkipTargets:           []string(skipTargets),
-				StateDir:              strings.TrimSpace(*stateDir),
+				StateDir:              osPath(d, strings.TrimSpace(*stateDir)),
 				AllowExternalXCConfig: *allowExternalXCConfig,
 			})
 			if err != nil {
 				if localxcode.IsSigningInputError(err) {
-					return xcodeSigningInputUsageError("xcode signing plan", err)
+					return xcodeSigningInputUsageError(d, "xcode signing plan", err)
 				}
 				return fmt.Errorf("xcode signing plan: %w", err)
 			}
@@ -197,27 +196,27 @@ Examples:
 				if !plan.Ready {
 					// A blocked plan's export options may omit targets; do not
 					// leave a plist that looks usable next to a plan that is not.
-					fmt.Fprintf(os.Stderr, "Warning: export options were not written to %s because the plan is blocked\n", exportOptionsPath)
+					fmt.Fprintf(d.IO.ErrOut, "Warning: export options were not written to %s because the plan is blocked\n", exportOptionsPath)
 				} else if plan.ExportOptions == nil {
-					fmt.Fprintf(os.Stderr, "Warning: export options were not written to %s because no target is manually signed with a provisioning profile\n", exportOptionsPath)
+					fmt.Fprintf(d.IO.ErrOut, "Warning: export options were not written to %s because no target is manually signed with a provisioning profile\n", exportOptionsPath)
 				} else if err := localxcode.WriteSigningExportOptions(exportOptionsPath, plan.ExportOptions, *overwrite); err != nil {
 					return fmt.Errorf("xcode signing plan: %w", err)
 				}
 			}
 			for _, warning := range plan.Warnings {
-				fmt.Fprintf(os.Stderr, "Warning: %s\n", shared.SanitizeTerminal(warning))
+				fmt.Fprintf(d.IO.ErrOut, "Warning: %s\n", shared.SanitizeTerminal(warning))
 			}
-			return shared.PrintOutput(newXcodeSigningPlanOutput(plan), *output.Output, *output.Pretty)
+			return d.PrintOutput(newXcodeSigningPlanOutput(plan), *output.Output, *output.Pretty)
 		},
 	}
 }
 
-func xcodeSigningApplyCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("apply", flag.ExitOnError)
+func xcodeSigningApplyCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("apply", flag.ExitOnError)
 	planPath := fs.String("plan", "", "Path to a previously generated signing plan (required)")
 	allowExternalXCConfig := fs.Bool("allow-external-xcconfig", false, "Authorize the external xcconfig setting recorded in the plan")
 	confirm := fs.Bool("confirm", false, "Confirm local project mutation (required)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "apply",
@@ -236,35 +235,35 @@ Examples:
   asc xcode signing apply --plan .asc/xcode/signing/plan.json --confirm
   asc xcode signing apply --plan .asc/xcode/signing/plan.json --confirm --output json`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*planPath) == "" {
-				return shared.RequiredFlag("--plan")
+				return d.RequiredFlag("--plan")
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			result, err := runApplySigningPlan(localxcode.SigningApplyOptions{
-				PlanPath:              strings.TrimSpace(*planPath),
+				PlanPath:              osPath(d, strings.TrimSpace(*planPath)),
 				AllowExternalXCConfig: *allowExternalXCConfig,
 			})
 			if err != nil {
 				if localxcode.IsSigningInputError(err) {
-					return xcodeSigningInputUsageError("xcode signing apply", err)
+					return xcodeSigningInputUsageError(d, "xcode signing apply", err)
 				}
 				return fmt.Errorf("xcode signing apply: %w", err)
 			}
-			return shared.PrintOutput(newXcodeSigningApplyOutput(result), *output.Output, *output.Pretty)
+			return d.PrintOutput(newXcodeSigningApplyOutput(result), *output.Output, *output.Pretty)
 		},
 	}
 }
 
-func xcodeSigningInputUsageError(command string, err error) error {
+func xcodeSigningInputUsageError(d *shared.Deps, command string, err error) error {
 	message := fmt.Sprintf("%s: %v", command, err)
-	fmt.Fprintln(os.Stderr, "Error: "+message)
+	fmt.Fprintln(d.IO.ErrOut, "Error: "+message)
 	return shared.WithDiagnostic(
 		shared.NewReportedUsageError(shared.UsageErrorInvalidValue, message),
 		shared.DiagnosticInvalidInput,

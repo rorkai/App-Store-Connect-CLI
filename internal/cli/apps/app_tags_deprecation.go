@@ -3,9 +3,10 @@ package apps
 import (
 	"fmt"
 	"net/url"
-	"os"
 	"slices"
 	"strings"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func appTagTerritoriesRequested(fields, includes []string, nextURL string) bool {
@@ -35,6 +36,6 @@ func appTagTerritoriesRequested(fields, includes []string, nextURL string) bool 
 	return false
 }
 
-func warnAppTagTerritoryDeprecation() {
-	fmt.Fprintln(os.Stderr, "Warning: App-tag territories are deprecated in API 4.5; remove territory selections and lookups. Requests are still forwarded for compatibility.")
+func warnAppTagTerritoryDeprecation(d *shared.Deps) {
+	fmt.Fprintln(d.IO.ErrOut, "Warning: App-tag territories are deprecated in API 4.5; remove territory selections and lookups. Requests are still forwarded for compatibility.")
 }

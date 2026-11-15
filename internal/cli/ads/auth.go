@@ -35,7 +35,7 @@ Examples:
   asc ads auth discover --output json
   asc ads auth token --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newAuthLoginCommand(d),
 			newAuthStatusCommand(d),
@@ -75,7 +75,7 @@ Examples:
   asc ads auth login --name "Ads" --client-id "SEARCHADS..." --team-id "SEARCHADS..." --key-id "KEY_ID" --private-key ./private-key.pem --org "123456" --ad-account "987654"
   asc ads auth login --bypass-keychain --local --name "Ads" --client-id "SEARCHADS..." --team-id "SEARCHADS..." --key-id "KEY_ID" --private-key ./private-key.pem`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*name) == "" {
 				return d.RequiredFlag("--name")
@@ -167,7 +167,7 @@ Examples:
   asc ads auth status --verbose
   asc ads auth status --validate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			normalized, err := shared.ValidateOutputFormatAllowed(*output.Output, *output.Pretty, "table", "json")
 			if err != nil {
@@ -429,7 +429,7 @@ Examples:
   asc ads auth discover --output json
   asc ads auth discover --ads-profile "Ads"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			normalized, err := shared.ValidateOutputFormatAllowed(*output.Output, *output.Pretty, "table", "json")
 			if err != nil {
@@ -732,7 +732,7 @@ func newAuthSwitchCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc ads auth switch --name "Ads"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*name) == "" {
 				return d.RequiredFlag("--name")
@@ -761,7 +761,7 @@ Examples:
   asc ads auth token --confirm
   asc ads auth token --confirm --output json`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
@@ -808,7 +808,7 @@ Examples:
   asc ads auth doctor
   asc ads auth doctor --output json`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			normalized, err := shared.ValidateOutputFormatAllowed(*output.Output, *output.Pretty, "text", "json")
 			if err != nil {
@@ -863,7 +863,7 @@ Examples:
   asc ads auth logout --all --confirm
   asc ads auth logout --name "Ads"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedName := strings.TrimSpace(*name)
 			if trimmedName == "" && *name != "" {

@@ -788,6 +788,7 @@ func TestAccountAndDistributionInputValidationReturnsUsageExitCode(t *testing.T)
 		{
 			name:    "xcode export-options generate invalid archive path",
 			args:    []string{"xcode", "export-options", "generate", "--archive-path", "App.zip"},
+			deps:    true,
 			wantErr: "xcode export-options generate: --archive-path must end with .xcarchive",
 		},
 		{

@@ -31,7 +31,7 @@ Examples:
   asc testflight review submissions list --build-id "BUILD_ID"
   asc testflight review submissions view --id "SUBMISSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newTestFlightReviewGetCommand(d),
 			newTestFlightReviewAppCommand(d),
@@ -64,7 +64,7 @@ func newTestFlightReviewGetCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc testflight review view --app "APP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "testflight review view", 200); err != nil {
 				return err
@@ -129,7 +129,7 @@ Examples:
   asc testflight review update --id "DETAIL_ID" --contact-email "dev@example.com"
   asc testflight review update --id "DETAIL_ID" --notes "Updated review notes"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			detailID := strings.TrimSpace(*id)
 			if detailID == "" {
@@ -226,7 +226,7 @@ func newTestFlightReviewSubmitCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc testflight review submit --build-id "BUILD_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*buildID) == "" {
 				return d.RequiredFlag("--build-id")
@@ -266,7 +266,7 @@ func newTestFlightReviewAppCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc testflight review app view --id "DETAIL_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newTestFlightReviewAppGetCommand(d),
 		},
@@ -312,7 +312,7 @@ Examples:
   asc testflight review submissions build --id "SUBMISSION_ID"
   asc testflight review submissions list --build-id "BUILD_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newTestFlightReviewSubmissionsListCommand(d),
 			newTestFlightReviewSubmissionsGetCommand(d),
@@ -344,7 +344,7 @@ Examples:
   asc testflight review submissions list --build-id "BUILD_ID"
   asc testflight review submissions list --build-id "BUILD_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "testflight review submissions list", 200); err != nil {
 				return err
@@ -434,7 +434,7 @@ func newTestFlightReviewSubmissionsBuildCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc testflight review submissions build --id "SUBMISSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -473,7 +473,7 @@ Examples:
   asc testflight beta-details view --build-id "BUILD_ID"
   asc testflight beta-details update --id "DETAIL_ID" --auto-notify`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newTestFlightBetaDetailsGetCommand(d),
 			newTestFlightBetaDetailsBuildCommand(d),
@@ -506,7 +506,7 @@ To find the build ID, list the app's builds and use the returned id field:
 Examples:
   asc testflight beta-details view --build-id "BUILD_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "testflight beta-details view", 200); err != nil {
 				return err
@@ -554,7 +554,7 @@ func newTestFlightBetaDetailsBuildCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc testflight beta-details build view --id "DETAIL_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newTestFlightBetaDetailsBuildGetCommand(d),
 		},
@@ -606,7 +606,7 @@ External distribution is managed through group assignment:
   asc builds add-groups --build-id "BUILD_ID" --group "GROUP_ID" --submit --confirm
   asc builds remove-groups --build-id "BUILD_ID" --group "GROUP_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			visited := map[string]bool{}
 			fs.Visit(func(f *flag.Flag) {
@@ -660,7 +660,7 @@ Examples:
   asc testflight recruitment options
   asc testflight recruitment set --group "GROUP_ID" --os-version-filter "IPHONE=26,IPAD=26"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newTestFlightRecruitmentOptionsCommand(d),
 			newTestFlightRecruitmentSetCommand(d),
@@ -714,7 +714,7 @@ func newTestFlightRecruitmentOptionsCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc testflight recruitment options`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "testflight recruitment options", 200, "fields"); err != nil {
 				return err
@@ -766,7 +766,7 @@ func newTestFlightRecruitmentSetCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc testflight recruitment set --group "GROUP_ID" --os-version-filter "IPHONE=26,IPAD=26"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedGroupID := strings.TrimSpace(*groupID)
 			if trimmedGroupID == "" {
@@ -940,7 +940,7 @@ Examples:
   asc testflight metrics testers --group "GROUP_ID"
   asc testflight metrics beta-tester-usages --app "APP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newTestFlightMetricsPublicLinkCommand(d),
 			newTestFlightMetricsTestersCommand(d),
@@ -968,7 +968,7 @@ func newTestFlightMetricsPublicLinkCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc testflight metrics public-link --group "GROUP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedGroupID := strings.TrimSpace(*groupID)
 			if trimmedGroupID == "" {
@@ -1009,7 +1009,7 @@ func newTestFlightMetricsTestersCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc testflight metrics testers --group "GROUP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedGroupID := strings.TrimSpace(*groupID)
 			if trimmedGroupID == "" {

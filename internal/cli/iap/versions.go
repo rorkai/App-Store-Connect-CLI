@@ -86,7 +86,7 @@ Examples:
   asc iap versions create --iap-id "IAP_ID"
   asc iap versions view --version-id "VERSION_ID"
   asc iap versions submit --version-id "VERSION_ID" --submission "SUBMISSION_ID" --confirm`,
-		FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
+		FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newIAPVersionsCreateCommand(d), newIAPVersionsListCommand(d), newIAPVersionsViewCommand(d),
 			newIAPVersionImageCommand(d), newIAPVersionImagesCommand(d), newIAPVersionLocalizationsCommand(d),
@@ -190,7 +190,7 @@ returned id field:
 
 Examples:
   asc iap versions list --iap-id "IAP_ID"
-  asc iap versions list --iap-id "IAP_ID" --state PREPARE_FOR_SUBMISSION --paginate`, FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
+  asc iap versions list --iap-id "IAP_ID" --state PREPARE_FOR_SUBMISSION --paginate`, FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "iap versions list", 200, "state", "include", "limit", "images-limit", "localizations-limit", "version-fields", "iap-fields", "image-fields", "localization-fields"); err != nil {
 				return err
@@ -289,7 +289,7 @@ func newIAPVersionImageCommand(d *shared.Deps) *ffcli.Command {
 	imageFields := fs.String("image-fields", "", "fields[inAppPurchaseImages] (comma-separated)")
 	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
-		Name: "image", ShortUsage: `asc iap versions image --version-id "VERSION_ID"`, ShortHelp: "View the primary image for an IAP version.", LongHelp: "View the primary image for an IAP version.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
+		Name: "image", ShortUsage: `asc iap versions image --version-id "VERSION_ID"`, ShortHelp: "View the primary image for an IAP version.", LongHelp: "View the primary image for an IAP version.", FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*versionID)
 			if id == "" {
@@ -322,7 +322,7 @@ func newIAPVersionSubmitCommand(d *shared.Deps) *ffcli.Command {
 	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "submit", ShortUsage: `asc iap versions submit --version-id "VERSION_ID" --submission "SUBMISSION_ID" --confirm`, ShortHelp: "Add an IAP version to a review submission.",
-		LongHelp: "Add an IAP version to a review submission. This version-scoped workflow replaces the deprecated product-scoped submission resource.\n\nExamples:\n  asc iap versions submit --version-id \"VERSION_ID\" --submission \"SUBMISSION_ID\" --confirm", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
+		LongHelp: "Add an IAP version to a review submission. This version-scoped workflow replaces the deprecated product-scoped submission resource.\n\nExamples:\n  asc iap versions submit --version-id \"VERSION_ID\" --submission \"SUBMISSION_ID\" --confirm", FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			vid := strings.TrimSpace(*versionID)
 			if vid == "" {
@@ -353,7 +353,7 @@ func newIAPVersionSubmitCommand(d *shared.Deps) *ffcli.Command {
 func newIAPVersionLinksCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("versions links", flag.ExitOnError)
 	return &ffcli.Command{
-		Name: "links", ShortUsage: "asc iap versions links <subcommand> [flags]", ShortHelp: "View raw IAP version relationship linkages.", LongHelp: "View raw IAP version relationship linkages.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
+		Name: "links", ShortUsage: "asc iap versions links <subcommand> [flags]", ShortHelp: "View raw IAP version relationship linkages.", LongHelp: "View raw IAP version relationship linkages.", FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{iapVersionLinkagesCommand(d, "versions", true), iapVersionImageLinkageCommand(d), iapVersionLinkagesCommand(d, "images", false), iapVersionLinkagesCommand(d, "localizations", false)}, Exec: func(context.Context, []string) error { return flag.ErrHelp },
 	}
 }
@@ -363,7 +363,7 @@ func iapVersionImageLinkageCommand(d *shared.Deps) *ffcli.Command {
 	versionID := shared.BindResourceIDFlag(fs, "version-id", "inAppPurchaseVersions", "In-app purchase version ID")
 	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
-		Name: "image", ShortUsage: `asc iap versions links image --version-id "VERSION_ID"`, ShortHelp: "View the primary image linkage.", LongHelp: "View the primary image linkage.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
+		Name: "image", ShortUsage: `asc iap versions links image --version-id "VERSION_ID"`, ShortHelp: "View the primary image linkage.", LongHelp: "View the primary image linkage.", FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*versionID)
 			if id == "" {
@@ -400,7 +400,7 @@ func iapVersionLinkagesCommand(d *shared.Deps, name string, parentIAP bool) *ffc
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
-		Name: name, ShortUsage: fmt.Sprintf("asc iap versions links %s --%s \"ID\"", name, idFlag), ShortHelp: "View relationship linkages.", LongHelp: "View relationship linkages.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
+		Name: name, ShortUsage: fmt.Sprintf("asc iap versions links %s --%s \"ID\"", name, idFlag), ShortHelp: "View relationship linkages.", LongHelp: "View relationship linkages.", FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "iap versions links "+name, 200, "limit"); err != nil {
 				return err

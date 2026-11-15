@@ -135,6 +135,7 @@ func TestWebCommandsUsageErrors(t *testing.T) {
 			name:    "SandboxCreateMissingRequiredFlags",
 			args:    []string{"web", "sandbox", "create"},
 			wantErr: "Error: --first-name is required",
+			deps:    true,
 		},
 		{
 			name:    "XcodeCloudWorkflowsCreateMissingRequiredFlags",

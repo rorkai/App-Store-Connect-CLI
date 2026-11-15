@@ -16,7 +16,7 @@ import (
 func newIAPVersionImagesCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("versions images", flag.ExitOnError)
 	return &ffcli.Command{
-		Name: "images", ShortUsage: "asc iap versions images <subcommand> [flags]", ShortHelp: "Manage version-scoped IAP review images.", LongHelp: "Manage version-scoped IAP review images.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
+		Name: "images", ShortUsage: "asc iap versions images <subcommand> [flags]", ShortHelp: "Manage version-scoped IAP review images.", LongHelp: "Manage version-scoped IAP review images.", FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{newIAPVersionImagesListCommand(d), newIAPVersionImagesCreateCommand(d), newIAPVersionImagesViewCommand(d), newIAPVersionImagesUpdateCommand(d), newIAPVersionImagesDeleteCommand(d)}, Exec: func(context.Context, []string) error { return flag.ErrHelp },
 	}
 }
@@ -30,7 +30,7 @@ func newIAPVersionImagesListCommand(d *shared.Deps) *ffcli.Command {
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
-		Name: "list", ShortUsage: `asc iap versions images list --version-id "VERSION_ID" [flags]`, ShortHelp: "List images for an IAP version.", LongHelp: "List images for an IAP version.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
+		Name: "list", ShortUsage: `asc iap versions images list --version-id "VERSION_ID" [flags]`, ShortHelp: "List images for an IAP version.", LongHelp: "List images for an IAP version.", FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "iap versions images list", 200, "limit", "image-fields"); err != nil {
 				return err
@@ -77,7 +77,7 @@ func newIAPVersionImagesCreateCommand(d *shared.Deps) *ffcli.Command {
 	filePath := fs.String("file", "", "Path to image file")
 	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
-		Name: "create", ShortUsage: `asc iap versions images create --version-id "VERSION_ID" --file "./image.png"`, ShortHelp: "Upload an image for an IAP version.", LongHelp: "Reserve, upload, commit, and fetch an image for an IAP version.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
+		Name: "create", ShortUsage: `asc iap versions images create --version-id "VERSION_ID" --file "./image.png"`, ShortHelp: "Upload an image for an IAP version.", LongHelp: "Reserve, upload, commit, and fetch an image for an IAP version.", FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			vid := strings.TrimSpace(*versionID)
 			if vid == "" {
@@ -161,7 +161,7 @@ func newIAPVersionImagesUpdateCommand(d *shared.Deps) *ffcli.Command {
 	uploaded := fs.String("uploaded", "", "Set upload completion state: true or false")
 	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
-		Name: "update", ShortUsage: `asc iap versions images update --image-id "IMAGE_ID" --uploaded true`, ShortHelp: "Update a version-scoped IAP image.", LongHelp: "Update the upload completion state for a version-scoped IAP image.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
+		Name: "update", ShortUsage: `asc iap versions images update --image-id "IMAGE_ID" --uploaded true`, ShortHelp: "Update a version-scoped IAP image.", LongHelp: "Update the upload completion state for a version-scoped IAP image.", FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			value := strings.TrimSpace(*id)
 			if value == "" {
