@@ -46,7 +46,7 @@ func NewShotsReviewGenerateCommand(d *shared.Deps) *ffcli.Command {
 				RawDir:       userPath(d, *rawDir),
 				FramedDir:    userPath(d, framed),
 				OutputDir:    userPath(d, *outputDir),
-				ApprovalPath: userPath(d, *approvalPath),
+				ApprovalPath: *approvalPath,
 			})
 			if err != nil {
 				return fmt.Errorf("screenshots review-generate: %w", err)

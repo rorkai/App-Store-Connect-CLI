@@ -64,8 +64,12 @@ including any that were set before the run.`,
 				plan.App.UDID = override
 			}
 			if override := *outputDir; strings.TrimSpace(override) != "" {
-				plan.App.OutputDir = userPath(d, override)
+				plan.App.OutputDir = override
 			}
+			if strings.TrimSpace(plan.App.OutputDir) == "" {
+				plan.App.OutputDir = screenshots.DefaultPlanOutputDir
+			}
+			plan.App.OutputDir = d.OSPath(plan.App.OutputDir)
 
 			result, err := screenshots.RunPlan(ctx, plan)
 			if err != nil {

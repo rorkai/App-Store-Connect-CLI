@@ -33,7 +33,7 @@ func NewShotsReviewOpenCommand(d *shared.Deps) *ffcli.Command {
 
 			result, err := screenshots.OpenReview(ctx, screenshots.ReviewOpenRequest{
 				OutputDir: userPath(d, *outputDir),
-				HTMLPath:  userPath(d, *htmlPath),
+				HTMLPath:  *htmlPath,
 				DryRun:    *dryRun,
 			})
 			if err != nil {
