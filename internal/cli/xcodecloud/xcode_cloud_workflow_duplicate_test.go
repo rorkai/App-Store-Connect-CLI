@@ -1,9 +1,12 @@
 package xcodecloud
 
 import (
+	"bytes"
 	"encoding/json"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 const duplicateSourceEnvelope = `{
@@ -198,7 +201,7 @@ func TestBuildCiWorkflowDuplicatePayloadRejectsIncompleteSource(t *testing.T) {
 }
 
 func TestXcodeCloudWorkflowsDuplicateHelpDisclosesPrivateAPIGaps(t *testing.T) {
-	cmd := XcodeCloudWorkflowsDuplicateCommand()
+	cmd := newXcodeCloudWorkflowsDuplicateCommand(&shared.Deps{IO: &shared.IO{Out: &bytes.Buffer{}, ErrOut: &bytes.Buffer{}}})
 
 	help := cmd.LongHelp
 	for _, want := range []string{

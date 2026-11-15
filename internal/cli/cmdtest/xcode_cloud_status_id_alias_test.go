@@ -1,9 +1,7 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
-	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -18,20 +16,13 @@ func TestXcodeCloudStatusRunIDReturnsJSONWithoutWarning(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/ciBuildRuns/run-1"),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"ciBuildRuns","id":"run-1","attributes":{"number":42,"executionProgress":"COMPLETE","completionStatus":"SUCCEEDED"}}}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"xcode-cloud", "status", "--run-id", "run-1", "--output", "json"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "xcode-cloud", "status", "--run-id", "run-1", "--output", "json")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	var result struct {
 		BuildRunID string `json:"buildRunId"`
@@ -51,7 +42,7 @@ func TestXcodeCloudStatusRunIDReturnsJSONWithoutWarning(t *testing.T) {
 }
 
 func TestXcodeCloudStatusRejectsRemovedIDAliasAsUnknownFlagBeforeNetwork(t *testing.T) {
-	asctest.NewRegistry(t).Install()
+	reg := asctest.NewRegistry(t)
 
 	root := RootCommand("1.2.3")
 	if root.FlagSet.Lookup("id") != nil {
@@ -69,10 +60,7 @@ func TestXcodeCloudStatusRejectsRemovedIDAliasAsUnknownFlagBeforeNetwork(t *test
 		t.Fatal("expected --run-id on xcode-cloud status")
 	}
 
-	var code int
-	stdout, stderr := captureOutput(t, func() {
-		code = rootcmd.Run([]string{"xcode-cloud", "status", "--id", "run-1"}, "1.2.3")
-	})
+	stdout, stderr, code := runWithDeps(t, stubClient(t, reg), "xcode-cloud", "status", "--id", "run-1")
 	if code != rootcmd.ExitUsage {
 		t.Fatalf("exit code = %d, want %d; stderr=%q", code, rootcmd.ExitUsage, stderr)
 	}
@@ -100,10 +88,7 @@ func TestXcodeCloudScmRepositoriesRelationshipsIsUnknownCommand(t *testing.T) {
 		{name: "pull-requests", args: []string{"xcode-cloud", "scm", "repositories", "relationships", "pull-requests", "--repo-id", "REPO_ID"}},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			var code int
-			stdout, stderr := captureOutput(t, func() {
-				code = rootcmd.Run(tt.args, "1.2.3")
-			})
+			stdout, stderr, code := runWithDeps(t, nil, tt.args...)
 			if code != rootcmd.ExitUsage {
 				t.Fatalf("exit code = %d, want %d; stderr=%q", code, rootcmd.ExitUsage, stderr)
 			}

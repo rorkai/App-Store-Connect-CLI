@@ -1,6 +1,7 @@
 package xcodecloud
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"os"
@@ -85,13 +86,15 @@ func TestArtifactsDownloadExistingDestinationFailsBeforeClientCreation(t *testin
 	}
 
 	clientCalls := 0
-	restore := shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
-		clientCalls++
-		return nil, errors.New("client factory should not be called")
-	})
-	t.Cleanup(restore)
+	d := &shared.Deps{
+		Client: func() (*asc.Client, error) {
+			clientCalls++
+			return nil, errors.New("client factory should not be called")
+		},
+		IO: &shared.IO{Out: &bytes.Buffer{}, ErrOut: &bytes.Buffer{}},
+	}
 
-	err := XcodeCloudArtifactsDownloadCommand().ParseAndRun(context.Background(), []string{
+	err := newXcodeCloudArtifactsDownloadCommand(d).ParseAndRun(context.Background(), []string{
 		"--id", "artifact-1",
 		"--path", target,
 	})
@@ -115,13 +118,15 @@ func TestArtifactsDownloadTrailingSeparatorFailsBeforeClientOrFilesystemSideEffe
 			createdPath := filepath.Join(parent, "result")
 			target := createdPath + separator
 			clientCalls := 0
-			restore := shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
-				clientCalls++
-				return nil, errors.New("client factory should not be called")
-			})
-			t.Cleanup(restore)
+			d := &shared.Deps{
+				Client: func() (*asc.Client, error) {
+					clientCalls++
+					return nil, errors.New("client factory should not be called")
+				},
+				IO: &shared.IO{Out: &bytes.Buffer{}, ErrOut: &bytes.Buffer{}},
+			}
 
-			err := XcodeCloudArtifactsDownloadCommand().ParseAndRun(context.Background(), []string{
+			err := newXcodeCloudArtifactsDownloadCommand(d).ParseAndRun(context.Background(), []string{
 				"--id", "artifact-1",
 				"--path", target,
 			})

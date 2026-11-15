@@ -1,17 +1,20 @@
 package xcodecloud
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestXcodeCloudWaitsKeepContextCause(t *testing.T) {
 	waits := map[string]func(context.Context) error{
 		"status": func(ctx context.Context) error {
-			return waitForBuildCompletion(ctx, nil, "run-1", time.Millisecond, "json", false)
+			return waitForBuildCompletion(ctx, &shared.Deps{IO: &shared.IO{Out: &bytes.Buffer{}, ErrOut: &bytes.Buffer{}}}, nil, "run-1", time.Millisecond, "json", false)
 		},
 		"doctor": func(ctx context.Context) error {
 			_, err := waitForBuildRunForDoctor(ctx, nil, "run-1", time.Millisecond)

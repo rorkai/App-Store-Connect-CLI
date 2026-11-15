@@ -47,24 +47,16 @@ Examples:
 
 // newCustomPagesListCommand returns the custom pages list subcommand.
 func newCustomPagesListCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("custom-pages list", flag.ExitOnError)
+	var (
+		visibleValues, pageFields, appFieldValues, versionFieldValues, includeValues []string
+		versionsLimit                                                                *int
+	)
 
-	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
-	visible := fs.String("visible", "", "Filter by visibility (true/false), comma-separated")
-	fields := fs.String("fields", "", "Custom product page fields: name,url,visible,app,appCustomProductPageVersions")
-	appFields := fs.String("app-fields", "", "Included app fields (comma-separated)")
-	versionFields := fs.String("version-fields", "", "Included version fields: version,state,deepLink,appCustomProductPage,appCustomProductPageLocalizations")
-	include := fs.String("include", "", "Include related resources: app,appCustomProductPageVersions")
-	versionsLimit := fs.Int("versions-limit", 0, "Maximum included versions (1-50)")
-	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
-	next := fs.String("next", "", shared.NextFlagUsage)
-	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := d.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc product-pages custom-pages list [flags]",
-		ShortHelp:  "List custom product pages.",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "custom-pages list",
+		Name:        "list",
+		ShortUsage:  "asc product-pages custom-pages list [flags]",
+		ShortHelp:   "List custom product pages.",
 		LongHelp: `List custom product pages.
 
 Examples:
@@ -74,83 +66,84 @@ Examples:
   asc product-pages custom-pages list --app "APP_ID" --limit 50
   asc product-pages custom-pages list --app "APP_ID" --paginate
   asc product-pages custom-pages list --next "<links.next>"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if err := d.ValidatePaginationFlags(ctx, fs, "product-pages custom-pages list", productPagesMaxLimit, "visible", "fields", "app-fields", "version-fields", "include", "versions-limit", "limit"); err != nil {
-				return err
-			}
-
-			resolvedAppID := shared.ResolveAppID(*appID)
-			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
-				return shared.MissingRequiredUsageError("--app")
-			}
-
-			providedQueryFlags := make(map[string]bool)
-			fs.Visit(func(f *flag.Flag) {
-				providedQueryFlags[f.Name] = true
-			})
-			for _, queryFlag := range []struct {
-				name  string
-				value string
-			}{
-				{name: "visible", value: *visible},
-				{name: "fields", value: *fields},
-				{name: "app-fields", value: *appFields},
-				{name: "version-fields", value: *versionFields},
-				{name: "include", value: *include},
-			} {
-				if providedQueryFlags[queryFlag.name] && len(shared.SplitCSV(queryFlag.value)) == 0 {
-					return d.UsageError(fmt.Sprintf("custom-pages list: --%s must not be empty", queryFlag.name))
+		ParentFlag:           "app",
+		ParentUsage:          "App Store Connect app ID (or ASC_APP_ID)",
+		ResolveApp:           true,
+		RequiredDiagnostic:   true,
+		LimitMax:             productPagesMaxLimit,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		NextConflicts:        []string{"visible", "fields", "app-fields", "version-fields", "include", "versions-limit", "limit"},
+		ErrorPrefix:          "custom-pages list",
+		Deps:                 d,
+		Flags: func(fs *flag.FlagSet) func() error {
+			visible := fs.String("visible", "", "Filter by visibility (true/false), comma-separated")
+			fields := fs.String("fields", "", "Custom product page fields: name,url,visible,app,appCustomProductPageVersions")
+			appFields := fs.String("app-fields", "", "Included app fields (comma-separated)")
+			versionFields := fs.String("version-fields", "", "Included version fields: version,state,deepLink,appCustomProductPage,appCustomProductPageLocalizations")
+			include := fs.String("include", "", "Include related resources: app,appCustomProductPageVersions")
+			versionsLimit = fs.Int("versions-limit", 0, "Maximum included versions (1-50)")
+			return func() error {
+				providedQueryFlags := make(map[string]bool)
+				fs.Visit(func(f *flag.Flag) {
+					providedQueryFlags[f.Name] = true
+				})
+				for _, queryFlag := range []struct {
+					name  string
+					value string
+				}{
+					{name: "visible", value: *visible},
+					{name: "fields", value: *fields},
+					{name: "app-fields", value: *appFields},
+					{name: "version-fields", value: *versionFields},
+					{name: "include", value: *include},
+				} {
+					if providedQueryFlags[queryFlag.name] && len(shared.SplitCSV(queryFlag.value)) == 0 {
+						return d.UsageError(fmt.Sprintf("custom-pages list: --%s must not be empty", queryFlag.name))
+					}
 				}
-			}
-			if providedQueryFlags["versions-limit"] && (*versionsLimit < 1 || *versionsLimit > customPagesMaxVersionsLimit) {
-				return d.UsageError(fmt.Sprintf("custom-pages list: --versions-limit must be between 1 and %d", customPagesMaxVersionsLimit))
-			}
+				if providedQueryFlags["versions-limit"] && (*versionsLimit < 1 || *versionsLimit > customPagesMaxVersionsLimit) {
+					return d.UsageError(fmt.Sprintf("custom-pages list: --versions-limit must be between 1 and %d", customPagesMaxVersionsLimit))
+				}
 
-			visibleValues, err := normalizeCustomPagesVisible(*visible)
-			if err != nil {
-				return d.UsageError("custom-pages list: " + err.Error())
+				var err error
+				visibleValues, err = normalizeCustomPagesVisible(*visible)
+				if err != nil {
+					return d.UsageError("custom-pages list: " + err.Error())
+				}
+				pageFields, err = shared.NormalizeSelection(*fields, customPagesFields, "--fields")
+				if err != nil {
+					return d.UsageError("custom-pages list: " + err.Error())
+				}
+				appFieldValues, err = shared.NormalizeSelection(*appFields, shared.AppFieldsList(), "--app-fields")
+				if err != nil {
+					return d.UsageError("custom-pages list: " + err.Error())
+				}
+				versionFieldValues, err = shared.NormalizeSelection(*versionFields, customPagesVersionFields, "--version-fields")
+				if err != nil {
+					return d.UsageError("custom-pages list: " + err.Error())
+				}
+				includeValues, err = shared.NormalizeSelection(*include, customPagesIncludes, "--include")
+				if err != nil {
+					return d.UsageError("custom-pages list: " + err.Error())
+				}
+				if len(appFieldValues) > 0 && !shared.HasInclude(includeValues, "app") {
+					return customPagesListIncludeRequirementUsageError(d, "--app-fields", "custom-pages list: --app-fields requires --include app")
+				}
+				if len(versionFieldValues) > 0 && !shared.HasInclude(includeValues, "appCustomProductPageVersions") {
+					return customPagesListIncludeRequirementUsageError(d, "--version-fields", "custom-pages list: --version-fields requires --include appCustomProductPageVersions")
+				}
+				if *versionsLimit > 0 && !shared.HasInclude(includeValues, "appCustomProductPageVersions") {
+					return customPagesListIncludeRequirementUsageError(d, "--versions-limit", "custom-pages list: --versions-limit requires --include appCustomProductPageVersions")
+				}
+				return nil
 			}
-			pageFields, err := shared.NormalizeSelection(*fields, customPagesFields, "--fields")
-			if err != nil {
-				return d.UsageError("custom-pages list: " + err.Error())
-			}
-			appFieldValues, err := shared.NormalizeSelection(*appFields, shared.AppFieldsList(), "--app-fields")
-			if err != nil {
-				return d.UsageError("custom-pages list: " + err.Error())
-			}
-			versionFieldValues, err := shared.NormalizeSelection(*versionFields, customPagesVersionFields, "--version-fields")
-			if err != nil {
-				return d.UsageError("custom-pages list: " + err.Error())
-			}
-			includeValues, err := shared.NormalizeSelection(*include, customPagesIncludes, "--include")
-			if err != nil {
-				return d.UsageError("custom-pages list: " + err.Error())
-			}
-			if len(appFieldValues) > 0 && !shared.HasInclude(includeValues, "app") {
-				return customPagesListIncludeRequirementUsageError(d, "--app-fields", "custom-pages list: --app-fields requires --include app")
-			}
-			if len(versionFieldValues) > 0 && !shared.HasInclude(includeValues, "appCustomProductPageVersions") {
-				return customPagesListIncludeRequirementUsageError(d, "--version-fields", "custom-pages list: --version-fields requires --include appCustomProductPageVersions")
-			}
-			if *versionsLimit > 0 && !shared.HasInclude(includeValues, "appCustomProductPageVersions") {
-				return customPagesListIncludeRequirementUsageError(d, "--versions-limit", "custom-pages list: --versions-limit requires --include appCustomProductPageVersions")
-			}
-
-			client, err := d.Client()
-			if err != nil {
-				return fmt.Errorf("custom-pages list: %w", err)
-			}
-
-			requestCtx, cancel := d.Timeout(ctx)
-			defer cancel()
-
+		},
+		FetchPage: func(ctx context.Context, client *asc.Client, appID string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := []asc.AppCustomProductPagesOption{
 				asc.WithAppCustomProductPagesVisible(visibleValues),
-				asc.Limit[asc.AppCustomProductPagesOption](*limit),
-				asc.NextURL[asc.AppCustomProductPagesOption](*next),
+				asc.Limit[asc.AppCustomProductPagesOption](limit),
+				asc.NextURL[asc.AppCustomProductPagesOption](next),
 			}
 			if len(pageFields) > 0 {
 				opts = append(opts, asc.WithAppCustomProductPagesFields(pageFields))
@@ -167,35 +160,9 @@ Examples:
 			if *versionsLimit > 0 {
 				opts = append(opts, asc.WithAppCustomProductPagesVersionsLimit(*versionsLimit))
 			}
-
-			if *paginate {
-				paginateOpts := append([]asc.AppCustomProductPagesOption{}, opts...)
-				paginateOpts = append(paginateOpts, asc.Limit[asc.AppCustomProductPagesOption](productPagesMaxLimit))
-				firstPage, err := client.GetAppCustomProductPages(requestCtx, resolvedAppID, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("custom-pages list: failed to fetch: %w", err)
-				}
-
-				paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					continuationOpts := append([]asc.AppCustomProductPagesOption{}, opts...)
-					continuationOpts = append(continuationOpts, asc.NextURL[asc.AppCustomProductPagesOption](nextURL))
-					return client.GetAppCustomProductPages(ctx, resolvedAppID, continuationOpts...)
-				})
-				if err != nil {
-					return fmt.Errorf("custom-pages list: %w", err)
-				}
-
-				return d.PrintOutput(paginated, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetAppCustomProductPages(requestCtx, resolvedAppID, opts...)
-			if err != nil {
-				return fmt.Errorf("custom-pages list: failed to fetch: %w", err)
-			}
-
-			return d.PrintOutput(resp, *output.Output, *output.Pretty)
+			return client.GetAppCustomProductPages(ctx, appID, opts...)
 		},
-	}
+	})
 }
 
 func customPagesListIncludeRequirementUsageError(d *shared.Deps, parameter, message string) error {
