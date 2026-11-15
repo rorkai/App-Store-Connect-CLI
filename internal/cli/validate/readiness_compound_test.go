@@ -94,8 +94,6 @@ func TestBuildReadinessReport_UsesCompoundReadsWithoutFallbacks(t *testing.T) {
 		}
 	}))
 
-	restoreClient := SetClientFactory(func() (*asc.Client, error) { return client, nil })
-	t.Cleanup(restoreClient)
 	restoreAvailability := SetFetchAvailableTerritoriesFunc(func(context.Context, *asc.Client, string) (string, int, error) {
 		return "availability-1", 1, nil
 	})
@@ -119,7 +117,7 @@ func TestBuildReadinessReport_UsesCompoundReadsWithoutFallbacks(t *testing.T) {
 	})
 	t.Cleanup(restoreIAPs)
 
-	report, err := BuildReadinessReport(context.Background(), ReadinessOptions{AppID: "app-1", VersionID: "ver-1", Deep: true})
+	report, err := BuildReadinessReportWith(context.Background(), readinessTestDeps(client), ReadinessOptions{AppID: "app-1", VersionID: "ver-1", Deep: true})
 	if err != nil {
 		t.Fatalf("BuildReadinessReport() error = %v", err)
 	}
