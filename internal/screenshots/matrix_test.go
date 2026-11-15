@@ -2622,8 +2622,8 @@ cp "$AXE_TEMPLATE_PNG" "$out"
 				if shot := result.Cells[0].Screenshots[0]; shot.Status != MatrixCellSuccess || shot.RawPath == "" {
 					t.Fatalf("first cell screenshot = %+v, want it kept as produced", shot)
 				}
-				if message := result.Cells[1].Error.Message; message != "simulator blocked after cleanup failure" {
-					t.Fatalf("blocked cell message = %q, want cause-neutral block", message)
+				if blocked := result.Cells[1]; blocked.FailureStage != "cleanup" || blocked.Error.Message != "simulator blocked after status bar cleanup failure" {
+					t.Fatalf("blocked cell = %s %q, want cleanup stage blocked by the status bar", blocked.FailureStage, blocked.Error.Message)
 				}
 			case "preset":
 				if result.Cells[0].Attempts != 0 {
@@ -2954,7 +2954,7 @@ func TestRunMatrix_CleanupFailureBlocksLaterCellsOnSameSimulator(t *testing.T) {
 	if runErr == nil {
 		t.Fatal("expected cleanup failure")
 	}
-	if result.Cells[0].Status != MatrixCellCleanupFailed || result.Cells[1].FailureCode != "simulator_blocked_after_cleanup_failure" {
+	if result.Cells[0].Status != MatrixCellCleanupFailed || result.Cells[1].FailureStage != "appearance" || result.Cells[1].FailureCode != "simulator_blocked_after_cleanup_failure" || result.Cells[1].Error.Message != "simulator blocked after appearance cleanup failure" {
 		t.Fatalf("unexpected cleanup result: %+v", result.Cells)
 	}
 	if appearance.restoreCount != 1 {

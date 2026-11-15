@@ -14,8 +14,9 @@ import (
 )
 
 type matrixSimulatorGuard struct {
-	mu      sync.Mutex
-	blocked bool
+	mu                 sync.Mutex
+	blocked            bool
+	blockedByStatusBar bool
 }
 
 func executeMatrixCellWithSimulatorLock(ctx context.Context, cell MatrixCell, base *Plan, matrixPlan *MatrixPlan, maxAttempts int, backoff time.Duration, deps MatrixDependencies, outputRoots matrixOutputRoots, guard *matrixSimulatorGuard) MatrixCellResult {
@@ -30,7 +31,12 @@ func executeMatrixCellWithSimulatorLock(ctx context.Context, cell MatrixCell, ba
 	if guard.blocked {
 		result.FailureStage = "appearance"
 		result.FailureCode = "simulator_blocked_after_cleanup_failure"
-		result.Error = newMatrixCellError(result.FailureStage, result.FailureCode, "simulator blocked after cleanup failure")
+		message := "simulator blocked after appearance cleanup failure"
+		if guard.blockedByStatusBar {
+			result.FailureStage = "cleanup"
+			message = "simulator blocked after status bar cleanup failure"
+		}
+		result.Error = newMatrixCellError(result.FailureStage, result.FailureCode, message)
 		setMatrixScreenshotStatuses(&result)
 		result.DurationMS = time.Since(started).Milliseconds()
 		return result
@@ -132,6 +138,7 @@ func executeMatrixCellWithSimulatorLock(ctx context.Context, cell MatrixCell, ba
 	if base.Defaults.StatusBar != "" {
 		if err := clearMatrixStatusBar(cell.UDID); err != nil {
 			guard.blocked = true
+			guard.blockedByStatusBar = true
 			result.Status = MatrixCellCleanupFailed
 			result.FailureStage = "cleanup"
 			result.FailureCode = "status_bar_clear_failed"
@@ -141,6 +148,7 @@ func executeMatrixCellWithSimulatorLock(ctx context.Context, cell MatrixCell, ba
 	restoreErr := restoreMatrixAppearance(deps.Appearance, cell.UDID, state)
 	if restoreErr != nil {
 		guard.blocked = true
+		guard.blockedByStatusBar = false
 		result.Status = MatrixCellCleanupFailed
 		result.FailureStage = "cleanup"
 		result.FailureCode = "appearance_restore_failed"
