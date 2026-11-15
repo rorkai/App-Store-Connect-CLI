@@ -177,6 +177,8 @@ fastlane/
 │   │   └── ...
 ```
 
+App-level text files directly in `metadata/` (`copyright.txt` and the category files) and a locale or `default` folder's `apple_tv_privacy_policy.txt` are not imported. Each non-empty one is listed in `skipped` with the `asc` command that sets that value.
+
 ### migrate export
 
 Export current App Store metadata to fastlane directory structure:
