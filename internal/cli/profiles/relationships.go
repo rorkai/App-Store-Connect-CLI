@@ -13,9 +13,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// ProfilesRelationshipsCommand returns the profiles links command group.
-func ProfilesRelationshipsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("links", flag.ExitOnError)
+// newProfilesRelationshipsCommand returns the profiles links command group.
+func newProfilesRelationshipsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("links", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "links",
@@ -30,9 +30,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			ProfilesRelationshipsBundleIDCommand(),
-			ProfilesRelationshipsCertificatesCommand(),
-			ProfilesRelationshipsDevicesCommand(),
+			newProfilesRelationshipsBundleIDCommand(d),
+			newProfilesRelationshipsCertificatesCommand(d),
+			newProfilesRelationshipsDevicesCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -40,12 +40,12 @@ Examples:
 	}
 }
 
-// ProfilesRelationshipsBundleIDCommand returns the bundle-id links command.
-func ProfilesRelationshipsBundleIDCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("bundle-id", flag.ExitOnError)
+// newProfilesRelationshipsBundleIDCommand returns the bundle-id links command.
+func newProfilesRelationshipsBundleIDCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("bundle-id", flag.ExitOnError)
 
 	id := shared.BindResourceIDFlag(fs, "id", "profiles", "Profile ID")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "bundle-id",
@@ -60,15 +60,15 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("profiles links bundle-id: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetProfileBundleIDRelationship(requestCtx, idValue)
@@ -76,20 +76,20 @@ Examples:
 				return fmt.Errorf("profiles links bundle-id: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// ProfilesRelationshipsCertificatesCommand returns the certificates links command.
-func ProfilesRelationshipsCertificatesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("certificates", flag.ExitOnError)
+// newProfilesRelationshipsCertificatesCommand returns the certificates links command.
+func newProfilesRelationshipsCertificatesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("certificates", flag.ExitOnError)
 
 	id := shared.BindResourceIDFlag(fs, "id", "profiles", "Profile ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "certificates",
@@ -105,28 +105,28 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("profiles links certificates: --limit must be between 1 and 200")
+				return d.UsageError("profiles links certificates: --limit must be between 1 and 200")
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("profiles links certificates: %v", err)
+				return d.UsageErrorf("profiles links certificates: %v", err)
 			}
 			if idValue == "" && strings.TrimSpace(*next) != "" {
 				derivedID, err := extractProfileIDFromNextURL(*next, "certificates")
 				if err != nil {
-					return shared.UsageErrorf("profiles links certificates: %v", err)
+					return d.UsageErrorf("profiles links certificates: %v", err)
 				}
 				idValue = derivedID
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("profiles links certificates: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			opts := []asc.LinkagesOption{
@@ -136,7 +136,7 @@ Examples:
 
 			if *paginate {
 				if idValue == "" {
-					return shared.RequiredFlag("--id")
+					return d.RequiredFlag("--id")
 				}
 				paginateOpts := append(opts, asc.Limit[asc.LinkagesOption](200))
 				firstPage, err := client.GetProfileCertificatesRelationships(requestCtx, idValue, paginateOpts...)
@@ -151,7 +151,7 @@ Examples:
 					return fmt.Errorf("profiles links certificates: %w", err)
 				}
 
-				return shared.PrintOutput(paginated, *output.Output, *output.Pretty)
+				return d.PrintOutput(paginated, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetProfileCertificatesRelationships(requestCtx, idValue, opts...)
@@ -159,20 +159,20 @@ Examples:
 				return fmt.Errorf("profiles links certificates: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// ProfilesRelationshipsDevicesCommand returns the devices links command.
-func ProfilesRelationshipsDevicesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("devices", flag.ExitOnError)
+// newProfilesRelationshipsDevicesCommand returns the devices links command.
+func newProfilesRelationshipsDevicesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("devices", flag.ExitOnError)
 
 	id := shared.BindResourceIDFlag(fs, "id", "profiles", "Profile ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "devices",
@@ -188,28 +188,28 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("profiles links devices: --limit must be between 1 and 200")
+				return d.UsageError("profiles links devices: --limit must be between 1 and 200")
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("profiles links devices: %v", err)
+				return d.UsageErrorf("profiles links devices: %v", err)
 			}
 			if idValue == "" && strings.TrimSpace(*next) != "" {
 				derivedID, err := extractProfileIDFromNextURL(*next, "devices")
 				if err != nil {
-					return shared.UsageErrorf("profiles links devices: %v", err)
+					return d.UsageErrorf("profiles links devices: %v", err)
 				}
 				idValue = derivedID
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("profiles links devices: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			opts := []asc.LinkagesOption{
@@ -219,7 +219,7 @@ Examples:
 
 			if *paginate {
 				if idValue == "" {
-					return shared.RequiredFlag("--id")
+					return d.RequiredFlag("--id")
 				}
 				paginateOpts := append(opts, asc.Limit[asc.LinkagesOption](200))
 				firstPage, err := client.GetProfileDevicesRelationships(requestCtx, idValue, paginateOpts...)
@@ -234,7 +234,7 @@ Examples:
 					return fmt.Errorf("profiles links devices: %w", err)
 				}
 
-				return shared.PrintOutput(paginated, *output.Output, *output.Pretty)
+				return d.PrintOutput(paginated, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetProfileDevicesRelationships(requestCtx, idValue, opts...)
@@ -242,7 +242,7 @@ Examples:
 				return fmt.Errorf("profiles links devices: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

@@ -19,9 +19,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/signing"
 )
 
-// ProfilesCommand returns the profiles command with subcommands.
-func ProfilesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("profiles", flag.ExitOnError)
+// NewProfilesCommand returns the profiles command group built on d.
+func NewProfilesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("profiles", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "profiles",
@@ -44,14 +44,14 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
-			ProfilesListCommand(),
-			ProfilesGetCommand(),
-			ProfilesRelationshipsCommand(),
-			ProfilesCreateCommand(),
-			ProfilesDeleteCommand(),
-			ProfilesDownloadCommand(),
-			ProfilesInspectCommand(),
-			ProfilesLocalCommand(),
+			newProfilesListCommand(d),
+			newProfilesGetCommand(d),
+			newProfilesRelationshipsCommand(d),
+			newProfilesCreateCommand(d),
+			newProfilesDeleteCommand(d),
+			newProfilesDownloadCommand(d),
+			newProfilesInspectCommand(d),
+			newProfilesLocalCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -59,9 +59,9 @@ Examples:
 	}
 }
 
-// ProfilesListCommand returns the profiles list subcommand.
-func ProfilesListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
+// newProfilesListCommand returns the profiles list subcommand.
+func newProfilesListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("list", flag.ExitOnError)
 
 	name := fs.String("name", "", "Filter by profile name(s), comma-separated")
 	ids := fs.String("id", "", "Filter by profile ID(s), comma-separated")
@@ -80,7 +80,7 @@ func ProfilesListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -110,9 +110,9 @@ profiles reference. It cannot be combined with --next. With --fields, both
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("profiles list: %v", err)
+				return d.UsageErrorf("profiles list: %v", err)
 			}
-			if err := shared.RejectNextFlagConflicts(
+			if err := d.RejectNextFlagConflicts(
 				fs,
 				*next,
 				"profiles list",
@@ -123,7 +123,7 @@ profiles reference. It cannot be combined with --next. With --fields, both
 			if *includeStale {
 				if normalized := shared.NormalizeOutputFormat(*output.Output); normalized != "table" && normalized != "markdown" {
 					const message = "--include-stale requires --output table or markdown"
-					fmt.Fprintln(os.Stderr, "Error: "+message)
+					fmt.Fprintln(d.IO.ErrOut, "Error: "+message)
 					return shared.NewReportedUsageError(shared.UsageErrorInvalidValue, message)
 				}
 			}
@@ -147,87 +147,87 @@ profiles reference. It cannot be combined with --next. With --fields, both
 				{name: "include", value: *include},
 			} {
 				if provided[selector.name] && len(shared.SplitCSV(selector.value)) == 0 {
-					return shared.UsageErrorf("profiles list: --%s must not be empty", selector.name)
+					return d.UsageErrorf("profiles list: --%s must not be empty", selector.name)
 				}
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("profiles list: --limit must be between 1 and 200")
+				return d.UsageError("profiles list: --limit must be between 1 and 200")
 			}
 			if profilesListFlagWasProvided(fs, "limit-devices") && (*devicesLimit < 1 || *devicesLimit > 50) {
-				return shared.UsageError("profiles list: --limit-devices must be between 1 and 50")
+				return d.UsageError("profiles list: --limit-devices must be between 1 and 50")
 			}
 			if profilesListFlagWasProvided(fs, "limit-certificates") && (*certificatesLimit < 1 || *certificatesLimit > 50) {
-				return shared.UsageError("profiles list: --limit-certificates must be between 1 and 50")
+				return d.UsageError("profiles list: --limit-certificates must be between 1 and 50")
 			}
 
 			profileSort, err := normalizeProfileSort(*sort)
 			if err != nil {
-				return shared.UsageError(fmt.Sprintf("profiles list: %v", err))
+				return d.UsageError(fmt.Sprintf("profiles list: %v", err))
 			}
 			profileFields, err := shared.NormalizeSelection(*fields, profileFieldsList(), "--fields")
 			if err != nil {
-				return shared.UsageError(fmt.Sprintf("profiles list: %v", err))
+				return d.UsageError(fmt.Sprintf("profiles list: %v", err))
 			}
 			if (*staleOnly || *includeStale) && len(profileFields) > 0 &&
 				(!slices.Contains(profileFields, "profileState") || !slices.Contains(profileFields, "expirationDate")) {
 				const message = "--stale-only and --include-stale require --fields to include profileState and expirationDate"
-				fmt.Fprintln(os.Stderr, "Error: "+message)
+				fmt.Fprintln(d.IO.ErrOut, "Error: "+message)
 				return shared.NewReportedUsageError(shared.UsageErrorInvalidValue, message)
 			}
 			bundleIDFieldsValue, err := shared.NormalizeSelection(*bundleIDFields, profileBundleIDFieldsList(), "--bundle-id-fields")
 			if err != nil {
-				return shared.UsageError(fmt.Sprintf("profiles list: %v", err))
+				return d.UsageError(fmt.Sprintf("profiles list: %v", err))
 			}
 			deviceFieldsValue, err := shared.NormalizeSelection(*deviceFields, profileDeviceFieldsList(), "--device-fields")
 			if err != nil {
-				return shared.UsageError(fmt.Sprintf("profiles list: %v", err))
+				return d.UsageError(fmt.Sprintf("profiles list: %v", err))
 			}
 			certificateFieldsValue, err := shared.NormalizeSelection(*certificateFields, profileCertificateFieldsList(), "--certificate-fields")
 			if err != nil {
-				return shared.UsageError(fmt.Sprintf("profiles list: %v", err))
+				return d.UsageError(fmt.Sprintf("profiles list: %v", err))
 			}
 			includeValues, err := normalizeProfileInclude(*include)
 			if err != nil {
-				return shared.UsageError(fmt.Sprintf("profiles list: %v", err))
+				return d.UsageError(fmt.Sprintf("profiles list: %v", err))
 			}
 			if len(bundleIDFieldsValue) > 0 && !shared.HasInclude(includeValues, "bundleId") {
 				const message = "--bundle-id-fields requires --include bundleId"
-				fmt.Fprintln(os.Stderr, "Error: "+message)
+				fmt.Fprintln(d.IO.ErrOut, "Error: "+message)
 				return shared.NewReportedUsageError(shared.UsageErrorInvalidValue, message)
 			}
 			if len(deviceFieldsValue) > 0 && !shared.HasInclude(includeValues, "devices") {
 				const message = "--device-fields requires --include devices"
-				fmt.Fprintln(os.Stderr, "Error: "+message)
+				fmt.Fprintln(d.IO.ErrOut, "Error: "+message)
 				return shared.NewReportedUsageError(shared.UsageErrorInvalidValue, message)
 			}
 			if len(certificateFieldsValue) > 0 && !shared.HasInclude(includeValues, "certificates") {
 				const message = "--certificate-fields requires --include certificates"
-				fmt.Fprintln(os.Stderr, "Error: "+message)
+				fmt.Fprintln(d.IO.ErrOut, "Error: "+message)
 				return shared.NewReportedUsageError(shared.UsageErrorInvalidValue, message)
 			}
 			if *devicesLimit != 0 && !shared.HasInclude(includeValues, "devices") {
 				const message = "--limit-devices requires --include devices"
-				fmt.Fprintln(os.Stderr, "Error: "+message)
+				fmt.Fprintln(d.IO.ErrOut, "Error: "+message)
 				return shared.NewReportedUsageError(shared.UsageErrorInvalidValue, message)
 			}
 			if *certificatesLimit != 0 && !shared.HasInclude(includeValues, "certificates") {
 				const message = "--limit-certificates requires --include certificates"
-				fmt.Fprintln(os.Stderr, "Error: "+message)
+				fmt.Fprintln(d.IO.ErrOut, "Error: "+message)
 				return shared.NewReportedUsageError(shared.UsageErrorInvalidValue, message)
 			}
 
 			profileTypes := shared.SplitCSVUpper(*profileType)
 			profileStates, err := normalizeProfileStates(*profileState)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("profiles list: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			opts := []asc.ProfilesOption{
@@ -271,7 +271,7 @@ profiles reference. It cannot be combined with --next. With --fields, both
 
 			if *paginate || *staleOnly {
 				paginateOpts := append(opts, asc.Limit[asc.ProfilesOption](200))
-				paginated, err := shared.PaginateWithSpinner(
+				paginated, err := d.PaginateWithSpinner(
 					requestCtx,
 					func(ctx context.Context) (asc.PaginatedResponse, error) {
 						return client.GetProfiles(ctx, paginateOpts...)
@@ -284,7 +284,7 @@ profiles reference. It cannot be combined with --next. With --fields, both
 					return fmt.Errorf("profiles list: %w", err)
 				}
 
-				return printProfilesList(paginated, *output.Output, *output.Pretty, *includeStale, *staleOnly)
+				return printProfilesList(d, paginated, *output.Output, *output.Pretty, *includeStale, *staleOnly)
 			}
 
 			resp, err := client.GetProfiles(requestCtx, opts...)
@@ -292,26 +292,26 @@ profiles reference. It cannot be combined with --next. With --fields, both
 				return fmt.Errorf("profiles list: failed to fetch: %w", err)
 			}
 
-			return printProfilesList(resp, *output.Output, *output.Pretty, *includeStale, *staleOnly)
+			return printProfilesList(d, resp, *output.Output, *output.Pretty, *includeStale, *staleOnly)
 		},
 	}
 }
 
-func printProfilesList(resp asc.PaginatedResponse, format string, pretty, includeStale, staleOnly bool) error {
+func printProfilesList(d *shared.Deps, resp asc.PaginatedResponse, format string, pretty, includeStale, staleOnly bool) error {
 	profiles, ok := resp.(*asc.ProfilesResponse)
 	if ok && profiles != nil && staleOnly {
-		profiles = staleProfilesView(profiles, time.Now())
+		profiles = staleProfilesView(profiles, d.Now())
 		resp = profiles
 	}
 	normalized := shared.NormalizeOutputFormat(format)
 	if includeStale && (normalized == "table" || normalized == "markdown") && profiles != nil {
-		return shared.PrintOutputWithRenderers(profiles, format, pretty, func() error {
-			return printProfilesStaleTable(profiles)
+		return d.PrintOutputWithRenderers(profiles, format, pretty, func() error {
+			return printProfilesStaleTable(d, profiles)
 		}, func() error {
-			return printProfilesStaleMarkdown(profiles)
+			return printProfilesStaleMarkdown(d, profiles)
 		})
 	}
-	return shared.PrintOutput(resp, format, pretty)
+	return d.PrintOutput(resp, format, pretty)
 }
 
 // staleProfilesView is the computed --stale-only view: the complete profile
@@ -387,13 +387,13 @@ func includedReferencedBy(profiles []asc.Resource[asc.ProfileAttributes], includ
 	return data
 }
 
-func printProfilesStaleTable(resp *asc.ProfilesResponse) error {
-	shared.RenderSection("Profiles", profileStaleHeaders(), profileStaleRows(resp), false)
+func printProfilesStaleTable(d *shared.Deps, resp *asc.ProfilesResponse) error {
+	d.RenderSection("Profiles", profileStaleHeaders(), profileStaleRows(d, resp), false)
 	return nil
 }
 
-func printProfilesStaleMarkdown(resp *asc.ProfilesResponse) error {
-	shared.RenderSection("Profiles", profileStaleHeaders(), profileStaleRows(resp), true)
+func printProfilesStaleMarkdown(d *shared.Deps, resp *asc.ProfilesResponse) error {
+	d.RenderSection("Profiles", profileStaleHeaders(), profileStaleRows(d, resp), true)
 	return nil
 }
 
@@ -401,9 +401,9 @@ func profileStaleHeaders() []string {
 	return []string{"ID", "Name", "Type", "State", "Expiration", "Stale"}
 }
 
-func profileStaleRows(resp *asc.ProfilesResponse) [][]string {
+func profileStaleRows(d *shared.Deps, resp *asc.ProfilesResponse) [][]string {
 	rows := make([][]string, 0, len(resp.Data))
-	now := time.Now()
+	now := d.Now()
 	for _, item := range resp.Data {
 		rows = append(rows, []string{
 			item.ID,
@@ -427,8 +427,8 @@ func profilesListFlagWasProvided(fs *flag.FlagSet, name string) bool {
 	return provided
 }
 
-// ProfilesGetCommand returns the profiles view subcommand.
-func ProfilesGetCommand() *ffcli.Command {
+// newProfilesGetCommand returns the profiles view subcommand.
+func newProfilesGetCommand(d *shared.Deps) *ffcli.Command {
 	var (
 		includeValues []string
 		included      asc.IncludedFields
@@ -446,14 +446,15 @@ Examples:
 		IDUsage:            "Profile ID",
 		IDType:             "profiles",
 		RequiredDiagnostic: true,
+		Deps:               d,
 		Flags: func(fs *flag.FlagSet) func() error {
 			include := fs.String("include", "", "Include related resources: bundleId, certificates, devices")
 			includedFields := shared.BindIncludedFieldFlags(fs, map[string]string{"bundleId": "bundleIds", "certificates": "certificates", "devices": "devices"})
 			return func() (err error) {
 				if includeValues, err = normalizeProfileInclude(*include); err != nil {
-					return shared.UsageErrorf("profiles view: %v", err)
+					return d.UsageErrorf("profiles view: %v", err)
 				}
-				included, err = includedFields.Resolve("profiles view", "", includeValues)
+				included, err = includedFields.ResolveWith(d, "profiles view", "", includeValues)
 				return err
 			}
 		},
@@ -467,16 +468,16 @@ Examples:
 	})
 }
 
-// ProfilesCreateCommand returns the profiles create subcommand.
-func ProfilesCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
+// newProfilesCreateCommand returns the profiles create subcommand.
+func newProfilesCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("create", flag.ExitOnError)
 
 	name := fs.String("name", "", "Profile name")
 	profileType := fs.String("profile-type", "", "Profile type (e.g., IOS_APP_DEVELOPMENT)")
 	bundleID := shared.BindResourceIDFlag(fs, "bundle", "bundleIds", "Bundle ID")
 	certificates := shared.BindOnceCSVFlag(fs, "certificate", "Certificate ID(s), comma-separated")
 	devices := shared.BindOnceCSVFlag(fs, "device", "Device ID(s), comma-separated (optional)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -492,31 +493,31 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			nameValue := strings.TrimSpace(*name)
 			if nameValue == "" {
-				return shared.RequiredFlag("--name")
+				return d.RequiredFlag("--name")
 			}
 			if err := signing.ValidateProfileNameLength(nameValue); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			profileTypeValue := strings.ToUpper(strings.TrimSpace(*profileType))
 			if profileTypeValue == "" {
-				return shared.RequiredFlag("--profile-type")
+				return d.RequiredFlag("--profile-type")
 			}
 			bundleValue := strings.TrimSpace(*bundleID)
 			if bundleValue == "" {
-				return shared.RequiredFlag("--bundle")
+				return d.RequiredFlag("--bundle")
 			}
 			certificateIDs := shared.SplitCSV(certificates.String())
 			if len(certificateIDs) == 0 {
-				return shared.RequiredFlag("--certificate")
+				return d.RequiredFlag("--certificate")
 			}
 			deviceIDs := shared.SplitCSV(devices.String())
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("profiles create: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			attrs := asc.ProfileCreateAttributes{
@@ -528,13 +529,13 @@ Examples:
 				return fmt.Errorf("profiles create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// ProfilesDeleteCommand returns the profiles delete subcommand.
-func ProfilesDeleteCommand() *ffcli.Command {
+// newProfilesDeleteCommand returns the profiles delete subcommand.
+func newProfilesDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
 		Name:       "delete",
 		ShortUsage: "asc profiles delete --id \"PROFILE_ID\" --confirm",
@@ -547,6 +548,7 @@ Examples:
 		IDUsage:            "Profile ID",
 		IDType:             "profiles",
 		RequiredDiagnostic: true,
+		Deps:               d,
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteProfile(ctx, id)
 		},
@@ -556,9 +558,9 @@ Examples:
 	})
 }
 
-// ProfilesDownloadCommand returns the profiles download subcommand.
-func ProfilesDownloadCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("download", flag.ExitOnError)
+// newProfilesDownloadCommand returns the profiles download subcommand.
+func newProfilesDownloadCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("download", flag.ExitOnError)
 
 	id := shared.BindResourceIDFlag(fs, "id", "profiles", "Profile ID")
 	outputPath := fs.String("output", "", "Output .mobileprovision or .provisionprofile file path")
@@ -578,27 +580,27 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.RejectOutputFormatAsPath(*outputPath, "--output-format"); err != nil {
+			if err := d.RejectOutputFormatAsPath(*outputPath, "--output-format"); err != nil {
 				return err
 			}
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
 			pathValue := strings.TrimSpace(*outputPath)
 			if pathValue == "" {
-				return shared.RequiredFlag("--output")
+				return d.RequiredFlag("--output")
 			}
 			if err := checkProfileDownloadOutput(pathValue, *overwrite); err != nil {
 				return fmt.Errorf("profiles download: %w", err)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("profiles download: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetProfile(requestCtx, idValue)
@@ -626,7 +628,7 @@ Examples:
 				OutputPath: pathValue,
 			}
 
-			return shared.PrintOutput(result, *output.OutputFormat, *output.Pretty)
+			return d.PrintOutput(result, *output.OutputFormat, *output.Pretty)
 		},
 	}
 }

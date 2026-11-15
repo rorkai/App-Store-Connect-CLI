@@ -102,9 +102,9 @@ type localCleanResult struct {
 	SkippedItems []localCleanItem `json:"skippedItems,omitempty"`
 }
 
-// ProfilesLocalCommand returns the profiles local command group.
-func ProfilesLocalCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("local", flag.ExitOnError)
+// newProfilesLocalCommand returns the profiles local command group.
+func newProfilesLocalCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("local", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "local",
@@ -128,9 +128,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			ProfilesLocalInstallCommand(),
-			ProfilesLocalListCommand(),
-			ProfilesLocalCleanCommand(),
+			newProfilesLocalInstallCommand(d),
+			newProfilesLocalListCommand(d),
+			newProfilesLocalCleanCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -138,15 +138,15 @@ Examples:
 	}
 }
 
-// ProfilesLocalInstallCommand returns the profiles local install subcommand.
-func ProfilesLocalInstallCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("install", flag.ExitOnError)
+// newProfilesLocalInstallCommand returns the profiles local install subcommand.
+func newProfilesLocalInstallCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("install", flag.ExitOnError)
 
 	sourcePath := fs.String("path", "", "Path to a .mobileprovision or .provisionprofile file to install")
 	profileID := shared.BindResourceIDFlag(fs, "id", "profiles", "Profile ID to download and install")
 	installDir := fs.String("install-dir", "", "Directory to use (defaults by active Xcode version on macOS)")
 	force := fs.Bool("force", false, "Overwrite an existing installed profile with the same UUID")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "install",
@@ -169,14 +169,14 @@ Examples:
 			pathValue := strings.TrimSpace(*sourcePath)
 			idValue := strings.TrimSpace(*profileID)
 			if pathValue == "" && idValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --path or --id is required")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --path or --id is required")
 				return shared.MissingRequiredUsageError("")
 			}
 			if pathValue != "" && idValue != "" {
-				return shared.UsageError("--path and --id are mutually exclusive")
+				return d.UsageError("--path and --id are mutually exclusive")
 			}
 
-			resolvedInstallDir, err := resolveProfilesInstallDirForCommand(ctx, *installDir, "profiles local install")
+			resolvedInstallDir, err := resolveProfilesInstallDirForCommand(ctx, d, *installDir, "profiles local install")
 			if err != nil {
 				return err
 			}
@@ -199,12 +199,12 @@ Examples:
 				content = data
 				source = pathValue
 			} else {
-				client, err := shared.GetASCClient()
+				client, err := d.Client()
 				if err != nil {
 					return fmt.Errorf("profiles local install: %w", err)
 				}
 
-				requestCtx, cancel := shared.ContextWithTimeout(ctx)
+				requestCtx, cancel := d.Timeout(ctx)
 				defer cancel()
 
 				resp, err := client.GetProfile(requestCtx, idValue)
@@ -268,7 +268,7 @@ Examples:
 				ExpiresAt: parsed.ExpirationDate,
 				CreatedAt: parsed.CreationDate,
 				Path:      destPath,
-				Expired:   isExpired(parsed.ExpirationDate, time.Now()),
+				Expired:   isExpired(parsed.ExpirationDate, d.Now()),
 			}
 
 			result := &localInstallResult{
@@ -278,12 +278,12 @@ Examples:
 				Profile:       item,
 			}
 
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderLocalInstallResult(result, false) },
-				func() error { return renderLocalInstallResult(result, true) },
+				func() error { return renderLocalInstallResult(d.IO.Out, result, false) },
+				func() error { return renderLocalInstallResult(d.IO.Out, result, true) },
 			)
 		},
 	}
@@ -328,15 +328,15 @@ func profileInstallPathExists(path string) (bool, error) {
 	return false, nil
 }
 
-// ProfilesLocalListCommand returns the profiles local list subcommand.
-func ProfilesLocalListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
+// newProfilesLocalListCommand returns the profiles local list subcommand.
+func newProfilesLocalListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("list", flag.ExitOnError)
 
 	installDir := fs.String("install-dir", "", "Directory to use (defaults by active Xcode version on macOS)")
 	bundleID := fs.String("bundle-id", "", "Filter by bundle ID")
 	teamID := fs.String("team-id", "", "Filter by team ID")
 	expiredOnly := fs.Bool("expired", false, "Show only expired profiles")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -355,12 +355,12 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedInstallDir, err := resolveProfilesInstallDirForCommand(ctx, *installDir, "profiles local list")
+			resolvedInstallDir, err := resolveProfilesInstallDirForCommand(ctx, d, *installDir, "profiles local list")
 			if err != nil {
 				return err
 			}
 
-			scanned, skipped, err := scanLocalProfiles(resolvedInstallDir, time.Now())
+			scanned, skipped, err := scanLocalProfiles(resolvedInstallDir, d.Now())
 			if err != nil {
 				return fmt.Errorf("profiles local list: %w", err)
 			}
@@ -400,26 +400,26 @@ Examples:
 				SkippedItems: skipped,
 			}
 
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderLocalListResult(result, false) },
-				func() error { return renderLocalListResult(result, true) },
+				func() error { return renderLocalListResult(d.IO.Out, result, false) },
+				func() error { return renderLocalListResult(d.IO.Out, result, true) },
 			)
 		},
 	}
 }
 
-// ProfilesLocalCleanCommand returns the profiles local clean subcommand.
-func ProfilesLocalCleanCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("clean", flag.ExitOnError)
+// newProfilesLocalCleanCommand returns the profiles local clean subcommand.
+func newProfilesLocalCleanCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("clean", flag.ExitOnError)
 
 	installDir := fs.String("install-dir", "", "Directory to use (defaults by active Xcode version on macOS)")
 	expiredOnly := fs.Bool("expired", false, "Delete expired profiles")
 	dryRun := fs.Bool("dry-run", false, "Show deletion plan without deleting")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "clean",
@@ -438,19 +438,19 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if !*dryRun && !*confirm {
-				return shared.RequiredFlag("--confirm")
+				return d.RequiredFlag("--confirm")
 			}
 			if !*expiredOnly {
 				// At least one clean mode is required; currently only --expired exists.
-				return shared.UsageError("at least one clean mode is required (e.g. --expired)")
+				return d.UsageError("at least one clean mode is required (e.g. --expired)")
 			}
 
-			resolvedInstallDir, err := resolveProfilesInstallDirForCommand(ctx, *installDir, "profiles local clean")
+			resolvedInstallDir, err := resolveProfilesInstallDirForCommand(ctx, d, *installDir, "profiles local clean")
 			if err != nil {
 				return err
 			}
 
-			now := time.Now()
+			now := d.Now()
 			items, skipped, err := scanLocalProfiles(resolvedInstallDir, now)
 			if err != nil {
 				return fmt.Errorf("profiles local clean: %w", err)
@@ -490,12 +490,12 @@ Examples:
 			}
 
 			if *dryRun {
-				return shared.PrintOutputWithRenderers(
+				return d.PrintOutputWithRenderers(
 					result,
 					*output.Output,
 					*output.Pretty,
-					func() error { return renderLocalCleanResult(result, false) },
-					func() error { return renderLocalCleanResult(result, true) },
+					func() error { return renderLocalCleanResult(d.IO.Out, result, false) },
+					func() error { return renderLocalCleanResult(d.IO.Out, result, true) },
 				)
 			}
 
@@ -509,29 +509,29 @@ Examples:
 				result.DeletedItems = append(result.DeletedItems, localCleanItem{UUID: item.UUID, Name: item.Name, Path: item.Path})
 			}
 
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderLocalCleanResult(result, false) },
-				func() error { return renderLocalCleanResult(result, true) },
+				func() error { return renderLocalCleanResult(d.IO.Out, result, false) },
+				func() error { return renderLocalCleanResult(d.IO.Out, result, true) },
 			)
 		},
 	}
 }
 
-func resolveProfilesInstallDirForCommand(ctx context.Context, value, commandName string) (string, error) {
-	installDir, err := resolveProfilesInstallDir(ctx, value)
+func resolveProfilesInstallDirForCommand(ctx context.Context, d *shared.Deps, value, commandName string) (string, error) {
+	installDir, err := resolveProfilesInstallDir(ctx, d.IO.ErrOut, value)
 	if err == nil {
 		return installDir, nil
 	}
 	if errors.Is(err, errProfilesInstallDirRequired) {
-		return "", shared.UsageError(err.Error())
+		return "", d.UsageError(err.Error())
 	}
 	return "", fmt.Errorf("%s: resolve install directory: %w", commandName, err)
 }
 
-func resolveProfilesInstallDir(ctx context.Context, value string) (string, error) {
+func resolveProfilesInstallDir(ctx context.Context, stderr io.Writer, value string) (string, error) {
 	trimmed := strings.TrimSpace(value)
 	if trimmed != "" {
 		return filepath.Clean(trimmed), nil
@@ -559,7 +559,7 @@ func resolveProfilesInstallDir(ctx context.Context, value string) (string, error
 		// Hosts with only Command Line Tools cannot report an Xcode version.
 		// Keep the pre-4.0 default working there instead of failing closed.
 		fmt.Fprintf(
-			os.Stderr,
+			stderr,
 			"Note: could not determine the active Xcode version (%v); using %s. Pass --install-dir to choose another directory.\n",
 			err,
 			legacyDir,
@@ -715,15 +715,16 @@ func deleteLocalProfileFile(path string) error {
 	return os.Remove(path)
 }
 
-func renderLocalInstallResult(result *localInstallResult, markdown bool) error {
+func renderLocalInstallResult(w io.Writer, result *localInstallResult, markdown bool) error {
 	if result == nil {
 		return fmt.Errorf("result is nil")
 	}
 
-	render := asc.RenderTable
+	renderTo := asc.RenderTableTo
 	if markdown {
-		render = asc.RenderMarkdown
+		renderTo = asc.RenderMarkdownTo
 	}
+	render := func(headers []string, rows [][]string) { renderTo(w, headers, rows) }
 
 	render(
 		[]string{"UUID", "Name", "Team ID", "Bundle ID", "Expired", "Installed Path", "Action"},
@@ -740,15 +741,16 @@ func renderLocalInstallResult(result *localInstallResult, markdown bool) error {
 	return nil
 }
 
-func renderLocalListResult(result *localListResult, markdown bool) error {
+func renderLocalListResult(w io.Writer, result *localListResult, markdown bool) error {
 	if result == nil {
 		return fmt.Errorf("result is nil")
 	}
 
-	render := asc.RenderTable
+	renderTo := asc.RenderTableTo
 	if markdown {
-		render = asc.RenderMarkdown
+		renderTo = asc.RenderMarkdownTo
 	}
+	render := func(headers []string, rows [][]string) { renderTo(w, headers, rows) }
 
 	render(
 		[]string{"Install Dir", "Total", "Listed", "Skipped"},
@@ -784,15 +786,16 @@ func renderLocalListResult(result *localListResult, markdown bool) error {
 	return nil
 }
 
-func renderLocalCleanResult(result *localCleanResult, markdown bool) error {
+func renderLocalCleanResult(w io.Writer, result *localCleanResult, markdown bool) error {
 	if result == nil {
 		return fmt.Errorf("result is nil")
 	}
 
-	render := asc.RenderTable
+	renderTo := asc.RenderTableTo
 	if markdown {
-		render = asc.RenderMarkdown
+		renderTo = asc.RenderMarkdownTo
 	}
+	render := func(headers []string, rows [][]string) { renderTo(w, headers, rows) }
 
 	render(
 		[]string{"Install Dir", "Expired", "Dry Run", "Planned", "Deleted", "Skipped"},
