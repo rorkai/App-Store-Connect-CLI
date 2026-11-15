@@ -180,8 +180,12 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("android-ios-mapping", "Manage Android-to-iOS app mapping details.", func() *ffcli.Command {
 			return androidiosmapping.NewAndroidIosMappingCommand(d)
 		}),
-		commandFactory("app-setup", "Post-create app setup automation.", apps.AppSetupCommand),
-		commandFactory("app-tags", "Inspect Apple-generated App Store discoverability tags.", apps.AppTagsCommand),
+		commandFactory("app-setup", "Post-create app setup automation.", func() *ffcli.Command {
+			return apps.NewAppSetupCommand(d)
+		}),
+		commandFactory("app-tags", "Inspect Apple-generated App Store discoverability tags.", func() *ffcli.Command {
+			return apps.NewAppTagsCommand(d)
+		}),
 		commandFactory("marketplace", "Manage marketplace resources.", func() *ffcli.Command {
 			return marketplace.NewMarketplaceCommand(d)
 		}),

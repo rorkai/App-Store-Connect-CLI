@@ -28,7 +28,6 @@ func TestAppTagTerritoryDeprecation(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			setupAuth(t)
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			reg.Register(asctest.GET("/v1/apps/app-1/appTags", tt.query...),
 				asctest.JSON(http.StatusOK, `{"data":[{"type":"appTags","id":"tag-1","attributes":{"name":"Adventure","visibleInAppStore":true}}],"links":{}}`))
 			if tt.include {
@@ -38,7 +37,8 @@ func TestAppTagTerritoryDeprecation(t *testing.T) {
 			args := append([]string{"app-tags"}, tt.args...)
 			args = append(args, "--output", "json")
 			var runErr error
-			stdout, stderr := captureOutput(t, func() { runErr = RootCommand("test").ParseAndRun(context.Background(), args) })
+			_, root, capture := appsDeps(t, reg)
+			stdout, stderr := capture(func() { runErr = root.ParseAndRun(context.Background(), args) })
 			want := ""
 			if tt.warn {
 				want = "Warning: App-tag territories are deprecated in API 4.5; remove territory selections and lookups. Requests are still forwarded for compatibility.\n"
