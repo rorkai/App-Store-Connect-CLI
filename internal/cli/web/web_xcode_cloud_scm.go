@@ -14,8 +14,8 @@ import (
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
-func webXcodeCloudScmCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web xcode-cloud scm", flag.ExitOnError)
+func webXcodeCloudScmCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web xcode-cloud scm", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "scm",
@@ -28,17 +28,17 @@ Xcode Cloud web session. These commands only read provider state.
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			webXcodeCloudScmProvidersCommand(),
-			webXcodeCloudScmConnectionStatusCommand(),
+			webXcodeCloudScmProvidersCommand(d),
+			webXcodeCloudScmConnectionStatusCommand(d),
 		},
 		Exec: func(context.Context, []string) error { return flag.ErrHelp },
 	}
 }
 
-func webXcodeCloudScmProvidersCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web xcode-cloud scm providers", flag.ExitOnError)
+func webXcodeCloudScmProvidersCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web xcode-cloud scm providers", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "providers",
@@ -50,18 +50,18 @@ Inspect SCM providers available to the authenticated Xcode Cloud web session.
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			webXcodeCloudScmProvidersListCommand(),
+			webXcodeCloudScmProvidersListCommand(d),
 		},
 		Exec: func(context.Context, []string) error { return flag.ErrHelp },
 	}
 }
 
-func webXcodeCloudScmProvidersListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web xcode-cloud scm providers list", flag.ExitOnError)
+func webXcodeCloudScmProvidersListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web xcode-cloud scm providers list", flag.ExitOnError)
 	sessionFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -74,13 +74,13 @@ The response is a plain Apple JSON array and does not support pagination.
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, sessionFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, sessionFlags)
 			defer cancel()
 			if err != nil {
 				return err
@@ -90,27 +90,27 @@ The response is a plain Apple JSON array and does not support pagination.
 				return err
 			}
 
-			result, err := withWebSpinnerValue("Loading Xcode Cloud SCM providers", func() ([]webcore.CIScmProvider, error) {
+			result, err := withWebSpinnerValueWith(d, "Loading Xcode Cloud SCM providers", func() ([]webcore.CIScmProvider, error) {
 				return newCIClientFn(session).GetCIScmProviders(requestCtx, teamID)
 			})
 			if err != nil {
 				return withWebAuthHint(err, "xcode-cloud scm providers list")
 			}
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderCIScmProvidersTable(result) },
-				func() error { return renderCIScmProvidersMarkdown(result) },
+				func() error { return renderCIScmProvidersTable(d, result) },
+				func() error { return renderCIScmProvidersMarkdown(d, result) },
 			)
 		},
 	}
 }
 
-func webXcodeCloudScmConnectionStatusCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web xcode-cloud scm connection-status", flag.ExitOnError)
+func webXcodeCloudScmConnectionStatusCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web xcode-cloud scm connection-status", flag.ExitOnError)
 	sessionFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	scmProviderID := fs.String("scm-provider-id", "", "Private Xcode Cloud SCM provider ID (required)")
 
 	return &ffcli.Command{
@@ -124,17 +124,17 @@ Show the connection status for one SCM provider returned by
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			providerID := strings.TrimSpace(*scmProviderID)
 			if providerID == "" {
-				return shared.RequiredFlag("--scm-provider-id")
+				return d.RequiredFlag("--scm-provider-id")
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, sessionFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, sessionFlags)
 			defer cancel()
 			if err != nil {
 				return err
@@ -144,18 +144,18 @@ Show the connection status for one SCM provider returned by
 				return err
 			}
 
-			result, err := withWebSpinnerValue("Loading Xcode Cloud SCM connection status", func() (*webcore.CIScmConnectionStatus, error) {
+			result, err := withWebSpinnerValueWith(d, "Loading Xcode Cloud SCM connection status", func() (*webcore.CIScmConnectionStatus, error) {
 				return newCIClientFn(session).GetCIScmConnectionStatus(requestCtx, teamID, providerID)
 			})
 			if err != nil {
 				return withWebAuthHint(err, "xcode-cloud scm connection-status")
 			}
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderCIScmConnectionStatusTable(result, providerID) },
-				func() error { return renderCIScmConnectionStatusMarkdown(result, providerID) },
+				func() error { return renderCIScmConnectionStatusTable(d, result, providerID) },
+				func() error { return renderCIScmConnectionStatusMarkdown(d, result, providerID) },
 			)
 		},
 	}
@@ -172,13 +172,13 @@ func webXcodeCloudScmTeamID(session *webcore.AuthSession, operation string) (str
 	return teamID, nil
 }
 
-func renderCIScmProvidersTable(result []webcore.CIScmProvider) error {
-	asc.RenderTable(ciScmProviderHeaders(), ciScmProviderRows(result))
+func renderCIScmProvidersTable(d *shared.Deps, result []webcore.CIScmProvider) error {
+	asc.RenderTableTo(d.IO.Out, ciScmProviderHeaders(), ciScmProviderRows(result))
 	return nil
 }
 
-func renderCIScmProvidersMarkdown(result []webcore.CIScmProvider) error {
-	asc.RenderMarkdown(ciScmProviderHeaders(), ciScmProviderRows(result))
+func renderCIScmProvidersMarkdown(d *shared.Deps, result []webcore.CIScmProvider) error {
+	asc.RenderMarkdownTo(d.IO.Out, ciScmProviderHeaders(), ciScmProviderRows(result))
 	return nil
 }
 
@@ -200,13 +200,13 @@ func ciScmProviderRows(result []webcore.CIScmProvider) [][]string {
 	return rows
 }
 
-func renderCIScmConnectionStatusTable(result *webcore.CIScmConnectionStatus, providerID string) error {
-	asc.RenderTable(ciScmConnectionStatusHeaders(), ciScmConnectionStatusRows(result, providerID))
+func renderCIScmConnectionStatusTable(d *shared.Deps, result *webcore.CIScmConnectionStatus, providerID string) error {
+	asc.RenderTableTo(d.IO.Out, ciScmConnectionStatusHeaders(), ciScmConnectionStatusRows(result, providerID))
 	return nil
 }
 
-func renderCIScmConnectionStatusMarkdown(result *webcore.CIScmConnectionStatus, providerID string) error {
-	asc.RenderMarkdown(ciScmConnectionStatusHeaders(), ciScmConnectionStatusRows(result, providerID))
+func renderCIScmConnectionStatusMarkdown(d *shared.Deps, result *webcore.CIScmConnectionStatus, providerID string) error {
+	asc.RenderMarkdownTo(d.IO.Out, ciScmConnectionStatusHeaders(), ciScmConnectionStatusRows(result, providerID))
 	return nil
 }
 

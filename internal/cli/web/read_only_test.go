@@ -23,7 +23,8 @@ func TestReadOnlyModeRefusesUsageAlertWebhookPost(t *testing.T) {
 	}))
 	defer server.Close()
 
-	_, err := postUsageAlertJSON(context.Background(), server.URL+"/hooks/secret-path", nil, map[string]any{"event": "test"})
+	d, _, _ := newWebTestDeps()
+	_, err := postUsageAlertJSON(context.Background(), d, server.URL+"/hooks/secret-path", nil, map[string]any{"event": "test"})
 	if !errors.Is(err, readonly.ErrRefused) {
 		t.Fatalf("postUsageAlertJSON() error = %v, want readonly.ErrRefused", err)
 	}

@@ -15,7 +15,8 @@ import (
 )
 
 func TestWebVersionAliasesHierarchy(t *testing.T) {
-	settings := findSub(WebXcodeCloudCommand(), "settings")
+	d, _, _ := newWebTestDeps()
+	settings := findSub(newWebXcodeCloudCommand(d), "settings")
 	if settings == nil {
 		t.Fatal("expected settings subcommand")
 	}
@@ -43,11 +44,12 @@ func TestWebVersionAliasesListJSONOmitsNestedPayloads(t *testing.T) {
 		return nextBuildNumberResponse(req, http.StatusOK, body), nil
 	})
 
-	cmd := webVersionAliasesList()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := webVersionAliasesList(d)
 	if err := cmd.FlagSet.Parse([]string{"--product-id", " product-uuid ", "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
-	stdout, stderr := captureOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("Exec() error = %v", err)
 		}
@@ -81,7 +83,8 @@ func TestWebVersionAliasesValidateBeforeSession(t *testing.T) {
 	}
 	t.Cleanup(func() { resolveSessionFn = original })
 
-	list := webVersionAliasesList()
+	d, _, _ := newWebTestDeps()
+	list := webVersionAliasesList(d)
 	if err := list.Exec(context.Background(), nil); err == nil {
 		t.Fatal("expected missing product error")
 	}
@@ -97,7 +100,8 @@ func TestWebVersionAliasesRequirePublicProviderID(t *testing.T) {
 	}
 	t.Cleanup(func() { resolveSessionFn = original })
 
-	list := webVersionAliasesList()
+	d, _, _ := newWebTestDeps()
+	list := webVersionAliasesList(d)
 	if err := list.FlagSet.Parse([]string{"--product-id", "product"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
@@ -114,11 +118,12 @@ func TestWebVersionAliasViewPreservesRawDetailResponse(t *testing.T) {
 		return nextBuildNumberResponse(req, http.StatusOK, `{"id":"alias-1","name":" Release ","type":"xcode_version","locked":true,"build":{"signed_url":"https://example.invalid/?token=secret"},"build_name":"42","related_workflow_summaries":[{"id":"wf-1","name":"Deploy"}],"build_supported":true,"future_field":"preserve-me"}`), nil
 	})
 
-	cmd := webVersionAliasView()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := webVersionAliasView(d)
 	if err := cmd.FlagSet.Parse([]string{"--product-id", "product-uuid", "--id", "alias-1", "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
-	stdout, stderr := captureOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("Exec() error = %v", err)
 		}
@@ -185,11 +190,12 @@ func TestWebVersionAliasCreateRejectsInvalidNameAndBuildBeforeSession(t *testing
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cmd := webVersionAliasCreate()
+			d, depsStdout, depsStderr := newWebTestDeps()
+			cmd := webVersionAliasCreate(d)
 			if err := cmd.FlagSet.Parse(tt.args); err != nil {
 				t.Fatalf("parse: %v", err)
 			}
-			_, stderr := captureOutput(t, func() {
+			_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 				err := cmd.Exec(context.Background(), nil)
 				if err == nil || !errors.Is(err, flag.ErrHelp) {
 					t.Fatalf("error = %v", err)
@@ -232,11 +238,12 @@ func TestWebVersionAliasCreateAccepts40UTF16Name(t *testing.T) {
 		return nil, nil
 	})
 
-	cmd := webVersionAliasCreate()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := webVersionAliasCreate(d)
 	if err := cmd.FlagSet.Parse([]string{"--product-id", "product", "--name", name, "--type", "xcode_version", "--build", "build", "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
-	if _, stderr := captureOutput(t, func() {
+	if _, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("Exec() error = %v", err)
 		}
@@ -263,11 +270,12 @@ func TestWebVersionAliasUpdateRejectsExplicitBlankFieldsBeforeSession(t *testing
 		{name: "blank build", args: []string{"--product-id", "product", "--id", "alias", "--build", "", "--confirm"}, want: "--build is required"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			cmd := webVersionAliasUpdate()
+			d, depsStdout, depsStderr := newWebTestDeps()
+			cmd := webVersionAliasUpdate(d)
 			if err := cmd.FlagSet.Parse(tt.args); err != nil {
 				t.Fatalf("parse: %v", err)
 			}
-			_, stderr := captureOutput(t, func() {
+			_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 				err := cmd.Exec(context.Background(), nil)
 				if err == nil || !errors.Is(err, flag.ErrHelp) {
 					t.Fatalf("error = %v", err)
@@ -310,11 +318,12 @@ func TestWebVersionAliasUpdateRejectsInvalidEffectiveValuesBeforePut(t *testing.
 				return nextBuildNumberResponse(req, http.StatusOK, tt.aliasJSON), nil
 			})
 
-			cmd := webVersionAliasUpdate()
+			d, depsStdout, depsStderr := newWebTestDeps()
+			cmd := webVersionAliasUpdate(d)
 			if err := cmd.FlagSet.Parse([]string{"--product-id", "product", "--id", "alias-1", "--locked=true", "--confirm"}); err != nil {
 				t.Fatalf("parse: %v", err)
 			}
-			_, stderr := captureOutput(t, func() {
+			_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 				err := cmd.Exec(context.Background(), nil)
 				if err == nil || !errors.Is(err, flag.ErrHelp) {
 					t.Fatalf("error = %v", err)
@@ -349,11 +358,12 @@ func TestWebVersionAliasUpdateRejectsUnsupportedStoredBuildBeforePut(t *testing.
 				return nextBuildNumberResponse(req, http.StatusOK, body), nil
 			})
 
-			cmd := webVersionAliasUpdate()
+			d, depsStdout, depsStderr := newWebTestDeps()
+			cmd := webVersionAliasUpdate(d)
 			if err := cmd.FlagSet.Parse([]string{"--product-id", "product", "--id", "alias-1", "--locked=true", "--confirm"}); err != nil {
 				t.Fatalf("parse: %v", err)
 			}
-			_, stderr := captureOutput(t, func() {
+			_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 				err := cmd.Exec(context.Background(), nil)
 				if err == nil || !errors.Is(err, flag.ErrHelp) {
 					t.Fatalf("error = %v", err)
@@ -398,11 +408,12 @@ func TestWebVersionAliasUpdateExplicitBuildReplacesUnsupportedStoredBuild(t *tes
 		}
 	})
 
-	cmd := webVersionAliasUpdate()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := webVersionAliasUpdate(d)
 	if err := cmd.FlagSet.Parse([]string{"--product-id", "product", "--id", "alias-1", "--build", "build-new", "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
-	stdout, stderr := captureOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("Exec() error = %v", err)
 		}
@@ -451,7 +462,8 @@ func TestWebVersionAliasCreateSendsFourFieldsAndVerifies(t *testing.T) {
 		}
 	})
 
-	cmd := webVersionAliasCreate()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := webVersionAliasCreate(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--product-id", "product-uuid",
 		"--name", " Stable ",
@@ -461,7 +473,7 @@ func TestWebVersionAliasCreateSendsFourFieldsAndVerifies(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
-	stdout, stderr := captureOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("Exec() error = %v", err)
 		}
@@ -506,11 +518,12 @@ func TestWebVersionAliasUpdatePreservesUnspecifiedFields(t *testing.T) {
 		}
 	})
 
-	cmd := webVersionAliasUpdate()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := webVersionAliasUpdate(d)
 	if err := cmd.FlagSet.Parse([]string{"--product-id", "product-uuid", "--id", "alias-1", "--name", " New ", "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
-	stdout, stderr := captureOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("Exec() error = %v", err)
 		}
@@ -546,11 +559,12 @@ func TestWebVersionAliasUpdateVerifiesAfterMalformedSuccessfulPutResponse(t *tes
 		}
 	})
 
-	cmd := webVersionAliasUpdate()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := webVersionAliasUpdate(d)
 	if err := cmd.FlagSet.Parse([]string{"--product-id", "product", "--id", "alias-1", "--name", "New", "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
-	stdout, stderr := captureOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("Exec() error = %v", err)
 		}
@@ -586,11 +600,12 @@ func TestWebVersionAliasDeleteRequiresConfirmedNotFound(t *testing.T) {
 		return nil, nil
 	})
 
-	cmd := webVersionAliasDelete()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := webVersionAliasDelete(d)
 	if err := cmd.FlagSet.Parse([]string{"--product-id", "product-uuid", "--id", "alias-1", "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
-	stdout, stderr := captureOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("Exec() error = %v", err)
 		}
@@ -615,11 +630,12 @@ func TestWebVersionAliasMutationsValidateBeforeSession(t *testing.T) {
 	}
 	t.Cleanup(func() { resolveSessionFn = original })
 
-	create := webVersionAliasCreate()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	create := webVersionAliasCreate(d)
 	if err := create.FlagSet.Parse([]string{"--product-id", "product", "--name", "Stable", "--type", "xcode_version", "--build", "build"}); err != nil {
 		t.Fatalf("parse create: %v", err)
 	}
-	_, stderr := captureOutput(t, func() {
+	_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		err := create.Exec(context.Background(), nil)
 		if err == nil || !errors.Is(err, flag.ErrHelp) {
 			t.Fatalf("create error = %v", err)
@@ -629,11 +645,12 @@ func TestWebVersionAliasMutationsValidateBeforeSession(t *testing.T) {
 		t.Fatalf("create stderr = %q", stderr)
 	}
 
-	update := webVersionAliasUpdate()
+	d, depsStdout, depsStderr = newWebTestDeps()
+	update := webVersionAliasUpdate(d)
 	if err := update.FlagSet.Parse([]string{"--product-id", "product", "--id", "alias", "--confirm"}); err != nil {
 		t.Fatalf("parse update: %v", err)
 	}
-	_, stderr = captureOutput(t, func() {
+	_, stderr = runWithWebTestDeps(depsStdout, depsStderr, func() {
 		err := update.Exec(context.Background(), nil)
 		if err == nil || !errors.Is(err, flag.ErrHelp) {
 			t.Fatalf("update error = %v", err)
@@ -643,11 +660,12 @@ func TestWebVersionAliasMutationsValidateBeforeSession(t *testing.T) {
 		t.Fatalf("update stderr = %q", stderr)
 	}
 
-	delete := webVersionAliasDelete()
+	d, depsStdout, depsStderr = newWebTestDeps()
+	delete := webVersionAliasDelete(d)
 	if err := delete.FlagSet.Parse([]string{"--product-id", "product", "--id", "alias"}); err != nil {
 		t.Fatalf("parse delete: %v", err)
 	}
-	_, stderr = captureOutput(t, func() {
+	_, stderr = runWithWebTestDeps(depsStdout, depsStderr, func() {
 		err := delete.Exec(context.Background(), nil)
 		if err == nil || !errors.Is(err, flag.ErrHelp) {
 			t.Fatalf("delete error = %v", err)
@@ -677,11 +695,12 @@ func TestWebVersionAliasCreateReconcilesAmbiguousWrite(t *testing.T) {
 		return nil, nil
 	})
 
-	cmd := webVersionAliasCreate()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	cmd := webVersionAliasCreate(d)
 	if err := cmd.FlagSet.Parse([]string{"--product-id", "product", "--name", "Stable", "--type", "xcode_version", "--build", "latest:stable", "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
-	stdout, _ := captureOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("Exec() error = %v", err)
 		}
@@ -724,12 +743,13 @@ func TestWebVersionAliasCreateReconcilesServerFailure(t *testing.T) {
 				t.Fatalf("unexpected method %s", req.Method)
 				return nil, nil
 			})
-			command := webVersionAliasCreate()
+			d, depsStdout, depsStderr := newWebTestDeps()
+			command := webVersionAliasCreate(d)
 			if err := command.FlagSet.Parse([]string{"--product-id", "product", "--name", "Stable", "--type", "xcode_version", "--build", "latest:stable", "--confirm", "--output", "json"}); err != nil {
 				t.Fatal(err)
 			}
 			var runErr error
-			stdout, _ := captureOutput(t, func() { runErr = command.Exec(context.Background(), nil) })
+			stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() { runErr = command.Exec(context.Background(), nil) })
 			if tc.wantError == "" {
 				if runErr != nil || !strings.Contains(stdout, `"action":"created"`) {
 					t.Fatalf("error=%v output=%q", runErr, stdout)
@@ -757,12 +777,13 @@ func TestWebVersionAliasDeleteReconcilesServerFailure(t *testing.T) {
 		t.Fatalf("unexpected method %s", req.Method)
 		return nil, nil
 	})
-	command := webVersionAliasDelete()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	command := webVersionAliasDelete(d)
 	if err := command.FlagSet.Parse([]string{"--product-id", "product", "--id", "alias-1", "--confirm", "--output", "json"}); err != nil {
 		t.Fatal(err)
 	}
 	var runErr error
-	stdout, _ := captureOutput(t, func() { runErr = command.Exec(context.Background(), nil) })
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() { runErr = command.Exec(context.Background(), nil) })
 	if runErr != nil || !strings.Contains(stdout, `"deleted":true`) {
 		t.Fatalf("error=%v output=%q", runErr, stdout)
 	}
