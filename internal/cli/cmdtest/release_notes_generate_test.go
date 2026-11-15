@@ -82,6 +82,9 @@ func TestReleaseNotesGenerate_MissingSinceIsUsage(t *testing.T) {
 	if !strings.Contains(stderr, "one of --since-tag or --since-ref is required") {
 		t.Fatalf("expected stderr to contain missing since error, got %q", stderr)
 	}
+	if !strings.HasPrefix(stderr, "Error: one of --since-tag or --since-ref is required\n") {
+		t.Fatalf("expected stderr to start with the missing since error, got %q", stderr)
+	}
 }
 
 func TestReleaseNotesGenerate_NotGitRepoReturnsError(t *testing.T) {
