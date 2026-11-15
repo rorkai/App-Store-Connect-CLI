@@ -47,13 +47,8 @@ type SubmitResolvedVersionResult struct {
 	Messages         []string               `json:"messages,omitempty"`
 }
 
-// SubmissionLocalizationPreflight runs the submission-blocking localization
-// preflight used by submit-style App Store review flows.
-func SubmissionLocalizationPreflight(ctx context.Context, client *asc.Client, appID, versionID, platform, retryCommand string) error {
-	return SubmissionLocalizationPreflightWithTimeout(ctx, client, appID, versionID, platform, 0, retryCommand)
-}
-
-// SubmissionLocalizationPreflightWith is SubmissionLocalizationPreflight on d.
+// SubmissionLocalizationPreflightWith runs the submission-blocking
+// localization preflight used by submit-style App Store review flows on d.
 func SubmissionLocalizationPreflightWith(ctx context.Context, d *shared.Deps, client *asc.Client, appID, versionID, platform, retryCommand string) error {
 	return runSubmissionLocalizationPreflight(ctx, d, client, appID, versionID, platform, 0, "", retryCommand)
 }
@@ -70,13 +65,8 @@ func SubmissionLocalizationPreflightWithTimeout(
 	return runSubmissionLocalizationPreflight(ctx, shared.DefaultDeps(), client, appID, versionID, platform, requestTimeout, "", retryCommand)
 }
 
-// SubmissionSubscriptionPreflight runs the advisory subscription preflight used
-// by submit-style App Store review flows.
-func SubmissionSubscriptionPreflight(ctx context.Context, client *asc.Client, appID, retryCommand string) {
-	SubmissionSubscriptionPreflightWithTimeout(ctx, client, appID, 0, retryCommand)
-}
-
-// SubmissionSubscriptionPreflightWith is SubmissionSubscriptionPreflight on d.
+// SubmissionSubscriptionPreflightWith runs the advisory subscription preflight
+// used by submit-style App Store review flows on d.
 func SubmissionSubscriptionPreflightWith(ctx context.Context, d *shared.Deps, client *asc.Client, appID, retryCommand string) {
 	runSubmissionSubscriptionPreflight(ctx, d, client, appID, 0, retryCommand)
 }
