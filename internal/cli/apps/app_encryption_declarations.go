@@ -66,6 +66,13 @@ Examples:
 			if err := shared.ValidatePaginationFlags(ctx, fs, "apps app-encryption-declarations list", 200, "build-id", "fields", "document-fields", "include", "build-limit"); err != nil {
 				return err
 			}
+
+			resolvedAppID := shared.ResolveAppID(*appID)
+			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required (or set ASC_APP_ID)")
+				return shared.MissingRequiredUsageError("--id")
+			}
+
 			if *buildLimit != 0 && (*buildLimit < 1 || *buildLimit > 50) {
 				return shared.UsageError("apps app-encryption-declarations list: --build-limit must be between 1 and 50")
 			}
@@ -85,12 +92,6 @@ Examples:
 			included, err := includedFields.Resolve("apps app-encryption-declarations list", *next, includeValue)
 			if err != nil {
 				return err
-			}
-
-			resolvedAppID := shared.ResolveAppID(*appID)
-			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required (or set ASC_APP_ID)")
-				return shared.MissingRequiredUsageError("--id")
 			}
 
 			buildIDs := shared.SplitCSV(*builds)

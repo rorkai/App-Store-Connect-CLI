@@ -140,6 +140,7 @@ func TestAdsAuthStatusReportsConfigStorageForConfigCredentials(t *testing.T) {
 	writeECDSAPEM(t, keyPath)
 
 	t.Setenv("ASC_CONFIG_PATH", configPath)
+	t.Setenv("ASC_ADS_BYPASS_KEYCHAIN", "1")
 
 	_, stderr, err := runAdsEvalCommand(
 		t,
@@ -182,6 +183,7 @@ func TestAdsAuthStatusReportsConfigStorageForConfigCredentials(t *testing.T) {
 
 func TestAdsAuthStatusShowsActiveEnvironmentContext(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))
+	t.Setenv("ASC_ADS_BYPASS_KEYCHAIN", "1")
 	t.Setenv("ASC_ADS_ACCESS_TOKEN", "ACCESS")
 	t.Setenv("ASC_ADS_ORG_ID", "987654")
 	t.Setenv("ASC_ADS_AD_ACCOUNT_ID", "876543")

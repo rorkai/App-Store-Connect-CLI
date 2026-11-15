@@ -23,6 +23,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/config"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/testguard"
 )
 
 // ErrKeychainAccessDenied is returned when a keychain backend is available but
@@ -287,11 +288,11 @@ func KeychainAvailable() (bool, error) {
 }
 
 var keyringOpener = func() (keyring.Keyring, error) {
-	return keyring.Open(keyringConfig(""))
+	return testguard.OpenKeyring(keyringConfig(""))
 }
 
 var legacyKeyringOpener = func() (keyring.Keyring, error) {
-	return openLegacyKeyringForOS(runtime.GOOS, keyring.Open)
+	return openLegacyKeyringForOS(runtime.GOOS, testguard.OpenKeyring)
 }
 
 func openLegacyKeyringForOS(goos string, open func(keyring.Config) (keyring.Keyring, error)) (keyring.Keyring, error) {

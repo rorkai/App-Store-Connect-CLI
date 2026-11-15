@@ -83,9 +83,8 @@ Examples:
 			if strings.TrimSpace(*version) != "" && strings.TrimSpace(*versionID) != "" {
 				return shared.WithDiagnostic(shared.UsageError("--version and --version-id are mutually exclusive"), shared.DiagnosticConflictingInput, "")
 			}
-			if !*confirm && !*dryRun {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required unless --dry-run is set")
-				return shared.MissingRequiredUsageError("--confirm")
+			if err := shared.RequireConfirmUnlessDryRun(*dryRun, *confirm); err != nil {
+				return err
 			}
 
 			visited := map[string]bool{}

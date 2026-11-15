@@ -335,13 +335,12 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if !*confirm {
-				return d.RequiredFlag("--confirm")
-			}
-
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
 				return d.RequiredFlag("--id")
+			}
+			if err := d.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 
 			client, err := d.Client()
@@ -563,13 +562,12 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if !*confirm {
-				return d.RequiredFlag("--confirm")
-			}
-
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
 				return d.RequiredFlag("--id")
+			}
+			if err := d.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 
 			client, err := d.Client()

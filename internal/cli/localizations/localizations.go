@@ -139,6 +139,16 @@ Examples:
 				versionValue != "" &&
 				shared.ResolveAppID(*appID) != "" &&
 				shared.IsAppStoreVersionString(versionValue)
+			if strings.TrimSpace(*next) == "" && shared.ResolveAppID(*appID) == "" {
+				switch {
+				case normalizedType == shared.LocalizationTypeVersion && versionValue == "":
+					fmt.Fprintln(os.Stderr, "Error: --version is required for version localizations (or pass --app to use the app's editable or live version)")
+					return shared.MissingRequiredUsageError("--version")
+				case normalizedType == shared.LocalizationTypeAppInfo:
+					fmt.Fprintln(os.Stderr, "Error: --app is required for app-info localizations")
+					return shared.MissingRequiredUsageError("--app")
+				}
+			}
 			normalizedPlatform := ""
 			if platformProvided {
 				if normalizedType != shared.LocalizationTypeVersion {
@@ -195,10 +205,6 @@ Examples:
 			case shared.LocalizationTypeVersion:
 				resolvedVersionID := strings.TrimSpace(*versionID)
 				resolvedAppID := shared.ResolveAppID(*appID)
-				if resolvedVersionID == "" && resolvedAppID == "" && strings.TrimSpace(*next) == "" {
-					fmt.Fprintln(os.Stderr, "Error: --version is required for version localizations (or pass --app to use the app's editable or live version)")
-					return shared.MissingRequiredUsageError("--version")
-				}
 
 				client, err := shared.GetASCClient()
 				if err != nil {

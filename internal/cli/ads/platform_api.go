@@ -70,8 +70,10 @@ Examples:
 			if pathValue == "" {
 				return shared.RequiredFlag("--path")
 			}
-			if methodValue == http.MethodDelete && !*confirm {
-				return shared.UsageError("--confirm is required")
+			if methodValue == http.MethodDelete {
+				if err := shared.RequireConfirm(*confirm); err != nil {
+					return err
+				}
 			}
 			contextKind, err := rawPlatformRequestContextKind(methodValue, pathValue)
 			if err != nil {

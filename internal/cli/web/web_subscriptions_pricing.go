@@ -145,7 +145,7 @@ resolution but does not mutate App Store Connect.
 			case *preserveCurrentPrice && scheduledDate == "":
 				return shared.UsageError("--preserve-current-price requires --start-date")
 			case !*dryRun && !*confirm:
-				return shared.UsageError("--confirm is required")
+				return shared.RequireConfirmUnlessDryRun(*dryRun, *confirm)
 			}
 			if scheduledDate != "" {
 				if _, err := time.Parse("2006-01-02", scheduledDate); err != nil {

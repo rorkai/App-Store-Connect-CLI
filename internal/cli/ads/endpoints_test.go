@@ -885,7 +885,8 @@ func TestPlatformCampaignDeleteCommandsRequireConfirmationFirst(t *testing.T) {
 		if !ok {
 			t.Fatalf("missing %q", strings.Join(command, " "))
 		}
-		_, flags := bindEndpointFlags(spec, "test")
+		fs, flags := bindEndpointFlags(spec, "test")
+		setRequiredPathParams(t, fs, spec)
 		if err := executeEndpoint(context.Background(), spec, flags); !errors.Is(err, flag.ErrHelp) || !strings.Contains(err.Error(), "--confirm is required") {
 			t.Errorf("%q unconfirmed error = %v, want confirmation usage error", strings.Join(command, " "), err)
 		}
@@ -1427,5 +1428,19 @@ func TestReadBodyReadsStdinPayload(t *testing.T) {
 	}
 	if string(body) != payload {
 		t.Fatalf("readBody(stdin) = %q, want %q", string(body), payload)
+	}
+}
+
+// setRequiredPathParams gives every required path parameter of spec a value, so
+// that --confirm is the only missing input.
+func setRequiredPathParams(t *testing.T, fs *flag.FlagSet, spec appleads.EndpointSpec) {
+	t.Helper()
+	for _, param := range spec.PathParams {
+		if param.ContextValue || !param.Required {
+			continue
+		}
+		if err := fs.Set(param.Flag, "1"); err != nil {
+			t.Fatal(err)
+		}
 	}
 }

@@ -291,8 +291,8 @@ Examples:
 			if err := validateServerRead(flags); err != nil {
 				return err
 			}
-			if !*confirm {
-				return shared.UsageError("--confirm is required")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 			raw, err := serverRequest(ctx, fs.Name(), flags.common, func(ctx context.Context, client *storekitapi.Client) (json.RawMessage, error) {
 				return client.RequestTestNotification(ctx)

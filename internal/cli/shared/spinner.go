@@ -27,12 +27,21 @@ const spinnerTickRate = 120 * time.Millisecond
 //   - opt-out via ASC_SPINNER_DISABLED (invalid => disabled)
 //   - disabled when stderr is expected to be noisy (debug/retry logs)
 func SpinnerEnabled() bool {
+	return spinnerEnabledFor(isTerminal(int(os.Stdout.Fd())), isTerminal(int(os.Stderr.Fd())))
+}
+
+// SpinnerEnabled is SpinnerEnabled decided from d's stdout and stderr.
+func (d *Deps) SpinnerEnabled() bool {
+	return spinnerEnabledFor(d.IO.StdoutTTY, d.IO.StderrTTY)
+}
+
+func spinnerEnabledFor(stdoutTTY, stderrTTY bool) bool {
 	// Reuse the existing “safe to emit progress” gate (stderr TTY + tests can suppress).
-	if !ProgressEnabled() {
+	if !progressEnabledFor(stderrTTY) {
 		return false
 	}
 	// If stdout is piped, keep stderr quiet to preserve clean stdout contracts (often JSON).
-	if !isTerminal(int(os.Stdout.Fd())) {
+	if !stdoutTTY {
 		return false
 	}
 	if spinnerDisabledByEnv() {
@@ -48,14 +57,24 @@ func SpinnerEnabled() bool {
 // WithSpinner runs fn while rendering a gh-style indeterminate spinner on stderr.
 // It is a no-op when SpinnerEnabled() is false.
 func WithSpinner(label string, fn func() error) (err error) {
+	return withSpinnerTo(os.Stderr, SpinnerEnabled, label, fn)
+}
+
+// WithSpinner is WithSpinner with the spinner on d's stderr, shown only when
+// d's stdout and stderr are terminals.
+func (d *Deps) WithSpinner(label string, fn func() error) error {
+	return withSpinnerTo(d.IO.ErrOut, d.SpinnerEnabled, label, fn)
+}
+
+func withSpinnerTo(w io.Writer, enabled func() bool, label string, fn func() error) (err error) {
 	if fn == nil {
 		return nil
 	}
-	if !SpinnerEnabled() {
+	if !enabled() {
 		return fn()
 	}
 
-	s := newSpinner(os.Stderr)
+	s := newSpinner(w)
 	s.Start(label)
 	defer func() {
 		s.Stop()
@@ -72,17 +91,27 @@ func WithSpinner(label string, fn func() error) (err error) {
 // This avoids spinner “flicker” for fast operations while still providing feedback
 // for slower operations (e.g., keychain prompts).
 func WithSpinnerDelayed(label string, delay time.Duration, fn func() error) (err error) {
+	return withSpinnerDelayedTo(os.Stderr, SpinnerEnabled, label, delay, fn)
+}
+
+// WithSpinnerDelayed is WithSpinnerDelayed with the spinner on d's stderr,
+// shown only when d's stdout and stderr are terminals.
+func (d *Deps) WithSpinnerDelayed(label string, delay time.Duration, fn func() error) error {
+	return withSpinnerDelayedTo(d.IO.ErrOut, d.SpinnerEnabled, label, delay, fn)
+}
+
+func withSpinnerDelayedTo(w io.Writer, enabled func() bool, label string, delay time.Duration, fn func() error) (err error) {
 	if fn == nil {
 		return nil
 	}
 	if delay <= 0 {
-		return WithSpinner(label, fn)
+		return withSpinnerTo(w, enabled, label, fn)
 	}
-	if !SpinnerEnabled() {
+	if !enabled() {
 		return fn()
 	}
 
-	s := newSpinner(os.Stderr)
+	s := newSpinner(w)
 	done := make(chan struct{})
 	started := make(chan bool, 1)
 
@@ -137,8 +166,18 @@ type FetchFunc func(ctx context.Context) (asc.PaginatedResponse, error)
 // It wraps both the initial fetch and the pagination loop so the spinner
 // is visible even for single-page results.
 func PaginateWithSpinner(ctx context.Context, fetch FetchFunc, next asc.PaginateFunc) (asc.PaginatedResponse, error) {
+	return paginateWithSpinner(ctx, WithSpinner, fetch, next)
+}
+
+// PaginateWithSpinner is PaginateWithSpinner with the spinner on d's stderr,
+// shown only when d's stdout and stderr are terminals.
+func (d *Deps) PaginateWithSpinner(ctx context.Context, fetch FetchFunc, next asc.PaginateFunc) (asc.PaginatedResponse, error) {
+	return paginateWithSpinner(ctx, d.WithSpinner, fetch, next)
+}
+
+func paginateWithSpinner(ctx context.Context, withSpinner func(string, func() error) error, fetch FetchFunc, next asc.PaginateFunc) (asc.PaginatedResponse, error) {
 	var result asc.PaginatedResponse
-	err := WithSpinner("", func() error {
+	err := withSpinner("", func() error {
 		firstPage, fetchErr := fetch(ctx)
 		if fetchErr != nil {
 			return fetchErr

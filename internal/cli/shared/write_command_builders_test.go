@@ -6,16 +6,16 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/peterbourgon/ff/v3/ffcli"
-
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
 type testWriteAttributes struct {
-	ID    string  `json:"id"`
-	Name  string  `json:"name,omitempty"`
-	Note  *string `json:"note,omitempty"`
-	Title *string `json:"title,omitempty"`
+	ID      string  `json:"id"`
+	Name    string  `json:"name,omitempty"`
+	Note    *string `json:"note,omitempty"`
+	Title   *string `json:"title,omitempty"`
+	Label   string  `json:"label,omitempty"`
+	Summary *string `json:"summary,omitempty"`
 }
 
 func TestBuildWriteCommands(t *testing.T) {
@@ -25,6 +25,7 @@ func TestBuildWriteCommands(t *testing.T) {
 	tests := []struct {
 		name          string
 		update        bool
+		configure     func(*WriteCommandConfig, *testWriteAttributes)
 		args          []string
 		clientErr     bool
 		sendErr       error
@@ -32,6 +33,8 @@ func TestBuildWriteCommands(t *testing.T) {
 		wantParameter string
 		wantStderr    string
 		wantStdout    string
+		wantFlagSet   string
+		absentFlag    string
 	}{
 		{
 			name:          "create reports a missing ID first",
@@ -89,6 +92,72 @@ func TestBuildWriteCommands(t *testing.T) {
 			sendErr: errors.New("boom"),
 			wantErr: "items update: failed to update: boom",
 		},
+		{
+			name: "create names its flag set and wraps the client error as configured",
+			configure: func(config *WriteCommandConfig, _ *testWriteAttributes) {
+				config.FlagSetName = "items create"
+				config.ErrorPrefix = "things create"
+			},
+			args:        []string{"--parent-id", "parent-1", "--name", "Item"},
+			clientErr:   true,
+			wantErr:     "things create: no client",
+			wantFlagSet: "items create",
+		},
+		{
+			name: "create wraps the request error with the configured prefix",
+			configure: func(config *WriteCommandConfig, _ *testWriteAttributes) {
+				config.ErrorPrefix = "things create"
+			},
+			args:    []string{"--parent-id", "parent-1", "--name", "Item"},
+			sendErr: errors.New("boom"),
+			wantErr: "things create: failed to create: boom",
+		},
+		{
+			name: "top-level create has no ID flag and sends an empty ID",
+			configure: func(config *WriteCommandConfig, _ *testWriteAttributes) {
+				config.TopLevel = true
+			},
+			args:       []string{"--name", " Item "},
+			wantStdout: `{"id":"","name":"Item"}` + "\n",
+			absentFlag: "parent-id",
+		},
+		{
+			name: "create sends a plain field trimmed",
+			configure: func(config *WriteCommandConfig, attrs *testWriteAttributes) {
+				config.Fields = append(config.Fields, StringFlag(&attrs.Label, "label", "Label"))
+			},
+			args:       []string{"--parent-id", "parent-1", "--name", "Item", "--label", " Tag "},
+			wantStdout: `{"id":"parent-1","name":"Item","label":"Tag"}` + "\n",
+		},
+		{
+			name:   "update does not count a blank plain field as given",
+			update: true,
+			configure: func(config *WriteCommandConfig, attrs *testWriteAttributes) {
+				config.Fields = append(config.Fields, StringFlag(&attrs.Label, "label", "Label"))
+			},
+			args:       []string{"--id", "item-1", "--label", "  "},
+			wantErr:    "flag: help requested",
+			wantStderr: "Error: at least one update flag is required (--note, --title, --label)\n",
+		},
+		{
+			name:   "update sends an explicit field given blank",
+			update: true,
+			configure: func(config *WriteCommandConfig, attrs *testWriteAttributes) {
+				config.Fields = append(config.Fields, ExplicitStringFlag(&attrs.Summary, "summary", "Summary"))
+			},
+			args:       []string{"--id", "item-1", "--summary", "  "},
+			wantStdout: `{"id":"item-1","summary":""}` + "\n",
+		},
+		{
+			name:   "update does not count an explicit field left off the command line",
+			update: true,
+			configure: func(config *WriteCommandConfig, attrs *testWriteAttributes) {
+				config.Fields = append(config.Fields, ExplicitStringFlag(&attrs.Summary, "summary", "Summary"))
+			},
+			args:       []string{"--id", "item-1"},
+			wantErr:    "flag: help requested",
+			wantStderr: "Error: at least one update flag is required (--note, --title, --summary)\n",
+		},
 	}
 
 	for _, tt := range tests {
@@ -105,9 +174,21 @@ func TestBuildWriteCommands(t *testing.T) {
 				attrs.ID = id
 				return attrs, tt.sendErr
 			}
-			var cmd *ffcli.Command
+			config := WriteCommandConfig{
+				Name:       "create",
+				ShortUsage: "asc items create --parent-id PARENT_ID [flags]",
+				IDFlag:     "parent-id",
+				IDUsage:    "Parent ID",
+				Fields: []AttributeFlag{
+					RequiredStringFlag(&attrs.Name, "name", "Name"),
+					OptionalStringFlag(&attrs.Note, "note", "Note"),
+				},
+				Deps: d,
+				Send: send,
+			}
+			build := BuildCreateCommand
 			if tt.update {
-				cmd = BuildUpdateCommand(WriteCommandConfig{
+				config = WriteCommandConfig{
 					Name:       "update",
 					ShortUsage: "asc items update --id ITEM_ID [flags]",
 					IDUsage:    "Item ID",
@@ -117,20 +198,18 @@ func TestBuildWriteCommands(t *testing.T) {
 					},
 					Deps: d,
 					Send: send,
-				})
-			} else {
-				cmd = BuildCreateCommand(WriteCommandConfig{
-					Name:       "create",
-					ShortUsage: "asc items create --parent-id PARENT_ID [flags]",
-					IDFlag:     "parent-id",
-					IDUsage:    "Parent ID",
-					Fields: []AttributeFlag{
-						RequiredStringFlag(&attrs.Name, "name", "Name"),
-						OptionalStringFlag(&attrs.Note, "note", "Note"),
-					},
-					Deps: d,
-					Send: send,
-				})
+				}
+				build = BuildUpdateCommand
+			}
+			if tt.configure != nil {
+				tt.configure(&config, &attrs)
+			}
+			cmd := build(config)
+			if tt.wantFlagSet != "" && cmd.FlagSet.Name() != tt.wantFlagSet {
+				t.Fatalf("flag set name = %q, want %q", cmd.FlagSet.Name(), tt.wantFlagSet)
+			}
+			if tt.absentFlag != "" && cmd.FlagSet.Lookup(tt.absentFlag) != nil {
+				t.Fatalf("flag --%s is registered, want none", tt.absentFlag)
 			}
 			if err := cmd.FlagSet.Parse(append(tt.args, "--output", "json")); err != nil {
 				t.Fatalf("parse flags: %v", err)

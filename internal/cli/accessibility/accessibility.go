@@ -76,6 +76,12 @@ Examples:
 				return err
 			}
 
+			resolvedAppID := shared.ResolveAppID(*appID)
+			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
+				return shared.MissingRequiredUsageError("--app")
+			}
+
 			deviceFamilies, err := normalizeAccessibilityDeviceFamilies(shared.SplitCSVUpper(*deviceFamily))
 			if err != nil {
 				return d.UsageErrorf("accessibility list: %v", err)
@@ -89,12 +95,6 @@ Examples:
 			fieldsValue, err := normalizeAccessibilityDeclarationFields(*fields)
 			if err != nil {
 				return d.UsageErrorf("accessibility list: %v", err)
-			}
-
-			resolvedAppID := shared.ResolveAppID(*appID)
-			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
-				return shared.MissingRequiredUsageError("--app")
 			}
 
 			client, err := d.Client()

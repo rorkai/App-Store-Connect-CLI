@@ -125,13 +125,15 @@ Examples:
 			if err := shared.ValidatePaginationFlags(ctx, fs, command, 200, "fields", "include", "prices-limit"); err != nil {
 				return err
 			}
-			opts, err := read.options(fs, command, *next)
-			if err != nil {
-				return err
-			}
+
 			id := strings.TrimSpace(*subscriptionID)
 			if id == "" && strings.TrimSpace(*next) == "" {
 				return shared.UsageError("--subscription-id is required")
+			}
+
+			opts, err := read.options(fs, command, *next)
+			if err != nil {
+				return err
 			}
 
 			client, err := shared.GetASCClient()
@@ -589,6 +591,12 @@ Examples:
 			if err := shared.ValidatePaginationFlags(ctx, fs, command, 200, "territory", "fields", "include"); err != nil {
 				return err
 			}
+
+			offerID := strings.TrimSpace(*id)
+			if offerID == "" && strings.TrimSpace(*next) == "" {
+				return shared.UsageError("--id is required")
+			}
+
 			fieldsValue, err := normalizeSelectionFlag(fs, *fields, "--fields", []string{"territory", "subscriptionPricePoint"})
 			if err != nil {
 				return err
@@ -604,10 +612,6 @@ Examples:
 			territoryFilter, err := shared.NormalizeASCTerritoryCSV(*territories)
 			if err != nil {
 				return shared.UsageErrorf("%s: %v", command, err)
-			}
-			offerID := strings.TrimSpace(*id)
-			if offerID == "" && strings.TrimSpace(*next) == "" {
-				return shared.UsageError("--id is required")
 			}
 
 			client, err := shared.GetASCClient()
@@ -696,8 +700,10 @@ Examples:
 			if len(ids) == 0 {
 				return shared.UsageError("--retention-offer-id is required")
 			}
-			if confirm != nil && !*confirm {
-				return shared.UsageError("--confirm is required")
+			if confirm != nil {
+				if err := shared.RequireConfirm(*confirm); err != nil {
+					return err
+				}
 			}
 
 			client, err := shared.GetASCClient()

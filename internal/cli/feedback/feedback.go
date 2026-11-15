@@ -89,6 +89,13 @@ func runListCommand(ctx context.Context, config shared.ListCommandConfig, fs *fl
 	if err := shared.ValidatePaginationFlags(ctx, fs, prefix, 200, "include-screenshots", "device-model", "os-version", "app-platform", "device-platform", "build-id", "build-pre-release-version", "tester", "include", "sort"); err != nil {
 		return err
 	}
+
+	resolvedAppID := shared.ResolveAppID(*flags.appID)
+	if resolvedAppID == "" && strings.TrimSpace(*flags.next) == "" {
+		fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
+		return shared.MissingRequiredUsageError("--app")
+	}
+
 	if err := shared.ValidateSort(*flags.sort, "createdDate", "-createdDate"); err != nil {
 		return shared.UsageErrorf("%s: %v", prefix, err)
 	}
@@ -99,12 +106,6 @@ func runListCommand(ctx context.Context, config shared.ListCommandConfig, fs *fl
 	included, err := flags.includedFields.Resolve(prefix, *flags.next, shared.SplitCSV(*flags.include))
 	if err != nil {
 		return err
-	}
-
-	resolvedAppID := shared.ResolveAppID(*flags.appID)
-	if resolvedAppID == "" && strings.TrimSpace(*flags.next) == "" {
-		fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
-		return shared.MissingRequiredUsageError("--app")
 	}
 
 	client, err := shared.GetASCClient()

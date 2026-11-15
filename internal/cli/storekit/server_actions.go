@@ -188,8 +188,8 @@ func (f serverWriteFlags) validate(check func() error, required ...requiredFlag)
 			return err
 		}
 	}
-	if !*f.confirm {
-		return shared.UsageError("--confirm is required")
+	if err := shared.RequireConfirm(*f.confirm); err != nil {
+		return err
 	}
 	return nil
 }

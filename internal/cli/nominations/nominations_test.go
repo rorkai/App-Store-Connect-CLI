@@ -78,7 +78,7 @@ func TestNominationsValidationErrors(t *testing.T) {
 		if err := cmd.Exec(context.Background(), nil); !errors.Is(err, flag.ErrHelp) {
 			t.Fatalf("expected ErrHelp, got %v", err)
 		}
-		assertUsageOutput(t, stdout, stderr, "Error: --confirm is required to delete\n")
+		assertUsageOutput(t, stdout, stderr, "Error: --confirm is required\n")
 	})
 }
 

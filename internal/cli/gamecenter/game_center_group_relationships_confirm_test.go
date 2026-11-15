@@ -47,8 +47,8 @@ func TestGameCenterGroupRelationshipReplacementsRejectWithoutConfirmBeforeHTTP(t
 				if !errors.Is(err, flag.ErrHelp) {
 					t.Fatalf("replacement without --confirm must fail validation, got %v", err)
 				}
-				if err.Error() != "--confirm" {
-					t.Fatalf("error = %q, want missing parameter %q", err.Error(), "--confirm")
+				if diagnostic, ok := shared.DiagnosticFromError(err); !ok || diagnostic.Parameter != "--confirm" {
+					t.Fatalf("diagnostic = %+v (ok=%t), want missing parameter %q", diagnostic, ok, "--confirm")
 				}
 				if stderr != "Error: --confirm is required\n" {
 					t.Fatalf("stderr = %q, want exact missing --confirm diagnostic", stderr)

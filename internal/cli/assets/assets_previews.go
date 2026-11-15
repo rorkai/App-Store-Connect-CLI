@@ -663,12 +663,11 @@ func AssetsPreviewsDeleteCommand() *ffcli.Command {
 
 Examples:
   asc video-previews delete --id "PREVIEW_ID" --confirm`,
-		IDFlag:                 "id",
-		IDUsage:                "Preview ID",
-		IDType:                 "appPreviews",
-		RequiredDiagnostic:     true,
-		ConfirmRequiredMessage: "--confirm is required to delete",
-		DeleteErrorPrefix:      "video-previews delete",
+		IDFlag:             "id",
+		IDUsage:            "Preview ID",
+		IDType:             "appPreviews",
+		RequiredDiagnostic: true,
+		DeleteErrorPrefix:  "video-previews delete",
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteAppPreview(ctx, id)
 		},

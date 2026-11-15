@@ -231,8 +231,8 @@ Example:
 			if resolvedName == "" {
 				return shared.UsageError("--name is required")
 			}
-			if !*confirm {
-				return shared.UsageError("--confirm is required")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 			if err := validateDeveloperPortalFlags(portalFlags); err != nil {
 				return err
@@ -308,8 +308,8 @@ Example:
 			if resolvedName == "" {
 				return shared.UsageError("--name is required")
 			}
-			if !*confirm {
-				return shared.UsageError("--confirm is required")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 			if err := validateDeveloperPortalFlags(portalFlags); err != nil {
 				return err
@@ -380,8 +380,8 @@ Example:
 			if resolvedID == "" {
 				return shared.UsageError("--service-id is required")
 			}
-			if !*confirm {
-				return shared.UsageError("--confirm is required")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 			if err := validateDeveloperPortalFlags(portalFlags); err != nil {
 				return err
@@ -540,8 +540,8 @@ Example:
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
-			if !*confirm {
-				return shared.MissingRequiredUsageError("--confirm")
+			if err = shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 			if err = validateDeveloperPortalFlags(portalFlags); err != nil {
 				return err

@@ -98,8 +98,8 @@ Examples:
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
-			if !*dryRun && !*confirm {
-				return shared.UsageError("--confirm is required unless --dry-run is set")
+			if err := shared.RequireConfirmUnlessDryRun(*dryRun, *confirm); err != nil {
+				return err
 			}
 			numWorkers := *workers
 			if numWorkers < 1 || numWorkers > 32 {

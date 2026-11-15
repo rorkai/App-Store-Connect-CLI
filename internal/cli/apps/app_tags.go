@@ -92,6 +92,13 @@ Examples:
 			if err := shared.ValidatePaginationFlags(ctx, fs, "app-tags list", 200, "visible-in-app-store", "sort", "fields", "include", "territory-fields", "territory-limit"); err != nil {
 				return err
 			}
+
+			resolvedAppID := shared.ResolveAppID(*appID)
+			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
+				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
+				return shared.MissingRequiredUsageError("--app")
+			}
+
 			if err := shared.ValidateSort(*sort, "name", "-name"); err != nil {
 				return shared.UsageErrorf("app-tags list: %v", err)
 			}
@@ -132,12 +139,6 @@ Examples:
 					shared.DiagnosticConflictingInput,
 					"--territory-limit",
 				)
-			}
-
-			resolvedAppID := shared.ResolveAppID(*appID)
-			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
-				return shared.MissingRequiredUsageError("--app")
 			}
 
 			if appTagTerritoriesRequested(fieldsValue, includeValues, *next) {
@@ -358,8 +359,8 @@ Examples:
 			if !visited["visible-in-app-store"] {
 				return shared.RequiredFlag("--visible-in-app-store")
 			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 
 			client, err := shared.GetASCClient()

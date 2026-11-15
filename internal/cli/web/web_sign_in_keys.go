@@ -161,8 +161,8 @@ func webSignInKeySaveCommand(create bool) *ffcli.Command {
 		if strings.TrimSpace(*outputDir) == "" {
 			return shared.UsageError("--output-dir is required")
 		}
-		if !confirm {
-			return shared.UsageError("--confirm is required")
+		if err := shared.RequireConfirm(confirm); err != nil {
+			return err
 		}
 		if err := validateDeveloperPortalFlags(portalFlags); err != nil {
 			return err

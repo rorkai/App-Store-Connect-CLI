@@ -74,14 +74,15 @@ Examples:
 			if err := d.ValidatePaginationFlags(ctx, fs, "product-pages experiments treatments localizations list", productPagesMaxLimit, "include", "placements-limit"); err != nil {
 				return err
 			}
-			includeValues, placementsLimit, err := include.Resolve()
-			if err != nil {
-				return err
-			}
 
 			trimmedID := strings.TrimSpace(*treatmentID)
 			if trimmedID == "" && strings.TrimSpace(*next) == "" {
 				return d.RequiredFlag("--treatment-id")
+			}
+
+			includeValues, placementsLimit, err := include.Resolve()
+			if err != nil {
+				return err
 			}
 
 			client, err := d.Client()
@@ -175,49 +176,28 @@ Examples:
 
 // newExperimentTreatmentLocalizationsCreateCommand returns the treatment localizations create subcommand.
 func newExperimentTreatmentLocalizationsCreateCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("treatment-localizations create", flag.ExitOnError)
-
-	treatmentID := shared.BindResourceIDFlag(fs, "treatment-id", "appStoreVersionExperimentTreatments", "Treatment ID")
-	locale := fs.String("locale", "", "Localization locale (e.g., en-US)")
-	output := d.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "create",
-		ShortUsage: "asc product-pages experiments treatments localizations create --treatment-id \"TREATMENT_ID\" --locale \"en-US\"",
-		ShortHelp:  "Create a treatment localization.",
+	var locale string
+	return shared.BuildCreateCommand(shared.WriteCommandConfig{
+		FlagSetName: "treatment-localizations create",
+		Name:        "create",
+		ShortUsage:  "asc product-pages experiments treatments localizations create --treatment-id \"TREATMENT_ID\" --locale \"en-US\"",
+		ShortHelp:   "Create a treatment localization.",
 		LongHelp: `Create a treatment localization.
 
 Examples:
   asc product-pages experiments treatments localizations create --treatment-id "TREATMENT_ID" --locale "en-US"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			trimmedID := strings.TrimSpace(*treatmentID)
-			if trimmedID == "" {
-				return d.RequiredFlag("--treatment-id")
-			}
-
-			localeValue := strings.TrimSpace(*locale)
-			if localeValue == "" {
-				return d.RequiredFlag("--locale")
-			}
-
-			client, err := d.Client()
-			if err != nil {
-				return fmt.Errorf("experiments treatments localizations create: %w", err)
-			}
-
-			requestCtx, cancel := d.Timeout(ctx)
-			defer cancel()
-
-			resp, err := client.CreateAppStoreVersionExperimentTreatmentLocalization(requestCtx, trimmedID, localeValue)
-			if err != nil {
-				return fmt.Errorf("experiments treatments localizations create: failed to create: %w", err)
-			}
-
-			return d.PrintOutput(resp, *output.Output, *output.Pretty)
+		ErrorPrefix: "experiments treatments localizations create",
+		IDFlag:      "treatment-id",
+		IDUsage:     "Treatment ID",
+		IDType:      "appStoreVersionExperimentTreatments",
+		Fields: []shared.AttributeFlag{
+			shared.RequiredStringFlag(&locale, "locale", "Localization locale (e.g., en-US)"),
 		},
-	}
+		Deps: d,
+		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.CreateAppStoreVersionExperimentTreatmentLocalization(ctx, id, locale)
+		},
+	})
 }
 
 // newExperimentTreatmentLocalizationsDeleteCommand returns the treatment localizations delete subcommand.

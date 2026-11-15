@@ -62,7 +62,8 @@ func TestPlatformMapDeleteCommandsRequireConfirmationBeforeOtherWork(t *testing.
 			if !ok {
 				t.Fatalf("missing spec %s", strings.Join(path, " "))
 			}
-			_, flags := bindEndpointFlags(spec, "test")
+			fs, flags := bindEndpointFlags(spec, "test")
+			setRequiredPathParams(t, fs, spec)
 			err := executeEndpoint(context.Background(), spec, flags)
 			if err == nil || !strings.Contains(err.Error(), "--confirm is required") {
 				t.Fatalf("error = %v", err)

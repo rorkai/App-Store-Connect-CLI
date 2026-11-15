@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/testguard"
 )
 
 const (
@@ -428,6 +429,9 @@ func LoadAt(path string) (*Config, error) {
 	if strings.TrimSpace(path) == "" {
 		return nil, fmt.Errorf("failed to read config: empty path")
 	}
+	if testguard.Hides(path) {
+		return nil, ErrNotFound
+	}
 
 	file, err := rootfs.OpenFile(path)
 	if err != nil {
@@ -545,6 +549,9 @@ func parseOptionalDuration(field, raw string) (time.Duration, bool, error) {
 func SaveAt(path string, cfg *Config) error {
 	if strings.TrimSpace(path) == "" {
 		return fmt.Errorf("failed to write config: empty path")
+	}
+	if testguard.Hides(path) {
+		return fmt.Errorf("failed to write config: %s belongs to the developer running the tests; set %s or HOME in the test", path, configPathEnvVar)
 	}
 
 	data, err := json.MarshalIndent(cfg, "", "  ")

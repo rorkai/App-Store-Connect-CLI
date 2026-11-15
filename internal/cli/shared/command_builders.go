@@ -274,7 +274,7 @@ func BuildPaginatedListCommand(config PaginatedListCommandConfig) *ffcli.Command
 					return fmt.Errorf("%s: %w", errorPrefix, err)
 				}
 			} else {
-				resp, err = PaginateWithSpinner(requestCtx, fetchFirst, fetchNext)
+				resp, err = d.PaginateWithSpinner(requestCtx, fetchFirst, fetchNext)
 				if err != nil {
 					return fmt.Errorf("%s: %w", errorPrefix, err)
 				}
@@ -377,10 +377,10 @@ func BuildPricePointEqualizationsCommand(config PricePointEqualizationsCommandCo
 		subject = "a price point"
 	}
 
+	var cmd *ffcli.Command
 	var include *string
-	var includedFields *IncludedFieldFlags
 	var included asc.IncludedFields
-	cmd := BuildPaginatedListCommand(PaginatedListCommandConfig{
+	cmd = BuildPaginatedListCommand(PaginatedListCommandConfig{
 		FlagSetName: config.FlagSetName,
 		Name:        config.Name,
 		ShortUsage:  baseUsage + " [--limit N] [--next URL] [--paginate]",
@@ -403,6 +403,25 @@ Examples:
 		FetchErrorPrefix: config.ErrorPrefix,
 		ContextTimeout:   config.ContextTimeout,
 		Deps:             d,
+		NextConflicts:    []string{"include"},
+		Flags: func(fs *flag.FlagSet) func() error {
+			include = fs.String("include", "", "Relationships to include (comma-separated): territory")
+			includedFields := BindIncludedFieldFlags(fs, map[string]string{"territory": "territories"})
+			return func() error {
+				for _, value := range SplitCSV(*include) {
+					if value != "territory" {
+						return d.UsageError("--include must be: territory")
+					}
+				}
+				prefix := commandErrorPrefixFromUsage(cmd.ShortUsage)
+				if prefix == "" {
+					prefix = config.ErrorPrefix
+				}
+				var err error
+				included, err = includedFields.ResolveWith(d, prefix, fs.Lookup("next").Value.String(), SplitCSV(*include))
+				return err
+			}
+		},
 		FetchPage: func(ctx context.Context, client *asc.Client, parentID string, limit int, next string) (asc.PaginatedResponse, error) {
 			var values []string
 			if strings.TrimSpace(next) == "" {
@@ -411,29 +430,6 @@ Examples:
 			return config.FetchPage(ctx, client, parentID, limit, next, values, included)
 		},
 	})
-	include = cmd.FlagSet.String("include", "", "Relationships to include (comma-separated): territory")
-	includedFields = BindIncludedFieldFlags(cmd.FlagSet, map[string]string{"territory": "territories"})
-	exec := cmd.Exec
-	cmd.Exec = func(ctx context.Context, args []string) error {
-		prefix := commandErrorPrefixFromUsage(cmd.ShortUsage)
-		if prefix == "" {
-			prefix = config.ErrorPrefix
-		}
-		if err := d.ValidatePaginationFlags(ctx, cmd.FlagSet, prefix, builderDefaultLimitMax(config.LimitMax), "include"); err != nil {
-			return err
-		}
-		for _, value := range SplitCSV(*include) {
-			if value != "territory" {
-				return d.UsageError("--include must be: territory")
-			}
-		}
-		next := cmd.FlagSet.Lookup("next").Value.String()
-		var err error
-		if included, err = includedFields.ResolveWith(d, prefix, next, SplitCSV(*include)); err != nil {
-			return err
-		}
-		return exec(ctx, args)
-	}
 	return cmd
 }
 
@@ -453,15 +449,12 @@ type ConfirmDeleteCommandConfig struct {
 	// IDType is the API resource type named by the ID flag; see
 	// IDGetCommandConfig.IDType.
 	IDType string
-	// RequiredDiagnostic reports a missing ID flag or --confirm with the
-	// required-input diagnostic instead of a plain usage error.
+	// RequiredDiagnostic reports a missing ID flag with the required-input
+	// diagnostic instead of a plain usage error.
 	RequiredDiagnostic bool
 	// ConfirmUsage is the --confirm flag usage. It defaults to
 	// "Confirm deletion".
 	ConfirmUsage string
-	// ConfirmRequiredMessage reports a missing --confirm. It defaults to
-	// "--confirm is required".
-	ConfirmRequiredMessage string
 
 	// ErrorPrefix wraps the client error. It defaults to the command path in
 	// ShortUsage without "asc ".
@@ -497,10 +490,6 @@ func BuildConfirmDeleteCommand(config ConfirmDeleteCommandConfig) *ffcli.Command
 	if confirmUsage == "" {
 		confirmUsage = "Confirm deletion"
 	}
-	confirmRequired := config.ConfirmRequiredMessage
-	if confirmRequired == "" {
-		confirmRequired = "--confirm is required"
-	}
 
 	id := bindBuilderIDFlag(fs, idFlagName, config.IDType, idUsage)
 	confirm := fs.Bool("confirm", false, confirmUsage)
@@ -522,8 +511,8 @@ func BuildConfirmDeleteCommand(config ConfirmDeleteCommandConfig) *ffcli.Command
 			if idValue == "" {
 				return missingBuilderFlag(d, config.RequiredDiagnostic, idFlagName)
 			}
-			if !*confirm {
-				return missingBuilderConfirm(d, config.RequiredDiagnostic, confirmRequired)
+			if err := d.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 
 			client, err := d.Client()
@@ -582,14 +571,6 @@ func missingBuilderFlag(d *Deps, diagnostic bool, name string) error {
 	}
 	fmt.Fprintf(d.IO.ErrOut, "Error: --%s is required\n", name)
 	return MissingRequiredUsageError("--" + name)
-}
-
-func missingBuilderConfirm(d *Deps, diagnostic bool, message string) error {
-	if !diagnostic {
-		return d.UsageError(message)
-	}
-	fmt.Fprintf(d.IO.ErrOut, "Error: %s\n", message)
-	return MissingRequiredUsageError("--confirm")
 }
 
 // bindBuilderIDFlag registers a builder's ID flag, accepting the resource's

@@ -153,94 +153,53 @@ Examples:
 
 // newCustomPageVersionsCreateCommand returns the custom page versions create subcommand.
 func newCustomPageVersionsCreateCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("custom-page-versions create", flag.ExitOnError)
-
-	customPageID := shared.BindResourceIDFlag(fs, "custom-page-id", "appCustomProductPages", "Custom product page ID")
-	deepLink := fs.String("deep-link", "", "Deep link URL")
-	output := d.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "create",
-		ShortUsage: "asc product-pages custom-pages versions create --custom-page-id \"PAGE_ID\" [--deep-link \"URL\"]",
-		ShortHelp:  "Create a custom product page version.",
+	var deepLink string
+	return shared.BuildCreateCommand(shared.WriteCommandConfig{
+		FlagSetName: "custom-page-versions create",
+		Name:        "create",
+		ShortUsage:  "asc product-pages custom-pages versions create --custom-page-id \"PAGE_ID\" [--deep-link \"URL\"]",
+		ShortHelp:   "Create a custom product page version.",
 		LongHelp: `Create a custom product page version.
 
 Examples:
   asc product-pages custom-pages versions create --custom-page-id "PAGE_ID"
   asc product-pages custom-pages versions create --custom-page-id "PAGE_ID" --deep-link "https://example.com"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			trimmedID := strings.TrimSpace(*customPageID)
-			if trimmedID == "" {
-				return d.RequiredFlag("--custom-page-id")
-			}
-
-			client, err := d.Client()
-			if err != nil {
-				return fmt.Errorf("custom-pages versions create: %w", err)
-			}
-
-			requestCtx, cancel := d.Timeout(ctx)
-			defer cancel()
-
-			resp, err := client.CreateAppCustomProductPageVersion(requestCtx, trimmedID, strings.TrimSpace(*deepLink))
-			if err != nil {
-				return fmt.Errorf("custom-pages versions create: failed to create: %w", err)
-			}
-
-			return d.PrintOutput(resp, *output.Output, *output.Pretty)
+		ErrorPrefix: "custom-pages versions create",
+		IDFlag:      "custom-page-id",
+		IDUsage:     "Custom product page ID",
+		IDType:      "appCustomProductPages",
+		Fields: []shared.AttributeFlag{
+			shared.StringFlag(&deepLink, "deep-link", "Deep link URL"),
 		},
-	}
+		Deps: d,
+		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.CreateAppCustomProductPageVersion(ctx, id, deepLink)
+		},
+	})
 }
 
 // newCustomPageVersionsUpdateCommand returns the custom page versions update subcommand.
 func newCustomPageVersionsUpdateCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("custom-page-versions update", flag.ExitOnError)
-
-	versionID := shared.BindResourceIDFlag(fs, "custom-page-version-id", "appCustomProductPageVersions", "Custom product page version ID")
-	deepLink := fs.String("deep-link", "", "Update deep link URL")
-	output := d.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "update",
-		ShortUsage: "asc product-pages custom-pages versions update --custom-page-version-id \"VERSION_ID\" --deep-link \"URL\"",
-		ShortHelp:  "Update a custom product page version.",
+	var deepLink string
+	return shared.BuildUpdateCommand(shared.WriteCommandConfig{
+		FlagSetName: "custom-page-versions update",
+		Name:        "update",
+		ShortUsage:  "asc product-pages custom-pages versions update --custom-page-version-id \"VERSION_ID\" --deep-link \"URL\"",
+		ShortHelp:   "Update a custom product page version.",
 		LongHelp: `Update a custom product page version.
 
 Examples:
   asc product-pages custom-pages versions update --custom-page-version-id "VERSION_ID" --deep-link "https://example.com"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			trimmedID := strings.TrimSpace(*versionID)
-			if trimmedID == "" {
-				return d.RequiredFlag("--custom-page-version-id")
-			}
-
-			deepLinkValue := strings.TrimSpace(*deepLink)
-			if deepLinkValue == "" {
-				return d.RequiredFlag("--deep-link")
-			}
-
-			attrs := asc.AppCustomProductPageVersionUpdateAttributes{
-				DeepLink: &deepLinkValue,
-			}
-
-			client, err := d.Client()
-			if err != nil {
-				return fmt.Errorf("custom-pages versions update: %w", err)
-			}
-
-			requestCtx, cancel := d.Timeout(ctx)
-			defer cancel()
-
-			resp, err := client.UpdateAppCustomProductPageVersion(requestCtx, trimmedID, attrs)
-			if err != nil {
-				return fmt.Errorf("custom-pages versions update: failed to update: %w", err)
-			}
-
-			return d.PrintOutput(resp, *output.Output, *output.Pretty)
+		ErrorPrefix: "custom-pages versions update",
+		IDFlag:      "custom-page-version-id",
+		IDUsage:     "Custom product page version ID",
+		IDType:      "appCustomProductPageVersions",
+		Fields: []shared.AttributeFlag{
+			shared.RequiredStringFlag(&deepLink, "deep-link", "Update deep link URL"),
 		},
-	}
+		Deps: d,
+		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.UpdateAppCustomProductPageVersion(ctx, id, asc.AppCustomProductPageVersionUpdateAttributes{DeepLink: &deepLink})
+		},
+	})
 }

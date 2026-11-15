@@ -59,6 +59,7 @@ func TestOptimizeKeywordsDiscoverUsageErrors(t *testing.T) {
 
 func TestOptimizeKeywordsDiscoverFailsActionablyWithoutAppleAdsCredentials(t *testing.T) {
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_ADS_BYPASS_KEYCHAIN", "1")
 	t.Setenv("ASC_ADS_AD_ACCOUNT_ID", "")
 	t.Setenv("ASC_ADS_CLIENT_ID", "")
 	t.Setenv("ASC_ADS_CLIENT_SECRET", "")

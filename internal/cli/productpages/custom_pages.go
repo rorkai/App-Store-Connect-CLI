@@ -80,6 +80,13 @@ Examples:
 			if err := d.ValidatePaginationFlags(ctx, fs, "product-pages custom-pages list", productPagesMaxLimit, "visible", "fields", "app-fields", "version-fields", "include", "versions-limit", "limit"); err != nil {
 				return err
 			}
+
+			resolvedAppID := shared.ResolveAppID(*appID)
+			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
+				return shared.MissingRequiredUsageError("--app")
+			}
+
 			providedQueryFlags := make(map[string]bool)
 			fs.Visit(func(f *flag.Flag) {
 				providedQueryFlags[f.Name] = true
@@ -130,12 +137,6 @@ Examples:
 			}
 			if *versionsLimit > 0 && !shared.HasInclude(includeValues, "appCustomProductPageVersions") {
 				return customPagesListIncludeRequirementUsageError(d, "--versions-limit", "custom-pages list: --versions-limit requires --include appCustomProductPageVersions")
-			}
-
-			resolvedAppID := shared.ResolveAppID(*appID)
-			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
-				return shared.MissingRequiredUsageError("--app")
 			}
 
 			client, err := d.Client()

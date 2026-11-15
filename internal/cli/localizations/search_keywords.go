@@ -155,13 +155,13 @@ Examples:
 			if trimmedID == "" {
 				return shared.RequiredFlag("--localization-id")
 			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
 
 			keywordValues := shared.SplitCSV(*keywords)
 			if len(keywordValues) == 0 {
 				return shared.RequiredFlag("--keywords")
+			}
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 
 			client, err := shared.GetASCClient()

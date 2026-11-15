@@ -806,29 +806,19 @@ func TestBuildConfirmDeleteCommandOptions(t *testing.T) {
 		{
 			name:          "missing confirm reports the required diagnostic",
 			args:          []string{"--id", "item-1"},
-			wantErr:       "--confirm",
+			wantErr:       "--confirm is required",
 			wantParameter: "--confirm",
 			wantStderr:    "Error: --confirm is required\n",
 		},
 		{
-			name: "missing confirm reports the configured message",
-			args: []string{"--id", "item-1"},
-			configure: func(c *ConfirmDeleteCommandConfig) {
-				c.ConfirmRequiredMessage = "--confirm is required to delete"
-			},
-			wantErr:       "--confirm",
-			wantParameter: "--confirm",
-			wantStderr:    "Error: --confirm is required to delete\n",
-		},
-		{
-			name: "missing confirm returns the configured message as a usage error",
+			name: "missing confirm reports the required diagnostic without RequiredDiagnostic",
 			args: []string{"--id", "item-1"},
 			configure: func(c *ConfirmDeleteCommandConfig) {
 				c.RequiredDiagnostic = false
-				c.ConfirmRequiredMessage = "--confirm is required to delete"
 			},
-			wantErr:    "--confirm is required to delete",
-			wantStderr: "Error: --confirm is required to delete\n",
+			wantErr:       "--confirm is required",
+			wantParameter: "--confirm",
+			wantStderr:    "Error: --confirm is required\n",
 		},
 		{
 			name: "confirm flag uses the configured usage",

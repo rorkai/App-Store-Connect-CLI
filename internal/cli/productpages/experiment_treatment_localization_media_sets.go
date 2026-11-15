@@ -308,7 +308,7 @@ Examples:
 			if err != nil {
 				return err
 			}
-			result, err := executeExperimentTreatmentLocalizationScreenshotUpload(ctx, d, *localizationID, *path, *deviceType, false)
+			result, err := executeExperimentTreatmentLocalizationScreenshotUpload(ctx, d, *localizationID, *path, *deviceType, false, false)
 			if err != nil {
 				return fmt.Errorf("experiments treatments localizations screenshot-sets upload: %w", err)
 			}
@@ -346,16 +346,12 @@ Examples:
 			if pollErr != nil {
 				return pollErr
 			}
-			if !*confirm {
-				fmt.Fprintln(d.IO.ErrOut, "Error: --confirm is required to sync")
-				return shared.MissingRequiredUsageError("--confirm")
-			}
 			ctx, err := uploadFlags.Apply(ctx, "experiments treatments localizations screenshot-sets sync")
 			if err != nil {
 				return err
 			}
 
-			result, err := executeExperimentTreatmentLocalizationScreenshotUpload(ctx, d, *localizationID, *path, *deviceType, true)
+			result, err := executeExperimentTreatmentLocalizationScreenshotUpload(ctx, d, *localizationID, *path, *deviceType, true, *confirm)
 			if err != nil {
 				return fmt.Errorf("experiments treatments localizations screenshot-sets sync: %w", err)
 			}
@@ -399,7 +395,7 @@ func executeExperimentTreatmentLocalizationScreenshotUpload(
 	ctx context.Context,
 	d *shared.Deps,
 	localizationID, path, deviceType string,
-	sync bool,
+	sync, confirm bool,
 ) (*asc.ExperimentTreatmentLocalizationScreenshotUploadResult, error) {
 	trimmedLocalizationID := strings.TrimSpace(localizationID)
 	trimmedPath := strings.TrimSpace(path)
@@ -409,6 +405,7 @@ func executeExperimentTreatmentLocalizationScreenshotUpload(
 		Path:                     path,
 		DeviceType:               deviceType,
 		Replace:                  sync,
+		RequireConfirm:           func() error { return d.RequireConfirm(confirm) },
 		InspectCommand:           fmt.Sprintf("asc product-pages experiments treatments localizations screenshot-sets list --localization-id %q --include-screenshots --paginate --output json", trimmedLocalizationID),
 		ReplaceCommand:           shellquote.Join("asc", "product-pages", "experiments", "treatments", "localizations", "screenshot-sets", "sync", "--localization-id", trimmedLocalizationID, "--path", trimmedPath, "--device-type", trimmedDeviceType, "--confirm"),
 		InvalidDeviceTypeIsUsage: true,

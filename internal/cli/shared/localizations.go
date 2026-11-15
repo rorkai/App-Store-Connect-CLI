@@ -434,16 +434,45 @@ func UploadVersionLocalizations(ctx context.Context, client versionLocalizationC
 	return results, err
 }
 
+// UploadVersionLocalizations is UploadVersionLocalizations with the whatsNew
+// retry warning written to d's stderr.
+func (d *Deps) UploadVersionLocalizations(ctx context.Context, client versionLocalizationClient, versionID string, valuesByLocale map[string]map[string]string, dryRun bool) ([]asc.LocalizationUploadLocaleResult, error) {
+	results, _, err := d.UploadVersionLocalizationsWithWarnings(ctx, client, versionID, valuesByLocale, dryRun, SubmitReadinessOptions{})
+	return results, err
+}
+
 func UploadVersionLocalizationsWithWarnings(ctx context.Context, client versionLocalizationClient, versionID string, valuesByLocale map[string]map[string]string, dryRun bool, submitOpts SubmitReadinessOptions) ([]asc.LocalizationUploadLocaleResult, []SubmitReadinessCreateWarning, error) {
+	return uploadVersionLocalizationsWithWarningsTo(ctx, os.Stderr, client, versionID, valuesByLocale, dryRun, submitOpts)
+}
+
+// UploadVersionLocalizationsWithWarnings is
+// UploadVersionLocalizationsWithWarnings with the whatsNew retry warning
+// written to d's stderr.
+func (d *Deps) UploadVersionLocalizationsWithWarnings(ctx context.Context, client versionLocalizationClient, versionID string, valuesByLocale map[string]map[string]string, dryRun bool, submitOpts SubmitReadinessOptions) ([]asc.LocalizationUploadLocaleResult, []SubmitReadinessCreateWarning, error) {
+	return uploadVersionLocalizationsWithWarningsTo(ctx, d.IO.ErrOut, client, versionID, valuesByLocale, dryRun, submitOpts)
+}
+
+func uploadVersionLocalizationsWithWarningsTo(ctx context.Context, stderr io.Writer, client versionLocalizationClient, versionID string, valuesByLocale map[string]map[string]string, dryRun bool, submitOpts SubmitReadinessOptions) ([]asc.LocalizationUploadLocaleResult, []SubmitReadinessCreateWarning, error) {
 	if err := ValidateVersionLocalizationValueSet(valuesByLocale); err != nil {
 		return nil, nil, err
 	}
-	return UploadPrevalidatedVersionLocalizationsWithWarnings(ctx, client, versionID, valuesByLocale, dryRun, submitOpts)
+	return uploadPrevalidatedVersionLocalizationsWithWarningsTo(ctx, stderr, client, versionID, valuesByLocale, dryRun, submitOpts)
 }
 
 // UploadPrevalidatedVersionLocalizationsWithWarnings uploads version localizations
 // after the caller has already validated the input value set.
 func UploadPrevalidatedVersionLocalizationsWithWarnings(ctx context.Context, client versionLocalizationClient, versionID string, valuesByLocale map[string]map[string]string, dryRun bool, submitOpts SubmitReadinessOptions) ([]asc.LocalizationUploadLocaleResult, []SubmitReadinessCreateWarning, error) {
+	return uploadPrevalidatedVersionLocalizationsWithWarningsTo(ctx, os.Stderr, client, versionID, valuesByLocale, dryRun, submitOpts)
+}
+
+// UploadPrevalidatedVersionLocalizationsWithWarnings is
+// UploadPrevalidatedVersionLocalizationsWithWarnings with the whatsNew retry
+// warning written to d's stderr.
+func (d *Deps) UploadPrevalidatedVersionLocalizationsWithWarnings(ctx context.Context, client versionLocalizationClient, versionID string, valuesByLocale map[string]map[string]string, dryRun bool, submitOpts SubmitReadinessOptions) ([]asc.LocalizationUploadLocaleResult, []SubmitReadinessCreateWarning, error) {
+	return uploadPrevalidatedVersionLocalizationsWithWarningsTo(ctx, d.IO.ErrOut, client, versionID, valuesByLocale, dryRun, submitOpts)
+}
+
+func uploadPrevalidatedVersionLocalizationsWithWarningsTo(ctx context.Context, stderr io.Writer, client versionLocalizationClient, versionID string, valuesByLocale map[string]map[string]string, dryRun bool, submitOpts SubmitReadinessOptions) ([]asc.LocalizationUploadLocaleResult, []SubmitReadinessCreateWarning, error) {
 	existing, err := fetchAllVersionLocalizations(ctx, client, versionID)
 	if err != nil {
 		return nil, nil, err
@@ -517,7 +546,7 @@ func UploadPrevalidatedVersionLocalizationsWithWarnings(ctx context.Context, cli
 				// A rejected whatsNew mutation is known not to have applied, so the
 				// documented initial-release fallback remains safe to send immediately.
 				if err != nil && strings.TrimSpace(updateFields["whatsNew"]) != "" && isWhatsNewUnsupportedError(err) {
-					fmt.Fprintln(os.Stderr, "Warning: 'whatsNew' cannot be set for this version (initial releases have no What's New section). Retrying without it.")
+					fmt.Fprintln(stderr, "Warning: 'whatsNew' cannot be set for this version (initial releases have no What's New section). Retrying without it.")
 					delete(updateFields, "whatsNew")
 					delete(probeValues, "whatsNew")
 					resp, err = client.UpdateAppStoreVersionLocalizationFields(requestCtx, existingID, updateFields)

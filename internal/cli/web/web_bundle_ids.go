@@ -293,7 +293,7 @@ Authentication:
 			case resolvedCapability == "":
 				return shared.UsageError("--capability is required")
 			case !*confirm:
-				return shared.UsageError("--confirm is required")
+				return shared.RequireConfirm(*confirm)
 			case resolvedCapability != "PRIVATE_CLOUD_COMPUTE":
 				return shared.UsageErrorf("unsupported Developer Portal capability %q (supported: PRIVATE_CLOUD_COMPUTE)", resolvedCapability)
 			}
@@ -390,7 +390,7 @@ Authentication:
 			case resolvedCapability == "":
 				return shared.UsageError("--capability is required")
 			case !*confirm:
-				return shared.UsageError("--confirm is required")
+				return shared.RequireConfirm(*confirm)
 			case resolvedCapability != "PRIVATE_CLOUD_COMPUTE":
 				return shared.UsageErrorf("unsupported Developer Portal capability %q (supported: PRIVATE_CLOUD_COMPUTE)", resolvedCapability)
 			}
@@ -501,7 +501,7 @@ Examples:
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, webBundleIDSyncAppClipConfirmMigrationWarning)
-				return shared.UsageError("--confirm is required")
+				return shared.RequireConfirm(*confirm)
 			}
 
 			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)

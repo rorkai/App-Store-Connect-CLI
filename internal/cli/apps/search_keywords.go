@@ -104,13 +104,12 @@ Examples:
 				}
 			}
 
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
-			}
-
 			keywordValue := strings.TrimSpace(keywords.String())
 			if keywordValue == "" {
 				return shared.RequiredFlag("--keywords")
+			}
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 			if err := shared.ValidateVersionLocalizationAttributes(asc.AppStoreVersionLocalizationAttributes{Keywords: keywordValue}); err != nil {
 				return shared.UsageError(err.Error())

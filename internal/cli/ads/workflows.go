@@ -58,8 +58,10 @@ func executePlatformCampaignStatusWorkflow(ctx context.Context, commandName, sta
 	if campaignID == "" {
 		return shared.UsageError("--campaign is required")
 	}
-	if status != "PAUSED" && (flags.confirm == nil || !*flags.confirm) {
-		return shared.UsageError("--confirm is required")
+	if status != "PAUSED" {
+		if err := shared.RequireConfirm(flags.confirm != nil && *flags.confirm); err != nil {
+			return err
+		}
 	}
 
 	spec, ok := appleads.PlatformEndpointByCommandPath("campaigns", "update")

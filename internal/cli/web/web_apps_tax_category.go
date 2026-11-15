@@ -226,8 +226,8 @@ Examples:
 			if resolvedCategoryID == "" {
 				return shared.UsageError("--category is required")
 			}
-			if !*confirm {
-				return shared.UsageError("--confirm is required")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 
 			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)

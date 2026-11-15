@@ -126,7 +126,7 @@ func TestBuildsMutatingCommandsAcceptUnifiedSelectorsForValidation(t *testing.T)
 		{
 			name:    "expire latest requires confirm",
 			args:    []string{"builds", "expire", "--app", "123456789", "--latest"},
-			wantErr: "Error: --confirm is required to expire build",
+			wantErr: "Error: --confirm is required\n",
 		},
 		{
 			name:    "update build-number requires update flag",

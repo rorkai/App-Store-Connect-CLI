@@ -8,6 +8,9 @@ import (
 	"testing"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestPhasedReleaseGetCommand_MissingVersion(t *testing.T) {
@@ -50,7 +53,8 @@ func TestPhasedReleaseCreateCommand_InvalidState(t *testing.T) {
 }
 
 func TestPhasedReleaseCreateCommand_ValidStates(t *testing.T) {
-	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	errClient := errors.New("client requested")
+	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) { return nil, errClient }))
 
 	validStates := []string{"INACTIVE", "ACTIVE", "inactive", "active"}
 
@@ -63,9 +67,8 @@ func TestPhasedReleaseCreateCommand_ValidStates(t *testing.T) {
 			}
 
 			err := cmd.Exec(context.Background(), []string{})
-			// Should not be flag.ErrHelp for valid states (will fail later due to no auth)
-			if errors.Is(err, flag.ErrHelp) {
-				t.Errorf("state %s should be valid but got flag.ErrHelp", state)
+			if !errors.Is(err, errClient) {
+				t.Errorf("state %s should pass validation and request a client, got %v", state, err)
 			}
 		})
 	}
@@ -122,7 +125,8 @@ func TestPhasedReleaseUpdateCompleteRequiresConfirm(t *testing.T) {
 }
 
 func TestPhasedReleaseUpdateCommand_ValidStates(t *testing.T) {
-	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	errClient := errors.New("client requested")
+	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) { return nil, errClient }))
 
 	validStates := map[string]bool{
 		"ACTIVE":   false,
@@ -147,9 +151,8 @@ func TestPhasedReleaseUpdateCommand_ValidStates(t *testing.T) {
 			}
 
 			err := cmd.Exec(context.Background(), []string{})
-			// Should not be flag.ErrHelp for valid states (will fail later due to no auth)
-			if errors.Is(err, flag.ErrHelp) {
-				t.Errorf("state %s should be valid but got flag.ErrHelp", state)
+			if !errors.Is(err, errClient) {
+				t.Errorf("state %s should pass validation and request a client, got %v", state, err)
 			}
 		})
 	}

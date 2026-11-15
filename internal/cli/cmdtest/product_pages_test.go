@@ -104,7 +104,7 @@ func TestProductPagesUsageErrors(t *testing.T) {
 		{
 			name:    "CustomPagesLocalizationsPreviewSetsSyncRequiresConfirm",
 			args:    []string{"product-pages", "custom-pages", "localizations", "preview-sets", "sync", "--localization-id", "loc-1", "--path", "./previews", "--device-type", "IPHONE_65"},
-			wantErr: "--confirm is required to sync",
+			wantErr: "--confirm is required\n",
 			deps:    true,
 		},
 		{
@@ -115,7 +115,7 @@ func TestProductPagesUsageErrors(t *testing.T) {
 		{
 			name:    "CustomPagesLocalizationsScreenshotSetsSyncRequiresConfirm",
 			args:    []string{"product-pages", "custom-pages", "localizations", "screenshot-sets", "sync", "--localization-id", "loc-1", "--path", "./screenshots", "--device-type", "IPHONE_65"},
-			wantErr: "--confirm is required to sync",
+			wantErr: "--confirm is required\n",
 			deps:    true,
 		},
 	})
