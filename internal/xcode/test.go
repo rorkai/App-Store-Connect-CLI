@@ -55,6 +55,14 @@ type TestOptions struct {
 	CodeCoverage     bool
 	XcodebuildArgs   []string
 	LogWriter        io.Writer
+
+	RetryTestsOnFailure        bool
+	TestIterations             int
+	ParallelTesting            *bool
+	ParallelTestingWorkers     int
+	AddressSanitizer           bool
+	ThreadSanitizer            bool
+	UndefinedBehaviorSanitizer bool
 }
 
 // TestResult is the stable structured result for a local Xcode test operation.
@@ -215,9 +223,62 @@ func ValidateTestOptions(opts TestOptions) error {
 	if reserved := reservedTestPassthroughArgument(opts.XcodebuildArgs); reserved != "" {
 		return fmt.Errorf("--xcodebuild-flag cannot override asc-managed argument %q", reserved)
 	}
-	if opts.CodeCoverage {
-		if raw := firstReservedPassthroughArgument(opts.XcodebuildArgs, []string{"-enablecodecoverage"}, nil, nil); raw != "" {
-			return fmt.Errorf("--code-coverage conflicts with --xcodebuild-flag %q; use one", raw)
+	if opts.TestIterations < 0 {
+		return fmt.Errorf("--test-iterations must be at least 1")
+	}
+	if opts.ParallelTestingWorkers < 0 {
+		return fmt.Errorf("--parallel-testing-workers must be at least 1")
+	}
+	if TestAction(opts.Action) == TestActionBuildForTesting {
+		if opts.RetryTestsOnFailure {
+			return fmt.Errorf("--retry-tests-on-failure cannot be used with --action build-for-testing")
+		}
+		if opts.TestIterations > 0 {
+			return fmt.Errorf("--test-iterations cannot be used with --action build-for-testing")
+		}
+		if opts.ParallelTestingWorkers > 0 {
+			return fmt.Errorf("--parallel-testing-workers cannot be used with --action build-for-testing")
+		}
+	}
+	if TestAction(opts.Action) == TestActionTestWithoutBuilding {
+		for _, sanitizer := range []struct {
+			set  bool
+			flag string
+		}{
+			{opts.AddressSanitizer, "--address-sanitizer"},
+			{opts.ThreadSanitizer, "--thread-sanitizer"},
+			{opts.UndefinedBehaviorSanitizer, "--undefined-behavior-sanitizer"},
+		} {
+			if sanitizer.set {
+				return fmt.Errorf("%s cannot be used with --action test-without-building", sanitizer.flag)
+			}
+		}
+	}
+	if opts.ParallelTestingWorkers > 0 && opts.ParallelTesting != nil && !*opts.ParallelTesting {
+		return fmt.Errorf("--parallel-testing-workers cannot be combined with --parallel-testing=false")
+	}
+	if opts.AddressSanitizer && opts.ThreadSanitizer {
+		return fmt.Errorf("--address-sanitizer and --thread-sanitizer cannot be used together")
+	}
+	for _, typed := range []struct {
+		set  bool
+		flag string
+		arg  string
+	}{
+		{set: opts.CodeCoverage, flag: "--code-coverage", arg: "-enablecodecoverage"},
+		{set: opts.RetryTestsOnFailure, flag: "--retry-tests-on-failure", arg: "-retry-tests-on-failure"},
+		{set: opts.TestIterations > 0, flag: "--test-iterations", arg: "-test-iterations"},
+		{set: opts.ParallelTesting != nil, flag: "--parallel-testing", arg: "-parallel-testing-enabled"},
+		{set: opts.ParallelTestingWorkers > 0, flag: "--parallel-testing-workers", arg: "-parallel-testing-worker-count"},
+		{set: opts.AddressSanitizer, flag: "--address-sanitizer", arg: "-enableaddresssanitizer"},
+		{set: opts.ThreadSanitizer, flag: "--thread-sanitizer", arg: "-enablethreadsanitizer"},
+		{set: opts.UndefinedBehaviorSanitizer, flag: "--undefined-behavior-sanitizer", arg: "-enableundefinedbehaviorsanitizer"},
+	} {
+		if !typed.set {
+			continue
+		}
+		if raw := firstReservedPassthroughArgument(opts.XcodebuildArgs, []string{typed.arg}, nil, nil); raw != "" {
+			return fmt.Errorf("%s conflicts with --xcodebuild-flag %q; use one", typed.flag, raw)
 		}
 	}
 	if opts.ResultBundlePath != "" && !strings.EqualFold(filepath.Ext(opts.ResultBundlePath), ".xcresult") {
@@ -703,6 +764,31 @@ func buildTestCommand(opts TestOptions) []string {
 	}
 	if opts.CodeCoverage {
 		args = append(args, "-enableCodeCoverage", "YES")
+	}
+	if opts.RetryTestsOnFailure {
+		args = append(args, "-retry-tests-on-failure")
+	}
+	if opts.TestIterations > 0 {
+		args = append(args, "-test-iterations", strconv.Itoa(opts.TestIterations))
+	}
+	if opts.ParallelTesting != nil {
+		enabled := "NO"
+		if *opts.ParallelTesting {
+			enabled = "YES"
+		}
+		args = append(args, "-parallel-testing-enabled", enabled)
+	}
+	if opts.ParallelTestingWorkers > 0 {
+		args = append(args, "-parallel-testing-worker-count", strconv.Itoa(opts.ParallelTestingWorkers))
+	}
+	if opts.AddressSanitizer {
+		args = append(args, "-enableAddressSanitizer", "YES")
+	}
+	if opts.ThreadSanitizer {
+		args = append(args, "-enableThreadSanitizer", "YES")
+	}
+	if opts.UndefinedBehaviorSanitizer {
+		args = append(args, "-enableUndefinedBehaviorSanitizer", "YES")
 	}
 	args = append(args, cloneTestValues(opts.XcodebuildArgs)...)
 	if opts.NoCodeSigning {
