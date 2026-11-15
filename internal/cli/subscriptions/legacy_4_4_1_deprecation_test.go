@@ -13,13 +13,14 @@ import (
 // The App Store Connect API 4.4.1 product-scoped command families were removed
 // in 5.0.0. Their parents must no longer register them anywhere in the tree.
 func TestSubscriptionsLegacy441CommandsAreNotRegistered(t *testing.T) {
+	testDeps, _ := newSubscriptionsTestDeps()
 	tests := []struct {
 		name    string
 		parent  *ffcli.Command
 		removed []string
 	}{
-		{"subscriptions", SubscriptionsCommand(), []string{"localizations", "images", "submit"}},
-		{"groups", SubscriptionsGroupsCommand(), []string{"localizations", "submit"}},
+		{"subscriptions", NewSubscriptionsCommand(testDeps), []string{"localizations", "images", "submit"}},
+		{"groups", newSubscriptionsGroupsCommand(testDeps), []string{"localizations", "submit"}},
 		{"review", SubscriptionsReviewCommand(), []string{"submit", "submit-group"}},
 	}
 
@@ -66,11 +67,12 @@ func captureSubscriptionsLegacy441Stderr(t *testing.T, run func()) string {
 }
 
 func TestSubscriptionVersionScoped441CommandsAreNotDeprecated(t *testing.T) {
+	testDeps, _ := newSubscriptionsTestDeps()
 	commands := []*ffcli.Command{
 		SubscriptionsVersionImagesListCommand(),
 		SubscriptionsVersionLocalizationsListCommand(),
-		SubscriptionsGroupsVersionLocalizationsCommand(),
-		SubscriptionsGroupsVersionLocalizationsListCommand(),
+		newSubscriptionsGroupsVersionLocalizationsCommand(testDeps),
+		newSubscriptionsGroupsVersionLocalizationsListCommand(testDeps),
 	}
 	for _, cmd := range commands {
 		if strings.Contains(cmd.ShortHelp, "DEPRECATED:") || strings.Contains(cmd.LongHelp, "DEPRECATED:") {
@@ -83,13 +85,14 @@ func TestSubscriptionVersionScoped441CommandsAreNotDeprecated(t *testing.T) {
 }
 
 func TestSubscriptions441ParentHelpPromotesVersionScopedResources(t *testing.T) {
+	testDeps, _ := newSubscriptionsTestDeps()
 	tests := []struct {
 		name        string
 		command     *ffcli.Command
 		legacy      string
 		replacement string
 	}{
-		{"subscriptions", SubscriptionsCommand(), "asc subscriptions review submit", "asc review items add"},
+		{"subscriptions", NewSubscriptionsCommand(testDeps), "asc subscriptions review submit", "asc review items add"},
 		{"review", SubscriptionsReviewCommand(), "asc subscriptions review submit", "asc review items add"},
 	}
 

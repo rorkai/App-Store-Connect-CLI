@@ -9,13 +9,17 @@ import (
 )
 
 func normalizeSelectionFlag(fs *flag.FlagSet, value, flagName string, allowed []string) ([]string, error) {
+	return normalizeSelectionFlagWith(shared.DefaultDeps(), fs, value, flagName, allowed)
+}
+
+func normalizeSelectionFlagWith(d *shared.Deps, fs *flag.FlagSet, value, flagName string, allowed []string) ([]string, error) {
 	provided := flagWasProvided(fs, strings.TrimPrefix(flagName, "--"))
 	values, err := shared.NormalizeSelection(value, allowed, flagName)
 	if err != nil {
-		return nil, shared.UsageError(err.Error())
+		return nil, d.UsageError(err.Error())
 	}
 	if provided && len(values) == 0 {
-		return nil, shared.UsageErrorf("%s must not be empty", flagName)
+		return nil, d.UsageErrorf("%s must not be empty", flagName)
 	}
 	return values, nil
 }

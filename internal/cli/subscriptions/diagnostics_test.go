@@ -37,10 +37,9 @@ func TestSubscriptionsMissingRequiredInputExposesStructuredDiagnostic(t *testing
 }
 
 func TestSubscriptionsGroupUpdateMissingReferenceNameExposesStructuredDiagnostic(t *testing.T) {
-	var err error
-	stderr := captureSubscriptionsDiagnosticStderr(t, func() {
-		err = SubscriptionsGroupsUpdateCommand().ParseAndRun(context.Background(), []string{"--id", "group-1"})
-	})
+	d, stderrBuf := newSubscriptionsTestDeps()
+	err := newSubscriptionsGroupsUpdateCommand(d).ParseAndRun(context.Background(), []string{"--id", "group-1"})
+	stderr := stderrBuf.String()
 	if !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("error = %v, want flag.ErrHelp contract", err)
 	}
@@ -81,10 +80,9 @@ func TestSubscriptionsConflictingInputExposesStructuredDiagnostic(t *testing.T) 
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			var err error
-			stderr := captureSubscriptionsDiagnosticStderr(t, func() {
-				err = SubscriptionsGroupsVersionLocalizationsUpdateCommand().ParseAndRun(context.Background(), test.args)
-			})
+			d, stderrBuf := newSubscriptionsTestDeps()
+			err := newSubscriptionsGroupsVersionLocalizationsUpdateCommand(d).ParseAndRun(context.Background(), test.args)
+			stderr := stderrBuf.String()
 			if !errors.Is(err, flag.ErrHelp) {
 				t.Fatalf("error = %v, want flag.ErrHelp contract", err)
 			}

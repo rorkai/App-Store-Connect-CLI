@@ -24,9 +24,9 @@ func SubscriptionsVersionLocalizationsImportCommand() *ffcli.Command {
 	})
 }
 
-// SubscriptionsGroupsVersionLocalizationsImportCommand creates or updates
+// newSubscriptionsGroupsVersionLocalizationsImportCommand creates or updates
 // subscription group version localizations from a JSON file.
-func SubscriptionsGroupsVersionLocalizationsImportCommand() *ffcli.Command {
+func newSubscriptionsGroupsVersionLocalizationsImportCommand(d *shared.Deps) *ffcli.Command {
 	return shared.NewVersionLocalizationImportCommand(shared.VersionLocalizationImportConfig{
 		CommandPath:         "subscriptions groups versions localizations import",
 		VersionResourceType: "subscriptionGroupVersions",
@@ -34,7 +34,8 @@ func SubscriptionsGroupsVersionLocalizationsImportCommand() *ffcli.Command {
 		ResourceType:        "subscriptionGroupLocalizations",
 		OptionalField:       "customAppName",
 		ExampleValues:       `{"en-US": {"name": "Premium", "customAppName": "Premium App"}, "de-DE": {"name": "Premium"}}`,
-		NewClient:           func() (*asc.Client, error) { return subscriptionGroupVersionClientFactory() },
+		NewClient:           d.Client,
+		Deps:                d,
 		Ops:                 subscriptionGroupVersionLocalizationImportOps,
 	})
 }

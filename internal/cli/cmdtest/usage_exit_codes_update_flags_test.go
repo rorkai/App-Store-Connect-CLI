@@ -329,11 +329,13 @@ func TestUpdateWithoutUpdateFlagsListsEveryUpdateFlag(t *testing.T) {
 			name:  "subscriptions groups update",
 			args:  []string{"subscriptions", "groups", "update", "--id", "ID"},
 			flags: "--reference-name",
+			deps:  true,
 		},
 		{
 			name:  "subscriptions groups versions localizations update",
 			args:  []string{"subscriptions", "groups", "versions", "localizations", "update", "--id", "ID"},
 			flags: "--name, --custom-app-name, --clear-name, --clear-custom-app-name",
+			deps:  true,
 		},
 		{
 			name:  "subscriptions offers introductory update",

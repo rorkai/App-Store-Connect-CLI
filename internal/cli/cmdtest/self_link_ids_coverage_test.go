@@ -152,6 +152,7 @@ func TestSelfLinkCoverageSendsExtractedID(t *testing.T) {
 			args:     []string{"subscriptions", "groups", "view", "--id", selfLinkTestBase + "/v1/subscriptionGroups/group-1"},
 			wantPath: "GET /v1/subscriptionGroups/group-1",
 			wantID:   "group-1",
+			deps:     true,
 			bodies: map[string]string{
 				"/v1/subscriptionGroups/group-1": `{"data":{"type":"subscriptionGroups","id":"group-1","attributes":{"referenceName":"Pro"}}}`,
 			},
@@ -505,8 +506,8 @@ func TestSelfLinkCoverageRejectsWrongType(t *testing.T) {
 		{args: []string{"routing-coverage", "info"}, flag: "id", wantType: "routingAppCoverages", deps: true},
 		{args: []string{"sandbox", "view"}, flag: "id", wantType: "sandboxTesters", deps: true},
 		{args: []string{"submit", "status"}, flag: "id", wantType: "reviewSubmissions", deps: true},
-		{args: []string{"subscriptions", "groups", "view"}, flag: "id", wantType: "subscriptionGroups"},
-		{args: []string{"subscriptions", "groups", "versions", "localizations", "view"}, flag: "id", wantType: "subscriptionGroupLocalizations"},
+		{args: []string{"subscriptions", "groups", "view"}, flag: "id", wantType: "subscriptionGroups", deps: true},
+		{args: []string{"subscriptions", "groups", "versions", "localizations", "view"}, flag: "id", wantType: "subscriptionGroupLocalizations", deps: true},
 		{args: []string{"subscriptions", "grace-periods", "view"}, flag: "id", wantType: "subscriptionGracePeriods"},
 		{args: []string{"subscriptions", "offers", "introductory", "view"}, flag: "id", wantType: "subscriptionIntroductoryOffers"},
 		{args: []string{"subscriptions", "offers", "introductory", "create"}, flag: "price-point", wantType: "subscriptionPricePoints"},

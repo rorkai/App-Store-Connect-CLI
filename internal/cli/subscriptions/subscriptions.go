@@ -20,9 +20,9 @@ import (
 
 var subscriptionQueryClientFactory = shared.GetASCClient
 
-// SubscriptionsCommand returns the subscriptions command group.
-func SubscriptionsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("subscriptions", flag.ExitOnError)
+// NewSubscriptionsCommand returns the subscriptions command group built on d.
+func NewSubscriptionsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("subscriptions", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "subscriptions",
@@ -50,7 +50,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			SubscriptionsGroupsCommand(),
+			newSubscriptionsGroupsCommand(d),
 			SubscriptionsListCommand(),
 			SubscriptionsCreateCommand(),
 			SubscriptionsSetupCommand(),
@@ -71,9 +71,9 @@ Examples:
 	}
 }
 
-// SubscriptionsGroupsCommand returns the subscriptions groups command group.
-func SubscriptionsGroupsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("groups", flag.ExitOnError)
+// newSubscriptionsGroupsCommand returns the subscriptions groups command group.
+func newSubscriptionsGroupsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("groups", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "groups",
@@ -89,12 +89,12 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			SubscriptionsGroupsListCommand(),
-			SubscriptionsGroupsCreateCommand(),
-			SubscriptionsGroupsGetCommand(),
-			SubscriptionsGroupsUpdateCommand(),
-			SubscriptionsGroupsDeleteCommand(),
-			SubscriptionsGroupsVersionsCommand(),
+			newSubscriptionsGroupsListCommand(d),
+			newSubscriptionsGroupsCreateCommand(d),
+			newSubscriptionsGroupsGetCommand(d),
+			newSubscriptionsGroupsUpdateCommand(d),
+			newSubscriptionsGroupsDeleteCommand(d),
+			newSubscriptionsGroupsVersionsCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -102,11 +102,8 @@ Examples:
 	}
 }
 
-// SubscriptionsGroupsListCommand returns the groups list subcommand.
-func SubscriptionsGroupsListCommand() *ffcli.Command {
-	d := shared.DefaultDeps()
-	d.Client = func() (*asc.Client, error) { return subscriptionGroupVersionClientFactory() }
-
+// newSubscriptionsGroupsListCommand returns the groups list subcommand.
+func newSubscriptionsGroupsListCommand(d *shared.Deps) *ffcli.Command {
 	var (
 		versionsLimit                                                                                        *int
 		includes, groupFields, includedVersionFields, includedSubscriptionFields, includedLocalizationFields []string
@@ -141,26 +138,26 @@ Examples:
 			versionsLimit = fs.Int("versions-limit", 0, "Maximum included versions (1-50)")
 			return func() error {
 				if *versionsLimit != 0 && (*versionsLimit < 1 || *versionsLimit > 50) {
-					return shared.UsageError("subscriptions groups list: --versions-limit must be between 1 and 50")
+					return d.UsageError("subscriptions groups list: --versions-limit must be between 1 and 50")
 				}
 				var err error
 				includes, err = shared.NormalizeSelection(*include, []string{"subscriptions", "subscriptionGroupLocalizations", "versions"}, "--include")
 				if err != nil {
-					return shared.UsageError("subscriptions groups list: " + err.Error())
+					return d.UsageError("subscriptions groups list: " + err.Error())
 				}
 				groupFields, err = shared.NormalizeSelection(*fields, subscriptionGroupVersionGroupFields, "--fields")
 				if err != nil {
-					return shared.UsageError("subscriptions groups list: " + err.Error())
+					return d.UsageError("subscriptions groups list: " + err.Error())
 				}
 				includedVersionFields, err = shared.NormalizeSelection(*versionFields, subscriptionGroupVersionFields, "--version-fields")
 				if err != nil {
-					return shared.UsageError("subscriptions groups list: " + err.Error())
+					return d.UsageError("subscriptions groups list: " + err.Error())
 				}
-				includedSubscriptionFields, err = normalizeSelectionFlag(fs, *subscriptionFields, "--subscription-fields", subscriptionFieldsList())
+				includedSubscriptionFields, err = normalizeSelectionFlagWith(d, fs, *subscriptionFields, "--subscription-fields", subscriptionFieldsList())
 				if err != nil {
 					return err
 				}
-				includedLocalizationFields, err = normalizeSelectionFlag(fs, *localizationFields, "--localization-fields", subscriptionGroupLocalizationFieldsList())
+				includedLocalizationFields, err = normalizeSelectionFlagWith(d, fs, *localizationFields, "--localization-fields", subscriptionGroupLocalizationFieldsList())
 				return err
 			}
 		},
@@ -179,13 +176,13 @@ Examples:
 	})
 }
 
-// SubscriptionsGroupsCreateCommand returns the groups create subcommand.
-func SubscriptionsGroupsCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("groups create", flag.ExitOnError)
+// newSubscriptionsGroupsCreateCommand returns the groups create subcommand.
+func newSubscriptionsGroupsCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("groups create", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	referenceName := fs.String("reference-name", "", "Reference name")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -200,21 +197,21 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
 			}
 
 			name := strings.TrimSpace(*referenceName)
 			if name == "" {
-				return shared.RequiredFlag("--reference-name")
+				return d.RequiredFlag("--reference-name")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("subscriptions groups create: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			attrs := asc.SubscriptionGroupCreateAttributes{
@@ -226,16 +223,13 @@ Examples:
 				return fmt.Errorf("subscriptions groups create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// SubscriptionsGroupsGetCommand returns the groups get subcommand.
-func SubscriptionsGroupsGetCommand() *ffcli.Command {
-	d := shared.DefaultDeps()
-	d.Client = func() (*asc.Client, error) { return subscriptionGroupVersionClientFactory() }
-
+// newSubscriptionsGroupsGetCommand returns the groups get subcommand.
+func newSubscriptionsGroupsGetCommand(d *shared.Deps) *ffcli.Command {
 	var opts []asc.SubscriptionGroupsOption
 
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
@@ -262,25 +256,25 @@ Examples:
 			versionsLimit := fs.Int("versions-limit", 0, "Maximum included versions (1-50)")
 			return func() error {
 				if *versionsLimit != 0 && (*versionsLimit < 1 || *versionsLimit > 50) {
-					return shared.UsageError("subscriptions groups view: --versions-limit must be between 1 and 50")
+					return d.UsageError("subscriptions groups view: --versions-limit must be between 1 and 50")
 				}
 				includes, err := shared.NormalizeSelection(*include, []string{"subscriptions", "subscriptionGroupLocalizations", "versions"}, "--include")
 				if err != nil {
-					return shared.UsageError("subscriptions groups view: " + err.Error())
+					return d.UsageError("subscriptions groups view: " + err.Error())
 				}
 				groupFields, err := shared.NormalizeSelection(*fields, subscriptionGroupVersionGroupFields, "--fields")
 				if err != nil {
-					return shared.UsageError("subscriptions groups view: " + err.Error())
+					return d.UsageError("subscriptions groups view: " + err.Error())
 				}
 				includedVersionFields, err := shared.NormalizeSelection(*versionFields, subscriptionGroupVersionFields, "--version-fields")
 				if err != nil {
-					return shared.UsageError("subscriptions groups view: " + err.Error())
+					return d.UsageError("subscriptions groups view: " + err.Error())
 				}
-				includedSubscriptionFields, err := normalizeSelectionFlag(fs, *subscriptionFields, "--subscription-fields", subscriptionFieldsList())
+				includedSubscriptionFields, err := normalizeSelectionFlagWith(d, fs, *subscriptionFields, "--subscription-fields", subscriptionFieldsList())
 				if err != nil {
 					return err
 				}
-				includedLocalizationFields, err := normalizeSelectionFlag(fs, *localizationFields, "--localization-fields", subscriptionGroupLocalizationFieldsList())
+				includedLocalizationFields, err := normalizeSelectionFlagWith(d, fs, *localizationFields, "--localization-fields", subscriptionGroupLocalizationFieldsList())
 				if err != nil {
 					return err
 				}
@@ -301,10 +295,11 @@ Examples:
 	})
 }
 
-// SubscriptionsGroupsUpdateCommand returns the groups update subcommand.
-func SubscriptionsGroupsUpdateCommand() *ffcli.Command {
+// newSubscriptionsGroupsUpdateCommand returns the groups update subcommand.
+func newSubscriptionsGroupsUpdateCommand(d *shared.Deps) *ffcli.Command {
 	var attrs asc.SubscriptionGroupUpdateAttributes
 	return shared.BuildUpdateCommand(shared.WriteCommandConfig{
+		Deps:        d,
 		FlagSetName: "groups update",
 		Name:        "update",
 		ShortUsage:  "asc subscriptions groups update [flags]",
@@ -324,9 +319,10 @@ Examples:
 	})
 }
 
-// SubscriptionsGroupsDeleteCommand returns the groups delete subcommand.
-func SubscriptionsGroupsDeleteCommand() *ffcli.Command {
+// newSubscriptionsGroupsDeleteCommand returns the groups delete subcommand.
+func newSubscriptionsGroupsDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		Deps:        d,
 		FlagSetName: "groups delete",
 		Name:        "delete",
 		ShortUsage:  "asc subscriptions groups delete --id \"GROUP_ID\" --confirm",
