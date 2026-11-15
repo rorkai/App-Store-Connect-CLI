@@ -8,10 +8,6 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-func normalizeSelectionFlag(fs *flag.FlagSet, value, flagName string, allowed []string) ([]string, error) {
-	return normalizeSelectionFlagWith(shared.DefaultDeps(), fs, value, flagName, allowed)
-}
-
 func normalizeSelectionFlagWith(d *shared.Deps, fs *flag.FlagSet, value, flagName string, allowed []string) ([]string, error) {
 	provided := flagWasProvided(fs, strings.TrimPrefix(flagName, "--"))
 	values, err := shared.NormalizeSelection(value, allowed, flagName)
