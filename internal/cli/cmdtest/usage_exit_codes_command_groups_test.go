@@ -617,46 +617,55 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			name:    "performance diagnostics rejects unrelated cursor",
 			args:    []string{"performance", "diagnostics", "list", "--build-id", "build-a", "--next", "https://api.appstoreconnect.apple.com/v1/apps/6759231657/appInfos?limit=1"},
 			wantErr: "performance diagnostics list: --next must point to a build's diagnostic signatures",
+			deps:    true,
 		},
 		{
 			name:    "performance diagnostics rejects a cursor for another build",
 			args:    []string{"performance", "diagnostics", "list", "--build-id", "build-a", "--next", "https://api.appstoreconnect.apple.com/v1/builds/build-b/diagnosticSignatures?cursor=AQ"},
 			wantErr: "performance diagnostics list: --build-id must match the build in --next",
+			deps:    true,
 		},
 		{
 			name:    "performance diagnostics list limit",
 			args:    []string{"performance", "diagnostics", "list", "--build-id", "B", "--limit", "201"},
 			wantErr: "performance diagnostics list: --limit must be between 1 and 200",
+			deps:    true,
 		},
 		{
 			name:    "performance diagnostics view limit",
 			args:    []string{"performance", "diagnostics", "view", "--id", "I", "--limit", "201"},
 			wantErr: "performance diagnostics view: --limit must be between 1 and 200",
+			deps:    true,
 		},
 		{
 			name:    "performance diagnostics list invalid diagnostic type",
 			args:    []string{"performance", "diagnostics", "list", "--build-id", "BUILD_ID", "--diagnostic-type", "bad"},
 			wantErr: "performance diagnostics list: --diagnostic-type must be one of: DISK_WRITES, HANGS, LAUNCHES",
+			deps:    true,
 		},
 		{
 			name:    "performance metrics list invalid metric type",
 			args:    []string{"performance", "metrics", "list", "--app", "APP_ID", "--metric-type", "bad"},
 			wantErr: "performance metrics list: --metric-type must be one of: ANIMATION, BATTERY, DISK, HANG, LAUNCH, MEMORY, STORAGE, TERMINATION",
+			deps:    true,
 		},
 		{
 			name:    "performance metrics view invalid metric type",
 			args:    []string{"performance", "metrics", "view", "--build-id", "BUILD_ID", "--metric-type", "bad"},
 			wantErr: "performance metrics view: --metric-type must be one of: ANIMATION, BATTERY, DISK, HANG, LAUNCH, MEMORY, STORAGE, TERMINATION",
+			deps:    true,
 		},
 		{
 			name:    "performance metrics list invalid platform",
 			args:    []string{"performance", "metrics", "list", "--app", "APP_ID", "--platform", "bad"},
 			wantErr: "performance metrics list: --platform must be one of: IOS",
+			deps:    true,
 		},
 		{
 			name:    "performance metrics view invalid platform",
 			args:    []string{"performance", "metrics", "view", "--build-id", "BUILD_ID", "--platform", "bad"},
 			wantErr: "performance metrics view: --platform must be one of: IOS",
+			deps:    true,
 		},
 		{
 			name:    "pre-orders enable invalid release date",
@@ -1106,6 +1115,7 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			name:    "performance download output given a format alias",
 			args:    []string{"performance", "download", "--output", "md"},
 			wantErr: "--output takes a path in this command, not an output format; use --output-format markdown to choose the format, or --output ./md to write to a path named md",
+			deps:    true,
 		},
 		{
 			name:    "screenshots download output given a format",

@@ -15,6 +15,7 @@ func TestOutputFlagRejectionUsesEnumStyle(t *testing.T) {
 		name string
 		args []string
 		want string
+		deps bool // the command is built on shared.Deps: run it through RunWithDeps
 	}{
 		{
 			name: "default output set",
@@ -30,6 +31,7 @@ func TestOutputFlagRejectionUsesEnumStyle(t *testing.T) {
 			name: "custom flag name",
 			args: []string{"finance", "reports", "--output-format", "yaml"},
 			want: `Error: --output-format must be one of: json, table, markdown (got "yaml")` + "\n",
+			deps: true,
 		},
 		{
 			name: "alias normalizes to canonical name",
@@ -45,10 +47,15 @@ func TestOutputFlagRejectionUsesEnumStyle(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			var stdout, stderr string
 			var code int
-			stdout, stderr := captureOutput(t, func() {
-				code = rootcmd.Run(test.args, "1.2.3")
-			})
+			if test.deps {
+				stdout, stderr, code = runWithDeps(t, nil, test.args...)
+			} else {
+				stdout, stderr = captureOutput(t, func() {
+					code = rootcmd.Run(test.args, "1.2.3")
+				})
+			}
 
 			if code != rootcmd.ExitUsage {
 				t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)

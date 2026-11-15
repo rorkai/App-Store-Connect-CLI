@@ -309,12 +309,14 @@ func TestSelfLinkCoverageAppFlagsSendExtractedID(t *testing.T) {
 		args     []string
 		request  asctest.Matcher
 		wantPath string
+		deps     bool // the command is built on shared.Deps: run it through RunWithDeps
 	}{
 		{
 			name:     "performance download",
 			args:     []string{"performance", "download", "--app", appLink, "--output", "metrics.json"},
 			request:  asctest.GET("/v1/apps/123456789/perfPowerMetrics"),
 			wantPath: "GET /v1/apps/123456789/perfPowerMetrics",
+			deps:     true,
 		},
 		{
 			name:     "signing fetch",
@@ -344,18 +346,25 @@ func TestSelfLinkCoverageAppFlagsSendExtractedID(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			setupAuth(t)
+			if !test.deps {
+				setupAuth(t)
+			}
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 			t.Setenv("ASC_APP_ID", "")
 			t.Chdir(t.TempDir())
 
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			reg.Register(test.request, asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"not found"}]}`))
 
-			_, stderr := captureOutput(t, func() {
-				_ = rootcmd.Run(test.args, "1.2.3")
-			})
+			var stderr string
+			if test.deps {
+				_, stderr, _ = runWithDeps(t, stubClient(t, reg), test.args...)
+			} else {
+				reg.Install()
+				_, stderr = captureOutput(t, func() {
+					_ = rootcmd.Run(test.args, "1.2.3")
+				})
+			}
 			var requested []string
 			for _, req := range reg.Requests() {
 				requested = append(requested, req.Method+" "+req.URL.Path)
@@ -518,7 +527,7 @@ func TestSelfLinkCoverageRejectsWrongType(t *testing.T) {
 		{args: []string{"users", "invites", "view"}, flag: "id", wantType: "userInvitations", deps: true},
 		{args: []string{"versions", "phased-release", "update"}, flag: "id", wantType: "appStoreVersionPhasedReleases"},
 		// --app flags that bypassed the shared app resolver.
-		{args: []string{"performance", "download"}, flag: "app", wantType: "apps"},
+		{args: []string{"performance", "download"}, flag: "app", wantType: "apps", deps: true},
 		{args: []string{"signing", "fetch"}, flag: "app", wantType: "apps"},
 		{args: []string{"app-setup", "info", "set"}, flag: "app", wantType: "apps"},
 		{args: []string{"app-setup", "categories", "set"}, flag: "app", wantType: "apps"},

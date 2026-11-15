@@ -7,7 +7,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -16,9 +15,8 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// PerformanceDownloadCommand returns the download subcommand.
-func PerformanceDownloadCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("download", flag.ExitOnError)
+func newPerformanceDownloadCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("download", flag.ExitOnError)
 
 	appID := shared.BindResourceIDFlag(fs, "app", "apps", "App Store Connect app ID (or ASC_APP_ID)")
 	buildID := shared.BindResourceIDFlag(fs, "build-id", "builds", "Build ID to download metrics for")
@@ -44,10 +42,10 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.RejectOutputFormatAsPath(*output, "--output-format"); err != nil {
+			if err := d.RejectOutputFormatAsPath(*output, "--output-format"); err != nil {
 				return err
 			}
-			if err := shared.ValidatePaginationFlags(ctx, fs, "performance download", 200); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "performance download", 200); err != nil {
 				return err
 			}
 			appFlag := strings.TrimSpace(*appID)
@@ -67,36 +65,36 @@ Examples:
 			if selectionCount == 0 {
 				appFlag = shared.ResolveAppID(*appID)
 				if appFlag == "" {
-					fmt.Fprintln(os.Stderr, "Error: --app, --build-id, or --diagnostic-id is required")
+					fmt.Fprintln(d.IO.ErrOut, "Error: --app, --build-id, or --diagnostic-id is required")
 					return shared.MissingRequiredUsageError("")
 				}
 				selectionCount = 1
 			}
 			if selectionCount > 1 {
-				return shared.UsageError("--app, --build-id, and --diagnostic-id are mutually exclusive")
+				return d.UsageError("--app, --build-id, and --diagnostic-id are mutually exclusive")
 			}
 			if trimmedDiagnosticID != "" && (strings.TrimSpace(*platform) != "" || strings.TrimSpace(*metricType) != "" || strings.TrimSpace(*deviceType) != "") {
-				return shared.UsageError("metric filters are not valid with --diagnostic-id")
+				return d.UsageError("metric filters are not valid with --diagnostic-id")
 			}
 			if trimmedDiagnosticID == "" && *limit > 0 {
-				return shared.UsageError("--limit is only valid with --diagnostic-id")
+				return d.UsageError("--limit is only valid with --diagnostic-id")
 			}
 
 			platforms, err := normalizePerfPowerMetricPlatforms(shared.SplitCSVUpper(*platform), "--platform")
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			metricTypes, err := normalizePerfPowerMetricTypes(shared.SplitCSVUpper(*metricType))
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("performance download: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithDownloadTimeout(ctx)
+			requestCtx, cancel := d.DownloadTimeout(ctx)
 			defer cancel()
 
 			switch {
@@ -139,7 +137,7 @@ Examples:
 					DecompressedSize:      decompressedSize,
 				}
 
-				return shared.PrintOutput(result, *outputFlags.OutputFormat, *outputFlags.Pretty)
+				return d.PrintOutput(result, *outputFlags.OutputFormat, *outputFlags.Pretty)
 			case trimmedBuildID != "":
 				defaultOutput := fmt.Sprintf("perf_power_metrics_%s.json", trimmedBuildID)
 
@@ -184,7 +182,7 @@ Examples:
 					DecompressedSize: decompressedSize,
 				}
 
-				return shared.PrintOutput(result, *outputFlags.OutputFormat, *outputFlags.Pretty)
+				return d.PrintOutput(result, *outputFlags.OutputFormat, *outputFlags.Pretty)
 			default:
 				defaultOutput := fmt.Sprintf("perf_power_metrics_%s.json", appFlag)
 
@@ -229,7 +227,7 @@ Examples:
 					DecompressedSize: decompressedSize,
 				}
 
-				return shared.PrintOutput(result, *outputFlags.OutputFormat, *outputFlags.Pretty)
+				return d.PrintOutput(result, *outputFlags.OutputFormat, *outputFlags.Pretty)
 			}
 		},
 	}
