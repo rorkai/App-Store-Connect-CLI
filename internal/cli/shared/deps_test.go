@@ -223,11 +223,11 @@ func TestDepsUsageErrorsMatchProcessVariantsOnDepsStderr(t *testing.T) {
 			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
 		})
 	}
-	runBuilder := func(cmd *ffcli.Command, args ...string) (any, error) {
+	runBuilder := func(cmd *ffcli.Command, args ...string) error {
 		if err := cmd.FlagSet.Parse(args); err != nil {
 			t.Fatalf("parse %v: %v", args, err)
 		}
-		return nil, cmd.Exec(context.Background(), nil)
+		return cmd.Exec(context.Background(), nil)
 	}
 	pricingSet := PricingSetCommandConfig{FlagSetName: "pricing set", CommandName: "set", ErrorPrefix: "pricing set"}
 	availabilitySet := AvailabilitySetCommandConfig{FlagSetName: "pricing availability edit", CommandName: "edit", ErrorPrefix: "pricing availability edit"}
@@ -710,50 +710,50 @@ func TestDepsUsageErrorsMatchProcessVariantsOnDepsStderr(t *testing.T) {
 		{
 			name: "NewAvailabilitySetCommand",
 			process: func() (any, error) {
-				return runBuilder(NewAvailabilitySetCommand(availabilitySet), "--app", "app-1", "--available", "true")
+				return nil, runBuilder(NewAvailabilitySetCommand(availabilitySet), "--app", "app-1", "--available", "true")
 			},
 			deps: func(d *Deps) (any, error) {
 				config := availabilitySet
 				config.Deps = d
-				return runBuilder(NewAvailabilitySetCommand(config), "--app", "app-1", "--available", "true")
+				return nil, runBuilder(NewAvailabilitySetCommand(config), "--app", "app-1", "--available", "true")
 			},
 		},
 		{
 			name: "NewAvailabilityRemoveFromSaleCommand",
 			process: func() (any, error) {
-				return runBuilder(NewAvailabilityRemoveFromSaleCommand(AvailabilityRemoveFromSaleCommandConfig{}), "--app", "app-1")
+				return nil, runBuilder(NewAvailabilityRemoveFromSaleCommand(AvailabilityRemoveFromSaleCommandConfig{}), "--app", "app-1")
 			},
 			deps: func(d *Deps) (any, error) {
-				return runBuilder(NewAvailabilityRemoveFromSaleCommand(AvailabilityRemoveFromSaleCommandConfig{Deps: d}), "--app", "app-1")
+				return nil, runBuilder(NewAvailabilityRemoveFromSaleCommand(AvailabilityRemoveFromSaleCommandConfig{Deps: d}), "--app", "app-1")
 			},
 		},
 		{
 			name:    "NewPricingSetCommand",
-			process: func() (any, error) { return runBuilder(NewPricingSetCommand(pricingSet), "--app", "app-1") },
+			process: func() (any, error) { return nil, runBuilder(NewPricingSetCommand(pricingSet), "--app", "app-1") },
 			deps: func(d *Deps) (any, error) {
 				config := pricingSet
 				config.Deps = d
-				return runBuilder(NewPricingSetCommand(config), "--app", "app-1")
+				return nil, runBuilder(NewPricingSetCommand(config), "--app", "app-1")
 			},
 		},
 		{
 			name:    "NewPriceSchedulePPPCommand",
-			process: func() (any, error) { return runBuilder(NewPriceSchedulePPPCommand(ppp)) },
+			process: func() (any, error) { return nil, runBuilder(NewPriceSchedulePPPCommand(ppp)) },
 			deps: func(d *Deps) (any, error) {
 				config := ppp
 				config.Deps = d
-				return runBuilder(NewPriceSchedulePPPCommand(config))
+				return nil, runBuilder(NewPriceSchedulePPPCommand(config))
 			},
 		},
 		{
 			name: "NewPriceSchedulePPPCommand progress",
 			process: func() (any, error) {
-				return runBuilder(NewPriceSchedulePPPCommand(pppProgress), "--base-price", "1", "--confirm")
+				return nil, runBuilder(NewPriceSchedulePPPCommand(pppProgress), "--base-price", "1", "--confirm")
 			},
 			deps: func(d *Deps) (any, error) {
 				config := pppProgress
 				config.Deps = d
-				return runBuilder(NewPriceSchedulePPPCommand(config), "--base-price", "1", "--confirm")
+				return nil, runBuilder(NewPriceSchedulePPPCommand(config), "--base-price", "1", "--confirm")
 			},
 		},
 		{
@@ -1016,7 +1016,7 @@ func TestDepsTerminalHelpersMatchProcessVariantsOnDepsStreams(t *testing.T) {
 	t.Cleanup(SetASCClientFactoryForTesting(func() (*asc.Client, error) { return nil, nil }))
 	// paginatedList runs a builder list command with --paginate; with nil
 	// deps the builder uses DefaultDeps, the process streams.
-	paginatedList := func(d *Deps) (any, error) {
+	paginatedList := func(d *Deps) error {
 		cmd := BuildPaginatedListCommand(PaginatedListCommandConfig{
 			Name:       "list",
 			ShortUsage: "asc items list [flags]",
@@ -1029,7 +1029,7 @@ func TestDepsTerminalHelpersMatchProcessVariantsOnDepsStreams(t *testing.T) {
 		if err := cmd.FlagSet.Parse([]string{"--paginate", "--output", "json"}); err != nil {
 			t.Fatalf("parse flags: %v", err)
 		}
-		return nil, cmd.Exec(context.Background(), nil)
+		return cmd.Exec(context.Background(), nil)
 	}
 
 	tests := []struct {
@@ -1077,8 +1077,8 @@ func TestDepsTerminalHelpersMatchProcessVariantsOnDepsStreams(t *testing.T) {
 		{
 			name:    "BuildPaginatedListCommand with --paginate",
 			spinner: true,
-			process: func() (any, error) { return paginatedList(nil) },
-			deps:    paginatedList,
+			process: func() (any, error) { return nil, paginatedList(nil) },
+			deps:    func(d *Deps) (any, error) { return nil, paginatedList(d) },
 		},
 	}
 
