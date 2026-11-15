@@ -1251,6 +1251,7 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			name:    "screenshots download output given a format",
 			args:    []string{"screenshots", "download", "--output", "json"},
 			wantErr: "--output takes a path in this command, not an output format; use --format json to choose the format, or --output ./json to write to a path named json",
+			deps:    true,
 		},
 		{
 			name:    "video-previews download output given a format",

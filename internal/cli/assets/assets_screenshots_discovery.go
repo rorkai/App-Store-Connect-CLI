@@ -156,7 +156,7 @@ func uploadScreenshotsFanout(ctx context.Context, cfg screenshotUploadFanoutConf
 		return zero, fmt.Errorf("client is required")
 	}
 	if cfg.RequestContext == nil {
-		cfg.RequestContext = shared.ContextWithTimeout
+		cfg.RequestContext = cfg.Deps.Timeout
 	}
 	cfg.ExecuteUpload = resolveScreenshotUploadExecutor(cfg.ExecuteUpload, cfg.UploadScreenshot)
 
@@ -219,6 +219,7 @@ func uploadScreenshotsFanout(ctx context.Context, cfg screenshotUploadFanoutConf
 	for _, item := range localeAssets {
 		localizationID := localizationIDsByLocale[normalizeFanoutLocaleKey(item.Locale)]
 		uploadResult, err := cfg.ExecuteUpload(ctx, screenshotUploadConfig[asc.AppScreenshotUploadResult]{
+			Deps:           cfg.Deps,
 			Client:         cfg.Client,
 			LocalizationID: localizationID,
 			DisplayType:    cfg.DisplayType,
@@ -229,7 +230,7 @@ func uploadScreenshotsFanout(ctx context.Context, cfg screenshotUploadFanoutConf
 			DryRun:         cfg.DryRun,
 			MaxScreenshots: cfg.MaxScreenshots,
 			RequestContext: cfg.RequestContext,
-			UploadContext:  contextWithAssetUploadTimeout,
+			UploadContext:  assetUploadContext(cfg.Deps),
 			Access:         appStoreVersionScreenshotSetAccess,
 		}, "")
 		if err != nil {

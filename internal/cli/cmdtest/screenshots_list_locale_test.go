@@ -47,8 +47,16 @@ func installScreenshotsListTestClient(t *testing.T, handler http.HandlerFunc) {
 	}))
 }
 
+func screenshotsListTestClient(t *testing.T, handler http.HandlerFunc) func() (*asc.Client, error) {
+	t.Helper()
+
+	server := httptest.NewServer(handler)
+	t.Cleanup(server.Close)
+	return stubServerClient(t, server)
+}
+
 func TestScreenshotsListWithoutLocaleListsEveryLocalization(t *testing.T) {
-	installScreenshotsListTestClient(t, func(w http.ResponseWriter, req *http.Request) {
+	client := screenshotsListTestClient(t, func(w http.ResponseWriter, req *http.Request) {
 		switch req.URL.Path {
 		case "/v1/apps/123456789/appStoreVersions":
 			writeScreenshotsListJSON(t, w, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{}}`)
@@ -68,12 +76,12 @@ func TestScreenshotsListWithoutLocaleListsEveryLocalization(t *testing.T) {
 		}
 	})
 
-	stdout, stderr, runErr := runRootCommand(t, []string{
+	stdout, stderr, runErr := runRootWithDeps(t, client, []string{
 		"screenshots", "list",
 		"--app", "123456789",
 		"--version", "1.2.3",
 		"--output", "json",
-	})
+	}...)
 	if runErr != nil {
 		t.Fatalf("screenshots list error: %v (stderr %q)", runErr, stderr)
 	}
@@ -132,7 +140,7 @@ func TestScreenshotsListWithoutLocaleTableOutputIncludesLocaleColumn(t *testing.
 
 func testScreenshotListVersionSelector(t *testing.T, selector, value, id string) {
 	t.Helper()
-	installScreenshotsListTestClient(t, func(w http.ResponseWriter, req *http.Request) {
+	client := screenshotsListTestClient(t, func(w http.ResponseWriter, req *http.Request) {
 		switch req.URL.Path {
 		case "/v1/appStoreVersions/" + id + "/appStoreVersionLocalizations":
 			writeScreenshotsListJSON(t, w, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US"}}],"links":{}}`)
@@ -149,11 +157,11 @@ func testScreenshotListVersionSelector(t *testing.T, selector, value, id string)
 	})
 
 	t.Setenv("ASC_APP_ID", "ambient-app-must-not-be-used")
-	stdout, stderr, runErr := runRootCommand(t, []string{
+	stdout, stderr, runErr := runRootWithDeps(t, client,
 		"screenshots", "list",
 		selector, value,
 		"--output", "table",
-	})
+	)
 	if runErr != nil {
 		t.Fatalf("screenshots list error: %v (stderr %q)", runErr, stderr)
 	}
@@ -163,7 +171,7 @@ func testScreenshotListVersionSelector(t *testing.T, selector, value, id string)
 }
 
 func TestScreenshotsListWithoutLocaleReportsVersionWithoutLocalizations(t *testing.T) {
-	installScreenshotsListTestClient(t, func(w http.ResponseWriter, req *http.Request) {
+	client := screenshotsListTestClient(t, func(w http.ResponseWriter, req *http.Request) {
 		switch req.URL.Path {
 		case "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
 			writeScreenshotsListJSON(t, w, `{"data":[],"links":{}}`)
@@ -173,11 +181,11 @@ func TestScreenshotsListWithoutLocaleReportsVersionWithoutLocalizations(t *testi
 		}
 	})
 
-	stdout, _, runErr := runRootCommand(t, []string{
+	stdout, _, runErr := runRootWithDeps(t, client, []string{
 		"screenshots", "list",
 		"--version-id", "version-1",
 		"--output", "json",
-	})
+	}...)
 	if runErr == nil {
 		t.Fatal("screenshots list error = nil, want no-localization error")
 	}
