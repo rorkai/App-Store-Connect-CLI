@@ -488,8 +488,8 @@ Examples:
 			newBuildsRelationshipsCommand(d),
 			newBuildsMetricsCommand(d),
 			newBuildsDsymsCommand(d),
-			BuildsCompileCommand(),
-			BuildsPackageCommand(),
+			newBuildsCompileCommand(d),
+			newBuildsPackageCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
