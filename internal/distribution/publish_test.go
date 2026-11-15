@@ -1205,3 +1205,54 @@ func TestHTTPVerifierCABundleKeepsTransportTLSSettings(t *testing.T) {
 		})
 	}
 }
+
+func TestHTTPVerifierCABundleAcceptsAnyTransport(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	defer server.Close()
+	caPath := filepath.Join(t.TempDir(), "ca.pem")
+	if err := os.WriteFile(caPath, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw}), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("AWS_CA_BUNDLE", caPath)
+
+	t.Run("round tripper that is not an *http.Transport", func(t *testing.T) {
+		var requests int
+		transport := publishVerifyRoundTripFunc(func(request *http.Request) (*http.Response, error) {
+			requests++
+			return &http.Response{StatusCode: http.StatusOK, Body: http.NoBody, Request: request}, nil
+		})
+		verifier, err := NewHTTPVerifierWithEnvironmentTrust(transport, time.Second)
+		if err != nil {
+			t.Fatalf("NewHTTPVerifierWithEnvironmentTrust() error = %v", err)
+		}
+		response, err := verifier.client.Get("https://objects.example.com/app.ipa")
+		if err != nil {
+			t.Fatalf("request through the given transport: %v", err)
+		}
+		_ = response.Body.Close()
+		if requests != 1 {
+			t.Fatalf("requests on the given transport = %d, want 1", requests)
+		}
+	})
+	t.Run("nil transport", func(t *testing.T) {
+		verifier, err := NewHTTPVerifierWithEnvironmentTrust(nil, time.Second)
+		if err != nil {
+			t.Fatalf("NewHTTPVerifierWithEnvironmentTrust() error = %v", err)
+		}
+		transport, ok := verifier.client.Transport.(*http.Transport)
+		if !ok || transport.TLSClientConfig == nil || transport.TLSClientConfig.RootCAs == nil {
+			t.Fatalf("verifier transport = %T %+v, want a clone of http.DefaultTransport with the bundle roots", verifier.client.Transport, verifier.client.Transport)
+		}
+		response, err := verifier.client.Get(server.URL)
+		if err != nil {
+			t.Fatalf("request to a server signed by the bundle: %v", err)
+		}
+		_ = response.Body.Close()
+	})
+}
+
+type publishVerifyRoundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f publishVerifyRoundTripFunc) RoundTrip(request *http.Request) (*http.Response, error) {
+	return f(request)
+}

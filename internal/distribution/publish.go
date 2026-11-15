@@ -1092,6 +1092,9 @@ func NewHTTPVerifier(client *http.Client, timeout time.Duration) *HTTPVerifier {
 // transport and honors the same AWS_CA_BUNDLE trust override used by the S3
 // SDK for private endpoints.
 func NewHTTPVerifierWithEnvironmentTrust(transport http.RoundTripper, timeout time.Duration) (*HTTPVerifier, error) {
+	if transport == nil {
+		transport = http.DefaultTransport
+	}
 	caPath := strings.TrimSpace(os.Getenv("AWS_CA_BUNDLE"))
 	if caPath == "" {
 		return NewHTTPVerifier(&http.Client{Transport: transport}, timeout), nil
@@ -1118,7 +1121,9 @@ func NewHTTPVerifierWithEnvironmentTrust(transport http.RoundTripper, timeout ti
 	}
 	base, ok := transport.(*http.Transport)
 	if !ok {
-		return nil, fmt.Errorf("default HTTP transport is unavailable")
+		// Only an *http.Transport exposes TLS settings to add the roots to; any
+		// other round tripper keeps the trust it was built with.
+		return NewHTTPVerifier(&http.Client{Transport: transport}, timeout), nil
 	}
 	clone := base.Clone()
 	if clone.TLSClientConfig == nil {
