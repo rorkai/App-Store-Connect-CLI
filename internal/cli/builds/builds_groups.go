@@ -10,9 +10,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/testflight"
 )
 
-// BuildsGroupsCommand returns the build beta-groups command group.
-func BuildsGroupsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("groups", flag.ExitOnError)
+// newBuildsGroupsCommand returns the build beta-groups command group.
+func newBuildsGroupsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("groups", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "groups",
@@ -23,9 +23,9 @@ func BuildsGroupsCommand() *ffcli.Command {
 Examples:
   asc builds groups list --build-id "BUILD_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			testflight.BuildGroupsListCommand(testflight.BuildGroupsListCommandConfig{
+			testflight.BuildGroupsListCommandWith(d, testflight.BuildGroupsListCommandConfig{
 				ShortUsage: "asc builds groups list --build-id \"BUILD_ID\" [flags]",
 				ShortHelp:  "List TestFlight beta groups that contain a build.",
 				LongHelp: `List TestFlight beta groups that contain a build.

@@ -73,7 +73,7 @@ type liveAppVersion struct {
 	CreatedDate time.Time
 }
 
-func parseDSYMSelection(input dsymFlagInput) (dsymSelection, error) {
+func parseDSYMSelection(d *shared.Deps, input dsymFlagInput) (dsymSelection, error) {
 	version := strings.TrimSpace(input.Version)
 	versionToken := strings.ToLower(version)
 	selection := dsymSelection{
@@ -110,20 +110,20 @@ func parseDSYMSelection(input dsymFlagInput) (dsymSelection, error) {
 
 	if selection.MinVersion != "" {
 		if _, err := compareMarketingVersions(selection.MinVersion, selection.MinVersion); err != nil {
-			return dsymSelection{}, shared.UsageErrorf("builds dsyms: --min-version must be a dotted numeric version (got %q)", selection.MinVersion)
+			return dsymSelection{}, d.UsageErrorf("builds dsyms: --min-version must be a dotted numeric version (got %q)", selection.MinVersion)
 		}
 	}
 	if strings.TrimSpace(input.AfterRaw) != "" {
 		parsed, err := time.Parse(time.RFC3339, strings.TrimSpace(input.AfterRaw))
 		if err != nil {
-			return dsymSelection{}, shared.UsageErrorf("builds dsyms: --after-uploaded-date must be RFC3339, for example 2026-09-01T00:00:00Z (got %q)", strings.TrimSpace(input.AfterRaw))
+			return dsymSelection{}, d.UsageErrorf("builds dsyms: --after-uploaded-date must be RFC3339, for example 2026-09-01T00:00:00Z (got %q)", strings.TrimSpace(input.AfterRaw))
 		}
 		selection.After = &parsed
 	}
 	if selection.Resolve.Platform != "" {
 		normalized, err := shared.NormalizeAppStoreVersionPlatform(selection.Resolve.Platform)
 		if err != nil {
-			return dsymSelection{}, shared.UsageErrorf("builds dsyms: %s", err.Error())
+			return dsymSelection{}, d.UsageErrorf("builds dsyms: %s", err.Error())
 		}
 		selection.Resolve.Platform = normalized
 	}
@@ -135,19 +135,19 @@ func parseDSYMSelection(input dsymFlagInput) (dsymSelection, error) {
 	}
 	if selection.selectsByMarketingVersion() && selection.Resolve.Version != "" {
 		if _, err := parseMarketingVersion(selection.Resolve.Version); err != nil {
-			return dsymSelection{}, shared.UsageErrorf("builds dsyms: --version must be a dotted numeric version (got %q)", selection.Resolve.Version)
+			return dsymSelection{}, d.UsageErrorf("builds dsyms: --version must be a dotted numeric version (got %q)", selection.Resolve.Version)
 		}
 	}
 
-	if err := validateDSYMSelection(selection, input.TimeoutSet, input.PollSet, input.Timeout, input.PollInterval); err != nil {
+	if err := validateDSYMSelection(d, selection, input.TimeoutSet, input.PollSet, input.Timeout, input.PollInterval); err != nil {
 		return dsymSelection{}, err
 	}
 	if !selection.selectsByMarketingVersion() {
-		if err := validateResolveBuildOptions(shared.DefaultDeps(), selection.Resolve); err != nil {
+		if err := validateResolveBuildOptions(d, selection.Resolve); err != nil {
 			return dsymSelection{}, err
 		}
 	} else if shared.ResolveAppID(selection.Resolve.AppID) == "" {
-		return dsymSelection{}, shared.UsageError("builds dsyms: --app is required (or set ASC_APP_ID)")
+		return dsymSelection{}, d.UsageError("builds dsyms: --app is required (or set ASC_APP_ID)")
 	}
 	return selection, nil
 }
@@ -166,49 +166,49 @@ func (selection dsymSelection) selectsByMarketingVersion() bool {
 		selection.Resolve.Version != ""
 }
 
-func validateDSYMSelection(selection dsymSelection, timeoutSet, pollSet bool, timeout, poll time.Duration) error {
+func validateDSYMSelection(d *shared.Deps, selection dsymSelection, timeoutSet, pollSet bool, timeout, poll time.Duration) error {
 	buildID := selection.Resolve.BuildID
 	hasRange := selection.All || selection.MinVersion != "" || selection.After != nil
 	if buildID != "" && (selection.Resolve.Latest || selection.Live || hasRange || selection.Resolve.Version != "" || selection.Resolve.BuildNumber != "" || selection.Resolve.Platform != "" || selection.Resolve.ExcludeExpired) {
-		return shared.UsageError("builds dsyms: --build-id cannot be combined with --app, --latest, --version, --build-number, --platform, --all, --min-version, --after-uploaded-date, --exclude-expired, or --not-expired")
+		return d.UsageError("builds dsyms: --build-id cannot be combined with --app, --latest, --version, --build-number, --platform, --all, --min-version, --after-uploaded-date, --exclude-expired, or --not-expired")
 	}
 	if selection.Resolve.Latest && selection.Live {
-		return shared.UsageError("builds dsyms: --version live cannot be combined with --latest")
+		return d.UsageError("builds dsyms: --version live cannot be combined with --latest")
 	}
 	if selection.Resolve.Latest && (selection.Resolve.BuildNumber != "") {
-		return shared.UsageError("builds dsyms: --latest and --build-number are mutually exclusive")
+		return d.UsageError("builds dsyms: --latest and --build-number are mutually exclusive")
 	}
 	if selection.Live && selection.Resolve.BuildNumber != "" {
-		return shared.UsageError("builds dsyms: --version live cannot be combined with --build-number")
+		return d.UsageError("builds dsyms: --version live cannot be combined with --build-number")
 	}
 	if selection.Live && selection.MinVersion != "" {
-		return shared.UsageError("builds dsyms: --version live cannot be combined with --min-version")
+		return d.UsageError("builds dsyms: --version live cannot be combined with --min-version")
 	}
 	if selection.Resolve.Latest && hasRange {
-		return shared.UsageError("builds dsyms: --latest cannot be combined with --all, --min-version, or --after-uploaded-date")
+		return d.UsageError("builds dsyms: --latest cannot be combined with --all, --min-version, or --after-uploaded-date")
 	}
 	if selection.Resolve.BuildNumber != "" && hasRange {
-		return shared.UsageError("builds dsyms: --build-number cannot be combined with --all, --min-version, or --after-uploaded-date")
+		return d.UsageError("builds dsyms: --build-number cannot be combined with --all, --min-version, or --after-uploaded-date")
 	}
 	if !selection.Wait && (timeoutSet || pollSet) {
-		return shared.UsageError("builds dsyms: --timeout and --poll-interval require --wait")
+		return d.UsageError("builds dsyms: --timeout and --poll-interval require --wait")
 	}
 	if selection.Wait && timeout <= 0 {
-		return shared.UsageError("builds dsyms: --timeout must be greater than 0")
+		return d.UsageError("builds dsyms: --timeout must be greater than 0")
 	}
 	if selection.Wait && poll <= 0 {
-		return shared.UsageError("builds dsyms: --poll-interval must be greater than 0")
+		return d.UsageError("builds dsyms: --poll-interval must be greater than 0")
 	}
 	return nil
 }
 
-func resolveDSYMTargets(ctx context.Context, client *asc.Client, selection dsymSelection) ([]dsymTarget, error) {
+func resolveDSYMTargets(ctx context.Context, d *shared.Deps, client *asc.Client, selection dsymSelection) ([]dsymTarget, error) {
 	if selection.selectsByMarketingVersion() {
-		return resolveSelectedDSYMTargets(ctx, client, selection)
+		return resolveSelectedDSYMTargets(ctx, d, client, selection)
 	}
-	requestCtx, cancel := shared.ContextWithTimeout(ctx)
+	requestCtx, cancel := d.Timeout(ctx)
 	defer cancel()
-	buildResp, err := ResolveBuild(requestCtx, shared.DefaultDeps(), client, selection.Resolve)
+	buildResp, err := ResolveBuild(requestCtx, d, client, selection.Resolve)
 	if err != nil {
 		return nil, fmt.Errorf("builds dsyms: %w", err)
 	}
@@ -222,7 +222,7 @@ func resolveDSYMTargets(ctx context.Context, client *asc.Client, selection dsymS
 	}}, nil
 }
 
-func resolveSelectedDSYMTargets(ctx context.Context, client *asc.Client, selection dsymSelection) ([]dsymTarget, error) {
+func resolveSelectedDSYMTargets(ctx context.Context, d *shared.Deps, client *asc.Client, selection dsymSelection) ([]dsymTarget, error) {
 	appID, err := shared.ResolveAppIDWithLookup(ctx, client, selection.Resolve.AppID)
 	if err != nil {
 		return nil, fmt.Errorf("builds dsyms: %w", err)
@@ -235,7 +235,7 @@ func resolveSelectedDSYMTargets(ctx context.Context, client *asc.Client, selecti
 			return nil, err
 		}
 		if !selection.All && selection.After == nil {
-			return resolveLiveDSYMTarget(ctx, client, live, selection.Resolve.ExcludeExpired)
+			return resolveLiveDSYMTarget(ctx, d, client, live, selection.Resolve.ExcludeExpired)
 		}
 		exactVersion = live.Version
 		if platform == "" {
@@ -243,7 +243,7 @@ func resolveSelectedDSYMTargets(ctx context.Context, client *asc.Client, selecti
 		}
 	}
 
-	targets, err := listDSYMTargets(ctx, client, appID, platform, exactVersion, selection.MinVersion, selection.After, selection.Resolve.ExcludeExpired)
+	targets, err := listDSYMTargets(ctx, d, client, appID, platform, exactVersion, selection.MinVersion, selection.After, selection.Resolve.ExcludeExpired)
 	if err != nil {
 		return nil, err
 	}
@@ -256,8 +256,8 @@ func resolveSelectedDSYMTargets(ctx context.Context, client *asc.Client, selecti
 	return targets, nil
 }
 
-func resolveLiveDSYMTarget(ctx context.Context, client *asc.Client, live liveAppVersion, excludeExpired bool) ([]dsymTarget, error) {
-	requestCtx, cancel := shared.ContextWithTimeout(ctx)
+func resolveLiveDSYMTarget(ctx context.Context, d *shared.Deps, client *asc.Client, live liveAppVersion, excludeExpired bool) ([]dsymTarget, error) {
+	requestCtx, cancel := d.Timeout(ctx)
 	link, err := client.GetAppStoreVersionBuildRelationship(requestCtx, live.ID)
 	cancel()
 	if err != nil {
@@ -266,7 +266,7 @@ func resolveLiveDSYMTarget(ctx context.Context, client *asc.Client, live liveApp
 	if link == nil || strings.TrimSpace(link.Data.ID) == "" {
 		return nil, fmt.Errorf("builds dsyms: live App Store version %s has no attached build", live.ID)
 	}
-	requestCtx, cancel = shared.ContextWithTimeout(ctx)
+	requestCtx, cancel = d.Timeout(ctx)
 	build, err := client.GetBuild(requestCtx, link.Data.ID)
 	cancel()
 	if err != nil {
@@ -352,7 +352,7 @@ func chooseLiveVersion(versions []liveAppVersion, platform string) (liveAppVersi
 	return liveAppVersion{}, fmt.Errorf("builds dsyms: multiple live versions; pass --platform (%s)", strings.Join(platforms, ", "))
 }
 
-func listDSYMTargets(ctx context.Context, client *asc.Client, appID, platform, exactVersion, minVersion string, after *time.Time, excludeExpired bool) ([]dsymTarget, error) {
+func listDSYMTargets(ctx context.Context, d *shared.Deps, client *asc.Client, appID, platform, exactVersion, minVersion string, after *time.Time, excludeExpired bool) ([]dsymTarget, error) {
 	opts := []asc.BuildsOption{
 		asc.WithBuildsSort("-uploadedDate"),
 		asc.Limit[asc.BuildsOption](200),
@@ -364,7 +364,7 @@ func listDSYMTargets(ctx context.Context, client *asc.Client, appID, platform, e
 	if excludeExpired {
 		opts = append(opts, asc.WithBuildsExpired(false))
 	}
-	requestCtx, cancel := shared.ContextWithTimeout(ctx)
+	requestCtx, cancel := d.Timeout(ctx)
 	first, err := client.GetBuilds(requestCtx, appID, opts...)
 	cancel()
 	if err != nil {
@@ -388,7 +388,7 @@ func listDSYMTargets(ctx context.Context, client *asc.Client, appID, platform, e
 			return nil, fmt.Errorf("builds dsyms: failed to list builds: %w", asc.ErrRepeatedPaginationURL)
 		}
 		seenNext[identity] = struct{}{}
-		nextCtx, nextCancel := shared.ContextWithTimeout(ctx)
+		nextCtx, nextCancel := d.Timeout(ctx)
 		page, err = client.GetBuilds(nextCtx, appID, asc.NextURL[asc.BuildsOption](page.Links.Next))
 		nextCancel()
 		if err != nil {

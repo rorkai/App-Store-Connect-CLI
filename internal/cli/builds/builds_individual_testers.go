@@ -12,9 +12,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// BuildsIndividualTestersCommand returns the individual-testers command group.
-func BuildsIndividualTestersCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("individual-testers", flag.ExitOnError)
+// newBuildsIndividualTestersCommand returns the individual-testers command group.
+func newBuildsIndividualTestersCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("individual-testers", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "individual-testers",
@@ -29,11 +29,11 @@ Examples:
   asc builds individual-testers add --app "123456789" --latest --tester "TESTER_ID"
   asc builds individual-testers remove --build-id "BUILD_ID" --tester "TESTER_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			BuildsIndividualTestersListCommand(),
-			BuildsIndividualTestersAddCommand(),
-			BuildsIndividualTestersRemoveCommand(),
+			newBuildsIndividualTestersListCommand(d),
+			newBuildsIndividualTestersAddCommand(d),
+			newBuildsIndividualTestersRemoveCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -41,15 +41,15 @@ Examples:
 	}
 }
 
-// BuildsIndividualTestersListCommand returns the individual-testers list subcommand.
-func BuildsIndividualTestersListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("individual-testers list", flag.ExitOnError)
+// newBuildsIndividualTestersListCommand returns the individual-testers list subcommand.
+func newBuildsIndividualTestersListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("individual-testers list", flag.ExitOnError)
 
-	selectors := bindBuildSelectorFlags(shared.DefaultDeps(), fs, buildSelectorFlagOptions{})
+	selectors := bindBuildSelectorFlags(d, fs, buildSelectorFlagOptions{})
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -62,9 +62,9 @@ Examples:
   asc builds individual-testers list --app "123456789" --latest
   asc builds individual-testers list --app "123456789" --latest --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "builds individual-testers list", 200); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "builds individual-testers list", 200); err != nil {
 				return err
 			}
 
@@ -77,12 +77,12 @@ Examples:
 				return fmt.Errorf("builds individual-testers list: %w", err)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("builds individual-testers list: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			buildID := ""
@@ -100,7 +100,7 @@ Examples:
 
 			if *paginate {
 				paginateOpts := append(opts, asc.Limit[asc.BuildIndividualTestersOption](200))
-				resp, err := shared.PaginateWithSpinner(
+				resp, err := d.PaginateWithSpinner(
 					requestCtx,
 					func(ctx context.Context) (asc.PaginatedResponse, error) {
 						return client.GetBuildIndividualTesters(ctx, buildID, paginateOpts...)
@@ -113,7 +113,7 @@ Examples:
 					return fmt.Errorf("builds individual-testers list: %w", err)
 				}
 
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetBuildIndividualTesters(requestCtx, buildID, opts...)
@@ -121,18 +121,18 @@ Examples:
 				return fmt.Errorf("builds individual-testers list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// BuildsIndividualTestersAddCommand returns the individual-testers add subcommand.
-func BuildsIndividualTestersAddCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("individual-testers add", flag.ExitOnError)
+// newBuildsIndividualTestersAddCommand returns the individual-testers add subcommand.
+func newBuildsIndividualTestersAddCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("individual-testers add", flag.ExitOnError)
 
-	selectors := bindBuildSelectorFlags(shared.DefaultDeps(), fs, buildSelectorFlagOptions{})
+	selectors := bindBuildSelectorFlags(d, fs, buildSelectorFlagOptions{})
 	testers := shared.BindOnceCSVFlag(fs, "tester", "Comma-separated tester IDs")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "add",
@@ -145,7 +145,7 @@ Examples:
   asc builds individual-testers add --app "123456789" --latest --tester "TESTER_ID"
   asc builds individual-testers add --build-id "BUILD_ID" --tester "TESTER_ID1,TESTER_ID2"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := selectors.validate(); err != nil {
 				return err
@@ -153,15 +153,15 @@ Examples:
 
 			testerIDs := shared.SplitCSV(testers.String())
 			if len(testerIDs) == 0 {
-				return shared.RequiredFlag("--tester")
+				return d.RequiredFlag("--tester")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("builds individual-testers add: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			buildID, err := selectors.resolveBuildID(requestCtx, client)
@@ -179,19 +179,19 @@ Examples:
 				Action:    "added",
 			}
 
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// BuildsIndividualTestersRemoveCommand returns the individual-testers remove subcommand.
-func BuildsIndividualTestersRemoveCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("individual-testers remove", flag.ExitOnError)
+// newBuildsIndividualTestersRemoveCommand returns the individual-testers remove subcommand.
+func newBuildsIndividualTestersRemoveCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("individual-testers remove", flag.ExitOnError)
 
-	selectors := bindBuildSelectorFlags(shared.DefaultDeps(), fs, buildSelectorFlagOptions{})
+	selectors := bindBuildSelectorFlags(d, fs, buildSelectorFlagOptions{})
 	testers := shared.BindOnceCSVFlag(fs, "tester", "Comma-separated tester IDs")
 	confirm := fs.Bool("confirm", false, "Confirm removal")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "remove",
@@ -204,7 +204,7 @@ Examples:
   asc builds individual-testers remove --app "123456789" --latest --tester "TESTER_ID" --confirm
   asc builds individual-testers remove --build-id "BUILD_ID" --tester "TESTER_ID1,TESTER_ID2" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := selectors.validate(); err != nil {
 				return err
@@ -212,18 +212,18 @@ Examples:
 
 			testerIDs := shared.SplitCSV(testers.String())
 			if len(testerIDs) == 0 {
-				return shared.RequiredFlag("--tester")
+				return d.RequiredFlag("--tester")
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("builds individual-testers remove: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			buildID, err := selectors.resolveBuildID(requestCtx, client)
@@ -241,7 +241,7 @@ Examples:
 				Action:    "removed",
 			}
 
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }

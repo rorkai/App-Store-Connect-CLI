@@ -43,6 +43,7 @@ func TestUnknownFlagSuggestsTheIntendedFlag(t *testing.T) {
 			want: "Error: unknown flag `--app` for `asc builds groups list`\n" +
 				"Try:\n  --build-id\n" +
 				"For help:\n  asc builds groups list --help\n",
+			deps: true,
 		},
 		{
 			name: "bundle-ids capabilities list --id",

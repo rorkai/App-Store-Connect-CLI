@@ -93,6 +93,7 @@ func TestReadCommandsPrintAppleNullAndEmptyAttributes(t *testing.T) {
 			attrs: map[string]string{
 				"whatsNew": "null",
 			},
+			deps: true,
 		},
 		{
 			name: "builds test-notes view",
@@ -103,6 +104,7 @@ func TestReadCommandsPrintAppleNullAndEmptyAttributes(t *testing.T) {
 			attrs: map[string]string{
 				"whatsNew": "null",
 			},
+			deps: true,
 		},
 		{
 			name: "iap review-screenshots view",

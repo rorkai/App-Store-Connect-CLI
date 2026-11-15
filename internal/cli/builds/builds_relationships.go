@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 
@@ -47,9 +46,9 @@ var buildRelationshipResourceTypes = map[string][]string{
 	"preReleaseVersion":      {"preReleaseVersions"},
 }
 
-// BuildsRelationshipsCommand returns the builds links command group.
-func BuildsRelationshipsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("links", flag.ExitOnError)
+// newBuildsRelationshipsCommand returns the builds links command group.
+func newBuildsRelationshipsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("links", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "links",
@@ -62,9 +61,9 @@ Examples:
   asc builds links view --app "123456789" --latest --type "app"
   asc builds links view --app "123456789" --latest --type "betaBuildLocalizations" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			BuildsRelationshipsGetCommand(),
+			newBuildsRelationshipsGetCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -72,16 +71,16 @@ Examples:
 	}
 }
 
-// BuildsRelationshipsGetCommand returns the builds links view subcommand.
-func BuildsRelationshipsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("links view", flag.ExitOnError)
+// newBuildsRelationshipsGetCommand returns the builds links view subcommand.
+func newBuildsRelationshipsGetCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("links view", flag.ExitOnError)
 
-	selectors := bindBuildSelectorFlags(shared.DefaultDeps(), fs, buildSelectorFlagOptions{})
+	selectors := bindBuildSelectorFlags(d, fs, buildSelectorFlagOptions{})
 	relType := fs.String("type", "", shared.RelationshipTypeFlagUsage(buildRelationshipList()))
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "view",
@@ -94,20 +93,20 @@ Examples:
   asc builds links view --app "123456789" --latest --type "app"
   asc builds links view --app "123456789" --latest --type "individualTesters" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "builds links view", 200); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "builds links view", 200); err != nil {
 				return err
 			}
 
 			relationshipType := strings.TrimSpace(*relType)
 			if relationshipType == "" {
-				return shared.MissingRelationshipTypeUsageError(buildRelationshipList())
+				return d.MissingRelationshipTypeUsageError(buildRelationshipList())
 			}
 
 			kind, ok := buildRelationshipKinds[relationshipType]
 			if !ok {
-				shared.PrintInvalidRelationshipTypeError(relationshipType, buildRelationshipList())
+				d.PrintInvalidRelationshipTypeError(relationshipType, buildRelationshipList())
 				return flag.ErrHelp
 			}
 
@@ -121,16 +120,16 @@ Examples:
 			}
 
 			if kind == relationshipSingle && (nextValue != "" || *paginate || *limit != 0) {
-				fmt.Fprintln(os.Stderr, "Error: --limit, --next, and --paginate are only valid for to-many relationships")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --limit, --next, and --paginate are only valid for to-many relationships")
 				return flag.ErrHelp
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("builds links view: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			buildID := ""
@@ -165,7 +164,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("builds links view: %w", shared.DescribeRelationshipLookupFailure(err, relationshipType, parent))
 				}
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			case relationshipList:
 				opts := []asc.LinkagesOption{
 					asc.Limit[asc.LinkagesOption](*limit),
@@ -174,7 +173,7 @@ Examples:
 
 				if *paginate {
 					paginateOpts := append(opts, asc.Limit[asc.LinkagesOption](200))
-					resp, err := shared.PaginateWithSpinner(
+					resp, err := d.PaginateWithSpinner(
 						requestCtx,
 						func(ctx context.Context) (asc.PaginatedResponse, error) {
 							page, err := getBuildRelationshipList(ctx, client, relationshipType, buildID, paginateOpts...)
@@ -194,14 +193,14 @@ Examples:
 					if err != nil {
 						return fmt.Errorf("builds links view: %w", err)
 					}
-					return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+					return d.PrintOutput(resp, *output.Output, *output.Pretty)
 				}
 
 				resp, err := getBuildRelationshipList(requestCtx, client, relationshipType, buildID, opts...)
 				if err != nil {
 					return fmt.Errorf("builds links view: %w", shared.DescribeRelationshipLookupFailure(err, relationshipType, parent))
 				}
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			default:
 				return fmt.Errorf("builds links view: unsupported relationship type %q", relationshipType)
 			}

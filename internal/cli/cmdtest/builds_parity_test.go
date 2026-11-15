@@ -132,7 +132,11 @@ func TestBuildsParityValidationErrors(t *testing.T) {
 		},
 	}
 
-	runValidationTests(t, tests)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assertUsageExitWithDeps(t, nil, test.args, test.wantErr)
+		})
+	}
 }
 
 func TestBetaLocalizationsValidationErrors(t *testing.T) {
@@ -326,26 +330,31 @@ func TestParityRelatedCommandsValidationErrors(t *testing.T) {
 			name:    "builds app view missing build id",
 			args:    []string{"builds", "app", "view"},
 			wantErr: "--build-id or --app is required",
+			deps:    true,
 		},
 		{
 			name:    "builds pre-release-version view missing build id",
 			args:    []string{"builds", "pre-release-version", "view"},
 			wantErr: "--build-id or --app is required",
+			deps:    true,
 		},
 		{
 			name:    "builds icons list missing build id",
 			args:    []string{"builds", "icons", "list"},
 			wantErr: "--build-id or --app is required",
+			deps:    true,
 		},
 		{
 			name:    "builds beta-app-review-submission view missing build id",
 			args:    []string{"builds", "beta-app-review-submission", "view"},
 			wantErr: "--build-id or --app is required",
+			deps:    true,
 		},
 		{
 			name:    "builds build-beta-detail view missing build id",
 			args:    []string{"builds", "build-beta-detail", "view"},
 			wantErr: "--build-id or --app is required",
+			deps:    true,
 		},
 		{
 			name:    "groups app view missing group-id",

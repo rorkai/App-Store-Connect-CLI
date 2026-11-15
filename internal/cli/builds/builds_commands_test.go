@@ -11,6 +11,7 @@ import (
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestBuildsListCommand_VersionAndBuildNumberDescriptions(t *testing.T) {
@@ -37,7 +38,8 @@ func TestBuildsListCommand_VersionAndBuildNumberDescriptions(t *testing.T) {
 }
 
 func TestBuildsAddGroupsCommandDryRunHelpDescribesNoMutation(t *testing.T) {
-	cmd := BuildsAddGroupsCommand()
+	d, _ := newBuildsTestDeps(nil)
+	cmd := newBuildsAddGroupsCommand(d)
 	dryRunFlag := cmd.FlagSet.Lookup("dry-run")
 	if dryRunFlag == nil {
 		t.Fatal("expected --dry-run flag to be registered")
@@ -242,7 +244,8 @@ func TestNormalizeBuildProcessingStateFilter(t *testing.T) {
 }
 
 func TestBuildsUpdateCommand_Shape(t *testing.T) {
-	cmd := BuildsUpdateCommand()
+	d, _ := newBuildsTestDeps(nil)
+	cmd := newBuildsUpdateCommand(d)
 	if cmd.Name != "update" {
 		t.Fatalf("unexpected command name: %q", cmd.Name)
 	}
@@ -280,16 +283,17 @@ func TestBuildsUpdateCommand_Shape(t *testing.T) {
 func TestBuildSelectorCommandsExposeExcludeExpiredFlags(t *testing.T) {
 	tests := []struct {
 		name string
-		cmd  func() *ffcli.Command
+		cmd  func(*shared.Deps) *ffcli.Command
 	}{
-		{name: "add-groups", cmd: BuildsAddGroupsCommand},
-		{name: "dsyms", cmd: BuildsDsymsCommand},
-		{name: "update", cmd: BuildsUpdateCommand},
+		{name: "add-groups", cmd: newBuildsAddGroupsCommand},
+		{name: "dsyms", cmd: newBuildsDsymsCommand},
+		{name: "update", cmd: newBuildsUpdateCommand},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			flags := test.cmd().FlagSet
+			d, _ := newBuildsTestDeps(nil)
+			flags := test.cmd(d).FlagSet
 			if flags.Lookup("exclude-expired") == nil {
 				t.Fatal("expected --exclude-expired flag to be defined")
 			}
@@ -301,7 +305,8 @@ func TestBuildSelectorCommandsExposeExcludeExpiredFlags(t *testing.T) {
 }
 
 func TestBuildsUpdateCommand_ShortUsageShowsRequiredFlag(t *testing.T) {
-	cmd := BuildsUpdateCommand()
+	d, _ := newBuildsTestDeps(nil)
+	cmd := newBuildsUpdateCommand(d)
 	want := "asc builds update (--build-id BUILD_ID | --app APP --latest | --app APP --build-number BUILD_NUMBER --platform PLATFORM [--version VERSION]) --uses-non-exempt-encryption [true|false] [flags]"
 	if cmd.ShortUsage != want {
 		t.Fatalf("expected ShortUsage %q, got %q", want, cmd.ShortUsage)

@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -13,17 +12,17 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// BuildsAddGroupsCommand returns the builds add-groups subcommand.
-func BuildsAddGroupsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("add-groups", flag.ExitOnError)
+// newBuildsAddGroupsCommand returns the builds add-groups subcommand.
+func newBuildsAddGroupsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("add-groups", flag.ExitOnError)
 
-	selectors := bindBuildSelectorFlags(shared.DefaultDeps(), fs, buildSelectorFlagOptions{})
+	selectors := bindBuildSelectorFlags(d, fs, buildSelectorFlagOptions{})
 	groups := shared.BindOnceCSVFlag(fs, "group", "Comma-separated beta group IDs or names")
 	skipInternal := fs.Bool("skip-internal", false, "Skip internal beta groups instead of adding them")
 	dryRun := fs.Bool("dry-run", false, "Preview beta group assignment without adding groups")
 	submit := fs.Bool("submit", false, "Submit build for beta app review after adding external groups")
 	confirm := fs.Bool("confirm", false, "Confirm beta app review submission (required with --submit)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "add-groups",
@@ -51,7 +50,7 @@ also verify encryption, audience, and beta-review state. If App Store Connect
 does not provide enough state to prove readiness, the command stops without
 sending that request.`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := selectors.validate(); err != nil {
 				return err
@@ -59,30 +58,30 @@ sending that request.`,
 
 			groupInputs := shared.SplitCSV(groups.String())
 			if len(groupInputs) == 0 {
-				return shared.RequiredFlag("--group")
+				return d.RequiredFlag("--group")
 			}
 			if *submit && *dryRun {
 				return shared.WithDiagnostic(
-					shared.UsageError("--submit cannot be used with --dry-run"),
+					d.UsageError("--submit cannot be used with --dry-run"),
 					shared.DiagnosticConflictingInput,
 					"--dry-run",
 				)
 			}
 			if *submit && !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required with --submit")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --confirm is required with --submit")
 				return shared.MissingRequiredUsageError("--confirm")
 			}
 			if *confirm && !*submit {
-				fmt.Fprintln(os.Stderr, "Error: --confirm requires --submit")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --confirm requires --submit")
 				return flag.ErrHelp
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("builds add-groups: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			buildID, err := selectors.resolveBuildID(requestCtx, client)
@@ -99,9 +98,9 @@ sending that request.`,
 				SkipInternal: *skipInternal,
 			})
 			if *dryRun {
-				return reportBuildBetaGroupAssignmentDryRun(requestCtx, client, buildID, plan, output)
+				return reportBuildBetaGroupAssignmentDryRun(requestCtx, d, client, buildID, plan, output)
 			}
-			if err := shared.PreflightBuildBetaGroupAssignment(requestCtx, client, buildID, plan, shared.BuildBetaGroupPreflightOptions{
+			if err := d.PreflightBuildBetaGroupAssignment(requestCtx, client, buildID, plan, shared.BuildBetaGroupPreflightOptions{
 				OperationName: "builds add-groups",
 			}); err != nil {
 				return err
@@ -111,7 +110,7 @@ sending that request.`,
 				SkipInternal: *skipInternal,
 			})
 			if err != nil {
-				return reportBuildBetaGroupAssignmentFailure(requestCtx, client, buildID, plan.GroupsToAdd, err)
+				return reportBuildBetaGroupAssignmentFailure(requestCtx, d, client, buildID, plan.GroupsToAdd, err)
 			}
 
 			submissionResult, err := shared.SubmitBuildBetaReviewIfNeeded(requestCtx, client, buildID, resolvedGroups, addResult.AddedGroupIDs, *submit, "builds add-groups")
@@ -121,7 +120,7 @@ sending that request.`,
 
 			for _, group := range addResult.SkippedInternalGroups {
 				fmt.Fprintf(
-					os.Stderr,
+					d.IO.ErrOut,
 					"Skipped internal group %q (%s) because --skip-internal was set\n",
 					group.NameForDisplay(),
 					shared.SanitizeTerminal(group.ID),
@@ -129,12 +128,12 @@ sending that request.`,
 			}
 
 			if len(addResult.AddedGroupIDs) == 0 {
-				fmt.Fprintf(os.Stderr, "No groups to add for build %s after applying filters\n", buildID)
+				fmt.Fprintf(d.IO.ErrOut, "No groups to add for build %s after applying filters\n", buildID)
 			} else {
-				fmt.Fprintf(os.Stderr, "Successfully added %d group(s) to build %s\n", len(addResult.AddedGroupIDs), buildID)
+				fmt.Fprintf(d.IO.ErrOut, "Successfully added %d group(s) to build %s\n", len(addResult.AddedGroupIDs), buildID)
 			}
 			if submissionResult.Message != "" {
-				fmt.Fprintln(os.Stderr, submissionResult.Message)
+				fmt.Fprintln(d.IO.ErrOut, submissionResult.Message)
 			}
 
 			if len(addResult.AddedGroupIDs) == 0 {
@@ -143,7 +142,7 @@ sending that request.`,
 					GroupIDs: []string{},
 					Action:   "added",
 				}
-				return shared.PrintOutput(result, *output.Output, *output.Pretty)
+				return d.PrintOutput(result, *output.Output, *output.Pretty)
 			}
 
 			result := &asc.BuildBetaGroupsUpdateResult{
@@ -152,7 +151,7 @@ sending that request.`,
 				Action:   "added",
 			}
 
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -194,13 +193,13 @@ func resolveBuildBetaGroupIDsFromList(inputGroups []string, groups *asc.BetaGrou
 	return resolvedIDs, nil
 }
 
-// BuildsUpdateCommand returns the builds update subcommand.
-func BuildsUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("builds update", flag.ExitOnError)
+// newBuildsUpdateCommand returns the builds update subcommand.
+func newBuildsUpdateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("builds update", flag.ExitOnError)
 
-	selectors := bindBuildSelectorFlags(shared.DefaultDeps(), fs, buildSelectorFlagOptions{buildIDUsage: "Build ID"})
+	selectors := bindBuildSelectorFlags(d, fs, buildSelectorFlagOptions{buildIDUsage: "Build ID"})
 	usesNonExemptEncryption := fs.String("uses-non-exempt-encryption", "", "Set encryption compliance: true or false")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -213,7 +212,7 @@ Examples:
   asc builds update --app "123456789" --latest --uses-non-exempt-encryption=false
   asc builds update --build-id "BUILD_ID" --uses-non-exempt-encryption=true`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := selectors.validate(); err != nil {
 				return err
@@ -221,7 +220,7 @@ Examples:
 
 			trimmedEncryption := strings.TrimSpace(strings.ToLower(*usesNonExemptEncryption))
 			if trimmedEncryption == "" {
-				return shared.UpdateFlagRequired(fs, usesNonExemptEncryption)
+				return d.UpdateFlagRequired(fs, usesNonExemptEncryption)
 			}
 
 			attrs := asc.BuildUpdateAttributes{}
@@ -233,15 +232,15 @@ Examples:
 				v := false
 				attrs.UsesNonExemptEncryption = &v
 			default:
-				return shared.UsageError("--uses-non-exempt-encryption must be 'true' or 'false'")
+				return d.UsageError("--uses-non-exempt-encryption must be 'true' or 'false'")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("builds update: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			buildID, err := selectors.resolveBuildID(requestCtx, client)
@@ -254,20 +253,20 @@ Examples:
 				return fmt.Errorf("builds update: %w", err)
 			}
 
-			fmt.Fprintf(os.Stderr, "Updated build %s\n", buildID)
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			fmt.Fprintf(d.IO.ErrOut, "Updated build %s\n", buildID)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// BuildsRemoveGroupsCommand returns the builds remove-groups subcommand.
-func BuildsRemoveGroupsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("remove-groups", flag.ExitOnError)
+// newBuildsRemoveGroupsCommand returns the builds remove-groups subcommand.
+func newBuildsRemoveGroupsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("remove-groups", flag.ExitOnError)
 
-	selectors := bindBuildSelectorFlags(shared.DefaultDeps(), fs, buildSelectorFlagOptions{})
+	selectors := bindBuildSelectorFlags(d, fs, buildSelectorFlagOptions{})
 	groups := shared.BindOnceCSVFlag(fs, "group", "Comma-separated beta group IDs")
 	confirm := fs.Bool("confirm", false, "Confirm removal")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "remove-groups",
@@ -280,7 +279,7 @@ Examples:
   asc builds remove-groups --app "123456789" --latest --group "GROUP_ID" --confirm
   asc builds remove-groups --build-id "BUILD_ID" --group "GROUP1,GROUP2" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := selectors.validate(); err != nil {
 				return err
@@ -288,18 +287,18 @@ Examples:
 
 			groupIDs := shared.SplitCSV(groups.String())
 			if len(groupIDs) == 0 {
-				return shared.RequiredFlag("--group")
+				return d.RequiredFlag("--group")
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("builds remove-groups: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			buildID, err := selectors.resolveBuildID(requestCtx, client)
@@ -311,14 +310,14 @@ Examples:
 				return fmt.Errorf("builds remove-groups: failed to remove groups: %w", err)
 			}
 
-			fmt.Fprintf(os.Stderr, "Successfully removed %d group(s) from build %s\n", len(groupIDs), buildID)
+			fmt.Fprintf(d.IO.ErrOut, "Successfully removed %d group(s) from build %s\n", len(groupIDs), buildID)
 			result := &asc.BuildBetaGroupsUpdateResult{
 				BuildID:  buildID,
 				GroupIDs: groupIDs,
 				Action:   "removed",
 			}
 
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }

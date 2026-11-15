@@ -149,6 +149,7 @@ func TestSelfLinkRemainingFlagsSendExtractedID(t *testing.T) {
 			bodies: map[string]string{
 				"/v1/betaBuildLocalizations/localization-1": `{"data":{"type":"betaBuildLocalizations","id":"localization-1","attributes":{"locale":"en-US","whatsNew":"Fixes"}}}`,
 			},
+			deps: true,
 		},
 		{
 			name:     "testflight testers apps list",
@@ -447,6 +448,7 @@ func TestSelfLinkRemainingFlagsRejectWrongType(t *testing.T) {
 			flag:    "localization-id",
 			value:   selfLinkTestBase + "/v1/builds/build-1",
 			wantErr: "expected a self-link of type betaBuildLocalizations, got builds",
+			deps:    true,
 		},
 		{
 			name:    "android-ios-mapping view rejects apps link",

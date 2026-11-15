@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -17,9 +16,9 @@ type testNotesBuildSelectorFlags struct {
 	buildSelectorFlags
 }
 
-// BuildsTestNotesCommand returns the builds test-notes command group.
-func BuildsTestNotesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("test-notes", flag.ExitOnError)
+// newBuildsTestNotesCommand returns the builds test-notes command group.
+func newBuildsTestNotesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("test-notes", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "test-notes",
@@ -39,13 +38,13 @@ Examples:
   asc builds test-notes update --build-id "BUILD_ID" --locale "en-US" --whats-new "Updated instructions"
   asc builds test-notes delete --build-id "BUILD_ID" --locale "en-US" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.VisibleUsageFunc,
+		UsageFunc: d.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
-			BuildsTestNotesListCommand(),
-			BuildsTestNotesViewCommand(),
-			BuildsTestNotesCreateCommand(),
-			BuildsTestNotesUpdateCommand(),
-			BuildsTestNotesDeleteCommand(),
+			newBuildsTestNotesListCommand(d),
+			newBuildsTestNotesViewCommand(d),
+			newBuildsTestNotesCreateCommand(d),
+			newBuildsTestNotesUpdateCommand(d),
+			newBuildsTestNotesDeleteCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -53,16 +52,16 @@ Examples:
 	}
 }
 
-// BuildsTestNotesListCommand returns the list subcommand.
-func BuildsTestNotesListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
+// newBuildsTestNotesListCommand returns the list subcommand.
+func newBuildsTestNotesListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("list", flag.ExitOnError)
 
-	selectors := bindTestNotesBuildSelectorFlags(fs)
+	selectors := bindTestNotesBuildSelectorFlags(d, fs)
 	locale := fs.String("locale", "", "Filter by locale(s), comma-separated")
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -81,25 +80,25 @@ Examples:
   asc builds test-notes list --app "123456789" --build-number "42" --platform IOS
   asc builds test-notes list --build-id "BUILD_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "builds test-notes list", 200, "locale"); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "builds test-notes list", 200, "locale"); err != nil {
 				return err
 			}
 
 			locales := shared.SplitCSV(*locale)
 			if err := shared.ValidateBuildLocalizationLocales(locales); err != nil {
-				return shared.UsageErrorf("builds test-notes list: %v", err)
+				return d.UsageErrorf("builds test-notes list: %v", err)
 			}
 			if strings.TrimSpace(*next) == "" {
-				if err := validateResolveBuildOptions(shared.DefaultDeps(), selectors.resolveOptions()); err != nil {
+				if err := validateResolveBuildOptions(d, selectors.resolveOptions()); err != nil {
 					return fmt.Errorf("builds test-notes list: %w", err)
 				}
 			} else if err := selectors.validateNextPageSelectorFlags(); err != nil {
 				return fmt.Errorf("builds test-notes list: %w", err)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("builds test-notes list: %w", err)
 			}
@@ -121,9 +120,9 @@ Examples:
 
 			if *paginate {
 				paginateOpts := append(opts, asc.Limit[asc.BetaBuildLocalizationsOption](200))
-				requestCtx, cancel := shared.ContextWithTimeout(ctx)
+				requestCtx, cancel := d.Timeout(ctx)
 				defer cancel()
-				resp, err := shared.PaginateWithSpinner(
+				resp, err := d.PaginateWithSpinner(
 					requestCtx,
 					func(ctx context.Context) (asc.PaginatedResponse, error) {
 						return client.ListBetaBuildLocalizations(ctx, paginateOpts...)
@@ -135,29 +134,29 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("builds test-notes list: %w", err)
 				}
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.ListBetaBuildLocalizations(requestCtx, opts...)
 			if err != nil {
 				return fmt.Errorf("builds test-notes list: failed to fetch: %w", err)
 			}
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// BuildsTestNotesViewCommand returns the view subcommand.
-func BuildsTestNotesViewCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
+// newBuildsTestNotesViewCommand returns the view subcommand.
+func newBuildsTestNotesViewCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("view", flag.ExitOnError)
 
-	selectors := bindTestNotesBuildSelectorFlags(fs)
+	selectors := bindTestNotesBuildSelectorFlags(d, fs)
 	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "betaBuildLocalizations", "Localization ID (low-level escape hatch)")
 	locale := fs.String("locale", "", "Locale (e.g., en-US, required with build selectors)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "view",
@@ -177,7 +176,7 @@ Examples:
   asc builds test-notes view --app "123456789" --latest --locale "en-US"
   asc builds test-notes view --app "123456789" --build-number "42" --platform IOS --version "1.2.3" --locale "en-US"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*localizationID)
 			localeValue := strings.TrimSpace(*locale)
@@ -185,39 +184,39 @@ Examples:
 				return fmt.Errorf("builds test-notes view: %w", err)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("builds test-notes view: %w", err)
 			}
 
 			if id != "" {
-				requestCtx, cancel := shared.ContextWithTimeout(ctx)
+				requestCtx, cancel := d.Timeout(ctx)
 				defer cancel()
 
 				resp, err := client.GetBetaBuildLocalization(requestCtx, id)
 				if err != nil {
 					return fmt.Errorf("builds test-notes view: %w", err)
 				}
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := resolveTestNotesLocalization(ctx, client, selectors, localeValue)
 			if err != nil {
 				return fmt.Errorf("builds test-notes view: %w", err)
 			}
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// BuildsTestNotesCreateCommand returns the create subcommand.
-func BuildsTestNotesCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
+// newBuildsTestNotesCreateCommand returns the create subcommand.
+func newBuildsTestNotesCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("create", flag.ExitOnError)
 
-	selectors := bindTestNotesBuildSelectorFlags(fs)
+	selectors := bindTestNotesBuildSelectorFlags(d, fs)
 	locale := fs.String("locale", "", "Locale (e.g., en-US)")
 	whatsNew := fs.String("whats-new", "", "What to Test notes")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -235,29 +234,29 @@ Examples:
   asc builds test-notes create --app "123456789" --latest --locale "en-US" --whats-new "Test instructions"
   asc builds test-notes create --app "123456789" --build-number "42" --platform IOS --version "1.2.3" --locale "en-US" --whats-new "Test instructions"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			localeValue := strings.TrimSpace(*locale)
 			if localeValue == "" {
-				return shared.RequiredFlag("--locale")
+				return d.RequiredFlag("--locale")
 			}
 			if err := shared.ValidateBuildLocalizationLocale(localeValue); err != nil {
-				return shared.UsageErrorf("builds test-notes create: %v", err)
+				return d.UsageErrorf("builds test-notes create: %v", err)
 			}
-			if err := validateResolveBuildOptions(shared.DefaultDeps(), selectors.resolveOptions()); err != nil {
+			if err := validateResolveBuildOptions(d, selectors.resolveOptions()); err != nil {
 				return fmt.Errorf("builds test-notes create: %w", err)
 			}
 
 			whatsNewValue := strings.TrimSpace(*whatsNew)
 			if whatsNewValue == "" {
-				return shared.RequiredFlag("--whats-new")
+				return d.RequiredFlag("--whats-new")
 			}
-			whatsNewValue, normalizeErr := shared.NormalizeTestNotesForCommand(os.Stderr, whatsNewValue)
+			whatsNewValue, normalizeErr := shared.NormalizeTestNotesForCommand(d.IO.ErrOut, whatsNewValue)
 			if normalizeErr != nil {
 				return fmt.Errorf("builds test-notes create: %w", normalizeErr)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("builds test-notes create: %w", err)
 			}
@@ -266,28 +265,28 @@ Examples:
 				return fmt.Errorf("builds test-notes create: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
-			resp, err := shared.UpsertBetaBuildLocalization(requestCtx, client, buildResp.Data.ID, localeValue, whatsNewValue, shared.UpsertBetaBuildLocalizationOptions{Diagnostics: os.Stderr})
+			resp, err := shared.UpsertBetaBuildLocalization(requestCtx, client, buildResp.Data.ID, localeValue, whatsNewValue, shared.UpsertBetaBuildLocalizationOptions{Diagnostics: d.IO.ErrOut})
 			if err != nil {
 				return fmt.Errorf("builds test-notes create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// BuildsTestNotesUpdateCommand returns the update subcommand.
-func BuildsTestNotesUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("update", flag.ExitOnError)
+// newBuildsTestNotesUpdateCommand returns the update subcommand.
+func newBuildsTestNotesUpdateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("update", flag.ExitOnError)
 
-	selectors := bindTestNotesBuildSelectorFlags(fs)
+	selectors := bindTestNotesBuildSelectorFlags(d, fs)
 	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "betaBuildLocalizations", "Localization ID (low-level escape hatch)")
 	locale := fs.String("locale", "", "Locale (e.g., en-US, required with build selectors)")
 	whatsNew := fs.String("whats-new", "", "What to Test notes")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -306,7 +305,7 @@ Examples:
   asc builds test-notes update --build-id "BUILD_ID" --locale "en-US" --whats-new "Updated notes"
   asc builds test-notes update --app "123456789" --build-number "42" --platform IOS --version "1.2.3" --locale "en-US" --whats-new "Updated notes"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*localizationID)
 			localeValue := strings.TrimSpace(*locale)
@@ -316,14 +315,14 @@ Examples:
 
 			whatsNewValue := strings.TrimSpace(*whatsNew)
 			if whatsNewValue == "" {
-				return shared.UpdateFlagRequired(fs, whatsNew)
+				return d.UpdateFlagRequired(fs, whatsNew)
 			}
-			whatsNewValue, normalizeErr := shared.NormalizeTestNotesForCommand(os.Stderr, whatsNewValue)
+			whatsNewValue, normalizeErr := shared.NormalizeTestNotesForCommand(d.IO.ErrOut, whatsNewValue)
 			if normalizeErr != nil {
 				return fmt.Errorf("builds test-notes update: %w", normalizeErr)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("builds test-notes update: %w", err)
 			}
@@ -340,7 +339,7 @@ Examples:
 				WhatsNew: whatsNewValue,
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.UpdateBetaBuildLocalization(requestCtx, id, attrs)
@@ -348,20 +347,20 @@ Examples:
 				return fmt.Errorf("builds test-notes update: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// BuildsTestNotesDeleteCommand returns the delete subcommand.
-func BuildsTestNotesDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("delete", flag.ExitOnError)
+// newBuildsTestNotesDeleteCommand returns the delete subcommand.
+func newBuildsTestNotesDeleteCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("delete", flag.ExitOnError)
 
-	selectors := bindTestNotesBuildSelectorFlags(fs)
+	selectors := bindTestNotesBuildSelectorFlags(d, fs)
 	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "betaBuildLocalizations", "Localization ID (low-level escape hatch)")
 	locale := fs.String("locale", "", "Locale (e.g., en-US, required with build selectors)")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "delete",
@@ -380,18 +379,18 @@ Examples:
   asc builds test-notes delete --build-id "BUILD_ID" --locale "en-US" --confirm
   asc builds test-notes delete --app "123456789" --build-number "42" --platform IOS --version "1.2.3" --locale "en-US" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*localizationID)
 			localeValue := strings.TrimSpace(*locale)
 			if err := validateTestNotesLocalizationTarget("builds test-notes delete", id, localeValue, selectors); err != nil {
 				return fmt.Errorf("builds test-notes delete: %w", err)
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("builds test-notes delete: %w", err)
 			}
@@ -404,7 +403,7 @@ Examples:
 				id = strings.TrimSpace(localization.Data.ID)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteBetaBuildLocalization(requestCtx, id); err != nil {
@@ -416,14 +415,14 @@ Examples:
 				Deleted: true,
 			}
 
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-func bindTestNotesBuildSelectorFlags(fs *flag.FlagSet) testNotesBuildSelectorFlags {
+func bindTestNotesBuildSelectorFlags(d *shared.Deps, fs *flag.FlagSet) testNotesBuildSelectorFlags {
 	return testNotesBuildSelectorFlags{
-		buildSelectorFlags: bindBuildSelectorFlags(shared.DefaultDeps(), fs, buildSelectorFlagOptions{
+		buildSelectorFlags: bindBuildSelectorFlags(d, fs, buildSelectorFlagOptions{
 			buildIDUsage:     "Build ID",
 			appUsage:         "App ID, bundle ID, or app name (or ASC_APP_ID)",
 			latestUsage:      "Resolve the latest matching build for --app context",
@@ -446,14 +445,14 @@ func (f testNotesBuildSelectorFlags) hasAnyInputs() bool {
 
 func (f testNotesBuildSelectorFlags) resolveBuild(ctx context.Context, client *asc.Client) (*asc.BuildResponse, error) {
 	opts := f.resolveOptions()
-	if err := validateResolveBuildOptions(shared.DefaultDeps(), opts); err != nil {
+	if err := validateResolveBuildOptions(f.d, opts); err != nil {
 		return nil, err
 	}
 
-	requestCtx, cancel := shared.ContextWithTimeout(ctx)
+	requestCtx, cancel := f.d.Timeout(ctx)
 	defer cancel()
 
-	return ResolveBuild(requestCtx, shared.DefaultDeps(), client, opts)
+	return ResolveBuild(requestCtx, f.d, client, opts)
 }
 
 func validateTestNotesLocalizationTarget(command, localizationID, locale string, selectors testNotesBuildSelectorFlags) error {
@@ -461,17 +460,17 @@ func validateTestNotesLocalizationTarget(command, localizationID, locale string,
 	localeValue := strings.TrimSpace(locale)
 	if localizationIDValue != "" {
 		if selectors.hasAnyInputs() || localeValue != "" {
-			return shared.UsageError("--localization-id cannot be combined with build selectors or --locale")
+			return selectors.d.UsageError("--localization-id cannot be combined with build selectors or --locale")
 		}
 		return nil
 	}
 	if localeValue == "" || !selectors.hasAnyInputs() {
-		return shared.UsageError("either --localization-id or (--locale and a build selector) is required")
+		return selectors.d.UsageError("either --localization-id or (--locale and a build selector) is required")
 	}
 	if err := shared.ValidateBuildLocalizationLocale(localeValue); err != nil {
-		return shared.UsageErrorf("%s: %v", command, err)
+		return selectors.d.UsageErrorf("%s: %v", command, err)
 	}
-	return validateResolveBuildOptions(shared.DefaultDeps(), selectors.resolveOptions())
+	return validateResolveBuildOptions(selectors.d, selectors.resolveOptions())
 }
 
 func resolveTestNotesLocalization(ctx context.Context, client *asc.Client, selectors testNotesBuildSelectorFlags, locale string) (*asc.BetaBuildLocalizationResponse, error) {
@@ -480,7 +479,7 @@ func resolveTestNotesLocalization(ctx context.Context, client *asc.Client, selec
 		return nil, err
 	}
 
-	requestCtx, cancel := shared.ContextWithTimeout(ctx)
+	requestCtx, cancel := selectors.d.Timeout(ctx)
 	defer cancel()
 
 	localizations, err := client.ListBetaBuildLocalizations(

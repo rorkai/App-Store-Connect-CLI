@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -13,10 +12,10 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// BuildsUploadsCommand returns the builds uploads command group.
-func BuildsUploadsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("uploads", flag.ExitOnError)
-	viewCmd := BuildsUploadsViewCommand()
+// newBuildsUploadsCommand returns the builds uploads command group.
+func newBuildsUploadsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("uploads", flag.ExitOnError)
+	viewCmd := newBuildsUploadsViewCommand(d)
 
 	return &ffcli.Command{
 		Name:       "uploads",
@@ -30,12 +29,12 @@ Examples:
   asc builds uploads delete --id "UPLOAD_ID" --confirm
   asc builds uploads files list --upload "UPLOAD_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.VisibleUsageFunc,
+		UsageFunc: d.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
-			BuildsUploadsListCommand(),
+			newBuildsUploadsListCommand(d),
 			viewCmd,
-			BuildsUploadsDeleteCommand(),
-			BuildsUploadFilesCommand(),
+			newBuildsUploadsDeleteCommand(d),
+			newBuildsUploadFilesCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -43,9 +42,9 @@ Examples:
 	}
 }
 
-// BuildsUploadsListCommand returns the builds uploads list subcommand.
-func BuildsUploadsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("uploads list", flag.ExitOnError)
+// newBuildsUploadsListCommand returns the builds uploads list subcommand.
+func newBuildsUploadsListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("uploads list", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	shortVersion := fs.String("cf-bundle-short-version", "", "Filter by CFBundleShortVersionString(s), comma-separated")
@@ -56,7 +55,7 @@ func BuildsUploadsListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -70,34 +69,34 @@ Examples:
   asc builds uploads list --app "APP_ID" --platform "IOS" --sort "-uploadedDate"
   asc builds uploads list --app "APP_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "builds uploads list", 200, "cf-bundle-short-version", "cf-bundle-version", "platform", "state", "sort"); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "builds uploads list", 200, "cf-bundle-short-version", "cf-bundle-version", "platform", "state", "sort"); err != nil {
 				return err
 			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
+				fmt.Fprintf(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return shared.MissingRequiredUsageError("--app")
 			}
 
 			if err := shared.ValidateSort(*sort, "cfBundleVersion", "-cfBundleVersion", "uploadedDate", "-uploadedDate"); err != nil {
-				fmt.Fprintf(os.Stderr, "Error: %s\n", err.Error())
+				fmt.Fprintf(d.IO.ErrOut, "Error: %s\n", err.Error())
 				return flag.ErrHelp
 			}
 
 			platforms, err := shared.NormalizeAppStoreVersionPlatforms(shared.SplitCSVUpper(*platform))
 			if err != nil {
-				return shared.UsageErrorf("builds uploads list: %v", err)
+				return d.UsageErrorf("builds uploads list: %v", err)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("builds uploads list: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			opts := []asc.BuildUploadsOption{
@@ -114,7 +113,7 @@ Examples:
 
 			if *paginate {
 				paginateOpts := append(opts, asc.Limit[asc.BuildUploadsOption](200))
-				resp, err := shared.PaginateWithSpinner(
+				resp, err := d.PaginateWithSpinner(
 					requestCtx,
 					func(ctx context.Context) (asc.PaginatedResponse, error) {
 						return client.GetBuildUploads(ctx, resolvedAppID, paginateOpts...)
@@ -126,7 +125,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("builds uploads list: %w", err)
 				}
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetBuildUploads(requestCtx, resolvedAppID, opts...)
@@ -134,14 +133,15 @@ Examples:
 				return fmt.Errorf("builds uploads list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// BuildsUploadsViewCommand returns the builds uploads view subcommand.
-func BuildsUploadsViewCommand() *ffcli.Command {
+// newBuildsUploadsViewCommand returns the builds uploads view subcommand.
+func newBuildsUploadsViewCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		Deps:        d,
 		FlagSetName: "uploads view",
 		Name:        "view",
 		ShortUsage:  "asc builds uploads view --id \"UPLOAD_ID\"",
@@ -159,9 +159,10 @@ Examples:
 	})
 }
 
-// BuildsUploadsDeleteCommand returns the builds uploads delete subcommand.
-func BuildsUploadsDeleteCommand() *ffcli.Command {
+// newBuildsUploadsDeleteCommand returns the builds uploads delete subcommand.
+func newBuildsUploadsDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		Deps:        d,
 		FlagSetName: "uploads delete",
 		Name:        "delete",
 		ShortUsage:  "asc builds uploads delete --id \"UPLOAD_ID\" --confirm",
@@ -183,10 +184,10 @@ Examples:
 	})
 }
 
-// BuildsUploadFilesCommand returns the builds upload files command group.
-func BuildsUploadFilesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("files", flag.ExitOnError)
-	viewCmd := BuildsUploadFilesViewCommand()
+// newBuildsUploadFilesCommand returns the builds upload files command group.
+func newBuildsUploadFilesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("files", flag.ExitOnError)
+	viewCmd := newBuildsUploadFilesViewCommand(d)
 
 	return &ffcli.Command{
 		Name:       "files",
@@ -198,9 +199,9 @@ Examples:
   asc builds uploads files list --upload "UPLOAD_ID"
   asc builds uploads files view --id "FILE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.VisibleUsageFunc,
+		UsageFunc: d.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
-			BuildsUploadFilesListCommand(),
+			newBuildsUploadFilesListCommand(d),
 			viewCmd,
 		},
 		Exec: func(ctx context.Context, args []string) error {
@@ -209,15 +210,15 @@ Examples:
 	}
 }
 
-// BuildsUploadFilesListCommand returns the build upload files list subcommand.
-func BuildsUploadFilesListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("files list", flag.ExitOnError)
+// newBuildsUploadFilesListCommand returns the build upload files list subcommand.
+func newBuildsUploadFilesListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("files list", flag.ExitOnError)
 
 	uploadID := shared.BindResourceIDFlag(fs, "upload", "buildUploads", "Build upload ID")
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -229,23 +230,23 @@ Examples:
   asc builds uploads files list --upload "UPLOAD_ID"
   asc builds uploads files list --upload "UPLOAD_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "builds uploads files list", 200); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "builds uploads files list", 200); err != nil {
 				return err
 			}
 
 			uploadValue := strings.TrimSpace(*uploadID)
 			if uploadValue == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--upload")
+				return d.RequiredFlag("--upload")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("builds uploads files list: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			opts := []asc.BuildUploadFilesOption{
@@ -255,11 +256,11 @@ Examples:
 
 			if *paginate {
 				if uploadValue == "" {
-					return shared.RequiredFlag("--upload")
+					return d.RequiredFlag("--upload")
 				}
 
 				paginateOpts := append(opts, asc.Limit[asc.BuildUploadFilesOption](200))
-				resp, err := shared.PaginateWithSpinner(
+				resp, err := d.PaginateWithSpinner(
 					requestCtx,
 					func(ctx context.Context) (asc.PaginatedResponse, error) {
 						return client.GetBuildUploadFiles(ctx, uploadValue, paginateOpts...)
@@ -272,7 +273,7 @@ Examples:
 					return fmt.Errorf("builds uploads files list: %w", err)
 				}
 
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetBuildUploadFiles(requestCtx, uploadValue, opts...)
@@ -280,14 +281,15 @@ Examples:
 				return fmt.Errorf("builds uploads files list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// BuildsUploadFilesViewCommand returns the build upload files view subcommand.
-func BuildsUploadFilesViewCommand() *ffcli.Command {
+// newBuildsUploadFilesViewCommand returns the build upload files view subcommand.
+func newBuildsUploadFilesViewCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		Deps:        d,
 		FlagSetName: "files view",
 		Name:        "view",
 		ShortUsage:  "asc builds uploads files view --id \"FILE_ID\"",

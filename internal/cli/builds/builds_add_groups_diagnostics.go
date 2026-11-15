@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -26,6 +25,7 @@ func assignmentIncludesExternalGroup(groups []resolvedBuildBetaGroup) bool {
 
 func reportBuildBetaGroupAssignmentFailure(
 	ctx context.Context,
+	d *shared.Deps,
 	client *asc.Client,
 	buildID string,
 	groups []resolvedBuildBetaGroup,
@@ -53,12 +53,12 @@ func reportBuildBetaGroupAssignmentFailure(
 		}
 	}
 
-	fmt.Fprintf(os.Stderr, "Error: %s\n", shared.SanitizeTerminal(message))
+	fmt.Fprintf(d.IO.ErrOut, "Error: %s\n", shared.SanitizeTerminal(message))
 	for _, line := range lines {
-		fmt.Fprintln(os.Stderr, shared.SanitizeTerminal(line))
+		fmt.Fprintln(d.IO.ErrOut, shared.SanitizeTerminal(line))
 	}
 	if len(lines) == 0 {
-		fmt.Fprintf(os.Stderr, "Re-check the current build state before retrying: asc builds info --build-id %q\n", buildID)
+		fmt.Fprintf(d.IO.ErrOut, "Re-check the current build state before retrying: asc builds info --build-id %q\n", buildID)
 	}
 
 	return shared.WithDiagnostic(
@@ -72,6 +72,7 @@ func reportBuildBetaGroupAssignmentFailure(
 
 func reportBuildBetaGroupAssignmentDryRun(
 	ctx context.Context,
+	d *shared.Deps,
 	client *asc.Client,
 	buildID string,
 	plan shared.BuildBetaGroupAssignmentPlan,
@@ -79,7 +80,7 @@ func reportBuildBetaGroupAssignmentDryRun(
 ) error {
 	for _, group := range plan.SkippedInternalGroups {
 		fmt.Fprintf(
-			os.Stderr,
+			d.IO.ErrOut,
 			"Skipped internal group %q (%s) because --skip-internal was set\n",
 			group.NameForDisplay(),
 			shared.SanitizeTerminal(group.ID),
@@ -88,23 +89,23 @@ func reportBuildBetaGroupAssignmentDryRun(
 
 	groupIDs := plan.GroupIDsToAdd()
 	if len(groupIDs) == 0 {
-		fmt.Fprintf(os.Stderr, "No groups to add for build %s after applying filters\n", buildID)
+		fmt.Fprintf(d.IO.ErrOut, "No groups to add for build %s after applying filters\n", buildID)
 	} else {
 		lines := readBuildBetaGroupStateDiagnostics(ctx, client, buildID, plan.IncludesExternalGroup())
 		for _, line := range lines {
-			fmt.Fprintln(os.Stderr, shared.SanitizeTerminal(line))
+			fmt.Fprintln(d.IO.ErrOut, shared.SanitizeTerminal(line))
 		}
 		if len(lines) == 0 {
-			fmt.Fprintf(os.Stderr, "Dry-run readiness is unknown; re-check the current build state with asc builds info --build-id %q\n", buildID)
+			fmt.Fprintf(d.IO.ErrOut, "Dry-run readiness is unknown; re-check the current build state with asc builds info --build-id %q\n", buildID)
 		}
-		fmt.Fprintf(os.Stderr, "Dry run: no beta groups were added to build %s; readiness is advisory and does not predict a future assignment\n", buildID)
+		fmt.Fprintf(d.IO.ErrOut, "Dry run: no beta groups were added to build %s; readiness is advisory and does not predict a future assignment\n", buildID)
 	}
 
 	action := "would-add"
 	if len(groupIDs) == 0 {
 		action = "no-op"
 	}
-	return shared.PrintOutput(&asc.BuildBetaGroupsUpdateResult{
+	return d.PrintOutput(&asc.BuildBetaGroupsUpdateResult{
 		BuildID:  buildID,
 		GroupIDs: groupIDs,
 		Action:   action,

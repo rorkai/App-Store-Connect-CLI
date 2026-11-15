@@ -114,11 +114,13 @@ func TestUpdateWithoutUpdateFlagsListsEveryUpdateFlag(t *testing.T) {
 			name:  "builds test-notes update",
 			args:  []string{"builds", "test-notes", "update", "--localization-id", "ID"},
 			flags: "--whats-new",
+			deps:  true,
 		},
 		{
 			name:  "builds update",
 			args:  []string{"builds", "update", "--build-id", "ID"},
 			flags: "--uses-non-exempt-encryption",
+			deps:  true,
 		},
 		{
 			name:  "bundle-ids capabilities update",

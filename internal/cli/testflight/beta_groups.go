@@ -787,12 +787,6 @@ type BuildGroupsListCommandConfig struct {
 	ErrorPrefix string
 }
 
-// BuildGroupsListCommand returns a narrow list command for beta groups that
-// contain a required build ID, built on the process dependencies.
-func BuildGroupsListCommand(config BuildGroupsListCommandConfig) *ffcli.Command {
-	return BuildGroupsListCommandWith(shared.DefaultDeps(), config)
-}
-
 // BuildGroupsListCommandWith returns a narrow list command for beta groups
 // that contain a required build ID, built on d.
 func BuildGroupsListCommandWith(d *shared.Deps, config BuildGroupsListCommandConfig) *ffcli.Command {
