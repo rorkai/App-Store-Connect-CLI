@@ -162,20 +162,10 @@ func TestMigrateValidateRejectsSymlinkedCopyright(t *testing.T) {
 func runMigrateValidate(t *testing.T, fastlaneDir string) migrate.MigrateValidateResult {
 	t.Helper()
 
-	rootCmd := RootCommand("1.2.3")
-	rootCmd.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := rootCmd.Parse([]string{
-			"migrate", "validate",
-			"--fastlane-dir", fastlaneDir,
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := rootCmd.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, nil, "migrate", "validate", "--fastlane-dir", fastlaneDir)
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
@@ -189,16 +179,7 @@ func runMigrateValidate(t *testing.T, fastlaneDir string) migrate.MigrateValidat
 
 func TestMigrateValidateRejectsMissingMetadataDir(t *testing.T) {
 	root := t.TempDir()
-	rootCmd := RootCommand("1.2.3")
-	rootCmd.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, _ := captureOutput(t, func() {
-		if err := rootCmd.Parse([]string{"migrate", "validate", "--fastlane-dir", root}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = rootCmd.Run(context.Background())
-	})
+	stdout, _, runErr := runRootWithDeps(t, nil, "migrate", "validate", "--fastlane-dir", root)
 
 	want := "migrate validate: metadata directory not found: " + filepath.Join(root, "metadata")
 	if runErr == nil || runErr.Error() != want {

@@ -88,7 +88,7 @@ func TestUploadScreenshots_ReordersPlannedFilesBeforeUntouchedRemoteExtras(t *te
 	client := newMigrateUploadTestClient(t)
 	results, err := uploadScreenshots(
 		context.Background(),
-		client,
+		migrateTestDeps(), client,
 		"version-1",
 		map[string]string{"en-US": "loc-1"},
 		[]ScreenshotPlan{{
@@ -189,7 +189,7 @@ func TestUploadScreenshots_UploadsSetConcurrentlyInPlanOrder(t *testing.T) {
 
 	results, err := uploadScreenshots(
 		context.Background(),
-		newMigrateUploadTestClient(t),
+		migrateTestDeps(), newMigrateUploadTestClient(t),
 		"version-1",
 		map[string]string{"en-US": "loc-1"},
 		[]ScreenshotPlan{{Locale: "en-US", DisplayType: "APP_IPHONE_65", Files: files}},
@@ -279,7 +279,7 @@ func TestUploadScreenshots_FailedUploadDeletesLaterUploadsAndOmitsLaterSkips(t *
 
 	results, err := uploadScreenshots(
 		context.Background(),
-		newMigrateUploadTestClient(t),
+		migrateTestDeps(), newMigrateUploadTestClient(t),
 		"version-1",
 		map[string]string{"en-US": "loc-1"},
 		[]ScreenshotPlan{{Locale: "en-US", DisplayType: "APP_IPHONE_65", Files: append(append([]string(nil), files...), laterDuplicate)}},
@@ -493,9 +493,9 @@ func TestFetchLocalizationsForPlanRequestContexts(t *testing.T) {
 			client := newMigrateUploadTestClient(t)
 			var err error
 			if kind == "version" {
-				_, err = fetchVersionLocalizationsForPlan(parent, client, "VERSION_ID")
+				_, err = fetchVersionLocalizationsForPlan(parent, migrateTestDeps(), client, "VERSION_ID")
 			} else {
-				_, err = fetchAppInfoLocalizationsForPlan(parent, client, "INFO_ID")
+				_, err = fetchAppInfoLocalizationsForPlan(parent, migrateTestDeps(), client, "INFO_ID")
 			}
 			if err != nil {
 				t.Fatal(err)

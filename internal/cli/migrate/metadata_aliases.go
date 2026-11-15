@@ -10,15 +10,15 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// MigrateMetadataCommand reports that the asc migrate metadata aliases were
+// newMigrateMetadataCommand reports that the asc migrate metadata aliases were
 // removed and names the asc metadata command to use instead.
-func MigrateMetadataCommand() *ffcli.Command {
+func newMigrateMetadataCommand(d *shared.Deps) *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "metadata",
 		ShortUsage: "asc migrate metadata <pull|push|validate>",
 		ShortHelp:  "REMOVED: Use `asc metadata pull|push|validate`.",
-		FlagSet:    flag.NewFlagSet("migrate metadata", flag.ExitOnError),
-		UsageFunc:  shared.DefaultUsageFunc,
+		FlagSet:    d.NewFlagSet("migrate metadata", flag.ExitOnError),
+		UsageFunc:  d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			command := "metadata"
 			if len(args) > 0 {
@@ -27,7 +27,7 @@ func MigrateMetadataCommand() *ffcli.Command {
 					command += " " + sub
 				}
 			}
-			return shared.WithDiagnostic(shared.UsageErrorf(
+			return shared.WithDiagnostic(d.UsageErrorf(
 				"`asc migrate %s` was removed in 6.0.0; use `asc %s` instead",
 				command, command,
 			), shared.DiagnosticInvalidInput, "")

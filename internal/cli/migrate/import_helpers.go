@@ -20,14 +20,14 @@ import (
 // migrateRequestContext bounds a single outbound request. It derives from the
 // command context rather than the caller's context so a multi-locale operation is
 // not capped by one shared request deadline.
-func migrateRequestContext(ctx context.Context) (context.Context, context.CancelFunc) {
-	return shared.ContextWithTimeout(shared.ContextWithoutTimeout(ctx))
+func migrateRequestContext(ctx context.Context, d *shared.Deps) (context.Context, context.CancelFunc) {
+	return d.Timeout(shared.ContextWithoutTimeout(ctx))
 }
 
 // migrateUploadContext gives one asset upload the asset upload budget, which a
 // request deadline in the parent chain would otherwise truncate.
-func migrateUploadContext(ctx context.Context) (context.Context, context.CancelFunc) {
-	return assets.ContextWithAssetUploadTimeout(shared.ContextWithoutTimeout(ctx))
+func migrateUploadContext(ctx context.Context, d *shared.Deps) (context.Context, context.CancelFunc) {
+	return assets.ContextWithAssetUploadTimeoutWith(shared.ContextWithoutTimeout(ctx), d)
 }
 
 func resolveAppID(ctx context.Context, client *asc.Client, appFlag string, config DeliverfileConfig) (string, error) {
@@ -313,7 +313,7 @@ func prepareAppInfoLocalizationAttributes(localizations []AppInfoFastlaneLocaliz
 	return prepared, nil
 }
 
-func uploadVersionLocalizations(ctx context.Context, client *asc.Client, versionID string, localizations []preparedVersionLocalization, localeToID map[string]string, submitOpts shared.SubmitReadinessOptions) ([]LocalizationUploadItem, []shared.SubmitReadinessCreateWarning, error) {
+func uploadVersionLocalizations(ctx context.Context, d *shared.Deps, client *asc.Client, versionID string, localizations []preparedVersionLocalization, localeToID map[string]string, submitOpts shared.SubmitReadinessOptions) ([]LocalizationUploadItem, []shared.SubmitReadinessCreateWarning, error) {
 	results := make([]LocalizationUploadItem, 0, len(localizations))
 	warnings := make([]shared.SubmitReadinessCreateWarning, 0, len(localizations))
 	for _, prepared := range localizations {
@@ -323,7 +323,7 @@ func uploadVersionLocalizations(ctx context.Context, client *asc.Client, version
 		localizationID := localeToID[loc.Locale]
 		if localizationID != "" {
 			action = "update"
-			requestCtx, cancel := migrateRequestContext(ctx)
+			requestCtx, cancel := migrateRequestContext(ctx, d)
 			_, err := client.UpdateAppStoreVersionLocalization(requestCtx, localizationID, attrs)
 			cancel()
 			if err != nil {
@@ -332,7 +332,7 @@ func uploadVersionLocalizations(ctx context.Context, client *asc.Client, version
 				return results, shared.NormalizeSubmitReadinessCreateWarnings(warnings), fmt.Errorf("migrate import: failed to update %s: %w", loc.Locale, err)
 			}
 		} else {
-			requestCtx, cancel := migrateRequestContext(ctx)
+			requestCtx, cancel := migrateRequestContext(ctx, d)
 			resp, err := client.CreateAppStoreVersionLocalization(requestCtx, versionID, attrs)
 			cancel()
 			if err != nil {
@@ -355,7 +355,7 @@ func uploadVersionLocalizations(ctx context.Context, client *asc.Client, version
 	return results, shared.NormalizeSubmitReadinessCreateWarnings(warnings), nil
 }
 
-func prepareAppInfoLocalizations(ctx context.Context, client *asc.Client, appID string, localizations []preparedAppInfoLocalization) (appInfoLocalizationPlan, error) {
+func prepareAppInfoLocalizations(ctx context.Context, d *shared.Deps, client *asc.Client, appID string, localizations []preparedAppInfoLocalization) (appInfoLocalizationPlan, error) {
 	if len(localizations) == 0 {
 		return appInfoLocalizationPlan{}, nil
 	}
@@ -378,7 +378,7 @@ func prepareAppInfoLocalizations(ctx context.Context, client *asc.Client, appID 
 		return appInfoLocalizationPlan{}, fmt.Errorf("migrate import: failed to select app info for app")
 	}
 
-	existingAppInfoLocs, err := fetchAppInfoLocalizationsForPlan(ctx, client, appInfoID)
+	existingAppInfoLocs, err := fetchAppInfoLocalizationsForPlan(ctx, d, client, appInfoID)
 	if err != nil {
 		return appInfoLocalizationPlan{}, fmt.Errorf("migrate import: failed to fetch app info localizations: %w", err)
 	}
@@ -409,8 +409,8 @@ func prepareAppInfoLocalizations(ctx context.Context, client *asc.Client, appID 
 	return plan, nil
 }
 
-func fetchAppInfoLocalizationsForPlan(ctx context.Context, client *asc.Client, appInfoID string) ([]asc.Resource[asc.AppInfoLocalizationAttributes], error) {
-	requestCtx, cancel := migrateRequestContext(ctx)
+func fetchAppInfoLocalizationsForPlan(ctx context.Context, d *shared.Deps, client *asc.Client, appInfoID string) ([]asc.Resource[asc.AppInfoLocalizationAttributes], error) {
+	requestCtx, cancel := migrateRequestContext(ctx, d)
 	firstPage, err := client.GetAppInfoLocalizations(requestCtx, appInfoID, asc.Limit[asc.AppInfoLocalizationsOption](200))
 	cancel()
 	if err != nil {
@@ -421,7 +421,7 @@ func fetchAppInfoLocalizationsForPlan(ctx context.Context, client *asc.Client, a
 	}
 
 	paginated, err := asc.PaginateAll(ctx, firstPage, func(pageCtx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		requestCtx, cancel := migrateRequestContext(pageCtx)
+		requestCtx, cancel := migrateRequestContext(pageCtx, d)
 		nextPage, err := client.GetAppInfoLocalizations(requestCtx, appInfoID, asc.NextURL[asc.AppInfoLocalizationsOption](nextURL))
 		cancel()
 		if err != nil {
@@ -442,8 +442,8 @@ func fetchAppInfoLocalizationsForPlan(ctx context.Context, client *asc.Client, a
 	return allPages.Data, nil
 }
 
-func fetchVersionLocalizationsForPlan(ctx context.Context, client *asc.Client, versionID string) ([]asc.Resource[asc.AppStoreVersionLocalizationAttributes], error) {
-	requestCtx, cancel := migrateRequestContext(ctx)
+func fetchVersionLocalizationsForPlan(ctx context.Context, d *shared.Deps, client *asc.Client, versionID string) ([]asc.Resource[asc.AppStoreVersionLocalizationAttributes], error) {
+	requestCtx, cancel := migrateRequestContext(ctx, d)
 	firstPage, err := client.GetAppStoreVersionLocalizations(requestCtx, versionID, asc.Limit[asc.AppStoreVersionLocalizationsOption](200))
 	cancel()
 	if err != nil {
@@ -454,7 +454,7 @@ func fetchVersionLocalizationsForPlan(ctx context.Context, client *asc.Client, v
 	}
 
 	paginated, err := asc.PaginateAll(ctx, firstPage, func(pageCtx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		requestCtx, cancel := migrateRequestContext(pageCtx)
+		requestCtx, cancel := migrateRequestContext(pageCtx, d)
 		nextPage, err := client.GetAppStoreVersionLocalizations(requestCtx, versionID, asc.NextURL[asc.AppStoreVersionLocalizationsOption](nextURL))
 		cancel()
 		if err != nil {
@@ -475,7 +475,7 @@ func fetchVersionLocalizationsForPlan(ctx context.Context, client *asc.Client, v
 	return allPages.Data, nil
 }
 
-func uploadAppInfoLocalizations(ctx context.Context, client *asc.Client, plan appInfoLocalizationPlan) ([]LocalizationUploadItem, error) {
+func uploadAppInfoLocalizations(ctx context.Context, d *shared.Deps, client *asc.Client, plan appInfoLocalizationPlan) ([]LocalizationUploadItem, error) {
 	results := make([]LocalizationUploadItem, 0, len(plan.localizations))
 	for _, prepared := range plan.localizations {
 		loc := prepared.localization
@@ -483,14 +483,14 @@ func uploadAppInfoLocalizations(ctx context.Context, client *asc.Client, plan ap
 		localizationID := prepared.localizationID
 		if localizationID != "" {
 			action = "update"
-			requestCtx, cancel := migrateRequestContext(ctx)
+			requestCtx, cancel := migrateRequestContext(ctx, d)
 			_, err := client.UpdateAppInfoLocalization(requestCtx, localizationID, prepared.attributes)
 			cancel()
 			if err != nil {
 				return results, fmt.Errorf("migrate import: failed to update app info %s: %w", loc.Locale, err)
 			}
 		} else {
-			requestCtx, cancel := migrateRequestContext(ctx)
+			requestCtx, cancel := migrateRequestContext(ctx, d)
 			resp, err := client.CreateAppInfoLocalization(requestCtx, plan.appInfoID, prepared.attributes)
 			cancel()
 			if err != nil {
@@ -510,19 +510,19 @@ func uploadAppInfoLocalizations(ctx context.Context, client *asc.Client, plan ap
 	return results, nil
 }
 
-func uploadReviewInformation(ctx context.Context, client *asc.Client, versionID string, info *ReviewInformation) (*ReviewInfoResult, error) {
+func uploadReviewInformation(ctx context.Context, d *shared.Deps, client *asc.Client, versionID string, info *ReviewInformation) (*ReviewInfoResult, error) {
 	if info == nil {
 		return nil, nil
 	}
 
-	fetchCtx, fetchCancel := migrateRequestContext(ctx)
+	fetchCtx, fetchCancel := migrateRequestContext(ctx, d)
 	existing, err := client.GetAppStoreReviewDetailForVersion(fetchCtx, versionID)
 	fetchCancel()
 	if err != nil {
 		if !isNotFoundReviewDetail(err) {
 			return nil, fmt.Errorf("migrate import: failed to fetch review information: %w", err)
 		}
-		createCtx, createCancel := migrateRequestContext(ctx)
+		createCtx, createCancel := migrateRequestContext(ctx, d)
 		created, err := client.CreateAppStoreReviewDetail(createCtx, versionID, buildReviewDetailCreateAttributes(info))
 		createCancel()
 		if err != nil {
@@ -537,7 +537,7 @@ func uploadReviewInformation(ctx context.Context, client *asc.Client, versionID 
 	if reviewInformationMatches(existing.Data.Attributes, info) {
 		return &ReviewInfoResult{Action: migrateReviewInfoActionSkip, DetailID: existing.Data.ID}, nil
 	}
-	updateCtx, updateCancel := migrateRequestContext(ctx)
+	updateCtx, updateCancel := migrateRequestContext(ctx, d)
 	_, err = client.UpdateAppStoreReviewDetail(updateCtx, existing.Data.ID, buildReviewDetailUpdateAttributes(info))
 	updateCancel()
 	if err != nil {
@@ -546,7 +546,9 @@ func uploadReviewInformation(ctx context.Context, client *asc.Client, versionID 
 	return &ReviewInfoResult{Action: migrateReviewInfoActionUpdate, DetailID: existing.Data.ID}, nil
 }
 
-func uploadScreenshots(ctx context.Context, client *asc.Client, versionID string, localeToID map[string]string, plans []ScreenshotPlan) (results []ScreenshotUploadResult, err error) {
+func uploadScreenshots(ctx context.Context, d *shared.Deps, client *asc.Client, versionID string, localeToID map[string]string, plans []ScreenshotPlan) (results []ScreenshotUploadResult, err error) {
+	requestContext := func(ctx context.Context) (context.Context, context.CancelFunc) { return migrateRequestContext(ctx, d) }
+	uploadContext := func(ctx context.Context) (context.Context, context.CancelFunc) { return migrateUploadContext(ctx, d) }
 	if len(plans) == 0 {
 		return nil, nil
 	}
@@ -574,14 +576,14 @@ func uploadScreenshots(ctx context.Context, client *asc.Client, versionID string
 				unreportedLocales = append(unreportedLocales, locale)
 			}
 		}
-		warnCreatedScreenshotLocalizations(os.Stderr, unreportedLocales)
+		warnCreatedScreenshotLocalizations(d.IO.ErrOut, unreportedLocales)
 	}()
 
 	results = make([]ScreenshotUploadResult, 0, len(plans))
 	for locale, localePlans := range plansByLocale {
 		localizationID := localeToID[locale]
 		if localizationID == "" {
-			createCtx, createCancel := migrateRequestContext(ctx)
+			createCtx, createCancel := migrateRequestContext(ctx, d)
 			resp, err := client.CreateAppStoreVersionLocalization(createCtx, versionID, asc.AppStoreVersionLocalizationAttributes{Locale: locale})
 			createCancel()
 			if err != nil {
@@ -592,7 +594,7 @@ func uploadScreenshots(ctx context.Context, client *asc.Client, versionID string
 			createdLocales = append(createdLocales, locale)
 		}
 
-		existingSets, err := client.GetAllAppScreenshotSets(ctx, localizationID, asc.WithAppScreenshotSetsRequestContext(migrateRequestContext))
+		existingSets, err := client.GetAllAppScreenshotSets(ctx, localizationID, asc.WithAppScreenshotSetsRequestContext(requestContext))
 		if err != nil {
 			return sortedScreenshotResults(results), fmt.Errorf("migrate import: failed to fetch screenshot sets for %s: %w", locale, err)
 		}
@@ -602,14 +604,14 @@ func uploadScreenshots(ctx context.Context, client *asc.Client, versionID string
 		existingOrderByType := make(map[string][]string)
 		for _, set := range existingSets.Data {
 			setByType[set.Attributes.ScreenshotDisplayType] = set.ID
-			orderCtx, orderCancel := migrateRequestContext(ctx)
+			orderCtx, orderCancel := migrateRequestContext(ctx, d)
 			orderedIDs, err := assets.GetOrderedAppScreenshotIDs(orderCtx, client, set.ID)
 			orderCancel()
 			if err != nil {
 				return sortedScreenshotResults(results), fmt.Errorf("migrate import: failed to fetch screenshot relationship order for %s: %w", set.ID, err)
 			}
 			existingOrderByType[set.Attributes.ScreenshotDisplayType] = orderedIDs
-			screenshots, err := client.GetAllAppScreenshots(ctx, set.ID, asc.WithAppScreenshotsRequestContext(migrateRequestContext))
+			screenshots, err := client.GetAllAppScreenshots(ctx, set.ID, asc.WithAppScreenshotsRequestContext(requestContext))
 			if err != nil {
 				return sortedScreenshotResults(results), fmt.Errorf("migrate import: failed to fetch screenshots for %s: %w", set.ID, err)
 			}
@@ -633,7 +635,7 @@ func uploadScreenshots(ctx context.Context, client *asc.Client, versionID string
 			setID := setByType[canonicalDisplayType]
 			createdSet := false
 			if setID == "" {
-				setCtx, setCancel := migrateRequestContext(ctx)
+				setCtx, setCancel := migrateRequestContext(ctx, d)
 				set, err := client.CreateAppScreenshotSet(setCtx, localizationID, canonicalDisplayType)
 				setCancel()
 				if err != nil {
@@ -686,7 +688,7 @@ func uploadScreenshots(ctx context.Context, client *asc.Client, versionID string
 			// Each asset reserves, transfers, and commits under its own
 			// upload budget; a shared request deadline would truncate the
 			// transfer of the first large screenshot.
-			uploaded, failedFile, err := assets.UploadScreenshotAssetsConcurrently(ctx, client, setID, uploadFiles, migrateUploadContext, func(filePath string) (*os.File, error) {
+			uploaded, failedFile, err := assets.UploadScreenshotAssetsConcurrently(ctx, client, setID, uploadFiles, uploadContext, func(filePath string) (*os.File, error) {
 				opened, _, err := plan.openedFile(filePath)
 				return opened, err
 			})
@@ -712,7 +714,7 @@ func uploadScreenshots(ctx context.Context, client *asc.Client, versionID string
 				return sortedScreenshotResults(results), fmt.Errorf("migrate import: failed to upload screenshot %s: %w", failedFile, err)
 			}
 			orderedIDs := buildPlannedScreenshotOrder(plan.Files, existingOrderByType[canonicalDisplayType], fileIDs, uploadedIDsByName)
-			reorderCtx, reorderCancel := migrateRequestContext(ctx)
+			reorderCtx, reorderCancel := migrateRequestContext(ctx, d)
 			err = assets.SetOrderedAppScreenshots(reorderCtx, client, setID, orderedIDs)
 			reorderCancel()
 			if err != nil {

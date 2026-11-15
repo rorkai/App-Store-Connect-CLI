@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared/errfmt"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 )
@@ -509,6 +510,30 @@ func TestScreenshotSettlementTimeoutHintMatchesDeadline(t *testing.T) {
 			})
 		})
 	}
+}
+
+func TestContextWithAssetUploadTimeoutWithResolvesUploadSettingThroughDeps(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		var gotSetting shared.TimeoutSetting
+		var gotDefault time.Duration
+		d := &shared.Deps{ResolveTimeout: func(setting shared.TimeoutSetting, defaultTimeout time.Duration) time.Duration {
+			gotSetting, gotDefault = setting, defaultTimeout
+			return 3 * time.Minute
+		}}
+		ctx, cancel := ContextWithAssetUploadTimeoutWith(context.Background(), d)
+		defer cancel()
+		deadline, ok := ctx.Deadline()
+		if !ok || time.Until(deadline) != 3*time.Minute {
+			t.Fatalf("deadline = %v (set %t), want 3m from now", deadline, ok)
+		}
+		if gotSetting != shared.UploadTimeoutSetting || gotDefault != shared.MediaUploadTimeoutForWork(0, 0) {
+			t.Fatalf("resolved setting %v with default %s, want the upload setting with the media default %s", gotSetting, gotDefault, shared.MediaUploadTimeoutForWork(0, 0))
+		}
+		<-ctx.Done()
+		if !errors.Is(context.Cause(ctx), errAssetUploadDeadline) {
+			t.Fatalf("cause = %v, want the asset upload deadline", context.Cause(ctx))
+		}
+	})
 }
 
 func TestUploadScreenshotsDryRunReportsWouldUpload(t *testing.T) {

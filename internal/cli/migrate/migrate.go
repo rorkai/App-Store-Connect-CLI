@@ -21,9 +21,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/validation"
 )
 
-// MigrateCommand returns the migrate command with subcommands.
-func MigrateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("migrate", flag.ExitOnError)
+// NewMigrateCommand returns the migrate command with subcommands.
+func NewMigrateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("migrate", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "migrate",
@@ -40,12 +40,12 @@ Examples:
   asc migrate import --app "APP_ID" --version-id "VERSION_ID" --fastlane-dir ./fastlane --confirm
   asc migrate export --app "APP_ID" --version-id "VERSION_ID" --output-dir ./fastlane`,
 		FlagSet:   fs,
-		UsageFunc: shared.VisibleUsageFunc,
+		UsageFunc: d.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
-			MigrateImportCommand(),
-			MigrateExportCommand(),
-			MigrateValidateCommand(),
-			MigrateMetadataCommand(),
+			newMigrateImportCommand(d),
+			newMigrateExportCommand(d),
+			newMigrateValidateCommand(d),
+			newMigrateMetadataCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -53,9 +53,9 @@ Examples:
 	}
 }
 
-// MigrateImportCommand returns the migrate import subcommand.
-func MigrateImportCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("migrate import", flag.ExitOnError)
+// newMigrateImportCommand returns the migrate import subcommand.
+func newMigrateImportCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("migrate import", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID (required unless Deliverfile app_version + platform)")
@@ -70,7 +70,7 @@ func MigrateImportCommand() *ffcli.Command {
 	allowExternalScreenshots := fs.Bool("allow-external-screenshots", false, "Trust Deliverfile screenshot paths and symlinks outside the selected Fastlane directory")
 	allowSymlinkedDeliverfile := fs.Bool("allow-symlinked-deliverfile", false, "Trust and follow a symlinked Deliverfile")
 	includeSensitive := shared.BindIncludeSensitiveFlag(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "import",
@@ -133,11 +133,11 @@ Examples:
   asc migrate import --app "APP_ID" --version-id "VERSION_ID" --fastlane-dir ./fastlane --dry-run --check-remote
   asc migrate import --app "APP_ID" --version-id "VERSION_ID" --fastlane-dir ./fastlane --skip-screenshots --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *checkRemote && !*dryRun {
 				const message = "--check-remote requires --dry-run"
-				fmt.Fprintln(os.Stderr, "Error: "+message)
+				fmt.Fprintln(d.IO.ErrOut, "Error: "+message)
 				return shared.NewReportedUsageError(shared.UsageErrorInvalidValue, message)
 			}
 
@@ -145,7 +145,7 @@ Examples:
 			// information changes, and screenshot uploads, so the same apply
 			// decision the other file-driven importers require is enforced
 			// here before the directory is even read.
-			if err := shared.RequireConfirmUnlessDryRun(*dryRun, *confirm); err != nil {
+			if err := d.RequireConfirmUnlessDryRun(*dryRun, *confirm); err != nil {
 				return err
 			}
 
@@ -306,11 +306,11 @@ Examples:
 			appInfoFiles := buildAppInfoFilePlans(appInfoLocs)
 
 			if strings.TrimSpace(*versionID) == "" && (strings.TrimSpace(inputs.DeliverfileConfig.AppVersion) == "" || strings.TrimSpace(inputs.DeliverfileConfig.Platform) == "") {
-				fmt.Fprintln(os.Stderr, "Error: --version-id is required (or set Deliverfile app_version and platform)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --version-id is required (or set Deliverfile app_version and platform)")
 				return shared.MissingRequiredUsageError("--version-id")
 			}
 			if strings.TrimSpace(*appID) == "" && strings.TrimSpace(inputs.DeliverfileConfig.AppIdentifier) == "" && shared.ResolveAppID("") == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID or Deliverfile app_identifier)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID or Deliverfile app_identifier)")
 				return shared.MissingRequiredUsageError("--app")
 			}
 			preparedLocalizations, err := prepareVersionLocalizations(localizations)
@@ -340,12 +340,12 @@ Examples:
 				(strings.TrimSpace(*appID) == "" && strings.TrimSpace(inputs.DeliverfileConfig.AppIdentifier) != "") ||
 				(strings.TrimSpace(*versionID) == "" && strings.TrimSpace(inputs.DeliverfileConfig.AppVersion) != "" && strings.TrimSpace(inputs.DeliverfileConfig.Platform) != "")
 			if needsClient {
-				client, err = shared.GetASCClient()
+				client, err = d.Client()
 				if err != nil {
 					return fmt.Errorf("migrate import: %w", err)
 				}
 				defer client.CloseUploadConnections()
-				resolveCtx, cancelResolve := migrateRequestContext(ctx)
+				resolveCtx, cancelResolve := migrateRequestContext(ctx, d)
 				defer cancelResolve()
 				requestCtx = resolveCtx
 			}
@@ -380,25 +380,25 @@ Examples:
 			}
 
 			if *dryRun && !*checkRemote {
-				shared.WarnIncludeSensitive(os.Stderr, *includeSensitive)
-				return printMigrateOutput(presentableImportResult(result, *includeSensitive), *output.Output, *output.Pretty)
+				shared.WarnIncludeSensitive(d.IO.ErrOut, *includeSensitive)
+				return printMigrateOutput(d, presentableImportResult(result, *includeSensitive), *output.Output, *output.Pretty)
 			}
 
-			ownershipCtx, cancelOwnership := migrateRequestContext(ctx)
+			ownershipCtx, cancelOwnership := migrateRequestContext(ctx, d)
 			err = verifyExplicitVersionOwnership(ownershipCtx, client, *versionID, resolvedAppID, resolvedVersionID)
 			cancelOwnership()
 			if err != nil {
 				return fmt.Errorf("migrate import: %w", err)
 			}
 
-			assetPlan, err := storeassets.PrepareImport(ctx, shared.DefaultDeps(), client, resolvedAppID, resolvedVersionID, appClip, previews)
+			assetPlan, err := storeassets.PrepareImport(ctx, d, client, resolvedAppID, resolvedVersionID, appClip, previews)
 			if err != nil {
 				return fmt.Errorf("migrate import: %w", err)
 			}
 			localeToID := make(map[string]string)
 			if len(localizations) > 0 || len(screenshotPlan) > 0 || len(previews) > 0 {
-				existingCtx, cancelExisting := migrateRequestContext(ctx)
-				existingLocs, err := fetchVersionLocalizationsForPlan(existingCtx, client, strings.TrimSpace(resolvedVersionID))
+				existingCtx, cancelExisting := migrateRequestContext(ctx, d)
+				existingLocs, err := fetchVersionLocalizationsForPlan(existingCtx, d, client, strings.TrimSpace(resolvedVersionID))
 				cancelExisting()
 				if err != nil {
 					return fmt.Errorf("migrate import: failed to fetch existing localizations: %w", err)
@@ -413,8 +413,8 @@ Examples:
 			if err := validateScreenshotLocalizationCreateLocales(screenshotPlan, localeToID); err != nil {
 				return err
 			}
-			appInfoCtx, cancelAppInfo := migrateRequestContext(ctx)
-			appInfoPlan, err := prepareAppInfoLocalizations(appInfoCtx, client, resolvedAppID, preparedAppInfoLocalizations)
+			appInfoCtx, cancelAppInfo := migrateRequestContext(ctx, d)
+			appInfoPlan, err := prepareAppInfoLocalizations(appInfoCtx, d, client, resolvedAppID, preparedAppInfoLocalizations)
 			cancelAppInfo()
 			if err != nil {
 				return err
@@ -428,13 +428,13 @@ Examples:
 						Action: change.Action, Status: "planned",
 					})
 				}
-				shared.WarnIncludeSensitive(os.Stderr, *includeSensitive)
-				return printMigrateOutput(presentableImportResult(result, *includeSensitive), *output.Output, *output.Pretty)
+				shared.WarnIncludeSensitive(d.IO.ErrOut, *includeSensitive)
+				return printMigrateOutput(d, presentableImportResult(result, *includeSensitive), *output.Output, *output.Pretty)
 			}
 
 			submitOpts := shared.SubmitReadinessOptions{}
 			if migrateVersionLocalizationsNeedUpdateContext(localizations, localeToID) {
-				readinessCtx, cancelReadiness := migrateRequestContext(ctx)
+				readinessCtx, cancelReadiness := migrateRequestContext(ctx, d)
 				submitOpts = shared.ResolveSubmitReadinessOptionsForVersionBestEffort(readinessCtx, client, resolvedVersionID, resolvedAppID, "")
 				cancelReadiness()
 			}
@@ -454,19 +454,19 @@ Examples:
 				result.FailureStage = stage
 				result.Failure = shared.SanitizeTerminal(failure.Error())
 				result.CompletedStages = append([]string(nil), completedStages...)
-				shared.WarnIncludeSensitive(os.Stderr, *includeSensitive)
-				if printErr := printMigrateOutput(presentableImportResult(result, *includeSensitive), *output.Output, *output.Pretty); printErr != nil {
+				shared.WarnIncludeSensitive(d.IO.ErrOut, *includeSensitive)
+				if printErr := printMigrateOutput(d, presentableImportResult(result, *includeSensitive), *output.Output, *output.Pretty); printErr != nil {
 					return errors.Join(failure, fmt.Errorf("print partial migrate import result: %w", printErr))
 				}
 				// Locales created before the failure still need the submission
 				// fields the warning names, so report them here too.
-				if warnErr := shared.PrintSubmitReadinessCreateWarnings(os.Stderr, createWarnings); warnErr != nil {
+				if warnErr := shared.PrintSubmitReadinessCreateWarnings(d.IO.ErrOut, createWarnings); warnErr != nil {
 					return errors.Join(failure, warnErr)
 				}
 				return failure
 			}
 
-			uploaded, warnings, err := uploadVersionLocalizations(ctx, client, resolvedVersionID, preparedLocalizations, localeToID, submitOpts)
+			uploaded, warnings, err := uploadVersionLocalizations(ctx, d, client, resolvedVersionID, preparedLocalizations, localeToID, submitOpts)
 			result.Uploaded = uploaded
 			createWarnings = warnings
 			if err != nil {
@@ -476,7 +476,7 @@ Examples:
 				completedStages = append(completedStages, migrateStageVersionLocalizations)
 			}
 
-			appInfoUploaded, err := uploadAppInfoLocalizations(ctx, client, appInfoPlan)
+			appInfoUploaded, err := uploadAppInfoLocalizations(ctx, d, client, appInfoPlan)
 			result.AppInfoUploaded = appInfoUploaded
 			if err != nil {
 				return reportPartialFailure(migrateStageAppInfoLocalizations, err)
@@ -485,7 +485,7 @@ Examples:
 				completedStages = append(completedStages, migrateStageAppInfoLocalizations)
 			}
 
-			reviewResult, err := uploadReviewInformation(ctx, client, resolvedVersionID, reviewInfo)
+			reviewResult, err := uploadReviewInformation(ctx, d, client, resolvedVersionID, reviewInfo)
 			result.ReviewInfoResult = reviewResult
 			if err != nil {
 				return reportPartialFailure(migrateStageReviewInformation, err)
@@ -495,7 +495,7 @@ Examples:
 			}
 
 			if copyright != "" {
-				copyrightCtx, cancelCopyright := migrateRequestContext(ctx)
+				copyrightCtx, cancelCopyright := migrateRequestContext(ctx, d)
 				_, err = client.UpdateAppStoreVersion(copyrightCtx, resolvedVersionID, asc.AppStoreVersionUpdateAttributes{Copyright: &copyright})
 				cancelCopyright()
 				if err != nil {
@@ -505,7 +505,7 @@ Examples:
 				completedStages = append(completedStages, migrateStageCopyright)
 			}
 
-			screenshotResults, err := uploadScreenshots(ctx, client, resolvedVersionID, localeToID, screenshotPlan)
+			screenshotResults, err := uploadScreenshots(ctx, d, client, resolvedVersionID, localeToID, screenshotPlan)
 			result.ScreenshotResults = screenshotResults
 			if err != nil {
 				return reportPartialFailure(migrateStageScreenshots, err)
@@ -519,11 +519,11 @@ Examples:
 				return reportPartialFailure("store_assets", err)
 			}
 
-			shared.WarnIncludeSensitive(os.Stderr, *includeSensitive)
-			if err := printMigrateOutput(presentableImportResult(result, *includeSensitive), *output.Output, *output.Pretty); err != nil {
+			shared.WarnIncludeSensitive(d.IO.ErrOut, *includeSensitive)
+			if err := printMigrateOutput(d, presentableImportResult(result, *includeSensitive), *output.Output, *output.Pretty); err != nil {
 				return err
 			}
-			return shared.PrintSubmitReadinessCreateWarnings(os.Stderr, createWarnings)
+			return shared.PrintSubmitReadinessCreateWarnings(d.IO.ErrOut, createWarnings)
 		},
 	}
 }
@@ -579,14 +579,14 @@ func migrateVersionLocalizationsNeedUpdateContext(localizations []FastlaneLocali
 	return false
 }
 
-// MigrateExportCommand returns the migrate export subcommand.
-func MigrateExportCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("migrate export", flag.ExitOnError)
+// newMigrateExportCommand returns the migrate export subcommand.
+func newMigrateExportCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("migrate export", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID (required)")
 	outputDir := fs.String("output-dir", "", "Output directory for fastlane structure (required)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "export",
@@ -601,41 +601,41 @@ files import reads; the demo account password is not written.
 Examples:
   asc migrate export --app "APP_ID" --version-id "VERSION_ID" --output-dir ./fastlane`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*versionID) == "" {
-				return shared.RequiredFlag("--version-id")
+				return d.RequiredFlag("--version-id")
 			}
 			if strings.TrimSpace(*outputDir) == "" {
-				return shared.RequiredFlag("--output-dir")
+				return d.RequiredFlag("--output-dir")
 			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("migrate export: %w", err)
 			}
 
-			requestCtx, cancel := migrateRequestContext(ctx)
+			requestCtx, cancel := migrateRequestContext(ctx, d)
 			_, err = shared.ResolveOwnedAppStoreVersionByID(requestCtx, client, resolvedAppID, strings.TrimSpace(*versionID), "")
 			cancel()
 			if err != nil {
 				return fmt.Errorf("migrate export: %w", err)
 			}
 
-			localizations, err := fetchVersionLocalizationsForPlan(ctx, client, strings.TrimSpace(*versionID))
+			localizations, err := fetchVersionLocalizationsForPlan(ctx, d, client, strings.TrimSpace(*versionID))
 			if err != nil {
 				return fmt.Errorf("migrate export: %w", err)
 			}
 
 			// App info is optional, but a selected localization collection must be complete.
 			var appInfoLocalizations []asc.Resource[asc.AppInfoLocalizationAttributes]
-			requestCtx, cancel = migrateRequestContext(ctx)
+			requestCtx, cancel = migrateRequestContext(ctx, d)
 			appInfos, err := client.GetAppInfos(requestCtx, resolvedAppID)
 			cancel()
 			if err == nil && len(appInfos.Data) > 0 {
@@ -643,26 +643,26 @@ Examples:
 				if strings.TrimSpace(appInfoID) == "" {
 					return fmt.Errorf("migrate export: failed to select app info for app")
 				}
-				appInfoLocalizations, err = fetchAppInfoLocalizationsForPlan(ctx, client, appInfoID)
+				appInfoLocalizations, err = fetchAppInfoLocalizationsForPlan(ctx, d, client, appInfoID)
 				if err != nil {
 					return fmt.Errorf("migrate export: %w", err)
 				}
 			}
 
-			reviewDetail, err := fetchExportReviewDetail(ctx, client, strings.TrimSpace(*versionID))
+			reviewDetail, err := fetchExportReviewDetail(ctx, d, client, strings.TrimSpace(*versionID))
 			if err != nil {
 				return fmt.Errorf("migrate export: %w", err)
 			}
 			if reviewDetail != nil && reviewDetail.DemoAccountPassword != "" {
-				fmt.Fprintln(os.Stderr, "Warning: demo account password not exported to metadata/review_information/demo_password.txt")
+				fmt.Fprintln(d.IO.ErrOut, "Warning: demo account password not exported to metadata/review_information/demo_password.txt")
 			}
 
-			assetPlan, assetWarnings, err := storeassets.ExportPlanWithVersionLocalizations(ctx, shared.DefaultDeps(), client, strings.TrimSpace(*versionID), "metadata", true, true, localizations)
+			assetPlan, assetWarnings, err := storeassets.ExportPlanWithVersionLocalizations(ctx, d, client, strings.TrimSpace(*versionID), "metadata", true, true, localizations)
 			if err != nil {
 				return fmt.Errorf("migrate export: %w", err)
 			}
 			for _, warning := range assetWarnings {
-				fmt.Fprintln(os.Stderr, "Warning: "+warning)
+				fmt.Fprintln(d.IO.ErrOut, "Warning: "+warning)
 			}
 
 			// Create output directory structure beneath the operator-selected root
@@ -671,7 +671,7 @@ Examples:
 				return fmt.Errorf("migrate export: %w", err)
 			}
 			defer root.Close()
-			assetExport, err := storeassets.PrepareExport(shared.DefaultDeps(), root, assetPlan, storeassets.ExportOptions{AppID: resolvedAppID, VersionID: strings.TrimSpace(*versionID), MetadataPrefix: "metadata", Clip: true, Previews: true, Overwrite: true})
+			assetExport, err := storeassets.PrepareExport(d, root, assetPlan, storeassets.ExportOptions{AppID: resolvedAppID, VersionID: strings.TrimSpace(*versionID), MetadataPrefix: "metadata", Clip: true, Previews: true, Overwrite: true})
 			if err != nil {
 				return fmt.Errorf("migrate export: %w", err)
 			}
@@ -750,7 +750,7 @@ Examples:
 
 			assetFiles, cleanupWarnings, exportErr := assetExport.Write(ctx)
 			for _, warning := range cleanupWarnings {
-				fmt.Fprintln(os.Stderr, "Warning:", warning)
+				fmt.Fprintln(d.IO.ErrOut, "Warning:", warning)
 			}
 			totalFiles += len(assetFiles)
 			result := &MigrateExportResult{
@@ -764,12 +764,12 @@ Examples:
 			if exportErr != nil {
 				result.Status = "partial"
 				result.Failure = shared.SanitizeTerminal(exportErr.Error())
-				if printErr := printMigrateOutput(result, *output.Output, *output.Pretty); printErr != nil {
+				if printErr := printMigrateOutput(d, result, *output.Output, *output.Pretty); printErr != nil {
 					return errors.Join(exportErr, printErr)
 				}
 				return fmt.Errorf("migrate export: %w", exportErr)
 			}
-			return printMigrateOutput(result, *output.Output, *output.Pretty)
+			return printMigrateOutput(d, result, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -1009,20 +1009,20 @@ func removeEmptyExportFile(root rootfs.Root, name string) error {
 }
 
 // printMigrateOutput handles output for migrate-specific result types.
-func printMigrateOutput(data any, format string, pretty bool) error {
+func printMigrateOutput(d *shared.Deps, data any, format string, pretty bool) error {
 	normalizedFormat := shared.NormalizeOutputFormat(format)
-	return shared.PrintOutputWithRenderers(
+	return d.PrintOutputWithRenderers(
 		data,
 		normalizedFormat,
 		pretty,
 		func() error {
 			switch v := data.(type) {
 			case *MigrateImportResult:
-				return printMigrateImportResultTable(v)
+				return printMigrateImportResultTable(d, v)
 			case *MigrateExportResult:
-				return printMigrateExportResultTable(v)
+				return printMigrateExportResultTable(d, v)
 			case *MigrateValidateResult:
-				return printMigrateValidateResultTable(v)
+				return printMigrateValidateResultTable(d, v)
 			default:
 				return fmt.Errorf("unsupported format: %s", normalizedFormat)
 			}
@@ -1030,11 +1030,11 @@ func printMigrateOutput(data any, format string, pretty bool) error {
 		func() error {
 			switch v := data.(type) {
 			case *MigrateImportResult:
-				return printMigrateImportResultMarkdown(v)
+				return printMigrateImportResultMarkdown(d, v)
 			case *MigrateExportResult:
-				return printMigrateExportResultMarkdown(v)
+				return printMigrateExportResultMarkdown(d, v)
 			case *MigrateValidateResult:
-				return printMigrateValidateResultMarkdown(v)
+				return printMigrateValidateResultMarkdown(d, v)
 			default:
 				return fmt.Errorf("unsupported format: %s", normalizedFormat)
 			}
@@ -1474,13 +1474,13 @@ func readFastlaneAppInfoMetadataFromLocaleDirs(metadataDir string, localeDirs []
 	return localizations, nil
 }
 
-// MigrateValidateCommand returns the migrate validate subcommand.
-func MigrateValidateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("migrate validate", flag.ExitOnError)
+// newMigrateValidateCommand returns the migrate validate subcommand.
+func newMigrateValidateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("migrate validate", flag.ExitOnError)
 
 	fastlaneDir := fs.String("fastlane-dir", "", "Path to fastlane directory (required)")
 	allowExternalMetadata := fs.Bool("allow-external-metadata", false, "Trust a metadata symlink outside the selected Fastlane directory")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "validate",
@@ -1500,10 +1500,10 @@ Examples:
   asc migrate validate --fastlane-dir ./fastlane
   asc migrate validate --fastlane-dir ./fastlane --output table`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*fastlaneDir) == "" {
-				return shared.RequiredFlag("--fastlane-dir")
+				return d.RequiredFlag("--fastlane-dir")
 			}
 
 			workDir, err := os.Getwd()
@@ -1628,7 +1628,7 @@ Examples:
 				Valid:       errorCount == 0,
 			}
 
-			return printMigrateOutput(result, *output.Output, *output.Pretty)
+			return printMigrateOutput(d, result, *output.Output, *output.Pretty)
 		},
 	}
 }

@@ -67,6 +67,7 @@ func TestFileDrivenMutationsRequireConfirm(t *testing.T) {
 		{
 			name: "migrate import",
 			args: []string{"migrate", "import", "--app", "123456789", "--version-id", "VERSION_1", "--fastlane-dir", t.TempDir()},
+			deps: true,
 		},
 		{
 			name: "iap import",
@@ -133,6 +134,7 @@ func TestFileDrivenMutationsGateBeforeReadingInput(t *testing.T) {
 		{
 			name: "migrate import",
 			args: []string{"migrate", "import", "--app", "123456789", "--version-id", "VERSION_1", "--fastlane-dir", missingInput},
+			deps: true,
 		},
 		{
 			name: "iap import",

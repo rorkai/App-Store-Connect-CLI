@@ -1,6 +1,7 @@
 package migrate
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -8,6 +9,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc/types"
@@ -16,8 +18,19 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/validation"
 )
 
+func migrateTestDeps() *shared.Deps {
+	return &shared.Deps{
+		IO:             &shared.IO{In: strings.NewReader(""), Out: &bytes.Buffer{}, ErrOut: &bytes.Buffer{}},
+		Now:            time.Now,
+		Timeout:        shared.ContextWithTimeout,
+		UploadTimeout:  shared.ContextWithUploadTimeout,
+		ResolveTimeout: shared.ResolveTimeoutSetting,
+		After:          time.After,
+	}
+}
+
 func TestMigrateCommandExamplesUseVersionIDFlag(t *testing.T) {
-	help := MigrateCommand().LongHelp
+	help := NewMigrateCommand(migrateTestDeps()).LongHelp
 	if strings.Contains(help, `migrate import --app "APP_ID" --version "VERSION_ID"`) {
 		t.Fatalf("migrate help still documents unsupported --version for import:\n%s", help)
 	}
@@ -35,7 +48,7 @@ func TestMigrateCommandExamplesUseVersionIDFlag(t *testing.T) {
 }
 
 func TestMigrateImportExposesExplicitPathTrustFlags(t *testing.T) {
-	flags := MigrateImportCommand().FlagSet
+	flags := newMigrateImportCommand(migrateTestDeps()).FlagSet
 	for _, name := range []string{
 		"allow-external-metadata",
 		"allow-external-screenshots",
@@ -45,7 +58,7 @@ func TestMigrateImportExposesExplicitPathTrustFlags(t *testing.T) {
 			t.Fatalf("migrate import flag --%s is missing", name)
 		}
 	}
-	if MigrateValidateCommand().FlagSet.Lookup("allow-external-metadata") == nil {
+	if newMigrateValidateCommand(migrateTestDeps()).FlagSet.Lookup("allow-external-metadata") == nil {
 		t.Fatal("migrate validate flag --allow-external-metadata is missing")
 	}
 }
@@ -433,28 +446,28 @@ func TestReadFastlaneMetadata_SkipsFiles(t *testing.T) {
 }
 
 func TestPrintMigrateOutput_RejectsPrettyForTable(t *testing.T) {
-	err := printMigrateOutput(&MigrateImportResult{}, "table", true)
+	err := printMigrateOutput(migrateTestDeps(), &MigrateImportResult{}, "table", true)
 	if err == nil || !strings.Contains(err.Error(), "--pretty is only valid with JSON output") {
 		t.Fatalf("expected pretty validation error, got %v", err)
 	}
 }
 
 func TestPrintMigrateOutput_UnsupportedFormat(t *testing.T) {
-	err := printMigrateOutput(&MigrateImportResult{}, "yaml", false)
+	err := printMigrateOutput(migrateTestDeps(), &MigrateImportResult{}, "yaml", false)
 	if err == nil || !strings.Contains(err.Error(), `(got "yaml")`) {
 		t.Fatalf("expected unsupported format error, got %v", err)
 	}
 }
 
 func TestPrintMigrateOutput_UnknownTypeTableUnsupported(t *testing.T) {
-	err := printMigrateOutput(struct{}{}, "table", false)
+	err := printMigrateOutput(migrateTestDeps(), struct{}{}, "table", false)
 	if err == nil || !strings.Contains(err.Error(), "unsupported format: table") {
 		t.Fatalf("expected unsupported format for table, got %v", err)
 	}
 }
 
 func TestPrintMigrateOutput_UnknownTypeJSONFallsBack(t *testing.T) {
-	if err := printMigrateOutput(struct {
+	if err := printMigrateOutput(migrateTestDeps(), struct {
 		OK bool `json:"ok"`
 	}{OK: true}, "json", false); err != nil {
 		t.Fatalf("expected JSON fallback to succeed, got %v", err)

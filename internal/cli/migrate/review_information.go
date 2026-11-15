@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 )
 
@@ -227,8 +228,8 @@ func parseReviewRequiredValue(path, value string, exists bool) (*bool, error) {
 }
 
 // fetchExportReviewDetail returns nil when the version has no App Review detail.
-func fetchExportReviewDetail(ctx context.Context, client *asc.Client, versionID string) (*asc.AppStoreReviewDetailAttributes, error) {
-	requestCtx, cancel := migrateRequestContext(ctx)
+func fetchExportReviewDetail(ctx context.Context, d *shared.Deps, client *asc.Client, versionID string) (*asc.AppStoreReviewDetailAttributes, error) {
+	requestCtx, cancel := migrateRequestContext(ctx, d)
 	defer cancel()
 	resp, err := client.GetAppStoreReviewDetailForVersion(requestCtx, versionID)
 	if err != nil {
