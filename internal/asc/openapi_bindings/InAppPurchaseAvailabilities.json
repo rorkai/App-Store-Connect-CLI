@@ -16,6 +16,6 @@
     {"operation":"inAppPurchaseAvailabilities_getInstance","name":"GetInAppPurchaseAvailabilityByID","params":["availabilityID"],"check":"require"}
   ],
   "queries": [
-    {"operation":"inAppPurchaseAvailabilities_availableTerritories_getToManyRelated","name":"IAPAvailabilityTerritories"}
+    {"operation":"inAppPurchaseAvailabilities_availableTerritories_getToManyRelated","name":"IAPAvailabilityTerritories","deviations":[{"problem":"query parameters [fields[territories]] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]}
   ]
 }
