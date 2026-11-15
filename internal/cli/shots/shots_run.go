@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"path/filepath"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -12,14 +11,14 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/screenshots"
 )
 
-// ShotsRunCommand returns the screenshots run subcommand.
-func ShotsRunCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("run", flag.ExitOnError)
+// NewShotsRunCommand returns the screenshots run subcommand.
+func NewShotsRunCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("run", flag.ExitOnError)
 	planPath := fs.String("plan", ".asc/screenshots.json", "Path to screenshot run plan JSON")
 	bundleID := fs.String("bundle-id", "", "Override app bundle ID from plan")
 	udid := fs.String("udid", "", "Override simulator UDID from plan")
 	outputDir := fs.String("output-dir", "", "Override output directory from plan")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "run",
@@ -41,14 +40,14 @@ override the simulator status bar during the run (needs AXe 2.0+ and Xcode 27+).
 When the run ends, every status bar override on that simulator is cleared,
 including any that were set before the run.`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			planPathVal := *planPath
 			if strings.TrimSpace(planPathVal) == "" {
-				return shared.RequiredFlag("--plan")
+				return d.RequiredFlag("--plan")
 			}
 
-			absPlanPath, err := filepath.Abs(planPathVal)
+			absPlanPath, err := d.Abs(planPathVal)
 			if err != nil {
 				return fmt.Errorf("screenshots run: resolve plan path: %w", err)
 			}
@@ -73,7 +72,7 @@ including any that were set before the run.`,
 				return fmt.Errorf("screenshots run: %w", err)
 			}
 
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }

@@ -92,21 +92,15 @@ func TestShotsFrame_DefaultDeviceIsIPhoneAir(t *testing.T) {
 		}), nil
 	})
 
-	root := RootCommand("1.2.3")
-	if err := root.Parse([]string{
+	stdout, stderr, err := runRootWithDeps(t, nil, []string{
 		"screenshots", "frame",
 		"--input", rawPath,
 		"--output-dir", outputDir,
 		"--output", "json",
-	}); err != nil {
-		t.Fatalf("parse error: %v", err)
+	}...)
+	if err != nil {
+		t.Fatalf("run error: %v", err)
 	}
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -166,17 +160,12 @@ func TestShotsFramePassesLiteralWhitespaceInputPath(t *testing.T) {
 		return &screenshots.FrameResult{Path: req.OutputPath, Device: req.Device}, nil
 	})
 
-	root := RootCommand("1.2.3")
-	if err := root.Parse([]string{
+	stdout, stderr, err := runRootWithDeps(t, nil, []string{
 		"screenshots", "frame", "--input", inputPath, "--output-path", outputPath, "--output", "json",
-	}); err != nil {
-		t.Fatalf("parse error: %v", err)
+	}...)
+	if err != nil {
+		t.Fatalf("run error: %v", err)
 	}
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
@@ -228,17 +217,12 @@ func TestShotsFramePassesLiteralWhitespaceOutputLocation(t *testing.T) {
 				return &screenshots.FrameResult{Path: req.OutputPath, Device: req.Device}, nil
 			})
 
-			root := RootCommand("1.2.3")
-			if err := root.Parse([]string{
+			stdout, stderr, err := runRootWithDeps(t, nil, []string{
 				"screenshots", "frame", "--input", inputPath, tt.flag, tt.value, "--output", "json",
-			}); err != nil {
-				t.Fatalf("parse error: %v", err)
+			}...)
+			if err != nil {
+				t.Fatalf("run error: %v", err)
 			}
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
 			if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)
 			}
@@ -271,17 +255,12 @@ func TestShotsFramePassesLiteralWhitespaceConfigPath(t *testing.T) {
 		return &screenshots.FrameResult{Path: req.OutputPath, Device: req.Device}, nil
 	})
 
-	root := RootCommand("1.2.3")
-	if err := root.Parse([]string{
+	stdout, stderr, err := runRootWithDeps(t, nil, []string{
 		"screenshots", "frame", "--config", configPath, "--output", "json",
-	}); err != nil {
-		t.Fatalf("parse error: %v", err)
+	}...)
+	if err != nil {
+		t.Fatalf("run error: %v", err)
 	}
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
@@ -315,17 +294,12 @@ func TestShotsFrameConfigWhitespacePathUsesConfiguredDevice(t *testing.T) {
 		return &screenshots.FrameResult{Path: req.OutputPath, Device: req.Device}, nil
 	})
 
-	root := RootCommand("1.2.3")
-	if err := root.Parse([]string{
+	stdout, stderr, err := runRootWithDeps(t, nil, []string{
 		"screenshots", "frame", "--config", configPath, "--output", "json",
-	}); err != nil {
-		t.Fatalf("parse error: %v", err)
+	}...)
+	if err != nil {
+		t.Fatalf("run error: %v", err)
 	}
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
@@ -376,22 +350,16 @@ func TestShotsFrame_ExplicitDeviceIPhone17Pro(t *testing.T) {
 		}), nil
 	})
 
-	root := RootCommand("1.2.3")
-	if err := root.Parse([]string{
+	stdout, stderr, err := runRootWithDeps(t, nil, []string{
 		"screenshots", "frame",
 		"--input", rawPath,
 		"--output-dir", outputDir,
 		"--device", "iphone-17-pro",
 		"--output", "json",
-	}); err != nil {
-		t.Fatalf("parse error: %v", err)
+	}...)
+	if err != nil {
+		t.Fatalf("run error: %v", err)
 	}
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -466,21 +434,15 @@ screenshots:
 		}), nil
 	})
 
-	root := RootCommand("1.2.3")
-	if err := root.Parse([]string{
+	stdout, stderr, err := runRootWithDeps(t, nil, []string{
 		"screenshots", "frame",
 		"--config", configPath,
 		"--output-dir", outputDir,
 		"--output", "json",
-	}); err != nil {
-		t.Fatalf("parse error: %v", err)
+	}...)
+	if err != nil {
+		t.Fatalf("run error: %v", err)
 	}
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
@@ -535,21 +497,15 @@ screenshots:
 		}), nil
 	})
 
-	root := RootCommand("1.2.3")
-	if err := root.Parse([]string{
+	stdout, stderr, err := runRootWithDeps(t, nil, []string{
 		"screenshots", "frame",
 		"--config", configPath,
 		"--output-dir", outputDir,
 		"--output", "json",
-	}); err != nil {
-		t.Fatalf("parse error: %v", err)
+	}...)
+	if err != nil {
+		t.Fatalf("run error: %v", err)
 	}
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
@@ -605,8 +561,7 @@ func TestShotsFrame_MacDevice(t *testing.T) {
 		}), nil
 	})
 
-	root := RootCommand("1.2.3")
-	if err := root.Parse([]string{
+	stdout, stderr, err := runRootWithDeps(t, nil, []string{
 		"screenshots", "frame",
 		"--input", rawPath,
 		"--output-dir", outputDir,
@@ -614,15 +569,10 @@ func TestShotsFrame_MacDevice(t *testing.T) {
 		"--title", "My App",
 		"--subtitle", "Your tagline",
 		"--output", "json",
-	}); err != nil {
-		t.Fatalf("parse error: %v", err)
+	}...)
+	if err != nil {
+		t.Fatalf("run error: %v", err)
 	}
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
@@ -681,22 +631,16 @@ func TestShotsFrame_MacDeviceNoText(t *testing.T) {
 		}), nil
 	})
 
-	root := RootCommand("1.2.3")
-	if err := root.Parse([]string{
+	stdout, stderr, err := runRootWithDeps(t, nil, []string{
 		"screenshots", "frame",
 		"--input", rawPath,
 		"--output-dir", outputDir,
 		"--device", "mac",
 		"--output", "json",
-	}); err != nil {
-		t.Fatalf("parse error: %v", err)
+	}...)
+	if err != nil {
+		t.Fatalf("run error: %v", err)
 	}
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
@@ -754,23 +698,17 @@ func TestShotsFrame_MacDeviceSubtitleOnly(t *testing.T) {
 		}), nil
 	})
 
-	root := RootCommand("1.2.3")
-	if err := root.Parse([]string{
+	stdout, stderr, err := runRootWithDeps(t, nil, []string{
 		"screenshots", "frame",
 		"--input", rawPath,
 		"--output-dir", outputDir,
 		"--device", "mac",
 		"--subtitle", "Just a tagline",
 		"--output", "json",
-	}); err != nil {
-		t.Fatalf("parse error: %v", err)
+	}...)
+	if err != nil {
+		t.Fatalf("run error: %v", err)
 	}
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
@@ -954,7 +892,8 @@ func TestShotsFrame_RejectsFlagsWatchModeCannotHonor(t *testing.T) {
 }
 
 func TestShotsFrame_AcceptsValidWatchOptions(t *testing.T) {
-	frameCommand := shots.ShotsFrameCommand()
+	d, _, _ := newTestDeps(t, nil)
+	frameCommand := shots.NewShotsFrameCommand(d)
 	debounceFlag := frameCommand.FlagSet.Lookup("watch-debounce")
 	if debounceFlag == nil || debounceFlag.DefValue != "500ms" {
 		t.Fatalf("watch debounce default = %v, want 500ms", debounceFlag)

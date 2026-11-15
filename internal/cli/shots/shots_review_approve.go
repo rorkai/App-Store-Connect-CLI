@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -12,9 +11,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/screenshots"
 )
 
-// ShotsReviewApproveCommand returns screenshots review-approve subcommand.
-func ShotsReviewApproveCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("review-approve", flag.ExitOnError)
+// NewShotsReviewApproveCommand returns screenshots review-approve subcommand.
+func NewShotsReviewApproveCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("review-approve", flag.ExitOnError)
 	outputDir := fs.String("output-dir", defaultShotsReviewOutputDir, "Directory containing review artifacts")
 	manifestPath := fs.String("manifest-path", "", "Optional manifest path (default: <output-dir>/manifest.json)")
 	approvalPath := fs.String("approval-path", "", "Optional approvals path (default: <output-dir>/approved.json)")
@@ -23,7 +22,7 @@ func ShotsReviewApproveCommand() *ffcli.Command {
 	screenshotID := fs.String("id", "", "Screenshot ID to approve")
 	locale := fs.String("locale", "", "Locale selector/filter for matching review entries")
 	device := fs.String("device", "", "Device selector/filter for matching review entries")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "review-approve",
@@ -37,14 +36,14 @@ Selectors:
 - --id: approve by screenshot ID (optionally narrowed by --locale/--device)
 - --locale/--device: approve all entries matching locale/device filters`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			keys := shared.SplitCSV(*key)
 			id := strings.TrimSpace(*screenshotID)
 			localeVal := strings.TrimSpace(*locale)
 			deviceVal := strings.TrimSpace(*device)
 			if !*allReady && len(keys) == 0 && id == "" && localeVal == "" && deviceVal == "" {
-				fmt.Fprintln(os.Stderr, "Error: provide at least one selector: --all-ready, --key, --id, --locale, or --device")
+				fmt.Fprintln(d.IO.ErrOut, "Error: provide at least one selector: --all-ready, --key, --id, --locale, or --device")
 				return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticRequiredInputMissing, "")
 			}
 
@@ -61,7 +60,7 @@ Selectors:
 			if err != nil {
 				return fmt.Errorf("screenshots review-approve: %w", err)
 			}
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
