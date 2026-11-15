@@ -133,8 +133,12 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 			return account.NewAccountCommand(d)
 		}),
 		commandFactory("install-skills", "Install the asc skill pack globally for App Store Connect workflows.", func() *ffcli.Command { return install.NewInstallSkillsCommand(d) }),
-		commandFactory("init", "Initialize asc helper docs in the current repo.", initcmd.InitCommand),
-		commandFactory("docs", "Access embedded documentation guides and reference helpers.", docs.DocsCommand),
+		commandFactory("init", "Initialize asc helper docs in the current repo.", func() *ffcli.Command {
+			return initcmd.NewInitCommand(d)
+		}),
+		commandFactory("docs", "Access embedded documentation guides and reference helpers.", func() *ffcli.Command {
+			return docs.NewCommand(d)
+		}),
 		commandFactory("diff", "Generate deterministic non-mutating diff plans.", func() *ffcli.Command {
 			return diffcmd.NewDiffCommand(d)
 		}),
@@ -145,7 +149,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("insights", "Generate weekly and daily insights from App Store data sources.", func() *ffcli.Command {
 			return insights.NewInsightsCommand(d)
 		}),
-		commandFactory("release-notes", "Generate and manage App Store release notes.", releasenotes.ReleaseNotesCommand),
+		commandFactory("release-notes", "Generate and manage App Store release notes.", func() *ffcli.Command {
+			return releasenotes.NewCommand(d)
+		}),
 		commandFactory("reviews", "List and manage App Store customer reviews.", func() *ffcli.Command {
 			return reviews.NewReviewsCommand(d)
 		}),

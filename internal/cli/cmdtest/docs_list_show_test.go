@@ -1,27 +1,18 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"flag"
-	"io"
 	"strings"
 	"testing"
 )
 
 func TestDocsListOutputsEmbeddedGuidesAsJSON(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"docs", "list"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, nil, "docs", "list")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -105,7 +96,7 @@ func TestDocsShowPrintsGuide(t *testing.T) {
 func runDocsCommand(t *testing.T, args ...string) string {
 	t.Helper()
 
-	stdout, stderr, err := runCommand(t, args)
+	stdout, stderr, err := runRootWithDeps(t, nil, args...)
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -116,16 +107,7 @@ func runDocsCommand(t *testing.T, args ...string) string {
 }
 
 func TestDocsShowUnknownGuideReturnsUsageError(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"docs", "show", "unknown-guide"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	stdout, stderr, runErr := runRootWithDeps(t, nil, "docs", "show", "unknown-guide")
 
 	if !errors.Is(runErr, flag.ErrHelp) {
 		t.Fatalf("expected ErrHelp, got %v", runErr)
@@ -142,16 +124,7 @@ func TestDocsShowUnknownGuideReturnsUsageError(t *testing.T) {
 }
 
 func TestDocsShowRequiresGuideName(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{"docs", "show"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	stdout, _, runErr := runRootWithDeps(t, nil, "docs", "show")
 
 	if !errors.Is(runErr, flag.ErrHelp) {
 		t.Fatalf("expected ErrHelp, got %v", runErr)

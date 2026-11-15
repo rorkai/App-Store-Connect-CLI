@@ -11,10 +11,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// DocsListCommand returns the docs list subcommand.
-func DocsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("docs list", flag.ExitOnError)
-	output := shared.BindOutputFlags(fs)
+func newListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("docs list", flag.ExitOnError)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -29,16 +28,16 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			_ = ctx
-			if err := shared.PrintOutputWithRenderers(
+			if err := d.PrintOutputWithRenderers(
 				listGuideSummaries(),
 				*output.Output,
 				*output.Pretty,
 				func() error {
-					asc.RenderTable([]string{"slug", "description"}, guideRows())
+					asc.RenderTableTo(d.IO.Out, []string{"slug", "description"}, guideRows())
 					return nil
 				},
 				func() error {
-					asc.RenderMarkdown([]string{"slug", "description"}, guideRows())
+					asc.RenderMarkdownTo(d.IO.Out, []string{"slug", "description"}, guideRows())
 					return nil
 				},
 			); err != nil {

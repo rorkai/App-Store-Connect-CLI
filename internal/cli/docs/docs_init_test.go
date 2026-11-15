@@ -5,9 +5,11 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 )
 
@@ -17,7 +19,7 @@ func TestResolveOutputPath_RejectsNonASCMarkdownFile(t *testing.T) {
 		t.Fatalf("write file: %v", err)
 	}
 
-	_, _, err := resolveOutputPath(target)
+	_, _, err := resolveOutputPath(os.Getwd, target)
 	if !errors.Is(err, ErrInvalidASCReferencePath) {
 		t.Fatalf("expected ErrInvalidASCReferencePath, got %v", err)
 	}
@@ -26,7 +28,7 @@ func TestResolveOutputPath_RejectsNonASCMarkdownFile(t *testing.T) {
 func TestResolveOutputPath_RejectsFileLikeNonMarkdownPath(t *testing.T) {
 	target := filepath.Join(t.TempDir(), "notes.txt")
 
-	_, _, err := resolveOutputPath(target)
+	_, _, err := resolveOutputPath(os.Getwd, target)
 	if !errors.Is(err, ErrInvalidASCReferencePath) {
 		t.Fatalf("expected ErrInvalidASCReferencePath, got %v", err)
 	}
@@ -38,7 +40,7 @@ func TestResolveOutputPath_DirectoryPathResolvesASCFile(t *testing.T) {
 		t.Fatalf("create directory: %v", err)
 	}
 
-	path, linkRoot, err := resolveOutputPath(dir)
+	path, linkRoot, err := resolveOutputPath(os.Getwd, dir)
 	if err != nil {
 		t.Fatalf("resolveOutputPath error: %v", err)
 	}
@@ -74,7 +76,7 @@ func TestResolveOutputPathPreservesWhitespaceInDirectoryName(t *testing.T) {
 		t.Fatalf("create whitespace-named repo: %v", err)
 	}
 
-	target, linkRoot, err := resolveOutputPath(repo)
+	target, linkRoot, err := resolveOutputPath(os.Getwd, repo)
 	if err != nil {
 		t.Fatalf("resolveOutputPath() error = %v", err)
 	}
@@ -168,6 +170,7 @@ func TestNewInitReferenceCommand_PrefixesErrors(t *testing.T) {
 	}
 
 	cmd := NewInitReferenceCommand(
+		testDeps(),
 		"docs init",
 		"init",
 		"asc docs init [flags]",
@@ -193,6 +196,7 @@ func TestNewInitReferenceCommand_PrefixesErrors(t *testing.T) {
 
 func TestNewInitReferenceCommand_UsesDefaultUsageFunc(t *testing.T) {
 	cmd := NewInitReferenceCommand(
+		testDeps(),
 		"docs init",
 		"init",
 		"asc docs init [flags]",
@@ -203,4 +207,60 @@ func TestNewInitReferenceCommand_UsesDefaultUsageFunc(t *testing.T) {
 	if cmd.UsageFunc == nil {
 		t.Fatal("expected usage function to be set")
 	}
+}
+
+func TestNewInitReferenceCommandResolvesDefaultPathFromDepsWorkingDirectory(t *testing.T) {
+	repo := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(repo, ".git"), 0o755); err != nil {
+		t.Fatalf("create .git: %v", err)
+	}
+	subdir := filepath.Join(repo, "subdir")
+	if err := os.MkdirAll(subdir, 0o755); err != nil {
+		t.Fatalf("create subdir: %v", err)
+	}
+	getwdErr := errors.New("working directory removed")
+
+	for _, test := range []struct {
+		name       string
+		getwd      func() (string, error)
+		wantStdout string
+		wantErr    error
+	}{
+		{
+			name:       "repository root above the working directory",
+			getwd:      func() (string, error) { return subdir, nil },
+			wantStdout: `{"path":` + strconv.Quote(filepath.Join(repo, ascReferenceFile)) + `,"created":true,"overwritten":false}` + "\n",
+		},
+		{
+			name:    "working directory error",
+			getwd:   func() (string, error) { return "", getwdErr },
+			wantErr: getwdErr,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			d := testDeps()
+			d.Getwd = test.getwd
+			cmd := NewInitReferenceCommand(d, "docs init", "init", "asc docs init [flags]", "", "", "docs init")
+			if err := cmd.FlagSet.Parse([]string{"--link=false"}); err != nil {
+				t.Fatalf("parse flags: %v", err)
+			}
+			err := cmd.Exec(context.Background(), nil)
+			if !errors.Is(err, test.wantErr) {
+				t.Fatalf("Exec() error = %v, want %v", err, test.wantErr)
+			}
+			if test.wantErr != nil && err.Error() != "docs init: "+test.wantErr.Error() {
+				t.Fatalf("Exec() error = %q, want the docs init prefix", err)
+			}
+			if got := d.IO.Out.(*strings.Builder).String(); got != test.wantStdout {
+				t.Fatalf("stdout = %q, want %q", got, test.wantStdout)
+			}
+			if got := d.IO.ErrOut.(*strings.Builder).String(); got != "" {
+				t.Fatalf("stderr = %q, want empty", got)
+			}
+		})
+	}
+}
+
+func testDeps() *shared.Deps {
+	return &shared.Deps{IO: &shared.IO{Out: &strings.Builder{}, ErrOut: &strings.Builder{}}, Getwd: os.Getwd}
 }

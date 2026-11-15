@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -91,6 +92,7 @@ func newTestDeps(t *testing.T, client func() (*asc.Client, error)) (*shared.Deps
 		UploadTimeout:  shared.ContextWithUploadTimeout,
 		ResolveTimeout: shared.ResolveTimeoutSetting,
 		After:          time.After,
+		Getwd:          os.Getwd,
 	}, &stdout, &stderr
 }
 

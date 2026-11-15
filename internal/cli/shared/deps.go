@@ -26,7 +26,10 @@ type IO struct {
 // Deps holds what a command takes from the process: its App Store Connect
 // client, its streams, the clock, the request and upload timeouts, and the
 // timeout settings a command reads with a default of its own. After is the
-// timer a command waits on, as time.After.
+// timer a command waits on, as time.After. Getwd is the working directory a
+// command reads explicitly, as os.Getwd; relative paths a command passes to
+// the operating system or to filepath.Abs still resolve against the process
+// directory.
 type Deps struct {
 	Client         func() (*asc.Client, error)
 	IO             *IO
@@ -36,11 +39,14 @@ type Deps struct {
 	ResolveTimeout func(setting TimeoutSetting, defaultTimeout time.Duration) time.Duration
 
 	After func(time.Duration) <-chan time.Time
+
+	Getwd func() (string, error)
 }
 
 // DefaultDeps returns the dependencies of a normal run: the shared client
-// factory, the process streams, the system clock and timers, and the timeouts
-// from the environment and the config file.
+// factory, the process streams, the system clock and timers, the timeouts
+// from the environment and the config file, and the process working
+// directory.
 func DefaultDeps() *Deps {
 	return &Deps{
 		Client: GetASCClient,
@@ -58,6 +64,8 @@ func DefaultDeps() *Deps {
 		ResolveTimeout: ResolveTimeoutSetting,
 
 		After: time.After,
+
+		Getwd: os.Getwd,
 	}
 }
 

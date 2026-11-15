@@ -3,11 +3,13 @@ package initcmd
 import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/docs"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// InitCommand returns the root init command.
-func InitCommand() *ffcli.Command {
+// NewInitCommand returns the root init command.
+func NewInitCommand(d *shared.Deps) *ffcli.Command {
 	return docs.NewInitReferenceCommand(
+		d,
 		"init",
 		"init",
 		"asc init [flags]",
