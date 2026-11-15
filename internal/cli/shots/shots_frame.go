@@ -233,8 +233,8 @@ framed screenshots whenever the YAML config or referenced raw assets change.`,
 				defer stop()
 				opts := &screenshots.WatchOptions{Stderr: d.IO.ErrOut}
 				if reviewDir := *watchReviewDir; strings.TrimSpace(reviewDir) != "" {
-					opts.ReviewOutputDir = reviewDir
-					opts.ReviewRawDir = *watchRawDir
+					opts.ReviewOutputDir = userPath(d, reviewDir)
+					opts.ReviewRawDir = userPath(d, *watchRawDir)
 				}
 				return screenshots.WatchAndRegenerate(watchCtx, configVal, *watchDebounce, nil, opts)
 			}
@@ -317,7 +317,7 @@ framed screenshots whenever the YAML config or referenced raw assets change.`,
 			var fontFile *screenshots.FontFile
 			if fontSet && screenshots.IsFontFilePath(fontFamily) {
 				// Keep the path literal; only the family-name form is trimmed.
-				fontFile, err = screenshots.LoadFontFile(*font)
+				fontFile, err = screenshots.LoadFontFile(userPath(d, *font))
 				if err != nil {
 					return shared.WithDiagnostic(d.UsageError("--font: "+err.Error()), shared.DiagnosticInvalidInput, "--font")
 				}
@@ -352,7 +352,7 @@ framed screenshots whenever the YAML config or referenced raw assets change.`,
 					fmt.Fprintln(d.IO.ErrOut, "Error: --overlay-config cannot be used with --config")
 					return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticConflictingInput, "--overlay-config")
 				}
-				loaded, hash, err := screenshots.LoadOverlayConfig(*overlayConfig)
+				loaded, hash, err := screenshots.LoadOverlayConfig(userPath(d, *overlayConfig))
 				if err != nil {
 					return fmt.Errorf("screenshots frame: %w", err)
 				}
@@ -588,6 +588,16 @@ func warnFrameAspectMismatch(d *shared.Deps, displayPath, readPath string, devic
 // frameInputOpener snapshots one framed input so hashing and rendering read
 // the same bytes.
 type frameInputOpener func(context.Context) (*screenshots.FrameInputSnapshot, error)
+
+// userPath returns path as the operating system should open it relative to
+// d's working directory; a blank path stays blank so callers keep their
+// defaults.
+func userPath(d *shared.Deps, path string) string {
+	if strings.TrimSpace(path) == "" {
+		return path
+	}
+	return d.OSPath(path)
+}
 
 // frameResumeStore is the loaded resume state for one invocation. The caller
 // holds the cross-process resume lock; mu serializes the renders of one

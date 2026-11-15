@@ -43,10 +43,10 @@ func NewShotsReviewGenerateCommand(d *shared.Deps) *ffcli.Command {
 			}
 
 			result, err := screenshots.GenerateReview(ctx, screenshots.ReviewRequest{
-				RawDir:       *rawDir,
-				FramedDir:    framed,
-				OutputDir:    *outputDir,
-				ApprovalPath: *approvalPath,
+				RawDir:       userPath(d, *rawDir),
+				FramedDir:    userPath(d, framed),
+				OutputDir:    userPath(d, *outputDir),
+				ApprovalPath: userPath(d, *approvalPath),
 			})
 			if err != nil {
 				return fmt.Errorf("screenshots review-generate: %w", err)

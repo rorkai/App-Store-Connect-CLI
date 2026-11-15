@@ -64,7 +64,7 @@ including any that were set before the run.`,
 				plan.App.UDID = override
 			}
 			if override := *outputDir; strings.TrimSpace(override) != "" {
-				plan.App.OutputDir = override
+				plan.App.OutputDir = userPath(d, override)
 			}
 
 			result, err := screenshots.RunPlan(ctx, plan)

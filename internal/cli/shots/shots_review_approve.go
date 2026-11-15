@@ -48,9 +48,9 @@ Selectors:
 			}
 
 			result, err := screenshots.ApproveReview(ctx, screenshots.ReviewApproveRequest{
-				OutputDir:    *outputDir,
-				ManifestPath: *manifestPath,
-				ApprovalPath: *approvalPath,
+				OutputDir:    userPath(d, *outputDir),
+				ManifestPath: userPath(d, *manifestPath),
+				ApprovalPath: userPath(d, *approvalPath),
 				AllReady:     *allReady,
 				Keys:         keys,
 				ScreenshotID: id,
