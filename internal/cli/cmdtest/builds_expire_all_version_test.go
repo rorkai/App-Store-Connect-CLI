@@ -306,7 +306,7 @@ func TestBuildsExpireAllVersionUsageErrors(t *testing.T) {
 		{
 			name:       "missing confirm",
 			args:       []string{"builds", "expire-all", "--app", "app-1", "--version", "1.2.3", "--keep-latest", "1"},
-			wantStderr: "Error: --confirm is required unless --dry-run is set",
+			wantStderr: "Error: --confirm is required unless --dry-run is set\n",
 		},
 		{
 			name:       "empty version",

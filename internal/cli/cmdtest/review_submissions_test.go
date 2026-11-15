@@ -116,7 +116,7 @@ func TestReviewCommandSubmissionsValidationErrors(t *testing.T) {
 		{
 			name:    "review submissions-submit missing confirm",
 			args:    []string{"review", "submissions-submit", "--id", "SUBMISSION_123"},
-			wantErr: "--confirm is required",
+			wantErr: "--confirm is required\n",
 		},
 		{
 			name:    "review submissions-update missing id",
@@ -196,7 +196,7 @@ func TestReviewCommandItemsValidationErrors(t *testing.T) {
 		{
 			name:    "review items-remove missing confirm",
 			args:    []string{"review", "items-remove", "--id", "ITEM_ID"},
-			wantErr: "--confirm is required",
+			wantErr: "--confirm is required\n",
 		},
 		{
 			name:    "nested review items list missing submission",
@@ -216,7 +216,7 @@ func TestReviewCommandItemsValidationErrors(t *testing.T) {
 		{
 			name:    "nested review items remove missing confirm",
 			args:    []string{"review", "items", "remove", "--id", "ITEM_ID"},
-			wantErr: "--confirm is required",
+			wantErr: "--confirm is required\n",
 		},
 	}
 

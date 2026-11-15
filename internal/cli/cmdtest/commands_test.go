@@ -377,7 +377,7 @@ func TestBuildsExpireAllValidationErrors(t *testing.T) {
 		{
 			name:    "builds expire-all missing confirm",
 			args:    []string{"builds", "expire-all", "--app", "APP_ID", "--older-than", "90d"},
-			wantErr: "--confirm is required unless --dry-run is set",
+			wantErr: "--confirm is required unless --dry-run is set\n",
 		},
 	}
 
@@ -501,7 +501,7 @@ func TestBuildsExpireValidationErrors(t *testing.T) {
 		{
 			name:    "builds expire missing confirm",
 			args:    []string{"builds", "expire", "--build-id", "BUILD_ID"},
-			wantErr: "Error: --confirm is required",
+			wantErr: "Error: --confirm is required\n",
 		},
 	}
 
@@ -767,7 +767,7 @@ func TestBetaManagementValidationErrors(t *testing.T) {
 		{
 			name:    "beta-groups delete missing confirm",
 			args:    []string{"testflight", "groups", "delete", "--id", "GROUP_ID"},
-			wantErr: "--confirm is required",
+			wantErr: "--confirm is required\n",
 		},
 	}
 
@@ -1976,7 +1976,7 @@ func TestReviewSubmissionsValidationErrors(t *testing.T) {
 		{
 			name:    "review submissions-cancel missing confirm",
 			args:    []string{"review", "submissions-cancel", "--id", "SUBMISSION_ID"},
-			wantErr: "--confirm is required",
+			wantErr: "--confirm is required\n",
 		},
 		{
 			name:    "review submissions-cancel missing id",
@@ -2463,7 +2463,7 @@ func TestLocalizationsValidationErrors(t *testing.T) {
 		{
 			name:    "localizations screenshot-sets delete missing confirm",
 			args:    []string{"localizations", "screenshot-sets", "delete", "--id", "SET_ID"},
-			wantErr: "Error: --confirm is required",
+			wantErr: "Error: --confirm is required\n",
 		},
 		{
 			name:    "localizations create invalid locale",
@@ -2527,7 +2527,7 @@ func TestScreenshotsAndVideoPreviewsValidationErrors(t *testing.T) {
 		{
 			name:    "screenshots delete missing confirm",
 			args:    []string{"screenshots", "delete", "--id", "SCREENSHOT_ID"},
-			wantErr: "--confirm is required",
+			wantErr: "--confirm is required\n",
 		},
 		{
 			name:    "video-previews list missing localization",
@@ -2557,7 +2557,7 @@ func TestScreenshotsAndVideoPreviewsValidationErrors(t *testing.T) {
 		{
 			name:    "video-previews delete missing confirm",
 			args:    []string{"video-previews", "delete", "--id", "PREVIEW_ID"},
-			wantErr: "--confirm is required",
+			wantErr: "--confirm is required\n",
 		},
 	}
 
@@ -3029,7 +3029,7 @@ func TestVersionsValidationErrors(t *testing.T) {
 		{
 			name:    "release missing confirm",
 			args:    []string{"versions", "release", "--version-id", "VERSION_123"},
-			wantErr: "Error: --confirm is required",
+			wantErr: "Error: --confirm is required\n",
 		},
 		{
 			name:    "delete missing version id",
@@ -3039,7 +3039,7 @@ func TestVersionsValidationErrors(t *testing.T) {
 		{
 			name:    "delete missing confirm",
 			args:    []string{"versions", "delete", "--version-id", "VERSION_123"},
-			wantErr: "Error: --confirm is required",
+			wantErr: "Error: --confirm is required\n",
 		},
 		{
 			name:    "promotions create missing version id",
@@ -3305,7 +3305,7 @@ func TestAppClipsValidationErrors(t *testing.T) {
 		{
 			name:    "default experiences delete missing confirm",
 			args:    []string{"app-clips", "default-experiences", "delete", "--experience-id", "EXP_ID"},
-			wantErr: "Error: --confirm is required",
+			wantErr: "Error: --confirm is required\n",
 		},
 		{
 			name:    "default experience localizations list missing experience",
@@ -3395,7 +3395,7 @@ func TestAppClipsValidationErrors(t *testing.T) {
 		{
 			name:    "advanced experiences remove missing confirm",
 			args:    []string{"app-clips", "advanced-experiences", "delete", "--experience-id", "EXP_ID"},
-			wantErr: "Error: --confirm is required",
+			wantErr: "Error: --confirm is required\n",
 		},
 		{
 			name:    "advanced experience images create missing file",
@@ -3440,7 +3440,7 @@ func TestAppClipsValidationErrors(t *testing.T) {
 		{
 			name:    "invocations delete missing confirm",
 			args:    []string{"app-clips", "invocations", "delete", "--invocation-id", "INV_ID"},
-			wantErr: "Error: --confirm is required",
+			wantErr: "Error: --confirm is required\n",
 		},
 		{
 			name:    "invocation localizations list missing invocation",

@@ -21,7 +21,7 @@ func TestSigningSyncLifecycleUsageErrorsExitTwoBeforeSideEffects(t *testing.T) {
 				"--profile-type", "IOS_APP_DEVELOPMENT",
 				"--repo", "git@example.com:team/signing.git",
 			},
-			want: "--confirm is required unless --dry-run is set",
+			want: "--confirm is required unless --dry-run is set\n",
 		},
 		{
 			name: "force for new devices with App Store profile",
