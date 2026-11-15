@@ -54,6 +54,7 @@ func TestLocalizationReadsRequestPlacementsAndPrintIncluded(t *testing.T) {
 			path:       "/v1/appEvents/event-1/localizations",
 			flags:      []string{"--include", "placements", "--placements-limit", "10"},
 			query:      "include=placements&limit%5Bplacements%5D=10",
+			deps:       true,
 		},
 		{
 			name:    "app event localization view",
@@ -61,6 +62,7 @@ func TestLocalizationReadsRequestPlacementsAndPrintIncluded(t *testing.T) {
 			path:    "/v1/appEventLocalizations/loc-1",
 			flags:   []string{"--include", "placements", "--placements-limit", "10"},
 			query:   "include=placements&limit%5Bplacements%5D=10",
+			deps:    true,
 		},
 		{
 			name:       "app events list localization fields",
@@ -69,6 +71,7 @@ func TestLocalizationReadsRequestPlacementsAndPrintIncluded(t *testing.T) {
 			path:       "/v1/apps/app-1/appEvents",
 			flags:      []string{"--include", "localizations", "--localization-fields", "placements"},
 			query:      "fields%5BappEventLocalizations%5D=placements&include=localizations",
+			deps:       true,
 		},
 		{
 			name:       "custom page localizations list",

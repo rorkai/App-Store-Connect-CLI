@@ -1,7 +1,6 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -12,7 +11,6 @@ import (
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	appeventscli "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/app_events"
 )
 
 func newAppEventsTestClient(t *testing.T, transport roundTripFunc) *asc.Client {
@@ -142,30 +140,20 @@ func TestAppEventsCreateAppliesScheduleAfterCreate(t *testing.T) {
 		}
 	}))
 
-	restore := appeventscli.SetClientFactory(func() (*asc.Client, error) {
-		return client, nil
-	})
-	defer restore()
-
-	root := RootCommand("1.2.3")
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"app-events", "create",
-			"--app", "app-123",
-			"--name", "Launch",
-			"--event-type", "CHALLENGE",
-			"--start", "2026-06-01T00:00:00Z",
-			"--end", "2026-06-30T23:59:59Z",
-			"--publish-start", "2026-05-15T00:00:00Z",
-			"--territories", "usa, can",
-			"--primary-locale", "en-US",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, func() (*asc.Client, error) { return client, nil },
+		"app-events", "create",
+		"--app", "app-123",
+		"--name", "Launch",
+		"--event-type", "CHALLENGE",
+		"--start", "2026-06-01T00:00:00Z",
+		"--end", "2026-06-30T23:59:59Z",
+		"--publish-start", "2026-05-15T00:00:00Z",
+		"--territories", "usa, can",
+		"--primary-locale", "en-US",
+	)
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -261,34 +249,22 @@ func TestAppEventsCreateReportsScheduleFailureOutcome(t *testing.T) {
 					return nil, nil
 				}
 			}))
-			restore := appeventscli.SetClientFactory(func() (*asc.Client, error) {
-				return client, nil
-			})
-			defer restore()
-
-			root := RootCommand("1.2.3")
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse([]string{
-					"app-events", "create",
-					"--app", "app-123",
-					"--name", "Launch",
-					"--event-type", "CHALLENGE",
-					"--start", "2026-06-01T00:00:00Z",
-					"--end", "2026-06-30T23:59:59Z",
-				}); err != nil {
-					t.Fatalf("parse error: %v", err)
+			stdout, stderr, err := runRootWithDeps(t, func() (*asc.Client, error) { return client, nil },
+				"app-events", "create",
+				"--app", "app-123",
+				"--name", "Launch",
+				"--event-type", "CHALLENGE",
+				"--start", "2026-06-01T00:00:00Z",
+				"--end", "2026-06-30T23:59:59Z",
+			)
+			if err == nil {
+				t.Fatal("expected create to fail")
+			}
+			for _, want := range test.wantErr {
+				if !strings.Contains(err.Error(), want) {
+					t.Fatalf("expected error to contain %q, got %v", want, err)
 				}
-
-				err := root.Run(context.Background())
-				if err == nil {
-					t.Fatal("expected create to fail")
-				}
-				for _, want := range test.wantErr {
-					if !strings.Contains(err.Error(), want) {
-						t.Fatalf("expected error to contain %q, got %v", want, err)
-					}
-				}
-			})
+			}
 
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
@@ -360,29 +336,19 @@ func TestAppEventsCreateSucceedsWhenVerificationShowsScheduleApplied(t *testing.
 				}
 			}))
 
-			restore := appeventscli.SetClientFactory(func() (*asc.Client, error) {
-				return client, nil
-			})
-			defer restore()
-
-			root := RootCommand("1.2.3")
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse([]string{
-					"app-events", "create",
-					"--app", "app-123",
-					"--name", "Launch",
-					"--event-type", "CHALLENGE",
-					"--start", "2026-06-01T00:00:00Z",
-					"--end", "2026-06-30T23:59:59Z",
-					"--publish-start", "2026-05-15T00:00:00Z",
-					"--territories", test.territoriesFlag,
-				}); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
+			stdout, stderr, err := runRootWithDeps(t, func() (*asc.Client, error) { return client, nil },
+				"app-events", "create",
+				"--app", "app-123",
+				"--name", "Launch",
+				"--event-type", "CHALLENGE",
+				"--start", "2026-06-01T00:00:00Z",
+				"--end", "2026-06-30T23:59:59Z",
+				"--publish-start", "2026-05-15T00:00:00Z",
+				"--territories", test.territoriesFlag,
+			)
+			if err != nil {
+				t.Fatalf("run error: %v", err)
+			}
 
 			if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)
@@ -419,31 +385,20 @@ func appEventResponseHasSingleSchedule(resp asc.AppEventResponse, start, end, pu
 }
 
 func TestAppEventsCreateScheduleFlagsStillValidateRFC3339(t *testing.T) {
-	restore := appeventscli.SetClientFactory(func() (*asc.Client, error) {
+	stdout, stderr, err := runRootWithDeps(t, func() (*asc.Client, error) {
 		t.Fatal("did not expect client creation for invalid schedule flags")
 		return nil, nil
-	})
-	defer restore()
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"app-events", "create",
-			"--app", "app-123",
-			"--name", "Launch",
-			"--event-type", "CHALLENGE",
-			"--start", "not-a-date",
-			"--end", "2026-06-30T23:59:59Z",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
+	},
+		"app-events", "create",
+		"--app", "app-123",
+		"--name", "Launch",
+		"--event-type", "CHALLENGE",
+		"--start", "not-a-date",
+		"--end", "2026-06-30T23:59:59Z",
+	)
+	if !errors.Is(err, flag.ErrHelp) {
+		t.Fatalf("expected ErrHelp, got %v", err)
+	}
 
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
@@ -463,24 +418,12 @@ func TestAppEventsSubmitReportsPartialCreateWithoutAddingOrSubmitting(t *testing
 		return jsonResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissions","id":"sub-partial"},"errors":[{"status":"500","detail":"partial response"}]}`)
 	}))
 
-	restore := appeventscli.SetClientFactory(func() (*asc.Client, error) {
-		return client, nil
-	})
-	defer restore()
-
-	root := RootCommand("1.2.3")
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"app-events", "submit",
-			"--event-id", "event-1",
-			"--app", "app-123",
-			"--confirm",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	stdout, stderr, runErr := runRootWithDeps(t, func() (*asc.Client, error) { return client, nil },
+		"app-events", "submit",
+		"--event-id", "event-1",
+		"--app", "app-123",
+		"--confirm",
+	)
 
 	if runErr == nil || !strings.Contains(runErr.Error(), "sub-partial") ||
 		!strings.Contains(runErr.Error(), "asc submit cancel --id sub-partial --confirm") {
@@ -520,25 +463,15 @@ func TestAppEventsSubmitCleanCreateStillAddsAndSubmits(t *testing.T) {
 		}
 	}))
 
-	restore := appeventscli.SetClientFactory(func() (*asc.Client, error) {
-		return client, nil
-	})
-	defer restore()
-
-	root := RootCommand("1.2.3")
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"app-events", "submit",
-			"--event-id", "event-1",
-			"--app", "app-123",
-			"--confirm",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, func() (*asc.Client, error) { return client, nil },
+		"app-events", "submit",
+		"--event-id", "event-1",
+		"--app", "app-123",
+		"--confirm",
+	)
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if requests != 3 {
 		t.Fatalf("requests = %d, want create, add, and submit", requests)

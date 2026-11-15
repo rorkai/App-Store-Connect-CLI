@@ -25,16 +25,10 @@ func runCreativePlacements(t *testing.T, args ...string) (string, string, error)
 	return stdout, stderr, err
 }
 
-// runCreativePlacementsFor runs args with reg answering every request.
-// Commands built on shared.Deps get reg as their client and are read from their
-// deps streams; app-events, not built on it yet, runs on the process path.
+// runCreativePlacementsFor runs args on test deps with reg as their client
+// and returns what they wrote to the deps streams.
 func runCreativePlacementsFor(t *testing.T, reg *asctest.Registry, args ...string) (string, string, error) {
 	t.Helper()
-	if args[0] == "app-events" {
-		setupAuth(t)
-		reg.Install()
-		return runCreativePlacements(t, args...)
-	}
 	return runRootWithDeps(t, stubClient(t, reg), args...)
 }
 

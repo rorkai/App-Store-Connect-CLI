@@ -9,9 +9,10 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// AppEventsRelationshipsCommand returns the app event links command.
-func AppEventsRelationshipsCommand() *ffcli.Command {
+// newAppEventsRelationshipsCommand returns the app event links command.
+func newAppEventsRelationshipsCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		Deps:       d,
 		Name:       "links",
 		ShortUsage: "asc app-events links --event-id \"EVENT_ID\" [flags]",
 		ShortHelp:  "List localization relationships for an in-app event.",

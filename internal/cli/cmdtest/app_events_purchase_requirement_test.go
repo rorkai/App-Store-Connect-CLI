@@ -1,7 +1,6 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -13,8 +12,6 @@ import (
 )
 
 func TestAppEventsCreateAllowsOptionalEventTypeAndNormalizesPurchaseRequirement(t *testing.T) {
-	setupAuth(t)
-
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		if req.Method != http.MethodPost {
 			t.Fatalf("expected POST, got %s", req.Method)
@@ -57,29 +54,22 @@ func TestAppEventsCreateAllowsOptionalEventTypeAndNormalizesPurchaseRequirement(
 	if err != nil {
 		t.Fatalf("parse server URL: %v", err)
 	}
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	client := stubClient(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		cloned := req.Clone(req.Context())
 		cloned.URL.Scheme = serverURL.Scheme
 		cloned.URL.Host = serverURL.Host
 		return server.Client().Transport.RoundTrip(cloned)
 	}))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"app-events", "create",
-			"--app", "APP_ID",
-			"--name", "Launch",
-			"--purchase-requirement", "noCostAssociated",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, client,
+		"app-events", "create",
+		"--app", "APP_ID",
+		"--name", "Launch",
+		"--purchase-requirement", "noCostAssociated",
+	)
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -94,7 +84,7 @@ func TestAppEventsCreateAllowsOptionalEventTypeAndNormalizesPurchaseRequirement(
 }
 
 func TestAppEventsRejectsUnsupportedPurchaseRequirement(t *testing.T) {
-	runValidationTests(t, []struct {
+	for _, test := range []struct {
 		name    string
 		args    []string
 		wantErr string
@@ -109,5 +99,9 @@ func TestAppEventsRejectsUnsupportedPurchaseRequirement(t *testing.T) {
 			args:    []string{"app-events", "update", "--event-id", "EVENT_ID", "--purchase-requirement", "IAP_REQUIRED"},
 			wantErr: "known 500 UNEXPECTED_ERROR",
 		},
-	})
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			assertUsageExitWithDeps(t, nil, test.args, test.wantErr)
+		})
+	}
 }

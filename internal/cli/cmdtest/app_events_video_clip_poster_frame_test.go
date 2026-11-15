@@ -33,13 +33,7 @@ func TestAppEventVideoClipsTimeCodeUsageErrorsBeforeHTTP(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			setupAuth(t)
-			asctest.NewRegistry(t).Install()
-
-			exitCode := rootcmd.ExitSuccess
-			_, stderr := captureOutput(t, func() {
-				exitCode = rootcmd.Run(test.args, "1.2.3")
-			})
+			_, stderr, exitCode := runWithDeps(t, stubClient(t, asctest.NewRegistry(t)), test.args...)
 
 			if exitCode != rootcmd.ExitUsage {
 				t.Fatalf("exit code = %d, want %d; stderr=%q", exitCode, rootcmd.ExitUsage, stderr)
@@ -131,23 +125,17 @@ func TestAppEventVideoClipsCreateTimeCodeRequestWiring(t *testing.T) {
 // Catches set-poster-frame patching the wrong clip, or sending `uploaded` and
 // re-committing an upload the user only wanted to retime.
 func TestAppEventVideoClipsSetPosterFramePatchesOnlyTheTimeCode(t *testing.T) {
-	setupAuth(t)
-
 	const wantBody = `{"data":{"type":"appEventVideoClips","id":"clip-1","attributes":{"previewFrameTimeCode":"00:00:05:00"}}}`
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.PATCH("/v1/appEventVideoClips/clip-1").JSONBody(wantBody),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"appEventVideoClips","id":"clip-1"}}`))
 
-	exitCode := rootcmd.ExitError
-	_, stderr := captureOutput(t, func() {
-		exitCode = rootcmd.Run([]string{
-			"app-events", "video-clips", "set-poster-frame",
-			"--clip-id", "clip-1",
-			"--time-code", "00:00:05:00",
-			"--output", "json",
-		}, "1.2.3")
-	})
+	_, stderr, exitCode := runWithDeps(t, stubClient(t, reg),
+		"app-events", "video-clips", "set-poster-frame",
+		"--clip-id", "clip-1",
+		"--time-code", "00:00:05:00",
+		"--output", "json",
+	)
 
 	if exitCode != rootcmd.ExitSuccess {
 		t.Fatalf("exit code = %d, stderr=%q", exitCode, stderr)

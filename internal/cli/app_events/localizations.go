@@ -10,9 +10,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// AppEventLocalizationsCommand returns the app event localizations command group.
-func AppEventLocalizationsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("localizations", flag.ExitOnError)
+// newAppEventLocalizationsCommand returns the app event localizations command group.
+func newAppEventLocalizationsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("localizations", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "localizations",
@@ -25,18 +25,18 @@ Examples:
   asc app-events localizations view --localization-id "LOC_ID"
   asc app-events localizations screenshots list --localization-id "LOC_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.VisibleUsageFunc,
+		UsageFunc: d.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
-			AppEventLocalizationsListCommand(),
-			AppEventLocalizationsGetCommand(),
-			AppEventLocalizationScreenshotsCommand(),
-			AppEventLocalizationVideoClipsCommand(),
-			AppEventLocalizationScreenshotsRelationshipsCommand(),
-			AppEventLocalizationVideoClipsRelationshipsCommand(),
-			AppEventLocalizationsCreateCommand(),
-			AppEventLocalizationsUpdateCommand(),
-			AppEventLocalizationsDeleteCommand(),
-			shared.CreativePlacementsCommand("appEventLocalizations", "app-events localizations", "an in-app event localization"),
+			newAppEventLocalizationsListCommand(d),
+			newAppEventLocalizationsGetCommand(d),
+			newAppEventLocalizationScreenshotsCommand(d),
+			newAppEventLocalizationVideoClipsCommand(d),
+			newAppEventLocalizationScreenshotsRelationshipsCommand(d),
+			newAppEventLocalizationVideoClipsRelationshipsCommand(d),
+			newAppEventLocalizationsCreateCommand(d),
+			newAppEventLocalizationsUpdateCommand(d),
+			newAppEventLocalizationsDeleteCommand(d),
+			d.CreativePlacementsCommand("appEventLocalizations", "app-events localizations", "an in-app event localization"),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -44,14 +44,15 @@ Examples:
 	}
 }
 
-// AppEventLocalizationsListCommand returns the app event localizations list subcommand.
-func AppEventLocalizationsListCommand() *ffcli.Command {
+// newAppEventLocalizationsListCommand returns the app event localizations list subcommand.
+func newAppEventLocalizationsListCommand(d *shared.Deps) *ffcli.Command {
 	var (
 		includeValues   []string
 		placementsLimit int
 	)
 
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		Deps:        d,
 		FlagSetName: "localizations list",
 		Name:        "list",
 		ShortUsage:  "asc app-events localizations list [flags]",
@@ -73,7 +74,7 @@ Examples:
 			include := shared.BindLocalizationIncludeFlags(fs, "Include related resources", appEventLocalizationIncludeList())
 			return func() error {
 				var err error
-				includeValues, placementsLimit, err = include.Resolve()
+				includeValues, placementsLimit, err = include.ResolveWith(d)
 				return err
 			}
 		},
@@ -88,14 +89,15 @@ Examples:
 	})
 }
 
-// AppEventLocalizationsGetCommand returns the app event localizations get subcommand.
-func AppEventLocalizationsGetCommand() *ffcli.Command {
+// newAppEventLocalizationsGetCommand returns the app event localizations get subcommand.
+func newAppEventLocalizationsGetCommand(d *shared.Deps) *ffcli.Command {
 	var (
 		includeValues   []string
 		placementsLimit int
 	)
 
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		Deps:        d,
 		FlagSetName: "localizations view",
 		Name:        "view",
 		ShortUsage:  "asc app-events localizations view --localization-id \"LOC_ID\"",
@@ -112,7 +114,7 @@ Examples:
 		Flags: func(fs *flag.FlagSet) func() error {
 			include := shared.BindLocalizationIncludeFlags(fs, "Include related resources", appEventLocalizationIncludeList())
 			return func() (err error) {
-				includeValues, placementsLimit, err = include.Resolve()
+				includeValues, placementsLimit, err = include.ResolveWith(d)
 				return err
 			}
 		},
@@ -122,10 +124,11 @@ Examples:
 	})
 }
 
-// AppEventLocalizationsCreateCommand returns the app event localizations create subcommand.
-func AppEventLocalizationsCreateCommand() *ffcli.Command {
+// newAppEventLocalizationsCreateCommand returns the app event localizations create subcommand.
+func newAppEventLocalizationsCreateCommand(d *shared.Deps) *ffcli.Command {
 	var attrs asc.AppEventLocalizationCreateAttributes
 	return shared.BuildCreateCommand(shared.WriteCommandConfig{
+		Deps:        d,
 		FlagSetName: "localizations create",
 		Name:        "create",
 		ShortUsage:  "asc app-events localizations create [flags]",
@@ -150,10 +153,11 @@ Examples:
 	})
 }
 
-// AppEventLocalizationsUpdateCommand returns the app event localizations update subcommand.
-func AppEventLocalizationsUpdateCommand() *ffcli.Command {
+// newAppEventLocalizationsUpdateCommand returns the app event localizations update subcommand.
+func newAppEventLocalizationsUpdateCommand(d *shared.Deps) *ffcli.Command {
 	var attrs asc.AppEventLocalizationUpdateAttributes
 	return shared.BuildUpdateCommand(shared.WriteCommandConfig{
+		Deps:        d,
 		FlagSetName: "localizations update",
 		Name:        "update",
 		ShortUsage:  "asc app-events localizations update [flags]",
@@ -177,9 +181,10 @@ Examples:
 	})
 }
 
-// AppEventLocalizationsDeleteCommand returns the app event localizations delete subcommand.
-func AppEventLocalizationsDeleteCommand() *ffcli.Command {
+// newAppEventLocalizationsDeleteCommand returns the app event localizations delete subcommand.
+func newAppEventLocalizationsDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		Deps:        d,
 		FlagSetName: "localizations delete",
 		Name:        "delete",
 		ShortUsage:  "asc app-events localizations delete --localization-id \"LOC_ID\" --confirm",

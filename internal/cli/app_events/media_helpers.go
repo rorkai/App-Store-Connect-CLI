@@ -7,14 +7,12 @@ import (
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 const appEventAssetPollInterval = 2 * time.Second
 
-func waitForAppEventScreenshotDelivery(ctx context.Context, client *asc.Client, screenshotID string) (*asc.AppEventScreenshotResponse, error) {
-	ticker := time.NewTicker(appEventAssetPollInterval)
-	defer ticker.Stop()
-
+func waitForAppEventScreenshotDelivery(ctx context.Context, d *shared.Deps, client *asc.Client, screenshotID string) (*asc.AppEventScreenshotResponse, error) {
 	var lastResp *asc.AppEventScreenshotResponse
 	for {
 		resp, err := client.GetAppEventScreenshot(ctx, screenshotID)
@@ -36,15 +34,12 @@ func waitForAppEventScreenshotDelivery(ctx context.Context, client *asc.Client, 
 		select {
 		case <-ctx.Done():
 			return lastResp, fmt.Errorf("timed out waiting for asset %s delivery: %w", screenshotID, ctx.Err())
-		case <-ticker.C:
+		case <-d.After(appEventAssetPollInterval):
 		}
 	}
 }
 
-func waitForAppEventVideoClipDelivery(ctx context.Context, client *asc.Client, clipID string) (*asc.AppEventVideoClipResponse, error) {
-	ticker := time.NewTicker(appEventAssetPollInterval)
-	defer ticker.Stop()
-
+func waitForAppEventVideoClipDelivery(ctx context.Context, d *shared.Deps, client *asc.Client, clipID string) (*asc.AppEventVideoClipResponse, error) {
 	var lastResp *asc.AppEventVideoClipResponse
 	for {
 		resp, err := client.GetAppEventVideoClip(ctx, clipID)
@@ -66,7 +61,7 @@ func waitForAppEventVideoClipDelivery(ctx context.Context, client *asc.Client, c
 		select {
 		case <-ctx.Done():
 			return lastResp, fmt.Errorf("timed out waiting for video clip %s delivery: %w", clipID, ctx.Err())
-		case <-ticker.C:
+		case <-d.After(appEventAssetPollInterval):
 		}
 	}
 }
