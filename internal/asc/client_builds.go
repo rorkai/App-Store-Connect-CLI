@@ -279,17 +279,17 @@ func (c *Client) GetBuilds(ctx context.Context, appID string, opts ...BuildsOpti
 		if query.sort != "" || query.limit > 0 || query.version != "" || query.preReleaseVersion != "" || len(query.processingStates) > 0 || len(query.preReleasePlatforms) > 0 || len(query.preReleaseVersionIDs) > 0 || len(query.betaReviewStates) > 0 || query.expired != nil || query.buildAudienceType != "" || len(query.include) > 0 {
 			path = "/v1/builds"
 			values.Set("filter[app]", appID)
-			if strings.TrimSpace(query.sort) != "" {
-				values.Set("sort", strings.TrimSpace(query.sort))
+			if query.sort != "" {
+				values.Set("sort", query.sort)
 			}
 			if query.limit > 0 {
 				values.Set("limit", strconv.Itoa(query.limit))
 			}
-			if strings.TrimSpace(query.version) != "" {
-				values.Set("filter[version]", strings.TrimSpace(query.version))
+			if query.version != "" {
+				values.Set("filter[version]", query.version)
 			}
-			if strings.TrimSpace(query.preReleaseVersion) != "" {
-				values.Set("filter[preReleaseVersion.version]", strings.TrimSpace(query.preReleaseVersion))
+			if query.preReleaseVersion != "" {
+				values.Set("filter[preReleaseVersion.version]", query.preReleaseVersion)
 			}
 			if query.buildAudienceType != "" {
 				values.Set("filter[buildAudienceType]", string(query.buildAudienceType))

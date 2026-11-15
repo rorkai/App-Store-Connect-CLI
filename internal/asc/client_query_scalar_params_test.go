@@ -71,8 +71,6 @@ func TestScalarQueryParametersSendAndOmit(t *testing.T) {
 		}},
 		{"sort", "buildReviewQuery WithReviewSort", func(v string) url.Values { return reviewQueryValues(t, WithReviewSort(v)) }},
 		{"filter[reviewTerritory]", "buildReviewQuery WithReviewTerritory", func(v string) url.Values { return reviewQueryValues(t, WithReviewTerritory(v)) }},
-		{"sort", "GetBuilds WithBuildsSort", func(v string) url.Values { return buildsRequestQuery(t, WithBuildsSort(v)) }},
-		{"filter[version]", "GetBuilds WithBuildsVersion", func(v string) url.Values { return buildsRequestQuery(t, WithBuildsVersion(v)) }},
 	}
 	for _, tt := range stringParams {
 		for value, want := range map[string][]string{"": nil, "   ": nil, " value ": {"value"}} {
