@@ -45,7 +45,7 @@ func TestFetchResolvedSubscriptionPricesUsesFreshDeadlinePerPage(t *testing.T) {
 
 	var result *shared.ResolvedPricesResult
 	synctest.Test(t, func(*testing.T) {
-		result, err = fetchResolvedSubscriptionPrices(context.Background(), client, "sub-1", time.Now().UTC(), "", "")
+		result, err = fetchResolvedSubscriptionPrices(context.Background(), shared.DefaultDeps(), client, "sub-1", 200, "", time.Now().UTC(), "", "")
 	})
 	if err != nil {
 		t.Fatalf("fetchResolvedSubscriptionPrices() error: %v", err)
@@ -63,13 +63,13 @@ func TestMonthlyCommitmentResolvedPriceCallersUseFreshDeadlinePerPage(t *testing
 		{
 			name: "validate upfront prices",
 			run: func(ctx context.Context, client *asc.Client) error {
-				return validateMonthlyCommitmentUpfrontPrices(ctx, client, "sub-1", nil, "9.99")
+				return validateMonthlyCommitmentUpfrontPrices(ctx, shared.DefaultDeps(), client, "sub-1", nil, "9.99")
 			},
 		},
 		{
 			name: "prepare monthly prices",
 			run: func(ctx context.Context, client *asc.Client) error {
-				_, err := prepareMonthlySubscriptionPrices(ctx, client, "sub-1", nil, "9.99", subscriptionPricingToday())
+				_, err := prepareMonthlySubscriptionPrices(ctx, shared.DefaultDeps(), client, "sub-1", nil, "9.99", subscriptionPricingToday())
 				return err
 			},
 		},

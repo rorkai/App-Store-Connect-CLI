@@ -115,6 +115,7 @@ func TestApplyEqualizedPricesDoesNotReplayExhaustedClientRateLimit(t *testing.T)
 
 	succeeded, failures := applyEqualizedPrices(
 		context.Background(),
+		shared.DefaultDeps(),
 		client,
 		"sub-1",
 		[]equalization{{Territory: "CAN", Price: "1.29", PricePointID: "price-point-can"}},
@@ -173,6 +174,7 @@ func TestApplyEqualizedPricesDoesNotSleepOnUnhonoredRetryAfter(t *testing.T) {
 		defer cancel()
 		succeeded, failures = applyEqualizedPrices(
 			ctx,
+			shared.DefaultDeps(),
 			client,
 			"sub-1",
 			[]equalization{{Territory: "CAN", Price: "1.29", PricePointID: "price-point-can"}},

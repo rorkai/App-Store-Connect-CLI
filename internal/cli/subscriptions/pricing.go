@@ -113,7 +113,7 @@ func buildSubscriptionsPricingSummaryCommand(d *shared.Deps,
 
 			if requestedSubID != "" {
 				resolveCtx, resolveCancel := d.Timeout(ctx)
-				requestedSubID, err = resolveSubscriptionLookupIDWith(resolveCtx, d, client, requestedAppID, requestedSubID)
+				requestedSubID, err = resolveSubscriptionLookupID(resolveCtx, d, client, requestedAppID, requestedSubID)
 				resolveCancel()
 				if err != nil {
 					return err
@@ -270,7 +270,7 @@ func resolveSubscriptionPriceSummaries(
 			}
 			defer func() { <-sem }()
 
-			summary, err := resolveSubscriptionPriceSummaryWith(ctx, d, client, subs[idx], territory)
+			summary, err := resolveSubscriptionPriceSummary(ctx, d, client, subs[idx], territory)
 			if err != nil {
 				once.Do(cancel)
 				errs <- fmt.Errorf("resolve %s: %w", subs[idx].Sub.ID, err)
@@ -297,15 +297,6 @@ func resolveSubscriptionPriceSummaries(
 }
 
 func resolveSubscriptionPriceSummary(
-	ctx context.Context,
-	client *asc.Client,
-	sub subWithGroup,
-	territory string,
-) (subscriptionPriceSummary, error) {
-	return resolveSubscriptionPriceSummaryWith(ctx, shared.DefaultDeps(), client, sub, territory)
-}
-
-func resolveSubscriptionPriceSummaryWith(
 	ctx context.Context,
 	d *shared.Deps,
 	client *asc.Client,

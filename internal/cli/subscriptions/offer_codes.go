@@ -84,7 +84,7 @@ Examples:
 				return d.RequiredFlag("--subscription-id")
 			}
 
-			selectedSubscriptionFields, err := normalizeSparseFieldsFlagWith(d, fs, *next, "subscription-fields", *subscriptionFields, subscriptionFieldsList())
+			selectedSubscriptionFields, err := normalizeSparseFieldsFlag(d, fs, *next, "subscription-fields", *subscriptionFields, subscriptionFieldsList())
 			if err != nil {
 				return err
 			}
@@ -95,7 +95,7 @@ Examples:
 			}
 
 			if strings.TrimSpace(*next) == "" {
-				id, err = resolveSubscriptionLookupIDWithTimeoutWith(ctx, d, client, *appID, id)
+				id, err = resolveSubscriptionLookupIDWithTimeout(ctx, d, client, *appID, id)
 				if err != nil {
 					return err
 				}
@@ -196,7 +196,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			selectedSubscriptionFields, err := normalizeSparseFieldsFlagWith(d, fs, "", "subscription-fields", *subscriptionFields, subscriptionFieldsList())
+			selectedSubscriptionFields, err := normalizeSparseFieldsFlag(d, fs, "", "subscription-fields", *subscriptionFields, subscriptionFieldsList())
 			if err != nil {
 				return err
 			}
@@ -316,7 +316,7 @@ Examples:
 				return fmt.Errorf("subscriptions offer-codes create: %w", err)
 			}
 
-			id, err = resolveSubscriptionLookupIDWithTimeoutWith(ctx, d, client, *appID, id)
+			id, err = resolveSubscriptionLookupIDWithTimeout(ctx, d, client, *appID, id)
 			if err != nil {
 				return err
 			}
@@ -535,7 +535,7 @@ Examples:
 			pricePointFields := fs.String("price-point-fields", "", "Included subscription price point fields (comma-separated)")
 			return func() error {
 				var err error
-				selectedPricePointFields, err = normalizeSparseFieldsFlagWith(d, fs, fs.Lookup("next").Value.String(), "price-point-fields", *pricePointFields, subscriptionPricePointFieldsList())
+				selectedPricePointFields, err = normalizeSparseFieldsFlag(d, fs, fs.Lookup("next").Value.String(), "price-point-fields", *pricePointFields, subscriptionPricePointFieldsList())
 				return err
 			}
 		},

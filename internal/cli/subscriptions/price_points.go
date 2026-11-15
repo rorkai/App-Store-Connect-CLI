@@ -176,7 +176,7 @@ Examples:
 			}
 
 			if strings.TrimSpace(*next) == "" {
-				id, err = resolveSubscriptionLookupIDWithTimeoutWith(ctx, d, client, *appID, id)
+				id, err = resolveSubscriptionLookupIDWithTimeout(ctx, d, client, *appID, id)
 				if err != nil {
 					return err
 				}
@@ -327,7 +327,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			selectedFields, err := normalizeSparseFieldsFlagWith(d, fs, "", "fields", *fields, subscriptionPricePointFieldsList())
+			selectedFields, err := normalizeSparseFieldsFlag(d, fs, "", "fields", *fields, subscriptionPricePointFieldsList())
 			if err != nil {
 				return err
 			}

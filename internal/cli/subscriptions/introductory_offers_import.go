@@ -176,7 +176,7 @@ Examples:
 			}
 
 			summary.SubscriptionID, err = shared.RetryReadWithFreshTimeoutWith(ctx, d, func(requestCtx context.Context) (string, error) {
-				return resolveSubscriptionLookupIDWith(requestCtx, d, client, *appID, summary.SubscriptionID)
+				return resolveSubscriptionLookupID(requestCtx, d, client, *appID, summary.SubscriptionID)
 			})
 			if err != nil {
 				return err

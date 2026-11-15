@@ -37,11 +37,11 @@ Examples:
 			newSubscriptionsPricingPricesCommand(d),
 			newSubscriptionsPricingPricePointsCommand(d),
 			newSubscriptionsPricingAvailabilityCommand(d),
-			SubscriptionsPricingPlanAvailabilityCommand(),
-			SubscriptionsPricingMonthlyCommitmentCommand(),
-			SubscriptionsPricingEqualizeCommand(),
-			SubscriptionsPricingDeriveCommand(),
-			SubscriptionsPricingPPPCommand(),
+			newSubscriptionsPricingPlanAvailabilityCommand(d),
+			newSubscriptionsPricingMonthlyCommitmentCommand(d),
+			newSubscriptionsPricingEqualizeCommand(d),
+			newSubscriptionsPricingDeriveCommand(d),
+			newSubscriptionsPricingPPPCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp

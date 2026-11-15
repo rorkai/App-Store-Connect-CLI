@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"math/big"
-	"os"
 	"sort"
 	"strings"
 	"sync"
@@ -18,9 +17,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// SubscriptionsPricingDeriveCommand returns the derive subcommand.
-func SubscriptionsPricingDeriveCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("subscriptions pricing derive", flag.ExitOnError)
+// newSubscriptionsPricingDeriveCommand returns the derive subcommand.
+func newSubscriptionsPricingDeriveCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("subscriptions pricing derive", flag.ExitOnError)
 
 	sourceSubscriptionID := shared.BindResourceIDFlag(fs, "source-subscription-id", "subscriptions", "Source subscription ID, product ID, or exact current name (required)")
 	targetSubscriptionID := shared.BindResourceIDFlag(fs, "target-subscription-id", "subscriptions", "Target subscription ID, product ID, or exact current name (required)")
@@ -34,7 +33,7 @@ func SubscriptionsPricingDeriveCommand() *ffcli.Command {
 	dryRun := fs.Bool("dry-run", false, "Show derived target prices without applying them")
 	confirm := fs.Bool("confirm", false, "Confirm applying derived target prices (required unless --dry-run)")
 	workers := fs.Int("workers", defaultEqualizeWorkers, "Number of concurrent planning workers and price mutations")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "derive",
@@ -65,73 +64,73 @@ Examples:
   asc subscriptions pricing derive --source-subscription-id "MONTHLY_ID" --target-subscription-id "YEARLY_ID" --multiplier "10" --round nearest --confirm
   asc subscriptions pricing derive --source-subscription-id "MONTHLY_ID" --target-subscription-id "YEARLY_ID" --multiplier "9.6" --start-date "YYYY-MM-DD" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			sourceID := strings.TrimSpace(*sourceSubscriptionID)
 			if sourceID == "" {
-				return shared.RequiredFlag("--source-subscription-id")
+				return d.RequiredFlag("--source-subscription-id")
 			}
 			targetID := strings.TrimSpace(*targetSubscriptionID)
 			if targetID == "" {
-				return shared.RequiredFlag("--target-subscription-id")
+				return d.RequiredFlag("--target-subscription-id")
 			}
 			if sourceID == targetID {
-				return shared.UsageError("source and target subscriptions must be different")
+				return d.UsageError("source and target subscriptions must be different")
 			}
 
-			multiplierValue, err := parseSubscriptionPriceDeriveMultiplier(*multiplier)
+			multiplierValue, err := parseSubscriptionPriceDeriveMultiplier(d, *multiplier)
 			if err != nil {
 				return err
 			}
-			roundMode, err := shared.ParsePriceRounding(*rounding)
+			roundMode, err := d.ParsePriceRounding(*rounding)
 			if err != nil {
 				return err
 			}
 			territoryID := ""
 			if flagWasProvided(fs, "territory") && strings.TrimSpace(*territory) == "" {
-				return shared.UsageError("invalid --territory: cannot be empty")
+				return d.UsageError("invalid --territory: cannot be empty")
 			}
 			if strings.TrimSpace(*territory) != "" {
 				territoryID, err = ascterritory.Normalize(*territory)
 				if err != nil {
-					return shared.UsageError(fmt.Sprintf("invalid --territory: %v", err))
+					return d.UsageError(fmt.Sprintf("invalid --territory: %v", err))
 				}
 			}
 			if *workers < 1 || *workers > 32 {
-				return shared.UsageError("--workers must be between 1 and 32")
+				return d.UsageError("--workers must be between 1 and 32")
 			}
 			if *dryRun && *confirm {
-				return shared.UsageError("--dry-run cannot be combined with --confirm")
+				return d.UsageError("--dry-run cannot be combined with --confirm")
 			}
-			if err := shared.RequireConfirmUnlessDryRun(*dryRun, *confirm); err != nil {
+			if err := d.RequireConfirmUnlessDryRun(*dryRun, *confirm); err != nil {
 				return err
 			}
-			explicitStartDate, effectiveAt, err := normalizeEqualizeStartDate(*startDate)
+			explicitStartDate, effectiveAt, err := normalizeEqualizeStartDate(d, *startDate)
 			if err != nil {
 				return err
 			}
 			resolvedAppID := shared.ResolveAppID(*appID)
-			if err := shared.RequireAppForStableSelector(resolvedAppID, sourceID, "--source-subscription-id"); err != nil {
+			if err := d.RequireAppForStableSelector(resolvedAppID, sourceID, "--source-subscription-id"); err != nil {
 				return err
 			}
-			if err := shared.RequireAppForStableSelector(resolvedAppID, targetID, "--target-subscription-id"); err != nil {
+			if err := d.RequireAppForStableSelector(resolvedAppID, targetID, "--target-subscription-id"); err != nil {
 				return err
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("subscriptions pricing derive: %w", err)
 			}
-			sourceID, err = resolveSubscriptionPriceDeriveLookupID(ctx, client, *appID, sourceID, "--source-subscription-id")
+			sourceID, err = resolveSubscriptionPriceDeriveLookupID(ctx, d, client, *appID, sourceID, "--source-subscription-id")
 			if err != nil {
 				return err
 			}
-			targetID, err = resolveSubscriptionPriceDeriveLookupID(ctx, client, *appID, targetID, "--target-subscription-id")
+			targetID, err = resolveSubscriptionPriceDeriveLookupID(ctx, d, client, *appID, targetID, "--target-subscription-id")
 			if err != nil {
 				return err
 			}
 			if sourceID == targetID {
-				return shared.UsageError("source and target subscriptions must be different")
+				return d.UsageError("source and target subscriptions must be different")
 			}
 
 			resolvedStartDate := explicitStartDate
@@ -139,18 +138,18 @@ Examples:
 			autoScheduled := false
 			if resolvedStartDate == "" && *autoStartDate {
 				var scheduleErr error
-				resolvedStartDate, targetState, autoScheduled, effectiveAt, scheduleErr = autoScheduleEqualizeStartDate(ctx, client, targetID)
+				resolvedStartDate, targetState, autoScheduled, effectiveAt, scheduleErr = autoScheduleEqualizeStartDate(ctx, d, client, targetID)
 				if scheduleErr != nil {
 					return fmt.Errorf("subscriptions pricing derive: %w", scheduleErr)
 				}
 				if autoScheduled {
-					fmt.Fprintf(os.Stderr, "Target subscription state is %s; scheduling price changes for %s\n", targetState, resolvedStartDate)
+					fmt.Fprintf(d.IO.ErrOut, "Target subscription state is %s; scheduling price changes for %s\n", targetState, resolvedStartDate)
 				}
 			}
 
-			fmt.Fprintln(os.Stderr, "Fetching current source and target subscription prices...")
+			fmt.Fprintln(d.IO.ErrOut, "Fetching current source and target subscription prices...")
 			sourcePrices, err := fetchResolvedSubscriptionPrices(
-				ctx, client, sourceID, subscriptionPricingToday(), asc.SubscriptionPlanTypeUpfront, territoryID,
+				ctx, d, client, sourceID, 200, "", subscriptionPricingToday(), asc.SubscriptionPlanTypeUpfront, territoryID,
 			)
 			if err != nil {
 				return fmt.Errorf("subscriptions pricing derive: fetch source prices: %w", err)
@@ -159,7 +158,7 @@ Examples:
 				return fmt.Errorf("subscriptions pricing derive: source subscription has no current UPFRONT territory prices")
 			}
 			targetPrices, err := fetchResolvedSubscriptionPrices(
-				ctx, client, targetID, effectiveAt, asc.SubscriptionPlanTypeUpfront, territoryID,
+				ctx, d, client, targetID, 200, "", effectiveAt, asc.SubscriptionPlanTypeUpfront, territoryID,
 			)
 			if err != nil {
 				return fmt.Errorf("subscriptions pricing derive: fetch target prices: %w", err)
@@ -167,7 +166,7 @@ Examples:
 			targetHasPricing := len(targetPrices.Prices) > 0
 			if !targetHasPricing && territoryID != "" {
 				globalTargetPrices, preflightErr := fetchResolvedSubscriptionPrices(
-					ctx, client, targetID, effectiveAt, asc.SubscriptionPlanTypeUpfront, "",
+					ctx, d, client, targetID, 200, "", effectiveAt, asc.SubscriptionPlanTypeUpfront, "",
 				)
 				if preflightErr != nil {
 					return fmt.Errorf("subscriptions pricing derive: fetch target pricing preflight: %w", preflightErr)
@@ -178,9 +177,10 @@ Examples:
 				return fmt.Errorf("subscriptions pricing derive: target subscription has no current UPFRONT prices; initialize its pricing before deriving changes")
 			}
 
-			fmt.Fprintf(os.Stderr, "Resolving target price points for %d territor%s...\n", len(sourcePrices.Prices), pluralizeEqualizeTerritories(len(sourcePrices.Prices)))
+			fmt.Fprintf(d.IO.ErrOut, "Resolving target price points for %d territor%s...\n", len(sourcePrices.Prices), pluralizeEqualizeTerritories(len(sourcePrices.Prices)))
 			rows := buildSubscriptionPriceDerivePlan(
 				ctx,
+				d,
 				client,
 				targetID,
 				sourcePrices,
@@ -207,7 +207,7 @@ Examples:
 			result.Summary = shared.SummarizePriceLadderRows(rows)
 
 			if result.Summary.Unresolved > 0 {
-				if err := shared.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
+				if err := d.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
 					return err
 				}
 				return shared.NewReportedError(fmt.Errorf(
@@ -217,7 +217,7 @@ Examples:
 				))
 			}
 			if *dryRun {
-				return shared.PrintOutput(result, *output.Output, *output.Pretty)
+				return d.PrintOutput(result, *output.Output, *output.Pretty)
 			}
 
 			attrs := asc.SubscriptionPriceCreateAttributes{
@@ -229,9 +229,10 @@ Examples:
 			}
 			var verificationErr error
 			result.Summary, result.Verification, verificationErr = applyAndVerifySubscriptionPriceDeriveRows(
-				ctx, client, targetID, result.Rows, *workers, attrs, effectiveAt, territoryID, "derived territory price", "derived target prices",
+				ctx,
+				d, client, targetID, result.Rows, *workers, attrs, effectiveAt, territoryID, "derived territory price", "derived target prices",
 			)
-			if err := shared.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
+			if err := d.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
 				return err
 			}
 			if verificationErr != nil || result.Summary.Failed > 0 {
@@ -247,16 +248,17 @@ Examples:
 
 func resolveSubscriptionPriceDeriveLookupID(
 	ctx context.Context,
+	d *shared.Deps,
 	client *asc.Client,
 	appValue string,
 	selector string,
 	flagName string,
 ) (string, error) {
-	lookupCtx, cancel := shared.ContextWithTimeout(ctx)
+	lookupCtx, cancel := d.Timeout(ctx)
 	defer cancel()
 
 	appID := shared.ResolveAppID(appValue)
-	if err := shared.RequireAppForStableSelector(appID, selector, flagName); err != nil {
+	if err := d.RequireAppForStableSelector(appID, selector, flagName); err != nil {
 		return "", err
 	}
 	resolved, err := shared.ResolveSubscriptionID(lookupCtx, client, appID, selector)
@@ -268,6 +270,7 @@ func resolveSubscriptionPriceDeriveLookupID(
 
 func applyAndVerifySubscriptionPriceDeriveRows(
 	ctx context.Context,
+	d *shared.Deps,
 	client *asc.Client,
 	targetSubscriptionID string,
 	rows []asc.SubscriptionPricingDeriveRow,
@@ -279,12 +282,12 @@ func applyAndVerifySubscriptionPriceDeriveRows(
 	verifyNoun string,
 ) (asc.SubscriptionPricingDeriveSummary, asc.SubscriptionPricingDeriveVerification, error) {
 	planned := countSubscriptionPriceDeriveRows(rows, "planned")
-	fmt.Fprintf(os.Stderr, "Setting %d %s%s (%d worker%s)...\n", planned, changeNoun, pluralizeSubscriptionPriceDeriveCount(planned), workers, pluralizeSubscriptionPriceDeriveCount(workers))
-	applySubscriptionPriceDeriveRows(ctx, client, targetSubscriptionID, rows, workers, attrs, effectiveAt)
+	fmt.Fprintf(d.IO.ErrOut, "Setting %d %s%s (%d worker%s)...\n", planned, changeNoun, pluralizeSubscriptionPriceDeriveCount(planned), workers, pluralizeSubscriptionPriceDeriveCount(workers))
+	applySubscriptionPriceDeriveRows(ctx, d, client, targetSubscriptionID, rows, workers, attrs, effectiveAt)
 	appliedCount := countSubscriptionPriceDeriveRows(rows, "applied")
 
-	fmt.Fprintf(os.Stderr, "Verifying %s...\n", verifyNoun)
-	verification, err := verifySubscriptionPriceDeriveRows(ctx, client, targetSubscriptionID, effectiveAt, territory, rows)
+	fmt.Fprintf(d.IO.ErrOut, "Verifying %s...\n", verifyNoun)
+	verification, err := verifySubscriptionPriceDeriveRows(ctx, d, client, targetSubscriptionID, effectiveAt, territory, rows)
 	summary := shared.SummarizePriceLadderRows(rows)
 	summary.Applied = appliedCount
 	return summary, verification, err
@@ -292,6 +295,7 @@ func applyAndVerifySubscriptionPriceDeriveRows(
 
 func applySubscriptionPriceDeriveRows(
 	ctx context.Context,
+	d *shared.Deps,
 	client *asc.Client,
 	targetSubscriptionID string,
 	rows []asc.SubscriptionPricingDeriveRow,
@@ -310,7 +314,7 @@ func applySubscriptionPriceDeriveRows(
 			PricePointID: row.TargetPricePointID,
 		})
 	}
-	_, failures := applyEqualizedPrices(ctx, client, targetSubscriptionID, changes, workers, attrs, effectiveAt)
+	_, failures := applyEqualizedPrices(ctx, d, client, targetSubscriptionID, changes, workers, attrs, effectiveAt)
 	failureByTerritory := make(map[string]error, len(failures))
 	for _, failure := range failures {
 		failureByTerritory[strings.ToUpper(strings.TrimSpace(failure.Target.Territory))] = failure.Err
@@ -331,6 +335,7 @@ func applySubscriptionPriceDeriveRows(
 
 func verifySubscriptionPriceDeriveRows(
 	ctx context.Context,
+	d *shared.Deps,
 	client *asc.Client,
 	targetSubscriptionID string,
 	effectiveAt time.Time,
@@ -355,8 +360,11 @@ func verifySubscriptionPriceDeriveRows(
 
 	resolved, err := fetchResolvedSubscriptionPrices(
 		ctx,
+		d,
 		client,
 		targetSubscriptionID,
+		200,
+		"",
 		effectiveAt,
 		asc.SubscriptionPlanTypeUpfront,
 		territory,
@@ -434,6 +442,7 @@ func pluralizeSubscriptionPriceDeriveCount(count int) string {
 
 func buildSubscriptionPriceDerivePlan(
 	ctx context.Context,
+	d *shared.Deps,
 	client *asc.Client,
 	targetSubscriptionID string,
 	sourcePrices *shared.ResolvedPricesResult,
@@ -460,6 +469,7 @@ func buildSubscriptionPriceDerivePlan(
 	}
 	candidatesByTerritory, candidatesErr := fetchSubscriptionPriceDeriveCandidatesByTerritory(
 		ctx,
+		d,
 		client,
 		targetSubscriptionID,
 		territories,
@@ -507,6 +517,7 @@ func buildSubscriptionPriceDerivePlan(
 
 func fetchSubscriptionPriceDeriveCandidatesByTerritory(
 	ctx context.Context,
+	d *shared.Deps,
 	client *asc.Client,
 	targetSubscriptionID string,
 	territories []string,
@@ -531,7 +542,7 @@ func fetchSubscriptionPriceDeriveCandidatesByTerritory(
 
 	fetchPage := func(nextURL string) (*asc.SubscriptionPricePointsResponse, error) {
 		if strings.TrimSpace(nextURL) == "" {
-			return shared.RetryReadWithFreshTimeout(ctx, func(requestCtx context.Context) (*asc.SubscriptionPricePointsResponse, error) {
+			return shared.RetryReadWithFreshTimeoutWith(ctx, d, func(requestCtx context.Context) (*asc.SubscriptionPricePointsResponse, error) {
 				return client.GetSubscriptionPricePoints(
 					requestCtx,
 					targetSubscriptionID,
@@ -543,7 +554,7 @@ func fetchSubscriptionPriceDeriveCandidatesByTerritory(
 				)
 			})
 		}
-		return shared.RetryReadWithFreshTimeout(ctx, func(requestCtx context.Context) (*asc.SubscriptionPricePointsResponse, error) {
+		return shared.RetryReadWithFreshTimeoutWith(ctx, d, func(requestCtx context.Context) (*asc.SubscriptionPricePointsResponse, error) {
 			return client.GetSubscriptionPricePoints(
 				requestCtx,
 				targetSubscriptionID,
@@ -589,17 +600,17 @@ func fetchSubscriptionPriceDeriveCandidatesByTerritory(
 	return candidates, nil
 }
 
-func parseSubscriptionPriceDeriveMultiplier(value string) (*big.Rat, error) {
+func parseSubscriptionPriceDeriveMultiplier(d *shared.Deps, value string) (*big.Rat, error) {
 	trimmed := strings.TrimSpace(value)
 	if trimmed == "" {
-		return nil, shared.RequiredFlag("--multiplier")
+		return nil, d.RequiredFlag("--multiplier")
 	}
 	if !shared.IsPriceDecimal(trimmed) {
-		return nil, shared.UsageError("--multiplier must be a positive decimal")
+		return nil, d.UsageError("--multiplier must be a positive decimal")
 	}
 	multiplier := new(big.Rat)
 	if _, ok := multiplier.SetString(trimmed); !ok || multiplier.Sign() <= 0 {
-		return nil, shared.UsageError("--multiplier must be a positive decimal")
+		return nil, d.UsageError("--multiplier must be a positive decimal")
 	}
 	return multiplier, nil
 }

@@ -27,7 +27,7 @@ func newSubscriptionsPromotedPurchasesCommand(d *shared.Deps) *ffcli.Command {
 			OwnerIDUsage:       "Subscription ID, product ID, or exact current name",
 			OwnerIDPlaceholder: "SUBSCRIPTION_SELECTOR",
 			ResolveOwnerID: func(ctx context.Context, client *asc.Client, selector string) (string, error) {
-				return resolveSubscriptionLookupIDWithTimeoutWith(ctx, d, client, *lookupAppID, selector)
+				return resolveSubscriptionLookupIDWithTimeout(ctx, d, client, *lookupAppID, selector)
 			},
 			FetchForOwner: func(ctx context.Context, client *asc.Client, subscriptionID string, opts ...asc.PromotedPurchaseGetOption) (*asc.PromotedPurchaseResponse, error) {
 				return client.GetSubscriptionPromotedPurchase(ctx, subscriptionID, opts...)

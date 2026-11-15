@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestFetchSubscriptionPriceDeriveCandidatesBatchesTerritoriesAndPaginates(t *testing.T) {
@@ -43,7 +44,7 @@ func TestFetchSubscriptionPriceDeriveCandidatesBatchesTerritoriesAndPaginates(t 
 		t.Fatalf("NewClientFromPEM() error: %v", err)
 	}
 
-	candidates, err := fetchSubscriptionPriceDeriveCandidatesByTerritory(context.Background(), client, "target-sub", []string{"USA", "SWE", "USA"})
+	candidates, err := fetchSubscriptionPriceDeriveCandidatesByTerritory(context.Background(), shared.DefaultDeps(), client, "target-sub", []string{"USA", "SWE", "USA"})
 	if err != nil {
 		t.Fatalf("fetchSubscriptionPriceDeriveCandidatesByTerritory() error = %v", err)
 	}
@@ -63,7 +64,7 @@ func TestFetchSubscriptionPriceDeriveCandidatesRequiresTerritoryRelationship(t *
 		t.Fatalf("NewClientFromPEM() error: %v", err)
 	}
 
-	_, err = fetchSubscriptionPriceDeriveCandidatesByTerritory(context.Background(), client, "target-sub", []string{"SWE"})
+	_, err = fetchSubscriptionPriceDeriveCandidatesByTerritory(context.Background(), shared.DefaultDeps(), client, "target-sub", []string{"SWE"})
 	if err == nil || !strings.Contains(err.Error(), `target price point "pp-89" is missing its territory relationship`) {
 		t.Fatalf("expected missing territory relationship error, got %v", err)
 	}

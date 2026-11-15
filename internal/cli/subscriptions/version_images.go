@@ -58,7 +58,7 @@ func newSubscriptionsVersionImagesListCommand(d *shared.Deps) *ffcli.Command {
 			if id == "" && strings.TrimSpace(*next) == "" {
 				return d.RequiredFlag("--version-id")
 			}
-			fieldValues, err := normalizeSelectionFlagWith(d, fs, *fields, "--fields", subscriptionVersionImageFieldsList())
+			fieldValues, err := normalizeSelectionFlag(d, fs, *fields, "--fields", subscriptionVersionImageFieldsList())
 			if err != nil {
 				return err
 			}
@@ -105,7 +105,7 @@ func newSubscriptionsVersionImagesPrimaryCommand(d *shared.Deps) *ffcli.Command 
 			if id == "" {
 				return d.RequiredFlag("--version-id")
 			}
-			fieldValues, err := normalizeSelectionFlagWith(d, fs, *fields, "--fields", subscriptionVersionImageFieldsList())
+			fieldValues, err := normalizeSelectionFlag(d, fs, *fields, "--fields", subscriptionVersionImageFieldsList())
 			if err != nil {
 				return err
 			}
@@ -211,7 +211,7 @@ func newSubscriptionsVersionImagesViewCommand(d *shared.Deps) *ffcli.Command {
 		Flags: func(fs *flag.FlagSet) func() error {
 			fields := fs.String("fields", "", "Sparse fields for subscriptionImages")
 			return func() (err error) {
-				fieldValues, err = normalizeSelectionFlagWith(d, fs, *fields, "--fields", subscriptionVersionImageFieldsList())
+				fieldValues, err = normalizeSelectionFlag(d, fs, *fields, "--fields", subscriptionVersionImageFieldsList())
 				return err
 			}
 		},

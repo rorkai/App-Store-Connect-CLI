@@ -141,7 +141,7 @@ Examples:
 				return fmt.Errorf("%s: %w", command, err)
 			}
 			if strings.TrimSpace(*next) == "" {
-				if id, err = resolveSubscriptionLookupIDWithTimeoutWith(ctx, d, client, *appID, id); err != nil {
+				if id, err = resolveSubscriptionLookupIDWithTimeout(ctx, d, client, *appID, id); err != nil {
 					return err
 				}
 			}
@@ -219,11 +219,11 @@ func bindRetentionOfferReadFlags(fs *flag.FlagSet) *retentionOfferReadFlags {
 }
 
 func (f *retentionOfferReadFlags) options(d *shared.Deps, fs *flag.FlagSet, command, next string) ([]asc.RetentionOffersOption, error) {
-	fields, err := normalizeSelectionFlagWith(d, fs, *f.fields, "--fields", retentionOfferFieldsList())
+	fields, err := normalizeSelectionFlag(d, fs, *f.fields, "--fields", retentionOfferFieldsList())
 	if err != nil {
 		return nil, err
 	}
-	include, err := normalizeSelectionFlagWith(d, fs, *f.include, "--include", []string{"prices", "subscription"})
+	include, err := normalizeSelectionFlag(d, fs, *f.include, "--include", []string{"prices", "subscription"})
 	if err != nil {
 		return nil, err
 	}
@@ -373,7 +373,7 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("%s: %w", command, err)
 			}
-			subscription, err := resolveSubscriptionLookupIDWithTimeoutWith(ctx, d, client, *appID, strings.TrimSpace(*subscriptionID))
+			subscription, err := resolveSubscriptionLookupIDWithTimeout(ctx, d, client, *appID, strings.TrimSpace(*subscriptionID))
 			if err != nil {
 				return err
 			}
@@ -600,11 +600,11 @@ Examples:
 				return d.UsageError("--id is required")
 			}
 
-			fieldsValue, err := normalizeSelectionFlagWith(d, fs, *fields, "--fields", []string{"territory", "subscriptionPricePoint"})
+			fieldsValue, err := normalizeSelectionFlag(d, fs, *fields, "--fields", []string{"territory", "subscriptionPricePoint"})
 			if err != nil {
 				return err
 			}
-			includeValue, err := normalizeSelectionFlagWith(d, fs, *include, "--include", []string{"subscriptionPricePoint", "territory"})
+			includeValue, err := normalizeSelectionFlag(d, fs, *include, "--include", []string{"subscriptionPricePoint", "territory"})
 			if err != nil {
 				return err
 			}
@@ -713,7 +713,7 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("%s: %w", command, err)
 			}
-			if id, err = resolveSubscriptionLookupIDWithTimeoutWith(ctx, d, client, *appID, id); err != nil {
+			if id, err = resolveSubscriptionLookupIDWithTimeout(ctx, d, client, *appID, id); err != nil {
 				return err
 			}
 			requestCtx, cancel := d.Timeout(ctx)
