@@ -9,13 +9,14 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
+	"reflect"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 const healthyAndOutagePayload = `jsonCallback({
@@ -214,10 +215,13 @@ func TestSystemStatusCommandWatchPrintsOnlyChanges(t *testing.T) {
 	}))
 	defer server.Close()
 
-	stdout, stderr, err := runCommand(t, server.Client(), server.URL,
+	stdout, stderr, waits, err := runCommandWithWaits(t, server.Client(), server.URL,
 		"--service", "App Store Connect API", "--watch", "--poll-interval", "1ms", "--max-polls", "3", "--output", "json")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
+	}
+	if want := []time.Duration{time.Millisecond, time.Millisecond}; !reflect.DeepEqual(waits, want) {
+		t.Fatalf("waits = %v, want %v", waits, want)
 	}
 	if stderr != "" {
 		t.Fatalf("stderr = %q, want empty", stderr)
@@ -249,10 +253,13 @@ func TestSystemStatusCommandWatchRetriesTransientFailures(t *testing.T) {
 	}))
 	defer server.Close()
 
-	stdout, stderr, err := runCommand(t, server.Client(), server.URL,
+	stdout, stderr, waits, err := runCommandWithWaits(t, server.Client(), server.URL,
 		"--watch", "--poll-interval", "1ms", "--max-polls", "2", "--output", "json")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
+	}
+	if want := []time.Duration{time.Millisecond}; !reflect.DeepEqual(waits, want) {
+		t.Fatalf("waits = %v, want %v", waits, want)
 	}
 	if requests.Load() != 2 {
 		t.Fatalf("requests = %d, want 2", requests.Load())
@@ -274,10 +281,13 @@ func TestSystemStatusCommandWatchStopsAfterRepeatedFailures(t *testing.T) {
 	}))
 	defer server.Close()
 
-	stdout, stderr, err := runCommand(t, server.Client(), server.URL,
+	stdout, stderr, waits, err := runCommandWithWaits(t, server.Client(), server.URL,
 		"--watch", "--poll-interval", "1ms", "--output", "json")
 	if err == nil {
 		t.Fatal("run error = nil, want repeated failure")
+	}
+	if want := []time.Duration{time.Millisecond, time.Millisecond}; !reflect.DeepEqual(waits, want) {
+		t.Fatalf("waits = %v, want %v", waits, want)
 	}
 	if requests.Load() != maxWatchFailures {
 		t.Fatalf("requests = %d, want %d", requests.Load(), maxWatchFailures)
@@ -332,58 +342,32 @@ func statusServer(t *testing.T, payload string) *httptest.Server {
 
 func runCommand(t *testing.T, client *http.Client, endpoint string, args ...string) (stdout string, stderr string, runErr error) {
 	t.Helper()
-	command := commandWithClient(client, endpoint)
+	stdout, stderr, _, runErr = runCommandWithWaits(t, client, endpoint, args...)
+	return stdout, stderr, runErr
+}
+
+// runCommandWithWaits runs the command on buffers and returns the poll waits
+// it asked for; each wait ends at once.
+func runCommandWithWaits(t *testing.T, client *http.Client, endpoint string, args ...string) (stdout string, stderr string, waits []time.Duration, runErr error) {
+	t.Helper()
+	var stdoutBuffer, stderrBuffer bytes.Buffer
+	d := &shared.Deps{
+		IO:      &shared.IO{Out: &stdoutBuffer, ErrOut: &stderrBuffer},
+		Timeout: shared.ContextWithTimeout,
+		After: func(delay time.Duration) <-chan time.Time {
+			waits = append(waits, delay)
+			fired := make(chan time.Time, 1)
+			fired <- time.Now()
+			return fired
+		},
+	}
+	command := commandWithClient(d, client, endpoint)
 	command.FlagSet.SetOutput(io.Discard)
 	if err := command.Parse(args); err != nil {
-		return "", "", err
+		return "", "", nil, err
 	}
-
-	originalStdout := os.Stdout
-	originalStderr := os.Stderr
-	stdoutReader, stdoutWriter, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("stdout pipe: %v", err)
-	}
-	stderrReader, stderrWriter, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("stderr pipe: %v", err)
-	}
-	os.Stdout = stdoutWriter
-	os.Stderr = stderrWriter
-	defer func() {
-		os.Stdout = originalStdout
-		os.Stderr = originalStderr
-	}()
-
-	var stdoutBuffer bytes.Buffer
-	var stderrBuffer bytes.Buffer
-	copyErrors := make(chan error, 2)
-	var copies sync.WaitGroup
-	copies.Add(2)
-	go func() {
-		defer copies.Done()
-		_, err := io.Copy(&stdoutBuffer, stdoutReader)
-		copyErrors <- err
-	}()
-	go func() {
-		defer copies.Done()
-		_, err := io.Copy(&stderrBuffer, stderrReader)
-		copyErrors <- err
-	}()
-
 	runErr = command.Run(context.Background())
-	_ = stdoutWriter.Close()
-	_ = stderrWriter.Close()
-	copies.Wait()
-	_ = stdoutReader.Close()
-	_ = stderrReader.Close()
-	close(copyErrors)
-	for err := range copyErrors {
-		if err != nil {
-			t.Fatalf("capture command output: %v", err)
-		}
-	}
-	return stdoutBuffer.String(), stderrBuffer.String(), runErr
+	return stdoutBuffer.String(), stderrBuffer.String(), waits, runErr
 }
 
 func TestDecodeDeveloperSystemStatusFeedShapes(t *testing.T) {

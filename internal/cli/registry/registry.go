@@ -138,7 +138,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("diff", "Generate deterministic non-mutating diff plans.", func() *ffcli.Command {
 			return diffcmd.NewDiffCommand(d)
 		}),
-		commandFactory("system-status", "Check Apple Developer service health.", systemstatus.Command),
+		commandFactory("system-status", "Check Apple Developer service health.", func() *ffcli.Command {
+			return systemstatus.NewCommand(d)
+		}),
 		commandFactory("status", "Show a release pipeline dashboard for an app.", status.StatusCommand),
 		commandFactory("insights", "Generate weekly and daily insights from App Store data sources.", insights.InsightsCommand),
 		commandFactory("release-notes", "Generate and manage App Store release notes.", releasenotes.ReleaseNotesCommand),
