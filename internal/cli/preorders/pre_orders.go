@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -14,8 +13,8 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// PreOrdersCommand returns the pre-orders command group.
-func PreOrdersCommand() *ffcli.Command {
+// NewPreOrdersCommand returns the pre-orders command group built on d.
+func NewPreOrdersCommand(d *shared.Deps) *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "pre-orders",
 		ShortUsage: "asc pre-orders <subcommand> [flags]",
@@ -31,12 +30,12 @@ Examples:
   asc pre-orders end --territory-availability "TA_1,TA_2" --confirm`,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			PreOrdersGetCommand(),
-			PreOrdersListCommand(),
-			PreOrdersEnableCommand(),
-			PreOrdersUpdateCommand(),
-			PreOrdersDisableCommand(),
-			PreOrdersEndCommand(),
+			newPreOrdersGetCommand(d),
+			newPreOrdersListCommand(d),
+			newPreOrdersEnableCommand(d),
+			newPreOrdersUpdateCommand(d),
+			newPreOrdersDisableCommand(d),
+			newPreOrdersEndCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -44,12 +43,12 @@ Examples:
 	}
 }
 
-// PreOrdersGetCommand returns the get subcommand.
-func PreOrdersGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("pre-orders view", flag.ExitOnError)
+// newPreOrdersGetCommand returns the get subcommand.
+func newPreOrdersGetCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("pre-orders view", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "view",
@@ -64,16 +63,16 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("pre-orders view: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetAppAvailabilityV2(requestCtx, resolvedAppID)
@@ -84,13 +83,13 @@ Examples:
 				return fmt.Errorf("pre-orders view: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// PreOrdersListCommand returns the list subcommand.
-func PreOrdersListCommand() *ffcli.Command {
+// newPreOrdersListCommand returns the list subcommand.
+func newPreOrdersListCommand(d *shared.Deps) *ffcli.Command {
 	cmd := shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		FlagSetName: "pre-orders list",
 		Name:        "list",
@@ -108,6 +107,7 @@ Examples:
 		ParentType:       "appAvailabilities",
 		LimitMax:         200,
 		FetchErrorPrefix: "pre-orders list",
+		Deps:             d,
 		FetchPage: func(ctx context.Context, client *asc.Client, availabilityID string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := make([]asc.TerritoryAvailabilitiesOption, 0, 2)
 			if limit > 0 {
@@ -127,7 +127,7 @@ Examples:
 			return err
 		}
 		if isPreOrdersListUsageError(err) {
-			return shared.UsageError(err.Error())
+			return d.UsageError(err.Error())
 		}
 		return err
 	}
@@ -141,14 +141,14 @@ func isPreOrdersListUsageError(err error) bool {
 		strings.HasPrefix(message, "pre-orders list: --next ")
 }
 
-// PreOrdersEnableCommand returns the enable subcommand.
-func PreOrdersEnableCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("pre-orders enable", flag.ExitOnError)
+// newPreOrdersEnableCommand returns the enable subcommand.
+func newPreOrdersEnableCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("pre-orders enable", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	territory := fs.String("territory", "", "Territory inputs (comma-separated; accepts alpha-2, alpha-3, or exact English country names)")
 	releaseDate := fs.String("release-date", "", "Release date (YYYY-MM-DD)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "enable",
@@ -167,36 +167,36 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
 			}
 			if strings.TrimSpace(*territory) == "" {
-				return shared.RequiredFlag("--territory")
+				return d.RequiredFlag("--territory")
 			}
 			if strings.TrimSpace(*releaseDate) == "" {
-				return shared.RequiredFlag("--release-date")
+				return d.RequiredFlag("--release-date")
 			}
 
 			normalizedReleaseDate, err := normalizePreOrderReleaseDate(*releaseDate)
 			if err != nil {
-				return shared.UsageErrorf("pre-orders enable: %v", err)
+				return d.UsageErrorf("pre-orders enable: %v", err)
 			}
 
 			territories, err := shared.NormalizeASCTerritoryCSV(*territory)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			if len(territories) == 0 {
-				fmt.Fprintln(os.Stderr, "Error: --territory must include at least one value")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --territory must include at least one value")
 				return flag.ErrHelp
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("pre-orders enable: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			availabilityResp, err := client.GetAppAvailabilityV2(requestCtx, resolvedAppID)
@@ -258,14 +258,14 @@ Examples:
 				updated = append(updated, updateResp.Data)
 			}
 
-			return shared.PrintOutput(&asc.TerritoryAvailabilitiesResponse{Data: updated}, *output.Output, *output.Pretty)
+			return d.PrintOutput(&asc.TerritoryAvailabilitiesResponse{Data: updated}, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// PreOrdersUpdateCommand returns the update subcommand.
-func PreOrdersUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("pre-orders update", flag.ExitOnError)
+// newPreOrdersUpdateCommand returns the update subcommand.
+func newPreOrdersUpdateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("pre-orders update", flag.ExitOnError)
 
 	territoryAvailabilityID := shared.BindResourceIDFlag(fs, "territory-availability", "territoryAvailabilities", "Territory availability ID")
 	releaseDate := fs.String("release-date", "", "Release date (YYYY-MM-DD)")
@@ -273,7 +273,7 @@ func PreOrdersUpdateCommand() *ffcli.Command {
 	fs.Var(&preOrderEnabled, "pre-order-enabled", "Set pre-order enabled: true or false")
 	var available shared.OptionalBool
 	fs.Var(&available, "available", "Set territory available: true or false")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -292,7 +292,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*territoryAvailabilityID)
 			if trimmedID == "" {
-				return shared.RequiredFlag("--territory-availability")
+				return d.RequiredFlag("--territory-availability")
 			}
 
 			attrs := asc.TerritoryAvailabilityUpdateAttributes{}
@@ -301,7 +301,7 @@ Examples:
 			if strings.TrimSpace(*releaseDate) != "" {
 				normalizedReleaseDate, err := normalizePreOrderReleaseDate(*releaseDate)
 				if err != nil {
-					return shared.UsageErrorf("pre-orders update: %v", err)
+					return d.UsageErrorf("pre-orders update: %v", err)
 				}
 				attrs.ReleaseDate = &normalizedReleaseDate
 				hasAttr = true
@@ -312,7 +312,7 @@ Examples:
 				hasAttr = true
 				if !v {
 					if attrs.ReleaseDate != nil {
-						return shared.UsageError("--release-date cannot be set when disabling pre-orders (releaseDate must be null)")
+						return d.UsageError("--release-date cannot be set when disabling pre-orders (releaseDate must be null)")
 					}
 					attrs.ClearReleaseDate = true
 				}
@@ -323,15 +323,15 @@ Examples:
 				hasAttr = true
 			}
 			if !hasAttr {
-				return shared.UpdateFlagRequired(fs, releaseDate, &preOrderEnabled, &available)
+				return d.UpdateFlagRequired(fs, releaseDate, &preOrderEnabled, &available)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("pre-orders update: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.UpdateTerritoryAvailability(requestCtx, trimmedID, attrs)
@@ -339,17 +339,17 @@ Examples:
 				return fmt.Errorf("pre-orders update: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// PreOrdersDisableCommand returns the disable subcommand.
-func PreOrdersDisableCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("pre-orders disable", flag.ExitOnError)
+// newPreOrdersDisableCommand returns the disable subcommand.
+func newPreOrdersDisableCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("pre-orders disable", flag.ExitOnError)
 
 	territoryAvailabilityID := shared.BindResourceIDFlag(fs, "territory-availability", "territoryAvailabilities", "Territory availability ID")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "disable",
@@ -364,16 +364,16 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*territoryAvailabilityID)
 			if trimmedID == "" {
-				return shared.RequiredFlag("--territory-availability")
+				return d.RequiredFlag("--territory-availability")
 			}
 
 			preOrderEnabled := false
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("pre-orders disable: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.UpdateTerritoryAvailability(requestCtx, trimmedID, asc.TerritoryAvailabilityUpdateAttributes{
@@ -384,18 +384,18 @@ Examples:
 				return fmt.Errorf("pre-orders disable: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// PreOrdersEndCommand returns the end subcommand.
-func PreOrdersEndCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("pre-orders end", flag.ExitOnError)
+// newPreOrdersEndCommand returns the end subcommand.
+func newPreOrdersEndCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("pre-orders end", flag.ExitOnError)
 
 	territoryAvailabilityIDs := fs.String("territory-availability", "", "Territory availability IDs (comma-separated)")
 	confirm := fs.Bool("confirm", false, "Confirm ending pre-orders (required)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "end",
@@ -410,18 +410,18 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			ids := shared.SplitCSV(*territoryAvailabilityIDs)
 			if len(ids) == 0 {
-				return shared.RequiredFlag("--territory-availability")
+				return d.RequiredFlag("--territory-availability")
 			}
 			if !*confirm {
-				return shared.RequiredFlag("--confirm")
+				return d.RequiredFlag("--confirm")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("pre-orders end: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.EndAppAvailabilityPreOrders(requestCtx, ids)
@@ -429,7 +429,7 @@ Examples:
 				return fmt.Errorf("pre-orders end: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
