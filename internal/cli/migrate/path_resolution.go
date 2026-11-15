@@ -96,7 +96,7 @@ func resolveImportInputs(opts importInputOptions) (importInputs, []SkippedItem, 
 		}
 	}
 
-	skipped := []SkippedItem{}
+	skipped := ignoredConfigKeyItems(deliverfilePath, config.IgnoredKeys)
 	skipped = noteOverriddenConventionalDir(skipped, metadata)
 	metadataDir, skipped, err := validateResolvedDir(metadata, skipped)
 	if err != nil {
