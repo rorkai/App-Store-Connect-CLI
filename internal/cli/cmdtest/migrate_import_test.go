@@ -162,6 +162,64 @@ func TestMigrateImportDryRunClassifiesIPad13ScreenshotAsModernSlot(t *testing.T)
 	}
 }
 
+func TestMigrateImportDryRunPrefersFramedScreenshotOverRawSibling(t *testing.T) {
+	root := t.TempDir()
+	metadataDir := filepath.Join(root, "metadata", "en-US")
+	if err := os.MkdirAll(metadataDir, 0o755); err != nil {
+		t.Fatalf("mkdir metadata: %v", err)
+	}
+	writeFile(t, filepath.Join(metadataDir, "description.txt"), "English description")
+
+	screenshotsDir := filepath.Join(root, "screenshots", "en-US")
+	if err := os.MkdirAll(screenshotsDir, 0o755); err != nil {
+		t.Fatalf("mkdir screenshots: %v", err)
+	}
+	raw := filepath.Join(screenshotsDir, "0_home.png")
+	framed := filepath.Join(screenshotsDir, "0_home_framed.png")
+	unrelated := filepath.Join(screenshotsDir, "1_settings.png")
+	for _, path := range []string{raw, framed, unrelated} {
+		writePNGForMigrate(t, path, 1242, 2688)
+	}
+
+	rootCmd := RootCommand("1.2.3")
+	rootCmd.FlagSet.SetOutput(io.Discard)
+
+	stdout, _ := captureOutput(t, func() {
+		if err := rootCmd.Parse([]string{
+			"migrate", "import",
+			"--app", "APP_ID",
+			"--version-id", "VERSION_ID",
+			"--fastlane-dir", root,
+			"--dry-run",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := rootCmd.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	var result migrate.MigrateImportResult
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatalf("unmarshal result: %v", err)
+	}
+	if len(result.ScreenshotPlan) != 1 {
+		t.Fatalf("expected 1 screenshot plan, got %+v", result.ScreenshotPlan)
+	}
+	if got, want := result.ScreenshotPlan[0].Files, []string{framed, unrelated}; !slices.Equal(got, want) {
+		t.Fatalf("screenshot files = %v, want %v", got, want)
+	}
+	found := false
+	for _, item := range result.Skipped {
+		if item.Path == raw && strings.Contains(item.Reason, "framed") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected skipped entry for %q naming the framed copy, got %+v", raw, result.Skipped)
+	}
+}
+
 func TestMigrateImportDryRunReportsSkippedNonLocaleMetadataDirs(t *testing.T) {
 	root := t.TempDir()
 	metadataDir := filepath.Join(root, "metadata", "en-US")
