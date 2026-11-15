@@ -59,7 +59,7 @@ var subscriptionIntroductoryOffersImportKnownColumns = map[string]string{
 	"target_subscription_plan_type": "target_subscription_plan_type",
 }
 
-func readSubscriptionIntroductoryOffersImportCSV(path string) ([]subscriptionIntroductoryOfferImportCSVRow, error) {
+func readSubscriptionIntroductoryOffersImportCSV(d *shared.Deps, path string) ([]subscriptionIntroductoryOfferImportCSVRow, error) {
 	file, err := shared.OpenExistingNoFollow(path)
 	if err != nil {
 		return nil, err
@@ -73,12 +73,12 @@ func readSubscriptionIntroductoryOffersImportCSV(path string) ([]subscriptionInt
 	header, err := reader.Read()
 	if err != nil {
 		if errors.Is(err, io.EOF) {
-			return nil, shared.UsageError("CSV file is empty")
+			return nil, d.UsageError("CSV file is empty")
 		}
 		return nil, fmt.Errorf("read header: %w", err)
 	}
 
-	columnIdx, err := parseSubscriptionIntroductoryOffersImportCSVHeader(header)
+	columnIdx, err := parseSubscriptionIntroductoryOffersImportCSVHeader(d, header)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +97,7 @@ func readSubscriptionIntroductoryOffersImportCSV(path string) ([]subscriptionInt
 			continue
 		}
 		dataRowNumber++
-		row, err := parseSubscriptionIntroductoryOffersImportCSVRow(record, columnIdx, dataRowNumber)
+		row, err := parseSubscriptionIntroductoryOffersImportCSVRow(d, record, columnIdx, dataRowNumber)
 		if err != nil {
 			return nil, err
 		}
@@ -107,9 +107,9 @@ func readSubscriptionIntroductoryOffersImportCSV(path string) ([]subscriptionInt
 	return rows, nil
 }
 
-func parseSubscriptionIntroductoryOffersImportCSVHeader(header []string) (map[string]int, error) {
+func parseSubscriptionIntroductoryOffersImportCSVHeader(d *shared.Deps, header []string) (map[string]int, error) {
 	if len(header) == 0 {
-		return nil, shared.UsageError("CSV header row is required")
+		return nil, d.UsageError("CSV header row is required")
 	}
 
 	columnIdx := make(map[string]int)
@@ -120,21 +120,21 @@ func parseSubscriptionIntroductoryOffersImportCSVHeader(header []string) (map[st
 		}
 		canonical, ok := subscriptionIntroductoryOffersImportKnownColumns[normalized]
 		if !ok {
-			return nil, shared.UsageErrorf("unknown CSV column %q", strings.TrimSpace(raw))
+			return nil, d.UsageErrorf("unknown CSV column %q", strings.TrimSpace(raw))
 		}
 		if _, exists := columnIdx[canonical]; exists {
-			return nil, shared.UsageErrorf("duplicate CSV column %q", canonical)
+			return nil, d.UsageErrorf("duplicate CSV column %q", canonical)
 		}
 		columnIdx[canonical] = idx
 	}
 	if _, ok := columnIdx["territory"]; !ok {
-		return nil, shared.UsageError(`CSV header must include required column "territory"`)
+		return nil, d.UsageError(`CSV header must include required column "territory"`)
 	}
 
 	return columnIdx, nil
 }
 
-func parseSubscriptionIntroductoryOffersImportCSVRow(record []string, columnIdx map[string]int, rowNumber int) (subscriptionIntroductoryOfferImportCSVRow, error) {
+func parseSubscriptionIntroductoryOffersImportCSVRow(d *shared.Deps, record []string, columnIdx map[string]int, rowNumber int) (subscriptionIntroductoryOfferImportCSVRow, error) {
 	get := func(column string) string {
 		idx, ok := columnIdx[column]
 		if !ok || idx < 0 || idx >= len(record) {
@@ -147,7 +147,7 @@ func parseSubscriptionIntroductoryOffersImportCSVRow(record []string, columnIdx 
 	if startDate != "" {
 		normalized, err := shared.NormalizeDate(startDate, "--start-date")
 		if err != nil {
-			return subscriptionIntroductoryOfferImportCSVRow{}, shared.UsageErrorf("row %d: %v", rowNumber, err)
+			return subscriptionIntroductoryOfferImportCSVRow{}, d.UsageErrorf("row %d: %v", rowNumber, err)
 		}
 		startDate = normalized
 	}
@@ -156,7 +156,7 @@ func parseSubscriptionIntroductoryOffersImportCSVRow(record []string, columnIdx 
 	if endDate != "" {
 		normalized, err := shared.NormalizeDate(endDate, "--end-date")
 		if err != nil {
-			return subscriptionIntroductoryOfferImportCSVRow{}, shared.UsageErrorf("row %d: %v", rowNumber, err)
+			return subscriptionIntroductoryOfferImportCSVRow{}, d.UsageErrorf("row %d: %v", rowNumber, err)
 		}
 		endDate = normalized
 	}
@@ -165,7 +165,7 @@ func parseSubscriptionIntroductoryOffersImportCSVRow(record []string, columnIdx 
 	if offerMode != "" {
 		normalized, err := normalizeSubscriptionOfferMode(offerMode)
 		if err != nil {
-			return subscriptionIntroductoryOfferImportCSVRow{}, shared.UsageErrorf("row %d: %v", rowNumber, err)
+			return subscriptionIntroductoryOfferImportCSVRow{}, d.UsageErrorf("row %d: %v", rowNumber, err)
 		}
 		offerMode = string(normalized)
 	}
@@ -174,7 +174,7 @@ func parseSubscriptionIntroductoryOffersImportCSVRow(record []string, columnIdx 
 	if offerDuration != "" {
 		normalized, err := normalizeSubscriptionOfferDuration(offerDuration)
 		if err != nil {
-			return subscriptionIntroductoryOfferImportCSVRow{}, shared.UsageErrorf("row %d: %v", rowNumber, err)
+			return subscriptionIntroductoryOfferImportCSVRow{}, d.UsageErrorf("row %d: %v", rowNumber, err)
 		}
 		offerDuration = string(normalized)
 	}
@@ -185,10 +185,10 @@ func parseSubscriptionIntroductoryOffersImportCSVRow(record []string, columnIdx 
 	if numberOfPeriodsRaw != "" {
 		parsed, err := strconv.Atoi(numberOfPeriodsRaw)
 		if err != nil {
-			return subscriptionIntroductoryOfferImportCSVRow{}, shared.UsageErrorf("row %d: number_of_periods must be a positive integer", rowNumber)
+			return subscriptionIntroductoryOfferImportCSVRow{}, d.UsageErrorf("row %d: number_of_periods must be a positive integer", rowNumber)
 		}
 		if parsed <= 0 {
-			return subscriptionIntroductoryOfferImportCSVRow{}, shared.UsageErrorf("row %d: number_of_periods must be a positive integer", rowNumber)
+			return subscriptionIntroductoryOfferImportCSVRow{}, d.UsageErrorf("row %d: number_of_periods must be a positive integer", rowNumber)
 		}
 		numberOfPeriods = parsed
 		hasPeriods = true
@@ -198,14 +198,14 @@ func parseSubscriptionIntroductoryOffersImportCSVRow(record []string, columnIdx 
 	if value := get("target_subscription_plan_type"); value != "" {
 		normalized, err := shared.NormalizeSubscriptionPlanType(value, "target_subscription_plan_type")
 		if err != nil {
-			return subscriptionIntroductoryOfferImportCSVRow{}, shared.UsageErrorf("row %d: %v", rowNumber, err)
+			return subscriptionIntroductoryOfferImportCSVRow{}, d.UsageErrorf("row %d: %v", rowNumber, err)
 		}
 		planType = normalized
 	}
 
 	territoryID, err := normalizeSubscriptionIntroductoryOfferImportTerritoryID(get("territory"))
 	if err != nil {
-		return subscriptionIntroductoryOfferImportCSVRow{}, shared.UsageErrorf("row %d: %v", rowNumber, err)
+		return subscriptionIntroductoryOfferImportCSVRow{}, d.UsageErrorf("row %d: %v", rowNumber, err)
 	}
 
 	return subscriptionIntroductoryOfferImportCSVRow{
@@ -250,7 +250,7 @@ func buildSubscriptionIntroductoryOfferImportDefaults(offerDuration, offerMode s
 	return defaults
 }
 
-func resolveSubscriptionIntroductoryOfferImportRows(
+func resolveSubscriptionIntroductoryOfferImportRows(d *shared.Deps,
 	rows []subscriptionIntroductoryOfferImportCSVRow,
 	defaults subscriptionIntroductoryOfferImportDefaults,
 ) ([]subscriptionIntroductoryOfferImportResolvedRow, error) {
@@ -261,7 +261,7 @@ func resolveSubscriptionIntroductoryOfferImportRows(
 			offerMode = defaults.offerMode
 		}
 		if offerMode == "" {
-			return nil, shared.UsageErrorf("row %d: offer_mode is required", row.row)
+			return nil, d.UsageErrorf("row %d: offer_mode is required", row.row)
 		}
 
 		offerDuration := row.offerDuration
@@ -269,7 +269,7 @@ func resolveSubscriptionIntroductoryOfferImportRows(
 			offerDuration = defaults.offerDuration
 		}
 		if offerDuration == "" {
-			return nil, shared.UsageErrorf("row %d: offer_duration is required", row.row)
+			return nil, d.UsageErrorf("row %d: offer_duration is required", row.row)
 		}
 
 		numberOfPeriods := row.numberOfPeriods
@@ -279,7 +279,7 @@ func resolveSubscriptionIntroductoryOfferImportRows(
 			hasPeriods = true
 		}
 		if !hasPeriods {
-			return nil, shared.UsageErrorf("row %d: number_of_periods is required", row.row)
+			return nil, d.UsageErrorf("row %d: number_of_periods is required", row.row)
 		}
 
 		startDate := row.startDate

@@ -7,10 +7,10 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/winbackoffers"
 )
 
-// SubscriptionsWinBackOffersCommand returns the canonical nested win-back offers tree.
-func SubscriptionsWinBackOffersCommand() *ffcli.Command {
+// newSubscriptionsWinBackOffersCommand returns the canonical nested win-back offers tree.
+func newSubscriptionsWinBackOffersCommand(d *shared.Deps) *ffcli.Command {
 	return shared.RewriteCommandTreePath(
-		winbackoffers.WinBackOffersCommand(),
+		winbackoffers.NewWinBackOffersCommand(d),
 		"asc win-back-offers",
 		"asc subscriptions win-back-offers",
 	)

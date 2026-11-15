@@ -20,7 +20,7 @@ import (
 )
 
 func TestParseSubscriptionIntroductoryOffersImportCSVHeader_StripsUTF8BOM(t *testing.T) {
-	got, err := parseSubscriptionIntroductoryOffersImportCSVHeader([]string{"\ufeffterritory", "offer_mode"})
+	got, err := parseSubscriptionIntroductoryOffersImportCSVHeader(shared.DefaultDeps(), []string{"\ufeffterritory", "offer_mode"})
 	if err != nil {
 		t.Fatalf("parseSubscriptionIntroductoryOffersImportCSVHeader() error: %v", err)
 	}
@@ -38,7 +38,7 @@ func TestWriteSubscriptionIntroductoryOfferImportFailureArtifact_ReturnsWriteErr
 		t.Fatalf("WriteFile() error: %v", err)
 	}
 
-	_, err := writeSubscriptionIntroductoryOfferImportFailureArtifact(&subscriptionIntroductoryOfferImportSummary{
+	_, err := writeSubscriptionIntroductoryOfferImportFailureArtifact(shared.DefaultDeps(), &subscriptionIntroductoryOfferImportSummary{
 		Failed:  1,
 		Results: []subscriptionIntroductoryOfferImportResultItem{{Status: "failed"}},
 	})
@@ -148,7 +148,7 @@ func TestSubscriptionIntroductoryOfferImportReconcilesAcrossPacificMidnight(t *t
 	status, err := runReconciledMutation(
 		context.Background(),
 		func(readbackCtx context.Context) (bool, error) {
-			index, err := fetchSubscriptionIntroductoryOfferImportState(readbackCtx, client, "sub-1")
+			index, err := fetchSubscriptionIntroductoryOfferImportState(readbackCtx, shared.DefaultDeps(), client, "sub-1")
 			if err != nil {
 				return false, err
 			}

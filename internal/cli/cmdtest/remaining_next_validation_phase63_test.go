@@ -64,10 +64,10 @@ func TestRemainingListsRejectsInvalidNextURL(t *testing.T) {
 		{args: []string{"review", "submissions", "list"}, wantErr: "review submissions list: --next", deps: true},
 		{args: []string{"users", "invites", "visible-apps", "list"}, wantErr: "users invites visible-apps list: --next", deps: true},
 		{args: []string{"users", "visible-apps", "view"}, wantErr: "users visible-apps view: --next", deps: true},
-		{args: []string{"subscriptions", "offers", "win-back", "list"}, wantErr: "subscriptions offers win-back list: --next"},
-		{args: []string{"subscriptions", "offers", "win-back", "prices"}, wantErr: "subscriptions offers win-back prices: --next"},
-		{args: []string{"subscriptions", "offers", "win-back", "prices-links"}, wantErr: "subscriptions offers win-back prices-links: --next"},
-		{args: []string{"subscriptions", "offers", "win-back", "links"}, wantErr: "subscriptions offers win-back links: --next"},
+		{args: []string{"subscriptions", "offers", "win-back", "list"}, wantErr: "subscriptions offers win-back list: --next", deps: true},
+		{args: []string{"subscriptions", "offers", "win-back", "prices"}, wantErr: "subscriptions offers win-back prices: --next", deps: true},
+		{args: []string{"subscriptions", "offers", "win-back", "prices-links"}, wantErr: "subscriptions offers win-back prices-links: --next", deps: true},
+		{args: []string{"subscriptions", "offers", "win-back", "links"}, wantErr: "subscriptions offers win-back links: --next", deps: true},
 	})
 }
 
@@ -167,21 +167,25 @@ func TestRemainingListsPaginateFromNext(t *testing.T) {
 			args:     []string{"subscriptions", "offers", "win-back", "list"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/subscriptions/sub-1/winBackOffers?cursor=AQ&limit=200",
 			dataType: "winBackOffers",
+			deps:     true,
 		},
 		{
 			args:     []string{"subscriptions", "offers", "win-back", "prices"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/winBackOffers/offer-1/prices?cursor=AQ&limit=200",
 			dataType: "winBackOfferPrices",
+			deps:     true,
 		},
 		{
 			args:     []string{"subscriptions", "offers", "win-back", "prices-links"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/winBackOffers/offer-1/relationships/prices?cursor=AQ&limit=200",
 			dataType: "winBackOfferPrices",
+			deps:     true,
 		},
 		{
 			args:     []string{"subscriptions", "offers", "win-back", "links"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/subscriptions/sub-1/relationships/winBackOffers?cursor=AQ&limit=200",
 			dataType: "winBackOffers",
+			deps:     true,
 		},
 	})
 }

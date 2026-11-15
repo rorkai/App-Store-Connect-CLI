@@ -35,6 +35,16 @@ func TestSubscriptionsUsageErrorsWriteToDepsStderr(t *testing.T) {
 		{[]string{"retention-messages", "list", "--app", "A1", "--subscription-fields", "name"}, "Error: subscriptions retention-messages list: --subscription-fields requires --include subscriptions\n"},
 		{[]string{"review", "screenshots", "view", "--screenshot-id", "X1", "--subscription-fields", "bogus"}, "Error: --subscription-fields must be one of: "},
 		{[]string{"review", "app-store-screenshot", "view", "--subscription-id", "S1", "--subscription-fields", "bogus"}, "Error: --subscription-fields must be one of: "},
+		{[]string{"offers", "introductory", "delete"}, "Error: --id is required\n"},
+		{[]string{"offers", "promotional", "delete"}, "Error: --id is required\n"},
+		{[]string{"offers", "promotional", "prices"}, "Error: --id is required\n"},
+		{[]string{"offers", "offer-codes", "one-time-codes", "list"}, "Error: --offer-code-id is required\n"},
+		{[]string{"offers", "offer-codes", "one-time-codes", "view"}, "Error: --batch-id is required\n"},
+		{[]string{"offers", "offer-codes", "one-time-codes", "update"}, "Error: --batch-id is required\n"},
+		{[]string{"offers", "offer-codes", "custom-codes", "list"}, "Error: --offer-code-id is required\n"},
+		{[]string{"offers", "offer-codes", "custom-codes", "view"}, "Error: --custom-code-id is required\n"},
+		{[]string{"offers", "win-back", "delete"}, "Error: --id is required\n"},
+		{[]string{"offers", "win-back", "prices-links"}, "Error: --id is required\n"},
 	}
 	for _, test := range tests {
 		t.Run(strings.Join(test.args, " "), func(t *testing.T) {

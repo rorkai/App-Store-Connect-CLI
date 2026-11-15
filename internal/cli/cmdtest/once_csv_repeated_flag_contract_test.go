@@ -72,8 +72,8 @@ func TestRepeatedCSVFlagRejectedAcrossConvertedCommands(t *testing.T) {
 		{name: "nominations update supported territories", command: []string{"nominations", "update"}, flag: "supported-territories", deps: true},
 		{name: "profiles create certificate", command: []string{"profiles", "create"}, flag: "certificate"},
 		{name: "profiles create device", command: []string{"profiles", "create"}, flag: "device"},
-		{name: "win-back offers create price", command: []string{"subscriptions", "offers", "win-back", "create"}, flag: "price"},
-		{name: "win-back offers create territory", command: []string{"subscriptions", "offers", "win-back", "create"}, flag: "territory"},
+		{name: "win-back offers create price", command: []string{"subscriptions", "offers", "win-back", "create"}, flag: "price", deps: true},
+		{name: "win-back offers create territory", command: []string{"subscriptions", "offers", "win-back", "create"}, flag: "territory", deps: true},
 	}
 
 	for _, test := range tests {

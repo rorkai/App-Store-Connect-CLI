@@ -1022,7 +1022,7 @@ func executeSubscriptionsSetup(ctx context.Context, d *shared.Deps, opts subscri
 		result.FailedStep = subscriptionsSetupStepVerifyState
 		result.Verification = verification
 		if verification != nil && strings.EqualFold(strings.TrimSpace(verification.SubscriptionState), "MISSING_METADATA") && opts.AppID != "" {
-			diagnostics, diagnosticsErr := subscriptionsSetupDiagnostics(ctx, opts.AppID, result.SubscriptionID)
+			diagnostics, diagnosticsErr := subscriptionsSetupDiagnostics(ctx, d, opts.AppID, result.SubscriptionID)
 			if diagnosticsErr != nil {
 				verifyStep.Message = fmt.Sprintf("%s; deep diagnostics unavailable: %v", verifyStep.Message, diagnosticsErr)
 			} else {
@@ -1346,8 +1346,8 @@ func subscriptionSetupPriceCoverage(states []subscriptionPriceImportState, avail
 	return priced, missing
 }
 
-func subscriptionsSetupDiagnostics(ctx context.Context, appID, subscriptionID string) ([]validation.SubscriptionDiagnostics, error) {
-	report, err := validatecmd.BuildSubscriptionsReport(ctx, validatecmd.SubscriptionsOptions{AppID: appID})
+func subscriptionsSetupDiagnostics(ctx context.Context, d *shared.Deps, appID, subscriptionID string) ([]validation.SubscriptionDiagnostics, error) {
+	report, err := validatecmd.BuildSubscriptionsReportWith(ctx, d, validatecmd.SubscriptionsOptions{AppID: appID})
 	if err != nil {
 		return nil, err
 	}

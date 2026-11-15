@@ -371,6 +371,7 @@ func TestUpdateWithoutUpdateFlagsListsEveryUpdateFlag(t *testing.T) {
 			name:  "subscriptions offers introductory update",
 			args:  []string{"subscriptions", "offers", "introductory", "update", "--id", "ID"},
 			flags: "--end-date",
+			deps:  true,
 		},
 		{
 			name:  "subscriptions offers retention update",
@@ -382,6 +383,7 @@ func TestUpdateWithoutUpdateFlagsListsEveryUpdateFlag(t *testing.T) {
 			name:  "subscriptions offers win-back update",
 			args:  []string{"subscriptions", "offers", "win-back", "update", "--id", "ID"},
 			flags: "--eligibility-paid-months, --eligibility-last-subscribed-min, --eligibility-last-subscribed-max, --eligibility-wait-months, --start-date, --end-date, --priority, --promotion-intent",
+			deps:  true,
 		},
 		{
 			name:  "subscriptions promoted-purchases update",

@@ -30,28 +30,28 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			wrapSubscriptionsCommand(
-				SubscriptionsIntroductoryOffersCommand(),
+				newSubscriptionsIntroductoryOffersCommand(d),
 				"asc subscriptions introductory-offers",
 				"asc subscriptions offers introductory",
 				"introductory",
 				"Manage subscription introductory offers.",
 			),
 			wrapSubscriptionsCommand(
-				SubscriptionsPromotionalOffersCommand(),
+				newSubscriptionsPromotionalOffersCommand(d),
 				"asc subscriptions promotional-offers",
 				"asc subscriptions offers promotional",
 				"promotional",
 				"Manage subscription promotional offers.",
 			),
 			wrapSubscriptionsCommand(
-				SubscriptionsOfferCodesCommand(),
+				newSubscriptionsOfferCodesCommand(d),
 				"asc subscriptions offer-codes",
 				"asc subscriptions offers offer-codes",
 				"offer-codes",
 				"Manage subscription offer codes.",
 			),
 			wrapSubscriptionsCommand(
-				SubscriptionsWinBackOffersCommand(),
+				newSubscriptionsWinBackOffersCommand(d),
 				"asc subscriptions win-back-offers",
 				"asc subscriptions offers win-back",
 				"win-back",

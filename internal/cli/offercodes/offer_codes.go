@@ -19,11 +19,6 @@ import (
 
 const offerCodesMaxLimit = 200
 
-// OfferCodesGenerateCommand returns the offer codes generate subcommand.
-func OfferCodesGenerateCommand() *ffcli.Command {
-	return NewOfferCodesGenerateCommand(shared.DefaultDeps())
-}
-
 // NewOfferCodesGenerateCommand returns the offer codes generate subcommand built on d.
 func NewOfferCodesGenerateCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("generate", flag.ExitOnError)
@@ -128,11 +123,6 @@ Examples:
 			return nil
 		},
 	}
-}
-
-// OfferCodesValuesCommand returns the offer codes values subcommand.
-func OfferCodesValuesCommand() *ffcli.Command {
-	return NewOfferCodesValuesCommand(shared.DefaultDeps())
 }
 
 // NewOfferCodesValuesCommand returns the offer codes values subcommand built on d.
