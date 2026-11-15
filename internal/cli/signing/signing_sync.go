@@ -216,7 +216,7 @@ func syncPushCommand() *ffcli.Command {
 	repoURL := fs.String("repo", "", "Git repo URL for encrypted storage (required with --storage git)")
 	passwordFile := fs.String("password-file", "", "Protected file containing the repository encryption password (or set ASC_SIGNING_SYNC_PASSWORD)")
 	branch := fs.String("branch", "main", "Git branch")
-	certType := fs.String("certificate-type", "", "Certificate type filter (optional)")
+	certType := fs.String("certificate-type", "", "Certificate types to match, comma-separated; --create-missing-certificate creates the first (default: inferred from --profile-type, such as DISTRIBUTION,IOS_DISTRIBUTION)")
 	deviceIDs := fs.String("device", "", "Device ID(s), comma-separated (requires --create-missing, --renew-expired, or --force-for-new-devices; required for development profiles with --create-missing unless --force-for-new-devices is set)")
 	createMissing := fs.Bool("create-missing", false, "Create missing profiles")
 	renewExpired := fs.Bool("renew-expired", false, "When no active profile exists, replace the most recently expired profile of --profile-type with a same-name profile that reuses active certificates (git storage only)")

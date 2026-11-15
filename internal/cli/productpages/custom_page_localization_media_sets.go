@@ -27,7 +27,7 @@ Examples:
   asc product-pages custom-pages localizations preview-sets upload --localization-id "LOCALIZATION_ID" --path "./previews" --device-type "IPHONE_65"
   asc product-pages custom-pages localizations preview-sets sync --localization-id "LOCALIZATION_ID" --path "./previews" --device-type "IPHONE_65" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newCustomPageLocalizationsPreviewSetsListCommand(d),
 			newCustomPageLocalizationsPreviewSetsUploadCommand(d),
@@ -83,7 +83,7 @@ Examples:
   asc product-pages custom-pages localizations screenshot-sets upload --localization-id "LOCALIZATION_ID" --path "./screenshots" --device-type "IPHONE_65"
   asc product-pages custom-pages localizations screenshot-sets sync --localization-id "LOCALIZATION_ID" --path "./screenshots" --device-type "IPHONE_65" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newCustomPageLocalizationsScreenshotSetsListCommand(d),
 			newCustomPageLocalizationsScreenshotSetsUploadCommand(d),
@@ -116,7 +116,7 @@ Examples:
   asc product-pages custom-pages localizations screenshot-sets list --localization-id "LOCALIZATION_ID"
   asc product-pages custom-pages localizations screenshot-sets list --localization-id "LOCALIZATION_ID" --include-screenshots --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "product-pages custom-pages localizations screenshot-sets list", productPagesMaxLimit); err != nil {
 				return err

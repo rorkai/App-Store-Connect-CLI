@@ -40,6 +40,8 @@ type signingResignTarget struct {
 	Kind                 string
 	RelativePath         string
 	BundleID             string
+	SourceBundleID       string
+	InfoPlistData        []byte
 	Executable           string
 	ProfileMode          os.FileMode
 	ExistingEntitlements map[string]any

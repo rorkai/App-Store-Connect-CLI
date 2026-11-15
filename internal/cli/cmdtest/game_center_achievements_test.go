@@ -11,7 +11,7 @@ import (
 )
 
 func TestGameCenterAchievementsValidationErrors(t *testing.T) {
-	runGameCenterUsageCases(t, []gameCenterUsageCase{
+	runGameCenterUsageCasesWithDeps(t, []gameCenterUsageCase{
 		{[]string{"game-center", "achievements", "list"}, "--app is required (or set ASC_APP_ID)"},
 		{[]string{"game-center", "achievements", "create", "--reference-name", "Test", "--vendor-id", "com.test", "--points", "10"}, "--app is required (or set ASC_APP_ID)"},
 		{[]string{"game-center", "achievements", "create", "--app", "APP_ID", "--group-id", "GROUP_ID", "--reference-name", "Test", "--vendor-id", "com.test", "--points", "10"}, "--app cannot be used with --group-id"},
@@ -45,11 +45,10 @@ func TestGameCenterAchievementsListNoDetailReturnsEmptyList(t *testing.T) {
 	expectedURL := "https://api.appstoreconnect.apple.com/v1/apps/APP_ID/gameCenterDetail"
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/APP_ID/gameCenterDetail"),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"gameCenterDetails","id":"","attributes":{}},"links":{"self":"`+expectedURL+`"}}`))
 
-	stdout, stderr, err := runCommand(t, []string{"game-center", "achievements", "list", "--app", "APP_ID"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "game-center", "achievements", "list", "--app", "APP_ID")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}

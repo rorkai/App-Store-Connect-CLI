@@ -32,7 +32,7 @@ Examples:
   asc alternative-distribution keys create --app "APP_ID" --public-key-path "./key.pem"
   asc alternative-distribution packages view --package-id "PACKAGE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newAlternativeDistributionDomainsCommand(d),
 			newAlternativeDistributionKeysCommand(d),

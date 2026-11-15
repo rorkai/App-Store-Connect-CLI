@@ -1,7 +1,6 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -9,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	appclipscli "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/appclips"
 )
 
 func TestAppClipsInvocationsCreateSendsLocalizations(t *testing.T) {
@@ -83,24 +81,18 @@ func TestAppClipsInvocationsCreateSendsLocalizations(t *testing.T) {
 			if err != nil {
 				t.Fatalf("new client: %v", err)
 			}
-			restore := appclipscli.SetClientFactory(func() (*asc.Client, error) {
+			clientFactory := func() (*asc.Client, error) {
 				return client, nil
-			})
-			t.Cleanup(restore)
+			}
 
-			root := RootCommand("1.2.3")
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(append([]string{
-					"app-clips", "invocations", "create",
-					"--build-bundle-id", "bundle-1",
-					"--url", "https://example.com/clip",
-				}, test.args...)); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
+			stdout, stderr, err := runRootWithDeps(t, clientFactory, append([]string{
+				"app-clips", "invocations", "create",
+				"--build-bundle-id", "bundle-1",
+				"--url", "https://example.com/clip",
+			}, test.args...)...)
+			if err != nil {
+				t.Fatalf("run error: %v", err)
+			}
 
 			if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)

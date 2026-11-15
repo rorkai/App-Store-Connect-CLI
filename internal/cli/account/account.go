@@ -31,7 +31,7 @@ Examples:
   asc account status --app "123456789"
   asc account status --output table`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			accountStatusCommand(d),
 		},
@@ -63,7 +63,7 @@ Examples:
   asc account status --app "123456789"
   asc account status --output markdown`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			resp, err := collectAccountStatus(ctx, d, resolvedAppID)

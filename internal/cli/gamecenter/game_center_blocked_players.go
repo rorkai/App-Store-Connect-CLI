@@ -101,7 +101,7 @@ func gameCenterBlockedPlayersUpdateCommand() *ffcli.Command {
 		if bundle != nil && *bundle == "" {
 			return shared.UsageError("--bundle-id must not be empty")
 		}
-		if err := validateGameCenterReplacementConfirm(fs, *confirm); err != nil {
+		if err := validateGameCenterReplacementConfirm(shared.DefaultDeps(), fs, *confirm); err != nil {
 			return err
 		}
 		client, err := shared.GetASCClient()

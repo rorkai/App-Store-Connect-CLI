@@ -161,7 +161,7 @@ Examples:
   asc search --output table "upload build"
   asc search --limit 5 "cert profiles"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(_ context.Context, args []string) error {
 			defer resetFlagSet(fs)
 

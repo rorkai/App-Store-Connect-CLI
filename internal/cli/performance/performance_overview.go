@@ -26,7 +26,7 @@ This endpoint has no pagination.
 Examples:
   asc performance overview --app "APP_ID" --output json
   asc performance overview --app "APP_ID" --device-type "iPhone15,2"`,
-		FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
+		FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolved := strings.TrimSpace(shared.ResolveAppID(*appID))
 			if resolved == "" {

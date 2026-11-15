@@ -84,6 +84,10 @@ Register and store App Store Connect API key credentials.
   Path to private key (.p8) file
 </ParamField>
 
+<ParamField path="--key-json" type="string">
+  Path to a JSON API key file with `key_id`, `issuer_id` and `key` (PEM text, or its base64 when `is_key_content_base64` is `true`). Replaces `--key-id`, `--issuer-id` and `--private-key`; `in_house: true` selects the `enterprise` key type. Without a keychain, the key is written to a `0600` file in the `keys` directory beside the config file.
+</ParamField>
+
 <ParamField path="--bypass-keychain" type="boolean" default="false">
   Store credentials in config.json instead of keychain: the `ASC_CONFIG_PATH` file when set, otherwise `~/.asc/config.json`
 </ParamField>
@@ -123,6 +127,7 @@ asc auth login --name "MyIndividualKey" --key-id "ABC123" --key-type individual 
 asc auth login --bypass-keychain --local --name "MyKey" --key-id "ABC123" --issuer-id "DEF456" --private-key /path/to/AuthKey.p8
 asc auth login --network --name "MyKey" --key-id "ABC123" --issuer-id "DEF456" --private-key /path/to/AuthKey.p8
 asc auth login --fix-permissions --name "MyKey" --key-id "ABC123" --issuer-id "DEF456" --private-key /path/to/AuthKey.p8
+asc auth login --name "MyKey" --key-json /path/to/api_key.json
 ```
 
 **Output:**

@@ -136,7 +136,7 @@ func TestAdsRejectsInvalidInputBeforeNetwork(t *testing.T) {
 			}
 			asctest.NewRegistry(t).Install()
 
-			assertUsageExit(t, test.args, test.wantErr)
+			assertUsageExitWithDeps(t, nil, test.args, test.wantErr)
 		})
 	}
 }
@@ -243,14 +243,7 @@ func TestAdsPlatformAPIRequestRequiresConfirmForKnownImpactMutations(t *testing.
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))
 			asctest.NewRegistry(t).Install()
 
-			root := RootCommand("dev")
-			if err := root.Parse(tt.args); err != nil {
-				t.Fatalf("parse error: %v", err)
-			}
-			var runErr error
-			_, stderr := captureOutput(t, func() {
-				runErr = root.Run(context.Background())
-			})
+			_, stderr, runErr := runRootWithDeps(t, nil, tt.args...)
 			want := "--confirm is required to acknowledge potential Apple Ads spend, billing, delivery, targeting, or access impact"
 			if !errors.Is(runErr, flag.ErrHelp) || runErr.Error() != want || !strings.Contains(stderr, want) {
 				t.Fatalf("run error = %v stderr = %q", runErr, stderr)
@@ -272,20 +265,13 @@ func TestAdsPlatformAPIRequestRequiresConfirmForDelegationReplacement(t *testing
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(tempDir, "missing.json"))
 	asctest.NewRegistry(t).Install()
 
-	root := RootCommand("dev")
-	if err := root.Parse([]string{
+	_, stderr, runErr := runRootWithDeps(t, nil,
 		"ads", "api", "request",
 		"--method", "PUT",
 		"--path", "v1/ad-accounts/AD_ACCOUNT",
 		"--file", payloadPath,
 		"--ad-account", "AD_ACCOUNT",
-	}); err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-	var runErr error
-	_, stderr := captureOutput(t, func() {
-		runErr = root.Run(context.Background())
-	})
+	)
 	if !errors.Is(runErr, flag.ErrHelp) || runErr.Error() != "--confirm is required" || !strings.Contains(stderr, "--confirm is required") {
 		t.Fatalf("run error = %v stderr = %q", runErr, stderr)
 	}
@@ -385,8 +371,9 @@ func TestAdsPlatformAPIRequestKeepsUnconditionalConfirmationBeforePayloadRead(t 
 	asctest.NewRegistry(t).Install()
 
 	missingPayload := filepath.Join(t.TempDir(), "missing.json")
-	stdout, stderr, err := runAdsEvalCommand(
+	stdout, stderr, err := runRootWithDeps(
 		t,
+		nil,
 		"ads", "api", "request",
 		"--method", http.MethodPost,
 		"--path", "v1/ad-accounts",

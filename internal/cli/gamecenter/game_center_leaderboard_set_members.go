@@ -12,9 +12,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// GameCenterLeaderboardSetMembersCommand returns the leaderboard set members command group.
-func GameCenterLeaderboardSetMembersCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("members", flag.ExitOnError)
+// newGameCenterLeaderboardSetMembersCommand returns the leaderboard set members command group.
+func newGameCenterLeaderboardSetMembersCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("members", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "members",
@@ -28,8 +28,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterLeaderboardSetMembersListCommand(),
-			GameCenterLeaderboardSetMembersSetCommand(),
+			newGameCenterLeaderboardSetMembersListCommand(d),
+			newGameCenterLeaderboardSetMembersSetCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -37,8 +37,8 @@ Examples:
 	}
 }
 
-// GameCenterLeaderboardSetMembersListCommand returns the members list subcommand.
-func GameCenterLeaderboardSetMembersListCommand() *ffcli.Command {
+// newGameCenterLeaderboardSetMembersListCommand returns the members list subcommand.
+func newGameCenterLeaderboardSetMembersListCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "list",
 		ShortUsage: "asc game-center leaderboard-sets members list --set-id \"SET_ID\"",
@@ -58,17 +58,18 @@ Examples:
 		FetchPage: func(ctx context.Context, client *asc.Client, setId string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterLeaderboardSetMembers(ctx, setId, asc.Limit[asc.GCLeaderboardSetMembersOption](limit), asc.NextURL[asc.GCLeaderboardSetMembersOption](next))
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterLeaderboardSetMembersSetCommand returns the members set subcommand.
-func GameCenterLeaderboardSetMembersSetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("set", flag.ExitOnError)
+// newGameCenterLeaderboardSetMembersSetCommand returns the members set subcommand.
+func newGameCenterLeaderboardSetMembersSetCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("set", flag.ExitOnError)
 
 	setID := shared.BindResourceIDFlag(fs, "set-id", "gameCenterLeaderboardSets", "Game Center leaderboard set ID")
 	leaderboardIDs := shared.BindOnceCSVFlag(fs, "leaderboard-ids", "Comma-separated list of leaderboard IDs to set as members")
 	confirm := fs.Bool("confirm", false, "Confirm replacing all members (required)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "set",
@@ -88,25 +89,25 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*setID)
 			if id == "" {
-				return shared.RequiredFlag("--set-id")
+				return d.RequiredFlag("--set-id")
 			}
 
 			if !flagPassed(fs, "leaderboard-ids") {
-				return shared.RequiredFlag("--leaderboard-ids")
+				return d.RequiredFlag("--leaderboard-ids")
 			}
 
-			if err := validateGameCenterReplacementConfirm(fs, *confirm); err != nil {
+			if err := validateGameCenterReplacementConfirm(d, fs, *confirm); err != nil {
 				return err
 			}
 
 			ids := shared.SplitUniqueCSV(leaderboardIDs.String())
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("game-center leaderboard-sets members set: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			if err := client.SetGameCenterLeaderboardSetMembers(requestCtx, id, ids); err != nil {
@@ -120,7 +121,7 @@ Examples:
 				Updated:     true,
 			}
 
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }

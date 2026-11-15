@@ -12,9 +12,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// AppClipHeaderImagesCommand returns the header images command group.
-func AppClipHeaderImagesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("header-images", flag.ExitOnError)
+// newAppClipHeaderImagesCommand returns the header images command group.
+func newAppClipHeaderImagesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("header-images", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "header-images",
@@ -29,9 +29,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			AppClipHeaderImagesGetCommand(),
-			AppClipHeaderImagesCreateCommand(),
-			AppClipHeaderImagesDeleteCommand(),
+			newAppClipHeaderImagesGetCommand(d),
+			newAppClipHeaderImagesCreateCommand(d),
+			newAppClipHeaderImagesDeleteCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -39,8 +39,8 @@ Examples:
 	}
 }
 
-// AppClipHeaderImagesGetCommand retrieves a header image by ID.
-func AppClipHeaderImagesGetCommand() *ffcli.Command {
+// newAppClipHeaderImagesGetCommand retrieves a header image by ID.
+func newAppClipHeaderImagesGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
 		Name:       "view",
 		ShortUsage: "asc app-clips header-images view --id \"IMAGE_ID\"",
@@ -52,19 +52,20 @@ Examples:
 		IDUsage:            "Header image ID",
 		IDType:             "appClipHeaderImages",
 		RequiredDiagnostic: true,
+		Deps:               d,
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetAppClipHeaderImage(ctx, id)
 		},
 	})
 }
 
-// AppClipHeaderImagesCreateCommand uploads a header image.
-func AppClipHeaderImagesCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
+// newAppClipHeaderImagesCreateCommand uploads a header image.
+func newAppClipHeaderImagesCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("create", flag.ExitOnError)
 
 	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appClipDefaultExperienceLocalizations", "Default experience localization ID")
 	filePath := fs.String("file", "", "Path to image file (PNG)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -81,20 +82,20 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			locValue := strings.TrimSpace(*localizationID)
 			if locValue == "" {
-				return shared.RequiredFlag("--localization-id")
+				return d.RequiredFlag("--localization-id")
 			}
 
 			fileValue := strings.TrimSpace(*filePath)
 			if fileValue == "" {
-				return shared.RequiredFlag("--file")
+				return d.RequiredFlag("--file")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("app-clips header-images create: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithUploadTimeout(ctx)
+			requestCtx, cancel := d.UploadTimeout(ctx)
 			defer cancel()
 
 			result, err := client.UploadAppClipHeaderImage(requestCtx, locValue, fileValue)
@@ -102,13 +103,13 @@ Examples:
 				return fmt.Errorf("app-clips header-images create: %w", err)
 			}
 
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// AppClipHeaderImagesDeleteCommand deletes a header image.
-func AppClipHeaderImagesDeleteCommand() *ffcli.Command {
+// newAppClipHeaderImagesDeleteCommand deletes a header image.
+func newAppClipHeaderImagesDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
 		Name:       "delete",
 		ShortUsage: "asc app-clips header-images delete --id \"IMAGE_ID\" --confirm",
@@ -121,6 +122,7 @@ Examples:
 		IDUsage:            "Header image ID",
 		IDType:             "appClipHeaderImages",
 		RequiredDiagnostic: true,
+		Deps:               d,
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteAppClipHeaderImage(ctx, id)
 		},

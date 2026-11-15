@@ -15,9 +15,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// PlatformAPICommand returns the raw Apple Ads Platform API command group.
-func PlatformAPICommand() *ffcli.Command {
-	fs := flag.NewFlagSet("ads api", flag.ExitOnError)
+// newPlatformAPICommand returns the raw Apple Ads Platform API command group.
+func newPlatformAPICommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("ads api", flag.ExitOnError)
 	return &ffcli.Command{
 		Name:        "api",
 		ShortUsage:  "asc ads api <subcommand> [flags]",
@@ -25,16 +25,16 @@ func PlatformAPICommand() *ffcli.Command {
 		LongHelp:    "Make raw Apple Ads Platform API v1 requests.",
 		FlagSet:     fs,
 		UsageFunc:   shared.DefaultUsageFunc,
-		Subcommands: []*ffcli.Command{PlatformAPIRequestCommand()},
+		Subcommands: []*ffcli.Command{newPlatformAPIRequestCommand(d)},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
 		},
 	}
 }
 
-// PlatformAPIRequestCommand returns the raw Apple Ads Platform API request command.
-func PlatformAPIRequestCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("ads api request", flag.ExitOnError)
+// newPlatformAPIRequestCommand returns the raw Apple Ads Platform API request command.
+func newPlatformAPIRequestCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("ads api request", flag.ExitOnError)
 	method := fs.String("method", "GET", "HTTP method: GET, POST, PUT, DELETE")
 	path := fs.String("path", "", "Relative v1 path or Apple Ads Platform API URL")
 	file := fs.String("file", "", "Path to JSON request payload ('-' reads stdin)")
@@ -58,66 +58,66 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			outputFormat, err := validateAdsRawOutput(output)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			methodValue := strings.ToUpper(strings.TrimSpace(*method))
 			switch methodValue {
 			case http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete:
 			default:
-				return shared.UsageError("--method must be one of: GET, POST, PUT, DELETE")
+				return d.UsageError("--method must be one of: GET, POST, PUT, DELETE")
 			}
 			pathValue := strings.TrimSpace(*path)
 			if pathValue == "" {
-				return shared.RequiredFlag("--path")
+				return d.RequiredFlag("--path")
 			}
 			if methodValue == http.MethodDelete {
-				if err := shared.RequireConfirm(*confirm); err != nil {
+				if err := d.RequireConfirm(*confirm); err != nil {
 					return err
 				}
 			}
 			contextKind, err := rawPlatformRequestContextKind(methodValue, pathValue)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			if contextKind == appleads.ContextNone && value(common.AdAccount) != "" {
-				return shared.UsageError("--ad-account is not supported for this context-free endpoint")
+				return d.UsageError("--ad-account is not supported for this context-free endpoint")
 			}
 			pathOnly, err := platformPathOnly(pathValue)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			if message := rawPlatformRequestMultipartMessage(methodValue, pathOnly); message != "" {
-				return shared.UsageError(message)
+				return d.UsageError(message)
 			}
 			if rawPlatformRequestRequiresPrePayloadConfirmation(methodValue, pathOnly) && !*confirm {
 				if message := rawPlatformRequestConfirmMessage(methodValue, pathOnly, nil); message != "" {
-					return shared.UsageError(message)
+					return d.UsageError(message)
 				}
 			}
 			var payload json.RawMessage
 			if strings.TrimSpace(*file) != "" {
-				payload, err = shared.ReadJSONFilePayloadKind(*file, shared.JSONPayloadAny)
+				payload, err = d.ReadJSONFilePayloadKind(*file, shared.JSONPayloadAny)
 				if err != nil {
 					return fmt.Errorf("ads api request: %w", err)
 				}
 			}
 			if message := rawPlatformRequestConfirmMessage(methodValue, pathOnly, payload); message != "" && !*confirm {
-				return shared.UsageError(message)
+				return d.UsageError(message)
 			}
-			client, effectiveAdAccountID, err := resolvePlatformClientAndAdAccountID(ctx, common, contextKind)
+			client, effectiveAdAccountID, err := resolvePlatformClientAndAdAccountID(ctx, d, common, contextKind)
 			if err != nil {
 				return fmt.Errorf("ads api request: %w", err)
 			}
-			if err := validateRawPlatformAdAccountPathID(methodValue, pathOnly, effectiveAdAccountID); err != nil {
+			if err := validateRawPlatformAdAccountPathID(d, methodValue, pathOnly, effectiveAdAccountID); err != nil {
 				return err
 			}
-			requestCtx, cancel := requestContext(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 			resp, err := requestRawPlatformEndpoint(requestCtx, client, methodValue, pathValue, payload, contextKind)
 			if err != nil {
 				return fmt.Errorf("ads api request: %w", err)
 			}
-			return shared.PrintOutput(resp, outputFormat, *output.Pretty)
+			return d.PrintOutput(resp, outputFormat, *output.Pretty)
 		},
 	}
 }
@@ -269,7 +269,7 @@ func platformEndpointPathMatches(pattern, path string) bool {
 	return true
 }
 
-func validateRawPlatformAdAccountPathID(method, pathOnly, effectiveAdAccountID string) error {
+func validateRawPlatformAdAccountPathID(d *shared.Deps, method, pathOnly, effectiveAdAccountID string) error {
 	if method != http.MethodGet && method != http.MethodPut && method != http.MethodDelete {
 		return nil
 	}
@@ -278,10 +278,10 @@ func validateRawPlatformAdAccountPathID(method, pathOnly, effectiveAdAccountID s
 		return nil
 	}
 	if effectiveAdAccountID == "" {
-		return shared.UsageError("--ad-account is required for v1/ad-accounts/{id} and must match the path ID")
+		return d.UsageError("--ad-account is required for v1/ad-accounts/{id} and must match the path ID")
 	}
 	if effectiveAdAccountID != parts[2] {
-		return shared.UsageError(fmt.Sprintf("--ad-account %q must match the v1/ad-accounts path ID %q", effectiveAdAccountID, parts[2]))
+		return d.UsageError(fmt.Sprintf("--ad-account %q must match the v1/ad-accounts path ID %q", effectiveAdAccountID, parts[2]))
 	}
 	return nil
 }

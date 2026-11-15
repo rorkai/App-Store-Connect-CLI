@@ -1,6 +1,7 @@
 package webhooks
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -15,8 +16,13 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"time"
+
+	"github.com/peterbourgon/ff/v3/ffcli"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestWebhooksServeReceivesAndWritesEvent(t *testing.T) {
@@ -24,9 +30,9 @@ func TestWebhooksServeReceivesAndWritesEvent(t *testing.T) {
 	port := freeLocalPort(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	errCh := make(chan error, 1)
-	cmd := WebhooksServeCommand()
-	cmd.FlagSet.SetOutput(io.Discard)
+	cmd, stdout, stderr := newServeTestCommand(time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC))
 	if err := cmd.Parse([]string{
 		"--host", "127.0.0.1",
 		"--port", fmt.Sprintf("%d", port),
@@ -39,7 +45,6 @@ func TestWebhooksServeReceivesAndWritesEvent(t *testing.T) {
 	go func() {
 		errCh <- cmd.Run(ctx)
 	}()
-	defer shutdownServeCommand(t, cancel, errCh)
 
 	statusCode := postJSONWithRetry(t, fmt.Sprintf("http://127.0.0.1:%d", port), `{
 		"id":"evt-123",
@@ -57,6 +62,22 @@ func TestWebhooksServeReceivesAndWritesEvent(t *testing.T) {
 	if payload["eventType"] != "BUILD_UPLOAD_STATE_UPDATED" {
 		t.Fatalf("expected eventType BUILD_UPLOAD_STATE_UPDATED, got %v", payload["eventType"])
 	}
+	shutdownServeCommand(t, cancel, errCh)
+
+	dirJSON, err := json.Marshal(eventsDir)
+	if err != nil {
+		t.Fatalf("marshal dir: %v", err)
+	}
+	wantStdout := fmt.Sprintf(`{"url":"http://127.0.0.1:%d","host":"127.0.0.1","port":%d,"dir":%s,"execEnabled":false,"maxBodyBytes":1048576}`+"\n", port, port, dirJSON)
+	if got, want := stdout.String(), wantStdout; got != want {
+		t.Fatalf("stdout = %q, want %q", got, want)
+	}
+	compact := `{"id":"evt-123","eventType":"BUILD_UPLOAD_STATE_UPDATED","data":{"type":"webhookEvents"}}`
+	wantStderr := fmt.Sprintf("webhooks serve: received event type=BUILD_UPLOAD_STATE_UPDATED id=evt-123 bytes=%d\n", len(compact)) +
+		"webhooks serve: wrote event payload to " + filepath.Join(eventsDir, "20260102T030405.000000000Z-000001-build_upload_state_updated.json") + "\n"
+	if got := stderr.String(); got != wantStderr {
+		t.Fatalf("stderr = %q, want %q", got, wantStderr)
+	}
 }
 
 func TestWebhooksServeExecReceivesPayload(t *testing.T) {
@@ -65,9 +86,9 @@ func TestWebhooksServeExecReceivesPayload(t *testing.T) {
 	port := freeLocalPort(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	errCh := make(chan error, 1)
-	cmd := WebhooksServeCommand()
-	cmd.FlagSet.SetOutput(io.Discard)
+	cmd, stdout, stderr := newServeTestCommand(time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC))
 	if err := cmd.Parse([]string{
 		"--host", "127.0.0.1",
 		"--port", fmt.Sprintf("%d", port),
@@ -79,19 +100,26 @@ func TestWebhooksServeExecReceivesPayload(t *testing.T) {
 	go func() {
 		errCh <- cmd.Run(ctx)
 	}()
-	defer shutdownServeCommand(t, cancel, errCh)
 
-	statusCode := postJSONWithRetry(t, fmt.Sprintf("http://127.0.0.1:%d", port), `{"id":"evt-exec-1","eventType":"TEST_EVENT"}`)
+	payload := `{"id":"evt-exec-1","eventType":"TEST_EVENT"}`
+	statusCode := postJSONWithRetry(t, fmt.Sprintf("http://127.0.0.1:%d", port), payload)
 	if statusCode != http.StatusAccepted {
 		t.Fatalf("expected status %d, got %d", http.StatusAccepted, statusCode)
 	}
 
 	waitForFileContains(t, outPath, `"id":"evt-exec-1"`)
+	shutdownServeCommand(t, cancel, errCh)
+
+	if got, want := stdout.String(), fmt.Sprintf("Listening for webhook events on http://127.0.0.1:%d\n", port); got != want {
+		t.Fatalf("stdout = %q, want %q", got, want)
+	}
+	if got, want := stderr.String(), fmt.Sprintf("webhooks serve: received event type=TEST_EVENT id=evt-exec-1 bytes=%d\n", len(payload)); got != want {
+		t.Fatalf("stderr = %q, want %q", got, want)
+	}
 }
 
 func TestWebhooksServeRejectsNonLoopbackWithoutAllowRemote(t *testing.T) {
-	cmd := WebhooksServeCommand()
-	cmd.FlagSet.SetOutput(io.Discard)
+	cmd, stdout, stderr := newServeTestCommand(time.Time{})
 	if err := cmd.Parse([]string{
 		"--host", "0.0.0.0",
 		"--port", "0",
@@ -106,6 +134,16 @@ func TestWebhooksServeRejectsNonLoopbackWithoutAllowRemote(t *testing.T) {
 	if !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected ErrHelp for non-loopback bind without --allow-remote, got %v", err)
 	}
+	if got := stdout.String(); got != "" {
+		t.Fatalf("stdout = %q, want empty", got)
+	}
+	got := stderr.String()
+	if want := "Error: binding to non-loopback host \"0.0.0.0\" requires --allow-remote\n"; !strings.HasPrefix(got, want) {
+		t.Fatalf("stderr = %q, want it to start with %q", got, want)
+	}
+	if !strings.Contains(got, "\nUSAGE\n") {
+		t.Fatalf("stderr = %q, want the usage page", got)
+	}
 }
 
 func TestWebhooksServeAllowsNonLoopbackWithAllowRemote(t *testing.T) {
@@ -113,8 +151,7 @@ func TestWebhooksServeAllowsNonLoopbackWithAllowRemote(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	errCh := make(chan error, 1)
-	cmd := WebhooksServeCommand()
-	cmd.FlagSet.SetOutput(io.Discard)
+	cmd, _, _ := newServeTestCommand(time.Time{})
 	if err := cmd.Parse([]string{
 		"--host", "0.0.0.0",
 		"--port", fmt.Sprintf("%d", port),
@@ -330,6 +367,34 @@ func TestRunWebhookExecCommandReturnsStderrOnFailure(t *testing.T) {
 	if !strings.Contains(err.Error(), "boom") {
 		t.Fatalf("expected stderr content in error, got %v", err)
 	}
+}
+
+// lockedBuffer is a bytes.Buffer that the serve goroutines can write to while
+// the test reads it.
+type lockedBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *lockedBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *lockedBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
+}
+
+func newServeTestCommand(now time.Time) (*ffcli.Command, *lockedBuffer, *lockedBuffer) {
+	stdout, stderr := &lockedBuffer{}, &lockedBuffer{}
+	cmd := newWebhooksServeCommand(&shared.Deps{
+		IO:  &shared.IO{Out: stdout, ErrOut: stderr},
+		Now: func() time.Time { return now },
+	})
+	return cmd, stdout, stderr
 }
 
 func freeLocalPort(t *testing.T) int {

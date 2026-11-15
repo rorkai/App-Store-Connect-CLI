@@ -162,6 +162,64 @@ func TestMigrateImportDryRunClassifiesIPad13ScreenshotAsModernSlot(t *testing.T)
 	}
 }
 
+func TestMigrateImportDryRunPrefersFramedScreenshotOverRawSibling(t *testing.T) {
+	root := t.TempDir()
+	metadataDir := filepath.Join(root, "metadata", "en-US")
+	if err := os.MkdirAll(metadataDir, 0o755); err != nil {
+		t.Fatalf("mkdir metadata: %v", err)
+	}
+	writeFile(t, filepath.Join(metadataDir, "description.txt"), "English description")
+
+	screenshotsDir := filepath.Join(root, "screenshots", "en-US")
+	if err := os.MkdirAll(screenshotsDir, 0o755); err != nil {
+		t.Fatalf("mkdir screenshots: %v", err)
+	}
+	raw := filepath.Join(screenshotsDir, "0_home.png")
+	framed := filepath.Join(screenshotsDir, "0_home_framed.png")
+	unrelated := filepath.Join(screenshotsDir, "1_settings.png")
+	for _, path := range []string{raw, framed, unrelated} {
+		writePNGForMigrate(t, path, 1242, 2688)
+	}
+
+	rootCmd := RootCommand("1.2.3")
+	rootCmd.FlagSet.SetOutput(io.Discard)
+
+	stdout, _ := captureOutput(t, func() {
+		if err := rootCmd.Parse([]string{
+			"migrate", "import",
+			"--app", "APP_ID",
+			"--version-id", "VERSION_ID",
+			"--fastlane-dir", root,
+			"--dry-run",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := rootCmd.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	var result migrate.MigrateImportResult
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatalf("unmarshal result: %v", err)
+	}
+	if len(result.ScreenshotPlan) != 1 {
+		t.Fatalf("expected 1 screenshot plan, got %+v", result.ScreenshotPlan)
+	}
+	if got, want := result.ScreenshotPlan[0].Files, []string{framed, unrelated}; !slices.Equal(got, want) {
+		t.Fatalf("screenshot files = %v, want %v", got, want)
+	}
+	found := false
+	for _, item := range result.Skipped {
+		if item.Path == raw && strings.Contains(item.Reason, "framed") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected skipped entry for %q naming the framed copy, got %+v", raw, result.Skipped)
+	}
+}
+
 func TestMigrateImportDryRunReportsSkippedNonLocaleMetadataDirs(t *testing.T) {
 	root := t.TempDir()
 	metadataDir := filepath.Join(root, "metadata", "en-US")
@@ -177,7 +235,7 @@ func TestMigrateImportDryRunReportsSkippedNonLocaleMetadataDirs(t *testing.T) {
 		t.Fatalf("mkdir non-locale dir: %v", err)
 	}
 	writeFile(t, filepath.Join(nonLocaleDir, "first_name.txt"), "Rita")
-	writeFile(t, filepath.Join(root, "metadata", "copyright.txt"), "2026 Example Inc.")
+	writeFile(t, filepath.Join(root, "metadata", "copyright.txt"), "  2026 Example Inc.\n")
 	writeFile(t, filepath.Join(root, "metadata", "primary_category.txt"), "GAMES")
 	writeFile(t, filepath.Join(root, "metadata", "secondary_category.txt"), "  \n")
 	defaultDir := filepath.Join(root, "metadata", "default")
@@ -260,8 +318,10 @@ func TestMigrateImportDryRunReportsSkippedNonLocaleMetadataDirs(t *testing.T) {
 	if !strings.Contains(defaultPolicyReason, "not imported") || !strings.HasSuffix(defaultPolicyReason, "asc app-setup info set --app APP_ID --locale LOCALE --privacy-policy-text TEXT") {
 		t.Fatalf("expected the default folder's policy text to be reported with a locale placeholder, got %q", defaultPolicyReason)
 	}
+	if result.Copyright != "2026 Example Inc." {
+		t.Fatalf("copyright = %q, want the trimmed copyright.txt value", result.Copyright)
+	}
 	wantReasons := map[string]string{
-		"copyright.txt":        "asc versions update --version-id VERSION_ID --copyright TEXT",
 		"primary_category.txt": "asc app-setup categories set --app APP_ID --primary CATEGORY_ID",
 		// Unreadable for a non-root user; it must still be reported, not abort the import.
 		"primary_first_sub_category.txt": "asc app-setup categories set --app APP_ID --primary CATEGORY_ID --primary-subcategory-one SUBCATEGORY_ID",
@@ -274,6 +334,76 @@ func TestMigrateImportDryRunReportsSkippedNonLocaleMetadataDirs(t *testing.T) {
 		if reason := appLevelReasons[file]; !strings.Contains(reason, "not imported") || !strings.Contains(reason, command) {
 			t.Fatalf("expected skipped reason for %s to name %q, got %q", file, command, reason)
 		}
+	}
+}
+
+func TestMigrateImportCopyright(t *testing.T) {
+	versionResponse := `{"data":{"type":"appStoreVersions","id":"VERSION_ID","attributes":{"versionString":"1.0","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"APP_ID"}}}}}`
+	tests := []struct {
+		name         string
+		copyright    string
+		expectations []migrateImportExpectation
+		wantUpdated  bool
+		wantSkipped  string
+	}{
+		{
+			name:      "applies the trimmed value to the version",
+			copyright: "\n  2026 Example Inc.  \n",
+			expectations: []migrateImportExpectation{
+				{method: http.MethodGet, path: "/v1/appStoreVersions/VERSION_ID", response: versionResponse},
+				{
+					method:   http.MethodPatch,
+					path:     "/v1/appStoreVersions/VERSION_ID",
+					body:     `{"data":{"type":"appStoreVersions","id":"VERSION_ID","attributes":{"copyright":"2026 Example Inc."}}}`,
+					response: versionResponse,
+				},
+			},
+			wantUpdated: true,
+		},
+		{
+			name:         "skips an empty file without clearing the field",
+			copyright:    " \n",
+			expectations: []migrateImportExpectation{{method: http.MethodGet, path: "/v1/appStoreVersions/VERSION_ID", response: versionResponse}},
+			wantSkipped:  "copyright.txt is empty; not applied",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := t.TempDir()
+			if err := os.MkdirAll(filepath.Join(root, "metadata"), 0o755); err != nil {
+				t.Fatalf("mkdir metadata: %v", err)
+			}
+			copyrightPath := filepath.Join(root, "metadata", "copyright.txt")
+			writeFile(t, copyrightPath, test.copyright)
+			api := newMigrateImportAPI(t, test.expectations...)
+
+			stdout, stderr, runErr := runMigrateImport(t, root)
+			if runErr != nil {
+				t.Fatalf("run error: %v (stderr %q)", runErr, stderr)
+			}
+			var result migrate.MigrateImportResult
+			if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+				t.Fatalf("unmarshal result: %v", err)
+			}
+			if result.CopyrightUpdated != test.wantUpdated {
+				t.Fatalf("copyrightUpdated = %t, want %t", result.CopyrightUpdated, test.wantUpdated)
+			}
+			skippedReason := ""
+			for _, item := range result.Skipped {
+				if filepath.Base(item.Path) == "copyright.txt" {
+					skippedReason = item.Reason
+				}
+			}
+			if skippedReason != test.wantSkipped {
+				t.Fatalf("copyright.txt skipped reason = %q, want %q", skippedReason, test.wantSkipped)
+			}
+			wantMutations := 0
+			if test.wantUpdated {
+				wantMutations = 1
+			}
+			api.assertComplete(t, wantMutations)
+		})
 	}
 }
 

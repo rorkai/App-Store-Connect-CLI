@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -15,9 +14,9 @@ import (
 
 const webhooksMaxLimit = 200
 
-// WebhooksCommand returns the webhooks command group.
-func WebhooksCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("webhooks", flag.ExitOnError)
+// NewWebhooksCommand returns the webhooks command group built on d.
+func NewWebhooksCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("webhooks", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "webhooks",
@@ -39,14 +38,14 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			WebhooksListCommand(),
-			WebhooksGetCommand(),
-			WebhooksCreateCommand(),
-			WebhooksUpdateCommand(),
-			WebhooksDeleteCommand(),
-			WebhooksServeCommand(),
-			WebhookDeliveriesCommand(),
-			WebhookPingCommand(),
+			newWebhooksListCommand(d),
+			newWebhooksGetCommand(d),
+			newWebhooksCreateCommand(d),
+			newWebhooksUpdateCommand(d),
+			newWebhooksDeleteCommand(d),
+			newWebhooksServeCommand(d),
+			newWebhookDeliveriesCommand(d),
+			newWebhookPingCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -54,9 +53,10 @@ Examples:
 	}
 }
 
-// WebhooksListCommand returns the webhooks list subcommand.
-func WebhooksListCommand() *ffcli.Command {
+// newWebhooksListCommand returns the webhooks list subcommand.
+func newWebhooksListCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		Deps:       d,
 		Name:       "list",
 		ShortUsage: "asc webhooks list [flags]",
 		ShortHelp:  "List webhooks for an app.",
@@ -80,9 +80,10 @@ Examples:
 	})
 }
 
-// WebhooksGetCommand returns the webhooks view subcommand.
-func WebhooksGetCommand() *ffcli.Command {
+// newWebhooksGetCommand returns the webhooks view subcommand.
+func newWebhooksGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		Deps:       d,
 		Name:       "view",
 		ShortUsage: "asc webhooks view --webhook-id \"WEBHOOK_ID\" [flags]",
 		ShortHelp:  "View a webhook by ID.",
@@ -100,9 +101,9 @@ Examples:
 	})
 }
 
-// WebhooksCreateCommand returns the webhooks create subcommand.
-func WebhooksCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
+// newWebhooksCreateCommand returns the webhooks create subcommand.
+func newWebhooksCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("create", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	name := fs.String("name", "", "Webhook name")
@@ -111,7 +112,7 @@ func WebhooksCreateCommand() *ffcli.Command {
 	events := shared.BindOnceCSVFlag(fs, "events", "Webhook event types (comma-separated)")
 	var enabled shared.OptionalBool
 	fs.Var(&enabled, "enabled", "Enable or disable the webhook: true or false")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -126,36 +127,36 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
 			}
 			if strings.TrimSpace(*name) == "" {
-				return shared.RequiredFlag("--name")
+				return d.RequiredFlag("--name")
 			}
 			if strings.TrimSpace(*url) == "" {
-				return shared.RequiredFlag("--url")
+				return d.RequiredFlag("--url")
 			}
 			if strings.TrimSpace(*secret) == "" {
-				return shared.RequiredFlag("--secret")
+				return d.RequiredFlag("--secret")
 			}
 			if strings.TrimSpace(events.String()) == "" {
-				return shared.RequiredFlag("--events")
+				return d.RequiredFlag("--events")
 			}
 			if !enabled.IsSet() {
-				return shared.RequiredFlag("--enabled")
+				return d.RequiredFlag("--enabled")
 			}
 
 			eventTypes, err := normalizeWebhookEvents(events.String())
 			if err != nil {
-				return fmt.Errorf("webhooks create: %w", shared.UsageError(err.Error()))
+				return fmt.Errorf("webhooks create: %w", d.UsageError(err.Error()))
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("webhooks create: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			attrs := asc.WebhookCreateAttributes{
@@ -171,14 +172,14 @@ Examples:
 				return fmt.Errorf("webhooks create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(webhook, *output.Output, *output.Pretty)
+			return d.PrintOutput(webhook, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// WebhooksUpdateCommand returns the webhooks update subcommand.
-func WebhooksUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("update", flag.ExitOnError)
+// newWebhooksUpdateCommand returns the webhooks update subcommand.
+func newWebhooksUpdateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("update", flag.ExitOnError)
 
 	webhookID := shared.BindResourceIDFlag(fs, "webhook-id", "webhooks", "Webhook ID")
 	name := fs.String("name", "", "Webhook name")
@@ -187,7 +188,7 @@ func WebhooksUpdateCommand() *ffcli.Command {
 	events := shared.BindOnceCSVFlag(fs, "events", "Webhook event types (comma-separated)")
 	var enabled shared.OptionalBool
 	fs.Var(&enabled, "enabled", "Enable or disable the webhook: true or false")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -203,7 +204,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*webhookID)
 			if trimmedID == "" {
-				return shared.RequiredFlag("--webhook-id")
+				return d.RequiredFlag("--webhook-id")
 			}
 
 			attrs := asc.WebhookUpdateAttributes{}
@@ -227,7 +228,7 @@ Examples:
 			if strings.TrimSpace(events.String()) != "" {
 				eventTypes, err := normalizeWebhookEvents(events.String())
 				if err != nil {
-					return fmt.Errorf("webhooks update: %w", shared.UsageError(err.Error()))
+					return fmt.Errorf("webhooks update: %w", d.UsageError(err.Error()))
 				}
 				attrs.EventTypes = eventTypes
 				hasUpdate = true
@@ -239,15 +240,15 @@ Examples:
 			}
 
 			if !hasUpdate {
-				return shared.UpdateFlagRequired(fs, name, url, secret, events, &enabled)
+				return d.UpdateFlagRequired(fs, name, url, secret, events, &enabled)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("webhooks update: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			webhook, err := client.UpdateWebhook(requestCtx, trimmedID, attrs)
@@ -255,14 +256,15 @@ Examples:
 				return fmt.Errorf("webhooks update: failed to update: %w", err)
 			}
 
-			return shared.PrintOutput(webhook, *output.Output, *output.Pretty)
+			return d.PrintOutput(webhook, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// WebhooksDeleteCommand returns the webhooks delete subcommand.
-func WebhooksDeleteCommand() *ffcli.Command {
+// newWebhooksDeleteCommand returns the webhooks delete subcommand.
+func newWebhooksDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		Deps:       d,
 		Name:       "delete",
 		ShortUsage: "asc webhooks delete --webhook-id WEBHOOK_ID --confirm [flags]",
 		ShortHelp:  "Delete a webhook.",
@@ -283,9 +285,9 @@ Examples:
 	})
 }
 
-// WebhookDeliveriesCommand returns the webhook deliveries command.
-func WebhookDeliveriesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("deliveries", flag.ExitOnError)
+// newWebhookDeliveriesCommand returns the webhook deliveries command.
+func newWebhookDeliveriesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("deliveries", flag.ExitOnError)
 
 	webhookID := shared.BindResourceIDFlag(fs, "webhook-id", "webhooks", "Webhook ID")
 	createdAfter := fs.String("created-after", "", "Filter deliveries created after or equal to a timestamp")
@@ -293,7 +295,7 @@ func WebhookDeliveriesCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "deliveries",
@@ -310,25 +312,25 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
-			WebhookDeliveriesRelationshipsCommand(),
-			WebhookDeliveriesRedeliverCommand(),
+			newWebhookDeliveriesRelationshipsCommand(d),
+			newWebhookDeliveriesRedeliverCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "webhooks deliveries", webhooksMaxLimit, "created-after", "created-before"); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "webhooks deliveries", webhooksMaxLimit, "created-after", "created-before"); err != nil {
 				return err
 			}
 			trimmedID := strings.TrimSpace(*webhookID)
 			trimmedNext := strings.TrimSpace(*next)
 			if trimmedID == "" && trimmedNext == "" {
-				return shared.RequiredFlag("--webhook-id")
+				return d.RequiredFlag("--webhook-id")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("webhooks deliveries: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			opts := []asc.WebhookDeliveriesOption{
@@ -338,7 +340,7 @@ Examples:
 			if strings.TrimSpace(*createdAfter) != "" {
 				values := shared.SplitCSV(*createdAfter)
 				if len(values) == 0 {
-					fmt.Fprintln(os.Stderr, "Error: --created-after must include at least one value")
+					fmt.Fprintln(d.IO.ErrOut, "Error: --created-after must include at least one value")
 					return flag.ErrHelp
 				}
 				opts = append(opts, asc.WithWebhookDeliveriesCreatedAfter(values))
@@ -346,7 +348,7 @@ Examples:
 			if strings.TrimSpace(*createdBefore) != "" {
 				values := shared.SplitCSV(*createdBefore)
 				if len(values) == 0 {
-					fmt.Fprintln(os.Stderr, "Error: --created-before must include at least one value")
+					fmt.Fprintln(d.IO.ErrOut, "Error: --created-before must include at least one value")
 					return flag.ErrHelp
 				}
 				opts = append(opts, asc.WithWebhookDeliveriesCreatedBefore(values))
@@ -354,7 +356,7 @@ Examples:
 
 			if *paginate {
 				if trimmedID == "" {
-					return shared.RequiredFlag("--webhook-id")
+					return d.RequiredFlag("--webhook-id")
 				}
 				paginateOpts := append(opts, asc.Limit[asc.WebhookDeliveriesOption](webhooksMaxLimit))
 				firstPage, err := client.GetWebhookDeliveries(requestCtx, trimmedID, paginateOpts...)
@@ -367,7 +369,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("webhooks deliveries: %w", err)
 				}
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			deliveries, err := client.GetWebhookDeliveries(requestCtx, trimmedID, opts...)
@@ -375,20 +377,20 @@ Examples:
 				return fmt.Errorf("webhooks deliveries: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(deliveries, *output.Output, *output.Pretty)
+			return d.PrintOutput(deliveries, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// WebhookDeliveriesRelationshipsCommand returns the webhook deliveries links subcommand.
-func WebhookDeliveriesRelationshipsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("links", flag.ExitOnError)
+// newWebhookDeliveriesRelationshipsCommand returns the webhook deliveries links subcommand.
+func newWebhookDeliveriesRelationshipsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("links", flag.ExitOnError)
 
 	webhookID := shared.BindResourceIDFlag(fs, "webhook-id", "webhooks", "Webhook ID")
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "links",
@@ -402,28 +404,28 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "webhooks deliveries links", webhooksMaxLimit); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "webhooks deliveries links", webhooksMaxLimit); err != nil {
 				return err
 			}
 			trimmedID := strings.TrimSpace(*webhookID)
 			trimmedNext := strings.TrimSpace(*next)
 			if trimmedID == "" && trimmedNext == "" {
-				return shared.RequiredFlag("--webhook-id")
+				return d.RequiredFlag("--webhook-id")
 			}
 			if trimmedID == "" && trimmedNext != "" {
 				derivedID, err := extractWebhookIDFromNextURL(trimmedNext)
 				if err != nil {
-					return shared.UsageErrorf("webhooks deliveries links: %v", err)
+					return d.UsageErrorf("webhooks deliveries links: %v", err)
 				}
 				trimmedID = derivedID
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("webhooks deliveries links: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			opts := []asc.LinkagesOption{
@@ -433,7 +435,7 @@ Examples:
 
 			if *paginate {
 				if trimmedID == "" {
-					return shared.RequiredFlag("--webhook-id")
+					return d.RequiredFlag("--webhook-id")
 				}
 				paginateOpts := append(opts, asc.Limit[asc.LinkagesOption](webhooksMaxLimit))
 				firstPage, err := client.GetWebhookDeliveriesRelationships(requestCtx, trimmedID, paginateOpts...)
@@ -446,7 +448,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("webhooks deliveries links: %w", err)
 				}
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetWebhookDeliveriesRelationships(requestCtx, trimmedID, opts...)
@@ -454,17 +456,17 @@ Examples:
 				return fmt.Errorf("webhooks deliveries links: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// WebhookDeliveriesRedeliverCommand returns the webhook deliveries redeliver subcommand.
-func WebhookDeliveriesRedeliverCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("redeliver", flag.ExitOnError)
+// newWebhookDeliveriesRedeliverCommand returns the webhook deliveries redeliver subcommand.
+func newWebhookDeliveriesRedeliverCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("redeliver", flag.ExitOnError)
 
 	deliveryID := fs.String("delivery-id", "", "Webhook delivery ID")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "redeliver",
@@ -479,15 +481,15 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*deliveryID)
 			if trimmedID == "" {
-				return shared.RequiredFlag("--delivery-id")
+				return d.RequiredFlag("--delivery-id")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("webhooks deliveries redeliver: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateWebhookDelivery(requestCtx, trimmedID)
@@ -495,17 +497,17 @@ Examples:
 				return fmt.Errorf("webhooks deliveries redeliver: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// WebhookPingCommand returns the webhook ping subcommand.
-func WebhookPingCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("ping", flag.ExitOnError)
+// newWebhookPingCommand returns the webhook ping subcommand.
+func newWebhookPingCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("ping", flag.ExitOnError)
 
 	webhookID := shared.BindResourceIDFlag(fs, "webhook-id", "webhooks", "Webhook ID")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "ping",
@@ -520,15 +522,15 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*webhookID)
 			if trimmedID == "" {
-				return shared.RequiredFlag("--webhook-id")
+				return d.RequiredFlag("--webhook-id")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("webhooks ping: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateWebhookPing(requestCtx, trimmedID)
@@ -536,7 +538,7 @@ Examples:
 				return fmt.Errorf("webhooks ping: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

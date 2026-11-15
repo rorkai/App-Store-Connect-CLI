@@ -37,7 +37,7 @@ Examples:
   asc submit cancel --version-id "VERSION_ID" --confirm
   asc submit cancel --version-id "VERSION_ID" --app "APP_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*submissionID) == "" && strings.TrimSpace(*versionID) == "" {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --id or --version-id is required")

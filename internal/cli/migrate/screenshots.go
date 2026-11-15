@@ -338,7 +338,24 @@ func collectScreenshotFiles(rooted *os.Root, localeRelative, localeDir string) (
 	sort.Slice(files, func(i, j int) bool {
 		return files[i].path < files[j].path
 	})
-	return files, skipped, nil
+	present := make(map[string]bool, len(files))
+	for _, file := range files {
+		present[file.path] = true
+	}
+	kept := files[:0]
+	for _, file := range files {
+		ext := filepath.Ext(file.path)
+		framed := strings.TrimSuffix(file.path, ext) + "_framed" + ext
+		if present[framed] {
+			skipped = append(skipped, SkippedItem{
+				Path:   file.path,
+				Reason: fmt.Sprintf("framed copy %q is imported instead", filepath.Base(framed)),
+			})
+			continue
+		}
+		kept = append(kept, file)
+	}
+	return kept, skipped, nil
 }
 
 func inferScreenshotDisplayTypeFromDimensions(path string, width, height int) (string, error) {

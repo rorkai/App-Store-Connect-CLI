@@ -1,14 +1,11 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,7 +13,6 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestAnalyticsSalesAllowMissingReturnsStructuredResultWithoutFile(t *testing.T) {
@@ -30,12 +26,10 @@ func TestAnalyticsSalesAllowMissingReturnsStructuredResultWithoutFile(t *testing
 
 func assertSalesReportUnavailable(t *testing.T, detail string) {
 	t.Helper()
-	requestCount := setSalesReportNotFoundTestClient(t, detail)
+	client, requestCount := newSalesReportNotFoundTestClient(t, detail)
 
 	outputPath := filepath.Join(t.TempDir(), "missing.tsv.gz")
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	if err := root.Parse([]string{
+	stdout, stderr, runErr := runRootWithDeps(t, client,
 		"analytics", "sales",
 		"--vendor", "12345678",
 		"--type", "SALES",
@@ -45,14 +39,7 @@ func assertSalesReportUnavailable(t *testing.T, detail string) {
 		"--output", outputPath,
 		"--output-format", "json",
 		"--allow-missing",
-	}); err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		runErr = root.Run(context.Background())
-	})
+	)
 	if runErr != nil {
 		t.Fatalf("run error: %v", runErr)
 	}
@@ -91,12 +78,10 @@ func assertSalesReportUnavailable(t *testing.T, detail string) {
 }
 
 func TestAnalyticsSalesMissingReportFailsByDefault(t *testing.T) {
-	setMissingSalesReportTestClient(t)
+	client, _ := newMissingSalesReportTestClient(t)
 
 	outputPath := filepath.Join(t.TempDir(), "missing.tsv.gz")
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	if err := root.Parse([]string{
+	stdout, _, runErr := runRootWithDeps(t, client,
 		"analytics", "sales",
 		"--vendor", "12345678",
 		"--type", "SALES",
@@ -105,14 +90,7 @@ func TestAnalyticsSalesMissingReportFailsByDefault(t *testing.T) {
 		"--date", "2026-08-18",
 		"--output", outputPath,
 		"--output-format", "json",
-	}); err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-
-	var runErr error
-	stdout, _ := captureOutput(t, func() {
-		runErr = root.Run(context.Background())
-	})
+	)
 	if runErr == nil || !strings.Contains(runErr.Error(), "There were no sales for the date specified") {
 		t.Fatalf("run error = %v, want missing-report API error", runErr)
 	}
@@ -125,11 +103,9 @@ func TestAnalyticsSalesMissingReportFailsByDefault(t *testing.T) {
 }
 
 func TestAnalyticsSalesAllowMissingDoesNotSwallowUnrelatedNotFound(t *testing.T) {
-	setSalesReportNotFoundTestClient(t, "The requested vendor account was not found.")
+	client, _ := newSalesReportNotFoundTestClient(t, "The requested vendor account was not found.")
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	if err := root.Parse([]string{
+	stdout, _, runErr := runRootWithDeps(t, client,
 		"analytics", "sales",
 		"--vendor", "12345678",
 		"--type", "SALES",
@@ -138,14 +114,7 @@ func TestAnalyticsSalesAllowMissingDoesNotSwallowUnrelatedNotFound(t *testing.T)
 		"--date", "2026-08-18",
 		"--output-format", "json",
 		"--allow-missing",
-	}); err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-
-	var runErr error
-	stdout, _ := captureOutput(t, func() {
-		runErr = root.Run(context.Background())
-	})
+	)
 	if runErr == nil || !strings.Contains(runErr.Error(), "requested vendor account was not found") {
 		t.Fatalf("run error = %v, want unrelated not-found error", runErr)
 	}
@@ -186,7 +155,7 @@ func TestAnalyticsSalesReportFailureHints(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			setSalesReportErrorTestClient(t, test.status, test.detail)
+			client, _ := newSalesReportErrorTestClient(t, test.status, test.detail)
 			outputPath := filepath.Join(t.TempDir(), "report.tsv.gz")
 			args := []string{
 				"analytics", "sales",
@@ -199,10 +168,7 @@ func TestAnalyticsSalesReportFailureHints(t *testing.T) {
 				"--output-format", "json",
 			}
 
-			var code int
-			stdout, stderr := captureOutput(t, func() {
-				code = cmd.Run(args, "1.2.3")
-			})
+			stdout, stderr, code := runWithDeps(t, client, args...)
 			if code != test.wantCode {
 				t.Fatalf("exit code = %d, want %d; stderr=%q", code, test.wantCode, stderr)
 			}
@@ -225,18 +191,17 @@ func TestAnalyticsSalesReportFailureHints(t *testing.T) {
 	}
 }
 
-func setMissingSalesReportTestClient(t *testing.T) *int {
-	return setSalesReportNotFoundTestClient(t, "There were no sales for the date specified.")
+func newMissingSalesReportTestClient(t *testing.T) (func() (*asc.Client, error), *int) {
+	return newSalesReportNotFoundTestClient(t, "There were no sales for the date specified.")
 }
 
-func setSalesReportNotFoundTestClient(t *testing.T, detail string) *int {
+func newSalesReportNotFoundTestClient(t *testing.T, detail string) (func() (*asc.Client, error), *int) {
 	t.Helper()
-	return setSalesReportErrorTestClient(t, http.StatusNotFound, detail)
+	return newSalesReportErrorTestClient(t, http.StatusNotFound, detail)
 }
 
-func setSalesReportErrorTestClient(t *testing.T, status int, detail string) *int {
+func newSalesReportErrorTestClient(t *testing.T, status int, detail string) (func() (*asc.Client, error), *int) {
 	t.Helper()
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	requestCount := 0
@@ -250,27 +215,5 @@ func setSalesReportErrorTestClient(t *testing.T, status int, detail string) *int
 		_, _ = fmt.Fprintf(w, `{"errors":[{"status":"%d","code":"%s","title":"%s","detail":"%s"}]}`, status, strings.ToUpper(strings.ReplaceAll(http.StatusText(status), " ", "_")), http.StatusText(status), detail)
 	}))
 	t.Cleanup(server.Close)
-	serverURL, err := url.Parse(server.URL)
-	if err != nil {
-		t.Fatalf("parse test server URL: %v", err)
-	}
-	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		cloned := req.Clone(req.Context())
-		cloned.URL.Scheme = serverURL.Scheme
-		cloned.URL.Host = serverURL.Host
-		return server.Client().Transport.RoundTrip(cloned)
-	})
-	client, err := asc.NewClientWithHTTPClient(
-		os.Getenv("ASC_KEY_ID"),
-		os.Getenv("ASC_ISSUER_ID"),
-		os.Getenv("ASC_PRIVATE_KEY_PATH"),
-		&http.Client{Transport: transport},
-	)
-	if err != nil {
-		t.Fatalf("create analytics sales test client: %v", err)
-	}
-	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
-		return client, nil
-	}))
-	return &requestCount
+	return stubServerClient(t, server), &requestCount
 }

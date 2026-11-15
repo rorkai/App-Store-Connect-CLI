@@ -80,50 +80,55 @@ func TestXcodeExportOptionsGenerateWritesRequestedAutomaticOptionsAndJSON(t *tes
 	}
 }
 
-func TestXcodeExportOptionsGenerateWritesReleaseTestingOptionsAndJSON(t *testing.T) {
-	archivePath := writeXcodeExportOptionsTestArchive(t)
-	outputPath := filepath.Join(t.TempDir(), "generated", "ExportOptions.plist")
+func TestXcodeExportOptionsGenerateWritesNonAppStoreOptionsAndJSON(t *testing.T) {
+	for _, method := range []string{"release-testing", "debugging", "enterprise"} {
+		t.Run(method, func(t *testing.T) {
+			archivePath := writeXcodeExportOptionsTestArchive(t)
+			outputPath := filepath.Join(t.TempDir(), "generated", "ExportOptions.plist")
 
-	cmd := XcodeExportOptionsCommand()
-	cmd.FlagSet.SetOutput(io.Discard)
-	if err := cmd.FlagSet.Parse([]string{
-		"--archive-path", archivePath,
-		"--output-path", outputPath,
-		"--method", "release-testing",
-		"--output", "json",
-	}); err != nil {
-		t.Fatalf("failed to parse flags: %v", err)
-	}
+			cmd := XcodeExportOptionsCommand()
+			cmd.FlagSet.SetOutput(io.Discard)
+			if err := cmd.FlagSet.Parse([]string{
+				"--archive-path", archivePath,
+				"--output-path", outputPath,
+				"--method", method,
+				"--output", "json",
+			}); err != nil {
+				t.Fatalf("failed to parse flags: %v", err)
+			}
 
-	var runErr error
-	stdout, stderr := captureCommandOutput(t, func() error {
-		runErr = cmd.Exec(context.Background(), nil)
-		return runErr
-	})
-	if runErr != nil {
-		t.Fatalf("Exec() error: %v\nstderr=%s", runErr, stderr)
-	}
+			var runErr error
+			stdout, stderr := captureCommandOutput(t, func() error {
+				runErr = cmd.Exec(context.Background(), nil)
+				return runErr
+			})
+			if runErr != nil {
+				t.Fatalf("Exec() error: %v\nstderr=%s", runErr, stderr)
+			}
 
-	var result struct {
-		Method string `json:"method"`
-	}
-	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
-		t.Fatalf("json.Unmarshal() error: %v\nstdout=%s", err, stdout)
-	}
-	if result.Method != "release-testing" {
-		t.Fatalf("result method = %q, want release-testing", result.Method)
-	}
+			var result struct {
+				Method string `json:"method"`
+			}
+			if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+				t.Fatalf("json.Unmarshal() error: %v\nstdout=%s", err, stdout)
+			}
+			if result.Method != method {
+				t.Fatalf("result method = %q, want %s", result.Method, method)
+			}
 
-	data, err := os.ReadFile(outputPath)
-	if err != nil {
-		t.Fatalf("ReadFile() generated options error: %v", err)
-	}
-	var options map[string]any
-	if _, err := plist.Unmarshal(data, &options); err != nil {
-		t.Fatalf("plist.Unmarshal() error: %v", err)
-	}
-	if options["method"] != "release-testing" || options["destination"] != "export" {
-		t.Fatalf("unexpected generated plist: %+v", options)
+			data, err := os.ReadFile(outputPath)
+			if err != nil {
+				t.Fatalf("ReadFile() generated options error: %v", err)
+			}
+			var options map[string]any
+			if _, err := plist.Unmarshal(data, &options); err != nil {
+				t.Fatalf("plist.Unmarshal() error: %v", err)
+			}
+			want := map[string]any{"method": method, "destination": "export", "signingStyle": "automatic", "teamID": "ARCHIVETEAM"}
+			if fmt.Sprint(options) != fmt.Sprint(want) {
+				t.Fatalf("generated plist = %+v, want %+v", options, want)
+			}
+		})
 	}
 }
 
@@ -153,10 +158,10 @@ func TestXcodeExportOptionsGenerateUsesReleaseTestingDefaultPath(t *testing.T) {
 	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
 		t.Fatalf("json.Unmarshal() error: %v\nstdout=%s", err, stdout)
 	}
-	if result.Path != defaultReleaseTestingExportOptionsPath {
-		t.Fatalf("result path = %q, want %q", result.Path, defaultReleaseTestingExportOptionsPath)
+	if result.Path != ".asc/export-options-release-testing.plist" {
+		t.Fatalf("result path = %q, want .asc/export-options-release-testing.plist", result.Path)
 	}
-	if _, err := os.Stat(defaultReleaseTestingExportOptionsPath); err != nil {
+	if _, err := os.Stat(".asc/export-options-release-testing.plist"); err != nil {
 		t.Fatalf("release-testing default output was not written: %v", err)
 	}
 }
@@ -185,12 +190,32 @@ func TestXcodeExportOptionsGenerateRejectsInvalidValues(t *testing.T) {
 		{
 			name:    "method",
 			args:    []string{"--archive-path", "Demo.xcarchive", "--method", "ad-hoc"},
-			message: "Error: --method must be one of: app-store-connect, release-testing; use release-testing instead of deprecated ad-hoc",
+			message: "Error: --method must be one of: app-store-connect, release-testing, debugging, enterprise; use release-testing instead of deprecated ad-hoc",
+		},
+		{
+			name:    "deprecated development method",
+			args:    []string{"--archive-path", "Demo.xcarchive", "--method", "development"},
+			message: "Error: --method must be one of: app-store-connect, release-testing, debugging, enterprise; use debugging instead of deprecated development",
 		},
 		{
 			name:    "empty method",
 			args:    []string{"--archive-path", "Demo.xcarchive", "--method", ""},
-			message: "Error: --method must be one of: app-store-connect, release-testing",
+			message: "Error: --method must be one of: app-store-connect, release-testing, debugging, enterprise",
+		},
+		{
+			name:    "debugging upload",
+			args:    []string{"--archive-path", "Demo.xcarchive", "--method", "debugging", "--destination", "upload"},
+			message: "Error: debugging requires destination=export",
+		},
+		{
+			name:    "manual debugging",
+			args:    []string{"--archive-path", "Demo.xcarchive", "--method", "debugging", "--signing-style", "manual"},
+			message: "Error: manual signing export options generation does not support method \"debugging\"; write an ExportOptions.plist and pass it to asc xcode export --export-options",
+		},
+		{
+			name:    "manual enterprise",
+			args:    []string{"--archive-path", "Demo.xcarchive", "--method", "enterprise", "--signing-style", "manual"},
+			message: "Error: manual signing export options generation does not support method \"enterprise\"; write an ExportOptions.plist and pass it to asc xcode export --export-options",
 		},
 	}
 
@@ -386,31 +411,44 @@ func TestXcodeExportRejectsReleaseTestingWithWaitBeforeSideEffects(t *testing.T)
 }
 
 func TestXcodeExportRejectsInvalidMethodBeforeSideEffects(t *testing.T) {
-	restore := overrideXcodeCommandTestHooks(t)
-	defer restore()
+	for _, tc := range []struct {
+		name    string
+		args    []string
+		message string
+	}{
+		{name: "deprecated ad-hoc", args: []string{"--method", "ad-hoc"}, message: "use release-testing instead of deprecated ad-hoc"},
+		{name: "deprecated development", args: []string{"--method", "development"}, message: "use debugging instead of deprecated development"},
+		{name: "debugging wait", args: []string{"--method", "debugging", "--wait"}, message: "--wait cannot be combined with --method debugging"},
+		{name: "manual debugging", args: []string{"--method", "debugging", "--signing-style", "manual"}, message: `manual signing export options generation does not support method "debugging"; write an ExportOptions.plist and pass it to asc xcode export --export-options`},
+		{name: "manual enterprise", args: []string{"--method", "enterprise", "--signing-style", "manual"}, message: `manual signing export options generation does not support method "enterprise"; write an ExportOptions.plist and pass it to asc xcode export --export-options`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			restore := overrideXcodeCommandTestHooks(t)
+			defer restore()
 
-	runXcodeExportPreflight = func(context.Context) error {
-		t.Fatal("preflight must not run for an invalid method")
-		return nil
-	}
-	runGenerateExportOptions = func(context.Context, localxcode.ExportOptionsGenerateOptions) (*localxcode.ExportOptionsGenerateResult, error) {
-		t.Fatal("generator must not run for an invalid method")
-		return nil, nil
-	}
+			runXcodeExportPreflight = func(context.Context) error {
+				t.Fatal("preflight must not run for an invalid method")
+				return nil
+			}
+			runGenerateExportOptions = func(context.Context, localxcode.ExportOptionsGenerateOptions) (*localxcode.ExportOptionsGenerateResult, error) {
+				t.Fatal("generator must not run for an invalid method")
+				return nil, nil
+			}
 
-	cmd := XcodeExportCommand()
-	cmd.FlagSet.SetOutput(io.Discard)
-	if err := cmd.FlagSet.Parse([]string{
-		"--archive-path", "Demo.xcarchive",
-		"--ipa-path", filepath.Join(t.TempDir(), "Demo.ipa"),
-		"--method", "ad-hoc",
-	}); err != nil {
-		t.Fatalf("failed to parse flags: %v", err)
-	}
+			cmd := XcodeExportCommand()
+			cmd.FlagSet.SetOutput(io.Discard)
+			if err := cmd.FlagSet.Parse(append([]string{
+				"--archive-path", "Demo.xcarchive",
+				"--ipa-path", filepath.Join(t.TempDir(), "Demo.ipa"),
+			}, tc.args...)); err != nil {
+				t.Fatalf("failed to parse flags: %v", err)
+			}
 
-	runErr := cmd.Exec(context.Background(), nil)
-	if !errors.Is(runErr, flag.ErrHelp) || !strings.Contains(runErr.Error(), "use release-testing instead of deprecated ad-hoc") {
-		t.Fatalf("expected deprecated method usage error, got %v", runErr)
+			runErr := cmd.Exec(context.Background(), nil)
+			if !errors.Is(runErr, flag.ErrHelp) || !strings.Contains(runErr.Error(), tc.message) {
+				t.Fatalf("expected usage error %q, got %v", tc.message, runErr)
+			}
+		})
 	}
 }
 
