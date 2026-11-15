@@ -99,7 +99,7 @@ func planSigningResignInfoPlist(tree rootfs.Root, target, main signingResignTarg
 		return nil, fmt.Errorf("decode Info.plist")
 	}
 	if plistString(info["CFBundleIdentifier"]) != target.SourceBundleID {
-		return nil, fmt.Errorf("Info.plist CFBundleIdentifier changed during planning")
+		return nil, fmt.Errorf("bundle identifier in Info.plist changed during planning")
 	}
 	info["CFBundleIdentifier"] = target.BundleID
 	if err := rewriteSigningResignWatchKey(info, signingResignWatchCompanionKey, main, true); err != nil {
