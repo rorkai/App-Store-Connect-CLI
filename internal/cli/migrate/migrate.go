@@ -237,6 +237,14 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("migrate import: %w", err)
 				}
+				outsideDevice, err := storeassets.PreviewsOutsideDeviceFolders(fastlaneRoot)
+				if err != nil {
+					storeassets.ClosePreviews(previews)
+					return fmt.Errorf("migrate import: %w", err)
+				}
+				for _, name := range outsideDevice {
+					skipped = append(skipped, SkippedItem{Path: filepath.Join(fastlaneRoot, name), Reason: "preview video is not in a device folder; asc reads app_previews/<locale>/<device>/<file>"})
+				}
 			}
 
 			if *skipAppClip {
