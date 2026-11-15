@@ -26,8 +26,8 @@ func bindLibraryListFilters(fs *flag.FlagSet) *libraryListFilters {
 	return filters
 }
 
-func (filters *libraryListFilters) query(fs *flag.FlagSet) (url.Values, error) {
-	return filterQuery(fs, []filterField{
+func (filters *libraryListFilters) query(d *shared.Deps, fs *flag.FlagSet) (url.Values, error) {
+	return filterQuery(d, fs, []filterField{
 		{"category", "filter[category]", filters.category, func(token string) bool { return token == "CREATIVE_ASSETS" || token == "APP_SCREENSHOTS_AND_PREVIEWS" }},
 		{"state", "filter[state]", filters.state, libraryStateToken.MatchString},
 		{"spec-id", "filter[specId]", filters.specID, resourceIDPattern.MatchString},
@@ -53,9 +53,9 @@ func bindSpecsFilters(fs *flag.FlagSet) *specsFilters {
 	return filters
 }
 
-func (filters *specsFilters) query(fs *flag.FlagSet) (url.Values, error) {
+func (filters *specsFilters) query(d *shared.Deps, fs *flag.FlagSet) (url.Values, error) {
 	anyValue := func(string) bool { return true }
-	return filterQuery(fs, []filterField{
+	return filterQuery(d, fs, []filterField{
 		{"placement-type", "filter[placementTypes]", filters.placementType, anyValue},
 		{"placement-profile-group", "filter[placementProfileGroups]", filters.placementProfileGroup, anyValue},
 		{"feature", "filter[features]", filters.feature, anyValue},
@@ -68,7 +68,7 @@ type filterField struct {
 	valid          func(string) bool
 }
 
-func filterQuery(fs *flag.FlagSet, fields []filterField) (url.Values, error) {
+func filterQuery(d *shared.Deps, fs *flag.FlagSet, fields []filterField) (url.Values, error) {
 	values := url.Values{}
 	provided := map[string]bool{}
 	fs.Visit(func(f *flag.Flag) { provided[f.Name] = true })
@@ -80,7 +80,7 @@ func filterQuery(fs *flag.FlagSet, fields []filterField) (url.Values, error) {
 		for i, token := range tokens {
 			tokens[i] = strings.TrimSpace(token)
 			if tokens[i] == "" || !field.valid(tokens[i]) {
-				return nil, shared.UsageErrorf("asset-library: --%s contains an empty or unsupported token %q", field.flag, tokens[i])
+				return nil, d.UsageErrorf("asset-library: --%s contains an empty or unsupported token %q", field.flag, tokens[i])
 			}
 		}
 		values.Set(field.key, strings.Join(tokens, ","))
