@@ -125,6 +125,58 @@ func TestNotarizationStaplerDiagnosticsGoToCommandStderr(t *testing.T) {
 	}
 }
 
+func TestNotarizationStaplerResolvesRelativeFileInDepsWorkingDirectory(t *testing.T) {
+	workingDirectory := t.TempDir()
+	if err := os.WriteFile(filepath.Join(workingDirectory, "App.dmg"), []byte("fixture"), 0o600); err != nil {
+		t.Fatalf("write target: %v", err)
+	}
+	var runnerPath string
+	runner := func(_ context.Context, path string, _ io.Writer, verifier localxcode.StaplerStageVerifier) (*localxcode.StaplerResult, error) {
+		runnerPath = path
+		if err := invokeStapleVerifier(verifier); err != nil {
+			return nil, err
+		}
+		return &localxcode.StaplerResult{Path: path, Stapled: true, Validated: true}, nil
+	}
+	previousStaple, previousValidate := runStaplerStaple, runStaplerValidate
+	t.Cleanup(func() { runStaplerStaple, runStaplerValidate = previousStaple, previousValidate })
+	runStaplerStaple, runStaplerValidate = runner, runner
+
+	for _, test := range []struct {
+		name    string
+		command func(*shared.Deps) *ffcli.Command
+		args    []string
+	}{
+		{name: "staple", command: stapleCommand, args: []string{"--file", "App.dmg", "--confirm"}},
+		{name: "validate", command: validateStapleCommand, args: []string{"--file", "App.dmg"}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			runnerPath = ""
+			d := newNotarizationTestDeps(nil)
+			d.Getwd = func() (string, error) { return workingDirectory, nil }
+			cmd := test.command(d)
+			if err := cmd.FlagSet.Parse(append(test.args, "--output", "json")); err != nil {
+				t.Fatalf("parse: %v", err)
+			}
+			var runErr error
+			stdout, stderr := captureNotarizationOutput(t, d, func() { runErr = cmd.Exec(context.Background(), nil) })
+			if runErr != nil {
+				t.Fatalf("%s command error = %v; stderr=%q", test.name, runErr, stderr)
+			}
+			want := filepath.Join(workingDirectory, "App.dmg")
+			if runnerPath != want {
+				t.Fatalf("stapler path = %q, want %q", runnerPath, want)
+			}
+			var result struct {
+				FilePath string `json:"filePath"`
+			}
+			if err := json.Unmarshal([]byte(stdout), &result); err != nil || result.FilePath != want {
+				t.Fatalf("stdout = %q, want filePath %q (%v)", stdout, want, err)
+			}
+		})
+	}
+}
+
 func TestNotarizationStapleRequiresConfirmationBeforeTargetOrRunner(t *testing.T) {
 	previous := runStaplerStaple
 	calls := 0

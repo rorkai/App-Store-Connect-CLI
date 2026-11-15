@@ -180,7 +180,7 @@ Examples:
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
 				return d.UsageError(err.Error())
 			}
-			target, err := validateStaplerDetailsFn(filePath.String())
+			target, err := validateStaplerDetailsFn(staplerTargetPath(d, filePath.String()))
 			if err != nil {
 				if isStaplerTargetUsageError(err) {
 					return d.UsageErrorf("notarization staple: %v", err)
@@ -314,7 +314,7 @@ Examples:
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
 				return d.UsageError(err.Error())
 			}
-			target, err := validateStaplerDetailsFn(filePath.String())
+			target, err := validateStaplerDetailsFn(staplerTargetPath(d, filePath.String()))
 			if err != nil {
 				if isStaplerTargetUsageError(err) {
 					return d.UsageErrorf("notarization validate: %v", err)
@@ -398,6 +398,20 @@ Examples:
 			}, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+// staplerTargetPath is pathValue under d's working directory when that is not
+// the process one. It keeps the value's separators and dot components, which
+// decide what the target checks accept and are lost by d.OSPath's join.
+func staplerTargetPath(d *shared.Deps, pathValue string) string {
+	if strings.TrimSpace(pathValue) == "" || filepath.IsAbs(pathValue) || d.OSPath(pathValue) == pathValue {
+		return pathValue
+	}
+	workingDirectory, err := d.Getwd()
+	if err != nil {
+		return pathValue
+	}
+	return strings.TrimRight(workingDirectory, string(filepath.Separator)) + string(filepath.Separator) + pathValue
 }
 
 type staplerTargetUsageError struct {
