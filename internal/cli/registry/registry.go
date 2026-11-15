@@ -269,7 +269,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("schema", "Inspect App Store Connect API endpoint schemas at runtime.", func() *ffcli.Command {
 			return schema.NewSchemaCommand(d)
 		}),
-		commandFactory("api", "Send an authenticated raw request to the App Store Connect API.", apicmd.Command),
+		commandFactory("api", "Send an authenticated raw request to the App Store Connect API.", func() *ffcli.Command {
+			return apicmd.NewCommand(d)
+		}),
 		commandFactory("telemetry", "Manage CLI telemetry settings.", func() *ffcli.Command {
 			return telemetrycmd.NewTelemetryCommand(d)
 		}),

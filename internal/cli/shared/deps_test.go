@@ -1031,14 +1031,66 @@ func TestDepsTerminalHelpersMatchProcessVariantsOnDepsStreams(t *testing.T) {
 		return cmd.Exec(context.Background(), nil)
 	}
 
+	payloadPath := filepath.Join(t.TempDir(), "payload.json")
+	if err := os.WriteFile(payloadPath, []byte(`{"data":{"type":"apps"}}`), 0o600); err != nil {
+		t.Fatalf("write payload: %v", err)
+	}
+	text := func(s string) *string { return &s }
+	// stubStdin makes the process stdin a pipe holding payload, a terminal
+	// when tty is true.
+	stubStdin := func(t *testing.T, payload string, tty bool) {
+		r, w, err := os.Pipe()
+		if err != nil {
+			t.Fatalf("pipe: %v", err)
+		}
+		if _, err := w.WriteString(payload); err != nil {
+			t.Fatalf("write stdin: %v", err)
+		}
+		_ = w.Close()
+		previousStdin, previousIsTerminal := os.Stdin, isTerminal
+		stdinFD := int(r.Fd())
+		os.Stdin = r
+		isTerminal = func(fd int) bool {
+			if fd == stdinFD {
+				return tty
+			}
+			return previousIsTerminal(fd)
+		}
+		t.Cleanup(func() {
+			isTerminal = previousIsTerminal
+			os.Stdin = previousStdin
+			_ = r.Close()
+		})
+	}
+
 	tests := []struct {
 		name string
 		// spinner rows draw on stderr only when stdout and stderr are both
 		// terminals.
 		spinner bool
+		// stdin rows run with this on stdin, as a pipe and as a terminal.
+		stdin   *string
 		process func() (any, error)
 		deps    func(*Deps) (any, error)
 	}{
+		{
+			name:    "ReadJSONFilePayload from stdin",
+			stdin:   text(`{"data":{"type":"apps"}}`),
+			process: func() (any, error) { return ReadJSONFilePayload("-") },
+			deps:    func(d *Deps) (any, error) { return d.ReadJSONFilePayload("-") },
+		},
+		{
+			name:    "ReadJSONFilePayloadKind from stdin with the wrong shape",
+			stdin:   text(`{"data":{"type":"apps"}}`),
+			process: func() (any, error) { return ReadJSONFilePayloadKind("-", JSONPayloadArray) },
+			deps:    func(d *Deps) (any, error) { return d.ReadJSONFilePayloadKind("-", JSONPayloadArray) },
+		},
+		{
+			name:    "ReadJSONFilePayloadKind from a file",
+			stdin:   text(""),
+			process: func() (any, error) { return ReadJSONFilePayloadKind(payloadPath, JSONPayloadAny) },
+			deps:    func(d *Deps) (any, error) { return d.ReadJSONFilePayloadKind(payloadPath, JSONPayloadAny) },
+		},
 		{
 			name:    "ProgressEnabled",
 			process: func() (any, error) { return ProgressEnabled(), nil },
@@ -1081,47 +1133,115 @@ func TestDepsTerminalHelpersMatchProcessVariantsOnDepsStreams(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		for _, tty := range []struct{ stdout, stderr bool }{{false, false}, {true, false}, {false, true}, {true, true}} {
-			name := fmt.Sprintf("%s/stdout_tty=%t/stderr_tty=%t", test.name, tty.stdout, tty.stderr)
-			t.Run(name, func(t *testing.T) {
-				var wantValue, gotValue any
-				var wantErr, gotErr error
-				wantStdout, wantStderr := captureOutput(t, func() {
-					withTTYStub(t, tty.stdout, tty.stderr)
-					synctest.Test(t, func(*testing.T) { wantValue, wantErr = test.process() })
-				})
-
-				var stdout, stderr bytes.Buffer
-				d := &Deps{
-					Client:  func() (*asc.Client, error) { return nil, nil },
-					IO:      &IO{Out: &stdout, ErrOut: &stderr, StdoutTTY: tty.stdout, StderrTTY: tty.stderr},
-					Timeout: func(ctx context.Context) (context.Context, context.CancelFunc) { return context.WithCancel(ctx) },
-				}
-				processStdout, processStderr := captureOutput(t, func() {
-					withTTYStub(t, false, false)
-					synctest.Test(t, func(*testing.T) { gotValue, gotErr = test.deps(d) })
-				})
-
-				if processStdout != "" || processStderr != "" {
-					t.Fatalf("process stdout = %q, stderr = %q, want both empty", processStdout, processStderr)
-				}
-				if stdout.String() != wantStdout {
-					t.Fatalf("deps stdout = %q, want %q", stdout.String(), wantStdout)
-				}
-				if drawn := test.spinner && tty.stdout && tty.stderr; drawn != (wantStderr != "") {
-					t.Fatalf("process stderr = %q, want a spinner: %t", wantStderr, drawn)
-				}
-				if stderr.String() != wantStderr {
-					t.Fatalf("deps stderr = %q, want %q", stderr.String(), wantStderr)
-				}
-				if !reflect.DeepEqual(gotErr, wantErr) {
-					t.Fatalf("error = %#v, want %#v", gotErr, wantErr)
-				}
-				if !reflect.DeepEqual(gotValue, wantValue) {
-					t.Fatalf("value = %#v, want %#v", gotValue, wantValue)
-				}
-			})
+		stdinTTYs := []bool{false}
+		if test.stdin != nil {
+			stdinTTYs = []bool{false, true}
 		}
+		for _, tty := range []struct{ stdout, stderr bool }{{false, false}, {true, false}, {false, true}, {true, true}} {
+			for _, stdinTTY := range stdinTTYs {
+				name := fmt.Sprintf("%s/stdout_tty=%t/stderr_tty=%t", test.name, tty.stdout, tty.stderr)
+				if test.stdin != nil {
+					name += fmt.Sprintf("/stdin_tty=%t", stdinTTY)
+				}
+				t.Run(name, func(t *testing.T) {
+					var wantValue, gotValue any
+					var wantErr, gotErr error
+					stdin := ""
+					if test.stdin != nil {
+						stdin = *test.stdin
+					}
+					wantStdout, wantStderr := captureOutput(t, func() {
+						withTTYStub(t, tty.stdout, tty.stderr)
+						stubStdin(t, stdin, stdinTTY)
+						synctest.Test(t, func(*testing.T) { wantValue, wantErr = test.process() })
+					})
+
+					var stdout, stderr bytes.Buffer
+					d := &Deps{
+						Client: func() (*asc.Client, error) { return nil, nil },
+						IO: &IO{
+							In: strings.NewReader(stdin), Out: &stdout, ErrOut: &stderr,
+							StdinTTY: stdinTTY, StdoutTTY: tty.stdout, StderrTTY: tty.stderr,
+						},
+						Timeout: func(ctx context.Context) (context.Context, context.CancelFunc) { return context.WithCancel(ctx) },
+					}
+					processStdout, processStderr := captureOutput(t, func() {
+						withTTYStub(t, false, false)
+						stubStdin(t, "", false)
+						synctest.Test(t, func(*testing.T) { gotValue, gotErr = test.deps(d) })
+					})
+
+					if processStdout != "" || processStderr != "" {
+						t.Fatalf("process stdout = %q, stderr = %q, want both empty", processStdout, processStderr)
+					}
+					if stdout.String() != wantStdout {
+						t.Fatalf("deps stdout = %q, want %q", stdout.String(), wantStdout)
+					}
+					if drawn := test.spinner && tty.stdout && tty.stderr; drawn != (wantStderr != "") {
+						t.Fatalf("process stderr = %q, want a spinner: %t", wantStderr, drawn)
+					}
+					if stderr.String() != wantStderr {
+						t.Fatalf("deps stderr = %q, want %q", stderr.String(), wantStderr)
+					}
+					if !reflect.DeepEqual(gotErr, wantErr) {
+						t.Fatalf("error = %#v, want %#v", gotErr, wantErr)
+					}
+					if !reflect.DeepEqual(gotValue, wantValue) {
+						t.Fatalf("value = %#v, want %#v", gotValue, wantValue)
+					}
+				})
+			}
+		}
+	}
+}
+
+func TestDefaultDepsStdinMatchesProcessStdin(t *testing.T) {
+	const payload = `{"data":{"type":"apps"}}`
+	// useStdin makes the process stdin a pipe holding payload, a terminal
+	// when tty is true.
+	useStdin := func(t *testing.T, tty bool) {
+		r, w, err := os.Pipe()
+		if err != nil {
+			t.Fatalf("pipe: %v", err)
+		}
+		if _, err := w.WriteString(payload); err != nil {
+			t.Fatalf("write stdin: %v", err)
+		}
+		_ = w.Close()
+		previousStdin, previousIsTerminal := os.Stdin, isTerminal
+		stdinFD := int(r.Fd())
+		os.Stdin = r
+		isTerminal = func(fd int) bool {
+			if fd == stdinFD {
+				return tty
+			}
+			return previousIsTerminal(fd)
+		}
+		t.Cleanup(func() {
+			isTerminal = previousIsTerminal
+			os.Stdin = previousStdin
+			_ = r.Close()
+		})
+	}
+
+	// built is the stdin when DefaultDeps is called and read the stdin when
+	// the payload is read: a caller may replace os.Stdin in between.
+	for _, tty := range []struct{ built, read bool }{{false, false}, {true, true}, {true, false}, {false, true}} {
+		t.Run(fmt.Sprintf("built_tty=%t/read_tty=%t", tty.built, tty.read), func(t *testing.T) {
+			useStdin(t, tty.read)
+			want, wantErr := ReadJSONFilePayloadKind("-", JSONPayloadAny)
+
+			useStdin(t, tty.built)
+			d := DefaultDeps()
+			if d.IO.StdinTTY != tty.built {
+				t.Fatalf("DefaultDeps().IO.StdinTTY = %t, want %t", d.IO.StdinTTY, tty.built)
+			}
+			useStdin(t, tty.read)
+			got, gotErr := d.ReadJSONFilePayloadKind("-", JSONPayloadAny)
+			if !reflect.DeepEqual(got, want) || !reflect.DeepEqual(gotErr, wantErr) {
+				t.Fatalf("deps read = %q, %v; want %q, %v", got, gotErr, want, wantErr)
+			}
+		})
 	}
 }
 

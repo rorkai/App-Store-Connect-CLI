@@ -8,7 +8,6 @@ import (
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 var nonJSONAdviceCommand = regexp.MustCompile("use `(asc [^`]+)` instead")
@@ -30,17 +29,14 @@ func TestAPINonJSONRejectionsRecommendRealCommands(t *testing.T) {
 
 	for _, path := range paths {
 		t.Run(path, func(t *testing.T) {
-			restore := shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+			client := func() (*asc.Client, error) {
 				return nil, errors.New("client factory must not run during validation")
-			})
-			defer restore()
+			}
 
-			_, stderr := captureOutput(t, func() {
-				if code := rootcmd.Run([]string{"api", "GET", path}, "1.2.3"); code != rootcmd.ExitUsage {
-					t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
-				}
-			})
-			restore()
+			_, stderr, code := runWithDeps(t, client, "api", "GET", path)
+			if code != rootcmd.ExitUsage {
+				t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
+			}
 
 			match := nonJSONAdviceCommand.FindStringSubmatch(stderr)
 			if match == nil {

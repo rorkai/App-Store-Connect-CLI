@@ -12,7 +12,6 @@ import (
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestAPIUsageErrorsRunBeforeAuth(t *testing.T) {
@@ -206,13 +205,12 @@ func TestAPIUsageErrorsRunBeforeAuth(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			clientFactoryCalled := false
-			restore := shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+			client := func() (*asc.Client, error) {
 				clientFactoryCalled = true
 				return nil, errors.New("client factory must not run during validation")
-			})
-			defer restore()
+			}
 
-			assertUsageExit(t, test.args, test.wantErr)
+			assertUsageExitWithDeps(t, client, test.args, test.wantErr)
 			if clientFactoryCalled {
 				t.Fatal("client factory ran before validation finished")
 			}
@@ -221,16 +219,14 @@ func TestAPIUsageErrorsRunBeforeAuth(t *testing.T) {
 }
 
 func TestAPIUnknownPathSuggestsNearestOperations(t *testing.T) {
-	restore := shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+	client := func() (*asc.Client, error) {
 		return nil, errors.New("client factory must not run during validation")
-	})
-	defer restore()
+	}
 
-	_, stderr := captureOutput(t, func() {
-		if code := rootcmd.Run([]string{"api", "GET", "/v1/apps/123/buildz"}, "1.2.3"); code != rootcmd.ExitUsage {
-			t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
-		}
-	})
+	_, stderr, code := runWithDeps(t, client, "api", "GET", "/v1/apps/123/buildz")
+	if code != rootcmd.ExitUsage {
+		t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
+	}
 	if !strings.Contains(stderr, "GET /v1/apps/{id}/builds") {
 		t.Fatalf("stderr = %q, want nearest operation GET /v1/apps/{id}/builds", stderr)
 	}
@@ -240,19 +236,15 @@ func TestAPIUnknownPathSuggestsNearestOperations(t *testing.T) {
 }
 
 func TestAPIGetPrintsEnvelopeUnmodified(t *testing.T) {
-	setupAuth(t)
-
 	const body = `{"data":[{"type":"apps","id":"123","attributes":{"name":"Demo"}}],"links":{"self":"https://api.appstoreconnect.apple.com/v1/apps?limit=1"},"meta":{"paging":{"total":1,"limit":1}}}`
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps", "fields[apps]=name", "limit=1"), asctest.JSON(http.StatusOK, body))
 
-	stdout, stderr := captureOutput(t, func() {
-		args := []string{"api", "get", "/v1/apps", "--query", "limit=1", "--query", "fields[apps]=name"}
-		if code := rootcmd.Run(args, "1.2.3"); code != rootcmd.ExitSuccess {
-			t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitSuccess)
-		}
-	})
+	args := []string{"api", "get", "/v1/apps", "--query", "limit=1", "--query", "fields[apps]=name"}
+	stdout, stderr, code := runWithDeps(t, stubClient(t, reg), args...)
+	if code != rootcmd.ExitSuccess {
+		t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitSuccess)
+	}
 	if stderr != "" {
 		t.Fatalf("stderr = %q, want empty", stderr)
 	}
@@ -273,18 +265,14 @@ func TestAPIGetPrintsEnvelopeUnmodified(t *testing.T) {
 }
 
 func TestAPIGetAcceptsFullURLWithQueryAndPretty(t *testing.T) {
-	setupAuth(t)
-
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps", "limit=2", "sort=name"), asctest.JSON(http.StatusOK, `{"data":[]}`))
 
-	stdout, stderr := captureOutput(t, func() {
-		args := []string{"api", "--pretty", "GET", "https://api.appstoreconnect.apple.com/v1/apps?limit=2", "--query", "sort=name"}
-		if code := rootcmd.Run(args, "1.2.3"); code != rootcmd.ExitSuccess {
-			t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitSuccess)
-		}
-	})
+	args := []string{"api", "--pretty", "GET", "https://api.appstoreconnect.apple.com/v1/apps?limit=2", "--query", "sort=name"}
+	stdout, stderr, code := runWithDeps(t, stubClient(t, reg), args...)
+	if code != rootcmd.ExitSuccess {
+		t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitSuccess)
+	}
 	if stderr != "" {
 		t.Fatalf("stderr = %q, want empty", stderr)
 	}
@@ -297,21 +285,17 @@ func TestAPIGetAcceptsFullURLWithQueryAndPretty(t *testing.T) {
 }
 
 func TestAPIPaginateMergesCollectionPages(t *testing.T) {
-	setupAuth(t)
-
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps", "limit=1"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"apps","id":"1"}],"included":[{"type":"builds","id":"b1"}],"links":{"self":"https://api.appstoreconnect.apple.com/v1/apps?limit=1","next":"https://api.appstoreconnect.apple.com/v1/apps?cursor=two&limit=1"},"meta":{"paging":{"total":2,"limit":1}}}`))
 	reg.Register(asctest.GET("/v1/apps", "cursor=two", "limit=1"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"apps","id":"2"}],"included":[{"type":"builds","id":"b1"},{"type":"builds","id":"b2"}],"links":{"self":"https://api.appstoreconnect.apple.com/v1/apps?cursor=two&limit=1"},"meta":{"paging":{"total":2,"limit":1}}}`))
 
-	stdout, stderr := captureOutput(t, func() {
-		args := []string{"api", "GET", "/v1/apps", "--query", "limit=1", "--paginate"}
-		if code := rootcmd.Run(args, "1.2.3"); code != rootcmd.ExitSuccess {
-			t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitSuccess)
-		}
-	})
+	args := []string{"api", "GET", "/v1/apps", "--query", "limit=1", "--paginate"}
+	stdout, stderr, code := runWithDeps(t, stubClient(t, reg), args...)
+	if code != rootcmd.ExitSuccess {
+		t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitSuccess)
+	}
 	if stderr != "" {
 		t.Fatalf("stderr = %q, want empty", stderr)
 	}
@@ -346,18 +330,14 @@ func TestAPIPaginateMergesCollectionPages(t *testing.T) {
 }
 
 func TestAPIPaginateRejectsNonCollectionResponse(t *testing.T) {
-	setupAuth(t)
-
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/1"), asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"1"}}`))
 
-	stdout, stderr := captureOutput(t, func() {
-		args := []string{"api", "GET", "/v1/apps/1", "--paginate"}
-		if code := rootcmd.Run(args, "1.2.3"); code != rootcmd.ExitError {
-			t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitError)
-		}
-	})
+	args := []string{"api", "GET", "/v1/apps/1", "--paginate"}
+	stdout, stderr, code := runWithDeps(t, stubClient(t, reg), args...)
+	if code != rootcmd.ExitError {
+		t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitError)
+	}
 	if stdout != "" {
 		t.Fatalf("stdout = %q, want empty", stdout)
 	}
@@ -375,20 +355,17 @@ func TestAPIRejectsMalformedJSONResponse(t *testing.T) {
 			name = "pretty"
 		}
 		t.Run(name, func(t *testing.T) {
-			setupAuth(t)
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			reg.Register(asctest.GET("/v1/apps"), asctest.JSON(http.StatusOK, `{"data":[`))
 
 			args := []string{"api", "GET", "/v1/apps"}
 			if pretty {
 				args = append(args, "--pretty")
 			}
-			stdout, stderr := captureOutput(t, func() {
-				if code := rootcmd.Run(args, "1.2.3"); code == rootcmd.ExitSuccess {
-					t.Fatalf("exit code = %d, want a failure", code)
-				}
-			})
+			stdout, stderr, code := runWithDeps(t, stubClient(t, reg), args...)
+			if code == rootcmd.ExitSuccess {
+				t.Fatalf("exit code = %d, want a failure", code)
+			}
 			if stdout != "" {
 				t.Fatalf("stdout = %q, want empty", stdout)
 			}
@@ -400,20 +377,16 @@ func TestAPIRejectsMalformedJSONResponse(t *testing.T) {
 }
 
 func TestAPIPostSendsBodyWithConfirm(t *testing.T) {
-	setupAuth(t)
-
 	const requestBody = `{"data":{"type":"betaGroups","attributes":{"name":"QA"},"relationships":{"app":{"data":{"type":"apps","id":"123"}}}}}`
 	const responseBody = `{"data":{"type":"betaGroups","id":"g1"}}`
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.POST("/v1/betaGroups").JSONBody(requestBody), asctest.JSON(http.StatusCreated, responseBody))
 
-	stdout, stderr := captureOutput(t, func() {
-		args := []string{"api", "POST", "/v1/betaGroups", "--confirm", "--body", requestBody}
-		if code := rootcmd.Run(args, "1.2.3"); code != rootcmd.ExitSuccess {
-			t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitSuccess)
-		}
-	})
+	args := []string{"api", "POST", "/v1/betaGroups", "--confirm", "--body", requestBody}
+	stdout, stderr, code := runWithDeps(t, stubClient(t, reg), args...)
+	if code != rootcmd.ExitSuccess {
+		t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitSuccess)
+	}
 	if stderr != "" {
 		t.Fatalf("stderr = %q, want empty", stderr)
 	}
@@ -430,19 +403,14 @@ func TestAPIPostSendsBodyWithConfirm(t *testing.T) {
 }
 
 func TestAPIPostPreservesDocumentedMutationURLQuery(t *testing.T) {
-	setupAuth(t)
 	const path = "/v1/appAssetLibraryPlacementOrderingRequests"
 	const requestBody = `{"data":{"type":"appAssetLibraryPlacementOrderingRequests","attributes":{"placementGroup":"IPHONE_65"},"relationships":{"orderedPlacements":{"data":[{"type":"appAssetLibraryPlacements","id":"placement-1"}]},"appStoreVersionLocalization":{"data":{"type":"appStoreVersionLocalizations","id":"locale-1"}}}}}`
 	const responseBody = `{"data":{"type":"appAssetLibraryPlacementOrderingRequests","id":"request-1"},"included":[{"type":"appAssetLibraryPlacements","id":"placement-1"}]}`
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.POST(path, "include=orderedPlacements").JSONBody(requestBody), asctest.JSON(http.StatusCreated, responseBody))
 
-	var code int
-	stdout, stderr := captureOutput(t, func() {
-		code = rootcmd.Run([]string{"api", "POST", path + "?include=orderedPlacements", "--confirm", "--body", requestBody}, "1.2.3")
-	})
+	stdout, stderr, code := runWithDeps(t, stubClient(t, reg), "api", "POST", path+"?include=orderedPlacements", "--confirm", "--body", requestBody)
 	if code != rootcmd.ExitSuccess || stdout != responseBody+"\n" || stderr != "" {
 		t.Fatalf("exit = %d, stdout = %q, stderr = %q, want success and Apple's envelope", code, stdout, stderr)
 	}
@@ -452,8 +420,6 @@ func TestAPIPostPreservesDocumentedMutationURLQuery(t *testing.T) {
 }
 
 func TestAPIPatchReadsBodyFromFile(t *testing.T) {
-	setupAuth(t)
-
 	const requestBody = `{"data":{"type":"apps","id":"123","attributes":{"primaryLocale":"en-US"}}}`
 	payloadPath := filepath.Join(t.TempDir(), "payload.json")
 	if err := os.WriteFile(payloadPath, []byte(requestBody), 0o600); err != nil {
@@ -470,14 +436,12 @@ func TestAPIPatchReadsBodyFromFile(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			reg.Register(asctest.PATCH("/v1/apps/123").JSONBody(requestBody), asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"123"}}`))
 
-			_, stderr := captureOutput(t, func() {
-				if code := rootcmd.Run(test.args, "1.2.3"); code != rootcmd.ExitSuccess {
-					t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitSuccess)
-				}
-			})
+			_, stderr, code := runWithDeps(t, stubClient(t, reg), test.args...)
+			if code != rootcmd.ExitSuccess {
+				t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitSuccess)
+			}
 			if stderr != "" {
 				t.Fatalf("stderr = %q, want empty", stderr)
 			}
@@ -489,35 +453,27 @@ func TestAPIPatchReadsBodyFromFile(t *testing.T) {
 }
 
 func TestAPIDeleteEmptyResponsePrintsNothing(t *testing.T) {
-	setupAuth(t)
-
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.DELETE("/v1/betaGroups/g1"), asctest.JSON(http.StatusNoContent, ""))
 
-	stdout, stderr := captureOutput(t, func() {
-		if code := rootcmd.Run([]string{"api", "DELETE", "/v1/betaGroups/g1", "--confirm"}, "1.2.3"); code != rootcmd.ExitSuccess {
-			t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitSuccess)
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, stubClient(t, reg), "api", "DELETE", "/v1/betaGroups/g1", "--confirm")
+	if code != rootcmd.ExitSuccess {
+		t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitSuccess)
+	}
 	if stdout != "" || stderr != "" {
 		t.Fatalf("stdout = %q, stderr = %q, want both empty", stdout, stderr)
 	}
 }
 
 func TestAPIAllowUnknownPathSkipsSchemaCheck(t *testing.T) {
-	setupAuth(t)
-
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/notYetIndexed"), asctest.JSON(http.StatusOK, `{"data":[]}`))
 
-	_, stderr := captureOutput(t, func() {
-		args := []string{"api", "GET", "/v1/notYetIndexed", "--allow-unknown-path"}
-		if code := rootcmd.Run(args, "1.2.3"); code != rootcmd.ExitSuccess {
-			t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitSuccess)
-		}
-	})
+	args := []string{"api", "GET", "/v1/notYetIndexed", "--allow-unknown-path"}
+	_, stderr, code := runWithDeps(t, stubClient(t, reg), args...)
+	if code != rootcmd.ExitSuccess {
+		t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitSuccess)
+	}
 	if stderr != "" {
 		t.Fatalf("stderr = %q, want empty", stderr)
 	}
@@ -527,18 +483,14 @@ func TestAPIAllowUnknownPathSkipsSchemaCheck(t *testing.T) {
 }
 
 func TestAPIRendersAppleErrorsWithStatusExitCode(t *testing.T) {
-	setupAuth(t)
-
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/999"),
 		asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"The specified resource does not exist","detail":"There is no resource of type 'apps' with id '999'"}]}`))
 
-	stdout, stderr := captureOutput(t, func() {
-		if code := rootcmd.Run([]string{"api", "GET", "/v1/apps/999"}, "1.2.3"); code != rootcmd.ExitNotFound {
-			t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitNotFound)
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, stubClient(t, reg), "api", "GET", "/v1/apps/999")
+	if code != rootcmd.ExitNotFound {
+		t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitNotFound)
+	}
 	if stdout != "" {
 		t.Fatalf("stdout = %q, want empty", stdout)
 	}
@@ -548,17 +500,13 @@ func TestAPIRendersAppleErrorsWithStatusExitCode(t *testing.T) {
 }
 
 func TestAPIFullURLStaysOnItsHost(t *testing.T) {
-	setupAuth(t)
-
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 
-	_, stderr := captureOutput(t, func() {
-		args := []string{"api", "get", "https://api.enterprise.developer.apple.com/v1/certificates"}
-		if code := rootcmd.Run(args, "1.2.3"); code == rootcmd.ExitSuccess {
-			t.Fatal("api get succeeded with a URL for the other API")
-		}
-	})
+	args := []string{"api", "get", "https://api.enterprise.developer.apple.com/v1/certificates"}
+	_, stderr, code := runWithDeps(t, stubClient(t, reg), args...)
+	if code == rootcmd.ExitSuccess {
+		t.Fatal("api get succeeded with a URL for the other API")
+	}
 	if !strings.Contains(stderr, "rejected request URL") {
 		t.Fatalf("stderr = %q", stderr)
 	}
