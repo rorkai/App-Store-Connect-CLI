@@ -18,7 +18,7 @@ func TestNotarizationSubmitRejectsNonRegularArchiveWithoutBlocking(t *testing.T)
 		t.Skipf("mkfifo not supported: %v", err)
 	}
 
-	cmd := submitCommand()
+	cmd := submitCommand(newNotarizationTestDeps(nil))
 	if err := cmd.FlagSet.Parse([]string{"--file", archivePath}); err != nil {
 		t.Fatalf("parse command: %v", err)
 	}

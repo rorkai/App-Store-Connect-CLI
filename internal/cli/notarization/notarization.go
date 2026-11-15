@@ -115,13 +115,8 @@ func (v *singleStringValue) Set(value string) error {
 	return nil
 }
 
-// NotarizationCommand returns the notarization command group.
-func NotarizationCommand() *ffcli.Command {
-	return notarizationCommand()
-}
-
-// notarizationCommand returns the top-level notarization command.
-func notarizationCommand() *ffcli.Command {
+// NewNotarizationCommand returns the notarization command group on d.
+func NewNotarizationCommand(d *shared.Deps) *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "notarization",
 		ShortUsage: "asc notarization <subcommand> [flags]",
@@ -136,14 +131,14 @@ Examples:
   asc notarization status --id "SUBMISSION_ID"
   asc notarization log --id "SUBMISSION_ID"
   asc notarization list`,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			submitCommand(),
-			stapleCommand(),
-			validateStapleCommand(),
-			statusCommand(),
-			logCommand(),
-			listCommand(),
+			submitCommand(d),
+			stapleCommand(d),
+			validateStapleCommand(d),
+			statusCommand(d),
+			logCommand(d),
+			listCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -152,12 +147,12 @@ Examples:
 }
 
 // stapleCommand returns the local ticket stapling subcommand.
-func stapleCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("notarization staple", flag.ExitOnError)
+func stapleCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("notarization staple", flag.ExitOnError)
 
 	filePath := bindSingleStringFlag(fs, "file", "Path to a notarized app bundle, disk image, or signed flat package (required; zip files must be recreated after stapling)")
 	confirm := fs.Bool("confirm", false, "Confirm in-place ticket stapling (required)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "staple",
@@ -174,38 +169,38 @@ Examples:
   asc notarization staple --file ./MyApp.pkg --confirm --output json
   asc notarization staple --file ./MyApp.app --confirm --output table`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if len(args) > 0 {
-				return shared.UsageError("notarization staple does not accept positional arguments")
+				return d.UsageError("notarization staple does not accept positional arguments")
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			target, err := validateStaplerDetailsFn(filePath.String())
 			if err != nil {
 				if isStaplerTargetUsageError(err) {
-					return shared.UsageErrorf("notarization staple: %v", err)
+					return d.UsageErrorf("notarization staple: %v", err)
 				}
-				return reportStaplerTargetFilesystemFailure("staple")
+				return reportStaplerTargetFilesystemFailure(d.IO.ErrOut, "staple")
 			}
 			if target == nil {
-				return reportStaplerTargetFilesystemFailure("staple")
+				return reportStaplerTargetFilesystemFailure(d.IO.ErrOut, "staple")
 			}
 			defer target.close()
 			pathValue := target.path
 			if err := target.verifyIdentity("before stapling"); err != nil {
-				return reportStaplerTargetStageFailure("staple", "before stapling", err)
+				return reportStaplerTargetStageFailure(d.IO.ErrOut, "staple", "before stapling", err)
 			}
 
 			var expectedInventory staplerDirectoryInventory
 			inventoryCaptured := false
 			var expectedFingerprint staplerRegularFileFingerprint
 			fingerprintCaptured := false
-			result, runErr := runStaplerStaple(ctx, pathValue, os.Stderr, func(operation localxcode.StaplerOperation, before bool) error {
+			result, runErr := runStaplerStaple(ctx, pathValue, d.IO.ErrOut, func(operation localxcode.StaplerOperation, before bool) error {
 				stage := staplerStageDescription(operation, before)
 				if err := target.verifyIdentity(stage); err != nil {
 					return err
@@ -258,28 +253,28 @@ Examples:
 			})
 			var partialErr *localxcode.StaplerPartialMutationError
 			if runErr != nil && errors.As(runErr, &partialErr) {
-				return reportStaplerFailure("staple", runErr)
+				return reportStaplerFailure(d.IO.ErrOut, "staple", runErr)
 			}
 			stageErr := target.verifyIdentity("after stapling")
 			if stageErr != nil {
 				if runErr != nil {
 					stageErr = errors.Join(runErr, stageErr)
 				}
-				return reportStaplerTargetStageFailure("staple", "after stapling", stageErr)
+				return reportStaplerTargetStageFailure(d.IO.ErrOut, "staple", "after stapling", stageErr)
 			}
 			if runErr != nil && isStaplerTargetStageError(runErr) {
-				return reportStaplerTargetStageFailure("staple", "after stapling", runErr)
+				return reportStaplerTargetStageFailure(d.IO.ErrOut, "staple", "after stapling", runErr)
 			}
 			if runErr != nil {
-				return reportStaplerFailure("staple", runErr)
+				return reportStaplerFailure(d.IO.ErrOut, "staple", runErr)
 			}
 			if result == nil {
-				return reportStaplerFailure("staple", errors.New("local stapler returned no result"))
+				return reportStaplerFailure(d.IO.ErrOut, "staple", errors.New("local stapler returned no result"))
 			}
 			if !result.Stapled || !result.Validated {
-				return reportStaplerFailure("staple", errors.New("local stapler did not report a verified ticket"))
+				return reportStaplerFailure(d.IO.ErrOut, "staple", errors.New("local stapler did not report a verified ticket"))
 			}
-			return shared.PrintOutput(&asc.NotarizationStapleResult{
+			return d.PrintOutput(&asc.NotarizationStapleResult{
 				FilePath:  pathValue,
 				Operation: "staple",
 				Stapled:   result.Stapled,
@@ -290,11 +285,11 @@ Examples:
 }
 
 // validateStapleCommand returns the local ticket validation subcommand.
-func validateStapleCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("notarization validate", flag.ExitOnError)
+func validateStapleCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("notarization validate", flag.ExitOnError)
 
 	filePath := bindSingleStringFlag(fs, "file", "Path to an artifact with an existing notarization ticket (required; zip files must be validated after recreating them)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "validate",
@@ -311,35 +306,35 @@ Examples:
   asc notarization validate --file ./MyApp.pkg --output json
   asc notarization validate --file ./MyApp.app --output markdown`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if len(args) > 0 {
-				return shared.UsageError("notarization validate does not accept positional arguments")
+				return d.UsageError("notarization validate does not accept positional arguments")
 			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			target, err := validateStaplerDetailsFn(filePath.String())
 			if err != nil {
 				if isStaplerTargetUsageError(err) {
-					return shared.UsageErrorf("notarization validate: %v", err)
+					return d.UsageErrorf("notarization validate: %v", err)
 				}
-				return reportStaplerTargetFilesystemFailure("validate")
+				return reportStaplerTargetFilesystemFailure(d.IO.ErrOut, "validate")
 			}
 			if target == nil {
-				return reportStaplerTargetFilesystemFailure("validate")
+				return reportStaplerTargetFilesystemFailure(d.IO.ErrOut, "validate")
 			}
 			defer target.close()
 			pathValue := target.path
 			if err := target.verifyIdentity("before validation"); err != nil {
-				return reportStaplerTargetStageFailure("validate", "before validation", err)
+				return reportStaplerTargetStageFailure(d.IO.ErrOut, "validate", "before validation", err)
 			}
 
 			var expectedInventory staplerDirectoryInventory
 			inventoryCaptured := false
 			var expectedFingerprint staplerRegularFileFingerprint
 			fingerprintCaptured := false
-			result, runErr := runStaplerValidate(ctx, pathValue, os.Stderr, func(operation localxcode.StaplerOperation, before bool) error {
+			result, runErr := runStaplerValidate(ctx, pathValue, d.IO.ErrOut, func(operation localxcode.StaplerOperation, before bool) error {
 				stage := staplerStageDescription(operation, before)
 				if err := target.verifyIdentity(stage); err != nil {
 					return err
@@ -382,21 +377,21 @@ Examples:
 				if runErr != nil {
 					stageErr = errors.Join(runErr, stageErr)
 				}
-				return reportStaplerTargetStageFailure("validate", "after validation", stageErr)
+				return reportStaplerTargetStageFailure(d.IO.ErrOut, "validate", "after validation", stageErr)
 			}
 			if runErr != nil && isStaplerTargetStageError(runErr) {
-				return reportStaplerTargetStageFailure("validate", "after validation", runErr)
+				return reportStaplerTargetStageFailure(d.IO.ErrOut, "validate", "after validation", runErr)
 			}
 			if runErr != nil {
-				return reportStaplerFailure("validate", runErr)
+				return reportStaplerFailure(d.IO.ErrOut, "validate", runErr)
 			}
 			if result == nil {
-				return reportStaplerFailure("validate", errors.New("local stapler returned no result"))
+				return reportStaplerFailure(d.IO.ErrOut, "validate", errors.New("local stapler returned no result"))
 			}
 			if !result.Validated {
-				return reportStaplerFailure("validate", errors.New("local stapler did not report a valid ticket"))
+				return reportStaplerFailure(d.IO.ErrOut, "validate", errors.New("local stapler did not report a valid ticket"))
 			}
-			return shared.PrintOutput(&asc.NotarizationValidateResult{
+			return d.PrintOutput(&asc.NotarizationValidateResult{
 				FilePath:  pathValue,
 				Operation: "validate",
 				Validated: result.Validated,
@@ -1239,21 +1234,21 @@ func staplerTargetSemanticError(err error, absolute string) error {
 	return nil
 }
 
-func reportStaplerFailure(command string, err error) error {
+func reportStaplerFailure(stderr io.Writer, command string, err error) error {
 	var partialErr *localxcode.StaplerPartialMutationError
 	partialMutation := command == "staple" && errors.As(err, &partialErr)
 	if !partialMutation && localxcode.IsStaplerOperationAttemptedCancellation(err) {
 		if errors.Is(err, context.DeadlineExceeded) {
-			fmt.Fprintf(os.Stderr, "Error: notarization %s timed out\n", command)
+			fmt.Fprintf(stderr, "Error: notarization %s timed out\n", command)
 		} else {
-			fmt.Fprintf(os.Stderr, "Error: notarization %s was canceled\n", command)
+			fmt.Fprintf(stderr, "Error: notarization %s was canceled\n", command)
 		}
 		return shared.NewStderrReportedError(err)
 	}
 	var commandErr *localxcode.StaplerCommandError
 	if errors.As(err, &commandErr) {
 		if partialMutation {
-			reportStaplerPartialMutation(partialErr)
+			reportStaplerPartialMutation(stderr, partialErr)
 			if partialErr != nil && partialErr.Interrupted {
 				if commandErr.ExitCode > 0 {
 					return shared.NewStderrReportedError(shared.NewProcessExitErrorWithCause(commandErr.ExitCode, err))
@@ -1278,11 +1273,11 @@ func reportStaplerFailure(command string, err error) error {
 		}
 		if commandErr.ExitCode > 0 {
 			if command == "staple" && commandErr.Operation == string(localxcode.StaplerOperationValidate) && !partialMutation {
-				fmt.Fprintln(os.Stderr, "Error: notarization staple completed, but follow-up validation failed; the artifact may have been modified but was not verified")
+				fmt.Fprintln(stderr, "Error: notarization staple completed, but follow-up validation failed; the artifact may have been modified but was not verified")
 			} else if commandErr.Operation == string(localxcode.StaplerOperationResolve) {
-				fmt.Fprintf(os.Stderr, "Error: notarization %s could not resolve Apple's stapler tool (exit status %d)\n", command, commandErr.ExitCode)
+				fmt.Fprintf(stderr, "Error: notarization %s could not resolve Apple's stapler tool (exit status %d)\n", command, commandErr.ExitCode)
 			} else if !partialMutation || commandErr.Operation != string(localxcode.StaplerOperationValidate) {
-				fmt.Fprintf(os.Stderr, "Error: notarization %s failed during %s (exit status %d)\n", command, commandErr.Operation, commandErr.ExitCode)
+				fmt.Fprintf(stderr, "Error: notarization %s failed during %s (exit status %d)\n", command, commandErr.Operation, commandErr.ExitCode)
 			}
 			return shared.NewStderrReportedError(shared.NewProcessExitErrorWithCause(commandErr.ExitCode, err))
 		}
@@ -1291,41 +1286,41 @@ func reportStaplerFailure(command string, err error) error {
 			// diagnostic writer failed. Report the delivery failure without
 			// claiming the operation itself lacked a usable status.
 			if commandErr.Operation == command {
-				fmt.Fprintf(os.Stderr, "Error: notarization %s completed, but its diagnostic output could not be written\n", command)
+				fmt.Fprintf(stderr, "Error: notarization %s completed, but its diagnostic output could not be written\n", command)
 			} else {
-				fmt.Fprintf(os.Stderr, "Error: notarization %s completed, but the %s diagnostic output could not be written\n", command, commandErr.Operation)
+				fmt.Fprintf(stderr, "Error: notarization %s completed, but the %s diagnostic output could not be written\n", command, commandErr.Operation)
 			}
 			return shared.NewStderrReportedError(err)
 		}
-		fmt.Fprintf(os.Stderr, "Error: notarization %s failed during %s before a usable exit status was available\n", command, commandErr.Operation)
+		fmt.Fprintf(stderr, "Error: notarization %s failed during %s before a usable exit status was available\n", command, commandErr.Operation)
 		return shared.NewStderrReportedError(err)
 	}
 	if partialMutation {
-		reportStaplerPartialMutation(partialErr)
+		reportStaplerPartialMutation(stderr, partialErr)
 		return shared.NewStderrReportedError(err)
 	}
 	if errors.Is(err, context.Canceled) {
-		fmt.Fprintf(os.Stderr, "Error: notarization %s was canceled\n", command)
+		fmt.Fprintf(stderr, "Error: notarization %s was canceled\n", command)
 		return shared.NewStderrReportedError(err)
 	}
 	if errors.Is(err, context.DeadlineExceeded) {
-		fmt.Fprintf(os.Stderr, "Error: notarization %s timed out\n", command)
+		fmt.Fprintf(stderr, "Error: notarization %s timed out\n", command)
 		return shared.NewStderrReportedError(err)
 	}
-	fmt.Fprintf(os.Stderr, "Error: notarization %s: %v\n", command, err)
+	fmt.Fprintf(stderr, "Error: notarization %s: %v\n", command, err)
 	return shared.NewStderrReportedError(err)
 }
 
-func reportStaplerPartialMutation(err *localxcode.StaplerPartialMutationError) {
+func reportStaplerPartialMutation(stderr io.Writer, err *localxcode.StaplerPartialMutationError) {
 	if err != nil && err.Interrupted {
-		fmt.Fprintln(os.Stderr, "Error: notarization staple was interrupted; the artifact may have been modified but was not verified")
+		fmt.Fprintln(stderr, "Error: notarization staple was interrupted; the artifact may have been modified but was not verified")
 		return
 	}
 	var commandErr *localxcode.StaplerCommandError
 	staplerChildFailure := err != nil && errors.As(err, &commandErr) &&
 		commandErr.Operation == string(localxcode.StaplerOperationStaple)
 	if staplerChildFailure && commandErr.ExitCode > 0 {
-		fmt.Fprintf(os.Stderr, "Error: notarization staple failed during staple (exit status %d); the artifact may have been modified but was not verified\n", commandErr.ExitCode)
+		fmt.Fprintf(stderr, "Error: notarization staple failed during staple (exit status %d); the artifact may have been modified but was not verified\n", commandErr.ExitCode)
 		return
 	}
 	if staplerChildFailure && errors.Is(err, localxcode.ErrStaplerDiagnosticOutput) && !isStaplerTargetStageError(err) {
@@ -1334,39 +1329,39 @@ func reportStaplerPartialMutation(err *localxcode.StaplerPartialMutationError) {
 		// validation. Do not claim that a validation ran and failed. A joined
 		// stage-verification failure is the stronger signal and keeps its own
 		// diagnostic.
-		fmt.Fprintln(os.Stderr, "Error: notarization staple ran, but its diagnostic output could not be written and follow-up validation was not attempted; the artifact may have been modified but was not verified")
+		fmt.Fprintln(stderr, "Error: notarization staple ran, but its diagnostic output could not be written and follow-up validation was not attempted; the artifact may have been modified but was not verified")
 		return
 	}
 	if staplerChildFailure {
 		// The staple child itself failed without an ordinary exit status, so no
 		// follow-up validation ran. Name the stage that failed instead of
 		// claiming a completed staple with a failed validation.
-		fmt.Fprintln(os.Stderr, "Error: notarization staple failed during staple before a usable exit status was available; the artifact may have been modified but was not verified")
+		fmt.Fprintln(stderr, "Error: notarization staple failed during staple before a usable exit status was available; the artifact may have been modified but was not verified")
 		return
 	}
 	if err != nil && err.Operation == localxcode.StaplerOperationStaple {
 		var stageErr *localxcode.StaplerStageVerificationError
 		if errors.As(err, &stageErr) {
-			reportStaplerPartialStageVerification(stageErr)
+			reportStaplerPartialStageVerification(stderr, stageErr)
 			return
 		}
 	}
-	fmt.Fprintln(os.Stderr, "Error: notarization staple completed, but follow-up validation failed; the artifact may have been modified but was not verified")
+	fmt.Fprintln(stderr, "Error: notarization staple completed, but follow-up validation failed; the artifact may have been modified but was not verified")
 }
 
-func reportStaplerPartialStageVerification(stageErr *localxcode.StaplerStageVerificationError) {
+func reportStaplerPartialStageVerification(stderr io.Writer, stageErr *localxcode.StaplerStageVerificationError) {
 	stage := staplerStageVerificationDescription(stageErr)
 	var identityErr *staplerTargetIdentityError
 	if errors.As(stageErr, &identityErr) {
-		fmt.Fprintf(os.Stderr, "Error: notarization staple completed, but artifact target changed %s; the artifact may have been modified but was not verified\n", stage)
+		fmt.Fprintf(stderr, "Error: notarization staple completed, but artifact target changed %s; the artifact may have been modified but was not verified\n", stage)
 		return
 	}
 	var verifyErr *staplerTargetVerifyError
 	if errors.As(stageErr, &verifyErr) {
-		fmt.Fprintf(os.Stderr, "Error: notarization staple completed, but could not inspect artifact filesystem %s; the artifact may have been modified but was not verified\n", stage)
+		fmt.Fprintf(stderr, "Error: notarization staple completed, but could not inspect artifact filesystem %s; the artifact may have been modified but was not verified\n", stage)
 		return
 	}
-	fmt.Fprintf(os.Stderr, "Error: notarization staple completed, but stapler verification failed %s; the artifact may have been modified but was not verified\n", stage)
+	fmt.Fprintf(stderr, "Error: notarization staple completed, but stapler verification failed %s; the artifact may have been modified but was not verified\n", stage)
 }
 
 func staplerStageVerificationDescription(stageErr *localxcode.StaplerStageVerificationError) string {
@@ -1398,9 +1393,9 @@ func staplerStapleChildFailure(err error) bool {
 	return errors.As(err, &commandErr) && commandErr.Operation == string(localxcode.StaplerOperationStaple)
 }
 
-func reportStaplerTargetFilesystemFailure(command string) error {
+func reportStaplerTargetFilesystemFailure(stderr io.Writer, command string) error {
 	message := fmt.Sprintf("notarization %s: could not inspect artifact filesystem", command)
-	fmt.Fprintln(os.Stderr, "Error: "+message)
+	fmt.Fprintln(stderr, "Error: "+message)
 	return shared.NewStderrReportedError(errors.New(message))
 }
 
@@ -1416,15 +1411,15 @@ func isStaplerTargetStageError(err error) bool {
 // reportStaplerTargetStageFailure emits the diagnostic that matches the cause:
 // a proven replacement names the stage it was detected at, while a boundary
 // that could not be evaluated reports the sanitized filesystem failure.
-func reportStaplerTargetStageFailure(command, fallbackStage string, err error) error {
+func reportStaplerTargetStageFailure(stderr io.Writer, command, fallbackStage string, err error) error {
 	message := staplerTargetStageFailureMessage(command, fallbackStage, err)
 	var commandErr *localxcode.StaplerCommandError
 	if errors.As(err, &commandErr) && commandErr.ExitCode > 0 {
 		detail := strings.TrimPrefix(message, "notarization "+command+": ")
-		fmt.Fprintf(os.Stderr, "Error: notarization %s failed during %s (exit status %d): %s\n", command, commandErr.Operation, commandErr.ExitCode, detail)
+		fmt.Fprintf(stderr, "Error: notarization %s failed during %s (exit status %d): %s\n", command, commandErr.Operation, commandErr.ExitCode, detail)
 		return shared.NewStderrReportedError(shared.NewProcessExitErrorWithCause(commandErr.ExitCode, err))
 	}
-	fmt.Fprintln(os.Stderr, "Error: "+message)
+	fmt.Fprintln(stderr, "Error: "+message)
 	return shared.NewStderrReportedError(errors.Join(errors.New(message), err))
 }
 
@@ -1441,14 +1436,14 @@ func staplerTargetStageFailureMessage(command, fallbackStage string, err error) 
 }
 
 // submitCommand returns the submit subcommand.
-func submitCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("notarization submit", flag.ExitOnError)
+func submitCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("notarization submit", flag.ExitOnError)
 
 	filePath := fs.String("file", "", "Path to the file to notarize (required, zip/dmg/pkg)")
 	wait := fs.Bool("wait", false, "Wait for notarization to complete")
 	pollInterval := fs.String("poll-interval", "15s", "Polling interval when using --wait")
 	timeout := fs.String("timeout", "30m", "Timeout when using --wait")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "submit",
@@ -1466,26 +1461,27 @@ Examples:
   asc notarization submit --file ./MyApp.zip --wait --poll-interval 30s --timeout 1h
   asc notarization submit --file ./MyApp.zip --output table`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			pathValue := strings.TrimSpace(*filePath)
 			if pathValue == "" {
-				return shared.RequiredFlag("--file")
+				return d.RequiredFlag("--file")
 			}
 
 			interval, err := time.ParseDuration(strings.TrimSpace(*pollInterval))
 			if err != nil || interval <= 0 {
-				return shared.UsageError("notarization submit: --poll-interval must be a valid positive duration (e.g. 15s, 1m)")
+				return d.UsageError("notarization submit: --poll-interval must be a valid positive duration (e.g. 15s, 1m)")
 			}
 
 			timeoutDuration, err := time.ParseDuration(strings.TrimSpace(*timeout))
 			if err != nil || timeoutDuration <= 0 {
-				return shared.UsageError("notarization submit: --timeout must be a valid positive duration (e.g. 30m, 1h)")
+				return d.UsageError("notarization submit: --timeout must be a valid positive duration (e.g. 30m, 1h)")
 			}
 
 			// Preserve the explicit symlink error while relying on the no-follow
 			// open below for the actual security boundary.
-			pathInfo, err := os.Lstat(pathValue)
+			osPath := d.OSPath(pathValue)
+			pathInfo, err := os.Lstat(osPath)
 			if err != nil {
 				return fmt.Errorf("notarization submit: %w", err)
 			}
@@ -1499,7 +1495,7 @@ Examples:
 				return fmt.Errorf("notarization submit: %q is not a regular file", pathValue)
 			}
 
-			fileHandle, err := secureopen.OpenExistingNoFollow(pathValue)
+			fileHandle, err := secureopen.OpenExistingNoFollow(osPath)
 			if err != nil {
 				return fmt.Errorf("notarization submit: failed to open file: %w", err)
 			}
@@ -1529,8 +1525,8 @@ Examples:
 
 			// Snapshot and compute SHA-256 before any remote mutation. The upload
 			// must consume the same operation-owned bytes as the submitted hash.
-			if shared.ProgressEnabled() {
-				fmt.Fprintf(os.Stderr, "Computing SHA-256 hash of %s...\n", pathValue)
+			if d.ProgressEnabled() {
+				fmt.Fprintf(d.IO.ErrOut, "Computing SHA-256 hash of %s...\n", pathValue)
 			}
 			snapshot, snapshotSize, sha256Hash, cleanupSnapshot, err := snapshotNotarizationArtifact(ctx, fileHandle, info.Size())
 			if err != nil {
@@ -1546,18 +1542,18 @@ Examples:
 			}
 			defer releaseSnapshot()
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("notarization submit: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			// Submit to Notary API
 			submissionName := info.Name()
-			if shared.ProgressEnabled() {
-				fmt.Fprintf(os.Stderr, "Submitting %s for notarization...\n", submissionName)
+			if d.ProgressEnabled() {
+				fmt.Fprintf(d.IO.ErrOut, "Submitting %s for notarization...\n", submissionName)
 			}
 
 			submitResp, err := client.SubmitNotarization(requestCtx, sha256Hash, submissionName)
@@ -1566,16 +1562,16 @@ Examples:
 			}
 
 			submissionID := submitResp.Data.ID
-			if shared.ProgressEnabled() {
-				fmt.Fprintf(os.Stderr, "Submission created: %s\n", submissionID)
+			if d.ProgressEnabled() {
+				fmt.Fprintf(d.IO.ErrOut, "Submission created: %s\n", submissionID)
 			}
 
 			// Upload file to S3
-			if shared.ProgressEnabled() {
-				fmt.Fprintf(os.Stderr, "Uploading %s to Apple...\n", submissionName)
+			if d.ProgressEnabled() {
+				fmt.Fprintf(d.IO.ErrOut, "Uploading %s to Apple...\n", submissionName)
 			}
 
-			uploadCtx, uploadCancel := shared.ContextWithUploadTimeout(ctx)
+			uploadCtx, uploadCancel := d.UploadTimeout(ctx)
 			defer uploadCancel()
 
 			creds := asc.S3Credentials{
@@ -1592,14 +1588,14 @@ Examples:
 			}
 			releaseSnapshot()
 
-			if shared.ProgressEnabled() {
-				fmt.Fprintln(os.Stderr, "Upload complete.")
+			if d.ProgressEnabled() {
+				fmt.Fprintln(d.IO.ErrOut, "Upload complete.")
 			}
 
 			// If not waiting, print the submission response and exit
 			if !*wait {
-				if shared.ProgressEnabled() {
-					fmt.Fprintf(os.Stderr, "Use 'asc notarization status --id %s' to check progress.\n", submissionID)
+				if d.ProgressEnabled() {
+					fmt.Fprintf(d.IO.ErrOut, "Use 'asc notarization status --id %s' to check progress.\n", submissionID)
 				}
 				resp := &asc.NotarySubmissionStatusResponse{
 					Data: asc.NotarySubmissionStatusData{
@@ -1612,36 +1608,36 @@ Examples:
 						},
 					},
 				}
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			// Wait for notarization to complete
-			if shared.ProgressEnabled() {
-				fmt.Fprintf(os.Stderr, "Waiting for notarization (polling every %s, timeout %s)...\n", interval, timeoutDuration)
+			if d.ProgressEnabled() {
+				fmt.Fprintf(d.IO.ErrOut, "Waiting for notarization (polling every %s, timeout %s)...\n", interval, timeoutDuration)
 			}
 
 			waitCtx, waitCancel := context.WithTimeout(ctx, timeoutDuration)
 			defer waitCancel()
 
-			statusResp, err := waitForNotarization(waitCtx, client, submissionID, interval)
+			statusResp, err := waitForNotarization(waitCtx, d, client, submissionID, interval)
 			if err != nil {
 				return fmt.Errorf("notarization submit: %w", err)
 			}
 
-			if err := shared.PrintOutput(statusResp, *output.Output, *output.Pretty); err != nil {
+			if err := d.PrintOutput(statusResp, *output.Output, *output.Pretty); err != nil {
 				return err
 			}
 
 			switch statusResp.Data.Attributes.Status {
 			case asc.NotaryStatusAccepted:
-				if shared.ProgressEnabled() {
-					fmt.Fprintln(os.Stderr, "Notarization complete! Status: Accepted")
+				if d.ProgressEnabled() {
+					fmt.Fprintln(d.IO.ErrOut, "Notarization complete! Status: Accepted")
 				}
 				return nil
 			case asc.NotaryStatusInvalid, asc.NotaryStatusRejected:
-				if shared.ProgressEnabled() {
-					fmt.Fprintf(os.Stderr, "Notarization failed. Status: %s\n", statusResp.Data.Attributes.Status)
-					fmt.Fprintf(os.Stderr, "Run 'asc notarization log --id %s --fetch' for details.\n", submissionID)
+				if d.ProgressEnabled() {
+					fmt.Fprintf(d.IO.ErrOut, "Notarization failed. Status: %s\n", statusResp.Data.Attributes.Status)
+					fmt.Fprintf(d.IO.ErrOut, "Run 'asc notarization log --id %s --fetch' for details.\n", submissionID)
 				}
 				return shared.NewReportedError(fmt.Errorf("notarization %s: %s", submissionID, statusResp.Data.Attributes.Status))
 			default:
@@ -1659,11 +1655,11 @@ func validateOpenedNotarizationArtifactIdentity(pathInfo, openedInfo os.FileInfo
 }
 
 // statusCommand returns the status subcommand.
-func statusCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("notarization status", flag.ExitOnError)
+func statusCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("notarization status", flag.ExitOnError)
 
 	submissionID := fs.String("id", "", "Submission ID (required)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "status",
@@ -1677,19 +1673,19 @@ Examples:
   asc notarization status --id "SUBMISSION_ID"
   asc notarization status --id "SUBMISSION_ID" --output table`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*submissionID)
 			if idValue == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("notarization status: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetNotarizationStatus(requestCtx, idValue)
@@ -1697,20 +1693,20 @@ Examples:
 				return fmt.Errorf("notarization status: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
 // logCommand returns the log subcommand.
-func logCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("notarization log", flag.ExitOnError)
+func logCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("notarization log", flag.ExitOnError)
 
 	submissionID := fs.String("id", "", "Submission ID (required)")
 	fetch := fs.Bool("fetch", false, "Fetch the log JSON instead of printing its URL")
 	path := fs.String("path", "", "With --fetch, write the log JSON to this file and print a receipt")
 	overwrite := fs.Bool("overwrite", false, "With --path, replace an existing file")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "log",
@@ -1735,44 +1731,44 @@ Examples:
   asc notarization log --id "SUBMISSION_ID" --fetch --path ./log.json
   asc notarization log --id "SUBMISSION_ID" --fetch --path ./log.json --overwrite`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*submissionID)
 			if idValue == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
 
 			provided := map[string]bool{}
 			fs.Visit(func(f *flag.Flag) { provided[f.Name] = true })
 			if provided["path"] && !*fetch {
-				return shared.UsageError("--path requires --fetch")
+				return d.UsageError("--path requires --fetch")
 			}
 			if *overwrite && !provided["path"] {
-				return shared.UsageError("--overwrite requires --path")
+				return d.UsageError("--overwrite requires --path")
 			}
 			if *fetch && !provided["path"] && provided["output"] && shared.NormalizeOutputFormat(*output.Output) != "json" {
-				return shared.UsageError("--fetch prints JSON; use --output json or write to a file with --path")
+				return d.UsageError("--fetch prints JSON; use --output json or write to a file with --path")
 			}
 
 			var destination *notarizationLogDestination
 			if provided["path"] {
 				if strings.TrimSpace(*path) == "" || os.IsPathSeparator((*path)[len(*path)-1]) {
-					return shared.UsageError("--path must be a file path")
+					return d.UsageError("--path must be a file path")
 				}
 				var err error
-				destination, err = newNotarizationLogDestination(*path, *overwrite)
+				destination, err = newNotarizationLogDestination(d, *path, *overwrite)
 				if err != nil {
 					return fmt.Errorf("notarization log: %w", err)
 				}
 				defer destination.root.Close()
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("notarization log: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetNotarizationLogs(requestCtx, idValue)
@@ -1781,10 +1777,10 @@ Examples:
 			}
 
 			if !*fetch {
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
-			downloadCtx, cancelDownload := shared.ContextWithDownloadTimeout(ctx)
+			downloadCtx, cancelDownload := d.DownloadTimeout(ctx)
 			defer cancelDownload()
 
 			logJSON, err := client.DownloadNotarizationLog(downloadCtx, resp.Data.Attributes.DeveloperLogURL)
@@ -1792,13 +1788,13 @@ Examples:
 				return fmt.Errorf("notarization log: %w", err)
 			}
 			if destination == nil {
-				return shared.PrintOutput(json.RawMessage(logJSON), "json", *output.Pretty)
+				return d.PrintOutput(json.RawMessage(logJSON), "json", *output.Pretty)
 			}
 
 			if err := destination.write(logJSON); err != nil {
 				return fmt.Errorf("notarization log: %w", err)
 			}
-			return shared.PrintOutput(&asc.NotarizationLogDownloadResult{
+			return d.PrintOutput(&asc.NotarizationLogDownloadResult{
 				ID:           idValue,
 				OutputPath:   *path,
 				BytesWritten: int64(len(logJSON)),
@@ -1813,8 +1809,8 @@ type notarizationLogDestination struct {
 	write func(data []byte) error
 }
 
-func newNotarizationLogDestination(path string, overwrite bool) (*notarizationLogDestination, error) {
-	absolute, err := filepath.Abs(path)
+func newNotarizationLogDestination(d *shared.Deps, path string, overwrite bool) (*notarizationLogDestination, error) {
+	absolute, err := d.Abs(path)
 	if err != nil {
 		return nil, err
 	}
@@ -1838,11 +1834,11 @@ func newNotarizationLogDestination(path string, overwrite bool) (*notarizationLo
 }
 
 // listCommand returns the list subcommand.
-func listCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("notarization list", flag.ExitOnError)
+func listCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("notarization list", flag.ExitOnError)
 
 	limit := fs.Int("limit", 0, "Maximum number of results to display (0 = all)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -1855,18 +1851,18 @@ Examples:
   asc notarization list --limit 5
   asc notarization list --output table`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit < 0 {
-				return shared.UsageError("notarization list: --limit must not be negative")
+				return d.UsageError("notarization list: --limit must not be negative")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("notarization list: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.ListNotarizations(requestCtx)
@@ -1878,7 +1874,7 @@ Examples:
 				resp.Data = resp.Data[:*limit]
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -1893,12 +1889,12 @@ const notarizationPollMaxBackoff = 2 * time.Minute
 // request timeouts, and retryable HTTP statuses) are reported on stderr and
 // retried with backoff, because the archive is already uploaded and the
 // submission keeps progressing server-side.
-func waitForNotarization(ctx context.Context, client *asc.Client, submissionID string, pollInterval time.Duration) (*asc.NotarySubmissionStatusResponse, error) {
+func waitForNotarization(ctx context.Context, d *shared.Deps, client *asc.Client, submissionID string, pollInterval time.Duration) (*asc.NotarySubmissionStatusResponse, error) {
 	consecutiveFailures := 0
 	var lastTransientErr error
 
 	for {
-		requestCtx, cancel := shared.ContextWithTimeout(ctx)
+		requestCtx, cancel := d.Timeout(ctx)
 		resp, err := client.GetNotarizationStatus(requestCtx, submissionID)
 		cancel()
 
@@ -1913,8 +1909,8 @@ func waitForNotarization(ctx context.Context, client *asc.Client, submissionID s
 				return resp, nil
 			default:
 				// Treat unknown statuses (including InProgress) as non-terminal and continue polling
-				if shared.ProgressEnabled() {
-					fmt.Fprintf(os.Stderr, "Status: %s (checking again in %s)\n", resp.Data.Attributes.Status, pollInterval)
+				if d.ProgressEnabled() {
+					fmt.Fprintf(d.IO.ErrOut, "Status: %s (checking again in %s)\n", resp.Data.Attributes.Status, pollInterval)
 				}
 			}
 		case ctx.Err() != nil:
@@ -1925,12 +1921,12 @@ func waitForNotarization(ctx context.Context, client *asc.Client, submissionID s
 			consecutiveFailures++
 			lastTransientErr = err
 			delay = notarizationPollBackoff(pollInterval, consecutiveFailures)
-			fmt.Fprintf(os.Stderr, "Warning: notarization status check failed (%v); retrying in %s\n", err, delay)
+			fmt.Fprintf(d.IO.ErrOut, "Warning: notarization status check failed (%v); retrying in %s\n", err, delay)
 		default:
 			return nil, fmt.Errorf("failed to check status: %w", err)
 		}
 
-		if !waitBeforeNextNotarizationPoll(ctx, delay) {
+		if !waitBeforeNextNotarizationPoll(ctx, d, delay) {
 			return nil, notarizationWaitEndedError(ctx, lastTransientErr)
 		}
 	}
@@ -1938,14 +1934,11 @@ func waitForNotarization(ctx context.Context, client *asc.Client, submissionID s
 
 // waitBeforeNextNotarizationPoll sleeps for delay and reports whether the wait
 // context is still live.
-func waitBeforeNextNotarizationPoll(ctx context.Context, delay time.Duration) bool {
-	timer := time.NewTimer(delay)
-	defer timer.Stop()
-
+func waitBeforeNextNotarizationPoll(ctx context.Context, d *shared.Deps, delay time.Duration) bool {
 	select {
 	case <-ctx.Done():
 		return false
-	case <-timer.C:
+	case <-d.After(delay):
 		return true
 	}
 }
