@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -73,9 +72,9 @@ func parseAppClipPlace(value string) (json.RawMessage, error) {
 	return place, nil
 }
 
-// AppClipAdvancedExperiencesCommand returns the advanced experiences command group.
-func AppClipAdvancedExperiencesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("advanced-experiences", flag.ExitOnError)
+// newAppClipAdvancedExperiencesCommand returns the advanced experiences command group.
+func newAppClipAdvancedExperiencesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("advanced-experiences", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "advanced-experiences",
@@ -89,12 +88,12 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			AppClipAdvancedExperiencesListCommand(),
-			AppClipAdvancedExperiencesGetCommand(),
-			AppClipAdvancedExperiencesCreateCommand(),
-			AppClipAdvancedExperiencesUpdateCommand(),
-			AppClipAdvancedExperiencesDeleteCommand(),
-			AppClipAdvancedExperienceImagesCommand(),
+			newAppClipAdvancedExperiencesListCommand(d),
+			newAppClipAdvancedExperiencesGetCommand(d),
+			newAppClipAdvancedExperiencesCreateCommand(d),
+			newAppClipAdvancedExperiencesUpdateCommand(d),
+			newAppClipAdvancedExperiencesDeleteCommand(d),
+			newAppClipAdvancedExperienceImagesCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -102,9 +101,9 @@ Examples:
 	}
 }
 
-// AppClipAdvancedExperiencesListCommand lists advanced experiences.
-func AppClipAdvancedExperiencesListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
+// newAppClipAdvancedExperiencesListCommand lists advanced experiences.
+func newAppClipAdvancedExperiencesListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("list", flag.ExitOnError)
 
 	appClipID := shared.BindResourceIDFlag(fs, "app-clip-id", "appClips", "App Clip ID")
 	action := fs.String("action", "", "Filter by action(s): OPEN, VIEW, PLAY (comma-separated)")
@@ -113,7 +112,7 @@ func AppClipAdvancedExperiencesListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -127,26 +126,26 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "app-clips advanced-experiences list", 200, "action", "status", "place-status"); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "app-clips advanced-experiences list", 200, "action", "status", "place-status"); err != nil {
 				return err
 			}
 
 			appClipValue := strings.TrimSpace(*appClipID)
 			if appClipValue == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--app-clip-id")
+				return d.RequiredFlag("--app-clip-id")
 			}
 
 			actionValues, err := normalizeAppClipActionList(*action)
 			if err != nil {
-				return shared.UsageErrorf("app-clips advanced-experiences list: %v", err)
+				return d.UsageErrorf("app-clips advanced-experiences list: %v", err)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("app-clips advanced-experiences list: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			opts := []asc.AppClipAdvancedExperiencesOption{
@@ -163,7 +162,7 @@ Examples:
 				if err != nil {
 					if asc.IsNotFound(err) {
 						empty := &asc.AppClipAdvancedExperiencesResponse{Data: []asc.Resource[asc.AppClipAdvancedExperienceAttributes]{}}
-						return shared.PrintOutput(empty, *output.Output, *output.Pretty)
+						return d.PrintOutput(empty, *output.Output, *output.Pretty)
 					}
 					return fmt.Errorf("app-clips advanced-experiences list: failed to fetch: %w", err)
 				}
@@ -175,25 +174,25 @@ Examples:
 					return fmt.Errorf("app-clips advanced-experiences list: %w", err)
 				}
 
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetAppClipAdvancedExperiences(requestCtx, appClipValue, opts...)
 			if err != nil {
 				if asc.IsNotFound(err) {
 					empty := &asc.AppClipAdvancedExperiencesResponse{Data: []asc.Resource[asc.AppClipAdvancedExperienceAttributes]{}}
-					return shared.PrintOutput(empty, *output.Output, *output.Pretty)
+					return d.PrintOutput(empty, *output.Output, *output.Pretty)
 				}
 				return fmt.Errorf("app-clips advanced-experiences list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// AppClipAdvancedExperiencesGetCommand gets an advanced experience by ID.
-func AppClipAdvancedExperiencesGetCommand() *ffcli.Command {
+// newAppClipAdvancedExperiencesGetCommand gets an advanced experience by ID.
+func newAppClipAdvancedExperiencesGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
 		Name:       "view",
 		ShortUsage: "asc app-clips advanced-experiences view --experience-id \"EXP_ID\"",
@@ -206,15 +205,16 @@ Examples:
 		IDUsage:            "Advanced experience ID",
 		IDType:             "appClipAdvancedExperiences",
 		RequiredDiagnostic: true,
+		Deps:               d,
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetAppClipAdvancedExperience(ctx, id)
 		},
 	})
 }
 
-// AppClipAdvancedExperiencesCreateCommand creates an advanced experience.
-func AppClipAdvancedExperiencesCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
+// newAppClipAdvancedExperiencesCreateCommand creates an advanced experience.
+func newAppClipAdvancedExperiencesCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("create", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	appClipID := shared.BindResourceIDFlag(fs, "app-clip-id", "appClips", "App Clip ID")
@@ -232,7 +232,7 @@ func AppClipAdvancedExperiencesCreateCommand() *ffcli.Command {
 	language := fs.String("language", "", "Inline localization language (use with --title)")
 	title := fs.String("title", "", "Inline localization title (use with --language)")
 	subtitle := fs.String("subtitle", "", "Inline localization subtitle (optional; requires --language and --title)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -253,16 +253,16 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			linkValue := strings.TrimSpace(*link)
 			if linkValue == "" {
-				return shared.RequiredFlag("--link")
+				return d.RequiredFlag("--link")
 			}
 
 			if strings.TrimSpace(*defaultLanguage) == "" {
-				return shared.RequiredFlag("--default-language")
+				return d.RequiredFlag("--default-language")
 			}
 
 			langValue, err := normalizeAppClipLanguage(*defaultLanguage)
 			if err != nil {
-				return shared.UsageErrorf("app-clips advanced-experiences create: %v", err)
+				return d.UsageErrorf("app-clips advanced-experiences create: %v", err)
 			}
 
 			visited := map[string]bool{}
@@ -270,12 +270,12 @@ Examples:
 				visited[f.Name] = true
 			})
 			if !visited["is-powered-by"] {
-				return shared.RequiredFlag("--is-powered-by")
+				return d.RequiredFlag("--is-powered-by")
 			}
 
 			headerImageValue := strings.TrimSpace(*headerImageID)
 			if headerImageValue == "" {
-				return shared.RequiredFlag("--header-image-id")
+				return d.RequiredFlag("--header-image-id")
 			}
 
 			localizationValues := shared.SplitCSV(localizationIDs.String())
@@ -283,26 +283,26 @@ Examples:
 			titleValue := strings.TrimSpace(*title)
 			subtitleValue := strings.TrimSpace(*subtitle)
 			if titleValue != "" && languageValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --language is required when --title is set")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --language is required when --title is set")
 				return shared.MissingRequiredUsageError("--language")
 			}
 			if languageValue != "" && titleValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --title is required when --language is set")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --title is required when --language is set")
 				return shared.MissingRequiredUsageError("--title")
 			}
 			if subtitleValue != "" && (languageValue == "" || titleValue == "") {
-				fmt.Fprintln(os.Stderr, "Error: --language and --title are required when --subtitle is set")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --language and --title are required when --subtitle is set")
 				return shared.MissingRequiredUsageError("")
 			}
 
 			inlineLocalizations, err := parseInlineLocalizations(inlineLocalizationJSON)
 			if err != nil {
-				return shared.UsageErrorf("app-clips advanced-experiences create: %v", err)
+				return d.UsageErrorf("app-clips advanced-experiences create: %v", err)
 			}
 			if languageValue != "" && titleValue != "" {
 				parsedLanguage, err := normalizeAppClipLanguage(languageValue)
 				if err != nil {
-					return shared.UsageErrorf("app-clips advanced-experiences create: %v", err)
+					return d.UsageErrorf("app-clips advanced-experiences create: %v", err)
 				}
 				inlineLocalizations = append(inlineLocalizations, asc.AppClipAdvancedExperienceLocalizationCreateAttributes{
 					Language: parsedLanguage,
@@ -311,7 +311,7 @@ Examples:
 				})
 			}
 			if len(localizationValues) == 0 && len(inlineLocalizations) == 0 {
-				fmt.Fprintln(os.Stderr, "Error: provide --localization-id, --inline-localization, or both --language and --title")
+				fmt.Fprintln(d.IO.ErrOut, "Error: provide --localization-id, --inline-localization, or both --language and --title")
 				return shared.MissingRequiredUsageError("")
 			}
 
@@ -319,7 +319,7 @@ Examples:
 			if strings.TrimSpace(*action) != "" {
 				parsed, err := normalizeAppClipAction(*action)
 				if err != nil {
-					return shared.UsageErrorf("app-clips advanced-experiences create: %v", err)
+					return d.UsageErrorf("app-clips advanced-experiences create: %v", err)
 				}
 				actionValue = &parsed
 			}
@@ -328,7 +328,7 @@ Examples:
 			if strings.TrimSpace(*category) != "" {
 				parsed, err := normalizeAppClipBusinessCategory(*category)
 				if err != nil {
-					return shared.UsageErrorf("app-clips advanced-experiences create: %v", err)
+					return d.UsageErrorf("app-clips advanced-experiences create: %v", err)
 				}
 				categoryValue = &parsed
 			}
@@ -337,28 +337,28 @@ Examples:
 			if visited["place"] {
 				placeValue, err = parseAppClipPlace(*place)
 				if err != nil {
-					return shared.UsageErrorf("app-clips advanced-experiences create: %v", err)
+					return d.UsageErrorf("app-clips advanced-experiences create: %v", err)
 				}
 			}
 
 			appClipValue := strings.TrimSpace(*appClipID)
 			bundleValue := strings.TrimSpace(*bundleID)
 			if appClipValue == "" && bundleValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app-clip-id or --bundle-id is required")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app-clip-id or --bundle-id is required")
 				return shared.MissingRequiredUsageError("")
 			}
 			appValue := strings.TrimSpace(shared.ResolveAppID(*appID))
 			if appClipValue == "" && appValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required with --bundle-id")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required with --bundle-id")
 				return shared.MissingRequiredUsageError("--app")
 			}
 
-			client, err := appClipsClientFactory()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("app-clips advanced-experiences create: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			appClipValue, err = resolveAppClipID(requestCtx, client, appValue, appClipValue, bundleValue)
@@ -380,14 +380,14 @@ Examples:
 				return fmt.Errorf("app-clips advanced-experiences create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// AppClipAdvancedExperiencesUpdateCommand updates an advanced experience.
-func AppClipAdvancedExperiencesUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("update", flag.ExitOnError)
+// newAppClipAdvancedExperiencesUpdateCommand updates an advanced experience.
+func newAppClipAdvancedExperiencesUpdateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("update", flag.ExitOnError)
 
 	experienceID := shared.BindResourceIDFlag(fs, "experience-id", "appClipAdvancedExperiences", "Advanced experience ID")
 	appClipID := shared.BindResourceIDFlag(fs, "app-clip-id", "appClips", "App Clip ID")
@@ -399,7 +399,7 @@ func AppClipAdvancedExperiencesUpdateCommand() *ffcli.Command {
 	removed := fs.Bool("removed", false, "Mark the experience as removed")
 	headerImageID := shared.BindResourceIDFlag(fs, "header-image-id", "appClipAdvancedExperienceImages", "Header image ID")
 	localizationIDs := shared.BindOnceCSVFlag(fs, "localization-id", "Localization ID(s), comma-separated")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -417,7 +417,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			experienceValue := strings.TrimSpace(*experienceID)
 			if experienceValue == "" {
-				return shared.RequiredFlag("--experience-id")
+				return d.RequiredFlag("--experience-id")
 			}
 
 			visited := map[string]bool{}
@@ -427,7 +427,7 @@ Examples:
 
 			hasUpdate := visited["action"] || visited["category"] || visited["place"] || visited["default-language"] || visited["is-powered-by"] || visited["removed"] || visited["header-image-id"] || visited["localization-id"] || visited["app-clip-id"]
 			if !hasUpdate {
-				return shared.UpdateFlagRequired(fs, appClipID, action, category, place, defaultLanguage, isPoweredBy, removed, headerImageID, localizationIDs)
+				return d.UpdateFlagRequired(fs, appClipID, action, category, place, defaultLanguage, isPoweredBy, removed, headerImageID, localizationIDs)
 			}
 
 			var attrs *asc.AppClipAdvancedExperienceUpdateAttributes
@@ -436,28 +436,28 @@ Examples:
 				if visited["action"] {
 					parsed, err := normalizeAppClipAction(*action)
 					if err != nil {
-						return shared.UsageErrorf("app-clips advanced-experiences update: %v", err)
+						return d.UsageErrorf("app-clips advanced-experiences update: %v", err)
 					}
 					update.Action = &parsed
 				}
 				if visited["category"] {
 					parsed, err := normalizeAppClipBusinessCategory(*category)
 					if err != nil {
-						return shared.UsageErrorf("app-clips advanced-experiences update: %v", err)
+						return d.UsageErrorf("app-clips advanced-experiences update: %v", err)
 					}
 					update.BusinessCategory = &parsed
 				}
 				if visited["place"] {
 					parsed, err := parseAppClipPlace(*place)
 					if err != nil {
-						return shared.UsageErrorf("app-clips advanced-experiences update: %v", err)
+						return d.UsageErrorf("app-clips advanced-experiences update: %v", err)
 					}
 					update.Place = parsed
 				}
 				if visited["default-language"] {
 					parsed, err := normalizeAppClipLanguage(*defaultLanguage)
 					if err != nil {
-						return shared.UsageErrorf("app-clips advanced-experiences update: %v", err)
+						return d.UsageErrorf("app-clips advanced-experiences update: %v", err)
 					}
 					update.DefaultLanguage = &parsed
 				}
@@ -472,12 +472,12 @@ Examples:
 				attrs = &update
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("app-clips advanced-experiences update: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.UpdateAppClipAdvancedExperience(requestCtx, experienceValue, attrs, *appClipID, *headerImageID, shared.SplitCSV(localizationIDs.String()))
@@ -485,13 +485,13 @@ Examples:
 				return fmt.Errorf("app-clips advanced-experiences update: failed to update: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// AppClipAdvancedExperiencesDeleteCommand deletes an advanced experience.
-func AppClipAdvancedExperiencesDeleteCommand() *ffcli.Command {
+// newAppClipAdvancedExperiencesDeleteCommand deletes an advanced experience.
+func newAppClipAdvancedExperiencesDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
 		Name:       "delete",
 		ShortUsage: "asc app-clips advanced-experiences delete --experience-id \"EXP_ID\" --confirm",
@@ -506,6 +506,7 @@ Examples:
 		RequiredDiagnostic: true,
 		ConfirmUsage:       "Confirm removal",
 		DeleteErrorPrefix:  "app-clips advanced-experiences delete: failed to remove",
+		Deps:               d,
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteAppClipAdvancedExperience(ctx, id)
 		},
