@@ -16,9 +16,9 @@ import (
 
 const noGameCenterDetailWarning = `Warning: no Game Center detail exists for this app. Run "asc game-center details create --app <APP_ID>" to create one.`
 
-// GameCenterCommand returns the game-center command group.
-func GameCenterCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("game-center", flag.ExitOnError)
+// NewGameCenterCommand returns the game-center command group.
+func NewGameCenterCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("game-center", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "game-center",
@@ -45,8 +45,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterAchievementsCommand(),
-			GameCenterLeaderboardsCommand(),
+			newGameCenterAchievementsCommand(d),
+			newGameCenterLeaderboardsCommand(d),
 			GameCenterLeaderboardSetsCommand(),
 			GameCenterChallengesCommand(),
 			GameCenterActivitiesCommand(),
@@ -88,12 +88,12 @@ func flagPassed(fs *flag.FlagSet, name string) bool {
 // parseStringMapFlag decodes a flag holding a JSON object of string values. It
 // returns nil when the flag was not passed and a non-nil map otherwise, so an
 // empty object still reaches Apple.
-func parseStringMapFlag(fs *flag.FlagSet, name string) (map[string]string, error) {
+func parseStringMapFlag(d *shared.Deps, fs *flag.FlagSet, name string) (map[string]string, error) {
 	if !flagPassed(fs, name) {
 		return nil, nil
 	}
 	shapeError := func() error {
-		return shared.UsageErrorf("--%s must be a JSON object of string values", name)
+		return d.UsageErrorf("--%s must be a JSON object of string values", name)
 	}
 	// Pointer values keep a JSON null from decoding to an empty string.
 	var decoded map[string]*string
@@ -112,13 +112,13 @@ func parseStringMapFlag(fs *flag.FlagSet, name string) (map[string]string, error
 
 // parseLeaderboardVisibilityFlag returns the normalized --visibility value, or
 // an empty string when the flag was not passed.
-func parseLeaderboardVisibilityFlag(fs *flag.FlagSet) (string, error) {
+func parseLeaderboardVisibilityFlag(d *shared.Deps, fs *flag.FlagSet) (string, error) {
 	if !flagPassed(fs, "visibility") {
 		return "", nil
 	}
 	value := strings.TrimSpace(strings.ToUpper(fs.Lookup("visibility").Value.String()))
 	if !slices.Contains(asc.ValidLeaderboardVisibilities, value) {
-		return "", shared.UsageErrorf("--visibility must be one of: %s", strings.Join(asc.ValidLeaderboardVisibilities, ", "))
+		return "", d.UsageErrorf("--visibility must be one of: %s", strings.Join(asc.ValidLeaderboardVisibilities, ", "))
 	}
 	return value, nil
 }

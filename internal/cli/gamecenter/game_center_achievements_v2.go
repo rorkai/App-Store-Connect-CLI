@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -13,9 +12,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// GameCenterAchievementsV2Command returns the achievements v2 command group.
-func GameCenterAchievementsV2Command() *ffcli.Command {
-	fs := flag.NewFlagSet("v2", flag.ExitOnError)
+// newGameCenterAchievementsV2Command returns the achievements v2 command group.
+func newGameCenterAchievementsV2Command(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("v2", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "v2",
@@ -31,10 +30,10 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterAchievementsV2ListCommand(),
-			GameCenterAchievementVersionsV2Command(),
-			GameCenterAchievementLocalizationsV2Command(),
-			GameCenterAchievementImagesV2Command(),
+			newGameCenterAchievementsV2ListCommand(d),
+			newGameCenterAchievementVersionsV2Command(d),
+			newGameCenterAchievementLocalizationsV2Command(d),
+			newGameCenterAchievementImagesV2Command(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -42,16 +41,16 @@ Examples:
 	}
 }
 
-// GameCenterAchievementsV2ListCommand returns the achievements v2 list subcommand.
-func GameCenterAchievementsV2ListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
+// newGameCenterAchievementsV2ListCommand returns the achievements v2 list subcommand.
+func newGameCenterAchievementsV2ListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("list", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	groupID := shared.BindResourceIDFlag(fs, "group-id", "gameCenterGroups", "Game Center group ID")
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -66,29 +65,29 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "game-center achievements v2 list", 200); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "game-center achievements v2 list", 200); err != nil {
 				return err
 			}
 
 			group := strings.TrimSpace(*groupID)
 			if group != "" && strings.TrimSpace(*appID) != "" {
-				fmt.Fprintln(os.Stderr, "Error: --app cannot be used with --group-id")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app cannot be used with --group-id")
 				return flag.ErrHelp
 			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
 			nextURL := strings.TrimSpace(*next)
 			if group == "" && resolvedAppID == "" && nextURL == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("game-center achievements v2 list: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			gcDetailID := ""
@@ -119,7 +118,7 @@ Examples:
 					return fmt.Errorf("game-center achievements v2 list: %w", err)
 				}
 
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetGameCenterAchievementsV2(requestCtx, gcDetailID, group, opts...)
@@ -127,14 +126,14 @@ Examples:
 				return fmt.Errorf("game-center achievements v2 list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// GameCenterAchievementVersionsV2Command returns the achievement versions v2 command group.
-func GameCenterAchievementVersionsV2Command() *ffcli.Command {
-	fs := flag.NewFlagSet("versions", flag.ExitOnError)
+// newGameCenterAchievementVersionsV2Command returns the achievement versions v2 command group.
+func newGameCenterAchievementVersionsV2Command(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("versions", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "versions",
@@ -149,9 +148,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterAchievementVersionsV2ListCommand(),
-			GameCenterAchievementVersionsV2GetCommand(),
-			GameCenterAchievementVersionsV2CreateCommand(),
+			newGameCenterAchievementVersionsV2ListCommand(d),
+			newGameCenterAchievementVersionsV2GetCommand(d),
+			newGameCenterAchievementVersionsV2CreateCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -159,8 +158,8 @@ Examples:
 	}
 }
 
-// GameCenterAchievementVersionsV2ListCommand returns the achievement versions v2 list subcommand.
-func GameCenterAchievementVersionsV2ListCommand() *ffcli.Command {
+// newGameCenterAchievementVersionsV2ListCommand returns the achievement versions v2 list subcommand.
+func newGameCenterAchievementVersionsV2ListCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "list",
 		ShortUsage: "asc game-center achievements v2 versions list --achievement-id \"ACH_ID\"",
@@ -179,11 +178,12 @@ Examples:
 		FetchPage: func(ctx context.Context, client *asc.Client, achievementId string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterAchievementVersions(ctx, achievementId, asc.Limit[asc.GCAchievementVersionsOption](limit), asc.NextURL[asc.GCAchievementVersionsOption](next))
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterAchievementVersionsV2GetCommand returns the achievement versions v2 get subcommand.
-func GameCenterAchievementVersionsV2GetCommand() *ffcli.Command {
+// newGameCenterAchievementVersionsV2GetCommand returns the achievement versions v2 get subcommand.
+func newGameCenterAchievementVersionsV2GetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
 		Name:       "view",
 		ShortUsage: "asc game-center achievements v2 versions view --id \"VERSION_ID\"",
@@ -198,11 +198,12 @@ Examples:
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterAchievementVersion(ctx, id)
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterAchievementVersionsV2CreateCommand returns the achievement versions v2 create subcommand.
-func GameCenterAchievementVersionsV2CreateCommand() *ffcli.Command {
+// newGameCenterAchievementVersionsV2CreateCommand returns the achievement versions v2 create subcommand.
+func newGameCenterAchievementVersionsV2CreateCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildCreateCommand(shared.WriteCommandConfig{
 		Name:       "create",
 		ShortUsage: "asc game-center achievements v2 versions create --achievement-id \"ACH_ID\"",
@@ -217,12 +218,13 @@ Examples:
 		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.CreateGameCenterAchievementVersion(ctx, id)
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterAchievementLocalizationsV2Command returns the achievement localizations v2 command group.
-func GameCenterAchievementLocalizationsV2Command() *ffcli.Command {
-	fs := flag.NewFlagSet("localizations", flag.ExitOnError)
+// newGameCenterAchievementLocalizationsV2Command returns the achievement localizations v2 command group.
+func newGameCenterAchievementLocalizationsV2Command(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("localizations", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "localizations",
@@ -236,11 +238,11 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterAchievementLocalizationsV2ListCommand(),
-			GameCenterAchievementLocalizationsV2GetCommand(),
-			GameCenterAchievementLocalizationsV2CreateCommand(),
-			GameCenterAchievementLocalizationsV2UpdateCommand(),
-			GameCenterAchievementLocalizationsV2DeleteCommand(),
+			newGameCenterAchievementLocalizationsV2ListCommand(d),
+			newGameCenterAchievementLocalizationsV2GetCommand(d),
+			newGameCenterAchievementLocalizationsV2CreateCommand(d),
+			newGameCenterAchievementLocalizationsV2UpdateCommand(d),
+			newGameCenterAchievementLocalizationsV2DeleteCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -248,8 +250,8 @@ Examples:
 	}
 }
 
-// GameCenterAchievementLocalizationsV2ListCommand returns the achievement localizations v2 list subcommand.
-func GameCenterAchievementLocalizationsV2ListCommand() *ffcli.Command {
+// newGameCenterAchievementLocalizationsV2ListCommand returns the achievement localizations v2 list subcommand.
+func newGameCenterAchievementLocalizationsV2ListCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "list",
 		ShortUsage: "asc game-center achievements v2 localizations list --version-id \"VER_ID\"",
@@ -268,11 +270,12 @@ Examples:
 		FetchPage: func(ctx context.Context, client *asc.Client, versionId string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterAchievementVersionLocalizations(ctx, versionId, asc.Limit[asc.GCAchievementLocalizationsOption](limit), asc.NextURL[asc.GCAchievementLocalizationsOption](next))
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterAchievementLocalizationsV2GetCommand returns the achievement localizations v2 get subcommand.
-func GameCenterAchievementLocalizationsV2GetCommand() *ffcli.Command {
+// newGameCenterAchievementLocalizationsV2GetCommand returns the achievement localizations v2 get subcommand.
+func newGameCenterAchievementLocalizationsV2GetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
 		Name:       "view",
 		ShortUsage: "asc game-center achievements v2 localizations view --id \"LOC_ID\"",
@@ -287,11 +290,12 @@ Examples:
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterAchievementLocalizationV2(ctx, id)
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterAchievementLocalizationsV2CreateCommand returns the achievement localizations v2 create subcommand.
-func GameCenterAchievementLocalizationsV2CreateCommand() *ffcli.Command {
+// newGameCenterAchievementLocalizationsV2CreateCommand returns the achievement localizations v2 create subcommand.
+func newGameCenterAchievementLocalizationsV2CreateCommand(d *shared.Deps) *ffcli.Command {
 	var attrs asc.GameCenterAchievementLocalizationCreateAttributes
 	return shared.BuildCreateCommand(shared.WriteCommandConfig{
 		Name:       "create",
@@ -313,11 +317,12 @@ Examples:
 		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.CreateGameCenterAchievementLocalizationV2(ctx, id, attrs)
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterAchievementLocalizationsV2UpdateCommand returns the achievement localizations v2 update subcommand.
-func GameCenterAchievementLocalizationsV2UpdateCommand() *ffcli.Command {
+// newGameCenterAchievementLocalizationsV2UpdateCommand returns the achievement localizations v2 update subcommand.
+func newGameCenterAchievementLocalizationsV2UpdateCommand(d *shared.Deps) *ffcli.Command {
 	var attrs asc.GameCenterAchievementLocalizationUpdateAttributes
 	return shared.BuildUpdateCommand(shared.WriteCommandConfig{
 		Name:       "update",
@@ -337,11 +342,12 @@ Examples:
 		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.UpdateGameCenterAchievementLocalizationV2(ctx, id, attrs)
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterAchievementLocalizationsV2DeleteCommand returns the achievement localizations v2 delete subcommand.
-func GameCenterAchievementLocalizationsV2DeleteCommand() *ffcli.Command {
+// newGameCenterAchievementLocalizationsV2DeleteCommand returns the achievement localizations v2 delete subcommand.
+func newGameCenterAchievementLocalizationsV2DeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
 		Name:       "delete",
 		ShortUsage: "asc game-center achievements v2 localizations delete --id \"LOC_ID\" --confirm",
@@ -360,12 +366,13 @@ Examples:
 		Result: func(id string) any {
 			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterAchievementImagesV2Command returns the achievement images v2 command group.
-func GameCenterAchievementImagesV2Command() *ffcli.Command {
-	fs := flag.NewFlagSet("images", flag.ExitOnError)
+// newGameCenterAchievementImagesV2Command returns the achievement images v2 command group.
+func newGameCenterAchievementImagesV2Command(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("images", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "images",
@@ -381,9 +388,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterAchievementImagesV2UploadCommand(),
-			GameCenterAchievementImagesV2GetCommand(),
-			GameCenterAchievementImagesV2DeleteCommand(),
+			newGameCenterAchievementImagesV2UploadCommand(d),
+			newGameCenterAchievementImagesV2GetCommand(d),
+			newGameCenterAchievementImagesV2DeleteCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -391,13 +398,13 @@ Examples:
 	}
 }
 
-// GameCenterAchievementImagesV2UploadCommand returns the achievement images v2 upload subcommand.
-func GameCenterAchievementImagesV2UploadCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("upload", flag.ExitOnError)
+// newGameCenterAchievementImagesV2UploadCommand returns the achievement images v2 upload subcommand.
+func newGameCenterAchievementImagesV2UploadCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("upload", flag.ExitOnError)
 
 	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "gameCenterAchievementLocalizations", "Game Center achievement localization ID")
 	filePath := fs.String("file", "", "Path to the image file to upload")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "upload",
@@ -414,20 +421,20 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			locID := strings.TrimSpace(*localizationID)
 			if locID == "" {
-				return shared.RequiredFlag("--localization-id")
+				return d.RequiredFlag("--localization-id")
 			}
 
 			path := strings.TrimSpace(*filePath)
 			if path == "" {
-				return shared.RequiredFlag("--file")
+				return d.RequiredFlag("--file")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("game-center achievements v2 images upload: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			result, err := client.UploadGameCenterAchievementImageV2(requestCtx, locID, path)
@@ -435,18 +442,18 @@ Examples:
 				return fmt.Errorf("game-center achievements v2 images upload: %w", err)
 			}
 
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// GameCenterAchievementImagesV2GetCommand returns the achievement images v2 get subcommand.
-func GameCenterAchievementImagesV2GetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
+// newGameCenterAchievementImagesV2GetCommand returns the achievement images v2 get subcommand.
+func newGameCenterAchievementImagesV2GetCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("view", flag.ExitOnError)
 
 	imageID := shared.BindResourceIDFlag(fs, "id", "gameCenterAchievementImages", "Game Center achievement image ID")
 	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "gameCenterAchievementLocalizations", "Game Center achievement localization ID")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "view",
@@ -463,20 +470,20 @@ Examples:
 			id := strings.TrimSpace(*imageID)
 			locID := strings.TrimSpace(*localizationID)
 			if id == "" && locID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id or --localization-id is required")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --id or --localization-id is required")
 				return shared.MissingRequiredUsageError("")
 			}
 			if id != "" && locID != "" {
-				fmt.Fprintln(os.Stderr, "Error: --id cannot be used with --localization-id")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --id cannot be used with --localization-id")
 				return flag.ErrHelp
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("game-center achievements v2 images view: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			if locID != "" {
@@ -484,7 +491,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("game-center achievements v2 images view: %w", err)
 				}
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetGameCenterAchievementImageV2(requestCtx, id)
@@ -492,13 +499,13 @@ Examples:
 				return fmt.Errorf("game-center achievements v2 images view: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// GameCenterAchievementImagesV2DeleteCommand returns the achievement images v2 delete subcommand.
-func GameCenterAchievementImagesV2DeleteCommand() *ffcli.Command {
+// newGameCenterAchievementImagesV2DeleteCommand returns the achievement images v2 delete subcommand.
+func newGameCenterAchievementImagesV2DeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
 		Name:       "delete",
 		ShortUsage: "asc game-center achievements v2 images delete --id \"IMAGE_ID\" --confirm",
@@ -517,5 +524,6 @@ Examples:
 		Result: func(id string) any {
 			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
+		Deps: d,
 	})
 }
