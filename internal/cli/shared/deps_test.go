@@ -8,6 +8,7 @@ import (
 	"flag"
 	"image"
 	"image/png"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -789,6 +790,148 @@ func TestDefaultDepsTimeoutsMatchProcessVariants(t *testing.T) {
 			}
 		})
 	})
+}
+
+func TestDepsRequestContextHelpersMatchProcessVariants(t *testing.T) {
+	for _, name := range []string{"ASC_TIMEOUT_SECONDS", "ASC_MAX_DELAY"} {
+		t.Setenv(name, "")
+		os.Unsetenv(name)
+	}
+	t.Setenv("ASC_TIMEOUT", "7s")
+	t.Setenv("ASC_MAX_RETRIES", "2")
+	t.Setenv("ASC_BASE_DELAY", "1s")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))
+	asc.ResetConfigCacheForTest()
+	t.Cleanup(asc.ResetConfigCacheForTest)
+
+	const processTimeout, injectedTimeout = 7 * time.Second, 3 * time.Minute
+	injected := &Deps{Timeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
+		return ContextWithTimeoutDuration(ctx, injectedTimeout)
+	}}
+
+	budget := func(ctx context.Context) time.Duration {
+		deadline, ok := ctx.Deadline()
+		if !ok {
+			return -1
+		}
+		return time.Until(deadline)
+	}
+	expire := func(ctx context.Context) error {
+		<-ctx.Done()
+		return ctx.Err()
+	}
+
+	keyPath := filepath.Join(t.TempDir(), "key.p8")
+	writeECDSAPEM(t, keyPath)
+	var reads []time.Duration
+	client, err := asc.NewClientWithHTTPClient("KEY123", "ISS456", keyPath, &http.Client{Transport: buildUploadsRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		reads = append(reads, budget(req.Context()))
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+			Body:       io.NopCloser(strings.NewReader(`{"data":{"type":"reviewSubmissions","id":"sub-1","attributes":{"state":"COMPLETE"}}}`)),
+			Request:    req,
+		}, nil
+	})})
+	if err != nil {
+		t.Fatalf("NewClientWithHTTPClient() error: %v", err)
+	}
+
+	// Each run uses the process form when d is nil and the Deps form otherwise,
+	// and returns the budget of every request context the helper made.
+	tests := []struct {
+		name     string
+		attempts int
+		run      func(t *testing.T, d *Deps) []time.Duration
+	}{
+		{name: "RetryReadWithFreshTimeout", attempts: 3, run: func(t *testing.T, d *Deps) []time.Duration {
+			var budgets []time.Duration
+			read := func(ctx context.Context) (int, error) {
+				budgets = append(budgets, budget(ctx))
+				return 0, expire(ctx)
+			}
+			if d == nil {
+				_, err = RetryReadWithFreshTimeout(context.Background(), read)
+			} else {
+				_, err = RetryReadWithFreshTimeoutWith(context.Background(), d, read)
+			}
+			if !errors.Is(err, context.DeadlineExceeded) {
+				t.Fatalf("error = %v, want the last attempt's deadline", err)
+			}
+			return budgets
+		}},
+		{name: "RunReconciledMutation", attempts: 3, run: func(t *testing.T, d *Deps) []time.Duration {
+			var budgets []time.Duration
+			mutate := func(ctx context.Context) (int, error) {
+				budgets = append(budgets, budget(ctx))
+				return 0, expire(ctx)
+			}
+			readback := func(context.Context) (int, bool, error) { return 0, false, nil }
+			if d == nil {
+				_, _, err = RunReconciledMutation(context.Background(), mutate, readback)
+			} else {
+				_, _, err = RunReconciledMutationWith(context.Background(), d, mutate, readback)
+			}
+			if !errors.Is(err, context.DeadlineExceeded) {
+				t.Fatalf("error = %v, want the last attempt's deadline", err)
+			}
+			return budgets
+		}},
+		{name: "RunReconciledMutationNoReplay", attempts: 1, run: func(t *testing.T, d *Deps) []time.Duration {
+			var budgets []time.Duration
+			mutate := func(ctx context.Context) (int, error) {
+				budgets = append(budgets, budget(ctx))
+				return 0, expire(ctx)
+			}
+			readback := func(context.Context) (int, bool, error) { return 0, false, nil }
+			if d == nil {
+				_, _, err = RunReconciledMutationNoReplay(context.Background(), mutate, readback)
+			} else {
+				_, _, err = RunReconciledMutationNoReplayWith(context.Background(), d, mutate, readback)
+			}
+			if !errors.Is(err, context.DeadlineExceeded) {
+				t.Fatalf("error = %v, want the mutation's deadline", err)
+			}
+			return budgets
+		}},
+		{name: "ExplainReviewSubmissionNotCancellable", attempts: 1, run: func(t *testing.T, d *Deps) []time.Duration {
+			reads = nil
+			if d == nil {
+				err = ExplainReviewSubmissionNotCancellable(context.Background(), client, "sub-1", notCancellableAPIError())
+			} else {
+				err = d.ExplainReviewSubmissionNotCancellable(context.Background(), client, "sub-1", notCancellableAPIError())
+			}
+			if explained, ok := errors.AsType[*ReviewSubmissionNotCancellableError](err); !ok || explained.State != asc.ReviewSubmissionStateComplete {
+				t.Fatalf("error = %v, want the state read back", err)
+			}
+			return reads
+		}},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				for _, variant := range []struct {
+					name   string
+					d      *Deps
+					budget time.Duration
+				}{
+					{"process", nil, processTimeout},
+					{"DefaultDeps", DefaultDeps(), processTimeout},
+					{"injected Timeout", injected, injectedTimeout},
+				} {
+					got := test.run(t, variant.d)
+					want := make([]time.Duration, test.attempts)
+					for i := range want {
+						want[i] = variant.budget
+					}
+					if !reflect.DeepEqual(got, want) {
+						t.Fatalf("%s: request budgets = %v, want %v", variant.name, got, want)
+					}
+				}
+			})
+		})
+	}
 }
 
 type emptyBuildPreflightClient struct{}

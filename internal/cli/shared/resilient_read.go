@@ -11,6 +11,16 @@ import (
 // RetryReadWithFreshTimeout retries child request deadlines with a fresh
 // timeout budget while the operation's parent context remains healthy.
 func RetryReadWithFreshTimeout[T any](ctx context.Context, read func(context.Context) (T, error)) (T, error) {
+	return retryReadWithFreshTimeout(ctx, ContextWithTimeout, read)
+}
+
+// RetryReadWithFreshTimeoutWith is RetryReadWithFreshTimeout with each
+// attempt's deadline from d.Timeout.
+func RetryReadWithFreshTimeoutWith[T any](ctx context.Context, d *Deps, read func(context.Context) (T, error)) (T, error) {
+	return retryReadWithFreshTimeout(ctx, d.Timeout, read)
+}
+
+func retryReadWithFreshTimeout[T any](ctx context.Context, timeout func(context.Context) (context.Context, context.CancelFunc), read func(context.Context) (T, error)) (T, error) {
 	var zero T
 	if err := ctx.Err(); err != nil {
 		return zero, err
@@ -18,7 +28,7 @@ func RetryReadWithFreshTimeout[T any](ctx context.Context, read func(context.Con
 
 	retryOpts := asc.ResolveRetryOptions()
 	for attempt := 0; ; attempt++ {
-		requestCtx, cancel := ContextWithTimeout(ctx)
+		requestCtx, cancel := timeout(ctx)
 		value, err := read(requestCtx)
 		childTimedOut := err != nil && errors.Is(err, context.DeadlineExceeded) && ctx.Err() == nil
 		cancel()
