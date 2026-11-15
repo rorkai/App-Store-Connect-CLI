@@ -19,6 +19,9 @@ func TestMain(m *testing.M) {
 	// internal/testguard does not hide the developer's credentials from it.
 	_ = os.Setenv("HOME", tempDir)
 	_ = os.Setenv("ASC_CONFIG_PATH", filepath.Join(tempDir, "config.json"))
+	_ = os.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	_ = os.Setenv("ASC_ADS_BYPASS_KEYCHAIN", "1")
+	_ = os.Setenv("ASC_STOREKIT_BYPASS_KEYCHAIN", "1")
 	_ = os.Setenv("ASC_TELEMETRY_DISABLED", "1")
 	// Classification tests assert on terminal HTTP failures, so keep clients on
 	// the single-attempt path instead of waiting out retry backoff.
