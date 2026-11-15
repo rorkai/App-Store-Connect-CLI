@@ -388,6 +388,7 @@ func TestUpdateWithoutUpdateFlagsListsEveryUpdateFlag(t *testing.T) {
 		{
 			name:  "testflight groups edit",
 			args:  []string{"testflight", "groups", "edit", "--id", "ID"},
+			deps:  true,
 			flags: "--name, --public-link-enabled, --public-link-limit-enabled, --public-link-limit, --feedback-enabled, --ios-builds-available-for-apple-silicon-mac, --ios-builds-available-for-apple-vision",
 		},
 		{

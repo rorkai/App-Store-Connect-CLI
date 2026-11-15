@@ -18,10 +18,12 @@ func TestTestFlightGroupReadsSendRequest(t *testing.T) {
 		wantPath  string
 		wantQuery url.Values
 		body      string
+		deps      bool // the command is built on shared.Deps: run it on test deps
 	}{
 		{
 			name:     "group builds with fields",
 			args:     []string{"testflight", "groups", "builds", "list", "--group-id", "group-1", "--fields", "version,uploadedDate,processingState", "--limit", "5"},
+			deps:     true,
 			wantPath: "/v1/betaGroups/group-1/builds",
 			wantQuery: url.Values{
 				"fields[builds]": {"version,uploadedDate,processingState"},
@@ -31,12 +33,14 @@ func TestTestFlightGroupReadsSendRequest(t *testing.T) {
 		{
 			name:      "group testers paginate keep the page size",
 			args:      []string{"testflight", "groups", "testers", "list", "--group-id", "group-1", "--paginate", "--limit", "3"},
+			deps:      true,
 			wantPath:  "/v1/betaGroups/group-1/betaTesters",
 			wantQuery: url.Values{"limit": {"3"}},
 		},
 		{
 			name:      "group builds print Apple's sparse envelope unmodified",
 			args:      []string{"testflight", "groups", "builds", "list", "--group-id", "group-1", "--fields", "version", "--limit", "1"},
+			deps:      true,
 			wantPath:  "/v1/betaGroups/group-1/builds",
 			wantQuery: url.Values{"fields[builds]": {"version"}, "limit": {"1"}},
 			body:      `{"data":[{"type":"builds","id":"build-1","attributes":{"version":"11"}}],"links":{"self":"https://api.appstoreconnect.apple.com/v1/betaGroups/group-1/builds"}}`,
@@ -44,6 +48,7 @@ func TestTestFlightGroupReadsSendRequest(t *testing.T) {
 		{
 			name:     "group testers with fields",
 			args:     []string{"testflight", "groups", "testers", "list", "--group-id", "group-1", "--fields", "email,state"},
+			deps:     true,
 			wantPath: "/v1/betaGroups/group-1/betaTesters",
 			wantQuery: url.Values{
 				"fields[betaTesters]": {"email,state"},
@@ -63,7 +68,6 @@ func TestTestFlightGroupReadsSendRequest(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 			body := test.body
@@ -71,15 +75,26 @@ func TestTestFlightGroupReadsSendRequest(t *testing.T) {
 				body = `{"data":[],"links":{}}`
 			}
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			reg.Register(asctest.GET(test.wantPath, strings.Split(test.wantQuery.Encode(), "&")...),
 				asctest.JSON(http.StatusOK, body))
 
-			stdout, stderr := captureOutput(t, func() {
-				if code := cmd.Run(append(test.args, "--output", "json"), "1.2.3"); code != cmd.ExitSuccess {
+			args := append(test.args, "--output", "json")
+			var stdout, stderr string
+			if test.deps {
+				var code int
+				stdout, stderr, code = runWithDeps(t, stubClient(t, reg), args...)
+				if code != cmd.ExitSuccess {
 					t.Fatalf("expected exit code %d, got %d", cmd.ExitSuccess, code)
 				}
-			})
+			} else {
+				setupAuth(t)
+				reg.Install()
+				stdout, stderr = captureOutput(t, func() {
+					if code := cmd.Run(args, "1.2.3"); code != cmd.ExitSuccess {
+						t.Fatalf("expected exit code %d, got %d", cmd.ExitSuccess, code)
+					}
+				})
+			}
 			requests := reg.Requests()
 			if len(requests) == 0 {
 				t.Fatalf("expected an outbound request, stderr %q", stderr)
@@ -130,15 +145,13 @@ func TestTestFlightGroupReadsRejectUsage(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-			asctest.NewRegistry(t).Install()
+			reg := asctest.NewRegistry(t)
 
-			stdout, stderr := captureOutput(t, func() {
-				if code := cmd.Run(test.args, "1.2.3"); code != cmd.ExitUsage {
-					t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
-				}
-			})
+			stdout, stderr, code := runWithDeps(t, stubClient(t, reg), test.args...)
+			if code != cmd.ExitUsage {
+				t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
+			}
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
 			}

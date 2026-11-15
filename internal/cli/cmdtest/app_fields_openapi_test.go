@@ -48,6 +48,7 @@ func TestAppFieldsAcceptEveryOpenAPIValue(t *testing.T) {
 			specPath:    "/v1/betaGroups",
 			requestPath: "/v1/betaGroups",
 			args:        []string{"testflight", "groups", "list", "--app", "app-1", "--include", "app"},
+			deps:        true,
 		},
 		{
 			name:        "users list",

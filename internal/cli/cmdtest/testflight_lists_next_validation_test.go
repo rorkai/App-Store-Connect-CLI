@@ -17,6 +17,7 @@ func TestTestFlightListsPaginateFromNext(t *testing.T) {
 	runPaginateFromNextCases(t, []paginateFromNextCase{
 		{
 			args:     []string{"testflight", "groups", "list"},
+			deps:     true,
 			firstURL: "https://api.appstoreconnect.apple.com/v1/betaGroups?cursor=AQ&limit=200",
 			dataType: "betaGroups",
 		},
@@ -27,6 +28,7 @@ func TestTestFlightListsPaginateFromNext(t *testing.T) {
 		},
 		{
 			args:     []string{"testflight", "groups", "links", "view", "--group-id", "group-1", "--type", "betaTesters"},
+			deps:     true,
 			firstURL: "https://api.appstoreconnect.apple.com/v1/betaGroups/group-1/relationships/betaTesters?cursor=AQ&limit=200",
 			dataType: "betaTesters",
 		},

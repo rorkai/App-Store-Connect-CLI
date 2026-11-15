@@ -74,6 +74,7 @@ func isHTTPConflict(err error) bool {
 // never touch the success path.
 func readBackBetaGroupMembership(
 	ctx context.Context,
+	d *shared.Deps,
 	client *asc.Client,
 	groupID string,
 	testerIDs []string,
@@ -98,7 +99,7 @@ func readBackBetaGroupMembership(
 
 	members := make(map[string]struct{}, len(requested))
 	for chunk := range slices.Chunk(requested, betaTesterResolveChunkSize) {
-		found, err := betaGroupMembersMatching(ctx, client, result.groupID, chunk)
+		found, err := betaGroupMembersMatching(ctx, d, client, result.groupID, chunk)
 		if err != nil {
 			return betaGroupMembershipReadBack{}, err
 		}
@@ -121,6 +122,7 @@ func readBackBetaGroupMembership(
 // Connect reports as members of the group.
 func betaGroupMembersMatching(
 	ctx context.Context,
+	d *shared.Deps,
 	client *asc.Client,
 	groupID string,
 	testerIDs []string,
@@ -131,7 +133,7 @@ func betaGroupMembersMatching(
 		asc.Limit[asc.BetaTestersOption](200),
 	}
 
-	requestCtx, cancel := shared.ContextWithTimeout(ctx)
+	requestCtx, cancel := d.Timeout(ctx)
 	first, err := client.GetBetaTesters(requestCtx, "", options...)
 	cancel()
 	if err != nil {
@@ -139,7 +141,7 @@ func betaGroupMembersMatching(
 	}
 
 	all, err := asc.PaginateAll(ctx, first, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		requestCtx, cancel := shared.ContextWithTimeout(ctx)
+		requestCtx, cancel := d.Timeout(ctx)
 		defer cancel()
 		return client.GetBetaTesters(requestCtx, "", asc.NextURL[asc.BetaTestersOption](nextURL))
 	})

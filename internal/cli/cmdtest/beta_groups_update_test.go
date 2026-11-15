@@ -53,7 +53,6 @@ func TestBetaGroupsUpdateSendsOnlyRequestedPlatformAvailability(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 			attributes, err := json.Marshal(tt.want)
@@ -61,11 +60,10 @@ func TestBetaGroupsUpdateSendsOnlyRequestedPlatformAvailability(t *testing.T) {
 				t.Fatalf("encode attributes: %v", err)
 			}
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			reg.Register(asctest.PATCH("/v1/betaGroups/bg-1").JSONBody(`{"data":{"type":"betaGroups","id":"bg-1","attributes":`+string(attributes)+`}}`),
 				asctest.JSON(http.StatusOK, `{"data":{"type":"betaGroups","id":"bg-1","attributes":{"name":"Group"}}}`))
 
-			_, stderr, err := runCommand(t, append([]string{"testflight", "groups", "edit", "--id", "bg-1"}, tt.args...))
+			_, stderr, err := runRootWithDeps(t, stubClient(t, reg), append([]string{"testflight", "groups", "edit", "--id", "bg-1"}, tt.args...)...)
 			if err != nil {
 				t.Fatalf("run error: %v", err)
 			}

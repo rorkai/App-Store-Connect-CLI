@@ -47,6 +47,7 @@ func TestRemovedFlagAliasesNameTheirReplacement(t *testing.T) {
 		{
 			name: "testflight groups view --group-id",
 			args: []string{"testflight", "groups", "view", "--group-id", "PRIVATE_VALUE"},
+			deps: true,
 			want: "Error: `--group-id` was removed in 5.0.0; use `--id` (see migrate-to-5-0)\nFor help:\n  asc testflight groups view --help\n",
 		},
 		{

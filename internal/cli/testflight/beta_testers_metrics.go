@@ -74,7 +74,7 @@ Examples:
 
 			periodValue, err := normalizeBetaTesterUsagePeriod(*period)
 			if err != nil {
-				return usageErrorFromValidation(ctx, "%v", err)
+				return usageErrorFromValidation(ctx, shared.DefaultDeps(), "%v", err)
 			}
 
 			client, err := shared.GetASCClient()
