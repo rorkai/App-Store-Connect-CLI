@@ -293,21 +293,25 @@ func TestUpdateWithoutUpdateFlagsListsEveryUpdateFlag(t *testing.T) {
 		{
 			name:  "review details-update",
 			args:  []string{"review", "details-update", "--id", "ID"},
+			deps:  true,
 			flags: "--contact-first-name, --contact-last-name, --contact-email, --contact-phone, --demo-account-name, --demo-account-password, --demo-account-required, --notes",
 		},
 		{
 			name:  "review items update",
 			args:  []string{"review", "items", "update", "--id", "ID"},
+			deps:  true,
 			flags: "--resolved, --removed, --clear-resolved, --clear-removed",
 		},
 		{
 			name:  "review items-update",
 			args:  []string{"review", "items-update", "--id", "ID"},
+			deps:  true,
 			flags: "--resolved, --removed, --clear-resolved, --clear-removed",
 		},
 		{
 			name:  "review submissions-update",
 			args:  []string{"review", "submissions-update", "--id", "ID"},
+			deps:  true,
 			flags: "--platform, --submitted, --canceled, --clear-platform, --clear-submitted, --clear-canceled",
 		},
 		{

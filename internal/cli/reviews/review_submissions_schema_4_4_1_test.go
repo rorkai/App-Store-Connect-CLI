@@ -31,16 +31,13 @@ func TestReviewSubmissionsUpdateValidatesSchemaAndConfirmationBeforeAuth(t *test
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			factoryCalled := false
-			restore := SetReviewSubmissionsClientFactory(func() (*asc.Client, error) {
+			d, _, stderrBuffer := newReviewTestDeps(func() (*asc.Client, error) {
 				factoryCalled = true
 				return nil, errors.New("poison client factory called")
 			})
-			defer restore()
 
-			var err error
-			stderr := captureReviewDiagnosticStderr(t, func() {
-				err = ReviewSubmissionsUpdateCommand().ParseAndRun(context.Background(), test.args)
-			})
+			err := newReviewSubmissionsUpdateCommand(d).ParseAndRun(context.Background(), test.args)
+			stderr := stderrBuffer.String()
 			if err == nil || !errors.Is(err, flag.ErrHelp) || !strings.Contains(stderr, "Error: "+test.want) {
 				t.Fatalf("error = %v, stderr = %q, want usage error printing %q", err, stderr, test.want)
 			}
@@ -61,25 +58,24 @@ func TestReviewSubmissionsUpdateValidatesSchemaAndConfirmationBeforeAuth(t *test
 func TestReviewItemsRemovedTrueRequiresConfirmationBeforeAuth(t *testing.T) {
 	tests := []struct {
 		name    string
-		command func() error
+		command func(d *shared.Deps) error
 	}{
-		{name: "flat", command: func() error {
-			return ReviewItemsUpdateCommand().ParseAndRun(context.Background(), []string{"--id", "item-1", "--removed=true"})
+		{name: "flat", command: func(d *shared.Deps) error {
+			return newReviewItemsUpdateCommand(d).ParseAndRun(context.Background(), []string{"--id", "item-1", "--removed=true"})
 		}},
-		{name: "nested", command: func() error {
-			return reviewItemsUpdateCommand("update", "review items update", "usage", "example").ParseAndRun(context.Background(), []string{"--id", "item-1", "--removed=true"})
+		{name: "nested", command: func(d *shared.Deps) error {
+			return reviewItemsUpdateCommand(d, "update", "review items update", "usage", "example").ParseAndRun(context.Background(), []string{"--id", "item-1", "--removed=true"})
 		}},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			factoryCalled := false
-			restore := SetReviewItemsClientFactory(func() (*asc.Client, error) {
+			d, _, _ := newReviewTestDeps(func() (*asc.Client, error) {
 				factoryCalled = true
 				return nil, errors.New("poison client factory called")
 			})
-			defer restore()
 
-			err := test.command()
+			err := test.command(d)
 			if err == nil || !errors.Is(err, flag.ErrHelp) || !strings.Contains(err.Error(), "--confirm is required when --removed=true") {
 				t.Fatalf("error = %v, want removal confirmation usage error", err)
 			}

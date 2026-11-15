@@ -41,6 +41,7 @@ func TestRemovedFlagAliasesNameTheirReplacement(t *testing.T) {
 		{
 			name: "review submit --build",
 			args: []string{"review", "submit", "--app", "app-1", "--version-id", "version-1", "--build", "PRIVATE_VALUE"},
+			deps: true,
 			want: "Error: `--build` was removed in 5.0.0; use `--build-id` or `--build-number` (see migrate-to-5-0)\nFor help:\n  asc review submit --help\n",
 		},
 		{

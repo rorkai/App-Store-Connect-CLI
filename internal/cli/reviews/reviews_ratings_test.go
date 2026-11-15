@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -90,18 +89,11 @@ func TestRatingsAllRenewsCountryOperationDeadlines(t *testing.T) {
 		return response.Result(), nil
 	})}
 	client := &itunes.Client{BaseURL: "https://itunes.apple.com", HTTPClient: httpClient}
-	stdout, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
-	if err != nil {
-		t.Fatalf("open stdout sink: %v", err)
-	}
-	defer stdout.Close()
-	originalStdout := os.Stdout
-	os.Stdout = stdout
-	defer func() { os.Stdout = originalStdout }()
+	d, _, _ := newReviewTestDeps(nil)
 
 	var runErr error
 	synctest.Test(t, func(*testing.T) {
-		runErr = executeRatingsWithClient(context.Background(), client, "com.example.deadlines", "us", true, 1, "json", false)
+		runErr = executeRatingsWithClient(context.Background(), d, client, "com.example.deadlines", "us", true, 1, "json", false)
 	})
 	if runErr != nil {
 		t.Fatalf("executeRatingsWithClient() error: %v", runErr)
@@ -150,24 +142,9 @@ func TestRatingsAllDeadlineDoesNotPrintSuccessOutput(t *testing.T) {
 	defer server.Close()
 
 	client := &itunes.Client{BaseURL: server.URL, HTTPClient: server.Client()}
-	stdoutReader, stdoutWriter, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("create stdout pipe: %v", err)
-	}
-	originalStdout := os.Stdout
-	os.Stdout = stdoutWriter
-	commandErr := executeRatingsWithClient(context.Background(), client, "123", "us", true, 1, "json", false)
-	os.Stdout = originalStdout
-	if err := stdoutWriter.Close(); err != nil {
-		t.Fatalf("close stdout writer: %v", err)
-	}
-	output, err := io.ReadAll(stdoutReader)
-	if err != nil {
-		t.Fatalf("read stdout: %v", err)
-	}
-	if err := stdoutReader.Close(); err != nil {
-		t.Fatalf("close stdout reader: %v", err)
-	}
+	d, stdout, _ := newReviewTestDeps(nil)
+	commandErr := executeRatingsWithClient(context.Background(), d, client, "123", "us", true, 1, "json", false)
+	output := stdout.String()
 
 	if !errors.Is(commandErr, context.DeadlineExceeded) {
 		t.Fatalf("executeRatingsWithClient() error = %v, want context.DeadlineExceeded", commandErr)
@@ -334,8 +311,10 @@ func TestExecuteRatingsRetainsPublicHTTPStatusWithoutChangingErrors(t *testing.T
 			defer server.Close()
 
 			client := &itunes.Client{BaseURL: server.URL, HTTPClient: server.Client()}
+			d, _, _ := newReviewTestDeps(nil)
 			err := executeRatingsWithClient(
 				context.Background(),
+				d,
 				client,
 				test.app,
 				"us",

@@ -14,16 +14,11 @@ import (
 )
 
 func TestReviewDetailsCreateRejectsDemoAccountRequiredWithoutCredentials(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	asctest.NewRegistry(t).Install()
-
-	stdout, stderr, runErr := runCommand(t, []string{
-		"review", "details-create",
+	stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, asctest.NewRegistry(t)), "review", "details-create",
 		"--version-id", "version-1",
-		"--demo-account-required=true",
-	})
+		"--demo-account-required=true")
 
 	if !errors.Is(runErr, flag.ErrHelp) {
 		t.Fatalf("expected ErrHelp, got %v", runErr)
@@ -37,16 +32,13 @@ func TestReviewDetailsCreateRejectsDemoAccountRequiredWithoutCredentials(t *test
 }
 
 func TestReviewDetailsCreateAllowsDemoAccountRequiredWithBothCredentials(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.POST("/v1/appStoreReviewDetails").JSONBody(`{"data":{"type":"appStoreReviewDetails","attributes":{"contactFirstName":"Dev","contactLastName":"Support","contactPhone":"+1 408 555 0100","contactEmail":"dev@example.com","demoAccountName":"reviewer@example.com","demoAccountPassword":"app-specific-password","demoAccountRequired":true},"relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"version-1"}}}}}`),
 		asctest.JSON(http.StatusCreated, `{"data":{"type":"appStoreReviewDetails","id":"detail-1","attributes":{"demoAccountRequired":true,"demoAccountName":"reviewer@example.com","demoAccountPassword":"app-specific-password"}}}`))
 
-	stdout, stderr, err := runCommand(t, []string{
-		"review", "details-create",
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "review", "details-create",
 		"--version-id", "version-1",
 		"--contact-first-name", "Dev",
 		"--contact-last-name", "Support",
@@ -54,8 +46,7 @@ func TestReviewDetailsCreateAllowsDemoAccountRequiredWithBothCredentials(t *test
 		"--contact-phone", "+1 408 555 0100",
 		"--demo-account-required=true",
 		"--demo-account-name", "reviewer@example.com",
-		"--demo-account-password", "app-specific-password",
-	})
+		"--demo-account-password", "app-specific-password")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -69,18 +60,14 @@ func TestReviewDetailsCreateAllowsDemoAccountRequiredWithBothCredentials(t *test
 }
 
 func TestReviewDetailsUpdateRejectsDemoAccountRequiredWhenExistingCredentialsAreIncomplete(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/appStoreReviewDetails/detail-1"), asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreReviewDetails","id":"detail-1","attributes":{"contactFirstName":"Dev","contactLastName":"Support","contactEmail":"dev@example.com","contactPhone":"123","demoAccountRequired":false}}}`))
 
-	stdout, stderr, runErr := runCommand(t, []string{
-		"review", "details-update",
+	stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), "review", "details-update",
 		"--id", "detail-1",
-		"--demo-account-required=true",
-	})
+		"--demo-account-required=true")
 
 	if !errors.Is(runErr, flag.ErrHelp) {
 		t.Fatalf("expected ErrHelp, got %v", runErr)
@@ -94,19 +81,15 @@ func TestReviewDetailsUpdateRejectsDemoAccountRequiredWhenExistingCredentialsAre
 }
 
 func TestReviewDetailsUpdateAcceptsMaxLengthDemoAccountPassword(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.PATCH("/v1/appStoreReviewDetails/detail-1").JSONBody(`{"data":{"type":"appStoreReviewDetails","id":"detail-1","attributes":{"demoAccountPassword":"`+strings.Repeat("p", 100)+`"}}}`),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreReviewDetails","id":"detail-1","attributes":{"demoAccountPassword":"`+strings.Repeat("p", 100)+`"}}}`))
 
-	stdout, stderr, err := runCommand(t, []string{
-		"review", "details-update",
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "review", "details-update",
 		"--id", "detail-1",
-		"--demo-account-password", strings.Repeat("p", 100),
-	})
+		"--demo-account-password", strings.Repeat("p", 100))
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -150,12 +133,10 @@ func TestRunReviewDetailsRejectsOverlongDemoAccountPasswordWithUsageExit(t *test
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			stdout, stderr := captureOutput(t, func() {
-				code := cmd.Run(test.args, "1.2.3")
-				if code != cmd.ExitUsage {
-					t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
-				}
-			})
+			stdout, stderr, code := runWithDeps(t, nil, test.args...)
+			if code != cmd.ExitUsage {
+				t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
+			}
 
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
@@ -168,21 +149,17 @@ func TestRunReviewDetailsRejectsOverlongDemoAccountPasswordWithUsageExit(t *test
 }
 
 func TestReviewDetailsUpdateAllowsDemoAccountRequiredWhenExistingCredentialsArePresent(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/appStoreReviewDetails/detail-1"),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreReviewDetails","id":"detail-1","attributes":{"contactFirstName":"Dev","contactLastName":"Support","contactEmail":"dev@example.com","contactPhone":"123","demoAccountRequired":false,"demoAccountName":"reviewer@example.com","demoAccountPassword":"app-specific-password"}}}`))
 	reg.Register(asctest.PATCH("/v1/appStoreReviewDetails/detail-1").JSONBody(`{"data":{"type":"appStoreReviewDetails","id":"detail-1","attributes":{"demoAccountRequired":true}}}`),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreReviewDetails","id":"detail-1","attributes":{"demoAccountRequired":true,"demoAccountName":"reviewer@example.com","demoAccountPassword":"app-specific-password"}}}`))
 
-	stdout, stderr, err := runCommand(t, []string{
-		"review", "details-update",
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "review", "details-update",
 		"--id", "detail-1",
-		"--demo-account-required=true",
-	})
+		"--demo-account-required=true")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -196,15 +173,13 @@ func TestReviewDetailsUpdateAllowsDemoAccountRequiredWhenExistingCredentialsAreP
 }
 
 func TestReviewDetailsForVersionReturnsNotConfiguredStateWhenUnset(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreReviewDetail"), asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`))
 	reg.Register(asctest.GET("/v1/appStoreVersions/version-1"), asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.0"}}}`))
 
-	stdout, stderr, err := runCommand(t, []string{"review", "details-for-version", "--version-id", "version-1", "--output", "json"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "review", "details-for-version", "--version-id", "version-1", "--output", "json")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -233,15 +208,13 @@ func TestReviewDetailsForVersionReturnsNotConfiguredStateWhenUnset(t *testing.T)
 }
 
 func TestReviewDetailsForVersionPreservesErrorForUnknownVersionID(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/appStoreVersions/missing-version/appStoreReviewDetail"), asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`))
 	reg.Register(asctest.GET("/v1/appStoreVersions/missing-version"), asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`))
 
-	stdout, stderr, runErr := runCommand(t, []string{"review", "details-for-version", "--version-id", "missing-version", "--output", "json"})
+	stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), "review", "details-for-version", "--version-id", "missing-version", "--output", "json")
 
 	if runErr == nil {
 		t.Fatal("expected error, got nil")

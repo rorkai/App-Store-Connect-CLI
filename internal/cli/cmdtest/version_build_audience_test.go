@@ -48,7 +48,13 @@ func TestAppStoreLatestSelectionAudience(t *testing.T) {
 			if strings.HasSuffix(mode, "-wait") {
 				args = append(args, "--wait", "--timeout", "1s", "--poll-interval", "1ms")
 			}
-			code, stdout, stderr := runVersionBuildSelector(t, flow, args...)
+			var code int
+			var stdout, stderr string
+			if strings.HasPrefix(mode, "review-dry-run") {
+				stdout, stderr, code = runWithDeps(t, stubClient(t, flow), args...)
+			} else {
+				code, stdout, stderr = runVersionBuildSelector(t, flow, args...)
+			}
 			if code != rootcmd.ExitSuccess {
 				t.Fatalf("code=%d stderr=%q", code, stderr)
 			}

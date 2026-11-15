@@ -802,86 +802,103 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 		{
 			name:    "review attachments-list limit",
 			args:    []string{"review", "attachments-list", "--limit", "201"},
+			deps:    true,
 			wantErr: "review attachments-list: --limit must be between 1 and 200",
 		},
 		{
 			name:    "review attachments-list next",
 			args:    []string{"review", "attachments-list", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
+			deps:    true,
 			wantErr: "review attachments-list: --next must be an App Store Connect URL",
 		},
 		{
 			name:    "review attachments-list invalid fields",
 			args:    []string{"review", "attachments-list", "--review-detail", "DETAIL_ID", "--fields", "bad"},
+			deps:    true,
 			wantErr: "review attachments-list: --fields must be one of: fileSize, fileName, sourceFileChecksum, uploadOperations, assetDeliveryState, appStoreReviewDetail",
 		},
 		{
 			name:    "review attachments-get invalid include",
 			args:    []string{"review", "attachments-get", "--id", "ATTACHMENT_ID", "--include", "bad"},
+			deps:    true,
 			wantErr: "review attachments-get: --include must be one of: appStoreReviewDetail",
 		},
 		{
 			name:    "review submissions-items-ids next",
 			args:    []string{"review", "submissions-items-ids", "--id", "X", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
+			deps:    true,
 			wantErr: "review submissions-items-ids: --next must be an App Store Connect URL",
 		},
 		{
 			name:    "review items list next",
 			args:    []string{"review", "items", "list", "--submission", "SUBMISSION_ID", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
+			deps:    true,
 			wantErr: "review items list: --next must be an App Store Connect URL",
 		},
 		{
 			name:    "review items rejects a cursor for another resource",
 			args:    []string{"review", "items", "list", "--next", "https://api.appstoreconnect.apple.com/v1/apps/6759231657/appInfos?limit=1"},
+			deps:    true,
 			wantErr: "review items list: pagination URL must point to a review submission's items",
 		},
 		{
 			name:    "review items-list next",
 			args:    []string{"review", "items-list", "--submission", "SUBMISSION_ID", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
+			deps:    true,
 			wantErr: "review items-list: --next must be an App Store Connect URL",
 		},
 		{
 			name:    "reviews limit",
 			args:    []string{"reviews", "--app", "123456789", "--limit", "201"},
+			deps:    true,
 			wantErr: "reviews: --limit must be between 1 and 200",
 		},
 		{
 			name:    "reviews next",
 			args:    []string{"reviews", "--app", "123456789", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
+			deps:    true,
 			wantErr: "reviews: --next must be an App Store Connect URL",
 		},
 		{
 			name:    "reviews invalid sort",
 			args:    []string{"reviews", "--app", "123456789", "--sort", "bad"},
+			deps:    true,
 			wantErr: "--sort must be one of: rating, -rating, createdDate, -createdDate",
 		},
 		{
 			name:    "reviews list limit",
 			args:    []string{"reviews", "list", "--app", "123456789", "--limit", "201"},
+			deps:    true,
 			wantErr: "reviews list: --limit must be between 1 and 200",
 		},
 		{
 			name:    "reviews list next",
 			args:    []string{"reviews", "list", "--app", "123456789", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
+			deps:    true,
 			wantErr: "reviews list: --next must be an App Store Connect URL",
 		},
 		{
 			name:    "reviews list invalid sort",
 			args:    []string{"reviews", "list", "--app", "123456789", "--sort", "bad"},
+			deps:    true,
 			wantErr: "--sort must be one of: rating, -rating, createdDate, -createdDate",
 		},
 		{
 			name:    "reviews summarizations limit",
 			args:    []string{"reviews", "summarizations", "--app", "123456789", "--limit", "201"},
+			deps:    true,
 			wantErr: "reviews summarizations: --limit must be between 1 and 200",
 		},
 		{
 			name:    "reviews summarizations next",
 			args:    []string{"reviews", "summarizations", "--app", "123456789", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
+			deps:    true,
 			wantErr: "reviews summarizations: --next must be an App Store Connect URL",
 		},
 		{
 			name:    "reviews summarizations invalid fields",
 			args:    []string{"reviews", "summarizations", "--app", "123456789", "--fields", "bad"},
+			deps:    true,
 			wantErr: "reviews summarizations: --fields must be one of: createdDate, locale, platform, text",
 		},
 		{
@@ -1002,6 +1019,7 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 		{
 			name:    "reviews view without id",
 			args:    []string{"reviews", "view"},
+			deps:    true,
 			wantErr: "--id is required",
 		},
 		{

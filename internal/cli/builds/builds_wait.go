@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -170,7 +169,7 @@ Examples:
 				failureContext.AppID = lookupAppID
 				timedOut.selector.AppID = lookupAppID
 
-				buildResp, err = waitForBuildDiscovery(requestCtx, client, timedOut.selector, *pollInterval, &timedOut.observed)
+				buildResp, err = waitForBuildDiscovery(requestCtx, shared.DefaultDeps(), client, timedOut.selector, *pollInterval, &timedOut.observed)
 				if err != nil {
 					if requestCtx.Err() != nil && errors.Is(err, context.DeadlineExceeded) {
 						return timedOut.discoveryTimeout()
@@ -180,7 +179,7 @@ Examples:
 			}
 
 			waitBuildID := buildResp.Data.ID
-			buildResp, err = waitForBuildProcessingState(requestCtx, client, buildResp.Data.ID, *pollInterval, *failOnInvalid, failureContext, &timedOut.observed)
+			buildResp, err = waitForBuildProcessingState(requestCtx, shared.DefaultDeps(), client, buildResp.Data.ID, *pollInterval, *failOnInvalid, failureContext, &timedOut.observed)
 			if err != nil {
 				if requestCtx.Err() != nil && errors.Is(err, context.DeadlineExceeded) {
 					return timedOut.processingTimeout(waitBuildID)
@@ -240,6 +239,7 @@ type buildWaitObservation struct {
 // Connect accepted but has not exposed as a build yet.
 func waitForBuildDiscovery(
 	ctx context.Context,
+	d *shared.Deps,
 	client *asc.Client,
 	selector appBuildWaitSelector,
 	pollInterval time.Duration,
@@ -247,7 +247,7 @@ func waitForBuildDiscovery(
 ) (*asc.BuildResponse, error) {
 	started := buildsWaitNow()
 	return asc.PollUntilTolerant(ctx, pollInterval, func(ctx context.Context) (*asc.BuildResponse, bool, error) {
-		buildResp, err := resolveBuildForAppWait(ctx, client, selector, true)
+		buildResp, err := resolveBuildForAppWait(ctx, d, client, selector, true)
 		if err != nil {
 			return nil, false, err
 		}
@@ -271,7 +271,7 @@ func waitForBuildDiscovery(
 		}
 
 		fmt.Fprintf(
-			os.Stderr,
+			d.IO.ErrOut,
 			"Waiting for build discovery... (%s elapsed)\n",
 			buildsWaitNow().Sub(started).Round(time.Second),
 		)
@@ -281,12 +281,13 @@ func waitForBuildDiscovery(
 
 func resolveBuildForAppWait(
 	ctx context.Context,
+	d *shared.Deps,
 	client *asc.Client,
 	selector appBuildWaitSelector,
 	allowEmpty bool,
 ) (*asc.BuildResponse, error) {
 	if selector.Latest {
-		buildResp, err := shared.ResolveLatestBuild(ctx, client, shared.LatestBuildSelectionOptions{
+		buildResp, err := d.ResolveLatestBuild(ctx, client, shared.LatestBuildSelectionOptions{
 			AppID:                 selector.AppID,
 			Version:               selector.Version,
 			Platform:              selector.Platform,
@@ -299,7 +300,7 @@ func resolveBuildForAppWait(
 		return applyWaitSinceConstraint(buildResp, selector.Since)
 	}
 
-	buildResp, err := resolveBuildByNumberSelection(ctx, client, buildNumberSelectionOptions{
+	buildResp, err := resolveBuildByNumberSelection(ctx, d, client, buildNumberSelectionOptions{
 		AppID:                 selector.AppID,
 		Version:               selector.Version,
 		BuildNumber:           selector.BuildNumber,
@@ -356,6 +357,7 @@ func buildsWaitProcessingStates() []string {
 // reads so a timeout can report the last known processing state.
 func waitForBuildProcessingState(
 	ctx context.Context,
+	d *shared.Deps,
 	client *asc.Client,
 	buildID string,
 	pollInterval time.Duration,
@@ -379,7 +381,7 @@ func waitForBuildProcessingState(
 			state = "UNKNOWN"
 		}
 		fmt.Fprintf(
-			os.Stderr,
+			d.IO.ErrOut,
 			"Waiting for build %s... (%s, %s elapsed)\n",
 			buildID,
 			state,

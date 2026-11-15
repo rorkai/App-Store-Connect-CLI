@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 
@@ -31,15 +30,14 @@ func (e *ratingsBundleLookupError) Unwrap() error {
 	return e.cause
 }
 
-// ReviewsRatingsCommand returns the reviews ratings subcommand.
-func ReviewsRatingsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("ratings", flag.ExitOnError)
+func newReviewsRatingsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("ratings", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store app ID, exact bundle ID, or exact app name (required)")
 	country := fs.String("country", "us", "Country code (e.g., us, gb, de)")
 	all := fs.Bool("all", false, "Fetch ratings from all countries")
 	workers := fs.Int("workers", 10, "Number of parallel workers for --all")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "ratings",
@@ -64,38 +62,38 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			app := shared.ResolveAppID(*appID)
 			if strings.TrimSpace(app) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
 			}
 
 			if *workers < 1 {
-				fmt.Fprintln(os.Stderr, "Error: --workers must be at least 1")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --workers must be at least 1")
 				return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticInvalidInput, "--workers")
 			}
 			if !*all {
 				if _, err := itunes.NormalizeCountryCode(*country); err != nil {
-					fmt.Fprintln(os.Stderr, "Error: "+err.Error())
+					fmt.Fprintln(d.IO.ErrOut, "Error: "+err.Error())
 					return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticInvalidInput, "--country")
 				}
 			}
 
-			return executeRatings(ctx, app, *country, *all, *workers, *output.Output, *output.Pretty)
+			return executeRatings(ctx, d, app, *country, *all, *workers, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-func executeRatings(ctx context.Context, appID, country string, all bool, workers int, output string, pretty bool) error {
+func executeRatings(ctx context.Context, d *shared.Deps, appID, country string, all bool, workers int, output string, pretty bool) error {
 	client := itunes.NewClient()
-	return executeRatingsWithClient(ctx, client, appID, country, all, workers, output, pretty)
+	return executeRatingsWithClient(ctx, d, client, appID, country, all, workers, output, pretty)
 }
 
-func executeRatingsWithClient(ctx context.Context, client *itunes.Client, appID, country string, all bool, workers int, output string, pretty bool) error {
+func executeRatingsWithClient(ctx context.Context, d *shared.Deps, client *itunes.Client, appID, country string, all bool, workers int, output string, pretty bool) error {
 	format, err := normalizeRatingsOutput(output, pretty)
 	if err != nil {
 		return err
 	}
 
-	resolveCtx, resolveCancel := shared.ContextWithTimeout(ctx)
+	resolveCtx, resolveCancel := d.Timeout(ctx)
 	resolvedAppID, err := resolveRatingsAppID(resolveCtx, client, appID, ratingsAppLookupCountry(country, all))
 	resolveCancel()
 	if err != nil {
@@ -103,12 +101,12 @@ func executeRatingsWithClient(ctx context.Context, client *itunes.Client, appID,
 	}
 
 	if all {
-		return executeAllRatings(ctx, client, resolvedAppID, workers, format, pretty)
+		return executeAllRatings(ctx, d, client, resolvedAppID, workers, format, pretty)
 	}
 
-	countryCtx, countryCancel := shared.ContextWithTimeout(ctx)
+	countryCtx, countryCancel := d.Timeout(ctx)
 	defer countryCancel()
-	return executeSingleRatings(countryCtx, client, resolvedAppID, country, format, pretty)
+	return executeSingleRatings(countryCtx, d, client, resolvedAppID, country, format, pretty)
 }
 
 func ratingsAppLookupCountry(country string, all bool) string {
@@ -178,37 +176,37 @@ func uniqueExactRatingsAppMatch(results []itunes.SearchResult, app string, value
 	return resolved, resolved != ""
 }
 
-func executeSingleRatings(ctx context.Context, client *itunes.Client, appID, country, output string, pretty bool) error {
+func executeSingleRatings(ctx context.Context, d *shared.Deps, client *itunes.Client, appID, country, output string, pretty bool) error {
 	ratings, err := client.GetRatings(ctx, appID, country)
 	if err != nil {
 		err = fmt.Errorf("reviews ratings: %w", err)
 		if !errors.Is(err, asc.ErrNotFound) {
 			return err
 		}
-		fmt.Fprint(os.Stderr, errfmt.FormatStderr(err))
-		fmt.Fprintf(os.Stderr, "Hint: the app must be released in the %s storefront; pass --country with another storefront or use --all to check every storefront.\n", strings.ToUpper(strings.TrimSpace(country)))
+		fmt.Fprint(d.IO.ErrOut, errfmt.FormatStderr(err))
+		fmt.Fprintf(d.IO.ErrOut, "Hint: the app must be released in the %s storefront; pass --country with another storefront or use --all to check every storefront.\n", strings.ToUpper(strings.TrimSpace(country)))
 		return shared.NewStderrReportedError(err)
 	}
-	return shared.PrintOutputWithRenderers(
+	return d.PrintOutputWithRenderers(
 		ratings,
 		output,
 		pretty,
-		func() error { return printRatingsTable(ratings) },
-		func() error { return printRatingsMarkdown(ratings) },
+		func() error { return printRatingsTable(d, ratings) },
+		func() error { return printRatingsMarkdown(d, ratings) },
 	)
 }
 
-func executeAllRatings(ctx context.Context, client *itunes.Client, appID string, workers int, output string, pretty bool) error {
-	global, err := client.GetAllRatings(ctx, appID, workers, shared.ContextWithTimeout)
+func executeAllRatings(ctx context.Context, d *shared.Deps, client *itunes.Client, appID string, workers int, output string, pretty bool) error {
+	global, err := client.GetAllRatings(ctx, appID, workers, d.Timeout)
 	if err != nil {
 		return fmt.Errorf("reviews ratings: %w", err)
 	}
-	return shared.PrintOutputWithRenderers(
+	return d.PrintOutputWithRenderers(
 		global,
 		output,
 		pretty,
-		func() error { return printGlobalRatingsTable(global) },
-		func() error { return printGlobalRatingsMarkdown(global) },
+		func() error { return printGlobalRatingsTable(d, global) },
+		func() error { return printGlobalRatingsMarkdown(d, global) },
 	)
 }
 
@@ -216,40 +214,40 @@ func normalizeRatingsOutput(output string, pretty bool) (string, error) {
 	return shared.ValidateOutputFormat(output, pretty)
 }
 
-func printRatingsTable(r *itunes.AppRatings) error {
-	fmt.Printf("\n%s\n", r.AppName)
-	fmt.Printf("App ID: %d | Country: %s\n", r.AppID, r.Country)
-	fmt.Println(strings.Repeat("─", 40))
+func printRatingsTable(d *shared.Deps, r *itunes.AppRatings) error {
+	fmt.Fprintf(d.IO.Out, "\n%s\n", r.AppName)
+	fmt.Fprintf(d.IO.Out, "App ID: %d | Country: %s\n", r.AppID, r.Country)
+	fmt.Fprintln(d.IO.Out, strings.Repeat("─", 40))
 
-	fmt.Printf("Rating: %.2f (%s ratings)\n", r.AverageRating, formatNumber(r.RatingCount))
+	fmt.Fprintf(d.IO.Out, "Rating: %.2f (%s ratings)\n", r.AverageRating, formatNumber(r.RatingCount))
 
 	if r.CurrentVersionRating != r.AverageRating || r.CurrentVersionCount != r.RatingCount {
-		fmt.Printf("Current Version: %.2f (%s ratings)\n", r.CurrentVersionRating, formatNumber(r.CurrentVersionCount))
+		fmt.Fprintf(d.IO.Out, "Current Version: %.2f (%s ratings)\n", r.CurrentVersionRating, formatNumber(r.CurrentVersionCount))
 	}
 
 	if len(r.Histogram) > 0 {
-		printHistogram(r.Histogram)
+		printHistogram(d, r.Histogram)
 	}
-	fmt.Println()
+	fmt.Fprintln(d.IO.Out)
 	return nil
 }
 
-func printGlobalRatingsTable(g *itunes.GlobalRatings) error {
-	fmt.Printf("\n%s\n", g.AppName)
-	fmt.Printf("App ID: %d\n", g.AppID)
-	fmt.Println(strings.Repeat("─", 60))
+func printGlobalRatingsTable(d *shared.Deps, g *itunes.GlobalRatings) error {
+	fmt.Fprintf(d.IO.Out, "\n%s\n", g.AppName)
+	fmt.Fprintf(d.IO.Out, "App ID: %d\n", g.AppID)
+	fmt.Fprintln(d.IO.Out, strings.Repeat("─", 60))
 
-	fmt.Printf("GLOBAL: %.2f avg (%s total ratings across %d countries)\n",
+	fmt.Fprintf(d.IO.Out, "GLOBAL: %.2f avg (%s total ratings across %d countries)\n",
 		g.AverageRating, formatNumber(g.TotalCount), g.CountryCount)
 
 	if len(g.Histogram) > 0 {
-		fmt.Println("\nHistogram (Global):")
-		printHistogramRows(g.Histogram)
+		fmt.Fprintln(d.IO.Out, "\nHistogram (Global):")
+		printHistogramRows(d, g.Histogram)
 	}
 
-	fmt.Println(strings.Repeat("─", 60))
-	fmt.Printf("\n%-20s %8s %8s\n", "Country", "Rating", "Count")
-	fmt.Println(strings.Repeat("─", 40))
+	fmt.Fprintln(d.IO.Out, strings.Repeat("─", 60))
+	fmt.Fprintf(d.IO.Out, "\n%-20s %8s %8s\n", "Country", "Rating", "Count")
+	fmt.Fprintln(d.IO.Out, strings.Repeat("─", 40))
 
 	for _, r := range g.ByCountry {
 		name := r.CountryName
@@ -259,37 +257,37 @@ func printGlobalRatingsTable(g *itunes.GlobalRatings) error {
 		if len(name) > 18 {
 			name = name[:18] + ".."
 		}
-		fmt.Printf("%-20s %8.2f %8s\n", name, r.AverageRating, formatNumber(r.RatingCount))
+		fmt.Fprintf(d.IO.Out, "%-20s %8.2f %8s\n", name, r.AverageRating, formatNumber(r.RatingCount))
 	}
-	fmt.Println()
+	fmt.Fprintln(d.IO.Out)
 	return nil
 }
 
-func printRatingsMarkdown(r *itunes.AppRatings) error {
-	fmt.Printf("## %s\n\n", r.AppName)
-	fmt.Printf("**App ID:** %d | **Country:** %s\n\n", r.AppID, r.Country)
-	fmt.Printf("**Rating:** %.2f (%s ratings)\n\n", r.AverageRating, formatNumber(r.RatingCount))
+func printRatingsMarkdown(d *shared.Deps, r *itunes.AppRatings) error {
+	fmt.Fprintf(d.IO.Out, "## %s\n\n", r.AppName)
+	fmt.Fprintf(d.IO.Out, "**App ID:** %d | **Country:** %s\n\n", r.AppID, r.Country)
+	fmt.Fprintf(d.IO.Out, "**Rating:** %.2f (%s ratings)\n\n", r.AverageRating, formatNumber(r.RatingCount))
 
 	if len(r.Histogram) > 0 {
-		fmt.Println("### Histogram")
-		printHistogramMarkdown(r.Histogram)
+		fmt.Fprintln(d.IO.Out, "### Histogram")
+		printHistogramMarkdown(d, r.Histogram)
 	}
-	fmt.Println()
+	fmt.Fprintln(d.IO.Out)
 	return nil
 }
 
-func printGlobalRatingsMarkdown(g *itunes.GlobalRatings) error {
-	fmt.Printf("## %s\n\n", g.AppName)
-	fmt.Printf("**App ID:** %d\n\n", g.AppID)
-	fmt.Printf("**Global Rating:** %.2f (%s total ratings across %d countries)\n\n",
+func printGlobalRatingsMarkdown(d *shared.Deps, g *itunes.GlobalRatings) error {
+	fmt.Fprintf(d.IO.Out, "## %s\n\n", g.AppName)
+	fmt.Fprintf(d.IO.Out, "**App ID:** %d\n\n", g.AppID)
+	fmt.Fprintf(d.IO.Out, "**Global Rating:** %.2f (%s total ratings across %d countries)\n\n",
 		g.AverageRating, formatNumber(g.TotalCount), g.CountryCount)
 
 	if len(g.Histogram) > 0 {
-		fmt.Println("### Global Histogram")
-		printHistogramMarkdown(g.Histogram)
+		fmt.Fprintln(d.IO.Out, "### Global Histogram")
+		printHistogramMarkdown(d, g.Histogram)
 	}
 
-	fmt.Print("\n### By Country\n\n")
+	fmt.Fprint(d.IO.Out, "\n### By Country\n\n")
 	{
 		headers := []string{"Country", "Rating", "Count"}
 		rows := make([][]string, 0, len(g.ByCountry))
@@ -300,18 +298,18 @@ func printGlobalRatingsMarkdown(g *itunes.GlobalRatings) error {
 			}
 			rows = append(rows, []string{name, fmt.Sprintf("%.2f", r.AverageRating), formatNumber(r.RatingCount)})
 		}
-		asc.RenderMarkdown(headers, rows)
+		asc.RenderMarkdownTo(d.IO.Out, headers, rows)
 	}
-	fmt.Println()
+	fmt.Fprintln(d.IO.Out)
 	return nil
 }
 
-func printHistogram(histogram map[int]int64) {
-	fmt.Println("\nHistogram:")
-	printHistogramRows(histogram)
+func printHistogram(d *shared.Deps, histogram map[int]int64) {
+	fmt.Fprintln(d.IO.Out, "\nHistogram:")
+	printHistogramRows(d, histogram)
 }
 
-func printHistogramRows(histogram map[int]int64) {
+func printHistogramRows(d *shared.Deps, histogram map[int]int64) {
 	var total int64
 	for _, count := range histogram {
 		total += count
@@ -333,10 +331,10 @@ func printHistogramRows(histogram map[int]int64) {
 			bar,
 		})
 	}
-	asc.RenderTable(headers, rows)
+	asc.RenderTableTo(d.IO.Out, headers, rows)
 }
 
-func printHistogramMarkdown(histogram map[int]int64) {
+func printHistogramMarkdown(d *shared.Deps, histogram map[int]int64) {
 	var total int64
 	for _, count := range histogram {
 		total += count
@@ -355,7 +353,7 @@ func printHistogramMarkdown(histogram map[int]int64) {
 			fmt.Sprintf("%.1f%%", pct),
 		})
 	}
-	asc.RenderMarkdown(headers, rows)
+	asc.RenderMarkdownTo(d.IO.Out, headers, rows)
 }
 
 func formatNumber(n int64) string {
