@@ -58,13 +58,12 @@ type QueryParam struct {
 	Type      string `json:"type,omitempty"`
 }
 
-// scalarParam is how a scalar option is declared, set and sent. The format
-// verbs take the option's argument, the query field and the parameter name.
+// scalarParam is how a scalar option is declared, set and sent.
 type scalarParam struct {
 	goType  string
 	schemas []string // the schema types it may send: "string" also sends one item of an array of strings
-	set     string   // body of the option's closure: argument, field, argument
-	send    string   // builder statement: field, parameter, field
+	set     string   // body of the option's closure; %[1]s is the argument, %[2]s the field
+	send    string   // builder statement; %[1]s is the field, %[2]s the quoted parameter name
 }
 
 // scalarParams are the scalar options by QueryParam.Type. A string is

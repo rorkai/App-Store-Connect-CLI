@@ -261,7 +261,7 @@ func (qi *queryIndex) derive(spec *Spec, builder string) (*QueryBind, []*decl, s
 		if p == nil {
 			continue
 		}
-		if ifStmt, ok := stmt.(*ast.IfStmt); ok && ifStmt != nil {
+		if _, ok := stmt.(*ast.IfStmt); ok {
 			typ, ok := scalarOfField[fieldTypes[p.Field]]
 			if !ok {
 				return nil, nil, fmt.Sprintf("field %s is a %s", p.Field, fieldTypes[p.Field])
