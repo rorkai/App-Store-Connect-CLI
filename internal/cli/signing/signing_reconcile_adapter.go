@@ -229,7 +229,7 @@ func ExecuteReconcilePlan(ctx context.Context, options ReconcilePlanOptions) (Re
 	if fingerprint == "" {
 		return ReconcilePlanView{}, redactedReconcileExecutionError(ReconcileExecutionErrorPlanInvalid)
 	}
-	plan, err := executeSigningReconcilePlan(ctx, signingReconcilePlanOptions{
+	plan, err := executeSigningReconcilePlan(ctx, shared.DefaultDeps(), signingReconcilePlanOptions{
 		ArchivePath: options.ArchivePath, DevicesFile: options.DevicesFile,
 		CertificateID: options.CertificateID, CertificateSHA256: fingerprint,
 		MinimumValidityDays: options.MinimumValidityDays, MaxMutations: options.MaxMutations,
