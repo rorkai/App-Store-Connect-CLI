@@ -890,3 +890,57 @@ func TestAdoptRecordsNoGoTypeThatCarriesOtherAttributes(t *testing.T) {
 		t.Errorf("Go types recorded for %v, want %s: ZebraAttributes has a field ZebraV2 does not define", schemas, want)
 	}
 }
+
+func TestSameShape(t *testing.T) {
+	str := func() *Schema { return &Schema{Type: "string"} }
+	attrs := func(mutate func(*Schema)) *Schema {
+		s := &Schema{Type: "object", Required: []string{"name", "kind"}, Properties: Properties{
+			{Name: "name", Schema: str()},
+			{Name: "kind", Schema: &Schema{Ref: "#/components/schemas/ZebraKind"}},
+			{Name: "tags", Schema: &Schema{Type: "array", Items: str()}},
+			{Name: "state", Schema: &Schema{Type: "string", Enum: []string{"NEW", "OLD"}}},
+		}}
+		if mutate != nil {
+			mutate(s)
+		}
+		return s
+	}
+	tests := []struct {
+		name   string
+		mutate func(*Schema)
+		same   bool
+	}{
+		{"the same schema with required names in another order", func(s *Schema) { s.Required = []string{"kind", "name"} }, true},
+		{"a property of another type", func(s *Schema) { s.Properties[0].Schema = &Schema{Type: "integer"} }, false},
+		{"another required name", func(s *Schema) { s.Required = []string{"name"} }, false},
+		{"a reference to another schema", func(s *Schema) { s.Properties[1].Schema = &Schema{Ref: "#/components/schemas/ZebraSort"} }, false},
+		{"list items of another type", func(s *Schema) { s.Properties[2].Schema = &Schema{Type: "array", Items: &Schema{Type: "integer"}} }, false},
+		{"other enum values", func(s *Schema) { s.Properties[3].Schema = &Schema{Type: "string", Enum: []string{"NEW"}} }, false},
+		{"one more property", func(s *Schema) { s.Properties = append(s.Properties, Property{Name: "spots", Schema: str()}) }, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := sameShape(attrs(nil), attrs(tt.mutate)); got != tt.same {
+				t.Errorf("sameShape = %t, want %t", got, tt.same)
+			}
+		})
+	}
+}
+
+func TestAdoptRecordsNoGoTypeForATypeTheFamilyGenerates(t *testing.T) {
+	golden := readFile(t, filepath.Join("testdata", "zebras_gen.go.golden"))
+	existing := `{"tag": "Zebras", "file": "zebras_gen.go", "types": ["ZebraV2Attributes"]}`
+	dir := writeHandWritten(t, map[string]string{"zebras.go": strings.Replace(golden, header+"\n\n", "", 1), "bindings/Zebras.json": existing})
+	if err := run(filepath.Join("testdata", "spec.json"), filepath.Join(dir, "bindings"), dir, false, "Zebras", false, io.Discard); err != nil {
+		t.Fatal(err)
+	}
+	bindings, err := LoadBindings(filepath.Join(dir, "bindings"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, g := range bindings.Families[0].GoTypes {
+		if g.Schema == "ZebraV2Attributes" {
+			t.Errorf("recorded Go type %s for ZebraV2Attributes, which the family generates", g.Type)
+		}
+	}
+}

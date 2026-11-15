@@ -89,6 +89,7 @@ func Adopt(spec *Spec, b *Bindings, dir string, tags []string, report io.Writer)
 				view.Relationships = slices.Clone(f.Relationships)
 				view.RefTypes = slices.Clone(f.RefTypes)
 				view.GoTypes = slices.Clone(f.GoTypes)
+				view.Types = f.Types
 				generated = f.Operations
 				for _, name := range f.Types {
 					fixRefTypes(spec, f, name, fixed)
@@ -434,7 +435,10 @@ func (p *pkg) withVersionGoTypes(spec *Spec, fam *Family, op *Operation, d *decl
 	}
 	for _, name := range []string{op.Request, base + "Data", base + "Attributes"} {
 		unversioned := withoutVersion(name)
-		if unversioned == name || trial.goType(name) != name || !idents[unversioned] || idents[name] {
+		if unversioned == name || trial.goType(name) != name || slices.Contains(fam.Types, name) || !idents[unversioned] || idents[name] {
+			continue
+		}
+		if !sameShape(typeSchema(spec, name), typeSchema(spec, unversioned)) {
 			continue
 		}
 		if strings.HasSuffix(name, "Attributes") && !p.carries(spec, unversioned, attributesOf(spec, name)) {
@@ -443,6 +447,46 @@ func (p *pkg) withVersionGoTypes(spec *Spec, fam *Family, op *Operation, d *decl
 		trial.GoTypes = append(trial.GoTypes, &GoType{Schema: name, Type: unversioned})
 	}
 	return &trial
+}
+
+// typeSchema is the schema a request, data or attributes type is named after:
+// the request, the data object of the request, or the attributes object of
+// the request or resource.
+func typeSchema(spec *Spec, name string) *Schema {
+	if base, ok := strings.CutSuffix(name, "Data"); ok {
+		data, _ := requestData(spec, base+"Request")
+		return data
+	}
+	if strings.HasSuffix(name, "Attributes") {
+		return attributesOf(spec, name)
+	}
+	sch, _ := spec.Schema(name)
+	return sch
+}
+
+// sameShape reports whether two schemas agree in everything the generator
+// reads: type, enum values, required names, list items and properties, with
+// references equal by name.
+func sameShape(a, b *Schema) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	if a.Ref != "" || b.Ref != "" {
+		return a.Ref == b.Ref
+	}
+	if a.Type != b.Type || !slices.Equal(a.Enum, b.Enum) || !sameNames(a.Required, b.Required) || !sameShape(a.Items, b.Items) || len(a.Properties) != len(b.Properties) {
+		return false
+	}
+	for _, prop := range a.Properties {
+		if other := b.Properties.Get(prop.Name); other == nil || !sameShape(prop.Schema, other) {
+			return false
+		}
+	}
+	return true
+}
+
+func sameNames(a, b []string) bool {
+	return slices.Equal(slices.Sorted(slices.Values(a)), slices.Sorted(slices.Values(b)))
 }
 
 // carries reports whether an attributes type has exactly the attribute names
@@ -496,10 +540,11 @@ func (p *pkg) recordResourceGoType(spec *Spec, fam *Family, b *OpBind) {
 	}
 	resource, _, ok := spec.resourceOf(op.Response)
 	name := resource + "Attributes"
-	if !ok || fam.goType(name) != name {
+	if !ok || fam.goType(name) != name || slices.Contains(fam.Types, name) {
 		return
 	}
-	if attrs := p.responseAttributes(spec, b.Response); attrs != name && attrs == withoutVersion(name) && p.carries(spec, attrs, attributesOf(spec, name)) {
+	attrs := p.responseAttributes(spec, b.Response)
+	if attrs != name && attrs == withoutVersion(name) && sameShape(attributesOf(spec, name), attributesOf(spec, attrs)) && p.carries(spec, attrs, attributesOf(spec, name)) {
 		fam.GoTypes = append(fam.GoTypes, &GoType{Schema: name, Type: attrs})
 	}
 }
