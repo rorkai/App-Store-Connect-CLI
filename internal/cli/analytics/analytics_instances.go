@@ -3,7 +3,6 @@ package analytics
 import (
 	"context"
 	"flag"
-	"fmt"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -40,12 +39,7 @@ Examples:
 
 // AnalyticsInstancesGetCommand retrieves a specific analytics report instance.
 func AnalyticsInstancesGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
-
-	instanceID := shared.BindResourceIDFlag(fs, "instance-id", "analyticsReportInstances", "Analytics report instance ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
 		Name:       "view",
 		ShortUsage: "asc analytics instances view --instance-id \"INSTANCE_ID\" [flags]",
 		ShortHelp:  "View an analytics report instance by ID.",
@@ -53,35 +47,23 @@ func AnalyticsInstancesGetCommand() *ffcli.Command {
 
 Examples:
   asc analytics instances view --instance-id "INSTANCE_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*instanceID)
-			if id == "" {
-				return shared.RequiredFlag("--instance-id")
+		IDFlag:             "instance-id",
+		IDUsage:            "Analytics report instance ID",
+		IDType:             "analyticsReportInstances",
+		RequiredDiagnostic: true,
+		Flags: func(fs *flag.FlagSet) func() error {
+			instanceID := fs.Lookup("instance-id").Value
+			return func() error {
+				if _, err := asc.ValidateResourcePathSegment(strings.TrimSpace(instanceID.String())); err != nil {
+					return shared.UsageErrorf("analytics instances view: --instance-id: %v", err)
+				}
+				return nil
 			}
-			var err error
-			id, err = asc.ValidateResourcePathSegment(id)
-			if err != nil {
-				return shared.UsageErrorf("analytics instances view: --instance-id: %v", err)
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("analytics instances view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetAnalyticsReportInstance(requestCtx, id)
-			if err != nil {
-				return fmt.Errorf("analytics instances view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
-	}
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetAnalyticsReportInstance(ctx, id)
+		},
+	})
 }
 
 // AnalyticsInstancesRelationshipsCommand lists segment links for an instance.

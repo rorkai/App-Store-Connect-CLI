@@ -131,10 +131,10 @@ func bindSubscriptionGroupVersionFlags(fs *flag.FlagSet) (state, include, fields
 	fields = fs.String("fields", "", "Version fields: version,state,subscriptionGroup,localizations")
 	groupFields = fs.String("group-fields", "", "Included group fields (comma-separated)")
 	localizationFields = fs.String("localization-fields", "", "Included localization fields (comma-separated)")
-	limit = fs.Int("limit", 0, "Maximum results per page (1-200)")
+	limit = fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	localizationsLimit = fs.Int("localizations-limit", 0, "Maximum included localizations (1-50)")
-	next = fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate = fs.Bool("paginate", false, "Automatically fetch all pages")
+	next = fs.String("next", "", shared.NextFlagUsage)
+	paginate = fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	return
 }
 
@@ -189,39 +189,40 @@ func SubscriptionsGroupsVersionsListCommand() *ffcli.Command {
 
 // SubscriptionsGroupsVersionsViewCommand retrieves a group version.
 func SubscriptionsGroupsVersionsViewCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("groups versions view", flag.ExitOnError)
-	versionID := shared.BindResourceIDFlag(fs, "version-id", "subscriptionGroupVersions", "Subscription group version ID")
-	include := fs.String("include", "", "Include relationships: subscriptionGroup,localizations")
-	fields := fs.String("fields", "", "Version fields: version,state,subscriptionGroup,localizations")
-	groupFields := fs.String("group-fields", "", "Included group fields (comma-separated)")
-	localizationFields := fs.String("localization-fields", "", "Included localization fields (comma-separated)")
-	localizationsLimit := fs.Int("localizations-limit", 0, "Maximum included localizations (1-50)")
-	output := shared.BindOutputFlags(fs)
-	return &ffcli.Command{
-		Name: "view", ShortUsage: `asc subscriptions groups versions view --version-id "VERSION_ID" [flags]`, ShortHelp: "View a subscription group version.",
-		LongHelp: "View a subscription group version.\n\nExamples:\n  asc subscriptions groups versions view --version-id \"VERSION_ID\" --include localizations", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*versionID)
-			if id == "" {
-				return shared.RequiredFlag("--version-id")
+	d := shared.DefaultDeps()
+	d.Client = func() (*asc.Client, error) { return subscriptionGroupVersionClientFactory() }
+
+	var opts []asc.SubscriptionGroupVersionsOption
+
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName:        "groups versions view",
+		Name:               "view",
+		ShortUsage:         `asc subscriptions groups versions view --version-id "VERSION_ID" [flags]`,
+		ShortHelp:          "View a subscription group version.",
+		LongHelp:           "View a subscription group version.\n\nExamples:\n  asc subscriptions groups versions view --version-id \"VERSION_ID\" --include localizations",
+		IDFlag:             "version-id",
+		IDUsage:            "Subscription group version ID",
+		IDType:             "subscriptionGroupVersions",
+		RequiredDiagnostic: true,
+		Deps:               d,
+		Flags: func(fs *flag.FlagSet) func() error {
+			include := fs.String("include", "", "Include relationships: subscriptionGroup,localizations")
+			fields := fs.String("fields", "", "Version fields: version,state,subscriptionGroup,localizations")
+			groupFields := fs.String("group-fields", "", "Included group fields (comma-separated)")
+			localizationFields := fs.String("localization-fields", "", "Included localization fields (comma-separated)")
+			localizationsLimit := fs.Int("localizations-limit", 0, "Maximum included localizations (1-50)")
+			return func() (err error) {
+				opts, err = subscriptionGroupVersionOptions("", *include, *fields, *groupFields, *localizationFields, 0, *localizationsLimit, "")
+				if err != nil {
+					return shared.UsageError("subscriptions groups versions view: " + err.Error())
+				}
+				return nil
 			}
-			opts, err := subscriptionGroupVersionOptions("", *include, *fields, *groupFields, *localizationFields, 0, *localizationsLimit, "")
-			if err != nil {
-				return shared.UsageError("subscriptions groups versions view: " + err.Error())
-			}
-			client, err := subscriptionGroupVersionClientFactory()
-			if err != nil {
-				return fmt.Errorf("subscriptions groups versions view: %w", err)
-			}
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-			resp, err := client.GetSubscriptionGroupVersion(requestCtx, id, opts...)
-			if err != nil {
-				return fmt.Errorf("subscriptions groups versions view: failed to fetch: %w", err)
-			}
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
-	}
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetSubscriptionGroupVersion(ctx, id, opts...)
+		},
+	})
 }
 
 // SubscriptionsGroupsVersionLinksCommand groups raw relationship linkage reads.
@@ -248,9 +249,9 @@ func subscriptionsGroupsVersionLinkagesCommand(name string, groupOwned bool) *ff
 	} else {
 		ownerID = shared.BindResourceIDFlag(fs, "version-id", "subscriptionGroupVersions", "Subscription group version ID")
 	}
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages")
+	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
+	next := fs.String("next", "", shared.NextFlagUsage)
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	output := shared.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: name, ShortUsage: "asc subscriptions groups versions links " + name + " [flags]", ShortHelp: "View " + name + " relationship linkages.", LongHelp: "View " + name + " relationship linkages.",

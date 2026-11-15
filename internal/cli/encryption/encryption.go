@@ -77,110 +77,75 @@ Examples:
 }
 
 func newEncryptionDeclarationsListCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("encryption declarations list", flag.ExitOnError)
+	var (
+		builds                                         *string
+		buildLimit                                     *int
+		fieldsValue, documentFieldsValue, includeValue []string
+		included                                       asc.IncludedFields
+	)
 
-	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
-	builds := fs.String("build-id", "", "Filter by build IDs (comma-separated)")
-	fields := fs.String("fields", "", "Fields to include: "+strings.Join(encryptionDeclarationFieldList(), ", "))
-	documentFields := fs.String("document-fields", "", "Document fields to include: "+strings.Join(encryptionDocumentFieldList(), ", "))
-	include := fs.String("include", "", "Include relationships: "+strings.Join(encryptionDeclarationIncludeList(), ", "))
-	includedFields := shared.BindIncludedFieldFlags(fs, map[string]string{"app": "apps", "builds": "builds"})
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	buildLimit := fs.Int("build-limit", 0, "Maximum included builds per declaration (1-50)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := d.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc encryption declarations list --app \"APP_ID\" [flags]",
-		ShortHelp:  "List encryption declarations for an app.",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "encryption declarations list",
+		Name:        "list",
+		ShortUsage:  "asc encryption declarations list --app \"APP_ID\" [flags]",
+		ShortHelp:   "List encryption declarations for an app.",
 		LongHelp: `List encryption declarations for an app.
 
 Examples:
   asc encryption declarations list --app "APP_ID"
   asc encryption declarations list --app "APP_ID" --include appEncryptionDeclarationDocument --document-fields "fileName,fileSize"
   asc encryption declarations list --app "APP_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if err := d.ValidatePaginationFlags(ctx, fs, "encryption declarations list", 200, "build-id", "fields", "document-fields", "include", "build-limit"); err != nil {
+		ParentFlag:           "app",
+		ParentUsage:          "App Store Connect app ID (or ASC_APP_ID)",
+		ResolveApp:           true,
+		RequiredDiagnostic:   true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		NextConflicts:        []string{"build-id", "fields", "document-fields", "include", "build-limit"},
+		Deps:                 d,
+		Flags: func(fs *flag.FlagSet) func() error {
+			next := fs.Lookup("next").Value
+			builds = fs.String("build-id", "", "Filter by build IDs (comma-separated)")
+			fields := fs.String("fields", "", "Fields to include: "+strings.Join(encryptionDeclarationFieldList(), ", "))
+			documentFields := fs.String("document-fields", "", "Document fields to include: "+strings.Join(encryptionDocumentFieldList(), ", "))
+			include := fs.String("include", "", "Include relationships: "+strings.Join(encryptionDeclarationIncludeList(), ", "))
+			includedFields := shared.BindIncludedFieldFlags(fs, map[string]string{"app": "apps", "builds": "builds"})
+			buildLimit = fs.Int("build-limit", 0, "Maximum included builds per declaration (1-50)")
+			return func() error {
+				if *buildLimit != 0 && (*buildLimit < 1 || *buildLimit > 50) {
+					return d.UsageError("encryption declarations list: --build-limit must be between 1 and 50")
+				}
+
+				var err error
+				fieldsValue, err = normalizeEncryptionDeclarationFields(*fields)
+				if err != nil {
+					return d.UsageErrorf("encryption declarations list: %v", err)
+				}
+				documentFieldsValue, err = normalizeEncryptionDocumentFields(*documentFields, "--document-fields")
+				if err != nil {
+					return d.UsageErrorf("encryption declarations list: %v", err)
+				}
+				includeValue, err = normalizeEncryptionDeclarationInclude(*include)
+				if err != nil {
+					return d.UsageErrorf("encryption declarations list: %v", err)
+				}
+				included, err = includedFields.ResolveWith(d, "encryption declarations list", next.String(), includeValue)
 				return err
 			}
-
-			resolvedAppID := shared.ResolveAppID(*appID)
-			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
-				return shared.MissingRequiredUsageError("--app")
-			}
-
-			if *buildLimit != 0 && (*buildLimit < 1 || *buildLimit > 50) {
-				return d.UsageError("encryption declarations list: --build-limit must be between 1 and 50")
-			}
-
-			fieldsValue, err := normalizeEncryptionDeclarationFields(*fields)
-			if err != nil {
-				return d.UsageErrorf("encryption declarations list: %v", err)
-			}
-			documentFieldsValue, err := normalizeEncryptionDocumentFields(*documentFields, "--document-fields")
-			if err != nil {
-				return d.UsageErrorf("encryption declarations list: %v", err)
-			}
-			includeValue, err := normalizeEncryptionDeclarationInclude(*include)
-			if err != nil {
-				return d.UsageErrorf("encryption declarations list: %v", err)
-			}
-			included, err := includedFields.ResolveWith(d, "encryption declarations list", *next, includeValue)
-			if err != nil {
-				return err
-			}
-
-			buildIDs := shared.SplitCSV(*builds)
-
-			client, err := d.Client()
-			if err != nil {
-				return fmt.Errorf("encryption declarations list: %w", err)
-			}
-
-			requestCtx, cancel := d.Timeout(ctx)
-			defer cancel()
-
-			opts := []asc.AppEncryptionDeclarationsOption{
-				asc.WithAppEncryptionDeclarationsBuildIDs(buildIDs),
+		},
+		FetchPage: func(ctx context.Context, client *asc.Client, appID string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetAppEncryptionDeclarations(ctx, appID,
+				asc.WithAppEncryptionDeclarationsBuildIDs(shared.SplitCSV(*builds)),
 				asc.WithAppEncryptionDeclarationsFields(fieldsValue),
 				asc.WithAppEncryptionDeclarationsDocumentFields(documentFieldsValue),
 				asc.WithAppEncryptionDeclarationsInclude(includeValue),
 				asc.WithIncludedFields[asc.AppEncryptionDeclarationsOption](included),
-				asc.Limit[asc.AppEncryptionDeclarationsOption](*limit),
+				asc.Limit[asc.AppEncryptionDeclarationsOption](limit),
 				asc.WithAppEncryptionDeclarationsBuildLimit(*buildLimit),
-				asc.NextURL[asc.AppEncryptionDeclarationsOption](*next),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.Limit[asc.AppEncryptionDeclarationsOption](200))
-				firstPage, err := client.GetAppEncryptionDeclarations(requestCtx, resolvedAppID, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("encryption declarations list: failed to fetch: %w", err)
-				}
-
-				pages, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppEncryptionDeclarations(ctx, resolvedAppID, asc.NextURL[asc.AppEncryptionDeclarationsOption](nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("encryption declarations list: %w", err)
-				}
-
-				return d.PrintOutput(pages, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetAppEncryptionDeclarations(requestCtx, resolvedAppID, opts...)
-			if err != nil {
-				return fmt.Errorf("encryption declarations list: failed to fetch: %w", err)
-			}
-
-			return d.PrintOutput(resp, *output.Output, *output.Pretty)
+				asc.NextURL[asc.AppEncryptionDeclarationsOption](next),
+			)
 		},
-	}
+	})
 }
 
 func newEncryptionDeclarationsGetCommand(d *shared.Deps) *ffcli.Command {

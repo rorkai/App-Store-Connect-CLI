@@ -15,9 +15,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// XcodeCloudArtifactsCommand returns the xcode-cloud artifacts command with subcommands.
-func XcodeCloudArtifactsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("artifacts", flag.ExitOnError)
+// newXcodeCloudArtifactsCommand returns the xcode-cloud artifacts command with subcommands.
+func newXcodeCloudArtifactsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("artifacts", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "artifacts",
@@ -33,9 +33,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			XcodeCloudArtifactsListCommand(),
-			XcodeCloudArtifactsGetCommand(),
-			XcodeCloudArtifactsDownloadCommand(),
+			newXcodeCloudArtifactsListCommand(d),
+			newXcodeCloudArtifactsGetCommand(d),
+			newXcodeCloudArtifactsDownloadCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -43,16 +43,16 @@ Examples:
 	}
 }
 
-// XcodeCloudArtifactsListCommand returns the xcode-cloud artifacts list subcommand.
-func XcodeCloudArtifactsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
+// newXcodeCloudArtifactsListCommand returns the xcode-cloud artifacts list subcommand.
+func newXcodeCloudArtifactsListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("list", flag.ExitOnError)
 
 	actionID := shared.BindResourceIDFlag(fs, "action-id", "ciBuildActions", "Build action ID to list artifacts for")
 	runID := shared.BindResourceIDFlag(fs, "run-id", "ciBuildRuns", "Build run ID to aggregate artifacts across all actions")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
+	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
+	next := fs.String("next", "", shared.NextFlagUsage)
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -69,11 +69,12 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "xcode-cloud artifacts list", 200); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "xcode-cloud artifacts list", 200); err != nil {
 				return err
 			}
 			return runXcodeCloudActionResourceList(
 				ctx,
+				d,
 				*actionID,
 				*runID,
 				*limit,
@@ -95,8 +96,8 @@ Examples:
 	}
 }
 
-// XcodeCloudArtifactsGetCommand returns the xcode-cloud artifacts view subcommand.
-func XcodeCloudArtifactsGetCommand() *ffcli.Command {
+// newXcodeCloudArtifactsGetCommand returns the xcode-cloud artifacts view subcommand.
+func newXcodeCloudArtifactsGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
 		Name:       "view",
 		ShortUsage: "asc xcode-cloud artifacts view --id \"ARTIFACT_ID\"",
@@ -110,8 +111,9 @@ Examples:
 		IDUsage:          "Artifact ID",
 		IDType:           "ciArtifacts",
 		FetchErrorPrefix: "xcode-cloud artifacts view",
+		Deps:             d,
 		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
-			return contextWithXcodeCloudTimeout(ctx, 0)
+			return contextWithXcodeCloudTimeout(d, ctx, 0)
 		},
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetCiArtifact(ctx, id)
@@ -119,14 +121,14 @@ Examples:
 	})
 }
 
-// XcodeCloudArtifactsDownloadCommand returns the xcode-cloud artifacts download subcommand.
-func XcodeCloudArtifactsDownloadCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("download", flag.ExitOnError)
+// newXcodeCloudArtifactsDownloadCommand returns the xcode-cloud artifacts download subcommand.
+func newXcodeCloudArtifactsDownloadCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("download", flag.ExitOnError)
 
 	id := shared.BindResourceIDFlag(fs, "id", "ciArtifacts", "Artifact ID")
 	path := fs.String("path", "", "Output file path for the artifact")
 	overwrite := fs.Bool("overwrite", false, "Overwrite existing file")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "download",
@@ -142,22 +144,22 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
 			pathValue := strings.TrimSpace(*path)
 			if pathValue == "" {
-				return shared.RequiredFlag("--path")
+				return d.RequiredFlag("--path")
 			}
 			if err := validateArtifactDestination(pathValue, *overwrite); err != nil {
 				return fmt.Errorf("xcode-cloud artifacts download: %w", err)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("xcode-cloud artifacts download: %w", err)
 			}
 
-			requestCtx, cancel := contextWithXcodeCloudTimeout(ctx, 0)
+			requestCtx, cancel := contextWithXcodeCloudTimeout(d, ctx, 0)
 			defer cancel()
 
 			artifactResp, err := client.GetCiArtifact(requestCtx, idValue)
@@ -190,7 +192,7 @@ Examples:
 				BytesWritten: bytesWritten,
 			}
 
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }

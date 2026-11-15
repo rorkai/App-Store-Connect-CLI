@@ -22,9 +22,9 @@ func newReviewDetailsAttachmentsListCommand(d *shared.Deps) *ffcli.Command {
 	fields := fs.String("fields", "", "Fields to include: "+strings.Join(reviewAttachmentFieldList(), ", "))
 	detailFields := fs.String("detail-fields", "", "Review detail fields to include: "+strings.Join(reviewDetailFieldList(), ", "))
 	include := fs.String("include", "", "Include relationships: "+strings.Join(reviewAttachmentIncludeList(), ", "))
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
+	next := fs.String("next", "", shared.NextFlagUsage)
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	includeSensitive := shared.BindIncludeSensitiveFlag(fs)
 	output := d.BindOutputFlags(fs)
 

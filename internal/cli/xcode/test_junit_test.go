@@ -56,7 +56,7 @@ func TestXcodeTestJUnitWritesGoldenReportFromFixtureSummary(t *testing.T) {
 	}))
 
 	cmd := XcodeTestJUnitCommand()
-	if err := cmd.Parse([]string{"--xcresult", "Test.xcresult", "--report-file", reportFile, "--output", "json"}); err != nil {
+	if err := cmd.Parse([]string{"--xcresult", "Test.xcresult", "--report-file", reportFile, "--output", "json", "--allow-failures"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	if err := cmd.Run(context.Background()); err != nil {

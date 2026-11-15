@@ -1,8 +1,12 @@
 package xcodecloud
 
-import "github.com/peterbourgon/ff/v3/ffcli"
+import (
+	"github.com/peterbourgon/ff/v3/ffcli"
 
-// XcodeCloudIssuesCommand returns the xcode-cloud issues command with subcommands.
-func XcodeCloudIssuesCommand() *ffcli.Command {
-	return newXcodeCloudActionResourceCommand(xcodeCloudIssuesCommandConfig)
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+)
+
+// newXcodeCloudIssuesCommand returns the xcode-cloud issues command with subcommands.
+func newXcodeCloudIssuesCommand(d *shared.Deps) *ffcli.Command {
+	return newXcodeCloudActionResourceCommand(d, xcodeCloudIssuesCommandConfig)
 }

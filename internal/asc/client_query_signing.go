@@ -53,13 +53,6 @@ type passTypeIDsQuery struct {
 	certificatesLimit int
 }
 
-type passTypeIDQuery struct {
-	fields            []string
-	certificateFields []string
-	include           []string
-	certificatesLimit int
-}
-
 type passTypeIDCertificatesQuery struct {
 	listQuery
 	displayNames     []string
@@ -209,17 +202,6 @@ func buildPassTypeIDsQuery(query *passTypeIDsQuery) string {
 	return values.Encode()
 }
 
-func buildPassTypeIDQuery(query *passTypeIDQuery) string {
-	values := url.Values{}
-	addCSV(values, "fields[passTypeIds]", query.fields)
-	addCSV(values, "fields[certificates]", query.certificateFields)
-	addCSV(values, "include", query.include)
-	if query.certificatesLimit > 0 {
-		values.Set("limit[certificates]", strconv.Itoa(query.certificatesLimit))
-	}
-	return values.Encode()
-}
-
 func buildBundleIDCapabilitiesQuery(_ *bundleIDCapabilitiesQuery) string {
 	// The live relationship endpoint rejects limit despite the OpenAPI entry.
 	return ""
@@ -361,8 +343,8 @@ func buildDevicesQuery(query *devicesQuery) string {
 	}
 	addCSV(values, "filter[udid]", query.udids)
 	addCSV(values, "filter[id]", query.ids)
-	if query.sort != "" {
-		values.Set("sort", query.sort)
+	if strings.TrimSpace(query.sort) != "" {
+		values.Set("sort", strings.TrimSpace(query.sort))
 	}
 	addCSV(values, "fields[devices]", query.fields)
 	addLimit(values, query.limit)
@@ -389,9 +371,6 @@ type MerchantIDCertificatesOption func(*merchantIDCertificatesQuery)
 
 // PassTypeIDsOption is a functional option for GetPassTypeIDs.
 type PassTypeIDsOption func(*passTypeIDsQuery)
-
-// PassTypeIDOption is a functional option for GetPassTypeID.
-type PassTypeIDOption func(*passTypeIDQuery)
 
 // PassTypeIDCertificatesOption is a functional option for GetPassTypeIDCertificates.
 type PassTypeIDCertificatesOption func(*passTypeIDCertificatesQuery)
@@ -738,36 +717,6 @@ func WithPassTypeIDsInclude(include []string) PassTypeIDsOption {
 // WithPassTypeIDsCertificatesLimit sets limit[certificates] for included certificates.
 func WithPassTypeIDsCertificatesLimit(limit int) PassTypeIDsOption {
 	return func(q *passTypeIDsQuery) {
-		if limit > 0 {
-			q.certificatesLimit = limit
-		}
-	}
-}
-
-// WithPassTypeIDFields sets fields[passTypeIds] for pass type ID responses.
-func WithPassTypeIDFields(fields []string) PassTypeIDOption {
-	return func(q *passTypeIDQuery) {
-		q.fields = normalizeList(fields)
-	}
-}
-
-// WithPassTypeIDCertificateFields sets fields[certificates] for included certificates.
-func WithPassTypeIDCertificateFields(fields []string) PassTypeIDOption {
-	return func(q *passTypeIDQuery) {
-		q.certificateFields = normalizeList(fields)
-	}
-}
-
-// WithPassTypeIDInclude sets include for pass type ID responses.
-func WithPassTypeIDInclude(include []string) PassTypeIDOption {
-	return func(q *passTypeIDQuery) {
-		q.include = normalizeList(include)
-	}
-}
-
-// WithPassTypeIDCertificatesIncludeLimit sets limit[certificates] for included certificates.
-func WithPassTypeIDCertificatesIncludeLimit(limit int) PassTypeIDOption {
-	return func(q *passTypeIDQuery) {
 		if limit > 0 {
 			q.certificatesLimit = limit
 		}

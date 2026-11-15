@@ -1,17 +1,20 @@
 package xcodecloud
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestXcodeCloudDoctorValidatesOutputBeforeSaveSideEffects(t *testing.T) {
 	saveDirectory := filepath.Join(t.TempDir(), "logs")
-	command := XcodeCloudDoctorCommand()
+	command := newXcodeCloudDoctorCommand(&shared.Deps{IO: &shared.IO{Out: &bytes.Buffer{}, ErrOut: &bytes.Buffer{}}})
 	command.FlagSet.SetOutput(io.Discard)
 	if err := command.Parse([]string{
 		"--run-id", "run-1",
@@ -38,7 +41,7 @@ func TestXcodeCloudRunValidatesOutputBeforeTriggerSideEffects(t *testing.T) {
 	t.Setenv("ASC_PRIVATE_KEY", "")
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 
-	command := XcodeCloudRunCommand()
+	command := newXcodeCloudRunCommand(&shared.Deps{IO: &shared.IO{Out: &bytes.Buffer{}, ErrOut: &bytes.Buffer{}}})
 	command.FlagSet.SetOutput(io.Discard)
 	if err := command.Parse([]string{
 		"--workflow-id", "workflow-1",

@@ -51,9 +51,9 @@ func newExperimentsListCommand(d *shared.Deps) *ffcli.Command {
 	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID (v1 experiments)")
 	appID := fs.String("app", "", "App Store Connect app ID (v2 experiments)")
 	state := fs.String("state", "", "Filter by state(s), comma-separated")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
+	next := fs.String("next", "", shared.NextFlagUsage)
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	output := d.BindOutputFlags(fs)
 	v2 := fs.Bool("v2", false, "Use v2 experiments endpoint")
 
@@ -177,53 +177,35 @@ Examples:
 
 // newExperimentsGetCommand returns the experiments view subcommand.
 func newExperimentsGetCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("experiments view", flag.ExitOnError)
+	var v2 *bool
 
-	experimentID := shared.BindResourceIDFlag(fs, "experiment-id", "appStoreVersionExperiments", "Experiment ID")
-	output := d.BindOutputFlags(fs)
-	v2 := fs.Bool("v2", false, "Use v2 experiments endpoint")
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc product-pages experiments view --experiment-id \"EXPERIMENT_ID\" [--v2]",
-		ShortHelp:  "View an experiment by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "experiments view",
+		Name:        "view",
+		ShortUsage:  "asc product-pages experiments view --experiment-id \"EXPERIMENT_ID\" [--v2]",
+		ShortHelp:   "View an experiment by ID.",
 		LongHelp: `View an experiment by ID.
 
 Examples:
   asc product-pages experiments view --experiment-id "EXPERIMENT_ID"
   asc product-pages experiments view --experiment-id "EXPERIMENT_ID" --v2`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			trimmedID := strings.TrimSpace(*experimentID)
-			if trimmedID == "" {
-				return d.RequiredFlag("--experiment-id")
-			}
-
-			client, err := d.Client()
-			if err != nil {
-				return fmt.Errorf("experiments view: %w", err)
-			}
-
-			requestCtx, cancel := d.Timeout(ctx)
-			defer cancel()
-
-			if *v2 {
-				resp, err := client.GetAppStoreVersionExperimentV2(requestCtx, trimmedID)
-				if err != nil {
-					return fmt.Errorf("experiments view: failed to fetch: %w", err)
-				}
-				return d.PrintOutput(resp, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetAppStoreVersionExperiment(requestCtx, trimmedID)
-			if err != nil {
-				return fmt.Errorf("experiments view: failed to fetch: %w", err)
-			}
-
-			return d.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDFlag:             "experiment-id",
+		IDUsage:            "Experiment ID",
+		IDType:             "appStoreVersionExperiments",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "experiments view",
+		Deps:               d,
+		Flags: func(fs *flag.FlagSet) func() error {
+			v2 = fs.Bool("v2", false, "Use v2 experiments endpoint")
+			return nil
 		},
-	}
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			if *v2 {
+				return client.GetAppStoreVersionExperimentV2(ctx, id)
+			}
+			return client.GetAppStoreVersionExperiment(ctx, id)
+		},
+	})
 }
 
 // newExperimentsCreateCommand returns the experiments create subcommand.

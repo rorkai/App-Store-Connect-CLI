@@ -3,7 +3,7 @@ package assetlibrary
 import "testing"
 
 func TestLibraryFiltersOnlyOnMediaLists(t *testing.T) {
-	for _, group := range Command().Subcommands {
+	for _, group := range NewCommand(newAssetLibraryTestDeps()).Subcommands {
 		for _, child := range group.Subcommands {
 			for _, name := range libraryListFilterFlags {
 				// Instance --id selectors predate the new collection ID filter.

@@ -11,7 +11,7 @@ func TestAssetLibraryVideoUploadValidation(t *testing.T) {
 		{"asset-library", "videos", "upload", "--library-id", "lib", "--file", "video.mp4", "--category", "OTHER"},
 		{"asset-library", "images", "upload", "--library-id", "lib", "--file", "image.png", "--category", "OTHER"},
 	} {
-		_, stderr, err := runAssetLibrary(t, args...)
+		_, stderr, err := runAssetLibrary(t, nil, args...)
 		if err == nil || !strings.Contains(stderr, "asset-library") {
 			t.Fatalf("args %v: err=%v stderr=%q", args, err, stderr)
 		}

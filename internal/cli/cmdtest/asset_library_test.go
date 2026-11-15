@@ -3,26 +3,25 @@ package cmdtest
 import (
 	"context"
 	"encoding/json"
-	"io"
 	"strings"
 	"testing"
 
+	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
-func runAssetLibrary(t *testing.T, args ...string) (string, string, error) {
+// runAssetLibrary runs args on a root built on test deps whose client is
+// client, and returns the parse or run error with the deps streams.
+func runAssetLibrary(t *testing.T, client func() (*asc.Client, error), args ...string) (string, string, error) {
 	t.Helper()
-	root := RootCommand("dev")
-	root.FlagSet.SetOutput(io.Discard)
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse(args); err != nil {
-			runErr = err
-			return
-		}
+	d, stdout, stderr := newTestDeps(t, client)
+	root := rootcmd.RootCommandWithDeps("dev", d)
+	runErr := root.Parse(args)
+	if runErr == nil {
 		runErr = root.Run(context.Background())
-	})
-	return stdout, stderr, runErr
+	}
+	return stdout.String(), stderr.String(), runErr
 }
 
 func TestAssetLibraryReads(t *testing.T) {
@@ -41,9 +40,8 @@ func TestAssetLibraryReads(t *testing.T) {
 		t.Run(strings.Join(tc.args, " "), func(t *testing.T) {
 			setupAuth(t)
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			reg.Register(asctest.GET(tc.path, tc.query...), asctest.JSON(200, tc.payload))
-			stdout, stderr, err := runAssetLibrary(t, append([]string{"asset-library"}, tc.args...)...)
+			stdout, stderr, err := runAssetLibrary(t, stubClient(t, reg), append([]string{"asset-library"}, tc.args...)...)
 			if err != nil || stderr != "" {
 				t.Fatalf("error=%v stderr=%q", err, stderr)
 			}
@@ -84,7 +82,7 @@ func TestAssetLibraryValidationBeforeAuth(t *testing.T) {
 		{"images", "view", "--id", "../apps"},
 	} {
 		t.Run(strings.Join(args, " "), func(t *testing.T) {
-			_, stderr, err := runAssetLibrary(t, append([]string{"asset-library"}, args...)...)
+			_, stderr, err := runAssetLibrary(t, nil, append([]string{"asset-library"}, args...)...)
 			if !isUsageClassError(err) || stderr == "" {
 				t.Fatalf("expected reported usage error before auth, got %v, stderr=%q", err, stderr)
 			}
@@ -95,12 +93,11 @@ func TestAssetLibraryValidationBeforeAuth(t *testing.T) {
 func TestAssetLibraryPaginationAndTable(t *testing.T) {
 	setupAuth(t)
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/appAssetLibraries/lib/images", "limit=200"),
 		asctest.JSON(200, `{"data":[{"type":"appAssetLibraryImages","id":"first","attributes":{"referenceName":"First","state":"APPROVED"}}],"links":{"next":"https://api.appstoreconnect.apple.com/v1/appAssetLibraries/lib/images?cursor=next"},"future":42}`))
 	reg.Register(asctest.GET("/v1/appAssetLibraries/lib/images", "cursor=next"),
 		asctest.JSON(200, `{"data":[{"type":"appAssetLibraryImages","id":"second","attributes":{"referenceName":"Second","state":"PREPARE_FOR_SUBMISSION"}}]}`))
-	stdout, _, err := runAssetLibrary(t, "asset-library", "images", "list", "--library-id", "lib", "--paginate", "--output", "table")
+	stdout, _, err := runAssetLibrary(t, stubClient(t, reg), "asset-library", "images", "list", "--library-id", "lib", "--paginate", "--output", "table")
 	calls := len(reg.Requests())
 	if err != nil || calls != 2 || !strings.Contains(stdout, "First") || !strings.Contains(stdout, "Second") || !strings.Contains(stdout, "APPROVED") {
 		t.Fatalf("stdout=%s calls=%d err=%v", stdout, calls, err)
@@ -110,9 +107,8 @@ func TestAssetLibraryPaginationAndTable(t *testing.T) {
 func TestAssetLibraryRejectsMalformedResponse(t *testing.T) {
 	setupAuth(t)
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app/assetLibrary"), asctest.JSON(200, `{"oops":true}`))
-	stdout, _, err := runAssetLibrary(t, "asset-library", "view", "--app", "app")
+	stdout, _, err := runAssetLibrary(t, stubClient(t, reg), "asset-library", "view", "--app", "app")
 	if err == nil || stdout != "" {
 		t.Fatalf("malformed response accepted: %q %v", stdout, err)
 	}
@@ -121,16 +117,15 @@ func TestAssetLibraryRejectsMalformedResponse(t *testing.T) {
 func TestAssetLibrarySpecsPreserveUnmodeledJSONAndRenderObservedDimensions(t *testing.T) {
 	setupAuth(t)
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	body := `{"data":[{"type":"appAssetLibraryRefData","id":"1","attributes":{"imageSpecs":[{"specId":"header-spec","dimensions":{"minWidth":3840,"maxWidth":3840,"minHeight":1646,"maxHeight":1646},"aspectRatio":"21:9","compatiblePlacementTypes":["PRODUCT_PAGE_HEADER_ASSET"]}],"videoSpecs":[]}}]}`
 	reg.Register(asctest.GET("/v1/appAssetLibraryRefData"), asctest.JSON(200, body))
-	stdout, _, err := runAssetLibrary(t, "asset-library", "specs", "--output", "table")
+	stdout, _, err := runAssetLibrary(t, stubClient(t, reg), "asset-library", "specs", "--output", "table")
 	if err != nil || !strings.Contains(stdout, "3840-3840 x 1646-1646") || !strings.Contains(stdout, "PRODUCT_PAGE_HEADER_ASSET") {
 		t.Fatalf("observed specs not rendered: %s %v", stdout, err)
 	}
 	body = strings.Replace(body, `"aspectRatio":"21:9"`, `"aspectRatio":{"width":21,"height":9}`, 1)
 	reg.Register(asctest.GET("/v1/appAssetLibraryRefData"), asctest.JSON(200, body))
-	stdout, _, err = runAssetLibrary(t, "asset-library", "specs", "--output", "json")
+	stdout, _, err = runAssetLibrary(t, stubClient(t, reg), "asset-library", "specs", "--output", "json")
 	if err != nil || !strings.Contains(stdout, `"aspectRatio":{"width":21,"height":9}`) {
 		t.Fatalf("unmodeled JSON lost: %s %v", stdout, err)
 	}
@@ -139,11 +134,10 @@ func TestAssetLibrarySpecsPreserveUnmodeledJSONAndRenderObservedDimensions(t *te
 func TestAssetLibrarySpecsRenderOpaqueAspectRatio(t *testing.T) {
 	setupAuth(t)
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	body := `{"data":[{"type":"appAssetLibraryRefData","id":"1","attributes":{"imageSpecs":[{"specId":"header","aspectRatio": { "width":21, "height":9 }}],"videoSpecs":[]}}]}`
 	for _, format := range []string{"table", "markdown"} {
 		reg.Register(asctest.GET("/v1/appAssetLibraryRefData"), asctest.JSON(200, body))
-		stdout, _, err := runAssetLibrary(t, "asset-library", "specs", "--output", format)
+		stdout, _, err := runAssetLibrary(t, stubClient(t, reg), "asset-library", "specs", "--output", format)
 		if err != nil || !strings.Contains(stdout, `{"width":21,"height":9}`) {
 			t.Fatalf("opaque ratio not rendered (%s): %s %v", format, stdout, err)
 		}

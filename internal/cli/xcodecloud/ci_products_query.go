@@ -75,8 +75,8 @@ type ciProductsListFlags struct {
 	pretty                   *bool
 }
 
-func bindCiProductsListFlags(fs *flag.FlagSet) ciProductsListFlags {
-	outputFlags := shared.BindOutputFlags(fs)
+func bindCiProductsListFlags(d *shared.Deps, fs *flag.FlagSet) ciProductsListFlags {
+	outputFlags := d.BindOutputFlags(fs)
 	return ciProductsListFlags{
 		flagSet:                  fs,
 		appID:                    fs.String("app", "", xcodeCloudAppFlagUsage),
@@ -87,9 +87,9 @@ func bindCiProductsListFlags(fs *flag.FlagSet) ciProductsListFlags {
 		scmRepositoryFields:      fs.String("scm-repository-fields", "", "Fields to include for related SCM repositories, comma-separated: "+strings.Join(ciProductsScmRepositoryFieldsValues, ", ")),
 		include:                  fs.String("include", "", "Include related resources: "+strings.Join(ciProductsIncludeValues, ", ")),
 		primaryRepositoriesLimit: fs.Int("primary-repositories-limit", 0, "Maximum included primary repositories (1-50)"),
-		limit:                    fs.Int("limit", 0, "Maximum results per page (1-200)"),
-		next:                     fs.String("next", "", "Fetch next page using a links.next URL"),
-		paginate:                 fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)"),
+		limit:                    fs.Int("limit", 0, shared.LimitFlagUsage(200)),
+		next:                     fs.String("next", "", shared.NextFlagUsage),
+		paginate:                 fs.Bool("paginate", false, shared.PaginateFlagUsage),
 		output:                   outputFlags.Output,
 		pretty:                   outputFlags.Pretty,
 	}

@@ -146,8 +146,8 @@ func buildReviewQuery(opts []ReviewOption) string {
 	if query.territory != "" {
 		values.Set("filter[territory]", query.territory)
 	}
-	if query.reviewTerritory != "" {
-		values.Set("filter[reviewTerritory]", query.reviewTerritory)
+	if strings.TrimSpace(query.reviewTerritory) != "" {
+		values.Set("filter[reviewTerritory]", strings.TrimSpace(query.reviewTerritory))
 	}
 	if len(query.ratings) > 0 {
 		ratings := make([]string, 0, len(query.ratings))
@@ -156,8 +156,8 @@ func buildReviewQuery(opts []ReviewOption) string {
 		}
 		values.Set("filter[rating]", strings.Join(ratings, ","))
 	}
-	if query.sort != "" {
-		values.Set("sort", query.sort)
+	if strings.TrimSpace(query.sort) != "" {
+		values.Set("sort", strings.TrimSpace(query.sort))
 	}
 	if query.publishedResponseExists != nil {
 		values.Set("exists[publishedResponse]", strconv.FormatBool(*query.publishedResponseExists))
@@ -467,8 +467,7 @@ func WithReviewSort(sort string) ReviewOption {
 // WithPublishedResponseExists filters reviews by whether a published response exists.
 func WithPublishedResponseExists(exists bool) ReviewOption {
 	return func(r *reviewQuery) {
-		value := exists
-		r.publishedResponseExists = &value
+		r.publishedResponseExists = &exists
 	}
 }
 

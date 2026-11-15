@@ -45,8 +45,8 @@ func newReviewHistoryCommand(d *shared.Deps) *ffcli.Command {
 	platform := fs.String("platform", "", "Filter by platform: IOS, MAC_OS, TV_OS, VISION_OS (comma-separated)")
 	state := fs.String("state", "", "Filter by state (comma-separated)")
 	version := fs.String("version", "", "Filter by version string (e.g. 1.2.0)")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{

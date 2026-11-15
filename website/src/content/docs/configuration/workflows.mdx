@@ -177,7 +177,8 @@ Steps can be defined in two formats:
   Name of an environment variable that controls whether the step runs
 
   The step runs only when the variable has a truthy value such as `1`, `true`,
-  `yes`, `y`, or `on` (case-insensitive).
+  `yes`, `y`, or `on` (case-insensitive). `NAME == VALUE` and `NAME != VALUE`
+  compare the variable's value with a literal instead.
 </ParamField>
 
 <ParamField path="with" type="object">
@@ -197,6 +198,23 @@ Steps can be defined in two formats:
   Positive per-attempt timeout for a `run` step, up to `24h`
 
   Uses Go duration syntax such as `250ms`, `10s`, or `2m`.
+</ParamField>
+
+<ParamField path="env" type="object">
+  Environment variables for this step only
+
+  Visible to the step's command, its `if`, and a called workflow. Not passed to
+  later steps.
+</ParamField>
+
+<ParamField path="continue_on_error" type="boolean">
+  Keep running the workflow when this step fails
+
+  The step still reports `"status": "error"` and its `error`, plus
+  `"continued_on_error": true`. The run can still succeed and the `error` hook
+  does not run for that failure. A tolerated timeout does not make the run
+  terminal, and `--resume` never runs a tolerated step again. A canceled run
+  still stops. Explicit `null` is rejected.
 </ParamField>
 
 ## Bounded retry and timeout
@@ -248,6 +266,9 @@ Steps inside a called sub-workflow resolve in this order:
 5. **Called workflow's own `env` field**
 6. **System environment variables**
 
+A step's own `env` outranks both lists: it applies to that step only, wins over
+runtime parameters, and on a `workflow` step ranks just below that step's `with`.
+
 Example:
 
 ```bash
@@ -273,7 +294,13 @@ The `if` field holds the **name of a variable**, not a shell expression. The ste
 runs only when that variable holds a truthy value: `1`, `true`, `yes`, `y`, or
 `on` (case-insensitive, surrounding whitespace ignored). Everything else is
 falsy, including an unset variable, an empty string, and any other non-empty
-value such as an ID, a version string, or a file path.
+value such as an ID, a version string, or a file path. `$NAME` means the same as
+`NAME`.
+
+To test a specific value, compare it: `"if": "CHANNEL == beta"` or
+`"if": "$CHANNEL != 'beta'"`. The comparison is exact and case-sensitive, an
+unset variable compares as an empty string, and one pair of quotes around the
+value is removed.
 
 ```json
 {
@@ -304,9 +331,10 @@ environment, so `AUTO_SUBMIT=true asc workflow run release` works too.
 <Warning>
   A skipped step is not a failure. The run still reports `"status": "ok"` and
   exits `0`, and the step appears in `steps[]` with `"status": "skipped"`.
-  Shell-expression forms such as `"if": "test \"$AUTO_SUBMIT\" = \"true\""` are
-  treated as a variable name, never resolve, and silently skip the step, so a
-  `--submit --confirm` step gated that way never runs while CI stays green.
+  Any other expression, such as `"if": "test \"$AUTO_SUBMIT\" = \"true\""` or
+  `"if": "A == yes && B == yes"`, skips the step with a warning on stderr, so a
+  `--submit --confirm` step gated that way never runs. A future major release
+  will reject such expressions.
 </Warning>
 
 ## Sub-workflows

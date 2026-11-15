@@ -22,6 +22,9 @@ func validateMatrixPlan(plan *MatrixPlan, base *Plan, outputBaseDir string) erro
 	if err := validatePlan(base); err != nil {
 		return fmt.Errorf("base plan: %w", err)
 	}
+	if base.Defaults.StatusBar != "" {
+		return errors.New("defaults.status_bar is not supported in a matrix base plan; remove it or run the plan with asc screenshots run")
+	}
 	if err := validateMatrixBaseScreenshots(base); err != nil {
 		return err
 	}

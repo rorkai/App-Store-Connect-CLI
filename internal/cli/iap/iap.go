@@ -109,9 +109,9 @@ func IAPListCommand() *ffcli.Command {
 	state := fs.String("state", "", "Filter by state(s), comma-separated: "+strings.Join(iapListStates, ", "))
 	iapType := fs.String("type", "", "Filter by type(s), comma-separated: "+strings.Join(asc.ValidIAPTypes, ", "))
 	sort := fs.String("sort", "", "Sort by (comma-separated): "+strings.Join(iapListSortValues, ", "))
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
+	next := fs.String("next", "", shared.NextFlagUsage)
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	legacy := fs.Bool("legacy", false, "Use legacy v1 in-app purchases endpoint")
 	include := fs.String("include", "", "Include relationships (comma-separated, v2 only): "+strings.Join(iapListIncludes, ", "))
 	includedFields := shared.BindIncludedFieldFlags(fs, iapIncludedResources)
@@ -299,21 +299,15 @@ Examples:
 
 // IAPGetCommand returns the iap view subcommand.
 func IAPGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
+	d := shared.DefaultDeps()
+	d.Client = func() (*asc.Client, error) { return iapQueryClientFactory() }
 
-	iapID := shared.BindResourceIDFlag(fs, "id", "inAppPurchases", "In-app purchase ID")
-	legacy := fs.Bool("legacy", false, "Use legacy v1 in-app purchase endpoint")
-	include := fs.String("include", "", "Include relationships (comma-separated, v2 only): "+strings.Join(iapViewIncludes, ", "))
-	includedResources := maps.Clone(iapIncludedResources)
-	includedResources["pricePoints"] = "inAppPurchasePricePoints"
-	includedFields := shared.BindIncludedFieldFlags(fs, includedResources)
-	includeVersions := fs.Bool("include-versions", false, "Include related in-app purchase versions (v2 only)")
-	versionsLimit := fs.Int("versions-limit", 0, "Maximum included versions (1-50, v2 only)")
-	fields := fs.String("fields", "", "fields[inAppPurchases] (comma-separated, v2 only)")
-	versionFields := fs.String("version-fields", "", "fields[inAppPurchaseVersions] (comma-separated, v2 only)")
-	output := shared.BindOutputFlags(fs)
+	var (
+		legacy *bool
+		opts   []asc.IAPGetOption
+	)
 
-	return &ffcli.Command{
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
 		Name:       "view",
 		ShortUsage: "asc iap view --id \"IAP_ID\"",
 		ShortHelp:  "View an in-app purchase by ID.",
@@ -325,77 +319,70 @@ Examples:
   asc iap view --id "IAP_ID" --include appStoreReviewScreenshot,inAppPurchaseLocalizations
   asc iap view --id "IAP_ID" --fields name,versions
   asc iap view --id "IAP_ID" --legacy`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*iapID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-			if *versionsLimit != 0 && (*versionsLimit < 1 || *versionsLimit > 50) {
-				return shared.UsageError("iap view: --versions-limit must be between 1 and 50")
-			}
-			if *legacy && strings.TrimSpace(*fields) != "" {
-				return shared.UsageError("iap view: --fields requires the v2 endpoint")
-			}
-			if *legacy && flagSet(fs, "include") {
-				return shared.UsageError("iap view: --include requires the v2 endpoint")
-			}
-			if *legacy && (*includeVersions || *versionsLimit != 0 || strings.TrimSpace(*versionFields) != "") {
-				return shared.UsageError("iap view: --include-versions, --versions-limit, and --version-fields require the v2 endpoint")
-			}
-			fieldValues, err := shared.NormalizeSelection(*fields, iapVersionIAPFields, "--fields")
-			if err != nil {
-				return shared.UsageError("iap view: " + err.Error())
-			}
-			includeValues, err := shared.NormalizeSelection(*include, iapViewIncludes, "--include")
-			if err != nil {
-				return shared.UsageError("iap view: " + err.Error())
-			}
-			included, err := includedFields.Resolve("iap view", "", includeValues)
-			if err != nil {
-				return err
-			}
-			if *includeVersions {
-				includeValues = append(includeValues, "versions")
-			}
-			versionFieldValues, err := shared.NormalizeSelection(*versionFields, iapVersionFields, "--version-fields")
-			if err != nil {
-				return shared.UsageError("iap view: " + err.Error())
-			}
-
-			client, err := iapQueryClientFactory()
-			if err != nil {
-				return fmt.Errorf("iap view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if *legacy {
-				resp, err := client.GetInAppPurchase(requestCtx, id)
-				if err != nil {
-					return fmt.Errorf("iap view: failed to fetch: %w", err)
+		IDFlag:             "id",
+		IDUsage:            "In-app purchase ID",
+		IDType:             "inAppPurchases",
+		RequiredDiagnostic: true,
+		Deps:               d,
+		Flags: func(fs *flag.FlagSet) func() error {
+			legacy = fs.Bool("legacy", false, "Use legacy v1 in-app purchase endpoint")
+			include := fs.String("include", "", "Include relationships (comma-separated, v2 only): "+strings.Join(iapViewIncludes, ", "))
+			includedResources := maps.Clone(iapIncludedResources)
+			includedResources["pricePoints"] = "inAppPurchasePricePoints"
+			includedFields := shared.BindIncludedFieldFlags(fs, includedResources)
+			includeVersions := fs.Bool("include-versions", false, "Include related in-app purchase versions (v2 only)")
+			versionsLimit := fs.Int("versions-limit", 0, "Maximum included versions (1-50, v2 only)")
+			fields := fs.String("fields", "", "fields[inAppPurchases] (comma-separated, v2 only)")
+			versionFields := fs.String("version-fields", "", "fields[inAppPurchaseVersions] (comma-separated, v2 only)")
+			return func() error {
+				if *versionsLimit != 0 && (*versionsLimit < 1 || *versionsLimit > 50) {
+					return shared.UsageError("iap view: --versions-limit must be between 1 and 50")
 				}
-
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				if *legacy && strings.TrimSpace(*fields) != "" {
+					return shared.UsageError("iap view: --fields requires the v2 endpoint")
+				}
+				if *legacy && flagSet(fs, "include") {
+					return shared.UsageError("iap view: --include requires the v2 endpoint")
+				}
+				if *legacy && (*includeVersions || *versionsLimit != 0 || strings.TrimSpace(*versionFields) != "") {
+					return shared.UsageError("iap view: --include-versions, --versions-limit, and --version-fields require the v2 endpoint")
+				}
+				fieldValues, err := shared.NormalizeSelection(*fields, iapVersionIAPFields, "--fields")
+				if err != nil {
+					return shared.UsageError("iap view: " + err.Error())
+				}
+				includeValues, err := shared.NormalizeSelection(*include, iapViewIncludes, "--include")
+				if err != nil {
+					return shared.UsageError("iap view: " + err.Error())
+				}
+				included, err := includedFields.Resolve("iap view", "", includeValues)
+				if err != nil {
+					return err
+				}
+				if *includeVersions {
+					includeValues = append(includeValues, "versions")
+				}
+				versionFieldValues, err := shared.NormalizeSelection(*versionFields, iapVersionFields, "--version-fields")
+				if err != nil {
+					return shared.UsageError("iap view: " + err.Error())
+				}
+				opts = []asc.IAPGetOption{
+					asc.WithIAPGetFields(fieldValues),
+					asc.WithIAPGetNestedVersionsLimit(*versionsLimit),
+					asc.WithIAPGetVersionFields(versionFieldValues),
+					asc.WithIAPGetInclude(includeValues),
+					asc.WithIncludedFields[asc.IAPGetOption](included),
+				}
+				return nil
 			}
-
-			opts := []asc.IAPGetOption{
-				asc.WithIAPGetFields(fieldValues),
-				asc.WithIAPGetNestedVersionsLimit(*versionsLimit),
-				asc.WithIAPGetVersionFields(versionFieldValues),
-				asc.WithIAPGetInclude(includeValues),
-				asc.WithIncludedFields[asc.IAPGetOption](included),
-			}
-			resp, err := client.GetInAppPurchaseV2(requestCtx, id, opts...)
-			if err != nil {
-				return fmt.Errorf("iap view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
-	}
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			if *legacy {
+				return client.GetInAppPurchase(ctx, id)
+			}
+			return client.GetInAppPurchaseV2(ctx, id, opts...)
+		},
+	})
 }
 
 // IAPCreateCommand returns the iap create subcommand.

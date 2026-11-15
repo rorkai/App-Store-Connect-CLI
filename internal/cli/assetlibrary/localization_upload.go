@@ -49,26 +49,30 @@ type libraryFile struct {
 // localization unchanged. A returned non-nil result is a receipt to print even
 // when the error is also non-nil. Nothing is deleted automatically.
 func UploadToLocalization(ctx context.Context, client *asc.Client, upload LocalizationUpload) (*asc.AssetLibraryLocalizationUploadResult, error) {
-	libraryID, err := localizationLibraryID(ctx, client, upload.LocalizationID)
+	return uploadToLocalization(ctx, shared.DefaultDeps(), client, upload)
+}
+
+func uploadToLocalization(ctx context.Context, d *shared.Deps, client *asc.Client, upload LocalizationUpload) (*asc.AssetLibraryLocalizationUploadResult, error) {
+	libraryID, err := localizationLibraryID(ctx, d, client, upload.LocalizationID)
 	if err != nil {
 		return nil, err
 	}
-	reference, err := getLibraryResource(ctx, client, "/v1/appAssetLibraryRefData")
+	reference, err := getLibraryResource(ctx, d, client, "/v1/appAssetLibraryRefData")
 	if err != nil {
 		return nil, fmt.Errorf("read specifications: %w", err)
 	}
-	group, maxCount, err := resolvePlacementGroup(reference, upload)
+	group, maxCount, err := resolvePlacementGroup(d, reference, upload)
 	if err != nil {
 		return nil, err
 	}
-	existing, err := existingGroupPlacements(ctx, client, upload.LocalizationID, upload.PlacementType, group)
+	existing, err := existingGroupPlacements(ctx, d, client, upload.LocalizationID, upload.PlacementType, group)
 	if err != nil {
 		return nil, err
 	}
 	if total := len(existing) + len(upload.Files); total > maxCount {
 		return nil, fmt.Errorf("placement group %s allows %d placement(s) for %s; the localization has %d and this upload adds %d. Remove placements with asc localizations placements delete, or upload fewer files", group, maxCount, upload.PlacementType, len(existing), len(upload.Files))
 	}
-	files, err := prepareLibraryFiles(ctx, upload, group, reference)
+	files, err := prepareLibraryFiles(ctx, d, upload, group, reference)
 	defer func() {
 		for _, file := range files {
 			file.close()
@@ -95,7 +99,7 @@ func UploadToLocalization(ctx context.Context, client *asc.Client, upload Locali
 	if err := uploadLibraryFiles(ctx, client, libraryID, files, result); err != nil {
 		return result, err
 	}
-	if err := placeLibraryFiles(ctx, client, upload, result); err != nil {
+	if err := placeLibraryFiles(ctx, d, client, upload, result); err != nil {
 		return result, err
 	}
 	placementIDs := slices.Clone(existing)
@@ -103,7 +107,7 @@ func UploadToLocalization(ctx context.Context, client *asc.Client, upload Locali
 		placementIDs = append(placementIDs, item.PlacementID)
 	}
 	if len(placementIDs) > 1 {
-		result.OrderingRequestID, err = shared.OrderLibraryPlacements(ctx, client, localizationResource, upload.LocalizationID, group, placementIDs)
+		result.OrderingRequestID, err = d.OrderLibraryPlacements(ctx, client, localizationResource, upload.LocalizationID, group, placementIDs)
 		if err != nil {
 			return result, fmt.Errorf("%d placed in %s, but they could not be put in order: %w. Inspect with %s, then use asc localizations placements reorder", len(result.Items), group, err, placementInspection(result))
 		}
@@ -126,14 +130,14 @@ func uploadLibraryFiles(ctx context.Context, client *asc.Client, libraryID strin
 	return nil
 }
 
-func placeLibraryFiles(ctx context.Context, client *asc.Client, upload LocalizationUpload, result *asc.AssetLibraryLocalizationUploadResult) error {
+func placeLibraryFiles(ctx context.Context, d *shared.Deps, client *asc.Client, upload LocalizationUpload, result *asc.AssetLibraryLocalizationUploadResult) error {
 	relationship := "image"
 	if upload.PlacementType == "APP_PREVIEW" {
 		relationship = "video"
 	}
 	for i := range result.Items {
 		item := &result.Items[i]
-		placementID, state, err := shared.CreateLibraryPlacement(ctx, client, localizationResource, upload.LocalizationID, relationship, item.AssetID, upload.PlacementType, result.PlacementGroup)
+		placementID, state, err := d.CreateLibraryPlacement(ctx, client, localizationResource, upload.LocalizationID, relationship, item.AssetID, upload.PlacementType, result.PlacementGroup)
 		if err != nil {
 			item.State, item.Error = "placement-failed", err.Error()
 			return fmt.Errorf("place %s: %w (%d of %d file(s) uploaded, %d placed; the receipt lists every asset. Inspect with %s before retrying, then place the rest with asc localizations placements create)", item.FileName, err, len(result.Items), len(result.Items), i, placementInspection(result))
@@ -147,7 +151,7 @@ func placementInspection(result *asc.AssetLibraryLocalizationUploadResult) strin
 	return fmt.Sprintf("asc localizations placements list --localization-id %s --placement-group %s --sort placementGroupPosition", result.VersionLocalizationID, result.PlacementGroup)
 }
 
-func prepareLibraryFiles(ctx context.Context, upload LocalizationUpload, group string, reference []byte) ([]libraryFile, error) {
+func prepareLibraryFiles(ctx context.Context, d *shared.Deps, upload LocalizationUpload, group string, reference []byte) ([]libraryFile, error) {
 	files := make([]libraryFile, 0, len(upload.Files))
 	specs, err := groupSpecIDs(reference, upload.PlacementType, group)
 	if err != nil {
@@ -159,9 +163,9 @@ func prepareLibraryFiles(ctx context.Context, upload LocalizationUpload, group s
 			err  error
 		)
 		if upload.PlacementType == "APP_PREVIEW" {
-			file, err = prepareLibraryVideo(ctx, upload.Command, path, reference, specs)
+			file, err = prepareLibraryVideo(ctx, d, upload.Command, path, reference, specs)
 		} else {
-			file, err = prepareLibraryImage(upload.Command, path, group, reference, specs)
+			file, err = prepareLibraryImage(d, upload.Command, path, group, reference, specs)
 		}
 		if err != nil {
 			return files, err
@@ -171,19 +175,19 @@ func prepareLibraryFiles(ctx context.Context, upload LocalizationUpload, group s
 	return files, nil
 }
 
-func prepareLibraryImage(command, path, group string, reference []byte, specs map[string]bool) (libraryFile, error) {
-	file, size, err := openLibraryImage(command, "--path", path)
+func prepareLibraryImage(d *shared.Deps, command, path, group string, reference []byte, specs map[string]bool) (libraryFile, error) {
+	file, size, err := openLibraryImage(d, command, "--path", path)
 	if err != nil {
 		return libraryFile{}, err
 	}
 	if err := matchLibraryImageSpec(file, group, reference, specs); err != nil {
 		file.Close()
-		return libraryFile{}, shared.UsageErrorf("%s: %s: %v", command, filepath.Base(path), err)
+		return libraryFile{}, d.UsageErrorf("%s: %s: %v", command, filepath.Base(path), err)
 	}
 	return libraryFile{path: path, close: func() { file.Close() }, send: func(ctx context.Context, client *asc.Client, libraryID string) (string, error) {
-		uploadCtx, cancel := libraryImageUploadContext(ctx, size)
+		uploadCtx, cancel := libraryImageUploadContext(ctx, d, size)
 		defer cancel()
-		result, err := client.UploadAssetLibraryImageWithCategory(uploadCtx, libraryID, filepath.Base(path), file, size, nativeMediaCategory, "", shared.ContextWithTimeout)
+		result, err := client.UploadAssetLibraryImageWithCategory(uploadCtx, libraryID, filepath.Base(path), file, size, nativeMediaCategory, "", d.Timeout)
 		if err != nil {
 			err = libraryImageDeadlineError(uploadCtx, result, err)
 		}
@@ -191,19 +195,19 @@ func prepareLibraryImage(command, path, group string, reference []byte, specs ma
 	}}, nil
 }
 
-func prepareLibraryVideo(ctx context.Context, command, path string, reference []byte, specs map[string]bool) (libraryFile, error) {
-	staged, err := stageLibraryVideo(ctx, command, "--path", path)
+func prepareLibraryVideo(ctx context.Context, d *shared.Deps, command, path string, reference []byte, specs map[string]bool) (libraryFile, error) {
+	staged, err := stageLibraryVideo(ctx, d, command, "--path", path)
 	if err != nil {
 		return libraryFile{}, err
 	}
 	if err := matchLibraryVideoSpecIn(reference, nativeMediaCategory, specs, staged.properties, staged.size, filepath.Ext(path)); err != nil {
 		staged.close()
-		return libraryFile{}, shared.UsageErrorf("%s: %s: %v", command, filepath.Base(path), err)
+		return libraryFile{}, d.UsageErrorf("%s: %s: %v", command, filepath.Base(path), err)
 	}
 	return libraryFile{path: path, close: staged.close, send: func(ctx context.Context, client *asc.Client, libraryID string) (string, error) {
-		uploadCtx, cancel := libraryVideoUploadContext(ctx)
+		uploadCtx, cancel := libraryVideoUploadContext(ctx, d)
 		defer cancel()
-		result, err := client.UploadAssetLibraryVideoWithCategory(uploadCtx, libraryID, filepath.Base(path), staged.file, staged.size, nativeMediaCategory, "", "", shared.ContextWithTimeout)
+		result, err := client.UploadAssetLibraryVideoWithCategory(uploadCtx, libraryID, filepath.Base(path), staged.file, staged.size, nativeMediaCategory, "", "", d.Timeout)
 		return result.VideoID, err
 	}}, nil
 }
@@ -303,16 +307,16 @@ func groupSpecIDs(reference []byte, placementType, group string) (map[string]boo
 
 // localizationLibraryID follows the localization to its own app, so the
 // configured default app cannot select another app's library.
-func localizationLibraryID(ctx context.Context, client *asc.Client, localizationID string) (string, error) {
-	versionID, err := relatedResourceID(ctx, client, "/v1/appStoreVersionLocalizations/"+url.PathEscape(localizationID)+"?include=appStoreVersion", "appStoreVersion")
+func localizationLibraryID(ctx context.Context, d *shared.Deps, client *asc.Client, localizationID string) (string, error) {
+	versionID, err := relatedResourceID(ctx, d, client, "/v1/appStoreVersionLocalizations/"+url.PathEscape(localizationID)+"?include=appStoreVersion", "appStoreVersion")
 	if err != nil {
 		return "", fmt.Errorf("find version of localization %s: %w", localizationID, err)
 	}
-	appID, err := relatedResourceID(ctx, client, "/v1/appStoreVersions/"+url.PathEscape(versionID)+"?include=app", "app")
+	appID, err := relatedResourceID(ctx, d, client, "/v1/appStoreVersions/"+url.PathEscape(versionID)+"?include=app", "app")
 	if err != nil {
 		return "", fmt.Errorf("find app of version %s: %w", versionID, err)
 	}
-	raw, err := getLibraryResource(ctx, client, "/v1/apps/"+url.PathEscape(appID)+"/assetLibrary")
+	raw, err := getLibraryResource(ctx, d, client, "/v1/apps/"+url.PathEscape(appID)+"/assetLibrary")
 	if err != nil {
 		return "", fmt.Errorf("find Asset Library of app %s: %w", appID, err)
 	}
@@ -328,8 +332,8 @@ func localizationLibraryID(ctx context.Context, client *asc.Client, localization
 	return library.Data.ID, nil
 }
 
-func relatedResourceID(ctx context.Context, client *asc.Client, path, relationship string) (string, error) {
-	raw, err := getLibraryResource(ctx, client, path)
+func relatedResourceID(ctx context.Context, d *shared.Deps, client *asc.Client, path, relationship string) (string, error) {
+	raw, err := getLibraryResource(ctx, d, client, path)
 	if err != nil {
 		return "", err
 	}
@@ -350,15 +354,15 @@ func relatedResourceID(ctx context.Context, client *asc.Client, path, relationsh
 	return id, nil
 }
 
-func getLibraryResource(ctx context.Context, client *asc.Client, path string) ([]byte, error) {
-	requestCtx, cancel := shared.ContextWithTimeout(ctx)
+func getLibraryResource(ctx context.Context, d *shared.Deps, client *asc.Client, path string) ([]byte, error) {
+	requestCtx, cancel := d.Timeout(ctx)
 	defer cancel()
 	return client.RawRequest(requestCtx, "GET", path, nil)
 }
 
-func existingGroupPlacements(ctx context.Context, client *asc.Client, localizationID, placementType, group string) ([]string, error) {
+func existingGroupPlacements(ctx context.Context, d *shared.Deps, client *asc.Client, localizationID, placementType, group string) ([]string, error) {
 	query := url.Values{"filter[placementType]": {placementType}, "filter[placementGroup]": {group}, "sort": {"placementGroupPosition"}, "limit": {"200"}}
-	raw, err := client.RawPaginatedGET(ctx, "/v1/"+localizationResource+"/"+url.PathEscape(localizationID)+"/placements?"+query.Encode(), shared.ContextWithTimeout)
+	raw, err := client.RawPaginatedGET(ctx, "/v1/"+localizationResource+"/"+url.PathEscape(localizationID)+"/placements?"+query.Encode(), d.Timeout)
 	if err != nil {
 		return nil, fmt.Errorf("list existing placements: %w", err)
 	}
@@ -378,7 +382,7 @@ func existingGroupPlacements(ctx context.Context, client *asc.Client, localizati
 // resolvePlacementGroup reads the group from Apple's reference data, because
 // Apple publishes no naming rule for group IDs and adds families without an API
 // version change. It returns the group and its placement limit.
-func resolvePlacementGroup(reference []byte, upload LocalizationUpload) (string, int, error) {
+func resolvePlacementGroup(d *shared.Deps, reference []byte, upload LocalizationUpload) (string, int, error) {
 	var envelope struct {
 		Data []struct {
 			Attributes struct {
@@ -438,12 +442,12 @@ func resolvePlacementGroup(reference []byte, upload LocalizationUpload) (string,
 	if upload.PlacementGroup != "" {
 		maxCount, ok := limits[upload.PlacementGroup]
 		if !ok {
-			return "", 0, shared.UsageErrorf("placement group %q is not offered for %s on App Store versions; offered groups: %s", upload.PlacementGroup, upload.PlacementType, strings.Join(offered, ", "))
+			return "", 0, d.UsageErrorf("placement group %q is not offered for %s on App Store versions; offered groups: %s", upload.PlacementGroup, upload.PlacementType, strings.Join(offered, ", "))
 		}
 		return upload.PlacementGroup, maxCount, nil
 	}
 	if len(matches) != 1 {
-		return "", 0, shared.UsageErrorf("%d placement groups match %s for %s; choose one with --placement-group from: %s", len(matches), upload.Slot, upload.PlacementType, strings.Join(offered, ", "))
+		return "", 0, d.UsageErrorf("%d placement groups match %s for %s; choose one with --placement-group from: %s", len(matches), upload.Slot, upload.PlacementType, strings.Join(offered, ", "))
 	}
 	return matches[0], limits[matches[0]], nil
 }

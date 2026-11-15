@@ -132,6 +132,8 @@ Precedence for steps inside a called sub-workflow (highest to lowest):
 5. Called workflow's own `env`
 6. System environment
 
+A step's own `env` outranks both lists for that step only, below its `with`.
+
 A sub-workflow's own `env` is the lowest-priority map in its own scope, so it
 provides defaults the caller overrides. The calling step's `with` is the only
 source that outranks runtime parameters: a key hardcoded there cannot be
@@ -192,7 +194,8 @@ global `env`) and then from the process environment.
 Every other value is falsy, including an unset variable, an empty string, and
 any other non-empty value. `"if": "BUILD_ID"` with `BUILD_ID:abc123`, or
 `"if": "IPA_PATH"` with a path, always skips the step. Use `if` as a boolean
-feature flag, never as a "was this ID supplied?" check.
+feature flag, never as a "was this ID supplied?" check, or compare a value with
+`"if": "CHANNEL == beta"` or `"if": "CHANNEL != beta"`.
 
 <Warning>
   A skipped step is not a failure: the run still reports `"status": "ok"` and

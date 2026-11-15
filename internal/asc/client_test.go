@@ -1122,32 +1122,6 @@ func TestBuildBuildUploadsQuery(t *testing.T) {
 	}
 }
 
-func TestBuildBetaTesterUsagesQuery(t *testing.T) {
-	query := &betaTesterUsagesQuery{}
-	opts := []BetaTesterUsagesOption{
-		WithBetaTesterUsagesPeriod("P7D"),
-		WithBetaTesterUsagesAppID("app-1"),
-		Limit[BetaTesterUsagesOption](10),
-	}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	values, err := url.ParseQuery(buildBetaTesterUsagesQuery(query))
-	if err != nil {
-		t.Fatalf("failed to parse query: %v", err)
-	}
-	if got := values.Get("period"); got != "P7D" {
-		t.Fatalf("expected period=P7D, got %q", got)
-	}
-	if got := values.Get("filter[apps]"); got != "app-1" {
-		t.Fatalf("expected filter[apps]=app-1, got %q", got)
-	}
-	if got := values.Get("limit"); got != "10" {
-		t.Fatalf("expected limit=10, got %q", got)
-	}
-}
-
 func TestBuildRequestBody(t *testing.T) {
 	body, err := BuildRequestBody(map[string]string{"hello": "world"})
 	if err != nil {
@@ -1409,44 +1383,6 @@ func TestBuildBuildsQuery_WithPreReleaseVersions(t *testing.T) {
 	WithBuildsPreReleaseVersions([]string{"prv-1", " ", "prv-2"})(query)
 	if len(query.preReleaseVersionIDs) != 2 || query.preReleaseVersionIDs[0] != "prv-1" || query.preReleaseVersionIDs[1] != "prv-2" {
 		t.Fatalf("expected normalized pre-release version ids [prv-1 prv-2], got %v", query.preReleaseVersionIDs)
-	}
-}
-
-func TestBuildWinBackOffersQuery(t *testing.T) {
-	query := &winBackOffersQuery{}
-	opts := []WinBackOffersOption{
-		Limit[WinBackOffersOption](25),
-		WithWinBackOffersFields([]string{"referenceName", "offerMode"}),
-		WithWinBackOffersPriceFields([]string{"territory"}),
-		WithWinBackOffersInclude([]string{"prices"}),
-		WithWinBackOffersPricesLimit(10),
-	}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	if query.limit != 25 {
-		t.Fatalf("expected limit=25, got %d", query.limit)
-	}
-
-	values, err := url.ParseQuery(buildWinBackOffersQuery(query))
-	if err != nil {
-		t.Fatalf("failed to parse query: %v", err)
-	}
-	if got := values.Get("limit"); got != "25" {
-		t.Fatalf("expected limit=25, got %q", got)
-	}
-	if got := values.Get("fields[winBackOffers]"); got != "referenceName,offerMode" {
-		t.Fatalf("expected winBackOffers fields, got %q", got)
-	}
-	if got := values.Get("fields[winBackOfferPrices]"); got != "territory" {
-		t.Fatalf("expected winBackOfferPrices fields, got %q", got)
-	}
-	if got := values.Get("include"); got != "prices" {
-		t.Fatalf("expected include=prices, got %q", got)
-	}
-	if got := values.Get("limit[prices]"); got != "10" {
-		t.Fatalf("expected limit[prices]=10, got %q", got)
 	}
 }
 

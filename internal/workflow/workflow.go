@@ -45,8 +45,12 @@ type Step struct {
 	Outputs             map[string]string `json:"outputs,omitempty"`
 	Retry               *RetryPolicy      `json:"retry,omitempty"`
 	Timeout             *string           `json:"timeout,omitempty"`
+	Env                 map[string]string `json:"env,omitempty"`
+	ContinueOnError     bool              `json:"continue_on_error,omitempty"`
 	retryExplicitNull   bool
 	timeoutExplicitNull bool
+
+	continueOnErrorExplicitNull bool
 }
 
 // UnmarshalJSON handles the flexible step format:
@@ -76,38 +80,39 @@ func (s *Step) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("step must be a single JSON value: trailing data")
 	}
 	*s = Step(alias)
-	retryNull, timeoutNull, err := explicitNullPolicyFields(data)
+	retryNull, timeoutNull, continueOnErrorNull, err := explicitNullPolicyFields(data)
 	if err != nil {
 		return fmt.Errorf("step must be an object: %w", err)
 	}
 	s.retryExplicitNull = retryNull
 	s.timeoutExplicitNull = timeoutNull
+	s.continueOnErrorExplicitNull = continueOnErrorNull
 	return nil
 }
 
-func explicitNullPolicyFields(data []byte) (bool, bool, error) {
+func explicitNullPolicyFields(data []byte) (bool, bool, bool, error) {
 	dec := json.NewDecoder(bytes.NewReader(data))
 	start, err := dec.Token()
 	if err != nil {
-		return false, false, err
+		return false, false, false, err
 	}
 	if delim, ok := start.(json.Delim); !ok || delim != '{' {
-		return false, false, fmt.Errorf("expected object")
+		return false, false, false, fmt.Errorf("expected object")
 	}
 
-	var retryNull, timeoutNull bool
+	var retryNull, timeoutNull, continueOnErrorNull bool
 	for dec.More() {
 		keyToken, err := dec.Token()
 		if err != nil {
-			return false, false, err
+			return false, false, false, err
 		}
 		key, ok := keyToken.(string)
 		if !ok {
-			return false, false, fmt.Errorf("expected object field name")
+			return false, false, false, fmt.Errorf("expected object field name")
 		}
 		var value json.RawMessage
 		if err := dec.Decode(&value); err != nil {
-			return false, false, err
+			return false, false, false, err
 		}
 		isNull := bytes.Equal(bytes.TrimSpace(value), []byte("null"))
 		switch {
@@ -115,10 +120,12 @@ func explicitNullPolicyFields(data []byte) (bool, bool, error) {
 			retryNull = isNull
 		case strings.EqualFold(key, "timeout"):
 			timeoutNull = isNull
+		case strings.EqualFold(key, "continue_on_error"):
+			continueOnErrorNull = isNull
 		}
 	}
 	if _, err := dec.Token(); err != nil {
-		return false, false, err
+		return false, false, false, err
 	}
-	return retryNull, timeoutNull, nil
+	return retryNull, timeoutNull, continueOnErrorNull, nil
 }

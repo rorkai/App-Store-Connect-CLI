@@ -139,7 +139,7 @@ func transactionsHistoryCommand() *ffcli.Command {
 	sort := fs.String("sort", "", "Sort by modified date: ASCENDING (Apple's default) or DESCENDING")
 	var revoked shared.OptionalBool
 	fs.Var(&revoked, "revoked", "true for only revoked transactions, false for only non-revoked")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	flags := bindServerReadFlags(fs, true)
 	return documentedLeafCommand("history", "asc storekit transactions history --transaction-id ID --environment ENV [flags]",
 		"Get a customer's transaction history (Get Transaction History v2).",
@@ -194,7 +194,7 @@ func refundsHistoryCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("storekit refunds history", flag.ExitOnError)
 	transactionID := fs.String("transaction-id", "", "Any transaction, original transaction, or app transaction ID for the customer")
 	revision := fs.String("revision", "", "Revision token from a previous response, to continue from that page")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	flags := bindServerReadFlags(fs, true)
 	return documentedLeafCommand("history", "asc storekit refunds history --transaction-id ID --environment ENV [flags]",
 		"Get a customer's refunded purchases (Get Refund History v2).",
@@ -249,7 +249,7 @@ func notificationsHistoryCommand() *ffcli.Command {
 	transactionID := fs.String("transaction-id", "", "Only notifications for this customer's transaction (cannot combine with --type)")
 	onlyFailures := fs.Bool("only-failures", false, "Only notifications that haven't reached your server")
 	paginationToken := fs.String("pagination-token", "", "Pagination token from a previous response, to continue from that page")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	flags := bindServerReadFlags(fs, true)
 	return documentedLeafCommand("history", "asc storekit notifications history --start DATE --end DATE --environment ENV [flags]",
 		"Get App Store Server Notifications history (Get Notification History).",
@@ -355,9 +355,9 @@ Examples:
 func groupsMembersCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("storekit groups members", flag.ExitOnError)
 	groupID := fs.String("group-id", "", "Group ID from asc storekit groups list")
-	limit := fs.Int("limit", 0, "Maximum members per page (1-100)")
+	limit := fs.Int("limit", 0, shared.LimitFlagUsage(100))
 	paginationToken := fs.String("pagination-token", "", "Pagination token from a previous response, to continue from that page")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	flags := bindServerReadFlags(fs, false)
 	return documentedLeafCommand("members", "asc storekit groups members --group-id ID --environment ENV [flags]",
 		"List the members of a group (Get Group Members).",

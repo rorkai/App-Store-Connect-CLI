@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -17,6 +18,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/signing"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 )
 
 // NewProfilesCommand returns the profiles command group built on d.
@@ -77,9 +79,9 @@ func newProfilesListCommand(d *shared.Deps) *ffcli.Command {
 	include := fs.String("include", "", "Include related resources: "+strings.Join(profileIncludeList(), ", "))
 	devicesLimit := fs.Int("limit-devices", 0, "Maximum included devices (1-50)")
 	certificatesLimit := fs.Int("limit-certificates", 0, "Maximum included certificates (1-50)")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
+	next := fs.String("next", "", shared.NextFlagUsage)
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -553,24 +555,64 @@ func newProfilesDownloadCommand(d *shared.Deps) *ffcli.Command {
 
 	id := shared.BindResourceIDFlag(fs, "id", "profiles", "Profile ID")
 	outputPath := fs.String("output", "", "Output .mobileprovision or .provisionprofile file path")
-	overwrite := fs.Bool("overwrite", false, "Replace an existing file at --output")
+	overwrite := fs.Bool("overwrite", false, "Replace an existing file at --output, or existing files in --output-dir")
+	all := fs.Bool("all", false, "Download every matching profile into --output-dir")
+	outputDir := fs.String("output-dir", "", "Directory for --all; each profile is written as <UUID>.mobileprovision or <UUID>.provisionprofile")
+	profileType := fs.String("profile-type", "", "With --all: filter by profile type(s), comma-separated")
+	profileState := fs.String("profile-state", "", "With --all: filter by profile state(s): ACTIVE, INVALID (default: ACTIVE)")
+	name := fs.String("name", "", "With --all: filter by profile name(s), comma-separated")
 	output := shared.BindMetadataOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "download",
-		ShortUsage: "asc profiles download --id \"PROFILE_ID\" --output ./profile.mobileprovision",
+		ShortUsage: "asc profiles download (--id \"PROFILE_ID\" --output ./profile.mobileprovision | --all --output-dir DIR)",
 		ShortHelp:  "Download a provisioning profile.",
 		LongHelp: `Download a provisioning profile.
 
 Examples:
   asc profiles download --id "PROFILE_ID" --output "./profile.mobileprovision"
   asc profiles download --id "PROFILE_ID" --output "./profile.provisionprofile"
-  asc profiles download --id "PROFILE_ID" --output "./profile.mobileprovision" --overwrite`,
+  asc profiles download --id "PROFILE_ID" --output "./profile.mobileprovision" --overwrite
+  asc profiles download --all --output-dir "./profiles" --profile-type IOS_APP_STORE
+
+--all reads every page of profiles and writes each one to --output-dir as
+<UUID>.mobileprovision or <UUID>.provisionprofile. It downloads only ACTIVE
+profiles unless --profile-state says otherwise. Existing files stop the run
+before anything is written unless --overwrite is passed.`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.RejectOutputFormatAsPath(*outputPath, "--output-format"); err != nil {
 				return err
+			}
+			for _, selector := range []string{"profile-type", "profile-state", "name"} {
+				if value := fs.Lookup(selector).Value.String(); profilesListFlagWasProvided(fs, selector) && len(shared.SplitCSV(value)) == 0 {
+					return shared.UsageErrorf("profiles download: --%s must not be empty", selector)
+				}
+			}
+			if *all {
+				if profilesListFlagWasProvided(fs, "id") || profilesListFlagWasProvided(fs, "output") {
+					return shared.UsageError("profiles download: --all cannot be combined with --id or --output")
+				}
+				dirValue := strings.TrimSpace(*outputDir)
+				if dirValue == "" {
+					return shared.RequiredFlag("--output-dir")
+				}
+				states := []string{string(asc.ProfileStateActive)}
+				if strings.TrimSpace(*profileState) != "" {
+					var err error
+					if states, err = normalizeProfileStates(*profileState); err != nil {
+						return shared.UsageError(err.Error())
+					}
+				}
+				opts := []asc.ProfilesOption{asc.Limit[asc.ProfilesOption](200), asc.WithProfilesStates(states), asc.WithProfilesFilterName(*name)}
+				if types := shared.SplitCSVUpper(*profileType); len(types) > 0 {
+					opts = append(opts, asc.WithProfilesTypes(types))
+				}
+				return downloadAllProfiles(ctx, d, dirValue, opts, *overwrite, *output.OutputFormat, *output.Pretty)
+			}
+			if slices.ContainsFunc([]string{"output-dir", "profile-type", "profile-state", "name"}, func(name string) bool { return profilesListFlagWasProvided(fs, name) }) {
+				return shared.UsageError("profiles download: --output-dir, --profile-type, --profile-state, and --name require --all")
 			}
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -620,6 +662,71 @@ Examples:
 			return d.PrintOutput(result, *output.OutputFormat, *output.Pretty)
 		},
 	}
+}
+
+func downloadAllProfiles(ctx context.Context, d *shared.Deps, dir string, opts []asc.ProfilesOption, overwrite bool, format string, pretty bool) error {
+	client, err := d.Client()
+	if err != nil {
+		return fmt.Errorf("profiles download: %w", err)
+	}
+	requestCtx, cancel := d.Timeout(ctx)
+	defer cancel()
+	paginated, err := d.PaginateWithSpinner(requestCtx,
+		func(ctx context.Context) (asc.PaginatedResponse, error) { return client.GetProfiles(ctx, opts...) },
+		func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+			return client.GetProfiles(ctx, asc.NextURL[asc.ProfilesOption](nextURL))
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("profiles download: %w", err)
+	}
+	profiles, _ := paginated.(*asc.ProfilesResponse)
+	if profiles == nil {
+		return fmt.Errorf("profiles download: unexpected profiles response %T", paginated)
+	}
+
+	root, err := rootfs.New(dir)
+	if err != nil {
+		return fmt.Errorf("profiles download: %w", err)
+	}
+	defer root.Close()
+	result := &asc.ProfilesDownloadAllResult{OutputDir: dir, Profiles: make([]asc.ProfileDownloadAllItemResult, 0, len(profiles.Data))}
+	contents := make([][]byte, 0, len(profiles.Data))
+	for _, item := range profiles.Data {
+		attrs := item.Attributes
+		if strings.TrimSpace(attrs.UUID) == "" || strings.ContainsAny(attrs.UUID, `/\`) || strings.TrimSpace(attrs.ProfileContent) == "" {
+			return shared.NewValidationError(fmt.Errorf("profiles download: profile %q has no usable UUID or downloadable content; nothing was written", item.ID))
+		}
+		decoded, err := decodeProfileContent(attrs.ProfileContent)
+		if err != nil {
+			return fmt.Errorf("profiles download: profile %q: %w", item.ID, err)
+		}
+		fileName := attrs.UUID + shared.ProvisioningProfileExtension(string(attrs.Platform), attrs.ProfileType)
+		path := filepath.Join(dir, fileName)
+		check := root.CheckCreateNewFile
+		if overwrite {
+			check = root.CheckWriteFilePreservingMode
+		}
+		if err := check(fileName); errors.Is(err, os.ErrExist) {
+			return shared.WithDiagnostic(shared.NewValidationError(fmt.Errorf("profiles download: output file %q already exists; pass --overwrite to replace it; nothing was written", path)), shared.DiagnosticResourceConflict, "--output-dir")
+		} else if err != nil {
+			return fmt.Errorf("profiles download: %w", err)
+		}
+		contents = append(contents, decoded)
+		result.Profiles = append(result.Profiles, asc.ProfileDownloadAllItemResult{ID: item.ID, Name: attrs.Name, UUID: attrs.UUID, ProfileType: attrs.ProfileType, OutputPath: path})
+	}
+
+	for i, item := range result.Profiles {
+		fileName := filepath.Base(item.OutputPath)
+		write := root.CreateNewFile
+		if overwrite {
+			write = root.WriteFilePreservingMode
+		}
+		if err := write(fileName, contents[i], 0o644); err != nil {
+			return fmt.Errorf("profiles download: %w", err)
+		}
+	}
+	return d.PrintOutput(result, format, pretty)
 }
 
 func checkProfileDownloadOutput(path string, overwrite bool) error {

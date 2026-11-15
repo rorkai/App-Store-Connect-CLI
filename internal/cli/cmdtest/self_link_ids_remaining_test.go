@@ -324,6 +324,7 @@ func TestSelfLinkRemainingFlagsRejectWrongType(t *testing.T) {
 			flag:    "run-id",
 			value:   selfLinkTestBase + "/v1/ciWorkflows/workflow-1",
 			wantErr: "expected a self-link of type ciBuildRuns, got ciWorkflows",
+			deps:    true,
 		},
 		{
 			name:    "alternative-distribution domains view rejects other host",

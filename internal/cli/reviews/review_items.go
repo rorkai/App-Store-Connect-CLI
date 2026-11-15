@@ -79,15 +79,15 @@ func reviewItemsListCommand(d *shared.Deps, name, errorPrefix, shortUsage, examp
 	fs := d.NewFlagSet(name, flag.ExitOnError)
 
 	submissionID := shared.BindResourceIDFlag(fs, "submission", "reviewSubmissions", "Review submission ID (required)")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Next page URL from a previous response")
+	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
+	next := fs.String("next", "", shared.NextFlagUsage)
 	fields := fs.String("fields", "", "Review item fields: "+strings.Join(reviewSubmissionItemFields, ", "))
 	include := fs.String("include", "", "Include relationships: "+strings.Join(reviewSubmissionItemIncludes, ", "))
 	includedFields := shared.BindIncludedFieldFlags(fs, reviewSubmissionItemIncludedResources)
 	iapVersionFields := fs.String("iap-version-fields", "", "In-app purchase version fields: "+strings.Join(reviewSubmissionItemIAPVersionFields, ", "))
 	subscriptionVersionFields := fs.String("subscription-version-fields", "", "Subscription version fields: "+strings.Join(reviewSubmissionItemSubscriptionVersionFields, ", "))
 	subscriptionGroupVersionFields := fs.String("subscription-group-version-fields", "", "Subscription group version fields: "+strings.Join(reviewSubmissionItemSubscriptionGroupVersionFields, ", "))
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{

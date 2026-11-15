@@ -763,31 +763,37 @@ func TestAccountAndDistributionInputValidationReturnsUsageExitCode(t *testing.T)
 			name:    "xcode-cloud artifacts list limit",
 			args:    []string{"xcode-cloud", "artifacts", "list", "--action-id", "A", "--limit", "201"},
 			wantErr: "xcode-cloud artifacts list: --limit must be between 1 and 200",
+			deps:    true,
 		},
 		{
 			name:    "xcode-cloud artifacts list next",
 			args:    []string{"xcode-cloud", "artifacts", "list", "--action-id", "A", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
 			wantErr: "xcode-cloud artifacts list: --next must be an App Store Connect URL",
+			deps:    true,
 		},
 		{
 			name:    "xcode-cloud products limit",
 			args:    []string{"xcode-cloud", "products", "--limit", "201"},
 			wantErr: "xcode-cloud products: --limit must be between 1 and 200",
+			deps:    true,
 		},
 		{
 			name:    "xcode-cloud products next",
 			args:    []string{"xcode-cloud", "products", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
 			wantErr: "xcode-cloud products: --next must be an App Store Connect URL",
+			deps:    true,
 		},
 		{
 			name:    "xcode-cloud workflows limit",
 			args:    []string{"xcode-cloud", "workflows", "--limit", "201"},
 			wantErr: "xcode-cloud workflows: --limit must be between 1 and 200",
+			deps:    true,
 		},
 		{
 			name:    "xcode-cloud workflows next",
 			args:    []string{"xcode-cloud", "workflows", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
 			wantErr: "xcode-cloud workflows: --next must be an App Store Connect URL",
+			deps:    true,
 		},
 		{
 			name:    "bundle-ids app view without id",

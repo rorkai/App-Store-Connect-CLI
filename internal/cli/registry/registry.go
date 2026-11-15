@@ -231,7 +231,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("metadata", "Manage app metadata with deterministic workflows and keyword tooling.", metadata.MetadataCommand),
 		commandFactory("screenshots", "Upload and manage App Store screenshots, including local capture, framing, and matrices.", screenshots.ScreenshotsCommand),
 		commandFactory("video-previews", "Manage App Store app preview videos.", videopreviews.VideoPreviewsCommand),
-		commandFactory("asset-library", "Inspect Asset Library media and specifications, and upload images and videos.", assetlibrary.Command),
+		commandFactory("asset-library", "Inspect Asset Library media and specifications, and upload images and videos.", func() *ffcli.Command {
+			return assetlibrary.NewCommand(d)
+		}),
 		commandFactory("background-assets", "Manage background assets.", func() *ffcli.Command {
 			return backgroundassets.NewBackgroundAssetsCommand(d)
 		}),
@@ -251,7 +253,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 			return submit.NewSubmitCommand(d)
 		}),
 		commandFactory("validate", "Canonical App Store submission readiness report.", validate.ValidateCommand),
-		commandFactory("xcode-cloud", "Trigger and monitor Xcode Cloud workflows.", xcodecloud.XcodeCloudCommand),
+		commandFactory("xcode-cloud", "Trigger and monitor Xcode Cloud workflows.", func() *ffcli.Command {
+			return xcodecloud.NewXcodeCloudCommand(d)
+		}),
 		commandFactory("categories", "Manage App Store categories.", func() *ffcli.Command {
 			return categories.NewCategoriesCommand(d)
 		}),
@@ -273,7 +277,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("schema", "Inspect App Store Connect API endpoint schemas at runtime.", func() *ffcli.Command {
 			return schema.NewSchemaCommand(d)
 		}),
-		commandFactory("api", "Send an authenticated raw request to the App Store Connect API.", apicmd.Command),
+		commandFactory("api", "Send an authenticated raw request to the App Store Connect API.", func() *ffcli.Command {
+			return apicmd.NewCommand(d)
+		}),
 		commandFactory("telemetry", "Manage CLI telemetry settings.", func() *ffcli.Command {
 			return telemetrycmd.NewTelemetryCommand(d)
 		}),

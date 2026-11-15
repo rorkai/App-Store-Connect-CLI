@@ -71,6 +71,17 @@ func SubmissionSubscriptionPreflightWith(ctx context.Context, d *shared.Deps, cl
 	runSubmissionSubscriptionPreflight(ctx, d, client, appID, 0, retryCommand)
 }
 
+// SubmissionAgeRatingPreflight runs the age rating declaration check from
+// `asc validate` and fails when a required answer is missing or invalid.
+func SubmissionAgeRatingPreflight(ctx context.Context, client *asc.Client, appID, versionID string, requestTimeout time.Duration, retryCommand string) error {
+	return SubmissionAgeRatingPreflightWith(ctx, shared.DefaultDeps(), client, appID, versionID, requestTimeout, retryCommand)
+}
+
+// SubmissionAgeRatingPreflightWith runs the age rating declaration check on d.
+func SubmissionAgeRatingPreflightWith(ctx context.Context, d *shared.Deps, client *asc.Client, appID, versionID string, requestTimeout time.Duration, retryCommand string) error {
+	return runSubmissionAgeRatingPreflight(ctx, d, client, appID, versionID, requestTimeout, retryCommand)
+}
+
 // SubmissionSubscriptionPreflightWithTimeout runs subscription preflight with
 // an explicit request budget when the caller needs a per-phase timeout.
 func SubmissionSubscriptionPreflightWithTimeout(

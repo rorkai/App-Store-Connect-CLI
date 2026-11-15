@@ -3,9 +3,23 @@ package shared
 import (
 	"context"
 	"flag"
+	"fmt"
 	"io"
 	"os"
 )
+
+// NextFlagUsage and PaginateFlagUsage are the --next and --paginate help lines
+// of list commands; LimitFlagUsage gives their --limit help line.
+const (
+	NextFlagUsage     = "Fetch next page using a links.next URL"
+	PaginateFlagUsage = "Automatically fetch all pages (aggregate results)"
+)
+
+// LimitFlagUsage returns the --limit help line of a list command whose pages
+// hold at most limitMax results.
+func LimitFlagUsage(limitMax int) string {
+	return fmt.Sprintf("Maximum results per page (1-%d)", limitMax)
+}
 
 // ValidatePaginationFlags reports the first --limit or --next mistake of a
 // list command, in the order every list command checks them: a --limit

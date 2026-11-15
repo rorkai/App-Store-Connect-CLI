@@ -1,9 +1,7 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
-	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -57,7 +55,7 @@ func TestXcodeCloudWorkflowsDuplicateValidationErrors(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			assertUsageExit(t, test.args, test.wantErr)
+			assertUsageExitWithDeps(t, nil, test.args, test.wantErr)
 		})
 	}
 }
@@ -66,22 +64,14 @@ func TestXcodeCloudWorkflowsDuplicateCopiesSourceConfiguration(t *testing.T) {
 	setupAuth(t)
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/ciWorkflows/wf-source", "include=product,repository,xcodeVersion,macOsVersion"), asctest.JSON(http.StatusOK, duplicateSourceWorkflow))
 	reg.Register(asctest.POST("/v1/ciWorkflows").JSONBody(`{"data":{"attributes":{"actions":[{"actionType":"ARCHIVE","isRequiredToPass":true,"name":"Archive","platform":"IOS","scheme":"MyApp"}],"branchStartCondition":{"autoCancel":true,"source":{"patterns":[{"pattern":"main"}]}},"clean":true,"containerFilePath":"MyApp.xcodeproj","description":"Build and archive","isEnabled":false,"name":"TestFlight Deploy Copy"},"relationships":{"macOsVersion":{"data":{"id":"macos-1","type":"ciMacOsVersions"}},"product":{"data":{"id":"prod-1","type":"ciProducts"}},"repository":{"data":{"id":"repo-1","type":"scmRepositories"}},"xcodeVersion":{"data":{"id":"xcode-1","type":"ciXcodeVersions"}}},"type":"ciWorkflows"}}`),
 		asctest.JSON(http.StatusCreated, `{"data":{"type":"ciWorkflows","id":"wf-copy","attributes":{"name":"TestFlight Deploy Copy","isEnabled":false,"unknownFutureField":true}}}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"xcode-cloud", "workflows", "duplicate", "--id", "wf-source", "--name", "TestFlight Deploy Copy"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "xcode-cloud", "workflows", "duplicate", "--id", "wf-source", "--name", "TestFlight Deploy Copy")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -195,23 +185,14 @@ func TestXcodeCloudWorkflowsDuplicateEnabledAndDescriptionOverrides(t *testing.T
 	setupAuth(t)
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/ciWorkflows/wf-source", "include=product,repository,xcodeVersion,macOsVersion"), asctest.JSON(http.StatusOK, duplicateSourceWorkflow))
 	reg.Register(asctest.POST("/v1/ciWorkflows").JSONBody(`{"data":{"attributes":{"actions":[{"actionType":"ARCHIVE","isRequiredToPass":true,"name":"Archive","platform":"IOS","scheme":"MyApp"}],"branchStartCondition":{"autoCancel":true,"source":{"patterns":[{"pattern":"main"}]}},"clean":true,"containerFilePath":"MyApp.xcodeproj","description":"Nightly copy","isEnabled":true,"name":"Nightly"},"relationships":{"macOsVersion":{"data":{"id":"macos-1","type":"ciMacOsVersions"}},"product":{"data":{"id":"prod-1","type":"ciProducts"}},"repository":{"data":{"id":"repo-1","type":"scmRepositories"}},"xcodeVersion":{"data":{"id":"xcode-1","type":"ciXcodeVersions"}}},"type":"ciWorkflows"}}`),
 		asctest.JSON(http.StatusCreated, `{"data":{"type":"ciWorkflows","id":"wf-copy"}}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, stderr := captureOutput(t, func() {
-		args := []string{"xcode-cloud", "workflows", "duplicate", "--id", "wf-source", "--name", "Nightly", "--description", "Nightly copy", "--enabled"}
-		if err := root.Parse(args); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	_, stderr, err := runRootWithDeps(t, stubClient(t, reg), "xcode-cloud", "workflows", "duplicate", "--id", "wf-source", "--name", "Nightly", "--description", "Nightly copy", "--enabled")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
@@ -244,19 +225,9 @@ func TestXcodeCloudWorkflowsDuplicateMissingRelationshipFails(t *testing.T) {
 	source := `{"data":{"type":"ciWorkflows","id":"wf-source","attributes":{"name":"A","description":"","actions":[],"isEnabled":true,"clean":false,"containerFilePath":"App.xcodeproj"},"relationships":{"repository":{"links":{"related":"https://example.com/repository"}},"buildRuns":{"links":{"related":"https://example.com/buildRuns"}}}}}`
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/ciWorkflows/wf-source", "include=product,repository,xcodeVersion,macOsVersion"), asctest.JSON(http.StatusOK, source))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{"xcode-cloud", "workflows", "duplicate", "--id", "wf-source", "--name", "Copy"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	stdout, _, runErr := runRootWithDeps(t, stubClient(t, reg), "xcode-cloud", "workflows", "duplicate", "--id", "wf-source", "--name", "Copy")
 
 	if runErr == nil {
 		t.Fatalf("expected error when source workflow lacks required relationships")

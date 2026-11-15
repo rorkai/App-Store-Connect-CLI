@@ -53,9 +53,9 @@ func BuildsUploadsListCommand() *ffcli.Command {
 	platform := fs.String("platform", "", "Filter by platform(s): IOS, MAC_OS, TV_OS, VISION_OS (comma-separated)")
 	state := fs.String("state", "", "Filter by upload state(s), comma-separated")
 	sort := fs.String("sort", "", "Sort by cfBundleVersion, -cfBundleVersion, uploadedDate, -uploadedDate")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
+	next := fs.String("next", "", shared.NextFlagUsage)
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -214,9 +214,9 @@ func BuildsUploadFilesListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("files list", flag.ExitOnError)
 
 	uploadID := shared.BindResourceIDFlag(fs, "upload", "buildUploads", "Build upload ID")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
+	next := fs.String("next", "", shared.NextFlagUsage)
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{

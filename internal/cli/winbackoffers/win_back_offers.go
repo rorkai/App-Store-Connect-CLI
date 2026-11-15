@@ -119,9 +119,9 @@ func WinBackOffersListCommand() *ffcli.Command {
 	priceFields := fs.String("price-fields", "", "Price fields to include: "+strings.Join(winBackOfferPriceFieldsList(), ", "))
 	include := fs.String("include", "", "Include related resources: "+strings.Join(winBackOfferIncludeList(), ", "))
 	pricesLimit := fs.Int("prices-limit", 0, "Maximum included prices per offer (1-50)")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
+	next := fs.String("next", "", shared.NextFlagUsage)
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -722,9 +722,9 @@ func WinBackOffersPricesCommand() *ffcli.Command {
 	territoryFields := fs.String("territory-fields", "", "Territory fields to include: "+strings.Join(winBackOfferTerritoryFieldsList(), ", "))
 	pricePointFields := fs.String("price-point-fields", "", "Price point fields to include: "+strings.Join(winBackOfferSubscriptionPricePointFieldsList(), ", "))
 	include := fs.String("include", "", "Include related resources: "+strings.Join(winBackOfferPriceIncludeList(), ", "))
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
+	next := fs.String("next", "", shared.NextFlagUsage)
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -854,9 +854,9 @@ func WinBackOffersRelationshipsCommand() *ffcli.Command {
 
 	subscriptionID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID, product ID, or exact current name")
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env; required when --subscription-id uses a product ID or name)")
-	limit := fs.Int("limit", 0, fmt.Sprintf("Maximum results per page (1-%d)", winBackOffersMaxLimit))
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	limit := fs.Int("limit", 0, shared.LimitFlagUsage(winBackOffersMaxLimit))
+	next := fs.String("next", "", shared.NextFlagUsage)
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{

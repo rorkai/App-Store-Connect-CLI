@@ -56,12 +56,12 @@ func newReviewSubmissionsListCommand(d *shared.Deps) *ffcli.Command {
 	global := fs.Bool("global", false, "Use top-level /v1/reviewSubmissions endpoint")
 	platform := fs.String("platform", "", "Filter by platform: IOS, MAC_OS, TV_OS, VISION_OS (comma-separated)")
 	state := fs.String("state", "", "Filter by state (comma-separated)")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Next page URL from a previous response")
+	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
+	next := fs.String("next", "", shared.NextFlagUsage)
 	itemFields := fs.String("item-fields", "", "Review submission item fields: "+strings.Join(reviewSubmissionItemFields, ", "))
 	include := fs.String("include", "", "Include relationships: "+strings.Join(reviewSubmissionIncludes, ", "))
 	includedFields := shared.BindIncludedFieldFlags(fs, reviewSubmissionIncludedResources)
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -552,9 +552,9 @@ func newReviewSubmissionsItemsIDsCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("submissions-items-ids", flag.ExitOnError)
 
 	submissionID := shared.BindResourceIDFlag(fs, "id", "reviewSubmissions", "Review submission ID (required)")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Next page URL from a previous response")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
+	next := fs.String("next", "", shared.NextFlagUsage)
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{

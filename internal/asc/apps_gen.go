@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 )
 
@@ -532,6 +533,142 @@ func WithAppClipsBundleIDs(bundleIDs []string) AppClipsOption {
 func buildAppClipsQuery(query *appClipsQuery) string {
 	values := url.Values{}
 	addCSV(values, "filter[bundleId]", query.bundleIDs)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+// AppEventsOption sets the query of GET /v1/apps/{id}/appEvents (apps_appEvents_getToManyRelated).
+type AppEventsOption func(*appEventsQuery)
+
+type appEventsQuery struct {
+	listQuery
+	states             []string
+	ids                []string
+	fields             []string
+	localizationFields []string
+	include            []string
+	localizationsLimit int
+}
+
+// WithAppEventsStates sets filter[eventState].
+func WithAppEventsStates(states []string) AppEventsOption {
+	return func(q *appEventsQuery) {
+		q.states = normalizeUpperList(states)
+	}
+}
+
+// WithAppEventsIDs sets filter[id].
+func WithAppEventsIDs(ids []string) AppEventsOption {
+	return func(q *appEventsQuery) {
+		q.ids = normalizeList(ids)
+	}
+}
+
+// WithAppEventsFields sets fields[appEvents].
+func WithAppEventsFields(fields []string) AppEventsOption {
+	return func(q *appEventsQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+// WithAppEventsLocalizationFields sets fields[appEventLocalizations].
+func WithAppEventsLocalizationFields(fields []string) AppEventsOption {
+	return func(q *appEventsQuery) {
+		q.localizationFields = normalizeList(fields)
+	}
+}
+
+// WithAppEventsInclude sets include.
+func WithAppEventsInclude(include []string) AppEventsOption {
+	return func(q *appEventsQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
+// WithAppEventsLocalizationsLimit sets limit[localizations].
+func WithAppEventsLocalizationsLimit(limit int) AppEventsOption {
+	return func(q *appEventsQuery) {
+		if limit > 0 {
+			q.localizationsLimit = limit
+		}
+	}
+}
+
+func buildAppEventsQuery(query *appEventsQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[eventState]", query.states)
+	addCSV(values, "filter[id]", query.ids)
+	addCSV(values, "fields[appEvents]", query.fields)
+	addCSV(values, "fields[appEventLocalizations]", query.localizationFields)
+	addCSV(values, "include", query.include)
+	addLimit(values, query.limit)
+	if query.localizationsLimit > 0 {
+		values.Set("limit[localizations]", strconv.Itoa(query.localizationsLimit))
+	}
+	return values.Encode()
+}
+
+// BetaTesterUsagesOption sets the query of GET /v1/apps/{id}/metrics/betaTesterUsages (apps_betaTesterUsages_getMetrics) and GET /v1/betaTesters/{id}/metrics/betaTesterUsages (betaTesters_betaTesterUsages_getMetrics).
+type BetaTesterUsagesOption func(*betaTesterUsagesQuery)
+
+type betaTesterUsagesQuery struct {
+	listQuery
+	period            string
+	appID             string
+	groupBy           string
+	filterBetaTesters string
+}
+
+// WithBetaTesterUsagesPeriod sets period.
+func WithBetaTesterUsagesPeriod(period string) BetaTesterUsagesOption {
+	return func(q *betaTesterUsagesQuery) {
+		if strings.TrimSpace(period) != "" {
+			q.period = strings.TrimSpace(period)
+		}
+	}
+}
+
+// WithBetaTesterUsagesAppID sets filter[apps].
+func WithBetaTesterUsagesAppID(appID string) BetaTesterUsagesOption {
+	return func(q *betaTesterUsagesQuery) {
+		if strings.TrimSpace(appID) != "" {
+			q.appID = strings.TrimSpace(appID)
+		}
+	}
+}
+
+// WithBetaTesterUsagesGroupBy sets groupBy.
+func WithBetaTesterUsagesGroupBy(groupBy string) BetaTesterUsagesOption {
+	return func(q *betaTesterUsagesQuery) {
+		if strings.TrimSpace(groupBy) != "" {
+			q.groupBy = strings.TrimSpace(groupBy)
+		}
+	}
+}
+
+// WithBetaTesterUsagesFilterBetaTesters sets filter[betaTesters].
+func WithBetaTesterUsagesFilterBetaTesters(testerID string) BetaTesterUsagesOption {
+	return func(q *betaTesterUsagesQuery) {
+		if strings.TrimSpace(testerID) != "" {
+			q.filterBetaTesters = strings.TrimSpace(testerID)
+		}
+	}
+}
+
+func buildBetaTesterUsagesQuery(query *betaTesterUsagesQuery) string {
+	values := url.Values{}
+	if strings.TrimSpace(query.period) != "" {
+		values.Set("period", strings.TrimSpace(query.period))
+	}
+	if strings.TrimSpace(query.appID) != "" {
+		values.Set("filter[apps]", strings.TrimSpace(query.appID))
+	}
+	if strings.TrimSpace(query.groupBy) != "" {
+		values.Set("groupBy", strings.TrimSpace(query.groupBy))
+	}
+	if strings.TrimSpace(query.filterBetaTesters) != "" {
+		values.Set("filter[betaTesters]", strings.TrimSpace(query.filterBetaTesters))
+	}
 	addLimit(values, query.limit)
 	return values.Encode()
 }

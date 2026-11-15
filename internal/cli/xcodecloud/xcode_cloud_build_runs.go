@@ -10,23 +10,23 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-func xcodeCloudBuildRunsListFlags(fs *flag.FlagSet) (workflowID *string, sort *string, limit *int, next *string, paginate *bool, output *string, pretty *bool) {
+func xcodeCloudBuildRunsListFlags(d *shared.Deps, fs *flag.FlagSet) (workflowID *string, sort *string, limit *int, next *string, paginate *bool, output *string, pretty *bool) {
 	workflowID = shared.BindResourceIDFlag(fs, "workflow-id", "ciWorkflows", "Workflow ID to list build runs for")
 	sort = fs.String("sort", "", "Sort by number or -number")
-	limit = fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next = fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate = fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	outputFlags := shared.BindOutputFlags(fs)
+	limit = fs.Int("limit", 0, shared.LimitFlagUsage(200))
+	next = fs.String("next", "", shared.NextFlagUsage)
+	paginate = fs.Bool("paginate", false, shared.PaginateFlagUsage)
+	outputFlags := d.BindOutputFlags(fs)
 	output = outputFlags.Output
 	pretty = outputFlags.Pretty
 	return
 }
 
-// XcodeCloudBuildRunsCommand returns the xcode-cloud build-runs subcommand.
-func XcodeCloudBuildRunsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("build-runs", flag.ExitOnError)
+// newXcodeCloudBuildRunsCommand returns the xcode-cloud build-runs subcommand.
+func newXcodeCloudBuildRunsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("build-runs", flag.ExitOnError)
 
-	workflowID, sort, limit, next, paginate, output, pretty := xcodeCloudBuildRunsListFlags(fs)
+	workflowID, sort, limit, next, paginate, output, pretty := xcodeCloudBuildRunsListFlags(d, fs)
 
 	return &ffcli.Command{
 		Name:       "build-runs",
@@ -45,23 +45,23 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			XcodeCloudBuildRunsListCommand(),
-			XcodeCloudBuildRunsGetCommand(),
-			XcodeCloudBuildRunsBuildsCommand(),
+			newXcodeCloudBuildRunsListCommand(d),
+			newXcodeCloudBuildRunsGetCommand(d),
+			newXcodeCloudBuildRunsBuildsCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "xcode-cloud build-runs", 200, "sort"); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "xcode-cloud build-runs", 200, "sort"); err != nil {
 				return err
 			}
-			return xcodeCloudBuildRunsList(ctx, *workflowID, *sort, *limit, *next, *paginate, *output, *pretty)
+			return xcodeCloudBuildRunsList(ctx, d, *workflowID, *sort, *limit, *next, *paginate, *output, *pretty)
 		},
 	}
 }
 
-func XcodeCloudBuildRunsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
+func newXcodeCloudBuildRunsListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("list", flag.ExitOnError)
 
-	workflowID, sort, limit, next, paginate, output, pretty := xcodeCloudBuildRunsListFlags(fs)
+	workflowID, sort, limit, next, paginate, output, pretty := xcodeCloudBuildRunsListFlags(d, fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -77,15 +77,15 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "xcode-cloud build-runs list", 200, "sort"); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "xcode-cloud build-runs list", 200, "sort"); err != nil {
 				return err
 			}
-			return xcodeCloudBuildRunsList(ctx, *workflowID, *sort, *limit, *next, *paginate, *output, *pretty)
+			return xcodeCloudBuildRunsList(ctx, d, *workflowID, *sort, *limit, *next, *paginate, *output, *pretty)
 		},
 	}
 }
 
-func XcodeCloudBuildRunsGetCommand() *ffcli.Command {
+func newXcodeCloudBuildRunsGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
 		Name:       "view",
 		ShortUsage: "asc xcode-cloud build-runs view --id \"BUILD_RUN_ID\"",
@@ -99,8 +99,9 @@ Examples:
 		IDUsage:          "Build run ID",
 		IDType:           "ciBuildRuns",
 		FetchErrorPrefix: "xcode-cloud build-runs view",
+		Deps:             d,
 		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
-			return contextWithXcodeCloudTimeout(ctx, 0)
+			return contextWithXcodeCloudTimeout(d, ctx, 0)
 		},
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetCiBuildRun(ctx, id)
@@ -108,7 +109,7 @@ Examples:
 	})
 }
 
-func XcodeCloudBuildRunsBuildsCommand() *ffcli.Command {
+func newXcodeCloudBuildRunsBuildsCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "builds",
 		ShortUsage: "asc xcode-cloud build-runs builds [flags]",
@@ -126,8 +127,9 @@ Examples:
 		RequiredDiagnostic:   true,
 		PaginateIgnoresLimit: true,
 		FetchErrorPrefix:     "xcode-cloud build-runs builds",
+		Deps:                 d,
 		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
-			return contextWithXcodeCloudTimeout(ctx, 0)
+			return contextWithXcodeCloudTimeout(d, ctx, 0)
 		},
 		FetchPage: func(ctx context.Context, client *asc.Client, runID string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetCiBuildRunBuilds(ctx, runID, asc.Limit[asc.CiBuildRunBuildsOption](limit), asc.NextURL[asc.CiBuildRunBuildsOption](next))
@@ -135,17 +137,18 @@ Examples:
 	})
 }
 
-func xcodeCloudBuildRunsList(ctx context.Context, workflowID string, sort string, limit int, next string, paginate bool, output string, pretty bool) error {
+func xcodeCloudBuildRunsList(ctx context.Context, d *shared.Deps, workflowID string, sort string, limit int, next string, paginate bool, output string, pretty bool) error {
 	const workflowIDHint = `Find workflow IDs with: asc xcode-cloud workflows list --app "APP_ID"`
-	if err := requireXcodeCloudParent(workflowID, "workflow-id", workflowIDHint, next); err != nil {
+	if err := requireXcodeCloudParent(d, workflowID, "workflow-id", workflowIDHint, next); err != nil {
 		return err
 	}
 	if err := shared.ValidateSort(sort, "number", "-number"); err != nil {
-		return shared.UsageError(err.Error())
+		return d.UsageError(err.Error())
 	}
 
 	return runXcodeCloudPaginatedParentList(
 		ctx,
+		d,
 		workflowID,
 		"workflow-id",
 		workflowIDHint,

@@ -50,11 +50,6 @@ type nominationsQuery struct {
 	supportedTerritoriesLimit int
 }
 
-type betaAppClipInvocationQuery struct {
-	include            []string
-	localizationsLimit int
-}
-
 type appEncryptionDeclarationsQuery struct {
 	listQuery
 	includedFieldsQuery
@@ -73,8 +68,8 @@ func buildAppsQuery(query *appsQuery) string {
 	addCSV(values, "filter[sku]", query.skus)
 	addCSV(values, "filter[appStoreVersions.appVersionState]", query.versionStates)
 	addCSV(values, "filter[reviewSubmissions.state]", query.reviewSubmissionStates)
-	if query.sort != "" {
-		values.Set("sort", query.sort)
+	if strings.TrimSpace(query.sort) != "" {
+		values.Set("sort", strings.TrimSpace(query.sort))
 	}
 	addCSV(values, "fields[appInfos]", query.appInfoFields)
 	addCSV(values, "fields[inAppPurchases]", query.inAppPurchaseFields)
@@ -92,20 +87,11 @@ func buildAppClipDefaultExperienceQuery(query *appClipDefaultExperienceQuery) st
 	return values.Encode()
 }
 
-func buildBetaAppClipInvocationQuery(query *betaAppClipInvocationQuery) string {
-	values := url.Values{}
-	addCSV(values, "include", query.include)
-	if query.localizationsLimit > 0 {
-		values.Set("limit[betaAppClipInvocationLocalizations]", strconv.Itoa(query.localizationsLimit))
-	}
-	return values.Encode()
-}
-
 func buildAppTagsQuery(query *appTagsQuery) string {
 	values := url.Values{}
 	addCSV(values, "filter[visibleInAppStore]", query.visibleInAppStore)
-	if query.sort != "" {
-		values.Set("sort", query.sort)
+	if strings.TrimSpace(query.sort) != "" {
+		values.Set("sort", strings.TrimSpace(query.sort))
 	}
 	addCSV(values, "fields[appTags]", query.fields)
 	addCSV(values, "fields[territories]", query.territoryFields)
@@ -122,8 +108,8 @@ func buildNominationsQuery(query *nominationsQuery) string {
 	addCSV(values, "filter[type]", query.types)
 	addCSV(values, "filter[state]", query.states)
 	addCSV(values, "filter[relatedApps]", query.relatedApps)
-	if query.sort != "" {
-		values.Set("sort", query.sort)
+	if strings.TrimSpace(query.sort) != "" {
+		values.Set("sort", strings.TrimSpace(query.sort))
 	}
 	addCSV(values, "fields[nominations]", query.fields)
 	addCSV(values, "include", query.include)
@@ -192,9 +178,6 @@ type AppsOption func(*appsQuery)
 
 // AppClipDefaultExperienceOption is a functional option for GetAppClipDefaultExperience.
 type AppClipDefaultExperienceOption func(*appClipDefaultExperienceQuery)
-
-// BetaAppClipInvocationOption is a functional option for GetBetaAppClipInvocation.
-type BetaAppClipInvocationOption func(*betaAppClipInvocationQuery)
 
 // AppTagsOption is a functional option for GetAppTags.
 type AppTagsOption func(*appTagsQuery)
@@ -327,22 +310,6 @@ func WithAppsInclude(include []string) AppsOption {
 func WithAppClipDefaultExperienceInclude(include []string) AppClipDefaultExperienceOption {
 	return func(q *appClipDefaultExperienceQuery) {
 		q.include = normalizeList(include)
-	}
-}
-
-// WithBetaAppClipInvocationInclude sets include for beta App Clip invocation detail.
-func WithBetaAppClipInvocationInclude(include []string) BetaAppClipInvocationOption {
-	return func(q *betaAppClipInvocationQuery) {
-		q.include = normalizeList(include)
-	}
-}
-
-// WithBetaAppClipInvocationLocalizationsLimit sets limit for included localizations.
-func WithBetaAppClipInvocationLocalizationsLimit(limit int) BetaAppClipInvocationOption {
-	return func(q *betaAppClipInvocationQuery) {
-		if limit > 0 {
-			q.localizationsLimit = limit
-		}
 	}
 }
 

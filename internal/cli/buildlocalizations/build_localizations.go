@@ -56,9 +56,9 @@ func newBuildLocalizationsListCommand(d *shared.Deps) *ffcli.Command {
 
 	buildID := shared.BindResourceIDFlag(fs, "build-id", "builds", "Build ID")
 	locale := fs.String("locale", "", "Filter by locale(s), comma-separated")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
+	next := fs.String("next", "", shared.NextFlagUsage)
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -152,12 +152,7 @@ Examples:
 
 // newBuildLocalizationsGetCommand returns the get subcommand built on d.
 func newBuildLocalizationsGetCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("view", flag.ExitOnError)
-
-	localizationID := shared.BindResourceIDFlag(fs, "id", "appStoreVersionLocalizations", "Localization ID")
-	output := d.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
 		Name:       "view",
 		ShortUsage: "asc build-localizations view [flags]",
 		ShortHelp:  "View a localization by ID.",
@@ -165,30 +160,16 @@ func newBuildLocalizationsGetCommand(d *shared.Deps) *ffcli.Command {
 
 Examples:
   asc build-localizations view --id "LOCALIZATION_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*localizationID)
-			if id == "" {
-				return d.RequiredFlag("--id")
-			}
-
-			client, err := d.Client()
-			if err != nil {
-				return fmt.Errorf("build-localizations view: %w", err)
-			}
-
-			requestCtx, cancel := d.Timeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetAppStoreVersionLocalization(requestCtx, id)
-			if err != nil {
-				return fmt.Errorf("build-localizations view: %w", err)
-			}
-
-			return d.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDFlag:             "id",
+		IDUsage:            "Localization ID",
+		IDType:             "appStoreVersionLocalizations",
+		RequiredDiagnostic: true,
+		FetchErrorPrefix:   "build-localizations view",
+		Deps:               d,
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetAppStoreVersionLocalization(ctx, id)
 		},
-	}
+	})
 }
 
 // newBuildLocalizationsCreateCommand returns the create subcommand built on d.

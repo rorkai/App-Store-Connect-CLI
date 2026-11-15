@@ -70,8 +70,8 @@ func buildBuildUploadsQuery(query *buildUploadsQuery) string {
 	addCSV(values, "filter[cfBundleVersion]", query.cfBundleVersions)
 	addCSV(values, "filter[platform]", query.platforms)
 	addCSV(values, "filter[state]", query.states)
-	if query.sort != "" {
-		values.Set("sort", query.sort)
+	if strings.TrimSpace(query.sort) != "" {
+		values.Set("sort", strings.TrimSpace(query.sort))
 	}
 	addLimit(values, query.limit)
 	return values.Encode()
@@ -197,8 +197,7 @@ func WithBuildsPreReleaseVersions(preReleaseVersionIDs []string) BuildsOption {
 // WithBuildsExpired filters builds by expired state.
 func WithBuildsExpired(expired bool) BuildsOption {
 	return func(q *buildsQuery) {
-		value := expired
-		q.expired = &value
+		q.expired = &expired
 	}
 }
 

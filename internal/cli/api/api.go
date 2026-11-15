@@ -9,9 +9,9 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"slices"
 	"strings"
 
@@ -29,9 +29,9 @@ const (
 
 var supportedMethods = []string{http.MethodGet, http.MethodPost, http.MethodPatch, http.MethodDelete}
 
-// Command returns the `asc api` command.
-func Command() *ffcli.Command {
-	fs := flag.NewFlagSet("api", flag.ExitOnError)
+// NewCommand returns the `asc api` command built on d.
+func NewCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("api", flag.ExitOnError)
 
 	var query shared.MultiStringFlag
 	fs.Var(&query, "query", "Query parameter as key=value (repeatable; GET only)")
@@ -71,10 +71,10 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			positional, err := shared.ParseInterspersedFlags(fs, args)
 			if err != nil {
-				return shared.UsageErrorf("api: %v", err)
+				return d.UsageErrorf("api: %v", err)
 			}
 			if err := shared.ValidateBoundOutputFlags(fs); err != nil {
-				return shared.UsageErrorf("api: %v", err)
+				return d.UsageErrorf("api: %v", err)
 			}
 
 			bodyProvided, bodyFileProvided := false, false
@@ -87,12 +87,12 @@ Examples:
 				}
 			})
 
-			request, err := parseRequest(positional, query, *body, *bodyFile, bodyProvided, bodyFileProvided, *paginate, *confirm, *allowUnknownPath)
+			request, err := parseRequest(d, positional, query, *body, *bodyFile, bodyProvided, bodyFileProvided, *paginate, *confirm, *allowUnknownPath)
 			if err != nil {
 				return err
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("api: %w", err)
 			}
@@ -100,9 +100,9 @@ Examples:
 			ctx = asc.WithUnlistedOperations(ctx)
 			var response []byte
 			if request.paginate {
-				response, err = client.RawPaginatedGET(ctx, request.target, shared.ContextWithTimeout)
+				response, err = client.RawPaginatedGET(ctx, request.target, d.Timeout)
 			} else {
-				requestCtx, cancel := shared.ContextWithTimeout(ctx)
+				requestCtx, cancel := d.Timeout(ctx)
 				defer cancel()
 				response, err = client.RawRequestWithQuery(requestCtx, request.method, request.target, request.query, request.body)
 			}
@@ -110,7 +110,7 @@ Examples:
 				return fmt.Errorf("api: %w", err)
 			}
 
-			return printResponse(response, *output.Pretty)
+			return printResponse(d.IO.Out, response, *output.Pretty)
 		},
 	}
 }
@@ -125,53 +125,53 @@ type rawRequest struct {
 
 // parseRequest validates the invocation before any credential or network
 // access. Every failure is a usage error with exit code 2.
-func parseRequest(positional []string, query []string, body, bodyFile string, bodyProvided, bodyFileProvided, paginate, confirm, allowUnknownPath bool) (rawRequest, error) {
+func parseRequest(d *shared.Deps, positional []string, query []string, body, bodyFile string, bodyProvided, bodyFileProvided, paginate, confirm, allowUnknownPath bool) (rawRequest, error) {
 	if len(positional) < 2 {
-		err := shared.UsageError("api: METHOD and PATH are required")
+		err := d.UsageError("api: METHOD and PATH are required")
 		if len(positional) == 1 && (strings.HasPrefix(positional[0], "/") || strings.HasPrefix(positional[0], "https://")) {
 			if quoted, ok := shared.ShellQuote(positional[0]); ok {
-				fmt.Fprintf(os.Stderr, "Hint: pass the method first: asc api GET %s\n", quoted)
+				fmt.Fprintf(d.IO.ErrOut, "Hint: pass the method first: asc api GET %s\n", quoted)
 			}
 		}
 		return rawRequest{}, err
 	}
 	if len(positional) > 2 {
-		return rawRequest{}, shared.UsageErrorf("api: unexpected argument %q", positional[2])
+		return rawRequest{}, d.UsageErrorf("api: unexpected argument %q", positional[2])
 	}
 
-	method, err := normalizeMethod(positional[0])
+	method, err := normalizeMethod(d, positional[0])
 	if err != nil {
 		return rawRequest{}, err
 	}
-	path, values, err := normalizePath(positional[1])
+	path, values, err := normalizePath(d, positional[1])
 	if err != nil {
 		return rawRequest{}, err
 	}
 
 	if bodyProvided && bodyFileProvided {
-		return rawRequest{}, shared.UsageError("api: --body and --body-file are mutually exclusive")
+		return rawRequest{}, d.UsageError("api: --body and --body-file are mutually exclusive")
 	}
 	if bodyProvided && strings.TrimSpace(body) == "" {
-		return rawRequest{}, shared.UsageError("api: --body must not be empty")
+		return rawRequest{}, d.UsageError("api: --body must not be empty")
 	}
 	if bodyFileProvided && strings.TrimSpace(bodyFile) == "" {
-		return rawRequest{}, shared.UsageError("api: --body-file must not be empty")
+		return rawRequest{}, d.UsageError("api: --body-file must not be empty")
 	}
 	hasBody := bodyProvided || bodyFileProvided
 	if method == http.MethodGet {
 		if hasBody {
-			return rawRequest{}, shared.UsageError("api: --body is only supported for POST, PATCH, and DELETE requests")
+			return rawRequest{}, d.UsageError("api: --body is only supported for POST, PATCH, and DELETE requests")
 		}
 	} else {
 		if paginate {
-			return rawRequest{}, shared.UsageError("api: --paginate is only supported for GET requests")
+			return rawRequest{}, d.UsageError("api: --paginate is only supported for GET requests")
 		}
 		if len(query) > 0 {
-			return rawRequest{}, shared.UsageError("api: --query is only supported for GET requests")
+			return rawRequest{}, d.UsageError("api: --query is only supported for GET requests")
 		}
 		if !confirm {
 			return rawRequest{}, shared.WithDiagnostic(
-				shared.UsageErrorf("api: --confirm is required for %s requests", method),
+				d.UsageErrorf("api: --confirm is required for %s requests", method),
 				shared.DiagnosticRequiredInputMissing,
 				"--confirm",
 			)
@@ -182,7 +182,7 @@ func parseRequest(positional []string, query []string, body, bodyFile string, bo
 		key, value, ok := strings.Cut(pair, "=")
 		key = strings.TrimSpace(key)
 		if !ok || key == "" {
-			return rawRequest{}, shared.UsageErrorf("api: --query must be key=value, got %q", pair)
+			return rawRequest{}, d.UsageErrorf("api: --query must be key=value, got %q", pair)
 		}
 		values.Add(key, value)
 	}
@@ -192,14 +192,14 @@ func parseRequest(positional []string, query []string, body, bodyFile string, bo
 		return rawRequest{}, fmt.Errorf("api: %w", err)
 	}
 	if !indexed && !allowUnknownPath {
-		return rawRequest{}, unknownOperationError(method, path)
+		return rawRequest{}, unknownOperationError(d, method, path)
 	}
 	if method != http.MethodGet {
 		for key := range values {
 			if !slices.ContainsFunc(endpoint.Parameters, func(param schema.Parameter) bool {
 				return param.In == "query" && param.Name == key
 			}) {
-				return rawRequest{}, shared.UsageError("api: PATH query parameters must be documented for this operation")
+				return rawRequest{}, d.UsageError("api: PATH query parameters must be documented for this operation")
 			}
 		}
 	}
@@ -207,12 +207,12 @@ func parseRequest(positional []string, query []string, body, bodyFile string, bo
 	// --allow-unknown-path too: the limitation is the response representation,
 	// not a gap in the index.
 	if indexed {
-		if err := rejectNonJSONOperation(method, endpoint.Path); err != nil {
+		if err := rejectNonJSONOperation(d, method, endpoint.Path); err != nil {
 			return rawRequest{}, err
 		}
 	}
 
-	payload, err := readBody(body, bodyFile)
+	payload, err := readBody(d, body, bodyFile)
 	if err != nil {
 		return rawRequest{}, err
 	}
@@ -229,40 +229,40 @@ func parseRequest(positional []string, query []string, body, bodyFile string, bo
 	return rawRequest{method: method, target: target, query: values, body: payload, paginate: paginate}, nil
 }
 
-func normalizeMethod(raw string) (string, error) {
+func normalizeMethod(d *shared.Deps, raw string) (string, error) {
 	method := strings.ToUpper(strings.TrimSpace(raw))
 	for _, supported := range supportedMethods {
 		if method == supported {
 			return method, nil
 		}
 	}
-	return "", shared.UsageErrorf("api: METHOD must be one of %s, got %q", strings.Join(supportedMethods, ", "), raw)
+	return "", d.UsageErrorf("api: METHOD must be one of %s, got %q", strings.Join(supportedMethods, ", "), raw)
 }
 
 // normalizePath accepts a versioned path or a full App Store Connect URL and
 // returns the path plus any query parameters carried in the argument.
-func normalizePath(raw string) (string, url.Values, error) {
+func normalizePath(d *shared.Deps, raw string) (string, url.Values, error) {
 	trimmed := strings.TrimSpace(raw)
 	if trimmed == "" {
-		return "", nil, shared.UsageError("api: METHOD and PATH are required")
+		return "", nil, d.UsageError("api: METHOD and PATH are required")
 	}
 
 	pathPart := trimmed
 	if strings.HasPrefix(trimmed, "http://") || strings.HasPrefix(trimmed, "https://") {
 		parsed, err := url.Parse(trimmed)
 		if err != nil {
-			return "", nil, shared.UsageErrorf("api: PATH is not a valid URL: %v", err)
+			return "", nil, d.UsageErrorf("api: PATH is not a valid URL: %v", err)
 		}
 		if parsed.User != nil {
-			return "", nil, shared.UsageError("api: PATH must not include user information")
+			return "", nil, d.UsageError("api: PATH must not include user information")
 		}
 		// url.Parse accepts an empty fragment delimiter with an empty Fragment
 		// field, so inspect the raw URL to reject both `#fragment` and trailing `#`.
 		if strings.Contains(trimmed, "#") {
-			return "", nil, shared.UsageError("api: PATH must not include a fragment")
+			return "", nil, d.UsageError("api: PATH must not include a fragment")
 		}
 		if parsed.Scheme != "https" || !asc.IsAPIHost(parsed.Host) {
-			return "", nil, shared.UsageErrorf("api: PATH must be an App Store Connect URL (https://%s/...)", apiHost)
+			return "", nil, d.UsageErrorf("api: PATH must be an App Store Connect URL (https://%s/...)", apiHost)
 		}
 		// Validate the escaped form. Parsed.Path decodes %2F and %3F before the
 		// checks below, allowing encoded data to become path or query delimiters.
@@ -277,7 +277,7 @@ func normalizePath(raw string) (string, url.Values, error) {
 	if rawQuery != "" {
 		parsedValues, err := url.ParseQuery(rawQuery)
 		if err != nil {
-			return "", nil, shared.UsageErrorf("api: PATH query string is invalid: %v", err)
+			return "", nil, d.UsageErrorf("api: PATH query string is invalid: %v", err)
 		}
 		values = parsedValues
 	}
@@ -286,22 +286,22 @@ func normalizePath(raw string) (string, url.Values, error) {
 		path = strings.TrimSuffix(path, "/")
 	}
 	if !strings.HasPrefix(path, "/v1/") && !strings.HasPrefix(path, "/v2/") && !strings.HasPrefix(path, "/v3/") {
-		return "", nil, shared.UsageErrorf("api: PATH must start with /v1/, /v2/, or /v3/, got %q", raw)
+		return "", nil, d.UsageErrorf("api: PATH must start with /v1/, /v2/, or /v3/, got %q", raw)
 	}
 	if strings.Contains(path, "//") || strings.ContainsAny(path, "#%\\") {
-		return "", nil, shared.UsageErrorf("api: PATH contains an unsupported character sequence: %q", raw)
+		return "", nil, d.UsageErrorf("api: PATH contains an unsupported character sequence: %q", raw)
 	}
 	// The client rejects control characters too, but only once credentials have
 	// been loaded. Rejecting them here keeps every path failure a usage error
 	// that runs before any credential or network access.
 	for _, r := range path {
 		if r < 0x20 || r == 0x7f {
-			return "", nil, shared.UsageErrorf("api: PATH contains a control character: %q", raw)
+			return "", nil, d.UsageErrorf("api: PATH contains a control character: %q", raw)
 		}
 	}
 	for _, segment := range strings.Split(path, "/") {
 		if segment == "." || segment == ".." {
-			return "", nil, shared.UsageErrorf("api: PATH must not contain relative segments: %q", raw)
+			return "", nil, d.UsageErrorf("api: PATH must not contain relative segments: %q", raw)
 		}
 	}
 	return path, values, nil
@@ -359,13 +359,13 @@ var nonJSONOperations = map[string]nonJSONOperation{
 // rejectNonJSONOperation keeps the passthrough's JSON contract honest.
 // templatePath is the matched schema template, so concrete IDs resolve to the
 // same entry as the snapshot.
-func rejectNonJSONOperation(method, templatePath string) error {
+func rejectNonJSONOperation(d *shared.Deps, method, templatePath string) error {
 	operation, ok := nonJSONOperations[templatePath]
 	if !ok || method != http.MethodGet {
 		return nil
 	}
 	return shared.WithDiagnostic(
-		shared.UsageErrorf(
+		d.UsageErrorf(
 			"api: %s %s responds with %s rather than a JSON envelope, which `asc api` cannot pass through; use `%s` instead",
 			method, templatePath, operation.mediaType, operation.command,
 		),
@@ -374,7 +374,7 @@ func rejectNonJSONOperation(method, templatePath string) error {
 	)
 }
 
-func unknownOperationError(method, path string) error {
+func unknownOperationError(d *shared.Deps, method, path string) error {
 	nearest, err := schema.NearestOperations(method, path, nearestOperationMax)
 	if err != nil {
 		return fmt.Errorf("api: %w", err)
@@ -392,38 +392,38 @@ func unknownOperationError(method, path string) error {
 	message.WriteString(". Use `asc schema <query>` to inspect operations, or pass --allow-unknown-path to send the request anyway.")
 	// The diagnostic keeps telemetry's failure parameter empty: the hint
 	// mentions --allow-unknown-path, but that flag did not cause the failure.
-	return shared.WithDiagnostic(shared.UsageError(message.String()), shared.DiagnosticInvalidInput, "")
+	return shared.WithDiagnostic(d.UsageError(message.String()), shared.DiagnosticInvalidInput, "")
 }
 
 // readBody loads the request payload from --body (inline JSON or @path) or
 // --body-file and validates that it is a JSON object.
-func readBody(body, bodyFile string) ([]byte, error) {
+func readBody(d *shared.Deps, body, bodyFile string) ([]byte, error) {
 	inline := strings.TrimSpace(body)
 	file := strings.TrimSpace(bodyFile)
 	switch {
 	case inline == "" && file == "":
 		return nil, nil
 	case inline != "" && strings.HasPrefix(inline, "@"):
-		payload, err := shared.ReadJSONFilePayloadKind(strings.TrimPrefix(inline, "@"), shared.JSONPayloadObject)
+		payload, err := d.ReadJSONFilePayloadKind(strings.TrimPrefix(inline, "@"), shared.JSONPayloadObject)
 		if err != nil {
-			return nil, shared.UsageErrorf("api: --body: %v", err)
+			return nil, d.UsageErrorf("api: --body: %v", err)
 		}
 		return payload, nil
 	case inline != "":
 		if !json.Valid([]byte(inline)) {
-			return nil, shared.UsageError("api: --body: invalid JSON")
+			return nil, d.UsageError("api: --body: invalid JSON")
 		}
 		var object map[string]json.RawMessage
 		// A JSON null unmarshals into a nil map without error, so the nil
 		// check is what rejects `--body null` as a non-object payload.
 		if err := json.Unmarshal([]byte(inline), &object); err != nil || object == nil {
-			return nil, shared.UsageError("api: --body must be a JSON object")
+			return nil, d.UsageError("api: --body must be a JSON object")
 		}
 		return []byte(inline), nil
 	default:
-		payload, err := shared.ReadJSONFilePayloadKind(file, shared.JSONPayloadObject)
+		payload, err := d.ReadJSONFilePayloadKind(file, shared.JSONPayloadObject)
 		if err != nil {
-			return nil, shared.UsageErrorf("api: --body-file: %v", err)
+			return nil, d.UsageErrorf("api: --body-file: %v", err)
 		}
 		return payload, nil
 	}
@@ -433,7 +433,7 @@ func readBody(body, bodyFile string) ([]byte, error) {
 // re-indented when --pretty is set. Empty bodies print nothing. `json` is the
 // only output format, so a non-empty body that is not JSON fails on both
 // paths rather than handing machine consumers invalid bytes.
-func printResponse(response []byte, pretty bool) error {
+func printResponse(w io.Writer, response []byte, pretty bool) error {
 	if len(bytes.TrimSpace(response)) == 0 {
 		return nil
 	}
@@ -448,11 +448,11 @@ func printResponse(response []byte, pretty bool) error {
 		}
 		out = indented.Bytes()
 	}
-	if _, err := os.Stdout.Write(out); err != nil {
+	if _, err := w.Write(out); err != nil {
 		return err
 	}
 	if !bytes.HasSuffix(out, []byte("\n")) {
-		if _, err := os.Stdout.Write([]byte("\n")); err != nil {
+		if _, err := w.Write([]byte("\n")); err != nil {
 			return err
 		}
 	}

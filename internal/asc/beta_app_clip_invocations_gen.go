@@ -6,6 +6,8 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
+	"strconv"
 	"strings"
 )
 
@@ -78,4 +80,37 @@ func (c *Client) UpdateBetaAppClipInvocation(ctx context.Context, invocationID s
 		Path:    fmt.Sprintf("/v1/betaAppClipInvocations/%s", invocationID),
 		Payload: payload,
 	})
+}
+
+// BetaAppClipInvocationOption sets the query of GET /v1/betaAppClipInvocations/{id} (betaAppClipInvocations_getInstance).
+type BetaAppClipInvocationOption func(*betaAppClipInvocationQuery)
+
+type betaAppClipInvocationQuery struct {
+	include            []string
+	localizationsLimit int
+}
+
+// WithBetaAppClipInvocationInclude sets include.
+func WithBetaAppClipInvocationInclude(include []string) BetaAppClipInvocationOption {
+	return func(q *betaAppClipInvocationQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
+// WithBetaAppClipInvocationLocalizationsLimit sets limit[betaAppClipInvocationLocalizations].
+func WithBetaAppClipInvocationLocalizationsLimit(limit int) BetaAppClipInvocationOption {
+	return func(q *betaAppClipInvocationQuery) {
+		if limit > 0 {
+			q.localizationsLimit = limit
+		}
+	}
+}
+
+func buildBetaAppClipInvocationQuery(query *betaAppClipInvocationQuery) string {
+	values := url.Values{}
+	addCSV(values, "include", query.include)
+	if query.localizationsLimit > 0 {
+		values.Set("limit[betaAppClipInvocationLocalizations]", strconv.Itoa(query.localizationsLimit))
+	}
+	return values.Encode()
 }

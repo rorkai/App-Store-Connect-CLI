@@ -1,9 +1,7 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
-	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -16,12 +14,7 @@ func TestXcodeCloudRunDoctorRequiresWait(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	if err := root.Parse([]string{"xcode-cloud", "run", "--workflow-id", "wf-1", "--git-reference-id", "ref-1", "--doctor"}); err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-	err := root.Run(context.Background())
+	_, _, err := runRootWithDeps(t, nil, "xcode-cloud", "run", "--workflow-id", "wf-1", "--git-reference-id", "ref-1", "--doctor")
 	if err == nil || !strings.Contains(err.Error(), "--doctor requires --wait") {
 		t.Fatalf("run error = %v, want --doctor/--wait validation", err)
 	}
@@ -32,7 +25,6 @@ func TestXcodeCloudRunWaitDoctorReturnsDiagnosticReportForFailedRun(t *testing.T
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.POST("/v1/ciBuildRuns").JSONBody(`{"data":{"type":"ciBuildRuns","relationships":{"workflow":{"data":{"type":"ciWorkflows","id":"wf-1"}},"sourceBranchOrTag":{"data":{"type":"scmGitReferences","id":"ref-1"}}}}}`),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"ciBuildRuns","id":"run-1","attributes":{"executionProgress":"PENDING"}}}`))
 	reg.Register(asctest.GET("/v1/ciBuildRuns/run-1"),
@@ -43,24 +35,18 @@ func TestXcodeCloudRunWaitDoctorReturnsDiagnosticReportForFailedRun(t *testing.T
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"ciIssues","id":"issue-1","attributes":{"issueType":"ERROR","category":"Xcodebuild","message":"Swift compilation failed"}}]}`))
 	reg.Register(asctest.GET("/v1/ciBuildActions/action-1/artifacts", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[]}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"xcode-cloud", "run",
-			"--workflow-id", "wf-1",
-			"--git-reference-id", "ref-1",
-			"--wait",
-			"--doctor",
-			"--poll-interval", "1ms",
-			"--output", "json",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg),
+		"xcode-cloud", "run",
+		"--workflow-id", "wf-1",
+		"--git-reference-id", "ref-1",
+		"--wait",
+		"--doctor",
+		"--poll-interval", "1ms",
+		"--output", "json",
+	)
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
@@ -102,27 +88,18 @@ func TestXcodeCloudRunWaitWithoutDoctorKeepsFailureExit(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.POST("/v1/ciBuildRuns").JSONBody(`{"data":{"type":"ciBuildRuns","relationships":{"workflow":{"data":{"type":"ciWorkflows","id":"wf-1"}},"sourceBranchOrTag":{"data":{"type":"scmGitReferences","id":"ref-1"}}}}}`),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"ciBuildRuns","id":"run-1","attributes":{"executionProgress":"PENDING"}}}`))
 	reg.Register(asctest.GET("/v1/ciBuildRuns/run-1"),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"ciBuildRuns","id":"run-1","attributes":{"executionProgress":"COMPLETE","completionStatus":"FAILED"}}}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	var runErr error
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"xcode-cloud", "run",
-			"--workflow-id", "wf-1",
-			"--git-reference-id", "ref-1",
-			"--wait",
-			"--poll-interval", "1ms",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	stdout, _, runErr := runRootWithDeps(t, stubClient(t, reg),
+		"xcode-cloud", "run",
+		"--workflow-id", "wf-1",
+		"--git-reference-id", "ref-1",
+		"--wait",
+		"--poll-interval", "1ms",
+	)
 	if runErr == nil || !strings.Contains(runErr.Error(), "completed with status: FAILED") {
 		t.Fatalf("run error = %v, want failed-run exit", runErr)
 	}

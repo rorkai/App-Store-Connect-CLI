@@ -14,43 +14,25 @@ import (
 
 // newCategoriesGetCommand returns the category get subcommand.
 func newCategoriesGetCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("categories view", flag.ExitOnError)
-
-	categoryID := shared.BindResourceIDFlag(fs, "category-id", "appCategories", "App category ID")
-	output := d.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc categories view --category-id \"CATEGORY_ID\"",
-		ShortHelp:  "View an App Store category by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "categories view",
+		Name:        "view",
+		ShortUsage:  "asc categories view --category-id \"CATEGORY_ID\"",
+		ShortHelp:   "View an App Store category by ID.",
 		LongHelp: `View an App Store category by ID.
 
 Examples:
   asc categories view --category-id "GAMES"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			trimmedID := strings.TrimSpace(*categoryID)
-			if trimmedID == "" {
-				return d.RequiredFlag("--category-id")
-			}
-
-			client, err := d.Client()
-			if err != nil {
-				return fmt.Errorf("categories view: %w", err)
-			}
-
-			requestCtx, cancel := d.Timeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetAppCategory(requestCtx, trimmedID)
-			if err != nil {
-				return fmt.Errorf("categories view: %w", err)
-			}
-
-			return d.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDFlag:             "category-id",
+		IDUsage:            "App category ID",
+		IDType:             "appCategories",
+		RequiredDiagnostic: true,
+		FetchErrorPrefix:   "categories view",
+		Deps:               d,
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetAppCategory(ctx, id)
 		},
-	}
+	})
 }
 
 // newCategoriesParentCommand returns the category parent subcommand.
@@ -99,9 +81,9 @@ func newCategoriesSubcategoriesCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("categories subcategories", flag.ExitOnError)
 
 	categoryID := shared.BindResourceIDFlag(fs, "category-id", "appCategories", "App category ID")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
+	next := fs.String("next", "", shared.NextFlagUsage)
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{

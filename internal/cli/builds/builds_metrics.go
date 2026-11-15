@@ -41,8 +41,8 @@ func BuildsMetricsBetaUsagesCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("metrics beta-usages", flag.ExitOnError)
 
 	selectors := bindBuildSelectorFlags(fs, buildSelectorFlagOptions{})
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
+	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
+	next := fs.String("next", "", shared.NextFlagUsage)
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{

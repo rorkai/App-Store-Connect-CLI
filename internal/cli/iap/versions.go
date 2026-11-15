@@ -139,11 +139,11 @@ func normalizeIAPVersionStates(value string) ([]string, error) {
 func bindIAPVersionQueryFlags(fs *flag.FlagSet) (state, include *string, limit, imagesLimit, localizationsLimit *int, next *string, paginate *bool) {
 	state = fs.String("state", "", "Filter by state (comma-separated)")
 	include = fs.String("include", "", "Include relationships: inAppPurchase,image,images,localizations")
-	limit = fs.Int("limit", 0, "Maximum results per page (1-200)")
+	limit = fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	imagesLimit = fs.Int("images-limit", 0, "Maximum included images (1-50)")
 	localizationsLimit = fs.Int("localizations-limit", 0, "Maximum included localizations (1-50)")
-	next = fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate = fs.Bool("paginate", false, "Automatically fetch all pages")
+	next = fs.String("next", "", shared.NextFlagUsage)
+	paginate = fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	return
 }
 
@@ -238,57 +238,58 @@ Examples:
 }
 
 func IAPVersionsViewCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("versions view", flag.ExitOnError)
-	versionID := shared.BindResourceIDFlag(fs, "version-id", "inAppPurchaseVersions", "In-app purchase version ID")
-	include := fs.String("include", "", "Include relationships: inAppPurchase,image,images,localizations")
-	imagesLimit := fs.Int("images-limit", 0, "Maximum included images (1-50)")
-	localizationsLimit := fs.Int("localizations-limit", 0, "Maximum included localizations (1-50)")
-	fieldFlags := bindIAPVersionFieldFlags(fs)
-	output := shared.BindOutputFlags(fs)
-	return &ffcli.Command{
-		Name: "view", ShortUsage: `asc iap versions view --version-id "VERSION_ID" [flags]`, ShortHelp: "View an in-app purchase version.",
-		LongHelp: "View an in-app purchase version.\n\nExamples:\n  asc iap versions view --version-id \"VERSION_ID\" --include localizations,images", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*versionID)
-			if id == "" {
-				return shared.RequiredFlag("--version-id")
+	d := shared.DefaultDeps()
+	d.Client = func() (*asc.Client, error) { return iapVersionClientFactory() }
+
+	var opts []asc.IAPVersionGetOption
+
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName:        "versions view",
+		Name:               "view",
+		ShortUsage:         `asc iap versions view --version-id "VERSION_ID" [flags]`,
+		ShortHelp:          "View an in-app purchase version.",
+		LongHelp:           "View an in-app purchase version.\n\nExamples:\n  asc iap versions view --version-id \"VERSION_ID\" --include localizations,images",
+		IDFlag:             "version-id",
+		IDUsage:            "In-app purchase version ID",
+		IDType:             "inAppPurchaseVersions",
+		RequiredDiagnostic: true,
+		Deps:               d,
+		Flags: func(fs *flag.FlagSet) func() error {
+			include := fs.String("include", "", "Include relationships: inAppPurchase,image,images,localizations")
+			imagesLimit := fs.Int("images-limit", 0, "Maximum included images (1-50)")
+			localizationsLimit := fs.Int("localizations-limit", 0, "Maximum included localizations (1-50)")
+			fieldFlags := bindIAPVersionFieldFlags(fs)
+			return func() error {
+				if *imagesLimit != 0 && (*imagesLimit < 1 || *imagesLimit > 50) {
+					return shared.UsageError("iap versions view: --images-limit must be between 1 and 50")
+				}
+				if *localizationsLimit != 0 && (*localizationsLimit < 1 || *localizationsLimit > 50) {
+					return shared.UsageError("iap versions view: --localizations-limit must be between 1 and 50")
+				}
+				includes, err := shared.NormalizeSelection(*include, iapVersionIncludes, "--include")
+				if err != nil {
+					return shared.UsageError("iap versions view: " + err.Error())
+				}
+				fields, err := normalizeIAPVersionFieldFlags(fieldFlags)
+				if err != nil {
+					return shared.UsageError("iap versions view: " + err.Error())
+				}
+				opts = []asc.IAPVersionGetOption{
+					asc.WithIAPVersionGetInclude(includes),
+					asc.WithIAPVersionGetFields(fields.version),
+					asc.WithIAPVersionGetIAPFields(fields.iap),
+					asc.WithIAPVersionGetImageFields(fields.image),
+					asc.WithIAPVersionGetLocalizationFields(fields.localization),
+					asc.WithIAPVersionGetImagesLimit(*imagesLimit),
+					asc.WithIAPVersionGetLocalizationsLimit(*localizationsLimit),
+				}
+				return nil
 			}
-			if *imagesLimit != 0 && (*imagesLimit < 1 || *imagesLimit > 50) {
-				return shared.UsageError("iap versions view: --images-limit must be between 1 and 50")
-			}
-			if *localizationsLimit != 0 && (*localizationsLimit < 1 || *localizationsLimit > 50) {
-				return shared.UsageError("iap versions view: --localizations-limit must be between 1 and 50")
-			}
-			includes, err := shared.NormalizeSelection(*include, iapVersionIncludes, "--include")
-			if err != nil {
-				return shared.UsageError("iap versions view: " + err.Error())
-			}
-			fields, err := normalizeIAPVersionFieldFlags(fieldFlags)
-			if err != nil {
-				return shared.UsageError("iap versions view: " + err.Error())
-			}
-			opts := []asc.IAPVersionGetOption{
-				asc.WithIAPVersionGetInclude(includes),
-				asc.WithIAPVersionGetFields(fields.version),
-				asc.WithIAPVersionGetIAPFields(fields.iap),
-				asc.WithIAPVersionGetImageFields(fields.image),
-				asc.WithIAPVersionGetLocalizationFields(fields.localization),
-				asc.WithIAPVersionGetImagesLimit(*imagesLimit),
-				asc.WithIAPVersionGetLocalizationsLimit(*localizationsLimit),
-			}
-			client, err := iapVersionClientFactory()
-			if err != nil {
-				return fmt.Errorf("iap versions view: %w", err)
-			}
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-			resp, err := client.GetInAppPurchaseVersion(requestCtx, id, opts...)
-			if err != nil {
-				return fmt.Errorf("iap versions view: failed to fetch: %w", err)
-			}
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
-	}
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetInAppPurchaseVersion(ctx, id, opts...)
+		},
+	})
 }
 
 func IAPVersionImageCommand() *ffcli.Command {
@@ -403,9 +404,9 @@ func iapVersionLinkagesCommand(name string, parentIAP bool) *ffcli.Command {
 		idHelp = "In-app purchase ID"
 	}
 	id := shared.BindResourceIDFlag(fs, idFlag, idType, idHelp)
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages")
+	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
+	next := fs.String("next", "", shared.NextFlagUsage)
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	output := shared.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: name, ShortUsage: fmt.Sprintf("asc iap versions links %s --%s \"ID\"", name, idFlag), ShortHelp: "View relationship linkages.", LongHelp: "View relationship linkages.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,

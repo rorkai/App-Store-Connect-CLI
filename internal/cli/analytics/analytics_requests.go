@@ -92,9 +92,9 @@ func AnalyticsRequestsCommand() *ffcli.Command {
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	requestID := shared.BindResourceIDFlag(fs, "request-id", "analyticsReportRequests", "Filter by request ID")
 	accessType := fs.String("access-type", "", "Filter by access type: ONGOING, ONE_TIME_SNAPSHOT")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
+	next := fs.String("next", "", shared.NextFlagUsage)
+	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -404,8 +404,8 @@ func AnalyticsViewCommand() *ffcli.Command {
 	processingDate := fs.String("processing-date", "", "Filter instances by processing date (YYYY-MM-DD)")
 	granularity := fs.String("granularity", "", "Filter instances by granularity (comma-separated: DAILY, WEEKLY, MONTHLY)")
 	includeSegments := fs.Bool("include-segments", false, "Include report segments with download URLs")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
+	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
+	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, "Paginate all reports (recommended with --processing-date or --next)")
 	output := shared.BindOutputFlags(fs)
 

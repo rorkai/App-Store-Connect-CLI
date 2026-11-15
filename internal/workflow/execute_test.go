@@ -142,6 +142,47 @@ func TestRun_ConditionalFalsy(t *testing.T) {
 	}
 }
 
+func TestRun_IfComparison(t *testing.T) {
+	tests := []struct {
+		expr string
+		env  map[string]string
+		want string
+		warn bool
+	}{
+		{expr: "$DO_IT", env: map[string]string{"DO_IT": "true"}, want: "ok"},
+		{expr: "DEPLOY == yes", env: map[string]string{"DEPLOY": "yes"}, want: "ok"},
+		{expr: "$DEPLOY == 'yes'", env: map[string]string{"DEPLOY": "no"}, want: "skipped"},
+		{expr: "CHANNEL != beta", env: map[string]string{"CHANNEL": "prod"}, want: "ok"},
+		{expr: `$CHANNEL != "beta"`, env: map[string]string{"CHANNEL": "beta"}, want: "skipped"},
+		{expr: `MISSING_VAR == ""`, want: "ok"},
+		{expr: "DEPLOY && SUBMIT", env: map[string]string{"DEPLOY": "true"}, want: "skipped", warn: true},
+		{expr: "A == yes && B == no", env: map[string]string{"A": "yes"}, want: "skipped", warn: true},
+		{expr: `A == "yes" && B == "yes"`, env: map[string]string{"A": "yes", "B": "yes"}, want: "skipped", warn: true},
+		{expr: "test($AUTO_SUBMIT)", env: map[string]string{"AUTO_SUBMIT": "true"}, want: "skipped", warn: true},
+		{expr: "deploy-flag", env: map[string]string{"deploy-flag": "true"}, want: "ok"},
+	}
+	for _, test := range tests {
+		t.Run(test.expr, func(t *testing.T) {
+			def := &Definition{Workflows: map[string]Workflow{
+				"test": {Env: test.env, Steps: []Step{{Run: "echo gated", If: test.expr}}},
+			}}
+			opts := runOpts("test")
+			result, err := Run(context.Background(), def, opts)
+			if err != nil {
+				t.Fatalf("Run: %v", err)
+			}
+			if result.Steps[0].Status != test.want {
+				t.Fatalf("expected %s, got %q", test.want, result.Steps[0].Status)
+			}
+			stderr := opts.Stderr.(*bytes.Buffer).String()
+			warned := strings.Contains(stderr, `workflow "test" step 1`) && strings.Contains(stderr, "NAME != VALUE")
+			if warned != test.warn {
+				t.Fatalf("expected warning=%v, got stderr %q", test.warn, stderr)
+			}
+		})
+	}
+}
+
 func TestRun_SkippedWorkflowStepIncludesWorkflowName(t *testing.T) {
 	def := &Definition{
 		Workflows: map[string]Workflow{
@@ -261,6 +302,70 @@ func TestRun_EnvMerging(t *testing.T) {
 	}
 	if result.Steps[0].Status != "ok" {
 		t.Fatalf("expected ok, got %q", result.Steps[0].Status)
+	}
+}
+
+func TestRun_StepEnvAppliesToThatStepOnly(t *testing.T) {
+	def := &Definition{
+		Workflows: map[string]Workflow{
+			"test": {
+				Env: map[string]string{"VAR": "workflow"},
+				Steps: []Step{
+					{Run: "echo own=$VAR", If: "VAR == step", Env: map[string]string{"VAR": "step"}},
+					{Workflow: "helper", Env: map[string]string{"VAR": "call"}},
+					{Run: "echo next=$VAR"},
+				},
+			},
+			"helper": {Steps: []Step{{Run: "echo helper=$VAR"}}},
+		},
+	}
+	opts := runOpts("test")
+
+	if _, err := Run(context.Background(), def, opts); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	stdout := opts.Stdout.(*bytes.Buffer).String()
+	if stdout != "own=step\nhelper=call\nnext=workflow\n" {
+		t.Fatalf("expected step env on its own step only, got %q", stdout)
+	}
+}
+
+func TestRun_ContinueOnError(t *testing.T) {
+	for _, continueOnError := range []bool{true, false} {
+		t.Run(fmt.Sprint(continueOnError), func(t *testing.T) {
+			def := &Definition{
+				Error: "echo error-hook",
+				Workflows: map[string]Workflow{
+					"test": {Steps: []Step{
+						{Name: "notify", Run: "exit 3", ContinueOnError: continueOnError},
+						{Run: "echo after"},
+					}},
+				},
+			}
+			opts := runOpts("test")
+
+			result, err := Run(context.Background(), def, opts)
+			stdout := opts.Stdout.(*bytes.Buffer).String()
+			failed := result.Steps[0]
+			if failed.Status != "error" || failed.Error == "" || failed.ContinuedOnError != continueOnError {
+				t.Fatalf("expected the failure recorded with continued_on_error=%v, got %+v", continueOnError, failed)
+			}
+			if !continueOnError {
+				if err == nil || result.Status != "error" || result.FailedStep != "notify" || len(result.Steps) != 1 || !strings.Contains(stdout, "error-hook") {
+					t.Fatalf("expected the workflow to stop and run the error hook, got err=%v result=%+v stdout=%q", err, result, stdout)
+				}
+				return
+			}
+			if err != nil || result.Status != "ok" || result.FailedStep != "" || len(result.Steps) != 2 || result.Steps[1].Status != "ok" {
+				t.Fatalf("expected the workflow to continue and succeed, got err=%v result=%+v", err, result)
+			}
+			if stdout != "after\n" {
+				t.Fatalf("expected the next step to run without the error hook, got %q", stdout)
+			}
+			if stderr := opts.Stderr.(*bytes.Buffer).String(); !strings.Contains(stderr, "continue_on_error") {
+				t.Fatalf("expected a stderr note about the tolerated failure, got %q", stderr)
+			}
+		})
 	}
 }
 
@@ -1020,25 +1125,36 @@ func TestRun_MaxCallDepthExceeded(t *testing.T) {
 	// Create a chain that exceeds MaxCallDepth
 	// We can't actually create a cycle (validation would catch it),
 	// so we create a long chain
-	workflows := make(map[string]Workflow)
-	for i := 0; i <= MaxCallDepth+1; i++ {
-		name := "w" + strings.Repeat("x", i)
-		nextName := "w" + strings.Repeat("x", i+1)
-		if i > MaxCallDepth {
-			workflows[name] = Workflow{Steps: []Step{{Run: "echo done"}}}
-		} else {
-			workflows[name] = Workflow{Steps: []Step{{Workflow: nextName}}}
-		}
-	}
-	def := &Definition{Workflows: workflows}
-	opts := runOpts("w")
+	for _, continueOnError := range []bool{false, true} {
+		t.Run(fmt.Sprint(continueOnError), func(t *testing.T) {
+			workflows := make(map[string]Workflow)
+			for i := 0; i <= MaxCallDepth+1; i++ {
+				name := "w" + strings.Repeat("x", i)
+				nextName := "w" + strings.Repeat("x", i+1)
+				if i > MaxCallDepth {
+					workflows[name] = Workflow{Steps: []Step{{Run: "echo done"}}}
+				} else {
+					workflows[name] = Workflow{Steps: []Step{{Workflow: nextName, ContinueOnError: continueOnError && i == MaxCallDepth}}}
+				}
+			}
+			def := &Definition{Workflows: workflows}
+			opts := runOpts("w")
 
-	_, err := Run(context.Background(), def, opts)
-	if err == nil {
-		t.Fatal("expected error for max call depth")
-	}
-	if !strings.Contains(err.Error(), "max call depth") {
-		t.Fatalf("expected max call depth error, got %v", err)
+			result, err := Run(context.Background(), def, opts)
+			if continueOnError {
+				last := result.Steps[len(result.Steps)-1]
+				if err != nil || result.Status != "ok" || !last.ContinuedOnError || !strings.Contains(last.Error, "max call depth") {
+					t.Fatalf("expected the depth failure to be tolerated, got err=%v result=%+v", err, result)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatal("expected error for max call depth")
+			}
+			if !strings.Contains(err.Error(), "max call depth") {
+				t.Fatalf("expected max call depth error, got %v", err)
+			}
+		})
 	}
 }
 
