@@ -1,7 +1,6 @@
 package cmdtest
 
 import (
-	"context"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -14,11 +13,9 @@ import (
 func runPerformanceMetricsListWithMetricType(t *testing.T, metricType string) (string, string, error) {
 	t.Helper()
 
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-1/perfPowerMetrics", "filter[metricType]="+metricType), func(*http.Request) (*http.Response, error) {
 		return &http.Response{
 			StatusCode: http.StatusOK,
@@ -27,7 +24,7 @@ func runPerformanceMetricsListWithMetricType(t *testing.T, metricType string) (s
 		}, nil
 	})
 
-	return runCommand(t, []string{"performance", "metrics", "list", "--app", "app-1", "--metric-type", metricType})
+	return runRootWithDeps(t, stubClient(t, reg), "performance", "metrics", "list", "--app", "app-1", "--metric-type", metricType)
 }
 
 func TestPerformanceMetricsListAcceptsStorageMetricType(t *testing.T) {
@@ -44,16 +41,7 @@ func TestPerformanceMetricsListAcceptsStorageMetricType(t *testing.T) {
 }
 
 func TestPerformanceMetricsListRejectsInvalidMetricType(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{"performance", "metrics", "list", "--app", "app-1", "--metric-type", "BOGUS"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	stdout, _, runErr := runRootWithDeps(t, nil, "performance", "metrics", "list", "--app", "app-1", "--metric-type", "BOGUS")
 
 	if runErr == nil {
 		t.Fatal("expected error, got nil")
@@ -68,16 +56,7 @@ func TestPerformanceMetricsListRejectsInvalidMetricType(t *testing.T) {
 }
 
 func TestPerformanceMetricsViewRejectsInvalidMetricType(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{"performance", "metrics", "view", "--build-id", "build-1", "--metric-type", "BOGUS"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	stdout, _, runErr := runRootWithDeps(t, nil, "performance", "metrics", "view", "--build-id", "build-1", "--metric-type", "BOGUS")
 
 	if runErr == nil {
 		t.Fatal("expected error, got nil")

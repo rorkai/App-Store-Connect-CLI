@@ -1,12 +1,10 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"strings"
 	"testing"
 )
@@ -16,7 +14,6 @@ const overviewFixture = `{"version":"1.0","appMetadata":{"appId":"123","bundleId
 func TestPerformanceOverview(t *testing.T) {
 	for _, format := range []string{"json", "table", "markdown"} {
 		t.Run(format, func(t *testing.T) {
-			setupAuth(t)
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if r.Method != http.MethodGet || r.URL.Path != "/v1/apps/123/performanceOverviews" {
 					t.Errorf("request: %s %s", r.Method, r.URL.Path)
@@ -31,18 +28,7 @@ func TestPerformanceOverview(t *testing.T) {
 				_, _ = io.WriteString(w, overviewFixture)
 			}))
 			defer server.Close()
-			u, _ := url.Parse(server.URL)
-			installDefaultTransport(t, roundTripFunc(func(r *http.Request) (*http.Response, error) {
-				c := r.Clone(r.Context())
-				c.URL.Scheme = u.Scheme
-				c.URL.Host = u.Host
-				return server.Client().Transport.RoundTrip(c)
-			}))
-			root := RootCommand("test")
-			var runErr error
-			out, stderr := captureOutput(t, func() {
-				runErr = root.ParseAndRun(context.Background(), []string{"performance", "overview", "--app", "123", "--device-type", "iPhone15,2", "--output", format})
-			})
+			out, stderr, runErr := runRootWithDeps(t, stubServerClient(t, server), "performance", "overview", "--app", "123", "--device-type", "iPhone15,2", "--output", format)
 			if runErr != nil {
 				t.Fatalf("run: %v; stderr=%s", runErr, stderr)
 			}
@@ -71,7 +57,7 @@ func TestPerformanceOverview(t *testing.T) {
 
 func TestPerformanceOverviewUsage(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
-	assertUsageExit(t, []string{"performance", "overview"}, "--app is required")
-	assertUsageExit(t, []string{"performance", "overview", "--app", "123", "--device-type", " "}, "--device-type must not be empty")
-	assertUsageExit(t, []string{"performance", "overview", "--app", "123", "extra"}, "unexpected argument")
+	assertUsageExitWithDeps(t, nil, []string{"performance", "overview"}, "--app is required")
+	assertUsageExitWithDeps(t, nil, []string{"performance", "overview", "--app", "123", "--device-type", " "}, "--device-type must not be empty")
+	assertUsageExitWithDeps(t, nil, []string{"performance", "overview", "--app", "123", "extra"}, "unexpected argument")
 }

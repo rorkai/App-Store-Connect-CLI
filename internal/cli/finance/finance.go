@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -13,9 +12,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// FinanceCommand returns the finance command with subcommands.
-func FinanceCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("finance", flag.ExitOnError)
+// NewFinanceCommand returns the finance command with subcommands.
+func NewFinanceCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("finance", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "finance",
@@ -32,8 +31,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			FinanceReportsCommand(),
-			FinanceRegionsCommand(),
+			newFinanceReportsCommand(d),
+			newFinanceRegionsCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -41,9 +40,8 @@ Examples:
 	}
 }
 
-// FinanceReportsCommand downloads finance reports.
-func FinanceReportsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("reports", flag.ExitOnError)
+func newFinanceReportsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("reports", flag.ExitOnError)
 
 	vendor := fs.String("vendor", "", "Vendor number (or ASC_VENDOR_NUMBER env)")
 	reportType := fs.String("report-type", "", "Report type: FINANCIAL or FINANCE_DETAIL (see help for UI mapping)")
@@ -103,45 +101,45 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.RejectOutputFormatAsPath(*output, "--output-format"); err != nil {
+			if err := d.RejectOutputFormatAsPath(*output, "--output-format"); err != nil {
 				return err
 			}
 			vendorNumber := shared.ResolveVendorNumber(*vendor)
 			if vendorNumber == "" {
-				fmt.Fprintln(os.Stderr, "Error: --vendor is required (or set ASC_VENDOR_NUMBER)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --vendor is required (or set ASC_VENDOR_NUMBER)")
 				return shared.MissingRequiredUsageError("--vendor")
 			}
 			if strings.TrimSpace(*reportType) == "" {
-				return shared.RequiredFlag("--report-type")
+				return d.RequiredFlag("--report-type")
 			}
 			if strings.TrimSpace(*region) == "" {
-				return shared.RequiredFlag("--region")
+				return d.RequiredFlag("--region")
 			}
 			if strings.TrimSpace(*date) == "" {
-				return shared.RequiredFlag("--date")
+				return d.RequiredFlag("--date")
 			}
 
 			normalizedReportType, err := normalizeFinanceReportType(*reportType)
 			if err != nil {
-				return shared.UsageErrorf("finance reports: %v", err)
+				return d.UsageErrorf("finance reports: %v", err)
 			}
 			reportDate, err := normalizeFinanceReportDate(*date)
 			if err != nil {
-				return shared.UsageErrorf("finance reports: %v", err)
+				return d.UsageErrorf("finance reports: %v", err)
 			}
 			regionCode, err := normalizeFinanceReportRegion(normalizedReportType, *region)
 			if err != nil {
-				return shared.UsageErrorf("finance reports: %v", err)
+				return d.UsageErrorf("finance reports: %v", err)
 			}
 			defaultOutput := fmt.Sprintf("finance_report_%s_%s_%s.tsv.gz", reportDate, string(normalizedReportType), regionCode)
 			compressedPath, decompressedPath := shared.ResolveReportOutputPaths(*output, defaultOutput, ".tsv", *decompress)
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("finance reports: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithDownloadTimeout(ctx)
+			requestCtx, cancel := d.DownloadTimeout(ctx)
 			defer cancel()
 
 			download, err := client.DownloadFinanceReport(requestCtx, asc.FinanceReportParams{
@@ -184,18 +182,17 @@ Examples:
 				DecompressedBytes: decompressedSize,
 			}
 
-			return shared.PrintOutput(result, *outputFlags.OutputFormat, *outputFlags.Pretty)
+			return d.PrintOutput(result, *outputFlags.OutputFormat, *outputFlags.Pretty)
 		},
 	}
 }
 
 const financeReportNotFoundHint = "Apple publishes a financial report only after the fiscal month closes (by the first Friday of the next fiscal month) and only for regions with purchases or refunds that month. Check --date and --vendor; for FINANCIAL, try --region ZZ or a code from `asc finance regions`."
 
-// FinanceRegionsCommand lists finance report regions and currencies.
-func FinanceRegionsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("regions", flag.ExitOnError)
+func newFinanceRegionsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("regions", flag.ExitOnError)
 
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "regions",
@@ -219,7 +216,7 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			result := &asc.FinanceRegionsResult{Regions: asc.FinanceRegions()}
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }

@@ -37,8 +37,8 @@ func TestBuildIDRequiredErrorsNameCanonicalFlag(t *testing.T) {
 		{name: "validate testflight", args: []string{"validate", "testflight", "--app", "app-1"}},
 		{name: "build-bundles list", args: []string{"build-bundles", "list"}, deps: true},
 		{name: "build-localizations create", args: []string{"build-localizations", "create", "--locale", "en-US"}, deps: true},
-		{name: "performance diagnostics list", args: []string{"performance", "diagnostics", "list"}},
-		{name: "performance metrics view", args: []string{"performance", "metrics", "view"}},
+		{name: "performance diagnostics list", args: []string{"performance", "diagnostics", "list"}, deps: true},
+		{name: "performance metrics view", args: []string{"performance", "metrics", "view"}, deps: true},
 	}
 
 	for _, test := range tests {

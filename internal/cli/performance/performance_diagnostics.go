@@ -14,9 +14,8 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// PerformanceDiagnosticsCommand returns the diagnostics subcommand group.
-func PerformanceDiagnosticsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("diagnostics", flag.ExitOnError)
+func newPerformanceDiagnosticsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("diagnostics", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "diagnostics",
@@ -30,8 +29,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			PerformanceDiagnosticsListCommand(),
-			PerformanceDiagnosticsGetCommand(),
+			newPerformanceDiagnosticsListCommand(d),
+			newPerformanceDiagnosticsGetCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -39,9 +38,8 @@ Examples:
 	}
 }
 
-// PerformanceDiagnosticsListCommand returns the diagnostics list subcommand.
-func PerformanceDiagnosticsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("diagnostics list", flag.ExitOnError)
+func newPerformanceDiagnosticsListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("diagnostics list", flag.ExitOnError)
 
 	buildID := shared.BindResourceIDFlag(fs, "build-id", "builds", "Build ID to list diagnostics for")
 	diagnosticType := fs.String("diagnostic-type", "", "Diagnostic type filter (comma-separated: "+strings.Join(diagnosticSignatureTypeList(), ", ")+")")
@@ -49,7 +47,7 @@ func PerformanceDiagnosticsListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Limit number of signatures (max 200)")
 	next := fs.String("next", "", "Next page URL")
 	paginate := fs.Bool("paginate", false, "Fetch all pages")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -63,32 +61,32 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "performance diagnostics list", 200, "diagnostic-type", "fields"); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "performance diagnostics list", 200, "diagnostic-type", "fields"); err != nil {
 				return err
 			}
 			trimmedBuildID := strings.TrimSpace(*buildID)
 			if trimmedBuildID == "" {
-				return shared.RequiredFlag("--build-id")
+				return d.RequiredFlag("--build-id")
 			}
 			if err := validateDiagnosticSignaturesCursor(*next, trimmedBuildID); err != nil {
-				return shared.UsageErrorf("performance diagnostics list: %v", err)
+				return d.UsageErrorf("performance diagnostics list: %v", err)
 			}
 
 			diagnosticTypes, err := normalizeDiagnosticSignatureTypes(shared.SplitCSVUpper(*diagnosticType))
 			if err != nil {
-				return shared.UsageErrorf("performance diagnostics list: %v", err)
+				return d.UsageErrorf("performance diagnostics list: %v", err)
 			}
 			fieldValues, err := normalizeDiagnosticSignatureFields(*fields)
 			if err != nil {
-				return shared.UsageErrorf("performance diagnostics list: %v", err)
+				return d.UsageErrorf("performance diagnostics list: %v", err)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("performance diagnostics list: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			opts := []asc.DiagnosticSignaturesOption{
@@ -112,7 +110,7 @@ Examples:
 					return fmt.Errorf("performance diagnostics list: %w", err)
 				}
 
-				return shared.PrintOutput(paginated, *output.Output, *output.Pretty)
+				return d.PrintOutput(paginated, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetDiagnosticSignaturesForBuild(requestCtx, trimmedBuildID, opts...)
@@ -120,7 +118,7 @@ Examples:
 				return diagnosticsListFetchError(trimmedBuildID, err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -159,13 +157,12 @@ func validateDiagnosticSignaturesCursor(next, buildID string) error {
 	return nil
 }
 
-// PerformanceDiagnosticsGetCommand returns the diagnostics get subcommand.
-func PerformanceDiagnosticsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("diagnostics view", flag.ExitOnError)
+func newPerformanceDiagnosticsGetCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("diagnostics view", flag.ExitOnError)
 
 	signatureID := fs.String("id", "", "Diagnostic signature ID")
 	limit := fs.Int("limit", 0, "Limit number of logs (max 200)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "view",
@@ -179,20 +176,20 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "performance diagnostics view", 200); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "performance diagnostics view", 200); err != nil {
 				return err
 			}
 			trimmedID := strings.TrimSpace(*signatureID)
 			if trimmedID == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("performance diagnostics view: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetDiagnosticSignatureLogs(requestCtx, trimmedID, asc.Limit[asc.DiagnosticLogsOption](*limit))
@@ -200,7 +197,7 @@ Examples:
 				return fmt.Errorf("performance diagnostics view: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

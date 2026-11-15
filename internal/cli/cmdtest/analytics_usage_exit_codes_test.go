@@ -28,6 +28,7 @@ func TestAnalyticsInputValidationReturnsUsageExitCode(t *testing.T) {
 		args    []string
 		wantErr string
 		appEnv  string
+		deps    bool // the command is built on shared.Deps: run it on test deps
 	}{
 		{
 			name:    "requests limit above maximum",
@@ -219,6 +220,7 @@ func TestAnalyticsInputValidationReturnsUsageExitCode(t *testing.T) {
 			name:    "finance reports output given a format",
 			args:    []string{"finance", "reports", "--output", "markdown"},
 			wantErr: "--output takes a path in this command, not an output format; use --output-format markdown to choose the format, or --output ./markdown to write to a path named markdown",
+			deps:    true,
 		},
 	}
 
@@ -228,11 +230,18 @@ func TestAnalyticsInputValidationReturnsUsageExitCode(t *testing.T) {
 				t.Setenv("ASC_APP_ID", test.appEnv)
 			}
 			clientFactoryCalls := 0
-			t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+			client := func() (*asc.Client, error) {
 				clientFactoryCalls++
 				return nil, errors.New("client construction should not be attempted")
-			}))
-			stdout, stderr, runErr := runCommand(t, test.args)
+			}
+			var stdout, stderr string
+			var runErr error
+			if test.deps {
+				stdout, stderr, runErr = runRootWithDeps(t, client, test.args...)
+			} else {
+				t.Cleanup(shared.SetASCClientFactoryForTesting(client))
+				stdout, stderr, runErr = runCommand(t, test.args)
+			}
 
 			if runErr == nil {
 				t.Fatal("expected error, got nil")
