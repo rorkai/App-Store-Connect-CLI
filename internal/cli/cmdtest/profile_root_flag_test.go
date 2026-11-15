@@ -287,10 +287,7 @@ func TestProfileFlagAfterPositionalIsUsageError(t *testing.T) {
 		{"search", "upload a build", "--profile=staging"},
 	} {
 		t.Run(strings.Join(args, " "), func(t *testing.T) {
-			var code int
-			stdout, stderr := captureOutput(t, func() {
-				code = rootcmd.Run(args, "1.2.3")
-			})
+			stdout, stderr, code := runWithDeps(t, nil, args...)
 
 			if code != rootcmd.ExitUsage {
 				t.Fatalf("exit code = %d, want %d (stdout %q, stderr %q)", code, rootcmd.ExitUsage, stdout, stderr)
@@ -313,10 +310,7 @@ func TestEscapedProfileSearchTermRemainsPositional(t *testing.T) {
 	} {
 		t.Run(strings.Join(query, " "), func(t *testing.T) {
 			args := append([]string{"search", "--output", "json", "--"}, query...)
-			var code int
-			stdout, stderr := captureOutput(t, func() {
-				code = rootcmd.Run(args, "1.2.3")
-			})
+			stdout, stderr, code := runWithDeps(t, nil, args...)
 
 			if code != rootcmd.ExitSuccess {
 				t.Fatalf("exit code = %d, want %d (stdout %q, stderr %q)", code, rootcmd.ExitSuccess, stdout, stderr)

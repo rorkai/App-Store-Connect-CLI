@@ -29,12 +29,10 @@ type capabilitiesTestResponse struct {
 func TestRun_CapabilitiesJSONReportsKnownGaps(t *testing.T) {
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 
-	stdout, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{"capabilities", "--output", "json"}, "1.0.0")
-		if code != cmd.ExitSuccess {
-			t.Fatalf("expected exit code %d, got %d", cmd.ExitSuccess, code)
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, nil, "capabilities", "--output", "json")
+	if code != cmd.ExitSuccess {
+		t.Fatalf("expected exit code %d, got %d", cmd.ExitSuccess, code)
+	}
 
 	if strings.TrimSpace(stderr) != "" {
 		t.Fatalf("expected empty stderr, got: %s", stderr)
@@ -163,12 +161,10 @@ func assertMonetizationVersionWorkflow(t *testing.T, resp capabilitiesTestRespon
 func TestRun_CapabilitiesFiltersByStatus(t *testing.T) {
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 
-	stdout, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{"capabilities", "--status", "web-session", "--output", "json"}, "1.0.0")
-		if code != cmd.ExitSuccess {
-			t.Fatalf("expected exit code %d, got %d", cmd.ExitSuccess, code)
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, nil, "capabilities", "--status", "web-session", "--output", "json")
+	if code != cmd.ExitSuccess {
+		t.Fatalf("expected exit code %d, got %d", cmd.ExitSuccess, code)
+	}
 
 	if strings.TrimSpace(stderr) != "" {
 		t.Fatalf("expected empty stderr, got: %s", stderr)
@@ -192,12 +188,10 @@ func TestRun_CapabilitiesFiltersByStatus(t *testing.T) {
 func TestRun_CapabilitiesFiltersByAreaInMarkdown(t *testing.T) {
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 
-	stdout, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{"capabilities", "--area", "release", "--output", "markdown"}, "1.0.0")
-		if code != cmd.ExitSuccess {
-			t.Fatalf("expected exit code %d, got %d", cmd.ExitSuccess, code)
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, nil, "capabilities", "--area", "release", "--output", "markdown")
+	if code != cmd.ExitSuccess {
+		t.Fatalf("expected exit code %d, got %d", cmd.ExitSuccess, code)
+	}
 
 	if strings.TrimSpace(stderr) != "" {
 		t.Fatalf("expected empty stderr, got: %s", stderr)
@@ -225,12 +219,10 @@ func TestRun_CapabilitiesUsageErrors(t *testing.T) {
 		{args: []string{"capabilities", "typo"}, wantErr: `unexpected argument "typo"`},
 	} {
 		t.Run(strings.Join(test.args[1:], " "), func(t *testing.T) {
-			_, stderr := captureOutput(t, func() {
-				code := cmd.Run(test.args, "1.0.0")
-				if code != cmd.ExitUsage {
-					t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
-				}
-			})
+			_, stderr, code := runWithDeps(t, nil, test.args...)
+			if code != cmd.ExitUsage {
+				t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
+			}
 
 			if !strings.Contains(stderr, test.wantErr) {
 				t.Fatalf("expected %q error, got stderr: %s", test.wantErr, stderr)
@@ -242,12 +234,10 @@ func TestRun_CapabilitiesUsageErrors(t *testing.T) {
 func TestRun_CapabilitiesCommandReferencesResolve(t *testing.T) {
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 
-	stdout, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{"capabilities", "--output", "json"}, "1.0.0")
-		if code != cmd.ExitSuccess {
-			t.Fatalf("expected exit code %d, got %d", cmd.ExitSuccess, code)
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, nil, "capabilities", "--output", "json")
+	if code != cmd.ExitSuccess {
+		t.Fatalf("expected exit code %d, got %d", cmd.ExitSuccess, code)
+	}
 	if strings.TrimSpace(stderr) != "" {
 		t.Fatalf("expected empty stderr, got: %s", stderr)
 	}
