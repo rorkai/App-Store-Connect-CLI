@@ -51,7 +51,7 @@ func applyPublishVersionMetadata(ctx context.Context, d *shared.Deps, client *as
 			InputPath: strings.TrimSpace(opts.Dir),
 			Results:   results,
 		}
-		shared.FinalizeLocalizationUploadResult(&result, "publish")
+		d.FinalizeLocalizationUploadResult(&result, "publish")
 		recoveryErr := fmt.Errorf("publish version metadata: %d locale(s) failed", result.Failed)
 		if result.FailureArtifactPath != "" {
 			recoveryErr = fmt.Errorf("%w; retry artifact: %s", recoveryErr, result.FailureArtifactPath)
