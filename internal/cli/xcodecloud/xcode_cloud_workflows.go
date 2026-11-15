@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -13,28 +12,13 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-func xcodeCloudWorkflowsListFlags(fs *flag.FlagSet) (appID *string, limit *int, next *string, paginate *bool, output *string, pretty *bool) {
-	appID = fs.String("app", "", xcodeCloudAppFlagUsage)
-	limit = fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next = fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate = fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	outputFlags := shared.BindOutputFlags(fs)
-	output = outputFlags.Output
-	pretty = outputFlags.Pretty
-	return
-}
-
 // XcodeCloudWorkflowsCommand returns the xcode-cloud workflows subcommand.
 func XcodeCloudWorkflowsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("workflows", flag.ExitOnError)
-
-	appID, limit, next, paginate, output, pretty := xcodeCloudWorkflowsListFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "workflows",
-		ShortUsage: "asc xcode-cloud workflows [flags]",
-		ShortHelp:  "Manage Xcode Cloud workflows.",
-		LongHelp: `Manage Xcode Cloud workflows.
+	cmd := xcodeCloudWorkflowsListCommand(
+		"workflows",
+		"asc xcode-cloud workflows [flags]",
+		"Manage Xcode Cloud workflows.",
+		`Manage Xcode Cloud workflows.
 
 Examples:
   asc xcode-cloud workflows --app "APP_ID"
@@ -44,50 +28,64 @@ Examples:
   asc xcode-cloud workflows duplicate --id "WORKFLOW_ID" --name "Nightly"
   asc xcode-cloud workflows --app "APP_ID" --limit 50
   asc xcode-cloud workflows --app "APP_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Subcommands: []*ffcli.Command{
-			XcodeCloudWorkflowsListCommand(),
-			XcodeCloudWorkflowsGetCommand(),
-			XcodeCloudWorkflowsRepositoryCommand(),
-			XcodeCloudWorkflowsCreateCommand(),
-			XcodeCloudWorkflowsUpdateCommand(),
-			XcodeCloudWorkflowsDuplicateCommand(),
-			XcodeCloudWorkflowsDeleteCommand(),
-		},
-		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "xcode-cloud workflows", 200); err != nil {
-				return err
-			}
-			return xcodeCloudWorkflowsList(ctx, *appID, *limit, *next, *paginate, *output, *pretty)
-		},
+	)
+	cmd.Subcommands = []*ffcli.Command{
+		XcodeCloudWorkflowsListCommand(),
+		XcodeCloudWorkflowsGetCommand(),
+		XcodeCloudWorkflowsRepositoryCommand(),
+		XcodeCloudWorkflowsCreateCommand(),
+		XcodeCloudWorkflowsUpdateCommand(),
+		XcodeCloudWorkflowsDuplicateCommand(),
+		XcodeCloudWorkflowsDeleteCommand(),
 	}
+	return cmd
 }
 
 func XcodeCloudWorkflowsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
-
-	appID, limit, next, paginate, output, pretty := xcodeCloudWorkflowsListFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc xcode-cloud workflows list [flags]",
-		ShortHelp:  "List Xcode Cloud workflows for an app.",
-		LongHelp: `List Xcode Cloud workflows for an app.
+	return xcodeCloudWorkflowsListCommand(
+		"list",
+		"asc xcode-cloud workflows list [flags]",
+		"List Xcode Cloud workflows for an app.",
+		`List Xcode Cloud workflows for an app.
 
 Examples:
   asc xcode-cloud workflows list --app "APP_ID"
   asc xcode-cloud workflows list --app "APP_ID" --limit 50
   asc xcode-cloud workflows list --app "APP_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "xcode-cloud workflows list", 200); err != nil {
-				return err
-			}
-			return xcodeCloudWorkflowsList(ctx, *appID, *limit, *next, *paginate, *output, *pretty)
+	)
+}
+
+func xcodeCloudWorkflowsListCommand(name, shortUsage, shortHelp, longHelp string) *ffcli.Command {
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		Name:                 name,
+		ShortUsage:           shortUsage,
+		ShortHelp:            shortHelp,
+		LongHelp:             longHelp,
+		ParentFlag:           "app",
+		ParentUsage:          xcodeCloudAppFlagUsage,
+		ResolveApp:           true,
+		RequiredDiagnostic:   true,
+		PaginateIgnoresLimit: true,
+		ErrorPrefix:          "xcode-cloud workflows",
+		FetchErrorPrefix:     "xcode-cloud workflows",
+		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
+			return contextWithXcodeCloudTimeout(ctx, 0)
 		},
-	}
+		LookupParent: func(ctx context.Context, client *asc.Client, appID string) (string, error) {
+			resolvedAppID, err := resolveXcodeCloudAppID(ctx, client, appID)
+			if err != nil {
+				return "", fmt.Errorf("xcode-cloud workflows: %w", err)
+			}
+			product, err := client.ResolveCiProductForApp(ctx, resolvedAppID)
+			if err != nil {
+				return "", classifyXcodeCloudLookupError(fmt.Errorf("xcode-cloud workflows: %w", err))
+			}
+			return product.ID, nil
+		},
+		FetchPage: func(ctx context.Context, client *asc.Client, productID string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetCiWorkflows(ctx, productID, asc.Limit[asc.CiWorkflowsOption](limit), asc.NextURL[asc.CiWorkflowsOption](next))
+		},
+	})
 }
 
 func XcodeCloudWorkflowsGetCommand() *ffcli.Command {
@@ -261,66 +259,4 @@ Examples:
 			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
 	})
-}
-
-func xcodeCloudWorkflowsList(ctx context.Context, appID string, limit int, next string, paginate bool, output string, pretty bool) error {
-	nextURL := strings.TrimSpace(next)
-
-	resolvedAppID := shared.ResolveAppID(appID)
-	if resolvedAppID == "" && nextURL == "" {
-		fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-		return shared.MissingRequiredUsageError("--app")
-	}
-
-	client, err := shared.GetASCClient()
-	if err != nil {
-		return fmt.Errorf("xcode-cloud workflows: %w", err)
-	}
-
-	requestCtx, cancel := contextWithXcodeCloudTimeout(ctx, 0)
-	defer cancel()
-
-	productID := ""
-	if nextURL == "" && resolvedAppID != "" {
-		resolvedAppID, err = resolveXcodeCloudAppID(requestCtx, client, resolvedAppID)
-		if err != nil {
-			return fmt.Errorf("xcode-cloud workflows: %w", err)
-		}
-
-		product, err := client.ResolveCiProductForApp(requestCtx, resolvedAppID)
-		if err != nil {
-			return classifyXcodeCloudLookupError(fmt.Errorf("xcode-cloud workflows: %w", err))
-		}
-		productID = product.ID
-	}
-
-	opts := []asc.CiWorkflowsOption{
-		asc.Limit[asc.CiWorkflowsOption](limit),
-		asc.NextURL[asc.CiWorkflowsOption](nextURL),
-	}
-
-	if paginate {
-		paginateOpts := append(opts, asc.Limit[asc.CiWorkflowsOption](200))
-		resp, err := shared.PaginateWithSpinner(
-			requestCtx,
-			func(ctx context.Context) (asc.PaginatedResponse, error) {
-				return client.GetCiWorkflows(ctx, productID, paginateOpts...)
-			},
-			func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-				return client.GetCiWorkflows(ctx, productID, asc.NextURL[asc.CiWorkflowsOption](nextURL))
-			},
-		)
-		if err != nil {
-			return fmt.Errorf("xcode-cloud workflows: %w", err)
-		}
-
-		return shared.PrintOutput(resp, output, pretty)
-	}
-
-	resp, err := client.GetCiWorkflows(requestCtx, productID, opts...)
-	if err != nil {
-		return fmt.Errorf("xcode-cloud workflows: %w", err)
-	}
-
-	return shared.PrintOutput(resp, output, pretty)
 }

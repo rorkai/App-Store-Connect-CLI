@@ -151,13 +151,8 @@ Examples:
 
 // GameCenterGroupsUpdateCommand returns the groups update subcommand.
 func GameCenterGroupsUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("update", flag.ExitOnError)
-
-	groupID := shared.BindResourceIDFlag(fs, "id", "gameCenterGroups", "Game Center group ID")
-	referenceName := fs.String("reference-name", "", "Reference name for the group")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	var referenceName string
+	return shared.BuildUpdateCommand(shared.WriteCommandConfig{
 		Name:       "update",
 		ShortUsage: "asc game-center groups update --id \"GROUP_ID\" [flags]",
 		ShortHelp:  "Update a Game Center group.",
@@ -165,35 +160,15 @@ func GameCenterGroupsUpdateCommand() *ffcli.Command {
 
 Examples:
   asc game-center groups update --id "GROUP_ID" --reference-name "New Name"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*groupID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			if strings.TrimSpace(*referenceName) == "" {
-				return shared.RequiredFlag("--reference-name")
-			}
-			value := strings.TrimSpace(*referenceName)
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center groups update: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.UpdateGameCenterGroup(requestCtx, id, &value)
-			if err != nil {
-				return fmt.Errorf("game-center groups update: failed to update: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage: "Game Center group ID",
+		IDType:  "gameCenterGroups",
+		Fields: []shared.AttributeFlag{
+			shared.RequiredStringFlag(&referenceName, "reference-name", "Reference name for the group"),
 		},
-	}
+		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.UpdateGameCenterGroup(ctx, id, &referenceName)
+		},
+	})
 }
 
 // GameCenterGroupsDeleteCommand returns the groups delete subcommand.

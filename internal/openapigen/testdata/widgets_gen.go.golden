@@ -516,6 +516,42 @@ func (c *Client) CreateWristband(ctx context.Context, widgetID, label string, co
 	})
 }
 
+// RegisterWristband sends POST /v1/wristbands (wristbands_createInstance).
+func (c *Client) RegisterWristband(ctx context.Context, widgetID, label string, color WristbandColor, size int) (*WristbandResponse, error) {
+	widgetID = strings.TrimSpace(widgetID)
+	label = strings.TrimSpace(label)
+	if widgetID == "" {
+		return nil, fmt.Errorf("widget ID is required")
+	}
+	if label == "" {
+		return nil, fmt.Errorf("label is required")
+	}
+	payload := WristbandCreateRequest{
+		Data: WristbandCreateData{
+			Type: ResourceTypeWristbands,
+			Attributes: WristbandCreateAttributes{
+				Label: label,
+				Color: color,
+				Size:  size,
+			},
+			Relationships: &WristbandCreateRelationships{
+				Widget: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeWidgets,
+						ID:   widgetID,
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[WristbandResponse](ctx, c, writeRequest{
+		Method:   http.MethodPost,
+		Path:     "/v1/wristbands",
+		Payload:  payload,
+		ParseErr: "failed to parse wristband response",
+	})
+}
+
 // WidgetsOption sets the query of GET /v1/widgets (widgets_getCollection).
 type WidgetsOption func(*widgetsQuery)
 

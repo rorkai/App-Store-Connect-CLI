@@ -568,73 +568,59 @@ func ciProductAppID(relationships *asc.CiProductRelationships) string {
 	return strings.TrimSpace(relationships.App.Data.ID)
 }
 
-func xcodeCloudVersionListFlags(fs *flag.FlagSet) (limit *int, next *string, paginate *bool, output *string, pretty *bool) {
-	limit = fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next = fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate = fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	outputFlags := shared.BindOutputFlags(fs)
-	output = outputFlags.Output
-	pretty = outputFlags.Pretty
-	return
-}
-
 // XcodeCloudMacOSVersionsCommand returns the xcode-cloud macos-versions command.
 func XcodeCloudMacOSVersionsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("macos-versions", flag.ExitOnError)
-
-	limit, next, paginate, output, pretty := xcodeCloudVersionListFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "macos-versions",
-		ShortUsage: "asc xcode-cloud macos-versions [flags]",
-		ShortHelp:  "Manage Xcode Cloud macOS versions.",
-		LongHelp: `Manage Xcode Cloud macOS versions.
+	cmd := xcodeCloudMacOSVersionsListCommand(
+		"macos-versions",
+		"asc xcode-cloud macos-versions [flags]",
+		"Manage Xcode Cloud macOS versions.",
+		`Manage Xcode Cloud macOS versions.
 
 Examples:
   asc xcode-cloud macos-versions
   asc xcode-cloud macos-versions list
   asc xcode-cloud macos-versions view --id "MACOS_VERSION_ID"
   asc xcode-cloud macos-versions xcode-versions --id "MACOS_VERSION_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Subcommands: []*ffcli.Command{
-			XcodeCloudMacOSVersionsListCommand(),
-			XcodeCloudMacOSVersionsGetCommand(),
-			XcodeCloudMacOSVersionsXcodeVersionsCommand(),
-		},
-		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "xcode-cloud macos-versions", 200); err != nil {
-				return err
-			}
-			return xcodeCloudMacOSVersionsList(ctx, *limit, *next, *paginate, *output, *pretty)
-		},
+	)
+	cmd.Subcommands = []*ffcli.Command{
+		XcodeCloudMacOSVersionsListCommand(),
+		XcodeCloudMacOSVersionsGetCommand(),
+		XcodeCloudMacOSVersionsXcodeVersionsCommand(),
 	}
+	return cmd
 }
 
 func XcodeCloudMacOSVersionsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
-
-	limit, next, paginate, output, pretty := xcodeCloudVersionListFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc xcode-cloud macos-versions list [flags]",
-		ShortHelp:  "List Xcode Cloud macOS versions.",
-		LongHelp: `List Xcode Cloud macOS versions.
+	return xcodeCloudMacOSVersionsListCommand(
+		"list",
+		"asc xcode-cloud macos-versions list [flags]",
+		"List Xcode Cloud macOS versions.",
+		`List Xcode Cloud macOS versions.
 
 Examples:
   asc xcode-cloud macos-versions list
   asc xcode-cloud macos-versions list --limit 50
   asc xcode-cloud macos-versions list --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "xcode-cloud macos-versions list", 200); err != nil {
-				return err
-			}
-			return xcodeCloudMacOSVersionsList(ctx, *limit, *next, *paginate, *output, *pretty)
+	)
+}
+
+func xcodeCloudMacOSVersionsListCommand(name, shortUsage, shortHelp, longHelp string) *ffcli.Command {
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		Name:                 name,
+		ShortUsage:           shortUsage,
+		ShortHelp:            shortHelp,
+		LongHelp:             longHelp,
+		TopLevel:             true,
+		PaginateIgnoresLimit: true,
+		ErrorPrefix:          "xcode-cloud macos-versions",
+		FetchErrorPrefix:     "xcode-cloud macos-versions",
+		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
+			return contextWithXcodeCloudTimeout(ctx, 0)
 		},
-	}
+		FetchPage: func(ctx context.Context, client *asc.Client, _ string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetCiMacOsVersions(ctx, asc.Limit[asc.CiMacOsVersionsOption](limit), asc.NextURL[asc.CiMacOsVersionsOption](next))
+		},
+	})
 }
 
 func XcodeCloudMacOSVersionsGetCommand() *ffcli.Command {
@@ -689,85 +675,59 @@ Examples:
 	})
 }
 
-func xcodeCloudMacOSVersionsList(ctx context.Context, limit int, next string, paginate bool, output string, pretty bool) error {
-	return runXcodeCloudPaginatedList(
-		ctx,
-		limit,
-		next,
-		paginate,
-		output,
-		pretty,
-		"xcode-cloud macos-versions",
-		func(ctx context.Context, client *asc.Client, limit int, next string) (asc.PaginatedResponse, error) {
-			return client.GetCiMacOsVersions(
-				ctx,
-				asc.Limit[asc.CiMacOsVersionsOption](limit),
-				asc.NextURL[asc.CiMacOsVersionsOption](next),
-			)
-		},
-		func(ctx context.Context, client *asc.Client, next string) (asc.PaginatedResponse, error) {
-			return client.GetCiMacOsVersions(ctx, asc.NextURL[asc.CiMacOsVersionsOption](next))
-		},
-	)
-}
-
 // XcodeCloudXcodeVersionsCommand returns the xcode-cloud xcode-versions command.
 func XcodeCloudXcodeVersionsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("xcode-versions", flag.ExitOnError)
-
-	limit, next, paginate, output, pretty := xcodeCloudVersionListFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "xcode-versions",
-		ShortUsage: "asc xcode-cloud xcode-versions [flags]",
-		ShortHelp:  "Manage Xcode Cloud Xcode versions.",
-		LongHelp: `Manage Xcode Cloud Xcode versions.
+	cmd := xcodeCloudXcodeVersionsListCommand(
+		"xcode-versions",
+		"asc xcode-cloud xcode-versions [flags]",
+		"Manage Xcode Cloud Xcode versions.",
+		`Manage Xcode Cloud Xcode versions.
 
 Examples:
   asc xcode-cloud xcode-versions
   asc xcode-cloud xcode-versions list
   asc xcode-cloud xcode-versions view --id "XCODE_VERSION_ID"
   asc xcode-cloud xcode-versions macos-versions --id "XCODE_VERSION_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Subcommands: []*ffcli.Command{
-			XcodeCloudXcodeVersionsListCommand(),
-			XcodeCloudXcodeVersionsGetCommand(),
-			XcodeCloudXcodeVersionsMacOSVersionsCommand(),
-		},
-		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "xcode-cloud xcode-versions", 200); err != nil {
-				return err
-			}
-			return xcodeCloudXcodeVersionsList(ctx, *limit, *next, *paginate, *output, *pretty)
-		},
+	)
+	cmd.Subcommands = []*ffcli.Command{
+		XcodeCloudXcodeVersionsListCommand(),
+		XcodeCloudXcodeVersionsGetCommand(),
+		XcodeCloudXcodeVersionsMacOSVersionsCommand(),
 	}
+	return cmd
 }
 
 func XcodeCloudXcodeVersionsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
-
-	limit, next, paginate, output, pretty := xcodeCloudVersionListFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc xcode-cloud xcode-versions list [flags]",
-		ShortHelp:  "List Xcode Cloud Xcode versions.",
-		LongHelp: `List Xcode Cloud Xcode versions.
+	return xcodeCloudXcodeVersionsListCommand(
+		"list",
+		"asc xcode-cloud xcode-versions list [flags]",
+		"List Xcode Cloud Xcode versions.",
+		`List Xcode Cloud Xcode versions.
 
 Examples:
   asc xcode-cloud xcode-versions list
   asc xcode-cloud xcode-versions list --limit 50
   asc xcode-cloud xcode-versions list --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "xcode-cloud xcode-versions list", 200); err != nil {
-				return err
-			}
-			return xcodeCloudXcodeVersionsList(ctx, *limit, *next, *paginate, *output, *pretty)
+	)
+}
+
+func xcodeCloudXcodeVersionsListCommand(name, shortUsage, shortHelp, longHelp string) *ffcli.Command {
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		Name:                 name,
+		ShortUsage:           shortUsage,
+		ShortHelp:            shortHelp,
+		LongHelp:             longHelp,
+		TopLevel:             true,
+		PaginateIgnoresLimit: true,
+		ErrorPrefix:          "xcode-cloud xcode-versions",
+		FetchErrorPrefix:     "xcode-cloud xcode-versions",
+		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
+			return contextWithXcodeCloudTimeout(ctx, 0)
 		},
-	}
+		FetchPage: func(ctx context.Context, client *asc.Client, _ string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetCiXcodeVersions(ctx, asc.Limit[asc.CiXcodeVersionsOption](limit), asc.NextURL[asc.CiXcodeVersionsOption](next))
+		},
+	})
 }
 
 func XcodeCloudXcodeVersionsGetCommand() *ffcli.Command {
@@ -820,26 +780,4 @@ Examples:
 			return client.GetCiXcodeVersionMacOsVersions(ctx, xcodeVersionID, opts...)
 		},
 	})
-}
-
-func xcodeCloudXcodeVersionsList(ctx context.Context, limit int, next string, paginate bool, output string, pretty bool) error {
-	return runXcodeCloudPaginatedList(
-		ctx,
-		limit,
-		next,
-		paginate,
-		output,
-		pretty,
-		"xcode-cloud xcode-versions",
-		func(ctx context.Context, client *asc.Client, limit int, next string) (asc.PaginatedResponse, error) {
-			return client.GetCiXcodeVersions(
-				ctx,
-				asc.Limit[asc.CiXcodeVersionsOption](limit),
-				asc.NextURL[asc.CiXcodeVersionsOption](next),
-			)
-		},
-		func(ctx context.Context, client *asc.Client, next string) (asc.PaginatedResponse, error) {
-			return client.GetCiXcodeVersions(ctx, asc.NextURL[asc.CiXcodeVersionsOption](next))
-		},
-	)
 }

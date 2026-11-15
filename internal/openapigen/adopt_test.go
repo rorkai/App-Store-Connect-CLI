@@ -785,6 +785,42 @@ func TestAdoptBindsStringArgumentsCheckedWithTheIDs(t *testing.T) {
 	}
 }
 
+func TestAdoptBindsTheDecodeErrorOfAWrite(t *testing.T) {
+	src := strings.Replace(handWrittenWristbands, "Payload: payload})", `Payload: payload, ParseErr: "failed to parse wristband response"})`, 1)
+	dir := writeHandWritten(t, map[string]string{"wristbands.go": src})
+	if err := runAdopt(dir, false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "wristbands.go")); !os.IsNotExist(err) {
+		t.Errorf("wristbands.go should be deleted once the create is adopted, stat err = %v", err)
+	}
+	got := readFile(t, filepath.Join(dir, "bindings", "Widgets.json"))
+	want := `{"operation":"wristbands_createInstance","name":"CreateWristband","params":["widgetID"],"check":"require","messages":["widget ID is required","label is required"],"parseErr":"failed to parse wristband response","links":["widget"],`
+	if !strings.Contains(got, want) {
+		t.Errorf("bindings lack %s:\n%s", want, got)
+	}
+}
+
+func TestAdoptDropsAResponseThatIsTheDefault(t *testing.T) {
+	existing := `{"tag": "Widgets", "file": "widgets_gen.go", "operations": [
+    {"operation":"widgets_gadgets_getToManyRelated","name":"GetWidgetGadgets","params":["widgetID"],"options":"GadgetsOption","query":"buildGadgetsQuery","response":"GadgetListResponse"},
+    {"operation":"widgets_getInstance","name":"GetWidget","params":["widgetID"],"response":"WidgetResponse"}
+  ]}`
+	dir := writeHandWritten(t, map[string]string{"bindings/Widgets.json": existing})
+	if err := runAdopt(dir, false); err != nil {
+		t.Fatal(err)
+	}
+	got := readFile(t, filepath.Join(dir, "bindings", "Widgets.json"))
+	for _, want := range []string{
+		`{"operation":"widgets_gadgets_getToManyRelated","name":"GetWidgetGadgets","params":["widgetID"],"options":"GadgetsOption","query":"buildGadgetsQuery","response":"GadgetListResponse"}`,
+		`{"operation":"widgets_getInstance","name":"GetWidget","params":["widgetID"]}`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("bindings lack %s:\n%s", want, got)
+		}
+	}
+}
+
 const handWrittenYoyoAttributes = `
 // YoyoAttributes describes a yoyo.
 type YoyoAttributes struct {
@@ -958,7 +994,8 @@ func TestAdoptRecordsNoGoTypeThatCarriesOtherAttributes(t *testing.T) {
 		t.Fatal("the golden file no longer declares ZebraAttributes.Stripes")
 	}
 	dir := writeHandWritten(t, map[string]string{"zebras.go": src})
-	if err := run(filepath.Join("testdata", "spec.json"), filepath.Join(dir, "bindings"), dir, false, "Zebras", false, io.Discard); err != nil {
+	var report strings.Builder
+	if err := run(filepath.Join("testdata", "spec.json"), filepath.Join(dir, "bindings"), dir, false, "Zebras", false, &report); err != nil {
 		t.Fatal(err)
 	}
 	bindings, err := LoadBindings(filepath.Join(dir, "bindings"))
@@ -969,8 +1006,16 @@ func TestAdoptRecordsNoGoTypeThatCarriesOtherAttributes(t *testing.T) {
 	for _, g := range bindings.Families[0].GoTypes {
 		schemas = append(schemas, g.Schema)
 	}
-	if want := "ZebraV2CreateAttributes,ZebraV2UpdateAttributes,ZebraV2UpdateData,ZebraV2UpdateRequest"; strings.Join(schemas, ",") != want {
-		t.Errorf("Go types recorded for %v, want %s: ZebraAttributes has a field ZebraV2 does not define", schemas, want)
+	if len(schemas) > 0 {
+		t.Errorf("Go types recorded for %v, want none: ZebraAttributes has a field ZebraV2 does not define", schemas)
+	}
+	for _, want := range []string{
+		"Zebras\tzebrasV2_createInstance\tCreateZebraV2\tkept: result ZebraResponse holds ZebraAttributes, which cannot stand for ZebraV2Attributes\n",
+		"Zebras\tzebrasV2_updateInstance\tUpdateZebraV2\tkept: result ZebraResponse holds ZebraAttributes, which cannot stand for ZebraV2Attributes\n",
+	} {
+		if !strings.Contains(report.String(), want) {
+			t.Errorf("report lacks %q:\n%s", want, report.String())
+		}
 	}
 }
 

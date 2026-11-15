@@ -11,16 +11,6 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-func xcodeCloudScmListFlags(fs *flag.FlagSet) (limit *int, next *string, paginate *bool, output *string, pretty *bool) {
-	limit = fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next = fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate = fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	outputFlags := shared.BindOutputFlags(fs)
-	output = outputFlags.Output
-	pretty = outputFlags.Pretty
-	return
-}
-
 // XcodeCloudScmCommand returns the SCM command group for Xcode Cloud.
 func XcodeCloudScmCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("scm", flag.ExitOnError)
@@ -51,59 +41,55 @@ Examples:
 
 // XcodeCloudScmProvidersCommand returns the SCM providers command group.
 func XcodeCloudScmProvidersCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("providers", flag.ExitOnError)
-
-	limit, next, paginate, output, pretty := xcodeCloudScmListFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "providers",
-		ShortUsage: "asc xcode-cloud scm providers [flags]",
-		ShortHelp:  "Manage SCM providers.",
-		LongHelp: `Manage SCM providers.
+	cmd := xcodeCloudScmProvidersListCommand(
+		"providers",
+		"asc xcode-cloud scm providers [flags]",
+		"Manage SCM providers.",
+		`Manage SCM providers.
 
 Examples:
   asc xcode-cloud scm providers list
   asc xcode-cloud scm providers view --provider-id "PROVIDER_ID"
   asc xcode-cloud scm providers repositories --provider-id "PROVIDER_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Subcommands: []*ffcli.Command{
-			XcodeCloudScmProvidersListCommand(),
-			XcodeCloudScmProvidersGetCommand(),
-			XcodeCloudScmProvidersRepositoriesCommand(),
-		},
-		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "xcode-cloud scm providers", 200); err != nil {
-				return err
-			}
-			return xcodeCloudScmProvidersList(ctx, *limit, *next, *paginate, *output, *pretty)
-		},
+	)
+	cmd.Subcommands = []*ffcli.Command{
+		XcodeCloudScmProvidersListCommand(),
+		XcodeCloudScmProvidersGetCommand(),
+		XcodeCloudScmProvidersRepositoriesCommand(),
 	}
+	return cmd
 }
 
 func XcodeCloudScmProvidersListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
-
-	limit, next, paginate, output, pretty := xcodeCloudScmListFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc xcode-cloud scm providers list [flags]",
-		ShortHelp:  "List SCM providers.",
-		LongHelp: `List SCM providers.
+	return xcodeCloudScmProvidersListCommand(
+		"list",
+		"asc xcode-cloud scm providers list [flags]",
+		"List SCM providers.",
+		`List SCM providers.
 
 Examples:
   asc xcode-cloud scm providers list
   asc xcode-cloud scm providers list --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "xcode-cloud scm providers list", 200); err != nil {
-				return err
-			}
-			return xcodeCloudScmProvidersList(ctx, *limit, *next, *paginate, *output, *pretty)
+	)
+}
+
+func xcodeCloudScmProvidersListCommand(name, shortUsage, shortHelp, longHelp string) *ffcli.Command {
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		Name:                 name,
+		ShortUsage:           shortUsage,
+		ShortHelp:            shortHelp,
+		LongHelp:             longHelp,
+		TopLevel:             true,
+		PaginateIgnoresLimit: true,
+		ErrorPrefix:          "xcode-cloud scm providers",
+		FetchErrorPrefix:     "xcode-cloud scm providers",
+		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
+			return contextWithXcodeCloudTimeout(ctx, 0)
 		},
-	}
+		FetchPage: func(ctx context.Context, client *asc.Client, _ string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetScmProviders(ctx, asc.Limit[asc.ScmProvidersOption](limit), asc.NextURL[asc.ScmProvidersOption](next))
+		},
+	})
 }
 
 func XcodeCloudScmProvidersGetCommand() *ffcli.Command {
@@ -162,61 +148,58 @@ Examples:
 
 // XcodeCloudScmRepositoriesCommand returns the SCM repositories command group.
 func XcodeCloudScmRepositoriesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("repositories", flag.ExitOnError)
-
-	limit, next, paginate, output, pretty := xcodeCloudScmListFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "repositories",
-		ShortUsage: "asc xcode-cloud scm repositories [flags]",
-		ShortHelp:  "Manage SCM repositories.",
-		LongHelp: `Manage SCM repositories.
+	cmd := xcodeCloudScmRepositoriesListCommand(
+		"repositories",
+		"asc xcode-cloud scm repositories [flags]",
+		"Manage SCM repositories.",
+		`Manage SCM repositories.
 
 Examples:
   asc xcode-cloud scm repositories list
   asc xcode-cloud scm repositories view --id "REPO_ID"
   asc xcode-cloud scm repositories git-references --repo-id "REPO_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.VisibleUsageFunc,
-		Subcommands: []*ffcli.Command{
-			XcodeCloudScmRepositoriesListCommand(),
-			XcodeCloudScmRepositoriesGetCommand(),
-			XcodeCloudScmRepositoriesGitReferencesCommand(),
-			XcodeCloudScmRepositoriesPullRequestsCommand(),
-			XcodeCloudScmRepositoriesRelationshipsCommand(),
-		},
-		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "xcode-cloud scm repositories", 200); err != nil {
-				return err
-			}
-			return xcodeCloudScmRepositoriesList(ctx, *limit, *next, *paginate, *output, *pretty)
-		},
+	)
+	cmd.UsageFunc = shared.VisibleUsageFunc
+	cmd.Subcommands = []*ffcli.Command{
+		XcodeCloudScmRepositoriesListCommand(),
+		XcodeCloudScmRepositoriesGetCommand(),
+		XcodeCloudScmRepositoriesGitReferencesCommand(),
+		XcodeCloudScmRepositoriesPullRequestsCommand(),
+		XcodeCloudScmRepositoriesRelationshipsCommand(),
 	}
+	return cmd
 }
 
 func XcodeCloudScmRepositoriesListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
-
-	limit, next, paginate, output, pretty := xcodeCloudScmListFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc xcode-cloud scm repositories list [flags]",
-		ShortHelp:  "List SCM repositories.",
-		LongHelp: `List SCM repositories.
+	return xcodeCloudScmRepositoriesListCommand(
+		"list",
+		"asc xcode-cloud scm repositories list [flags]",
+		"List SCM repositories.",
+		`List SCM repositories.
 
 Examples:
   asc xcode-cloud scm repositories list
   asc xcode-cloud scm repositories list --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "xcode-cloud scm repositories list", 200); err != nil {
-				return err
-			}
-			return xcodeCloudScmRepositoriesList(ctx, *limit, *next, *paginate, *output, *pretty)
+	)
+}
+
+func xcodeCloudScmRepositoriesListCommand(name, shortUsage, shortHelp, longHelp string) *ffcli.Command {
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		Name:                 name,
+		ShortUsage:           shortUsage,
+		ShortHelp:            shortHelp,
+		LongHelp:             longHelp,
+		TopLevel:             true,
+		PaginateIgnoresLimit: true,
+		ErrorPrefix:          "xcode-cloud scm repositories",
+		FetchErrorPrefix:     "xcode-cloud scm repositories",
+		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
+			return contextWithXcodeCloudTimeout(ctx, 0)
 		},
-	}
+		FetchPage: func(ctx context.Context, client *asc.Client, _ string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetScmRepositories(ctx, asc.Limit[asc.ScmRepositoriesOption](limit), asc.NextURL[asc.ScmRepositoriesOption](next))
+		},
+	})
 }
 
 func XcodeCloudScmRepositoriesGetCommand() *ffcli.Command {
@@ -485,48 +468,4 @@ Examples:
 			return client.GetScmPullRequest(ctx, id)
 		},
 	})
-}
-
-func xcodeCloudScmProvidersList(ctx context.Context, limit int, next string, paginate bool, output string, pretty bool) error {
-	return runXcodeCloudPaginatedList(
-		ctx,
-		limit,
-		next,
-		paginate,
-		output,
-		pretty,
-		"xcode-cloud scm providers",
-		func(ctx context.Context, client *asc.Client, limit int, next string) (asc.PaginatedResponse, error) {
-			return client.GetScmProviders(
-				ctx,
-				asc.Limit[asc.ScmProvidersOption](limit),
-				asc.NextURL[asc.ScmProvidersOption](next),
-			)
-		},
-		func(ctx context.Context, client *asc.Client, next string) (asc.PaginatedResponse, error) {
-			return client.GetScmProviders(ctx, asc.NextURL[asc.ScmProvidersOption](next))
-		},
-	)
-}
-
-func xcodeCloudScmRepositoriesList(ctx context.Context, limit int, next string, paginate bool, output string, pretty bool) error {
-	return runXcodeCloudPaginatedList(
-		ctx,
-		limit,
-		next,
-		paginate,
-		output,
-		pretty,
-		"xcode-cloud scm repositories",
-		func(ctx context.Context, client *asc.Client, limit int, next string) (asc.PaginatedResponse, error) {
-			return client.GetScmRepositories(
-				ctx,
-				asc.Limit[asc.ScmRepositoriesOption](limit),
-				asc.NextURL[asc.ScmRepositoriesOption](next),
-			)
-		},
-		func(ctx context.Context, client *asc.Client, next string) (asc.PaginatedResponse, error) {
-			return client.GetScmRepositories(ctx, asc.NextURL[asc.ScmRepositoriesOption](next))
-		},
-	)
 }

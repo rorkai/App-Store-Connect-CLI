@@ -16,6 +16,7 @@
   ],
   "operations": [
     {"operation":"promotedPurchases_deleteInstance","name":"DeletePromotedPurchase","params":["promotedPurchaseID"]},
-    {"operation":"promotedPurchases_getInstance","name":"GetPromotedPurchase","params":["promotedPurchaseID"],"check":"trim","checkFirst":true,"options":"PromotedPurchaseGetOption","query":"buildPromotedPurchaseGetQuery","parseErr":"failed to parse promoted purchase response","single":true}
+    {"operation":"promotedPurchases_getInstance","name":"GetPromotedPurchase","params":["promotedPurchaseID"],"check":"trim","checkFirst":true,"options":"PromotedPurchaseGetOption","query":"buildPromotedPurchaseGetQuery","parseErr":"failed to parse promoted purchase response","single":true},
+    {"operation":"promotedPurchases_updateInstance","name":"UpdatePromotedPurchase","params":["promotedPurchaseID"],"check":"trim","parseErr":"failed to parse promoted purchase response"}
   ]
 }

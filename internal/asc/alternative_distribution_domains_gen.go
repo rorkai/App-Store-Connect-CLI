@@ -40,6 +40,33 @@ type AlternativeDistributionDomainResponse = SingleResponse[AlternativeDistribut
 // AlternativeDistributionDomainsResponse is the AlternativeDistributionDomainsResponse schema.
 type AlternativeDistributionDomainsResponse = Response[AlternativeDistributionDomainAttributes]
 
+// CreateAlternativeDistributionDomain sends POST /v1/alternativeDistributionDomains (alternativeDistributionDomains_createInstance).
+func (c *Client) CreateAlternativeDistributionDomain(ctx context.Context, domain, referenceName string) (*AlternativeDistributionDomainResponse, error) {
+	domain = strings.TrimSpace(domain)
+	referenceName = strings.TrimSpace(referenceName)
+	if domain == "" {
+		return nil, fmt.Errorf("domain is required")
+	}
+	if referenceName == "" {
+		return nil, fmt.Errorf("referenceName is required")
+	}
+	payload := AlternativeDistributionDomainCreateRequest{
+		Data: AlternativeDistributionDomainCreateData{
+			Type: ResourceTypeAlternativeDistributionDomains,
+			Attributes: AlternativeDistributionDomainCreateAttributes{
+				Domain:        domain,
+				ReferenceName: referenceName,
+			},
+		},
+	}
+	return sendJSON[AlternativeDistributionDomainResponse](ctx, c, writeRequest{
+		Method:   http.MethodPost,
+		Path:     "/v1/alternativeDistributionDomains",
+		Payload:  payload,
+		ParseErr: "failed to parse alternative distribution domain response",
+	})
+}
+
 // DeleteAlternativeDistributionDomain sends DELETE /v1/alternativeDistributionDomains/{id} (alternativeDistributionDomains_deleteInstance).
 func (c *Client) DeleteAlternativeDistributionDomain(ctx context.Context, domainID string) error {
 	domainID = strings.TrimSpace(domainID)
