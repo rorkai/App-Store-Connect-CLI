@@ -126,8 +126,8 @@ func NewCatalog(version string) *Catalog {
 func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 	catalog := &Catalog{}
 	catalog.factories = []factory{
-		commandFactory("auth", "Manage authentication for the App Store Connect API.", auth.AuthCommand),
-		commandFactory("doctor", "Diagnose authentication configuration issues.", auth.AuthDoctorCommand),
+		commandFactory("auth", "Manage authentication for the App Store Connect API.", func() *ffcli.Command { return auth.NewAuthCommand(d) }),
+		commandFactory("doctor", "Diagnose authentication configuration issues.", func() *ffcli.Command { return auth.NewAuthDoctorCommand(d) }),
 		commandFactory("web", "Apple web-session workflows, including finance report downloads.", func() *ffcli.Command {
 			return web.NewWebCommand(d)
 		}),
