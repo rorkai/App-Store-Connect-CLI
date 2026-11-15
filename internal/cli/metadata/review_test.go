@@ -28,7 +28,7 @@ func TestMetadataApproveWritesToRequestedReviewDir(t *testing.T) {
 	}
 	t.Chdir(otherCWD)
 
-	approval, err := ExecuteMetadataApprove(MetadataApproveOptions{
+	approval, err := ExecuteMetadataApprove(metadataTestDeps(), MetadataApproveOptions{
 		ReviewDir: reviewDir,
 		All:       true,
 	})
@@ -55,7 +55,7 @@ func TestReadMetadataPlanArtifactRejectsMismatchedHash(t *testing.T) {
 		t.Fatalf("write plan: %v", err)
 	}
 
-	_, err := readMetadataPlanArtifact(planPath)
+	_, err := readMetadataPlanArtifact(metadataTestDeps(), planPath)
 	if err == nil {
 		t.Fatal("expected mismatched hash error")
 	}
@@ -81,7 +81,7 @@ func TestMetadataApproveMergesExistingApprovalForSamePlan(t *testing.T) {
 		t.Fatalf("write plan: %v", err)
 	}
 
-	first, err := ExecuteMetadataApprove(MetadataApproveOptions{
+	first, err := ExecuteMetadataApprove(metadataTestDeps(), MetadataApproveOptions{
 		ReviewDir: reviewDir,
 		Key:       "app-info:en-US:subtitle",
 	})
@@ -92,7 +92,7 @@ func TestMetadataApproveMergesExistingApprovalForSamePlan(t *testing.T) {
 		t.Fatalf("unexpected first approval: %+v", first.ApprovedKeys)
 	}
 
-	second, err := ExecuteMetadataApprove(MetadataApproveOptions{
+	second, err := ExecuteMetadataApprove(metadataTestDeps(), MetadataApproveOptions{
 		ReviewDir: reviewDir,
 		Key:       "app-info:en-US:name",
 	})
@@ -103,7 +103,7 @@ func TestMetadataApproveMergesExistingApprovalForSamePlan(t *testing.T) {
 	if strings.Join(second.ApprovedKeys, ",") != strings.Join(want, ",") {
 		t.Fatalf("expected merged approvals %v, got %v", want, second.ApprovedKeys)
 	}
-	status, err := ExecuteMetadataReviewStatus(reviewDir)
+	status, err := ExecuteMetadataReviewStatus(metadataTestDeps(), reviewDir)
 	if err != nil {
 		t.Fatalf("status: %v", err)
 	}
@@ -121,7 +121,7 @@ func TestVerifyApprovedMetadataPlanReportsDriftBeforeMissingApproval(t *testing.
 
 	currentPlan := plan.Plan
 	currentPlan.Updates[0].To = "Drifted after planning"
-	err := VerifyApprovedMetadataPlan(metadataReviewTestPushOptions(plan.Plan), currentPlan, reviewDir)
+	err := VerifyApprovedMetadataPlan(metadataTestDeps(), metadataReviewTestPushOptions(plan.Plan), currentPlan, reviewDir)
 	if err == nil {
 		t.Fatal("expected drift error")
 	}
@@ -151,10 +151,10 @@ func TestVerifyApprovedMetadataPlanAllowsEmptyPlanWithStaleApproval(t *testing.T
 		t.Fatalf("write stale approval: %v", err)
 	}
 
-	if err := VerifyApprovedMetadataPlan(metadataReviewTestPushOptions(plan.Plan), plan.Plan, reviewDir); err != nil {
+	if err := VerifyApprovedMetadataPlan(metadataTestDeps(), metadataReviewTestPushOptions(plan.Plan), plan.Plan, reviewDir); err != nil {
 		t.Fatalf("expected empty plan with stale approval to be ready: %v", err)
 	}
-	status, err := ExecuteMetadataReviewStatus(reviewDir)
+	status, err := ExecuteMetadataReviewStatus(metadataTestDeps(), reviewDir)
 	if err != nil {
 		t.Fatalf("status: %v", err)
 	}
@@ -183,7 +183,7 @@ func metadataReviewTestPlan(t *testing.T, reviewDir string) MetadataPlanArtifact
 			To:     "Sleep scores",
 		}},
 	}
-	options := metadataPlanOptionsFromPush(PushExecutionOptions{
+	options := metadataPlanOptionsFromPush(metadataTestDeps(), PushExecutionOptions{
 		AppID:        result.AppID,
 		Version:      result.Version,
 		Dir:          result.Dir,
@@ -210,7 +210,7 @@ func metadataReviewTestPlan(t *testing.T, reviewDir string) MetadataPlanArtifact
 
 func updateMetadataReviewTestPlanHash(t *testing.T, plan *MetadataPlanArtifact) {
 	t.Helper()
-	options := metadataPlanOptionsFromPush(metadataReviewTestPushOptions(plan.Plan), plan.Plan)
+	options := metadataPlanOptionsFromPush(metadataTestDeps(), metadataReviewTestPushOptions(plan.Plan), plan.Plan)
 	planHash, err := hashMetadataPlan(options, plan.Plan)
 	if err != nil {
 		t.Fatalf("hash plan: %v", err)
@@ -243,7 +243,7 @@ func TestVerifyApprovedMetadataPlanRejectsChangedIfExistsMode(t *testing.T) {
 
 	opts := metadataReviewTestPushOptions(plan.Plan)
 	opts.IfExists = string(shared.IfExistsUpdate)
-	err := VerifyApprovedMetadataPlan(opts, plan.Plan, reviewDir)
+	err := VerifyApprovedMetadataPlan(metadataTestDeps(), opts, plan.Plan, reviewDir)
 	if err == nil {
 		t.Fatal("expected applying an approved plan with a different --if-exists mode to be rejected")
 	}
@@ -254,8 +254,8 @@ func TestVerifyApprovedMetadataPlanRejectsChangedIfExistsMode(t *testing.T) {
 
 func TestMetadataPlanOptionsIfExistsFailMatchesUnsetHash(t *testing.T) {
 	result := PushPlanResult{AppID: "app-1", Version: "1.2.3", Dir: "./metadata", DryRun: true}
-	unset := metadataPlanOptionsFromPush(PushExecutionOptions{AppID: "app-1", Version: "1.2.3", Dir: "./metadata"}, result)
-	explicitFail := metadataPlanOptionsFromPush(PushExecutionOptions{AppID: "app-1", Version: "1.2.3", Dir: "./metadata", IfExists: string(shared.IfExistsFail)}, result)
+	unset := metadataPlanOptionsFromPush(metadataTestDeps(), PushExecutionOptions{AppID: "app-1", Version: "1.2.3", Dir: "./metadata"}, result)
+	explicitFail := metadataPlanOptionsFromPush(metadataTestDeps(), PushExecutionOptions{AppID: "app-1", Version: "1.2.3", Dir: "./metadata", IfExists: string(shared.IfExistsFail)}, result)
 
 	unsetHash, err := hashMetadataPlan(unset, result)
 	if err != nil {
@@ -269,7 +269,7 @@ func TestMetadataPlanOptionsIfExistsFailMatchesUnsetHash(t *testing.T) {
 		t.Fatalf("explicit --if-exists fail must hash like the unset default: %s != %s", unsetHash, failHash)
 	}
 
-	skip := metadataPlanOptionsFromPush(PushExecutionOptions{AppID: "app-1", Version: "1.2.3", Dir: "./metadata", IfExists: string(shared.IfExistsSkip)}, result)
+	skip := metadataPlanOptionsFromPush(metadataTestDeps(), PushExecutionOptions{AppID: "app-1", Version: "1.2.3", Dir: "./metadata", IfExists: string(shared.IfExistsSkip)}, result)
 	skipHash, err := hashMetadataPlan(skip, result)
 	if err != nil {
 		t.Fatalf("hash skip: %v", err)

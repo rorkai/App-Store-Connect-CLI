@@ -42,15 +42,15 @@ type versionLocalizationTemplate struct {
 	WhatsNew        string `json:"whatsNew"`
 }
 
-// MetadataInitCommand returns the metadata init subcommand.
-func MetadataInitCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("metadata init", flag.ExitOnError)
+// newMetadataInitCommand returns the metadata init subcommand.
+func newMetadataInitCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("metadata init", flag.ExitOnError)
 
 	dir := fs.String("dir", "", "Metadata root directory (required)")
 	version := fs.String("version", "", "Optional app version string; when set, writes a version localization template")
 	locale := fs.String("locale", "en-US", "Metadata locale to scaffold")
 	force := fs.Bool("force", false, "Overwrite existing metadata template files in --dir")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "init",
@@ -68,16 +68,16 @@ Examples:
   asc metadata init --dir "./metadata" --version "1.2.3" --locale "en-US"
   asc metadata init --dir "./metadata" --version "1.2.3" --locale "en-US" --force`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			dirValue := strings.TrimSpace(*dir)
 			if dirValue == "" {
-				return shared.UsageError("--dir is required")
+				return d.UsageError("--dir is required")
 			}
 
 			localeValue, err := validateLocale(*locale)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
 			versionValue := strings.TrimSpace(*version)
@@ -85,7 +85,7 @@ Examples:
 				var versionErr error
 				versionValue, versionErr = validatePathSegment("version", versionValue)
 				if versionErr != nil {
-					return shared.UsageError(versionErr.Error())
+					return d.UsageError(versionErr.Error())
 				}
 			}
 
@@ -94,7 +94,7 @@ Examples:
 				return fmt.Errorf("metadata init: %w", err)
 			}
 			if !*force {
-				if err := ensureNoExistingInitTargets(plans); err != nil {
+				if err := ensureNoExistingInitTargets(d, plans); err != nil {
 					return err
 				}
 			}
@@ -121,12 +121,12 @@ Examples:
 				},
 			}
 
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return printInitResultTable(result) },
-				func() error { return printInitResultMarkdown(result) },
+				func() error { return printInitResultTable(d, result) },
+				func() error { return printInitResultMarkdown(d, result) },
 			)
 		},
 	}
@@ -173,10 +173,10 @@ func BuildInitWritePlans(rootDir, locale, version string) ([]WritePlan, error) {
 	return plans, nil
 }
 
-func ensureNoExistingInitTargets(plans []WritePlan) error {
+func ensureNoExistingInitTargets(d *shared.Deps, plans []WritePlan) error {
 	for _, plan := range plans {
 		if _, err := os.Lstat(plan.Path); err == nil {
-			return shared.UsageErrorf("refusing to overwrite existing file %s (use --force)", plan.Path)
+			return d.UsageErrorf("refusing to overwrite existing file %s (use --force)", plan.Path)
 		} else if !errors.Is(err, os.ErrNotExist) {
 			return fmt.Errorf("metadata init: failed to inspect %s: %w", plan.Path, err)
 		}
@@ -184,13 +184,13 @@ func ensureNoExistingInitTargets(plans []WritePlan) error {
 	return nil
 }
 
-func printInitResultTable(result InitResult) error {
-	fmt.Printf("Dir: %s\n", result.Dir)
-	fmt.Printf("Locale: %s\n", result.Locale)
+func printInitResultTable(d *shared.Deps, result InitResult) error {
+	fmt.Fprintf(d.IO.Out, "Dir: %s\n", result.Dir)
+	fmt.Fprintf(d.IO.Out, "Locale: %s\n", result.Locale)
 	if result.Version != "" {
-		fmt.Printf("Version: %s\n", result.Version)
+		fmt.Fprintf(d.IO.Out, "Version: %s\n", result.Version)
 	}
-	fmt.Printf("File Count: %d\n\n", result.FileCount)
+	fmt.Fprintf(d.IO.Out, "File Count: %d\n\n", result.FileCount)
 
 	rows := make([][]string, 0, len(result.Files))
 	for _, file := range result.Files {
@@ -199,26 +199,26 @@ func printInitResultTable(result InitResult) error {
 	if len(rows) == 0 {
 		rows = append(rows, []string{"(none)"})
 	}
-	asc.RenderTable([]string{"file"}, rows)
+	asc.RenderTableTo(d.IO.Out, []string{"file"}, rows)
 
 	if len(result.NextSteps) > 0 {
-		fmt.Println()
+		fmt.Fprintln(d.IO.Out)
 		stepRows := make([][]string, 0, len(result.NextSteps))
 		for i, step := range result.NextSteps {
 			stepRows = append(stepRows, []string{fmt.Sprintf("%d", i+1), step})
 		}
-		asc.RenderTable([]string{"step", "next"}, stepRows)
+		asc.RenderTableTo(d.IO.Out, []string{"step", "next"}, stepRows)
 	}
 	return nil
 }
 
-func printInitResultMarkdown(result InitResult) error {
-	fmt.Printf("**Dir:** %s\n\n", result.Dir)
-	fmt.Printf("**Locale:** %s\n\n", result.Locale)
+func printInitResultMarkdown(d *shared.Deps, result InitResult) error {
+	fmt.Fprintf(d.IO.Out, "**Dir:** %s\n\n", result.Dir)
+	fmt.Fprintf(d.IO.Out, "**Locale:** %s\n\n", result.Locale)
 	if result.Version != "" {
-		fmt.Printf("**Version:** %s\n\n", result.Version)
+		fmt.Fprintf(d.IO.Out, "**Version:** %s\n\n", result.Version)
 	}
-	fmt.Printf("**File Count:** %d\n\n", result.FileCount)
+	fmt.Fprintf(d.IO.Out, "**File Count:** %d\n\n", result.FileCount)
 
 	rows := make([][]string, 0, len(result.Files))
 	for _, file := range result.Files {
@@ -227,15 +227,15 @@ func printInitResultMarkdown(result InitResult) error {
 	if len(rows) == 0 {
 		rows = append(rows, []string{"(none)"})
 	}
-	asc.RenderMarkdown([]string{"file"}, rows)
+	asc.RenderMarkdownTo(d.IO.Out, []string{"file"}, rows)
 
 	if len(result.NextSteps) > 0 {
-		fmt.Println()
+		fmt.Fprintln(d.IO.Out)
 		stepRows := make([][]string, 0, len(result.NextSteps))
 		for i, step := range result.NextSteps {
 			stepRows = append(stepRows, []string{fmt.Sprintf("%d", i+1), step})
 		}
-		asc.RenderMarkdown([]string{"step", "next"}, stepRows)
+		asc.RenderMarkdownTo(d.IO.Out, []string{"step", "next"}, stepRows)
 	}
 	return nil
 }

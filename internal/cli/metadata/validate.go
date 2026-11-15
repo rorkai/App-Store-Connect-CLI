@@ -47,14 +47,14 @@ type ValidateResult struct {
 	Valid        bool            `json:"valid"`
 }
 
-// MetadataValidateCommand returns the metadata validate subcommand.
-func MetadataValidateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("metadata validate", flag.ExitOnError)
+// newMetadataValidateCommand returns the metadata validate subcommand.
+func newMetadataValidateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("metadata validate", flag.ExitOnError)
 
 	dir := fs.String("dir", "", "Metadata root directory (required)")
 	checkURLs := fs.Bool("check-urls", false, "Fetch support and privacy policy URLs to detect redirects and root pages")
 	subscriptionApp := fs.Bool("subscription-app", false, "Enable subscription-specific Terms of Use / EULA link checks")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "validate",
@@ -78,14 +78,14 @@ Examples:
   asc metadata validate --dir "./metadata" --subscription-app
   asc metadata validate --dir "./metadata" --output table`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			dirValue := strings.TrimSpace(*dir)
 			if dirValue == "" {
-				return metadataRequiredInputError("--dir", "--dir is required")
+				return metadataRequiredInputError(d, "--dir", "--dir is required")
 			}
 
-			result, err := validateDirWithOptions(ctx, dirValue, validateDirOptions{
+			result, err := validateDirWithOptions(ctx, d, dirValue, validateDirOptions{
 				checkURLs:       *checkURLs,
 				subscriptionApp: *subscriptionApp,
 			})
@@ -93,12 +93,12 @@ Examples:
 				return err
 			}
 
-			if err := shared.PrintOutputWithRenderers(
+			if err := d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return printValidateResultTable(result) },
-				func() error { return printValidateResultMarkdown(result) },
+				func() error { return printValidateResultTable(d, result) },
+				func() error { return printValidateResultMarkdown(d, result) },
 			); err != nil {
 				return err
 			}
@@ -117,7 +117,7 @@ type validateDirOptions struct {
 	urlChecker      metadataurl.Checker
 }
 
-func validateDirWithOptions(ctx context.Context, dir string, options validateDirOptions) (ValidateResult, error) {
+func validateDirWithOptions(ctx context.Context, d *shared.Deps, dir string, options validateDirOptions) (ValidateResult, error) {
 	result := ValidateResult{
 		Dir:    dir,
 		Issues: make([]ValidateIssue, 0),
@@ -138,24 +138,24 @@ func validateDirWithOptions(ctx context.Context, dir string, options validateDir
 			locale := strings.TrimSuffix(entry.Name(), ".json")
 			resolvedLocale, localeErr := validateLocale(locale)
 			if localeErr != nil {
-				return ValidateResult{}, shared.UsageErrorf("invalid app-info localization file %q: %v", entry.Name(), localeErr)
+				return ValidateResult{}, d.UsageErrorf("invalid app-info localization file %q: %v", entry.Name(), localeErr)
 			}
 			if err := recordCanonicalLocaleFile(seenAppInfoLocales, resolvedLocale, entry.Name()); err != nil {
-				return ValidateResult{}, shared.UsageError(err.Error())
+				return ValidateResult{}, d.UsageError(err.Error())
 			}
 			filePath := filepath.Join(appInfoDir, entry.Name())
 
 			data, readErr := readFileNoFollow(filePath)
 			if readErr != nil {
-				return ValidateResult{}, shared.UsageErrorf("invalid metadata schema in %s: %v", filePath, readErr)
+				return ValidateResult{}, d.UsageErrorf("invalid metadata schema in %s: %v", filePath, readErr)
 			}
 			fieldIntentIssues, hasClear, clearOnly, fieldIntentErr := metadataFieldIntentIssues(data, appInfoPlanFields, resolvedLocale != DefaultLocale)
 			if fieldIntentErr != nil {
-				return ValidateResult{}, shared.UsageErrorf("invalid metadata schema in %s: %v", filePath, fieldIntentErr)
+				return ValidateResult{}, d.UsageErrorf("invalid metadata schema in %s: %v", filePath, fieldIntentErr)
 			}
 			loc, readErr := DecodeAppInfoLocalization(data)
 			if readErr != nil {
-				return ValidateResult{}, shared.UsageErrorf("invalid metadata schema in %s: %v", filePath, readErr)
+				return ValidateResult{}, d.UsageErrorf("invalid metadata schema in %s: %v", filePath, readErr)
 			}
 			result.FilesScanned++
 			result.Issues = append(result.Issues, metadataIntentValidateIssues(appInfoDirName, filePath, resolvedLocale, "", fieldIntentIssues)...)
@@ -211,24 +211,24 @@ func validateDirWithOptions(ctx context.Context, dir string, options validateDir
 				locale := strings.TrimSuffix(localeEntry.Name(), ".json")
 				resolvedLocale, localeErr := validateLocale(locale)
 				if localeErr != nil {
-					return ValidateResult{}, shared.UsageErrorf("invalid version localization file %q: %v", localeEntry.Name(), localeErr)
+					return ValidateResult{}, d.UsageErrorf("invalid version localization file %q: %v", localeEntry.Name(), localeErr)
 				}
 				if err := recordCanonicalLocaleFile(seenVersionLocales, resolvedLocale, localeEntry.Name()); err != nil {
-					return ValidateResult{}, shared.UsageError(err.Error())
+					return ValidateResult{}, d.UsageError(err.Error())
 				}
 				filePath := filepath.Join(versionPath, localeEntry.Name())
 
 				data, readErr := readFileNoFollow(filePath)
 				if readErr != nil {
-					return ValidateResult{}, shared.UsageErrorf("invalid metadata schema in %s: %v", filePath, readErr)
+					return ValidateResult{}, d.UsageErrorf("invalid metadata schema in %s: %v", filePath, readErr)
 				}
 				fieldIntentIssues, _, clearOnly, fieldIntentErr := metadataFieldIntentIssues(data, versionPlanFields, resolvedLocale != DefaultLocale)
 				if fieldIntentErr != nil {
-					return ValidateResult{}, shared.UsageErrorf("invalid metadata schema in %s: %v", filePath, fieldIntentErr)
+					return ValidateResult{}, d.UsageErrorf("invalid metadata schema in %s: %v", filePath, fieldIntentErr)
 				}
 				loc, readErr := DecodeVersionLocalization(data)
 				if readErr != nil {
-					return ValidateResult{}, shared.UsageErrorf("invalid metadata schema in %s: %v", filePath, readErr)
+					return ValidateResult{}, d.UsageErrorf("invalid metadata schema in %s: %v", filePath, readErr)
 				}
 				result.FilesScanned++
 				result.Issues = append(result.Issues, metadataIntentValidateIssues(versionDirName, filePath, resolvedLocale, version, fieldIntentIssues)...)
@@ -547,10 +547,10 @@ func versionTermsIssues(filePath, version, locale string, loc VersionLocalizatio
 	}}
 }
 
-func printValidateResultTable(result ValidateResult) error {
-	fmt.Printf("Dir: %s\n", result.Dir)
-	fmt.Printf("Files Scanned: %d\n", result.FilesScanned)
-	fmt.Printf("Errors: %d  Warnings: %d\n\n", result.ErrorCount, result.WarningCount)
+func printValidateResultTable(d *shared.Deps, result ValidateResult) error {
+	fmt.Fprintf(d.IO.Out, "Dir: %s\n", result.Dir)
+	fmt.Fprintf(d.IO.Out, "Files Scanned: %d\n", result.FilesScanned)
+	fmt.Fprintf(d.IO.Out, "Errors: %d  Warnings: %d\n\n", result.ErrorCount, result.WarningCount)
 
 	rows := make([][]string, 0, len(result.Issues))
 	for _, issue := range result.Issues {
@@ -577,18 +577,19 @@ func printValidateResultTable(result ValidateResult) error {
 	if len(rows) == 0 {
 		rows = append(rows, []string{"metadata", result.Dir, "", "", "", "info", "no issues", "-", "-"})
 	}
-	asc.RenderTable(
+	asc.RenderTableTo(
+		d.IO.Out,
 		[]string{"scope", "file", "locale", "version", "field", "severity", "message", "length", "limit"},
 		rows,
 	)
 	return nil
 }
 
-func printValidateResultMarkdown(result ValidateResult) error {
-	fmt.Printf("**Dir:** %s\n\n", result.Dir)
-	fmt.Printf("**Files Scanned:** %d\n\n", result.FilesScanned)
-	fmt.Printf("**Errors:** %d\n\n", result.ErrorCount)
-	fmt.Printf("**Warnings:** %d\n\n", result.WarningCount)
+func printValidateResultMarkdown(d *shared.Deps, result ValidateResult) error {
+	fmt.Fprintf(d.IO.Out, "**Dir:** %s\n\n", result.Dir)
+	fmt.Fprintf(d.IO.Out, "**Files Scanned:** %d\n\n", result.FilesScanned)
+	fmt.Fprintf(d.IO.Out, "**Errors:** %d\n\n", result.ErrorCount)
+	fmt.Fprintf(d.IO.Out, "**Warnings:** %d\n\n", result.WarningCount)
 
 	rows := make([][]string, 0, len(result.Issues))
 	for _, issue := range result.Issues {
@@ -615,7 +616,8 @@ func printValidateResultMarkdown(result ValidateResult) error {
 	if len(rows) == 0 {
 		rows = append(rows, []string{"metadata", result.Dir, "", "", "", "info", "no issues", "-", "-"})
 	}
-	asc.RenderMarkdown(
+	asc.RenderMarkdownTo(
+		d.IO.Out,
 		[]string{"scope", "file", "locale", "version", "field", "severity", "message", "length", "limit"},
 		rows,
 	)

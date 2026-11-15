@@ -50,14 +50,15 @@ type ImportPlan struct {
 	VersionID     string
 	Localizations map[string]asc.Resource[asc.AppClipDefaultExperienceLocalizationAttributes]
 	Headers       map[string]asc.Resource[asc.AppClipHeaderImageAttributes]
+	deps          *shared.Deps
 }
 
-func PrepareImport(ctx context.Context, client *asc.Client, appID, versionID string, clip *AppClipLayout, previews []PreviewLayout) (*ImportPlan, error) {
-	plan := &ImportPlan{headerMatches: map[string]bool{}, Clip: clip, Previews: previews, VersionID: versionID, Localizations: map[string]asc.Resource[asc.AppClipDefaultExperienceLocalizationAttributes]{}, Headers: map[string]asc.Resource[asc.AppClipHeaderImageAttributes]{}}
+func PrepareImport(ctx context.Context, d *shared.Deps, client *asc.Client, appID, versionID string, clip *AppClipLayout, previews []PreviewLayout) (*ImportPlan, error) {
+	plan := &ImportPlan{headerMatches: map[string]bool{}, Clip: clip, Previews: previews, VersionID: versionID, Localizations: map[string]asc.Resource[asc.AppClipDefaultExperienceLocalizationAttributes]{}, Headers: map[string]asc.Resource[asc.AppClipHeaderImageAttributes]{}, deps: d}
 	if clip == nil {
-		return preparePreviews(ctx, client, plan)
+		return preparePreviews(ctx, d, client, plan)
 	}
-	exp, err := request(ctx, func(c context.Context) (*asc.AppClipDefaultExperienceResponse, error) {
+	exp, err := request(ctx, d, func(c context.Context) (*asc.AppClipDefaultExperienceResponse, error) {
 		return client.GetAppStoreVersionAppClipDefaultExperience(c, versionID)
 	})
 	if err != nil && !asc.IsNotFound(err) {
@@ -67,7 +68,7 @@ func PrepareImport(ctx context.Context, client *asc.Client, appID, versionID str
 		plan.Experience = exp.Data
 	}
 	if plan.Experience.ID == "" {
-		clips, err := pages(ctx, func(c context.Context, next string) (*asc.AppClipsResponse, error) {
+		clips, err := pages(ctx, d, func(c context.Context, next string) (*asc.AppClipsResponse, error) {
 			return client.GetAppClips(c, appID, asc.NextURL[asc.AppClipsOption](next))
 		})
 		if err != nil {
@@ -77,9 +78,9 @@ func PrepareImport(ctx context.Context, client *asc.Client, appID, versionID str
 			return nil, fmt.Errorf("app_clip folder requires exactly one App Clip when the version has no default experience (found %d)", len(clips))
 		}
 		plan.ClipID = clips[0].ID
-		return preparePreviews(ctx, client, plan)
+		return preparePreviews(ctx, d, client, plan)
 	}
-	locs, err := clipLocalizations(ctx, client, plan.Experience.ID)
+	locs, err := clipLocalizations(ctx, d, client, plan.Experience.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +94,7 @@ func PrepareImport(ctx context.Context, client *asc.Client, appID, versionID str
 		}
 		// Absence is also an expected target state and must be rechecked before writes.
 		plan.Headers[locale] = asc.Resource[asc.AppClipHeaderImageAttributes]{}
-		header, err := request(ctx, func(c context.Context) (*asc.AppClipHeaderImageResponse, error) {
+		header, err := request(ctx, d, func(c context.Context) (*asc.AppClipHeaderImageResponse, error) {
 			return client.GetAppClipDefaultExperienceLocalizationHeaderImage(c, loc.ID)
 		})
 		if err != nil && !asc.IsNotFound(err) {
@@ -112,7 +113,7 @@ func PrepareImport(ctx context.Context, client *asc.Client, appID, versionID str
 				if err != nil {
 					return nil, fmt.Errorf("app clip header %s has an invalid delivery URL (URL omitted)", current.ID)
 				}
-				matches, err = matchesDeliveredMedia(ctx, clip.stagedHeaders[locale], mediaURL, 1<<30)
+				matches, err = matchesDeliveredMedia(ctx, d, clip.stagedHeaders[locale], mediaURL, 1<<30)
 				if err != nil {
 					return nil, fmt.Errorf("verify delivered App Clip header %s: %w", current.ID, err)
 				}
@@ -120,7 +121,7 @@ func PrepareImport(ctx context.Context, client *asc.Client, appID, versionID str
 			plan.headerMatches[locale] = matches
 		}
 	}
-	return preparePreviews(ctx, client, plan)
+	return preparePreviews(ctx, d, client, plan)
 }
 
 func (p *ImportPlan) Apply(ctx context.Context, client *asc.Client, localeToID map[string]string) ([]asc.StoreAssetResult, error) {
@@ -151,7 +152,7 @@ func (p *ImportPlan) Apply(ctx context.Context, client *asc.Client, localeToID m
 				v := asc.AppClipAction(p.Clip.Action)
 				action = &v
 			}
-			created, err := request(ctx, func(c context.Context) (*asc.AppClipDefaultExperienceResponse, error) {
+			created, err := request(ctx, p.deps, func(c context.Context) (*asc.AppClipDefaultExperienceResponse, error) {
 				return client.CreateAppClipDefaultExperience(c, p.ClipID, &asc.AppClipDefaultExperienceCreateAttributes{Action: action}, p.VersionID, "")
 			})
 			if created != nil {
@@ -163,7 +164,7 @@ func (p *ImportPlan) Apply(ctx context.Context, client *asc.Client, localeToID m
 			}
 		} else if p.Clip.Action != "" && string(p.Experience.Attributes.Action) != p.Clip.Action {
 			action := asc.AppClipAction(p.Clip.Action)
-			_, err := request(ctx, func(c context.Context) (*asc.AppClipDefaultExperienceResponse, error) {
+			_, err := request(ctx, p.deps, func(c context.Context) (*asc.AppClipDefaultExperienceResponse, error) {
 				return client.UpdateAppClipDefaultExperience(c, expID, &asc.AppClipDefaultExperienceUpdateAttributes{Action: &action}, "")
 			})
 			record("app_clip", "", "", expID, "update", err)
@@ -192,7 +193,7 @@ func (p *ImportPlan) Apply(ctx context.Context, client *asc.Client, localeToID m
 				if hasSubtitle {
 					value = &subtitle
 				}
-				created, err := request(ctx, func(c context.Context) (*asc.AppClipDefaultExperienceLocalizationResponse, error) {
+				created, err := request(ctx, p.deps, func(c context.Context) (*asc.AppClipDefaultExperienceLocalizationResponse, error) {
 					return client.CreateAppClipDefaultExperienceLocalization(c, expID, asc.AppClipDefaultExperienceLocalizationCreateAttributes{Locale: locale, Subtitle: value})
 				})
 				if created != nil {
@@ -203,7 +204,7 @@ func (p *ImportPlan) Apply(ctx context.Context, client *asc.Client, localeToID m
 					return results, err
 				}
 			} else if hasSubtitle && existing.Attributes.Subtitle != subtitle {
-				_, err := request(ctx, func(c context.Context) (*asc.AppClipDefaultExperienceLocalizationResponse, error) {
+				_, err := request(ctx, p.deps, func(c context.Context) (*asc.AppClipDefaultExperienceLocalizationResponse, error) {
 					return client.UpdateAppClipDefaultExperienceLocalization(c, locID, &asc.AppClipDefaultExperienceLocalizationUpdateAttributes{Subtitle: &subtitle})
 				})
 				record("app_clip_localization", locale, "", locID, "update", err)
@@ -217,7 +218,7 @@ func (p *ImportPlan) Apply(ctx context.Context, client *asc.Client, localeToID m
 					record("app_clip_header", locale, path, current.ID, "skip", nil)
 					continue
 				}
-				id, action, deleted, err := uploadHeader(ctx, client, locID, p.Clip.stagedHeaders[locale], current)
+				id, action, deleted, err := uploadHeader(ctx, p.deps, client, locID, p.Clip.stagedHeaders[locale], current)
 				record("app_clip_header", locale, path, id, action, err)
 				if deleted {
 					results[len(results)-1].PreviousID = current.ID
@@ -232,7 +233,7 @@ func (p *ImportPlan) Apply(ctx context.Context, client *asc.Client, localeToID m
 	for _, preview := range p.Previews {
 		locID := localeToID[preview.Locale]
 		if locID == "" {
-			created, err := request(ctx, func(c context.Context) (*asc.AppStoreVersionLocalizationResponse, error) {
+			created, err := request(ctx, p.deps, func(c context.Context) (*asc.AppStoreVersionLocalizationResponse, error) {
 				return client.CreateAppStoreVersionLocalization(c, p.VersionID, asc.AppStoreVersionLocalizationAttributes{Locale: preview.Locale})
 			})
 			if created != nil {
@@ -247,7 +248,7 @@ func (p *ImportPlan) Apply(ctx context.Context, client *asc.Client, localeToID m
 		group := p.previewGroups[preview.Locale+"/"+strings.ToUpper(preview.DeviceType)]
 		setID := group.SetID
 		if setID == "" {
-			created, err := request(ctx, func(c context.Context) (*asc.AppPreviewSetResponse, error) {
+			created, err := request(ctx, p.deps, func(c context.Context) (*asc.AppPreviewSetResponse, error) {
 				return client.CreateAppPreviewSet(c, locID, strings.ToUpper(preview.DeviceType))
 			})
 			if created != nil {
@@ -259,7 +260,7 @@ func (p *ImportPlan) Apply(ctx context.Context, client *asc.Client, localeToID m
 				return results, err
 			}
 		}
-		id, action, err := uploadPreview(ctx, client, setID, preview)
+		id, action, err := uploadPreview(ctx, p.deps, client, setID, preview)
 		record("preview", preview.Locale, preview.Path, id, action, err)
 		if err != nil {
 			return results, err
@@ -273,7 +274,7 @@ func (p *ImportPlan) Apply(ctx context.Context, client *asc.Client, localeToID m
 	sort.Strings(keys)
 	for _, key := range keys {
 		group := p.previewGroups[key]
-		current, err := previewOrder(ctx, client, group.SetID)
+		current, err := previewOrder(ctx, p.deps, client, group.SetID)
 		if err != nil {
 			return results, err
 		}
@@ -289,7 +290,7 @@ func (p *ImportPlan) Apply(ctx context.Context, client *asc.Client, localeToID m
 			}
 		}
 		if !slices.Equal(current, desired) {
-			_, err := request(ctx, func(ctx context.Context) (bool, error) {
+			_, err := request(ctx, p.deps, func(ctx context.Context) (bool, error) {
 				return true, client.UpdateAppPreviewSetAppPreviewsRelationship(ctx, group.SetID, desired)
 			})
 			record("preview_order", group.Locale, "", group.SetID, "update", err)
@@ -301,7 +302,7 @@ func (p *ImportPlan) Apply(ctx context.Context, client *asc.Client, localeToID m
 	return results, nil
 }
 
-func uploadHeader(ctx context.Context, c *asc.Client, locID, path string, current asc.Resource[asc.AppClipHeaderImageAttributes]) (string, string, bool, error) {
+func uploadHeader(ctx context.Context, d *shared.Deps, c *asc.Client, locID, path string, current asc.Resource[asc.AppClipHeaderImageAttributes]) (string, string, bool, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return "", "upload", false, err
@@ -319,12 +320,12 @@ func uploadHeader(ctx context.Context, c *asc.Client, locID, path string, curren
 		return current.ID, "skip", false, nil
 	}
 	if current.ID != "" {
-		_, err := request(ctx, func(ctx context.Context) (bool, error) { return true, c.DeleteAppClipHeaderImage(ctx, current.ID) })
+		_, err := request(ctx, d, func(ctx context.Context) (bool, error) { return true, c.DeleteAppClipHeaderImage(ctx, current.ID) })
 		if err != nil {
 			return current.ID, "replace", false, err
 		}
 	}
-	created, err := request(ctx, func(ctx context.Context) (*asc.AppClipHeaderImageResponse, error) {
+	created, err := request(ctx, d, func(ctx context.Context) (*asc.AppClipHeaderImageResponse, error) {
 		return c.CreateAppClipHeaderImage(ctx, locID, filepath.Base(path), info.Size())
 	})
 	if err != nil {
@@ -334,19 +335,19 @@ func uploadHeader(ctx context.Context, c *asc.Client, locID, path string, curren
 	if len(created.Data.Attributes.UploadOperations) == 0 {
 		return id, "upload", current.ID != "", fmt.Errorf("header reservation returned no upload operations")
 	}
-	uploadCtx, cancel := shared.ContextWithUploadTimeout(shared.ContextWithoutTimeout(ctx))
+	uploadCtx, cancel := d.UploadTimeout(shared.ContextWithoutTimeout(ctx))
 	defer cancel()
 	if err := c.UploadAssetFromFile(uploadCtx, file, info.Size(), created.Data.Attributes.UploadOperations); err != nil {
 		return id, "upload", current.ID != "", err
 	}
-	_, err = request(ctx, func(ctx context.Context) (*asc.AppClipHeaderImageResponse, error) {
+	_, err = request(ctx, d, func(ctx context.Context) (*asc.AppClipHeaderImageResponse, error) {
 		return c.UpdateAppClipHeaderImage(ctx, id, true, checksum.Hash)
 	})
 	return id, "upload", current.ID != "", err
 }
 
-func uploadPreview(ctx context.Context, c *asc.Client, setID string, preview PreviewLayout) (string, string, error) {
-	existing, err := previewItems(ctx, c, setID)
+func uploadPreview(ctx context.Context, d *shared.Deps, c *asc.Client, setID string, preview PreviewLayout) (string, string, error) {
+	existing, err := previewItems(ctx, d, c, setID)
 	if err != nil {
 		return "", "upload", err
 	}
@@ -375,7 +376,7 @@ func uploadPreview(ctx context.Context, c *asc.Client, setID string, preview Pre
 		if len(existing) >= 3 {
 			return "", "upload", fmt.Errorf("preview set %s already contains three videos; no assets were deleted", setID)
 		}
-		uploadCtx, cancel := shared.ContextWithUploadTimeout(shared.ContextWithoutTimeout(ctx))
+		uploadCtx, cancel := d.UploadTimeout(shared.ContextWithoutTimeout(ctx))
 		item, err := assets.UploadPreviewAsset(uploadCtx, c, setID, preview.stagedPath)
 		cancel()
 		id = item.AssetID
@@ -388,7 +389,7 @@ func uploadPreview(ctx context.Context, c *asc.Client, setID string, preview Pre
 		if action == "skip" {
 			action = "update"
 		}
-		_, err := request(ctx, func(ctx context.Context) (*asc.AppPreviewResponse, error) {
+		_, err := request(ctx, d, func(ctx context.Context) (*asc.AppPreviewResponse, error) {
 			return c.SetAppPreviewFrameTimeCode(ctx, id, preview.PosterFrame)
 		})
 		if err != nil {
@@ -408,12 +409,12 @@ type previewGroup struct {
 	Existing       []asc.Resource[asc.AppPreviewAttributes]
 }
 
-func preparePreviews(ctx context.Context, c *asc.Client, p *ImportPlan) (*ImportPlan, error) {
+func preparePreviews(ctx context.Context, d *shared.Deps, c *asc.Client, p *ImportPlan) (*ImportPlan, error) {
 	p.previewGroups = map[string]*previewGroup{}
 	if len(p.Previews) == 0 {
 		return p, nil
 	}
-	locs, err := versionLocalizations(ctx, c, p.VersionID)
+	locs, err := versionLocalizations(ctx, d, c, p.VersionID)
 	if err != nil {
 		return nil, err
 	}
@@ -436,7 +437,7 @@ func preparePreviews(ctx context.Context, c *asc.Client, p *ImportPlan) (*Import
 			if locID := locIDs[preview.Locale]; locID != "" {
 				cached, ok := setsByLocalization[locID]
 				if !ok {
-					cached.sets, cached.included, err = previewSets(ctx, c, locID)
+					cached.sets, cached.included, err = previewSets(ctx, d, c, locID)
 					if err != nil {
 						return nil, err
 					}
@@ -455,11 +456,11 @@ func preparePreviews(ctx context.Context, c *asc.Client, p *ImportPlan) (*Import
 						group.CurrentOrder = append(group.CurrentOrder, item.ID)
 					}
 				} else if group.SetID != "" {
-					group.CurrentOrder, err = previewOrder(ctx, c, group.SetID)
+					group.CurrentOrder, err = previewOrder(ctx, d, c, group.SetID)
 					if err != nil {
 						return nil, err
 					}
-					group.Existing, err = previewItems(ctx, c, group.SetID)
+					group.Existing, err = previewItems(ctx, d, c, group.SetID)
 					if err != nil {
 						return nil, err
 					}
@@ -467,7 +468,7 @@ func preparePreviews(ctx context.Context, c *asc.Client, p *ImportPlan) (*Import
 			}
 			checksums[key] = map[string]bool{}
 		}
-		if err := resolvePreviewMatch(ctx, c, preview, group.Existing); err != nil {
+		if err := resolvePreviewMatch(ctx, d, c, preview, group.Existing); err != nil {
 			return nil, err
 		}
 		if preview.existingID == "" {
@@ -484,8 +485,8 @@ func preparePreviews(ctx context.Context, c *asc.Client, p *ImportPlan) (*Import
 	return p, nil
 }
 
-func previewOrder(ctx context.Context, c *asc.Client, setID string) ([]string, error) {
-	first, err := request(ctx, func(ctx context.Context) (*asc.LinkagesResponse, error) {
+func previewOrder(ctx context.Context, d *shared.Deps, c *asc.Client, setID string) ([]string, error) {
+	first, err := request(ctx, d, func(ctx context.Context) (*asc.LinkagesResponse, error) {
 		return c.GetAppPreviewSetAppPreviewsRelationships(ctx, setID, asc.Limit[asc.LinkagesOption](200))
 	})
 	if err != nil {
@@ -493,7 +494,7 @@ func previewOrder(ctx context.Context, c *asc.Client, setID string) ([]string, e
 	}
 	var ids []string
 	err = asc.PaginateEach(ctx, first, func(ctx context.Context, next string) (asc.PaginatedResponse, error) {
-		return request(ctx, func(ctx context.Context) (*asc.LinkagesResponse, error) {
+		return request(ctx, d, func(ctx context.Context) (*asc.LinkagesResponse, error) {
 			return c.GetAppPreviewSetAppPreviewsRelationships(ctx, setID, asc.NextURL[asc.LinkagesOption](next))
 		})
 	}, func(page asc.PaginatedResponse) error {

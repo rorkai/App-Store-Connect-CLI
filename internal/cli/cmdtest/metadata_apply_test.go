@@ -40,26 +40,18 @@ func TestMetadataApplyValidationErrors(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
+			stdout, stderr, err := runRootWithDeps(t, nil, test.args...)
+			if test.wantConcise {
+				if errors.Is(err, flag.ErrHelp) || !shared.IsReportedUsageError(err) {
+					t.Fatalf("expected reported usage error without ErrHelp, got %v", err)
 				}
-				err := root.Run(context.Background())
-				if test.wantConcise {
-					if errors.Is(err, flag.ErrHelp) || !shared.IsReportedUsageError(err) {
-						t.Fatalf("expected reported usage error without ErrHelp, got %v", err)
-					}
-					diagnostic, ok := shared.DiagnosticFromError(err)
-					if !ok || diagnostic.Code != shared.DiagnosticRequiredInputMissing || diagnostic.Parameter != "--dir" {
-						t.Fatalf("diagnostic = %+v, found=%t", diagnostic, ok)
-					}
-				} else if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
+				diagnostic, ok := shared.DiagnosticFromError(err)
+				if !ok || diagnostic.Code != shared.DiagnosticRequiredInputMissing || diagnostic.Parameter != "--dir" {
+					t.Fatalf("diagnostic = %+v, found=%t", diagnostic, ok)
 				}
-			})
+			} else if !errors.Is(err, flag.ErrHelp) {
+				t.Fatalf("expected ErrHelp, got %v", err)
+			}
 
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
@@ -1453,7 +1445,7 @@ func TestMetadataApplyUsesFreshDeadlineForEachSnapshotPage(t *testing.T) {
 	var result metadatacli.PushPlanResult
 	var err error
 	synctest.Test(t, func(*testing.T) {
-		result, _, err = metadatacli.ExecutePushWithWarnings(context.Background(), metadatacli.PushExecutionOptions{
+		result, _, err = metadatacli.ExecutePushWithWarnings(context.Background(), shared.DefaultDeps(), metadatacli.PushExecutionOptions{
 			CommandName: "apply",
 			AppID:       "app-1",
 			Version:     "1.2.3",
@@ -1532,7 +1524,7 @@ func TestMetadataApplyCancellationArtifactsRemainingActionsAcrossScopes(t *testi
 		}
 	})
 
-	result, warnings, err := metadatacli.ExecutePushWithWarnings(ctx, metadatacli.PushExecutionOptions{
+	result, warnings, err := metadatacli.ExecutePushWithWarnings(ctx, shared.DefaultDeps(), metadatacli.PushExecutionOptions{
 		CommandName: "apply",
 		AppID:       "app-1",
 		Version:     "1.2.3",

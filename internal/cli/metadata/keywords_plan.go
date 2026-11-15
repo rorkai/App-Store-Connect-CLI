@@ -203,7 +203,7 @@ func executeMetadataKeywordsPlan(ctx context.Context, opts metadataKeywordsPlanO
 	requestCtx, cancel := shared.ContextWithTimeout(ctx)
 	defer cancel()
 
-	versionIDValue, _, err := resolveVersionID(requestCtx, client, resolvedAppID, versionValue, platformValue)
+	versionIDValue, _, err := resolveVersionID(requestCtx, shared.DefaultDeps(), client, resolvedAppID, versionValue, platformValue)
 	if err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return MetadataKeywordsPlanResult{}, err
@@ -211,7 +211,7 @@ func executeMetadataKeywordsPlan(ctx context.Context, opts metadataKeywordsPlanO
 		return MetadataKeywordsPlanResult{}, err
 	}
 
-	remoteVersionItems, err := fetchVersionLocalizations(ctx, client, versionIDValue)
+	remoteVersionItems, err := fetchVersionLocalizations(ctx, shared.DefaultDeps(), client, versionIDValue)
 	if err != nil {
 		return MetadataKeywordsPlanResult{}, err
 	}

@@ -15,7 +15,7 @@ import (
 
 func TestHandleMetadataExistingConflictUpdatesAfterRequestScopedMatchTimeout(t *testing.T) {
 	updated := false
-	outcome := handleMetadataExistingConflict(context.Background(), metadataCreateConflict{
+	outcome := handleMetadataExistingConflict(context.Background(), metadataTestDeps(), metadataCreateConflict{
 		options: metadataIfExistsOptions{mode: "update", prefix: "metadata push"},
 		scope:   versionDirName,
 		locale:  "ja",
@@ -43,7 +43,7 @@ func TestHandleMetadataExistingConflictUpdatesAfterRequestScopedMatchTimeout(t *
 
 func TestHandleMetadataExistingConflictUpdatesReplacementLocalizationID(t *testing.T) {
 	patchedID := ""
-	outcome := handleMetadataExistingConflict(context.Background(), metadataCreateConflict{
+	outcome := handleMetadataExistingConflict(context.Background(), metadataTestDeps(), metadataCreateConflict{
 		options: metadataIfExistsOptions{mode: "update", prefix: "metadata push"},
 		scope:   versionDirName,
 		locale:  "ja",
@@ -234,7 +234,7 @@ func TestApplyAppInfoChangesIgnoresRemoteOnlyEmptyLocalization(t *testing.T) {
 		},
 	}
 	for _, allowDeletes := range []bool{false, true} {
-		actions, err := applyAppInfoChanges(context.Background(), nil, "appinfo-1", map[string]appInfoLocalPatch{}, remote, allowDeletes, metadataIfExistsOptions{})
+		actions, err := applyAppInfoChanges(context.Background(), metadataTestDeps(), nil, "appinfo-1", map[string]appInfoLocalPatch{}, remote, allowDeletes, metadataIfExistsOptions{})
 		if err != nil || len(actions) != 0 {
 			t.Fatalf("allowDeletes=%t: expected empty remote locale no-op, actions=%+v err=%v", allowDeletes, actions, err)
 		}
@@ -382,5 +382,5 @@ func TestReadVersionLocalizationPatchRejectsOverLimitKeywordCharacters(t *testin
 }
 
 func loadLocalMetadata(dir, version string) (localMetadataBundle, error) {
-	return loadLocalMetadataWithAssets(dir, version, false)
+	return loadLocalMetadataWithAssets(metadataTestDeps(), dir, version, false)
 }

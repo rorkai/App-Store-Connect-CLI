@@ -14,7 +14,7 @@ func (p *ImportPlan) checkHeaderTargets(ctx context.Context, client *asc.Client)
 	if p.Clip == nil || len(p.Clip.HeaderImages) == 0 {
 		return nil
 	}
-	experience, err := request(ctx, func(c context.Context) (*asc.AppClipDefaultExperienceResponse, error) {
+	experience, err := request(ctx, p.deps, func(c context.Context) (*asc.AppClipDefaultExperienceResponse, error) {
 		return client.GetAppStoreVersionAppClipDefaultExperience(c, p.VersionID)
 	})
 	if err != nil && !asc.IsNotFound(err) {
@@ -30,7 +30,7 @@ func (p *ImportPlan) checkHeaderTargets(ctx context.Context, client *asc.Client)
 	if experienceID == "" {
 		return nil
 	}
-	localizations, err := clipLocalizations(ctx, client, p.Experience.ID)
+	localizations, err := clipLocalizations(ctx, p.deps, client, p.Experience.ID)
 	if err != nil {
 		return err
 	}
@@ -50,7 +50,7 @@ func (p *ImportPlan) checkHeaderTargets(ctx context.Context, client *asc.Client)
 		if localeID == "" {
 			continue
 		}
-		current, err := request(ctx, func(c context.Context) (*asc.AppClipHeaderImageResponse, error) {
+		current, err := request(ctx, p.deps, func(c context.Context) (*asc.AppClipHeaderImageResponse, error) {
 			return client.GetAppClipDefaultExperienceLocalizationHeaderImage(c, localeID)
 		})
 		if err != nil && !asc.IsNotFound(err) {

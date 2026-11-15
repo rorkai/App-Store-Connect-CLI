@@ -31,8 +31,8 @@ var reviewInformationSettingScope = metadataSettingScope{
 	update:   updateReviewInformationSetting,
 }
 
-func fetchReviewDetail(ctx context.Context, client *asc.Client, versionID string) (*asc.AppStoreReviewDetailResponse, error) {
-	resp, err := shared.RetryReadWithFreshTimeout(ctx, func(requestCtx context.Context) (*asc.AppStoreReviewDetailResponse, error) {
+func fetchReviewDetail(ctx context.Context, d *shared.Deps, client *asc.Client, versionID string) (*asc.AppStoreReviewDetailResponse, error) {
+	resp, err := shared.RetryReadWithFreshTimeoutWith(ctx, d, func(requestCtx context.Context) (*asc.AppStoreReviewDetailResponse, error) {
 		return client.GetAppStoreReviewDetailForVersion(requestCtx, versionID)
 	})
 	if err != nil {
@@ -44,8 +44,8 @@ func fetchReviewDetail(ctx context.Context, client *asc.Client, versionID string
 	return resp, nil
 }
 
-func fetchReviewInformationSetting(ctx context.Context, client *asc.Client, target metadataSettingTarget) (map[string]string, error) {
-	resp, err := fetchReviewDetail(ctx, client, target.versionID)
+func fetchReviewInformationSetting(ctx context.Context, d *shared.Deps, client *asc.Client, target metadataSettingTarget) (map[string]string, error) {
+	resp, err := fetchReviewDetail(ctx, d, client, target.versionID)
 	if err != nil || resp == nil {
 		return nil, err
 	}
@@ -69,8 +69,8 @@ func fetchReviewInformationSetting(ctx context.Context, client *asc.Client, targ
 	return values, nil
 }
 
-func updateReviewInformationSetting(ctx context.Context, client *asc.Client, target metadataSettingTarget, changed map[string]string) (string, error) {
-	existing, err := fetchReviewDetail(ctx, client, target.versionID)
+func updateReviewInformationSetting(ctx context.Context, d *shared.Deps, client *asc.Client, target metadataSettingTarget, changed map[string]string) (string, error) {
+	existing, err := fetchReviewDetail(ctx, d, client, target.versionID)
 	if err != nil {
 		return "", err
 	}

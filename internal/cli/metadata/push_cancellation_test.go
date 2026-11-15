@@ -33,6 +33,7 @@ func TestApplyMetadataPlanDoesNotFailWhenCancellationFollowsFinalAction(t *testi
 
 	actions, err := applyMetadataPlan(
 		ctx,
+		metadataTestDeps(),
 		client,
 		"appinfo-1",
 		"version-1",

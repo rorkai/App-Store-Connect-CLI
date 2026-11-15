@@ -36,7 +36,7 @@ func TestMetadataLocalizationFetchOverlapsCollections(t *testing.T) {
 	defer cancel()
 	done := make(chan error, 1)
 	go func() {
-		_, _, err := fetchMetadataLocalizations(ctx, client, "info-1", "version-1", true, true)
+		_, _, err := fetchMetadataLocalizations(ctx, metadataTestDeps(), client, "info-1", "version-1", true, true)
 		done <- err
 	}()
 	for range 2 {
@@ -66,7 +66,7 @@ func TestMetadataLocalizationFetchScopeGating(t *testing.T) {
 				}
 				return metadataFetchJSONResponse(`{"data":[],"links":{}}`), nil
 			})
-			_, _, err := fetchMetadataLocalizations(context.Background(), newMetadataFetchClient(t), "info-1", "version-1", test.appInfo, test.version)
+			_, _, err := fetchMetadataLocalizations(context.Background(), metadataTestDeps(), newMetadataFetchClient(t), "info-1", "version-1", test.appInfo, test.version)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -105,7 +105,7 @@ func TestMetadataLocalizationFetchAppInfoFailureCancelsVersion(t *testing.T) {
 	client := newMetadataFetchClient(t)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	_, _, err := fetchMetadataLocalizations(ctx, client, "info-1", "version-1", true, true)
+	_, _, err := fetchMetadataLocalizations(ctx, metadataTestDeps(), client, "info-1", "version-1", true, true)
 	if !errors.Is(err, appInfoFailure) {
 		t.Fatalf("error = %v", err)
 	}
@@ -136,7 +136,7 @@ func TestMetadataLocalizationFetchVersionFailurePreservesAppInfoPrecedence(t *te
 	})
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	_, _, err := fetchMetadataLocalizations(ctx, newMetadataFetchClient(t), "info-1", "version-1", true, true)
+	_, _, err := fetchMetadataLocalizations(ctx, metadataTestDeps(), newMetadataFetchClient(t), "info-1", "version-1", true, true)
 	if !errors.Is(err, appInfoFailure) {
 		t.Fatalf("error = %v", err)
 	}
@@ -159,7 +159,7 @@ func TestMetadataLocalizationFetchReturnsVersionFailureAfterAppInfoSuccess(t *te
 	})
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	_, _, err := fetchMetadataLocalizations(ctx, newMetadataFetchClient(t), "info-1", "version-1", true, true)
+	_, _, err := fetchMetadataLocalizations(ctx, metadataTestDeps(), newMetadataFetchClient(t), "info-1", "version-1", true, true)
 	if !errors.Is(err, versionFailure) {
 		t.Fatalf("error = %v", err)
 	}
@@ -179,7 +179,7 @@ func TestMetadataLocalizationFetchParentCancellation(t *testing.T) {
 	defer cancel()
 	done := make(chan error, 1)
 	go func() {
-		_, _, err := fetchMetadataLocalizations(ctx, client, "info-1", "version-1", true, true)
+		_, _, err := fetchMetadataLocalizations(ctx, metadataTestDeps(), client, "info-1", "version-1", true, true)
 		done <- err
 	}()
 	for range 2 {
@@ -213,7 +213,7 @@ func TestMetadataLocalizationFetchPagination(t *testing.T) {
 		}
 		return metadataFetchJSONResponse(fmt.Sprintf(`{"data":[{"type":%q,"id":"loc-1","attributes":{"locale":"en-US"}}],"links":{"next":%q}}`, kind, req.URL.Path+"?cursor=next")), nil
 	})
-	appInfo, version, err := fetchMetadataLocalizations(context.Background(), newMetadataFetchClient(t), "info-1", "version-1", true, true)
+	appInfo, version, err := fetchMetadataLocalizations(context.Background(), metadataTestDeps(), newMetadataFetchClient(t), "info-1", "version-1", true, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -244,7 +244,7 @@ func BenchmarkMetadataLocalizationCollections(b *testing.B) {
 	client := newMetadataFetchClient(b)
 	b.ResetTimer()
 	for range b.N {
-		appInfo, version, err := fetchMetadataLocalizations(context.Background(), client, "info-1", "version-1", true, true)
+		appInfo, version, err := fetchMetadataLocalizations(context.Background(), metadataTestDeps(), client, "info-1", "version-1", true, true)
 		if err != nil {
 			b.Fatal(err)
 		}

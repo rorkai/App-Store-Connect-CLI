@@ -114,7 +114,7 @@ Examples:
 					platformValue = strings.TrimSpace(string(versionResource.Attributes.Platform))
 				}
 			} else {
-				resolvedVersionID, resolvedVersionState, err := resolveVersionID(requestCtx, client, resolvedAppID, versionValue, platformValue)
+				resolvedVersionID, resolvedVersionState, err := resolveVersionID(requestCtx, shared.DefaultDeps(), client, resolvedAppID, versionValue, platformValue)
 				if err != nil {
 					return fmt.Errorf("metadata keywords audit: %w", err)
 				}
@@ -138,11 +138,11 @@ Examples:
 				return fmt.Errorf("metadata keywords audit: %w", err)
 			}
 
-			versionItems, err := fetchVersionLocalizations(ctx, client, versionIDValue)
+			versionItems, err := fetchVersionLocalizations(ctx, shared.DefaultDeps(), client, versionIDValue)
 			if err != nil {
 				return fmt.Errorf("metadata keywords audit: %w", err)
 			}
-			appInfoItems, err := fetchAppInfoLocalizations(ctx, client, appInfoIDValue)
+			appInfoItems, err := fetchAppInfoLocalizations(ctx, shared.DefaultDeps(), client, appInfoIDValue)
 			if err != nil {
 				return fmt.Errorf("metadata keywords audit: %w", err)
 			}
@@ -184,7 +184,7 @@ func resolveMetadataKeywordsAuditAppInfoID(
 	platform string,
 	versionState string,
 ) (string, error) {
-	return resolveMetadataAppInfoID(ctx, client, appID, appInfoID, version, platform, "", versionState, func(aid, v, p, _ string, infoID string) string {
+	return resolveMetadataAppInfoID(ctx, shared.DefaultDeps(), client, appID, appInfoID, version, platform, "", versionState, func(aid, v, p, _ string, infoID string) string {
 		return buildMetadataKeywordsAuditAppInfoExample(aid, v, p, infoID)
 	})
 }

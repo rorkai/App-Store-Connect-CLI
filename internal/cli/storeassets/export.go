@@ -24,22 +24,22 @@ type ExportFile struct {
 }
 
 // ExportPlan obtains all remote assets before touching the selected output root.
-func ExportPlan(ctx context.Context, client *asc.Client, versionID, metadataPrefix string, clip, previews bool) ([]ExportFile, []string, error) {
-	return exportPlan(ctx, client, versionID, metadataPrefix, clip, previews, nil, false)
+func ExportPlan(ctx context.Context, d *shared.Deps, client *asc.Client, versionID, metadataPrefix string, clip, previews bool) ([]ExportFile, []string, error) {
+	return exportPlan(ctx, d, client, versionID, metadataPrefix, clip, previews, nil, false)
 }
 
 // ExportPlanWithVersionLocalizations reuses a complete localization collection
 // fetched for this version within the caller's current export. A nil collection
 // is a resolved empty result. The supplied resources are only read.
-func ExportPlanWithVersionLocalizations(ctx context.Context, client *asc.Client, versionID, metadataPrefix string, clip, previews bool, localizations []asc.Resource[asc.AppStoreVersionLocalizationAttributes]) ([]ExportFile, []string, error) {
-	return exportPlan(ctx, client, versionID, metadataPrefix, clip, previews, localizations, true)
+func ExportPlanWithVersionLocalizations(ctx context.Context, d *shared.Deps, client *asc.Client, versionID, metadataPrefix string, clip, previews bool, localizations []asc.Resource[asc.AppStoreVersionLocalizationAttributes]) ([]ExportFile, []string, error) {
+	return exportPlan(ctx, d, client, versionID, metadataPrefix, clip, previews, localizations, true)
 }
 
-func exportPlan(ctx context.Context, client *asc.Client, versionID, metadataPrefix string, clip, previews bool, localizations []asc.Resource[asc.AppStoreVersionLocalizationAttributes], localizationsResolved bool) ([]ExportFile, []string, error) {
+func exportPlan(ctx context.Context, d *shared.Deps, client *asc.Client, versionID, metadataPrefix string, clip, previews bool, localizations []asc.Resource[asc.AppStoreVersionLocalizationAttributes], localizationsResolved bool) ([]ExportFile, []string, error) {
 	var files []ExportFile
 	var warnings []string
 	if clip {
-		exp, err := request(ctx, func(c context.Context) (*asc.AppClipDefaultExperienceResponse, error) {
+		exp, err := request(ctx, d, func(c context.Context) (*asc.AppClipDefaultExperienceResponse, error) {
 			return client.GetAppStoreVersionAppClipDefaultExperience(c, versionID)
 		})
 		if err != nil && !asc.IsNotFound(err) {
@@ -52,7 +52,7 @@ func exportPlan(ctx context.Context, client *asc.Client, versionID, metadataPref
 			if strings.TrimSpace(action) != "" {
 				files = append(files, ExportFile{Path: filepath.Join(metadataPrefix, "app_clip", "action.txt"), Text: &action})
 			}
-			locs, err := clipLocalizations(ctx, client, exp.Data.ID)
+			locs, err := clipLocalizations(ctx, d, client, exp.Data.ID)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -63,7 +63,7 @@ func exportPlan(ctx context.Context, client *asc.Client, versionID, metadataPref
 				base := filepath.Join(metadataPrefix, loc.Attributes.Locale, "app_clip")
 				subtitle := loc.Attributes.Subtitle + "\n"
 				files = append(files, ExportFile{Path: filepath.Join(base, "subtitle.txt"), Text: &subtitle})
-				header, err := request(ctx, func(c context.Context) (*asc.AppClipHeaderImageResponse, error) {
+				header, err := request(ctx, d, func(c context.Context) (*asc.AppClipHeaderImageResponse, error) {
 					return client.GetAppClipDefaultExperienceLocalizationHeaderImage(c, loc.ID)
 				})
 				if err != nil && !asc.IsNotFound(err) {
@@ -84,7 +84,7 @@ func exportPlan(ctx context.Context, client *asc.Client, versionID, metadataPref
 		locs := localizations
 		if !localizationsResolved {
 			var err error
-			locs, err = versionLocalizations(ctx, client, versionID)
+			locs, err = versionLocalizations(ctx, d, client, versionID)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -93,7 +93,7 @@ func exportPlan(ctx context.Context, client *asc.Client, versionID, metadataPref
 			if err := segment(loc.Attributes.Locale); err != nil {
 				return nil, nil, err
 			}
-			sets, included, err := previewSets(ctx, client, loc.ID)
+			sets, included, err := previewSets(ctx, d, client, loc.ID)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -104,7 +104,7 @@ func exportPlan(ctx context.Context, client *asc.Client, versionID, metadataPref
 				}
 				items, ok := included[set.ID]
 				if !ok {
-					items, err = orderedPreviewItems(ctx, client, set.ID)
+					items, err = orderedPreviewItems(ctx, d, client, set.ID)
 					if err != nil {
 						return nil, nil, err
 					}
@@ -122,7 +122,7 @@ func exportPlan(ctx context.Context, client *asc.Client, versionID, metadataPref
 					order = append(order, name)
 					url := strings.TrimSpace(item.Attributes.VideoURL)
 					if url == "" {
-						detail, err := request(ctx, func(c context.Context) (*asc.AppPreviewResponse, error) { return client.GetAppPreview(c, item.ID) })
+						detail, err := request(ctx, d, func(c context.Context) (*asc.AppPreviewResponse, error) { return client.GetAppPreview(c, item.ID) })
 						if err != nil {
 							return nil, nil, err
 						}
@@ -163,7 +163,7 @@ func exportPlan(ctx context.Context, client *asc.Client, versionID, metadataPref
 }
 
 // WriteExport honors the same no-overwrite preflight for text and media.
-func WriteExport(ctx context.Context, root rootfs.Root, files []ExportFile, overwrite bool) ([]string, error) {
+func WriteExport(ctx context.Context, d *shared.Deps, root rootfs.Root, files []ExportFile, overwrite bool) ([]string, error) {
 	if err := CheckExportTargets(root, files, overwrite); err != nil {
 		return nil, err
 	}
@@ -180,7 +180,7 @@ func WriteExport(ctx context.Context, root rootfs.Root, files []ExportFile, over
 				err = root.CreateNewFile(f.Path, []byte(*f.Text), 0o644)
 			}
 		} else {
-			err = downloadIntoRoot(ctx, root, f.Path, f.URL, overwrite)
+			err = downloadIntoRoot(ctx, d, root, f.Path, f.URL, overwrite)
 		}
 		if err != nil {
 			return written, fmt.Errorf("export %s: %w", f.Path, err)
@@ -190,14 +190,14 @@ func WriteExport(ctx context.Context, root rootfs.Root, files []ExportFile, over
 	return written, nil
 }
 
-func downloadIntoRoot(ctx context.Context, root rootfs.Root, path, url string, overwrite bool) error {
+func downloadIntoRoot(ctx context.Context, d *shared.Deps, root rootfs.Root, path, url string, overwrite bool) error {
 	dir, err := os.MkdirTemp("", "asc-store-asset-*")
 	if err != nil {
 		return err
 	}
 	defer os.RemoveAll(dir)
 	temp := filepath.Join(dir, "asset")
-	c, cancel := shared.ContextWithUploadTimeout(shared.ContextWithoutTimeout(ctx))
+	c, cancel := d.UploadTimeout(shared.ContextWithoutTimeout(ctx))
 	defer cancel()
 	if _, _, err = assets.DownloadMediaURL(c, url, temp, false); err != nil {
 		return errors.New("media download failed (URL omitted)")
@@ -222,27 +222,27 @@ func segment(s string) error {
 	return rootfs.ValidateRelative(s)
 }
 
-func request[T any](ctx context.Context, fn func(context.Context) (T, error)) (T, error) {
-	c, cancel := shared.ContextWithTimeout(shared.ContextWithoutTimeout(ctx))
+func request[T any](ctx context.Context, d *shared.Deps, fn func(context.Context) (T, error)) (T, error) {
+	c, cancel := d.Timeout(shared.ContextWithoutTimeout(ctx))
 	defer cancel()
 	return fn(c)
 }
 
-func pages[T any](ctx context.Context, fetch func(context.Context, string) (*asc.Response[T], error)) ([]asc.Resource[T], error) {
-	response, err := pagesResponse(ctx, fetch)
+func pages[T any](ctx context.Context, d *shared.Deps, fetch func(context.Context, string) (*asc.Response[T], error)) ([]asc.Resource[T], error) {
+	response, err := pagesResponse(ctx, d, fetch)
 	if err != nil {
 		return nil, err
 	}
 	return response.Data, nil
 }
 
-func pagesResponse[T any](ctx context.Context, fetch func(context.Context, string) (*asc.Response[T], error)) (*asc.Response[T], error) {
-	first, err := request(ctx, func(c context.Context) (*asc.Response[T], error) { return fetch(c, "") })
+func pagesResponse[T any](ctx context.Context, d *shared.Deps, fetch func(context.Context, string) (*asc.Response[T], error)) (*asc.Response[T], error) {
+	first, err := request(ctx, d, func(c context.Context) (*asc.Response[T], error) { return fetch(c, "") })
 	if err != nil {
 		return nil, err
 	}
 	all, err := asc.PaginateAll(ctx, first, func(c context.Context, next string) (asc.PaginatedResponse, error) {
-		return request(c, func(r context.Context) (*asc.Response[T], error) { return fetch(r, next) })
+		return request(c, d, func(r context.Context) (*asc.Response[T], error) { return fetch(r, next) })
 	})
 	if err != nil {
 		return nil, err
@@ -254,21 +254,21 @@ func pagesResponse[T any](ctx context.Context, fetch func(context.Context, strin
 	return response, nil
 }
 
-func clipLocalizations(ctx context.Context, c *asc.Client, id string) ([]asc.Resource[asc.AppClipDefaultExperienceLocalizationAttributes], error) {
-	return pages(ctx, func(ctx context.Context, next string) (*asc.AppClipDefaultExperienceLocalizationsResponse, error) {
+func clipLocalizations(ctx context.Context, d *shared.Deps, c *asc.Client, id string) ([]asc.Resource[asc.AppClipDefaultExperienceLocalizationAttributes], error) {
+	return pages(ctx, d, func(ctx context.Context, next string) (*asc.AppClipDefaultExperienceLocalizationsResponse, error) {
 		return c.GetAppClipDefaultExperienceLocalizations(ctx, id, asc.NextURL[asc.AppClipDefaultExperienceLocalizationsOption](next))
 	})
 }
 
-func versionLocalizations(ctx context.Context, c *asc.Client, id string) ([]asc.Resource[asc.AppStoreVersionLocalizationAttributes], error) {
-	return pages(ctx, func(ctx context.Context, next string) (*asc.AppStoreVersionLocalizationsResponse, error) {
+func versionLocalizations(ctx context.Context, d *shared.Deps, c *asc.Client, id string) ([]asc.Resource[asc.AppStoreVersionLocalizationAttributes], error) {
+	return pages(ctx, d, func(ctx context.Context, next string) (*asc.AppStoreVersionLocalizationsResponse, error) {
 		return c.GetAppStoreVersionLocalizations(ctx, id, asc.NextURL[asc.AppStoreVersionLocalizationsOption](next))
 	})
 }
 
 // previewSets also returns each set's previews in order when Apple included them.
-func previewSets(ctx context.Context, c *asc.Client, id string) ([]asc.Resource[asc.AppPreviewSetAttributes], map[string][]asc.Resource[asc.AppPreviewAttributes], error) {
-	response, err := pagesResponse(ctx, func(ctx context.Context, next string) (*asc.AppPreviewSetsResponse, error) {
+func previewSets(ctx context.Context, d *shared.Deps, c *asc.Client, id string) ([]asc.Resource[asc.AppPreviewSetAttributes], map[string][]asc.Resource[asc.AppPreviewAttributes], error) {
+	response, err := pagesResponse(ctx, d, func(ctx context.Context, next string) (*asc.AppPreviewSetsResponse, error) {
 		return c.GetAppStoreVersionLocalizationPreviewSets(ctx, id, asc.WithAppStoreVersionLocalizationPreviewSetsIncludePreviews(), asc.NextURL[asc.AppStoreVersionLocalizationPreviewSetsOption](next))
 	})
 	if err != nil {
@@ -277,12 +277,12 @@ func previewSets(ctx context.Context, c *asc.Client, id string) ([]asc.Resource[
 	return response.Data, asc.IncludedAppPreviews(response), nil
 }
 
-func orderedPreviewItems(ctx context.Context, c *asc.Client, setID string) ([]asc.Resource[asc.AppPreviewAttributes], error) {
-	items, err := previewItems(ctx, c, setID)
+func orderedPreviewItems(ctx context.Context, d *shared.Deps, c *asc.Client, setID string) ([]asc.Resource[asc.AppPreviewAttributes], error) {
+	items, err := previewItems(ctx, d, c, setID)
 	if err != nil {
 		return nil, err
 	}
-	ids, err := previewOrder(ctx, c, setID)
+	ids, err := previewOrder(ctx, d, c, setID)
 	if err != nil {
 		return nil, err
 	}
@@ -304,8 +304,8 @@ func orderedPreviewItems(ctx context.Context, c *asc.Client, setID string) ([]as
 	return ordered, nil
 }
 
-func previewItems(ctx context.Context, c *asc.Client, id string) ([]asc.Resource[asc.AppPreviewAttributes], error) {
-	return pages(ctx, func(ctx context.Context, next string) (*asc.AppPreviewsResponse, error) {
+func previewItems(ctx context.Context, d *shared.Deps, c *asc.Client, id string) ([]asc.Resource[asc.AppPreviewAttributes], error) {
+	return pages(ctx, d, func(ctx context.Context, next string) (*asc.AppPreviewsResponse, error) {
 		return c.GetAppPreviews(ctx, id, asc.WithAppPreviewsNextURL(next))
 	})
 }

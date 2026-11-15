@@ -82,9 +82,9 @@ func appendStoreAssetActions(result *PushPlanResult, receipts []asc.StoreAssetRe
 	}
 }
 
-func requireConfirmedStoreAssets(opts PushExecutionOptions, clip *storeassets.AppClipLayout, previews []storeassets.PreviewLayout) error {
+func requireConfirmedStoreAssets(d *shared.Deps, opts PushExecutionOptions, clip *storeassets.AppClipLayout, previews []storeassets.PreviewLayout) error {
 	if !opts.DryRun && !opts.Confirm && (clip != nil || len(previews) > 0) {
-		return shared.UsageError("--confirm is required when applying App Clip or preview assets")
+		return d.UsageError("--confirm is required when applying App Clip or preview assets")
 	}
 	return nil
 }

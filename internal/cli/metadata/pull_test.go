@@ -6,7 +6,7 @@ import (
 )
 
 func TestMetadataPullCommand_AppInfoFlagDefault(t *testing.T) {
-	cmd := MetadataPullCommand()
+	cmd := newMetadataPullCommand(metadataTestDeps())
 	f := cmd.FlagSet.Lookup("app-info")
 	if f == nil {
 		t.Fatal("expected --app-info flag to be defined")
@@ -73,7 +73,7 @@ func TestBuildMetadataAppInfoExample(t *testing.T) {
 }
 
 func TestMetadataPullCommand_ShortUsageMentionsAppInfo(t *testing.T) {
-	cmd := MetadataPullCommand()
+	cmd := newMetadataPullCommand(metadataTestDeps())
 	if !strings.Contains(cmd.ShortUsage, "--app-info") {
 		t.Fatalf("expected ShortUsage to mention --app-info, got %q", cmd.ShortUsage)
 	}

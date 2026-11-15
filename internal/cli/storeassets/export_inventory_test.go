@@ -12,8 +12,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 )
+
+func testDeps() *shared.Deps {
+	return &shared.Deps{UploadTimeout: shared.ContextWithUploadTimeout}
+}
 
 func TestManagedExportRecoveryAndTargetIsolation(t *testing.T) {
 	if runtime.GOOS == "windows" {
@@ -28,7 +33,7 @@ func TestManagedExportRecoveryAndTargetIsolation(t *testing.T) {
 	action, subtitle := "PLAY\n", "Original\n"
 	export := func(files []ExportFile) ([]string, error) {
 		t.Helper()
-		p, err := PrepareExport(root, files, options)
+		p, err := PrepareExport(testDeps(), root, files, options)
 		if err != nil {
 			return nil, err
 		}
@@ -54,7 +59,7 @@ func TestManagedExportRecoveryAndTargetIsolation(t *testing.T) {
 	}
 	other := options
 	other.VersionID = "OTHER"
-	if _, err := PrepareExport(root, nil, other); err == nil || !strings.Contains(err.Error(), "separate destination") {
+	if _, err := PrepareExport(testDeps(), root, nil, other); err == nil || !strings.Contains(err.Error(), "separate destination") {
 		t.Fatalf("target switch accepted: %v", err)
 	}
 	if data, err := root.ReadFile(exportInventoryPath); err != nil || string(data) != string(inventoryBefore) {
@@ -113,7 +118,7 @@ func TestManagedExportRejectsInvalidInventoryBeforeWrites(t *testing.T) {
 			if err := root.WriteFile(exportInventoryPath, data, 0o600); err != nil {
 				t.Fatal(err)
 			}
-			_, err = PrepareExport(root, []ExportFile{{Path: "app_clip/action.txt", Text: &value}}, ExportOptions{AppID: "APP", VersionID: "VERSION", MetadataPrefix: ".", Clip: true, Overwrite: true})
+			_, err = PrepareExport(testDeps(), root, []ExportFile{{Path: "app_clip/action.txt", Text: &value}}, ExportOptions{AppID: "APP", VersionID: "VERSION", MetadataPrefix: ".", Clip: true, Overwrite: true})
 			if err == nil {
 				t.Fatal("invalid inventory accepted")
 			}
@@ -142,7 +147,7 @@ func TestManagedExportRecoversPendingOwnership(t *testing.T) {
 			value := "PLAY\n"
 			next := "VIEW\n"
 			options := ExportOptions{AppID: "APP", VersionID: "VERSION", MetadataPrefix: ".", Clip: true, Overwrite: true}
-			p, err := PrepareExport(root, []ExportFile{{Path: "app_clip/action.txt", Text: &value}}, options)
+			p, err := PrepareExport(testDeps(), root, []ExportFile{{Path: "app_clip/action.txt", Text: &value}}, options)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -170,7 +175,7 @@ func TestManagedExportRecoversPendingOwnership(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			retry, err := PrepareExport(root, nil, options)
+			retry, err := PrepareExport(testDeps(), root, nil, options)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -234,7 +239,7 @@ func TestManagedExportPublicationFailureRetainsRecoveryAndConcurrentEdits(t *tes
 			path := "en-US/app_clip/header_image.png"
 			original := "original"
 			if scenario != "publication-gap" {
-				first, err := PrepareExport(root, []ExportFile{{Path: path, Text: &original}}, options)
+				first, err := PrepareExport(testDeps(), root, []ExportFile{{Path: path, Text: &original}}, options)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -242,7 +247,7 @@ func TestManagedExportPublicationFailureRetainsRecoveryAndConcurrentEdits(t *tes
 					t.Fatal(err)
 				}
 			}
-			p, err := PrepareExport(root, []ExportFile{{Path: path, URL: "https://media.example/header.png"}}, options)
+			p, err := PrepareExport(testDeps(), root, []ExportFile{{Path: path, URL: "https://media.example/header.png"}}, options)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -325,7 +330,7 @@ func TestManagedExportWindowsLimit(t *testing.T) {
 	defer root.Close()
 	options := ExportOptions{AppID: "APP", VersionID: "VERSION", MetadataPrefix: ".", Clip: true, Overwrite: true}
 	value := "PLAY\n"
-	p, err := PrepareExport(root, []ExportFile{{Path: filepath.Join("app_clip", "action.txt"), Text: &value}}, options)
+	p, err := PrepareExport(testDeps(), root, []ExportFile{{Path: filepath.Join("app_clip", "action.txt"), Text: &value}}, options)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -339,7 +344,7 @@ func TestManagedExportWindowsLimit(t *testing.T) {
 	if err := root.WriteFile(exportInventoryPath, []byte(`{"schema":1,"files":[]}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := PrepareExport(root, nil, options); !errors.Is(err, rootfs.ErrFileIdentityMutationUnsupported) {
+	if _, err := PrepareExport(testDeps(), root, nil, options); !errors.Is(err, rootfs.ErrFileIdentityMutationUnsupported) {
 		t.Fatalf("existing inventory not protected: %v", err)
 	}
 	if got, _ := root.ReadFile("app_clip/action.txt"); string(got) != value {
@@ -371,7 +376,7 @@ func TestManagedExportInventoryDescriptorBound(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer root.Close()
-	p, err := PrepareExport(root, nil, ExportOptions{AppID: "APP", VersionID: "VERSION", MetadataPrefix: ".", Clip: true, Overwrite: true})
+	p, err := PrepareExport(testDeps(), root, nil, ExportOptions{AppID: "APP", VersionID: "VERSION", MetadataPrefix: ".", Clip: true, Overwrite: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -392,7 +397,7 @@ func TestManagedExportEmptyMissingDestination(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer root.Close()
-	p, err := PrepareExport(root, nil, ExportOptions{AppID: "APP", VersionID: "VERSION", MetadataPrefix: ".", Clip: true, Previews: true, Overwrite: true})
+	p, err := PrepareExport(testDeps(), root, nil, ExportOptions{AppID: "APP", VersionID: "VERSION", MetadataPrefix: ".", Clip: true, Previews: true, Overwrite: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -413,7 +418,7 @@ func TestManagedExportMissingDestinationAndSymlinkInventory(t *testing.T) {
 	defer root.Close()
 	value := "PLAY\n"
 	options := ExportOptions{AppID: "APP", VersionID: "VERSION", MetadataPrefix: ".", Clip: true, Overwrite: true}
-	p, err := PrepareExport(root, []ExportFile{{Path: "app_clip/action.txt", Text: &value}}, options)
+	p, err := PrepareExport(testDeps(), root, []ExportFile{{Path: "app_clip/action.txt", Text: &value}}, options)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -433,7 +438,7 @@ func TestManagedExportMissingDestinationAndSymlinkInventory(t *testing.T) {
 	if err := os.Symlink(filepath.Join(other, "inventory.json"), filepath.Join(dir, exportInventoryPath)); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := PrepareExport(root, nil, options); !errors.Is(err, rootfs.ErrSymlink) {
+	if _, err := PrepareExport(testDeps(), root, nil, options); !errors.Is(err, rootfs.ErrSymlink) {
 		t.Fatalf("symlink inventory accepted: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(other, "inventory.json")); !errors.Is(err, os.ErrNotExist) {
@@ -451,7 +456,7 @@ func TestManagedExportNoForcePreservesFileCreatedAfterPreflight(t *testing.T) {
 	}
 	defer root.Close()
 	value := "PLAY\n"
-	p, err := PrepareExport(root, []ExportFile{{Path: "app_clip/action.txt", Text: &value}}, ExportOptions{AppID: "APP", VersionID: "VERSION", MetadataPrefix: ".", Clip: true})
+	p, err := PrepareExport(testDeps(), root, []ExportFile{{Path: "app_clip/action.txt", Text: &value}}, ExportOptions{AppID: "APP", VersionID: "VERSION", MetadataPrefix: ".", Clip: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -484,7 +489,7 @@ func TestManagedExportDoesNotAdoptConcurrentPublicationCollision(t *testing.T) {
 	path := "en-US/app_clip/header_image.png"
 	content := "same delivered bytes"
 	options := ExportOptions{AppID: "APP", VersionID: "VERSION", MetadataPrefix: ".", Clip: true}
-	p, err := PrepareExport(root, []ExportFile{{Path: path, URL: "https://media.example/header.png"}}, options)
+	p, err := PrepareExport(testDeps(), root, []ExportFile{{Path: path, URL: "https://media.example/header.png"}}, options)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -502,7 +507,7 @@ func TestManagedExportDoesNotAdoptConcurrentPublicationCollision(t *testing.T) {
 	if _, _, err := p.Write(context.Background()); !errors.Is(err, os.ErrExist) {
 		t.Fatalf("exclusive publication did not reject concurrent file: %v", err)
 	}
-	retry, err := PrepareExport(root, nil, options)
+	retry, err := PrepareExport(testDeps(), root, nil, options)
 	if err != nil {
 		t.Fatal(err)
 	}

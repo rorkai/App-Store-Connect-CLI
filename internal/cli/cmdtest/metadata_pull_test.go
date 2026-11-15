@@ -51,16 +51,7 @@ func TestMetadataPullValidationErrors(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			var runErr error
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				runErr = root.Run(context.Background())
-			})
+			stdout, stderr, runErr := runRootWithDeps(t, nil, test.args...)
 
 			if test.wantConcise {
 				if errors.Is(runErr, flag.ErrHelp) || !shared.IsReportedUsageError(runErr) {

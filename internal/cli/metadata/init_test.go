@@ -3,7 +3,7 @@ package metadata
 import "testing"
 
 func TestMetadataInitCommandDefaultsLocale(t *testing.T) {
-	cmd := MetadataInitCommand()
+	cmd := newMetadataInitCommand(metadataTestDeps())
 	f := cmd.FlagSet.Lookup("locale")
 	if f == nil {
 		t.Fatal("expected --locale flag to be defined")
