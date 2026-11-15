@@ -24,7 +24,7 @@ func newPlatformAPICommand(d *shared.Deps) *ffcli.Command {
 		ShortHelp:   "Make raw Apple Ads Platform API v1 requests.",
 		LongHelp:    "Make raw Apple Ads Platform API v1 requests.",
 		FlagSet:     fs,
-		UsageFunc:   shared.DefaultUsageFunc,
+		UsageFunc:   d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{newPlatformAPIRequestCommand(d)},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -54,7 +54,7 @@ Examples:
   asc ads api request --method GET --path v1/me
   asc ads api request --method POST --path v1/metadata/apps/supported-languages/query --file query.json --ad-account "123"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			outputFormat, err := validateAdsRawOutput(output)
 			if err != nil {

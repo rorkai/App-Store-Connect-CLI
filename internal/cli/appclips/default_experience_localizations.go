@@ -26,7 +26,7 @@ Examples:
   asc app-clips default-experiences localizations list --experience-id "EXP_ID"
   asc app-clips default-experiences localizations create --experience-id "EXP_ID" --locale "en-US" --subtitle "Try it"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newAppClipDefaultExperienceLocalizationsListCommand(d),
 			newAppClipDefaultExperienceLocalizationsGetCommand(d),
@@ -62,7 +62,7 @@ Examples:
   asc app-clips default-experiences localizations list --experience-id "EXP_ID"
   asc app-clips default-experiences localizations list --experience-id "EXP_ID" --locale "en-US"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "app-clips default-experiences localizations list", 200, "locale"); err != nil {
 				return err
@@ -232,7 +232,7 @@ func newAppClipDefaultExperienceLocalizationHeaderImageRelationshipCommand(d *sh
 Examples:
   asc app-clips default-experiences localizations header-image-relationship --localization-id "LOC_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			locValue := strings.TrimSpace(*localizationID)
 			if locValue == "" {

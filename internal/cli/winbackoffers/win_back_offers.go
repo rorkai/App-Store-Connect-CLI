@@ -91,7 +91,7 @@ Examples:
   asc win-back-offers update --id "OFFER_ID" --priority NORMAL
   asc win-back-offers prices --id "OFFER_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.VisibleUsageFunc,
+		UsageFunc: d.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newWinBackOffersListCommand(d),
 			newWinBackOffersGetCommand(d),
@@ -134,7 +134,7 @@ Examples:
   asc win-back-offers list --subscription-id "SUB_ID" --limit 50
   asc win-back-offers list --subscription-id "SUB_ID" --include prices --price-fields territory --prices-limit 10`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "win-back-offers list", winBackOffersMaxLimit, "fields", "price-fields", "include", "prices-limit"); err != nil {
 				return err
@@ -292,7 +292,7 @@ Examples:
   asc win-back-offers create --subscription-id "SUB_ID" --reference-name "spring-2026" --offer-id "OFFER-2" --duration ONE_MONTH --offer-mode FREE_TRIAL --period-count 1 --eligibility-paid-months 6 --eligibility-last-subscribed-min 3 --eligibility-last-subscribed-max 12 --start-date "2026-02-01" --priority HIGH --territory "USA,FRA"
   asc win-back-offers create --subscription-id "SUB_ID" --reference-name "spring-2026" --offer-id "OFFER-3" --duration ONE_MONTH --offer-mode FREE_TRIAL --period-count 1 --eligibility-paid-months 6 --eligibility-last-subscribed-min 3 --eligibility-last-subscribed-max 12 --start-date "2026-02-01" --priority HIGH --territory "USA" --target-subscription-plan-type MONTHLY`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			subscription := strings.TrimSpace(*subscriptionID)
 			if subscription == "" {
@@ -584,7 +584,7 @@ Examples:
   asc win-back-offers update --id "OFFER_ID" --priority NORMAL
   asc win-back-offers update --id "OFFER_ID" --end-date "2026-04-01"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*id)
 			if trimmedID == "" {
@@ -738,7 +738,7 @@ Examples:
   asc win-back-offers prices --id "OFFER_ID"
   asc win-back-offers prices --id "OFFER_ID" --territory "US,France" --include territory --territory-fields currency`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "win-back-offers prices", winBackOffersMaxLimit, "territory", "fields", "territory-fields", "price-point-fields", "include"); err != nil {
 				return err
@@ -871,7 +871,7 @@ Examples:
   asc win-back-offers links --subscription-id "SUB_ID"
   asc win-back-offers links --subscription-id "SUB_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "win-back-offers links", winBackOffersMaxLimit); err != nil {
 				return err

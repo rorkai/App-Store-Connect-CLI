@@ -26,7 +26,7 @@ Examples:
   asc game-center leaderboard-sets images upload --localization-id "LOC_ID" --file path/to/image.png
   asc game-center leaderboard-sets images delete --id "IMAGE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newGameCenterLeaderboardSetImagesUploadCommand(d),
 			newGameCenterLeaderboardSetImagesDeleteCommand(d),
@@ -56,7 +56,7 @@ The upload process reserves an upload slot, uploads the image file, and commits 
 Examples:
   asc game-center leaderboard-sets images upload --localization-id "LOC_ID" --file path/to/image.png`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			locID := strings.TrimSpace(*localizationID)
 			if locID == "" {

@@ -25,7 +25,7 @@ Examples:
   asc iap pricing availability view --iap-id "IAP_ID"
   asc iap pricing availability set --iap-id "IAP_ID" --territories "US,Canada"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newIAPAvailabilityGetCommand(d),
 			newIAPAvailabilitySetCommand(d),
@@ -53,7 +53,7 @@ func newIAPAvailabilityGetCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc iap pricing availability view --iap-id "IAP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			iapValue := strings.TrimSpace(*iapID)
 			if iapValue == "" {
@@ -107,7 +107,7 @@ func newIAPAvailabilitySetCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc iap pricing availability set --iap-id "IAP_ID" --territories "US,Canada"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.RecoverBoolFlagTailArgs(fs, args, availableInNew); err != nil {
 				return err

@@ -135,7 +135,7 @@ In-App Purchases:
 Subscriptions:
   asc validate subscriptions --app "APP_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newValidateTestFlightCommand(d),
 			newValidateIAPCommand(d),

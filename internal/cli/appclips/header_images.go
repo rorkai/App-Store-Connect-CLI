@@ -27,7 +27,7 @@ Examples:
   asc app-clips header-images create --localization-id "LOC_ID" --file path/to/image.png
   asc app-clips header-images delete --id "IMAGE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newAppClipHeaderImagesGetCommand(d),
 			newAppClipHeaderImagesCreateCommand(d),
@@ -78,7 +78,7 @@ The upload process reserves an upload slot, uploads the image, and commits the u
 Examples:
   asc app-clips header-images create --localization-id "LOC_ID" --file path/to/image.png`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			locValue := strings.TrimSpace(*localizationID)
 			if locValue == "" {
