@@ -20,7 +20,9 @@ func TestMigrateExportReviewInformationRoundTrip(t *testing.T) {
 		name       string
 		status     int
 		body       string
+		existing   map[string]string
 		wantFiles  map[string]string
+		wantTotal  int
 		wantStderr string
 	}{
 		{
@@ -37,6 +39,7 @@ func TestMigrateExportReviewInformationRoundTrip(t *testing.T) {
 				"demo_required.txt": "true\n",
 				"notes.txt":         "Line one\nLine two\n",
 			},
+			wantTotal:  6,
 			wantStderr: "Warning: demo account password not exported to metadata/review_information/demo_password.txt\n" + clipWarning,
 		},
 		{
@@ -45,12 +48,51 @@ func TestMigrateExportReviewInformationRoundTrip(t *testing.T) {
 			body:       `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not found"}]}`,
 			wantStderr: clipWarning,
 		},
+		{
+			name:   "no review detail over an earlier export",
+			status: http.StatusNotFound,
+			body:   `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not found"}]}`,
+			existing: map[string]string{
+				"first_name.txt": "Old\n", "last_name.txt": "Old\n", "phone_number.txt": "0\n", "email_address.txt": "old@example.com\n",
+				"demo_user.txt": "old\n", "demo_required.txt": "true\n", "demo_account_required.txt": "true\n", "notes.txt": "old\n",
+				"demo_password.txt": "kept\n", "keep.txt": "unrelated\n",
+			},
+			wantFiles:  map[string]string{"demo_password.txt": "kept\n", "keep.txt": "unrelated\n"},
+			wantStderr: clipWarning,
+		},
+		{
+			name:   "review detail over a conflicting alternate demo required file",
+			status: http.StatusOK,
+			body: `{"data":{"type":"appStoreReviewDetails","id":"DETAIL_ID","attributes":{
+				"contactFirstName":"Ada","contactPhone":"+1 555 0100","contactEmail":"ada@example.com",
+				"demoAccountName":"reviewer","demoAccountRequired":true,"notes":"Line one\nLine two"}}}`,
+			existing: map[string]string{"demo_account_required.txt": "false\n"},
+			wantFiles: map[string]string{
+				"first_name.txt":    "Ada\n",
+				"phone_number.txt":  "+1 555 0100\n",
+				"email_address.txt": "ada@example.com\n",
+				"demo_user.txt":     "reviewer\n",
+				"demo_required.txt": "true\n",
+				"notes.txt":         "Line one\nLine two\n",
+			},
+			wantTotal:  6,
+			wantStderr: clipWarning,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 			outputDir := filepath.Join(t.TempDir(), "exported")
+			reviewDir := filepath.Join(outputDir, "metadata", "review_information")
+			if test.existing != nil {
+				if err := os.MkdirAll(reviewDir, 0o755); err != nil {
+					t.Fatal(err)
+				}
+				for name, content := range test.existing {
+					writeFile(t, filepath.Join(reviewDir, name), content)
+				}
+			}
 
 			reg := asctest.NewRegistry(t)
 			reg.Install()
@@ -81,11 +123,10 @@ func TestMigrateExportReviewInformationRoundTrip(t *testing.T) {
 			if err := json.Unmarshal([]byte(stdout), &result); err != nil {
 				t.Fatalf("decode export result: %v (%s)", err, stdout)
 			}
-			if result.TotalFiles != len(test.wantFiles) {
-				t.Fatalf("totalFiles = %d, want %d", result.TotalFiles, len(test.wantFiles))
+			if result.TotalFiles != test.wantTotal {
+				t.Fatalf("totalFiles = %d, want %d", result.TotalFiles, test.wantTotal)
 			}
 
-			reviewDir := filepath.Join(outputDir, "metadata", "review_information")
 			if test.wantFiles == nil {
 				if _, err := os.Stat(reviewDir); !os.IsNotExist(err) {
 					t.Fatalf("review_information exists without a review detail, stat error = %v", err)
@@ -106,6 +147,9 @@ func TestMigrateExportReviewInformationRoundTrip(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, test.wantFiles) {
 				t.Fatalf("review_information files = %#v, want %#v", got, test.wantFiles)
+			}
+			if test.status != http.StatusOK {
+				return
 			}
 
 			importOut, _ := captureOutput(t, func() {

@@ -247,24 +247,30 @@ func fetchExportReviewDetail(ctx context.Context, client *asc.Client, versionID 
 // import reads, except the demo account password, which is never written in
 // clear text.
 func writeExportReviewInformation(root rootfs.Root, attrs *asc.AppStoreReviewDetailAttributes) (int, error) {
-	if attrs == nil {
-		return 0, nil
-	}
 	dir := filepath.Join("metadata", reviewInformationDir)
-	if err := root.MkdirAll(dir, 0o755); err != nil {
-		return 0, fmt.Errorf("failed to create review information directory: %w", err)
+	var detail asc.AppStoreReviewDetailAttributes
+	required := ""
+	if attrs != nil {
+		if err := root.MkdirAll(dir, 0o755); err != nil {
+			return 0, fmt.Errorf("failed to create review information directory: %w", err)
+		}
+		detail = *attrs
+		required = strconv.FormatBool(attrs.DemoAccountRequired)
 	}
+	// Empty content removes a file left by an earlier export, including the
+	// alternate demo required name that import rejects when it disagrees.
 	files := []struct {
 		name    string
 		content string
 	}{
-		{"first_name.txt", attrs.ContactFirstName},
-		{"last_name.txt", attrs.ContactLastName},
-		{"phone_number.txt", attrs.ContactPhone},
-		{"email_address.txt", attrs.ContactEmail},
-		{"demo_user.txt", attrs.DemoAccountName},
-		{"demo_required.txt", strconv.FormatBool(attrs.DemoAccountRequired)},
-		{"notes.txt", attrs.Notes},
+		{"first_name.txt", detail.ContactFirstName},
+		{"last_name.txt", detail.ContactLastName},
+		{"phone_number.txt", detail.ContactPhone},
+		{"email_address.txt", detail.ContactEmail},
+		{"demo_user.txt", detail.DemoAccountName},
+		{"demo_required.txt", required},
+		{"demo_account_required.txt", ""},
+		{"notes.txt", detail.Notes},
 	}
 	total := 0
 	for _, file := range files {
