@@ -104,7 +104,7 @@ func TestSigningKeychainInstallCommandValidatesBeforeExecution(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			called = false
-			d, _, _ := newSigningTestDeps()
+			d, _, stderr := newSigningTestDeps()
 			command := newSigningKeychainInstallCommand(d)
 			command.FlagSet.SetOutput(&strings.Builder{})
 			if err := command.Parse(test.args); err != nil {
@@ -113,6 +113,9 @@ func TestSigningKeychainInstallCommandValidatesBeforeExecution(t *testing.T) {
 			err := command.Run(context.Background())
 			if err == nil || !strings.Contains(err.Error(), test.wantErr) {
 				t.Fatalf("error = %v, want %q", err, test.wantErr)
+			}
+			if line := stderr.String(); !strings.HasPrefix(line, "Error: ") || !strings.Contains(line, test.wantErr) {
+				t.Fatalf("deps stderr = %q, want the %q usage error", line, test.wantErr)
 			}
 			if !errors.Is(err, flag.ErrHelp) || shared.ClassifyUsageError(err) == "" {
 				t.Fatalf("error = %v, want classified usage error", err)
