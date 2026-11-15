@@ -9,9 +9,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// SubscriptionsReviewCommand returns the canonical review family.
-func SubscriptionsReviewCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("review", flag.ExitOnError)
+// newSubscriptionsReviewCommand returns the canonical review family.
+func newSubscriptionsReviewCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("review", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "review",
@@ -32,14 +32,14 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			wrapSubscriptionsCommand(
-				SubscriptionsReviewScreenshotsCommand(),
+				newSubscriptionsReviewScreenshotsCommand(d),
 				"asc subscriptions review-screenshots",
 				"asc subscriptions review screenshots",
 				"screenshots",
 				"Manage subscription App Store review screenshots.",
 			),
 			wrapSubscriptionsCommand(
-				SubscriptionsAppStoreReviewScreenshotCommand(),
+				newSubscriptionsAppStoreReviewScreenshotCommand(d),
 				"asc subscriptions app-store-review-screenshot",
 				"asc subscriptions review app-store-screenshot",
 				"app-store-screenshot",

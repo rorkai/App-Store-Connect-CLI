@@ -302,6 +302,16 @@ func resolveSubscriptionPriceSummary(
 	sub subWithGroup,
 	territory string,
 ) (subscriptionPriceSummary, error) {
+	return resolveSubscriptionPriceSummaryWith(ctx, shared.DefaultDeps(), client, sub, territory)
+}
+
+func resolveSubscriptionPriceSummaryWith(
+	ctx context.Context,
+	d *shared.Deps,
+	client *asc.Client,
+	sub subWithGroup,
+	territory string,
+) (subscriptionPriceSummary, error) {
 	summary := subscriptionPriceSummary{
 		ID:                 sub.Sub.ID,
 		Name:               sub.Sub.Attributes.Name,
@@ -313,7 +323,7 @@ func resolveSubscriptionPriceSummary(
 
 	// The endpoint returns the territory's full price history unsorted, so every
 	// page must be read before the current price can be chosen.
-	pricesCtx, pricesCancel := shared.ContextWithTimeout(ctx)
+	pricesCtx, pricesCancel := d.Timeout(ctx)
 	firstPage, err := client.GetSubscriptionPrices(
 		pricesCtx,
 		sub.Sub.ID,
@@ -329,7 +339,7 @@ func resolveSubscriptionPriceSummary(
 		return summary, fmt.Errorf("fetch prices: %w", err)
 	}
 	allPages, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		pageCtx, pageCancel := shared.ContextWithTimeout(ctx)
+		pageCtx, pageCancel := d.Timeout(ctx)
 		defer pageCancel()
 		return client.GetSubscriptionPrices(pageCtx, sub.Sub.ID, asc.NextURL[asc.SubscriptionPricesOption](nextURL))
 	})

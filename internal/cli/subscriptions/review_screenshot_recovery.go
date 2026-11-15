@@ -48,25 +48,26 @@ var subscriptionReviewScreenshotFields = []string{
 	"assetDeliveryState",
 }
 
-func createOrResumeSubscriptionReviewScreenshot(ctx context.Context, client *asc.Client, subscriptionID string, file *os.File, info os.FileInfo, checksum string) (*asc.SubscriptionAppStoreReviewScreenshotResponse, error) {
+func createOrResumeSubscriptionReviewScreenshot(ctx context.Context, d *shared.Deps, client *asc.Client, subscriptionID string, file *os.File, info os.FileInfo, checksum string) (*asc.SubscriptionAppStoreReviewScreenshotResponse, error) {
 	target := subscriptionReviewScreenshotTarget{
 		FileName: strings.TrimSpace(info.Name()),
 		FileSize: info.Size(),
 		Checksum: strings.TrimSpace(checksum),
 	}
 
-	reservation, found, err := readSubscriptionReviewScreenshot(ctx, client, subscriptionID)
+	reservation, found, err := readSubscriptionReviewScreenshot(ctx, d, client, subscriptionID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to inspect existing screenshot: %w", err)
 	}
 	if !found {
-		reservation, _, err = shared.RunReconciledMutation(
+		reservation, _, err = shared.RunReconciledMutationWith(
 			ctx,
+			d,
 			func(requestCtx context.Context) (*asc.SubscriptionAppStoreReviewScreenshotResponse, error) {
 				return client.CreateSubscriptionAppStoreReviewScreenshot(requestCtx, subscriptionID, target.FileName, target.FileSize)
 			},
 			func(readbackCtx context.Context) (*asc.SubscriptionAppStoreReviewScreenshotResponse, bool, error) {
-				candidate, exists, readErr := readSubscriptionReviewScreenshot(readbackCtx, client, subscriptionID)
+				candidate, exists, readErr := readSubscriptionReviewScreenshot(readbackCtx, d, client, subscriptionID)
 				if readErr != nil || !exists {
 					return candidate, false, readErr
 				}
@@ -85,9 +86,9 @@ func createOrResumeSubscriptionReviewScreenshot(ctx context.Context, client *asc
 	}
 	switch action {
 	case subscriptionReviewScreenshotSkip:
-		return pollSubscriptionReviewScreenshot(ctx, client, reservation.Data.ID, target.Checksum, target.FileSize)
+		return pollSubscriptionReviewScreenshot(ctx, d, client, reservation.Data.ID, target.Checksum, target.FileSize)
 	case subscriptionReviewScreenshotPoll:
-		return pollSubscriptionReviewScreenshot(ctx, client, reservation.Data.ID, target.Checksum, target.FileSize)
+		return pollSubscriptionReviewScreenshot(ctx, d, client, reservation.Data.ID, target.Checksum, target.FileSize)
 	case subscriptionReviewScreenshotResume:
 	default:
 		return nil, fmt.Errorf("unsupported screenshot recovery action %q", action)
@@ -103,13 +104,14 @@ func createOrResumeSubscriptionReviewScreenshot(ctx context.Context, client *asc
 		SourceFileChecksum: &target.Checksum,
 		Uploaded:           &uploaded,
 	}
-	committed, _, err := shared.RunReconciledMutation(
+	committed, _, err := shared.RunReconciledMutationWith(
 		ctx,
+		d,
 		func(requestCtx context.Context) (*asc.SubscriptionAppStoreReviewScreenshotResponse, error) {
 			return client.UpdateSubscriptionAppStoreReviewScreenshot(requestCtx, reservation.Data.ID, commitAttrs)
 		},
 		func(readbackCtx context.Context) (*asc.SubscriptionAppStoreReviewScreenshotResponse, bool, error) {
-			candidate, exists, readErr := readSubscriptionReviewScreenshot(readbackCtx, client, subscriptionID)
+			candidate, exists, readErr := readSubscriptionReviewScreenshot(readbackCtx, d, client, subscriptionID)
 			if readErr != nil || !exists {
 				return candidate, false, readErr
 			}
@@ -136,11 +138,11 @@ func createOrResumeSubscriptionReviewScreenshot(ctx context.Context, client *asc
 		reservation = committed
 	}
 
-	return pollSubscriptionReviewScreenshot(ctx, client, reservation.Data.ID, target.Checksum, target.FileSize)
+	return pollSubscriptionReviewScreenshot(ctx, d, client, reservation.Data.ID, target.Checksum, target.FileSize)
 }
 
-func readSubscriptionReviewScreenshot(ctx context.Context, client *asc.Client, subscriptionID string) (*asc.SubscriptionAppStoreReviewScreenshotResponse, bool, error) {
-	resp, err := shared.RetryReadWithFreshTimeout(ctx, func(requestCtx context.Context) (*asc.SubscriptionAppStoreReviewScreenshotResponse, error) {
+func readSubscriptionReviewScreenshot(ctx context.Context, d *shared.Deps, client *asc.Client, subscriptionID string) (*asc.SubscriptionAppStoreReviewScreenshotResponse, bool, error) {
+	resp, err := shared.RetryReadWithFreshTimeoutWith(ctx, d, func(requestCtx context.Context) (*asc.SubscriptionAppStoreReviewScreenshotResponse, error) {
 		return client.GetSubscriptionAppStoreReviewScreenshotForSubscription(
 			requestCtx,
 			subscriptionID,
@@ -228,8 +230,8 @@ func subscriptionReviewScreenshotDeliveryError(resp *asc.SubscriptionAppStoreRev
 	return shared.ReviewScreenshotDeliveryError("asc subscriptions review screenshots", strings.TrimSpace(resp.Data.ID), details)
 }
 
-func pollSubscriptionReviewScreenshot(ctx context.Context, client *asc.Client, screenshotID, expectedChecksum string, fileSize int64) (*asc.SubscriptionAppStoreReviewScreenshotResponse, error) {
-	verifyCtx, verifyCancel := shared.ContextWithMediaUploadTimeout(ctx, fileSize)
+func pollSubscriptionReviewScreenshot(ctx context.Context, d *shared.Deps, client *asc.Client, screenshotID, expectedChecksum string, fileSize int64) (*asc.SubscriptionAppStoreReviewScreenshotResponse, error) {
+	verifyCtx, verifyCancel := d.MediaUploadTimeout(ctx, fileSize)
 	defer verifyCancel()
-	return waitForSubscriptionReviewScreenshotDelivery(verifyCtx, client, screenshotID, expectedChecksum)
+	return waitForSubscriptionReviewScreenshotDelivery(verifyCtx, d, client, screenshotID, expectedChecksum)
 }

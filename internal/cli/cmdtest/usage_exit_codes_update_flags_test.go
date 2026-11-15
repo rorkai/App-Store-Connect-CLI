@@ -376,6 +376,7 @@ func TestUpdateWithoutUpdateFlagsListsEveryUpdateFlag(t *testing.T) {
 			name:  "subscriptions offers retention update",
 			args:  []string{"subscriptions", "offers", "retention", "update", "--id", "ID"},
 			flags: "--eligibility-paid-months, --eligibility-wait-months",
+			deps:  true,
 		},
 		{
 			name:  "subscriptions offers win-back update",
@@ -392,11 +393,13 @@ func TestUpdateWithoutUpdateFlagsListsEveryUpdateFlag(t *testing.T) {
 			name:  "subscriptions retention-messages localizations update",
 			args:  []string{"subscriptions", "retention-messages", "localizations", "update", "--id", "ID"},
 			flags: "--header, --body, --clear-header, --clear-body",
+			deps:  true,
 		},
 		{
 			name:  "subscriptions review screenshots update",
 			args:  []string{"subscriptions", "review", "screenshots", "update", "--screenshot-id", "ID"},
 			flags: "--checksum, --uploaded",
+			deps:  true,
 		},
 		{
 			name:  "subscriptions update",

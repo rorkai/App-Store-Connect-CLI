@@ -15,9 +15,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// SubscriptionsReviewScreenshotsCommand returns the review screenshots command group.
-func SubscriptionsReviewScreenshotsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("review-screenshots", flag.ExitOnError)
+// newSubscriptionsReviewScreenshotsCommand returns the review screenshots command group.
+func newSubscriptionsReviewScreenshotsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("review-screenshots", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "review-screenshots",
@@ -31,10 +31,10 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			SubscriptionsReviewScreenshotsGetCommand(),
-			SubscriptionsReviewScreenshotsCreateCommand(),
-			SubscriptionsReviewScreenshotsUpdateCommand(),
-			SubscriptionsReviewScreenshotsDeleteCommand(),
+			newSubscriptionsReviewScreenshotsGetCommand(d),
+			newSubscriptionsReviewScreenshotsCreateCommand(d),
+			newSubscriptionsReviewScreenshotsUpdateCommand(d),
+			newSubscriptionsReviewScreenshotsDeleteCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -42,13 +42,13 @@ Examples:
 	}
 }
 
-// SubscriptionsReviewScreenshotsGetCommand returns the review screenshots get subcommand.
-func SubscriptionsReviewScreenshotsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("review-screenshots view", flag.ExitOnError)
+// newSubscriptionsReviewScreenshotsGetCommand returns the review screenshots get subcommand.
+func newSubscriptionsReviewScreenshotsGetCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("review-screenshots view", flag.ExitOnError)
 
 	screenshotID := shared.BindResourceIDFlag(fs, "screenshot-id", "subscriptionAppStoreReviewScreenshots", "Review screenshot ID")
 	subscriptionFields := fs.String("subscription-fields", "", "Included subscription fields (comma-separated)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "view",
@@ -61,21 +61,21 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			selectedSubscriptionFields, err := normalizeSparseFieldsFlag(fs, "", "subscription-fields", *subscriptionFields, subscriptionFieldsList())
+			selectedSubscriptionFields, err := normalizeSparseFieldsFlagWith(d, fs, "", "subscription-fields", *subscriptionFields, subscriptionFieldsList())
 			if err != nil {
 				return err
 			}
 			id := strings.TrimSpace(*screenshotID)
 			if id == "" {
-				return shared.RequiredFlag("--screenshot-id")
+				return d.RequiredFlag("--screenshot-id")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("subscriptions review-screenshots view: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetSubscriptionAppStoreReviewScreenshot(
@@ -87,19 +87,19 @@ Examples:
 				return fmt.Errorf("subscriptions review-screenshots view: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// SubscriptionsReviewScreenshotsCreateCommand returns the review screenshots create subcommand.
-func SubscriptionsReviewScreenshotsCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("review-screenshots create", flag.ExitOnError)
+// newSubscriptionsReviewScreenshotsCreateCommand returns the review screenshots create subcommand.
+func newSubscriptionsReviewScreenshotsCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("review-screenshots create", flag.ExitOnError)
 
 	subscriptionID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID, product ID, or exact current name")
 	appID := addSubscriptionLookupAppFlag(fs)
 	filePath := fs.String("file", "", "Path to review screenshot file")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -122,15 +122,15 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*subscriptionID)
 			if id == "" {
-				return shared.RequiredFlag("--subscription-id")
+				return d.RequiredFlag("--subscription-id")
 			}
 
 			pathValue := strings.TrimSpace(*filePath)
 			if pathValue == "" {
-				return shared.RequiredFlag("--file")
+				return d.RequiredFlag("--file")
 			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
 			snapshot, info, cleanupSnapshot, err := snapshotSubscriptionReviewScreenshot(pathValue)
@@ -142,43 +142,43 @@ Examples:
 				return err
 			}
 			defer cleanupSnapshot()
-			if err := shared.PreflightReviewScreenshot(pathValue, snapshot, info.Size()); err != nil {
-				return shared.ReviewScreenshotUsageError("--file", shared.RewriteUsageMessage(ctx, "subscriptions review-screenshots create: "+err.Error()))
+			if err := d.PreflightReviewScreenshot(pathValue, snapshot, info.Size()); err != nil {
+				return d.ReviewScreenshotUsageError("--file", shared.RewriteUsageMessage(ctx, "subscriptions review-screenshots create: "+err.Error()))
 			}
 			checksum, err := asc.ComputeChecksumFromReader(io.NewSectionReader(snapshot, 0, info.Size()), asc.ChecksumAlgorithmMD5)
 			if err != nil {
 				return fmt.Errorf("subscriptions review-screenshots create: checksum failed: %w", err)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("subscriptions review-screenshots create: %w", err)
 			}
 
-			id, err = resolveSubscriptionLookupIDWithTimeout(ctx, client, *appID, id)
+			id, err = resolveSubscriptionLookupIDWithTimeoutWith(ctx, d, client, *appID, id)
 			if err != nil {
 				return err
 			}
 
-			finalResp, err := createOrResumeSubscriptionReviewScreenshot(ctx, client, id, snapshot, info, checksum.Hash)
+			finalResp, err := createOrResumeSubscriptionReviewScreenshot(ctx, d, client, id, snapshot, info, checksum.Hash)
 			if err != nil {
 				return fmt.Errorf("subscriptions review-screenshots create: %w", err)
 			}
 
-			return shared.PrintOutput(finalResp, *output.Output, *output.Pretty)
+			return d.PrintOutput(finalResp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// SubscriptionsReviewScreenshotsUpdateCommand returns the review screenshots update subcommand.
-func SubscriptionsReviewScreenshotsUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("review-screenshots update", flag.ExitOnError)
+// newSubscriptionsReviewScreenshotsUpdateCommand returns the review screenshots update subcommand.
+func newSubscriptionsReviewScreenshotsUpdateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("review-screenshots update", flag.ExitOnError)
 
 	screenshotID := shared.BindResourceIDFlag(fs, "screenshot-id", "subscriptionAppStoreReviewScreenshots", "Review screenshot ID")
 	checksum := fs.String("checksum", "", "Source file checksum (MD5)")
 	var uploaded shared.OptionalBool
 	fs.Var(&uploaded, "uploaded", "Mark upload complete: true or false")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -193,20 +193,20 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*screenshotID)
 			if id == "" {
-				return shared.RequiredFlag("--screenshot-id")
+				return d.RequiredFlag("--screenshot-id")
 			}
 
 			checksumValue := strings.TrimSpace(*checksum)
 			if checksumValue == "" && !uploaded.IsSet() {
-				return shared.UpdateFlagRequired(fs, checksum, &uploaded)
+				return d.UpdateFlagRequired(fs, checksum, &uploaded)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("subscriptions review-screenshots update: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			attrs := asc.SubscriptionAppStoreReviewScreenshotUpdateAttributes{}
@@ -223,14 +223,15 @@ Examples:
 				return fmt.Errorf("subscriptions review-screenshots update: failed to update: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// SubscriptionsReviewScreenshotsDeleteCommand returns the review screenshots delete subcommand.
-func SubscriptionsReviewScreenshotsDeleteCommand() *ffcli.Command {
+// newSubscriptionsReviewScreenshotsDeleteCommand returns the review screenshots delete subcommand.
+func newSubscriptionsReviewScreenshotsDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		Deps:        d,
 		FlagSetName: "review-screenshots delete",
 		Name:        "delete",
 		ShortUsage:  "asc subscriptions review-screenshots delete --screenshot-id \"SHOT_ID\" --confirm",
@@ -254,11 +255,11 @@ Examples:
 
 // waitForSubscriptionReviewScreenshotDelivery polls until the screenshot reaches
 // a terminal delivery state and returns the successful response for output.
-func waitForSubscriptionReviewScreenshotDelivery(ctx context.Context, client *asc.Client, screenshotID, expectedChecksum string) (*asc.SubscriptionAppStoreReviewScreenshotResponse, error) {
+func waitForSubscriptionReviewScreenshotDelivery(ctx context.Context, d *shared.Deps, client *asc.Client, screenshotID, expectedChecksum string) (*asc.SubscriptionAppStoreReviewScreenshotResponse, error) {
 	var verifiedResp *asc.SubscriptionAppStoreReviewScreenshotResponse
 	lastState := ""
 	_, err := asc.PollMediaUntil(ctx, func(ctx context.Context) (struct{}, bool, error) {
-		resp, err := shared.RetryReadWithFreshTimeout(ctx, func(requestCtx context.Context) (*asc.SubscriptionAppStoreReviewScreenshotResponse, error) {
+		resp, err := shared.RetryReadWithFreshTimeoutWith(ctx, d, func(requestCtx context.Context) (*asc.SubscriptionAppStoreReviewScreenshotResponse, error) {
 			return client.GetSubscriptionAppStoreReviewScreenshot(requestCtx, screenshotID)
 		})
 		if err != nil {

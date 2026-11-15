@@ -485,11 +485,11 @@ func subscriptionPriceImportStatePlanFilter(rows []subscriptionPriceImportCSVRow
 	return filter
 }
 
-func fetchSubscriptionPriceImportState(ctx context.Context, client *asc.Client, subscriptionID string) (*subscriptionPriceImportStateIndex, error) {
-	return fetchSubscriptionPriceImportStateForPlans(ctx, client, subscriptionID, asc.SubscriptionPlanTypeUpfront)
+func fetchSubscriptionPriceImportStateForPlans(ctx context.Context, client *asc.Client, subscriptionID string, planFilter asc.SubscriptionPlanType) (*subscriptionPriceImportStateIndex, error) {
+	return fetchSubscriptionPriceImportStateForPlansWith(ctx, shared.DefaultDeps(), client, subscriptionID, planFilter)
 }
 
-func fetchSubscriptionPriceImportStateForPlans(ctx context.Context, client *asc.Client, subscriptionID string, planFilter asc.SubscriptionPlanType) (*subscriptionPriceImportStateIndex, error) {
+func fetchSubscriptionPriceImportStateForPlansWith(ctx context.Context, d *shared.Deps, client *asc.Client, subscriptionID string, planFilter asc.SubscriptionPlanType) (*subscriptionPriceImportStateIndex, error) {
 	query := url.Values{
 		"fields[subscriptionPrices]": []string{"startDate,preserved,planType,territory,subscriptionPricePoint"},
 		"filter[planType]":           []string{string(planFilter)},
@@ -502,11 +502,11 @@ func fetchSubscriptionPriceImportStateForPlans(ctx context.Context, client *asc.
 			if err != nil {
 				return nil, err
 			}
-			return shared.RetryReadWithFreshTimeout(ctx, func(requestCtx context.Context) (*asc.SubscriptionPricesResponse, error) {
+			return shared.RetryReadWithFreshTimeoutWith(ctx, d, func(requestCtx context.Context) (*asc.SubscriptionPricesResponse, error) {
 				return client.GetSubscriptionPrices(requestCtx, subscriptionID, asc.NextURL[asc.SubscriptionPricesOption](mergedNext))
 			})
 		}
-		return shared.RetryReadWithFreshTimeout(ctx, func(requestCtx context.Context) (*asc.SubscriptionPricesResponse, error) {
+		return shared.RetryReadWithFreshTimeoutWith(ctx, d, func(requestCtx context.Context) (*asc.SubscriptionPricesResponse, error) {
 			return client.GetSubscriptionPrices(
 				requestCtx,
 				subscriptionID,

@@ -775,10 +775,14 @@ func findPricePoint(ctx context.Context, client *asc.Client, subID, territory, t
 }
 
 func fetchEqualizations(ctx context.Context, client *asc.Client, pricePointID, baseTerritory string) ([]equalization, error) {
+	return fetchEqualizationsWith(ctx, shared.DefaultDeps(), client, pricePointID, baseTerritory)
+}
+
+func fetchEqualizationsWith(ctx context.Context, d *shared.Deps, client *asc.Client, pricePointID, baseTerritory string) ([]equalization, error) {
 	// Use include=territory so the API populates each price point's
 	// relationships with the territory reference, avoiding reliance on
 	// opaque price point ID structure.
-	firstCtx, firstCancel := shared.ContextWithTimeout(ctx)
+	firstCtx, firstCancel := d.Timeout(ctx)
 	resp, err := client.GetSubscriptionPricePointEqualizations(
 		firstCtx, pricePointID,
 		asc.WithSubscriptionPricePointsInclude([]string{"territory"}),
@@ -791,7 +795,7 @@ func fetchEqualizations(ctx context.Context, client *asc.Client, pricePointID, b
 	}
 
 	allPages, err := asc.PaginateAll(ctx, resp, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		pageCtx, pageCancel := shared.ContextWithTimeout(ctx)
+		pageCtx, pageCancel := d.Timeout(ctx)
 		defer pageCancel()
 		return client.GetSubscriptionPricePointEqualizations(
 			pageCtx, pricePointID,

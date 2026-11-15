@@ -51,17 +51,17 @@ Examples:
 			newSubscriptionsGroupsCommand(d),
 			newSubscriptionsListCommand(d),
 			newSubscriptionsCreateCommand(d),
-			SubscriptionsSetupCommand(),
+			newSubscriptionsSetupCommand(d),
 			newSubscriptionsGetCommand(d),
 			newSubscriptionsUpdateCommand(d),
 			newSubscriptionsDeleteCommand(d),
 			SubscriptionsPricingCommand(),
-			SubscriptionsOffersCommand(),
-			SubscriptionsReviewCommand(),
+			newSubscriptionsOffersCommand(d),
+			newSubscriptionsReviewCommand(d),
 			newSubscriptionsPromotedPurchasesCommand(d),
 			newSubscriptionsVersionsCommand(d),
 			newSubscriptionsGracePeriodsCommand(d),
-			SubscriptionsRetentionMessagesCommand(),
+			newSubscriptionsRetentionMessagesCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -563,7 +563,7 @@ Examples:
 			}
 
 			note := strings.TrimSpace(*reviewNote)
-			if err := validateSubscriptionReviewFlagsWith(d, fs, note, groupLevel); err != nil {
+			if err := validateSubscriptionReviewFlags(d, fs, note, groupLevel); err != nil {
 				return err
 			}
 
@@ -712,7 +712,7 @@ Examples:
 			fs.Visit(func(f *flag.Flag) {
 				visited[f.Name] = true
 			})
-			if err := validateSubscriptionReviewFlagsWith(d, fs, note, groupLevel); err != nil {
+			if err := validateSubscriptionReviewFlags(d, fs, note, groupLevel); err != nil {
 				return err
 			}
 			markets, err := normalizeSelectionFlagWith(d, fs, strings.ToUpper(*marketSettings), "--market-settings", []string{"APP_STORE", "APPLE_SCHOOL", "APPLE_BUSINESS"})
@@ -782,11 +782,7 @@ Examples:
 	}
 }
 
-func validateSubscriptionReviewFlags(fs *flag.FlagSet, reviewNote string, groupLevel optionalInt) error {
-	return validateSubscriptionReviewFlagsWith(shared.DefaultDeps(), fs, reviewNote, groupLevel)
-}
-
-func validateSubscriptionReviewFlagsWith(d *shared.Deps, fs *flag.FlagSet, reviewNote string, groupLevel optionalInt) error {
+func validateSubscriptionReviewFlags(d *shared.Deps, fs *flag.FlagSet, reviewNote string, groupLevel optionalInt) error {
 	reviewNoteSet := false
 	fs.Visit(func(f *flag.Flag) {
 		reviewNoteSet = reviewNoteSet || f.Name == "review-note"

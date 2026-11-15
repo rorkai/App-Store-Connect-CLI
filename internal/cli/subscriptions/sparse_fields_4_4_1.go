@@ -9,10 +9,14 @@ import (
 )
 
 func normalizeSparseFieldsFlag(fs *flag.FlagSet, next, name, value string, allowed []string) ([]string, error) {
+	return normalizeSparseFieldsFlagWith(shared.DefaultDeps(), fs, next, name, value, allowed)
+}
+
+func normalizeSparseFieldsFlagWith(d *shared.Deps, fs *flag.FlagSet, next, name, value string, allowed []string) ([]string, error) {
 	if strings.TrimSpace(next) != "" && flagWasProvided(fs, name) {
-		return nil, shared.UsageErrorf("--next cannot be combined with --%s", name)
+		return nil, d.UsageErrorf("--next cannot be combined with --%s", name)
 	}
-	return normalizeSelectionFlag(fs, value, "--"+name, allowed)
+	return normalizeSelectionFlagWith(d, fs, value, "--"+name, allowed)
 }
 
 func includeRelationshipForFields(fields []string, relationship string) []string {
