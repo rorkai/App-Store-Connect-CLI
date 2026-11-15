@@ -671,17 +671,6 @@ func TestValidateMatrixPlan_RejectsUnsafeAndConflictingValues(t *testing.T) {
 	}, &caseInsensitiveScreenshots, ""); err == nil || !strings.Contains(err.Error(), "unique") {
 		t.Fatalf("ValidateMatrixPlan() error = %v, want case-insensitive screenshot-name collision", err)
 	}
-	statusBar := *base
-	statusBar.Defaults.StatusBar = "screenshot"
-	if err := validateMatrixPlan(&MatrixPlan{
-		Version:         1,
-		Devices:         []MatrixDevice{{ID: "phone", UDID: "u"}},
-		Locales:         []string{"en-US"},
-		Appearances:     []string{"light"},
-		ContentVariants: []MatrixContentVariant{{ID: "default"}},
-	}, &statusBar, ""); err == nil || !strings.Contains(err.Error(), "defaults.status_bar is not supported in a matrix base plan") {
-		t.Fatalf("ValidateMatrixPlan() error = %v, want defaults.status_bar rejected", err)
-	}
 }
 
 func TestBuildLocaleLaunchArgumentsPreservesScriptSubtags(t *testing.T) {
@@ -2537,6 +2526,111 @@ cp "$AXE_TEMPLATE_PNG" "$out"
 	}
 	if !reflect.DeepEqual(launches, wantLaunches) {
 		t.Fatalf("launches = %q, want %q", launches, wantLaunches)
+	}
+}
+
+func TestRunMatrixAppliesAndClearsStatusBarOncePerCell(t *testing.T) {
+	tests := []struct {
+		name         string
+		axeFail      string
+		failFirst    bool
+		wantCalls    []string
+		wantStatuses []string
+		wantCodes    []string
+	}{
+		{
+			name:         "retried attempt stays inside one apply and clear",
+			failFirst:    true,
+			wantCalls:    []string{"status-bar preset", "launch", "capture", "launch", "capture", "status-bar clear", "status-bar preset", "launch", "capture", "status-bar clear"},
+			wantStatuses: []string{MatrixCellSuccess, MatrixCellSuccess},
+			wantCodes:    []string{"", ""},
+		},
+		{
+			name:         "failed clear keeps screenshots and blocks the simulator",
+			axeFail:      "clear",
+			wantCalls:    []string{"status-bar preset", "launch", "capture", "status-bar clear"},
+			wantStatuses: []string{MatrixCellCleanupFailed, MatrixCellFailed},
+			wantCodes:    []string{"status_bar_clear_failed", "simulator_blocked_after_cleanup_failure"},
+		},
+		{
+			name:         "failed apply runs no steps",
+			axeFail:      "preset",
+			wantCalls:    []string{"status-bar preset", "status-bar clear", "status-bar preset", "status-bar clear"},
+			wantStatuses: []string{MatrixCellFailed, MatrixCellFailed},
+			wantCodes:    []string{"status_bar_apply_failed", "status_bar_apply_failed"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			binDir := t.TempDir()
+			basePath := filepath.Join(dir, "base.json")
+			matrixPath := filepath.Join(dir, "matrix.json")
+			callLog := filepath.Join(dir, "calls.log")
+			axeTemplate := filepath.Join(dir, "template.png")
+			writeMinimalPNG(t, axeTemplate, 10, 10)
+			writeMatrixTestFile(t, basePath, `{"version":1,"app":{"bundle_id":"com.example.app"},"defaults":{"status_bar":"screenshot"},"steps":[{"action":"launch"},{"action":"screenshot","name":"home"}]}`)
+			writeMatrixTestFile(t, matrixPath, `{"version":1,"base_plan":"base.json","devices":[{"id":"phone","udid":"SIM-UDID"}],"locales":["en-US"],"appearances":["light"],"content_variants":[{"id":"first"},{"id":"second"}],"execution":{"max_attempts":2,"retry_backoff_ms":0},"output":{"raw_dir":"raw","review_dir":"review"}}`)
+			writeExecutable(t, filepath.Join(binDir, "xcrun"), `#!/bin/sh
+printf 'launch\n' >> "$CALL_LOG"
+`)
+			writeExecutable(t, filepath.Join(binDir, "axe"), `#!/bin/sh
+set -eu
+if [ "$2" = "status-bar" ]; then
+  printf 'status-bar %s\n' "$3" >> "$CALL_LOG"
+  if [ "$3" = "$AXE_FAIL" ]; then exit 1; fi
+  exit 0
+fi
+printf 'capture\n' >> "$CALL_LOG"
+if [ -n "$FAIL_FIRST" ] && [ ! -f "$CALL_LOG.failed" ]; then touch "$CALL_LOG.failed"; exit 1; fi
+out=""
+while [ "$#" -gt 0 ]; do
+  if [ "$1" = "--output" ]; then out="$2"; break; fi
+  shift
+done
+cp "$AXE_TEMPLATE_PNG" "$out"
+`)
+			failFirst := ""
+			if tt.failFirst {
+				failFirst = "1"
+			}
+			t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+			t.Setenv("CALL_LOG", callLog)
+			t.Setenv("AXE_FAIL", tt.axeFail)
+			t.Setenv("FAIL_FIRST", failFirst)
+			t.Setenv("AXE_TEMPLATE_PNG", axeTemplate)
+
+			matrixPlan, err := LoadMatrixPlan(matrixPath)
+			if err != nil {
+				t.Fatalf("LoadMatrixPlan() error = %v", err)
+			}
+			result, _ := RunMatrixWithDependencies(context.Background(), matrixPath, matrixPlan, MatrixOptions{}, MatrixDependencies{Appearance: &matrixTestAppearance{}})
+			data, err := os.ReadFile(callLog)
+			if err != nil {
+				t.Fatalf("ReadFile(%q) error = %v", callLog, err)
+			}
+			if calls := strings.Split(strings.TrimSpace(string(data)), "\n"); !reflect.DeepEqual(calls, tt.wantCalls) {
+				t.Fatalf("calls = %q, want %q", calls, tt.wantCalls)
+			}
+			for i, cell := range result.Cells {
+				if cell.Status != tt.wantStatuses[i] || cell.FailureCode != tt.wantCodes[i] {
+					t.Fatalf("cell %d = %s %q, want %s %q", i, cell.Status, cell.FailureCode, tt.wantStatuses[i], tt.wantCodes[i])
+				}
+			}
+			switch tt.axeFail {
+			case "clear":
+				if shot := result.Cells[0].Screenshots[0]; shot.Status != MatrixCellSuccess || shot.RawPath == "" {
+					t.Fatalf("first cell screenshot = %+v, want it kept as produced", shot)
+				}
+				if message := result.Cells[1].Error.Message; message != "simulator blocked after cleanup failure" {
+					t.Fatalf("blocked cell message = %q, want cause-neutral block", message)
+				}
+			case "preset":
+				if result.Cells[0].Attempts != 0 {
+					t.Fatalf("attempts = %d, want none after a failed apply", result.Cells[0].Attempts)
+				}
+			}
+		})
 	}
 }
 
