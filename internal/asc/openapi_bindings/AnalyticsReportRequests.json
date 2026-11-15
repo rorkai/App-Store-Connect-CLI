@@ -8,5 +8,8 @@
   ],
   "relationships": [
     {"data":"AnalyticsReportRequestCreateData","type":"AnalyticsReportRequestCreateRelationships"}
+  ],
+  "operations": [
+    {"operation":"analyticsReportRequests_createInstance","name":"CreateAnalyticsReportRequest","params":["appID"],"check":"raw","links":["app"],"args":[{"name":"accessType","type":"AnalyticsAccessType"}]}
   ]
 }
