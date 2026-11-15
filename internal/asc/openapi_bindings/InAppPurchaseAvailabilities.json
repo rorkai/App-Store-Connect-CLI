@@ -14,5 +14,8 @@
   "operations": [
     {"operation":"inAppPurchaseAvailabilities_availableTerritories_getToManyRelated","name":"GetInAppPurchaseAvailabilityAvailableTerritories","params":["availabilityID"],"check":"require","options":"IAPAvailabilityTerritoriesOption","query":"buildIAPAvailabilityTerritoriesQuery","nextContext":"in-app-purchase-availability-territories"},
     {"operation":"inAppPurchaseAvailabilities_getInstance","name":"GetInAppPurchaseAvailabilityByID","params":["availabilityID"],"check":"require"}
+  ],
+  "queries": [
+    {"operation":"inAppPurchaseAvailabilities_availableTerritories_getToManyRelated","name":"IAPAvailabilityTerritories"}
   ]
 }

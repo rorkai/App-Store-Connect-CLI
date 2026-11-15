@@ -14,5 +14,9 @@
     {"operation":"inAppPurchasePriceSchedules_baseTerritory_getToOneRelated","name":"GetInAppPurchasePriceScheduleBaseTerritory","params":["scheduleID"],"check":"require"},
     {"operation":"inAppPurchasePriceSchedules_getInstance","name":"GetInAppPurchasePriceScheduleByID","params":["scheduleID"],"check":"require","options":"IAPPriceScheduleOption","query":"buildIAPPriceScheduleQuery","single":true},
     {"operation":"inAppPurchasePriceSchedules_manualPrices_getToManyRelated","name":"GetInAppPurchasePriceScheduleManualPrices","params":["scheduleID"],"check":"require","options":"IAPPriceSchedulePricesOption","query":"buildIAPPriceSchedulePricesQuery","nextContext":"in-app-purchase-manual-prices"}
+  ],
+  "queries": [
+    {"operation":"inAppPurchasePriceSchedules_automaticPrices_getToManyRelated","also":["inAppPurchasePriceSchedules_manualPrices_getToManyRelated"],"name":"IAPPriceSchedulePrices","params":[{"name":"include"},{"name":"fields[inAppPurchasePrices]","field":"priceFields","with":"WithIAPPriceSchedulePricesFields","arg":"fields"},{"name":"fields[inAppPurchasePricePoints]","field":"pricePointFields","arg":"fields"},{"name":"fields[territories]","arg":"fields"}]},
+    {"operation":"inAppPurchasePriceSchedules_getInstance","also":["inAppPurchasesV2_iapPriceSchedule_getToOneRelated"],"name":"IAPPriceSchedule","params":[{"name":"include"},{"name":"fields[inAppPurchasePriceSchedules]","field":"priceScheduleFields","with":"WithIAPPriceScheduleFields","arg":"fields"},{"name":"fields[territories]","arg":"fields"},{"name":"fields[inAppPurchasePrices]","field":"inAppPriceFields","with":"WithIAPPriceSchedulePriceFields","arg":"fields"},{"name":"limit[manualPrices]","field":"manualPricesLimit","arg":"limit","type":"int"},{"name":"limit[automaticPrices]","field":"automaticPricesLimit","arg":"limit","type":"int"}]}
   ]
 }

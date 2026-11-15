@@ -17,5 +17,10 @@
     {"operation":"inAppPurchaseOfferCodes_oneTimeUseCodes_getToManyRelated","name":"GetInAppPurchaseOfferCodeOneTimeUseCodes","params":["offerCodeID"],"check":"require","options":"IAPOfferCodeOneTimeUseCodesOption","query":"buildIAPOfferCodeOneTimeUseCodesQuery","nextContext":"in-app-purchase-offer-code-one-time-use-codes"},
     {"operation":"inAppPurchaseOfferCodes_prices_getToManyRelated","name":"GetInAppPurchaseOfferCodePrices","params":["offerCodeID"],"check":"require","options":"IAPOfferCodePricesOption","query":"buildIAPOfferCodePricesQuery","nextContext":"in-app-purchase-offer-code-prices"},
     {"operation":"inAppPurchaseOfferCodes_updateInstance","name":"UpdateInAppPurchaseOfferCode","params":["offerCodeID"],"check":"require","skipEmptyAttributes":true}
+  ],
+  "queries": [
+    {"operation":"inAppPurchaseOfferCodes_customCodes_getToManyRelated","name":"IAPOfferCodeCustomCodes"},
+    {"operation":"inAppPurchaseOfferCodes_oneTimeUseCodes_getToManyRelated","name":"IAPOfferCodeOneTimeUseCodes"},
+    {"operation":"inAppPurchaseOfferCodes_prices_getToManyRelated","name":"IAPOfferCodePrices","params":[{"name":"fields[inAppPurchaseOfferPrices]","normalize":"unique"},{"name":"include","normalize":"unique"}]}
   ]
 }

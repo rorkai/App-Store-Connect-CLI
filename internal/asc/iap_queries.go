@@ -2,29 +2,10 @@ package asc
 
 import (
 	"net/url"
-	"strconv"
 	"strings"
 )
 
-type IAPOfferCodesOption func(*iapOfferCodesQuery)
-
 type IAPPricePointsOption func(*iapPricePointsQuery)
-
-type IAPOfferCodeCustomCodesOption func(*iapOfferCodeCustomCodesQuery)
-
-type IAPOfferCodeOneTimeUseCodesOption func(*iapOfferCodeOneTimeUseCodesQuery)
-
-type IAPOfferCodePricesOption func(*iapOfferCodePricesQuery)
-
-type IAPAvailabilityTerritoriesOption func(*iapAvailabilityTerritoriesQuery)
-
-type IAPPriceSchedulePricesOption func(*iapPriceSchedulePricesQuery)
-
-type IAPPriceScheduleOption func(*iapPriceScheduleQuery)
-
-type iapOfferCodesQuery struct {
-	listQuery
-}
 
 type iapPricePointsQuery struct {
 	listQuery
@@ -33,41 +14,6 @@ type iapPricePointsQuery struct {
 	fields          []string
 	territoryFields []string
 	include         []string
-}
-
-type iapOfferCodeCustomCodesQuery struct {
-	listQuery
-}
-
-type iapOfferCodeOneTimeUseCodesQuery struct {
-	listQuery
-}
-
-type iapOfferCodePricesQuery struct {
-	listQuery
-	fields  []string
-	include []string
-}
-
-type iapAvailabilityTerritoriesQuery struct {
-	listQuery
-}
-
-type iapPriceSchedulePricesQuery struct {
-	listQuery
-	include          []string
-	priceFields      []string
-	pricePointFields []string
-	territoryFields  []string
-}
-
-type iapPriceScheduleQuery struct {
-	include              []string
-	priceScheduleFields  []string
-	territoryFields      []string
-	inAppPriceFields     []string
-	manualPricesLimit    int
-	automaticPricesLimit int
 }
 
 func WithIAPPricePointsTerritory(territory string) IAPPricePointsOption {
@@ -96,90 +42,6 @@ func WithIAPPricePointsInclude(include []string) IAPPricePointsOption {
 	}
 }
 
-// WithIAPOfferCodePricesFields sets fields[inAppPurchaseOfferPrices].
-func WithIAPOfferCodePricesFields(fields []string) IAPOfferCodePricesOption {
-	return func(q *iapOfferCodePricesQuery) {
-		q.fields = normalizeUniqueList(fields)
-	}
-}
-
-// WithIAPOfferCodePricesInclude sets relationships to include.
-func WithIAPOfferCodePricesInclude(include []string) IAPOfferCodePricesOption {
-	return func(q *iapOfferCodePricesQuery) {
-		q.include = normalizeUniqueList(include)
-	}
-}
-
-func WithIAPPriceSchedulePricesInclude(include []string) IAPPriceSchedulePricesOption {
-	return func(q *iapPriceSchedulePricesQuery) {
-		q.include = normalizeList(include)
-	}
-}
-
-func WithIAPPriceSchedulePricesFields(fields []string) IAPPriceSchedulePricesOption {
-	return func(q *iapPriceSchedulePricesQuery) {
-		q.priceFields = normalizeList(fields)
-	}
-}
-
-func WithIAPPriceSchedulePricesPricePointFields(fields []string) IAPPriceSchedulePricesOption {
-	return func(q *iapPriceSchedulePricesQuery) {
-		q.pricePointFields = normalizeList(fields)
-	}
-}
-
-func WithIAPPriceSchedulePricesTerritoryFields(fields []string) IAPPriceSchedulePricesOption {
-	return func(q *iapPriceSchedulePricesQuery) {
-		q.territoryFields = normalizeList(fields)
-	}
-}
-
-func WithIAPPriceScheduleInclude(include []string) IAPPriceScheduleOption {
-	return func(q *iapPriceScheduleQuery) {
-		q.include = normalizeList(include)
-	}
-}
-
-func WithIAPPriceScheduleFields(fields []string) IAPPriceScheduleOption {
-	return func(q *iapPriceScheduleQuery) {
-		q.priceScheduleFields = normalizeList(fields)
-	}
-}
-
-func WithIAPPriceScheduleTerritoryFields(fields []string) IAPPriceScheduleOption {
-	return func(q *iapPriceScheduleQuery) {
-		q.territoryFields = normalizeList(fields)
-	}
-}
-
-func WithIAPPriceSchedulePriceFields(fields []string) IAPPriceScheduleOption {
-	return func(q *iapPriceScheduleQuery) {
-		q.inAppPriceFields = normalizeList(fields)
-	}
-}
-
-func WithIAPPriceScheduleManualPricesLimit(limit int) IAPPriceScheduleOption {
-	return func(q *iapPriceScheduleQuery) {
-		if limit > 0 {
-			q.manualPricesLimit = limit
-		}
-	}
-}
-
-func WithIAPPriceScheduleAutomaticPricesLimit(limit int) IAPPriceScheduleOption {
-	return func(q *iapPriceScheduleQuery) {
-		if limit > 0 {
-			q.automaticPricesLimit = limit
-		}
-	}
-}
-
-func buildIAPOfferCodesQuery(query *iapOfferCodesQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
 func buildIAPPricePointsQuery(query *iapPricePointsQuery) string {
 	values := url.Values{}
 	if strings.TrimSpace(query.territory) != "" {
@@ -190,56 +52,5 @@ func buildIAPPricePointsQuery(query *iapPricePointsQuery) string {
 	addCSV(values, "include", query.include)
 	addLimit(values, query.limit)
 	query.includedFields.AddTo(values)
-	return values.Encode()
-}
-
-func buildIAPOfferCodeCustomCodesQuery(query *iapOfferCodeCustomCodesQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
-func buildIAPOfferCodeOneTimeUseCodesQuery(query *iapOfferCodeOneTimeUseCodesQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
-func buildIAPOfferCodePricesQuery(query *iapOfferCodePricesQuery) string {
-	values := url.Values{}
-	addCSV(values, "fields[inAppPurchaseOfferPrices]", query.fields)
-	addCSV(values, "include", query.include)
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
-func buildIAPAvailabilityTerritoriesQuery(query *iapAvailabilityTerritoriesQuery) string {
-	values := url.Values{}
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
-func buildIAPPriceSchedulePricesQuery(query *iapPriceSchedulePricesQuery) string {
-	values := url.Values{}
-	addCSV(values, "include", query.include)
-	addCSV(values, "fields[inAppPurchasePrices]", query.priceFields)
-	addCSV(values, "fields[inAppPurchasePricePoints]", query.pricePointFields)
-	addCSV(values, "fields[territories]", query.territoryFields)
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
-func buildIAPPriceScheduleQuery(query *iapPriceScheduleQuery) string {
-	values := url.Values{}
-	addCSV(values, "include", query.include)
-	addCSV(values, "fields[inAppPurchasePriceSchedules]", query.priceScheduleFields)
-	addCSV(values, "fields[territories]", query.territoryFields)
-	addCSV(values, "fields[inAppPurchasePrices]", query.inAppPriceFields)
-	if query.manualPricesLimit > 0 {
-		values.Set("limit[manualPrices]", strconv.Itoa(query.manualPricesLimit))
-	}
-	if query.automaticPricesLimit > 0 {
-		values.Set("limit[automaticPrices]", strconv.Itoa(query.automaticPricesLimit))
-	}
 	return values.Encode()
 }

@@ -29,6 +29,7 @@
     {"operation":"inAppPurchases_getInstance","name":"GetInAppPurchase","params":["iapID"]}
   ],
   "queries": [
-    {"operation":"inAppPurchasesV2_inAppPurchaseLocalizations_getToManyRelated","name":"IAPLocalizations","deviations":[{"problem":"query parameters [fields[inAppPurchaseLocalizations] fields[inAppPurchases] include] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]}
+    {"operation":"inAppPurchasesV2_inAppPurchaseLocalizations_getToManyRelated","name":"IAPLocalizations","deviations":[{"problem":"query parameters [fields[inAppPurchaseLocalizations] fields[inAppPurchases] include] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]},
+    {"operation":"inAppPurchasesV2_offerCodes_getToManyRelated","name":"IAPOfferCodes"}
   ]
 }

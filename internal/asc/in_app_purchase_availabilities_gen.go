@@ -5,6 +5,7 @@ package asc
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 )
 
@@ -58,4 +59,17 @@ func (c *Client) GetInAppPurchaseAvailabilityByID(ctx context.Context, availabil
 	return getJSON[InAppPurchaseAvailabilityResponse](ctx, c, readRequest{
 		Path: fmt.Sprintf("/v1/inAppPurchaseAvailabilities/%s", availabilityID),
 	})
+}
+
+// IAPAvailabilityTerritoriesOption sets the query of GET /v1/inAppPurchaseAvailabilities/{id}/availableTerritories (inAppPurchaseAvailabilities_availableTerritories_getToManyRelated).
+type IAPAvailabilityTerritoriesOption func(*iapAvailabilityTerritoriesQuery)
+
+type iapAvailabilityTerritoriesQuery struct {
+	listQuery
+}
+
+func buildIAPAvailabilityTerritoriesQuery(query *iapAvailabilityTerritoriesQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
 }
