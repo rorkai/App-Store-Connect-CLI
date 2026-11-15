@@ -14,9 +14,8 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// BackgroundAssetsUploadFilesCommand returns the upload files command group.
-func BackgroundAssetsUploadFilesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("upload-files", flag.ExitOnError)
+func newBackgroundAssetsUploadFilesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("upload-files", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "upload-files",
@@ -32,10 +31,10 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			BackgroundAssetsUploadFilesListCommand(),
-			BackgroundAssetsUploadFilesGetCommand(),
-			BackgroundAssetsUploadFilesCreateCommand(),
-			BackgroundAssetsUploadFilesUpdateCommand(),
+			newBackgroundAssetsUploadFilesListCommand(d),
+			newBackgroundAssetsUploadFilesGetCommand(d),
+			newBackgroundAssetsUploadFilesCreateCommand(d),
+			newBackgroundAssetsUploadFilesUpdateCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -43,15 +42,14 @@ Examples:
 	}
 }
 
-// BackgroundAssetsUploadFilesListCommand returns the upload files list subcommand.
-func BackgroundAssetsUploadFilesListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
+func newBackgroundAssetsUploadFilesListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("list", flag.ExitOnError)
 
 	versionID := shared.BindResourceIDFlag(fs, "version-id", "backgroundAssetVersions", "Background asset version ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -67,21 +65,21 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			versionIDValue := strings.TrimSpace(*versionID)
 			if versionIDValue == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--version-id")
+				return d.RequiredFlag("--version-id")
 			}
 			if *limit != 0 && (*limit < 1 || *limit > backgroundAssetsMaxLimit) {
-				return shared.UsageErrorf("background-assets upload-files list: --limit must be between 1 and %d", backgroundAssetsMaxLimit)
+				return d.UsageErrorf("background-assets upload-files list: --limit must be between 1 and %d", backgroundAssetsMaxLimit)
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("background-assets upload-files list: %v", err)
+				return d.UsageErrorf("background-assets upload-files list: %v", err)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("background-assets upload-files list: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			opts := []asc.BackgroundAssetUploadFilesOption{
@@ -103,7 +101,7 @@ Examples:
 					return fmt.Errorf("background-assets upload-files list: %w", err)
 				}
 
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetBackgroundAssetUploadFiles(requestCtx, versionIDValue, opts...)
@@ -111,14 +109,14 @@ Examples:
 				return fmt.Errorf("background-assets upload-files list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// BackgroundAssetsUploadFilesGetCommand returns the upload files get subcommand.
-func BackgroundAssetsUploadFilesGetCommand() *ffcli.Command {
+func newBackgroundAssetsUploadFilesGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		Deps:       d,
 		Name:       "view",
 		ShortUsage: "asc background-assets upload-files view --upload-file-id \"UPLOAD_FILE_ID\"",
 		ShortHelp:  "View a background asset upload file by ID.",
@@ -136,15 +134,14 @@ Examples:
 	})
 }
 
-// BackgroundAssetsUploadFilesCreateCommand returns the upload files create subcommand.
-func BackgroundAssetsUploadFilesCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
+func newBackgroundAssetsUploadFilesCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("create", flag.ExitOnError)
 
 	versionID := shared.BindResourceIDFlag(fs, "version-id", "backgroundAssetVersions", "Background asset version ID")
 	filePath := fs.String("file", "", "Path to upload file")
 	assetType := fs.String("asset-type", "", "Asset type: "+strings.Join(backgroundAssetUploadFileAssetTypeValues, ", "))
 	checksum := fs.Bool("checksum", false, "Verify source file checksums before committing")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -160,21 +157,21 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			versionIDValue := strings.TrimSpace(*versionID)
 			if versionIDValue == "" {
-				return shared.RequiredFlag("--version-id")
+				return d.RequiredFlag("--version-id")
 			}
 
 			pathValue := strings.TrimSpace(*filePath)
 			if pathValue == "" {
-				return shared.RequiredFlag("--file")
+				return d.RequiredFlag("--file")
 			}
 
 			if strings.TrimSpace(*assetType) == "" {
-				return shared.RequiredFlag("--asset-type")
+				return d.RequiredFlag("--asset-type")
 			}
 
 			typeValue, err := normalizeBackgroundAssetUploadFileAssetType(*assetType)
 			if err != nil {
-				return shared.UsageErrorf("background-assets upload-files create: %v", err)
+				return d.UsageErrorf("background-assets upload-files create: %v", err)
 			}
 
 			info, err := os.Lstat(pathValue)
@@ -191,12 +188,12 @@ Examples:
 				return fmt.Errorf("background-assets upload-files create: file size must be greater than 0")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("background-assets upload-files create: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateBackgroundAssetUploadFile(requestCtx, versionIDValue, filepath.Base(pathValue), info.Size(), typeValue)
@@ -207,7 +204,7 @@ Examples:
 				return fmt.Errorf("background-assets upload-files create: no upload operations returned")
 			}
 
-			uploadCtx, uploadCancel := shared.ContextWithUploadTimeout(ctx)
+			uploadCtx, uploadCancel := d.UploadTimeout(ctx)
 			err = asc.ExecuteUploadOperations(uploadCtx, pathValue, resp.Data.Attributes.UploadOperations)
 			uploadCancel()
 			if err != nil {
@@ -218,7 +215,7 @@ Examples:
 			sourceChecksums := resp.Data.Attributes.SourceFileChecksums
 			if *checksum {
 				if sourceChecksums == nil || (sourceChecksums.File == nil && sourceChecksums.Composite == nil) {
-					fmt.Fprintln(os.Stderr, "Warning: --checksum requested but API provided no checksums to verify; skipping")
+					fmt.Fprintln(d.IO.ErrOut, "Warning: --checksum requested but API provided no checksums to verify; skipping")
 				} else {
 					computed, err := asc.VerifySourceFileChecksums(pathValue, sourceChecksums)
 					if err != nil {
@@ -236,27 +233,26 @@ Examples:
 				Uploaded:            &uploaded,
 			}
 
-			commitCtx, commitCancel := shared.ContextWithUploadTimeout(ctx)
+			commitCtx, commitCancel := d.UploadTimeout(ctx)
 			commitResp, err := client.UpdateBackgroundAssetUploadFile(commitCtx, resp.Data.ID, updateAttrs)
 			commitCancel()
 			if err != nil {
 				return fmt.Errorf("background-assets upload-files create: failed to commit upload: %w", err)
 			}
 
-			return shared.PrintOutput(commitResp, *output.Output, *output.Pretty)
+			return d.PrintOutput(commitResp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// BackgroundAssetsUploadFilesUpdateCommand returns the upload files update subcommand.
-func BackgroundAssetsUploadFilesUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("update", flag.ExitOnError)
+func newBackgroundAssetsUploadFilesUpdateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("update", flag.ExitOnError)
 
 	uploadFileID := shared.BindResourceIDFlag(fs, "upload-file-id", "backgroundAssetUploadFiles", "Background asset upload file ID")
 	uploaded := fs.String("uploaded", "", "Mark upload as complete (true/false)")
 	filePath := fs.String("file", "", "Path to file for checksum verification (requires --checksum)")
 	checksum := fs.Bool("checksum", false, "Verify source file checksums before committing")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -272,24 +268,24 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			uploadFileIDValue := strings.TrimSpace(*uploadFileID)
 			if uploadFileIDValue == "" {
-				return shared.RequiredFlag("--upload-file-id")
+				return d.RequiredFlag("--upload-file-id")
 			}
 
 			uploadedValue := strings.TrimSpace(*uploaded)
 			if uploadedValue == "" {
-				return shared.RequiredFlag("--uploaded")
+				return d.RequiredFlag("--uploaded")
 			}
 			uploadedBool, err := shared.ParseBoolFlag(uploadedValue, "--uploaded")
 			if err != nil {
-				return shared.UsageErrorf("background-assets upload-files update: %v", err)
+				return d.UsageErrorf("background-assets upload-files update: %v", err)
 			}
 
 			pathValue := strings.TrimSpace(*filePath)
 			if pathValue != "" && !*checksum {
-				return shared.UsageError("--file requires --checksum")
+				return d.UsageError("--file requires --checksum")
 			}
 			if *checksum && pathValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --checksum requires --file")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --checksum requires --file")
 				return flag.ErrHelp
 			}
 
@@ -309,14 +305,14 @@ Examples:
 				}
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("background-assets upload-files update: %w", err)
 			}
 
 			var checksums *asc.Checksums
 			if pathValue != "" {
-				requestCtx, cancel := shared.ContextWithTimeout(ctx)
+				requestCtx, cancel := d.Timeout(ctx)
 				defer cancel()
 
 				resp, err := client.GetBackgroundAssetUploadFile(requestCtx, uploadFileIDValue)
@@ -327,7 +323,7 @@ Examples:
 				// --file requires --checksum, so verification always runs here.
 				sourceChecksums := resp.Data.Attributes.SourceFileChecksums
 				if sourceChecksums == nil || (sourceChecksums.File == nil && sourceChecksums.Composite == nil) {
-					fmt.Fprintln(os.Stderr, "Warning: --checksum requested but API provided no checksums to verify; skipping")
+					fmt.Fprintln(d.IO.ErrOut, "Warning: --checksum requested but API provided no checksums to verify; skipping")
 				} else {
 					computed, err := asc.VerifySourceFileChecksums(pathValue, sourceChecksums)
 					if err != nil {
@@ -342,14 +338,14 @@ Examples:
 				Uploaded:            &uploadedBool,
 			}
 
-			commitCtx, commitCancel := shared.ContextWithUploadTimeout(ctx)
+			commitCtx, commitCancel := d.UploadTimeout(ctx)
 			commitResp, err := client.UpdateBackgroundAssetUploadFile(commitCtx, uploadFileIDValue, updateAttrs)
 			commitCancel()
 			if err != nil {
 				return fmt.Errorf("background-assets upload-files update: failed to update: %w", err)
 			}
 
-			return shared.PrintOutput(commitResp, *output.Output, *output.Pretty)
+			return d.PrintOutput(commitResp, *output.Output, *output.Pretty)
 		},
 	}
 }

@@ -92,7 +92,8 @@ func TestEncryptionInputValidationReturnsUsageExitCode(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			assertUsageExitCode(t, test.args, test.wantErr)
+			stdout, stderr, runErr := runRootWithDeps(t, nil, test.args...)
+			assertUsageExitCodeResult(t, stdout, stderr, runErr, test.wantErr)
 		})
 	}
 }

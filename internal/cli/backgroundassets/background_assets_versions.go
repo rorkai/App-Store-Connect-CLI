@@ -12,9 +12,8 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// BackgroundAssetsVersionsCommand returns the versions command group.
-func BackgroundAssetsVersionsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("versions", flag.ExitOnError)
+func newBackgroundAssetsVersionsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("versions", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "versions",
@@ -29,9 +28,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			BackgroundAssetsVersionsListCommand(),
-			BackgroundAssetsVersionsGetCommand(),
-			BackgroundAssetsVersionsCreateCommand(),
+			newBackgroundAssetsVersionsListCommand(d),
+			newBackgroundAssetsVersionsGetCommand(d),
+			newBackgroundAssetsVersionsCreateCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -39,9 +38,8 @@ Examples:
 	}
 }
 
-// BackgroundAssetsVersionsListCommand returns the versions list subcommand.
-func BackgroundAssetsVersionsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
+func newBackgroundAssetsVersionsListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("list", flag.ExitOnError)
 
 	assetID := shared.BindResourceIDFlag(fs, "background-asset-id", "backgroundAssets", "Background asset ID")
 	locale := fs.String("locale", "", "Filter by locale(s), comma-separated (e.g., en-US,ja)")
@@ -55,7 +53,7 @@ func BackgroundAssetsVersionsListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -74,51 +72,51 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			assetIDValue := strings.TrimSpace(*assetID)
 			if assetIDValue == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--background-asset-id")
+				return d.RequiredFlag("--background-asset-id")
 			}
 			if *limit != 0 && (*limit < 1 || *limit > backgroundAssetsMaxLimit) {
-				return shared.UsageErrorf("background-assets versions list: --limit must be between 1 and %d", backgroundAssetsMaxLimit)
+				return d.UsageErrorf("background-assets versions list: --limit must be between 1 and %d", backgroundAssetsMaxLimit)
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("background-assets versions list: %v", err)
+				return d.UsageErrorf("background-assets versions list: %v", err)
 			}
-			if err := shared.RejectNextFlagConflicts(fs, *next, "background-assets versions list", "locale", "platform", "state", "version", "internal-beta-state", "external-beta-state", "app-store-state", "sort"); err != nil {
+			if err := d.RejectNextFlagConflicts(fs, *next, "background-assets versions list", "locale", "platform", "state", "version", "internal-beta-state", "external-beta-state", "app-store-state", "sort"); err != nil {
 				return err
 			}
 			platforms, err := parseBackgroundAssetEnumCSV("--platform", *platform, shared.PlatformList())
 			if err != nil {
-				return shared.UsageErrorf("background-assets versions list: %v", err)
+				return d.UsageErrorf("background-assets versions list: %v", err)
 			}
 			states, err := parseBackgroundAssetEnumCSV("--state", *state, backgroundAssetVersionStates)
 			if err != nil {
-				return shared.UsageErrorf("background-assets versions list: %v", err)
+				return d.UsageErrorf("background-assets versions list: %v", err)
 			}
 			versions := shared.SplitCSV(*version)
 			if strings.TrimSpace(*version) != "" && len(versions) == 0 {
-				return shared.UsageErrorf("background-assets versions list: --version must include at least one value")
+				return d.UsageErrorf("background-assets versions list: --version must include at least one value")
 			}
 			internalBetaStates, err := parseBackgroundAssetEnumCSV("--internal-beta-state", *internalBetaState, backgroundAssetInternalBetaState)
 			if err != nil {
-				return shared.UsageErrorf("background-assets versions list: %v", err)
+				return d.UsageErrorf("background-assets versions list: %v", err)
 			}
 			externalBetaStates, err := parseBackgroundAssetEnumCSV("--external-beta-state", *externalBetaState, backgroundAssetExternalBetaState)
 			if err != nil {
-				return shared.UsageErrorf("background-assets versions list: %v", err)
+				return d.UsageErrorf("background-assets versions list: %v", err)
 			}
 			appStoreStates, err := parseBackgroundAssetEnumCSV("--app-store-state", *appStoreState, backgroundAssetAppStoreState)
 			if err != nil {
-				return shared.UsageErrorf("background-assets versions list: %v", err)
+				return d.UsageErrorf("background-assets versions list: %v", err)
 			}
 			if err := shared.ValidateSort(*sortBy, backgroundAssetVersionSortValues...); err != nil {
-				return shared.UsageErrorf("background-assets versions list: %v", err)
+				return d.UsageErrorf("background-assets versions list: %v", err)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("background-assets versions list: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			opts := []asc.BackgroundAssetVersionsOption{
@@ -150,7 +148,7 @@ Examples:
 					return fmt.Errorf("background-assets versions list: %w", err)
 				}
 
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetBackgroundAssetVersions(requestCtx, assetIDValue, opts...)
@@ -158,14 +156,14 @@ Examples:
 				return fmt.Errorf("background-assets versions list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// BackgroundAssetsVersionsGetCommand returns the versions get subcommand.
-func BackgroundAssetsVersionsGetCommand() *ffcli.Command {
+func newBackgroundAssetsVersionsGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		Deps:       d,
 		Name:       "view",
 		ShortUsage: "asc background-assets versions view --version-id \"VERSION_ID\"",
 		ShortHelp:  "View a background asset version by ID.",
@@ -183,12 +181,11 @@ Examples:
 	})
 }
 
-// BackgroundAssetsVersionsCreateCommand returns the versions create subcommand.
-func BackgroundAssetsVersionsCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
+func newBackgroundAssetsVersionsCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("create", flag.ExitOnError)
 
 	assetID := shared.BindResourceIDFlag(fs, "background-asset-id", "backgroundAssets", "Background asset ID")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -203,15 +200,15 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			assetIDValue := strings.TrimSpace(*assetID)
 			if assetIDValue == "" {
-				return shared.RequiredFlag("--background-asset-id")
+				return d.RequiredFlag("--background-asset-id")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("background-assets versions create: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateBackgroundAssetVersion(requestCtx, assetIDValue)
@@ -219,7 +216,7 @@ Examples:
 				return fmt.Errorf("background-assets versions create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
