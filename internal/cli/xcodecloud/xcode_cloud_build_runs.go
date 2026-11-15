@@ -109,15 +109,7 @@ Examples:
 }
 
 func XcodeCloudBuildRunsBuildsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("builds", flag.ExitOnError)
-
-	runID := shared.BindResourceIDFlag(fs, "run-id", "ciBuildRuns", "Build run ID to list builds for")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "builds",
 		ShortUsage: "asc xcode-cloud build-runs builds [flags]",
 		ShortHelp:  "List builds for a build run.",
@@ -128,37 +120,19 @@ Examples:
   asc xcode-cloud build-runs builds --run-id "BUILD_RUN_ID" --output table
   asc xcode-cloud build-runs builds --run-id "BUILD_RUN_ID" --limit 50
   asc xcode-cloud build-runs builds --run-id "BUILD_RUN_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "xcode-cloud build-runs builds", 200); err != nil {
-				return err
-			}
-			return runXcodeCloudPaginatedParentList(
-				ctx,
-				*runID,
-				"run-id",
-				"",
-				*limit,
-				*next,
-				*paginate,
-				*output.Output,
-				*output.Pretty,
-				"xcode-cloud build-runs builds",
-				func(ctx context.Context, client *asc.Client, runID string, limit int, next string) (asc.PaginatedResponse, error) {
-					return client.GetCiBuildRunBuilds(
-						ctx,
-						runID,
-						asc.Limit[asc.CiBuildRunBuildsOption](limit),
-						asc.NextURL[asc.CiBuildRunBuildsOption](next),
-					)
-				},
-				func(ctx context.Context, client *asc.Client, runID string, next string) (asc.PaginatedResponse, error) {
-					return client.GetCiBuildRunBuilds(ctx, runID, asc.NextURL[asc.CiBuildRunBuildsOption](next))
-				},
-			)
+		ParentFlag:           "run-id",
+		ParentUsage:          "Build run ID to list builds for",
+		ParentType:           "ciBuildRuns",
+		RequiredDiagnostic:   true,
+		PaginateIgnoresLimit: true,
+		FetchErrorPrefix:     "xcode-cloud build-runs builds",
+		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
+			return contextWithXcodeCloudTimeout(ctx, 0)
 		},
-	}
+		FetchPage: func(ctx context.Context, client *asc.Client, runID string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetCiBuildRunBuilds(ctx, runID, asc.Limit[asc.CiBuildRunBuildsOption](limit), asc.NextURL[asc.CiBuildRunBuildsOption](next))
+		},
+	})
 }
 
 func xcodeCloudBuildRunsList(ctx context.Context, workflowID string, sort string, limit int, next string, paginate bool, output string, pretty bool) error {
