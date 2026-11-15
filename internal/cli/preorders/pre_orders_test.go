@@ -3,8 +3,15 @@ package preorders
 import (
 	"bytes"
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/x509"
+	"encoding/pem"
 	"errors"
 	"flag"
+	"net/http"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -265,7 +272,7 @@ func TestPreOrdersCommand_DefaultOutputJSON(t *testing.T) {
 }
 
 func TestPreOrdersUpdateCommand_PreOrderEnabledAlone(t *testing.T) {
-	d, stdout, stderr := newTestDeps(failingClient)
+	d, stdout, stderr := newTestDeps(failingTransportClient(t))
 	cmd := newPreOrdersUpdateCommand(d)
 
 	if err := cmd.FlagSet.Parse([]string{"--territory-availability", "ta-1", "--pre-order-enabled", "true"}); err != nil {
@@ -276,14 +283,14 @@ func TestPreOrdersUpdateCommand_PreOrderEnabledAlone(t *testing.T) {
 	if errors.Is(err, flag.ErrHelp) {
 		t.Fatal("did not expect flag.ErrHelp when --pre-order-enabled is set")
 	}
-	if !errors.Is(err, errTestClient) {
-		t.Fatalf("expected the client error, got %v", err)
+	if !errors.Is(err, errTestTransport) {
+		t.Fatalf("expected the transport error, got %v", err)
 	}
 	assertOutput(t, stdout, stderr, "")
 }
 
 func TestPreOrdersUpdateCommand_AvailableAlone(t *testing.T) {
-	d, stdout, stderr := newTestDeps(failingClient)
+	d, stdout, stderr := newTestDeps(failingTransportClient(t))
 	cmd := newPreOrdersUpdateCommand(d)
 
 	if err := cmd.FlagSet.Parse([]string{"--territory-availability", "ta-1", "--available", "false"}); err != nil {
@@ -294,8 +301,8 @@ func TestPreOrdersUpdateCommand_AvailableAlone(t *testing.T) {
 	if errors.Is(err, flag.ErrHelp) {
 		t.Fatal("did not expect flag.ErrHelp when --available is set")
 	}
-	if !errors.Is(err, errTestClient) {
-		t.Fatalf("expected the client error, got %v", err)
+	if !errors.Is(err, errTestTransport) {
+		t.Fatalf("expected the transport error, got %v", err)
 	}
 	assertOutput(t, stdout, stderr, "")
 }
@@ -320,7 +327,7 @@ func TestPreOrdersUpdateCommand_DisablePreOrderRejectsReleaseDate(t *testing.T) 
 }
 
 func TestPreOrdersUpdateCommand_DisablePreOrderAlone(t *testing.T) {
-	d, stdout, stderr := newTestDeps(failingClient)
+	d, stdout, stderr := newTestDeps(failingTransportClient(t))
 	cmd := newPreOrdersUpdateCommand(d)
 
 	if err := cmd.FlagSet.Parse([]string{
@@ -334,23 +341,47 @@ func TestPreOrdersUpdateCommand_DisablePreOrderAlone(t *testing.T) {
 	if errors.Is(err, flag.ErrHelp) {
 		t.Fatal("did not expect flag.ErrHelp when --pre-order-enabled false is set")
 	}
-	if !errors.Is(err, errTestClient) {
-		t.Fatalf("expected the client error, got %v", err)
+	if !errors.Is(err, errTestTransport) {
+		t.Fatalf("expected the transport error, got %v", err)
 	}
 	assertOutput(t, stdout, stderr, "")
 }
 
-var errTestClient = errors.New("test client unavailable")
+var errTestTransport = errors.New("test transport unavailable")
 
-func failingClient() (*asc.Client, error) {
-	return nil, errTestClient
+type failingTransport struct{}
+
+func (failingTransport) RoundTrip(*http.Request) (*http.Response, error) {
+	return nil, errTestTransport
+}
+
+// failingTransportClient returns a client factory whose requests fail with
+// errTestTransport without leaving the process.
+func failingTransportClient(t *testing.T) func() (*asc.Client, error) {
+	t.Helper()
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	der, err := x509.MarshalPKCS8PrivateKey(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "AuthKey.p8")
+	if err := os.WriteFile(path, pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: der}), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return func() (*asc.Client, error) {
+		return asc.NewClientWithHTTPClient("KEY", "ISSUER", path, &http.Client{Transport: failingTransport{}})
+	}
 }
 
 func newTestDeps(client func() (*asc.Client, error)) (*shared.Deps, *bytes.Buffer, *bytes.Buffer) {
 	var stdout, stderr bytes.Buffer
 	return &shared.Deps{
-		Client: client,
-		IO:     &shared.IO{Out: &stdout, ErrOut: &stderr},
+		Client:  client,
+		IO:      &shared.IO{Out: &stdout, ErrOut: &stderr},
+		Timeout: shared.ContextWithTimeout,
 	}, &stdout, &stderr
 }
 
