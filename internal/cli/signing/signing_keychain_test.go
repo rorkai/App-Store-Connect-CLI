@@ -37,7 +37,7 @@ func TestSigningKeychainInstallCommandThreadsOptions(t *testing.T) {
 		got = options
 		return &asc.SigningKeychainInstallResult{Action: "installed"}, nil
 	}
-	d, depsStdout, _ := newSigningTestDeps(nil)
+	d, depsStdout, _ := newSigningTestDeps()
 	command := newSigningKeychainInstallCommand(d)
 	command.FlagSet.SetOutput(&strings.Builder{})
 	if err := command.Parse([]string{
@@ -53,8 +53,7 @@ func TestSigningKeychainInstallCommandThreadsOptions(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	var runErr error
-	runErr = command.Run(context.Background())
+	runErr := command.Run(context.Background())
 	stdout := depsStdout.String()
 	if runErr != nil {
 		t.Fatal(runErr)
@@ -105,7 +104,7 @@ func TestSigningKeychainInstallCommandValidatesBeforeExecution(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			called = false
-			d, _, _ := newSigningTestDeps(nil)
+			d, _, _ := newSigningTestDeps()
 			command := newSigningKeychainInstallCommand(d)
 			command.FlagSet.SetOutput(&strings.Builder{})
 			if err := command.Parse(test.args); err != nil {
@@ -547,9 +546,7 @@ func TestExecuteSigningKeychainInstallAppleIntermediates(t *testing.T) {
 					return test.importErr
 				},
 			}
-			var result *asc.SigningKeychainInstallResult
-			var err error
-			result, err = executeSigningKeychainInstallWith(context.Background(), signingKeychainInstallOptions{
+			result, err := executeSigningKeychainInstallWith(context.Background(), signingKeychainInstallOptions{
 				IdentityPath: identityPath, IdentityPasswordPath: identityPasswordPath,
 				KeychainPath: filepath.Join(t.TempDir(), "release.keychain-db"), KeychainPasswordPath: keychainPasswordPath,
 				AddToSearchList: true, AddAppleIntermediates: test.flag,

@@ -36,7 +36,7 @@ func TestSigningKeychainDeleteRefusesLoginBeforeSecurity(t *testing.T) {
 		called = true
 		return nil, nil, nil
 	})
-	d, _, _ := newSigningTestDeps(nil)
+	d, _, _ := newSigningTestDeps()
 	cmd := newSigningKeychainDeleteCommand(d)
 	if err := cmd.Parse([]string{"--keychain", "login.keychain-db", "--confirm"}); err != nil {
 		t.Fatal(err)
@@ -51,7 +51,7 @@ func TestSigningKeychainDeleteRefusesLoginBeforeSecurity(t *testing.T) {
 }
 
 func TestSigningKeychainDeleteRequiresConfirm(t *testing.T) {
-	d, _, _ := newSigningTestDeps(nil)
+	d, _, _ := newSigningTestDeps()
 	cmd := newSigningKeychainDeleteCommand(d)
 	if err := cmd.Parse([]string{"--keychain", filepath.Join(t.TempDir(), "app.keychain-db")}); err != nil {
 		t.Fatal(err)
@@ -86,7 +86,7 @@ func TestSigningKeychainDeleteRefusesLinksToProtectedKeychains(t *testing.T) {
 		t.Run(filepath.Base(path), func(t *testing.T) {
 			var calls []keychainRunnerCall
 			setKeychainRunner(t, recordingKeychainRunner(&calls, nil))
-			d, _, _ := newSigningTestDeps(nil)
+			d, _, _ := newSigningTestDeps()
 			cmd := newSigningKeychainDeleteCommand(d)
 			if err := cmd.Parse([]string{"--keychain", path, "--confirm"}); err != nil {
 				t.Fatal(err)
@@ -111,7 +111,7 @@ func TestSigningKeychainDeleteRefusesDefaultKeychain(t *testing.T) {
 		}
 		return nil, nil, nil
 	}))
-	d, _, _ := newSigningTestDeps(nil)
+	d, _, _ := newSigningTestDeps()
 	cmd := newSigningKeychainDeleteCommand(d)
 	if err := cmd.Parse([]string{"--keychain", keychain, "--confirm"}); err != nil {
 		t.Fatal(err)
@@ -132,7 +132,7 @@ func TestSigningKeychainDeleteRefusesWhenDefaultKeychainIsUnknown(t *testing.T) 
 		}
 		return nil, nil, nil
 	}))
-	d, _, _ := newSigningTestDeps(nil)
+	d, _, _ := newSigningTestDeps()
 	cmd := newSigningKeychainDeleteCommand(d)
 	if err := cmd.Parse([]string{"--keychain", keychain, "--confirm"}); err != nil {
 		t.Fatal(err)
@@ -160,7 +160,7 @@ func TestSigningKeychainDeleteResolvesDedicatedKeychain(t *testing.T) {
 		}
 		return nil, nil, nil
 	}))
-	d, depsStdout, _ := newSigningTestDeps(nil)
+	d, depsStdout, _ := newSigningTestDeps()
 	cmd := newSigningKeychainDeleteCommand(d)
 	if err := cmd.Parse([]string{"--keychain", link, "--confirm", "--output", "json"}); err != nil {
 		t.Fatal(err)
@@ -181,7 +181,7 @@ func TestSigningKeychainDeleteResolvesDedicatedKeychain(t *testing.T) {
 func TestSigningKeychainRequiresExistingKeychainBeforeSecurity(t *testing.T) {
 	var calls []keychainRunnerCall
 	setKeychainRunner(t, recordingKeychainRunner(&calls, nil))
-	d, _, _ := newSigningTestDeps(nil)
+	d, _, _ := newSigningTestDeps()
 	cmd := newSigningKeychainLockCommand(d)
 	if err := cmd.Parse([]string{"--keychain", filepath.Join(t.TempDir(), "missing.keychain-db")}); err != nil {
 		t.Fatal(err)
@@ -201,7 +201,7 @@ func TestSigningKeychainUnlockKeepsPasswordOffArgvAndIsRepeatable(t *testing.T) 
 	var calls []keychainRunnerCall
 	setKeychainRunner(t, recordingKeychainRunner(&calls, nil))
 	for range 2 {
-		d, _, _ := newSigningTestDeps(nil)
+		d, _, _ := newSigningTestDeps()
 		cmd := newSigningKeychainUnlockCommand(d)
 		if err := cmd.Parse([]string{"--keychain", keychain, "--keychain-password-file", passwordFile}); err != nil {
 			t.Fatal(err)
@@ -243,7 +243,7 @@ func TestSigningKeychainPasswordCommandsStopAfterFailedUnlock(t *testing.T) {
 				}
 				return nil, nil, nil
 			}))
-			d, _, _ := newSigningTestDeps(nil)
+			d, _, _ := newSigningTestDeps()
 			cmd := test.command(d)
 			if err := cmd.Parse(append([]string{"--keychain", keychain, "--keychain-password-file", passwordFile}, test.args...)); err != nil {
 				t.Fatal(err)
@@ -292,7 +292,7 @@ func TestSigningKeychainSetTimeoutPreservesLockOnSleep(t *testing.T) {
 				}
 				return nil, nil, nil
 			}))
-			d, _, _ := newSigningTestDeps(nil)
+			d, _, _ := newSigningTestDeps()
 			cmd := newSigningKeychainSetTimeoutCommand(d)
 			if err := cmd.Parse(append([]string{"--keychain", keychain, "--keychain-password-file", passwordFile, "--output", "json"}, test.args...)); err != nil {
 				t.Fatal(err)
@@ -316,7 +316,7 @@ func TestSigningKeychainSetPartitionListSendsPasswordOnStdin(t *testing.T) {
 	physical, _ := filepath.EvalSymlinks(keychain)
 	var calls []keychainRunnerCall
 	setKeychainRunner(t, recordingKeychainRunner(&calls, nil))
-	d, _, _ := newSigningTestDeps(nil)
+	d, _, _ := newSigningTestDeps()
 	cmd := newSigningKeychainSetPartitionListCommand(d)
 	if err := cmd.Parse([]string{"--keychain", keychain, "--keychain-password-file", passwordFile, "--output", "json"}); err != nil {
 		t.Fatal(err)
@@ -354,7 +354,7 @@ func TestSigningKeychainSetPartitionListUnlocksBeforeIdentityLookup(t *testing.T
 		}
 		return nil, nil, nil
 	})
-	d, _, _ := newSigningTestDeps(nil)
+	d, _, _ := newSigningTestDeps()
 	cmd := newSigningKeychainSetPartitionListCommand(d)
 	if err := cmd.Parse([]string{"--keychain", keychain, "--keychain-password-file", passwordFile, "--identity-sha256", strings.ToUpper(sha), "--output", "json"}); err != nil {
 		t.Fatal(err)
@@ -381,7 +381,7 @@ func TestSigningKeychainSetPartitionListRequiresIdentityNotJustCertificate(t *te
 		}
 		return nil, nil, nil
 	}))
-	d, _, _ := newSigningTestDeps(nil)
+	d, _, _ := newSigningTestDeps()
 	cmd := newSigningKeychainSetPartitionListCommand(d)
 	if err := cmd.Parse([]string{"--keychain", keychain, "--keychain-password-file", passwordFile, "--identity-sha256", sha256Hex(certificate.Raw)}); err != nil {
 		t.Fatal(err)
@@ -418,7 +418,7 @@ func TestSigningKeychainListReportsLockStateWithoutPrompting(t *testing.T) {
 	}
 	t.Cleanup(func() { keychainLockState = previous })
 
-	d, depsStdout, _ := newSigningTestDeps(nil)
+	d, depsStdout, _ := newSigningTestDeps()
 
 	cmd := newSigningKeychainListCommand(d)
 	if err := cmd.Parse([]string{"--output", "json"}); err != nil {
@@ -465,7 +465,7 @@ func TestSigningKeychainRefusesNonDarwin(t *testing.T) {
 	previous := keychainHostGOOS
 	keychainHostGOOS = "linux"
 	t.Cleanup(func() { keychainHostGOOS = previous })
-	d, _, _ := newSigningTestDeps(nil)
+	d, _, _ := newSigningTestDeps()
 	cmd := newSigningKeychainLockCommand(d)
 	if err := cmd.Parse([]string{"--keychain", filepath.Join(t.TempDir(), "app.keychain-db")}); err != nil {
 		t.Fatal(err)
