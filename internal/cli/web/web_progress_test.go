@@ -7,8 +7,10 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
@@ -120,8 +122,6 @@ func TestLoginWithOptionalTwoFactorUsesProgressLabels(t *testing.T) {
 }
 
 func TestWebAppsCreateUsesProgressLabels(t *testing.T) {
-	labels := stubWebProgressLabels(t)
-
 	origResolveAppCreateSession := resolveAppCreateSessionFn
 	origNewWebClient := newWebClientFn
 	origEnsureBundleID := ensureBundleIDFn
@@ -139,16 +139,20 @@ func TestWebAppsCreateUsesProgressLabels(t *testing.T) {
 	newWebClientFn = func(session *webcore.AuthSession) *webcore.Client {
 		return &webcore.Client{}
 	}
-	ensureBundleIDFn = func(ctx context.Context, bundleID, appName, platform string) (bool, error) {
+	ensureBundleIDFn = func(ctx context.Context, _ *shared.Deps, bundleID, appName, platform string) (bool, error) {
+		synctest.Wait()
 		return false, nil
 	}
 	createWebAppFn = func(ctx context.Context, client *webcore.Client, attrs webcore.AppCreateAttributes) (*webcore.AppResponse, error) {
+		synctest.Wait()
 		resp := &webcore.AppResponse{}
 		resp.Data.ID = "app-123"
 		return resp, nil
 	}
 
-	cmd := WebAppsCreateCommand()
+	d, _, stderr := newWebSpinnerTestDeps(t)
+
+	cmd := newWebAppsCreateCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--name", "My App",
 		"--bundle-id", "com.example.app",
@@ -160,17 +164,19 @@ func TestWebAppsCreateUsesProgressLabels(t *testing.T) {
 	}
 
 	_, _ = captureOutput(t, func() {
-		if err := cmd.Exec(context.Background(), nil); err != nil {
-			t.Fatalf("exec error: %v", err)
-		}
+		synctest.Test(t, func(t *testing.T) {
+			if err := cmd.Exec(context.Background(), nil); err != nil {
+				t.Fatalf("exec error: %v", err)
+			}
+		})
 	})
 
 	want := []string{
 		"Checking or creating Bundle ID",
 		"Creating app via Apple web API",
 	}
-	if !reflect.DeepEqual(*labels, want) {
-		t.Fatalf("expected labels %v, got %v", want, *labels)
+	if labels := spinnerLabels(stderr.String()); !reflect.DeepEqual(labels, want) {
+		t.Fatalf("expected labels %v, got %v", want, labels)
 	}
 }
 

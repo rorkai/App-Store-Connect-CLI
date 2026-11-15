@@ -104,7 +104,7 @@ func TestRunAppsCreateAutoRenamePreservesUnicode(t *testing.T) {
 	}
 
 	t.Setenv("ASC_WEB_MIN_REQUEST_INTERVAL", "0")
-	err := RunAppsCreate(context.Background(), AppsCreateRunOptions{
+	err := RunAppsCreate(context.Background(), shared.DefaultDeps(), AppsCreateRunOptions{
 		Name:       originalName,
 		BundleID:   "com.example.app",
 		SKU:        "SKU123",
@@ -203,7 +203,9 @@ func TestWebAppsCreateRemovedPasswordFlagFailsBeforeSession(t *testing.T) {
 		return nil, nil
 	}
 
-	cmd := WebAppsCreateCommand()
+	d, _, _ := newWebTestDeps()
+
+	cmd := newWebAppsCreateCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--name", "My App",
 		"--bundle-id", "com.example.app",
@@ -584,7 +586,9 @@ func TestWebAppsCreateResolvesSessionBeforeTimeoutContext(t *testing.T) {
 		return nil, "", resolveErr
 	}
 
-	cmd := WebAppsCreateCommand()
+	d, _, _ := newWebTestDeps()
+
+	cmd := newWebAppsCreateCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--name", "My App",
 		"--bundle-id", "com.example.app",
@@ -662,7 +666,7 @@ func TestWebAppsCreateInteractiveWizardPromptsForMissingFields(t *testing.T) {
 	newWebClientFn = func(session *webcore.AuthSession) *webcore.Client {
 		return &webcore.Client{}
 	}
-	ensureBundleIDFn = func(ctx context.Context, bundleID, appName, platform string) (bool, error) {
+	ensureBundleIDFn = func(ctx context.Context, _ *shared.Deps, bundleID, appName, platform string) (bool, error) {
 		if bundleID != "com.example.app" {
 			t.Fatalf("expected prompted bundle id, got %q", bundleID)
 		}
@@ -695,7 +699,9 @@ func TestWebAppsCreateInteractiveWizardPromptsForMissingFields(t *testing.T) {
 		return resp, nil
 	}
 
-	cmd := WebAppsCreateCommand()
+	d, _, _ := newWebTestDeps()
+
+	cmd := newWebAppsCreateCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
@@ -774,7 +780,7 @@ func TestWebAppsCreateInteractiveWizardPreservesProvidedLocaleDefault(t *testing
 	newWebClientFn = func(session *webcore.AuthSession) *webcore.Client {
 		return &webcore.Client{}
 	}
-	ensureBundleIDFn = func(ctx context.Context, bundleID, appName, platform string) (bool, error) {
+	ensureBundleIDFn = func(ctx context.Context, _ *shared.Deps, bundleID, appName, platform string) (bool, error) {
 		return false, nil
 	}
 	createWebAppFn = func(ctx context.Context, client *webcore.Client, attrs webcore.AppCreateAttributes) (*webcore.AppResponse, error) {
@@ -786,7 +792,9 @@ func TestWebAppsCreateInteractiveWizardPreservesProvidedLocaleDefault(t *testing
 		return resp, nil
 	}
 
-	cmd := WebAppsCreateCommand()
+	d, _, _ := newWebTestDeps()
+
+	cmd := newWebAppsCreateCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--primary-locale", "de-DE", "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
@@ -816,7 +824,7 @@ func TestWebAppsCreateSkipsBundleIDPreflightWhenOfficialAuthMissing(t *testing.T
 	}
 
 	createCalled := false
-	ensureBundleIDFn = func(ctx context.Context, bundleID, appName, platform string) (bool, error) {
+	ensureBundleIDFn = func(ctx context.Context, _ *shared.Deps, bundleID, appName, platform string) (bool, error) {
 		return false, shared.ErrMissingAuth
 	}
 	createWebAppFn = func(ctx context.Context, client *webcore.Client, attrs webcore.AppCreateAttributes) (*webcore.AppResponse, error) {
@@ -826,7 +834,9 @@ func TestWebAppsCreateSkipsBundleIDPreflightWhenOfficialAuthMissing(t *testing.T
 		return resp, nil
 	}
 
-	cmd := WebAppsCreateCommand()
+	d, _, _ := newWebTestDeps()
+
+	cmd := newWebAppsCreateCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--name", "My App",
 		"--bundle-id", "com.example.app",
@@ -864,7 +874,7 @@ func TestWebAppsCreateSkipsBundleIDPreflightWhenOfficialAuthBroken(t *testing.T)
 	}
 
 	createCalled := false
-	ensureBundleIDFn = func(ctx context.Context, bundleID, appName, platform string) (bool, error) {
+	ensureBundleIDFn = func(ctx context.Context, _ *shared.Deps, bundleID, appName, platform string) (bool, error) {
 		return false, errors.Join(errBundleIDPreflightAuthUnavailable, errors.New("broken api auth"))
 	}
 	createWebAppFn = func(ctx context.Context, client *webcore.Client, attrs webcore.AppCreateAttributes) (*webcore.AppResponse, error) {
@@ -874,7 +884,9 @@ func TestWebAppsCreateSkipsBundleIDPreflightWhenOfficialAuthBroken(t *testing.T)
 		return resp, nil
 	}
 
-	cmd := WebAppsCreateCommand()
+	d, _, _ := newWebTestDeps()
+
+	cmd := newWebAppsCreateCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--name", "My App",
 		"--bundle-id", "com.example.app",
@@ -912,7 +924,7 @@ func TestWebAppsCreateEnsuresBundleIDBeforeCreateApp(t *testing.T) {
 	}
 
 	callOrder := make([]string, 0, 2)
-	ensureBundleIDFn = func(ctx context.Context, bundleID, appName, platform string) (bool, error) {
+	ensureBundleIDFn = func(ctx context.Context, _ *shared.Deps, bundleID, appName, platform string) (bool, error) {
 		callOrder = append(callOrder, "ensure")
 		if bundleID != "com.example.app" {
 			t.Fatalf("expected bundle id %q, got %q", "com.example.app", bundleID)
@@ -932,7 +944,9 @@ func TestWebAppsCreateEnsuresBundleIDBeforeCreateApp(t *testing.T) {
 		return resp, nil
 	}
 
-	cmd := WebAppsCreateCommand()
+	d, _, _ := newWebTestDeps()
+
+	cmd := newWebAppsCreateCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--name", "My App",
 		"--bundle-id", "com.example.app",
@@ -973,7 +987,7 @@ func TestWebAppsCreateFailsWhenBundleIDPreflightFails(t *testing.T) {
 	}
 
 	preflightErr := errors.New("preflight failed")
-	ensureBundleIDFn = func(ctx context.Context, bundleID, appName, platform string) (bool, error) {
+	ensureBundleIDFn = func(ctx context.Context, _ *shared.Deps, bundleID, appName, platform string) (bool, error) {
 		return false, preflightErr
 	}
 	createCalled := false
@@ -982,7 +996,9 @@ func TestWebAppsCreateFailsWhenBundleIDPreflightFails(t *testing.T) {
 		return nil, nil
 	}
 
-	cmd := WebAppsCreateCommand()
+	d, _, _ := newWebTestDeps()
+
+	cmd := newWebAppsCreateCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--name", "My App",
 		"--bundle-id", "com.example.app",
@@ -1030,18 +1046,20 @@ func TestWebAppsCreateRollsBackCreatedBundleIDWhenCreateFails(t *testing.T) {
 
 	createErr := errors.New("create failed")
 	deletedBundleID := ""
-	ensureBundleIDFn = func(ctx context.Context, bundleID, appName, platform string) (bool, error) {
+	ensureBundleIDFn = func(ctx context.Context, _ *shared.Deps, bundleID, appName, platform string) (bool, error) {
 		return true, nil
 	}
 	createWebAppFn = func(ctx context.Context, client *webcore.Client, attrs webcore.AppCreateAttributes) (*webcore.AppResponse, error) {
 		return nil, createErr
 	}
-	deleteBundleIDFn = func(ctx context.Context, bundleID string) error {
+	deleteBundleIDFn = func(ctx context.Context, _ *shared.Deps, bundleID string) error {
 		deletedBundleID = bundleID
 		return nil
 	}
 
-	cmd := WebAppsCreateCommand()
+	d, _, _ := newWebTestDeps()
+
+	cmd := newWebAppsCreateCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--name", "My App",
 		"--bundle-id", "com.example.app",
@@ -1093,17 +1111,17 @@ func TestWebAppsCreateMissingCompanyNameProvidesActionableHint(t *testing.T) {
 		return &webcore.AuthSession{Client: &http.Client{Transport: transport}}, "cache", nil
 	}
 	newWebClientFn = webcore.NewClient
-	ensureBundleIDFn = func(ctx context.Context, bundleID, appName, platform string) (bool, error) {
+	ensureBundleIDFn = func(ctx context.Context, _ *shared.Deps, bundleID, appName, platform string) (bool, error) {
 		return true, nil
 	}
 	deletedBundleID := ""
-	deleteBundleIDFn = func(ctx context.Context, bundleID string) error {
+	deleteBundleIDFn = func(ctx context.Context, _ *shared.Deps, bundleID string) error {
 		deletedBundleID = bundleID
 		return nil
 	}
 	t.Setenv("ASC_WEB_MIN_REQUEST_INTERVAL", "0")
 
-	err := RunAppsCreate(context.Background(), AppsCreateRunOptions{
+	err := RunAppsCreate(context.Background(), shared.DefaultDeps(), AppsCreateRunOptions{
 		Name:     "My App",
 		BundleID: "com.example.app",
 		SKU:      "SKU123",
@@ -1153,17 +1171,19 @@ func TestWebAppsCreateSurfacesBundleIDRollbackFailure(t *testing.T) {
 
 	createErr := errors.New("create failed")
 	rollbackErr := errors.New("rollback failed")
-	ensureBundleIDFn = func(ctx context.Context, bundleID, appName, platform string) (bool, error) {
+	ensureBundleIDFn = func(ctx context.Context, _ *shared.Deps, bundleID, appName, platform string) (bool, error) {
 		return true, nil
 	}
 	createWebAppFn = func(ctx context.Context, client *webcore.Client, attrs webcore.AppCreateAttributes) (*webcore.AppResponse, error) {
 		return nil, createErr
 	}
-	deleteBundleIDFn = func(ctx context.Context, bundleID string) error {
+	deleteBundleIDFn = func(ctx context.Context, _ *shared.Deps, bundleID string) error {
 		return rollbackErr
 	}
 
-	cmd := WebAppsCreateCommand()
+	d, _, _ := newWebTestDeps()
+
+	cmd := newWebAppsCreateCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--name", "My App",
 		"--bundle-id", "com.example.app",
@@ -1287,7 +1307,9 @@ func TestWebAppsDeleteByBundleID(t *testing.T) {
 		return resp, nil
 	}
 
-	cmd := WebAppsDeleteCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+
+	cmd := newWebAppsDeleteCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "com.example.throwaway",
 		"--expected-bundle-id", "com.example.throwaway",
@@ -1297,7 +1319,7 @@ func TestWebAppsDeleteByBundleID(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, stderr := captureOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("expected success, got %v", err)
 		}
@@ -1377,7 +1399,9 @@ func TestWebAppsDeleteBundleIDLookupMismatchStopsBeforeDelete(t *testing.T) {
 		return nil, nil
 	}
 
-	cmd := WebAppsDeleteCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+
+	cmd := newWebAppsDeleteCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "com.example.expected",
 		"--confirm",
@@ -1386,7 +1410,7 @@ func TestWebAppsDeleteBundleIDLookupMismatchStopsBeforeDelete(t *testing.T) {
 	}
 
 	var err error
-	stdout, stderr := captureOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		err = cmd.Exec(context.Background(), nil)
 	})
 	if stdout != "" {
@@ -1432,7 +1456,9 @@ func TestWebAppsDeleteExpectedBundleIDMismatchStopsBeforeDelete(t *testing.T) {
 		return nil, nil
 	}
 
-	cmd := WebAppsDeleteCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+
+	cmd := newWebAppsDeleteCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "1234567890",
 		"--expected-bundle-id", "com.example.expected",
@@ -1442,7 +1468,7 @@ func TestWebAppsDeleteExpectedBundleIDMismatchStopsBeforeDelete(t *testing.T) {
 	}
 
 	var err error
-	stdout, stderr := captureOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		err = cmd.Exec(context.Background(), nil)
 	})
 	if stdout != "" {
@@ -1467,13 +1493,15 @@ func TestWebAppsDeleteRequiresConfirmBeforeResolvingSession(t *testing.T) {
 	})
 	t.Cleanup(restoreSession)
 
-	cmd := WebAppsDeleteCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+
+	cmd := newWebAppsDeleteCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--app", "1234567890"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 
 	var err error
-	stdout, stderr := captureOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		err = cmd.Exec(context.Background(), nil)
 	})
 	if stdout != "" {
@@ -1524,7 +1552,7 @@ func TestEnsureBundleIDExistsCreatesWhenOnlyPrefixSiblingsMatch(t *testing.T) {
 		"": `{"data":[{"type":"bundleIds","id":"id-widget","attributes":{"identifier":"com.acme.app.widget"}}],"links":{}}`,
 	})
 
-	created, err := ensureBundleIDExists(context.Background(), "com.acme.app", "Acme", "IOS")
+	created, err := ensureBundleIDExists(context.Background(), shared.DefaultDeps(), "com.acme.app", "Acme", "IOS")
 	if err != nil {
 		t.Fatalf("ensureBundleIDExists: %v", err)
 	}
@@ -1557,7 +1585,7 @@ func TestDeleteBundleIDByIdentifierNeverTargetsPrefixSibling(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			writes := serveBundleIDPrefixMatches(t, test.pages)
-			if err := deleteBundleIDByIdentifier(context.Background(), "com.acme.app"); err != nil {
+			if err := deleteBundleIDByIdentifier(context.Background(), shared.DefaultDeps(), "com.acme.app"); err != nil {
 				t.Fatalf("deleteBundleIDByIdentifier: %v", err)
 			}
 			if strings.Join(*writes, ",") != strings.Join(test.want, ",") {

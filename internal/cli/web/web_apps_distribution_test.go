@@ -52,12 +52,14 @@ func TestWebAppsDistributionViewPrintsAppleAttributes(t *testing.T) {
 		}, nil
 	}
 
-	cmd := WebAppsDistributionViewCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+
+	cmd := newWebAppsDistributionViewCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--app", "app-1", "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -101,12 +103,14 @@ func TestWebAppsDistributionViewTableRendersUnknownForMissingAttributes(t *testi
 		return &webcore.AppDistribution{AppID: appID}, nil
 	}
 
-	cmd := WebAppsDistributionViewCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+
+	cmd := newWebAppsDistributionViewCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--app", "app-2", "--output", "table"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -125,13 +129,15 @@ func TestWebAppsDistributionViewTableRendersUnknownForMissingAttributes(t *testi
 func TestWebAppsDistributionViewRequiresApp(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
-	cmd := WebAppsDistributionViewCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+
+	cmd := newWebAppsDistributionViewCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 
 	var err error
-	_, stderr := captureWebCommandOutput(t, func() {
+	_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		err = cmd.Exec(context.Background(), nil)
 	})
 
@@ -151,7 +157,8 @@ func TestWebAppsDistributionViewRequiresApp(t *testing.T) {
 
 func TestWebAppsRegistersDistributionAndHistory(t *testing.T) {
 	registered := map[string]*ffcli.Command{}
-	for _, sub := range WebAppsCommand().Subcommands {
+	d, _, _ := newWebTestDeps()
+	for _, sub := range newWebAppsCommand(d).Subcommands {
 		registered[sub.Name] = sub
 	}
 	if registered["history"] == nil {
@@ -179,13 +186,15 @@ func TestWebAppsDistributionSetRequiresConfirmationBeforeSession(t *testing.T) {
 		return &webcore.AuthSession{}, "cache", nil
 	}
 
-	cmd := WebAppsDistributionSetCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+
+	cmd := newWebAppsDistributionSetCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--app", "app-1", "--method", "private"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 
 	var runErr error
-	_, stderr := captureWebCommandOutput(t, func() {
+	_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		runErr = cmd.Exec(context.Background(), nil)
 	})
 	if !errors.Is(runErr, flag.ErrHelp) {
@@ -209,7 +218,9 @@ func TestWebAppsDistributionSetRejectsInvalidOutputBeforeSession(t *testing.T) {
 		return &webcore.AuthSession{}, "cache", nil
 	}
 
-	cmd := WebAppsDistributionSetCommand()
+	d, _, _ := newWebTestDeps()
+
+	cmd := newWebAppsDistributionSetCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--app", "app-1", "--method", "private", "--confirm", "--output", "table", "--pretty"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
@@ -241,11 +252,13 @@ func TestWebAppsDistributionSetCallsClientAndPrintsReceipt(t *testing.T) {
 		}, nil
 	}
 
-	cmd := WebAppsDistributionSetCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+
+	cmd := newWebAppsDistributionSetCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--app", "app-1", "--method", "private", "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -275,12 +288,14 @@ func TestWebAppsDistributionSetRejectsEducationForPrivate(t *testing.T) {
 		return &webcore.AuthSession{}, "cache", nil
 	}
 
-	cmd := WebAppsDistributionSetCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+
+	cmd := newWebAppsDistributionSetCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--app", "app-1", "--method", "private", "--education-discount", "discounted", "--confirm"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 	var runErr error
-	_, stderr := captureWebCommandOutput(t, func() {
+	_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		runErr = cmd.Exec(context.Background(), nil)
 	})
 	if !errors.Is(runErr, flag.ErrHelp) {
@@ -311,12 +326,14 @@ func TestWebAppsDistributionSetPrintsUncertainReceiptBeforeReturningError(t *tes
 		}, errors.New("provider write outcome is uncertain")
 	}
 
-	cmd := WebAppsDistributionSetCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+
+	cmd := newWebAppsDistributionSetCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--app", "app-1", "--method", "private", "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 	var runErr error
-	stdout, _ := captureWebCommandOutput(t, func() {
+	stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		runErr = cmd.Exec(context.Background(), nil)
 	})
 	if runErr == nil {

@@ -20,12 +20,14 @@ func TestWebAppsTaxCategorySetRequiresConfirmBeforeResolvingSession(t *testing.T
 		return nil, "", nil
 	}
 
-	cmd := WebAppsTaxCategorySetCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+
+	cmd := newWebAppsTaxCategorySetCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--app", "app-1", "--category", "cat-1"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 	var err error
-	_, stderr := captureOutput(t, func() { err = cmd.Exec(context.Background(), nil) })
+	_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() { err = cmd.Exec(context.Background(), nil) })
 	if err == nil || !errors.Is(err, flag.ErrHelp) || !strings.Contains(stderr, "--confirm is required") {
 		t.Fatalf("expected missing confirm error, got %v (stderr=%q)", err, stderr)
 	}
@@ -64,11 +66,13 @@ func TestWebAppsTaxCategoryListPreservesRawJSONEnvelope(t *testing.T) {
 		}, nil
 	}
 
-	cmd := WebAppsTaxCategoryListCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+
+	cmd := newWebAppsTaxCategoryListCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -114,8 +118,9 @@ func TestWebAppsTaxCategoryCatalogRendersInheritedConditions(t *testing.T) {
 	for _, output := range []string{"table", "markdown"} {
 		t.Run(output, func(t *testing.T) {
 			var renderErr error
-			stdout, stderr := captureWebCommandOutput(t, func() {
-				renderErr = printWebAppTaxCategoryCatalog(catalog, output, false)
+			d, depsStdout, depsStderr := newWebTestDeps()
+			stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
+				renderErr = printWebAppTaxCategoryCatalog(d, catalog, output, false)
 			})
 			if renderErr != nil {
 				t.Fatalf("render error: %v", renderErr)
@@ -172,7 +177,9 @@ func TestWebAppsTaxCategorySetRejectsCategoryRequiringSubcategory(t *testing.T) 
 		return nil
 	}
 
-	cmd := WebAppsTaxCategorySetCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+
+	cmd := newWebAppsTaxCategorySetCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "app-1",
 		"--category", "cat-root",
@@ -181,7 +188,7 @@ func TestWebAppsTaxCategorySetRejectsCategoryRequiringSubcategory(t *testing.T) 
 		t.Fatalf("parse error: %v", err)
 	}
 	var err error
-	_, stderr := captureOutput(t, func() { err = cmd.Exec(context.Background(), nil) })
+	_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() { err = cmd.Exec(context.Background(), nil) })
 	if err == nil || !strings.Contains(err.Error(), "requires a subcategory") || saveCalled {
 		t.Fatalf("expected root category rejection before save, got err=%v saveCalled=%v stderr=%q", err, saveCalled, stderr)
 	}
@@ -240,7 +247,9 @@ func TestWebAppsTaxCategorySetAcceptsParentConditionsForSubcategory(t *testing.T
 		return nil
 	}
 
-	cmd := WebAppsTaxCategorySetCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+
+	cmd := newWebAppsTaxCategorySetCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "app-1",
 		"--category", "cat-child",
@@ -250,7 +259,7 @@ func TestWebAppsTaxCategorySetAcceptsParentConditionsForSubcategory(t *testing.T
 	}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -291,7 +300,9 @@ func TestWebAppsTaxCategorySetRejectsInvalidOutputBeforeSessionOrSave(t *testing
 		return nil
 	}
 
-	cmd := WebAppsTaxCategorySetCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+
+	cmd := newWebAppsTaxCategorySetCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "app-1",
 		"--category", "cat-1",
@@ -302,7 +313,7 @@ func TestWebAppsTaxCategorySetRejectsInvalidOutputBeforeSessionOrSave(t *testing
 		t.Fatalf("parse error: %v", err)
 	}
 	var err error
-	_, stderr := captureOutput(t, func() { err = cmd.Exec(context.Background(), nil) })
+	_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() { err = cmd.Exec(context.Background(), nil) })
 	if err == nil || !strings.Contains(err.Error(), "--pretty is only valid with JSON output") || saveCalled {
 		t.Fatalf("expected invalid output rejection before session/save, got err=%v saveCalled=%v stderr=%q", err, saveCalled, stderr)
 	}
@@ -316,12 +327,14 @@ func TestWebAppsTaxCategoryListRejectsInvalidOutputBeforeSession(t *testing.T) {
 		return nil, "", nil
 	}
 
-	cmd := WebAppsTaxCategoryListCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+
+	cmd := newWebAppsTaxCategoryListCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--output", "table", "--pretty"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 	var err error
-	_, stderr := captureOutput(t, func() { err = cmd.Exec(context.Background(), nil) })
+	_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() { err = cmd.Exec(context.Background(), nil) })
 	if err == nil || !strings.Contains(err.Error(), "--pretty is only valid with JSON output") {
 		t.Fatalf("expected invalid output rejection before session, got err=%v stderr=%q", err, stderr)
 	}
@@ -335,12 +348,14 @@ func TestWebAppsTaxCategoryViewRejectsInvalidOutputBeforeSession(t *testing.T) {
 		return nil, "", nil
 	}
 
-	cmd := WebAppsTaxCategoryViewCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+
+	cmd := newWebAppsTaxCategoryViewCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--app", "app-1", "--output", "table", "--pretty"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 	var err error
-	_, stderr := captureOutput(t, func() { err = cmd.Exec(context.Background(), nil) })
+	_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() { err = cmd.Exec(context.Background(), nil) })
 	if err == nil || !strings.Contains(err.Error(), "--pretty is only valid with JSON output") {
 		t.Fatalf("expected invalid output rejection before session, got err=%v stderr=%q", err, stderr)
 	}
@@ -370,7 +385,9 @@ func TestWebAppsTaxCategorySetValidatesConditionCompatibility(t *testing.T) {
 		return &webcore.AppTaxCategory{AppID: "app-1", Configured: false}, nil
 	}
 
-	cmd := WebAppsTaxCategorySetCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+
+	cmd := newWebAppsTaxCategorySetCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "app-1",
 		"--category", "cat-1",
@@ -380,7 +397,7 @@ func TestWebAppsTaxCategorySetValidatesConditionCompatibility(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 	var err error
-	_, stderr := captureOutput(t, func() { err = cmd.Exec(context.Background(), nil) })
+	_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() { err = cmd.Exec(context.Background(), nil) })
 	if err == nil || !strings.Contains(err.Error(), "not compatible") {
 		t.Fatalf("expected compatibility error, got %v (stderr=%q)", err, stderr)
 	}
@@ -427,7 +444,9 @@ func TestWebAppsTaxCategorySetWritesAndVerifiesCompleteDesiredSet(t *testing.T) 
 		return nil
 	}
 
-	cmd := WebAppsTaxCategorySetCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+
+	cmd := newWebAppsTaxCategorySetCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "app-1",
 		"--category", "cat-1",
@@ -438,7 +457,7 @@ func TestWebAppsTaxCategorySetWritesAndVerifiesCompleteDesiredSet(t *testing.T) 
 	}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -528,7 +547,9 @@ func TestWebAppsTaxCategorySetReportsVerifiedStateWhenReceiptOutputFails(t *test
 				return nil
 			}
 
-			cmd := WebAppsTaxCategorySetCommand()
+			d, depsStdout, depsStderr := newWebTestDeps()
+
+			cmd := newWebAppsTaxCategorySetCommand(d)
 			if err := cmd.FlagSet.Parse([]string{
 				"--app", "app-1",
 				"--category", "cat-1",
@@ -540,8 +561,7 @@ func TestWebAppsTaxCategorySetReportsVerifiedStateWhenReceiptOutputFails(t *test
 			}
 
 			var commandErr error
-			stdout, _ := captureWebCommandOutput(t, func() {
-				pipeStdout := os.Stdout
+			stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
 				closedReader, closedStdout, err := os.Pipe()
 				if err != nil {
 					t.Fatalf("closed stdout pipe: %v", err)
@@ -552,8 +572,7 @@ func TestWebAppsTaxCategorySetReportsVerifiedStateWhenReceiptOutputFails(t *test
 				if err := closedStdout.Close(); err != nil {
 					t.Fatalf("close stdout pipe: %v", err)
 				}
-				os.Stdout = closedStdout
-				defer func() { os.Stdout = pipeStdout }()
+				d.IO.Out = closedStdout
 				commandErr = cmd.Exec(context.Background(), nil)
 			})
 

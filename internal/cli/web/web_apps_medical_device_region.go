@@ -41,9 +41,9 @@ var setWebMedicalDeviceRegionFn = func(ctx context.Context, client *webcore.Clie
 	return client.SetMedicalDeviceRegion(ctx, accountID, appID, region, options)
 }
 
-// WebAppsMedicalDeviceRegionCommand returns the detailed regional command group.
-func WebAppsMedicalDeviceRegionCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web apps medical-device region", flag.ExitOnError)
+// newWebAppsMedicalDeviceRegionCommand returns the detailed regional command group.
+func newWebAppsMedicalDeviceRegionCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web apps medical-device region", flag.ExitOnError)
 	return &ffcli.Command{
 		Name:       "region",
 		ShortUsage: "asc web apps medical-device region <subcommand> [flags]",
@@ -60,9 +60,9 @@ these fields on the public App Store Connect API.
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			WebAppsMedicalDeviceRegionSetCommand(),
+			newWebAppsMedicalDeviceRegionSetCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -70,15 +70,15 @@ these fields on the public App Store Connect API.
 	}
 }
 
-// WebAppsMedicalDeviceRegionSetCommand sets one detailed regional answer.
-func WebAppsMedicalDeviceRegionSetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web apps medical-device region set", flag.ExitOnError)
+// newWebAppsMedicalDeviceRegionSetCommand sets one detailed regional answer.
+func newWebAppsMedicalDeviceRegionSetCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web apps medical-device region set", flag.ExitOnError)
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	region := fs.String("region", "", "Medical-device region: EEA, GBR, USA (EU aliases EEA)")
 	inputPath := fs.String("input", "", "Rootfs-anchored JSON input file path (required)")
 	confirm := fs.Bool("confirm", false, "Confirm saving the detailed regulated medical-device answer")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "set",
@@ -99,51 +99,51 @@ Examples:
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := strings.TrimSpace(shared.ResolveAppID(*appID))
 			if resolvedAppID == "" {
-				return shared.UsageError("--app is required (or set ASC_APP_ID)")
+				return d.UsageError("--app is required (or set ASC_APP_ID)")
 			}
 			regionValues, err := webcore.NormalizeMedicalDeviceDeclarationRegions([]string{*region})
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			if len(regionValues) != 1 {
-				return shared.UsageError("--region is required")
+				return d.UsageError("--region is required")
 			}
 			resolvedRegion := regionValues[0]
 
 			pathValue := strings.TrimSpace(*inputPath)
 			if pathValue == "" {
-				return shared.UsageError("--input is required")
+				return d.UsageError("--input is required")
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
 
 			options, metadata, err := readWebMedicalDeviceRegionInput(pathValue)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			if metadata.RegistrationNumberProvided && !options.Declaration {
-				return shared.UsageError("registrationNumber is only supported when declaration is true")
+				return d.UsageError("registrationNumber is only supported when declaration is true")
 			}
 			if metadata.SupportInfoProvided && !options.Declaration {
-				return shared.UsageError("supportInfo is only supported when declaration is true")
+				return d.UsageError("supportInfo is only supported when declaration is true")
 			}
 			if err := webcore.ValidateMedicalDeviceRegionOptions(resolvedRegion, options); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
-			accountID, client, requestCtx, cancel, err := resolveWebComplianceClient(ctx, authFlags, "web apps medical-device region set")
+			accountID, client, requestCtx, cancel, err := resolveWebComplianceClient(ctx, d, authFlags, "web apps medical-device region set")
 			defer cancel()
 			if err != nil {
 				return err
 			}
 
 			var result *webcore.MedicalDeviceRegionResult
-			err = withWebSpinner("Saving medical device region", func() error {
+			err = withWebSpinnerWith(d, "Saving medical device region", func() error {
 				var err error
 				result, err = setWebMedicalDeviceRegionFn(requestCtx, client, accountID, resolvedAppID, resolvedRegion, options)
 				return err
@@ -155,7 +155,7 @@ Examples:
 				return fmt.Errorf("web apps medical-device region set failed: missing region result")
 			}
 
-			return shared.PrintOutput(webMedicalDeviceRegionResultOutput(result), *output.Output, *output.Pretty)
+			return d.PrintOutput(webMedicalDeviceRegionResultOutput(result), *output.Output, *output.Pretty)
 		},
 	}
 }

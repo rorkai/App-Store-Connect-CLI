@@ -28,11 +28,12 @@ func TestWebAppsMedicalDeviceSetValidationErrors(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Setenv("ASC_APP_ID", "")
-			cmd := WebAppsMedicalDeviceSetCommand()
+			d, depsStdout, depsStderr := newWebTestDeps()
+			cmd := newWebAppsMedicalDeviceSetCommand(d)
 			if err := cmd.FlagSet.Parse(tc.args); err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
-			stdout, stderr := captureWebCommandOutput(t, func() {
+			stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 				err := cmd.Exec(context.Background(), nil)
 				if !errors.Is(err, flag.ErrHelp) {
 					t.Fatalf("expected flag.ErrHelp, got %v", err)
@@ -61,7 +62,9 @@ func TestWebAppsMedicalDeviceSetResolvesSessionWithoutRequestDeadline(t *testing
 		return nil, "", resolveErr
 	}
 
-	cmd := WebAppsMedicalDeviceSetCommand()
+	d, _, _ := newWebTestDeps()
+
+	cmd := newWebAppsMedicalDeviceSetCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "app-1",
 		"--declared", "false",
@@ -113,7 +116,9 @@ func TestWebAppsMedicalDeviceSetUpdatesDeclarationWithoutConfirmation(t *testing
 		}, nil
 	}
 
-	cmd := WebAppsMedicalDeviceSetCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+
+	cmd := newWebAppsMedicalDeviceSetCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "app-1",
 		"--declared", "false",
@@ -122,7 +127,7 @@ func TestWebAppsMedicalDeviceSetUpdatesDeclarationWithoutConfirmation(t *testing
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -173,7 +178,9 @@ func TestWebAppsMedicalDeviceSetTruePassesSelectedRegions(t *testing.T) {
 		return &webcore.MedicalDeviceDeclarationResult{AppID: appID, Declared: declared, Changed: true}, nil
 	}
 
-	cmd := WebAppsMedicalDeviceSetCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+
+	cmd := newWebAppsMedicalDeviceSetCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "app-1",
 		"--declared", "true",
@@ -183,7 +190,7 @@ func TestWebAppsMedicalDeviceSetTruePassesSelectedRegions(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -208,7 +215,9 @@ func TestWebAppsMedicalDeviceSetRejectsInvalidRegionBeforeSession(t *testing.T) 
 		return nil, "", errors.New("session must not be resolved")
 	}
 
-	cmd := WebAppsMedicalDeviceSetCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+
+	cmd := newWebAppsMedicalDeviceSetCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "app-1",
 		"--declared", "true",
@@ -217,7 +226,7 @@ func TestWebAppsMedicalDeviceSetRejectsInvalidRegionBeforeSession(t *testing.T) 
 	}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	_, stderr := captureWebCommandOutput(t, func() {
+	_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		err := cmd.Exec(context.Background(), nil)
 		if !errors.Is(err, flag.ErrHelp) {
 			t.Fatalf("expected flag.ErrHelp, got %v", err)
@@ -241,7 +250,9 @@ func TestWebAppsMedicalDeviceSetRequiresPublicProviderID(t *testing.T) {
 		return &webcore.AuthSession{}, "cache", nil
 	}
 
-	cmd := WebAppsMedicalDeviceSetCommand()
+	d, _, _ := newWebTestDeps()
+
+	cmd := newWebAppsMedicalDeviceSetCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "app-1",
 		"--declared", "false",

@@ -26,7 +26,9 @@ func TestWebAppsMedicalDeviceRegionSetRejectsUnsupportedInputBeforeAuth(t *testi
 		return nil, "", errors.New("session must not be resolved")
 	}
 
-	cmd := WebAppsMedicalDeviceRegionSetCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+
+	cmd := newWebAppsMedicalDeviceRegionSetCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "app-1",
 		"--region", "GBR",
@@ -35,7 +37,7 @@ func TestWebAppsMedicalDeviceRegionSetRejectsUnsupportedInputBeforeAuth(t *testi
 	}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	_, stderr := captureWebCommandOutput(t, func() {
+	_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		err := cmd.Exec(context.Background(), nil)
 		if !errors.Is(err, flag.ErrHelp) {
 			t.Fatalf("expected flag.ErrHelp, got %v", err)
@@ -86,7 +88,9 @@ func TestWebAppsMedicalDeviceRegionSetParsesRootfsInputAndPrintsReceipt(t *testi
 		}, nil
 	}
 
-	cmd := WebAppsMedicalDeviceRegionSetCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+
+	cmd := newWebAppsMedicalDeviceRegionSetCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "app-1",
 		"--region", "EU",
@@ -96,7 +100,7 @@ func TestWebAppsMedicalDeviceRegionSetParsesRootfsInputAndPrintsReceipt(t *testi
 	}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}

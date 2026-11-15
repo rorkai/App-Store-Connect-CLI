@@ -61,7 +61,7 @@ func TestWebAppsCreateMissingRequiredInputExposesStructuredDiagnostics(t *testin
 		{
 			name: "every create flag missing",
 			run: func() error {
-				return RunAppsCreate(context.Background(), AppsCreateRunOptions{})
+				return RunAppsCreate(context.Background(), shared.DefaultDeps(), AppsCreateRunOptions{})
 			},
 			wantError:  "missing required flags: --name, --bundle-id, --sku",
 			wantStderr: "Error: missing required flags: --name, --bundle-id, --sku\n",
@@ -70,7 +70,7 @@ func TestWebAppsCreateMissingRequiredInputExposesStructuredDiagnostics(t *testin
 		{
 			name: "only sku missing",
 			run: func() error {
-				return RunAppsCreate(context.Background(), AppsCreateRunOptions{
+				return RunAppsCreate(context.Background(), shared.DefaultDeps(), AppsCreateRunOptions{
 					Name:     "My App",
 					BundleID: "com.example.app",
 				})
@@ -82,7 +82,7 @@ func TestWebAppsCreateMissingRequiredInputExposesStructuredDiagnostics(t *testin
 		{
 			name: "only name missing",
 			run: func() error {
-				return RunAppsCreate(context.Background(), AppsCreateRunOptions{
+				return RunAppsCreate(context.Background(), shared.DefaultDeps(), AppsCreateRunOptions{
 					BundleID: "com.example.app",
 					SKU:      "MYAPP123",
 				})

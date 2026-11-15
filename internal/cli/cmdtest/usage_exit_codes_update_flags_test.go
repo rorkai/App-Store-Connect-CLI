@@ -456,6 +456,7 @@ func TestUpdateWithoutUpdateFlagsListsEveryUpdateFlag(t *testing.T) {
 			name:  "web apps compatibility edit",
 			args:  []string{"web", "apps", "compatibility", "edit", "--app", "123456789"},
 			flags: "--ios-app-on-mac, --ios-app-on-vision-pro",
+			deps:  true,
 		},
 		{
 			name:  "webhooks update",

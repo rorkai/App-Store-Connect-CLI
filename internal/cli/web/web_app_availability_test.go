@@ -81,11 +81,12 @@ func TestWebAppsAvailabilityCreateValidationErrors(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Setenv("ASC_APP_ID", "")
-			cmd := WebAppsAvailabilityCreateCommand()
+			d, depsStdout, depsStderr := newWebTestDeps()
+			cmd := newWebAppsAvailabilityCreateCommand(d)
 			if err := cmd.FlagSet.Parse(tc.args); err != nil {
 				t.Fatalf("parse error: %v", err)
 			}
-			stdout, stderr := captureWebCommandOutput(t, func() {
+			stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 				err := cmd.Exec(context.Background(), nil)
 				if !errors.Is(err, flag.ErrHelp) {
 					t.Fatalf("expected flag.ErrHelp, got %v", err)
@@ -114,7 +115,9 @@ func TestWebAppsAvailabilityCreateResolvesSessionBeforeTimeoutContext(t *testing
 		return nil, "", resolveErr
 	}
 
-	cmd := WebAppsAvailabilityCreateCommand()
+	d, _, _ := newWebTestDeps()
+
+	cmd := newWebAppsAvailabilityCreateCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "app-1",
 		"--territory", "USA",
@@ -161,7 +164,9 @@ func TestWebAppsAvailabilityCreateSkipsCreateWhenAvailabilityExists(t *testing.T
 		return nil, nil
 	}
 
-	cmd := WebAppsAvailabilityCreateCommand()
+	d, _, _ := newWebTestDeps()
+
+	cmd := newWebAppsAvailabilityCreateCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "app-1",
 		"--territory", "USA",
@@ -217,7 +222,9 @@ func TestWebAppsAvailabilityCreateAcceptsExplicitAbsentAvailability(t *testing.T
 		}, nil
 	}
 
-	cmd := WebAppsAvailabilityCreateCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+
+	cmd := newWebAppsAvailabilityCreateCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "app-1",
 		"--territory", "US,France",
@@ -227,7 +234,7 @@ func TestWebAppsAvailabilityCreateAcceptsExplicitAbsentAvailability(t *testing.T
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -280,7 +287,9 @@ func TestWebAppsAvailabilityCreateWrapsAuthErrors(t *testing.T) {
 		return nil, authErr
 	}
 
-	cmd := WebAppsAvailabilityCreateCommand()
+	d, _, _ := newWebTestDeps()
+
+	cmd := newWebAppsAvailabilityCreateCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "app-1",
 		"--territory", "USA",
@@ -331,7 +340,9 @@ func TestWebAppsAvailabilityCreatePreservesPreflightPermissionFailure(t *testing
 		return nil, nil
 	}
 
-	cmd := WebAppsAvailabilityCreateCommand()
+	d, _, _ := newWebTestDeps()
+
+	cmd := newWebAppsAvailabilityCreateCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "app-1",
 		"--territory", "USA",
@@ -385,7 +396,9 @@ func TestWebAppsAvailabilityCreateDoesNotPostAfterHTTPPreflightFailure(t *testin
 				return nil, nil
 			}
 
-			cmd := WebAppsAvailabilityCreateCommand()
+			d, _, _ := newWebTestDeps()
+
+			cmd := newWebAppsAvailabilityCreateCommand(d)
 			if err := cmd.FlagSet.Parse([]string{
 				"--app", "app-1",
 				"--territory", "USA",
@@ -446,7 +459,9 @@ func TestWebAppsAvailabilityCreateRejectsMixedNotFoundEnvelope(t *testing.T) {
 		return nil, nil
 	}
 
-	cmd := WebAppsAvailabilityCreateCommand()
+	d, _, _ := newWebTestDeps()
+
+	cmd := newWebAppsAvailabilityCreateCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "app-1",
 		"--territory", "USA",

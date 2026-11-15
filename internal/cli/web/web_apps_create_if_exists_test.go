@@ -170,7 +170,7 @@ func TestRunAppsCreateIfExistsFailKeepsCaptured409(t *testing.T) {
 
 			var err error
 			stdout, _ := captureOutput(t, func() {
-				err = RunAppsCreate(context.Background(), ifExistsCreateOptions(mode, true))
+				err = RunAppsCreate(context.Background(), shared.DefaultDeps(), ifExistsCreateOptions(mode, true))
 			})
 			if err == nil {
 				t.Fatal("expected the captured 409 to fail")
@@ -210,7 +210,7 @@ func TestRunAppsCreateIfExistsSkipCaptured409ResolvesExistingApp(t *testing.T) {
 
 			var err error
 			stdout, stderr := captureOutput(t, func() {
-				err = RunAppsCreate(context.Background(), ifExistsCreateOptions(shared.IfExistsSkip, true))
+				err = RunAppsCreate(context.Background(), shared.DefaultDeps(), ifExistsCreateOptions(shared.IfExistsSkip, true))
 			})
 			if err != nil {
 				t.Fatalf("RunAppsCreate error: %v", err)
@@ -264,7 +264,7 @@ func TestRunAppsCreateIfExistsSkipAcceptsAutoRenamedNameOnlyWithAutoRename(t *te
 		h := setupIfExistsCreate(t, capturedDuplicateAppCreate409, existing, emptyAppsResponse)
 		var err error
 		stdout, _ := captureOutput(t, func() {
-			err = RunAppsCreate(context.Background(), ifExistsCreateOptions(shared.IfExistsSkip, true))
+			err = RunAppsCreate(context.Background(), shared.DefaultDeps(), ifExistsCreateOptions(shared.IfExistsSkip, true))
 		})
 		if err != nil {
 			t.Fatalf("RunAppsCreate error: %v", err)
@@ -281,7 +281,7 @@ func TestRunAppsCreateIfExistsSkipAcceptsAutoRenamedNameOnlyWithAutoRename(t *te
 		h := setupIfExistsCreate(t, capturedDuplicateAppCreate409, existing, emptyAppsResponse)
 		var err error
 		stdout, _ := captureOutput(t, func() {
-			err = RunAppsCreate(context.Background(), ifExistsCreateOptions(shared.IfExistsSkip, false))
+			err = RunAppsCreate(context.Background(), shared.DefaultDeps(), ifExistsCreateOptions(shared.IfExistsSkip, false))
 		})
 		if err == nil {
 			t.Fatal("expected a name mismatch to fail")
@@ -333,7 +333,7 @@ func TestRunAppsCreateIfExistsSkipMismatchNeverAutoRenames(t *testing.T) {
 
 			var err error
 			stdout, stderr := captureOutput(t, func() {
-				err = RunAppsCreate(context.Background(), ifExistsCreateOptions(shared.IfExistsSkip, true))
+				err = RunAppsCreate(context.Background(), shared.DefaultDeps(), ifExistsCreateOptions(shared.IfExistsSkip, true))
 			})
 			if err == nil {
 				t.Fatal("expected mismatch to fail")
@@ -366,7 +366,7 @@ func TestRunAppsCreateIfExistsSkipNothingFoundKeepsHistoricalPath(t *testing.T) 
 		h := setupIfExistsCreate(t, capturedDuplicateAppCreate409, emptyAppsResponse, emptyAppsResponse)
 		var err error
 		_, _ = captureOutput(t, func() {
-			err = RunAppsCreate(context.Background(), ifExistsCreateOptions(shared.IfExistsSkip, true))
+			err = RunAppsCreate(context.Background(), shared.DefaultDeps(), ifExistsCreateOptions(shared.IfExistsSkip, true))
 		})
 		if err == nil || err.Error() != capturedDuplicateAppCreateError {
 			t.Fatalf("error = %v, want %q", err, capturedDuplicateAppCreateError)
@@ -383,7 +383,7 @@ func TestRunAppsCreateIfExistsSkipNothingFoundKeepsHistoricalPath(t *testing.T) 
 		h := setupIfExistsCreate(t, syntheticDuplicateAppCreate409WithNameDetail, emptyAppsResponse, emptyAppsResponse)
 		var err error
 		_, stderr := captureOutput(t, func() {
-			err = RunAppsCreate(context.Background(), ifExistsCreateOptions(shared.IfExistsSkip, true))
+			err = RunAppsCreate(context.Background(), shared.DefaultDeps(), ifExistsCreateOptions(shared.IfExistsSkip, true))
 		})
 		if err != nil {
 			t.Fatalf("RunAppsCreate error: %v", err)
@@ -409,7 +409,7 @@ func TestRunAppsCreateIfExistsSkipIgnoresUnlistedConflicts(t *testing.T) {
 				emptyAppsResponse)
 			var err error
 			_, _ = captureOutput(t, func() {
-				err = RunAppsCreate(context.Background(), ifExistsCreateOptions(shared.IfExistsSkip, false))
+				err = RunAppsCreate(context.Background(), shared.DefaultDeps(), ifExistsCreateOptions(shared.IfExistsSkip, false))
 			})
 			if err == nil {
 				t.Fatal("expected unlisted 409 to fail")
@@ -425,7 +425,7 @@ func TestRunAppsCreateIfExistsSkipReadBackErrorIsAppended(t *testing.T) {
 	h := setupIfExistsCreate(t, capturedDuplicateAppCreate409, `not json`, emptyAppsResponse)
 	var err error
 	_, _ = captureOutput(t, func() {
-		err = RunAppsCreate(context.Background(), ifExistsCreateOptions(shared.IfExistsSkip, true))
+		err = RunAppsCreate(context.Background(), shared.DefaultDeps(), ifExistsCreateOptions(shared.IfExistsSkip, true))
 	})
 	if err == nil || !strings.HasPrefix(err.Error(), capturedDuplicateAppCreateError) || !strings.Contains(err.Error(), "read-back after conflict failed") {
 		t.Fatalf("error = %v", err)
@@ -452,7 +452,7 @@ func TestRunAppsCreateIfExistsSkipRejectsAccessBeforeHTTP(t *testing.T) {
 
 	opts := ifExistsCreateOptions(shared.IfExistsSkip, true)
 	opts.Access = "full"
-	err := RunAppsCreate(context.Background(), opts)
+	err := RunAppsCreate(context.Background(), shared.DefaultDeps(), opts)
 	if err == nil || !strings.Contains(err.Error(), "--if-exists skip cannot be combined with --access") {
 		t.Fatalf("error = %v", err)
 	}
@@ -474,7 +474,7 @@ func TestRunAppsCreateIfExistsSkipRequiresOfficialAuthBeforeHTTP(t *testing.T) {
 
 	var err error
 	_, _ = captureOutput(t, func() {
-		err = RunAppsCreate(context.Background(), ifExistsCreateOptions(shared.IfExistsSkip, true))
+		err = RunAppsCreate(context.Background(), shared.DefaultDeps(), ifExistsCreateOptions(shared.IfExistsSkip, true))
 	})
 	if err == nil || !strings.Contains(err.Error(), "--if-exists skip requires official App Store Connect API authentication") {
 		t.Fatalf("error = %v", err)

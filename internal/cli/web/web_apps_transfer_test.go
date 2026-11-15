@@ -32,12 +32,13 @@ func TestWebAppsTransferStatusOutputs(t *testing.T) {
 	}
 	for _, format := range []string{"json", "table", "markdown"} {
 		t.Run(format, func(t *testing.T) {
-			cmd := WebAppsTransferStatusCommand()
+			d, depsStdout, depsStderr := newWebTestDeps()
+			cmd := newWebAppsTransferStatusCommand(d)
 			if err := cmd.FlagSet.Parse([]string{"--output", format}); err != nil {
 				t.Fatal(err)
 			}
 			var runErr error
-			stdout, stderr := captureOutput(t, func() { runErr = cmd.Exec(context.Background(), nil) })
+			stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() { runErr = cmd.Exec(context.Background(), nil) })
 			if runErr != nil || stderr != "" {
 				t.Fatalf("err=%v stderr=%s", runErr, stderr)
 			}

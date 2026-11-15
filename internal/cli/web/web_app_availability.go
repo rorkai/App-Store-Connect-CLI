@@ -29,9 +29,9 @@ type webAppAvailabilityCreateResult struct {
 	AvailableTerritories      []string `json:"availableTerritories"`
 }
 
-// WebAppsAvailabilityCommand returns the web app availability command group.
-func WebAppsAvailabilityCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web apps availability", flag.ExitOnError)
+// newWebAppsAvailabilityCommand returns the web app availability command group.
+func newWebAppsAvailabilityCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web apps availability", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "availability",
@@ -44,9 +44,9 @@ This path is intended only for apps that do not yet have an availability record.
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			WebAppsAvailabilityCreateCommand(),
+			newWebAppsAvailabilityCreateCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -54,16 +54,16 @@ This path is intended only for apps that do not yet have an availability record.
 	}
 }
 
-// WebAppsAvailabilityCreateCommand bootstraps missing app availability via the internal web API.
-func WebAppsAvailabilityCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web apps availability create", flag.ExitOnError)
+// newWebAppsAvailabilityCreateCommand bootstraps missing app availability via the internal web API.
+func newWebAppsAvailabilityCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web apps availability create", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	territory := fs.String("territory", "", "Initial available territories (comma-separated; accepts alpha-2, alpha-3, or exact English country names)")
 	var availableInNewTerritories shared.OptionalBool
 	fs.Var(&availableInNewTerritories, "available-in-new-territories", "Set availability for new territories: true or false")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -81,28 +81,28 @@ Examples:
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := strings.TrimSpace(shared.ResolveAppID(*appID))
 			if resolvedAppID == "" {
-				return shared.UsageError("--app is required (or set ASC_APP_ID)")
+				return d.UsageError("--app is required (or set ASC_APP_ID)")
 			}
 			if strings.TrimSpace(*territory) == "" {
-				return shared.UsageError("--territory is required")
+				return d.UsageError("--territory is required")
 			}
 			if !availableInNewTerritories.IsSet() {
-				return shared.UsageError("--available-in-new-territories is required (true or false)")
+				return d.UsageError("--available-in-new-territories is required (true or false)")
 			}
 
 			territoryIDs, err := shared.NormalizeASCTerritoryCSV(*territory)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			if len(territoryIDs) == 0 {
-				return shared.UsageError("--territory must include at least one value")
+				return d.UsageError("--territory must include at least one value")
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return err
@@ -111,7 +111,7 @@ Examples:
 			client := newWebClientFn(session)
 
 			var existing *webcore.AppAvailability
-			err = withWebSpinner("Checking app availability", func() error {
+			err = withWebSpinnerWith(d, "Checking app availability", func() error {
 				var err error
 				existing, err = getWebAppAvailabilityFn(requestCtx, client, resolvedAppID)
 				if err != nil && webcore.IsAppAvailabilityNotFound(err) {
@@ -133,7 +133,7 @@ Examples:
 			}
 
 			var created *webcore.AppAvailability
-			err = withWebSpinner("Creating app availability via Apple web API", func() error {
+			err = withWebSpinnerWith(d, "Creating app availability via Apple web API", func() error {
 				var err error
 				created, err = createWebAppAvailabilityFn(requestCtx, client, createAttrs)
 				return err
@@ -151,19 +151,19 @@ Examples:
 				AvailableInNewTerritories: created.AvailableInNewTerritories,
 				AvailableTerritories:      created.AvailableTerritories,
 			}
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderWebAppAvailabilityCreateTable(result) },
-				func() error { return renderWebAppAvailabilityCreateMarkdown(result) },
+				func() error { return renderWebAppAvailabilityCreateTable(d, result) },
+				func() error { return renderWebAppAvailabilityCreateMarkdown(d, result) },
 			)
 		},
 	}
 }
 
-func renderWebAppAvailabilityCreateTable(result *webAppAvailabilityCreateResult) error {
-	asc.RenderTable(
+func renderWebAppAvailabilityCreateTable(d *shared.Deps, result *webAppAvailabilityCreateResult) error {
+	asc.RenderTableTo(d.IO.Out,
 		[]string{"App ID", "Availability ID", "Available In New Territories", "Available Territories"},
 		[][]string{{
 			result.AppID,
@@ -175,8 +175,8 @@ func renderWebAppAvailabilityCreateTable(result *webAppAvailabilityCreateResult)
 	return nil
 }
 
-func renderWebAppAvailabilityCreateMarkdown(result *webAppAvailabilityCreateResult) error {
-	asc.RenderMarkdown(
+func renderWebAppAvailabilityCreateMarkdown(d *shared.Deps, result *webAppAvailabilityCreateResult) error {
+	asc.RenderMarkdownTo(d.IO.Out,
 		[]string{"App ID", "Availability ID", "Available In New Territories", "Available Territories"},
 		[][]string{{
 			result.AppID,

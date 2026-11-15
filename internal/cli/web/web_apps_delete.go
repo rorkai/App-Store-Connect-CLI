@@ -25,9 +25,9 @@ var appRemovalBlockedStates = map[string]struct{}{
 	"REJECTED":           {},
 }
 
-// WebAppsDeleteCommand removes apps using the internal web API.
-func WebAppsDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web apps delete", flag.ExitOnError)
+// newWebAppsDeleteCommand removes apps using the internal web API.
+func newWebAppsDeleteCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web apps delete", flag.ExitOnError)
 
 	app := fs.String("app", "", "App Store Connect app ID or exact bundle ID")
 	expectedBundleID := fs.String("expected-bundle-id", "", "Require the app bundle ID to match before deleting")
@@ -35,7 +35,7 @@ func WebAppsDeleteCommand() *ffcli.Command {
 	confirm := fs.Bool("confirm", false, "Confirm deleting this app (required unless --dry-run)")
 	dryRun := fs.Bool("dry-run", false, "Check removal eligibility without mutating")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "delete",
@@ -69,19 +69,19 @@ Examples:
   asc web apps delete --app "1234567890" --expected-bundle-id "com.example.throwaway" --confirm
   asc web apps delete --app "1234567890" --expected-name "Throwaway" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			selector := strings.TrimSpace(*app)
 			wantBundleID := strings.TrimSpace(*expectedBundleID)
 			wantName := strings.TrimSpace(*expectedName)
 			if selector == "" {
-				return shared.UsageError("--app is required")
+				return d.UsageError("--app is required")
 			}
-			if err := shared.RequireConfirmUnlessDryRun(*dryRun, *confirm); err != nil {
+			if err := d.RequireConfirmUnlessDryRun(*dryRun, *confirm); err != nil {
 				return err
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return err
@@ -108,7 +108,7 @@ Examples:
 				return fmt.Errorf("web apps delete failed: could not confirm removed for app %q; Apple omitted or mistyped the removed attribute", snapshot.ID)
 			}
 			if snapshot.Removed {
-				return printWebAppDeleteResult(webAppDeleteResultFromState(snapshot, *dryRun), *output.Output, *output.Pretty)
+				return printWebAppDeleteResult(d, webAppDeleteResultFromState(snapshot, *dryRun), *output.Output, *output.Pretty)
 			}
 			if err := validateWebAppDeleteRemovalState(snapshot); err != nil {
 				return err
@@ -123,7 +123,7 @@ Examples:
 			}
 
 			if *dryRun {
-				return printWebAppDeleteResult(webAppDeleteResultFromState(snapshot, true), *output.Output, *output.Pretty)
+				return printWebAppDeleteResult(d, webAppDeleteResultFromState(snapshot, true), *output.Output, *output.Pretty)
 			}
 
 			if _, err := deleteWebAppFn(requestCtx, client, snapshot.ID); err != nil {
@@ -138,7 +138,7 @@ Examples:
 				return fmt.Errorf("web apps delete failed: Apple did not confirm app %q is removed after PATCH", snapshot.ID)
 			}
 
-			return printWebAppDeleteResult(webAppDeleteResultFromState(verified, false), *output.Output, *output.Pretty)
+			return printWebAppDeleteResult(d, webAppDeleteResultFromState(verified, false), *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -282,6 +282,6 @@ func webAppAttrString(app *webcore.AppResponse, key string) string {
 	return strings.TrimSpace(fmt.Sprint(value))
 }
 
-func printWebAppDeleteResult(result asc.WebAppDeleteResult, format string, pretty bool) error {
-	return shared.PrintOutput(&result, format, pretty)
+func printWebAppDeleteResult(d *shared.Deps, result asc.WebAppDeleteResult, format string, pretty bool) error {
+	return d.PrintOutput(&result, format, pretty)
 }

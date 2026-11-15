@@ -37,12 +37,14 @@ func TestWebAppsHistoryPrintsStatusChanges(t *testing.T) {
 		}, nil
 	}
 
-	cmd := WebAppsHistoryCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+
+	cmd := newWebAppsHistoryCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--app", "app-1", "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -90,12 +92,14 @@ func TestWebAppsHistoryPassesVersionIDFilter(t *testing.T) {
 		return &webcore.AppStatusHistory{AppID: appID}, nil
 	}
 
-	cmd := WebAppsHistoryCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+
+	cmd := newWebAppsHistoryCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--app", "app-1", "--version-id", "v-7", "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	if _, stderr := captureWebCommandOutput(t, func() {
+	if _, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -129,12 +133,14 @@ func TestWebAppsHistoryTableRendersStatusRows(t *testing.T) {
 		}, nil
 	}
 
-	cmd := WebAppsHistoryCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+
+	cmd := newWebAppsHistoryCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--app", "app-1", "--output", "table"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := cmd.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -153,13 +159,15 @@ func TestWebAppsHistoryTableRendersStatusRows(t *testing.T) {
 func TestWebAppsHistoryRequiresApp(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
-	cmd := WebAppsHistoryCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+
+	cmd := newWebAppsHistoryCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 
 	var err error
-	_, stderr := captureWebCommandOutput(t, func() {
+	_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		err = cmd.Exec(context.Background(), nil)
 	})
 

@@ -80,12 +80,12 @@ func acceptedExistingAppNames(opts AppsCreateRunOptions) []string {
 // bundle ID matches also has the requested SKU and name, and handled=true with
 // an error, which the caller must not auto-rename past, when the bundle ID or
 // SKU belongs to a different app or the read-back fails.
-func resolveWebAppCreateConflict(ctx context.Context, client *asc.Client, opts AppsCreateRunOptions, createErr error) (*asc.WebAppCreateIfExistsResult, bool, error) {
+func resolveWebAppCreateConflict(ctx context.Context, d *shared.Deps, client *asc.Client, opts AppsCreateRunOptions, createErr error) (*asc.WebAppCreateIfExistsResult, bool, error) {
 	if !isWebAppCreateExistsConflict(createErr) {
 		return nil, false, nil
 	}
 
-	readCtx, cancel := shared.ContextWithTimeout(ctx)
+	readCtx, cancel := d.Timeout(ctx)
 	defer cancel()
 
 	byBundleID, err := client.GetApps(readCtx, asc.WithAppsBundleIDs([]string{opts.BundleID}), asc.Limit[asc.AppsOption](200))

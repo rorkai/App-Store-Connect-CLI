@@ -48,7 +48,7 @@ func TestRunAppsCreateAccessLimitedWithoutUserMakesNoHTTP(t *testing.T) {
 
 	var err error
 	_, stderr := captureOutput(t, func() {
-		err = RunAppsCreate(context.Background(), AppsCreateRunOptions{
+		err = RunAppsCreate(context.Background(), shared.DefaultDeps(), AppsCreateRunOptions{
 			Name:     "My App",
 			BundleID: "com.example.app",
 			SKU:      "SKU123",
@@ -95,7 +95,7 @@ func TestRunAppsCreateInvalidAccessFailsBeforeWizard(t *testing.T) {
 
 	var err error
 	_, stderr := captureOutput(t, func() {
-		err = RunAppsCreate(context.Background(), AppsCreateRunOptions{
+		err = RunAppsCreate(context.Background(), shared.DefaultDeps(), AppsCreateRunOptions{
 			Access: "limited",
 			Output: "json",
 		})
@@ -135,7 +135,7 @@ func TestRunAppsCreateAccessWithMissingNameMakesNoHTTP(t *testing.T) {
 
 	var err error
 	_, stderr := captureOutput(t, func() {
-		err = RunAppsCreate(context.Background(), AppsCreateRunOptions{
+		err = RunAppsCreate(context.Background(), shared.DefaultDeps(), AppsCreateRunOptions{
 			Access: "full",
 			Output: "json",
 		})
@@ -168,7 +168,7 @@ func TestRunAppsCreateBlankUserMakesNoHTTP(t *testing.T) {
 
 	var err error
 	_, stderr := captureOutput(t, func() {
-		err = RunAppsCreate(context.Background(), AppsCreateRunOptions{
+		err = RunAppsCreate(context.Background(), shared.DefaultDeps(), AppsCreateRunOptions{
 			Name:     "My App",
 			BundleID: "com.example.app",
 			SKU:      "SKU123",
@@ -222,7 +222,7 @@ func TestRunAppsCreateUnknownUserMakesNoCreate(t *testing.T) {
 
 	var err error
 	_, stderr := captureOutput(t, func() {
-		err = RunAppsCreate(context.Background(), AppsCreateRunOptions{
+		err = RunAppsCreate(context.Background(), shared.DefaultDeps(), AppsCreateRunOptions{
 			Name:     "My App",
 			BundleID: "com.example.app",
 			SKU:      "SKU123",
@@ -274,7 +274,7 @@ func TestRunAppsCreateAllAppsVisibleUserMakesNoCreate(t *testing.T) {
 
 	var err error
 	_, stderr := captureOutput(t, func() {
-		err = RunAppsCreate(context.Background(), AppsCreateRunOptions{
+		err = RunAppsCreate(context.Background(), shared.DefaultDeps(), AppsCreateRunOptions{
 			Name:     "My App",
 			BundleID: "com.example.app",
 			SKU:      "SKU123",
@@ -328,7 +328,7 @@ func TestRunAppsCreateFullAccessUnauthorizedMakesNoCreate(t *testing.T) {
 
 	var err error
 	_, stderr := captureOutput(t, func() {
-		err = RunAppsCreate(context.Background(), AppsCreateRunOptions{
+		err = RunAppsCreate(context.Background(), shared.DefaultDeps(), AppsCreateRunOptions{
 			Name:     "My App",
 			BundleID: "com.example.app",
 			SKU:      "SKU123",
@@ -376,7 +376,7 @@ func TestRunAppsCreateOmittingAccessFlagsKeepsCreateBody(t *testing.T) {
 	}
 
 	t.Setenv("ASC_WEB_MIN_REQUEST_INTERVAL", "0")
-	if err := RunAppsCreate(context.Background(), AppsCreateRunOptions{
+	if err := RunAppsCreate(context.Background(), shared.DefaultDeps(), AppsCreateRunOptions{
 		Name:     "My App",
 		BundleID: "com.example.app",
 		SKU:      "SKU123",
@@ -445,7 +445,7 @@ func TestRunAppsCreateLimitedAccessReceiptUsesRereadNotRequest(t *testing.T) {
 	t.Setenv("ASC_WEB_MIN_REQUEST_INTERVAL", "0")
 	var err error
 	stdout, _ := captureOutput(t, func() {
-		err = RunAppsCreate(context.Background(), AppsCreateRunOptions{
+		err = RunAppsCreate(context.Background(), shared.DefaultDeps(), AppsCreateRunOptions{
 			Name:     "My App",
 			BundleID: "com.example.app",
 			SKU:      "SKU123",
@@ -538,7 +538,7 @@ func TestRunAppsCreateLimitedAccessRollsBackGrantedUsersWhenLaterGrantFails(t *t
 	t.Setenv("ASC_WEB_MIN_REQUEST_INTERVAL", "0")
 	var err error
 	_, stderr := captureOutput(t, func() {
-		err = RunAppsCreate(context.Background(), AppsCreateRunOptions{
+		err = RunAppsCreate(context.Background(), shared.DefaultDeps(), AppsCreateRunOptions{
 			Name:     "My App",
 			BundleID: "com.example.app",
 			SKU:      "SKU123",
@@ -616,7 +616,7 @@ func TestRunAppsCreateLimitedAccessJoinsRollbackErrorWhenCompensationFails(t *te
 	t.Setenv("ASC_WEB_MIN_REQUEST_INTERVAL", "0")
 	var err error
 	_, stderr := captureOutput(t, func() {
-		err = RunAppsCreate(context.Background(), AppsCreateRunOptions{
+		err = RunAppsCreate(context.Background(), shared.DefaultDeps(), AppsCreateRunOptions{
 			Name:     "My App",
 			BundleID: "com.example.app",
 			SKU:      "SKU123",
@@ -672,7 +672,7 @@ func TestRunAppsCreateFullAccessDoesNotPostVisibleApps(t *testing.T) {
 	t.Setenv("ASC_WEB_MIN_REQUEST_INTERVAL", "0")
 	var err error
 	stdout, _ := captureOutput(t, func() {
-		err = RunAppsCreate(context.Background(), AppsCreateRunOptions{
+		err = RunAppsCreate(context.Background(), shared.DefaultDeps(), AppsCreateRunOptions{
 			Name:     "My App",
 			BundleID: "com.example.app",
 			SKU:      "SKU123",
@@ -716,7 +716,8 @@ func TestRollbackAppCreateVisibleAppsUsesFreshTimeoutWhenParentCanceled(t *testi
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	if err := rollbackAppCreateVisibleApps(ctx, client, "app-123", []string{"user-1"}); err != nil {
+	d, _, _ := newWebTestDeps()
+	if err := rollbackAppCreateVisibleApps(ctx, d, client, "app-123", []string{"user-1"}); err != nil {
 		t.Fatalf("rollback error: %v", err)
 	}
 	if !deleted {
@@ -766,7 +767,7 @@ func stubBundleIDPreflight(t *testing.T) {
 	t.Helper()
 	orig := ensureBundleIDFn
 	t.Cleanup(func() { ensureBundleIDFn = orig })
-	ensureBundleIDFn = func(context.Context, string, string, string) (bool, error) {
+	ensureBundleIDFn = func(context.Context, *shared.Deps, string, string, string) (bool, error) {
 		return false, nil
 	}
 }
