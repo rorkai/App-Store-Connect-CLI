@@ -17,10 +17,12 @@ import (
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestAssetsPreviewsUploadCommandRejectsSkipExistingWithReplace(t *testing.T) {
-	cmd := AssetsPreviewsUploadCommand()
+	d, stdout, stderr := newAssetsTestDeps(nil)
+	cmd := NewAssetsPreviewsUploadCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse([]string{
 		"--version-localization", "LOC_ID",
@@ -32,19 +34,16 @@ func TestAssetsPreviewsUploadCommandRejectsSkipExistingWithReplace(t *testing.T)
 		t.Fatalf("parse error: %v", err)
 	}
 
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		runErr = cmd.Exec(context.Background(), cmd.FlagSet.Args())
-	})
+	runErr := cmd.Exec(context.Background(), cmd.FlagSet.Args())
 
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
+	if stdout.String() != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout.String())
 	}
 	if !errors.Is(runErr, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp, got %v", runErr)
 	}
-	if !strings.Contains(stderr, "--skip-existing and --replace are mutually exclusive") {
-		t.Fatalf("expected mutually exclusive error in stderr, got %q", stderr)
+	if !strings.Contains(stderr.String(), "--skip-existing and --replace are mutually exclusive") {
+		t.Fatalf("expected mutually exclusive error in stderr, got %q", stderr.String())
 	}
 }
 
@@ -57,12 +56,11 @@ func TestAssetsPreviewsUploadCommandRejectsUnsupportedFileBeforeAuth(t *testing.
 	}
 
 	clientCalled := false
-	cmd := assetsPreviewsUploadCommandWithDependencies(previewUploadDependencies{
-		GetClient: func() (*asc.Client, error) {
-			clientCalled = true
-			return &asc.Client{}, nil
-		},
+	d, stdout, _ := newAssetsTestDeps(func() (*asc.Client, error) {
+		clientCalled = true
+		return &asc.Client{}, nil
 	})
+	cmd := assetsPreviewsUploadCommandWithDependencies(d, previewUploadDependencies{})
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse([]string{
 		"--version-localization", "LOC_ID",
@@ -74,13 +72,10 @@ func TestAssetsPreviewsUploadCommandRejectsUnsupportedFileBeforeAuth(t *testing.
 		t.Fatalf("parse error: %v", err)
 	}
 
-	var runErr error
-	stdout, _ := captureOutput(t, func() {
-		runErr = cmd.Exec(context.Background(), cmd.FlagSet.Args())
-	})
+	runErr := cmd.Exec(context.Background(), cmd.FlagSet.Args())
 
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
+	if stdout.String() != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout.String())
 	}
 	if runErr == nil {
 		t.Fatal("expected unsupported preview file error")
@@ -103,12 +98,11 @@ func TestAssetsPreviewsUploadCommandRejectsMoreThanThreeFilesBeforeAuth(t *testi
 	}
 
 	clientCalled := false
-	cmd := assetsPreviewsUploadCommandWithDependencies(previewUploadDependencies{
-		GetClient: func() (*asc.Client, error) {
-			clientCalled = true
-			return &asc.Client{}, nil
-		},
+	d, stdout, _ := newAssetsTestDeps(func() (*asc.Client, error) {
+		clientCalled = true
+		return &asc.Client{}, nil
 	})
+	cmd := assetsPreviewsUploadCommandWithDependencies(d, previewUploadDependencies{})
 	cmd.FlagSet.SetOutput(io.Discard)
 	if err := cmd.FlagSet.Parse([]string{
 		"--version-localization", "LOC_ID",
@@ -118,13 +112,10 @@ func TestAssetsPreviewsUploadCommandRejectsMoreThanThreeFilesBeforeAuth(t *testi
 		t.Fatalf("parse error: %v", err)
 	}
 
-	var runErr error
-	stdout, _ := captureOutput(t, func() {
-		runErr = cmd.Exec(context.Background(), cmd.FlagSet.Args())
-	})
+	runErr := cmd.Exec(context.Background(), cmd.FlagSet.Args())
 
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
+	if stdout.String() != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout.String())
 	}
 	if runErr == nil {
 		t.Fatal("expected preview capacity error")
@@ -197,6 +188,7 @@ func TestUploadPreviewsRejectsUnsupportedFileBeforeRequests(t *testing.T) {
 
 			_, err := uploadPreviews(
 				context.Background(),
+				newAssetsUploadTestDeps(),
 				client,
 				"LOC_ID",
 				"IPHONE_65",
@@ -276,6 +268,7 @@ func TestUploadPreviewsSkipExistingSyncsSortedOrder(t *testing.T) {
 
 	result, err := uploadPreviews(
 		context.Background(),
+		newAssetsUploadTestDeps(),
 		client,
 		"LOC_ID",
 		"IPHONE_65",
@@ -329,7 +322,7 @@ func TestUploadPreviewsRejectsAppendThatWouldExceedSetCapacityBeforeMutation(t *
 		}
 	}))
 
-	_, err := uploadPreviews(context.Background(), client, "LOC_ID", "IPHONE_65", files, false, false, false, "")
+	_, err := uploadPreviews(context.Background(), newAssetsUploadTestDeps(), client, "LOC_ID", "IPHONE_65", files, false, false, false, "")
 	if err == nil {
 		t.Fatal("expected preview capacity error")
 	}
@@ -366,7 +359,7 @@ func TestUploadPreviewsCountsExistingPreviewsAcrossAllPages(t *testing.T) {
 		}
 	}))
 
-	_, err := uploadPreviews(context.Background(), client, "LOC_ID", "IPHONE_65", []string{filePath}, false, false, true, "")
+	_, err := uploadPreviews(context.Background(), newAssetsUploadTestDeps(), client, "LOC_ID", "IPHONE_65", []string{filePath}, false, false, true, "")
 	if err == nil {
 		t.Fatal("expected preview capacity error")
 	}
@@ -409,7 +402,7 @@ func TestUploadPreviewsSkipsChecksumMatchFromLaterPage(t *testing.T) {
 		}
 	}))
 
-	result, err := uploadPreviews(context.Background(), client, "LOC_ID", "IPHONE_65", []string{filePath}, true, false, true, "")
+	result, err := uploadPreviews(context.Background(), newAssetsUploadTestDeps(), client, "LOC_ID", "IPHONE_65", []string{filePath}, true, false, true, "")
 	if err != nil {
 		t.Fatalf("uploadPreviews() error: %v", err)
 	}
@@ -443,7 +436,7 @@ func TestUploadPreviewsRejectsLargeSkipExistingBatchBeforeCreatingMissingSet(t *
 		writeAssetsTestJSON(w, http.StatusOK, `{"data":[]}`)
 	}))
 
-	_, err := uploadPreviews(context.Background(), client, "LOC_ID", "IPHONE_65", files, true, false, false, "")
+	_, err := uploadPreviews(context.Background(), newAssetsUploadTestDeps(), client, "LOC_ID", "IPHONE_65", files, true, false, false, "")
 	if err == nil {
 		t.Fatal("expected preview capacity error")
 	}
@@ -483,7 +476,7 @@ func TestUploadPreviewsAppliesSkipExistingBeforeCapacityCheck(t *testing.T) {
 		}
 	}))
 
-	result, err := uploadPreviews(context.Background(), client, "LOC_ID", "IPHONE_65", []string{matchingPath, newPath}, true, false, true, "")
+	result, err := uploadPreviews(context.Background(), newAssetsUploadTestDeps(), client, "LOC_ID", "IPHONE_65", []string{matchingPath, newPath}, true, false, true, "")
 	if err != nil {
 		t.Fatalf("uploadPreviews() error: %v", err)
 	}
@@ -537,7 +530,7 @@ func TestUploadPreviewsAllowsLargeCandidateSetWhenChecksumSkipsFitCapacity(t *te
 		}
 	}))
 
-	result, err := uploadPreviews(context.Background(), client, "LOC_ID", "IPHONE_65", files, true, false, true, "")
+	result, err := uploadPreviews(context.Background(), newAssetsUploadTestDeps(), client, "LOC_ID", "IPHONE_65", files, true, false, true, "")
 	if err != nil {
 		t.Fatalf("uploadPreviews() error: %v", err)
 	}
@@ -585,7 +578,7 @@ func TestUploadPreviewsRejectsReplaceBatchAboveCapacityAfterFiltering(t *testing
 		writeAssetsTestJSON(w, http.StatusInternalServerError, `{"errors":[{"status":"500","detail":"unexpected mutation"}]}`)
 	}))
 
-	_, err := uploadPreviews(context.Background(), client, "LOC_ID", "IPHONE_65", files, true, true, false, "")
+	_, err := uploadPreviews(context.Background(), newAssetsUploadTestDeps(), client, "LOC_ID", "IPHONE_65", files, true, true, false, "")
 	if err == nil {
 		t.Fatal("expected replace capacity error")
 	}
@@ -621,6 +614,7 @@ func TestUploadPreviewFilesRollsBackAllCreatedItemsOnPostCreateConflict(t *testi
 	results, err := uploadPreviewFiles(
 		context.Background(),
 		context.Background(),
+		shared.ContextWithTimeout,
 		client,
 		"set-1",
 		[]string{"first.mov", "second.mov"},
@@ -672,6 +666,7 @@ func TestUploadPreviewFilesPreservesResultsWhenRollbackFails(t *testing.T) {
 	results, err := uploadPreviewFiles(
 		context.Background(),
 		context.Background(),
+		shared.ContextWithTimeout,
 		client,
 		"set-1",
 		[]string{"first.mov", "second.mov"},
@@ -719,6 +714,7 @@ func TestUploadPreviewFilesRollsBackPostCreateFailureWithFreshContext(t *testing
 	_, err := uploadPreviewFiles(
 		uploadCtx,
 		context.Background(),
+		shared.ContextWithTimeout,
 		client,
 		"set-1",
 		[]string{"preview.mov"},
@@ -756,6 +752,7 @@ func TestUploadPreviewFilesStartsRollbackTimeoutAfterSlowUpload(t *testing.T) {
 		_, err = uploadPreviewFiles(
 			context.Background(),
 			context.Background(),
+			shared.ContextWithTimeout,
 			client,
 			"set-1",
 			[]string{"preview.mov"},
@@ -791,6 +788,7 @@ func TestUploadPreviewFilesDetachesRollbackFromCallerCancellation(t *testing.T) 
 	_, err := uploadPreviewFiles(
 		context.Background(),
 		rollbackBase,
+		shared.ContextWithTimeout,
 		client,
 		"set-1",
 		[]string{"preview.mov"},
@@ -885,7 +883,7 @@ func TestUploadPreviewFilesCleansNewSetWithBoundedDetachedContext(t *testing.T) 
 			})
 			base, cancel := context.WithCancel(context.Background())
 			cancel()
-			results, err := uploadPreviewFilesWithSetCleanup(base, base, newAssetsUploadTestClient(t), "new-set", true, []string{"preview.mov"}, func(ctx context.Context, _ *asc.Client, _, _ string) (asc.AssetUploadResultItem, error) {
+			results, err := uploadPreviewFilesWithSetCleanup(base, base, shared.ContextWithTimeout, newAssetsUploadTestClient(t), "new-set", true, []string{"preview.mov"}, func(ctx context.Context, _ *asc.Client, _, _ string) (asc.AssetUploadResultItem, error) {
 				if ctx.Err() != context.Canceled {
 					t.Fatal("expected canceled upload")
 				}

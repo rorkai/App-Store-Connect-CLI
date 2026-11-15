@@ -5,9 +5,9 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"mime"
 	"net/url"
-	"os"
 	"path"
 	"path/filepath"
 	"sort"
@@ -20,12 +20,12 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// AssetsPreviewsListCommand returns the previews list subcommand.
-func AssetsPreviewsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
+// NewAssetsPreviewsListCommand returns the previews list subcommand.
+func NewAssetsPreviewsListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("list", flag.ExitOnError)
 
 	localizationID := shared.BindResourceIDFlag(fs, "version-localization", "appStoreVersionLocalizations", "App Store version localization ID")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -41,26 +41,26 @@ It is not the locale code such as en-US.
 Examples:
   asc video-previews list --version-localization "VERSION_LOCALIZATION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			locID := strings.TrimSpace(*localizationID)
 			if locID == "" {
-				return shared.RequiredFlag("--version-localization")
+				return d.RequiredFlag("--version-localization")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("video-previews list: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			firstPage, err := client.GetAppStoreVersionLocalizationPreviewSets(requestCtx, locID, asc.WithAppStoreVersionLocalizationPreviewSetsIncludePreviews())
 			cancel()
 			if err != nil {
 				return fmt.Errorf("video-previews list: failed to fetch sets: %w", err)
 			}
 			allPages, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-				requestCtx, cancel := shared.ContextWithTimeout(ctx)
+				requestCtx, cancel := d.Timeout(ctx)
 				defer cancel()
 				return client.GetAppStoreVersionLocalizationPreviewSets(requestCtx, "", asc.NextURL[asc.AppStoreVersionLocalizationPreviewSetsOption](nextURL))
 			})
@@ -72,19 +72,18 @@ Examples:
 				return fmt.Errorf("video-previews list: unexpected sets response type %T", allPages)
 			}
 
-			sets, err := client.AppPreviewSetsWithPreviews(ctx, setsResp, shared.ContextWithTimeout)
+			sets, err := client.AppPreviewSetsWithPreviews(ctx, setsResp, d.Timeout)
 			if err != nil {
 				return fmt.Errorf("video-previews list: %w", err)
 			}
 			result := asc.AppPreviewListResult{VersionLocalizationID: locID, Sets: sets}
 
-			return shared.PrintOutput(&result, *output.Output, *output.Pretty)
+			return d.PrintOutput(&result, *output.Output, *output.Pretty)
 		},
 	}
 }
 
 type previewUploadDependencies struct {
-	GetClient func() (*asc.Client, error)
 	// AcquireUploadLock waits for other asc uploads on this machine; nil
 	// uploads without waiting.
 	AcquireUploadLock func(context.Context) (func(), error)
@@ -92,20 +91,15 @@ type previewUploadDependencies struct {
 
 const maxPreviewsPerSet = 3
 
-// AssetsPreviewsUploadCommand returns the previews upload subcommand.
-func AssetsPreviewsUploadCommand() *ffcli.Command {
-	return assetsPreviewsUploadCommandWithDependencies(previewUploadDependencies{
-		GetClient:         shared.GetASCClient,
-		AcquireUploadLock: acquireAssetUploadLock,
+// NewAssetsPreviewsUploadCommand returns the previews upload subcommand.
+func NewAssetsPreviewsUploadCommand(d *shared.Deps) *ffcli.Command {
+	return assetsPreviewsUploadCommandWithDependencies(d, previewUploadDependencies{
+		AcquireUploadLock: acquireAssetUploadLock(d),
 	})
 }
 
-func assetsPreviewsUploadCommandWithDependencies(deps previewUploadDependencies) *ffcli.Command {
-	if deps.GetClient == nil {
-		deps.GetClient = shared.GetASCClient
-	}
-
-	fs := flag.NewFlagSet("upload", flag.ExitOnError)
+func assetsPreviewsUploadCommandWithDependencies(d *shared.Deps, deps previewUploadDependencies) *ffcli.Command {
+	fs := d.NewFlagSet("upload", flag.ExitOnError)
 
 	localizationID := shared.BindResourceIDFlag(fs, "version-localization", "appStoreVersionLocalizations", "App Store version localization ID")
 	path := fs.String("path", "", "Path to preview file or directory")
@@ -118,7 +112,7 @@ func assetsPreviewsUploadCommandWithDependencies(deps previewUploadDependencies)
 	placementGroup := fs.String("placement-group", "", "Placement group to use with --asset-library (defaults to the group Apple publishes for --device-type)")
 	timeCode := fs.String("time-code", "", "Poster frame timecode, set after Apple finishes processing each video (e.g., 00:00:05:00 or 00:00:05.000); not available with --asset-library")
 	pollInterval := shared.BindMediaPollIntervalFlag(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "upload",
@@ -167,45 +161,45 @@ Examples:
   asc video-previews upload --version-localization "VERSION_LOCALIZATION_ID" --path "./previews" --device-type "IPHONE_65" --replace --dry-run
   asc video-previews upload --version-localization "VERSION_LOCALIZATION_ID" --path "./previews" --device-type "IPHONE_65" --skip-existing --dry-run`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			ctx, pollErr := pollInterval.Apply(ctx)
+			ctx, pollErr := pollInterval.ApplyWith(ctx, d)
 			if pollErr != nil {
 				return pollErr
 			}
 			locID := strings.TrimSpace(*localizationID)
 			if locID == "" {
-				return shared.RequiredFlag("--version-localization")
+				return d.RequiredFlag("--version-localization")
 			}
 			pathValue := strings.TrimSpace(*path)
 			if pathValue == "" {
-				return shared.RequiredFlag("--path")
+				return d.RequiredFlag("--path")
 			}
 			deviceValue := strings.TrimSpace(*deviceType)
 			if deviceValue == "" {
-				return shared.RequiredFlag("--device-type")
+				return d.RequiredFlag("--device-type")
 			}
-			if err := validateLibraryUploadFlags(*assetLibrary, *placementGroup, *skipExisting, *replace); err != nil {
+			if err := validateLibraryUploadFlags(d, *assetLibrary, *placementGroup, *skipExisting, *replace); err != nil {
 				return err
 			}
 			if *skipExisting && *replace {
-				fmt.Fprintln(os.Stderr, "Error: --skip-existing and --replace are mutually exclusive")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --skip-existing and --replace are mutually exclusive")
 				return flag.ErrHelp
 			}
 			if *replace && !*dryRun && !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required to delete existing previews with --replace")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --confirm is required to delete existing previews with --replace")
 				return shared.MissingRequiredUsageError("--confirm")
 			}
 			if *confirm && !*replace {
-				return shared.UsageError("--confirm only applies to --replace")
+				return d.UsageError("--confirm only applies to --replace")
 			}
 			frameTimeCode := strings.TrimSpace(*timeCode)
 			if flagWasSet(fs, "time-code") {
 				if *assetLibrary {
-					return shared.UsageError("--time-code cannot be combined with --asset-library; set the poster frame with asc asset-library videos set-poster-frame")
+					return d.UsageError("--time-code cannot be combined with --asset-library; set the poster frame with asc asset-library videos set-poster-frame")
 				}
 				if !isValidPreviewFrameTimeCode(frameTimeCode) {
-					return shared.UsageError("--time-code must be in HH:MM:SS:FF or HH:MM:SS.mmm format (e.g., 00:00:05:00 or 00:00:05.000)")
+					return d.UsageError("--time-code must be in HH:MM:SS:FF or HH:MM:SS.mmm format (e.g., 00:00:05:00 or 00:00:05.000)")
 				}
 			}
 
@@ -214,7 +208,7 @@ Examples:
 				return invalidDeviceTypeError(fmt.Errorf("video-previews upload: %w", err))
 			}
 
-			files, err := collectAssetFiles(pathValue)
+			files, err := collectAssetFiles(d.OSPath(pathValue))
 			if err != nil {
 				return ClassifyMediaInputError(fmt.Errorf("video-previews upload: %w", err), "--path")
 			}
@@ -222,7 +216,7 @@ Examples:
 				return ClassifyMediaInputError(fmt.Errorf("video-previews upload: %w", err), "--path")
 			}
 
-			client, err := deps.GetClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("video-previews upload: %w", err)
 			}
@@ -237,12 +231,12 @@ Examples:
 			}
 
 			if *assetLibrary {
-				result, err := assetlibrary.UploadToLocalization(ctx, client, assetlibrary.LocalizationUpload{
+				result, err := assetlibrary.UploadToLocalizationWith(ctx, d, client, assetlibrary.LocalizationUpload{
 					Command: "video-previews upload", LocalizationID: locID, PlacementType: "APP_PREVIEW", Slot: previewType,
 					PlacementGroup: strings.TrimSpace(*placementGroup), Files: files, DryRun: *dryRun,
 				})
 				if result != nil {
-					if printErr := shared.PrintOutput(result, *output.Output, *output.Pretty); printErr != nil {
+					if printErr := d.PrintOutput(result, *output.Output, *output.Pretty); printErr != nil {
 						return printErr
 					}
 				}
@@ -252,9 +246,9 @@ Examples:
 				return nil
 			}
 
-			result, err := uploadPreviews(ctx, client, locID, previewType, files, *skipExisting, *replace, *dryRun, frameTimeCode)
+			result, err := uploadPreviews(ctx, d, client, locID, previewType, files, *skipExisting, *replace, *dryRun, frameTimeCode)
 			if hasAppPreviewUploadResultOutput(result) {
-				if printErr := shared.PrintOutput(&result, *output.Output, *output.Pretty); printErr != nil {
+				if printErr := d.PrintOutput(&result, *output.Output, *output.Pretty); printErr != nil {
 					return printErr
 				}
 			}
@@ -299,9 +293,9 @@ type previewDownloadResult struct {
 	Failures []previewDownloadFailure `json:"failures,omitempty"`
 }
 
-// AssetsPreviewsDownloadCommand returns the previews download subcommand.
-func AssetsPreviewsDownloadCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("download", flag.ExitOnError)
+// NewAssetsPreviewsDownloadCommand returns the previews download subcommand.
+func NewAssetsPreviewsDownloadCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("download", flag.ExitOnError)
 
 	id := shared.BindResourceIDFlag(fs, "id", "appPreviews", "Preview ID to download")
 	localizationID := shared.BindResourceIDFlag(fs, "version-localization", "appStoreVersionLocalizations", "App Store version localization ID (download all previews)")
@@ -331,41 +325,41 @@ Examples:
   asc video-previews download --version-localization "VERSION_LOCALIZATION_ID" --output-dir "./previews"
   asc video-previews download --version-localization "VERSION_LOCALIZATION_ID" --output-dir "./previews" --overwrite`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.RejectOutputFormatAsPath(*outputPath, "--format"); err != nil {
+			if err := d.RejectOutputFormatAsPath(*outputPath, "--format"); err != nil {
 				return err
 			}
 			idValue := strings.TrimSpace(*id)
 			locID := strings.TrimSpace(*localizationID)
 
 			if idValue == "" && locID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id or --version-localization is required")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --id or --version-localization is required")
 				return shared.MissingRequiredUsageError("")
 			}
 			if idValue != "" && locID != "" {
-				return shared.UsageError("--id and --version-localization are mutually exclusive")
+				return d.UsageError("--id and --version-localization are mutually exclusive")
 			}
 
 			outputFile := strings.TrimSpace(*outputPath)
 			outputDirValue := strings.TrimSpace(*outputDir)
 			if idValue != "" {
 				if outputFile == "" {
-					fmt.Fprintln(os.Stderr, "Error: --output is required with --id")
+					fmt.Fprintln(d.IO.ErrOut, "Error: --output is required with --id")
 					return shared.MissingRequiredUsageError("--output")
 				}
 				if strings.HasSuffix(outputFile, string(filepath.Separator)) {
-					return shared.UsageError("--output must be a file path")
+					return d.UsageError("--output must be a file path")
 				}
 			}
 			if locID != "" {
 				if outputDirValue == "" {
-					fmt.Fprintln(os.Stderr, "Error: --output-dir is required with --version-localization")
+					fmt.Fprintln(d.IO.ErrOut, "Error: --output-dir is required with --version-localization")
 					return shared.MissingRequiredUsageError("--output-dir")
 				}
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("video-previews download: %w", err)
 			}
@@ -383,7 +377,7 @@ Examples:
 			items := make([]previewDownloadItem, 0, 8)
 
 			if idValue != "" {
-				requestCtx, cancel := shared.ContextWithTimeout(ctx)
+				requestCtx, cancel := d.Timeout(ctx)
 				resp, err := client.GetAppPreview(requestCtx, idValue)
 				cancel()
 				if err != nil {
@@ -406,12 +400,12 @@ Examples:
 					result.Total = 1
 					result.Failed = 1
 
-					if err := shared.PrintOutputWithRenderers(
+					if err := d.PrintOutputWithRenderers(
 						result,
 						*format.Output,
 						*format.Pretty,
-						func() error { return renderPreviewDownloadResult(result, false) },
-						func() error { return renderPreviewDownloadResult(result, true) },
+						func() error { return renderPreviewDownloadResult(d.IO.Out, result, false) },
+						func() error { return renderPreviewDownloadResult(d.IO.Out, result, true) },
 					); err != nil {
 						return err
 					}
@@ -425,14 +419,14 @@ Examples:
 					OutputPath: outputFile,
 				})
 			} else {
-				requestCtx, cancel := shared.ContextWithTimeout(ctx)
+				requestCtx, cancel := d.Timeout(ctx)
 				firstPage, err := client.GetAppStoreVersionLocalizationPreviewSets(requestCtx, locID, asc.WithAppStoreVersionLocalizationPreviewSetsIncludePreviews())
 				cancel()
 				if err != nil {
 					return fmt.Errorf("video-previews download: failed to fetch sets: %w", err)
 				}
 				allPages, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					requestCtx, cancel := shared.ContextWithTimeout(ctx)
+					requestCtx, cancel := d.Timeout(ctx)
 					defer cancel()
 					return client.GetAppStoreVersionLocalizationPreviewSets(requestCtx, "", asc.NextURL[asc.AppStoreVersionLocalizationPreviewSetsOption](nextURL))
 				})
@@ -461,14 +455,14 @@ Examples:
 
 					previews, ok := includedPreviews[set.ID]
 					if !ok {
-						requestCtx, cancel := shared.ContextWithTimeout(ctx)
+						requestCtx, cancel := d.Timeout(ctx)
 						previewsResp, err := client.GetAppPreviews(requestCtx, set.ID)
 						cancel()
 						if err != nil {
 							return fmt.Errorf("video-previews download: failed to fetch previews for set %s: %w", set.ID, err)
 						}
 
-						requestCtx, cancel = shared.ContextWithTimeout(ctx)
+						requestCtx, cancel = d.Timeout(ctx)
 						orderedIDs, err := getOrderedAppPreviewIDs(requestCtx, client, set.ID)
 						cancel()
 						if err != nil {
@@ -493,7 +487,7 @@ Examples:
 						videoURL := strings.TrimSpace(preview.Attributes.VideoURL)
 						failureReason := "preview has no videoUrl"
 						if videoURL == "" {
-							requestCtx, cancel := shared.ContextWithTimeout(ctx)
+							requestCtx, cancel := d.Timeout(ctx)
 							full, err := client.GetAppPreview(requestCtx, preview.ID)
 							cancel()
 							if err != nil {
@@ -543,8 +537,8 @@ Examples:
 					return requestedPath
 				}
 
-				downloadCtx, cancel := shared.ContextWithDownloadTimeout(ctx)
-				written, contentType, err := downloadURLToResolvedFile(downloadCtx, item.URL, resolvePath, *overwrite)
+				downloadCtx, cancel := d.DownloadTimeout(ctx)
+				written, contentType, err := downloadURLToResolvedFile(downloadCtx, d, item.URL, resolvePath, *overwrite)
 				cancel()
 				item.OutputPath = resolvePath(contentType)
 				if err != nil {
@@ -562,7 +556,7 @@ Examples:
 				item.ContentType = contentType
 				result.Downloaded++
 				if idValue != "" && IsHLSPlaylist(contentType, item.URL) && !strings.EqualFold(filepath.Ext(item.OutputPath), ".m3u8") {
-					fmt.Fprintf(os.Stderr, "Warning: App Store Connect only exposes an HLS streaming playlist for previews; %s is a .m3u8 playlist, not a video file\n", item.OutputPath)
+					fmt.Fprintf(d.IO.ErrOut, "Warning: App Store Connect only exposes an HLS streaming playlist for previews; %s is a .m3u8 playlist, not a video file\n", item.OutputPath)
 				}
 			}
 
@@ -570,12 +564,12 @@ Examples:
 			result.Total = len(items)
 			result.Failed = len(result.Failures)
 
-			if err := shared.PrintOutputWithRenderers(
+			if err := d.PrintOutputWithRenderers(
 				result,
 				*format.Output,
 				*format.Pretty,
-				func() error { return renderPreviewDownloadResult(result, false) },
-				func() error { return renderPreviewDownloadResult(result, true) },
+				func() error { return renderPreviewDownloadResult(d.IO.Out, result, false) },
+				func() error { return renderPreviewDownloadResult(d.IO.Out, result, true) },
 			); err != nil {
 				return err
 			}
@@ -601,17 +595,17 @@ func IsHLSPlaylist(contentType, rawURL string) bool {
 	return err == nil && strings.EqualFold(path.Ext(parsed.Path), ".m3u8")
 }
 
-func renderPreviewDownloadResult(result *previewDownloadResult, markdown bool) error {
+func renderPreviewDownloadResult(w io.Writer, result *previewDownloadResult, markdown bool) error {
 	if result == nil {
 		return fmt.Errorf("result is nil")
 	}
 
-	render := asc.RenderTable
+	render := asc.RenderTableTo
 	if markdown {
-		render = asc.RenderMarkdown
+		render = asc.RenderMarkdownTo
 	}
 
-	render(
+	render(w,
 		[]string{"Version Localization", "Output Dir", "Overwrite", "Total", "Downloaded", "Failed"},
 		[][]string{{
 			result.VersionLocalizationID,
@@ -634,7 +628,7 @@ func renderPreviewDownloadResult(result *previewDownloadResult, markdown bool) e
 				fmt.Sprintf("%d", item.BytesWritten),
 			})
 		}
-		render([]string{"ID", "Preview Type", "File Name", "Output Path", "Bytes"}, rows)
+		render(w, []string{"ID", "Preview Type", "File Name", "Output Path", "Bytes"}, rows)
 	}
 
 	if len(result.Failures) > 0 {
@@ -647,15 +641,16 @@ func renderPreviewDownloadResult(result *previewDownloadResult, markdown bool) e
 				f.Error,
 			})
 		}
-		render([]string{"ID", "Preview Type", "Output Path", "Error"}, rows)
+		render(w, []string{"ID", "Preview Type", "Output Path", "Error"}, rows)
 	}
 
 	return nil
 }
 
-// AssetsPreviewsDeleteCommand returns the preview delete subcommand.
-func AssetsPreviewsDeleteCommand() *ffcli.Command {
+// NewAssetsPreviewsDeleteCommand returns the preview delete subcommand.
+func NewAssetsPreviewsDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		Deps:       d,
 		Name:       "delete",
 		ShortUsage: "asc video-previews delete --id \"PREVIEW_ID\" --confirm",
 		ShortHelp:  "Delete a preview by ID.",
@@ -677,13 +672,13 @@ Examples:
 	})
 }
 
-// AssetsPreviewsSetPosterFrameCommand returns the set-poster-frame subcommand.
-func AssetsPreviewsSetPosterFrameCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("set-poster-frame", flag.ExitOnError)
+// NewAssetsPreviewsSetPosterFrameCommand returns the set-poster-frame subcommand.
+func NewAssetsPreviewsSetPosterFrameCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("set-poster-frame", flag.ExitOnError)
 
 	id := shared.BindResourceIDFlag(fs, "id", "appPreviews", "Preview ID")
 	timeCode := fs.String("time-code", "", "Poster frame timecode (e.g., 00:00:05:00 or 00:00:05.000)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "set-poster-frame",
@@ -699,27 +694,27 @@ Examples:
   asc video-previews set-poster-frame --id "PREVIEW_ID" --time-code "00:00:05:00"
   asc video-previews set-poster-frame --id "PREVIEW_ID" --time-code "00:00:05.000"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			previewID := strings.TrimSpace(*id)
 			if previewID == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
 			tc := strings.TrimSpace(*timeCode)
 			if tc == "" {
-				return shared.RequiredFlag("--time-code")
+				return d.RequiredFlag("--time-code")
 			}
 			if !isValidPreviewFrameTimeCode(tc) {
-				fmt.Fprintln(os.Stderr, "Error: --time-code must be in HH:MM:SS:FF or HH:MM:SS.mmm format (e.g., 00:00:05:00 or 00:00:05.000)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --time-code must be in HH:MM:SS:FF or HH:MM:SS.mmm format (e.g., 00:00:05:00 or 00:00:05.000)")
 				return flag.ErrHelp
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("video-previews set-poster-frame: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			result, err := client.SetAppPreviewFrameTimeCode(requestCtx, previewID, tc)
@@ -727,7 +722,7 @@ Examples:
 				return fmt.Errorf("video-previews set-poster-frame: %w", err)
 			}
 
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -942,7 +937,7 @@ func validatePreviewFiles(files []string, enforceCapacity bool) error {
 	return nil
 }
 
-func uploadPreviews(ctx context.Context, client *asc.Client, localizationID, previewType string, files []string, skipExisting, replace, dryRun bool, timeCode string) (asc.AppPreviewUploadResult, error) {
+func uploadPreviews(ctx context.Context, d *shared.Deps, client *asc.Client, localizationID, previewType string, files []string, skipExisting, replace, dryRun bool, timeCode string) (asc.AppPreviewUploadResult, error) {
 	if client == nil {
 		return asc.AppPreviewUploadResult{}, fmt.Errorf("client is required")
 	}
@@ -950,7 +945,7 @@ func uploadPreviews(ctx context.Context, client *asc.Client, localizationID, pre
 		return asc.AppPreviewUploadResult{}, err
 	}
 
-	requestCtx, reqCancel := shared.ContextWithTimeout(ctx)
+	requestCtx, reqCancel := d.Timeout(ctx)
 	set, err := findPreviewSet(requestCtx, client, localizationID, previewType)
 	reqCancel()
 	if err != nil {
@@ -959,7 +954,7 @@ func uploadPreviews(ctx context.Context, client *asc.Client, localizationID, pre
 
 	existingPreviews := make([]asc.Resource[asc.AppPreviewAttributes], 0)
 	if set.ID != "" {
-		fetchCtx, fetchCancel := shared.ContextWithTimeout(ctx)
+		fetchCtx, fetchCancel := d.Timeout(ctx)
 		existingPreviews, err = getAllAppPreviews(fetchCtx, client, set.ID)
 		fetchCancel()
 		if err != nil {
@@ -1022,7 +1017,7 @@ func uploadPreviews(ctx context.Context, client *asc.Client, localizationID, pre
 		}, nil
 	}
 	if set.ID == "" && len(files) > 0 {
-		createCtx, createCancel := shared.ContextWithTimeout(ctx)
+		createCtx, createCancel := d.Timeout(ctx)
 		set, err = ensurePreviewSet(createCtx, client, localizationID, previewType)
 		createCancel()
 		if err != nil {
@@ -1030,7 +1025,7 @@ func uploadPreviews(ctx context.Context, client *asc.Client, localizationID, pre
 		}
 	}
 
-	uploadCtx, cancel := contextWithAssetUploadTimeout(withAssetUploadWork(ctx, files))
+	uploadCtx, cancel := ContextWithAssetUploadTimeoutWith(withAssetUploadWork(ctx, files), d)
 	defer cancel()
 
 	if replace {
@@ -1039,7 +1034,7 @@ func uploadPreviews(ctx context.Context, client *asc.Client, localizationID, pre
 		}
 	}
 
-	uploadedResults, err := uploadPreviewFiles(uploadCtx, ctx, client, set.ID, files, uploadPreviewAsset)
+	uploadedResults, err := uploadPreviewFiles(uploadCtx, ctx, d.Timeout, client, set.ID, files, uploadPreviewAsset)
 	result := asc.AppPreviewUploadResult{
 		VersionLocalizationID: localizationID,
 		SetID:                 set.ID,
@@ -1113,7 +1108,7 @@ func (e *previewUploadFailure) Unwrap() error {
 // UploadPreviewFiles uploads previews and rolls back resources created by this run on failure.
 // setCreated must be true only when this run created the preview set.
 func UploadPreviewFiles(uploadCtx, rollbackBase context.Context, client *asc.Client, setID string, setCreated bool, files []string) ([]asc.AssetUploadResultItem, []asc.AssetUploadFailureItem, error) {
-	results, err := uploadPreviewFilesWithSetCleanup(uploadCtx, rollbackBase, client, setID, setCreated, files, uploadPreviewAsset)
+	results, err := uploadPreviewFilesWithSetCleanup(uploadCtx, rollbackBase, shared.ContextWithTimeout, client, setID, setCreated, files, uploadPreviewAsset)
 	results, failures := previewUploadFailureReceipt(results, err)
 	return results, failures, err
 }
@@ -1143,11 +1138,11 @@ func previewUploadFailureReceipt(results []asc.AssetUploadResultItem, err error)
 	}}
 }
 
-func uploadPreviewFiles(uploadCtx, rollbackBase context.Context, client *asc.Client, setID string, files []string, upload previewAssetUploadFunc) ([]asc.AssetUploadResultItem, error) {
-	return uploadPreviewFilesWithSetCleanup(uploadCtx, rollbackBase, client, setID, false, files, upload)
+func uploadPreviewFiles(uploadCtx, rollbackBase context.Context, timeout func(context.Context) (context.Context, context.CancelFunc), client *asc.Client, setID string, files []string, upload previewAssetUploadFunc) ([]asc.AssetUploadResultItem, error) {
+	return uploadPreviewFilesWithSetCleanup(uploadCtx, rollbackBase, timeout, client, setID, false, files, upload)
 }
 
-func uploadPreviewFilesWithSetCleanup(uploadCtx, rollbackBase context.Context, client *asc.Client, setID string, setCreated bool, files []string, upload previewAssetUploadFunc) ([]asc.AssetUploadResultItem, error) {
+func uploadPreviewFilesWithSetCleanup(uploadCtx, rollbackBase context.Context, timeout func(context.Context) (context.Context, context.CancelFunc), client *asc.Client, setID string, setCreated bool, files []string, upload previewAssetUploadFunc) ([]asc.AssetUploadResultItem, error) {
 	results := make([]asc.AssetUploadResultItem, 0, len(files))
 	for _, filePath := range files {
 		item, err := upload(uploadCtx, client, setID, filePath)
@@ -1166,7 +1161,7 @@ func uploadPreviewFilesWithSetCleanup(uploadCtx, rollbackBase context.Context, c
 				var rollbackErr error
 				rollbackItems, rollbackErr = func() ([]asc.AssetUploadResultItem, error) {
 					rollbackParent := context.WithoutCancel(shared.ContextWithoutTimeout(rollbackBase))
-					rollbackCtx, rollbackCancel := shared.ContextWithTimeout(rollbackParent)
+					rollbackCtx, rollbackCancel := timeout(rollbackParent)
 					defer rollbackCancel()
 					items, cleanupErr := deleteUploadedPreviews(rollbackCtx, client, rollbackItems)
 					if cleanupErr == nil && setCreated {

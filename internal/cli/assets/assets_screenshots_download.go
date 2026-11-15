@@ -274,7 +274,7 @@ Examples:
 					downloadCtx, cancel := shared.ContextWithDownloadTimeout(ctx)
 					defer cancel()
 					outcome := &outcomes[i]
-					outcome.written, outcome.contentType, outcome.unchanged, outcome.err = downloadScreenshotURLToFile(downloadCtx, item.URL, item.OutputPath, *overwrite)
+					outcome.written, outcome.contentType, outcome.unchanged, outcome.err = downloadScreenshotURLToFile(downloadCtx, shared.DefaultDeps(), item.URL, item.OutputPath, *overwrite)
 				}()
 			}
 			wg.Wait()
