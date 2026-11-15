@@ -27,7 +27,7 @@ Examples:
   asc pass-type-ids certificates list --pass-type-id "PASS_ID"
   asc pass-type-ids certificates view --pass-type-id "PASS_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newPassTypeIDCertificatesListCommand(d),
 			newPassTypeIDCertificatesGetCommand(d),
@@ -65,7 +65,7 @@ Examples:
   asc pass-type-ids certificates list --next "https://api.appstoreconnect.apple.com/v1/passTypeIds/PASS_ID/certificates?cursor=CURSOR"
   asc pass-type-ids certificates list --pass-type-id "PASS_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "pass-type-ids certificates list", 200, "display-name", "certificate-type", "serial-number", "id", "sort", "fields"); err != nil {
 				return err
@@ -179,7 +179,7 @@ Examples:
   asc pass-type-ids certificates view --next "https://api.appstoreconnect.apple.com/v1/passTypeIds/PASS_ID/relationships/certificates?cursor=CURSOR"
   asc pass-type-ids certificates view --pass-type-id "PASS_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "pass-type-ids certificates view", 200); err != nil {
 				return err

@@ -18,9 +18,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/config"
 )
 
-// AuthCommand returns the Apple Ads auth command group.
-func AuthCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("ads auth", flag.ExitOnError)
+// newAuthCommand returns the Apple Ads auth command group.
+func newAuthCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("ads auth", flag.ExitOnError)
 	return &ffcli.Command{
 		Name:       "auth",
 		ShortUsage: "asc ads auth <subcommand> [flags]",
@@ -37,13 +37,13 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			AuthLoginCommand(),
-			AuthStatusCommand(),
-			AuthDiscoverCommand(),
-			AuthSwitchCommand(),
-			AuthTokenCommand(),
-			AuthDoctorCommand(),
-			AuthLogoutCommand(),
+			newAuthLoginCommand(d),
+			newAuthStatusCommand(d),
+			newAuthDiscoverCommand(d),
+			newAuthSwitchCommand(d),
+			newAuthTokenCommand(d),
+			newAuthDoctorCommand(d),
+			newAuthLogoutCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -51,8 +51,8 @@ Examples:
 	}
 }
 
-func AuthLoginCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("ads auth login", flag.ExitOnError)
+func newAuthLoginCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("ads auth login", flag.ExitOnError)
 	name := fs.String("name", "", "Friendly name for this Apple Ads key")
 	clientID := fs.String("client-id", "", "Apple Ads OAuth client ID")
 	teamID := fs.String("team-id", "", "Apple Ads OAuth team ID")
@@ -78,29 +78,29 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*name) == "" {
-				return shared.RequiredFlag("--name")
+				return d.RequiredFlag("--name")
 			}
 			if strings.TrimSpace(*clientID) == "" {
-				return shared.RequiredFlag("--client-id")
+				return d.RequiredFlag("--client-id")
 			}
 			if strings.TrimSpace(*teamID) == "" {
-				return shared.RequiredFlag("--team-id")
+				return d.RequiredFlag("--team-id")
 			}
 			if strings.TrimSpace(*keyID) == "" {
-				return shared.RequiredFlag("--key-id")
+				return d.RequiredFlag("--key-id")
 			}
 			if strings.TrimSpace(*privateKey) == "" {
-				return shared.RequiredFlag("--private-key")
+				return d.RequiredFlag("--private-key")
 			}
 			if *skipValidation && *network {
-				return shared.UsageError("--skip-validation and --network are mutually exclusive")
+				return d.UsageError("--skip-validation and --network are mutually exclusive")
 			}
 			if *local && !*bypassKeychain && !appleads.ShouldBypassKeychain() {
-				return shared.UsageError("--local requires --bypass-keychain or ASC_ADS_BYPASS_KEYCHAIN set to 1/true/yes/y/on")
+				return d.UsageError("--local requires --bypass-keychain or ASC_ADS_BYPASS_KEYCHAIN set to 1/true/yes/y/on")
 			}
 			if !*skipValidation {
 				if err := authsvc.ValidateKeyFile(*privateKey); err != nil {
-					return shared.UsageErrorf("ads auth login: invalid private key: %v", err)
+					return d.UsageErrorf("ads auth login: invalid private key: %v", err)
 				}
 			}
 
@@ -117,7 +117,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("ads auth login: %w", err)
 				}
-				requestCtx, cancel := requestContext(ctx)
+				requestCtx, cancel := d.Timeout(ctx)
 				defer cancel()
 				spec, err := authPlatformEndpointSpec("me", "view")
 				if err != nil {
@@ -143,14 +143,14 @@ Examples:
 			} else if err := appleads.StoreCredentials(*name, credentials); err != nil {
 				return fmt.Errorf("ads auth login: failed to store credentials: %w", err)
 			}
-			fmt.Printf("Successfully registered Apple Ads API key '%s'\n", strings.TrimSpace(*name))
+			fmt.Fprintf(d.IO.Out, "Successfully registered Apple Ads API key '%s'\n", strings.TrimSpace(*name))
 			return nil
 		},
 	}
 }
 
-func AuthStatusCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("ads auth status", flag.ExitOnError)
+func newAuthStatusCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("ads auth status", flag.ExitOnError)
 	output := shared.BindOutputFlagsWithAllowed(fs, "output", "table", "Output format: table, json", "table", "json")
 	verbose := fs.Bool("verbose", false, "Show detailed storage information")
 	validate := fs.Bool("validate", false, "Validate stored credentials via network")
@@ -171,7 +171,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			normalized, err := shared.ValidateOutputFormatAllowed(*output.Output, *output.Pretty, "table", "json")
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			active := statusActiveContext()
 			credentials, err := appleads.ListCredentials()
@@ -199,7 +199,7 @@ Examples:
 				if *validate {
 					client, err := appleads.NewClient(cred.Credentials)
 					if err == nil {
-						requestCtx, cancel := requestContext(ctx)
+						requestCtx, cancel := d.Timeout(ctx)
 						spec, specErr := authPlatformEndpointSpec("me", "view")
 						if specErr != nil {
 							err = specErr
@@ -225,11 +225,11 @@ Examples:
 				CredentialsError: credentialsError,
 			}
 			if normalized == "json" {
-				if err := shared.PrintOutput(result, "json", *output.Pretty); err != nil {
+				if err := d.PrintOutput(result, "json", *output.Pretty); err != nil {
 					return err
 				}
 			} else {
-				printStatusTable(result)
+				printStatusTable(d, result)
 			}
 			if *validate && credentialsError != "" {
 				return shared.NewReportedError(fmt.Errorf("ads auth status: validation skipped because credentials could not be listed: %s", credentialsError))
@@ -275,16 +275,16 @@ type adsAuthStatusRow struct {
 	Error       string `json:"error,omitempty"`
 }
 
-func printStatusTable(result adsAuthStatusOutput) {
-	fmt.Printf("Credential storage: %s\n\n", result.Storage)
-	printActiveContext(result.Active)
-	fmt.Println()
+func printStatusTable(d *shared.Deps, result adsAuthStatusOutput) {
+	fmt.Fprintf(d.IO.Out, "Credential storage: %s\n\n", result.Storage)
+	printActiveContext(d, result.Active)
+	fmt.Fprintln(d.IO.Out)
 	if result.CredentialsError != "" {
-		fmt.Printf("Stored credentials: unavailable (%s)\n", result.CredentialsError)
+		fmt.Fprintf(d.IO.Out, "Stored credentials: unavailable (%s)\n", result.CredentialsError)
 		return
 	}
 	if len(result.Credentials) == 0 {
-		fmt.Println("No Apple Ads credentials stored. Run 'asc ads auth login' to get started.")
+		fmt.Fprintln(d.IO.Out, "No Apple Ads credentials stored. Run 'asc ads auth login' to get started.")
 		return
 	}
 	for _, cred := range result.Credentials {
@@ -292,62 +292,62 @@ func printStatusTable(result adsAuthStatusOutput) {
 		if cred.Default {
 			defaultMarker = " (default)"
 		}
-		fmt.Printf("%s%s\n", cred.Name, defaultMarker)
-		fmt.Printf("  Client ID: %s\n", cred.ClientID)
-		fmt.Printf("  Team ID: %s\n", cred.TeamID)
-		fmt.Printf("  Key ID: %s\n", cred.KeyID)
+		fmt.Fprintf(d.IO.Out, "%s%s\n", cred.Name, defaultMarker)
+		fmt.Fprintf(d.IO.Out, "  Client ID: %s\n", cred.ClientID)
+		fmt.Fprintf(d.IO.Out, "  Team ID: %s\n", cred.TeamID)
+		fmt.Fprintf(d.IO.Out, "  Key ID: %s\n", cred.KeyID)
 		if cred.OrgID != "" {
-			fmt.Printf("  Org ID: %s\n", cred.OrgID)
+			fmt.Fprintf(d.IO.Out, "  Org ID: %s\n", cred.OrgID)
 		}
 		if cred.AdAccountID != "" {
-			fmt.Printf("  Ad account ID: %s\n", cred.AdAccountID)
+			fmt.Fprintf(d.IO.Out, "  Ad account ID: %s\n", cred.AdAccountID)
 		}
-		fmt.Printf("  Source: %s\n", cred.Source)
+		fmt.Fprintf(d.IO.Out, "  Source: %s\n", cred.Source)
 		if cred.SourcePath != "" {
-			fmt.Printf("  Source path: %s\n", cred.SourcePath)
+			fmt.Fprintf(d.IO.Out, "  Source path: %s\n", cred.SourcePath)
 		}
 		if cred.Error != "" {
-			fmt.Printf("  Validation: failed: %s\n", cred.Error)
+			fmt.Fprintf(d.IO.Out, "  Validation: failed: %s\n", cred.Error)
 		} else if cred.Validated {
-			fmt.Println("  Validation: ok")
+			fmt.Fprintln(d.IO.Out, "  Validation: ok")
 		}
 	}
 }
 
-func printActiveContext(active adsAuthContext) {
+func printActiveContext(d *shared.Deps, active adsAuthContext) {
 	if active.Error != "" && active.Source == "" {
-		fmt.Printf("Active auth: unavailable (%s)\n", active.Error)
+		fmt.Fprintf(d.IO.Out, "Active auth: unavailable (%s)\n", active.Error)
 		return
 	}
 	if active.Source == "" {
-		fmt.Println("Active auth: none")
+		fmt.Fprintln(d.IO.Out, "Active auth: none")
 		return
 	}
-	fmt.Printf("Active auth: %s\n", active.Source)
+	fmt.Fprintf(d.IO.Out, "Active auth: %s\n", active.Source)
 	if active.Profile != "" {
-		fmt.Printf("  Profile: %s\n", active.Profile)
+		fmt.Fprintf(d.IO.Out, "  Profile: %s\n", active.Profile)
 	}
 	if active.OrgError != "" {
-		fmt.Printf("  Org ID: unavailable (%s)\n", active.OrgError)
+		fmt.Fprintf(d.IO.Out, "  Org ID: unavailable (%s)\n", active.OrgError)
 	} else if active.OrgID != "" {
 		if active.OrgIDSource != "" {
-			fmt.Printf("  Org ID: %s (%s)\n", active.OrgID, active.OrgIDSource)
+			fmt.Fprintf(d.IO.Out, "  Org ID: %s (%s)\n", active.OrgID, active.OrgIDSource)
 		} else {
-			fmt.Printf("  Org ID: %s\n", active.OrgID)
+			fmt.Fprintf(d.IO.Out, "  Org ID: %s\n", active.OrgID)
 		}
 	} else {
-		fmt.Println("  Org ID: not selected")
+		fmt.Fprintln(d.IO.Out, "  Org ID: not selected")
 	}
 	if active.AdAccountError != "" {
-		fmt.Printf("  Ad account ID: unavailable (%s)\n", active.AdAccountError)
+		fmt.Fprintf(d.IO.Out, "  Ad account ID: unavailable (%s)\n", active.AdAccountError)
 	} else if active.AdAccountID != "" {
 		if active.AdAccountIDSource != "" {
-			fmt.Printf("  Ad account ID: %s (%s)\n", active.AdAccountID, active.AdAccountIDSource)
+			fmt.Fprintf(d.IO.Out, "  Ad account ID: %s (%s)\n", active.AdAccountID, active.AdAccountIDSource)
 		} else {
-			fmt.Printf("  Ad account ID: %s\n", active.AdAccountID)
+			fmt.Fprintf(d.IO.Out, "  Ad account ID: %s\n", active.AdAccountID)
 		}
 	} else {
-		fmt.Println("  Ad account ID: not selected")
+		fmt.Fprintln(d.IO.Out, "  Ad account ID: not selected")
 	}
 }
 
@@ -408,8 +408,8 @@ func storageDescription(rows []adsAuthStatusRow) string {
 	return "System Keychain"
 }
 
-func AuthDiscoverCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("ads auth discover", flag.ExitOnError)
+func newAuthDiscoverCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("ads auth discover", flag.ExitOnError)
 	common := commonFlags{
 		AdsProfile: fs.String("ads-profile", "", "Use named Apple Ads authentication profile"),
 		Org:        fs.String("org", "", "Apple Ads organization ID to mark active"),
@@ -433,7 +433,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			normalized, err := shared.ValidateOutputFormatAllowed(*output.Output, *output.Pretty, "table", "json")
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			credentials, source, err := resolveCredentialsWithSource(common)
 			if err != nil {
@@ -442,13 +442,13 @@ Examples:
 			orgID, orgSource := discoverOrgIDWithSource(common, credentials)
 			adAccountID, adAccountSource, err := discoverAdAccountIDWithSource(common, credentials)
 			if err != nil {
-				return shared.UsageErrorf("ads auth discover: %v", err)
+				return d.UsageErrorf("ads auth discover: %v", err)
 			}
 			client, err := appleads.NewClient(credentials)
 			if err != nil {
 				return fmt.Errorf("ads auth discover: %w", err)
 			}
-			requestCtx, cancel := requestContext(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			meSpec, err := authPlatformEndpointSpec("me", "view")
@@ -492,9 +492,9 @@ Examples:
 				Accounts:          accounts,
 			}
 			if normalized == "json" {
-				return shared.PrintOutput(result, "json", *output.Pretty)
+				return d.PrintOutput(result, "json", *output.Pretty)
 			}
-			printDiscoveryTable(result)
+			printDiscoveryTable(d, result)
 			return nil
 		},
 	}
@@ -553,37 +553,37 @@ type adsAuthAccountSummary struct {
 	Active      bool     `json:"active"`
 }
 
-func printDiscoveryTable(result adsAuthDiscoveryOutput) {
-	fmt.Printf("Auth source: %s\n", result.AuthSource)
+func printDiscoveryTable(d *shared.Deps, result adsAuthDiscoveryOutput) {
+	fmt.Fprintf(d.IO.Out, "Auth source: %s\n", result.AuthSource)
 	if result.Profile != "" {
-		fmt.Printf("Profile: %s\n", result.Profile)
+		fmt.Fprintf(d.IO.Out, "Profile: %s\n", result.Profile)
 	}
 	if user := discoveryUserSummary(result.Me); user != "" {
-		fmt.Printf("User: %s\n", user)
+		fmt.Fprintf(d.IO.Out, "User: %s\n", user)
 	}
 	if result.OrgID != "" {
 		if result.OrgIDSource != "" {
-			fmt.Printf("Selected org: %s (%s)\n", result.OrgID, result.OrgIDSource)
+			fmt.Fprintf(d.IO.Out, "Selected org: %s (%s)\n", result.OrgID, result.OrgIDSource)
 		} else {
-			fmt.Printf("Selected org: %s\n", result.OrgID)
+			fmt.Fprintf(d.IO.Out, "Selected org: %s\n", result.OrgID)
 		}
 	} else {
-		fmt.Println("Selected org: none")
+		fmt.Fprintln(d.IO.Out, "Selected org: none")
 	}
 	if result.AdAccountID != "" {
 		if result.AdAccountIDSource != "" {
-			fmt.Printf("Selected ad account: %s (%s)\n", result.AdAccountID, result.AdAccountIDSource)
+			fmt.Fprintf(d.IO.Out, "Selected ad account: %s (%s)\n", result.AdAccountID, result.AdAccountIDSource)
 		} else {
-			fmt.Printf("Selected ad account: %s\n", result.AdAccountID)
+			fmt.Fprintf(d.IO.Out, "Selected ad account: %s\n", result.AdAccountID)
 		}
 	} else {
-		fmt.Println("Selected ad account: none")
+		fmt.Fprintln(d.IO.Out, "Selected ad account: none")
 	}
 	if len(result.Accounts) == 0 {
-		fmt.Println("Accounts: none returned")
+		fmt.Fprintln(d.IO.Out, "Accounts: none returned")
 		return
 	}
-	fmt.Println("Accounts:")
+	fmt.Fprintln(d.IO.Out, "Accounts:")
 	for _, account := range result.Accounts {
 		marker := ""
 		if account.Active {
@@ -596,9 +596,9 @@ func printDiscoveryTable(result adsAuthDiscoveryOutput) {
 		if account.Name != "" {
 			label += " - " + account.Name
 		}
-		fmt.Printf("  %s%s\n", label, marker)
+		fmt.Fprintf(d.IO.Out, "  %s%s\n", label, marker)
 		if len(account.Roles) > 0 {
-			fmt.Printf("    Roles: %s\n", strings.Join(account.Roles, ", "))
+			fmt.Fprintf(d.IO.Out, "    Roles: %s\n", strings.Join(account.Roles, ", "))
 		}
 	}
 }
@@ -720,8 +720,8 @@ func jsonScalarString(value any) string {
 	}
 }
 
-func AuthSwitchCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("ads auth switch", flag.ExitOnError)
+func newAuthSwitchCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("ads auth switch", flag.ExitOnError)
 	name := fs.String("name", "", "Apple Ads profile name")
 	return &ffcli.Command{
 		Name:       "switch",
@@ -735,19 +735,19 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*name) == "" {
-				return shared.RequiredFlag("--name")
+				return d.RequiredFlag("--name")
 			}
 			if err := appleads.SetDefaultCredentials(*name); err != nil {
 				return fmt.Errorf("ads auth switch: %w", err)
 			}
-			fmt.Printf("Default Apple Ads profile set to '%s'\n", strings.TrimSpace(*name))
+			fmt.Fprintf(d.IO.Out, "Default Apple Ads profile set to '%s'\n", strings.TrimSpace(*name))
 			return nil
 		},
 	}
 }
 
-func AuthTokenCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("ads auth token", flag.ExitOnError)
+func newAuthTokenCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("ads auth token", flag.ExitOnError)
 	common := commonFlags{AdsProfile: fs.String("ads-profile", "", "Use named Apple Ads authentication profile")}
 	output := shared.BindOutputFlagsWithAllowed(fs, "output", "text", "Output format: text, json", "text", "json")
 	confirm := fs.Bool("confirm", false, "Confirm printing a sensitive access token")
@@ -763,12 +763,12 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
 			normalized, err := shared.ValidateOutputFormatAllowed(*output.Output, *output.Pretty, "text", "json")
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			credentials, err := resolveCredentials(common)
 			if err != nil {
@@ -778,25 +778,25 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("ads auth token: %w", err)
 			}
-			requestCtx, cancel := requestContext(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 			token, err := client.AccessToken(requestCtx)
 			if err != nil {
 				return fmt.Errorf("ads auth token: %w", err)
 			}
 			if normalized == "json" {
-				return shared.PrintOutput(struct {
+				return d.PrintOutput(struct {
 					AccessToken string `json:"access_token"`
 				}{AccessToken: token}, "json", *output.Pretty)
 			}
-			fmt.Println(token)
+			fmt.Fprintln(d.IO.Out, token)
 			return nil
 		},
 	}
 }
 
-func AuthDoctorCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("ads auth doctor", flag.ExitOnError)
+func newAuthDoctorCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("ads auth doctor", flag.ExitOnError)
 	output := shared.BindOutputFlagsWithAllowed(fs, "output", "text", "Output format: text, json", "text", "json")
 	return &ffcli.Command{
 		Name:       "doctor",
@@ -812,7 +812,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			normalized, err := shared.ValidateOutputFormatAllowed(*output.Output, *output.Pretty, "text", "json")
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			credentials, err := appleads.ListCredentials()
 			checks := []doctorCheck{}
@@ -828,11 +828,11 @@ Examples:
 			}
 			result := doctorReport{Checks: checks}
 			if normalized == "json" {
-				return shared.PrintOutput(result, "json", *output.Pretty)
+				return d.PrintOutput(result, "json", *output.Pretty)
 			}
-			fmt.Println("Apple Ads Auth Doctor")
+			fmt.Fprintln(d.IO.Out, "Apple Ads Auth Doctor")
 			for _, check := range checks {
-				fmt.Printf("  [%s] %s\n", strings.ToUpper(check.Status), check.Message)
+				fmt.Fprintf(d.IO.Out, "  [%s] %s\n", strings.ToUpper(check.Status), check.Message)
 			}
 			return nil
 		},
@@ -848,8 +848,8 @@ type doctorCheck struct {
 	Message string `json:"message"`
 }
 
-func AuthLogoutCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("ads auth logout", flag.ExitOnError)
+func newAuthLogoutCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("ads auth logout", flag.ExitOnError)
 	all := fs.Bool("all", false, "Remove all stored Apple Ads credentials")
 	confirm := fs.Bool("confirm", false, "Confirm removal of all Apple Ads credentials")
 	name := fs.String("name", "", "Remove a named Apple Ads credential")
@@ -867,28 +867,28 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedName := strings.TrimSpace(*name)
 			if trimmedName == "" && *name != "" {
-				return shared.UsageError("--name cannot be blank")
+				return d.UsageError("--name cannot be blank")
 			}
 			if trimmedName != "" && *all {
-				return shared.UsageError("--all and --name are mutually exclusive")
+				return d.UsageError("--all and --name are mutually exclusive")
 			}
 			if trimmedName == "" && !*all {
-				return shared.UsageError("provide --name or --all")
+				return d.UsageError("provide --name or --all")
 			}
 			if *all && !*confirm {
-				return shared.UsageError("--all requires --confirm")
+				return d.UsageError("--all requires --confirm")
 			}
 			if trimmedName != "" {
 				if err := appleads.RemoveCredentials(trimmedName); err != nil {
 					return fmt.Errorf("ads auth logout: %w", err)
 				}
-				fmt.Printf("Successfully removed Apple Ads credential '%s'\n", trimmedName)
+				fmt.Fprintf(d.IO.Out, "Successfully removed Apple Ads credential '%s'\n", trimmedName)
 				return nil
 			}
 			if err := appleads.RemoveAllCredentials(); err != nil {
 				return fmt.Errorf("ads auth logout: %w", err)
 			}
-			fmt.Println("Successfully removed Apple Ads credentials")
+			fmt.Fprintln(d.IO.Out, "Successfully removed Apple Ads credentials")
 			return nil
 		},
 	}

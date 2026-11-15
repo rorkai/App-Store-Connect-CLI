@@ -3,7 +3,6 @@ package validate
 import (
 	"context"
 	"sync"
-	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
@@ -12,9 +11,11 @@ const readinessConcurrencyLimit = 4
 
 type readinessRequestGateKey struct{}
 
-// readinessRequestTimeoutKey carries a caller's per-request budget that
-// replaces the default request timeout for each readiness request.
+// readinessRequestTimeoutKey carries the function that bounds each readiness
+// request: the command's request timeout, or a caller's per-request budget.
 type readinessRequestTimeoutKey struct{}
+
+type readinessRequestTimeout = func(context.Context) (context.Context, context.CancelFunc)
 
 type readinessRequestGate struct {
 	sem chan struct{}
@@ -43,15 +44,23 @@ func doReadinessRequest[T any](ctx context.Context, request func(context.Context
 		}
 	}
 
-	var requestCtx context.Context
-	var cancel context.CancelFunc
-	if timeout, _ := ctx.Value(readinessRequestTimeoutKey{}).(time.Duration); timeout > 0 {
-		requestCtx, cancel = shared.ContextWithTimeoutDuration(shared.ContextWithoutTimeout(ctx), timeout)
-	} else {
-		requestCtx, cancel = shared.ContextWithTimeout(ctx)
-	}
+	requestCtx, cancel := readinessRequestContext(ctx)
 	defer cancel()
 	return request(requestCtx)
+}
+
+func withReadinessRequestTimeout(ctx context.Context, timeout readinessRequestTimeout) context.Context {
+	return context.WithValue(ctx, readinessRequestTimeoutKey{}, timeout)
+}
+
+// readinessRequestContext bounds ctx with the budget attached by
+// withReadinessRequestTimeout, or with the process request timeout when a
+// fetcher runs without one.
+func readinessRequestContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	if timeout, ok := ctx.Value(readinessRequestTimeoutKey{}).(readinessRequestTimeout); ok {
+		return timeout(ctx)
+	}
+	return shared.ContextWithTimeout(ctx)
 }
 
 func runReadinessTasks(ctx context.Context, tasks ...readinessTask) error {

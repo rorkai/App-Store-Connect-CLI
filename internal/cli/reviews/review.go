@@ -39,7 +39,7 @@ Examples:
   asc review items update --id "ITEM_ID" --resolved true
   asc review history --app "123456789"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newReviewStatusCommand(d),
 			newReviewDoctorCommand(d),

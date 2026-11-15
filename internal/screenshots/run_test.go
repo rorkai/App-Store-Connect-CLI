@@ -226,7 +226,11 @@ printf '%s\n' "$*" >> "$AXE_LOG"
     { "action": "long_press", "label": "Photo" },
     { "action": "long_press", "x": 120, "y": 300.5, "duration_ms": 2500 },
     { "action": "button", "button": "home" },
-    { "action": "button", "button": "Lock", "duration_ms": 1500 }
+    { "action": "button", "button": "Lock", "duration_ms": 1500 },
+    { "action": "pinch", "scale": 2 },
+    { "action": "pinch", "scale": 0.5, "x": 200, "y": 400.5, "radius": 60 },
+    { "action": "rotate", "x": 200, "y": 400, "radius": 80, "degrees": -90 },
+    { "action": "double_tap", "x": 120, "y": 300.5 }
   ]
 }`)
 	plan, err := LoadPlan(path)
@@ -248,6 +252,10 @@ printf '%s\n' "$*" >> "$AXE_LOG"
 		"tap -x 120 -y 300.5 --hold 2.5 --udid SIM-UDID-123",
 		"button home --udid SIM-UDID-123",
 		"button lock --duration 1.5 --udid SIM-UDID-123",
+		"gesture pinch --scale 2 --udid SIM-UDID-123",
+		"gesture pinch --scale 0.5 -x 200 -y 400.5 --radius 60 --udid SIM-UDID-123",
+		"gesture rotate -x 200 -y 400 --radius 80 --degrees=-90 --udid SIM-UDID-123",
+		"gesture double-tap -x 120 -y 300.5 --udid SIM-UDID-123",
 	}
 	if !slices.Equal(got, want) {
 		t.Fatalf("axe calls = %q, want %q", got, want)

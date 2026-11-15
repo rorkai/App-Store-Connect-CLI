@@ -1,12 +1,32 @@
 package validate
 
 import (
+	"bytes"
 	"context"
 	"net/http"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
+
+func readinessTestDeps(client *asc.Client) *shared.Deps {
+	return &shared.Deps{
+		Client:  func() (*asc.Client, error) { return client, nil },
+		Now:     time.Now,
+		Timeout: shared.ContextWithTimeout,
+	}
+}
+
+func validateTestDeps() (*shared.Deps, *bytes.Buffer, *bytes.Buffer) {
+	var stdout, stderr bytes.Buffer
+	return &shared.Deps{
+		IO:      &shared.IO{In: strings.NewReader(""), Out: &stdout, ErrOut: &stderr},
+		Timeout: shared.ContextWithTimeout,
+	}, &stdout, &stderr
+}
 
 func TestReadinessPricingSkipReason_DowngradesTransientFailures(t *testing.T) {
 	tests := []struct {

@@ -298,9 +298,9 @@ func normalizeAnalyticsGranularities(value string) ([]string, error) {
 	return granularities, nil
 }
 
-func fetchAnalyticsReports(ctx context.Context, client *asc.Client, requestID string, limit int, next string, paginate bool) ([]asc.Resource[asc.AnalyticsReportAttributes], asc.Links, error) {
+func fetchAnalyticsReports(ctx context.Context, d *shared.Deps, client *asc.Client, requestID string, limit int, next string, paginate bool) ([]asc.Resource[asc.AnalyticsReportAttributes], asc.Links, error) {
 	var reports []asc.Resource[asc.AnalyticsReportAttributes]
-	links, err := visitAnalyticsReports(ctx, client, requestID, limit, next, paginate, func(report asc.Resource[asc.AnalyticsReportAttributes]) (bool, error) {
+	links, err := visitAnalyticsReports(ctx, d, client, requestID, limit, next, paginate, func(report asc.Resource[asc.AnalyticsReportAttributes]) (bool, error) {
 		reports = append(reports, report)
 		return false, nil
 	})
@@ -310,11 +310,11 @@ func fetchAnalyticsReports(ctx context.Context, client *asc.Client, requestID st
 	return reports, links, nil
 }
 
-func findAnalyticsReportInstance(ctx context.Context, client *asc.Client, requestID, instanceID string, limit int, next string, paginate bool, opts ...asc.AnalyticsReportInstancesOption) (asc.Resource[asc.AnalyticsReportAttributes], []asc.Resource[asc.AnalyticsReportInstanceAttributes], asc.Links, error) {
+func findAnalyticsReportInstance(ctx context.Context, d *shared.Deps, client *asc.Client, requestID, instanceID string, limit int, next string, paginate bool, opts ...asc.AnalyticsReportInstancesOption) (asc.Resource[asc.AnalyticsReportAttributes], []asc.Resource[asc.AnalyticsReportInstanceAttributes], asc.Links, error) {
 	var report asc.Resource[asc.AnalyticsReportAttributes]
 	var instances []asc.Resource[asc.AnalyticsReportInstanceAttributes]
-	links, err := visitAnalyticsReports(ctx, client, requestID, limit, next, paginate, func(candidate asc.Resource[asc.AnalyticsReportAttributes]) (bool, error) {
-		matches, err := fetchAnalyticsReportInstancesMatchingID(ctx, client, candidate.ID, instanceID, opts...)
+	links, err := visitAnalyticsReports(ctx, d, client, requestID, limit, next, paginate, func(candidate asc.Resource[asc.AnalyticsReportAttributes]) (bool, error) {
+		matches, err := fetchAnalyticsReportInstancesMatchingID(ctx, d, client, candidate.ID, instanceID, opts...)
 		if err != nil {
 			return false, fmt.Errorf("failed to fetch instances: %w", err)
 		}
@@ -331,7 +331,7 @@ func findAnalyticsReportInstance(ctx context.Context, client *asc.Client, reques
 	return report, instances, links, err
 }
 
-func visitAnalyticsReports(ctx context.Context, client *asc.Client, requestID string, limit int, next string, paginate bool, visit func(asc.Resource[asc.AnalyticsReportAttributes]) (bool, error)) (asc.Links, error) {
+func visitAnalyticsReports(ctx context.Context, d *shared.Deps, client *asc.Client, requestID string, limit int, next string, paginate bool, visit func(asc.Resource[asc.AnalyticsReportAttributes]) (bool, error)) (asc.Links, error) {
 	var links asc.Links
 	seen := make(map[string]bool)
 
@@ -348,9 +348,9 @@ func visitAnalyticsReports(ctx context.Context, client *asc.Client, requestID st
 				return asc.Links{}, fmt.Errorf("failed to fetch reports: detected repeated pagination URL")
 			}
 			seen[nextURL] = true
-			resp, err = getAnalyticsReportsPage(ctx, client, requestID, asc.NextURL[asc.AnalyticsReportsOption](nextURL))
+			resp, err = getAnalyticsReportsPage(ctx, d, client, requestID, asc.NextURL[asc.AnalyticsReportsOption](nextURL))
 		} else {
-			resp, err = getAnalyticsReportsPage(ctx, client, requestID, asc.Limit[asc.AnalyticsReportsOption](limit))
+			resp, err = getAnalyticsReportsPage(ctx, d, client, requestID, asc.Limit[asc.AnalyticsReportsOption](limit))
 		}
 		if err != nil {
 			return asc.Links{}, fmt.Errorf("failed to fetch reports: %w", err)
@@ -378,12 +378,12 @@ func visitAnalyticsReports(ctx context.Context, client *asc.Client, requestID st
 	}
 }
 
-func fetchAnalyticsReportInstances(ctx context.Context, client *asc.Client, reportID string, opts ...asc.AnalyticsReportInstancesOption) ([]asc.Resource[asc.AnalyticsReportInstanceAttributes], error) {
-	return fetchAnalyticsReportInstancesMatchingID(ctx, client, reportID, "", opts...)
+func fetchAnalyticsReportInstances(ctx context.Context, d *shared.Deps, client *asc.Client, reportID string, opts ...asc.AnalyticsReportInstancesOption) ([]asc.Resource[asc.AnalyticsReportInstanceAttributes], error) {
+	return fetchAnalyticsReportInstancesMatchingID(ctx, d, client, reportID, "", opts...)
 }
 
 // fetchAnalyticsReportInstancesMatchingID stops at an exact match when instanceID is set.
-func fetchAnalyticsReportInstancesMatchingID(ctx context.Context, client *asc.Client, reportID, instanceID string, opts ...asc.AnalyticsReportInstancesOption) ([]asc.Resource[asc.AnalyticsReportInstanceAttributes], error) {
+func fetchAnalyticsReportInstancesMatchingID(ctx context.Context, d *shared.Deps, client *asc.Client, reportID, instanceID string, opts ...asc.AnalyticsReportInstancesOption) ([]asc.Resource[asc.AnalyticsReportInstanceAttributes], error) {
 	var (
 		all  []asc.Resource[asc.AnalyticsReportInstanceAttributes]
 		next string
@@ -397,12 +397,12 @@ func fetchAnalyticsReportInstancesMatchingID(ctx context.Context, client *asc.Cl
 				return nil, fmt.Errorf("analytics view: detected repeated instance pagination URL")
 			}
 			seen[next] = true
-			resp, err = getAnalyticsReportInstancesPage(ctx, client, reportID, asc.NextURL[asc.AnalyticsReportInstancesOption](next))
+			resp, err = getAnalyticsReportInstancesPage(ctx, d, client, reportID, asc.NextURL[asc.AnalyticsReportInstancesOption](next))
 		} else {
 			firstPageOpts := make([]asc.AnalyticsReportInstancesOption, 0, len(opts)+1)
 			firstPageOpts = append(firstPageOpts, asc.Limit[asc.AnalyticsReportInstancesOption](analyticsMaxLimit))
 			firstPageOpts = append(firstPageOpts, opts...)
-			resp, err = getAnalyticsReportInstancesPage(ctx, client, reportID, firstPageOpts...)
+			resp, err = getAnalyticsReportInstancesPage(ctx, d, client, reportID, firstPageOpts...)
 		}
 		if err != nil {
 			return nil, err
@@ -566,13 +566,13 @@ func generateReportDates(start, end string, freq asc.SalesReportFrequency) ([]st
 	}
 }
 
-func fetchAnalyticsReportSegments(ctx context.Context, client *asc.Client, instanceID string) ([]asc.Resource[asc.AnalyticsReportSegmentAttributes], error) {
-	return fetchAnalyticsReportSegmentsUntilMatch(ctx, client, instanceID, "")
+func fetchAnalyticsReportSegments(ctx context.Context, d *shared.Deps, client *asc.Client, instanceID string) ([]asc.Resource[asc.AnalyticsReportSegmentAttributes], error) {
+	return fetchAnalyticsReportSegmentsUntilMatch(ctx, d, client, instanceID, "")
 }
 
 // fetchAnalyticsReportSegmentsUntilMatch keeps the visited pages for ambiguity and
 // not-ready handling, but stops paging once the requested segment has been seen.
-func fetchAnalyticsReportSegmentsUntilMatch(ctx context.Context, client *asc.Client, instanceID, segmentID string) ([]asc.Resource[asc.AnalyticsReportSegmentAttributes], error) {
+func fetchAnalyticsReportSegmentsUntilMatch(ctx context.Context, d *shared.Deps, client *asc.Client, instanceID, segmentID string) ([]asc.Resource[asc.AnalyticsReportSegmentAttributes], error) {
 	var (
 		all  []asc.Resource[asc.AnalyticsReportSegmentAttributes]
 		next string
@@ -586,9 +586,9 @@ func fetchAnalyticsReportSegmentsUntilMatch(ctx context.Context, client *asc.Cli
 				return nil, fmt.Errorf("analytics view: detected repeated segment pagination URL")
 			}
 			seen[next] = true
-			resp, err = getAnalyticsReportSegmentsPage(ctx, client, instanceID, asc.NextURL[asc.AnalyticsReportSegmentsOption](next))
+			resp, err = getAnalyticsReportSegmentsPage(ctx, d, client, instanceID, asc.NextURL[asc.AnalyticsReportSegmentsOption](next))
 		} else {
-			resp, err = getAnalyticsReportSegmentsPage(ctx, client, instanceID, asc.Limit[asc.AnalyticsReportSegmentsOption](analyticsMaxLimit))
+			resp, err = getAnalyticsReportSegmentsPage(ctx, d, client, instanceID, asc.Limit[asc.AnalyticsReportSegmentsOption](analyticsMaxLimit))
 		}
 		if err != nil {
 			return nil, err
@@ -607,26 +607,26 @@ func fetchAnalyticsReportSegmentsUntilMatch(ctx context.Context, client *asc.Cli
 	return all, nil
 }
 
-func getAnalyticsReportsPage(ctx context.Context, client *asc.Client, requestID string, opts ...asc.AnalyticsReportsOption) (*asc.AnalyticsReportsResponse, error) {
-	requestCtx, cancel := shared.ContextWithTimeout(ctx)
+func getAnalyticsReportsPage(ctx context.Context, d *shared.Deps, client *asc.Client, requestID string, opts ...asc.AnalyticsReportsOption) (*asc.AnalyticsReportsResponse, error) {
+	requestCtx, cancel := d.Timeout(ctx)
 	defer cancel()
 	return client.GetAnalyticsReports(requestCtx, requestID, opts...)
 }
 
-func getAnalyticsReportInstancesPage(ctx context.Context, client *asc.Client, reportID string, opts ...asc.AnalyticsReportInstancesOption) (*asc.AnalyticsReportInstancesResponse, error) {
-	requestCtx, cancel := shared.ContextWithTimeout(ctx)
+func getAnalyticsReportInstancesPage(ctx context.Context, d *shared.Deps, client *asc.Client, reportID string, opts ...asc.AnalyticsReportInstancesOption) (*asc.AnalyticsReportInstancesResponse, error) {
+	requestCtx, cancel := d.Timeout(ctx)
 	defer cancel()
 	return client.GetAnalyticsReportInstances(requestCtx, reportID, opts...)
 }
 
-func getAnalyticsReportSegmentsPage(ctx context.Context, client *asc.Client, instanceID string, opts ...asc.AnalyticsReportSegmentsOption) (*asc.AnalyticsReportSegmentsResponse, error) {
-	requestCtx, cancel := shared.ContextWithTimeout(ctx)
+func getAnalyticsReportSegmentsPage(ctx context.Context, d *shared.Deps, client *asc.Client, instanceID string, opts ...asc.AnalyticsReportSegmentsOption) (*asc.AnalyticsReportSegmentsResponse, error) {
+	requestCtx, cancel := d.Timeout(ctx)
 	defer cancel()
 	return client.GetAnalyticsReportSegments(requestCtx, instanceID, opts...)
 }
 
-func downloadAnalyticsReportToFile(ctx context.Context, client *asc.Client, downloadURL, outputPath string) (int64, error) {
-	requestCtx, cancel := shared.ContextWithDownloadTimeout(ctx)
+func downloadAnalyticsReportToFile(ctx context.Context, d *shared.Deps, client *asc.Client, downloadURL, outputPath string) (int64, error) {
+	requestCtx, cancel := d.DownloadTimeout(ctx)
 	defer cancel()
 
 	download, err := client.DownloadAnalyticsReport(requestCtx, downloadURL)

@@ -48,6 +48,8 @@ func TestMigrateExportRemovesStaleKnownMetadataFiles(t *testing.T) {
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"appInfoLocalizations","id":"LOC_EN","attributes":{"locale":"en-US","name":"","subtitle":"","privacyPolicyUrl":""}}],"links":{"next":""}}`))
 	reg.Register(asctest.GET("/v1/appStoreVersions/VERSION_ID/appClipDefaultExperience"),
 		asctest.JSON(http.StatusOK, `{"data":null}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/VERSION_ID/appStoreReviewDetail"),
+		asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not found"}]}`))
 	reg.Register(asctest.GET("/v1/appStoreVersionLocalizations/LOC_EN/appPreviewSets", "include=appPreviews", "limit[appPreviews]=50"),
 		asctest.JSON(http.StatusOK, `{"data":[]}`))
 

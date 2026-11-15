@@ -51,7 +51,7 @@ func newCategoriesParentCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc categories parent --category-id "GAMES"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*categoryID)
 			if trimmedID == "" {
@@ -96,7 +96,7 @@ Examples:
   asc categories subcategories --category-id "GAMES"
   asc categories subcategories --category-id "GAMES" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "categories subcategories", 200, "limit"); err != nil {
 				return err

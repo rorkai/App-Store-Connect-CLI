@@ -47,7 +47,7 @@ Examples:
   asc devices register-batch --file "./devices.txt" --confirm
   asc devices update --id "DEVICE_ID" --status DISABLED`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newDevicesListCommand(d),
 			newDevicesGetCommand(d),
@@ -189,7 +189,7 @@ Examples:
   asc devices local-udid
   asc devices local-udid --output table`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			localUDID, err := localMacUDID()
 			if err != nil {
@@ -237,7 +237,7 @@ Examples:
   asc devices register --via-url --confirm --stream --output json --public-url "https://tunnel.example"
   asc devices register --via-url --confirm --max-devices 5 --public-url "https://tunnel.example"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			nameValue := strings.TrimSpace(*name)
 			if !*viaURL {
@@ -458,7 +458,7 @@ Examples:
   asc devices update --id "DEVICE_ID" --name "My iPhone"
   asc devices update --id "DEVICE_ID" --status DISABLED`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {

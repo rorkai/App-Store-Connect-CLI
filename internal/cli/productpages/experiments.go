@@ -29,7 +29,7 @@ Examples:
   asc product-pages experiments create --version-id "VERSION_ID" --name "Icon Test" --traffic-proportion 25
   asc product-pages experiments create --v2 --app "APP_ID" --platform IOS --name "Icon Test" --traffic-proportion 25`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newExperimentsListCommand(d),
 			newExperimentsGetCommand(d),
@@ -69,7 +69,7 @@ Examples:
   asc product-pages experiments list --version-id "VERSION_ID" --state IN_REVIEW
   asc product-pages experiments list --v2 --app "APP_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "product-pages experiments list", productPagesMaxLimit, "state"); err != nil {
 				return err
@@ -230,7 +230,7 @@ Examples:
   asc product-pages experiments create --version-id "VERSION_ID" --name "Icon Test" --traffic-proportion 25
   asc product-pages experiments create --v2 --app "APP_ID" --platform IOS --name "Icon Test" --traffic-proportion 25`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			nameValue := strings.TrimSpace(*name)
 			if nameValue == "" {
@@ -319,7 +319,7 @@ Examples:
   asc product-pages experiments update --experiment-id "EXPERIMENT_ID" --started true
   asc product-pages experiments update --experiment-id "EXPERIMENT_ID" --v2 --name "Updated"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*experimentID)
 			if trimmedID == "" {
@@ -411,7 +411,7 @@ Examples:
   asc product-pages experiments delete --experiment-id "EXPERIMENT_ID" --confirm
   asc product-pages experiments delete --experiment-id "EXPERIMENT_ID" --confirm --v2`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*experimentID)
 			if trimmedID == "" {

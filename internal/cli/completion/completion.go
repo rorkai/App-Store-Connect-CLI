@@ -32,7 +32,7 @@ func NewCompletionCommand(d *shared.Deps, resolveCommands func() []*ffcli.Comman
 		ShortUsage: "asc completion --shell <bash|zsh|fish>",
 		ShortHelp:  "Print shell completion scripts.",
 		FlagSet:    fs,
-		UsageFunc:  shared.DefaultUsageFunc,
+		UsageFunc:  d.DefaultUsageFunc,
 	}
 
 	cmd.Exec = func(ctx context.Context, args []string) error {

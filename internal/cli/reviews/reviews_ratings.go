@@ -58,7 +58,7 @@ Examples:
   asc reviews ratings --app "1479784361" --all
   asc reviews ratings --app "1479784361" --all --workers 20`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			app := shared.ResolveAppID(*appID)
 			if strings.TrimSpace(app) == "" {

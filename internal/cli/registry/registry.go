@@ -146,7 +146,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 			return systemstatus.NewCommand(d)
 		}),
 		commandFactory("status", "Show a release pipeline dashboard for an app.", status.StatusCommand),
-		commandFactory("insights", "Generate weekly and daily insights from App Store data sources.", insights.InsightsCommand),
+		commandFactory("insights", "Generate weekly and daily insights from App Store data sources.", func() *ffcli.Command {
+			return insights.NewInsightsCommand(d)
+		}),
 		commandFactory("release-notes", "Generate and manage App Store release notes.", func() *ffcli.Command {
 			return releasenotes.NewCommand(d)
 		}),
@@ -156,8 +158,12 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("review", "Manage App Store review details, attachments, and submissions.", func() *ffcli.Command {
 			return reviews.NewReviewCommand(d)
 		}),
-		commandFactory("analytics", "Request and download analytics and sales reports.", analytics.AnalyticsCommand),
-		commandFactory("ads", "Manage Apple Ads API resources.", ads.AdsCommand),
+		commandFactory("analytics", "Request and download analytics and sales reports.", func() *ffcli.Command {
+			return analytics.NewAnalyticsCommand(d)
+		}),
+		commandFactory("ads", "Manage Apple Ads API resources.", func() *ffcli.Command {
+			return ads.NewAdsCommand(d)
+		}),
 		commandFactory("optimize", "Build cross-API optimization plans.", optimize.OptimizeCommand),
 		commandFactory("performance", "Access performance metrics and diagnostic logs.", func() *ffcli.Command {
 			return performance.NewPerformanceCommand(d)
@@ -166,7 +172,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 			return finance.NewFinanceCommand(d)
 		}),
 		commandFactory("apps", "List and manage apps in App Store Connect.", apps.AppsCommand),
-		commandFactory("app-clips", "Manage App Clip experiences and invocations.", appclips.AppClipsCommand),
+		commandFactory("app-clips", "Manage App Clip experiences and invocations.", func() *ffcli.Command {
+			return appclips.NewAppClipsCommand(d)
+		}),
 		commandFactory("android-ios-mapping", "Manage Android-to-iOS app mapping details.", func() *ffcli.Command {
 			return androidiosmapping.NewAndroidIosMappingCommand(d)
 		}),
@@ -178,7 +186,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("alternative-distribution", "Manage alternative distribution resources.", func() *ffcli.Command {
 			return alternativedistribution.NewAlternativeDistributionCommand(d)
 		}),
-		commandFactory("webhooks", "Manage webhooks in App Store Connect.", webhooks.WebhooksCommand),
+		commandFactory("webhooks", "Manage webhooks in App Store Connect.", func() *ffcli.Command {
+			return webhooks.NewWebhooksCommand(d)
+		}),
 		commandFactory("nominations", "Manage featuring nominations.", func() *ffcli.Command {
 			return nominations.NewNominationsCommand(d)
 		}),
@@ -231,11 +241,15 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("agreements", "Manage agreements in App Store Connect.", func() *ffcli.Command {
 			return agreements.NewAgreementsCommand(d)
 		}),
-		commandFactory("pricing", "Manage app pricing and availability.", pricing.PricingCommand),
+		commandFactory("pricing", "Manage app pricing and availability.", func() *ffcli.Command {
+			return pricing.NewPricingCommand(d)
+		}),
 		commandFactory("pre-orders", "Manage app pre-orders.", func() *ffcli.Command {
 			return preorders.NewPreOrdersCommand(d)
 		}),
-		commandFactory("localizations", "Manage App Store localization metadata.", localizations.LocalizationsCommand),
+		commandFactory("localizations", "Manage App Store localization metadata.", func() *ffcli.Command {
+			return localizations.NewLocalizationsCommand(d)
+		}),
 		commandFactory("metadata", "Manage app metadata with deterministic workflows and keyword tooling.", metadata.MetadataCommand),
 		commandFactory("screenshots", "Upload and manage App Store screenshots, including local capture, framing, and matrices.", screenshots.ScreenshotsCommand),
 		commandFactory("video-previews", "Manage App Store app preview videos.", videopreviews.VideoPreviewsCommand),
@@ -262,7 +276,7 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("submit", "Submission lifecycle tools; use `publish appstore --submit` to ship.", func() *ffcli.Command {
 			return submit.NewSubmitCommand(d)
 		}),
-		commandFactory("validate", "Canonical App Store submission readiness report.", validate.ValidateCommand),
+		commandFactory("validate", "Canonical App Store submission readiness report.", func() *ffcli.Command { return validate.NewValidateCommand(d) }),
 		commandFactory("xcode-cloud", "Trigger and monitor Xcode Cloud workflows.", func() *ffcli.Command {
 			return xcodecloud.NewXcodeCloudCommand(d)
 		}),
@@ -280,7 +294,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		}),
 		commandFactory("migrate", "Migrate metadata from/to fastlane format.", migrate.MigrateCommand),
 		commandFactory("notify", "Send notifications to external services.", notify.NotifyCommand),
-		commandFactory("game-center", "Manage Game Center resources in App Store Connect.", gamecenter.GameCenterCommand),
+		commandFactory("game-center", "Manage Game Center resources in App Store Connect.", func() *ffcli.Command {
+			return gamecenter.NewGameCenterCommand(d)
+		}),
 		commandFactory("capabilities", "Show CLI, API, web-only, and public-API-limited capability coverage.", func() *ffcli.Command {
 			return capabilities.NewCommand(d)
 		}),

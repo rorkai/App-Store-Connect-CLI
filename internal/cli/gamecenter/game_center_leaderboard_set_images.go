@@ -12,9 +12,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// GameCenterLeaderboardSetImagesCommand returns the images command group for leaderboard sets.
-func GameCenterLeaderboardSetImagesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("images", flag.ExitOnError)
+// newGameCenterLeaderboardSetImagesCommand returns the images command group for leaderboard sets.
+func newGameCenterLeaderboardSetImagesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("images", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "images",
@@ -28,8 +28,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterLeaderboardSetImagesUploadCommand(),
-			GameCenterLeaderboardSetImagesDeleteCommand(),
+			newGameCenterLeaderboardSetImagesUploadCommand(d),
+			newGameCenterLeaderboardSetImagesDeleteCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -37,13 +37,13 @@ Examples:
 	}
 }
 
-// GameCenterLeaderboardSetImagesUploadCommand returns the images upload subcommand.
-func GameCenterLeaderboardSetImagesUploadCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("upload", flag.ExitOnError)
+// newGameCenterLeaderboardSetImagesUploadCommand returns the images upload subcommand.
+func newGameCenterLeaderboardSetImagesUploadCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("upload", flag.ExitOnError)
 
 	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "gameCenterLeaderboardSetLocalizations", "Leaderboard set localization ID")
 	filePath := fs.String("file", "", "Path to image file (PNG)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "upload",
@@ -60,20 +60,20 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			locID := strings.TrimSpace(*localizationID)
 			if locID == "" {
-				return shared.RequiredFlag("--localization-id")
+				return d.RequiredFlag("--localization-id")
 			}
 
 			file := strings.TrimSpace(*filePath)
 			if file == "" {
-				return shared.RequiredFlag("--file")
+				return d.RequiredFlag("--file")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("game-center leaderboard-sets images upload: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithUploadTimeout(ctx)
+			requestCtx, cancel := d.UploadTimeout(ctx)
 			defer cancel()
 
 			result, err := client.UploadGameCenterLeaderboardSetImage(requestCtx, locID, file)
@@ -81,13 +81,13 @@ Examples:
 				return fmt.Errorf("game-center leaderboard-sets images upload: %w", err)
 			}
 
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// GameCenterLeaderboardSetImagesDeleteCommand returns the images delete subcommand.
-func GameCenterLeaderboardSetImagesDeleteCommand() *ffcli.Command {
+// newGameCenterLeaderboardSetImagesDeleteCommand returns the images delete subcommand.
+func newGameCenterLeaderboardSetImagesDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
 		Name:       "delete",
 		ShortUsage: "asc game-center leaderboard-sets images delete --id \"IMAGE_ID\" --confirm",
@@ -106,5 +106,6 @@ Examples:
 		Result: func(id string) any {
 			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
+		Deps: d,
 	})
 }

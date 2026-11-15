@@ -37,16 +37,15 @@ func TestGameCenterVersionDefaultImage(t *testing.T) {
 					_, _ = io.WriteString(w, body)
 				}))
 				t.Cleanup(server.Close)
-				installDefaultTransportForServer(t, server)
+				client := stubServerClient(t, server)
 
 				for _, output := range []string{"json", "table", "markdown"} {
 					t.Run(output, func(t *testing.T) {
 						args := []string{"game-center", kind.group, "versions", "default-image", "view", "--id", "ver-1", "--output", output}
-						stdout, stderr := captureOutput(t, func() {
-							if code := rootcmd.Run(args, "test"); code != rootcmd.ExitSuccess {
-								t.Errorf("exit code = %d, want success", code)
-							}
-						})
+						stdout, stderr, code := runWithDeps(t, client, args...)
+						if code != rootcmd.ExitSuccess {
+							t.Errorf("exit code = %d, want success", code)
+						}
 						if stderr != "" {
 							t.Fatalf("stderr = %q, want empty", stderr)
 						}

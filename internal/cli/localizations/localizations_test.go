@@ -1,13 +1,20 @@
 package localizations
 
 import (
+	"io"
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
+func testDeps() *shared.Deps {
+	return &shared.Deps{IO: &shared.IO{Out: io.Discard, ErrOut: io.Discard}}
+}
+
 func TestLocalizationsCreateCommand_HelpMentionsCanonicalLocaleForms(t *testing.T) {
-	cmd := LocalizationsCreateCommand()
+	cmd := newLocalizationsCreateCommand(testDeps())
 
 	localeFlag := cmd.FlagSet.Lookup("locale")
 	if localeFlag == nil {
@@ -32,7 +39,7 @@ func TestLocalizationsCreateCommand_HelpMentionsCanonicalLocaleForms(t *testing.
 }
 
 func TestLocalizationsUpdateCommand_HelpMentionsCanonicalLocaleForms(t *testing.T) {
-	cmd := LocalizationsUpdateCommand()
+	cmd := newLocalizationsUpdateCommand(testDeps())
 
 	localeFlag := cmd.FlagSet.Lookup("locale")
 	if localeFlag == nil {
@@ -58,7 +65,7 @@ func TestLocalizationsUpdateCommand_HelpMentionsCanonicalLocaleForms(t *testing.
 }
 
 func TestLocalizationsListCommand_IncludeFlagListsSupportedValues(t *testing.T) {
-	cmd := LocalizationsListCommand()
+	cmd := newLocalizationsListCommand(testDeps())
 
 	includeFlag := cmd.FlagSet.Lookup("include")
 	if includeFlag == nil {

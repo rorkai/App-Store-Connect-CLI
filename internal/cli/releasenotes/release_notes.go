@@ -55,6 +55,8 @@ func newGenerateCommand(d *shared.Deps) *ffcli.Command {
 
 	sinceTag := fs.String("since-tag", "", "Start from tag (exclusive), e.g. v1.2.2")
 	sinceRef := fs.String("since-ref", "", "Start from ref/SHA (exclusive), e.g. origin/main")
+	sinceTagPattern := fs.String("since-tag-pattern", "", "Start from the most recent tag reachable from --until-ref whose name matches this glob (exclusive), e.g. v*")
+	maxCommits := fs.Int("max-commits", 0, "Use only the last N commits up to --until-ref")
 	untilRef := fs.String("until-ref", "HEAD", "End at ref/SHA (inclusive), e.g. HEAD")
 	format := fs.String("format", "plain", "Notes format: plain (default), markdown")
 	maxChars := fs.Int("max-chars", 4000, "Maximum characters in generated notes")
@@ -67,24 +69,43 @@ func newGenerateCommand(d *shared.Deps) *ffcli.Command {
 		ShortHelp:  "Generate release notes from git history.",
 		LongHelp: `Generate release notes (What's New) from local git history.
 
-Exactly one of --since-tag or --since-ref is required.
+Exactly one of --since-tag, --since-ref, --since-tag-pattern, or --max-commits is required.
 
 Examples:
   asc release-notes generate --since-tag "v1.2.2"
   asc release-notes generate --since-tag "v1.2.2" --output markdown
-  asc release-notes generate --since-ref "origin/main" --until-ref "HEAD" --max-chars 4000`,
+  asc release-notes generate --since-ref "origin/main" --until-ref "HEAD" --max-chars 4000
+  asc release-notes generate --since-tag-pattern "v*"
+  asc release-notes generate --max-commits 20`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			sinceTagValue := strings.TrimSpace(*sinceTag)
 			sinceRefValue := strings.TrimSpace(*sinceRef)
-			if sinceTagValue != "" && sinceRefValue != "" {
-				fmt.Fprintln(d.IO.ErrOut, "Error: --since-tag and --since-ref are mutually exclusive")
+			sinceTagPatternValue := strings.TrimSpace(*sinceTagPattern)
+			maxCommitsSet := false
+			fs.Visit(func(f *flag.Flag) {
+				if f.Name == "max-commits" {
+					maxCommitsSet = true
+				}
+			})
+			starts := 0
+			for _, set := range []bool{sinceTagValue != "", sinceRefValue != "", sinceTagPatternValue != "", maxCommitsSet} {
+				if set {
+					starts++
+				}
+			}
+			if starts > 1 {
+				fmt.Fprintln(d.IO.ErrOut, "Error: --since-tag, --since-ref, --since-tag-pattern, and --max-commits are mutually exclusive")
 				return flag.ErrHelp
 			}
-			if sinceTagValue == "" && sinceRefValue == "" {
-				fmt.Fprintln(d.IO.ErrOut, "Error: one of --since-tag or --since-ref is required")
+			if starts == 0 {
+				fmt.Fprintln(d.IO.ErrOut, "Error: one of --since-tag, --since-ref, --since-tag-pattern, or --max-commits is required")
 				return shared.MissingRequiredUsageError("")
+			}
+			if maxCommitsSet && *maxCommits < 1 {
+				fmt.Fprintln(d.IO.ErrOut, "Error: --max-commits must be greater than 0")
+				return flag.ErrHelp
 			}
 
 			until := strings.TrimSpace(*untilRef)
@@ -118,7 +139,14 @@ Examples:
 				return fmt.Errorf("release-notes generate: %w", err)
 			}
 
-			commits, err := notes.ListCommits(ctx, repoDir, since, until, *includeMerges)
+			if sinceTagPatternValue != "" {
+				since, err = notes.LatestTagMatching(ctx, repoDir, sinceTagPatternValue, until)
+				if err != nil {
+					return fmt.Errorf("release-notes generate: %w", err)
+				}
+			}
+
+			commits, err := notes.ListCommits(ctx, repoDir, since, until, *includeMerges, *maxCommits)
 			if err != nil {
 				return fmt.Errorf("release-notes generate: %w", err)
 			}

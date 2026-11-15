@@ -8,8 +8,8 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-func readAppPPPSchedule(ctx context.Context, client *asc.Client, appID string) (shared.PPPScheduleSnapshot, error) {
-	requestCtx, cancel := shared.ContextWithTimeout(ctx)
+func readAppPPPSchedule(ctx context.Context, d *shared.Deps, client *asc.Client, appID string) (shared.PPPScheduleSnapshot, error) {
+	requestCtx, cancel := d.Timeout(ctx)
 	defer cancel()
 	schedule, err := client.GetAppPriceSchedule(requestCtx, appID)
 	if err != nil {

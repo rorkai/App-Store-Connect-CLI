@@ -39,8 +39,9 @@ func XcodeBuildCommand() *ffcli.Command {
 		ShortHelp:  "Compile an Xcode scheme for a simulator or device.",
 		LongHelp: `Compile an Xcode scheme with an ordinary xcodebuild build action.
 
-Provide exactly one of --workspace or --project, plus --scheme. Use
---destination to select a simulator or device. Signing follows Xcode defaults;
+Provide exactly one of --workspace or --project, plus --scheme. When both are
+omitted, asc uses the only .xcworkspace, or else the only .xcodeproj, in the
+current directory. Use --destination to select a simulator or device. Signing follows Xcode defaults;
 --no-code-signing explicitly sets CODE_SIGNING_ALLOWED=NO for validation builds.
 
 When --derived-data-path is omitted, asc uses a stable cache path outside the
@@ -56,6 +57,16 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if emptyFlag := firstExplicitlyEmptyFlag(fs, "workspace", "project"); emptyFlag != "" {
+				return shared.UsageErrorf("--%s must not be empty", emptyFlag)
+			}
+			if *workspacePath == "" && *projectPath == "" && strings.TrimSpace(*scheme) == "" {
+				return shared.RequiredFlag("--scheme")
+			}
+			containerNotice, err := detectXcodeContainer(fs, workspacePath, projectPath, "exactly one of --workspace or --project is required")
+			if err != nil {
+				return err
+			}
 			opts := localxcode.BuildOptions{
 				WorkspacePath:    strings.TrimSpace(*workspacePath),
 				ProjectPath:      strings.TrimSpace(*projectPath),
@@ -77,6 +88,10 @@ Examples:
 			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
 				return shared.UsageError(err.Error())
+			}
+
+			if containerNotice != "" {
+				fmt.Fprintln(os.Stderr, containerNotice)
 			}
 
 			result, buildErr := runBuild(ctx, opts)

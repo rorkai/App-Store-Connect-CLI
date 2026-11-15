@@ -36,7 +36,7 @@ Examples:
   asc build-localizations update --id "LOCALIZATION_ID" --whats-new "New features"
   asc build-localizations delete --id "LOCALIZATION_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newBuildLocalizationsListCommand(d),
 			newBuildLocalizationsGetCommand(d),
@@ -76,7 +76,7 @@ Examples:
   asc build-localizations list --build-id "BUILD_ID" --paginate
   asc build-localizations list --next "NEXT_URL"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "build-localizations list", 200); err != nil {
 				return err
@@ -197,7 +197,7 @@ Examples:
   asc build-localizations create --build-id "BUILD_ID" --locale "en-US"
   asc build-localizations create --build-id "BUILD_ID" --locale "en-US" --whats-new "Bug fixes"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			build := strings.TrimSpace(*buildID)
 			if build == "" {
@@ -282,7 +282,7 @@ request is sent.
 Examples:
   asc build-localizations update --id "LOCALIZATION_ID" --whats-new "New features"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*localizationID)
 			if id == "" {

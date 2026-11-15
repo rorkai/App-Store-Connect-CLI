@@ -511,83 +511,42 @@ Examples:
 
 // SubscriptionsOfferCodesPricesCommand returns the offer code prices subcommand.
 func SubscriptionsOfferCodesPricesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("offer-codes prices", flag.ExitOnError)
-
-	offerCodeID := shared.BindResourceIDFlag(fs, "offer-code-id", "subscriptionOfferCodes", "Offer code ID")
-	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
-	next := fs.String("next", "", shared.NextFlagUsage)
-	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	pricePointFields := fs.String("price-point-fields", "", "Included subscription price point fields (comma-separated)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "prices",
-		ShortUsage: "asc subscriptions offer-codes prices --offer-code-id \"OFFER_CODE_ID\" [flags]",
-		ShortHelp:  "List prices for an offer code.",
+	var selectedPricePointFields []string
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "offer-codes prices",
+		Name:        "prices",
+		ShortUsage:  "asc subscriptions offer-codes prices --offer-code-id \"OFFER_CODE_ID\" [flags]",
+		ShortHelp:   "List prices for an offer code.",
 		LongHelp: `List prices for an offer code.
 
 Examples:
   asc subscriptions offer-codes prices --offer-code-id "OFFER_CODE_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "subscriptions offer-codes prices", 200, "limit", "price-point-fields"); err != nil {
+		ParentFlag:           "offer-code-id",
+		ParentUsage:          "Offer code ID",
+		ParentType:           "subscriptionOfferCodes",
+		RequiredDiagnostic:   true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		NextConflicts:        []string{"limit", "price-point-fields"},
+		Flags: func(fs *flag.FlagSet) func() error {
+			pricePointFields := fs.String("price-point-fields", "", "Included subscription price point fields (comma-separated)")
+			return func() error {
+				var err error
+				selectedPricePointFields, err = normalizeSparseFieldsFlag(fs, fs.Lookup("next").Value.String(), "price-point-fields", *pricePointFields, subscriptionPricePointFieldsList())
 				return err
 			}
-
-			id := strings.TrimSpace(*offerCodeID)
-			if id == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--offer-code-id")
+		},
+		FetchPage: func(ctx context.Context, client *asc.Client, id string, limit int, next string) (asc.PaginatedResponse, error) {
+			if strings.TrimSpace(next) != "" {
+				return client.GetSubscriptionOfferCodePrices(ctx, id, asc.NextURL[asc.SubscriptionOfferCodePricesOption](next))
 			}
-
-			selectedPricePointFields, err := normalizeSparseFieldsFlag(fs, *next, "price-point-fields", *pricePointFields, subscriptionPricePointFieldsList())
-			if err != nil {
-				return err
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("subscriptions offer-codes prices: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			opts := []asc.SubscriptionOfferCodePricesOption{
-				asc.Limit[asc.SubscriptionOfferCodePricesOption](*limit),
-				asc.NextURL[asc.SubscriptionOfferCodePricesOption](*next),
+			return client.GetSubscriptionOfferCodePrices(ctx, id,
+				asc.Limit[asc.SubscriptionOfferCodePricesOption](limit),
 				asc.WithSubscriptionOfferCodePricesPricePointFields(selectedPricePointFields),
 				asc.WithSubscriptionOfferCodePricesInclude(includeRelationshipForFields(selectedPricePointFields, "subscriptionPricePoint")),
-			}
-
-			if *paginate {
-				paginateOpts := opts
-				if strings.TrimSpace(*next) == "" {
-					paginateOpts = append(paginateOpts, asc.Limit[asc.SubscriptionOfferCodePricesOption](200))
-				}
-				firstPage, err := client.GetSubscriptionOfferCodePrices(requestCtx, id, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("subscriptions offer-codes prices: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetSubscriptionOfferCodePrices(ctx, id, asc.NextURL[asc.SubscriptionOfferCodePricesOption](nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("subscriptions offer-codes prices: %w", err)
-				}
-
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetSubscriptionOfferCodePrices(requestCtx, id, opts...)
-			if err != nil {
-				return fmt.Errorf("subscriptions offer-codes prices: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			)
 		},
-	}
+	})
 }
 
 // SubscriptionsOfferCodesGenerateCommand returns the nested generate shim under subscriptions.

@@ -32,7 +32,7 @@ func setupAuth(t *testing.T) {
 }
 
 func TestGameCenterEnabledVersionsValidationErrors(t *testing.T) {
-	runGameCenterUsageCases(t, []gameCenterUsageCase{
+	runGameCenterUsageCasesWithDeps(t, []gameCenterUsageCase{
 		{[]string{"game-center", "enabled-versions", "list"}, "--app is required (or set ASC_APP_ID)"},
 		{[]string{"game-center", "enabled-versions", "compatible-versions"}, "--id is required"},
 		{[]string{"game-center", "enabled-versions", "list", "--app", "APP_ID", "--limit", "300"}, "game-center enabled-versions list: --limit must be between 1 and 200"},
@@ -43,11 +43,10 @@ func TestGameCenterEnabledVersionsListSuccess(t *testing.T) {
 	setupAuth(t)
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/APP_ID/gameCenterEnabledVersions", "limit=50"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"gameCenterEnabledVersions","id":"gc-1"}],"links":{"next":""}}`))
 
-	stdout, stderr, err := runCommand(t, []string{"game-center", "enabled-versions", "list", "--app", "APP_ID", "--limit", "50"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "game-center", "enabled-versions", "list", "--app", "APP_ID", "--limit", "50")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -64,11 +63,10 @@ func TestGameCenterEnabledVersionsListNextURL(t *testing.T) {
 
 	nextURL := "https://api.appstoreconnect.apple.com/v1/apps/app-123/gameCenterEnabledVersions?limit=2"
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-123/gameCenterEnabledVersions", "limit=2"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"gameCenterEnabledVersions","id":"gc-2"}],"links":{"next":""}}`))
 
-	stdout, stderr, err := runCommand(t, []string{"game-center", "enabled-versions", "list", "--next", nextURL})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "game-center", "enabled-versions", "list", "--next", nextURL)
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -84,13 +82,12 @@ func TestGameCenterEnabledVersionsListPaginate(t *testing.T) {
 	setupAuth(t)
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/APP_ID/gameCenterEnabledVersions", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"gameCenterEnabledVersions","id":"gc-3"}],"links":{"next":"https://api.appstoreconnect.apple.com/v1/apps/APP_ID/gameCenterEnabledVersions?page=2"}}`))
 	reg.Register(asctest.GET("/v1/apps/APP_ID/gameCenterEnabledVersions", "page=2"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"gameCenterEnabledVersions","id":"gc-4"}],"links":{"next":""}}`))
 
-	stdout, stderr, err := runCommand(t, []string{"game-center", "enabled-versions", "list", "--app", "APP_ID", "--paginate"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "game-center", "enabled-versions", "list", "--app", "APP_ID", "--paginate")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -106,11 +103,10 @@ func TestGameCenterEnabledVersionsCompatibleVersionsSuccess(t *testing.T) {
 	setupAuth(t)
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/gameCenterEnabledVersions/ENABLED_VERSION_ID/compatibleVersions", "limit=50"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"gameCenterEnabledVersions","id":"gc-5"}],"links":{"next":""}}`))
 
-	stdout, stderr, err := runCommand(t, []string{"game-center", "enabled-versions", "compatible-versions", "--id", "ENABLED_VERSION_ID", "--limit", "50"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "game-center", "enabled-versions", "compatible-versions", "--id", "ENABLED_VERSION_ID", "--limit", "50")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -126,13 +122,12 @@ func TestGameCenterEnabledVersionsCompatibleVersionsPaginate(t *testing.T) {
 	setupAuth(t)
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/gameCenterEnabledVersions/ENABLED_VERSION_ID/compatibleVersions", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"gameCenterEnabledVersions","id":"gc-6"}],"links":{"next":"https://api.appstoreconnect.apple.com/v1/gameCenterEnabledVersions/ENABLED_VERSION_ID/compatibleVersions?page=2"}}`))
 	reg.Register(asctest.GET("/v1/gameCenterEnabledVersions/ENABLED_VERSION_ID/compatibleVersions", "page=2"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"gameCenterEnabledVersions","id":"gc-7"}],"links":{"next":""}}`))
 
-	stdout, stderr, err := runCommand(t, []string{"game-center", "enabled-versions", "compatible-versions", "--id", "ENABLED_VERSION_ID", "--paginate"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "game-center", "enabled-versions", "compatible-versions", "--id", "ENABLED_VERSION_ID", "--paginate")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}

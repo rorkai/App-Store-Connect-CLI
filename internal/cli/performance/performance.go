@@ -25,7 +25,7 @@ Examples:
   asc performance diagnostics view --id "SIGNATURE_ID"
   asc performance download --build-id "BUILD_ID" --output ./metrics.json`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newPerformanceMetricsCommand(d),
 			newPerformanceOverviewCommand(d),

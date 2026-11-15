@@ -64,7 +64,7 @@ Examples:
   asc review history --app "123456789" --version "1.2.0"
   asc review history --app "123456789" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "review history", 200); err != nil {
 				return err

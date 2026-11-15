@@ -4,7 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
+	"io"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -13,14 +13,14 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// PricingTiersCommand returns the tiers subcommand.
-func PricingTiersCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("pricing tiers", flag.ExitOnError)
+// newPricingTiersCommand returns the tiers subcommand.
+func newPricingTiersCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("pricing tiers", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	territory := fs.String("territory", "USA", "Territory input (accepts alpha-2, alpha-3, or exact English country name; e.g., US, USA, United States)")
 	refresh := fs.Bool("refresh", false, "Force refresh of tier cache")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "tiers",
@@ -44,7 +44,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
 			}
 
@@ -54,49 +54,49 @@ Examples:
 			}
 			territoryValue, err := ascterritory.Normalize(territoryInput)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("pricing tiers: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
-			tiers, err := shared.ResolveTiers(requestCtx, client, resolvedAppID, territoryValue, *refresh)
+			tiers, err := d.ResolveTiers(requestCtx, client, resolvedAppID, territoryValue, *refresh)
 			if err != nil {
 				return fmt.Errorf("pricing tiers: %w", err)
 			}
 
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				tiers, *output.Output, *output.Pretty,
 				func() error {
-					return printTiersTable(tiers)
+					return printTiersTable(d.IO.Out, tiers)
 				},
 				func() error {
-					return printTiersMarkdown(tiers)
+					return printTiersMarkdown(d.IO.Out, tiers)
 				},
 			)
 		},
 	}
 }
 
-func printTiersTable(tiers []shared.TierEntry) error {
-	fmt.Printf("%-6s  %-40s  %-15s  %-10s\n", "Tier", "Price Point ID", "Customer Price", "Proceeds")
-	fmt.Printf("%-6s  %-40s  %-15s  %-10s\n", "----", "----------------------------------------", "---------------", "----------")
+func printTiersTable(w io.Writer, tiers []shared.TierEntry) error {
+	fmt.Fprintf(w, "%-6s  %-40s  %-15s  %-10s\n", "Tier", "Price Point ID", "Customer Price", "Proceeds")
+	fmt.Fprintf(w, "%-6s  %-40s  %-15s  %-10s\n", "----", "----------------------------------------", "---------------", "----------")
 	for _, t := range tiers {
-		fmt.Printf("%-6d  %-40s  %-15s  %-10s\n", t.Tier, t.PricePointID, t.CustomerPrice, t.Proceeds)
+		fmt.Fprintf(w, "%-6d  %-40s  %-15s  %-10s\n", t.Tier, t.PricePointID, t.CustomerPrice, t.Proceeds)
 	}
 	return nil
 }
 
-func printTiersMarkdown(tiers []shared.TierEntry) error {
-	fmt.Println("| Tier | Price Point ID | Customer Price | Proceeds |")
-	fmt.Println("|------|----------------|----------------|----------|")
+func printTiersMarkdown(w io.Writer, tiers []shared.TierEntry) error {
+	fmt.Fprintln(w, "| Tier | Price Point ID | Customer Price | Proceeds |")
+	fmt.Fprintln(w, "|------|----------------|----------------|----------|")
 	for _, t := range tiers {
-		fmt.Printf("| %d | %s | %s | %s |\n", t.Tier, t.PricePointID, t.CustomerPrice, t.Proceeds)
+		fmt.Fprintf(w, "| %d | %s | %s | %s |\n", t.Tier, t.PricePointID, t.CustomerPrice, t.Proceeds)
 	}
 	return nil
 }

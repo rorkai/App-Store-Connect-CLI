@@ -31,7 +31,7 @@ Examples:
   asc telemetry enable
   asc telemetry reset-id`,
 		FlagSet:   d.NewFlagSet("telemetry", flag.ExitOnError),
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			statusCommand(d),
 			enableCommand(d),
@@ -55,7 +55,7 @@ func statusCommand(d *shared.Deps) *ffcli.Command {
 		ShortUsage: "asc telemetry status [flags]",
 		ShortHelp:  "Show telemetry status.",
 		FlagSet:    fs,
-		UsageFunc:  shared.DefaultUsageFunc,
+		UsageFunc:  d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			normalizedOutput, err := shared.ValidateOutputFormatAllowed(*output.Output, *output.Pretty, "table", "json")
 			if err != nil {
@@ -96,7 +96,7 @@ func stateCommand(d *shared.Deps, name, help string, enabled bool) *ffcli.Comman
 		ShortUsage: "asc telemetry " + name,
 		ShortHelp:  help,
 		FlagSet:    fs,
-		UsageFunc:  shared.DefaultUsageFunc,
+		UsageFunc:  d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := telemetry.SetEnabled(enabled); err != nil {
 				return err
@@ -118,7 +118,7 @@ func resetIDCommand(d *shared.Deps) *ffcli.Command {
 		ShortUsage: "asc telemetry reset-id",
 		ShortHelp:  "Reset the random local install ID.",
 		FlagSet:    fs,
-		UsageFunc:  shared.DefaultUsageFunc,
+		UsageFunc:  d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if _, err := telemetry.ResetInstallID(); err != nil {
 				return err

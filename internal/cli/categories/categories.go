@@ -28,7 +28,7 @@ Examples:
   asc categories subcategories --category-id "GAMES"
   asc categories set --app APP_ID --primary GAMES`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newCategoriesListCommand(d),
 			newCategoriesGetCommand(d),
@@ -67,7 +67,7 @@ Examples:
   asc categories list --next "<links.next>"
   asc categories list --paginate --next "<links.next>"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit < 1 || *limit > 200 {
 				return d.UsageErrorf("categories list: --limit must be between 1 and 200")

@@ -1,7 +1,6 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -10,17 +9,16 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
 const analyticsViewRequestID = "11111111-1111-1111-1111-111111111111"
 
 func TestAnalyticsViewProcessingDateForwardsFilter(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/analyticsReportRequests/"+analyticsViewRequestID+"/reports", "limit=200"), asctest.JSON(http.StatusOK, `{
 		"data":[{"type":"analyticsReports","id":"report-1","attributes":{"name":"App Sessions","granularity":"DAILY"}}],
 		"links":{}
@@ -32,6 +30,7 @@ func TestAnalyticsViewProcessingDateForwardsFilter(t *testing.T) {
 
 	_, stderr := runAnalyticsViewForOutput(
 		t,
+		stubClient(t, reg),
 		"--request-id", analyticsViewRequestID,
 		"--processing-date", "2024-01-20",
 		"--output", "json",
@@ -42,11 +41,9 @@ func TestAnalyticsViewProcessingDateForwardsFilter(t *testing.T) {
 }
 
 func TestAnalyticsViewGranularityOnlyPreservesReportMetadata(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/analyticsReportRequests/"+analyticsViewRequestID+"/reports", "limit=200"), asctest.JSON(http.StatusOK, `{
 		"data":[{"type":"analyticsReports","id":"report-1","attributes":{"name":"Sales","reportType":"STANDARD","category":"COMMERCE","granularity":"MONTHLY"}}],
 		"links":{}
@@ -55,6 +52,7 @@ func TestAnalyticsViewGranularityOnlyPreservesReportMetadata(t *testing.T) {
 
 	stdout, stderr := runAnalyticsViewForOutput(
 		t,
+		stubClient(t, reg),
 		"--request-id", analyticsViewRequestID,
 		"--granularity", "monthly",
 		"--output", "json",
@@ -79,7 +77,6 @@ func TestAnalyticsViewGranularityOnlyPreservesReportMetadata(t *testing.T) {
 }
 
 func TestAnalyticsViewFiltersPaginateAndPreserveOutput(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	const (
@@ -89,7 +86,6 @@ func TestAnalyticsViewFiltersPaginateAndPreserveOutput(t *testing.T) {
 
 	instanceFilters := []string{"filter[processingDate]=2024-01-20", "filter[granularity]=DAILY,WEEKLY,MONTHLY", "limit=200"}
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/analyticsReportRequests/"+analyticsViewRequestID+"/reports", "limit=200"), asctest.JSON(http.StatusOK, `{
 		"data":[{"type":"analyticsReports","id":"report-1","attributes":{"name":"App Sessions","reportType":"STANDARD","category":"APP_USAGE","granularity":"DAILY"}}],
 		"links":{"self":"https://api.appstoreconnect.apple.com/v1/analyticsReportRequests/11111111-1111-1111-1111-111111111111/reports","next":"`+reportsNextURL+`"}
@@ -110,6 +106,7 @@ func TestAnalyticsViewFiltersPaginateAndPreserveOutput(t *testing.T) {
 
 	stdout, stderr := runAnalyticsViewForOutput(
 		t,
+		stubClient(t, reg),
 		"--request-id", analyticsViewRequestID,
 		"--processing-date", "2024-01-20",
 		"--granularity", "daily, weekly, monthly",
@@ -145,7 +142,6 @@ func TestAnalyticsViewAcceptsPrefixedInstanceAndPreservesSegmentBehavior(t *test
 	const instanceID = "r39-example-instance"
 	const reportsNextURL = "https://api.appstoreconnect.apple.com/v1/analyticsReportRequests/" + analyticsViewRequestID + "/reports?cursor=unused-report"
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/analyticsReportRequests/"+analyticsViewRequestID+"/reports", "limit=200"), asctest.JSON(http.StatusOK, `{
 		"data":[{"type":"analyticsReports","id":"report-1","attributes":{"name":"App Sessions","granularity":"DAILY"}}],
 		"links":{"next":"`+reportsNextURL+`"}
@@ -164,6 +160,7 @@ func TestAnalyticsViewAcceptsPrefixedInstanceAndPreservesSegmentBehavior(t *test
 
 	stdout, stderr := runAnalyticsViewForOutput(
 		t,
+		stubClient(t, reg),
 		"--request-id", analyticsViewRequestID,
 		"--instance-id", instanceID,
 		"--include-segments",
@@ -206,19 +203,11 @@ func TestAnalyticsViewAcceptsPrefixedInstanceAndPreservesSegmentBehavior(t *test
 	}
 }
 
-func runAnalyticsViewForOutput(t *testing.T, args ...string) (string, string) {
+func runAnalyticsViewForOutput(t *testing.T, client func() (*asc.Client, error), args ...string) (string, string) {
 	t.Helper()
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
 
 	fullArgs := append([]string{"analytics", "view"}, args...)
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse(fullArgs); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	stdout, stderr, runErr := runRootWithDeps(t, client, fullArgs...)
 	if runErr != nil {
 		t.Fatalf("run error: %v", runErr)
 	}

@@ -10,10 +10,11 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
+	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 const analyticsTimeoutRequestDelay = 10 * time.Millisecond
@@ -89,15 +90,15 @@ func TestAnalyticsViewRefreshesTimeoutForEachRequest(t *testing.T) {
 			return nil, nil
 		}
 	})
-	setAnalyticsTimeoutTestClient(t, transport)
+	client := stubClient(t, transport)
 
-	stdout, stderr, runErr := runCommandOnFakeClock(t, []string{
+	stdout, stderr, runErr := runAnalyticsOnFakeClock(t, client,
 		"analytics", "view",
 		"--request-id", analyticsViewRequestID,
 		"--include-segments",
 		"--paginate",
 		"--output", "json",
-	})
+	)
 	if runErr != nil {
 		t.Fatalf("run error: %v", runErr)
 	}
@@ -138,13 +139,13 @@ func TestAnalyticsViewWarnsWhenReportsHaveAnotherPage(t *testing.T) {
 			return nil, nil
 		}
 	})
-	setAnalyticsTimeoutTestClient(t, transport)
+	client := stubClient(t, transport)
 
-	stdout, stderr, runErr := runCommand(t, []string{
+	stdout, stderr, runErr := runRootWithDeps(t, client,
 		"analytics", "view",
 		"--request-id", analyticsViewRequestID,
 		"--output", "json",
-	})
+	)
 	if runErr != nil {
 		t.Fatalf("run error: %v", runErr)
 	}
@@ -207,17 +208,17 @@ func TestAnalyticsDownloadRefreshesTimeoutThroughBodyTransfer(t *testing.T) {
 			return nil, nil
 		}
 	})
-	setAnalyticsTimeoutTestClient(t, transport)
+	client := stubClient(t, transport)
 
 	outputPath := filepath.Join(t.TempDir(), "analytics-report.csv.gz")
-	stdout, stderr, runErr := runCommandOnFakeClock(t, []string{
+	stdout, stderr, runErr := runAnalyticsOnFakeClock(t, client,
 		"analytics", "download",
 		"--request-id", analyticsViewRequestID,
 		"--instance-id", "instance-1",
 		"--segment-id", "segment-1",
 		"--output", outputPath,
 		"--output-format", "json",
-	})
+	)
 	if runErr != nil {
 		t.Fatalf("run error: %v", runErr)
 	}
@@ -251,7 +252,7 @@ func TestAnalyticsDownloadStopsSegmentPagingAfterExactMatch(t *testing.T) {
 	const reportData = "selected analytics segment"
 	const targetURL = "https://mzstatic.com/selected.csv.gz"
 	reportPages, segmentPages, downloads := 0, 0, 0
-	setAnalyticsTimeoutTestClient(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	client := stubClient(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch req.URL.Path {
 		case "/v1/analyticsReportRequests/" + analyticsViewRequestID + "/reports":
 			reportPages++
@@ -288,11 +289,11 @@ func TestAnalyticsDownloadStopsSegmentPagingAfterExactMatch(t *testing.T) {
 	}))
 
 	outputPath := filepath.Join(t.TempDir(), "analytics-report.csv.gz")
-	stdout, _, runErr := runCommand(t, []string{
+	stdout, _, runErr := runRootWithDeps(t, client,
 		"analytics", "download", "--request-id", analyticsViewRequestID,
 		"--instance-id", "instance-1", "--segment-id", "segment-1",
 		"--output", outputPath, "--output-format", "json",
-	})
+	)
 	if runErr != nil {
 		t.Fatalf("download failed after %d report pages and %d segment pages: %v", reportPages, segmentPages, runErr)
 	}
@@ -328,21 +329,19 @@ func TestAnalyticsViewFreshTimeoutsPreserveParentCancellation(t *testing.T) {
 		}
 		return nil, req.Context().Err()
 	})
-	setAnalyticsTimeoutTestClient(t, transport)
+	client := stubClient(t, transport)
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"analytics", "view",
-			"--request-id", analyticsViewRequestID,
-			"--output", "json",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(parentCtx)
-	})
+	d, stdoutBuf, stderrBuf := newTestDeps(t, client)
+	root := rootcmd.RootCommandWithDeps("1.2.3", d)
+	if err := root.Parse([]string{
+		"analytics", "view",
+		"--request-id", analyticsViewRequestID,
+		"--output", "json",
+	}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	runErr := root.Run(parentCtx)
+	stdout, stderr := stdoutBuf.String(), stderrBuf.String()
 	if !errors.Is(runErr, context.Canceled) {
 		t.Fatalf("run error = %v, want parent cancellation", runErr)
 	}
@@ -361,20 +360,19 @@ func setupAnalyticsTimeoutTest(t *testing.T) {
 	t.Setenv("ASC_TIMEOUT_SECONDS", "")
 }
 
-func setAnalyticsTimeoutTestClient(t *testing.T, transport http.RoundTripper) {
+// runAnalyticsOnFakeClock is runRootWithDeps with the command run inside a
+// synctest bubble, so request delays and deadlines use the fake clock.
+func runAnalyticsOnFakeClock(t *testing.T, client func() (*asc.Client, error), args ...string) (string, string, error) {
 	t.Helper()
-	client, err := asc.NewClientWithHTTPClient(
-		"TEST_KEY",
-		"TEST_ISSUER",
-		os.Getenv("ASC_PRIVATE_KEY_PATH"),
-		&http.Client{Transport: transport},
-	)
-	if err != nil {
-		t.Fatalf("new analytics timeout client: %v", err)
+
+	d, stdout, stderr := newTestDeps(t, client)
+	root := rootcmd.RootCommandWithDeps("1.2.3", d)
+	if err := root.Parse(args); err != nil {
+		t.Fatalf("parse error: %v", err)
 	}
-	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
-		return client, nil
-	}))
+	var runErr error
+	synctest.Test(t, func(*testing.T) { runErr = root.Run(context.Background()) })
+	return stdout.String(), stderr.String(), runErr
 }
 
 func requireAnalyticsRequestDeadline(t *testing.T, req *http.Request) time.Time {

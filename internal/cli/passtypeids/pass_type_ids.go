@@ -30,7 +30,7 @@ Examples:
   asc pass-type-ids delete --pass-type-id "PASS_ID" --confirm
   asc pass-type-ids certificates list --pass-type-id "PASS_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newPassTypeIDsListCommand(d),
 			newPassTypeIDsGetCommand(d),
@@ -259,7 +259,7 @@ func newPassTypeIDsUpdateCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc pass-type-ids update --pass-type-id "PASS_ID" --name "New Name"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			passTypeIDValue := strings.TrimSpace(*passTypeID)
 			if passTypeIDValue == "" {

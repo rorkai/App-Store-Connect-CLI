@@ -128,6 +128,37 @@ func TestMigrateValidateHonorsDeliverfileMetadataPath(t *testing.T) {
 	}
 }
 
+func TestMigrateValidateRejectsSymlinkedCopyright(t *testing.T) {
+	root := t.TempDir()
+	localeDir := filepath.Join(root, "metadata", "en-US")
+	if err := os.MkdirAll(localeDir, 0o755); err != nil {
+		t.Fatalf("mkdir metadata: %v", err)
+	}
+	writeFile(t, filepath.Join(localeDir, "description.txt"), "English description")
+	secretPath := filepath.Join(t.TempDir(), "secret.txt")
+	writeFile(t, secretPath, "2026 Example Inc.")
+	if err := os.Symlink(secretPath, filepath.Join(root, "metadata", "copyright.txt")); err != nil {
+		t.Fatalf("symlink copyright.txt: %v", err)
+	}
+
+	rootCmd := RootCommand("1.2.3")
+	rootCmd.FlagSet.SetOutput(io.Discard)
+	var runErr error
+	stdout, _ := captureOutput(t, func() {
+		if err := rootCmd.Parse([]string{"migrate", "validate", "--fastlane-dir", root}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = rootCmd.Run(context.Background())
+	})
+
+	if runErr == nil || !strings.HasPrefix(runErr.Error(), "migrate validate: ") || !strings.Contains(runErr.Error(), "symlink") {
+		t.Fatalf("run error = %v, want the symlink rejection migrate import reports", runErr)
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+}
+
 func runMigrateValidate(t *testing.T, fastlaneDir string) migrate.MigrateValidateResult {
 	t.Helper()
 
@@ -154,4 +185,26 @@ func runMigrateValidate(t *testing.T, fastlaneDir string) migrate.MigrateValidat
 		t.Fatalf("unmarshal result: %v", err)
 	}
 	return result
+}
+
+func TestMigrateValidateRejectsMissingMetadataDir(t *testing.T) {
+	root := t.TempDir()
+	rootCmd := RootCommand("1.2.3")
+	rootCmd.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	stdout, _ := captureOutput(t, func() {
+		if err := rootCmd.Parse([]string{"migrate", "validate", "--fastlane-dir", root}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = rootCmd.Run(context.Background())
+	})
+
+	want := "migrate validate: metadata directory not found: " + filepath.Join(root, "metadata")
+	if runErr == nil || runErr.Error() != want {
+		t.Fatalf("run error = %v, want %q", runErr, want)
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
 }
