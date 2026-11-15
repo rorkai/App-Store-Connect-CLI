@@ -546,7 +546,7 @@ func syncPushCommand(d *shared.Deps) *ffcli.Command {
 					CreateContext: func() (context.Context, context.CancelFunc) {
 						return d.Timeout(ctx)
 					},
-					CertificateFilter:  identityCertificateFilter(identity),
+					CertificateFilter:  identityCertificateFilter(identity, d.Now),
 					RenewExpired:       *renewExpired,
 					ForceForNewDevices: *forceForNewDevices,
 					IncludeMacDevices:  *includeMacInProfiles,

@@ -200,7 +200,7 @@ func runSigningSyncBatch(ctx context.Context, d *shared.Deps, client *asc.Client
 					}
 					return errSigningSyncLifecyclePreflightOnly
 				},
-				CertificateFilter:  identityCertificateFilter(identity),
+				CertificateFilter:  identityCertificateFilter(identity, d.Now),
 				RenewExpired:       options.RenewExpired,
 				ForceForNewDevices: options.ForceForNewDevices,
 				IncludeMacDevices:  options.IncludeMacDevices,
@@ -290,7 +290,7 @@ func runSigningSyncBatch(ctx context.Context, d *shared.Deps, client *asc.Client
 				CreateContext: func() (context.Context, context.CancelFunc) {
 					return d.Timeout(ctx)
 				},
-				CertificateFilter:  identityCertificateFilter(identity),
+				CertificateFilter:  identityCertificateFilter(identity, d.Now),
 				RenewExpired:       options.RenewExpired,
 				ForceForNewDevices: options.ForceForNewDevices,
 				IncludeMacDevices:  options.IncludeMacDevices,

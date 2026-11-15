@@ -1051,7 +1051,7 @@ func TestResolveSigningAssetsDoesNotRecreateAfterCreatedProfileUUIDMismatch(t *t
 		CertificateType:    "IOS_DISTRIBUTION",
 		DeviceIDs:          []string{"DEVICE1"},
 		CreateMissing:      true,
-		CertificateFilter:  identityCertificateFilter(identity),
+		CertificateFilter:  identityCertificateFilter(identity, time.Now),
 	}
 
 	for attempt := 0; attempt < 2; attempt++ {

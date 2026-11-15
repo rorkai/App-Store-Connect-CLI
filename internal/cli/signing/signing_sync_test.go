@@ -148,7 +148,7 @@ func TestSigningSyncIdentityConflictFailsBeforeProfileCreatePOST(t *testing.T) {
 		BundleIdentifier:   "com.example.app",
 		ProfileType:        "IOS_APP_ADHOC",
 		CreateMissing:      true,
-		CertificateFilter:  identityCertificateFilter(identity),
+		CertificateFilter:  identityCertificateFilter(identity, time.Now),
 		BeforeCreate: func(plan profileCreatePlan) error {
 			if err := preflightIdentityForProfileCreate(identity, plan, "repository-password", time.Now()); err != nil {
 				return err
