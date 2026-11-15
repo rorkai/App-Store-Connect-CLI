@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 
@@ -30,9 +29,9 @@ var preReleaseRelationshipKinds = map[string]relationshipKind{
 	"builds": relationshipList,
 }
 
-// PreReleaseVersionsRelationshipsCommand returns the relationships command group.
-func PreReleaseVersionsRelationshipsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("relationships", flag.ExitOnError)
+// newPreReleaseVersionsRelationshipsCommand returns the relationships command group built on d.
+func newPreReleaseVersionsRelationshipsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("relationships", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "relationships",
@@ -46,7 +45,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			PreReleaseVersionsRelationshipsGetCommand(),
+			newPreReleaseVersionsRelationshipsGetCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -54,16 +53,16 @@ Examples:
 	}
 }
 
-// PreReleaseVersionsRelationshipsGetCommand returns the relationships get subcommand.
-func PreReleaseVersionsRelationshipsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("relationships view", flag.ExitOnError)
+// newPreReleaseVersionsRelationshipsGetCommand returns the relationships get subcommand built on d.
+func newPreReleaseVersionsRelationshipsGetCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("relationships view", flag.ExitOnError)
 
 	versionID := shared.BindResourceIDFlag(fs, "id", "preReleaseVersions", "Pre-release version ID")
 	relType := fs.String("type", "", shared.RelationshipTypeFlagUsage(preReleaseRelationshipList()))
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "view",
@@ -77,38 +76,38 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "pre-release-versions relationships view", 200); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "pre-release-versions relationships view", 200); err != nil {
 				return err
 			}
 
 			relationshipType := strings.TrimSpace(*relType)
 			if relationshipType == "" {
-				return shared.MissingRelationshipTypeUsageError(preReleaseRelationshipList())
+				return d.MissingRelationshipTypeUsageError(preReleaseRelationshipList())
 			}
 
 			kind, ok := preReleaseRelationshipKinds[relationshipType]
 			if !ok {
-				shared.PrintInvalidRelationshipTypeError(relationshipType, preReleaseRelationshipList())
+				d.PrintInvalidRelationshipTypeError(relationshipType, preReleaseRelationshipList())
 				return flag.ErrHelp
 			}
 
 			versionValue := strings.TrimSpace(*versionID)
 			nextValue := strings.TrimSpace(*next)
 			if versionValue == "" && nextValue == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
 
 			if kind == relationshipSingle && (nextValue != "" || *paginate || *limit != 0) {
-				fmt.Fprintln(os.Stderr, "Error: --limit, --next, and --paginate are only valid for to-many relationships")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --limit, --next, and --paginate are only valid for to-many relationships")
 				return flag.ErrHelp
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("pre-release-versions relationships view: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			// A next-page URL replaces the version path in the request, so a
@@ -133,7 +132,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("pre-release-versions relationships view: %w", shared.DescribeRelationshipLookupFailure(err, relationshipType, parent))
 				}
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			case relationshipList:
 				opts := []asc.LinkagesOption{
 					asc.Limit[asc.LinkagesOption](*limit),
@@ -156,14 +155,14 @@ Examples:
 					if err != nil {
 						return fmt.Errorf("pre-release-versions relationships view: %w", err)
 					}
-					return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+					return d.PrintOutput(resp, *output.Output, *output.Pretty)
 				}
 
 				resp, err := getPreReleaseRelationshipList(requestCtx, client, relationshipType, versionValue, opts...)
 				if err != nil {
 					return fmt.Errorf("pre-release-versions relationships view: %w", shared.DescribeRelationshipLookupFailure(err, relationshipType, parent))
 				}
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			default:
 				return fmt.Errorf("pre-release-versions relationships view: unsupported relationship type %q", relationshipType)
 			}
