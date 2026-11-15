@@ -11,9 +11,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// AnalyticsSegmentsCommand returns the analytics segments command group.
-func AnalyticsSegmentsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("segments", flag.ExitOnError)
+// newAnalyticsSegmentsCommand returns the analytics segments command group.
+func newAnalyticsSegmentsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("segments", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "segments",
@@ -26,7 +26,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			AnalyticsSegmentsGetCommand(),
+			newAnalyticsSegmentsGetCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -34,9 +34,10 @@ Examples:
 	}
 }
 
-// AnalyticsSegmentsGetCommand retrieves a specific analytics report segment.
-func AnalyticsSegmentsGetCommand() *ffcli.Command {
+// newAnalyticsSegmentsGetCommand retrieves a specific analytics report segment.
+func newAnalyticsSegmentsGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		Deps:       d,
 		Name:       "view",
 		ShortUsage: "asc analytics segments view --segment-id \"SEGMENT_ID\" [flags]",
 		ShortHelp:  "View an analytics report segment by ID.",
@@ -52,7 +53,7 @@ Examples:
 			segmentID := fs.Lookup("segment-id").Value
 			return func() error {
 				if _, err := asc.ValidateResourcePathSegment(strings.TrimSpace(segmentID.String())); err != nil {
-					return shared.UsageErrorf("analytics segments view: --segment-id: %v", err)
+					return d.UsageErrorf("analytics segments view: --segment-id: %v", err)
 				}
 				return nil
 			}

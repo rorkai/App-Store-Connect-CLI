@@ -128,6 +128,7 @@ func TestSelfLinkRemainingFlagsSendExtractedID(t *testing.T) {
 			bodies: map[string]string{
 				"/v1/analyticsReports/report-1": `{"data":{"type":"analyticsReports","id":"report-1","attributes":{"name":"App Store Installs","category":"APP_USAGE"}}}`,
 			},
+			deps: true,
 		},
 		{
 			name:     "game-center achievements localizations list",
@@ -319,6 +320,7 @@ func TestSelfLinkRemainingFlagsRejectWrongType(t *testing.T) {
 		{
 			name:    "analytics reports view rejects request link",
 			args:    []string{"analytics", "reports", "view"},
+			deps:    true,
 			flag:    "report-id",
 			value:   selfLinkTestBase + "/v1/analyticsReportRequests/request-1",
 			wantErr: "expected a self-link of type analyticsReports, got analyticsReportRequests",

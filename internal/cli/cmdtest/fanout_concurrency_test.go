@@ -184,16 +184,20 @@ func installPricingAvailabilityFanOutFake(t *testing.T, probe *fanOutProbe, terr
 	})
 }
 
-// installAnalyticsViewFanOutFake serves one report request with reportCount
-// reports and no instances, which is what Apple returns for a new ONGOING
-// request.
 func installAnalyticsViewFanOutFake(t *testing.T, probe *fanOutProbe, reportCount int) {
 	t.Helper()
 
 	originalTransport := http.DefaultTransport
 	t.Cleanup(func() { http.DefaultTransport = originalTransport })
 
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	http.DefaultTransport = analyticsViewFanOutTransport(probe, reportCount)
+}
+
+// analyticsViewFanOutTransport serves one report request with reportCount
+// reports and no instances, which is what Apple returns for a new ONGOING
+// request.
+func analyticsViewFanOutTransport(probe *fanOutProbe, reportCount int) http.RoundTripper {
+	return roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/analyticsReportRequests/"+fanOutRequestID+"/reports":
 			defer probe.begin("GET reports", false)()
@@ -290,9 +294,8 @@ func TestPricingAvailabilityEditAllTerritoriesBoundsPatchFanOut(t *testing.T) {
 func TestAnalyticsViewBoundsInstanceFetchFanOut(t *testing.T) {
 	setupFanOutAuth(t)
 	probe := newFanOutProbe(analyticsViewInstanceFanOut, fanOutReportCount, 0)
-	installAnalyticsViewFanOutFake(t, probe, fanOutReportCount)
 
-	stdout, stderr, err := runFanOutCommand(t, analyticsViewFanOutArgs()...)
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, analyticsViewFanOutTransport(probe, fanOutReportCount)), analyticsViewFanOutArgs()...)
 	if err != nil {
 		t.Fatalf("run error: %v (stderr %q)", err, stderr)
 	}

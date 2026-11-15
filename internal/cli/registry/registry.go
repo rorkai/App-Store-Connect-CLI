@@ -150,7 +150,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("review", "Manage App Store review details, attachments, and submissions.", func() *ffcli.Command {
 			return reviews.NewReviewCommand(d)
 		}),
-		commandFactory("analytics", "Request and download analytics and sales reports.", analytics.AnalyticsCommand),
+		commandFactory("analytics", "Request and download analytics and sales reports.", func() *ffcli.Command {
+			return analytics.NewAnalyticsCommand(d)
+		}),
 		commandFactory("ads", "Manage Apple Ads API resources.", ads.AdsCommand),
 		commandFactory("optimize", "Build cross-API optimization plans.", optimize.OptimizeCommand),
 		commandFactory("performance", "Access performance metrics and diagnostic logs.", func() *ffcli.Command {
