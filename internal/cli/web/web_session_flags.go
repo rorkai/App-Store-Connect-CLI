@@ -46,7 +46,11 @@ func bindWebSessionFlagsWithSessionFromEnv(fs *flag.FlagSet) webSessionFlags {
 // timeout budget covers the request instead of the human in front of the prompt,
 // while parent cancellation (Ctrl-C) still propagates.
 func newWebRequestContext(ctx context.Context) (context.Context, context.CancelFunc) {
-	return shared.ContextWithTimeout(shared.ContextWithoutTimeout(ctx))
+	return newWebRequestContextWith(ctx, shared.DefaultDeps())
+}
+
+func newWebRequestContextWith(ctx context.Context, d *shared.Deps) (context.Context, context.CancelFunc) {
+	return d.Timeout(shared.ContextWithoutTimeout(ctx))
 }
 
 // resolveWebSessionForCommand resolves the web session for a command and returns
@@ -58,30 +62,38 @@ func newWebRequestContext(ctx context.Context) (context.Context, context.CancelF
 // a request context whose timeout starts only once authentication is done; the
 // returned cancel func is never nil, so it is safe to defer before checking err.
 func resolveWebSessionForCommand(ctx context.Context, flags webSessionFlags) (*webcore.AuthSession, context.Context, context.CancelFunc, error) {
+	return resolveWebSessionForCommandWith(ctx, shared.DefaultDeps(), flags)
+}
+
+// resolveWebSessionForCommandWith is resolveWebSessionForCommand on d. The
+// session itself is still resolved on the process streams: the cache lookup,
+// sign-in, password and two-factor prompts belong to the web auth commands.
+func resolveWebSessionForCommandWith(ctx context.Context, d *shared.Deps, flags webSessionFlags) (*webcore.AuthSession, context.Context, context.CancelFunc, error) {
 	if flags.sessionFromEnv != nil && *flags.sessionFromEnv {
-		session, err := resolveSessionFromEnv(ctx, flags)
-		requestCtx, cancel := newWebRequestContext(ctx)
+		session, err := resolveSessionFromEnv(ctx, d, flags)
+		requestCtx, cancel := newWebRequestContextWith(ctx, d)
 		return session, requestCtx, cancel, err
 	}
-	preference, err := flags.twoFactorDelivery.resolve()
+	preference, err := flags.twoFactorDelivery.resolveWith(d)
 	if err != nil {
-		requestCtx, cancel := newWebRequestContext(ctx)
+		requestCtx, cancel := newWebRequestContextWith(ctx, d)
 		return nil, requestCtx, cancel, err
 	}
 	selection := providerSelectionFromFlags(flags)
-	session, _, err := callResolveSessionForProviderSelection(
+	session, _, err := callResolveSessionForProviderSelectionWith(
 		contextWithTwoFactorPreference(ctx, preference),
+		d,
 		*flags.appleID,
 		"",
 		"",
 		*flags.twoFactorCodeCommand,
 		selection,
 	)
-	requestCtx, cancel := newWebRequestContext(ctx)
+	requestCtx, cancel := newWebRequestContextWith(ctx, d)
 	if err != nil {
 		return nil, requestCtx, cancel, err
 	}
-	if err := selectResolvedWebSessionProvider(requestCtx, session, selection); err != nil {
+	if err := selectResolvedWebSessionProviderWith(requestCtx, d, session, selection); err != nil {
 		return nil, requestCtx, cancel, err
 	}
 	return session, requestCtx, cancel, nil

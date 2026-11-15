@@ -17,6 +17,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/peterbourgon/ff/v3/ffcli"
+
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
@@ -54,12 +56,13 @@ func TestNotarizationStapleCommandPrintsComputedJSON(t *testing.T) {
 	}
 	t.Cleanup(func() { runStaplerStaple = previous })
 
-	cmd := stapleCommand()
+	d := newNotarizationTestDeps(nil)
+	cmd := stapleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--file", target, "--confirm", "--output", "json", "--pretty"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureNotarizationOutput(t, func() { runErr = cmd.Exec(context.Background(), nil) })
+	stdout, stderr := captureNotarizationOutput(t, d, func() { runErr = cmd.Exec(context.Background(), nil) })
 	if runErr != nil {
 		t.Fatalf("staple command error = %v", runErr)
 	}
@@ -78,6 +81,102 @@ func TestNotarizationStapleCommandPrintsComputedJSON(t *testing.T) {
 	}
 }
 
+func TestNotarizationStaplerDiagnosticsGoToCommandStderr(t *testing.T) {
+	target := filepath.Join(t.TempDir(), "App.dmg")
+	if err := os.WriteFile(target, []byte("fixture"), 0o600); err != nil {
+		t.Fatalf("write target: %v", err)
+	}
+	runner := func(_ context.Context, path string, diagnostics io.Writer, verifier localxcode.StaplerStageVerifier) (*localxcode.StaplerResult, error) {
+		if _, err := io.WriteString(diagnostics, "stapler child output\n"); err != nil {
+			return nil, err
+		}
+		if err := invokeStapleVerifier(verifier); err != nil {
+			return nil, err
+		}
+		return &localxcode.StaplerResult{Path: path, Stapled: true, Validated: true}, nil
+	}
+	previousStaple, previousValidate := runStaplerStaple, runStaplerValidate
+	t.Cleanup(func() { runStaplerStaple, runStaplerValidate = previousStaple, previousValidate })
+	runStaplerStaple, runStaplerValidate = runner, runner
+
+	for _, test := range []struct {
+		name    string
+		command func(*shared.Deps) *ffcli.Command
+		args    []string
+	}{
+		{name: "staple", command: stapleCommand, args: []string{"--file", target, "--confirm", "--output", "json"}},
+		{name: "validate", command: validateStapleCommand, args: []string{"--file", target, "--output", "json"}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			d := newNotarizationTestDeps(nil)
+			cmd := test.command(d)
+			if err := cmd.FlagSet.Parse(test.args); err != nil {
+				t.Fatalf("parse: %v", err)
+			}
+			var runErr error
+			_, stderr := captureNotarizationOutput(t, d, func() { runErr = cmd.Exec(context.Background(), nil) })
+			if runErr != nil {
+				t.Fatalf("%s command error = %v", test.name, runErr)
+			}
+			if stderr != "stapler child output\n" {
+				t.Fatalf("stderr = %q, want the stapler's diagnostics", stderr)
+			}
+		})
+	}
+}
+
+func TestNotarizationStaplerResolvesRelativeFileInDepsWorkingDirectory(t *testing.T) {
+	workingDirectory := t.TempDir()
+	if err := os.WriteFile(filepath.Join(workingDirectory, "App.dmg"), []byte("fixture"), 0o600); err != nil {
+		t.Fatalf("write target: %v", err)
+	}
+	var runnerPath string
+	runner := func(_ context.Context, path string, _ io.Writer, verifier localxcode.StaplerStageVerifier) (*localxcode.StaplerResult, error) {
+		runnerPath = path
+		if err := invokeStapleVerifier(verifier); err != nil {
+			return nil, err
+		}
+		return &localxcode.StaplerResult{Path: path, Stapled: true, Validated: true}, nil
+	}
+	previousStaple, previousValidate := runStaplerStaple, runStaplerValidate
+	t.Cleanup(func() { runStaplerStaple, runStaplerValidate = previousStaple, previousValidate })
+	runStaplerStaple, runStaplerValidate = runner, runner
+
+	for _, test := range []struct {
+		name    string
+		command func(*shared.Deps) *ffcli.Command
+		args    []string
+	}{
+		{name: "staple", command: stapleCommand, args: []string{"--file", "App.dmg", "--confirm"}},
+		{name: "validate", command: validateStapleCommand, args: []string{"--file", "App.dmg"}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			runnerPath = ""
+			d := newNotarizationTestDeps(nil)
+			d.Getwd = func() (string, error) { return workingDirectory, nil }
+			cmd := test.command(d)
+			if err := cmd.FlagSet.Parse(append(test.args, "--output", "json")); err != nil {
+				t.Fatalf("parse: %v", err)
+			}
+			var runErr error
+			stdout, stderr := captureNotarizationOutput(t, d, func() { runErr = cmd.Exec(context.Background(), nil) })
+			if runErr != nil {
+				t.Fatalf("%s command error = %v; stderr=%q", test.name, runErr, stderr)
+			}
+			want := filepath.Join(workingDirectory, "App.dmg")
+			if runnerPath != want {
+				t.Fatalf("stapler path = %q, want %q", runnerPath, want)
+			}
+			var result struct {
+				FilePath string `json:"filePath"`
+			}
+			if err := json.Unmarshal([]byte(stdout), &result); err != nil || result.FilePath != want {
+				t.Fatalf("stdout = %q, want filePath %q (%v)", stdout, want, err)
+			}
+		})
+	}
+}
+
 func TestNotarizationStapleRequiresConfirmationBeforeTargetOrRunner(t *testing.T) {
 	previous := runStaplerStaple
 	calls := 0
@@ -87,13 +186,14 @@ func TestNotarizationStapleRequiresConfirmationBeforeTargetOrRunner(t *testing.T
 	}
 	t.Cleanup(func() { runStaplerStaple = previous })
 
-	cmd := stapleCommand()
+	d := newNotarizationTestDeps(nil)
+	cmd := stapleCommand(d)
 	missingTarget := filepath.Join(t.TempDir(), "missing.dmg")
 	if err := cmd.FlagSet.Parse([]string{"--file", missingTarget}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureNotarizationOutput(t, func() {
+	stdout, stderr := captureNotarizationOutput(t, d, func() {
 		runErr = cmd.Exec(context.Background(), cmd.FlagSet.Args())
 	})
 	if runErr == nil || !errors.Is(runErr, flag.ErrHelp) {
@@ -198,12 +298,13 @@ func TestNotarizationStapleRejectsRegularFilePathReplacementAfterFingerprint(t *
 	}
 	t.Cleanup(func() { runStaplerStaple = previousRunner })
 
-	cmd := stapleCommand()
+	d := newNotarizationTestDeps(nil)
+	cmd := stapleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--file", targetPath, "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureNotarizationOutput(t, func() { runErr = cmd.Exec(context.Background(), nil) })
+	stdout, stderr := captureNotarizationOutput(t, d, func() { runErr = cmd.Exec(context.Background(), nil) })
 	if runErr == nil {
 		t.Fatal("staple command error = nil, want path replacement failure")
 	}
@@ -246,12 +347,13 @@ func TestNotarizationStapleRejectsSameInodeRegularFileRewriteBeforeValidation(t 
 	}
 	t.Cleanup(func() { runStaplerStaple = previous })
 
-	cmd := stapleCommand()
+	d := newNotarizationTestDeps(nil)
+	cmd := stapleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--file", targetPath, "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureNotarizationOutput(t, func() { runErr = cmd.Exec(context.Background(), nil) })
+	stdout, stderr := captureNotarizationOutput(t, d, func() { runErr = cmd.Exec(context.Background(), nil) })
 	if runErr == nil {
 		t.Fatal("staple command error = nil, want same-inode rewrite failure")
 	}
@@ -289,12 +391,13 @@ func TestNotarizationValidateRejectsSameInodeRegularFileRewriteAfterValidation(t
 	}
 	t.Cleanup(func() { runStaplerValidate = previous })
 
-	cmd := validateStapleCommand()
+	d := newNotarizationTestDeps(nil)
+	cmd := validateStapleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--file", targetPath, "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureNotarizationOutput(t, func() { runErr = cmd.Exec(context.Background(), nil) })
+	stdout, stderr := captureNotarizationOutput(t, d, func() { runErr = cmd.Exec(context.Background(), nil) })
 	if runErr == nil {
 		t.Fatal("validate command error = nil, want same-inode rewrite failure")
 	}
@@ -331,12 +434,13 @@ func TestNotarizationStapleRejectsOversizedRegularFileBeforeRunner(t *testing.T)
 	}
 	t.Cleanup(func() { runStaplerStaple = previous })
 
-	cmd := stapleCommand()
+	d := newNotarizationTestDeps(nil)
+	cmd := stapleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--file", targetPath, "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureNotarizationOutput(t, func() { runErr = cmd.Exec(context.Background(), nil) })
+	stdout, stderr := captureNotarizationOutput(t, d, func() { runErr = cmd.Exec(context.Background(), nil) })
 	if runErr == nil {
 		t.Fatal("staple command error = nil, want preflight size rejection")
 	}
@@ -379,12 +483,13 @@ func TestNotarizationStapleRejectsRegularFileGrowthBeforeChild(t *testing.T) {
 	}
 	t.Cleanup(func() { runStaplerStaple = previous })
 
-	cmd := stapleCommand()
+	d := newNotarizationTestDeps(nil)
+	cmd := stapleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--file", targetPath, "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureNotarizationOutput(t, func() { runErr = cmd.Exec(context.Background(), nil) })
+	stdout, stderr := captureNotarizationOutput(t, d, func() { runErr = cmd.Exec(context.Background(), nil) })
 	if runErr == nil {
 		t.Fatal("staple command error = nil, want growth rejection before child")
 	}
@@ -433,12 +538,13 @@ func TestNotarizationStapleRejectsOversizedDirectoryAtVerifierBoundary(t *testin
 	}
 	t.Cleanup(func() { runStaplerStaple = previous })
 
-	cmd := stapleCommand()
+	d := newNotarizationTestDeps(nil)
+	cmd := stapleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--file", targetPath, "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureNotarizationOutput(t, func() { runErr = cmd.Exec(context.Background(), nil) })
+	stdout, stderr := captureNotarizationOutput(t, d, func() { runErr = cmd.Exec(context.Background(), nil) })
 	if runErr == nil {
 		t.Fatal("staple command error = nil, want inventory-size rejection")
 	}
@@ -490,12 +596,13 @@ func TestNotarizationStapleRejectsDirectoryGrowthAfterPreflightBeforeRunner(t *t
 	}
 	t.Cleanup(func() { runStaplerStaple = previous })
 
-	cmd := stapleCommand()
+	d := newNotarizationTestDeps(nil)
+	cmd := stapleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--file", targetPath, "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureNotarizationOutput(t, func() { runErr = cmd.Exec(context.Background(), nil) })
+	stdout, stderr := captureNotarizationOutput(t, d, func() { runErr = cmd.Exec(context.Background(), nil) })
 	if runErr == nil {
 		t.Fatal("staple command error = nil, want growth rejection before child")
 	}
@@ -535,12 +642,13 @@ func TestNotarizationStapleDefersDirectoryInventoryUntilStaplerRunner(t *testing
 	}
 	t.Cleanup(func() { runStaplerStaple = previous })
 
-	cmd := stapleCommand()
+	d := newNotarizationTestDeps(nil)
+	cmd := stapleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--file", targetPath, "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureNotarizationOutput(t, func() { runErr = cmd.Exec(context.Background(), nil) })
+	stdout, stderr := captureNotarizationOutput(t, d, func() { runErr = cmd.Exec(context.Background(), nil) })
 	if runErr == nil {
 		t.Fatal("staple command error = nil, want runner failure")
 	}
@@ -772,12 +880,13 @@ func TestNotarizationValidateSearchOnlyStageClassifiesReplacementsByIdentity(t *
 				runStaplerValidate = previousRunner
 			})
 
-			cmd := validateStapleCommand()
+			d := newNotarizationTestDeps(nil)
+			cmd := validateStapleCommand(d)
 			if err := cmd.FlagSet.Parse([]string{"--file", "selected-artifact.dmg", "--output", "json"}); err != nil {
 				t.Fatalf("parse: %v", err)
 			}
 			var runErr error
-			stdout, stderr := captureNotarizationOutput(t, func() {
+			stdout, stderr := captureNotarizationOutput(t, d, func() {
 				runErr = cmd.Exec(context.Background(), nil)
 			})
 			if runErr == nil {
@@ -911,12 +1020,13 @@ func TestNotarizationValidateRejectsDirectoryQualifiedRegularFile(t *testing.T) 
 
 	for _, suffix := range []string{string(filepath.Separator), string(filepath.Separator) + "."} {
 		t.Run(fmt.Sprintf("suffix-%q", suffix), func(t *testing.T) {
-			cmd := validateStapleCommand()
+			d := newNotarizationTestDeps(nil)
+			cmd := validateStapleCommand(d)
 			if err := cmd.FlagSet.Parse([]string{"--file", target + suffix, "--output", "json"}); err != nil {
 				t.Fatalf("parse: %v", err)
 			}
 			var runErr error
-			stdout, stderr := captureNotarizationOutput(t, func() {
+			stdout, stderr := captureNotarizationOutput(t, d, func() {
 				runErr = cmd.Exec(context.Background(), cmd.FlagSet.Args())
 			})
 			if runErr == nil || !errors.Is(runErr, flag.ErrHelp) {
@@ -980,12 +1090,13 @@ func TestNotarizationValidateRejectsSymlinkParentBeforeLexicalParentTraversal(t 
 	}
 	t.Cleanup(func() { runStaplerValidate = previous })
 
-	cmd := validateStapleCommand()
+	d := newNotarizationTestDeps(nil)
+	cmd := validateStapleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--file", pathValue, "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureNotarizationOutput(t, func() {
+	stdout, stderr := captureNotarizationOutput(t, d, func() {
 		runErr = cmd.Exec(context.Background(), cmd.FlagSet.Args())
 	})
 	if runErr == nil || !errors.Is(runErr, flag.ErrHelp) {
@@ -1018,12 +1129,13 @@ func TestNotarizationValidateRejectsMissingParentBeforeLexicalParentTraversal(t 
 	}
 	t.Cleanup(func() { runStaplerValidate = previous })
 
-	cmd := validateStapleCommand()
+	d := newNotarizationTestDeps(nil)
+	cmd := validateStapleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--file", pathValue, "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureNotarizationOutput(t, func() {
+	stdout, stderr := captureNotarizationOutput(t, d, func() {
 		runErr = cmd.Exec(context.Background(), cmd.FlagSet.Args())
 	})
 	if runErr == nil || !errors.Is(runErr, flag.ErrHelp) {
@@ -1060,12 +1172,13 @@ func TestNotarizationValidateRejectsNonDirectoryParentBeforeLexicalParentTravers
 	}
 	t.Cleanup(func() { runStaplerValidate = previous })
 
-	cmd := validateStapleCommand()
+	d := newNotarizationTestDeps(nil)
+	cmd := validateStapleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--file", pathValue, "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureNotarizationOutput(t, func() {
+	stdout, stderr := captureNotarizationOutput(t, d, func() {
 		runErr = cmd.Exec(context.Background(), cmd.FlagSet.Args())
 	})
 	if runErr == nil || !errors.Is(runErr, flag.ErrHelp) {
@@ -1402,12 +1515,13 @@ func TestNotarizationValidateReportsPostProbeReplacementAsRuntimeFailure(t *test
 		runStaplerValidate = previousRunner
 	})
 
-	cmd := validateStapleCommand()
+	d := newNotarizationTestDeps(nil)
+	cmd := validateStapleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--file", target, "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureNotarizationOutput(t, func() {
+	stdout, stderr := captureNotarizationOutput(t, d, func() {
 		runErr = cmd.Exec(context.Background(), cmd.FlagSet.Args())
 	})
 	if runErr == nil {
@@ -1532,12 +1646,13 @@ func TestNotarizationValidateReportsFilesystemFailureWhenIdentityReopenFails(t *
 		runStaplerValidate = previousRunner
 	})
 
-	cmd := validateStapleCommand()
+	d := newNotarizationTestDeps(nil)
+	cmd := validateStapleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--file", target, "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureNotarizationOutput(t, func() {
+	stdout, stderr := captureNotarizationOutput(t, d, func() {
 		runErr = cmd.Exec(context.Background(), cmd.FlagSet.Args())
 	})
 	if runErr == nil {
@@ -1601,12 +1716,13 @@ func TestNotarizationValidateReportsNonRegularReplacementAtStage(t *testing.T) {
 		runStaplerValidate = previousRunner
 	})
 
-	cmd := validateStapleCommand()
+	d := newNotarizationTestDeps(nil)
+	cmd := validateStapleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--file", target, "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureNotarizationOutput(t, func() {
+	stdout, stderr := captureNotarizationOutput(t, d, func() {
 		runErr = cmd.Exec(context.Background(), cmd.FlagSet.Args())
 	})
 	if runErr == nil {
@@ -1667,12 +1783,13 @@ func TestNotarizationValidateReportsParentKindSwapAtStage(t *testing.T) {
 		runStaplerValidate = previousRunner
 	})
 
-	cmd := validateStapleCommand()
+	d := newNotarizationTestDeps(nil)
+	cmd := validateStapleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--file", target, "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureNotarizationOutput(t, func() {
+	stdout, stderr := captureNotarizationOutput(t, d, func() {
 		runErr = cmd.Exec(context.Background(), cmd.FlagSet.Args())
 	})
 	if runErr == nil {
@@ -1718,12 +1835,13 @@ func TestNotarizationValidateChildAndPostVerifierFailurePreservesExitAndStage(t 
 	}
 	t.Cleanup(func() { runStaplerValidate = previous })
 
-	cmd := validateStapleCommand()
+	d := newNotarizationTestDeps(nil)
+	cmd := validateStapleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--file", target, "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureNotarizationOutput(t, func() { runErr = cmd.Exec(context.Background(), nil) })
+	stdout, stderr := captureNotarizationOutput(t, d, func() { runErr = cmd.Exec(context.Background(), nil) })
 	if runErr == nil || !errors.Is(runErr, childErr) {
 		t.Fatalf("command error = %v, want child cause", runErr)
 	}
@@ -1763,12 +1881,13 @@ func TestNotarizationValidateChildAndOuterStageFailurePreservesExitAndStage(t *t
 	}
 	t.Cleanup(func() { runStaplerValidate = previous })
 
-	cmd := validateStapleCommand()
+	d := newNotarizationTestDeps(nil)
+	cmd := validateStapleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--file", target, "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureNotarizationOutput(t, func() { runErr = cmd.Exec(context.Background(), nil) })
+	stdout, stderr := captureNotarizationOutput(t, d, func() { runErr = cmd.Exec(context.Background(), nil) })
 	if runErr == nil || !errors.Is(runErr, childErr) {
 		t.Fatalf("command error = %v, want child cause", runErr)
 	}
@@ -1800,12 +1919,13 @@ func TestNotarizationStapleCancellationAndOuterStageFailurePreservesBoth(t *test
 	}
 	t.Cleanup(func() { runStaplerStaple = previous })
 
-	cmd := stapleCommand()
+	d := newNotarizationTestDeps(nil)
+	cmd := stapleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--file", target, "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureNotarizationOutput(t, func() { runErr = cmd.Exec(context.Background(), nil) })
+	stdout, stderr := captureNotarizationOutput(t, d, func() { runErr = cmd.Exec(context.Background(), nil) })
 	if runErr == nil || !errors.Is(runErr, context.Canceled) {
 		t.Fatalf("command error = %v, want cancellation cause", runErr)
 	}
@@ -1870,12 +1990,13 @@ func TestNotarizationValidateCommandPrintsComputedJSONWithoutStapling(t *testing
 	}
 	t.Cleanup(func() { runStaplerValidate = previous })
 
-	cmd := validateStapleCommand()
+	d := newNotarizationTestDeps(nil)
+	cmd := validateStapleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--file", target, "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureNotarizationOutput(t, func() { runErr = cmd.Exec(context.Background(), nil) })
+	stdout, stderr := captureNotarizationOutput(t, d, func() { runErr = cmd.Exec(context.Background(), nil) })
 	if runErr != nil {
 		t.Fatalf("validate command error = %v", runErr)
 	}
@@ -1925,12 +2046,13 @@ func TestNotarizationStapleRejectsTargetIdentityChangeAfterRunner(t *testing.T) 
 	}
 	t.Cleanup(func() { runStaplerStaple = previous })
 
-	cmd := stapleCommand()
+	d := newNotarizationTestDeps(nil)
+	cmd := stapleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--file", target, "--confirm"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureNotarizationOutput(t, func() {
+	stdout, stderr := captureNotarizationOutput(t, d, func() {
 		runErr = cmd.Exec(context.Background(), cmd.FlagSet.Args())
 	})
 	if runErr == nil {
@@ -1979,12 +2101,13 @@ func TestNotarizationStapleRejectsNestedReplacementBeforeValidation(t *testing.T
 	}
 	t.Cleanup(func() { runStaplerStaple = previous })
 
-	cmd := stapleCommand()
+	d := newNotarizationTestDeps(nil)
+	cmd := stapleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--file", target, "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureNotarizationOutput(t, func() { runErr = cmd.Exec(context.Background(), nil) })
+	stdout, stderr := captureNotarizationOutput(t, d, func() { runErr = cmd.Exec(context.Background(), nil) })
 	if runErr == nil {
 		t.Fatal("command error = nil, want nested replacement failure")
 	}
@@ -2030,12 +2153,13 @@ func TestNotarizationValidateRejectsTargetIdentityChangeAfterRunner(t *testing.T
 	}
 	t.Cleanup(func() { runStaplerValidate = previous })
 
-	cmd := validateStapleCommand()
+	d := newNotarizationTestDeps(nil)
+	cmd := validateStapleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--file", target}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureNotarizationOutput(t, func() {
+	stdout, stderr := captureNotarizationOutput(t, d, func() {
 		runErr = cmd.Exec(context.Background(), cmd.FlagSet.Args())
 	})
 	if runErr == nil {
@@ -2095,12 +2219,13 @@ func TestNotarizationValidateCommandReportsEACCESWithoutFallbackOrSuccess(t *tes
 		runStaplerValidate = previousRunner
 	})
 
-	cmd := validateStapleCommand()
+	d := newNotarizationTestDeps(nil)
+	cmd := validateStapleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--file", target, "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureNotarizationOutput(t, func() {
+	stdout, stderr := captureNotarizationOutput(t, d, func() {
 		runErr = cmd.Exec(context.Background(), cmd.FlagSet.Args())
 	})
 	if runErr == nil {
@@ -2218,12 +2343,13 @@ func TestNotarizationValidateDefaultTargetHelperDoesNotFallbackTraversalFailures
 				runStaplerValidate = previousRunner
 			})
 
-			cmd := validateStapleCommand()
+			d := newNotarizationTestDeps(nil)
+			cmd := validateStapleCommand(d)
 			if err := cmd.FlagSet.Parse([]string{"--file", target, "--output", "json"}); err != nil {
 				t.Fatalf("parse: %v", err)
 			}
 			var runErr error
-			stdout, stderr := captureNotarizationOutput(t, func() {
+			stdout, stderr := captureNotarizationOutput(t, d, func() {
 				runErr = cmd.Exec(context.Background(), cmd.FlagSet.Args())
 			})
 			if runErr == nil {
@@ -2306,12 +2432,13 @@ func TestNotarizationStapleRejectsInvalidTargetsBeforeRunner(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			cmd := stapleCommand()
+			d := newNotarizationTestDeps(nil)
+			cmd := stapleCommand(d)
 			if err := cmd.FlagSet.Parse([]string{"--file", test.path, "--confirm"}); err != nil {
 				t.Fatalf("parse: %v", err)
 			}
 			var runErr error
-			_, stderr := captureNotarizationOutput(t, func() { runErr = cmd.Exec(context.Background(), nil) })
+			_, stderr := captureNotarizationOutput(t, d, func() { runErr = cmd.Exec(context.Background(), nil) })
 			if runErr == nil || !errors.Is(runErr, flag.ErrHelp) {
 				t.Fatalf("command error = %v, want usage error", runErr)
 			}
@@ -2333,12 +2460,13 @@ func TestNotarizationStapleRejectsPositionalArgumentsBeforeRunner(t *testing.T) 
 	}
 	t.Cleanup(func() { runStaplerStaple = previous })
 
-	cmd := stapleCommand()
+	d := newNotarizationTestDeps(nil)
+	cmd := stapleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--file", "artifact.dmg", "--confirm", "unexpected"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	var runErr error
-	_, stderr := captureNotarizationOutput(t, func() { runErr = cmd.Exec(context.Background(), cmd.FlagSet.Args()) })
+	_, stderr := captureNotarizationOutput(t, d, func() { runErr = cmd.Exec(context.Background(), cmd.FlagSet.Args()) })
 	if runErr == nil || !errors.Is(runErr, flag.ErrHelp) {
 		t.Fatalf("command error = %v, want usage error", runErr)
 	}
@@ -2365,12 +2493,13 @@ func TestNotarizationStapleRejectsInvalidOutputBeforeRunner(t *testing.T) {
 		{"--file", target, "--confirm", "--output", "table", "--pretty"},
 		{"--file", "", "--confirm"},
 	} {
-		cmd := stapleCommand()
+		d := newNotarizationTestDeps(nil)
+		cmd := stapleCommand(d)
 		if err := cmd.FlagSet.Parse(args); err != nil {
 			t.Fatalf("parse %v: %v", args, err)
 		}
 		var runErr error
-		_, stderr := captureNotarizationOutput(t, func() {
+		_, stderr := captureNotarizationOutput(t, d, func() {
 			runErr = cmd.Exec(context.Background(), cmd.FlagSet.Args())
 		})
 		if runErr == nil || !errors.Is(runErr, flag.ErrHelp) {
@@ -2399,12 +2528,13 @@ func TestNotarizationStapleRejectsUnverifiedRunnerResult(t *testing.T) {
 	}
 	t.Cleanup(func() { runStaplerStaple = previous })
 
-	cmd := stapleCommand()
+	d := newNotarizationTestDeps(nil)
+	cmd := stapleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--file", target, "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureNotarizationOutput(t, func() {
+	stdout, stderr := captureNotarizationOutput(t, d, func() {
 		runErr = cmd.Exec(context.Background(), cmd.FlagSet.Args())
 	})
 	if runErr == nil {
@@ -2436,12 +2566,13 @@ func TestNotarizationStapleFailurePreservesChildExitStatusAndDoesNotPrintJSON(t 
 	}
 	t.Cleanup(func() { runStaplerStaple = previous })
 
-	cmd := stapleCommand()
+	d := newNotarizationTestDeps(nil)
+	cmd := stapleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--file", target, "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureNotarizationOutput(t, func() { runErr = cmd.Exec(context.Background(), nil) })
+	stdout, stderr := captureNotarizationOutput(t, d, func() { runErr = cmd.Exec(context.Background(), nil) })
 	if runErr == nil {
 		t.Fatal("command error = nil, want child failure")
 	}
@@ -2511,12 +2642,13 @@ func TestNotarizationStapleCancellationAfterMutationReportsUnverified(t *testing
 				runStaplerStaple = previous
 			})
 
-			cmd := stapleCommand()
+			d := newNotarizationTestDeps(nil)
+			cmd := stapleCommand(d)
 			if err := cmd.FlagSet.Parse([]string{"--file", target, "--confirm", "--output", "json"}); err != nil {
 				t.Fatalf("parse: %v", err)
 			}
 			var runErr error
-			stdout, stderr := captureNotarizationOutput(t, func() { runErr = cmd.Exec(ctx, nil) })
+			stdout, stderr := captureNotarizationOutput(t, d, func() { runErr = cmd.Exec(ctx, nil) })
 			if runErr == nil || !errors.Is(runErr, test.cause) {
 				t.Fatalf("command error = %v, want %v", runErr, test.cause)
 			}
@@ -2575,12 +2707,13 @@ func TestNotarizationValidateInventoryCancellationPreservesCommandContext(t *tes
 			}
 			t.Cleanup(func() { runStaplerValidate = previousRunner })
 
-			cmd := validateStapleCommand()
+			d := newNotarizationTestDeps(nil)
+			cmd := validateStapleCommand(d)
 			if err := cmd.FlagSet.Parse([]string{"--file", targetPath, "--output", "json"}); err != nil {
 				t.Fatalf("parse: %v", err)
 			}
 			var runErr error
-			stdout, stderr := captureNotarizationOutput(t, func() {
+			stdout, stderr := captureNotarizationOutput(t, d, func() {
 				runErr = cmd.Exec(test.ctx, nil)
 			})
 			if runnerCalls != 1 {
@@ -2650,12 +2783,13 @@ func TestNotarizationValidateRejectsEarlierSubtreeMutationBeforeChild(t *testing
 	}
 	t.Cleanup(func() { runStaplerValidate = previousRunner })
 
-	cmd := validateStapleCommand()
+	d := newNotarizationTestDeps(nil)
+	cmd := validateStapleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--file", targetPath, "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureNotarizationOutput(t, func() {
+	stdout, stderr := captureNotarizationOutput(t, d, func() {
 		runErr = cmd.Exec(context.Background(), nil)
 	})
 	if runErr == nil {
@@ -2702,12 +2836,13 @@ func TestNotarizationStapleInterruptedChildStatusProjectsExitCode(t *testing.T) 
 	}
 	t.Cleanup(func() { runStaplerStaple = previous })
 
-	cmd := stapleCommand()
+	d := newNotarizationTestDeps(nil)
+	cmd := stapleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--file", target, "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureNotarizationOutput(t, func() { runErr = cmd.Exec(context.Background(), nil) })
+	stdout, stderr := captureNotarizationOutput(t, d, func() { runErr = cmd.Exec(context.Background(), nil) })
 	if runErr == nil {
 		t.Fatal("staple command error = nil, want interrupted partial-mutation failure")
 	}
@@ -2751,12 +2886,13 @@ func TestNotarizationStapleInterruptedWithoutChildStatusUsesGenericExit(t *testi
 	}
 	t.Cleanup(func() { runStaplerStaple = previous })
 
-	cmd := stapleCommand()
+	d := newNotarizationTestDeps(nil)
+	cmd := stapleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--file", target, "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureNotarizationOutput(t, func() { runErr = cmd.Exec(context.Background(), nil) })
+	stdout, stderr := captureNotarizationOutput(t, d, func() { runErr = cmd.Exec(context.Background(), nil) })
 	if runErr == nil {
 		t.Fatal("staple command error = nil, want interrupted partial-mutation failure")
 	}
@@ -2792,12 +2928,13 @@ func TestNotarizationStapleInterruptedDuringInitialChildDoesNotClaimCompletion(t
 	}
 	t.Cleanup(func() { runStaplerStaple = previous })
 
-	cmd := stapleCommand()
+	d := newNotarizationTestDeps(nil)
+	cmd := stapleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--file", target, "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureNotarizationOutput(t, func() { runErr = cmd.Exec(context.Background(), nil) })
+	stdout, stderr := captureNotarizationOutput(t, d, func() { runErr = cmd.Exec(context.Background(), nil) })
 	if runErr == nil || !errors.Is(runErr, context.Canceled) {
 		t.Fatalf("command error = %v, want cancellation cause", runErr)
 	}
@@ -2837,12 +2974,13 @@ func TestNotarizationStapleSignalDuringInitialChildReportsUnverified(t *testing.
 	}
 	t.Cleanup(func() { runStaplerStaple = previous })
 
-	cmd := stapleCommand()
+	d := newNotarizationTestDeps(nil)
+	cmd := stapleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--file", target, "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureNotarizationOutput(t, func() { runErr = cmd.Exec(context.Background(), nil) })
+	stdout, stderr := captureNotarizationOutput(t, d, func() { runErr = cmd.Exec(context.Background(), nil) })
 	if runErr == nil {
 		t.Fatal("command error = nil, want signaled staple failure")
 	}
@@ -2884,12 +3022,13 @@ func TestNotarizationStaplePostStapleVerifierFailureReportsUnverified(t *testing
 	}
 	t.Cleanup(func() { runStaplerStaple = previous })
 
-	cmd := stapleCommand()
+	d := newNotarizationTestDeps(nil)
+	cmd := stapleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--file", target, "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureNotarizationOutput(t, func() { runErr = cmd.Exec(context.Background(), nil) })
+	stdout, stderr := captureNotarizationOutput(t, d, func() { runErr = cmd.Exec(context.Background(), nil) })
 	if runErr == nil || !errors.Is(runErr, wantErr) {
 		t.Fatalf("command error = %v, want preserved verifier cause", runErr)
 	}
@@ -2928,12 +3067,13 @@ func TestNotarizationValidateRejectsNestedReplacementAfterChild(t *testing.T) {
 	}
 	t.Cleanup(func() { runStaplerValidate = previous })
 
-	cmd := validateStapleCommand()
+	d := newNotarizationTestDeps(nil)
+	cmd := validateStapleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--file", target, "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureNotarizationOutput(t, func() { runErr = cmd.Exec(context.Background(), nil) })
+	stdout, stderr := captureNotarizationOutput(t, d, func() { runErr = cmd.Exec(context.Background(), nil) })
 	if runErr == nil {
 		t.Fatal("command error = nil, want nested replacement failure")
 	}
@@ -2969,12 +3109,13 @@ func TestNotarizationValidateDirectoryBundleWithStableNestedInventorySucceeds(t 
 	}
 	t.Cleanup(func() { runStaplerValidate = previous })
 
-	cmd := validateStapleCommand()
+	d := newNotarizationTestDeps(nil)
+	cmd := validateStapleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--file", target, "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureNotarizationOutput(t, func() { runErr = cmd.Exec(context.Background(), nil) })
+	stdout, stderr := captureNotarizationOutput(t, d, func() { runErr = cmd.Exec(context.Background(), nil) })
 	if runErr != nil {
 		t.Fatalf("command error = %v, want unchanged nested inventory success", runErr)
 	}
@@ -3015,12 +3156,13 @@ func TestNotarizationStapleJoinedChildAndPostStapleVerifierFailureReportsUnverif
 	}
 	t.Cleanup(func() { runStaplerStaple = previous })
 
-	cmd := stapleCommand()
+	d := newNotarizationTestDeps(nil)
+	cmd := stapleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--file", target, "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureNotarizationOutput(t, func() { runErr = cmd.Exec(context.Background(), nil) })
+	stdout, stderr := captureNotarizationOutput(t, d, func() { runErr = cmd.Exec(context.Background(), nil) })
 	if runErr == nil || !errors.Is(runErr, wantErr) {
 		t.Fatalf("command error = %v, want preserved verifier cause", runErr)
 	}
@@ -3069,12 +3211,13 @@ func TestNotarizationStapleChildAndPostVerifierFailureDoesNotClaimCompletion(t *
 	}
 	t.Cleanup(func() { runStaplerStaple = previous })
 
-	cmd := stapleCommand()
+	d := newNotarizationTestDeps(nil)
+	cmd := stapleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--file", target, "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureNotarizationOutput(t, func() { runErr = cmd.Exec(context.Background(), nil) })
+	stdout, stderr := captureNotarizationOutput(t, d, func() { runErr = cmd.Exec(context.Background(), nil) })
 	if runErr == nil || !errors.Is(runErr, wantErr) {
 		t.Fatalf("command error = %v, want failed-staple and verifier causes", runErr)
 	}
@@ -3115,12 +3258,13 @@ func TestNotarizationStaplePrioritizesPostStaplePartialMutation(t *testing.T) {
 	}
 	t.Cleanup(func() { runStaplerStaple = previous })
 
-	cmd := stapleCommand()
+	d := newNotarizationTestDeps(nil)
+	cmd := stapleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--file", target, "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureNotarizationOutput(t, func() { runErr = cmd.Exec(context.Background(), nil) })
+	stdout, stderr := captureNotarizationOutput(t, d, func() { runErr = cmd.Exec(context.Background(), nil) })
 	if runErr == nil || !errors.Is(runErr, wantErr) {
 		t.Fatalf("command error = %v, want preserved partial verifier cause", runErr)
 	}
@@ -3162,12 +3306,13 @@ func TestNotarizationStaplePreValidationVerifierFailureReportsActualStage(t *tes
 	}
 	t.Cleanup(func() { runStaplerStaple = previous })
 
-	cmd := stapleCommand()
+	d := newNotarizationTestDeps(nil)
+	cmd := stapleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--file", target, "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureNotarizationOutput(t, func() { runErr = cmd.Exec(context.Background(), nil) })
+	stdout, stderr := captureNotarizationOutput(t, d, func() { runErr = cmd.Exec(context.Background(), nil) })
 	if runErr == nil {
 		t.Fatal("command error = nil, want pre-validation verifier failure")
 	}
@@ -3218,12 +3363,13 @@ func TestNotarizationStaplePostValidationVerifierFailureReportsUnverified(t *tes
 	}
 	t.Cleanup(func() { runStaplerStaple = previous })
 
-	cmd := stapleCommand()
+	d := newNotarizationTestDeps(nil)
+	cmd := stapleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--file", target, "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureNotarizationOutput(t, func() { runErr = cmd.Exec(context.Background(), nil) })
+	stdout, stderr := captureNotarizationOutput(t, d, func() { runErr = cmd.Exec(context.Background(), nil) })
 	if runErr == nil || !errors.Is(runErr, wantErr) {
 		t.Fatalf("command error = %v, want preserved verifier cause", runErr)
 	}
@@ -3288,12 +3434,13 @@ func TestNotarizationStapleProductionRunnerProjectsInventoryMismatchAsPartialMut
 	runStaplerStaple = localxcode.StapleWithVerifier
 	t.Cleanup(func() { runStaplerStaple = previous })
 
-	cmd := stapleCommand()
+	d := newNotarizationTestDeps(nil)
+	cmd := stapleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--file", target, "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureNotarizationOutput(t, func() { runErr = cmd.Exec(context.Background(), nil) })
+	stdout, stderr := captureNotarizationOutput(t, d, func() { runErr = cmd.Exec(context.Background(), nil) })
 	if runErr == nil {
 		t.Fatal("staple command error = nil, want partial-mutation failure")
 	}
@@ -3354,7 +3501,8 @@ func TestNotarizationValidateCommandReportsContextKilledChildAsCanceled(t *testi
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	cmd := validateStapleCommand()
+	d := newNotarizationTestDeps(nil)
+	cmd := validateStapleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--file", target, "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
@@ -3362,7 +3510,7 @@ func TestNotarizationValidateCommandReportsContextKilledChildAsCanceled(t *testi
 	var stdout, stderr string
 	done := make(chan struct{})
 	go func() {
-		stdout, stderr = captureNotarizationOutput(t, func() { runErr = cmd.Exec(ctx, nil) })
+		stdout, stderr = captureNotarizationOutput(t, d, func() { runErr = cmd.Exec(ctx, nil) })
 		close(done)
 	}()
 
@@ -3437,7 +3585,8 @@ func TestNotarizationValidateCommandReportsContextKilledResolverAsCanceled(t *te
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	cmd := validateStapleCommand()
+	d := newNotarizationTestDeps(nil)
+	cmd := validateStapleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--file", target, "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
@@ -3445,7 +3594,7 @@ func TestNotarizationValidateCommandReportsContextKilledResolverAsCanceled(t *te
 	var stdout, stderr string
 	done := make(chan struct{})
 	go func() {
-		stdout, stderr = captureNotarizationOutput(t, func() { runErr = cmd.Exec(ctx, nil) })
+		stdout, stderr = captureNotarizationOutput(t, d, func() { runErr = cmd.Exec(ctx, nil) })
 		close(done)
 	}()
 
@@ -3508,12 +3657,13 @@ func TestNotarizationValidateStartFailureRedactsUnderlyingDiagnostic(t *testing.
 	}
 	t.Cleanup(func() { runStaplerValidate = previous })
 
-	cmd := validateStapleCommand()
+	d := newNotarizationTestDeps(nil)
+	cmd := validateStapleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--file", target, "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureNotarizationOutput(t, func() { runErr = cmd.Exec(context.Background(), nil) })
+	stdout, stderr := captureNotarizationOutput(t, d, func() { runErr = cmd.Exec(context.Background(), nil) })
 	if runErr == nil {
 		t.Fatal("command error = nil, want start failure")
 	}
@@ -3547,12 +3697,13 @@ func TestNotarizationValidateResolutionFailureRedactsLookupPath(t *testing.T) {
 	}
 	t.Cleanup(func() { runStaplerValidate = previous })
 
-	cmd := validateStapleCommand()
+	d := newNotarizationTestDeps(nil)
+	cmd := validateStapleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--file", target, "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureNotarizationOutput(t, func() { runErr = cmd.Exec(context.Background(), nil) })
+	stdout, stderr := captureNotarizationOutput(t, d, func() { runErr = cmd.Exec(context.Background(), nil) })
 	if runErr == nil || !errors.Is(runErr, underlying) {
 		t.Fatalf("command error = %v, want lookup cause", runErr)
 	}
@@ -3587,12 +3738,13 @@ func TestNotarizationValidateResolverDiagnosticRedactsPath(t *testing.T) {
 	}
 	t.Cleanup(func() { runStaplerValidate = previous })
 
-	cmd := validateStapleCommand()
+	d := newNotarizationTestDeps(nil)
+	cmd := validateStapleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--file", target, "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureNotarizationOutput(t, func() { runErr = cmd.Exec(context.Background(), nil) })
+	stdout, stderr := captureNotarizationOutput(t, d, func() { runErr = cmd.Exec(context.Background(), nil) })
 	if runErr == nil || !errors.Is(runErr, underlying) {
 		t.Fatalf("command error = %v, want resolver cause", runErr)
 	}
@@ -3607,37 +3759,13 @@ func TestNotarizationValidateResolverDiagnosticRedactsPath(t *testing.T) {
 	}
 }
 
-func captureNotarizationOutput(t *testing.T, fn func()) (string, string) {
+func captureNotarizationOutput(t *testing.T, d *shared.Deps, fn func()) (string, string) {
 	t.Helper()
-	oldStdout, oldStderr := os.Stdout, os.Stderr
-	rOut, wOut, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("create stdout pipe: %v", err)
-	}
-	rErr, wErr, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("create stderr pipe: %v", err)
-	}
-	os.Stdout, os.Stderr = wOut, wErr
-	outC := make(chan string, 1)
-	errC := make(chan string, 1)
-	go func() {
-		var buf bytes.Buffer
-		_, _ = io.Copy(&buf, rOut)
-		_ = rOut.Close()
-		outC <- buf.String()
-	}()
-	go func() {
-		var buf bytes.Buffer
-		_, _ = io.Copy(&buf, rErr)
-		_ = rErr.Close()
-		errC <- buf.String()
-	}()
+	stdout, stderr := d.IO.Out.(*bytes.Buffer), d.IO.ErrOut.(*bytes.Buffer)
+	stdout.Reset()
+	stderr.Reset()
 	fn()
-	_ = wOut.Close()
-	_ = wErr.Close()
-	os.Stdout, os.Stderr = oldStdout, oldStderr
-	return <-outC, <-errC
+	return stdout.String(), stderr.String()
 }
 
 func invokeStapleVerifier(verifier localxcode.StaplerStageVerifier) error {
@@ -3714,12 +3842,13 @@ func TestValidateStaplerTargetRejectsUnsearchableLexicalParentBeforeClean(t *tes
 	}
 	t.Cleanup(func() { runStaplerValidate = previousRunner })
 
-	cmd := validateStapleCommand()
+	d := newNotarizationTestDeps(nil)
+	cmd := validateStapleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--file", pathValue, "--output", "json"}); err != nil {
 		t.Fatalf("parse flags: %v", err)
 	}
 	var runErr error
-	stdout, _ := captureNotarizationOutput(t, func() {
+	stdout, _ := captureNotarizationOutput(t, d, func() {
 		runErr = cmd.Exec(context.Background(), cmd.FlagSet.Args())
 	})
 	if runErr == nil || isStaplerTargetUsageError(runErr) {
@@ -3932,12 +4061,13 @@ func TestNotarizationValidateCommandUsesSearchOnlyRegularFileFallback(t *testing
 			}
 			t.Cleanup(func() { runStaplerValidate = previousRunner })
 
-			cmd := validateStapleCommand()
+			d := newNotarizationTestDeps(nil)
+			cmd := validateStapleCommand(d)
 			if err := cmd.FlagSet.Parse([]string{"--file", pathValue, "--output", "json"}); err != nil {
 				t.Fatalf("parse: %v", err)
 			}
 			var runErr error
-			stdout, stderr := captureNotarizationOutput(t, func() {
+			stdout, stderr := captureNotarizationOutput(t, d, func() {
 				runErr = cmd.Exec(context.Background(), nil)
 			})
 			if runErr != nil {
@@ -4077,12 +4207,13 @@ func TestNotarizationValidateCommandPreservesSearchOnlyUsageErrors(t *testing.T)
 			}
 			t.Cleanup(func() { runStaplerValidate = previousRunner })
 
-			cmd := validateStapleCommand()
+			d := newNotarizationTestDeps(nil)
+			cmd := validateStapleCommand(d)
 			if err := cmd.FlagSet.Parse([]string{"--file", pathValue, "--output", "json"}); err != nil {
 				t.Fatalf("parse: %v", err)
 			}
 			var runErr error
-			stdout, stderr := captureNotarizationOutput(t, func() {
+			stdout, stderr := captureNotarizationOutput(t, d, func() {
 				runErr = cmd.Exec(context.Background(), cmd.FlagSet.Args())
 			})
 			if runErr == nil || !errors.Is(runErr, flag.ErrHelp) || shared.ClassifyUsageError(runErr) == "" {
@@ -4299,12 +4430,13 @@ func TestNotarizationStapleReportsDiagnosticCopyFailureWithoutClaimingValidation
 	}
 	t.Cleanup(func() { runStaplerStaple = previous })
 
-	cmd := stapleCommand()
+	d := newNotarizationTestDeps(nil)
+	cmd := stapleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--file", targetPath, "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureNotarizationOutput(t, func() { runErr = cmd.Exec(context.Background(), nil) })
+	stdout, stderr := captureNotarizationOutput(t, d, func() { runErr = cmd.Exec(context.Background(), nil) })
 	if runErr == nil {
 		t.Fatal("staple command error = nil, want diagnostic copy failure")
 	}
@@ -4349,12 +4481,13 @@ func TestNotarizationStapleReportsFailedChildWithoutStatusAsUnverified(t *testin
 	}
 	t.Cleanup(func() { runStaplerStaple = previous })
 
-	cmd := stapleCommand()
+	d := newNotarizationTestDeps(nil)
+	cmd := stapleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--file", target, "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureNotarizationOutput(t, func() { runErr = cmd.Exec(context.Background(), nil) })
+	stdout, stderr := captureNotarizationOutput(t, d, func() { runErr = cmd.Exec(context.Background(), nil) })
 	if runErr == nil {
 		t.Fatal("staple command error = nil, want failed staple child")
 	}
@@ -4401,12 +4534,13 @@ func TestNotarizationStapleReportsValidationDiagnosticCopyFailureAsCompleted(t *
 	}
 	t.Cleanup(func() { runStaplerStaple = previous })
 
-	cmd := stapleCommand()
+	d := newNotarizationTestDeps(nil)
+	cmd := stapleCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--file", targetPath, "--confirm", "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureNotarizationOutput(t, func() { runErr = cmd.Exec(context.Background(), nil) })
+	stdout, stderr := captureNotarizationOutput(t, d, func() { runErr = cmd.Exec(context.Background(), nil) })
 	if runErr == nil {
 		t.Fatal("staple command error = nil, want diagnostic copy failure")
 	}

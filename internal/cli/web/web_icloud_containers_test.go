@@ -28,7 +28,8 @@ func TestWebICloudContainersCommandHierarchy(t *testing.T) {
 		t.Fatal("iCloud container list must not advertise --paginate")
 	}
 
-	root := WebCommand()
+	d, _, _ := newWebTestDeps()
+	root := NewWebCommand(d)
 	var found bool
 	for _, subcommand := range root.Subcommands {
 		if subcommand.Name == "icloud-containers" {

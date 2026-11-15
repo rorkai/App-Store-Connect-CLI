@@ -10,11 +10,13 @@ import (
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	localxcode "github.com/rudrankriyam/App-Store-Connect-CLI/internal/xcode"
 )
 
 func TestXcodeCommandIncludesInstall(t *testing.T) {
-	command := XcodeCommand()
+	d := newXcodeTestDeps(nil)
+	command := NewXcodeCommand(d)
 	for _, subcommand := range command.Subcommands {
 		if subcommand.Name == "install" {
 			return
@@ -24,13 +26,14 @@ func TestXcodeCommandIncludesInstall(t *testing.T) {
 }
 
 func TestXcodeInstallRequiresInputs(t *testing.T) {
-	command := XcodeInstallCommand()
+	d := newXcodeTestDeps(nil)
+	command := newXcodeInstallCommand(d)
 	command.FlagSet.SetOutput(io.Discard)
 	if err := command.FlagSet.Parse(nil); err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}
 	var runErr error
-	_, stderr := captureCommandOutput(t, func() error {
+	_, stderr := captureCommandOutput(t, d, func() error {
 		runErr = command.Exec(context.Background(), nil)
 		return runErr
 	})
@@ -56,12 +59,13 @@ func TestXcodeInstallPrintsPrivacySafeResult(t *testing.T) {
 			DurationMS: 12,
 		}, nil
 	}
-	command := XcodeInstallCommand()
+	d := newXcodeTestDeps(nil)
+	command := newXcodeInstallCommand(d)
 	command.FlagSet.SetOutput(io.Discard)
 	if err := command.FlagSet.Parse([]string{"--ipa", "Demo.ipa", "--device-id", "SELECTOR_CANARY", "--timeout", "5m", "--output", "json"}); err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}
-	stdout, stderr := captureCommandOutput(t, func() error { return command.Exec(context.Background(), nil) })
+	stdout, stderr := captureCommandOutput(t, d, func() error { return command.Exec(context.Background(), nil) })
 	var result asc.XcodeInstallResult
 	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
 		t.Fatalf("JSON output error = %v; stdout=%q", err, stdout)
@@ -84,12 +88,13 @@ func TestXcodeInstallReportsOperationalFailureAfterResult(t *testing.T) {
 			FailureStage: "verification", FailureCode: "verification_failed",
 		}, errors.New(rawError)
 	}
-	command := XcodeInstallCommand()
+	d := newXcodeTestDeps(nil)
+	command := newXcodeInstallCommand(d)
 	command.FlagSet.SetOutput(io.Discard)
 	if err := command.FlagSet.Parse([]string{"--ipa", "Demo.ipa", "--device-id", "SELECTOR_CANARY", "--output", "json"}); err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}
-	stdout, stderr := captureCommandOutput(t, func() error { return command.Exec(context.Background(), nil) })
+	stdout, stderr := captureCommandOutput(t, d, func() error { return command.Exec(context.Background(), nil) })
 	if !strings.Contains(stdout, `"installed":true`) || !strings.Contains(stderr, "Error: xcode install failed at verification (verification_failed)") {
 		t.Fatalf("stdout/stderr = %q/%q", stdout, stderr)
 	}
@@ -113,15 +118,16 @@ func TestXcodeInstallRedactsRendererFailure(t *testing.T) {
 			SchemaVersion: 1, Operation: "xcode.install", FailureStage: "verification", FailureCode: "verification_failed",
 		}, rawInstallErr
 	}
-	printInstallOutput = func(any, string, bool) error { return renderErr }
+	printInstallOutput = func(*shared.Deps, any, string, bool) error { return renderErr }
 
-	command := XcodeInstallCommand()
+	d := newXcodeTestDeps(nil)
+	command := newXcodeInstallCommand(d)
 	command.FlagSet.SetOutput(io.Discard)
 	if err := command.FlagSet.Parse([]string{"--ipa", "Demo.ipa", "--device-id", "SELECTOR_CANARY", "--output", "json"}); err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureCommandOutput(t, func() error {
+	stdout, stderr := captureCommandOutput(t, d, func() error {
 		runErr = command.Exec(context.Background(), nil)
 		return runErr
 	})
@@ -150,13 +156,14 @@ func TestXcodeInstallRedactsNilResultOperationalFailure(t *testing.T) {
 		return nil, rawInstallErr
 	}
 
-	command := XcodeInstallCommand()
+	d := newXcodeTestDeps(nil)
+	command := newXcodeInstallCommand(d)
 	command.FlagSet.SetOutput(io.Discard)
 	if err := command.FlagSet.Parse([]string{"--ipa", "Demo.ipa", "--device-id", "SELECTOR_CANARY", "--output", "json"}); err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureCommandOutput(t, func() error {
+	stdout, stderr := captureCommandOutput(t, d, func() error {
 		runErr = command.Exec(context.Background(), nil)
 		return runErr
 	})
@@ -177,13 +184,14 @@ func TestXcodeInstallRedactsNilResultOperationalFailure(t *testing.T) {
 }
 
 func TestXcodeInstallRejectsInvalidTimeoutAsUsage(t *testing.T) {
-	command := XcodeInstallCommand()
+	d := newXcodeTestDeps(nil)
+	command := newXcodeInstallCommand(d)
 	command.FlagSet.SetOutput(io.Discard)
 	if err := command.FlagSet.Parse([]string{"--ipa", "Demo.ipa", "--device-id", "SELECTOR_CANARY", "--timeout", "1s"}); err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}
 	var runErr error
-	_, stderr := captureCommandOutput(t, func() error {
+	_, stderr := captureCommandOutput(t, d, func() error {
 		runErr = command.Exec(context.Background(), nil)
 		return runErr
 	})

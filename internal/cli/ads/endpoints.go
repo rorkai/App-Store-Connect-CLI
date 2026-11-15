@@ -111,7 +111,7 @@ func buildNodeCommand(d *shared.Deps, node *commandNode, parentPath []string) *f
 		ShortHelp:   endpointShortHelp(node),
 		LongHelp:    endpointLongHelp(node, path),
 		FlagSet:     fs,
-		UsageFunc:   shared.DefaultUsageFunc,
+		UsageFunc:   d.DefaultUsageFunc,
 		Subcommands: subcommands,
 	}
 	if node.spec != nil {

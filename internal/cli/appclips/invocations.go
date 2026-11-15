@@ -26,7 +26,7 @@ Examples:
   asc app-clips invocations list --build-bundle-id "BUILD_BUNDLE_ID"
   asc app-clips invocations create --build-bundle-id "BUILD_BUNDLE_ID" --url "https://example.com/clip" --locale "en-US" --title "Try it"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newAppClipInvocationsListCommand(d),
 			newAppClipInvocationsGetCommand(d),
@@ -61,7 +61,7 @@ Examples:
   asc app-clips invocations list --build-bundle-id "BUILD_BUNDLE_ID"
   asc app-clips invocations list --build-bundle-id "BUILD_BUNDLE_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "app-clips invocations list", 200); err != nil {
 				return err
@@ -166,7 +166,7 @@ Examples:
   asc app-clips invocations create --build-bundle-id "BUILD_BUNDLE_ID" --url "https://example.com/clip" --locale "en-US" --title "Try it"
   asc app-clips invocations create --build-bundle-id "BUILD_BUNDLE_ID" --url "https://example.com/clip" --localization-id "LOC_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			buildBundleValue := strings.TrimSpace(*buildBundleID)
 			if buildBundleValue == "" {

@@ -26,7 +26,7 @@ func TestShotsReviewOpen_DryRun(t *testing.T) {
 		t.Fatalf("WriteFile(index.html) error: %v", err)
 	}
 
-	root := RootCommand("1.2.3")
+	root, rootStdout, rootStderr := shotsRootWithDeps(t)
 	if err := root.Parse([]string{
 		"screenshots", "review-open",
 		"--output-dir", outputDir,
@@ -36,11 +36,10 @@ func TestShotsReviewOpen_DryRun(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	if err := root.Run(context.Background()); err != nil {
+		t.Fatalf("run error: %v", err)
+	}
+	stdout, stderr := rootStdout.String(), rootStderr.String()
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
@@ -72,7 +71,7 @@ func TestShotsReviewOpenPreservesWhitespaceHTMLPath(t *testing.T) {
 	if err := os.WriteFile(htmlPath, []byte("<html><body>ok</body></html>"), 0o644); err != nil {
 		t.Fatalf("write whitespace HTML: %v", err)
 	}
-	root := RootCommand("1.2.3")
+	root, rootStdout, rootStderr := shotsRootWithDeps(t)
 	if err := root.Parse([]string{
 		"screenshots", "review-open",
 		"--output-dir", outputDir,
@@ -81,11 +80,10 @@ func TestShotsReviewOpenPreservesWhitespaceHTMLPath(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	if err := root.Run(context.Background()); err != nil {
+		t.Fatalf("run error: %v", err)
+	}
+	stdout, stderr := rootStdout.String(), rootStderr.String()
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
@@ -125,7 +123,7 @@ func TestShotsReviewApprove_AllReady(t *testing.T) {
 		t.Fatalf("WriteFile(manifest) error: %v", err)
 	}
 
-	root := RootCommand("1.2.3")
+	root, rootStdout, rootStderr := shotsRootWithDeps(t)
 	if err := root.Parse([]string{
 		"screenshots", "review-approve",
 		"--output-dir", outputDir,
@@ -135,11 +133,10 @@ func TestShotsReviewApprove_AllReady(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	if err := root.Run(context.Background()); err != nil {
+		t.Fatalf("run error: %v", err)
+	}
+	stdout, stderr := rootStdout.String(), rootStderr.String()
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
@@ -187,7 +184,7 @@ func TestShotsReviewApprovePreservesWhitespaceManifestPath(t *testing.T) {
 }`), 0o644); err != nil {
 		t.Fatalf("write whitespace manifest: %v", err)
 	}
-	root := RootCommand("1.2.3")
+	root, rootStdout, rootStderr := shotsRootWithDeps(t)
 	if err := root.Parse([]string{
 		"screenshots", "review-approve",
 		"--output-dir", outputDir,
@@ -197,11 +194,10 @@ func TestShotsReviewApprovePreservesWhitespaceManifestPath(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	if err := root.Run(context.Background()); err != nil {
+		t.Fatalf("run error: %v", err)
+	}
+	stdout, stderr := rootStdout.String(), rootStderr.String()
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
@@ -237,7 +233,7 @@ func TestShotsReviewApprovePreservesWhitespaceApprovalPath(t *testing.T) {
 	if err := os.WriteFile(approvalPath, []byte("[]\n"), 0o600); err != nil {
 		t.Fatalf("write whitespace approval: %v", err)
 	}
-	root := RootCommand("1.2.3")
+	root, rootStdout, rootStderr := shotsRootWithDeps(t)
 	if err := root.Parse([]string{
 		"screenshots", "review-approve",
 		"--output-dir", outputDir,
@@ -247,11 +243,10 @@ func TestShotsReviewApprovePreservesWhitespaceApprovalPath(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	if err := root.Run(context.Background()); err != nil {
+		t.Fatalf("run error: %v", err)
+	}
+	stdout, stderr := rootStdout.String(), rootStderr.String()
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
@@ -290,7 +285,7 @@ func TestShotsReviewApprove_LocaleDeviceSelectors(t *testing.T) {
 		t.Fatalf("WriteFile(manifest) error: %v", err)
 	}
 
-	root := RootCommand("1.2.3")
+	root, rootStdout, rootStderr := shotsRootWithDeps(t)
 	if err := root.Parse([]string{
 		"screenshots", "review-approve",
 		"--output-dir", outputDir,
@@ -301,11 +296,10 @@ func TestShotsReviewApprove_LocaleDeviceSelectors(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	if err := root.Run(context.Background()); err != nil {
+		t.Fatalf("run error: %v", err)
+	}
+	stdout, stderr := rootStdout.String(), rootStderr.String()
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
@@ -330,7 +324,7 @@ func TestShotsReviewApprove_RequiresSelector(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
 
-	root := RootCommand("1.2.3")
+	root, rootStdout, rootStderr := shotsRootWithDeps(t)
 	root.FlagSet.SetOutput(io.Discard)
 	if err := root.Parse([]string{
 		"screenshots", "review-approve",
@@ -338,12 +332,11 @@ func TestShotsReviewApprove_RequiresSelector(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, stderr := captureOutput(t, func() {
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
+	err := root.Run(context.Background())
+	if !errors.Is(err, flag.ErrHelp) {
+		t.Fatalf("expected ErrHelp, got %v", err)
+	}
+	stdout, stderr := rootStdout.String(), rootStderr.String()
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}

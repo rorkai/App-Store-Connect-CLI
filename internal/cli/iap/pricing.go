@@ -28,7 +28,7 @@ Examples:
   asc iap pricing availability view --iap-id "IAP_ID"
   asc iap pricing availabilities view --id "AVAILABILITY_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.VisibleUsageFunc,
+		UsageFunc: d.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newIAPPricesCommand(d),
 			newIAPPricePointsCommand(d),

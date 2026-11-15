@@ -6,7 +6,7 @@ const appTagsTerritoriesDeprecationWarning = "Warning: App-tag territories are d
 
 func TestAppTagsRejectsInvalidNextURL(t *testing.T) {
 	runInvalidNextURLCases(t, []invalidNextURLCase{
-		{args: []string{"app-tags", "list"}, wantErr: "app-tags list: --next"},
+		{args: []string{"app-tags", "list"}, wantErr: "app-tags list: --next", deps: true},
 	})
 }
 
@@ -16,23 +16,27 @@ func TestAppTagsPaginateFromNext(t *testing.T) {
 			args:     []string{"app-tags", "list"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/apps/app-1/appTags?cursor=AQ&limit=200",
 			dataType: "appTags",
+			deps:     true,
 		},
 		{
 			args:     []string{"app-tags", "links"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/apps/app-1/relationships/appTags?cursor=AQ&limit=200",
 			dataType: "appTags",
+			deps:     true,
 		},
 		{
 			args:       []string{"app-tags", "territories"},
 			firstURL:   "https://api.appstoreconnect.apple.com/v1/appTags/tag-1/territories?cursor=AQ&limit=200",
 			dataType:   "territories",
 			wantStderr: appTagsTerritoriesDeprecationWarning,
+			deps:       true,
 		},
 		{
 			args:       []string{"app-tags", "territories-links"},
 			firstURL:   "https://api.appstoreconnect.apple.com/v1/appTags/tag-1/relationships/territories?cursor=AQ&limit=200",
 			dataType:   "territories",
 			wantStderr: appTagsTerritoriesDeprecationWarning,
+			deps:       true,
 		},
 	})
 }
