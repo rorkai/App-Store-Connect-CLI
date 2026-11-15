@@ -56,15 +56,7 @@ Examples:
 
 // WebhooksListCommand returns the webhooks list subcommand.
 func WebhooksListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
-
-	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "list",
 		ShortUsage: "asc webhooks list [flags]",
 		ShortHelp:  "List webhooks for an app.",
@@ -74,54 +66,18 @@ Examples:
   asc webhooks list --app "APP_ID"
   asc webhooks list --app "APP_ID" --limit 10
   asc webhooks list --app "APP_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "webhooks list", webhooksMaxLimit, "limit"); err != nil {
-				return err
-			}
-			resolvedAppID := shared.ResolveAppID(*appID)
-			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return shared.MissingRequiredUsageError("--app")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("webhooks list: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			opts := []asc.WebhooksOption{
-				asc.Limit[asc.WebhooksOption](*limit),
-				asc.NextURL[asc.WebhooksOption](*next),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.Limit[asc.WebhooksOption](webhooksMaxLimit))
-				firstPage, err := client.GetAppWebhooks(requestCtx, resolvedAppID, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("webhooks list: failed to fetch: %w", err)
-				}
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppWebhooks(ctx, resolvedAppID, asc.NextURL[asc.WebhooksOption](nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("webhooks list: %w", err)
-				}
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
-			}
-
-			webhooks, err := client.GetAppWebhooks(requestCtx, resolvedAppID, opts...)
-			if err != nil {
-				return fmt.Errorf("webhooks list: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(webhooks, *output.Output, *output.Pretty)
+		ParentFlag:           "app",
+		ParentUsage:          "App Store Connect app ID (or ASC_APP_ID)",
+		ResolveApp:           true,
+		RequiredDiagnostic:   true,
+		LimitMax:             webhooksMaxLimit,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		NextConflicts:        []string{"limit"},
+		FetchPage: func(ctx context.Context, client *asc.Client, appID string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetAppWebhooks(ctx, appID, asc.Limit[asc.WebhooksOption](limit), asc.NextURL[asc.WebhooksOption](next))
 		},
-	}
+	})
 }
 
 // WebhooksGetCommand returns the webhooks view subcommand.

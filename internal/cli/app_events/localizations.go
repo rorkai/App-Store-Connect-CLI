@@ -48,80 +48,46 @@ Examples:
 
 // AppEventLocalizationsListCommand returns the app event localizations list subcommand.
 func AppEventLocalizationsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("localizations list", flag.ExitOnError)
+	var (
+		includeValues   []string
+		placementsLimit int
+	)
 
-	eventID := shared.BindResourceIDFlag(fs, "event-id", "appEvents", "App event ID")
-	include := shared.BindLocalizationIncludeFlags(fs, "Include related resources", appEventLocalizationIncludeList())
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc app-events localizations list [flags]",
-		ShortHelp:  "List localizations for an in-app event.",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "localizations list",
+		Name:        "list",
+		ShortUsage:  "asc app-events localizations list [flags]",
+		ShortHelp:   "List localizations for an in-app event.",
 		LongHelp: `List localizations for an in-app event.
 
 Examples:
   asc app-events localizations list --event-id "EVENT_ID"
   asc app-events localizations list --event-id "EVENT_ID" --include placements --placements-limit 50
   asc app-events localizations list --event-id "EVENT_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "app-events localizations list", 200, "include", "placements-limit"); err != nil {
+		ParentFlag:           "event-id",
+		ParentUsage:          "App event ID",
+		ParentType:           "appEvents",
+		RequiredDiagnostic:   true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		NextConflicts:        []string{"include", "placements-limit"},
+		Flags: func(fs *flag.FlagSet) func() error {
+			include := shared.BindLocalizationIncludeFlags(fs, "Include related resources", appEventLocalizationIncludeList())
+			return func() error {
+				var err error
+				includeValues, placementsLimit, err = include.Resolve()
 				return err
 			}
-			id := strings.TrimSpace(*eventID)
-			if id == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--event-id")
-			}
-			includeValues, placementsLimit, err := include.Resolve()
-			if err != nil {
-				return err
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("app-events localizations list: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			opts := []asc.AppEventLocalizationsOption{
-				asc.Limit[asc.AppEventLocalizationsOption](*limit),
-				asc.NextURL[asc.AppEventLocalizationsOption](*next),
+		},
+		FetchPage: func(ctx context.Context, client *asc.Client, id string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetAppEventLocalizations(ctx, id,
+				asc.Limit[asc.AppEventLocalizationsOption](limit),
+				asc.NextURL[asc.AppEventLocalizationsOption](next),
 				asc.WithAppEventLocalizationsInclude(includeValues),
 				asc.WithAppEventLocalizationsPlacementsLimit(placementsLimit),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.Limit[asc.AppEventLocalizationsOption](200))
-				firstPage, err := client.GetAppEventLocalizations(requestCtx, id, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("app-events localizations list: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppEventLocalizations(ctx, id, asc.NextURL[asc.AppEventLocalizationsOption](nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("app-events localizations list: %w", err)
-				}
-
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetAppEventLocalizations(requestCtx, id, opts...)
-			if err != nil {
-				return fmt.Errorf("app-events localizations list: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			)
 		},
-	}
+	})
 }
 
 // AppEventLocalizationsGetCommand returns the app event localizations get subcommand.

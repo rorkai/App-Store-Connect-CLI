@@ -2,10 +2,7 @@ package iap
 
 import (
 	"context"
-	"flag"
-	"fmt"
 	"net/url"
-	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
@@ -15,84 +12,35 @@ import (
 
 // IAPOfferCodesPricesCommand returns the offer code prices subcommand.
 func IAPOfferCodesPricesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("offer-codes prices", flag.ExitOnError)
-
-	offerCodeID := shared.BindResourceIDFlag(fs, "offer-code-id", "inAppPurchaseOfferCodes", "Offer code ID")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "prices",
-		ShortUsage: "asc iap offer-codes prices --offer-code-id \"OFFER_CODE_ID\" [flags]",
-		ShortHelp:  "List prices for an offer code.",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "offer-codes prices",
+		Name:        "prices",
+		ShortUsage:  "asc iap offer-codes prices --offer-code-id \"OFFER_CODE_ID\" [flags]",
+		ShortHelp:   "List prices for an offer code.",
 		LongHelp: `List prices for an offer code.
 
 Examples:
   asc iap offer-codes prices --offer-code-id "OFFER_CODE_ID"
   asc iap offer-codes prices --offer-code-id "OFFER_CODE_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "iap offer-codes prices", 200); err != nil {
-				return err
-			}
-
-			id := strings.TrimSpace(*offerCodeID)
-			if id == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--offer-code-id")
-			}
-
-			client, err := shared.GetASCClient()
+		ParentFlag:           "offer-code-id",
+		ParentUsage:          "Offer code ID",
+		ParentType:           "inAppPurchaseOfferCodes",
+		RequiredDiagnostic:   true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		FetchPage: func(ctx context.Context, client *asc.Client, id string, limit int, next string) (asc.PaginatedResponse, error) {
+			nextURL, err := shared.MergeNextURLQuery(next, offerCodePricesRelationshipQuery())
 			if err != nil {
-				return fmt.Errorf("iap offer-codes prices: %w", err)
+				return nil, err
 			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			nextURL, err := shared.MergeNextURLQuery(*next, offerCodePricesRelationshipQuery())
-			if err != nil {
-				return fmt.Errorf("iap offer-codes prices: invalid --next URL: %w", err)
-			}
-
-			opts := []asc.IAPOfferCodePricesOption{
-				asc.Limit[asc.IAPOfferCodePricesOption](*limit),
+			return client.GetInAppPurchaseOfferCodePrices(ctx, id,
+				asc.Limit[asc.IAPOfferCodePricesOption](limit),
 				asc.NextURL[asc.IAPOfferCodePricesOption](nextURL),
 				asc.WithIAPOfferCodePricesFields([]string{"territory", "pricePoint"}),
 				asc.WithIAPOfferCodePricesInclude([]string{"territory", "pricePoint"}),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.Limit[asc.IAPOfferCodePricesOption](200))
-				firstPage, err := client.GetInAppPurchaseOfferCodePrices(requestCtx, id, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("iap offer-codes prices: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					nextURL, err := shared.MergeNextURLQuery(nextURL, offerCodePricesRelationshipQuery())
-					if err != nil {
-						return nil, err
-					}
-					return client.GetInAppPurchaseOfferCodePrices(ctx, id, asc.NextURL[asc.IAPOfferCodePricesOption](nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("iap offer-codes prices: %w", err)
-				}
-
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetInAppPurchaseOfferCodePrices(requestCtx, id, opts...)
-			if err != nil {
-				return fmt.Errorf("iap offer-codes prices: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			)
 		},
-	}
+	})
 }
 
 func offerCodePricesRelationshipQuery() url.Values {

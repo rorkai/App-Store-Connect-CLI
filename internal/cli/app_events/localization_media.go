@@ -3,8 +3,6 @@ package app_events
 import (
 	"context"
 	"flag"
-	"fmt"
-	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
@@ -114,142 +112,48 @@ Examples:
 
 // AppEventLocalizationScreenshotsRelationshipsCommand returns the screenshot links subcommand.
 func AppEventLocalizationScreenshotsRelationshipsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("localizations screenshots-links", flag.ExitOnError)
-
-	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appEventLocalizations", "App event localization ID")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "screenshots-links",
-		ShortUsage: "asc app-events localizations screenshots-links --localization-id \"LOC_ID\" [flags]",
-		ShortHelp:  "List screenshot relationships for an in-app event localization.",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "localizations screenshots-links",
+		Name:        "screenshots-links",
+		ShortUsage:  "asc app-events localizations screenshots-links --localization-id \"LOC_ID\" [flags]",
+		ShortHelp:   "List screenshot relationships for an in-app event localization.",
 		LongHelp: `List screenshot relationships for an in-app event localization.
 
 Examples:
   asc app-events localizations screenshots-links --localization-id "LOC_ID"
   asc app-events localizations screenshots-links --localization-id "LOC_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "app-events localizations screenshots-links", 200); err != nil {
-				return err
-			}
-
-			id := strings.TrimSpace(*localizationID)
-			if id == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--localization-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("app-events localizations screenshots-links: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			opts := []asc.LinkagesOption{
-				asc.Limit[asc.LinkagesOption](*limit),
-				asc.NextURL[asc.LinkagesOption](*next),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.Limit[asc.LinkagesOption](200))
-				firstPage, err := client.GetAppEventScreenshotsRelationships(requestCtx, id, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("app-events localizations screenshots-links: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppEventScreenshotsRelationships(ctx, id, asc.NextURL[asc.LinkagesOption](nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("app-events localizations screenshots-links: %w", err)
-				}
-
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetAppEventScreenshotsRelationships(requestCtx, id, opts...)
-			if err != nil {
-				return fmt.Errorf("app-events localizations screenshots-links: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		ParentFlag:           "localization-id",
+		ParentUsage:          "App event localization ID",
+		ParentType:           "appEventLocalizations",
+		RequiredDiagnostic:   true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		FetchPage: func(ctx context.Context, client *asc.Client, id string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetAppEventScreenshotsRelationships(ctx, id, asc.Limit[asc.LinkagesOption](limit), asc.NextURL[asc.LinkagesOption](next))
 		},
-	}
+	})
 }
 
 // AppEventLocalizationVideoClipsRelationshipsCommand returns the video clip links subcommand.
 func AppEventLocalizationVideoClipsRelationshipsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("localizations video-clips-links", flag.ExitOnError)
-
-	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appEventLocalizations", "App event localization ID")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "video-clips-links",
-		ShortUsage: "asc app-events localizations video-clips-links --localization-id \"LOC_ID\" [flags]",
-		ShortHelp:  "List video clip relationships for an in-app event localization.",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "localizations video-clips-links",
+		Name:        "video-clips-links",
+		ShortUsage:  "asc app-events localizations video-clips-links --localization-id \"LOC_ID\" [flags]",
+		ShortHelp:   "List video clip relationships for an in-app event localization.",
 		LongHelp: `List video clip relationships for an in-app event localization.
 
 Examples:
   asc app-events localizations video-clips-links --localization-id "LOC_ID"
   asc app-events localizations video-clips-links --localization-id "LOC_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "app-events localizations video-clips-links", 200); err != nil {
-				return err
-			}
-
-			id := strings.TrimSpace(*localizationID)
-			if id == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--localization-id")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("app-events localizations video-clips-links: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			opts := []asc.LinkagesOption{
-				asc.Limit[asc.LinkagesOption](*limit),
-				asc.NextURL[asc.LinkagesOption](*next),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.Limit[asc.LinkagesOption](200))
-				firstPage, err := client.GetAppEventVideoClipsRelationships(requestCtx, id, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("app-events localizations video-clips-links: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppEventVideoClipsRelationships(ctx, id, asc.NextURL[asc.LinkagesOption](nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("app-events localizations video-clips-links: %w", err)
-				}
-
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetAppEventVideoClipsRelationships(requestCtx, id, opts...)
-			if err != nil {
-				return fmt.Errorf("app-events localizations video-clips-links: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		ParentFlag:           "localization-id",
+		ParentUsage:          "App event localization ID",
+		ParentType:           "appEventLocalizations",
+		RequiredDiagnostic:   true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		FetchPage: func(ctx context.Context, client *asc.Client, id string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetAppEventVideoClipsRelationships(ctx, id, asc.Limit[asc.LinkagesOption](limit), asc.NextURL[asc.LinkagesOption](next))
 		},
-	}
+	})
 }

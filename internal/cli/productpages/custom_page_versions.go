@@ -41,73 +41,32 @@ Examples:
 
 // newCustomPageVersionsListCommand returns the custom page versions list subcommand.
 func newCustomPageVersionsListCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("custom-page-versions list", flag.ExitOnError)
-
-	customPageID := shared.BindResourceIDFlag(fs, "custom-page-id", "appCustomProductPages", "Custom product page ID")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := d.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc product-pages custom-pages versions list --custom-page-id \"PAGE_ID\" [flags]",
-		ShortHelp:  "List custom product page versions.",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "custom-page-versions list",
+		Name:        "list",
+		ShortUsage:  "asc product-pages custom-pages versions list --custom-page-id \"PAGE_ID\" [flags]",
+		ShortHelp:   "List custom product page versions.",
 		LongHelp: `List custom product page versions.
 
 Examples:
   asc product-pages custom-pages versions list --custom-page-id "PAGE_ID"
   asc product-pages custom-pages versions list --custom-page-id "PAGE_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if err := d.ValidatePaginationFlags(ctx, fs, "product-pages custom-pages versions list", productPagesMaxLimit); err != nil {
-				return err
-			}
-
-			trimmedID := strings.TrimSpace(*customPageID)
-			if trimmedID == "" && strings.TrimSpace(*next) == "" {
-				return d.RequiredFlag("--custom-page-id")
-			}
-
-			client, err := d.Client()
-			if err != nil {
-				return fmt.Errorf("custom-pages versions list: %w", err)
-			}
-
-			requestCtx, cancel := d.Timeout(ctx)
-			defer cancel()
-
-			opts := []asc.AppCustomProductPageVersionsOption{
-				asc.Limit[asc.AppCustomProductPageVersionsOption](*limit),
-				asc.NextURL[asc.AppCustomProductPageVersionsOption](*next),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.Limit[asc.AppCustomProductPageVersionsOption](productPagesMaxLimit))
-				firstPage, err := client.GetAppCustomProductPageVersions(requestCtx, trimmedID, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("custom-pages versions list: failed to fetch: %w", err)
-				}
-
-				paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppCustomProductPageVersions(ctx, trimmedID, asc.NextURL[asc.AppCustomProductPageVersionsOption](nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("custom-pages versions list: %w", err)
-				}
-
-				return d.PrintOutput(paginated, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetAppCustomProductPageVersions(requestCtx, trimmedID, opts...)
-			if err != nil {
-				return fmt.Errorf("custom-pages versions list: failed to fetch: %w", err)
-			}
-
-			return d.PrintOutput(resp, *output.Output, *output.Pretty)
+		ParentFlag:           "custom-page-id",
+		ParentUsage:          "Custom product page ID",
+		ParentType:           "appCustomProductPages",
+		RequiredDiagnostic:   true,
+		LimitMax:             productPagesMaxLimit,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		ErrorPrefix:          "custom-pages versions list",
+		Deps:                 d,
+		FetchPage: func(ctx context.Context, client *asc.Client, id string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetAppCustomProductPageVersions(ctx, id,
+				asc.Limit[asc.AppCustomProductPageVersionsOption](limit),
+				asc.NextURL[asc.AppCustomProductPageVersionsOption](next),
+			)
 		},
-	}
+	})
 }
 
 // newCustomPageVersionsGetCommand returns the custom page versions get subcommand.
