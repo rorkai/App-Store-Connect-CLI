@@ -60,12 +60,13 @@ func TestWebAppGroupsCreateUnknownDeveloperTeamFailsBeforeMutation(t *testing.T)
 	newWebClientFn = webcore.NewClient
 	persistWebSessionFn = func(*webcore.AuthSession) error { return nil }
 
-	command := WebAppGroupsCreateCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	command := newWebAppGroupsCreateCommand(d)
 	if err := command.FlagSet.Parse([]string{"--name", "X", "--identifier", "group.x", "--confirm", "--developer-team", "NOPE", "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 	var runErr error
-	stdout, stderr := captureWebCommandOutput(t, func() {
+	stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		runErr = command.Exec(context.Background(), nil)
 	})
 	if runErr == nil {
@@ -97,8 +98,14 @@ func TestWebDeveloperTeamFlagAcceptedOnPortalCommands(t *testing.T) {
 			d, _, _ := newWebTestDeps()
 			return newWebBundleIDCapabilitiesEnableCommand(d).FlagSet
 		}},
-		{"app-groups list", func() *flag.FlagSet { return WebAppGroupsListCommand().FlagSet }},
-		{"app-groups create", func() *flag.FlagSet { return WebAppGroupsCreateCommand().FlagSet }},
+		{"app-groups list", func() *flag.FlagSet {
+			d, _, _ := newWebTestDeps()
+			return newWebAppGroupsListCommand(d).FlagSet
+		}},
+		{"app-groups create", func() *flag.FlagSet {
+			d, _, _ := newWebTestDeps()
+			return newWebAppGroupsCreateCommand(d).FlagSet
+		}},
 		{"agreements status", func() *flag.FlagSet { return WebAgreementsStatusCommand().FlagSet }},
 	}
 	for _, test := range commands {
@@ -163,11 +170,12 @@ func TestWebDeveloperTeamPersistedAndReusedBySecondCommand(t *testing.T) {
 		return nil
 	}
 
-	first := WebAppGroupsListCommand()
+	d, depsStdout, depsStderr := newWebTestDeps()
+	first := newWebAppGroupsListCommand(d)
 	if err := first.FlagSet.Parse([]string{"--developer-team", "TEAMTWO456", "--output", "json"}); err != nil {
 		t.Fatalf("parse first: %v", err)
 	}
-	if _, stderr := captureWebCommandOutput(t, func() {
+	if _, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := first.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("first list: %v", err)
 		}
@@ -181,11 +189,12 @@ func TestWebDeveloperTeamPersistedAndReusedBySecondCommand(t *testing.T) {
 		t.Fatalf("expected persisted DeveloperTeamID TEAMTWO456, got %q after %d persist calls", session.DeveloperTeamID, len(persisted))
 	}
 
-	second := WebAppGroupsListCommand()
+	d, depsStdout, depsStderr = newWebTestDeps()
+	second := newWebAppGroupsListCommand(d)
 	if err := second.FlagSet.Parse([]string{"--output", "json"}); err != nil {
 		t.Fatalf("parse second: %v", err)
 	}
-	if _, errStdout := captureWebCommandOutput(t, func() {
+	if _, errStdout := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		if err := second.Exec(context.Background(), nil); err != nil {
 			t.Fatalf("second list: %v", err)
 		}

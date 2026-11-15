@@ -60,7 +60,7 @@ Examples:
 			WebSignInKeysCommand(),
 			WebWebsitePushIDsCommand(),
 			WebICloudContainersCommand(),
-			WebAppGroupsCommand(),
+			newWebAppGroupsCommand(d),
 			WebPrivacyCommand(),
 			WebReviewCommand(),
 			newWebSubscriptionsCommand(d),
