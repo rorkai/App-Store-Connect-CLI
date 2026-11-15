@@ -217,6 +217,7 @@ func TestSelfLinkCoverageSendsExtractedID(t *testing.T) {
 		{
 			name:     "testflight testers view",
 			args:     []string{"testflight", "testers", "view", "--id", selfLinkTestBase + "/v1/betaTesters/tester-1"},
+			deps:     true,
 			wantPath: "GET /v1/betaTesters/tester-1",
 			wantID:   "tester-1",
 			bodies: map[string]string{
@@ -524,8 +525,8 @@ func TestSelfLinkCoverageRejectsWrongType(t *testing.T) {
 		{args: []string{"testflight", "recruitment", "set"}, flag: "group", wantType: "betaGroups"},
 		{args: []string{"testflight", "review", "edit"}, flag: "id", wantType: "betaAppReviewDetails"},
 		{args: []string{"testflight", "review", "submissions", "view"}, flag: "id", wantType: "betaAppReviewSubmissions"},
-		{args: []string{"testflight", "testers", "view"}, flag: "id", wantType: "betaTesters"},
-		{args: []string{"testflight", "testers", "list"}, flag: "group", wantType: "betaGroups"},
+		{args: []string{"testflight", "testers", "view"}, flag: "id", wantType: "betaTesters", deps: true},
+		{args: []string{"testflight", "testers", "list"}, flag: "group", wantType: "betaGroups", deps: true},
 		{args: []string{"users", "view"}, flag: "id", wantType: "users", deps: true},
 		{args: []string{"users", "invites", "view"}, flag: "id", wantType: "userInvitations", deps: true},
 		{args: []string{"versions", "phased-release", "update"}, flag: "id", wantType: "appStoreVersionPhasedReleases"},

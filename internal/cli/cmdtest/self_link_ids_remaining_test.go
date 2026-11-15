@@ -149,6 +149,7 @@ func TestSelfLinkRemainingFlagsSendExtractedID(t *testing.T) {
 		{
 			name:     "testflight testers apps list",
 			args:     []string{"testflight", "testers", "apps", "list", "--tester-id", selfLinkTestBase + "/v1/betaTesters/tester-1"},
+			deps:     true,
 			wantPath: "GET /v1/betaTesters/tester-1/apps",
 			wantID:   "app-1",
 			bodies: map[string]string{
@@ -410,6 +411,7 @@ func TestSelfLinkRemainingFlagsRejectWrongType(t *testing.T) {
 		{
 			name:    "testflight testers apps list rejects apps link",
 			args:    []string{"testflight", "testers", "apps", "list"},
+			deps:    true,
 			flag:    "tester-id",
 			value:   selfLinkTestBase + "/v1/apps/123",
 			wantErr: "expected a self-link of type betaTesters, got apps",
@@ -417,6 +419,7 @@ func TestSelfLinkRemainingFlagsRejectWrongType(t *testing.T) {
 		{
 			name:    "testflight testers apps list rejects apps link on the --id alias",
 			args:    []string{"testflight", "testers", "apps", "list"},
+			deps:    true,
 			flag:    "id",
 			value:   selfLinkTestBase + "/v1/apps/123",
 			wantErr: "expected a self-link of type betaTesters, got apps",

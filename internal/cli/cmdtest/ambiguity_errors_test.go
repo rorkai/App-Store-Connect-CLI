@@ -51,21 +51,18 @@ func TestAmbiguousAppNameListsCandidatesAndAppFlag(t *testing.T) {
 }
 
 func TestAmbiguousBetaGroupNameListsCandidatesAndGroupFlag(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_APP_ID", "")
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-1/betaGroups", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[
 			{"type":"betaGroups","id":"group-internal","attributes":{"name":"Beta","isInternalGroup":true}},
 			{"type":"betaGroups","id":"group-external","attributes":{"name":"Beta","isInternalGroup":false}}
 		],"links":{}}`))
 
-	stdout, stderr := captureOutput(t, func() {
-		if code := cmd.Run([]string{"testflight", "testers", "add", "--app", "app-1", "--email", "tester@example.com", "--group", "Beta"}, "1.2.3"); code == cmd.ExitSuccess {
-			t.Fatal("expected ambiguity failure")
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, stubClient(t, reg), "testflight", "testers", "add", "--app", "app-1", "--email", "tester@example.com", "--group", "Beta")
+	if code == cmd.ExitSuccess {
+		t.Fatal("expected ambiguity failure")
+	}
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}

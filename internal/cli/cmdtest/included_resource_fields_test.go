@@ -258,6 +258,7 @@ func includedFieldsCases() []includedFieldsCase {
 		{
 			name: "testflight testers list", operation: "betaTesters_getCollection",
 			command: []string{"testflight", "testers", "list"}, selector: []string{"--app", "app-1"},
+			deps:    true,
 			include: "apps,betaGroups,builds", path: "/v1/betaTesters", query: map[string]string{"filter[apps]": "app-1"},
 			flags: map[string]string{"app-fields": "apps", "beta-group-fields": "betaGroups", "build-fields": "builds"},
 		},

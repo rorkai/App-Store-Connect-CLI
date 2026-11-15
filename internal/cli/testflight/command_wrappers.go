@@ -272,9 +272,9 @@ Examples:
 	return cmd
 }
 
-func TestFlightTestersCommand() *ffcli.Command {
+func newTestFlightTestersCommand(d *shared.Deps) *ffcli.Command {
 	cmd := rewriteCommandTree(
-		BetaTestersCommand(),
+		newBetaTestersCommand(d),
 		"asc testflight beta-testers",
 		"asc testflight testers",
 		map[string]string{

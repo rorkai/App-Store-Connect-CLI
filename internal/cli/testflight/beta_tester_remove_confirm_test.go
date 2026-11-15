@@ -1,17 +1,20 @@
 package testflight
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"flag"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestBetaTestersRemoveCommand_RequiresConfirm(t *testing.T) {
 	isolateTestFlightAuthEnvForAddTests(t)
 
-	cmd := BetaTestersRemoveCommand()
+	cmd := newBetaTestersRemoveCommand(&shared.Deps{IO: &shared.IO{Out: &bytes.Buffer{}, ErrOut: &bytes.Buffer{}}})
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "123456789",
 		"--email", "tester@example.com",
@@ -31,7 +34,7 @@ func TestBetaTestersRemoveCommand_RequiresConfirm(t *testing.T) {
 func TestBetaTestersRemoveCommand_ConfirmPassesValidation(t *testing.T) {
 	isolateTestFlightAuthEnvForAddTests(t)
 
-	cmd := BetaTestersRemoveCommand()
+	cmd := newBetaTestersRemoveCommand(passedValidationDeps())
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "123456789",
 		"--email", "tester@example.com",
@@ -43,5 +46,8 @@ func TestBetaTestersRemoveCommand_ConfirmPassesValidation(t *testing.T) {
 	err := cmd.Exec(context.Background(), []string{})
 	if errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("remove with --confirm should pass validation, got %v", err)
+	}
+	if !errors.Is(err, errClientRequested) {
+		t.Fatalf("remove with --confirm should request a client after validation, got %v", err)
 	}
 }

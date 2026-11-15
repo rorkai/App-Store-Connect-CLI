@@ -111,12 +111,14 @@ func TestTestFlightHelpSurface(t *testing.T) {
 		{
 			name:         "beta testers alias removed",
 			args:         []string{"testflight", "testers"},
+			deps:         true,
 			wantShown:    []string{"asc testflight testers <subcommand> [flags]", "invite"},
 			wantNotShown: []string{"asc testflight beta-testers <subcommand> [flags]"},
 		},
 		{
 			name:         "beta testers relationships alias removed",
 			args:         []string{"testflight", "testers", "relationships"},
+			deps:         true,
 			wantShown:    []string{"asc testflight testers <subcommand> [flags]", "links"},
 			wantNotShown: []string{"asc testflight testers relationships <subcommand> [flags]"},
 		},

@@ -64,6 +64,7 @@ func TestLinksTypeUsageErrorsEnumerateValidValues(t *testing.T) {
 			name:   "testflight testers links view",
 			base:   []string{"testflight", "testers", "links", "view", "--tester-id", "tester-1"},
 			values: betaTesterRelationshipTypeValues,
+			deps:   true,
 		},
 		{
 			name:   "testflight pre-release links view",
@@ -142,9 +143,9 @@ func TestLinksValidTypesReachTheirEndpoints(t *testing.T) {
 		{name: "build pre-release version", args: []string{"builds", "links", "view", "--build-id", "build-1", "--type", "preReleaseVersion", "--output", "json"}, path: "/v1/builds/build-1/relationships/preReleaseVersion", resourceType: "preReleaseVersions"},
 		{name: "group beta testers", args: []string{"testflight", "groups", "links", "view", "--group-id", "group-1", "--type", "betaTesters", "--output", "json"}, path: "/v1/betaGroups/group-1/relationships/betaTesters", resourceType: "betaTesters", many: true, deps: true},
 		{name: "group builds", args: []string{"testflight", "groups", "links", "view", "--group-id", "group-1", "--type", "builds", "--output", "json"}, path: "/v1/betaGroups/group-1/relationships/builds", resourceType: "builds", many: true, deps: true},
-		{name: "tester apps", args: []string{"testflight", "testers", "links", "view", "--tester-id", "tester-1", "--type", "apps", "--output", "json"}, path: "/v1/betaTesters/tester-1/relationships/apps", resourceType: "apps", many: true},
-		{name: "tester beta groups", args: []string{"testflight", "testers", "links", "view", "--tester-id", "tester-1", "--type", "betaGroups", "--output", "json"}, path: "/v1/betaTesters/tester-1/relationships/betaGroups", resourceType: "betaGroups", many: true},
-		{name: "tester builds", args: []string{"testflight", "testers", "links", "view", "--tester-id", "tester-1", "--type", "builds", "--output", "json"}, path: "/v1/betaTesters/tester-1/relationships/builds", resourceType: "builds", many: true},
+		{name: "tester apps", args: []string{"testflight", "testers", "links", "view", "--tester-id", "tester-1", "--type", "apps", "--output", "json"}, path: "/v1/betaTesters/tester-1/relationships/apps", resourceType: "apps", many: true, deps: true},
+		{name: "tester beta groups", args: []string{"testflight", "testers", "links", "view", "--tester-id", "tester-1", "--type", "betaGroups", "--output", "json"}, path: "/v1/betaTesters/tester-1/relationships/betaGroups", resourceType: "betaGroups", many: true, deps: true},
+		{name: "tester builds", args: []string{"testflight", "testers", "links", "view", "--tester-id", "tester-1", "--type", "builds", "--output", "json"}, path: "/v1/betaTesters/tester-1/relationships/builds", resourceType: "builds", many: true, deps: true},
 		{name: "pre-release app", args: []string{"testflight", "pre-release", "links", "view", "--id", "pr-1", "--type", "app", "--output", "json"}, path: "/v1/preReleaseVersions/pr-1/relationships/app", resourceType: "apps"},
 		{name: "pre-release builds", args: []string{"testflight", "pre-release", "links", "view", "--id", "pr-1", "--type", "builds", "--output", "json"}, path: "/v1/preReleaseVersions/pr-1/relationships/builds", resourceType: "builds", many: true},
 	}
@@ -239,6 +240,7 @@ func TestLinksNotFoundNamesMissingResource(t *testing.T) {
 		{
 			name:    "testflight testers links unknown tester",
 			args:    []string{"testflight", "testers", "links", "view", "--tester-id", "tester-404", "--type", "apps", "--output", "json"},
+			deps:    true,
 			path:    "/v1/betaTesters/tester-404/relationships/apps",
 			body:    notFoundBody("betaTesters", "tester-404"),
 			wantErr: `testflight testers links view: tester "tester-404" was not found; --tester-id expects a tester ID (list them with: asc testflight testers list --app "APP_ID")`,
@@ -246,6 +248,7 @@ func TestLinksNotFoundNamesMissingResource(t *testing.T) {
 		{
 			name:       "testflight testers links missing relationship",
 			args:       []string{"testflight", "testers", "links", "view", "--tester-id", "tester-1", "--type", "betaGroups", "--output", "json"},
+			deps:       true,
 			path:       "/v1/betaTesters/tester-1/relationships/betaGroups",
 			body:       notFoundBody("betaGroups", "tester-1"),
 			wantPrefix: `testflight testers links view: betaGroups relationship was not found for tester "tester-1"`,
@@ -318,6 +321,7 @@ func TestLinksPaginateLaterPageNotFoundBlamesPageURL(t *testing.T) {
 		{
 			name: "testflight testers links paginate",
 			args: []string{"testflight", "testers", "links", "view", "--tester-id", "tester-1", "--type", "apps", "--paginate", "--output", "json"},
+			deps: true,
 			path: "/v1/betaTesters/tester-1/relationships/apps",
 			body: notFoundBody("betaTesters", "tester-1"),
 			want: "testflight testers links view: page 2: the tester referenced by the requested page URL was not found",
