@@ -78,7 +78,7 @@ Examples:
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			// Validate required flags
-			resolvedAppID := shared.ResolveAppID(*appID)
+			resolvedAppID := d.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintf(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return shared.MissingRequiredUsageError("--app")
@@ -644,7 +644,7 @@ Examples:
 			}
 			nextValue := strings.TrimSpace(*next)
 
-			resolvedAppID := shared.ResolveAppID(*appID)
+			resolvedAppID := d.ResolveAppID(*appID)
 			if resolvedAppID == "" && nextValue == "" {
 				fmt.Fprintf(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return shared.MissingRequiredUsageError("--app")

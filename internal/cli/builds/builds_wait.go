@@ -74,7 +74,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			started := d.Now()
 			buildValue := strings.TrimSpace(*buildID)
-			resolvedAppID := shared.ResolveAppID(*appID)
+			resolvedAppID := d.ResolveAppID(*appID)
 			versionValue := strings.TrimSpace(*version)
 			buildNumberValue := strings.TrimSpace(*buildNumber)
 			sinceValue := strings.TrimSpace(*since)

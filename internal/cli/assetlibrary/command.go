@@ -130,7 +130,7 @@ func readCommand(d *shared.Deps, parent, name, help, selector, path string, coll
 			}
 			resourceID := strings.TrimSpace(*id)
 			if selector == "app" {
-				resourceID = shared.ResolveAppID(resourceID)
+				resourceID = d.ResolveAppID(resourceID)
 			}
 			if selector != "" && next == "" && resourceID == "" {
 				return d.UsageErrorf("asset-library: --%s is required", selector)

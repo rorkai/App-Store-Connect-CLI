@@ -156,7 +156,7 @@ Subscriptions:
 				return shared.WithDiagnostic(d.UsageError("--apple-id requires --deep"), shared.DiagnosticInvalidInput, "--apple-id")
 			}
 
-			resolvedAppID := shared.ResolveAppID(*appID)
+			resolvedAppID := d.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				return shared.WithDiagnostic(d.UsageError("--app is required (or set ASC_APP_ID)"), shared.DiagnosticRequiredInputMissing, "--app")
 			}

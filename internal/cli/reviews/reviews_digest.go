@@ -95,7 +95,7 @@ Each attempt starts from the committed cursor, or the explicit initial date:
 		FlagSet:   fs,
 		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID := shared.ResolveAppID(*appID)
+			resolvedAppID := d.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintf(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return shared.MissingRequiredUsageError("--app")

@@ -377,7 +377,7 @@ Timeouts:
 				}
 			}
 
-			if err := d.RequireAppForStableSelector(shared.ResolveAppID(*appID), id, "--subscription-id"); err != nil {
+			if err := d.RequireAppForStableSelector(d.ResolveAppID(*appID), id, "--subscription-id"); err != nil {
 				return err
 			}
 

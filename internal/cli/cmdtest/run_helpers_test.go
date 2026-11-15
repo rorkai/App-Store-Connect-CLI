@@ -108,6 +108,7 @@ func newTestDeps(t *testing.T, client func() (*asc.Client, error)) (*shared.Deps
 		ResolveTimeout: shared.ResolveTimeoutSetting,
 		After:          time.After,
 		Getwd:          os.Getwd,
+		LookupEnv:      os.LookupEnv,
 		HTTPTransport:  func() http.RoundTripper { return http.DefaultTransport },
 	}, &stdout, &stderr
 }
