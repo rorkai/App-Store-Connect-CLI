@@ -414,8 +414,14 @@ func probeCredential(ctx context.Context, client *asc.Client, keyType string) er
 	return err
 }
 
-func validateLoginCredentials(ctx context.Context, keyID, issuerID, keyPath, keyType string, network bool) error {
-	privateKey, err := authsvc.LoadPrivateKey(keyPath)
+func validateLoginCredentials(ctx context.Context, keyID, issuerID, keyPath, privateKeyPEM, keyType string, network bool) error {
+	var privateKey *ecdsa.PrivateKey
+	var err error
+	if privateKeyPEM != "" {
+		privateKey, err = authsvc.LoadPrivateKeyFromPEM([]byte(privateKeyPEM))
+	} else {
+		privateKey, err = authsvc.LoadPrivateKey(keyPath)
+	}
 	if err != nil {
 		return shared.WithPrivateKeyDiagnostic(fmt.Errorf("failed to load private key: %w", err), err)
 	}
@@ -423,7 +429,7 @@ func validateLoginCredentials(ctx context.Context, keyID, issuerID, keyPath, key
 		return shared.WithDiagnostic(fmt.Errorf("failed to generate JWT: %w", err), shared.DiagnosticInternalError, "--private-key")
 	}
 	if network {
-		if err := loginNetworkValidate(ctx, keyID, issuerID, keyPath, keyType); err != nil {
+		if err := loginNetworkValidate(ctx, keyID, issuerID, keyPath, privateKeyPEM, keyType); err != nil {
 			return withNetworkDiagnostic(fmt.Errorf("network validation failed: %w", err), err)
 		}
 	}
@@ -457,8 +463,14 @@ func printPrivateKeyPermissionRemediation(cause error, keyPath string) {
 	fmt.Fprintln(os.Stderr, "Re-run with --fix-permissions to let asc change the file to 0600.")
 }
 
-func validateLoginNetwork(ctx context.Context, keyID, issuerID, keyPath, keyType string) error {
-	client, err := asc.NewClient(keyID, issuerID, keyPath)
+func validateLoginNetwork(ctx context.Context, keyID, issuerID, keyPath, privateKeyPEM, keyType string) error {
+	var client *asc.Client
+	var err error
+	if privateKeyPEM != "" {
+		client, err = asc.NewClientFromPEM(keyID, issuerID, privateKeyPEM)
+	} else {
+		client, err = asc.NewClient(keyID, issuerID, keyPath)
+	}
 	if err != nil {
 		return err
 	}
@@ -589,6 +601,7 @@ func AuthLoginCommand() *ffcli.Command {
 	issuerID := fs.String("issuer-id", "", "App Store Connect Issuer ID")
 	keyType := fs.String("key-type", config.CredentialKeyTypeTeam, "API key type: team, individual, or enterprise (Enterprise Program API)")
 	keyPath := fs.String("private-key", "", "Path to private key (.p8) file")
+	keyJSON := fs.String("key-json", "", "Path to a JSON API key file with key_id, issuer_id and key; replaces --key-id, --issuer-id and --private-key")
 	bypassKeychain := fs.Bool("bypass-keychain", false, "Store credentials in config.json instead of keychain")
 	local := fs.Bool("local", false, "When bypassing keychain, write to ./.asc/config.json")
 	network := fs.Bool("network", false, "Validate credentials with a lightweight API request")
@@ -624,6 +637,13 @@ Examples:
   asc auth login --network --name "MyKey" --key-id "ABC123" --issuer-id "DEF456" --private-key /path/to/AuthKey.p8
   asc auth login --skip-validation --name "MyKey" --key-id "ABC123" --issuer-id "DEF456" --private-key /path/to/AuthKey.p8
   asc auth login --fix-permissions --name "MyKey" --key-id "ABC123" --issuer-id "DEF456" --private-key /path/to/AuthKey.p8
+  asc auth login --name "MyKey" --key-json /path/to/api_key.json
+
+--key-json reads the key ID, issuer ID and private key from a JSON API key file
+with key_id, issuer_id and key (PEM text, or its base64 when
+is_key_content_base64 is true); "in_house": true selects --key-type enterprise.
+Without a keychain, the key is written to a 0600 file in the keys directory
+beside the config file, and that file's path is printed to stderr.
 
 When using system keychain storage, the encrypted key material is stored in keychain
 so commands continue to work even if the original .p8 file is removed.`,
@@ -633,6 +653,37 @@ so commands continue to work even if the original .p8 file is removed.`,
 			bypassKeychainEnabled := *bypassKeychain || authsvc.ShouldBypassKeychain()
 			if *local && !bypassKeychainEnabled {
 				return shared.WithDiagnostic(shared.UsageError("--local requires --bypass-keychain or ASC_BYPASS_KEYCHAIN set to 1/true/yes/on"), shared.DiagnosticInvalidInput, "--local")
+			}
+			if *skipValidation && *network {
+				return shared.WithDiagnostic(shared.UsageError("--skip-validation and --network are mutually exclusive"), shared.DiagnosticConflictingInput, "--skip-validation")
+			}
+			privateKeyPEM := ""
+			if flagWasSet(fs, "key-json") {
+				for _, conflicting := range []string{"key-id", "issuer-id", "private-key"} {
+					if flagWasSet(fs, conflicting) {
+						return shared.WithDiagnostic(shared.UsageErrorf("--key-json cannot be combined with --%s", conflicting), shared.DiagnosticConflictingInput, "--key-json")
+					}
+				}
+				if strings.TrimSpace(*keyJSON) == "" {
+					return shared.RequiredFlag("--key-json")
+				}
+				loaded, err := readLoginKeyJSON(*keyJSON, *fixPermissions)
+				if err != nil {
+					return err
+				}
+				if flagWasSet(fs, "key-type") {
+					explicit := config.NormalizeCredentialKeyType(*keyType)
+					if explicit == config.CredentialKeyTypeIndividual || (loaded.KeyType != "" && explicit != loaded.KeyType) {
+						return shared.WithDiagnostic(
+							shared.UsageErrorf(`--key-type %s conflicts with "in_house": %t in the --key-json file`, explicit, loaded.KeyType == config.CredentialKeyTypeEnterprise),
+							shared.DiagnosticConflictingInput,
+							"--key-type",
+						)
+					}
+				} else if loaded.KeyType != "" {
+					*keyType = loaded.KeyType
+				}
+				*keyID, *issuerID, privateKeyPEM = loaded.KeyID, loaded.IssuerID, loaded.PrivateKeyPEM
 			}
 			if !flagWasSet(fs, "name") {
 				profileName, err := omittedLoginProfileName(bypassKeychainEnabled, *local)
@@ -674,41 +725,40 @@ so commands continue to work even if the original .p8 file is removed.`,
 				return shared.WithDiagnostic(shared.UsageError("--issuer-id must be omitted when --key-type individual"), shared.DiagnosticConflictingInput, "--issuer-id")
 			}
 			*issuerID = trimmedIssuerID
-			if strings.TrimSpace(*keyPath) == "" {
+			if privateKeyPEM == "" && strings.TrimSpace(*keyPath) == "" {
 				return shared.RequiredFlag("--private-key")
-			}
-			if *skipValidation && *network {
-				return shared.WithDiagnostic(shared.UsageError("--skip-validation and --network are mutually exclusive"), shared.DiagnosticConflictingInput, "--skip-validation")
 			}
 			if err := reportLoginCredentialShapes(*keyID, *issuerID, normalizedKeyType == config.CredentialKeyTypeIndividual); err != nil {
 				return err
 			}
 
-			if *fixPermissions {
-				changed, err := authsvc.FixPrivateKeyFilePermissions(*keyPath)
-				// A missing file is left to ValidateKeyFile below, which
-				// reports it as a usage error naming the path.
-				if kind, _ := authsvc.PrivateKeyErrorKindOf(err); err != nil && kind != authsvc.PrivateKeyNotFound {
-					rendered := errors.New(shared.SanitizeTerminal(fmt.Sprintf("auth login: failed to fix private key permissions: %v", err)))
-					return shared.WithPrivateKeyDiagnostic(shared.NewErrorWithCause(rendered, err), err)
+			if privateKeyPEM == "" {
+				if *fixPermissions {
+					changed, err := authsvc.FixPrivateKeyFilePermissions(*keyPath)
+					// A missing file is left to ValidateKeyFile below, which
+					// reports it as a usage error naming the path.
+					if kind, _ := authsvc.PrivateKeyErrorKindOf(err); err != nil && kind != authsvc.PrivateKeyNotFound {
+						rendered := errors.New(shared.SanitizeTerminal(fmt.Sprintf("auth login: failed to fix private key permissions: %v", err)))
+						return shared.WithPrivateKeyDiagnostic(shared.NewErrorWithCause(rendered, err), err)
+					}
+					if changed {
+						fmt.Fprintf(os.Stderr, "Changed private key file permissions to 0600: %s\n", shared.SanitizeTerminal(*keyPath))
+					}
 				}
-				if changed {
-					fmt.Fprintf(os.Stderr, "Changed private key file permissions to 0600: %s\n", shared.SanitizeTerminal(*keyPath))
-				}
-			}
 
-			if err := authsvc.ValidateKeyFile(*keyPath); err != nil {
-				message := err.Error()
-				if kind, _ := authsvc.PrivateKeyErrorKindOf(err); kind == authsvc.PrivateKeyPermissionsInsecure {
-					message = "private key file is too permissive; other users can read this credential"
+				if err := authsvc.ValidateKeyFile(*keyPath); err != nil {
+					message := err.Error()
+					if kind, _ := authsvc.PrivateKeyErrorKindOf(err); kind == authsvc.PrivateKeyPermissionsInsecure {
+						message = "private key file is too permissive; other users can read this credential"
+					}
+					rendered := shared.WithPrivateKeyDiagnostic(shared.UsageErrorf("auth login: invalid private key: %s", message), err)
+					printPrivateKeyPermissionRemediation(err, *keyPath)
+					return rendered
 				}
-				rendered := shared.WithPrivateKeyDiagnostic(shared.UsageErrorf("auth login: invalid private key: %s", message), err)
-				printPrivateKeyPermissionRemediation(err, *keyPath)
-				return rendered
 			}
 
 			if !*skipValidation {
-				if err := validateLoginCredentials(ctx, *keyID, *issuerID, *keyPath, normalizedKeyType, *network); err != nil {
+				if err := validateLoginCredentials(ctx, *keyID, *issuerID, *keyPath, privateKeyPEM, normalizedKeyType, *network); err != nil {
 					return fmt.Errorf("auth login: %w", err)
 				}
 			}
@@ -720,25 +770,36 @@ so commands continue to work even if the original .p8 file is removed.`,
 			fmt.Println(storageMessage)
 
 			// Store credentials securely
+			writtenKeyPath := ""
 			if bypassKeychainEnabled {
-				if *local {
-					path, err := config.LocalPath()
-					if err != nil {
-						return fmt.Errorf("auth login: %w", err)
-					}
-					if err := authsvc.StoreCredentialsConfigAtWithKeyType(*name, *keyID, *issuerID, *keyPath, path, normalizedKeyType); err != nil {
-						return fmt.Errorf("auth login: failed to store credentials: %w", err)
-					}
-					warnLocalConfigShadowed(path)
-				} else {
-					if err := authsvc.StoreCredentialsConfigWithKeyType(*name, *keyID, *issuerID, *keyPath, normalizedKeyType); err != nil {
-						return fmt.Errorf("auth login: failed to store credentials: %w", err)
-					}
+				path, err := loginConfigPath(*local)
+				if err != nil {
+					return fmt.Errorf("auth login: %w", err)
 				}
-			} else {
-				if err := authsvc.StoreCredentialsWithKeyType(*name, *keyID, *issuerID, *keyPath, normalizedKeyType); err != nil {
+				if privateKeyPEM != "" {
+					writtenKeyPath, err = authsvc.StoreCredentialsPEMConfigAtWithKeyType(*name, *keyID, *issuerID, privateKeyPEM, path, normalizedKeyType)
+				} else {
+					err = authsvc.StoreCredentialsConfigAtWithKeyType(*name, *keyID, *issuerID, *keyPath, path, normalizedKeyType)
+				}
+				if err != nil {
 					return fmt.Errorf("auth login: failed to store credentials: %w", err)
 				}
+				if *local {
+					warnLocalConfigShadowed(path)
+				}
+			} else {
+				var err error
+				if privateKeyPEM != "" {
+					writtenKeyPath, err = authsvc.StoreCredentialsPEMWithKeyType(*name, *keyID, *issuerID, privateKeyPEM, normalizedKeyType)
+				} else {
+					err = authsvc.StoreCredentialsWithKeyType(*name, *keyID, *issuerID, *keyPath, normalizedKeyType)
+				}
+				if err != nil {
+					return fmt.Errorf("auth login: failed to store credentials: %w", err)
+				}
+			}
+			if writtenKeyPath != "" {
+				fmt.Fprintf(os.Stderr, "Private key from --key-json saved to %s\n", shared.SanitizeTerminal(writtenKeyPath))
 			}
 
 			fmt.Printf("Successfully registered API key '%s'\n", strings.TrimSpace(*name))
