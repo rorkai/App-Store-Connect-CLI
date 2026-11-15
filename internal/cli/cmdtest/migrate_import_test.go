@@ -2231,6 +2231,13 @@ func TestMigrateImportDryRunRejectsMalformedScreenshotFolders(t *testing.T) {
 			},
 			wantErr: "is 1290x2796, which is not an Apple TV screenshot size",
 		},
+		{
+			name: "screenshots is a file, not a folder",
+			prepare: func(t *testing.T, root string) {
+				writeFile(t, filepath.Join(root, "screenshots"), "not a folder")
+			},
+			wantErr: "expected directory: ",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

@@ -319,6 +319,11 @@ func validateResolvedDir(resolved resolvedImportPath, skipped []SkippedItem) (st
 	if err := ensureDirExists(resolved.path); err != nil {
 		switch resolved.source {
 		case pathSourceDefault:
+			// Only an absent conventional directory is optional; one that
+			// exists but cannot be used is still an error.
+			if !os.IsNotExist(err) {
+				return "", skipped, err
+			}
 			skipped = append(skipped, SkippedItem{
 				Path:   resolved.path,
 				Reason: fmt.Sprintf("default %s directory not found", resolved.label),
