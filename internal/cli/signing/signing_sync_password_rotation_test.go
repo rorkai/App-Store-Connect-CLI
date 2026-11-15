@@ -35,7 +35,7 @@ func TestSigningSyncRotatePasswordRequiresConfirmBeforeSecretReads(t *testing.T)
 		t.Fatal(err)
 	}
 	err := command.Run(context.Background())
-	if err == nil || err.Error() != "--confirm is required to rotate the signing sync password" {
+	if err == nil || err.Error() != "--confirm is required" {
 		t.Fatalf("error = %v, want confirmation usage error", err)
 	}
 	if !errors.Is(err, flag.ErrHelp) {

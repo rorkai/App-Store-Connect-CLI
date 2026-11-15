@@ -478,12 +478,11 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required to remove")
-				return shared.MissingRequiredUsageError("--confirm")
-			}
 			if strings.TrimSpace(*itemID) == "" {
 				return shared.RequiredFlag("--id")
+			}
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 
 			client, err := reviewItemsClientFactory()

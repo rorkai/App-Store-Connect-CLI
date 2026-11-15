@@ -65,6 +65,7 @@ func TestExecuteScreenshotSetUploadCompletesUploadFlow(t *testing.T) {
 		Path:           filePath,
 		DeviceType:     "IPHONE_65",
 		Replace:        true,
+		RequireConfirm: func() error { return nil },
 		ClientFactory: func() (*asc.Client, error) {
 			clientFactoryCalled = true
 			return newAssetsUploadTestClient(t), nil

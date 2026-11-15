@@ -81,8 +81,8 @@ Example:
 			if id == "" {
 				return shared.UsageError("--contract-config-id is required")
 			}
-			if !*confirm {
-				return shared.UsageError("--confirm is required")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
 				return shared.UsageError(err.Error())

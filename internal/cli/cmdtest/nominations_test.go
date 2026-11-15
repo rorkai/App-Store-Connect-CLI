@@ -87,7 +87,7 @@ func TestNominationsValidationErrors(t *testing.T) {
 		{
 			name:    "nominations delete missing confirm",
 			args:    []string{"nominations", "delete", "--id", "NOM_ID"},
-			wantErr: "--confirm is required to delete",
+			wantErr: "--confirm is required",
 		},
 	}
 

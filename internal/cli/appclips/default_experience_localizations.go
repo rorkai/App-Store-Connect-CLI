@@ -270,11 +270,10 @@ func AppClipDefaultExperienceLocalizationsDeleteCommand() *ffcli.Command {
 
 Examples:
   asc app-clips default-experiences localizations delete --localization-id "LOC_ID" --confirm`,
-		IDFlag:                 "localization-id",
-		IDUsage:                "Localization ID",
-		IDType:                 "appClipDefaultExperienceLocalizations",
-		RequiredDiagnostic:     true,
-		ConfirmRequiredMessage: "--confirm is required to delete",
+		IDFlag:             "localization-id",
+		IDUsage:            "Localization ID",
+		IDType:             "appClipDefaultExperienceLocalizations",
+		RequiredDiagnostic: true,
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteAppClipDefaultExperienceLocalization(ctx, id)
 		},

@@ -43,8 +43,8 @@ Examples:
 			if len(testerIDs) == 0 {
 				return shared.RequiredFlag("--tester")
 			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 
 			client, err := shared.GetASCClient()

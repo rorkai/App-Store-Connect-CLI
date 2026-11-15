@@ -652,11 +652,10 @@ func newNominationsDeleteCommand(d *shared.Deps) *ffcli.Command {
 
 Examples:
   asc nominations delete --id "NOMINATION_ID" --confirm`,
-		IDFlag:                 "id",
-		IDUsage:                "Nomination ID (required)",
-		IDType:                 "nominations",
-		RequiredDiagnostic:     true,
-		ConfirmRequiredMessage: "--confirm is required to delete",
+		IDFlag:             "id",
+		IDUsage:            "Nomination ID (required)",
+		IDType:             "nominations",
+		RequiredDiagnostic: true,
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteNomination(ctx, id)
 		},

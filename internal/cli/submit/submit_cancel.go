@@ -40,13 +40,12 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required to cancel a submission")
-				return shared.MissingRequiredUsageError("--confirm")
-			}
 			if strings.TrimSpace(*submissionID) == "" && strings.TrimSpace(*versionID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id or --version-id is required")
 				return shared.MissingRequiredUsageError("")
+			}
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 			if strings.TrimSpace(*submissionID) != "" && strings.TrimSpace(*versionID) != "" {
 				return shared.UsageError("--id and --version-id are mutually exclusive")

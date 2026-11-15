@@ -47,7 +47,7 @@ Examples:
 			if err != nil {
 				return err
 			}
-			result, err := executeCustomPageScreenshotUpload(ctx, d, *localizationID, *path, *deviceType, false)
+			result, err := executeCustomPageScreenshotUpload(ctx, d, *localizationID, *path, *deviceType, false, false)
 			if err != nil {
 				return fmt.Errorf("custom-pages localizations screenshot-sets upload: %w", err)
 			}
@@ -85,16 +85,12 @@ Examples:
 			if pollErr != nil {
 				return pollErr
 			}
-			if !*confirm {
-				fmt.Fprintln(d.IO.ErrOut, "Error: --confirm is required to sync")
-				return shared.MissingRequiredUsageError("--confirm")
-			}
 			ctx, err := uploadFlags.Apply(ctx, "custom-pages localizations screenshot-sets sync")
 			if err != nil {
 				return err
 			}
 
-			result, err := executeCustomPageScreenshotUpload(ctx, d, *localizationID, *path, *deviceType, true)
+			result, err := executeCustomPageScreenshotUpload(ctx, d, *localizationID, *path, *deviceType, true, *confirm)
 			if err != nil {
 				return fmt.Errorf("custom-pages localizations screenshot-sets sync: %w", err)
 			}
@@ -129,7 +125,7 @@ Examples:
 			if pollErr != nil {
 				return pollErr
 			}
-			result, err := executeCustomPagePreviewUpload(ctx, d, *localizationID, *path, *deviceType, false)
+			result, err := executeCustomPagePreviewUpload(ctx, d, *localizationID, *path, *deviceType, false, false)
 			if result != nil {
 				if printErr := d.PrintOutput(result, *output.Output, *output.Pretty); printErr != nil {
 					return printErr
@@ -171,12 +167,7 @@ Examples:
 			if pollErr != nil {
 				return pollErr
 			}
-			if !*confirm {
-				fmt.Fprintln(d.IO.ErrOut, "Error: --confirm is required to sync")
-				return shared.MissingRequiredUsageError("--confirm")
-			}
-
-			result, err := executeCustomPagePreviewUpload(ctx, d, *localizationID, *path, *deviceType, true)
+			result, err := executeCustomPagePreviewUpload(ctx, d, *localizationID, *path, *deviceType, true, *confirm)
 			if result != nil {
 				if printErr := d.PrintOutput(result, *output.Output, *output.Pretty); printErr != nil {
 					return printErr
@@ -194,7 +185,7 @@ func executeCustomPageScreenshotUpload(
 	ctx context.Context,
 	d *shared.Deps,
 	localizationID, path, deviceType string,
-	sync bool,
+	sync, confirm bool,
 ) (*asc.CustomProductPageScreenshotUploadResult, error) {
 	trimmedLocalizationID := strings.TrimSpace(localizationID)
 	trimmedPath := strings.TrimSpace(path)
@@ -204,6 +195,7 @@ func executeCustomPageScreenshotUpload(
 		Path:           path,
 		DeviceType:     deviceType,
 		Replace:        sync,
+		RequireConfirm: func() error { return d.RequireConfirm(confirm) },
 		InspectCommand: fmt.Sprintf("asc product-pages custom-pages localizations screenshot-sets list --localization-id %q --include-screenshots --paginate --output json", trimmedLocalizationID),
 		ReplaceCommand: shellquote.Join("asc", "product-pages", "custom-pages", "localizations", "screenshot-sets", "sync", "--localization-id", trimmedLocalizationID, "--path", trimmedPath, "--device-type", trimmedDeviceType, "--confirm"),
 		ClientFactory:  d.Client,
@@ -232,13 +224,14 @@ func executeCustomPagePreviewUpload(
 	ctx context.Context,
 	d *shared.Deps,
 	localizationID, path, deviceType string,
-	sync bool,
+	sync, confirm bool,
 ) (*asc.CustomProductPagePreviewUploadResult, error) {
 	upload, err := uploadLocalizationPreviews(ctx, d, localizationPreviewUploadOptions{
 		localizationID: localizationID,
 		path:           path,
 		deviceType:     deviceType,
 		sync:           sync,
+		confirm:        confirm,
 		access: localizationPreviewSetAccess{
 			list: func(ctx context.Context, client *asc.Client, localizationID string) (*asc.AppPreviewSetsResponse, error) {
 				return client.GetAppCustomProductPageLocalizationPreviewSets(ctx, localizationID)
@@ -270,6 +263,7 @@ type localizationPreviewUploadOptions struct {
 	path                     string
 	deviceType               string
 	sync                     bool
+	confirm                  bool
 	invalidDeviceTypeIsUsage bool
 	access                   localizationPreviewSetAccess
 }
@@ -293,6 +287,11 @@ func uploadLocalizationPreviews(ctx context.Context, d *shared.Deps, opts locali
 	trimmedDeviceType := strings.TrimSpace(opts.deviceType)
 	if trimmedDeviceType == "" {
 		return nil, d.RequiredFlag("--device-type")
+	}
+	if opts.sync {
+		if err := d.RequireConfirm(opts.confirm); err != nil {
+			return nil, err
+		}
 	}
 
 	previewType, err := assets.NormalizePreviewType(trimmedDeviceType)

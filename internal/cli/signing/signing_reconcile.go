@@ -283,8 +283,8 @@ Example:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 			if strings.TrimSpace(*planPath) == "" {
 				return shared.RequiredFlag("--plan")

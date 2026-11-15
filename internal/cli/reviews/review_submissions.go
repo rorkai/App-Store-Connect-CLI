@@ -483,12 +483,11 @@ Examples:
 			if len(args) != 0 {
 				return shared.WithDiagnostic(shared.UsageError("unexpected positional arguments"), shared.DiagnosticInvalidInput, "")
 			}
-			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required to submit")
-				return shared.MissingRequiredUsageError("--confirm")
-			}
 			if strings.TrimSpace(*submissionID) == "" {
 				return shared.RequiredFlag("--id")
+			}
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 
 			client, err := reviewSubmissionsClientFactory()
@@ -531,12 +530,11 @@ Examples:
 			if len(args) != 0 {
 				return shared.WithDiagnostic(shared.UsageError("unexpected positional arguments"), shared.DiagnosticInvalidInput, "")
 			}
-			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required to cancel")
-				return shared.MissingRequiredUsageError("--confirm")
-			}
 			if strings.TrimSpace(*submissionID) == "" {
 				return shared.RequiredFlag("--id")
+			}
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 
 			client, err := reviewSubmissionsClientFactory()

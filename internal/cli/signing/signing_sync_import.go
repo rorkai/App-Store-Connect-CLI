@@ -124,8 +124,8 @@ Examples:
 			if *confirm && *dryRun {
 				return shared.UsageError("--confirm and --dry-run are mutually exclusive")
 			}
-			if !*confirm && !*dryRun {
-				return shared.UsageError("--confirm is required to write the destination store (or pass --dry-run to preview)")
+			if err := shared.RequireConfirmUnlessDryRun(*dryRun, *confirm); err != nil {
+				return err
 			}
 			if providedSigningSyncFlags(fs)["source-branch"] {
 				if info, err := os.Stat(sourceLocation); err == nil && info.IsDir() {

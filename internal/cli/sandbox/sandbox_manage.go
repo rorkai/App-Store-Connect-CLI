@@ -178,12 +178,12 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if !*confirm {
-				return d.RequiredFlag("--confirm")
-			}
 			if strings.TrimSpace(*testerID) == "" && strings.TrimSpace(*email) == "" {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --id or --email is required")
 				return shared.MissingRequiredUsageError("")
+			}
+			if err := d.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 			if strings.TrimSpace(*email) != "" {
 				if err := validateSandboxEmail(*email); err != nil {

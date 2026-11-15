@@ -310,12 +310,11 @@ func AppClipInvocationsDeleteCommand() *ffcli.Command {
 
 Examples:
   asc app-clips invocations delete --invocation-id "INVOCATION_ID" --confirm`,
-		IDFlag:                 "invocation-id",
-		IDUsage:                "Invocation ID",
-		IDType:                 "betaAppClipInvocations",
-		RequiredDiagnostic:     true,
-		ConfirmRequiredMessage: "--confirm is required to delete",
-		Deps:                   d,
+		IDFlag:             "invocation-id",
+		IDUsage:            "Invocation ID",
+		IDType:             "betaAppClipInvocations",
+		RequiredDiagnostic: true,
+		Deps:               d,
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteBetaAppClipInvocation(ctx, id)
 		},

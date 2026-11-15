@@ -103,8 +103,8 @@ Examples:
 			if *dryRun && *confirm {
 				return shared.UsageError("--dry-run cannot be combined with --confirm")
 			}
-			if !*dryRun && !*confirm {
-				return shared.UsageError("--confirm is required unless --dry-run is set")
+			if err := shared.RequireConfirmUnlessDryRun(*dryRun, *confirm); err != nil {
+				return err
 			}
 			explicitStartDate, effectiveAt, err := normalizeEqualizeStartDate(*startDate)
 			if err != nil {

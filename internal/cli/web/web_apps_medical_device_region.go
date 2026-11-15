@@ -118,8 +118,8 @@ Examples:
 			if pathValue == "" {
 				return shared.UsageError("--input is required")
 			}
-			if !*confirm {
-				return shared.UsageError("--confirm is required")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 
 			options, metadata, err := readWebMedicalDeviceRegionInput(pathValue)

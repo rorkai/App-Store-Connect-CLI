@@ -97,7 +97,7 @@ func TestExecuteExperimentTreatmentLocalizationScreenshotUpload_UploadCreatesSet
 		Timeout: shared.ContextWithTimeout,
 	}
 
-	result, err := executeExperimentTreatmentLocalizationScreenshotUpload(context.Background(), d, "tloc-1", dir, "IPHONE_65", false)
+	result, err := executeExperimentTreatmentLocalizationScreenshotUpload(context.Background(), d, "tloc-1", dir, "IPHONE_65", false, false)
 	if err != nil {
 		t.Fatalf("executeExperimentTreatmentLocalizationScreenshotUpload() error: %v", err)
 	}
@@ -166,7 +166,7 @@ func TestExecuteExperimentTreatmentLocalizationScreenshotUpload_CanonicalizesAli
 		Timeout: shared.ContextWithTimeout,
 	}
 
-	result, err := executeExperimentTreatmentLocalizationScreenshotUpload(context.Background(), d, "tloc-1", dir, "IPHONE_69", false)
+	result, err := executeExperimentTreatmentLocalizationScreenshotUpload(context.Background(), d, "tloc-1", dir, "IPHONE_69", false, false)
 	if err != nil {
 		t.Fatalf("executeExperimentTreatmentLocalizationScreenshotUpload() error: %v", err)
 	}
@@ -249,7 +249,7 @@ func TestExecuteExperimentTreatmentLocalizationScreenshotUpload_UploadPreservesE
 		Timeout: shared.ContextWithTimeout,
 	}
 
-	result, err := executeExperimentTreatmentLocalizationScreenshotUpload(context.Background(), d, "tloc-1", dir, "IPHONE_65", false)
+	result, err := executeExperimentTreatmentLocalizationScreenshotUpload(context.Background(), d, "tloc-1", dir, "IPHONE_65", false, false)
 	if err != nil {
 		t.Fatalf("executeExperimentTreatmentLocalizationScreenshotUpload() error: %v", err)
 	}
@@ -337,7 +337,7 @@ func TestExecuteExperimentTreatmentLocalizationScreenshotUpload_SyncDeletesExist
 		Timeout: shared.ContextWithTimeout,
 	}
 
-	result, err := executeExperimentTreatmentLocalizationScreenshotUpload(context.Background(), d, "tloc-1", dir, "IPHONE_65", true)
+	result, err := executeExperimentTreatmentLocalizationScreenshotUpload(context.Background(), d, "tloc-1", dir, "IPHONE_65", true, true)
 	if err != nil {
 		t.Fatalf("executeExperimentTreatmentLocalizationScreenshotUpload() error: %v", err)
 	}
@@ -405,7 +405,7 @@ func TestExecuteExperimentTreatmentLocalizationScreenshotUpload_UsesRequestTimeo
 		Timeout: shared.ContextWithTimeout,
 	}
 
-	if _, err := executeExperimentTreatmentLocalizationScreenshotUpload(context.Background(), d, "tloc-1", dir, "IPHONE_65", false); err != nil {
+	if _, err := executeExperimentTreatmentLocalizationScreenshotUpload(context.Background(), d, "tloc-1", dir, "IPHONE_65", false, false); err != nil {
 		t.Fatalf("executeExperimentTreatmentLocalizationScreenshotUpload() error: %v", err)
 	}
 

@@ -1249,9 +1249,8 @@ Examples:
 			if strings.TrimSpace(*id) == "" {
 				return shared.RequiredFlag("--id")
 			}
-			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required to delete")
-				return shared.MissingRequiredUsageError("--confirm")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 
 			client, err := shared.GetASCClient()
@@ -1473,8 +1472,8 @@ Examples:
 			if len(testerIDs) == 0 {
 				return shared.RequiredFlag("--tester")
 			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 
 			client, err := shared.GetASCClient()

@@ -311,11 +311,10 @@ func AppClipDefaultExperiencesDeleteCommand() *ffcli.Command {
 
 Examples:
   asc app-clips default-experiences delete --experience-id "EXP_ID" --confirm`,
-		IDFlag:                 "experience-id",
-		IDUsage:                "Default experience ID",
-		IDType:                 "appClipDefaultExperiences",
-		RequiredDiagnostic:     true,
-		ConfirmRequiredMessage: "--confirm is required to delete",
+		IDFlag:             "experience-id",
+		IDUsage:            "Default experience ID",
+		IDType:             "appClipDefaultExperiences",
+		RequiredDiagnostic: true,
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteAppClipDefaultExperience(ctx, id)
 		},

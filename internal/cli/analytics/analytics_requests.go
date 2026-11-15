@@ -346,8 +346,8 @@ Examples:
 			if err := validateAnalyticsRequestID(id); err != nil {
 				return shared.UsageErrorf("analytics requests delete: %v", err)
 			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 
 			client, err := shared.GetASCClient()

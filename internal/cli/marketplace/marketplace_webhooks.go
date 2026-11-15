@@ -241,8 +241,8 @@ Examples:
 			if trimmedID == "" {
 				return d.RequiredFlag("--webhook-id")
 			}
-			if !*confirm {
-				return d.RequiredFlag("--confirm")
+			if err := d.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 
 			client, err := d.Client()

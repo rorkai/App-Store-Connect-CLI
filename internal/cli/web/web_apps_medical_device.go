@@ -123,8 +123,10 @@ Examples:
 					return shared.UsageError(err.Error())
 				}
 			}
-			if declared.Value() && !*confirm {
-				return shared.UsageError("--confirm is required")
+			if declared.Value() {
+				if err := shared.RequireConfirm(*confirm); err != nil {
+					return err
+				}
 			}
 
 			accountID, client, requestCtx, cancel, err := resolveWebComplianceClient(ctx, authFlags, "web apps medical-device set")

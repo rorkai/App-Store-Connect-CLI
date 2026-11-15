@@ -210,11 +210,10 @@ func AppClipInvocationLocalizationsDeleteCommand() *ffcli.Command {
 
 Examples:
   asc app-clips invocations localizations delete --localization-id "LOC_ID" --confirm`,
-		IDFlag:                 "localization-id",
-		IDUsage:                "Localization ID",
-		IDType:                 "betaAppClipInvocationLocalizations",
-		RequiredDiagnostic:     true,
-		ConfirmRequiredMessage: "--confirm is required to delete",
+		IDFlag:             "localization-id",
+		IDUsage:            "Localization ID",
+		IDType:             "betaAppClipInvocationLocalizations",
+		RequiredDiagnostic: true,
 		Delete: func(ctx context.Context, client *asc.Client, id string) error {
 			return client.DeleteBetaAppClipInvocationLocalization(ctx, id)
 		},

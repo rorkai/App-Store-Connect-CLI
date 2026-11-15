@@ -45,7 +45,7 @@ func TestScreenshotsPlanAndApplyValidationErrors(t *testing.T) {
 		{
 			name:    "screenshots apply missing confirm",
 			args:    []string{"screenshots", "apply", "--app", "123456789", "--version", "1.2.3"},
-			wantErr: "--confirm is required to apply screenshot uploads",
+			wantErr: "--confirm is required",
 		},
 	}
 

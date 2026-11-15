@@ -177,8 +177,8 @@ Examples:
 			if *dryRun && *confirm {
 				return UsageError("--dry-run cannot be combined with --confirm")
 			}
-			if !*dryRun && !*confirm {
-				return UsageError("--confirm is required unless --dry-run is set")
+			if err := RequireConfirmUnlessDryRun(*dryRun, *confirm); err != nil {
+				return err
 			}
 			effectiveAt := PricingNow()
 			start := strings.TrimSpace(*startDate)

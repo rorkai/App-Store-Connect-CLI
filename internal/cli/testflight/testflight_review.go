@@ -232,8 +232,8 @@ Examples:
 			if strings.TrimSpace(*buildID) == "" {
 				return shared.RequiredFlag("--build-id")
 			}
-			if !*confirm {
-				return shared.RequiredFlag("--confirm")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 
 			client, err := shared.GetASCClient()

@@ -163,8 +163,8 @@ Example:
 			if err := webcore.ValidateDeveloperAppGroupIdentifier(resolvedIdentifier); err != nil {
 				return shared.UsageError("--" + err.Error())
 			}
-			if !*confirm {
-				return shared.UsageError("--confirm is required")
+			if err := shared.RequireConfirm(*confirm); err != nil {
+				return err
 			}
 
 			if err := validateDeveloperPortalFlags(portalFlags); err != nil {
@@ -233,7 +233,7 @@ Example:
 			case resolvedBundleID == "":
 				return shared.UsageError("--bundle-id is required")
 			case !*confirm:
-				return shared.UsageError("--confirm is required")
+				return shared.RequireConfirm(*confirm)
 			}
 
 			if err := validateDeveloperPortalFlags(portalFlags); err != nil {
@@ -300,7 +300,7 @@ Example:
 			case resolvedBundleID == "":
 				return shared.UsageError("--bundle-id is required")
 			case !*confirm:
-				return shared.UsageError("--confirm is required")
+				return shared.RequireConfirm(*confirm)
 			}
 
 			if err := validateDeveloperPortalFlags(portalFlags); err != nil {
@@ -363,7 +363,7 @@ Example:
 			case len(groupIDs) == 0:
 				return shared.UsageError("at least one --group is required")
 			case !*confirm:
-				return shared.UsageError("--confirm is required")
+				return shared.RequireConfirm(*confirm)
 			}
 
 			if err := validateDeveloperPortalFlags(portalFlags); err != nil {
@@ -421,7 +421,7 @@ Example:
 			case resolvedGroupID == "":
 				return shared.UsageError("--group-id is required")
 			case !*confirm:
-				return shared.UsageError("--confirm is required")
+				return shared.RequireConfirm(*confirm)
 			}
 
 			if err := validateDeveloperPortalFlags(portalFlags); err != nil {

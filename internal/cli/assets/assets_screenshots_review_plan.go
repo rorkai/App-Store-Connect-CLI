@@ -70,6 +70,7 @@ type screenshotReviewPlanOptions struct {
 	SkipExisting    bool
 	Replace         bool
 	Apply           bool
+	Confirm         bool
 }
 
 type screenshotGroupKey struct {
@@ -164,11 +165,6 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required to apply screenshot uploads")
-				return shared.MissingRequiredUsageError("--confirm")
-			}
-
 			result, err := executeScreenshotReviewPlan(ctx, screenshotReviewPlanOptions{
 				AppID:           *appID,
 				Version:         *version,
@@ -180,6 +176,7 @@ Examples:
 				SkipExisting:    *skipExisting,
 				Replace:         *replace,
 				Apply:           true,
+				Confirm:         *confirm,
 			})
 			if printErr := printScreenshotReviewPlanResult(result, output); printErr != nil {
 				return printErr
@@ -206,6 +203,11 @@ func executeScreenshotReviewPlan(ctx context.Context, opts screenshotReviewPlanO
 	versionIDValue := strings.TrimSpace(opts.VersionID)
 	if versionValue == "" && versionIDValue == "" {
 		return nil, shared.UsageError("--version or --version-id is required")
+	}
+	if opts.Apply {
+		if err := shared.RequireConfirm(opts.Confirm); err != nil {
+			return nil, err
+		}
 	}
 	if versionValue != "" && versionIDValue != "" {
 		return nil, shared.UsageError("--version and --version-id are mutually exclusive")
