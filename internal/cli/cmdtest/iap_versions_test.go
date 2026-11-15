@@ -19,7 +19,6 @@ import (
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	iapcli "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/iap"
 )
 
 func TestIAPVersionsValidationErrors(t *testing.T) {
@@ -248,23 +247,15 @@ func TestIAPNextConflictsFailBeforeClientFactory(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			factoryCalled := false
-			restore := iapcli.SetVersionClientFactory(func() (*asc.Client, error) {
+			poison := func() (*asc.Client, error) {
 				factoryCalled = true
 				return nil, errors.New("poison client factory called")
-			})
-			t.Cleanup(restore)
+			}
 
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
+			stdout, stderr, err := runRootWithDeps(t, poison, test.args...)
+			if !errors.Is(err, flag.ErrHelp) {
+				t.Fatalf("expected ErrHelp, got %v", err)
+			}
 			if factoryCalled {
 				t.Fatal("client factory called before validation")
 			}
@@ -317,20 +308,13 @@ func TestIAPListOwnerlessNextCanPaginate(t *testing.T) {
 				}
 			}))
 			t.Cleanup(server.Close)
-			setIAPVersionTestServerClient(t, server)
 
 			next := "https://api.appstoreconnect.apple.com" + test.path + "?cursor=start"
 			args := append([]string{"iap", "list", "--next", next, "--paginate", "--output", "json", "--pretty"}, test.flags...)
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
+			stdout, stderr, err := runRootWithDeps(t, stubServerClient(t, server), args...)
+			if err != nil {
+				t.Fatalf("run error: %v", err)
+			}
 			if stderr != "" {
 				t.Fatalf("unexpected stderr: %s", stderr)
 			}
@@ -405,18 +389,10 @@ func TestIAPVersionLinkagesPaginateAllPages(t *testing.T) {
 				}
 			}))
 			t.Cleanup(server.Close)
-			setIAPVersionTestServerClient(t, server)
-
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
+			stdout, stderr, err := runRootWithDeps(t, stubServerClient(t, server), test.args...)
+			if err != nil {
+				t.Fatalf("run error: %v", err)
+			}
 			if stderr != "" {
 				t.Fatalf("unexpected stderr: %s", stderr)
 			}
@@ -582,18 +558,10 @@ func TestIAPVersionPrincipalCLIFlowsUseExactHTTPContracts(t *testing.T) {
 				_, _ = io.WriteString(w, test.response)
 			}))
 			t.Cleanup(server.Close)
-			setIAPVersionTestServerClient(t, server)
-
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatal(err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatal(err)
-				}
-			})
+			stdout, stderr, err := runRootWithDeps(t, stubServerClient(t, server), test.args...)
+			if err != nil {
+				t.Fatal(err)
+			}
 			if stderr != "" {
 				t.Fatalf("unexpected stderr: %s", stderr)
 			}
@@ -675,18 +643,10 @@ func TestIAPVersionImagesCreateRunsV2UploadLifecycle(t *testing.T) {
 		_, _ = io.WriteString(w, body)
 	}))
 	t.Cleanup(server.Close)
-	setIAPVersionTestServerClient(t, server)
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"iap", "versions", "images", "create", "--version-id", "version-1", "--file", imagePath, "--output", "json"}); err != nil {
-			t.Fatal(err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatal(err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, stubServerClient(t, server), "iap", "versions", "images", "create", "--version-id", "version-1", "--file", imagePath, "--output", "json")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if stderr != "" {
 		t.Fatalf("unexpected stderr: %s", stderr)
 	}
@@ -765,17 +725,7 @@ func TestIAPVersionImagesCreateReportsReservedIDOnPostReservationFailures(t *tes
 				}
 			}))
 			t.Cleanup(server.Close)
-			setIAPVersionTestServerClient(t, server)
-
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-			var runErr error
-			_, _ = captureOutput(t, func() {
-				if err := root.Parse([]string{"iap", "versions", "images", "create", "--version-id", "version-1", "--file", imagePath, "--output", "json"}); err != nil {
-					t.Fatal(err)
-				}
-				runErr = root.Run(context.Background())
-			})
+			_, _, runErr := runRootWithDeps(t, stubServerClient(t, server), "iap", "versions", "images", "create", "--version-id", "version-1", "--file", imagePath, "--output", "json")
 			if runErr == nil {
 				t.Fatal("expected post-reservation failure")
 			}
@@ -799,18 +749,10 @@ func TestIAPVersionsSubmitUsesExplicitReviewSubmissionRelationship(t *testing.T)
 		_, _ = io.WriteString(w, `{"data":{"type":"reviewSubmissionItems","id":"item-1","attributes":{"state":"READY_FOR_REVIEW"}}}`)
 	}))
 	t.Cleanup(server.Close)
-	setIAPVersionTestServerClient(t, server)
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"iap", "versions", "submit", "--version-id", "version-1", "--submission", "submission-1", "--confirm", "--output", "json"}); err != nil {
-			t.Fatal(err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatal(err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, stubServerClient(t, server), "iap", "versions", "submit", "--version-id", "version-1", "--submission", "submission-1", "--confirm", "--output", "json")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if stderr != "" {
 		t.Fatalf("unexpected stderr: %s", stderr)
 	}
@@ -826,31 +768,4 @@ func assertJSONDocument(t *testing.T, reader io.Reader, want string) {
 		t.Fatalf("read request body: %v", err)
 	}
 	assertJSONDocumentEqual(t, got, []byte(want))
-}
-
-func setIAPVersionTestServerClient(t *testing.T, server *httptest.Server) {
-	t.Helper()
-	serverURL, err := url.Parse(server.URL)
-	if err != nil {
-		t.Fatalf("parse server URL: %v", err)
-	}
-	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		cloned := req.Clone(req.Context())
-		cloned.URL.Scheme = serverURL.Scheme
-		cloned.URL.Host = serverURL.Host
-		return server.Client().Transport.RoundTrip(cloned)
-	})
-	client, err := asc.NewClientWithHTTPClient(
-		"TEST_KEY",
-		"TEST_ISSUER",
-		os.Getenv("ASC_PRIVATE_KEY_PATH"),
-		&http.Client{Transport: transport},
-	)
-	if err != nil {
-		t.Fatalf("new client: %v", err)
-	}
-	restore := iapcli.SetVersionClientFactory(func() (*asc.Client, error) {
-		return client, nil
-	})
-	t.Cleanup(restore)
 }

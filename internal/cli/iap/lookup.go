@@ -14,17 +14,21 @@ func addIAPLookupAppFlag(fs *flag.FlagSet) *string {
 	return fs.String("app", "", iapLookupAppUsage)
 }
 
-func resolveIAPLookupID(ctx context.Context, client *asc.Client, appValue, selector string) (string, error) {
+func resolveIAPLookupIDWith(ctx context.Context, d *shared.Deps, client *asc.Client, appValue, selector string) (string, error) {
 	resolvedAppID := shared.ResolveAppID(appValue)
-	if err := shared.RequireAppForStableSelector(resolvedAppID, selector, "--iap-id"); err != nil {
+	if err := d.RequireAppForStableSelector(resolvedAppID, selector, "--iap-id"); err != nil {
 		return "", err
 	}
 	return shared.ResolveIAPID(ctx, client, resolvedAppID, selector)
 }
 
 func resolveIAPLookupIDWithTimeout(ctx context.Context, client *asc.Client, appValue, selector string) (string, error) {
-	lookupCtx, cancel := shared.ContextWithTimeout(ctx)
+	return resolveIAPLookupIDWithTimeoutWith(ctx, shared.DefaultDeps(), client, appValue, selector)
+}
+
+func resolveIAPLookupIDWithTimeoutWith(ctx context.Context, d *shared.Deps, client *asc.Client, appValue, selector string) (string, error) {
+	lookupCtx, cancel := d.Timeout(ctx)
 	defer cancel()
 
-	return resolveIAPLookupID(lookupCtx, client, appValue, selector)
+	return resolveIAPLookupIDWith(lookupCtx, d, client, appValue, selector)
 }

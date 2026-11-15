@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -88,9 +87,9 @@ type iapSetupVerification struct {
 	EstimatedProceeds  *iapMoney `json:"estimatedProceeds,omitempty"`
 }
 
-// IAPSetupCommand returns the high-level IAP bootstrap workflow command.
-func IAPSetupCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("setup", flag.ExitOnError)
+// newIAPSetupCommand returns the high-level IAP bootstrap workflow command.
+func newIAPSetupCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("setup", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	iapType := fs.String("type", "", "IAP type: CONSUMABLE, NON_CONSUMABLE, NON_RENEWING_SUBSCRIPTION")
@@ -112,7 +111,7 @@ func IAPSetupCommand() *ffcli.Command {
 	startDate := fs.String("start-date", "", "Start date for the initial price schedule (YYYY-MM-DD)")
 	refresh := fs.Bool("refresh", false, "Force refresh of the price-point tier cache when resolving --tier or --price")
 	noVerify := fs.Bool("no-verify", false, "Skip post-create readback verification for faster execution")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	shared.HideFlagFromHelp(fs.Lookup("ref-name"))
 	shared.HideFlagFromHelp(fs.Lookup("name"))
@@ -146,17 +145,17 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			referenceNameValue, err := resolveIAPSetupAlias(*referenceName, *refNameAlias, "--reference-name", "--ref-name")
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			displayNameValue, err := resolveIAPSetupAlias(*displayName, *nameAlias, "--display-name", "--name")
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			baseTerritoryValue := strings.TrimSpace(*baseTerritory)
 			if baseTerritoryValue != "" {
 				baseTerritoryValue, err = ascterritory.Normalize(baseTerritoryValue)
 				if err != nil {
-					return shared.UsageError(err.Error())
+					return d.UsageError(err.Error())
 				}
 			}
 
@@ -178,47 +177,47 @@ Examples:
 			}
 
 			if opts.AppID == "" {
-				return shared.UsageError("--app is required (or set ASC_APP_ID)")
+				return d.UsageError("--app is required (or set ASC_APP_ID)")
 			}
 
 			normalizedType, err := normalizeIAPType(*iapType)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			opts.Type = normalizedType
 
 			if opts.ReferenceName == "" {
-				return shared.UsageError("--reference-name is required")
+				return d.UsageError("--reference-name is required")
 			}
 			if opts.ProductID == "" {
-				return shared.UsageError("--product-id is required")
+				return d.UsageError("--product-id is required")
 			}
 			if flagSet(fs, "review-note") && opts.ReviewNote == "" {
-				return shared.UsageError("--review-note cannot be empty")
+				return d.UsageError("--review-note cannot be empty")
 			}
 
 			hasLocalization := opts.Locale != "" || opts.DisplayName != "" || opts.Description != ""
 			if hasLocalization {
 				if opts.Locale == "" {
-					return shared.UsageError("--locale is required when localization flags are provided")
+					return d.UsageError("--locale is required when localization flags are provided")
 				}
 				if opts.DisplayName == "" {
-					return shared.UsageError("--display-name is required when localization flags are provided")
+					return d.UsageError("--display-name is required when localization flags are provided")
 				}
-				fmt.Fprintln(os.Stderr, "Warning: localization flags on `asc iap setup` use the deprecated v1 localization resource. After setup, create or resolve an IAP version, then use `asc iap versions localizations create --version-id \"IAP_VERSION_ID\" --name \"NAME\" --locale \"LOCALE\"`.")
+				fmt.Fprintln(d.IO.ErrOut, "Warning: localization flags on `asc iap setup` use the deprecated v1 localization resource. After setup, create or resolve an IAP version, then use `asc iap versions localizations create --version-id \"IAP_VERSION_ID\" --name \"NAME\" --locale \"LOCALE\"`.")
 			}
 
 			if err := shared.ValidateFinitePriceFlag("--price", opts.Price); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			if opts.Tier < 0 {
-				return shared.UsageError("--tier must be a positive integer")
+				return d.UsageError("--tier must be a positive integer")
 			}
 
 			hasPricing := opts.hasPricing(*startDate)
 			if hasPricing {
 				if opts.BaseTerritory == "" {
-					return shared.UsageError("--base-territory is required when pricing flags are provided")
+					return d.UsageError("--base-territory is required when pricing flags are provided")
 				}
 				selectorCount := 0
 				if opts.PricePointID != "" {
@@ -231,23 +230,23 @@ Examples:
 					selectorCount++
 				}
 				if selectorCount == 0 {
-					return shared.UsageError("one of --price-point-id, --tier, or --price is required when pricing flags are provided")
+					return d.UsageError("one of --price-point-id, --tier, or --price is required when pricing flags are provided")
 				}
 				if selectorCount > 1 {
-					return shared.UsageError("--price-point-id, --tier, and --price are mutually exclusive")
+					return d.UsageError("--price-point-id, --tier, and --price are mutually exclusive")
 				}
 			}
 
 			if strings.TrimSpace(*startDate) != "" {
 				normalizedStartDate, err := normalizeIAPDate(*startDate, "--start-date")
 				if err != nil {
-					return shared.UsageError(err.Error())
+					return d.UsageError(err.Error())
 				}
 				opts.StartDate = normalizedStartDate
 			}
 
-			result, runErr := executeIAPSetup(ctx, opts)
-			if printErr := printIAPSetupResult(&result, *output.Output, *output.Pretty); printErr != nil {
+			result, runErr := executeIAPSetup(ctx, d, opts)
+			if printErr := printIAPSetupResult(d, &result, *output.Output, *output.Pretty); printErr != nil {
 				return printErr
 			}
 			if runErr != nil {
@@ -258,7 +257,7 @@ Examples:
 	}
 }
 
-func executeIAPSetup(ctx context.Context, opts iapSetupOptions) (iapSetupResult, error) {
+func executeIAPSetup(ctx context.Context, d *shared.Deps, opts iapSetupOptions) (iapSetupResult, error) {
 	result := iapSetupResult{
 		Status:        "ok",
 		AppID:         opts.AppID,
@@ -270,7 +269,7 @@ func executeIAPSetup(ctx context.Context, opts iapSetupOptions) (iapSetupResult,
 		Steps:         make([]iapSetupStepResult, 0, 4),
 	}
 
-	client, err := shared.GetASCClient()
+	client, err := d.Client()
 	if err != nil {
 		result.Status = "error"
 		result.Error = err.Error()
@@ -283,7 +282,7 @@ func executeIAPSetup(ctx context.Context, opts iapSetupOptions) (iapSetupResult,
 		return result, fmt.Errorf("iap setup: %w", err)
 	}
 
-	createCtx, createCancel := shared.ContextWithTimeout(ctx)
+	createCtx, createCancel := d.Timeout(ctx)
 	iapResp, err := client.CreateInAppPurchaseV2(createCtx, opts.AppID, asc.InAppPurchaseV2CreateAttributes{
 		Name:              opts.ReferenceName,
 		ProductID:         opts.ProductID,
@@ -318,7 +317,7 @@ func executeIAPSetup(ctx context.Context, opts iapSetupOptions) (iapSetupResult,
 			Message: "no localization flags provided",
 		})
 	} else {
-		locCtx, locCancel := shared.ContextWithTimeout(ctx)
+		locCtx, locCancel := d.Timeout(ctx)
 		localizationResp, err := client.CreateInAppPurchaseLocalization(locCtx, result.IAPID, asc.InAppPurchaseLocalizationCreateAttributes{ //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 			Name:        opts.DisplayName,
 			Locale:      opts.Locale,
@@ -370,8 +369,8 @@ func executeIAPSetup(ctx context.Context, opts iapSetupOptions) (iapSetupResult,
 				Message: "used explicit price point id",
 			})
 		} else {
-			pricePointCtx, pricePointCancel := shared.ContextWithTimeout(ctx)
-			tiers, err := shared.ResolveIAPTiers(pricePointCtx, client, result.IAPID, opts.BaseTerritory, opts.RefreshTierCache)
+			pricePointCtx, pricePointCancel := d.Timeout(ctx)
+			tiers, err := d.ResolveIAPTiers(pricePointCtx, client, result.IAPID, opts.BaseTerritory, opts.RefreshTierCache)
 			pricePointCancel()
 			if err != nil {
 				result.Status = "error"
@@ -408,7 +407,7 @@ func executeIAPSetup(ctx context.Context, opts iapSetupOptions) (iapSetupResult,
 		}
 		result.ResolvedPricePointID = strings.TrimSpace(resolvedPricePointID)
 
-		priceScheduleCtx, priceScheduleCancel := shared.ContextWithTimeout(ctx)
+		priceScheduleCtx, priceScheduleCancel := d.Timeout(ctx)
 		priceScheduleResp, err := client.CreateInAppPurchasePriceSchedule(priceScheduleCtx, result.IAPID, asc.InAppPurchasePriceScheduleCreateAttributes{
 			BaseTerritoryID: opts.BaseTerritory,
 			Prices: []asc.InAppPurchasePriceSchedulePrice{
@@ -449,7 +448,7 @@ func executeIAPSetup(ctx context.Context, opts iapSetupOptions) (iapSetupResult,
 		return result, nil
 	}
 
-	verification, verifyStep, err := verifyIAPSetupState(ctx, client, result, opts)
+	verification, verifyStep, err := verifyIAPSetupState(ctx, d, client, result, opts)
 	if err != nil {
 		result.Status = "error"
 		result.Error = err.Error()
@@ -464,13 +463,13 @@ func executeIAPSetup(ctx context.Context, opts iapSetupOptions) (iapSetupResult,
 	return result, nil
 }
 
-func verifyIAPSetupState(ctx context.Context, client *asc.Client, result iapSetupResult, opts iapSetupOptions) (*iapSetupVerification, iapSetupStepResult, error) {
+func verifyIAPSetupState(ctx context.Context, d *shared.Deps, client *asc.Client, result iapSetupResult, opts iapSetupOptions) (*iapSetupVerification, iapSetupStepResult, error) {
 	verification := &iapSetupVerification{
 		Status: "verified",
 	}
-	now := shared.PricingNow()
+	now := d.Now()
 
-	iapCtx, iapCancel := shared.ContextWithTimeout(ctx)
+	iapCtx, iapCancel := d.Timeout(ctx)
 	iapResp, err := client.GetInAppPurchaseV2(iapCtx, result.IAPID)
 	iapCancel()
 	if err != nil {
@@ -518,7 +517,7 @@ func verifyIAPSetupState(ctx context.Context, client *asc.Client, result iapSetu
 
 	hasLocalization := opts.Locale != "" || opts.DisplayName != "" || opts.Description != ""
 	if hasLocalization {
-		locCtx, locCancel := shared.ContextWithTimeout(ctx)
+		locCtx, locCancel := d.Timeout(ctx)
 		locResp, err := client.GetInAppPurchaseLocalizations(locCtx, result.IAPID, asc.Limit[asc.IAPLocalizationsOption](200)) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 		locCancel()
 		if err != nil {
@@ -554,8 +553,8 @@ func verifyIAPSetupState(ctx context.Context, client *asc.Client, result iapSetu
 
 	hasPricing := opts.hasPricing(opts.StartDate)
 	if hasPricing {
-		pricePointCtx, pricePointCancel := shared.ContextWithTimeout(ctx)
-		expectedVerificationPrice, err := resolveExpectedIAPSetupVerificationPrice(pricePointCtx, client, result.IAPID, opts)
+		pricePointCtx, pricePointCancel := d.Timeout(ctx)
+		expectedVerificationPrice, err := resolveExpectedIAPSetupVerificationPrice(pricePointCtx, d, client, result.IAPID, opts)
 		pricePointCancel()
 		if err != nil {
 			verification.Status = "failed"
@@ -566,7 +565,7 @@ func verifyIAPSetupState(ctx context.Context, client *asc.Client, result iapSetu
 			}, err
 		}
 
-		summaryCtx, summaryCancel := shared.ContextWithTimeout(ctx)
+		summaryCtx, summaryCancel := d.Timeout(ctx)
 		summary, err := resolveIAPPriceSummary(summaryCtx, client, iapResp.Data, opts.BaseTerritory, now)
 		summaryCancel()
 		if err != nil {
@@ -589,7 +588,7 @@ func verifyIAPSetupState(ctx context.Context, client *asc.Client, result iapSetu
 			}, fmt.Errorf("base territory mismatch: got %q want %q", summary.BaseTerritory, opts.BaseTerritory)
 		}
 		if isFutureSetupStartDate(opts.StartDate, now) {
-			scheduledPriceCtx, scheduledPriceCancel := shared.ContextWithTimeout(ctx)
+			scheduledPriceCtx, scheduledPriceCancel := d.Timeout(ctx)
 			scheduledPrice, scheduledStartDate, err := verifyScheduledIAPSetupPrice(scheduledPriceCtx, client, result.IAPID, opts.BaseTerritory, opts.StartDate, expectedVerificationPrice)
 			scheduledPriceCancel()
 			if err != nil {
@@ -705,7 +704,7 @@ func verifyScheduledIAPSetupPrice(ctx context.Context, client *asc.Client, iapID
 	}, matched.StartDate, nil
 }
 
-func resolveExpectedIAPSetupVerificationPrice(ctx context.Context, client *asc.Client, iapID string, opts iapSetupOptions) (string, error) {
+func resolveExpectedIAPSetupVerificationPrice(ctx context.Context, d *shared.Deps, client *asc.Client, iapID string, opts iapSetupOptions) (string, error) {
 	if opts.Price != "" {
 		return opts.Price, nil
 	}
@@ -714,7 +713,7 @@ func resolveExpectedIAPSetupVerificationPrice(ctx context.Context, client *asc.C
 		return "", nil
 	}
 
-	tiers, err := shared.ResolveIAPTiers(ctx, client, iapID, opts.BaseTerritory, true)
+	tiers, err := d.ResolveIAPTiers(ctx, client, iapID, opts.BaseTerritory, true)
 	if err != nil {
 		return "", fmt.Errorf("resolve live tiers for verification: %w", err)
 	}
@@ -737,8 +736,8 @@ func resolveExpectedIAPSetupVerificationPrice(ctx context.Context, client *asc.C
 	return "", fmt.Errorf("price point %q not found in %s during verification", opts.PricePointID, opts.BaseTerritory)
 }
 
-func printIAPSetupResult(result *iapSetupResult, format string, pretty bool) error {
-	return shared.PrintOutputWithRenderers(
+func printIAPSetupResult(d *shared.Deps, result *iapSetupResult, format string, pretty bool) error {
+	return d.PrintOutputWithRenderers(
 		result,
 		format,
 		pretty,
@@ -755,7 +754,7 @@ func printIAPSetupResult(result *iapSetupResult, format string, pretty bool) err
 				result.FailedStep,
 				result.Error,
 			}}
-			asc.RenderTable(headers, rows)
+			asc.RenderTableTo(d.IO.Out, headers, rows)
 			return nil
 		},
 		func() error {
@@ -771,7 +770,7 @@ func printIAPSetupResult(result *iapSetupResult, format string, pretty bool) err
 				result.FailedStep,
 				result.Error,
 			}}
-			asc.RenderMarkdown(headers, rows)
+			asc.RenderMarkdownTo(d.IO.Out, headers, rows)
 			return nil
 		},
 	)

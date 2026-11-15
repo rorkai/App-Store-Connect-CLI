@@ -297,6 +297,7 @@ func TestAccountAndDistributionInputValidationReturnsUsageExitCode(t *testing.T)
 			name:    "iap promoted-purchases list next",
 			args:    []string{"iap", "promoted-purchases", "list", "--app", "123456789", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
 			wantErr: "iap promoted-purchases list: --next must be an App Store Connect URL",
+			deps:    true,
 		},
 		{
 			name:    "merchant-ids certificates list limit",
