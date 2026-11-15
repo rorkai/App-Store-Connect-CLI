@@ -54,6 +54,7 @@ func TestGameCenterInputValidationReturnsUsageExitCode(t *testing.T) {
 			name:    "groups list limit above maximum",
 			args:    []string{"game-center", "groups", "list", "--limit", "201"},
 			wantErr: "game-center groups list: --limit must be between 1 and 200",
+			deps:    true,
 		},
 		{
 			name:    "leaderboard-sets v2 list limit above maximum",
@@ -65,11 +66,13 @@ func TestGameCenterInputValidationReturnsUsageExitCode(t *testing.T) {
 			name:    "enabled-versions compatible-versions limit above maximum",
 			args:    []string{"game-center", "enabled-versions", "compatible-versions", "--limit", "201"},
 			wantErr: "game-center enabled-versions compatible-versions: --limit must be between 1 and 200",
+			deps:    true,
 		},
 		{
 			name:    "app-versions compatibility list invalid next",
 			args:    []string{"game-center", "app-versions", "compatibility", "list", "--next", "http://api.appstoreconnect.apple.com/v1/x"},
 			wantErr: "game-center app-versions compatibility list: --next must be an App Store Connect URL",
+			deps:    true,
 		},
 		{
 			name:    "details metrics limit above maximum",
@@ -280,41 +283,49 @@ func TestGameCenterInputValidationReturnsUsageExitCode(t *testing.T) {
 			name:    "activities view without id",
 			args:    []string{"game-center", "activities", "view"},
 			wantErr: "--id is required",
+			deps:    true,
 		},
 		{
 			name:    "activities versions view without id",
 			args:    []string{"game-center", "activities", "versions", "view"},
 			wantErr: "--id is required",
+			deps:    true,
 		},
 		{
 			name:    "activities versions default-image view without id",
 			args:    []string{"game-center", "activities", "versions", "default-image", "view"},
 			wantErr: "--id is required",
+			deps:    true,
 		},
 		{
 			name:    "activities localizations view without id",
 			args:    []string{"game-center", "activities", "localizations", "view"},
 			wantErr: "--id is required",
+			deps:    true,
 		},
 		{
 			name:    "activities localizations image view without id",
 			args:    []string{"game-center", "activities", "localizations", "image", "view"},
 			wantErr: "--id is required",
+			deps:    true,
 		},
 		{
 			name:    "activities images view without id",
 			args:    []string{"game-center", "activities", "images", "view"},
 			wantErr: "--id is required",
+			deps:    true,
 		},
 		{
 			name:    "activities images upload without a target",
 			args:    []string{"game-center", "activities", "images", "upload", "--file", "test.png"},
 			wantErr: "exactly one of --localization-id or --version-id is required",
+			deps:    true,
 		},
 		{
 			name:    "activities images upload with both targets",
 			args:    []string{"game-center", "activities", "images", "upload", "--localization-id", "LOC_ID", "--version-id", "VERSION_ID", "--file", "test.png"},
 			wantErr: "exactly one of --localization-id or --version-id is required",
+			deps:    true,
 		},
 		{
 			name:    "challenges images upload without a target",

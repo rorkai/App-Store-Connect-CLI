@@ -122,6 +122,7 @@ func TestGameCenterPublicCreateContracts(t *testing.T) {
 			resourceType: "gameCenterActivities",
 			wantBody:     `{"data":{"type":"gameCenterActivities","attributes":{"referenceName":"Weekly","vendorIdentifier":"com.example.weekly","properties":{"mode":"ranked"}},"relationships":{"gameCenterDetail":{"data":{"type":"gameCenterDetails","id":"detail-1"}}}}}`,
 			wantRequests: 2,
+			deps:         true,
 		},
 		{
 			name:         "leaderboard set v1",
@@ -352,6 +353,7 @@ func TestGameCenterUpdateSendsVisibilityAndProperties(t *testing.T) {
 			patchPath:     "/v1/gameCenterActivities/res-1",
 			resourceType:  "gameCenterActivities",
 			wantAttribute: `{"properties":{"mode":"ranked"}}`,
+			deps:          true,
 		},
 		{
 			name:          "empty object is sent instead of an empty patch",
@@ -359,6 +361,7 @@ func TestGameCenterUpdateSendsVisibilityAndProperties(t *testing.T) {
 			patchPath:     "/v1/gameCenterActivities/res-1",
 			resourceType:  "gameCenterActivities",
 			wantAttribute: `{"properties":{}}`,
+			deps:          true,
 		},
 		{
 			name:          "omitted flags stay out of the request",

@@ -43,6 +43,7 @@ func TestRun_GameCenter43Flags_InvalidValuesReturnUsage(t *testing.T) {
 			name:    "activity create invalid create-initial-version",
 			args:    []string{"game-center", "activities", "create", "--app", "APP_ID", "--reference-name", "Seasonal", "--vendor-id", "com.example.seasonal", "--create-initial-version", "maybe"},
 			wantErr: "--create-initial-version must be true or false",
+			deps:    true,
 		},
 		{
 			name:    "challenge create invalid create-initial-version",
@@ -54,6 +55,7 @@ func TestRun_GameCenter43Flags_InvalidValuesReturnUsage(t *testing.T) {
 			name:    "activity fallback requires create-initial-version",
 			args:    []string{"game-center", "activities", "create", "--app", "APP_ID", "--reference-name", "Seasonal", "--vendor-id", "com.example.seasonal", "--initial-fallback-url", "https://example.com/fallback"},
 			wantErr: "--initial-fallback-url requires --create-initial-version true",
+			deps:    true,
 		},
 		{
 			name:    "achievement create activity properties not an object",
@@ -83,11 +85,13 @@ func TestRun_GameCenter43Flags_InvalidValuesReturnUsage(t *testing.T) {
 			name:    "activity create properties null",
 			args:    []string{"game-center", "activities", "create", "--app", "APP_ID", "--reference-name", "Weekly", "--vendor-id", "com.example.weekly", "--properties", `null`},
 			wantErr: "--properties must be a JSON object of string values",
+			deps:    true,
 		},
 		{
 			name:    "activity update properties blank",
 			args:    []string{"game-center", "activities", "update", "--id", "ACT", "--properties", ""},
 			wantErr: "--properties must be a JSON object of string values",
+			deps:    true,
 		},
 		{
 			name:    "leaderboard create invalid visibility",

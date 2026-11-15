@@ -160,11 +160,13 @@ func TestUpdateWithoutUpdateFlagsListsEveryUpdateFlag(t *testing.T) {
 			name:  "game-center activities localizations update",
 			args:  []string{"game-center", "activities", "localizations", "update", "--id", "ID"},
 			flags: "--name, --description",
+			deps:  true,
 		},
 		{
 			name:  "game-center activities update",
 			args:  []string{"game-center", "activities", "update", "--id", "ID"},
 			flags: "--reference-name, --play-style, --min-players, --max-players, --supports-party-code, --archived, --properties",
+			deps:  true,
 		},
 		{
 			name:  "game-center challenges localizations update",
