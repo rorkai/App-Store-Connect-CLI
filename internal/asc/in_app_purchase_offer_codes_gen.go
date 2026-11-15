@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -117,4 +118,61 @@ func (c *Client) UpdateInAppPurchaseOfferCode(ctx context.Context, offerCodeID s
 		Path:    fmt.Sprintf("/v1/inAppPurchaseOfferCodes/%s", offerCodeID),
 		Payload: payload,
 	})
+}
+
+// IAPOfferCodeCustomCodesOption sets the query of GET /v1/inAppPurchaseOfferCodes/{id}/customCodes (inAppPurchaseOfferCodes_customCodes_getToManyRelated).
+type IAPOfferCodeCustomCodesOption func(*iapOfferCodeCustomCodesQuery)
+
+type iapOfferCodeCustomCodesQuery struct {
+	listQuery
+}
+
+func buildIAPOfferCodeCustomCodesQuery(query *iapOfferCodeCustomCodesQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+// IAPOfferCodeOneTimeUseCodesOption sets the query of GET /v1/inAppPurchaseOfferCodes/{id}/oneTimeUseCodes (inAppPurchaseOfferCodes_oneTimeUseCodes_getToManyRelated).
+type IAPOfferCodeOneTimeUseCodesOption func(*iapOfferCodeOneTimeUseCodesQuery)
+
+type iapOfferCodeOneTimeUseCodesQuery struct {
+	listQuery
+}
+
+func buildIAPOfferCodeOneTimeUseCodesQuery(query *iapOfferCodeOneTimeUseCodesQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+// IAPOfferCodePricesOption sets the query of GET /v1/inAppPurchaseOfferCodes/{id}/prices (inAppPurchaseOfferCodes_prices_getToManyRelated).
+type IAPOfferCodePricesOption func(*iapOfferCodePricesQuery)
+
+type iapOfferCodePricesQuery struct {
+	listQuery
+	fields  []string
+	include []string
+}
+
+// WithIAPOfferCodePricesFields sets fields[inAppPurchaseOfferPrices].
+func WithIAPOfferCodePricesFields(fields []string) IAPOfferCodePricesOption {
+	return func(q *iapOfferCodePricesQuery) {
+		q.fields = normalizeUniqueList(fields)
+	}
+}
+
+// WithIAPOfferCodePricesInclude sets include.
+func WithIAPOfferCodePricesInclude(include []string) IAPOfferCodePricesOption {
+	return func(q *iapOfferCodePricesQuery) {
+		q.include = normalizeUniqueList(include)
+	}
+}
+
+func buildIAPOfferCodePricesQuery(query *iapOfferCodePricesQuery) string {
+	values := url.Values{}
+	addCSV(values, "fields[inAppPurchaseOfferPrices]", query.fields)
+	addCSV(values, "include", query.include)
+	addLimit(values, query.limit)
+	return values.Encode()
 }
