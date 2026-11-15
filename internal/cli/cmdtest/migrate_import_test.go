@@ -2198,6 +2198,9 @@ func TestMigrateImportDryRunReadsIMessageAndAppleTVScreenshotDirs(t *testing.T) 
 		}
 		writePNGForMigrate(t, filepath.Join(localeDir, "1.png"), size[0], size[1])
 	}
+	// The folder names the platform, so a device name in the file name does
+	// not move the file to another screenshot set.
+	writePNGForMigrate(t, filepath.Join(root, "screenshots", "appleTV", "en-US", "vision pro.png"), 3840, 2160)
 
 	result := migrateImportDryRunPlan(t, root)
 
@@ -2208,6 +2211,49 @@ func TestMigrateImportDryRunReadsIMessageAndAppleTVScreenshotDirs(t *testing.T) 
 	want := []string{"en-US APP_APPLE_TV", "en-US APP_IPHONE_67", "en-US IMESSAGE_APP_IPHONE_67"}
 	if !slices.Equal(got, want) {
 		t.Fatalf("screenshot plan = %v, want %v", got, want)
+	}
+}
+
+func TestMigrateImportDryRunRejectsMalformedScreenshotFolders(t *testing.T) {
+	tests := []struct {
+		name    string
+		prepare func(t *testing.T, root string)
+		wantErr string
+	}{
+		{
+			name: "phone-sized file in the appleTV folder",
+			prepare: func(t *testing.T, root string) {
+				dir := filepath.Join(root, "screenshots", "appleTV", "en-US")
+				if err := os.MkdirAll(dir, 0o755); err != nil {
+					t.Fatalf("mkdir screenshots: %v", err)
+				}
+				writePNGForMigrate(t, filepath.Join(dir, "1.png"), 1290, 2796)
+			},
+			wantErr: "is 1290x2796, which is not an Apple TV screenshot size",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := writeMigrateImportMetadata(t, validMigrateAppInfoMetadata())
+			test.prepare(t, root)
+
+			rootCmd := RootCommand("1.2.3")
+			rootCmd.FlagSet.SetOutput(io.Discard)
+			var runErr error
+			stdout, _ := captureOutput(t, func() {
+				if err := rootCmd.Parse([]string{"migrate", "import", "--app", "APP_ID", "--version-id", "VERSION_ID", "--fastlane-dir", root, "--dry-run"}); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				runErr = rootCmd.Run(context.Background())
+			})
+
+			if runErr == nil || !strings.Contains(runErr.Error(), test.wantErr) {
+				t.Fatalf("run error = %v, want it to contain %q", runErr, test.wantErr)
+			}
+			if stdout != "" {
+				t.Fatalf("expected no plan on stdout, got %q", stdout)
+			}
+		})
 	}
 }
 

@@ -154,8 +154,14 @@ func discoverScreenshotPlanWithOpenFiles(screenshotsDir string, retainOpenFiles 
 				return nil, nil, fmt.Errorf("invalid screenshot file %q: %w", candidate.path, err)
 			}
 			displayType, err := inferScreenshotDisplayTypeFromDimensions(candidate.path, dimensions.Width, dimensions.Height)
-			if err != nil && entry.appleTV && slices.Contains(ambiguousDisplayTypesForDimensions(dimensions.Width, dimensions.Height), "APP_APPLE_TV") {
-				displayType, err = "APP_APPLE_TV", nil
+			if entry.appleTV {
+				// The folder names the platform: its files are judged by size
+				// alone and must be an Apple TV size.
+				if inferDisplayTypeFromDimensions(dimensions.Width, dimensions.Height) == "APP_APPLE_TV" || slices.Contains(ambiguousDisplayTypesForDimensions(dimensions.Width, dimensions.Height), "APP_APPLE_TV") {
+					displayType, err = "APP_APPLE_TV", nil
+				} else {
+					err = fmt.Errorf("screenshot %q is %dx%d, which is not an Apple TV screenshot size", candidate.path, dimensions.Width, dimensions.Height)
+				}
 			}
 			if err == nil && entry.iMessage {
 				displayType = "IMESSAGE_" + displayType
