@@ -9,9 +9,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// BetaAppLocalizationsAppCommand returns the app command group.
-func BetaAppLocalizationsAppCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("app", flag.ExitOnError)
+// newBetaAppLocalizationsAppCommand returns the app command group built on d.
+func newBetaAppLocalizationsAppCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("app", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "app",
@@ -24,7 +24,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			BetaAppLocalizationsAppGetCommand(),
+			newBetaAppLocalizationsAppGetCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -32,9 +32,10 @@ Examples:
 	}
 }
 
-// BetaAppLocalizationsAppGetCommand returns the app get subcommand.
-func BetaAppLocalizationsAppGetCommand() *ffcli.Command {
+// newBetaAppLocalizationsAppGetCommand returns the app get subcommand built on d.
+func newBetaAppLocalizationsAppGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		Deps:        d,
 		FlagSetName: "app view",
 		Name:        "view",
 		ShortUsage:  "asc beta-app-localizations app view --id \"LOCALIZATION_ID\"",
