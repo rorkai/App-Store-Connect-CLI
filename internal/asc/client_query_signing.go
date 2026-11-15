@@ -171,10 +171,10 @@ func buildMerchantIDsQuery(query *merchantIDsQuery) string {
 	addCSV(values, "fields[merchantIds]", query.fields)
 	addCSV(values, "fields[certificates]", query.certificateFields)
 	addCSV(values, "include", query.include)
+	addLimit(values, query.limit)
 	if query.certificatesLimit > 0 {
 		values.Set("limit[certificates]", strconv.Itoa(query.certificatesLimit))
 	}
-	addLimit(values, query.limit)
 	return values.Encode()
 }
 
