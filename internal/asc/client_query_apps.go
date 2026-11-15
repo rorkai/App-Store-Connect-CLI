@@ -31,8 +31,8 @@ type appTagsQuery struct {
 	visibleInAppStore []string
 	sort              string
 	fields            []string
-	include           []string
 	territoryFields   []string
+	include           []string
 	territoryLimit    int
 }
 
