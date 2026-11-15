@@ -67,15 +67,15 @@ func newSubscriptionsVersionLocalizationsListCommand(d *shared.Deps) *ffcli.Comm
 			if id == "" && strings.TrimSpace(*next) == "" {
 				return d.RequiredFlag("--version-id")
 			}
-			fieldValues, err := normalizeSelectionFlagWith(d, fs, *fields, "--fields", subscriptionVersionLocalizationFieldsList())
+			fieldValues, err := normalizeSelectionFlag(d, fs, *fields, "--fields", subscriptionVersionLocalizationFieldsList())
 			if err != nil {
 				return err
 			}
-			versionFieldValues, err := normalizeSelectionFlagWith(d, fs, *versionFields, "--version-fields", subscriptionVersionFieldsList())
+			versionFieldValues, err := normalizeSelectionFlag(d, fs, *versionFields, "--version-fields", subscriptionVersionFieldsList())
 			if err != nil {
 				return err
 			}
-			includeValues, err := normalizeSelectionFlagWith(d, fs, *include, "--include", subscriptionLocalizationV2IncludeList())
+			includeValues, err := normalizeSelectionFlag(d, fs, *include, "--include", subscriptionLocalizationV2IncludeList())
 			if err != nil {
 				return err
 			}
@@ -175,13 +175,13 @@ func newSubscriptionsVersionLocalizationsViewCommand(d *shared.Deps) *ffcli.Comm
 			versionFields := fs.String("version-fields", "", "Sparse fields for included subscriptionVersions")
 			include := fs.String("include", "", "Include relationships: version")
 			return func() (err error) {
-				if fieldValues, err = normalizeSelectionFlagWith(d, fs, *fields, "--fields", subscriptionVersionLocalizationFieldsList()); err != nil {
+				if fieldValues, err = normalizeSelectionFlag(d, fs, *fields, "--fields", subscriptionVersionLocalizationFieldsList()); err != nil {
 					return err
 				}
-				if versionFieldValues, err = normalizeSelectionFlagWith(d, fs, *versionFields, "--version-fields", subscriptionVersionFieldsList()); err != nil {
+				if versionFieldValues, err = normalizeSelectionFlag(d, fs, *versionFields, "--version-fields", subscriptionVersionFieldsList()); err != nil {
 					return err
 				}
-				includeValues, err = normalizeSelectionFlagWith(d, fs, *include, "--include", subscriptionLocalizationV2IncludeList())
+				includeValues, err = normalizeSelectionFlag(d, fs, *include, "--include", subscriptionLocalizationV2IncludeList())
 				return err
 			}
 		},

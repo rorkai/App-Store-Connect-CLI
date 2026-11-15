@@ -16,11 +16,13 @@ const (
 
 func runReconciledMutation(
 	ctx context.Context,
+	d *shared.Deps,
 	readback func(context.Context) (bool, error),
 	mutate func(context.Context) error,
 ) (reconciledMutationStatus, error) {
-	_, status, err := shared.RunReconciledMutation(
+	_, status, err := shared.RunReconciledMutationWith(
 		ctx,
+		d,
 		func(requestCtx context.Context) (struct{}, error) {
 			return struct{}{}, mutate(requestCtx)
 		},

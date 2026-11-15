@@ -8,7 +8,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-func normalizeSelectionFlagWith(d *shared.Deps, fs *flag.FlagSet, value, flagName string, allowed []string) ([]string, error) {
+func normalizeSelectionFlag(d *shared.Deps, fs *flag.FlagSet, value, flagName string, allowed []string) ([]string, error) {
 	provided := flagWasProvided(fs, strings.TrimPrefix(flagName, "--"))
 	values, err := shared.NormalizeSelection(value, allowed, flagName)
 	if err != nil {
@@ -158,7 +158,7 @@ func subscriptionRelatedFieldFlagNames() []string {
 func subscriptionRelatedFieldValues(d *shared.Deps, fs *flag.FlagSet, raw map[string]*string) (asc.SubscriptionRelatedFields, error) {
 	var selected asc.SubscriptionRelatedFields
 	for _, field := range subscriptionRelatedFieldFlags {
-		values, err := normalizeSelectionFlagWith(d, fs, *raw[field.name], "--"+field.name, field.allowed)
+		values, err := normalizeSelectionFlag(d, fs, *raw[field.name], "--"+field.name, field.allowed)
 		if err != nil {
 			return selected, err
 		}

@@ -56,6 +56,16 @@ func TestSubscriptionsUsageErrorsWriteToDepsStderr(t *testing.T) {
 		{[]string{"pricing", "prices", "import"}, "Error: --subscription-id is required\n"},
 		{[]string{"pricing", "prices", "list"}, "Error: --subscription-id is required\n"},
 		{[]string{"pricing", "prices", "set"}, "Error: --subscription-id is required\n"},
+		{[]string{"pricing", "derive"}, "Error: --source-subscription-id is required\n"},
+		{[]string{"pricing", "equalize"}, "Error: --subscription-id is required\n"},
+		{[]string{"pricing", "monthly-commitment", "disable"}, "Error: --subscription-id is required\n"},
+		{[]string{"pricing", "monthly-commitment", "enable"}, "Error: --subscription-id is required\n"},
+		{[]string{"pricing", "monthly-commitment", "list"}, "Error: --subscription-id is required\n"},
+		{[]string{"pricing", "plan-availability", "available-territories"}, "Error: --plan-availability-id is required\n"},
+		{[]string{"pricing", "plan-availability", "set"}, "Error: --subscription-id is required\n"},
+		{[]string{"pricing", "plan-availability", "show"}, "Error: --subscription-id is required\n"},
+		{[]string{"pricing", "ppp"}, "Error: --subscription-id is required\n"},
+		{[]string{"pricing", "summary"}, "Error: --app or --subscription-id is required\n"},
 	}
 	for _, test := range tests {
 		t.Run(strings.Join(test.args, " "), func(t *testing.T) {

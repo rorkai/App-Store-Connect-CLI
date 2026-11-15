@@ -150,11 +150,11 @@ Examples:
 				if err != nil {
 					return d.UsageError("subscriptions groups list: " + err.Error())
 				}
-				includedSubscriptionFields, err = normalizeSelectionFlagWith(d, fs, *subscriptionFields, "--subscription-fields", subscriptionFieldsList())
+				includedSubscriptionFields, err = normalizeSelectionFlag(d, fs, *subscriptionFields, "--subscription-fields", subscriptionFieldsList())
 				if err != nil {
 					return err
 				}
-				includedLocalizationFields, err = normalizeSelectionFlagWith(d, fs, *localizationFields, "--localization-fields", subscriptionGroupLocalizationFieldsList())
+				includedLocalizationFields, err = normalizeSelectionFlag(d, fs, *localizationFields, "--localization-fields", subscriptionGroupLocalizationFieldsList())
 				return err
 			}
 		},
@@ -267,11 +267,11 @@ Examples:
 				if err != nil {
 					return d.UsageError("subscriptions groups view: " + err.Error())
 				}
-				includedSubscriptionFields, err := normalizeSelectionFlagWith(d, fs, *subscriptionFields, "--subscription-fields", subscriptionFieldsList())
+				includedSubscriptionFields, err := normalizeSelectionFlag(d, fs, *subscriptionFields, "--subscription-fields", subscriptionFieldsList())
 				if err != nil {
 					return err
 				}
-				includedLocalizationFields, err := normalizeSelectionFlagWith(d, fs, *localizationFields, "--localization-fields", subscriptionGroupLocalizationFieldsList())
+				includedLocalizationFields, err := normalizeSelectionFlag(d, fs, *localizationFields, "--localization-fields", subscriptionGroupLocalizationFieldsList())
 				if err != nil {
 					return err
 				}
@@ -395,11 +395,11 @@ Examples:
 			if id != "" && appFlag != "" {
 				return d.UsageError("--group-id and --app are mutually exclusive")
 			}
-			fieldValues, err := normalizeSelectionFlagWith(d, fs, *fields, "--fields", subscriptionFieldsList())
+			fieldValues, err := normalizeSelectionFlag(d, fs, *fields, "--fields", subscriptionFieldsList())
 			if err != nil {
 				return err
 			}
-			versionFieldValues, err := normalizeSelectionFlagWith(d, fs, *versionFields, "--version-fields", subscriptionVersionFieldsList())
+			versionFieldValues, err := normalizeSelectionFlag(d, fs, *versionFields, "--version-fields", subscriptionVersionFieldsList())
 			if err != nil {
 				return err
 			}
@@ -407,7 +407,7 @@ Examples:
 			if err != nil {
 				return err
 			}
-			includeValues, err := normalizeSelectionFlagWith(d, fs, *include, "--include", subscriptionIncludeList())
+			includeValues, err := normalizeSelectionFlag(d, fs, *include, "--include", subscriptionIncludeList())
 			if err != nil {
 				return err
 			}
@@ -637,11 +637,11 @@ Examples:
 				if err := validateRelationshipLimit(d, "--versions-limit", *versionsLimit); err != nil {
 					return err
 				}
-				fieldValues, err := normalizeSelectionFlagWith(d, fs, *fields, "--fields", subscriptionFieldsList())
+				fieldValues, err := normalizeSelectionFlag(d, fs, *fields, "--fields", subscriptionFieldsList())
 				if err != nil {
 					return err
 				}
-				versionFieldValues, err := normalizeSelectionFlagWith(d, fs, *versionFields, "--version-fields", subscriptionVersionFieldsList())
+				versionFieldValues, err := normalizeSelectionFlag(d, fs, *versionFields, "--version-fields", subscriptionVersionFieldsList())
 				if err != nil {
 					return err
 				}
@@ -649,7 +649,7 @@ Examples:
 				if err != nil {
 					return err
 				}
-				includeValues, err := normalizeSelectionFlagWith(d, fs, *include, "--include", subscriptionIncludeList())
+				includeValues, err := normalizeSelectionFlag(d, fs, *include, "--include", subscriptionIncludeList())
 				if err != nil {
 					return err
 				}
@@ -714,7 +714,7 @@ Examples:
 			if err := validateSubscriptionReviewFlags(d, fs, note, groupLevel); err != nil {
 				return err
 			}
-			markets, err := normalizeSelectionFlagWith(d, fs, strings.ToUpper(*marketSettings), "--market-settings", []string{"APP_STORE", "APPLE_SCHOOL", "APPLE_BUSINESS"})
+			markets, err := normalizeSelectionFlag(d, fs, strings.ToUpper(*marketSettings), "--market-settings", []string{"APP_STORE", "APPLE_SCHOOL", "APPLE_BUSINESS"})
 			if err != nil {
 				return err
 			}
@@ -977,14 +977,14 @@ Examples:
 			}
 
 			if strings.TrimSpace(*next) == "" {
-				id, err = resolveSubscriptionLookupIDWithTimeoutWith(ctx, d, client, *appID, id)
+				id, err = resolveSubscriptionLookupIDWithTimeout(ctx, d, client, *appID, id)
 				if err != nil {
 					return err
 				}
 			}
 
 			if *resolved {
-				resp, err := fetchResolvedSubscriptionPricesWith(ctx, d, client, id, *limit, *next, subscriptionPricingToday(), planTypeFilter, territoryFilter)
+				resp, err := fetchResolvedSubscriptionPrices(ctx, d, client, id, *limit, *next, subscriptionPricingToday(), planTypeFilter, territoryFilter)
 				if err != nil {
 					return fmt.Errorf("subscriptions prices list: failed to resolve: %w", err)
 				}
@@ -1294,7 +1294,7 @@ combined with --force or USA, and it needs MONTHLY plan availability.`,
 				fmt.Fprintln(d.IO.ErrOut, "Error: --territory is required with --force")
 				return shared.MissingRequiredUsageError("--territory")
 			}
-			planTypeValue, err := parseSubscriptionPricePlanType(fs, *planType)
+			planTypeValue, err := parseSubscriptionPricePlanType(d, fs, *planType)
 			if err != nil {
 				return err
 			}
@@ -1310,7 +1310,7 @@ combined with --force or USA, and it needs MONTHLY plan availability.`,
 				return fmt.Errorf("subscriptions prices add: %w", err)
 			}
 
-			id, err = resolveSubscriptionLookupIDWithTimeoutWith(ctx, d, client, *appID, id)
+			id, err = resolveSubscriptionLookupIDWithTimeout(ctx, d, client, *appID, id)
 			if err != nil {
 				return err
 			}
@@ -1371,7 +1371,7 @@ combined with --force or USA, and it needs MONTHLY plan availability.`,
 				return d.PrintOutput(matchingPrice, *output.Output, *output.Pretty)
 			}
 			if matchingPrice != nil && *force {
-				equalizations, equalizationsErr := fetchEqualizations(requestCtx, client, pricePoint, territoryID)
+				equalizations, equalizationsErr := fetchEqualizations(requestCtx, d, client, pricePoint, territoryID)
 				if equalizationsErr != nil {
 					return fmt.Errorf("subscriptions prices add: build repair matrix: %w", equalizationsErr)
 				}
@@ -1508,7 +1508,7 @@ Examples:
 				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
-			subscriptionValue, err = resolveSubscriptionLookupIDWithTimeoutWith(ctx, d, client, *appID, subscriptionValue)
+			subscriptionValue, err = resolveSubscriptionLookupIDWithTimeout(ctx, d, client, *appID, subscriptionValue)
 			if err != nil {
 				return err
 			}
@@ -1579,7 +1579,7 @@ Examples:
 				return fmt.Errorf("subscriptions pricing availability available-territories: %w", err)
 			}
 			if subscriptionValue != "" && strings.TrimSpace(*next) == "" {
-				subscriptionValue, err = resolveSubscriptionLookupIDWithTimeoutWith(ctx, d, client, resolvedAppID, subscriptionValue)
+				subscriptionValue, err = resolveSubscriptionLookupIDWithTimeout(ctx, d, client, resolvedAppID, subscriptionValue)
 				if err != nil {
 					return err
 				}
@@ -1698,7 +1698,7 @@ Confirmation is required when --billing-mode monthly-commitment is selected.`,
 				if !*confirm {
 					return d.UsageError("--confirm is required for monthly-commitment availability changes")
 				}
-				printMonthlyCommitmentTerritoryWarning(excluded)
+				printMonthlyCommitmentTerritoryWarning(d, excluded)
 			}
 
 			client, err := d.Client()
@@ -1706,7 +1706,7 @@ Confirmation is required when --billing-mode monthly-commitment is selected.`,
 				return fmt.Errorf("subscriptions pricing availability edit: %w", err)
 			}
 
-			id, err = resolveSubscriptionLookupIDWithTimeoutWith(ctx, d, client, *appID, id)
+			id, err = resolveSubscriptionLookupIDWithTimeout(ctx, d, client, *appID, id)
 			if err != nil {
 				return err
 			}

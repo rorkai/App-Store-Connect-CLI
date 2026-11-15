@@ -54,7 +54,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			selectedSubscriptionFields, err := normalizeSparseFieldsFlagWith(d, fs, "", "subscription-fields", *subscriptionFields, subscriptionFieldsList())
+			selectedSubscriptionFields, err := normalizeSparseFieldsFlag(d, fs, "", "subscription-fields", *subscriptionFields, subscriptionFieldsList())
 			if err != nil {
 				return err
 			}
@@ -68,7 +68,7 @@ Examples:
 				return fmt.Errorf("subscriptions app-store-review-screenshot view: %w", err)
 			}
 
-			id, err = resolveSubscriptionLookupIDWithTimeoutWith(ctx, d, client, *appID, id)
+			id, err = resolveSubscriptionLookupIDWithTimeout(ctx, d, client, *appID, id)
 			if err != nil {
 				return err
 			}

@@ -80,7 +80,7 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("subscriptions versions create: %w", err)
 			}
-			id, err = resolveSubscriptionLookupIDWithTimeoutWith(ctx, d, client, *appID, id)
+			id, err = resolveSubscriptionLookupIDWithTimeout(ctx, d, client, *appID, id)
 			if err != nil {
 				return err
 			}
@@ -132,23 +132,23 @@ Examples:
 			if err := validateVersionListLimits(d, *imagesLimit, *localizationsLimit); err != nil {
 				return err
 			}
-			versionFieldValues, err := normalizeSelectionFlagWith(d, fs, *fields, "--fields", subscriptionVersionFieldsList())
+			versionFieldValues, err := normalizeSelectionFlag(d, fs, *fields, "--fields", subscriptionVersionFieldsList())
 			if err != nil {
 				return err
 			}
-			subscriptionFieldValues, err := normalizeSelectionFlagWith(d, fs, *subscriptionFields, "--subscription-fields", subscriptionFieldsList())
+			subscriptionFieldValues, err := normalizeSelectionFlag(d, fs, *subscriptionFields, "--subscription-fields", subscriptionFieldsList())
 			if err != nil {
 				return err
 			}
-			imageFieldValues, err := normalizeSelectionFlagWith(d, fs, *imageFields, "--image-fields", subscriptionVersionImageFieldsList())
+			imageFieldValues, err := normalizeSelectionFlag(d, fs, *imageFields, "--image-fields", subscriptionVersionImageFieldsList())
 			if err != nil {
 				return err
 			}
-			localizationFieldValues, err := normalizeSelectionFlagWith(d, fs, *localizationFields, "--localization-fields", subscriptionVersionLocalizationFieldsList())
+			localizationFieldValues, err := normalizeSelectionFlag(d, fs, *localizationFields, "--localization-fields", subscriptionVersionLocalizationFieldsList())
 			if err != nil {
 				return err
 			}
-			includeValues, err := normalizeSelectionFlagWith(d, fs, *include, "--include", subscriptionVersionIncludeList())
+			includeValues, err := normalizeSelectionFlag(d, fs, *include, "--include", subscriptionVersionIncludeList())
 			if err != nil {
 				return err
 			}
@@ -164,7 +164,7 @@ Examples:
 				return fmt.Errorf("subscriptions versions list: %w", err)
 			}
 			if strings.TrimSpace(*next) == "" {
-				id, err = resolveSubscriptionLookupIDWithTimeoutWith(ctx, d, client, *appID, id)
+				id, err = resolveSubscriptionLookupIDWithTimeout(ctx, d, client, *appID, id)
 				if err != nil {
 					return err
 				}
@@ -233,19 +233,19 @@ Examples:
 				if err := validateRelationshipLimit(d, "--localizations-limit", *localizationsLimit); err != nil {
 					return err
 				}
-				if versionFieldValues, err = normalizeSelectionFlagWith(d, fs, *fields, "--fields", subscriptionVersionFieldsList()); err != nil {
+				if versionFieldValues, err = normalizeSelectionFlag(d, fs, *fields, "--fields", subscriptionVersionFieldsList()); err != nil {
 					return err
 				}
-				if subscriptionFieldValues, err = normalizeSelectionFlagWith(d, fs, *subscriptionFields, "--subscription-fields", subscriptionFieldsList()); err != nil {
+				if subscriptionFieldValues, err = normalizeSelectionFlag(d, fs, *subscriptionFields, "--subscription-fields", subscriptionFieldsList()); err != nil {
 					return err
 				}
-				if imageFieldValues, err = normalizeSelectionFlagWith(d, fs, *imageFields, "--image-fields", subscriptionVersionImageFieldsList()); err != nil {
+				if imageFieldValues, err = normalizeSelectionFlag(d, fs, *imageFields, "--image-fields", subscriptionVersionImageFieldsList()); err != nil {
 					return err
 				}
-				if localizationFieldValues, err = normalizeSelectionFlagWith(d, fs, *localizationFields, "--localization-fields", subscriptionVersionLocalizationFieldsList()); err != nil {
+				if localizationFieldValues, err = normalizeSelectionFlag(d, fs, *localizationFields, "--localization-fields", subscriptionVersionLocalizationFieldsList()); err != nil {
 					return err
 				}
-				includeValues, err = normalizeSelectionFlagWith(d, fs, *include, "--include", subscriptionVersionIncludeList())
+				includeValues, err = normalizeSelectionFlag(d, fs, *include, "--include", subscriptionVersionIncludeList())
 				return err
 			}
 		},
@@ -289,7 +289,7 @@ func newSubscriptionsVersionsLinksCommand(d *shared.Deps) *ffcli.Command {
 				return fmt.Errorf("subscriptions versions links: %w", err)
 			}
 			if strings.TrimSpace(*next) == "" {
-				id, err = resolveSubscriptionLookupIDWithTimeoutWith(ctx, d, client, *appID, id)
+				id, err = resolveSubscriptionLookupIDWithTimeout(ctx, d, client, *appID, id)
 				if err != nil {
 					return err
 				}

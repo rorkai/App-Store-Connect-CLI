@@ -23,19 +23,6 @@ type resolvedSubscriptionPriceCandidate struct {
 // start date.
 func fetchResolvedSubscriptionPrices(
 	ctx context.Context,
-	client *asc.Client,
-	subscriptionID string,
-	limit int,
-	nextURL string,
-	date time.Time,
-	planType asc.SubscriptionPlanType,
-	territory string,
-) (*shared.ResolvedPricesResult, error) {
-	return fetchResolvedSubscriptionPricesWith(ctx, shared.DefaultDeps(), client, subscriptionID, limit, nextURL, date, planType, territory)
-}
-
-func fetchResolvedSubscriptionPricesWith(
-	ctx context.Context,
 	d *shared.Deps,
 	client *asc.Client,
 	subscriptionID string,

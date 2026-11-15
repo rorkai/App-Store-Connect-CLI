@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"math/big"
-	"os"
 	"sort"
 	"strings"
 
@@ -17,9 +16,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/pppindex"
 )
 
-// SubscriptionsPricingPPPCommand returns the ppp subcommand.
-func SubscriptionsPricingPPPCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("subscriptions pricing ppp", flag.ExitOnError)
+// newSubscriptionsPricingPPPCommand returns the ppp subcommand.
+func newSubscriptionsPricingPPPCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("subscriptions pricing ppp", flag.ExitOnError)
 
 	subscriptionID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID, product ID, or exact current name (required)")
 	appID := addSubscriptionLookupAppFlag(fs)
@@ -33,7 +32,7 @@ func SubscriptionsPricingPPPCommand() *ffcli.Command {
 	dryRun := fs.Bool("dry-run", false, "Show the purchasing-power plan without applying it")
 	confirm := fs.Bool("confirm", false, "Confirm applying the purchasing-power plan (required unless --dry-run)")
 	workers := fs.Int("workers", defaultEqualizeWorkers, "Number of concurrent planning workers and price mutations")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "ppp",
@@ -71,58 +70,58 @@ Examples:
   asc subscriptions pricing ppp --subscription-id "SUB_ID" --base-price "9.99" --territory "IN,BR,MX" --confirm
   asc subscriptions pricing ppp --subscription-id "SUB_ID" --base-territory "GBR" --base-price "7.99" --start-date "YYYY-MM-DD" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			subID := strings.TrimSpace(*subscriptionID)
 			if subID == "" {
-				return shared.RequiredFlag("--subscription-id")
+				return d.RequiredFlag("--subscription-id")
 			}
 			price := strings.TrimSpace(*basePrice)
 			if price == "" {
-				return shared.RequiredFlag("--base-price")
+				return d.RequiredFlag("--base-price")
 			}
 			basePriceValue, ok := new(big.Rat).SetString(price)
 			if !shared.IsPriceDecimal(price) || !ok || basePriceValue.Sign() <= 0 {
-				return shared.UsageError("--base-price must be a positive decimal")
+				return d.UsageError("--base-price must be a positive decimal")
 			}
 			territory, err := ascterritory.Normalize(*baseTerritory)
 			if err != nil {
-				return shared.UsageError(fmt.Sprintf("invalid --base-territory: %v", err))
+				return d.UsageError(fmt.Sprintf("invalid --base-territory: %v", err))
 			}
 			baseLevel, indexed := pppindex.PriceLevel(territory)
 			if !indexed {
-				return shared.UsageError(fmt.Sprintf("invalid --base-territory: no purchasing-power price level for %s", territory))
+				return d.UsageError(fmt.Sprintf("invalid --base-territory: no purchasing-power price level for %s", territory))
 			}
-			roundMode, err := shared.ParsePriceRounding(*rounding)
+			roundMode, err := d.ParsePriceRounding(*rounding)
 			if err != nil {
 				return err
 			}
 			if *workers < 1 || *workers > 32 {
-				return shared.UsageError("--workers must be between 1 and 32")
+				return d.UsageError("--workers must be between 1 and 32")
 			}
 			if *dryRun && *confirm {
-				return shared.UsageError("--dry-run cannot be combined with --confirm")
+				return d.UsageError("--dry-run cannot be combined with --confirm")
 			}
-			if err := shared.RequireConfirmUnlessDryRun(*dryRun, *confirm); err != nil {
+			if err := d.RequireConfirmUnlessDryRun(*dryRun, *confirm); err != nil {
 				return err
 			}
-			explicitStartDate, effectiveAt, err := normalizeEqualizeStartDate(*startDate)
+			explicitStartDate, effectiveAt, err := normalizeEqualizeStartDate(d, *startDate)
 			if err != nil {
 				return err
 			}
-			if err := shared.RequireAppForStableSelector(shared.ResolveAppID(*appID), subID, "--subscription-id"); err != nil {
+			if err := d.RequireAppForStableSelector(shared.ResolveAppID(*appID), subID, "--subscription-id"); err != nil {
 				return err
 			}
 
-			selected, err := shared.PPPTerritorySelection(selection)
+			selected, err := d.PPPTerritorySelection(selection)
 			if err != nil {
 				return err
 			}
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("subscriptions pricing ppp: %w", err)
 			}
-			subID, err = resolveSubscriptionLookupIDWithTimeout(ctx, client, *appID, subID)
+			subID, err = resolveSubscriptionLookupIDWithTimeout(ctx, d, client, *appID, subID)
 			if err != nil {
 				return err
 			}
@@ -132,18 +131,18 @@ Examples:
 			autoScheduled := false
 			if resolvedStartDate == "" && *autoStartDate {
 				var scheduleErr error
-				resolvedStartDate, subscriptionState, autoScheduled, effectiveAt, scheduleErr = autoScheduleEqualizeStartDate(ctx, client, subID)
+				resolvedStartDate, subscriptionState, autoScheduled, effectiveAt, scheduleErr = autoScheduleEqualizeStartDate(ctx, d, client, subID)
 				if scheduleErr != nil {
 					return fmt.Errorf("subscriptions pricing ppp: %w", scheduleErr)
 				}
 				if autoScheduled {
-					fmt.Fprintf(os.Stderr, "Subscription state is %s; scheduling price changes for %s\n", subscriptionState, resolvedStartDate)
+					fmt.Fprintf(d.IO.ErrOut, "Subscription state is %s; scheduling price changes for %s\n", subscriptionState, resolvedStartDate)
 				}
 			}
 
-			fmt.Fprintln(os.Stderr, "Fetching current subscription prices...")
+			fmt.Fprintln(d.IO.ErrOut, "Fetching current subscription prices...")
 			currentPrices, err := fetchResolvedSubscriptionPrices(
-				ctx, client, subID, 200, "", effectiveAt, asc.SubscriptionPlanTypeUpfront, "",
+				ctx, d, client, subID, 200, "", effectiveAt, asc.SubscriptionPlanTypeUpfront, "",
 			)
 			if err != nil {
 				return fmt.Errorf("subscriptions pricing ppp: fetch current prices: %w", err)
@@ -168,8 +167,8 @@ Examples:
 				currentPrices.Prices = scoped
 			}
 
-			fmt.Fprintf(os.Stderr, "Finding %s price point for %s...\n", territory, price)
-			baseCandidates, err := fetchSubscriptionPriceDeriveCandidatesByTerritory(ctx, client, subID, []string{territory})
+			fmt.Fprintf(d.IO.ErrOut, "Finding %s price point for %s...\n", territory, price)
+			baseCandidates, err := fetchSubscriptionPriceDeriveCandidatesByTerritory(ctx, d, client, subID, []string{territory})
 			if err != nil {
 				return fmt.Errorf("subscriptions pricing ppp: %w", err)
 			}
@@ -179,8 +178,8 @@ Examples:
 			}
 			basePricePointID := baseResolution.PricePointID
 			price = baseResolution.CustomerPrice
-			fmt.Fprintln(os.Stderr, "Fetching equalized prices for all territories...")
-			equalizations, err := fetchEqualizations(ctx, client, basePricePointID, territory)
+			fmt.Fprintln(d.IO.ErrOut, "Fetching equalized prices for all territories...")
+			equalizations, err := fetchEqualizations(ctx, d, client, basePricePointID, territory)
 			if err != nil {
 				return fmt.Errorf("subscriptions pricing ppp: %w", err)
 			}
@@ -220,9 +219,10 @@ Examples:
 				})
 			}
 
-			fmt.Fprintf(os.Stderr, "Resolving price points for %d territor%s...\n", len(sourcePrices.Prices), pluralizeEqualizeTerritories(len(sourcePrices.Prices)))
+			fmt.Fprintf(d.IO.ErrOut, "Resolving price points for %d territor%s...\n", len(sourcePrices.Prices), pluralizeEqualizeTerritories(len(sourcePrices.Prices)))
 			rows := buildSubscriptionPriceDerivePlan(
 				ctx,
+				d,
 				client,
 				subID,
 				sourcePrices,
@@ -256,7 +256,7 @@ Examples:
 			result.Summary = shared.SummarizePriceLadderRows(rows)
 
 			if result.Summary.Unresolved > 0 {
-				if err := shared.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
+				if err := d.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
 					return err
 				}
 				return shared.NewReportedError(fmt.Errorf(
@@ -266,7 +266,7 @@ Examples:
 				))
 			}
 			if *dryRun {
-				return shared.PrintOutput(result, *output.Output, *output.Pretty)
+				return d.PrintOutput(result, *output.Output, *output.Pretty)
 			}
 
 			attrs := asc.SubscriptionPriceCreateAttributes{
@@ -278,9 +278,10 @@ Examples:
 			}
 			var verificationErr error
 			result.Summary, result.Verification, verificationErr = applyAndVerifySubscriptionPriceDeriveRows(
-				ctx, client, subID, result.Rows, *workers, attrs, effectiveAt, "", "territory price", "scheduled prices",
+				ctx,
+				d, client, subID, result.Rows, *workers, attrs, effectiveAt, "", "territory price", "scheduled prices",
 			)
-			if err := shared.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
+			if err := d.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
 				return err
 			}
 			if verificationErr != nil {

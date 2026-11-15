@@ -101,11 +101,11 @@ Examples:
 			if err != nil {
 				return d.UsageError(err.Error())
 			}
-			selectedSubscriptionFields, err := normalizeSparseFieldsFlagWith(d, fs, *next, "subscription-fields", *subscriptionFields, subscriptionFieldsList())
+			selectedSubscriptionFields, err := normalizeSparseFieldsFlag(d, fs, *next, "subscription-fields", *subscriptionFields, subscriptionFieldsList())
 			if err != nil {
 				return err
 			}
-			selectedPricePointFields, err := normalizeSparseFieldsFlagWith(d, fs, *next, "price-point-fields", *pricePointFields, subscriptionPricePointFieldsList())
+			selectedPricePointFields, err := normalizeSparseFieldsFlag(d, fs, *next, "price-point-fields", *pricePointFields, subscriptionPricePointFieldsList())
 			if err != nil {
 				return err
 			}
@@ -118,7 +118,7 @@ Examples:
 			}
 
 			if strings.TrimSpace(*next) == "" {
-				id, err = resolveSubscriptionLookupIDWithTimeoutWith(ctx, d, client, *appID, id)
+				id, err = resolveSubscriptionLookupIDWithTimeout(ctx, d, client, *appID, id)
 				if err != nil {
 					return err
 				}
@@ -205,7 +205,7 @@ Examples:
 				return fmt.Errorf("subscriptions introductory-offers view: %w", err)
 			}
 
-			subID, err = resolveSubscriptionLookupIDWithTimeoutWith(ctx, d, client, *appID, subID)
+			subID, err = resolveSubscriptionLookupIDWithTimeout(ctx, d, client, *appID, subID)
 			if err != nil {
 				return err
 			}
@@ -402,7 +402,7 @@ Timeouts:
 			operationCtx, operationCancel := contextWithSubscriptionIntroductoryOfferCreateTimeout(ctx, d)
 			defer operationCancel()
 
-			id, err = resolveSubscriptionLookupIDWithTimeoutWith(operationCtx, d, client, *appID, id)
+			id, err = resolveSubscriptionLookupIDWithTimeout(operationCtx, d, client, *appID, id)
 			if err != nil {
 				return err
 			}

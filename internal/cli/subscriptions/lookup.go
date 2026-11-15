@@ -14,11 +14,7 @@ func addSubscriptionLookupAppFlag(fs *flag.FlagSet) *string {
 	return fs.String("app", "", subscriptionLookupAppUsage)
 }
 
-func resolveSubscriptionLookupID(ctx context.Context, client *asc.Client, appValue, selector string) (string, error) {
-	return resolveSubscriptionLookupIDWith(ctx, shared.DefaultDeps(), client, appValue, selector)
-}
-
-func resolveSubscriptionLookupIDWith(ctx context.Context, d *shared.Deps, client *asc.Client, appValue, selector string) (string, error) {
+func resolveSubscriptionLookupID(ctx context.Context, d *shared.Deps, client *asc.Client, appValue, selector string) (string, error) {
 	resolvedAppID := shared.ResolveAppID(appValue)
 	if err := d.RequireAppForStableSelector(resolvedAppID, selector, "--subscription-id"); err != nil {
 		return "", err
@@ -26,13 +22,9 @@ func resolveSubscriptionLookupIDWith(ctx context.Context, d *shared.Deps, client
 	return shared.ResolveSubscriptionID(ctx, client, resolvedAppID, selector)
 }
 
-func resolveSubscriptionLookupIDWithTimeout(ctx context.Context, client *asc.Client, appValue, selector string) (string, error) {
-	return resolveSubscriptionLookupIDWithTimeoutWith(ctx, shared.DefaultDeps(), client, appValue, selector)
-}
-
-func resolveSubscriptionLookupIDWithTimeoutWith(ctx context.Context, d *shared.Deps, client *asc.Client, appValue, selector string) (string, error) {
+func resolveSubscriptionLookupIDWithTimeout(ctx context.Context, d *shared.Deps, client *asc.Client, appValue, selector string) (string, error) {
 	lookupCtx, cancel := d.Timeout(ctx)
 	defer cancel()
 
-	return resolveSubscriptionLookupIDWith(lookupCtx, d, client, appValue, selector)
+	return resolveSubscriptionLookupID(lookupCtx, d, client, appValue, selector)
 }

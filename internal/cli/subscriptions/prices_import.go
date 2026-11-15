@@ -195,7 +195,7 @@ Examples:
 				}
 				defaultStartDate = normalized
 			}
-			defaultPlanType, err := parseSubscriptionPricePlanType(fs, *planType)
+			defaultPlanType, err := parseSubscriptionPricePlanType(d, fs, *planType)
 			if err != nil {
 				return err
 			}
@@ -226,7 +226,7 @@ Examples:
 			}
 
 			summary.SubscriptionID, err = shared.RetryReadWithFreshTimeoutWith(ctx, d, func(requestCtx context.Context) (string, error) {
-				return resolveSubscriptionLookupIDWith(requestCtx, d, client, *appID, summary.SubscriptionID)
+				return resolveSubscriptionLookupID(requestCtx, d, client, *appID, summary.SubscriptionID)
 			})
 			if err != nil {
 				return err
@@ -238,7 +238,7 @@ Examples:
 			statePlanFilter := subscriptionPriceImportStatePlanFilter(rows, defaultPlanType)
 			var stateIndex *subscriptionPriceImportStateIndex
 			if !*dryRun {
-				stateIndex, err = fetchSubscriptionPriceImportStateForPlans(ctx, client, summary.SubscriptionID, statePlanFilter)
+				stateIndex, err = fetchSubscriptionPriceImportStateForPlans(ctx, d, client, summary.SubscriptionID, statePlanFilter)
 				if err != nil {
 					return fmt.Errorf("subscriptions prices import: fetch existing prices: %w", err)
 				}
@@ -295,8 +295,9 @@ Examples:
 				if !stateIndex.matches(resolvedRow) {
 					status, rowErr = runReconciledMutation(
 						ctx,
+						d,
 						func(readbackCtx context.Context) (bool, error) {
-							refreshed, err := fetchSubscriptionPriceImportStateForPlans(readbackCtx, client, summary.SubscriptionID, statePlanFilter)
+							refreshed, err := fetchSubscriptionPriceImportStateForPlans(readbackCtx, d, client, summary.SubscriptionID, statePlanFilter)
 							if err != nil {
 								return false, err
 							}
@@ -485,11 +486,7 @@ func subscriptionPriceImportStatePlanFilter(rows []subscriptionPriceImportCSVRow
 	return filter
 }
 
-func fetchSubscriptionPriceImportStateForPlans(ctx context.Context, client *asc.Client, subscriptionID string, planFilter asc.SubscriptionPlanType) (*subscriptionPriceImportStateIndex, error) {
-	return fetchSubscriptionPriceImportStateForPlansWith(ctx, shared.DefaultDeps(), client, subscriptionID, planFilter)
-}
-
-func fetchSubscriptionPriceImportStateForPlansWith(ctx context.Context, d *shared.Deps, client *asc.Client, subscriptionID string, planFilter asc.SubscriptionPlanType) (*subscriptionPriceImportStateIndex, error) {
+func fetchSubscriptionPriceImportStateForPlans(ctx context.Context, d *shared.Deps, client *asc.Client, subscriptionID string, planFilter asc.SubscriptionPlanType) (*subscriptionPriceImportStateIndex, error) {
 	query := url.Values{
 		"fields[subscriptionPrices]": []string{"startDate,preserved,planType,territory,subscriptionPricePoint"},
 		"filter[planType]":           []string{string(planFilter)},

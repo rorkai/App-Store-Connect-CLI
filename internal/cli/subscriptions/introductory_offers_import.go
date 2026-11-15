@@ -176,7 +176,7 @@ Examples:
 			}
 
 			summary.SubscriptionID, err = shared.RetryReadWithFreshTimeoutWith(ctx, d, func(requestCtx context.Context) (string, error) {
-				return resolveSubscriptionLookupIDWith(requestCtx, d, client, *appID, summary.SubscriptionID)
+				return resolveSubscriptionLookupID(requestCtx, d, client, *appID, summary.SubscriptionID)
 			})
 			if err != nil {
 				return err
@@ -205,6 +205,7 @@ Examples:
 				if !stateIndex.matches(row) {
 					status, rowErr = runReconciledMutation(
 						ctx,
+						d,
 						func(readbackCtx context.Context) (bool, error) {
 							refreshed, err := fetchSubscriptionIntroductoryOfferImportState(readbackCtx, d, client, summary.SubscriptionID)
 							if err != nil {

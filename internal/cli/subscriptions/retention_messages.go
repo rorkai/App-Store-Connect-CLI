@@ -117,14 +117,14 @@ func retentionReadCommand(d *shared.Deps, r retentionRead) *ffcli.Command {
 			}
 			opts := []asc.RetentionMessagesOption{asc.WithRetentionMessagesNextURL(nextURL)}
 			if fields != nil {
-				values, err := normalizeSelectionFlagWith(d, fs, *fields, "--fields", shared.IncludedResourceFields(r.primary))
+				values, err := normalizeSelectionFlag(d, fs, *fields, "--fields", shared.IncludedResourceFields(r.primary))
 				if err != nil {
 					return err
 				}
 				opts = append(opts, asc.WithRetentionMessagesQuery("fields["+r.primary+"]", values...))
 			}
 			if include != nil {
-				includes, err := normalizeSelectionFlagWith(d, fs, *include, "--include", includeNames)
+				includes, err := normalizeSelectionFlag(d, fs, *include, "--include", includeNames)
 				if err != nil {
 					return err
 				}
@@ -149,7 +149,7 @@ func retentionReadCommand(d *shared.Deps, r retentionRead) *ffcli.Command {
 				values := shared.SplitCSV(*filters[i])
 				if f.allowed != nil {
 					var err error
-					if values, err = normalizeSelectionFlagWith(d, fs, *filters[i], "--"+f.flag, f.allowed); err != nil {
+					if values, err = normalizeSelectionFlag(d, fs, *filters[i], "--"+f.flag, f.allowed); err != nil {
 						return err
 					}
 				}
