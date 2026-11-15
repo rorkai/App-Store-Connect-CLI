@@ -16,7 +16,7 @@ import (
 )
 
 func TestParseDSYMSelectionExactVersionDoesNotRequireLatest(t *testing.T) {
-	d, _, _ := newBuildsTestDeps(nil)
+	d, _ := newBuildsTestDeps(nil)
 	selection, err := parseDSYMSelection(d, dsymFlagInput{
 		AppID:   "123",
 		Version: "1.2.3",
@@ -30,7 +30,7 @@ func TestParseDSYMSelectionExactVersionDoesNotRequireLatest(t *testing.T) {
 }
 
 func TestParseDSYMSelectionVersionLatestMatchesLatestFlag(t *testing.T) {
-	d, _, _ := newBuildsTestDeps(nil)
+	d, _ := newBuildsTestDeps(nil)
 	selection, err := parseDSYMSelection(d, dsymFlagInput{
 		AppID:   "123",
 		Version: "latest",
@@ -46,7 +46,7 @@ func TestParseDSYMSelectionVersionLatestMatchesLatestFlag(t *testing.T) {
 func TestParseDSYMSelectionRejectsMalformedExactVersions(t *testing.T) {
 	for _, version := range []string{"foo", "1..2", "-1.2"} {
 		t.Run(version, func(t *testing.T) {
-			d, _, _ := newBuildsTestDeps(nil)
+			d, _ := newBuildsTestDeps(nil)
 			_, err := parseDSYMSelection(d, dsymFlagInput{AppID: "123", Version: version})
 			if err == nil || !strings.Contains(err.Error(), "--version must be a dotted numeric version") {
 				t.Fatalf("error = %v, want invalid exact version", err)
@@ -56,7 +56,7 @@ func TestParseDSYMSelectionRejectsMalformedExactVersions(t *testing.T) {
 }
 
 func TestParseDSYMSelectionRejectsTimeoutWithoutWait(t *testing.T) {
-	d, _, _ := newBuildsTestDeps(nil)
+	d, _ := newBuildsTestDeps(nil)
 	_, err := parseDSYMSelection(d, dsymFlagInput{
 		BuildID:    "build-1",
 		Timeout:    time.Second,
@@ -107,7 +107,7 @@ func TestSaveSingleDSYMVerifiesExistingFileContent(t *testing.T) {
 			defer server.Close()
 			target := dsymTarget{ID: "build", AppVersion: "1.0", BuildNumber: "42"}
 			bundles := []dsymBundleInfo{{BundleID: "com.example.app", DSYMURL: &server.URL}}
-			d, _, _ := newBuildsTestDeps(nil)
+			d, _ := newBuildsTestDeps(nil)
 			files, err := saveDSYMBundles(t.Context(), d, bundles, target, dir, false)
 			if remote != "ios" {
 				if err == nil || !strings.Contains(err.Error(), "already exists") {
@@ -152,7 +152,7 @@ func TestResolveLiveDSYMTargetAttachmentValidation(t *testing.T) {
 					return nil, nil
 				}
 			})
-			d, _, _ := newBuildsTestDeps(nil)
+			d, _ := newBuildsTestDeps(nil)
 			targets, err := resolveLiveDSYMTarget(t.Context(), d, client, liveAppVersion{ID: "live", Version: "2.0"}, test.exclude)
 			if test.wantError != "" {
 				if err == nil || !strings.Contains(err.Error(), test.wantError) {
@@ -169,7 +169,7 @@ func TestResolveLiveDSYMTargetPreservesCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 	client := newBuildsWaitTestClient(t, func(req *http.Request) (*http.Response, error) { return nil, req.Context().Err() })
-	d, _, _ := newBuildsTestDeps(nil)
+	d, _ := newBuildsTestDeps(nil)
 	_, err := resolveLiveDSYMTarget(ctx, d, client, liveAppVersion{ID: "live"}, false)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("err=%v", err)
@@ -189,7 +189,7 @@ func TestResolveSelectedDSYMLiveRangesStillListBuilds(t *testing.T) {
 				return nil, nil
 			}
 		})
-		d, _, _ := newBuildsTestDeps(nil)
+		d, _ := newBuildsTestDeps(nil)
 		targets, err := resolveSelectedDSYMTargets(t.Context(), d, client, dsymSelection{Live: true, All: true, After: after, Resolve: ResolveBuildOptions{AppID: "123"}})
 		if err != nil || len(targets) != 1 || targets[0].ID != "newer" {
 			t.Fatalf("targets=%v err=%v", targets, err)
@@ -206,7 +206,7 @@ func TestResolveLiveDSYMTargetPreservesAPIErrors(t *testing.T) {
 			}
 			return nil, failure
 		})
-		d, _, _ := newBuildsTestDeps(nil)
+		d, _ := newBuildsTestDeps(nil)
 		_, err := resolveLiveDSYMTarget(t.Context(), d, client, liveAppVersion{ID: "live"}, false)
 		if !errors.Is(err, failure) {
 			t.Fatalf("err=%v", err)
@@ -231,7 +231,7 @@ func TestListDSYMTargetsDetectsRepeatedNextURL(t *testing.T) {
 				}
 				return buildsWaitJSONResponse(200, `{"data":[],"links":{}}`)
 			})
-			d, _, _ := newBuildsTestDeps(nil)
+			d, _ := newBuildsTestDeps(nil)
 			_, err := listDSYMTargets(t.Context(), d, client, "123", "IOS", "", "", nil, false)
 			if !errors.Is(err, asc.ErrRepeatedPaginationURL) || requests != 2 {
 				t.Fatalf("requests=%d err=%v", requests, err)
@@ -258,7 +258,7 @@ func TestListDSYMTargetsPaginationControls(t *testing.T) {
 			value := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 			after = &value
 		}
-		d, _, _ := newBuildsTestDeps(nil)
+		d, _ := newBuildsTestDeps(nil)
 		targets, err := listDSYMTargets(t.Context(), d, client, "123", "", "", "", after, false)
 		if err != nil {
 			t.Fatal(err)
@@ -279,7 +279,7 @@ func TestListDSYMTargetsRejectsUntrustedNextURL(t *testing.T) {
 		requests++
 		return buildsWaitJSONResponse(200, `{"data":[],"links":{"next":"https://untrusted.example/v1/builds?cursor=next"}}`)
 	})
-	d, _, _ := newBuildsTestDeps(nil)
+	d, _ := newBuildsTestDeps(nil)
 	_, err := listDSYMTargets(t.Context(), d, client, "123", "", "", "", nil, false)
 	if err == nil || requests != 1 {
 		t.Fatalf("requests=%d err=%v", requests, err)

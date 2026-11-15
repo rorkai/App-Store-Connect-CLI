@@ -60,7 +60,7 @@ func TestBuildsDsymsCommandGivesEachDownloadFreshTimeout(t *testing.T) {
 	})
 	t.Cleanup(restoreDownloadClient)
 
-	d, _, _ := newBuildsTestDeps(func() (*asc.Client, error) { return client, nil })
+	d, _ := newBuildsTestDeps(func() (*asc.Client, error) { return client, nil })
 	cmd := newBuildsDsymsCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--build-id", "build-1",

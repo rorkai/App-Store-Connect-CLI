@@ -33,7 +33,7 @@ func TestSaveOneDSYMUsesDownloadBudget(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			d, _, _ := newBuildsTestDeps(nil)
+			d, _ := newBuildsTestDeps(nil)
 			size, _, skipped, err := saveOneDSYM(t.Context(), d, server.URL, path)
 			if err != nil || size != 4 || skipped != existing {
 				t.Fatalf("saveOneDSYM() = %d, skipped=%v, %v", size, skipped, err)
@@ -54,7 +54,7 @@ func TestSaveOneDSYMStalledBodyHonorsParentCancellation(t *testing.T) {
 	}))
 	defer server.Close()
 	path := filepath.Join(t.TempDir(), "test.dSYM.zip")
-	d, _, _ := newBuildsTestDeps(nil)
+	d, _ := newBuildsTestDeps(nil)
 	_, _, _, err := saveOneDSYM(ctx, d, server.URL, path)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("saveOneDSYM() error = %v, want cancellation", err)
@@ -74,7 +74,7 @@ func TestSaveOneDSYMStalledBodyHonorsDownloadDeadline(t *testing.T) {
 	}))
 	defer server.Close()
 	path := filepath.Join(t.TempDir(), "test.dSYM.zip")
-	d, _, _ := newBuildsTestDeps(nil)
+	d, _ := newBuildsTestDeps(nil)
 	_, _, _, err := saveOneDSYM(t.Context(), d, server.URL, path)
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("saveOneDSYM() error = %v, want deadline exceeded", err)

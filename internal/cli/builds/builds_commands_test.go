@@ -38,7 +38,7 @@ func TestBuildsListCommand_VersionAndBuildNumberDescriptions(t *testing.T) {
 }
 
 func TestBuildsAddGroupsCommandDryRunHelpDescribesNoMutation(t *testing.T) {
-	d, _, _ := newBuildsTestDeps(nil)
+	d, _ := newBuildsTestDeps(nil)
 	cmd := newBuildsAddGroupsCommand(d)
 	dryRunFlag := cmd.FlagSet.Lookup("dry-run")
 	if dryRunFlag == nil {
@@ -244,7 +244,7 @@ func TestNormalizeBuildProcessingStateFilter(t *testing.T) {
 }
 
 func TestBuildsUpdateCommand_Shape(t *testing.T) {
-	d, _, _ := newBuildsTestDeps(nil)
+	d, _ := newBuildsTestDeps(nil)
 	cmd := newBuildsUpdateCommand(d)
 	if cmd.Name != "update" {
 		t.Fatalf("unexpected command name: %q", cmd.Name)
@@ -292,7 +292,7 @@ func TestBuildSelectorCommandsExposeExcludeExpiredFlags(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			d, _, _ := newBuildsTestDeps(nil)
+			d, _ := newBuildsTestDeps(nil)
 			flags := test.cmd(d).FlagSet
 			if flags.Lookup("exclude-expired") == nil {
 				t.Fatal("expected --exclude-expired flag to be defined")
@@ -305,7 +305,7 @@ func TestBuildSelectorCommandsExposeExcludeExpiredFlags(t *testing.T) {
 }
 
 func TestBuildsUpdateCommand_ShortUsageShowsRequiredFlag(t *testing.T) {
-	d, _, _ := newBuildsTestDeps(nil)
+	d, _ := newBuildsTestDeps(nil)
 	cmd := newBuildsUpdateCommand(d)
 	want := "asc builds update (--build-id BUILD_ID | --app APP --latest | --app APP --build-number BUILD_NUMBER --platform PLATFORM [--version VERSION]) --uses-non-exempt-encryption [true|false] [flags]"
 	if cmd.ShortUsage != want {
