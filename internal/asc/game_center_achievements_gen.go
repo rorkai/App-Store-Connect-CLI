@@ -56,6 +56,22 @@ func (c *Client) GetGameCenterAchievementV2(ctx context.Context, achievementID s
 	})
 }
 
+// UpdateGameCenterAchievementV2 sends PATCH /v2/gameCenterAchievements/{id} (gameCenterAchievementsV2_updateInstance).
+func (c *Client) UpdateGameCenterAchievementV2(ctx context.Context, achievementID string, attrs GameCenterAchievementUpdateAttributes) (*GameCenterAchievementResponse, error) {
+	payload := GameCenterAchievementUpdateRequest{
+		Data: GameCenterAchievementUpdateData{
+			Type:       ResourceTypeGameCenterAchievements,
+			ID:         strings.TrimSpace(achievementID),
+			Attributes: &attrs,
+		},
+	}
+	return sendJSON[GameCenterAchievementResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v2/gameCenterAchievements/%s", strings.TrimSpace(achievementID)),
+		Payload: payload,
+	})
+}
+
 // GetGameCenterAchievementVersions sends GET /v2/gameCenterAchievements/{id}/versions (gameCenterAchievementsV2_versions_getToManyRelated).
 func (c *Client) GetGameCenterAchievementVersions(ctx context.Context, achievementID string, opts ...GCAchievementVersionsOption) (*GameCenterAchievementVersionsResponse, error) {
 	query := applyOptions(opts)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"io"
 	"path/filepath"
 	"testing"
 
@@ -11,10 +12,24 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
+// newBackgroundAssetsTestDeps returns deps whose client fails unless client is
+// given, with streams that discard output.
+func newBackgroundAssetsTestDeps(client func() (*asc.Client, error)) *shared.Deps {
+	if client == nil {
+		client = func() (*asc.Client, error) { return nil, errors.New("unexpected client request") }
+	}
+	return &shared.Deps{
+		Client:        client,
+		IO:            &shared.IO{Out: io.Discard, ErrOut: io.Discard},
+		Timeout:       shared.ContextWithTimeout,
+		UploadTimeout: shared.ContextWithUploadTimeout,
+	}
+}
+
 func TestBackgroundAssetsListCommand_MissingApp(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
-	cmd := BackgroundAssetsListCommand()
+	cmd := newBackgroundAssetsListCommand(newBackgroundAssetsTestDeps(nil))
 	if err := cmd.FlagSet.Parse([]string{}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
@@ -25,7 +40,7 @@ func TestBackgroundAssetsListCommand_MissingApp(t *testing.T) {
 }
 
 func TestBackgroundAssetsGetCommand_MissingID(t *testing.T) {
-	cmd := BackgroundAssetsGetCommand()
+	cmd := newBackgroundAssetsGetCommand(newBackgroundAssetsTestDeps(nil))
 	if err := cmd.FlagSet.Parse([]string{}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
@@ -38,7 +53,7 @@ func TestBackgroundAssetsGetCommand_MissingID(t *testing.T) {
 func TestBackgroundAssetsCreateCommand_MissingApp(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
-	cmd := BackgroundAssetsCreateCommand()
+	cmd := newBackgroundAssetsCreateCommand(newBackgroundAssetsTestDeps(nil))
 	if err := cmd.FlagSet.Parse([]string{"--asset-pack-identifier", "com.example.assetpack"}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
@@ -49,7 +64,7 @@ func TestBackgroundAssetsCreateCommand_MissingApp(t *testing.T) {
 }
 
 func TestBackgroundAssetsCreateCommand_MissingAssetPackIdentifier(t *testing.T) {
-	cmd := BackgroundAssetsCreateCommand()
+	cmd := newBackgroundAssetsCreateCommand(newBackgroundAssetsTestDeps(nil))
 	if err := cmd.FlagSet.Parse([]string{"--app", "APP_ID"}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
@@ -60,7 +75,7 @@ func TestBackgroundAssetsCreateCommand_MissingAssetPackIdentifier(t *testing.T) 
 }
 
 func TestBackgroundAssetsUpdateCommand_MissingID(t *testing.T) {
-	cmd := BackgroundAssetsUpdateCommand()
+	cmd := newBackgroundAssetsUpdateCommand(newBackgroundAssetsTestDeps(nil))
 	if err := cmd.FlagSet.Parse([]string{"--archived", "true"}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
@@ -71,7 +86,7 @@ func TestBackgroundAssetsUpdateCommand_MissingID(t *testing.T) {
 }
 
 func TestBackgroundAssetsUpdateCommand_MissingArchived(t *testing.T) {
-	cmd := BackgroundAssetsUpdateCommand()
+	cmd := newBackgroundAssetsUpdateCommand(newBackgroundAssetsTestDeps(nil))
 	if err := cmd.FlagSet.Parse([]string{"--id", "ASSET_ID"}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
@@ -82,7 +97,7 @@ func TestBackgroundAssetsUpdateCommand_MissingArchived(t *testing.T) {
 }
 
 func TestBackgroundAssetsVersionsListCommand_MissingAssetID(t *testing.T) {
-	cmd := BackgroundAssetsVersionsListCommand()
+	cmd := newBackgroundAssetsVersionsListCommand(newBackgroundAssetsTestDeps(nil))
 	if err := cmd.FlagSet.Parse([]string{}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
@@ -93,7 +108,7 @@ func TestBackgroundAssetsVersionsListCommand_MissingAssetID(t *testing.T) {
 }
 
 func TestBackgroundAssetsVersionsGetCommand_MissingID(t *testing.T) {
-	cmd := BackgroundAssetsVersionsGetCommand()
+	cmd := newBackgroundAssetsVersionsGetCommand(newBackgroundAssetsTestDeps(nil))
 	if err := cmd.FlagSet.Parse([]string{}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
@@ -104,7 +119,7 @@ func TestBackgroundAssetsVersionsGetCommand_MissingID(t *testing.T) {
 }
 
 func TestBackgroundAssetsVersionsCreateCommand_MissingAssetID(t *testing.T) {
-	cmd := BackgroundAssetsVersionsCreateCommand()
+	cmd := newBackgroundAssetsVersionsCreateCommand(newBackgroundAssetsTestDeps(nil))
 	if err := cmd.FlagSet.Parse([]string{}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
@@ -115,7 +130,7 @@ func TestBackgroundAssetsVersionsCreateCommand_MissingAssetID(t *testing.T) {
 }
 
 func TestBackgroundAssetsUploadFilesListCommand_MissingVersionID(t *testing.T) {
-	cmd := BackgroundAssetsUploadFilesListCommand()
+	cmd := newBackgroundAssetsUploadFilesListCommand(newBackgroundAssetsTestDeps(nil))
 	if err := cmd.FlagSet.Parse([]string{}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
@@ -126,7 +141,7 @@ func TestBackgroundAssetsUploadFilesListCommand_MissingVersionID(t *testing.T) {
 }
 
 func TestBackgroundAssetsUploadFilesGetCommand_MissingID(t *testing.T) {
-	cmd := BackgroundAssetsUploadFilesGetCommand()
+	cmd := newBackgroundAssetsUploadFilesGetCommand(newBackgroundAssetsTestDeps(nil))
 	if err := cmd.FlagSet.Parse([]string{}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
@@ -137,7 +152,7 @@ func TestBackgroundAssetsUploadFilesGetCommand_MissingID(t *testing.T) {
 }
 
 func TestBackgroundAssetsUploadFilesCreateCommand_MissingVersionID(t *testing.T) {
-	cmd := BackgroundAssetsUploadFilesCreateCommand()
+	cmd := newBackgroundAssetsUploadFilesCreateCommand(newBackgroundAssetsTestDeps(nil))
 	if err := cmd.FlagSet.Parse([]string{"--file", "./asset.zip", "--asset-type", "ASSET"}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
@@ -148,7 +163,7 @@ func TestBackgroundAssetsUploadFilesCreateCommand_MissingVersionID(t *testing.T)
 }
 
 func TestBackgroundAssetsUploadFilesCreateCommand_MissingFile(t *testing.T) {
-	cmd := BackgroundAssetsUploadFilesCreateCommand()
+	cmd := newBackgroundAssetsUploadFilesCreateCommand(newBackgroundAssetsTestDeps(nil))
 	if err := cmd.FlagSet.Parse([]string{"--version-id", "VERSION_ID", "--asset-type", "ASSET"}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
@@ -159,7 +174,7 @@ func TestBackgroundAssetsUploadFilesCreateCommand_MissingFile(t *testing.T) {
 }
 
 func TestBackgroundAssetsUploadFilesCreateCommand_MissingAssetType(t *testing.T) {
-	cmd := BackgroundAssetsUploadFilesCreateCommand()
+	cmd := newBackgroundAssetsUploadFilesCreateCommand(newBackgroundAssetsTestDeps(nil))
 	if err := cmd.FlagSet.Parse([]string{"--version-id", "VERSION_ID", "--file", "./asset.zip"}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
@@ -170,7 +185,7 @@ func TestBackgroundAssetsUploadFilesCreateCommand_MissingAssetType(t *testing.T)
 }
 
 func TestBackgroundAssetsUploadFilesUpdateCommand_MissingID(t *testing.T) {
-	cmd := BackgroundAssetsUploadFilesUpdateCommand()
+	cmd := newBackgroundAssetsUploadFilesUpdateCommand(newBackgroundAssetsTestDeps(nil))
 	if err := cmd.FlagSet.Parse([]string{"--uploaded", "true"}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
@@ -181,7 +196,7 @@ func TestBackgroundAssetsUploadFilesUpdateCommand_MissingID(t *testing.T) {
 }
 
 func TestBackgroundAssetsUploadFilesUpdateCommand_MissingUploaded(t *testing.T) {
-	cmd := BackgroundAssetsUploadFilesUpdateCommand()
+	cmd := newBackgroundAssetsUploadFilesUpdateCommand(newBackgroundAssetsTestDeps(nil))
 	if err := cmd.FlagSet.Parse([]string{"--upload-file-id", "UPLOAD_ID"}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
@@ -194,13 +209,10 @@ func TestBackgroundAssetsUploadFilesUpdateCommand_MissingUploaded(t *testing.T) 
 func TestBackgroundAssetsUploadFilesUpdateCommand_FileRequiresChecksumBeforeFileOrClientAccess(t *testing.T) {
 	filePath := filepath.Join(t.TempDir(), "missing.zip")
 	clientFactoryCalled := false
-	restore := shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+	cmd := newBackgroundAssetsUploadFilesUpdateCommand(newBackgroundAssetsTestDeps(func() (*asc.Client, error) {
 		clientFactoryCalled = true
 		return nil, errors.New("client factory must not run during flag validation")
-	})
-	defer restore()
-
-	cmd := BackgroundAssetsUploadFilesUpdateCommand()
+	}))
 	if err := cmd.FlagSet.Parse([]string{
 		"--upload-file-id", "UPLOAD_ID",
 		"--uploaded", "true",

@@ -60,20 +60,8 @@ func SubscriptionsVersionLocalizationsListCommand() *ffcli.Command {
 		Name: "list", ShortUsage: "asc subscriptions versions localizations list [flags]", ShortHelp: "List localizations for a subscription version.",
 		LongHelp: "List version-scoped subscription localizations.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := validateNextFlagConflicts(
-				*next,
-				flagConflict{"--fields", flagWasProvided(fs, "fields")},
-				flagConflict{"--version-fields", flagWasProvided(fs, "version-fields")},
-				flagConflict{"--include", flagWasProvided(fs, "include")},
-				flagConflict{"--limit", flagWasProvided(fs, "limit")},
-			); err != nil {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "subscriptions versions localizations list", 200, "fields", "version-fields", "include", "limit"); err != nil {
 				return err
-			}
-			if err := validatePageLimit(*limit); err != nil {
-				return err
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("subscriptions versions localizations list: %v", err)
 			}
 			fieldValues, err := normalizeSelectionFlag(fs, *fields, "--fields", subscriptionVersionLocalizationFieldsList())
 			if err != nil {
@@ -138,17 +126,8 @@ func SubscriptionsVersionLocalizationsLinksCommand() *ffcli.Command {
 		Name: "links", ShortUsage: "asc subscriptions versions localizations links [flags]", ShortHelp: "List raw localization linkages.",
 		LongHelp: "List raw localization relationship linkages for a subscription version.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := validateNextFlagConflicts(
-				*next,
-				flagConflict{"--limit", flagWasProvided(fs, "limit")},
-			); err != nil {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "subscriptions versions localizations links", 200, "limit"); err != nil {
 				return err
-			}
-			if err := validatePageLimit(*limit); err != nil {
-				return err
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("subscriptions versions localizations links: %v", err)
 			}
 			id := strings.TrimSpace(*versionID)
 			if id == "" && strings.TrimSpace(*next) == "" {

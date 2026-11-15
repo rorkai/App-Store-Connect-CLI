@@ -39,7 +39,11 @@ func TestEveryNextCommandRejectsLimit(t *testing.T) {
 
 	for _, path := range paths {
 		t.Run(strings.Join(path, " "), func(t *testing.T) {
-			args := append(path, "--next", "https://api.appstoreconnect.apple.com/v1/apps?cursor=AQ", "--limit", "5")
+			next := "https://api.appstoreconnect.apple.com/v1/apps?cursor=AQ"
+			if path[0] == "web" {
+				next = "https://appstoreconnect.apple.com/iris/v1/apps?filter[removed]=true&cursor=AQ"
+			}
+			args := append(path, "--next", next, "--limit", "5")
 			var code int
 			stdout, stderr := captureOutput(t, func() {
 				code = rootcmd.Run(args, "1.2.3")

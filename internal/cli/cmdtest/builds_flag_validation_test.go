@@ -51,7 +51,7 @@ func TestBuildsInvalidInputFailsBeforeNetwork(t *testing.T) {
 			name:     "list invalid limit",
 			args:     []string{"builds", "list", "--app", "123456789", "--limit", "999"},
 			wantExit: rootcmd.ExitUsage,
-			wantErr:  "Error: builds: --limit must be between 1 and 200",
+			wantErr:  "Error: builds list: --limit must be between 1 and 200",
 		},
 		{
 			name:     "wait build-id with since",

@@ -52,6 +52,13 @@ type GameCenterLeaderboardSetLocalizationUpdateRequest struct {
 	Data GameCenterLeaderboardSetLocalizationUpdateData `json:"data"`
 }
 
+// GameCenterLeaderboardSetLocalizationV2CreateData is the data object of the GameCenterLeaderboardSetLocalizationV2CreateRequest schema.
+type GameCenterLeaderboardSetLocalizationV2CreateData struct {
+	Type          ResourceType                                         `json:"type"`
+	Attributes    GameCenterLeaderboardSetLocalizationCreateAttributes `json:"attributes"`
+	Relationships *GameCenterLeaderboardSetLocalizationV2Relationships `json:"relationships,omitempty"`
+}
+
 // GameCenterLeaderboardSetLocalizationV2CreateRequest is the GameCenterLeaderboardSetLocalizationV2CreateRequest schema.
 type GameCenterLeaderboardSetLocalizationV2CreateRequest struct {
 	Data GameCenterLeaderboardSetLocalizationV2CreateData `json:"data"`
@@ -60,6 +67,29 @@ type GameCenterLeaderboardSetLocalizationV2CreateRequest struct {
 // GameCenterLeaderboardSetLocalizationV2Relationships is the data.relationships object of the GameCenterLeaderboardSetLocalizationV2CreateRequest schema.
 type GameCenterLeaderboardSetLocalizationV2Relationships struct {
 	Version *Relationship `json:"version"`
+}
+
+// CreateGameCenterLeaderboardSetLocalizationV2 sends POST /v2/gameCenterLeaderboardSetLocalizations (gameCenterLeaderboardSetLocalizationsV2_createInstance).
+func (c *Client) CreateGameCenterLeaderboardSetLocalizationV2(ctx context.Context, versionID string, attrs GameCenterLeaderboardSetLocalizationCreateAttributes) (*GameCenterLeaderboardSetLocalizationResponse, error) {
+	payload := GameCenterLeaderboardSetLocalizationV2CreateRequest{
+		Data: GameCenterLeaderboardSetLocalizationV2CreateData{
+			Type:       ResourceTypeGameCenterLeaderboardSetLocalizations,
+			Attributes: attrs,
+			Relationships: &GameCenterLeaderboardSetLocalizationV2Relationships{
+				Version: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeGameCenterLeaderboardSetVersions,
+						ID:   strings.TrimSpace(versionID),
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[GameCenterLeaderboardSetLocalizationResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v2/gameCenterLeaderboardSetLocalizations",
+		Payload: payload,
+	})
 }
 
 // DeleteGameCenterLeaderboardSetLocalizationV2 sends DELETE /v2/gameCenterLeaderboardSetLocalizations/{id} (gameCenterLeaderboardSetLocalizationsV2_deleteInstance).
@@ -78,6 +108,22 @@ func (c *Client) GetGameCenterLeaderboardSetLocalizationV2(ctx context.Context, 
 func (c *Client) GetGameCenterLeaderboardSetLocalizationImageV2(ctx context.Context, localizationID string) (*GameCenterLeaderboardSetImageResponse, error) {
 	return getJSON[GameCenterLeaderboardSetImageResponse](ctx, c, readRequest{
 		Path: fmt.Sprintf("/v2/gameCenterLeaderboardSetLocalizations/%s/image", strings.TrimSpace(localizationID)),
+	})
+}
+
+// UpdateGameCenterLeaderboardSetLocalizationV2 sends PATCH /v2/gameCenterLeaderboardSetLocalizations/{id} (gameCenterLeaderboardSetLocalizationsV2_updateInstance).
+func (c *Client) UpdateGameCenterLeaderboardSetLocalizationV2(ctx context.Context, localizationID string, attrs GameCenterLeaderboardSetLocalizationUpdateAttributes) (*GameCenterLeaderboardSetLocalizationResponse, error) {
+	payload := GameCenterLeaderboardSetLocalizationUpdateRequest{
+		Data: GameCenterLeaderboardSetLocalizationUpdateData{
+			Type:       ResourceTypeGameCenterLeaderboardSetLocalizations,
+			ID:         strings.TrimSpace(localizationID),
+			Attributes: &attrs,
+		},
+	}
+	return sendJSON[GameCenterLeaderboardSetLocalizationResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v2/gameCenterLeaderboardSetLocalizations/%s", strings.TrimSpace(localizationID)),
+		Payload: payload,
 	})
 }
 

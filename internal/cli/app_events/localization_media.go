@@ -134,11 +134,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("app-events localizations screenshots-links: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("app-events localizations screenshots-links: %v", err)
+			if err := shared.ValidatePaginationFlags(ctx, fs, "app-events localizations screenshots-links", 200); err != nil {
+				return err
 			}
 
 			id := strings.TrimSpace(*localizationID)
@@ -208,11 +205,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("app-events localizations video-clips-links: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("app-events localizations video-clips-links: %v", err)
+			if err := shared.ValidatePaginationFlags(ctx, fs, "app-events localizations video-clips-links", 200); err != nil {
+				return err
 			}
 
 			id := strings.TrimSpace(*localizationID)

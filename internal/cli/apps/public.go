@@ -159,13 +159,12 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if *limit < 1 || *limit > 200 {
+				return shared.UsageError("apps public search: --limit must be between 1 and 200")
+			}
 			termValue := strings.TrimSpace(*term)
 			if termValue == "" {
 				return shared.RequiredFlag("--term")
-			}
-			if *limit < 1 || *limit > 200 {
-				fmt.Fprintln(os.Stderr, "Error: --limit must be between 1 and 200")
-				return flag.ErrHelp
 			}
 
 			normalizedCountry, err := normalizePublicCountry(*country)

@@ -105,11 +105,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("pricing territories list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("pricing territories list: %v", err)
+			if err := shared.ValidatePaginationFlags(ctx, fs, "pricing territories list", 200); err != nil {
+				return err
 			}
 
 			client, err := shared.GetASCClient()
@@ -188,13 +185,7 @@ Examples:
 			PricingPricePointsEqualizationsCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("pricing price-points: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("pricing price-points: %v", err)
-			}
-			if err := shared.RejectNextFlagConflicts(fs, *next, "pricing price-points", "territory", "include"); err != nil {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "pricing price-points", 200, "territory", "include"); err != nil {
 				return err
 			}
 			includes := shared.SplitCSV(*include)
@@ -473,12 +464,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				fmt.Fprintln(os.Stderr, "Error: pricing schedule manual-prices: --limit must be between 1 and 200")
-				return flag.ErrHelp
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("pricing schedule manual-prices: %v", err)
+			if err := shared.ValidatePaginationFlags(ctx, fs, "pricing schedule manual-prices", 200); err != nil {
+				return err
 			}
 			if *resolved && strings.TrimSpace(*next) != "" {
 				fmt.Fprintln(os.Stderr, "Error: --resolved cannot be combined with --next")
@@ -562,12 +549,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				fmt.Fprintln(os.Stderr, "Error: pricing schedule automatic-prices: --limit must be between 1 and 200")
-				return flag.ErrHelp
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("pricing schedule automatic-prices: %v", err)
+			if err := shared.ValidatePaginationFlags(ctx, fs, "pricing schedule automatic-prices", 200); err != nil {
+				return err
 			}
 			if *resolved && strings.TrimSpace(*next) != "" {
 				fmt.Fprintln(os.Stderr, "Error: --resolved cannot be combined with --next")
@@ -766,6 +749,9 @@ Examples:
 
 	originalExec := cmd.Exec
 	cmd.Exec = func(ctx context.Context, args []string) error {
+		if err := shared.ValidatePaginationFlags(ctx, cmd.FlagSet, "pricing availability territory-availabilities", territoryAvailabilitiesLimitMax); err != nil {
+			return err
+		}
 		if err := resolveTerritoryAvailabilitiesAvailability(ctx, cmd.FlagSet, *appID); err != nil {
 			return err
 		}
@@ -793,9 +779,6 @@ func resolveTerritoryAvailabilitiesAvailability(ctx context.Context, fs *flag.Fl
 	}
 	if availabilityID != "" || next != "" {
 		return nil
-	}
-	if limit, ok := fs.Lookup("limit").Value.(flag.Getter).Get().(int); ok && limit != 0 && (limit < 1 || limit > territoryAvailabilitiesLimitMax) {
-		return shared.UsageErrorf("pricing availability territory-availabilities: --limit must be between 1 and %d", territoryAvailabilitiesLimitMax)
 	}
 	appID := shared.ResolveAppID(appFlag)
 	if appID == "" {

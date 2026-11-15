@@ -55,7 +55,7 @@ func TestAppInfoGetRejectsInvalidNextURLPhase63(t *testing.T) {
 
 func TestRemainingListsRejectsInvalidNextURL(t *testing.T) {
 	runInvalidNextURLCases(t, []invalidNextURLCase{
-		{args: []string{"builds", "list"}, wantErr: "builds: --next"},
+		{args: []string{"builds", "list"}, wantErr: "builds list: --next"},
 		{args: []string{"marketplace", "webhooks", "list"}, wantErr: "marketplace webhooks list: --next", wantWarning: marketplaceWebhooksDeprecationWarning, deps: true},
 		{args: []string{"pricing", "price-points"}, wantErr: "pricing price-points: --next"},
 		{args: []string{"review", "items-list"}, wantErr: "review items-list: --next"},

@@ -106,7 +106,7 @@ Examples:
 				fmt.Fprintf(os.Stderr, "Error: unknown subcommand %q\n", subcommand)
 				return flag.ErrHelp
 			}
-			return appsList(ctx, fs, *output.Output, *output.Pretty, *bundleID, *name, *sku, *versionState, *reviewSubmissionState, *sort, *limit, *next, *paginate, *appInfoFields, *iapFields, *subscriptionGroupFields, *retentionMessageFields)
+			return appsList(ctx, fs, "apps", *output.Output, *output.Pretty, *bundleID, *name, *sku, *versionState, *reviewSubmissionState, *sort, *limit, *next, *paginate, *appInfoFields, *iapFields, *subscriptionGroupFields, *retentionMessageFields)
 		},
 	}
 }
@@ -139,7 +139,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			return appsList(ctx, fs, *output.Output, *output.Pretty, *bundleID, *name, *sku, *versionState, *reviewSubmissionState, *sort, *limit, *next, *paginate, *appInfoFields, *iapFields, *subscriptionGroupFields, *retentionMessageFields)
+			return appsList(ctx, fs, "apps list", *output.Output, *output.Pretty, *bundleID, *name, *sku, *versionState, *reviewSubmissionState, *sort, *limit, *next, *paginate, *appInfoFields, *iapFields, *subscriptionGroupFields, *retentionMessageFields)
 		},
 	}
 }
@@ -279,14 +279,14 @@ Examples:
 					return flag.ErrHelp
 				}
 			}
-			if _, provided := appFlagWasProvided(fs, "accessibility-url"); provided {
+			if appFlagWasProvided(fs, "accessibility-url") {
 				value, err := validateAccessibilityURL(*accessibilityURL)
 				if err != nil {
 					return shared.UsageErrorf("--accessibility-url: %v", err)
 				}
 				attrs.AccessibilityURL = &value
 			}
-			if _, provided := appFlagWasProvided(fs, "subscription-status-url"); provided {
+			if appFlagWasProvided(fs, "subscription-status-url") {
 				value, err := validateNotificationURL(*subscriptionStatusURL)
 				if err != nil {
 					return shared.UsageErrorf("--subscription-status-url: %v", err)
@@ -295,7 +295,7 @@ Examples:
 				attrs.SubscriptionStatusURL = &value
 				attrs.SubscriptionStatusURLVersion = &version
 			}
-			if _, provided := appFlagWasProvided(fs, "sandbox-subscription-status-url"); provided {
+			if appFlagWasProvided(fs, "sandbox-subscription-status-url") {
 				value, err := validateNotificationURL(*sandboxSubscriptionStatusURL)
 				if err != nil {
 					return shared.UsageErrorf("--sandbox-subscription-status-url: %v", err)
@@ -330,14 +330,15 @@ Examples:
 	}
 }
 
-func appsList(ctx context.Context, fs *flag.FlagSet, output string, pretty bool, bundleID string, name string, sku string, versionState string, reviewSubmissionState string, sort string, limit int, next string, paginate bool, appInfoFields string, iapFields string, subscriptionGroupFields string, retentionMessageFields string) error {
-	if limit != 0 && (limit < 1 || limit > 200) {
-		return shared.UsageErrorf("apps: --limit must be between 1 and 200")
+func appsList(ctx context.Context, fs *flag.FlagSet, command string, output string, pretty bool, bundleID string, name string, sku string, versionState string, reviewSubmissionState string, sort string, limit int, next string, paginate bool, appInfoFields string, iapFields string, subscriptionGroupFields string, retentionMessageFields string) error {
+	if err := shared.ValidatePaginationFlags(
+		ctx, fs, command, 200,
+		"bundle-id", "name", "sku", "version-state", "review-submission-state", "sort", "limit",
+		"app-info-fields", "iap-fields", "subscription-group-fields", "retention-message-fields",
+	); err != nil {
+		return err
 	}
 	next = strings.TrimSpace(next)
-	if err := shared.ValidateNextURL(next); err != nil {
-		return shared.UsageErrorf("apps: %v", err)
-	}
 	if err := shared.ValidateSort(sort, "name", "-name", "bundleId", "-bundleId", "sku", "-sku"); err != nil {
 		return shared.UsageErrorf("apps: %v", err)
 	}
@@ -345,20 +346,9 @@ func appsList(ctx context.Context, fs *flag.FlagSet, output string, pretty bool,
 		if parsed, err := url.Parse(next); err != nil || parsed.Path != "/v1/apps" {
 			return shared.UsageError("apps: --next must point to /v1/apps")
 		}
-		if flagName, ok := appFlagWasProvided(
-			fs,
-			"bundle-id", "name", "sku", "version-state", "review-submission-state", "sort", "limit",
-			"app-info-fields", "iap-fields", "subscription-group-fields", "retention-message-fields",
-		); ok {
-			return shared.WithDiagnostic(
-				shared.UsageErrorf("--next cannot be combined with %s", flagName),
-				shared.DiagnosticConflictingInput,
-				flagName,
-			)
-		}
 	}
 	versionStateValues := shared.SplitCSVUpper(versionState)
-	if _, provided := appFlagWasProvided(fs, "version-state"); provided {
+	if appFlagWasProvided(fs, "version-state") {
 		if strings.TrimSpace(versionState) == "" {
 			return shared.UsageError("--version-state must not be empty")
 		}
@@ -371,7 +361,7 @@ func appsList(ctx context.Context, fs *flag.FlagSet, output string, pretty bool,
 		return shared.UsageError(err.Error())
 	}
 	reviewSubmissionStateValues := shared.SplitCSVUpper(reviewSubmissionState)
-	if _, provided := appFlagWasProvided(fs, "review-submission-state"); provided {
+	if appFlagWasProvided(fs, "review-submission-state") {
 		if strings.TrimSpace(reviewSubmissionState) == "" {
 			return shared.UsageError("--review-submission-state must not be empty")
 		}

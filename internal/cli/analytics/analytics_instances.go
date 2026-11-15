@@ -106,11 +106,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > analyticsMaxLimit) {
-				return shared.UsageError("analytics instances links: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("analytics instances links: %v", err)
+			if err := shared.ValidatePaginationFlags(ctx, fs, "analytics instances links", analyticsMaxLimit); err != nil {
+				return err
 			}
 
 			id := strings.TrimSpace(*instanceID)

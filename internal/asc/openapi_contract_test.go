@@ -37,6 +37,12 @@ type contractFamily struct {
 		Type string `json:"type"`
 	} `json:"relationships"`
 	Operations []*contractOpBinding `json:"operations"`
+	// GoTypes name the Go type that stands for a type named after a schema,
+	// when one Go type serves two schema versions.
+	GoTypes []struct {
+		Schema string `json:"schema"`
+		Type   string `json:"type"`
+	} `json:"goTypes"`
 }
 
 type contractOpBinding struct {
@@ -58,6 +64,8 @@ type contractOpBinding struct {
 		Problem string `json:"problem"`
 		Reason  string `json:"reason"`
 	} `json:"deviations"`
+	// goTypes are the GoTypes of the operation's family, by schema type name.
+	goTypes map[string]string
 }
 
 type contractSchema struct {
@@ -105,6 +113,7 @@ type contractResponse struct {
 	body         string
 	resource     *contractSchema // nil for a response without a document
 	resourceName string          // schema name of the resource; empty when defined inline
+	attributes   string          // Go type the bindings name for the resource's attributes, if any
 	schemaName   string          // schema name of the response document
 }
 
@@ -293,6 +302,11 @@ func TestGeneratedClientBindingsExistInSchema(t *testing.T) {
 		for _, r := range family.Relationships {
 			relationshipsOf[strings.TrimPrefix(r.Type, "*")] = r.Data
 		}
+		for _, g := range family.GoTypes {
+			if !spec.hasTypeSchema(g.Schema) {
+				t.Errorf("%s: %s is recorded as Go type %s and has no schema in %s", family.Tag, g.Schema, g.Type, contractSpecPath)
+			}
+		}
 		for _, name := range family.Types {
 			if data, ok := relationshipsOf[name]; ok {
 				request := strings.TrimSuffix(data, "Data") + "Request"
@@ -336,7 +350,12 @@ func TestGeneratedClientMatchesSchema(t *testing.T) {
 	spec := mustLoadContractSpec(t)
 	operations, deviations := 0, 0
 	for _, family := range loadContractFamilies(t) {
+		goTypes := map[string]string{}
+		for _, g := range family.GoTypes {
+			goTypes[g.Schema] = g.Type
+		}
 		for _, b := range family.Operations {
+			b.goTypes = goTypes
 			operations++
 			deviations += len(b.Deviations)
 			op, ok := spec.operations[b.Operation]
@@ -581,6 +600,7 @@ func checkGeneratedOperation(spec *contractSpec, op *contractOperation, b *contr
 	if err != nil {
 		return []string{err.Error()}
 	}
+	response.attributes = b.goTypes[response.resourceName+"Attributes"]
 	requests, result, callErr := call.invoke(args, response)
 	if fillErr != nil {
 		return []string{"cannot fill the options: " + fillErr.Error()}
@@ -777,12 +797,42 @@ func checkContractResult(spec *contractSpec, result any, response contractRespon
 	var attrs map[string]json.RawMessage
 	_ = json.Unmarshal(got["attributes"], &attrs)
 	problems := compareContractNames(fmt.Sprintf("result %T has attributes", result), "the schema's resource has", attrs, spec.property(want, "attributes"))
-	return append(problems, checkContractResultType(reflect.TypeOf(result), response)...)
+	problems = append(problems, checkContractResultType(reflect.TypeOf(result), response)...)
+	if response.attributes != "" {
+		problems = append(problems, checkContractAttributeNames(reflect.TypeOf(result), response.attributes, spec.property(want, "attributes"))...)
+	}
+	return problems
+}
+
+// checkContractAttributeNames checks that the attributes type the bindings
+// name for a resource can carry exactly the schema's attributes, so a Go type
+// that stands for another version's schema has that schema's attribute
+// names even when it would decode and keep any attribute.
+func checkContractAttributeNames(result reflect.Type, name string, schema *contractSchema) []string {
+	data, _ := result.Elem().FieldByName("Data")
+	item := data.Type
+	for item.Kind() == reflect.Slice || item.Kind() == reflect.Pointer {
+		item = item.Elem()
+	}
+	attrs, _ := item.FieldByName("Attributes")
+	if attrs.Type == nil || attrs.Type.Name() != name {
+		return nil
+	}
+	fields := map[string]json.RawMessage{}
+	for _, field := range reflect.VisibleFields(attrs.Type) {
+		tag, _, _ := strings.Cut(field.Tag.Get("json"), ",")
+		if !field.IsExported() || field.Anonymous || tag == "-" {
+			continue
+		}
+		fields[cmp.Or(tag, field.Name)] = nil
+	}
+	return compareContractNames(fmt.Sprintf("%s has fields for attributes", name), "the schema's resource has", fields, schema)
 }
 
 // checkContractResultType checks that the result's data items are the
 // response's resource by name, as the generator names them: the attributes of
-// resource R are type RAttributes; hand-written types may differ in case.
+// resource R are type RAttributes, or the Go type the bindings name for them;
+// hand-written types may differ in case.
 // Attribute names alone cannot tell two resources apart when both have the
 // same names, or when a type keeps whatever attributes it decodes. Linkages
 // carry no attributes and all look alike, so a linkage result must be the type
@@ -810,6 +860,12 @@ func checkContractResultType(result reflect.Type, response contractResponse) []s
 	name, holds := item.Name(), item.String()
 	if hasAttrs && attrs.Type.Name() != "" {
 		name, holds = strings.TrimSuffix(attrs.Type.Name(), "Attributes"), attrs.Type.String()
+	}
+	if response.attributes != "" {
+		if !hasAttrs || attrs.Type.Name() != response.attributes {
+			return []string{fmt.Sprintf("result data holds %s, not %s, which the bindings name for the attributes of resource %s", holds, response.attributes, response.resourceName)}
+		}
+		return nil
 	}
 	if !strings.EqualFold(name, response.resourceName) {
 		return []string{fmt.Sprintf("result data holds %s, not the attributes of resource %s", holds, response.resourceName)}

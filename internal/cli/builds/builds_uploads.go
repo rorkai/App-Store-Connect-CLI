@@ -72,14 +72,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				fmt.Fprintln(os.Stderr, "Error: --limit must be between 1 and 200")
-				return flag.ErrHelp
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("builds uploads list: %v", err)
-			}
-			if err := shared.RejectNextFlagConflicts(fs, *next, "builds uploads list", "cf-bundle-short-version", "cf-bundle-version", "platform", "state", "sort"); err != nil {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "builds uploads list", 200, "cf-bundle-short-version", "cf-bundle-version", "platform", "state", "sort"); err != nil {
 				return err
 			}
 			if err := shared.ValidateSort(*sort, "cfBundleVersion", "-cfBundleVersion", "uploadedDate", "-uploadedDate"); err != nil {
@@ -237,11 +230,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("builds uploads files list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("builds uploads files list: %v", err)
+			if err := shared.ValidatePaginationFlags(ctx, fs, "builds uploads files list", 200); err != nil {
+				return err
 			}
 
 			uploadValue := strings.TrimSpace(*uploadID)

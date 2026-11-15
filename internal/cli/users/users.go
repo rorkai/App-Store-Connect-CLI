@@ -80,7 +80,6 @@ Examples:
 		TopLevel:             true,
 		PaginateIgnoresLimit: true,
 		NoSpinner:            true,
-		NextBeforeLimit:      true,
 		NextConflicts:        []string{"email", "role", "visible-app", "sort", "fields", "app-fields", "include", "visible-apps-limit", "limit"},
 		Flags: func(fs *flag.FlagSet) func() error {
 			email = fs.String("email", "", "Filter by email/username")

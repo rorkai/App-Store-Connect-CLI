@@ -3,7 +3,6 @@ package cmdtest
 import (
 	"context"
 	"encoding/json"
-	"io"
 	"strings"
 	"testing"
 
@@ -26,17 +25,10 @@ type searchResult struct {
 }
 
 func TestSearchFindsCommandsFromTaskWordsAsJSON(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"search", "--output", "json", "external", "testers"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, nil, "search", "--output", "json", "external", "testers")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -73,17 +65,10 @@ func TestSearchFindsCommandsFromTaskWordsAsJSON(t *testing.T) {
 }
 
 func TestSearchUsesAliasesForAgentVocabulary(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"search", "--output", "json", "ship", "app", "review"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, nil, "search", "--output", "json", "ship", "app", "review")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -232,11 +217,8 @@ func TestSearchDoesNotRankBroaderCommandFirst(t *testing.T) {
 func runSearchTopFive(t *testing.T, query string) searchResponse {
 	t.Helper()
 
-	var code int
-	stdout, stderr := captureOutput(t, func() {
-		args := append([]string{"search", "--output", "json", "--limit", "5"}, strings.Fields(query)...)
-		code = rootcmd.Run(args, "1.2.3")
-	})
+	args := append([]string{"search", "--output", "json", "--limit", "5"}, strings.Fields(query)...)
+	stdout, stderr, code := runWithDeps(t, nil, args...)
 
 	if code != 0 {
 		t.Fatalf("expected exit code 0, got %d with stderr %q", code, stderr)
@@ -256,17 +238,10 @@ func runSearchTopFive(t *testing.T, query string) searchResponse {
 }
 
 func TestSearchUsesTypoToleranceAsFallback(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"search", "--output", "json", "testfligth", "testers"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, nil, "search", "--output", "json", "testfligth", "testers")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -286,17 +261,10 @@ func TestSearchUsesTypoToleranceAsFallback(t *testing.T) {
 }
 
 func TestSearchSupportsTableOutput(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"search", "--output", "table", "build", "upload"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, nil, "search", "--output", "table", "build", "upload")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -310,17 +278,10 @@ func TestSearchSupportsTableOutput(t *testing.T) {
 }
 
 func TestSearchReturnsEmptyResultsForNoMatches(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"search", "--output", "json", "zzzz-not-real"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, nil, "search", "--output", "json", "zzzz-not-real")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -336,41 +297,39 @@ func TestSearchReturnsEmptyResultsForNoMatches(t *testing.T) {
 }
 
 func TestSearchDoesNotLeakFlagsAcrossRepeatedRuns(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
+	d, stdoutBuf, stderrBuf := newTestDeps(t, nil)
+	root := rootcmd.RootCommandWithDeps("1.2.3", d)
 
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"search", "--output", "json", "--limit", "1", "build"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
+	if err := root.Parse([]string{"search", "--output", "json", "--limit", "1", "build"}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := root.Run(context.Background()); err != nil {
+		t.Fatalf("run error: %v", err)
+	}
+	if stderrBuf.String() != "" {
+		t.Fatalf("expected empty stderr, got %q", stderrBuf.String())
 	}
 
 	var limited searchResponse
-	if err := json.Unmarshal([]byte(stdout), &limited); err != nil {
-		t.Fatalf("failed to unmarshal limited search JSON: %v\nstdout=%s", err, stdout)
+	if err := json.Unmarshal(stdoutBuf.Bytes(), &limited); err != nil {
+		t.Fatalf("failed to unmarshal limited search JSON: %v\nstdout=%s", err, stdoutBuf.String())
 	}
 	if limited.Count != 1 || len(limited.Results) != 1 {
 		t.Fatalf("expected one limited result, got %#v", limited)
 	}
 
-	stdout, stderr = captureOutput(t, func() {
-		if err := root.Parse([]string{"search", "--output", "json", "build"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
+	stdoutBuf.Reset()
+	if err := root.Parse([]string{"search", "--output", "json", "build"}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := root.Run(context.Background()); err != nil {
+		t.Fatalf("run error: %v", err)
+	}
+	if stderrBuf.String() != "" {
+		t.Fatalf("expected empty stderr, got %q", stderrBuf.String())
 	}
 
+	stdout := stdoutBuf.String()
 	var defaultLimit searchResponse
 	if err := json.Unmarshal([]byte(stdout), &defaultLimit); err != nil {
 		t.Fatalf("failed to unmarshal default-limit search JSON: %v\nstdout=%s", err, stdout)
@@ -394,16 +353,13 @@ func TestSearchRejectsInvalidInvocationsWithUsageExit(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(strings.Join(test.args, " "), func(t *testing.T) {
-			assertUsageExit(t, test.args, test.wantErr)
+			assertUsageExitWithDeps(t, nil, test.args, test.wantErr)
 		})
 	}
 }
 
 func TestSearchAcceptsRootFlagsBeforeSubcommand(t *testing.T) {
-	var code int
-	stdout, stderr := captureOutput(t, func() {
-		code = rootcmd.Run([]string{"--profile", "ci", "search", "--output", "json", "--limit", "1", "build"}, "1.2.3")
-	})
+	stdout, stderr, code := runWithDeps(t, nil, "--profile", "ci", "search", "--output", "json", "--limit", "1", "build")
 
 	if code != 0 {
 		t.Fatalf("expected exit code 0, got %d with stderr %q", code, stderr)
@@ -422,10 +378,7 @@ func TestSearchAcceptsRootFlagsBeforeSubcommand(t *testing.T) {
 }
 
 func TestSearchFlagValueCanMatchSubcommandName(t *testing.T) {
-	var code int
-	stdout, stderr := captureOutput(t, func() {
-		code = rootcmd.Run([]string{"search", "--output", "json", "--limit", "3", "completion"}, "1.2.3")
-	})
+	stdout, stderr, code := runWithDeps(t, nil, "search", "--output", "json", "--limit", "3", "completion")
 
 	if code != 0 {
 		t.Fatalf("expected exit code 0, got %d with stderr %q", code, stderr)
@@ -447,10 +400,7 @@ func TestSearchFlagValueCanMatchSubcommandName(t *testing.T) {
 }
 
 func TestSearchFindsFirstClassXcodeBuildCommand(t *testing.T) {
-	var code int
-	stdout, stderr := captureOutput(t, func() {
-		code = rootcmd.Run([]string{"search", "--output", "json", "--limit", "10", "asc", "xcode", "build"}, "1.2.3")
-	})
+	stdout, stderr, code := runWithDeps(t, nil, "search", "--output", "json", "--limit", "10", "asc", "xcode", "build")
 
 	if code != 0 {
 		t.Fatalf("expected exit code 0, got %d with stderr %q", code, stderr)
@@ -469,10 +419,7 @@ func TestSearchFindsFirstClassXcodeBuildCommand(t *testing.T) {
 }
 
 func TestSearchSupportsMixedFlagOrder(t *testing.T) {
-	var code int
-	stdout, stderr := captureOutput(t, func() {
-		code = rootcmd.Run([]string{"search", "--output", "json", "build", "--limit", "1"}, "1.2.3")
-	})
+	stdout, stderr, code := runWithDeps(t, nil, "search", "--output", "json", "build", "--limit", "1")
 
 	if code != 0 {
 		t.Fatalf("expected exit code 0, got %d with stderr %q", code, stderr)
@@ -497,10 +444,7 @@ func TestSearchSupportsMixedFlagOrder(t *testing.T) {
 }
 
 func TestSearchPreservesRootShapedQueryTerms(t *testing.T) {
-	var code int
-	stdout, stderr := captureOutput(t, func() {
-		code = rootcmd.Run([]string{"search", "--output", "json", "logging", "--debug"}, "1.2.3")
-	})
+	stdout, stderr, code := runWithDeps(t, nil, "search", "--output", "json", "logging", "--debug")
 
 	if code != rootcmd.ExitSuccess {
 		t.Fatalf("exit code = %d, want %d with stderr %q", code, rootcmd.ExitSuccess, stderr)

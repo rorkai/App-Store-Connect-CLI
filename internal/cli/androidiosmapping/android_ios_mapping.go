@@ -68,19 +68,13 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := d.ValidatePaginationFlags(ctx, fs, "android-ios-mapping list", 200, "fields"); err != nil {
+				return err
+			}
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
-			}
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return d.UsageError("android-ios-mapping list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return d.UsageErrorf("android-ios-mapping list: %v", err)
-			}
-			if err := d.RejectNextFlagConflicts(fs, *next, "android-ios-mapping list", "fields"); err != nil {
-				return err
 			}
 			fieldValues, err := normalizeAndroidIosMappingFields(*fields)
 			if err != nil {

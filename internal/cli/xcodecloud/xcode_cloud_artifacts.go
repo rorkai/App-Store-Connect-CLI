@@ -69,6 +69,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "xcode-cloud artifacts list", 200); err != nil {
+				return err
+			}
 			return runXcodeCloudActionResourceList(
 				ctx,
 				*actionID,

@@ -58,15 +58,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.WithDiagnostic(
-					shared.UsageErrorCtx(ctx, "testflight beta-testers apps list: --limit must be between 1 and 200"),
-					shared.DiagnosticInvalidInput,
-					"--limit",
-				)
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorfCtx(ctx, "testflight beta-testers apps list: %v", err)
+			if err := shared.ValidatePaginationFlags(ctx, fs, "testflight beta-testers apps list", 200); err != nil {
+				return err
 			}
 
 			testerValue := strings.TrimSpace(*testerID)
@@ -173,15 +166,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.WithDiagnostic(
-					shared.UsageErrorCtx(ctx, "testflight beta-testers beta-groups list: --limit must be between 1 and 200"),
-					shared.DiagnosticInvalidInput,
-					"--limit",
-				)
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorfCtx(ctx, "testflight beta-testers beta-groups list: %v", err)
+			if err := shared.ValidatePaginationFlags(ctx, fs, "testflight beta-testers beta-groups list", 200); err != nil {
+				return err
 			}
 
 			testerValue := strings.TrimSpace(*testerID)
@@ -288,15 +274,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.WithDiagnostic(
-					shared.UsageErrorCtx(ctx, "testflight beta-testers builds list: --limit must be between 1 and 200"),
-					shared.DiagnosticInvalidInput,
-					"--limit",
-				)
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorfCtx(ctx, "testflight beta-testers builds list: %v", err)
+			if err := shared.ValidatePaginationFlags(ctx, fs, "testflight beta-testers builds list", 200); err != nil {
+				return err
 			}
 
 			testerValue := strings.TrimSpace(*testerID)

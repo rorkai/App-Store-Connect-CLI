@@ -61,11 +61,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > productPagesMaxLimit) {
-				return d.UsageErrorf("custom-pages versions list: --limit must be between 1 and %d", productPagesMaxLimit)
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return d.UsageErrorf("custom-pages versions list: %v", err)
+			if err := d.ValidatePaginationFlags(ctx, fs, "product-pages custom-pages versions list", productPagesMaxLimit); err != nil {
+				return err
 			}
 
 			trimmedID := strings.TrimSpace(*customPageID)

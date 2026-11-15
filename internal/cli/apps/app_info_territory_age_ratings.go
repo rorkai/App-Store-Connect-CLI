@@ -65,16 +65,10 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			infoIDValue := strings.TrimSpace(*infoID)
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("apps info territory-age-ratings list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("apps info territory-age-ratings list: %v", err)
-			}
-			if err := shared.RejectNextFlagConflicts(fs, *next, "apps info territory-age-ratings list", "fields", "territory-fields", "include"); err != nil {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "apps info territory-age-ratings list", 200, "fields", "territory-fields", "include"); err != nil {
 				return err
 			}
+			infoIDValue := strings.TrimSpace(*infoID)
 
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && infoIDValue == "" && strings.TrimSpace(*next) == "" {

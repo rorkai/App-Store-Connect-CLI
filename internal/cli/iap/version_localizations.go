@@ -33,21 +33,12 @@ func IAPVersionLocalizationsListCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name: "list", ShortUsage: `asc iap versions localizations list --version-id "VERSION_ID" [flags]`, ShortHelp: "List localizations for an IAP version.", LongHelp: "List localizations for an IAP version.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "iap versions localizations list", 200, "limit", "include", "localization-fields", "version-fields"); err != nil {
+				return err
+			}
 			id := strings.TrimSpace(*versionID)
 			if id == "" && strings.TrimSpace(*next) == "" {
 				return shared.RequiredFlag("--version-id")
-			}
-			if err := rejectIAPVersionNextFlagConflicts(
-				fs, *next, "iap versions localizations list",
-				"limit", "include", "localization-fields", "version-fields",
-			); err != nil {
-				return err
-			}
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("iap versions localizations list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageError("iap versions localizations list: " + err.Error())
 			}
 			includes, err := shared.NormalizeSelection(*include, []string{"version"}, "--include")
 			if err != nil {

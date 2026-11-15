@@ -63,15 +63,12 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := d.ValidatePaginationFlags(ctx, fs, "alternative-distribution packages versions list", alternativeDistributionMaxLimit); err != nil {
+				return err
+			}
 			trimmedID := strings.TrimSpace(*packageID)
 			if trimmedID == "" && strings.TrimSpace(*next) == "" {
 				return d.RequiredFlag("--package-id")
-			}
-			if *limit != 0 && (*limit < 1 || *limit > alternativeDistributionMaxLimit) {
-				return d.UsageErrorf("alternative-distribution packages versions list: --limit must be between 1 and %d", alternativeDistributionMaxLimit)
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return d.UsageErrorf("alternative-distribution packages versions list: %v", err)
 			}
 
 			client, err := d.Client()
@@ -157,15 +154,12 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := d.ValidatePaginationFlags(ctx, fs, "alternative-distribution packages versions deltas", alternativeDistributionMaxLimit); err != nil {
+				return err
+			}
 			trimmedID := strings.TrimSpace(*versionID)
 			if trimmedID == "" && strings.TrimSpace(*next) == "" {
 				return d.RequiredFlag("--version-id")
-			}
-			if *limit != 0 && (*limit < 1 || *limit > alternativeDistributionMaxLimit) {
-				return d.UsageErrorf("alternative-distribution packages versions deltas: --limit must be between 1 and %d", alternativeDistributionMaxLimit)
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return d.UsageErrorf("alternative-distribution packages versions deltas: %v", err)
 			}
 
 			client, err := d.Client()
@@ -230,15 +224,12 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := d.ValidatePaginationFlags(ctx, fs, "alternative-distribution packages versions variants", alternativeDistributionMaxLimit); err != nil {
+				return err
+			}
 			trimmedID := strings.TrimSpace(*versionID)
 			if trimmedID == "" && strings.TrimSpace(*next) == "" {
 				return d.RequiredFlag("--version-id")
-			}
-			if *limit != 0 && (*limit < 1 || *limit > alternativeDistributionMaxLimit) {
-				return d.UsageErrorf("alternative-distribution packages versions variants: --limit must be between 1 and %d", alternativeDistributionMaxLimit)
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return d.UsageErrorf("alternative-distribution packages versions variants: %v", err)
 			}
 
 			client, err := d.Client()

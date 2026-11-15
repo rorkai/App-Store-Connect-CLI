@@ -119,8 +119,8 @@ Examples:
 			if len(args) > 0 {
 				return flag.ErrHelp
 			}
-			if *limit != 0 && (*limit < 1 || *limit > analyticsMaxLimit) {
-				return shared.UsageError("analytics requests: --limit must be between 1 and 200")
+			if err := shared.ValidatePaginationFlags(ctx, fs, "analytics requests", analyticsMaxLimit); err != nil {
+				return err
 			}
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if err := validateAnalyticsRequestsCursor(*next, resolvedAppID); err != nil {
@@ -432,6 +432,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "analytics view", analyticsMaxLimit); err != nil {
+				return err
+			}
 			var processingDateProvided, granularityProvided bool
 			fs.Visit(func(item *flag.Flag) {
 				switch item.Name {
@@ -453,9 +456,6 @@ Examples:
 				if _, err := asc.ValidateResourcePathSegment(*instanceID); err != nil {
 					return shared.UsageErrorf("analytics view: --instance-id: %v", err)
 				}
-			}
-			if *limit != 0 && (*limit < 1 || *limit > analyticsMaxLimit) {
-				return shared.UsageError("analytics view: --limit must be between 1 and 200")
 			}
 			if err := validateAnalyticsViewCursor(*next, *requestID); err != nil {
 				return shared.UsageErrorf("analytics view: %v", err)

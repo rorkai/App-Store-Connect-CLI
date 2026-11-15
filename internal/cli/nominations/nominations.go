@@ -77,13 +77,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return d.UsageError("nominations list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return d.UsageErrorf("nominations list: %v", err)
-			}
-			if err := d.RejectNextFlagConflicts(fs, *next, "nominations list", "app", "status", "type", "sort", "fields", "include", "in-app-events-limit", "related-apps-limit", "supported-territories-limit"); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "nominations list", 200, "app", "status", "type", "sort", "fields", "include", "in-app-events-limit", "related-apps-limit", "supported-territories-limit"); err != nil {
 				return err
 			}
 			if err := shared.ValidateSort(*sort, nominationSortList()...); err != nil {

@@ -153,8 +153,6 @@ type PaginatedListCommandConfig struct {
 
 	// NextConflicts names flags that cannot be combined with --next.
 	NextConflicts []string
-	// NextBeforeLimit checks --next and its conflicts before --limit.
-	NextBeforeLimit bool
 	// Flags registers command-specific flags and returns their validation,
 	// which runs after the --limit, --next and parent checks. The returned
 	// function may be nil.
@@ -190,10 +188,7 @@ func BuildPaginatedListCommand(config PaginatedListCommandConfig) *ffcli.Command
 	if parentUsage == "" {
 		parentUsage = "Parent resource ID"
 	}
-	limitMax := config.LimitMax
-	if limitMax <= 0 {
-		limitMax = 200
-	}
+	limitMax := builderDefaultLimitMax(config.LimitMax)
 
 	parentID := new(string)
 	if !config.TopLevel {
@@ -226,24 +221,7 @@ func BuildPaginatedListCommand(config PaginatedListCommandConfig) *ffcli.Command
 	}
 
 	cmd.Exec = func(ctx context.Context, args []string) error {
-		checkLimit := func() error {
-			if *limit != 0 && (*limit < 1 || *limit > limitMax) {
-				return d.UsageErrorf("%s: --limit must be between 1 and %d", usageErrorPrefix(), limitMax)
-			}
-			return nil
-		}
-		if !config.NextBeforeLimit {
-			if err := checkLimit(); err != nil {
-				return err
-			}
-		}
-		if err := ValidateNextURL(*next); err != nil {
-			return d.UsageErrorf("%s: %v", usageErrorPrefix(), err)
-		}
-		if err := d.RejectNextFlagConflicts(fs, *next, usageErrorPrefix(), config.NextConflicts...); err != nil {
-			return err
-		}
-		if err := checkLimit(); err != nil {
+		if err := d.ValidatePaginationFlags(ctx, fs, usageErrorPrefix(), limitMax, config.NextConflicts...); err != nil {
 			return err
 		}
 
@@ -314,6 +292,15 @@ func BuildPaginatedListCommand(config PaginatedListCommandConfig) *ffcli.Command
 	}
 
 	return cmd
+}
+
+// builderDefaultLimitMax returns the --limit maximum of a list builder: limitMax,
+// or 200 when it is not set.
+func builderDefaultLimitMax(limitMax int) int {
+	if limitMax <= 0 {
+		return 200
+	}
+	return limitMax
 }
 
 // readBuilderFlag reads a parent or ID flag; with resolveApp the value goes
@@ -428,19 +415,19 @@ Examples:
 	includedFields = BindIncludedFieldFlags(cmd.FlagSet, map[string]string{"territory": "territories"})
 	exec := cmd.Exec
 	cmd.Exec = func(ctx context.Context, args []string) error {
+		prefix := commandErrorPrefixFromUsage(cmd.ShortUsage)
+		if prefix == "" {
+			prefix = config.ErrorPrefix
+		}
+		if err := d.ValidatePaginationFlags(ctx, cmd.FlagSet, prefix, builderDefaultLimitMax(config.LimitMax), "include"); err != nil {
+			return err
+		}
 		for _, value := range SplitCSV(*include) {
 			if value != "territory" {
 				return d.UsageError("--include must be: territory")
 			}
 		}
-		prefix := commandErrorPrefixFromUsage(cmd.ShortUsage)
-		if prefix == "" {
-			prefix = config.ErrorPrefix
-		}
 		next := cmd.FlagSet.Lookup("next").Value.String()
-		if err := d.RejectNextFlagConflicts(cmd.FlagSet, next, prefix, "include"); err != nil {
-			return err
-		}
 		var err error
 		if included, err = includedFields.ResolveWith(d, prefix, next, SplitCSV(*include)); err != nil {
 			return err

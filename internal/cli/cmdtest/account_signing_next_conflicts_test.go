@@ -75,11 +75,11 @@ func TestAccountSigningListsValidateNextBeforeQueryConflicts(t *testing.T) {
 		args []string
 		deps bool // the command is built on shared.Deps: run it through RunWithDeps
 	}{
-		{name: "certificates", args: []string{"certificates", "list", "--next", invalidNext, "--limit", "201"}},
-		{name: "users", args: []string{"users", "list", "--next", invalidNext, "--limit", "201"}, deps: true},
-		{name: "actors", args: []string{"actors", "list", "--next", invalidNext, "--limit", "201"}, deps: true},
-		{name: "pass type ids", args: []string{"pass-type-ids", "list", "--next", invalidNext, "--limit", "201"}, deps: true},
-		{name: "merchant ids", args: []string{"merchant-ids", "list", "--next", invalidNext, "--limit", "201"}},
+		{name: "certificates", args: []string{"certificates", "list", "--next", invalidNext, "--limit", "5"}},
+		{name: "users", args: []string{"users", "list", "--next", invalidNext, "--limit", "5"}, deps: true},
+		{name: "actors", args: []string{"actors", "list", "--next", invalidNext, "--limit", "5"}, deps: true},
+		{name: "pass type ids", args: []string{"pass-type-ids", "list", "--next", invalidNext, "--limit", "5"}, deps: true},
+		{name: "merchant ids", args: []string{"merchant-ids", "list", "--next", invalidNext, "--limit", "5"}},
 	}
 
 	for _, test := range tests {

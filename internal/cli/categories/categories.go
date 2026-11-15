@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
@@ -70,14 +69,11 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return d.UsageErrorf("categories list: %v", err)
-			}
-			if err := rejectCategoriesListNextFlagConflicts(d, fs, *next); err != nil {
-				return err
-			}
 			if *limit < 1 || *limit > 200 {
 				return d.UsageErrorf("categories list: --limit must be between 1 and 200")
+			}
+			if err := d.ValidatePaginationFlags(ctx, fs, "categories list", 200, "limit"); err != nil {
+				return err
 			}
 
 			client, err := d.Client()
@@ -115,25 +111,6 @@ Examples:
 			return d.PrintOutput(categories, *output.Output, *output.Pretty)
 		},
 	}
-}
-
-// rejectCategoriesListNextFlagConflicts rejects --limit when a --next cursor
-// URL is supplied, because the cursor already encodes the page size and the
-// CLI must never accept and silently ignore a flag.
-func rejectCategoriesListNextFlagConflicts(d *shared.Deps, fs *flag.FlagSet, next string) error {
-	if strings.TrimSpace(next) == "" {
-		return nil
-	}
-	conflict := false
-	fs.Visit(func(f *flag.Flag) {
-		if f.Name == "limit" {
-			conflict = true
-		}
-	})
-	if conflict {
-		return d.UsageError("categories list: --next cannot be combined with --limit")
-	}
-	return nil
 }
 
 // newCategoriesSetCommand returns the categories set subcommand.

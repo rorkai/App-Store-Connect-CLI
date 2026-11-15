@@ -63,15 +63,12 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "performance diagnostics list", 200, "diagnostic-type", "fields"); err != nil {
+				return err
+			}
 			trimmedBuildID := strings.TrimSpace(*buildID)
 			if trimmedBuildID == "" {
 				return shared.RequiredFlag("--build-id")
-			}
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("performance diagnostics list: --limit must be between 1 and 200")
-			}
-			if err := shared.RejectNextFlagConflicts(fs, *next, "performance diagnostics list", "diagnostic-type", "fields"); err != nil {
-				return err
 			}
 			if err := validateDiagnosticSignaturesCursor(*next, trimmedBuildID); err != nil {
 				return shared.UsageErrorf("performance diagnostics list: %v", err)
@@ -182,12 +179,12 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "performance diagnostics view", 200); err != nil {
+				return err
+			}
 			trimmedID := strings.TrimSpace(*signatureID)
 			if trimmedID == "" {
 				return shared.RequiredFlag("--id")
-			}
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("performance diagnostics view: --limit must be between 1 and 200")
 			}
 
 			client, err := shared.GetASCClient()

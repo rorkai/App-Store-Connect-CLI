@@ -60,16 +60,13 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := d.ValidatePaginationFlags(ctx, fs, "product-pages custom-pages localizations preview-sets list", productPagesMaxLimit); err != nil {
+				return err
+			}
 			trimmedID := strings.TrimSpace(*localizationID)
 			trimmedNext := strings.TrimSpace(*next)
 			if trimmedID == "" && trimmedNext == "" {
 				return d.RequiredFlag("--localization-id")
-			}
-			if *limit != 0 && (*limit < 1 || *limit > productPagesMaxLimit) {
-				return d.UsageErrorf("custom-pages localizations preview-sets list: --limit must be between 1 and %d", productPagesMaxLimit)
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return d.UsageErrorf("custom-pages localizations preview-sets list: %v", err)
 			}
 
 			client, err := d.Client()
@@ -160,6 +157,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := d.ValidatePaginationFlags(ctx, fs, "product-pages custom-pages localizations screenshot-sets list", productPagesMaxLimit); err != nil {
+				return err
+			}
 			trimmedID := strings.TrimSpace(*localizationID)
 			trimmedNext := strings.TrimSpace(*next)
 			if *includeScreenshots {
@@ -167,7 +167,7 @@ Examples:
 					return d.RequiredFlag("--localization-id")
 				}
 				if trimmedNext != "" {
-					return d.UsageError("custom-pages localizations screenshot-sets list: --include-screenshots cannot be combined with --next")
+					return d.UsageError("product-pages custom-pages localizations screenshot-sets list: --next cannot be combined with --include-screenshots")
 				}
 				if !*paginate {
 					return d.UsageError("custom-pages localizations screenshot-sets list: --include-screenshots requires --paginate")
@@ -175,12 +175,6 @@ Examples:
 			}
 			if trimmedID == "" && trimmedNext == "" {
 				return d.RequiredFlag("--localization-id")
-			}
-			if *limit != 0 && (*limit < 1 || *limit > productPagesMaxLimit) {
-				return d.UsageErrorf("custom-pages localizations screenshot-sets list: --limit must be between 1 and %d", productPagesMaxLimit)
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return d.UsageErrorf("custom-pages localizations screenshot-sets list: %v", err)
 			}
 
 			client, err := d.Client()

@@ -8,10 +8,7 @@ import (
 )
 
 func TestPreOrdersEnableNormalizesTerritories(t *testing.T) {
-	setupAuth(t)
-
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-1/appAvailabilityV2"),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"appAvailabilities","id":"availability-1","relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}},"links":{}}`))
 	reg.Register(asctest.GET("/v2/appAvailabilities/availability-1/territoryAvailabilities", "fields[territoryAvailabilities]=available,releaseDate,preOrderEnabled,preOrderPublishDate,contentStatuses,territory", "include=territory", "limit=200"),
@@ -27,12 +24,12 @@ func TestPreOrdersEnableNormalizesTerritories(t *testing.T) {
 			asctest.JSON(http.StatusOK, `{"data":{"type":"territoryAvailabilities","id":"patched","attributes":{"available":true,"preOrderEnabled":true,"releaseDate":"2026-06-01"}}}`))
 	}
 
-	if _, _, err := runCommand(t, []string{
+	if _, _, err := runRootWithDeps(t, stubClient(t, reg),
 		"pre-orders", "enable",
 		"--app", "app-1",
 		"--territory", "US,France",
 		"--release-date", "2026-06-01",
-	}); err != nil {
+	); err != nil {
 		t.Fatalf("run error: %v", err)
 	}
 }

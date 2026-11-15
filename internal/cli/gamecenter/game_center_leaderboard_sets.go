@@ -141,14 +141,8 @@ Examples:
 
 // GameCenterLeaderboardSetLocalizationsCreateCommand returns the localizations create subcommand.
 func GameCenterLeaderboardSetLocalizationsCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
-
-	setID := shared.BindResourceIDFlag(fs, "set-id", "gameCenterLeaderboardSets", "Game Center leaderboard set ID")
-	locale := fs.String("locale", "", "Locale code (e.g., en-US, de-DE)")
-	name := fs.String("name", "", "Display name for the leaderboard set")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	var attrs asc.GameCenterLeaderboardSetLocalizationCreateAttributes
+	return shared.BuildCreateCommand(shared.WriteCommandConfig{
 		Name:       "create",
 		ShortUsage: "asc game-center leaderboard-sets localizations create --set-id \"SET_ID\" --locale \"LOCALE\" --name \"NAME\"",
 		ShortHelp:  "Create a localization for a Game Center leaderboard set.",
@@ -157,56 +151,23 @@ func GameCenterLeaderboardSetLocalizationsCreateCommand() *ffcli.Command {
 Examples:
   asc game-center leaderboard-sets localizations create --set-id "SET_ID" --locale en-US --name "Season 1"
   asc game-center leaderboard-sets localizations create --set-id "SET_ID" --locale de-DE --name "Staffel 1"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*setID)
-			if id == "" {
-				return shared.RequiredFlag("--set-id")
-			}
-
-			localeVal := strings.TrimSpace(*locale)
-			if localeVal == "" {
-				return shared.RequiredFlag("--locale")
-			}
-
-			nameVal := strings.TrimSpace(*name)
-			if nameVal == "" {
-				return shared.RequiredFlag("--name")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center leaderboard-sets localizations create: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			attrs := asc.GameCenterLeaderboardSetLocalizationCreateAttributes{
-				Locale: localeVal,
-				Name:   nameVal,
-			}
-
-			resp, err := client.CreateGameCenterLeaderboardSetLocalization(requestCtx, id, attrs)
-			if err != nil {
-				return fmt.Errorf("game-center leaderboard-sets localizations create: failed to create: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDFlag:  "set-id",
+		IDUsage: "Game Center leaderboard set ID",
+		IDType:  "gameCenterLeaderboardSets",
+		Fields: []shared.AttributeFlag{
+			shared.RequiredStringFlag(&attrs.Locale, "locale", "Locale code (e.g., en-US, de-DE)"),
+			shared.RequiredStringFlag(&attrs.Name, "name", "Display name for the leaderboard set"),
 		},
-	}
+		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.CreateGameCenterLeaderboardSetLocalization(ctx, id, attrs)
+		},
+	})
 }
 
 // GameCenterLeaderboardSetLocalizationsUpdateCommand returns the localizations update subcommand.
 func GameCenterLeaderboardSetLocalizationsUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("update", flag.ExitOnError)
-
-	localizationID := shared.BindResourceIDFlag(fs, "id", "gameCenterLeaderboardSetLocalizations", "Game Center leaderboard set localization ID")
-	name := fs.String("name", "", "Display name for the leaderboard set")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	var attrs asc.GameCenterLeaderboardSetLocalizationUpdateAttributes
+	return shared.BuildUpdateCommand(shared.WriteCommandConfig{
 		Name:       "update",
 		ShortUsage: "asc game-center leaderboard-sets localizations update --id \"LOC_ID\" --name \"NAME\"",
 		ShortHelp:  "Update a Game Center leaderboard set localization.",
@@ -214,43 +175,15 @@ func GameCenterLeaderboardSetLocalizationsUpdateCommand() *ffcli.Command {
 
 Examples:
   asc game-center leaderboard-sets localizations update --id "LOC_ID" --name "New Name"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*localizationID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			attrs := asc.GameCenterLeaderboardSetLocalizationUpdateAttributes{}
-			hasUpdate := false
-
-			if strings.TrimSpace(*name) != "" {
-				nameVal := strings.TrimSpace(*name)
-				attrs.Name = &nameVal
-				hasUpdate = true
-			}
-
-			if !hasUpdate {
-				return shared.UpdateFlagRequired(fs, name)
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center leaderboard-sets localizations update: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.UpdateGameCenterLeaderboardSetLocalization(requestCtx, id, attrs)
-			if err != nil {
-				return fmt.Errorf("game-center leaderboard-sets localizations update: failed to update: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage: "Game Center leaderboard set localization ID",
+		IDType:  "gameCenterLeaderboardSetLocalizations",
+		Fields: []shared.AttributeFlag{
+			shared.OptionalStringFlag(&attrs.Name, "name", "Display name for the leaderboard set"),
 		},
-	}
+		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.UpdateGameCenterLeaderboardSetLocalization(ctx, id, attrs)
+		},
+	})
 }
 
 // GameCenterLeaderboardSetLocalizationsDeleteCommand returns the localizations delete subcommand.
@@ -299,11 +232,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("game-center leaderboard-sets list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("game-center leaderboard-sets list: %v", err)
+			if err := shared.ValidatePaginationFlags(ctx, fs, "game-center leaderboard-sets list", 200); err != nil {
+				return err
 			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)

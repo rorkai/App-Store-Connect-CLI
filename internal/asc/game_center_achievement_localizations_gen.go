@@ -56,6 +56,13 @@ type GameCenterAchievementLocalizationUpdateRequest struct {
 	Data GameCenterAchievementLocalizationUpdateData `json:"data"`
 }
 
+// GameCenterAchievementLocalizationV2CreateData is the data object of the GameCenterAchievementLocalizationV2CreateRequest schema.
+type GameCenterAchievementLocalizationV2CreateData struct {
+	Type          ResourceType                                      `json:"type"`
+	Attributes    GameCenterAchievementLocalizationCreateAttributes `json:"attributes"`
+	Relationships *GameCenterAchievementLocalizationV2Relationships `json:"relationships,omitempty"`
+}
+
 // GameCenterAchievementLocalizationV2CreateRequest is the GameCenterAchievementLocalizationV2CreateRequest schema.
 type GameCenterAchievementLocalizationV2CreateRequest struct {
 	Data GameCenterAchievementLocalizationV2CreateData `json:"data"`
@@ -64,6 +71,29 @@ type GameCenterAchievementLocalizationV2CreateRequest struct {
 // GameCenterAchievementLocalizationV2Relationships is the data.relationships object of the GameCenterAchievementLocalizationV2CreateRequest schema.
 type GameCenterAchievementLocalizationV2Relationships struct {
 	Version *Relationship `json:"version"`
+}
+
+// CreateGameCenterAchievementLocalizationV2 sends POST /v2/gameCenterAchievementLocalizations (gameCenterAchievementLocalizationsV2_createInstance).
+func (c *Client) CreateGameCenterAchievementLocalizationV2(ctx context.Context, versionID string, attrs GameCenterAchievementLocalizationCreateAttributes) (*GameCenterAchievementLocalizationResponse, error) {
+	payload := GameCenterAchievementLocalizationV2CreateRequest{
+		Data: GameCenterAchievementLocalizationV2CreateData{
+			Type:       ResourceTypeGameCenterAchievementLocalizations,
+			Attributes: attrs,
+			Relationships: &GameCenterAchievementLocalizationV2Relationships{
+				Version: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeGameCenterAchievementVersions,
+						ID:   strings.TrimSpace(versionID),
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[GameCenterAchievementLocalizationResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v2/gameCenterAchievementLocalizations",
+		Payload: payload,
+	})
 }
 
 // DeleteGameCenterAchievementLocalizationV2 sends DELETE /v2/gameCenterAchievementLocalizations/{id} (gameCenterAchievementLocalizationsV2_deleteInstance).
@@ -82,6 +112,22 @@ func (c *Client) GetGameCenterAchievementLocalizationV2(ctx context.Context, loc
 func (c *Client) GetGameCenterAchievementLocalizationImageV2(ctx context.Context, localizationID string) (*GameCenterAchievementImageResponse, error) {
 	return getJSON[GameCenterAchievementImageResponse](ctx, c, readRequest{
 		Path: fmt.Sprintf("/v2/gameCenterAchievementLocalizations/%s/image", strings.TrimSpace(localizationID)),
+	})
+}
+
+// UpdateGameCenterAchievementLocalizationV2 sends PATCH /v2/gameCenterAchievementLocalizations/{id} (gameCenterAchievementLocalizationsV2_updateInstance).
+func (c *Client) UpdateGameCenterAchievementLocalizationV2(ctx context.Context, localizationID string, attrs GameCenterAchievementLocalizationUpdateAttributes) (*GameCenterAchievementLocalizationResponse, error) {
+	payload := GameCenterAchievementLocalizationUpdateRequest{
+		Data: GameCenterAchievementLocalizationUpdateData{
+			Type:       ResourceTypeGameCenterAchievementLocalizations,
+			ID:         strings.TrimSpace(localizationID),
+			Attributes: &attrs,
+		},
+	}
+	return sendJSON[GameCenterAchievementLocalizationResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v2/gameCenterAchievementLocalizations/%s", strings.TrimSpace(localizationID)),
+		Payload: payload,
 	})
 }
 

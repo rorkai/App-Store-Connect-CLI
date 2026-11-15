@@ -338,6 +338,7 @@ func TestSelfLinkRemainingFlagsRejectWrongType(t *testing.T) {
 			flag:    "background-asset-id",
 			value:   selfLinkTestBase + "/v1/backgroundAssetVersions/version-1",
 			wantErr: "expected a self-link of type backgroundAssets, got backgroundAssetVersions",
+			deps:    true,
 		},
 		{
 			name:    "game-center achievements localizations list rejects leaderboard link",

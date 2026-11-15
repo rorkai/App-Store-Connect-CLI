@@ -43,19 +43,10 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			nextValue := strings.TrimSpace(*next)
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.WithDiagnostic(shared.NewValidationError(shared.UsageErrorf("review attachments-list: %v", err)), shared.DiagnosticInvalidInput, "--next")
-			}
-			if err := rejectReviewNextFlagConflicts(
-				fs, *next, "review attachments-list",
-				"fields", "detail-fields", "include", "limit",
-			); err != nil {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "review attachments-list", 200, "fields", "detail-fields", "include", "limit"); err != nil {
 				return err
 			}
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.WithDiagnostic(shared.NewValidationError(shared.UsageError("review attachments-list: --limit must be between 1 and 200")), shared.DiagnosticInvalidInput, "--limit")
-			}
+			nextValue := strings.TrimSpace(*next)
 
 			fieldsValue, err := normalizeReviewAttachmentFields(*fields)
 			if err != nil {

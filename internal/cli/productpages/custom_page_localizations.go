@@ -75,13 +75,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > productPagesMaxLimit) {
-				return d.UsageErrorf("custom-pages localizations list: --limit must be between 1 and %d", productPagesMaxLimit)
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return d.UsageErrorf("custom-pages localizations list: %v", err)
-			}
-			if err := d.RejectNextFlagConflicts(fs, *next, "custom-pages localizations list", "include", "placements-limit"); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "product-pages custom-pages localizations list", productPagesMaxLimit, "include", "placements-limit"); err != nil {
 				return err
 			}
 			includeValues, placementsLimit, err := include.Resolve()

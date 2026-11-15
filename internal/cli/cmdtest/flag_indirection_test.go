@@ -19,14 +19,11 @@ func TestFlagIndirectionPreservesRootFlagsAndSearchTerminator(t *testing.T) {
 	t.Setenv("ASC_TEST_LIMIT", "1")
 	t.Setenv("ASC_TEST_MISSING_PROFILE", "")
 	t.Setenv("ASC_TEST_MISSING_QUERY", "")
-	var code int
-	stdout, stderr := captureOutput(t, func() {
-		code = cmd.Run([]string{
-			"--read-only", "search", "--profile", "@env:ASC_TEST_MISSING_PROFILE",
-			"--limit", "@env:ASC_TEST_LIMIT", "--output", "json",
-			"--", "--limit", "@env:ASC_TEST_MISSING_QUERY",
-		}, "1.2.3")
-	})
+	stdout, stderr, code := runWithDeps(t, nil,
+		"--read-only", "search", "--profile", "@env:ASC_TEST_MISSING_PROFILE",
+		"--limit", "@env:ASC_TEST_LIMIT", "--output", "json",
+		"--", "--limit", "@env:ASC_TEST_MISSING_QUERY",
+	)
 	if code != cmd.ExitSuccess || stderr != "" {
 		t.Fatalf("code=%d stderr=%q stdout=%q", code, stderr, stdout)
 	}

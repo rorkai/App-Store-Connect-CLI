@@ -112,7 +112,7 @@ func TestCommandsThatTakeOperandsKeepAcceptingThem(t *testing.T) {
 		args []string
 		deps bool // the command is built on shared.Deps: run it on test deps
 	}{
-		{name: "search", args: []string{"search", "external testers"}},
+		{name: "search", args: []string{"search", "external testers"}, deps: true},
 		{name: "schema", args: []string{"schema", "apps.list"}, deps: true},
 		{name: "docs show", args: []string{"docs", "show", "api-notes"}},
 	}

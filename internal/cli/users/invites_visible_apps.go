@@ -58,15 +58,12 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := d.ValidatePaginationFlags(ctx, fs, "users invites visible-apps list", 200); err != nil {
+				return err
+			}
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" && strings.TrimSpace(*next) == "" {
 				return d.RequiredFlag("--id")
-			}
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return d.UsageError("users invites visible-apps list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return d.UsageErrorf("users invites visible-apps list: %v", err)
 			}
 			if idValue == "" && strings.TrimSpace(*next) != "" {
 				derivedID, err := extractUserInvitationIDFromNextURL(*next)

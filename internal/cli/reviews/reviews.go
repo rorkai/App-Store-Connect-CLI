@@ -70,10 +70,7 @@ Examples:
 			if len(args) > 0 {
 				return shared.WithDiagnostic(shared.UsageErrorf("unexpected argument(s): %s", strings.Join(args, " ")), shared.DiagnosticInvalidInput, "")
 			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.WithDiagnostic(shared.NewValidationError(shared.UsageErrorf("reviews: %v", err)), shared.DiagnosticInvalidInput, "--next")
-			}
-			if err := ValidateReviewNextFlagConflicts(*next, fs); err != nil {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "reviews", 200, ReviewNextConflicts...); err != nil {
 				return err
 			}
 
@@ -119,10 +116,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.WithDiagnostic(shared.NewValidationError(shared.UsageErrorf("reviews: %v", err)), shared.DiagnosticInvalidInput, "--next")
-			}
-			if err := ValidateReviewNextFlagConflicts(*next, fs); err != nil {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "reviews list", 200, ReviewNextConflicts...); err != nil {
 				return err
 			}
 			resolvedAppID := shared.ResolveAppID(*appID)
@@ -137,15 +131,9 @@ Examples:
 }
 
 func executeReviewsList(ctx context.Context, appID, output string, pretty bool, filters *ReviewFilterFlags, limit int, next string, paginate bool) error {
-	if limit != 0 && (limit < 1 || limit > 200) {
-		return shared.WithDiagnostic(shared.NewValidationError(shared.UsageError("reviews: --limit must be between 1 and 200")), shared.DiagnosticInvalidInput, "--limit")
-	}
 	filterOpts, err := filters.ReviewOptions()
 	if err != nil {
 		return err
-	}
-	if err := shared.ValidateNextURL(next); err != nil {
-		return shared.WithDiagnostic(shared.NewValidationError(shared.UsageErrorf("reviews: %v", err)), shared.DiagnosticInvalidInput, "--next")
 	}
 
 	client, err := shared.GetASCClient()

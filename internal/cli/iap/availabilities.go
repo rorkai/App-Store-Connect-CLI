@@ -80,11 +80,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("iap availabilities available-territories: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("iap availabilities available-territories: %v", err)
+			if err := shared.ValidatePaginationFlags(ctx, fs, "iap pricing availabilities available-territories", 200); err != nil {
+				return err
 			}
 
 			id := strings.TrimSpace(*availabilityID)
