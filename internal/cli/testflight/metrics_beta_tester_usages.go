@@ -103,14 +103,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				fmt.Fprintln(os.Stderr, "Error: --limit must be between 1 and 200")
-				return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticInvalidInput, "--limit")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorfCtx(ctx, "testflight metrics beta-tester-usages: %v", err)
-			}
-			if err := shared.RejectNextFlagConflicts(fs, *next, "testflight metrics app-testers", "period", "group-by", "filter-tester"); err != nil {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "testflight metrics app-testers", 200, "period", "group-by", "filter-tester"); err != nil {
 				return err
 			}
 

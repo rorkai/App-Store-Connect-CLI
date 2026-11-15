@@ -91,23 +91,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("certificates list: %v", err)
-			}
-			if err := shared.RejectNextFlagConflicts(
-				fs,
-				*next,
-				"certificates list",
-				"display-name",
-				"certificate-type",
-				"serial-number",
-				"id",
-				"sort",
-				"fields",
-				"pass-type-id-fields",
-				"include",
-				"limit",
-			); err != nil {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "certificates list", 200, "display-name", "certificate-type", "serial-number", "id", "sort", "fields", "pass-type-id-fields", "include", "limit"); err != nil {
 				return err
 			}
 			provided := map[string]bool{}
@@ -130,9 +114,6 @@ Examples:
 				if provided[selector.name] && len(shared.SplitCSV(selector.value)) == 0 {
 					return shared.UsageErrorf("certificates list: --%s must not be empty", selector.name)
 				}
-			}
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("certificates list: --limit must be between 1 and 200")
 			}
 			sortValue, err := normalizeCertificateSort(*sort)
 			if err != nil {

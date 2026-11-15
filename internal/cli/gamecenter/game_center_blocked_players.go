@@ -31,13 +31,10 @@ func gameCenterBlockedPlayersListCommand() *ffcli.Command {
 		if provided["limit"] && (*limit < 1 || *limit > 200) {
 			return shared.UsageError(command + ": --limit must be between 1 and 200")
 		}
-		nextURL := strings.TrimSpace(*next)
-		if err := shared.ValidateNextURL(nextURL); err != nil {
-			return shared.UsageErrorf("%s: %v", command, err)
-		}
-		if err := shared.RejectNextFlagConflicts(fs, nextURL, command, "fields", "limit"); err != nil {
+		if err := shared.ValidatePaginationFlags(ctx, fs, command, 200, "fields", "limit"); err != nil {
 			return err
 		}
+		nextURL := strings.TrimSpace(*next)
 		detailID := strings.TrimSpace(*id)
 		if detailID == "" && nextURL == "" {
 			return shared.UsageError(command + ": --detail-id is required")

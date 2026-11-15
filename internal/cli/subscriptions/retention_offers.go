@@ -122,11 +122,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageErrorf("%s: --limit must be between 1 and 200", command)
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("%s: %v", command, err)
+			if err := shared.ValidatePaginationFlags(ctx, fs, command, 200, "fields", "include", "prices-limit"); err != nil {
+				return err
 			}
 			opts, err := read.options(fs, command, *next)
 			if err != nil {
@@ -219,9 +216,6 @@ func bindRetentionOfferReadFlags(fs *flag.FlagSet) *retentionOfferReadFlags {
 }
 
 func (f *retentionOfferReadFlags) options(fs *flag.FlagSet, command, next string) ([]asc.RetentionOffersOption, error) {
-	if err := validateNextExclusiveFlags(fs, next, "fields", "include", "prices-limit"); err != nil {
-		return nil, err
-	}
 	fields, err := normalizeSelectionFlag(fs, *f.fields, "--fields", retentionOfferFieldsList())
 	if err != nil {
 		return nil, err
@@ -592,13 +586,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageErrorf("%s: --limit must be between 1 and 200", command)
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("%s: %v", command, err)
-			}
-			if err := validateNextExclusiveFlags(fs, *next, "territory", "fields", "include"); err != nil {
+			if err := shared.ValidatePaginationFlags(ctx, fs, command, 200, "territory", "fields", "include"); err != nil {
 				return err
 			}
 			fieldsValue, err := normalizeSelectionFlag(fs, *fields, "--fields", []string{"territory", "subscriptionPricePoint"})

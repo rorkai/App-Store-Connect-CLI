@@ -82,19 +82,13 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := d.ValidatePaginationFlags(ctx, fs, "background-assets list", backgroundAssetsMaxLimit, "archived", "asset-pack-identifier", "versions-locale", "versions-platform", "sort"); err != nil {
+				return err
+			}
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
-			}
-			if *limit != 0 && (*limit < 1 || *limit > backgroundAssetsMaxLimit) {
-				return d.UsageErrorf("background-assets list: --limit must be between 1 and %d", backgroundAssetsMaxLimit)
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return d.UsageErrorf("background-assets list: %v", err)
-			}
-			if err := d.RejectNextFlagConflicts(fs, *next, "background-assets list", "archived", "asset-pack-identifier", "versions-locale", "versions-platform", "sort"); err != nil {
-				return err
 			}
 			versionsPlatforms, err := parseBackgroundAssetEnumCSV("--versions-platform", *versionsPlatform, shared.PlatformList())
 			if err != nil {

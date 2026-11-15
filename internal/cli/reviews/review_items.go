@@ -106,14 +106,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.WithDiagnostic(shared.NewValidationError(shared.UsageErrorf("%s: %v", errorPrefix, err)), shared.DiagnosticInvalidInput, "--next")
-			}
-			if err := rejectReviewNextFlagConflicts(
-				fs, *next, errorPrefix,
-				"limit", "fields", "include", "iap-version-fields",
-				"subscription-version-fields", "subscription-group-version-fields",
-			); err != nil {
+			if err := shared.ValidatePaginationFlags(ctx, fs, errorPrefix, 200, "limit", "fields", "include", "iap-version-fields", "subscription-version-fields", "subscription-group-version-fields"); err != nil {
 				return err
 			}
 			opts, err := reviewItemsListOptions(*limit, *next, *fields, *include, *iapVersionFields, *subscriptionVersionFields, *subscriptionGroupVersionFields)
@@ -172,22 +165,6 @@ Examples:
 	}
 }
 
-func rejectReviewNextFlagConflicts(fs *flag.FlagSet, next, command string, names ...string) error {
-	if strings.TrimSpace(next) == "" {
-		return nil
-	}
-	provided := make(map[string]struct{}, len(names))
-	fs.Visit(func(f *flag.Flag) {
-		provided[f.Name] = struct{}{}
-	})
-	for _, name := range names {
-		if _, ok := provided[name]; ok {
-			return shared.WithDiagnostic(shared.UsageErrorf("%s: --next cannot be combined with --%s", command, name), shared.DiagnosticConflictingInput, "")
-		}
-	}
-	return nil
-}
-
 var reviewSubmissionItemFields = []string{
 	"state", "appStoreVersion", "appCustomProductPageVersion", "appAssetLibraryImage", "appAssetLibraryVideo", "appStoreVersionExperiment",
 	"appStoreVersionExperimentV2", "appEvent", "backgroundAssetVersion", "gameCenterAchievementVersion",
@@ -224,12 +201,6 @@ var (
 )
 
 func reviewItemsListOptions(limit int, next, fields, include, iapVersionFields, subscriptionVersionFields, subscriptionGroupVersionFields string) ([]asc.ReviewSubmissionItemsOption, error) {
-	if limit != 0 && (limit < 1 || limit > 200) {
-		return nil, shared.WithDiagnostic(shared.UsageError("--limit must be between 1 and 200"), shared.DiagnosticInvalidInput, "--limit")
-	}
-	if err := shared.ValidateNextURL(next); err != nil {
-		return nil, shared.WithDiagnostic(shared.UsageError(err.Error()), shared.DiagnosticInvalidInput, "--next")
-	}
 	if strings.TrimSpace(next) != "" && (limit != 0 || strings.TrimSpace(fields) != "" || strings.TrimSpace(include) != "" ||
 		strings.TrimSpace(iapVersionFields) != "" || strings.TrimSpace(subscriptionVersionFields) != "" || strings.TrimSpace(subscriptionGroupVersionFields) != "") {
 		return nil, shared.WithDiagnostic(shared.UsageError("--next cannot be combined with --limit, --fields, --include, or version sparse-field flags"), shared.DiagnosticConflictingInput, "")

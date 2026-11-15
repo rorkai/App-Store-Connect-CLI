@@ -63,17 +63,11 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("apps app-encryption-declarations list: --limit must be between 1 and 200")
+			if err := shared.ValidatePaginationFlags(ctx, fs, "apps app-encryption-declarations list", 200, "build-id", "fields", "document-fields", "include", "build-limit"); err != nil {
+				return err
 			}
 			if *buildLimit != 0 && (*buildLimit < 1 || *buildLimit > 50) {
 				return shared.UsageError("apps app-encryption-declarations list: --build-limit must be between 1 and 50")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("apps app-encryption-declarations list: %v", err)
-			}
-			if err := shared.RejectNextFlagConflicts(fs, *next, "apps app-encryption-declarations list", "build-id", "fields", "document-fields", "include", "build-limit"); err != nil {
-				return err
 			}
 
 			fieldsValue, err := normalizeAppEncryptionDeclarationFields(*fields)

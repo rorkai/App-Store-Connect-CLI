@@ -81,13 +81,11 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("app-events list: %v", err)
-			}
-			if err := shared.RejectNextFlagConflicts(
+			if err := shared.ValidatePaginationFlags(
+				ctx,
 				fs,
-				*next,
 				"app-events list",
+				200,
 				"event-state",
 				"id",
 				"fields",
@@ -115,9 +113,6 @@ Examples:
 				}
 			}
 			localizationsLimitProvided := appEventFlagWasProvided(fs, "localizations-limit")
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageErrorf("app-events list: --limit must be between 1 and 200")
-			}
 			if localizationsLimitProvided && (*localizationsLimit < 1 || *localizationsLimit > 50) {
 				return shared.UsageErrorf("app-events list: --localizations-limit must be between 1 and 50")
 			}

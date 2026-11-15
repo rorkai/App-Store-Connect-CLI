@@ -70,18 +70,12 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "app-events localizations list", 200, "include", "placements-limit"); err != nil {
+				return err
+			}
 			id := strings.TrimSpace(*eventID)
 			if id == "" && strings.TrimSpace(*next) == "" {
 				return shared.RequiredFlag("--event-id")
-			}
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("app-events localizations list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("app-events localizations list: %v", err)
-			}
-			if err := shared.RejectNextFlagConflicts(fs, *next, "app-events localizations list", "include", "placements-limit"); err != nil {
-				return err
 			}
 			includeValues, placementsLimit, err := include.Resolve()
 			if err != nil {

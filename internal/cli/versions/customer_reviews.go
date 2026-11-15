@@ -66,13 +66,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("versions customer-reviews list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("versions customer-reviews list: %v", err)
-			}
-			if err := reviews.ValidateReviewNextFlagConflicts(*next, fs); err != nil {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "versions customer-reviews list", 200, reviews.ReviewNextConflicts...); err != nil {
 				return err
 			}
 			filterOpts, err := filters.ReviewOptions()

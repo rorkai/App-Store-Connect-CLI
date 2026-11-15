@@ -104,17 +104,11 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return d.UsageError("encryption declarations list: --limit must be between 1 and 200")
+			if err := d.ValidatePaginationFlags(ctx, fs, "encryption declarations list", 200, "build-id", "fields", "document-fields", "include", "build-limit"); err != nil {
+				return err
 			}
 			if *buildLimit != 0 && (*buildLimit < 1 || *buildLimit > 50) {
 				return d.UsageError("encryption declarations list: --build-limit must be between 1 and 50")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return d.UsageErrorf("encryption declarations list: %v", err)
-			}
-			if err := d.RejectNextFlagConflicts(fs, *next, "encryption declarations list", "build-id", "fields", "document-fields", "include", "build-limit"); err != nil {
-				return err
 			}
 
 			fieldsValue, err := normalizeEncryptionDeclarationFields(*fields)

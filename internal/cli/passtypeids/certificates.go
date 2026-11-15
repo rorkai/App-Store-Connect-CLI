@@ -67,16 +67,10 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			passTypeIDValue := strings.TrimSpace(*passTypeID)
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return d.UsageError("pass-type-ids certificates list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return d.UsageErrorf("pass-type-ids certificates list: %v", err)
-			}
-			if err := d.RejectNextFlagConflicts(fs, *next, "pass-type-ids certificates list", "display-name", "certificate-type", "serial-number", "id", "sort", "fields"); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "pass-type-ids certificates list", 200, "display-name", "certificate-type", "serial-number", "id", "sort", "fields"); err != nil {
 				return err
 			}
+			passTypeIDValue := strings.TrimSpace(*passTypeID)
 			if strings.TrimSpace(*next) != "" {
 				derivedID, err := passTypeIDFromCertificatesNextURL(*next, false)
 				if err != nil {
@@ -187,13 +181,10 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := d.ValidatePaginationFlags(ctx, fs, "pass-type-ids certificates view", 200); err != nil {
+				return err
+			}
 			passTypeIDValue := strings.TrimSpace(*passTypeID)
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return d.UsageError("pass-type-ids certificates view: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return d.UsageErrorf("pass-type-ids certificates view: %v", err)
-			}
 			if strings.TrimSpace(*next) != "" {
 				derivedID, err := passTypeIDFromCertificatesNextURL(*next, true)
 				if err != nil {

@@ -73,13 +73,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("app-clips list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("app-clips list: %v", err)
-			}
-			if err := shared.RejectNextFlagConflicts(fs, *next, "app-clips list", "bundle-id"); err != nil {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "app-clips list", 200, "bundle-id"); err != nil {
 				return err
 			}
 

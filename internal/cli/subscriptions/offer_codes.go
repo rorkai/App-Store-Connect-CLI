@@ -76,13 +76,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageErrorCtx(ctx, "subscriptions offer-codes list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorfCtx(ctx, "subscriptions offer-codes list: %v", err)
-			}
-			if err := validateNextExclusiveFlags(fs, *next, "limit", "subscription-fields"); err != nil {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "subscriptions offer-codes list", 200, "limit", "subscription-fields"); err != nil {
 				return err
 			}
 			selectedSubscriptionFields, err := normalizeSparseFieldsFlag(fs, *next, "subscription-fields", *subscriptionFields, subscriptionFieldsList())
@@ -463,11 +457,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageErrorCtx(ctx, "subscriptions offer-codes one-time-codes list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorfCtx(ctx, "subscriptions offer-codes one-time-codes list: %v", err)
+			if err := shared.ValidatePaginationFlags(ctx, fs, "subscriptions offer-codes one-time-codes list", 200); err != nil {
+				return err
 			}
 
 			id := strings.TrimSpace(*offerCodeID)
@@ -583,13 +574,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageErrorCtx(ctx, "subscriptions offer-codes prices: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorfCtx(ctx, "subscriptions offer-codes prices: %v", err)
-			}
-			if err := validateNextExclusiveFlags(fs, *next, "limit", "price-point-fields"); err != nil {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "subscriptions offer-codes prices", 200, "limit", "price-point-fields"); err != nil {
 				return err
 			}
 			selectedPricePointFields, err := normalizeSparseFieldsFlag(fs, *next, "price-point-fields", *pricePointFields, subscriptionPricePointFieldsList())

@@ -41,12 +41,12 @@ func TestTestFlightInputValidationReturnsUsageExitCode(t *testing.T) {
 		{
 			name:    "groups list limit 201",
 			args:    []string{"testflight", "groups", "list", "--limit", "201"},
-			wantErr: "groups list: --limit must be between 1 and 200",
+			wantErr: "testflight groups list: --limit must be between 1 and 200",
 		},
 		{
 			name:    "groups list next non apple url",
 			args:    []string{"testflight", "groups", "list", "--next", "http://example.com/x"},
-			wantErr: "groups list: --next must be an App Store Connect URL",
+			wantErr: "testflight groups list: --next must be an App Store Connect URL",
 		},
 		{
 			name:    "groups links view group-id g type betaTesters limit 201",
@@ -61,12 +61,12 @@ func TestTestFlightInputValidationReturnsUsageExitCode(t *testing.T) {
 		{
 			name:    "testers list limit 201",
 			args:    []string{"testflight", "testers", "list", "--limit", "201"},
-			wantErr: "testers list: --limit must be between 1 and 200",
+			wantErr: "testflight testers list: --limit must be between 1 and 200",
 		},
 		{
 			name:    "testers list next non apple url",
 			args:    []string{"testflight", "testers", "list", "--next", "http://example.com/x"},
-			wantErr: "testers list: --next must be an App Store Connect URL",
+			wantErr: "testflight testers list: --next must be an App Store Connect URL",
 		},
 		{
 			name:    "testers links view tester-id t type apps limit 201",
@@ -121,12 +121,12 @@ func TestTestFlightInputValidationReturnsUsageExitCode(t *testing.T) {
 		{
 			name:    "agreements list limit 201",
 			args:    []string{"testflight", "agreements", "list", "--limit", "201"},
-			wantErr: "agreements list: --limit must be between 1 and 200",
+			wantErr: "testflight agreements list: --limit must be between 1 and 200",
 		},
 		{
 			name:    "agreements list next non apple url",
 			args:    []string{"testflight", "agreements", "list", "--next", "http://example.com/x"},
-			wantErr: "agreements list: --next must be an App Store Connect URL",
+			wantErr: "testflight agreements list: --next must be an App Store Connect URL",
 		},
 		{
 			name:    "review view app 123 limit 201",

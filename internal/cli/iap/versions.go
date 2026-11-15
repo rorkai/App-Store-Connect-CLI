@@ -154,36 +154,12 @@ func bindIAPVersionQueryFlags(fs *flag.FlagSet) (state, include *string, limit, 
 	return
 }
 
-func rejectIAPVersionNextFlagConflicts(fs *flag.FlagSet, next, command string, names ...string) error {
-	if strings.TrimSpace(next) == "" {
-		return nil
-	}
-	for _, name := range names {
-		if flagSet(fs, name) {
-			return shared.UsageErrorf("%s: --next cannot be combined with --%s", command, name)
-		}
-	}
-	return nil
-}
-
 func iapVersionQueryOptions(stateValue, includeValue string, limit, imagesLimit, localizationsLimit int, next string, fieldFlags iapVersionFieldFlagValues) ([]asc.IAPVersionsOption, error) {
-	if strings.TrimSpace(next) != "" && (strings.TrimSpace(stateValue) != "" ||
-		strings.TrimSpace(includeValue) != "" || limit != 0 || imagesLimit != 0 || localizationsLimit != 0 ||
-		strings.TrimSpace(*fieldFlags.version) != "" || strings.TrimSpace(*fieldFlags.iap) != "" ||
-		strings.TrimSpace(*fieldFlags.image) != "" || strings.TrimSpace(*fieldFlags.localization) != "") {
-		return nil, fmt.Errorf("--next cannot be combined with state, include, limit, nested limits, or sparse-field flags")
-	}
-	if limit != 0 && (limit < 1 || limit > 200) {
-		return nil, fmt.Errorf("--limit must be between 1 and 200")
-	}
 	if imagesLimit != 0 && (imagesLimit < 1 || imagesLimit > 50) {
 		return nil, fmt.Errorf("--images-limit must be between 1 and 50")
 	}
 	if localizationsLimit != 0 && (localizationsLimit < 1 || localizationsLimit > 50) {
 		return nil, fmt.Errorf("--localizations-limit must be between 1 and 50")
-	}
-	if err := shared.ValidateNextURL(next); err != nil {
-		return nil, err
 	}
 	states, err := normalizeIAPVersionStates(stateValue)
 	if err != nil {
@@ -229,16 +205,12 @@ Examples:
   asc iap versions list --iap-id "IAP_ID"
   asc iap versions list --iap-id "IAP_ID" --state PREPARE_FOR_SUBMISSION --paginate`, FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "iap versions list", 200, "state", "include", "limit", "images-limit", "localizations-limit", "version-fields", "iap-fields", "image-fields", "localization-fields"); err != nil {
+				return err
+			}
 			id := strings.TrimSpace(*iapID)
 			if id == "" && strings.TrimSpace(*next) == "" {
 				return shared.RequiredFlag("--iap-id")
-			}
-			if err := rejectIAPVersionNextFlagConflicts(
-				fs, *next, "iap versions list",
-				"state", "include", "limit", "images-limit", "localizations-limit",
-				"version-fields", "iap-fields", "image-fields", "localization-fields",
-			); err != nil {
-				return err
 			}
 			firstPageLimit := *limit
 			if *paginate && firstPageLimit == 0 && strings.TrimSpace(*next) == "" {
@@ -445,19 +417,13 @@ func iapVersionLinkagesCommand(name string, parentIAP bool) *ffcli.Command {
 	return &ffcli.Command{
 		Name: name, ShortUsage: fmt.Sprintf("asc iap versions links %s --%s \"ID\"", name, idFlag), ShortHelp: "View relationship linkages.", LongHelp: "View relationship linkages.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "iap versions links "+name, 200, "limit"); err != nil {
+				return err
+			}
 			value := strings.TrimSpace(*id)
 			if value == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintf(os.Stderr, "Error: --%s is required\n", idFlag)
 				return shared.MissingRequiredUsageError("--" + idFlag)
-			}
-			if flagSet(fs, "limit") && strings.TrimSpace(*next) != "" {
-				return shared.UsageError(fmt.Sprintf("iap versions links %s: --next cannot be combined with --limit", name))
-			}
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError(fmt.Sprintf("iap versions links %s: --limit must be between 1 and 200", name))
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageError(fmt.Sprintf("iap versions links %s: %v", name, err))
 			}
 			client, err := iapVersionClientFactory()
 			if err != nil {

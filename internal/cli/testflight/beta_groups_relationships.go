@@ -70,15 +70,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.WithDiagnostic(
-					shared.UsageErrorCtx(ctx, "testflight beta-groups relationships view: --limit must be between 1 and 200"),
-					shared.DiagnosticInvalidInput,
-					"--limit",
-				)
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorfCtx(ctx, "testflight beta-groups relationships view: %v", err)
+			if err := shared.ValidatePaginationFlags(ctx, fs, "testflight beta-groups relationships view", 200); err != nil {
+				return err
 			}
 
 			relationshipType := strings.TrimSpace(*relType)

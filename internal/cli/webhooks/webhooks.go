@@ -77,19 +77,13 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("webhooks list: %v", err)
-			}
-			if err := rejectWebhooksListNextFlagConflicts(fs, *next, "limit"); err != nil {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "webhooks list", webhooksMaxLimit, "limit"); err != nil {
 				return err
 			}
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
-			}
-			if *limit != 0 && (*limit < 1 || *limit > webhooksMaxLimit) {
-				return shared.UsageErrorf("webhooks list: --limit must be between 1 and %d", webhooksMaxLimit)
 			}
 
 			client, err := shared.GetASCClient()
@@ -128,25 +122,6 @@ Examples:
 			return shared.PrintOutput(webhooks, *output.Output, *output.Pretty)
 		},
 	}
-}
-
-// rejectWebhooksListNextFlagConflicts rejects query flags that a continuation
-// URL already encodes: `--next` replaces the whole request path, so an
-// explicitly provided page size would otherwise be dropped silently.
-func rejectWebhooksListNextFlagConflicts(fs *flag.FlagSet, next string, names ...string) error {
-	if strings.TrimSpace(next) == "" {
-		return nil
-	}
-	provided := make(map[string]struct{}, len(names))
-	fs.Visit(func(f *flag.Flag) {
-		provided[f.Name] = struct{}{}
-	})
-	for _, name := range names {
-		if _, ok := provided[name]; ok {
-			return shared.UsageErrorf("webhooks list: --next cannot be combined with --%s", name)
-		}
-	}
-	return nil
 }
 
 // WebhooksGetCommand returns the webhooks view subcommand.
@@ -405,19 +380,13 @@ Examples:
 			WebhookDeliveriesRedeliverCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "webhooks deliveries", webhooksMaxLimit, "created-after", "created-before"); err != nil {
+				return err
+			}
 			trimmedID := strings.TrimSpace(*webhookID)
 			trimmedNext := strings.TrimSpace(*next)
 			if trimmedID == "" && trimmedNext == "" {
 				return shared.RequiredFlag("--webhook-id")
-			}
-			if *limit != 0 && (*limit < 1 || *limit > webhooksMaxLimit) {
-				return shared.UsageErrorf("webhooks deliveries: --limit must be between 1 and %d", webhooksMaxLimit)
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("webhooks deliveries: %v", err)
-			}
-			if err := shared.RejectNextFlagConflicts(fs, *next, "webhooks deliveries", "created-after", "created-before"); err != nil {
-				return err
 			}
 
 			client, err := shared.GetASCClient()
@@ -499,16 +468,13 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "webhooks deliveries links", webhooksMaxLimit); err != nil {
+				return err
+			}
 			trimmedID := strings.TrimSpace(*webhookID)
 			trimmedNext := strings.TrimSpace(*next)
 			if trimmedID == "" && trimmedNext == "" {
 				return shared.RequiredFlag("--webhook-id")
-			}
-			if *limit != 0 && (*limit < 1 || *limit > webhooksMaxLimit) {
-				return shared.UsageErrorf("webhooks deliveries links: --limit must be between 1 and %d", webhooksMaxLimit)
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("webhooks deliveries links: %v", err)
 			}
 			if trimmedID == "" && trimmedNext != "" {
 				derivedID, err := extractWebhookIDFromNextURL(trimmedNext)

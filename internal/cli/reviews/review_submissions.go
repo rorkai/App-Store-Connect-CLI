@@ -87,19 +87,10 @@ Examples:
 			if len(args) != 0 {
 				return shared.WithDiagnostic(shared.UsageError("unexpected positional arguments"), shared.DiagnosticInvalidInput, "")
 			}
-			command := shared.RewriteUsageMessage(ctx, "review submissions-list")
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.WithDiagnostic(shared.NewValidationError(shared.UsageErrorf("%s: %v", command, err)), shared.DiagnosticInvalidInput, "--next")
-			}
-			if err := rejectReviewNextFlagConflicts(
-				fs, *next, command,
-				"global", "platform", "state", "limit", "item-fields", "include",
-			); err != nil {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "review submissions-list", 200, "global", "platform", "state", "limit", "item-fields", "include"); err != nil {
 				return err
 			}
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.WithDiagnostic(shared.UsageError("--limit must be between 1 and 200"), shared.DiagnosticInvalidInput, "--limit")
-			}
+			command := shared.RewriteUsageMessage(ctx, "review submissions-list")
 
 			platforms, err := shared.NormalizeAppStoreVersionPlatforms(shared.SplitCSVUpper(*platform))
 			if err != nil {
@@ -592,18 +583,12 @@ Examples:
 			if len(args) != 0 {
 				return shared.WithDiagnostic(shared.UsageError("unexpected positional arguments"), shared.DiagnosticInvalidInput, "")
 			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.WithDiagnostic(shared.NewValidationError(shared.UsageErrorf("review submissions-items-ids: %v", err)), shared.DiagnosticInvalidInput, "--next")
-			}
-			if err := rejectReviewNextFlagConflicts(fs, *next, "review submissions-items-ids", "limit"); err != nil {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "review submissions-items-ids", 200, "limit"); err != nil {
 				return err
 			}
 			trimmedID := strings.TrimSpace(*submissionID)
 			if trimmedID == "" && strings.TrimSpace(*next) == "" {
 				return shared.RequiredFlag("--id")
-			}
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return fmt.Errorf("review submissions-items-ids: %w", shared.WithDiagnostic(shared.UsageError("--limit must be between 1 and 200"), shared.DiagnosticInvalidInput, "--limit"))
 			}
 
 			client, err := reviewSubmissionsClientFactory()

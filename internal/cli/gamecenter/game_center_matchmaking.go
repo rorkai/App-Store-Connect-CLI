@@ -1225,13 +1225,7 @@ func canonicalRuleMetricsGroupBy(supported []string, value string) (string, bool
 }
 
 func runMetricsQueue(ctx context.Context, name string, fs *flag.FlagSet, queueID *string, granularity *string, sort *string, limit *int, next *string, paginate *bool, output *string, pretty *bool, fetchSizes func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingQueueSizesResponse, error), fetchRequests func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingQueueRequestsResponse, error), groupBy string, filterResult string, filterDetail string) error {
-	if *limit != 0 && (*limit < 1 || *limit > 200) {
-		return shared.UsageErrorf("game-center matchmaking metrics %s: --limit must be between 1 and 200", name)
-	}
-	if err := shared.ValidateNextURL(*next); err != nil {
-		return shared.UsageErrorf("game-center matchmaking metrics %s: %v", name, err)
-	}
-	if err := shared.RejectNextFlagConflicts(fs, *next, "game-center matchmaking metrics "+name, "granularity", "group-by", "filter-result", "filter-detail", "filter-queue", "sort"); err != nil {
+	if err := shared.ValidatePaginationFlags(ctx, fs, "game-center matchmaking metrics "+name, 200, "granularity", "group-by", "filter-result", "filter-detail", "filter-queue", "sort"); err != nil {
 		return err
 	}
 
@@ -1308,13 +1302,7 @@ func runMetricsQueue(ctx context.Context, name string, fs *flag.FlagSet, queueID
 }
 
 func runMetricsRule(ctx context.Context, name string, fs *flag.FlagSet, support ruleMetricsSupport, ruleID *string, granularity *string, groupBy *string, filterResult *string, filterQueue *string, sort *string, limit *int, next *string, paginate *bool, output *string, pretty *bool, fetch func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingBooleanRuleResultsResponse, error)) error {
-	if *limit != 0 && (*limit < 1 || *limit > 200) {
-		return shared.UsageErrorf("game-center matchmaking metrics %s: --limit must be between 1 and 200", name)
-	}
-	if err := shared.ValidateNextURL(*next); err != nil {
-		return shared.UsageErrorf("game-center matchmaking metrics %s: %v", name, err)
-	}
-	if err := shared.RejectNextFlagConflicts(fs, *next, "game-center matchmaking metrics "+name, "granularity", "group-by", "filter-result", "filter-detail", "filter-queue", "sort"); err != nil {
+	if err := shared.ValidatePaginationFlags(ctx, fs, "game-center matchmaking metrics "+name, 200, "granularity", "group-by", "filter-result", "filter-detail", "filter-queue", "sort"); err != nil {
 		return err
 	}
 

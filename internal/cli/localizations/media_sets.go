@@ -237,12 +237,15 @@ Examples:
 	includedFields := shared.BindIncludedFieldFlags(cmd.FlagSet, map[string]string{"appScreenshots": "appScreenshots"})
 	list := cmd.Exec
 	cmd.Exec = func(ctx context.Context, args []string) error {
+		if err := shared.ValidatePaginationFlags(ctx, cmd.FlagSet, "localizations screenshot-sets list", 200); err != nil {
+			return err
+		}
 		*include = strings.TrimSpace(*include)
+		if *include != "" && strings.TrimSpace(cmd.FlagSet.Lookup("next").Value.String()) != "" {
+			return shared.UsageError("localizations screenshot-sets list: --next cannot be combined with --include")
+		}
 		if *include != "" && *include != "appScreenshots" {
 			return shared.UsageError("localizations screenshot-sets list: --include must be appScreenshots")
-		}
-		if *include != "" && strings.TrimSpace(cmd.FlagSet.Lookup("next").Value.String()) != "" {
-			return shared.UsageError("localizations screenshot-sets list: --include cannot be combined with --next; the next URL keeps the original include")
 		}
 		var err error
 		included, err = includedFields.Resolve("localizations screenshot-sets list", cmd.FlagSet.Lookup("next").Value.String(), shared.SplitCSV(*include))

@@ -630,13 +630,19 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageErrorf("builds: --limit must be between 1 and 200")
+			// A links.next URL already carries the query that produced it, and
+			// GetBuilds follows it verbatim, so these flags would be discarded.
+			if err := shared.ValidatePaginationFlags(
+				ctx,
+				fs,
+				"builds list",
+				200,
+				"beta-review-state", "include", "sort", "platform", "processing-state",
+				"version", "build-number", "limit", "exclude-expired", "not-expired",
+			); err != nil {
+				return err
 			}
 			nextValue := strings.TrimSpace(*next)
-			if err := shared.ValidateNextURL(nextValue); err != nil {
-				return shared.UsageErrorf("builds: %v", err)
-			}
 			if err := shared.ValidateSort(*sort, buildsListSortValues...); err != nil {
 				return shared.UsageErrorf("builds: %v", err)
 			}
@@ -654,18 +660,6 @@ Examples:
 			buildNumberValue := strings.TrimSpace(*buildNumber)
 			processingStateValues, err := normalizeBuildProcessingStateFilter(*processingState)
 			if err != nil {
-				return err
-			}
-
-			// A links.next URL already carries the query that produced it, and
-			// GetBuilds follows it verbatim, so these flags would be discarded.
-			if err := shared.RejectNextFlagConflicts(
-				fs,
-				nextValue,
-				"builds list",
-				"beta-review-state", "include", "sort", "platform", "processing-state",
-				"version", "build-number", "limit", "exclude-expired", "not-expired",
-			); err != nil {
 				return err
 			}
 

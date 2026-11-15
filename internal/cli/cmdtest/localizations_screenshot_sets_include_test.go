@@ -15,7 +15,7 @@ func TestLocalizationsScreenshotSetsListInclude(t *testing.T) {
 	}{
 		{name: "include screenshots", args: []string{"--include", "appScreenshots"}, wantQuery: "include=appScreenshots&limit%5BappScreenshots%5D=50"},
 		{name: "include screenshots paginated", args: []string{"--include", "appScreenshots", "--paginate"}, wantQuery: "include=appScreenshots&limit=200&limit%5BappScreenshots%5D=50"},
-		{name: "include with next", args: []string{"--include", "appScreenshots", "--next", "https://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations/loc-1/appScreenshotSets?cursor=AQ"}, wantErr: "Error: localizations screenshot-sets list: --include cannot be combined with --next"},
+		{name: "include with next", args: []string{"--include", "appScreenshots", "--next", "https://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations/loc-1/appScreenshotSets?cursor=AQ"}, wantErr: "Error: localizations screenshot-sets list: --next cannot be combined with --include"},
 		{name: "unsupported include", args: []string{"--include", "appStoreVersionLocalization"}, wantErr: "Error: localizations screenshot-sets list: --include must be appScreenshots"},
 	}
 	for _, tt := range tests {

@@ -32,7 +32,7 @@ func TestWebhooksListRejectsNextQueryFlagConflicts(t *testing.T) {
 		{
 			name:    "out of range limit before next",
 			args:    []string{"webhooks", "list", "--limit", "201", "--next", nextURL},
-			wantErr: "webhooks list: --next cannot be combined with --limit",
+			wantErr: "webhooks list: --limit must be between 1 and 200",
 		},
 	}
 

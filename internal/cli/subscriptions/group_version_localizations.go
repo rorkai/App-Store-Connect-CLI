@@ -37,12 +37,6 @@ commands for new workflows.`,
 }
 
 func subscriptionGroupVersionLocalizationOptions(includeValue, fieldsValue, versionFieldsValue string, limit int, next string) ([]asc.SubscriptionGroupVersionLocalizationsOption, error) {
-	if limit != 0 && (limit < 1 || limit > 200) {
-		return nil, fmt.Errorf("--limit must be between 1 and 200")
-	}
-	if err := shared.ValidateNextURL(next); err != nil {
-		return nil, err
-	}
 	include, err := shared.NormalizeSelection(includeValue, []string{"version"}, "--include")
 	if err != nil {
 		return nil, err
@@ -79,12 +73,12 @@ func SubscriptionsGroupsVersionLocalizationsListCommand() *ffcli.Command {
 		Name: "list", ShortUsage: `asc subscriptions groups versions localizations list --version-id "VERSION_ID" [flags]`, ShortHelp: "List localizations for a subscription group version.",
 		LongHelp: "List localizations for a subscription group version.\n\nExamples:\n  asc subscriptions groups versions localizations list --version-id \"VERSION_ID\" --paginate", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "subscriptions groups versions localizations list", 200, "include", "fields", "version-fields", "limit"); err != nil {
+				return err
+			}
 			id := strings.TrimSpace(*versionID)
 			if id == "" && strings.TrimSpace(*next) == "" {
 				return shared.RequiredFlag("--version-id")
-			}
-			if strings.TrimSpace(*next) != "" && subscriptionGroupAnyFlagSet(fs, "include", "fields", "version-fields", "limit") {
-				return shared.UsageError("subscriptions groups versions localizations list: --next cannot be combined with query flags")
 			}
 			firstPageLimit := *limit
 			if *paginate && firstPageLimit == 0 {

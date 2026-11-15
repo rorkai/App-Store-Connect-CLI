@@ -100,11 +100,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageErrorCtx(ctx, "pre-release-versions builds list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorfCtx(ctx, "pre-release-versions builds list: %v", err)
+			if err := shared.ValidatePaginationFlags(ctx, fs, "pre-release-versions builds list", 200); err != nil {
+				return err
 			}
 
 			idValue := strings.TrimSpace(*id)

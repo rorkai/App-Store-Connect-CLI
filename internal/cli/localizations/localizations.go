@@ -109,13 +109,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("localizations list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("localizations list: %v", err)
-			}
-			if err := shared.RejectNextFlagConflicts(fs, *next, "localizations list", "locale", "placements-limit"); err != nil {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "localizations list", 200, "locale", "placements-limit"); err != nil {
 				return err
 			}
 
@@ -429,11 +423,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("localizations download: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("localizations download: %v", err)
+			if err := shared.ValidatePaginationFlags(ctx, fs, "localizations download", 200); err != nil {
+				return err
 			}
 
 			normalizedType, err := shared.NormalizeLocalizationType(*locType)

@@ -73,6 +73,9 @@ Examples:
 			XcodeCloudScmProvidersRepositoriesCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "xcode-cloud scm providers", 200); err != nil {
+				return err
+			}
 			return xcodeCloudScmProvidersList(ctx, *limit, *next, *paginate, *output, *pretty)
 		},
 	}
@@ -95,6 +98,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "xcode-cloud scm providers list", 200); err != nil {
+				return err
+			}
 			return xcodeCloudScmProvidersList(ctx, *limit, *next, *paginate, *output, *pretty)
 		},
 	}
@@ -180,6 +186,9 @@ Examples:
 			XcodeCloudScmRepositoriesRelationshipsCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "xcode-cloud scm repositories", 200); err != nil {
+				return err
+			}
 			return xcodeCloudScmRepositoriesList(ctx, *limit, *next, *paginate, *output, *pretty)
 		},
 	}
@@ -202,6 +211,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "xcode-cloud scm repositories list", 200); err != nil {
+				return err
+			}
 			return xcodeCloudScmRepositoriesList(ctx, *limit, *next, *paginate, *output, *pretty)
 		},
 	}

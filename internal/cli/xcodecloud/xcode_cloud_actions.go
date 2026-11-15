@@ -52,6 +52,9 @@ Examples:
 			XcodeCloudActionsBuildRunCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "xcode-cloud actions", 200); err != nil {
+				return err
+			}
 			return xcodeCloudActionsList(ctx, *runID, *limit, *next, *paginate, *output, *pretty)
 		},
 	}
@@ -76,6 +79,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "xcode-cloud actions list", 200); err != nil {
+				return err
+			}
 			return xcodeCloudActionsList(ctx, *runID, *limit, *next, *paginate, *output, *pretty)
 		},
 	}

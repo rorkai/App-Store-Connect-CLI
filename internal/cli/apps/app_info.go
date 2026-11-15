@@ -101,18 +101,10 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "apps info view", 200, "fields", "age-rating-fields"); err != nil {
+				return err
+			}
 			infoIDValue := strings.TrimSpace(*infoID)
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("--limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageError(err.Error())
-			}
-			if strings.TrimSpace(*next) != "" {
-				if flagName, ok := appFlagWasProvided(fs, "fields", "age-rating-fields"); ok {
-					return shared.UsageErrorf("--next cannot be combined with %s", flagName)
-				}
-			}
 			if strings.TrimSpace(*version) != "" && strings.TrimSpace(*versionID) != "" {
 				return shared.UsageError("--version and --version-id are mutually exclusive")
 			}

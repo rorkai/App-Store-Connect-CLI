@@ -126,55 +126,55 @@ func TestProductPagesListPaginationUsageErrors(t *testing.T) {
 		{
 			name:    "custom-pages list limit -1",
 			args:    []string{"product-pages", "custom-pages", "list", "--app", "APP_ID", "--limit", "-1"},
-			wantErr: "custom-pages list: --limit must be between 1 and 200",
+			wantErr: "product-pages custom-pages list: --limit must be between 1 and 200",
 			deps:    true,
 		},
 		{
 			name:    "custom-pages list limit 201",
 			args:    []string{"product-pages", "custom-pages", "list", "--app", "APP_ID", "--limit", "201"},
-			wantErr: "custom-pages list: --limit must be between 1 and 200",
+			wantErr: "product-pages custom-pages list: --limit must be between 1 and 200",
 			deps:    true,
 		},
 		{
 			name:    "custom-pages list invalid next",
 			args:    []string{"product-pages", "custom-pages", "list", "--app", "APP_ID", "--next", "not-a-url"},
-			wantErr: "custom-pages list: --next must be an App Store Connect URL",
+			wantErr: "product-pages custom-pages list: --next must be an App Store Connect URL",
 			deps:    true,
 		},
 		{
 			name:    "custom-pages localizations preview-sets list limit -1",
 			args:    []string{"product-pages", "custom-pages", "localizations", "preview-sets", "list", "--localization-id", "loc-1", "--limit", "-1"},
-			wantErr: "custom-pages localizations preview-sets list: --limit must be between 1 and 200",
+			wantErr: "product-pages custom-pages localizations preview-sets list: --limit must be between 1 and 200",
 			deps:    true,
 		},
 		{
 			name:    "custom-pages localizations preview-sets list limit 201",
 			args:    []string{"product-pages", "custom-pages", "localizations", "preview-sets", "list", "--localization-id", "loc-1", "--limit", "201"},
-			wantErr: "custom-pages localizations preview-sets list: --limit must be between 1 and 200",
+			wantErr: "product-pages custom-pages localizations preview-sets list: --limit must be between 1 and 200",
 			deps:    true,
 		},
 		{
 			name:    "custom-pages localizations preview-sets list invalid next",
 			args:    []string{"product-pages", "custom-pages", "localizations", "preview-sets", "list", "--localization-id", "loc-1", "--next", "not-a-url"},
-			wantErr: "custom-pages localizations preview-sets list: --next must be an App Store Connect URL",
+			wantErr: "product-pages custom-pages localizations preview-sets list: --next must be an App Store Connect URL",
 			deps:    true,
 		},
 		{
 			name:    "custom-pages localizations screenshot-sets list limit -1",
 			args:    []string{"product-pages", "custom-pages", "localizations", "screenshot-sets", "list", "--localization-id", "loc-1", "--limit", "-1"},
-			wantErr: "custom-pages localizations screenshot-sets list: --limit must be between 1 and 200",
+			wantErr: "product-pages custom-pages localizations screenshot-sets list: --limit must be between 1 and 200",
 			deps:    true,
 		},
 		{
 			name:    "custom-pages localizations screenshot-sets list limit 201",
 			args:    []string{"product-pages", "custom-pages", "localizations", "screenshot-sets", "list", "--localization-id", "loc-1", "--limit", "201"},
-			wantErr: "custom-pages localizations screenshot-sets list: --limit must be between 1 and 200",
+			wantErr: "product-pages custom-pages localizations screenshot-sets list: --limit must be between 1 and 200",
 			deps:    true,
 		},
 		{
 			name:    "custom-pages localizations screenshot-sets list invalid next",
 			args:    []string{"product-pages", "custom-pages", "localizations", "screenshot-sets", "list", "--localization-id", "loc-1", "--next", "not-a-url"},
-			wantErr: "custom-pages localizations screenshot-sets list: --next must be an App Store Connect URL",
+			wantErr: "product-pages custom-pages localizations screenshot-sets list: --next must be an App Store Connect URL",
 			deps:    true,
 		},
 	})
@@ -206,7 +206,7 @@ func TestProductPagesScreenshotSetIncludeScreenshotsRequiresFullLocalizationList
 			path:           []string{"product-pages", "custom-pages", "localizations", "screenshot-sets", "list"},
 			localizationID: "loc-1",
 			next:           nextURL,
-			wantStderr:     "custom-pages localizations screenshot-sets list: --include-screenshots cannot be combined with --next",
+			wantStderr:     "product-pages custom-pages localizations screenshot-sets list: --next cannot be combined with --include-screenshots",
 		},
 		{
 			name:       "treatment requires localization id for expansion",
@@ -224,7 +224,7 @@ func TestProductPagesScreenshotSetIncludeScreenshotsRequiresFullLocalizationList
 			path:           []string{"product-pages", "experiments", "treatments", "localizations", "screenshot-sets", "list"},
 			localizationID: "loc-1",
 			next:           nextURL,
-			wantStderr:     "experiments treatments localizations screenshot-sets list: --include-screenshots cannot be combined with --next",
+			wantStderr:     "product-pages experiments treatments localizations screenshot-sets list: --next cannot be combined with --include-screenshots",
 		},
 	}
 

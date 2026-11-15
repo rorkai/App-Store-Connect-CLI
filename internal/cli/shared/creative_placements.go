@@ -50,13 +50,7 @@ func creativePlacementsListCommand(resource, prefix, label string) *ffcli.Comman
 			if err := ValidateBoundOutputFlags(fs); err != nil {
 				return UsageErrorf(prefix+" placements list: %v", err)
 			}
-			if *limit < 0 || *limit > 200 {
-				return UsageError(prefix + " placements list: --limit must be between 1 and 200 (0 uses server default)")
-			}
-			if err := ValidateNextURL(*next); err != nil {
-				return UsageErrorf(prefix+" placements list: %v", err)
-			}
-			if err := RejectNextFlagConflicts(fs, *next, prefix+" placements list", append([]string{"placement-type", "placement-group", "include", "limit"}, filters.Names()...)...); err != nil {
+			if err := ValidatePaginationFlags(ctx, fs, prefix+" placements list", 200, append([]string{"placement-type", "placement-group", "include", "limit"}, filters.Names()...)...); err != nil {
 				return err
 			}
 			kinds, err := validatedPlacementCSV(*kind, listTypes)

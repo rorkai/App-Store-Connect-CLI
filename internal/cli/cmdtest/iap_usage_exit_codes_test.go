@@ -102,7 +102,7 @@ func TestIAPInputValidationReturnsUsageExitCode(t *testing.T) {
 		{
 			name:    "pricing price-points list limit above maximum",
 			args:    []string{"iap", "pricing", "price-points", "list", "--limit", "201"},
-			wantErr: "iap price-points list: --limit must be between 1 and 200",
+			wantErr: "iap pricing price-points list: --limit must be between 1 and 200",
 		},
 		{
 			name:    "pricing schedules manual-prices limit above maximum",
@@ -117,7 +117,7 @@ func TestIAPInputValidationReturnsUsageExitCode(t *testing.T) {
 		{
 			name:    "pricing availabilities available-territories limit above maximum",
 			args:    []string{"iap", "pricing", "availabilities", "available-territories", "--limit", "201"},
-			wantErr: "iap availabilities available-territories: --limit must be between 1 and 200",
+			wantErr: "iap pricing availabilities available-territories: --limit must be between 1 and 200",
 		},
 		{
 			name:    "versions images view without image-id",

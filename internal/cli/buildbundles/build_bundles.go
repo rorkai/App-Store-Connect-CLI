@@ -62,8 +62,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 50) {
-				return d.UsageError("build-bundles list: --limit must be between 1 and 50")
+			if err := d.ValidatePaginationFlags(ctx, fs, "build-bundles list", 50); err != nil {
+				return err
 			}
 
 			buildValue := strings.TrimSpace(*buildID)
@@ -141,11 +141,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return d.UsageError("build-bundles file-sizes list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return d.UsageErrorf("build-bundles file-sizes list: %v", err)
+			if err := d.ValidatePaginationFlags(ctx, fs, "build-bundles file-sizes list", 200); err != nil {
+				return err
 			}
 
 			buildBundleValue := strings.TrimSpace(*buildBundleID)
@@ -365,11 +362,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return d.UsageError("build-bundles app-clip invocations list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return d.UsageErrorf("build-bundles app-clip invocations list: %v", err)
+			if err := d.ValidatePaginationFlags(ctx, fs, "build-bundles app-clip invocations list", 200); err != nil {
+				return err
 			}
 
 			buildBundleValue := strings.TrimSpace(*buildBundleID)

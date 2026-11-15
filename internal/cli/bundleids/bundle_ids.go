@@ -88,22 +88,11 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			profilesLimitSet := bundleIDsListFlagWasSet(fs, "profiles-limit")
-			capabilitiesLimitSet := bundleIDsListFlagWasSet(fs, "capabilities-limit")
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return d.UsageErrorf("bundle-ids list: %v", err)
-			}
-			if err := d.RejectNextFlagConflicts(
-				fs,
-				*next,
-				"bundle-ids list",
-				"name", "platform", "identifier", "seed-id", "id", "sort", "fields", "profile-fields", "capability-fields", "app-fields", "include", "profiles-limit", "capabilities-limit", "limit",
-			); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "bundle-ids list", 200, "name", "platform", "identifier", "seed-id", "id", "sort", "fields", "profile-fields", "capability-fields", "app-fields", "include", "profiles-limit", "capabilities-limit", "limit"); err != nil {
 				return err
 			}
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return fmt.Errorf("bundle-ids list: %w", d.UsageError("--limit must be between 1 and 200"))
-			}
+			profilesLimitSet := bundleIDsListFlagWasSet(fs, "profiles-limit")
+			capabilitiesLimitSet := bundleIDsListFlagWasSet(fs, "capabilities-limit")
 			if profilesLimitSet && (*profilesLimit < 1 || *profilesLimit > 50) {
 				return fmt.Errorf("bundle-ids list: %w", d.UsageError("--profiles-limit must be between 1 and 50"))
 			}
