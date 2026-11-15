@@ -242,7 +242,7 @@ func runValidate(ctx context.Context, d *shared.Deps, opts validateOptions) erro
 		report = requiredAgreementFallbackReport(opts)
 	}
 	if opts.Deep {
-		deep, findings, deepErr := collectDeepValidation(ctx, report, opts.AppleID)
+		deep, findings, deepErr := collectDeepValidation(ctx, d, report, opts.AppleID)
 		if deepErr != nil {
 			return fmt.Errorf("validate: deep validation: %w", deepErr)
 		}

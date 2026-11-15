@@ -548,3 +548,19 @@ func mustParseURL(rawURL string) *url.URL {
 	}
 	return parsed
 }
+
+func TestNewCheckerSendsThroughNonTransportBase(t *testing.T) {
+	var requested []string
+	checker := NewChecker(roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requested = append(requested, req.URL.String())
+		return &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Body: http.NoBody, Request: req}, nil
+	}))
+
+	result, err := checker.Check(context.Background(), "https://support.example.com/help")
+	if err != nil {
+		t.Fatalf("Check() error: %v", err)
+	}
+	if result.StatusCode != http.StatusOK || len(requested) != 1 || requested[0] != "https://support.example.com/help" {
+		t.Fatalf("Check() = %+v, requests %v; want one request through the given transport", result, requested)
+	}
+}
