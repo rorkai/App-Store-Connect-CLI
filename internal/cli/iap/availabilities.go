@@ -38,6 +38,7 @@ Examples:
 // newIAPAvailabilitiesGetCommand returns the availability get subcommand.
 func newIAPAvailabilitiesGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		Deps:        d,
 		FlagSetName: "pricing availabilities view",
 		Name:        "view",
 		ShortUsage:  "asc iap pricing availabilities view --id \"AVAILABILITY_ID\"",

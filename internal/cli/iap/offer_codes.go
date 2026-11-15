@@ -132,6 +132,7 @@ Examples:
 // newIAPOfferCodesGetCommand returns the offer codes get subcommand.
 func newIAPOfferCodesGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		Deps:        d,
 		FlagSetName: "offer-codes view",
 		Name:        "view",
 		ShortUsage:  "asc iap offer-codes view --offer-code-id \"CODE_ID\"",

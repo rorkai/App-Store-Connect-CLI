@@ -34,7 +34,7 @@ Examples:
 			newIAPOfferCodesCustomCodesListCommand(d),
 			newIAPOfferCodesCustomCodesGetCommand(d),
 			newIAPOfferCodesCustomCodesCreateCommand(d),
-			IAPOfferCodesCustomCodesUpdateCommand(),
+			newIAPOfferCodesCustomCodesUpdateCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -73,6 +73,7 @@ Examples:
 // newIAPOfferCodesCustomCodesGetCommand returns the custom codes get subcommand.
 func newIAPOfferCodesCustomCodesGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		Deps:        d,
 		FlagSetName: "offer-codes custom-codes view",
 		Name:        "view",
 		ShortUsage:  "asc iap offer-codes custom-codes view --custom-code-id \"CUSTOM_CODE_ID\"",
@@ -175,9 +176,10 @@ Examples:
 	}
 }
 
-// IAPOfferCodesCustomCodesUpdateCommand returns the custom codes update subcommand.
-func IAPOfferCodesCustomCodesUpdateCommand() *ffcli.Command {
+// newIAPOfferCodesCustomCodesUpdateCommand returns the custom codes update subcommand.
+func newIAPOfferCodesCustomCodesUpdateCommand(d *shared.Deps) *ffcli.Command {
 	return offercodes.NewActiveUpdateCommand(offercodes.ActiveUpdateCommandConfig{
+		Deps:        d,
 		FlagSetName: "offer-codes custom-codes update",
 		Name:        "update",
 		ShortUsage:  "asc iap offer-codes custom-codes update --custom-code-id \"CUSTOM_CODE_ID\" --active false",
@@ -218,7 +220,7 @@ Examples:
 			newIAPOfferCodesOneTimeCodesListCommand(d),
 			newIAPOfferCodesOneTimeCodesGetCommand(d),
 			newIAPOfferCodesOneTimeCodesCreateCommand(d),
-			IAPOfferCodesOneTimeCodesUpdateCommand(),
+			newIAPOfferCodesOneTimeCodesUpdateCommand(d),
 			newIAPOfferCodesOneTimeCodesValuesCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
@@ -258,6 +260,7 @@ Examples:
 // newIAPOfferCodesOneTimeCodesGetCommand returns the one-time codes get subcommand.
 func newIAPOfferCodesOneTimeCodesGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		Deps:        d,
 		FlagSetName: "offer-codes one-time-codes view",
 		Name:        "view",
 		ShortUsage:  "asc iap offer-codes one-time-codes view --one-time-code-id \"ONE_TIME_USE_CODE_ID\"",
@@ -357,9 +360,10 @@ Examples:
 	}
 }
 
-// IAPOfferCodesOneTimeCodesUpdateCommand returns the one-time codes update subcommand.
-func IAPOfferCodesOneTimeCodesUpdateCommand() *ffcli.Command {
+// newIAPOfferCodesOneTimeCodesUpdateCommand returns the one-time codes update subcommand.
+func newIAPOfferCodesOneTimeCodesUpdateCommand(d *shared.Deps) *ffcli.Command {
 	return offercodes.NewActiveUpdateCommand(offercodes.ActiveUpdateCommandConfig{
+		Deps:        d,
 		FlagSetName: "offer-codes one-time-codes update",
 		Name:        "update",
 		ShortUsage:  "asc iap offer-codes one-time-codes update --one-time-code-id \"ONE_TIME_USE_CODE_ID\" --active false --confirm",
