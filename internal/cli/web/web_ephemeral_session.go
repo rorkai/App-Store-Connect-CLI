@@ -11,7 +11,7 @@ import (
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
-func validateSessionFromEnvFlags(flags webSessionFlags) error {
+func validateSessionFromEnvFlags(d *shared.Deps, flags webSessionFlags) error {
 	if flags.flagSet == nil {
 		return nil
 	}
@@ -25,37 +25,37 @@ func validateSessionFromEnvFlags(flags webSessionFlags) error {
 		}
 	})
 	if unsupported != "" {
-		return shared.UsageError("--" + unsupported + " is unsupported with --session-from-env")
+		return d.UsageError("--" + unsupported + " is unsupported with --session-from-env")
 	}
 	return nil
 }
 
-func resolveSessionFromEnv(ctx context.Context, flags webSessionFlags) (*webcore.AuthSession, error) {
-	if err := validateSessionFromEnvFlags(flags); err != nil {
+func resolveSessionFromEnv(ctx context.Context, d *shared.Deps, flags webSessionFlags) (*webcore.AuthSession, error) {
+	if err := validateSessionFromEnvFlags(d, flags); err != nil {
 		return nil, err
 	}
 	for _, name := range []string{"ASC_WEB_SESSION_PROVIDER", "ASC_WEB_SESSION_CSRF"} {
 		if os.Getenv(name) != "" {
-			return nil, shared.UsageError(name + " is unsupported with --session-from-env")
+			return nil, d.UsageError(name + " is unsupported with --session-from-env")
 		}
 	}
 	value := os.Getenv(webSessionBundleEnvName)
 	if strings.TrimSpace(value) == "" {
-		return nil, shared.UsageError(webSessionBundleEnvName + " is unset or empty when --session-from-env is used")
+		return nil, d.UsageError(webSessionBundleEnvName + " is unset or empty when --session-from-env is used")
 	}
 	if len(value) > webcore.MaxSessionBundleSize {
-		return nil, shared.UsageError(fmt.Sprintf("%s exceeds %d-byte limit", webSessionBundleEnvName, webcore.MaxSessionBundleSize))
+		return nil, d.UsageError(fmt.Sprintf("%s exceeds %d-byte limit", webSessionBundleEnvName, webcore.MaxSessionBundleSize))
 	}
 	bundle, err := webcore.DecodeSessionBundle([]byte(value))
 	if err != nil {
 		// Decoder errors may contain caller-controlled credential fields.
-		return nil, shared.UsageError("invalid session bundle from " + webSessionBundleEnvName)
+		return nil, d.UsageError("invalid session bundle from " + webSessionBundleEnvName)
 	}
 	if appleID := strings.TrimSpace(*flags.appleID); appleID != "" && !strings.EqualFold(appleID, strings.TrimSpace(bundle.AppleID)) {
-		return nil, shared.UsageError("session bundle does not match --apple-id")
+		return nil, d.UsageError("session bundle does not match --apple-id")
 	}
 	shared.ApplyRootLoggingOverrides()
-	validationCtx, cancel := newWebRequestContext(ctx)
+	validationCtx, cancel := newWebRequestContextWith(ctx, d)
 	defer cancel()
 	session, err := webcore.OpenValidatedSessionBundle(validationCtx, bundle)
 	if err != nil {
