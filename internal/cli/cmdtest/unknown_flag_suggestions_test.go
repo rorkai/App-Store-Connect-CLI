@@ -96,6 +96,7 @@ func TestUnknownFlagSuggestsTheIntendedFlag(t *testing.T) {
 		{
 			name: "a path-valued --output answers --path",
 			args: []string{"testflight", "testers", "export", "--app", "app-1", "--path", "PRIVATE_VALUE"},
+			deps: true,
 			want: "Error: unknown flag `--path` for `asc testflight testers export`\n" +
 				"Try:\n  --output\n" +
 				"For help:\n  asc testflight testers export --help\n",

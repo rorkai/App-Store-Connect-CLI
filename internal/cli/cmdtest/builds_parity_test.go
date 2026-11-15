@@ -192,24 +192,20 @@ func TestTestFlightRelationshipsValidationErrors(t *testing.T) {
 		name    string
 		args    []string
 		wantErr string
-		deps    bool // the command is built on shared.Deps: run it on test deps
 	}{
 		{
 			name:    "beta-groups relationships missing type",
 			args:    []string{"testflight", "groups", "links", "view", "--group-id", "GROUP_ID"},
-			deps:    true,
 			wantErr: "--type is required",
 		},
 		{
 			name:    "beta-groups relationships missing group-id",
 			args:    []string{"testflight", "groups", "links", "view", "--type", "betaTesters"},
-			deps:    true,
 			wantErr: "--group-id is required",
 		},
 		{
 			name:    "beta-groups relationships invalid type",
 			args:    []string{"testflight", "groups", "links", "view", "--group-id", "GROUP_ID", "--type", "nope"},
-			deps:    true,
 			wantErr: `--type "nope" is not a valid relationship type; must be one of`,
 		},
 		{
@@ -246,11 +242,7 @@ func TestTestFlightRelationshipsValidationErrors(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if test.deps {
-				assertUsageExitWithDeps(t, nil, test.args, test.wantErr)
-				return
-			}
-			assertUsageExit(t, test.args, test.wantErr)
+			assertUsageExitWithDeps(t, nil, test.args, test.wantErr)
 		})
 	}
 }
@@ -378,16 +370,19 @@ func TestParityRelatedCommandsValidationErrors(t *testing.T) {
 		{
 			name:    "testers apps list missing tester-id",
 			args:    []string{"testflight", "testers", "apps", "list"},
+			deps:    true,
 			wantErr: "--tester-id is required",
 		},
 		{
 			name:    "testers groups list missing tester-id",
 			args:    []string{"testflight", "testers", "groups", "list"},
+			deps:    true,
 			wantErr: "--tester-id is required",
 		},
 		{
 			name:    "testers builds list missing tester-id",
 			args:    []string{"testflight", "testers", "builds", "list"},
+			deps:    true,
 			wantErr: "--tester-id is required",
 		},
 		{

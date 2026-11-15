@@ -1,7 +1,7 @@
 package testflight
 
 import (
-	"context"
+	"bytes"
 	"errors"
 	"flag"
 	"os"
@@ -19,7 +19,7 @@ func TestTestFlightUsageErrorDiagnosticsPreserveContracts(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		command    func() *ffcli.Command
+		command    func(*shared.Deps) *ffcli.Command
 		args       []string
 		wantError  string
 		wantStderr string
@@ -28,7 +28,7 @@ func TestTestFlightUsageErrorDiagnosticsPreserveContracts(t *testing.T) {
 	}{
 		{
 			name:       "export group and build conflict",
-			command:    BetaTestersExportCommand,
+			command:    newBetaTestersExportCommand,
 			args:       []string{"--group", "group-1", "--build-id", "build-1"},
 			wantError:  "--group cannot be combined with --build-id",
 			wantStderr: "Error: --group cannot be combined with --build-id\n",
@@ -36,7 +36,7 @@ func TestTestFlightUsageErrorDiagnosticsPreserveContracts(t *testing.T) {
 		},
 		{
 			name:       "export output must be a file",
-			command:    BetaTestersExportCommand,
+			command:    newBetaTestersExportCommand,
 			args:       []string{"--app", "app-1", "--output", outputDirectory},
 			wantError:  "--output must be a file path",
 			wantStderr: "Error: --output must be a file path\n",
@@ -45,7 +45,7 @@ func TestTestFlightUsageErrorDiagnosticsPreserveContracts(t *testing.T) {
 		},
 		{
 			name:       "list group and build conflict",
-			command:    BetaTestersListCommand,
+			command:    newBetaTestersListCommand,
 			args:       []string{"--app", "app-1", "--group", "group-1", "--build-id", "build-1"},
 			wantError:  "--group cannot be combined with --build-id",
 			wantStderr: "Error: --group cannot be combined with --build-id\n",
@@ -55,15 +55,7 @@ func TestTestFlightUsageErrorDiagnosticsPreserveContracts(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			cmd := test.command()
-			if err := cmd.FlagSet.Parse(test.args); err != nil {
-				t.Fatalf("parse flags: %v", err)
-			}
-
-			var runErr error
-			stderr := captureTestFlightDiagnosticStderr(t, func() {
-				runErr = cmd.Exec(context.Background(), nil)
-			})
+			stderr, runErr := runTestFlightDiagnosticCommand(t, nil, test.command, test.args)
 			if runErr == nil {
 				t.Fatal("expected usage error")
 			}
@@ -96,69 +88,69 @@ func TestBetaTestersCSVUsageErrorDiagnostics(t *testing.T) {
 
 	tests := []struct {
 		name      string
-		run       func() error
+		run       func(*shared.Deps) error
 		wantError string
 	}{
 		{
 			name: "empty file",
-			run: func() error {
-				_, err := readBetaTestersCSV(emptyPath)
+			run: func(d *shared.Deps) error {
+				_, err := readBetaTestersCSV(d, emptyPath)
 				return err
 			},
 			wantError: "CSV file is empty",
 		},
 		{
 			name: "empty header",
-			run: func() error {
-				_, err := validateBetaTestersCSVHeader(nil)
+			run: func(d *shared.Deps) error {
+				_, err := validateBetaTestersCSVHeader(d, nil)
 				return err
 			},
 			wantError: "CSV header row is required",
 		},
 		{
 			name: "empty column name",
-			run: func() error {
-				_, err := validateBetaTestersCSVHeader([]string{"email", ""})
+			run: func(d *shared.Deps) error {
+				_, err := validateBetaTestersCSVHeader(d, []string{"email", ""})
 				return err
 			},
 			wantError: "CSV header contains an empty column name",
 		},
 		{
 			name: "unknown column",
-			run: func() error {
-				_, err := validateBetaTestersCSVHeader([]string{"email", "mystery"})
+			run: func(d *shared.Deps) error {
+				_, err := validateBetaTestersCSVHeader(d, []string{"email", "mystery"})
 				return err
 			},
 			wantError: "unknown CSV column \"mystery\" (allowed: email, first_name, last_name, groups, _asc_formula_escaping; installed_version and install_date are ignored)",
 		},
 		{
 			name: "duplicate column",
-			run: func() error {
-				_, err := validateBetaTestersCSVHeader([]string{"email", "Email"})
+			run: func(d *shared.Deps) error {
+				_, err := validateBetaTestersCSVHeader(d, []string{"email", "Email"})
 				return err
 			},
 			wantError: "duplicate CSV column \"email\"",
 		},
 		{
 			name: "missing email column",
-			run: func() error {
-				_, err := validateBetaTestersCSVHeader([]string{"first_name"})
+			run: func(d *shared.Deps) error {
+				_, err := validateBetaTestersCSVHeader(d, []string{"first_name"})
 				return err
 			},
 			wantError: "CSV header must include required column \"email\"",
 		},
 		{
 			name: "empty parsed header",
-			run: func() error {
-				_, _, err := parseBetaTestersCSVHeader(nil)
+			run: func(d *shared.Deps) error {
+				_, _, err := parseBetaTestersCSVHeader(d, nil)
 				return err
 			},
 			wantError: "CSV header row is required",
 		},
 		{
 			name: "malformed legacy row",
-			run: func() error {
-				_, err := parseLegacyBetaTesterCSVRow([]string{"First", "Last"})
+			run: func(d *shared.Deps) error {
+				_, err := parseLegacyBetaTesterCSVRow(d, []string{"First", "Last"})
 				return err
 			},
 			wantError: "legacy CSV rows must have 3 or 4 columns: first_name,last_name,email[,groups]",
@@ -167,10 +159,18 @@ func TestBetaTestersCSVUsageErrorDiagnostics(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			var depsStdout, depsStderr bytes.Buffer
+			d := &shared.Deps{IO: &shared.IO{Out: &depsStdout, ErrOut: &depsStderr}}
 			var runErr error
-			stderr := captureTestFlightDiagnosticStderr(t, func() {
-				runErr = test.run()
-			})
+			if stderr := captureTestFlightDiagnosticStderr(t, func() {
+				runErr = test.run(d)
+			}); stderr != "" {
+				t.Fatalf("process stderr = %q, want empty", stderr)
+			}
+			if depsStdout.Len() != 0 {
+				t.Fatalf("stdout = %q, want empty", depsStdout.String())
+			}
+			stderr := depsStderr.String()
 			if runErr == nil {
 				t.Fatal("expected usage error")
 			}
@@ -200,7 +200,7 @@ func TestBetaTestersCSVUsageDiagnosticDoesNotLeakInputPath(t *testing.T) {
 	if err := os.WriteFile(path, nil, 0o600); err != nil {
 		t.Fatalf("write empty CSV: %v", err)
 	}
-	_, err := readBetaTestersCSV(path)
+	_, err := readBetaTestersCSV(&shared.Deps{IO: &shared.IO{Out: &bytes.Buffer{}, ErrOut: &bytes.Buffer{}}}, path)
 	if err == nil {
 		t.Fatal("expected usage error")
 	}

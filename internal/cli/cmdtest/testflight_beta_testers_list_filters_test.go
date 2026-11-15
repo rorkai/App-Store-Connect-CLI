@@ -12,22 +12,20 @@ import (
 )
 
 func TestTestFlightBetaTestersListSendsSortIncludeAndInviteType(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/betaTesters", "filter[apps]=app-1", "filter[inviteType]=EMAIL,PUBLIC_LINK", "include=betaGroups", "sort=-lastName"),
 		asctest.JSON(http.StatusOK, `{"data":[],"links":{}}`))
 
-	_, stderr, err := runCommand(t, []string{
+	_, stderr, err := runRootWithDeps(t, stubClient(t, reg),
 		"testflight", "testers", "list",
 		"--app", "app-1",
 		"--sort", "-lastName",
 		"--include", "betaGroups",
 		"--invite-type", "EMAIL,PUBLIC_LINK",
 		"--output", "json",
-	})
+	)
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -56,20 +54,18 @@ func TestTestFlightBetaTestersListSendsSortIncludeAndInviteType(t *testing.T) {
 }
 
 func TestTestFlightBetaTestersListLowercaseInviteTypeIsNormalized(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/betaTesters", "filter[apps]=app-1", "filter[inviteType]=PUBLIC_LINK"),
 		asctest.JSON(http.StatusOK, `{"data":[],"links":{}}`))
 
-	_, stderr, err := runCommand(t, []string{
+	_, stderr, err := runRootWithDeps(t, stubClient(t, reg),
 		"testflight", "testers", "list",
 		"--app", "app-1",
 		"--invite-type", "public_link",
 		"--output", "json",
-	})
+	)
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -100,21 +96,19 @@ func TestTestFlightBetaTestersListNotesIncludeIsJSONOnly(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			reg.Register(asctest.GET("/v1/betaTesters", "filter[apps]=app-1", "include=betaGroups"),
 				asctest.JSON(http.StatusOK, `{"data":[{"type":"betaTesters","id":"tester-1","attributes":{"email":"tester@example.com"}}],`+
 					`"included":[{"type":"betaGroups","id":"group-a","attributes":{"name":"Alpha"}}],"links":{}}`))
 
-			_, stderr, err := runCommand(t, []string{
+			_, stderr, err := runRootWithDeps(t, stubClient(t, reg),
 				"testflight", "testers", "list",
 				"--app", "app-1",
 				"--include", "betaGroups",
 				"--output", test.format,
-			})
+			)
 			if err != nil {
 				t.Fatalf("run error: %v", err)
 			}
@@ -131,20 +125,18 @@ func TestTestFlightBetaTestersListNotesIncludeIsJSONOnly(t *testing.T) {
 }
 
 func TestTestFlightBetaTestersListNotesNextURLIncludedResourcesAreJSONOnly(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	const nextURL = "https://api.appstoreconnect.apple.com/v1/betaTesters?cursor=AQ&include=betaGroups"
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/betaTesters", "cursor=AQ", "include=betaGroups"),
 		asctest.JSON(http.StatusOK, `{"data":[],"included":[{"type":"betaGroups","id":"group-a"}],"links":{}}`))
 
-	_, stderr, err := runCommand(t, []string{
+	_, stderr, err := runRootWithDeps(t, stubClient(t, reg),
 		"testflight", "testers", "list",
 		"--next", nextURL,
 		"--output", "table",
-	})
+	)
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -186,15 +178,13 @@ func TestTestFlightBetaTestersListRejectsInvalidFilterValues(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-			asctest.NewRegistry(t).Install()
+			reg := asctest.NewRegistry(t)
 
-			stdout, stderr := captureOutput(t, func() {
-				if code := cmd.Run(test.args, "1.2.3"); code != cmd.ExitUsage {
-					t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
-				}
-			})
+			stdout, stderr, code := runWithDeps(t, stubClient(t, reg), test.args...)
+			if code != cmd.ExitUsage {
+				t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
+			}
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
 			}
@@ -237,15 +227,13 @@ func TestTestFlightBetaTestersListRejectsFiltersWithNextURL(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-			asctest.NewRegistry(t).Install()
+			reg := asctest.NewRegistry(t)
 
-			stdout, stderr := captureOutput(t, func() {
-				if code := cmd.Run(test.args, "1.2.3"); code != cmd.ExitUsage {
-					t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
-				}
-			})
+			stdout, stderr, code := runWithDeps(t, stubClient(t, reg), test.args...)
+			if code != cmd.ExitUsage {
+				t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
+			}
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
 			}
@@ -257,13 +245,11 @@ func TestTestFlightBetaTestersListRejectsFiltersWithNextURL(t *testing.T) {
 }
 
 func TestTestFlightBetaTestersListPaginateMergesIncludedBetaGroups(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	const secondURL = "https://api.appstoreconnect.apple.com/v1/betaTesters?cursor=BQ&filter%5Bapps%5D=app-1&include=betaGroups&limit=200"
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/betaTesters", "filter[apps]=app-1", "include=betaGroups", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaTesters","id":"tester-1","relationships":{"betaGroups":{"data":[{"type":"betaGroups","id":"group-a"}]}}}],`+
 			`"included":[{"type":"betaGroups","id":"group-a","attributes":{"name":"Alpha"}}],`+
@@ -273,13 +259,13 @@ func TestTestFlightBetaTestersListPaginateMergesIncludedBetaGroups(t *testing.T)
 			`"included":[{"type":"betaGroups","id":"group-a","attributes":{"name":"Alpha updated"}},{"type":"betaGroups","id":"group-b","attributes":{"name":"Bravo"}}],`+
 			`"links":{}}`))
 
-	stdout, _, err := runCommand(t, []string{
+	stdout, _, err := runRootWithDeps(t, stubClient(t, reg),
 		"testflight", "testers", "list",
 		"--app", "app-1",
 		"--include", "betaGroups",
 		"--paginate",
 		"--output", "json",
-	})
+	)
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}

@@ -1,12 +1,12 @@
 package testflight
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
 
@@ -89,62 +89,18 @@ func runBetaTestersAddGroups(t *testing.T, server *httptest.Server, args ...stri
 
 	isolateTestFlightAuthEnvForAddTests(t)
 	client := newBetaTesterCSVConflictClient(t, server)
-	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) { return client, nil }))
-
-	cmd := BetaTestersAddGroupsCommand()
+	var stdout, stderr bytes.Buffer
+	cmd := newBetaTestersAddGroupsCommand(&shared.Deps{
+		Client:  func() (*asc.Client, error) { return client, nil },
+		IO:      &shared.IO{Out: &stdout, ErrOut: &stderr},
+		Timeout: shared.ContextWithTimeout,
+	})
 	if err := cmd.FlagSet.Parse(args); err != nil {
 		t.Fatalf("parse flags: %v", err)
 	}
 
-	var runErr error
-	stdout, stderr := captureBetaTesterAddGroupsOutput(t, func() {
-		runErr = cmd.Exec(context.Background(), []string{})
-	})
-	return stdout, stderr, runErr
-}
-
-func captureBetaTesterAddGroupsOutput(t *testing.T, fn func()) (string, string) {
-	t.Helper()
-
-	originalStdout, originalStderr := os.Stdout, os.Stderr
-	stdoutReader, stdoutWriter, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("create stdout pipe: %v", err)
-	}
-	stderrReader, stderrWriter, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("create stderr pipe: %v", err)
-	}
-
-	stdoutResult := make(chan string, 1)
-	stderrResult := make(chan string, 1)
-	go func() {
-		data, _ := io.ReadAll(stdoutReader)
-		stdoutResult <- string(data)
-	}()
-	go func() {
-		data, _ := io.ReadAll(stderrReader)
-		stderrResult <- string(data)
-	}()
-
-	os.Stdout, os.Stderr = stdoutWriter, stderrWriter
-	fn()
-	if err := stdoutWriter.Close(); err != nil {
-		t.Fatalf("close stdout writer: %v", err)
-	}
-	if err := stderrWriter.Close(); err != nil {
-		t.Fatalf("close stderr writer: %v", err)
-	}
-	os.Stdout, os.Stderr = originalStdout, originalStderr
-
-	stdout, stderr := <-stdoutResult, <-stderrResult
-	if err := stdoutReader.Close(); err != nil {
-		t.Fatalf("close stdout reader: %v", err)
-	}
-	if err := stderrReader.Close(); err != nil {
-		t.Fatalf("close stderr reader: %v", err)
-	}
-	return stdout, stderr
+	runErr := cmd.Exec(context.Background(), []string{})
+	return stdout.String(), stderr.String(), runErr
 }
 
 func TestBetaTestersAddGroupsAlreadyPresentIsSkipped(t *testing.T) {

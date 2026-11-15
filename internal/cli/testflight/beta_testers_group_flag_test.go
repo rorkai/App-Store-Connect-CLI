@@ -26,7 +26,7 @@ import (
 func TestBetaTestersAddCommand_CSVGroupsPassValidation(t *testing.T) {
 	isolateTestFlightAuthEnvForAddTests(t)
 
-	cmd := BetaTestersAddCommand()
+	cmd := newBetaTestersAddCommand(passedValidationDeps())
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "123456789",
 		"--email", "tester@example.com",
@@ -38,6 +38,9 @@ func TestBetaTestersAddCommand_CSVGroupsPassValidation(t *testing.T) {
 	err := cmd.Exec(context.Background(), []string{})
 	if errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("comma-separated groups should pass validation, got %v", err)
+	}
+	if !errors.Is(err, errClientRequested) {
+		t.Fatalf("comma-separated groups should request a client after validation, got %v", err)
 	}
 }
 

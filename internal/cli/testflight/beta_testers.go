@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"net/url"
-	"os"
 	"slices"
 	"strings"
 	"time"
@@ -17,9 +16,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// BetaTestersCommand returns the beta testers command with subcommands.
-func BetaTestersCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("beta-testers", flag.ExitOnError)
+// newBetaTestersCommand returns the beta testers command with subcommands built on d.
+func newBetaTestersCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("beta-testers", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "beta-testers",
@@ -46,23 +45,23 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			BetaTestersListCommand(),
-			BetaTestersGetCommand(),
-			BetaTestersAddCommand(),
-			BetaTestersExportCommand(),
-			BetaTestersImportCommand(),
-			BetaTestersRemoveCommand(),
-			BetaTestersAddGroupsCommand(),
-			BetaTestersRemoveGroupsCommand(),
-			BetaTestersAddBuildsCommand(),
-			BetaTestersRemoveBuildsCommand(),
-			BetaTestersRemoveAppsCommand(),
-			BetaTestersRelationshipsCommand(),
-			BetaTestersAppsCommand(),
-			BetaTestersBetaGroupsCommand(),
-			BetaTestersBuildsCommand(),
-			BetaTestersMetricsCommand(),
-			BetaTestersInviteCommand(),
+			newBetaTestersListCommand(d),
+			newBetaTestersGetCommand(d),
+			newBetaTestersAddCommand(d),
+			newBetaTestersExportCommand(d),
+			newBetaTestersImportCommand(d),
+			newBetaTestersRemoveCommand(d),
+			newBetaTestersAddGroupsCommand(d),
+			newBetaTestersRemoveGroupsCommand(d),
+			newBetaTestersAddBuildsCommand(d),
+			newBetaTestersRemoveBuildsCommand(d),
+			newBetaTestersRemoveAppsCommand(d),
+			newBetaTestersRelationshipsCommand(d),
+			newBetaTestersAppsCommand(d),
+			newBetaTestersBetaGroupsCommand(d),
+			newBetaTestersBuildsCommand(d),
+			newBetaTestersMetricsCommand(d),
+			newBetaTestersInviteCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -87,9 +86,9 @@ var betaTesterInviteTypeValues = []string{"EMAIL", "PUBLIC_LINK"}
 
 const betaTesterIncludedRelationshipsWarning = "Warning: included relationships can be partial; App Store Connect returns at most 50 related resources per included relationship. --paginate pages the tester collection, not included relationships."
 
-// BetaTestersListCommand returns the beta testers list subcommand.
-func BetaTestersListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
+// newBetaTestersListCommand returns the beta testers list subcommand built on d.
+func newBetaTestersListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("list", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	buildID := shared.BindResourceIDFlag(fs, "build-id", "builds", "Build ID to filter")
@@ -102,7 +101,7 @@ func BetaTestersListCommand() *ffcli.Command {
 	include := fs.String("include", "", "Include related resources, comma-separated: "+strings.Join(betaTesterIncludeValues, ", "))
 	includedFields := shared.BindIncludedFieldFlags(fs, map[string]string{"apps": "apps", "betaGroups": "betaGroups", "builds": "builds"})
 	fields := fs.String("fields", "", "Fields to include for beta testers, comma-separated: "+strings.Join(betaGroupTesterFieldsValues, ", "))
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
@@ -143,58 +142,58 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "testflight beta-testers list", 200); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "testflight beta-testers list", 200); err != nil {
 				return err
 			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
+				fmt.Fprintf(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return shared.MissingRequiredUsageError("--app")
 			}
 
 			if err := shared.ValidateSort(*sortBy, betaTesterSortValues...); err != nil {
-				fmt.Fprintf(os.Stderr, "Error: %s\n", err.Error())
+				fmt.Fprintf(d.IO.ErrOut, "Error: %s\n", err.Error())
 				return shared.InvalidValueUsageError("--sort")
 			}
 			if err := shared.ValidateInclude(*include, betaTesterIncludeValues...); err != nil {
-				fmt.Fprintf(os.Stderr, "Error: %s\n", err.Error())
+				fmt.Fprintf(d.IO.ErrOut, "Error: %s\n", err.Error())
 				return shared.InvalidValueUsageError("--include")
 			}
 			fieldValues, err := shared.NormalizeSelection(*fields, betaGroupTesterFieldsValues, "--fields")
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error: %s\n", err.Error())
+				fmt.Fprintf(d.IO.ErrOut, "Error: %s\n", err.Error())
 				return shared.InvalidValueUsageError("--fields")
 			}
 			inviteTypes, err := normalizeBetaTesterInviteTypes(*inviteType)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error: %s\n", err.Error())
+				fmt.Fprintf(d.IO.ErrOut, "Error: %s\n", err.Error())
 				return shared.InvalidValueUsageError("--invite-type")
 			}
 			command := shared.RewriteUsageMessage(ctx, "beta-testers list")
 			// A links.next URL already carries the query it was produced from, so
 			// these flags would be accepted and silently dropped.
-			if err := rejectBetaTestersNextFlagConflicts(fs, *next, command, "build-id", "group", "email", "first-name", "last-name", "invite-type", "sort", "include", "fields"); err != nil {
+			if err := rejectBetaTestersNextFlagConflicts(d, fs, *next, command, "build-id", "group", "email", "first-name", "last-name", "invite-type", "sort", "include", "fields"); err != nil {
 				return err
 			}
-			included, err := includedFields.Resolve(command, *next, shared.SplitCSV(*include))
+			included, err := includedFields.ResolveWith(d, command, *next, shared.SplitCSV(*include))
 			if err != nil {
 				return err
 			}
 			if strings.TrimSpace(*group) != "" && strings.TrimSpace(*buildID) != "" {
 				return shared.WithDiagnostic(
-					shared.UsageError("--group cannot be combined with --build-id"),
+					d.UsageError("--group cannot be combined with --build-id"),
 					shared.DiagnosticConflictingInput,
 					"",
 				)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("beta-testers list: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			opts := []asc.BetaTestersOption{
@@ -239,9 +238,9 @@ Examples:
 			// rejected beside --next, so cover both request shapes.
 			requestHasIncludes := len(includeValues) > 0 || betaTestersNextURLHasInclude(*next)
 			if requestHasIncludes {
-				fmt.Fprintln(os.Stderr, betaTesterIncludedRelationshipsWarning)
+				fmt.Fprintln(d.IO.ErrOut, betaTesterIncludedRelationshipsWarning)
 				if shared.NormalizeOutputFormat(*output.Output) != "json" {
-					fmt.Fprintln(os.Stderr, "Note: included resources are only rendered in JSON output; re-run with --output json to see them.")
+					fmt.Fprintln(d.IO.ErrOut, "Note: included resources are only rendered in JSON output; re-run with --output json to see them.")
 				}
 			}
 
@@ -255,7 +254,7 @@ Examples:
 
 			if *paginate {
 				paginateOpts := append(opts, asc.Limit[asc.BetaTestersOption](200))
-				testers, err := shared.PaginateWithSpinner(
+				testers, err := d.PaginateWithSpinner(
 					requestCtx,
 					func(ctx context.Context) (asc.PaginatedResponse, error) {
 						return client.GetBetaTesters(ctx, resolvedAppID, paginateOpts...)
@@ -268,7 +267,7 @@ Examples:
 					return fmt.Errorf("beta-testers list: %w", err)
 				}
 
-				return shared.PrintOutput(testers, *output.Output, *output.Pretty)
+				return d.PrintOutput(testers, *output.Output, *output.Pretty)
 			}
 
 			testers, err := client.GetBetaTesters(requestCtx, resolvedAppID, opts...)
@@ -276,7 +275,7 @@ Examples:
 				return fmt.Errorf("beta-testers list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(testers, *output.Output, *output.Pretty)
+			return d.PrintOutput(testers, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -304,7 +303,7 @@ func betaTestersNextURLHasInclude(next string) bool {
 // rejectBetaTestersNextFlagConflicts fails when a caller pairs --next with a
 // flag whose value cannot reach the request, because a links.next URL is
 // followed verbatim.
-func rejectBetaTestersNextFlagConflicts(fs *flag.FlagSet, next, command string, names ...string) error {
+func rejectBetaTestersNextFlagConflicts(d *shared.Deps, fs *flag.FlagSet, next, command string, names ...string) error {
 	if strings.TrimSpace(next) == "" {
 		return nil
 	}
@@ -315,7 +314,7 @@ func rejectBetaTestersNextFlagConflicts(fs *flag.FlagSet, next, command string, 
 	for _, name := range names {
 		if _, ok := provided[name]; ok {
 			return shared.WithDiagnostic(
-				shared.UsageErrorf("%s: --next cannot be combined with --%s", command, name),
+				d.UsageErrorf("%s: --next cannot be combined with --%s", command, name),
 				shared.DiagnosticConflictingInput,
 				"--"+name,
 			)
@@ -324,9 +323,10 @@ func rejectBetaTestersNextFlagConflicts(fs *flag.FlagSet, next, command string, 
 	return nil
 }
 
-// BetaTestersGetCommand returns the beta testers get subcommand.
-func BetaTestersGetCommand() *ffcli.Command {
+// newBetaTestersGetCommand returns the beta testers get subcommand built on d.
+func newBetaTestersGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		Deps:       d,
 		Name:       "view",
 		ShortUsage: "asc testflight beta-testers view --id \"TESTER_ID\" [flags]",
 		ShortHelp:  "View a TestFlight beta tester by ID.",
@@ -346,9 +346,9 @@ See also: asc testflight beta-testers beta-groups list --id "TESTER_ID" for the 
 	})
 }
 
-// BetaTestersAddCommand returns the beta testers add subcommand.
-func BetaTestersAddCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("add", flag.ExitOnError)
+// newBetaTestersAddCommand returns the beta testers add subcommand built on d.
+func newBetaTestersAddCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("add", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID, used to resolve --group (or ASC_APP_ID env)")
 	email := fs.String("email", "", "Tester email address")
@@ -356,7 +356,7 @@ func BetaTestersAddCommand() *ffcli.Command {
 	lastName := fs.String("last-name", "", "Tester last name")
 	group := shared.BindOnceCSVFlag(fs, "group", "Comma-separated beta group names or IDs")
 	buildID := shared.BindOnceCSVFlag(fs, "build-id", "Build ID(s) to attach, comma-separated")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "add",
@@ -380,30 +380,30 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			buildIDs, err := parseCreateRelationshipIDs(shared.DefaultDeps(), buildID, "--build-id")
+			buildIDs, err := parseCreateRelationshipIDs(d, buildID, "--build-id")
 			if err != nil {
 				return err
 			}
 			hasGroup := strings.TrimSpace(group.String()) != ""
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && (hasGroup || len(buildIDs) == 0) {
-				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
+				fmt.Fprintf(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return shared.MissingRequiredUsageError("--app")
 			}
 			if strings.TrimSpace(*email) == "" {
-				return shared.RequiredFlag("--email")
+				return d.RequiredFlag("--email")
 			}
 			if !hasGroup && (group.Provided() || len(buildIDs) == 0) {
-				fmt.Fprintln(os.Stderr, "Error: --group is required unless --build-id is set")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --group is required unless --build-id is set")
 				return shared.MissingRequiredUsageError("--group")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("beta-testers add: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			var groupIDs []string
@@ -419,14 +419,14 @@ Examples:
 				return fmt.Errorf("beta-testers add: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(tester, *output.Output, *output.Pretty)
+			return d.PrintOutput(tester, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// BetaTestersRemoveCommand returns the beta testers remove subcommand.
-func BetaTestersRemoveCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("remove", flag.ExitOnError)
+// newBetaTestersRemoveCommand returns the beta testers remove subcommand built on d.
+func newBetaTestersRemoveCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("remove", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	email := fs.String("email", "", "Tester email address")
@@ -434,7 +434,7 @@ func BetaTestersRemoveCommand() *ffcli.Command {
 	wait := fs.Bool("wait", false, "Wait until the removal is visible (tester is gone or reports REVOKED)")
 	pollInterval := fs.Duration("poll-interval", betaTesterRemoveDefaultPollInterval, "Polling interval while waiting for removal visibility")
 	timeout := fs.Duration("timeout", betaTesterRemoveDefaultWaitTimeout, "Maximum time to wait for removal visibility")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "remove",
@@ -458,13 +458,13 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
-				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
+				fmt.Fprintf(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return shared.MissingRequiredUsageError("--app")
 			}
 			if strings.TrimSpace(*email) == "" {
-				return shared.RequiredFlag("--email")
+				return d.RequiredFlag("--email")
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
 			waitFlagsProvided := make([]string, 0, 2)
@@ -478,23 +478,23 @@ Examples:
 				if len(waitFlagsProvided) > 1 {
 					verb = "require"
 				}
-				return shared.UsageError(strings.Join(waitFlagsProvided, " and ") + " " + verb + " --wait")
+				return d.UsageError(strings.Join(waitFlagsProvided, " and ") + " " + verb + " --wait")
 			}
 			if *wait {
 				if *pollInterval <= 0 {
-					return shared.UsageError("--poll-interval must be greater than 0")
+					return d.UsageError("--poll-interval must be greater than 0")
 				}
 				if *timeout <= 0 {
-					return shared.UsageError("--timeout must be greater than 0")
+					return d.UsageError("--timeout must be greater than 0")
 				}
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("beta-testers remove: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			testerID, err := findBetaTesterIDByEmail(requestCtx, client, resolvedAppID, *email)
@@ -517,14 +517,14 @@ Examples:
 
 			if *wait {
 				if waitErr := waitForBetaTesterRemoval(ctx, client, testerID, *pollInterval, *timeout); waitErr != nil {
-					if printErr := shared.PrintOutput(result, *output.Output, *output.Pretty); printErr != nil {
+					if printErr := d.PrintOutput(result, *output.Output, *output.Pretty); printErr != nil {
 						return printErr
 					}
 					return fmt.Errorf("beta-testers remove: removal committed but not yet visible: %w", waitErr)
 				}
 			}
 
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -554,13 +554,13 @@ func waitForBetaTesterRemoval(ctx context.Context, client *asc.Client, testerID 
 	return err
 }
 
-// BetaTestersAddGroupsCommand returns the beta testers add-groups subcommand.
-func BetaTestersAddGroupsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("add-groups", flag.ExitOnError)
+// newBetaTestersAddGroupsCommand returns the beta testers add-groups subcommand built on d.
+func newBetaTestersAddGroupsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("add-groups", flag.ExitOnError)
 
 	id := shared.BindResourceIDFlag(fs, "id", "betaTesters", "Beta tester ID")
 	groups := shared.BindOnceCSVFlag(fs, "group", "Comma-separated beta group IDs")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "add-groups",
@@ -576,25 +576,25 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			testerID := strings.TrimSpace(*id)
 			if testerID == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
 
 			groupIDs := shared.SplitCSV(groups.String())
 			if len(groupIDs) == 0 {
-				return shared.RequiredFlag("--group")
+				return d.RequiredFlag("--group")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("beta-testers add-groups: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			action := asc.BetaGroupTestersActionAdded
 			if err := client.AddBetaTesterToGroups(requestCtx, testerID, groupIDs); err != nil {
-				alreadySatisfied, verificationErr := betaTesterGroupConflictAlreadySatisfied(ctx, client, testerID, groupIDs, err)
+				alreadySatisfied, verificationErr := betaTesterGroupConflictAlreadySatisfied(ctx, d, client, testerID, groupIDs, err)
 				if verificationErr != nil {
 					return fmt.Errorf("beta-testers add-groups: failed to add groups: %w (failed to verify beta group membership: %w)", err, verificationErr)
 				}
@@ -610,29 +610,29 @@ Examples:
 				Action:   action,
 			}
 
-			if err := shared.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
+			if err := d.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
 				return err
 			}
 
 			if action == asc.BetaGroupTestersActionSkipped {
-				fmt.Fprintf(os.Stderr, "Skipped: tester %s already in %d group(s)\n", testerID, len(groupIDs))
+				fmt.Fprintf(d.IO.ErrOut, "Skipped: tester %s already in %d group(s)\n", testerID, len(groupIDs))
 				return nil
 			}
 
-			fmt.Fprintf(os.Stderr, "Successfully added tester %s to %d group(s)\n", testerID, len(groupIDs))
+			fmt.Fprintf(d.IO.ErrOut, "Successfully added tester %s to %d group(s)\n", testerID, len(groupIDs))
 			return nil
 		},
 	}
 }
 
-// BetaTestersRemoveGroupsCommand returns the beta testers remove-groups subcommand.
-func BetaTestersRemoveGroupsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("remove-groups", flag.ExitOnError)
+// newBetaTestersRemoveGroupsCommand returns the beta testers remove-groups subcommand built on d.
+func newBetaTestersRemoveGroupsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("remove-groups", flag.ExitOnError)
 
 	id := shared.BindResourceIDFlag(fs, "id", "betaTesters", "Beta tester ID")
 	groups := shared.BindOnceCSVFlag(fs, "group", "Comma-separated beta group IDs")
 	confirm := fs.Bool("confirm", false, "Confirm removal")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "remove-groups",
@@ -648,23 +648,23 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			testerID := strings.TrimSpace(*id)
 			if testerID == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
 
 			groupIDs := shared.SplitCSV(groups.String())
 			if len(groupIDs) == 0 {
-				return shared.RequiredFlag("--group")
+				return d.RequiredFlag("--group")
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("beta-testers remove-groups: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			if err := client.RemoveBetaTesterFromGroups(requestCtx, testerID, groupIDs); err != nil {
@@ -677,23 +677,23 @@ Examples:
 				Action:   "removed",
 			}
 
-			if err := shared.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
+			if err := d.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
 				return err
 			}
 
-			fmt.Fprintf(os.Stderr, "Successfully removed tester %s from %d group(s)\n", testerID, len(groupIDs))
+			fmt.Fprintf(d.IO.ErrOut, "Successfully removed tester %s from %d group(s)\n", testerID, len(groupIDs))
 			return nil
 		},
 	}
 }
 
-// BetaTestersAddBuildsCommand returns the beta testers add-builds subcommand.
-func BetaTestersAddBuildsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("add-builds", flag.ExitOnError)
+// newBetaTestersAddBuildsCommand returns the beta testers add-builds subcommand built on d.
+func newBetaTestersAddBuildsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("add-builds", flag.ExitOnError)
 
 	id := shared.BindResourceIDFlag(fs, "id", "betaTesters", "Beta tester ID")
 	buildIDs := fs.String("build-id", "", "Comma-separated build IDs")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "add-builds",
@@ -709,20 +709,20 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			testerID := strings.TrimSpace(*id)
 			if testerID == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
 
 			parsedBuildIDs := shared.SplitCSV(*buildIDs)
 			if len(parsedBuildIDs) == 0 {
-				return shared.RequiredFlag("--build-id")
+				return d.RequiredFlag("--build-id")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("beta-testers add-builds: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			if err := client.AddBuildsToBetaTester(requestCtx, testerID, parsedBuildIDs); err != nil {
@@ -735,24 +735,24 @@ Examples:
 				Action:   "added",
 			}
 
-			if err := shared.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
+			if err := d.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
 				return err
 			}
 
-			fmt.Fprintf(os.Stderr, "Successfully added tester %s to %d build(s)\n", testerID, len(parsedBuildIDs))
+			fmt.Fprintf(d.IO.ErrOut, "Successfully added tester %s to %d build(s)\n", testerID, len(parsedBuildIDs))
 			return nil
 		},
 	}
 }
 
-// BetaTestersRemoveBuildsCommand returns the beta testers remove-builds subcommand.
-func BetaTestersRemoveBuildsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("remove-builds", flag.ExitOnError)
+// newBetaTestersRemoveBuildsCommand returns the beta testers remove-builds subcommand built on d.
+func newBetaTestersRemoveBuildsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("remove-builds", flag.ExitOnError)
 
 	id := shared.BindResourceIDFlag(fs, "id", "betaTesters", "Beta tester ID")
 	buildIDs := fs.String("build-id", "", "Comma-separated build IDs")
 	confirm := fs.Bool("confirm", false, "Confirm removal")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "remove-builds",
@@ -768,23 +768,23 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			testerID := strings.TrimSpace(*id)
 			if testerID == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
 
 			parsedBuildIDs := shared.SplitCSV(*buildIDs)
 			if len(parsedBuildIDs) == 0 {
-				return shared.RequiredFlag("--build-id")
+				return d.RequiredFlag("--build-id")
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("beta-testers remove-builds: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			if err := client.RemoveBuildsFromBetaTester(requestCtx, testerID, parsedBuildIDs); err != nil {
@@ -797,24 +797,24 @@ Examples:
 				Action:   "removed",
 			}
 
-			if err := shared.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
+			if err := d.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
 				return err
 			}
 
-			fmt.Fprintf(os.Stderr, "Successfully removed tester %s from %d build(s)\n", testerID, len(parsedBuildIDs))
+			fmt.Fprintf(d.IO.ErrOut, "Successfully removed tester %s from %d build(s)\n", testerID, len(parsedBuildIDs))
 			return nil
 		},
 	}
 }
 
-// BetaTestersRemoveAppsCommand returns the beta testers remove-apps subcommand.
-func BetaTestersRemoveAppsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("remove-apps", flag.ExitOnError)
+// newBetaTestersRemoveAppsCommand returns the beta testers remove-apps subcommand built on d.
+func newBetaTestersRemoveAppsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("remove-apps", flag.ExitOnError)
 
 	id := shared.BindResourceIDFlag(fs, "id", "betaTesters", "Beta tester ID")
 	apps := shared.BindOnceCSVFlag(fs, "app", "Comma-separated app IDs")
 	confirm := fs.Bool("confirm", false, "Confirm removal")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "remove-apps",
@@ -830,23 +830,23 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			testerID := strings.TrimSpace(*id)
 			if testerID == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
 
 			appIDs := shared.SplitCSV(apps.String())
 			if len(appIDs) == 0 {
-				return shared.RequiredFlag("--app")
+				return d.RequiredFlag("--app")
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("beta-testers remove-apps: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			if err := client.RemoveBetaTesterFromApps(requestCtx, testerID, appIDs); err != nil {
@@ -859,24 +859,24 @@ Examples:
 				Action:   "removed",
 			}
 
-			if err := shared.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
+			if err := d.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
 				return err
 			}
 
-			fmt.Fprintf(os.Stderr, "Successfully removed tester %s from %d app(s)\n", testerID, len(appIDs))
+			fmt.Fprintf(d.IO.ErrOut, "Successfully removed tester %s from %d app(s)\n", testerID, len(appIDs))
 			return nil
 		},
 	}
 }
 
-// BetaTestersInviteCommand returns the beta testers invite subcommand.
-func BetaTestersInviteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("invite", flag.ExitOnError)
+// newBetaTestersInviteCommand returns the beta testers invite subcommand built on d.
+func newBetaTestersInviteCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("invite", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	email := fs.String("email", "", "Tester email address")
 	group := shared.BindOnceCSVFlag(fs, "group", "Comma-separated beta group names or IDs (optional, creates tester if missing)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "invite",
@@ -892,19 +892,19 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
-				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
+				fmt.Fprintf(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return shared.MissingRequiredUsageError("--app")
 			}
 			if strings.TrimSpace(*email) == "" {
-				return shared.RequiredFlag("--email")
+				return d.RequiredFlag("--email")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("beta-testers invite: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			emailValue := strings.TrimSpace(*email)
@@ -943,7 +943,7 @@ Examples:
 				Email:        emailValue,
 			}
 
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }

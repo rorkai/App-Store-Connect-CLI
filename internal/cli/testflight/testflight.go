@@ -39,7 +39,7 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newTestFlightGroupsCommand(d),
-			TestFlightTestersCommand(),
+			newTestFlightTestersCommand(d),
 			TestFlightFeedbackCommand(),
 			TestFlightCrashesCommand(),
 			TestFlightAgreementsCommand(),

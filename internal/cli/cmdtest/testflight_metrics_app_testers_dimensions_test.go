@@ -140,15 +140,13 @@ func TestTestFlightMetricsAppTestersObjectFormResolveTesters(t *testing.T) {
 }
 
 func TestTestFlightTestersMetricsTableDoesNotUseAppTestersRenderer(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/betaTesters/tester-1/metrics/betaTesterUsages", "filter[apps]=app-123"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaTesterUsages","dataPoints":[{"start":"2026-08-01T00:00:00Z","end":"2026-08-02T00:00:00Z","values":{"sessionCount":9}}],"dimensions":{"apps":{"data":{"type":"apps","id":"app-1"}}}}],"links":{}}`))
 
-	stdout, stderr, err := runCommand(t, []string{"testflight", "testers", "metrics", "--tester-id", "tester-1", "--app", "app-123", "--output", "table"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "testflight", "testers", "metrics", "--tester-id", "tester-1", "--app", "app-123", "--output", "table")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
