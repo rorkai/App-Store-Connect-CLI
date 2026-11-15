@@ -160,7 +160,6 @@ func TestSubmitStatusCommand_ByIDIgnoresInaccessibleItemLookup(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-
 			requests := make([]string, 0, 3)
 			transport := submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 				requests = append(requests, req.Method+" "+req.URL.RequestURI())
