@@ -104,7 +104,7 @@ func waitForBuildByNumberOrUploadFailureTo(ctx context.Context, stderr io.Writer
 			return build, true, nil
 		}
 		return nil, false, nil
-	}, asc.PollOptions{Tolerate: isTransientBuildWaitError})
+	}, asc.PollOptions{Tolerate: isTransientBuildWaitError, Stderr: stderr})
 }
 
 // getBuildUploadWithLinkedBuild reads a build upload including its build
