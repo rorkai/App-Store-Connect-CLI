@@ -135,7 +135,7 @@ func TestLoad_StrictUnknownStepField(t *testing.T) {
 }
 
 func TestLoad_RejectsMistypedStepFields(t *testing.T) {
-	for _, field := range []string{`"env": {"VAR": 1}`} {
+	for _, field := range []string{`"env": {"VAR": 1}`, `"continue_on_error": "yes"`} {
 		t.Run(field, func(t *testing.T) {
 			path := writeWorkflowFile(t, t.TempDir(), `{"workflows": {"beta": {"steps": [{"run": "echo hi", `+field+`}]}}}`)
 

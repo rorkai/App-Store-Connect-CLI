@@ -34,6 +34,8 @@ const (
 	ErrInvalidRetryMaxAttempts     ValidationCode = "invalid_retry_max_attempts"
 	ErrInvalidRetryDelay           ValidationCode = "invalid_retry_delay"
 	ErrInvalidStepTimeout          ValidationCode = "invalid_step_timeout"
+
+	ErrInvalidStepContinueOnError ValidationCode = "invalid_step_continue_on_error"
 )
 
 const (
@@ -181,6 +183,16 @@ func Validate(def *Definition) []*ValidationError {
 						})
 					}
 				}
+			}
+
+			if step.continueOnErrorExplicitNull {
+				errs = append(errs, &ValidationError{
+					Code:     ErrInvalidStepContinueOnError,
+					Workflow: name,
+					Step:     idx,
+					Path:     stepPath + ".continue_on_error",
+					Message:  fmt.Sprintf("%s must be a boolean, not null", stepPath+".continue_on_error"),
+				})
 			}
 
 			if step.timeoutExplicitNull {

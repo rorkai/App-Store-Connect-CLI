@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"maps"
@@ -39,6 +40,8 @@ type StepResult struct {
 	Error          string            `json:"error,omitempty"`
 	Attempts       []AttemptResult   `json:"attempts,omitempty"`
 	Outputs        map[string]string `json:"outputs,omitempty"`
+
+	ContinuedOnError bool `json:"continued_on_error,omitempty"`
 }
 
 // AttemptResult records one configured run-step attempt.
@@ -98,7 +101,12 @@ type runner struct {
 	statePath      string
 	definitionHash string
 	outputs        map[string]map[string]string
+	failedStepKey  string
 }
+
+// errToleratedFailureReplayed unwinds a resumed sub-workflow to the step whose
+// continue_on_error tolerated the failure, so no later sibling runs.
+var errToleratedFailureReplayed = errors.New("workflow: tolerated failure replayed")
 
 func (r *RunResult) ensureHooks() *HooksResult {
 	if r.Hooks == nil {
@@ -382,6 +390,24 @@ func (r *runner) executeSteps(ctx context.Context, workflowName string, steps []
 			stepEnv = mergeEnv(env, step.Env)
 		}
 
+		// A recorded tolerated failure is replayed before the step's condition
+		// is evaluated again: the condition may read differently on resume, and
+		// the steps after this one must stay unrun either way.
+		if r.state != nil {
+			if persisted, ok := r.state.Steps[stepKey]; ok && persisted.ContinuedOnError && !r.hasChildState(stepKey) {
+				sr.Status = "resumed"
+				sr.FailureReason = persisted.FailureReason
+				sr.Error = persisted.Error
+				sr.Attempts = cloneAttemptResults(persisted.Attempts)
+				sr.ContinuedOnError = true
+				r.result.Steps = append(r.result.Steps, sr)
+				if !step.ContinueOnError {
+					return errToleratedFailureReplayed
+				}
+				continue
+			}
+		}
+
 		if strings.TrimSpace(step.If) != "" {
 			pass, err := evalStepIf(step.If, stepEnv)
 			if err != nil {
@@ -403,7 +429,7 @@ func (r *runner) executeSteps(ctx context.Context, workflowName string, steps []
 				sr.Error = "retry and timeout are only supported on run steps"
 				sr.DurationMS = time.Since(stepStart).Milliseconds()
 				r.result.Steps = append(r.result.Steps, sr)
-				r.result.FailedStep = failedStepName(step.Name, stepKey)
+				r.failStep(step.Name, stepKey)
 				return err
 			}
 			if depth+1 > MaxCallDepth {
@@ -412,8 +438,11 @@ func (r *runner) executeSteps(ctx context.Context, workflowName string, steps []
 				sr.Error = fmt.Sprintf("max call depth %d exceeded", MaxCallDepth)
 				sr.DurationMS = time.Since(stepStart).Milliseconds()
 				r.result.Steps = append(r.result.Steps, sr)
-				r.result.FailedStep = failedStepName(step.Name, stepKey)
-				return err
+				r.failStep(step.Name, stepKey)
+				if err := r.continueOnError(ctx, step, stepKey, err); err != nil {
+					return err
+				}
+				continue
 			}
 
 			subWf, ok := r.def.Workflows[ref]
@@ -423,7 +452,7 @@ func (r *runner) executeSteps(ctx context.Context, workflowName string, steps []
 				sr.Error = fmt.Sprintf("unknown workflow %q", ref)
 				sr.DurationMS = time.Since(stepStart).Milliseconds()
 				r.result.Steps = append(r.result.Steps, sr)
-				r.result.FailedStep = failedStepName(step.Name, stepKey)
+				r.failStep(step.Name, stepKey)
 				return err
 			}
 
@@ -437,8 +466,11 @@ func (r *runner) executeSteps(ctx context.Context, workflowName string, steps []
 					sr.Error = err.Error()
 					sr.DurationMS = time.Since(stepStart).Milliseconds()
 					r.result.Steps = append(r.result.Steps, sr)
-					r.result.FailedStep = failedStepName(step.Name, stepKey)
-					return wrapped
+					r.failStep(step.Name, stepKey)
+					if err := r.continueOnError(ctx, step, stepKey, wrapped); err != nil {
+						return err
+					}
+					continue
 				}
 			}
 
@@ -448,7 +480,12 @@ func (r *runner) executeSteps(ctx context.Context, workflowName string, steps []
 			}
 
 			if err := r.executeSteps(ctx, ref, subWf.Steps, subEnv, stepKey, depth+1); err != nil {
-				return err
+				if errors.Is(err, errToleratedFailureReplayed) && step.ContinueOnError {
+					continue
+				}
+				if err := r.continueOnError(ctx, step, stepKey, err); err != nil {
+					return err
+				}
 			}
 			continue
 		}
@@ -483,21 +520,71 @@ func (r *runner) executeSteps(ctx context.Context, workflowName string, steps []
 			sr.Error = err.Error()
 			sr.DurationMS = time.Since(stepStart).Milliseconds()
 			r.result.Steps = append(r.result.Steps, sr)
-			r.result.FailedStep = failedStepName(step.Name, stepKey)
-			return wrapped
+			r.failStep(step.Name, stepKey)
+			if err := r.continueOnError(ctx, step, stepKey, wrapped); err != nil {
+				return err
+			}
+			continue
 		}
 
 		if err := r.executeRunStep(ctx, workflowName, idx, stepKey, step, command, stepEnv, &sr); err != nil {
 			sr.DurationMS = time.Since(stepStart).Milliseconds()
 			r.result.Steps = append(r.result.Steps, sr)
-			r.result.FailedStep = failedStepName(step.Name, stepKey)
-			return err
+			r.failStep(step.Name, stepKey)
+			if err := r.continueOnError(ctx, step, stepKey, err); err != nil {
+				return err
+			}
+			continue
 		}
 
 		sr.DurationMS = time.Since(stepStart).Milliseconds()
 		r.result.Steps = append(r.result.Steps, sr)
 	}
 	return nil
+}
+
+// continueOnError tolerates a failed step that sets continue_on_error, unless
+// the run was canceled. It returns the error that stops the run, if any. A
+// tolerated failure is persisted as completed so resume never repeats it, and
+// it no longer makes the run terminal.
+func (r *runner) continueOnError(ctx context.Context, step Step, stepKey string, err error) error {
+	if !step.ContinueOnError || ctx.Err() != nil || len(r.result.Steps) == 0 {
+		return err
+	}
+	failed := &r.result.Steps[len(r.result.Steps)-1]
+	if failed.Status != "error" {
+		return err
+	}
+	failed.ContinuedOnError = true
+	r.result.FailedStep = ""
+	r.result.Terminal = false
+	r.result.TerminalReason = ""
+	fmt.Fprintf(r.opts.Stderr, "Warning: %v; continuing because continue_on_error is set\n", err)
+	if r.state == nil {
+		return nil
+	}
+	r.state.Status = "running"
+	r.state.TerminalReason = ""
+	if r.failedStepKey != stepKey {
+		if err := r.persistStep(r.failedStepKey, *failed, false); err != nil {
+			return err
+		}
+	}
+	return r.persistStep(stepKey, *failed, step.Retry != nil)
+}
+
+func (r *runner) failStep(name, stepKey string) {
+	r.result.FailedStep = failedStepName(name, stepKey)
+	r.failedStepKey = stepKey
+}
+
+func (r *runner) hasChildState(stepKey string) bool {
+	for key := range r.state.Steps {
+		if strings.HasPrefix(key, stepKey+"/") {
+			return true
+		}
+	}
+	return false
 }
 
 func (r *runner) persistStep(stepKey string, sr StepResult, retryEnabled bool) error {
@@ -514,6 +601,8 @@ func (r *runner) persistStep(stepKey string, sr StepResult, retryEnabled bool) e
 		RetryEnabled:   retryEnabled,
 		Attempts:       cloneAttemptResults(sr.Attempts),
 		Outputs:        cloneStringMap(sr.Outputs),
+
+		ContinuedOnError: sr.ContinuedOnError,
 	}
 	return saveRunState(r.statePath, *r.state)
 }
@@ -601,7 +690,7 @@ func stateHasResumeCheckpoint(state *persistedRunState) bool {
 		return false
 	}
 	for _, step := range state.Steps {
-		if step.Status == "ok" || step.RetryEnabled {
+		if step.Status == "ok" || step.RetryEnabled || step.ContinuedOnError {
 			return true
 		}
 	}
@@ -616,7 +705,7 @@ func terminalReasonForResult(result *RunResult) string {
 		return reason
 	}
 	for _, step := range result.Steps {
-		if step.FailureReason != "output_error" {
+		if step.FailureReason != "output_error" || step.ContinuedOnError {
 			continue
 		}
 		label := strings.TrimSpace(step.Name)
@@ -637,7 +726,7 @@ func terminalReasonForState(state *persistedRunState) string {
 	}
 	for _, stepKey := range slices.Sorted(maps.Keys(state.Steps)) {
 		step := state.Steps[stepKey]
-		if step.FailureReason != "output_error" {
+		if step.FailureReason != "output_error" || step.ContinuedOnError {
 			continue
 		}
 		label := strings.TrimSpace(step.Name)
