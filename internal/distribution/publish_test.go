@@ -1213,35 +1213,48 @@ func TestHTTPVerifierCABundleKeepsTransportTLSSettings(t *testing.T) {
 	}
 }
 
-func TestHTTPVerifierCABundleAcceptsAnyTransport(t *testing.T) {
+func TestHTTPVerifierEnvironmentTrustTransportRule(t *testing.T) {
 	server := httptest.NewTLSServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
 	defer server.Close()
 	caPath := filepath.Join(t.TempDir(), "ca.pem")
 	if err := os.WriteFile(caPath, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw}), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv("AWS_CA_BUNDLE", caPath)
+	var requests int
+	roundTripper := publishVerifyRoundTripFunc(func(request *http.Request) (*http.Response, error) {
+		requests++
+		return &http.Response{StatusCode: http.StatusOK, Body: http.NoBody, Request: request}, nil
+	})
 
-	t.Run("round tripper that is not an *http.Transport", func(t *testing.T) {
-		var requests int
-		transport := publishVerifyRoundTripFunc(func(request *http.Request) (*http.Response, error) {
-			requests++
-			return &http.Response{StatusCode: http.StatusOK, Body: http.NoBody, Request: request}, nil
-		})
-		verifier, err := NewHTTPVerifierWithEnvironmentTrust(transport, time.Second)
+	t.Run("without AWS_CA_BUNDLE any round tripper is used as given", func(t *testing.T) {
+		t.Setenv("AWS_CA_BUNDLE", "")
+		requests = 0
+		verifier, err := NewHTTPVerifierWithEnvironmentTrust(roundTripper, time.Second)
 		if err != nil {
 			t.Fatalf("NewHTTPVerifierWithEnvironmentTrust() error = %v", err)
 		}
 		response, err := verifier.client.Get("https://objects.example.com/app.ipa")
 		if err != nil {
-			t.Fatalf("request through the given transport: %v", err)
+			t.Fatalf("request through the given round tripper: %v", err)
 		}
 		_ = response.Body.Close()
 		if requests != 1 {
-			t.Fatalf("requests on the given transport = %d, want 1", requests)
+			t.Fatalf("requests on the given round tripper = %d, want 1", requests)
 		}
 	})
-	t.Run("nil transport", func(t *testing.T) {
+	t.Run("with AWS_CA_BUNDLE another round tripper is a configuration error", func(t *testing.T) {
+		t.Setenv("AWS_CA_BUNDLE", caPath)
+		requests = 0
+		verifier, err := NewHTTPVerifierWithEnvironmentTrust(roundTripper, time.Second)
+		if err == nil || verifier != nil || !strings.Contains(err.Error(), "AWS_CA_BUNDLE") || !strings.Contains(err.Error(), "publishVerifyRoundTripFunc") {
+			t.Fatalf("NewHTTPVerifierWithEnvironmentTrust() = %v, %v; want an error naming AWS_CA_BUNDLE and the transport type", verifier, err)
+		}
+		if requests != 0 {
+			t.Fatalf("requests on the given round tripper = %d, want none", requests)
+		}
+	})
+	t.Run("with AWS_CA_BUNDLE a nil transport is http.DefaultTransport with the bundle roots", func(t *testing.T) {
+		t.Setenv("AWS_CA_BUNDLE", caPath)
 		verifier, err := NewHTTPVerifierWithEnvironmentTrust(nil, time.Second)
 		if err != nil {
 			t.Fatalf("NewHTTPVerifierWithEnvironmentTrust() error = %v", err)

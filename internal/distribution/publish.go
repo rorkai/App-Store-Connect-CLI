@@ -1089,8 +1089,15 @@ func NewHTTPVerifier(client *http.Client, timeout time.Duration) *HTTPVerifier {
 }
 
 // NewHTTPVerifierWithEnvironmentTrust builds a verifier that sends through
-// transport and honors the same AWS_CA_BUNDLE trust override used by the S3
-// SDK for private endpoints.
+// transport (nil means http.DefaultTransport) and honors the AWS_CA_BUNDLE
+// trust override the S3 SDK uses for private endpoints. A custom CA bundle is
+// a security setting and is never silently skipped:
+//   - without AWS_CA_BUNDLE, any round tripper is used as given;
+//   - with AWS_CA_BUNDLE and an *http.Transport, the bundle is added to a copy
+//     of its root pool (the system pool when it has none), its other TLS
+//     settings are kept, and its minimum version is raised to TLS 1.2;
+//   - with AWS_CA_BUNDLE and any other round tripper, it returns an error,
+//     before the verifier sends anything.
 func NewHTTPVerifierWithEnvironmentTrust(transport http.RoundTripper, timeout time.Duration) (*HTTPVerifier, error) {
 	if transport == nil {
 		transport = http.DefaultTransport
@@ -1098,6 +1105,10 @@ func NewHTTPVerifierWithEnvironmentTrust(transport http.RoundTripper, timeout ti
 	caPath := strings.TrimSpace(os.Getenv("AWS_CA_BUNDLE"))
 	if caPath == "" {
 		return NewHTTPVerifier(&http.Client{Transport: transport}, timeout), nil
+	}
+	base, ok := transport.(*http.Transport)
+	if !ok {
+		return nil, fmt.Errorf("AWS_CA_BUNDLE needs an *http.Transport to add its roots to; the configured transport is %T", transport)
 	}
 	file, err := os.Open(caPath)
 	if err != nil {
@@ -1112,20 +1123,14 @@ func NewHTTPVerifierWithEnvironmentTrust(transport http.RoundTripper, timeout ti
 	if err != nil {
 		return nil, fmt.Errorf("read custom CA bundle")
 	}
-	base, ok := transport.(*http.Transport)
 	var roots *x509.CertPool
-	if ok && base.TLSClientConfig != nil && base.TLSClientConfig.RootCAs != nil {
+	if base.TLSClientConfig != nil && base.TLSClientConfig.RootCAs != nil {
 		roots = base.TLSClientConfig.RootCAs.Clone()
 	} else if roots, err = x509.SystemCertPool(); err != nil {
 		roots = x509.NewCertPool()
 	}
 	if !roots.AppendCertsFromPEM(pemBytes) {
 		return nil, fmt.Errorf("custom CA bundle contains no certificates")
-	}
-	if !ok {
-		// Only an *http.Transport exposes TLS settings to add the roots to; any
-		// other round tripper keeps the trust it was built with.
-		return NewHTTPVerifier(&http.Client{Transport: transport}, timeout), nil
 	}
 	clone := base.Clone()
 	if clone.TLSClientConfig == nil {
