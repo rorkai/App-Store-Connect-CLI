@@ -1002,12 +1002,10 @@ func TestDepsTerminalHelpersMatchProcessVariantsOnDepsStreams(t *testing.T) {
 	resetSpinnerTestState(t)
 	t.Setenv(spinnerDisabledEnvVar, "0")
 
-	slow := func() error {
-		time.Sleep(3 * spinnerTickRate)
-		return nil
-	}
+	// A spinner draws its first frame when it starts and clears the line when
+	// fn returns, so an fn that returns at once still shows where it draws.
+	work := func() error { return nil }
 	fetch := func(context.Context) (asc.PaginatedResponse, error) {
-		time.Sleep(3 * spinnerTickRate)
 		return &testPaginatedResponse{Data: []map[string]string{{"id": "item-1"}}}, nil
 	}
 	next := func(context.Context, string) (asc.PaginatedResponse, error) {
@@ -1053,20 +1051,19 @@ func TestDepsTerminalHelpersMatchProcessVariantsOnDepsStreams(t *testing.T) {
 		{
 			name:    "WithSpinner",
 			spinner: true,
-			process: func() (any, error) { return nil, WithSpinner("Working", slow) },
-			deps:    func(d *Deps) (any, error) { return nil, d.WithSpinner("Working", slow) },
+			process: func() (any, error) { return nil, WithSpinner("Working", work) },
+			deps:    func(d *Deps) (any, error) { return nil, d.WithSpinner("Working", work) },
 		},
 		{
-			name:    "WithSpinnerDelayed",
-			spinner: true,
-			process: func() (any, error) { return nil, WithSpinnerDelayed("Working", spinnerTickRate, slow) },
-			deps:    func(d *Deps) (any, error) { return nil, d.WithSpinnerDelayed("Working", spinnerTickRate, slow) },
+			name:    "WithSpinnerDelayed when fn returns before the delay",
+			process: func() (any, error) { return nil, WithSpinnerDelayed("Working", time.Second, work) },
+			deps:    func(d *Deps) (any, error) { return nil, d.WithSpinnerDelayed("Working", time.Second, work) },
 		},
 		{
 			name:    "WithSpinnerDelayed without a delay",
 			spinner: true,
-			process: func() (any, error) { return nil, WithSpinnerDelayed("Working", 0, slow) },
-			deps:    func(d *Deps) (any, error) { return nil, d.WithSpinnerDelayed("Working", 0, slow) },
+			process: func() (any, error) { return nil, WithSpinnerDelayed("Working", 0, work) },
+			deps:    func(d *Deps) (any, error) { return nil, d.WithSpinnerDelayed("Working", 0, work) },
 		},
 		{
 			name:    "PaginateWithSpinner",
