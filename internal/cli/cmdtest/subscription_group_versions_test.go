@@ -1,53 +1,24 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"flag"
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	subscriptionscli "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/subscriptions"
 )
 
-func useSubscriptionGroupVersionTestServer(t *testing.T, handler http.HandlerFunc) {
+func useSubscriptionGroupVersionTestServer(t *testing.T, handler http.HandlerFunc) func() (*asc.Client, error) {
 	t.Helper()
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	server := httptest.NewServer(handler)
 	t.Cleanup(server.Close)
-	serverURL, err := url.Parse(server.URL)
-	if err != nil {
-		t.Fatalf("parse test server URL: %v", err)
-	}
-	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		cloned := req.Clone(req.Context())
-		cloned.URL.Scheme = serverURL.Scheme
-		cloned.URL.Host = serverURL.Host
-		return server.Client().Transport.RoundTrip(cloned)
-	})
-	client, err := asc.NewClientWithHTTPClient(
-		"TEST_KEY",
-		"TEST_ISSUER",
-		os.Getenv("ASC_PRIVATE_KEY_PATH"),
-		&http.Client{Transport: transport},
-	)
-	if err != nil {
-		t.Fatalf("new test client: %v", err)
-	}
-	restore := subscriptionscli.SetGroupVersionClientFactory(func() (*asc.Client, error) {
-		return client, nil
-	})
-	t.Cleanup(restore)
+	return stubServerClient(t, server)
 }
 
 func TestSubscriptionGroupVersionsValidationErrors(t *testing.T) {
@@ -78,23 +49,15 @@ func TestSubscriptionGroupVersionsValidationErrors(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			clientFactoryCalled := false
-			restore := subscriptionscli.SetGroupVersionClientFactory(func() (*asc.Client, error) {
+			client := func() (*asc.Client, error) {
 				clientFactoryCalled = true
 				return nil, errors.New("client factory must not run during validation")
-			})
-			defer restore()
+			}
 
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
+			stdout, stderr, err := runRootWithDeps(t, client, test.args...)
+			if !errors.Is(err, flag.ErrHelp) {
+				t.Fatalf("expected ErrHelp, got %v", err)
+			}
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
 			}
@@ -109,17 +72,10 @@ func TestSubscriptionGroupVersionsValidationErrors(t *testing.T) {
 }
 
 func TestSubscriptionGroupsListRejectsVersionQueryFlagsWithNext(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"subscriptions", "groups", "list", "--next", "https://api.appstoreconnect.apple.com/v1/apps/app-1/subscriptionGroups?cursor=next", "--include", "versions"}); err != nil {
-			t.Fatal(err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
-		}
-	})
+	_, stderr, err := runRootWithDeps(t, nil, "subscriptions", "groups", "list", "--next", "https://api.appstoreconnect.apple.com/v1/apps/app-1/subscriptionGroups?cursor=next", "--include", "versions")
+	if !errors.Is(err, flag.ErrHelp) {
+		t.Fatalf("expected ErrHelp, got %v", err)
+	}
 	if !strings.Contains(stderr, "subscriptions groups list: --next cannot be combined with --include") {
 		t.Fatalf("unexpected stderr: %q", stderr)
 	}
@@ -143,7 +99,10 @@ func TestSubscriptionGroupVersionLinksExposeOnlyApplicableOwnerFlag(t *testing.T
 		},
 	}
 
-	links := subscriptionscli.SubscriptionsGroupsVersionLinksCommand()
+	links := findCommand(RootCommand("1.2.3"), "subscriptions", "groups", "versions", "links")
+	if links == nil {
+		t.Fatal("missing subscriptions groups versions links command")
+	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			var commandFound bool
@@ -167,7 +126,7 @@ func TestSubscriptionGroupVersionLinksExposeOnlyApplicableOwnerFlag(t *testing.T
 }
 
 func TestSubscriptionGroupVersionsCreateUsesRequiredRelationship(t *testing.T) {
-	useSubscriptionGroupVersionTestServer(t, func(w http.ResponseWriter, req *http.Request) {
+	client := useSubscriptionGroupVersionTestServer(t, func(w http.ResponseWriter, req *http.Request) {
 		if req.Method != http.MethodPost || req.URL.Path != "/v1/subscriptionGroupVersions" {
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL)
 		}
@@ -183,16 +142,10 @@ func TestSubscriptionGroupVersionsCreateUsesRequiredRelationship(t *testing.T) {
 		_, _ = io.WriteString(w, `{"data":{"type":"subscriptionGroupVersions","id":"version-1","attributes":{"version":1,"state":"PREPARE_FOR_SUBMISSION"}}}`)
 	})
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"subscriptions", "groups", "versions", "create", "--group-id", "group-1", "--output", "json"}); err != nil {
-			t.Fatal(err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatal(err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, client, "subscriptions", "groups", "versions", "create", "--group-id", "group-1", "--output", "json")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if stderr != "" {
 		t.Fatalf("unexpected stderr: %s", stderr)
 	}
@@ -207,7 +160,7 @@ func TestSubscriptionGroupVersionsCreateUsesRequiredRelationship(t *testing.T) {
 }
 
 func TestSubscriptionGroupVersionLocalizationUpdateSendsExplicitNull(t *testing.T) {
-	useSubscriptionGroupVersionTestServer(t, func(w http.ResponseWriter, req *http.Request) {
+	client := useSubscriptionGroupVersionTestServer(t, func(w http.ResponseWriter, req *http.Request) {
 		if req.Method != http.MethodPatch || req.URL.Path != "/v2/subscriptionGroupLocalizations/loc-1" {
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL)
 		}
@@ -222,16 +175,10 @@ func TestSubscriptionGroupVersionLocalizationUpdateSendsExplicitNull(t *testing.
 		_, _ = io.WriteString(w, `{"data":{"type":"subscriptionGroupLocalizations","id":"loc-1","attributes":{"name":"Premium","locale":"en-US"}}}`)
 	})
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"subscriptions", "groups", "versions", "localizations", "update", "--id", "loc-1", "--clear-custom-app-name", "--output", "json"}); err != nil {
-			t.Fatal(err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatal(err)
-		}
-	})
+	_, stderr, err := runRootWithDeps(t, client, "subscriptions", "groups", "versions", "localizations", "update", "--id", "loc-1", "--clear-custom-app-name", "--output", "json")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if stderr != "" {
 		t.Fatalf("unexpected stderr: %s", stderr)
 	}

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -26,7 +27,8 @@ func isolateSubscriptionsAuthEnv(t *testing.T) {
 }
 
 func TestSubscriptionsUpdateCommand_GroupLevelHelpOmitsSentinelDefault(t *testing.T) {
-	cmd := SubscriptionsUpdateCommand()
+	d, _ := newSubscriptionsTestDeps()
+	cmd := newSubscriptionsUpdateCommand(d)
 
 	groupLevelFlag := cmd.FlagSet.Lookup("group-level")
 	if groupLevelFlag == nil {
@@ -49,7 +51,9 @@ func TestSubscriptionsUpdateCommand_GroupLevelHelpOmitsSentinelDefault(t *testin
 func TestSubscriptionsUpdateCommand_GroupLevelWorksAsOnlyUpdateFlag(t *testing.T) {
 	isolateSubscriptionsAuthEnv(t)
 
-	cmd := SubscriptionsUpdateCommand()
+	d, _ := newSubscriptionsTestDeps()
+	d.Client = func() (*asc.Client, error) { return nil, errors.New("no client in this test") }
+	cmd := newSubscriptionsUpdateCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--id", "sub-1", "--group-level", "3"}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
 	}

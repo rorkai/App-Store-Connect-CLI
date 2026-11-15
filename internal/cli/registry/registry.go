@@ -268,7 +268,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 			return storekitcmd.NewCommand(d)
 		}),
 		commandFactory("app-events", "Manage App Store in-app events.", app_events.Command),
-		commandFactory("subscriptions", "Manage subscription groups and subscriptions.", subscriptions.SubscriptionsCommand),
+		commandFactory("subscriptions", "Manage subscription groups and subscriptions.", func() *ffcli.Command {
+			return subscriptions.NewSubscriptionsCommand(d)
+		}),
 		commandFactory("submit", "Submission lifecycle tools; use `publish appstore --submit` to ship.", func() *ffcli.Command {
 			return submit.NewSubmitCommand(d)
 		}),
