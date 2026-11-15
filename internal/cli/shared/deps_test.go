@@ -1223,16 +1223,19 @@ func TestDefaultDepsStdinMatchesProcessStdin(t *testing.T) {
 		})
 	}
 
-	for _, tty := range []bool{false, true} {
-		t.Run(fmt.Sprintf("stdin_tty=%t", tty), func(t *testing.T) {
-			useStdin(t, tty)
+	// built is the stdin when DefaultDeps is called and read the stdin when
+	// the payload is read: a caller may replace os.Stdin in between.
+	for _, tty := range []struct{ built, read bool }{{false, false}, {true, true}, {true, false}, {false, true}} {
+		t.Run(fmt.Sprintf("built_tty=%t/read_tty=%t", tty.built, tty.read), func(t *testing.T) {
+			useStdin(t, tty.read)
 			want, wantErr := ReadJSONFilePayloadKind("-", JSONPayloadAny)
 
-			useStdin(t, tty)
+			useStdin(t, tty.built)
 			d := DefaultDeps()
-			if d.IO.StdinTTY != tty {
-				t.Fatalf("DefaultDeps().IO.StdinTTY = %t, want %t", d.IO.StdinTTY, tty)
+			if d.IO.StdinTTY != tty.built {
+				t.Fatalf("DefaultDeps().IO.StdinTTY = %t, want %t", d.IO.StdinTTY, tty.built)
 			}
+			useStdin(t, tty.read)
 			got, gotErr := d.ReadJSONFilePayloadKind("-", JSONPayloadAny)
 			if !reflect.DeepEqual(got, want) || !reflect.DeepEqual(gotErr, wantErr) {
 				t.Fatalf("deps read = %q, %v; want %q, %v", got, gotErr, want, wantErr)

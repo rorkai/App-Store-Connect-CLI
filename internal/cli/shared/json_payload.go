@@ -39,10 +39,10 @@ func ReadJSONFilePayloadKind(path string, kind JSONPayloadKind) (json.RawMessage
 }
 
 // ReadJSONFilePayloadKind is ReadJSONFilePayloadKind with "-" read from d's
-// stdin, refused when d's stdin is a terminal.
+// stdin, refused when that stdin is a terminal.
 func (d *Deps) ReadJSONFilePayloadKind(path string, kind JSONPayloadKind) (json.RawMessage, error) {
 	if path == "-" {
-		return readJSONStdinPayloadKind(d.IO.In, d.IO.StdinTTY, kind)
+		return readJSONStdinPayloadKind(d.IO.In, d.IO.stdinTerminal(), kind)
 	}
 	return readJSONFilePayloadKind(path, kind)
 }

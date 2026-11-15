@@ -12,7 +12,8 @@ import (
 )
 
 // IO holds the streams a command reads and writes, and whether its stdin,
-// stdout and stderr are terminals.
+// stdout and stderr are terminals. When In is the process stdin, whether it is
+// a terminal is checked again on the stdin in use when it is read.
 type IO struct {
 	In        io.Reader
 	Out       io.Writer
@@ -50,6 +51,16 @@ func DefaultDeps() *Deps {
 		Timeout:       ContextWithTimeout,
 		UploadTimeout: ContextWithUploadTimeout,
 	}
+}
+
+// stdinTerminal reports whether s.In is a terminal. The process stdin reader
+// reads whatever os.Stdin is when it is called, so its terminal state is taken
+// from that stream at the same moment, as the package functions do.
+func (s *IO) stdinTerminal() bool {
+	if _, ok := s.In.(processStdin); ok {
+		return isTerminal(int(os.Stdin.Fd()))
+	}
+	return s.StdinTTY
 }
 
 // The process streams are resolved on each call, so a command built before
