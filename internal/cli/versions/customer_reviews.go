@@ -11,9 +11,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// VersionsCustomerReviewsCommand returns the customer reviews command group.
-func VersionsCustomerReviewsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("customer-reviews", flag.ExitOnError)
+// newVersionsCustomerReviewsCommand returns the customer reviews command group.
+func newVersionsCustomerReviewsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("customer-reviews", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "customer-reviews",
@@ -24,9 +24,9 @@ func VersionsCustomerReviewsCommand() *ffcli.Command {
 Examples:
   asc versions customer-reviews list --version-id "VERSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			VersionsCustomerReviewsListCommand(),
+			newVersionsCustomerReviewsListCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -34,11 +34,12 @@ Examples:
 	}
 }
 
-// VersionsCustomerReviewsListCommand lists customer reviews for a version.
-func VersionsCustomerReviewsListCommand() *ffcli.Command {
+// newVersionsCustomerReviewsListCommand lists customer reviews for a version.
+func newVersionsCustomerReviewsListCommand(d *shared.Deps) *ffcli.Command {
 	var filterOpts []asc.ReviewOption
 
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		Deps:        d,
 		FlagSetName: "customer-reviews list",
 		Name:        "list",
 		ShortUsage:  "asc versions customer-reviews list --version-id \"VERSION_ID\" [flags]",
@@ -66,7 +67,7 @@ Examples:
 			filters := reviews.BindReviewFilterFlags(fs)
 			return func() error {
 				var err error
-				filterOpts, err = filters.ReviewOptions()
+				filterOpts, err = filters.ReviewOptionsWith(d)
 				return err
 			}
 		},

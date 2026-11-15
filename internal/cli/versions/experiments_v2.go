@@ -10,9 +10,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// VersionsExperimentsV2Command returns the experiments v2 command group.
-func VersionsExperimentsV2Command() *ffcli.Command {
-	fs := flag.NewFlagSet("experiments-v2", flag.ExitOnError)
+// newVersionsExperimentsV2Command returns the experiments v2 command group.
+func newVersionsExperimentsV2Command(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("experiments-v2", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "experiments-v2",
@@ -23,9 +23,9 @@ func VersionsExperimentsV2Command() *ffcli.Command {
 Examples:
   asc versions experiments-v2 list --version-id "VERSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			VersionsExperimentsV2ListCommand(),
+			newVersionsExperimentsV2ListCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -33,9 +33,10 @@ Examples:
 	}
 }
 
-// VersionsExperimentsV2ListCommand lists v2 experiments for a version.
-func VersionsExperimentsV2ListCommand() *ffcli.Command {
+// newVersionsExperimentsV2ListCommand lists v2 experiments for a version.
+func newVersionsExperimentsV2ListCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		Deps:        d,
 		FlagSetName: "experiments-v2 list",
 		Name:        "list",
 		ShortUsage:  "asc versions experiments-v2 list --version-id \"VERSION_ID\" [flags]",

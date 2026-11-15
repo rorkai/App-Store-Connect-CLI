@@ -75,8 +75,8 @@ func TestListsAcceptParentFlagWithNext(t *testing.T) {
 		{args: []string{"subscriptions", "versions", "localizations", "list", "--version-id", "ver-1"}, firstURL: "https://api.appstoreconnect.apple.com/v1/subscriptionVersions/ver-1/localizations?cursor=AQ&limit=200", dataType: "subscriptionLocalizations", deps: true},
 		{args: []string{"testflight", "groups", "builds", "list", "--group-id", "group-1"}, firstURL: "https://api.appstoreconnect.apple.com/v1/betaGroups/group-1/builds?cursor=AQ&limit=200", dataType: "builds", deps: true},
 		{args: []string{"testflight", "groups", "testers", "list", "--group-id", "group-1"}, firstURL: "https://api.appstoreconnect.apple.com/v1/betaGroups/group-1/betaTesters?cursor=AQ&limit=200", dataType: "betaTesters", deps: true},
-		{args: []string{"versions", "customer-reviews", "list", "--version-id", "ver-1"}, firstURL: "https://api.appstoreconnect.apple.com/v1/appStoreVersions/ver-1/customerReviews?cursor=AQ&limit=200", dataType: "customerReviews"},
-		{args: []string{"versions", "list", "--app", "app-1"}, firstURL: "https://api.appstoreconnect.apple.com/v1/apps/app-1/appStoreVersions?cursor=AQ&limit=200", dataType: "appStoreVersions"},
+		{args: []string{"versions", "customer-reviews", "list", "--version-id", "ver-1"}, firstURL: "https://api.appstoreconnect.apple.com/v1/appStoreVersions/ver-1/customerReviews?cursor=AQ&limit=200", dataType: "customerReviews", deps: true},
+		{args: []string{"versions", "list", "--app", "app-1"}, firstURL: "https://api.appstoreconnect.apple.com/v1/apps/app-1/appStoreVersions?cursor=AQ&limit=200", dataType: "appStoreVersions", deps: true},
 		{args: []string{"webhooks", "list", "--app", "app-1"}, firstURL: "https://api.appstoreconnect.apple.com/v1/apps/app-1/webhooks?cursor=AQ&limit=200", dataType: "webhooks", deps: true},
 	})
 }

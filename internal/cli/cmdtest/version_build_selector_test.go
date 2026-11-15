@@ -275,26 +275,31 @@ func TestVersionBuildSelectorValidation(t *testing.T) {
 			name:    "attach-build build id and latest",
 			args:    []string{"versions", "attach-build", "--version-id", "version-1", "--build-id", "build-1", "--latest"},
 			wantErr: "Error: --build-id, --build-number, and --latest are mutually exclusive",
+			deps:    true,
 		},
 		{
 			name:    "attach-build version and version id",
 			args:    []string{"versions", "attach-build", "--app", "123456789", "--version", "1.2.0", "--version-id", "version-1", "--build-id", "build-1"},
 			wantErr: "Error: --version and --version-id are mutually exclusive",
+			deps:    true,
 		},
 		{
 			name:    "attach-build latest without app",
 			args:    []string{"versions", "attach-build", "--version-id", "version-1", "--latest"},
 			wantErr: "Error: --app is required with --version, --platform, --build-number, or --latest (or set ASC_APP_ID)",
+			deps:    true,
 		},
 		{
 			name:    "attach-build version without app",
 			args:    []string{"versions", "attach-build", "--version", "1.2.0", "--build-id", "build-1"},
 			wantErr: "Error: --app is required with --version, --platform, --build-number, or --latest (or set ASC_APP_ID)",
+			deps:    true,
 		},
 		{
 			name:    "attach-build timeout without wait",
 			args:    []string{"versions", "attach-build", "--version-id", "version-1", "--build-id", "build-1", "--timeout", "1m"},
 			wantErr: "Error: --timeout and --poll-interval require --wait",
+			deps:    true,
 		},
 		{
 			name:    "review submit build id and latest",

@@ -35,12 +35,9 @@ type VersionBuildScope struct {
 	Platform string
 }
 
-func BindVersionBuildSelector(fs *flag.FlagSet) *VersionBuildSelector {
-	return BindVersionBuildSelectorWith(shared.DefaultDeps(), fs)
-}
-
-// BindVersionBuildSelectorWith is BindVersionBuildSelector writing its errors
-// and notes to d's streams and bounding its lookup with d's timeout.
+// BindVersionBuildSelectorWith binds the build selector flags to fs. The
+// selector writes its errors and notes to d's streams and bounds its lookup
+// with d's timeout.
 func BindVersionBuildSelectorWith(d *shared.Deps, fs *flag.FlagSet) *VersionBuildSelector {
 	return &VersionBuildSelector{
 		d:            d,

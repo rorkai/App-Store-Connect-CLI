@@ -5,7 +5,7 @@ import "testing"
 func TestUsersVersionsListsRejectsInvalidNextURL(t *testing.T) {
 	runInvalidNextURLCases(t, []invalidNextURLCase{
 		{args: []string{"users", "visible-apps", "list"}, wantErr: "users visible-apps list: --next", deps: true},
-		{args: []string{"versions", "links", "--type", "appStoreVersionExperiments"}, wantErr: "versions links: --next"},
+		{args: []string{"versions", "links", "--type", "appStoreVersionExperiments"}, wantErr: "versions links: --next", deps: true},
 	})
 }
 
@@ -39,16 +39,19 @@ func TestUsersVersionsListsPaginateFromNext(t *testing.T) {
 			args:     []string{"versions", "links", "--type", "appStoreVersionExperiments"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/appStoreVersions/ver-1/relationships/appStoreVersionExperiments?cursor=AQ&limit=200",
 			dataType: "appStoreVersionExperiments",
+			deps:     true,
 		},
 		{
 			args:     []string{"versions", "experiments-v2", "list"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/appStoreVersions/ver-1/appStoreVersionExperimentsV2?cursor=AQ&limit=200",
 			dataType: "appStoreVersionExperimentsV2",
+			deps:     true,
 		},
 		{
 			args:     []string{"versions", "customer-reviews", "list"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/appStoreVersions/ver-1/customerReviews?cursor=AQ&limit=200",
 			dataType: "customerReviews",
+			deps:     true,
 		},
 	})
 }

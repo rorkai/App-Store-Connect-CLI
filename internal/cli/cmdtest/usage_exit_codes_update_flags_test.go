@@ -441,6 +441,7 @@ func TestUpdateWithoutUpdateFlagsListsEveryUpdateFlag(t *testing.T) {
 			name:  "versions update",
 			args:  []string{"versions", "update", "--version-id", "ID"},
 			flags: "--copyright, --release-type, --review-type, --earliest-release-date, --version, --downloadable",
+			deps:  true,
 		},
 		{
 			name:  "web apps compatibility edit",

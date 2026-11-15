@@ -230,7 +230,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("pkg-info", "Inspect a local flat package or product archive without contacting Apple.", func() *ffcli.Command {
 			return artifacts.NewPKGInfoCommand(d)
 		}),
-		commandFactory("versions", "Manage App Store versions.", versions.VersionsCommand),
+		commandFactory("versions", "Manage App Store versions.", func() *ffcli.Command {
+			return versions.NewVersionsCommand(d)
+		}),
 		commandFactory("product-pages", "Manage custom product pages and product page experiments.", func() *ffcli.Command {
 			return productpages.NewProductPagesCommand(d)
 		}),

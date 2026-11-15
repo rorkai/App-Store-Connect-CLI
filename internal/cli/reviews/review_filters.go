@@ -138,15 +138,10 @@ var ReviewNextConflicts = []string{
 	"limit",
 }
 
-// ReviewOptions validates the bound flags and returns the matching query
-// options. Invalid input is reported as a usage failure carrying the offending
-// parameter so both review listings fail the same way.
-func (f *ReviewFilterFlags) ReviewOptions() ([]asc.ReviewOption, error) {
-	return f.ReviewOptionsWith(shared.DefaultDeps())
-}
-
-// ReviewOptionsWith is ReviewOptions with its usage errors written to d's
-// stderr.
+// ReviewOptionsWith validates the bound flags and returns the matching query
+// options. Invalid input is reported as a usage failure, written to d's
+// stderr, carrying the offending parameter so both review listings fail the
+// same way.
 func (f *ReviewFilterFlags) ReviewOptionsWith(d *shared.Deps) ([]asc.ReviewOption, error) {
 	if f.starsSet && strings.TrimSpace(f.Stars) == "" {
 		return nil, shared.WithDiagnostic(d.UsageError(errInvalidReviewStars().Error()), shared.DiagnosticInvalidInput, "--stars")

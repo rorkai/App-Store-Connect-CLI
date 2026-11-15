@@ -8,7 +8,8 @@ import (
 )
 
 func TestVersionsReleaseCommand_MissingVersionID(t *testing.T) {
-	cmd := VersionsReleaseCommand()
+	d, _ := newVersionsTestDeps(nil)
+	cmd := newVersionsReleaseCommand(d)
 
 	if err := cmd.FlagSet.Parse([]string{}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
@@ -20,7 +21,8 @@ func TestVersionsReleaseCommand_MissingVersionID(t *testing.T) {
 }
 
 func TestVersionsReleaseCommand_FlagDefinitions(t *testing.T) {
-	cmd := VersionsReleaseCommand()
+	d, _ := newVersionsTestDeps(nil)
+	cmd := newVersionsReleaseCommand(d)
 	expectedFlags := []string{"version-id", "confirm", "output", "pretty"}
 	for _, name := range expectedFlags {
 		if cmd.FlagSet.Lookup(name) == nil {
@@ -30,7 +32,8 @@ func TestVersionsReleaseCommand_FlagDefinitions(t *testing.T) {
 }
 
 func TestVersionsReleaseCommand_DefaultOutputJSON(t *testing.T) {
-	cmd := VersionsReleaseCommand()
+	d, _ := newVersionsTestDeps(nil)
+	cmd := newVersionsReleaseCommand(d)
 	f := cmd.FlagSet.Lookup("output")
 	if f == nil {
 		t.Fatal("expected --output flag to be defined")

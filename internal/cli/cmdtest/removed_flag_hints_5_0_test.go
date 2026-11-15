@@ -33,6 +33,7 @@ func TestRemovedFlagAliasesNameTheirReplacement(t *testing.T) {
 			name: "versions view --id",
 			args: []string{"versions", "view", "--id=PRIVATE_VALUE"},
 			want: "Error: `--id` was removed in 5.0.0; use `--version-id` (see migrate-to-5-0)\nFor help:\n  asc versions view --help\n",
+			deps: true,
 		},
 		{
 			name: "apps view --app",

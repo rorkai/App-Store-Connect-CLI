@@ -60,6 +60,7 @@ func TestSelfLinkWrongTypeIsUsageErrorBeforeAuthOrRequest(t *testing.T) {
 			flag:    "version-id",
 			value:   selfLinkTestBase + "/v1/appStoreVersions/version-1/relationships/build",
 			wantErr: "/v1/<type>/<id>",
+			deps:    true,
 		},
 		{
 			name:    "iap view rejects subscriptions link",

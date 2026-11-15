@@ -339,6 +339,8 @@ func TestCustomerReviewListsRejectQueryFlagsWithNext(t *testing.T) {
 			name:    "version stars",
 			args:    []string{"versions", "customer-reviews", "list", "--next", nextURL, "--stars", "1"},
 			wantErr: "--next cannot be combined with --stars",
+			deps:    true,
+			deps:    true,
 		},
 		{
 			name:    "app response fields",
@@ -350,6 +352,7 @@ func TestCustomerReviewListsRejectQueryFlagsWithNext(t *testing.T) {
 			name:    "explicit empty territory",
 			args:    []string{"versions", "customer-reviews", "list", "--next", nextURL, "--territory", ""},
 			wantErr: "--next cannot be combined with --territory",
+			deps:    true,
 		},
 		{
 			name:    "app review territory",
@@ -361,6 +364,7 @@ func TestCustomerReviewListsRejectQueryFlagsWithNext(t *testing.T) {
 			name:    "version fields",
 			args:    []string{"versions", "customer-reviews", "list", "--next", nextURL, "--fields", "rating"},
 			wantErr: "--next cannot be combined with --fields",
+			deps:    true,
 		},
 		{
 			name:    "app include",
@@ -372,6 +376,7 @@ func TestCustomerReviewListsRejectQueryFlagsWithNext(t *testing.T) {
 			name:    "version territory fields",
 			args:    []string{"versions", "customer-reviews", "list", "--next", nextURL, "--territory-fields", "currency"},
 			wantErr: "--next cannot be combined with --territory-fields",
+			deps:    true,
 		},
 		{
 			name:    "explicit zero limit",
@@ -450,6 +455,7 @@ func TestCustomerReviewReadsSendRequestedQuery(t *testing.T) {
 			path:     "/v1/appStoreVersions/version-1/customerReviews",
 			payload:  listPayload,
 			wantRead: withFilters(selectionQuery),
+			deps:     true,
 		},
 		{
 			deps:     true,
@@ -599,6 +605,7 @@ func TestCustomerReviewReadsKeepAppleAttributes(t *testing.T) {
 			name:       "version list full read",
 			args:       []string{"versions", "customer-reviews", "list", "--version-id", "version-1"},
 			attributes: fullAttributes,
+			deps:       true,
 		},
 		{
 			deps:       true,

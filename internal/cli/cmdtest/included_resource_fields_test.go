@@ -178,12 +178,14 @@ func includedFieldsCases() []includedFieldsCase {
 			command: []string{"versions", "list"}, selector: []string{"--app", "app-1"},
 			include: versionIncludes, path: "/v1/apps/app-1/appStoreVersions",
 			flags: versionIncludedFieldFlags,
+			deps:  true,
 		},
 		{
 			name: "versions view", operation: "appStoreVersions_getInstance", resource: true, noNext: true,
 			command: []string{"versions", "view"}, selector: []string{"--version-id", "version-1"},
 			include: versionIncludes, path: "/v1/appStoreVersions/version-1",
 			flags: versionIncludedFieldFlags,
+			deps:  true,
 		},
 		{
 			name: "certificates view", operation: "certificates_getInstance", resource: true, noNext: true,
