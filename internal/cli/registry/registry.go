@@ -351,7 +351,7 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 			return searchcmd.NewSearchCommand(d, catalog.All)
 		}),
 		commandFactory("snitch", "Report CLI friction as a GitHub issue.", func() *ffcli.Command {
-			return snitch.SnitchCommand(version)
+			return snitch.NewSnitchCommand(d, version)
 		}),
 		commandFactory("version", "Print version information and exit.", func() *ffcli.Command {
 			return VersionCommand(version)
