@@ -116,9 +116,10 @@ or conventional metadata/ and screenshots/ directories:
   │   │   ├── iphone_65_1.png
   │   │   └── ...
 
-App-level text files directly in metadata/ (copyright.txt, the category files)
-and a locale or default folder's apple_tv_privacy_policy.txt are not imported;
-non-empty ones are listed in skipped with the asc command that sets each value.
+metadata/copyright.txt sets the version's copyright; an empty file is skipped.
+The category files directly in metadata/ and a locale or default folder's
+apple_tv_privacy_policy.txt are not imported; non-empty ones are listed in
+skipped with the asc command that sets each value.
 
 App Preview validation requires ffprobe on PATH (provided by FFmpeg).
 Headers must be PNG at 1800 x 1200; previews must be 15-30 seconds.
@@ -192,6 +193,7 @@ Examples:
 			var localizations []FastlaneLocalization
 			var appInfoLocs []AppInfoFastlaneLocalization
 			var reviewInfo *ReviewInformation
+			var copyright string
 			if metadataDir != "" {
 				localeDirs, metadataSkipped, err := scanFastlaneMetadataLocaleDirs(metadataDir)
 				if err != nil {
@@ -212,6 +214,13 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("migrate import: %w", err)
 				}
+
+				var copyrightSkipped []SkippedItem
+				copyright, copyrightSkipped, err = readCopyrightFile(metadataDir)
+				if err != nil {
+					return fmt.Errorf("migrate import: %w", err)
+				}
+				skipped = append(skipped, copyrightSkipped...)
 			}
 			var appClip *AppClipLayout
 			if metadataDir != "" && !*skipAppClip {
@@ -363,6 +372,7 @@ Examples:
 				MetadataFiles:        metadataFiles,
 				AppInfoFiles:         appInfoFiles,
 				ReviewInformation:    reviewInfo,
+				Copyright:            copyright,
 				ScreenshotPlan:       screenshotPlan,
 				AppClip:              appClip,
 				Previews:             previews,
@@ -484,6 +494,17 @@ Examples:
 				completedStages = append(completedStages, migrateStageReviewInformation)
 			}
 
+			if copyright != "" {
+				copyrightCtx, cancelCopyright := migrateRequestContext(ctx)
+				_, err = client.UpdateAppStoreVersion(copyrightCtx, resolvedVersionID, asc.AppStoreVersionUpdateAttributes{Copyright: &copyright})
+				cancelCopyright()
+				if err != nil {
+					return reportPartialFailure(migrateStageCopyright, fmt.Errorf("migrate import: failed to update copyright: %w", err))
+				}
+				result.CopyrightUpdated = true
+				completedStages = append(completedStages, migrateStageCopyright)
+			}
+
 			screenshotResults, err := uploadScreenshots(ctx, client, resolvedVersionID, localeToID, screenshotPlan)
 			result.ScreenshotResults = screenshotResults
 			if err != nil {
@@ -522,6 +543,7 @@ func migrateImportAppliedAnything(result *MigrateImportResult) bool {
 	return len(result.Uploaded) > 0 ||
 		len(result.AppInfoUploaded) > 0 ||
 		migrateReviewInfoApplied(result.ReviewInfoResult) ||
+		result.CopyrightUpdated ||
 		migrateScreenshotsApplied(result.ScreenshotResults)
 }
 
@@ -787,6 +809,7 @@ const (
 	migrateStageVersionLocalizations = "version_localizations"
 	migrateStageAppInfoLocalizations = "app_info_localizations"
 	migrateStageReviewInformation    = "review_information"
+	migrateStageCopyright            = "copyright"
 	migrateStageScreenshots          = "screenshots"
 )
 
@@ -818,6 +841,7 @@ type MigrateImportResult struct {
 	MetadataFiles        []LocalizationFilePlan        `json:"metadataFiles,omitempty"`
 	AppInfoFiles         []LocalizationFilePlan        `json:"appInfoFiles,omitempty"`
 	ReviewInformation    *ReviewInformation            `json:"reviewInformation,omitempty"`
+	Copyright            string                        `json:"copyright,omitempty"`
 	ScreenshotPlan       []ScreenshotPlan              `json:"screenshotPlan,omitempty"`
 	AppClip              *AppClipLayout                `json:"appClip,omitempty"`
 	Previews             []PreviewLayout               `json:"previews,omitempty"`
@@ -825,6 +849,7 @@ type MigrateImportResult struct {
 	Uploaded             []LocalizationUploadItem      `json:"uploaded,omitempty"`
 	AppInfoUploaded      []LocalizationUploadItem      `json:"appInfoUploaded,omitempty"`
 	ReviewInfoResult     *ReviewInfoResult             `json:"reviewInfoResult,omitempty"`
+	CopyrightUpdated     bool                          `json:"copyrightUpdated,omitempty"`
 	ScreenshotResults    []ScreenshotUploadResult      `json:"screenshotResults,omitempty"`
 }
 
@@ -1116,13 +1141,29 @@ const defaultMetadataDirName = "default"
 // appLevelMetadataFiles maps the metadata folder's app-level text files, which
 // import does not apply, to the command that sets each value.
 var appLevelMetadataFiles = map[string]string{
-	"copyright.txt":                     "asc versions update --version-id VERSION_ID --copyright TEXT",
 	"primary_category.txt":              "asc app-setup categories set --app APP_ID --primary CATEGORY_ID",
 	"secondary_category.txt":            "asc app-setup categories set --app APP_ID --primary CATEGORY_ID --secondary CATEGORY_ID",
 	"primary_first_sub_category.txt":    "asc app-setup categories set --app APP_ID --primary CATEGORY_ID --primary-subcategory-one SUBCATEGORY_ID",
 	"primary_second_sub_category.txt":   "asc app-setup categories set --app APP_ID --primary CATEGORY_ID --primary-subcategory-two SUBCATEGORY_ID",
 	"secondary_first_sub_category.txt":  "asc app-setup categories set --app APP_ID --primary CATEGORY_ID --secondary CATEGORY_ID --secondary-subcategory-one SUBCATEGORY_ID",
 	"secondary_second_sub_category.txt": "asc app-setup categories set --app APP_ID --primary CATEGORY_ID --secondary CATEGORY_ID --secondary-subcategory-two SUBCATEGORY_ID",
+}
+
+// readCopyrightFile reads the metadata folder's copyright.txt. An empty file
+// is reported as skipped so it never clears the version's copyright.
+func readCopyrightFile(metadataDir string) (string, []SkippedItem, error) {
+	root, prefix, err := newMigrateContentRoot(metadataDir)
+	if err != nil {
+		return "", nil, err
+	}
+	value, found, err := readOptionalFile(root, filepath.Join(prefix, "copyright.txt"))
+	if err != nil {
+		return "", nil, err
+	}
+	if found && value == "" {
+		return "", []SkippedItem{{Path: filepath.Join(metadataDir, "copyright.txt"), Reason: "copyright.txt is empty; not applied"}}, nil
+	}
+	return value, nil, nil
 }
 
 // localePrivacyPolicyTextFile is a locale folder's privacy policy text, which
@@ -1493,6 +1534,11 @@ Examples:
 					return fmt.Errorf("migrate validate: %w", err)
 				}
 
+				_, copyrightSkipped, err := readCopyrightFile(metadataDir)
+				if err != nil {
+					return fmt.Errorf("migrate validate: %w", err)
+				}
+				skipped = append(skipped, copyrightSkipped...)
 			}
 			var clip *AppClipLayout
 			if metadataDir != "" {
