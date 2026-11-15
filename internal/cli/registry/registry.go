@@ -168,7 +168,7 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("ads", "Manage Apple Ads API resources.", func() *ffcli.Command {
 			return ads.NewAdsCommand(d)
 		}),
-		commandFactory("optimize", "Build cross-API optimization plans.", optimize.OptimizeCommand),
+		commandFactory("optimize", "Build cross-API optimization plans.", func() *ffcli.Command { return optimize.NewOptimizeCommand(d) }),
 		commandFactory("performance", "Access performance metrics and diagnostic logs.", func() *ffcli.Command {
 			return performance.NewPerformanceCommand(d)
 		}),

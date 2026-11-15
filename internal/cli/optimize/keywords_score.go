@@ -32,13 +32,9 @@ const (
 
 var collectSearchPopularityForKeywords = ads.CollectSearchPopularity
 
-// KeywordsScoreCommand returns the composed keyword scoring command.
-func KeywordsScoreCommand() *ffcli.Command {
-	return keywordsScoreCommand(time.Now)
-}
-
-func keywordsScoreCommand(now func() time.Time) *ffcli.Command {
-	fs := flag.NewFlagSet("score", flag.ExitOnError)
+// newKeywordsScoreCommand returns the composed keyword scoring command.
+func newKeywordsScoreCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("score", flag.ExitOnError)
 	keywords := shared.BindOnceCSVFlag(fs, "keywords", "Comma-separated keyword candidates to score (required)")
 	country := fs.String("country", "us", "ISO alpha-2 App Store storefront country or region")
 	appID := fs.String("app", "", "App Store app ID; adds this app's rank (or ASC_APP_ID env)")
@@ -46,7 +42,7 @@ func keywordsScoreCommand(now func() time.Time) *ffcli.Command {
 	adAccount := fs.String("ad-account", "", "Apple Ads ad account ID (or ASC_ADS_AD_ACCOUNT_ID/profile default)")
 	adsProfile := fs.String("ads-profile", "", "Use named Apple Ads authentication profile")
 	workers := fs.Int("workers", 10, "Number of parallel keyword lookups")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "score",
@@ -84,46 +80,46 @@ Examples:
   asc optimize keywords score --keywords "focus timer" --app "1234567890" --output table
   asc optimize keywords score --keywords "focus timer" --app "1234567890" --genre PRODUCTIVITY_UTILITIES --ad-account "987654321" --country US`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(keywords.String()) == "" {
-				return shared.UsageError("--keywords is required")
+				return d.UsageError("--keywords is required")
 			}
-			normalizedKeywords, err := normalizeKeywordList(keywords.String())
+			normalizedKeywords, err := normalizeKeywordList(d, keywords.String())
 			if err != nil {
 				return err
 			}
 			if *workers < 1 {
-				return shared.UsageError("--workers must be at least 1")
+				return d.UsageError("--workers must be at least 1")
 			}
 			effectiveWorkers := *workers
 			if effectiveWorkers > len(normalizedKeywords) {
 				effectiveWorkers = len(normalizedKeywords)
 			}
-			normalizedCountry, err := normalizeKeywordCountry(*country)
+			normalizedCountry, err := normalizeKeywordCountry(d, *country)
 			if err != nil {
 				return err
 			}
 			resolvedAppID := ""
 			if strings.TrimSpace(shared.ResolveAppID(*appID)) != "" {
-				if resolvedAppID, err = normalizeKeywordAppID(*appID); err != nil {
+				if resolvedAppID, err = normalizeKeywordAppID(d, *appID); err != nil {
 					return err
 				}
 			}
 			normalizedGenre := strings.ToUpper(strings.TrimSpace(*genre))
 			if normalizedGenre != "" && !searchPlanGenrePattern.MatchString(normalizedGenre) {
-				return shared.UsageError("--genre must be an Apple Ads genre identifier such as PRODUCTIVITY_UTILITIES")
+				return d.UsageError("--genre must be an Apple Ads genre identifier such as PRODUCTIVITY_UTILITIES")
 			}
 
-			client := newKeywordsItunesClient()
-			competition, sources := collectKeywordCompetition(ctx, client, keywordCompetitionRequest{
+			client := newKeywordsItunesClient(d)
+			competition, sources := collectKeywordCompetition(ctx, d, client, keywordCompetitionRequest{
 				Keywords: normalizedKeywords,
 				Country:  normalizedCountry,
 				AppID:    resolvedAppID,
 				Workers:  effectiveWorkers,
 			})
 
-			popularity, popularitySource := collectKeywordPopularity(ctx, keywordPopularityRequest{
+			popularity, popularitySource := collectKeywordPopularity(ctx, d, keywordPopularityRequest{
 				Keywords:   normalizedKeywords,
 				Country:    strings.ToUpper(normalizedCountry),
 				Genre:      normalizedGenre,
@@ -135,7 +131,7 @@ Examples:
 				return err
 			}
 
-			reportTime := now().UTC()
+			reportTime := d.Now().UTC()
 			report := buildKeywordScoreReport(keywordScoreBuildInput{
 				GeneratedAt: reportTime.Format(time.RFC3339),
 				AppID:       resolvedAppID,
@@ -155,7 +151,7 @@ Examples:
 				return fmt.Errorf("optimize keywords score: %w", representativeKeywordError(failures))
 			}
 
-			return shared.PrintOutput(&report, *output.Output, *output.Pretty)
+			return d.PrintOutput(&report, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -180,11 +176,12 @@ type keywordCompetitionRequest struct {
 // then hydrates the top competitors' release dates in deduplicated batches.
 func collectKeywordCompetition(
 	ctx context.Context,
+	d *shared.Deps,
 	client *itunes.Client,
 	request keywordCompetitionRequest,
 ) ([]keywordCompetition, []ads.SearchOptimizationSourceStatus) {
 	searchResults := fanOutKeywords(ctx, request.Keywords, request.Workers, func(ctx context.Context, keyword string) ([]itunes.SearchResult, error) {
-		requestCtx, cancel := shared.ContextWithTimeout(ctx)
+		requestCtx, cancel := d.Timeout(ctx)
 		defer cancel()
 		return client.SearchApps(requestCtx, keyword, request.Country, 200)
 	})
@@ -202,7 +199,7 @@ func collectKeywordCompetition(
 		competition = append(competition, entry)
 	}
 
-	metadata, metadataStatus := hydrateCompetitorMetadata(ctx, client, competition, request.Country, request.Workers)
+	metadata, metadataStatus := hydrateCompetitorMetadata(ctx, d, client, competition, request.Country, request.Workers)
 	for index := range competition {
 		for appIndex := range competition[index].Apps {
 			hydrated, ok := metadata[competition[index].Apps[appIndex].AppID]
@@ -285,6 +282,7 @@ func rankInSearchResults(results []itunes.SearchResult, appID string) *int {
 // every keyword in deduplicated, bounded batches.
 func hydrateCompetitorMetadata(
 	ctx context.Context,
+	d *shared.Deps,
 	client *itunes.Client,
 	competition []keywordCompetition,
 	country string,
@@ -317,7 +315,7 @@ func hydrateCompetitorMetadata(
 		chunkKeys[index] = strings.Join(chunks[index], ",")
 	}
 	results := fanOutKeywords(ctx, chunkKeys, workers, func(ctx context.Context, chunk string) (map[string]publicAppMetadata, error) {
-		requestCtx, cancel := shared.ContextWithTimeout(ctx)
+		requestCtx, cancel := d.Timeout(ctx)
 		defer cancel()
 		return fetchPublicAppMetadata(requestCtx, client, strings.Split(chunk, ","), country)
 	})
@@ -385,6 +383,7 @@ type keywordPopularityRequest struct {
 // genre is missing.
 func collectKeywordPopularity(
 	ctx context.Context,
+	d *shared.Deps,
 	request keywordPopularityRequest,
 ) (map[string]asc.KeywordPopularity, ads.SearchOptimizationSourceStatus) {
 	if strings.TrimSpace(request.Genre) == "" {
@@ -395,7 +394,7 @@ func collectKeywordPopularity(
 		}
 	}
 
-	window, err := resolveSearchPlanWindow(keywordScorePopularityWindow, time.Now())
+	window, err := resolveSearchPlanWindow(keywordScorePopularityWindow, d.Now())
 	if err != nil {
 		return nil, ads.SearchOptimizationSourceStatus{
 			Name:   keywordSourcePopularity,
@@ -404,7 +403,7 @@ func collectKeywordPopularity(
 		}
 	}
 
-	rows, err := collectSearchPopularityForKeywords(ctx, request.AdsProfile, request.AdAccount, ads.SearchOptimizationRequest{
+	rows, err := collectSearchPopularityForKeywords(ctx, d, request.AdsProfile, request.AdAccount, ads.SearchOptimizationRequest{
 		Country:         request.Country,
 		Genre:           request.Genre,
 		PopularityStart: window.PopularityStart,
