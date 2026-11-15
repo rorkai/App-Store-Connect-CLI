@@ -224,7 +224,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 			return buildbundles.NewBuildBundlesCommand(d)
 		}),
 		commandFactory("publish", "High-level publish workflows for TestFlight and App Store.", publish.PublishCommand),
-		commandFactory("release", "Run high-level App Store release workflows.", release.ReleaseCommand),
+		commandFactory("release", "Run high-level App Store release workflows.", func() *ffcli.Command {
+			return release.NewReleaseCommand(d)
+		}),
 		commandFactory("workflow", "Run multi-step automation workflows.", workflow.WorkflowCommand),
 		commandFactory("xcode", "Local Xcode build/archive/export and signing-settings helpers.", xcode.XcodeCommand),
 		commandFactory("distribute", "Plan, execute, inspect, and publish iOS distribution artifacts.", distribute.DistributeCommand),

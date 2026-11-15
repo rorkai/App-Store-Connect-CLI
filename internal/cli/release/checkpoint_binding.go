@@ -3,7 +3,6 @@ package release
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -21,6 +20,7 @@ import (
 // instead of being reported as done.
 func verifyResumedCheckpointBinding(
 	ctx context.Context,
+	d *shared.Deps,
 	client *asc.Client,
 	opts runOptions,
 	checkpoint *runCheckpoint,
@@ -35,7 +35,7 @@ func verifyResumedCheckpointBinding(
 			emit(message)
 			return
 		}
-		fmt.Fprintln(os.Stderr, message)
+		fmt.Fprintln(d.IO.ErrOut, message)
 	}
 
 	for name, completed := range checkpoint.Completed {

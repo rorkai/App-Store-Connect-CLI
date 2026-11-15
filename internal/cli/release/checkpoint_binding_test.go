@@ -10,6 +10,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/metadata"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	validatecli "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/validate"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/validation"
 )
@@ -36,6 +37,7 @@ func checkpointBindingOptions() runOptions {
 }
 
 func TestVerifyResumedCheckpointBindingRejectsVersionOwnedByAnotherApp(t *testing.T) {
+	d := releaseTestDeps()
 	client := newCheckpointBindingClient(t, func(req *http.Request) (*http.Response, error) {
 		switch {
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/VERSION_B":
@@ -49,7 +51,7 @@ func TestVerifyResumedCheckpointBindingRejectsVersionOwnedByAnotherApp(t *testin
 		VersionID: "VERSION_B",
 		Completed: map[string]bool{stepEnsureVersion: true},
 	}
-	err := verifyResumedCheckpointBinding(context.Background(), client, checkpointBindingOptions(), &checkpoint, nil)
+	err := verifyResumedCheckpointBinding(context.Background(), d, client, checkpointBindingOptions(), &checkpoint, nil)
 	if err == nil {
 		t.Fatal("expected checkpoint verification to reject a version owned by another app")
 	}
@@ -59,6 +61,7 @@ func TestVerifyResumedCheckpointBindingRejectsVersionOwnedByAnotherApp(t *testin
 }
 
 func TestVerifyResumedCheckpointBindingRejectsVersionStringMismatch(t *testing.T) {
+	d := releaseTestDeps()
 	client := newCheckpointBindingClient(t, func(req *http.Request) (*http.Response, error) {
 		switch {
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/VERSION_123":
@@ -72,7 +75,7 @@ func TestVerifyResumedCheckpointBindingRejectsVersionStringMismatch(t *testing.T
 		VersionID: "VERSION_123",
 		Completed: map[string]bool{stepEnsureVersion: true},
 	}
-	err := verifyResumedCheckpointBinding(context.Background(), client, checkpointBindingOptions(), &checkpoint, nil)
+	err := verifyResumedCheckpointBinding(context.Background(), d, client, checkpointBindingOptions(), &checkpoint, nil)
 	if err == nil {
 		t.Fatal("expected checkpoint verification to reject a version string mismatch")
 	}
@@ -82,6 +85,7 @@ func TestVerifyResumedCheckpointBindingRejectsVersionStringMismatch(t *testing.T
 }
 
 func TestVerifyResumedCheckpointBindingRejectsCompletedStepsWithoutVersionBinding(t *testing.T) {
+	d := releaseTestDeps()
 	client := newCheckpointBindingClient(t, func(req *http.Request) (*http.Response, error) {
 		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
 	})
@@ -89,13 +93,14 @@ func TestVerifyResumedCheckpointBindingRejectsCompletedStepsWithoutVersionBindin
 	checkpoint := runCheckpoint{
 		Completed: map[string]bool{stepApplyMetadata: true},
 	}
-	err := verifyResumedCheckpointBinding(context.Background(), client, checkpointBindingOptions(), &checkpoint, nil)
+	err := verifyResumedCheckpointBinding(context.Background(), d, client, checkpointBindingOptions(), &checkpoint, nil)
 	if err == nil {
 		t.Fatal("expected checkpoint verification to reject completed steps without a bound version")
 	}
 }
 
 func TestVerifyResumedCheckpointBindingRejectsUnknownCompletedStep(t *testing.T) {
+	d := releaseTestDeps()
 	client := newCheckpointBindingClient(t, func(req *http.Request) (*http.Response, error) {
 		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
 	})
@@ -104,7 +109,7 @@ func TestVerifyResumedCheckpointBindingRejectsUnknownCompletedStep(t *testing.T)
 		VersionID: "VERSION_123",
 		Completed: map[string]bool{"publish_everything": true},
 	}
-	err := verifyResumedCheckpointBinding(context.Background(), client, checkpointBindingOptions(), &checkpoint, nil)
+	err := verifyResumedCheckpointBinding(context.Background(), d, client, checkpointBindingOptions(), &checkpoint, nil)
 	if err == nil {
 		t.Fatal("expected checkpoint verification to reject an unknown completed step")
 	}
@@ -114,6 +119,7 @@ func TestVerifyResumedCheckpointBindingRejectsUnknownCompletedStep(t *testing.T)
 }
 
 func TestVerifyResumedCheckpointBindingDropsUnprovenAttachBuildCompletion(t *testing.T) {
+	d := releaseTestDeps()
 	client := newCheckpointBindingClient(t, func(req *http.Request) (*http.Response, error) {
 		switch {
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/VERSION_123":
@@ -130,7 +136,7 @@ func TestVerifyResumedCheckpointBindingDropsUnprovenAttachBuildCompletion(t *tes
 		Completed: map[string]bool{stepEnsureVersion: true, stepAttachBuild: true},
 	}
 	var messages []string
-	if err := verifyResumedCheckpointBinding(context.Background(), client, checkpointBindingOptions(), &checkpoint, func(message string) {
+	if err := verifyResumedCheckpointBinding(context.Background(), d, client, checkpointBindingOptions(), &checkpoint, func(message string) {
 		messages = append(messages, message)
 	}); err != nil {
 		t.Fatalf("verifyResumedCheckpointBinding error: %v", err)
@@ -151,6 +157,7 @@ func TestVerifyResumedCheckpointBindingDropsUnprovenAttachBuildCompletion(t *tes
 // validate_readiness: readiness was checked against whatever build was
 // attached at the time, so it must run again after the build is re-attached.
 func TestVerifyResumedCheckpointBindingDropsReadinessWithUnprovenAttachBuild(t *testing.T) {
+	d := releaseTestDeps()
 	client := newCheckpointBindingClient(t, func(req *http.Request) (*http.Response, error) {
 		switch {
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/VERSION_123":
@@ -171,7 +178,7 @@ func TestVerifyResumedCheckpointBindingDropsReadinessWithUnprovenAttachBuild(t *
 		},
 	}
 	var messages []string
-	if err := verifyResumedCheckpointBinding(context.Background(), client, checkpointBindingOptions(), &checkpoint, func(message string) {
+	if err := verifyResumedCheckpointBinding(context.Background(), d, client, checkpointBindingOptions(), &checkpoint, func(message string) {
 		messages = append(messages, message)
 	}); err != nil {
 		t.Fatalf("verifyResumedCheckpointBinding error: %v", err)
@@ -191,6 +198,7 @@ func TestVerifyResumedCheckpointBindingDropsReadinessWithUnprovenAttachBuild(t *
 }
 
 func TestVerifyResumedCheckpointBindingKeepsProvenCheckpoint(t *testing.T) {
+	d := releaseTestDeps()
 	client := newCheckpointBindingClient(t, func(req *http.Request) (*http.Response, error) {
 		switch {
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/VERSION_123":
@@ -211,7 +219,7 @@ func TestVerifyResumedCheckpointBindingKeepsProvenCheckpoint(t *testing.T) {
 			stepValidateReadiness: true,
 		},
 	}
-	if err := verifyResumedCheckpointBinding(context.Background(), client, checkpointBindingOptions(), &checkpoint, nil); err != nil {
+	if err := verifyResumedCheckpointBinding(context.Background(), d, client, checkpointBindingOptions(), &checkpoint, nil); err != nil {
 		t.Fatalf("verifyResumedCheckpointBinding error: %v", err)
 	}
 	if len(checkpoint.Completed) != 2 {
@@ -228,20 +236,19 @@ func TestVerifyResumedCheckpointBindingKeepsProvenCheckpoint(t *testing.T) {
 // TestExecuteStage_RejectsForgedCheckpointVersionBeforeMutation proves a modified
 // checkpoint cannot substitute VersionID and have the pipeline act on it.
 func TestExecuteStage_RejectsForgedCheckpointVersionBeforeMutation(t *testing.T) {
-	origClientFactory := releaseClientFactory
+	d := releaseTestDeps()
 	origMetadataExecutor := metadataPushExecutor
 	origReadinessBuilder := readinessReportBuilder
 	t.Cleanup(func() {
-		releaseClientFactory = origClientFactory
 		metadataPushExecutor = origMetadataExecutor
 		readinessReportBuilder = origReadinessBuilder
 	})
 
-	metadataPushExecutor = func(context.Context, metadata.PushExecutionOptions) (metadata.PushPlanResult, error) {
+	metadataPushExecutor = func(context.Context, *shared.Deps, metadata.PushExecutionOptions) (metadata.PushPlanResult, error) {
 		t.Fatal("metadata executor must not run for an unverifiable checkpoint")
 		return metadata.PushPlanResult{}, nil
 	}
-	readinessReportBuilder = func(context.Context, validatecli.ReadinessOptions) (validation.Report, error) {
+	readinessReportBuilder = func(context.Context, *shared.Deps, validatecli.ReadinessOptions) (validation.Report, error) {
 		t.Fatal("readiness builder must not run for an unverifiable checkpoint")
 		return validation.Report{}, nil
 	}
@@ -258,10 +265,10 @@ func TestExecuteStage_RejectsForgedCheckpointVersionBeforeMutation(t *testing.T)
 			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
 		}
 	})
-	releaseClientFactory = func() (*asc.Client, error) { return client, nil }
+	d.Client = func() (*asc.Client, error) { return client, nil }
 
 	checkpointPath := filepath.Join(t.TempDir(), "release-checkpoint.json")
-	if err := saveCheckpoint(checkpointPath, runCheckpoint{
+	if err := saveCheckpoint(d, checkpointPath, runCheckpoint{
 		AppID:       "APP_123",
 		Version:     "2.4.0",
 		BuildID:     "BUILD_123",
@@ -278,7 +285,7 @@ func TestExecuteStage_RejectsForgedCheckpointVersionBeforeMutation(t *testing.T)
 		t.Fatalf("save checkpoint: %v", err)
 	}
 
-	result, err := executeStage(context.Background(), runOptions{
+	result, err := executeStage(context.Background(), d, runOptions{
 		AppID:          "APP_123",
 		Version:        "2.4.0",
 		BuildID:        "BUILD_123",
@@ -305,6 +312,7 @@ func TestExecuteStage_RejectsForgedCheckpointVersionBeforeMutation(t *testing.T)
 // and then skip readiness, submitting a version whose readiness was never
 // validated against the state the mutation produced.
 func TestVerifyResumedCheckpointBindingDropsReadinessWithIncompletePrerequisite(t *testing.T) {
+	d := releaseTestDeps()
 	client := newCheckpointBindingClient(t, func(req *http.Request) (*http.Response, error) {
 		switch {
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/VERSION_123":
@@ -323,7 +331,7 @@ func TestVerifyResumedCheckpointBindingDropsReadinessWithIncompletePrerequisite(
 		},
 	}
 	var messages []string
-	if err := verifyResumedCheckpointBinding(context.Background(), client, checkpointBindingOptions(), &checkpoint, func(message string) {
+	if err := verifyResumedCheckpointBinding(context.Background(), d, client, checkpointBindingOptions(), &checkpoint, func(message string) {
 		messages = append(messages, message)
 	}); err != nil {
 		t.Fatalf("verifyResumedCheckpointBinding error: %v", err)
@@ -343,6 +351,7 @@ func TestVerifyResumedCheckpointBindingDropsReadinessWithIncompletePrerequisite(
 // changed locally after the checkpoint was written, and readiness is a
 // point-in-time validation, so both steps must run on every resume.
 func TestVerifyResumedCheckpointBindingRerunsUnprovableLocalSteps(t *testing.T) {
+	d := releaseTestDeps()
 	client := newCheckpointBindingClient(t, func(req *http.Request) (*http.Response, error) {
 		switch {
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/VERSION_123":
@@ -364,7 +373,7 @@ func TestVerifyResumedCheckpointBindingRerunsUnprovableLocalSteps(t *testing.T) 
 		},
 	}
 	var messages []string
-	if err := verifyResumedCheckpointBinding(context.Background(), client, checkpointBindingOptions(), &checkpoint, func(message string) {
+	if err := verifyResumedCheckpointBinding(context.Background(), d, client, checkpointBindingOptions(), &checkpoint, func(message string) {
 		messages = append(messages, message)
 	}); err != nil {
 		t.Fatalf("verifyResumedCheckpointBinding error: %v", err)
@@ -390,19 +399,18 @@ func TestVerifyResumedCheckpointBindingRerunsUnprovableLocalSteps(t *testing.T) 
 // leaves the stale validate_readiness flag on disk, and the next resume — where
 // the attachment now matches --build — skips readiness for the new build.
 func TestExecuteStage_PersistsDiscardedCompletionsBeforeMutating(t *testing.T) {
-	origClientFactory := releaseClientFactory
+	d := releaseTestDeps()
 	origMetadataExecutor := metadataPushExecutor
 	origReadinessBuilder := readinessReportBuilder
 	t.Cleanup(func() {
-		releaseClientFactory = origClientFactory
 		metadataPushExecutor = origMetadataExecutor
 		readinessReportBuilder = origReadinessBuilder
 	})
 
-	metadataPushExecutor = func(context.Context, metadata.PushExecutionOptions) (metadata.PushPlanResult, error) {
+	metadataPushExecutor = func(context.Context, *shared.Deps, metadata.PushExecutionOptions) (metadata.PushPlanResult, error) {
 		return metadata.PushPlanResult{}, nil
 	}
-	readinessReportBuilder = func(context.Context, validatecli.ReadinessOptions) (validation.Report, error) {
+	readinessReportBuilder = func(context.Context, *shared.Deps, validatecli.ReadinessOptions) (validation.Report, error) {
 		return validation.Report{}, nil
 	}
 
@@ -435,9 +443,9 @@ func TestExecuteStage_PersistsDiscardedCompletionsBeforeMutating(t *testing.T) {
 			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
 		}
 	})
-	releaseClientFactory = func() (*asc.Client, error) { return client, nil }
+	d.Client = func() (*asc.Client, error) { return client, nil }
 
-	if err := saveCheckpoint(checkpointPath, runCheckpoint{
+	if err := saveCheckpoint(d, checkpointPath, runCheckpoint{
 		AppID:       "APP_123",
 		Version:     "2.4.0",
 		BuildID:     "BUILD_123",
@@ -455,7 +463,7 @@ func TestExecuteStage_PersistsDiscardedCompletionsBeforeMutating(t *testing.T) {
 		t.Fatalf("save checkpoint: %v", err)
 	}
 
-	if _, err := executeStage(context.Background(), runOptions{
+	if _, err := executeStage(context.Background(), d, runOptions{
 		AppID:          "APP_123",
 		Version:        "2.4.0",
 		BuildID:        "BUILD_123",

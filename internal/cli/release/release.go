@@ -9,9 +9,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// ReleaseCommand returns the top-level release command group.
-func ReleaseCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("release", flag.ExitOnError)
+// NewReleaseCommand returns the top-level release command group.
+func NewReleaseCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("release", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "release",
@@ -42,9 +42,9 @@ Examples:
   asc release stage --app "APP_ID" --version "2.4.0" --build-id "BUILD_ID" --copy-metadata-from "2.3.2" --dry-run
   asc release stage --app "APP_ID" --version "2.4.0" --build-id "BUILD_ID" --copy-metadata-from "2.3.2" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.VisibleUsageFunc,
+		UsageFunc: d.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
-			ReleaseStageCommand(),
+			newReleaseStageCommand(d),
 		},
 		Exec: func(context.Context, []string) error {
 			return flag.ErrHelp

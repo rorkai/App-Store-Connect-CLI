@@ -395,16 +395,28 @@ func UploadPreparedRoutingCoverageFile(ctx context.Context, client *asc.Client, 
 	return uploadPreparedRoutingCoverageFile(ctx, shared.DefaultDeps(), client, versionID, "", file)
 }
 
+// UploadPreparedRoutingCoverageFileWith is UploadPreparedRoutingCoverageFile on
+// the given dependencies.
+func UploadPreparedRoutingCoverageFileWith(ctx context.Context, d *shared.Deps, client *asc.Client, versionID string, file PreparedRoutingCoverageFile) (*asc.RoutingAppCoverageResponse, error) {
+	return uploadPreparedRoutingCoverageFile(ctx, d, client, versionID, "", file)
+}
+
 // ReplaceRoutingCoverageWithPreparedFile revalidates the upload source before
 // deleting the current routing coverage, then creates, uploads, and commits its
 // replacement from the same open source handle. A post-create error returns the
 // replacement response alongside the error when cleanup cannot remove it.
 func ReplaceRoutingCoverageWithPreparedFile(ctx context.Context, client *asc.Client, versionID, currentCoverageID string, file PreparedRoutingCoverageFile) (*asc.RoutingAppCoverageResponse, error) {
+	return ReplaceRoutingCoverageWithPreparedFileWith(ctx, shared.DefaultDeps(), client, versionID, currentCoverageID, file)
+}
+
+// ReplaceRoutingCoverageWithPreparedFileWith is
+// ReplaceRoutingCoverageWithPreparedFile on the given dependencies.
+func ReplaceRoutingCoverageWithPreparedFileWith(ctx context.Context, d *shared.Deps, client *asc.Client, versionID, currentCoverageID string, file PreparedRoutingCoverageFile) (*asc.RoutingAppCoverageResponse, error) {
 	currentCoverageID = strings.TrimSpace(currentCoverageID)
 	if currentCoverageID == "" {
 		return nil, fmt.Errorf("current routing coverage ID is required")
 	}
-	return uploadPreparedRoutingCoverageFile(ctx, shared.DefaultDeps(), client, versionID, currentCoverageID, file)
+	return uploadPreparedRoutingCoverageFile(ctx, d, client, versionID, currentCoverageID, file)
 }
 
 func uploadPreparedRoutingCoverageFile(ctx context.Context, d *shared.Deps, client *asc.Client, versionID, currentCoverageID string, file PreparedRoutingCoverageFile) (*asc.RoutingAppCoverageResponse, error) {

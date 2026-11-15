@@ -32,10 +32,9 @@ const (
 )
 
 var (
-	releaseClientFactory   = shared.GetASCClient
-	metadataPushExecutor   = metadata.ExecutePush
+	metadataPushExecutor   = metadata.ExecutePushWith
 	metadataCopyExecutor   = shared.CopyVersionMetadataFromSource
-	readinessReportBuilder = validatecli.BuildReadinessReport
+	readinessReportBuilder = validatecli.BuildReadinessReportWith
 )
 
 type metadataCopyOptions = shared.VersionMetadataCopyOptions
@@ -87,13 +86,13 @@ type runResult struct {
 	Steps               []stepResult `json:"steps"`
 }
 
-func printStageResult(result runResult, format string, pretty bool) error {
+func printStageResult(d *shared.Deps, result runResult, format string, pretty bool) error {
 	headers := []string{"Step", "Status", "Duration (ms)", "Message"}
 	rows := make([][]string, 0, len(result.Steps))
 	for _, step := range result.Steps {
 		rows = append(rows, []string{step.Name, step.Status, fmt.Sprintf("%d", step.DurationMS), step.Message})
 	}
-	return shared.PrintOutputRows(result, format, pretty, headers, rows)
+	return d.PrintOutputRows(result, format, pretty, headers, rows)
 }
 
 type runCheckpoint struct {
@@ -130,12 +129,12 @@ func (e readinessBlockedError) Error() string {
 	return fmt.Sprintf("validate readiness: found %d blocking issue(s)", e.report.Summary.Blocking)
 }
 
-func executeStage(ctx context.Context, opts runOptions) (runResult, error) {
+func executeStage(ctx context.Context, d *shared.Deps, opts runOptions) (runResult, error) {
 	opts.Mode = releaseModeStage
-	return executePipeline(ctx, opts)
+	return executePipeline(ctx, d, opts)
 }
 
-func executePipeline(ctx context.Context, opts runOptions) (runResult, error) {
+func executePipeline(ctx context.Context, d *shared.Deps, opts runOptions) (runResult, error) {
 	stepCapacity := 5
 	if strings.TrimSpace(opts.RoutingCoverageFile) != "" {
 		stepCapacity++
@@ -217,7 +216,7 @@ func executePipeline(ctx context.Context, opts runOptions) (runResult, error) {
 		result.VersionID = checkpoint.VersionID
 	}
 
-	client, err := releaseClientFactory()
+	client, err := d.Client()
 	if err != nil {
 		result.Status = "error"
 		result.Error = err.Error()
@@ -229,7 +228,7 @@ func executePipeline(ctx context.Context, opts runOptions) (runResult, error) {
 
 	if result.Resumed || strings.TrimSpace(checkpoint.VersionID) != "" {
 		completedBeforeVerification := len(checkpoint.Completed)
-		if err := verifyResumedCheckpointBinding(requestCtx, client, opts, &checkpoint, nil); err != nil {
+		if err := verifyResumedCheckpointBinding(requestCtx, d, client, opts, &checkpoint, nil); err != nil {
 			result.Status = "error"
 			result.Error = err.Error()
 			result.VersionID = ""
@@ -242,7 +241,7 @@ func executePipeline(ctx context.Context, opts runOptions) (runResult, error) {
 		// was meant to force.
 		discarded := len(checkpoint.Completed) != completedBeforeVerification
 		if !opts.DryRun && discarded {
-			if saveErr := saveCheckpoint(opts.CheckpointFile, checkpoint); saveErr != nil {
+			if saveErr := saveCheckpoint(d, opts.CheckpointFile, checkpoint); saveErr != nil {
 				result.Status = "error"
 				result.Error = saveErr.Error()
 				return result, saveErr
@@ -256,7 +255,7 @@ func executePipeline(ctx context.Context, opts runOptions) (runResult, error) {
 	versionPlannedCreate := false
 
 	runStep := func(name, remediation string, fn func() (stepOutcome, error)) error {
-		start := time.Now()
+		start := d.Now()
 		step := stepResult{Name: name}
 
 		if checkpoint.Completed[name] {
@@ -266,13 +265,13 @@ func executePipeline(ctx context.Context, opts runOptions) (runResult, error) {
 				step.Status = "dry-run"
 				step.Message = "would skip (already completed in checkpoint)"
 			}
-			step.DurationMS = time.Since(start).Milliseconds()
+			step.DurationMS = d.Now().Sub(start).Milliseconds()
 			result.Steps = append(result.Steps, step)
 			return nil
 		}
 
 		outcome, stepErr := fn()
-		step.DurationMS = time.Since(start).Milliseconds()
+		step.DurationMS = d.Now().Sub(start).Milliseconds()
 		if stepErr != nil {
 			step.Status = "error"
 			if strings.TrimSpace(outcome.Message) != "" {
@@ -308,7 +307,7 @@ func executePipeline(ctx context.Context, opts runOptions) (runResult, error) {
 
 		if !opts.DryRun && outcome.Persist {
 			checkpoint.Completed[name] = true
-			if saveErr := saveCheckpoint(opts.CheckpointFile, checkpoint); saveErr != nil {
+			if saveErr := saveCheckpoint(d, opts.CheckpointFile, checkpoint); saveErr != nil {
 				result.Status = "error"
 				result.FailedStep = name
 				result.Error = saveErr.Error()
@@ -473,7 +472,7 @@ func executePipeline(ctx context.Context, opts runOptions) (runResult, error) {
 		}
 
 		if strings.TrimSpace(opts.MetadataDir) != "" {
-			pushResult, pushErr := metadataPushExecutor(requestCtx, metadata.PushExecutionOptions{
+			pushResult, pushErr := metadataPushExecutor(requestCtx, d, metadata.PushExecutionOptions{
 				AppID:        opts.AppID,
 				Version:      opts.Version,
 				Platform:     opts.Platform,
@@ -494,7 +493,7 @@ func executePipeline(ctx context.Context, opts runOptions) (runResult, error) {
 				"apiCalls": pushResult.APICalls,
 			}
 
-			// metadata.ExecutePush returns the plan before its delete guard when
+			// metadata.ExecutePushWith returns the plan before its delete guard when
 			// DryRun is set. Apply the same requirement here so the preview and
 			// the confirmed run agree instead of reporting a plan that --confirm
 			// would refuse to apply.
@@ -569,7 +568,7 @@ func executePipeline(ctx context.Context, opts runOptions) (runResult, error) {
 
 	if strings.TrimSpace(opts.RoutingCoverageFile) != "" {
 		if err := runStep(stepApplyRoutingCoverage, "Fix the routing coverage file or remove --routing-coverage-file and rerun.", func() (stepOutcome, error) {
-			outcome, err := applyPreparedRoutingCoverageStep(requestCtx, client, versionID, *opts.PreparedRoutingCoverageFile, opts.DryRun)
+			outcome, err := applyPreparedRoutingCoverageStep(requestCtx, d, client, versionID, *opts.PreparedRoutingCoverageFile, opts.DryRun)
 			if err != nil {
 				return outcome, fmt.Errorf("apply routing coverage: %w", err)
 			}
@@ -592,7 +591,7 @@ func executePipeline(ctx context.Context, opts runOptions) (runResult, error) {
 			return stepOutcome{}, fmt.Errorf("attach build: resolved version ID is empty")
 		}
 
-		attachResult, attachErr := submitcli.EnsureBuildAttached(requestCtx, client, versionID, opts.BuildID, opts.DryRun)
+		attachResult, attachErr := submitcli.EnsureBuildAttachedWith(requestCtx, d, client, versionID, opts.BuildID, opts.DryRun)
 		if attachErr != nil {
 			return stepOutcome{}, attachErr
 		}
@@ -643,7 +642,7 @@ func executePipeline(ctx context.Context, opts runOptions) (runResult, error) {
 			return stepOutcome{}, fmt.Errorf("validate readiness: resolved version ID is empty")
 		}
 
-		report, reportErr := readinessReportBuilder(requestCtx, validatecli.ReadinessOptions{
+		report, reportErr := readinessReportBuilder(requestCtx, d, validatecli.ReadinessOptions{
 			AppID:     opts.AppID,
 			VersionID: versionID,
 			Platform:  opts.Platform,
@@ -947,8 +946,8 @@ func loadCheckpoint(path string) (*runCheckpoint, error) {
 	return &checkpoint, nil
 }
 
-func saveCheckpoint(path string, checkpoint runCheckpoint) error {
-	checkpoint.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+func saveCheckpoint(d *shared.Deps, path string, checkpoint runCheckpoint) error {
+	checkpoint.UpdatedAt = d.Now().UTC().Format(time.RFC3339)
 	data, err := json.MarshalIndent(checkpoint, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshal checkpoint: %w", err)

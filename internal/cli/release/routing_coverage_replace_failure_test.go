@@ -16,6 +16,7 @@ import (
 // its successor, so a create failure leaves the version with no routing
 // coverage at all.
 func TestApplyRoutingCoverageStepReportsDeletedCoverageAfterFailedReplacement(t *testing.T) {
+	d := releaseTestDeps()
 	coveragePath := filepath.Join(t.TempDir(), "coverage.geojson")
 	if err := os.WriteFile(coveragePath, []byte(validReleaseRoutingCoverageGeoJSON), 0o600); err != nil {
 		t.Fatalf("write routing coverage fixture: %v", err)
@@ -42,7 +43,7 @@ func TestApplyRoutingCoverageStepReportsDeletedCoverageAfterFailedReplacement(t 
 	})
 	t.Cleanup(func() { http.DefaultTransport = originalTransport })
 
-	outcome, err := applyPreparedRoutingCoverageStep(context.Background(), newReleaseTestClient(t), "VERSION_123", prepared, false)
+	outcome, err := applyPreparedRoutingCoverageStep(context.Background(), d, newReleaseTestClient(t), "VERSION_123", prepared, false)
 	if err == nil {
 		t.Fatal("applyPreparedRoutingCoverageStep() error = nil, want create failure")
 	}
@@ -75,6 +76,7 @@ func TestApplyRoutingCoverageStepReportsDeletedCoverageAfterFailedReplacement(t 
 // the previous coverage was deleted: the version still has that coverage, and
 // nothing claims otherwise.
 func TestApplyRoutingCoverageStepKeepsSurvivingCoverageWhenReplacementNeverDeleted(t *testing.T) {
+	d := releaseTestDeps()
 	coveragePath := filepath.Join(t.TempDir(), "coverage.geojson")
 	if err := os.WriteFile(coveragePath, []byte(validReleaseRoutingCoverageGeoJSON), 0o600); err != nil {
 		t.Fatalf("write routing coverage fixture: %v", err)
@@ -94,7 +96,7 @@ func TestApplyRoutingCoverageStepKeepsSurvivingCoverageWhenReplacementNeverDelet
 	})
 	t.Cleanup(func() { http.DefaultTransport = originalTransport })
 
-	outcome, err := applyPreparedRoutingCoverageStep(context.Background(), newReleaseTestClient(t), "VERSION_123", prepared, false)
+	outcome, err := applyPreparedRoutingCoverageStep(context.Background(), d, newReleaseTestClient(t), "VERSION_123", prepared, false)
 	if err == nil {
 		t.Fatal("applyPreparedRoutingCoverageStep() error = nil, want delete failure")
 	}

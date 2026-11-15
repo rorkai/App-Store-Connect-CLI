@@ -12,6 +12,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/metadata"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	validatecli "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/validate"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/validation"
 )
@@ -20,19 +21,18 @@ import (
 // run the checkpoint would actually produce: steps the confirmed run would skip
 // are reported as skipped, and the checkpoint file is only read.
 func TestExecuteStageDryRunHonorsExistingCheckpoint(t *testing.T) {
-	origClientFactory := releaseClientFactory
+	d := releaseTestDeps()
 	origMetadataExecutor := metadataPushExecutor
 	origReadinessBuilder := readinessReportBuilder
 	t.Cleanup(func() {
-		releaseClientFactory = origClientFactory
 		metadataPushExecutor = origMetadataExecutor
 		readinessReportBuilder = origReadinessBuilder
 	})
 
-	metadataPushExecutor = func(context.Context, metadata.PushExecutionOptions) (metadata.PushPlanResult, error) {
+	metadataPushExecutor = func(context.Context, *shared.Deps, metadata.PushExecutionOptions) (metadata.PushPlanResult, error) {
 		return metadata.PushPlanResult{VersionID: "VERSION_123"}, nil
 	}
-	readinessReportBuilder = func(context.Context, validatecli.ReadinessOptions) (validation.Report, error) {
+	readinessReportBuilder = func(context.Context, *shared.Deps, validatecli.ReadinessOptions) (validation.Report, error) {
 		return validation.Report{Summary: validation.Summary{}}, nil
 	}
 
@@ -49,10 +49,10 @@ func TestExecuteStageDryRunHonorsExistingCheckpoint(t *testing.T) {
 			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
 		}
 	})
-	releaseClientFactory = func() (*asc.Client, error) { return client, nil }
+	d.Client = func() (*asc.Client, error) { return client, nil }
 
 	checkpointPath := filepath.Join(t.TempDir(), "stage-checkpoint.json")
-	if err := saveCheckpoint(checkpointPath, runCheckpoint{
+	if err := saveCheckpoint(d, checkpointPath, runCheckpoint{
 		AppID:       "APP_123",
 		Version:     "2.4.0",
 		BuildID:     "BUILD_123",
@@ -72,7 +72,7 @@ func TestExecuteStageDryRunHonorsExistingCheckpoint(t *testing.T) {
 		t.Fatalf("read checkpoint: %v", err)
 	}
 
-	result, err := executeStage(context.Background(), runOptions{
+	result, err := executeStage(context.Background(), d, runOptions{
 		AppID:          "APP_123",
 		Version:        "2.4.0",
 		BuildID:        "BUILD_123",
@@ -117,16 +117,15 @@ func TestExecuteStageDryRunHonorsExistingCheckpoint(t *testing.T) {
 // the same checkpoint mismatch that aborts the confirmed run, so a resume can
 // be pre-flighted instead of failing only under --confirm.
 func TestExecuteStageDryRunRejectsMismatchedCheckpoint(t *testing.T) {
-	origClientFactory := releaseClientFactory
-	t.Cleanup(func() { releaseClientFactory = origClientFactory })
+	d := releaseTestDeps()
 	clientCalled := false
-	releaseClientFactory = func() (*asc.Client, error) {
+	d.Client = func() (*asc.Client, error) {
 		clientCalled = true
 		return nil, errors.New("client must not be created")
 	}
 
 	checkpointPath := filepath.Join(t.TempDir(), "stage-checkpoint.json")
-	if err := saveCheckpoint(checkpointPath, runCheckpoint{
+	if err := saveCheckpoint(d, checkpointPath, runCheckpoint{
 		AppID:            "APP_123",
 		Version:          "2.4.0",
 		BuildID:          "BUILD_123",
@@ -139,7 +138,7 @@ func TestExecuteStageDryRunRejectsMismatchedCheckpoint(t *testing.T) {
 		t.Fatalf("save checkpoint: %v", err)
 	}
 
-	result, err := executeStage(context.Background(), runOptions{
+	result, err := executeStage(context.Background(), d, runOptions{
 		AppID:          "APP_123",
 		Version:        "2.4.0",
 		BuildID:        "BUILD_123",

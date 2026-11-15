@@ -74,7 +74,7 @@ func TestExecutePushPrefixesLocalMetadataReadErrors(t *testing.T) {
 				t.Fatalf("write app-info file: %v", err)
 			}
 
-			_, err := ExecutePush(context.Background(), PushExecutionOptions{
+			_, err := ExecutePushWith(context.Background(), metadataTestDeps(), PushExecutionOptions{
 				CommandName: commandName,
 				AppID:       "123456789",
 				Version:     "1.2.3",

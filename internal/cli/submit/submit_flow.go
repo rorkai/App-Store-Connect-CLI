@@ -121,6 +121,11 @@ func EnsureBuildAttached(ctx context.Context, client *asc.Client, versionID, bui
 	return ensureBuildAttached(ctx, shared.DefaultDeps(), client, versionID, buildID, dryRun)
 }
 
+// EnsureBuildAttachedWith is EnsureBuildAttached on the given dependencies.
+func EnsureBuildAttachedWith(ctx context.Context, d *shared.Deps, client *asc.Client, versionID, buildID string, dryRun bool) (BuildAttachmentResult, error) {
+	return ensureBuildAttached(ctx, d, client, versionID, buildID, dryRun)
+}
+
 func ensureBuildAttached(ctx context.Context, d *shared.Deps, client *asc.Client, versionID, buildID string, dryRun bool) (BuildAttachmentResult, error) {
 	result := BuildAttachmentResult{
 		VersionID: strings.TrimSpace(versionID),
