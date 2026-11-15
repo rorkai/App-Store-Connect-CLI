@@ -59,43 +59,43 @@ func placementIDsCSV(raw string) ([]string, error) {
 	return values, nil
 }
 
-func creativePlacementReorderCommand(resource, prefix, label string) *ffcli.Command {
-	fs := flag.NewFlagSet("placements reorder", flag.ExitOnError)
+func creativePlacementReorderCommand(d *Deps, resource, prefix, label string) *ffcli.Command {
+	fs := d.NewFlagSet("placements reorder", flag.ExitOnError)
 	localization := BindResourceIDFlag(fs, "localization-id", resource, label+" ID or API self-link")
 	group := fs.String("placement-group", "", "Placement group whose assets will be ordered")
 	ids := fs.String("placement-ids", "", "Placement IDs in desired order, comma-separated")
-	output := BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	exampleGroup := "IPHONE_DUO_PROFILE"
 	return &ffcli.Command{
-		Name: "reorder", ShortHelp: "Order existing asset library placements within a localization and group.", ShortUsage: "asc " + prefix + " placements reorder --localization-id ID --placement-group GROUP --placement-ids ID1,ID2", FlagSet: fs, UsageFunc: DefaultUsageFunc,
+		Name: "reorder", ShortHelp: "Order existing asset library placements within a localization and group.", ShortUsage: "asc " + prefix + " placements reorder --localization-id ID --placement-group GROUP --placement-ids ID1,ID2", FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		LongHelp: "Order existing placements for " + label + " using a placement ordering request. Supply unique placement IDs in the desired order and their placement group. Apple validates localization/group membership and whether the resource is editable. This command does not delete media, submit assets for review, or promise publication.\n\nExample:\n  asc " + prefix + " placements reorder --localization-id ID --placement-group " + exampleGroup + " --placement-ids FIRST_ID,SECOND_ID",
 		Exec: func(ctx context.Context, args []string) error {
 			if err := ValidateBoundOutputFlags(fs); err != nil {
-				return UsageErrorf("placements reorder: %v", err)
+				return d.UsageErrorf("placements reorder: %v", err)
 			}
 			locID, placementGroup := strings.TrimSpace(*localization), strings.TrimSpace(*group)
 			if !creativePlacementID.MatchString(locID) {
-				return UsageError("placements reorder: --localization-id requires a resource ID")
+				return d.UsageError("placements reorder: --localization-id requires a resource ID")
 			}
 			if !creativePlacementID.MatchString(placementGroup) {
-				return UsageError("placements reorder: --placement-group is required and must be a group ID")
+				return d.UsageError("placements reorder: --placement-group is required and must be a group ID")
 			}
 			placementIDs, err := placementIDsCSV(*ids)
 			if err != nil {
-				return UsageErrorf("placements reorder: --placement-ids %v", err)
+				return d.UsageErrorf("placements reorder: --placement-ids %v", err)
 			}
 			if len(placementIDs) == 0 {
-				return UsageError("placements reorder: --placement-ids is required")
+				return d.UsageError("placements reorder: --placement-ids is required")
 			}
-			client, err := GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("placements reorder: %w", err)
 			}
-			requestID, err := OrderLibraryPlacements(ctx, client, resource, locID, placementGroup, placementIDs)
+			requestID, err := d.OrderLibraryPlacements(ctx, client, resource, locID, placementGroup, placementIDs)
 			if err != nil {
 				return fmt.Errorf("placements reorder: %w", err)
 			}
-			return PrintOutput(&asc.CreativePlacementReorderResult{ID: requestID, Reordered: true, LocalizationID: locID, PlacementGroup: placementGroup, PlacementIDs: placementIDs}, *output.Output, *output.Pretty)
+			return d.PrintOutput(&asc.CreativePlacementReorderResult{ID: requestID, Reordered: true, LocalizationID: locID, PlacementGroup: placementGroup, PlacementIDs: placementIDs}, *output.Output, *output.Pretty)
 		},
 	}
 }
