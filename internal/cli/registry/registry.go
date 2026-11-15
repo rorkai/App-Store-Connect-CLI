@@ -223,7 +223,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("agreements", "Manage agreements in App Store Connect.", func() *ffcli.Command {
 			return agreements.NewAgreementsCommand(d)
 		}),
-		commandFactory("pricing", "Manage app pricing and availability.", pricing.PricingCommand),
+		commandFactory("pricing", "Manage app pricing and availability.", func() *ffcli.Command {
+			return pricing.NewPricingCommand(d)
+		}),
 		commandFactory("pre-orders", "Manage app pre-orders.", func() *ffcli.Command {
 			return preorders.NewPreOrdersCommand(d)
 		}),

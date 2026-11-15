@@ -234,12 +234,14 @@ func includedFieldsCases() []includedFieldsCase {
 		{
 			name: "app price points", operation: "apps_appPricePoints_getToManyRelated",
 			command: []string{"pricing", "price-points"}, selector: []string{"--app", "app-1"},
+			deps:    true,
 			include: "territory", path: "/v1/apps/app-1/appPricePoints",
 			flags: map[string]string{"territory-fields": "territories"},
 		},
 		{
 			name: "app price point equalizations", operation: "appPricePointsV3_equalizations_getToManyRelated",
 			command: []string{"pricing", "price-points", "equalizations"}, selector: []string{"--price-point", "point-1"},
+			deps:    true,
 			include: "territory", path: "/v3/appPricePoints/point-1/equalizations",
 			flags: map[string]string{"territory-fields": "territories"},
 		},
