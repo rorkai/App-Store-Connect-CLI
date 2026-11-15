@@ -262,13 +262,7 @@ Examples:
 
 // WebhooksDeleteCommand returns the webhooks delete subcommand.
 func WebhooksDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("delete", flag.ExitOnError)
-
-	webhookID := shared.BindResourceIDFlag(fs, "webhook-id", "webhooks", "Webhook ID")
-	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
 		Name:       "delete",
 		ShortUsage: "asc webhooks delete --webhook-id WEBHOOK_ID --confirm [flags]",
 		ShortHelp:  "Delete a webhook.",
@@ -276,33 +270,17 @@ func WebhooksDeleteCommand() *ffcli.Command {
 
 Examples:
   asc webhooks delete --webhook-id "WEBHOOK_ID" --confirm`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			trimmedID := strings.TrimSpace(*webhookID)
-			if trimmedID == "" {
-				return shared.RequiredFlag("--webhook-id")
-			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
-				return err
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("webhooks delete: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			if err := client.DeleteWebhook(requestCtx, trimmedID); err != nil {
-				return fmt.Errorf("webhooks delete: failed to delete: %w", err)
-			}
-
-			result := &asc.DeleteResult{ID: trimmedID, Deleted: true}
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		IDFlag:             "webhook-id",
+		IDUsage:            "Webhook ID",
+		IDType:             "webhooks",
+		RequiredDiagnostic: true,
+		Delete: func(ctx context.Context, client *asc.Client, id string) error {
+			return client.DeleteWebhook(ctx, id)
 		},
-	}
+		Result: func(id string) any {
+			return &asc.DeleteResult{ID: id, Deleted: true}
+		},
+	})
 }
 
 // WebhookDeliveriesCommand returns the webhook deliveries command.
