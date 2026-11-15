@@ -37,12 +37,6 @@ type crashQuery struct {
 	include                   []string
 }
 
-type betaBuildLocalizationsQuery struct {
-	listQuery
-	locales  []string
-	buildIDs []string
-}
-
 type betaGroupsQuery struct {
 	listQuery
 	isInternalGroup               *bool
@@ -269,14 +263,6 @@ func buildBetaAppReviewSubmissionsQuery(query *betaAppReviewSubmissionsQuery) st
 	return values.Encode()
 }
 
-func buildBetaBuildLocalizationsQuery(query *betaBuildLocalizationsQuery) string {
-	values := url.Values{}
-	addCSV(values, "filter[build]", query.buildIDs)
-	addCSV(values, "filter[locale]", query.locales)
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
 // FeedbackOption is a functional option for GetFeedback.
 type FeedbackOption func(*feedbackQuery)
 
@@ -306,9 +292,6 @@ type BetaAppReviewSubmissionsOption func(*betaAppReviewSubmissionsQuery)
 
 // AppBetaAppLocalizationsOption is a functional option for GetAppBetaAppLocalizations.
 type AppBetaAppLocalizationsOption func(*listQuery)
-
-// BetaBuildLocalizationsOption is a functional option for beta build localizations.
-type BetaBuildLocalizationsOption func(*betaBuildLocalizationsQuery)
 
 // WithFeedbackDeviceModels filters feedback by device model(s).
 func WithFeedbackDeviceModels(models []string) FeedbackOption {
@@ -671,20 +654,6 @@ func WithBetaAppReviewSubmissionsBuildIDs(ids []string) BetaAppReviewSubmissions
 func WithBetaAppReviewSubmissionsIncludeBuild() BetaAppReviewSubmissionsOption {
 	return func(q *betaAppReviewSubmissionsQuery) {
 		q.includeBuild = true
-	}
-}
-
-// WithBetaBuildLocalizationLocales filters beta build localizations by locale.
-func WithBetaBuildLocalizationLocales(locales []string) BetaBuildLocalizationsOption {
-	return func(q *betaBuildLocalizationsQuery) {
-		q.locales = normalizeList(locales)
-	}
-}
-
-// WithBetaBuildLocalizationBuildIDs filters beta build localizations by build ID(s).
-func WithBetaBuildLocalizationBuildIDs(ids []string) BetaBuildLocalizationsOption {
-	return func(q *betaBuildLocalizationsQuery) {
-		q.buildIDs = normalizeList(ids)
 	}
 }
 

@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -125,4 +126,42 @@ func (c *Client) CreateSubscriptionLocalization(ctx context.Context, subscriptio
 		Path:    "/v1/subscriptionLocalizations",
 		Payload: payload,
 	})
+}
+
+// SubscriptionLocalizationV2Option sets the query of GET /v2/subscriptionLocalizations/{id} (subscriptionLocalizationsV2_getInstance).
+type SubscriptionLocalizationV2Option func(*subscriptionLocalizationV2Query)
+
+type subscriptionLocalizationV2Query struct {
+	fields        []string
+	versionFields []string
+	include       []string
+}
+
+// WithSubscriptionLocalizationV2Fields sets fields[subscriptionLocalizations].
+func WithSubscriptionLocalizationV2Fields(fields []string) SubscriptionLocalizationV2Option {
+	return func(q *subscriptionLocalizationV2Query) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+// WithSubscriptionLocalizationV2VersionFields sets fields[subscriptionVersions].
+func WithSubscriptionLocalizationV2VersionFields(fields []string) SubscriptionLocalizationV2Option {
+	return func(q *subscriptionLocalizationV2Query) {
+		q.versionFields = normalizeList(fields)
+	}
+}
+
+// WithSubscriptionLocalizationV2Include sets include.
+func WithSubscriptionLocalizationV2Include(include []string) SubscriptionLocalizationV2Option {
+	return func(q *subscriptionLocalizationV2Query) {
+		q.include = normalizeList(include)
+	}
+}
+
+func buildSubscriptionLocalizationV2Query(query *subscriptionLocalizationV2Query) string {
+	values := url.Values{}
+	addCSV(values, "fields[subscriptionLocalizations]", query.fields)
+	addCSV(values, "fields[subscriptionVersions]", query.versionFields)
+	addCSV(values, "include", query.include)
+	return values.Encode()
 }

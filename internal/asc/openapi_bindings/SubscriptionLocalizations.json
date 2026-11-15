@@ -20,5 +20,8 @@
     {"operation":"subscriptionLocalizationsV2_getInstance","name":"GetSubscriptionLocalizationV2","params":["localizationID"],"check":"require","checkFirst":true,"messages":["localization ID is required"],"options":"SubscriptionLocalizationV2Option","query":"buildSubscriptionLocalizationV2Query","single":true},
     {"operation":"subscriptionLocalizationsV2_updateInstance","name":"UpdateSubscriptionLocalizationV2","params":["localizationID"],"check":"require","messages":["localization ID is required"],"attrs":"value"},
     {"operation":"subscriptionLocalizations_createInstance","name":"CreateSubscriptionLocalization","params":["subscriptionID"],"check":"require","messages":["subscription ID is required"],"links":["subscription"]}
+  ],
+  "queries": [
+    {"operation":"subscriptionLocalizationsV2_getInstance","name":"SubscriptionLocalizationV2","params":[{"name":"fields[subscriptionLocalizations]"},{"name":"fields[subscriptionVersions]","field":"versionFields","arg":"fields"},{"name":"include"}]}
   ]
 }

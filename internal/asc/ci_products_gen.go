@@ -156,6 +156,32 @@ func buildCiProductAppQuery(query *ciProductAppQuery) string {
 	return values.Encode()
 }
 
+// CiBuildRunsOption sets the query of GET /v1/ciProducts/{id}/buildRuns (ciProducts_buildRuns_getToManyRelated) and GET /v1/ciWorkflows/{id}/buildRuns (ciWorkflows_buildRuns_getToManyRelated).
+type CiBuildRunsOption func(*ciBuildRunsQuery)
+
+type ciBuildRunsQuery struct {
+	listQuery
+	sort string
+}
+
+// WithCiBuildRunsSort sets sort.
+func WithCiBuildRunsSort(sort string) CiBuildRunsOption {
+	return func(q *ciBuildRunsQuery) {
+		if strings.TrimSpace(sort) != "" {
+			q.sort = strings.TrimSpace(sort)
+		}
+	}
+}
+
+func buildCiBuildRunsQuery(query *ciBuildRunsQuery) string {
+	values := url.Values{}
+	if strings.TrimSpace(query.sort) != "" {
+		values.Set("sort", strings.TrimSpace(query.sort))
+	}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
 // CiWorkflowsOption sets the query of GET /v1/ciProducts/{id}/workflows (ciProducts_workflows_getToManyRelated).
 type CiWorkflowsOption func(*ciWorkflowsQuery)
 
