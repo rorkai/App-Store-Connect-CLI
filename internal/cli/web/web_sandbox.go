@@ -38,9 +38,8 @@ type webSandboxCreateResult struct {
 	Submitted bool   `json:"submitted"`
 }
 
-// WebSandboxCommand returns the detached web sandbox command group.
-func WebSandboxCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web sandbox", flag.ExitOnError)
+func newWebSandboxCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web sandbox", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "sandbox",
@@ -54,10 +53,10 @@ management operations.
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			WebSandboxCreateCommand(),
-			WebSandboxDeleteCommand(),
+			newWebSandboxCreateCommand(d),
+			newWebSandboxDeleteCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -65,17 +64,17 @@ management operations.
 	}
 }
 
-// WebSandboxDeleteCommand deletes sandbox testers through Apple's private web
-// session endpoint. It preflights every requested ID against the private list,
-// refuses family members or incomplete/ambiguous snapshots, and verifies the
-// deletion with one fresh list request.
-func WebSandboxDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web sandbox delete", flag.ExitOnError)
+// newWebSandboxDeleteCommand deletes sandbox testers through Apple's private
+// web session endpoint. It preflights every requested ID against the private
+// list, refuses family members or incomplete/ambiguous snapshots, and verifies
+// the deletion with one fresh list request.
+func newWebSandboxDeleteCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web sandbox delete", flag.ExitOnError)
 
 	ids := fs.String("id", "", "Sandbox tester account ID(s), comma-separated")
 	confirm := fs.Bool("confirm", false, "Confirm deleting the selected sandbox testers")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "delete",
@@ -102,24 +101,24 @@ Examples:
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			requestedIDs := shared.SplitUniqueCSV(*ids)
 			if len(requestedIDs) == 0 {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return err
 			}
 			client := newWebClientFn(session)
 
-			preflight, err := withWebSpinnerValue("Checking sandbox testers before deletion", func() (*webcore.SandboxAccountListResponse, error) {
+			preflight, err := withWebSpinnerValueWith(d, "Checking sandbox testers before deletion", func() (*webcore.SandboxAccountListResponse, error) {
 				return listWebSandboxAccountsFn(requestCtx, client)
 			})
 			if err != nil {
@@ -129,13 +128,13 @@ Examples:
 				return err
 			}
 
-			if err := withWebSpinner("Deleting sandbox testers via Apple web API", func() error {
+			if err := withWebSpinnerWith(d, "Deleting sandbox testers via Apple web API", func() error {
 				return deleteWebSandboxAccountsFn(requestCtx, client, requestedIDs)
 			}); err != nil {
 				return sandboxDeleteMutationError(err)
 			}
 
-			verified, err := withWebSpinnerValue("Verifying sandbox tester deletion", func() (*webcore.SandboxAccountListResponse, error) {
+			verified, err := withWebSpinnerValueWith(d, "Verifying sandbox tester deletion", func() (*webcore.SandboxAccountListResponse, error) {
 				return listWebSandboxAccountsFn(requestCtx, client)
 			})
 			if err != nil {
@@ -146,7 +145,7 @@ Examples:
 			}
 
 			result := &asc.WebSandboxDeleteResult{IDs: requestedIDs, Deleted: true}
-			if err := shared.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
+			if err := d.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
 				return sandboxDeleteVerifiedOutputError(requestedIDs, err)
 			}
 			return nil
@@ -252,10 +251,10 @@ func sandboxDeleteVerifiedOutputError(ids []string, err error) error {
 	return fmt.Errorf("web sandbox delete completed and verified for sandbox account IDs %q, but output failed; do not retry the deletion: %w", strings.Join(ids, ", "), err)
 }
 
-// WebSandboxCreateCommand creates a sandbox tester via App Store Connect's
+// newWebSandboxCreateCommand creates a sandbox tester via App Store Connect's
 // web session endpoints.
-func WebSandboxCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("web sandbox create", flag.ExitOnError)
+func newWebSandboxCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("web sandbox create", flag.ExitOnError)
 
 	firstName := fs.String("first-name", "", "Sandbox tester first name")
 	lastName := fs.String("last-name", "", "Sandbox tester last name")
@@ -263,7 +262,7 @@ func WebSandboxCreateCommand() *ffcli.Command {
 	password := fs.String("password", "", "Sandbox tester password")
 	territory := fs.String("territory", "", "Sandbox tester territory/storefront code (e.g., USA)")
 	authFlags := bindWebSessionFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -285,30 +284,30 @@ Examples:
 
 `,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			firstNameValue, err := normalizeWebSandboxName("--first-name", *firstName)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			lastNameValue, err := normalizeWebSandboxName("--last-name", *lastName)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			emailValue, err := normalizeWebSandboxEmail(*email)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			passwordValue, err := normalizeWebSandboxPassword(*password)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			territoryValue, err := sandboxcmd.NormalizeSandboxTerritoryCode(*territory)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
-			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			session, requestCtx, cancel, err := resolveWebSessionForCommandWith(ctx, d, authFlags)
 			defer cancel()
 			if err != nil {
 				return err
@@ -323,7 +322,7 @@ Examples:
 				StoreFront:      territoryValue,
 			}
 
-			err = withWebSpinner("Creating sandbox tester via Apple web API", func() error {
+			err = withWebSpinnerWith(d, "Creating sandbox tester via Apple web API", func() error {
 				return createWebSandboxTesterFn(requestCtx, client, createAttrs)
 			})
 			if err != nil {
@@ -337,12 +336,12 @@ Examples:
 				Territory: territoryValue,
 				Submitted: true,
 			}
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderWebSandboxCreateTable(result) },
-				func() error { return renderWebSandboxCreateMarkdown(result) },
+				func() error { return renderWebSandboxCreateTable(d, result) },
+				func() error { return renderWebSandboxCreateMarkdown(d, result) },
 			)
 		},
 	}
@@ -394,7 +393,7 @@ func normalizeWebSandboxPassword(value string) (string, error) {
 	return trimmed, nil
 }
 
-func renderWebSandboxCreateTable(result *webSandboxCreateResult) error {
+func renderWebSandboxCreateTable(d *shared.Deps, result *webSandboxCreateResult) error {
 	webRows := [][]string{{
 		result.FirstName,
 		result.LastName,
@@ -403,11 +402,11 @@ func renderWebSandboxCreateTable(result *webSandboxCreateResult) error {
 		fmt.Sprintf("%t", result.Submitted),
 	}}
 	webHeaders := []string{"First Name", "Last Name", "Email", "Territory", "Submitted"}
-	asc.RenderTable(webHeaders, webRows)
+	asc.RenderTableTo(d.IO.Out, webHeaders, webRows)
 	return nil
 }
 
-func renderWebSandboxCreateMarkdown(result *webSandboxCreateResult) error {
+func renderWebSandboxCreateMarkdown(d *shared.Deps, result *webSandboxCreateResult) error {
 	webRows := [][]string{{
 		result.FirstName,
 		result.LastName,
@@ -416,6 +415,6 @@ func renderWebSandboxCreateMarkdown(result *webSandboxCreateResult) error {
 		fmt.Sprintf("%t", result.Submitted),
 	}}
 	webHeaders := []string{"First Name", "Last Name", "Email", "Territory", "Submitted"}
-	asc.RenderMarkdown(webHeaders, webRows)
+	asc.RenderMarkdownTo(d.IO.Out, webHeaders, webRows)
 	return nil
 }
