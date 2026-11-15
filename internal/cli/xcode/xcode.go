@@ -214,7 +214,7 @@ func XcodeExportCommand() *ffcli.Command {
 
 	archivePath := fs.String("archive-path", "", "Path to the .xcarchive input (required)")
 	exportOptions := fs.String("export-options", "", "Path to ExportOptions.plist (generated automatically when omitted)")
-	method := fs.String("method", "app-store-connect", "Method for generated options: app-store-connect or release-testing")
+	method := fs.String("method", "app-store-connect", "Method for generated options: app-store-connect, release-testing, debugging, or enterprise")
 	signingStyle := fs.String("signing-style", "automatic", "Signing style for generated options: automatic or manual")
 	teamID := fs.String("team-id", "", "Apple Developer team ID for generated options (overrides archive metadata)")
 	ipaPath := fs.String("ipa-path", "", "Destination path for a local .ipa when one is produced")
@@ -237,7 +237,9 @@ func XcodeExportCommand() *ffcli.Command {
 This command runs xcodebuild -exportArchive into a temporary directory.
 When --export-options is omitted, asc generates archive-adjacent options. It
 uses app-store-connect and automatic signing by default. Use
---method release-testing for a local IPA installable on registered devices. Use
+--method release-testing for a local IPA installable on registered devices,
+debugging for a development-signed IPA, or enterprise for in-house
+distribution; debugging and enterprise support automatic signing only. Use
 --signing-style manual to match locally installed certificates and profiles;
 --team-id optionally overrides archive metadata.
 Automatic signing may need --xcodebuild-flag=-allowProvisioningUpdates so
@@ -246,7 +248,8 @@ For local exports, provide exactly one destination: --ipa-path for iOS, tvOS,
 or visionOS, or --pkg-path for macOS. asc moves the exported artifact to that
 exact path and discards the other export outputs unless --export-dir keeps
 them. Generated manual signing options support iOS, tvOS, and App Store
-macOS archives; provide an explicit --export-options plist for other macOS methods.
+macOS archives. Methods that export a .app, such as developer-id and
+mac-application, are not supported.
 When ExportOptions.plist uses destination=upload, xcodebuild uploads directly
 to App Store Connect and asc returns archive metadata without writing a local
 artifact or requiring a destination path. Use --wait to generate direct-upload
@@ -277,14 +280,12 @@ Examples:
 				return shared.UsageError(err.Error())
 			}
 			generationFlagsSet := false
-			methodSet := false
 			signingStyleSet := false
 			teamIDSet := false
 			fs.Visit(func(f *flag.Flag) {
 				switch f.Name {
 				case "method":
 					generationFlagsSet = true
-					methodSet = true
 				case "signing-style":
 					generationFlagsSet = true
 					signingStyleSet = true
@@ -293,9 +294,6 @@ Examples:
 					teamIDSet = true
 				}
 			})
-			if methodSet && strings.TrimSpace(*method) == "" {
-				return shared.UsageError("--method must be one of: app-store-connect, release-testing")
-			}
 			methodValue, err := localxcode.NormalizeExportOptionsMethod(*method)
 			if err != nil {
 				return shared.UsageError(err.Error())
@@ -321,11 +319,14 @@ Examples:
 			if exportOptionsPath != "" && generationFlagsSet {
 				return shared.UsageError("--export-options cannot be combined with --method, --signing-style, or --team-id")
 			}
-			if *wait && methodValue == "release-testing" {
-				return shared.UsageError("--wait cannot be combined with --method release-testing")
+			if *wait && methodValue != "app-store-connect" {
+				return shared.UsageErrorf("--wait cannot be combined with --method %s", methodValue)
 			}
-			if exportOptionsPath == "" && trimmedPKGPath != "" && methodValue == "release-testing" {
-				return shared.UsageError("--pkg-path cannot be combined with --method release-testing")
+			if exportOptionsPath == "" && trimmedPKGPath != "" && methodValue != "app-store-connect" {
+				return shared.UsageErrorf("--pkg-path cannot be combined with --method %s", methodValue)
+			}
+			if err := localxcode.ValidateExportOptionsMethodSigningStyle(methodValue, signingStyleValue); err != nil {
+				return shared.UsageError(err.Error())
 			}
 			directUpload := *wait
 			if exportOptionsPath != "" {
