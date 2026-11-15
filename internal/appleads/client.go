@@ -170,6 +170,14 @@ func WithHTTPClient(httpClient *http.Client) ClientOption {
 	}
 }
 
+// WithTransport sends the client's requests through transport, with the
+// default request timeout.
+func WithTransport(transport http.RoundTripper) ClientOption {
+	return func(client *Client) {
+		client.httpClient = &http.Client{Timeout: asc.ResolveTimeout(), Transport: transport}
+	}
+}
+
 // WithPlatformBaseURL configures the Apple Ads Platform API v1 base URL.
 func WithPlatformBaseURL(baseURL string) ClientOption {
 	return func(client *Client) {

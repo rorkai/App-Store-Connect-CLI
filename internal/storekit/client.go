@@ -76,6 +76,14 @@ func WithHTTPClient(httpClient *http.Client) ClientOption {
 	return func(client *Client) { client.httpClient = httpClient }
 }
 
+// WithTransport sends the client's requests through transport, with the
+// default request timeout.
+func WithTransport(transport http.RoundTripper) ClientOption {
+	return func(client *Client) {
+		client.httpClient = &http.Client{Timeout: asc.ResolveTimeout(), Transport: transport}
+	}
+}
+
 // WithBaseURL overrides the StoreKit server API host URL that request paths
 // such as /inApps/v1/... are appended to. It exists for tests and
 // Apple-compatible proxies.
