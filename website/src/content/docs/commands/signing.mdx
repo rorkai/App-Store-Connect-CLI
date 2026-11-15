@@ -1072,6 +1072,42 @@ entitlement values are never generically rewritten. JSON includes a
 deterministic `entitlementRewrites` list with one flattened entry per changed
 scalar or array element, including an optional array index.
 
+To ship the same build under another main app bundle identifier, pass
+`--bundle-id`:
+
+```bash
+asc signing resign \
+  --ipa ./build/App.ipa \
+  --output ./build/App-white-label.ipa \
+  --identity ./signing/distribution.p12 \
+  --profiles-manifest ./signing/white-label-profiles.json \
+  --bundle-id com.example.whitelabel \
+  --format json
+```
+
+The main app gets the new identifier. Every nested identifier must start with
+the old main identifier plus a dot, and that prefix is replaced, so
+`com.example.app.share` becomes `com.example.whitelabel.share`. The manifest
+is keyed by the new identifiers; a mismatch is a usage error that lists them.
+Each target's `CFBundleIdentifier` is rewritten in its `Info.plist`, keeping
+the binary or XML format, only after the whole plan validates. The watch keys
+`WKCompanionAppBundleIdentifier` and
+`NSExtension.NSExtensionAttributes.WKAppBundleIdentifier` are rewritten when
+they name the old identifier of the app they belong to. Other `Info.plist`
+values that contain the old identifier, such as URL schemes, are left
+unchanged. Identity entitlements such as `application-identifier` come from
+the new profiles; every other claim from the old signature must still be
+allowed by the new profile, or the run is refused. `--bundle-id` works with
+or without `--rebase-team-claims`. JSON adds `sourceBundleId` to each target.
+
+The command refuses, with exit code 2, a new identifier that is invalid,
+equals the current one, or collides with another target after mapping; a
+nested identifier outside the old prefix; any App Clip target; and a watch key
+that names any other identifier. It cannot verify offline that a device
+installs the result, that extensions load, or that keychain and app-group
+access, push notifications, universal links, and iCloud work under the new
+identifier.
+
 The archive is validated before signing: unsafe paths, duplicate or
 colliding entries, symlinks, encrypted members, oversized expansion, and
 unsupported target metadata fail without creating the output parent. A valid

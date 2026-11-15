@@ -475,10 +475,33 @@ func TestSigningResignCommandClassifiesManifestTargetMappingErrorsAsUsage(t *tes
 	}
 	executeSigningResignFn = executeSigningResignImplementation
 	for _, test := range []struct {
-		name     string
-		writeIPA func(*testing.T, string)
-		manifest string
+		name        string
+		writeIPA    func(*testing.T, string)
+		manifest    string
+		args        []string
+		wantMessage string
 	}{
+		{
+			name:        "manifest keyed by source identifiers with a new bundle identifier",
+			writeIPA:    writeSigningResignIPAWithNestedExtension,
+			manifest:    `{"schemaVersion":1,"profiles":[{"bundleId":"com.example.app","profilePath":"app.mobileprovision"},{"bundleId":"com.example.app.extension","profilePath":"extension.mobileprovision"}]}`,
+			args:        []string{"--bundle-id", "com.example.white"},
+			wantMessage: "com.example.white, com.example.white.extension",
+		},
+		{
+			name:        "empty bundle identifier",
+			writeIPA:    writeSigningResignMinimalIPA,
+			manifest:    `{"schemaVersion":1,"profiles":[{"bundleId":"com.example.app","profilePath":"profile.mobileprovision"}]}`,
+			args:        []string{"--bundle-id", " "},
+			wantMessage: "--bundle-id must not be empty",
+		},
+		{
+			name:        "invalid bundle identifier",
+			writeIPA:    writeSigningResignMinimalIPA,
+			manifest:    `{"schemaVersion":1,"profiles":[{"bundleId":"com.example.app","profilePath":"profile.mobileprovision"}]}`,
+			args:        []string{"--bundle-id", "com.example.*"},
+			wantMessage: "not a valid bundle identifier",
+		},
 		{
 			name:     "missing target mapping",
 			writeIPA: writeSigningResignIPAWithNestedExtension,
@@ -499,17 +522,20 @@ func TestSigningResignCommandClassifiesManifestTargetMappingErrorsAsUsage(t *tes
 				t.Fatal(err)
 			}
 			command := SigningResignCommand()
-			if err := command.FlagSet.Parse([]string{
+			if err := command.FlagSet.Parse(append([]string{
 				"--ipa", inputPath,
 				"--output", filepath.Join(temporary, "output.ipa"),
 				"--identity", filepath.Join(temporary, "identity.p12"),
 				"--profiles-manifest", manifestPath,
-			}); err != nil {
+			}, test.args...)); err != nil {
 				t.Fatal(err)
 			}
 			err := command.Exec(context.Background(), nil)
 			if !errors.Is(err, flag.ErrHelp) {
 				t.Fatalf("SigningResignCommand().Exec() error = %v, want usage/exit-2 classification", err)
+			}
+			if !strings.Contains(err.Error(), test.wantMessage) {
+				t.Fatalf("SigningResignCommand().Exec() error = %v, want %q", err, test.wantMessage)
 			}
 		})
 	}

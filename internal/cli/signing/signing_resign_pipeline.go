@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"path"
 	"path/filepath"
@@ -201,6 +202,12 @@ func executeSigningResignImplementation(ctx context.Context, options signingResi
 	if err := validateSigningResignTargetIDs(archive.Targets); err != nil {
 		return result, err
 	}
+	if options.BundleID != "" {
+		archive, err = mapSigningResignBundleIDs(ctx, treeRoot, archive, options.BundleID)
+		if err != nil {
+			return result, signingResignUsage(err)
+		}
+	}
 
 	manifest, err := readSigningResignManifest(manifestPath)
 	if err != nil {
@@ -208,6 +215,10 @@ func executeSigningResignImplementation(ctx context.Context, options signingResi
 	}
 	targetIDs := buildSigningResignTargetIDs(archive.Targets)
 	if err := validateSigningResignManifestTargets(manifest, targetIDs); err != nil {
+		if options.BundleID != "" {
+			expected := slices.Sorted(maps.Keys(targetIDs))
+			err = signingResignUsage(fmt.Errorf("%w; with --bundle-id it must be keyed by the new identifiers: %s", err, strings.Join(expected, ", ")))
+		}
 		return result, err
 	}
 	profiles, err := readSigningResignProfiles(manifestPath, manifest)
@@ -273,7 +284,7 @@ func executeSigningResignImplementation(ctx context.Context, options signingResi
 	for _, target := range prepared.Archive.Targets {
 		profile := profiles[target.BundleID]
 		result.Targets = append(result.Targets, signingResignTargetResult{
-			Kind: target.Kind, RelativePath: target.RelativePath, BundleID: target.BundleID,
+			Kind: target.Kind, RelativePath: target.RelativePath, BundleID: target.BundleID, SourceBundleID: target.SourceBundleID,
 			ProfileClass: profile.Class, ProfileUUID: profile.UUID, ProfileSHA256: profile.SHA256,
 			Status: "pending",
 		})
@@ -429,6 +440,11 @@ func validateSigningResignOptions(options signingResignOptions) error {
 	if strings.ContainsRune(options.IdentityPasswordPath, 0) {
 		return fmt.Errorf("identity password path contains a NUL byte")
 	}
+	if options.BundleID != "" {
+		if err := validateSigningResignBundleID(options.BundleID); err != nil {
+			return fmt.Errorf("--bundle-id %q is not a valid bundle identifier: %w", options.BundleID, err)
+		}
+	}
 	return nil
 }
 
@@ -438,7 +454,7 @@ func prepareSigningResignTree(ctx context.Context, stageRoot, treeRoot rootfs.Ro
 		return signingResignPreparedTree{}, err
 	}
 	for _, target := range archive.Targets {
-		if err := validateSigningResignExistingEntitlements(target.ExistingEntitlements, target.BundleID); err != nil {
+		if err := validateSigningResignExistingEntitlements(target.ExistingEntitlements, target.sourceBundleID()); err != nil {
 			return signingResignPreparedTree{}, fmt.Errorf("target %s existing entitlements: %w", target.BundleID, err)
 		}
 	}
@@ -512,6 +528,14 @@ func prepareSigningResignTree(ctx context.Context, stageRoot, treeRoot rootfs.Ro
 	// All target and nested-code decisions above are read-only. Only after the
 	// entire IPA has a valid plan do we create generated documents, embed
 	// profiles, and publish the plan into the mutable staging tree.
+	for _, target := range prepared.Archive.Targets {
+		if target.InfoPlistData == nil {
+			continue
+		}
+		if err := treeRoot.WriteFilePreservingMode(filepath.FromSlash(path.Join(target.RelativePath, "Info.plist")), target.InfoPlistData, 0o644); err != nil {
+			return signingResignPreparedTree{}, fmt.Errorf("write target %s Info.plist failed", target.BundleID)
+		}
+	}
 	if err := stageRoot.MkdirAll("entitlements", 0o700); err != nil {
 		return signingResignPreparedTree{}, fmt.Errorf("create private entitlements directory failed")
 	}
