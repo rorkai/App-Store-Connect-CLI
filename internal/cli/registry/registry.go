@@ -293,7 +293,7 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("sandbox", "Manage sandbox testers in App Store Connect.", func() *ffcli.Command {
 			return sandbox.NewSandboxCommand(d)
 		}),
-		commandFactory("signing", "Manage signing certificates and profiles.", signing.SigningCommand),
+		commandFactory("signing", "Manage signing certificates and profiles.", func() *ffcli.Command { return signing.NewSigningCommand(d) }),
 		commandFactory("notarization", "Manage macOS notarization submissions.", func() *ffcli.Command {
 			return notarization.NewNotarizationCommand(d)
 		}),
