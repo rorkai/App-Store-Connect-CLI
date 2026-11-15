@@ -164,6 +164,28 @@ func runStep(ctx context.Context, action StepAction, step PlanStep, bundleID str
 		}
 		args = append(args, "--udid", udid)
 		return runExternal(ctx, "axe", args...)
+	case ActionPinch:
+		args := []string{"gesture", "pinch", "--scale", formatFloat(floatValue(step.Scale))}
+		if step.X != nil {
+			args = append(args, "-x", formatFloat(*step.X), "-y", formatFloat(floatValue(step.Y)))
+		}
+		if step.Radius != nil {
+			args = append(args, "--radius", formatFloat(*step.Radius))
+		}
+		args = append(args, "--udid", udid)
+		return runExternal(ctx, "axe", args...)
+	case ActionRotate:
+		return runExternal(ctx, "axe", "gesture", "rotate",
+			"-x", formatFloat(floatValue(step.X)),
+			"-y", formatFloat(floatValue(step.Y)),
+			"--radius", formatFloat(floatValue(step.Radius)),
+			"--degrees", formatFloat(floatValue(step.Degrees)),
+			"--udid", udid)
+	case ActionDoubleTap:
+		return runExternal(ctx, "axe", "gesture", "double-tap",
+			"-x", formatFloat(floatValue(step.X)),
+			"-y", formatFloat(floatValue(step.Y)),
+			"--udid", udid)
 	case ActionType:
 		return runExternal(ctx, "axe", "type", stringValue(step.Text), "--udid", udid)
 	case ActionKeySequence:
