@@ -59,7 +59,7 @@ Examples:
 
 func newTestFlightFeedbackViewCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		Deps: d,
+		Deps:       d,
 		Name:       "view",
 		ShortUsage: "asc testflight feedback view --submission-id \"SUBMISSION_ID\"",
 		ShortHelp:  "View a feedback submission by ID.",
@@ -79,7 +79,7 @@ Examples:
 
 func newTestFlightFeedbackDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		Deps: d,
+		Deps:       d,
 		Name:       "delete",
 		ShortUsage: "asc testflight feedback delete --submission-id \"SUBMISSION_ID\" --confirm",
 		ShortHelp:  "Delete a feedback submission by ID.",
@@ -147,7 +147,7 @@ Examples:
 
 func newTestFlightCrashesViewCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		Deps: d,
+		Deps:       d,
 		Name:       "view",
 		ShortUsage: "asc testflight crashes view --submission-id \"SUBMISSION_ID\"",
 		ShortHelp:  "View a crash submission by ID.",
@@ -167,7 +167,7 @@ Examples:
 
 func newTestFlightCrashesDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		Deps: d,
+		Deps:       d,
 		Name:       "delete",
 		ShortUsage: "asc testflight crashes delete --submission-id \"SUBMISSION_ID\" --confirm",
 		ShortHelp:  "Delete a crash submission by ID.",

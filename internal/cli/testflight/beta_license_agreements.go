@@ -45,7 +45,7 @@ func newBetaLicenseAgreementsListCommand(d *shared.Deps) *ffcli.Command {
 	var appIDs, fields, appFields, include *string
 
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		Deps: d,
+		Deps:       d,
 		Name:       "list",
 		ShortUsage: "asc testflight beta-license-agreements list [flags]",
 		ShortHelp:  "List beta license agreements.",
@@ -157,7 +157,7 @@ Examples:
 func newBetaLicenseAgreementsUpdateCommand(d *shared.Deps) *ffcli.Command {
 	var agreementText string
 	return shared.BuildUpdateCommand(shared.WriteCommandConfig{
-		Deps: d,
+		Deps:       d,
 		Name:       "update",
 		ShortUsage: "asc testflight beta-license-agreements update --id \"AGREEMENT_ID\" --agreement-text \"Text\"",
 		ShortHelp:  "Update a beta license agreement.",

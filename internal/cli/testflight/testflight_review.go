@@ -279,7 +279,7 @@ Examples:
 // newTestFlightReviewAppGetCommand retrieves the app for a beta app review detail.
 func newTestFlightReviewAppGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		Deps: d,
+		Deps:        d,
 		FlagSetName: "app view",
 		Name:        "view",
 		ShortUsage:  "asc testflight review app view --id \"DETAIL_ID\"",
@@ -400,7 +400,7 @@ Examples:
 // newTestFlightReviewSubmissionsGetCommand retrieves a beta app review submission by ID.
 func newTestFlightReviewSubmissionsGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		Deps: d,
+		Deps:        d,
 		FlagSetName: "submissions view",
 		Name:        "view",
 		ShortUsage:  "asc testflight review submissions view --id \"SUBMISSION_ID\"",
@@ -567,7 +567,7 @@ Examples:
 // newTestFlightBetaDetailsBuildGetCommand retrieves the build for a build beta detail.
 func newTestFlightBetaDetailsBuildGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		Deps: d,
+		Deps:        d,
 		FlagSetName: "build view",
 		Name:        "view",
 		ShortUsage:  "asc testflight beta-details build view --id \"DETAIL_ID\"",
@@ -675,7 +675,7 @@ Examples:
 // newTestFlightRecruitmentDeleteCommand deletes recruitment criteria by ID.
 func newTestFlightRecruitmentDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
-		Deps: d,
+		Deps:       d,
 		Name:       "delete",
 		ShortUsage: "asc testflight recruitment delete --id \"CRITERIA_ID\" --confirm",
 		ShortHelp:  "Delete recruitment criteria.",
