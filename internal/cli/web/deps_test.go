@@ -13,11 +13,12 @@ import (
 func newWebTestDeps() (*shared.Deps, *bytes.Buffer, *bytes.Buffer) {
 	var stdout, stderr bytes.Buffer
 	return &shared.Deps{
-		IO:      &shared.IO{Out: &stdout, ErrOut: &stderr},
-		Now:     time.Now,
-		Timeout: shared.ContextWithTimeout,
-		After:   time.After,
-		Getwd:   os.Getwd,
+		IO:             &shared.IO{Out: &stdout, ErrOut: &stderr},
+		Now:            time.Now,
+		Timeout:        shared.ContextWithTimeout,
+		ResolveTimeout: shared.ResolveTimeoutSetting,
+		After:          time.After,
+		Getwd:          os.Getwd,
 	}, &stdout, &stderr
 }
 
