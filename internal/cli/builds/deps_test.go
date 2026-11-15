@@ -1,0 +1,22 @@
+package builds
+
+import (
+	"bytes"
+	"time"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+)
+
+// newBuildsTestDeps returns deps that write to buffers and take their client
+// from client, with the process clock and timeouts.
+func newBuildsTestDeps(client func() (*asc.Client, error)) (*shared.Deps, *bytes.Buffer, *bytes.Buffer) {
+	var stdout, stderr bytes.Buffer
+	return &shared.Deps{
+		Client:        client,
+		IO:            &shared.IO{Out: &stdout, ErrOut: &stderr},
+		Now:           time.Now,
+		Timeout:       shared.ContextWithTimeout,
+		UploadTimeout: shared.ContextWithUploadTimeout,
+	}, &stdout, &stderr
+}

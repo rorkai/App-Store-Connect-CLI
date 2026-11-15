@@ -21,9 +21,9 @@ const (
 	buildWaitDefaultTimeout = 30 * time.Minute
 )
 
-// BuildsUploadCommand returns a command to upload a build
-func BuildsUploadCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("upload", flag.ExitOnError)
+// newBuildsUploadCommand returns a command to upload a build
+func newBuildsUploadCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("upload", flag.ExitOnError)
 
 	appID := shared.BindResourceIDFlag(fs, "app", "apps", "App Store Connect app ID; IPA uploads also accept an exact bundle ID or exact name (required, or ASC_APP_ID env)")
 	ipaPath := fs.String("ipa", "", "Path to .ipa file (for iOS, tvOS, visionOS apps)")
@@ -39,7 +39,7 @@ func BuildsUploadCommand() *ffcli.Command {
 	wait := fs.Bool("wait", false, "Wait for build processing to complete")
 	pollInterval := fs.Duration("poll-interval", shared.PublishDefaultPollInterval, "Polling interval for --wait and --test-notes")
 	verifyTimeout := fs.Duration("verify-timeout", 0, "How long to watch for immediate post-commit upload failures (0 to disable)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	includeSensitive := shared.BindIncludeSensitiveFlag(fs)
 
 	return &ffcli.Command{
@@ -75,12 +75,12 @@ Examples:
   asc builds upload --app "123456789" --ipa "app.ipa" --test-notes "Test flow" --locale "en-US"
   asc builds upload --app "123456789" --pkg "path/to/app.pkg" --version "1.0.0" --build-number "123"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			// Validate required flags
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
-				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
+				fmt.Fprintf(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return shared.MissingRequiredUsageError("--app")
 			}
 
@@ -88,18 +88,18 @@ Examples:
 			hasIPA := *ipaPath != ""
 			hasPKG := *pkgPath != ""
 			if !hasIPA && !hasPKG {
-				fmt.Fprintf(os.Stderr, "Error: --ipa or --pkg is required\n\n")
+				fmt.Fprintf(d.IO.ErrOut, "Error: --ipa or --pkg is required\n\n")
 				return shared.MissingRequiredUsageError("")
 			}
 			if hasIPA && hasPKG {
-				fmt.Fprintf(os.Stderr, "Error: --ipa and --pkg are mutually exclusive\n\n")
+				fmt.Fprintf(d.IO.ErrOut, "Error: --ipa and --pkg are mutually exclusive\n\n")
 				return flag.ErrHelp
 			}
 			if *verifyTimeout < 0 {
-				return shared.UsageError("--verify-timeout must be zero or greater")
+				return d.UsageError("--verify-timeout must be zero or greater")
 			}
 			if *dryRun && *verifyTimeout > 0 {
-				return shared.UsageError("--verify-timeout is not supported with --dry-run")
+				return d.UsageError("--verify-timeout is not supported with --dry-run")
 			}
 
 			// Determine file path and UTI based on provided flag
@@ -137,7 +137,7 @@ Examples:
 			if hasPKG {
 				// For PKG files, platform must be MAC_OS
 				if *platform != "" && strings.ToUpper(*platform) != "MAC_OS" {
-					return shared.UsageError("builds upload: --pkg requires --platform MAC_OS (or omit --platform)")
+					return d.UsageError("builds upload: --pkg requires --platform MAC_OS (or omit --platform)")
 				}
 				platformValue = asc.PlatformMacOS
 			} else {
@@ -154,7 +154,7 @@ Examples:
 			switch platformValue {
 			case asc.PlatformIOS, asc.PlatformMacOS, asc.PlatformTVOS, asc.PlatformVisionOS:
 			default:
-				return shared.UsageError("builds upload: --platform must be IOS, MAC_OS, TV_OS, or VISION_OS")
+				return d.UsageError("builds upload: --platform must be IOS, MAC_OS, TV_OS, or VISION_OS")
 			}
 			concurrencySet := false
 			fs.Visit(func(f *flag.Flag) {
@@ -164,43 +164,43 @@ Examples:
 			})
 			if *dryRun {
 				if concurrencySet {
-					return shared.UsageError("builds upload: --concurrency is not supported with --dry-run")
+					return d.UsageError("builds upload: --concurrency is not supported with --dry-run")
 				}
 				if *verifyChecksum {
-					return shared.UsageError("builds upload: --checksum is not supported with --dry-run")
+					return d.UsageError("builds upload: --checksum is not supported with --dry-run")
 				}
 				if *wait {
-					return shared.UsageError("builds upload: --wait is not supported with --dry-run")
+					return d.UsageError("builds upload: --wait is not supported with --dry-run")
 				}
 			} else if *concurrency < 1 {
-				return shared.UsageError("builds upload: --concurrency must be at least 1")
+				return d.UsageError("builds upload: --concurrency must be at least 1")
 			}
 
 			testNotesValue := strings.TrimSpace(*testNotes)
 			localeValue := strings.TrimSpace(*locale)
 			if testNotesValue != "" && localeValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --locale is required with --test-notes")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --locale is required with --test-notes")
 				return shared.MissingRequiredUsageError("--locale")
 			}
 			if testNotesValue == "" && localeValue != "" {
-				fmt.Fprintln(os.Stderr, "Error: --test-notes is required with --locale")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --test-notes is required with --locale")
 				return shared.MissingRequiredUsageError("--test-notes")
 			}
 			if testNotesValue != "" {
 				if *dryRun {
-					return shared.UsageError("builds upload: --test-notes is not supported with --dry-run")
+					return d.UsageError("builds upload: --test-notes is not supported with --dry-run")
 				}
 				if err := shared.ValidateBuildLocalizationLocale(localeValue); err != nil {
-					return shared.UsageErrorf("builds upload: %v", err)
+					return d.UsageErrorf("builds upload: %v", err)
 				}
-				normalizedNotes, normalizeErr := shared.NormalizeTestNotesForCommand(os.Stderr, testNotesValue)
+				normalizedNotes, normalizeErr := shared.NormalizeTestNotesForCommand(d.IO.ErrOut, testNotesValue)
 				if normalizeErr != nil {
 					return fmt.Errorf("builds upload: %w", normalizeErr)
 				}
 				testNotesValue = normalizedNotes
 			}
 			if (*wait || testNotesValue != "") && *pollInterval <= 0 {
-				return shared.UsageError("builds upload: --poll-interval must be greater than 0")
+				return d.UsageError("builds upload: --poll-interval must be greater than 0")
 			}
 
 			versionValue := strings.TrimSpace(*version)
@@ -223,7 +223,7 @@ Examples:
 				}
 				if ipaInfo.Platform != "" {
 					if strings.TrimSpace(*platform) != "" && platformValue != ipaInfo.Platform {
-						return shared.UsageErrorf("builds upload: --platform %s does not match IPA platform %s", platformValue, ipaInfo.Platform)
+						return d.UsageErrorf("builds upload: --platform %s does not match IPA platform %s", platformValue, ipaInfo.Platform)
 					}
 					platformValue = ipaInfo.Platform
 				}
@@ -236,7 +236,7 @@ Examples:
 				if buildNumberValue == "" {
 					missingFlags = append(missingFlags, "--build-number")
 				}
-				return shared.UsageErrorf("builds upload: %s required for PKG uploads", strings.Join(missingFlags, " and "))
+				return d.UsageErrorf("builds upload: %s required for PKG uploads", strings.Join(missingFlags, " and "))
 			}
 			if versionValue == "" || buildNumberValue == "" {
 				missingFields := make([]string, 0, 2)
@@ -252,14 +252,14 @@ Examples:
 				return invalidIPAFormat(fmt.Errorf("builds upload: missing Info.plist keys %s; provide %s", strings.Join(missingFields, " and "), strings.Join(missingFlags, " and ")))
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("builds upload: %w", err)
 			}
 
-			timeoutValue := asc.ResolveTimeout()
+			timeoutValue := d.ResolveTimeout(shared.RequestTimeoutSetting, asc.DefaultTimeout)
 			if *wait || testNotesValue != "" {
-				timeoutValue = asc.ResolveTimeoutWithDefault(buildWaitDefaultTimeout)
+				timeoutValue = d.ResolveTimeout(shared.RequestTimeoutSetting, buildWaitDefaultTimeout)
 			}
 			requestCtx, cancel := shared.ContextWithTimeoutDuration(ctx, timeoutValue)
 			defer cancel()
@@ -296,7 +296,7 @@ Examples:
 
 			outputOperations := fileResp.Data.Attributes.UploadOperations
 			if *includeSensitive {
-				shared.WarnIncludeSensitive(os.Stderr, true)
+				shared.WarnIncludeSensitive(d.IO.ErrOut, true)
 			} else {
 				outputOperations = asc.RedactUploadOperations(outputOperations)
 			}
@@ -319,8 +319,8 @@ Examples:
 				uploadOpts := []asc.UploadOption{
 					asc.WithUploadConcurrency(*concurrency),
 				}
-				fmt.Fprintf(os.Stderr, "Uploading %s (%d bytes) to App Store Connect...\n", fileInfo.Name(), fileInfo.Size())
-				uploadCtx, uploadCancel := shared.ContextWithUploadTimeout(ctx)
+				fmt.Fprintf(d.IO.ErrOut, "Uploading %s (%d bytes) to App Store Connect...\n", fileInfo.Name(), fileInfo.Size())
+				uploadCtx, uploadCancel := d.UploadTimeout(ctx)
 				err = asc.ExecuteUploadOperationsFromFile(uploadCtx, artifactFile, fileResp.Data.Attributes.UploadOperations, uploadOpts...)
 				uploadCancel()
 				if err != nil {
@@ -332,7 +332,7 @@ Examples:
 				if *verifyChecksum {
 					src := fileResp.Data.Attributes.SourceFileChecksums
 					if src == nil || (src.File == nil && src.Composite == nil) {
-						fmt.Fprintln(os.Stderr, "Warning: --checksum requested but API provided no checksums to verify; skipping")
+						fmt.Fprintln(d.IO.ErrOut, "Warning: --checksum requested but API provided no checksums to verify; skipping")
 					} else {
 						checksums, err := asc.VerifySourceFileChecksumsFromFile(artifactFile, src)
 						if err != nil {
@@ -344,7 +344,7 @@ Examples:
 					}
 				}
 
-				commitCtx, commitCancel := shared.ContextWithUploadTimeout(ctx)
+				commitCtx, commitCancel := d.UploadTimeout(ctx)
 				commitResp, err := shared.CommitBuildUploadFile(commitCtx, client, uploadResp.Data.ID, fileResp.Data.ID, verifiedChecksums)
 				commitCancel()
 				if err != nil {
@@ -357,7 +357,7 @@ Examples:
 					uploaded := true
 					result.Uploaded = &uploaded
 				}
-				fmt.Fprintln(os.Stderr, "Upload committed in App Store Connect.")
+				fmt.Fprintln(d.IO.ErrOut, "Upload committed in App Store Connect.")
 				result.ChecksumVerified = checksumVerified
 				result.SourceFileChecksums = verifiedChecksums
 				result.Operations = nil
@@ -365,8 +365,8 @@ Examples:
 				if *wait || testNotesValue != "" {
 					waitCtx, waitCancel := shared.ContextWithTimeoutDuration(ctx, timeoutValue)
 					defer waitCancel()
-					fmt.Fprintf(os.Stderr, "Waiting for build %s (%s) to appear in App Store Connect...\n", buildNumberValue, versionValue)
-					buildResp, err := shared.WaitForBuildByNumberOrUploadFailure(waitCtx, client, resolvedAppID, uploadResp.Data.ID, versionValue, buildNumberValue, string(platformValue), *pollInterval)
+					fmt.Fprintf(d.IO.ErrOut, "Waiting for build %s (%s) to appear in App Store Connect...\n", buildNumberValue, versionValue)
+					buildResp, err := d.WaitForBuildByNumberOrUploadFailure(waitCtx, client, resolvedAppID, uploadResp.Data.ID, versionValue, buildNumberValue, string(platformValue), *pollInterval)
 					if err != nil {
 						return fmt.Errorf("builds upload: %w", err)
 					}
@@ -376,21 +376,21 @@ Examples:
 					result.BuildID = buildResp.Data.ID
 
 					if testNotesValue != "" {
-						fmt.Fprintf(os.Stderr, "Build %s discovered; setting What to Test notes...\n", buildResp.Data.ID)
-						upsertOpts := shared.UpsertBetaBuildLocalizationOptions{AppID: resolvedAppID, Diagnostics: os.Stderr}
+						fmt.Fprintf(d.IO.ErrOut, "Build %s discovered; setting What to Test notes...\n", buildResp.Data.ID)
+						upsertOpts := shared.UpsertBetaBuildLocalizationOptions{AppID: resolvedAppID, Diagnostics: d.IO.ErrOut}
 						if _, err := shared.UpsertBetaBuildLocalization(waitCtx, client, buildResp.Data.ID, localeValue, testNotesValue, upsertOpts); err != nil {
 							return fmt.Errorf("builds upload: %w", shared.NewTestNotesRecoveryError(buildResp.Data.ID, localeValue, testNotesValue, err))
 						}
 					}
 
 					if *wait {
-						fmt.Fprintf(os.Stderr, "Build %s discovered; waiting for processing...\n", buildResp.Data.ID)
+						fmt.Fprintf(d.IO.ErrOut, "Build %s discovered; waiting for processing...\n", buildResp.Data.ID)
 						if _, err := shared.WaitForBuildProcessingWithDetails(waitCtx, client, resolvedAppID, buildResp.Data.ID, *pollInterval); err != nil {
 							return fmt.Errorf("builds upload: %w", err)
 						}
 					}
 				} else if *verifyTimeout > 0 {
-					fmt.Fprintf(os.Stderr, "Verifying initial App Store Connect processing for up to %s...\n", verifyTimeout.String())
+					fmt.Fprintf(d.IO.ErrOut, "Verifying initial App Store Connect processing for up to %s...\n", verifyTimeout.String())
 					buildID, err := shared.VerifyBuildUploadAfterCommit(ctx, client, resolvedAppID, uploadResp.Data.ID, *pollInterval, *verifyTimeout)
 					if err != nil {
 						return fmt.Errorf("builds upload: %w", err)
@@ -398,24 +398,24 @@ Examples:
 					if buildID != "" {
 						result.BuildID = buildID
 					} else {
-						fmt.Fprintf(os.Stderr, "Build ID for upload %s is not available yet: verification ended before App Store Connect exposed the build; look it up later with: asc builds info --app %q --build-number %q --version %q --platform %s\n", uploadResp.Data.ID, resolvedAppID, buildNumberValue, versionValue, platformValue)
+						fmt.Fprintf(d.IO.ErrOut, "Build ID for upload %s is not available yet: verification ended before App Store Connect exposed the build; look it up later with: asc builds info --app %q --build-number %q --version %q --platform %s\n", uploadResp.Data.ID, resolvedAppID, buildNumberValue, versionValue, platformValue)
 					}
 				}
 			}
 
 			format := *output.Output
 
-			return shared.PrintOutput(result, format, *output.Pretty)
+			return d.PrintOutput(result, format, *output.Pretty)
 		},
 	}
 }
 
-// BuildsCommand returns the builds command with subcommands
-func BuildsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("builds", flag.ExitOnError)
+// NewBuildsCommand returns the builds command with subcommands
+func NewBuildsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("builds", flag.ExitOnError)
 
 	// Parent command has no flags - subcommands define their own
-	listCmd := BuildsListCommand()
+	listCmd := newBuildsListCommand(d)
 
 	return &ffcli.Command{
 		Name:       "builds",
@@ -462,16 +462,16 @@ Examples:
   asc builds compile --package-path ./AppPackage --product App --app-path ./artifacts/App.app --platform device
   asc builds package --app-path ./artifacts/App.app --ipa-path ./artifacts/App.ipa --ad-hoc`,
 		FlagSet:   fs,
-		UsageFunc: shared.VisibleUsageFunc,
+		UsageFunc: d.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
 			listCmd,
-			BuildsCountCommand(),
-			BuildsNextBuildNumberCommand(),
-			BuildsWaitCommand(),
-			BuildsInfoCommand(),
-			BuildsExpireCommand(),
-			BuildsExpireAllCommand(),
-			BuildsUploadCommand(),
+			newBuildsCountCommand(d),
+			newBuildsNextBuildNumberCommand(d),
+			newBuildsWaitCommand(d),
+			newBuildsInfoCommand(d),
+			newBuildsExpireCommand(d),
+			newBuildsExpireAllCommand(d),
+			newBuildsUploadCommand(d),
 			BuildsUploadsCommand(),
 			BuildsTestNotesCommand(),
 			BuildsAppEncryptionDeclarationCommand(),
@@ -513,14 +513,14 @@ var buildsListBetaReviewStates = []string{"WAITING_FOR_REVIEW", "IN_REVIEW", "RE
 
 // normalizeBuildsListBetaReviewStates upper-cases and validates a comma-separated
 // beta review state filter, rejecting values the API does not accept.
-func normalizeBuildsListBetaReviewStates(value string) ([]string, error) {
+func normalizeBuildsListBetaReviewStates(d *shared.Deps, value string) ([]string, error) {
 	states := shared.SplitCSVUpper(value)
 	if strings.TrimSpace(value) != "" && len(states) == 0 {
-		return nil, shared.UsageErrorf("--beta-review-state must be a comma-separated list of: %s", strings.Join(buildsListBetaReviewStates, ", "))
+		return nil, d.UsageErrorf("--beta-review-state must be a comma-separated list of: %s", strings.Join(buildsListBetaReviewStates, ", "))
 	}
 	for _, state := range states {
 		if !slices.Contains(buildsListBetaReviewStates, state) {
-			return nil, shared.UsageErrorf("--beta-review-state must be a comma-separated list of: %s", strings.Join(buildsListBetaReviewStates, ", "))
+			return nil, d.UsageErrorf("--beta-review-state must be a comma-separated list of: %s", strings.Join(buildsListBetaReviewStates, ", "))
 		}
 	}
 	return states, nil
@@ -565,13 +565,13 @@ var buildsIncludedResources = map[string]string{
 
 // resolveBuildsListInclude validates a comma-separated include value and unions
 // it with the default relationship the table renderer depends on.
-func resolveBuildsListInclude(value string) ([]string, error) {
+func resolveBuildsListInclude(d *shared.Deps, value string) ([]string, error) {
 	if err := shared.ValidateInclude(value, buildsListIncludeValues...); err != nil {
-		return nil, shared.UsageError(err.Error())
+		return nil, d.UsageError(err.Error())
 	}
 	items := shared.SplitUniqueCSV(value)
 	if strings.TrimSpace(value) != "" && len(items) == 0 {
-		return nil, shared.UsageErrorf("--include must be a comma-separated list of: %s", strings.Join(buildsListIncludeValues, ", "))
+		return nil, d.UsageErrorf("--include must be a comma-separated list of: %s", strings.Join(buildsListIncludeValues, ", "))
 	}
 
 	include := []string{buildsListDefaultInclude}
@@ -583,12 +583,12 @@ func resolveBuildsListInclude(value string) ([]string, error) {
 	return include, nil
 }
 
-// BuildsListCommand returns the builds list subcommand
-func BuildsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
+// newBuildsListCommand returns the builds list subcommand
+func newBuildsListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("list", flag.ExitOnError)
 
 	appID := shared.BindResourceIDFlag(fs, "app", "apps", "App Store Connect app ID, bundle ID, or exact app name (or ASC_APP_ID env)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	sort := fs.String("sort", "", "Sort by "+strings.Join(buildsListSortValues, ", "))
 	version := fs.String("version", "", "Filter by marketing version string (CFBundleShortVersionString)")
 	buildNumber := fs.String("build-number", "", "Filter by build number (CFBundleVersion)")
@@ -628,11 +628,11 @@ Examples:
   asc builds list --app "123456789" --sort "-version"
   asc builds list --app "123456789" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			// A links.next URL already carries the query that produced it, and
 			// GetBuilds follows it verbatim, so these flags would be discarded.
-			if err := shared.ValidatePaginationFlags(
+			if err := d.ValidatePaginationFlags(
 				ctx,
 				fs,
 				"builds list",
@@ -646,50 +646,50 @@ Examples:
 
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && nextValue == "" {
-				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
+				fmt.Fprintf(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return shared.MissingRequiredUsageError("--app")
 			}
 
 			if err := shared.ValidateSort(*sort, buildsListSortValues...); err != nil {
-				return shared.UsageErrorf("builds: %v", err)
+				return d.UsageErrorf("builds: %v", err)
 			}
 
 			platformValue := ""
 			if strings.TrimSpace(*platform) != "" {
 				normalizedPlatform, err := shared.NormalizePlatform(*platform)
 				if err != nil {
-					return shared.UsageError(err.Error())
+					return d.UsageError(err.Error())
 				}
 				platformValue = string(normalizedPlatform)
 			}
 
 			versionValue := strings.TrimSpace(*version)
 			buildNumberValue := strings.TrimSpace(*buildNumber)
-			processingStateValues, err := normalizeBuildProcessingStateFilter(*processingState)
+			processingStateValues, err := normalizeBuildProcessingStateFilter(d, *processingState)
 			if err != nil {
 				return err
 			}
 
-			betaReviewStateValues, err := normalizeBuildsListBetaReviewStates(*betaReviewState)
+			betaReviewStateValues, err := normalizeBuildsListBetaReviewStates(d, *betaReviewState)
 			if err != nil {
 				return err
 			}
 
-			includeValues, err := resolveBuildsListInclude(*include)
+			includeValues, err := resolveBuildsListInclude(d, *include)
 			if err != nil {
 				return err
 			}
-			included, err := includedFields.Resolve("builds list", nextValue, includeValues)
+			included, err := includedFields.ResolveWith(d, "builds list", nextValue, includeValues)
 			if err != nil {
 				return err
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("builds: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			if resolvedAppID != "" && nextValue == "" {
@@ -701,12 +701,12 @@ Examples:
 
 			preReleaseVersionIDs := []string{}
 			if versionValue != "" && nextValue == "" {
-				preReleaseVersionIDs, err = shared.FindPreReleaseVersionIDs(requestCtx, client, resolvedAppID, versionValue, platformValue)
+				preReleaseVersionIDs, err = d.FindPreReleaseVersionIDs(requestCtx, client, resolvedAppID, versionValue, platformValue)
 				if err != nil {
 					return fmt.Errorf("builds: %w", err)
 				}
 				if len(preReleaseVersionIDs) == 0 {
-					return shared.PrintOutput(&asc.BuildsResponse{Data: []asc.Resource[asc.BuildAttributes]{}}, *output.Output, *output.Pretty)
+					return d.PrintOutput(&asc.BuildsResponse{Data: []asc.Resource[asc.BuildAttributes]{}}, *output.Output, *output.Pretty)
 				}
 			}
 
@@ -740,7 +740,7 @@ Examples:
 
 			if *paginate {
 				paginateOpts := append(opts, asc.Limit[asc.BuildsOption](200))
-				builds, err := shared.PaginateWithSpinner(
+				builds, err := d.PaginateWithSpinner(
 					requestCtx,
 					func(ctx context.Context) (asc.PaginatedResponse, error) {
 						return client.GetBuilds(ctx, resolvedAppID, paginateOpts...)
@@ -754,7 +754,7 @@ Examples:
 				}
 
 				format := *output.Output
-				return shared.PrintOutput(builds, format, *output.Pretty)
+				return d.PrintOutput(builds, format, *output.Pretty)
 			}
 
 			builds, err := client.GetBuilds(requestCtx, resolvedAppID, opts...)
@@ -764,13 +764,13 @@ Examples:
 
 			format := *output.Output
 
-			return shared.PrintOutput(builds, format, *output.Pretty)
+			return d.PrintOutput(builds, format, *output.Pretty)
 		},
 	}
 }
 
-func normalizeBuildProcessingStateFilter(raw string) ([]string, error) {
-	return shared.NormalizeBuildProcessingStateFilter(raw, shared.BuildProcessingStateFilterOptions{
+func normalizeBuildProcessingStateFilter(d *shared.Deps, raw string) ([]string, error) {
+	return d.NormalizeBuildProcessingStateFilter(raw, shared.BuildProcessingStateFilterOptions{
 		FlagName:          "--processing-state",
 		AllowedValuesHelp: "VALID, PROCESSING, FAILED, INVALID, or all",
 	})
@@ -839,9 +839,9 @@ func mergeBuildRelationship(relationships json.RawMessage, key string, value map
 	return raw, nil
 }
 
-// BuildsInfoCommand returns a build info subcommand.
-func BuildsInfoCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("builds info", flag.ExitOnError)
+// newBuildsInfoCommand returns a build info subcommand.
+func newBuildsInfoCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("builds info", flag.ExitOnError)
 
 	buildID := shared.BindResourceIDFlag(fs, "build-id", "builds", "Build ID")
 	appID := shared.BindResourceIDFlag(fs, "app", "apps", "App Store Connect app ID, bundle ID, or exact app name (required when --build-id is not provided)")
@@ -854,7 +854,7 @@ func BuildsInfoCommand() *ffcli.Command {
 	notExpired := fs.Bool("not-expired", false, "Alias for --exclude-expired")
 	include := fs.String("include", "", "Include related resources, comma-separated ("+strings.Join(buildsListIncludeValues, ", ")+")")
 	includedFields := shared.BindIncludedFieldFlags(fs, buildsIncludedResources)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "info",
@@ -878,10 +878,10 @@ Examples:
   asc builds info --app "123456789" --build-number "42" --version "1.2.3" --platform IOS
   asc builds info --build-id "BUILD_ID" --include buildBetaDetail,betaAppReviewSubmission,betaGroups`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			excludeExpiredValue := *excludeExpired || *notExpired
-			processingStateValues, err := normalizeBuildProcessingStateFilter(*processingState)
+			processingStateValues, err := normalizeBuildProcessingStateFilter(d, *processingState)
 			if err != nil {
 				return err
 			}
@@ -896,33 +896,33 @@ Examples:
 				ProcessingStateValues: processingStateValues,
 				ExcludeExpired:        excludeExpiredValue,
 			}
-			if err := validateResolveBuildOptions(resolveOpts); err != nil {
+			if err := validateResolveBuildOptions(d, resolveOpts); err != nil {
 				return err
 			}
 			var includeValues []string
 			if strings.TrimSpace(*include) != "" {
-				includeValues, err = resolveBuildsListInclude(*include)
+				includeValues, err = resolveBuildsListInclude(d, *include)
 				if err != nil {
 					return err
 				}
 			}
-			included, err := includedFields.Resolve("builds info", "", includeValues)
+			included, err := includedFields.ResolveWith(d, "builds info", "", includeValues)
 			if err != nil {
 				return err
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("builds info: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			if len(includeValues) > 0 {
 				buildIDValue := resolveOpts.BuildID
 				if buildIDValue == "" {
-					resolved, err := ResolveBuild(requestCtx, client, resolveOpts)
+					resolved, err := ResolveBuild(requestCtx, d, client, resolveOpts)
 					if err != nil {
 						return fmt.Errorf("builds info: %w", err)
 					}
@@ -932,10 +932,10 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("builds info: failed to fetch build %s: %w", buildIDValue, err)
 				}
-				return shared.PrintOutput(build, *output.Output, *output.Pretty)
+				return d.PrintOutput(build, *output.Output, *output.Pretty)
 			}
 
-			build, err := ResolveBuild(requestCtx, client, resolveOpts)
+			build, err := ResolveBuild(requestCtx, d, client, resolveOpts)
 			if err != nil {
 				return fmt.Errorf("builds info: %w", err)
 			}
@@ -945,18 +945,18 @@ Examples:
 
 			format := *output.Output
 
-			return shared.PrintOutput(build, format, *output.Pretty)
+			return d.PrintOutput(build, format, *output.Pretty)
 		},
 	}
 }
 
-// BuildsExpireCommand returns a build expiration subcommand.
-func BuildsExpireCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("builds expire", flag.ExitOnError)
+// newBuildsExpireCommand returns a build expiration subcommand.
+func newBuildsExpireCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("builds expire", flag.ExitOnError)
 
-	selectors := bindBuildSelectorFlags(fs, buildSelectorFlagOptions{})
+	selectors := bindBuildSelectorFlags(d, fs, buildSelectorFlagOptions{})
 	confirm := fs.Bool("confirm", false, "Confirm expiration")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "expire",
@@ -970,21 +970,21 @@ Examples:
   asc builds expire --build-id "BUILD_ID" --confirm
   asc builds expire --app "123456789" --latest --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := selectors.validate(); err != nil {
 				return err
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("builds expire: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			buildID, err := selectors.resolveBuildID(requestCtx, client)
@@ -999,7 +999,7 @@ Examples:
 
 			format := *output.Output
 
-			return shared.PrintOutput(build, format, *output.Pretty)
+			return d.PrintOutput(build, format, *output.Pretty)
 		},
 	}
 }

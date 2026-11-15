@@ -54,7 +54,7 @@ Examples:
 func BuildsAppViewCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("app view", flag.ExitOnError)
 
-	selectors := bindBuildSelectorFlags(fs, buildSelectorFlagOptions{})
+	selectors := bindBuildSelectorFlags(shared.DefaultDeps(), fs, buildSelectorFlagOptions{})
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -125,7 +125,7 @@ Examples:
 func BuildsPreReleaseVersionViewCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("pre-release-version view", flag.ExitOnError)
 
-	selectors := bindBuildSelectorFlags(fs, buildSelectorFlagOptions{})
+	selectors := bindBuildSelectorFlags(shared.DefaultDeps(), fs, buildSelectorFlagOptions{})
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -209,7 +209,7 @@ Examples:
 		TopLevel:             true,
 		PaginateIgnoresLimit: true,
 		Flags: func(fs *flag.FlagSet) func() error {
-			selectors = bindBuildSelectorFlags(fs, buildSelectorFlagOptions{})
+			selectors = bindBuildSelectorFlags(shared.DefaultDeps(), fs, buildSelectorFlagOptions{})
 			next := fs.Lookup("next").Value
 			return func() error {
 				if strings.TrimSpace(next.String()) == "" {
@@ -263,7 +263,7 @@ Examples:
 func BuildsBetaAppReviewSubmissionViewCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("beta-app-review-submission view", flag.ExitOnError)
 
-	selectors := bindBuildSelectorFlags(fs, buildSelectorFlagOptions{})
+	selectors := bindBuildSelectorFlags(shared.DefaultDeps(), fs, buildSelectorFlagOptions{})
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -338,7 +338,7 @@ Examples:
 func BuildsBuildBetaDetailViewCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("build-beta-detail view", flag.ExitOnError)
 
-	selectors := bindBuildSelectorFlags(fs, buildSelectorFlagOptions{})
+	selectors := bindBuildSelectorFlags(shared.DefaultDeps(), fs, buildSelectorFlagOptions{})
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{

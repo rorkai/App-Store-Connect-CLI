@@ -4,7 +4,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 	"unicode"
@@ -26,6 +25,7 @@ const (
 // command, or, with --report-pending, a pending result on stdout that exits
 // with the pending code.
 type buildsWaitTimeout struct {
+	d             *shared.Deps
 	fs            *flag.FlagSet
 	started       time.Time
 	timeout       time.Duration
@@ -103,7 +103,7 @@ func (t *buildsWaitTimeout) newResult(phase string) *asc.BuildWaitPendingResult 
 		Phase:    phase,
 		Version:  t.selector.Version,
 		Platform: t.selector.Platform,
-		Elapsed:  buildsWaitNow().Sub(t.started).Round(time.Second).String(),
+		Elapsed:  t.d.Now().Sub(t.started).Round(time.Second).String(),
 		Timeout:  t.timeout.String(),
 	}
 }
@@ -127,7 +127,7 @@ func (t *buildsWaitTimeout) finish(prefix, state string, result *asc.BuildWaitPe
 	if err != nil {
 		return err
 	}
-	if err := shared.PrintOutput(result, format, *t.output.Pretty); err != nil {
+	if err := t.d.PrintOutput(result, format, *t.output.Pretty); err != nil {
 		return err
 	}
 
@@ -135,7 +135,7 @@ func (t *buildsWaitTimeout) finish(prefix, state string, result *asc.BuildWaitPe
 	if resumable {
 		notice += "; resume with: " + resume
 	}
-	fmt.Fprintln(os.Stderr, notice)
+	fmt.Fprintln(t.d.IO.ErrOut, notice)
 	return shared.NewPendingError("builds wait: " + notice)
 }
 

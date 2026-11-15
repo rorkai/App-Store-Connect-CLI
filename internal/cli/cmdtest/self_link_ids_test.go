@@ -39,6 +39,7 @@ func TestSelfLinkWrongTypeIsUsageErrorBeforeAuthOrRequest(t *testing.T) {
 			flag:    "build-id",
 			value:   selfLinkTestBase + "/v1/apps/123",
 			wantErr: "expected a self-link of type builds, got apps",
+			deps:    true,
 		},
 		{
 			name:    "builds info rejects encoded query delimiter",
@@ -46,6 +47,7 @@ func TestSelfLinkWrongTypeIsUsageErrorBeforeAuthOrRequest(t *testing.T) {
 			flag:    "build-id",
 			value:   selfLinkTestBase + "/v1/builds/build-1%3Finclude=app",
 			wantErr: "self-link resource ID must not contain URL delimiters",
+			deps:    true,
 		},
 		{
 			name:    "builds info rejects encoded fragment delimiter",
@@ -53,6 +55,7 @@ func TestSelfLinkWrongTypeIsUsageErrorBeforeAuthOrRequest(t *testing.T) {
 			flag:    "build-id",
 			value:   selfLinkTestBase + "/v1/builds/build-1%23suffix",
 			wantErr: "self-link resource ID must not contain URL delimiters",
+			deps:    true,
 		},
 		{
 			name:    "versions view rejects relationship path",

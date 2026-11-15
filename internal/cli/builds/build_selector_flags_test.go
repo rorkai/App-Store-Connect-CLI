@@ -24,7 +24,8 @@ func TestBuildSelectorFlagsResolveExcludeExpired(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			fs := flag.NewFlagSet("test", flag.ContinueOnError)
-			selectors := bindBuildSelectorFlags(fs, buildSelectorFlagOptions{})
+			d, _, _ := newBuildsTestDeps(nil)
+			selectors := bindBuildSelectorFlags(d, fs, buildSelectorFlagOptions{})
 			if err := fs.Parse(test.args); err != nil {
 				t.Fatalf("Parse() error: %v", err)
 			}
@@ -39,7 +40,8 @@ func TestBuildSelectorFlagsResolveExcludeExpired(t *testing.T) {
 
 func TestBuildSelectorFlagsRejectExcludeExpiredWithoutLatest(t *testing.T) {
 	fs := flag.NewFlagSet("test", flag.ContinueOnError)
-	selectors := bindBuildSelectorFlags(fs, buildSelectorFlagOptions{})
+	d, _, _ := newBuildsTestDeps(nil)
+	selectors := bindBuildSelectorFlags(d, fs, buildSelectorFlagOptions{})
 	if err := fs.Parse([]string{"--app", "123456789", "--exclude-expired"}); err != nil {
 		t.Fatalf("Parse() error: %v", err)
 	}

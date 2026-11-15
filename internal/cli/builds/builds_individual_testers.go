@@ -45,7 +45,7 @@ Examples:
 func BuildsIndividualTestersListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("individual-testers list", flag.ExitOnError)
 
-	selectors := bindBuildSelectorFlags(fs, buildSelectorFlagOptions{})
+	selectors := bindBuildSelectorFlags(shared.DefaultDeps(), fs, buildSelectorFlagOptions{})
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
@@ -130,7 +130,7 @@ Examples:
 func BuildsIndividualTestersAddCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("individual-testers add", flag.ExitOnError)
 
-	selectors := bindBuildSelectorFlags(fs, buildSelectorFlagOptions{})
+	selectors := bindBuildSelectorFlags(shared.DefaultDeps(), fs, buildSelectorFlagOptions{})
 	testers := shared.BindOnceCSVFlag(fs, "tester", "Comma-separated tester IDs")
 	output := shared.BindOutputFlags(fs)
 
@@ -188,7 +188,7 @@ Examples:
 func BuildsIndividualTestersRemoveCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("individual-testers remove", flag.ExitOnError)
 
-	selectors := bindBuildSelectorFlags(fs, buildSelectorFlagOptions{})
+	selectors := bindBuildSelectorFlags(shared.DefaultDeps(), fs, buildSelectorFlagOptions{})
 	testers := shared.BindOnceCSVFlag(fs, "tester", "Comma-separated tester IDs")
 	confirm := fs.Bool("confirm", false, "Confirm removal")
 	output := shared.BindOutputFlags(fs)

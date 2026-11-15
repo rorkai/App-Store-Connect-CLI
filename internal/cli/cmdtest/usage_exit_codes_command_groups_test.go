@@ -508,11 +508,13 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			name:    "builds expire-all keep-latest negative",
 			args:    []string{"builds", "expire-all", "--app", "A", "--keep-latest", "-1", "--dry-run"},
 			wantErr: "builds expire-all: --keep-latest must be greater than or equal to 0",
+			deps:    true,
 		},
 		{
 			name:    "builds expire-all older-than invalid",
 			args:    []string{"builds", "expire-all", "--app", "A", "--older-than", "soon", "--dry-run"},
 			wantErr: "builds expire-all: --older-than must be a duration like 90d, 2w, or 3m",
+			deps:    true,
 		},
 		{
 			name:    "builds icons list limit",

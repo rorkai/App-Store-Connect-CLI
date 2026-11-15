@@ -39,6 +39,7 @@ func TestUnknownChildSuggestionsAcrossCommandGroups(t *testing.T) {
 				"  asc builds wait --app APP_ID --latest\n" +
 				"For help:\n" +
 				"  asc builds --help\n",
+			deps: true,
 		},
 		{
 			name: "subscriptions",

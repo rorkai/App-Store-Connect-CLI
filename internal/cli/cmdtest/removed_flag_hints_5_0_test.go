@@ -61,6 +61,7 @@ func TestRemovedFlagAliasesNameTheirReplacement(t *testing.T) {
 			name: "builds info --build",
 			args: []string{"builds", "info", "--build", "PRIVATE_VALUE"},
 			want: "Error: `--build` was removed in 5.0.0; use `--build-id` or `--build-number` (see migrate-to-5-0)\nFor help:\n  asc builds info --help\n",
+			deps: true,
 		},
 		{
 			name: "release stage --build",
@@ -71,6 +72,7 @@ func TestRemovedFlagAliasesNameTheirReplacement(t *testing.T) {
 			name: "single-dash spelling",
 			args: []string{"builds", "info", "-build", "PRIVATE_VALUE"},
 			want: "Error: `--build` was removed in 5.0.0; use `--build-id` or `--build-number` (see migrate-to-5-0)\nFor help:\n  asc builds info --help\n",
+			deps: true,
 		},
 		{
 			name: "pre-orders enable --available-in-new-territories has no replacement",

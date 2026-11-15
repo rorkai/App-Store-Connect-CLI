@@ -143,7 +143,7 @@ func parseDSYMSelection(input dsymFlagInput) (dsymSelection, error) {
 		return dsymSelection{}, err
 	}
 	if !selection.selectsByMarketingVersion() {
-		if err := validateResolveBuildOptions(selection.Resolve); err != nil {
+		if err := validateResolveBuildOptions(shared.DefaultDeps(), selection.Resolve); err != nil {
 			return dsymSelection{}, err
 		}
 	} else if shared.ResolveAppID(selection.Resolve.AppID) == "" {
@@ -208,7 +208,7 @@ func resolveDSYMTargets(ctx context.Context, client *asc.Client, selection dsymS
 	}
 	requestCtx, cancel := shared.ContextWithTimeout(ctx)
 	defer cancel()
-	buildResp, err := ResolveBuild(requestCtx, client, selection.Resolve)
+	buildResp, err := ResolveBuild(requestCtx, shared.DefaultDeps(), client, selection.Resolve)
 	if err != nil {
 		return nil, fmt.Errorf("builds dsyms: %w", err)
 	}

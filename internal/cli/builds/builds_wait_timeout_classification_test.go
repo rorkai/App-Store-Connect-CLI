@@ -10,7 +10,7 @@ import (
 )
 
 func TestBuildsWaitTimeoutWithoutReportPendingIsValidationFailure(t *testing.T) {
-	timeout := &buildsWaitTimeout{timeout: time.Minute}
+	timeout := &buildsWaitTimeout{d: &shared.Deps{Now: time.Now}, timeout: time.Minute}
 	err := timeout.processingTimeout("build-1")
 	if !shared.IsValidationError(err) {
 		t.Fatalf("error = %v, want a validation failure", err)

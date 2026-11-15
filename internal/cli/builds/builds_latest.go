@@ -15,9 +15,9 @@ type latestBuildSelectionOptions = shared.LatestBuildSelectionOptions
 
 type nextBuildNumberOptions = shared.NextBuildNumberOptions
 
-// BuildsNextBuildNumberCommand returns the canonical next build number subcommand.
-func BuildsNextBuildNumberCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("next-build-number", flag.ExitOnError)
+// newBuildsNextBuildNumberCommand returns the canonical next build number subcommand.
+func newBuildsNextBuildNumberCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("next-build-number", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID, bundle ID, or exact app name (required, or ASC_APP_ID env)")
 	version := fs.String("version", "", "Optional version filter for latest processed/uploaded build selection")
@@ -26,7 +26,7 @@ func BuildsNextBuildNumberCommand() *ffcli.Command {
 	initialBuildNumber := fs.Int("initial-build-number", 1, "Initial build number when none exist")
 	excludeExpired := fs.Bool("exclude-expired", false, "Exclude expired builds when selecting the latest processed build")
 	notExpired := fs.Bool("not-expired", false, "Alias for --exclude-expired")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "next-build-number",
@@ -50,45 +50,45 @@ Examples:
   asc builds next-build-number --app "123456789" --version "1.2.3" --platform IOS --exclude-expired
   asc builds next-build-number --app "123456789" --initial-build-number 7`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			excludeExpiredValue := *excludeExpired || *notExpired
-			selectionOpts, err := normalizeLatestBuildSelectionOptions(*appID, *version, *platform, *processingState, excludeExpiredValue)
+			selectionOpts, err := normalizeLatestBuildSelectionOptions(d, *appID, *version, *platform, *processingState, excludeExpiredValue)
 			if err != nil {
 				return err
 			}
 			if *initialBuildNumber < 1 {
-				return shared.UsageError("--initial-build-number must be >= 1")
+				return d.UsageError("--initial-build-number must be >= 1")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("builds next-build-number: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
-			result, err := resolveNextBuildNumber(requestCtx, client, nextBuildNumberOptions{
+			result, err := resolveNextBuildNumber(requestCtx, d, client, nextBuildNumberOptions{
 				LatestBuildSelectionOptions: selectionOpts,
 				InitialBuildNumber:          *initialBuildNumber,
 			})
 			if err != nil {
 				return fmt.Errorf("builds next-build-number: %w", err)
 			}
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-func normalizeLatestBuildSelectionOptions(appID, version, platform, processingState string, excludeExpired bool) (latestBuildSelectionOptions, error) {
-	opts, err := shared.NormalizeLatestBuildSelectionOptions(appID, version, platform, processingState, excludeExpired)
+func normalizeLatestBuildSelectionOptions(d *shared.Deps, appID, version, platform, processingState string, excludeExpired bool) (latestBuildSelectionOptions, error) {
+	opts, err := d.NormalizeLatestBuildSelectionOptions(appID, version, platform, processingState, excludeExpired)
 	if err != nil {
 		return latestBuildSelectionOptions{}, err
 	}
 	return opts, nil
 }
 
-func resolveNextBuildNumber(ctx context.Context, client *asc.Client, opts nextBuildNumberOptions) (*asc.BuildsNextBuildNumberResult, error) {
-	return shared.ResolveNextBuildNumber(ctx, client, opts)
+func resolveNextBuildNumber(ctx context.Context, d *shared.Deps, client *asc.Client, opts nextBuildNumberOptions) (*asc.BuildsNextBuildNumberResult, error) {
+	return d.ResolveNextBuildNumber(ctx, client, opts)
 }

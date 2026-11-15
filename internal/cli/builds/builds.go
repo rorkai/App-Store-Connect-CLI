@@ -17,7 +17,7 @@ import (
 func BuildsAddGroupsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("add-groups", flag.ExitOnError)
 
-	selectors := bindBuildSelectorFlags(fs, buildSelectorFlagOptions{})
+	selectors := bindBuildSelectorFlags(shared.DefaultDeps(), fs, buildSelectorFlagOptions{})
 	groups := shared.BindOnceCSVFlag(fs, "group", "Comma-separated beta group IDs or names")
 	skipInternal := fs.Bool("skip-internal", false, "Skip internal beta groups instead of adding them")
 	dryRun := fs.Bool("dry-run", false, "Preview beta group assignment without adding groups")
@@ -198,7 +198,7 @@ func resolveBuildBetaGroupIDsFromList(inputGroups []string, groups *asc.BetaGrou
 func BuildsUpdateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("builds update", flag.ExitOnError)
 
-	selectors := bindBuildSelectorFlags(fs, buildSelectorFlagOptions{buildIDUsage: "Build ID"})
+	selectors := bindBuildSelectorFlags(shared.DefaultDeps(), fs, buildSelectorFlagOptions{buildIDUsage: "Build ID"})
 	usesNonExemptEncryption := fs.String("uses-non-exempt-encryption", "", "Set encryption compliance: true or false")
 	output := shared.BindOutputFlags(fs)
 
@@ -264,7 +264,7 @@ Examples:
 func BuildsRemoveGroupsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("remove-groups", flag.ExitOnError)
 
-	selectors := bindBuildSelectorFlags(fs, buildSelectorFlagOptions{})
+	selectors := bindBuildSelectorFlags(shared.DefaultDeps(), fs, buildSelectorFlagOptions{})
 	groups := shared.BindOnceCSVFlag(fs, "group", "Comma-separated beta group IDs")
 	confirm := fs.Bool("confirm", false, "Confirm removal")
 	output := shared.BindOutputFlags(fs)

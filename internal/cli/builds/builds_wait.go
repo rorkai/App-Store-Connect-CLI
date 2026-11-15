@@ -19,12 +19,9 @@ const (
 	buildsWaitDefaultPollInterval = 30 * time.Second
 )
 
-// buildsWaitNow is the clock builds wait reports elapsed time with.
-var buildsWaitNow = time.Now
-
-// BuildsWaitCommand waits for build processing to reach a terminal state.
-func BuildsWaitCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("wait", flag.ExitOnError)
+// newBuildsWaitCommand waits for build processing to reach a terminal state.
+func newBuildsWaitCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("wait", flag.ExitOnError)
 
 	buildID := shared.BindResourceIDFlag(fs, "build-id", "builds", "Build ID to wait for")
 	appID := shared.BindResourceIDFlag(fs, "app", "apps", "App Store Connect app ID, bundle ID, or exact app name (required when --build-id is not provided)")
@@ -37,7 +34,7 @@ func BuildsWaitCommand() *ffcli.Command {
 	pollInterval := fs.Duration("poll-interval", buildsWaitDefaultPollInterval, "Polling interval for build status checks")
 	failOnInvalid := fs.Bool("fail-on-invalid", false, "Exit non-zero if build reaches INVALID")
 	reportPending := fs.Bool("report-pending", false, "When --timeout expires first, print the pending state and resume command to stdout and exit 7 instead of failing")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "wait",
@@ -73,9 +70,9 @@ Examples:
   asc builds wait --app "123456789" --build-number "42" --platform MAC_OS --fail-on-invalid
   asc builds wait --app "1500196580" --build-number "78" --platform IOS --timeout 50s --report-pending`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			started := buildsWaitNow()
+			started := d.Now()
 			buildValue := strings.TrimSpace(*buildID)
 			resolvedAppID := shared.ResolveAppID(*appID)
 			versionValue := strings.TrimSpace(*version)
@@ -84,28 +81,28 @@ Examples:
 			platformValue := strings.TrimSpace(*platform)
 
 			if *pollInterval <= 0 {
-				return shared.UsageError("--poll-interval must be greater than 0")
+				return d.UsageError("--poll-interval must be greater than 0")
 			}
 			if *timeout <= 0 {
-				return shared.UsageError("--timeout must be greater than 0")
+				return d.UsageError("--timeout must be greater than 0")
 			}
 
 			if buildValue != "" {
 				if strings.TrimSpace(*appID) != "" || *latest || versionValue != "" || buildNumberValue != "" || platformValue != "" || sinceValue != "" {
-					return shared.UsageError("--build-id is mutually exclusive with app-scoped selectors (--app, --latest, --version, --build-number, --platform, --since)")
+					return d.UsageError("--build-id is mutually exclusive with app-scoped selectors (--app, --latest, --version, --build-number, --platform, --since)")
 				}
 			} else {
 				if resolvedAppID == "" {
-					return shared.UsageError("--app is required when --build-id is not provided")
+					return d.UsageError("--app is required when --build-id is not provided")
 				}
 				if *latest && buildNumberValue != "" {
-					return shared.UsageError("--latest and --build-number are mutually exclusive")
+					return d.UsageError("--latest and --build-number are mutually exclusive")
 				}
 				if !*latest && buildNumberValue == "" {
-					return shared.UsageError("--latest or --build-number is required when using --app")
+					return d.UsageError("--latest or --build-number is required when using --app")
 				}
 				if buildNumberValue != "" && platformValue == "" {
-					return shared.UsageError(buildNumberRequiresPlatformMessage)
+					return d.UsageError(buildNumberRequiresPlatformMessage)
 				}
 			}
 
@@ -114,7 +111,7 @@ Examples:
 				var err error
 				normalizedPlatform, err = shared.NormalizeAppStoreVersionPlatform(platformValue)
 				if err != nil {
-					return shared.UsageError(err.Error())
+					return d.UsageError(err.Error())
 				}
 			}
 
@@ -122,12 +119,12 @@ Examples:
 			if sinceValue != "" {
 				parsedSince, err := parseBuildUploadedTimestamp(sinceValue)
 				if err != nil {
-					return shared.UsageError("--since must be an RFC3339 timestamp (e.g., 2026-03-02T18:00:00Z)")
+					return d.UsageError("--since must be an RFC3339 timestamp (e.g., 2026-03-02T18:00:00Z)")
 				}
 				sinceTime = &parsedSince
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("builds wait: %w", err)
 			}
@@ -141,6 +138,7 @@ Examples:
 				Platform:     normalizedPlatform,
 			}
 			timedOut := buildsWaitTimeout{
+				d:             d,
 				fs:            fs,
 				started:       started,
 				timeout:       *timeout,
@@ -169,7 +167,7 @@ Examples:
 				failureContext.AppID = lookupAppID
 				timedOut.selector.AppID = lookupAppID
 
-				buildResp, err = waitForBuildDiscovery(requestCtx, shared.DefaultDeps(), client, timedOut.selector, *pollInterval, &timedOut.observed)
+				buildResp, err = waitForBuildDiscovery(requestCtx, d, client, timedOut.selector, *pollInterval, &timedOut.observed)
 				if err != nil {
 					if requestCtx.Err() != nil && errors.Is(err, context.DeadlineExceeded) {
 						return timedOut.discoveryTimeout()
@@ -179,7 +177,7 @@ Examples:
 			}
 
 			waitBuildID := buildResp.Data.ID
-			buildResp, err = waitForBuildProcessingState(requestCtx, shared.DefaultDeps(), client, buildResp.Data.ID, *pollInterval, *failOnInvalid, failureContext, &timedOut.observed)
+			buildResp, err = waitForBuildProcessingState(requestCtx, d, client, buildResp.Data.ID, *pollInterval, *failOnInvalid, failureContext, &timedOut.observed)
 			if err != nil {
 				if requestCtx.Err() != nil && errors.Is(err, context.DeadlineExceeded) {
 					return timedOut.processingTimeout(waitBuildID)
@@ -202,13 +200,13 @@ Examples:
 				BuildID:         strings.TrimSpace(buildResp.Data.ID),
 				BuildNumber:     strings.TrimSpace(buildResp.Data.Attributes.Version),
 				ProcessingState: processingState,
-				Elapsed:         buildsWaitNow().Sub(started).Round(time.Second).String(),
+				Elapsed:         d.Now().Sub(started).Round(time.Second).String(),
 			}
 			if versionValue != "" {
 				result.Version = versionValue
 			}
 
-			return shared.PrintOutput(result, format, *output.Pretty)
+			return d.PrintOutput(result, format, *output.Pretty)
 		},
 	}
 }
@@ -245,7 +243,7 @@ func waitForBuildDiscovery(
 	pollInterval time.Duration,
 	observed *buildWaitObservation,
 ) (*asc.BuildResponse, error) {
-	started := buildsWaitNow()
+	started := d.Now()
 	return asc.PollUntilTolerant(ctx, pollInterval, func(ctx context.Context) (*asc.BuildResponse, bool, error) {
 		buildResp, err := resolveBuildForAppWait(ctx, d, client, selector, true)
 		if err != nil {
@@ -273,7 +271,7 @@ func waitForBuildDiscovery(
 		fmt.Fprintf(
 			d.IO.ErrOut,
 			"Waiting for build discovery... (%s elapsed)\n",
-			buildsWaitNow().Sub(started).Round(time.Second),
+			d.Now().Sub(started).Round(time.Second),
 		)
 		return nil, false, nil
 	}, asc.PollOptions{Tolerate: asc.IsTransientWaitError})
@@ -365,7 +363,7 @@ func waitForBuildProcessingState(
 	failure shared.BuildProcessingFailureContext,
 	observed *buildWaitObservation,
 ) (*asc.BuildResponse, error) {
-	started := buildsWaitNow()
+	started := d.Now()
 
 	buildResp, err := asc.PollUntilTolerant(ctx, pollInterval, func(ctx context.Context) (*asc.BuildResponse, bool, error) {
 		buildResp, err := client.GetBuild(ctx, buildID)
@@ -385,7 +383,7 @@ func waitForBuildProcessingState(
 			"Waiting for build %s... (%s, %s elapsed)\n",
 			buildID,
 			state,
-			buildsWaitNow().Sub(started).Round(time.Second),
+			d.Now().Sub(started).Round(time.Second),
 		)
 
 		switch state {

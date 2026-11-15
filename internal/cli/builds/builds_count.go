@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -13,9 +12,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// BuildsCountCommand returns the builds count subcommand.
-func BuildsCountCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("count", flag.ExitOnError)
+// newBuildsCountCommand returns the builds count subcommand.
+func newBuildsCountCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("count", flag.ExitOnError)
 
 	appID := shared.BindResourceIDFlag(fs, "app", "apps", "App Store Connect app ID, bundle ID, or exact app name (required, or ASC_APP_ID env)")
 	version := fs.String("version", "", "Filter by marketing version string (CFBundleShortVersionString)")
@@ -25,7 +24,7 @@ func BuildsCountCommand() *ffcli.Command {
 	betaReviewState := fs.String("beta-review-state", "", "Filter by beta app review state, comma-separated ("+strings.Join(buildsListBetaReviewStates, ", ")+")")
 	excludeExpired := fs.Bool("exclude-expired", false, "Exclude expired builds")
 	notExpired := fs.Bool("not-expired", false, "Alias for --exclude-expired")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "count",
@@ -51,11 +50,11 @@ Examples:
   asc builds count --app "123456789" --exclude-expired
   asc builds count --app "123456789" --version "2.1.0" --platform IOS --output json`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
-				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
+				fmt.Fprintf(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return shared.MissingRequiredUsageError("--app")
 			}
 
@@ -63,28 +62,28 @@ Examples:
 			if strings.TrimSpace(*platform) != "" {
 				normalizedPlatform, err := shared.NormalizePlatform(*platform)
 				if err != nil {
-					return shared.UsageError(err.Error())
+					return d.UsageError(err.Error())
 				}
 				platformValue = string(normalizedPlatform)
 			}
 
 			buildNumberValue := strings.TrimSpace(*buildNumber)
-			processingStateValues, err := normalizeBuildProcessingStateFilter(*processingState)
+			processingStateValues, err := normalizeBuildProcessingStateFilter(d, *processingState)
 			if err != nil {
 				return err
 			}
 
-			betaReviewStateValues, err := normalizeBuildsListBetaReviewStates(*betaReviewState)
+			betaReviewStateValues, err := normalizeBuildsListBetaReviewStates(d, *betaReviewState)
 			if err != nil {
 				return err
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("builds count: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resolvedAppID, err = shared.ResolveAppIDWithLookup(requestCtx, client, resolvedAppID)
@@ -97,13 +96,13 @@ Examples:
 			var preReleaseVersionIDs []string
 			versionValue := strings.TrimSpace(*version)
 			if versionValue != "" {
-				preReleaseVersionIDs, err = shared.FindPreReleaseVersionIDs(requestCtx, client, resolvedAppID, versionValue, platformValue)
+				preReleaseVersionIDs, err = d.FindPreReleaseVersionIDs(requestCtx, client, resolvedAppID, versionValue, platformValue)
 				if err != nil {
 					return fmt.Errorf("builds count: %w", err)
 				}
 				if len(preReleaseVersionIDs) == 0 {
 					result := &asc.BuildsCountResult{AppID: resolvedAppID, Total: 0}
-					return shared.PrintOutput(result, *output.Output, *output.Pretty)
+					return d.PrintOutput(result, *output.Output, *output.Pretty)
 				}
 			}
 
@@ -138,7 +137,7 @@ Examples:
 			total, ok := asc.ParsePagingTotalOK(resp.Meta)
 			if ok {
 				result := &asc.BuildsCountResult{AppID: resolvedAppID, Total: total}
-				return shared.PrintOutput(result, *output.Output, *output.Pretty)
+				return d.PrintOutput(result, *output.Output, *output.Pretty)
 			}
 
 			// Some ASC responses omit paging.total. Fall back to paginating and
@@ -146,6 +145,7 @@ Examples:
 			paginateOpts := append([]asc.BuildsOption{asc.Limit[asc.BuildsOption](200)}, filterOpts...)
 			total, err = countBuildsViaPagination(
 				requestCtx,
+				d,
 				func(ctx context.Context) (asc.PaginatedResponse, error) {
 					return client.GetBuilds(ctx, resolvedAppID, paginateOpts...)
 				},
@@ -158,18 +158,19 @@ Examples:
 			}
 
 			result := &asc.BuildsCountResult{AppID: resolvedAppID, Total: total}
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
 
 func countBuildsViaPagination(
 	ctx context.Context,
+	d *shared.Deps,
 	fetch shared.FetchFunc,
 	next asc.PaginateFunc,
 ) (int, error) {
 	total := 0
-	err := shared.WithSpinner("", func() error {
+	err := d.WithSpinner("", func() error {
 		firstPage, err := fetch(ctx)
 		if err != nil {
 			return err

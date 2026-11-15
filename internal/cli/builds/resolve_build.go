@@ -41,8 +41,8 @@ type buildNumberSelectionOptions struct {
 // ResolveBuild finds a build by ID, by app+build-number+platform, or by latest.
 // Returns the build response or an error. Callers use this to avoid duplicating
 // build lookup logic across commands (dsyms, wait, find, etc.).
-func ResolveBuild(ctx context.Context, client *asc.Client, opts ResolveBuildOptions) (*asc.BuildResponse, error) {
-	if err := validateResolveBuildOptions(opts); err != nil {
+func ResolveBuild(ctx context.Context, d *shared.Deps, client *asc.Client, opts ResolveBuildOptions) (*asc.BuildResponse, error) {
+	if err := validateResolveBuildOptions(d, opts); err != nil {
 		return nil, err
 	}
 	if client == nil {
@@ -66,11 +66,11 @@ func ResolveBuild(ctx context.Context, client *asc.Client, opts ResolveBuildOpti
 		if platform != "" {
 			normalized, err := shared.NormalizeAppStoreVersionPlatform(platform)
 			if err != nil {
-				return nil, shared.UsageError(err.Error())
+				return nil, d.UsageError(err.Error())
 			}
 			platform = normalized
 		}
-		buildResp, err := shared.ResolveLatestBuild(ctx, client, shared.LatestBuildSelectionOptions{
+		buildResp, err := d.ResolveLatestBuild(ctx, client, shared.LatestBuildSelectionOptions{
 			AppID:                 strings.TrimSpace(opts.AppID),
 			Version:               strings.TrimSpace(opts.Version),
 			Platform:              platform,
@@ -86,7 +86,7 @@ func ResolveBuild(ctx context.Context, client *asc.Client, opts ResolveBuildOpti
 		return buildResp, nil
 	}
 
-	return resolveBuildByNumberSelection(ctx, shared.DefaultDeps(), client, buildNumberSelectionOptions{
+	return resolveBuildByNumberSelection(ctx, d, client, buildNumberSelectionOptions{
 		AppID:                 strings.TrimSpace(opts.AppID),
 		Version:               strings.TrimSpace(opts.Version),
 		BuildNumber:           buildNumber,
@@ -95,7 +95,7 @@ func ResolveBuild(ctx context.Context, client *asc.Client, opts ResolveBuildOpti
 	}, false)
 }
 
-func validateResolveBuildOptions(opts ResolveBuildOptions) error {
+func validateResolveBuildOptions(d *shared.Deps, opts ResolveBuildOptions) error {
 	buildID := strings.TrimSpace(opts.BuildID)
 	buildNumber := strings.TrimSpace(opts.BuildNumber)
 	version := strings.TrimSpace(opts.Version)
@@ -104,33 +104,33 @@ func validateResolveBuildOptions(opts ResolveBuildOptions) error {
 	hasExplicitAppSelectors := appInput != "" || opts.Latest || buildNumber != "" || version != "" || platform != "" || len(opts.ProcessingStateValues) > 0 || opts.ExcludeExpired
 
 	if buildID != "" && hasExplicitAppSelectors {
-		return shared.UsageError("--build-id cannot be combined with --app, --latest, --build-number, --version, --platform, --processing-state, --exclude-expired, or --not-expired")
+		return d.UsageError("--build-id cannot be combined with --app, --latest, --build-number, --version, --platform, --processing-state, --exclude-expired, or --not-expired")
 	}
 	if opts.Latest && buildNumber != "" {
-		return shared.UsageError("--latest and --build-number are mutually exclusive")
+		return d.UsageError("--latest and --build-number are mutually exclusive")
 	}
 	if buildID != "" {
 		return nil
 	}
 
 	if shared.ResolveAppID(appInput) == "" {
-		return shared.UsageError("--build-id or --app is required (or set ASC_APP_ID)")
+		return d.UsageError("--build-id or --app is required (or set ASC_APP_ID)")
 	}
 	if len(opts.ProcessingStateValues) > 0 && !opts.Latest {
-		return shared.UsageError("--processing-state requires --latest")
+		return d.UsageError("--processing-state requires --latest")
 	}
 	if opts.ExcludeExpired && !opts.Latest {
-		return shared.UsageError("--exclude-expired and --not-expired require --latest")
+		return d.UsageError("--exclude-expired and --not-expired require --latest")
 	}
 	if !opts.Latest && buildNumber == "" {
-		return shared.UsageError("--build-id, --latest, or --build-number is required")
+		return d.UsageError("--build-id, --latest, or --build-number is required")
 	}
 	if buildNumber != "" && platform == "" {
-		return shared.UsageError(buildNumberRequiresPlatformMessage)
+		return d.UsageError(buildNumberRequiresPlatformMessage)
 	}
 	if platform != "" {
 		if _, err := shared.NormalizeAppStoreVersionPlatform(platform); err != nil {
-			return shared.UsageError(err.Error())
+			return d.UsageError(err.Error())
 		}
 	}
 	return nil

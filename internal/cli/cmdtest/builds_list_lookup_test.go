@@ -33,6 +33,7 @@ func TestAppScopedCommandsResolveAppByBundleID(t *testing.T) {
 				body:    `{"data":[{"type":"builds","id":"build-1"}]}`,
 			}},
 			wantStdout: `"id":"build-1"`,
+			deps:       true,
 		},
 		{
 			name:     "builds info latest",
@@ -50,6 +51,7 @@ func TestAppScopedCommandsResolveAppByBundleID(t *testing.T) {
 				},
 			},
 			wantStdout: `"id":"build-1"`,
+			deps:       true,
 		},
 		{
 			name:     "testflight crashes list",

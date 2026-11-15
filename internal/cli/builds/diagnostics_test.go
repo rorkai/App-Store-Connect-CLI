@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"flag"
-	"io"
-	"os"
 	"strings"
 	"testing"
 
@@ -14,10 +12,9 @@ import (
 
 func TestBuildsMissingRequiredInputExposesStructuredDiagnostic(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
-	var err error
-	stderr := captureBuildsDiagnosticStderr(t, func() {
-		err = BuildsUploadCommand().ParseAndRun(context.Background(), nil)
-	})
+	d, _, stderrBuf := newBuildsTestDeps(nil)
+	err := newBuildsUploadCommand(d).ParseAndRun(context.Background(), nil)
+	stderr := stderrBuf.String()
 	if !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("error = %v, want flag.ErrHelp contract", err)
 	}
@@ -38,10 +35,9 @@ func TestBuildsMissingRequiredInputExposesStructuredDiagnostic(t *testing.T) {
 }
 
 func TestBuildsMissingArtifactLeavesDiagnosticParameterEmpty(t *testing.T) {
-	var err error
-	stderr := captureBuildsDiagnosticStderr(t, func() {
-		err = BuildsUploadCommand().ParseAndRun(context.Background(), []string{"--app", "123456789"})
-	})
+	d, _, stderrBuf := newBuildsTestDeps(nil)
+	err := newBuildsUploadCommand(d).ParseAndRun(context.Background(), []string{"--app", "123456789"})
+	stderr := stderrBuf.String()
 	if !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("error = %v, want flag.ErrHelp contract", err)
 	}
@@ -59,10 +55,9 @@ func TestBuildsMissingArtifactLeavesDiagnosticParameterEmpty(t *testing.T) {
 }
 
 func TestBuildsMissingExpireSelectorLeavesDiagnosticParameterEmpty(t *testing.T) {
-	var err error
-	stderr := captureBuildsDiagnosticStderr(t, func() {
-		err = BuildsExpireAllCommand().ParseAndRun(context.Background(), []string{"--app", "123456789"})
-	})
+	d, _, stderrBuf := newBuildsTestDeps(nil)
+	err := newBuildsExpireAllCommand(d).ParseAndRun(context.Background(), []string{"--app", "123456789"})
+	stderr := stderrBuf.String()
 	if !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("error = %v, want flag.ErrHelp contract", err)
 	}
@@ -77,29 +72,4 @@ func TestBuildsMissingExpireSelectorLeavesDiagnosticParameterEmpty(t *testing.T)
 	if diagnostic.Code != shared.DiagnosticRequiredInputMissing || diagnostic.Parameter != "" {
 		t.Fatalf("diagnostic = %+v, want required_input_missing without a parameter", diagnostic)
 	}
-}
-
-func captureBuildsDiagnosticStderr(t *testing.T, fn func()) string {
-	t.Helper()
-
-	original := os.Stderr
-	reader, writer, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("create stderr pipe: %v", err)
-	}
-	os.Stderr = writer
-	defer func() {
-		os.Stderr = original
-		_ = reader.Close()
-		_ = writer.Close()
-	}()
-
-	fn()
-	_ = writer.Close()
-	os.Stderr = original
-	data, err := io.ReadAll(reader)
-	if err != nil {
-		t.Fatalf("read stderr: %v", err)
-	}
-	return string(data)
 }

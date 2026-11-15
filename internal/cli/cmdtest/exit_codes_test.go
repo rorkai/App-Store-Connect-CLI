@@ -257,31 +257,37 @@ func TestRun_UsageValidationErrorsReturnExitUsage(t *testing.T) {
 			name:    "builds list invalid processing-state",
 			args:    []string{"builds", "list", "--app", "APP_123", "--processing-state", "WRONG"},
 			wantErr: "--processing-state must be one of",
+			deps:    true,
 		},
 		{
 			name:    "builds list invalid platform",
 			args:    []string{"builds", "list", "--app", "APP_123", "--platform", "ANDROID"},
 			wantErr: "--platform must be one of",
+			deps:    true,
 		},
 		{
 			name:    "builds upload invalid verify-timeout",
 			args:    []string{"builds", "upload", "--app", "APP_123", "--ipa", "app.ipa", "--version", "1.0.0", "--build-number", "42", "--verify-timeout", "-1s"},
 			wantErr: "--verify-timeout must be zero or greater",
+			deps:    true,
 		},
 		{
 			name:    "builds upload dry-run rejects verify-timeout",
 			args:    []string{"builds", "upload", "--app", "APP_123", "--ipa", "app.ipa", "--version", "1.0.0", "--build-number", "42", "--dry-run", "--verify-timeout", "5s"},
 			wantErr: "--verify-timeout is not supported with --dry-run",
+			deps:    true,
 		},
 		{
 			name:    "builds wait missing selector",
 			args:    []string{"builds", "wait"},
 			wantErr: "--app is required when --build-id is not provided",
+			deps:    true,
 		},
 		{
 			name:    "builds info missing build-number",
 			args:    []string{"builds", "info", "--app", "APP_123"},
 			wantErr: "--build-id, --latest, or --build-number is required",
+			deps:    true,
 		},
 		{
 			name: "apps wall submit parent wall flags",

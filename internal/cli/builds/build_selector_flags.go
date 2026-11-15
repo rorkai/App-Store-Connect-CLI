@@ -10,6 +10,7 @@ import (
 )
 
 type buildSelectorFlags struct {
+	d              *shared.Deps
 	buildID        *string
 	appID          *string
 	latest         *bool
@@ -29,7 +30,7 @@ type buildSelectorFlagOptions struct {
 	platformUsage    string
 }
 
-func bindBuildSelectorFlags(fs *flag.FlagSet, opts buildSelectorFlagOptions) buildSelectorFlags {
+func bindBuildSelectorFlags(d *shared.Deps, fs *flag.FlagSet, opts buildSelectorFlagOptions) buildSelectorFlags {
 	buildIDUsage := strings.TrimSpace(opts.buildIDUsage)
 	if buildIDUsage == "" {
 		buildIDUsage = "Build ID"
@@ -56,6 +57,7 @@ func bindBuildSelectorFlags(fs *flag.FlagSet, opts buildSelectorFlagOptions) bui
 	}
 
 	return buildSelectorFlags{
+		d:              d,
 		buildID:        shared.BindResourceIDFlag(fs, "build-id", "builds", buildIDUsage),
 		appID:          shared.BindResourceIDFlag(fs, "app", "apps", appUsage),
 		latest:         fs.Bool("latest", false, latestUsage),
@@ -81,19 +83,19 @@ func (s buildSelectorFlags) resolveOptions() ResolveBuildOptions {
 }
 
 func (s buildSelectorFlags) validate() error {
-	return validateResolveBuildOptions(s.resolveOptions())
+	return validateResolveBuildOptions(s.d, s.resolveOptions())
 }
 
 func (s buildSelectorFlags) validateNextPageSelectorFlags() error {
 	opts := s.resolveOptions()
 	if opts.ExcludeExpired && !opts.Latest {
-		return shared.UsageError("--exclude-expired and --not-expired require --latest")
+		return s.d.UsageError("--exclude-expired and --not-expired require --latest")
 	}
 	return nil
 }
 
 func (s buildSelectorFlags) resolveBuild(ctx context.Context, client *asc.Client) (*asc.BuildResponse, error) {
-	return ResolveBuild(ctx, client, s.resolveOptions())
+	return ResolveBuild(ctx, s.d, client, s.resolveOptions())
 }
 
 func (s buildSelectorFlags) resolveBuildID(ctx context.Context, client *asc.Client) (string, error) {
