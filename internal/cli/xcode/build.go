@@ -57,7 +57,14 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := detectXcodeContainer(workspacePath, projectPath, "exactly one of --workspace or --project is required"); err != nil {
+			if emptyFlag := firstExplicitlyEmptyFlag(fs, "workspace", "project"); emptyFlag != "" {
+				return shared.UsageErrorf("--%s must not be empty", emptyFlag)
+			}
+			if *workspacePath == "" && *projectPath == "" && strings.TrimSpace(*scheme) == "" {
+				return shared.RequiredFlag("--scheme")
+			}
+			containerNotice, err := detectXcodeContainer(fs, workspacePath, projectPath, "exactly one of --workspace or --project is required")
+			if err != nil {
 				return err
 			}
 			opts := localxcode.BuildOptions{
@@ -81,6 +88,10 @@ Examples:
 			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
 				return shared.UsageError(err.Error())
+			}
+
+			if containerNotice != "" {
+				fmt.Fprintln(os.Stderr, containerNotice)
 			}
 
 			result, buildErr := runBuild(ctx, opts)

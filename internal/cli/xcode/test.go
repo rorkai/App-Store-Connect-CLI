@@ -109,12 +109,21 @@ Examples:
 			if emptyFlag := firstExplicitlyEmptyFlag(fs, "workspace", "project", "package-path", "scheme", "action", "configuration", "test-plan", "xctestrun", "derived-data-path", "result-bundle-path"); emptyFlag != "" {
 				return shared.UsageErrorf("--%s must not be empty", emptyFlag)
 			}
+			containerNotice := ""
 			switch localxcode.TestAction(strings.TrimSpace(*action)) {
 			case localxcode.TestActionTest, localxcode.TestActionBuildForTesting:
-				if strings.TrimSpace(*packagePath) == "" {
-					if err := detectXcodeContainer(workspacePath, projectPath, "exactly one of --workspace, --project, or --package-path is required"); err != nil {
+				if *packagePath == "" && *workspacePath == "" && *projectPath == "" {
+					if strings.TrimSpace(*scheme) == "" {
+						return shared.RequiredFlag("--scheme")
+					}
+					if len(destinations) == 0 {
+						return shared.RequiredFlag("--destination")
+					}
+					notice, err := detectXcodeContainer(fs, workspacePath, projectPath, "exactly one of --workspace, --project, or --package-path is required")
+					if err != nil {
 						return err
 					}
+					containerNotice = notice
 				}
 			}
 			opts := localxcode.TestOptions{
@@ -147,6 +156,10 @@ Examples:
 			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
 				return shared.UsageError(err.Error())
+			}
+
+			if containerNotice != "" {
+				fmt.Fprintln(os.Stderr, containerNotice)
 			}
 
 			result, testErr := runTest(ctx, opts)

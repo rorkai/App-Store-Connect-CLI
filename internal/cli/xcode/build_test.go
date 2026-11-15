@@ -541,12 +541,15 @@ func TestXcodeCommandsDetectContainerInWorkingDirectory(t *testing.T) {
 		wantProject   string
 		wantStderr    string
 		wantUsage     string
+		noScheme      bool
 	}{
 		{name: "lone workspace", command: "build", dirs: []string{"App.xcworkspace"}, wantWorkspace: "App.xcworkspace", wantStderr: "Using workspace App.xcworkspace\n"},
 		{name: "lone project", command: "archive", dirs: []string{"App.xcodeproj"}, wantProject: "App.xcodeproj", wantStderr: "Using project App.xcodeproj\n"},
 		{name: "workspace wins over project", command: "test", dirs: []string{"App.xcodeproj", "App.xcodeproj/project.xcworkspace", "App.xcworkspace"}, wantWorkspace: "App.xcworkspace", wantStderr: "Using workspace App.xcworkspace\n"},
 		{name: "two workspaces", command: "build", dirs: []string{"A.xcworkspace", "B.xcworkspace"}, wantUsage: "exactly one of --workspace or --project is required; found 2 workspaces: A.xcworkspace, B.xcworkspace; pass --workspace"},
 		{name: "empty directory", command: "test", wantUsage: "Error: exactly one of --workspace, --project, or --package-path is required\n"},
+		{name: "explicitly empty workspace", command: "build", dirs: []string{"App.xcworkspace"}, args: []string{"--workspace", ""}, wantUsage: "--workspace must not be empty"},
+		{name: "missing scheme before detection", command: "archive", dirs: []string{"App.xcworkspace"}, noScheme: true, wantUsage: "Error: --scheme is required"},
 		{name: "explicit project beside workspace", command: "build", dirs: []string{"App.xcworkspace", "App.xcodeproj"}, args: []string{"--project", "App.xcodeproj"}, wantProject: "App.xcodeproj"},
 	}
 
@@ -562,7 +565,10 @@ func TestXcodeCommandsDetectContainerInWorkingDirectory(t *testing.T) {
 			gotWorkspace, gotProject = "", ""
 
 			var cmd *ffcli.Command
-			args := append([]string{"--scheme", "App", "--output", "json"}, test.args...)
+			args := append([]string{"--output", "json"}, test.args...)
+			if !test.noScheme {
+				args = append(args, "--scheme", "App")
+			}
 			switch test.command {
 			case "build":
 				cmd = XcodeBuildCommand()
@@ -587,8 +593,8 @@ func TestXcodeCommandsDetectContainerInWorkingDirectory(t *testing.T) {
 				if !errors.Is(runErr, flag.ErrHelp) {
 					t.Fatalf("Exec() error = %v, want usage error", runErr)
 				}
-				if !strings.Contains(stderr, test.wantUsage) {
-					t.Fatalf("stderr = %q, want %q", stderr, test.wantUsage)
+				if !strings.Contains(stderr, test.wantUsage) || strings.Contains(stderr, "Using ") {
+					t.Fatalf("stderr = %q, want %q and no Using line", stderr, test.wantUsage)
 				}
 				return
 			}

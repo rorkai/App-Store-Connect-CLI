@@ -16,6 +16,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/config"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 	localxcode "github.com/rudrankriyam/App-Store-Connect-CLI/internal/xcode"
 )
 
@@ -148,16 +149,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := detectXcodeContainer(workspacePath, projectPath, "exactly one of --workspace or --project is required"); err != nil {
-				return err
-			}
-			if strings.TrimSpace(*workspacePath) == "" && strings.TrimSpace(*projectPath) == "" {
-				fmt.Fprintln(os.Stderr, "Error: exactly one of --workspace or --project is required")
-				return shared.MissingRequiredUsageError("")
-			}
-			if strings.TrimSpace(*workspacePath) != "" && strings.TrimSpace(*projectPath) != "" {
-				fmt.Fprintln(os.Stderr, "Error: exactly one of --workspace or --project is required")
-				return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticConflictingInput, "")
+			if emptyFlag := firstExplicitlyEmptyFlag(fs, "workspace", "project"); emptyFlag != "" {
+				return shared.UsageErrorf("--%s must not be empty", emptyFlag)
 			}
 			if strings.TrimSpace(*scheme) == "" {
 				return shared.RequiredFlag("--scheme")
@@ -167,6 +160,18 @@ Examples:
 			}
 			if emptyFlag := firstExplicitlyEmptyFlag(fs, "configuration", "destination", "derived-data-path", "result-bundle-path"); emptyFlag != "" {
 				return shared.UsageErrorf("--%s must not be empty", emptyFlag)
+			}
+			containerNotice, err := detectXcodeContainer(fs, workspacePath, projectPath, "exactly one of --workspace or --project is required")
+			if err != nil {
+				return err
+			}
+			if strings.TrimSpace(*workspacePath) == "" && strings.TrimSpace(*projectPath) == "" {
+				fmt.Fprintln(os.Stderr, "Error: exactly one of --workspace or --project is required")
+				return shared.MissingRequiredUsageError("")
+			}
+			if strings.TrimSpace(*workspacePath) != "" && strings.TrimSpace(*projectPath) != "" {
+				fmt.Fprintln(os.Stderr, "Error: exactly one of --workspace or --project is required")
+				return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticConflictingInput, "")
 			}
 			opts := localxcode.ArchiveOptions{
 				WorkspacePath:    strings.TrimSpace(*workspacePath),
@@ -188,6 +193,9 @@ Examples:
 			}
 			if _, err := os.Stat(strings.TrimSpace(*archivePath)); err == nil && !*overwrite {
 				return shared.UsageErrorf("--archive-path already exists: %s (use --overwrite to replace it)", strings.TrimSpace(*archivePath))
+			}
+			if containerNotice != "" {
+				fmt.Fprintln(os.Stderr, containerNotice)
 			}
 
 			result, err := runArchive(ctx, opts)
@@ -788,17 +796,24 @@ func validateResultRows(result *localxcode.ValidateResult) [][]string {
 	return append(rows, []string{"validated", fmt.Sprintf("%t", result.Validated)})
 }
 
-// detectXcodeContainer fills empty --workspace and --project values with the
-// only workspace, or else the only project, at the top of the working
-// directory. When the choice is ambiguous it returns the required usage error
-// with what was found.
-func detectXcodeContainer(workspacePath, projectPath *string, required string) error {
-	if strings.TrimSpace(*workspacePath) != "" || strings.TrimSpace(*projectPath) != "" {
-		return nil
+// detectXcodeContainer fills --workspace or --project, when neither was
+// given, with the only workspace, or else the only project, at the top of the
+// working directory. It returns the notice to print once the command passes
+// validation. When the choice is ambiguous it returns the required usage
+// error with what was found.
+func detectXcodeContainer(fs *flag.FlagSet, workspacePath, projectPath *string, required string) (string, error) {
+	given := false
+	fs.Visit(func(f *flag.Flag) {
+		if f.Name == "workspace" || f.Name == "project" {
+			given = true
+		}
+	})
+	if given {
+		return "", nil
 	}
-	entries, err := os.ReadDir(".")
+	entries, err := readWorkingDirectory()
 	if err != nil {
-		return shared.UsageErrorf("%s; could not list the current directory: %v", required, err)
+		return "", shared.UsageErrorf("%s; could not list the current directory: %v", required, err)
 	}
 	var workspaces, projects []string
 	for _, entry := range entries {
@@ -826,11 +841,24 @@ func detectXcodeContainer(workspacePath, projectPath *string, required string) e
 			continue
 		case 1:
 			*kind.value = kind.found[0]
-			fmt.Fprintf(os.Stderr, "Using %s %s\n", kind.name, kind.found[0])
-			return nil
+			return fmt.Sprintf("Using %s %s", kind.name, kind.found[0]), nil
 		default:
-			return shared.UsageErrorf("%s; found %d %ss: %s; pass %s", required, len(kind.found), kind.name, strings.Join(kind.found, ", "), kind.flag)
+			return "", shared.UsageErrorf("%s; found %d %ss: %s; pass %s", required, len(kind.found), kind.name, strings.Join(kind.found, ", "), kind.flag)
 		}
 	}
-	return nil
+	return "", nil
+}
+
+func readWorkingDirectory() ([]os.DirEntry, error) {
+	root, err := rootfs.New(".")
+	if err != nil {
+		return nil, err
+	}
+	defer root.Close()
+	dir, err := root.OpenDir(".")
+	if err != nil {
+		return nil, err
+	}
+	defer dir.Close()
+	return dir.ReadDir(-1)
 }
