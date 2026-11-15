@@ -84,7 +84,7 @@ Examples:
   asc analytics compare --source sales --vendor "12345678" --app "123456789" --from "2026-01" --to "2026-02" --frequency MONTHLY --output table
   asc analytics compare --source sales --vendor "12345678" --app "123456789" --from "2026-01-01" --from-end "2026-01-31" --to "2026-02-01" --to-end "2026-02-28" --frequency DAILY --output json --pretty`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			sourceName := strings.ToLower(strings.TrimSpace(*source))
 			if sourceName == "" {

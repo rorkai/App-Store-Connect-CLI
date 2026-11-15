@@ -26,7 +26,7 @@ Examples:
   asc ads apps search --ad-account "123456" --query "Example"
   asc ads api request --method GET --path v1/me`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: append([]*ffcli.Command{
 			newAuthCommand(d),
 			newPlatformAPICommand(d),

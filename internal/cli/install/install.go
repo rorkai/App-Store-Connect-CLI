@@ -126,7 +126,7 @@ Requires git.
 Examples:
   asc install-skills`, skillsSourceCommit, expectedSkillsCount),
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := installSkills(ctx, d); err != nil {
 				return fmt.Errorf("install skills: %w", err)

@@ -61,7 +61,7 @@ func NewListCommand(d *shared.Deps, config shared.ListCommandConfig) *ffcli.Comm
 	}
 	usageFunc := config.UsageFunc
 	if usageFunc == nil {
-		usageFunc = shared.DefaultUsageFunc
+		usageFunc = d.DefaultUsageFunc
 	}
 
 	fs := d.NewFlagSet(name, flag.ExitOnError)

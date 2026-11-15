@@ -81,7 +81,7 @@ Examples:
   asc system-status --watch --poll-interval 30s
   asc system-status --output json`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *pollInterval <= 0 {
 				return d.UsageError("--poll-interval must be greater than 0")

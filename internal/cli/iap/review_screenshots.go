@@ -35,7 +35,7 @@ Examples:
   asc iap review-screenshots update --screenshot-id "SHOT_ID" --uploaded true --checksum "HASH"
   asc iap review-screenshots delete --screenshot-id "SHOT_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newIAPReviewScreenshotsGetCommand(d),
 			newIAPReviewScreenshotsCreateCommand(d),
@@ -68,7 +68,7 @@ Examples:
   asc iap review-screenshots view --iap-id "IAP_ID"
   asc iap review-screenshots view --screenshot-id "SHOT_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			iapValue := strings.TrimSpace(*iapID)
 			screenshotValue := strings.TrimSpace(*screenshotID)
@@ -141,7 +141,7 @@ delivery; if it does, delete the failed screenshot and upload a corrected file:
 Examples:
   asc iap review-screenshots create --iap-id "IAP_ID" --file "./review.png"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			iapValue := strings.TrimSpace(*iapID)
 			if iapValue == "" {
@@ -244,7 +244,7 @@ Examples:
   asc iap review-screenshots update --screenshot-id "SHOT_ID" --file "./review.png"
   asc iap review-screenshots update --screenshot-id "SHOT_ID" --uploaded true --checksum "HASH"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*screenshotID)
 			if id == "" {

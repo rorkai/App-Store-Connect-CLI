@@ -24,7 +24,7 @@ func newBetaNotificationsCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc testflight beta-notifications create --build-id "BUILD_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newBetaNotificationsCreateCommand(d),
 		},
@@ -50,7 +50,7 @@ func newBetaNotificationsCreateCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc testflight beta-notifications create --build-id "BUILD_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedBuildID := strings.TrimSpace(*buildID)
 			if trimmedBuildID == "" {

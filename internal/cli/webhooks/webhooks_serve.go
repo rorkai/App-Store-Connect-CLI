@@ -99,7 +99,7 @@ Examples:
   asc webhooks serve --port 8787 --dir ./webhook-events
   asc webhooks serve --port 8787 --exec "./scripts/on-webhook.sh"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			bindHost := strings.TrimSpace(*host)
 			if bindHost == "" {

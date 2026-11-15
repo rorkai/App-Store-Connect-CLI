@@ -35,7 +35,7 @@ Examples:
   asc analytics request --app "123456789" --access-type ONGOING --reuse-existing
   asc analytics request --app "123456789" --access-type ONE_TIME_SNAPSHOT`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
@@ -110,7 +110,7 @@ Examples:
   asc analytics requests --app "123456789" --paginate
   asc analytics requests delete --request-id "REQUEST_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newAnalyticsRequestsDeleteCommand(d),
 		},
@@ -336,7 +336,7 @@ func newAnalyticsRequestsDeleteCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc analytics requests delete --request-id "REQUEST_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*requestID)
 			if id == "" {
@@ -429,7 +429,7 @@ Examples:
   asc analytics view --request-id "REQUEST_ID" --processing-date "2024-01-20" --granularity "DAILY,WEEKLY" --paginate
   asc analytics view --next "<links.next>" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "analytics view", analyticsMaxLimit); err != nil {
 				return err
@@ -559,7 +559,7 @@ Examples:
   asc analytics download --request-id "REQUEST_ID" --instance-id "INSTANCE_ID" --decompress
   asc analytics download --request-id "REQUEST_ID" --instance-id "INSTANCE_ID" --segment-id "SEGMENT_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.RejectOutputFormatAsPath(*output, "--output-format"); err != nil {
 				return err

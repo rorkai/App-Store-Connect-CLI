@@ -71,7 +71,7 @@ Examples:
   asc pricing current --app "123456789" --territory "US,France"
   asc pricing current --app "123456789" --all-territories --output table`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {

@@ -40,7 +40,7 @@ Examples:
   asc pricing tiers --app "123456789" --territory "JPN" --refresh
   asc pricing tiers --app "123456789" --output table`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {

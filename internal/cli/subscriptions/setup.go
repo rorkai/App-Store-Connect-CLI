@@ -231,7 +231,7 @@ Examples:
   asc subscriptions setup --group-id "GROUP_ID" --reference-name "Pro Monthly" --product-id "com.example.pro.monthly" --subscription-period ONE_MONTH --no-verify
   asc subscriptions setup --group-id "GROUP_ID" --reference-name "Pro Yearly" --product-id "com.example.pro.yearly" --subscription-period ONE_YEAR --group-level 1 --review-note "Same paywall structure, design may differ" --no-verify`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.RecoverBoolFlagTailArgs(fs, args, availableInNewTerritories); err != nil {
 				return err
