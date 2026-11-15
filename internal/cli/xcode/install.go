@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -19,17 +18,17 @@ const xcodeInstallDefaultTimeout = 5 * time.Minute
 
 var (
 	runInstall         = localxcode.Install
-	printInstallOutput = shared.PrintOutput
+	printInstallOutput = (*shared.Deps).PrintOutput
 )
 
-// XcodeInstallCommand returns the local connected-device installation command.
-func XcodeInstallCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("xcode install", flag.ExitOnError)
+// newXcodeInstallCommand returns the local connected-device installation command.
+func newXcodeInstallCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("xcode install", flag.ExitOnError)
 
 	ipaPath := fs.String("ipa", "", "Path to an iOS IPA (required)")
 	deviceID := fs.String("device-id", "", "Exact CoreDevice identifier from devicectl list devices (required)")
 	timeout := fs.Duration("timeout", xcodeInstallDefaultTimeout, "Maximum duration for inspection, installation, and verification")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "install",
@@ -50,27 +49,27 @@ Examples:
   asc xcode install --ipa .asc/artifacts/App.ipa --device-id COREDEVICE_IDENTIFIER --timeout 10m --output json
   asc xcode install --ipa .asc/artifacts/App.ipa --device-id COREDEVICE_IDENTIFIER --output table`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			options := localxcode.InstallOptions{
-				IPAPath:  *ipaPath,
+				IPAPath:  osPath(d, *ipaPath),
 				DeviceID: *deviceID,
 				Timeout:  *timeout,
 			}
 			if err := localxcode.ValidateInstallOptions(options); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
 			result, installErr := runInstall(ctx, options)
 			var inputErr *localxcode.InstallInputError
 			if errors.As(installErr, &inputErr) {
-				return shared.UsageError(inputErr.Error())
+				return d.UsageError(inputErr.Error())
 			}
 			if result != nil {
-				if outputErr := printInstallOutput(result, *output.Output, *output.Pretty); outputErr != nil {
+				if outputErr := printInstallOutput(d, result, *output.Output, *output.Pretty); outputErr != nil {
 					return shared.NewErrorWithCause(
 						errors.New("xcode install output failed"),
 						errors.Join(outputErr, installErr),
@@ -80,7 +79,7 @@ Examples:
 			if installErr != nil {
 				if result != nil {
 					diagnostic := installFailureDiagnostic(result)
-					fmt.Fprintf(os.Stderr, "Error: %s\n", diagnostic)
+					fmt.Fprintf(d.IO.ErrOut, "Error: %s\n", diagnostic)
 					return shared.NewStderrReportedError(shared.NewErrorWithCause(errors.New(diagnostic), installErr))
 				}
 				return shared.NewErrorWithCause(errors.New("xcode install failed"), installErr)

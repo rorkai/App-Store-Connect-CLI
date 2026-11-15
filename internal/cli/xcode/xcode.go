@@ -29,19 +29,15 @@ var (
 	runXcodeExportPreflight       = localxcode.PreflightExport
 	isDirectUploadExportOptionsFn = localxcode.IsDirectUploadMode
 	inferArchivePlatformFn        = localxcode.InferArchivePlatform
-	getASCClientFn                = shared.GetASCClient
 	resolveAppIDWithExactLookupFn = func(ctx context.Context, client *asc.Client, appID string) (string, error) {
 		return shared.ResolveAppIDWithExactLookup(ctx, client, appID)
 	}
-	waitForBuildByNumberOrUploadFailureFn = shared.WaitForBuildByNumberOrUploadFailure
+	waitForBuildByNumberOrUploadFailureFn = (*shared.Deps).WaitForBuildByNumberOrUploadFailure
 	resolveBuildUploadIDFn                = func(ctx context.Context, client *asc.Client, appID, version, buildNumber, platform string, exportStartedAt, exportCompletedAt time.Time, pollInterval time.Duration) (string, error) {
 		return waitForBuildUploadID(ctx, client, appID, version, buildNumber, platform, exportStartedAt, exportCompletedAt, pollInterval)
 	}
 	waitForBuildProcessingFn = func(ctx context.Context, client *asc.Client, buildID string, pollInterval time.Duration) (*asc.BuildResponse, error) {
 		return shared.WaitForBuildProcessingWithDetails(ctx, client, "", buildID, pollInterval)
-	}
-	resolveXcodeExportWaitTimeoutFn = func() time.Duration {
-		return asc.ResolveTimeoutWithDefault(xcodeExportWaitDefaultTimeout)
 	}
 )
 
@@ -49,9 +45,9 @@ const (
 	xcodeExportWaitDefaultTimeout = 15 * time.Minute
 )
 
-// XcodeCommand returns the local Xcode command group.
-func XcodeCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("xcode", flag.ExitOnError)
+// NewXcodeCommand returns the local Xcode command group on d.
+func NewXcodeCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("xcode", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "xcode",
@@ -87,20 +83,20 @@ Examples:
   asc xcode version edit --version "1.3.0" --build-number "42"
   asc xcode signing plan --project ./App.xcodeproj --profile ./signing/App.mobileprovision --configuration Release`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			XcodeInjectCommand(),
-			XcodeBuildCommand(),
-			XcodeTestCommand(),
-			XcodeTestDestinationsCommand(),
-			XcodeArchiveCommand(),
-			XcodeExportCommand(),
-			XcodeInstallCommand(),
-			XcodeExportOptionsGroupCommand(),
-			XcodeDoctorCommand(),
-			XcodeValidateCommand(),
-			XcodeVersionCommand(),
-			XcodeSigningCommand(),
+			newXcodeInjectCommand(d),
+			newXcodeBuildCommand(d),
+			newXcodeTestCommand(d),
+			newXcodeTestDestinationsCommand(d),
+			newXcodeArchiveCommand(d),
+			newXcodeExportCommand(d),
+			newXcodeInstallCommand(d),
+			newXcodeExportOptionsGroupCommand(d),
+			newXcodeDoctorCommand(d),
+			newXcodeValidateCommand(d),
+			newXcodeVersionCommand(d),
+			newXcodeSigningCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -108,9 +104,9 @@ Examples:
 	}
 }
 
-// XcodeArchiveCommand returns the local archive command.
-func XcodeArchiveCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("xcode archive", flag.ExitOnError)
+// newXcodeArchiveCommand returns the local archive command.
+func newXcodeArchiveCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("xcode archive", flag.ExitOnError)
 
 	workspacePath := fs.String("workspace", "", "Path to .xcworkspace directory")
 	projectPath := fs.String("project", "", "Path to .xcodeproj directory")
@@ -125,7 +121,7 @@ func XcodeArchiveCommand() *ffcli.Command {
 	overwrite := fs.Bool("overwrite", false, "Replace an existing archive at --archive-path")
 	var xcodebuildFlags shared.MultiStringFlag
 	fs.Var(&xcodebuildFlags, "xcodebuild-flag", "Pass a raw argument through to xcodebuild (repeatable)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "archive",
@@ -148,55 +144,55 @@ Examples:
   asc xcode archive --workspace App.xcworkspace --scheme App --destination 'generic/platform=iOS' --archive-path .asc/artifacts/App.xcarchive --output json
   asc xcode archive --project App.xcodeproj --scheme App --destination 'generic/platform=iOS' --derived-data-path /tmp/AppDerivedData --result-bundle-path /tmp/AppArchive.xcresult --no-code-signing --archive-path .asc/artifacts/App.xcarchive`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if emptyFlag := firstExplicitlyEmptyFlag(fs, "workspace", "project"); emptyFlag != "" {
-				return shared.UsageErrorf("--%s must not be empty", emptyFlag)
+				return d.UsageErrorf("--%s must not be empty", emptyFlag)
 			}
 			if strings.TrimSpace(*scheme) == "" {
-				return shared.RequiredFlag("--scheme")
+				return d.RequiredFlag("--scheme")
 			}
 			if strings.TrimSpace(*archivePath) == "" {
-				return shared.RequiredFlag("--archive-path")
+				return d.RequiredFlag("--archive-path")
 			}
 			if emptyFlag := firstExplicitlyEmptyFlag(fs, "configuration", "destination", "derived-data-path", "result-bundle-path"); emptyFlag != "" {
-				return shared.UsageErrorf("--%s must not be empty", emptyFlag)
+				return d.UsageErrorf("--%s must not be empty", emptyFlag)
 			}
-			containerNotice, err := detectXcodeContainer(fs, workspacePath, projectPath, "exactly one of --workspace or --project is required")
+			containerNotice, err := detectXcodeContainer(d, fs, workspacePath, projectPath, "exactly one of --workspace or --project is required")
 			if err != nil {
 				return err
 			}
 			if strings.TrimSpace(*workspacePath) == "" && strings.TrimSpace(*projectPath) == "" {
-				fmt.Fprintln(os.Stderr, "Error: exactly one of --workspace or --project is required")
+				fmt.Fprintln(d.IO.ErrOut, "Error: exactly one of --workspace or --project is required")
 				return shared.MissingRequiredUsageError("")
 			}
 			if strings.TrimSpace(*workspacePath) != "" && strings.TrimSpace(*projectPath) != "" {
-				fmt.Fprintln(os.Stderr, "Error: exactly one of --workspace or --project is required")
+				fmt.Fprintln(d.IO.ErrOut, "Error: exactly one of --workspace or --project is required")
 				return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticConflictingInput, "")
 			}
 			opts := localxcode.ArchiveOptions{
-				WorkspacePath:    strings.TrimSpace(*workspacePath),
-				ProjectPath:      strings.TrimSpace(*projectPath),
+				WorkspacePath:    osPath(d, strings.TrimSpace(*workspacePath)),
+				ProjectPath:      osPath(d, strings.TrimSpace(*projectPath)),
 				Scheme:           strings.TrimSpace(*scheme),
 				Configuration:    strings.TrimSpace(*configuration),
 				Destination:      strings.TrimSpace(*destination),
-				DerivedDataPath:  strings.TrimSpace(*derivedDataPath),
-				ResultBundlePath: strings.TrimSpace(*resultBundlePath),
-				ArchivePath:      strings.TrimSpace(*archivePath),
+				DerivedDataPath:  osPath(d, strings.TrimSpace(*derivedDataPath)),
+				ResultBundlePath: osPath(d, strings.TrimSpace(*resultBundlePath)),
+				ArchivePath:      osPath(d, strings.TrimSpace(*archivePath)),
 				Clean:            *clean,
 				NoCodeSigning:    *noCodeSigning,
 				Overwrite:        *overwrite,
 				XcodebuildArgs:   []string(xcodebuildFlags),
-				LogWriter:        os.Stderr,
+				LogWriter:        d.IO.ErrOut,
 			}
 			if err := localxcode.ValidateArchiveXcodebuildArgs(opts); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
-			if _, err := os.Stat(strings.TrimSpace(*archivePath)); err == nil && !*overwrite {
-				return shared.UsageErrorf("--archive-path already exists: %s (use --overwrite to replace it)", strings.TrimSpace(*archivePath))
+			if _, err := os.Stat(osPath(d, strings.TrimSpace(*archivePath))); err == nil && !*overwrite {
+				return d.UsageErrorf("--archive-path already exists: %s (use --overwrite to replace it)", strings.TrimSpace(*archivePath))
 			}
 			if containerNotice != "" {
-				fmt.Fprintln(os.Stderr, containerNotice)
+				fmt.Fprintln(d.IO.ErrOut, containerNotice)
 			}
 
 			result, err := runArchive(ctx, opts)
@@ -204,16 +200,16 @@ Examples:
 				return xcodeCommandError("xcode archive", err)
 			}
 
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
 				func() error {
-					asc.RenderTable([]string{"field", "value"}, archiveResultRows(result))
+					asc.RenderTableTo(d.IO.Out, []string{"field", "value"}, archiveResultRows(result))
 					return nil
 				},
 				func() error {
-					asc.RenderMarkdown([]string{"field", "value"}, archiveResultRows(result))
+					asc.RenderMarkdownTo(d.IO.Out, []string{"field", "value"}, archiveResultRows(result))
 					return nil
 				},
 			)
@@ -221,9 +217,9 @@ Examples:
 	}
 }
 
-// XcodeExportCommand returns the local export command.
-func XcodeExportCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("xcode export", flag.ExitOnError)
+// newXcodeExportCommand returns the local export command.
+func newXcodeExportCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("xcode export", flag.ExitOnError)
 
 	archivePath := fs.String("archive-path", "", "Path to the .xcarchive input (required)")
 	exportOptions := fs.String("export-options", "", "Path to ExportOptions.plist (generated automatically when omitted)")
@@ -239,7 +235,7 @@ func XcodeExportCommand() *ffcli.Command {
 	timeout := fs.Duration("timeout", 0, "Maximum duration for xcodebuild -exportArchive (0 disables local export timeout)")
 	var xcodebuildFlags shared.MultiStringFlag
 	fs.Var(&xcodebuildFlags, "xcodebuild-flag", "Pass an additional raw argument through to xcodebuild; asc-managed arguments are rejected (repeatable)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "export",
@@ -278,19 +274,19 @@ Examples:
   asc xcode export --archive-path .asc/artifacts/App.xcarchive --export-options UploadExportOptions.plist --wait
   asc xcode export --archive-path .asc/artifacts/App.xcarchive --export-options ExportOptions.plist --ipa-path .asc/artifacts/App.ipa --xcodebuild-flag=-allowProvisioningUpdates --output json`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*archivePath) == "" {
-				return shared.RequiredFlag("--archive-path")
+				return d.RequiredFlag("--archive-path")
 			}
 			if *wait && *pollInterval <= 0 {
-				return shared.UsageError("--poll-interval must be greater than 0")
+				return d.UsageError("--poll-interval must be greater than 0")
 			}
 			if *timeout < 0 {
-				return shared.UsageError("--timeout must be zero or greater")
+				return d.UsageError("--timeout must be zero or greater")
 			}
 			if err := localxcode.ValidateExportXcodebuildArgs([]string(xcodebuildFlags)); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			generationFlagsSet := false
 			signingStyleSet := false
@@ -309,50 +305,50 @@ Examples:
 			})
 			methodValue, err := localxcode.NormalizeExportOptionsMethod(*method)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			if signingStyleSet && strings.TrimSpace(*signingStyle) == "" {
-				return shared.UsageError("--signing-style must be one of: automatic, manual")
+				return d.UsageError("--signing-style must be one of: automatic, manual")
 			}
 			signingStyleValue, err := localxcode.NormalizeExportOptionsSigningStyle(*signingStyle)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			teamIDValue := strings.TrimSpace(*teamID)
 			if teamIDSet && teamIDValue == "" {
-				return shared.UsageError("--team-id must not be empty")
+				return d.UsageError("--team-id must not be empty")
 			}
-			trimmedArchivePath := strings.TrimSpace(*archivePath)
-			trimmedIPAPath := strings.TrimSpace(*ipaPath)
-			trimmedPKGPath := strings.TrimSpace(*pkgPath)
+			trimmedArchivePath := osPath(d, strings.TrimSpace(*archivePath))
+			trimmedIPAPath := osPath(d, strings.TrimSpace(*ipaPath))
+			trimmedPKGPath := osPath(d, strings.TrimSpace(*pkgPath))
 			if trimmedIPAPath != "" && trimmedPKGPath != "" {
-				return shared.UsageError("--ipa-path and --pkg-path are mutually exclusive")
+				return d.UsageError("--ipa-path and --pkg-path are mutually exclusive")
 			}
-			exportOptionsPath := strings.TrimSpace(*exportOptions)
+			exportOptionsPath := osPath(d, strings.TrimSpace(*exportOptions))
 			if exportOptionsPath != "" && generationFlagsSet {
-				return shared.UsageError("--export-options cannot be combined with --method, --signing-style, or --team-id")
+				return d.UsageError("--export-options cannot be combined with --method, --signing-style, or --team-id")
 			}
 			if *wait && methodValue != "app-store-connect" {
-				return shared.UsageErrorf("--wait cannot be combined with --method %s", methodValue)
+				return d.UsageErrorf("--wait cannot be combined with --method %s", methodValue)
 			}
 			if exportOptionsPath == "" && trimmedPKGPath != "" && methodValue != "app-store-connect" {
-				return shared.UsageErrorf("--pkg-path cannot be combined with --method %s", methodValue)
+				return d.UsageErrorf("--pkg-path cannot be combined with --method %s", methodValue)
 			}
 			if err := localxcode.ValidateExportOptionsMethodSigningStyle(methodValue, signingStyleValue); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			directUpload := *wait
 			if exportOptionsPath != "" {
 				directUpload = isDirectUploadExportOptionsFn(exportOptionsPath)
 			}
 			if trimmedIPAPath == "" && trimmedPKGPath == "" && !directUpload {
-				fmt.Fprintln(os.Stderr, "Error: --ipa-path or --pkg-path is required for a local export")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --ipa-path or --pkg-path is required for a local export")
 				return shared.MissingRequiredUsageError("")
 			}
 			if trimmedIPAPath != "" {
 				if err := localxcode.ValidateExportDestination(trimmedIPAPath, *overwrite, directUpload); err != nil {
 					if localxcode.IsExportDestinationUsageError(err) {
-						return shared.UsageError(err.Error())
+						return d.UsageError(err.Error())
 					}
 					return fmt.Errorf("xcode export: %w", err)
 				}
@@ -360,14 +356,14 @@ Examples:
 			if trimmedPKGPath != "" {
 				if err := localxcode.ValidateExportPKGDestination(trimmedPKGPath, *overwrite, directUpload); err != nil {
 					if localxcode.IsExportDestinationUsageError(err) {
-						return shared.UsageError(err.Error())
+						return d.UsageError(err.Error())
 					}
 					return fmt.Errorf("xcode export: %w", err)
 				}
 			}
-			if err := localxcode.ValidateExportDir(*exportDir, trimmedIPAPath, trimmedPKGPath, *overwrite, directUpload); err != nil {
+			if err := localxcode.ValidateExportDir(osPath(d, *exportDir), trimmedIPAPath, trimmedPKGPath, *overwrite, directUpload); err != nil {
 				if localxcode.IsExportDestinationUsageError(err) {
-					return shared.UsageError(err.Error())
+					return d.UsageError(err.Error())
 				}
 				return fmt.Errorf("xcode export: %w", err)
 			}
@@ -387,11 +383,11 @@ Examples:
 						err = localxcode.PreflightExportDestination(trimmedIPAPath, *overwrite, false)
 					}
 					if err == nil {
-						err = localxcode.PreflightExportDir(*exportDir)
+						err = localxcode.PreflightExportDir(osPath(d, *exportDir))
 					}
 					if err != nil {
 						if localxcode.IsExportDestinationUsageError(err) {
-							return shared.UsageError(err.Error())
+							return d.UsageError(err.Error())
 						}
 						return fmt.Errorf("xcode export: %w", err)
 					}
@@ -418,12 +414,12 @@ Examples:
 				exportOptionsPath = strings.TrimSpace(generated.Path)
 			}
 			if *wait && !isDirectUploadExportOptionsFn(exportOptionsPath) {
-				return shared.UsageError("--wait requires ExportOptions.plist with destination=upload")
+				return d.UsageError("--wait requires ExportOptions.plist with destination=upload")
 			}
 
 			var client *asc.Client
 			if *wait {
-				client, err = getASCClientFn()
+				client, err = d.Client()
 				if err != nil {
 					return fmt.Errorf("xcode export: %w", err)
 				}
@@ -438,16 +434,16 @@ Examples:
 				defer exportCancel()
 			}
 
-			exportStartedAt := time.Now()
+			exportStartedAt := d.Now()
 			result, err := runExport(exportCtx, localxcode.ExportOptions{
 				ArchivePath:    trimmedArchivePath,
 				ExportOptions:  exportOptionsPath,
 				IPAPath:        trimmedIPAPath,
 				PKGPath:        trimmedPKGPath,
-				ExportDir:      strings.TrimSpace(*exportDir),
+				ExportDir:      osPath(d, strings.TrimSpace(*exportDir)),
 				Overwrite:      *overwrite,
 				XcodebuildArgs: []string(xcodebuildFlags),
-				LogWriter:      os.Stderr,
+				LogWriter:      d.IO.ErrOut,
 			})
 			if err != nil {
 				if *timeout > 0 && errors.Is(err, context.DeadlineExceeded) {
@@ -455,7 +451,7 @@ Examples:
 				}
 				return xcodeCommandError("xcode export", err)
 			}
-			exportCompletedAt := time.Now()
+			exportCompletedAt := d.Now()
 			if exportCompletedAt.Before(exportStartedAt) {
 				exportCompletedAt = exportStartedAt
 			}
@@ -477,7 +473,7 @@ Examples:
 				if strings.TrimSpace(result.Version) == "" || strings.TrimSpace(result.BuildNumber) == "" {
 					return fmt.Errorf("xcode export: exported archive is missing version/build metadata required for --wait")
 				}
-				waitCtx, cancel := shared.ContextWithTimeoutDuration(ctx, resolveXcodeExportWaitTimeoutFn())
+				waitCtx, cancel := shared.ContextWithTimeoutDuration(ctx, d.ResolveTimeout(shared.RequestTimeoutSetting, xcodeExportWaitDefaultTimeout))
 				defer cancel()
 				appID, err := resolveAppIDWithExactLookupFn(waitCtx, client, result.BundleID)
 				if err != nil {
@@ -494,8 +490,8 @@ Examples:
 				if strings.TrimSpace(uploadID) == "" {
 					return fmt.Errorf("xcode export: failed to resolve build upload for version %q build %q", result.Version, result.BuildNumber)
 				}
-				fmt.Fprintf(os.Stderr, "Waiting for build %s (%s) to appear in App Store Connect...\n", result.BuildNumber, result.Version)
-				buildResp, err := waitForBuildByNumberOrUploadFailureFn(waitCtx, client, appID, uploadID, result.Version, result.BuildNumber, platform, *pollInterval)
+				fmt.Fprintf(d.IO.ErrOut, "Waiting for build %s (%s) to appear in App Store Connect...\n", result.BuildNumber, result.Version)
+				buildResp, err := waitForBuildByNumberOrUploadFailureFn(d, waitCtx, client, appID, uploadID, result.Version, result.BuildNumber, platform, *pollInterval)
 				if err != nil {
 					return fmt.Errorf("xcode export: %w", err)
 				}
@@ -503,7 +499,7 @@ Examples:
 					return fmt.Errorf("xcode export: failed to resolve build for version %q build %q", result.Version, result.BuildNumber)
 				}
 				discoveredBuildID := strings.TrimSpace(buildResp.Data.ID)
-				fmt.Fprintf(os.Stderr, "Build %s discovered; waiting for processing...\n", discoveredBuildID)
+				fmt.Fprintf(d.IO.ErrOut, "Build %s discovered; waiting for processing...\n", discoveredBuildID)
 				buildResp, err = waitForBuildProcessingFn(waitCtx, client, discoveredBuildID, *pollInterval)
 				if err != nil {
 					return fmt.Errorf("xcode export: %w", err)
@@ -515,16 +511,16 @@ Examples:
 				commandResult.ProcessingState = strings.ToUpper(strings.TrimSpace(buildResp.Data.Attributes.ProcessingState))
 			}
 
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				commandResult,
 				*output.Output,
 				*output.Pretty,
 				func() error {
-					asc.RenderTable([]string{"field", "value"}, exportResultRows(commandResult))
+					asc.RenderTableTo(d.IO.Out, []string{"field", "value"}, exportResultRows(commandResult))
 					return nil
 				},
 				func() error {
-					asc.RenderMarkdown([]string{"field", "value"}, exportResultRows(commandResult))
+					asc.RenderMarkdownTo(d.IO.Out, []string{"field", "value"}, exportResultRows(commandResult))
 					return nil
 				},
 			)
@@ -532,15 +528,15 @@ Examples:
 	}
 }
 
-// XcodeValidateCommand returns the local validate command.
-func XcodeValidateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("xcode validate", flag.ExitOnError)
+// newXcodeValidateCommand returns the local validate command.
+func newXcodeValidateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("xcode validate", flag.ExitOnError)
 
 	ipaPath := fs.String("ipa", "", "Path to an iOS, tvOS, or visionOS .ipa input")
 	pkgPath := fs.String("pkg", "", "Path to a macOS .pkg input")
 	apiKey := fs.String("api-key", "", "App Store Connect API key ID for altool")
 	apiIssuer := fs.String("api-issuer", "", "App Store Connect API issuer ID for altool")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "validate",
@@ -564,33 +560,33 @@ Examples:
   asc xcode validate --pkg .asc/artifacts/MacApp.pkg
   asc xcode validate --ipa .asc/artifacts/App.ipa --api-key KEY123ABC --api-issuer 00000000-0000-0000-0000-000000000000 --output json`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			trimmedIPAPath := strings.TrimSpace(*ipaPath)
-			trimmedPKGPath := strings.TrimSpace(*pkgPath)
+			trimmedIPAPath := osPath(d, strings.TrimSpace(*ipaPath))
+			trimmedPKGPath := osPath(d, strings.TrimSpace(*pkgPath))
 			trimmedAPIKey := strings.TrimSpace(*apiKey)
 			trimmedAPIIssuer := strings.TrimSpace(*apiIssuer)
 
 			if emptyFlag := firstExplicitlyEmptyFlag(fs, "ipa", "pkg"); emptyFlag != "" {
-				return shared.UsageErrorf("--%s must not be empty", emptyFlag)
+				return d.UsageErrorf("--%s must not be empty", emptyFlag)
 			}
 			hasIPA := trimmedIPAPath != ""
 			hasPKG := trimmedPKGPath != ""
 			if !hasIPA && !hasPKG {
-				fmt.Fprintln(os.Stderr, "Error: --ipa or --pkg is required")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --ipa or --pkg is required")
 				return shared.MissingRequiredUsageError("")
 			}
 			if hasIPA && hasPKG {
-				return shared.UsageError("--ipa and --pkg are mutually exclusive")
+				return d.UsageError("--ipa and --pkg are mutually exclusive")
 			}
 			if hasIPA && !strings.EqualFold(filepath.Ext(trimmedIPAPath), ".ipa") {
-				return shared.UsageError("--ipa must end with .ipa")
+				return d.UsageError("--ipa must end with .ipa")
 			}
 			if hasPKG && !strings.EqualFold(filepath.Ext(trimmedPKGPath), ".pkg") {
-				return shared.UsageError("--pkg must end with .pkg")
+				return d.UsageError("--pkg must end with .pkg")
 			}
 			if (trimmedAPIKey == "") != (trimmedAPIIssuer == "") {
-				return shared.UsageError("--api-key and --api-issuer must be provided together")
+				return d.UsageError("--api-key and --api-issuer must be provided together")
 			}
 			p8FilePath := ""
 			if trimmedAPIKey == "" {
@@ -607,22 +603,22 @@ Examples:
 				APIKey:     trimmedAPIKey,
 				APIIssuer:  trimmedAPIIssuer,
 				P8FilePath: p8FilePath,
-				LogWriter:  os.Stderr,
+				LogWriter:  d.IO.ErrOut,
 			})
 			if err != nil {
 				return xcodeCommandError("xcode validate", err)
 			}
 
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
 				func() error {
-					asc.RenderTable([]string{"field", "value"}, validateResultRows(result))
+					asc.RenderTableTo(d.IO.Out, []string{"field", "value"}, validateResultRows(result))
 					return nil
 				},
 				func() error {
-					asc.RenderMarkdown([]string{"field", "value"}, validateResultRows(result))
+					asc.RenderMarkdownTo(d.IO.Out, []string{"field", "value"}, validateResultRows(result))
 					return nil
 				},
 			)
@@ -663,14 +659,14 @@ func xcodeCommandError(command string, err error) error {
 
 // reportXcodeFailure prints the stderr summary for a failed xcodebuild run:
 // its exit status, or the interruption cause when it has none.
-func reportXcodeFailure(command string, exitStatus *int, err error) {
+func reportXcodeFailure(d *shared.Deps, command string, exitStatus *int, err error) {
 	message := command + " failed"
 	if exitStatus != nil {
 		message = fmt.Sprintf("%s with exit status %d", message, *exitStatus)
 	} else {
 		message = fmt.Sprintf("%s: %v", message, xcodeInterruptionReason(err))
 	}
-	fmt.Fprintf(os.Stderr, "Error: %s\n", message)
+	fmt.Fprintf(d.IO.ErrOut, "Error: %s\n", message)
 }
 
 func xcodeInterruptionReason(err error) error {
@@ -803,7 +799,7 @@ func validateResultRows(result *localxcode.ValidateResult) [][]string {
 // working directory. It returns the notice to print once the command passes
 // validation. When the choice is ambiguous it returns the required usage
 // error with what was found.
-func detectXcodeContainer(fs *flag.FlagSet, workspacePath, projectPath *string, required string) (string, error) {
+func detectXcodeContainer(d *shared.Deps, fs *flag.FlagSet, workspacePath, projectPath *string, required string) (string, error) {
 	given := false
 	fs.Visit(func(f *flag.Flag) {
 		if f.Name == "workspace" || f.Name == "project" {
@@ -813,9 +809,9 @@ func detectXcodeContainer(fs *flag.FlagSet, workspacePath, projectPath *string, 
 	if given {
 		return "", nil
 	}
-	entries, err := readWorkingDirectory()
+	entries, err := readWorkingDirectory(d)
 	if err != nil {
-		return "", shared.UsageErrorf("%s; could not list the current directory: %v", required, err)
+		return "", d.UsageErrorf("%s; could not list the current directory: %v", required, err)
 	}
 	var workspaces, projects []string
 	for _, entry := range entries {
@@ -847,14 +843,14 @@ func detectXcodeContainer(fs *flag.FlagSet, workspacePath, projectPath *string, 
 			*kind.value = kind.found[0]
 			return fmt.Sprintf("Using %s %s", kind.name, kind.found[0]), nil
 		default:
-			return "", shared.UsageErrorf("%s; found %d %ss: %s; pass %s", required, len(kind.found), kind.name, strings.Join(kind.found, ", "), kind.flag)
+			return "", d.UsageErrorf("%s; found %d %ss: %s; pass %s", required, len(kind.found), kind.name, strings.Join(kind.found, ", "), kind.flag)
 		}
 	}
 	return "", nil
 }
 
-func readWorkingDirectory() ([]os.DirEntry, error) {
-	root, err := rootfs.New(".")
+func readWorkingDirectory(d *shared.Deps) ([]os.DirEntry, error) {
+	root, err := rootfs.New(osPath(d, "."))
 	if err != nil {
 		return nil, err
 	}
@@ -865,4 +861,23 @@ func readWorkingDirectory() ([]os.DirEntry, error) {
 	}
 	defer dir.Close()
 	return dir.ReadDir(-1)
+}
+
+// osPath is d.OSPath for a path flag value, keeping an empty value empty.
+func osPath(d *shared.Deps, path string) string {
+	if path == "" {
+		return ""
+	}
+	return d.OSPath(path)
+}
+
+func osPaths(d *shared.Deps, paths []string) []string {
+	if paths == nil {
+		return nil
+	}
+	resolved := make([]string, len(paths))
+	for i, path := range paths {
+		resolved[i] = osPath(d, path)
+	}
+	return resolved
 }

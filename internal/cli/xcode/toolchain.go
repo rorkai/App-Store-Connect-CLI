@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -16,13 +15,13 @@ import (
 
 var runToolchainDoctor = localxcode.InspectToolchain
 
-// XcodeDoctorCommand returns the read-only local Xcode toolchain diagnostic.
-func XcodeDoctorCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("xcode doctor", flag.ExitOnError)
+// newXcodeDoctorCommand returns the read-only local Xcode toolchain diagnostic.
+func newXcodeDoctorCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("xcode doctor", flag.ExitOnError)
 
 	developerDir := fs.String("developer-dir", "", "Xcode developer directory or .app to inspect (overrides DEVELOPER_DIR and xcode-select)")
 	sdk := fs.String("sdk", "", "SDK name to resolve with xcrun (for example iphoneos or iphonesimulator)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "doctor",
@@ -46,22 +45,22 @@ Examples:
   asc xcode doctor --developer-dir /Applications/Xcode.app --sdk iphonesimulator --output json --pretty
   DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer asc xcode doctor --output table`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if emptyFlag := firstExplicitlyEmptyFlag(fs, "developer-dir", "sdk"); emptyFlag != "" {
-				return toolchainUsageError(fmt.Sprintf("--%s must not be empty", emptyFlag), "--"+emptyFlag)
+				return toolchainUsageError(d, fmt.Sprintf("--%s must not be empty", emptyFlag), "--"+emptyFlag)
 			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
-				return toolchainUsageError(err.Error(), "--output")
+				return toolchainUsageError(d, err.Error(), "--output")
 			}
 
 			report, doctorErr := runToolchainDoctor(ctx, localxcode.ToolchainOptions{
-				DeveloperDir: strings.TrimSpace(*developerDir),
+				DeveloperDir: osPath(d, strings.TrimSpace(*developerDir)),
 				SDK:          strings.TrimSpace(*sdk),
-				LogWriter:    os.Stderr,
+				LogWriter:    d.IO.ErrOut,
 			})
 			if report != nil {
-				if outputErr := shared.PrintOutput(toolchainReportOutput(report), *output.Output, *output.Pretty); outputErr != nil {
+				if outputErr := d.PrintOutput(toolchainReportOutput(report), *output.Output, *output.Pretty); outputErr != nil {
 					if doctorErr != nil {
 						return shared.NewErrorWithCause(outputErr, doctorErr)
 					}
@@ -72,14 +71,14 @@ Examples:
 				if report == nil {
 					return fmt.Errorf("xcode doctor: %w", doctorErr)
 				}
-				fmt.Fprintln(os.Stderr, "Error: xcode doctor: toolchain checks failed")
+				fmt.Fprintln(d.IO.ErrOut, "Error: xcode doctor: toolchain checks failed")
 				return shared.NewStderrReportedError(fmt.Errorf("xcode doctor: %w", doctorErr))
 			}
 			if report == nil {
 				return fmt.Errorf("xcode doctor: inspector returned no report")
 			}
 			if report.Status == localxcode.ToolchainStatusFail {
-				fmt.Fprintln(os.Stderr, "Error: xcode doctor: toolchain checks failed")
+				fmt.Fprintln(d.IO.ErrOut, "Error: xcode doctor: toolchain checks failed")
 				return shared.NewStderrReportedError(fmt.Errorf("xcode doctor: toolchain checks failed"))
 			}
 			return nil
@@ -87,10 +86,10 @@ Examples:
 	}
 }
 
-func toolchainUsageError(message, parameter string) error {
+func toolchainUsageError(d *shared.Deps, message, parameter string) error {
 	trimmed := strings.TrimSpace(message)
 	if trimmed != "" {
-		fmt.Fprintf(os.Stderr, "Error: %s\n", trimmed)
+		fmt.Fprintf(d.IO.ErrOut, "Error: %s\n", trimmed)
 	}
 	return shared.WithDiagnostic(
 		shared.NewReportedUsageError(shared.UsageErrorInvalidValue, trimmed),
