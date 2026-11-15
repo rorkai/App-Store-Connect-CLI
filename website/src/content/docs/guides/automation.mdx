@@ -132,6 +132,8 @@ Precedence for steps inside a called sub-workflow (highest to lowest):
 5. Called workflow's own `env`
 6. System environment
 
+A step's own `env` outranks both lists for that step only, below its `with`.
+
 A sub-workflow's own `env` is the lowest-priority map in its own scope, so it
 provides defaults the caller overrides. The calling step's `with` is the only
 source that outranks runtime parameters: a key hardcoded there cannot be

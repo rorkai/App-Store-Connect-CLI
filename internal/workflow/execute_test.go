@@ -305,6 +305,31 @@ func TestRun_EnvMerging(t *testing.T) {
 	}
 }
 
+func TestRun_StepEnvAppliesToThatStepOnly(t *testing.T) {
+	def := &Definition{
+		Workflows: map[string]Workflow{
+			"test": {
+				Env: map[string]string{"VAR": "workflow"},
+				Steps: []Step{
+					{Run: "echo own=$VAR", If: "VAR == step", Env: map[string]string{"VAR": "step"}},
+					{Workflow: "helper", Env: map[string]string{"VAR": "call"}},
+					{Run: "echo next=$VAR"},
+				},
+			},
+			"helper": {Steps: []Step{{Run: "echo helper=$VAR"}}},
+		},
+	}
+	opts := runOpts("test")
+
+	if _, err := Run(context.Background(), def, opts); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	stdout := opts.Stdout.(*bytes.Buffer).String()
+	if stdout != "own=step\nhelper=call\nnext=workflow\n" {
+		t.Fatalf("expected step env on its own step only, got %q", stdout)
+	}
+}
+
 func TestRun_ExtractsDeclaredOutputs(t *testing.T) {
 	def := &Definition{
 		Workflows: map[string]Workflow{

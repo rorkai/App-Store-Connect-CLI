@@ -377,9 +377,13 @@ func (r *runner) executeSteps(ctx context.Context, workflowName string, steps []
 		if workflowName != r.opts.WorkflowName {
 			sr.ParentWorkflow = workflowName
 		}
+		stepEnv := env
+		if len(step.Env) > 0 {
+			stepEnv = mergeEnv(env, step.Env)
+		}
 
 		if strings.TrimSpace(step.If) != "" {
-			pass, err := evalStepIf(step.If, env)
+			pass, err := evalStepIf(step.If, stepEnv)
 			if err != nil {
 				fmt.Fprintf(r.opts.Stderr, "Warning: workflow %q step %d: if %q is not a supported condition, so the step is skipped; %v. A future major release will reject it.\n", workflowName, idx, step.If, err)
 			}
@@ -438,7 +442,7 @@ func (r *runner) executeSteps(ctx context.Context, workflowName string, steps []
 				}
 			}
 
-			subEnv := mergeEnv(subWf.Env, env, resolvedWith)
+			subEnv := mergeEnv(subWf.Env, stepEnv, resolvedWith)
 			if r.opts.DryRun {
 				fmt.Fprintf(r.opts.Stderr, "[dry-run] step %d: workflow %s\n", idx, ref)
 			}
@@ -483,7 +487,7 @@ func (r *runner) executeSteps(ctx context.Context, workflowName string, steps []
 			return wrapped
 		}
 
-		if err := r.executeRunStep(ctx, workflowName, idx, stepKey, step, command, env, &sr); err != nil {
+		if err := r.executeRunStep(ctx, workflowName, idx, stepKey, step, command, stepEnv, &sr); err != nil {
 			sr.DurationMS = time.Since(stepStart).Milliseconds()
 			r.result.Steps = append(r.result.Steps, sr)
 			r.result.FailedStep = failedStepName(step.Name, stepKey)

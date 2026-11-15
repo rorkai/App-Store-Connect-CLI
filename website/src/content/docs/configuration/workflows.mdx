@@ -200,6 +200,13 @@ Steps can be defined in two formats:
   Uses Go duration syntax such as `250ms`, `10s`, or `2m`.
 </ParamField>
 
+<ParamField path="env" type="object">
+  Environment variables for this step only
+
+  Visible to the step's command, its `if`, and a called workflow. Not passed to
+  later steps.
+</ParamField>
+
 ## Bounded retry and timeout
 
 Use retry only for a command you have explicitly determined is safe to repeat.
@@ -248,6 +255,9 @@ Steps inside a called sub-workflow resolve in this order:
 4. **Global `env` field**
 5. **Called workflow's own `env` field**
 6. **System environment variables**
+
+A step's own `env` outranks both lists: it applies to that step only, wins over
+runtime parameters, and on a `workflow` step ranks just below that step's `with`.
 
 Example:
 
