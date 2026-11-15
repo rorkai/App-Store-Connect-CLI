@@ -81,15 +81,7 @@ Examples:
 
 // newBundleIDsProfilesListCommand returns the bundle ID profiles list subcommand.
 func newBundleIDsProfilesListCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("list", flag.ExitOnError)
-
-	id := shared.BindResourceIDFlag(fs, "id", "bundleIds", "Bundle ID")
-	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
-	next := fs.String("next", "", shared.NextFlagUsage)
-	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := d.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "list",
 		ShortUsage: "asc bundle-ids profiles list --id \"BUNDLE_ID\" [flags]",
 		ShortHelp:  "List profiles linked to a bundle ID.",
@@ -98,65 +90,32 @@ func newBundleIDsProfilesListCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc bundle-ids profiles list --id "BUNDLE_ID"
   asc bundle-ids profiles list --id "BUNDLE_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if err := d.ValidatePaginationFlags(ctx, fs, "bundle-ids profiles list", 200); err != nil {
-				return err
-			}
-			idValue := strings.TrimSpace(*id)
-			if idValue == "" && strings.TrimSpace(*next) == "" {
-				return d.RequiredFlag("--id")
-			}
-			if idValue == "" && strings.TrimSpace(*next) != "" {
-				derivedID, err := extractBundleIDFromNextURL(*next)
-				if err != nil {
+		ParentFlag:           "id",
+		ParentUsage:          "Bundle ID",
+		ParentType:           "bundleIds",
+		RequiredDiagnostic:   true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		Deps:                 d,
+		Flags: func(fs *flag.FlagSet) func() error {
+			id, next := fs.Lookup("id").Value, fs.Lookup("next").Value
+			return func() error {
+				if strings.TrimSpace(id.String()) != "" || strings.TrimSpace(next.String()) == "" {
+					return nil
+				}
+				if _, err := extractBundleIDFromNextURL(next.String()); err != nil {
 					return d.UsageErrorf("bundle-ids profiles list: %v", err)
 				}
-				idValue = derivedID
+				return nil
 			}
-
-			client, err := d.Client()
-			if err != nil {
-				return fmt.Errorf("bundle-ids profiles list: %w", err)
-			}
-
-			requestCtx, cancel := d.Timeout(ctx)
-			defer cancel()
-
-			opts := []asc.BundleIDProfilesOption{
-				asc.Limit[asc.BundleIDProfilesOption](*limit),
-				asc.NextURL[asc.BundleIDProfilesOption](*next),
-			}
-
-			if *paginate {
-				if idValue == "" {
-					return d.RequiredFlag("--id")
-				}
-				paginateOpts := append(opts, asc.Limit[asc.BundleIDProfilesOption](200))
-				firstPage, err := client.GetBundleIDProfiles(requestCtx, idValue, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("bundle-ids profiles list: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetBundleIDProfiles(ctx, idValue, asc.NextURL[asc.BundleIDProfilesOption](nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("bundle-ids profiles list: %w", err)
-				}
-
-				return d.PrintOutput(resp, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetBundleIDProfiles(requestCtx, idValue, opts...)
-			if err != nil {
-				return fmt.Errorf("bundle-ids profiles list: failed to fetch: %w", err)
-			}
-
-			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
-	}
+		FetchPage: func(ctx context.Context, client *asc.Client, id string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetBundleIDProfiles(ctx, id,
+				asc.Limit[asc.BundleIDProfilesOption](limit),
+				asc.NextURL[asc.BundleIDProfilesOption](next),
+			)
+		},
+	})
 }
 
 func extractBundleIDFromNextURL(nextURL string) (string, error) {

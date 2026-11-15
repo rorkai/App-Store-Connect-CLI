@@ -63,15 +63,7 @@ Examples:
 // newAgreementsTerritoriesListCommand returns the agreements territories list
 // subcommand built on d.
 func newAgreementsTerritoriesListCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("list", flag.ExitOnError)
-
-	id := shared.BindResourceIDFlag(fs, "id", "endUserLicenseAgreements", "EULA ID")
-	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
-	next := fs.String("next", "", shared.NextFlagUsage)
-	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := d.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "list",
 		ShortUsage: "asc agreements territories list --id \"EULA_ID\" [flags]",
 		ShortHelp:  "List territories for an EULA.",
@@ -80,65 +72,32 @@ func newAgreementsTerritoriesListCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc agreements territories list --id "EULA_ID"
   asc agreements territories list --id "EULA_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if err := d.ValidatePaginationFlags(ctx, fs, "agreements territories list", 200); err != nil {
-				return err
-			}
-			idValue := strings.TrimSpace(*id)
-			if idValue == "" && strings.TrimSpace(*next) == "" {
-				return d.RequiredFlag("--id")
-			}
-			if idValue == "" && strings.TrimSpace(*next) != "" {
-				derivedID, err := extractEULATerritoryIDFromNextURL(*next)
-				if err != nil {
+		ParentFlag:           "id",
+		ParentUsage:          "EULA ID",
+		ParentType:           "endUserLicenseAgreements",
+		RequiredDiagnostic:   true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		Deps:                 d,
+		Flags: func(fs *flag.FlagSet) func() error {
+			id, next := fs.Lookup("id").Value, fs.Lookup("next").Value
+			return func() error {
+				if strings.TrimSpace(id.String()) != "" || strings.TrimSpace(next.String()) == "" {
+					return nil
+				}
+				if _, err := extractEULATerritoryIDFromNextURL(next.String()); err != nil {
 					return d.UsageErrorf("agreements territories list: %v", err)
 				}
-				idValue = derivedID
+				return nil
 			}
-
-			client, err := d.Client()
-			if err != nil {
-				return fmt.Errorf("agreements territories list: %w", err)
-			}
-
-			requestCtx, cancel := d.Timeout(ctx)
-			defer cancel()
-
-			opts := []asc.EndUserLicenseAgreementTerritoriesOption{
-				asc.Limit[asc.EndUserLicenseAgreementTerritoriesOption](*limit),
-				asc.NextURL[asc.EndUserLicenseAgreementTerritoriesOption](*next),
-			}
-
-			if *paginate {
-				if idValue == "" {
-					return d.RequiredFlag("--id")
-				}
-				paginateOpts := append(opts, asc.Limit[asc.EndUserLicenseAgreementTerritoriesOption](200))
-				firstPage, err := client.GetEndUserLicenseAgreementTerritories(requestCtx, idValue, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("agreements territories list: failed to fetch: %w", err)
-				}
-
-				paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetEndUserLicenseAgreementTerritories(ctx, idValue, asc.NextURL[asc.EndUserLicenseAgreementTerritoriesOption](nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("agreements territories list: %w", err)
-				}
-
-				return d.PrintOutput(paginated, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetEndUserLicenseAgreementTerritories(requestCtx, idValue, opts...)
-			if err != nil {
-				return fmt.Errorf("agreements territories list: failed to fetch: %w", err)
-			}
-
-			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
-	}
+		FetchPage: func(ctx context.Context, client *asc.Client, id string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetEndUserLicenseAgreementTerritories(ctx, id,
+				asc.Limit[asc.EndUserLicenseAgreementTerritoriesOption](limit),
+				asc.NextURL[asc.EndUserLicenseAgreementTerritoriesOption](next),
+			)
+		},
+	})
 }
 
 func extractEULATerritoryIDFromNextURL(nextURL string) (string, error) {

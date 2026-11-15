@@ -46,27 +46,18 @@ Examples:
 
 // newNominationsListCommand returns the nominations list subcommand.
 func newNominationsListCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("nominations list", flag.ExitOnError)
+	var (
+		appIDs, sort                                                  *string
+		inAppEventsLimit, relatedAppsLimit, supportedTerritoriesLimit *int
+		statusValues, typeValues, fieldsValue, includeValues          []string
+		included                                                      asc.IncludedFields
+	)
 
-	appIDs := fs.String("app", "", "Filter by related app ID(s), comma-separated")
-	status := fs.String("status", "", "Filter by status/state(s), comma-separated: "+strings.Join(nominationStateList(), ", "))
-	nomType := fs.String("type", "", "Filter by type(s), comma-separated: "+strings.Join(nominationTypeList(), ", "))
-	sort := fs.String("sort", "", "Sort by: "+strings.Join(nominationSortList(), ", "))
-	fields := fs.String("fields", "", "Fields to include: "+strings.Join(nominationFieldsList(), ", "))
-	include := fs.String("include", "", "Include related resources: "+strings.Join(nominationIncludeList(), ", "))
-	includedFields := shared.BindIncludedFieldFlags(fs, nominationIncludedResources)
-	inAppEventsLimit := fs.Int("in-app-events-limit", 0, "Maximum included in-app events (1-50)")
-	relatedAppsLimit := fs.Int("related-apps-limit", 0, "Maximum included related apps (1-50)")
-	supportedTerritoriesLimit := fs.Int("supported-territories-limit", 0, "Maximum included supported territories (1-200)")
-	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
-	next := fs.String("next", "", shared.NextFlagUsage)
-	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := d.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc nominations list --status STATE [flags]",
-		ShortHelp:  "List featuring nominations.",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "nominations list",
+		Name:        "list",
+		ShortUsage:  "asc nominations list --status STATE [flags]",
+		ShortHelp:   "List featuring nominations.",
 		LongHelp: `List featuring nominations.
 
 Examples:
@@ -74,80 +65,88 @@ Examples:
   asc nominations list --status DRAFT --type APP_LAUNCH
   asc nominations list --app "APP_ID" --status SUBMITTED --output table
   asc nominations list --status DRAFT --include relatedApps --related-apps-limit 10`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if err := d.ValidatePaginationFlags(ctx, fs, "nominations list", 200, "app", "status", "type", "sort", "fields", "include", "in-app-events-limit", "related-apps-limit", "supported-territories-limit"); err != nil {
-				return err
-			}
-			statusInput := shared.SplitCSVUpper(*status)
-			if len(statusInput) == 0 && strings.TrimSpace(*next) == "" {
-				return d.RequiredFlag("--status")
-			}
-			if err := shared.ValidateSort(*sort, nominationSortList()...); err != nil {
-				return d.UsageErrorf("nominations list: %v", err)
-			}
-			if *inAppEventsLimit != 0 && (*inAppEventsLimit < 1 || *inAppEventsLimit > 50) {
-				return d.UsageError("nominations list: --in-app-events-limit must be between 1 and 50")
-			}
-			if *relatedAppsLimit != 0 && (*relatedAppsLimit < 1 || *relatedAppsLimit > 50) {
-				return d.UsageError("nominations list: --related-apps-limit must be between 1 and 50")
-			}
-			if *supportedTerritoriesLimit != 0 && (*supportedTerritoriesLimit < 1 || *supportedTerritoriesLimit > 200) {
-				return d.UsageError("nominations list: --supported-territories-limit must be between 1 and 200")
-			}
+		TopLevel:             true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		NextConflicts:        []string{"app", "status", "type", "sort", "fields", "include", "in-app-events-limit", "related-apps-limit", "supported-territories-limit"},
+		Deps:                 d,
+		Flags: func(fs *flag.FlagSet) func() error {
+			next := fs.Lookup("next").Value
+			appIDs = fs.String("app", "", "Filter by related app ID(s), comma-separated")
+			status := fs.String("status", "", "Filter by status/state(s), comma-separated: "+strings.Join(nominationStateList(), ", "))
+			nomType := fs.String("type", "", "Filter by type(s), comma-separated: "+strings.Join(nominationTypeList(), ", "))
+			sort = fs.String("sort", "", "Sort by: "+strings.Join(nominationSortList(), ", "))
+			fields := fs.String("fields", "", "Fields to include: "+strings.Join(nominationFieldsList(), ", "))
+			include := fs.String("include", "", "Include related resources: "+strings.Join(nominationIncludeList(), ", "))
+			includedFields := shared.BindIncludedFieldFlags(fs, nominationIncludedResources)
+			inAppEventsLimit = fs.Int("in-app-events-limit", 0, "Maximum included in-app events (1-50)")
+			relatedAppsLimit = fs.Int("related-apps-limit", 0, "Maximum included related apps (1-50)")
+			supportedTerritoriesLimit = fs.Int("supported-territories-limit", 0, "Maximum included supported territories (1-200)")
+			return func() error {
+				statusInput := shared.SplitCSVUpper(*status)
+				if len(statusInput) == 0 && strings.TrimSpace(next.String()) == "" {
+					return d.RequiredFlag("--status")
+				}
+				if err := shared.ValidateSort(*sort, nominationSortList()...); err != nil {
+					return d.UsageErrorf("nominations list: %v", err)
+				}
+				if *inAppEventsLimit != 0 && (*inAppEventsLimit < 1 || *inAppEventsLimit > 50) {
+					return d.UsageError("nominations list: --in-app-events-limit must be between 1 and 50")
+				}
+				if *relatedAppsLimit != 0 && (*relatedAppsLimit < 1 || *relatedAppsLimit > 50) {
+					return d.UsageError("nominations list: --related-apps-limit must be between 1 and 50")
+				}
+				if *supportedTerritoriesLimit != 0 && (*supportedTerritoriesLimit < 1 || *supportedTerritoriesLimit > 200) {
+					return d.UsageError("nominations list: --supported-territories-limit must be between 1 and 200")
+				}
 
-			statusValues, err := normalizeNominationStates(statusInput)
-			if err != nil {
-				return d.UsageErrorf("nominations list: %v", err)
-			}
+				var err error
+				statusValues, err = normalizeNominationStates(statusInput)
+				if err != nil {
+					return d.UsageErrorf("nominations list: %v", err)
+				}
 
-			typeValues, err := normalizeNominationTypes(shared.SplitCSVUpper(*nomType))
-			if err != nil {
-				return d.UsageErrorf("nominations list: %v", err)
-			}
+				typeValues, err = normalizeNominationTypes(shared.SplitCSVUpper(*nomType))
+				if err != nil {
+					return d.UsageErrorf("nominations list: %v", err)
+				}
 
-			fieldsValue, err := normalizeNominationFields(*fields)
-			if err != nil {
-				return d.UsageErrorf("nominations list: %v", err)
-			}
+				fieldsValue, err = normalizeNominationFields(*fields)
+				if err != nil {
+					return d.UsageErrorf("nominations list: %v", err)
+				}
 
-			includeValues, err := normalizeNominationInclude(*include)
-			if err != nil {
-				return d.UsageErrorf("nominations list: %v", err)
-			}
-			included, err := includedFields.ResolveWith(d, "nominations list", *next, includeValues)
-			if err != nil {
-				return err
-			}
+				includeValues, err = normalizeNominationInclude(*include)
+				if err != nil {
+					return d.UsageErrorf("nominations list: %v", err)
+				}
+				included, err = includedFields.ResolveWith(d, "nominations list", next.String(), includeValues)
+				if err != nil {
+					return err
+				}
 
-			if *inAppEventsLimit != 0 && !shared.HasInclude(includeValues, "inAppEvents") {
-				fmt.Fprintf(d.IO.ErrOut, "Error: --in-app-events-limit requires --include inAppEvents\n\n")
-				return flag.ErrHelp
+				if *inAppEventsLimit != 0 && !shared.HasInclude(includeValues, "inAppEvents") {
+					fmt.Fprintf(d.IO.ErrOut, "Error: --in-app-events-limit requires --include inAppEvents\n\n")
+					return flag.ErrHelp
+				}
+				if *relatedAppsLimit != 0 && !shared.HasInclude(includeValues, "relatedApps") {
+					fmt.Fprintf(d.IO.ErrOut, "Error: --related-apps-limit requires --include relatedApps\n\n")
+					return flag.ErrHelp
+				}
+				if *supportedTerritoriesLimit != 0 && !shared.HasInclude(includeValues, "supportedTerritories") {
+					fmt.Fprintf(d.IO.ErrOut, "Error: --supported-territories-limit requires --include supportedTerritories\n\n")
+					return flag.ErrHelp
+				}
+				return nil
 			}
-			if *relatedAppsLimit != 0 && !shared.HasInclude(includeValues, "relatedApps") {
-				fmt.Fprintf(d.IO.ErrOut, "Error: --related-apps-limit requires --include relatedApps\n\n")
-				return flag.ErrHelp
-			}
-			if *supportedTerritoriesLimit != 0 && !shared.HasInclude(includeValues, "supportedTerritories") {
-				fmt.Fprintf(d.IO.ErrOut, "Error: --supported-territories-limit requires --include supportedTerritories\n\n")
-				return flag.ErrHelp
-			}
-
-			client, err := d.Client()
-			if err != nil {
-				return fmt.Errorf("nominations list: %w", err)
-			}
-
-			requestCtx, cancel := d.Timeout(ctx)
-			defer cancel()
-
+		},
+		FetchPage: func(ctx context.Context, client *asc.Client, _ string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := []asc.NominationsOption{
 				asc.WithNominationsTypes(typeValues),
 				asc.WithNominationsStates(statusValues),
 				asc.WithNominationsRelatedApps(shared.SplitCSV(*appIDs)),
-				asc.Limit[asc.NominationsOption](*limit),
-				asc.NextURL[asc.NominationsOption](*next),
+				asc.Limit[asc.NominationsOption](limit),
+				asc.NextURL[asc.NominationsOption](next),
 				asc.WithIncludedFields[asc.NominationsOption](included),
 			}
 			if strings.TrimSpace(*sort) != "" {
@@ -168,32 +167,9 @@ Examples:
 			if *supportedTerritoriesLimit > 0 {
 				opts = append(opts, asc.WithNominationsSupportedTerritoriesLimit(*supportedTerritoriesLimit))
 			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.Limit[asc.NominationsOption](200))
-				firstPage, err := client.GetNominations(requestCtx, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("nominations list: failed to fetch: %w", err)
-				}
-
-				nominations, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetNominations(ctx, asc.NextURL[asc.NominationsOption](nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("nominations list: %w", err)
-				}
-
-				return d.PrintOutput(nominations, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetNominations(requestCtx, opts...)
-			if err != nil {
-				return fmt.Errorf("nominations list: failed to fetch: %w", err)
-			}
-
-			return d.PrintOutput(resp, *output.Output, *output.Pretty)
+			return client.GetNominations(ctx, opts...)
 		},
-	}
+	})
 }
 
 // newNominationsGetCommand returns the nominations view subcommand.
