@@ -22,18 +22,20 @@ type IO struct {
 }
 
 // Deps holds what a command takes from the process: its App Store Connect
-// client, its streams, the clock, and the request and upload timeouts.
+// client, its streams, the clock, the request and upload timeouts, and the
+// timeout settings a command reads with a default of its own.
 type Deps struct {
-	Client        func() (*asc.Client, error)
-	IO            *IO
-	Now           func() time.Time
-	Timeout       func(context.Context) (context.Context, context.CancelFunc)
-	UploadTimeout func(context.Context) (context.Context, context.CancelFunc)
+	Client         func() (*asc.Client, error)
+	IO             *IO
+	Now            func() time.Time
+	Timeout        func(context.Context) (context.Context, context.CancelFunc)
+	UploadTimeout  func(context.Context) (context.Context, context.CancelFunc)
+	ResolveTimeout func(setting TimeoutSetting, defaultTimeout time.Duration) time.Duration
 }
 
 // DefaultDeps returns the dependencies of a normal run: the shared client
-// factory, the process streams, the system clock, and the request and upload
-// timeouts.
+// factory, the process streams, the system clock, and the timeouts from the
+// environment and the config file.
 func DefaultDeps() *Deps {
 	return &Deps{
 		Client: GetASCClient,
@@ -44,9 +46,10 @@ func DefaultDeps() *Deps {
 			StdoutTTY: isTerminal(int(os.Stdout.Fd())),
 			StderrTTY: isTerminal(int(os.Stderr.Fd())),
 		},
-		Now:           time.Now,
-		Timeout:       ContextWithTimeout,
-		UploadTimeout: ContextWithUploadTimeout,
+		Now:            time.Now,
+		Timeout:        ContextWithTimeout,
+		UploadTimeout:  ContextWithUploadTimeout,
+		ResolveTimeout: ResolveTimeoutSetting,
 	}
 }
 
@@ -68,6 +71,29 @@ func (processStderr) Write(p []byte) (int, error) { return os.Stderr.Write(p) }
 // upload budget.
 func (d *Deps) DownloadTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
 	return d.UploadTimeout(ctx)
+}
+
+// ResolvedTimeout is ContextWithResolvedTimeout on d.
+func (d *Deps) ResolvedTimeout(ctx context.Context, defaultTimeout time.Duration) (context.Context, context.CancelFunc) {
+	return withTimeoutContext(ctx, d.ResolveTimeout(RequestTimeoutSetting, defaultTimeout))
+}
+
+// ResolvedUploadTimeout is ContextWithResolvedUploadTimeout on d.
+func (d *Deps) ResolvedUploadTimeout(ctx context.Context, defaultTimeout time.Duration) (context.Context, context.CancelFunc) {
+	return withTimeoutContext(ctx, d.ResolveTimeout(UploadTimeoutSetting, defaultTimeout))
+}
+
+// MediaUploadTimeout is ContextWithMediaUploadTimeout on d.
+func (d *Deps) MediaUploadTimeout(ctx context.Context, bytes int64) (context.Context, context.CancelFunc) {
+	return d.ResolvedUploadTimeout(ctx, MediaUploadTimeoutForWork(1, bytes))
+}
+
+// AvailabilityTimeout is ContextWithAvailabilityTimeout on d.
+func (d *Deps) AvailabilityTimeout(ctx context.Context, allTerritories bool) (context.Context, context.CancelFunc) {
+	if allTerritories {
+		return d.ResolvedTimeout(ctx, bulkAvailabilityTimeout)
+	}
+	return d.Timeout(ctx)
 }
 
 // NewFlagSet returns a flag set that writes usage and parse errors to d's
