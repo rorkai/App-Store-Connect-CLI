@@ -149,10 +149,10 @@ func WithCiBuildRunsSort(sort string) CiBuildRunsOption {
 
 func buildCiBuildRunsQuery(query *ciBuildRunsQuery) string {
 	values := url.Values{}
-	addLimit(values, query.limit)
 	if strings.TrimSpace(query.sort) != "" {
 		values.Set("sort", strings.TrimSpace(query.sort))
 	}
+	addLimit(values, query.limit)
 	return values.Encode()
 }
 
