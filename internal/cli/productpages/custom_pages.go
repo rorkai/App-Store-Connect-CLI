@@ -237,43 +237,25 @@ func normalizeCustomPagesVisible(value string) ([]string, error) {
 
 // newCustomPagesGetCommand returns the custom pages get subcommand.
 func newCustomPagesGetCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("custom-pages view", flag.ExitOnError)
-
-	customPageID := shared.BindResourceIDFlag(fs, "custom-page-id", "appCustomProductPages", "Custom product page ID")
-	output := d.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc product-pages custom-pages view --custom-page-id \"PAGE_ID\"",
-		ShortHelp:  "View a custom product page by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "custom-pages view",
+		Name:        "view",
+		ShortUsage:  "asc product-pages custom-pages view --custom-page-id \"PAGE_ID\"",
+		ShortHelp:   "View a custom product page by ID.",
 		LongHelp: `View a custom product page by ID.
 
 Examples:
   asc product-pages custom-pages view --custom-page-id "PAGE_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			trimmedID := strings.TrimSpace(*customPageID)
-			if trimmedID == "" {
-				return d.RequiredFlag("--custom-page-id")
-			}
-
-			client, err := d.Client()
-			if err != nil {
-				return fmt.Errorf("custom-pages view: %w", err)
-			}
-
-			requestCtx, cancel := d.Timeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetAppCustomProductPage(requestCtx, trimmedID)
-			if err != nil {
-				return fmt.Errorf("custom-pages view: failed to fetch: %w", err)
-			}
-
-			return d.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDFlag:             "custom-page-id",
+		IDUsage:            "Custom product page ID",
+		IDType:             "appCustomProductPages",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "custom-pages view",
+		Deps:               d,
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetAppCustomProductPage(ctx, id)
 		},
-	}
+	})
 }
 
 // newCustomPagesCreateCommand returns the custom pages create subcommand.

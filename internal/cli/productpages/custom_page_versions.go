@@ -3,8 +3,6 @@ package productpages
 import (
 	"context"
 	"flag"
-	"fmt"
-	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
@@ -71,43 +69,25 @@ Examples:
 
 // newCustomPageVersionsGetCommand returns the custom page versions get subcommand.
 func newCustomPageVersionsGetCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("custom-page-versions view", flag.ExitOnError)
-
-	versionID := shared.BindResourceIDFlag(fs, "custom-page-version-id", "appCustomProductPageVersions", "Custom product page version ID")
-	output := d.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc product-pages custom-pages versions view --custom-page-version-id \"VERSION_ID\"",
-		ShortHelp:  "View a custom product page version by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "custom-page-versions view",
+		Name:        "view",
+		ShortUsage:  "asc product-pages custom-pages versions view --custom-page-version-id \"VERSION_ID\"",
+		ShortHelp:   "View a custom product page version by ID.",
 		LongHelp: `View a custom product page version by ID.
 
 Examples:
   asc product-pages custom-pages versions view --custom-page-version-id "VERSION_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			trimmedID := strings.TrimSpace(*versionID)
-			if trimmedID == "" {
-				return d.RequiredFlag("--custom-page-version-id")
-			}
-
-			client, err := d.Client()
-			if err != nil {
-				return fmt.Errorf("custom-pages versions view: %w", err)
-			}
-
-			requestCtx, cancel := d.Timeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetAppCustomProductPageVersion(requestCtx, trimmedID)
-			if err != nil {
-				return fmt.Errorf("custom-pages versions view: failed to fetch: %w", err)
-			}
-
-			return d.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDFlag:             "custom-page-version-id",
+		IDUsage:            "Custom product page version ID",
+		IDType:             "appCustomProductPageVersions",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "custom-pages versions view",
+		Deps:               d,
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetAppCustomProductPageVersion(ctx, id)
 		},
-	}
+	})
 }
 
 // newCustomPageVersionsCreateCommand returns the custom page versions create subcommand.

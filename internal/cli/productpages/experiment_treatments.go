@@ -85,43 +85,25 @@ Examples:
 
 // newExperimentTreatmentsGetCommand returns the treatments get subcommand.
 func newExperimentTreatmentsGetCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("experiment-treatments view", flag.ExitOnError)
-
-	treatmentID := shared.BindResourceIDFlag(fs, "treatment-id", "appStoreVersionExperimentTreatments", "Treatment ID")
-	output := d.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "view",
-		ShortUsage: "asc product-pages experiments treatments view --treatment-id \"TREATMENT_ID\"",
-		ShortHelp:  "View a treatment by ID.",
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		FlagSetName: "experiment-treatments view",
+		Name:        "view",
+		ShortUsage:  "asc product-pages experiments treatments view --treatment-id \"TREATMENT_ID\"",
+		ShortHelp:   "View a treatment by ID.",
 		LongHelp: `View a treatment by ID.
 
 Examples:
   asc product-pages experiments treatments view --treatment-id "TREATMENT_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			trimmedID := strings.TrimSpace(*treatmentID)
-			if trimmedID == "" {
-				return d.RequiredFlag("--treatment-id")
-			}
-
-			client, err := d.Client()
-			if err != nil {
-				return fmt.Errorf("experiments treatments view: %w", err)
-			}
-
-			requestCtx, cancel := d.Timeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetAppStoreVersionExperimentTreatment(requestCtx, trimmedID)
-			if err != nil {
-				return fmt.Errorf("experiments treatments view: failed to fetch: %w", err)
-			}
-
-			return d.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDFlag:             "treatment-id",
+		IDUsage:            "Treatment ID",
+		IDType:             "appStoreVersionExperimentTreatments",
+		RequiredDiagnostic: true,
+		ErrorPrefix:        "experiments treatments view",
+		Deps:               d,
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetAppStoreVersionExperimentTreatment(ctx, id)
 		},
-	}
+	})
 }
 
 // newExperimentTreatmentsCreateCommand returns the treatments create subcommand.

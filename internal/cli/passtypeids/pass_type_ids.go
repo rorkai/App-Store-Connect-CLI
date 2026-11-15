@@ -153,16 +153,9 @@ Examples:
 
 // newPassTypeIDsGetCommand returns the pass type IDs get subcommand.
 func newPassTypeIDsGetCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("view", flag.ExitOnError)
+	var opts []asc.PassTypeIDOption
 
-	passTypeID := shared.BindResourceIDFlag(fs, "pass-type-id", "passTypeIds", "Pass type ID")
-	fields := fs.String("fields", "", "Fields to include: "+strings.Join(passTypeIDFieldsList(), ", "))
-	certificateFields := fs.String("certificate-fields", "", "Certificate fields to include: "+strings.Join(certificateFieldsList(), ", "))
-	include := fs.String("include", "", "Include relationships: "+strings.Join(passTypeIDIncludeList(), ", "))
-	certificatesLimit := fs.Int("limit-certificates", 0, "Maximum included certificates (1-50)")
-	output := d.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
 		Name:       "view",
 		ShortUsage: "asc pass-type-ids view --pass-type-id \"PASS_ID\"",
 		ShortHelp:  "View a pass type ID by ID.",
@@ -170,68 +163,60 @@ func newPassTypeIDsGetCommand(d *shared.Deps) *ffcli.Command {
 
 Examples:
   asc pass-type-ids view --pass-type-id "PASS_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			passTypeIDValue := strings.TrimSpace(*passTypeID)
-			if passTypeIDValue == "" {
-				return d.RequiredFlag("--pass-type-id")
+		IDFlag:             "pass-type-id",
+		IDUsage:            "Pass type ID",
+		IDType:             "passTypeIds",
+		RequiredDiagnostic: true,
+		Deps:               d,
+		Flags: func(fs *flag.FlagSet) func() error {
+			fields := fs.String("fields", "", "Fields to include: "+strings.Join(passTypeIDFieldsList(), ", "))
+			certificateFields := fs.String("certificate-fields", "", "Certificate fields to include: "+strings.Join(certificateFieldsList(), ", "))
+			include := fs.String("include", "", "Include relationships: "+strings.Join(passTypeIDIncludeList(), ", "))
+			certificatesLimit := fs.Int("limit-certificates", 0, "Maximum included certificates (1-50)")
+			return func() error {
+				if *certificatesLimit != 0 && (*certificatesLimit < 1 || *certificatesLimit > 50) {
+					return d.UsageError("pass-type-ids view: --limit-certificates must be between 1 and 50")
+				}
+				fieldsValue, err := normalizePassTypeIDFields(*fields, "--fields")
+				if err != nil {
+					return d.UsageErrorf("pass-type-ids view: %v", err)
+				}
+				certificateFieldsValue, err := normalizeCertificateFields(*certificateFields, "--certificate-fields")
+				if err != nil {
+					return d.UsageErrorf("pass-type-ids view: %v", err)
+				}
+				includeValue, err := normalizePassTypeIDInclude(*include)
+				if err != nil {
+					return d.UsageErrorf("pass-type-ids view: %v", err)
+				}
+				if len(certificateFieldsValue) > 0 && !shared.HasInclude(includeValue, "certificates") {
+					fmt.Fprintln(d.IO.ErrOut, "Error: --certificate-fields requires --include certificates")
+					return flag.ErrHelp
+				}
+				if *certificatesLimit != 0 && !shared.HasInclude(includeValue, "certificates") {
+					fmt.Fprintln(d.IO.ErrOut, "Error: --limit-certificates requires --include certificates")
+					return flag.ErrHelp
+				}
+				opts = []asc.PassTypeIDOption{}
+				if len(fieldsValue) > 0 {
+					opts = append(opts, asc.WithPassTypeIDFields(fieldsValue))
+				}
+				if len(certificateFieldsValue) > 0 {
+					opts = append(opts, asc.WithPassTypeIDCertificateFields(certificateFieldsValue))
+				}
+				if len(includeValue) > 0 {
+					opts = append(opts, asc.WithPassTypeIDInclude(includeValue))
+				}
+				if *certificatesLimit > 0 {
+					opts = append(opts, asc.WithPassTypeIDCertificatesIncludeLimit(*certificatesLimit))
+				}
+				return nil
 			}
-			if *certificatesLimit != 0 && (*certificatesLimit < 1 || *certificatesLimit > 50) {
-				return d.UsageError("pass-type-ids view: --limit-certificates must be between 1 and 50")
-			}
-
-			fieldsValue, err := normalizePassTypeIDFields(*fields, "--fields")
-			if err != nil {
-				return d.UsageErrorf("pass-type-ids view: %v", err)
-			}
-			certificateFieldsValue, err := normalizeCertificateFields(*certificateFields, "--certificate-fields")
-			if err != nil {
-				return d.UsageErrorf("pass-type-ids view: %v", err)
-			}
-			includeValue, err := normalizePassTypeIDInclude(*include)
-			if err != nil {
-				return d.UsageErrorf("pass-type-ids view: %v", err)
-			}
-			if len(certificateFieldsValue) > 0 && !shared.HasInclude(includeValue, "certificates") {
-				fmt.Fprintln(d.IO.ErrOut, "Error: --certificate-fields requires --include certificates")
-				return flag.ErrHelp
-			}
-			if *certificatesLimit != 0 && !shared.HasInclude(includeValue, "certificates") {
-				fmt.Fprintln(d.IO.ErrOut, "Error: --limit-certificates requires --include certificates")
-				return flag.ErrHelp
-			}
-
-			client, err := d.Client()
-			if err != nil {
-				return fmt.Errorf("pass-type-ids view: %w", err)
-			}
-
-			requestCtx, cancel := d.Timeout(ctx)
-			defer cancel()
-
-			opts := []asc.PassTypeIDOption{}
-			if len(fieldsValue) > 0 {
-				opts = append(opts, asc.WithPassTypeIDFields(fieldsValue))
-			}
-			if len(certificateFieldsValue) > 0 {
-				opts = append(opts, asc.WithPassTypeIDCertificateFields(certificateFieldsValue))
-			}
-			if len(includeValue) > 0 {
-				opts = append(opts, asc.WithPassTypeIDInclude(includeValue))
-			}
-			if *certificatesLimit > 0 {
-				opts = append(opts, asc.WithPassTypeIDCertificatesIncludeLimit(*certificatesLimit))
-			}
-
-			resp, err := client.GetPassTypeID(requestCtx, passTypeIDValue, opts...)
-			if err != nil {
-				return fmt.Errorf("pass-type-ids view: failed to fetch: %w", err)
-			}
-
-			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
-	}
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetPassTypeID(ctx, id, opts...)
+		},
+	})
 }
 
 // newPassTypeIDsCreateCommand returns the pass type IDs create subcommand.

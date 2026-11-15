@@ -127,12 +127,10 @@ Examples:
 
 // AppClipInvocationsGetCommand gets a beta App Clip invocation by ID.
 func AppClipInvocationsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
+	d := shared.DefaultDeps()
+	d.Client = func() (*asc.Client, error) { return appClipsClientFactory() }
 
-	invocationID := shared.BindResourceIDFlag(fs, "invocation-id", "betaAppClipInvocations", "Invocation ID")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
 		Name:       "view",
 		ShortUsage: "asc app-clips invocations view --invocation-id \"INVOCATION_ID\"",
 		ShortHelp:  "View a beta App Clip invocation by ID.",
@@ -140,30 +138,15 @@ func AppClipInvocationsGetCommand() *ffcli.Command {
 
 Examples:
   asc app-clips invocations view --invocation-id "INVOCATION_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			invocationValue := strings.TrimSpace(*invocationID)
-			if invocationValue == "" {
-				return shared.RequiredFlag("--invocation-id")
-			}
-
-			client, err := appClipsClientFactory()
-			if err != nil {
-				return fmt.Errorf("app-clips invocations view: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetBetaAppClipInvocation(requestCtx, invocationValue)
-			if err != nil {
-				return fmt.Errorf("app-clips invocations view: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDFlag:             "invocation-id",
+		IDUsage:            "Invocation ID",
+		IDType:             "betaAppClipInvocations",
+		RequiredDiagnostic: true,
+		Deps:               d,
+		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.GetBetaAppClipInvocation(ctx, id)
 		},
-	}
+	})
 }
 
 // AppClipInvocationsCreateCommand creates a beta App Clip invocation.
