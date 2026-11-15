@@ -207,14 +207,14 @@ func parseRFC3339Instant(value string) (time.Time, bool) {
 	return parsed, true
 }
 
-func resolveAppEventLocalizationID(ctx context.Context, client *asc.Client, eventID, localizationID, locale string) (string, error) {
+func resolveAppEventLocalizationID(ctx context.Context, d *shared.Deps, client *asc.Client, eventID, localizationID, locale string) (string, error) {
 	localizationID = strings.TrimSpace(localizationID)
 	if localizationID != "" {
 		return localizationID, nil
 	}
 	eventID = strings.TrimSpace(eventID)
 	if eventID == "" {
-		return "", shared.UsageError("--event-id is required")
+		return "", d.UsageError("--event-id is required")
 	}
 	locale = strings.TrimSpace(locale)
 	if locale == "" {
@@ -225,7 +225,7 @@ func resolveAppEventLocalizationID(ctx context.Context, client *asc.Client, even
 		locale = strings.TrimSpace(event.Data.Attributes.PrimaryLocale)
 	}
 	if locale == "" {
-		return "", shared.UsageErrorf("no locale resolved for app event %q (use --locale or --localization-id)", eventID)
+		return "", d.UsageErrorf("no locale resolved for app event %q (use --locale or --localization-id)", eventID)
 	}
 
 	resp, err := client.GetAppEventLocalizations(ctx, eventID, asc.Limit[asc.AppEventLocalizationsOption](200))
@@ -237,7 +237,7 @@ func resolveAppEventLocalizationID(ctx context.Context, client *asc.Client, even
 			return localization.ID, nil
 		}
 	}
-	return "", shared.UsageErrorf("no localization found for locale %q (use --localization-id to specify)", locale)
+	return "", d.UsageErrorf("no localization found for locale %q (use --localization-id to specify)", locale)
 }
 
 func openAssetFile(path string) (*os.File, os.FileInfo, error) {
@@ -254,8 +254,4 @@ func openAssetFile(path string) (*os.File, os.FileInfo, error) {
 		return nil, nil, err
 	}
 	return file, info, nil
-}
-
-func contextWithAssetUploadTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
-	return shared.ContextWithResolvedTimeout(ctx, appEventAssetUploadDefaultTimeout)
 }

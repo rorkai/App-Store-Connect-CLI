@@ -26,11 +26,13 @@ func TestAppClipsAppEventsRelationshipsPaginateFromNext(t *testing.T) {
 			args:     []string{"app-events", "localizations", "screenshots-links"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/appEventLocalizations/loc-1/relationships/appEventScreenshots?cursor=AQ&limit=200",
 			dataType: "appEventScreenshots",
+			deps:     true,
 		},
 		{
 			args:     []string{"app-events", "localizations", "video-clips-links"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/appEventLocalizations/loc-1/relationships/appEventVideoClips?cursor=AQ&limit=200",
 			dataType: "appEventVideoClips",
+			deps:     true,
 		},
 	})
 }

@@ -70,6 +70,7 @@ func TestSelfLinkRemainingFlagsSendExtractedID(t *testing.T) {
 			bodies: map[string]string{
 				"/v1/appEvents/event-1": `{"data":{"type":"appEvents","id":"event-1","attributes":{"referenceName":"Launch","eventState":"DRAFT"}}}`,
 			},
+			deps: true,
 		},
 		{
 			name:     "categories view",
@@ -408,6 +409,7 @@ func TestSelfLinkRemainingFlagsRejectWrongType(t *testing.T) {
 			flag:    "event-id",
 			value:   selfLinkTestBase + "/v1/appEventLocalizations/localization-1",
 			wantErr: "expected a self-link of type appEvents, got appEventLocalizations",
+			deps:    true,
 		},
 		{
 			name:    "subscriptions offers offer-codes view rejects iap offer code link",

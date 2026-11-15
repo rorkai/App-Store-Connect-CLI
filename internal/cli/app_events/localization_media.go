@@ -10,9 +10,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// AppEventLocalizationScreenshotsCommand returns the app event localization screenshots group.
-func AppEventLocalizationScreenshotsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("localizations screenshots", flag.ExitOnError)
+// newAppEventLocalizationScreenshotsCommand returns the app event localization screenshots group.
+func newAppEventLocalizationScreenshotsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("localizations screenshots", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "screenshots",
@@ -23,9 +23,9 @@ func AppEventLocalizationScreenshotsCommand() *ffcli.Command {
 Examples:
   asc app-events localizations screenshots list --localization-id "LOC_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			AppEventLocalizationScreenshotsListCommand(),
+			newAppEventLocalizationScreenshotsListCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -33,9 +33,10 @@ Examples:
 	}
 }
 
-// AppEventLocalizationScreenshotsListCommand returns the localization screenshots list subcommand.
-func AppEventLocalizationScreenshotsListCommand() *ffcli.Command {
+// newAppEventLocalizationScreenshotsListCommand returns the localization screenshots list subcommand.
+func newAppEventLocalizationScreenshotsListCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		Deps:        d,
 		FlagSetName: "localizations screenshots list",
 		Name:        "list",
 		ShortUsage:  "asc app-events localizations screenshots list --localization-id \"LOC_ID\" [flags]",
@@ -60,9 +61,9 @@ Examples:
 	})
 }
 
-// AppEventLocalizationVideoClipsCommand returns the app event localization video clips group.
-func AppEventLocalizationVideoClipsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("localizations video-clips", flag.ExitOnError)
+// newAppEventLocalizationVideoClipsCommand returns the app event localization video clips group.
+func newAppEventLocalizationVideoClipsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("localizations video-clips", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "video-clips",
@@ -73,9 +74,9 @@ func AppEventLocalizationVideoClipsCommand() *ffcli.Command {
 Examples:
   asc app-events localizations video-clips list --localization-id "LOC_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			AppEventLocalizationVideoClipsListCommand(),
+			newAppEventLocalizationVideoClipsListCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -83,9 +84,10 @@ Examples:
 	}
 }
 
-// AppEventLocalizationVideoClipsListCommand returns the localization video clips list subcommand.
-func AppEventLocalizationVideoClipsListCommand() *ffcli.Command {
+// newAppEventLocalizationVideoClipsListCommand returns the localization video clips list subcommand.
+func newAppEventLocalizationVideoClipsListCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		Deps:        d,
 		FlagSetName: "localizations video-clips list",
 		Name:        "list",
 		ShortUsage:  "asc app-events localizations video-clips list --localization-id \"LOC_ID\" [flags]",
@@ -110,9 +112,10 @@ Examples:
 	})
 }
 
-// AppEventLocalizationScreenshotsRelationshipsCommand returns the screenshot links subcommand.
-func AppEventLocalizationScreenshotsRelationshipsCommand() *ffcli.Command {
+// newAppEventLocalizationScreenshotsRelationshipsCommand returns the screenshot links subcommand.
+func newAppEventLocalizationScreenshotsRelationshipsCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		Deps:        d,
 		FlagSetName: "localizations screenshots-links",
 		Name:        "screenshots-links",
 		ShortUsage:  "asc app-events localizations screenshots-links --localization-id \"LOC_ID\" [flags]",
@@ -134,9 +137,10 @@ Examples:
 	})
 }
 
-// AppEventLocalizationVideoClipsRelationshipsCommand returns the video clip links subcommand.
-func AppEventLocalizationVideoClipsRelationshipsCommand() *ffcli.Command {
+// newAppEventLocalizationVideoClipsRelationshipsCommand returns the video clip links subcommand.
+func newAppEventLocalizationVideoClipsRelationshipsCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		Deps:        d,
 		FlagSetName: "localizations video-clips-links",
 		Name:        "video-clips-links",
 		ShortUsage:  "asc app-events localizations video-clips-links --localization-id \"LOC_ID\" [flags]",

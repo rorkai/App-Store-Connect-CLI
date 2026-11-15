@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -14,9 +13,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// AppEventVideoClipsCommand returns the app event video clips command group.
-func AppEventVideoClipsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("video-clips", flag.ExitOnError)
+// newAppEventVideoClipsCommand returns the app event video clips command group.
+func newAppEventVideoClipsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("video-clips", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "video-clips",
@@ -29,14 +28,14 @@ Examples:
   asc app-events video-clips create --localization-id "LOC_ID" --path "./clip.mov" --asset-type EVENT_CARD
   asc app-events video-clips set-poster-frame --clip-id "CLIP_ID" --time-code "00:00:05:00"`,
 		FlagSet:   fs,
-		UsageFunc: shared.VisibleUsageFunc,
+		UsageFunc: d.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
-			AppEventVideoClipsListCommand(),
-			AppEventVideoClipsRelationshipsCommand(),
-			AppEventVideoClipsGetCommand(),
-			AppEventVideoClipsCreateCommand(),
-			AppEventVideoClipsSetPosterFrameCommand(),
-			AppEventVideoClipsDeleteCommand(),
+			newAppEventVideoClipsListCommand(d),
+			newAppEventVideoClipsRelationshipsCommand(d),
+			newAppEventVideoClipsGetCommand(d),
+			newAppEventVideoClipsCreateCommand(d),
+			newAppEventVideoClipsSetPosterFrameCommand(d),
+			newAppEventVideoClipsDeleteCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -44,9 +43,9 @@ Examples:
 	}
 }
 
-// AppEventVideoClipsRelationshipsCommand returns the app event video clips links subcommand.
-func AppEventVideoClipsRelationshipsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("video-clips links", flag.ExitOnError)
+// newAppEventVideoClipsRelationshipsCommand returns the app event video clips links subcommand.
+func newAppEventVideoClipsRelationshipsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("video-clips links", flag.ExitOnError)
 
 	eventID := shared.BindResourceIDFlag(fs, "event-id", "appEvents", "App event ID")
 	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appEventLocalizations", "App event localization ID")
@@ -54,7 +53,7 @@ func AppEventVideoClipsRelationshipsCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "links",
@@ -67,29 +66,29 @@ Examples:
   asc app-events video-clips links --event-id "EVENT_ID" --locale "en-US"
   asc app-events video-clips links --event-id "EVENT_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "app-events video-clips links", 200); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "app-events video-clips links", 200); err != nil {
 				return err
 			}
 
 			trimmedNext := strings.TrimSpace(*next)
 			if trimmedNext == "" && strings.TrimSpace(*localizationID) == "" && strings.TrimSpace(*eventID) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --event-id or --localization-id is required")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --event-id or --localization-id is required")
 				return shared.MissingRequiredUsageError("")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("app-events video-clips links: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resolvedLocalizationID := strings.TrimSpace(*localizationID)
 			if trimmedNext == "" {
-				resolvedLocalizationID, err = resolveAppEventLocalizationID(requestCtx, client, *eventID, resolvedLocalizationID, *locale)
+				resolvedLocalizationID, err = resolveAppEventLocalizationID(requestCtx, d, client, *eventID, resolvedLocalizationID, *locale)
 				if err != nil {
 					return fmt.Errorf("app-events video-clips links: %w", err)
 				}
@@ -112,7 +111,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("app-events video-clips links: %w", err)
 				}
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetAppEventVideoClipsRelationships(requestCtx, resolvedLocalizationID, opts...)
@@ -120,14 +119,14 @@ Examples:
 				return fmt.Errorf("app-events video-clips links: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// AppEventVideoClipsListCommand returns the app event video clips list subcommand.
-func AppEventVideoClipsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("video-clips list", flag.ExitOnError)
+// newAppEventVideoClipsListCommand returns the app event video clips list subcommand.
+func newAppEventVideoClipsListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("video-clips list", flag.ExitOnError)
 
 	eventID := shared.BindResourceIDFlag(fs, "event-id", "appEvents", "App event ID")
 	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appEventLocalizations", "App event localization ID")
@@ -135,7 +134,7 @@ func AppEventVideoClipsListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -148,27 +147,27 @@ Examples:
   asc app-events video-clips list --event-id "EVENT_ID" --locale "en-US"
   asc app-events video-clips list --event-id "EVENT_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "app-events video-clips list", 200); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "app-events video-clips list", 200); err != nil {
 				return err
 			}
 			if strings.TrimSpace(*next) == "" && strings.TrimSpace(*localizationID) == "" && strings.TrimSpace(*eventID) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --event-id or --localization-id is required")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --event-id or --localization-id is required")
 				return shared.MissingRequiredUsageError("")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("app-events video-clips list: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resolvedLocalizationID := strings.TrimSpace(*localizationID)
 			if strings.TrimSpace(*next) == "" {
-				resolvedLocalizationID, err = resolveAppEventLocalizationID(requestCtx, client, *eventID, resolvedLocalizationID, *locale)
+				resolvedLocalizationID, err = resolveAppEventLocalizationID(requestCtx, d, client, *eventID, resolvedLocalizationID, *locale)
 				if err != nil {
 					return fmt.Errorf("app-events video-clips list: %w", err)
 				}
@@ -193,7 +192,7 @@ Examples:
 					return fmt.Errorf("app-events video-clips list: %w", err)
 				}
 
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetAppEventVideoClips(requestCtx, resolvedLocalizationID, opts...)
@@ -201,14 +200,15 @@ Examples:
 				return fmt.Errorf("app-events video-clips list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// AppEventVideoClipsGetCommand returns the app event video clips get subcommand.
-func AppEventVideoClipsGetCommand() *ffcli.Command {
+// newAppEventVideoClipsGetCommand returns the app event video clips get subcommand.
+func newAppEventVideoClipsGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		Deps:        d,
 		FlagSetName: "video-clips view",
 		Name:        "view",
 		ShortUsage:  "asc app-events video-clips view --clip-id \"CLIP_ID\"",
@@ -227,9 +227,9 @@ Examples:
 	})
 }
 
-// AppEventVideoClipsCreateCommand returns the app event video clips create subcommand.
-func AppEventVideoClipsCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("video-clips create", flag.ExitOnError)
+// newAppEventVideoClipsCreateCommand returns the app event video clips create subcommand.
+func newAppEventVideoClipsCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("video-clips create", flag.ExitOnError)
 
 	eventID := shared.BindResourceIDFlag(fs, "event-id", "appEvents", "App event ID")
 	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appEventLocalizations", "App event localization ID")
@@ -238,7 +238,7 @@ func AppEventVideoClipsCreateCommand() *ffcli.Command {
 	assetType := fs.String("asset-type", "", "Asset type: "+strings.Join(asc.ValidAppEventAssetTypes, ", "))
 	fs.String("time-code", "", "Poster frame timecode (e.g., 00:00:05:00 or 00:00:05.000)")
 	fs.String("preview-frame-time-code", "", "Alias of --time-code")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -250,37 +250,37 @@ Examples:
   asc app-events video-clips create --localization-id "LOC_ID" --path "./clip.mov" --asset-type EVENT_CARD
   asc app-events video-clips create --event-id "EVENT_ID" --locale "en-US" --path "./clip.mov" --asset-type EVENT_DETAILS_PAGE --time-code "00:00:05.000"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			pathValue := strings.TrimSpace(*path)
 			if pathValue == "" {
-				return shared.RequiredFlag("--path")
+				return d.RequiredFlag("--path")
 			}
 			if strings.TrimSpace(*localizationID) == "" && strings.TrimSpace(*eventID) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --event-id or --localization-id is required")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --event-id or --localization-id is required")
 				return shared.MissingRequiredUsageError("")
 			}
 
 			normalizedAssetType, err := normalizeAppEventAssetType(*assetType)
 			if err != nil {
-				fmt.Fprintln(os.Stderr, "Error:", err.Error())
+				fmt.Fprintln(d.IO.ErrOut, "Error:", err.Error())
 				return flag.ErrHelp
 			}
 
-			timeCode, err := videoClipCreateTimeCode(fs)
+			timeCode, err := videoClipCreateTimeCode(d, fs)
 			if err != nil {
 				return err
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("app-events video-clips create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithAssetUploadTimeout(ctx)
+			requestCtx, cancel := d.ResolvedTimeout(ctx, appEventAssetUploadDefaultTimeout)
 			defer cancel()
 
-			resolvedLocalizationID, err := resolveAppEventLocalizationID(requestCtx, client, *eventID, *localizationID, *locale)
+			resolvedLocalizationID, err := resolveAppEventLocalizationID(requestCtx, d, client, *eventID, *localizationID, *locale)
 			if err != nil {
 				return fmt.Errorf("app-events video-clips create: %w", err)
 			}
@@ -312,26 +312,26 @@ Examples:
 				return fmt.Errorf("app-events video-clips create: failed to commit upload: %w", err)
 			}
 
-			finalResp, err := waitForAppEventVideoClipDelivery(requestCtx, client, resp.Data.ID)
+			finalResp, err := waitForAppEventVideoClipDelivery(requestCtx, d, client, resp.Data.ID)
 			if err != nil {
 				return fmt.Errorf("app-events video-clips create: %w", err)
 			}
 			if finalResp != nil {
-				return shared.PrintOutput(finalResp, *output.Output, *output.Pretty)
+				return d.PrintOutput(finalResp, *output.Output, *output.Pretty)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// AppEventVideoClipsSetPosterFrameCommand returns the set-poster-frame subcommand.
-func AppEventVideoClipsSetPosterFrameCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("video-clips set-poster-frame", flag.ExitOnError)
+// newAppEventVideoClipsSetPosterFrameCommand returns the set-poster-frame subcommand.
+func newAppEventVideoClipsSetPosterFrameCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("video-clips set-poster-frame", flag.ExitOnError)
 
 	clipID := shared.BindResourceIDFlag(fs, "clip-id", "appEventVideoClips", "App event video clip ID")
 	timeCode := fs.String("time-code", "", "Poster frame timecode (e.g., 00:00:05:00 or 00:00:05.000)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "set-poster-frame",
@@ -346,26 +346,26 @@ Examples:
   asc app-events video-clips set-poster-frame --clip-id "CLIP_ID" --time-code "00:00:05:00"
   asc app-events video-clips set-poster-frame --clip-id "CLIP_ID" --time-code "00:00:05.000"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*clipID)
 			if id == "" {
-				return shared.RequiredFlag("--clip-id")
+				return d.RequiredFlag("--clip-id")
 			}
 			tc := strings.TrimSpace(*timeCode)
 			if tc == "" {
-				return shared.RequiredFlag("--time-code")
+				return d.RequiredFlag("--time-code")
 			}
-			if err := validateVideoClipTimeCode("time-code", tc); err != nil {
+			if err := validateVideoClipTimeCode(d, "time-code", tc); err != nil {
 				return err
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("app-events video-clips set-poster-frame: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.UpdateAppEventVideoClip(requestCtx, id, asc.AppEventVideoClipUpdateAttributes{PreviewFrameTimeCode: &tc})
@@ -373,7 +373,7 @@ Examples:
 				return fmt.Errorf("app-events video-clips set-poster-frame: failed to update: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -381,7 +381,7 @@ Examples:
 // videoClipCreateTimeCode returns the validated time code from whichever
 // spelling was passed, or "" when neither was. It reads visited flags so an
 // explicit empty value is rejected instead of treated as omitted.
-func videoClipCreateTimeCode(fs *flag.FlagSet) (string, error) {
+func videoClipCreateTimeCode(d *shared.Deps, fs *flag.FlagSet) (string, error) {
 	var provided []*flag.Flag
 	fs.Visit(func(f *flag.Flag) {
 		if f.Name == "time-code" || f.Name == "preview-frame-time-code" {
@@ -392,22 +392,23 @@ func videoClipCreateTimeCode(fs *flag.FlagSet) (string, error) {
 		return "", nil
 	}
 	if len(provided) > 1 {
-		return "", shared.UsageError("--time-code and --preview-frame-time-code are mutually exclusive")
+		return "", d.UsageError("--time-code and --preview-frame-time-code are mutually exclusive")
 	}
 	timeCode := strings.TrimSpace(provided[0].Value.String())
-	return timeCode, validateVideoClipTimeCode(provided[0].Name, timeCode)
+	return timeCode, validateVideoClipTimeCode(d, provided[0].Name, timeCode)
 }
 
-func validateVideoClipTimeCode(flagName, timeCode string) error {
+func validateVideoClipTimeCode(d *shared.Deps, flagName, timeCode string) error {
 	if !assets.ValidPreviewFrameTimeCode(timeCode) {
-		return shared.UsageErrorf("--%s must be in HH:MM:SS:FF or HH:MM:SS.mmm format (e.g., 00:00:05:00 or 00:00:05.000)", flagName)
+		return d.UsageErrorf("--%s must be in HH:MM:SS:FF or HH:MM:SS.mmm format (e.g., 00:00:05:00 or 00:00:05.000)", flagName)
 	}
 	return nil
 }
 
-// AppEventVideoClipsDeleteCommand returns the app event video clips delete subcommand.
-func AppEventVideoClipsDeleteCommand() *ffcli.Command {
+// newAppEventVideoClipsDeleteCommand returns the app event video clips delete subcommand.
+func newAppEventVideoClipsDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		Deps:        d,
 		FlagSetName: "video-clips delete",
 		Name:        "delete",
 		ShortUsage:  "asc app-events video-clips delete --clip-id \"CLIP_ID\" --confirm",

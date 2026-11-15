@@ -83,11 +83,13 @@ func TestUpdateWithoutUpdateFlagsListsEveryUpdateFlag(t *testing.T) {
 			name:  "app-events localizations update",
 			args:  []string{"app-events", "localizations", "update", "--localization-id", "ID"},
 			flags: "--name, --short-description, --long-description",
+			deps:  true,
 		},
 		{
 			name:  "app-events update",
 			args:  []string{"app-events", "update", "--event-id", "ID"},
 			flags: "--name, --event-type, --start, --end, --publish-start, --territories, --deep-link, --purchase-requirement, --primary-locale, --priority, --purpose",
+			deps:  true,
 		},
 		{
 			name:  "app-setup info set",

@@ -8,7 +8,7 @@ import "testing"
 func TestListsAcceptParentFlagWithNext(t *testing.T) {
 	runPaginateFromNextCases(t, []paginateFromNextCase{
 		{args: []string{"accessibility", "list", "--app", "app-1"}, firstURL: "https://api.appstoreconnect.apple.com/v1/apps/app-1/accessibilityDeclarations?cursor=AQ&limit=200", dataType: "accessibilityDeclarations", deps: true},
-		{args: []string{"app-events", "localizations", "placements", "list", "--localization-id", "loc-1"}, firstURL: "https://api.appstoreconnect.apple.com/v1/appEventLocalizations/loc-1/placements?cursor=AQ&limit=200", dataType: "appAssetLibraryPlacements"},
+		{args: []string{"app-events", "localizations", "placements", "list", "--localization-id", "loc-1"}, firstURL: "https://api.appstoreconnect.apple.com/v1/appEventLocalizations/loc-1/placements?cursor=AQ&limit=200", dataType: "appAssetLibraryPlacements", deps: true},
 		{args: []string{"asset-library", "images", "list", "--library-id", "lib-1"}, firstURL: "https://api.appstoreconnect.apple.com/v1/appAssetLibraries/lib-1/images?cursor=AQ&limit=200", dataType: "appAssetLibraryImages", deps: true},
 		{args: []string{"asset-library", "images", "placements", "--id", "img-1"}, firstURL: "https://api.appstoreconnect.apple.com/v1/appAssetLibraryImages/img-1/placements?cursor=AQ&limit=200", dataType: "appAssetLibraryPlacements", deps: true},
 		{args: []string{"asset-library", "videos", "list", "--library-id", "lib-1"}, firstURL: "https://api.appstoreconnect.apple.com/v1/appAssetLibraries/lib-1/videos?cursor=AQ&limit=200", dataType: "appAssetLibraryVideos", deps: true},

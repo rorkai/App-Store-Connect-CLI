@@ -1,7 +1,6 @@
 package cmdtest
 
 import (
-	"context"
 	"errors"
 	"io"
 	"net/http"
@@ -14,7 +13,6 @@ import (
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 type appEventsListQueryCapture struct {
@@ -23,7 +21,7 @@ type appEventsListQueryCapture struct {
 	query url.Values
 }
 
-func appEventsListQueryStub(t *testing.T) *appEventsListQueryCapture {
+func appEventsListQueryStub(t *testing.T) (*appEventsListQueryCapture, func() (*asc.Client, error)) {
 	t.Helper()
 
 	setupAuth(t)
@@ -61,35 +59,16 @@ func appEventsListQueryStub(t *testing.T) *appEventsListQueryCapture {
 	if err != nil {
 		t.Fatalf("new client: %v", err)
 	}
-	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+	return captured, func() (*asc.Client, error) {
 		return client, nil
-	}))
-
-	return captured
-}
-
-func runAppEventsListQuerySurface(t *testing.T, args ...string) (string, string, error) {
-	t.Helper()
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse(args); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	return stdout, stderr, runErr
+	}
 }
 
 func TestAppEventsListQuerySurfaceEmitsSupportedParameters(t *testing.T) {
-	captured := appEventsListQueryStub(t)
+	captured, client := appEventsListQueryStub(t)
 
-	stdout, stderr, err := runAppEventsListQuerySurface(
-		t,
+	stdout, stderr, err := runRootWithDeps(
+		t, client,
 		"app-events", "list",
 		"--app", "app-123",
 		"--event-state", "approved,archived",
@@ -228,17 +207,13 @@ func TestAppEventsListQuerySurfaceRejectsInvalidValuesBeforeAuth(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			clientFactoryCalled := false
-			t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+			stdout, stderr, code := runWithDeps(t, func() (*asc.Client, error) {
 				clientFactoryCalled = true
 				return nil, errors.New("client factory must not run during validation")
-			}))
-
-			stdout, stderr := captureOutput(t, func() {
-				code := rootcmd.Run(append([]string{"app-events", "list", "--app", "app-123"}, test.args...), "1.2.3")
-				if code != rootcmd.ExitUsage {
-					t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
-				}
-			})
+			}, append([]string{"app-events", "list", "--app", "app-123"}, test.args...)...)
+			if code != rootcmd.ExitUsage {
+				t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
+			}
 			if stdout != "" {
 				t.Fatalf("stdout = %q, want empty", stdout)
 			}
@@ -270,18 +245,14 @@ func TestAppEventsListQuerySurfaceRejectsNextConflictsBeforeAuth(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			clientFactoryCalled := false
-			t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+			args := []string{"app-events", "list", "--next", nextURL, test.flag, test.value}
+			stdout, stderr, code := runWithDeps(t, func() (*asc.Client, error) {
 				clientFactoryCalled = true
 				return nil, errors.New("client factory must not run during validation")
-			}))
-
-			args := []string{"app-events", "list", "--next", nextURL, test.flag, test.value}
-			stdout, stderr := captureOutput(t, func() {
-				code := rootcmd.Run(args, "1.2.3")
-				if code != rootcmd.ExitUsage {
-					t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
-				}
-			})
+			}, args...)
+			if code != rootcmd.ExitUsage {
+				t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
+			}
 			if stdout != "" {
 				t.Fatalf("stdout = %q, want empty", stdout)
 			}
@@ -298,10 +269,10 @@ func TestAppEventsListQuerySurfaceRejectsNextConflictsBeforeAuth(t *testing.T) {
 
 func TestAppEventsListQuerySurfaceAllowsAppWithNextAndUsesOpaqueURL(t *testing.T) {
 	const nextURL = "https://api.appstoreconnect.apple.com/v1/apps/app-123/appEvents?cursor=opaque&limit=42&unexpected=kept"
-	captured := appEventsListQueryStub(t)
+	captured, client := appEventsListQueryStub(t)
 
-	stdout, stderr, err := runAppEventsListQuerySurface(
-		t,
+	stdout, stderr, err := runRootWithDeps(
+		t, client,
 		"app-events", "list",
 		"--app", "app-123",
 		"--next", nextURL,

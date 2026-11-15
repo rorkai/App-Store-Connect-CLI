@@ -275,7 +275,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("storekit", "Manage StoreKit server APIs with In-App Purchase API keys.", func() *ffcli.Command {
 			return storekitcmd.NewCommand(d)
 		}),
-		commandFactory("app-events", "Manage App Store in-app events.", app_events.Command),
+		commandFactory("app-events", "Manage App Store in-app events.", func() *ffcli.Command {
+			return app_events.NewAppEventsCommand(d)
+		}),
 		commandFactory("subscriptions", "Manage subscription groups and subscriptions.", func() *ffcli.Command {
 			return subscriptions.NewSubscriptionsCommand(d)
 		}),

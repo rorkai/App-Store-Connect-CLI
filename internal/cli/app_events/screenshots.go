@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -13,9 +12,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// AppEventScreenshotsCommand returns the app event screenshots command group.
-func AppEventScreenshotsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("screenshots", flag.ExitOnError)
+// newAppEventScreenshotsCommand returns the app event screenshots command group.
+func newAppEventScreenshotsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("screenshots", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "screenshots",
@@ -27,13 +26,13 @@ Examples:
   asc app-events screenshots list --event-id "EVENT_ID"
   asc app-events screenshots create --localization-id "LOC_ID" --path "./event.png" --asset-type EVENT_CARD`,
 		FlagSet:   fs,
-		UsageFunc: shared.VisibleUsageFunc,
+		UsageFunc: d.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
-			AppEventScreenshotsListCommand(),
-			AppEventScreenshotsRelationshipsCommand(),
-			AppEventScreenshotsGetCommand(),
-			AppEventScreenshotsCreateCommand(),
-			AppEventScreenshotsDeleteCommand(),
+			newAppEventScreenshotsListCommand(d),
+			newAppEventScreenshotsRelationshipsCommand(d),
+			newAppEventScreenshotsGetCommand(d),
+			newAppEventScreenshotsCreateCommand(d),
+			newAppEventScreenshotsDeleteCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -41,9 +40,9 @@ Examples:
 	}
 }
 
-// AppEventScreenshotsRelationshipsCommand returns the app event screenshots links subcommand.
-func AppEventScreenshotsRelationshipsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("screenshots links", flag.ExitOnError)
+// newAppEventScreenshotsRelationshipsCommand returns the app event screenshots links subcommand.
+func newAppEventScreenshotsRelationshipsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("screenshots links", flag.ExitOnError)
 
 	eventID := shared.BindResourceIDFlag(fs, "event-id", "appEvents", "App event ID")
 	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appEventLocalizations", "App event localization ID")
@@ -51,7 +50,7 @@ func AppEventScreenshotsRelationshipsCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "links",
@@ -64,29 +63,29 @@ Examples:
   asc app-events screenshots links --event-id "EVENT_ID" --locale "en-US"
   asc app-events screenshots links --event-id "EVENT_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "app-events screenshots links", 200); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "app-events screenshots links", 200); err != nil {
 				return err
 			}
 
 			trimmedNext := strings.TrimSpace(*next)
 			if trimmedNext == "" && strings.TrimSpace(*localizationID) == "" && strings.TrimSpace(*eventID) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --event-id or --localization-id is required")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --event-id or --localization-id is required")
 				return shared.MissingRequiredUsageError("")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("app-events screenshots links: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resolvedLocalizationID := strings.TrimSpace(*localizationID)
 			if trimmedNext == "" {
-				resolvedLocalizationID, err = resolveAppEventLocalizationID(requestCtx, client, *eventID, resolvedLocalizationID, *locale)
+				resolvedLocalizationID, err = resolveAppEventLocalizationID(requestCtx, d, client, *eventID, resolvedLocalizationID, *locale)
 				if err != nil {
 					return fmt.Errorf("app-events screenshots links: %w", err)
 				}
@@ -109,7 +108,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("app-events screenshots links: %w", err)
 				}
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetAppEventScreenshotsRelationships(requestCtx, resolvedLocalizationID, opts...)
@@ -117,14 +116,14 @@ Examples:
 				return fmt.Errorf("app-events screenshots links: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// AppEventScreenshotsListCommand returns the app event screenshots list subcommand.
-func AppEventScreenshotsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("screenshots list", flag.ExitOnError)
+// newAppEventScreenshotsListCommand returns the app event screenshots list subcommand.
+func newAppEventScreenshotsListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("screenshots list", flag.ExitOnError)
 
 	eventID := shared.BindResourceIDFlag(fs, "event-id", "appEvents", "App event ID")
 	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appEventLocalizations", "App event localization ID")
@@ -132,7 +131,7 @@ func AppEventScreenshotsListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -145,27 +144,27 @@ Examples:
   asc app-events screenshots list --event-id "EVENT_ID" --locale "en-US"
   asc app-events screenshots list --event-id "EVENT_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "app-events screenshots list", 200); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "app-events screenshots list", 200); err != nil {
 				return err
 			}
 			if strings.TrimSpace(*next) == "" && strings.TrimSpace(*localizationID) == "" && strings.TrimSpace(*eventID) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --event-id or --localization-id is required")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --event-id or --localization-id is required")
 				return shared.MissingRequiredUsageError("")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("app-events screenshots list: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resolvedLocalizationID := strings.TrimSpace(*localizationID)
 			if strings.TrimSpace(*next) == "" {
-				resolvedLocalizationID, err = resolveAppEventLocalizationID(requestCtx, client, *eventID, resolvedLocalizationID, *locale)
+				resolvedLocalizationID, err = resolveAppEventLocalizationID(requestCtx, d, client, *eventID, resolvedLocalizationID, *locale)
 				if err != nil {
 					return fmt.Errorf("app-events screenshots list: %w", err)
 				}
@@ -190,7 +189,7 @@ Examples:
 					return fmt.Errorf("app-events screenshots list: %w", err)
 				}
 
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetAppEventScreenshots(requestCtx, resolvedLocalizationID, opts...)
@@ -198,14 +197,15 @@ Examples:
 				return fmt.Errorf("app-events screenshots list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// AppEventScreenshotsGetCommand returns the app event screenshots get subcommand.
-func AppEventScreenshotsGetCommand() *ffcli.Command {
+// newAppEventScreenshotsGetCommand returns the app event screenshots get subcommand.
+func newAppEventScreenshotsGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		Deps:        d,
 		FlagSetName: "screenshots view",
 		Name:        "view",
 		ShortUsage:  "asc app-events screenshots view --screenshot-id \"SHOT_ID\"",
@@ -224,16 +224,16 @@ Examples:
 	})
 }
 
-// AppEventScreenshotsCreateCommand returns the app event screenshots create subcommand.
-func AppEventScreenshotsCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("screenshots create", flag.ExitOnError)
+// newAppEventScreenshotsCreateCommand returns the app event screenshots create subcommand.
+func newAppEventScreenshotsCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("screenshots create", flag.ExitOnError)
 
 	eventID := shared.BindResourceIDFlag(fs, "event-id", "appEvents", "App event ID")
 	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appEventLocalizations", "App event localization ID")
 	locale := fs.String("locale", "", "Locale (e.g., en-US) when resolving localization")
 	path := fs.String("path", "", "Path to screenshot file")
 	assetType := fs.String("asset-type", "", "Asset type: "+strings.Join(asc.ValidAppEventAssetTypes, ", "))
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -245,32 +245,32 @@ Examples:
   asc app-events screenshots create --localization-id "LOC_ID" --path "./event.png" --asset-type EVENT_CARD
   asc app-events screenshots create --event-id "EVENT_ID" --locale "en-US" --path "./event.png" --asset-type EVENT_DETAILS_PAGE`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			pathValue := strings.TrimSpace(*path)
 			if pathValue == "" {
-				return shared.RequiredFlag("--path")
+				return d.RequiredFlag("--path")
 			}
 			if strings.TrimSpace(*localizationID) == "" && strings.TrimSpace(*eventID) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --event-id or --localization-id is required")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --event-id or --localization-id is required")
 				return shared.MissingRequiredUsageError("")
 			}
 
 			normalizedAssetType, err := normalizeAppEventAssetType(*assetType)
 			if err != nil {
-				fmt.Fprintln(os.Stderr, "Error:", err.Error())
+				fmt.Fprintln(d.IO.ErrOut, "Error:", err.Error())
 				return flag.ErrHelp
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("app-events screenshots create: %w", err)
 			}
 
-			requestCtx, cancel := contextWithAssetUploadTimeout(ctx)
+			requestCtx, cancel := d.ResolvedTimeout(ctx, appEventAssetUploadDefaultTimeout)
 			defer cancel()
 
-			resolvedLocalizationID, err := resolveAppEventLocalizationID(requestCtx, client, *eventID, *localizationID, *locale)
+			resolvedLocalizationID, err := resolveAppEventLocalizationID(requestCtx, d, client, *eventID, *localizationID, *locale)
 			if err != nil {
 				return fmt.Errorf("app-events screenshots create: %w", err)
 			}
@@ -298,22 +298,23 @@ Examples:
 				return fmt.Errorf("app-events screenshots create: failed to commit upload: %w", err)
 			}
 
-			finalResp, err := waitForAppEventScreenshotDelivery(requestCtx, client, resp.Data.ID)
+			finalResp, err := waitForAppEventScreenshotDelivery(requestCtx, d, client, resp.Data.ID)
 			if err != nil {
 				return fmt.Errorf("app-events screenshots create: %w", err)
 			}
 			if finalResp != nil {
-				return shared.PrintOutput(finalResp, *output.Output, *output.Pretty)
+				return d.PrintOutput(finalResp, *output.Output, *output.Pretty)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// AppEventScreenshotsDeleteCommand returns the app event screenshots delete subcommand.
-func AppEventScreenshotsDeleteCommand() *ffcli.Command {
+// newAppEventScreenshotsDeleteCommand returns the app event screenshots delete subcommand.
+func newAppEventScreenshotsDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		Deps:        d,
 		FlagSetName: "screenshots delete",
 		Name:        "delete",
 		ShortUsage:  "asc app-events screenshots delete --screenshot-id \"SHOT_ID\" --confirm",
