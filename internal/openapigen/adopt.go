@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"cmp"
 	"fmt"
 	"go/ast"
 	"go/format"
@@ -82,10 +83,14 @@ func Adopt(spec *Spec, b *Bindings, dir string, tags []string, report io.Writer)
 		// fixed holds the Go type of each schema the family's generated
 		// types reference.
 		fixed := map[string]string{}
+		var generated []*OpBind
 		for _, f := range b.Families {
 			if f.Tag == tag {
 				view.Relationships = slices.Clone(f.Relationships)
 				view.RefTypes = slices.Clone(f.RefTypes)
+				view.GoTypes = slices.Clone(f.GoTypes)
+				view.Types = f.Types
+				generated = f.Operations
 				for _, name := range f.Types {
 					fixRefTypes(spec, f, name, fixed)
 				}
@@ -93,6 +98,7 @@ func Adopt(spec *Spec, b *Bindings, dir string, tags []string, report io.Writer)
 		}
 		recorded := len(view.Relationships)
 		recordedRefs := len(view.RefTypes)
+		recordedGoTypes := len(view.GoTypes)
 		p.recordRelationships(spec, ops, view)
 		for _, op := range ops {
 			candidates := p.methods[op.Method+" "+pathFormat(op.Path)]
@@ -108,21 +114,30 @@ func Adopt(spec *Spec, b *Bindings, dir string, tags []string, report io.Writer)
 				if d.adopted {
 					continue
 				}
-				bind, reason := p.deriveOp(spec, view, op, d)
+				trial := p.withVersionGoTypes(spec, view, op, d)
+				bind, reason := p.deriveOp(spec, trial, op, d)
 				if reason != "" {
 					fmt.Fprintf(report, "%s\t%s\t%s\tkept: %s\n", tag, op.ID, d.name, reason)
 					continue
 				}
+				view.GoTypes = trial.GoTypes
 				d.adopt()
 				adoptedOps = append(adoptedOps, bind)
 				fmt.Fprintf(report, "%s\t%s\t%s\tgenerated\n", tag, op.ID, d.name)
 			}
+		}
+		for _, b := range slices.Concat(generated, adoptedOps) {
+			p.recordResourceGoType(spec, view, b)
 		}
 		names := typeCandidates(spec, ops)
 		for _, r := range view.Relationships[recorded:] {
 			names = append(names, strings.TrimPrefix(r.Type, "*"))
 		}
 		for _, name := range names {
+			if typ := view.goType(name); typ != goTypeName(name) {
+				fmt.Fprintf(report, "%s\ttype %s\tis Go type %s\n", tag, name, typ)
+				continue
+			}
 			d, ok := p.types[goTypeName(name)]
 			if !ok || d.adopted {
 				continue
@@ -159,13 +174,14 @@ func Adopt(spec *Spec, b *Bindings, dir string, tags []string, report io.Writer)
 			}
 		}
 		adoptedQueries := qi.adopt(spec, b, tag, ops, report)
-		if len(adoptedOps)+len(adoptedTypes)+len(adoptedQueries) > 0 {
+		if len(adoptedOps)+len(adoptedTypes)+len(adoptedQueries) > 0 || len(view.GoTypes) > recordedGoTypes {
 			fam := b.Family(tag, fileName(tag))
 			fam.Operations = append(fam.Operations, adoptedOps...)
 			fam.Types = append(fam.Types, adoptedTypes...)
 			fam.Relationships = append(fam.Relationships, adoptedRels...)
 			fam.Queries = append(fam.Queries, adoptedQueries...)
 			fam.RefTypes = append(fam.RefTypes, view.RefTypes[recordedRefs:]...)
+			fam.GoTypes = append(fam.GoTypes, view.GoTypes[recordedGoTypes:]...)
 			adopted = append(adopted, fam)
 		}
 	}
@@ -408,6 +424,159 @@ func (p *pkg) deriveOp(spec *Spec, fam *Family, op *Operation, d *decl) (*OpBind
 		return nil, "differs at " + diff
 	}
 	return b, ""
+}
+
+// withVersionGoTypes returns the family with a Go type record for each type
+// the generated method names after a versioned schema, such as
+// ZebraV2UpdateRequest, when the hand-written method names the type of the
+// same schema without its version instead, ZebraUpdateRequest, and never the
+// versioned one.
+func (p *pkg) withVersionGoTypes(spec *Spec, fam *Family, op *Operation, d *decl) *Family {
+	trial := *fam
+	trial.GoTypes = slices.Clone(fam.GoTypes)
+	base, ok := strings.CutSuffix(op.Request, "Request")
+	if !ok {
+		return &trial
+	}
+	idents := map[string]bool{}
+	for _, tok := range goTokens(d.src) {
+		idents[tok] = true
+	}
+	for _, name := range []string{op.Request, base + "Data", base + "Attributes"} {
+		unversioned := withoutVersion(name)
+		typ := goTypeName(unversioned)
+		if unversioned == name || trial.goType(name) != goTypeName(name) || slices.Contains(fam.Types, name) || !idents[typ] || idents[goTypeName(name)] {
+			continue
+		}
+		if !sameShape(typeSchema(spec, name), typeSchema(spec, unversioned)) {
+			continue
+		}
+		if strings.HasSuffix(name, "Attributes") && !p.carries(spec, typ, attributesOf(spec, name)) {
+			continue
+		}
+		trial.GoTypes = append(trial.GoTypes, &GoType{Schema: name, Type: typ})
+	}
+	return &trial
+}
+
+// typeSchema is the schema a request, data or attributes type is named after:
+// the request, the data object of the request, or the attributes object of
+// the request or resource.
+func typeSchema(spec *Spec, name string) *Schema {
+	if base, ok := strings.CutSuffix(name, "Data"); ok {
+		data, _ := requestData(spec, base+"Request")
+		return data
+	}
+	if strings.HasSuffix(name, "Attributes") {
+		return attributesOf(spec, name)
+	}
+	sch, _ := spec.Schema(name)
+	return sch
+}
+
+// sameShape reports whether two schemas agree in everything the generator
+// reads: type, enum values, required names, list items and properties, with
+// references equal by name.
+func sameShape(a, b *Schema) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	if a.Ref != "" || b.Ref != "" {
+		return a.Ref == b.Ref
+	}
+	if a.Type != b.Type || !slices.Equal(a.Enum, b.Enum) || !sameNames(a.Required, b.Required) || !sameShape(a.Items, b.Items) || len(a.Properties) != len(b.Properties) {
+		return false
+	}
+	for _, prop := range a.Properties {
+		if other := b.Properties.Get(prop.Name); other == nil || !sameShape(prop.Schema, other) {
+			return false
+		}
+	}
+	return true
+}
+
+func sameNames(a, b []string) bool {
+	return slices.Equal(slices.Sorted(slices.Values(a)), slices.Sorted(slices.Values(b)))
+}
+
+// carries reports whether an attributes type has exactly the attribute names
+// of a schema: a hand-written struct by its JSON field names, a generated
+// type by the schema it is named after.
+func (p *pkg) carries(spec *Spec, typ string, attrs *Schema) bool {
+	if attrs == nil {
+		return false
+	}
+	var want, got []string
+	for _, prop := range attrs.Properties {
+		want = append(want, prop.Name)
+	}
+	if d, ok := p.types[typ]; ok {
+		st, ok := d.node.(*ast.GenDecl).Specs[0].(*ast.TypeSpec).Type.(*ast.StructType)
+		if !ok {
+			return false
+		}
+		for _, f := range st.Fields.List {
+			if len(f.Names) != 1 {
+				return false
+			}
+			if !f.Names[0].IsExported() {
+				continue
+			}
+			tag := ""
+			if f.Tag != nil {
+				tag, _ = strconv.Unquote(f.Tag.Value)
+			}
+			if name, _, _ := strings.Cut(reflect.StructTag(tag).Get("json"), ","); name != "-" {
+				got = append(got, cmp.Or(name, f.Names[0].Name))
+			}
+		}
+	} else if generated := attributesOf(spec, typ); generated != nil {
+		for _, prop := range generated.Properties {
+			got = append(got, prop.Name)
+		}
+	}
+	slices.Sort(want)
+	slices.Sort(got)
+	return slices.Equal(want, got)
+}
+
+// recordResourceGoType records the Go type of a versioned resource's
+// attributes when a bound read or write decodes it into a response type whose
+// attributes are the type of the same resource without its version.
+func (p *pkg) recordResourceGoType(spec *Spec, fam *Family, b *OpBind) {
+	op, ok := spec.Operation(b.Operation)
+	if !ok || b.Response == "" {
+		return
+	}
+	resource, _, ok := spec.resourceOf(op.Response)
+	name := resource + "Attributes"
+	if !ok || fam.goType(name) != goTypeName(name) || slices.Contains(fam.Types, name) {
+		return
+	}
+	attrs := p.responseAttributes(spec, b.Response)
+	unversioned := withoutVersion(name)
+	if unversioned != name && attrs == goTypeName(unversioned) && sameShape(attributesOf(spec, name), attributesOf(spec, unversioned)) && p.carries(spec, attrs, attributesOf(spec, name)) {
+		fam.GoTypes = append(fam.GoTypes, &GoType{Schema: name, Type: attrs})
+	}
+}
+
+// responseAttributes names the attributes type of a Go response type: the
+// type argument of a hand-written SingleResponse or Response alias, or the
+// attributes of the resource a generated response schema holds.
+func (p *pkg) responseAttributes(spec *Spec, response string) string {
+	if d, ok := p.types[response]; ok {
+		ts := d.node.(*ast.GenDecl).Specs[0].(*ast.TypeSpec)
+		if index, ok := ts.Type.(*ast.IndexExpr); ok && ts.Assign.IsValid() {
+			if generic := exprString(index.X); generic == "SingleResponse" || generic == "Response" {
+				return exprString(index.Index)
+			}
+		}
+		return ""
+	}
+	if resource, _, ok := spec.resourceOf(response); ok {
+		return goTypeName(resource + "Attributes")
+	}
+	return ""
 }
 
 // linkNames maps the Go fields of Relationship literals a create sets, in

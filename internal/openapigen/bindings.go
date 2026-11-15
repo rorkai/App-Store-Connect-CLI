@@ -27,6 +27,7 @@ type Family struct {
 	Operations    []*OpBind    `json:"operations,omitempty"`
 	Queries       []*QueryBind `json:"queries,omitempty"`
 	RefTypes      []*RefType   `json:"refTypes,omitempty"`
+	GoTypes       []*GoType    `json:"goTypes,omitempty"`
 }
 
 // RefType is the Go type of the attributes that reference an enum or object
@@ -34,6 +35,15 @@ type Family struct {
 // "string" for an enum without a Go type. One record holds for every type of
 // the family.
 type RefType struct {
+	Schema string `json:"schema"`
+	Type   string `json:"type"`
+}
+
+// GoType is the Go type that stands for a type the generator would name after
+// a schema, such as the v1 type ZebraUpdateRequest for ZebraV2UpdateRequest
+// when one Go type serves both schema versions. Generated code refers to the
+// Go type and the family declares no type of that name.
+type GoType struct {
 	Schema string `json:"schema"`
 	Type   string `json:"type"`
 }
@@ -220,6 +230,14 @@ func (f *Family) Encode() ([]byte, error) {
 	if len(refTypes) > 0 {
 		fields = append(fields, "\"refTypes\": [\n    "+strings.Join(refTypes, ",\n    ")+"\n  ]")
 	}
+	sort.Slice(f.GoTypes, func(i, j int) bool { return f.GoTypes[i].Schema < f.GoTypes[j].Schema })
+	goTypes, err := jsonLines(f.GoTypes)
+	if err != nil {
+		return nil, err
+	}
+	if len(goTypes) > 0 {
+		fields = append(fields, "\"goTypes\": [\n    "+strings.Join(goTypes, ",\n    ")+"\n  ]")
+	}
 	return []byte("{\n  " + strings.Join(fields, ",\n  ") + "\n}\n"), nil
 }
 
@@ -288,6 +306,17 @@ func (f *Family) refType(schema string) string {
 		}
 	}
 	return goTypeName(schema)
+}
+
+// goType is the Go type of a type named after a schema: the one the family
+// records, or the schema's Go name.
+func (f *Family) goType(name string) string {
+	for _, g := range f.GoTypes {
+		if g.Schema == name {
+			return g.Type
+		}
+	}
+	return goTypeName(name)
 }
 
 // Family returns the family for a tag, adding it if missing.

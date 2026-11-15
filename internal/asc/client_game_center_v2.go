@@ -46,47 +46,6 @@ func (c *Client) CreateGameCenterAchievementVersion(ctx context.Context, achieve
 	})
 }
 
-// CreateGameCenterAchievementLocalizationV2 creates a new v2 achievement localization.
-func (c *Client) CreateGameCenterAchievementLocalizationV2(ctx context.Context, versionID string, attrs GameCenterAchievementLocalizationCreateAttributes) (*GameCenterAchievementLocalizationResponse, error) {
-	payload := GameCenterAchievementLocalizationV2CreateRequest{
-		Data: GameCenterAchievementLocalizationV2CreateData{
-			Type:       ResourceTypeGameCenterAchievementLocalizations,
-			Attributes: attrs,
-			Relationships: &GameCenterAchievementLocalizationV2Relationships{
-				Version: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeGameCenterAchievementVersions,
-						ID:   strings.TrimSpace(versionID),
-					},
-				},
-			},
-		},
-	}
-
-	return sendJSON[GameCenterAchievementLocalizationResponse](ctx, c, writeRequest{
-		Method:  http.MethodPost,
-		Path:    "/v2/gameCenterAchievementLocalizations",
-		Payload: payload,
-	})
-}
-
-// UpdateGameCenterAchievementLocalizationV2 updates a v2 achievement localization.
-func (c *Client) UpdateGameCenterAchievementLocalizationV2(ctx context.Context, localizationID string, attrs GameCenterAchievementLocalizationUpdateAttributes) (*GameCenterAchievementLocalizationResponse, error) {
-	payload := GameCenterAchievementLocalizationUpdateRequest{
-		Data: GameCenterAchievementLocalizationUpdateData{
-			Type:       ResourceTypeGameCenterAchievementLocalizations,
-			ID:         strings.TrimSpace(localizationID),
-			Attributes: &attrs,
-		},
-	}
-
-	return sendJSON[GameCenterAchievementLocalizationResponse](ctx, c, writeRequest{
-		Method:  http.MethodPatch,
-		Path:    fmt.Sprintf("/v2/gameCenterAchievementLocalizations/%s", strings.TrimSpace(localizationID)),
-		Payload: payload,
-	})
-}
-
 // CreateGameCenterAchievementImageV2 reserves a new v2 achievement image upload.
 func (c *Client) CreateGameCenterAchievementImageV2(ctx context.Context, localizationID, fileName string, fileSize int64) (*GameCenterAchievementImageResponse, error) {
 	payload := GameCenterAchievementImageV2CreateRequest{
@@ -110,25 +69,6 @@ func (c *Client) CreateGameCenterAchievementImageV2(ctx context.Context, localiz
 	return sendJSON[GameCenterAchievementImageResponse](ctx, c, writeRequest{
 		Method:  http.MethodPost,
 		Path:    "/v2/gameCenterAchievementImages",
-		Payload: payload,
-	})
-}
-
-// UpdateGameCenterAchievementImageV2 updates a v2 achievement image (used to commit upload).
-func (c *Client) UpdateGameCenterAchievementImageV2(ctx context.Context, imageID string, uploaded bool) (*GameCenterAchievementImageResponse, error) {
-	payload := GameCenterAchievementImageUpdateRequest{
-		Data: GameCenterAchievementImageUpdateData{
-			Type: ResourceTypeGameCenterAchievementImages,
-			ID:   strings.TrimSpace(imageID),
-			Attributes: &GameCenterAchievementImageUpdateAttributes{
-				Uploaded: &uploaded,
-			},
-		},
-	}
-
-	return sendJSON[GameCenterAchievementImageResponse](ctx, c, writeRequest{
-		Method:  http.MethodPatch,
-		Path:    fmt.Sprintf("/v2/gameCenterAchievementImages/%s", strings.TrimSpace(imageID)),
 		Payload: payload,
 	})
 }
@@ -219,47 +159,6 @@ func (c *Client) CreateGameCenterLeaderboardVersion(ctx context.Context, leaderb
 	})
 }
 
-// CreateGameCenterLeaderboardLocalizationV2 creates a new v2 leaderboard localization.
-func (c *Client) CreateGameCenterLeaderboardLocalizationV2(ctx context.Context, versionID string, attrs GameCenterLeaderboardLocalizationCreateAttributes) (*GameCenterLeaderboardLocalizationResponse, error) {
-	payload := GameCenterLeaderboardLocalizationV2CreateRequest{
-		Data: GameCenterLeaderboardLocalizationV2CreateData{
-			Type:       ResourceTypeGameCenterLeaderboardLocalizations,
-			Attributes: attrs,
-			Relationships: &GameCenterLeaderboardLocalizationV2Relationships{
-				Version: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeGameCenterLeaderboardVersions,
-						ID:   strings.TrimSpace(versionID),
-					},
-				},
-			},
-		},
-	}
-
-	return sendJSON[GameCenterLeaderboardLocalizationResponse](ctx, c, writeRequest{
-		Method:  http.MethodPost,
-		Path:    "/v2/gameCenterLeaderboardLocalizations",
-		Payload: payload,
-	})
-}
-
-// UpdateGameCenterLeaderboardLocalizationV2 updates a v2 leaderboard localization.
-func (c *Client) UpdateGameCenterLeaderboardLocalizationV2(ctx context.Context, localizationID string, attrs GameCenterLeaderboardLocalizationUpdateAttributes) (*GameCenterLeaderboardLocalizationResponse, error) {
-	payload := GameCenterLeaderboardLocalizationUpdateRequest{
-		Data: GameCenterLeaderboardLocalizationUpdateData{
-			Type:       ResourceTypeGameCenterLeaderboardLocalizations,
-			ID:         strings.TrimSpace(localizationID),
-			Attributes: &attrs,
-		},
-	}
-
-	return sendJSON[GameCenterLeaderboardLocalizationResponse](ctx, c, writeRequest{
-		Method:  http.MethodPatch,
-		Path:    fmt.Sprintf("/v2/gameCenterLeaderboardLocalizations/%s", strings.TrimSpace(localizationID)),
-		Payload: payload,
-	})
-}
-
 // CreateGameCenterLeaderboardImageV2 reserves a new v2 leaderboard image upload.
 func (c *Client) CreateGameCenterLeaderboardImageV2(ctx context.Context, localizationID, fileName string, fileSize int64) (*GameCenterLeaderboardImageResponse, error) {
 	payload := GameCenterLeaderboardImageV2CreateRequest{
@@ -283,25 +182,6 @@ func (c *Client) CreateGameCenterLeaderboardImageV2(ctx context.Context, localiz
 	return sendJSON[GameCenterLeaderboardImageResponse](ctx, c, writeRequest{
 		Method:  http.MethodPost,
 		Path:    "/v2/gameCenterLeaderboardImages",
-		Payload: payload,
-	})
-}
-
-// UpdateGameCenterLeaderboardImageV2 updates a v2 leaderboard image (used to commit upload).
-func (c *Client) UpdateGameCenterLeaderboardImageV2(ctx context.Context, imageID string, uploaded bool) (*GameCenterLeaderboardImageResponse, error) {
-	payload := GameCenterLeaderboardImageUpdateRequest{
-		Data: GameCenterLeaderboardImageUpdateData{
-			Type: ResourceTypeGameCenterLeaderboardImages,
-			ID:   strings.TrimSpace(imageID),
-			Attributes: &GameCenterLeaderboardImageUpdateAttributes{
-				Uploaded: &uploaded,
-			},
-		},
-	}
-
-	return sendJSON[GameCenterLeaderboardImageResponse](ctx, c, writeRequest{
-		Method:  http.MethodPatch,
-		Path:    fmt.Sprintf("/v2/gameCenterLeaderboardImages/%s", strings.TrimSpace(imageID)),
 		Payload: payload,
 	})
 }
@@ -417,23 +297,6 @@ func (c *Client) CreateGameCenterLeaderboardSetV2(ctx context.Context, gcDetailI
 	})
 }
 
-// UpdateGameCenterLeaderboardSetV2 updates an existing v2 leaderboard set.
-func (c *Client) UpdateGameCenterLeaderboardSetV2(ctx context.Context, setID string, attrs GameCenterLeaderboardSetUpdateAttributes) (*GameCenterLeaderboardSetResponse, error) {
-	payload := GameCenterLeaderboardSetUpdateRequest{
-		Data: GameCenterLeaderboardSetUpdateData{
-			Type:       ResourceTypeGameCenterLeaderboardSets,
-			ID:         strings.TrimSpace(setID),
-			Attributes: &attrs,
-		},
-	}
-
-	return sendJSON[GameCenterLeaderboardSetResponse](ctx, c, writeRequest{
-		Method:  http.MethodPatch,
-		Path:    fmt.Sprintf("/v2/gameCenterLeaderboardSets/%s", strings.TrimSpace(setID)),
-		Payload: payload,
-	})
-}
-
 // UpdateGameCenterLeaderboardSetMembersV2 replaces all leaderboard members in a v2 leaderboard set.
 func (c *Client) UpdateGameCenterLeaderboardSetMembersV2(ctx context.Context, setID string, leaderboardIDs []string) error {
 	leaderboardIDs = normalizeList(leaderboardIDs)
@@ -484,47 +347,6 @@ func (c *Client) CreateGameCenterLeaderboardSetVersion(ctx context.Context, setI
 	})
 }
 
-// CreateGameCenterLeaderboardSetLocalizationV2 creates a new v2 leaderboard set localization.
-func (c *Client) CreateGameCenterLeaderboardSetLocalizationV2(ctx context.Context, versionID string, attrs GameCenterLeaderboardSetLocalizationCreateAttributes) (*GameCenterLeaderboardSetLocalizationResponse, error) {
-	payload := GameCenterLeaderboardSetLocalizationV2CreateRequest{
-		Data: GameCenterLeaderboardSetLocalizationV2CreateData{
-			Type:       ResourceTypeGameCenterLeaderboardSetLocalizations,
-			Attributes: attrs,
-			Relationships: &GameCenterLeaderboardSetLocalizationV2Relationships{
-				Version: &Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeGameCenterLeaderboardSetVersions,
-						ID:   strings.TrimSpace(versionID),
-					},
-				},
-			},
-		},
-	}
-
-	return sendJSON[GameCenterLeaderboardSetLocalizationResponse](ctx, c, writeRequest{
-		Method:  http.MethodPost,
-		Path:    "/v2/gameCenterLeaderboardSetLocalizations",
-		Payload: payload,
-	})
-}
-
-// UpdateGameCenterLeaderboardSetLocalizationV2 updates a v2 leaderboard set localization.
-func (c *Client) UpdateGameCenterLeaderboardSetLocalizationV2(ctx context.Context, localizationID string, attrs GameCenterLeaderboardSetLocalizationUpdateAttributes) (*GameCenterLeaderboardSetLocalizationResponse, error) {
-	payload := GameCenterLeaderboardSetLocalizationUpdateRequest{
-		Data: GameCenterLeaderboardSetLocalizationUpdateData{
-			Type:       ResourceTypeGameCenterLeaderboardSetLocalizations,
-			ID:         strings.TrimSpace(localizationID),
-			Attributes: &attrs,
-		},
-	}
-
-	return sendJSON[GameCenterLeaderboardSetLocalizationResponse](ctx, c, writeRequest{
-		Method:  http.MethodPatch,
-		Path:    fmt.Sprintf("/v2/gameCenterLeaderboardSetLocalizations/%s", strings.TrimSpace(localizationID)),
-		Payload: payload,
-	})
-}
-
 // CreateGameCenterLeaderboardSetImageV2 reserves a new v2 leaderboard set image upload.
 func (c *Client) CreateGameCenterLeaderboardSetImageV2(ctx context.Context, localizationID, fileName string, fileSize int64) (*GameCenterLeaderboardSetImageResponse, error) {
 	payload := GameCenterLeaderboardSetImageV2CreateRequest{
@@ -548,25 +370,6 @@ func (c *Client) CreateGameCenterLeaderboardSetImageV2(ctx context.Context, loca
 	return sendJSON[GameCenterLeaderboardSetImageResponse](ctx, c, writeRequest{
 		Method:  http.MethodPost,
 		Path:    "/v2/gameCenterLeaderboardSetImages",
-		Payload: payload,
-	})
-}
-
-// UpdateGameCenterLeaderboardSetImageV2 updates a v2 leaderboard set image (used to commit upload).
-func (c *Client) UpdateGameCenterLeaderboardSetImageV2(ctx context.Context, imageID string, uploaded bool) (*GameCenterLeaderboardSetImageResponse, error) {
-	payload := GameCenterLeaderboardSetImageUpdateRequest{
-		Data: GameCenterLeaderboardSetImageUpdateData{
-			Type: ResourceTypeGameCenterLeaderboardSetImages,
-			ID:   strings.TrimSpace(imageID),
-			Attributes: &GameCenterLeaderboardSetImageUpdateAttributes{
-				Uploaded: &uploaded,
-			},
-		},
-	}
-
-	return sendJSON[GameCenterLeaderboardSetImageResponse](ctx, c, writeRequest{
-		Method:  http.MethodPatch,
-		Path:    fmt.Sprintf("/v2/gameCenterLeaderboardSetImages/%s", strings.TrimSpace(imageID)),
 		Payload: payload,
 	})
 }
