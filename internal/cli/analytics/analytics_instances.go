@@ -86,15 +86,7 @@ Examples:
 
 // AnalyticsInstancesRelationshipsCommand lists segment links for an instance.
 func AnalyticsInstancesRelationshipsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("links", flag.ExitOnError)
-
-	instanceID := shared.BindResourceIDFlag(fs, "instance-id", "analyticsReportInstances", "Analytics report instance ID")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "links",
 		ShortUsage: "asc analytics instances links --instance-id \"INSTANCE_ID\" [flags]",
 		ShortHelp:  "List analytics report segment relationships.",
@@ -103,62 +95,25 @@ func AnalyticsInstancesRelationshipsCommand() *ffcli.Command {
 Examples:
   asc analytics instances links --instance-id "INSTANCE_ID"
   asc analytics instances links --instance-id "INSTANCE_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "analytics instances links", analyticsMaxLimit); err != nil {
-				return err
-			}
-
-			id := strings.TrimSpace(*instanceID)
-			if id == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--instance-id")
-			}
-			if id != "" {
-				var err error
-				id, err = asc.ValidateResourcePathSegment(id)
-				if err != nil {
-					return shared.UsageErrorf("analytics instances links: --instance-id: %v", err)
+		ParentFlag:           "instance-id",
+		ParentUsage:          "Analytics report instance ID",
+		ParentType:           "analyticsReportInstances",
+		RequiredDiagnostic:   true,
+		LimitMax:             analyticsMaxLimit,
+		PaginateIgnoresLimit: true,
+		Flags: func(fs *flag.FlagSet) func() error {
+			instanceID := fs.Lookup("instance-id").Value
+			return func() error {
+				if id := strings.TrimSpace(instanceID.String()); id != "" {
+					if _, err := asc.ValidateResourcePathSegment(id); err != nil {
+						return shared.UsageErrorf("analytics instances links: --instance-id: %v", err)
+					}
 				}
+				return nil
 			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("analytics instances links: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			opts := []asc.LinkagesOption{
-				asc.Limit[asc.LinkagesOption](*limit),
-				asc.NextURL[asc.LinkagesOption](*next),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.Limit[asc.LinkagesOption](analyticsMaxLimit))
-				resp, err := shared.PaginateWithSpinner(
-					requestCtx,
-					func(ctx context.Context) (asc.PaginatedResponse, error) {
-						return client.GetAnalyticsReportInstanceSegmentsRelationships(ctx, id, paginateOpts...)
-					},
-					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return client.GetAnalyticsReportInstanceSegmentsRelationships(ctx, id, asc.NextURL[asc.LinkagesOption](nextURL))
-					},
-				)
-				if err != nil {
-					return fmt.Errorf("analytics instances links: %w", err)
-				}
-
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetAnalyticsReportInstanceSegmentsRelationships(requestCtx, id, opts...)
-			if err != nil {
-				return fmt.Errorf("analytics instances links: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
-	}
+		FetchPage: func(ctx context.Context, client *asc.Client, id string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetAnalyticsReportInstanceSegmentsRelationships(ctx, id, asc.Limit[asc.LinkagesOption](limit), asc.NextURL[asc.LinkagesOption](next))
+		},
+	})
 }

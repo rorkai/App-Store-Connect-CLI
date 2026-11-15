@@ -120,15 +120,7 @@ Examples:
 
 // newBuildBundleFileSizesListCommand returns the list subcommand built on d.
 func newBuildBundleFileSizesListCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("list", flag.ExitOnError)
-
-	buildBundleID := fs.String("id", "", "Build bundle ID")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := d.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "list",
 		ShortUsage: "asc build-bundles file-sizes list [flags]",
 		ShortHelp:  "List build bundle file sizes.",
@@ -138,56 +130,16 @@ Examples:
   asc build-bundles file-sizes list --id "BUILD_BUNDLE_ID"
   asc build-bundles file-sizes list --id "BUILD_BUNDLE_ID" --limit 100
   asc build-bundles file-sizes list --id "BUILD_BUNDLE_ID" --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if err := d.ValidatePaginationFlags(ctx, fs, "build-bundles file-sizes list", 200); err != nil {
-				return err
-			}
-
-			buildBundleValue := strings.TrimSpace(*buildBundleID)
-			if buildBundleValue == "" && strings.TrimSpace(*next) == "" {
-				return d.RequiredFlag("--id")
-			}
-
-			client, err := d.Client()
-			if err != nil {
-				return fmt.Errorf("build-bundles file-sizes list: %w", err)
-			}
-
-			requestCtx, cancel := d.Timeout(ctx)
-			defer cancel()
-
-			opts := []asc.BuildBundleFileSizesOption{
-				asc.Limit[asc.BuildBundleFileSizesOption](*limit),
-				asc.NextURL[asc.BuildBundleFileSizesOption](*next),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.Limit[asc.BuildBundleFileSizesOption](200))
-				firstPage, err := client.GetBuildBundleFileSizes(requestCtx, buildBundleValue, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("build-bundles file-sizes list: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetBuildBundleFileSizes(ctx, buildBundleValue, asc.NextURL[asc.BuildBundleFileSizesOption](nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("build-bundles file-sizes list: %w", err)
-				}
-
-				return d.PrintOutput(resp, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetBuildBundleFileSizes(requestCtx, buildBundleValue, opts...)
-			if err != nil {
-				return fmt.Errorf("build-bundles file-sizes list: failed to fetch: %w", err)
-			}
-
-			return d.PrintOutput(resp, *output.Output, *output.Pretty)
+		ParentFlag:           "id",
+		ParentUsage:          "Build bundle ID",
+		RequiredDiagnostic:   true,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		Deps:                 d,
+		FetchPage: func(ctx context.Context, client *asc.Client, id string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetBuildBundleFileSizes(ctx, id, asc.Limit[asc.BuildBundleFileSizesOption](limit), asc.NextURL[asc.BuildBundleFileSizesOption](next))
 		},
-	}
+	})
 }
 
 // newBuildBundlesAppClipCommand returns the app-clip command group built on d.

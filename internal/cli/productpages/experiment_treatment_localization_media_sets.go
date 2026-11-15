@@ -43,72 +43,31 @@ Examples:
 
 // newExperimentTreatmentLocalizationPreviewSetsListCommand returns the preview sets list subcommand.
 func newExperimentTreatmentLocalizationPreviewSetsListCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("treatment-localizations preview-sets list", flag.ExitOnError)
-
-	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appStoreVersionExperimentTreatmentLocalizations", "Treatment localization ID")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := d.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc product-pages experiments treatments localizations preview-sets list --localization-id \"LOCALIZATION_ID\"",
-		ShortHelp:  "List preview sets for a treatment localization.",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "treatment-localizations preview-sets list",
+		Name:        "list",
+		ShortUsage:  "asc product-pages experiments treatments localizations preview-sets list --localization-id \"LOCALIZATION_ID\"",
+		ShortHelp:   "List preview sets for a treatment localization.",
 		LongHelp: `List preview sets for a treatment localization.
 
 Examples:
   asc product-pages experiments treatments localizations preview-sets list --localization-id "LOCALIZATION_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if err := d.ValidatePaginationFlags(ctx, fs, "product-pages experiments treatments localizations preview-sets list", productPagesMaxLimit); err != nil {
-				return err
-			}
-			trimmedID := strings.TrimSpace(*localizationID)
-			trimmedNext := strings.TrimSpace(*next)
-			if trimmedID == "" && trimmedNext == "" {
-				return d.RequiredFlag("--localization-id")
-			}
-
-			client, err := d.Client()
-			if err != nil {
-				return fmt.Errorf("experiments treatments localizations preview-sets list: %w", err)
-			}
-
-			requestCtx, cancel := d.Timeout(ctx)
-			defer cancel()
-
-			opts := []asc.AppStoreVersionExperimentTreatmentLocalizationPreviewSetsOption{
-				asc.Limit[asc.AppStoreVersionExperimentTreatmentLocalizationPreviewSetsOption](*limit),
-				asc.NextURL[asc.AppStoreVersionExperimentTreatmentLocalizationPreviewSetsOption](*next),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.Limit[asc.AppStoreVersionExperimentTreatmentLocalizationPreviewSetsOption](productPagesMaxLimit))
-				firstPage, err := client.GetAppStoreVersionExperimentTreatmentLocalizationPreviewSets(requestCtx, trimmedID, paginateOpts...)
-				if err != nil {
-					return fmt.Errorf("experiments treatments localizations preview-sets list: failed to fetch: %w", err)
-				}
-
-				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetAppStoreVersionExperimentTreatmentLocalizationPreviewSets(ctx, trimmedID, asc.NextURL[asc.AppStoreVersionExperimentTreatmentLocalizationPreviewSetsOption](nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("experiments treatments localizations preview-sets list: %w", err)
-				}
-
-				return d.PrintOutput(resp, *output.Output, *output.Pretty)
-			}
-
-			resp, err := client.GetAppStoreVersionExperimentTreatmentLocalizationPreviewSets(requestCtx, trimmedID, opts...)
-			if err != nil {
-				return fmt.Errorf("experiments treatments localizations preview-sets list: failed to fetch: %w", err)
-			}
-
-			return d.PrintOutput(resp, *output.Output, *output.Pretty)
+		ParentFlag:           "localization-id",
+		ParentUsage:          "Treatment localization ID",
+		ParentType:           "appStoreVersionExperimentTreatmentLocalizations",
+		RequiredDiagnostic:   true,
+		LimitMax:             productPagesMaxLimit,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		ErrorPrefix:          "experiments treatments localizations preview-sets list",
+		Deps:                 d,
+		FetchPage: func(ctx context.Context, client *asc.Client, id string, limit int, next string) (asc.PaginatedResponse, error) {
+			return client.GetAppStoreVersionExperimentTreatmentLocalizationPreviewSets(ctx, id,
+				asc.Limit[asc.AppStoreVersionExperimentTreatmentLocalizationPreviewSetsOption](limit),
+				asc.NextURL[asc.AppStoreVersionExperimentTreatmentLocalizationPreviewSetsOption](next),
+			)
 		},
-	}
+	})
 }
 
 // newExperimentTreatmentLocalizationPreviewSetsUploadCommand returns the preview sets upload subcommand.

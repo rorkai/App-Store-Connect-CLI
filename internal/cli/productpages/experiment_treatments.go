@@ -44,88 +44,43 @@ Examples:
 
 // newExperimentTreatmentsListCommand returns the treatments list subcommand.
 func newExperimentTreatmentsListCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("experiment-treatments list", flag.ExitOnError)
+	var v2 *bool
 
-	experimentID := shared.BindResourceIDFlag(fs, "experiment-id", "appStoreVersionExperiments", "Experiment ID")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := d.BindOutputFlags(fs)
-	v2 := fs.Bool("v2", false, "Use v2 experiments endpoint")
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc product-pages experiments treatments list --experiment-id \"EXPERIMENT_ID\" [flags]",
-		ShortHelp:  "List experiment treatments.",
+	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		FlagSetName: "experiment-treatments list",
+		Name:        "list",
+		ShortUsage:  "asc product-pages experiments treatments list --experiment-id \"EXPERIMENT_ID\" [flags]",
+		ShortHelp:   "List experiment treatments.",
 		LongHelp: `List experiment treatments.
 
 Examples:
   asc product-pages experiments treatments list --experiment-id "EXPERIMENT_ID"
   asc product-pages experiments treatments list --experiment-id "EXPERIMENT_ID" --paginate
   asc product-pages experiments treatments list --experiment-id "EXPERIMENT_ID" --v2`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if err := d.ValidatePaginationFlags(ctx, fs, "product-pages experiments treatments list", productPagesMaxLimit); err != nil {
-				return err
-			}
-
-			trimmedID := strings.TrimSpace(*experimentID)
-			if trimmedID == "" && strings.TrimSpace(*next) == "" {
-				return d.RequiredFlag("--experiment-id")
-			}
-
-			client, err := d.Client()
-			if err != nil {
-				return fmt.Errorf("experiments treatments list: %w", err)
-			}
-
-			requestCtx, cancel := d.Timeout(ctx)
-			defer cancel()
-
-			opts := []asc.AppStoreVersionExperimentTreatmentsOption{
-				asc.Limit[asc.AppStoreVersionExperimentTreatmentsOption](*limit),
-				asc.NextURL[asc.AppStoreVersionExperimentTreatmentsOption](*next),
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.Limit[asc.AppStoreVersionExperimentTreatmentsOption](productPagesMaxLimit))
-				var firstPage *asc.AppStoreVersionExperimentTreatmentsResponse
-				if *v2 {
-					firstPage, err = client.GetAppStoreVersionExperimentTreatmentsV2(requestCtx, trimmedID, paginateOpts...)
-				} else {
-					firstPage, err = client.GetAppStoreVersionExperimentTreatments(requestCtx, trimmedID, paginateOpts...)
-				}
-				if err != nil {
-					return fmt.Errorf("experiments treatments list: failed to fetch: %w", err)
-				}
-
-				paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					if *v2 {
-						return client.GetAppStoreVersionExperimentTreatmentsV2(ctx, trimmedID, asc.NextURL[asc.AppStoreVersionExperimentTreatmentsOption](nextURL))
-					}
-					return client.GetAppStoreVersionExperimentTreatments(ctx, trimmedID, asc.NextURL[asc.AppStoreVersionExperimentTreatmentsOption](nextURL))
-				})
-				if err != nil {
-					return fmt.Errorf("experiments treatments list: %w", err)
-				}
-
-				return d.PrintOutput(paginated, *output.Output, *output.Pretty)
-			}
-
-			var resp *asc.AppStoreVersionExperimentTreatmentsResponse
-			if *v2 {
-				resp, err = client.GetAppStoreVersionExperimentTreatmentsV2(requestCtx, trimmedID, opts...)
-			} else {
-				resp, err = client.GetAppStoreVersionExperimentTreatments(requestCtx, trimmedID, opts...)
-			}
-			if err != nil {
-				return fmt.Errorf("experiments treatments list: failed to fetch: %w", err)
-			}
-
-			return d.PrintOutput(resp, *output.Output, *output.Pretty)
+		ParentFlag:           "experiment-id",
+		ParentUsage:          "Experiment ID",
+		ParentType:           "appStoreVersionExperiments",
+		RequiredDiagnostic:   true,
+		LimitMax:             productPagesMaxLimit,
+		PaginateIgnoresLimit: true,
+		NoSpinner:            true,
+		ErrorPrefix:          "experiments treatments list",
+		Deps:                 d,
+		Flags: func(fs *flag.FlagSet) func() error {
+			v2 = fs.Bool("v2", false, "Use v2 experiments endpoint")
+			return nil
 		},
-	}
+		FetchPage: func(ctx context.Context, client *asc.Client, id string, limit int, next string) (asc.PaginatedResponse, error) {
+			opts := []asc.AppStoreVersionExperimentTreatmentsOption{
+				asc.Limit[asc.AppStoreVersionExperimentTreatmentsOption](limit),
+				asc.NextURL[asc.AppStoreVersionExperimentTreatmentsOption](next),
+			}
+			if *v2 {
+				return client.GetAppStoreVersionExperimentTreatmentsV2(ctx, id, opts...)
+			}
+			return client.GetAppStoreVersionExperimentTreatments(ctx, id, opts...)
+		},
+	})
 }
 
 // newExperimentTreatmentsGetCommand returns the treatments get subcommand.
