@@ -3,7 +3,6 @@ package status
 import (
 	"bytes"
 	"encoding/json"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -88,11 +87,11 @@ func TestPrintWatchSnapshot_EmptyFormatUsesSharedDefaultOutput(t *testing.T) {
 		},
 	}
 
-	stdout, stderr := captureOutput(t, func() {
-		if err := printWatchSnapshot(resp, "", false, false); err != nil {
-			t.Fatalf("printWatchSnapshot() error = %v", err)
-		}
-	})
+	d, stdoutBuf, stderrBuf := newStatusTestDeps()
+	if err := printWatchSnapshot(d, resp, "", false, false); err != nil {
+		t.Fatalf("printWatchSnapshot() error = %v", err)
+	}
+	stdout, stderr := stdoutBuf.String(), stderrBuf.String()
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -105,47 +104,11 @@ func TestPrintWatchSnapshot_EmptyFormatUsesSharedDefaultOutput(t *testing.T) {
 	}
 }
 
-func captureOutput(t *testing.T, fn func()) (string, string) {
-	t.Helper()
-
-	origStdout := os.Stdout
-	origStderr := os.Stderr
-
-	stdoutR, stdoutW, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("stdout pipe: %v", err)
-	}
-	stderrR, stderrW, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("stderr pipe: %v", err)
-	}
-
-	os.Stdout = stdoutW
-	os.Stderr = stderrW
-	t.Cleanup(func() {
-		os.Stdout = origStdout
-		os.Stderr = origStderr
-	})
-
-	fn()
-
-	if err := stdoutW.Close(); err != nil {
-		t.Fatalf("close stdout writer: %v", err)
-	}
-	if err := stderrW.Close(); err != nil {
-		t.Fatalf("close stderr writer: %v", err)
-	}
-
-	var stdoutBuf bytes.Buffer
-	if _, err := stdoutBuf.ReadFrom(stdoutR); err != nil {
-		t.Fatalf("read stdout: %v", err)
-	}
-	var stderrBuf bytes.Buffer
-	if _, err := stderrBuf.ReadFrom(stderrR); err != nil {
-		t.Fatalf("read stderr: %v", err)
-	}
-
-	return stdoutBuf.String(), stderrBuf.String()
+// newStatusTestDeps returns deps whose stdout and stderr are buffers and
+// whose clock is the system clock.
+func newStatusTestDeps() (*shared.Deps, *bytes.Buffer, *bytes.Buffer) {
+	var stdout, stderr bytes.Buffer
+	return &shared.Deps{IO: &shared.IO{Out: &stdout, ErrOut: &stderr}, Now: time.Now}, &stdout, &stderr
 }
 
 func TestParseInclude_DefaultsToAllSections(t *testing.T) {
@@ -653,7 +616,9 @@ func TestRenderDashboardLabelsBetaReviewBuildExplicitly(t *testing.T) {
 		},
 	}
 
-	stdout, stderr := captureOutput(t, func() { renderTable(resp) })
+	d, stdoutBuf, stderrBuf := newStatusTestDeps()
+	renderTable(d, resp)
+	stdout, stderr := stdoutBuf.String(), stderrBuf.String()
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
@@ -722,7 +687,9 @@ func TestRenderDashboardShowsLatestBuildExpiryAndInternalState(t *testing.T) {
 				},
 			}
 
-			stdout, stderr := captureOutput(t, func() { renderTable(resp) })
+			d, stdoutBuf, stderrBuf := newStatusTestDeps()
+			renderTable(d, resp)
+			stdout, stderr := stdoutBuf.String(), stderrBuf.String()
 			if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)
 			}
@@ -744,7 +711,9 @@ func TestRenderDashboardMarksBlockingInternalBuildStatesAsFailures(t *testing.T)
 				TestFlight: &testFlightSection{InternalBuildState: state},
 			}
 
-			stdout, stderr := captureOutput(t, func() { renderTable(resp) })
+			d, stdoutBuf, stderrBuf := newStatusTestDeps()
+			renderTable(d, resp)
+			stdout, stderr := stdoutBuf.String(), stderrBuf.String()
 			if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)
 			}
@@ -804,15 +773,11 @@ func TestInternalBuildStateSymbolClassification(t *testing.T) {
 }
 
 func TestFormatDateWithRelative(t *testing.T) {
-	originalNow := statusNow
-	statusNow = func() time.Time {
+	d := &shared.Deps{Now: func() time.Time {
 		return time.Date(2026, 2, 20, 12, 0, 0, 0, time.UTC)
-	}
-	t.Cleanup(func() {
-		statusNow = originalNow
-	})
+	}}
 
-	got := formatDateWithRelative("2026-02-19T12:00:00Z")
+	got := formatDateWithRelative(d, "2026-02-19T12:00:00Z")
 	if got != "2026-02-19T12:00:00Z (1d ago)" {
 		t.Fatalf("unexpected relative time output %q", got)
 	}

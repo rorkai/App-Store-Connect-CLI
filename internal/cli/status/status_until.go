@@ -3,7 +3,6 @@ package status
 import (
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -106,7 +105,7 @@ func isApprovedAppStoreState(state string) bool {
 	return shared.IsLiveAppStoreVersionState(state)
 }
 
-func finishUntil(until string, check untilCheck, polls int, output string, pretty bool) error {
+func finishUntil(d *shared.Deps, until string, check untilCheck, polls int, output string, pretty bool) error {
 	result := &asc.StatusUntilResult{
 		Until:   until,
 		Reached: check.outcome != "",
@@ -120,12 +119,12 @@ func finishUntil(until string, check untilCheck, polls int, output string, prett
 
 	format := strings.ToLower(strings.TrimSpace(output))
 	if format == "" {
-		format = shared.DefaultOutputFormat()
+		format = d.DefaultOutputFormat()
 	}
 	if format != "json" {
-		fmt.Fprintln(os.Stdout)
+		fmt.Fprintln(d.IO.Out)
 	}
-	if err := shared.PrintOutput(result, format, pretty); err != nil {
+	if err := d.PrintOutput(result, format, pretty); err != nil {
 		return err
 	}
 	if check.positive {
@@ -138,11 +137,11 @@ func finishUntil(until string, check untilCheck, polls int, output string, prett
 	}
 	if result.Reached {
 		message := fmt.Sprintf("status: --until %s ended with outcome %s%s", until, result.Outcome, state)
-		fmt.Fprintln(os.Stderr, message)
+		fmt.Fprintln(d.IO.ErrOut, message)
 		return shared.NewStderrReportedError(shared.NewValidationError(errors.New(message)))
 	}
 	message := fmt.Sprintf("status: --until %s not reached after %d polls%s", until, polls, state)
-	fmt.Fprintln(os.Stderr, message)
+	fmt.Fprintln(d.IO.ErrOut, message)
 	return shared.NewPendingError(message)
 }
 

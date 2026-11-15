@@ -17,7 +17,6 @@ func installStatusBuildStateTransport(t *testing.T) *asctest.Registry {
 	t.Helper()
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/builds", "filter[app]=6748252780", "include=preReleaseVersion,buildBetaDetail", "limit=50", "sort=-uploadedDate"), asctest.JSON(http.StatusOK, `{
 		"data":[
 			{
@@ -82,7 +81,7 @@ func TestStatusJSONSurfacesLatestBuildInternalStateAndExpiry(t *testing.T) {
 
 	reg := installStatusBuildStateTransport(t)
 
-	stdout, stderr, err := runCommand(t, []string{"status", "--app", "6748252780", "--include", "builds,testflight", "--output", "json"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "status", "--app", "6748252780", "--include", "builds,testflight", "--output", "json")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -132,7 +131,7 @@ func TestStatusTableSurfacesLatestBuildInternalStateAndExpiry(t *testing.T) {
 
 	reg := installStatusBuildStateTransport(t)
 
-	stdout, stderr, err := runCommand(t, []string{"status", "--app", "6748252780", "--include", "builds,testflight", "--output", "table"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "status", "--app", "6748252780", "--include", "builds,testflight", "--output", "table")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}

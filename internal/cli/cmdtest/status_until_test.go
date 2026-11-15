@@ -15,14 +15,14 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
-// installStatusUntilTransport serves each path's bodies in order, repeating
-// the last one.
-func installStatusUntilTransport(t *testing.T, sequences map[string][]string) {
+// statusUntilClient returns a client that serves each path's bodies in order,
+// repeating the last one.
+func statusUntilClient(t *testing.T, sequences map[string][]string) func() (*asc.Client, error) {
 	t.Helper()
 
 	var mu sync.Mutex
 	calls := map[string]int{}
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	return stubClient(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		if req.URL.Query().Get("filter[betaAppReviewSubmission.betaReviewState]") != "" {
 			return statusJSONResponse(`{"data":[],"links":{"next":""}}`), nil
 		}
@@ -39,14 +39,10 @@ func installStatusUntilTransport(t *testing.T, sequences map[string][]string) {
 	}))
 }
 
-func runStatusUntil(t *testing.T, args ...string) (string, string, int) {
+func runStatusUntil(t *testing.T, client func() (*asc.Client, error), args ...string) (string, string, int) {
 	t.Helper()
 
-	var code int
-	stdout, stderr := captureOutput(t, func() {
-		code = cmd.Run(append([]string{"status", "--app", "123456789", "--poll-interval", "1ms"}, args...), "1.0.0")
-	})
-	return stdout, stderr, code
+	return runWithDeps(t, client, append([]string{"status", "--app", "123456789", "--poll-interval", "1ms"}, args...)...)
 }
 
 func setupStatusUntilTest(t *testing.T) {
@@ -227,9 +223,9 @@ func TestStatusUntilStopsAtConditionWithExitCode(t *testing.T) {
 			if test.include == "testflight" {
 				sequences["/v1/betaAppReviewSubmissions"] = []string{`{"data":[],"links":{"next":""}}`}
 			}
-			installStatusUntilTransport(t, sequences)
+			client := statusUntilClient(t, sequences)
 
-			stdout, stderr, code := runStatusUntil(t, "--include", test.include, "--until", test.until, "--max-polls", "3", "--output", "json")
+			stdout, stderr, code := runStatusUntil(t, client, "--include", test.include, "--until", test.until, "--max-polls", "3", "--output", "json")
 
 			if code != test.wantCode {
 				t.Fatalf("exit code = %d, want %d; stdout=%q stderr=%q", code, test.wantCode, stdout, stderr)
@@ -247,11 +243,11 @@ func TestStatusUntilStopsAtConditionWithExitCode(t *testing.T) {
 
 func TestStatusUntilTimeoutEndsPending(t *testing.T) {
 	setupStatusUntilTest(t)
-	installStatusUntilTransport(t, map[string][]string{
+	client := statusUntilClient(t, map[string][]string{
 		"/v1/apps/123456789/appStoreVersions": {statusUntilVersionsBody("IN_REVIEW")},
 	})
 
-	stdout, stderr, code := runStatusUntil(t, "--include", "appstore", "--until", "review-done", "--timeout", "50ms", "--output", "json")
+	stdout, stderr, code := runStatusUntil(t, client, "--include", "appstore", "--until", "review-done", "--timeout", "50ms", "--output", "json")
 
 	if code != cmd.ExitPending {
 		t.Fatalf("exit code = %d, want %d; stdout=%q stderr=%q", code, cmd.ExitPending, stdout, stderr)
@@ -267,14 +263,14 @@ func TestStatusUntilTimeoutEndsPending(t *testing.T) {
 
 func TestStatusUntilTableOutputEndsWithResultRow(t *testing.T) {
 	setupStatusUntilTest(t)
-	installStatusUntilTransport(t, map[string][]string{
+	client := statusUntilClient(t, map[string][]string{
 		"/v1/apps/123456789/appStoreVersions": {
 			statusUntilVersionsBody("IN_REVIEW"),
 			statusUntilVersionsBody("PENDING_DEVELOPER_RELEASE"),
 		},
 	})
 
-	stdout, stderr, code := runStatusUntil(t, "--include", "appstore", "--until", "review-done", "--output", "table")
+	stdout, stderr, code := runStatusUntil(t, client, "--include", "appstore", "--until", "review-done", "--output", "table")
 
 	if code != cmd.ExitSuccess {
 		t.Fatalf("exit code = %d, want 0; stderr=%q", code, stderr)
@@ -314,9 +310,9 @@ func TestStatusUntilUsageErrors(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			setupStatusUntilTest(t)
-			installStatusUntilTransport(t, map[string][]string{})
+			client := statusUntilClient(t, map[string][]string{})
 
-			stdout, stderr, code := runStatusUntil(t, test.args...)
+			stdout, stderr, code := runStatusUntil(t, client, test.args...)
 
 			if code != cmd.ExitUsage {
 				t.Fatalf("exit code = %d, want %d; stdout=%q stderr=%q", code, cmd.ExitUsage, stdout, stderr)
@@ -330,11 +326,11 @@ func TestStatusUntilUsageErrors(t *testing.T) {
 
 func TestStatusJSONIncludesNextCommands(t *testing.T) {
 	setupStatusUntilTest(t)
-	installStatusUntilTransport(t, map[string][]string{
+	client := statusUntilClient(t, map[string][]string{
 		"/v1/apps/123456789/appStoreVersions": {statusUntilVersionsBody("PENDING_DEVELOPER_RELEASE")},
 	})
 
-	stdout, stderr, code := runStatusUntil(t, "--include", "appstore", "--output", "json")
+	stdout, stderr, code := runStatusUntil(t, client, "--include", "appstore", "--output", "json")
 	if code != cmd.ExitSuccess {
 		t.Fatalf("exit code = %d, want 0; stderr=%q", code, stderr)
 	}
@@ -358,12 +354,12 @@ func TestStatusSuggestsReviewSubmissionOnlyForEligibleBuildAudience(t *testing.T
 		t.Run(audience, func(t *testing.T) {
 			setupStatusUntilTest(t)
 			builds := strings.Replace(statusUntilBuildsBody("VALID", ""), `"processingState":"VALID"`, `"processingState":"VALID","buildAudienceType":"`+audience+`"`, 1)
-			installStatusUntilTransport(t, map[string][]string{
+			client := statusUntilClient(t, map[string][]string{
 				"/v1/builds":                          {builds},
 				"/v1/apps/123456789/appStoreVersions": {statusUntilVersionsBody("PREPARE_FOR_SUBMISSION")},
 			})
 
-			stdout, stderr, code := runStatusUntil(t, "--include", "builds,appstore", "--output", "json")
+			stdout, stderr, code := runStatusUntil(t, client, "--include", "builds,appstore", "--output", "json")
 			if code != cmd.ExitSuccess {
 				t.Fatalf("exit = %d, want 0; stderr=%q", code, stderr)
 			}

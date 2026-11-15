@@ -3,13 +3,14 @@ package cmdtest
 import (
 	"context"
 	"encoding/json"
-	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
 )
 
@@ -19,7 +20,6 @@ func TestStatusWatchJSONEmitsChangedSnapshots(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/123456789/appStoreVersions", "limit=200"), asctest.JSON(http.StatusOK, `{
 		"data":[
 			{
@@ -62,7 +62,7 @@ func TestStatusWatchJSONEmitsChangedSnapshots(t *testing.T) {
 	}`))
 	reg.Register(asctest.GET("/v1/apps/123456789/reviewSubmissions", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[],"links":{"next":""}}`))
 
-	stdout, stderr, err := runCommand(t, []string{
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg),
 		"status",
 		"--app", "123456789",
 		"--include", "appstore,submission,review",
@@ -70,7 +70,7 @@ func TestStatusWatchJSONEmitsChangedSnapshots(t *testing.T) {
 		"--poll-interval", "1ms",
 		"--max-polls", "2",
 		"--output", "json",
-	})
+	)
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -116,7 +116,6 @@ func TestStatusWatchSubmissionAndReviewUseBoundedRecentPage(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/123456789/reviewSubmissions", "limit=200"), asctest.JSON(http.StatusOK, `{
 		"data":[
 			{
@@ -128,7 +127,7 @@ func TestStatusWatchSubmissionAndReviewUseBoundedRecentPage(t *testing.T) {
 		"links":{"next":"https://api.appstoreconnect.apple.com/v1/apps/123456789/reviewSubmissions?cursor=page-2"}
 	}`))
 
-	stdout, stderr, err := runCommand(t, []string{
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg),
 		"status",
 		"--app", "123456789",
 		"--include", "submission,review",
@@ -136,7 +135,7 @@ func TestStatusWatchSubmissionAndReviewUseBoundedRecentPage(t *testing.T) {
 		"--poll-interval", "1ms",
 		"--max-polls", "1",
 		"--output", "json",
-	})
+	)
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -200,35 +199,23 @@ func TestStatusWatchContextEndDuringSnapshotFetchExitsCleanly(t *testing.T) {
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 			t.Setenv("ASC_APP_ID", "")
 
-			originalTransport := http.DefaultTransport
-			t.Cleanup(func() {
-				http.DefaultTransport = originalTransport
-			})
-
-			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			client := stubClient(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
 				return nil, req.Context().Err()
-			})
-
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
+			}))
 
 			ctx, cancel := test.ctx()
 			defer cancel()
 
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse([]string{
-					"status",
-					"--app", "123456789",
-					"--watch",
-					"--poll-interval", "1ms",
-					"--output", "json",
-				}); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(ctx); err != nil {
-					t.Fatalf("expected clean exit on %s, got %v", test.name, err)
-				}
-			})
+			stdout, stderr, err := runStatusWithContext(t, ctx, client,
+				"status",
+				"--app", "123456789",
+				"--watch",
+				"--poll-interval", "1ms",
+				"--output", "json",
+			)
+			if err != nil {
+				t.Fatalf("expected clean exit on %s, got %v", test.name, err)
+			}
 
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
@@ -245,27 +232,20 @@ func TestStatusWatchDeadlineWhileWaitingForNextPollExitsCleanly(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
 	defer cancel()
 
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"status",
-			"--app", "123456789",
-			"--include", "links",
-			"--watch",
-			"--poll-interval", "1h",
-			"--output", "json",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(ctx); err != nil {
-			t.Fatalf("expected clean exit on deadline, got %v", err)
-		}
-	})
+	stdout, stderr, err := runStatusWithContext(t, ctx, stubClient(t, asctest.NewRegistry(t)),
+		"status",
+		"--app", "123456789",
+		"--include", "links",
+		"--watch",
+		"--poll-interval", "1h",
+		"--output", "json",
+	)
+	if err != nil {
+		t.Fatalf("expected clean exit on deadline, got %v", err)
+	}
 
 	if !strings.Contains(stdout, `"links"`) {
 		t.Fatalf("expected first snapshot before deadline exit, got %q", stdout)
@@ -281,33 +261,19 @@ func TestStatusWatchRequestTimeoutDuringSnapshotFetchReturnsError(t *testing.T) 
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_TIMEOUT", "1ms")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	client := stubClient(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		<-req.Context().Done()
 		return nil, req.Context().Err()
-	})
+	}))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"status",
-			"--app", "123456789",
-			"--include", "app",
-			"--watch",
-			"--poll-interval", "1ms",
-			"--output", "json",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	stdout, stderr, runErr := runStatusWithContext(t, context.Background(), client,
+		"status",
+		"--app", "123456789",
+		"--include", "app",
+		"--watch",
+		"--poll-interval", "1ms",
+		"--output", "json",
+	)
 
 	if runErr == nil {
 		t.Fatal("expected request timeout error, got nil")
@@ -321,4 +287,18 @@ func TestStatusWatchRequestTimeoutDuringSnapshotFetchReturnsError(t *testing.T) 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
+}
+
+// runStatusWithContext runs args on test deps with client under ctx and
+// returns what was written to the deps' stdout and stderr.
+func runStatusWithContext(t *testing.T, ctx context.Context, client func() (*asc.Client, error), args ...string) (string, string, error) {
+	t.Helper()
+
+	d, stdout, stderr := newTestDeps(t, client)
+	root := rootcmd.RootCommandWithDeps("1.2.3", d)
+	if err := root.Parse(args); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	err := root.Run(ctx)
+	return stdout.String(), stderr.String(), err
 }

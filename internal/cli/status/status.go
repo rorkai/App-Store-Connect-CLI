@@ -6,7 +6,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"os"
 	"slices"
 	"strings"
 	"sync"
@@ -165,9 +164,9 @@ var allowedIncludes = []string{
 
 const maxBetaReviewBuildPrefetches = 5
 
-// StatusCommand returns the root status dashboard command.
-func StatusCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("status", flag.ExitOnError)
+// NewStatusCommand returns the root status dashboard command.
+func NewStatusCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("status", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID, bundle ID, or exact app name (required, or ASC_APP_ID env)")
 	platform := fs.String("platform", "", "Filter release status by platform: IOS, MAC_OS, TV_OS, VISION_OS")
@@ -177,7 +176,7 @@ func StatusCommand() *ffcli.Command {
 	maxPolls := fs.Int("max-polls", 0, "Maximum polls for --watch (0 = unlimited)")
 	until := fs.String("until", "", "Wait until a condition is reached, then exit (implies --watch): "+strings.Join(untilConditions, ", "))
 	timeout := fs.Duration("timeout", 0, "Maximum time to wait for --until (0 = no limit)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "status",
@@ -218,53 +217,53 @@ summary.nextCommands lists runnable asc commands for common states, with a
 reason and whether each command mutates App Store Connect. Read-only mode
 omits mutating commands.`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
 			}
 
 			includes, err := parseInclude(*include)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			if *pollInterval <= 0 {
-				return shared.UsageError("--poll-interval must be greater than 0")
+				return d.UsageError("--poll-interval must be greater than 0")
 			}
 			if *maxPolls < 0 {
-				return shared.UsageError("--max-polls must be greater than or equal to 0")
+				return d.UsageError("--max-polls must be greater than or equal to 0")
 			}
 			if *until != "" {
 				if err := validateUntil(*until, includes); err != nil {
-					return shared.UsageError(err.Error())
+					return d.UsageError(err.Error())
 				}
 			}
 			if *timeout < 0 {
-				return shared.UsageError("--timeout must be greater than or equal to 0")
+				return d.UsageError("--timeout must be greater than or equal to 0")
 			}
 			if *timeout > 0 && *until == "" {
-				return shared.UsageError("--timeout requires --until")
+				return d.UsageError("--timeout requires --until")
 			}
 			watching := *watch || *until != ""
 			if *maxPolls > 0 && !watching {
-				return shared.UsageError("--max-polls requires --watch")
+				return d.UsageError("--max-polls requires --watch")
 			}
 			normalizedPlatform := ""
 			if strings.TrimSpace(*platform) != "" {
 				normalizedPlatform, err = shared.NormalizeAppStoreVersionPlatform(*platform)
 				if err != nil {
-					return shared.UsageError(err.Error())
+					return d.UsageError(err.Error())
 				}
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("status: %w", err)
 			}
 
-			lookupCtx, cancel := shared.ContextWithTimeout(ctx)
+			lookupCtx, cancel := d.Timeout(ctx)
 			resolvedAppID, err = shared.ResolveAppIDWithLookup(lookupCtx, client, resolvedAppID)
 			cancel()
 			if err != nil {
@@ -277,10 +276,10 @@ omits mutating commands.`,
 					ctx, cancelWait = context.WithTimeout(ctx, *timeout)
 					defer cancelWait()
 				}
-				return watchDashboard(ctx, client, resolvedAppID, normalizedPlatform, includes, *output.Output, *output.Pretty, *pollInterval, *maxPolls, *until)
+				return watchDashboard(ctx, d, client, resolvedAppID, normalizedPlatform, includes, *output.Output, *output.Pretty, *pollInterval, *maxPolls, *until)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := collectDashboard(requestCtx, client, resolvedAppID, normalizedPlatform, includes, false)
@@ -288,18 +287,18 @@ omits mutating commands.`,
 				return fmt.Errorf("status: %w", err)
 			}
 
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				resp,
 				*output.Output,
 				*output.Pretty,
-				func() error { renderTable(resp); return nil },
-				func() error { renderMarkdown(resp); return nil },
+				func() error { renderTable(d, resp); return nil },
+				func() error { renderMarkdown(d, resp); return nil },
 			)
 		},
 	}
 }
 
-func watchDashboard(ctx context.Context, client *asc.Client, appID string, platform string, includes includeSet, output string, pretty bool, pollInterval time.Duration, maxPolls int, until string) error {
+func watchDashboard(ctx context.Context, d *shared.Deps, client *asc.Client, appID string, platform string, includes includeSet, output string, pretty bool, pollInterval time.Duration, maxPolls int, until string) error {
 	seen := ""
 	polls := 0
 	var check untilCheck
@@ -307,11 +306,11 @@ func watchDashboard(ctx context.Context, client *asc.Client, appID string, platf
 		if until == "" {
 			return nil
 		}
-		return finishUntil(until, check, polls, output, pretty)
+		return finishUntil(d, until, check, polls, output, pretty)
 	}
 
 	for poll := 1; maxPolls == 0 || poll <= maxPolls; poll++ {
-		requestCtx, cancel := shared.ContextWithTimeout(ctx)
+		requestCtx, cancel := d.Timeout(ctx)
 		resp, err := collectDashboard(requestCtx, client, appID, platform, includes, true)
 		cancel()
 		if err != nil {
@@ -328,7 +327,7 @@ func watchDashboard(ctx context.Context, client *asc.Client, appID string, platf
 		}
 		changed := poll > 1 && current != seen
 		if poll == 1 || changed {
-			if err := printWatchSnapshot(resp, output, pretty, poll > 1); err != nil {
+			if err := printWatchSnapshot(d, resp, output, pretty, poll > 1); err != nil {
 				return err
 			}
 			seen = current
@@ -341,7 +340,7 @@ func watchDashboard(ctx context.Context, client *asc.Client, appID string, platf
 		if maxPolls > 0 && poll >= maxPolls {
 			return finish()
 		}
-		if err := waitForNextPoll(ctx, pollInterval); err != nil {
+		if err := waitForNextPoll(ctx, d, pollInterval); err != nil {
 			if watchContextDone(ctx) {
 				return finish()
 			}
@@ -390,10 +389,10 @@ func normalizeStringSlice(values []string) []string {
 	return append([]string(nil), values...)
 }
 
-func printWatchSnapshot(resp *dashboardResponse, output string, pretty bool, separator bool) error {
+func printWatchSnapshot(d *shared.Deps, resp *dashboardResponse, output string, pretty bool, separator bool) error {
 	format := strings.ToLower(strings.TrimSpace(output))
 	if format == "" {
-		format = shared.DefaultOutputFormat()
+		format = d.DefaultOutputFormat()
 	}
 	switch format {
 	case "json":
@@ -409,39 +408,36 @@ func printWatchSnapshot(resp *dashboardResponse, output string, pretty bool, sep
 		if err != nil {
 			return fmt.Errorf("status: encode watch snapshot: %w", err)
 		}
-		_, err = fmt.Fprintln(os.Stdout, string(data))
+		_, err = fmt.Fprintln(d.IO.Out, string(data))
 		return err
 	case "table":
 		if separator {
-			fmt.Fprintln(os.Stdout)
+			fmt.Fprintln(d.IO.Out)
 		}
-		renderTable(resp)
+		renderTable(d, resp)
 		return nil
 	case "markdown", "md":
 		if separator {
-			fmt.Fprintln(os.Stdout, "\n---")
+			fmt.Fprintln(d.IO.Out, "\n---")
 		}
-		renderMarkdown(resp)
+		renderMarkdown(d, resp)
 		return nil
 	default:
-		return shared.PrintOutputWithRenderers(
+		return d.PrintOutputWithRenderers(
 			resp,
 			output,
 			pretty,
-			func() error { renderTable(resp); return nil },
-			func() error { renderMarkdown(resp); return nil },
+			func() error { renderTable(d, resp); return nil },
+			func() error { renderMarkdown(d, resp); return nil },
 		)
 	}
 }
 
-func waitForNextPoll(ctx context.Context, pollInterval time.Duration) error {
-	timer := time.NewTimer(pollInterval)
-	defer timer.Stop()
-
+func waitForNextPoll(ctx context.Context, d *shared.Deps, pollInterval time.Duration) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
-	case <-timer.C:
+	case <-d.After(pollInterval):
 		return nil
 	}
 }
@@ -1493,17 +1489,15 @@ func phasedReleaseProgressBar(phased *phasedReleaseSection) string {
 	return asc.FormatPhasedReleaseProgressBar(phased.CurrentDayNumber)
 }
 
-func renderTable(resp *dashboardResponse) {
-	renderDashboard(resp, false)
+func renderTable(d *shared.Deps, resp *dashboardResponse) {
+	renderDashboard(d, resp, false)
 }
 
-func renderMarkdown(resp *dashboardResponse) {
-	renderDashboard(resp, true)
+func renderMarkdown(d *shared.Deps, resp *dashboardResponse) {
+	renderDashboard(d, resp, true)
 }
 
-var statusNow = time.Now
-
-func renderDashboard(resp *dashboardResponse, markdown bool) {
+func renderDashboard(d *shared.Deps, resp *dashboardResponse, markdown bool) {
 	summary := resp.Summary
 	if summary.Health == "" {
 		summary = buildStatusSummary(resp)
@@ -1517,14 +1511,14 @@ func renderDashboard(resp *dashboardResponse, markdown bool) {
 	if summary.Platform != "" {
 		summaryRows = append(summaryRows, []string{"platform", summary.Platform})
 	}
-	shared.RenderSection("Summary", []string{"field", "value"}, summaryRows, markdown)
+	d.RenderSection("Summary", []string{"field", "value"}, summaryRows, markdown)
 
 	if len(summary.Blockers) > 0 {
 		attentionRows := make([][]string, 0, len(summary.Blockers))
 		for i, blocker := range summary.Blockers {
 			attentionRows = append(attentionRows, []string{fmt.Sprintf("[x] blocker_%d", i+1), blocker})
 		}
-		shared.RenderSection("Needs Attention", []string{"item", "detail"}, attentionRows, markdown)
+		d.RenderSection("Needs Attention", []string{"item", "detail"}, attentionRows, markdown)
 	}
 
 	if len(summary.NextCommands) > 0 {
@@ -1532,11 +1526,11 @@ func renderDashboard(resp *dashboardResponse, markdown bool) {
 		for _, next := range summary.NextCommands {
 			commandRows = append(commandRows, []string{next.Command, fmt.Sprintf("%t", next.Mutates), next.Reason})
 		}
-		shared.RenderSection("Next Commands", []string{"command", "mutates", "reason"}, commandRows, markdown)
+		d.RenderSection("Next Commands", []string{"command", "mutates", "reason"}, commandRows, markdown)
 	}
 
 	if resp.App != nil {
-		shared.RenderSection("App", []string{"field", "value"}, [][]string{
+		d.RenderSection("App", []string{"field", "value"}, [][]string{
 			{"id", resp.App.ID},
 			{"name", resp.App.Name},
 			{"bundleId", resp.App.BundleID},
@@ -1562,11 +1556,11 @@ func renderDashboard(resp *dashboardResponse, markdown bool) {
 				[]string{"latest.buildNumber", shared.OrNA(resp.Builds.Latest.BuildNumber)},
 				[]string{"latest.processingState", prefixedState(resp.Builds.Latest.ProcessingState)},
 				[]string{"latest.expired", expired},
-				[]string{"latest.uploadedDate", formatDateWithRelative(resp.Builds.Latest.UploadedDate)},
+				[]string{"latest.uploadedDate", formatDateWithRelative(d, resp.Builds.Latest.UploadedDate)},
 				[]string{"latest.platform", shared.OrNA(resp.Builds.Latest.Platform)},
 			)
 		}
-		shared.RenderSection("Builds", []string{"field", "value"}, rows, markdown)
+		d.RenderSection("Builds", []string{"field", "value"}, rows, markdown)
 	}
 
 	if resp.TestFlight != nil {
@@ -1580,7 +1574,7 @@ func renderDashboard(resp *dashboardResponse, markdown bool) {
 				rows,
 				[]string{"betaReviewSubmission.id", shared.OrNA(review.ID)},
 				[]string{"betaReviewSubmission.state", prefixedState(review.State)},
-				[]string{"betaReviewSubmission.submittedDate", formatDateWithRelative(review.SubmittedDate)},
+				[]string{"betaReviewSubmission.submittedDate", formatDateWithRelative(d, review.SubmittedDate)},
 				[]string{"betaReviewSubmission.relationToLatestBuild", shared.OrNA(review.RelationToLatestBuild)},
 			)
 			if review.Build == nil {
@@ -1600,18 +1594,18 @@ func renderDashboard(resp *dashboardResponse, markdown bool) {
 		rows = append(
 			rows,
 			[]string{"betaReviewState", prefixedState(resp.TestFlight.BetaReviewState)},
-			[]string{"submittedDate", formatDateWithRelative(resp.TestFlight.SubmittedDate)},
+			[]string{"submittedDate", formatDateWithRelative(d, resp.TestFlight.SubmittedDate)},
 		)
-		shared.RenderSection("TestFlight", []string{"field", "value"}, rows, markdown)
+		d.RenderSection("TestFlight", []string{"field", "value"}, rows, markdown)
 	}
 
 	if resp.AppStore != nil {
-		shared.RenderSection("App Store", []string{"field", "value"}, [][]string{
+		d.RenderSection("App Store", []string{"field", "value"}, [][]string{
 			{"versionId", shared.OrNA(resp.AppStore.VersionID)},
 			{"version", shared.OrNA(resp.AppStore.Version)},
 			{"state", prefixedState(resp.AppStore.State)},
 			{"platform", shared.OrNA(resp.AppStore.Platform)},
-			{"createdDate", formatDateWithRelative(resp.AppStore.CreatedDate)},
+			{"createdDate", formatDateWithRelative(d, resp.AppStore.CreatedDate)},
 		}, markdown)
 	}
 
@@ -1620,17 +1614,17 @@ func renderDashboard(resp *dashboardResponse, markdown bool) {
 		if resp.Submission.InFlight {
 			inFlight = "[~] true"
 		}
-		shared.RenderSection("Submission", []string{"field", "value"}, [][]string{
+		d.RenderSection("Submission", []string{"field", "value"}, [][]string{
 			{"inFlight", inFlight},
 			{"blockingIssueCount", fmt.Sprintf("%d", len(resp.Submission.BlockingIssues))},
 		}, markdown)
 	}
 
 	if resp.Review != nil {
-		shared.RenderSection("Review", []string{"field", "value"}, [][]string{
+		d.RenderSection("Review", []string{"field", "value"}, [][]string{
 			{"latestSubmissionId", shared.OrNA(resp.Review.LatestSubmissionID)},
 			{"state", prefixedState(resp.Review.State)},
-			{"submittedDate", formatDateWithRelative(resp.Review.SubmittedDate)},
+			{"submittedDate", formatDateWithRelative(d, resp.Review.SubmittedDate)},
 			{"platform", shared.OrNA(resp.Review.Platform)},
 		}, markdown)
 	}
@@ -1640,11 +1634,11 @@ func renderDashboard(resp *dashboardResponse, markdown bool) {
 		if resp.PhasedRelease.Configured {
 			configured = "[+] true"
 		}
-		shared.RenderSection("Phased Release", []string{"field", "value"}, [][]string{
+		d.RenderSection("Phased Release", []string{"field", "value"}, [][]string{
 			{"configured", configured},
 			{"id", shared.OrNA(resp.PhasedRelease.ID)},
 			{"state", prefixedState(resp.PhasedRelease.State)},
-			{"startDate", formatDateWithRelative(resp.PhasedRelease.StartDate)},
+			{"startDate", formatDateWithRelative(d, resp.PhasedRelease.StartDate)},
 			{"currentDayNumber", fmt.Sprintf("%d", resp.PhasedRelease.CurrentDayNumber)},
 			{"totalPauseDuration", fmt.Sprintf("%d", resp.PhasedRelease.TotalPauseDuration)},
 			{"progress", phasedReleaseProgressBar(resp.PhasedRelease)},
@@ -1652,7 +1646,7 @@ func renderDashboard(resp *dashboardResponse, markdown bool) {
 	}
 
 	if resp.Links != nil {
-		shared.RenderSection("Links", []string{"field", "value"}, [][]string{
+		d.RenderSection("Links", []string{"field", "value"}, [][]string{
 			{"appStoreConnect", shared.OrNA(resp.Links.AppStoreConnect)},
 			{"testFlight", shared.OrNA(resp.Links.TestFlight)},
 			{"review", shared.OrNA(resp.Links.Review)},
@@ -1735,14 +1729,14 @@ func stateSymbol(value string) string {
 	return "[-]"
 }
 
-func formatDateWithRelative(value string) string {
+func formatDateWithRelative(d *shared.Deps, value string) string {
 	trimmed := strings.TrimSpace(value)
 	if trimmed == "" {
 		return "n/a"
 	}
 
 	if parsed, ok := parseRelativeDate(trimmed); ok {
-		return fmt.Sprintf("%s (%s)", trimmed, relativeTimeText(parsed, statusNow().UTC()))
+		return fmt.Sprintf("%s (%s)", trimmed, relativeTimeText(parsed, d.Now().UTC()))
 	}
 
 	return trimmed
