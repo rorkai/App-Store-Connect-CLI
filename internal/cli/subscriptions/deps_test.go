@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -41,6 +42,31 @@ func TestSubscriptionsBuilderCommandsWriteUsageErrorsToDepsStderr(t *testing.T) 
 			}
 			if got := stderr.String(); !strings.HasPrefix(got, test.wantStderr) {
 				t.Fatalf("deps stderr = %q, want it to start with %q", got, test.wantStderr)
+			}
+		})
+	}
+}
+
+func TestSubscriptionsStableSelectorWithoutAppWritesToDepsStderr(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "")
+	for _, args := range [][]string{
+		{"versions", "list", "--subscription-id", "com.example.pro"},
+		{"versions", "create", "--subscription-id", "com.example.pro"},
+	} {
+		t.Run(strings.Join(args, " "), func(t *testing.T) {
+			d, stderr := newSubscriptionsTestDeps()
+			d.Client = func() (*asc.Client, error) { return nil, nil }
+			d.Timeout = shared.ContextWithTimeout
+			root := NewSubscriptionsCommand(d)
+			if err := root.Parse(args); err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
+			if err := root.Run(context.Background()); !errors.Is(err, flag.ErrHelp) {
+				t.Fatalf("expected flag.ErrHelp, got %v", err)
+			}
+			want := "Error: --app is required (or set ASC_APP_ID) when --subscription-id is a product ID or name\n"
+			if got := stderr.String(); !strings.HasPrefix(got, want) {
+				t.Fatalf("deps stderr = %q, want it to start with %q", got, want)
 			}
 		})
 	}
