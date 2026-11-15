@@ -303,9 +303,9 @@ func newTestFlightTestersCommand(d *shared.Deps) *ffcli.Command {
 	return cmd
 }
 
-func TestFlightAgreementsCommand() *ffcli.Command {
+func newTestFlightAgreementsCommand(d *shared.Deps) *ffcli.Command {
 	cmd := rewriteCommandTree(
-		BetaLicenseAgreementsCommand(),
+		newBetaLicenseAgreementsCommand(d),
 		"asc testflight beta-license-agreements",
 		"asc testflight agreements",
 		map[string]string{
@@ -349,9 +349,9 @@ Examples:
 	return cmd
 }
 
-func TestFlightNotificationsCommand() *ffcli.Command {
+func newTestFlightNotificationsCommand(d *shared.Deps) *ffcli.Command {
 	cmd := rewriteCommandTree(
-		BetaNotificationsCommand(),
+		newBetaNotificationsCommand(d),
 		"asc testflight beta-notifications",
 		"asc testflight notifications",
 		map[string]string{
@@ -371,9 +371,9 @@ func TestFlightNotificationsCommand() *ffcli.Command {
 	return cmd
 }
 
-func TestFlightConfigCommand() *ffcli.Command {
+func newTestFlightConfigCommand(d *shared.Deps) *ffcli.Command {
 	cmd := rewriteCommandTree(
-		TestFlightSyncCommand(),
+		newTestFlightSyncCommand(d),
 		"asc testflight sync",
 		"asc testflight config",
 		map[string]string{
@@ -393,9 +393,9 @@ func TestFlightConfigCommand() *ffcli.Command {
 	return cmd
 }
 
-func TestFlightReviewSurfaceCommand() *ffcli.Command {
+func newTestFlightReviewSurfaceCommand(d *shared.Deps) *ffcli.Command {
 	cmd := rewriteCommandTree(
-		TestFlightReviewCommand(),
+		newTestFlightReviewCommand(d),
 		"asc testflight review",
 		"asc testflight review",
 		map[string]string{
@@ -437,9 +437,9 @@ Examples:
 	return cmd
 }
 
-func TestFlightDistributionCommand() *ffcli.Command {
+func newTestFlightDistributionCommand(d *shared.Deps) *ffcli.Command {
 	cmd := rewriteCommandTree(
-		TestFlightBetaDetailsCommand(),
+		newTestFlightBetaDetailsCommand(d),
 		"asc testflight beta-details",
 		"asc testflight distribution",
 		map[string]string{
@@ -473,8 +473,8 @@ Examples:
 	return cmd
 }
 
-func TestFlightMetricsSurfaceCommand() *ffcli.Command {
-	cmd := TestFlightMetricsCommand()
+func newTestFlightMetricsSurfaceCommand(d *shared.Deps) *ffcli.Command {
+	cmd := newTestFlightMetricsCommand(d)
 	cmd.LongHelp = `Fetch TestFlight metrics.
 
 Examples:
@@ -483,16 +483,16 @@ Examples:
   asc testflight metrics app-testers --app "APP_ID"`
 	cmd.UsageFunc = shared.DefaultUsageFunc
 	cmd.Subcommands = []*ffcli.Command{
-		TestFlightMetricsPublicLinkCommand(),
-		TestFlightMetricsGroupTestersCommand(),
-		TestFlightMetricsAppTestersCommand(),
+		newTestFlightMetricsPublicLinkCommand(d),
+		newTestFlightMetricsGroupTestersCommand(d),
+		newTestFlightMetricsAppTestersCommand(d),
 	}
 	return cmd
 }
 
-func TestFlightAppLocalizationsCommand() *ffcli.Command {
+func newTestFlightAppLocalizationsCommand(d *shared.Deps) *ffcli.Command {
 	cmd := rewriteCommandTree(
-		betaapplocalizations.BetaAppLocalizationsCommand(),
+		betaapplocalizations.NewBetaAppLocalizationsCommand(d),
 		"asc beta-app-localizations",
 		"asc testflight app-localizations",
 		map[string]string{
@@ -526,9 +526,9 @@ Examples:
 	return cmd
 }
 
-func TestFlightPreReleaseCommand() *ffcli.Command {
+func newTestFlightPreReleaseCommand(d *shared.Deps) *ffcli.Command {
 	cmd := rewriteCommandTree(
-		prerelease.PreReleaseVersionsCommand(),
+		prerelease.NewPreReleaseVersionsCommand(d),
 		"asc pre-release-versions",
 		"asc testflight pre-release",
 		map[string]string{

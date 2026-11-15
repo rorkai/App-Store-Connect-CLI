@@ -21,6 +21,7 @@ func TestAppScopedCommandsResolveAppByBundleID(t *testing.T) {
 		appID      string
 		requests   []lookupRequest
 		wantStdout string
+		deps       bool // the command is built on shared.Deps: run it on test deps
 	}{
 		{
 			name:     "builds list",
@@ -60,12 +61,12 @@ func TestAppScopedCommandsResolveAppByBundleID(t *testing.T) {
 				body:    `{"data":[{"type":"betaFeedbackCrashSubmissions","id":"crash-1"}]}`,
 			}},
 			wantStdout: `"id":"crash-1"`,
+			deps:       true,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			setupAuth(t)
 			t.Setenv("ASC_APP_ID", "")
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
@@ -74,12 +75,19 @@ func TestAppScopedCommandsResolveAppByBundleID(t *testing.T) {
 				body:    `{"data":[{"type":"apps","id":"` + test.appID + `"}]}`,
 			}}, test.requests...)
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			for _, request := range requests {
 				reg.Register(request.matcher, asctest.JSON(http.StatusOK, request.body))
 			}
 
-			stdout, stderr, err := runCommand(t, test.args)
+			run := func(t *testing.T, args []string) (string, string, error) {
+				return runRootWithDeps(t, stubClient(t, reg), args...)
+			}
+			if !test.deps {
+				setupAuth(t)
+				reg.Install()
+				run = runCommand
+			}
+			stdout, stderr, err := run(t, test.args)
 			if err != nil {
 				t.Fatalf("run error: %v", err)
 			}

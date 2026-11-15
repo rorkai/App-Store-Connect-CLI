@@ -36,7 +36,7 @@ func TestTestFlightMetricsAppTestersValidationErrors(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			assertUsageExit(t, test.args, test.wantErr)
+			assertUsageExitWithDeps(t, nil, test.args, test.wantErr)
 		})
 	}
 }
@@ -54,11 +54,10 @@ func TestTestFlightMetricsAppTestersNextWithoutApp(t *testing.T) {
 	nextURL := "https://api.appstoreconnect.apple.com/v1/apps/app-123/metrics/betaTesterUsages?limit=2"
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-123/metrics/betaTesterUsages", "limit=2"),
 		asctest.JSON(http.StatusOK, `{"data":[{"id":"usage-1"}],"links":{"next":""}}`))
 
-	stdout, stderr, err := runCommand(t, []string{"testflight", "metrics", "app-testers", "--next", nextURL})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "testflight", "metrics", "app-testers", "--next", nextURL)
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -85,13 +84,12 @@ func TestTestFlightMetricsAppTestersPaginate(t *testing.T) {
 	secondURL := "https://api.appstoreconnect.apple.com/v1/apps/app-123/metrics/betaTesterUsages?page=2"
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-123/metrics/betaTesterUsages", "limit=2"),
 		asctest.JSON(http.StatusOK, `{"data":[{"id":"usage-1"}],"links":{"next":"`+secondURL+`"}}`))
 	reg.Register(asctest.GET("/v1/apps/app-123/metrics/betaTesterUsages", "page=2"),
 		asctest.JSON(http.StatusOK, `{"data":[{"id":"usage-2"}],"links":{"next":""}}`))
 
-	stdout, stderr, err := runCommand(t, []string{"testflight", "metrics", "app-testers", "--paginate", "--next", firstURL})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "testflight", "metrics", "app-testers", "--paginate", "--next", firstURL)
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}

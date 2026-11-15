@@ -11,9 +11,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// BetaNotificationsCommand returns the beta notifications command group.
-func BetaNotificationsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("beta-notifications", flag.ExitOnError)
+// newBetaNotificationsCommand returns the beta notifications command group.
+func newBetaNotificationsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("beta-notifications", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "beta-notifications",
@@ -26,7 +26,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			BetaNotificationsCreateCommand(),
+			newBetaNotificationsCreateCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -34,12 +34,12 @@ Examples:
 	}
 }
 
-// BetaNotificationsCreateCommand sends a beta notification for a build.
-func BetaNotificationsCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
+// newBetaNotificationsCreateCommand sends a beta notification for a build.
+func newBetaNotificationsCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("create", flag.ExitOnError)
 
 	buildID := shared.BindResourceIDFlag(fs, "build-id", "builds", "Build ID")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -54,15 +54,15 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedBuildID := strings.TrimSpace(*buildID)
 			if trimmedBuildID == "" {
-				return shared.RequiredFlag("--build-id")
+				return d.RequiredFlag("--build-id")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("beta-notifications create: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			detail, err := client.GetBuildBuildBetaDetail(requestCtx, trimmedBuildID)
@@ -70,7 +70,7 @@ Examples:
 				return fmt.Errorf("beta-notifications create: failed to inspect notification state: %w", err)
 			}
 			if detail.Data.Attributes.AutoNotifyEnabled {
-				return shared.PrintOutput(&asc.BuildBetaNotificationResponse{
+				return d.PrintOutput(&asc.BuildBetaNotificationResponse{
 					NotificationAction: asc.BuildBetaGroupsNotificationActionAutoNotifyEnabled,
 				}, *output.Output, *output.Pretty)
 			}
@@ -80,7 +80,7 @@ Examples:
 				return fmt.Errorf("beta-notifications create: failed to send: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

@@ -2,9 +2,7 @@ package cmdtest
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
-	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -30,36 +28,27 @@ const (
 }`
 )
 
-func stubAppTesterUsages(t *testing.T, body string) {
+func stubAppTesterUsages(t *testing.T, body string) *asctest.Registry {
 	t.Helper()
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-123/metrics/betaTesterUsages", "groupBy=betaTesters"),
 		asctest.JSON(http.StatusOK, body))
+	return reg
 }
 
-func runAppTesters(t *testing.T, args ...string) (stdout, stderr string, err error) {
+func runAppTesters(t *testing.T, reg *asctest.Registry, args ...string) (stdout, stderr string, err error) {
 	t.Helper()
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	stdout, stderr = captureOutput(t, func() {
-		if parseErr := root.Parse(args); parseErr != nil {
-			t.Fatalf("parse error: %v", parseErr)
-		}
-		err = root.Run(context.Background())
-	})
-	return stdout, stderr, err
+	return runRootWithDeps(t, stubClient(t, reg), args...)
 }
 
 func TestTestFlightMetricsAppTestersTableRendersRowsForBothDimensionShapes(t *testing.T) {
 	for name, body := range map[string]string{"object form": appTesterMetricsObjectFormBody, "string form": appTesterMetricsStringFormBody} {
 		t.Run(name, func(t *testing.T) {
-			stubAppTesterUsages(t, body)
+			reg := stubAppTesterUsages(t, body)
 
-			stdout, stderr, err := runAppTesters(t, "testflight", "metrics", "app-testers", "--app", "app-123", "--output", "table")
+			stdout, stderr, err := runAppTesters(t, reg, "testflight", "metrics", "app-testers", "--app", "app-123", "--output", "table")
 			if err != nil {
 				t.Fatalf("run error: %v", err)
 			}
@@ -85,9 +74,9 @@ func TestTestFlightMetricsAppTestersJSONMatchesStubForBothDimensionShapes(t *tes
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			stubAppTesterUsages(t, test.body)
+			reg := stubAppTesterUsages(t, test.body)
 
-			stdout, stderr, err := runAppTesters(t, "testflight", "metrics", "app-testers", "--app", "app-123", "--output", "json")
+			stdout, stderr, err := runAppTesters(t, reg, "testflight", "metrics", "app-testers", "--app", "app-123", "--output", "json")
 			if err != nil {
 				t.Fatalf("run error: %v", err)
 			}
@@ -103,9 +92,9 @@ func TestTestFlightMetricsAppTestersJSONMatchesStubForBothDimensionShapes(t *tes
 }
 
 func TestTestFlightMetricsAppTestersObjectFormResolveTesters(t *testing.T) {
-	stubAppTesterUsages(t, appTesterMetricsObjectFormResolveBody)
+	reg := stubAppTesterUsages(t, appTesterMetricsObjectFormResolveBody)
 
-	stdout, stderr, err := runAppTesters(t, "testflight", "metrics", "app-testers", "--app", "app-123", "--resolve-testers")
+	stdout, stderr, err := runAppTesters(t, reg, "testflight", "metrics", "app-testers", "--app", "app-123", "--resolve-testers")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}

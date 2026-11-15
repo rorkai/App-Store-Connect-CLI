@@ -20,11 +20,10 @@ func TestTestFlightMetricsAppTestersSinglePageWarnsOnMorePages(t *testing.T) {
 	t.Setenv("ASC_PRIVATE_KEY_PATH", keyPath)
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-123/metrics/betaTesterUsages", "groupBy=betaTesters"),
 		asctest.JSON(http.StatusOK, `{"data":[{"id":"usage-1"}],"links":{"next":"https://api.appstoreconnect.apple.com/v1/apps/app-123/metrics/betaTesterUsages?page=2"}}`))
 
-	stdout, stderr, err := runCommand(t, []string{"testflight", "metrics", "app-testers", "--app", "app-123"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "testflight", "metrics", "app-testers", "--app", "app-123")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -39,15 +38,13 @@ func TestTestFlightMetricsAppTestersSinglePageWarnsOnMorePages(t *testing.T) {
 }
 
 func TestTestFlightMetricsGroupTestersSinglePageWarnsWithPagingTotal(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/betaGroups/group-1/metrics/betaTesterUsages", "groupBy=betaTesters"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"appsBetaTesterUsages","dataPoints":[{"start":"2026-08-01T00:00:00Z","end":"2026-08-02T00:00:00Z","values":{"sessionCount":12}}],"dimensions":{"betaTesters":{"data":{"type":"betaTesters","id":"tester-1"}}}}],"links":{"next":"https://api.example.test/v1/betaGroups/group-1/metrics/betaTesterUsages?cursor=next"},"meta":{"paging":{"total":7,"limit":1}}}`))
 
-	stdout, stderr, err := runCommand(t, []string{"testflight", "metrics", "group-testers", "--group", "group-1"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "testflight", "metrics", "group-testers", "--group", "group-1")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -74,13 +71,12 @@ func TestTestFlightMetricsResolveTestersMergesIncludedAcrossPages(t *testing.T) 
 	secondURL := "https://api.appstoreconnect.apple.com/v1/apps/app-123/metrics/betaTesterUsages?page=2"
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-123/metrics/betaTesterUsages", "groupBy=betaTesters", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"dataPoints":[{"start":"2026-05-20","end":"2026-08-18","values":{"sessionCount":3}}],"dimensions":{"betaTesters":{"data":"tester-1"}}}],"included":[{"type":"betaTesters","id":"tester-1","attributes":{"firstName":"Ada","lastName":"Lovelace","email":"ada@example.com","state":"INSTALLED"}}],"links":{"next":"`+secondURL+`"}}`))
 	reg.Register(asctest.GET("/v1/apps/app-123/metrics/betaTesterUsages", "page=2"),
 		asctest.JSON(http.StatusOK, `{"data":[{"dataPoints":[{"start":"2026-05-20","end":"2026-08-18","values":{"sessionCount":9}}],"dimensions":{"betaTesters":{"data":"tester-2"}}}],"included":[{"type":"betaTesters","id":"tester-2","attributes":{"firstName":"Grace","lastName":"Hopper","email":"grace@example.com","state":"INVITED"}}],"links":{"next":""}}`))
 
-	stdout, _, err := runCommand(t, []string{"testflight", "metrics", "app-testers", "--app", "app-123", "--paginate", "--resolve-testers"})
+	stdout, _, err := runRootWithDeps(t, stubClient(t, reg), "testflight", "metrics", "app-testers", "--app", "app-123", "--paginate", "--resolve-testers")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}

@@ -1,9 +1,7 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
-	"io"
 	"net/http"
 	"path/filepath"
 	"reflect"
@@ -68,15 +66,13 @@ const publicLinkMetricsFixture = `{
 
 func runPublicLinkMetrics(t *testing.T, extraArgs ...string) string {
 	t.Helper()
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/betaGroups/group-1/metrics/publicLinkUsages"),
 		asctest.JSON(http.StatusOK, publicLinkMetricsFixture))
 
-	stdout, stderr, err := runCommand(t, append([]string{"testflight", "metrics", "public-link", "--group", "group-1"}, extraArgs...))
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), append([]string{"testflight", "metrics", "public-link", "--group", "group-1"}, extraArgs...)...)
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -117,15 +113,13 @@ func TestTestFlightMetricsPublicLinkTableOutput(t *testing.T) {
 }
 
 func TestTestFlightMetricsTestersOutput(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/betaGroups/group-1/metrics/betaTesterUsages", "groupBy=betaTesters"),
 		asctest.JSON(http.StatusOK, groupTesterMetricsFixture))
 
-	stdout, stderr, err := runCommand(t, []string{"testflight", "metrics", "group-testers", "--group", "group-1"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "testflight", "metrics", "group-testers", "--group", "group-1")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -176,15 +170,13 @@ func TestTestFlightMetricsTestersOutput(t *testing.T) {
 }
 
 func TestTestFlightMetricsTestersTableOutput(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/betaGroups/group-1/metrics/betaTesterUsages", "groupBy=betaTesters"),
 		asctest.JSON(http.StatusOK, groupTesterMetricsFixture))
 
-	stdout, stderr, err := runCommand(t, []string{"testflight", "metrics", "group-testers", "--group", "group-1", "--output", "table"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "testflight", "metrics", "group-testers", "--group", "group-1", "--output", "table")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -200,15 +192,13 @@ func TestTestFlightMetricsTestersTableOutput(t *testing.T) {
 }
 
 func TestTestFlightMetricsTestersMarkdownOutput(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/betaGroups/group-1/metrics/betaTesterUsages", "groupBy=betaTesters"),
 		asctest.JSON(http.StatusOK, groupTesterMetricsFixture))
 
-	stdout, stderr, err := runCommand(t, []string{"testflight", "metrics", "group-testers", "--group", "group-1", "--output", "markdown"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "testflight", "metrics", "group-testers", "--group", "group-1", "--output", "markdown")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -224,15 +214,13 @@ func TestTestFlightMetricsTestersMarkdownOutput(t *testing.T) {
 }
 
 func TestTestFlightMetricsTestersEmptyResponse(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/betaGroups/group-1/metrics/betaTesterUsages", "groupBy=betaTesters"),
 		asctest.JSON(http.StatusOK, `{"data":[],"links":{"self":"https://api.example.test/metrics"}}`))
 
-	stdout, stderr, err := runCommand(t, []string{"testflight", "metrics", "group-testers", "--group", "group-1"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "testflight", "metrics", "group-testers", "--group", "group-1")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -251,15 +239,13 @@ func TestTestFlightMetricsTestersEmptyResponse(t *testing.T) {
 }
 
 func TestTestFlightMetricsTestersMalformedResponse(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/betaGroups/group-1/metrics/betaTesterUsages", "groupBy=betaTesters"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"appsBetaTesterUsages","dimensions":{"betaTesters":{"data":42}}}],"links":{"self":"https://api.example.test/metrics"}}`))
 
-	stdout, stderr, runErr := runCommand(t, []string{"testflight", "metrics", "group-testers", "--group", "group-1"})
+	stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), "testflight", "metrics", "group-testers", "--group", "group-1")
 	if runErr == nil {
 		t.Fatal("expected malformed response error")
 	}
@@ -272,15 +258,13 @@ func TestTestFlightMetricsTestersMalformedResponse(t *testing.T) {
 }
 
 func TestTestFlightMetricsPublicLinkReturnsFetchFailure(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/betaGroups/group-1/metrics/publicLinkUsages"),
 		asctest.JSON(http.StatusInternalServerError, `{"errors":[{"status":"500","title":"Server Error","detail":"metrics unavailable"}]}`))
 
-	stdout, _, runErr := runCommand(t, []string{"testflight", "metrics", "public-link", "--group", "group-1"})
+	stdout, _, runErr := runRootWithDeps(t, stubClient(t, reg), "testflight", "metrics", "public-link", "--group", "group-1")
 
 	if runErr == nil {
 		t.Fatal("expected error, got nil")
@@ -294,7 +278,6 @@ func TestTestFlightMetricsPublicLinkReturnsFetchFailure(t *testing.T) {
 }
 
 func TestTestFlightMetricsAppTestersPaginateRejectsRepeatedNextURL(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
@@ -302,7 +285,6 @@ func TestTestFlightMetricsAppTestersPaginateRejectsRepeatedNextURL(t *testing.T)
 	const repeatedNextURL = "https://api.appstoreconnect.apple.com/v1/apps/app-1/metrics/betaTesterUsages?cursor=AQ"
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-1/metrics/betaTesterUsages", "limit=2"),
 		asctest.JSON(http.StatusOK, `{
 				"data":[{"id":"usage-1"}],
@@ -314,11 +296,11 @@ func TestTestFlightMetricsAppTestersPaginateRejectsRepeatedNextURL(t *testing.T)
 				"links":{"next":"`+repeatedNextURL+`"}
 			}`))
 
-	stdout, _, runErr := runCommand(t, []string{
+	stdout, _, runErr := runRootWithDeps(t, stubClient(t, reg),
 		"testflight", "metrics", "app-testers",
 		"--paginate",
 		"--next", firstURL,
-	})
+	)
 
 	if runErr == nil {
 		t.Fatal("expected error, got nil")
@@ -335,10 +317,9 @@ func TestTestFlightMetricsAppTestersPaginateRejectsRepeatedNextURL(t *testing.T)
 }
 
 func TestTestFlightMetricsPublicLinkOutputErrors(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	asctest.NewRegistry(t).Install()
+	reg := asctest.NewRegistry(t)
 
 	tests := []struct {
 		name    string
@@ -359,16 +340,7 @@ func TestTestFlightMetricsPublicLinkOutputErrors(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			var runErr error
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				runErr = root.Run(context.Background())
-			})
+			stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), test.args...)
 
 			if !isUsageClassError(runErr) {
 				t.Fatalf("expected usage-class error, got %v", runErr)

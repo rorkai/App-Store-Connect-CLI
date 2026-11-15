@@ -80,7 +80,7 @@ func TestReparentedCommandUsageErrorsNameTheTypedPath(t *testing.T) {
 	}{
 		{path: []string{"review", "submissions"}, deps: true},
 		{path: []string{"subscriptions"}},
-		{path: []string{"testflight"}},
+		{path: []string{"testflight"}, deps: true},
 	} {
 		walk(findCommand(root, tree.path...), tree.path, tree.deps)
 	}

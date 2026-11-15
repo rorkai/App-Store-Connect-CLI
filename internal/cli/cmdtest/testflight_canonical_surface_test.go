@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"flag"
-	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -76,6 +75,7 @@ func TestTestFlightHelpSurface(t *testing.T) {
 		{
 			name:      "review help shows canonical verbs",
 			args:      []string{"testflight", "review"},
+			deps:      true,
 			wantShown: []string{"asc testflight review <subcommand> [flags]", "view", "edit", "submit", "submissions"},
 			wantNotShown: []string{
 				"asc testflight beta-details <subcommand> [flags]",
@@ -125,60 +125,70 @@ func TestTestFlightHelpSurface(t *testing.T) {
 		{
 			name:         "beta agreements alias removed",
 			args:         []string{"testflight", "agreements"},
+			deps:         true,
 			wantShown:    []string{"asc testflight agreements <subcommand> [flags]", "edit"},
 			wantNotShown: []string{"asc testflight beta-license-agreements <subcommand> [flags]"},
 		},
 		{
 			name:         "beta notifications alias removed",
 			args:         []string{"testflight", "notifications"},
+			deps:         true,
 			wantShown:    []string{"asc testflight notifications <subcommand> [flags]", "send"},
 			wantNotShown: []string{"asc testflight beta-notifications <subcommand> [flags]"},
 		},
 		{
 			name:         "app localizations help shows canonical surface",
 			args:         []string{"testflight", "app-localizations"},
+			deps:         true,
 			wantShown:    []string{"asc testflight app-localizations <subcommand> [flags]", "list", "view", "app", "create", "update", "delete"},
 			wantNotShown: []string{"beta-app-localizations"},
 		},
 		{
 			name:         "beta app localizations leaf removed",
 			args:         []string{"testflight", "app-localizations", "get"},
+			deps:         true,
 			wantShown:    []string{"asc testflight app-localizations <subcommand> [flags]", "view"},
 			wantNotShown: []string{"asc beta-app-localizations get --id \"LOCALIZATION_ID\""},
 		},
 		{
 			name:         "pre-release help shows canonical verbs",
 			args:         []string{"testflight", "pre-release"},
+			deps:         true,
 			wantShown:    []string{"list", "view", "app", "builds", "links"},
 			wantNotShown: []string{"relationships"},
 		},
 		{
 			name:         "pre-release relationships alias removed",
 			args:         []string{"testflight", "pre-release", "links"},
+			deps:         true,
 			wantShown:    []string{"asc testflight pre-release links <subcommand> [flags]", "view"},
 			wantNotShown: []string{"asc testflight pre-release relationships <subcommand> [flags]"},
 		},
 		{
 			name:         "sync alias removed",
 			args:         []string{"testflight", "sync"},
+			deps:         true,
 			wantShown:    []string{"asc testflight <subcommand> [flags]", "config"},
 			wantNotShown: []string{"asc testflight sync <subcommand> [flags]"},
 		},
 		{
 			name:         "metrics help shows canonical scopes",
 			args:         []string{"testflight", "metrics"},
+			deps:         true,
 			wantShown:    []string{"public-link", "group-testers", "app-testers"},
 			wantNotShown: []string{"\nbeta-tester-usages", "\n  testers "},
 		},
 		{
 			name:         "metrics beta tester usages alias removed",
 			args:         []string{"testflight", "metrics", "beta-tester-usages"},
+			deps:         true,
 			wantShown:    []string{"asc testflight metrics <subcommand> [flags]", "app-testers"},
 			wantNotShown: []string{"asc testflight metrics beta-tester-usages --app \"APP_ID\" [flags]"},
 		},
 		{
 			name:      "beta feedback alias removed",
 			args:      []string{"testflight", "beta-feedback"},
+			deps:      true,
 			wantShown: []string{"asc testflight <subcommand> [flags]", "feedback"},
 			wantNotShown: []string{
 				"crash-submissions",
@@ -190,6 +200,7 @@ func TestTestFlightHelpSurface(t *testing.T) {
 		{
 			name:         "beta crash logs alias removed",
 			args:         []string{"testflight", "beta-crash-logs"},
+			deps:         true,
 			wantShown:    []string{"asc testflight <subcommand> [flags]", "crashes"},
 			wantNotShown: []string{"asc testflight beta-crash-logs <subcommand> [flags]"},
 		},
@@ -283,16 +294,8 @@ func TestCanonicalTestFlightValidationPaths(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			t.Setenv("ASC_APP_ID", "")
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
 
-			var runErr error
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				runErr = root.Run(context.Background())
-			})
+			stdout, stderr, runErr := runRootWithDeps(t, nil, test.args...)
 
 			if !errors.Is(runErr, flag.ErrHelp) {
 				t.Fatalf("expected ErrHelp, got %v", runErr)
@@ -426,16 +429,7 @@ func TestTestFlightCrashesLogRequiresExactlyOneLookupFlag(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			var runErr error
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				runErr = root.Run(context.Background())
-			})
+			stdout, stderr, runErr := runRootWithDeps(t, nil, test.args...)
 
 			if !errors.Is(runErr, flag.ErrHelp) {
 				t.Fatalf("expected ErrHelp, got %v", runErr)

@@ -378,11 +378,13 @@ func TestUpdateWithoutUpdateFlagsListsEveryUpdateFlag(t *testing.T) {
 		{
 			name:  "testflight app-localizations update",
 			args:  []string{"testflight", "app-localizations", "update", "--id", "ID"},
+			deps:  true,
 			flags: "--description, --feedback-email, --marketing-url, --privacy-policy-url, --tv-os-privacy-policy",
 		},
 		{
 			name:  "testflight distribution edit",
 			args:  []string{"testflight", "distribution", "edit", "--id", "ID"},
+			deps:  true,
 			flags: "--auto-notify",
 		},
 		{
@@ -394,6 +396,7 @@ func TestUpdateWithoutUpdateFlagsListsEveryUpdateFlag(t *testing.T) {
 		{
 			name:  "testflight review edit",
 			args:  []string{"testflight", "review", "edit", "--id", "ID"},
+			deps:  true,
 			flags: "--contact-first-name, --contact-last-name, --contact-email, --contact-phone, --demo-account-name, --demo-account-password, --demo-account-required, --notes",
 		},
 		{

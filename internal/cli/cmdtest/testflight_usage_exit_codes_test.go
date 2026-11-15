@@ -22,7 +22,6 @@ func TestTestFlightInputValidationReturnsUsageExitCode(t *testing.T) {
 		name    string
 		args    []string
 		wantErr string
-		deps    bool // the command is built on shared.Deps: run it on test deps
 	}{
 		{
 			name:    "app-localizations list app 123 limit 201",
@@ -42,97 +41,81 @@ func TestTestFlightInputValidationReturnsUsageExitCode(t *testing.T) {
 		{
 			name:    "groups list limit 201",
 			args:    []string{"testflight", "groups", "list", "--limit", "201"},
-			deps:    true,
 			wantErr: "testflight groups list: --limit must be between 1 and 200",
 		},
 		{
 			name:    "groups list next non apple url",
 			args:    []string{"testflight", "groups", "list", "--next", "http://example.com/x"},
-			deps:    true,
 			wantErr: "testflight groups list: --next must be an App Store Connect URL",
 		},
 		{
 			name:    "groups links view group-id g type betaTesters limit 201",
 			args:    []string{"testflight", "groups", "links", "view", "--group-id", "g", "--type", "betaTesters", "--limit", "201"},
-			deps:    true,
 			wantErr: "testflight groups links view: --limit must be between 1 and 200",
 		},
 		{
 			name:    "groups links view group-id g type betaTesters next non apple url",
 			args:    []string{"testflight", "groups", "links", "view", "--group-id", "g", "--type", "betaTesters", "--next", "http://example.com/x"},
-			deps:    true,
 			wantErr: "testflight groups links view: --next must be an App Store Connect URL",
 		},
 		{
 			name:    "testers list limit 201",
 			args:    []string{"testflight", "testers", "list", "--limit", "201"},
-			deps:    true,
 			wantErr: "testflight testers list: --limit must be between 1 and 200",
 		},
 		{
 			name:    "testers list next non apple url",
 			args:    []string{"testflight", "testers", "list", "--next", "http://example.com/x"},
-			deps:    true,
 			wantErr: "testflight testers list: --next must be an App Store Connect URL",
 		},
 		{
 			name:    "testers links view tester-id t type apps limit 201",
 			args:    []string{"testflight", "testers", "links", "view", "--tester-id", "t", "--type", "apps", "--limit", "201"},
-			deps:    true,
 			wantErr: "testflight testers links view: --limit must be between 1 and 200",
 		},
 		{
 			name:    "testers links view tester-id t type apps next non apple url",
 			args:    []string{"testflight", "testers", "links", "view", "--tester-id", "t", "--type", "apps", "--next", "http://example.com/x"},
-			deps:    true,
 			wantErr: "testflight testers links view: --next must be an App Store Connect URL",
 		},
 		{
 			name:    "testers apps list tester-id t limit 201",
 			args:    []string{"testflight", "testers", "apps", "list", "--tester-id", "t", "--limit", "201"},
-			deps:    true,
 			wantErr: "testflight testers apps list: --limit must be between 1 and 200",
 		},
 		{
 			name:    "testers apps list tester-id t next non apple url",
 			args:    []string{"testflight", "testers", "apps", "list", "--tester-id", "t", "--next", "http://example.com/x"},
-			deps:    true,
 			wantErr: "testflight testers apps list: --next must be an App Store Connect URL",
 		},
 		{
 			name:    "testers groups list tester-id t limit 201",
 			args:    []string{"testflight", "testers", "groups", "list", "--tester-id", "t", "--limit", "201"},
-			deps:    true,
 			wantErr: "testflight testers groups list: --limit must be between 1 and 200",
 		},
 		{
 			name:    "testers groups list tester-id t next non apple url",
 			args:    []string{"testflight", "testers", "groups", "list", "--tester-id", "t", "--next", "http://example.com/x"},
-			deps:    true,
 			wantErr: "testflight testers groups list: --next must be an App Store Connect URL",
 		},
 		{
 			name:    "testers builds list tester-id t limit 201",
 			args:    []string{"testflight", "testers", "builds", "list", "--tester-id", "t", "--limit", "201"},
-			deps:    true,
 			wantErr: "testflight testers builds list: --limit must be between 1 and 200",
 		},
 		{
 			name:    "testers builds list tester-id t next non apple url",
 			args:    []string{"testflight", "testers", "builds", "list", "--tester-id", "t", "--next", "http://example.com/x"},
-			deps:    true,
 			wantErr: "testflight testers builds list: --next must be an App Store Connect URL",
 		},
 		{
 			name:    "testers metrics tester-id t app 123 next non apple url",
 			args:    []string{"testflight", "testers", "metrics", "--tester-id", "t", "--app", "123", "--next", "http://example.com/x"},
-			deps:    true,
 			wantErr: "testflight testers metrics: --next must be an App Store Connect URL",
 		},
 		{
 			name:    "testers metrics tester-id t app 123 period BAD",
 			args:    []string{"testflight", "testers", "metrics", "--tester-id", "t", "--app", "123", "--period", "BAD"},
-			deps:    true,
 			wantErr: "--period must be one of: P7D, P30D, P90D, P365D",
 		},
 		{
@@ -248,7 +231,6 @@ func TestTestFlightInputValidationReturnsUsageExitCode(t *testing.T) {
 		{
 			name:    "testers export output given a format",
 			args:    []string{"testflight", "testers", "export", "--output", "json"},
-			deps:    true,
 			wantErr: "--output takes a path in this command, not an output format; use --format json to choose the format, or --output ./json to write to a path named json",
 		},
 		{
@@ -260,13 +242,7 @@ func TestTestFlightInputValidationReturnsUsageExitCode(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			run := runCommand
-			if test.deps {
-				run = func(t *testing.T, args []string) (string, string, error) {
-					return runRootWithDeps(t, nil, args...)
-				}
-			}
-			stdout, stderr, runErr := run(t, test.args)
+			stdout, stderr, runErr := runRootWithDeps(t, nil, test.args...)
 
 			if runErr == nil {
 				t.Fatal("expected error, got nil")

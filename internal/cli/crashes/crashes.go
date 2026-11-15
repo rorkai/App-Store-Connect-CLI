@@ -50,15 +50,9 @@ func bindListCommandFlags(d *shared.Deps, fs *flag.FlagSet) listCommandFlags {
 	}
 }
 
-// NewListCommand builds a crashes list command with configurable help and warnings
-// on the process dependencies.
-func NewListCommand(config shared.ListCommandConfig) *ffcli.Command {
-	return NewListCommandWith(shared.DefaultDeps(), config)
-}
-
-// NewListCommandWith builds a crashes list command with configurable help and
+// NewListCommand builds a crashes list command with configurable help and
 // warnings on d.
-func NewListCommandWith(d *shared.Deps, config shared.ListCommandConfig) *ffcli.Command {
+func NewListCommand(d *shared.Deps, config shared.ListCommandConfig) *ffcli.Command {
 	name := strings.TrimSpace(config.Name)
 	if name == "" {
 		name = "crashes"

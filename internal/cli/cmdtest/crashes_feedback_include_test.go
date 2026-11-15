@@ -66,16 +66,14 @@ func TestBetaFeedbackListIncludeBuildSendsBuildRelationship(t *testing.T) {
 		{command: "feedback", resource: "betaFeedbackScreenshotSubmissions"},
 	} {
 		t.Run(tc.command, func(t *testing.T) {
-			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			reg.Register(asctest.GET("/v1/apps/123/"+tc.resource, "include=build", "fields[builds]=version,preReleaseVersion"),
 				asctest.JSON(http.StatusOK, `{"data":[{"type":"`+tc.resource+`","id":"submission-1"}],`+
 					`"included":[{"type":"builds","id":"b1","attributes":{"version":"532621"}}]}`))
 
-			stdout, stderr, err := runCommand(t, []string{"testflight", tc.command, "list", "--app", "123", "--include", "build", "--output", "json"})
+			stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "testflight", tc.command, "list", "--app", "123", "--include", "build", "--output", "json")
 			if err != nil {
 				t.Fatalf("run error: %v", err)
 			}
@@ -97,12 +95,11 @@ func TestBetaFeedbackListIncludeBuildSendsBuildRelationship(t *testing.T) {
 func TestBetaFeedbackListInvalidIncludeReturnsUsageError(t *testing.T) {
 	for _, command := range []string{"crashes", "feedback"} {
 		t.Run(command, func(t *testing.T) {
-			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-			asctest.NewRegistry(t).Install()
+			reg := asctest.NewRegistry(t)
 
-			stdout, stderr, runErr := runCommand(t, []string{"testflight", command, "list", "--app", "123", "--include", "bogus"})
+			stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), "testflight", command, "list", "--app", "123", "--include", "bogus")
 
 			if rootcmd.ExitCodeFromError(runErr) != rootcmd.ExitUsage {
 				t.Fatalf("exit code = %d, want %d (err=%v)", rootcmd.ExitCodeFromError(runErr), rootcmd.ExitUsage, runErr)
@@ -121,7 +118,6 @@ func TestBetaFeedbackListInvalidIncludeReturnsUsageError(t *testing.T) {
 }
 
 func TestFeedbackListIncludeScreenshotsPreservesAllFeedbackFields(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
@@ -148,12 +144,8 @@ func TestFeedbackListIncludeScreenshotsPreservesAllFeedbackFields(t *testing.T) 
 		_, _ = io.WriteString(w, `{"data":[{"type":"betaFeedbackScreenshotSubmissions","id":"fb-1","attributes":{"createdDate":"2026-01-20T00:00:00Z","comment":"Nice","email":"tester@example.com","deviceModel":"iPhone17,1","osVersion":"18.0","locale":"en-US","timeZone":"America/Los_Angeles","architecture":"arm64","connectionType":"WIFI","pairedAppleWatch":"Watch7,1","appUptimeInMilliseconds":1234,"diskBytesAvailable":2000,"diskBytesTotal":4000,"batteryPercentage":85,"screenWidthInPoints":430,"screenHeightInPoints":932,"appPlatform":"IOS","devicePlatform":"IOS","deviceFamily":"IPHONE","buildBundleId":"com.example.app","screenshots":[{"url":"https://example.com/shot.png","width":320,"height":640,"expirationDate":"2026-01-21T00:00:00Z"}]},"relationships":{"build":{"data":{"type":"builds","id":"build-1"}},"tester":{"data":{"type":"betaTesters","id":"tester-1"}}}}]}`)
 	}))
 	t.Cleanup(server.Close)
-	installDefaultTransportForServer(t, server)
 
-	var exitCode int
-	stdout, stderr := captureOutput(t, func() {
-		exitCode = rootcmd.Run([]string{"testflight", "feedback", "list", "--app", "123", "--include-screenshots", "--output", "json"}, "1.2.3")
-	})
+	stdout, stderr, exitCode := runWithDeps(t, stubServerClient(t, server), "testflight", "feedback", "list", "--app", "123", "--include-screenshots", "--output", "json")
 
 	if exitCode != rootcmd.ExitSuccess {
 		t.Fatalf("exit code = %d, want %d; stderr: %s", exitCode, rootcmd.ExitSuccess, stderr)
@@ -228,7 +220,6 @@ func TestFeedbackListIncludeScreenshotsPreservesAllFeedbackFields(t *testing.T) 
 }
 
 func TestFeedbackListIncludeScreenshotsWithIncludedRelationships(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
@@ -255,12 +246,8 @@ func TestFeedbackListIncludeScreenshotsWithIncludedRelationships(t *testing.T) {
 		_, _ = io.WriteString(w, `{"data":[{"type":"betaFeedbackScreenshotSubmissions","id":"fb-1","attributes":{"screenshots":[{"url":"https://example.com/shot.png","width":320,"height":640,"expirationDate":"2026-01-21T00:00:00Z"}]}}],"included":[{"type":"builds","id":"build-1","attributes":{"version":"1.0"}},{"type":"betaTesters","id":"tester-1","attributes":{"email":"tester@example.com"}}]}`)
 	}))
 	t.Cleanup(server.Close)
-	installDefaultTransportForServer(t, server)
 
-	var exitCode int
-	stdout, stderr := captureOutput(t, func() {
-		exitCode = rootcmd.Run([]string{"testflight", "feedback", "list", "--app", "123", "--include-screenshots", "--include", "build,tester", "--output", "json"}, "1.2.3")
-	})
+	stdout, stderr, exitCode := runWithDeps(t, stubServerClient(t, server), "testflight", "feedback", "list", "--app", "123", "--include-screenshots", "--include", "build,tester", "--output", "json")
 
 	if exitCode != rootcmd.ExitSuccess {
 		t.Fatalf("exit code = %d, want %d; stderr: %s", exitCode, rootcmd.ExitSuccess, stderr)

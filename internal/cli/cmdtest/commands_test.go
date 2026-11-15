@@ -1752,7 +1752,11 @@ func TestTestFlightReviewValidationErrors(t *testing.T) {
 		},
 	}
 
-	runValidationTests(t, tests)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assertUsageExitWithDeps(t, nil, test.args, test.wantErr)
+		})
+	}
 }
 
 func TestAgeRatingValidationErrors(t *testing.T) {
@@ -2314,7 +2318,11 @@ func TestTestFlightBetaDetailsValidationErrors(t *testing.T) {
 		},
 	}
 
-	runValidationTests(t, tests)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assertUsageExitWithDeps(t, nil, test.args, test.wantErr)
+		})
+	}
 }
 
 func TestTestFlightRecruitmentValidationErrors(t *testing.T) {
@@ -2345,7 +2353,11 @@ func TestTestFlightRecruitmentValidationErrors(t *testing.T) {
 		},
 	}
 
-	runValidationTests(t, tests)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assertUsageExitWithDeps(t, nil, test.args, test.wantErr)
+		})
+	}
 }
 
 func TestTestFlightMetricsValidationErrors(t *testing.T) {
@@ -2366,7 +2378,11 @@ func TestTestFlightMetricsValidationErrors(t *testing.T) {
 		},
 	}
 
-	runValidationTests(t, tests)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assertUsageExitWithDeps(t, nil, test.args, test.wantErr)
+		})
+	}
 }
 
 func TestTestFlightSyncValidationErrors(t *testing.T) {
@@ -2399,7 +2415,11 @@ func TestTestFlightSyncValidationErrors(t *testing.T) {
 		},
 	}
 
-	runValidationTests(t, tests)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assertUsageExitWithDeps(t, nil, test.args, test.wantErr)
+		})
+	}
 }
 
 func TestLocalizationsValidationErrors(t *testing.T) {
@@ -3496,7 +3516,11 @@ func TestPreReleaseVersionsValidationErrors(t *testing.T) {
 		},
 	}
 
-	runValidationTests(t, tests)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assertUsageExitWithDeps(t, nil, test.args, test.wantErr)
+		})
+	}
 }
 
 func TestAuthValidationErrors(t *testing.T) {
