@@ -340,7 +340,11 @@ func checkScalarOption(label, name string, param contractQueryParam, scalar cont
 			want[name] = contractQueryEncoding(param, c.sent)
 		}
 		if !reflect.DeepEqual(got, want) {
-			problems = append(problems, fmt.Sprintf("%s called with %q sent %v, want %v", label, c.calls, got, want))
+			var calls []string
+			for _, value := range c.calls {
+				calls = append(calls, fmt.Sprintf("%#v", value))
+			}
+			problems = append(problems, fmt.Sprintf("%s called with %s sent %v, want %v", label, strings.Join(calls, " then "), got, want))
 		}
 	}
 	return problems
