@@ -393,7 +393,7 @@ Examples:
 				return shared.RequiredFlag("--leaderboard-ids")
 			}
 
-			if err := validateGameCenterReplacementConfirm(fs, *confirm); err != nil {
+			if err := validateGameCenterReplacementConfirm(shared.DefaultDeps(), fs, *confirm); err != nil {
 				return err
 			}
 

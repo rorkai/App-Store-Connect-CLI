@@ -53,12 +53,11 @@ func TestGameCenterLeaderboardsUpdateSendsOnlyRecurrenceFlagsSet(t *testing.T) {
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			reg.Register(asctest.PATCH(test.patchPath).JSONBody(`{"data":{"type":"gameCenterLeaderboards","id":"LB_ID","attributes":`+test.wantAttrs+`}}`),
 				asctest.JSON(http.StatusOK, `{"data":{"type":"gameCenterLeaderboards","id":"LB_ID","attributes":{}}}`))
 
 			args := append([]string{"game-center", "leaderboards", "update", "--id", "LB_ID"}, test.args...)
-			if _, _, err := runCommand(t, args); err != nil {
+			if _, _, err := runRootWithDeps(t, stubClient(t, reg), args...); err != nil {
 				t.Fatalf("run error: %v", err)
 			}
 
@@ -133,10 +132,9 @@ func TestGameCenterLeaderboardsRecurrenceFlagsRejectBadValuesBeforeRequests(t *t
 			t.Run(command.name+"/"+value.name, func(t *testing.T) {
 				setupAuth(t)
 				t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-				asctest.NewRegistry(t).Install()
 
 				args := append(append([]string{}, command.args...), value.flag, value.value)
-				assertUsageExitCode(t, args, value.wantErr)
+				assertUsageExitCodeWithDeps(t, args, value.wantErr)
 			})
 		}
 	}

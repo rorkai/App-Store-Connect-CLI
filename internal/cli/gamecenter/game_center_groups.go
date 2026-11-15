@@ -264,7 +264,7 @@ Examples:
 			if len(idsValue) == 0 {
 				return shared.RequiredFlag("--ids")
 			}
-			if err := validateGameCenterReplacementConfirm(fs, *confirm); err != nil {
+			if err := validateGameCenterReplacementConfirm(shared.DefaultDeps(), fs, *confirm); err != nil {
 				return err
 			}
 
@@ -383,7 +383,7 @@ Examples:
 			if len(idsValue) == 0 {
 				return shared.RequiredFlag("--ids")
 			}
-			if err := validateGameCenterReplacementConfirm(fs, *confirm); err != nil {
+			if err := validateGameCenterReplacementConfirm(shared.DefaultDeps(), fs, *confirm); err != nil {
 				return err
 			}
 

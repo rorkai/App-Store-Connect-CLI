@@ -136,16 +136,19 @@ func TestUpdateWithoutUpdateFlagsListsEveryUpdateFlag(t *testing.T) {
 			name:  "game-center achievements localizations update",
 			args:  []string{"game-center", "achievements", "localizations", "update", "--id", "ID"},
 			flags: "--name, --before-earned-description, --after-earned-description",
+			deps:  true,
 		},
 		{
 			name:  "game-center achievements update",
 			args:  []string{"game-center", "achievements", "update", "--id", "ID"},
 			flags: "--reference-name, --points, --show-before-earned, --repeatable, --archived, --activity-properties",
+			deps:  true,
 		},
 		{
 			name:  "game-center achievements v2 localizations update",
 			args:  []string{"game-center", "achievements", "v2", "localizations", "update", "--id", "ID"},
 			flags: "--name, --before-earned-description, --after-earned-description",
+			deps:  true,
 		},
 		{
 			name:  "game-center activities localizations update",
@@ -186,16 +189,19 @@ func TestUpdateWithoutUpdateFlagsListsEveryUpdateFlag(t *testing.T) {
 			name:  "game-center leaderboards localizations update",
 			args:  []string{"game-center", "leaderboards", "localizations", "update", "--id", "ID"},
 			flags: "--name, --formatter-override, --formatter-suffix, --formatter-suffix-singular, --description",
+			deps:  true,
 		},
 		{
 			name:  "game-center leaderboards update",
 			args:  []string{"game-center", "leaderboards", "update", "--id", "ID"},
 			flags: "--reference-name, --archived, --formatter, --sort, --submission-type, --score-range-start, --score-range-end, --recurrence-start-date, --recurrence-duration, --recurrence-rule, --visibility, --activity-properties",
+			deps:  true,
 		},
 		{
 			name:  "game-center leaderboards v2 localizations update",
 			args:  []string{"game-center", "leaderboards", "v2", "localizations", "update", "--id", "ID"},
 			flags: "--name, --formatter-override, --formatter-suffix, --formatter-suffix-singular, --description",
+			deps:  true,
 		},
 		{
 			name:  "game-center matchmaking queues update",

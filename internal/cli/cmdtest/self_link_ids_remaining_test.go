@@ -136,6 +136,7 @@ func TestSelfLinkRemainingFlagsSendExtractedID(t *testing.T) {
 			bodies: map[string]string{
 				"/v1/gameCenterAchievements/achievement-1/localizations": `{"data":[{"type":"gameCenterAchievementLocalizations","id":"localization-1","attributes":{"locale":"en-US","name":"First Win"}}]}`,
 			},
+			deps: true,
 		},
 		{
 			name:     "builds test-notes view",
@@ -348,6 +349,7 @@ func TestSelfLinkRemainingFlagsRejectWrongType(t *testing.T) {
 			flag:    "achievement-id",
 			value:   selfLinkTestBase + "/v1/gameCenterLeaderboards/leaderboard-1",
 			wantErr: "expected a self-link of type gameCenterAchievements, got gameCenterLeaderboards",
+			deps:    true,
 		},
 		{
 			name:    "game-center achievements v2 list rejects details link",
@@ -355,6 +357,7 @@ func TestSelfLinkRemainingFlagsRejectWrongType(t *testing.T) {
 			flag:    "group-id",
 			value:   selfLinkTestBase + "/v1/gameCenterDetails/detail-1",
 			wantErr: "expected a self-link of type gameCenterGroups, got gameCenterDetails",
+			deps:    true,
 		},
 		{
 			name:    "game-center matchmaking queues update rejects queue link",
