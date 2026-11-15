@@ -229,6 +229,14 @@ func ValidateTestOptions(opts TestOptions) error {
 	if opts.ParallelTestingWorkers < 0 {
 		return fmt.Errorf("--parallel-testing-workers must be at least 1")
 	}
+	if TestAction(opts.Action) == TestActionBuildForTesting {
+		if opts.RetryTestsOnFailure {
+			return fmt.Errorf("--retry-tests-on-failure cannot be used with --action build-for-testing")
+		}
+		if opts.TestIterations > 0 {
+			return fmt.Errorf("--test-iterations cannot be used with --action build-for-testing")
+		}
+	}
 	if opts.AddressSanitizer && opts.ThreadSanitizer {
 		return fmt.Errorf("--address-sanitizer and --thread-sanitizer cannot be used together")
 	}

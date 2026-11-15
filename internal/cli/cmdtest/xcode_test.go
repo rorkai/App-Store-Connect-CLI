@@ -333,6 +333,7 @@ func TestXcodeTestTypedRunFlagsReachXcodebuild(t *testing.T) {
 	}
 	tests := []struct {
 		name     string
+		action   string
 		args     []string
 		wantArgs []string
 		wantErr  string
@@ -345,13 +346,20 @@ func TestXcodeTestTypedRunFlagsReachXcodebuild(t *testing.T) {
 		{name: "address sanitizer", args: []string{"--address-sanitizer"}, wantArgs: []string{"-enableAddressSanitizer", "YES"}},
 		{name: "thread sanitizer", args: []string{"--thread-sanitizer"}, wantArgs: []string{"-enableThreadSanitizer", "YES"}},
 		{name: "undefined behavior sanitizer", args: []string{"--undefined-behavior-sanitizer"}, wantArgs: []string{"-enableUndefinedBehaviorSanitizer", "YES"}},
+		{name: "sanitizer while building for testing", action: "build-for-testing", args: []string{"--address-sanitizer"}, wantArgs: []string{"-enableAddressSanitizer", "YES"}},
 		{name: "raw passthrough alone", args: []string{"--xcodebuild-flag=-parallel-testing-enabled", "--xcodebuild-flag=NO"}, wantArgs: []string{"-parallel-testing-enabled", "NO"}},
 		{name: "address and thread sanitizers", args: []string{"--address-sanitizer", "--thread-sanitizer"}, wantErr: "--address-sanitizer and --thread-sanitizer cannot be used together"},
 		{name: "zero iterations", args: []string{"--test-iterations", "0"}, wantErr: "--test-iterations must be at least 1"},
 		{name: "typed and raw retry", args: []string{"--retry-tests-on-failure", "--xcodebuild-flag=-retry-tests-on-failure"}, wantErr: `--retry-tests-on-failure conflicts with --xcodebuild-flag "-retry-tests-on-failure"; use one`},
+		{name: "retry while building for testing", action: "build-for-testing", args: []string{"--retry-tests-on-failure"}, wantErr: "--retry-tests-on-failure cannot be used with --action build-for-testing"},
+		{name: "iterations while building for testing", action: "build-for-testing", args: []string{"--test-iterations", "2"}, wantErr: "--test-iterations cannot be used with --action build-for-testing"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			action := test.action
+			if action == "" {
+				action = "test"
+			}
 			developerDir := filepath.Join(t.TempDir(), "Xcode.app", "Contents", "Developer")
 			binDir := filepath.Join(developerDir, "usr", "bin")
 			if err := os.MkdirAll(binDir, 0o755); err != nil {
@@ -363,12 +371,20 @@ func TestXcodeTestTypedRunFlagsReachXcodebuild(t *testing.T) {
 				"  printf 'Xcode 16.0\\nBuild version 16A1\\n'\n" +
 				"  exit 0\n" +
 				"fi\n" +
-				"printf '%s\\n' \"$@\" > '" + recordPath + "'\n"
+				"printf '%s\\n' \"$@\" > '" + recordPath + "'\n" +
+				"while [ $# -gt 0 ]; do\n" +
+				"  if [ \"$1\" = \"-resultBundlePath\" ]; then mkdir \"$2\" || exit 1; fi\n" +
+				"  shift\n" +
+				"done\n"
 			if err := os.WriteFile(filepath.Join(binDir, "xcodebuild"), []byte(script), 0o755); err != nil {
 				t.Fatalf("write fake xcodebuild: %v", err)
 			}
 			fakeXcrun := filepath.Join(t.TempDir(), "xcrun")
-			xcrunScript := "#!/bin/sh\nif [ \"$1\" = \"--find\" ] && [ \"$2\" = \"xcodebuild\" ]; then\n  printf '%s\\n' \"$DEVELOPER_DIR/usr/bin/xcodebuild\"\n  exit 0\nfi\nexit 2\n"
+			xcrunScript := "#!/bin/sh\n" +
+				"if [ \"$1\" = \"--find\" ] && [ \"$2\" = \"xcodebuild\" ]; then\n  printf '%s\\n' \"$DEVELOPER_DIR/usr/bin/xcodebuild\"\n  exit 0\nfi\n" +
+				"if [ \"$1\" = \"xcresulttool\" ] && [ \"$4\" = \"summary\" ]; then\n  printf '%s' '{\"totalTestCount\":1,\"passedTests\":1,\"failedTests\":0,\"skippedTests\":0,\"durationMs\":1}'\n  exit 0\nfi\n" +
+				"if [ \"$1\" = \"xcresulttool\" ] && [ \"$4\" = \"tests\" ]; then\n  printf '%s' '{\"testNodes\":[{\"nodeType\":\"Test Case\",\"nodeIdentifier\":\"Demo/test\",\"name\":\"test\",\"result\":\"Passed\"}]}'\n  exit 0\nfi\n" +
+				"exit 2\n"
 			if err := os.WriteFile(fakeXcrun, []byte(xcrunScript), 0o700); err != nil {
 				t.Fatalf("write fake trusted xcrun: %v", err)
 			}
@@ -380,10 +396,11 @@ func TestXcodeTestTypedRunFlagsReachXcodebuild(t *testing.T) {
 				t.Fatalf("create project: %v", err)
 			}
 			derivedDataPath := filepath.Join(t.TempDir(), "DerivedData")
+			resultBundlePath := filepath.Join(t.TempDir(), "Demo.xcresult")
 			args := append([]string{
-				"xcode", "test", "--action", "build-for-testing",
+				"xcode", "test", "--action", action,
 				"--project", projectPath, "--scheme", "Demo", "--destination", "platform=macOS",
-				"--derived-data-path", derivedDataPath, "--output", "json",
+				"--derived-data-path", derivedDataPath, "--result-bundle-path", resultBundlePath, "--output", "json",
 			}, test.args...)
 
 			root := RootCommand("1.2.3")
@@ -414,9 +431,9 @@ func TestXcodeTestTypedRunFlagsReachXcodebuild(t *testing.T) {
 			}
 			want := append([]string{
 				"-project", projectPath, "-scheme", "Demo", "-destination", "platform=macOS",
-				"-derivedDataPath", derivedDataPath,
+				"-derivedDataPath", derivedDataPath, "-resultBundlePath", resultBundlePath,
 			}, test.wantArgs...)
-			want = append(want, "build-for-testing")
+			want = append(want, action)
 			if got := strings.Split(strings.TrimSuffix(string(recorded), "\n"), "\n"); !slices.Equal(got, want) {
 				t.Fatalf("xcodebuild args = %q, want %q", got, want)
 			}
