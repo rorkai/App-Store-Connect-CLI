@@ -678,7 +678,7 @@ func TestDepsUsageErrorsMatchProcessVariantsOnDepsStderr(t *testing.T) {
 		{
 			name: "UploadPrevalidatedVersionLocalizationsWithWarnings",
 			process: func() (any, error) {
-				results, warnings, err := UploadPrevalidatedVersionLocalizationsWithWarnings(context.Background(), whatsNewClient(), "version-1", whatsNew, false, SubmitReadinessOptions{})
+				results, warnings, err := uploadPrevalidatedVersionLocalizationsWithWarningsTo(context.Background(), os.Stderr, whatsNewClient(), "version-1", whatsNew, false, SubmitReadinessOptions{})
 				return []any{results, warnings}, err
 			},
 			deps: func(d *Deps) (any, error) {
@@ -1598,7 +1598,7 @@ func TestDepsRequestContextHelpersMatchProcessVariants(t *testing.T) {
 			reads = nil
 			var id string
 			if d == nil {
-				id, err = OrderLibraryPlacements(context.Background(), client, "appStoreVersionLocalizations", "loc-1", "group-1", []string{"placement-1", "placement-2"})
+				id, err = orderLibraryPlacements(context.Background(), ContextWithTimeout, client, "appStoreVersionLocalizations", "loc-1", "group-1", []string{"placement-1", "placement-2"})
 			} else {
 				id, err = d.OrderLibraryPlacements(context.Background(), client, "appStoreVersionLocalizations", "loc-1", "group-1", []string{"placement-1", "placement-2"})
 			}

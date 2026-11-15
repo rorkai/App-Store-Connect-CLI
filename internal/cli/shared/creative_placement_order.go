@@ -101,13 +101,8 @@ func creativePlacementReorderCommand(d *Deps, resource, prefix, label string) *f
 }
 
 // OrderLibraryPlacements submits one ordering request for a localization's
-// placement group and returns the request ID.
-func OrderLibraryPlacements(ctx context.Context, client *asc.Client, resource, localizationID, placementGroup string, placementIDs []string) (string, error) {
-	return orderLibraryPlacements(ctx, ContextWithTimeout, client, resource, localizationID, placementGroup, placementIDs)
-}
-
-// OrderLibraryPlacements is OrderLibraryPlacements with the request deadline
-// from d.Timeout.
+// placement group and returns the request ID, with the request deadline from
+// d.Timeout.
 func (d *Deps) OrderLibraryPlacements(ctx context.Context, client *asc.Client, resource, localizationID, placementGroup string, placementIDs []string) (string, error) {
 	return orderLibraryPlacements(ctx, d.Timeout, client, resource, localizationID, placementGroup, placementIDs)
 }
