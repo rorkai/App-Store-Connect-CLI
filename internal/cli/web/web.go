@@ -48,7 +48,7 @@ Examples:
 			WebAgreementsCommand(),
 			WebBusinessCommand(),
 			WebFinanceCommand(),
-			WebIAPCommand(),
+			newWebIAPCommand(d),
 			newWebAPIKeysCommand(d),
 			newWebSandboxCommand(d),
 			newWebAppsCommand(d),
