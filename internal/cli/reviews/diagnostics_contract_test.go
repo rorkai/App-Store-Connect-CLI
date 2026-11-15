@@ -32,7 +32,7 @@ func TestReviewUsageErrorsCarryStructuredDiagnostics(t *testing.T) {
 			}
 			stack = append(stack, node)
 			call, ok := node.(*ast.CallExpr)
-			if !ok || !(isReviewCall(call, "shared", "UsageError", "UsageErrorf") || isReviewCall(call, "d", "UsageError", "UsageErrorf")) {
+			if !ok || (!isReviewCall(call, "shared", "UsageError", "UsageErrorf") && !isReviewCall(call, "d", "UsageError", "UsageErrorf")) {
 				return true
 			}
 
