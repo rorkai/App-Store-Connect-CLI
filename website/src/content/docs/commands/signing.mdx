@@ -465,6 +465,23 @@ Native Mac and Mac Catalyst profiles can have the same signed platform and distr
 
 Single-target JSON reports `bundleId` and `profileType`. Multi-target JSON reports `bundleIds` plus one `targets` entry per bundle. A target can report multiple `profilePaths` when the store contains more than one active matching profile; `profilePath` remains the first deterministic path for compatibility with the existing target result shape. `files`, `sensitiveFiles`, and `identityPresent` describe only the selected output.
 
+### Pull from an OpenSSL-encrypted repository
+
+`--source-format openssl` reads an existing OpenSSL-encrypted signing repository laid out as `certs/<type>/` and `profiles/<type>/` without importing it first. `--repo` is a Git URL or a local checkout, and `--branch` defaults to `master` for a Git URL. The source is decrypted in memory with the sync password and never changed; nothing is written to App Store Connect or a keychain.
+
+```bash
+asc signing sync pull \
+  --source-format openssl \
+  --repo git@github.com:team/certificates.git \
+  --bundle-id com.example.app \
+  --profile-type IOS_APP_STORE \
+  --password-file ~/.config/asc/signing-sync-password \
+  --output-dir .asc/signing/pulled \
+  --output json > .asc/signing/pull-result.json
+```
+
+Output paths, `files`, and `sensitiveFiles` are the same as in a normal pull, and each private key is written as a PKCS#12 identity protected by the same password. The source must pass the checks `asc signing sync import` applies, and its limits of 256 files, 4 MiB per file, and 128 MiB in total. Installer certificate folders, wildcard profiles, and private keys that no currently valid profile links are reported on stderr and listed in `skipped` with a reason; the receipt also reports `sourceFormat: "openssl"`. Only Git storage is supported, so `--storage` values other than `git` and their options are usage errors.
+
 ### Object storage
 
 `--storage object` keeps the encrypted artifacts in an S3 bucket, or in an S3-compatible service with `--object-endpoint`, instead of a Git repository. `push`, `pull`, and `rotate-password` accept it.
