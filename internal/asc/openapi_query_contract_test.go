@@ -272,7 +272,7 @@ func checkGeneratedQuery(operation string, params map[string]contractQueryParam,
 		base.Set("limit", strconv.Itoa(contractLimit))
 	}
 	var problems []string
-	if !paged && pages && len(sendPaged(true, func(reflect.Value) {})) > 0 {
+	if !paged && pages && sendPaged(true, func(reflect.Value) {}).Has("limit") {
 		problems = append(problems, "the query has a page size, the operation defines no limit")
 	}
 	if got := send(func(reflect.Value) {}); !reflect.DeepEqual(got, base) {
