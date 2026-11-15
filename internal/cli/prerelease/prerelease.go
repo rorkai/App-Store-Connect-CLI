@@ -12,15 +12,11 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// PreReleaseVersionsCommand returns the pre-release-versions command built on
-// the process dependencies.
-func PreReleaseVersionsCommand() *ffcli.Command {
-	return NewPreReleaseVersionsCommand(shared.DefaultDeps())
-}
-
 // NewPreReleaseVersionsCommand returns the pre-release-versions command built
 // on d.
 func NewPreReleaseVersionsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("pre-release-versions", flag.ExitOnError)
+
 	return &ffcli.Command{
 		Name:       "pre-release-versions",
 		ShortUsage: "asc pre-release-versions <subcommand> [flags]",
@@ -30,6 +26,7 @@ func NewPreReleaseVersionsCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc pre-release-versions list --app "APP_ID"
   asc pre-release-versions relationships view --id "PR_ID" --type "app"`,
+		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newPreReleaseVersionsListCommand(d),

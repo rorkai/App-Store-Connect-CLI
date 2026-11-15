@@ -85,9 +85,9 @@ type testFlightSyncClient interface {
 	GetBetaGroupTesters(ctx context.Context, groupID string, opts ...asc.BetaGroupTestersOption) (*asc.BetaTestersResponse, error)
 }
 
-// TestFlightSyncCommand returns the testflight sync command group.
-func TestFlightSyncCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("sync", flag.ExitOnError)
+// newTestFlightSyncCommand returns the testflight sync command group.
+func newTestFlightSyncCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("sync", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "sync",
@@ -100,7 +100,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			TestFlightSyncPullCommand(),
+			newTestFlightSyncPullCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -108,9 +108,9 @@ Examples:
 	}
 }
 
-// TestFlightSyncPullCommand exports TestFlight config to YAML.
-func TestFlightSyncPullCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("pull", flag.ExitOnError)
+// newTestFlightSyncPullCommand exports TestFlight config to YAML.
+func newTestFlightSyncPullCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("pull", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID, bundle ID, or exact app name (or ASC_APP_ID env)")
 	output := fs.String("output", "", "Output file path for YAML (required)")
@@ -134,29 +134,29 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.RejectOutputFormatAsPath(*output, ""); err != nil {
+			if err := d.RejectOutputFormatAsPath(*output, ""); err != nil {
 				return err
 			}
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
-				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
+				fmt.Fprintf(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return shared.MissingRequiredUsageError("--app")
 			}
 
 			outputValue := strings.TrimSpace(*output)
 			if outputValue == "" {
-				fmt.Fprintf(os.Stderr, "Error: --output is required\n\n")
+				fmt.Fprintf(d.IO.ErrOut, "Error: --output is required\n\n")
 				return shared.MissingRequiredUsageError("--output")
 			}
 
 			buildFilters := shared.SplitCSV(*buildFilter)
 			testerFilters := shared.SplitCSV(*testerFilter)
 			if len(buildFilters) > 0 && !*includeBuilds {
-				fmt.Fprintf(os.Stderr, "Error: --build-id requires --include-builds\n\n")
+				fmt.Fprintf(d.IO.ErrOut, "Error: --build-id requires --include-builds\n\n")
 				return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticConflictingInput, "--build-id")
 			}
 			if len(testerFilters) > 0 && !*includeTesters {
-				fmt.Fprintf(os.Stderr, "Error: --tester requires --include-testers\n\n")
+				fmt.Fprintf(d.IO.ErrOut, "Error: --tester requires --include-testers\n\n")
 				return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticConflictingInput, "--tester")
 			}
 
@@ -165,12 +165,12 @@ Examples:
 				return fmt.Errorf("testflight sync pull: %w", err)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("testflight sync pull: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resolvedAppID, err = shared.ResolveAppIDWithLookup(requestCtx, client, resolvedAppID)
@@ -203,7 +203,7 @@ Examples:
 				Testers: len(config.Testers),
 			}
 
-			return shared.PrintOutput(summary, "json", *pretty)
+			return d.PrintOutput(summary, "json", *pretty)
 		},
 	}
 }

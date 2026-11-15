@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -13,9 +12,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// BetaLicenseAgreementsCommand returns the beta license agreements command group.
-func BetaLicenseAgreementsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("beta-license-agreements", flag.ExitOnError)
+// newBetaLicenseAgreementsCommand returns the beta license agreements command group.
+func newBetaLicenseAgreementsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("beta-license-agreements", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "beta-license-agreements",
@@ -31,9 +30,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			BetaLicenseAgreementsListCommand(),
-			BetaLicenseAgreementsGetCommand(),
-			BetaLicenseAgreementsUpdateCommand(),
+			newBetaLicenseAgreementsListCommand(d),
+			newBetaLicenseAgreementsGetCommand(d),
+			newBetaLicenseAgreementsUpdateCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -41,11 +40,12 @@ Examples:
 	}
 }
 
-// BetaLicenseAgreementsListCommand returns the beta license agreements list subcommand.
-func BetaLicenseAgreementsListCommand() *ffcli.Command {
+// newBetaLicenseAgreementsListCommand returns the beta license agreements list subcommand.
+func newBetaLicenseAgreementsListCommand(d *shared.Deps) *ffcli.Command {
 	var appIDs, fields, appFields, include *string
 
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		Deps:       d,
 		Name:       "list",
 		ShortUsage: "asc testflight beta-license-agreements list [flags]",
 		ShortHelp:  "List beta license agreements.",
@@ -81,16 +81,16 @@ Examples:
 	})
 }
 
-// BetaLicenseAgreementsGetCommand returns the beta license agreements get subcommand.
-func BetaLicenseAgreementsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
+// newBetaLicenseAgreementsGetCommand returns the beta license agreements get subcommand.
+func newBetaLicenseAgreementsGetCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("view", flag.ExitOnError)
 
 	id := shared.BindResourceIDFlag(fs, "id", "betaLicenseAgreements", "Beta license agreement ID")
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	fields := fs.String("fields", "", "Fields to include (betaLicenseAgreements), comma-separated")
 	appFields := fs.String("app-fields", "", "App fields to include, comma-separated")
 	include := fs.String("include", "", "Include related resources (e.g., app), comma-separated")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "view",
@@ -110,24 +110,24 @@ Examples:
 				appValue = shared.ResolveAppID(*appID)
 			}
 			if idValue == "" && appValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id or --app is required (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --id or --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("")
 			}
 			if idValue != "" && strings.TrimSpace(*appID) != "" {
-				fmt.Fprintln(os.Stderr, "Error: --id and --app are mutually exclusive")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --id and --app are mutually exclusive")
 				return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticConflictingInput, "")
 			}
 			if appValue != "" && (strings.TrimSpace(*appFields) != "" || strings.TrimSpace(*include) != "") {
-				fmt.Fprintln(os.Stderr, "Error: --app-fields and --include are only valid with --id")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app-fields and --include are only valid with --id")
 				return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticConflictingInput, "")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("beta-license-agreements view: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			if appValue != "" {
@@ -135,7 +135,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("beta-license-agreements view: failed to fetch: %w", err)
 				}
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			opts := []asc.BetaLicenseAgreementOption{
@@ -148,15 +148,16 @@ Examples:
 				return fmt.Errorf("beta-license-agreements view: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// BetaLicenseAgreementsUpdateCommand returns the beta license agreements update subcommand.
-func BetaLicenseAgreementsUpdateCommand() *ffcli.Command {
+// newBetaLicenseAgreementsUpdateCommand returns the beta license agreements update subcommand.
+func newBetaLicenseAgreementsUpdateCommand(d *shared.Deps) *ffcli.Command {
 	var agreementText string
 	return shared.BuildUpdateCommand(shared.WriteCommandConfig{
+		Deps:       d,
 		Name:       "update",
 		ShortUsage: "asc testflight beta-license-agreements update --id \"AGREEMENT_ID\" --agreement-text \"Text\"",
 		ShortHelp:  "Update a beta license agreement.",

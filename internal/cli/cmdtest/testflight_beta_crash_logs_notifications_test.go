@@ -10,17 +10,15 @@ import (
 )
 
 func TestTestFlightBetaNotificationsCreateOutput(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/builds/build-1/buildBetaDetail"),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"buildBetaDetails","id":"detail-1","attributes":{"autoNotifyEnabled":false}}}`))
 	reg.Register(asctest.POST("/v1/buildBetaNotifications").JSONBody(`{"data":{"type":"buildBetaNotifications","relationships":{"build":{"data":{"type":"builds","id":"build-1"}}}}}`),
 		asctest.JSON(http.StatusCreated, `{"data":{"type":"buildBetaNotifications","id":"notif-1"}}`))
 
-	stdout, stderr, err := runCommand(t, []string{"testflight", "notifications", "send", "--build-id", "build-1"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "testflight", "notifications", "send", "--build-id", "build-1")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -37,15 +35,13 @@ func TestTestFlightBetaNotificationsCreateOutput(t *testing.T) {
 }
 
 func TestTestFlightBetaNotificationsCreateReportsPreflightAutoNotify(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/builds/build-1/buildBetaDetail"),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"buildBetaDetails","id":"detail-1","attributes":{"autoNotifyEnabled":true}}}`))
 
-	stdout, stderr, err := runCommand(t, []string{"testflight", "notifications", "send", "--build-id", "build-1"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "testflight", "notifications", "send", "--build-id", "build-1")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -65,17 +61,15 @@ func TestTestFlightBetaNotificationsCreateReportsPreflightAutoNotify(t *testing.
 }
 
 func TestTestFlightBetaNotificationsCreateReportsRaceAutoNotify(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/builds/build-1/buildBetaDetail"),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"buildBetaDetails","id":"detail-1","attributes":{"autoNotifyEnabled":false}}}`))
 	reg.Register(asctest.POST("/v1/buildBetaNotifications").JSONBody(`{"data":{"type":"buildBetaNotifications","relationships":{"build":{"data":{"type":"builds","id":"build-1"}}}}}`),
 		asctest.JSON(http.StatusConflict, `{"errors":[{"code":"STATE_ERROR.ENTITY_STATE_INVALID","title":"There is a problem with the request entity","detail":"Auto-notify already enabled"}]}`))
 
-	stdout, stderr, err := runCommand(t, []string{"testflight", "notifications", "send", "--build-id", "build-1"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "testflight", "notifications", "send", "--build-id", "build-1")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -95,17 +89,15 @@ func TestTestFlightBetaNotificationsCreateReportsRaceAutoNotify(t *testing.T) {
 }
 
 func TestTestFlightBetaNotificationsCreatePreservesUnrelatedConflict(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/builds/build-1/buildBetaDetail"),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"buildBetaDetails","id":"detail-1","attributes":{"autoNotifyEnabled":false}}}`))
 	reg.Register(asctest.POST("/v1/buildBetaNotifications").JSONBody(`{"data":{"type":"buildBetaNotifications","relationships":{"build":{"data":{"type":"builds","id":"build-1"}}}}}`),
 		asctest.JSON(http.StatusConflict, `{"errors":[{"code":"STATE_ERROR.ENTITY_STATE_INVALID","title":"There is a problem with the request entity","detail":"Build is not eligible for notification"}]}`))
 
-	stdout, stderr, runErr := runCommand(t, []string{"testflight", "notifications", "send", "--build-id", "build-1"})
+	stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), "testflight", "notifications", "send", "--build-id", "build-1")
 
 	if runErr == nil {
 		t.Fatal("expected unrelated conflict error")

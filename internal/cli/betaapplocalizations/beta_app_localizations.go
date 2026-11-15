@@ -12,12 +12,6 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// BetaAppLocalizationsCommand returns the beta-app-localizations command group
-// built on the process dependencies.
-func BetaAppLocalizationsCommand() *ffcli.Command {
-	return NewBetaAppLocalizationsCommand(shared.DefaultDeps())
-}
-
 // NewBetaAppLocalizationsCommand returns the beta-app-localizations command
 // group built on d.
 func NewBetaAppLocalizationsCommand(d *shared.Deps) *ffcli.Command {

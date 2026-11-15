@@ -69,6 +69,7 @@ func TestLinksTypeUsageErrorsEnumerateValidValues(t *testing.T) {
 		{
 			name:   "testflight pre-release links view",
 			base:   []string{"testflight", "pre-release", "links", "view", "--id", "pr-1"},
+			deps:   true,
 			values: preReleaseRelationshipTypeValues,
 		},
 	}
@@ -146,8 +147,8 @@ func TestLinksValidTypesReachTheirEndpoints(t *testing.T) {
 		{name: "tester apps", args: []string{"testflight", "testers", "links", "view", "--tester-id", "tester-1", "--type", "apps", "--output", "json"}, path: "/v1/betaTesters/tester-1/relationships/apps", resourceType: "apps", many: true, deps: true},
 		{name: "tester beta groups", args: []string{"testflight", "testers", "links", "view", "--tester-id", "tester-1", "--type", "betaGroups", "--output", "json"}, path: "/v1/betaTesters/tester-1/relationships/betaGroups", resourceType: "betaGroups", many: true, deps: true},
 		{name: "tester builds", args: []string{"testflight", "testers", "links", "view", "--tester-id", "tester-1", "--type", "builds", "--output", "json"}, path: "/v1/betaTesters/tester-1/relationships/builds", resourceType: "builds", many: true, deps: true},
-		{name: "pre-release app", args: []string{"testflight", "pre-release", "links", "view", "--id", "pr-1", "--type", "app", "--output", "json"}, path: "/v1/preReleaseVersions/pr-1/relationships/app", resourceType: "apps"},
-		{name: "pre-release builds", args: []string{"testflight", "pre-release", "links", "view", "--id", "pr-1", "--type", "builds", "--output", "json"}, path: "/v1/preReleaseVersions/pr-1/relationships/builds", resourceType: "builds", many: true},
+		{name: "pre-release app", args: []string{"testflight", "pre-release", "links", "view", "--id", "pr-1", "--type", "app", "--output", "json"}, path: "/v1/preReleaseVersions/pr-1/relationships/app", resourceType: "apps", deps: true},
+		{name: "pre-release builds", args: []string{"testflight", "pre-release", "links", "view", "--id", "pr-1", "--type", "builds", "--output", "json"}, path: "/v1/preReleaseVersions/pr-1/relationships/builds", resourceType: "builds", many: true, deps: true},
 	}
 
 	for _, test := range tests {
@@ -256,6 +257,7 @@ func TestLinksNotFoundNamesMissingResource(t *testing.T) {
 		{
 			name:    "testflight pre-release links unknown version",
 			args:    []string{"testflight", "pre-release", "links", "view", "--id", "pr-404", "--type", "app", "--output", "json"},
+			deps:    true,
 			path:    "/v1/preReleaseVersions/pr-404/relationships/app",
 			body:    notFoundBody("preReleaseVersions", "pr-404"),
 			wantErr: `testflight pre-release links view: pre-release version "pr-404" was not found; --id expects a pre-release version ID (list them with: asc testflight pre-release list --app "APP_ID")`,
@@ -263,6 +265,7 @@ func TestLinksNotFoundNamesMissingResource(t *testing.T) {
 		{
 			name:       "testflight pre-release links missing relationship",
 			args:       []string{"testflight", "pre-release", "links", "view", "--id", "pr-1", "--type", "builds", "--output", "json"},
+			deps:       true,
 			path:       "/v1/preReleaseVersions/pr-1/relationships/builds",
 			body:       notFoundBody("builds", "pr-1"),
 			wantPrefix: `testflight pre-release links view: builds relationship was not found for pre-release version "pr-1"`,
@@ -329,6 +332,7 @@ func TestLinksPaginateLaterPageNotFoundBlamesPageURL(t *testing.T) {
 		{
 			name: "testflight pre-release links paginate",
 			args: []string{"testflight", "pre-release", "links", "view", "--id", "pr-1", "--type", "builds", "--paginate", "--output", "json"},
+			deps: true,
 			path: "/v1/preReleaseVersions/pr-1/relationships/builds",
 			body: notFoundBody("preReleaseVersions", "pr-1"),
 			want: "testflight pre-release links view: page 2: the pre-release version referenced by the requested page URL was not found",

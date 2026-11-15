@@ -666,31 +666,37 @@ func TestAccountAndDistributionInputValidationReturnsUsageExitCode(t *testing.T)
 		{
 			name:    "testflight crashes list limit",
 			args:    []string{"testflight", "crashes", "list", "--limit", "201"},
+			deps:    true,
 			wantErr: "testflight crashes list: --limit must be between 1 and 200",
 		},
 		{
 			name:    "testflight crashes list next",
 			args:    []string{"testflight", "crashes", "list", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
+			deps:    true,
 			wantErr: "testflight crashes list: --next must be an App Store Connect URL",
 		},
 		{
 			name:    "testflight crashes list sort",
 			args:    []string{"testflight", "crashes", "list", "--app", "123456789", "--sort", "bogus"},
+			deps:    true,
 			wantErr: "testflight crashes list: --sort must be one of: createdDate, -createdDate",
 		},
 		{
 			name:    "testflight feedback list limit",
 			args:    []string{"testflight", "feedback", "list", "--limit", "201"},
+			deps:    true,
 			wantErr: "testflight feedback list: --limit must be between 1 and 200",
 		},
 		{
 			name:    "testflight feedback list next",
 			args:    []string{"testflight", "feedback", "list", "--next", "http://api.appstoreconnect.apple.com/v1/apps"},
+			deps:    true,
 			wantErr: "testflight feedback list: --next must be an App Store Connect URL",
 		},
 		{
 			name:    "testflight feedback list sort",
 			args:    []string{"testflight", "feedback", "list", "--app", "123456789", "--sort", "bogus"},
+			deps:    true,
 			wantErr: "testflight feedback list: --sort must be one of: createdDate, -createdDate",
 		},
 		{

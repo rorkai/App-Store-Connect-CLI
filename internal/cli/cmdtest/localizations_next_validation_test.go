@@ -16,7 +16,7 @@ func TestLocalizationsListsRejectsInvalidNextURL(t *testing.T) {
 		{args: []string{"localizations", "preview-sets", "links"}, wantErr: "localizations preview-sets links: --next", deps: true},
 		{args: []string{"localizations", "screenshot-sets", "list"}, wantErr: "localizations screenshot-sets list: --next", deps: true},
 		{args: []string{"localizations", "screenshot-sets", "links"}, wantErr: "localizations screenshot-sets links: --next", deps: true},
-		{args: []string{"testflight", "app-localizations", "list"}, wantErr: "testflight app-localizations list: --next"},
+		{args: []string{"testflight", "app-localizations", "list"}, wantErr: "testflight app-localizations list: --next", deps: true},
 	})
 }
 
@@ -60,6 +60,7 @@ func TestLocalizationsListsPaginateFromNext(t *testing.T) {
 		},
 		{
 			args:     []string{"testflight", "app-localizations", "list"},
+			deps:     true,
 			firstURL: "https://api.appstoreconnect.apple.com/v1/betaAppLocalizations?cursor=AQ&limit=200",
 			dataType: "betaAppLocalizations",
 		},

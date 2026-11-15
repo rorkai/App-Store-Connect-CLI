@@ -22,17 +22,12 @@ func TestTestFlightCrashesLogNotFoundPointsToCrashSubmissions(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			setupAuth(t)
 			detail := "There is no resource of type '" + test.kind + "' with id 'missing'"
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			reg.Register(asctest.GET(test.path),
 				asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"The specified resource does not exist","detail":"`+detail+`"}]}`))
 
-			var code int
-			stdout, stderr := captureOutput(t, func() {
-				code = rootcmd.Run(append([]string{"testflight", "crashes", "log"}, test.args...), "1.2.3")
-			})
+			stdout, stderr, code := runWithDeps(t, stubClient(t, reg), append([]string{"testflight", "crashes", "log"}, test.args...)...)
 			if code != rootcmd.ExitNotFound {
 				t.Fatalf("exit code = %d, want %d; stderr=%q", code, rootcmd.ExitNotFound, stderr)
 			}

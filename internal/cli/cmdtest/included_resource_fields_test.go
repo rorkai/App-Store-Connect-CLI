@@ -329,6 +329,7 @@ func includedFieldsCases() []includedFieldsCase {
 		{
 			name: "testflight crashes list", operation: "apps_betaFeedbackCrashSubmissions_getToManyRelated",
 			command: []string{"testflight", "crashes", "list"}, selector: []string{"--app", "123456789"},
+			deps:    true,
 			include: "build,tester", path: "/v1/apps/123456789/betaFeedbackCrashSubmissions", query: map[string]string{"fields[builds]": "version,preReleaseVersion"},
 			flags:    map[string]string{"build-fields": "builds", "tester-fields": "betaTesters"},
 			rejected: map[string][]string{"betaTesters": {"appDevices"}},
@@ -336,6 +337,7 @@ func includedFieldsCases() []includedFieldsCase {
 		{
 			name: "testflight feedback list", operation: "apps_betaFeedbackScreenshotSubmissions_getToManyRelated",
 			command: []string{"testflight", "feedback", "list"}, selector: []string{"--app", "123456789"},
+			deps:    true,
 			include: "build,tester", path: "/v1/apps/123456789/betaFeedbackScreenshotSubmissions", query: map[string]string{"fields[builds]": "version,preReleaseVersion"},
 			flags:    map[string]string{"build-fields": "builds", "tester-fields": "betaTesters"},
 			rejected: map[string][]string{"betaTesters": {"appDevices"}},

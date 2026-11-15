@@ -18,13 +18,13 @@ func crashLogFetchError(err error) error {
 	return err
 }
 
-func runCrashLogByCrashLogID(ctx context.Context, crashLogID string, output shared.OutputFlags) error {
-	client, err := shared.GetASCClient()
+func runCrashLogByCrashLogID(ctx context.Context, d *shared.Deps, crashLogID string, output shared.OutputFlags) error {
+	client, err := d.Client()
 	if err != nil {
 		return fmt.Errorf("testflight crashes log: %w", err)
 	}
 
-	requestCtx, cancel := shared.ContextWithTimeout(ctx)
+	requestCtx, cancel := d.Timeout(ctx)
 	defer cancel()
 
 	resp, err := client.GetBetaCrashLog(requestCtx, crashLogID)
@@ -32,5 +32,5 @@ func runCrashLogByCrashLogID(ctx context.Context, crashLogID string, output shar
 		return crashLogFetchError(err)
 	}
 
-	return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+	return d.PrintOutput(resp, *output.Output, *output.Pretty)
 }

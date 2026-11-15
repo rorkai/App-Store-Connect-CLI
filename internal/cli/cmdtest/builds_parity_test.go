@@ -1,10 +1,8 @@
 package cmdtest
 
 import (
-	"context"
 	"errors"
 	"flag"
-	"io"
 	"strings"
 	"testing"
 )
@@ -182,7 +180,11 @@ func TestBetaLocalizationsValidationErrors(t *testing.T) {
 		},
 	}
 
-	runValidationTests(t, tests)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assertUsageExitWithDeps(t, nil, test.args, test.wantErr)
+		})
+	}
 }
 
 func TestTestFlightRelationshipsValidationErrors(t *testing.T) {
@@ -250,16 +252,8 @@ func TestTestFlightRelationshipsValidationErrors(t *testing.T) {
 func TestTestFlightMetricsInvalidPeriodReturnsValidationError(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
 	args := []string{"testflight", "testers", "metrics", "--tester-id", "TESTER_ID", "--app", "APP_ID", "--period", "P1D"}
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse(args); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	stdout, stderr, runErr := runRootWithDeps(t, nil, args...)
 
 	const wantMessage = "--period must be one of: P7D, P30D, P90D, P365D"
 
@@ -312,7 +306,11 @@ func TestPreReleaseRelationshipsValidationErrors(t *testing.T) {
 		},
 	}
 
-	runValidationTests(t, tests)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assertUsageExitWithDeps(t, nil, test.args, test.wantErr)
+		})
+	}
 }
 
 func TestParityRelatedCommandsValidationErrors(t *testing.T) {
@@ -388,26 +386,31 @@ func TestParityRelatedCommandsValidationErrors(t *testing.T) {
 		{
 			name:    "feedback crashes view missing id",
 			args:    []string{"testflight", "crashes", "view"},
+			deps:    true,
 			wantErr: "--submission-id is required",
 		},
 		{
 			name:    "feedback log view missing id",
 			args:    []string{"testflight", "crashes", "log"},
+			deps:    true,
 			wantErr: "exactly one of --submission-id or --crash-log-id is required",
 		},
 		{
 			name:    "app-localizations app view missing id",
 			args:    []string{"testflight", "app-localizations", "app", "view"},
+			deps:    true,
 			wantErr: "--id is required",
 		},
 		{
 			name:    "pre-release app view missing id",
 			args:    []string{"testflight", "pre-release", "app", "view"},
+			deps:    true,
 			wantErr: "--id is required",
 		},
 		{
 			name:    "pre-release builds list missing id",
 			args:    []string{"testflight", "pre-release", "builds", "list"},
+			deps:    true,
 			wantErr: "--id is required",
 		},
 	}

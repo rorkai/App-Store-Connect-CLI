@@ -55,7 +55,7 @@ func TestTestFlightUsageErrorDiagnosticsPreserveContracts(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			stderr, runErr := runTestFlightDiagnosticCommand(t, nil, test.command, test.args)
+			stderr, runErr := runTestFlightDiagnosticCommand(t, test.command, test.args)
 			if runErr == nil {
 				t.Fatal("expected usage error")
 			}

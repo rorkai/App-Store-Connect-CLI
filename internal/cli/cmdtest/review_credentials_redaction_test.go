@@ -275,13 +275,11 @@ func TestReviewDetailsUpdateSendsPasswordButRedactsResponse(t *testing.T) {
 }
 
 func TestTestFlightReviewViewRedactsDemoAccountPassword(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/betaAppReviewDetails", "filter[app]=app-1"), asctest.JSON(http.StatusOK, betaAppReviewDetailsJSON()))
 
-	stdout, stderr, err := runCommand(t, []string{"testflight", "review", "view", "--app", "app-1", "--output", "json"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "testflight", "review", "view", "--app", "app-1", "--output", "json")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -294,19 +292,17 @@ func TestTestFlightReviewViewRedactsDemoAccountPassword(t *testing.T) {
 }
 
 func TestTestFlightReviewEditSendsPasswordButRedactsResponse(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.PATCH("/v1/betaAppReviewDetails/detail-1"), asctest.JSON(http.StatusOK, betaAppReviewDetailJSON()))
 
-	stdout, stderr, err := runCommand(t, []string{
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg),
 		"testflight", "review", "edit",
 		"--id", "detail-1",
 		"--output", "json",
 		"--demo-account-password", testFlightDemoPasswordSentinel,
-	})
+	)
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -321,18 +317,16 @@ func TestTestFlightReviewEditSendsPasswordButRedactsResponse(t *testing.T) {
 }
 
 func TestTestFlightReviewViewIncludesDemoAccountPasswordWithIncludeSensitive(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/betaAppReviewDetails", "filter[app]=app-1"), asctest.JSON(http.StatusOK, betaAppReviewDetailsJSON()))
 
-	stdout, stderr, err := runCommand(t, []string{
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg),
 		"testflight", "review", "view",
 		"--app", "app-1",
 		"--output", "json",
 		"--include-sensitive",
-	})
+	)
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}

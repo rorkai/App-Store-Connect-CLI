@@ -8,8 +8,8 @@ func TestTestFlightListsRejectsInvalidNextURL(t *testing.T) {
 		{args: []string{"testflight", "testers", "groups", "list"}, wantErr: "testflight testers groups list: --next", deps: true},
 		{args: []string{"testflight", "testers", "builds", "list"}, wantErr: "testflight testers builds list: --next", deps: true},
 		{args: []string{"testflight", "testers", "metrics"}, wantErr: "testflight testers metrics: --next", deps: true},
-		{args: []string{"testflight", "metrics", "app-testers"}, wantErr: "testflight metrics app-testers: --next"},
-		{args: []string{"testflight", "review", "view"}, wantErr: "testflight review view: --next"},
+		{args: []string{"testflight", "metrics", "app-testers"}, wantErr: "testflight metrics app-testers: --next", deps: true},
+		{args: []string{"testflight", "review", "view"}, wantErr: "testflight review view: --next", deps: true},
 	})
 }
 
@@ -59,6 +59,7 @@ func TestTestFlightListsPaginateFromNext(t *testing.T) {
 		},
 		{
 			args:     []string{"testflight", "agreements", "list"},
+			deps:     true,
 			firstURL: "https://api.appstoreconnect.apple.com/v1/betaLicenseAgreements?cursor=AQ&limit=200",
 			dataType: "betaLicenseAgreements",
 		},
@@ -71,24 +72,28 @@ func TestTestFlightListsPaginateFromNext(t *testing.T) {
 		},
 		{
 			args:       []string{"testflight", "review", "view"},
+			deps:       true,
 			firstURL:   "https://api.appstoreconnect.apple.com/v1/betaAppReviewDetails?cursor=AQ&limit=2",
 			dataType:   "betaAppReviewDetails",
 			singlePage: true,
 		},
 		{
 			args:       []string{"testflight", "review", "view"},
+			deps:       true,
 			firstURL:   "https://api.appstoreconnect.apple.com/v1/buildBetaDetails?cursor=AQ&limit=2",
 			dataType:   "buildBetaDetails",
 			singlePage: true,
 		},
 		{
 			args:       []string{"testflight", "recruitment", "options"},
+			deps:       true,
 			firstURL:   "https://api.appstoreconnect.apple.com/v1/betaRecruitmentCriterionOptions?cursor=AQ&limit=2",
 			dataType:   "betaRecruitmentCriterionOptions",
 			singlePage: true,
 		},
 		{
 			args:     []string{"testflight", "review", "submissions", "list", "--build-id", "build-1"},
+			deps:     true,
 			firstURL: "https://api.appstoreconnect.apple.com/v1/betaAppReviewSubmissions?cursor=AQ&limit=200",
 			dataType: "betaAppReviewSubmissions",
 		},

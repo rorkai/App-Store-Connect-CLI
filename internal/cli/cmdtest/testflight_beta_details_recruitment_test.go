@@ -51,17 +51,15 @@ func TestTestFlightDistributionEditRejectsRemovedExternalTestingFlag(t *testing.
 }
 
 func TestTestFlightRecruitmentSetUpdatesExisting(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/betaGroups/group-1/betaRecruitmentCriteria"),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"betaRecruitmentCriteria","id":"criteria-1","attributes":{"deviceFamilyOsVersionFilters":[{"deviceFamily":"IPHONE","minimumOsInclusive":"26"}]}}}`))
 	reg.Register(asctest.PATCH("/v1/betaRecruitmentCriteria/criteria-1").JSONBody(`{"data":{"type":"betaRecruitmentCriteria","id":"criteria-1","attributes":{"deviceFamilyOsVersionFilters":[{"deviceFamily":"IPHONE","minimumOsInclusive":"26"}]}}}`),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"betaRecruitmentCriteria","id":"criteria-1","attributes":{"deviceFamilyOsVersionFilters":[{"deviceFamily":"IPHONE","minimumOsInclusive":"26"}]}}}`))
 
-	stdout, stderr, err := runCommand(t, []string{"testflight", "recruitment", "set", "--group", "group-1", "--os-version-filter", "IPHONE=26"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "testflight", "recruitment", "set", "--group", "group-1", "--os-version-filter", "IPHONE=26")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -75,17 +73,15 @@ func TestTestFlightRecruitmentSetUpdatesExisting(t *testing.T) {
 }
 
 func TestTestFlightRecruitmentSetCreatesWhenMissing(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/betaGroups/group-2/betaRecruitmentCriteria"),
 		asctest.JSON(http.StatusNotFound, `{"errors":[{"code":"NOT_FOUND","title":"Not Found"}]}`))
 	reg.Register(asctest.POST("/v1/betaRecruitmentCriteria").JSONBody(`{"data":{"type":"betaRecruitmentCriteria","attributes":{"deviceFamilyOsVersionFilters":[{"deviceFamily":"IPHONE","minimumOsInclusive":"26"}]},"relationships":{"betaGroup":{"data":{"type":"betaGroups","id":"group-2"}}}}}`),
 		asctest.JSON(http.StatusCreated, `{"data":{"type":"betaRecruitmentCriteria","id":"criteria-2","attributes":{"deviceFamilyOsVersionFilters":[{"deviceFamily":"IPHONE","minimumOsInclusive":"26"}]}}}`))
 
-	stdout, stderr, err := runCommand(t, []string{"testflight", "recruitment", "set", "--group", "group-2", "--os-version-filter", "IPHONE=26"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "testflight", "recruitment", "set", "--group", "group-2", "--os-version-filter", "IPHONE=26")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -99,15 +95,13 @@ func TestTestFlightRecruitmentSetCreatesWhenMissing(t *testing.T) {
 }
 
 func TestTestFlightRecruitmentSetReturnsErrorOnFetchFailure(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/betaGroups/group-3/betaRecruitmentCriteria"),
 		asctest.JSON(http.StatusForbidden, `{"errors":[{"code":"FORBIDDEN","title":"Forbidden"}]}`))
 
-	stdout, stderr, runErr := runCommand(t, []string{"testflight", "recruitment", "set", "--group", "group-3", "--os-version-filter", "IPHONE=26"})
+	stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), "testflight", "recruitment", "set", "--group", "group-3", "--os-version-filter", "IPHONE=26")
 
 	if runErr == nil {
 		t.Fatal("expected error, got nil")

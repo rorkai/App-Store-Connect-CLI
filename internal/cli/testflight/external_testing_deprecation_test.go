@@ -3,10 +3,12 @@ package testflight
 import (
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestFlightDistributionEditDoesNotRegisterExternalTesting(t *testing.T) {
-	distribution := TestFlightDistributionCommand()
+	distribution := newTestFlightDistributionCommand(&shared.Deps{IO: &shared.IO{}})
 	var editCommandFound bool
 	for _, subcommand := range distribution.Subcommands {
 		if subcommand.Name != "edit" {

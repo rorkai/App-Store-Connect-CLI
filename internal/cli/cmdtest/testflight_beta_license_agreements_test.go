@@ -13,26 +13,31 @@ func TestTestFlightBetaLicenseAgreementsUsageErrors(t *testing.T) {
 		{
 			name:    "view missing id and app",
 			args:    []string{"testflight", "agreements", "view"},
+			deps:    true,
 			wantErr: "Error: --id or --app is required",
 		},
 		{
 			name:    "view id and app both set",
 			args:    []string{"testflight", "agreements", "view", "--id", "AGREEMENT_ID", "--app", "APP_ID"},
+			deps:    true,
 			wantErr: "Error: --id and --app are mutually exclusive",
 		},
 		{
 			name:    "view app with include",
 			args:    []string{"testflight", "agreements", "view", "--app", "APP_ID", "--include", "app"},
+			deps:    true,
 			wantErr: "Error: --app-fields and --include are only valid with --id",
 		},
 		{
 			name:    "edit missing id",
 			args:    []string{"testflight", "agreements", "edit", "--agreement-text", "Updated"},
+			deps:    true,
 			wantErr: "Error: --id is required",
 		},
 		{
 			name:    "edit missing agreement text",
 			args:    []string{"testflight", "agreements", "edit", "--id", "AGREEMENT_ID"},
+			deps:    true,
 			wantErr: "Error: --agreement-text is required",
 		},
 	})

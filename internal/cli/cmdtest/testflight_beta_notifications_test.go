@@ -5,5 +5,5 @@ import (
 )
 
 func TestTestFlightBetaNotificationsCreateValidationErrors(t *testing.T) {
-	assertUsageExit(t, []string{"testflight", "notifications", "send"}, "Error: --build-id is required")
+	assertUsageExitWithDeps(t, nil, []string{"testflight", "notifications", "send"}, "Error: --build-id is required")
 }

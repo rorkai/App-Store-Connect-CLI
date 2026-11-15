@@ -43,13 +43,12 @@ func TestTestFlightMetricsBetaTesterUsagesResolveTesters(t *testing.T) {
 	setResolveTestersEnv(t)
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-123/metrics/betaTesterUsages", "groupBy=betaTesters"),
 		asctest.JSON(http.StatusOK, resolveTestersMetricsBody))
 	reg.Register(asctest.GET("/v1/betaTesters", "filter[id]=tester-2", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaTesters","id":"tester-2","attributes":{"firstName":"Grace","lastName":"Hopper","email":"grace@example.com","inviteType":"PUBLIC_LINK","state":"INVITED"}}],"links":{"next":""}}`))
 
-	stdout, stderr, err := runCommand(t, []string{"testflight", "metrics", "app-testers", "--app", "app-123", "--resolve-testers"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "testflight", "metrics", "app-testers", "--app", "app-123", "--resolve-testers")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -103,11 +102,10 @@ func TestTestFlightMetricsBetaTesterUsagesWithoutResolveTestersOmitsSidecar(t *t
 	setResolveTestersEnv(t)
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-123/metrics/betaTesterUsages", "groupBy=betaTesters"),
 		asctest.JSON(http.StatusOK, resolveTestersMetricsBody))
 
-	stdout, stderr, err := runCommand(t, []string{"testflight", "metrics", "app-testers", "--app", "app-123"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "testflight", "metrics", "app-testers", "--app", "app-123")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}

@@ -28,7 +28,7 @@ func assertStreams(t *testing.T, stdout, stderr *bytes.Buffer, wantStderr string
 func TestListCommand_MissingApp(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 	d, stdout, stderr := newTestDeps()
-	cmd := NewListCommandWith(d, shared.ListCommandConfig{Name: "list"})
+	cmd := NewListCommand(d, shared.ListCommandConfig{Name: "list"})
 
 	if err := cmd.FlagSet.Parse([]string{}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
@@ -41,7 +41,7 @@ func TestListCommand_MissingApp(t *testing.T) {
 
 func TestListCommand_InvalidLimit(t *testing.T) {
 	d, stdout, stderr := newTestDeps()
-	cmd := NewListCommandWith(d, shared.ListCommandConfig{Name: "list"})
+	cmd := NewListCommand(d, shared.ListCommandConfig{Name: "list"})
 
 	if err := cmd.FlagSet.Parse([]string{"--limit", "201", "--app", "123"}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
@@ -55,7 +55,7 @@ func TestListCommand_InvalidLimit(t *testing.T) {
 
 func TestListCommand_InvalidSort(t *testing.T) {
 	d, stdout, stderr := newTestDeps()
-	cmd := NewListCommandWith(d, shared.ListCommandConfig{Name: "list"})
+	cmd := NewListCommand(d, shared.ListCommandConfig{Name: "list"})
 
 	if err := cmd.FlagSet.Parse([]string{"--sort", "invalid", "--app", "123"}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
@@ -69,7 +69,7 @@ func TestListCommand_InvalidSort(t *testing.T) {
 
 func TestListCommand_DefaultsNameAndUsageFunc(t *testing.T) {
 	d, _, _ := newTestDeps()
-	cmd := NewListCommandWith(d, shared.ListCommandConfig{})
+	cmd := NewListCommand(d, shared.ListCommandConfig{})
 	if cmd.Name != "feedback" {
 		t.Fatalf("expected default name feedback, got %q", cmd.Name)
 	}
