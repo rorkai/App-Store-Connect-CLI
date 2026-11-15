@@ -53,7 +53,7 @@ Examples:
 			newWebSandboxCommand(d),
 			newWebAppsCommand(d),
 			newWebRemovedAppsCommand(d),
-			WebAppBundlesCommand(),
+			newWebAppBundlesCommand(d),
 			WebTeamsCommand(),
 			newWebBundleIDsCommand(d),
 			newWebServiceIDsCommand(d),
