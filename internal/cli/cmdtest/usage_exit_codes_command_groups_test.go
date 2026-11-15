@@ -959,6 +959,7 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 		{
 			name:    "validate invalid platform",
 			args:    []string{"validate", "--app", "123456789", "--version", "1.0", "--platform", "bad"},
+			deps:    true,
 			wantErr: "validate: --platform must be one of: IOS, MAC_OS, TV_OS, VISION_OS",
 		},
 		{

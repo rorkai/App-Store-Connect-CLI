@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	validatecli "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/validate"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/validation"
 )
@@ -585,7 +586,7 @@ func TestReviewDoctorUsesTimedContextForReadinessReport(t *testing.T) {
 	})
 
 	builderCalled := false
-	reviewReadinessReportBuilder = func(ctx context.Context, opts validatecli.ReadinessOptions) (validation.Report, error) {
+	reviewReadinessReportBuilder = func(ctx context.Context, _ *shared.Deps, opts validatecli.ReadinessOptions) (validation.Report, error) {
 		builderCalled = true
 		if _, ok := ctx.Deadline(); !ok {
 			t.Fatal("expected readiness report builder to receive timeout-bound context")

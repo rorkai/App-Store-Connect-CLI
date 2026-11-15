@@ -193,11 +193,9 @@ func TestBuildReadinessReport_OverlapsSixIndependentReadGroups(t *testing.T) {
 		return server.Client().Transport.RoundTrip(fixtureReq)
 	})
 	client := newBuildsTestClient(t, transport)
-	restoreClient := SetClientFactory(func() (*asc.Client, error) { return client, nil })
-	t.Cleanup(restoreClient)
 
 	started := time.Now()
-	if _, err := BuildReadinessReport(context.Background(), ReadinessOptions{AppID: "app-1", VersionID: "ver-1"}); err != nil {
+	if _, err := BuildReadinessReportWith(context.Background(), readinessTestDeps(client), ReadinessOptions{AppID: "app-1", VersionID: "ver-1"}); err != nil {
 		t.Fatalf("BuildReadinessReport() error = %v", err)
 	}
 	elapsed := time.Since(started)
@@ -241,10 +239,8 @@ func TestBuildReadinessReport_CancelsSiblingCompoundReadOnHardError(t *testing.T
 			return buildsJSONResponse(http.StatusNotFound, `{"errors":[{"status":"404"}]}`)
 		}
 	}))
-	restoreClient := SetClientFactory(func() (*asc.Client, error) { return client, nil })
-	t.Cleanup(restoreClient)
 
-	_, err := BuildReadinessReport(context.Background(), ReadinessOptions{AppID: "app-1", VersionID: "ver-1"})
+	_, err := BuildReadinessReportWith(context.Background(), readinessTestDeps(client), ReadinessOptions{AppID: "app-1", VersionID: "ver-1"})
 	if err == nil || !strings.Contains(err.Error(), "failed to fetch app store version") {
 		t.Fatalf("BuildReadinessReport() error = %v", err)
 	}
@@ -346,10 +342,8 @@ func TestBuildReadinessReport_SharedGateCapsNestedSubscriptionRequests(t *testin
 					return buildsJSONResponse(http.StatusInternalServerError, `{"errors":[{"status":"500","code":"UNEXPECTED_REQUEST"}]}`)
 				}
 			}))
-			restoreClient := SetClientFactory(func() (*asc.Client, error) { return client, nil })
-			t.Cleanup(restoreClient)
 
-			if _, err := BuildReadinessReport(context.Background(), ReadinessOptions{AppID: "app-1", VersionID: "ver-1", Deep: test.deep}); err != nil {
+			if _, err := BuildReadinessReportWith(context.Background(), readinessTestDeps(client), ReadinessOptions{AppID: "app-1", VersionID: "ver-1", Deep: test.deep}); err != nil {
 				t.Fatalf("BuildReadinessReport() error = %v", err)
 			}
 			if got := tracker.max.Load(); got != readinessConcurrencyLimit {

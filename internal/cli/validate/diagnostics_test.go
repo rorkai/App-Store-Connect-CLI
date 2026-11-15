@@ -11,6 +11,7 @@ import (
 
 func TestValidationFailuresExposeStructuredDiagnostics(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
+	d, _, _ := validateTestDeps()
 
 	tests := []struct {
 		name    string
@@ -27,7 +28,7 @@ func TestValidationFailuresExposeStructuredDiagnostics(t *testing.T) {
 			command: func() interface {
 				ParseAndRun(context.Context, []string) error
 			} {
-				return ValidateTestFlightCommand()
+				return newValidateTestFlightCommand(d)
 			},
 			args:      []string{"--app", "app-1"},
 			wantError: "--build-id",
@@ -39,7 +40,7 @@ func TestValidationFailuresExposeStructuredDiagnostics(t *testing.T) {
 			command: func() interface {
 				ParseAndRun(context.Context, []string) error
 			} {
-				return ValidateCommand()
+				return NewValidateCommand(d)
 			},
 			args:      []string{"--app", "app-1", "--version", "1.0", "--version-id", "version-1"},
 			wantError: "--version and --version-id are mutually exclusive",
@@ -51,7 +52,7 @@ func TestValidationFailuresExposeStructuredDiagnostics(t *testing.T) {
 			command: func() interface {
 				ParseAndRun(context.Context, []string) error
 			} {
-				return ValidateCommand()
+				return NewValidateCommand(d)
 			},
 			args:      []string{"--app", "app-1", "--version-id", "version-1", "--apple-id", "person@example.com"},
 			wantError: "--apple-id requires --deep",
