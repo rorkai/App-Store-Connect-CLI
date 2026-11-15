@@ -1710,15 +1710,17 @@ func inferCertificateType(profileType string) (string, error) {
 	case strings.Contains(normalized, "IOS_APP_DEVELOPMENT"):
 		return "DEVELOPMENT,IOS_DEVELOPMENT", nil
 	case strings.Contains(normalized, "IOS_APP_STORE"),
-		strings.Contains(normalized, "IOS_APP_ADHOC"),
-		strings.Contains(normalized, "IOS_APP_INHOUSE"):
+		strings.Contains(normalized, "IOS_APP_ADHOC"):
 		return "DISTRIBUTION,IOS_DISTRIBUTION", nil
+	case strings.Contains(normalized, "IOS_APP_INHOUSE"):
+		return "IOS_DISTRIBUTION,DISTRIBUTION", nil
 	case strings.Contains(normalized, "TVOS_APP_DEVELOPMENT"):
 		return "DEVELOPMENT,IOS_DEVELOPMENT", nil
 	case strings.Contains(normalized, "TVOS_APP_STORE"),
-		strings.Contains(normalized, "TVOS_APP_ADHOC"),
-		strings.Contains(normalized, "TVOS_APP_INHOUSE"):
+		strings.Contains(normalized, "TVOS_APP_ADHOC"):
 		return "DISTRIBUTION,IOS_DISTRIBUTION", nil
+	case strings.Contains(normalized, "TVOS_APP_INHOUSE"):
+		return "IOS_DISTRIBUTION,DISTRIBUTION", nil
 	case strings.Contains(normalized, "MAC_CATALYST_APP_DEVELOPMENT"):
 		return "MAC_APP_DEVELOPMENT,DEVELOPMENT", nil
 	case strings.Contains(normalized, "MAC_CATALYST_APP_STORE"):

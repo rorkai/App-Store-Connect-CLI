@@ -6,7 +6,7 @@ no active certificate, it now creates Apple's cross-platform type:
 
 | Profile types | Created before | Created now |
 | --- | --- | --- |
-| `IOS_APP_STORE`, `IOS_APP_ADHOC`, `IOS_APP_INHOUSE`, and the `TVOS_APP_` equivalents | `IOS_DISTRIBUTION` | `DISTRIBUTION` |
+| `IOS_APP_STORE`, `IOS_APP_ADHOC`, `TVOS_APP_STORE`, `TVOS_APP_ADHOC` | `IOS_DISTRIBUTION` | `DISTRIBUTION` |
 | `IOS_APP_DEVELOPMENT`, `TVOS_APP_DEVELOPMENT` | `IOS_DEVELOPMENT` | `DEVELOPMENT` |
 
 `DISTRIBUTION` ("Apple Distribution") and `DEVELOPMENT` ("Apple Development")
@@ -20,6 +20,8 @@ visionOS and macOS.
   profiles. Nothing is created when one exists, so a team with a legacy
   certificate does not use another distribution certificate slot.
 - Mac, Mac Catalyst and Developer ID profiles create the same types as before.
+- In-house profiles (`IOS_APP_INHOUSE`, `TVOS_APP_INHOUSE`) still create
+  `IOS_DISTRIBUTION`.
 - A type passed with `--certificate-type` is created as given.
 
 The inferred type list is now ordered with the cross-platform type first, for

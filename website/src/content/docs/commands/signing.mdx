@@ -184,8 +184,8 @@ asc signing fetch \
 An active Apple Distribution (`DISTRIBUTION`) or iOS distribution
 (`IOS_DISTRIBUTION`) certificate satisfies the lookup, and nothing is created.
 When neither exists, iOS and tvOS profiles get a cross-platform
-`DISTRIBUTION` certificate (`DEVELOPMENT` for development profiles). The
-created type is the first one in `--certificate-type`, so pass
+`DISTRIBUTION` certificate (`DEVELOPMENT` for development profiles).
+In-house profiles still get `IOS_DISTRIBUTION`. The created type is the first one in `--certificate-type`, so pass
 `--certificate-type IOS_DISTRIBUTION,DISTRIBUTION` to create the legacy type.
 
 The identity password must come from a protected 0600-or-more-restrictive file;

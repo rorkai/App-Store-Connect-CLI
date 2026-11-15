@@ -285,6 +285,7 @@ func TestSigningFetchCreateMissingCertificateType(t *testing.T) {
 	}{
 		{name: "development created as cross-platform", profileType: "IOS_APP_DEVELOPMENT", wantCreated: "DEVELOPMENT"},
 		{name: "mac distribution unchanged", profileType: "MAC_APP_STORE", wantCreated: "MAC_APP_DISTRIBUTION"},
+		{name: "in-house distribution unchanged", profileType: "IOS_APP_INHOUSE", wantCreated: "IOS_DISTRIBUTION"},
 		{name: "legacy certificate reused", profileType: "IOS_APP_STORE", existingType: "IOS_DISTRIBUTION"},
 		{name: "cross-platform certificate reused", profileType: "IOS_APP_STORE", existingType: "DISTRIBUTION"},
 		{name: "explicit legacy type created", profileType: "IOS_APP_STORE", certificateType: "IOS_DISTRIBUTION", wantCreated: "IOS_DISTRIBUTION"},

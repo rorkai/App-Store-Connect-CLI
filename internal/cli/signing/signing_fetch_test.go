@@ -846,11 +846,11 @@ func TestResolveSigningCertificateTypesIncludesCompatibleCertificatesForIOSAndTV
 		{profileType: "IOS_APP_DEVELOPMENT", want: "DEVELOPMENT,IOS_DEVELOPMENT"},
 		{profileType: "IOS_APP_STORE", want: "DISTRIBUTION,IOS_DISTRIBUTION"},
 		{profileType: "IOS_APP_ADHOC", want: "DISTRIBUTION,IOS_DISTRIBUTION"},
-		{profileType: "IOS_APP_INHOUSE", want: "DISTRIBUTION,IOS_DISTRIBUTION"},
+		{profileType: "IOS_APP_INHOUSE", want: "IOS_DISTRIBUTION,DISTRIBUTION"},
 		{profileType: "TVOS_APP_DEVELOPMENT", want: "DEVELOPMENT,IOS_DEVELOPMENT"},
 		{profileType: "TVOS_APP_STORE", want: "DISTRIBUTION,IOS_DISTRIBUTION"},
 		{profileType: "TVOS_APP_ADHOC", want: "DISTRIBUTION,IOS_DISTRIBUTION"},
-		{profileType: "TVOS_APP_INHOUSE", want: "DISTRIBUTION,IOS_DISTRIBUTION"},
+		{profileType: "TVOS_APP_INHOUSE", want: "IOS_DISTRIBUTION,DISTRIBUTION"},
 	}
 
 	for _, tt := range tests {
