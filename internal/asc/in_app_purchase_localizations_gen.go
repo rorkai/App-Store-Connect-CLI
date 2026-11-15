@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -71,4 +72,42 @@ func (c *Client) GetInAppPurchaseLocalizationV2(ctx context.Context, localizatio
 		Path:  fmt.Sprintf("/v2/inAppPurchaseLocalizations/%s", localizationID),
 		Query: buildIAPLocalizationV2Query(query),
 	})
+}
+
+// IAPLocalizationV2Option sets the query of GET /v2/inAppPurchaseLocalizations/{id} (inAppPurchaseLocalizationsV2_getInstance).
+type IAPLocalizationV2Option func(*iapLocalizationV2Query)
+
+type iapLocalizationV2Query struct {
+	localizationFields []string
+	versionFields      []string
+	include            []string
+}
+
+// WithIAPLocalizationV2Fields sets fields[inAppPurchaseLocalizations].
+func WithIAPLocalizationV2Fields(fields []string) IAPLocalizationV2Option {
+	return func(q *iapLocalizationV2Query) {
+		q.localizationFields = normalizeUniqueList(fields)
+	}
+}
+
+// WithIAPLocalizationV2VersionFields sets fields[inAppPurchaseVersions].
+func WithIAPLocalizationV2VersionFields(fields []string) IAPLocalizationV2Option {
+	return func(q *iapLocalizationV2Query) {
+		q.versionFields = normalizeUniqueList(fields)
+	}
+}
+
+// WithIAPLocalizationV2Include sets include.
+func WithIAPLocalizationV2Include(include []string) IAPLocalizationV2Option {
+	return func(q *iapLocalizationV2Query) {
+		q.include = normalizeUniqueList(include)
+	}
+}
+
+func buildIAPLocalizationV2Query(query *iapLocalizationV2Query) string {
+	values := url.Values{}
+	addCSV(values, "fields[inAppPurchaseLocalizations]", query.localizationFields)
+	addCSV(values, "fields[inAppPurchaseVersions]", query.versionFields)
+	addCSV(values, "include", query.include)
+	return values.Encode()
 }

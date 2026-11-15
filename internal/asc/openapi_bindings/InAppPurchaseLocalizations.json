@@ -18,5 +18,8 @@
   "operations": [
     {"operation":"inAppPurchaseLocalizationsV2_deleteInstance","name":"DeleteInAppPurchaseLocalizationV2","params":["localizationID"],"check":"require"},
     {"operation":"inAppPurchaseLocalizationsV2_getInstance","name":"GetInAppPurchaseLocalizationV2","params":["localizationID"],"check":"require","checkFirst":true,"options":"IAPLocalizationV2Option","query":"buildIAPLocalizationV2Query","response":"InAppPurchaseLocalizationResponse","single":true,"deviations":[{"problem":"result data holds asc.InAppPurchaseLocalizationAttributes, not the attributes of resource InAppPurchaseLocalizationV2","reason":"InAppPurchaseLocalizationAttributes is the hand-written attributes type that the v1 and v2 in-app purchase localization reads share, named without the version suffix of InAppPurchaseLocalizationV2; the attribute names check passes for InAppPurchaseLocalizationV2. Reached by asc iap versions localizations view."}]}
+  ],
+  "queries": [
+    {"operation":"inAppPurchaseLocalizationsV2_getInstance","name":"IAPLocalizationV2","params":[{"name":"fields[inAppPurchaseLocalizations]","field":"localizationFields","with":"WithIAPLocalizationV2Fields","arg":"fields","normalize":"unique"},{"name":"fields[inAppPurchaseVersions]","field":"versionFields","arg":"fields","normalize":"unique"},{"name":"include","normalize":"unique"}]}
   ]
 }

@@ -12,15 +12,11 @@ import (
 
 type IAPVersionsOption func(*iapVersionsQuery)
 
-type IAPVersionGetOption func(*iapVersionGetQuery)
-
 type IAPVersionImageOption func(*iapImageFieldsQuery)
 
 type IAPVersionImagesOption func(*iapVersionImagesQuery)
 
 type IAPVersionLocalizationsOption func(*iapVersionLocalizationsQuery)
-
-type IAPLocalizationV2Option func(*iapLocalizationV2Query)
 
 type IAPImageV2Option func(*iapImageFieldsQuery)
 
@@ -36,16 +32,6 @@ type iapVersionsQuery struct {
 	localizationsLimit int
 }
 
-type iapVersionGetQuery struct {
-	versionFields      []string
-	iapFields          []string
-	imageFields        []string
-	localizationFields []string
-	include            []string
-	imagesLimit        int
-	localizationsLimit int
-}
-
 type iapImageFieldsQuery struct {
 	fields []string
 }
@@ -57,12 +43,6 @@ type iapVersionImagesQuery struct {
 
 type iapVersionLocalizationsQuery struct {
 	listQuery
-	localizationFields []string
-	versionFields      []string
-	include            []string
-}
-
-type iapLocalizationV2Query struct {
 	localizationFields []string
 	versionFields      []string
 	include            []string
@@ -112,42 +92,6 @@ func WithIAPVersionsLocalizationsLimit(limit int) IAPVersionsOption {
 	}
 }
 
-func WithIAPVersionGetFields(fields []string) IAPVersionGetOption {
-	return func(q *iapVersionGetQuery) { q.versionFields = normalizeUniqueList(fields) }
-}
-
-func WithIAPVersionGetIAPFields(fields []string) IAPVersionGetOption {
-	return func(q *iapVersionGetQuery) { q.iapFields = normalizeUniqueList(fields) }
-}
-
-func WithIAPVersionGetImageFields(fields []string) IAPVersionGetOption {
-	return func(q *iapVersionGetQuery) { q.imageFields = normalizeUniqueList(fields) }
-}
-
-func WithIAPVersionGetLocalizationFields(fields []string) IAPVersionGetOption {
-	return func(q *iapVersionGetQuery) { q.localizationFields = normalizeUniqueList(fields) }
-}
-
-func WithIAPVersionGetInclude(include []string) IAPVersionGetOption {
-	return func(q *iapVersionGetQuery) { q.include = normalizeUniqueList(include) }
-}
-
-func WithIAPVersionGetImagesLimit(limit int) IAPVersionGetOption {
-	return func(q *iapVersionGetQuery) {
-		if limit > 0 {
-			q.imagesLimit = limit
-		}
-	}
-}
-
-func WithIAPVersionGetLocalizationsLimit(limit int) IAPVersionGetOption {
-	return func(q *iapVersionGetQuery) {
-		if limit > 0 {
-			q.localizationsLimit = limit
-		}
-	}
-}
-
 func WithIAPVersionImageFields(fields []string) IAPVersionImageOption {
 	return func(q *iapImageFieldsQuery) { q.fields = normalizeUniqueList(fields) }
 }
@@ -176,18 +120,6 @@ func WithIAPVersionLocalizationsInclude(include []string) IAPVersionLocalization
 	return func(q *iapVersionLocalizationsQuery) { q.include = normalizeUniqueList(include) }
 }
 
-func WithIAPLocalizationV2Fields(fields []string) IAPLocalizationV2Option {
-	return func(q *iapLocalizationV2Query) { q.localizationFields = normalizeUniqueList(fields) }
-}
-
-func WithIAPLocalizationV2VersionFields(fields []string) IAPLocalizationV2Option {
-	return func(q *iapLocalizationV2Query) { q.versionFields = normalizeUniqueList(fields) }
-}
-
-func WithIAPLocalizationV2Include(include []string) IAPLocalizationV2Option {
-	return func(q *iapLocalizationV2Query) { q.include = normalizeUniqueList(include) }
-}
-
 func WithIAPImageV2Fields(fields []string) IAPImageV2Option {
 	return func(q *iapImageFieldsQuery) { q.fields = normalizeUniqueList(fields) }
 }
@@ -206,22 +138,6 @@ func buildIAPVersionsQuery(q *iapVersionsQuery) string {
 	}
 	if q.localizationsLimit > 0 {
 		values.Set("limit[localizations]", strconv.Itoa(q.localizationsLimit))
-	}
-	return values.Encode()
-}
-
-func buildIAPVersionGetQuery(query *iapVersionGetQuery) string {
-	values := url.Values{}
-	addCSV(values, "fields[inAppPurchaseVersions]", query.versionFields)
-	addCSV(values, "fields[inAppPurchases]", query.iapFields)
-	addCSV(values, "fields[inAppPurchaseImages]", query.imageFields)
-	addCSV(values, "fields[inAppPurchaseLocalizations]", query.localizationFields)
-	addCSV(values, "include", query.include)
-	if query.imagesLimit > 0 {
-		values.Set("limit[images]", strconv.Itoa(query.imagesLimit))
-	}
-	if query.localizationsLimit > 0 {
-		values.Set("limit[localizations]", strconv.Itoa(query.localizationsLimit))
 	}
 	return values.Encode()
 }
@@ -245,14 +161,6 @@ func buildIAPVersionLocalizationsQuery(q *iapVersionLocalizationsQuery) string {
 	addCSV(values, "fields[inAppPurchaseLocalizations]", q.localizationFields)
 	addCSV(values, "fields[inAppPurchaseVersions]", q.versionFields)
 	addCSV(values, "include", q.include)
-	return values.Encode()
-}
-
-func buildIAPLocalizationV2Query(query *iapLocalizationV2Query) string {
-	values := url.Values{}
-	addCSV(values, "fields[inAppPurchaseLocalizations]", query.localizationFields)
-	addCSV(values, "fields[inAppPurchaseVersions]", query.versionFields)
-	addCSV(values, "include", query.include)
 	return values.Encode()
 }
 
