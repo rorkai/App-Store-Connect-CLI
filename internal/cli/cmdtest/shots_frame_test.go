@@ -791,25 +791,24 @@ func TestShotsFrame_RejectsInvalidWatchOptions(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
+			root, rootStdout, rootStderr := shotsRootWithDeps(t)
 			root.FlagSet.SetOutput(io.Discard)
 
 			configPath := filepath.Join(t.TempDir(), "missing-frame.yaml")
 			args := []string{"screenshots", "frame", "--config", configPath}
 			args = append(args, test.args...)
 
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-				if err.Error() != test.wantStderr {
-					t.Fatalf("error = %q, want %q", err, test.wantStderr)
-				}
-			})
+			if err := root.Parse(args); err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
+			err := root.Run(context.Background())
+			if !errors.Is(err, flag.ErrHelp) {
+				t.Fatalf("expected ErrHelp, got %v", err)
+			}
+			if err.Error() != test.wantStderr {
+				t.Fatalf("error = %q, want %q", err, test.wantStderr)
+			}
+			stdout, stderr := rootStdout.String(), rootStderr.String()
 
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
@@ -861,25 +860,24 @@ func TestShotsFrame_RejectsFlagsWatchModeCannotHonor(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
+			root, rootStdout, rootStderr := shotsRootWithDeps(t)
 			root.FlagSet.SetOutput(io.Discard)
 
 			configPath := filepath.Join(t.TempDir(), "missing-frame.yaml")
 			args := []string{"screenshots", "frame", "--config", configPath, "--watch"}
 			args = append(args, test.args...)
 
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-				if !strings.Contains(err.Error(), test.wantStderr) {
-					t.Fatalf("error = %q, want it to contain %q", err, test.wantStderr)
-				}
-			})
+			if err := root.Parse(args); err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
+			err := root.Run(context.Background())
+			if !errors.Is(err, flag.ErrHelp) {
+				t.Fatalf("expected ErrHelp, got %v", err)
+			}
+			if !strings.Contains(err.Error(), test.wantStderr) {
+				t.Fatalf("error = %q, want it to contain %q", err, test.wantStderr)
+			}
+			stdout, stderr := rootStdout.String(), rootStderr.String()
 
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
@@ -916,21 +914,20 @@ func TestShotsFrame_AcceptsValidWatchOptions(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
+			root, rootStdout, rootStderr := shotsRootWithDeps(t)
 			root.FlagSet.SetOutput(io.Discard)
 			configPath := filepath.Join(t.TempDir(), "missing-frame.yaml")
 			args := []string{"screenshots", "frame", "--config", configPath, "--watch"}
 			args = append(args, test.args...)
 
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if err == nil || errors.Is(err, flag.ErrHelp) || !strings.Contains(err.Error(), "config file not found") {
-					t.Fatalf("expected valid options to reach watcher, got %v", err)
-				}
-			})
+			if err := root.Parse(args); err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
+			err := root.Run(context.Background())
+			if err == nil || errors.Is(err, flag.ErrHelp) || !strings.Contains(err.Error(), "config file not found") {
+				t.Fatalf("expected valid options to reach watcher, got %v", err)
+			}
+			stdout, stderr := rootStdout.String(), rootStderr.String()
 
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
@@ -1012,7 +1009,7 @@ func TestShotsFrame_ResumeSkipsUnchangedInput(t *testing.T) {
 	})
 
 	run := func() {
-		root := RootCommand("1.2.3")
+		root, _, _ := shotsRootWithDeps(t)
 		root.FlagSet.SetOutput(io.Discard)
 		if err := root.Parse([]string{
 			"screenshots", "frame",
@@ -1127,7 +1124,7 @@ echo '[{"name":"framed","path":"output/framed.png","success":true,"error":""}]'
 
 			restore := shots.SetFrameFunc(nil)
 			t.Cleanup(restore)
-			root := RootCommand("1.2.3")
+			root, _, _ := shotsRootWithDeps(t)
 			root.FlagSet.SetOutput(io.Discard)
 			if err := root.Parse([]string{
 				"screenshots", "frame",
@@ -1206,7 +1203,7 @@ func TestShotsFrame_ResumeUsesPinnedInput(t *testing.T) {
 		}), nil
 	})
 
-	root := RootCommand("1.2.3")
+	root, _, _ := shotsRootWithDeps(t)
 	root.FlagSet.SetOutput(io.Discard)
 	if err := root.Parse([]string{
 		"screenshots", "frame",
@@ -1269,7 +1266,7 @@ func TestShotsFrameResumeRejectsReplacedPublication(t *testing.T) {
 		return result, nil
 	})
 	for range 2 {
-		root := RootCommand("1.2.3")
+		root, _, _ := shotsRootWithDeps(t)
 		if err := root.Parse([]string{"screenshots", "frame", "--input", input, "--output-path", output, "--resume", "--output", "json"}); err != nil {
 			t.Fatal(err)
 		}

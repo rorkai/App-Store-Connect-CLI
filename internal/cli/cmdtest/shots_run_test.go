@@ -1,6 +1,7 @@
 package cmdtest
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -9,26 +10,28 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/peterbourgon/ff/v3/ffcli"
+
+	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/screenshots"
 )
 
 func TestShotsRun_MissingPlanFile(t *testing.T) {
-	root := RootCommand("1.2.3")
+	root, _, rootStderr := shotsRootWithDeps(t)
 	missing := filepath.Join(t.TempDir(), "does-not-exist.json")
 
 	if err := root.Parse([]string{"screenshots", "run", "--plan", missing}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	_, stderr := captureOutput(t, func() {
-		err := root.Run(context.Background())
-		if err == nil {
-			t.Fatal("expected error for missing plan file")
-		}
-		if !errors.Is(err, screenshots.ErrPlanRead) {
-			t.Fatalf("expected ErrPlanRead, got: %v", err)
-		}
-	})
+	err := root.Run(context.Background())
+	if err == nil {
+		t.Fatal("expected error for missing plan file")
+	}
+	if !errors.Is(err, screenshots.ErrPlanRead) {
+		t.Fatalf("expected ErrPlanRead, got: %v", err)
+	}
+	stderr := rootStderr.String()
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr for runtime error, got %q", stderr)
@@ -36,7 +39,7 @@ func TestShotsRun_MissingPlanFile(t *testing.T) {
 }
 
 func TestShotsRun_InvalidPlanJSON(t *testing.T) {
-	root := RootCommand("1.2.3")
+	root, _, rootStderr := shotsRootWithDeps(t)
 	path := filepath.Join(t.TempDir(), "invalid.json")
 	writeFile(t, path, "{invalid")
 
@@ -44,15 +47,14 @@ func TestShotsRun_InvalidPlanJSON(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	_, stderr := captureOutput(t, func() {
-		err := root.Run(context.Background())
-		if err == nil {
-			t.Fatal("expected error for invalid plan")
-		}
-		if !errors.Is(err, screenshots.ErrPlanParseJSON) {
-			t.Fatalf("expected ErrPlanParseJSON, got: %v", err)
-		}
-	})
+	err := root.Run(context.Background())
+	if err == nil {
+		t.Fatal("expected error for invalid plan")
+	}
+	if !errors.Is(err, screenshots.ErrPlanParseJSON) {
+		t.Fatalf("expected ErrPlanParseJSON, got: %v", err)
+	}
+	stderr := rootStderr.String()
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr for runtime error, got %q", stderr)
@@ -72,15 +74,14 @@ func TestShotsRunPreservesWhitespacePlanPath(t *testing.T) {
   "steps": [{"action": "wait", "duration_ms": 1}]
 }`)
 
-	root := RootCommand("1.2.3")
+	root, rootStdout, rootStderr := shotsRootWithDeps(t)
 	if err := root.Parse([]string{"screenshots", "run", "--plan", planPath, "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	if err := root.Run(context.Background()); err != nil {
+		t.Fatalf("run error: %v", err)
+	}
+	stdout, stderr := rootStdout.String(), rootStderr.String()
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
@@ -90,7 +91,7 @@ func TestShotsRunPreservesWhitespacePlanPath(t *testing.T) {
 }
 
 func TestShotsRun_ValidWaitPlan_WithJSONCComments(t *testing.T) {
-	root := RootCommand("1.2.3")
+	root, rootStdout, rootStderr := shotsRootWithDeps(t)
 	outDir := filepath.Join(t.TempDir(), "shots")
 	planPath := filepath.Join(t.TempDir(), "screenshots.json")
 	writeFile(t, planPath, `{
@@ -109,11 +110,10 @@ func TestShotsRun_ValidWaitPlan_WithJSONCComments(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	if err := root.Run(context.Background()); err != nil {
+		t.Fatalf("run error: %v", err)
+	}
+	stdout, stderr := rootStdout.String(), rootStderr.String()
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -142,7 +142,7 @@ func TestShotsRun_ValidWaitPlan_WithJSONCComments(t *testing.T) {
 }
 
 func TestShotsRun_ValidWaitPlan(t *testing.T) {
-	root := RootCommand("1.2.3")
+	root, rootStdout, rootStderr := shotsRootWithDeps(t)
 	outDir := filepath.Join(t.TempDir(), "shots")
 	planPath := filepath.Join(t.TempDir(), "screenshots.json")
 	writeFile(t, planPath, `{
@@ -160,11 +160,10 @@ func TestShotsRun_ValidWaitPlan(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	if err := root.Run(context.Background()); err != nil {
+		t.Fatalf("run error: %v", err)
+	}
+	stdout, stderr := rootStdout.String(), rootStderr.String()
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -193,7 +192,7 @@ func TestShotsRun_ValidWaitPlan(t *testing.T) {
 }
 
 func TestShotsRun_BundleIDOverrideAppliedForPlanMissingBundleID(t *testing.T) {
-	root := RootCommand("1.2.3")
+	root, rootStdout, rootStderr := shotsRootWithDeps(t)
 	outDir := filepath.Join(t.TempDir(), "shots")
 	planPath := filepath.Join(t.TempDir(), "screenshots.json")
 	writeFile(t, planPath, `{
@@ -210,11 +209,10 @@ func TestShotsRun_BundleIDOverrideAppliedForPlanMissingBundleID(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	if err := root.Run(context.Background()); err != nil {
+		t.Fatalf("run error: %v", err)
+	}
+	stdout, stderr := rootStdout.String(), rootStderr.String()
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -236,4 +234,13 @@ func TestShotsRun_BundleIDOverrideAppliedForPlanMissingBundleID(t *testing.T) {
 	if len(result.Steps) != 1 || result.Steps[0].Action != "wait" || result.Steps[0].Status != "ok" {
 		t.Fatalf("unexpected step results: %+v", result.Steps)
 	}
+}
+
+// shotsRootWithDeps returns a root command built on test deps without an App
+// Store Connect client, and the deps' stdout and stderr buffers.
+func shotsRootWithDeps(t *testing.T) (*ffcli.Command, *bytes.Buffer, *bytes.Buffer) {
+	t.Helper()
+
+	d, stdout, stderr := newTestDeps(t, nil)
+	return rootcmd.RootCommandWithDeps("1.2.3", d), stdout, stderr
 }
