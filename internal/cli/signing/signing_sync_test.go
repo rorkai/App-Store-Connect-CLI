@@ -23,7 +23,8 @@ import (
 )
 
 func TestSigningSyncCommandLongHelpUsesOutputDirExample(t *testing.T) {
-	cmd := SigningSyncCommand()
+	d, _, _ := newSigningTestDeps()
+	cmd := newSigningSyncCommand(d)
 	if !strings.Contains(cmd.LongHelp, "--output-dir ./signing") {
 		t.Fatalf("expected long help to document --output-dir, got %q", cmd.LongHelp)
 	}
@@ -91,6 +92,7 @@ func TestSigningSyncPreparesRepositoryOnceInAssetOrder(t *testing.T) {
 				context.Background(),
 				client,
 				signingAssetsOptions{
+					Now:                time.Now,
 					BundleIDResourceID: "bundle-main",
 					BundleIdentifier:   "com.example.signing.profile",
 					ProfileType:        "IOS_APP_STORE",
@@ -141,6 +143,7 @@ func TestSigningSyncIdentityConflictFailsBeforeProfileCreatePOST(t *testing.T) {
 	store := &signingpkg.GitStore{LocalDir: t.TempDir()}
 	identity := &signingIdentity{PrivateKey: key}
 	_, _, _, err := resolveSigningAssets(context.Background(), client, signingAssetsOptions{
+		Now:                time.Now,
 		BundleIDResourceID: "bundle-main",
 		BundleIdentifier:   "com.example.app",
 		ProfileType:        "IOS_APP_ADHOC",
@@ -191,6 +194,7 @@ func TestSigningSyncLegacyDestinationConflictFailsBeforeProfileCreatePOST(t *tes
 	store := &signingpkg.GitStore{LocalDir: t.TempDir()}
 	outside := t.TempDir()
 	_, _, _, err := resolveSigningAssets(context.Background(), client, signingAssetsOptions{
+		Now:                time.Now,
 		BundleIDResourceID: "bundle-main", BundleIdentifier: "com.example.app", ProfileType: "IOS_APP_ADHOC", CreateMissing: true,
 		BeforeCreate: func(plan profileCreatePlan) error {
 			conflict := filepath.Join(store.LocalDir, "profiles", "adhoc", safeFileName(plan.ProfileName, "profile")+".mobileprovision.enc")
@@ -228,6 +232,7 @@ func TestSigningSyncCaseCollisionFailsBeforeProfileCreatePOST(t *testing.T) {
 	})
 	store := &signingpkg.GitStore{LocalDir: t.TempDir()}
 	_, _, _, err := resolveSigningAssets(context.Background(), client, signingAssetsOptions{
+		Now:                time.Now,
 		BundleIDResourceID: "bundle-main", BundleIdentifier: "com.example.app", ProfileType: "IOS_APP_ADHOC", CreateMissing: true,
 		BeforeCreate: func(plan profileCreatePlan) error {
 			existing := filepath.Join("profiles", "adhoc", strings.ToLower(safeFileName(plan.ProfileName, "profile"))+".mobileprovision")
@@ -261,26 +266,28 @@ func TestSigningSyncCaseCollisionFailsBeforeProfileCreatePOST(t *testing.T) {
 func TestSigningSyncPushRejectsDeviceWithoutCreateMissing(t *testing.T) {
 	t.Setenv(signingSyncPasswordEnvVar, "repository-password")
 	clientCalls := 0
-	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+	clientFactory := func() (*asc.Client, error) {
 		clientCalls++
 		return nil, errors.New("client must not be created")
-	}))
+	}
 
-	cmd := syncPushCommand()
+	d, depsStdout, depsStderr := newSigningTestDeps()
+	d.Client = clientFactory
+	cmd := syncPushCommand(d)
 	cmd.FlagSet.SetOutput(io.Discard)
 
 	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := cmd.Parse([]string{
-			"--bundle-id", "com.example.app",
-			"--profile-type", "IOS_APP_DEVELOPMENT",
-			"--repo", "git@github.com:team/certs.git",
-			"--device", "DEVICE1",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = cmd.Run(context.Background())
-	})
+	if err := cmd.Parse([]string{
+		"--bundle-id", "com.example.app",
+		"--profile-type", "IOS_APP_DEVELOPMENT",
+		"--repo", "git@github.com:team/certs.git",
+		"--device", "DEVICE1",
+	}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	runErr = cmd.Run(context.Background())
+	stdout := depsStdout.String()
+	stderr := depsStderr.String()
 
 	if runErr == nil || runErr.Error() != deviceWithoutCreateMissingError {
 		t.Fatalf("error = %v, want %q", runErr, deviceWithoutCreateMissingError)
@@ -382,26 +389,26 @@ func TestResolveSyncPasswordPrefersProtectedFileThenEnvironment(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	password, err := resolveSyncPassword(path)
+	password, err := resolveSyncPassword(testSigningDeps(), path)
 	if err != nil {
-		t.Fatalf("resolveSyncPassword(file) error = %v", err)
+		t.Fatalf("resolveSyncPassword(testSigningDeps(), file) error = %v", err)
 	}
 	if password != "file-password" {
 		t.Fatalf("file result = %q", password)
 	}
 
-	password, err = resolveSyncPassword("")
+	password, err = resolveSyncPassword(testSigningDeps(), "")
 	if err != nil {
-		t.Fatalf("resolveSyncPassword(env) error = %v", err)
+		t.Fatalf("resolveSyncPassword(testSigningDeps(), env) error = %v", err)
 	}
 	if password != "environment-password" {
 		t.Fatalf("environment result = %q", password)
 	}
 
 	t.Setenv(signingSyncPasswordEnvVar, "")
-	_, err = resolveSyncPassword("")
+	_, err = resolveSyncPassword(testSigningDeps(), "")
 	if err == nil || err.Error() != "--password-file is required (or set ASC_SIGNING_SYNC_PASSWORD)" {
-		t.Fatalf("resolveSyncPassword(missing) error = %v, want missing --password-file usage error", err)
+		t.Fatalf("resolveSyncPassword(testSigningDeps(), missing) error = %v, want missing --password-file usage error", err)
 	}
 	if !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("error = %v, want usage error", err)
@@ -410,7 +417,7 @@ func TestResolveSyncPasswordPrefersProtectedFileThenEnvironment(t *testing.T) {
 
 func TestResolveSyncPasswordPreservesEnvironmentWhitespace(t *testing.T) {
 	t.Setenv(signingSyncPasswordEnvVar, "  environment password  ")
-	password, err := resolveSyncPassword("")
+	password, err := resolveSyncPassword(testSigningDeps(), "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -422,7 +429,7 @@ func TestResolveSyncPasswordPreservesEnvironmentWhitespace(t *testing.T) {
 	if err := os.WriteFile(path, []byte("file password \n\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	password, err = resolveSyncPassword(path)
+	password, err = resolveSyncPassword(testSigningDeps(), path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -435,9 +442,9 @@ func TestResolveSyncPasswordIgnoresLegacyMatchPasswordEnvironment(t *testing.T) 
 	t.Setenv(signingSyncPasswordEnvVar, "")
 	t.Setenv("ASC_MATCH_PASSWORD", "legacy-environment-password")
 
-	password, err := resolveSyncPassword("")
+	password, err := resolveSyncPassword(testSigningDeps(), "")
 	if err == nil {
-		t.Fatalf("resolveSyncPassword() = %q, want missing --password-file usage error", password)
+		t.Fatalf("resolveSyncPassword(testSigningDeps()) = %q, want missing --password-file usage error", password)
 	}
 	if err.Error() != "--password-file is required (or set ASC_SIGNING_SYNC_PASSWORD)" {
 		t.Fatalf("error = %q, want error naming only the supported sources", err.Error())
@@ -453,12 +460,12 @@ func TestResolveSyncPasswordIgnoresLegacyMatchPasswordEnvironment(t *testing.T) 
 func TestSigningSyncIgnoresLegacyMatchPasswordEnvironmentWithoutWarning(t *testing.T) {
 	tests := []struct {
 		name string
-		cmd  *ffcli.Command
+		cmd  func(*shared.Deps) *ffcli.Command
 		args []string
 	}{
 		{
 			name: "push",
-			cmd:  syncPushCommand(),
+			cmd:  syncPushCommand,
 			args: []string{
 				"--bundle-id", "com.example.app",
 				"--profile-type", "IOS_APP_STORE",
@@ -467,7 +474,7 @@ func TestSigningSyncIgnoresLegacyMatchPasswordEnvironmentWithoutWarning(t *testi
 		},
 		{
 			name: "pull",
-			cmd:  syncPullCommand(),
+			cmd:  syncPullCommand,
 			args: []string{
 				"--repo", "git@example.com:team/signing.git",
 			},
@@ -479,17 +486,18 @@ func TestSigningSyncIgnoresLegacyMatchPasswordEnvironmentWithoutWarning(t *testi
 			t.Setenv(signingSyncPasswordEnvVar, "")
 			t.Setenv("ASC_MATCH_PASSWORD", "legacy-environment-password")
 			clientCalls := 0
-			t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+			clientFactory := func() (*asc.Client, error) {
 				clientCalls++
 				return nil, errors.New("client must not be created")
-			}))
-			if err := tt.cmd.Parse(tt.args); err != nil {
+			}
+			d, depsStdout, depsStderr := newSigningTestDeps()
+			d.Client = clientFactory
+			cmd := tt.cmd(d)
+			if err := cmd.Parse(tt.args); err != nil {
 				t.Fatal(err)
 			}
-			var runErr error
-			stdout, stderr := captureOutput(t, func() {
-				runErr = tt.cmd.Run(context.Background())
-			})
+			runErr := cmd.Run(context.Background())
+			stdout, stderr := depsStdout.String(), depsStderr.String()
 			if runErr == nil || runErr.Error() != "--password-file is required (or set ASC_SIGNING_SYNC_PASSWORD)" {
 				t.Fatalf("error = %v, want missing --password-file usage error", runErr)
 			}
@@ -518,16 +526,18 @@ func TestSigningSyncIgnoresLegacyMatchPasswordEnvironmentWithoutWarning(t *testi
 func TestSigningSyncDoesNotDefineLegacyPasswordFlag(t *testing.T) {
 	for _, tt := range []struct {
 		name string
-		cmd  *ffcli.Command
+		cmd  func(*shared.Deps) *ffcli.Command
 	}{
-		{name: "push", cmd: syncPushCommand()},
-		{name: "pull", cmd: syncPullCommand()},
+		{name: "push", cmd: syncPushCommand},
+		{name: "pull", cmd: syncPullCommand},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.cmd.FlagSet.Lookup("password") != nil {
+			d, _, _ := newSigningTestDeps()
+			cmd := tt.cmd(d)
+			if cmd.FlagSet.Lookup("password") != nil {
 				t.Fatalf("signing sync %s still defines the removed --password flag", tt.name)
 			}
-			if tt.cmd.FlagSet.Lookup("password-file") == nil {
+			if cmd.FlagSet.Lookup("password-file") == nil {
 				t.Fatalf("signing sync %s is missing --password-file", tt.name)
 			}
 		})
@@ -559,7 +569,7 @@ func TestPrepareDecryptedSigningFilesRejectsLegacyCiphertextAtIdentityPathWithou
 	if err := os.WriteFile(destination, []byte("existing"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := prepareDecryptedSigningFiles(store, []string{identityPath}, "password", outDir); err == nil || !strings.Contains(err.Error(), "versioned sensitive") {
+	if _, err := prepareDecryptedSigningFiles(testSigningDeps(), store, []string{identityPath}, "password", outDir); err == nil || !strings.Contains(err.Error(), "versioned sensitive") {
 		t.Fatalf("legacy identity substitution error = %v", err)
 	}
 	got, err := os.ReadFile(destination)
@@ -577,7 +587,7 @@ func TestPrepareDecryptedSigningFilesRejectsLegacyCiphertextAtArbitraryP12Path(t
 	if err := store.WriteEncryptedFile(identityPath, []byte("not-an-identity"), "password"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := prepareDecryptedSigningFiles(store, []string{identityPath}, "password", t.TempDir()); err == nil || !strings.Contains(err.Error(), "versioned sensitive") {
+	if _, err := prepareDecryptedSigningFiles(testSigningDeps(), store, []string{identityPath}, "password", t.TempDir()); err == nil || !strings.Contains(err.Error(), "versioned sensitive") {
 		t.Fatalf("arbitrary P12 substitution error = %v", err)
 	}
 }
@@ -598,7 +608,7 @@ func TestPrepareDecryptedSigningFilesRejectsIdentityMetadataMismatchWithoutWriti
 		t.Fatal(err)
 	}
 	outDir := t.TempDir()
-	if _, err := prepareDecryptedSigningFiles(store, []string{identityPath}, "password", outDir); err == nil || !strings.Contains(err.Error(), "certificate") {
+	if _, err := prepareDecryptedSigningFiles(testSigningDeps(), store, []string{identityPath}, "password", outDir); err == nil || !strings.Contains(err.Error(), "certificate") {
 		t.Fatalf("identity metadata mismatch error = %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(outDir, identityPath)); !errors.Is(err, os.ErrNotExist) {
@@ -621,7 +631,7 @@ func TestPrepareDecryptedSigningFilesRequiresIdentityCoreContextIntegrity(t *tes
 		if err := store.WriteEncryptedFileWithMetadata(artifacts.IdentityPath, artifacts.IdentityData, "password", artifacts.IdentityMetadata); err != nil {
 			t.Fatal(err)
 		}
-		decrypted, err := prepareDecryptedSigningFiles(store, []string{artifacts.IdentityPath}, "password", t.TempDir())
+		decrypted, err := prepareDecryptedSigningFiles(testSigningDeps(), store, []string{artifacts.IdentityPath}, "password", t.TempDir())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -635,7 +645,7 @@ func TestPrepareDecryptedSigningFilesRequiresIdentityCoreContextIntegrity(t *tes
 		if err := store.WriteEncryptedFileWithMetadata(artifacts.BindingPath, artifacts.BindingData, "password", artifacts.BindingMetadata); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := prepareDecryptedSigningFiles(store, []string{artifacts.BindingPath}, "password", t.TempDir()); err == nil || !strings.Contains(err.Error(), "no matching core") {
+		if _, err := prepareDecryptedSigningFiles(testSigningDeps(), store, []string{artifacts.BindingPath}, "password", t.TempDir()); err == nil || !strings.Contains(err.Error(), "no matching core") {
 			t.Fatalf("orphan context error = %v", err)
 		}
 	})
@@ -648,7 +658,7 @@ func TestPrepareDecryptedSigningFilesRequiresIdentityCoreContextIntegrity(t *tes
 		if err := writeOrReuseSigningIdentityArtifacts(store, artifacts, "password"); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := prepareDecryptedSigningFiles(store, []string{profilePath, artifacts.IdentityPath, artifacts.BindingPath}, "password", t.TempDir()); err != nil {
+		if _, err := prepareDecryptedSigningFiles(testSigningDeps(), store, []string{profilePath, artifacts.IdentityPath, artifacts.BindingPath}, "password", t.TempDir()); err != nil {
 			t.Fatalf("matched identity graph rejected: %v", err)
 		}
 	})
@@ -693,7 +703,7 @@ func TestIdentityContextCurrentPointerReplacesOldProfileBinding(t *testing.T) {
 		t.Fatalf("replace current context: %v", err)
 	}
 	files := []string{oldProfilePath, newProfilePath, newArtifacts.IdentityPath, newArtifacts.BindingPath}
-	if _, err := prepareDecryptedSigningFiles(store, files, "password", t.TempDir()); err != nil {
+	if _, err := prepareDecryptedSigningFiles(testSigningDeps(), store, files, "password", t.TempDir()); err != nil {
 		t.Fatalf("current context graph with retained old profile rejected: %v", err)
 	}
 }
@@ -736,7 +746,7 @@ func TestIdentityContextCurrentPointerSupportsCertificateRotationWithRetainedOld
 		t.Fatalf("rotation write: %v", err)
 	}
 	files := []string{oldProfilePath, newProfilePath, oldArtifacts.IdentityPath, newArtifacts.IdentityPath, newArtifacts.BindingPath}
-	decrypted, err := prepareDecryptedSigningFiles(store, files, "password", t.TempDir())
+	decrypted, err := prepareDecryptedSigningFiles(testSigningDeps(), store, files, "password", t.TempDir())
 	if err != nil {
 		t.Fatalf("rotation graph rejected: %v", err)
 	}
@@ -775,7 +785,7 @@ func TestPrepareDecryptedSigningFilesIgnoresRetainedExpiredUnreferencedCore(t *t
 		t.Fatal(err)
 	}
 	files := []string{profilePath, expiredArtifacts.IdentityPath, activeArtifacts.IdentityPath, activeArtifacts.BindingPath}
-	decrypted, err := prepareDecryptedSigningFiles(store, files, "password", t.TempDir())
+	decrypted, err := prepareDecryptedSigningFiles(testSigningDeps(), store, files, "password", t.TempDir())
 	if err != nil {
 		t.Fatalf("retained expired unreferenced core rejected: %v", err)
 	}
@@ -814,7 +824,7 @@ func TestPrepareDecryptedSigningFilesRejectsInvalidActiveIdentityCoreValidity(t 
 			if err := writeOrReuseSigningIdentityArtifacts(store, artifacts, "password"); err != nil {
 				t.Fatal(err)
 			}
-			if _, err := prepareDecryptedSigningFiles(store, []string{profilePath, artifacts.IdentityPath, artifacts.BindingPath}, "password", t.TempDir()); err == nil || !strings.Contains(err.Error(), "not currently valid") {
+			if _, err := prepareDecryptedSigningFiles(testSigningDeps(), store, []string{profilePath, artifacts.IdentityPath, artifacts.BindingPath}, "password", t.TempDir()); err == nil || !strings.Contains(err.Error(), "not currently valid") {
 				t.Fatalf("invalid active identity error = %v", err)
 			}
 		})
@@ -837,7 +847,7 @@ func TestIdentityContextRejectsProfileDistributionTypeMismatch(t *testing.T) {
 	if err := writeOrReuseSigningIdentityArtifacts(store, artifacts, "password"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := prepareDecryptedSigningFiles(store, []string{profilePath, artifacts.IdentityPath, artifacts.BindingPath}, "password", t.TempDir()); err == nil || !strings.Contains(err.Error(), "distribution type") {
+	if _, err := prepareDecryptedSigningFiles(testSigningDeps(), store, []string{profilePath, artifacts.IdentityPath, artifacts.BindingPath}, "password", t.TempDir()); err == nil || !strings.Contains(err.Error(), "distribution type") {
 		t.Fatalf("profile type mismatch error = %v", err)
 	}
 }
@@ -856,7 +866,7 @@ func TestValidateIdentityArtifactGraphRejectsConflictingContextScope(t *testing.
 		{RelativePath: "identity-contexts/AAA.json", Plaintext: binding("AAA"), Metadata: signingpkg.EncryptedFileMetadata{Kind: "identity-context"}},
 		{RelativePath: "identity-contexts/BBB.json", Plaintext: binding("BBB"), Metadata: signingpkg.EncryptedFileMetadata{Kind: "identity-context"}},
 	}
-	if _, err := validateIdentityArtifactGraph(files); err == nil || !strings.Contains(err.Error(), "conflicting") {
+	if _, err := validateIdentityArtifactGraph(testSigningDeps(), files); err == nil || !strings.Contains(err.Error(), "conflicting") {
 		t.Fatalf("conflicting graph error = %v", err)
 	}
 }
@@ -882,8 +892,8 @@ func TestIdentityArtifactGraphRejectsCaseFoldedRepositoryPaths(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			files := []decryptedSigningFile{{RelativePath: paths[0]}, {RelativePath: paths[1]}}
-			if _, err := validateIdentityArtifactGraph(files); err == nil || err.Error() != "encrypted repository paths collide under Windows Unicode case folding" {
-				t.Fatalf("validateIdentityArtifactGraph() error = %v", err)
+			if _, err := validateIdentityArtifactGraph(testSigningDeps(), files); err == nil || err.Error() != "encrypted repository paths collide under Windows Unicode case folding" {
+				t.Fatalf("validateIdentityArtifactGraph(testSigningDeps()) error = %v", err)
 			}
 		})
 	}
@@ -892,12 +902,12 @@ func TestIdentityArtifactGraphRejectsCaseFoldedRepositoryPaths(t *testing.T) {
 func TestPrepareDecryptedSigningFilesRejectsCaseCollisionBeforeOutput(t *testing.T) {
 	outDir := t.TempDir()
 	store := &signingpkg.GitStore{LocalDir: t.TempDir()}
-	_, err := prepareDecryptedSigningFiles(store, []string{
+	_, err := prepareDecryptedSigningFiles(testSigningDeps(), store, []string{
 		"profiles/adhoc/Release.mobileprovision",
 		"profiles/adhoc/release.mobileprovision",
 	}, "password", outDir)
 	if err == nil || err.Error() != "encrypted repository paths collide under Windows Unicode case folding" {
-		t.Fatalf("prepareDecryptedSigningFiles() error = %v", err)
+		t.Fatalf("prepareDecryptedSigningFiles(testSigningDeps()) error = %v", err)
 	}
 	entries, readErr := os.ReadDir(outDir)
 	if readErr != nil {
@@ -917,7 +927,7 @@ func TestValidateIdentityArtifactGraphRejectsCrossTeamContext(t *testing.T) {
 		{RelativePath: "identities/distribution/AAA.p12", Metadata: signingpkg.EncryptedFileMetadata{Kind: "pkcs12-identity", TeamID: "TEAM-A"}},
 		{RelativePath: "identity-contexts/AAA.json", Plaintext: binding, Metadata: signingpkg.EncryptedFileMetadata{Kind: "identity-context"}},
 	}
-	if _, err := validateIdentityArtifactGraph(files); err == nil || !strings.Contains(err.Error(), "team") {
+	if _, err := validateIdentityArtifactGraph(testSigningDeps(), files); err == nil || !strings.Contains(err.Error(), "team") {
 		t.Fatalf("cross-team graph error = %v", err)
 	}
 }
@@ -928,7 +938,7 @@ func TestPrepareDecryptedSigningFilesBoundsRepositoryBeforeDecrypt(t *testing.T)
 		paths[i] = fmt.Sprintf("certs/distribution/%03d.cer", i)
 	}
 	store := &signingpkg.GitStore{LocalDir: t.TempDir()}
-	if _, err := prepareDecryptedSigningFiles(store, paths, "password", t.TempDir()); err == nil || !strings.Contains(err.Error(), "files; limit") {
+	if _, err := prepareDecryptedSigningFiles(testSigningDeps(), store, paths, "password", t.TempDir()); err == nil || !strings.Contains(err.Error(), "files; limit") {
 		t.Fatalf("file count error = %v", err)
 	}
 
@@ -952,7 +962,7 @@ func TestPrepareDecryptedSigningFilesBoundsRepositoryBeforeDecrypt(t *testing.T)
 		}
 		paths = append(paths, relPath)
 	}
-	if _, err := prepareDecryptedSigningFiles(store, paths, "password", t.TempDir()); err == nil || !strings.Contains(err.Error(), "cumulative size limit") {
+	if _, err := prepareDecryptedSigningFiles(testSigningDeps(), store, paths, "password", t.TempDir()); err == nil || !strings.Contains(err.Error(), "cumulative size limit") {
 		t.Fatalf("cumulative size error = %v", err)
 	}
 }
@@ -999,7 +1009,8 @@ func TestSigningSyncPushRejectsIdentityFlagConflictsBeforeSecretsOrClient(t *tes
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cmd := syncPushCommand()
+			d, _, _ := newSigningTestDeps()
+			cmd := syncPushCommand(d)
 			base := []string{
 				"--bundle-id", "com.example.app",
 				"--profile-type", "IOS_APP_STORE",
@@ -1022,12 +1033,12 @@ func TestSigningSyncPushRejectsIdentityFlagConflictsBeforeSecretsOrClient(t *tes
 func TestSigningSyncRejectsBlankPasswordFile(t *testing.T) {
 	tests := []struct {
 		name string
-		cmd  *ffcli.Command
+		cmd  func(*shared.Deps) *ffcli.Command
 		args []string
 	}{
 		{
 			name: "push",
-			cmd:  syncPushCommand(),
+			cmd:  syncPushCommand,
 			args: []string{
 				"--bundle-id", "com.example.app",
 				"--profile-type", "IOS_APP_STORE",
@@ -1037,7 +1048,7 @@ func TestSigningSyncRejectsBlankPasswordFile(t *testing.T) {
 		},
 		{
 			name: "pull",
-			cmd:  syncPullCommand(),
+			cmd:  syncPullCommand,
 			args: []string{
 				"--repo", "git@example.com:team/signing.git",
 				"--password-file", " \t ",
@@ -1049,17 +1060,18 @@ func TestSigningSyncRejectsBlankPasswordFile(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Setenv(signingSyncPasswordEnvVar, "environment-fallback-must-not-be-used")
 			clientCalls := 0
-			t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+			clientFactory := func() (*asc.Client, error) {
 				clientCalls++
 				return nil, errors.New("client must not be created")
-			}))
-			if err := tt.cmd.Parse(tt.args); err != nil {
+			}
+			d, depsStdout, depsStderr := newSigningTestDeps()
+			d.Client = clientFactory
+			cmd := tt.cmd(d)
+			if err := cmd.Parse(tt.args); err != nil {
 				t.Fatal(err)
 			}
-			var runErr error
-			stdout, stderr := captureOutput(t, func() {
-				runErr = tt.cmd.Run(context.Background())
-			})
+			runErr := cmd.Run(context.Background())
+			stdout, stderr := depsStdout.String(), depsStderr.String()
 			err := runErr
 			if err == nil || err.Error() != "--password-file must not be empty" {
 				t.Fatalf("error = %v, want blank password-file usage error", err)
@@ -1087,7 +1099,8 @@ func TestSigningSyncPushDirectDistributionIdentityLoadFailureIsOperational(t *te
 	t.Setenv(signingSyncPasswordEnvVar, "repository-password")
 	for _, profileType := range []string{"MAC_APP_DIRECT", "MAC_CATALYST_APP_DIRECT"} {
 		t.Run(profileType, func(t *testing.T) {
-			cmd := syncPushCommand()
+			d, _, _ := newSigningTestDeps()
+			cmd := syncPushCommand(d)
 			if err := cmd.Parse([]string{
 				"--bundle-id", "com.example.app",
 				"--profile-type", profileType,
@@ -1153,7 +1166,8 @@ func TestIdentityProfileTypeMatchesDirectRequiresMacOSPlatformClaim(t *testing.T
 
 func TestSigningSyncPushIdentityLoadFailureIsOperational(t *testing.T) {
 	t.Setenv(signingSyncPasswordEnvVar, "repository-password")
-	cmd := syncPushCommand()
+	d, _, _ := newSigningTestDeps()
+	cmd := syncPushCommand(d)
 	if err := cmd.Parse([]string{
 		"--bundle-id", "com.example.app",
 		"--profile-type", "IOS_APP_STORE",
@@ -1231,9 +1245,9 @@ func TestPrepareDecryptedSigningFilesPreflightsAllDestinationsBeforeWriting(t *t
 		t.Fatal(err)
 	}
 
-	_, err := prepareDecryptedSigningFiles(store, []string{certificatePath, identityPath}, password, outDir)
+	_, err := prepareDecryptedSigningFiles(testSigningDeps(), store, []string{certificatePath, identityPath}, password, outDir)
 	if err == nil || !errors.Is(err, os.ErrExist) {
-		t.Fatalf("prepareDecryptedSigningFiles() error = %v, want identity collision", err)
+		t.Fatalf("prepareDecryptedSigningFiles(testSigningDeps()) error = %v, want identity collision", err)
 	}
 	certificate, readErr := os.ReadFile(certificateDestination)
 	if readErr != nil {
@@ -1269,7 +1283,7 @@ func TestPrepareDecryptedSigningFilesDecryptsAllBeforeDestinationPreflight(t *te
 		t.Fatal(err)
 	}
 
-	if _, err := prepareDecryptedSigningFiles(store, []string{certificatePath, corruptPath}, password, outDir); err == nil {
+	if _, err := prepareDecryptedSigningFiles(testSigningDeps(), store, []string{certificatePath, corruptPath}, password, outDir); err == nil {
 		t.Fatal("corrupt later artifact was accepted")
 	}
 	certificate, readErr := os.ReadFile(certificateDestination)

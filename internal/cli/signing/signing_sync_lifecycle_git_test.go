@@ -13,7 +13,6 @@ import (
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	signingpkg "github.com/rudrankriyam/App-Store-Connect-CLI/internal/signing"
 )
 
@@ -118,18 +117,19 @@ func TestSigningSyncPushRenewExpiredReplacesProfileAndRepositoryArtifact(t *test
 	state := &lifecycleProfileState{id: "profile-old", name: "Store", profile: "IOS_APP_STORE", expiration: "2100-01-01T00:00:00Z"}
 	var events []string
 	client := lifecycleStateAPI(t, state, nil, &events)
-	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) { return client, nil }))
+	clientFactory := func() (*asc.Client, error) { return client, nil }
 
 	run := func(args ...string) (string, error) {
-		cmd := syncPushCommand()
+		d, depsStdout, _ := newSigningTestDeps()
+		d.Client = clientFactory
+		cmd := syncPushCommand(d)
 		cmd.FlagSet.SetOutput(io.Discard)
 		var runErr error
-		stdout, _ := captureOutput(t, func() {
-			if err := cmd.Parse(append([]string{"--bundle-id", "com.example.app", "--profile-type", "IOS_APP_STORE", "--repo", remoteURL, "--output", "json"}, args...)); err != nil {
-				t.Fatalf("parse: %v", err)
-			}
-			runErr = cmd.Run(context.Background())
-		})
+		if err := cmd.Parse(append([]string{"--bundle-id", "com.example.app", "--profile-type", "IOS_APP_STORE", "--repo", remoteURL, "--output", "json"}, args...)); err != nil {
+			t.Fatalf("parse: %v", err)
+		}
+		runErr = cmd.Run(context.Background())
+		stdout := depsStdout.String()
 		return stdout, runErr
 	}
 
@@ -187,7 +187,7 @@ func TestRunSigningSyncBatchForceForNewDevicesReplacesTargetArtifact(t *testing.
 		BundleIDs:   []string{"com.example.app"},
 	}
 	var err error
-	_, _ = captureOutput(t, func() { _, err = runSigningSyncBatch(context.Background(), client, options) })
+	_, _ = captureOutput(t, func() { _, err = runSigningSyncBatch(context.Background(), testSigningDeps(), client, options) })
 	if err != nil {
 		t.Fatalf("seed batch: %v", err)
 	}
@@ -197,7 +197,9 @@ func TestRunSigningSyncBatchForceForNewDevicesReplacesTargetArtifact(t *testing.
 	options.ForceForNewDevices = true
 	events = nil
 	var result SyncResult
-	_, stderr := captureOutput(t, func() { result, err = runSigningSyncBatch(context.Background(), client, options) })
+	stderrDeps, _, stderrDepsStderr := newSigningTestDeps()
+	_, _ = captureOutput(t, func() { result, err = runSigningSyncBatch(context.Background(), stderrDeps, client, options) })
+	stderr := stderrDepsStderr.String()
 	if err != nil {
 		t.Fatalf("refresh batch: %v", err)
 	}
@@ -230,7 +232,7 @@ func TestRunSigningSyncBatchForceForNewDevicesReplacesTargetArtifact(t *testing.
 	}
 
 	events = nil
-	_, _ = captureOutput(t, func() { result, err = runSigningSyncBatch(context.Background(), client, options) })
+	_, _ = captureOutput(t, func() { result, err = runSigningSyncBatch(context.Background(), testSigningDeps(), client, options) })
 	if err != nil {
 		t.Fatalf("unchanged batch: %v", err)
 	}
@@ -271,7 +273,7 @@ func TestRunSigningSyncBatchLifecyclePreflightsEveryTargetBeforeReplacing(t *tes
 		BundleIDs:   []string{"com.example.app"},
 	}
 	var err error
-	_, _ = captureOutput(t, func() { _, err = runSigningSyncBatch(context.Background(), client, options) })
+	_, _ = captureOutput(t, func() { _, err = runSigningSyncBatch(context.Background(), testSigningDeps(), client, options) })
 	if err != nil {
 		t.Fatalf("seed batch: %v", err)
 	}
@@ -281,7 +283,7 @@ func TestRunSigningSyncBatchLifecyclePreflightsEveryTargetBeforeReplacing(t *tes
 	options.BundleIDs = []string{"com.example.missing", "com.example.app"}
 	options.ForceForNewDevices = true
 	events = nil
-	_, _ = captureOutput(t, func() { _, err = runSigningSyncBatch(context.Background(), client, options) })
+	_, _ = captureOutput(t, func() { _, err = runSigningSyncBatch(context.Background(), testSigningDeps(), client, options) })
 	if err == nil || !strings.Contains(err.Error(), "com.example.missing") {
 		t.Fatalf("error = %v, want the unresolved target", err)
 	}
@@ -308,7 +310,7 @@ func TestRunSigningSyncBatchLifecycleRejectsCertificateCreationBeforeMutating(t 
 		BundleIDs:   []string{"com.example.app"},
 	}
 	var err error
-	_, _ = captureOutput(t, func() { _, err = runSigningSyncBatch(context.Background(), client, options) })
+	_, _ = captureOutput(t, func() { _, err = runSigningSyncBatch(context.Background(), testSigningDeps(), client, options) })
 	if err != nil {
 		t.Fatalf("seed batch: %v", err)
 	}
@@ -323,7 +325,7 @@ func TestRunSigningSyncBatchLifecycleRejectsCertificateCreationBeforeMutating(t 
 	options.CreateMissingCertificate = true
 	options.IdentityPassword = []byte("identity-password")
 	events = nil
-	_, _ = captureOutput(t, func() { _, err = runSigningSyncBatch(context.Background(), client, options) })
+	_, _ = captureOutput(t, func() { _, err = runSigningSyncBatch(context.Background(), testSigningDeps(), client, options) })
 	if err == nil || !strings.Contains(err.Error(), "cannot create a certificate; create it with a single-target push first") {
 		t.Fatalf("error = %v, want the certificate-creation refusal", err)
 	}
@@ -347,7 +349,7 @@ func TestRunSigningSyncBatchLifecyclePreflightsUnchangedTargetArtifactsBeforeRep
 		BundleIDs:   []string{"com.example.app"},
 	}
 	var err error
-	_, _ = captureOutput(t, func() { _, err = runSigningSyncBatch(context.Background(), client, options) })
+	_, _ = captureOutput(t, func() { _, err = runSigningSyncBatch(context.Background(), testSigningDeps(), client, options) })
 	if err != nil {
 		t.Fatalf("seed batch: %v", err)
 	}
@@ -373,7 +375,7 @@ func TestRunSigningSyncBatchLifecyclePreflightsUnchangedTargetArtifactsBeforeRep
 	options.BundleIDs = []string{"com.example.app", "com.example.other"}
 	options.ForceForNewDevices = true
 	events = nil
-	_, _ = captureOutput(t, func() { _, err = runSigningSyncBatch(context.Background(), client, options) })
+	_, _ = captureOutput(t, func() { _, err = runSigningSyncBatch(context.Background(), testSigningDeps(), client, options) })
 	if err == nil || !strings.Contains(err.Error(), filepath.ToSlash(otherPath)) {
 		t.Fatalf("error = %v, want the unchanged target's preflight failure", err)
 	}

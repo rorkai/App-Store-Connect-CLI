@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
@@ -33,7 +34,7 @@ func TestDeleteStaleSigningProfilesDeletesOnlyExpiredActiveProfiles(t *testing.T
 	t.Cleanup(server.Close)
 	client := newSigningFetchServerTestClient(t, server)
 
-	planned, err := findStaleSigningProfiles(context.Background(), client, "bundle-1", "IOS_APP_STORE")
+	planned, err := findStaleSigningProfiles(context.Background(), client, "bundle-1", "IOS_APP_STORE", time.Now)
 	if err != nil {
 		t.Fatalf("findStaleSigningProfiles: %v", err)
 	}

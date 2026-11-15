@@ -37,8 +37,6 @@ const profileNameHashSuffixLen = 6
 // maxProfileNameRotations bounds the default names tried for one profile.
 const maxProfileNameRotations = 20
 
-var signingFetchNowFn = time.Now
-
 // rejectDeviceWithoutCreateMissing fails before any App Store Connect call when
 // device IDs were supplied but could never be applied.
 func rejectDeviceWithoutCreateMissing(d *shared.Deps, deviceIDs string, createMissing bool) error {
@@ -317,7 +315,7 @@ Examples:
 			result.BundleIDResource = bundleIDResp.Data.ID
 
 			if *deleteStale {
-				planned, err := findStaleSigningProfiles(requestCtx, client, bundleIDResp.Data.ID, profType)
+				planned, err := findStaleSigningProfiles(requestCtx, client, bundleIDResp.Data.ID, profType, d.Now)
 				if err != nil {
 					return fmt.Errorf("signing fetch: list stale profiles: %w", err)
 				}
@@ -358,6 +356,7 @@ Examples:
 				requestCtx,
 				client,
 				signingAssetsOptions{
+					Now:                      d.Now,
 					BundleIDResourceID:       bundleIDResp.Data.ID,
 					BundleIdentifier:         bundle,
 					ProfileType:              profType,
@@ -593,7 +592,7 @@ func deleteMatchedStaleProfiles(
 ) (bool, error) {
 	for i, item := range bundleIDs {
 		planCtx, cancel := d.Timeout(ctx)
-		planned, err := findStaleSigningProfiles(planCtx, client, item.ID, opts.ProfileType)
+		planned, err := findStaleSigningProfiles(planCtx, client, item.ID, opts.ProfileType, d.Now)
 		cancel()
 		if err != nil {
 			batch.Failures = append(batch.Failures, asc.SigningFetchBatchFailure{BundleID: identifiers[i], Error: fmt.Sprintf("list stale profiles: %v", err)})
@@ -684,6 +683,7 @@ func fetchMatchedSigningBundle(
 
 	progress := &signingAssetsProgress{}
 	profile, certs, created, err := resolveSigningAssets(requestCtx, client, signingAssetsOptions{
+		Now:                d.Now,
 		BundleIDResourceID: item.ID,
 		BundleIdentifier:   identifier,
 		ProfileType:        opts.ProfileType,
@@ -973,6 +973,7 @@ type signingAssetsOptions struct {
 	BeforeCreate             func(profileCreatePlan) error
 	CreateContext            func() (context.Context, context.CancelFunc)
 	CertificateFilter        func(asc.Resource[asc.CertificateAttributes]) bool
+	Now                      func() time.Time
 	// RenewExpired replaces the most recently expired profile of ProfileType
 	// with a same-name profile when no active profile resolves.
 	RenewExpired bool
@@ -1016,10 +1017,10 @@ func resolveSigningAssets(ctx context.Context, client *asc.Client, options signi
 	}
 	certificateType = signingCertificateTypesForClient(client, options.CertificateType, certificateType)
 
-	now := signingFetchNowFn()
+	now := options.Now()
 	profileName := profileCreateNameForTarget(options.ProfileType, options.BundleIdentifier, now)
 
-	profiles, err := findActiveProfiles(ctx, client, options.BundleIDResourceID, options.ProfileType)
+	profiles, err := findActiveProfiles(ctx, client, options.BundleIDResourceID, options.ProfileType, options.Now)
 	if err != nil {
 		return nil, nil, false, err
 	}
@@ -1047,7 +1048,7 @@ func resolveSigningAssets(ctx context.Context, client *asc.Client, options signi
 	var certificateMatchErr error
 	for _, profileResource := range profiles {
 		profile := &asc.ProfileResponse{Data: profileResource}
-		certificates, err := findProfileCertificates(ctx, client, profile.Data.ID, certificateType)
+		certificates, err := findProfileCertificates(ctx, client, profile.Data.ID, certificateType, options.Now)
 		if err == nil {
 			certificates.Data = filterSigningCertificates(certificates.Data, options.CertificateFilter)
 			if len(certificates.Data) == 0 {
@@ -1073,7 +1074,7 @@ func resolveSigningAssets(ctx context.Context, client *asc.Client, options signi
 	// exists. An active profile whose certificates do not match keeps its
 	// mismatch error instead of gaining an unrelated renewed sibling.
 	if options.RenewExpired && len(profiles) == 0 {
-		expired, err := findLatestExpiredProfile(ctx, client, options.BundleIDResourceID, options.ProfileType)
+		expired, err := findLatestExpiredProfile(ctx, client, options.BundleIDResourceID, options.ProfileType, options.Now)
 		if err != nil {
 			return nil, nil, false, fmt.Errorf("find expired profiles: %w", err)
 		}
@@ -1155,7 +1156,7 @@ func resolveSigningAssets(ctx context.Context, client *asc.Client, options signi
 	if options.CertificateFilter != nil && fetchedCertificateCount > 0 && len(certificates.Data) == 0 {
 		return nil, nil, false, errors.New("no App Store Connect certificate matches the local signing identity or requested --identity-sha256")
 	}
-	certificates.Data = certificatesForProfileCreation(certificates.Data, options.ProfileType, time.Now())
+	certificates.Data = certificatesForProfileCreation(certificates.Data, options.ProfileType, options.Now())
 	if len(certificates.Data) == 0 {
 		if !options.CreateMissingCertificate {
 			return nil, nil, false, fmt.Errorf(
@@ -1175,7 +1176,7 @@ func resolveSigningAssets(ctx context.Context, client *asc.Client, options signi
 		}
 		request := options.CertificateCreate
 		request.CertificateType = primaryType
-		created, identity, createErr := createMissingSigningCertificate(ctx, client, request)
+		created, identity, createErr := createMissingSigningCertificate(ctx, client, request, options.Now)
 		if options.Progress != nil && created.ID != "" {
 			options.Progress.Certificates = []asc.Resource[asc.CertificateAttributes]{created}
 		}
@@ -1246,7 +1247,7 @@ func refreshSigningProfileDevices(
 	lifecycle.DevicesRemoved = removed
 	profileName := profile.Data.Attributes.Name
 	if strings.TrimSpace(profileName) == "" {
-		profileName = profileCreateNameForTarget(options.ProfileType, options.BundleIdentifier, signingFetchNowFn())
+		profileName = profileCreateNameForTarget(options.ProfileType, options.BundleIdentifier, options.Now())
 	}
 	replacement := &profileReplacement{Profile: profile.Data, Lifecycle: lifecycle}
 	created, err := createSigningProfile(ctx, client, options, profileName, certificates.Data, desired, replacement)
@@ -1448,12 +1449,12 @@ func profileIsStale(profile asc.Resource[asc.ProfileAttributes], profileType str
 // findStaleSigningProfiles collects every expired or INVALID profile of the
 // given type for a bundle ID. It reads all pages before anything is deleted so
 // deletions cannot shift pages and hide profiles from the plan.
-func findStaleSigningProfiles(ctx context.Context, client *asc.Client, bundleIDResourceID, profileType string) ([]asc.SigningStaleProfile, error) {
+func findStaleSigningProfiles(ctx context.Context, client *asc.Client, bundleIDResourceID, profileType string, clock func() time.Time) ([]asc.SigningStaleProfile, error) {
 	stale := []asc.SigningStaleProfile{}
 	next := ""
 	page := 1
 	seenNext := make(map[string]struct{})
-	now := signingFetchNowFn()
+	now := clock()
 	for {
 		profiles, err := client.GetBundleIDProfiles(ctx, bundleIDResourceID, asc.Limit[asc.BundleIDProfilesOption](200), asc.NextURL[asc.BundleIDProfilesOption](next))
 		if err != nil {
@@ -1501,7 +1502,7 @@ func deleteStaleSigningProfiles(ctx context.Context, client *asc.Client, report 
 // findActiveProfiles returns the bundle ID's usable profiles of the given type,
 // latest expiration first and by ID for equal dates, so a renewed profile wins
 // over the predecessor it overlaps. A profile with no readable date comes last.
-func findActiveProfiles(ctx context.Context, client *asc.Client, bundleIDResourceID, profileType string) ([]asc.Resource[asc.ProfileAttributes], error) {
+func findActiveProfiles(ctx context.Context, client *asc.Client, bundleIDResourceID, profileType string, clock func() time.Time) ([]asc.Resource[asc.ProfileAttributes], error) {
 	var matches []asc.Resource[asc.ProfileAttributes]
 	next := ""
 	page := 1
@@ -1521,7 +1522,7 @@ func findActiveProfiles(ctx context.Context, client *asc.Client, bundleIDResourc
 			if profile.Attributes.ProfileState != asc.ProfileStateActive {
 				continue
 			}
-			if asc.ProfileExpirationPassed(profile.Attributes.ExpirationDate, signingFetchNowFn()) {
+			if asc.ProfileExpirationPassed(profile.Attributes.ExpirationDate, clock()) {
 				continue
 			}
 			if strings.EqualFold(strings.TrimSpace(profile.Attributes.ProfileType), profileType) {
@@ -1549,7 +1550,7 @@ func findActiveProfiles(ctx context.Context, client *asc.Client, bundleIDResourc
 	}
 }
 
-func findProfileCertificates(ctx context.Context, client *asc.Client, profileID, certificateType string) (*asc.CertificatesResponse, error) {
+func findProfileCertificates(ctx context.Context, client *asc.Client, profileID, certificateType string, clock func() time.Time) (*asc.CertificatesResponse, error) {
 	var (
 		all   []asc.Resource[asc.CertificateAttributes]
 		links asc.Links
@@ -1602,7 +1603,7 @@ func findProfileCertificates(ctx context.Context, client *asc.Client, profileID,
 		return nil, fmt.Errorf("profile %s has no associated certificates: %w", profileID, errNoMatchingProfileCertificates)
 	}
 
-	usable := usableProfileCertificates(all, time.Now())
+	usable := usableProfileCertificates(all, clock())
 	if len(usable) == 0 {
 		return nil, fmt.Errorf("profile %s has no active, unexpired associated certificates: %w", profileID, errNoMatchingProfileCertificates)
 	}
