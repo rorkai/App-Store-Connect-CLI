@@ -1,0 +1,25 @@
+{
+  "tag": "ZoneIds",
+  "file": "zone_ids_gen.go",
+  "types": [
+    "ZoneIDRelationships",
+    "ZoneIdAttributes",
+    "ZoneIdCreateAttributes",
+    "ZoneIdCreateData",
+    "ZoneIdCreateRequest",
+    "ZoneIdResponse",
+    "ZoneIdUpdateAttributes",
+    "ZoneIdUpdateData",
+    "ZoneIdUpdateRequest",
+    "ZoneIdsResponse"
+  ],
+  "relationships": [
+    {"data":"ZoneIdCreateData","type":"ZoneIDRelationships"}
+  ],
+  "operations": [
+    {"operation":"zoneIds_createInstance","name":"CreateZoneID","params":["widgetID"],"check":"trim","links":["widget"]},
+    {"operation":"zoneIds_getCollection","name":"GetZoneIDs","options":"ZoneIDsOption","query":"buildZoneIDsQuery","nextContext":"zoneIds"},
+    {"operation":"zoneIds_getInstance","name":"GetZoneID","params":["id"],"check":"require"},
+    {"operation":"zoneIds_updateInstance","name":"UpdateZoneID","params":["id"],"check":"trim"}
+  ]
+}

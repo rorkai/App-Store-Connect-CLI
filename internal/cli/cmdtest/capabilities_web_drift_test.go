@@ -37,12 +37,10 @@ func TestRun_CapabilitiesInventoryCoversWebLeaves(t *testing.T) {
 		t.Fatalf("expected a populated web command tree, got %d leaves: %v", len(leaves), leaves)
 	}
 
-	stdout, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{"capabilities", "--output", "json"}, "1.0.0")
-		if code != cmd.ExitSuccess {
-			t.Fatalf("expected exit code %d, got %d", cmd.ExitSuccess, code)
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, nil, "capabilities", "--output", "json")
+	if code != cmd.ExitSuccess {
+		t.Fatalf("expected exit code %d, got %d", cmd.ExitSuccess, code)
+	}
 	if strings.TrimSpace(stderr) != "" {
 		t.Fatalf("expected empty stderr, got: %s", stderr)
 	}

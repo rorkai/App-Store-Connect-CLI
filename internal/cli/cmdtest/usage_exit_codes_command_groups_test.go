@@ -662,11 +662,13 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 			name:    "pre-orders enable invalid release date",
 			args:    []string{"pre-orders", "enable", "--app", "APP_ID", "--territory", "USA", "--release-date", "01/02/2026"},
 			wantErr: "pre-orders enable: --release-date must be in YYYY-MM-DD format",
+			deps:    true,
 		},
 		{
 			name:    "pre-orders update invalid release date",
 			args:    []string{"pre-orders", "update", "--territory-availability", "TA_ID", "--release-date", "01/02/2026"},
 			wantErr: "pre-orders update: --release-date must be in YYYY-MM-DD format",
+			deps:    true,
 		},
 		{
 			name:    "product-pages custom-pages list limit",

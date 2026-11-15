@@ -3,6 +3,7 @@
 package encryption
 
 import (
+	"io"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -16,7 +17,7 @@ func TestUpdatePlistExemption_RejectsNamedPipe(t *testing.T) {
 		t.Fatalf("Mkfifo() error: %v", err)
 	}
 
-	err := updatePlistExemption(pipePath)
+	err := updatePlistExemption(io.Discard, pipePath)
 	if err == nil {
 		t.Fatal("expected non-regular file error, got nil")
 	}

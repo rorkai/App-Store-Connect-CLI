@@ -2032,7 +2032,11 @@ func TestRoutingCoverageValidationErrors(t *testing.T) {
 		},
 	}
 
-	runValidationTests(t, tests)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assertUsageExitWithDeps(t, nil, test.args, test.wantErr)
+		})
+	}
 }
 
 func TestEncryptionValidationErrors(t *testing.T) {
@@ -2130,7 +2134,11 @@ func TestEncryptionValidationErrors(t *testing.T) {
 		},
 	}
 
-	runValidationTests(t, tests)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assertUsageExitWithDeps(t, nil, test.args, test.wantErr)
+		})
+	}
 }
 
 func TestAndroidIosMappingValidationErrors(t *testing.T) {

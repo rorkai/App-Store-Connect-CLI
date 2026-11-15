@@ -19,12 +19,13 @@ func TestRemovedFlagAliasesAreUnknownFlags(t *testing.T) {
 		alias     string
 		canonical string
 		args      []string
+		deps      bool // the command is built on shared.Deps: run it on test deps
 	}{
 		{path: []string{"versions", "update"}, alias: "id", canonical: "version-id", args: []string{"--id", "version-1", "--copyright", "2026 Example"}},
 		{path: []string{"versions", "attach-build"}, alias: "build", canonical: "build-id", args: []string{"--version-id", "version-1", "--build", "build-1"}},
 		{path: []string{"apps", "app-encryption-declarations", "list"}, alias: "build", canonical: "build-id", args: []string{"--id", "app-1", "--build", "build-1"}},
-		{path: []string{"encryption", "declarations", "list"}, alias: "build", canonical: "build-id", args: []string{"--app", "app-1", "--build", "build-1"}},
-		{path: []string{"encryption", "declarations", "assign-builds"}, alias: "build", canonical: "build-id", args: []string{"--id", "decl-1", "--build", "build-1"}},
+		{path: []string{"encryption", "declarations", "list"}, alias: "build", canonical: "build-id", args: []string{"--app", "app-1", "--build", "build-1"}, deps: true},
+		{path: []string{"encryption", "declarations", "assign-builds"}, alias: "build", canonical: "build-id", args: []string{"--id", "decl-1", "--build", "build-1"}, deps: true},
 		{path: []string{"bundle-ids", "capabilities", "list"}, alias: "bundle-id", canonical: "bundle", args: []string{"--bundle-id", "bundle-1"}},
 		{path: []string{"localizations", "update"}, alias: "version-id", canonical: "version", args: []string{"--version-id", "version-1", "--locale", "en-US", "--description", "Updated"}},
 		{path: []string{"screenshots", "list"}, alias: "localization-id", canonical: "version-localization", args: []string{"--localization-id", "loc-1"}},
@@ -53,7 +54,12 @@ func TestRemovedFlagAliasesAreUnknownFlags(t *testing.T) {
 			}
 
 			args := append(append([]string{}, test.path...), test.args...)
-			assertUsageExit(t, args, "Error: `--"+test.alias+"` was removed in 5.0.0; use `--"+test.canonical+"`")
+			wantErr := "Error: `--" + test.alias + "` was removed in 5.0.0; use `--" + test.canonical + "`"
+			if test.deps {
+				assertUsageExitWithDeps(t, nil, args, wantErr)
+				return
+			}
+			assertUsageExit(t, args, wantErr)
 		})
 	}
 }

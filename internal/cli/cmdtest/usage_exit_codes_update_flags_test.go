@@ -270,6 +270,7 @@ func TestUpdateWithoutUpdateFlagsListsEveryUpdateFlag(t *testing.T) {
 			name:  "pre-orders update",
 			args:  []string{"pre-orders", "update", "--territory-availability", "ID"},
 			flags: "--release-date, --pre-order-enabled, --available",
+			deps:  true,
 		},
 		{
 			name:  "product-pages custom-pages update",

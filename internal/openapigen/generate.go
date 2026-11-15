@@ -69,11 +69,11 @@ func renderType(spec *Spec, fam *Family, name string) (string, error) {
 		if many {
 			generic = "Response"
 		}
-		return fmt.Sprintf("// %s is the %s schema.\ntype %s = %s[%sAttributes]\n\n", name, name, name, generic, resource), nil
+		return fmt.Sprintf("// %s is the %s schema.\ntype %s = %s[%s]\n\n", goTypeName(name), name, goTypeName(name), generic, goTypeName(resource+"Attributes")), nil
 	}
 	if base, ok := strings.CutSuffix(name, "Request"); ok {
 		if _, found := spec.Schema(name); found {
-			return fmt.Sprintf("// %s is the %s schema.\ntype %s struct {\nData %sData `json:\"data\"`\n}\n\n", name, name, name, base), nil
+			return fmt.Sprintf("// %s is the %s schema.\ntype %s struct {\nData %s `json:\"data\"`\n}\n\n", goTypeName(name), name, goTypeName(name), goTypeName(base+"Data")), nil
 		}
 	}
 	if base, ok := strings.CutSuffix(name, "Data"); ok {
@@ -91,9 +91,9 @@ func renderType(spec *Spec, fam *Family, name string) (string, error) {
 				fields = append(fields, "ID string `json:\"id\"`")
 			case "attributes":
 				if data.requires("attributes") {
-					fields = append(fields, fmt.Sprintf("Attributes %sAttributes `json:\"attributes\"`", base))
+					fields = append(fields, fmt.Sprintf("Attributes %s `json:\"attributes\"`", goTypeName(base+"Attributes")))
 				} else {
-					fields = append(fields, fmt.Sprintf("Attributes *%sAttributes `json:\"attributes,omitempty\"`", base))
+					fields = append(fields, fmt.Sprintf("Attributes *%s `json:\"attributes,omitempty\"`", goTypeName(base+"Attributes")))
 				}
 			case "relationships":
 				rel, err := fam.relationshipsOf(name)
@@ -109,7 +109,7 @@ func renderType(spec *Spec, fam *Family, name string) (string, error) {
 				return "", fmt.Errorf("data property %q is not supported", prop.Name)
 			}
 		}
-		return structDecl(name, "the data object of the "+request+" schema", fields), nil
+		return structDecl(goTypeName(name), "the data object of the "+request+" schema", fields), nil
 	}
 	if base, ok := strings.CutSuffix(name, "Attributes"); ok {
 		if data, err := requestData(spec, base+"Request"); err == nil {
@@ -121,7 +121,7 @@ func renderType(spec *Spec, fam *Family, name string) (string, error) {
 			if err != nil {
 				return "", err
 			}
-			return structDecl(name, "the data.attributes object of the "+base+"Request schema", fields), nil
+			return structDecl(goTypeName(name), "the data.attributes object of the "+base+"Request schema", fields), nil
 		}
 		resource, ok := spec.Schema(base)
 		if !ok || resource.Properties.Get("attributes") == nil {
@@ -131,7 +131,7 @@ func renderType(spec *Spec, fam *Family, name string) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		return structDecl(name, "the attributes object of the "+base+" schema", fields), nil
+		return structDecl(goTypeName(name), "the attributes object of the "+base+" schema", fields), nil
 	}
 	return "", fmt.Errorf("no rule for this name")
 }
@@ -362,12 +362,12 @@ func renderMethod(spec *Spec, fam *Family, b *OpBind) (string, error) {
 		return "", fmt.Errorf("attributes bindings need a create or update request")
 	}
 	m := &method{fam: fam, b: b, op: op}
-	if len(b.Params) > 0 {
-		m.params = append(m.params, strings.Join(b.Params, ", ")+" string")
+	if params := b.stringParams(); len(params) > 0 {
+		m.params = append(m.params, strings.Join(params, ", ")+" string")
 	}
 	response := b.Response
 	if response == "" {
-		response = op.Response
+		response = goTypeName(op.Response)
 	}
 
 	var call string
@@ -464,7 +464,7 @@ func (m *method) checks() {
 	if m.b.Check == checkInline || m.b.Check == checkRaw {
 		return
 	}
-	for _, p := range m.b.Params {
+	for _, p := range m.b.stringParams() {
 		m.pre = append(m.pre, fmt.Sprintf("%s = strings.TrimSpace(%s)", p, p))
 	}
 	if m.b.Check != checkRequire {
@@ -474,7 +474,7 @@ func (m *method) checks() {
 	if m.result != "error" {
 		zero = "nil, "
 	}
-	for i, p := range m.b.Params {
+	for i, p := range m.b.stringParams() {
 		msg := p + " is required"
 		if i < len(m.b.Messages) {
 			msg = m.b.Messages[i]
@@ -552,7 +552,7 @@ func (m *method) payload(spec *Spec) (string, error) {
 		}
 		fields = append(fields, attrs)
 	} else if attrs := data.Properties.Get("attributes"); attrs != nil {
-		typ := base + "Attributes"
+		typ := goTypeName(base + "Attributes")
 		if m.b.Attrs == attrsPointer {
 			typ = "*" + typ
 		}
@@ -570,7 +570,7 @@ func (m *method) payload(spec *Spec) (string, error) {
 		fields = append(fields, "Relationships: "+relationships)
 	}
 	m.checks()
-	return fmt.Sprintf("payload := %s{\nData: %sData{\n%s,\n},\n}", m.op.Request, base, strings.Join(fields, ",\n")) + step, nil
+	return fmt.Sprintf("payload := %s{\nData: %s{\n%s,\n},\n}", goTypeName(m.op.Request), goTypeName(base+"Data"), strings.Join(fields, ",\n")) + step, nil
 }
 
 // checkAttrs rejects attributes bindings the request data cannot take.
@@ -714,7 +714,7 @@ func (m *method) argAttributes(data *Schema, base string) (string, error) {
 	}
 	seen := map[string]bool{}
 	var fields []string
-	for _, arg := range m.b.Args {
+	for i, arg := range m.b.Args {
 		name := arg.Attribute
 		if name == "" {
 			name = arg.Name
@@ -728,23 +728,60 @@ func (m *method) argAttributes(data *Schema, base string) (string, error) {
 		switch {
 		case err != nil || !scalar:
 			return "", fmt.Errorf("arg %s: attribute %q is not a scalar", arg.Name, name)
+		case arg.Param:
+			if err := m.checkParamArg(i, typ); err != nil {
+				return "", err
+			}
 		case arg.Type == "int64" && typ == "int":
+			typ = arg.Type
+		case arg.Type != "" && typ == "string" && len(prop.Enum) > 0 && refTypeName.MatchString(arg.Type):
 			typ = arg.Type
 		case arg.Type != "":
 			return "", fmt.Errorf("arg %s: type %s does not fit attribute %q", arg.Name, arg.Type, name)
 		}
-		m.params = append(m.params, arg.Name+" "+typ)
+		if !arg.Param {
+			m.params = append(m.params, arg.Name+" "+typ)
+		}
 		value := arg.Name
 		if !attrs.requires(name) {
 			value = "&" + value
 		}
 		fields = append(fields, goName(name)+": "+value)
 	}
-	lit := fmt.Sprintf("%sAttributes{\n%s,\n}", base, strings.Join(fields, ",\n"))
+	lit := fmt.Sprintf("%s{\n%s,\n}", goTypeName(base+"Attributes"), strings.Join(fields, ",\n"))
 	if data.requires("attributes") {
 		return "Attributes: " + lit, nil
 	}
 	return "Attributes: &" + lit, nil
+}
+
+// stringParams are the Params, then the param args: the string parameters
+// declared in one group and checked alike.
+func (b *OpBind) stringParams() []string {
+	params := slices.Clone(b.Params)
+	for _, arg := range b.Args {
+		if arg.Param {
+			params = append(params, arg.Name)
+		}
+	}
+	return params
+}
+
+// checkParamArg rejects a param arg the string parameter group cannot hold:
+// one for an attribute that is no string, with its own type, after an arg
+// that is no param arg, or one the inline check style would not trim before
+// use.
+func (m *method) checkParamArg(i int, typ string) error {
+	arg := m.b.Args[i]
+	switch {
+	case typ != "string" || arg.Type != "":
+		return fmt.Errorf("arg %s: a param arg needs a string attribute and no Go type of its own", arg.Name)
+	case slices.ContainsFunc(m.b.Args[:i], func(a ArgBind) bool { return !a.Param }):
+		return fmt.Errorf("arg %s: param args come before the other args", arg.Name)
+	case m.b.Check == checkInline:
+		return fmt.Errorf("arg %s: param args need the trim, require or raw check style", arg.Name)
+	}
+	return nil
 }
 
 func linkageType(spec *Spec, request string) (string, error) {

@@ -9,6 +9,41 @@ import (
 	"strings"
 )
 
+// MerchantIDCreateAttributes is the data.attributes object of the MerchantIdCreateRequest schema.
+type MerchantIDCreateAttributes struct {
+	Name       string `json:"name"`
+	Identifier string `json:"identifier"`
+}
+
+// MerchantIDCreateData is the data object of the MerchantIdCreateRequest schema.
+type MerchantIDCreateData struct {
+	Type       ResourceType               `json:"type"`
+	Attributes MerchantIDCreateAttributes `json:"attributes"`
+}
+
+// MerchantIDCreateRequest is the MerchantIdCreateRequest schema.
+type MerchantIDCreateRequest struct {
+	Data MerchantIDCreateData `json:"data"`
+}
+
+// MerchantIDResponse is the MerchantIdResponse schema.
+type MerchantIDResponse = SingleResponse[MerchantIDAttributes]
+
+// MerchantIDUpdateData is the data object of the MerchantIdUpdateRequest schema.
+type MerchantIDUpdateData struct {
+	Type       ResourceType                `json:"type"`
+	ID         string                      `json:"id"`
+	Attributes *MerchantIDUpdateAttributes `json:"attributes,omitempty"`
+}
+
+// MerchantIDUpdateRequest is the MerchantIdUpdateRequest schema.
+type MerchantIDUpdateRequest struct {
+	Data MerchantIDUpdateData `json:"data"`
+}
+
+// MerchantIDsResponse is the MerchantIdsResponse schema.
+type MerchantIDsResponse = Response[MerchantIDAttributes]
+
 // GetMerchantIDCertificates sends GET /v1/merchantIds/{id}/certificates (merchantIds_certificates_getToManyRelated).
 func (c *Client) GetMerchantIDCertificates(ctx context.Context, merchantID string, opts ...MerchantIDCertificatesOption) (*CertificatesResponse, error) {
 	query := applyOptions(opts)
@@ -18,6 +53,21 @@ func (c *Client) GetMerchantIDCertificates(ctx context.Context, merchantID strin
 		Query:       buildMerchantIDCertificatesQuery(query),
 		Next:        query.nextURL,
 		NextContext: "merchantIdCertificates",
+	})
+}
+
+// CreateMerchantID sends POST /v1/merchantIds (merchantIds_createInstance).
+func (c *Client) CreateMerchantID(ctx context.Context, attrs MerchantIDCreateAttributes) (*MerchantIDResponse, error) {
+	payload := MerchantIDCreateRequest{
+		Data: MerchantIDCreateData{
+			Type:       ResourceTypeMerchantIds,
+			Attributes: attrs,
+		},
+	}
+	return sendJSON[MerchantIDResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/merchantIds",
+		Payload: payload,
 	})
 }
 
@@ -45,5 +95,22 @@ func (c *Client) GetMerchantID(ctx context.Context, id string, opts ...MerchantI
 	return getJSON[MerchantIDResponse](ctx, c, readRequest{
 		Path:  fmt.Sprintf("/v1/merchantIds/%s", id),
 		Query: buildMerchantIDsQuery(query),
+	})
+}
+
+// UpdateMerchantID sends PATCH /v1/merchantIds/{id} (merchantIds_updateInstance).
+func (c *Client) UpdateMerchantID(ctx context.Context, id string, attrs MerchantIDUpdateAttributes) (*MerchantIDResponse, error) {
+	id = strings.TrimSpace(id)
+	payload := MerchantIDUpdateRequest{
+		Data: MerchantIDUpdateData{
+			Type:       ResourceTypeMerchantIds,
+			ID:         id,
+			Attributes: &attrs,
+		},
+	}
+	return sendJSON[MerchantIDResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/merchantIds/%s", id),
+		Payload: payload,
 	})
 }

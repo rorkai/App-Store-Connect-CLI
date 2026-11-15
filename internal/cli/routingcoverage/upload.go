@@ -392,7 +392,7 @@ func snapshotPreparedRoutingCoverageFile(file PreparedRoutingCoverageFile) (*os.
 // A post-create error returns the reservation response alongside the error when
 // cleanup cannot remove it, so callers can report the retained reservation ID.
 func UploadPreparedRoutingCoverageFile(ctx context.Context, client *asc.Client, versionID string, file PreparedRoutingCoverageFile) (*asc.RoutingAppCoverageResponse, error) {
-	return uploadPreparedRoutingCoverageFile(ctx, client, versionID, "", file)
+	return uploadPreparedRoutingCoverageFile(ctx, shared.DefaultDeps(), client, versionID, "", file)
 }
 
 // ReplaceRoutingCoverageWithPreparedFile revalidates the upload source before
@@ -404,10 +404,10 @@ func ReplaceRoutingCoverageWithPreparedFile(ctx context.Context, client *asc.Cli
 	if currentCoverageID == "" {
 		return nil, fmt.Errorf("current routing coverage ID is required")
 	}
-	return uploadPreparedRoutingCoverageFile(ctx, client, versionID, currentCoverageID, file)
+	return uploadPreparedRoutingCoverageFile(ctx, shared.DefaultDeps(), client, versionID, currentCoverageID, file)
 }
 
-func uploadPreparedRoutingCoverageFile(ctx context.Context, client *asc.Client, versionID, currentCoverageID string, file PreparedRoutingCoverageFile) (*asc.RoutingAppCoverageResponse, error) {
+func uploadPreparedRoutingCoverageFile(ctx context.Context, d *shared.Deps, client *asc.Client, versionID, currentCoverageID string, file PreparedRoutingCoverageFile) (*asc.RoutingAppCoverageResponse, error) {
 	if client == nil {
 		return nil, fmt.Errorf("client is required")
 	}
@@ -425,7 +425,7 @@ func uploadPreparedRoutingCoverageFile(ctx context.Context, client *asc.Client, 
 	}
 	defer discardRoutingCoverageSnapshot(source)
 	if currentCoverageID != "" {
-		deleteCtx, deleteCancel := shared.ContextWithTimeout(ctx)
+		deleteCtx, deleteCancel := d.Timeout(ctx)
 		deleteErr := client.DeleteRoutingAppCoverage(deleteCtx, currentCoverageID)
 		deleteCancel()
 		if deleteErr != nil {
@@ -433,7 +433,7 @@ func uploadPreparedRoutingCoverageFile(ctx context.Context, client *asc.Client, 
 		}
 	}
 
-	requestCtx, cancel := shared.ContextWithTimeout(ctx)
+	requestCtx, cancel := d.Timeout(ctx)
 	response, err := client.CreateRoutingAppCoverage(requestCtx, versionID, file.FileName, file.FileSize)
 	cancel()
 	if err != nil {
@@ -447,7 +447,7 @@ func uploadPreparedRoutingCoverageFile(ctx context.Context, client *asc.Client, 
 		return nil, fmt.Errorf("created routing coverage response is missing an ID")
 	}
 	cleanupFailure := func(original error) (*asc.RoutingAppCoverageResponse, error) {
-		cleanupCtx, cleanupCancel := shared.ContextWithTimeout(context.WithoutCancel(ctx))
+		cleanupCtx, cleanupCancel := d.Timeout(context.WithoutCancel(ctx))
 		cleanupErr := client.DeleteRoutingAppCoverage(cleanupCtx, coverageID)
 		cleanupCancel()
 		if cleanupErr != nil && !asc.IsNotFound(cleanupErr) {
@@ -462,7 +462,7 @@ func uploadPreparedRoutingCoverageFile(ctx context.Context, client *asc.Client, 
 	// The upload streams from an unlinked snapshot that was size- and checksum-
 	// verified before the reservation, and the upload only reads it, so there is
 	// nothing left to re-verify once the operations complete.
-	uploadCtx, uploadCancel := shared.ContextWithUploadTimeout(ctx)
+	uploadCtx, uploadCancel := d.UploadTimeout(ctx)
 	err = asc.ExecuteUploadOperationsFromFile(uploadCtx, source, response.Data.Attributes.UploadOperations)
 	uploadCancel()
 	if err != nil {
@@ -474,7 +474,7 @@ func uploadPreparedRoutingCoverageFile(ctx context.Context, client *asc.Client, 
 		SourceFileChecksum: &file.Checksum,
 		Uploaded:           &uploaded,
 	}
-	commitCtx, commitCancel := shared.ContextWithUploadTimeout(ctx)
+	commitCtx, commitCancel := d.UploadTimeout(ctx)
 	committed, err := client.UpdateRoutingAppCoverage(commitCtx, coverageID, attributes)
 	commitCancel()
 	if err != nil {

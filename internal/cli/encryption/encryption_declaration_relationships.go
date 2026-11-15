@@ -9,9 +9,8 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// EncryptionDeclarationsAppCommand returns the declarations app subcommand group.
-func EncryptionDeclarationsAppCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("encryption declarations app", flag.ExitOnError)
+func newEncryptionDeclarationsAppCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("encryption declarations app", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "app",
@@ -24,7 +23,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			EncryptionDeclarationsAppGetCommand(),
+			newEncryptionDeclarationsAppGetCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -32,9 +31,9 @@ Examples:
 	}
 }
 
-// EncryptionDeclarationsAppGetCommand returns the get subcommand for declaration apps.
-func EncryptionDeclarationsAppGetCommand() *ffcli.Command {
+func newEncryptionDeclarationsAppGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		Deps:        d,
 		FlagSetName: "encryption declarations app view",
 		Name:        "view",
 		ShortUsage:  "asc encryption declarations app view --id \"DECL_ID\"",
@@ -52,9 +51,8 @@ Examples:
 	})
 }
 
-// EncryptionDeclarationsDeclarationDocumentCommand returns the declaration document subcommand group.
-func EncryptionDeclarationsDeclarationDocumentCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("encryption declarations app-encryption-declaration-document", flag.ExitOnError)
+func newEncryptionDeclarationsDeclarationDocumentCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("encryption declarations app-encryption-declaration-document", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "app-encryption-declaration-document",
@@ -67,7 +65,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			EncryptionDeclarationsDeclarationDocumentGetCommand(),
+			newEncryptionDeclarationsDeclarationDocumentGetCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -75,9 +73,9 @@ Examples:
 	}
 }
 
-// EncryptionDeclarationsDeclarationDocumentGetCommand returns the get subcommand for declaration documents.
-func EncryptionDeclarationsDeclarationDocumentGetCommand() *ffcli.Command {
+func newEncryptionDeclarationsDeclarationDocumentGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		Deps:        d,
 		FlagSetName: "encryption declarations app-encryption-declaration-document view",
 		Name:        "view",
 		ShortUsage:  "asc encryption declarations app-encryption-declaration-document view --id \"DECL_ID\"",
