@@ -76,11 +76,15 @@ func WithHTTPClient(httpClient *http.Client) ClientOption {
 	return func(client *Client) { client.httpClient = httpClient }
 }
 
-// WithTransport sends the client's requests through transport, with the
-// default request timeout.
+// WithTransport sends the client's requests through transport, keeping the
+// request timeout of its HTTP client.
 func WithTransport(transport http.RoundTripper) ClientOption {
 	return func(client *Client) {
-		client.httpClient = &http.Client{Timeout: asc.ResolveTimeout(), Transport: transport}
+		timeout := asc.ResolveTimeout()
+		if client.httpClient != nil {
+			timeout = client.httpClient.Timeout
+		}
+		client.httpClient = &http.Client{Timeout: timeout, Transport: transport}
 	}
 }
 
