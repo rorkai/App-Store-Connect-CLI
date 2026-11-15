@@ -188,7 +188,7 @@ func TestStoreKitServerAPIUsageErrors(t *testing.T) {
 				t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
 				return ""
 			})
-			stdout, stderr, err := runRootCommand(t, tt.args)
+			stdout, stderr, err := runRootWithDeps(t, unexpectedStoreKitASCClient(t), tt.args...)
 			if !errors.Is(err, flag.ErrHelp) {
 				t.Fatalf("run error = %v, want flag.ErrHelp", err)
 			}

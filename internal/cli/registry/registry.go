@@ -248,7 +248,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("signing", "Manage signing certificates and profiles.", signing.SigningCommand),
 		commandFactory("notarization", "Manage macOS notarization submissions.", notarization.NotarizationCommand),
 		commandFactory("iap", "Manage in-app purchases in App Store Connect.", iap.IAPCommand),
-		commandFactory("storekit", "Manage StoreKit server APIs with In-App Purchase API keys.", storekitcmd.Command),
+		commandFactory("storekit", "Manage StoreKit server APIs with In-App Purchase API keys.", func() *ffcli.Command {
+			return storekitcmd.NewCommand(d)
+		}),
 		commandFactory("app-events", "Manage App Store in-app events.", app_events.Command),
 		commandFactory("subscriptions", "Manage subscription groups and subscriptions.", subscriptions.SubscriptionsCommand),
 		commandFactory("submit", "Submission lifecycle tools; use `publish appstore --submit` to ship.", func() *ffcli.Command {
