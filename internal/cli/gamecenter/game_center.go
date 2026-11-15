@@ -53,8 +53,8 @@ Examples:
 			newGameCenterGroupsCommand(d),
 			newGameCenterAppVersionsCommand(d),
 			newGameCenterEnabledVersionsCommand(d),
-			GameCenterDetailsCommand(),
-			GameCenterMatchmakingCommand(),
+			newGameCenterDetailsCommand(d),
+			newGameCenterMatchmakingCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp

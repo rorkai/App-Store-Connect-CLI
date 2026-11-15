@@ -214,21 +214,25 @@ func TestUpdateWithoutUpdateFlagsListsEveryUpdateFlag(t *testing.T) {
 			name:  "game-center matchmaking queues update",
 			args:  []string{"game-center", "matchmaking", "queues", "update", "--id", "ID"},
 			flags: "--rule-set-id, --experiment-rule-set-id, --classic-bundle-ids",
+			deps:  true,
 		},
 		{
 			name:  "game-center matchmaking rule-sets update",
 			args:  []string{"game-center", "matchmaking", "rule-sets", "update", "--id", "ID"},
 			flags: "--min-players, --max-players",
+			deps:  true,
 		},
 		{
 			name:  "game-center matchmaking rules update",
 			args:  []string{"game-center", "matchmaking", "rules", "update", "--id", "ID"},
 			flags: "--description, --expression, --weight",
+			deps:  true,
 		},
 		{
 			name:  "game-center matchmaking teams update",
 			args:  []string{"game-center", "matchmaking", "teams", "update", "--id", "ID"},
 			flags: "--min-players, --max-players",
+			deps:  true,
 		},
 		{
 			name:  "iap promoted-purchases update",

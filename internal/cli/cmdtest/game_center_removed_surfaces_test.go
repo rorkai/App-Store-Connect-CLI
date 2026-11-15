@@ -7,7 +7,6 @@ import (
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // TestGameCenterRelationshipReplacementRequiresConfirm locks the 5.0.0
@@ -91,16 +90,12 @@ func TestGameCenterRemovedFlagsAreUnknown(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			factoryCalled := false
-			restore := shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+			poison := func() (*asc.Client, error) {
 				factoryCalled = true
 				return nil, errors.New("poison client factory called")
-			})
-			t.Cleanup(restore)
+			}
 
-			var code int
-			stdout, stderr := captureOutput(t, func() {
-				code = rootcmd.Run(test.args, "5.0.0")
-			})
+			stdout, stderr, code := runWithDeps(t, poison, test.args...)
 
 			if code != rootcmd.ExitUsage {
 				t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
