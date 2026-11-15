@@ -87,7 +87,7 @@ Examples:
 				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
-			iapValue, err = resolveIAPLookupIDWithTimeoutWith(ctx, d, client, *appID, iapValue)
+			iapValue, err = resolveIAPLookupIDWithTimeout(ctx, d, client, *appID, iapValue)
 			if err != nil {
 				return err
 			}

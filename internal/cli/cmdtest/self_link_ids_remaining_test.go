@@ -402,6 +402,7 @@ func TestSelfLinkRemainingFlagsRejectWrongType(t *testing.T) {
 		},
 		{
 			name:    "iap offer-codes custom-codes list rejects subscription offer code link",
+			deps:    true,
 			args:    []string{"iap", "offer-codes", "custom-codes", "list"},
 			flag:    "offer-code-id",
 			value:   selfLinkTestBase + "/v1/subscriptionOfferCodes/offer-1",

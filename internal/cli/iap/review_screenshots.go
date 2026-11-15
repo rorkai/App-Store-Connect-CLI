@@ -97,7 +97,7 @@ Examples:
 				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
-			iapValue, err = resolveIAPLookupIDWithTimeoutWith(ctx, d, client, *appID, iapValue)
+			iapValue, err = resolveIAPLookupIDWithTimeout(ctx, d, client, *appID, iapValue)
 			if err != nil {
 				return err
 			}
@@ -180,7 +180,7 @@ Examples:
 				return fmt.Errorf("iap review-screenshots create: %w", err)
 			}
 
-			iapValue, err = resolveIAPLookupIDWithTimeoutWith(ctx, d, client, *appID, iapValue)
+			iapValue, err = resolveIAPLookupIDWithTimeout(ctx, d, client, *appID, iapValue)
 			if err != nil {
 				return err
 			}

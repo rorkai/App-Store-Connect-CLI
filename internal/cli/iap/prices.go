@@ -7,7 +7,6 @@ import (
 	"flag"
 	"fmt"
 	"maps"
-	"os"
 	"sort"
 	"strings"
 	"sync"
@@ -68,14 +67,14 @@ type iapPricePointValue struct {
 	Proceeds      string
 }
 
-// IAPPricesCommand returns the canonical pricing summary command for IAPs.
-func IAPPricesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("summary", flag.ExitOnError)
+// newIAPPricesCommand returns the canonical pricing summary command for IAPs.
+func newIAPPricesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("summary", flag.ExitOnError)
 
 	appID := fs.String("app", "", iapLookupAppUsage)
 	iapID := shared.BindResourceIDFlag(fs, "iap-id", "inAppPurchases", "In-app purchase ID, product ID, or exact current name")
 	territory := fs.String("territory", "", "Territory filter (accepts alpha-2, alpha-3, or exact English country name)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "summary",
@@ -94,18 +93,18 @@ Examples:
 			requestedAppID := strings.TrimSpace(*appID)
 			resolvedAppID := shared.ResolveAppID(requestedAppID)
 			if requestedIAPID == "" && resolvedAppID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app or --iap-id is required")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app or --iap-id is required")
 				return shared.MissingRequiredUsageError("")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("iap prices: %w", err)
 			}
 
 			var iaps []asc.Resource[asc.InAppPurchaseV2Attributes]
 			if requestedIAPID != "" {
-				requestedIAPID, err = resolveIAPLookupIDWithTimeout(ctx, client, requestedAppID, requestedIAPID)
+				requestedIAPID, err = resolveIAPLookupIDWithTimeout(ctx, d, client, requestedAppID, requestedIAPID)
 				if err != nil {
 					return err
 				}
@@ -114,11 +113,11 @@ Examples:
 			if territoryFilter != "" {
 				territoryFilter, err = ascterritory.Normalize(territoryFilter)
 				if err != nil {
-					return shared.UsageError(err.Error())
+					return d.UsageError(err.Error())
 				}
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			if requestedIAPID != "" {
@@ -152,13 +151,13 @@ Examples:
 				client,
 				iaps,
 				territoryFilter,
-				shared.PricingNow(),
+				d.Now(),
 			)
 			if err != nil {
 				return fmt.Errorf("iap prices: %w", err)
 			}
 
-			return printIAPPricesResult(&iapPricesResult{IAPs: summaries}, *output.Output, *output.Pretty)
+			return printIAPPricesResult(d, &iapPricesResult{IAPs: summaries}, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -969,17 +968,17 @@ func dedupePriceEntries(entries []iapPriceEntry) []iapPriceEntry {
 	return unique
 }
 
-func printIAPPricesResult(result *iapPricesResult, format string, pretty bool) error {
-	return shared.PrintOutputWithRenderers(
+func printIAPPricesResult(d *shared.Deps, result *iapPricesResult, format string, pretty bool) error {
+	return d.PrintOutputWithRenderers(
 		result,
 		format,
 		pretty,
-		func() error { return printIAPPricesTable(result) },
-		func() error { return printIAPPricesMarkdown(result) },
+		func() error { return printIAPPricesTable(d, result) },
+		func() error { return printIAPPricesMarkdown(d, result) },
 	)
 }
 
-func printIAPPricesTable(result *iapPricesResult) error {
+func printIAPPricesTable(d *shared.Deps, result *iapPricesResult) error {
 	headers := []string{"ID", "Name", "Product ID", "Type", "Base Territory", "Current Price", "Estimated Proceeds", "Scheduled Changes"}
 	rows := make([][]string, 0, len(result.IAPs))
 	for _, item := range result.IAPs {
@@ -994,11 +993,11 @@ func printIAPPricesTable(result *iapPricesResult) error {
 			formatScheduledChanges(item.ScheduledChanges),
 		})
 	}
-	asc.RenderTable(headers, rows)
+	asc.RenderTableTo(d.IO.Out, headers, rows)
 	return nil
 }
 
-func printIAPPricesMarkdown(result *iapPricesResult) error {
+func printIAPPricesMarkdown(d *shared.Deps, result *iapPricesResult) error {
 	headers := []string{"ID", "Name", "Product ID", "Type", "Base Territory", "Current Price", "Estimated Proceeds", "Scheduled Changes"}
 	rows := make([][]string, 0, len(result.IAPs))
 	for _, item := range result.IAPs {
@@ -1013,7 +1012,7 @@ func printIAPPricesMarkdown(result *iapPricesResult) error {
 			formatScheduledChanges(item.ScheduledChanges),
 		})
 	}
-	asc.RenderMarkdown(headers, rows)
+	asc.RenderMarkdownTo(d.IO.Out, headers, rows)
 	return nil
 }
 

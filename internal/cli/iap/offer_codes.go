@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -19,9 +18,9 @@ var defaultOfferCodeEligibilities = []string{
 	"CHURNED_SPENDER",
 }
 
-// IAPOfferCodesCommand returns the offer codes command group.
-func IAPOfferCodesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("offer-codes", flag.ExitOnError)
+// newIAPOfferCodesCommand returns the offer codes command group.
+func newIAPOfferCodesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("offer-codes", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "offer-codes",
@@ -37,13 +36,13 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			IAPOfferCodesListCommand(),
-			IAPOfferCodesGetCommand(),
-			IAPOfferCodesCreateCommand(),
-			IAPOfferCodesUpdateCommand(),
-			IAPOfferCodesCustomCodesCommand(),
-			IAPOfferCodesOneTimeCodesCommand(),
-			IAPOfferCodesPricesCommand(),
+			newIAPOfferCodesListCommand(d),
+			newIAPOfferCodesGetCommand(d),
+			newIAPOfferCodesCreateCommand(d),
+			newIAPOfferCodesUpdateCommand(d),
+			newIAPOfferCodesCustomCodesCommand(d),
+			newIAPOfferCodesOneTimeCodesCommand(d),
+			newIAPOfferCodesPricesCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -51,16 +50,16 @@ Examples:
 	}
 }
 
-// IAPOfferCodesListCommand returns the offer codes list subcommand.
-func IAPOfferCodesListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("offer-codes list", flag.ExitOnError)
+// newIAPOfferCodesListCommand returns the offer codes list subcommand.
+func newIAPOfferCodesListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("offer-codes list", flag.ExitOnError)
 
 	appID := addIAPLookupAppFlag(fs)
 	iapID := shared.BindResourceIDFlag(fs, "iap-id", "inAppPurchases", "In-app purchase ID, product ID, or exact current name")
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -74,28 +73,28 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "iap offer-codes list", 200); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "iap offer-codes list", 200); err != nil {
 				return err
 			}
 
 			iapValue := strings.TrimSpace(*iapID)
 			if iapValue == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--iap-id")
+				return d.RequiredFlag("--iap-id")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("iap offer-codes list: %w", err)
 			}
 
 			if iapValue != "" && strings.TrimSpace(*next) == "" {
-				iapValue, err = resolveIAPLookupIDWithTimeout(ctx, client, *appID, iapValue)
+				iapValue, err = resolveIAPLookupIDWithTimeout(ctx, d, client, *appID, iapValue)
 				if err != nil {
 					return err
 				}
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			opts := []asc.IAPOfferCodesOption{
@@ -117,7 +116,7 @@ Examples:
 					return fmt.Errorf("iap offer-codes list: %w", err)
 				}
 
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetInAppPurchaseOfferCodes(requestCtx, iapValue, opts...)
@@ -125,13 +124,13 @@ Examples:
 				return fmt.Errorf("iap offer-codes list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// IAPOfferCodesGetCommand returns the offer codes get subcommand.
-func IAPOfferCodesGetCommand() *ffcli.Command {
+// newIAPOfferCodesGetCommand returns the offer codes get subcommand.
+func newIAPOfferCodesGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
 		FlagSetName: "offer-codes view",
 		Name:        "view",
@@ -151,16 +150,16 @@ Examples:
 	})
 }
 
-// IAPOfferCodesCreateCommand returns the offer codes create subcommand.
-func IAPOfferCodesCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("offer-codes create", flag.ExitOnError)
+// newIAPOfferCodesCreateCommand returns the offer codes create subcommand.
+func newIAPOfferCodesCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("offer-codes create", flag.ExitOnError)
 
 	appID := addIAPLookupAppFlag(fs)
 	iapID := shared.BindResourceIDFlag(fs, "iap-id", "inAppPurchases", "In-app purchase ID, product ID, or exact current name")
 	name := fs.String("name", "", "Offer code name")
 	eligibilities := fs.String("eligibilities", "", "Customer eligibilities (comma-separated)")
 	prices := fs.String("prices", "", "Prices: TERRITORY:PRICE_POINT_ID or TERRITORY:FREE entries (territory accepts alpha-2, alpha-3, or exact English country name)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -177,17 +176,17 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			iapValue := strings.TrimSpace(*iapID)
 			if iapValue == "" {
-				return shared.RequiredFlag("--iap-id")
+				return d.RequiredFlag("--iap-id")
 			}
 
 			nameValue := strings.TrimSpace(*name)
 			if nameValue == "" {
-				return shared.RequiredFlag("--name")
+				return d.RequiredFlag("--name")
 			}
 
 			parsedEligibilities, err := parseOfferCodeEligibilities(*eligibilities)
 			if err != nil {
-				fmt.Fprintln(os.Stderr, "Error:", err.Error())
+				fmt.Fprintln(d.IO.ErrOut, "Error:", err.Error())
 				return flag.ErrHelp
 			}
 			if len(parsedEligibilities) == 0 {
@@ -196,24 +195,24 @@ Examples:
 
 			priceEntries, err := parseOfferCodePrices(*prices)
 			if err != nil {
-				fmt.Fprintln(os.Stderr, "Error:", err.Error())
+				fmt.Fprintln(d.IO.ErrOut, "Error:", err.Error())
 				return flag.ErrHelp
 			}
 			if len(priceEntries) == 0 {
-				return shared.RequiredFlag("--prices")
+				return d.RequiredFlag("--prices")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("iap offer-codes create: %w", err)
 			}
 
-			iapValue, err = resolveIAPLookupIDWithTimeout(ctx, client, *appID, iapValue)
+			iapValue, err = resolveIAPLookupIDWithTimeout(ctx, d, client, *appID, iapValue)
 			if err != nil {
 				return err
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateInAppPurchaseOfferCode(requestCtx, iapValue, asc.InAppPurchaseOfferCodeCreateAttributes{
@@ -225,19 +224,19 @@ Examples:
 				return fmt.Errorf("iap offer-codes create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// IAPOfferCodesUpdateCommand returns the offer codes update subcommand.
-func IAPOfferCodesUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("offer-codes update", flag.ExitOnError)
+// newIAPOfferCodesUpdateCommand returns the offer codes update subcommand.
+func newIAPOfferCodesUpdateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("offer-codes update", flag.ExitOnError)
 
 	offerCodeID := shared.BindResourceIDFlag(fs, "offer-code-id", "inAppPurchaseOfferCodes", "Offer code ID")
 	var active shared.OptionalBool
 	fs.Var(&active, "active", "Set active status: true or false")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -252,19 +251,19 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			offerCodeValue := strings.TrimSpace(*offerCodeID)
 			if offerCodeValue == "" {
-				return shared.RequiredFlag("--offer-code-id")
+				return d.RequiredFlag("--offer-code-id")
 			}
 			if !active.IsSet() {
-				fmt.Fprintln(os.Stderr, "Error: --active is required (true or false)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --active is required (true or false)")
 				return shared.MissingRequiredUsageError("--active")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("iap offer-codes update: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			value := active.Value()
@@ -275,7 +274,7 @@ Examples:
 				return fmt.Errorf("iap offer-codes update: failed to update: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

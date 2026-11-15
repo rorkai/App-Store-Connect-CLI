@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -14,9 +13,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// IAPOfferCodesCustomCodesCommand returns the custom codes command group.
-func IAPOfferCodesCustomCodesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("offer-codes custom-codes", flag.ExitOnError)
+// newIAPOfferCodesCustomCodesCommand returns the custom codes command group.
+func newIAPOfferCodesCustomCodesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("offer-codes custom-codes", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "custom-codes",
@@ -32,9 +31,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			IAPOfferCodesCustomCodesListCommand(),
-			IAPOfferCodesCustomCodesGetCommand(),
-			IAPOfferCodesCustomCodesCreateCommand(),
+			newIAPOfferCodesCustomCodesListCommand(d),
+			newIAPOfferCodesCustomCodesGetCommand(d),
+			newIAPOfferCodesCustomCodesCreateCommand(d),
 			IAPOfferCodesCustomCodesUpdateCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
@@ -43,9 +42,10 @@ Examples:
 	}
 }
 
-// IAPOfferCodesCustomCodesListCommand returns the custom codes list subcommand.
-func IAPOfferCodesCustomCodesListCommand() *ffcli.Command {
+// newIAPOfferCodesCustomCodesListCommand returns the custom codes list subcommand.
+func newIAPOfferCodesCustomCodesListCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		Deps:        d,
 		FlagSetName: "offer-codes custom-codes list",
 		Name:        "list",
 		ShortUsage:  "asc iap offer-codes custom-codes list --offer-code-id \"OFFER_CODE_ID\" [flags]",
@@ -70,8 +70,8 @@ Examples:
 	})
 }
 
-// IAPOfferCodesCustomCodesGetCommand returns the custom codes get subcommand.
-func IAPOfferCodesCustomCodesGetCommand() *ffcli.Command {
+// newIAPOfferCodesCustomCodesGetCommand returns the custom codes get subcommand.
+func newIAPOfferCodesCustomCodesGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
 		FlagSetName: "offer-codes custom-codes view",
 		Name:        "view",
@@ -91,15 +91,15 @@ Examples:
 	})
 }
 
-// IAPOfferCodesCustomCodesCreateCommand returns the custom codes create subcommand.
-func IAPOfferCodesCustomCodesCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("offer-codes custom-codes create", flag.ExitOnError)
+// newIAPOfferCodesCustomCodesCreateCommand returns the custom codes create subcommand.
+func newIAPOfferCodesCustomCodesCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("offer-codes custom-codes create", flag.ExitOnError)
 
 	offerCodeID := shared.BindResourceIDFlag(fs, "offer-code-id", "inAppPurchaseOfferCodes", "Offer code ID (required)")
 	customCode := fs.String("custom-code", "", "Custom code value (required)")
 	quantity := fs.Int("quantity", 0, "Number of codes to create (required, positive integer)")
 	expirationDate := fs.String("expiration-date", "", "Expiration date (YYYY-MM-DD)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -115,16 +115,16 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*offerCodeID)
 			if id == "" {
-				return shared.RequiredFlag("--offer-code-id")
+				return d.RequiredFlag("--offer-code-id")
 			}
 
 			code := strings.TrimSpace(*customCode)
 			if code == "" {
-				return shared.RequiredFlag("--custom-code")
+				return d.RequiredFlag("--custom-code")
 			}
 
 			if *quantity <= 0 {
-				fmt.Fprintln(os.Stderr, "Error: --quantity must be a positive integer")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --quantity must be a positive integer")
 				return flag.ErrHelp
 			}
 
@@ -132,18 +132,18 @@ Examples:
 			if strings.TrimSpace(*expirationDate) != "" {
 				normalized, err := shared.NormalizeDate(*expirationDate, "--expiration-date")
 				if err != nil {
-					fmt.Fprintln(os.Stderr, "Error:", err)
+					fmt.Fprintln(d.IO.ErrOut, "Error:", err)
 					return flag.ErrHelp
 				}
 				normalizedExpiration = &normalized
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("iap offer-codes custom-codes create: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			req := asc.InAppPurchaseOfferCodeCustomCodeCreateRequest{
@@ -170,7 +170,7 @@ Examples:
 				return fmt.Errorf("iap offer-codes custom-codes create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -196,9 +196,9 @@ Examples:
 	})
 }
 
-// IAPOfferCodesOneTimeCodesCommand returns the one-time codes command group.
-func IAPOfferCodesOneTimeCodesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("offer-codes one-time-codes", flag.ExitOnError)
+// newIAPOfferCodesOneTimeCodesCommand returns the one-time codes command group.
+func newIAPOfferCodesOneTimeCodesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("offer-codes one-time-codes", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "one-time-codes",
@@ -215,11 +215,11 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			IAPOfferCodesOneTimeCodesListCommand(),
-			IAPOfferCodesOneTimeCodesGetCommand(),
-			IAPOfferCodesOneTimeCodesCreateCommand(),
+			newIAPOfferCodesOneTimeCodesListCommand(d),
+			newIAPOfferCodesOneTimeCodesGetCommand(d),
+			newIAPOfferCodesOneTimeCodesCreateCommand(d),
 			IAPOfferCodesOneTimeCodesUpdateCommand(),
-			IAPOfferCodesOneTimeCodesValuesCommand(),
+			newIAPOfferCodesOneTimeCodesValuesCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -227,9 +227,10 @@ Examples:
 	}
 }
 
-// IAPOfferCodesOneTimeCodesListCommand returns the one-time codes list subcommand.
-func IAPOfferCodesOneTimeCodesListCommand() *ffcli.Command {
+// newIAPOfferCodesOneTimeCodesListCommand returns the one-time codes list subcommand.
+func newIAPOfferCodesOneTimeCodesListCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		Deps:        d,
 		FlagSetName: "offer-codes one-time-codes list",
 		Name:        "list",
 		ShortUsage:  "asc iap offer-codes one-time-codes list --offer-code-id \"OFFER_CODE_ID\" [flags]",
@@ -254,8 +255,8 @@ Examples:
 	})
 }
 
-// IAPOfferCodesOneTimeCodesGetCommand returns the one-time codes get subcommand.
-func IAPOfferCodesOneTimeCodesGetCommand() *ffcli.Command {
+// newIAPOfferCodesOneTimeCodesGetCommand returns the one-time codes get subcommand.
+func newIAPOfferCodesOneTimeCodesGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
 		FlagSetName: "offer-codes one-time-codes view",
 		Name:        "view",
@@ -275,15 +276,15 @@ Examples:
 	})
 }
 
-// IAPOfferCodesOneTimeCodesCreateCommand returns the one-time codes create subcommand.
-func IAPOfferCodesOneTimeCodesCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("offer-codes one-time-codes create", flag.ExitOnError)
+// newIAPOfferCodesOneTimeCodesCreateCommand returns the one-time codes create subcommand.
+func newIAPOfferCodesOneTimeCodesCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("offer-codes one-time-codes create", flag.ExitOnError)
 
 	offerCodeID := shared.BindResourceIDFlag(fs, "offer-code-id", "inAppPurchaseOfferCodes", "Offer code ID (required)")
 	quantity := fs.Int("quantity", 0, "Number of codes to generate (required, positive integer)")
 	expirationDate := fs.String("expiration-date", "", "Expiration date (YYYY-MM-DD) (required)")
 	environment := fs.String("environment", "", "Offer code environment: PRODUCTION or SANDBOX")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -300,31 +301,31 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*offerCodeID)
 			if id == "" {
-				return shared.RequiredFlag("--offer-code-id")
+				return d.RequiredFlag("--offer-code-id")
 			}
 
 			if *quantity <= 0 {
-				fmt.Fprintln(os.Stderr, "Error: --quantity must be a positive integer")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --quantity must be a positive integer")
 				return flag.ErrHelp
 			}
 
 			normalizedExpiration, err := shared.NormalizeDate(*expirationDate, "--expiration-date")
 			if err != nil {
-				fmt.Fprintln(os.Stderr, "Error:", err)
+				fmt.Fprintln(d.IO.ErrOut, "Error:", err)
 				return flag.ErrHelp
 			}
 			normalizedEnvironment, err := shared.NormalizeOfferCodeEnvironment(*environment)
 			if err != nil {
-				fmt.Fprintln(os.Stderr, "Error:", err)
+				fmt.Fprintln(d.IO.ErrOut, "Error:", err)
 				return flag.ErrHelp
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("iap offer-codes one-time-codes create: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			req := asc.InAppPurchaseOfferCodeOneTimeUseCodeCreateRequest{
@@ -351,7 +352,7 @@ Examples:
 				return fmt.Errorf("iap offer-codes one-time-codes create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -381,12 +382,12 @@ Examples:
 	})
 }
 
-// IAPOfferCodesOneTimeCodesValuesCommand returns the one-time code values subcommand.
-func IAPOfferCodesOneTimeCodesValuesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("offer-codes one-time-codes values", flag.ExitOnError)
+// newIAPOfferCodesOneTimeCodesValuesCommand returns the one-time code values subcommand.
+func newIAPOfferCodesOneTimeCodesValuesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("offer-codes one-time-codes values", flag.ExitOnError)
 
 	oneTimeCodeID := shared.BindResourceIDFlag(fs, "one-time-code-id", "inAppPurchaseOfferCodeOneTimeUseCodes", "One-time use code batch ID")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "values",
@@ -401,15 +402,15 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*oneTimeCodeID)
 			if id == "" {
-				return shared.RequiredFlag("--one-time-code-id")
+				return d.RequiredFlag("--one-time-code-id")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("iap offer-codes one-time-codes values: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			values, err := client.GetInAppPurchaseOfferCodeOneTimeUseCodeValues(requestCtx, id)
@@ -418,7 +419,7 @@ Examples:
 			}
 
 			result := &asc.OfferCodeValuesResult{Codes: values}
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
