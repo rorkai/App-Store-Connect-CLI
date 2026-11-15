@@ -48,6 +48,7 @@ type ifExistsCreateHarness struct {
 	mu          sync.Mutex
 	createNames []string
 	apiRequests []string
+	client      func() (*asc.Client, error)
 }
 
 func (h *ifExistsCreateHarness) creates() []string {
@@ -134,7 +135,7 @@ func setupIfExistsCreate(t *testing.T, firstBody string, byBundleID, bySKU strin
 		}
 	}))
 	t.Cleanup(server.Close)
-	setAppCreateASCClient(t, server)
+	h.client = appCreateASCClient(t, server)
 	stubBundleIDPreflight(t)
 	t.Setenv("ASC_WEB_MIN_REQUEST_INTERVAL", "0")
 	return h
@@ -168,9 +169,11 @@ func TestRunAppsCreateIfExistsFailKeepsCaptured409(t *testing.T) {
 		t.Run("mode="+string(mode), func(t *testing.T) {
 			h := setupIfExistsCreate(t, capturedDuplicateAppCreate409, emptyAppsResponse, emptyAppsResponse)
 
+			d, depsStdout, depsStderr := newWebTestDeps()
+			d.Client = h.client
 			var err error
-			stdout, _ := captureOutput(t, func() {
-				err = RunAppsCreate(context.Background(), shared.DefaultDeps(), ifExistsCreateOptions(mode, true))
+			stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
+				err = RunAppsCreate(context.Background(), d, ifExistsCreateOptions(mode, true))
 			})
 			if err == nil {
 				t.Fatal("expected the captured 409 to fail")
@@ -208,9 +211,11 @@ func TestRunAppsCreateIfExistsSkipCaptured409ResolvesExistingApp(t *testing.T) {
 				appsListResponse("6759231657", ifExistsTestName, ifExistsTestBundleID, ifExistsTestSKU),
 				emptyAppsResponse)
 
+			d, depsStdout, depsStderr := newWebTestDeps()
+			d.Client = h.client
 			var err error
-			stdout, stderr := captureOutput(t, func() {
-				err = RunAppsCreate(context.Background(), shared.DefaultDeps(), ifExistsCreateOptions(shared.IfExistsSkip, true))
+			stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
+				err = RunAppsCreate(context.Background(), d, ifExistsCreateOptions(shared.IfExistsSkip, true))
 			})
 			if err != nil {
 				t.Fatalf("RunAppsCreate error: %v", err)
@@ -262,9 +267,11 @@ func TestRunAppsCreateIfExistsSkipAcceptsAutoRenamedNameOnlyWithAutoRename(t *te
 
 	t.Run("auto-rename on", func(t *testing.T) {
 		h := setupIfExistsCreate(t, capturedDuplicateAppCreate409, existing, emptyAppsResponse)
+		d, depsStdout, depsStderr := newWebTestDeps()
+		d.Client = h.client
 		var err error
-		stdout, _ := captureOutput(t, func() {
-			err = RunAppsCreate(context.Background(), shared.DefaultDeps(), ifExistsCreateOptions(shared.IfExistsSkip, true))
+		stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
+			err = RunAppsCreate(context.Background(), d, ifExistsCreateOptions(shared.IfExistsSkip, true))
 		})
 		if err != nil {
 			t.Fatalf("RunAppsCreate error: %v", err)
@@ -279,9 +286,11 @@ func TestRunAppsCreateIfExistsSkipAcceptsAutoRenamedNameOnlyWithAutoRename(t *te
 
 	t.Run("auto-rename off", func(t *testing.T) {
 		h := setupIfExistsCreate(t, capturedDuplicateAppCreate409, existing, emptyAppsResponse)
+		d, depsStdout, depsStderr := newWebTestDeps()
+		d.Client = h.client
 		var err error
-		stdout, _ := captureOutput(t, func() {
-			err = RunAppsCreate(context.Background(), shared.DefaultDeps(), ifExistsCreateOptions(shared.IfExistsSkip, false))
+		stdout, _ := runWithWebTestDeps(depsStdout, depsStderr, func() {
+			err = RunAppsCreate(context.Background(), d, ifExistsCreateOptions(shared.IfExistsSkip, false))
 		})
 		if err == nil {
 			t.Fatal("expected a name mismatch to fail")
@@ -331,9 +340,11 @@ func TestRunAppsCreateIfExistsSkipMismatchNeverAutoRenames(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			h := setupIfExistsCreate(t, syntheticDuplicateAppCreate409WithNameDetail, tc.byBundleID, tc.bySKU)
 
+			d, depsStdout, depsStderr := newWebTestDeps()
+			d.Client = h.client
 			var err error
-			stdout, stderr := captureOutput(t, func() {
-				err = RunAppsCreate(context.Background(), shared.DefaultDeps(), ifExistsCreateOptions(shared.IfExistsSkip, true))
+			stdout, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
+				err = RunAppsCreate(context.Background(), d, ifExistsCreateOptions(shared.IfExistsSkip, true))
 			})
 			if err == nil {
 				t.Fatal("expected mismatch to fail")
@@ -364,9 +375,11 @@ func TestRunAppsCreateIfExistsSkipMismatchNeverAutoRenames(t *testing.T) {
 func TestRunAppsCreateIfExistsSkipNothingFoundKeepsHistoricalPath(t *testing.T) {
 	t.Run("captured codes only fail unchanged", func(t *testing.T) {
 		h := setupIfExistsCreate(t, capturedDuplicateAppCreate409, emptyAppsResponse, emptyAppsResponse)
+		d, depsStdout, depsStderr := newWebTestDeps()
+		d.Client = h.client
 		var err error
-		_, _ = captureOutput(t, func() {
-			err = RunAppsCreate(context.Background(), shared.DefaultDeps(), ifExistsCreateOptions(shared.IfExistsSkip, true))
+		_, _ = runWithWebTestDeps(depsStdout, depsStderr, func() {
+			err = RunAppsCreate(context.Background(), d, ifExistsCreateOptions(shared.IfExistsSkip, true))
 		})
 		if err == nil || err.Error() != capturedDuplicateAppCreateError {
 			t.Fatalf("error = %v, want %q", err, capturedDuplicateAppCreateError)
@@ -381,9 +394,11 @@ func TestRunAppsCreateIfExistsSkipNothingFoundKeepsHistoricalPath(t *testing.T) 
 
 	t.Run("name-only conflict still auto-renames", func(t *testing.T) {
 		h := setupIfExistsCreate(t, syntheticDuplicateAppCreate409WithNameDetail, emptyAppsResponse, emptyAppsResponse)
+		d, depsStdout, depsStderr := newWebTestDeps()
+		d.Client = h.client
 		var err error
-		_, stderr := captureOutput(t, func() {
-			err = RunAppsCreate(context.Background(), shared.DefaultDeps(), ifExistsCreateOptions(shared.IfExistsSkip, true))
+		_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
+			err = RunAppsCreate(context.Background(), d, ifExistsCreateOptions(shared.IfExistsSkip, true))
 		})
 		if err != nil {
 			t.Fatalf("RunAppsCreate error: %v", err)
@@ -407,9 +422,11 @@ func TestRunAppsCreateIfExistsSkipIgnoresUnlistedConflicts(t *testing.T) {
 			h := setupIfExistsCreate(t, body,
 				appsListResponse("6759231657", ifExistsTestName, ifExistsTestBundleID, ifExistsTestSKU),
 				emptyAppsResponse)
+			d, depsStdout, depsStderr := newWebTestDeps()
+			d.Client = h.client
 			var err error
-			_, _ = captureOutput(t, func() {
-				err = RunAppsCreate(context.Background(), shared.DefaultDeps(), ifExistsCreateOptions(shared.IfExistsSkip, false))
+			_, _ = runWithWebTestDeps(depsStdout, depsStderr, func() {
+				err = RunAppsCreate(context.Background(), d, ifExistsCreateOptions(shared.IfExistsSkip, false))
 			})
 			if err == nil {
 				t.Fatal("expected unlisted 409 to fail")
@@ -423,9 +440,11 @@ func TestRunAppsCreateIfExistsSkipIgnoresUnlistedConflicts(t *testing.T) {
 
 func TestRunAppsCreateIfExistsSkipReadBackErrorIsAppended(t *testing.T) {
 	h := setupIfExistsCreate(t, capturedDuplicateAppCreate409, `not json`, emptyAppsResponse)
+	d, depsStdout, depsStderr := newWebTestDeps()
+	d.Client = h.client
 	var err error
-	_, _ = captureOutput(t, func() {
-		err = RunAppsCreate(context.Background(), shared.DefaultDeps(), ifExistsCreateOptions(shared.IfExistsSkip, true))
+	_, _ = runWithWebTestDeps(depsStdout, depsStderr, func() {
+		err = RunAppsCreate(context.Background(), d, ifExistsCreateOptions(shared.IfExistsSkip, true))
 	})
 	if err == nil || !strings.HasPrefix(err.Error(), capturedDuplicateAppCreateError) || !strings.Contains(err.Error(), "read-back after conflict failed") {
 		t.Fatalf("error = %v", err)
@@ -437,13 +456,8 @@ func TestRunAppsCreateIfExistsSkipReadBackErrorIsAppended(t *testing.T) {
 
 func TestRunAppsCreateIfExistsSkipRejectsAccessBeforeHTTP(t *testing.T) {
 	origResolve := resolveAppCreateSessionFn
-	origClientFactory := shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
-		t.Fatal("did not expect ASC client lookup")
-		return nil, nil
-	})
 	t.Cleanup(func() {
 		resolveAppCreateSessionFn = origResolve
-		origClientFactory()
 	})
 	resolveAppCreateSessionFn = func(ctx context.Context, appleID, password, twoFactorCode string) (*webcore.AuthSession, string, error) {
 		t.Fatal("did not expect web session lookup")
@@ -452,7 +466,12 @@ func TestRunAppsCreateIfExistsSkipRejectsAccessBeforeHTTP(t *testing.T) {
 
 	opts := ifExistsCreateOptions(shared.IfExistsSkip, true)
 	opts.Access = "full"
-	err := RunAppsCreate(context.Background(), shared.DefaultDeps(), opts)
+	d, _, _ := newWebTestDeps()
+	d.Client = func() (*asc.Client, error) {
+		t.Fatal("did not expect ASC client lookup")
+		return nil, nil
+	}
+	err := RunAppsCreate(context.Background(), d, opts)
 	if err == nil || !strings.Contains(err.Error(), "--if-exists skip cannot be combined with --access") {
 		t.Fatalf("error = %v", err)
 	}
@@ -460,21 +479,21 @@ func TestRunAppsCreateIfExistsSkipRejectsAccessBeforeHTTP(t *testing.T) {
 
 func TestRunAppsCreateIfExistsSkipRequiresOfficialAuthBeforeHTTP(t *testing.T) {
 	origResolve := resolveAppCreateSessionFn
-	origClientFactory := shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
-		return nil, shared.ErrMissingAuth
-	})
 	t.Cleanup(func() {
 		resolveAppCreateSessionFn = origResolve
-		origClientFactory()
 	})
 	resolveAppCreateSessionFn = func(ctx context.Context, appleID, password, twoFactorCode string) (*webcore.AuthSession, string, error) {
 		t.Fatal("did not expect web session lookup")
 		return nil, "", nil
 	}
 
+	d, depsStdout, depsStderr := newWebTestDeps()
+	d.Client = func() (*asc.Client, error) {
+		return nil, shared.ErrMissingAuth
+	}
 	var err error
-	_, _ = captureOutput(t, func() {
-		err = RunAppsCreate(context.Background(), shared.DefaultDeps(), ifExistsCreateOptions(shared.IfExistsSkip, true))
+	_, _ = runWithWebTestDeps(depsStdout, depsStderr, func() {
+		err = RunAppsCreate(context.Background(), d, ifExistsCreateOptions(shared.IfExistsSkip, true))
 	})
 	if err == nil || !strings.Contains(err.Error(), "--if-exists skip requires official App Store Connect API authentication") {
 		t.Fatalf("error = %v", err)

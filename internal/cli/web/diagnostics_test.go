@@ -53,15 +53,15 @@ func TestWebAppsCreateMissingRequiredInputExposesStructuredDiagnostics(t *testin
 
 	tests := []struct {
 		name       string
-		run        func() error
+		run        func(d *shared.Deps) error
 		wantError  string
 		wantStderr string
 		wantParam  string
 	}{
 		{
 			name: "every create flag missing",
-			run: func() error {
-				return RunAppsCreate(context.Background(), shared.DefaultDeps(), AppsCreateRunOptions{})
+			run: func(d *shared.Deps) error {
+				return RunAppsCreate(context.Background(), d, AppsCreateRunOptions{})
 			},
 			wantError:  "missing required flags: --name, --bundle-id, --sku",
 			wantStderr: "Error: missing required flags: --name, --bundle-id, --sku\n",
@@ -69,8 +69,8 @@ func TestWebAppsCreateMissingRequiredInputExposesStructuredDiagnostics(t *testin
 		},
 		{
 			name: "only sku missing",
-			run: func() error {
-				return RunAppsCreate(context.Background(), shared.DefaultDeps(), AppsCreateRunOptions{
+			run: func(d *shared.Deps) error {
+				return RunAppsCreate(context.Background(), d, AppsCreateRunOptions{
 					Name:     "My App",
 					BundleID: "com.example.app",
 				})
@@ -81,8 +81,8 @@ func TestWebAppsCreateMissingRequiredInputExposesStructuredDiagnostics(t *testin
 		},
 		{
 			name: "only name missing",
-			run: func() error {
-				return RunAppsCreate(context.Background(), shared.DefaultDeps(), AppsCreateRunOptions{
+			run: func(d *shared.Deps) error {
+				return RunAppsCreate(context.Background(), d, AppsCreateRunOptions{
 					BundleID: "com.example.app",
 					SKU:      "MYAPP123",
 				})
@@ -95,9 +95,10 @@ func TestWebAppsCreateMissingRequiredInputExposesStructuredDiagnostics(t *testin
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			d, depsStdout, depsStderr := newWebTestDeps()
 			var err error
-			stderr := captureWebDiagnosticStderr(t, func() {
-				err = test.run()
+			_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
+				err = test.run(d)
 			})
 			if err == nil {
 				t.Fatal("expected error")

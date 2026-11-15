@@ -104,7 +104,8 @@ func TestRunAppsCreateAutoRenamePreservesUnicode(t *testing.T) {
 	}
 
 	t.Setenv("ASC_WEB_MIN_REQUEST_INTERVAL", "0")
-	err := RunAppsCreate(context.Background(), shared.DefaultDeps(), AppsCreateRunOptions{
+	d, _, _ := newWebTestDeps()
+	err := RunAppsCreate(context.Background(), d, AppsCreateRunOptions{
 		Name:       originalName,
 		BundleID:   "com.example.app",
 		SKU:        "SKU123",
@@ -1121,7 +1122,8 @@ func TestWebAppsCreateMissingCompanyNameProvidesActionableHint(t *testing.T) {
 	}
 	t.Setenv("ASC_WEB_MIN_REQUEST_INTERVAL", "0")
 
-	err := RunAppsCreate(context.Background(), shared.DefaultDeps(), AppsCreateRunOptions{
+	d, _, _ := newWebTestDeps()
+	err := RunAppsCreate(context.Background(), d, AppsCreateRunOptions{
 		Name:     "My App",
 		BundleID: "com.example.app",
 		SKU:      "SKU123",
@@ -1521,7 +1523,7 @@ func TestWebAppsDeleteRequiresConfirmBeforeResolvingSession(t *testing.T) {
 	}
 }
 
-func serveBundleIDPrefixMatches(t *testing.T, pages map[string]string) *[]string {
+func serveBundleIDPrefixMatches(t *testing.T, pages map[string]string) (*[]string, *shared.Deps) {
 	t.Helper()
 	var writes []string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -1543,16 +1545,17 @@ func serveBundleIDPrefixMatches(t *testing.T, pages map[string]string) *[]string
 		}
 	}))
 	t.Cleanup(server.Close)
-	setAppCreateASCClient(t, server)
-	return &writes
+	d, _, _ := newWebTestDeps()
+	d.Client = appCreateASCClient(t, server)
+	return &writes, d
 }
 
 func TestEnsureBundleIDExistsCreatesWhenOnlyPrefixSiblingsMatch(t *testing.T) {
-	writes := serveBundleIDPrefixMatches(t, map[string]string{
+	writes, d := serveBundleIDPrefixMatches(t, map[string]string{
 		"": `{"data":[{"type":"bundleIds","id":"id-widget","attributes":{"identifier":"com.acme.app.widget"}}],"links":{}}`,
 	})
 
-	created, err := ensureBundleIDExists(context.Background(), shared.DefaultDeps(), "com.acme.app", "Acme", "IOS")
+	created, err := ensureBundleIDExists(context.Background(), d, "com.acme.app", "Acme", "IOS")
 	if err != nil {
 		t.Fatalf("ensureBundleIDExists: %v", err)
 	}
@@ -1584,8 +1587,8 @@ func TestDeleteBundleIDByIdentifierNeverTargetsPrefixSibling(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			writes := serveBundleIDPrefixMatches(t, test.pages)
-			if err := deleteBundleIDByIdentifier(context.Background(), shared.DefaultDeps(), "com.acme.app"); err != nil {
+			writes, d := serveBundleIDPrefixMatches(t, test.pages)
+			if err := deleteBundleIDByIdentifier(context.Background(), d, "com.acme.app"); err != nil {
 				t.Fatalf("deleteBundleIDByIdentifier: %v", err)
 			}
 			if strings.Join(*writes, ",") != strings.Join(test.want, ",") {
