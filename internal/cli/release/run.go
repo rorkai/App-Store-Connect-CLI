@@ -493,7 +493,7 @@ func executePipeline(ctx context.Context, d *shared.Deps, opts runOptions) (runR
 				"apiCalls": pushResult.APICalls,
 			}
 
-			// metadata.ExecutePush returns the plan before its delete guard when
+			// metadata.ExecutePushWith returns the plan before its delete guard when
 			// DryRun is set. Apply the same requirement here so the preview and
 			// the confirmed run agree instead of reporting a plan that --confirm
 			// would refuse to apply.

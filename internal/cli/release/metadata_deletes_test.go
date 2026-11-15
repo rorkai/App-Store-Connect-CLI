@@ -18,7 +18,7 @@ import (
 )
 
 // TestExecuteStagePropagatesMetadataDeleteFlags proves the operator's
-// --allow-deletes and --confirm reach metadata.ExecutePush. Hardcoding them to
+// --allow-deletes and --confirm reach metadata.ExecutePushWith. Hardcoding them to
 // false made a confirmed run abort on a delete plan the command could not
 // authorize.
 func TestExecuteStagePropagatesMetadataDeleteFlags(t *testing.T) {

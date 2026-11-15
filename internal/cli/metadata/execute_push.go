@@ -30,15 +30,10 @@ type PushExecutionOptions struct {
 	IfExists string
 }
 
-// ExecutePush computes and optionally applies a metadata push plan.
+// ExecutePushWith computes and optionally applies a metadata push plan.
 //
 // This is the command-agnostic execution path used by metadata push and
 // release orchestration.
-func ExecutePush(ctx context.Context, opts PushExecutionOptions) (PushPlanResult, error) {
-	return ExecutePushWith(ctx, shared.DefaultDeps(), opts)
-}
-
-// ExecutePushWith is ExecutePush on the given dependencies.
 func ExecutePushWith(ctx context.Context, d *shared.Deps, opts PushExecutionOptions) (PushPlanResult, error) {
 	result, _, err := ExecutePushWithWarnings(ctx, d, opts)
 	return result, err
