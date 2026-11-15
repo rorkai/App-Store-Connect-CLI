@@ -2,6 +2,7 @@ package web
 
 import (
 	"bytes"
+	"os"
 	"regexp"
 	"testing"
 	"time"
@@ -16,6 +17,7 @@ func newWebTestDeps() (*shared.Deps, *bytes.Buffer, *bytes.Buffer) {
 		Now:     time.Now,
 		Timeout: shared.ContextWithTimeout,
 		After:   time.After,
+		Getwd:   os.Getwd,
 	}, &stdout, &stderr
 }
 

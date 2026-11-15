@@ -157,18 +157,34 @@ func TestAppCreateCanPromptInteractivelyUsesControllingTTYWhenStdinIsNotTerminal
 }
 
 func TestAppCreateCanPromptForFieldsRequiresTerminalStdinAndStdout(t *testing.T) {
+	origOpenTTY := openTTYFn
+	origIsTerminal := termIsTerminalFn
+	t.Cleanup(func() {
+		openTTYFn = origOpenTTY
+		termIsTerminalFn = origIsTerminal
+	})
+	openTTYFn = func() (*os.File, error) {
+		return os.Open(os.DevNull)
+	}
+
+	stdinFD := int(os.Stdin.Fd())
+	stdoutFD := int(os.Stdout.Fd())
 	tests := []struct {
 		name      string
 		stdinTTY  bool
 		stdoutTTY bool
+		terminals map[int]bool
 		want      bool
 	}{
-		{name: "stdin only", stdinTTY: true, want: false},
-		{name: "stdout only", stdoutTTY: true, want: false},
-		{name: "both", stdinTTY: true, stdoutTTY: true, want: true},
+		{name: "stdin only", stdinTTY: true, stdoutTTY: true, terminals: map[int]bool{stdinFD: true}, want: false},
+		{name: "stdout only", stdinTTY: true, stdoutTTY: true, terminals: map[int]bool{stdoutFD: true}, want: false},
+		{name: "both", stdinTTY: true, stdoutTTY: true, terminals: map[int]bool{stdinFD: true, stdoutFD: true}, want: true},
+		{name: "deps stdin only", stdinTTY: true, terminals: map[int]bool{stdinFD: true, stdoutFD: true}, want: false},
+		{name: "deps stdout only", stdoutTTY: true, terminals: map[int]bool{stdinFD: true, stdoutFD: true}, want: false},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			termIsTerminalFn = func(fd int) bool { return test.terminals[fd] }
 			d := &shared.Deps{IO: &shared.IO{StdinTTY: test.stdinTTY, StdoutTTY: test.stdoutTTY}}
 			if got := appCreateCanPromptForFields(d); got != test.want {
 				t.Fatalf("appCreateCanPromptForFields() = %v, want %v", got, test.want)
@@ -686,6 +702,9 @@ func TestWebAppsCreateInteractiveWizardPromptsForMissingFields(t *testing.T) {
 
 	d, _, _ := newWebTestDeps()
 	d.IO.StdinTTY, d.IO.StdoutTTY = true, true
+	origIsTerminal := termIsTerminalFn
+	t.Cleanup(func() { termIsTerminalFn = origIsTerminal })
+	termIsTerminalFn = func(int) bool { return true }
 	cmd := newWebAppsCreateCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -776,6 +795,9 @@ func TestWebAppsCreateInteractiveWizardPreservesProvidedLocaleDefault(t *testing
 
 	d, _, _ := newWebTestDeps()
 	d.IO.StdinTTY, d.IO.StdoutTTY = true, true
+	origIsTerminal := termIsTerminalFn
+	t.Cleanup(func() { termIsTerminalFn = origIsTerminal })
+	termIsTerminalFn = func(int) bool { return true }
 	cmd := newWebAppsCreateCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--primary-locale", "de-DE", "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)

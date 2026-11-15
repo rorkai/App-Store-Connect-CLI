@@ -93,6 +93,9 @@ func TestRunAppsCreateInvalidAccessFailsBeforeWizard(t *testing.T) {
 
 	d, depsStdout, depsStderr := newWebTestDeps()
 	d.IO.StdinTTY, d.IO.StdoutTTY = true, true
+	origIsTerminal := termIsTerminalFn
+	t.Cleanup(func() { termIsTerminalFn = origIsTerminal })
+	termIsTerminalFn = func(int) bool { return true }
 	var err error
 	_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		err = RunAppsCreate(context.Background(), d, AppsCreateRunOptions{

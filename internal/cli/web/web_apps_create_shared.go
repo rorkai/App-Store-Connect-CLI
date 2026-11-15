@@ -58,8 +58,11 @@ func callResolveAppCreateSessionFn(ctx context.Context, appleID, password, twoFa
 
 // The field wizard reads stdin and renders to stdout, so a reachable
 // controlling TTY is not enough: piped or captured streams must fail fast.
+// The prompts read and write the process streams, so those must be terminals
+// too, not only d's.
 func appCreateCanPromptForFields(d *shared.Deps) bool {
-	return d.IO.StdinTTY && d.IO.StdoutTTY
+	return d.IO.StdinTTY && d.IO.StdoutTTY &&
+		termIsTerminalFn(int(os.Stdin.Fd())) && termIsTerminalFn(int(os.Stdout.Fd()))
 }
 
 func trimAppsCreateRunOptions(opts AppsCreateRunOptions) AppsCreateRunOptions {
