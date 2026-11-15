@@ -14,6 +14,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -698,7 +699,6 @@ func TestDepsOutputHelpersMatchProcessVariantsOnDepsStdout(t *testing.T) {
 }
 
 func TestDefaultDepsTimeoutsMatchProcessVariants(t *testing.T) {
-	const tolerance = time.Second
 	timeoutEnv := []string{"ASC_TIMEOUT", "ASC_TIMEOUT_SECONDS", "ASC_UPLOAD_TIMEOUT", "ASC_UPLOAD_TIMEOUT_SECONDS"}
 
 	tests := []struct {
@@ -751,29 +751,28 @@ func TestDefaultDepsTimeoutsMatchProcessVariants(t *testing.T) {
 				{"UploadTimeout", ContextWithUploadTimeout, d.UploadTimeout, test.wantUpload},
 				{"DownloadTimeout", ContextWithDownloadTimeout, d.DownloadTimeout, test.wantUpload},
 			}
-			for _, pair := range pairs {
-				start := time.Now()
-				processCtx, processCancel := pair.process(context.Background())
-				depsCtx, depsCancel := pair.deps(context.Background())
-				processDeadline, processOK := processCtx.Deadline()
-				depsDeadline, depsOK := depsCtx.Deadline()
-				_, liftedOK := ContextWithoutTimeout(depsCtx).Deadline()
-				processCancel()
-				depsCancel()
+			synctest.Test(t, func(t *testing.T) {
+				want := func(d time.Duration) time.Time { return time.Now().Add(d) }
+				for _, pair := range pairs {
+					processCtx, processCancel := pair.process(context.Background())
+					depsCtx, depsCancel := pair.deps(context.Background())
+					processDeadline, processOK := processCtx.Deadline()
+					depsDeadline, depsOK := depsCtx.Deadline()
+					_, liftedOK := ContextWithoutTimeout(depsCtx).Deadline()
+					processCancel()
+					depsCancel()
 
-				if !processOK || !depsOK {
-					t.Fatalf("%s: process deadline set = %v, deps deadline set = %v, want both", pair.name, processOK, depsOK)
+					if !processOK || !processDeadline.Equal(want(pair.want)) {
+						t.Fatalf("%s: process deadline = %v (set = %v), want %v", pair.name, processDeadline, processOK, want(pair.want))
+					}
+					if !depsOK || !depsDeadline.Equal(processDeadline) {
+						t.Fatalf("%s: deps deadline = %v (set = %v), want the process deadline %v", pair.name, depsDeadline, depsOK, processDeadline)
+					}
+					if liftedOK {
+						t.Fatalf("%s: ContextWithoutTimeout kept the deps deadline", pair.name)
+					}
 				}
-				if got := processDeadline.Sub(start); got < pair.want || got > pair.want+tolerance {
-					t.Fatalf("%s: process deadline in %v, want %v", pair.name, got, pair.want)
-				}
-				if diff := depsDeadline.Sub(processDeadline); diff < -tolerance || diff > tolerance {
-					t.Fatalf("%s: deps deadline differs from process deadline by %v", pair.name, diff)
-				}
-				if liftedOK {
-					t.Fatalf("%s: ContextWithoutTimeout kept the deps deadline", pair.name)
-				}
-			}
+			})
 		})
 	}
 
@@ -782,13 +781,13 @@ func TestDefaultDepsTimeoutsMatchProcessVariants(t *testing.T) {
 		d := &Deps{UploadTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
 			return ContextWithTimeoutDuration(ctx, injected)
 		}}
-		start := time.Now()
-		ctx, cancel := d.DownloadTimeout(context.Background())
-		defer cancel()
-		deadline, ok := ctx.Deadline()
-		if got := deadline.Sub(start); !ok || got < injected || got > injected+tolerance {
-			t.Fatalf("deadline in %v (set = %v), want %v", got, ok, injected)
-		}
+		synctest.Test(t, func(t *testing.T) {
+			ctx, cancel := d.DownloadTimeout(context.Background())
+			defer cancel()
+			if deadline, ok := ctx.Deadline(); !ok || !deadline.Equal(time.Now().Add(injected)) {
+				t.Fatalf("deadline = %v (set = %v), want %v", deadline, ok, time.Now().Add(injected))
+			}
+		})
 	})
 }
 
