@@ -157,13 +157,14 @@ func TestWebReviewShowInvalidInputExposesStructuredDiagnostics(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			command := WebReviewShowCommand()
+			d, _, depsStderr := newWebTestDeps()
+			command := newWebReviewShowCommand(d)
 			if err := command.FlagSet.Parse(test.args); err != nil {
 				t.Fatalf("parse flags: %v", err)
 			}
 
 			var err error
-			stderr := captureWebDiagnosticStderr(t, func() {
+			stderr := runWithWebTestDepsStderr(depsStderr, func() {
 				err = command.Exec(context.Background(), nil)
 			})
 			if err == nil {

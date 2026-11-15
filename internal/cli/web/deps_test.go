@@ -51,7 +51,7 @@ func newWebSpinnerTestDeps(t *testing.T) (*shared.Deps, *bytes.Buffer, *bytes.Bu
 
 // spinnerShownTransport answers through rt once every other goroutine in the
 // synctest bubble is blocked, which is after the spinner has drawn its label.
-func spinnerShownTransport(rt http.RoundTripper) http.RoundTripper {
+func spinnerShownTransport(rt http.RoundTripper) roundTripFunc {
 	return roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		synctest.Wait()
 		return rt.RoundTrip(req)
@@ -74,4 +74,21 @@ func spinnerLabels(stderr string) []string {
 func runWithWebTestDepsStderr(stderr *bytes.Buffer, fn func()) string {
 	fn()
 	return strings.ReplaceAll(stderr.String(), "\r\n", "\n")
+}
+
+var spinnerDrawingPattern = regexp.MustCompile("\r[\u28fe\u28fd\u28fb\u28bf\u287f\u28df\u28ef\u28f7] [^\r]*|\r +\r")
+
+// withoutSpinner removes what the spinner drew from stderr.
+func withoutSpinner(stderr string) string {
+	return spinnerDrawingPattern.ReplaceAllString(stderr, "")
+}
+
+// captureWebTestDeps runs fn with d's buffers emptied first and returns what it
+// wrote to them.
+func captureWebTestDeps(d *shared.Deps, fn func()) (string, string) {
+	stdout, stderr := d.IO.Out.(*bytes.Buffer), d.IO.ErrOut.(*bytes.Buffer)
+	stdout.Reset()
+	stderr.Reset()
+	fn()
+	return stdout.String(), stderr.String()
 }
