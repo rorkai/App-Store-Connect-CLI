@@ -188,13 +188,8 @@ Examples:
 
 // BetaLicenseAgreementsUpdateCommand returns the beta license agreements update subcommand.
 func BetaLicenseAgreementsUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("update", flag.ExitOnError)
-
-	id := shared.BindResourceIDFlag(fs, "id", "betaLicenseAgreements", "Beta license agreement ID")
-	agreementText := fs.String("agreement-text", "", "Updated agreement text")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	var agreementText string
+	return shared.BuildUpdateCommand(shared.WriteCommandConfig{
 		Name:       "update",
 		ShortUsage: "asc testflight beta-license-agreements update --id \"AGREEMENT_ID\" --agreement-text \"Text\"",
 		ShortHelp:  "Update a beta license agreement.",
@@ -202,32 +197,14 @@ func BetaLicenseAgreementsUpdateCommand() *ffcli.Command {
 
 Examples:
   asc testflight beta-license-agreements update --id "AGREEMENT_ID" --agreement-text "Updated terms"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			idValue := strings.TrimSpace(*id)
-			if idValue == "" {
-				return shared.RequiredFlag("--id")
-			}
-			textValue := strings.TrimSpace(*agreementText)
-			if textValue == "" {
-				return shared.RequiredFlag("--agreement-text")
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("beta-license-agreements update: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.UpdateBetaLicenseAgreement(requestCtx, idValue, &textValue)
-			if err != nil {
-				return fmt.Errorf("beta-license-agreements update: failed to update: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		ErrorPrefix: "beta-license-agreements update",
+		IDUsage:     "Beta license agreement ID",
+		IDType:      "betaLicenseAgreements",
+		Fields: []shared.AttributeFlag{
+			shared.RequiredStringFlag(&agreementText, "agreement-text", "Updated agreement text"),
 		},
-	}
+		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.UpdateBetaLicenseAgreement(ctx, id, &agreementText)
+		},
+	})
 }
