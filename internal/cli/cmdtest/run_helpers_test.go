@@ -84,10 +84,11 @@ func newTestDeps(t *testing.T, client func() (*asc.Client, error)) (*shared.Deps
 
 	var stdout, stderr bytes.Buffer
 	return &shared.Deps{
-		Client:  client,
-		IO:      &shared.IO{In: strings.NewReader(""), Out: &stdout, ErrOut: &stderr},
-		Now:     time.Now,
-		Timeout: shared.ContextWithTimeout,
+		Client:        client,
+		IO:            &shared.IO{In: strings.NewReader(""), Out: &stdout, ErrOut: &stderr},
+		Now:           time.Now,
+		Timeout:       shared.ContextWithTimeout,
+		UploadTimeout: shared.ContextWithUploadTimeout,
 	}, &stdout, &stderr
 }
 

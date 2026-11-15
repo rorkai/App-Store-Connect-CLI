@@ -109,17 +109,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.WithDiagnostic(
-					shared.UsageErrorCtx(ctx, errPrefix+": --limit must be between 1 and 200"),
-					shared.DiagnosticInvalidInput,
-					"--limit",
-				)
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorfCtx(ctx, "%s: %v", errPrefix, err)
-			}
-			if err := shared.RejectNextFlagConflicts(fs, *next, errPrefix, "fields", "limit"); err != nil {
+			if err := shared.ValidatePaginationFlags(ctx, fs, errPrefix, 200, "fields", "limit"); err != nil {
 				return err
 			}
 			fieldValues, err := shared.NormalizeSelection(*fields, config.fieldValues, "--fields")

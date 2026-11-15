@@ -1,14 +1,11 @@
 package shared
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"io"
 	"os"
 	"strings"
-
-	"github.com/peterbourgon/ff/v3/ffcli"
 )
 
 // RejectNextFlagConflicts rejects explicitly provided query flags when --next
@@ -37,33 +34,4 @@ func rejectNextFlagConflicts(stderr io.Writer, fs *flag.FlagSet, next, command s
 	}
 
 	return nil
-}
-
-// WrapNextLimitConflicts makes every command in the tree that binds both --next
-// and --limit reject the pair, since a links.next URL is requested verbatim and
-// would silently drop --limit. The diagnostic goes to d's stderr.
-func WrapNextLimitConflicts(cmd *ffcli.Command, d *Deps) {
-	wrapNextLimitConflicts(cmd, d, "")
-}
-
-func wrapNextLimitConflicts(cmd *ffcli.Command, d *Deps, parent string) {
-	path := strings.TrimSpace(parent + " " + cmd.Name)
-	for _, sub := range cmd.Subcommands {
-		wrapNextLimitConflicts(sub, d, path)
-	}
-
-	fs := cmd.FlagSet
-	if cmd.Exec == nil || fs == nil || fs.Lookup("next") == nil || fs.Lookup("limit") == nil {
-		return
-	}
-	exec := cmd.Exec
-	cmd.Exec = func(ctx context.Context, args []string) error {
-		// An invalid --next keeps the command's own, more specific diagnostic.
-		if next := fs.Lookup("next").Value.String(); ValidateNextURL(next) == nil {
-			if err := d.RejectNextFlagConflicts(fs, next, path, "limit"); err != nil {
-				return err
-			}
-		}
-		return exec(ctx, args)
-	}
 }

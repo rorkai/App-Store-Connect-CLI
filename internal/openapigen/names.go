@@ -28,6 +28,31 @@ func goName(jsonName string) string {
 	return b.String()
 }
 
+var versionWord = regexp.MustCompile(`V[0-9]+([A-Z]|$)`)
+
+// withoutVersion drops the version word of a schema name:
+// "ZebraV2UpdateRequest" -> "ZebraUpdateRequest".
+func withoutVersion(name string) string {
+	return versionWord.ReplaceAllString(name, "$1")
+}
+
+var capitalWord = regexp.MustCompile(`[A-Z][a-z0-9]*`)
+
+// goTypeName is the Go name of a type named after a schema: the schema's name
+// with the words Id and Ids spelled ID and IDs, as Go spells them, so schema
+// BundleIdCreateAttributes is type BundleIDCreateAttributes.
+func goTypeName(schema string) string {
+	return capitalWord.ReplaceAllStringFunc(schema, func(word string) string {
+		switch word {
+		case "Id":
+			return "ID"
+		case "Ids":
+			return "IDs"
+		}
+		return word
+	})
+}
+
 func upperFirst(s string) string {
 	if s == "" {
 		return s

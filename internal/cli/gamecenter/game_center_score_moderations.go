@@ -37,13 +37,10 @@ func gameCenterScoreModerationsListCommand() *ffcli.Command {
 		if provided["limit"] && (*limit < 1 || *limit > 200) {
 			return shared.UsageError(command + ": --limit must be between 1 and 200")
 		}
-		nextURL := strings.TrimSpace(*next)
-		if err := shared.ValidateNextURL(nextURL); err != nil {
-			return shared.UsageErrorf("%s: %v", command, err)
-		}
-		if err := shared.RejectNextFlagConflicts(fs, nextURL, command, "exists-blocked", "fields", "player-fields", "include", "limit"); err != nil {
+		if err := shared.ValidatePaginationFlags(ctx, fs, command, 200, "exists-blocked", "fields", "player-fields", "include", "limit"); err != nil {
 			return err
 		}
+		nextURL := strings.TrimSpace(*next)
 		leaderboardID := strings.TrimSpace(*id)
 		if leaderboardID == "" && nextURL == "" {
 			return shared.UsageError(command + ": --leaderboard-id is required")

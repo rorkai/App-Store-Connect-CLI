@@ -137,13 +137,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > winBackOffersMaxLimit) {
-				return shared.UsageErrorfCtx(ctx, "win-back-offers list: --limit must be between 1 and %d", winBackOffersMaxLimit)
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorfCtx(ctx, "win-back-offers list: %v", err)
-			}
-			if err := shared.RejectNextFlagConflicts(fs, *next, "subscriptions offers win-back list", "fields", "price-fields", "include", "prices-limit"); err != nil {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "win-back-offers list", winBackOffersMaxLimit, "fields", "price-fields", "include", "prices-limit"); err != nil {
 				return err
 			}
 			if *pricesLimit != 0 && (*pricesLimit < 1 || *pricesLimit > winBackOffersPricesMaxLimit) {
@@ -744,13 +738,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > winBackOffersMaxLimit) {
-				return shared.UsageErrorfCtx(ctx, "win-back-offers prices: --limit must be between 1 and %d", winBackOffersMaxLimit)
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorfCtx(ctx, "win-back-offers prices: %v", err)
-			}
-			if err := shared.RejectNextFlagConflicts(fs, *next, "subscriptions offers win-back prices", "territory", "fields", "territory-fields", "price-point-fields", "include"); err != nil {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "win-back-offers prices", winBackOffersMaxLimit, "territory", "fields", "territory-fields", "price-point-fields", "include"); err != nil {
 				return err
 			}
 
@@ -882,11 +870,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > winBackOffersMaxLimit) {
-				return shared.UsageErrorfCtx(ctx, "win-back-offers links: --limit must be between 1 and %d", winBackOffersMaxLimit)
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorfCtx(ctx, "win-back-offers links: %v", err)
+			if err := shared.ValidatePaginationFlags(ctx, fs, "win-back-offers links", winBackOffersMaxLimit); err != nil {
+				return err
 			}
 
 			id := strings.TrimSpace(*subscriptionID)

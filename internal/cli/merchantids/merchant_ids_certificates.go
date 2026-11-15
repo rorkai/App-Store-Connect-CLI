@@ -71,18 +71,12 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "merchant-ids certificates list", 200, "display-name", "certificate-type", "serial-number", "certificate-id", "sort", "fields", "pass-type-fields", "include"); err != nil {
+				return err
+			}
 			merchantIDValue := strings.TrimSpace(*merchantID)
 			if merchantIDValue == "" && strings.TrimSpace(*next) == "" {
 				return shared.RequiredFlag("--merchant-id")
-			}
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("merchant-ids certificates list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("merchant-ids certificates list: %v", err)
-			}
-			if err := shared.RejectNextFlagConflicts(fs, *next, "merchant-ids certificates list", "display-name", "certificate-type", "serial-number", "certificate-id", "sort", "fields", "pass-type-fields", "include"); err != nil {
-				return err
 			}
 			if err := shared.ValidateSort(*sort, certificateSortValues...); err != nil {
 				return shared.UsageErrorf("merchant-ids certificates list: %v", err)
@@ -182,15 +176,12 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "merchant-ids certificates view", 200); err != nil {
+				return err
+			}
 			merchantIDValue := strings.TrimSpace(*merchantID)
 			if merchantIDValue == "" && strings.TrimSpace(*next) == "" {
 				return shared.RequiredFlag("--merchant-id")
-			}
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("merchant-ids certificates view: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("merchant-ids certificates view: %v", err)
 			}
 
 			client, err := shared.GetASCClient()

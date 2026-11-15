@@ -1,7 +1,24 @@
 {
   "tag": "BundleIdCapabilities",
   "file": "bundle_id_capabilities_gen.go",
+  "types": [
+    "BundleIDCapabilityRelationships",
+    "BundleIdCapabilityCreateAttributes",
+    "BundleIdCapabilityCreateData",
+    "BundleIdCapabilityCreateRequest",
+    "BundleIdCapabilityResponse",
+    "BundleIdCapabilityUpdateData",
+    "BundleIdCapabilityUpdateRequest"
+  ],
+  "relationships": [
+    {"data":"BundleIdCapabilityCreateData","type":"*BundleIDCapabilityRelationships"}
+  ],
   "operations": [
-    {"operation":"bundleIdCapabilities_deleteInstance","name":"DeleteBundleIDCapability","params":["capabilityID"],"check":"trim"}
+    {"operation":"bundleIdCapabilities_createInstance","name":"CreateBundleIDCapability","params":["bundleID"],"check":"trim","links":["bundleId"]},
+    {"operation":"bundleIdCapabilities_deleteInstance","name":"DeleteBundleIDCapability","params":["capabilityID"],"check":"trim"},
+    {"operation":"bundleIdCapabilities_updateInstance","name":"UpdateBundleIDCapability","params":["capabilityID"],"check":"require","messages":["capability ID is required"]}
+  ],
+  "refTypes": [
+    {"schema":"CapabilityType","type":"string"}
   ]
 }

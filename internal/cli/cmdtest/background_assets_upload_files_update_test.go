@@ -1,7 +1,6 @@
 package cmdtest
 
 import (
-	"context"
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
@@ -15,7 +14,6 @@ import (
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestBackgroundAssetsUploadFilesUpdatePreservesValidRequests(t *testing.T) {
@@ -94,17 +92,10 @@ func TestBackgroundAssetsUploadFilesUpdatePreservesValidRequests(t *testing.T) {
 			}))
 			t.Cleanup(server.Close)
 			client := newReviewTestServerClient(t, server)
-			t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) { return client, nil }))
-
-			root := RootCommand("1.2.3")
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
+			stdout, stderr, err := runRootWithDeps(t, func() (*asc.Client, error) { return client, nil }, args...)
+			if err != nil {
+				t.Fatalf("run error: %v", err)
+			}
 
 			if stderr != "" {
 				t.Fatalf("stderr = %q, want empty", stderr)

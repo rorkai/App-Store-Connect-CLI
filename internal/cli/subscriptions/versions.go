@@ -122,25 +122,11 @@ Examples:
   asc subscriptions versions list --subscription-id "SUBSCRIPTION_ID" --include images --images-limit 10`,
 		FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := validateNextFlagConflicts(
-				*next,
-				flagConflict{"--state", flagWasProvided(fs, "state")},
-				flagConflict{"--fields", flagWasProvided(fs, "fields")},
-				flagConflict{"--subscription-fields", flagWasProvided(fs, "subscription-fields")},
-				flagConflict{"--image-fields", flagWasProvided(fs, "image-fields")},
-				flagConflict{"--localization-fields", flagWasProvided(fs, "localization-fields")},
-				flagConflict{"--include", flagWasProvided(fs, "include")},
-				flagConflict{"--images-limit", flagWasProvided(fs, "images-limit")},
-				flagConflict{"--localizations-limit", flagWasProvided(fs, "localizations-limit")},
-				flagConflict{"--limit", flagWasProvided(fs, "limit")},
-			); err != nil {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "subscriptions versions list", 200, "state", "fields", "subscription-fields", "image-fields", "localization-fields", "include", "images-limit", "localizations-limit", "limit"); err != nil {
 				return err
 			}
-			if err := validateVersionListLimits(*limit, *imagesLimit, *localizationsLimit); err != nil {
+			if err := validateVersionListLimits(*imagesLimit, *localizationsLimit); err != nil {
 				return err
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("subscriptions versions list: %v", err)
 			}
 			versionFieldValues, err := normalizeSelectionFlag(fs, *fields, "--fields", subscriptionVersionFieldsList())
 			if err != nil {
@@ -290,17 +276,8 @@ func SubscriptionsVersionsLinksCommand() *ffcli.Command {
 		Name: "links", ShortUsage: "asc subscriptions versions links [flags]", ShortHelp: "List raw subscription version linkages.",
 		LongHelp: "List raw version relationship linkages for a subscription.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := validateNextFlagConflicts(
-				*next,
-				flagConflict{"--limit", flagWasProvided(fs, "limit")},
-			); err != nil {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "subscriptions versions links", 200, "limit"); err != nil {
 				return err
-			}
-			if err := validatePageLimit(*limit); err != nil {
-				return err
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("subscriptions versions links: %v", err)
 			}
 			id := strings.TrimSpace(*subscriptionID)
 			if id == "" && strings.TrimSpace(*next) == "" {
@@ -364,13 +341,6 @@ func parseSubscriptionVersionStates(value string) ([]asc.SubscriptionVersionStat
 	return states, nil
 }
 
-func validatePageLimit(limit int) error {
-	if limit != 0 && (limit < 1 || limit > 200) {
-		return shared.UsageError("--limit must be between 1 and 200")
-	}
-	return nil
-}
-
 func validateRelationshipLimit(name string, limit int) error {
 	if limit != 0 && (limit < 1 || limit > 50) {
 		return shared.UsageErrorf("%s must be between 1 and 50", name)
@@ -378,29 +348,9 @@ func validateRelationshipLimit(name string, limit int) error {
 	return nil
 }
 
-func validateVersionListLimits(limit, imagesLimit, localizationsLimit int) error {
-	if err := validatePageLimit(limit); err != nil {
-		return err
-	}
+func validateVersionListLimits(imagesLimit, localizationsLimit int) error {
 	if err := validateRelationshipLimit("--images-limit", imagesLimit); err != nil {
 		return err
 	}
 	return validateRelationshipLimit("--localizations-limit", localizationsLimit)
-}
-
-type flagConflict struct {
-	name string
-	set  bool
-}
-
-func validateNextFlagConflicts(next string, flags ...flagConflict) error {
-	if strings.TrimSpace(next) == "" {
-		return nil
-	}
-	for _, candidate := range flags {
-		if candidate.set {
-			return shared.UsageErrorf("--next cannot be combined with %s", candidate.name)
-		}
-	}
-	return nil
 }

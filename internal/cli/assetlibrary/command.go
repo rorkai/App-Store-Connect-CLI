@@ -19,20 +19,20 @@ import (
 // Command returns the Asset Library command group.
 func Command() *ffcli.Command {
 	return group("asset-library", "Inspect Asset Library media and specifications, and upload images and videos.",
-		readCommand("view", "Read an app's Asset Library.", "app", "/v1/apps/%s/assetLibrary", false),
+		readCommand("asset-library", "view", "Read an app's Asset Library.", "app", "/v1/apps/%s/assetLibrary", false),
 		group("images", "Inspect and upload Asset Library images.",
 			imagesUploadCommand(),
-			readCommand("list", "List images in an Asset Library.", "library-id", "/v1/appAssetLibraries/%s/images", true),
-			readCommand("view", "Read an Asset Library image.", "id", "/v1/appAssetLibraryImages/%s", false),
-			readCommand("placements", "List where an Asset Library image is used.", "id", "/v1/appAssetLibraryImages/%s/placements", true),
+			readCommand("asset-library images", "list", "List images in an Asset Library.", "library-id", "/v1/appAssetLibraries/%s/images", true),
+			readCommand("asset-library images", "view", "Read an Asset Library image.", "id", "/v1/appAssetLibraryImages/%s", false),
+			readCommand("asset-library images", "placements", "List where an Asset Library image is used.", "id", "/v1/appAssetLibraryImages/%s/placements", true),
 			lifecycleCommand("rename", "appAssetLibraryImages"), lifecycleCommand("archive", "appAssetLibraryImages"), lifecycleCommand("unarchive", "appAssetLibraryImages"), lifecycleCommand("delete", "appAssetLibraryImages")),
 		group("videos", "Inspect and upload Asset Library videos.",
 			videosUploadCommand(),
-			readCommand("list", "List videos in an Asset Library.", "library-id", "/v1/appAssetLibraries/%s/videos", true),
-			readCommand("view", "Read an Asset Library video.", "id", "/v1/appAssetLibraryVideos/%s", false),
-			readCommand("placements", "List where an Asset Library video is used.", "id", "/v1/appAssetLibraryVideos/%s/placements", true),
+			readCommand("asset-library videos", "list", "List videos in an Asset Library.", "library-id", "/v1/appAssetLibraries/%s/videos", true),
+			readCommand("asset-library videos", "view", "Read an Asset Library video.", "id", "/v1/appAssetLibraryVideos/%s", false),
+			readCommand("asset-library videos", "placements", "List where an Asset Library video is used.", "id", "/v1/appAssetLibraryVideos/%s/placements", true),
 			lifecycleCommand("rename", "appAssetLibraryVideos"), lifecycleCommand("archive", "appAssetLibraryVideos"), lifecycleCommand("unarchive", "appAssetLibraryVideos"), lifecycleCommand("delete", "appAssetLibraryVideos"), lifecycleCommand("set-poster-frame", "appAssetLibraryVideos")),
-		readCommand("specs", "Read Apple's current asset dimensions and placement policies.", "", "/v1/appAssetLibraryRefData", false))
+		readCommand("asset-library", "specs", "Read Apple's current asset dimensions and placement policies.", "", "/v1/appAssetLibraryRefData", false))
 }
 
 func group(name, help string, children ...*ffcli.Command) *ffcli.Command {
@@ -62,7 +62,7 @@ Examples:
 
 var resourceIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
 
-func readCommand(name, help, selector, path string, collection bool) *ffcli.Command {
+func readCommand(parent, name, help, selector, path string, collection bool) *ffcli.Command {
 	fs := flag.NewFlagSet(name, flag.ExitOnError)
 	id := new(string)
 	resourceType := "appAssetLibraries"
@@ -116,13 +116,7 @@ func readCommand(name, help, selector, path string, collection bool) *ffcli.Comm
 			if err := shared.ValidateBoundOutputFlags(fs); err != nil {
 				return shared.UsageErrorf("asset-library %s: %v", name, err)
 			}
-			if limit < 0 || limit > 200 {
-				return shared.UsageError("asset-library: --limit must be between 1 and 200 (or 0 for server default)")
-			}
-			if next != "" {
-				if err := shared.ValidateNextURL(next); err != nil {
-					return shared.UsageErrorf("asset-library: %v", err)
-				}
+			if collection {
 				conflicts := []string{"limit"}
 				if filters != nil {
 					conflicts = append(conflicts, libraryListFilterFlags...)
@@ -130,7 +124,7 @@ func readCommand(name, help, selector, path string, collection bool) *ffcli.Comm
 				if placementFilters != nil {
 					conflicts = append(conflicts, placementFilters.Names()...)
 				}
-				if err := shared.RejectNextFlagConflicts(fs, next, "asset-library", conflicts...); err != nil {
+				if err := shared.ValidatePaginationFlags(ctx, fs, parent+" "+name, 200, conflicts...); err != nil {
 					return err
 				}
 			}

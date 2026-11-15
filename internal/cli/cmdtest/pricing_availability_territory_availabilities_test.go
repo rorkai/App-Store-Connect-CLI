@@ -22,6 +22,7 @@ func TestTerritoryAvailabilitiesListPagination(t *testing.T) {
 		{"pre-orders", "list"},
 	} {
 		commandName := strings.Join(command, " ")
+		deps := command[0] == "pre-orders"
 		withArgs := func(args ...string) []string {
 			return append(append([]string{}, command...), args...)
 		}
@@ -58,15 +59,20 @@ func TestTerritoryAvailabilitiesListPagination(t *testing.T) {
 
 		for _, test := range tests {
 			t.Run(commandName+"/"+test.name, func(t *testing.T) {
-				setupAuth(t)
-
 				reg := asctest.NewRegistry(t)
-				reg.Install()
 				for i, query := range test.queries {
 					reg.Register(asctest.GET(path, query...), asctest.JSON(http.StatusOK, test.bodies[i]))
 				}
 
-				stdout, stderr, err := runCommand(t, test.args)
+				var stdout, stderr string
+				var err error
+				if deps {
+					stdout, stderr, err = runRootWithDeps(t, stubClient(t, reg), test.args...)
+				} else {
+					setupAuth(t)
+					reg.Install()
+					stdout, stderr, err = runCommand(t, test.args)
+				}
 				if err != nil {
 					t.Fatalf("run error: %v", err)
 				}
@@ -90,11 +96,13 @@ func TestTerritoryAvailabilitiesListPagination(t *testing.T) {
 				name:    commandName + "/RejectsInvalidLimit",
 				args:    withArgs("--availability", "availability-1", "--limit", "201"),
 				wantErr: "Error: " + commandName + ": --limit must be between 1 and 200",
+				deps:    deps,
 			},
 			{
 				name:    commandName + "/RejectsInvalidNextURL",
 				args:    withArgs("--next", "http://api.appstoreconnect.apple.com/v2/appAvailabilities/availability-1/territoryAvailabilities?cursor=AQ"),
 				wantErr: "Error: " + commandName + ": --next must be an App Store Connect URL",
+				deps:    deps,
 			},
 		})
 	}

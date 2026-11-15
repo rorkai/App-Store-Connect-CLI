@@ -57,6 +57,22 @@ func (c *Client) GetGameCenterLeaderboardV2(ctx context.Context, leaderboardID s
 	})
 }
 
+// UpdateGameCenterLeaderboardV2 sends PATCH /v2/gameCenterLeaderboards/{id} (gameCenterLeaderboardsV2_updateInstance).
+func (c *Client) UpdateGameCenterLeaderboardV2(ctx context.Context, leaderboardID string, attrs GameCenterLeaderboardUpdateAttributes) (*GameCenterLeaderboardResponse, error) {
+	payload := GameCenterLeaderboardUpdateRequest{
+		Data: GameCenterLeaderboardUpdateData{
+			Type:       ResourceTypeGameCenterLeaderboards,
+			ID:         strings.TrimSpace(leaderboardID),
+			Attributes: &attrs,
+		},
+	}
+	return sendJSON[GameCenterLeaderboardResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v2/gameCenterLeaderboards/%s", strings.TrimSpace(leaderboardID)),
+		Payload: payload,
+	})
+}
+
 // GetGameCenterLeaderboardVersions sends GET /v2/gameCenterLeaderboards/{id}/versions (gameCenterLeaderboardsV2_versions_getToManyRelated).
 func (c *Client) GetGameCenterLeaderboardVersions(ctx context.Context, leaderboardID string, opts ...GCLeaderboardVersionsOption) (*GameCenterLeaderboardVersionsResponse, error) {
 	query := applyOptions(opts)

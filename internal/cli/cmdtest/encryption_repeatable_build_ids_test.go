@@ -17,19 +17,13 @@ func TestEncryptionAssignBuildsRepeatedBuildIDRejectedBeforeRequest(t *testing.T
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 
-	stdout, stderr := captureOutput(t, func() {
-		code := rootcmd.Run([]string{
-			"encryption", "declarations", "assign-builds",
-			"--id", "DECL_ID",
-			"--build-id", "BUILD_A",
-			"--build-id", "BUILD_B",
-		}, "1.2.3")
-		if code != rootcmd.ExitUsage {
-			t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, stubClient(t, reg),
+		"encryption", "declarations", "assign-builds", "--id", "DECL_ID", "--build-id", "BUILD_A", "--build-id", "BUILD_B",
+	)
+	if code != rootcmd.ExitUsage {
+		t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
+	}
 
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
@@ -48,21 +42,15 @@ func TestEncryptionAssignBuildsCSVPreservesDuplicatesAndSkipsEmptyFields(t *test
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.POST("/v1/appEncryptionDeclarations/DECL_ID/relationships/builds").JSONBody(`{"data":[{"type":"builds","id":"BUILD_A"},{"type":"builds","id":"BUILD_A"}]}`),
 		asctest.JSON(http.StatusNoContent, ""))
 
-	stdout, stderr := captureOutput(t, func() {
-		code := rootcmd.Run([]string{
-			"encryption", "declarations", "assign-builds",
-			"--id", "DECL_ID",
-			"--build-id", "BUILD_A,, BUILD_A, ",
-			"--output", "json",
-		}, "1.2.3")
-		if code != rootcmd.ExitSuccess {
-			t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitSuccess)
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, stubClient(t, reg),
+		"encryption", "declarations", "assign-builds", "--id", "DECL_ID", "--build-id", "BUILD_A,, BUILD_A, ", "--output", "json",
+	)
+	if code != rootcmd.ExitSuccess {
+		t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitSuccess)
+	}
 
 	requests := reg.Requests()
 	if requestCount := len(requests); requestCount != 1 {
@@ -97,18 +85,13 @@ func TestEncryptionAssignBuildsCSVPreservesDuplicatesAndSkipsEmptyFields(t *test
 
 func TestEncryptionAssignBuildsExplicitEmptyValueKeepsRequiredValidation(t *testing.T) {
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 
-	stdout, stderr := captureOutput(t, func() {
-		code := rootcmd.Run([]string{
-			"encryption", "declarations", "assign-builds",
-			"--id", "DECL_ID",
-			"--build-id", "",
-		}, "1.2.3")
-		if code != rootcmd.ExitUsage {
-			t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, stubClient(t, reg),
+		"encryption", "declarations", "assign-builds", "--id", "DECL_ID", "--build-id", "",
+	)
+	if code != rootcmd.ExitUsage {
+		t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
+	}
 
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
@@ -126,18 +109,13 @@ func TestEncryptionAssignBuildsLegacyBuildFlagIsUnknownBeforeRequest(t *testing.
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 
-	stdout, stderr := captureOutput(t, func() {
-		code := rootcmd.Run([]string{
-			"encryption", "declarations", "assign-builds",
-			"--id", "DECL_ID",
-			"--build", "BUILD_B",
-		}, "1.2.3")
-		if code != rootcmd.ExitUsage {
-			t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, stubClient(t, reg),
+		"encryption", "declarations", "assign-builds", "--id", "DECL_ID", "--build", "BUILD_B",
+	)
+	if code != rootcmd.ExitUsage {
+		t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
+	}
 
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)

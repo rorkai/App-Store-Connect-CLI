@@ -73,11 +73,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("game-center leaderboard-sets v2 list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("game-center leaderboard-sets v2 list: %v", err)
+			if err := shared.ValidatePaginationFlags(ctx, fs, "game-center leaderboard-sets v2 list", 200); err != nil {
+				return err
 			}
 
 			group := strings.TrimSpace(*groupID)
@@ -640,14 +637,8 @@ Examples:
 
 // GameCenterLeaderboardSetLocalizationsV2CreateCommand returns the leaderboard set localizations v2 create subcommand.
 func GameCenterLeaderboardSetLocalizationsV2CreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
-
-	versionID := shared.BindResourceIDFlag(fs, "version-id", "gameCenterLeaderboardSetVersions", "Game Center leaderboard set version ID")
-	locale := fs.String("locale", "", "Locale (e.g., en-US, de-DE)")
-	name := fs.String("name", "", "Display name for the leaderboard set in this locale")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	var attrs asc.GameCenterLeaderboardSetLocalizationCreateAttributes
+	return shared.BuildCreateCommand(shared.WriteCommandConfig{
 		Name:       "create",
 		ShortUsage: "asc game-center leaderboard-sets v2 localizations create --version-id \"VER_ID\" --locale \"LOCALE\" --name \"NAME\"",
 		ShortHelp:  "Create a new Game Center leaderboard set localization (v2).",
@@ -655,56 +646,23 @@ func GameCenterLeaderboardSetLocalizationsV2CreateCommand() *ffcli.Command {
 
 Examples:
   asc game-center leaderboard-sets v2 localizations create --version-id "VER_ID" --locale en-US --name "Season 1"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*versionID)
-			if id == "" {
-				return shared.RequiredFlag("--version-id")
-			}
-
-			localeVal := strings.TrimSpace(*locale)
-			if localeVal == "" {
-				return shared.RequiredFlag("--locale")
-			}
-
-			nameVal := strings.TrimSpace(*name)
-			if nameVal == "" {
-				return shared.RequiredFlag("--name")
-			}
-
-			attrs := asc.GameCenterLeaderboardSetLocalizationCreateAttributes{
-				Locale: localeVal,
-				Name:   nameVal,
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center leaderboard-sets v2 localizations create: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.CreateGameCenterLeaderboardSetLocalizationV2(requestCtx, id, attrs)
-			if err != nil {
-				return fmt.Errorf("game-center leaderboard-sets v2 localizations create: failed to create: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDFlag:  "version-id",
+		IDUsage: "Game Center leaderboard set version ID",
+		IDType:  "gameCenterLeaderboardSetVersions",
+		Fields: []shared.AttributeFlag{
+			shared.RequiredStringFlag(&attrs.Locale, "locale", "Locale (e.g., en-US, de-DE)"),
+			shared.RequiredStringFlag(&attrs.Name, "name", "Display name for the leaderboard set in this locale"),
 		},
-	}
+		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.CreateGameCenterLeaderboardSetLocalizationV2(ctx, id, attrs)
+		},
+	})
 }
 
 // GameCenterLeaderboardSetLocalizationsV2UpdateCommand returns the leaderboard set localizations v2 update subcommand.
 func GameCenterLeaderboardSetLocalizationsV2UpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("update", flag.ExitOnError)
-
-	localizationID := shared.BindResourceIDFlag(fs, "id", "gameCenterLeaderboardSetLocalizations", "Game Center leaderboard set localization ID")
-	name := fs.String("name", "", "Display name for the leaderboard set in this locale")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	var name string
+	return shared.BuildUpdateCommand(shared.WriteCommandConfig{
 		Name:       "update",
 		ShortUsage: "asc game-center leaderboard-sets v2 localizations update --id \"LOC_ID\" --name \"NAME\"",
 		ShortHelp:  "Update a Game Center leaderboard set localization (v2).",
@@ -712,39 +670,15 @@ func GameCenterLeaderboardSetLocalizationsV2UpdateCommand() *ffcli.Command {
 
 Examples:
   asc game-center leaderboard-sets v2 localizations update --id "LOC_ID" --name "New Name"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*localizationID)
-			if id == "" {
-				return shared.RequiredFlag("--id")
-			}
-
-			nameVal := strings.TrimSpace(*name)
-			if nameVal == "" {
-				return shared.RequiredFlag("--name")
-			}
-
-			attrs := asc.GameCenterLeaderboardSetLocalizationUpdateAttributes{
-				Name: &nameVal,
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("game-center leaderboard-sets v2 localizations update: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.UpdateGameCenterLeaderboardSetLocalizationV2(requestCtx, id, attrs)
-			if err != nil {
-				return fmt.Errorf("game-center leaderboard-sets v2 localizations update: failed to update: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDUsage: "Game Center leaderboard set localization ID",
+		IDType:  "gameCenterLeaderboardSetLocalizations",
+		Fields: []shared.AttributeFlag{
+			shared.RequiredStringFlag(&name, "name", "Display name for the leaderboard set in this locale"),
 		},
-	}
+		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.UpdateGameCenterLeaderboardSetLocalizationV2(ctx, id, asc.GameCenterLeaderboardSetLocalizationUpdateAttributes{Name: &name})
+		},
+	})
 }
 
 // GameCenterLeaderboardSetLocalizationsV2DeleteCommand returns the leaderboard set localizations v2 delete subcommand.

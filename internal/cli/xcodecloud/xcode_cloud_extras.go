@@ -44,6 +44,9 @@ Examples:
 			XcodeCloudProductsDeleteCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
+			if err := shared.ValidatePaginationFlags(ctx, flags.flagSet, "xcode-cloud products", 200, "product-type", "fields", "app-fields", "bundle-id-fields", "scm-repository-fields", "include", "primary-repositories-limit", "limit"); err != nil {
+				return err
+			}
 			return xcodeCloudProductsList(ctx, flags)
 		},
 	}
@@ -70,6 +73,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := shared.ValidatePaginationFlags(ctx, flags.flagSet, "xcode-cloud products list", 200, "product-type", "fields", "app-fields", "bundle-id-fields", "scm-repository-fields", "include", "primary-repositories-limit", "limit"); err != nil {
+				return err
+			}
 			return xcodeCloudProductsList(ctx, flags)
 		},
 	}
@@ -324,29 +330,7 @@ Examples:
 }
 
 func xcodeCloudProductsList(ctx context.Context, flags ciProductsListFlags) error {
-	if *flags.limit != 0 && (*flags.limit < 1 || *flags.limit > 200) {
-		return shared.UsageError("xcode-cloud products: --limit must be between 1 and 200")
-	}
-
 	next := strings.TrimSpace(*flags.next)
-	if err := shared.ValidateNextURL(next); err != nil {
-		return shared.UsageErrorf("xcode-cloud products: %v", err)
-	}
-	if err := shared.RejectNextFlagConflicts(
-		flags.flagSet,
-		next,
-		"xcode-cloud products",
-		"product-type",
-		"fields",
-		"app-fields",
-		"bundle-id-fields",
-		"scm-repository-fields",
-		"include",
-		"primary-repositories-limit",
-		"limit",
-	); err != nil {
-		return err
-	}
 
 	productTypes, err := normalizeCiProductsProductTypes(flags.flagSet, *flags.productType)
 	if err != nil {
@@ -619,6 +603,9 @@ Examples:
 			XcodeCloudMacOSVersionsXcodeVersionsCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "xcode-cloud macos-versions", 200); err != nil {
+				return err
+			}
 			return xcodeCloudMacOSVersionsList(ctx, *limit, *next, *paginate, *output, *pretty)
 		},
 	}
@@ -642,6 +629,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "xcode-cloud macos-versions list", 200); err != nil {
+				return err
+			}
 			return xcodeCloudMacOSVersionsList(ctx, *limit, *next, *paginate, *output, *pretty)
 		},
 	}
@@ -746,6 +736,9 @@ Examples:
 			XcodeCloudXcodeVersionsMacOSVersionsCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "xcode-cloud xcode-versions", 200); err != nil {
+				return err
+			}
 			return xcodeCloudXcodeVersionsList(ctx, *limit, *next, *paginate, *output, *pretty)
 		},
 	}
@@ -769,6 +762,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "xcode-cloud xcode-versions list", 200); err != nil {
+				return err
+			}
 			return xcodeCloudXcodeVersionsList(ctx, *limit, *next, *paginate, *output, *pretty)
 		},
 	}

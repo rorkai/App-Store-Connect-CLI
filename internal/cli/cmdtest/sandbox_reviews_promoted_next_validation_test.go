@@ -13,7 +13,7 @@ func TestSandboxReviewsPromotedListsRejectsInvalidNextURL(t *testing.T) {
 	runInvalidNextURLCases(t, []invalidNextURLCase{
 		{args: []string{"sandbox", "list"}, wantErr: "sandbox list: --next", deps: true},
 		{args: []string{"subscriptions", "promoted-purchases", "list"}, wantErr: "subscriptions promoted-purchases list: --next"},
-		{args: []string{"reviews", "list"}, wantErr: "reviews: --next"},
+		{args: []string{"reviews", "list"}, wantErr: "reviews list: --next"},
 		{args: []string{"reviews", "summarizations"}, wantErr: "reviews summarizations: --next"},
 	})
 }

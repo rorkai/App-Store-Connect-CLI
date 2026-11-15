@@ -24,10 +24,9 @@ func runBackgroundAssetsCommandWithTransport(
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET(wantPath, wantQuery...), asctest.JSON(http.StatusOK, body))
 
-	return runCommand(t, args)
+	return runRootWithDeps(t, stubClient(t, reg), args...)
 }
 
 func TestBackgroundAssetsListsSendOnlyTheFiltersAndSortRequested(t *testing.T) {
@@ -140,7 +139,7 @@ func TestBackgroundAssetsListsRejectInvalidValuesBeforeAnyRequest(t *testing.T) 
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	asctest.NewRegistry(t).Install()
+	client := stubClient(t, asctest.NewRegistry(t))
 
 	const (
 		assets   = "background-assets list --app app-1"
@@ -167,10 +166,7 @@ func TestBackgroundAssetsListsRejectInvalidValuesBeforeAnyRequest(t *testing.T) 
 	for _, test := range tests {
 		t.Run(test.command+" --"+test.flag+" "+test.value, func(t *testing.T) {
 			args := append(strings.Fields(test.command), "--"+test.flag, test.value)
-			var code int
-			stdout, stderr := captureOutput(t, func() {
-				code = rootcmd.Run(args, "1.2.3")
-			})
+			stdout, stderr, code := runWithDeps(t, client, args...)
 			if code != rootcmd.ExitUsage {
 				t.Fatalf("exit code = %d, want %d; stderr = %q", code, rootcmd.ExitUsage, stderr)
 			}
@@ -189,11 +185,10 @@ func TestBackgroundAssetsVersionsListShowsLocale(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/backgroundAssets/asset-1/versions"), asctest.JSON(http.StatusOK, body))
 	reg.Register(asctest.GET("/v1/backgroundAssets/asset-1/versions"), asctest.JSON(http.StatusOK, body))
 
-	jsonOut, _, err := runCommand(t, append(args[:len(args):len(args)], "json"))
+	jsonOut, _, err := runRootWithDeps(t, stubClient(t, reg), append(args[:len(args):len(args)], "json")...)
 	if err != nil {
 		t.Fatalf("json run error: %v", err)
 	}
@@ -211,7 +206,7 @@ func TestBackgroundAssetsVersionsListShowsLocale(t *testing.T) {
 		t.Fatalf("expected locale ja in JSON output, got %q", jsonOut)
 	}
 
-	tableOut, _, err := runCommand(t, append(args[:len(args):len(args)], "table"))
+	tableOut, _, err := runRootWithDeps(t, stubClient(t, reg), append(args[:len(args):len(args)], "table")...)
 	if err != nil {
 		t.Fatalf("table run error: %v", err)
 	}

@@ -37,7 +37,7 @@ func TestCategoriesRejectsNextQueryFlagsBeforeAuth(t *testing.T) {
 		{
 			name:    "out of range limit after next",
 			args:    []string{"categories", "subcategories", "--next", nextURL, "--limit", "201"},
-			wantErr: "categories subcategories: --next cannot be combined with --limit",
+			wantErr: "categories subcategories: --limit must be between 1 and 200",
 		},
 		{
 			name:    "list limit before next",
@@ -52,7 +52,7 @@ func TestCategoriesRejectsNextQueryFlagsBeforeAuth(t *testing.T) {
 		{
 			name:    "list out of range limit after next",
 			args:    []string{"categories", "list", "--next", listNextURL, "--limit", "201"},
-			wantErr: "categories list: --next cannot be combined with --limit",
+			wantErr: "categories list: --limit must be between 1 and 200",
 		},
 	}
 
@@ -81,7 +81,7 @@ func TestCategoriesInvalidNextPrecedesLimitConflict(t *testing.T) {
 		{command: "subcategories", next: "http://api.appstoreconnect.apple.com/v1/appCategories/GAMES/subcategories?cursor=next"},
 	} {
 		t.Run(test.command, func(t *testing.T) {
-			stdout, stderr, code := runWithDeps(t, stubClient(t, asctest.NewRegistry(t)), "categories", test.command, "--next", test.next, "--limit", "201")
+			stdout, stderr, code := runWithDeps(t, stubClient(t, asctest.NewRegistry(t)), "categories", test.command, "--next", test.next, "--limit", "5")
 			if code != rootcmd.ExitUsage {
 				t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
 			}

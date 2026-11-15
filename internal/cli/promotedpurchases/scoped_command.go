@@ -122,15 +122,8 @@ Examples:
 		appID := shared.ResolveAppID(stringFlagValue(cmd.FlagSet, "app"))
 		errorPrefix := promotedPurchasesCommandErrorPrefix(cfg, "list")
 
-		if limit != 0 && (limit < 1 || limit > 200) {
-			fmt.Fprintln(d.IO.ErrOut, "Error: --limit must be between 1 and 200")
-			return flag.ErrHelp
-		}
-		if err := shared.ValidateNextURL(next); err != nil {
-			return d.UsageErrorf("%s: %v", errorPrefix, err)
-		}
-		if strings.TrimSpace(next) != "" && (flagWasSet(cmd.FlagSet, "iap-fields") || flagWasSet(cmd.FlagSet, "subscription-fields")) {
-			return d.UsageErrorf("%s: --next cannot be combined with --iap-fields or --subscription-fields", errorPrefix)
+		if err := d.ValidatePaginationFlags(ctx, cmd.FlagSet, errorPrefix, 200, "iap-fields", "subscription-fields"); err != nil {
+			return err
 		}
 		if err := validateExplicitPromotedPurchaseFields(cmd.FlagSet); err != nil {
 			return d.UsageError(errorPrefix + ": " + err.Error())

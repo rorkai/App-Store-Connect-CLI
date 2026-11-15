@@ -12,8 +12,11 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// RoutingCoverageCommand returns the routing coverage command group.
-func RoutingCoverageCommand() *ffcli.Command {
+// NewRoutingCoverageCommand returns the routing coverage command group, built
+// on d.
+func NewRoutingCoverageCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("routing-coverage", flag.ExitOnError)
+
 	return &ffcli.Command{
 		Name:       "routing-coverage",
 		ShortUsage: "asc routing-coverage <subcommand> [flags]",
@@ -25,12 +28,13 @@ Examples:
   asc routing-coverage info --id "COVERAGE_ID"
   asc routing-coverage create --version-id "VERSION_ID" --file ./coverage.geojson
   asc routing-coverage delete --id "COVERAGE_ID" --confirm`,
+		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			RoutingCoverageGetCommand(),
-			RoutingCoverageInfoCommand(),
-			RoutingCoverageCreateCommand(),
-			RoutingCoverageDeleteCommand(),
+			newRoutingCoverageGetCommand(d),
+			newRoutingCoverageInfoCommand(d),
+			newRoutingCoverageCreateCommand(d),
+			newRoutingCoverageDeleteCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -38,9 +42,9 @@ Examples:
 	}
 }
 
-// RoutingCoverageGetCommand returns the routing coverage get subcommand.
-func RoutingCoverageGetCommand() *ffcli.Command {
+func newRoutingCoverageGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		Deps:        d,
 		FlagSetName: "routing-coverage view",
 		Name:        "view",
 		ShortUsage:  "asc routing-coverage view --version-id \"VERSION_ID\"",
@@ -59,12 +63,11 @@ Examples:
 	})
 }
 
-// RoutingCoverageInfoCommand returns the routing coverage info subcommand.
-func RoutingCoverageInfoCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("routing-coverage info", flag.ExitOnError)
+func newRoutingCoverageInfoCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("routing-coverage info", flag.ExitOnError)
 
 	coverageID := shared.BindResourceIDFlag(fs, "id", "routingAppCoverages", "Routing app coverage ID (required)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "info",
@@ -79,15 +82,15 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			coverageValue := strings.TrimSpace(*coverageID)
 			if coverageValue == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("routing-coverage info: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.GetRoutingAppCoverage(requestCtx, coverageValue)
@@ -95,18 +98,17 @@ Examples:
 				return fmt.Errorf("routing-coverage info: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// RoutingCoverageCreateCommand returns the routing coverage create subcommand.
-func RoutingCoverageCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("routing-coverage create", flag.ExitOnError)
+func newRoutingCoverageCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("routing-coverage create", flag.ExitOnError)
 
 	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID (required)")
 	filePath := fs.String("file", "", "Path to routing coverage file (required)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -121,12 +123,12 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			versionValue := strings.TrimSpace(*versionID)
 			if versionValue == "" {
-				return shared.RequiredFlag("--version-id")
+				return d.RequiredFlag("--version-id")
 			}
 
 			pathValue := strings.TrimSpace(*filePath)
 			if pathValue == "" {
-				return shared.RequiredFlag("--file")
+				return d.RequiredFlag("--file")
 			}
 
 			prepared, err := PrepareRoutingCoverageFile(pathValue)
@@ -134,24 +136,24 @@ Examples:
 				return fmt.Errorf("routing-coverage create: %w", err)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("routing-coverage create: %w", err)
 			}
 
-			commitResp, err := UploadPreparedRoutingCoverageFile(ctx, client, versionValue, prepared)
+			commitResp, err := uploadPreparedRoutingCoverageFile(ctx, d, client, versionValue, "", prepared)
 			if err != nil {
 				return fmt.Errorf("routing-coverage create: %w", err)
 			}
 
-			return shared.PrintOutput(commitResp, *output.Output, *output.Pretty)
+			return d.PrintOutput(commitResp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// RoutingCoverageDeleteCommand returns the routing coverage delete subcommand.
-func RoutingCoverageDeleteCommand() *ffcli.Command {
+func newRoutingCoverageDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		Deps:        d,
 		FlagSetName: "routing-coverage delete",
 		Name:        "delete",
 		ShortUsage:  "asc routing-coverage delete --id \"COVERAGE_ID\" --confirm",

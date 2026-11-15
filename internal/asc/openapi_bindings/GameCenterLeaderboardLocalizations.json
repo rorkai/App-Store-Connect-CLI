@@ -10,6 +10,7 @@
     "GameCenterLeaderboardLocalizationUpdateAttributes",
     "GameCenterLeaderboardLocalizationUpdateData",
     "GameCenterLeaderboardLocalizationUpdateRequest",
+    "GameCenterLeaderboardLocalizationV2CreateData",
     "GameCenterLeaderboardLocalizationV2CreateRequest",
     "GameCenterLeaderboardLocalizationV2Relationships"
   ],
@@ -18,9 +19,11 @@
     {"data":"GameCenterLeaderboardLocalizationV2CreateData","type":"*GameCenterLeaderboardLocalizationV2Relationships","omitempty":true}
   ],
   "operations": [
+    {"operation":"gameCenterLeaderboardLocalizationsV2_createInstance","name":"CreateGameCenterLeaderboardLocalizationV2","params":["versionID"],"response":"GameCenterLeaderboardLocalizationResponse","links":["version"]},
     {"operation":"gameCenterLeaderboardLocalizationsV2_deleteInstance","name":"DeleteGameCenterLeaderboardLocalizationV2","params":["localizationID"]},
-    {"operation":"gameCenterLeaderboardLocalizationsV2_getInstance","name":"GetGameCenterLeaderboardLocalizationV2","params":["localizationID"],"response":"GameCenterLeaderboardLocalizationResponse","deviations":[{"problem":"result data holds asc.GameCenterLeaderboardLocalizationAttributes, not the attributes of resource GameCenterLeaderboardLocalizationV2","reason":"GameCenterLeaderboardLocalizationAttributes is the hand-written attributes type, named without the version suffix of GameCenterLeaderboardLocalizationV2; the attribute names check passes for GameCenterLeaderboardLocalizationV2."}]},
-    {"operation":"gameCenterLeaderboardLocalizationsV2_image_getToOneRelated","name":"GetGameCenterLeaderboardLocalizationImageV2","params":["localizationID"],"response":"GameCenterLeaderboardImageResponse","deviations":[{"problem":"result data holds asc.GameCenterLeaderboardImageAttributes, not the attributes of resource GameCenterLeaderboardImageV2","reason":"GameCenterLeaderboardImageAttributes is the hand-written attributes type, named without the version suffix of GameCenterLeaderboardImageV2; the attribute names check passes for GameCenterLeaderboardImageV2."}]},
+    {"operation":"gameCenterLeaderboardLocalizationsV2_getInstance","name":"GetGameCenterLeaderboardLocalizationV2","params":["localizationID"],"response":"GameCenterLeaderboardLocalizationResponse"},
+    {"operation":"gameCenterLeaderboardLocalizationsV2_image_getToOneRelated","name":"GetGameCenterLeaderboardLocalizationImageV2","params":["localizationID"],"response":"GameCenterLeaderboardImageResponse"},
+    {"operation":"gameCenterLeaderboardLocalizationsV2_updateInstance","name":"UpdateGameCenterLeaderboardLocalizationV2","params":["localizationID"],"response":"GameCenterLeaderboardLocalizationResponse"},
     {"operation":"gameCenterLeaderboardLocalizations_createInstance","name":"CreateGameCenterLeaderboardLocalization","params":["leaderboardID"],"links":["gameCenterLeaderboard"]},
     {"operation":"gameCenterLeaderboardLocalizations_deleteInstance","name":"DeleteGameCenterLeaderboardLocalization","params":["localizationID"]},
     {"operation":"gameCenterLeaderboardLocalizations_gameCenterLeaderboardImage_getToOneRelated","name":"GetGameCenterLeaderboardLocalizationImage","params":["localizationID"]},
@@ -29,5 +32,13 @@
   ],
   "refTypes": [
     {"schema":"GameCenterLeaderboardFormatter","type":"string"}
+  ],
+  "goTypes": [
+    {"schema":"GameCenterLeaderboardImageV2Attributes","type":"GameCenterLeaderboardImageAttributes"},
+    {"schema":"GameCenterLeaderboardLocalizationV2Attributes","type":"GameCenterLeaderboardLocalizationAttributes"},
+    {"schema":"GameCenterLeaderboardLocalizationV2CreateAttributes","type":"GameCenterLeaderboardLocalizationCreateAttributes"},
+    {"schema":"GameCenterLeaderboardLocalizationV2UpdateAttributes","type":"GameCenterLeaderboardLocalizationUpdateAttributes"},
+    {"schema":"GameCenterLeaderboardLocalizationV2UpdateData","type":"GameCenterLeaderboardLocalizationUpdateData"},
+    {"schema":"GameCenterLeaderboardLocalizationV2UpdateRequest","type":"GameCenterLeaderboardLocalizationUpdateRequest"}
   ]
 }

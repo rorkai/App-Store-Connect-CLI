@@ -138,13 +138,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageErrorf("subscriptions pricing plan-availability available-territories: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("subscriptions pricing plan-availability available-territories: %v", err)
-			}
-			if err := validateNextExclusiveFlags(fs, *next, "limit"); err != nil {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "subscriptions pricing plan-availability available-territories", 200, "limit"); err != nil {
 				return err
 			}
 			id := strings.TrimSpace(*planAvailabilityID)

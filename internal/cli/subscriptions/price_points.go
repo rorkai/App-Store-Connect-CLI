@@ -98,18 +98,12 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorfCtx(ctx, "subscriptions price-points list: %v", err)
-			}
-			if strings.TrimSpace(*next) != "" && flagWasProvided(
-				fs,
+			if err := shared.ValidatePaginationFlags(
+				ctx, fs, "subscriptions price-points list", 200,
 				"territory", "price", "min-price", "max-price",
 				"upfront-price-point-id", "plan-type", "fields", "territory-fields", "include", "limit",
-			) {
-				return shared.UsageError("--next cannot be combined with --limit, API filters, sparse fields, includes, or client-side price filters")
-			}
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageErrorCtx(ctx, "subscriptions price-points list: --limit must be between 1 and 200")
+			); err != nil {
+				return err
 			}
 			if *stream && !*paginate {
 				return shared.UsageError("--stream requires --paginate")
@@ -442,18 +436,12 @@ Examples:
 	}
 
 	cmd.Exec = func(ctx context.Context, args []string) error {
-		if err := shared.ValidateNextURL(*next); err != nil {
-			return shared.UsageErrorf("%s: %v", usageErrorPrefix(), err)
-		}
-		if strings.TrimSpace(*next) != "" && flagWasProvided(
-			fs,
+		if err := shared.ValidatePaginationFlags(
+			ctx, fs, usageErrorPrefix(), 8000,
 			"territory", "subscription-id", "upfront-price-point-id",
 			"plan-type", "fields", "territory-fields", "include", "limit",
-		) {
-			return shared.UsageError("--next cannot be combined with --limit, API filters, sparse fields, or includes")
-		}
-		if *limit != 0 && (*limit < 1 || *limit > 8000) {
-			return shared.UsageErrorf("%s: --limit must be between 1 and 8000", usageErrorPrefix())
+		); err != nil {
+			return err
 		}
 
 		id := strings.TrimSpace(*pricePointID)

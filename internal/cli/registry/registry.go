@@ -206,7 +206,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("product-pages", "Manage custom product pages and product page experiments.", func() *ffcli.Command {
 			return productpages.NewProductPagesCommand(d)
 		}),
-		commandFactory("routing-coverage", "Manage routing app coverage files.", routingcoverage.RoutingCoverageCommand),
+		commandFactory("routing-coverage", "Manage routing app coverage files.", func() *ffcli.Command {
+			return routingcoverage.NewRoutingCoverageCommand(d)
+		}),
 		commandFactory("eula", "Manage End User License Agreements (EULA).", func() *ffcli.Command {
 			return eula.NewEULACommand(d)
 		}),
@@ -214,13 +216,17 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 			return agreements.NewAgreementsCommand(d)
 		}),
 		commandFactory("pricing", "Manage app pricing and availability.", pricing.PricingCommand),
-		commandFactory("pre-orders", "Manage app pre-orders.", preorders.PreOrdersCommand),
+		commandFactory("pre-orders", "Manage app pre-orders.", func() *ffcli.Command {
+			return preorders.NewPreOrdersCommand(d)
+		}),
 		commandFactory("localizations", "Manage App Store localization metadata.", localizations.LocalizationsCommand),
 		commandFactory("metadata", "Manage app metadata with deterministic workflows and keyword tooling.", metadata.MetadataCommand),
 		commandFactory("screenshots", "Upload and manage App Store screenshots, including local capture, framing, and matrices.", screenshots.ScreenshotsCommand),
 		commandFactory("video-previews", "Manage App Store app preview videos.", videopreviews.VideoPreviewsCommand),
 		commandFactory("asset-library", "Inspect Asset Library media and specifications, and upload images and videos.", assetlibrary.Command),
-		commandFactory("background-assets", "Manage background assets.", backgroundassets.BackgroundAssetsCommand),
+		commandFactory("background-assets", "Manage background assets.", func() *ffcli.Command {
+			return backgroundassets.NewBackgroundAssetsCommand(d)
+		}),
 		commandFactory("build-localizations", "Manage build release notes localizations.", func() *ffcli.Command {
 			return buildlocalizations.NewBuildLocalizationsCommand(d)
 		}),
@@ -245,11 +251,15 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("accessibility", "Manage accessibility declarations.", func() *ffcli.Command {
 			return accessibility.NewAccessibilityCommand(d)
 		}),
-		commandFactory("encryption", "Manage app encryption declarations and documents.", encryption.EncryptionCommand),
+		commandFactory("encryption", "Manage app encryption declarations and documents.", func() *ffcli.Command {
+			return encryption.NewEncryptionCommand(d)
+		}),
 		commandFactory("migrate", "Migrate metadata from/to fastlane format.", migrate.MigrateCommand),
 		commandFactory("notify", "Send notifications to external services.", notify.NotifyCommand),
 		commandFactory("game-center", "Manage Game Center resources in App Store Connect.", gamecenter.GameCenterCommand),
-		commandFactory("capabilities", "Show CLI, API, web-only, and public-API-limited capability coverage.", capabilities.Command),
+		commandFactory("capabilities", "Show CLI, API, web-only, and public-API-limited capability coverage.", func() *ffcli.Command {
+			return capabilities.NewCommand(d)
+		}),
 		commandFactory("schema", "Inspect App Store Connect API endpoint schemas at runtime.", func() *ffcli.Command {
 			return schema.NewSchemaCommand(d)
 		}),
@@ -260,7 +270,7 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 			return telemetrycmd.NewTelemetryCommand(d)
 		}),
 		commandFactory("search", "Search asc commands and examples for agent-oriented command discovery.", func() *ffcli.Command {
-			return searchcmd.SearchCommand(catalog.All)
+			return searchcmd.NewSearchCommand(d, catalog.All)
 		}),
 		commandFactory("snitch", "Report CLI friction as a GitHub issue.", func() *ffcli.Command {
 			return snitch.SnitchCommand(version)

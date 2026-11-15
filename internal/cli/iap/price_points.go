@@ -77,13 +77,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("iap price-points list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return shared.UsageErrorf("iap price-points list: %v", err)
-			}
-			if err := shared.RejectNextFlagConflicts(fs, *next, "iap price-points list", "territory", "include"); err != nil {
+			if err := shared.ValidatePaginationFlags(ctx, fs, "iap pricing price-points list", 200, "territory", "include"); err != nil {
 				return err
 			}
 			includes := shared.SplitCSV(*include)

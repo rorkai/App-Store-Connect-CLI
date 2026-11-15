@@ -8,15 +8,10 @@ import (
 )
 
 func TestEncryptionDeclarationsExemptDeclare_RejectsPositionalArgs(t *testing.T) {
-	stdout, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{
-			"encryption", "declarations", "exempt-declare",
-			"extra",
-		}, "1.2.3")
-		if code != cmd.ExitUsage {
-			t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, nil, "encryption", "declarations", "exempt-declare", "extra")
+	if code != cmd.ExitUsage {
+		t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
+	}
 
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
@@ -27,14 +22,10 @@ func TestEncryptionDeclarationsExemptDeclare_RejectsPositionalArgs(t *testing.T)
 }
 
 func TestEncryptionDeclarationsExemptDeclare_ShowsLocalWorkflowGuidance(t *testing.T) {
-	stdout, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{
-			"encryption", "declarations", "exempt-declare",
-		}, "1.2.3")
-		if code != cmd.ExitSuccess {
-			t.Fatalf("expected exit code %d, got %d", cmd.ExitSuccess, code)
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, nil, "encryption", "declarations", "exempt-declare")
+	if code != cmd.ExitSuccess {
+		t.Fatalf("expected exit code %d, got %d", cmd.ExitSuccess, code)
+	}
 
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"os"
 	"regexp"
 	"sort"
 	"strings"
@@ -140,10 +139,10 @@ type scoredResult struct {
 	rank   int
 }
 
-// SearchCommand returns the command-discovery search command.
-func SearchCommand(commands func() []*ffcli.Command) *ffcli.Command {
-	fs := flag.NewFlagSet("search", flag.ExitOnError)
-	output := shared.BindOutputFlags(fs)
+// NewSearchCommand returns the command-discovery search command built on d.
+func NewSearchCommand(d *shared.Deps, commands func() []*ffcli.Command) *ffcli.Command {
+	fs := d.NewFlagSet("search", flag.ExitOnError)
+	output := d.BindOutputFlags(fs)
 	limit := fs.Int("limit", defaultLimit, "Maximum number of results to return")
 
 	return &ffcli.Command{
@@ -169,40 +168,40 @@ Examples:
 			args, err := parseInterspersedSearchFlags(fs, args)
 			if err != nil {
 				if errors.Is(err, errRootProfileAfterPositional) {
-					return shared.UsageError(err.Error())
+					return d.UsageError(err.Error())
 				}
-				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				fmt.Fprintf(d.IO.ErrOut, "Error: %v\n", err)
 				return flag.ErrHelp
 			}
 			if len(args) == 0 {
-				fmt.Fprintln(os.Stderr, "Error: search query is required")
+				fmt.Fprintln(d.IO.ErrOut, "Error: search query is required")
 				return shared.MissingRequiredUsageError("")
 			}
 			if *limit <= 0 {
-				fmt.Fprintln(os.Stderr, "Error: --limit must be greater than 0")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --limit must be greater than 0")
 				return flag.ErrHelp
 			}
 
 			query := strings.Join(args, " ")
 			if strings.TrimSpace(query) == "" {
-				fmt.Fprintln(os.Stderr, "Error: search query is required")
+				fmt.Fprintln(d.IO.ErrOut, "Error: search query is required")
 				return shared.MissingRequiredUsageError("")
 			}
 			response := SearchCommands(commands(), query, *limit)
-			if err := shared.PrintOutputWithRenderers(
+			if err := d.PrintOutputWithRenderers(
 				response,
 				*output.Output,
 				*output.Pretty,
 				func() error {
-					asc.RenderTable([]string{"score", "command", "summary", "matched"}, searchRows(response.Results))
+					asc.RenderTableTo(d.IO.Out, []string{"score", "command", "summary", "matched"}, searchRows(response.Results))
 					return nil
 				},
 				func() error {
-					asc.RenderMarkdown([]string{"score", "command", "summary", "matched"}, searchRows(response.Results))
+					asc.RenderMarkdownTo(d.IO.Out, []string{"score", "command", "summary", "matched"}, searchRows(response.Results))
 					return nil
 				},
 			); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			return nil
 		},

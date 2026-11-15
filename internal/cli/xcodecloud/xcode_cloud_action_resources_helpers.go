@@ -80,6 +80,9 @@ func newXcodeCloudActionResourceListCommand(config xcodeCloudActionResourceListC
 		FlagSet:    fs,
 		UsageFunc:  shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := shared.ValidatePaginationFlags(ctx, fs, config.ErrorPrefix, 200); err != nil {
+				return err
+			}
 			return runXcodeCloudActionResourceList(
 				ctx,
 				*actionID,
@@ -285,14 +288,7 @@ func runXcodeCloudActionResourceList(
 	if strings.TrimSpace(actionID) != "" && strings.TrimSpace(runID) != "" {
 		return shared.UsageError("--action-id and --run-id are mutually exclusive")
 	}
-	if limit != 0 && (limit < 1 || limit > 200) {
-		return shared.UsageErrorf("%s: --limit must be between 1 and 200", errorPrefix)
-	}
-
 	nextURL := strings.TrimSpace(next)
-	if err := shared.ValidateNextURL(nextURL); err != nil {
-		return shared.UsageErrorf("%s: %v", errorPrefix, err)
-	}
 
 	resolvedActionID := strings.TrimSpace(actionID)
 	resolvedRunID := strings.TrimSpace(runID)

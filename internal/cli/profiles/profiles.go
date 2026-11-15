@@ -109,15 +109,7 @@ profiles reference. It cannot be combined with --next. With --fields, both
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return d.UsageErrorf("profiles list: %v", err)
-			}
-			if err := d.RejectNextFlagConflicts(
-				fs,
-				*next,
-				"profiles list",
-				"name", "id", "profile-type", "profile-state", "sort", "fields", "bundle-id-fields", "device-fields", "certificate-fields", "include", "limit-devices", "limit-certificates", "limit", "stale-only",
-			); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "profiles list", 200, "name", "id", "profile-type", "profile-state", "sort", "fields", "bundle-id-fields", "device-fields", "certificate-fields", "include", "limit-devices", "limit-certificates", "limit", "stale-only"); err != nil {
 				return err
 			}
 			if *includeStale {
@@ -149,9 +141,6 @@ profiles reference. It cannot be combined with --next. With --fields, both
 				if provided[selector.name] && len(shared.SplitCSV(selector.value)) == 0 {
 					return d.UsageErrorf("profiles list: --%s must not be empty", selector.name)
 				}
-			}
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return d.UsageError("profiles list: --limit must be between 1 and 200")
 			}
 			if profilesListFlagWasProvided(fs, "limit-devices") && (*devicesLimit < 1 || *devicesLimit > 50) {
 				return d.UsageError("profiles list: --limit-devices must be between 1 and 50")

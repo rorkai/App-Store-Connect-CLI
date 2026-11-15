@@ -72,14 +72,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return d.UsageErrorf("accessibility list: %v", err)
-			}
-			if err := rejectAccessibilityNextFlagConflicts(d, fs, *next, "device-family", "state", "fields", "limit"); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "accessibility list", 200, "device-family", "state", "fields", "limit"); err != nil {
 				return err
-			}
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return d.UsageError("accessibility list: --limit must be between 1 and 200")
 			}
 
 			deviceFamilies, err := normalizeAccessibilityDeviceFamilies(shared.SplitCSVUpper(*deviceFamily))
@@ -144,22 +138,6 @@ Examples:
 			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
-}
-
-func rejectAccessibilityNextFlagConflicts(d *shared.Deps, fs *flag.FlagSet, next string, names ...string) error {
-	if strings.TrimSpace(next) == "" {
-		return nil
-	}
-	provided := make(map[string]struct{}, len(names))
-	fs.Visit(func(f *flag.Flag) {
-		provided[f.Name] = struct{}{}
-	})
-	for _, name := range names {
-		if _, ok := provided[name]; ok {
-			return d.UsageErrorf("accessibility list: --next cannot be combined with --%s", name)
-		}
-	}
-	return nil
 }
 
 // newAccessibilityGetCommand returns the accessibility view subcommand.

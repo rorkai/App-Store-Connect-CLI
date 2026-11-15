@@ -126,13 +126,6 @@ type GameCenterLeaderboardLocalizationAttributes struct {
 	Description             *string `json:"description,omitempty"`
 }
 
-// GameCenterLeaderboardLocalizationV2CreateData is the data portion of a v2 localization create request.
-type GameCenterLeaderboardLocalizationV2CreateData struct {
-	Type          ResourceType                                      `json:"type"`
-	Attributes    GameCenterLeaderboardLocalizationCreateAttributes `json:"attributes"`
-	Relationships *GameCenterLeaderboardLocalizationV2Relationships `json:"relationships,omitempty"`
-}
-
 // GameCenterLeaderboardLocalizationsResponse is the response from leaderboard localization list endpoints.
 type GameCenterLeaderboardLocalizationsResponse = Response[GameCenterLeaderboardLocalizationAttributes]
 

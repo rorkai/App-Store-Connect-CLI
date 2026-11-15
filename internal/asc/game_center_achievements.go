@@ -105,13 +105,6 @@ type GameCenterAchievementLocalizationAttributes struct {
 	AfterEarnedDescription  string `json:"afterEarnedDescription,omitempty"`
 }
 
-// GameCenterAchievementLocalizationV2CreateData is the data portion of a v2 localization create request.
-type GameCenterAchievementLocalizationV2CreateData struct {
-	Type          ResourceType                                      `json:"type"`
-	Attributes    GameCenterAchievementLocalizationCreateAttributes `json:"attributes"`
-	Relationships *GameCenterAchievementLocalizationV2Relationships `json:"relationships,omitempty"`
-}
-
 // GameCenterAchievementLocalizationsResponse is the response from achievement localization list endpoints.
 type GameCenterAchievementLocalizationsResponse = Response[GameCenterAchievementLocalizationAttributes]
 

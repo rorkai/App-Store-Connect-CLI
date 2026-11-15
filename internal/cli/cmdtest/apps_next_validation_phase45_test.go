@@ -4,7 +4,7 @@ import "testing"
 
 func TestAppsRejectsInvalidNextURL(t *testing.T) {
 	runInvalidNextURLCases(t, []invalidNextURLCase{
-		{args: []string{"apps", "list"}, wantErr: "apps: --next"},
+		{args: []string{"apps", "list"}, wantErr: "apps list: --next"},
 	})
 }
 

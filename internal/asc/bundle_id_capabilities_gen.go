@@ -9,8 +9,90 @@ import (
 	"strings"
 )
 
+// BundleIDCapabilityRelationships is the data.relationships object of the BundleIdCapabilityCreateRequest schema.
+type BundleIDCapabilityRelationships struct {
+	BundleID *Relationship `json:"bundleId"`
+}
+
+// BundleIDCapabilityCreateAttributes is the data.attributes object of the BundleIdCapabilityCreateRequest schema.
+type BundleIDCapabilityCreateAttributes struct {
+	CapabilityType string              `json:"capabilityType"`
+	Settings       []CapabilitySetting `json:"settings,omitempty"`
+}
+
+// BundleIDCapabilityCreateData is the data object of the BundleIdCapabilityCreateRequest schema.
+type BundleIDCapabilityCreateData struct {
+	Type          ResourceType                       `json:"type"`
+	Attributes    BundleIDCapabilityCreateAttributes `json:"attributes"`
+	Relationships *BundleIDCapabilityRelationships   `json:"relationships"`
+}
+
+// BundleIDCapabilityCreateRequest is the BundleIdCapabilityCreateRequest schema.
+type BundleIDCapabilityCreateRequest struct {
+	Data BundleIDCapabilityCreateData `json:"data"`
+}
+
+// BundleIDCapabilityResponse is the BundleIdCapabilityResponse schema.
+type BundleIDCapabilityResponse = SingleResponse[BundleIDCapabilityAttributes]
+
+// BundleIDCapabilityUpdateData is the data object of the BundleIdCapabilityUpdateRequest schema.
+type BundleIDCapabilityUpdateData struct {
+	Type       ResourceType                        `json:"type"`
+	ID         string                              `json:"id"`
+	Attributes *BundleIDCapabilityUpdateAttributes `json:"attributes,omitempty"`
+}
+
+// BundleIDCapabilityUpdateRequest is the BundleIdCapabilityUpdateRequest schema.
+type BundleIDCapabilityUpdateRequest struct {
+	Data BundleIDCapabilityUpdateData `json:"data"`
+}
+
+// CreateBundleIDCapability sends POST /v1/bundleIdCapabilities (bundleIdCapabilities_createInstance).
+func (c *Client) CreateBundleIDCapability(ctx context.Context, bundleID string, attrs BundleIDCapabilityCreateAttributes) (*BundleIDCapabilityResponse, error) {
+	bundleID = strings.TrimSpace(bundleID)
+	payload := BundleIDCapabilityCreateRequest{
+		Data: BundleIDCapabilityCreateData{
+			Type:       ResourceTypeBundleIdCapabilities,
+			Attributes: attrs,
+			Relationships: &BundleIDCapabilityRelationships{
+				BundleID: &Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeBundleIds,
+						ID:   bundleID,
+					},
+				},
+			},
+		},
+	}
+	return sendJSON[BundleIDCapabilityResponse](ctx, c, writeRequest{
+		Method:  http.MethodPost,
+		Path:    "/v1/bundleIdCapabilities",
+		Payload: payload,
+	})
+}
+
 // DeleteBundleIDCapability sends DELETE /v1/bundleIdCapabilities/{id} (bundleIdCapabilities_deleteInstance).
 func (c *Client) DeleteBundleIDCapability(ctx context.Context, capabilityID string) error {
 	capabilityID = strings.TrimSpace(capabilityID)
 	return sendNoContent(ctx, c, http.MethodDelete, fmt.Sprintf("/v1/bundleIdCapabilities/%s", capabilityID), nil)
+}
+
+// UpdateBundleIDCapability sends PATCH /v1/bundleIdCapabilities/{id} (bundleIdCapabilities_updateInstance).
+func (c *Client) UpdateBundleIDCapability(ctx context.Context, capabilityID string, attrs BundleIDCapabilityUpdateAttributes) (*BundleIDCapabilityResponse, error) {
+	capabilityID = strings.TrimSpace(capabilityID)
+	if capabilityID == "" {
+		return nil, fmt.Errorf("capability ID is required")
+	}
+	payload := BundleIDCapabilityUpdateRequest{
+		Data: BundleIDCapabilityUpdateData{
+			Type:       ResourceTypeBundleIdCapabilities,
+			ID:         capabilityID,
+			Attributes: &attrs,
+		},
+	}
+	return sendJSON[BundleIDCapabilityResponse](ctx, c, writeRequest{
+		Method:  http.MethodPatch,
+		Path:    fmt.Sprintf("/v1/bundleIdCapabilities/%s", capabilityID),
+		Payload: payload,
+	})
 }

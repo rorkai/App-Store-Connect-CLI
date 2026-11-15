@@ -66,8 +66,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return d.UsageErrorf("bundle-ids capabilities list: %v", err)
+			if err := d.ValidatePaginationFlags(ctx, fs, "bundle-ids capabilities list", 200); err != nil {
+				return err
 			}
 			bundleValue := strings.TrimSpace(*bundleID)
 			if bundleValue == "" && strings.TrimSpace(*next) == "" {

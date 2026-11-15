@@ -23,16 +23,18 @@ type IO struct {
 }
 
 // Deps holds what a command takes from the process: its App Store Connect
-// client, its streams, the clock, and the request timeout.
+// client, its streams, the clock, and the request and upload timeouts.
 type Deps struct {
-	Client  func() (*asc.Client, error)
-	IO      *IO
-	Now     func() time.Time
-	Timeout func(context.Context) (context.Context, context.CancelFunc)
+	Client        func() (*asc.Client, error)
+	IO            *IO
+	Now           func() time.Time
+	Timeout       func(context.Context) (context.Context, context.CancelFunc)
+	UploadTimeout func(context.Context) (context.Context, context.CancelFunc)
 }
 
 // DefaultDeps returns the dependencies of a normal run: the shared client
-// factory, the process streams, the system clock, and the request timeout.
+// factory, the process streams, the system clock, and the request and upload
+// timeouts.
 func DefaultDeps() *Deps {
 	return &Deps{
 		Client: GetASCClient,
@@ -44,8 +46,9 @@ func DefaultDeps() *Deps {
 			StdoutTTY: isTerminal(int(os.Stdout.Fd())),
 			StderrTTY: isTerminal(int(os.Stderr.Fd())),
 		},
-		Now:     time.Now,
-		Timeout: ContextWithTimeout,
+		Now:           time.Now,
+		Timeout:       ContextWithTimeout,
+		UploadTimeout: ContextWithUploadTimeout,
 	}
 }
 
@@ -62,6 +65,12 @@ func (processStdin) Read(p []byte) (int, error) { return os.Stdin.Read(p) }
 func (processStdout) Write(p []byte) (int, error) { return os.Stdout.Write(p) }
 
 func (processStderr) Write(p []byte) (int, error) { return os.Stderr.Write(p) }
+
+// DownloadTimeout is ContextWithDownloadTimeout on d: a download uses the
+// upload budget.
+func (d *Deps) DownloadTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
+	return d.UploadTimeout(ctx)
+}
 
 // NewFlagSet returns a flag set that writes usage and parse errors to d's
 // stderr.
