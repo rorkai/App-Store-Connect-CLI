@@ -14,7 +14,8 @@ import (
 )
 
 func TestSharedEnvVarsCommandHierarchy(t *testing.T) {
-	cmd := WebXcodeCloudCommand()
+	d, _, _ := newWebTestDeps()
+	cmd := newWebXcodeCloudCommand(d)
 	envVarsCmd := findSub(cmd, "env-vars")
 	if envVarsCmd == nil {
 		t.Fatal("expected 'env-vars' subcommand")

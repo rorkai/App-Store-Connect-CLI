@@ -15,7 +15,8 @@ import (
 )
 
 func TestWebXcodeCloudScmCommandHierarchy(t *testing.T) {
-	cmd := WebXcodeCloudCommand()
+	d, _, _ := newWebTestDeps()
+	cmd := newWebXcodeCloudCommand(d)
 	scm := findSub(cmd, "scm")
 	if scm == nil {
 		t.Fatal("expected scm subcommand")

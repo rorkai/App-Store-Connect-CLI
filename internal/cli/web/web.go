@@ -65,7 +65,7 @@ Examples:
 			WebReviewCommand(),
 			WebSubscriptionsCommand(),
 			WebAnalyticsCommand(),
-			WebXcodeCloudCommand(),
+			newWebXcodeCloudCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			if len(args) == 0 {

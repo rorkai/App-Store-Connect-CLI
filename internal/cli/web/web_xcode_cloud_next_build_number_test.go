@@ -12,7 +12,8 @@ import (
 )
 
 func TestWebNextBuildNumberHierarchy(t *testing.T) {
-	settings := findSub(WebXcodeCloudCommand(), "settings")
+	d, _, _ := newWebTestDeps()
+	settings := findSub(newWebXcodeCloudCommand(d), "settings")
 	if settings == nil {
 		t.Fatal("expected settings subcommand")
 	}

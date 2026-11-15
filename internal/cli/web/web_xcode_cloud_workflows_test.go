@@ -16,7 +16,8 @@ import (
 )
 
 func TestWorkflowsCommandHierarchy(t *testing.T) {
-	cmd := WebXcodeCloudCommand()
+	d, _, _ := newWebTestDeps()
+	cmd := newWebXcodeCloudCommand(d)
 	workflowsCmd := findSub(cmd, "workflows")
 	if workflowsCmd == nil {
 		t.Fatal("expected 'workflows' subcommand")
