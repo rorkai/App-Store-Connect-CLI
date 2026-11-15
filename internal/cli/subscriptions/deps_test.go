@@ -19,7 +19,7 @@ func newSubscriptionsTestDeps() (*shared.Deps, *bytes.Buffer) {
 	return &shared.Deps{IO: &shared.IO{Out: &bytes.Buffer{}, ErrOut: &stderr}}, &stderr
 }
 
-func TestSubscriptionsBuilderCommandsWriteUsageErrorsToDepsStderr(t *testing.T) {
+func TestSubscriptionsUsageErrorsWriteToDepsStderr(t *testing.T) {
 	tests := []struct {
 		args       []string
 		wantStderr string
@@ -29,10 +29,17 @@ func TestSubscriptionsBuilderCommandsWriteUsageErrorsToDepsStderr(t *testing.T) 
 		{[]string{"offers", "retention", "prices", "links"}, "Error: --id is required\n"},
 		{[]string{"offers", "retention", "delete"}, "Error: --id is required\n"},
 		{[]string{"review", "screenshots", "delete"}, "Error: --screenshot-id is required\n"},
+		{[]string{"offers", "retention", "list", "--subscription-id", "S1", "--subscription-fields", "name"}, "Error: subscriptions offers retention list: --subscription-fields requires --include subscription\n"},
+		{[]string{"offers", "retention", "view", "--id", "R1", "--subscription-fields", "name"}, "Error: subscriptions offers retention view: --subscription-fields requires --include subscription\n"},
+		{[]string{"offers", "retention", "prices", "list", "--id", "R1", "--territory-fields", "currency"}, "Error: subscriptions offers retention prices list: --territory-fields requires --include territory\n"},
+		{[]string{"retention-messages", "list", "--app", "A1", "--subscription-fields", "name"}, "Error: subscriptions retention-messages list: --subscription-fields requires --include subscriptions\n"},
+		{[]string{"review", "screenshots", "view", "--screenshot-id", "X1", "--subscription-fields", "bogus"}, "Error: --subscription-fields must be one of: "},
+		{[]string{"review", "app-store-screenshot", "view", "--subscription-id", "S1", "--subscription-fields", "bogus"}, "Error: --subscription-fields must be one of: "},
 	}
 	for _, test := range tests {
 		t.Run(strings.Join(test.args, " "), func(t *testing.T) {
 			d, stderr := newSubscriptionsTestDeps()
+			d.Client = func() (*asc.Client, error) { return nil, errors.New("no client in this test") }
 			root := NewSubscriptionsCommand(d)
 			if err := root.Parse(test.args); err != nil {
 				t.Fatalf("parse error: %v", err)

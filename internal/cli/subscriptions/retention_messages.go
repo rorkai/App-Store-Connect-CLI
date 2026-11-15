@@ -128,7 +128,7 @@ func retentionReadCommand(d *shared.Deps, r retentionRead) *ffcli.Command {
 				if err != nil {
 					return err
 				}
-				resolved, err := included.Resolve(command, nextURL, includes)
+				resolved, err := included.ResolveWith(d, command, nextURL, includes)
 				if err != nil {
 					return err
 				}
@@ -491,7 +491,7 @@ func retentionMessageVersionsCommand(d *shared.Deps) *ffcli.Command {
 						}
 						return func(ctx context.Context, client *asc.Client) (any, error) {
 							const placementType, placementGroup = "RETENTION_MESSAGE_ASSET", "DEFAULT_PROFILE"
-							id, state, err := shared.CreateLibraryPlacement(ctx, client, "retentionMessageVersions", version, "image", image, placementType, placementGroup)
+							id, state, err := d.CreateLibraryPlacement(ctx, client, "retentionMessageVersions", version, "image", image, placementType, placementGroup)
 							if err != nil {
 								return nil, err
 							}

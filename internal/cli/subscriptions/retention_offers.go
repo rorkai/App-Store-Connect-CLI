@@ -235,7 +235,7 @@ func (f *retentionOfferReadFlags) options(d *shared.Deps, fs *flag.FlagSet, comm
 			return nil, d.UsageErrorf("%s: --prices-limit requires --include prices", command)
 		}
 	}
-	includedFields, err := f.included.Resolve(command, next, include)
+	includedFields, err := f.included.ResolveWith(d, command, next, include)
 	if err != nil {
 		return nil, err
 	}
@@ -608,7 +608,7 @@ Examples:
 			if err != nil {
 				return err
 			}
-			includedFields, err := included.Resolve(command, *next, includeValue)
+			includedFields, err := included.ResolveWith(d, command, *next, includeValue)
 			if err != nil {
 				return err
 			}
