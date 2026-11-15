@@ -2,10 +2,8 @@ package web
 
 import (
 	"bytes"
-	"net/http"
 	"regexp"
 	"testing"
-	"testing/synctest"
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
@@ -30,7 +28,7 @@ func runWithWebTestDeps(stdout, stderr *bytes.Buffer, fn func()) (string, string
 // newWebSpinnerTestDeps returns deps whose stdout and stderr are terminals and
 // whose spinner delays have already elapsed, so each web spinner draws its
 // label on stderr. Run the command inside synctest.Test and let the work under
-// each spinner wait for it with spinnerShownTransport.
+// each spinner call synctest.Wait before it returns.
 func newWebSpinnerTestDeps(t *testing.T) (*shared.Deps, *bytes.Buffer, *bytes.Buffer) {
 	t.Helper()
 	t.Setenv("ASC_SPINNER_DISABLED", "")
@@ -42,15 +40,6 @@ func newWebSpinnerTestDeps(t *testing.T) (*shared.Deps, *bytes.Buffer, *bytes.Bu
 		return fired
 	}
 	return d, stdout, stderr
-}
-
-// spinnerShownTransport answers through rt once every other goroutine in the
-// synctest bubble is blocked, which is after the spinner has drawn its label.
-func spinnerShownTransport(rt http.RoundTripper) http.RoundTripper {
-	return roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		synctest.Wait()
-		return rt.RoundTrip(req)
-	})
 }
 
 var spinnerLabelPattern = regexp.MustCompile("\r⣾ (.+?) *\r")

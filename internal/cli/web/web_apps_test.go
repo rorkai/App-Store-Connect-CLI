@@ -157,31 +157,20 @@ func TestAppCreateCanPromptInteractivelyUsesControllingTTYWhenStdinIsNotTerminal
 }
 
 func TestAppCreateCanPromptForFieldsRequiresTerminalStdinAndStdout(t *testing.T) {
-	origOpenTTY := openTTYFn
-	origIsTerminal := termIsTerminalFn
-	t.Cleanup(func() {
-		openTTYFn = origOpenTTY
-		termIsTerminalFn = origIsTerminal
-	})
-	openTTYFn = func() (*os.File, error) {
-		return os.Open(os.DevNull)
-	}
-
-	stdinFD := int(os.Stdin.Fd())
-	stdoutFD := int(os.Stdout.Fd())
 	tests := []struct {
 		name      string
-		terminals map[int]bool
+		stdinTTY  bool
+		stdoutTTY bool
 		want      bool
 	}{
-		{name: "stdin only", terminals: map[int]bool{stdinFD: true}, want: false},
-		{name: "stdout only", terminals: map[int]bool{stdoutFD: true}, want: false},
-		{name: "both", terminals: map[int]bool{stdinFD: true, stdoutFD: true}, want: true},
+		{name: "stdin only", stdinTTY: true, want: false},
+		{name: "stdout only", stdoutTTY: true, want: false},
+		{name: "both", stdinTTY: true, stdoutTTY: true, want: true},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			termIsTerminalFn = func(fd int) bool { return test.terminals[fd] }
-			if got := appCreateCanPromptForFields(); got != test.want {
+			d := &shared.Deps{IO: &shared.IO{StdinTTY: test.stdinTTY, StdoutTTY: test.stdoutTTY}}
+			if got := appCreateCanPromptForFields(d); got != test.want {
 				t.Fatalf("appCreateCanPromptForFields() = %v, want %v", got, test.want)
 			}
 		})
@@ -612,18 +601,15 @@ func TestWebAppsCreateInteractiveWizardPromptsForMissingFields(t *testing.T) {
 	origNewWebClient := newWebClientFn
 	origEnsureBundleID := ensureBundleIDFn
 	origCreateWebApp := createWebAppFn
-	origCanPrompt := appCreateCanPromptForFieldsFn
 	t.Cleanup(func() {
 		appCreateAskOneFn = origAskOne
 		resolveAppCreateSessionFn = origResolveAppCreateSession
 		newWebClientFn = origNewWebClient
 		ensureBundleIDFn = origEnsureBundleID
 		createWebAppFn = origCreateWebApp
-		appCreateCanPromptForFieldsFn = origCanPrompt
 	})
 
 	promptOrder := []string{}
-	appCreateCanPromptForFieldsFn = func() bool { return true }
 	appCreateAskOneFn = func(p survey.Prompt, response interface{}, _ ...survey.AskOpt) error {
 		switch prompt := p.(type) {
 		case *survey.Input:
@@ -699,6 +685,7 @@ func TestWebAppsCreateInteractiveWizardPromptsForMissingFields(t *testing.T) {
 	}
 
 	d, _, _ := newWebTestDeps()
+	d.IO.StdinTTY, d.IO.StdoutTTY = true, true
 	cmd := newWebAppsCreateCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -725,17 +712,14 @@ func TestWebAppsCreateInteractiveWizardPreservesProvidedLocaleDefault(t *testing
 	origNewWebClient := newWebClientFn
 	origEnsureBundleID := ensureBundleIDFn
 	origCreateWebApp := createWebAppFn
-	origCanPrompt := appCreateCanPromptForFieldsFn
 	t.Cleanup(func() {
 		appCreateAskOneFn = origAskOne
 		resolveAppCreateSessionFn = origResolveAppCreateSession
 		newWebClientFn = origNewWebClient
 		ensureBundleIDFn = origEnsureBundleID
 		createWebAppFn = origCreateWebApp
-		appCreateCanPromptForFieldsFn = origCanPrompt
 	})
 
-	appCreateCanPromptForFieldsFn = func() bool { return true }
 	appCreateAskOneFn = func(p survey.Prompt, response interface{}, _ ...survey.AskOpt) error {
 		switch prompt := p.(type) {
 		case *survey.Input:
@@ -791,6 +775,7 @@ func TestWebAppsCreateInteractiveWizardPreservesProvidedLocaleDefault(t *testing
 	}
 
 	d, _, _ := newWebTestDeps()
+	d.IO.StdinTTY, d.IO.StdoutTTY = true, true
 	cmd := newWebAppsCreateCommand(d)
 	if err := cmd.FlagSet.Parse([]string{"--primary-locale", "de-DE", "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)

@@ -72,12 +72,10 @@ func TestRunAppsCreateAccessLimitedWithoutUserMakesNoHTTP(t *testing.T) {
 func TestRunAppsCreateInvalidAccessFailsBeforeWizard(t *testing.T) {
 	origCreate := createWebAppFn
 	origResolve := resolveAppCreateSessionFn
-	origCanPrompt := appCreateCanPromptForFieldsFn
 	origAskOne := appCreateAskOneFn
 	t.Cleanup(func() {
 		createWebAppFn = origCreate
 		resolveAppCreateSessionFn = origResolve
-		appCreateCanPromptForFieldsFn = origCanPrompt
 		appCreateAskOneFn = origAskOne
 	})
 	createWebAppFn = func(ctx context.Context, client *webcore.Client, attrs webcore.AppCreateAttributes) (*webcore.AppResponse, error) {
@@ -88,13 +86,13 @@ func TestRunAppsCreateInvalidAccessFailsBeforeWizard(t *testing.T) {
 		t.Fatal("did not expect web session lookup")
 		return nil, "", nil
 	}
-	appCreateCanPromptForFieldsFn = func() bool { return true }
 	appCreateAskOneFn = func(_ survey.Prompt, _ interface{}, _ ...survey.AskOpt) error {
 		t.Fatal("did not expect app-details wizard")
 		return nil
 	}
 
 	d, depsStdout, depsStderr := newWebTestDeps()
+	d.IO.StdinTTY, d.IO.StdoutTTY = true, true
 	var err error
 	_, stderr := runWithWebTestDeps(depsStdout, depsStderr, func() {
 		err = RunAppsCreate(context.Background(), d, AppsCreateRunOptions{
@@ -114,11 +112,9 @@ func TestRunAppsCreateInvalidAccessFailsBeforeWizard(t *testing.T) {
 func TestRunAppsCreateAccessWithMissingNameMakesNoHTTP(t *testing.T) {
 	origCreate := createWebAppFn
 	origResolve := resolveAppCreateSessionFn
-	origCanPrompt := appCreateCanPromptForFieldsFn
 	t.Cleanup(func() {
 		createWebAppFn = origCreate
 		resolveAppCreateSessionFn = origResolve
-		appCreateCanPromptForFieldsFn = origCanPrompt
 	})
 	createWebAppFn = func(ctx context.Context, client *webcore.Client, attrs webcore.AppCreateAttributes) (*webcore.AppResponse, error) {
 		t.Fatal("did not expect create")
@@ -128,7 +124,6 @@ func TestRunAppsCreateAccessWithMissingNameMakesNoHTTP(t *testing.T) {
 		t.Fatal("did not expect web session lookup")
 		return nil, "", nil
 	}
-	appCreateCanPromptForFieldsFn = func() bool { return false }
 
 	d, depsStdout, depsStderr := newWebTestDeps()
 	d.Client = func() (*asc.Client, error) {

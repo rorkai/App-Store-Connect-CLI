@@ -162,12 +162,10 @@ func TestWebAppsCreateUsesProgressLabels(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	_, _ = captureOutput(t, func() {
-		synctest.Test(t, func(t *testing.T) {
-			if err := cmd.Exec(context.Background(), nil); err != nil {
-				t.Fatalf("exec error: %v", err)
-			}
-		})
+	synctest.Test(t, func(t *testing.T) {
+		if err := cmd.Exec(context.Background(), nil); err != nil {
+			t.Fatalf("exec error: %v", err)
+		}
 	})
 
 	want := []string{

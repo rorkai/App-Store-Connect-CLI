@@ -47,9 +47,6 @@ func TestWebPrivacyPullMissingAppExposesStructuredDiagnostic(t *testing.T) {
 }
 
 func TestWebAppsCreateMissingRequiredInputExposesStructuredDiagnostics(t *testing.T) {
-	originalCanPrompt := appCreateCanPromptForFieldsFn
-	t.Cleanup(func() { appCreateCanPromptForFieldsFn = originalCanPrompt })
-	appCreateCanPromptForFieldsFn = func() bool { return false }
 
 	tests := []struct {
 		name       string

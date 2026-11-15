@@ -50,7 +50,6 @@ var (
 	appCreateAskOneFn                     = survey.AskOne
 	resolveAppCreateSessionFn         any = resolveAppCreateSession
 	appCreateCanPromptInteractivelyFn     = terminalPromptAvailable
-	appCreateCanPromptForFieldsFn         = appCreateCanPromptForFields
 )
 
 func callResolveAppCreateSessionFn(ctx context.Context, appleID, password, twoFactorCode, twoFactorCodeCommand string) (*webcore.AuthSession, string, error) {
@@ -59,8 +58,8 @@ func callResolveAppCreateSessionFn(ctx context.Context, appleID, password, twoFa
 
 // The field wizard reads stdin and renders to stdout, so a reachable
 // controlling TTY is not enough: piped or captured streams must fail fast.
-func appCreateCanPromptForFields() bool {
-	return termIsTerminalFn(int(os.Stdin.Fd())) && termIsTerminalFn(int(os.Stdout.Fd()))
+func appCreateCanPromptForFields(d *shared.Deps) bool {
+	return d.IO.StdinTTY && d.IO.StdoutTTY
 }
 
 func trimAppsCreateRunOptions(opts AppsCreateRunOptions) AppsCreateRunOptions {
@@ -108,17 +107,17 @@ func explainAppsCreateError(err error) error {
 	return fmt.Errorf("web apps create failed: %w", err)
 }
 
-func promptAppsCreateFields(opts *AppsCreateRunOptions) error {
+func promptAppsCreateFields(d *shared.Deps, opts *AppsCreateRunOptions) error {
 	if opts == nil {
 		return fmt.Errorf("app create options are required")
 	}
 	fullWizard := strings.TrimSpace(opts.Name) == "" && strings.TrimSpace(opts.BundleID) == "" && strings.TrimSpace(opts.SKU) == ""
 
-	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, "Create a new app in App Store Connect")
-	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, "Note: App creation uses Apple's web-session create flow.")
-	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(d.IO.ErrOut)
+	fmt.Fprintln(d.IO.ErrOut, "Create a new app in App Store Connect")
+	fmt.Fprintln(d.IO.ErrOut)
+	fmt.Fprintln(d.IO.ErrOut, "Note: App creation uses Apple's web-session create flow.")
+	fmt.Fprintln(d.IO.ErrOut)
 
 	nameValue := strings.TrimSpace(opts.Name)
 	if nameValue == "" {
@@ -313,7 +312,7 @@ func RunAppsCreate(ctx context.Context, d *shared.Deps, opts AppsCreateRunOption
 	missingBundleID := opts.BundleID == ""
 	missingSKU := opts.SKU == ""
 	if missingName || missingBundleID || missingSKU {
-		if !appCreateCanPromptForFieldsFn() {
+		if !appCreateCanPromptForFields(d) {
 			missingFlags := make([]string, 0, 3)
 			if missingName {
 				missingFlags = append(missingFlags, "--name")
@@ -330,7 +329,7 @@ func RunAppsCreate(ctx context.Context, d *shared.Deps, opts AppsCreateRunOption
 				soleMissingFlag(missingFlags),
 			)
 		}
-		if err := promptAppsCreateFields(&opts); err != nil {
+		if err := promptAppsCreateFields(d, &opts); err != nil {
 			return err
 		}
 	}
@@ -395,9 +394,9 @@ func RunAppsCreate(ctx context.Context, d *shared.Deps, opts AppsCreateRunOption
 	defer cancel()
 
 	if source == "fresh" {
-		fmt.Fprintln(os.Stderr, "Authenticated via fresh web login.")
+		fmt.Fprintln(d.IO.ErrOut, "Authenticated via fresh web login.")
 	} else {
-		fmt.Fprintln(os.Stderr, "Using cached web session.")
+		fmt.Fprintln(d.IO.ErrOut, "Using cached web session.")
 	}
 
 	client := newWebClientFn(session)
