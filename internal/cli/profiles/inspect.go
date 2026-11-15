@@ -71,7 +71,7 @@ Examples:
   asc profiles inspect --path "./profile.mobileprovision" --output json
   asc profiles inspect --path "./profile.mobileprovision" --entitlements`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			pathValue := strings.TrimSpace(*sourcePath)
 			if pathValue == "" {

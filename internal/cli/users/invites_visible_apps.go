@@ -26,7 +26,7 @@ func newUsersInvitesVisibleAppsCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc users invites visible-apps list --id "INVITE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newUsersInvitesVisibleAppsListCommand(d),
 		},

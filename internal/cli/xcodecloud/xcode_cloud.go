@@ -48,7 +48,7 @@ Examples:
   asc xcode-cloud status --run-id "BUILD_RUN_ID" --wait
   asc xcode-cloud doctor --run-id "BUILD_RUN_ID" --wait`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newXcodeCloudRunCommand(d),
 			newXcodeCloudStatusCommand(d),
@@ -114,7 +114,7 @@ Examples:
   asc xcode-cloud run --app "123456789" --workflow "Deploy" --branch "main" --wait --doctor
   asc xcode-cloud run --app "123456789" --workflow "CI" --branch "main" --wait --poll-interval 30s --timeout 1h`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			// Validate input combinations
 			hasWorkflowName := strings.TrimSpace(*workflowName) != ""
@@ -360,7 +360,7 @@ Examples:
   asc xcode-cloud status --run-id "BUILD_RUN_ID" --wait
   asc xcode-cloud status --run-id "BUILD_RUN_ID" --wait --poll-interval 30s --timeout 1h`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*runID) == "" {
 				return d.RequiredFlag("--run-id")

@@ -39,8 +39,8 @@ const rootGettingStartedSamples = `  Sign in with an API key from ` + auth.APIKe
 
 // rootLongHelp renders the GETTING STARTED block shown between USAGE and the
 // grouped command listing.
-func rootLongHelp() string {
-	return shared.Bold("GETTING STARTED") + "\n" + rootGettingStartedSamples
+func rootLongHelp(d *shared.Deps) string {
+	return d.Bold("GETTING STARTED") + "\n" + rootGettingStartedSamples
 }
 
 // RootCommand returns the root command
@@ -86,9 +86,9 @@ func newRootCommand(version string, d *shared.Deps, subcommands []*ffcli.Command
 		Name:        "asc",
 		ShortUsage:  "asc <subcommand> [flags]",
 		ShortHelp:   "asc is a fast, lightweight CLI for App Store Connect from Rork.",
-		LongHelp:    rootLongHelp(),
+		LongHelp:    rootLongHelp(d),
 		FlagSet:     d.NewFlagSet("asc", flag.ExitOnError),
-		UsageFunc:   RootUsageFunc,
+		UsageFunc:   rootUsageFunc(d),
 		Subcommands: subcommands,
 	}
 

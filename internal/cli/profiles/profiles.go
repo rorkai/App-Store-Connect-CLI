@@ -44,7 +44,7 @@ Examples:
   asc profiles links certificates --id "PROFILE_ID"
   asc profiles links devices --id "PROFILE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.VisibleUsageFunc,
+		UsageFunc: d.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newProfilesListCommand(d),
 			newProfilesGetCommand(d),
@@ -109,7 +109,7 @@ profiles reference. It cannot be combined with --next. With --fields, both
 --stale-only and --include-stale need profileState and expirationDate.
 --include-stale adds a Stale column to table and markdown output only.`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "profiles list", 200, "name", "id", "profile-type", "profile-state", "sort", "fields", "bundle-id-fields", "device-fields", "certificate-fields", "include", "limit-devices", "limit-certificates", "limit", "stale-only"); err != nil {
 				return err
@@ -480,7 +480,7 @@ Examples:
   asc profiles create --name "Profile" --profile-type IOS_APP_DEVELOPMENT --bundle "BUNDLE_ID" --certificate "CERT_ID"
   asc profiles create --name "Profile" --profile-type IOS_APP_DEVELOPMENT --bundle "BUNDLE_ID" --certificate "CERT_ID" --device "DEVICE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			nameValue := strings.TrimSpace(*name)
 			if nameValue == "" {
@@ -580,7 +580,7 @@ Examples:
 profiles unless --profile-state says otherwise. Existing files stop the run
 before anything is written unless --overwrite is passed.`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.RejectOutputFormatAsPath(*outputPath, "--output-format"); err != nil {
 				return err

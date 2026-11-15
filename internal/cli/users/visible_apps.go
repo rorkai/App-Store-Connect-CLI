@@ -27,7 +27,7 @@ Examples:
   asc users visible-apps list --id "USER_ID"
   asc users visible-apps view --id "USER_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newUsersVisibleAppsListCommand(d),
 			newUsersVisibleAppsGetCommand(d),

@@ -40,7 +40,7 @@ Examples:
   asc review attachments-list --review-detail "REVIEW_DETAIL_ID" --paginate
   asc review attachments-list --next "<links.next>"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "review attachments-list", 200, "fields", "detail-fields", "include", "limit"); err != nil {
 				return err
@@ -153,7 +153,7 @@ Examples:
   asc review attachments-get --id "ATTACHMENT_ID"
   asc review attachments-get --id "ATTACHMENT_ID" --fields "fileName,fileSize"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			attachmentValue := strings.TrimSpace(*attachmentID)
 			if attachmentValue == "" {
@@ -220,7 +220,7 @@ func newReviewDetailsAttachmentsUploadCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc review attachments-upload --review-detail "REVIEW_DETAIL_ID" --file ./review-doc.pdf`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			reviewDetailValue := strings.TrimSpace(*reviewDetailID)
 			if reviewDetailValue == "" {

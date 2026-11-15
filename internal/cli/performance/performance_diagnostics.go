@@ -27,7 +27,7 @@ Examples:
   asc performance diagnostics list --build-id "BUILD_ID"
   asc performance diagnostics view --id "SIGNATURE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newPerformanceDiagnosticsListCommand(d),
 			newPerformanceDiagnosticsGetCommand(d),
@@ -59,7 +59,7 @@ Examples:
   asc performance diagnostics list --build-id "BUILD_ID"
   asc performance diagnostics list --build-id "BUILD_ID" --diagnostic-type "HANGS" --limit 50`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "performance diagnostics list", 200, "diagnostic-type", "fields"); err != nil {
 				return err
@@ -174,7 +174,7 @@ Examples:
   asc performance diagnostics view --id "SIGNATURE_ID"
   asc performance diagnostics view --id "SIGNATURE_ID" --limit 50`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "performance diagnostics view", 200); err != nil {
 				return err

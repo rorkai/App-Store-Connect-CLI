@@ -39,7 +39,7 @@ or cleanup. It never automatically deletes the reserved image.
 Examples:
   asc asset-library images upload --library-id LIBRARY_ID --file ./header.png
   asc asset-library images upload --library-id LIBRARY_ID --file ./cms-8f3a21.png --reference-name "Hero en-US 3.14"`,
-		FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
+		FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			ctx, pollErr := pollInterval.ApplyWith(ctx, d)
 			if pollErr != nil {

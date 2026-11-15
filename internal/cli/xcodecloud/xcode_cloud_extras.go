@@ -32,7 +32,7 @@ Examples:
   asc xcode-cloud products view --id "PRODUCT_ID"
   asc xcode-cloud products delete --id "PRODUCT_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newXcodeCloudProductsListCommand(d),
 			newXcodeCloudProductsGetCommand(d),
@@ -71,7 +71,7 @@ Examples:
   asc xcode-cloud products list --limit 50
   asc xcode-cloud products list --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, flags.flagSet, "xcode-cloud products list", 200, "product-type", "fields", "app-fields", "bundle-id-fields", "scm-repository-fields", "include", "primary-repositories-limit", "limit"); err != nil {
 				return err
@@ -125,7 +125,7 @@ Examples:
   asc xcode-cloud products app --id "PRODUCT_ID" --app-info-fields state,primaryCategory --iap-fields versions
   asc xcode-cloud products app --id "PRODUCT_ID" --output table`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
