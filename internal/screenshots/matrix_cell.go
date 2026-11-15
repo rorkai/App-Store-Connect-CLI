@@ -14,8 +14,9 @@ import (
 )
 
 type matrixSimulatorGuard struct {
-	mu      sync.Mutex
-	blocked bool
+	mu                 sync.Mutex
+	blocked            bool
+	blockedByStatusBar bool
 }
 
 func executeMatrixCellWithSimulatorLock(ctx context.Context, cell MatrixCell, base *Plan, matrixPlan *MatrixPlan, maxAttempts int, backoff time.Duration, deps MatrixDependencies, outputRoots matrixOutputRoots, guard *matrixSimulatorGuard) MatrixCellResult {
@@ -30,7 +31,12 @@ func executeMatrixCellWithSimulatorLock(ctx context.Context, cell MatrixCell, ba
 	if guard.blocked {
 		result.FailureStage = "appearance"
 		result.FailureCode = "simulator_blocked_after_cleanup_failure"
-		result.Error = newMatrixCellError(result.FailureStage, result.FailureCode, "simulator blocked after appearance cleanup failure")
+		message := "simulator blocked after appearance cleanup failure"
+		if guard.blockedByStatusBar {
+			result.FailureStage = "cleanup"
+			message = "simulator blocked after status bar cleanup failure"
+		}
+		result.Error = newMatrixCellError(result.FailureStage, result.FailureCode, message)
 		setMatrixScreenshotStatuses(&result)
 		result.DurationMS = time.Since(started).Milliseconds()
 		return result
@@ -63,7 +69,23 @@ func executeMatrixCellWithSimulatorLock(ctx context.Context, cell MatrixCell, ba
 		result.DurationMS = time.Since(started).Milliseconds()
 		return result
 	}
-	for attempt := 1; attempt <= maxAttempts; attempt++ {
+	statusBarApplied := true
+	if preset := base.Defaults.StatusBar; preset != "" {
+		if err := runExternal(ctx, "axe", "settings", "status-bar", "preset", preset, "--udid", cell.UDID); err != nil {
+			statusBarApplied = false
+			if ctx.Err() != nil {
+				result.Status = MatrixCellCanceled
+				result.FailureStage = "execution"
+				result.FailureCode = "canceled"
+				result.Error = newMatrixCellError(result.FailureStage, result.FailureCode, "cell canceled")
+			} else {
+				result.FailureStage = "execution"
+				result.FailureCode = "status_bar_apply_failed"
+				result.Error = newMatrixCellError(result.FailureStage, result.FailureCode, "requested status bar could not be applied")
+			}
+		}
+	}
+	for attempt := 1; statusBarApplied && attempt <= maxAttempts; attempt++ {
 		result.Attempts = attempt
 		if err := ctx.Err(); err != nil {
 			result.Status = MatrixCellCanceled
@@ -113,9 +135,20 @@ func executeMatrixCellWithSimulatorLock(ctx context.Context, cell MatrixCell, ba
 		}
 	}
 
+	if base.Defaults.StatusBar != "" {
+		if err := clearMatrixStatusBar(cell.UDID); err != nil {
+			guard.blocked = true
+			guard.blockedByStatusBar = true
+			result.Status = MatrixCellCleanupFailed
+			result.FailureStage = "cleanup"
+			result.FailureCode = "status_bar_clear_failed"
+			result.Error = newMatrixCellError(result.FailureStage, result.FailureCode, "simulator status bar could not be cleared")
+		}
+	}
 	restoreErr := restoreMatrixAppearance(deps.Appearance, cell.UDID, state)
 	if restoreErr != nil {
 		guard.blocked = true
+		guard.blockedByStatusBar = false
 		result.Status = MatrixCellCleanupFailed
 		result.FailureStage = "cleanup"
 		result.FailureCode = "appearance_restore_failed"
@@ -134,6 +167,12 @@ func restoreMatrixAppearance(appearance MatrixAppearance, udid, state string) er
 	restoreCtx, cancel := context.WithTimeout(context.Background(), matrixSubprocessTimeout)
 	defer cancel()
 	return appearance.Restore(restoreCtx, udid, state)
+}
+
+func clearMatrixStatusBar(udid string) error {
+	clearCtx, cancel := context.WithTimeout(context.Background(), matrixSubprocessTimeout)
+	defer cancel()
+	return runExternal(clearCtx, "axe", "settings", "status-bar", "clear", "--udid", udid)
 }
 
 type matrixAttemptResult struct {
@@ -205,6 +244,7 @@ func executeMatrixCellAttempt(ctx context.Context, cell MatrixCell, base *Plan, 
 		return matrixAttemptResult{FailureStage: "execution", FailureCode: "plan_clone_failed", Error: "base plan could not be prepared"}, err
 	}
 	plan.App.UDID = cell.UDID
+	plan.Defaults.StatusBar = ""
 	if planUsesRootedOutput {
 		plan.App.OutputDir = planOutputRoot.Path()
 	} else {

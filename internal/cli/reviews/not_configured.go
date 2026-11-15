@@ -2,7 +2,6 @@ package reviews
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
@@ -27,17 +26,17 @@ func reviewResponseNotConfiguredMessage(reviewID string) string {
 	return fmt.Sprintf("Customer review response is not configured for review %q.", reviewID)
 }
 
-func warnNotConfigured(message string) {
-	fmt.Fprintf(os.Stderr, "Warning: %s\n", message)
+func warnNotConfigured(d *shared.Deps, message string) {
+	fmt.Fprintf(d.IO.ErrOut, "Warning: %s\n", message)
 }
 
-func renderNotConfiguredState(title, referenceLabel, referenceValue, message string, markdown bool) {
+func renderNotConfiguredState(d *shared.Deps, title, referenceLabel, referenceValue, message string, markdown bool) {
 	rows := [][]string{
 		{referenceLabel, referenceValue},
 		{"configured", "false"},
 		{"message", message},
 	}
-	shared.RenderSection(title, []string{"field", "value"}, rows, markdown)
+	d.RenderSection(title, []string{"field", "value"}, rows, markdown)
 }
 
 func reviewConfiguredLabel(configured bool) string {

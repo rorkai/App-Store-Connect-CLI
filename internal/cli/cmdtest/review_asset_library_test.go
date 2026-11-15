@@ -16,7 +16,6 @@ import (
 func TestAssetLibraryReviewItemsAdd(t *testing.T) {
 	for _, kind := range []string{"Image", "Video"} {
 		t.Run(kind, func(t *testing.T) {
-			setupSubmitCreateAuth(t)
 			key := "appAssetLibrary" + kind
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if r.Method != "POST" || r.URL.Path != "/v1/reviewSubmissionItems" {
@@ -30,12 +29,10 @@ func TestAssetLibraryReviewItemsAdd(t *testing.T) {
 				fmt.Fprintf(w, `{"data":{"type":"reviewSubmissionItems","id":"item-1","relationships":{%q:{"data":{"type":%q,"id":"asset-1"}}}}}`, key, key+"s")
 			}))
 			defer server.Close()
-			setReviewItemsTestServerClient(t, server)
-			out, errout := captureOutput(t, func() {
-				if code := cmd.Run([]string{"review", "items", "add", "--submission", "sub-1", "--item-type", key + "s", "--item-id", "asset-1", "--output", "json"}, "dev"); code != cmd.ExitSuccess {
-					t.Errorf("exit=%d", code)
-				}
-			})
+			out, errout, code := runWithDeps(t, stubServerClient(t, server), "review", "items", "add", "--submission", "sub-1", "--item-type", key+"s", "--item-id", "asset-1", "--output", "json")
+			if code != cmd.ExitSuccess {
+				t.Errorf("exit=%d", code)
+			}
 			if errout != "" || !strings.Contains(out, key) || !strings.Contains(out, `"id":"item-1"`) {
 				t.Fatalf("stdout=%s stderr=%s", out, errout)
 			}
@@ -46,9 +43,7 @@ func TestAssetLibraryReviewItemsAdd(t *testing.T) {
 func TestAssetLibraryReviewItemsListAndHistory(t *testing.T) {
 	for _, mode := range []string{"json", "table", "markdown", "history"} {
 		t.Run(mode, func(t *testing.T) {
-			setupSubmitCreateAuth(t)
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			itemsQuery := []string{"fields[reviewSubmissionItems]=state,appAssetLibraryImage,appAssetLibraryVideo", "include=appAssetLibraryImage,appAssetLibraryVideo"}
 			if mode == "history" {
 				reg.Register(asctest.GET("/v1/apps/app-1/reviewSubmissions", "include=appStoreVersionForReview"),
@@ -65,11 +60,10 @@ func TestAssetLibraryReviewItemsListAndHistory(t *testing.T) {
 			if mode == "history" {
 				args = []string{"review", "history", "--app", "app-1", "--output", "json"}
 			}
-			out, errout := captureOutput(t, func() {
-				if code := cmd.Run(args, "dev"); code != cmd.ExitSuccess {
-					t.Errorf("exit=%d", code)
-				}
-			})
+			out, errout, code := runWithDeps(t, stubClient(t, reg), args...)
+			if code != cmd.ExitSuccess {
+				t.Errorf("exit=%d", code)
+			}
 			if errout != "" || !strings.Contains(out, "image-1") || !strings.Contains(out, "video-1") {
 				t.Fatalf("stdout=%s stderr=%s", out, errout)
 			}
@@ -94,7 +88,7 @@ func TestAssetLibraryReviewItemsSkipRequiresValidLinkage(t *testing.T) {
 		for _, linkage := range []string{"valid", "wrong-type", "wrong-id", "null", "removed"} {
 			t.Run(kind+"/"+linkage, func(t *testing.T) {
 				key := "appAssetLibrary" + kind
-				out, _, seen, err := runIfExistsCommand(t, []string{"review", "items-add", "--submission", "sub-1", "--item-type", key + "s", "--item-id", "asset-1", "--if-exists", "skip", "--output", "json"}, func(r ifExistsRequest) (*http.Response, error) {
+				out, _, seen, err := runIfExistsCommandWithDeps(t, []string{"review", "items-add", "--submission", "sub-1", "--item-type", key + "s", "--item-id", "asset-1", "--if-exists", "skip", "--output", "json"}, func(r ifExistsRequest) (*http.Response, error) {
 					if r.Method == "POST" {
 						return jsonResponse(409, reviewItemExists409)
 					}
@@ -136,5 +130,5 @@ func TestAssetLibraryReviewItemsSkipRequiresValidLinkage(t *testing.T) {
 }
 
 func TestAssetLibraryReviewUnknownTypeBeforeAuth(t *testing.T) {
-	assertUsageExit(t, []string{"review", "items-add", "--submission", "sub-1", "--item-type", "appAssetLibraryMedia", "--item-id", "asset-1"}, "--item-type must be one of")
+	assertUsageExitWithDeps(t, nil, []string{"review", "items-add", "--submission", "sub-1", "--item-type", "appAssetLibraryMedia", "--item-id", "asset-1"}, "--item-type must be one of")
 }

@@ -86,7 +86,7 @@ func ResolveBuild(ctx context.Context, client *asc.Client, opts ResolveBuildOpti
 		return buildResp, nil
 	}
 
-	return resolveBuildByNumberSelection(ctx, client, buildNumberSelectionOptions{
+	return resolveBuildByNumberSelection(ctx, shared.DefaultDeps(), client, buildNumberSelectionOptions{
 		AppID:                 strings.TrimSpace(opts.AppID),
 		Version:               strings.TrimSpace(opts.Version),
 		BuildNumber:           buildNumber,
@@ -138,6 +138,7 @@ func validateResolveBuildOptions(opts ResolveBuildOptions) error {
 
 func resolveBuildByNumberSelection(
 	ctx context.Context,
+	d *shared.Deps,
 	client *asc.Client,
 	opts buildNumberSelectionOptions,
 	allowEmpty bool,
@@ -148,18 +149,18 @@ func resolveBuildByNumberSelection(
 
 	appID := shared.ResolveAppID(strings.TrimSpace(opts.AppID))
 	if appID == "" {
-		return nil, shared.UsageError("--app is required (or set ASC_APP_ID)")
+		return nil, d.UsageError("--app is required (or set ASC_APP_ID)")
 	}
 
 	buildNumber := strings.TrimSpace(opts.BuildNumber)
 	version := strings.TrimSpace(opts.Version)
 	platform := strings.TrimSpace(opts.Platform)
 	if platform == "" {
-		return nil, shared.UsageError(buildNumberRequiresPlatformMessage)
+		return nil, d.UsageError(buildNumberRequiresPlatformMessage)
 	}
 	platform, err := shared.NormalizeAppStoreVersionPlatform(platform)
 	if err != nil {
-		return nil, shared.UsageError(err.Error())
+		return nil, d.UsageError(err.Error())
 	}
 
 	resolvedAppID, err := shared.ResolveAppIDWithLookup(ctx, client, appID)
@@ -178,9 +179,9 @@ func resolveBuildByNumberSelection(
 	if version != "" {
 		var preReleaseVersionIDs []string
 		if opts.Since != nil {
-			preReleaseVersionIDs, err = shared.FindPreReleaseVersionIDsWithMaxPages(ctx, client, resolvedAppID, version, platform, resolveBuildSelectionMaxPages)
+			preReleaseVersionIDs, err = d.FindPreReleaseVersionIDsWithMaxPages(ctx, client, resolvedAppID, version, platform, resolveBuildSelectionMaxPages)
 		} else {
-			preReleaseVersionIDs, err = shared.FindPreReleaseVersionIDs(ctx, client, resolvedAppID, version, platform)
+			preReleaseVersionIDs, err = d.FindPreReleaseVersionIDs(ctx, client, resolvedAppID, version, platform)
 		}
 		if err != nil {
 			return nil, err
@@ -199,6 +200,7 @@ func resolveBuildByNumberSelection(
 	if opts.Since != nil {
 		return resolveBuildByNumberSelectionSince(
 			ctx,
+			d,
 			client,
 			resolvedAppID,
 			buildNumber,
@@ -240,7 +242,7 @@ func resolveBuildByNumberSelection(
 	}
 
 	if len(buildsResp.Data) > 1 || strings.TrimSpace(buildsResp.Links.Next) != "" {
-		return nil, ambiguousBuildNumberSelection(resolvedAppID, buildNumber, version, platform, shared.BuildCandidates(buildsResp.Data), strings.TrimSpace(buildsResp.Links.Next) != "")
+		return nil, ambiguousBuildNumberSelection(d, resolvedAppID, buildNumber, version, platform, shared.BuildCandidates(buildsResp.Data), strings.TrimSpace(buildsResp.Links.Next) != "")
 	}
 
 	return &asc.BuildResponse{Data: buildsResp.Data[0], Links: buildsResp.Links}, nil
@@ -248,6 +250,7 @@ func resolveBuildByNumberSelection(
 
 func resolveBuildByNumberSelectionSince(
 	ctx context.Context,
+	d *shared.Deps,
 	client *asc.Client,
 	appID, buildNumber, version, platform string,
 	buildOpts []asc.BuildsOption,
@@ -296,7 +299,7 @@ func resolveBuildByNumberSelectionSince(
 				return &asc.BuildResponse{Data: *selected}, nil
 			}
 			if selected != nil {
-				return nil, ambiguousBuildNumberSelection(appID, buildNumber, version, platform, shared.BuildCandidates([]asc.Resource[asc.BuildAttributes]{*selected, build}), true)
+				return nil, ambiguousBuildNumberSelection(d, appID, buildNumber, version, platform, shared.BuildCandidates([]asc.Resource[asc.BuildAttributes]{*selected, build}), true)
 			}
 
 			selectedBuild := build
@@ -336,12 +339,12 @@ func noBuildFoundForBuildNumber(appID, buildNumber, version, platform string) er
 // more than one build. The caller has to narrow the selector, so this stays a
 // usage error, and the message names every matching build ID plus the flag
 // that accepts one of them.
-func ambiguousBuildNumberSelection(appID, buildNumber, version, platform string, candidates []shared.AmbiguousCandidate, candidatesAreSample bool) error {
+func ambiguousBuildNumberSelection(d *shared.Deps, appID, buildNumber, version, platform string, candidates []shared.AmbiguousCandidate, candidatesAreSample bool) error {
 	hint := describeBuildNumberSelectionHint(version, platform)
 	if candidatesAreSample {
 		hint = strings.TrimSpace("The listed builds are a sample; additional matches may exist. " + hint)
 	}
-	return shared.AmbiguousUsageError(&shared.AmbiguousSelectionError{
+	return d.AmbiguousUsageError(&shared.AmbiguousSelectionError{
 		Kind:                "build",
 		Description:         fmt.Sprintf("build number %q%s for app %s", buildNumber, describeBuildNumberSelectionFilters(version, platform), appID),
 		Flag:                "--build-id",

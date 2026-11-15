@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"slices"
 	"strings"
 
@@ -79,15 +78,14 @@ type reviewCoverageWarning struct {
 	Remediation string `json:"remediation"`
 }
 
-// ReviewStatusCommand returns an app-scoped review status command.
-func ReviewStatusCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("status", flag.ExitOnError)
+func newReviewStatusCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("status", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID, bundle ID, or exact app name (required, or ASC_APP_ID)")
 	version := fs.String("version", "", "App Store version string to inspect")
 	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID to inspect")
 	platform := fs.String("platform", "", "Platform filter: IOS, MAC_OS, TV_OS, VISION_OS")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "status",
@@ -102,17 +100,17 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID, versionValue, versionIDValue, platformValue, err := resolveReviewOverviewFlags(*appID, *version, *versionID, *platform)
+			resolvedAppID, versionValue, versionIDValue, platformValue, err := resolveReviewOverviewFlags(d, *appID, *version, *versionID, *platform)
 			if err != nil {
 				return err
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("review status: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resolvedAppID, err = shared.ResolveAppIDWithLookup(requestCtx, client, resolvedAppID)
@@ -126,26 +124,25 @@ Examples:
 			}
 			result := buildReviewStatusResult(snapshot)
 
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { renderReviewStatus(result, false); return nil },
-				func() error { renderReviewStatus(result, true); return nil },
+				func() error { renderReviewStatus(d, result, false); return nil },
+				func() error { renderReviewStatus(d, result, true); return nil },
 			)
 		},
 	}
 }
 
-// ReviewDoctorCommand returns an app-scoped review blocker diagnosis command.
-func ReviewDoctorCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("doctor", flag.ExitOnError)
+func newReviewDoctorCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("doctor", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID, bundle ID, or exact app name (required, or ASC_APP_ID)")
 	version := fs.String("version", "", "App Store version string to diagnose")
 	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID to diagnose")
 	platform := fs.String("platform", "", "Platform filter: IOS, MAC_OS, TV_OS, VISION_OS")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "doctor",
@@ -160,17 +157,17 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID, versionValue, versionIDValue, platformValue, err := resolveReviewOverviewFlags(*appID, *version, *versionID, *platform)
+			resolvedAppID, versionValue, versionIDValue, platformValue, err := resolveReviewOverviewFlags(d, *appID, *version, *versionID, *platform)
 			if err != nil {
 				return err
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("review doctor: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resolvedAppID, err = shared.ResolveAppIDWithLookup(requestCtx, client, resolvedAppID)
@@ -197,35 +194,35 @@ Examples:
 			}
 
 			result := buildReviewDoctorResult(snapshot, report)
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { renderReviewDoctor(result, false); return nil },
-				func() error { renderReviewDoctor(result, true); return nil },
+				func() error { renderReviewDoctor(d, result, false); return nil },
+				func() error { renderReviewDoctor(d, result, true); return nil },
 			)
 		},
 	}
 }
 
-func resolveReviewOverviewFlags(appID, version, versionID, platform string) (string, string, string, string, error) {
+func resolveReviewOverviewFlags(d *shared.Deps, appID, version, versionID, platform string) (string, string, string, string, error) {
 	resolvedAppID := shared.ResolveAppID(appID)
 	if strings.TrimSpace(resolvedAppID) == "" {
-		fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+		fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 		return "", "", "", "", shared.MissingRequiredUsageError("--app")
 	}
 
 	versionValue := strings.TrimSpace(version)
 	versionIDValue := strings.TrimSpace(versionID)
 	if versionValue != "" && versionIDValue != "" {
-		return "", "", "", "", shared.WithDiagnostic(shared.UsageError("--version and --version-id are mutually exclusive"), shared.DiagnosticConflictingInput, "")
+		return "", "", "", "", shared.WithDiagnostic(d.UsageError("--version and --version-id are mutually exclusive"), shared.DiagnosticConflictingInput, "")
 	}
 
 	platformValue := strings.TrimSpace(platform)
 	if platformValue != "" {
 		normalizedPlatform, err := shared.NormalizeAppStoreVersionPlatform(platformValue)
 		if err != nil {
-			return "", "", "", "", shared.WithDiagnostic(shared.UsageError(err.Error()), shared.DiagnosticInvalidInput, "--platform")
+			return "", "", "", "", shared.WithDiagnostic(d.UsageError(err.Error()), shared.DiagnosticInvalidInput, "--platform")
 		}
 		platformValue = normalizedPlatform
 	}
@@ -694,14 +691,14 @@ func reviewPostCompleteAction(versionState string) string {
 	}
 }
 
-func renderReviewStatus(result reviewStatusResult, markdown bool) {
+func renderReviewStatus(d *shared.Deps, result reviewStatusResult, markdown bool) {
 	rows := [][]string{
 		{"appId", result.AppID},
 		{"reviewState", shared.OrNA(result.ReviewState)},
 		{"nextAction", shared.OrNA(result.NextAction)},
 		{"blockerCount", fmt.Sprintf("%d", len(result.Blockers))},
 	}
-	shared.RenderSection("Summary", []string{"field", "value"}, rows, markdown)
+	d.RenderSection("Summary", []string{"field", "value"}, rows, markdown)
 
 	contextRows := [][]string{
 		{"versionId", shared.OrNA(reviewVersionField(result.Version, func(v *reviewVersionContext) string { return v.ID }))},
@@ -713,7 +710,7 @@ func renderReviewStatus(result reviewStatusResult, markdown bool) {
 		{"latestSubmissionId", shared.OrNA(reviewSubmissionField(result.LatestSubmission, func(s *reviewSubmissionContext) string { return s.ID }))},
 		{"submissionState", shared.OrNA(reviewSubmissionField(result.LatestSubmission, func(s *reviewSubmissionContext) string { return s.State }))},
 	}
-	shared.RenderSection("Current Review", []string{"field", "value"}, contextRows, markdown)
+	d.RenderSection("Current Review", []string{"field", "value"}, contextRows, markdown)
 
 	if len(result.Blockers) == 0 {
 		return
@@ -723,10 +720,10 @@ func renderReviewStatus(result reviewStatusResult, markdown bool) {
 	for idx, blocker := range result.Blockers {
 		blockerRows = append(blockerRows, []string{fmt.Sprintf("blocker_%d", idx+1), blocker})
 	}
-	shared.RenderSection("Blocking Issues", []string{"id", "detail"}, blockerRows, markdown)
+	d.RenderSection("Blocking Issues", []string{"id", "detail"}, blockerRows, markdown)
 }
 
-func renderReviewDoctor(result reviewDoctorResult, markdown bool) {
+func renderReviewDoctor(d *shared.Deps, result reviewDoctorResult, markdown bool) {
 	rows := [][]string{
 		{"appId", result.AppID},
 		{"reviewState", shared.OrNA(result.ReviewState)},
@@ -734,7 +731,7 @@ func renderReviewDoctor(result reviewDoctorResult, markdown bool) {
 		{"warningCount", fmt.Sprintf("%d", len(result.WarningChecks))},
 		{"nextAction", shared.OrNA(result.NextAction)},
 	}
-	shared.RenderSection("Summary", []string{"field", "value"}, rows, markdown)
+	d.RenderSection("Summary", []string{"field", "value"}, rows, markdown)
 
 	contextRows := [][]string{
 		{"versionId", shared.OrNA(reviewVersionField(result.Version, func(v *reviewVersionContext) string { return v.ID }))},
@@ -745,20 +742,20 @@ func renderReviewDoctor(result reviewDoctorResult, markdown bool) {
 		{"reviewDetailId", shared.OrNA(result.ReviewDetailID)},
 		{"latestSubmissionId", shared.OrNA(reviewSubmissionField(result.LatestSubmission, func(s *reviewSubmissionContext) string { return s.ID }))},
 	}
-	shared.RenderSection("Current Review", []string{"field", "value"}, contextRows, markdown)
+	d.RenderSection("Current Review", []string{"field", "value"}, contextRows, markdown)
 
 	coverageRows := make([][]string, 0, len(result.CoverageWarnings))
 	for _, warning := range result.CoverageWarnings {
 		coverageRows = append(coverageRows, []string{warning.ID, warning.Status, warning.Message, warning.Remediation})
 	}
-	shared.RenderSection("Coverage Warnings", []string{"id", "status", "message", "remediation"}, coverageRows, markdown)
+	d.RenderSection("Coverage Warnings", []string{"id", "status", "message", "remediation"}, coverageRows, markdown)
 
 	if len(result.BlockingChecks) > 0 {
 		blockerRows := make([][]string, 0, len(result.BlockingChecks))
 		for _, check := range result.BlockingChecks {
 			blockerRows = append(blockerRows, []string{check.ID, check.Message, shared.OrNA(check.Remediation)})
 		}
-		shared.RenderSection("Blocking Issues", []string{"id", "message", "remediation"}, blockerRows, markdown)
+		d.RenderSection("Blocking Issues", []string{"id", "message", "remediation"}, blockerRows, markdown)
 	}
 
 	if len(result.WarningChecks) > 0 {
@@ -766,7 +763,7 @@ func renderReviewDoctor(result reviewDoctorResult, markdown bool) {
 		for _, check := range result.WarningChecks {
 			warningRows = append(warningRows, []string{check.ID, check.Message, shared.OrNA(check.Remediation)})
 		}
-		shared.RenderSection("Warnings", []string{"id", "message", "remediation"}, warningRows, markdown)
+		d.RenderSection("Warnings", []string{"id", "message", "remediation"}, warningRows, markdown)
 	}
 }
 

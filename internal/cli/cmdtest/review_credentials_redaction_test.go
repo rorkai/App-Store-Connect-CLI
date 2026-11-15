@@ -68,24 +68,15 @@ func TestReviewDetailsGetRedactsDemoAccountPasswordInEveryFormat(t *testing.T) {
 
 	for _, format := range formats {
 		t.Run(format.name, func(t *testing.T) {
-			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			reg.Register(asctest.GET("/v1/appStoreReviewDetails/detail-1"), asctest.JSON(http.StatusOK, appStoreReviewDetailJSON()))
 
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
 			args := append([]string{"review", "details-get", "--id", "detail-1"}, format.args...)
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
+			stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), args...)
+			if err != nil {
+				t.Fatalf("run error: %v", err)
+			}
 
 			assertNoSentinel(t, "stdout", appStoreDemoPasswordSentinel, stdout)
 			assertNoSentinel(t, "stderr", appStoreDemoPasswordSentinel, stderr)
@@ -102,18 +93,14 @@ func TestReviewDetailsGetRedactsDemoAccountPasswordInEveryFormat(t *testing.T) {
 }
 
 func TestReviewDetailsGetIncludesDemoAccountPasswordWithIncludeSensitive(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/appStoreReviewDetails/detail-1"), asctest.JSON(http.StatusOK, appStoreReviewDetailJSON()))
 
-	stdout, stderr, err := runCommand(t, []string{
-		"review", "details-get",
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "review", "details-get",
 		"--id", "detail-1",
 		"--output", "json",
-		"--include-sensitive",
-	})
+		"--include-sensitive")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -137,13 +124,11 @@ func TestReviewDetailsGetIncludesDemoAccountPasswordWithIncludeSensitive(t *test
 }
 
 func TestReviewDetailsForVersionRedactsDemoAccountPassword(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreReviewDetail"), asctest.JSON(http.StatusOK, appStoreReviewDetailJSON()))
 
-	stdout, stderr, err := runCommand(t, []string{"review", "details-for-version", "--version-id", "version-1", "--output", "json"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "review", "details-for-version", "--version-id", "version-1", "--output", "json")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -162,6 +147,7 @@ func TestIncludedReviewDetailsRedactDemoAccountPasswordByDefault(t *testing.T) {
 		query []string
 		args  []string
 		body  string
+		deps  bool
 	}{
 		{
 			name:  "versions view",
@@ -176,6 +162,7 @@ func TestIncludedReviewDetailsRedactDemoAccountPasswordByDefault(t *testing.T) {
 		},
 		{
 			name:  "review attachment list",
+			deps:  true,
 			path:  "/v1/appStoreReviewDetails/detail-1/appStoreReviewAttachments",
 			query: []string{"fields[appStoreReviewDetails]=demoAccountPassword", "include=appStoreReviewDetail"},
 			args: []string{
@@ -186,6 +173,7 @@ func TestIncludedReviewDetailsRedactDemoAccountPasswordByDefault(t *testing.T) {
 		},
 		{
 			name:  "review attachment get",
+			deps:  true,
 			path:  "/v1/appStoreReviewAttachments/attachment-1",
 			query: []string{"fields[appStoreReviewDetails]=demoAccountPassword", "include=appStoreReviewDetail"},
 			args: []string{
@@ -199,22 +187,31 @@ func TestIncludedReviewDetailsRedactDemoAccountPasswordByDefault(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			reg.Register(asctest.GET(test.path, test.query...), asctest.JSON(http.StatusOK, test.body))
 
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
+			var stdout, stderr string
+			if test.deps {
+				var runErr error
+				stdout, stderr, runErr = runRootWithDeps(t, stubClient(t, reg), test.args...)
+				if runErr != nil {
+					t.Fatalf("run error: %v", runErr)
 				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
+			} else {
+				setupAuth(t)
+				reg.Install()
+				root := RootCommand("1.2.3")
+				root.FlagSet.SetOutput(io.Discard)
+				stdout, stderr = captureOutput(t, func() {
+					if err := root.Parse(test.args); err != nil {
+						t.Fatalf("parse error: %v", err)
+					}
+					if err := root.Run(context.Background()); err != nil {
+						t.Fatalf("run error: %v", err)
+					}
+				})
+			}
 
 			assertNoSentinel(t, "stdout", appStoreDemoPasswordSentinel, stdout)
 			assertNoSentinel(t, "stderr", appStoreDemoPasswordSentinel, stderr)
@@ -226,15 +223,12 @@ func TestIncludedReviewDetailsRedactDemoAccountPasswordByDefault(t *testing.T) {
 }
 
 func TestReviewDetailsCreateSendsPasswordButRedactsResponse(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.POST("/v1/appStoreReviewDetails"), asctest.JSON(http.StatusCreated, appStoreReviewDetailJSON()))
 
-	stdout, stderr, err := runCommand(t, []string{
-		"review", "details-create",
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "review", "details-create",
 		"--version-id", "version-1",
 		"--contact-first-name", "Dev",
 		"--contact-last-name", "Support",
@@ -243,8 +237,7 @@ func TestReviewDetailsCreateSendsPasswordButRedactsResponse(t *testing.T) {
 		"--output", "json",
 		"--demo-account-required=true",
 		"--demo-account-name", "reviewer@example.com",
-		"--demo-account-password", appStoreDemoPasswordSentinel,
-	})
+		"--demo-account-password", appStoreDemoPasswordSentinel)
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -259,19 +252,15 @@ func TestReviewDetailsCreateSendsPasswordButRedactsResponse(t *testing.T) {
 }
 
 func TestReviewDetailsUpdateSendsPasswordButRedactsResponse(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.PATCH("/v1/appStoreReviewDetails/detail-1"), asctest.JSON(http.StatusOK, appStoreReviewDetailJSON()))
 
-	stdout, stderr, err := runCommand(t, []string{
-		"review", "details-update",
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "review", "details-update",
 		"--id", "detail-1",
 		"--output", "json",
-		"--demo-account-password", appStoreDemoPasswordSentinel,
-	})
+		"--demo-account-password", appStoreDemoPasswordSentinel)
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}

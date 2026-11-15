@@ -1,14 +1,12 @@
 package cmdtest
 
 import (
-	"context"
 	"net/http"
 	"strings"
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	reviewcli "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/reviews"
 )
 
 func TestReviewSubmissionsCreateReportsPartialCreateID(t *testing.T) {
@@ -20,19 +18,9 @@ func TestReviewSubmissionsCreateReportsPartialCreateID(t *testing.T) {
 		}
 		return jsonResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissions","id":"sub-partial"},"errors":[]}`)
 	}))
-	restore := reviewcli.SetReviewSubmissionsClientFactory(func() (*asc.Client, error) {
+	stdout, stderr, runErr := runRootWithDeps(t, func() (*asc.Client, error) {
 		return client, nil
-	})
-	defer restore()
-
-	root := RootCommand("1.2.3")
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"review", "submissions-create", "--app", "app-1"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	}, "review", "submissions-create", "--app", "app-1")
 
 	if runErr == nil || !strings.Contains(runErr.Error(), "sub-partial") ||
 		!strings.Contains(runErr.Error(), "asc submit cancel --id sub-partial --confirm") {
@@ -55,20 +43,12 @@ func TestReviewSubmissionsCreateCleanResponseStillSucceeds(t *testing.T) {
 		}
 		return jsonResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissions","id":"sub-clean"}}`)
 	}))
-	restore := reviewcli.SetReviewSubmissionsClientFactory(func() (*asc.Client, error) {
+	stdout, stderr, runErr := runRootWithDeps(t, func() (*asc.Client, error) {
 		return client, nil
-	})
-	defer restore()
-
-	root := RootCommand("1.2.3")
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"review", "submissions-create", "--app", "app-1"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	}, "review", "submissions-create", "--app", "app-1")
+	if runErr != nil {
+		t.Fatalf("run error: %v", runErr)
+	}
 
 	if requests != 1 || !strings.Contains(stdout, `"id":"sub-clean"`) || stderr != "" {
 		t.Fatalf("requests = %d, stdout = %q, stderr = %q, want successful create output", requests, stdout, stderr)
@@ -147,7 +127,7 @@ func TestReviewCommandSubmissionsValidationErrors(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			assertUsageExit(t, test.args, test.wantErr)
+			assertUsageExitWithDeps(t, nil, test.args, test.wantErr)
 		})
 	}
 }
@@ -222,7 +202,7 @@ func TestReviewCommandItemsValidationErrors(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			assertUsageExit(t, test.args, test.wantErr)
+			assertUsageExitWithDeps(t, nil, test.args, test.wantErr)
 		})
 	}
 }
@@ -230,17 +210,15 @@ func TestReviewCommandItemsValidationErrors(t *testing.T) {
 func TestReviewCommandItemsInvalidItemType(t *testing.T) {
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 
-	stdout, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{
-			"review", "items-add",
-			"--submission", "SUBMISSION_ID",
-			"--item-type", "nope",
-			"--item-id", "ITEM_ID",
-		}, "1.2.3")
-		if code != cmd.ExitUsage {
-			t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, nil,
+		"review", "items-add",
+		"--submission", "SUBMISSION_ID",
+		"--item-type", "nope",
+		"--item-id", "ITEM_ID",
+	)
+	if code != cmd.ExitUsage {
+		t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
+	}
 
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)

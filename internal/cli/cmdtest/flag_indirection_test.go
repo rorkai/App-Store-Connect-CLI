@@ -87,24 +87,22 @@ func TestFlagIndirectionFileValueReachesRequestBody(t *testing.T) {
 
 func TestFlagIndirectionEnvValueReachesRequestBody(t *testing.T) {
 	t.Setenv("ASC_TEST_WEBHOOK_SECRET", "hunter2-from-env")
-	reg := installIndirectionTransport(t)
+	reg := asctest.NewRegistry(t)
 	reg.Register(asctest.POST("/v1/webhooks").JSONBody(`{"data":{"type":"webhooks","attributes":{"enabled":true,"eventTypes":["BUILD_UPLOAD_STATE_UPDATED"],"name":"Build Updates","secret":"hunter2-from-env","url":"https://example.com/webhook"},"relationships":{"app":{"data":{"type":"apps","id":"APP_ID"}}}}}`),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"webhooks","id":"wh-1","attributes":{"name":"Build Updates","url":"https://example.com/webhook","enabled":true,"eventTypes":["BUILD_UPLOAD_STATE_UPDATED"]}}}`))
 
-	stdout, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{
-			"webhooks", "create",
-			"--app", "APP_ID",
-			"--name", "Build Updates",
-			"--url", "https://example.com/webhook",
-			"--secret", "@env:ASC_TEST_WEBHOOK_SECRET",
-			"--events", "BUILD_UPLOAD_STATE_UPDATED",
-			"--enabled", "true",
-		}, "1.2.3")
-		if code != cmd.ExitSuccess {
-			t.Fatalf("exit code = %d, want %d", code, cmd.ExitSuccess)
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, stubClient(t, reg),
+		"webhooks", "create",
+		"--app", "APP_ID",
+		"--name", "Build Updates",
+		"--url", "https://example.com/webhook",
+		"--secret", "@env:ASC_TEST_WEBHOOK_SECRET",
+		"--events", "BUILD_UPLOAD_STATE_UPDATED",
+		"--enabled", "true",
+	)
+	if code != cmd.ExitSuccess {
+		t.Fatalf("exit code = %d, want %d", code, cmd.ExitSuccess)
+	}
 	bodies := requestBodies(reg)
 	if stderr != "" {
 		t.Fatalf("stderr = %q, want empty", stderr)
@@ -149,16 +147,19 @@ func TestFlagIndirectionErrorsAreUsageErrorsBeforeAnyRequest(t *testing.T) {
 		name string
 		args []string
 		want string
+		deps bool // the command is built on shared.Deps: run it through RunWithDeps
 	}{
 		{
 			name: "unset environment variable",
 			args: []string{"webhooks", "create", "--app", "APP_ID", "--name", "n", "--url", "https://example.com", "--secret", "@env:ASC_TEST_INDIRECT_UNSET", "--events", "BUILD_UPLOAD_STATE_UPDATED", "--enabled", "true"},
 			want: "Error: --secret: environment variable ASC_TEST_INDIRECT_UNSET is not set\n",
+			deps: true,
 		},
 		{
 			name: "empty environment variable",
 			args: []string{"webhooks", "create", "--app", "APP_ID", "--secret=@env:ASC_TEST_INDIRECT_EMPTY"},
 			want: "Error: --secret: environment variable ASC_TEST_INDIRECT_EMPTY is empty\n",
+			deps: true,
 		},
 		{
 			name: "missing file",
@@ -168,11 +169,18 @@ func TestFlagIndirectionErrorsAreUsageErrorsBeforeAnyRequest(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			reg := installIndirectionTransport(t)
+			var stdout, stderr string
 			var code int
-			stdout, stderr := captureOutput(t, func() {
-				code = cmd.Run(test.args, "1.2.3")
-			})
+			var reg *asctest.Registry
+			if test.deps {
+				reg = asctest.NewRegistry(t)
+				stdout, stderr, code = runWithDeps(t, stubClient(t, reg), test.args...)
+			} else {
+				reg = installIndirectionTransport(t)
+				stdout, stderr = captureOutput(t, func() {
+					code = cmd.Run(test.args, "1.2.3")
+				})
+			}
 			if code != cmd.ExitUsage {
 				t.Fatalf("exit code = %d, want %d; stderr=%q", code, cmd.ExitUsage, stderr)
 			}

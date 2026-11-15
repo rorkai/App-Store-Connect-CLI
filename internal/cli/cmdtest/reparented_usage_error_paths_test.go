@@ -20,14 +20,15 @@ import (
 func TestReparentedCommandUsageErrorsNameTheTypedPath(t *testing.T) {
 	setupUsageExitCodeEnv(t)
 	t.Chdir(t.TempDir())
-	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) { return nil, errors.New("client requested") }))
+	poisonClient := func() (*asc.Client, error) { return nil, errors.New("client requested") }
+	t.Cleanup(shared.SetASCClientFactoryForTesting(poisonClient))
 	commandPrefix := regexp.MustCompile(`^Error: ([a-z0-9][a-z0-9-]*(?: [a-z0-9][a-z0-9-]*)+): `)
 
-	var walk func(cmd *ffcli.Command, path []string)
-	walk = func(cmd *ffcli.Command, path []string) {
+	var walk func(cmd *ffcli.Command, path []string, deps bool)
+	walk = func(cmd *ffcli.Command, path []string, deps bool) {
 		if len(cmd.Subcommands) > 0 {
 			for _, sub := range cmd.Subcommands {
-				walk(sub, append(append([]string{}, path...), sub.Name))
+				walk(sub, append(append([]string{}, path...), sub.Name), deps)
 			}
 			return
 		}
@@ -47,10 +48,16 @@ func TestReparentedCommandUsageErrorsNameTheTypedPath(t *testing.T) {
 		})
 		typed := strings.Join(path, " ")
 		for _, input := range inputs {
+			args := append(append([]string{}, path...), input...)
 			var code int
-			_, stderr := captureOutput(t, func() {
-				code = rootcmd.Run(append(append([]string{}, path...), input...), "1.2.3")
-			})
+			var stderr string
+			if deps {
+				_, stderr, code = runWithDeps(t, poisonClient, args...)
+			} else {
+				_, stderr = captureOutput(t, func() {
+					code = rootcmd.Run(args, "1.2.3")
+				})
+			}
 			if code != rootcmd.ExitUsage {
 				continue
 			}
@@ -67,7 +74,14 @@ func TestReparentedCommandUsageErrorsNameTheTypedPath(t *testing.T) {
 	}
 
 	root := RootCommand("1.2.3")
-	for _, tree := range [][]string{{"review", "submissions"}, {"subscriptions"}, {"testflight"}} {
-		walk(findCommand(root, tree...), tree)
+	for _, tree := range []struct {
+		path []string
+		deps bool
+	}{
+		{path: []string{"review", "submissions"}, deps: true},
+		{path: []string{"subscriptions"}},
+		{path: []string{"testflight"}},
+	} {
+		walk(findCommand(root, tree.path...), tree.path, tree.deps)
 	}
 }

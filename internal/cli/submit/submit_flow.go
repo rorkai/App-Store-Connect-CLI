@@ -47,10 +47,10 @@ type SubmitResolvedVersionResult struct {
 	Messages         []string               `json:"messages,omitempty"`
 }
 
-// SubmissionLocalizationPreflight runs the submission-blocking localization
-// preflight used by submit-style App Store review flows.
-func SubmissionLocalizationPreflight(ctx context.Context, client *asc.Client, appID, versionID, platform, retryCommand string) error {
-	return SubmissionLocalizationPreflightWithTimeout(ctx, client, appID, versionID, platform, 0, retryCommand)
+// SubmissionLocalizationPreflightWith runs the submission-blocking
+// localization preflight used by submit-style App Store review flows on d.
+func SubmissionLocalizationPreflightWith(ctx context.Context, d *shared.Deps, client *asc.Client, appID, versionID, platform, retryCommand string) error {
+	return runSubmissionLocalizationPreflight(ctx, d, client, appID, versionID, platform, 0, "", retryCommand)
 }
 
 // SubmissionLocalizationPreflightWithTimeout runs localization preflight with
@@ -65,16 +65,21 @@ func SubmissionLocalizationPreflightWithTimeout(
 	return runSubmissionLocalizationPreflight(ctx, shared.DefaultDeps(), client, appID, versionID, platform, requestTimeout, "", retryCommand)
 }
 
+// SubmissionSubscriptionPreflightWith runs the advisory subscription preflight
+// used by submit-style App Store review flows on d.
+func SubmissionSubscriptionPreflightWith(ctx context.Context, d *shared.Deps, client *asc.Client, appID, retryCommand string) {
+	runSubmissionSubscriptionPreflight(ctx, d, client, appID, 0, retryCommand)
+}
+
 // SubmissionAgeRatingPreflight runs the age rating declaration check from
 // `asc validate` and fails when a required answer is missing or invalid.
 func SubmissionAgeRatingPreflight(ctx context.Context, client *asc.Client, appID, versionID string, requestTimeout time.Duration, retryCommand string) error {
-	return runSubmissionAgeRatingPreflight(ctx, shared.DefaultDeps(), client, appID, versionID, requestTimeout, retryCommand)
+	return SubmissionAgeRatingPreflightWith(ctx, shared.DefaultDeps(), client, appID, versionID, requestTimeout, retryCommand)
 }
 
-// SubmissionSubscriptionPreflight runs the advisory subscription preflight used
-// by submit-style App Store review flows.
-func SubmissionSubscriptionPreflight(ctx context.Context, client *asc.Client, appID, retryCommand string) {
-	SubmissionSubscriptionPreflightWithTimeout(ctx, client, appID, 0, retryCommand)
+// SubmissionAgeRatingPreflightWith runs the age rating declaration check on d.
+func SubmissionAgeRatingPreflightWith(ctx context.Context, d *shared.Deps, client *asc.Client, appID, versionID string, requestTimeout time.Duration, retryCommand string) error {
+	return runSubmissionAgeRatingPreflight(ctx, d, client, appID, versionID, requestTimeout, retryCommand)
 }
 
 // SubmissionSubscriptionPreflightWithTimeout runs subscription preflight with
@@ -181,6 +186,11 @@ func ensureBuildAttached(ctx context.Context, d *shared.Deps, client *asc.Client
 // already-resolved version ID.
 func SubmitResolvedVersion(ctx context.Context, client *asc.Client, opts SubmitResolvedVersionOptions) (SubmitResolvedVersionResult, error) {
 	return submitResolvedVersion(ctx, shared.DefaultDeps(), client, opts)
+}
+
+// SubmitResolvedVersionWith is SubmitResolvedVersion on d.
+func SubmitResolvedVersionWith(ctx context.Context, d *shared.Deps, client *asc.Client, opts SubmitResolvedVersionOptions) (SubmitResolvedVersionResult, error) {
+	return submitResolvedVersion(ctx, d, client, opts)
 }
 
 func submitResolvedVersion(ctx context.Context, d *shared.Deps, client *asc.Client, opts SubmitResolvedVersionOptions) (SubmitResolvedVersionResult, error) {

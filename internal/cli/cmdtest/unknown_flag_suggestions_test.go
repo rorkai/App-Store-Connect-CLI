@@ -20,6 +20,7 @@ func TestUnknownFlagSuggestsTheIntendedFlag(t *testing.T) {
 		name string
 		args []string
 		want string
+		deps bool
 	}{
 		{
 			name: "submit status --app",
@@ -59,6 +60,7 @@ func TestUnknownFlagSuggestsTheIntendedFlag(t *testing.T) {
 		{
 			name: "review details-get --version-id",
 			args: []string{"review", "details-get", "--version-id", "PRIVATE_VALUE"},
+			deps: true,
 			want: "Error: unknown flag `--version-id` for `asc review details-get`\n" +
 				"Try:\n  --id\n" +
 				"For help:\n  asc review details-get --help\n",
@@ -136,9 +138,14 @@ func TestUnknownFlagSuggestsTheIntendedFlag(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			var code int
-			stdout, stderr := captureOutput(t, func() {
-				code = rootcmd.Run(test.args, "5.6.0")
-			})
+			var stdout, stderr string
+			if test.deps {
+				stdout, stderr, code = runWithDeps(t, nil, test.args...)
+			} else {
+				stdout, stderr = captureOutput(t, func() {
+					code = rootcmd.Run(test.args, "5.6.0")
+				})
+			}
 			if code != rootcmd.ExitUsage {
 				t.Fatalf("exit code = %d, want %d; stderr=%q", code, rootcmd.ExitUsage, stderr)
 			}

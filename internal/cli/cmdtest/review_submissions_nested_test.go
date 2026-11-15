@@ -1,10 +1,8 @@
 package cmdtest
 
 import (
-	"context"
 	"errors"
 	"flag"
-	"io"
 	"net/http"
 	"path/filepath"
 	"reflect"
@@ -24,7 +22,6 @@ type reviewSubmissionsSurfaceResult struct {
 }
 
 func TestReviewSubmissionsNestedListMatchesFlatSurface(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
@@ -33,7 +30,6 @@ func TestReviewSubmissionsNestedListMatchesFlatSurface(t *testing.T) {
 		{"review", "submissions", "list"},
 	}
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	results := make([]reviewSubmissionsSurfaceResult, 0, len(surfaces))
 	for _, surface := range surfaces {
 		args := append(
@@ -75,13 +71,11 @@ func TestReviewSubmissionsNestedListMatchesFlatSurface(t *testing.T) {
 }
 
 func TestReviewSubmissionsNestedListMatchesFlatTableOutput(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	response := `{"data":[{"type":"reviewSubmissions","id":"submission-1","attributes":{"platform":"IOS","state":"READY_FOR_REVIEW"}}],"links":{"self":"/v1/apps/app-1/reviewSubmissions"}}`
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	flat := runReviewSubmissionsSurface(
 		t, reg,
 		[]string{"review", "submissions-list", "--app", "app-1", "--output", "table"},
@@ -108,13 +102,11 @@ func TestReviewSubmissionsNestedListMatchesFlatTableOutput(t *testing.T) {
 }
 
 func TestReviewSubmissionsNestedListMatchesFlatAPIError(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	response := `{"errors":[{"status":"403","code":"FORBIDDEN_ERROR","title":"Forbidden","detail":"Not allowed."}]}`
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	flat := runReviewSubmissionsSurface(
 		t, reg,
 		[]string{"review", "submissions-list", "--app", "app-1"},
@@ -158,17 +150,10 @@ func TestReviewSubmissionsNestedListValidatesBeforeAuth(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("error = %v, want usage error", err)
-				}
-			})
+			stdout, stderr, err := runRootWithDeps(t, nil, test.args...)
+			if !errors.Is(err, flag.ErrHelp) {
+				t.Fatalf("error = %v, want usage error", err)
+			}
 			if stdout != "" {
 				t.Fatalf("stdout = %q, want empty", stdout)
 			}
@@ -189,7 +174,7 @@ func runReviewSubmissionsSurface(t *testing.T, reg *asctest.Registry, args, quer
 	before := len(reg.Requests())
 	result := reviewSubmissionsSurfaceResult{}
 	var err error
-	result.stdout, result.stderr, err = runCommand(t, args)
+	result.stdout, result.stderr, err = runRootWithDeps(t, stubClient(t, reg), args...)
 	if err != nil {
 		result.err = err.Error()
 	}

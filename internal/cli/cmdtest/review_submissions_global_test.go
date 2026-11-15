@@ -58,7 +58,6 @@ func TestReviewSubmissionsListSelectorRequests(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			setupAuth(t)
 			t.Setenv("ASC_APP_ID", test.envAppID)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
@@ -67,10 +66,9 @@ func TestReviewSubmissionsListSelectorRequests(t *testing.T) {
 				query = append(query, key+"="+want)
 			}
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			reg.Register(asctest.GET(test.wantPath, query...), asctest.JSON(http.StatusOK, test.body))
 
-			stdout, stderr, err := runCommand(t, test.args)
+			stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), test.args...)
 			if err != nil {
 				t.Fatalf("run error: %v", err)
 			}
@@ -109,7 +107,6 @@ func TestReviewSubmissionsItemFieldsAutomaticallyIncludeItems(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			setupAuth(t)
 			t.Setenv("ASC_APP_ID", "")
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
@@ -118,10 +115,9 @@ func TestReviewSubmissionsItemFieldsAutomaticallyIncludeItems(t *testing.T) {
 				body = `{"data":[],"links":{"self":"/v1/reviewSubmissions"}}`
 			}
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			reg.Register(asctest.GET(test.path, append([]string{"include=items", "fields[reviewSubmissionItems]=" + test.wantFields}, test.extraQuery...)...), asctest.JSON(http.StatusOK, body))
 
-			_, stderr, err := runCommand(t, test.args)
+			_, stderr, err := runRootWithDeps(t, stubClient(t, reg), test.args...)
 			if err != nil {
 				t.Fatalf("run error: %v", err)
 			}
@@ -192,7 +188,6 @@ func TestReviewItemsVersionFieldsAutomaticallyIncludeRelatedResources(t *testing
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 			query := []string{"include=" + test.wantInclude, test.wantQueryName + "=" + test.field}
@@ -200,7 +195,6 @@ func TestReviewItemsVersionFieldsAutomaticallyIncludeRelatedResources(t *testing
 				query = append(query, "fields[reviewSubmissionItems]="+test.wantItemFields)
 			}
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			reg.Register(asctest.GET("/v1/reviewSubmissions/submission-1/items", query...),
 				asctest.JSON(http.StatusOK, `{"data":[],"links":{"self":"/v1/reviewSubmissions/submission-1/items"}}`))
 
@@ -212,7 +206,7 @@ func TestReviewItemsVersionFieldsAutomaticallyIncludeRelatedResources(t *testing
 				args = append(args, "--include", test.include)
 			}
 			args = append(args, test.flag, test.field)
-			_, stderr, err := runCommand(t, args)
+			_, stderr, err := runRootWithDeps(t, stubClient(t, reg), args...)
 			if err != nil {
 				t.Fatalf("run error: %v", err)
 			}
@@ -224,18 +218,16 @@ func TestReviewItemsVersionFieldsAutomaticallyIncludeRelatedResources(t *testing
 }
 
 func TestReviewSubmissionsListGlobalPaginate(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/reviewSubmissions", "filter[app]=app-1", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"reviewSubmissions","id":"rs-1","attributes":{"platform":"IOS"}}],"links":{"self":"/v1/reviewSubmissions","next":"https://api.appstoreconnect.apple.com/v1/reviewSubmissions?cursor=page2"}}`))
 	reg.Register(asctest.GET("/v1/reviewSubmissions", "cursor=page2"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"reviewSubmissions","id":"rs-2","attributes":{"platform":"MAC_OS"}}],"links":{"self":"/v1/reviewSubmissions"}}`))
 
-	stdout, stderr, err := runCommand(t, []string{"review", "submissions-list", "--global", "--app", "app-1", "--paginate"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "review", "submissions-list", "--global", "--app", "app-1", "--paginate")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}

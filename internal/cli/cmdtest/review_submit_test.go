@@ -1,9 +1,7 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
-	"io"
 	"net/http"
 	"net/url"
 	"path/filepath"
@@ -56,18 +54,16 @@ func TestReviewSubmitValidationErrors(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			assertUsageExit(t, test.args, test.wantErr)
+			assertUsageExitWithDeps(t, nil, test.args, test.wantErr)
 		})
 	}
 }
 
 func TestReviewSubmitLocalizationPreflightUsesReviewSubmitGuidance(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/appStoreVersions/version-1", "include=app"), asctest.JSON(http.StatusOK, `{
 		"data":{
 			"type":"appStoreVersions",
@@ -82,22 +78,11 @@ func TestReviewSubmitLocalizationPreflightUsesReviewSubmitGuidance(t *testing.T)
 	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[appStoreState]=READY_FOR_SALE,DEVELOPER_REMOVED_FROM_SALE,REMOVED_FROM_SALE", "filter[platform]=IOS", "limit=1"), asctest.JSON(http.StatusOK, `{"data":[]}`))
 	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[appVersionState]=READY_FOR_DISTRIBUTION", "filter[platform]=IOS", "limit=1"), asctest.JSON(http.StatusOK, `{"data":[]}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"review", "submit",
-			"--app", "app-1",
-			"--version-id", "version-1",
-			"--build-id", "build-1",
-			"--confirm",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	_, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), "review", "submit",
+		"--app", "app-1",
+		"--version-id", "version-1",
+		"--build-id", "build-1",
+		"--confirm")
 	if runErr == nil {
 		t.Fatal("expected localization preflight error, got nil")
 	}
@@ -153,12 +138,10 @@ func TestReviewSubmitAgeRatingPreflightStopsBeforeSubmission(t *testing.T) {
 }
 
 func TestReviewSubmitPreflightRequiresWhatsNewWhenOnlyAppVersionStateIsLive(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/appStoreVersions/version-1", "include=app"), asctest.JSON(http.StatusOK, `{
 		"data":{
 			"type":"appStoreVersions",
@@ -173,22 +156,11 @@ func TestReviewSubmitPreflightRequiresWhatsNewWhenOnlyAppVersionStateIsLive(t *t
 	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[appStoreState]=READY_FOR_SALE,DEVELOPER_REMOVED_FROM_SALE,REMOVED_FROM_SALE", "filter[platform]=IOS", "limit=1"), asctest.JSON(http.StatusOK, `{"data":[]}`))
 	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[appVersionState]=READY_FOR_DISTRIBUTION", "filter[platform]=IOS", "limit=1"), asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-0","attributes":{"platform":"IOS","versionString":"1.0.0","appVersionState":"READY_FOR_DISTRIBUTION"}}]}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"review", "submit",
-			"--app", "app-1",
-			"--version-id", "version-1",
-			"--build-id", "build-1",
-			"--confirm",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	_, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), "review", "submit",
+		"--app", "app-1",
+		"--version-id", "version-1",
+		"--build-id", "build-1",
+		"--confirm")
 	if runErr == nil || !strings.Contains(runErr.Error(), "review submit: submit preflight failed") {
 		t.Fatalf("expected submit preflight failure, got %v", runErr)
 	}
@@ -208,12 +180,10 @@ func TestReviewSubmitPreflightRequiresWhatsNewWhenOnlyAppVersionStateIsLive(t *t
 }
 
 func TestReviewSubmitSubscriptionPreflightUsesReviewSubmitGuidance(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/appStoreVersions/version-1", "include=app"), asctest.JSON(http.StatusOK, `{
 		"data":{
 			"type":"appStoreVersions",
@@ -232,14 +202,12 @@ func TestReviewSubmitSubscriptionPreflightUsesReviewSubmitGuidance(t *testing.T)
 	reg.Register(asctest.GET("/v1/subscriptionGroups/group-1/subscriptions", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[{"type":"subscriptions","id":"sub-1","attributes":{"name":"Monthly","state":"READY_TO_SUBMIT"}}],"links":{}}`))
 	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/build"), asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`))
 
-	stdout, stderr, err := runCommand(t, []string{
-		"review", "submit",
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "review", "submit",
 		"--app", "app-1",
 		"--version-id", "version-1",
 		"--build-id", "build-1",
 		"--dry-run",
-		"--output", "json",
-	})
+		"--output", "json")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -264,12 +232,10 @@ func TestReviewSubmitSubscriptionPreflightUsesReviewSubmitGuidance(t *testing.T)
 }
 
 func TestReviewSubmitDryRunPreviewsWithoutMutations(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/appStoreVersions/version-1", "include=app"), asctest.JSON(http.StatusOK, `{
 		"data":{
 			"type":"appStoreVersions",
@@ -287,14 +253,12 @@ func TestReviewSubmitDryRunPreviewsWithoutMutations(t *testing.T) {
 	registerSubmitPreflightAppInfos(reg, completeAgeRatingAttributes)
 	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/build"), asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`))
 
-	stdout, stderr, runErr := runCommand(t, []string{
-		"review", "submit",
+	stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), "review", "submit",
 		"--app", "app-1",
 		"--version-id", "version-1",
 		"--build-id", "build-1",
 		"--dry-run",
-		"--output", "json",
-	})
+		"--output", "json")
 	if runErr != nil {
 		t.Fatalf("run error: %v", runErr)
 	}
@@ -352,12 +316,10 @@ func TestReviewSubmitDryRunPreviewsWithoutMutations(t *testing.T) {
 }
 
 func TestReviewSubmitUsesModernReviewSubmissionFlow(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[platform]=IOS", "filter[versionString]=1.2.3", "limit=10"), asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}]}`))
 	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionSubmission"), asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`))
 	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"locale":"en-US","description":"Description","keywords":"keyword","supportUrl":"https://example.com/support"}}]}`))
@@ -376,14 +338,12 @@ func TestReviewSubmitUsesModernReviewSubmissionFlow(t *testing.T) {
 	reg.Register(asctest.GET("/v1/reviewSubmissions/review-sub-1/items", "fields[reviewSubmissionItems]=appStoreVersion", "include=appStoreVersion", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[{"type":"reviewSubmissionItems","id":"item-1","relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"version-1"}}}}],"links":{"self":"/v1/reviewSubmissions/review-sub-1/items"}}`))
 	reg.Register(asctest.PATCH("/v1/reviewSubmissions/review-sub-1").JSONBody(`{"data":{"type":"reviewSubmissions","id":"review-sub-1","attributes":{"submitted":true}}}`), asctest.JSON(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"review-sub-1","attributes":{"state":"WAITING_FOR_REVIEW","submittedDate":"2026-04-08T00:00:00Z"}}}`))
 
-	stdout, stderr, err := runCommand(t, []string{
-		"review", "submit",
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "review", "submit",
 		"--app", "app-1",
 		"--version", "1.2.3",
 		"--build-id", "build-1",
 		"--confirm",
-		"--output", "json",
-	})
+		"--output", "json")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -442,12 +402,10 @@ func TestReviewSubmitUsesModernReviewSubmissionFlow(t *testing.T) {
 }
 
 func TestReviewSubmitAlreadySubmittedSkipsPreflightAndBuildAttachment(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/appStoreVersions/version-1", "include=app"), asctest.JSON(http.StatusOK, `{
 		"data":{
 			"type":"appStoreVersions",
@@ -459,14 +417,12 @@ func TestReviewSubmitAlreadySubmittedSkipsPreflightAndBuildAttachment(t *testing
 	}`))
 	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionSubmission"), asctest.JSON(http.StatusOK, `{"data":{"type":"appStoreVersionSubmissions","id":"legacy-sub-1"}}`))
 
-	stdout, stderr, err := runCommand(t, []string{
-		"review", "submit",
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "review", "submit",
 		"--app", "app-1",
 		"--version-id", "version-1",
 		"--build-id", "build-2",
 		"--confirm",
-		"--output", "json",
-	})
+		"--output", "json")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -524,12 +480,10 @@ func isReleasedVersionStateQuery(query url.Values) bool {
 }
 
 func TestReviewSubmitConflictAtFinalSubmitReportsCreatedSubmissionAndHints(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[platform]=IOS", "filter[versionString]=1.2.3", "limit=10"), asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}]}`))
 	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionSubmission"), asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`))
 	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"locale":"en-US","description":"Description","keywords":"keyword","supportUrl":"https://example.com/support"}}]}`))
@@ -548,15 +502,12 @@ func TestReviewSubmitConflictAtFinalSubmitReportsCreatedSubmissionAndHints(t *te
 	reg.Register(asctest.GET("/v1/reviewSubmissions/review-sub-1/items", "fields[reviewSubmissionItems]=appStoreVersion", "include=appStoreVersion", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[{"type":"reviewSubmissionItems","id":"item-1","relationships":{"appStoreVersion":{"data":{"type":"appStoreVersions","id":"version-1"}}}}],"links":{"self":"/v1/reviewSubmissions/review-sub-1/items"}}`))
 	reg.Register(asctest.PATCH("/v1/reviewSubmissions/review-sub-1").JSONBody(`{"data":{"type":"reviewSubmissions","id":"review-sub-1","attributes":{"submitted":true}}}`), asctest.JSON(http.StatusConflict, `{"errors":[{"status":"409","code":"STATE_ERROR.ENTITY_STATE_INVALID","title":"The request cannot be fulfilled because of the state of another resource.","detail":"Submission is not complete.","meta":{"associatedErrors":{"/v1/ageRatingDeclarations/age-1":[{"code":"ENTITY_ERROR.ATTRIBUTE.REQUIRED","detail":"An attribute value is required."}],"/v1/apps/app-1/contentRightsDeclaration":[{"code":"ENTITY_ERROR.ATTRIBUTE.REQUIRED","detail":"An attribute value is required."}]}}}]}`))
 
-	code, stdout, stderr := runASCForExitCode(
-		t,
-		"review", "submit",
+	stdout, stderr, code := runWithDeps(t, stubClient(t, reg), "review", "submit",
 		"--app", "app-1",
 		"--version", "1.2.3",
 		"--build-id", "build-1",
 		"--confirm",
-		"--output", "json",
-	)
+		"--output", "json")
 
 	if code != cmd.ExitConflict {
 		t.Fatalf("expected exit code %d, got %d (stderr %q)", cmd.ExitConflict, code, stderr)

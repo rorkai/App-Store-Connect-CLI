@@ -9,8 +9,6 @@ import (
 	"testing"
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 const starRatingReviewsPayload = `{"data":[{"type":"customerReviews","id":"review-1","attributes":{"rating":1,"title":"Bug","body":"Crashes","reviewerNickname":"Tester","createdDate":"2026-01-20T00:00:00Z","territory":"USA"}}]}`
@@ -28,7 +26,6 @@ func TestReviewsListEmitsStarRatingFilter(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 			requests := 0
@@ -45,15 +42,10 @@ func TestReviewsListEmitsStarRatingFilter(t *testing.T) {
 			}))
 			t.Cleanup(server.Close)
 
-			client := newReviewTestServerClient(t, server)
-			restoreClient := shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) { return client, nil })
-			t.Cleanup(restoreClient)
-
-			stdout, stderr := captureOutput(t, func() {
-				if code := rootcmd.Run([]string{"reviews", "list", "--app", "app-1", "--stars", test.stars, "--output", "json"}, "1.2.3"); code != rootcmd.ExitSuccess {
-					t.Fatalf("exit code = %d, want %d (stderr routed below)", code, rootcmd.ExitSuccess)
-				}
-			})
+			stdout, stderr, code := runWithDeps(t, stubServerClient(t, server), "reviews", "list", "--app", "app-1", "--stars", test.stars, "--output", "json")
+			if code != rootcmd.ExitSuccess {
+				t.Fatalf("exit code = %d, want %d (stderr routed below)", code, rootcmd.ExitSuccess)
+			}
 			if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)
 			}
@@ -68,7 +60,6 @@ func TestReviewsListEmitsStarRatingFilter(t *testing.T) {
 }
 
 func TestReviewsListOmitsStarRatingFilterWhenUnset(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -80,15 +71,10 @@ func TestReviewsListOmitsStarRatingFilterWhenUnset(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	client := newReviewTestServerClient(t, server)
-	restoreClient := shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) { return client, nil })
-	t.Cleanup(restoreClient)
-
-	_, stderr := captureOutput(t, func() {
-		if code := rootcmd.Run([]string{"reviews", "list", "--app", "app-1", "--output", "json"}, "1.2.3"); code != rootcmd.ExitSuccess {
-			t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitSuccess)
-		}
-	})
+	_, stderr, code := runWithDeps(t, stubServerClient(t, server), "reviews", "list", "--app", "app-1", "--output", "json")
+	if code != rootcmd.ExitSuccess {
+		t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitSuccess)
+	}
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
@@ -113,7 +99,6 @@ func TestReviewsListRejectsInvalidStarRatings(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 			requests := 0
@@ -124,15 +109,10 @@ func TestReviewsListRejectsInvalidStarRatings(t *testing.T) {
 			}))
 			t.Cleanup(server.Close)
 
-			client := newReviewTestServerClient(t, server)
-			restoreClient := shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) { return client, nil })
-			t.Cleanup(restoreClient)
-
-			stdout, stderr := captureOutput(t, func() {
-				if code := rootcmd.Run([]string{"reviews", "list", "--app", "app-1", "--stars", test.stars, "--output", "json"}, "1.2.3"); code != rootcmd.ExitUsage {
-					t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
-				}
-			})
+			stdout, stderr, code := runWithDeps(t, stubServerClient(t, server), "reviews", "list", "--app", "app-1", "--stars", test.stars, "--output", "json")
+			if code != rootcmd.ExitUsage {
+				t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
+			}
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
 			}

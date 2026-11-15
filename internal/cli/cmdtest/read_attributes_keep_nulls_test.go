@@ -16,10 +16,12 @@ func TestReadCommandsPrintAppleNullAndEmptyAttributes(t *testing.T) {
 		args      []string
 		responses map[string]string
 		attrs     map[string]string
+		deps      bool
 	}{
 		{
 			name: "review details-get",
 			args: []string{"review", "details-get", "--id", "detail-1"},
+			deps: true,
 			responses: map[string]string{
 				"/v1/appStoreReviewDetails/detail-1": `{"data":{"type":"appStoreReviewDetails","id":"detail-1","attributes":{"contactFirstName":"Dev","demoAccountRequired":false,"demoAccountName":null,"demoAccountPassword":null,"notes":""}}}`,
 			},
@@ -33,6 +35,7 @@ func TestReadCommandsPrintAppleNullAndEmptyAttributes(t *testing.T) {
 		{
 			name: "review details-for-version with include-sensitive",
 			args: []string{"review", "details-for-version", "--version-id", "version-1", "--include-sensitive"},
+			deps: true,
 			responses: map[string]string{
 				"/v1/appStoreVersions/version-1/appStoreReviewDetail": `{"data":{"type":"appStoreReviewDetails","id":"detail-1","attributes":{"demoAccountRequired":false,"demoAccountName":null,"demoAccountPassword":null}}}`,
 			},
@@ -114,16 +117,22 @@ func TestReadCommandsPrintAppleNullAndEmptyAttributes(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			for request, body := range test.responses {
 				path, query, _ := strings.Cut(request, "?")
 				reg.Register(asctest.GET(path, query), asctest.JSON(http.StatusOK, body))
 			}
 
-			stdout, _, err := runCommand(t, append(test.args, "--output", "json"))
+			var stdout string
+			var err error
+			if test.deps {
+				stdout, _, err = runRootWithDeps(t, stubClient(t, reg), append(test.args, "--output", "json")...)
+			} else {
+				setupAuth(t)
+				reg.Install()
+				stdout, _, err = runCommand(t, append(test.args, "--output", "json"))
+			}
 			if err != nil {
 				t.Fatalf("run error: %v", err)
 			}

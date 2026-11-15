@@ -12,9 +12,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// AppClipReviewDetailsCommand returns the review-details command group.
-func AppClipReviewDetailsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("review-details", flag.ExitOnError)
+// newAppClipReviewDetailsCommand returns the review-details command group.
+func newAppClipReviewDetailsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("review-details", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "review-details",
@@ -29,9 +29,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			AppClipReviewDetailsGetCommand(),
-			AppClipReviewDetailsCreateCommand(),
-			AppClipReviewDetailsUpdateCommand(),
+			newAppClipReviewDetailsGetCommand(d),
+			newAppClipReviewDetailsCreateCommand(d),
+			newAppClipReviewDetailsUpdateCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -39,8 +39,8 @@ Examples:
 	}
 }
 
-// AppClipReviewDetailsGetCommand gets review details by ID.
-func AppClipReviewDetailsGetCommand() *ffcli.Command {
+// newAppClipReviewDetailsGetCommand gets review details by ID.
+func newAppClipReviewDetailsGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
 		Name:       "view",
 		ShortUsage: "asc app-clips review-details view --id \"DETAIL_ID\"",
@@ -52,19 +52,20 @@ Examples:
 		IDUsage:            "Review detail ID",
 		IDType:             "appClipAppStoreReviewDetails",
 		RequiredDiagnostic: true,
+		Deps:               d,
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetAppClipAppStoreReviewDetail(ctx, id)
 		},
 	})
 }
 
-// AppClipReviewDetailsCreateCommand creates review details.
-func AppClipReviewDetailsCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
+// newAppClipReviewDetailsCreateCommand creates review details.
+func newAppClipReviewDetailsCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("create", flag.ExitOnError)
 
 	experienceID := shared.BindResourceIDFlag(fs, "experience-id", "appClipDefaultExperiences", "Default experience ID")
 	urls := shared.BindOnceCSVFlag(fs, "url", "Invocation URL(s), comma-separated")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -79,20 +80,20 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			experienceValue := strings.TrimSpace(*experienceID)
 			if experienceValue == "" {
-				return shared.RequiredFlag("--experience-id")
+				return d.RequiredFlag("--experience-id")
 			}
 
 			urlValues := shared.SplitCSV(urls.String())
 			if len(urlValues) == 0 {
-				return shared.RequiredFlag("--url")
+				return d.RequiredFlag("--url")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("app-clips review-details create: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			attrs := &asc.AppClipAppStoreReviewDetailCreateAttributes{InvocationURLs: urlValues}
@@ -101,18 +102,18 @@ Examples:
 				return fmt.Errorf("app-clips review-details create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// AppClipReviewDetailsUpdateCommand updates review details.
-func AppClipReviewDetailsUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("update", flag.ExitOnError)
+// newAppClipReviewDetailsUpdateCommand updates review details.
+func newAppClipReviewDetailsUpdateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("update", flag.ExitOnError)
 
 	detailID := shared.BindResourceIDFlag(fs, "id", "appClipAppStoreReviewDetails", "Review detail ID")
 	urls := shared.BindOnceCSVFlag(fs, "url", "Invocation URL(s), comma-separated")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -127,7 +128,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			detailValue := strings.TrimSpace(*detailID)
 			if detailValue == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
 
 			visited := map[string]bool{}
@@ -135,18 +136,18 @@ Examples:
 				visited[f.Name] = true
 			})
 			if !visited["url"] {
-				return shared.UpdateFlagRequired(fs, urls)
+				return d.UpdateFlagRequired(fs, urls)
 			}
 
 			urlValues := shared.SplitCSV(urls.String())
 			attrs := &asc.AppClipAppStoreReviewDetailUpdateAttributes{InvocationURLs: urlValues}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("app-clips review-details update: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.UpdateAppClipAppStoreReviewDetail(requestCtx, detailValue, attrs)
@@ -154,7 +155,7 @@ Examples:
 				return fmt.Errorf("app-clips review-details update: failed to update: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

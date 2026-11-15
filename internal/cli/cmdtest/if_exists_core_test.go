@@ -54,10 +54,38 @@ func runIfExistsCommand(t *testing.T, args []string, handler func(req ifExistsRe
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
+	transport, seen := recordIfExistsRequests(t, handler)
+	installDefaultTransport(t, transport)
+
+	root := RootCommand("test")
+	root.FlagSet.SetOutput(io.Discard)
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse(args); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+	return stdout, stderr, seen(), runErr
+}
+
+// runIfExistsCommandWithDeps is runIfExistsCommand for a command built on
+// shared.Deps: requests reach handler through the deps client.
+func runIfExistsCommandWithDeps(t *testing.T, args []string, handler func(req ifExistsRequest) (*http.Response, error)) (string, string, []ifExistsRequest, error) {
+	t.Helper()
+
+	transport, seen := recordIfExistsRequests(t, handler)
+	stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, transport), args...)
+	return stdout, stderr, seen(), runErr
+}
+
+func recordIfExistsRequests(t *testing.T, handler func(req ifExistsRequest) (*http.Response, error)) (http.RoundTripper, func() []ifExistsRequest) {
+	t.Helper()
+
 	log := newRequestLog(4)
 	var seenMu sync.Mutex
 	var seen []ifExistsRequest
-	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		body := ""
 		if req.Body != nil {
 			payload, err := io.ReadAll(req.Body)
@@ -72,18 +100,12 @@ func runIfExistsCommand(t *testing.T, args []string, handler func(req ifExistsRe
 		seen = append(seen, entry)
 		seenMu.Unlock()
 		return handler(entry)
-	}))
-
-	root := RootCommand("test")
-	root.FlagSet.SetOutput(io.Discard)
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse(args); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
 	})
-	return stdout, stderr, seen, runErr
+	return transport, func() []ifExistsRequest {
+		seenMu.Lock()
+		defer seenMu.Unlock()
+		return seen
+	}
 }
 
 type ifExistsReply struct {
@@ -126,6 +148,7 @@ func TestIfExistsConflictsWithoutAMatchKeepFailing(t *testing.T) {
 		replies      map[string]ifExistsReply
 		wantErr      string
 		wantRequests []string
+		deps         bool
 	}{
 		{
 			name:         "capabilities add default fail keeps Apple's detail",
@@ -151,18 +174,21 @@ func TestIfExistsConflictsWithoutAMatchKeepFailing(t *testing.T) {
 		},
 		{
 			name:         "review items-add default fail",
+			deps:         true,
 			args:         reviewItemArgs,
 			replies:      map[string]ifExistsReply{reviewItemsPost: {http.StatusConflict, reviewItemExists409}},
 			wantRequests: []string{reviewItemsPost},
 		},
 		{
 			name:         "review items-add skip does not read back a state conflict",
+			deps:         true,
 			args:         with(reviewItemArgs, "--if-exists", "skip"),
 			replies:      map[string]ifExistsReply{reviewItemsPost: {http.StatusConflict, reviewItemState409}},
 			wantRequests: []string{reviewItemsPost},
 		},
 		{
 			name:         "review items-add skip preserves unrelated relationship rejection",
+			deps:         true,
 			args:         with(reviewItemArgs, "--if-exists", "skip"),
 			replies:      map[string]ifExistsReply{reviewItemsPost: {http.StatusConflict, `{"errors":[{"status":"409","code":"ENTITY_ERROR.RELATIONSHIP.INVALID.NOT_ALLOWED","title":"This relationship cannot be changed."}]}`}},
 			wantErr:      "This relationship cannot be changed.",
@@ -170,6 +196,7 @@ func TestIfExistsConflictsWithoutAMatchKeepFailing(t *testing.T) {
 		},
 		{
 			name: "review items-add skip ignores a REMOVED item",
+			deps: true,
 			args: with(reviewItemArgs, "--if-exists", "skip"),
 			replies: map[string]ifExistsReply{
 				reviewItemsPost: {http.StatusConflict, reviewItemExists409},
@@ -179,6 +206,7 @@ func TestIfExistsConflictsWithoutAMatchKeepFailing(t *testing.T) {
 		},
 		{
 			name: "review items-add skip read-back finds another item",
+			deps: true,
 			args: with(reviewItemArgs, "--if-exists", "skip"),
 			replies: map[string]ifExistsReply{
 				reviewItemsPost: {http.StatusConflict, reviewItemExists409},
@@ -188,6 +216,7 @@ func TestIfExistsConflictsWithoutAMatchKeepFailing(t *testing.T) {
 		},
 		{
 			name: "review items-add skip rejects a malformed read-back",
+			deps: true,
 			args: with(reviewItemArgs, "--if-exists", "skip"),
 			replies: map[string]ifExistsReply{
 				reviewItemsPost: {http.StatusConflict, reviewItemExists409},
@@ -197,6 +226,7 @@ func TestIfExistsConflictsWithoutAMatchKeepFailing(t *testing.T) {
 		},
 		{
 			name: "review details-create default fail",
+			deps: true,
 			args: []string{
 				"review", "details-create", "--version-id", "version-1",
 				"--contact-first-name", "Dev", "--contact-last-name", "Support",
@@ -208,12 +238,14 @@ func TestIfExistsConflictsWithoutAMatchKeepFailing(t *testing.T) {
 		},
 		{
 			name:         "review details-create skip does not read back a state conflict",
+			deps:         true,
 			args:         with(reviewDetailArgs, "--if-exists", "skip"),
 			replies:      map[string]ifExistsReply{reviewDetailPost: {http.StatusConflict, versionsState409}},
 			wantRequests: []string{reviewDetailPost},
 		},
 		{
 			name: "review details-create skip read-back finds nothing",
+			deps: true,
 			args: with(reviewDetailArgs, "--if-exists", "skip"),
 			replies: map[string]ifExistsReply{
 				reviewDetailPost: {http.StatusConflict, reviewDetailExists409},
@@ -287,7 +319,11 @@ func TestIfExistsConflictsWithoutAMatchKeepFailing(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			stdout, _, seen, runErr := runIfExistsCommand(t, test.args, func(req ifExistsRequest) (*http.Response, error) {
+			run := runIfExistsCommand
+			if test.deps {
+				run = runIfExistsCommandWithDeps
+			}
+			stdout, _, seen, runErr := run(t, test.args, func(req ifExistsRequest) (*http.Response, error) {
 				reply, ok := test.replies[req.Method+" "+req.Path]
 				if !ok {
 					t.Fatalf("unexpected request %s %s", req.Method, req.Path)
@@ -319,6 +355,7 @@ func TestIfExistsRejectsUnsupportedModeBeforeHTTP(t *testing.T) {
 		name string
 		args []string
 		want string
+		deps bool
 	}{
 		{
 			name: "versions create",
@@ -338,6 +375,7 @@ func TestIfExistsRejectsUnsupportedModeBeforeHTTP(t *testing.T) {
 		{
 			// update has no meaning for a submission item.
 			name: "review items-add lists only fail and skip",
+			deps: true,
 			args: []string{"review", "items-add", "--submission", "submission-1", "--item-type", "appStoreVersions", "--item-id", "version-1", "--if-exists", "update", "--output", "json"},
 			want: `Error: --if-exists must be one of fail, skip (got "update")`,
 		},
@@ -345,7 +383,11 @@ func TestIfExistsRejectsUnsupportedModeBeforeHTTP(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			stdout, stderr, seen, runErr := runIfExistsCommand(t, test.args, func(req ifExistsRequest) (*http.Response, error) {
+			run := runIfExistsCommand
+			if test.deps {
+				run = runIfExistsCommandWithDeps
+			}
+			stdout, stderr, seen, runErr := run(t, test.args, func(req ifExistsRequest) (*http.Response, error) {
 				t.Fatalf("unexpected request %s %s; the usage error must precede any HTTP request", req.Method, req.Path)
 				return nil, nil
 			})
@@ -1002,7 +1044,7 @@ func TestVersionsCreateRejectsUnusableBuildIDBeforeHTTP(t *testing.T) {
 }
 
 func TestReviewDetailsCreateIfExistsSkipReturnsExistingDetail(t *testing.T) {
-	stdout, stderr, seen, runErr := runIfExistsCommand(t, []string{
+	stdout, stderr, seen, runErr := runIfExistsCommandWithDeps(t, []string{
 		"review", "details-create", "--version-id", "version-1", "--notes", "new notes",
 		"--if-exists", "skip", "--output", "json",
 	}, func(req ifExistsRequest) (*http.Response, error) {
@@ -1031,7 +1073,7 @@ func TestReviewDetailsCreateIfExistsSkipReturnsExistingDetail(t *testing.T) {
 }
 
 func TestReviewDetailsCreateIfExistsUpdatePatchesExistingDetail(t *testing.T) {
-	stdout, _, seen, runErr := runIfExistsCommand(t, []string{
+	stdout, _, seen, runErr := runIfExistsCommandWithDeps(t, []string{
 		"review", "details-create", "--version-id", "version-1",
 		"--contact-first-name", "Dev", "--notes", "new notes",
 		"--if-exists", "update", "--output", "json",
@@ -1063,7 +1105,7 @@ func TestReviewDetailsCreateIfExistsUpdatePatchesExistingDetail(t *testing.T) {
 }
 
 func TestReviewDetailsCreateIfExistsUpdateReusesExistingDemoCredentials(t *testing.T) {
-	stdout, _, seen, runErr := runIfExistsCommand(t, []string{
+	stdout, _, seen, runErr := runIfExistsCommandWithDeps(t, []string{
 		"review", "details-create", "--version-id", "version-1",
 		"--demo-account-required=true",
 		"--if-exists", "update", "--output", "json",

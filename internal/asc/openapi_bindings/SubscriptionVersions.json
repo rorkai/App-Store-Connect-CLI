@@ -16,5 +16,8 @@
     {"operation":"subscriptionVersions_image_getToOneRelationship","name":"GetSubscriptionVersionImageRelationship","params":["versionID"],"check":"require","messages":["version ID is required"]},
     {"operation":"subscriptionVersions_images_getToManyRelated","name":"GetSubscriptionVersionImages","params":["versionID"],"check":"require","messages":["version ID is required"],"options":"SubscriptionVersionImagesOption","query":"buildSubscriptionVersionImagesQuery","nextContext":"subscriptionVersionImages"},
     {"operation":"subscriptionVersions_localizations_getToManyRelated","name":"GetSubscriptionVersionLocalizations","params":["versionID"],"check":"require","messages":["version ID is required"],"options":"SubscriptionVersionLocalizationsOption","query":"buildSubscriptionVersionLocalizationsQuery","nextContext":"subscriptionVersionLocalizations"}
+  ],
+  "queries": [
+    {"operation":"subscriptionVersions_getInstance","name":"SubscriptionVersion","params":[{"name":"fields[subscriptionVersions]"},{"name":"fields[subscriptions]","arg":"fields"},{"name":"fields[subscriptionImages]","field":"imageFields","arg":"fields"},{"name":"fields[subscriptionLocalizations]","field":"localizationFields","arg":"fields"},{"name":"include"},{"name":"limit[images]","field":"imageLimit","arg":"limit","type":"int"},{"name":"limit[localizations]","field":"localizationLimit","arg":"limit","type":"int"}]}
   ]
 }
