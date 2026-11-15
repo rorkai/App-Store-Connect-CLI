@@ -346,6 +346,7 @@ func TestSelfLinkCoverageAppFlagsSendExtractedID(t *testing.T) {
 			args:     []string{"app-setup", "info", "set", "--app", appLink, "--primary-locale", "en-US"},
 			request:  asctest.PATCH("/v1/apps/123456789").JSONBody(`{"data":{"type":"apps","id":"123456789","attributes":{"primaryLocale":"en-US"}}}`),
 			wantPath: "PATCH /v1/apps/123456789",
+			deps:     true,
 		},
 		{
 			name:     "app-setup categories set",
@@ -440,9 +441,9 @@ func TestSelfLinkCoverageRejectsWrongType(t *testing.T) {
 		{args: []string{"build-localizations", "view"}, flag: "id", wantType: "appStoreVersionLocalizations", deps: true},
 		{args: []string{"diff", "localizations"}, flag: "from-version", wantType: "appStoreVersions", deps: true},
 		{args: []string{"diff", "localizations"}, flag: "to-version", wantType: "appStoreVersions", deps: true},
-		{args: []string{"app-setup", "localizations", "upload"}, flag: "version", wantType: "appStoreVersions"},
-		{args: []string{"app-setup", "categories", "set"}, flag: "app-info", wantType: "appInfos"},
-		{args: []string{"app-setup", "categories", "set"}, flag: "primary", wantType: "appCategories"},
+		{args: []string{"app-setup", "localizations", "upload"}, flag: "version", wantType: "appStoreVersions", deps: true},
+		{args: []string{"app-setup", "categories", "set"}, flag: "app-info", wantType: "appInfos", deps: true},
+		{args: []string{"app-setup", "categories", "set"}, flag: "primary", wantType: "appCategories", deps: true},
 		{args: []string{"categories", "set"}, flag: "secondary-subcategory-two", wantType: "appCategories", deps: true},
 		{args: []string{"metadata", "keywords", "audit"}, flag: "app-info", wantType: "appInfos", deps: true},
 		// Shared command builders.
@@ -474,7 +475,7 @@ func TestSelfLinkCoverageRejectsWrongType(t *testing.T) {
 		{args: []string{"app-clips", "header-images", "view"}, flag: "id", wantType: "appClipHeaderImages", deps: true},
 		{args: []string{"app-clips", "review-details", "view"}, flag: "id", wantType: "appClipAppStoreReviewDetails", deps: true},
 		{args: []string{"app-clips", "advanced-experiences", "images", "view"}, flag: "id", wantType: "appClipAdvancedExperienceImages", deps: true},
-		{args: []string{"app-tags", "view"}, flag: "id", wantType: "appTags"},
+		{args: []string{"app-tags", "view"}, flag: "id", wantType: "appTags", deps: true},
 		{args: []string{"apps", "ci-product", "view"}, flag: "id", wantType: "apps", deps: true},
 		{args: []string{"background-assets", "view"}, flag: "id", wantType: "backgroundAssets", deps: true},
 		{args: []string{"background-assets", "app-store-releases", "view"}, flag: "id", wantType: "backgroundAssetVersionAppStoreReleases", deps: true},
@@ -546,8 +547,8 @@ func TestSelfLinkCoverageRejectsWrongType(t *testing.T) {
 		// --app flags that bypassed the shared app resolver.
 		{args: []string{"performance", "download"}, flag: "app", wantType: "apps", deps: true},
 		{args: []string{"signing", "fetch"}, flag: "app", wantType: "apps"},
-		{args: []string{"app-setup", "info", "set"}, flag: "app", wantType: "apps"},
-		{args: []string{"app-setup", "categories", "set"}, flag: "app", wantType: "apps"},
+		{args: []string{"app-setup", "info", "set"}, flag: "app", wantType: "apps", deps: true},
+		{args: []string{"app-setup", "categories", "set"}, flag: "app", wantType: "apps", deps: true},
 		{args: []string{"categories", "set"}, flag: "app", wantType: "apps", deps: true},
 	}
 

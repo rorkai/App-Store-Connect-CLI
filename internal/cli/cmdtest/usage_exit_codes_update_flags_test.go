@@ -95,6 +95,7 @@ func TestUpdateWithoutUpdateFlagsListsEveryUpdateFlag(t *testing.T) {
 			name:  "app-setup info set",
 			args:  []string{"app-setup", "info", "set", "--app", "123456789"},
 			flags: "--bundle-id, --primary-locale, --name, --subtitle, --privacy-policy-url, --privacy-choices-url, --privacy-policy-text, --content-rights",
+			deps:  true,
 		},
 		{
 			name:  "apps info edit",
