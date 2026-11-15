@@ -163,6 +163,7 @@ func TestSelfLinkRemainingFlagsSendExtractedID(t *testing.T) {
 			bodies: map[string]string{
 				"/v1/appClipDefaultExperiences/experience-1/appClipDefaultExperienceLocalizations": `{"data":[{"type":"appClipDefaultExperienceLocalizations","id":"clip-localization-1","attributes":{"locale":"en-US","subtitle":"Order"}}]}`,
 			},
+			deps: true,
 		},
 	}
 
@@ -368,6 +369,7 @@ func TestSelfLinkRemainingFlagsRejectWrongType(t *testing.T) {
 			flag:    "experience-id",
 			value:   selfLinkTestBase + "/v1/appClips/clip-1",
 			wantErr: "expected a self-link of type appClipDefaultExperiences, got appClips",
+			deps:    true,
 		},
 		{
 			name:    "product-pages custom-pages view rejects version link",
