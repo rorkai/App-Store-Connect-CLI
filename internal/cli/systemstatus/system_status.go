@@ -52,10 +52,10 @@ type statusFeedEvent struct {
 
 // NewCommand returns the unauthenticated Apple Developer system status command.
 func NewCommand(d *shared.Deps) *ffcli.Command {
-	return commandWithClient(d, http.DefaultClient, statusDataURL)
+	return commandWithEndpoint(d, statusDataURL)
 }
 
-func commandWithClient(d *shared.Deps, client *http.Client, endpoint string) *ffcli.Command {
+func commandWithEndpoint(d *shared.Deps, endpoint string) *ffcli.Command {
 	fs := d.NewFlagSet("system-status", flag.ExitOnError)
 	services := shared.BindOnceCSVFlag(fs, "service", "Filter by service name substring(s), comma-separated")
 	issuesOnly := fs.Bool("issues-only", false, "Show only services with active incidents")
@@ -81,7 +81,7 @@ Examples:
   asc system-status --watch --poll-interval 30s
   asc system-status --output json`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *pollInterval <= 0 {
 				return d.UsageError("--poll-interval must be greater than 0")
@@ -123,6 +123,7 @@ Examples:
 				}
 			}
 			filters := shared.SplitCSV(services.String())
+			client := &http.Client{Transport: d.HTTPTransport()}
 
 			if *watch {
 				return watchDeveloperSystemStatus(ctx, d, client, endpoint, filters, *issuesOnly, *output.Output, *output.Pretty, *pollInterval, *maxPolls)

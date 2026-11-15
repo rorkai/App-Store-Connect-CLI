@@ -126,17 +126,14 @@ func matchesDeliveredMedia(ctx context.Context, d *shared.Deps, stagedPath, medi
 		return false, fmt.Errorf("cannot request delivered media (URL omitted)")
 	}
 	req.Header.Set("Accept", "*/*")
-	client := *http.DefaultClient
-	client.Jar = nil
-	previousRedirect := client.CheckRedirect
-	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
-		if !validPreviewMediaURL(req.URL) || len(via) >= 10 {
-			return fmt.Errorf("invalid media redirect")
-		}
-		if previousRedirect != nil {
-			return previousRedirect(req, via)
-		}
-		return nil
+	client := http.Client{
+		Transport: d.HTTPTransport(),
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if !validPreviewMediaURL(req.URL) || len(via) >= 10 {
+				return fmt.Errorf("invalid media redirect")
+			}
+			return nil
+		},
 	}
 	resp, err := client.Do(req)
 	if err != nil {

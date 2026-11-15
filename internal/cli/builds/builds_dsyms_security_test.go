@@ -26,10 +26,9 @@ func TestDownloadDSYMRefusesRedirectWithoutForwardingReferer(t *testing.T) {
 	}))
 	defer source.Close()
 
-	restore := SetDSYMHTTPClient(source.Client())
-	t.Cleanup(restore)
 	_, err := downloadDSYM(
 		context.Background(),
+		source.Client().Transport,
 		source.URL+"/symbols?Signature=signed-secret",
 		filepath.Join(t.TempDir(), "symbols.zip"),
 	)
@@ -46,15 +45,13 @@ func TestDownloadDSYMRefusesRedirectWithoutForwardingReferer(t *testing.T) {
 
 func TestDownloadDSYMSanitizesTransportErrorAndPreservesCause(t *testing.T) {
 	sentinel := errors.New("dial failed for https://download.example/file?Signature=signed-secret")
-	restore := SetDSYMHTTPClient(&http.Client{
-		Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
-			return nil, sentinel
-		}),
+	transport := roundTripFunc(func(*http.Request) (*http.Response, error) {
+		return nil, sentinel
 	})
-	t.Cleanup(restore)
 
 	_, err := downloadDSYM(
 		context.Background(),
+		transport,
 		"https://download.example/file?Signature=signed-secret",
 		filepath.Join(t.TempDir(), "symbols.zip"),
 	)
@@ -70,20 +67,17 @@ func TestDownloadDSYMSanitizesTransportErrorAndPreservesCause(t *testing.T) {
 }
 
 func TestDownloadDSYMDoesNotWriteRedirectOrErrorBody(t *testing.T) {
-	restore := SetDSYMHTTPClient(&http.Client{
-		Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
-			return &http.Response{
-				StatusCode: http.StatusForbidden,
-				Status:     "403 Forbidden",
-				Header:     make(http.Header),
-				Body:       io.NopCloser(strings.NewReader("signed-secret")),
-			}, nil
-		}),
+	transport := roundTripFunc(func(*http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusForbidden,
+			Status:     "403 Forbidden",
+			Header:     make(http.Header),
+			Body:       io.NopCloser(strings.NewReader("signed-secret")),
+		}, nil
 	})
-	t.Cleanup(restore)
 
 	dest := filepath.Join(t.TempDir(), "symbols.zip")
-	if _, err := downloadDSYM(context.Background(), "https://download.example/file", dest); err == nil {
+	if _, err := downloadDSYM(context.Background(), transport, "https://download.example/file", dest); err == nil {
 		t.Fatal("expected HTTP error")
 	}
 }

@@ -22,7 +22,7 @@ func newBetaAppLocalizationsAppCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc beta-app-localizations app view --id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newBetaAppLocalizationsAppGetCommand(d),
 		},

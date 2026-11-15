@@ -113,7 +113,7 @@ Examples:
   asc iap import --app "APP_ID" --file "./iap.json" --confirm
   asc iap import --app "APP_ID" --file "./iap.json" --skip-existing --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {

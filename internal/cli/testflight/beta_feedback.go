@@ -28,7 +28,7 @@ Examples:
   asc testflight feedback view --submission-id "SUBMISSION_ID"
   asc testflight feedback delete --submission-id "SUBMISSION_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newTestFlightFeedbackListCommand(d),
 			newTestFlightFeedbackViewCommand(d),
@@ -116,7 +116,7 @@ Examples:
   asc testflight crashes log --submission-id "SUBMISSION_ID"
   asc testflight crashes log --crash-log-id "CRASH_LOG_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newTestFlightCrashesListCommand(d),
 			newTestFlightCrashesViewCommand(d),
@@ -205,7 +205,7 @@ Examples:
   asc testflight crashes log --submission-id "SUBMISSION_ID"
   asc testflight crashes log --crash-log-id "CRASH_LOG_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			submissionIDValue := strings.TrimSpace(*submissionID)
 			crashLogIDValue := strings.TrimSpace(*crashLogID)

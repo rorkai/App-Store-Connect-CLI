@@ -36,8 +36,9 @@ func validateScreenshotDimensions(files []string, displayType string) error {
 	return screenshotFilesError(result)
 }
 
-func uploadScreenshots(ctx context.Context, client *asc.Client, localizationID, displayType string, files []string, skipExisting, replace, dryRun bool) (asc.AppScreenshotUploadResult, error) {
+func uploadScreenshots(ctx context.Context, d *shared.Deps, client *asc.Client, localizationID, displayType string, files []string, skipExisting, replace, dryRun bool) (asc.AppScreenshotUploadResult, error) {
 	result, err := uploadScreenshotsWithConfig(ctx, screenshotUploadConfig[asc.AppScreenshotUploadResult]{
+		Deps:           d,
 		Client:         client,
 		LocalizationID: localizationID,
 		DisplayType:    displayType,
@@ -46,8 +47,8 @@ func uploadScreenshots(ctx context.Context, client *asc.Client, localizationID, 
 		Replace:        replace,
 		DryRun:         dryRun,
 		InspectCommand: screenshotInspectionCommand(localizationID),
-		RequestContext: shared.ContextWithTimeout,
-		UploadContext:  contextWithAssetUploadTimeout,
+		RequestContext: d.Timeout,
+		UploadContext:  assetUploadContext(d),
 		Access:         appStoreVersionScreenshotSetAccess,
 		BuildResult: func(localizationID string, set asc.Resource[asc.AppScreenshotSetAttributes], dryRun bool, results []asc.AssetUploadResultItem) asc.AppScreenshotUploadResult {
 			return buildAppScreenshotUploadResult(localizationID, set, dryRun, results)
@@ -113,10 +114,10 @@ func uploadScreenshotsWithConfig[T any](ctx context.Context, cfg screenshotUploa
 		return zero, fmt.Errorf("build result function is required")
 	}
 	if cfg.RequestContext == nil {
-		cfg.RequestContext = shared.ContextWithTimeout
+		cfg.RequestContext = cfg.Deps.Timeout
 	}
 	if cfg.UploadContext == nil {
-		cfg.UploadContext = contextWithAssetUploadTimeout
+		cfg.UploadContext = assetUploadContext(cfg.Deps)
 	}
 	if strings.TrimSpace(cfg.InspectCommand) == "" {
 		cfg.InspectCommand = screenshotInspectionCommand(cfg.LocalizationID)
@@ -131,7 +132,7 @@ func uploadScreenshotsWithConfig[T any](ctx context.Context, cfg screenshotUploa
 	sourceRootPath := ""
 	if len(cfg.Files) > 0 {
 		var err error
-		sourceRootPath, err = resolveScreenshotUploadRoot(cfg.RootPath, cfg.Files)
+		sourceRootPath, err = resolveScreenshotUploadRoot(cfg.Deps, cfg.RootPath, cfg.Files)
 		if err != nil {
 			return zero, fmt.Errorf("resolve screenshot source root: %w", err)
 		}
@@ -223,7 +224,7 @@ func uploadScreenshotsWithConfig[T any](ctx context.Context, cfg screenshotUploa
 
 	results := make([]asc.AssetUploadResultItem, 0, len(skippedResults)+len(files))
 	if len(files) > 0 {
-		uploadedResults, err := uploadScreenshotsToSetFromRootWithOpenedFiles(uploadCtx, cfg.Client, set.ID, files, sourceRootPath, !cfg.Replace, openedFiles)
+		uploadedResults, err := uploadScreenshotsToSetFromRootWithOpenedFiles(uploadCtx, cfg.RequestContext, cfg.Client, set.ID, files, sourceRootPath, !cfg.Replace, openedFiles)
 		results = append(results, uploadedResults...)
 		if err != nil {
 			results = append(skippedResults, results...)

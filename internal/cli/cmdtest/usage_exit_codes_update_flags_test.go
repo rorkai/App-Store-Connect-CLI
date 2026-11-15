@@ -467,6 +467,7 @@ func TestUpdateWithoutUpdateFlagsListsEveryUpdateFlag(t *testing.T) {
 			name:  "xcode version edit",
 			args:  []string{"xcode", "version", "edit"},
 			flags: "--version, --build-number, --next-build-number",
+			deps:  true,
 		},
 	}
 

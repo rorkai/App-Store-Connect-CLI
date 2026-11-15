@@ -9,9 +9,10 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// AssetsScreenshotsDeleteCommand returns the screenshot delete subcommand.
-func AssetsScreenshotsDeleteCommand() *ffcli.Command {
+// NewAssetsScreenshotsDeleteCommand returns the screenshot delete subcommand.
+func NewAssetsScreenshotsDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
+		Deps:       d,
 		Name:       "delete",
 		ShortUsage: "asc screenshots delete --id \"SCREENSHOT_ID\" --confirm",
 		ShortHelp:  "Delete a screenshot by ID.",

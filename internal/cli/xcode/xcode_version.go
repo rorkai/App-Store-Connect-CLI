@@ -4,7 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
+	"io"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -68,9 +68,9 @@ func (flags xcodeRemoteBuildNumberFlags) hasRemoteOnlyValues() bool {
 		strings.TrimSpace(*flags.processingState) != "" || *flags.excludeExpired || *flags.initialBuildNumber != 1
 }
 
-// XcodeVersionCommand returns the xcode version command group.
-func XcodeVersionCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("version", flag.ExitOnError)
+// newXcodeVersionCommand returns the xcode version command group.
+func newXcodeVersionCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("version", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "version",
@@ -97,11 +97,11 @@ Examples:
   asc xcode version bump --type build
   asc xcode version bump --type build --next-build-number --app "com.example.app"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			xcodeVersionViewCommand(),
-			xcodeVersionEditCommand(),
-			xcodeVersionBumpCommand(),
+			xcodeVersionViewCommand(d),
+			xcodeVersionEditCommand(d),
+			xcodeVersionBumpCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -119,13 +119,13 @@ func selectedProjectInput(projectDir, project string) string {
 	return projectDir
 }
 
-func parseXcodebuildSettingsLookup(value string) (localxcode.BuildSettingsLookupPolicy, error) {
+func parseXcodebuildSettingsLookup(d *shared.Deps, value string) (localxcode.BuildSettingsLookupPolicy, error) {
 	if strings.TrimSpace(value) == "" {
-		return "", shared.UsageError("--xcodebuild-settings-lookup must be one of: auto, never")
+		return "", d.UsageError("--xcodebuild-settings-lookup must be one of: auto, never")
 	}
 	policy, err := localxcode.ParseBuildSettingsLookupPolicy(value)
 	if err != nil {
-		return "", shared.UsageError(err.Error())
+		return "", d.UsageError(err.Error())
 	}
 	return policy, nil
 }
@@ -138,15 +138,15 @@ func bindXcodebuildSettingsLookup(fs *flag.FlagSet) *string {
 	)
 }
 
-func xcodeVersionViewCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
+func xcodeVersionViewCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("view", flag.ExitOnError)
 
 	projectDir := fs.String("project-dir", ".", "Path to directory containing .xcodeproj")
 	project := fs.String("project", "", "Path to a specific .xcodeproj (preferred when the directory contains multiple projects)")
 	target := fs.String("target", "", "Xcode target name (for multi-target projects)")
 	configuration := fs.String("configuration", "", "Xcode build configuration name")
 	xcodebuildSettingsLookup := bindXcodebuildSettingsLookup(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "view",
@@ -159,39 +159,39 @@ they cannot resolve MARKETING_VERSION and CURRENT_PROJECT_VERSION, the default
 auto policy warns on stderr before running xcodebuild -showBuildSettings. Use
 --xcodebuild-settings-lookup never to fail without launching xcodebuild.`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			lookupPolicy, err := parseXcodebuildSettingsLookup(*xcodebuildSettingsLookup)
+			lookupPolicy, err := parseXcodebuildSettingsLookup(d, *xcodebuildSettingsLookup)
 			if err != nil {
 				return err
 			}
-			lookupSession := localxcode.NewBuildSettingsLookupSession(lookupPolicy, os.Stderr)
+			lookupSession := localxcode.NewBuildSettingsLookupSession(lookupPolicy, d.IO.ErrOut)
 
 			result, err := runGetVersion(ctx, localxcode.GetVersionOptions{
-				ProjectDir:              selectedProjectInput(*projectDir, *project),
+				ProjectDir:              osPath(d, selectedProjectInput(*projectDir, *project)),
 				Target:                  strings.TrimSpace(*target),
 				Configuration:           strings.TrimSpace(*configuration),
 				BuildSettingsLookup:     lookupPolicy,
-				BuildSettingsDiagnostic: os.Stderr,
+				BuildSettingsDiagnostic: d.IO.ErrOut,
 				BuildSettingsSession:    lookupSession,
 			})
 			if err != nil {
 				return classifyXcodeLocalFailure(fmt.Errorf("xcode version view: %w", err))
 			}
 
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
 				func() error {
-					fmt.Printf("Version: %s\n", result.Version)
-					fmt.Printf("Build:   %s\n", result.BuildNumber)
-					printVersionScopeAndSources(result, "")
+					fmt.Fprintf(d.IO.Out, "Version: %s\n", result.Version)
+					fmt.Fprintf(d.IO.Out, "Build:   %s\n", result.BuildNumber)
+					printVersionScopeAndSources(d.IO.Out, result, "")
 					return nil
 				},
 				func() error {
-					fmt.Printf("**Version:** %s\n\n**Build:** %s\n", result.Version, result.BuildNumber)
-					printVersionScopeAndSources(result, "**")
+					fmt.Fprintf(d.IO.Out, "**Version:** %s\n\n**Build:** %s\n", result.Version, result.BuildNumber)
+					printVersionScopeAndSources(d.IO.Out, result, "**")
 					return nil
 				},
 			)
@@ -199,16 +199,16 @@ auto policy warns on stderr before running xcodebuild -showBuildSettings. Use
 	}
 }
 
-func printVersionScopeAndSources(result *localxcode.VersionInfo, markdownMarker string) {
+func printVersionScopeAndSources(w io.Writer, result *localxcode.VersionInfo, markdownMarker string) {
 	printValue := func(label, value string) {
 		if value == "" {
 			return
 		}
 		if markdownMarker != "" {
-			fmt.Printf("\n**%s:** %s\n", label, value)
+			fmt.Fprintf(w, "\n**%s:** %s\n", label, value)
 			return
 		}
-		fmt.Printf("%-15s %s\n", label+":", value)
+		fmt.Fprintf(w, "%-15s %s\n", label+":", value)
 	}
 	printValue("Target", result.Target)
 	printValue("Configuration", result.Configuration)
@@ -216,8 +216,8 @@ func printVersionScopeAndSources(result *localxcode.VersionInfo, markdownMarker 
 	printValue("Build source", result.BuildNumberSource)
 }
 
-func xcodeVersionEditCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("edit", flag.ExitOnError)
+func xcodeVersionEditCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("edit", flag.ExitOnError)
 
 	projectDir := fs.String("project-dir", ".", "Path to directory containing .xcodeproj")
 	project := fs.String("project", "", "Path to a specific .xcodeproj (preferred when the directory contains multiple projects)")
@@ -228,7 +228,7 @@ func xcodeVersionEditCommand() *ffcli.Command {
 	allowExternalXCConfig := fs.Bool("allow-external-xcconfig", false, "Allow rewriting xcconfig files referenced outside the project directory")
 	xcodebuildSettingsLookup := bindXcodebuildSettingsLookup(fs)
 	remote := bindXcodeRemoteBuildNumberFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "edit",
@@ -254,33 +254,33 @@ Examples:
   asc xcode version edit --target Widget --configuration Release --build-number "42"
   asc xcode version edit --next-build-number --app "com.example.app"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			lookupPolicy, err := parseXcodebuildSettingsLookup(*xcodebuildSettingsLookup)
+			lookupPolicy, err := parseXcodebuildSettingsLookup(d, *xcodebuildSettingsLookup)
 			if err != nil {
 				return err
 			}
-			lookupSession := localxcode.NewBuildSettingsLookupSession(lookupPolicy, os.Stderr)
+			lookupSession := localxcode.NewBuildSettingsLookupSession(lookupPolicy, d.IO.ErrOut)
 
 			v := strings.TrimSpace(*version)
 			b := strings.TrimSpace(*buildNumber)
 			if b != "" && *remote.next {
-				return shared.UsageError("--build-number and --next-build-number are mutually exclusive")
+				return d.UsageError("--build-number and --next-build-number are mutually exclusive")
 			}
 			if !*remote.next && remote.hasRemoteOnlyValues() {
-				return shared.UsageError("remote build-number flags require --next-build-number")
+				return d.UsageError("remote build-number flags require --next-build-number")
 			}
 			if v == "" && b == "" && !*remote.next {
-				return shared.UpdateFlagRequired(fs, version, buildNumber, remote.next)
+				return d.UpdateFlagRequired(fs, version, buildNumber, remote.next)
 			}
 
-			projectInput := selectedProjectInput(*projectDir, *project)
+			projectInput := osPath(d, selectedProjectInput(*projectDir, *project))
 			versionFilter := ""
 			if *allowExternalXCConfig {
-				warnExternalXCConfigAuthorized()
+				warnExternalXCConfigAuthorized(d)
 			}
 			if *remote.next {
-				if err := validateXcodeRemoteBuildNumberOptions(remote.options(v)); err != nil {
+				if err := validateXcodeRemoteBuildNumberOptions(d, remote.options(v)); err != nil {
 					return err
 				}
 				if err := runValidateSetVersion(ctx, localxcode.SetVersionOptions{
@@ -300,7 +300,7 @@ Examples:
 						Target:                  strings.TrimSpace(*target),
 						Configuration:           strings.TrimSpace(*configuration),
 						BuildSettingsLookup:     lookupPolicy,
-						BuildSettingsDiagnostic: os.Stderr,
+						BuildSettingsDiagnostic: d.IO.ErrOut,
 						BuildSettingsSession:    lookupSession,
 					})
 					if err != nil {
@@ -309,7 +309,7 @@ Examples:
 					versionFilter = resolvedVersion
 				}
 				var err error
-				b, err = runResolveXcodeNextBuildNumber(ctx, remote.options(versionFilter))
+				b, err = runResolveXcodeNextBuildNumber(ctx, d, remote.options(versionFilter))
 				if err != nil {
 					return classifyXcodeLocalFailure(fmt.Errorf("xcode version edit: resolve next build number: %w", err))
 				}
@@ -329,15 +329,15 @@ Examples:
 
 			result.VersionFilter = versionFilter
 			for _, warning := range result.ComputedWarnings {
-				fmt.Fprintln(os.Stderr, "Warning: "+warning)
+				fmt.Fprintln(d.IO.ErrOut, "Warning: "+warning)
 			}
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-func xcodeVersionBumpCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("bump", flag.ExitOnError)
+func xcodeVersionBumpCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("bump", flag.ExitOnError)
 
 	projectDir := fs.String("project-dir", ".", "Path to directory containing .xcodeproj")
 	project := fs.String("project", "", "Path to a specific .xcodeproj (preferred when the directory contains multiple projects)")
@@ -347,7 +347,7 @@ func xcodeVersionBumpCommand() *ffcli.Command {
 	allowExternalXCConfig := fs.Bool("allow-external-xcconfig", false, "Allow rewriting xcconfig files referenced outside the project directory")
 	xcodebuildSettingsLookup := bindXcodebuildSettingsLookup(fs)
 	remote := bindXcodeRemoteBuildNumberFlags(fs)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "bump",
@@ -379,33 +379,33 @@ Examples:
   asc xcode version bump --type minor --project-dir ./MyApp
   asc xcode version bump --type build`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			lookupPolicy, err := parseXcodebuildSettingsLookup(*xcodebuildSettingsLookup)
+			lookupPolicy, err := parseXcodebuildSettingsLookup(d, *xcodebuildSettingsLookup)
 			if err != nil {
 				return err
 			}
-			lookupSession := localxcode.NewBuildSettingsLookupSession(lookupPolicy, os.Stderr)
+			lookupSession := localxcode.NewBuildSettingsLookupSession(lookupPolicy, d.IO.ErrOut)
 
 			parsed, err := localxcode.ParseBumpType(*bumpType)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
 			if *remote.next && parsed != localxcode.BumpBuild {
-				return shared.UsageError("--next-build-number requires --type build")
+				return d.UsageError("--next-build-number requires --type build")
 			}
 			if !*remote.next && remote.hasRemoteOnlyValues() {
-				return shared.UsageError("remote build-number flags require --next-build-number")
+				return d.UsageError("remote build-number flags require --next-build-number")
 			}
-			projectInput := selectedProjectInput(*projectDir, *project)
+			projectInput := osPath(d, selectedProjectInput(*projectDir, *project))
 			if *allowExternalXCConfig {
-				warnExternalXCConfigAuthorized()
+				warnExternalXCConfigAuthorized(d)
 			}
 			remoteBuildNumber := ""
 			versionFilter := ""
 			if *remote.next {
-				if err := validateXcodeRemoteBuildNumberOptions(remote.options("")); err != nil {
+				if err := validateXcodeRemoteBuildNumberOptions(d, remote.options("")); err != nil {
 					return err
 				}
 				if err := runValidateBumpVersion(ctx, localxcode.BumpVersionOptions{
@@ -415,7 +415,7 @@ Examples:
 					BumpType:                localxcode.BumpBuild,
 					BuildNumber:             "1",
 					BuildSettingsLookup:     lookupPolicy,
-					BuildSettingsDiagnostic: os.Stderr,
+					BuildSettingsDiagnostic: d.IO.ErrOut,
 					BuildSettingsSession:    lookupSession,
 					AllowExternalXCConfig:   *allowExternalXCConfig,
 				}); err != nil {
@@ -426,13 +426,13 @@ Examples:
 					Target:                  strings.TrimSpace(*target),
 					Configuration:           strings.TrimSpace(*configuration),
 					BuildSettingsLookup:     lookupPolicy,
-					BuildSettingsDiagnostic: os.Stderr,
+					BuildSettingsDiagnostic: d.IO.ErrOut,
 					BuildSettingsSession:    lookupSession,
 				})
 				if err != nil {
 					return classifyXcodeLocalFailure(fmt.Errorf("xcode version bump: resolve local version for remote build selection: %w", err))
 				}
-				remoteBuildNumber, err = runResolveXcodeNextBuildNumber(ctx, remote.options(versionFilter))
+				remoteBuildNumber, err = runResolveXcodeNextBuildNumber(ctx, d, remote.options(versionFilter))
 				if err != nil {
 					return classifyXcodeLocalFailure(fmt.Errorf("xcode version bump: resolve next build number: %w", err))
 				}
@@ -445,7 +445,7 @@ Examples:
 				BumpType:                parsed,
 				BuildNumber:             remoteBuildNumber,
 				BuildSettingsLookup:     lookupPolicy,
-				BuildSettingsDiagnostic: os.Stderr,
+				BuildSettingsDiagnostic: d.IO.ErrOut,
 				BuildSettingsSession:    lookupSession,
 				AllowExternalXCConfig:   *allowExternalXCConfig,
 			})
@@ -455,22 +455,22 @@ Examples:
 
 			result.VersionFilter = versionFilter
 			for _, warning := range result.ComputedWarnings {
-				fmt.Fprintln(os.Stderr, "Warning: "+warning)
+				fmt.Fprintln(d.IO.ErrOut, "Warning: "+warning)
 			}
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-func warnExternalXCConfigAuthorized() {
-	fmt.Fprintln(os.Stderr, "Warning: --allow-external-xcconfig permits rewriting xcconfig files outside the project directory.")
+func warnExternalXCConfigAuthorized(d *shared.Deps) {
+	fmt.Fprintln(d.IO.ErrOut, "Warning: --allow-external-xcconfig permits rewriting xcconfig files outside the project directory.")
 }
 
-func resolveXcodeNextBuildNumber(ctx context.Context, opts xcodeRemoteBuildNumberOptions) (string, error) {
-	if err := validateXcodeRemoteBuildNumberOptions(opts); err != nil {
+func resolveXcodeNextBuildNumber(ctx context.Context, d *shared.Deps, opts xcodeRemoteBuildNumberOptions) (string, error) {
+	if err := validateXcodeRemoteBuildNumberOptions(d, opts); err != nil {
 		return "", err
 	}
-	selection, err := shared.NormalizeLatestBuildSelectionOptions(
+	selection, err := d.NormalizeLatestBuildSelectionOptions(
 		opts.AppID,
 		opts.Version,
 		opts.Platform,
@@ -480,13 +480,13 @@ func resolveXcodeNextBuildNumber(ctx context.Context, opts xcodeRemoteBuildNumbe
 	if err != nil {
 		return "", err
 	}
-	client, err := shared.GetASCClient()
+	client, err := d.Client()
 	if err != nil {
 		return "", err
 	}
-	requestCtx, cancel := shared.ContextWithTimeout(ctx)
+	requestCtx, cancel := d.Timeout(ctx)
 	defer cancel()
-	result, err := shared.ResolveNextBuildNumber(requestCtx, client, shared.NextBuildNumberOptions{
+	result, err := d.ResolveNextBuildNumber(requestCtx, client, shared.NextBuildNumberOptions{
 		LatestBuildSelectionOptions: selection,
 		InitialBuildNumber:          opts.InitialBuildNumber,
 	})
@@ -496,8 +496,8 @@ func resolveXcodeNextBuildNumber(ctx context.Context, opts xcodeRemoteBuildNumbe
 	return result.NextBuildNumber, nil
 }
 
-func validateXcodeRemoteBuildNumberOptions(opts xcodeRemoteBuildNumberOptions) error {
-	if _, err := shared.NormalizeLatestBuildSelectionOptions(
+func validateXcodeRemoteBuildNumberOptions(d *shared.Deps, opts xcodeRemoteBuildNumberOptions) error {
+	if _, err := d.NormalizeLatestBuildSelectionOptions(
 		opts.AppID,
 		opts.Version,
 		opts.Platform,
@@ -507,7 +507,7 @@ func validateXcodeRemoteBuildNumberOptions(opts xcodeRemoteBuildNumberOptions) e
 		return err
 	}
 	if opts.InitialBuildNumber < 1 {
-		return shared.UsageError("--initial-build-number must be >= 1")
+		return d.UsageError("--initial-build-number must be >= 1")
 	}
 	return nil
 }

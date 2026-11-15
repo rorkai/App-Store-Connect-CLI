@@ -53,7 +53,7 @@ func NewInitReferenceCommand(d *shared.Deps, flagSetName, commandName, shortUsag
 		ShortHelp:  shortHelp,
 		LongHelp:   longHelp,
 		FlagSet:    fs,
-		UsageFunc:  shared.DefaultUsageFunc,
+		UsageFunc:  d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			result, err := initReference(d.Getwd, InitOptions{
 				Path:  *path,

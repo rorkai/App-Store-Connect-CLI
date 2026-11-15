@@ -64,7 +64,7 @@ Examples:
   asc certificates csr generate --key-out "./signing/cert.key" --csr-out "./signing/cert.csr"
   asc certificates csr generate --common-name "ASC Signing" --key-out "./signing/cert.key" --csr-out "./signing/cert.csr"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newCertificatesCSRGenerateCommand(d),
 		},
@@ -103,7 +103,7 @@ Examples:
   asc certificates csr generate --common-name "ASC Signing" --key-out "./signing/cert.key" --csr-out "./signing/cert.csr"
   asc certificates csr generate --key-out "./signing/cert.key" --csr-out "./signing/cert.csr" --force`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			keyOutValue := strings.TrimSpace(*keyOut)
 			if keyOutValue == "" {

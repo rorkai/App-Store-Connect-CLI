@@ -2,6 +2,7 @@ package metadata
 
 import (
 	"bytes"
+	"net/http"
 	"strings"
 	"testing"
 	"time"
@@ -168,5 +169,7 @@ func metadataTestDeps() *shared.Deps {
 		Now:     time.Now,
 		Timeout: shared.ContextWithTimeout,
 		After:   time.After,
+
+		HTTPTransport: func() http.RoundTripper { return http.DefaultTransport },
 	}
 }

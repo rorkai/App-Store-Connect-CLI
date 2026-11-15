@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	localxcode "github.com/rudrankriyam/App-Store-Connect-CLI/internal/xcode"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 const junitSummaryFixture = `{
@@ -56,7 +58,8 @@ func TestXcodeTestJUnitWritesGoldenReportFromFixtureSummary(t *testing.T) {
 		return summary, nil
 	}))
 
-	cmd := XcodeTestJUnitCommand()
+	d := newXcodeTestDeps(nil)
+	cmd := newXcodeTestJUnitCommand(d)
 	if err := cmd.Parse([]string{"--xcresult", "Test.xcresult", "--report-file", reportFile, "--output", "json", "--allow-failures"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
@@ -164,7 +167,8 @@ func TestXcodeTestJUnitAttributesFailuresToVariants(t *testing.T) {
 		return summary, nil
 	}))
 
-	cmd := XcodeTestJUnitCommand()
+	d := newXcodeTestDeps(nil)
+	cmd := newXcodeTestJUnitCommand(d)
 	if err := cmd.Parse([]string{"--xcresult", "Test.xcresult", "--report-file", reportFile, "--output", "json", "--allow-failures"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
@@ -227,7 +231,8 @@ func TestXcodeTestJUnitFailsClosedWhenCaseEnrichmentFails(t *testing.T) {
 		}, errors.New("case enrichment unavailable")
 	}))
 
-	cmd := XcodeTestJUnitCommand()
+	d := newXcodeTestDeps(nil)
+	cmd := newXcodeTestJUnitCommand(d)
 	if err := cmd.Parse([]string{"--xcresult", "Test.xcresult", "--report-file", reportFile, "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
@@ -246,7 +251,8 @@ func TestXcodeTestJUnitRequiresPathsBeforeLoading(t *testing.T) {
 		called = true
 		return nil, nil
 	}))
-	cmd := XcodeTestJUnitCommand()
+	d := newXcodeTestDeps(nil)
+	cmd := newXcodeTestJUnitCommand(d)
 	cmd.FlagSet.SetOutput(ioDiscard(t))
 	if err := cmd.Parse([]string{"--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
@@ -279,11 +285,12 @@ func TestXcodeTestDestinationsParsesFixtureAndFiltersUnavailable(t *testing.T) {
 		  }
 		}`), nil
 	}))
-	cmd := XcodeTestDestinationsCommand()
+	d := newXcodeTestDeps(nil)
+	cmd := newXcodeTestDestinationsCommand(d)
 	if err := cmd.Parse([]string{"--platform", "iOS", "--available-only", "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
-	stdout := captureTestDestinations(t, cmd)
+	stdout := captureTestDestinations(t, d, cmd)
 	if calls != 1 {
 		t.Fatalf("simctl calls = %d", calls)
 	}
@@ -303,11 +310,12 @@ func TestXcodeTestDestinationsMacDoesNotCallSimctl(t *testing.T) {
 		t.Fatal("simctl should not run for --platform macOS")
 		return nil, nil
 	}))
-	cmd := XcodeTestDestinationsCommand()
+	d := newXcodeTestDeps(nil)
+	cmd := newXcodeTestDestinationsCommand(d)
 	if err := cmd.Parse([]string{"--platform", "macOS", "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
-	stdout := captureTestDestinations(t, cmd)
+	stdout := captureTestDestinations(t, d, cmd)
 	if !strings.Contains(stdout, `"destinationString":"platform=macOS"`) {
 		t.Fatalf("stdout = %s", stdout)
 	}
@@ -321,7 +329,8 @@ func TestXcodeTestDestinationsMacRefusesNonDarwinBeforeSimctl(t *testing.T) {
 		t.Fatal("simctl should not run on a non-macOS host")
 		return nil, nil
 	}))
-	cmd := XcodeTestDestinationsCommand()
+	d := newXcodeTestDeps(nil)
+	cmd := newXcodeTestDestinationsCommand(d)
 	if err := cmd.Parse([]string{"--platform", "macOS", "--output", "json"}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
@@ -336,7 +345,8 @@ func TestXcodeTestDestinationsRejectsUnknownPlatformBeforeSimctl(t *testing.T) {
 		t.Fatal("simctl should not run for a usage error")
 		return nil, nil
 	}))
-	cmd := XcodeTestDestinationsCommand()
+	d := newXcodeTestDeps(nil)
+	cmd := newXcodeTestDestinationsCommand(d)
 	cmd.FlagSet.SetOutput(ioDiscard(t))
 	if err := cmd.Parse([]string{"--platform", "android"}); err != nil {
 		if !strings.Contains(err.Error(), "--platform must be one of") {
@@ -354,7 +364,8 @@ func TestXcodeTestJUnitRefusesNonDarwinBeforeLoaderWhenUnset(t *testing.T) {
 	previous := xcodeCommandGOOS
 	xcodeCommandGOOS = "linux"
 	t.Cleanup(func() { xcodeCommandGOOS = previous })
-	cmd := XcodeTestJUnitCommand()
+	d := newXcodeTestDeps(nil)
+	cmd := newXcodeTestJUnitCommand(d)
 	if err := cmd.Parse([]string{"--xcresult", "Test.xcresult", "--report-file", filepath.Join(t.TempDir(), "junit.xml")}); err != nil {
 		t.Fatalf("parse: %v", err)
 	}
@@ -364,27 +375,17 @@ func TestXcodeTestJUnitRefusesNonDarwinBeforeLoaderWhenUnset(t *testing.T) {
 	}
 }
 
-func captureTestDestinations(t *testing.T, cmd interface {
+func captureTestDestinations(t *testing.T, d *shared.Deps, cmd interface {
 	Run(context.Context) error
 },
 ) string {
 	t.Helper()
-	original := os.Stdout
-	reader, writer, err := os.Pipe()
-	if err != nil {
-		t.Fatal(err)
-	}
-	os.Stdout = writer
-	t.Cleanup(func() { os.Stdout = original })
 	runErr := cmd.Run(context.Background())
-	writer.Close()
-	os.Stdout = original
-	buf := make([]byte, 1<<20)
-	n, _ := reader.Read(buf)
+	stdout, _ := depsOutput(d)
 	if runErr != nil {
-		t.Fatalf("run: %v\nstdout: %s", runErr, buf[:n])
+		t.Fatalf("run: %v\nstdout: %s", runErr, stdout)
 	}
-	return string(buf[:n])
+	return stdout
 }
 
 func ioDiscard(t *testing.T) *os.File {
