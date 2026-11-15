@@ -204,7 +204,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("product-pages", "Manage custom product pages and product page experiments.", func() *ffcli.Command {
 			return productpages.NewProductPagesCommand(d)
 		}),
-		commandFactory("routing-coverage", "Manage routing app coverage files.", routingcoverage.RoutingCoverageCommand),
+		commandFactory("routing-coverage", "Manage routing app coverage files.", func() *ffcli.Command {
+			return routingcoverage.NewRoutingCoverageCommand(d)
+		}),
 		commandFactory("eula", "Manage End User License Agreements (EULA).", func() *ffcli.Command {
 			return eula.NewEULACommand(d)
 		}),
@@ -218,7 +220,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("screenshots", "Upload and manage App Store screenshots, including local capture, framing, and matrices.", screenshots.ScreenshotsCommand),
 		commandFactory("video-previews", "Manage App Store app preview videos.", videopreviews.VideoPreviewsCommand),
 		commandFactory("asset-library", "Inspect Asset Library media and specifications, and upload images and videos.", assetlibrary.Command),
-		commandFactory("background-assets", "Manage background assets.", backgroundassets.BackgroundAssetsCommand),
+		commandFactory("background-assets", "Manage background assets.", func() *ffcli.Command {
+			return backgroundassets.NewBackgroundAssetsCommand(d)
+		}),
 		commandFactory("build-localizations", "Manage build release notes localizations.", func() *ffcli.Command {
 			return buildlocalizations.NewBuildLocalizationsCommand(d)
 		}),
@@ -243,7 +247,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("accessibility", "Manage accessibility declarations.", func() *ffcli.Command {
 			return accessibility.NewAccessibilityCommand(d)
 		}),
-		commandFactory("encryption", "Manage app encryption declarations and documents.", encryption.EncryptionCommand),
+		commandFactory("encryption", "Manage app encryption declarations and documents.", func() *ffcli.Command {
+			return encryption.NewEncryptionCommand(d)
+		}),
 		commandFactory("migrate", "Migrate metadata from/to fastlane format.", migrate.MigrateCommand),
 		commandFactory("notify", "Send notifications to external services.", notify.NotifyCommand),
 		commandFactory("game-center", "Manage Game Center resources in App Store Connect.", gamecenter.GameCenterCommand),

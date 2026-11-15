@@ -9,9 +9,8 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// BackgroundAssetsAppStoreReleasesCommand returns the App Store releases command group.
-func BackgroundAssetsAppStoreReleasesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("app-store-releases", flag.ExitOnError)
+func newBackgroundAssetsAppStoreReleasesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("app-store-releases", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "app-store-releases",
@@ -24,7 +23,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			BackgroundAssetsAppStoreReleasesGetCommand(),
+			newBackgroundAssetsAppStoreReleasesGetCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -32,9 +31,9 @@ Examples:
 	}
 }
 
-// BackgroundAssetsAppStoreReleasesGetCommand returns the App Store releases get subcommand.
-func BackgroundAssetsAppStoreReleasesGetCommand() *ffcli.Command {
+func newBackgroundAssetsAppStoreReleasesGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		Deps:       d,
 		Name:       "view",
 		ShortUsage: "asc background-assets app-store-releases view --id \"RELEASE_ID\"",
 		ShortHelp:  "View a background asset App Store release.",
@@ -51,9 +50,8 @@ Examples:
 	})
 }
 
-// BackgroundAssetsExternalBetaReleasesCommand returns the external beta releases command group.
-func BackgroundAssetsExternalBetaReleasesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("external-beta-releases", flag.ExitOnError)
+func newBackgroundAssetsExternalBetaReleasesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("external-beta-releases", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "external-beta-releases",
@@ -66,7 +64,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			BackgroundAssetsExternalBetaReleasesGetCommand(),
+			newBackgroundAssetsExternalBetaReleasesGetCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -74,9 +72,9 @@ Examples:
 	}
 }
 
-// BackgroundAssetsExternalBetaReleasesGetCommand returns the external beta releases get subcommand.
-func BackgroundAssetsExternalBetaReleasesGetCommand() *ffcli.Command {
+func newBackgroundAssetsExternalBetaReleasesGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		Deps:       d,
 		Name:       "view",
 		ShortUsage: "asc background-assets external-beta-releases view --id \"RELEASE_ID\"",
 		ShortHelp:  "View a background asset external beta release.",
@@ -93,9 +91,8 @@ Examples:
 	})
 }
 
-// BackgroundAssetsInternalBetaReleasesCommand returns the internal beta releases command group.
-func BackgroundAssetsInternalBetaReleasesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("internal-beta-releases", flag.ExitOnError)
+func newBackgroundAssetsInternalBetaReleasesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("internal-beta-releases", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "internal-beta-releases",
@@ -108,7 +105,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			BackgroundAssetsInternalBetaReleasesGetCommand(),
+			newBackgroundAssetsInternalBetaReleasesGetCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -116,9 +113,9 @@ Examples:
 	}
 }
 
-// BackgroundAssetsInternalBetaReleasesGetCommand returns the internal beta releases get subcommand.
-func BackgroundAssetsInternalBetaReleasesGetCommand() *ffcli.Command {
+func newBackgroundAssetsInternalBetaReleasesGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		Deps:       d,
 		Name:       "view",
 		ShortUsage: "asc background-assets internal-beta-releases view --id \"RELEASE_ID\"",
 		ShortHelp:  "View a background asset internal beta release.",

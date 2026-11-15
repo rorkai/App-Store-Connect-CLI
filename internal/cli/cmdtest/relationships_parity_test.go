@@ -37,14 +37,17 @@ func TestRelationshipCommandValidationErrors(t *testing.T) {
 		{
 			name: "background-assets app-store-releases get missing id",
 			args: []string{"background-assets", "app-store-releases", "get"},
+			deps: true,
 		},
 		{
 			name: "background-assets external-beta-releases get missing id",
 			args: []string{"background-assets", "external-beta-releases", "get"},
+			deps: true,
 		},
 		{
 			name: "background-assets internal-beta-releases get missing id",
 			args: []string{"background-assets", "internal-beta-releases", "get"},
+			deps: true,
 		},
 		{
 			name: "apps ci-product get missing id",

@@ -17,7 +17,6 @@ import (
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asctest"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func backgroundReviewSubmissionDetailJSON(resourceType, resourceID, state, platform, appID string) string {
@@ -270,7 +269,6 @@ func TestBackgroundAssetsSubmitPreflightRejectsAdversarialResponses(t *testing.T
 			}
 
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			if test.createBody != "" {
 				reg.Register(asctest.POST("/v1/reviewSubmissions").JSONBody(backgroundReviewSubmissionCreateBody),
 					asctest.JSON(http.StatusCreated, test.createBody))
@@ -299,7 +297,7 @@ func TestBackgroundAssetsSubmitPreflightRejectsAdversarialResponses(t *testing.T
 					asctest.JSON(cancelStatus, cancelBody))
 			}
 
-			_, _, runErr := runCommand(t, args)
+			_, _, runErr := runRootWithDeps(t, stubClient(t, reg), args...)
 			if runErr == nil {
 				t.Fatalf("expected preflight error containing %q", test.wantErr)
 			}
@@ -328,7 +326,6 @@ func TestBackgroundAssetsSubmitStopsBeforeFetchingItemPageBeyondLimit(t *testing
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/reviewSubmissions/"+submissionID, "include=app"),
 		asctest.JSON(http.StatusOK, backgroundReviewSubmissionDetailJSON("reviewSubmissions", submissionID, "READY_FOR_REVIEW", "IOS", appID)))
 	itemsPath := "/v1/reviewSubmissions/" + submissionID + "/items"
@@ -342,8 +339,6 @@ func TestBackgroundAssetsSubmitStopsBeforeFetchingItemPageBeyondLimit(t *testing
 		reg.Register(asctest.GET(itemsPath, query...), asctest.JSON(http.StatusOK, fmt.Sprintf(`{"data":[],"links":{"self":%q,"next":%q}}`, self, next)))
 	}
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
 	args := []string{
 		"background-assets", "submit",
 		"--app", appID,
@@ -352,15 +347,10 @@ func TestBackgroundAssetsSubmitStopsBeforeFetchingItemPageBeyondLimit(t *testing
 		"--confirm",
 		"--output", "json",
 	}
-	if err := root.Parse(args); err != nil {
-		t.Fatalf("parse error: %v", err)
+	_, _, err := runRootWithDeps(t, stubClient(t, reg), args...)
+	if err == nil || !strings.Contains(err.Error(), "page 1001 exceeds the maximum of 1000 pages") {
+		t.Fatalf("error = %v, want pagination limit failure", err)
 	}
-	_, _ = captureOutput(t, func() {
-		err := root.Run(context.Background())
-		if err == nil || !strings.Contains(err.Error(), "page 1001 exceeds the maximum of 1000 pages") {
-			t.Fatalf("error = %v, want pagination limit failure", err)
-		}
-	})
 
 	if got := countBackgroundSubmitRequests(reg, http.MethodGet, itemsPath); got != 1000 {
 		t.Fatalf("item GET requests = %d, want 1000", got)
@@ -417,11 +407,10 @@ func TestBackgroundAssetsSubmitValidationErrors(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			stdout, stderr := captureOutput(t, func() {
-				if code := rootcmd.Run(test.args, "1.2.3"); code != rootcmd.ExitUsage {
-					t.Fatalf("expected exit code %d, got %d", rootcmd.ExitUsage, code)
-				}
-			})
+			stdout, stderr, code := runWithDeps(t, nil, test.args...)
+			if code != rootcmd.ExitUsage {
+				t.Fatalf("expected exit code %d, got %d", rootcmd.ExitUsage, code)
+			}
 
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
@@ -437,10 +426,6 @@ func TestBackgroundAssetsSubmitDryRunWithExplicitVersionIDsDoesNotCallNetwork(t 
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
 
 	args := []string{
 		"background-assets", "submit",
@@ -450,14 +435,10 @@ func TestBackgroundAssetsSubmitDryRunWithExplicitVersionIDsDoesNotCallNetwork(t 
 		"--output", "json",
 	}
 
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse(args); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), args...)
+	if runErr != nil {
+		t.Fatalf("run error: %v", runErr)
+	}
 
 	if calls := len(reg.Requests()); calls != 0 {
 		t.Fatalf("expected zero network calls, got %d", calls)
@@ -496,7 +477,6 @@ func TestBackgroundAssetsSubmitAllHappyPath(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/123456789/backgroundAssets", "filter[archived]=false", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[
 				{"type":"backgroundAssets","id":"asset-1","attributes":{"assetPackIdentifier":"pack.one"}},
@@ -521,9 +501,6 @@ func TestBackgroundAssetsSubmitAllHappyPath(t *testing.T) {
 	reg.Register(asctest.PATCH("/v1/reviewSubmissions/sub-xyz").JSONBody(backgroundReviewSubmissionPatchBody("sub-xyz", "submitted")),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"sub-xyz","attributes":{"platform":"IOS","state":"WAITING_FOR_REVIEW","submittedDate":"2026-05-14T18:33:37Z"}}}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
 	args := []string{
 		"background-assets", "submit",
 		"--app", "123456789",
@@ -532,14 +509,10 @@ func TestBackgroundAssetsSubmitAllHappyPath(t *testing.T) {
 		"--output", "json",
 	}
 
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse(args); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), args...)
+	if runErr != nil {
+		t.Fatalf("run error: %v", runErr)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -587,7 +560,6 @@ func TestBackgroundAssetsSubmitReuseExistingSkipsAttached(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/123456789/backgroundAssets", "filter[archived]=false", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[
 				{"type":"backgroundAssets","id":"asset-1","attributes":{"assetPackIdentifier":"pack.one"}},
@@ -610,9 +582,6 @@ func TestBackgroundAssetsSubmitReuseExistingSkipsAttached(t *testing.T) {
 	reg.Register(asctest.PATCH("/v1/reviewSubmissions/sub-existing").JSONBody(backgroundReviewSubmissionPatchBody("sub-existing", "submitted")),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"sub-existing","attributes":{"state":"WAITING_FOR_REVIEW","submittedDate":"2026-05-14T18:33:37Z"}}}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
 	args := []string{
 		"background-assets", "submit",
 		"--app", "123456789",
@@ -622,14 +591,10 @@ func TestBackgroundAssetsSubmitReuseExistingSkipsAttached(t *testing.T) {
 		"--output", "json",
 	}
 
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse(args); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), args...)
+	if runErr != nil {
+		t.Fatalf("run error: %v", runErr)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
@@ -669,7 +634,6 @@ func TestBackgroundAssetsSubmitRollsBackEmptySubmissionOnFirstAttachFailure(t *t
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/123456789/backgroundAssets", "filter[archived]=false", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[
 				{"type":"backgroundAssets","id":"asset-1","attributes":{"assetPackIdentifier":"pack.one"}}
@@ -689,9 +653,6 @@ func TestBackgroundAssetsSubmitRollsBackEmptySubmissionOnFirstAttachFailure(t *t
 	reg.Register(asctest.PATCH("/v1/reviewSubmissions/sub-doomed").JSONBody(backgroundReviewSubmissionPatchBody("sub-doomed", "canceled")),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"sub-doomed","attributes":{"state":"CANCELING"}}}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
 	args := []string{
 		"background-assets", "submit",
 		"--app", "123456789",
@@ -700,13 +661,7 @@ func TestBackgroundAssetsSubmitRollsBackEmptySubmissionOnFirstAttachFailure(t *t
 		"--output", "json",
 	}
 
-	var runErr error
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse(args); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	stdout, _, runErr := runRootWithDeps(t, stubClient(t, reg), args...)
 
 	if runErr == nil {
 		t.Fatalf("expected error when first attach fails, got nil")
@@ -728,7 +683,7 @@ func TestBackgroundAssetsSubmitRollsBackEmptySubmissionOnFirstAttachFailure(t *t
 func TestBackgroundAssetsSubmitFlagOrderEdgeCases(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
-	asctest.NewRegistry(t).Install()
+	client := stubClient(t, asctest.NewRegistry(t))
 
 	cases := []struct {
 		name string
@@ -780,17 +735,10 @@ func TestBackgroundAssetsSubmitFlagOrderEdgeCases(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(c.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("unexpected run error: %v", err)
-				}
-			})
+			stdout, stderr, err := runRootWithDeps(t, client, c.args...)
+			if err != nil {
+				t.Fatalf("unexpected run error: %v", err)
+			}
 
 			if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)
@@ -888,11 +836,8 @@ func TestBackgroundAssetsSubmitRenewsAttachBudgetAndRollsBackFailure(t *testing.
 	if err != nil {
 		t.Fatalf("create background-assets submit client: %v", err)
 	}
-	restoreClient := shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) { return client, nil })
-	t.Cleanup(restoreClient)
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
+	d, _, stderrBuf := newTestDeps(t, func() (*asc.Client, error) { return client, nil })
+	root := rootcmd.RootCommandWithDeps("1.2.3", d)
 	args := []string{
 		"background-assets", "submit",
 		"--app", appID,
@@ -900,15 +845,13 @@ func TestBackgroundAssetsSubmitRenewsAttachBudgetAndRollsBackFailure(t *testing.
 		"--confirm",
 		"--output", "json",
 	}
+	if err := root.Parse(args); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
 	var runErr error
-	_, stderr := captureOutput(t, func() {
-		if err := root.Parse(args); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		synctest.Test(t, func(*testing.T) { runErr = root.Run(context.Background()) })
-	})
+	synctest.Test(t, func(*testing.T) { runErr = root.Run(context.Background()) })
 
-	if stderr != "" {
+	if stderr := stderrBuf.String(); stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
 	if runErr == nil || !strings.Contains(runErr.Error(), "attach version") || !strings.Contains(runErr.Error(), "rolled back the submission") {
