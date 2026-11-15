@@ -68,16 +68,16 @@ Examples:
 				return err
 			}
 
-			platforms, err := shared.NormalizeAppStoreVersionPlatforms(shared.SplitCSVUpper(*platform))
-			if err != nil {
-				return shared.UsageErrorfCtx(ctx, "pre-release-versions list: %v", err)
-			}
-
 			resolvedAppID := strings.TrimSpace(shared.ResolveAppID(strings.TrimSpace(*appID)))
 			nextValue := strings.TrimSpace(*next)
 			if resolvedAppID == "" && nextValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
+			}
+
+			platforms, err := shared.NormalizeAppStoreVersionPlatforms(shared.SplitCSVUpper(*platform))
+			if err != nil {
+				return shared.UsageErrorfCtx(ctx, "pre-release-versions list: %v", err)
 			}
 
 			client, err := shared.GetASCClient()

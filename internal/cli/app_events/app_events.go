@@ -95,6 +95,13 @@ Examples:
 			); err != nil {
 				return err
 			}
+
+			resolvedAppID := shared.ResolveAppID(*appID)
+			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
+				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				return shared.MissingRequiredUsageError("--app")
+			}
+
 			for _, selection := range []struct {
 				name  string
 				value string
@@ -138,12 +145,6 @@ Examples:
 			}
 			if *localizationsLimit > 0 && !shared.HasInclude(includeValues, "localizations") {
 				return shared.UsageError("app-events list: --localizations-limit requires --include localizations")
-			}
-
-			resolvedAppID := shared.ResolveAppID(*appID)
-			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return shared.MissingRequiredUsageError("--app")
 			}
 
 			client, err := appEventsClientFactory()

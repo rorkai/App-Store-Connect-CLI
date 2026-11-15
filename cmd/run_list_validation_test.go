@@ -39,14 +39,14 @@ func TestRunListValidationErrorsAreUsageAndSkipASCClient(t *testing.T) {
 		},
 		{
 			name:               "app tags territory fields without include",
-			args:               []string{"app-tags", "list", "--territory-fields", "currency"},
+			args:               []string{"app-tags", "list", "--app", "123456789", "--territory-fields", "currency"},
 			wantError:          "--territory-fields requires --include territories",
 			wantParameter:      "--territory-fields",
 			wantDiagnosticCode: string(shared.DiagnosticConflictingInput),
 		},
 		{
 			name:               "app tags territory limit without include",
-			args:               []string{"app-tags", "list", "--territory-limit", "5"},
+			args:               []string{"app-tags", "list", "--app", "123456789", "--territory-limit", "5"},
 			wantError:          "--territory-limit requires --include territories",
 			wantParameter:      "--territory-limit",
 			wantDiagnosticCode: string(shared.DiagnosticConflictingInput),

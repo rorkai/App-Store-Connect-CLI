@@ -1,10 +1,13 @@
 package cmdtest
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // TestOutputFlagRejectionUsesEnumStyle pins the rejection of an unsupported
@@ -69,6 +72,8 @@ func TestOutputFlagRejectionUsesEnumStyle(t *testing.T) {
 // TestValidOutputFormatsAreUnaffected keeps the guard from touching accepted
 // values, including the markdown alias.
 func TestValidOutputFormatsAreUnaffected(t *testing.T) {
+	errClient := errors.New("client requested")
+	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) { return nil, errClient }))
 	for _, format := range []string{"json", "table", "markdown", "md"} {
 		t.Run(format, func(t *testing.T) {
 			_, stderr := captureOutput(t, func() {
@@ -76,6 +81,9 @@ func TestValidOutputFormatsAreUnaffected(t *testing.T) {
 			})
 			if strings.Contains(stderr, "must be one of") {
 				t.Fatalf("format %q was rejected: %q", format, stderr)
+			}
+			if !strings.Contains(stderr, errClient.Error()) {
+				t.Fatalf("format %q did not reach the client: %q", format, stderr)
 			}
 		})
 	}

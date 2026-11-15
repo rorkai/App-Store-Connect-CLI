@@ -90,6 +90,21 @@ Examples:
 			if err := shared.ValidatePaginationFlags(ctx, fs, "review submissions-list", 200, "global", "platform", "state", "limit", "item-fields", "include"); err != nil {
 				return err
 			}
+
+			resolvedAppID := shared.ResolveAppID(*appID)
+			nextURL := strings.TrimSpace(*next)
+
+			// Require one of --app or --global (unless --next is provided)
+			if !*global && resolvedAppID == "" && nextURL == "" {
+				fmt.Fprintln(os.Stderr, "Error: --app or --global is required (or set ASC_APP_ID)")
+				return shared.MissingRequiredUsageError("")
+			}
+			// Top-level /v1/reviewSubmissions requires filter[app].
+			if *global && resolvedAppID == "" && nextURL == "" {
+				fmt.Fprintln(os.Stderr, "Error: --app is required with --global (or set ASC_APP_ID)")
+				return shared.MissingRequiredUsageError("--app")
+			}
+
 			command := shared.RewriteUsageMessage(ctx, "review submissions-list")
 
 			platforms, err := shared.NormalizeAppStoreVersionPlatforms(shared.SplitCSVUpper(*platform))
@@ -114,19 +129,6 @@ Examples:
 			}
 			if len(normalizedItemFields) != 0 && !slices.Contains(normalizedIncludes, "items") {
 				normalizedIncludes = append(normalizedIncludes, "items")
-			}
-			resolvedAppID := shared.ResolveAppID(*appID)
-			nextURL := strings.TrimSpace(*next)
-
-			// Require one of --app or --global (unless --next is provided)
-			if !*global && resolvedAppID == "" && nextURL == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app or --global is required (or set ASC_APP_ID)")
-				return shared.MissingRequiredUsageError("")
-			}
-			// Top-level /v1/reviewSubmissions requires filter[app].
-			if *global && resolvedAppID == "" && nextURL == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required with --global (or set ASC_APP_ID)")
-				return shared.MissingRequiredUsageError("--app")
 			}
 
 			client, err := reviewSubmissionsClientFactory()

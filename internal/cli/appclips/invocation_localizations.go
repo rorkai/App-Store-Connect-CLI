@@ -115,13 +115,8 @@ Examples:
 
 // AppClipInvocationLocalizationsUpdateCommand updates a localization.
 func AppClipInvocationLocalizationsUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("update", flag.ExitOnError)
-
-	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "betaAppClipInvocationLocalizations", "Localization ID")
-	title := fs.String("title", "", "Title")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	var attrs asc.BetaAppClipInvocationLocalizationUpdateAttributes
+	return shared.BuildUpdateCommand(shared.WriteCommandConfig{
 		Name:       "update",
 		ShortUsage: "asc app-clips invocations localizations update --localization-id \"LOC_ID\" [flags]",
 		ShortHelp:  "Update a beta App Clip invocation localization.",
@@ -129,41 +124,16 @@ func AppClipInvocationLocalizationsUpdateCommand() *ffcli.Command {
 
 Examples:
   asc app-clips invocations localizations update --localization-id "LOC_ID" --title "Try it"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			locValue := strings.TrimSpace(*localizationID)
-			if locValue == "" {
-				return shared.RequiredFlag("--localization-id")
-			}
-
-			visited := map[string]bool{}
-			fs.Visit(func(f *flag.Flag) {
-				visited[f.Name] = true
-			})
-			if !visited["title"] {
-				return shared.UpdateFlagRequired(fs, title)
-			}
-
-			titleValue := strings.TrimSpace(*title)
-			attrs := &asc.BetaAppClipInvocationLocalizationUpdateAttributes{Title: &titleValue}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("app-clips invocations localizations update: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.UpdateBetaAppClipInvocationLocalization(requestCtx, locValue, attrs)
-			if err != nil {
-				return fmt.Errorf("app-clips invocations localizations update: failed to update: %w", err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		IDFlag:  "localization-id",
+		IDUsage: "Localization ID",
+		IDType:  "betaAppClipInvocationLocalizations",
+		Fields: []shared.AttributeFlag{
+			shared.ExplicitStringFlag(&attrs.Title, "title", "Title"),
 		},
-	}
+		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.UpdateBetaAppClipInvocationLocalization(ctx, id, &attrs)
+		},
+	})
 }
 
 // AppClipInvocationLocalizationsDeleteCommand deletes a localization.

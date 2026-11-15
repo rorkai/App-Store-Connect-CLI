@@ -136,6 +136,10 @@ Examples:
 }
 
 func xcodeCloudBuildRunsList(ctx context.Context, workflowID string, sort string, limit int, next string, paginate bool, output string, pretty bool) error {
+	const workflowIDHint = `Find workflow IDs with: asc xcode-cloud workflows list --app "APP_ID"`
+	if err := requireXcodeCloudParent(workflowID, "workflow-id", workflowIDHint, next); err != nil {
+		return err
+	}
 	if err := shared.ValidateSort(sort, "number", "-number"); err != nil {
 		return shared.UsageError(err.Error())
 	}
@@ -144,7 +148,7 @@ func xcodeCloudBuildRunsList(ctx context.Context, workflowID string, sort string
 		ctx,
 		workflowID,
 		"workflow-id",
-		`Find workflow IDs with: asc xcode-cloud workflows list --app "APP_ID"`,
+		workflowIDHint,
 		limit,
 		next,
 		paginate,

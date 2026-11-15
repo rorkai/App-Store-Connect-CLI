@@ -131,14 +131,14 @@ Examples:
 				return err
 			}
 
-			actionValues, err := normalizeAppClipActionList(*action)
-			if err != nil {
-				return shared.UsageErrorf("app-clips advanced-experiences list: %v", err)
-			}
-
 			appClipValue := strings.TrimSpace(*appClipID)
 			if appClipValue == "" && strings.TrimSpace(*next) == "" {
 				return shared.RequiredFlag("--app-clip-id")
+			}
+
+			actionValues, err := normalizeAppClipActionList(*action)
+			if err != nil {
+				return shared.UsageErrorf("app-clips advanced-experiences list: %v", err)
 			}
 
 			client, err := shared.GetASCClient()

@@ -643,6 +643,13 @@ Examples:
 				return err
 			}
 			nextValue := strings.TrimSpace(*next)
+
+			resolvedAppID := shared.ResolveAppID(*appID)
+			if resolvedAppID == "" && nextValue == "" {
+				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
+				return shared.MissingRequiredUsageError("--app")
+			}
+
 			if err := shared.ValidateSort(*sort, buildsListSortValues...); err != nil {
 				return shared.UsageErrorf("builds: %v", err)
 			}
@@ -675,12 +682,6 @@ Examples:
 			included, err := includedFields.Resolve("builds list", nextValue, includeValues)
 			if err != nil {
 				return err
-			}
-
-			resolvedAppID := shared.ResolveAppID(*appID)
-			if resolvedAppID == "" && nextValue == "" {
-				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
-				return shared.MissingRequiredUsageError("--app")
 			}
 
 			client, err := shared.GetASCClient()

@@ -80,6 +80,12 @@ Examples:
 			if err := shared.ValidatePaginationFlags(ctx, fs, "iap pricing price-points list", 200, "territory", "include"); err != nil {
 				return err
 			}
+
+			iapValue := strings.TrimSpace(*iapID)
+			if iapValue == "" && strings.TrimSpace(*next) == "" {
+				return shared.RequiredFlag("--iap-id")
+			}
+
 			includes := shared.SplitCSV(*include)
 			for _, value := range includes {
 				if value != "territory" {
@@ -98,11 +104,6 @@ Examples:
 			}
 			if err := priceFilter.Validate(); err != nil {
 				return shared.UsageError(err.Error())
-			}
-
-			iapValue := strings.TrimSpace(*iapID)
-			if iapValue == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--iap-id")
 			}
 
 			client, err := shared.GetASCClient()

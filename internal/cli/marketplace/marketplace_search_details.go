@@ -123,13 +123,8 @@ Examples:
 
 // newMarketplaceSearchDetailsUpdateCommand returns the search details update subcommand.
 func newMarketplaceSearchDetailsUpdateCommand(d *shared.Deps) *ffcli.Command {
-	fs := d.NewFlagSet("update", flag.ExitOnError)
-
-	detailID := shared.BindResourceIDFlag(fs, "search-detail-id", "marketplaceSearchDetails", "Marketplace search detail ID")
-	catalogURL := fs.String("catalog-url", "", "Marketplace catalog URL")
-	output := d.BindOutputFlags(fs)
-
-	return &ffcli.Command{
+	var attrs asc.MarketplaceSearchDetailUpdateAttributes
+	return shared.BuildUpdateCommand(shared.WriteCommandConfig{
 		Name:       "update",
 		ShortUsage: "asc marketplace search-details update --search-detail-id \"DETAIL_ID\" --catalog-url \"URL\" [flags]",
 		ShortHelp:  "Update marketplace search details.",
@@ -137,45 +132,17 @@ func newMarketplaceSearchDetailsUpdateCommand(d *shared.Deps) *ffcli.Command {
 
 Examples:
   asc marketplace search-details update --search-detail-id "DETAIL_ID" --catalog-url "https://example.com"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			trimmedID := strings.TrimSpace(*detailID)
-			if trimmedID == "" {
-				return d.RequiredFlag("--search-detail-id")
-			}
-
-			visited := map[string]bool{}
-			fs.Visit(func(f *flag.Flag) {
-				visited[f.Name] = true
-			})
-
-			if !visited["catalog-url"] {
-				return d.UpdateFlagRequired(fs, catalogURL)
-			}
-
-			attrs := asc.MarketplaceSearchDetailUpdateAttributes{}
-			if visited["catalog-url"] {
-				value := strings.TrimSpace(*catalogURL)
-				attrs.CatalogURL = &value
-			}
-
-			client, err := d.Client()
-			if err != nil {
-				return fmt.Errorf("marketplace search-details update: %w", err)
-			}
-
-			requestCtx, cancel := d.Timeout(ctx)
-			defer cancel()
-
-			detail, err := client.UpdateMarketplaceSearchDetail(requestCtx, trimmedID, attrs)
-			if err != nil {
-				return fmt.Errorf("marketplace search-details update: failed to update: %w", err)
-			}
-
-			return d.PrintOutput(detail, *output.Output, *output.Pretty)
+		IDFlag:  "search-detail-id",
+		IDUsage: "Marketplace search detail ID",
+		IDType:  "marketplaceSearchDetails",
+		Fields: []shared.AttributeFlag{
+			shared.ExplicitStringFlag(&attrs.CatalogURL, "catalog-url", "Marketplace catalog URL"),
 		},
-	}
+		Deps: d,
+		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
+			return client.UpdateMarketplaceSearchDetail(ctx, id, attrs)
+		},
+	})
 }
 
 // newMarketplaceSearchDetailsDeleteCommand returns the search details delete subcommand.

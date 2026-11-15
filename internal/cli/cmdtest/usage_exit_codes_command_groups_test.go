@@ -371,7 +371,7 @@ func TestCommandGroupInputValidationReturnsUsageExitCode(t *testing.T) {
 		},
 		{
 			name:    "apps app-encryption-declarations list build-limit",
-			args:    []string{"apps", "app-encryption-declarations", "list", "--build-limit", "51"},
+			args:    []string{"apps", "app-encryption-declarations", "list", "--id", "123456789", "--build-limit", "51"},
 			wantErr: "apps app-encryption-declarations list: --build-limit must be between 1 and 50",
 		},
 		{
