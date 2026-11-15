@@ -75,8 +75,15 @@ var rootUsageGroups = []rootCommandGroup{
 	},
 }
 
-// RootUsageFunc renders grouped root help, similar to gh style.
-func RootUsageFunc(c *ffcli.Command) string {
+// rootUsageFunc renders grouped root help, with bold headings decided from
+// d's stderr.
+func rootUsageFunc(d *shared.Deps) func(*ffcli.Command) string {
+	return func(c *ffcli.Command) string {
+		return rootUsage(d, c)
+	}
+}
+
+func rootUsage(d *shared.Deps, c *ffcli.Command) string {
 	var b strings.Builder
 
 	shortHelp := strings.TrimSpace(c.ShortHelp)
@@ -87,7 +94,7 @@ func RootUsageFunc(c *ffcli.Command) string {
 	}
 
 	if shortHelp != "" {
-		b.WriteString(shared.Bold("DESCRIPTION"))
+		b.WriteString(d.Bold("DESCRIPTION"))
 		b.WriteString("\n")
 		b.WriteString("  ")
 		b.WriteString(shortHelp)
@@ -99,7 +106,7 @@ func RootUsageFunc(c *ffcli.Command) string {
 		usage = strings.TrimSpace(c.Name)
 	}
 	if usage != "" {
-		b.WriteString(shared.Bold("USAGE"))
+		b.WriteString(d.Bold("USAGE"))
 		b.WriteString("\n")
 		b.WriteString("  ")
 		b.WriteString(usage)
@@ -116,12 +123,12 @@ func RootUsageFunc(c *ffcli.Command) string {
 		}
 	}
 
-	writeRootGroupedSubcommands(&b, c.Subcommands)
-	writeRootFlags(&b, c.FlagSet)
+	writeRootGroupedSubcommands(&b, d, c.Subcommands)
+	writeRootFlags(&b, d, c.FlagSet)
 	return b.String()
 }
 
-func writeRootGroupedSubcommands(b *strings.Builder, subcommands []*ffcli.Command) {
+func writeRootGroupedSubcommands(b *strings.Builder, d *shared.Deps, subcommands []*ffcli.Command) {
 	if len(subcommands) == 0 {
 		return
 	}
@@ -149,7 +156,7 @@ func writeRootGroupedSubcommands(b *strings.Builder, subcommands []*ffcli.Comman
 			continue
 		}
 
-		b.WriteString(shared.Bold(group.title))
+		b.WriteString(d.Bold(group.title))
 		b.WriteString("\n")
 		tw := tabwriter.NewWriter(b, 0, 2, 2, ' ', 0)
 		for _, sub := range groupCommands {
@@ -172,7 +179,7 @@ func writeRootGroupedSubcommands(b *strings.Builder, subcommands []*ffcli.Comman
 		return
 	}
 
-	b.WriteString(shared.Bold("ADDITIONAL COMMANDS"))
+	b.WriteString(d.Bold("ADDITIONAL COMMANDS"))
 	b.WriteString("\n")
 	tw := tabwriter.NewWriter(b, 0, 2, 2, ' ', 0)
 	for _, sub := range additional {
@@ -189,7 +196,7 @@ func shouldHideRootCommand(sub *ffcli.Command) bool {
 	return strings.HasPrefix(strings.TrimSpace(sub.ShortHelp), "DEPRECATED:")
 }
 
-func writeRootFlags(b *strings.Builder, fs *flag.FlagSet) {
+func writeRootFlags(b *strings.Builder, d *shared.Deps, fs *flag.FlagSet) {
 	if fs == nil {
 		return
 	}
@@ -202,7 +209,7 @@ func writeRootFlags(b *strings.Builder, fs *flag.FlagSet) {
 		return
 	}
 
-	b.WriteString(shared.Bold("FLAGS"))
+	b.WriteString(d.Bold("FLAGS"))
 	b.WriteString("\n")
 	tw := tabwriter.NewWriter(b, 0, 2, 2, ' ', 0)
 	fs.VisitAll(func(f *flag.Flag) {

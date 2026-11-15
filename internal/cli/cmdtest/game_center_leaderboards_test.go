@@ -12,7 +12,7 @@ import (
 )
 
 func TestGameCenterLeaderboardsValidationErrors(t *testing.T) {
-	runGameCenterUsageCases(t, []gameCenterUsageCase{
+	runGameCenterUsageCasesWithDeps(t, []gameCenterUsageCase{
 		{[]string{"game-center", "leaderboards", "list"}, "--app is required (or set ASC_APP_ID)"},
 		{[]string{"game-center", "leaderboards", "create", "--reference-name", "Test", "--vendor-id", "com.test", "--formatter", "INTEGER", "--sort", "DESC", "--submission-type", "BEST_SCORE"}, "--app is required (or set ASC_APP_ID)"},
 		{[]string{"game-center", "leaderboards", "create", "--app", "APP_ID", "--group-id", "GROUP_ID", "--reference-name", "Test", "--vendor-id", "com.test", "--formatter", "INTEGER", "--sort", "DESC", "--submission-type", "BEST_SCORE"}, "--app cannot be used with --group-id"},
@@ -42,11 +42,10 @@ func TestGameCenterLeaderboardsListNoDetailReturnsEmptyList(t *testing.T) {
 	expectedURL := "https://api.appstoreconnect.apple.com/v1/apps/APP_ID/gameCenterDetail"
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/APP_ID/gameCenterDetail"),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"gameCenterDetails","id":"","attributes":{}},"links":{"self":"`+expectedURL+`"}}`))
 
-	stdout, stderr, err := runCommand(t, []string{"game-center", "leaderboards", "list", "--app", "APP_ID"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "game-center", "leaderboards", "list", "--app", "APP_ID")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -71,12 +70,11 @@ func TestGameCenterLeaderboardsCreateRejectsInvalidFormatter(t *testing.T) {
 
 	for _, formatter := range []string{"ELAPSED_TIME_MILLISECOND", "MONEY_WHOLE", "MONEY_POINT_2_PLACE"} {
 		t.Run(formatter, func(t *testing.T) {
-			stdout, stderr := captureOutput(t, func() {
-				args := []string{"game-center", "leaderboards", "create", "--app", "APP_ID", "--reference-name", "Test", "--vendor-id", "com.test", "--formatter", formatter, "--sort", "DESC", "--submission-type", "BEST_SCORE"}
-				if exitCode := rootcmd.Run(args, "1.2.3"); exitCode != rootcmd.ExitUsage {
-					t.Fatalf("expected exit code %d, got %d", rootcmd.ExitUsage, exitCode)
-				}
-			})
+			args := []string{"game-center", "leaderboards", "create", "--app", "APP_ID", "--reference-name", "Test", "--vendor-id", "com.test", "--formatter", formatter, "--sort", "DESC", "--submission-type", "BEST_SCORE"}
+			stdout, stderr, exitCode := runWithDeps(t, nil, args...)
+			if exitCode != rootcmd.ExitUsage {
+				t.Fatalf("expected exit code %d, got %d", rootcmd.ExitUsage, exitCode)
+			}
 
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
@@ -128,10 +126,9 @@ func TestGameCenterLeaderboardsUpdateScoringRequestBody(t *testing.T) {
 			reg := asctest.NewRegistry(t)
 			reg.Register(asctest.PATCH(test.wantPath).JSONBody(`{"data":{"type":"gameCenterLeaderboards","id":"lb-1","attributes":{`+test.wantAttrs+`}}}`),
 				asctest.JSON(http.StatusOK, `{"data":{"type":"gameCenterLeaderboards","id":"lb-1","attributes":{}}}`))
-			setGameCenterContractClient(t, reg)
 
 			args := append([]string{"game-center", "leaderboards", "update", "--id", "lb-1"}, test.args...)
-			if _, stderr, err := runCommand(t, args); err != nil {
+			if _, stderr, err := runRootWithDeps(t, stubClient(t, reg), args...); err != nil {
 				t.Fatalf("run error: %v\nstderr: %s", err, stderr)
 			}
 			if requests := len(reg.Requests()); requests != 1 {

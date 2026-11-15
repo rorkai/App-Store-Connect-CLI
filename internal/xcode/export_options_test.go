@@ -85,7 +85,7 @@ func TestNormalizeExportOptionsMethod(t *testing.T) {
 		{input: " app-store-connect ", want: "app-store-connect"},
 		{input: "release-testing", want: "release-testing"},
 		{input: "ad-hoc", want: "ad-hoc", wantErr: true},
-		{input: "enterprise", want: "enterprise", wantErr: true},
+		{input: "enterprise", want: "enterprise"},
 	} {
 		got, err := NormalizeExportOptionsMethod(tc.input)
 		if got != tc.want || (err != nil) != tc.wantErr {

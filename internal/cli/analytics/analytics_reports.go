@@ -10,9 +10,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// AnalyticsReportsCommand returns the analytics reports command group.
-func AnalyticsReportsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("reports", flag.ExitOnError)
+// newAnalyticsReportsCommand returns the analytics reports command group.
+func newAnalyticsReportsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("reports", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "reports",
@@ -27,8 +27,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
-			AnalyticsReportsGetCommand(),
-			AnalyticsReportsRelationshipsCommand(),
+			newAnalyticsReportsGetCommand(d),
+			newAnalyticsReportsRelationshipsCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -36,9 +36,10 @@ Examples:
 	}
 }
 
-// AnalyticsReportsGetCommand retrieves a specific analytics report.
-func AnalyticsReportsGetCommand() *ffcli.Command {
+// newAnalyticsReportsGetCommand retrieves a specific analytics report.
+func newAnalyticsReportsGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		Deps:       d,
 		Name:       "view",
 		ShortUsage: "asc analytics reports view --report-id \"REPORT_ID\" [flags]",
 		ShortHelp:  "View an analytics report by ID.",
@@ -56,9 +57,10 @@ Examples:
 	})
 }
 
-// AnalyticsReportsRelationshipsCommand lists instance links for a report.
-func AnalyticsReportsRelationshipsCommand() *ffcli.Command {
+// newAnalyticsReportsRelationshipsCommand lists instance links for a report.
+func newAnalyticsReportsRelationshipsCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		Deps:       d,
 		Name:       "links",
 		ShortUsage: "asc analytics reports links --report-id \"REPORT_ID\" [flags]",
 		ShortHelp:  "List analytics report instance relationships.",

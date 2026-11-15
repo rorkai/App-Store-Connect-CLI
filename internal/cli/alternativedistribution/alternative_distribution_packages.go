@@ -32,7 +32,7 @@ Examples:
   asc alternative-distribution packages variants --variant-id "VARIANT_ID"
   asc alternative-distribution packages deltas --delta-id "DELTA_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newAlternativeDistributionPackagesGetCommand(d),
 			newAlternativeDistributionPackagesCreateCommand(d),
@@ -104,7 +104,7 @@ func newAlternativeDistributionPackagesAppStoreVersionCommand(d *shared.Deps) *f
 Examples:
   asc alternative-distribution packages app-store-version --app-store-version-id "APP_STORE_VERSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*appStoreVersionID)
 			if trimmedID == "" {
@@ -145,7 +145,7 @@ func newAlternativeDistributionPackageVariantsCommand(d *shared.Deps) *ffcli.Com
 Examples:
   asc alternative-distribution packages variants --variant-id "VARIANT_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*variantID)
 			if trimmedID == "" {
@@ -186,7 +186,7 @@ func newAlternativeDistributionPackageDeltasCommand(d *shared.Deps) *ffcli.Comma
 Examples:
   asc alternative-distribution packages deltas --delta-id "DELTA_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*deltaID)
 			if trimmedID == "" {

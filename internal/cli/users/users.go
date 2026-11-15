@@ -35,7 +35,7 @@ Examples:
   asc users visible-apps list --id "USER_ID"
   asc users visible-apps view --id "USER_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newUsersListCommand(d),
 			newUsersGetCommand(d),
@@ -228,7 +228,7 @@ Examples:
   asc users update --id "USER_ID" --roles "ADMIN" --visible-app "APP_ID" --confirm
   asc users update --id "USER_ID" --roles "DEVELOPER" --provisioning-allowed false`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
@@ -365,7 +365,7 @@ Examples:
   asc users invite --email "user@example.com" --first-name "John" --last-name "Smith" --roles "DEVELOPER" --visible-app "APP_ID"
   asc users invite --email "user@example.com" --first-name "Jane" --last-name "Doe" --roles "DEVELOPER" --all-apps --provisioning-allowed true`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			emailValue := strings.TrimSpace(*email)
 			if emailValue == "" {
@@ -460,7 +460,7 @@ Examples:
   asc users invites revoke --id "INVITE_ID" --confirm
   asc users invites visible-apps list --id "INVITE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newUsersInvitesListCommand(d),
 			newUsersInvitesGetCommand(d),

@@ -1,7 +1,6 @@
 package cmdtest
 
 import (
-	"context"
 	"errors"
 	"io"
 	"net/http"
@@ -11,7 +10,6 @@ import (
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestGameCenterMetricsPropagateClientErrorsBeforeHTTP(t *testing.T) {
@@ -57,28 +55,21 @@ func TestGameCenterMetricsPropagateClientErrorsBeforeHTTP(t *testing.T) {
 
 			authErr := errors.New("metrics auth unavailable")
 			factoryCalls := 0
-			restore := shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+			factory := func() (*asc.Client, error) {
 				factoryCalls++
 				// The error is authoritative even if a factory also returns a client.
 				return client, authErr
-			})
-			t.Cleanup(restore)
+			}
 
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
+			var stdout, stderr string
 			var runErr error
 			var recovered any
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				func() {
-					defer func() {
-						recovered = recover()
-					}()
-					runErr = root.Run(context.Background())
+			func() {
+				defer func() {
+					recovered = recover()
 				}()
-			})
+				stdout, stderr, runErr = runRootWithDeps(t, factory, test.args...)
+			}()
 
 			if recovered != nil {
 				t.Fatalf("command panicked instead of returning the auth error: %v", recovered)

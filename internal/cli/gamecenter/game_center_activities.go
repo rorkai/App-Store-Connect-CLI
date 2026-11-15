@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -13,9 +12,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// GameCenterActivitiesCommand returns the activities command group.
-func GameCenterActivitiesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("activities", flag.ExitOnError)
+// newGameCenterActivitiesCommand returns the activities command group.
+func newGameCenterActivitiesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("activities", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "activities",
@@ -40,17 +39,17 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterActivitiesListCommand(),
-			GameCenterActivitiesGetCommand(),
-			GameCenterActivitiesCreateCommand(),
-			GameCenterActivitiesUpdateCommand(),
-			GameCenterActivitiesDeleteCommand(),
-			GameCenterActivityAchievementsCommand(),
-			GameCenterActivityLeaderboardsCommand(),
-			GameCenterActivityVersionsCommand(),
-			GameCenterActivityLocalizationsCommand(),
-			GameCenterActivityImagesCommand(),
-			GameCenterActivityReleasesCommand(),
+			newGameCenterActivitiesListCommand(d),
+			newGameCenterActivitiesGetCommand(d),
+			newGameCenterActivitiesCreateCommand(d),
+			newGameCenterActivitiesUpdateCommand(d),
+			newGameCenterActivitiesDeleteCommand(d),
+			newGameCenterActivityAchievementsCommand(d),
+			newGameCenterActivityLeaderboardsCommand(d),
+			newGameCenterActivityVersionsCommand(d),
+			newGameCenterActivityLocalizationsCommand(d),
+			newGameCenterActivityImagesCommand(d),
+			newGameCenterActivityReleasesCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -58,8 +57,8 @@ Examples:
 	}
 }
 
-// GameCenterActivitiesListCommand returns the activities list subcommand.
-func GameCenterActivitiesListCommand() *ffcli.Command {
+// newGameCenterActivitiesListCommand returns the activities list subcommand.
+func newGameCenterActivitiesListCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "list",
 		ShortUsage: "asc game-center activities list [flags]",
@@ -80,11 +79,12 @@ Examples:
 		FetchPage: func(ctx context.Context, client *asc.Client, gcDetailID string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterActivities(ctx, gcDetailID, asc.Limit[asc.GCActivitiesOption](limit), asc.NextURL[asc.GCActivitiesOption](next))
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterActivitiesGetCommand returns the activities get subcommand.
-func GameCenterActivitiesGetCommand() *ffcli.Command {
+// newGameCenterActivitiesGetCommand returns the activities get subcommand.
+func newGameCenterActivitiesGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
 		Name:       "view",
 		ShortUsage: "asc game-center activities view --id \"ACTIVITY_ID\"",
@@ -99,12 +99,13 @@ Examples:
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterActivity(ctx, id)
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterActivitiesCreateCommand returns the activities create subcommand.
-func GameCenterActivitiesCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
+// newGameCenterActivitiesCreateCommand returns the activities create subcommand.
+func newGameCenterActivitiesCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("create", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	referenceName := fs.String("reference-name", "", "Reference name for the activity")
@@ -117,7 +118,7 @@ func GameCenterActivitiesCreateCommand() *ffcli.Command {
 	createInitialVersion := fs.String("create-initial-version", "", "Create an initial activity version inline (true/false)")
 	initialFallbackURL := fs.String("initial-fallback-url", "", "Fallback URL for the initial activity version")
 	groupID := shared.BindResourceIDFlag(fs, "group-id", "gameCenterGroups", "Game Center group ID")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -136,27 +137,27 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			group := strings.TrimSpace(*groupID)
 			if group != "" && strings.TrimSpace(*appID) != "" {
-				fmt.Fprintln(os.Stderr, "Error: --app cannot be used with --group-id")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app cannot be used with --group-id")
 				return flag.ErrHelp
 			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if group == "" && resolvedAppID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
 			}
 
 			name := strings.TrimSpace(*referenceName)
 			if name == "" {
-				return shared.RequiredFlag("--reference-name")
+				return d.RequiredFlag("--reference-name")
 			}
 
 			vendor := strings.TrimSpace(*vendorID)
 			if vendor == "" {
-				return shared.RequiredFlag("--vendor-id")
+				return d.RequiredFlag("--vendor-id")
 			}
 			if group != "" && !strings.HasPrefix(vendor, "grp.") {
-				fmt.Fprintln(os.Stderr, "Error: --vendor-id must start with \"grp.\" when using --group-id")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --vendor-id must start with \"grp.\" when using --group-id")
 				return flag.ErrHelp
 			}
 
@@ -164,13 +165,13 @@ Examples:
 			if strings.TrimSpace(*createInitialVersion) != "" {
 				value, err := shared.ParseBoolFlag(*createInitialVersion, "--create-initial-version")
 				if err != nil {
-					fmt.Fprintln(os.Stderr, "Error:", err.Error())
+					fmt.Fprintln(d.IO.ErrOut, "Error:", err.Error())
 					return flag.ErrHelp
 				}
 				createInitialVersionValue = value
 			}
 			if strings.TrimSpace(*initialFallbackURL) != "" && !createInitialVersionValue {
-				fmt.Fprintln(os.Stderr, "Error: --initial-fallback-url requires --create-initial-version true")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --initial-fallback-url requires --create-initial-version true")
 				return flag.ErrHelp
 			}
 
@@ -194,12 +195,12 @@ Examples:
 			if strings.TrimSpace(*supportsPartyCode) != "" {
 				val, err := shared.ParseBoolFlag(*supportsPartyCode, "--supports-party-code")
 				if err != nil {
-					fmt.Fprintln(os.Stderr, "Error:", err.Error())
+					fmt.Fprintln(d.IO.ErrOut, "Error:", err.Error())
 					return flag.ErrHelp
 				}
 				attrs.SupportsPartyCode = &val
 			}
-			properties, err := parseStringMapFlag(fs, "properties")
+			properties, err := parseStringMapFlag(d, fs, "properties")
 			if err != nil {
 				return err
 			}
@@ -213,12 +214,12 @@ Examples:
 				}
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("game-center activities create: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			gcDetailID := ""
@@ -235,14 +236,14 @@ Examples:
 				return fmt.Errorf("game-center activities create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// GameCenterActivitiesUpdateCommand returns the activities update subcommand.
-func GameCenterActivitiesUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("update", flag.ExitOnError)
+// newGameCenterActivitiesUpdateCommand returns the activities update subcommand.
+func newGameCenterActivitiesUpdateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("update", flag.ExitOnError)
 
 	activityID := shared.BindResourceIDFlag(fs, "id", "gameCenterActivities", "Game Center activity ID")
 	referenceName := fs.String("reference-name", "", "Reference name for the activity")
@@ -252,7 +253,7 @@ func GameCenterActivitiesUpdateCommand() *ffcli.Command {
 	supportsPartyCode := fs.String("supports-party-code", "", "Supports party code (true/false)")
 	archived := fs.String("archived", "", "Archive the activity (true/false)")
 	fs.String("properties", "", "Activity properties as a JSON object of string values, inline or @file:PATH")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -269,7 +270,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*activityID)
 			if id == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
 
 			attrs := asc.GameCenterActivityUpdateAttributes{}
@@ -298,7 +299,7 @@ Examples:
 			if strings.TrimSpace(*supportsPartyCode) != "" {
 				val, err := shared.ParseBoolFlag(*supportsPartyCode, "--supports-party-code")
 				if err != nil {
-					fmt.Fprintln(os.Stderr, "Error:", err.Error())
+					fmt.Fprintln(d.IO.ErrOut, "Error:", err.Error())
 					return flag.ErrHelp
 				}
 				attrs.SupportsPartyCode = &val
@@ -307,13 +308,13 @@ Examples:
 			if strings.TrimSpace(*archived) != "" {
 				val, err := shared.ParseBoolFlag(*archived, "--archived")
 				if err != nil {
-					fmt.Fprintln(os.Stderr, "Error:", err.Error())
+					fmt.Fprintln(d.IO.ErrOut, "Error:", err.Error())
 					return flag.ErrHelp
 				}
 				attrs.Archived = &val
 				hasUpdate = true
 			}
-			properties, err := parseStringMapFlag(fs, "properties")
+			properties, err := parseStringMapFlag(d, fs, "properties")
 			if err != nil {
 				return err
 			}
@@ -323,15 +324,15 @@ Examples:
 			}
 
 			if !hasUpdate {
-				return shared.UpdateFlagRequired(fs, referenceName, playStyle, minPlayers, maxPlayers, supportsPartyCode, archived, fs.Lookup("properties").Value)
+				return d.UpdateFlagRequired(fs, referenceName, playStyle, minPlayers, maxPlayers, supportsPartyCode, archived, fs.Lookup("properties").Value)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("game-center activities update: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.UpdateGameCenterActivity(requestCtx, id, attrs)
@@ -339,13 +340,13 @@ Examples:
 				return fmt.Errorf("game-center activities update: failed to update: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// GameCenterActivitiesDeleteCommand returns the activities delete subcommand.
-func GameCenterActivitiesDeleteCommand() *ffcli.Command {
+// newGameCenterActivitiesDeleteCommand returns the activities delete subcommand.
+func newGameCenterActivitiesDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
 		Name:       "delete",
 		ShortUsage: "asc game-center activities delete --id \"ACTIVITY_ID\" --confirm",
@@ -364,12 +365,13 @@ Examples:
 		Result: func(id string) any {
 			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterActivityAchievementsCommand returns the activity achievements command group.
-func GameCenterActivityAchievementsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("achievements", flag.ExitOnError)
+// newGameCenterActivityAchievementsCommand returns the activity achievements command group.
+func newGameCenterActivityAchievementsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("achievements", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "achievements",
@@ -385,7 +387,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterActivityAchievementsSetCommand(),
+			newGameCenterActivityAchievementsSetCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -393,16 +395,16 @@ Examples:
 	}
 }
 
-// GameCenterActivityAchievementsSetCommand returns the activity achievements set subcommand.
-func GameCenterActivityAchievementsSetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("set", flag.ExitOnError)
+// newGameCenterActivityAchievementsSetCommand returns the activity achievements set subcommand.
+func newGameCenterActivityAchievementsSetCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("set", flag.ExitOnError)
 
 	activityID := shared.BindResourceIDFlag(fs, "activity-id", "gameCenterActivities", "Game Center activity ID")
 	ids := shared.BindOnceCSVFlag(fs, "ids", "Comma-separated achievement IDs")
 	v2 := fs.Bool("v2", false, "Use v2 relationships endpoint")
 	remove := fs.Bool("remove", false, "Remove relationships instead of adding")
 	confirm := fs.Bool("confirm", false, "Confirm removal (required with --remove)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "set",
@@ -419,26 +421,26 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*activityID)
 			if id == "" {
-				return shared.RequiredFlag("--activity-id")
+				return d.RequiredFlag("--activity-id")
 			}
 			idsValue := shared.SplitCSV(ids.String())
 			if len(idsValue) == 0 {
-				return shared.RequiredFlag("--ids")
+				return d.RequiredFlag("--ids")
 			}
 			if *confirm && !*remove {
-				return shared.UsageError("--confirm requires --remove")
+				return d.UsageError("--confirm requires --remove")
 			}
 			if *remove && !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required with --remove")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --confirm is required with --remove")
 				return shared.MissingRequiredUsageError("--confirm")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("game-center activities achievements set: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			removeRelationships, addRelationships := client.RemoveGameCenterActivityAchievements, client.AddGameCenterActivityAchievements
@@ -457,14 +459,14 @@ Examples:
 			}
 
 			result := &asc.LinkagesResponse{Data: resourceDataList(asc.ResourceTypeGameCenterAchievements, idsValue)}
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// GameCenterActivityLeaderboardsCommand returns the activity leaderboards command group.
-func GameCenterActivityLeaderboardsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("leaderboards", flag.ExitOnError)
+// newGameCenterActivityLeaderboardsCommand returns the activity leaderboards command group.
+func newGameCenterActivityLeaderboardsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("leaderboards", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "leaderboards",
@@ -480,7 +482,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterActivityLeaderboardsSetCommand(),
+			newGameCenterActivityLeaderboardsSetCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -488,16 +490,16 @@ Examples:
 	}
 }
 
-// GameCenterActivityLeaderboardsSetCommand returns the activity leaderboards set subcommand.
-func GameCenterActivityLeaderboardsSetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("set", flag.ExitOnError)
+// newGameCenterActivityLeaderboardsSetCommand returns the activity leaderboards set subcommand.
+func newGameCenterActivityLeaderboardsSetCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("set", flag.ExitOnError)
 
 	activityID := shared.BindResourceIDFlag(fs, "activity-id", "gameCenterActivities", "Game Center activity ID")
 	ids := shared.BindOnceCSVFlag(fs, "ids", "Comma-separated leaderboard IDs")
 	v2 := fs.Bool("v2", false, "Use v2 relationships endpoint")
 	remove := fs.Bool("remove", false, "Remove relationships instead of adding")
 	confirm := fs.Bool("confirm", false, "Confirm removal (required with --remove)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "set",
@@ -514,26 +516,26 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*activityID)
 			if id == "" {
-				return shared.RequiredFlag("--activity-id")
+				return d.RequiredFlag("--activity-id")
 			}
 			idsValue := shared.SplitCSV(ids.String())
 			if len(idsValue) == 0 {
-				return shared.RequiredFlag("--ids")
+				return d.RequiredFlag("--ids")
 			}
 			if *confirm && !*remove {
-				return shared.UsageError("--confirm requires --remove")
+				return d.UsageError("--confirm requires --remove")
 			}
 			if *remove && !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required with --remove")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --confirm is required with --remove")
 				return shared.MissingRequiredUsageError("--confirm")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("game-center activities leaderboards set: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			removeRelationships, addRelationships := client.RemoveGameCenterActivityLeaderboards, client.AddGameCenterActivityLeaderboards
@@ -552,14 +554,14 @@ Examples:
 			}
 
 			result := &asc.LinkagesResponse{Data: resourceDataList(asc.ResourceTypeGameCenterLeaderboards, idsValue)}
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// GameCenterActivityVersionsCommand returns the activity versions command group.
-func GameCenterActivityVersionsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("versions", flag.ExitOnError)
+// newGameCenterActivityVersionsCommand returns the activity versions command group.
+func newGameCenterActivityVersionsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("versions", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "versions",
@@ -576,11 +578,11 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterActivityVersionsListCommand(),
-			GameCenterActivityVersionsGetCommand(),
-			GameCenterActivityVersionsCreateCommand(),
-			GameCenterActivityVersionsUpdateCommand(),
-			GameCenterActivityVersionDefaultImageCommand(),
+			newGameCenterActivityVersionsListCommand(d),
+			newGameCenterActivityVersionsGetCommand(d),
+			newGameCenterActivityVersionsCreateCommand(d),
+			newGameCenterActivityVersionsUpdateCommand(d),
+			newGameCenterActivityVersionDefaultImageCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -588,8 +590,8 @@ Examples:
 	}
 }
 
-// GameCenterActivityVersionsListCommand returns the activity versions list subcommand.
-func GameCenterActivityVersionsListCommand() *ffcli.Command {
+// newGameCenterActivityVersionsListCommand returns the activity versions list subcommand.
+func newGameCenterActivityVersionsListCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "list",
 		ShortUsage: "asc game-center activities versions list --activity-id \"ACTIVITY_ID\"",
@@ -609,11 +611,12 @@ Examples:
 		FetchPage: func(ctx context.Context, client *asc.Client, activityId string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterActivityVersions(ctx, activityId, asc.Limit[asc.GCActivityVersionsOption](limit), asc.NextURL[asc.GCActivityVersionsOption](next))
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterActivityVersionsGetCommand returns the activity versions get subcommand.
-func GameCenterActivityVersionsGetCommand() *ffcli.Command {
+// newGameCenterActivityVersionsGetCommand returns the activity versions get subcommand.
+func newGameCenterActivityVersionsGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
 		Name:       "view",
 		ShortUsage: "asc game-center activities versions view --id \"VERSION_ID\"",
@@ -628,11 +631,12 @@ Examples:
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterActivityVersion(ctx, id)
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterActivityVersionsCreateCommand returns the activity versions create subcommand.
-func GameCenterActivityVersionsCreateCommand() *ffcli.Command {
+// newGameCenterActivityVersionsCreateCommand returns the activity versions create subcommand.
+func newGameCenterActivityVersionsCreateCommand(d *shared.Deps) *ffcli.Command {
 	var fallbackURL string
 	return shared.BuildCreateCommand(shared.WriteCommandConfig{
 		Name:       "create",
@@ -652,11 +656,12 @@ Examples:
 		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.CreateGameCenterActivityVersion(ctx, id, fallbackURL)
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterActivityVersionsUpdateCommand returns the activity versions update subcommand.
-func GameCenterActivityVersionsUpdateCommand() *ffcli.Command {
+// newGameCenterActivityVersionsUpdateCommand returns the activity versions update subcommand.
+func newGameCenterActivityVersionsUpdateCommand(d *shared.Deps) *ffcli.Command {
 	var fallbackURL string
 	return shared.BuildUpdateCommand(shared.WriteCommandConfig{
 		Name:       "update",
@@ -674,12 +679,13 @@ Examples:
 		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.UpdateGameCenterActivityVersion(ctx, id, &fallbackURL)
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterActivityLocalizationsCommand returns the activity localizations command group.
-func GameCenterActivityLocalizationsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("localizations", flag.ExitOnError)
+// newGameCenterActivityLocalizationsCommand returns the activity localizations command group.
+func newGameCenterActivityLocalizationsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("localizations", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "localizations",
@@ -696,12 +702,12 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterActivityLocalizationsListCommand(),
-			GameCenterActivityLocalizationsGetCommand(),
-			GameCenterActivityLocalizationsCreateCommand(),
-			GameCenterActivityLocalizationsUpdateCommand(),
-			GameCenterActivityLocalizationsDeleteCommand(),
-			GameCenterActivityLocalizationImageCommand(),
+			newGameCenterActivityLocalizationsListCommand(d),
+			newGameCenterActivityLocalizationsGetCommand(d),
+			newGameCenterActivityLocalizationsCreateCommand(d),
+			newGameCenterActivityLocalizationsUpdateCommand(d),
+			newGameCenterActivityLocalizationsDeleteCommand(d),
+			newGameCenterActivityLocalizationImageCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -709,8 +715,8 @@ Examples:
 	}
 }
 
-// GameCenterActivityLocalizationsListCommand returns the activity localizations list subcommand.
-func GameCenterActivityLocalizationsListCommand() *ffcli.Command {
+// newGameCenterActivityLocalizationsListCommand returns the activity localizations list subcommand.
+func newGameCenterActivityLocalizationsListCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "list",
 		ShortUsage: "asc game-center activities localizations list --version-id \"VERSION_ID\"",
@@ -730,11 +736,12 @@ Examples:
 		FetchPage: func(ctx context.Context, client *asc.Client, versionId string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterActivityLocalizations(ctx, versionId, asc.Limit[asc.GCActivityLocalizationsOption](limit), asc.NextURL[asc.GCActivityLocalizationsOption](next))
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterActivityLocalizationsGetCommand returns the activity localizations get subcommand.
-func GameCenterActivityLocalizationsGetCommand() *ffcli.Command {
+// newGameCenterActivityLocalizationsGetCommand returns the activity localizations get subcommand.
+func newGameCenterActivityLocalizationsGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
 		Name:       "view",
 		ShortUsage: "asc game-center activities localizations view --id \"LOCALIZATION_ID\"",
@@ -749,11 +756,12 @@ Examples:
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterActivityLocalization(ctx, id)
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterActivityLocalizationsCreateCommand returns the activity localizations create subcommand.
-func GameCenterActivityLocalizationsCreateCommand() *ffcli.Command {
+// newGameCenterActivityLocalizationsCreateCommand returns the activity localizations create subcommand.
+func newGameCenterActivityLocalizationsCreateCommand(d *shared.Deps) *ffcli.Command {
 	var attrs asc.GameCenterActivityLocalizationCreateAttributes
 	return shared.BuildCreateCommand(shared.WriteCommandConfig{
 		Name:       "create",
@@ -774,11 +782,12 @@ Examples:
 		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.CreateGameCenterActivityLocalization(ctx, id, attrs)
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterActivityLocalizationsUpdateCommand returns the activity localizations update subcommand.
-func GameCenterActivityLocalizationsUpdateCommand() *ffcli.Command {
+// newGameCenterActivityLocalizationsUpdateCommand returns the activity localizations update subcommand.
+func newGameCenterActivityLocalizationsUpdateCommand(d *shared.Deps) *ffcli.Command {
 	var attrs asc.GameCenterActivityLocalizationUpdateAttributes
 	return shared.BuildUpdateCommand(shared.WriteCommandConfig{
 		Name:       "update",
@@ -797,11 +806,12 @@ Examples:
 		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.UpdateGameCenterActivityLocalization(ctx, id, attrs)
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterActivityLocalizationsDeleteCommand returns the activity localizations delete subcommand.
-func GameCenterActivityLocalizationsDeleteCommand() *ffcli.Command {
+// newGameCenterActivityLocalizationsDeleteCommand returns the activity localizations delete subcommand.
+func newGameCenterActivityLocalizationsDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
 		Name:       "delete",
 		ShortUsage: "asc game-center activities localizations delete --id \"LOCALIZATION_ID\" --confirm",
@@ -820,12 +830,13 @@ Examples:
 		Result: func(id string) any {
 			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterActivityImagesCommand returns the activity images command group.
-func GameCenterActivityImagesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("images", flag.ExitOnError)
+// newGameCenterActivityImagesCommand returns the activity images command group.
+func newGameCenterActivityImagesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("images", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "images",
@@ -841,9 +852,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterActivityImagesUploadCommand(),
-			GameCenterActivityImagesGetCommand(),
-			GameCenterActivityImagesDeleteCommand(),
+			newGameCenterActivityImagesUploadCommand(d),
+			newGameCenterActivityImagesGetCommand(d),
+			newGameCenterActivityImagesDeleteCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -851,14 +862,14 @@ Examples:
 	}
 }
 
-// GameCenterActivityImagesUploadCommand returns the activity images upload subcommand.
-func GameCenterActivityImagesUploadCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("upload", flag.ExitOnError)
+// newGameCenterActivityImagesUploadCommand returns the activity images upload subcommand.
+func newGameCenterActivityImagesUploadCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("upload", flag.ExitOnError)
 
 	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "gameCenterActivityLocalizations", "Activity localization ID (exactly one of --localization-id or --version-id)")
 	versionID := shared.BindResourceIDFlag(fs, "version-id", "gameCenterActivityVersions", "Activity version ID, to set the version's default image (exactly one of --localization-id or --version-id)")
 	filePath := fs.String("file", "", "Path to image file (PNG)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "upload",
@@ -877,20 +888,20 @@ Examples:
 			locID := strings.TrimSpace(*localizationID)
 			verID := strings.TrimSpace(*versionID)
 			if (locID == "") == (verID == "") {
-				return shared.UsageError("exactly one of --localization-id or --version-id is required")
+				return d.UsageError("exactly one of --localization-id or --version-id is required")
 			}
 
 			file := strings.TrimSpace(*filePath)
 			if file == "" {
-				return shared.RequiredFlag("--file")
+				return d.RequiredFlag("--file")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("game-center activities images upload: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithUploadTimeout(ctx)
+			requestCtx, cancel := d.UploadTimeout(ctx)
 			defer cancel()
 
 			result, err := client.UploadGameCenterActivityImage(requestCtx, locID, verID, file)
@@ -898,13 +909,13 @@ Examples:
 				return fmt.Errorf("game-center activities images upload: %w", err)
 			}
 
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// GameCenterActivityImagesGetCommand returns the activity images get subcommand.
-func GameCenterActivityImagesGetCommand() *ffcli.Command {
+// newGameCenterActivityImagesGetCommand returns the activity images get subcommand.
+func newGameCenterActivityImagesGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
 		Name:       "view",
 		ShortUsage: "asc game-center activities images view --id \"IMAGE_ID\"",
@@ -919,11 +930,12 @@ Examples:
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterActivityImage(ctx, id)
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterActivityImagesDeleteCommand returns the activity images delete subcommand.
-func GameCenterActivityImagesDeleteCommand() *ffcli.Command {
+// newGameCenterActivityImagesDeleteCommand returns the activity images delete subcommand.
+func newGameCenterActivityImagesDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
 		Name:       "delete",
 		ShortUsage: "asc game-center activities images delete --id \"IMAGE_ID\" --confirm",
@@ -942,12 +954,13 @@ Examples:
 		Result: func(id string) any {
 			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterActivityReleasesCommand returns the activity releases command group.
-func GameCenterActivityReleasesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("releases", flag.ExitOnError)
+// newGameCenterActivityReleasesCommand returns the activity releases command group.
+func newGameCenterActivityReleasesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("releases", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "releases",
@@ -962,9 +975,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterActivityReleasesListCommand(),
-			GameCenterActivityReleasesCreateCommand(),
-			GameCenterActivityReleasesDeleteCommand(),
+			newGameCenterActivityReleasesListCommand(d),
+			newGameCenterActivityReleasesCreateCommand(d),
+			newGameCenterActivityReleasesDeleteCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -972,8 +985,8 @@ Examples:
 	}
 }
 
-// GameCenterActivityReleasesListCommand returns the activity releases list subcommand.
-func GameCenterActivityReleasesListCommand() *ffcli.Command {
+// newGameCenterActivityReleasesListCommand returns the activity releases list subcommand.
+func newGameCenterActivityReleasesListCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "list",
 		ShortUsage: "asc game-center activities releases list --app \"APP_ID\"",
@@ -994,11 +1007,12 @@ Examples:
 		FetchPage: func(ctx context.Context, client *asc.Client, gcDetailID string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterActivityVersionReleases(ctx, gcDetailID, asc.Limit[asc.GCActivityVersionReleasesOption](limit), asc.NextURL[asc.GCActivityVersionReleasesOption](next))
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterActivityReleasesCreateCommand returns the activity releases create subcommand.
-func GameCenterActivityReleasesCreateCommand() *ffcli.Command {
+// newGameCenterActivityReleasesCreateCommand returns the activity releases create subcommand.
+func newGameCenterActivityReleasesCreateCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildCreateCommand(shared.WriteCommandConfig{
 		Name:       "create",
 		ShortUsage: "asc game-center activities releases create --version-id \"VERSION_ID\"",
@@ -1013,11 +1027,12 @@ Examples:
 		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.CreateGameCenterActivityVersionRelease(ctx, id)
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterActivityReleasesDeleteCommand returns the activity releases delete subcommand.
-func GameCenterActivityReleasesDeleteCommand() *ffcli.Command {
+// newGameCenterActivityReleasesDeleteCommand returns the activity releases delete subcommand.
+func newGameCenterActivityReleasesDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
 		Name:       "delete",
 		ShortUsage: "asc game-center activities releases delete --id \"RELEASE_ID\" --confirm",
@@ -1036,12 +1051,13 @@ Examples:
 		Result: func(id string) any {
 			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterActivityLocalizationImageCommand returns the activity localization image command group.
-func GameCenterActivityLocalizationImageCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("image", flag.ExitOnError)
+// newGameCenterActivityLocalizationImageCommand returns the activity localization image command group.
+func newGameCenterActivityLocalizationImageCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("image", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "image",
@@ -1054,7 +1070,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterActivityLocalizationImageGetCommand(),
+			newGameCenterActivityLocalizationImageGetCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -1062,8 +1078,8 @@ Examples:
 	}
 }
 
-// GameCenterActivityLocalizationImageGetCommand returns the activity localization image get subcommand.
-func GameCenterActivityLocalizationImageGetCommand() *ffcli.Command {
+// newGameCenterActivityLocalizationImageGetCommand returns the activity localization image get subcommand.
+func newGameCenterActivityLocalizationImageGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
 		Name:       "view",
 		ShortUsage: "asc game-center activities localizations image view --id \"LOC_ID\"",
@@ -1078,12 +1094,13 @@ Examples:
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterActivityLocalizationImage(ctx, id)
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterActivityVersionDefaultImageCommand returns the activity version default image command group.
-func GameCenterActivityVersionDefaultImageCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("default-image", flag.ExitOnError)
+// newGameCenterActivityVersionDefaultImageCommand returns the activity version default image command group.
+func newGameCenterActivityVersionDefaultImageCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("default-image", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "default-image",
@@ -1096,7 +1113,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterActivityVersionDefaultImageGetCommand(),
+			newGameCenterActivityVersionDefaultImageGetCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -1104,8 +1121,8 @@ Examples:
 	}
 }
 
-// GameCenterActivityVersionDefaultImageGetCommand returns the activity version default image get subcommand.
-func GameCenterActivityVersionDefaultImageGetCommand() *ffcli.Command {
+// newGameCenterActivityVersionDefaultImageGetCommand returns the activity version default image get subcommand.
+func newGameCenterActivityVersionDefaultImageGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
 		Name:       "view",
 		ShortUsage: "asc game-center activities versions default-image view --id \"VERSION_ID\"",
@@ -1120,6 +1137,7 @@ Examples:
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterActivityVersionDefaultImage(ctx, id)
 		},
+		Deps: d,
 	})
 }
 

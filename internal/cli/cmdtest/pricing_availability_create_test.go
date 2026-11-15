@@ -1,21 +1,17 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
-	"os"
 	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	pricingcli "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/pricing"
 )
 
 func TestPricingAvailabilityCreate_SendsPublicAPIRequest(t *testing.T) {
@@ -79,48 +75,17 @@ func TestPricingAvailabilityCreate_SendsPublicAPIRequest(t *testing.T) {
 			}))
 			t.Cleanup(server.Close)
 
-			serverURL, err := url.Parse(server.URL)
-			if err != nil {
-				t.Fatalf("parse server URL: %v", err)
-			}
-			transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				cloned := req.Clone(req.Context())
-				cloned.URL.Scheme = serverURL.Scheme
-				cloned.URL.Host = serverURL.Host
-				return server.Client().Transport.RoundTrip(cloned)
-			})
-			client, err := asc.NewClientWithHTTPClient(
-				"TEST_KEY",
-				"TEST_ISSUER",
-				os.Getenv("ASC_PRIVATE_KEY_PATH"),
-				&http.Client{Transport: transport},
+			stdout, stderr, err := runRootWithDeps(t, stubServerClient(t, server),
+				"pricing", "availability", "create",
+				"--app", "app-1",
+				"--territory", "US,USA,France",
+				"--available", strconv.FormatBool(available),
+				"--available-in-new-territories", "true",
+				"--output", "json",
 			)
 			if err != nil {
-				t.Fatalf("new client: %v", err)
+				t.Fatalf("run error: %v", err)
 			}
-			restore := pricingcli.SetAvailabilityClientFactory(func() (*asc.Client, error) {
-				return client, nil
-			})
-			t.Cleanup(restore)
-
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse([]string{
-					"pricing", "availability", "create",
-					"--app", "app-1",
-					"--territory", "US,USA,France",
-					"--available", strconv.FormatBool(available),
-					"--available-in-new-territories", "true",
-					"--output", "json",
-				}); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
 
 			if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)
@@ -158,46 +123,13 @@ func TestPricingAvailabilityCreate_RelationshipRejectionExplainsFallback(t *test
 	}))
 	t.Cleanup(server.Close)
 
-	serverURL, err := url.Parse(server.URL)
-	if err != nil {
-		t.Fatalf("parse server URL: %v", err)
-	}
-	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		cloned := req.Clone(req.Context())
-		cloned.URL.Scheme = serverURL.Scheme
-		cloned.URL.Host = serverURL.Host
-		return server.Client().Transport.RoundTrip(cloned)
-	})
-	client, err := asc.NewClientWithHTTPClient(
-		"TEST_KEY",
-		"TEST_ISSUER",
-		os.Getenv("ASC_PRIVATE_KEY_PATH"),
-		&http.Client{Transport: transport},
+	stdout, stderr, runErr := runRootWithDeps(t, stubServerClient(t, server),
+		"pricing", "availability", "create",
+		"--app", "app-1",
+		"--territory", "USA",
+		"--available", "true",
+		"--available-in-new-territories", "true",
 	)
-	if err != nil {
-		t.Fatalf("new client: %v", err)
-	}
-	restore := pricingcli.SetAvailabilityClientFactory(func() (*asc.Client, error) {
-		return client, nil
-	})
-	t.Cleanup(restore)
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"pricing", "availability", "create",
-			"--app", "app-1",
-			"--territory", "USA",
-			"--available", "true",
-			"--available-in-new-territories", "true",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
 
 	if runErr == nil {
 		t.Fatal("expected relationship rejection")
@@ -273,35 +205,7 @@ func TestPricingAvailabilityCreate_CatalogFailureDoesNotCreate(t *testing.T) {
 				_, _ = io.WriteString(w, tc.catalog)
 			}))
 			t.Cleanup(server.Close)
-			serverURL, err := url.Parse(server.URL)
-			if err != nil {
-				t.Fatalf("parse server URL: %v", err)
-			}
-			transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				cloned := req.Clone(req.Context())
-				cloned.URL.Scheme = serverURL.Scheme
-				cloned.URL.Host = serverURL.Host
-				return server.Client().Transport.RoundTrip(cloned)
-			})
-			client, err := asc.NewClientWithHTTPClient(
-				"TEST_KEY",
-				"TEST_ISSUER",
-				os.Getenv("ASC_PRIVATE_KEY_PATH"),
-				&http.Client{Transport: transport},
-			)
-			if err != nil {
-				t.Fatalf("new client: %v", err)
-			}
-			restore := pricingcli.SetAvailabilityClientFactory(func() (*asc.Client, error) {
-				return client, nil
-			})
-			t.Cleanup(restore)
-
-			root := RootCommand("test")
-			if err := root.Parse([]string{"pricing", "availability", "create", "--app", "app-1", "--territory", "USA", "--available", "true", "--available-in-new-territories", "true"}); err != nil {
-				t.Fatal(err)
-			}
-			err = root.Run(context.Background())
+			_, _, err := runRootWithDeps(t, stubServerClient(t, server), "pricing", "availability", "create", "--app", "app-1", "--territory", "USA", "--available", "true", "--available-in-new-territories", "true")
 			if err == nil || !strings.Contains(err.Error(), tc.want) {
 				t.Fatalf("expected %q, got %v", tc.want, err)
 			}

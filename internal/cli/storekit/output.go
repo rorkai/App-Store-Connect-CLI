@@ -7,13 +7,13 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-func printOutput(data any, format string, pretty bool, headers []string, rows [][]string) error {
-	return shared.PrintOutputWithRenderers(
+func printOutput(d *shared.Deps, data any, format string, pretty bool, headers []string, rows [][]string) error {
+	return d.PrintOutputWithRenderers(
 		data,
 		format,
 		pretty,
-		func() error { asc.RenderTable(headers, rows); return nil },
-		func() error { asc.RenderMarkdown(headers, rows); return nil },
+		func() error { asc.RenderTableTo(d.IO.Out, headers, rows); return nil },
+		func() error { asc.RenderMarkdownTo(d.IO.Out, headers, rows); return nil },
 	)
 }
 

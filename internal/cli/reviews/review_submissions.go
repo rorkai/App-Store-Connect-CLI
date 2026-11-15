@@ -27,7 +27,7 @@ Examples:
   asc review submissions list --app "123456789"
   asc review submissions list --app "123456789" --platform IOS --state READY_FOR_REVIEW`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newReviewSubmissionsNestedListCommand(d),
 		},
@@ -77,7 +77,7 @@ Examples:
   asc review submissions-list --global --app "123456789"
   asc review submissions-list --global --app "123456789" --platform IOS --state READY_FOR_REVIEW`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if len(args) != 0 {
 				return shared.WithDiagnostic(d.UsageError("unexpected positional arguments"), shared.DiagnosticInvalidInput, "")
@@ -220,7 +220,7 @@ func newReviewSubmissionsGetCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc review submissions-get --id "SUBMISSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if len(args) != 0 {
 				return shared.WithDiagnostic(d.UsageError("unexpected positional arguments"), shared.DiagnosticInvalidInput, "")
@@ -301,7 +301,7 @@ func newReviewSubmissionsCreateCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc review submissions-create --app "123456789" --platform IOS`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if len(args) != 0 {
 				return shared.WithDiagnostic(d.UsageError("unexpected positional arguments"), shared.DiagnosticInvalidInput, "")
@@ -377,7 +377,7 @@ Examples:
   asc review submissions-update --id "SUBMISSION_ID" --clear-platform
   asc review submissions-update --id "SUBMISSION_ID" --canceled=true --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if len(args) != 0 {
 				return shared.WithDiagnostic(d.UsageError("unexpected positional arguments"), shared.DiagnosticInvalidInput, "")
@@ -471,7 +471,7 @@ func newReviewSubmissionsSubmitCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc review submissions-submit --id "SUBMISSION_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if len(args) != 0 {
 				return shared.WithDiagnostic(d.UsageError("unexpected positional arguments"), shared.DiagnosticInvalidInput, "")
@@ -517,7 +517,7 @@ func newReviewSubmissionsCancelCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc review submissions-cancel --id "SUBMISSION_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if len(args) != 0 {
 				return shared.WithDiagnostic(d.UsageError("unexpected positional arguments"), shared.DiagnosticInvalidInput, "")
@@ -567,7 +567,7 @@ Examples:
   asc review submissions-items-ids --id "SUBMISSION_ID"
   asc review submissions-items-ids --id "SUBMISSION_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if len(args) != 0 {
 				return shared.WithDiagnostic(d.UsageError("unexpected positional arguments"), shared.DiagnosticInvalidInput, "")

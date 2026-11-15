@@ -35,11 +35,17 @@ type ReadinessOptions struct {
 // BuildReadinessReport fetches live App Store Connect data and returns a
 // structured readiness report without printing output.
 func BuildReadinessReport(ctx context.Context, opts ReadinessOptions) (validation.Report, error) {
-	client, err := clientFactory()
+	return BuildReadinessReportWith(ctx, shared.DefaultDeps(), opts)
+}
+
+// BuildReadinessReportWith is BuildReadinessReport with the client, request
+// timeout and clock taken from d.
+func BuildReadinessReportWith(ctx context.Context, d *shared.Deps, opts ReadinessOptions) (validation.Report, error) {
+	client, err := d.Client()
 	if err != nil {
 		return validation.Report{}, err
 	}
-	ctx = withReadinessRequestGate(ctx)
+	ctx = withReadinessRequestGate(withReadinessRequestTimeout(ctx, d.Timeout))
 
 	resolvedVersionID := strings.TrimSpace(opts.VersionID)
 	if resolvedVersionID == "" {
@@ -167,7 +173,7 @@ func BuildReadinessReport(ctx context.Context, opts ReadinessOptions) (validatio
 				basePriceMissing = !basePrice.HasPrice
 			}
 			if opts.Deep {
-				hasPaidAppPrice, appPricingKnown = fetchCurrentAppPaidPricingEvidence(taskCtx, client, priceScheduleID)
+				hasPaidAppPrice, appPricingKnown = fetchCurrentAppPaidPricingEvidence(taskCtx, client, priceScheduleID, d.Now)
 			}
 			return nil
 		},

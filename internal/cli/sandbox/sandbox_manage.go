@@ -30,7 +30,7 @@ Examples:
   asc sandbox view --id "SANDBOX_TESTER_ID"
   asc sandbox view --email "tester@example.com"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*testerID) == "" && strings.TrimSpace(*email) == "" {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --id or --email is required")
@@ -88,7 +88,7 @@ Examples:
   asc sandbox update --email "tester@example.com" --interrupt-purchases true
   asc sandbox update --id "SANDBOX_TESTER_ID" --subscription-renewal-rate "MONTHLY_RENEWAL_EVERY_ONE_HOUR"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*testerID) == "" && strings.TrimSpace(*email) == "" {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --id or --email is required")
@@ -176,7 +176,7 @@ Examples:
   asc sandbox clear-history --id "SANDBOX_TESTER_ID" --confirm
   asc sandbox clear-history --email "tester@example.com" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*testerID) == "" && strings.TrimSpace(*email) == "" {
 				fmt.Fprintln(d.IO.ErrOut, "Error: --id or --email is required")

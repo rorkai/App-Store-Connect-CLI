@@ -285,6 +285,12 @@ func supportsANSIFor(stderrTTY bool) bool {
 
 // DefaultUsageFunc returns a usage string with bold section headers
 func DefaultUsageFunc(c *ffcli.Command) string {
+	return defaultUsage(isTerminal(int(os.Stderr.Fd())), c)
+}
+
+// defaultUsage renders c's help, with bold headings when stderrTTY allows
+// ANSI codes.
+func defaultUsage(stderrTTY bool, c *ffcli.Command) string {
 	var b strings.Builder
 
 	shortHelp := strings.TrimSpace(c.ShortHelp)
@@ -296,7 +302,7 @@ func DefaultUsageFunc(c *ffcli.Command) string {
 
 	// DESCRIPTION
 	if shortHelp != "" {
-		b.WriteString(Bold("DESCRIPTION"))
+		b.WriteString(boldFor(stderrTTY, "DESCRIPTION"))
 		b.WriteString("\n")
 		b.WriteString("  ")
 		b.WriteString(shortHelp)
@@ -309,7 +315,7 @@ func DefaultUsageFunc(c *ffcli.Command) string {
 		usage = strings.TrimSpace(c.Name)
 	}
 	if usage != "" {
-		b.WriteString(Bold("USAGE"))
+		b.WriteString(boldFor(stderrTTY, "USAGE"))
 		b.WriteString("\n")
 		b.WriteString("  ")
 		b.WriteString(usage)
@@ -329,7 +335,7 @@ func DefaultUsageFunc(c *ffcli.Command) string {
 
 	// SUBCOMMANDS
 	if len(c.Subcommands) > 0 {
-		b.WriteString(Bold("SUBCOMMANDS"))
+		b.WriteString(boldFor(stderrTTY, "SUBCOMMANDS"))
 		b.WriteString("\n")
 		tw := tabwriter.NewWriter(&b, 0, 2, 2, ' ', 0)
 		for _, sub := range c.Subcommands {
@@ -343,7 +349,7 @@ func DefaultUsageFunc(c *ffcli.Command) string {
 	if c.FlagSet != nil {
 		visibleFlags := VisibleHelpFlags(c.FlagSet)
 		if len(visibleFlags) > 0 {
-			b.WriteString(Bold("FLAGS"))
+			b.WriteString(boldFor(stderrTTY, "FLAGS"))
 			b.WriteString("\n")
 			tw := tabwriter.NewWriter(&b, 0, 2, 2, ' ', 0)
 			for _, f := range visibleFlags {

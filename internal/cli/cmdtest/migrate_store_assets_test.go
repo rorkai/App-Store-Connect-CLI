@@ -61,6 +61,8 @@ func TestMigrateExportFetchesAppClipMetadata(t *testing.T) {
 		asctest.JSON(200, `{"data":[]}`))
 	reg.Register(asctest.GET("/v1/apps/APP_ID/appInfos"),
 		asctest.JSON(200, `{"data":[]}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/VERSION_ID/appStoreReviewDetail"),
+		asctest.JSON(404, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not found"}]}`))
 	reg.Register(asctest.GET("/v1/appStoreVersions/VERSION_ID/appClipDefaultExperience"),
 		asctest.JSON(200, `{"data":{"type":"appClipDefaultExperiences","id":"CLIP_EXPERIENCE","attributes":{"action":"PLAY"}}}`))
 	reg.Register(asctest.GET("/v1/appClipDefaultExperiences/CLIP_EXPERIENCE/appClipDefaultExperienceLocalizations"),
@@ -219,6 +221,8 @@ func TestMigrateStoreAssetsProductionRoundTrip(t *testing.T) {
 			return migrateJSONResponse(200, `{"data":{"type":"appStoreVersions","id":"VERSION_ID","attributes":{"platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"APP_ID"}}}}}`), nil
 		case "GET /v1/apps/APP_ID/appInfos":
 			return migrateJSONResponse(200, `{"data":[]}`), nil
+		case "GET /v1/appStoreVersions/VERSION_ID/appStoreReviewDetail":
+			return migrateJSONResponse(404, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not found"}]}`), nil
 		case "GET /v1/appStoreVersions/VERSION_ID/appStoreVersionLocalizations":
 			return migrateJSONResponse(200, `{"data":[{"type":"appStoreVersionLocalizations","id":"LOC","attributes":{"locale":"en-US"}}]}`), nil
 		case "GET /v1/appStoreVersions/VERSION_ID/appClipDefaultExperience":

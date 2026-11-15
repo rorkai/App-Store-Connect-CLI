@@ -25,13 +25,14 @@ type SigningResignIdentityResult struct {
 
 // SigningResignTargetResult reports one validated app-like target.
 type SigningResignTargetResult struct {
-	Kind          string `json:"kind"`
-	RelativePath  string `json:"relativePath"`
-	BundleID      string `json:"bundleId"`
-	ProfileClass  string `json:"profileClass"`
-	ProfileUUID   string `json:"profileUuid"`
-	ProfileSHA256 string `json:"profileSha256"`
-	Status        string `json:"status"`
+	Kind           string `json:"kind"`
+	RelativePath   string `json:"relativePath"`
+	BundleID       string `json:"bundleId"`
+	SourceBundleID string `json:"sourceBundleId,omitempty"`
+	ProfileClass   string `json:"profileClass"`
+	ProfileUUID    string `json:"profileUuid"`
+	ProfileSHA256  string `json:"profileSha256"`
+	Status         string `json:"status"`
 }
 
 // SigningResignEntitlementRewrite records one explicitly requested,
@@ -82,10 +83,12 @@ func signingResignResultRows(result *SigningResignResult) ([]string, [][]string)
 	}
 	for _, target := range result.Targets {
 		prefix := "target." + target.RelativePath
+		rows = append(rows, []string{prefix + ".kind", target.Kind}, []string{prefix + ".bundleId", target.BundleID})
+		if target.SourceBundleID != "" {
+			rows = append(rows, []string{prefix + ".sourceBundleId", target.SourceBundleID})
+		}
 		rows = append(
 			rows,
-			[]string{prefix + ".kind", target.Kind},
-			[]string{prefix + ".bundleId", target.BundleID},
 			[]string{prefix + ".profileClass", target.ProfileClass},
 			[]string{prefix + ".profileUuid", target.ProfileUUID},
 			[]string{prefix + ".profileSha256", target.ProfileSHA256},

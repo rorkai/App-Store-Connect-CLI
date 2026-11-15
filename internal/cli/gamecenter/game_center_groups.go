@@ -12,9 +12,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// GameCenterGroupsCommand returns the groups command group.
-func GameCenterGroupsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("groups", flag.ExitOnError)
+// newGameCenterGroupsCommand returns the groups command group.
+func newGameCenterGroupsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("groups", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "groups",
@@ -38,17 +38,17 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterGroupsListCommand(),
-			GameCenterGroupsGetCommand(),
-			GameCenterGroupsCreateCommand(),
-			GameCenterGroupsUpdateCommand(),
-			GameCenterGroupsDeleteCommand(),
-			GameCenterGroupAchievementsCommand(),
-			GameCenterGroupLeaderboardsCommand(),
-			GameCenterGroupLeaderboardSetsCommand(),
-			GameCenterGroupActivitiesCommand(),
-			GameCenterGroupChallengesCommand(),
-			GameCenterGroupDetailsCommand(),
+			newGameCenterGroupsListCommand(d),
+			newGameCenterGroupsGetCommand(d),
+			newGameCenterGroupsCreateCommand(d),
+			newGameCenterGroupsUpdateCommand(d),
+			newGameCenterGroupsDeleteCommand(d),
+			newGameCenterGroupAchievementsCommand(d),
+			newGameCenterGroupLeaderboardsCommand(d),
+			newGameCenterGroupLeaderboardSetsCommand(d),
+			newGameCenterGroupActivitiesCommand(d),
+			newGameCenterGroupChallengesCommand(d),
+			newGameCenterGroupDetailsCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -56,8 +56,8 @@ Examples:
 	}
 }
 
-// GameCenterGroupsListCommand returns the groups list subcommand.
-func GameCenterGroupsListCommand() *ffcli.Command {
+// newGameCenterGroupsListCommand returns the groups list subcommand.
+func newGameCenterGroupsListCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "list",
 		ShortUsage: "asc game-center groups list [flags]",
@@ -85,11 +85,12 @@ Examples:
 			}
 			return client.GetGameCenterGroups(ctx, opts...)
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterGroupsGetCommand returns the groups get subcommand.
-func GameCenterGroupsGetCommand() *ffcli.Command {
+// newGameCenterGroupsGetCommand returns the groups get subcommand.
+func newGameCenterGroupsGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
 		Name:       "view",
 		ShortUsage: "asc game-center groups view --id \"GROUP_ID\"",
@@ -104,11 +105,12 @@ Examples:
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterGroup(ctx, id)
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterGroupsCreateCommand returns the groups create subcommand.
-func GameCenterGroupsCreateCommand() *ffcli.Command {
+// newGameCenterGroupsCreateCommand returns the groups create subcommand.
+func newGameCenterGroupsCreateCommand(d *shared.Deps) *ffcli.Command {
 	var referenceName *string
 	return shared.BuildCreateCommand(shared.WriteCommandConfig{
 		Name:       "create",
@@ -125,11 +127,12 @@ Examples:
 		Send: func(ctx context.Context, client *asc.Client, _ string) (any, error) {
 			return client.CreateGameCenterGroup(ctx, referenceName)
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterGroupsUpdateCommand returns the groups update subcommand.
-func GameCenterGroupsUpdateCommand() *ffcli.Command {
+// newGameCenterGroupsUpdateCommand returns the groups update subcommand.
+func newGameCenterGroupsUpdateCommand(d *shared.Deps) *ffcli.Command {
 	var referenceName string
 	return shared.BuildUpdateCommand(shared.WriteCommandConfig{
 		Name:       "update",
@@ -147,11 +150,12 @@ Examples:
 		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.UpdateGameCenterGroup(ctx, id, &referenceName)
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterGroupsDeleteCommand returns the groups delete subcommand.
-func GameCenterGroupsDeleteCommand() *ffcli.Command {
+// newGameCenterGroupsDeleteCommand returns the groups delete subcommand.
+func newGameCenterGroupsDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
 		Name:       "delete",
 		ShortUsage: "asc game-center groups delete --id \"GROUP_ID\" --confirm",
@@ -170,12 +174,13 @@ Examples:
 		Result: func(id string) any {
 			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterGroupAchievementsCommand returns the group achievements command group.
-func GameCenterGroupAchievementsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("achievements", flag.ExitOnError)
+// newGameCenterGroupAchievementsCommand returns the group achievements command group.
+func newGameCenterGroupAchievementsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("achievements", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "achievements",
@@ -189,8 +194,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterGroupAchievementsListCommand(),
-			GameCenterGroupAchievementsSetCommand(),
+			newGameCenterGroupAchievementsListCommand(d),
+			newGameCenterGroupAchievementsSetCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -198,8 +203,8 @@ Examples:
 	}
 }
 
-// GameCenterGroupAchievementsListCommand returns the group achievements list subcommand.
-func GameCenterGroupAchievementsListCommand() *ffcli.Command {
+// newGameCenterGroupAchievementsListCommand returns the group achievements list subcommand.
+func newGameCenterGroupAchievementsListCommand(d *shared.Deps) *ffcli.Command {
 	var v2 *bool
 
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
@@ -229,18 +234,19 @@ Examples:
 			}
 			return client.GetGameCenterGroupAchievements(ctx, groupID, asc.Limit[asc.GCAchievementsOption](limit), asc.NextURL[asc.GCAchievementsOption](next))
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterGroupAchievementsSetCommand returns the group achievements set subcommand.
-func GameCenterGroupAchievementsSetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("set", flag.ExitOnError)
+// newGameCenterGroupAchievementsSetCommand returns the group achievements set subcommand.
+func newGameCenterGroupAchievementsSetCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("set", flag.ExitOnError)
 
 	groupID := shared.BindResourceIDFlag(fs, "group-id", "gameCenterGroups", "Game Center group ID")
 	ids := shared.BindOnceCSVFlag(fs, "ids", "Comma-separated achievement IDs")
 	v2 := fs.Bool("v2", false, "Use v2 relationships endpoint")
 	confirm := fs.Bool("confirm", false, "Confirm replacing all relationships (required)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "set",
@@ -258,22 +264,22 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*groupID)
 			if id == "" {
-				return shared.RequiredFlag("--group-id")
+				return d.RequiredFlag("--group-id")
 			}
 			idsValue := shared.SplitCSV(ids.String())
 			if len(idsValue) == 0 {
-				return shared.RequiredFlag("--ids")
+				return d.RequiredFlag("--ids")
 			}
-			if err := validateGameCenterReplacementConfirm(fs, *confirm); err != nil {
+			if err := validateGameCenterReplacementConfirm(d, fs, *confirm); err != nil {
 				return err
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("game-center groups achievements set: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			if *v2 {
@@ -287,14 +293,14 @@ Examples:
 			}
 
 			result := &asc.LinkagesResponse{Data: resourceDataList(asc.ResourceTypeGameCenterAchievements, idsValue)}
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// GameCenterGroupLeaderboardsCommand returns the group leaderboards command group.
-func GameCenterGroupLeaderboardsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("leaderboards", flag.ExitOnError)
+// newGameCenterGroupLeaderboardsCommand returns the group leaderboards command group.
+func newGameCenterGroupLeaderboardsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("leaderboards", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "leaderboards",
@@ -308,8 +314,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterGroupLeaderboardsListCommand(),
-			GameCenterGroupLeaderboardsSetCommand(),
+			newGameCenterGroupLeaderboardsListCommand(d),
+			newGameCenterGroupLeaderboardsSetCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -317,8 +323,8 @@ Examples:
 	}
 }
 
-// GameCenterGroupLeaderboardsListCommand returns the group leaderboards list subcommand.
-func GameCenterGroupLeaderboardsListCommand() *ffcli.Command {
+// newGameCenterGroupLeaderboardsListCommand returns the group leaderboards list subcommand.
+func newGameCenterGroupLeaderboardsListCommand(d *shared.Deps) *ffcli.Command {
 	var v2 *bool
 
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
@@ -348,18 +354,19 @@ Examples:
 			}
 			return client.GetGameCenterGroupLeaderboards(ctx, groupID, asc.Limit[asc.GCLeaderboardsOption](limit), asc.NextURL[asc.GCLeaderboardsOption](next))
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterGroupLeaderboardsSetCommand returns the group leaderboards set subcommand.
-func GameCenterGroupLeaderboardsSetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("set", flag.ExitOnError)
+// newGameCenterGroupLeaderboardsSetCommand returns the group leaderboards set subcommand.
+func newGameCenterGroupLeaderboardsSetCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("set", flag.ExitOnError)
 
 	groupID := shared.BindResourceIDFlag(fs, "group-id", "gameCenterGroups", "Game Center group ID")
 	ids := shared.BindOnceCSVFlag(fs, "ids", "Comma-separated leaderboard IDs")
 	v2 := fs.Bool("v2", false, "Use v2 relationships endpoint")
 	confirm := fs.Bool("confirm", false, "Confirm replacing all relationships (required)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "set",
@@ -377,22 +384,22 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*groupID)
 			if id == "" {
-				return shared.RequiredFlag("--group-id")
+				return d.RequiredFlag("--group-id")
 			}
 			idsValue := shared.SplitCSV(ids.String())
 			if len(idsValue) == 0 {
-				return shared.RequiredFlag("--ids")
+				return d.RequiredFlag("--ids")
 			}
-			if err := validateGameCenterReplacementConfirm(fs, *confirm); err != nil {
+			if err := validateGameCenterReplacementConfirm(d, fs, *confirm); err != nil {
 				return err
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("game-center groups leaderboards set: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			if *v2 {
@@ -406,14 +413,14 @@ Examples:
 			}
 
 			result := &asc.LinkagesResponse{Data: resourceDataList(asc.ResourceTypeGameCenterLeaderboards, idsValue)}
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// GameCenterGroupLeaderboardSetsCommand returns the group leaderboard sets command group.
-func GameCenterGroupLeaderboardSetsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("leaderboard-sets", flag.ExitOnError)
+// newGameCenterGroupLeaderboardSetsCommand returns the group leaderboard sets command group.
+func newGameCenterGroupLeaderboardSetsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("leaderboard-sets", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "leaderboard-sets",
@@ -426,7 +433,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterGroupLeaderboardSetsListCommand(),
+			newGameCenterGroupLeaderboardSetsListCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -434,8 +441,8 @@ Examples:
 	}
 }
 
-// GameCenterGroupLeaderboardSetsListCommand returns the group leaderboard sets list subcommand.
-func GameCenterGroupLeaderboardSetsListCommand() *ffcli.Command {
+// newGameCenterGroupLeaderboardSetsListCommand returns the group leaderboard sets list subcommand.
+func newGameCenterGroupLeaderboardSetsListCommand(d *shared.Deps) *ffcli.Command {
 	var v2 *bool
 
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
@@ -465,12 +472,13 @@ Examples:
 			}
 			return client.GetGameCenterGroupLeaderboardSets(ctx, groupID, asc.Limit[asc.GCLeaderboardSetsOption](limit), asc.NextURL[asc.GCLeaderboardSetsOption](next))
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterGroupActivitiesCommand returns the group activities command group.
-func GameCenterGroupActivitiesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("activities", flag.ExitOnError)
+// newGameCenterGroupActivitiesCommand returns the group activities command group.
+func newGameCenterGroupActivitiesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("activities", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "activities",
@@ -483,7 +491,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterGroupActivitiesListCommand(),
+			newGameCenterGroupActivitiesListCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -491,8 +499,8 @@ Examples:
 	}
 }
 
-// GameCenterGroupActivitiesListCommand returns the group activities list subcommand.
-func GameCenterGroupActivitiesListCommand() *ffcli.Command {
+// newGameCenterGroupActivitiesListCommand returns the group activities list subcommand.
+func newGameCenterGroupActivitiesListCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "list",
 		ShortUsage: "asc game-center groups activities list --group-id \"GROUP_ID\"",
@@ -512,12 +520,13 @@ Examples:
 		FetchPage: func(ctx context.Context, client *asc.Client, groupId string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterGroupActivities(ctx, groupId, asc.Limit[asc.GCActivitiesOption](limit), asc.NextURL[asc.GCActivitiesOption](next))
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterGroupChallengesCommand returns the group challenges command group.
-func GameCenterGroupChallengesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("challenges", flag.ExitOnError)
+// newGameCenterGroupChallengesCommand returns the group challenges command group.
+func newGameCenterGroupChallengesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("challenges", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "challenges",
@@ -534,7 +543,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterGroupChallengesListCommand(),
+			newGameCenterGroupChallengesListCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -542,8 +551,8 @@ Examples:
 	}
 }
 
-// GameCenterGroupChallengesListCommand returns the group challenges list subcommand.
-func GameCenterGroupChallengesListCommand() *ffcli.Command {
+// newGameCenterGroupChallengesListCommand returns the group challenges list subcommand.
+func newGameCenterGroupChallengesListCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "list",
 		ShortUsage: "asc game-center groups challenges list --group-id \"GROUP_ID\"",
@@ -563,12 +572,13 @@ Examples:
 		FetchPage: func(ctx context.Context, client *asc.Client, groupId string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterGroupChallenges(ctx, groupId, asc.Limit[asc.GCChallengesOption](limit), asc.NextURL[asc.GCChallengesOption](next))
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterGroupDetailsCommand returns the group details command group.
-func GameCenterGroupDetailsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("details", flag.ExitOnError)
+// newGameCenterGroupDetailsCommand returns the group details command group.
+func newGameCenterGroupDetailsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("details", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "details",
@@ -581,7 +591,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterGroupDetailsListCommand(),
+			newGameCenterGroupDetailsListCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -589,8 +599,8 @@ Examples:
 	}
 }
 
-// GameCenterGroupDetailsListCommand returns the group details list subcommand.
-func GameCenterGroupDetailsListCommand() *ffcli.Command {
+// newGameCenterGroupDetailsListCommand returns the group details list subcommand.
+func newGameCenterGroupDetailsListCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "list",
 		ShortUsage: "asc game-center groups details list --group-id \"GROUP_ID\"",
@@ -610,5 +620,6 @@ Examples:
 		FetchPage: func(ctx context.Context, client *asc.Client, groupId string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterGroupGameCenterDetails(ctx, groupId, asc.Limit[asc.GCDetailsOption](limit), asc.NextURL[asc.GCDetailsOption](next))
 		},
+		Deps: d,
 	})
 }

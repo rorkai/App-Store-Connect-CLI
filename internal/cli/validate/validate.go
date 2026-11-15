@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 
@@ -31,14 +30,13 @@ type validateOptions struct {
 }
 
 var (
-	clientFactory          = shared.GetASCClient
 	fetchScreenshotSetsFn  = fetchScreenshotSets
-	buildReadinessReportFn = BuildReadinessReport
+	buildReadinessReportFn = BuildReadinessReportWith
 )
 
-// ValidateCommand returns the asc validate command.
-func ValidateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("validate", flag.ExitOnError)
+// NewValidateCommand returns the asc validate command built on d.
+func NewValidateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("validate", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	version := fs.String("version", "", "App Store version string")
@@ -49,7 +47,7 @@ func ValidateCommand() *ffcli.Command {
 	checkURLs := fs.Bool("check-urls", false, "Check metadata URL destinations with bounded public HTTP requests")
 	appleID := fs.String("apple-id", "", "Cached Apple web session to use with --deep")
 	ipaPath := fs.String("ipa", "", "Path to the version's .ipa; its UIDeviceFamily decides whether iPad screenshots are required, and its DTSDKName proves the SDK")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "validate",
@@ -139,40 +137,40 @@ Subscriptions:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			ValidateTestFlightCommand(),
-			ValidateIAPCommand(),
-			ValidateSubscriptionsCommand(),
+			newValidateTestFlightCommand(d),
+			newValidateIAPCommand(d),
+			newValidateSubscriptionsCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			if len(args) > 0 {
-				fmt.Fprintf(os.Stderr, "Error: unknown subcommand %q\n\n", args[0])
+				fmt.Fprintf(d.IO.ErrOut, "Error: unknown subcommand %q\n\n", args[0])
 				return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticInvalidInput, "")
 			}
 			trimmedVersion := strings.TrimSpace(*version)
 			trimmedVersionID := strings.TrimSpace(*versionID)
 			if trimmedVersion != "" && trimmedVersionID != "" {
-				return shared.WithDiagnostic(shared.UsageError("--version and --version-id are mutually exclusive"), shared.DiagnosticConflictingInput, "--version-id")
+				return shared.WithDiagnostic(d.UsageError("--version and --version-id are mutually exclusive"), shared.DiagnosticConflictingInput, "--version-id")
 			}
 			trimmedAppleID := strings.TrimSpace(*appleID)
 			if trimmedAppleID != "" && !*deep {
-				return shared.WithDiagnostic(shared.UsageError("--apple-id requires --deep"), shared.DiagnosticInvalidInput, "--apple-id")
+				return shared.WithDiagnostic(d.UsageError("--apple-id requires --deep"), shared.DiagnosticInvalidInput, "--apple-id")
 			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
-				return shared.WithDiagnostic(shared.UsageError("--app is required (or set ASC_APP_ID)"), shared.DiagnosticRequiredInputMissing, "--app")
+				return shared.WithDiagnostic(d.UsageError("--app is required (or set ASC_APP_ID)"), shared.DiagnosticRequiredInputMissing, "--app")
 			}
 
 			var normalizedPlatform string
 			if strings.TrimSpace(*platform) != "" {
 				value, err := shared.NormalizeAppStoreVersionPlatform(*platform)
 				if err != nil {
-					return shared.WithDiagnostic(shared.UsageErrorf("validate: %v", err), shared.DiagnosticInvalidInput, "--platform")
+					return shared.WithDiagnostic(d.UsageErrorf("validate: %v", err), shared.DiagnosticInvalidInput, "--platform")
 				}
 				normalizedPlatform = value
 			}
 
-			return runValidate(ctx, validateOptions{
+			return runValidate(ctx, d, validateOptions{
 				AppID:     resolvedAppID,
 				Version:   trimmedVersion,
 				VersionID: trimmedVersionID,
@@ -189,7 +187,8 @@ Subscriptions:
 	}
 }
 
-func runValidate(ctx context.Context, opts validateOptions) error {
+func runValidate(ctx context.Context, d *shared.Deps, opts validateOptions) error {
+	ctx = withReadinessRequestTimeout(ctx, d.Timeout)
 	var localIPA *LocalIPA
 	if opts.IPAPath != "" {
 		loaded, loadErr := loadLocalIPA(opts.IPAPath)
@@ -202,12 +201,12 @@ func runValidate(ctx context.Context, opts validateOptions) error {
 	var report validation.Report
 	var err error
 	if strings.TrimSpace(opts.Version) == "" && strings.TrimSpace(opts.VersionID) == "" {
-		client, clientErr := clientFactory()
+		client, clientErr := d.Client()
 		if clientErr != nil {
 			err = clientErr
 		} else {
-			resolveCtx, cancel := shared.ContextWithTimeout(ctx)
-			resolved, resolveErr := shared.ResolveAndAnnounceDefaultAppStoreVersion(resolveCtx, client, opts.AppID, opts.Platform, "--version")
+			resolveCtx, cancel := d.Timeout(ctx)
+			resolved, resolveErr := d.ResolveAndAnnounceDefaultAppStoreVersion(resolveCtx, client, opts.AppID, opts.Platform, "--version")
 			cancel()
 			if resolveErr != nil {
 				err = resolveErr
@@ -219,7 +218,7 @@ func runValidate(ctx context.Context, opts validateOptions) error {
 		}
 	}
 	if err == nil {
-		report, err = buildReadinessReportFn(ctx, ReadinessOptions{
+		report, err = buildReadinessReportFn(ctx, d, ReadinessOptions{
 			AppID:     opts.AppID,
 			Version:   opts.Version,
 			VersionID: opts.VersionID,
@@ -231,7 +230,7 @@ func runValidate(ctx context.Context, opts validateOptions) error {
 		})
 		if ambiguous, ok := errors.AsType[*shared.AmbiguousSelectionError](err); ok {
 			message := "validate: " + err.Error()
-			fmt.Fprintf(os.Stderr, "Error: %s\n", message)
+			fmt.Fprintf(d.IO.ErrOut, "Error: %s\n", message)
 			reported := shared.WithDiagnostic(shared.NewReportedUsageError(shared.UsageErrorInvalidValue, message), shared.DiagnosticInvalidInput, ambiguous.Flag)
 			return shared.NewErrorWithCause(reported, err)
 		}
@@ -250,7 +249,7 @@ func runValidate(ctx context.Context, opts validateOptions) error {
 		report = validation.ApplyDeepValidation(report, deep, findings)
 	}
 
-	if err := shared.PrintOutput(&report, opts.Output, opts.Pretty); err != nil {
+	if err := d.PrintOutput(&report, opts.Output, opts.Pretty); err != nil {
 		return err
 	}
 

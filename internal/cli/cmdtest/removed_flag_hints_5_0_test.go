@@ -27,6 +27,7 @@ func TestRemovedFlagAliasesNameTheirReplacement(t *testing.T) {
 			name: "localizations list --version-id",
 			args: []string{"localizations", "list", "--version-id", "PRIVATE_VALUE"},
 			want: "Error: `--version-id` was removed in 5.0.0; use `--version` (see migrate-to-5-0)\nFor help:\n  asc localizations list --help\n",
+			deps: true,
 		},
 		{
 			name: "versions view --id",

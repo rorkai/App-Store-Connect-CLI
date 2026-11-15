@@ -15,7 +15,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/validation"
 )
 
-var reviewReadinessReportBuilder = validatecli.BuildReadinessReport
+var reviewReadinessReportBuilder = validatecli.BuildReadinessReportWith
 
 type reviewVersionContext struct {
 	ID          string `json:"id"`
@@ -98,7 +98,7 @@ Examples:
   asc review status --app "123456789" --version "1.2.3"
   asc review status --app "123456789" --version-id "VERSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID, versionValue, versionIDValue, platformValue, err := resolveReviewOverviewFlags(d, *appID, *version, *versionID, *platform)
 			if err != nil {
@@ -155,7 +155,7 @@ Examples:
   asc review doctor --app "123456789" --version "1.2.3"
   asc review doctor --app "123456789" --version-id "VERSION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID, versionValue, versionIDValue, platformValue, err := resolveReviewOverviewFlags(d, *appID, *version, *versionID, *platform)
 			if err != nil {
@@ -182,7 +182,7 @@ Examples:
 
 			var report validation.Report
 			if snapshot.Version != nil {
-				report, err = reviewReadinessReportBuilder(requestCtx, validatecli.ReadinessOptions{
+				report, err = reviewReadinessReportBuilder(requestCtx, d, validatecli.ReadinessOptions{
 					AppID:     resolvedAppID,
 					VersionID: snapshot.Version.ID,
 					Platform:  snapshot.Version.Platform,

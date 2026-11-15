@@ -148,7 +148,7 @@ type SearchOptimizationData struct {
 func CollectSearchOptimizationData(ctx context.Context, adsProfile, adAccount string, request SearchOptimizationRequest) (SearchOptimizationData, error) {
 	profile := strings.TrimSpace(adsProfile)
 	account := strings.TrimSpace(adAccount)
-	client, _, err := resolvePlatformClientAndAdAccountID(ctx, commonFlags{
+	client, _, err := resolvePlatformClientAndAdAccountID(ctx, shared.DefaultDeps(), commonFlags{
 		AdsProfile: &profile,
 		AdAccount:  &account,
 	}, appleads.ContextAdAccount)
@@ -167,7 +167,7 @@ func CollectSearchOptimizationData(ctx context.Context, adsProfile, adAccount st
 func CollectSearchSuggestions(ctx context.Context, adsProfile, adAccount string, request SearchOptimizationRequest) (SearchOptimizationData, error) {
 	profile := strings.TrimSpace(adsProfile)
 	account := strings.TrimSpace(adAccount)
-	client, _, err := resolvePlatformClientAndAdAccountID(ctx, commonFlags{
+	client, _, err := resolvePlatformClientAndAdAccountID(ctx, shared.DefaultDeps(), commonFlags{
 		AdsProfile: &profile,
 		AdAccount:  &account,
 	}, appleads.ContextAdAccount)
@@ -183,7 +183,7 @@ func CollectSearchSuggestions(ctx context.Context, adsProfile, adAccount string,
 func CollectSearchPopularity(ctx context.Context, adsProfile, adAccount string, request SearchOptimizationRequest) ([]SearchPopularity, error) {
 	profile := strings.TrimSpace(adsProfile)
 	account := strings.TrimSpace(adAccount)
-	client, _, err := resolvePlatformClientAndAdAccountID(ctx, commonFlags{
+	client, _, err := resolvePlatformClientAndAdAccountID(ctx, shared.DefaultDeps(), commonFlags{
 		AdsProfile: &profile,
 		AdAccount:  &account,
 	}, appleads.ContextAdAccount)

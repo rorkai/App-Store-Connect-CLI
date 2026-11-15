@@ -13,14 +13,14 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// GameCenterScoreModerationsCommand returns the leaderboard score moderation group.
-func GameCenterScoreModerationsCommand() *ffcli.Command {
-	return &ffcli.Command{Name: "score-moderations", ShortUsage: "asc game-center leaderboards v2 score-moderations <subcommand> [flags]", ShortHelp: "List submitted scores and manage their blocked status.", FlagSet: flag.NewFlagSet("score-moderations", flag.ExitOnError), UsageFunc: shared.DefaultUsageFunc, Subcommands: []*ffcli.Command{gameCenterScoreModerationsListCommand(), gameCenterScoreModerationsUpdateCommand()}, Exec: func(context.Context, []string) error { return flag.ErrHelp }}
+// newGameCenterScoreModerationsCommand returns the leaderboard score moderation group.
+func newGameCenterScoreModerationsCommand(d *shared.Deps) *ffcli.Command {
+	return &ffcli.Command{Name: "score-moderations", ShortUsage: "asc game-center leaderboards v2 score-moderations <subcommand> [flags]", ShortHelp: "List submitted scores and manage their blocked status.", FlagSet: d.NewFlagSet("score-moderations", flag.ExitOnError), UsageFunc: shared.DefaultUsageFunc, Subcommands: []*ffcli.Command{gameCenterScoreModerationsListCommand(d), gameCenterScoreModerationsUpdateCommand(d)}, Exec: func(context.Context, []string) error { return flag.ErrHelp }}
 }
 
-func gameCenterScoreModerationsListCommand() *ffcli.Command {
+func gameCenterScoreModerationsListCommand(d *shared.Deps) *ffcli.Command {
 	const command = "game-center leaderboards v2 score-moderations list"
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
+	fs := d.NewFlagSet("list", flag.ExitOnError)
 	id := shared.BindResourceIDFlag(fs, "leaderboard-id", "gameCenterLeaderboards", "Game Center leaderboard ID")
 	var blocked shared.OptionalBool
 	fs.Var(&blocked, "exists-blocked", "Value for Apple's exists[blocked] filter (true/false)")
@@ -30,28 +30,28 @@ func gameCenterScoreModerationsListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{Name: "list", ShortUsage: "asc " + command + " --leaderboard-id ID [flags]", ShortHelp: "List scores submitted to a v2 leaderboard.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc, Exec: func(ctx context.Context, args []string) error {
 		provided := map[string]bool{}
 		fs.Visit(func(f *flag.Flag) { provided[f.Name] = true })
 		if provided["limit"] && (*limit < 1 || *limit > 200) {
-			return shared.UsageError(command + ": --limit must be between 1 and 200")
+			return d.UsageError(command + ": --limit must be between 1 and 200")
 		}
-		if err := shared.ValidatePaginationFlags(ctx, fs, command, 200, "exists-blocked", "fields", "player-fields", "include", "limit"); err != nil {
+		if err := d.ValidatePaginationFlags(ctx, fs, command, 200, "exists-blocked", "fields", "player-fields", "include", "limit"); err != nil {
 			return err
 		}
 		nextURL := strings.TrimSpace(*next)
 		leaderboardID := strings.TrimSpace(*id)
 		if leaderboardID == "" && nextURL == "" {
-			return shared.UsageError(command + ": --leaderboard-id is required")
+			return d.UsageError(command + ": --leaderboard-id is required")
 		}
 		normalize := func(raw, name string, allowed []string) ([]string, error) {
 			values, err := shared.NormalizeSelection(raw, allowed, "--"+name)
 			if err != nil {
-				return nil, shared.UsageError(err.Error())
+				return nil, d.UsageError(err.Error())
 			}
 			if provided[name] && len(values) == 0 {
-				return nil, shared.UsageErrorf("--%s must not be empty", name)
+				return nil, d.UsageErrorf("--%s must not be empty", name)
 			}
 			return values, nil
 		}
@@ -68,7 +68,7 @@ func gameCenterScoreModerationsListCommand() *ffcli.Command {
 			return err
 		}
 		if len(players) > 0 && !slices.Contains(includes, "player") {
-			return shared.UsageError("--player-fields requires --include player")
+			return d.UsageError("--player-fields requires --include player")
 		}
 		if slices.Contains(includes, "player") && len(selected) > 0 && !slices.Contains(selected, "player") {
 			selected = append(selected, "player")
@@ -82,12 +82,12 @@ func gameCenterScoreModerationsListCommand() *ffcli.Command {
 			value := blocked.Value()
 			query.ExistsBlocked = &value
 		}
-		client, err := shared.GetASCClient()
+		client, err := d.Client()
 		if err != nil {
 			return fmt.Errorf("%s: %w", command, err)
 		}
 		fetch := func(ctx context.Context, q asc.GCScoreModerationsQuery) (*asc.GameCenterScoreModerationsResponse, error) {
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 			return client.GetGameCenterScoreModerations(requestCtx, leaderboardID, q)
 		}
@@ -106,41 +106,41 @@ func gameCenterScoreModerationsListCommand() *ffcli.Command {
 			if err != nil {
 				return fmt.Errorf("%s: %w", command, err)
 			}
-			return shared.PrintOutput(all, *output.Output, *output.Pretty)
+			return d.PrintOutput(all, *output.Output, *output.Pretty)
 		}
-		return shared.PrintOutput(first, *output.Output, *output.Pretty)
+		return d.PrintOutput(first, *output.Output, *output.Pretty)
 	}}
 }
 
-func gameCenterScoreModerationsUpdateCommand() *ffcli.Command {
+func gameCenterScoreModerationsUpdateCommand(d *shared.Deps) *ffcli.Command {
 	const command = "game-center leaderboards v2 score-moderations update"
-	fs := flag.NewFlagSet("update", flag.ExitOnError)
+	fs := d.NewFlagSet("update", flag.ExitOnError)
 	id := shared.BindResourceIDFlag(fs, "id", "gameCenterScoreModerations", "Score moderation ID")
 	var blocked shared.OptionalBool
 	fs.Var(&blocked, "blocked", "Block or unblock the submitted score (true/false)")
 	confirm := fs.Bool("confirm", false, "Confirm score moderation")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{Name: "update", ShortUsage: "asc " + command + " --id ID --blocked true|false --confirm", ShortHelp: "Block or unblock a submitted score.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc, Exec: func(ctx context.Context, args []string) error {
 		scoreID := strings.TrimSpace(*id)
 		if scoreID == "" {
-			return shared.UsageError(command + ": --id is required")
+			return d.UsageError(command + ": --id is required")
 		}
 		if !blocked.IsSet() {
-			return shared.UsageError(command + ": --blocked is required")
+			return d.UsageError(command + ": --blocked is required")
 		}
-		if err := validateGameCenterReplacementConfirm(fs, *confirm); err != nil {
+		if err := validateGameCenterReplacementConfirm(d, fs, *confirm); err != nil {
 			return err
 		}
-		client, err := shared.GetASCClient()
+		client, err := d.Client()
 		if err != nil {
 			return fmt.Errorf("%s: %w", command, err)
 		}
-		requestCtx, cancel := shared.ContextWithTimeout(ctx)
+		requestCtx, cancel := d.Timeout(ctx)
 		defer cancel()
 		response, err := client.UpdateGameCenterScoreModeration(requestCtx, scoreID, blocked.Value())
 		if err != nil {
 			return fmt.Errorf("%s: %w", command, err)
 		}
-		return shared.PrintOutput(response, *output.Output, *output.Pretty)
+		return d.PrintOutput(response, *output.Output, *output.Pretty)
 	}}
 }

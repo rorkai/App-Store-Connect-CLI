@@ -17,5 +17,10 @@
     {"operation":"inAppPurchaseOfferCodes_oneTimeUseCodes_getToManyRelated","name":"GetInAppPurchaseOfferCodeOneTimeUseCodes","params":["offerCodeID"],"check":"require","options":"IAPOfferCodeOneTimeUseCodesOption","query":"buildIAPOfferCodeOneTimeUseCodesQuery","nextContext":"in-app-purchase-offer-code-one-time-use-codes"},
     {"operation":"inAppPurchaseOfferCodes_prices_getToManyRelated","name":"GetInAppPurchaseOfferCodePrices","params":["offerCodeID"],"check":"require","options":"IAPOfferCodePricesOption","query":"buildIAPOfferCodePricesQuery","nextContext":"in-app-purchase-offer-code-prices"},
     {"operation":"inAppPurchaseOfferCodes_updateInstance","name":"UpdateInAppPurchaseOfferCode","params":["offerCodeID"],"check":"require","skipEmptyAttributes":true}
+  ],
+  "queries": [
+    {"operation":"inAppPurchaseOfferCodes_customCodes_getToManyRelated","name":"IAPOfferCodeCustomCodes","deviations":[{"problem":"query parameters [fields[actors] fields[inAppPurchaseOfferCodeCustomCodes] include] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]},
+    {"operation":"inAppPurchaseOfferCodes_oneTimeUseCodes_getToManyRelated","name":"IAPOfferCodeOneTimeUseCodes","deviations":[{"problem":"query parameters [fields[actors] fields[inAppPurchaseOfferCodeOneTimeUseCodes] include] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]},
+    {"operation":"inAppPurchaseOfferCodes_prices_getToManyRelated","name":"IAPOfferCodePrices","params":[{"name":"fields[inAppPurchaseOfferPrices]","normalize":"unique"},{"name":"include","normalize":"unique"}],"deviations":[{"problem":"query parameters [fields[inAppPurchasePricePoints] fields[territories] filter[territory]] have no option","reason":"The option type has options only for the parameters commands send today; an option for another parameter is added with the command that needs it."}]}
   ]
 }

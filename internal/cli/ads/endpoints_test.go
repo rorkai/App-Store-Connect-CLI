@@ -21,7 +21,7 @@ import (
 )
 
 func TestAdsRootRegistersPlatformV1AsDefault(t *testing.T) {
-	root := AdsCommand()
+	root := NewAdsCommand(newAdsTestDeps())
 	if findCommand(root, "platform") != nil {
 		t.Fatal("nested Platform compatibility namespace must not exist before release")
 	}
@@ -59,7 +59,7 @@ func TestAdsRawResponseCommandsExposeJSONOnlyOutput(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(strings.Join(test.path, " "), func(t *testing.T) {
-			root := AdsCommand()
+			root := NewAdsCommand(newAdsTestDeps())
 			path := test.path
 			cmd := findCommand(root, path...)
 			if cmd == nil {
@@ -96,7 +96,7 @@ func TestPlatformAppSearchValidationAndRepeatedStoreFronts(t *testing.T) {
 	if !ok {
 		t.Fatal("missing platform apps search")
 	}
-	fs, flags := bindEndpointFlags(spec, "test")
+	fs, flags := bindEndpointFlags(newAdsTestDeps(), spec, "test")
 	if _, err := collectQuery(spec, flags); err == nil || !strings.Contains(err.Error(), "--query, --cpids, or --return-owned-apps") {
 		t.Fatalf("empty search error = %v", err)
 	}
@@ -128,7 +128,7 @@ func TestPlatformAppSearchRejectsInvalidStoreFronts(t *testing.T) {
 	spec, _ := appleads.PlatformEndpointByCommandPath("apps", "search")
 	for _, occurrences := range [][]string{{"US,,GB"}, {"USA"}, {"U1"}, {"US", "CA,USA"}} {
 		t.Run(strings.Join(occurrences, " "), func(t *testing.T) {
-			fs, flags := bindEndpointFlags(spec, "test")
+			fs, flags := bindEndpointFlags(newAdsTestDeps(), spec, "test")
 			if err := fs.Set("query", "test"); err != nil {
 				t.Fatal(err)
 			}
@@ -145,7 +145,7 @@ func TestPlatformAppSearchRejectsInvalidStoreFronts(t *testing.T) {
 }
 
 func TestEndpointHelpDocumentsJSONBodyMetadata(t *testing.T) {
-	root := AdsCommand()
+	root := NewAdsCommand(newAdsTestDeps())
 	specs := []struct {
 		prefix []string
 		specs  []appleads.EndpointSpec
@@ -176,7 +176,7 @@ func TestEndpointHelpDocumentsJSONBodyMetadata(t *testing.T) {
 }
 
 func TestPlatformNegativeKeywordResourceFlagsAreSemantic(t *testing.T) {
-	root := AdsCommand()
+	root := NewAdsCommand(newAdsTestDeps())
 	for _, action := range []string{"view", "update", "delete"} {
 		cmd := findCommand(root, "negative-keywords", action)
 		if cmd == nil {
@@ -194,7 +194,7 @@ func TestPlatformNegativeKeywordResourceFlagsAreSemantic(t *testing.T) {
 func TestPlatformKeywordQueriesRequireSelectorBodyBeforeAuth(t *testing.T) {
 	setAdsResolverTestEnv(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing-config.json"))
-	root := AdsCommand()
+	root := NewAdsCommand(newAdsTestDeps())
 	for _, path := range [][]string{
 		{"targeting-keywords", "find"},
 		{"negative-keywords", "find"},
@@ -210,8 +210,8 @@ func TestPlatformKeywordQueriesRequireSelectorBodyBeforeAuth(t *testing.T) {
 		if cmd == nil || cmd.FlagSet.Lookup("file") == nil {
 			t.Fatalf("asc ads %s must expose --file", strings.Join(path, " "))
 		}
-		_, flags := bindEndpointFlags(spec, strings.Join(path, " "))
-		err := executeEndpoint(context.Background(), spec, flags)
+		_, flags := bindEndpointFlags(newAdsTestDeps(), spec, strings.Join(path, " "))
+		err := executeEndpoint(context.Background(), newAdsTestDeps(), spec, flags)
 		if !errors.Is(err, flag.ErrHelp) {
 			t.Errorf("%q missing body error = %v, want pre-auth --file usage error", strings.Join(path, " "), err)
 		}
@@ -406,11 +406,11 @@ func TestPlatformQueryMigrationValidationPrecedesAuth(t *testing.T) {
 	if err := os.WriteFile(file, []byte(`{"conditions":[{"field":"id","operator":"EQUALS","values":["123"]}]}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	fs, flags := bindEndpointFlags(spec, "campaigns find")
+	fs, flags := bindEndpointFlags(newAdsTestDeps(), spec, "campaigns find")
 	if err := fs.Set("file", file); err != nil {
 		t.Fatal(err)
 	}
-	err := executeEndpoint(context.Background(), spec, flags)
+	err := executeEndpoint(context.Background(), newAdsTestDeps(), spec, flags)
 	if err == nil || !strings.Contains(err.Error(), `"conditions" -> "filters"`) || strings.Contains(err.Error(), "configuration not found") {
 		t.Fatalf("executeEndpoint() error = %v, want migration validation before auth", err)
 	}
@@ -562,11 +562,11 @@ func TestPlatformKeywordQuerySelectorValidationPrecedesAuth(t *testing.T) {
 			if err := os.WriteFile(file, []byte(`{"filters":[{"field":"name","operator":"EQUALS","value":"ignored"}]}`), 0o600); err != nil {
 				t.Fatal(err)
 			}
-			fs, flags := bindEndpointFlags(spec, strings.Join(path, " "))
+			fs, flags := bindEndpointFlags(newAdsTestDeps(), spec, strings.Join(path, " "))
 			if err := fs.Set("file", file); err != nil {
 				t.Fatal(err)
 			}
-			err := executeEndpoint(context.Background(), spec, flags)
+			err := executeEndpoint(context.Background(), newAdsTestDeps(), spec, flags)
 			if err == nil || !strings.Contains(err.Error(), "id") || strings.Contains(err.Error(), "configuration not found") {
 				t.Fatalf("executeEndpoint() error = %v, want selector validation before auth", err)
 			}
@@ -601,12 +601,12 @@ func TestPlatformCampaignCreateRiskConfirmationPrecedesAuth(t *testing.T) {
 			if err := os.WriteFile(file, []byte(test.payload), 0o600); err != nil {
 				t.Fatal(err)
 			}
-			_, flags := bindEndpointFlags(campaign, "campaigns create")
+			_, flags := bindEndpointFlags(newAdsTestDeps(), campaign, "campaigns create")
 			*flags.file = file
 			if flags.confirm != nil {
 				*flags.confirm = test.confirm
 			}
-			err := executeEndpoint(context.Background(), campaign, flags)
+			err := executeEndpoint(context.Background(), newAdsTestDeps(), campaign, flags)
 			if err == nil {
 				t.Fatalf("campaign create unexpectedly succeeded, want %q", test.want)
 			}
@@ -656,7 +656,7 @@ func TestPlatformCampaignUpdateConfirmBeforeAuth(t *testing.T) {
 			if err := os.WriteFile(file, []byte(test.payload), 0o600); err != nil {
 				t.Fatal(err)
 			}
-			_, flags := bindEndpointFlags(campaign, "campaigns update")
+			_, flags := bindEndpointFlags(newAdsTestDeps(), campaign, "campaigns update")
 			if err := flags.flagSet.Set("campaign", "c1"); err != nil {
 				t.Fatal(err)
 			}
@@ -664,7 +664,7 @@ func TestPlatformCampaignUpdateConfirmBeforeAuth(t *testing.T) {
 			if flags.confirm != nil {
 				*flags.confirm = test.confirm
 			}
-			err := executeEndpoint(context.Background(), campaign, flags)
+			err := executeEndpoint(context.Background(), newAdsTestDeps(), campaign, flags)
 			if err == nil {
 				t.Fatalf("campaign update unexpectedly succeeded, want %q", test.want)
 			}
@@ -710,7 +710,7 @@ func TestPlatformSpendRiskMutationsRequireConfirmationBeforeAuth(t *testing.T) {
 			if spec.RequiresConfirm || !spec.RiskConfirm || spec.RiskConfirmBodyField != "" {
 				t.Fatalf("%q risk metadata = %+v, want unconditional risk confirmation", command, spec)
 			}
-			_, flags := bindEndpointFlags(spec, command)
+			_, flags := bindEndpointFlags(newAdsTestDeps(), spec, command)
 			for _, param := range spec.PathParams {
 				if param.Required && !param.ContextValue {
 					if err := flags.flagSet.Set(param.Flag, "resource-id"); err != nil {
@@ -718,7 +718,7 @@ func TestPlatformSpendRiskMutationsRequireConfirmationBeforeAuth(t *testing.T) {
 					}
 				}
 			}
-			err := executeEndpoint(context.Background(), spec, flags)
+			err := executeEndpoint(context.Background(), newAdsTestDeps(), spec, flags)
 			if !errors.Is(err, flag.ErrHelp) || err.Error() != "--confirm is required to acknowledge potential Apple Ads spend, billing, delivery, targeting, or access impact" {
 				t.Fatalf("%q error = %v, want exact pre-auth confirmation usage error", command, err)
 			}
@@ -848,7 +848,7 @@ func TestRawPlatformRequestUsesEndpointRiskMetadata(t *testing.T) {
 }
 
 func TestValidateRawPlatformAdAccountPathIDRejectsDeleteMismatch(t *testing.T) {
-	err := validateRawPlatformAdAccountPathID("DELETE", "v1/ad-accounts/PATH_ACCOUNT", "CONTEXT_ACCOUNT")
+	err := validateRawPlatformAdAccountPathID(newAdsTestDeps(), "DELETE", "v1/ad-accounts/PATH_ACCOUNT", "CONTEXT_ACCOUNT")
 	if err == nil || !strings.Contains(err.Error(), "must match the v1/ad-accounts path ID") {
 		t.Fatalf("validateRawPlatformAdAccountPathID() error = %v, want path/context mismatch", err)
 	}
@@ -885,9 +885,9 @@ func TestPlatformCampaignDeleteCommandsRequireConfirmationFirst(t *testing.T) {
 		if !ok {
 			t.Fatalf("missing %q", strings.Join(command, " "))
 		}
-		fs, flags := bindEndpointFlags(spec, "test")
+		fs, flags := bindEndpointFlags(newAdsTestDeps(), spec, "test")
 		setRequiredPathParams(t, fs, spec)
-		if err := executeEndpoint(context.Background(), spec, flags); !errors.Is(err, flag.ErrHelp) || !strings.Contains(err.Error(), "--confirm is required") {
+		if err := executeEndpoint(context.Background(), newAdsTestDeps(), spec, flags); !errors.Is(err, flag.ErrHelp) || !strings.Contains(err.Error(), "--confirm is required") {
 			t.Errorf("%q unconfirmed error = %v, want confirmation usage error", strings.Join(command, " "), err)
 		}
 	}
@@ -898,7 +898,7 @@ func TestPlatformGeoSearchSerializesFixtureQueryNames(t *testing.T) {
 	if !ok {
 		t.Fatal("missing geo search")
 	}
-	fs, flags := bindEndpointFlags(spec, "test")
+	fs, flags := bindEndpointFlags(newAdsTestDeps(), spec, "test")
 	if err := fs.Parse([]string{
 		"--supply-source", "appstore",
 		"--query", "San Francisco",
@@ -923,7 +923,7 @@ func TestPlatformGeoSearchSerializesFixtureQueryNames(t *testing.T) {
 	if _, err := collectQuery(spec, flags); err == nil || !strings.Contains(err.Error(), "--page-size must be greater than 0") {
 		t.Fatalf("zero page size error = %v, want pre-network validation", err)
 	}
-	_, flags = bindEndpointFlags(spec, "test")
+	_, flags = bindEndpointFlags(newAdsTestDeps(), spec, "test")
 	*flags.queryStrings["supplySource"] = "MAPS"
 	*flags.queryStrings["query"] = "x"
 	if _, err := collectQuery(spec, flags); err == nil || !strings.Contains(err.Error(), "at least 2 characters") {
@@ -933,7 +933,7 @@ func TestPlatformGeoSearchSerializesFixtureQueryNames(t *testing.T) {
 
 func TestPlatformCampaignPathIDsAreStringsButAdamIDIsNumeric(t *testing.T) {
 	campaign, _ := appleads.PlatformEndpointByCommandPath("campaigns", "view")
-	fs, flags := bindEndpointFlags(campaign, "test")
+	fs, flags := bindEndpointFlags(newAdsTestDeps(), campaign, "test")
 	if err := fs.Set("campaign", "campaign_external_01"); err != nil {
 		t.Fatal(err)
 	}
@@ -943,7 +943,7 @@ func TestPlatformCampaignPathIDsAreStringsButAdamIDIsNumeric(t *testing.T) {
 	}
 
 	locales, _ := appleads.PlatformEndpointByCommandPath("apps", "locales", "find")
-	fs, flags = bindEndpointFlags(locales, "test")
+	fs, flags = bindEndpointFlags(newAdsTestDeps(), locales, "test")
 	if err := fs.Set("adam-id", "not-a-number"); err != nil {
 		t.Fatal(err)
 	}
@@ -955,7 +955,7 @@ func TestPlatformCampaignPathIDsAreStringsButAdamIDIsNumeric(t *testing.T) {
 func TestPlatformCampaignPauseResumeWorkflowsUseStringIDsAndSafeConfirmation(t *testing.T) {
 	setAdsResolverTestEnv(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing-config.json"))
-	root := AdsCommand()
+	root := NewAdsCommand(newAdsTestDeps())
 	for _, test := range []struct {
 		name         string
 		needsConfirm bool
@@ -990,7 +990,7 @@ func TestCollectQueryValidatesEndpointSpecificLimitsAndEnums(t *testing.T) {
 		Version:     appleads.APIVersionPlatformV1,
 		QueryParams: []appleads.ParamSpec{{Name: "limit", Flag: "limit", Type: appleads.ParamInt, Max: 50}},
 	}
-	fs, flags := bindEndpointFlags(customReports, "test")
+	fs, flags := bindEndpointFlags(newAdsTestDeps(), customReports, "test")
 	if err := fs.Parse([]string{"--limit", "0"}); err != nil {
 		t.Fatalf("Parse() error: %v", err)
 	}
@@ -998,14 +998,14 @@ func TestCollectQueryValidatesEndpointSpecificLimitsAndEnums(t *testing.T) {
 		t.Fatalf("custom reports explicit zero limit error = %v, want min 1 error", err)
 	}
 
-	_, flags = bindEndpointFlags(customReports, "test")
+	_, flags = bindEndpointFlags(newAdsTestDeps(), customReports, "test")
 	*flags.queryInts["limit"] = 51
 	if _, err := collectQuery(customReports, flags); err == nil || !strings.Contains(err.Error(), "--limit must be between 1 and 50") {
 		t.Fatalf("custom reports limit error = %v, want max 50 error", err)
 	}
 
 	resources, _ := appleads.PlatformEndpointByCommandPath("advertiser-resources", "list")
-	_, flags = bindEndpointFlags(resources, "test")
+	_, flags = bindEndpointFlags(newAdsTestDeps(), resources, "test")
 	*flags.queryStrings["resourceType"] = "CONTENT_PROVIDER,APP"
 	if _, err := collectQuery(resources, flags); err == nil || !strings.Contains(err.Error(), "--resource-type must be one of: CONTENT_PROVIDER, BUSINESS_BRAND") {
 		t.Fatalf("resource type error = %v, want enum validation", err)
@@ -1014,7 +1014,7 @@ func TestCollectQueryValidatesEndpointSpecificLimitsAndEnums(t *testing.T) {
 
 func TestCollectPathParamsRequiresDocumentedIdentifiers(t *testing.T) {
 	app, _ := appleads.PlatformEndpointByCommandPath("apps", "view")
-	_, flags := bindEndpointFlags(app, "test")
+	_, flags := bindEndpointFlags(newAdsTestDeps(), app, "test")
 	if _, err := collectPathParams(app, flags); err == nil || !strings.Contains(err.Error(), "--adam-id is required") {
 		t.Fatalf("path error = %v, want adam ID required", err)
 	}
@@ -1198,8 +1198,8 @@ func TestPlatformOptionalBodyAndUnboundedLimit(t *testing.T) {
 			Type: appleads.ParamInt,
 		}},
 	}
-	fs, flags := bindEndpointFlags(spec, "platform query")
-	body, err := readBody(spec, flags)
+	fs, flags := bindEndpointFlags(newAdsTestDeps(), spec, "platform query")
+	body, err := readBody(newAdsTestDeps(), spec, flags)
 	if err != nil || body != nil {
 		t.Fatalf("optional body = %s error = %v, want nil", body, err)
 	}
@@ -1228,7 +1228,7 @@ func TestCollectQueryHonorsGenericIntegerMax(t *testing.T) {
 			Max:  50,
 		}},
 	}
-	_, flags := bindEndpointFlags(spec, "platform page-size")
+	_, flags := bindEndpointFlags(newAdsTestDeps(), spec, "platform page-size")
 	*flags.queryInts["pageSize"] = 50
 	query, err := collectQuery(spec, flags)
 	if err != nil {
@@ -1337,7 +1337,7 @@ func TestResolveCredentialsRejectsPartialEnvBeforeStoredFallback(t *testing.T) {
 
 func TestCollectQueryIncludesAllowedValidValues(t *testing.T) {
 	resources, _ := appleads.PlatformEndpointByCommandPath("advertiser-resources", "list")
-	_, flags := bindEndpointFlags(resources, "test")
+	_, flags := bindEndpointFlags(newAdsTestDeps(), resources, "test")
 	*flags.queryStrings["resourceType"] = "CONTENT_PROVIDER"
 	query, err := collectQuery(resources, flags)
 	if err != nil {
@@ -1405,24 +1405,12 @@ func TestReadBodyReadsStdinPayload(t *testing.T) {
 	}
 
 	payload := `{"timeRange":{"start":"2026-07-05","end":"2026-08-08","granularity":"WEEKLY_SUN_SAT"}}`
-	reader, writer, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("pipe: %v", err)
-	}
-	previous := os.Stdin
-	os.Stdin = reader
-	t.Cleanup(func() {
-		os.Stdin = previous
-		reader.Close()
-	})
-	go func() {
-		defer writer.Close()
-		_, _ = writer.WriteString(payload)
-	}()
+	d := newAdsTestDeps()
+	d.IO.In = strings.NewReader(payload)
 
-	_, flags := bindEndpointFlags(spec, "insights search-term-popularity find")
+	_, flags := bindEndpointFlags(d, spec, "insights search-term-popularity find")
 	*flags.file = "-"
-	body, err := readBody(spec, flags)
+	body, err := readBody(d, spec, flags)
 	if err != nil {
 		t.Fatalf("readBody(stdin) error: %v", err)
 	}

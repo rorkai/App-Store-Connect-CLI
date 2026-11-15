@@ -11,9 +11,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// AnalyticsInstancesCommand returns the analytics instances command group.
-func AnalyticsInstancesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("instances", flag.ExitOnError)
+// newAnalyticsInstancesCommand returns the analytics instances command group.
+func newAnalyticsInstancesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("instances", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "instances",
@@ -28,8 +28,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
-			AnalyticsInstancesGetCommand(),
-			AnalyticsInstancesRelationshipsCommand(),
+			newAnalyticsInstancesGetCommand(d),
+			newAnalyticsInstancesRelationshipsCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -37,9 +37,10 @@ Examples:
 	}
 }
 
-// AnalyticsInstancesGetCommand retrieves a specific analytics report instance.
-func AnalyticsInstancesGetCommand() *ffcli.Command {
+// newAnalyticsInstancesGetCommand retrieves a specific analytics report instance.
+func newAnalyticsInstancesGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		Deps:       d,
 		Name:       "view",
 		ShortUsage: "asc analytics instances view --instance-id \"INSTANCE_ID\" [flags]",
 		ShortHelp:  "View an analytics report instance by ID.",
@@ -55,7 +56,7 @@ Examples:
 			instanceID := fs.Lookup("instance-id").Value
 			return func() error {
 				if _, err := asc.ValidateResourcePathSegment(strings.TrimSpace(instanceID.String())); err != nil {
-					return shared.UsageErrorf("analytics instances view: --instance-id: %v", err)
+					return d.UsageErrorf("analytics instances view: --instance-id: %v", err)
 				}
 				return nil
 			}
@@ -66,9 +67,10 @@ Examples:
 	})
 }
 
-// AnalyticsInstancesRelationshipsCommand lists segment links for an instance.
-func AnalyticsInstancesRelationshipsCommand() *ffcli.Command {
+// newAnalyticsInstancesRelationshipsCommand lists segment links for an instance.
+func newAnalyticsInstancesRelationshipsCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+		Deps:       d,
 		Name:       "links",
 		ShortUsage: "asc analytics instances links --instance-id \"INSTANCE_ID\" [flags]",
 		ShortHelp:  "List analytics report segment relationships.",
@@ -88,7 +90,7 @@ Examples:
 			return func() error {
 				if id := strings.TrimSpace(instanceID.String()); id != "" {
 					if _, err := asc.ValidateResourcePathSegment(id); err != nil {
-						return shared.UsageErrorf("analytics instances links: --instance-id: %v", err)
+						return d.UsageErrorf("analytics instances links: --instance-id: %v", err)
 					}
 				}
 				return nil

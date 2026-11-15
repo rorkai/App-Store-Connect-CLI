@@ -57,7 +57,7 @@ func SigningFetchCommand() *ffcli.Command {
 	profileType := fs.String("profile-type", "", "Profile type: IOS_APP_STORE, IOS_APP_DEVELOPMENT, MAC_APP_STORE, etc. (required)")
 	deviceIDs := fs.String("device", "", "Device ID(s), comma-separated (requires --create-missing; development and ad hoc profiles need --device or --all-devices)")
 	allDevices := fs.Bool("all-devices", false, "With --create-missing, include every enabled device the profile type accepts (development and ad hoc profiles)")
-	certType := fs.String("certificate-type", "", "Certificate type filter (optional)")
+	certType := fs.String("certificate-type", "", "Certificate types to match, comma-separated; --create-missing-certificate creates the first (default: inferred from --profile-type, such as DISTRIBUTION,IOS_DISTRIBUTION)")
 	outputPath := fs.String("output", "./signing", "Output directory for signing files")
 	createMissing := fs.Bool("create-missing", false, "Create missing profiles")
 	matchExtensions := fs.Bool("match-extensions", false, "Also fetch profiles for registered bundle IDs that extend this identifier, such as <id>.widget")
@@ -1708,16 +1708,18 @@ func inferCertificateType(profileType string) (string, error) {
 
 	switch {
 	case strings.Contains(normalized, "IOS_APP_DEVELOPMENT"):
-		return "IOS_DEVELOPMENT,DEVELOPMENT", nil
+		return "DEVELOPMENT,IOS_DEVELOPMENT", nil
 	case strings.Contains(normalized, "IOS_APP_STORE"),
-		strings.Contains(normalized, "IOS_APP_ADHOC"),
-		strings.Contains(normalized, "IOS_APP_INHOUSE"):
+		strings.Contains(normalized, "IOS_APP_ADHOC"):
+		return "DISTRIBUTION,IOS_DISTRIBUTION", nil
+	case strings.Contains(normalized, "IOS_APP_INHOUSE"):
 		return "IOS_DISTRIBUTION,DISTRIBUTION", nil
 	case strings.Contains(normalized, "TVOS_APP_DEVELOPMENT"):
-		return "IOS_DEVELOPMENT,DEVELOPMENT", nil
+		return "DEVELOPMENT,IOS_DEVELOPMENT", nil
 	case strings.Contains(normalized, "TVOS_APP_STORE"),
-		strings.Contains(normalized, "TVOS_APP_ADHOC"),
-		strings.Contains(normalized, "TVOS_APP_INHOUSE"):
+		strings.Contains(normalized, "TVOS_APP_ADHOC"):
+		return "DISTRIBUTION,IOS_DISTRIBUTION", nil
+	case strings.Contains(normalized, "TVOS_APP_INHOUSE"):
 		return "IOS_DISTRIBUTION,DISTRIBUTION", nil
 	case strings.Contains(normalized, "MAC_CATALYST_APP_DEVELOPMENT"):
 		return "MAC_APP_DEVELOPMENT,DEVELOPMENT", nil

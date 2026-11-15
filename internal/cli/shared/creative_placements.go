@@ -19,17 +19,23 @@ var placementLocalizationID = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
 
 // CreativePlacementsCommand manages reusable library placements for a localization.
 func CreativePlacementsCommand(resource, prefix, label string) *ffcli.Command {
-	subcommands := []*ffcli.Command{creativePlacementsListCommand(resource, prefix, label), creativePlacementViewCommand(prefix), creativePlacementCreateCommand(resource, prefix, label)}
-	// Official ordering requests accept version, CPP, and PPO parents only.
-	if resource != "appEventLocalizations" {
-		subcommands = append(subcommands, creativePlacementReorderCommand(resource, prefix, label))
-	}
-	subcommands = append(subcommands, creativePlacementSwapCommand(resource, prefix, label), creativePlacementDeleteCommand(prefix))
-	return &ffcli.Command{Name: "placements", ShortHelp: "Manage localized asset library placements.", FlagSet: flag.NewFlagSet("placements", flag.ExitOnError), UsageFunc: DefaultUsageFunc, Subcommands: subcommands, Exec: func(context.Context, []string) error { return flag.ErrHelp }}
+	return DefaultDeps().CreativePlacementsCommand(resource, prefix, label)
 }
 
-func creativePlacementsListCommand(resource, prefix, label string) *ffcli.Command {
-	fs := flag.NewFlagSet("placements list", flag.ExitOnError)
+// CreativePlacementsCommand is CreativePlacementsCommand with every
+// subcommand built on d.
+func (d *Deps) CreativePlacementsCommand(resource, prefix, label string) *ffcli.Command {
+	subcommands := []*ffcli.Command{creativePlacementsListCommand(d, resource, prefix, label), creativePlacementViewCommand(d, prefix), creativePlacementCreateCommand(d, resource, prefix, label)}
+	// Official ordering requests accept version, CPP, and PPO parents only.
+	if resource != "appEventLocalizations" {
+		subcommands = append(subcommands, creativePlacementReorderCommand(d, resource, prefix, label))
+	}
+	subcommands = append(subcommands, creativePlacementSwapCommand(d, resource, prefix, label), creativePlacementDeleteCommand(d, prefix))
+	return &ffcli.Command{Name: "placements", ShortHelp: "Manage localized asset library placements.", FlagSet: d.NewFlagSet("placements", flag.ExitOnError), UsageFunc: d.DefaultUsageFunc, Subcommands: subcommands, Exec: func(context.Context, []string) error { return flag.ErrHelp }}
+}
+
+func creativePlacementsListCommand(d *Deps, resource, prefix, label string) *ffcli.Command {
+	fs := d.NewFlagSet("placements list", flag.ExitOnError)
 	id := BindResourceIDFlag(fs, "localization-id", resource, label+" ID or API self-link")
 	listTypes := creativePlacementFilterTypes(resource)
 	kind := fs.String("placement-type", "", "Filter by placement types, comma-separated: "+strings.Join(listTypes, ", "))
@@ -41,46 +47,46 @@ func creativePlacementsListCommand(resource, prefix, label string) *ffcli.Comman
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200; 0 uses server default)")
 	next := fs.String("next", "", NextFlagUsage)
 	paginate := fs.Bool("paginate", false, PaginateFlagUsage)
-	output := BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "list", ShortHelp: "List asset placements for " + label + ".",
-		ShortUsage: "asc " + prefix + " placements list [flags]", FlagSet: fs, UsageFunc: DefaultUsageFunc,
+		ShortUsage: "asc " + prefix + " placements list [flags]", FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		LongHelp: "List asset placements for " + label + ". These placement reads are documented in Apple's published OpenAPI 4.5.1. Apple enforces availability and permissions for the selected localization. Empty data means no matching asset is assigned. JSON preserves Apple's full envelope and included media. Filter and sort flags cannot be combined with --next.\n\nExamples:\n  asc " + prefix + " placements list --localization-id ID --placement-type " + listTypes[0] + "\n  asc " + prefix + " placements list --localization-id ID --placement-type " + listTypes[1] + " --include image,video\n  asc " + prefix + " placements list --localization-id ID --paginate --output table\n  asc " + prefix + " placements list --localization-id ID --state FAILED --sort -lastModifiedDate",
 		Exec: func(ctx context.Context, args []string) error {
 			if err := ValidateBoundOutputFlags(fs); err != nil {
-				return UsageErrorf(prefix+" placements list: %v", err)
+				return d.UsageErrorf(prefix+" placements list: %v", err)
 			}
-			if err := ValidatePaginationFlags(ctx, fs, prefix+" placements list", 200, append([]string{"placement-type", "placement-group", "include", "limit"}, filters.Names()...)...); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, prefix+" placements list", 200, append([]string{"placement-type", "placement-group", "include", "limit"}, filters.Names()...)...); err != nil {
 				return err
 			}
 			localizationID := strings.TrimSpace(*id)
 			if *next == "" && localizationID == "" {
-				return UsageError(prefix + " placements list: --localization-id is required")
+				return d.UsageError(prefix + " placements list: --localization-id is required")
 			}
 			kinds, err := validatedPlacementCSV(*kind, listTypes)
 			if err != nil {
-				return UsageErrorf(prefix+" placements list: --placement-type %v", err)
+				return d.UsageErrorf(prefix+" placements list: --placement-type %v", err)
 			}
 			groups, err := placementIDsCSV(*group)
 			if err != nil {
-				return UsageErrorf(prefix+" placements list: --placement-group %v", err)
+				return d.UsageErrorf(prefix+" placements list: --placement-group %v", err)
 			}
 			includes, err := validatedPlacementCSV(*include, includeValues)
 			if err != nil {
-				return UsageErrorf(prefix+" placements list: --include %v", err)
+				return d.UsageErrorf(prefix+" placements list: --include %v", err)
 			}
-			included, err := includedFields.Resolve(prefix+" placements list", *next, SplitCSV(includes))
+			included, err := includedFields.ResolveWith(d, prefix+" placements list", *next, SplitCSV(includes))
 			if err != nil {
 				return err
 			}
 			q := url.Values{}
 			if err := filters.Apply(q); err != nil {
-				return UsageErrorf(prefix+" placements list: %v", err)
+				return d.UsageErrorf(prefix+" placements list: %v", err)
 			}
 			target := *next
 			if target == "" {
 				if !placementLocalizationID.MatchString(localizationID) {
-					return UsageError(prefix + " placements list: --localization-id must be a resource ID")
+					return d.UsageError(prefix + " placements list: --localization-id must be a resource ID")
 				}
 				target = "/v1/" + resource + "/" + url.PathEscape(localizationID) + "/placements"
 				if kinds != "" {
@@ -104,15 +110,15 @@ func creativePlacementsListCommand(resource, prefix, label string) *ffcli.Comman
 					target += "?" + q.Encode()
 				}
 			}
-			client, err := GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf(prefix+" placements list: %w", err)
 			}
 			var response []byte
 			if *paginate {
-				response, err = client.RawPaginatedGET(ctx, target, ContextWithTimeout)
+				response, err = client.RawPaginatedGET(ctx, target, d.Timeout)
 			} else {
-				requestCtx, cancel := ContextWithTimeout(ctx)
+				requestCtx, cancel := d.Timeout(ctx)
 				defer cancel()
 				response, err = client.RawRequest(requestCtx, "GET", target, nil)
 			}
@@ -123,7 +129,7 @@ func creativePlacementsListCommand(resource, prefix, label string) *ffcli.Comman
 			if err != nil {
 				return err
 			}
-			return PrintOutputRows(json.RawMessage(response), *output.Output, *output.Pretty, headers, rows)
+			return d.PrintOutputRows(json.RawMessage(response), *output.Output, *output.Pretty, headers, rows)
 		},
 	}
 }
@@ -148,34 +154,34 @@ var (
 	creativePlacementViewFields   = []string{"mediaType", "placementType", "placementGroup", "createdDate", "lastModifiedDate", "state", "stateDetails", "image", "video", "appEventLocalization", "appStoreVersionLocalization", "appCustomProductPageLocalization", "appStoreVersionExperimentTreatmentLocalization", "retentionMessageVersion"}
 )
 
-func creativePlacementViewCommand(prefix string) *ffcli.Command {
-	fs := flag.NewFlagSet("placements view", flag.ExitOnError)
+func creativePlacementViewCommand(d *Deps, prefix string) *ffcli.Command {
+	fs := d.NewFlagSet("placements view", flag.ExitOnError)
 	id := BindResourceIDFlag(fs, "id", "appAssetLibraryPlacements", "Asset library placement ID or API self-link")
 	include := fs.String("include", "", "Include related resources, comma-separated: "+strings.Join(creativePlacementViewIncludes, ", "))
 	fields := fs.String("fields", "", "Placement fields to return, comma-separated: "+strings.Join(creativePlacementViewFields, ", "))
-	output := BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "view", ShortHelp: "Read one asset placement by ID.",
-		ShortUsage: "asc " + prefix + " placements view --id ID [flags]", FlagSet: fs, UsageFunc: DefaultUsageFunc,
+		ShortUsage: "asc " + prefix + " placements view --id ID [flags]", FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		LongHelp: "Read one asset placement with the public GET endpoint. IDs are authoritative: Apple's endpoint has no localization parent, so this command does not check that the placement belongs to this command group's localization type. JSON preserves Apple's full envelope and included resources.\n\nExamples:\n  asc " + prefix + " placements view --id PLACEMENT_ID\n  asc " + prefix + " placements view --id PLACEMENT_ID --include image,video\n  asc " + prefix + " placements view --id PLACEMENT_ID --fields state,stateDetails --output table",
 		Exec: func(ctx context.Context, args []string) error {
 			if err := ValidateBoundOutputFlags(fs); err != nil {
-				return UsageErrorf(prefix+" placements view: %v", err)
+				return d.UsageErrorf(prefix+" placements view: %v", err)
 			}
 			placementID := strings.TrimSpace(*id)
 			if placementID == "" {
-				return UsageError(prefix + " placements view: --id is required")
+				return d.UsageError(prefix + " placements view: --id is required")
 			}
 			if !creativePlacementID.MatchString(placementID) {
-				return UsageError(prefix + " placements view: --id must be a resource ID")
+				return d.UsageError(prefix + " placements view: --id must be a resource ID")
 			}
 			includes, err := validatedPlacementCSV(*include, creativePlacementViewIncludes)
 			if err != nil {
-				return UsageErrorf(prefix+" placements view: --include %v", err)
+				return d.UsageErrorf(prefix+" placements view: --include %v", err)
 			}
 			selectedFields, err := validatedPlacementCSV(*fields, creativePlacementViewFields)
 			if err != nil {
-				return UsageErrorf(prefix+" placements view: --fields %v", err)
+				return d.UsageErrorf(prefix+" placements view: --fields %v", err)
 			}
 			target := "/v1/appAssetLibraryPlacements/" + url.PathEscape(placementID)
 			q := url.Values{}
@@ -188,11 +194,11 @@ func creativePlacementViewCommand(prefix string) *ffcli.Command {
 			if len(q) > 0 {
 				target += "?" + q.Encode()
 			}
-			client, err := GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf(prefix+" placements view: %w", err)
 			}
-			requestCtx, cancel := ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 			response, err := client.RawRequest(requestCtx, "GET", target, nil)
 			if err != nil {
@@ -202,7 +208,7 @@ func creativePlacementViewCommand(prefix string) *ffcli.Command {
 			if err != nil {
 				return err
 			}
-			return PrintOutputRows(json.RawMessage(response), *output.Output, *output.Pretty, headers, rows)
+			return d.PrintOutputRows(json.RawMessage(response), *output.Output, *output.Pretty, headers, rows)
 		},
 	}
 }

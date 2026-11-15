@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/validation"
 )
 
@@ -22,7 +21,7 @@ type iapAttachmentType struct {
 }
 
 func collectIAPAttachmentDeepCheck(ctx context.Context, client *asc.Client, report validation.Report, catalog []validation.IAP, fetchSkipReason string) (validation.DeepCheck, *validation.CheckResult) {
-	ctx, cancel := shared.ContextWithTimeout(withReadinessRequestGate(ctx))
+	ctx, cancel := readinessRequestContext(withReadinessRequestGate(ctx))
 	defer cancel()
 	check := validation.DeepCheck{ID: validation.DeepCheckIAPAttachment, Source: validation.DeepSourcePublicAPI, Status: validation.DeepStatusNotApplicable, Message: "No ready first-of-type IAP requires attachment"}
 	resolution := &validation.Resolution{Fixability: validation.FixabilityManual, AppStoreConnectURL: appStoreConnectURL(report.AppID, "appstore/review")}

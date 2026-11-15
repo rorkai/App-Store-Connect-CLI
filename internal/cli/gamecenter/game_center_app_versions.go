@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -13,9 +12,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// GameCenterAppVersionsCommand returns the app versions command group.
-func GameCenterAppVersionsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("app-versions", flag.ExitOnError)
+// newGameCenterAppVersionsCommand returns the app versions command group.
+func newGameCenterAppVersionsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("app-versions", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "app-versions",
@@ -33,12 +32,12 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterAppVersionsListCommand(),
-			GameCenterAppVersionsGetCommand(),
-			GameCenterAppVersionsCreateCommand(),
-			GameCenterAppVersionsUpdateCommand(),
-			GameCenterAppVersionCompatibilityCommand(),
-			GameCenterAppVersionAppStoreVersionCommand(),
+			newGameCenterAppVersionsListCommand(d),
+			newGameCenterAppVersionsGetCommand(d),
+			newGameCenterAppVersionsCreateCommand(d),
+			newGameCenterAppVersionsUpdateCommand(d),
+			newGameCenterAppVersionCompatibilityCommand(d),
+			newGameCenterAppVersionAppStoreVersionCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -46,8 +45,8 @@ Examples:
 	}
 }
 
-// GameCenterAppVersionsListCommand returns the app versions list subcommand.
-func GameCenterAppVersionsListCommand() *ffcli.Command {
+// newGameCenterAppVersionsListCommand returns the app versions list subcommand.
+func newGameCenterAppVersionsListCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "list",
 		ShortUsage: "asc game-center app-versions list [flags]",
@@ -68,11 +67,12 @@ Examples:
 		FetchPage: func(ctx context.Context, client *asc.Client, detailID string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterDetailGameCenterAppVersions(ctx, detailID, asc.Limit[asc.GCAppVersionsOption](limit), asc.NextURL[asc.GCAppVersionsOption](next))
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterAppVersionsGetCommand returns the app versions get subcommand.
-func GameCenterAppVersionsGetCommand() *ffcli.Command {
+// newGameCenterAppVersionsGetCommand returns the app versions get subcommand.
+func newGameCenterAppVersionsGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
 		Name:       "view",
 		ShortUsage: "asc game-center app-versions view --id \"GC_APP_VERSION_ID\"",
@@ -87,11 +87,12 @@ Examples:
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterAppVersion(ctx, id)
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterAppVersionsCreateCommand returns the app versions create subcommand.
-func GameCenterAppVersionsCreateCommand() *ffcli.Command {
+// newGameCenterAppVersionsCreateCommand returns the app versions create subcommand.
+func newGameCenterAppVersionsCreateCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildCreateCommand(shared.WriteCommandConfig{
 		Name:       "create",
 		ShortUsage: "asc game-center app-versions create --app-store-version-id \"APP_STORE_VERSION_ID\"",
@@ -106,16 +107,17 @@ Examples:
 		Send: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.CreateGameCenterAppVersion(ctx, id)
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterAppVersionsUpdateCommand returns the app versions update subcommand.
-func GameCenterAppVersionsUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("update", flag.ExitOnError)
+// newGameCenterAppVersionsUpdateCommand returns the app versions update subcommand.
+func newGameCenterAppVersionsUpdateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("update", flag.ExitOnError)
 
 	appVersionID := shared.BindResourceIDFlag(fs, "id", "gameCenterAppVersions", "Game Center app version ID")
 	enabled := fs.String("enabled", "", "Enable or disable the app version (true/false)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -131,7 +133,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*appVersionID)
 			if id == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
 
 			attrs := asc.GameCenterAppVersionUpdateAttributes{}
@@ -140,7 +142,7 @@ Examples:
 			enabledVal := strings.TrimSpace(*enabled)
 			if enabledVal != "" {
 				if enabledVal != "true" && enabledVal != "false" {
-					fmt.Fprintln(os.Stderr, "Error: --enabled must be 'true' or 'false'")
+					fmt.Fprintln(d.IO.ErrOut, "Error: --enabled must be 'true' or 'false'")
 					return flag.ErrHelp
 				}
 				b := enabledVal == "true"
@@ -149,15 +151,15 @@ Examples:
 			}
 
 			if !hasUpdate {
-				return shared.UpdateFlagRequired(fs, enabled)
+				return d.UpdateFlagRequired(fs, enabled)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("game-center app-versions update: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.UpdateGameCenterAppVersion(requestCtx, id, attrs)
@@ -165,14 +167,14 @@ Examples:
 				return fmt.Errorf("game-center app-versions update: failed to update: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// GameCenterAppVersionCompatibilityCommand returns the compatibility command group.
-func GameCenterAppVersionCompatibilityCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("compatibility", flag.ExitOnError)
+// newGameCenterAppVersionCompatibilityCommand returns the compatibility command group.
+func newGameCenterAppVersionCompatibilityCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("compatibility", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "compatibility",
@@ -185,7 +187,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterAppVersionCompatibilityListCommand(),
+			newGameCenterAppVersionCompatibilityListCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -193,8 +195,8 @@ Examples:
 	}
 }
 
-// GameCenterAppVersionCompatibilityListCommand returns the compatibility list subcommand.
-func GameCenterAppVersionCompatibilityListCommand() *ffcli.Command {
+// newGameCenterAppVersionCompatibilityListCommand returns the compatibility list subcommand.
+func newGameCenterAppVersionCompatibilityListCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "list",
 		ShortUsage: "asc game-center app-versions compatibility list --id \"GC_APP_VERSION_ID\"",
@@ -214,12 +216,13 @@ Examples:
 		FetchPage: func(ctx context.Context, client *asc.Client, id string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterAppVersionCompatibilityVersions(ctx, id, asc.Limit[asc.GCAppVersionsOption](limit), asc.NextURL[asc.GCAppVersionsOption](next))
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterAppVersionAppStoreVersionCommand returns the app store version command group.
-func GameCenterAppVersionAppStoreVersionCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("app-store-version", flag.ExitOnError)
+// newGameCenterAppVersionAppStoreVersionCommand returns the app store version command group.
+func newGameCenterAppVersionAppStoreVersionCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("app-store-version", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "app-store-version",
@@ -232,7 +235,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterAppVersionAppStoreVersionGetCommand(),
+			newGameCenterAppVersionAppStoreVersionGetCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -240,8 +243,8 @@ Examples:
 	}
 }
 
-// GameCenterAppVersionAppStoreVersionGetCommand returns the app store version get subcommand.
-func GameCenterAppVersionAppStoreVersionGetCommand() *ffcli.Command {
+// newGameCenterAppVersionAppStoreVersionGetCommand returns the app store version get subcommand.
+func newGameCenterAppVersionAppStoreVersionGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
 		Name:       "view",
 		ShortUsage: "asc game-center app-versions app-store-version view --id \"GC_APP_VERSION_ID\"",
@@ -256,5 +259,6 @@ Examples:
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterAppVersionAppStoreVersion(ctx, id)
 		},
+		Deps: d,
 	})
 }

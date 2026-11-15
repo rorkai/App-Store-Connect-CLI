@@ -5,7 +5,7 @@ import (
 )
 
 func TestGameCenterChallengesValidationErrors(t *testing.T) {
-	runGameCenterUsageCases(t, []gameCenterUsageCase{
+	runGameCenterUsageCasesWithDeps(t, []gameCenterUsageCase{
 		{[]string{"game-center", "challenges", "list"}, "--app is required (or set ASC_APP_ID)"},
 		{[]string{"game-center", "challenges", "create", "--reference-name", "Weekly", "--vendor-id", "com.example.weekly"}, "--app is required (or set ASC_APP_ID)"},
 		{[]string{"game-center", "challenges", "create", "--app", "APP_ID", "--group-id", "GROUP_ID", "--reference-name", "Weekly", "--vendor-id", "com.example.weekly"}, "--app cannot be used with --group-id"},
