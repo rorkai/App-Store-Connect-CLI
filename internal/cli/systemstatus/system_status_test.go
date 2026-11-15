@@ -154,9 +154,12 @@ func TestSystemStatusCommandRejectsUnknownService(t *testing.T) {
 		{filter: "TestFlight,Unknown", want: `no services matched --service "Unknown"`},
 	} {
 		t.Run(test.filter, func(t *testing.T) {
-			_, _, err := runCommand(t, server.Client(), server.URL, "--service", test.filter, "--output", "json")
+			_, stderr, err := runCommand(t, server.Client(), server.URL, "--service", test.filter, "--output", "json")
 			if err == nil || !errors.Is(err, flag.ErrHelp) || !strings.Contains(err.Error(), test.want) {
 				t.Fatalf("error = %v, want classified error containing %q", err, test.want)
+			}
+			if wantStderr := "Error: " + test.want + "\n"; stderr != wantStderr {
+				t.Fatalf("stderr = %q, want %q", stderr, wantStderr)
 			}
 		})
 	}
@@ -238,6 +241,48 @@ func TestSystemStatusCommandWatchPrintsOnlyChanges(t *testing.T) {
 		if err := json.Unmarshal([]byte(line), &report); err != nil {
 			t.Fatalf("line %d is not JSON: %v\n%s", index, err, line)
 		}
+	}
+}
+
+func TestSystemStatusCommandWatchSeparatesHumanSnapshots(t *testing.T) {
+	healthy := `{"drMessage":null,"services":[{"serviceName":"App Store Connect API","redirectUrl":null,"events":[]}]}`
+	for _, test := range []struct {
+		output    string
+		separator string
+	}{
+		{output: "table", separator: "\n"},
+		{output: "markdown", separator: "\n---\n"},
+	} {
+		t.Run(test.output, func(t *testing.T) {
+			snapshot := func(payload string) string {
+				server := statusServer(t, payload)
+				defer server.Close()
+				stdout, _, err := runCommand(t, server.Client(), server.URL, "--service", "App Store Connect API", "--output", test.output)
+				if err != nil {
+					t.Fatalf("run error: %v", err)
+				}
+				return stdout
+			}
+			want := snapshot(healthy) + test.separator + snapshot(healthyAndOutagePayload)
+
+			var requests atomic.Int32
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				if requests.Add(1) == 1 {
+					_, _ = io.WriteString(w, healthy)
+					return
+				}
+				_, _ = io.WriteString(w, healthyAndOutagePayload)
+			}))
+			defer server.Close()
+			stdout, stderr, err := runCommand(t, server.Client(), server.URL,
+				"--service", "App Store Connect API", "--watch", "--poll-interval", "1ms", "--max-polls", "2", "--output", test.output)
+			if err != nil {
+				t.Fatalf("run error: %v", err)
+			}
+			if stdout != want || stderr != "" {
+				t.Fatalf("stdout = %q, stderr = %q, want stdout %q", stdout, stderr, want)
+			}
+		})
 	}
 }
 
