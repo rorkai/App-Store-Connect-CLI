@@ -14,10 +14,6 @@ func addIAPLookupAppFlag(fs *flag.FlagSet) *string {
 	return fs.String("app", "", iapLookupAppUsage)
 }
 
-func resolveIAPLookupID(ctx context.Context, client *asc.Client, appValue, selector string) (string, error) {
-	return resolveIAPLookupIDWith(ctx, shared.DefaultDeps(), client, appValue, selector)
-}
-
 func resolveIAPLookupIDWith(ctx context.Context, d *shared.Deps, client *asc.Client, appValue, selector string) (string, error) {
 	resolvedAppID := shared.ResolveAppID(appValue)
 	if err := d.RequireAppForStableSelector(resolvedAppID, selector, "--iap-id"); err != nil {

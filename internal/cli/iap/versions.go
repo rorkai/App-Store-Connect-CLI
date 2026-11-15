@@ -97,7 +97,6 @@ Examples:
 }
 
 func newIAPVersionsCreateCommand(d *shared.Deps) *ffcli.Command {
-
 	return shared.BuildCreateCommand(shared.WriteCommandConfig{
 		FlagSetName: "versions create",
 		Name:        "create",
@@ -233,7 +232,6 @@ Examples:
 }
 
 func newIAPVersionsViewCommand(d *shared.Deps) *ffcli.Command {
-
 	var opts []asc.IAPVersionGetOption
 
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{

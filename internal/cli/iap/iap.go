@@ -296,7 +296,6 @@ Examples:
 
 // newIAPGetCommand returns the iap view subcommand.
 func newIAPGetCommand(d *shared.Deps) *ffcli.Command {
-
 	var (
 		legacy *bool
 		opts   []asc.IAPGetOption
