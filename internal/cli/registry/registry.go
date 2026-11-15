@@ -132,7 +132,7 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("account", "Inspect account-level health and access signals.", func() *ffcli.Command {
 			return account.NewAccountCommand(d)
 		}),
-		commandFactory("install-skills", "Install the asc skill pack globally for App Store Connect workflows.", install.InstallSkillsCommand),
+		commandFactory("install-skills", "Install the asc skill pack globally for App Store Connect workflows.", func() *ffcli.Command { return install.NewInstallSkillsCommand(d) }),
 		commandFactory("init", "Initialize asc helper docs in the current repo.", initcmd.InitCommand),
 		commandFactory("docs", "Access embedded documentation guides and reference helpers.", docs.DocsCommand),
 		commandFactory("diff", "Generate deterministic non-mutating diff plans.", func() *ffcli.Command {
