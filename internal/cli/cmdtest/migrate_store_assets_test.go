@@ -460,3 +460,49 @@ func TestMigrateSkippedAssetsAreNotReadOrUploaded(t *testing.T) {
 		t.Fatalf("missing skip provenance: %s", stdout)
 	}
 }
+
+func TestMigrateImportReportsPreviewOutsideDeviceFolder(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX executable fixture")
+	}
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
+	root := t.TempDir()
+	for _, dir := range []string{"metadata", "app_previews/en-US/iphone_65"} {
+		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeFile(t, filepath.Join(root, "app_previews/en-US/iphone_65/nested.mp4"), "fixture-video")
+	writeFile(t, filepath.Join(root, "app_previews/en-US/flat.mp4"), "fixture-video")
+	installValidStoreAssetProbe(t)
+	asctest.NewRegistry(t).Install()
+	var runErr error
+	stdout, _ := captureOutput(t, func() {
+		runErr = RootCommand("test").ParseAndRun(context.Background(), []string{"migrate", "import", "--app", "APP_ID", "--version-id", "VERSION_ID", "--fastlane-dir", root, "--skip-screenshots", "--skip-app-clip", "--dry-run", "--output", "json"})
+	})
+	if runErr != nil {
+		t.Fatal(runErr)
+	}
+	var receipt struct {
+		Previews []struct {
+			FileName string `json:"fileName"`
+		} `json:"previews"`
+		Skipped []struct {
+			Path   string `json:"path"`
+			Reason string `json:"reason"`
+		} `json:"skipped"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &receipt); err != nil {
+		t.Fatal(err)
+	}
+	if len(receipt.Previews) != 1 || receipt.Previews[0].FileName != "nested.mp4" {
+		t.Fatalf("nested preview not planned: %s", stdout)
+	}
+	for _, item := range receipt.Skipped {
+		if item.Path == filepath.Join(root, "app_previews/en-US/flat.mp4") && strings.Contains(item.Reason, "app_previews/<locale>/<device>/<file>") {
+			return
+		}
+	}
+	t.Fatalf("flat preview not reported in skipped: %s", stdout)
+}
