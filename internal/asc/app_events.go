@@ -2,7 +2,6 @@ package asc
 
 import (
 	"net/url"
-	"strconv"
 )
 
 // AppEventBadge represents the app event badge/event type.
@@ -206,69 +205,12 @@ type (
 	AppEventLocalizationVideoClipsLinkagesResponse  = LinkagesResponse
 )
 
-// AppEventsOption is a functional option for app event list endpoints.
-type AppEventsOption func(*appEventsQuery)
-
 // AppEventLocalizationsOption is a functional option for app event localizations list.
 type AppEventLocalizationsOption func(*appEventLocalizationsQuery)
-
-type appEventsQuery struct {
-	listQuery
-	states             []string
-	ids                []string
-	fields             []string
-	localizationFields []string
-	include            []string
-	localizationsLimit int
-}
 
 type appEventLocalizationsQuery struct {
 	listQuery
 	localizationRelatedQuery
-}
-
-// WithAppEventsStates filters app events by lifecycle state(s).
-func WithAppEventsStates(states []string) AppEventsOption {
-	return func(q *appEventsQuery) {
-		q.states = normalizeUpperList(states)
-	}
-}
-
-// WithAppEventsIDs filters app events by ID(s).
-func WithAppEventsIDs(ids []string) AppEventsOption {
-	return func(q *appEventsQuery) {
-		q.ids = normalizeList(ids)
-	}
-}
-
-// WithAppEventsFields sets fields[appEvents] for app event responses.
-func WithAppEventsFields(fields []string) AppEventsOption {
-	return func(q *appEventsQuery) {
-		q.fields = normalizeList(fields)
-	}
-}
-
-// WithAppEventsLocalizationFields sets fields[appEventLocalizations] for included localizations.
-func WithAppEventsLocalizationFields(fields []string) AppEventsOption {
-	return func(q *appEventsQuery) {
-		q.localizationFields = normalizeList(fields)
-	}
-}
-
-// WithAppEventsInclude includes related resources in app event responses.
-func WithAppEventsInclude(include []string) AppEventsOption {
-	return func(q *appEventsQuery) {
-		q.include = normalizeList(include)
-	}
-}
-
-// WithAppEventsLocalizationsLimit sets the maximum number of included localizations.
-func WithAppEventsLocalizationsLimit(limit int) AppEventsOption {
-	return func(q *appEventsQuery) {
-		if limit > 0 {
-			q.localizationsLimit = limit
-		}
-	}
 }
 
 // WithAppEventLocalizationsInclude includes related resources.
@@ -283,20 +225,6 @@ func WithAppEventLocalizationsPlacementsLimit(limit int) AppEventLocalizationsOp
 	return func(q *appEventLocalizationsQuery) {
 		q.placementsLimit = limit
 	}
-}
-
-func buildAppEventsQuery(query *appEventsQuery) string {
-	values := url.Values{}
-	addCSV(values, "filter[eventState]", query.states)
-	addCSV(values, "filter[id]", query.ids)
-	addCSV(values, "fields[appEvents]", query.fields)
-	addCSV(values, "fields[appEventLocalizations]", query.localizationFields)
-	addCSV(values, "include", query.include)
-	addLimit(values, query.limit)
-	if query.localizationsLimit > 0 {
-		values.Set("limit[localizations]", strconv.Itoa(query.localizationsLimit))
-	}
-	return values.Encode()
 }
 
 func buildAppEventLocalizationsQuery(query *appEventLocalizationsQuery) string {

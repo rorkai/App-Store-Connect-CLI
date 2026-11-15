@@ -2,17 +2,8 @@ package asc
 
 import (
 	"net/url"
-	"strconv"
 	"strings"
 )
-
-type winBackOffersQuery struct {
-	listQuery
-	fields      []string
-	priceFields []string
-	include     []string
-	pricesLimit int
-}
 
 type promotedPurchasesQuery struct {
 	listQuery
@@ -46,18 +37,6 @@ func buildPromotedPurchasesQuery(query *promotedPurchasesQuery) string {
 	return values.Encode()
 }
 
-func buildWinBackOffersQuery(query *winBackOffersQuery) string {
-	values := url.Values{}
-	addCSV(values, "fields[winBackOffers]", query.fields)
-	addCSV(values, "fields[winBackOfferPrices]", query.priceFields)
-	addCSV(values, "include", query.include)
-	addLimit(values, query.limit)
-	if query.pricesLimit > 0 {
-		values.Set("limit[prices]", strconv.Itoa(query.pricesLimit))
-	}
-	return values.Encode()
-}
-
 func buildLinkagesQuery(query *linkagesQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
@@ -75,9 +54,6 @@ func buildPricePointsQuery(query *pricePointsQuery) string {
 	return values.Encode()
 }
 
-// WinBackOffersOption is a functional option for win-back offer list endpoints.
-type WinBackOffersOption func(*winBackOffersQuery)
-
 // PromotedPurchasesOption is a functional option for promoted purchases endpoints.
 type PromotedPurchasesOption func(*promotedPurchasesQuery)
 
@@ -89,36 +65,6 @@ type LinkagesOption func(*linkagesQuery)
 
 // PricePointsOption is a functional option for GetAppPricePoints.
 type PricePointsOption func(*pricePointsQuery)
-
-// WithWinBackOffersFields sets fields[winBackOffers] for win-back offer responses.
-func WithWinBackOffersFields(fields []string) WinBackOffersOption {
-	return func(q *winBackOffersQuery) {
-		q.fields = normalizeList(fields)
-	}
-}
-
-// WithWinBackOffersPriceFields sets fields[winBackOfferPrices] for included prices.
-func WithWinBackOffersPriceFields(fields []string) WinBackOffersOption {
-	return func(q *winBackOffersQuery) {
-		q.priceFields = normalizeList(fields)
-	}
-}
-
-// WithWinBackOffersInclude sets include for win-back offer responses.
-func WithWinBackOffersInclude(include []string) WinBackOffersOption {
-	return func(q *winBackOffersQuery) {
-		q.include = normalizeList(include)
-	}
-}
-
-// WithWinBackOffersPricesLimit sets limit[prices] for included prices.
-func WithWinBackOffersPricesLimit(limit int) WinBackOffersOption {
-	return func(q *winBackOffersQuery) {
-		if limit > 0 {
-			q.pricesLimit = limit
-		}
-	}
-}
 
 // WithPromotedPurchasesIAPFields sets fields[inAppPurchases] for included IAPs.
 func WithPromotedPurchasesIAPFields(fields []string) PromotedPurchasesOption {

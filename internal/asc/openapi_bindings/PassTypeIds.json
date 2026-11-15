@@ -17,5 +17,8 @@
     {"operation":"passTypeIds_getCollection","name":"GetPassTypeIDs","options":"PassTypeIDsOption","query":"buildPassTypeIDsQuery","nextContext":"passTypeIds"},
     {"operation":"passTypeIds_getInstance","name":"GetPassTypeID","params":["id"],"check":"trim","checkFirst":true,"options":"PassTypeIDOption","query":"buildPassTypeIDQuery","single":true},
     {"operation":"passTypeIds_updateInstance","name":"UpdatePassTypeID","params":["id"],"check":"trim"}
+  ],
+  "queries": [
+    {"operation":"passTypeIds_getInstance","name":"PassTypeID","params":[{"name":"fields[passTypeIds]"},{"name":"fields[certificates]","arg":"fields"},{"name":"include"},{"name":"limit[certificates]","field":"certificatesLimit","with":"WithPassTypeIDCertificatesIncludeLimit","arg":"limit","type":"int"}]}
   ]
 }
