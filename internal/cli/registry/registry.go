@@ -145,7 +145,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("system-status", "Check Apple Developer service health.", func() *ffcli.Command {
 			return systemstatus.NewCommand(d)
 		}),
-		commandFactory("status", "Show a release pipeline dashboard for an app.", status.StatusCommand),
+		commandFactory("status", "Show a release pipeline dashboard for an app.", func() *ffcli.Command {
+			return status.NewStatusCommand(d)
+		}),
 		commandFactory("insights", "Generate weekly and daily insights from App Store data sources.", func() *ffcli.Command {
 			return insights.NewInsightsCommand(d)
 		}),

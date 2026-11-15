@@ -1,10 +1,8 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -21,16 +19,19 @@ func TestStatusUsageErrors(t *testing.T) {
 			name:    "RequiresAppID",
 			args:    []string{"status"},
 			wantErr: "Error: --app is required (or set ASC_APP_ID)",
+			deps:    true,
 		},
 		{
 			name:    "RejectsUnknownPlatform",
 			args:    []string{"status", "--app", "app-1", "--platform", "IPAD_OS"},
 			wantErr: "--platform must be one of: IOS, MAC_OS, TV_OS, VISION_OS",
+			deps:    true,
 		},
 		{
 			name:    "RejectsUnknownIncludeSection",
 			args:    []string{"status", "--app", "app-1", "--include", "builds,unknown"},
 			wantErr: "--include contains unsupported section",
+			deps:    true,
 		},
 	})
 }
@@ -41,7 +42,6 @@ func TestStatusDefaultJSONIncludesAllSections(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=app-1", "limit=2"), asctest.JSON(http.StatusOK, `{
 		"data": [{"type":"apps","id":"app-1","attributes":{"name":"My App","bundleId":"app-1"}}]
 	}`))
@@ -150,7 +150,7 @@ func TestStatusDefaultJSONIncludesAllSections(t *testing.T) {
 		}
 	}`))
 
-	stdout, stderr, err := runCommand(t, []string{"status", "--app", "app-1"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "status", "--app", "app-1")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -189,21 +189,14 @@ func TestStatusNullPhasedReleaseIsUnconfigured(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=app-1", "limit=2"), asctest.JSON(http.StatusOK, `{"data":[{"type":"apps","id":"app-1","attributes":{"name":"My App","bundleId":"app-1"}}]}`))
 	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"ver-1","attributes":{"platform":"IOS","versionString":"1.2.3","appVersionState":"READY_FOR_SALE"}}],"links":{}}`))
 	reg.Register(asctest.GET("/v1/appStoreVersions/ver-1/appStoreVersionPhasedRelease"), asctest.JSON(http.StatusOK, `{"data":null,"links":{}}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"status", "--app", "app-1", "--include", "phased-release", "--output", "json"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "status", "--app", "app-1", "--include", "phased-release", "--output", "json")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 	if phasedReads := countStatusRequests(reg, "/v1/appStoreVersions/ver-1/appStoreVersionPhasedRelease"); stderr != "" || phasedReads != 1 {
 		t.Fatalf("stderr = %q, phased release reads = %d; want empty stderr and one read", stderr, phasedReads)
 	}
@@ -224,7 +217,6 @@ func TestStatusCorrelatesOlderBetaReviewSubmissionWithItsActualBuild(t *testing.
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/builds", "filter[app]=6748252780", "filter[preReleaseVersion.platform]=IOS", "include=preReleaseVersion,buildBetaDetail", "limit=50", "sort=-uploadedDate"), asctest.JSON(http.StatusOK, `{
 		"data":[
 			{
@@ -275,7 +267,7 @@ func TestStatusCorrelatesOlderBetaReviewSubmissionWithItsActualBuild(t *testing.
 		"links":{"next":""}
 	}`))
 
-	stdout, stderr, err := runCommand(t, []string{"status", "--app", "6748252780", "--platform", "IOS", "--include", "builds,testflight", "--output", "json", "--pretty"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "status", "--app", "6748252780", "--platform", "IOS", "--include", "builds,testflight", "--output", "json", "--pretty")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -349,7 +341,6 @@ func TestStatusResolvesMissingActiveBetaReviewBuildBeforeSelection(t *testing.T)
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/builds", "filter[app]=6748252780", "filter[preReleaseVersion.platform]=IOS", "include=preReleaseVersion,buildBetaDetail", "limit=50", "sort=-uploadedDate"), asctest.JSON(http.StatusOK, `{
 		"data":[
 			{
@@ -406,16 +397,10 @@ func TestStatusResolvesMissingActiveBetaReviewBuildBeforeSelection(t *testing.T)
 		"data":{"type":"builds","id":"build-325","attributes":{"version":"325","uploadedDate":"2026-08-09T02:00:00Z","processingState":"VALID"}}
 	}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"status", "--app", "6748252780", "--platform", "IOS", "--include", "builds,testflight", "--output", "json"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "status", "--app", "6748252780", "--platform", "IOS", "--include", "builds,testflight", "--output", "json")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
@@ -482,7 +467,6 @@ func TestStatusResolvesSelectedActiveBetaReviewBeyondPrefetchCap(t *testing.T) {
 	}
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/builds", "filter[app]=6748252780", "filter[preReleaseVersion.platform]=IOS", "include=preReleaseVersion,buildBetaDetail", "limit=50", "sort=-uploadedDate"), asctest.JSON(http.StatusOK, `{
 		"data":[{
 			"type":"builds",
@@ -518,16 +502,10 @@ func TestStatusResolvesSelectedActiveBetaReviewBeyondPrefetchCap(t *testing.T) {
 		}`, version, version)))
 	}
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"status", "--app", "6748252780", "--platform", "IOS", "--include", "builds,testflight", "--output", "json"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "status", "--app", "6748252780", "--platform", "IOS", "--include", "builds,testflight", "--output", "json")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
@@ -583,7 +561,6 @@ func TestStatusEnrichesLinkedActiveReviewBuildOutsideSnapshot(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/builds", "filter[app]=6748252780", "filter[preReleaseVersion.platform]=IOS", "include=preReleaseVersion,buildBetaDetail", "limit=50", "sort=-uploadedDate"), asctest.JSON(http.StatusOK, `{
 		"data":[{
 			"type":"builds",
@@ -620,16 +597,10 @@ func TestStatusEnrichesLinkedActiveReviewBuildOutsideSnapshot(t *testing.T) {
 		"data":{"type":"preReleaseVersions","id":"train-1.2.3-ios","attributes":{"version":"1.2.3","platform":"IOS"}}
 	}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"status", "--app", "6748252780", "--platform", "IOS", "--include", "builds,testflight", "--output", "json"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "status", "--app", "6748252780", "--platform", "IOS", "--include", "builds,testflight", "--output", "json")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
@@ -668,7 +639,6 @@ func TestStatusFindsActiveBetaReviewBeyondFiftyBuildSnapshot(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	snapshotBuildIDs := make([]string, 0, 50)
 	builds := make([]map[string]any, 0, 50)
 	for buildNumber := 376; buildNumber >= 327; buildNumber-- {
@@ -731,16 +701,10 @@ func TestStatusFindsActiveBetaReviewBeyondFiftyBuildSnapshot(t *testing.T) {
 		"links":{"next":""}
 	}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"status", "--app", "6748252780", "--platform", "IOS", "--include", "builds,testflight", "--output", "json"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "status", "--app", "6748252780", "--platform", "IOS", "--include", "builds,testflight", "--output", "json")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
@@ -795,7 +759,6 @@ func TestStatusPlatformFiltersPlatformScopedSections(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=app-1", "limit=2"), asctest.JSON(http.StatusOK, `{
 		"data": [{"type":"apps","id":"app-1","attributes":{"name":"My App","bundleId":"app-1"}}]
 	}`))
@@ -881,7 +844,7 @@ func TestStatusPlatformFiltersPlatformScopedSections(t *testing.T) {
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			stdout, stderr, err := runCommand(t, tt.args)
+			stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), tt.args...)
 			if err != nil {
 				t.Fatalf("run error: %v", err)
 			}
@@ -925,7 +888,6 @@ func TestStatusAppStorePaginatesBeforeChoosingLatestVersion(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=app-1", "limit=2"), asctest.JSON(http.StatusOK, `{
 		"data": [{"type":"apps","id":"app-1","attributes":{"name":"My App","bundleId":"app-1"}}]
 	}`))
@@ -960,7 +922,7 @@ func TestStatusAppStorePaginatesBeforeChoosingLatestVersion(t *testing.T) {
 		"links":{"next":""}
 	}`))
 
-	stdout, stderr, err := runCommand(t, []string{"status", "--app", "app-1", "--include", "appstore"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "status", "--app", "app-1", "--include", "appstore")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -995,7 +957,6 @@ func TestStatusSubmissionAndReviewPaginateBeforeDerivingState(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=app-1", "limit=2"), asctest.JSON(http.StatusOK, `{
 			"data": [{"type":"apps","id":"app-1","attributes":{"name":"My App","bundleId":"app-1"}}]
 		}`))
@@ -1020,7 +981,7 @@ func TestStatusSubmissionAndReviewPaginateBeforeDerivingState(t *testing.T) {
 		"links":{"next":""}
 	}`))
 
-	stdout, stderr, err := runCommand(t, []string{"status", "--app", "app-1", "--include", "submission,review"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "status", "--app", "app-1", "--include", "submission,review")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -1067,7 +1028,6 @@ func TestStatusSubmissionIgnoresHistoricUnresolvedIssuesWhenLatestSubmissionMove
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=app-1", "limit=2"), asctest.JSON(http.StatusOK, `{
 			"data": [{"type":"apps","id":"app-1","attributes":{"name":"My App","bundleId":"app-1"}}]
 		}`))
@@ -1092,7 +1052,7 @@ func TestStatusSubmissionIgnoresHistoricUnresolvedIssuesWhenLatestSubmissionMove
 		"links":{"next":""}
 	}`))
 
-	stdout, stderr, err := runCommand(t, []string{"status", "--app", "app-1", "--include", "submission,review"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "status", "--app", "app-1", "--include", "submission,review")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -1139,7 +1099,6 @@ func TestStatusSubmissionTracksLatestSubmissionPerPlatform(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=app-1", "limit=2"), asctest.JSON(http.StatusOK, `{
 			"data": [{"type":"apps","id":"app-1","attributes":{"name":"My App","bundleId":"app-1"}}]
 		}`))
@@ -1164,7 +1123,7 @@ func TestStatusSubmissionTracksLatestSubmissionPerPlatform(t *testing.T) {
 		"links":{"next":""}
 	}`))
 
-	stdout, stderr, err := runCommand(t, []string{"status", "--app", "app-1", "--include", "submission,review"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "status", "--app", "app-1", "--include", "submission,review")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -1215,7 +1174,6 @@ func TestStatusIncludeBuildsOnlyFiltersSections(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=app-1", "limit=2"), asctest.JSON(http.StatusOK, `{
 		"data": [{"type":"apps","id":"app-1","attributes":{"name":"My App","bundleId":"app-1"}}]
 	}`))
@@ -1227,7 +1185,7 @@ func TestStatusIncludeBuildsOnlyFiltersSections(t *testing.T) {
 		"data":{"type":"preReleaseVersions","id":"prv-2","attributes":{"version":"1.2.3","platform":"IOS"}}
 	}`))
 
-	stdout, stderr, err := runCommand(t, []string{"status", "--app", "app-1", "--include", "builds"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "status", "--app", "app-1", "--include", "builds")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -1260,7 +1218,6 @@ func TestStatusTableOutput(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=app-1", "limit=2"), asctest.JSON(http.StatusOK, `{
 		"data": [{"type":"apps","id":"app-1","attributes":{"name":"My App","bundleId":"app-1"}}]
 	}`))
@@ -1272,7 +1229,7 @@ func TestStatusTableOutput(t *testing.T) {
 		"data":{"type":"preReleaseVersions","id":"prv-2","attributes":{"version":"1.2.3","platform":"IOS"}}
 	}`))
 
-	stdout, stderr, err := runCommand(t, []string{"status", "--app", "app-1", "--include", "builds", "--output", "table"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "status", "--app", "app-1", "--include", "builds", "--output", "table")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -1297,7 +1254,6 @@ func TestStatusTableOutputShowsNeedsAttentionWhenBlocked(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=app-1", "limit=2"), asctest.JSON(http.StatusOK, `{
 		"data": [{"type":"apps","id":"app-1","attributes":{"name":"My App","bundleId":"app-1"}}]
 	}`))
@@ -1312,7 +1268,7 @@ func TestStatusTableOutputShowsNeedsAttentionWhenBlocked(t *testing.T) {
 		"links":{"next":""}
 	}`))
 
-	stdout, stderr, err := runCommand(t, []string{"status", "--app", "app-1", "--include", "review", "--output", "table"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "status", "--app", "app-1", "--include", "review", "--output", "table")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -1334,7 +1290,6 @@ func TestStatusIncludeAppOnly(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=app-1", "limit=2"), asctest.JSON(http.StatusOK, `{
 		"data": [{"type":"apps","id":"app-1","attributes":{"name":"My App","bundleId":"app-1"}}]
 	}`))
@@ -1342,7 +1297,7 @@ func TestStatusIncludeAppOnly(t *testing.T) {
 		"data":{"type":"apps","id":"app-1","attributes":{"name":"My App","bundleId":"com.example.myapp","sku":"my-app-sku"}}
 	}`))
 
-	stdout, stderr, err := runCommand(t, []string{"status", "--app", "app-1", "--include", "app"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "status", "--app", "app-1", "--include", "app")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -1375,7 +1330,6 @@ func TestStatusTestFlightReadsStatesFromIncludedBuildBetaDetail(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps", "filter[bundleId]=app-1", "limit=2"), asctest.JSON(http.StatusOK, `{
 		"data": [{"type":"apps","id":"app-1","attributes":{"name":"My App","bundleId":"app-1"}}]
 	}`))
@@ -1413,7 +1367,7 @@ func TestStatusTestFlightReadsStatesFromIncludedBuildBetaDetail(t *testing.T) {
 		"links":{"next":""}
 	}`))
 
-	stdout, stderr, err := runCommand(t, []string{"status", "--app", "app-1", "--include", "testflight"})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "status", "--app", "app-1", "--include", "testflight")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
