@@ -1785,14 +1785,23 @@ func wrapCommandOutputValidation(cmd *ffcli.Command, d *Deps, parents []*ffcli.C
 }
 
 func resolveAppID(appID string) string {
-	return appSelfLinkID(resolveRawAppID(appID))
+	return resolveAppIDWith(os.LookupEnv, appID)
 }
 
-func resolveRawAppID(appID string) string {
+// ResolveAppID is ResolveAppID with ASC_APP_ID read through d.LookupEnv.
+func (d *Deps) ResolveAppID(appID string) string {
+	return resolveAppIDWith(d.LookupEnv, appID)
+}
+
+func resolveAppIDWith(lookupEnv func(string) (string, bool), appID string) string {
+	return appSelfLinkID(resolveRawAppID(lookupEnv, appID))
+}
+
+func resolveRawAppID(lookupEnv func(string) (string, bool), appID string) string {
 	if appID != "" {
 		return appID
 	}
-	if env, ok := os.LookupEnv("ASC_APP_ID"); ok {
+	if env, ok := lookupEnv("ASC_APP_ID"); ok {
 		return strings.TrimSpace(env)
 	}
 	cfg, err := config.Load()

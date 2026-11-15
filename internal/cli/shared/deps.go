@@ -44,6 +44,11 @@ type Deps struct {
 
 	Getwd func() (string, error)
 
+	// LookupEnv reads the environment variables a command takes as input,
+	// such as ASC_APP_ID, as os.LookupEnv. Credentials, the profile and the
+	// config are still read from the process environment.
+	LookupEnv func(string) (string, bool)
+
 	HTTPTransport func() http.RoundTripper
 }
 
@@ -70,6 +75,8 @@ func DefaultDeps() *Deps {
 		After: time.After,
 
 		Getwd: os.Getwd,
+
+		LookupEnv: os.LookupEnv,
 
 		HTTPTransport: processHTTPTransport,
 	}
