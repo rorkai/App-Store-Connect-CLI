@@ -434,5 +434,5 @@ func TestValidateDirNormalizesVersionDefaultLocaleInIssues(t *testing.T) {
 }
 
 func validateDir(dir string) (ValidateResult, error) {
-	return validateDirWithOptions(context.Background(), dir, validateDirOptions{})
+	return validateDirWithOptions(context.Background(), metadataTestDeps(), dir, validateDirOptions{})
 }

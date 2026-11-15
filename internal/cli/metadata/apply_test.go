@@ -3,7 +3,7 @@ package metadata
 import "testing"
 
 func TestMetadataApplyCommandUsesApplyFlagSetName(t *testing.T) {
-	cmd := MetadataApplyCommand()
+	cmd := newMetadataApplyCommand(metadataTestDeps())
 	if cmd.FlagSet == nil {
 		t.Fatal("expected apply command flag set")
 	}

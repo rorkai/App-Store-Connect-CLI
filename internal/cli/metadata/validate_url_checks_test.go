@@ -12,6 +12,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/metadataurl"
 )
 
@@ -63,7 +64,7 @@ func TestValidateDirCheckURLsWarnsForRedirectedHostAndSiteRoot(t *testing.T) {
 		},
 	}}
 
-	result, err := validateDirWithOptions(context.Background(), dir, validateDirOptions{
+	result, err := validateDirWithOptions(context.Background(), metadataTestDeps(), dir, validateDirOptions{
 		checkURLs:  true,
 		urlChecker: checker,
 	})
@@ -127,7 +128,7 @@ func TestValidateDirCheckURLsWarnsForStatusAndRequestFailure(t *testing.T) {
 		},
 	}
 
-	result, err := validateDirWithOptions(context.Background(), dir, validateDirOptions{
+	result, err := validateDirWithOptions(context.Background(), metadataTestDeps(), dir, validateDirOptions{
 		checkURLs:  true,
 		urlChecker: checker,
 	})
@@ -166,7 +167,7 @@ func TestValidateDirCheckURLsCachesDuplicateURLs(t *testing.T) {
 		},
 	}}
 
-	result, err := validateDirWithOptions(context.Background(), dir, validateDirOptions{
+	result, err := validateDirWithOptions(context.Background(), metadataTestDeps(), dir, validateDirOptions{
 		checkURLs:  true,
 		urlChecker: checker,
 	})
@@ -193,7 +194,7 @@ func TestValidateDirRemainsOfflineWithoutCheckURLs(t *testing.T) {
 		},
 	}}
 
-	result, err := validateDirWithOptions(context.Background(), dir, validateDirOptions{
+	result, err := validateDirWithOptions(context.Background(), metadataTestDeps(), dir, validateDirOptions{
 		urlChecker: checker,
 	})
 	if err != nil {
@@ -218,7 +219,7 @@ func TestValidateDirCheckURLsPreservesContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err := validateDirWithOptions(ctx, dir, validateDirOptions{
+	_, err := validateDirWithOptions(ctx, metadataTestDeps(), dir, validateDirOptions{
 		checkURLs:  true,
 		urlChecker: checker,
 	})
@@ -243,8 +244,8 @@ func TestMetadataValidateCommandPrintsWarningsAndExitsSuccessfully(t *testing.T)
 	t.Cleanup(func() { newMetadataURLChecker = originalFactory })
 
 	var runErr error
-	stdout := captureStdout(t, func() {
-		runErr = MetadataValidateCommand().ParseAndRun(context.Background(), []string{
+	stdout := captureStdout(t, func(d *shared.Deps) {
+		runErr = newMetadataValidateCommand(d).ParseAndRun(context.Background(), []string{
 			"--dir", dir,
 			"--check-urls",
 			"--output", "json",

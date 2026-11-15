@@ -391,7 +391,7 @@ Examples:
 				return fmt.Errorf("migrate import: %w", err)
 			}
 
-			assetPlan, err := storeassets.PrepareImport(ctx, client, resolvedAppID, resolvedVersionID, appClip, previews)
+			assetPlan, err := storeassets.PrepareImport(ctx, shared.DefaultDeps(), client, resolvedAppID, resolvedVersionID, appClip, previews)
 			if err != nil {
 				return fmt.Errorf("migrate import: %w", err)
 			}
@@ -657,7 +657,7 @@ Examples:
 				fmt.Fprintln(os.Stderr, "Warning: demo account password not exported to metadata/review_information/demo_password.txt")
 			}
 
-			assetPlan, assetWarnings, err := storeassets.ExportPlanWithVersionLocalizations(ctx, client, strings.TrimSpace(*versionID), "metadata", true, true, localizations)
+			assetPlan, assetWarnings, err := storeassets.ExportPlanWithVersionLocalizations(ctx, shared.DefaultDeps(), client, strings.TrimSpace(*versionID), "metadata", true, true, localizations)
 			if err != nil {
 				return fmt.Errorf("migrate export: %w", err)
 			}
@@ -671,7 +671,7 @@ Examples:
 				return fmt.Errorf("migrate export: %w", err)
 			}
 			defer root.Close()
-			assetExport, err := storeassets.PrepareExport(root, assetPlan, storeassets.ExportOptions{AppID: resolvedAppID, VersionID: strings.TrimSpace(*versionID), MetadataPrefix: "metadata", Clip: true, Previews: true, Overwrite: true})
+			assetExport, err := storeassets.PrepareExport(shared.DefaultDeps(), root, assetPlan, storeassets.ExportOptions{AppID: resolvedAppID, VersionID: strings.TrimSpace(*versionID), MetadataPrefix: "metadata", Clip: true, Previews: true, Overwrite: true})
 			if err != nil {
 				return fmt.Errorf("migrate export: %w", err)
 			}

@@ -35,36 +35,41 @@ type PushExecutionOptions struct {
 // This is the command-agnostic execution path used by metadata push and
 // release orchestration.
 func ExecutePush(ctx context.Context, opts PushExecutionOptions) (PushPlanResult, error) {
-	result, _, err := ExecutePushWithWarnings(ctx, opts)
+	return ExecutePushWith(ctx, shared.DefaultDeps(), opts)
+}
+
+// ExecutePushWith is ExecutePush on the given dependencies.
+func ExecutePushWith(ctx context.Context, d *shared.Deps, opts PushExecutionOptions) (PushPlanResult, error) {
+	result, _, err := ExecutePushWithWarnings(ctx, d, opts)
 	return result, err
 }
 
 // ExecutePushWithWarnings computes a metadata push plan plus create-scope
 // submission warnings for callers that need to emit them after output succeeds.
-func ExecutePushWithWarnings(ctx context.Context, opts PushExecutionOptions) (PushPlanResult, []shared.SubmitReadinessCreateWarning, error) {
+func ExecutePushWithWarnings(ctx context.Context, d *shared.Deps, opts PushExecutionOptions) (PushPlanResult, []shared.SubmitReadinessCreateWarning, error) {
 	errorPrefix := metadataMutationErrorPrefix(opts.CommandName)
 	resolvedAppID := shared.ResolveAppID(opts.AppID)
 	if resolvedAppID == "" {
-		return PushPlanResult{}, nil, metadataRequiredInputError("--app", "--app is required (or set ASC_APP_ID)")
+		return PushPlanResult{}, nil, metadataRequiredInputError(d, "--app", "--app is required (or set ASC_APP_ID)")
 	}
 
 	versionValue := strings.TrimSpace(opts.Version)
 	if versionValue == "" {
-		return PushPlanResult{}, nil, metadataRequiredInputError("--version", "--version is required")
+		return PushPlanResult{}, nil, metadataRequiredInputError(d, "--version", "--version is required")
 	}
 
 	dirValue := strings.TrimSpace(opts.Dir)
 	if dirValue == "" {
-		return PushPlanResult{}, nil, metadataRequiredInputError("--dir", "--dir is required")
+		return PushPlanResult{}, nil, metadataRequiredInputError(d, "--dir", "--dir is required")
 	}
 	if strings.TrimSpace(opts.ReviewDir) != "" && !opts.DryRun && !opts.Confirm {
-		return PushPlanResult{}, nil, shared.UsageError("--confirm is required when applying an approved metadata plan")
+		return PushPlanResult{}, nil, d.UsageError("--confirm is required when applying an approved metadata plan")
 	}
 
 	// Unset means fail: release orchestration builds these options without a
 	// conflict policy. Command code validates the raw flag at its own boundary,
 	// so an explicit --if-exists "" never reaches here as an empty value.
-	ifExistsMode, err := shared.ParseOptionalIfExistsMode(opts.IfExists, shared.IfExistsSkip, shared.IfExistsUpdate)
+	ifExistsMode, err := d.ParseOptionalIfExistsMode(opts.IfExists, shared.IfExistsSkip, shared.IfExistsUpdate)
 	if err != nil {
 		return PushPlanResult{}, nil, err
 	}
@@ -73,7 +78,7 @@ func ExecutePushWithWarnings(ctx context.Context, opts PushExecutionOptions) (Pu
 	if platformValue != "" {
 		normalizedPlatform, err := shared.NormalizeAppStoreVersionPlatform(platformValue)
 		if err != nil {
-			return PushPlanResult{}, nil, shared.UsageError(err.Error())
+			return PushPlanResult{}, nil, d.UsageError(err.Error())
 		}
 		platformValue = normalizedPlatform
 	}
@@ -84,7 +89,7 @@ func ExecutePushWithWarnings(ctx context.Context, opts PushExecutionOptions) (Pu
 	}
 	includes, err := parseIncludes(includeValue)
 	if err != nil {
-		return PushPlanResult{}, nil, shared.UsageError(err.Error())
+		return PushPlanResult{}, nil, d.UsageError(err.Error())
 	}
 
 	clip, previews, cleanup, err := loadStoreAssetInputs(ctx, dirValue, includes)
@@ -92,32 +97,32 @@ func ExecutePushWithWarnings(ctx context.Context, opts PushExecutionOptions) (Pu
 		return PushPlanResult{}, nil, fmt.Errorf("%s: %w", errorPrefix, err)
 	}
 	defer cleanup()
-	if err := requireConfirmedStoreAssets(opts, clip, previews); err != nil {
+	if err := requireConfirmedStoreAssets(d, opts, clip, previews); err != nil {
 		return PushPlanResult{}, nil, err
 	}
 	settingScopes := selectedMetadataSettingScopes(includes)
 	localSettings := make([]map[string]string, len(settingScopes))
 	for i, scope := range settingScopes {
-		localSettings[i], err = readMetadataSettingFile(dirValue, scope)
+		localSettings[i], err = readMetadataSettingFile(d, dirValue, scope)
 		if err != nil {
 			return PushPlanResult{}, nil, fmt.Errorf("%s: %w", errorPrefix, err)
 		}
 	}
 	localBundle := localMetadataBundle{}
 	if includesScope(includes, includeLocalizations) {
-		localBundle, err = loadLocalMetadataWithAssets(dirValue, versionValue, clip != nil || len(previews) > 0 || len(settingScopes) > 0)
+		localBundle, err = loadLocalMetadataWithAssets(d, dirValue, versionValue, clip != nil || len(previews) > 0 || len(settingScopes) > 0)
 		if err != nil {
 			return PushPlanResult{}, nil, fmt.Errorf("%s: %w", errorPrefix, err)
 		}
 	}
 
 	if err := validateDefaultClearFields(localBundle, versionValue); err != nil {
-		return PushPlanResult{}, nil, shared.UsageError(err.Error())
+		return PushPlanResult{}, nil, d.UsageError(err.Error())
 	}
 
 	localizationsSelected := localBundle.appInfoManaged || localBundle.versionManaged
 
-	client, err := shared.GetASCClient()
+	client, err := d.Client()
 	if err != nil {
 		return PushPlanResult{}, nil, fmt.Errorf("%s: %w", errorPrefix, err)
 	}
@@ -127,8 +132,8 @@ func ExecutePushWithWarnings(ctx context.Context, opts PushExecutionOptions) (Pu
 		id    string
 		state string
 	}
-	resolvedVersion, err := shared.RetryReadWithFreshTimeout(ctx, func(requestCtx context.Context) (versionResolution, error) {
-		id, state, resolveErr := resolveVersionID(requestCtx, client, resolvedAppID, versionValue, platformValue)
+	resolvedVersion, err := shared.RetryReadWithFreshTimeoutWith(ctx, d, func(requestCtx context.Context) (versionResolution, error) {
+		id, state, resolveErr := resolveVersionID(requestCtx, d, client, resolvedAppID, versionValue, platformValue)
 		return versionResolution{id: id, state: state}, resolveErr
 	})
 	if err != nil {
@@ -144,9 +149,10 @@ func ExecutePushWithWarnings(ctx context.Context, opts PushExecutionOptions) (Pu
 	// a version-only push.
 	appInfoIDValue := strings.TrimSpace(opts.AppInfoID)
 	if localBundle.appInfoManaged || metadataSettingsNeedAppInfo(settingScopes) {
-		appInfoIDValue, err = shared.RetryReadWithFreshTimeout(ctx, func(requestCtx context.Context) (string, error) {
+		appInfoIDValue, err = shared.RetryReadWithFreshTimeoutWith(ctx, d, func(requestCtx context.Context) (string, error) {
 			return resolveMetadataPushAppInfoID(
 				requestCtx,
+				d,
 				client,
 				opts.CommandName,
 				resolvedAppID,
@@ -168,7 +174,7 @@ func ExecutePushWithWarnings(ctx context.Context, opts PushExecutionOptions) (Pu
 	// Only managed JSON scopes participate in localization changes. Preview
 	// uploads also need version localization IDs, but must not plan their deletion.
 	remoteAppInfoItems, remoteVersionItems, err := fetchMetadataLocalizations(
-		ctx, client, appInfoIDValue, versionIDValue,
+		ctx, d, client, appInfoIDValue, versionIDValue,
 		localBundle.appInfoManaged, localBundle.versionManaged || len(previews) > 0,
 	)
 	if err != nil {
@@ -205,25 +211,25 @@ func ExecutePushWithWarnings(ctx context.Context, opts PushExecutionOptions) (Pu
 			_, remoteExists := remoteVersion[preview.Locale]
 			_, localExists := localVersion[preview.Locale]
 			if remoteExists && !localExists {
-				return PushPlanResult{}, nil, shared.UsageErrorf("version localization %q is required by local previews but would be deleted; add version/%s/%s.json to retain it, or exclude previews before deleting it", preview.Locale, versionValue, preview.Locale)
+				return PushPlanResult{}, nil, d.UsageErrorf("version localization %q is required by local previews but would be deleted; add version/%s/%s.json to retain it, or exclude previews before deleting it", preview.Locale, versionValue, preview.Locale)
 			}
 		}
 	}
 	if err := validateVersionClearOnlyLocales(localVersion, remoteVersion); err != nil {
-		return PushPlanResult{}, nil, shared.UsageError(err.Error())
+		return PushPlanResult{}, nil, d.UsageError(err.Error())
 	}
 	lateAppInfoIDs := map[string]string(nil)
 	if err := validateMetadataCreatePrerequisites(localAppInfo, remoteAppInfo); err != nil {
 		if opts.DryRun || ifExistsMode == shared.IfExistsFail {
-			return PushPlanResult{}, nil, shared.UsageError(err.Error())
+			return PushPlanResult{}, nil, d.UsageError(err.Error())
 		}
 		var missingLocale string
-		lateAppInfoIDs, missingLocale, err = findLateExistingAppInfoLocalizations(ctx, client, appInfoIDValue, localAppInfo, remoteAppInfo)
+		lateAppInfoIDs, missingLocale, err = findLateExistingAppInfoLocalizations(ctx, d, client, appInfoIDValue, localAppInfo, remoteAppInfo)
 		if err != nil {
 			return PushPlanResult{}, nil, fmt.Errorf("%s: %w", errorPrefix, err)
 		}
 		if missingLocale != "" {
-			return PushPlanResult{}, nil, shared.UsageError(fmt.Sprintf("app-info localization %q requires name when creating a new locale", missingLocale))
+			return PushPlanResult{}, nil, d.UsageError(fmt.Sprintf("app-info localization %q requires name when creating a new locale", missingLocale))
 		}
 	}
 	warningMode := shared.SubmitReadinessCreateModePlanned
@@ -232,7 +238,7 @@ func ExecutePushWithWarnings(ctx context.Context, opts PushExecutionOptions) (Pu
 	}
 	submitOpts := shared.SubmitReadinessOptions{}
 	if versionCreateWarningsNeedUpdateContext(localVersion, remoteVersion) {
-		readinessCtx, readinessCancel := shared.ContextWithTimeout(ctx)
+		readinessCtx, readinessCancel := d.Timeout(ctx)
 		submitOpts = shared.ResolveSubmitReadinessOptionsForVersionBestEffort(readinessCtx, client, versionIDValue, resolvedAppID, platformValue)
 		readinessCancel()
 	}
@@ -276,7 +282,7 @@ func ExecutePushWithWarnings(ctx context.Context, opts PushExecutionOptions) (Pu
 		APICalls:  apiCalls,
 	}
 
-	assetPlan, err := storeassets.PrepareImport(ctx, client, resolvedAppID, versionIDValue, clip, previews)
+	assetPlan, err := storeassets.PrepareImport(ctx, d, client, resolvedAppID, versionIDValue, clip, previews)
 	if err != nil {
 		return PushPlanResult{}, warnings, fmt.Errorf("%s: %w", errorPrefix, err)
 	}
@@ -286,7 +292,7 @@ func ExecutePushWithWarnings(ctx context.Context, opts PushExecutionOptions) (Pu
 	var settingPlans []metadataSettingPlan
 	var settingCalls []PlanAPICall
 	for i, scope := range settingScopes {
-		remote, err := scope.fetch(ctx, client, settingTarget)
+		remote, err := scope.fetch(ctx, d, client, settingTarget)
 		if err != nil {
 			return PushPlanResult{}, warnings, fmt.Errorf("%s: read %s: %w", errorPrefix, scope.name, err)
 		}
@@ -303,7 +309,7 @@ func ExecutePushWithWarnings(ctx context.Context, opts PushExecutionOptions) (Pu
 					desired[field] = value
 				}
 				if err := scope.validate(desired, true); err != nil {
-					return PushPlanResult{}, warnings, shared.UsageErrorf("%s: invalid %s settings: %v", errorPrefix, scope.name, err)
+					return PushPlanResult{}, warnings, d.UsageErrorf("%s: invalid %s settings: %v", errorPrefix, scope.name, err)
 				}
 			}
 			settingPlans = append(settingPlans, plan)
@@ -315,7 +321,7 @@ func ExecutePushWithWarnings(ctx context.Context, opts PushExecutionOptions) (Pu
 	result.APICalls = append(result.APICalls, settingCalls...)
 
 	if strings.TrimSpace(opts.ReviewDir) != "" {
-		if err := VerifyApprovedMetadataPlan(opts, result, opts.ReviewDir); err != nil {
+		if err := VerifyApprovedMetadataPlan(d, opts, result, opts.ReviewDir); err != nil {
 			return PushPlanResult{}, warnings, err
 		}
 	}
@@ -326,22 +332,22 @@ func ExecutePushWithWarnings(ctx context.Context, opts PushExecutionOptions) (Pu
 
 	if len(result.Deletes) > 0 {
 		if !opts.AllowDeletes {
-			return PushPlanResult{}, nil, shared.UsageError("--allow-deletes is required to apply delete operations")
+			return PushPlanResult{}, nil, d.UsageError("--allow-deletes is required to apply delete operations")
 		}
 		if !opts.Confirm {
-			return PushPlanResult{}, nil, shared.UsageError("--confirm is required when applying delete operations")
+			return PushPlanResult{}, nil, d.UsageError("--confirm is required when applying delete operations")
 		}
 	}
 	if !opts.Confirm {
 		for _, update := range result.Updates {
 			if update.Reason == "field cleared locally" {
-				return PushPlanResult{}, nil, shared.UsageError("--confirm is required when applying field clear operations")
+				return PushPlanResult{}, nil, d.UsageError("--confirm is required when applying field clear operations")
 			}
 		}
 	}
 	if ifExistsMode == shared.IfExistsUpdate && !opts.Confirm {
 		if scope, locale, ok := firstPlannedCreateClear(localAppInfo, remoteAppInfo, localVersion, remoteVersion); ok {
-			return PushPlanResult{}, nil, shared.UsageError(fmt.Sprintf("--confirm is required when --if-exists update may apply field clear operations (%s localization %q is planned as a create and clears fields if it already exists)", scope, locale))
+			return PushPlanResult{}, nil, d.UsageError(fmt.Sprintf("--confirm is required when --if-exists update may apply field clear operations (%s localization %q is planned as a create and clears fields if it already exists)", scope, locale))
 		}
 	}
 
@@ -350,6 +356,7 @@ func ExecutePushWithWarnings(ctx context.Context, opts PushExecutionOptions) (Pu
 	if localizationsSelected {
 		actions, applyErr = applyMetadataPlan(
 			ctx,
+			d,
 			client,
 			appInfoIDValue,
 			versionIDValue,
@@ -376,7 +383,7 @@ func ExecutePushWithWarnings(ctx context.Context, opts PushExecutionOptions) (Pu
 	result.Actions = actions
 	if applyErr == nil {
 		for _, plan := range settingPlans {
-			action, err := applyMetadataSettingPlan(ctx, client, settingTarget, plan)
+			action, err := applyMetadataSettingPlan(ctx, d, client, settingTarget, plan)
 			result.Actions = append(result.Actions, action)
 			applyErr = errors.Join(applyErr, err)
 		}
@@ -420,7 +427,7 @@ func ExecutePushWithWarnings(ctx context.Context, opts PushExecutionOptions) (Pu
 	result.Applied = applyErr == nil && result.Failed == 0
 
 	if result.Failed > 0 {
-		artifactPath, artifactErr := writeMetadataPushFailureArtifact(result, opts.CommandName)
+		artifactPath, artifactErr := writeMetadataPushFailureArtifact(d, result, opts.CommandName)
 		if artifactErr != nil {
 			result.FailureArtifactError = artifactErr.Error()
 		} else {

@@ -89,9 +89,9 @@ type metadataPlanHashPayload struct {
 	Plan          PushPlanResult      `json:"plan"`
 }
 
-// MetadataPlanCommand returns the metadata plan subcommand.
-func MetadataPlanCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("metadata plan", flag.ExitOnError)
+// newMetadataPlanCommand returns the metadata plan subcommand.
+func newMetadataPlanCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("metadata plan", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	appInfoID := shared.BindResourceIDFlag(fs, "app-info", "appInfos", "App Info ID (optional override)")
@@ -102,7 +102,7 @@ func MetadataPlanCommand() *ffcli.Command {
 	allowDeletes := fs.Bool("allow-deletes", false, "Plan destructive delete operations (disables default locale fallback for missing locales)")
 	ifExists := shared.BindIfExistsFlag(fs, shared.IfExistsSkip, shared.IfExistsUpdate)
 	reviewDir := fs.String("review-dir", defaultMetadataReviewDir, "Directory for metadata review artifacts")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "plan",
@@ -114,14 +114,14 @@ Examples:
   asc metadata plan --app "APP_ID" --version "1.2.3" --dir "./metadata"
   asc metadata plan --app "APP_ID" --version "1.2.3" --platform IOS --dir "./metadata" --review-dir ".asc/metadata/review"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			// See the note in push.go: the bound flag defaults to fail, so an
 			// empty value is an explicitly supplied unsupported value.
-			if _, err := shared.ParseIfExistsMode(*ifExists, shared.IfExistsSkip, shared.IfExistsUpdate); err != nil {
+			if _, err := d.ParseIfExistsMode(*ifExists, shared.IfExistsSkip, shared.IfExistsUpdate); err != nil {
 				return err
 			}
-			artifact, warnings, err := ExecuteMetadataPlanWithWarnings(ctx, PushExecutionOptions{
+			artifact, warnings, err := ExecuteMetadataPlanWithWarnings(ctx, d, PushExecutionOptions{
 				CommandName:  "plan",
 				AppID:        *appID,
 				AppInfoID:    *appInfoID,
@@ -136,30 +136,30 @@ Examples:
 			if err != nil {
 				return err
 			}
-			if err := shared.PrintOutputWithRenderers(
+			if err := d.PrintOutputWithRenderers(
 				artifact,
 				*output.Output,
 				*output.Pretty,
-				func() error { return printMetadataPlanArtifactTable(artifact, false) },
-				func() error { return printMetadataPlanArtifactTable(artifact, true) },
+				func() error { return printMetadataPlanArtifactTable(d, artifact, false) },
+				func() error { return printMetadataPlanArtifactTable(d, artifact, true) },
 			); err != nil {
 				return err
 			}
-			return shared.PrintSubmitReadinessCreateWarnings(os.Stderr, warnings)
+			return shared.PrintSubmitReadinessCreateWarnings(d.IO.ErrOut, warnings)
 		},
 	}
 }
 
-// MetadataApproveCommand returns the metadata approve subcommand.
-func MetadataApproveCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("metadata approve", flag.ExitOnError)
+// newMetadataApproveCommand returns the metadata approve subcommand.
+func newMetadataApproveCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("metadata approve", flag.ExitOnError)
 
 	reviewDir := fs.String("review-dir", defaultMetadataReviewDir, "Directory containing metadata review artifacts")
 	all := fs.Bool("all", false, "Approve every planned metadata change")
 	key := fs.String("key", "", "Approve specific plan key(s), comma-separated")
 	scope := fs.String("scope", "", "Approve all changes in scope(s): "+strings.Join(metadataApprovalScopes(), ", "))
 	note := fs.String("note", "", "Optional reviewer note written to approved.json")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "approve",
@@ -172,10 +172,10 @@ Examples:
   asc metadata approve --review-dir ".asc/metadata/review" --scope app-info
   asc metadata approve --review-dir ".asc/metadata/review" --key "app-info:en-US:subtitle"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			_ = ctx
-			approval, err := ExecuteMetadataApprove(MetadataApproveOptions{
+			approval, err := ExecuteMetadataApprove(d, MetadataApproveOptions{
 				ReviewDir: *reviewDir,
 				All:       *all,
 				Key:       *key,
@@ -185,23 +185,23 @@ Examples:
 			if err != nil {
 				return err
 			}
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				approval,
 				*output.Output,
 				*output.Pretty,
-				func() error { return printMetadataApprovalTable(approval, false) },
-				func() error { return printMetadataApprovalTable(approval, true) },
+				func() error { return printMetadataApprovalTable(d, approval, false) },
+				func() error { return printMetadataApprovalTable(d, approval, true) },
 			)
 		},
 	}
 }
 
-// MetadataStatusCommand returns the metadata status subcommand.
-func MetadataStatusCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("metadata status", flag.ExitOnError)
+// newMetadataStatusCommand returns the metadata status subcommand.
+func newMetadataStatusCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("metadata status", flag.ExitOnError)
 
 	reviewDir := fs.String("review-dir", defaultMetadataReviewDir, "Directory containing metadata review artifacts")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "status",
@@ -213,19 +213,19 @@ Examples:
   asc metadata status
   asc metadata status --review-dir ".asc/metadata/review" --output json`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			_ = ctx
-			status, err := ExecuteMetadataReviewStatus(*reviewDir)
+			status, err := ExecuteMetadataReviewStatus(d, *reviewDir)
 			if err != nil {
 				return err
 			}
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				status,
 				*output.Output,
 				*output.Pretty,
-				func() error { return printMetadataReviewStatusTable(status, false) },
-				func() error { return printMetadataReviewStatusTable(status, true) },
+				func() error { return printMetadataReviewStatusTable(d, status, false) },
+				func() error { return printMetadataReviewStatusTable(d, status, true) },
 			)
 		},
 	}
@@ -239,9 +239,9 @@ type MetadataApproveOptions struct {
 	Note      string
 }
 
-func ExecuteMetadataPlanWithWarnings(ctx context.Context, opts PushExecutionOptions, reviewDir string) (MetadataPlanArtifact, []shared.SubmitReadinessCreateWarning, error) {
+func ExecuteMetadataPlanWithWarnings(ctx context.Context, d *shared.Deps, opts PushExecutionOptions, reviewDir string) (MetadataPlanArtifact, []shared.SubmitReadinessCreateWarning, error) {
 	opts.DryRun = true
-	result, warnings, err := ExecutePushWithWarnings(ctx, opts)
+	result, warnings, err := ExecutePushWithWarnings(ctx, d, opts)
 	if err != nil {
 		return MetadataPlanArtifact{}, warnings, err
 	}
@@ -249,7 +249,7 @@ func ExecuteMetadataPlanWithWarnings(ctx context.Context, opts PushExecutionOpti
 	resolvedReviewDir := metadataReviewDir(reviewDir)
 	planPath := filepath.Join(resolvedReviewDir, metadataPlanFileName)
 	approvalPath := filepath.Join(resolvedReviewDir, metadataApprovalFileName)
-	options := metadataPlanOptionsFromPush(opts, result)
+	options := metadataPlanOptionsFromPush(d, opts, result)
 	planHash, err := hashMetadataPlan(options, result)
 	if err != nil {
 		return MetadataPlanArtifact{}, warnings, fmt.Errorf("metadata plan: hash plan: %w", err)
@@ -257,7 +257,7 @@ func ExecuteMetadataPlanWithWarnings(ctx context.Context, opts PushExecutionOpti
 
 	artifact := MetadataPlanArtifact{
 		SchemaVersion: metadataReviewSchemaV1,
-		GeneratedAt:   time.Now().UTC().Format(time.RFC3339),
+		GeneratedAt:   d.Now().UTC().Format(time.RFC3339),
 		Command:       "metadata plan",
 		ReviewDir:     resolvedReviewDir,
 		PlanPath:      planPath,
@@ -272,7 +272,7 @@ func ExecuteMetadataPlanWithWarnings(ctx context.Context, opts PushExecutionOpti
 	return artifact, warnings, nil
 }
 
-func ExecuteMetadataApprove(opts MetadataApproveOptions) (MetadataApprovalArtifact, error) {
+func ExecuteMetadataApprove(d *shared.Deps, opts MetadataApproveOptions) (MetadataApprovalArtifact, error) {
 	selectedModes := 0
 	if opts.All {
 		selectedModes++
@@ -284,26 +284,26 @@ func ExecuteMetadataApprove(opts MetadataApproveOptions) (MetadataApprovalArtifa
 		selectedModes++
 	}
 	if selectedModes == 0 {
-		return MetadataApprovalArtifact{}, shared.UsageError("--all, --key, or --scope is required")
+		return MetadataApprovalArtifact{}, d.UsageError("--all, --key, or --scope is required")
 	}
 	if selectedModes > 1 {
-		return MetadataApprovalArtifact{}, shared.UsageError("--all, --key, and --scope cannot be combined")
+		return MetadataApprovalArtifact{}, d.UsageError("--all, --key, and --scope cannot be combined")
 	}
 
 	reviewDir := metadataReviewDir(opts.ReviewDir)
-	plan, err := readMetadataPlanArtifact(filepath.Join(reviewDir, metadataPlanFileName))
+	plan, err := readMetadataPlanArtifact(d, filepath.Join(reviewDir, metadataPlanFileName))
 	if err != nil {
 		return MetadataApprovalArtifact{}, err
 	}
 	allItems := metadataPlanItems(plan.Plan)
 	allKeys := metadataPlanKeys(allItems)
-	approvedKeys, mode, err := selectApprovedMetadataKeys(allItems, opts)
+	approvedKeys, mode, err := selectApprovedMetadataKeys(d, allItems, opts)
 	if err != nil {
 		return MetadataApprovalArtifact{}, err
 	}
 	planPath := filepath.Join(reviewDir, metadataPlanFileName)
 	approvalPath := filepath.Join(reviewDir, metadataApprovalFileName)
-	existingApproval, err := readMetadataApprovalArtifact(approvalPath)
+	existingApproval, err := readMetadataApprovalArtifact(d, approvalPath)
 	if err != nil && !os.IsNotExist(err) {
 		return MetadataApprovalArtifact{}, err
 	}
@@ -313,7 +313,7 @@ func ExecuteMetadataApprove(opts MetadataApproveOptions) (MetadataApprovalArtifa
 	pendingKeys := diffMetadataKeys(allKeys, approvedKeys)
 	approval := MetadataApprovalArtifact{
 		SchemaVersion: metadataReviewSchemaV1,
-		ApprovedAt:    time.Now().UTC().Format(time.RFC3339),
+		ApprovedAt:    d.Now().UTC().Format(time.RFC3339),
 		PlanHash:      plan.PlanHash,
 		ReviewDir:     reviewDir,
 		PlanPath:      planPath,
@@ -329,17 +329,17 @@ func ExecuteMetadataApprove(opts MetadataApproveOptions) (MetadataApprovalArtifa
 	return approval, nil
 }
 
-func ExecuteMetadataReviewStatus(reviewDir string) (MetadataReviewStatus, error) {
+func ExecuteMetadataReviewStatus(d *shared.Deps, reviewDir string) (MetadataReviewStatus, error) {
 	resolvedReviewDir := metadataReviewDir(reviewDir)
 	planPath := filepath.Join(resolvedReviewDir, metadataPlanFileName)
 	approvalPath := filepath.Join(resolvedReviewDir, metadataApprovalFileName)
-	plan, err := readMetadataPlanArtifact(planPath)
+	plan, err := readMetadataPlanArtifact(d, planPath)
 	if err != nil {
 		return MetadataReviewStatus{}, err
 	}
 	allKeys := metadataPlanKeys(metadataPlanItems(plan.Plan))
 
-	approval, err := readMetadataApprovalArtifact(approvalPath)
+	approval, err := readMetadataApprovalArtifact(d, approvalPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return MetadataReviewStatus{
@@ -377,15 +377,15 @@ func ExecuteMetadataReviewStatus(reviewDir string) (MetadataReviewStatus, error)
 	}, nil
 }
 
-func VerifyApprovedMetadataPlan(opts PushExecutionOptions, currentPlan PushPlanResult, reviewDir string) error {
+func VerifyApprovedMetadataPlan(d *shared.Deps, opts PushExecutionOptions, currentPlan PushPlanResult, reviewDir string) error {
 	resolvedReviewDir := metadataReviewDir(reviewDir)
-	plan, err := readMetadataPlanArtifact(filepath.Join(resolvedReviewDir, metadataPlanFileName))
+	plan, err := readMetadataPlanArtifact(d, filepath.Join(resolvedReviewDir, metadataPlanFileName))
 	if err != nil {
 		return err
 	}
 	hashPlan := currentPlan
 	hashPlan.DryRun = true
-	currentOptions := metadataPlanOptionsFromPush(opts, hashPlan)
+	currentOptions := metadataPlanOptionsFromPush(d, opts, hashPlan)
 	currentHash, err := hashMetadataPlan(currentOptions, hashPlan)
 	if err != nil {
 		return fmt.Errorf("metadata apply: hash current plan: %w", err)
@@ -393,25 +393,25 @@ func VerifyApprovedMetadataPlan(opts PushExecutionOptions, currentPlan PushPlanR
 	planKeys := metadataPlanKeys(metadataPlanItems(plan.Plan))
 	currentKeys := metadataPlanKeys(metadataPlanItems(currentPlan))
 	if currentHash != plan.PlanHash {
-		return shared.UsageError("approved metadata plan drifted; rerun asc metadata plan and asc metadata approve")
+		return d.UsageError("approved metadata plan drifted; rerun asc metadata plan and asc metadata approve")
 	}
 	if len(planKeys) == 0 && len(currentKeys) == 0 {
 		return nil
 	}
-	approval, err := readMetadataApprovalArtifact(filepath.Join(resolvedReviewDir, metadataApprovalFileName))
+	approval, err := readMetadataApprovalArtifact(d, filepath.Join(resolvedReviewDir, metadataApprovalFileName))
 	if err != nil {
 		if os.IsNotExist(err) {
-			return shared.UsageError("approved metadata plan is missing; run asc metadata approve first")
+			return d.UsageError("approved metadata plan is missing; run asc metadata approve first")
 		}
 		return err
 	}
 	if approval.PlanHash != plan.PlanHash {
-		return shared.UsageError("approved metadata plan hash does not match plan.json; rerun asc metadata approve")
+		return d.UsageError("approved metadata plan hash does not match plan.json; rerun asc metadata approve")
 	}
 
 	pendingKeys := diffMetadataKeys(currentKeys, approval.ApprovedKeys)
 	if len(pendingKeys) > 0 {
-		return shared.UsageErrorf("approved metadata plan is incomplete; pending key(s): %s", strings.Join(pendingKeys, ", "))
+		return d.UsageErrorf("approved metadata plan is incomplete; pending key(s): %s", strings.Join(pendingKeys, ", "))
 	}
 	return nil
 }
@@ -428,8 +428,8 @@ func metadataReviewDir(reviewDir string) string {
 // hash. fail, the default, renders as the empty string so a plan recorded
 // before this flag existed keeps its hash; skip and update each change it, so
 // switching the conflict policy invalidates the approval.
-func normalizedIfExistsPlanValue(raw string) string {
-	mode, err := shared.ParseOptionalIfExistsMode(raw, shared.IfExistsSkip, shared.IfExistsUpdate)
+func normalizedIfExistsPlanValue(d *shared.Deps, raw string) string {
+	mode, err := d.ParseOptionalIfExistsMode(raw, shared.IfExistsSkip, shared.IfExistsUpdate)
 	if err != nil {
 		// Unreachable in practice: an unsupported value is a usage error
 		// before any plan is hashed. Keep the raw spelling so it can never
@@ -442,7 +442,7 @@ func normalizedIfExistsPlanValue(raw string) string {
 	return string(mode)
 }
 
-func metadataPlanOptionsFromPush(opts PushExecutionOptions, result PushPlanResult) metadataPlanOptions {
+func metadataPlanOptionsFromPush(d *shared.Deps, opts PushExecutionOptions, result PushPlanResult) metadataPlanOptions {
 	platform := strings.TrimSpace(opts.Platform)
 	if platform != "" {
 		if normalized, err := shared.NormalizeAppStoreVersionPlatform(platform); err == nil {
@@ -450,7 +450,7 @@ func metadataPlanOptionsFromPush(opts PushExecutionOptions, result PushPlanResul
 		}
 	}
 	return metadataPlanOptions{
-		IfExists:     normalizedIfExistsPlanValue(opts.IfExists),
+		IfExists:     normalizedIfExistsPlanValue(d, opts.IfExists),
 		AppID:        result.AppID,
 		AppInfoID:    result.AppInfoID,
 		Version:      result.Version,
@@ -484,11 +484,11 @@ func writeMetadataReviewJSON(path string, value any) error {
 	return writeFileNoFollow(path, data)
 }
 
-func readMetadataPlanArtifact(path string) (MetadataPlanArtifact, error) {
+func readMetadataPlanArtifact(d *shared.Deps, path string) (MetadataPlanArtifact, error) {
 	data, err := readFileNoFollow(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return MetadataPlanArtifact{}, shared.UsageErrorf("metadata plan artifact not found at %s; run asc metadata plan first", path)
+			return MetadataPlanArtifact{}, d.UsageErrorf("metadata plan artifact not found at %s; run asc metadata plan first", path)
 		}
 		return MetadataPlanArtifact{}, fmt.Errorf("metadata plan: read %s: %w", path, err)
 	}
@@ -497,22 +497,22 @@ func readMetadataPlanArtifact(path string) (MetadataPlanArtifact, error) {
 		return MetadataPlanArtifact{}, fmt.Errorf("metadata plan: parse %s: %w", path, err)
 	}
 	if artifact.SchemaVersion != metadataReviewSchemaV1 {
-		return MetadataPlanArtifact{}, shared.UsageErrorf("unsupported metadata plan schema version %d", artifact.SchemaVersion)
+		return MetadataPlanArtifact{}, d.UsageErrorf("unsupported metadata plan schema version %d", artifact.SchemaVersion)
 	}
 	if strings.TrimSpace(artifact.PlanHash) == "" {
-		return MetadataPlanArtifact{}, shared.UsageError("metadata plan artifact is missing planHash")
+		return MetadataPlanArtifact{}, d.UsageError("metadata plan artifact is missing planHash")
 	}
 	actualHash, err := hashMetadataPlan(artifact.Options, artifact.Plan)
 	if err != nil {
 		return MetadataPlanArtifact{}, fmt.Errorf("metadata plan: hash %s: %w", path, err)
 	}
 	if actualHash != artifact.PlanHash {
-		return MetadataPlanArtifact{}, shared.UsageError("metadata plan artifact planHash does not match its contents; rerun asc metadata plan")
+		return MetadataPlanArtifact{}, d.UsageError("metadata plan artifact planHash does not match its contents; rerun asc metadata plan")
 	}
 	return artifact, nil
 }
 
-func readMetadataApprovalArtifact(path string) (MetadataApprovalArtifact, error) {
+func readMetadataApprovalArtifact(d *shared.Deps, path string) (MetadataApprovalArtifact, error) {
 	data, err := readFileNoFollow(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -525,7 +525,7 @@ func readMetadataApprovalArtifact(path string) (MetadataApprovalArtifact, error)
 		return MetadataApprovalArtifact{}, fmt.Errorf("metadata approve: parse %s: %w", path, err)
 	}
 	if artifact.SchemaVersion != metadataReviewSchemaV1 {
-		return MetadataApprovalArtifact{}, shared.UsageErrorf("unsupported metadata approval schema version %d", artifact.SchemaVersion)
+		return MetadataApprovalArtifact{}, d.UsageErrorf("unsupported metadata approval schema version %d", artifact.SchemaVersion)
 	}
 	return artifact, nil
 }
@@ -557,7 +557,7 @@ func metadataPlanKeys(items []PlanItem) []string {
 	return keys
 }
 
-func selectApprovedMetadataKeys(items []PlanItem, opts MetadataApproveOptions) ([]string, string, error) {
+func selectApprovedMetadataKeys(d *shared.Deps, items []PlanItem, opts MetadataApproveOptions) ([]string, string, error) {
 	allKeys := metadataPlanKeys(items)
 	if opts.All {
 		return allKeys, metadataApprovalAllOption, nil
@@ -571,7 +571,7 @@ func selectApprovedMetadataKeys(items []PlanItem, opts MetadataApproveOptions) (
 		requested := splitReviewCSV(opts.Key)
 		for _, key := range requested {
 			if _, ok := itemByKey[key]; !ok {
-				return nil, "", shared.UsageErrorf("metadata approve key %q was not found in plan", key)
+				return nil, "", d.UsageErrorf("metadata approve key %q was not found in plan", key)
 			}
 		}
 		sort.Strings(requested)
@@ -580,13 +580,13 @@ func selectApprovedMetadataKeys(items []PlanItem, opts MetadataApproveOptions) (
 
 	scopes := splitReviewCSV(opts.Scope)
 	if len(scopes) == 0 {
-		return nil, "", shared.UsageError("--scope must include at least one scope")
+		return nil, "", d.UsageError("--scope must include at least one scope")
 	}
 	allowedScopes := metadataApprovalScopes()
 	scopeSet := make(map[string]struct{}, len(scopes))
 	for _, scope := range scopes {
 		if !slices.Contains(allowedScopes, scope) {
-			return nil, "", shared.UsageErrorf("--scope must be one of %s", strings.Join(allowedScopes, ", "))
+			return nil, "", d.UsageErrorf("--scope must be one of %s", strings.Join(allowedScopes, ", "))
 		}
 		scopeSet[scope] = struct{}{}
 	}
@@ -676,18 +676,18 @@ func mergeMetadataApprovalKeys(all []string, existing []string, selected []strin
 	return merged
 }
 
-func printMetadataPlanArtifactTable(artifact MetadataPlanArtifact, markdown bool) error {
-	fmt.Printf("Review Dir: %s\n", artifact.ReviewDir)
-	fmt.Printf("Plan Path: %s\n", artifact.PlanPath)
-	fmt.Printf("Approval Path: %s\n", artifact.ApprovalPath)
-	fmt.Printf("Plan Hash: %s\n\n", artifact.PlanHash)
+func printMetadataPlanArtifactTable(d *shared.Deps, artifact MetadataPlanArtifact, markdown bool) error {
+	fmt.Fprintf(d.IO.Out, "Review Dir: %s\n", artifact.ReviewDir)
+	fmt.Fprintf(d.IO.Out, "Plan Path: %s\n", artifact.PlanPath)
+	fmt.Fprintf(d.IO.Out, "Approval Path: %s\n", artifact.ApprovalPath)
+	fmt.Fprintf(d.IO.Out, "Plan Hash: %s\n\n", artifact.PlanHash)
 	if markdown {
-		return printPushPlanMarkdown(artifact.Plan)
+		return printPushPlanMarkdown(d, artifact.Plan)
 	}
-	return printPushPlanTable(artifact.Plan)
+	return printPushPlanTable(d, artifact.Plan)
 }
 
-func printMetadataApprovalTable(approval MetadataApprovalArtifact, markdown bool) error {
+func printMetadataApprovalTable(d *shared.Deps, approval MetadataApprovalArtifact, markdown bool) error {
 	headers := []string{"planHash", "mode", "approved", "pending", "approvalPath"}
 	rows := [][]string{{
 		approval.PlanHash,
@@ -697,14 +697,14 @@ func printMetadataApprovalTable(approval MetadataApprovalArtifact, markdown bool
 		approval.ApprovalPath,
 	}}
 	if markdown {
-		asc.RenderMarkdown(headers, rows)
+		asc.RenderMarkdownTo(d.IO.Out, headers, rows)
 		return nil
 	}
-	asc.RenderTable(headers, rows)
+	asc.RenderTableTo(d.IO.Out, headers, rows)
 	return nil
 }
 
-func printMetadataReviewStatusTable(status MetadataReviewStatus, markdown bool) error {
+func printMetadataReviewStatusTable(d *shared.Deps, status MetadataReviewStatus, markdown bool) error {
 	headers := []string{"ready", "planHash", "approvalMatchesPlan", "total", "approved", "pending"}
 	rows := [][]string{{
 		fmt.Sprintf("%t", status.Ready),
@@ -715,9 +715,9 @@ func printMetadataReviewStatusTable(status MetadataReviewStatus, markdown bool) 
 		fmt.Sprintf("%d", status.PendingCount),
 	}}
 	if markdown {
-		asc.RenderMarkdown(headers, rows)
+		asc.RenderMarkdownTo(d.IO.Out, headers, rows)
 		return nil
 	}
-	asc.RenderTable(headers, rows)
+	asc.RenderTableTo(d.IO.Out, headers, rows)
 	return nil
 }

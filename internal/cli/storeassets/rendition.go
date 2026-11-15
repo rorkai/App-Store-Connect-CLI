@@ -21,7 +21,7 @@ const maxPreviewBytes int64 = 500_000_000
 // Resolve only against previews fetched from this version's locale/device set.
 // Delivered renditions need a content comparison because their source checksum
 // describes the original upload, not necessarily the bytes returned by Apple.
-func resolvePreviewMatch(ctx context.Context, client *asc.Client, preview *PreviewLayout, existing []asc.Resource[asc.AppPreviewAttributes]) error {
+func resolvePreviewMatch(ctx context.Context, d *shared.Deps, client *asc.Client, preview *PreviewLayout, existing []asc.Resource[asc.AppPreviewAttributes]) error {
 	for _, item := range existing {
 		if preview.referenceID != "" && item.ID == preview.referenceID {
 			preview.existingID, preview.sourceChecksum = item.ID, item.Attributes.SourceFileChecksum
@@ -40,7 +40,7 @@ func resolvePreviewMatch(ctx context.Context, client *asc.Client, preview *Previ
 		}
 		mediaURL := strings.TrimSpace(item.Attributes.VideoURL)
 		if mediaURL == "" {
-			detail, err := request(ctx, func(ctx context.Context) (*asc.AppPreviewResponse, error) {
+			detail, err := request(ctx, d, func(ctx context.Context) (*asc.AppPreviewResponse, error) {
 				return client.GetAppPreview(ctx, item.ID)
 			})
 			if err != nil {
@@ -48,7 +48,7 @@ func resolvePreviewMatch(ctx context.Context, client *asc.Client, preview *Previ
 			}
 			mediaURL = strings.TrimSpace(detail.Data.Attributes.VideoURL)
 		}
-		match, err := matchesDeliveredMedia(ctx, preview.stagedPath, mediaURL, maxPreviewBytes)
+		match, err := matchesDeliveredMedia(ctx, d, preview.stagedPath, mediaURL, maxPreviewBytes)
 		if err != nil {
 			return fmt.Errorf("verify delivered preview %s: %w", item.ID, err)
 		}
@@ -75,7 +75,7 @@ func (p *ImportPlan) checkPreviewMatches(ctx context.Context, client *asc.Client
 		items, ok := checked[group.SetID]
 		if !ok {
 			var err error
-			items, err = previewItems(ctx, client, group.SetID)
+			items, err = previewItems(ctx, p.deps, client, group.SetID)
 			if err != nil {
 				return err
 			}
@@ -97,7 +97,7 @@ func (p *ImportPlan) checkPreviewMatches(ctx context.Context, client *asc.Client
 
 // Stream at most the staged size plus one sentinel byte, never materializing a
 // remote file. Both digests and lengths must agree; local edits remain uploads.
-func matchesDeliveredMedia(ctx context.Context, stagedPath, mediaURL string, maxBytes int64) (bool, error) {
+func matchesDeliveredMedia(ctx context.Context, d *shared.Deps, stagedPath, mediaURL string, maxBytes int64) (bool, error) {
 	root, err := rootfs.New(filepath.Dir(stagedPath))
 	if err != nil {
 		return false, err
@@ -119,7 +119,7 @@ func matchesDeliveredMedia(ctx context.Context, stagedPath, mediaURL string, max
 	if err != nil || !validPreviewMediaURL(parsed) {
 		return false, fmt.Errorf("asset has no valid HTTP media URL")
 	}
-	bounded, cancel := shared.ContextWithUploadTimeout(shared.ContextWithoutTimeout(ctx))
+	bounded, cancel := d.UploadTimeout(shared.ContextWithoutTimeout(ctx))
 	defer cancel()
 	req, err := http.NewRequestWithContext(bounded, http.MethodGet, mediaURL, nil)
 	if err != nil {

@@ -55,8 +55,8 @@ type metadataSettingScope struct {
 	needsAppInfo bool
 	validate     func(map[string]string, bool) error
 	// fetch returns nil values only when the resource does not exist.
-	fetch  func(ctx context.Context, client *asc.Client, target metadataSettingTarget) (map[string]string, error)
-	update func(ctx context.Context, client *asc.Client, target metadataSettingTarget, changed map[string]string) (string, error)
+	fetch  func(ctx context.Context, d *shared.Deps, client *asc.Client, target metadataSettingTarget) (map[string]string, error)
+	update func(ctx context.Context, d *shared.Deps, client *asc.Client, target metadataSettingTarget, changed map[string]string) (string, error)
 }
 
 type metadataSettingPlan struct {
@@ -135,31 +135,31 @@ func metadataSettingsNeedAppInfo(scopes []metadataSettingScope) bool {
 	return false
 }
 
-func readMetadataSettingFile(dir string, scope metadataSettingScope) (map[string]string, error) {
+func readMetadataSettingFile(d *shared.Deps, dir string, scope metadataSettingScope) (map[string]string, error) {
 	path := filepath.Join(dir, scope.fileName)
 	data, err := readFileNoFollow(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return nil, shared.UsageErrorf("--include %s requires %s", scope.name, path)
+			return nil, d.UsageErrorf("--include %s requires %s", scope.name, path)
 		}
 		return nil, fmt.Errorf("failed to read %s: %w", path, err)
 	}
 	var raw map[string]json.RawMessage
 	if err := decodeStrictJSON(data, &raw); err != nil {
-		return nil, shared.UsageErrorf("invalid metadata schema in %s: %v", path, err)
+		return nil, d.UsageErrorf("invalid metadata schema in %s: %v", path, err)
 	}
 	values := make(map[string]string, len(raw))
 	for key, rawValue := range raw {
 		field, ok := scope.field(key)
 		if !ok {
-			return nil, shared.UsageErrorf("invalid metadata schema in %s: unknown field %q", path, key)
+			return nil, d.UsageErrorf("invalid metadata schema in %s: unknown field %q", path, key)
 		}
 		if field.nullUnset && isJSONNull(rawValue) {
 			continue
 		}
 		value, err := decodeMetadataSettingValue(dir, field, rawValue)
 		if err != nil {
-			return nil, shared.UsageErrorf("invalid metadata schema in %s: %v", path, err)
+			return nil, d.UsageErrorf("invalid metadata schema in %s: %v", path, err)
 		}
 		values[field.name] = value
 		if field.secretEnv != "" {
@@ -170,7 +170,7 @@ func readMetadataSettingFile(dir string, scope metadataSettingScope) (map[string
 	}
 	if scope.validate != nil {
 		if err := scope.validate(values, false); err != nil {
-			return nil, shared.UsageErrorf("invalid metadata schema in %s: %v", path, err)
+			return nil, d.UsageErrorf("invalid metadata schema in %s: %v", path, err)
 		}
 	}
 	return values, nil
@@ -312,21 +312,21 @@ func buildMetadataSettingPlan(scope metadataSettingScope, local, remote map[stri
 	return plan, adds, updates
 }
 
-func applyMetadataSettingPlan(ctx context.Context, client *asc.Client, target metadataSettingTarget, plan metadataSettingPlan) (ApplyAction, error) {
+func applyMetadataSettingPlan(ctx context.Context, d *shared.Deps, client *asc.Client, target metadataSettingTarget, plan metadataSettingPlan) (ApplyAction, error) {
 	scope := plan.scope
 	action := plan.action
-	_, _, err := shared.RunReconciledMutation(ctx, func(requestCtx context.Context) (struct{}, error) {
-		actualAction, err := scope.update(requestCtx, client, target, plan.changed)
+	_, _, err := shared.RunReconciledMutationWith(ctx, d, func(requestCtx context.Context) (struct{}, error) {
+		actualAction, err := scope.update(requestCtx, d, client, target, plan.changed)
 		if actualAction != "" {
 			action = actualAction
 		}
 		return struct{}{}, err
 	}, func(readCtx context.Context) (struct{}, bool, error) {
-		remote, err := scope.fetch(readCtx, client, target)
+		remote, err := scope.fetch(readCtx, d, client, target)
 		return struct{}{}, err == nil && metadataFieldsMatch(remote, plan.changed), err
 	})
 	if err == nil {
-		err = verifyMetadataSetting(ctx, client, target, plan)
+		err = verifyMetadataSetting(ctx, d, client, target, plan)
 	}
 	if err != nil {
 		err = newMetadataMutationActionError(fmt.Errorf("%s %s: %w", action, scope.name, err))
@@ -341,8 +341,8 @@ func applyMetadataSettingPlan(ctx context.Context, client *asc.Client, target me
 	return successfulMetadataAction(scope.name, "", "", action, ""), nil
 }
 
-func verifyMetadataSetting(ctx context.Context, client *asc.Client, target metadataSettingTarget, plan metadataSettingPlan) error {
-	remote, err := plan.scope.fetch(ctx, client, target)
+func verifyMetadataSetting(ctx context.Context, d *shared.Deps, client *asc.Client, target metadataSettingTarget, plan metadataSettingPlan) error {
+	remote, err := plan.scope.fetch(ctx, d, client, target)
 	if err != nil {
 		return fmt.Errorf("read back: %w", err)
 	}

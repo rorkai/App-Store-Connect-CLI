@@ -59,16 +59,17 @@ type ManagedExport struct {
 	inventory     exportInventory
 	identity      *rootfs.FileIdentity
 	legacyWindows bool
+	deps          *shared.Deps
 }
 
 // PrepareExport rejects malformed ownership and target conflicts before callers
 // write ordinary metadata. Unselected scopes retain their existing ownership.
-func PrepareExport(root rootfs.Root, files []ExportFile, options ExportOptions) (*ManagedExport, error) {
+func PrepareExport(d *shared.Deps, root rootfs.Root, files []ExportFile, options ExportOptions) (*ManagedExport, error) {
 	files = append([]ExportFile(nil), files...)
 	for i := range files {
 		files[i].Path = filepath.ToSlash(files[i].Path)
 	}
-	p := &ManagedExport{root: root, files: files, options: options, inventory: exportInventory{Schema: 1}}
+	p := &ManagedExport{root: root, files: files, options: options, inventory: exportInventory{Schema: 1}, deps: d}
 	if !options.Clip && !options.Previews {
 		return p, nil
 	}
@@ -285,7 +286,7 @@ func (p *ManagedExport) Write(ctx context.Context) ([]string, []string, error) {
 		return nil, nil, nil
 	}
 	if p.legacyWindows {
-		paths, err := WriteExport(ctx, p.root, p.files, p.options.Overwrite)
+		paths, err := WriteExport(ctx, p.deps, p.root, p.files, p.options.Overwrite)
 		return paths, []string{"owned asset cleanup is unavailable on Windows; stale exported files are preserved and repeated exports are not guaranteed to round-trip"}, err
 	}
 	if err := ctx.Err(); err != nil {
@@ -317,7 +318,7 @@ func (p *ManagedExport) Write(ctx context.Context) ([]string, []string, error) {
 			warnings = append(warnings, "preserving locally edited asset "+f.Path)
 			continue
 		}
-		staged, fp, closeStage, err := stageExport(ctx, f)
+		staged, fp, closeStage, err := stageExport(ctx, p.deps, f)
 		if err != nil {
 			return written, warnings, fmt.Errorf("export %s: %w", f.Path, err)
 		}
@@ -413,7 +414,7 @@ func (p *ManagedExport) remove(path string, fp exportFingerprint) error {
 	return p.root.RemoveFileIfSHA256Same(path, fp.Size, digest)
 }
 
-func stageExport(ctx context.Context, f ExportFile) (io.Reader, exportFingerprint, func(), error) {
+func stageExport(ctx context.Context, d *shared.Deps, f ExportFile) (io.Reader, exportFingerprint, func(), error) {
 	if f.Text != nil {
 		data := []byte(*f.Text)
 		fp, err := fingerprint(bytes.NewReader(data), exportPathLimit(f.Path))
@@ -425,7 +426,7 @@ func stageExport(ctx context.Context, f ExportFile) (io.Reader, exportFingerprin
 	}
 	cleanup := func() { _ = os.RemoveAll(dir) }
 	temp := filepath.Join(dir, "asset")
-	c, cancel := shared.ContextWithUploadTimeout(shared.ContextWithoutTimeout(ctx))
+	c, cancel := d.UploadTimeout(shared.ContextWithoutTimeout(ctx))
 	defer cancel()
 	if _, _, err := assets.DownloadMediaURL(c, f.URL, temp, false); err != nil {
 		cleanup()

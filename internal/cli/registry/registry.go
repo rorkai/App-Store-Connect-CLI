@@ -254,7 +254,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("localizations", "Manage App Store localization metadata.", func() *ffcli.Command {
 			return localizations.NewLocalizationsCommand(d)
 		}),
-		commandFactory("metadata", "Manage app metadata with deterministic workflows and keyword tooling.", metadata.MetadataCommand),
+		commandFactory("metadata", "Manage app metadata with deterministic workflows and keyword tooling.", func() *ffcli.Command {
+			return metadata.NewMetadataCommand(d)
+		}),
 		commandFactory("screenshots", "Upload and manage App Store screenshots, including local capture, framing, and matrices.", screenshots.ScreenshotsCommand),
 		commandFactory("video-previews", "Manage App Store app preview videos.", videopreviews.VideoPreviewsCommand),
 		commandFactory("asset-library", "Inspect Asset Library media and specifications, and upload images and videos.", func() *ffcli.Command {

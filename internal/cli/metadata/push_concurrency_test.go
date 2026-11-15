@@ -55,7 +55,7 @@ func TestApplyMetadataPlanOverlapsLocaleWritesInOrder(t *testing.T) {
 		})
 	}
 
-	actions, err := applyMetadataPlan(context.Background(), newMetadataFetchClient(t), "appinfo-1", "version-1", "1.0", local, nil, remote, nil, false, metadataIfExistsOptions{})
+	actions, err := applyMetadataPlan(context.Background(), metadataTestDeps(), newMetadataFetchClient(t), "appinfo-1", "version-1", "1.0", local, nil, remote, nil, false, metadataIfExistsOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}

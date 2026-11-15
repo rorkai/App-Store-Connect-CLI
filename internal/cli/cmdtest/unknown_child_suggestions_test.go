@@ -74,6 +74,7 @@ func TestUnknownChildSuggestionsAcrossCommandGroups(t *testing.T) {
 		{
 			name: "metadata",
 			args: []string{"metadata", "get"},
+			deps: true,
 			wantStderr: "Error: unknown command `asc metadata get`\n" +
 				"Try:\n" +
 				"  asc metadata pull --app APP_ID --version VERSION --dir ./metadata\n" +

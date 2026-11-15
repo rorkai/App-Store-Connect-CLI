@@ -34,7 +34,7 @@ func TestLocalizationFetchesUseFreshDeadlinePerPage(t *testing.T) {
 			firstBody: `{"data":[{"type":"appInfoLocalizations","id":"loc-1","attributes":{"locale":"en-US"}}],"links":{"next":"/v1/appInfos/info-1/appInfoLocalizations?cursor=next"}}`,
 			lastBody:  `{"data":[{"type":"appInfoLocalizations","id":"loc-2","attributes":{"locale":"fr-FR"}}],"links":{"next":""}}`,
 			fetch: func(ctx context.Context, client *asc.Client) (int, error) {
-				items, err := fetchAppInfoLocalizations(ctx, client, "info-1")
+				items, err := fetchAppInfoLocalizations(ctx, metadataTestDeps(), client, "info-1")
 				return len(items), err
 			},
 		},
@@ -43,7 +43,7 @@ func TestLocalizationFetchesUseFreshDeadlinePerPage(t *testing.T) {
 			firstBody: `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"locale":"en-US"}}],"links":{"next":"/v1/appStoreVersions/version-1/appStoreVersionLocalizations?cursor=next"}}`,
 			lastBody:  `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-2","attributes":{"locale":"fr-FR"}}],"links":{"next":""}}`,
 			fetch: func(ctx context.Context, client *asc.Client) (int, error) {
-				items, err := fetchVersionLocalizations(ctx, client, "version-1")
+				items, err := fetchVersionLocalizations(ctx, metadataTestDeps(), client, "version-1")
 				return len(items), err
 			},
 		},

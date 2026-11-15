@@ -73,12 +73,12 @@ var categoriesSettingScope = metadataSettingScope{
 	update:       updateAppInfoCategories,
 }
 
-func fetchAppInfoCategories(ctx context.Context, client *asc.Client, target metadataSettingTarget) (map[string]string, error) {
+func fetchAppInfoCategories(ctx context.Context, d *shared.Deps, client *asc.Client, target metadataSettingTarget) (map[string]string, error) {
 	values := map[string]string{}
 	needsParentCheck := false
 	for _, field := range categoryFields {
 		read := categoryRelationshipReaders[field.name]
-		id, err := shared.RetryReadWithFreshTimeout(ctx, func(requestCtx context.Context) (string, error) {
+		id, err := shared.RetryReadWithFreshTimeoutWith(ctx, d, func(requestCtx context.Context) (string, error) {
 			id, err := read(requestCtx, client, target.appInfoID)
 			if asc.IsNotFound(err) {
 				needsParentCheck = true
@@ -94,7 +94,7 @@ func fetchAppInfoCategories(ctx context.Context, client *asc.Client, target meta
 		}
 	}
 	if needsParentCheck {
-		_, err := shared.RetryReadWithFreshTimeout(ctx, func(requestCtx context.Context) (*asc.AppInfoResponse, error) {
+		_, err := shared.RetryReadWithFreshTimeoutWith(ctx, d, func(requestCtx context.Context) (*asc.AppInfoResponse, error) {
 			return client.GetAppInfo(requestCtx, target.appInfoID)
 		})
 		if err != nil {
@@ -104,7 +104,7 @@ func fetchAppInfoCategories(ctx context.Context, client *asc.Client, target meta
 	return values, nil
 }
 
-func updateAppInfoCategories(ctx context.Context, client *asc.Client, target metadataSettingTarget, changed map[string]string) (string, error) {
+func updateAppInfoCategories(ctx context.Context, _ *shared.Deps, client *asc.Client, target metadataSettingTarget, changed map[string]string) (string, error) {
 	_, err := client.UpdateAppInfoCategories(
 		ctx,
 		target.appInfoID,
