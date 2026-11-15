@@ -6,6 +6,8 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
+	"strconv"
 	"strings"
 )
 
@@ -122,4 +124,86 @@ func (c *Client) GetInAppPurchaseVersionLocalizations(ctx context.Context, versi
 		Next:        query.nextURL,
 		NextContext: "in-app-purchase-version-localizations",
 	})
+}
+
+// IAPVersionGetOption sets the query of GET /v1/inAppPurchaseVersions/{id} (inAppPurchaseVersions_getInstance).
+type IAPVersionGetOption func(*iapVersionGetQuery)
+
+type iapVersionGetQuery struct {
+	versionFields      []string
+	iapFields          []string
+	imageFields        []string
+	localizationFields []string
+	include            []string
+	imagesLimit        int
+	localizationsLimit int
+}
+
+// WithIAPVersionGetFields sets fields[inAppPurchaseVersions].
+func WithIAPVersionGetFields(fields []string) IAPVersionGetOption {
+	return func(q *iapVersionGetQuery) {
+		q.versionFields = normalizeUniqueList(fields)
+	}
+}
+
+// WithIAPVersionGetIAPFields sets fields[inAppPurchases].
+func WithIAPVersionGetIAPFields(fields []string) IAPVersionGetOption {
+	return func(q *iapVersionGetQuery) {
+		q.iapFields = normalizeUniqueList(fields)
+	}
+}
+
+// WithIAPVersionGetImageFields sets fields[inAppPurchaseImages].
+func WithIAPVersionGetImageFields(fields []string) IAPVersionGetOption {
+	return func(q *iapVersionGetQuery) {
+		q.imageFields = normalizeUniqueList(fields)
+	}
+}
+
+// WithIAPVersionGetLocalizationFields sets fields[inAppPurchaseLocalizations].
+func WithIAPVersionGetLocalizationFields(fields []string) IAPVersionGetOption {
+	return func(q *iapVersionGetQuery) {
+		q.localizationFields = normalizeUniqueList(fields)
+	}
+}
+
+// WithIAPVersionGetInclude sets include.
+func WithIAPVersionGetInclude(include []string) IAPVersionGetOption {
+	return func(q *iapVersionGetQuery) {
+		q.include = normalizeUniqueList(include)
+	}
+}
+
+// WithIAPVersionGetImagesLimit sets limit[images].
+func WithIAPVersionGetImagesLimit(limit int) IAPVersionGetOption {
+	return func(q *iapVersionGetQuery) {
+		if limit > 0 {
+			q.imagesLimit = limit
+		}
+	}
+}
+
+// WithIAPVersionGetLocalizationsLimit sets limit[localizations].
+func WithIAPVersionGetLocalizationsLimit(limit int) IAPVersionGetOption {
+	return func(q *iapVersionGetQuery) {
+		if limit > 0 {
+			q.localizationsLimit = limit
+		}
+	}
+}
+
+func buildIAPVersionGetQuery(query *iapVersionGetQuery) string {
+	values := url.Values{}
+	addCSV(values, "fields[inAppPurchaseVersions]", query.versionFields)
+	addCSV(values, "fields[inAppPurchases]", query.iapFields)
+	addCSV(values, "fields[inAppPurchaseImages]", query.imageFields)
+	addCSV(values, "fields[inAppPurchaseLocalizations]", query.localizationFields)
+	addCSV(values, "include", query.include)
+	if query.imagesLimit > 0 {
+		values.Set("limit[images]", strconv.Itoa(query.imagesLimit))
+	}
+	if query.localizationsLimit > 0 {
+		values.Set("limit[localizations]", strconv.Itoa(query.localizationsLimit))
+	}
+	return values.Encode()
 }

@@ -11,7 +11,6 @@ type buildsQuery struct {
 	includedFieldsQuery
 	sort                 string
 	version              string
-	preReleaseVersion    string
 	processingStates     []string
 	buildAudienceType    BuildAudienceType
 	preReleasePlatforms  []string

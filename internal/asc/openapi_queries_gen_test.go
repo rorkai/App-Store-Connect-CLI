@@ -641,6 +641,14 @@ var generatedQueries = map[string]generatedQuery{
 		build:   buildIAPAvailabilityTerritoriesQuery,
 		options: map[string]any{},
 	},
+	"inAppPurchaseLocalizationsV2_getInstance": {
+		build: buildIAPLocalizationV2Query,
+		options: map[string]any{
+			"fields[inAppPurchaseLocalizations]": WithIAPLocalizationV2Fields,
+			"fields[inAppPurchaseVersions]":      WithIAPLocalizationV2VersionFields,
+			"include":                            WithIAPLocalizationV2Include,
+		},
+	},
 	"inAppPurchaseOfferCodes_customCodes_getToManyRelated": {
 		build:   buildIAPOfferCodeCustomCodesQuery,
 		options: map[string]any{},
@@ -683,6 +691,18 @@ var generatedQueries = map[string]generatedQuery{
 			"fields[inAppPurchasePrices]":      WithIAPPriceSchedulePricesFields,
 			"fields[inAppPurchasePricePoints]": WithIAPPriceSchedulePricesPricePointFields,
 			"fields[territories]":              WithIAPPriceSchedulePricesTerritoryFields,
+		},
+	},
+	"inAppPurchaseVersions_getInstance": {
+		build: buildIAPVersionGetQuery,
+		options: map[string]any{
+			"fields[inAppPurchaseVersions]":      WithIAPVersionGetFields,
+			"fields[inAppPurchases]":             WithIAPVersionGetIAPFields,
+			"fields[inAppPurchaseImages]":        WithIAPVersionGetImageFields,
+			"fields[inAppPurchaseLocalizations]": WithIAPVersionGetLocalizationFields,
+			"include":                            WithIAPVersionGetInclude,
+			"limit[images]":                      WithIAPVersionGetImagesLimit,
+			"limit[localizations]":               WithIAPVersionGetLocalizationsLimit,
 		},
 	},
 	"inAppPurchasesV2_iapPriceSchedule_getToOneRelated": {
