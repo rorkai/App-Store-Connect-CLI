@@ -68,7 +68,6 @@ type merchantIDCertificatesQuery struct {
 type profilesQuery struct {
 	listQuery
 	includedFieldsQuery
-	bundleID          string
 	name              string
 	ids               string
 	profileTypes      []string
@@ -209,9 +208,6 @@ func buildProfilesQuery(query *profilesQuery) string {
 	}
 	if strings.TrimSpace(query.ids) != "" {
 		values.Set("filter[id]", strings.TrimSpace(query.ids))
-	}
-	if strings.TrimSpace(query.bundleID) != "" {
-		values.Set("filter[bundleId]", strings.TrimSpace(query.bundleID))
 	}
 	addCSV(values, "filter[profileType]", query.profileTypes)
 	addCSV(values, "filter[profileState]", query.profileStates)
