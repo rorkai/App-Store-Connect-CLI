@@ -135,11 +135,15 @@ func TestPublishLocalBuildGeneratesExportOptionsAfterArchive(t *testing.T) {
 	}
 	var generatedPath string
 	callOrder := make([]string, 0, 4)
+	d := newPublishTestDeps()
 
 	runPublishArchiveFn = func(_ context.Context, opts localxcode.ArchiveOptions) (*localxcode.ArchiveResult, error) {
 		callOrder = append(callOrder, "archive")
 		if opts.ArchivePath != archivePath {
 			t.Fatalf("expected archive path %q, got %q", archivePath, opts.ArchivePath)
+		}
+		if opts.LogWriter != d.IO.ErrOut {
+			t.Fatalf("archive log writer = %v, want the deps stderr", opts.LogWriter)
 		}
 		return &localxcode.ArchiveResult{
 			ArchivePath:   archivePath,
@@ -178,6 +182,9 @@ func TestPublishLocalBuildGeneratesExportOptionsAfterArchive(t *testing.T) {
 		if opts.ExportOptions != generatedPath {
 			t.Fatalf("expected generated export options path %q, got %q", generatedPath, opts.ExportOptions)
 		}
+		if opts.LogWriter != d.IO.ErrOut {
+			t.Fatalf("export log writer = %v, want the deps stderr", opts.LogWriter)
+		}
 		return &localxcode.ExportResult{
 			ArchivePath: archivePath,
 			IPAPath:     ipaPath,
@@ -196,7 +203,7 @@ func TestPublishLocalBuildGeneratesExportOptionsAfterArchive(t *testing.T) {
 
 	result, err := runPublishLocalBuild(
 		context.Background(),
-		newPublishTestDeps(),
+		d,
 		nil,
 		"app-123",
 		"IOS",
