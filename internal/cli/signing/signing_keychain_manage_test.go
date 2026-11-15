@@ -21,6 +21,8 @@ import (
 	"time"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 type keychainRunnerCall struct {
@@ -34,7 +36,8 @@ func TestSigningKeychainDeleteRefusesLoginBeforeSecurity(t *testing.T) {
 		called = true
 		return nil, nil, nil
 	})
-	cmd := SigningKeychainDeleteCommand()
+	d, _, _ := newSigningTestDeps(nil)
+	cmd := newSigningKeychainDeleteCommand(d)
 	if err := cmd.Parse([]string{"--keychain", "login.keychain-db", "--confirm"}); err != nil {
 		t.Fatal(err)
 	}
@@ -48,7 +51,8 @@ func TestSigningKeychainDeleteRefusesLoginBeforeSecurity(t *testing.T) {
 }
 
 func TestSigningKeychainDeleteRequiresConfirm(t *testing.T) {
-	cmd := SigningKeychainDeleteCommand()
+	d, _, _ := newSigningTestDeps(nil)
+	cmd := newSigningKeychainDeleteCommand(d)
 	if err := cmd.Parse([]string{"--keychain", filepath.Join(t.TempDir(), "app.keychain-db")}); err != nil {
 		t.Fatal(err)
 	}
@@ -82,7 +86,8 @@ func TestSigningKeychainDeleteRefusesLinksToProtectedKeychains(t *testing.T) {
 		t.Run(filepath.Base(path), func(t *testing.T) {
 			var calls []keychainRunnerCall
 			setKeychainRunner(t, recordingKeychainRunner(&calls, nil))
-			cmd := SigningKeychainDeleteCommand()
+			d, _, _ := newSigningTestDeps(nil)
+			cmd := newSigningKeychainDeleteCommand(d)
 			if err := cmd.Parse([]string{"--keychain", path, "--confirm"}); err != nil {
 				t.Fatal(err)
 			}
@@ -106,7 +111,8 @@ func TestSigningKeychainDeleteRefusesDefaultKeychain(t *testing.T) {
 		}
 		return nil, nil, nil
 	}))
-	cmd := SigningKeychainDeleteCommand()
+	d, _, _ := newSigningTestDeps(nil)
+	cmd := newSigningKeychainDeleteCommand(d)
 	if err := cmd.Parse([]string{"--keychain", keychain, "--confirm"}); err != nil {
 		t.Fatal(err)
 	}
@@ -126,7 +132,8 @@ func TestSigningKeychainDeleteRefusesWhenDefaultKeychainIsUnknown(t *testing.T) 
 		}
 		return nil, nil, nil
 	}))
-	cmd := SigningKeychainDeleteCommand()
+	d, _, _ := newSigningTestDeps(nil)
+	cmd := newSigningKeychainDeleteCommand(d)
 	if err := cmd.Parse([]string{"--keychain", keychain, "--confirm"}); err != nil {
 		t.Fatal(err)
 	}
@@ -153,15 +160,15 @@ func TestSigningKeychainDeleteResolvesDedicatedKeychain(t *testing.T) {
 		}
 		return nil, nil, nil
 	}))
-	cmd := SigningKeychainDeleteCommand()
+	d, depsStdout, _ := newSigningTestDeps(nil)
+	cmd := newSigningKeychainDeleteCommand(d)
 	if err := cmd.Parse([]string{"--keychain", link, "--confirm", "--output", "json"}); err != nil {
 		t.Fatal(err)
 	}
-	stdout, _ := captureOutput(t, func() {
-		if err := cmd.Run(context.Background()); err != nil {
-			t.Fatal(err)
-		}
-	})
+	if err := cmd.Run(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	stdout := depsStdout.String()
 	last := calls[len(calls)-1]
 	if strings.Join(last.args, " ") != "delete-keychain "+physical {
 		t.Fatalf("calls = %#v", calls)
@@ -174,7 +181,8 @@ func TestSigningKeychainDeleteResolvesDedicatedKeychain(t *testing.T) {
 func TestSigningKeychainRequiresExistingKeychainBeforeSecurity(t *testing.T) {
 	var calls []keychainRunnerCall
 	setKeychainRunner(t, recordingKeychainRunner(&calls, nil))
-	cmd := SigningKeychainLockCommand()
+	d, _, _ := newSigningTestDeps(nil)
+	cmd := newSigningKeychainLockCommand(d)
 	if err := cmd.Parse([]string{"--keychain", filepath.Join(t.TempDir(), "missing.keychain-db")}); err != nil {
 		t.Fatal(err)
 	}
@@ -193,15 +201,14 @@ func TestSigningKeychainUnlockKeepsPasswordOffArgvAndIsRepeatable(t *testing.T) 
 	var calls []keychainRunnerCall
 	setKeychainRunner(t, recordingKeychainRunner(&calls, nil))
 	for range 2 {
-		cmd := SigningKeychainUnlockCommand()
+		d, _, _ := newSigningTestDeps(nil)
+		cmd := newSigningKeychainUnlockCommand(d)
 		if err := cmd.Parse([]string{"--keychain", keychain, "--keychain-password-file", passwordFile}); err != nil {
 			t.Fatal(err)
 		}
-		captureOutput(t, func() {
-			if err := cmd.Run(context.Background()); err != nil {
-				t.Fatal(err)
-			}
-		})
+		if err := cmd.Run(context.Background()); err != nil {
+			t.Fatal(err)
+		}
 	}
 	if len(calls) != 2 {
 		t.Fatalf("calls = %#v", calls)
@@ -221,12 +228,12 @@ func TestSigningKeychainPasswordCommandsStopAfterFailedUnlock(t *testing.T) {
 	keychain := writeTestKeychainFile(t)
 	for _, test := range []struct {
 		name    string
-		command func() *ffcli.Command
+		command func(*shared.Deps) *ffcli.Command
 		args    []string
 	}{
-		{name: "unlock", command: SigningKeychainUnlockCommand, args: []string{"--timeout", "600"}},
-		{name: "set-timeout", command: SigningKeychainSetTimeoutCommand, args: []string{"--timeout", "600"}},
-		{name: "set-partition-list", command: SigningKeychainSetPartitionListCommand},
+		{name: "unlock", command: newSigningKeychainUnlockCommand, args: []string{"--timeout", "600"}},
+		{name: "set-timeout", command: newSigningKeychainSetTimeoutCommand, args: []string{"--timeout", "600"}},
+		{name: "set-partition-list", command: newSigningKeychainSetPartitionListCommand},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			var calls []keychainRunnerCall
@@ -236,7 +243,8 @@ func TestSigningKeychainPasswordCommandsStopAfterFailedUnlock(t *testing.T) {
 				}
 				return nil, nil, nil
 			}))
-			cmd := test.command()
+			d, _, _ := newSigningTestDeps(nil)
+			cmd := test.command(d)
 			if err := cmd.Parse(append([]string{"--keychain", keychain, "--keychain-password-file", passwordFile}, test.args...)); err != nil {
 				t.Fatal(err)
 			}
@@ -284,15 +292,14 @@ func TestSigningKeychainSetTimeoutPreservesLockOnSleep(t *testing.T) {
 				}
 				return nil, nil, nil
 			}))
-			cmd := SigningKeychainSetTimeoutCommand()
+			d, _, _ := newSigningTestDeps(nil)
+			cmd := newSigningKeychainSetTimeoutCommand(d)
 			if err := cmd.Parse(append([]string{"--keychain", keychain, "--keychain-password-file", passwordFile, "--output", "json"}, test.args...)); err != nil {
 				t.Fatal(err)
 			}
-			captureOutput(t, func() {
-				if err := cmd.Run(context.Background()); err != nil {
-					t.Fatal(err)
-				}
-			})
+			if err := cmd.Run(context.Background()); err != nil {
+				t.Fatal(err)
+			}
 			if len(calls) != 3 || calls[0].args[0] != "unlock-keychain" || calls[1].args[0] != "show-keychain-info" {
 				t.Fatalf("calls = %#v", calls)
 			}
@@ -309,15 +316,14 @@ func TestSigningKeychainSetPartitionListSendsPasswordOnStdin(t *testing.T) {
 	physical, _ := filepath.EvalSymlinks(keychain)
 	var calls []keychainRunnerCall
 	setKeychainRunner(t, recordingKeychainRunner(&calls, nil))
-	cmd := SigningKeychainSetPartitionListCommand()
+	d, _, _ := newSigningTestDeps(nil)
+	cmd := newSigningKeychainSetPartitionListCommand(d)
 	if err := cmd.Parse([]string{"--keychain", keychain, "--keychain-password-file", passwordFile, "--output", "json"}); err != nil {
 		t.Fatal(err)
 	}
-	captureOutput(t, func() {
-		if err := cmd.Run(context.Background()); err != nil {
-			t.Fatal(err)
-		}
-	})
+	if err := cmd.Run(context.Background()); err != nil {
+		t.Fatal(err)
+	}
 	if len(calls) != 2 {
 		t.Fatalf("calls = %#v", calls)
 	}
@@ -348,15 +354,14 @@ func TestSigningKeychainSetPartitionListUnlocksBeforeIdentityLookup(t *testing.T
 		}
 		return nil, nil, nil
 	})
-	cmd := SigningKeychainSetPartitionListCommand()
+	d, _, _ := newSigningTestDeps(nil)
+	cmd := newSigningKeychainSetPartitionListCommand(d)
 	if err := cmd.Parse([]string{"--keychain", keychain, "--keychain-password-file", passwordFile, "--identity-sha256", strings.ToUpper(sha), "--output", "json"}); err != nil {
 		t.Fatal(err)
 	}
-	captureOutput(t, func() {
-		if err := cmd.Run(context.Background()); err != nil {
-			t.Fatal(err)
-		}
-	})
+	if err := cmd.Run(context.Background()); err != nil {
+		t.Fatal(err)
+	}
 	if strings.Join(order, ",") != "unlock-keychain,find-identity,find-certificate,set-key-partition-list" {
 		t.Fatalf("order = %#v", order)
 	}
@@ -376,7 +381,8 @@ func TestSigningKeychainSetPartitionListRequiresIdentityNotJustCertificate(t *te
 		}
 		return nil, nil, nil
 	}))
-	cmd := SigningKeychainSetPartitionListCommand()
+	d, _, _ := newSigningTestDeps(nil)
+	cmd := newSigningKeychainSetPartitionListCommand(d)
 	if err := cmd.Parse([]string{"--keychain", keychain, "--keychain-password-file", passwordFile, "--identity-sha256", sha256Hex(certificate.Raw)}); err != nil {
 		t.Fatal(err)
 	}
@@ -412,15 +418,16 @@ func TestSigningKeychainListReportsLockStateWithoutPrompting(t *testing.T) {
 	}
 	t.Cleanup(func() { keychainLockState = previous })
 
-	cmd := SigningKeychainListCommand()
+	d, depsStdout, _ := newSigningTestDeps(nil)
+
+	cmd := newSigningKeychainListCommand(d)
 	if err := cmd.Parse([]string{"--output", "json"}); err != nil {
 		t.Fatal(err)
 	}
-	stdout, _ := captureOutput(t, func() {
-		if err := cmd.Run(context.Background()); err != nil {
-			t.Fatal(err)
-		}
-	})
+	if err := cmd.Run(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	stdout := depsStdout.String()
 	var result struct {
 		Keychains []struct {
 			Path         string `json:"path"`
@@ -458,7 +465,8 @@ func TestSigningKeychainRefusesNonDarwin(t *testing.T) {
 	previous := keychainHostGOOS
 	keychainHostGOOS = "linux"
 	t.Cleanup(func() { keychainHostGOOS = previous })
-	cmd := SigningKeychainLockCommand()
+	d, _, _ := newSigningTestDeps(nil)
+	cmd := newSigningKeychainLockCommand(d)
 	if err := cmd.Parse([]string{"--keychain", filepath.Join(t.TempDir(), "app.keychain-db")}); err != nil {
 		t.Fatal(err)
 	}
