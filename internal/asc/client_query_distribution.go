@@ -26,11 +26,6 @@ type backgroundAssetVersionsQuery struct {
 	sort               string
 }
 
-type androidToIosAppMappingDetailsQuery struct {
-	listQuery
-	fields []string
-}
-
 func buildMarketplaceSearchDetailsFieldsQuery(fields []string) string {
 	values := url.Values{}
 	addCSV(values, "fields[marketplaceSearchDetails]", fields)
@@ -65,22 +60,6 @@ func buildBackgroundAssetVersionsQuery(query *backgroundAssetVersionsQuery) stri
 	addLimit(values, query.limit)
 	return values.Encode()
 }
-
-func buildAndroidToIosAppMappingDetailsQuery(query *androidToIosAppMappingDetailsQuery) string {
-	values := url.Values{}
-	addCSV(values, "fields[androidToIosAppMappingDetails]", query.fields)
-	addLimit(values, query.limit)
-	return values.Encode()
-}
-
-func buildAndroidToIosAppMappingDetailQuery(query *androidToIosAppMappingDetailsQuery) string {
-	values := url.Values{}
-	addCSV(values, "fields[androidToIosAppMappingDetails]", query.fields)
-	return values.Encode()
-}
-
-// AndroidToIosAppMappingDetailsOption is a functional option for Android-to-iOS mappings.
-type AndroidToIosAppMappingDetailsOption func(*androidToIosAppMappingDetailsQuery)
 
 // BackgroundAssetsOption is a functional option for background assets list endpoints.
 type BackgroundAssetsOption func(*backgroundAssetsQuery)
@@ -176,12 +155,5 @@ func WithBackgroundAssetVersionsFilterAppStoreState(values []string) BackgroundA
 func WithBackgroundAssetVersionsSort(sort string) BackgroundAssetVersionsOption {
 	return func(q *backgroundAssetVersionsQuery) {
 		q.sort = strings.TrimSpace(sort)
-	}
-}
-
-// WithAndroidToIosAppMappingDetailsFields sets fields[androidToIosAppMappingDetails].
-func WithAndroidToIosAppMappingDetailsFields(fields []string) AndroidToIosAppMappingDetailsOption {
-	return func(q *androidToIosAppMappingDetailsQuery) {
-		q.fields = normalizeList(fields)
 	}
 }

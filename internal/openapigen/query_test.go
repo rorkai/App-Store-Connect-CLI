@@ -30,6 +30,9 @@ func TestQueryRegistryMatchesGolden(t *testing.T) {
 func TestGenerateRejectsMalformedQueryBindings(t *testing.T) {
 	spec, _ := loadTestdata(t)
 	param := func(name, field string) *QueryParam { return &QueryParam{Name: name, Field: field} }
+	teeth := func(builders ...*QueryBuilder) *QueryBind {
+		return &QueryBind{Operation: "zippers_teeth_getToManyRelated", Name: "X", Params: []*QueryParam{param("fields[widgets]", "")}, Builders: builders}
+	}
 	tests := []struct {
 		name  string
 		query *QueryBind
@@ -58,6 +61,13 @@ func TestGenerateRejectsMalformedQueryBindings(t *testing.T) {
 		{"integer option for an array", &QueryBind{Operation: "zippers_sprockets_getToManyRelated", Name: "X", Params: []*QueryParam{{Name: "filter[label]", Field: "label", Type: "int"}}}},
 		{"string option for an array sent as repeated values", &QueryBind{Operation: "zippers_sprockets_getToManyRelated", Name: "X", Params: []*QueryParam{{Name: "filter[color]", Field: "color", Type: "string"}}}},
 		{"string option that normalizes a list", &QueryBind{Operation: "zippers_sprockets_getToManyRelated", Name: "X", Params: []*QueryParam{{Name: "filter[label]", Field: "label", Type: "string", Normalize: "upper"}}}},
+		{"builder without a name", teeth(&QueryBuilder{Operation: "teeth_getInstance"})},
+		{"builder named as the query's own", teeth(&QueryBuilder{Operation: "teeth_getInstance", Name: "X"})},
+		{"builder named twice", teeth(&QueryBuilder{Operation: "teeth_getInstance", Name: "Y"}, &QueryBuilder{Operation: "widgets_owner_getToOneRelated", Name: "Y"})},
+		{"builder of an unknown operation", teeth(&QueryBuilder{Operation: "widgets_missing", Name: "Y"})},
+		{"builder of a write", teeth(&QueryBuilder{Operation: "widgets_createInstance", Name: "Y"})},
+		{"builder of a read the query's own builder serves", teeth(&QueryBuilder{Operation: "zippers_teeth_getToManyRelated", Name: "Y"})},
+		{"builder whose reads define no bound parameter", teeth(&QueryBuilder{Operation: "widgets_getInstance", Name: "Y"})},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -499,6 +509,158 @@ func TestAdoptQueriesKeepsScalarOptionsWrittenAnotherWay(t *testing.T) {
 				t.Fatal(err)
 			}
 			if want := "Widgets\tzippers_sprockets_getToManyRelated\tquery buildWidgetSprocketsQuery\tkept: " + tt.kept; !strings.Contains(report.String(), want) {
+				t.Errorf("report lacks %q:\n%s", want, report.String())
+			}
+		})
+	}
+}
+
+const handWrittenListAndDetailQuery = `package asc
+
+import (
+	"context"
+	"fmt"
+	"net/url"
+	"strconv"
+	"strings"
+)
+
+// GetZipperTeeth logs, so it stays hand-written.
+func (c *Client) GetZipperTeeth(ctx context.Context, zipperID string, opts ...ZipperTeethOption) (*WidgetsResponse, error) {
+	query := applyOptions(opts)
+	fmt.Println("listing teeth")
+	return getJSON[WidgetsResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/zippers/%s/teeth", zipperID), Query: buildZipperTeethQuery(query), Next: query.nextURL})
+}
+
+// GetTooth logs, so it stays hand-written.
+func (c *Client) GetTooth(ctx context.Context, toothID string, opts ...ZipperTeethOption) (*WidgetResponse, error) {
+	query := applyOptions(opts)
+	fmt.Println("reading a tooth")
+	return getJSON[WidgetResponse](ctx, c, readRequest{Path: fmt.Sprintf("/v1/teeth/%s", toothID), Query: buildZipperToothQuery(query)})
+}
+
+// ZipperTeethOption configures the teeth reads.
+type ZipperTeethOption func(*zipperTeethQuery)
+
+type zipperTeethQuery struct {
+	listQuery
+	pitches    []string
+	fields     []string
+	sort       string
+	gearsLimit int
+}
+
+// WithZipperTeethPitches filters by pitch.
+func WithZipperTeethPitches(pitches []string) ZipperTeethOption {
+	return func(q *zipperTeethQuery) { q.pitches = normalizeList(pitches) }
+}
+
+// WithZipperTeethFields selects widget fields.
+func WithZipperTeethFields(fields []string) ZipperTeethOption {
+	return func(q *zipperTeethQuery) { q.fields = normalizeList(fields) }
+}
+
+// WithZipperTeethSort sorts the teeth.
+func WithZipperTeethSort(sort string) ZipperTeethOption {
+	return func(q *zipperTeethQuery) {
+		if strings.TrimSpace(sort) != "" {
+			q.sort = strings.TrimSpace(sort)
+		}
+	}
+}
+
+// WithZipperTeethGearsLimit limits the included gears.
+func WithZipperTeethGearsLimit(limit int) ZipperTeethOption {
+	return func(q *zipperTeethQuery) {
+		if limit > 0 {
+			q.gearsLimit = limit
+		}
+	}
+}
+
+func buildZipperTeethQuery(query *zipperTeethQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[pitch]", query.pitches)
+	addCSV(values, "fields[widgets]", query.fields)
+	if strings.TrimSpace(query.sort) != "" {
+		values.Set("sort", strings.TrimSpace(query.sort))
+	}
+	addLimit(values, query.limit)
+	if query.gearsLimit > 0 {
+		values.Set("limit[gears]", strconv.Itoa(query.gearsLimit))
+	}
+	return values.Encode()
+}
+
+func buildZipperToothQuery(query *zipperTeethQuery) string {
+	values := url.Values{}
+	addCSV(values, "fields[widgets]", query.fields)
+	if query.gearsLimit > 0 {
+		values.Set("limit[gears]", strconv.Itoa(query.gearsLimit))
+	}
+	return values.Encode()
+}
+`
+
+func TestAdoptQueriesAdoptsBuildersThatShareAQuery(t *testing.T) {
+	dir := writeHandWritten(t, map[string]string{"queries.go": handWrittenListAndDetailQuery})
+	var report bytes.Buffer
+	if err := run(filepath.Join("testdata", "spec.json"), filepath.Join(dir, "bindings"), dir, false, "Widgets", false, &report); err != nil {
+		t.Fatal(err)
+	}
+	for _, line := range []string{
+		"Widgets\tteeth_getInstance\tquery buildZipperToothQuery\tgenerated",
+		"Widgets\tzippers_teeth_getToManyRelated\tquery already generated",
+	} {
+		if !strings.Contains(report.String(), line) {
+			t.Errorf("report lacks %q:\n%s", line, report.String())
+		}
+	}
+	_, testdata := loadTestdata(t)
+	lines, err := jsonLines(testdata.Families[0].Queries[4:5])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := readFile(t, filepath.Join(dir, "bindings", "Widgets.json")); !strings.Contains(got, "\"queries\": [\n    "+lines[0]+"\n  ]") {
+		t.Errorf("bindings after adopt:\n%s\nwant the query %s", got, lines[0])
+	}
+	queries := readFile(t, filepath.Join(dir, "queries.go"))
+	for _, gone := range []string{"ZipperTeethOption func", "zipperTeethQuery struct", "func WithZipperTeeth", "func buildZipperTeethQuery", "func buildZipperToothQuery"} {
+		if strings.Contains(queries, gone) {
+			t.Errorf("queries.go still declares %q:\n%s", gone, queries)
+		}
+	}
+	registry := readFile(t, filepath.Join(dir, queryRegistry))
+	for op, builder := range map[string]string{"zippers_teeth_getToManyRelated": "buildZipperTeethQuery", "teeth_getInstance": "buildZipperToothQuery"} {
+		if !strings.Contains(registry, strconv.Quote(op)+": {\n\t\tbuild: "+builder+",") {
+			t.Errorf("%s lacks %s built by %s:\n%s", queryRegistry, op, builder, registry)
+		}
+	}
+	if err := run(filepath.Join("testdata", "spec.json"), filepath.Join(dir, "bindings"), dir, true, "", false, &report); err != nil {
+		t.Fatalf("check right after adopt: %v", err)
+	}
+}
+
+func TestAdoptQueriesKeepsBuildersThatShareAQueryWrittenAnotherWay(t *testing.T) {
+	for _, tt := range []struct{ name, from, to, kept string }{
+		{"no builder named after the query struct", "buildZipperTeethQuery", "buildZipperTeethListQuery", "query struct zipperTeethQuery is not named after one of its builders buildZipperTeethListQuery, buildZipperToothQuery"},
+		{"a detail builder that sends limit", "addCSV(values, \"fields[widgets]\", query.fields)\n\tif query.gearsLimit", "addCSV(values, \"fields[widgets]\", query.fields)\n\taddLimit(values, query.limit)\n\tif query.gearsLimit", "buildZipperToothQuery differs at"},
+		{"a builder no read uses", "func buildZipperToothQuery(", "func buildZipperSpareQuery(query *zipperTeethQuery) string {\n\treturn \"\"\n}\n\nfunc buildZipperToothQuery(", "no read uses buildZipperSpareQuery"},
+		{"the query's own builder no read uses", "Query: buildZipperTeethQuery(query)", "Query: buildZipperToothQuery(query)", "no read uses buildZipperTeethQuery"},
+		{"builders that send one parameter from two fields", "if query.gearsLimit > 0 {\n\t\tvalues.Set(\"limit[gears]\", strconv.Itoa(query.gearsLimit))\n\t}\n\treturn values.Encode()\n}\n`", "if len(query.pitches) > 0 {\n\t\tvalues.Set(\"limit[gears]\", strconv.Itoa(len(query.pitches)))\n\t}\n\treturn values.Encode()\n}\n`", "buildZipperToothQuery sends limit[gears] from pitches, not gearsLimit"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			src := handWrittenListAndDetailQuery + "`"
+			if !strings.Contains(src, tt.from) {
+				t.Fatalf("fixture lacks %q", tt.from)
+			}
+			src = strings.TrimSuffix(strings.ReplaceAll(src, tt.from, tt.to), "`")
+			dir := writeHandWritten(t, map[string]string{"queries.go": src})
+			var report bytes.Buffer
+			if err := run(filepath.Join("testdata", "spec.json"), filepath.Join(dir, "bindings"), dir, false, "Widgets", true, &report); err != nil {
+				t.Fatal(err)
+			}
+			if want := "kept: " + tt.kept; !strings.Contains(report.String(), want) {
 				t.Errorf("report lacks %q:\n%s", want, report.String())
 			}
 		})

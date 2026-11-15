@@ -80,6 +80,11 @@ type contractQueryFamily struct {
 			Name string `json:"name"`
 			contractBoundParam
 		} `json:"params"`
+		Builders []struct {
+			Operation string   `json:"operation"`
+			Also      []string `json:"also"`
+			Name      string   `json:"name"`
+		} `json:"builders"`
 		Deviations []struct {
 			Operation string `json:"operation"`
 			Problem   string `json:"problem"`
@@ -103,8 +108,11 @@ type contractBoundParam struct {
 // integer or a boolean, encoded as the schema says, and nothing for a blank
 // string or an integer that is not positive; that limit is sent for an
 // operation that pages; and that every query parameter of the operation has
-// an option. Differences recorded in the bindings as deviations, on the read
-// they concern, are excused exactly as for methods.
+// an option. An option of a parameter the operation does not define must send
+// nothing, as must the page size when the operation does not page; this is
+// how the builder of a detail read that shares a list's query leaves out the
+// list's parameters. Differences recorded in the bindings as deviations, on
+// the read they concern, are excused exactly as for methods.
 func TestGeneratedQueriesMatchSchema(t *testing.T) {
 	params, err := loadContractQueryParams()
 	if err != nil {
@@ -131,13 +139,23 @@ func TestGeneratedQueriesMatchSchema(t *testing.T) {
 			for _, p := range b.Params {
 				paramBindings[p.Name] = p.contractBoundParam
 			}
-			served := append([]string{b.Operation}, b.Also...)
+			builderOf := map[string]string{b.Operation: b.Name}
+			others := slices.Clone(b.Also)
+			for _, operation := range b.Also {
+				builderOf[operation] = b.Name
+			}
+			for _, extra := range b.Builders {
+				for _, operation := range append([]string{extra.Operation}, extra.Also...) {
+					builderOf[operation] = extra.Name
+					others = append(others, operation)
+				}
+			}
 			for _, d := range b.Deviations {
-				if d.Operation != "" && !slices.Contains(b.Also, d.Operation) {
+				if d.Operation != "" && !slices.Contains(others, d.Operation) {
 					t.Errorf("query %s: deviation %q is recorded on %s, which the query does not serve", b.Name, d.Problem, d.Operation)
 				}
 			}
-			for _, operation := range served {
+			for _, operation := range append([]string{b.Operation}, others...) {
 				queries++
 				bound[operation] = true
 				opParams, ok := params[operation]
@@ -155,7 +173,7 @@ func TestGeneratedQueriesMatchSchema(t *testing.T) {
 					}
 				}
 				for _, problem := range unrecordedContractProblems(family.Tag, binding, checkGeneratedQuery(operation, opParams, paramBindings)) {
-					t.Errorf("query of %s (build%sQuery): %s", operation, b.Name, problem)
+					t.Errorf("query of %s (build%sQuery): %s", operation, builderOf[operation], problem)
 				}
 			}
 		}
@@ -232,17 +250,13 @@ func checkGeneratedQuery(operation string, params map[string]contractQueryParam,
 	queryType := build.Type().In(0)
 	_, paged := params["limit"]
 	pages := queryType.Implements(reflect.TypeFor[pager]())
-	var problems []string
-	switch {
-	case paged && !pages:
+	if paged && !pages {
 		return []string{"the operation pages with limit, the query has no page size"}
-	case !paged && pages:
-		problems = append(problems, "the query has a page size, the operation defines no limit")
 	}
 
-	send := func(apply func(q reflect.Value)) url.Values {
+	sendPaged := func(limit bool, apply func(q reflect.Value)) url.Values {
 		q := reflect.New(queryType.Elem())
-		if paged {
+		if limit {
 			q.Interface().(pager).page().limit = contractLimit
 		}
 		apply(q)
@@ -252,9 +266,14 @@ func checkGeneratedQuery(operation string, params map[string]contractQueryParam,
 		}
 		return values
 	}
+	send := func(apply func(q reflect.Value)) url.Values { return sendPaged(paged, apply) }
 	base := url.Values{}
 	if paged {
 		base.Set("limit", strconv.Itoa(contractLimit))
+	}
+	var problems []string
+	if !paged && pages && sendPaged(true, func(reflect.Value) {}).Has("limit") {
+		problems = append(problems, "the query has a page size, the operation defines no limit")
 	}
 	if got := send(func(reflect.Value) {}); !reflect.DeepEqual(got, base) {
 		problems = append(problems, fmt.Sprintf("sent %v with no option set, want %v", got, base))
@@ -265,10 +284,6 @@ func checkGeneratedQuery(operation string, params map[string]contractQueryParam,
 		label := runtime.FuncForPC(option.Pointer()).Name()
 		label = label[strings.LastIndex(label, ".")+1:]
 		param, defined := params[name]
-		if !defined {
-			problems = append(problems, fmt.Sprintf("%s sets %s, which the operation does not define", label, name))
-			continue
-		}
 		typ := option.Type()
 		arg := reflect.TypeFor[[]string]()
 		scalar, isScalar := contractScalars[bound[name].Type]
@@ -282,6 +297,17 @@ func checkGeneratedQuery(operation string, params map[string]contractQueryParam,
 		if typ.NumIn() != 1 || typ.In(0) != arg || typ.NumOut() != 1 || typ.Out(0).Kind() != reflect.Func ||
 			typ.Out(0).NumIn() != 1 || typ.Out(0).In(0) != queryType {
 			problems = append(problems, fmt.Sprintf("%s is a %s, not a func(%s) option of %s", label, typ, arg, queryType))
+			continue
+		}
+		if !defined {
+			value := reflect.ValueOf(slices.Clone(contractQueryValues))
+			if isScalar {
+				value = reflect.ValueOf(scalar.cases[0].calls[0])
+			}
+			set := option.Call([]reflect.Value{value})[0]
+			if got := send(func(q reflect.Value) { set.Call([]reflect.Value{q}) }); !reflect.DeepEqual(got, base) {
+				problems = append(problems, fmt.Sprintf("%s sets %s, which the operation does not define", label, name))
+			}
 			continue
 		}
 		if isScalar {

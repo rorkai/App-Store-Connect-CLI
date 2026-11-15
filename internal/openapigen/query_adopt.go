@@ -122,7 +122,7 @@ func (qi *queryIndex) adopt(spec *Spec, b *Bindings, tag string, ops []*Operatio
 	bound := map[string]bool{}
 	for _, f := range b.Families {
 		for _, q := range f.Queries {
-			for _, id := range q.operations() {
+			for _, id := range q.reads() {
 				bound[id] = true
 			}
 		}
@@ -157,7 +157,7 @@ func (qi *queryIndex) adopt(spec *Spec, b *Bindings, tag string, ops []*Operatio
 				if home, _ := spec.Operation(q.Operation); home.Tag != tag {
 					reason = fmt.Sprintf("shared with %s, adopted with tag %s", q.Operation, home.Tag)
 				}
-				for _, id := range q.operations() {
+				for _, id := range q.reads() {
 					if bound[id] {
 						reason = id + " already has a generated query"
 					}
@@ -170,7 +170,7 @@ func (qi *queryIndex) adopt(spec *Spec, b *Bindings, tag string, ops []*Operatio
 			for _, d := range parts {
 				d.adopt()
 			}
-			for _, id := range q.operations() {
+			for _, id := range q.reads() {
 				bound[id] = true
 			}
 			adopted = append(adopted, q)
@@ -184,36 +184,42 @@ func (qi *queryIndex) adopt(spec *Spec, b *Bindings, tag string, ops []*Operatio
 // declarations it replaces, or the reason the query stays hand-written. Every
 // use of the builder must be a client method of one read; the query
 // is bound to the read with the shortest path (then the first operationId)
-// and lists the others as Also.
+// and lists the others as Also. When several builders take the same query
+// struct, the one named after the struct is the query's own and the others
+// are its Builders, each bound to its reads the same way.
 func (qi *queryIndex) derive(spec *Spec, builder string) (*QueryBind, []*decl, string) {
-	var reads []*Operation
-	for _, use := range qi.uses[builder] {
-		if !use.method || len(use.reads) != 1 {
-			return nil, nil, "used by " + use.name
-		}
-		if op, _ := spec.Operation(use.reads[0]); !slices.Contains(reads, op) {
-			reads = append(reads, op)
-		}
+	reads, reason := qi.builderReads(spec, builder)
+	if reason != "" {
+		return nil, nil, reason
 	}
-	sort.Slice(reads, func(i, j int) bool {
-		a, b := strings.Count(reads[i].Path, "/"), strings.Count(reads[j].Path, "/")
-		return a < b || a == b && reads[i].ID < reads[j].ID
-	})
-	op := reads[0]
 	bd := qi.funcs[builder]
 	if bd == nil || bd.adopted {
 		return nil, nil, "no hand-written builder"
 	}
 	fn := bd.node.(*ast.FuncDecl)
-	if len(fn.Type.Params.List) != 1 || len(fn.Type.Params.List[0].Names) != 1 {
+	if !takesOneQuery(fn) {
 		return nil, nil, "builder does not take one query"
 	}
 	structName := strings.TrimPrefix(exprString(fn.Type.Params.List[0].Type), "*")
+	group := []string{builder}
 	for name, d := range qi.funcs {
 		if name != builder && isBuilderName(name) && strings.Contains(exprString(d.node.(*ast.FuncDecl).Type), "*"+structName+")") {
-			return nil, nil, fmt.Sprintf("%s also builds from %s", name, structName)
+			group = append(group, name)
 		}
 	}
+	sort.Strings(group)
+	if len(group) > 1 {
+		own := slices.IndexFunc(group, func(name string) bool { return builderQuery(name).structName() == structName })
+		if own < 0 {
+			return nil, nil, fmt.Sprintf("query struct %s is not named after one of its builders %s", structName, strings.Join(group, ", "))
+		}
+		builder = group[own]
+		group = append(append([]string{builder}, group[:own]...), group[own+1:]...)
+		if reads, reason = qi.builderReads(spec, builder); reason != "" {
+			return nil, nil, reason
+		}
+	}
+	op := reads[0]
 	if qi.methodOn[structName] {
 		return nil, nil, structName + " has methods"
 	}
@@ -233,9 +239,27 @@ func (qi *queryIndex) derive(spec *Spec, builder string) (*QueryBind, []*decl, s
 	}
 	od := options[0]
 
-	q := &QueryBind{Operation: op.ID, Name: strings.TrimSuffix(strings.TrimPrefix(builder, "build"), "Query")}
+	q := builderQuery(builder)
+	q.Operation = op.ID
 	for _, read := range reads[1:] {
 		q.Also = append(q.Also, read.ID)
+	}
+	builders := []*decl{qi.funcs[builder]}
+	for _, name := range group[1:] {
+		d := qi.funcs[name]
+		if d.adopted || !takesOneQuery(d.node.(*ast.FuncDecl)) {
+			return nil, nil, name + " does not take one query"
+		}
+		reads, reason := qi.builderReads(spec, name)
+		if reason != "" {
+			return nil, nil, reason
+		}
+		extra := &QueryBuilder{Operation: reads[0].ID, Name: builderQuery(name).Name}
+		for _, read := range reads[1:] {
+			extra.Also = append(extra.Also, read.ID)
+		}
+		q.Builders = append(q.Builders, extra)
+		builders = append(builders, d)
 	}
 	if od.name != q.option() {
 		q.Option = od.name
@@ -247,7 +271,7 @@ func (qi *queryIndex) derive(spec *Spec, builder string) (*QueryBind, []*decl, s
 	for _, d := range qi.returns[od.name] {
 		withs[d.name] = d
 	}
-	parts := map[string]*decl{od.name: od, structName: sd, builder: bd}
+	parts := map[string]*decl{od.name: od, structName: sd}
 	fieldTypes := map[string]string{}
 	if st, ok := sd.node.(*ast.GenDecl).Specs[0].(*ast.TypeSpec).Type.(*ast.StructType); ok {
 		for _, f := range st.Fields.List {
@@ -256,42 +280,26 @@ func (qi *queryIndex) derive(spec *Spec, builder string) (*QueryBind, []*decl, s
 			}
 		}
 	}
-	for _, stmt := range fn.Body.List {
-		p := sentParam(stmt, fn.Type.Params.List[0].Names[0].Name)
-		if p == nil {
-			continue
-		}
-		if _, ok := stmt.(*ast.IfStmt); ok {
-			typ, ok := scalarOfField[fieldTypes[p.Field]]
-			if !ok {
-				return nil, nil, fmt.Sprintf("field %s is a %s", p.Field, fieldTypes[p.Field])
+	sentFrom := map[string]string{}
+	for _, b := range builders {
+		parts[b.name] = b
+		bfn := b.node.(*ast.FuncDecl)
+		for _, stmt := range bfn.Body.List {
+			p := sentParam(stmt, bfn.Type.Params.List[0].Names[0].Name)
+			if p == nil {
+				continue
 			}
-			p.Type = typ
+			if field, ok := sentFrom[p.Name]; ok {
+				if field != p.Field {
+					return nil, nil, fmt.Sprintf("%s sends %s from %s, not %s", b.name, p.Name, p.Field, field)
+				}
+				continue
+			}
+			sentFrom[p.Name] = p.Field
+			if reason := deriveParam(spec, q, op, stmt, p, fieldTypes, withs, parts); reason != "" {
+				return nil, nil, reason
+			}
 		}
-		field := p.Field
-		with := settingWith(withs, field)
-		if with == nil {
-			return nil, nil, "no option sets " + field
-		}
-		delete(withs, with.name)
-		parts[with.name] = with
-		wf := with.node.(*ast.FuncDecl)
-		if len(wf.Type.Params.List) == 1 && len(wf.Type.Params.List[0].Names) == 1 {
-			p.Arg = wf.Type.Params.List[0].Names[0].Name
-		}
-		if p.Type == "" {
-			p.Normalize = normalizeOf(wf, field)
-		}
-		if q.field(spec, op, &QueryParam{Name: p.Name}) == p.Field {
-			p.Field = ""
-		}
-		if q.with(q.field(spec, op, p), p) != with.name {
-			p.With = with.name
-		}
-		if p.Arg == q.field(spec, op, p) {
-			p.Arg = ""
-		}
-		q.Params = append(q.Params, p)
 	}
 	for name := range withs {
 		return nil, nil, name + " sets no parameter the builder sends"
@@ -316,6 +324,77 @@ func (qi *queryIndex) derive(spec *Spec, builder string) (*QueryBind, []*decl, s
 		return nil, nil, "the generated query has fewer declarations"
 	}
 	return q, out, ""
+}
+
+// deriveParam completes the binding of a parameter a builder statement sends
+// and adds it to the query, with the With function that sets its field, or
+// returns the reason it cannot.
+func deriveParam(spec *Spec, q *QueryBind, op *Operation, stmt ast.Stmt, p *QueryParam, fieldTypes map[string]string, withs, parts map[string]*decl) string {
+	if _, ok := stmt.(*ast.IfStmt); ok {
+		typ, ok := scalarOfField[fieldTypes[p.Field]]
+		if !ok {
+			return fmt.Sprintf("field %s is a %s", p.Field, fieldTypes[p.Field])
+		}
+		p.Type = typ
+	}
+	field := p.Field
+	with := settingWith(withs, field)
+	if with == nil {
+		return "no option sets " + field
+	}
+	delete(withs, with.name)
+	parts[with.name] = with
+	wf := with.node.(*ast.FuncDecl)
+	if len(wf.Type.Params.List) == 1 && len(wf.Type.Params.List[0].Names) == 1 {
+		p.Arg = wf.Type.Params.List[0].Names[0].Name
+	}
+	if p.Type == "" {
+		p.Normalize = normalizeOf(wf, field)
+	}
+	if q.field(spec, op, &QueryParam{Name: p.Name}) == p.Field {
+		p.Field = ""
+	}
+	if q.with(q.field(spec, op, p), p) != with.name {
+		p.With = with.name
+	}
+	if p.Arg == q.field(spec, op, p) {
+		p.Arg = ""
+	}
+	q.Params = append(q.Params, p)
+	return ""
+}
+
+// builderReads returns the reads whose client methods use a builder, the one
+// with the shortest path (then the first operationId) first, or the reason
+// it is used otherwise or not at all.
+func (qi *queryIndex) builderReads(spec *Spec, builder string) ([]*Operation, string) {
+	var reads []*Operation
+	for _, use := range qi.uses[builder] {
+		if !use.method || len(use.reads) != 1 {
+			return nil, "used by " + use.name
+		}
+		if op, _ := spec.Operation(use.reads[0]); !slices.Contains(reads, op) {
+			reads = append(reads, op)
+		}
+	}
+	if len(reads) == 0 {
+		return nil, "no read uses " + builder
+	}
+	sort.Slice(reads, func(i, j int) bool {
+		a, b := strings.Count(reads[i].Path, "/"), strings.Count(reads[j].Path, "/")
+		return a < b || a == b && reads[i].ID < reads[j].ID
+	})
+	return reads, ""
+}
+
+// builderQuery is the query a builder named build<Name>Query is the own
+// builder of.
+func builderQuery(builder string) *QueryBind {
+	return &QueryBind{Name: strings.TrimSuffix(strings.TrimPrefix(builder, "build"), "Query")}
+}
+
+func takesOneQuery(fn *ast.FuncDecl) bool {
+	return len(fn.Type.Params.List) == 1 && len(fn.Type.Params.List[0].Names) == 1
 }
 
 // scalarOfField is the QueryParam.Type of a query field by its Go type.

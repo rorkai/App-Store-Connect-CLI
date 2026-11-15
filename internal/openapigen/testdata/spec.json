@@ -306,6 +306,35 @@
         }
       }
     },
+    "/v1/zippers/{id}/teeth": {
+      "get": {
+        "tags": ["Widgets"],
+        "operationId": "zippers_teeth_getToManyRelated",
+        "parameters": [
+          {"name": "filter[pitch]", "in": "query", "schema": {"type": "array", "items": {"type": "string"}}, "style": "form", "explode": false},
+          {"name": "fields[widgets]", "in": "query", "schema": {"type": "array", "items": {"type": "string"}}, "style": "form", "explode": false},
+          {"name": "sort", "in": "query", "schema": {"type": "array", "items": {"type": "string"}}, "style": "form", "explode": false},
+          {"name": "limit[gears]", "in": "query", "schema": {"type": "integer", "maximum": 50}, "style": "form"},
+          {"name": "limit", "in": "query", "schema": {"type": "integer", "maximum": 200}, "style": "form"}
+        ],
+        "responses": {
+          "200": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WidgetsResponse"}}}}
+        }
+      }
+    },
+    "/v1/teeth/{id}": {
+      "get": {
+        "tags": ["Widgets"],
+        "operationId": "teeth_getInstance",
+        "parameters": [
+          {"name": "fields[widgets]", "in": "query", "schema": {"type": "array", "items": {"type": "string"}}, "style": "form", "explode": false},
+          {"name": "limit[gears]", "in": "query", "schema": {"type": "integer", "maximum": 50}, "style": "form"}
+        ],
+        "responses": {
+          "200": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WidgetResponse"}}}}
+        }
+      }
+    },
     "/v1/zoneIds": {
       "get": {
         "tags": ["ZoneIds"],
