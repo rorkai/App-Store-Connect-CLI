@@ -1,11 +1,10 @@
 package shots
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"flag"
-	"io"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -15,7 +14,9 @@ import (
 
 func TestShotsMatrixRejectsInvalidOutputBeforeLoadingOrRunning(t *testing.T) {
 	var loadCalls, runCalls int
+	d, stdoutBuf, stderrBuf := newShotsTestDeps()
 	command := shotsMatrixCommandWithDependencies(
+		d,
 		shotsMatrixCommandDependencies{
 			loadPlan: func(string) (*screenshots.MatrixPlan, error) {
 				loadCalls++
@@ -28,7 +29,7 @@ func TestShotsMatrixRejectsInvalidOutputBeforeLoadingOrRunning(t *testing.T) {
 		},
 	)
 
-	stdout, stderr, err := captureShotsMatrixOutput(t, func() error {
+	stdout, stderr, err := shotsMatrixOutput(stdoutBuf, stderrBuf, func() error {
 		return command.ParseAndRun(context.Background(), []string{
 			"--plan", filepath.Join(t.TempDir(), "matrix.json"),
 			"--output", "yaml",
@@ -50,7 +51,9 @@ func TestShotsMatrixRejectsInvalidOutputBeforeLoadingOrRunning(t *testing.T) {
 
 func TestShotsMatrixRejectsPrettyForNonJSONBeforeLoadingOrRunning(t *testing.T) {
 	var loadCalls, runCalls int
+	d, stdoutBuf, stderrBuf := newShotsTestDeps()
 	command := shotsMatrixCommandWithDependencies(
+		d,
 		shotsMatrixCommandDependencies{
 			loadPlan: func(string) (*screenshots.MatrixPlan, error) {
 				loadCalls++
@@ -63,7 +66,7 @@ func TestShotsMatrixRejectsPrettyForNonJSONBeforeLoadingOrRunning(t *testing.T) 
 		},
 	)
 
-	stdout, stderr, err := captureShotsMatrixOutput(t, func() error {
+	stdout, stderr, err := shotsMatrixOutput(stdoutBuf, stderrBuf, func() error {
 		return command.ParseAndRun(context.Background(), []string{
 			"--plan", filepath.Join(t.TempDir(), "matrix.json"),
 			"--output", "table",
@@ -87,7 +90,9 @@ func TestShotsMatrixRejectsPrettyForNonJSONBeforeLoadingOrRunning(t *testing.T) 
 func TestShotsMatrixPreservesLiteralPlanPath(t *testing.T) {
 	planPath := filepath.Join(t.TempDir(), "matrix plan ")
 	var loadedPath, runPath string
+	d, stdoutBuf, stderrBuf := newShotsTestDeps()
 	command := shotsMatrixCommandWithDependencies(
+		d,
 		shotsMatrixCommandDependencies{
 			loadPlan: func(path string) (*screenshots.MatrixPlan, error) {
 				loadedPath = path
@@ -99,7 +104,7 @@ func TestShotsMatrixPreservesLiteralPlanPath(t *testing.T) {
 			},
 		},
 	)
-	_, _, err := captureShotsMatrixOutput(t, func() error {
+	_, _, err := shotsMatrixOutput(stdoutBuf, stderrBuf, func() error {
 		return command.ParseAndRun(context.Background(), []string{"--plan", planPath, "--output", "json"})
 	})
 	if err != nil {
@@ -114,43 +119,9 @@ func TestShotsMatrixPreservesLiteralPlanPath(t *testing.T) {
 	}
 }
 
-func captureShotsMatrixOutput(t *testing.T, run func() error) (stdout, stderr string, runErr error) {
-	t.Helper()
-
-	oldStdout, oldStderr := os.Stdout, os.Stderr
-	stdoutReader, stdoutWriter, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("create stdout pipe: %v", err)
-	}
-	stderrReader, stderrWriter, err := os.Pipe()
-	if err != nil {
-		_ = stdoutReader.Close()
-		_ = stdoutWriter.Close()
-		t.Fatalf("create stderr pipe: %v", err)
-	}
-	stdoutDone := make(chan string, 1)
-	stderrDone := make(chan string, 1)
-	go func() {
-		data, _ := io.ReadAll(stdoutReader)
-		stdoutDone <- string(data)
-	}()
-	go func() {
-		data, _ := io.ReadAll(stderrReader)
-		stderrDone <- string(data)
-	}()
-
-	os.Stdout = stdoutWriter
-	os.Stderr = stderrWriter
-	runErr = run()
-	_ = stdoutWriter.Close()
-	_ = stderrWriter.Close()
-	os.Stdout = oldStdout
-	os.Stderr = oldStderr
-	stdout = <-stdoutDone
-	stderr = <-stderrDone
-	_ = stdoutReader.Close()
-	_ = stderrReader.Close()
-	return stdout, stderr, runErr
+func shotsMatrixOutput(stdout, stderr *bytes.Buffer, run func() error) (string, string, error) {
+	err := run()
+	return stdout.String(), stderr.String(), err
 }
 
 func TestShotsMatrixHonorsDocumentedZeroOverrideSentinel(t *testing.T) {
@@ -165,7 +136,9 @@ func TestShotsMatrixHonorsDocumentedZeroOverrideSentinel(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var gotOptions screenshots.MatrixOptions
 			var runCalls int
+			d, stdoutBuf, stderrBuf := newShotsTestDeps()
 			command := shotsMatrixCommandWithDependencies(
+				d,
 				shotsMatrixCommandDependencies{
 					loadPlan: func(string) (*screenshots.MatrixPlan, error) {
 						return &screenshots.MatrixPlan{}, nil
@@ -178,7 +151,7 @@ func TestShotsMatrixHonorsDocumentedZeroOverrideSentinel(t *testing.T) {
 				},
 			)
 
-			_, stderr, err := captureShotsMatrixOutput(t, func() error {
+			_, stderr, err := shotsMatrixOutput(stdoutBuf, stderrBuf, func() error {
 				return command.ParseAndRun(context.Background(), []string{
 					"--plan", filepath.Join(t.TempDir(), "matrix.json"),
 					tt.flag, "0",
@@ -215,7 +188,9 @@ func TestShotsMatrixStillRejectsNegativeAndOutOfRangeOverrides(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var runCalls int
+			d, stdoutBuf, stderrBuf := newShotsTestDeps()
 			command := shotsMatrixCommandWithDependencies(
+				d,
 				shotsMatrixCommandDependencies{
 					loadPlan: func(string) (*screenshots.MatrixPlan, error) { return &screenshots.MatrixPlan{}, nil },
 					runMatrix: func(context.Context, string, *screenshots.MatrixPlan, screenshots.MatrixOptions) (*screenshots.MatrixResult, error) {
@@ -225,7 +200,7 @@ func TestShotsMatrixStillRejectsNegativeAndOutOfRangeOverrides(t *testing.T) {
 				},
 			)
 			args := append([]string{"--plan", filepath.Join(t.TempDir(), "matrix.json")}, tt.args...)
-			_, stderr, err := captureShotsMatrixOutput(t, func() error {
+			_, stderr, err := shotsMatrixOutput(stdoutBuf, stderrBuf, func() error {
 				return command.ParseAndRun(context.Background(), args)
 			})
 			if err == nil {

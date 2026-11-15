@@ -24,7 +24,7 @@ func newAnalyticsSegmentsCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc analytics segments view --segment-id "SEGMENT_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newAnalyticsSegmentsGetCommand(d),
 		},

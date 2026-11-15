@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -14,9 +13,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/validation"
 )
 
-// AppSetupCommand returns the app-setup command group.
-func AppSetupCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("app-setup", flag.ExitOnError)
+// NewAppSetupCommand returns the app-setup command group.
+func NewAppSetupCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("app-setup", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "app-setup",
@@ -33,13 +32,13 @@ Examples:
   asc app-setup pricing set --app "APP_ID" --free --start-date "YYYY-MM-DD"
   asc app-setup localizations upload --version "VERSION_ID" --path "./localizations"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			AppSetupInfoCommand(),
-			AppSetupCategoriesCommand(),
-			AppSetupAvailabilityCommand(),
-			AppSetupPricingCommand(),
-			AppSetupLocalizationsCommand(),
+			newAppSetupInfoCommand(d),
+			newAppSetupCategoriesCommand(d),
+			newAppSetupAvailabilityCommand(d),
+			newAppSetupPricingCommand(d),
+			newAppSetupLocalizationsCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -47,8 +46,8 @@ Examples:
 	}
 }
 
-// AppSetupInfoCommand returns the info subcommand group.
-func AppSetupInfoCommand() *ffcli.Command {
+// newAppSetupInfoCommand returns the info subcommand group.
+func newAppSetupInfoCommand(d *shared.Deps) *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "info",
 		ShortUsage: "asc app-setup info <subcommand> [flags]",
@@ -60,9 +59,9 @@ Examples:
   asc app-setup info set --app "APP_ID" --locale "en-US" --name "My App" --subtitle "Great app"
   asc app-setup info set --app "APP_ID" --primary-locale "en-US" --privacy-policy-url "https://example.com/privacy"
   asc app-setup info set --app "APP_ID" --content-rights "DOES_NOT_USE_THIRD_PARTY_CONTENT"`,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			AppSetupInfoSetCommand(),
+			newAppSetupInfoSetCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -70,9 +69,9 @@ Examples:
 	}
 }
 
-// AppSetupInfoSetCommand returns the info set subcommand.
-func AppSetupInfoSetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("app-setup info set", flag.ExitOnError)
+// newAppSetupInfoSetCommand returns the info set subcommand.
+func newAppSetupInfoSetCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("app-setup info set", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (required)")
 	bundleID := fs.String("bundle-id", "", "Bundle ID to set")
@@ -85,7 +84,7 @@ func AppSetupInfoSetCommand() *ffcli.Command {
 	privacyChoicesURL := fs.String("privacy-choices-url", "", "Localized privacy choices URL")
 	privacyPolicyText := fs.String("privacy-policy-text", "", "Localized privacy policy text")
 	contentRights := fs.String("content-rights", "", "Content rights declaration: DOES_NOT_USE_THIRD_PARTY_CONTENT or USES_THIRD_PARTY_CONTENT")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "set",
@@ -99,14 +98,14 @@ Examples:
   asc app-setup info set --app "APP_ID" --primary-locale "en-US" --privacy-policy-url "https://example.com/privacy"
   asc app-setup info set --app "APP_ID" --content-rights "DOES_NOT_USE_THIRD_PARTY_CONTENT"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			appIDValue, err := shared.AppIDFlagValue(shared.ResolveAppID(*appID))
+			appIDValue, err := d.AppIDFlagValue(shared.ResolveAppID(*appID))
 			if err != nil {
 				return err
 			}
 			if appIDValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
 			}
 
@@ -133,20 +132,20 @@ Examples:
 				privacyPolicyTextValue != ""
 
 			if !hasAppUpdate && !hasLocalization {
-				return shared.UpdateFlagRequired(fs, bundleID, primaryLocale, name, subtitle, privacyPolicyURL, privacyChoicesURL, privacyPolicyText, contentRights)
+				return d.UpdateFlagRequired(fs, bundleID, primaryLocale, name, subtitle, privacyPolicyURL, privacyChoicesURL, privacyPolicyText, contentRights)
 			}
 			if primaryLocaleValue != "" {
 				if err := shared.ValidateBuildLocalizationLocale(primaryLocaleValue); err != nil {
-					return shared.UsageErrorf("app-setup info set: %v", err)
+					return d.UsageErrorf("app-setup info set: %v", err)
 				}
 			}
 			if hasLocalization && localeValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --locale is required for app info localization updates")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --locale is required for app info localization updates")
 				return shared.MissingRequiredUsageError("--locale")
 			}
 			if localeValue != "" {
 				if err := shared.ValidateBuildLocalizationLocale(localeValue); err != nil {
-					return shared.UsageErrorf("app-setup info set: %v", err)
+					return d.UsageErrorf("app-setup info set: %v", err)
 				}
 			}
 
@@ -158,7 +157,7 @@ Examples:
 					asc.ContentRightsDeclarationUsesThirdPartyContent:
 					normalizedContentRights = &normalizedRights
 				default:
-					fmt.Fprintf(os.Stderr, "Error: --content-rights must be %s or %s\n", asc.ContentRightsDeclarationDoesNotUseThirdPartyContent, asc.ContentRightsDeclarationUsesThirdPartyContent)
+					fmt.Fprintf(d.IO.ErrOut, "Error: --content-rights must be %s or %s\n", asc.ContentRightsDeclarationDoesNotUseThirdPartyContent, asc.ContentRightsDeclarationUsesThirdPartyContent)
 					return flag.ErrHelp
 				}
 			}
@@ -167,15 +166,15 @@ Examples:
 				Name:     nameValue,
 				Subtitle: subtitleValue,
 			}) {
-				return shared.UsageErrorf("--%s exceeds %d %s", issue.Field, issue.Limit, issue.Unit)
+				return d.UsageErrorf("--%s exceeds %d %s", issue.Field, issue.Limit, issue.Unit)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("app-setup info set: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			var localizationPlan *shared.AppInfoLocalizationUpsertPlan
@@ -196,7 +195,7 @@ Examples:
 				if privacyPolicyTextValue != "" {
 					localizationValues["privacyPolicyText"] = privacyPolicyTextValue
 				}
-				localizationPlan, err = shared.PlanAppInfoLocalizationUpsert(
+				localizationPlan, err = d.PlanAppInfoLocalizationUpsert(
 					requestCtx,
 					client,
 					appIDValue,
@@ -241,13 +240,13 @@ Examples:
 				AppInfoLocalization: appInfoResp,
 			}
 
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// AppSetupCategoriesCommand returns the categories subcommand group.
-func AppSetupCategoriesCommand() *ffcli.Command {
+// newAppSetupCategoriesCommand returns the categories subcommand group.
+func newAppSetupCategoriesCommand(d *shared.Deps) *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "categories",
 		ShortUsage: "asc app-setup categories <subcommand> [flags]",
@@ -256,9 +255,9 @@ func AppSetupCategoriesCommand() *ffcli.Command {
 
 Examples:
   asc app-setup categories set --app "APP_ID" --primary GAMES --secondary ENTERTAINMENT`,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			AppSetupCategoriesSetCommand(),
+			newAppSetupCategoriesSetCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -266,9 +265,10 @@ Examples:
 	}
 }
 
-// AppSetupCategoriesSetCommand returns the categories set subcommand.
-func AppSetupCategoriesSetCommand() *ffcli.Command {
+// newAppSetupCategoriesSetCommand returns the categories set subcommand.
+func newAppSetupCategoriesSetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.NewCategoriesSetCommand(shared.CategoriesSetCommandConfig{
+		Deps:        d,
 		FlagSetName: "app-setup categories set",
 		ShortUsage:  "asc app-setup categories set --app APP_ID --primary CATEGORY_ID [--secondary CATEGORY_ID] [flags]",
 		ShortHelp:   "Set primary and secondary categories for an app.",
@@ -286,8 +286,8 @@ Examples:
 	})
 }
 
-// AppSetupAvailabilityCommand returns the availability subcommand group.
-func AppSetupAvailabilityCommand() *ffcli.Command {
+// newAppSetupAvailabilityCommand returns the availability subcommand group.
+func newAppSetupAvailabilityCommand(d *shared.Deps) *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "availability",
 		ShortUsage: "asc app-setup availability <subcommand> [flags]",
@@ -297,9 +297,9 @@ func AppSetupAvailabilityCommand() *ffcli.Command {
 Examples:
   asc app-setup availability edit --app "APP_ID" --territory "USA,GBR" --available true
   asc app-setup availability edit --app "APP_ID" --all-territories --available true`,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			AppSetupAvailabilitySetCommand(),
+			newAppSetupAvailabilitySetCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -307,9 +307,10 @@ Examples:
 	}
 }
 
-// AppSetupAvailabilitySetCommand returns the availability edit subcommand.
-func AppSetupAvailabilitySetCommand() *ffcli.Command {
+// newAppSetupAvailabilitySetCommand returns the availability edit subcommand.
+func newAppSetupAvailabilitySetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.NewAvailabilitySetCommand(shared.AvailabilitySetCommandConfig{
+		Deps:        d,
 		FlagSetName: "app-setup availability edit",
 		CommandName: "edit",
 		ShortUsage:  "asc app-setup availability edit [flags]",
@@ -328,8 +329,8 @@ Note:
 	})
 }
 
-// AppSetupPricingCommand returns the pricing subcommand group.
-func AppSetupPricingCommand() *ffcli.Command {
+// newAppSetupPricingCommand returns the pricing subcommand group.
+func newAppSetupPricingCommand(d *shared.Deps) *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "pricing",
 		ShortUsage: "asc app-setup pricing <subcommand> [flags]",
@@ -339,9 +340,9 @@ func AppSetupPricingCommand() *ffcli.Command {
 Examples:
   asc app-setup pricing set --app "APP_ID" --price-point "PRICE_POINT_ID"
   asc app-setup pricing set --app "APP_ID" --free --start-date "YYYY-MM-DD"`,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			AppSetupPricingSetCommand(),
+			newAppSetupPricingSetCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -349,9 +350,10 @@ Examples:
 	}
 }
 
-// AppSetupPricingSetCommand returns the pricing set subcommand.
-func AppSetupPricingSetCommand() *ffcli.Command {
+// newAppSetupPricingSetCommand returns the pricing set subcommand.
+func newAppSetupPricingSetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.NewPricingSetCommand(shared.PricingSetCommandConfig{
+		Deps:        d,
 		FlagSetName: "app-setup pricing set",
 		CommandName: "set",
 		ShortUsage:  "asc app-setup pricing set [flags]",
@@ -373,8 +375,8 @@ Examples:
 	})
 }
 
-// AppSetupLocalizationsCommand returns the localizations subcommand group.
-func AppSetupLocalizationsCommand() *ffcli.Command {
+// newAppSetupLocalizationsCommand returns the localizations subcommand group.
+func newAppSetupLocalizationsCommand(d *shared.Deps) *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "localizations",
 		ShortUsage: "asc app-setup localizations <subcommand> [flags]",
@@ -384,9 +386,9 @@ func AppSetupLocalizationsCommand() *ffcli.Command {
 Examples:
   asc app-setup localizations upload --version "VERSION_ID" --path "./localizations"
   asc app-setup localizations upload --app "APP_ID" --type app-info --path "./localizations"`,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			AppSetupLocalizationsUploadCommand(),
+			newAppSetupLocalizationsUploadCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -394,9 +396,9 @@ Examples:
 	}
 }
 
-// AppSetupLocalizationsUploadCommand returns the localizations upload subcommand.
-func AppSetupLocalizationsUploadCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("app-setup localizations upload", flag.ExitOnError)
+// newAppSetupLocalizationsUploadCommand returns the localizations upload subcommand.
+func newAppSetupLocalizationsUploadCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("app-setup localizations upload", flag.ExitOnError)
 
 	versionID := shared.BindResourceIDFlag(fs, "version", "appStoreVersions", "App Store version ID")
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
@@ -405,7 +407,7 @@ func AppSetupLocalizationsUploadCommand() *ffcli.Command {
 	locale := fs.String("locale", "", "Filter by locale(s), comma-separated")
 	path := fs.String("path", "", "Input path (directory or .strings file)")
 	dryRun := fs.Bool("dry-run", false, "Validate file without uploading")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "upload",
@@ -419,15 +421,15 @@ Examples:
   asc app-setup localizations upload --version "VERSION_ID" --locale "en-US" --path "en-US.strings"
   asc app-setup localizations upload --version "VERSION_ID" --path "./localizations" --dry-run`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*path) == "" {
-				return shared.RequiredFlag("--path")
+				return d.RequiredFlag("--path")
 			}
 
 			normalizedType, err := shared.NormalizeLocalizationType(*locType)
 			if err != nil {
-				return shared.UsageErrorf("app-setup localizations upload: %v", err)
+				return d.UsageErrorf("app-setup localizations upload: %v", err)
 			}
 
 			locales := shared.SplitCSV(*locale)
@@ -435,30 +437,30 @@ Examples:
 			switch normalizedType {
 			case shared.LocalizationTypeVersion:
 				if strings.TrimSpace(*versionID) == "" {
-					fmt.Fprintln(os.Stderr, "Error: --version is required for version localizations")
+					fmt.Fprintln(d.IO.ErrOut, "Error: --version is required for version localizations")
 					return shared.MissingRequiredUsageError("--version")
 				}
 
 				valuesByLocale, err := shared.ReadLocalizationStrings(*path, locales)
 				if err != nil {
 					if shared.IsLocalizationInputError(err) {
-						return shared.UsageError(err.Error())
+						return d.UsageError(err.Error())
 					}
 					return fmt.Errorf("app-setup localizations upload: %w", err)
 				}
 				if err := shared.ValidateVersionLocalizationValueSet(valuesByLocale); err != nil {
-					return shared.UsageError(err.Error())
+					return d.UsageError(err.Error())
 				}
 
-				client, err := shared.GetASCClient()
+				client, err := d.Client()
 				if err != nil {
 					return fmt.Errorf("app-setup localizations upload: %w", err)
 				}
 
-				results, err := shared.UploadVersionLocalizations(ctx, client, strings.TrimSpace(*versionID), valuesByLocale, *dryRun)
+				results, err := d.UploadVersionLocalizations(ctx, client, strings.TrimSpace(*versionID), valuesByLocale, *dryRun)
 				if err != nil && len(results) == 0 {
 					if shared.IsLocalizationInputError(err) {
-						return shared.UsageError(err.Error())
+						return d.UsageError(err.Error())
 					}
 					return fmt.Errorf("app-setup localizations upload: %w", err)
 				}
@@ -473,10 +475,10 @@ Examples:
 				}
 				shared.FinalizeLocalizationUploadResult(&result, "app-setup localizations upload")
 
-				if err := shared.PrintOutputWithRenderers(
+				if err := d.PrintOutputWithRenderers(
 					&result, *output.Output, *output.Pretty,
-					func() error { return shared.RenderLocalizationUploadResult(&result, false) },
-					func() error { return shared.RenderLocalizationUploadResult(&result, true) },
+					func() error { return d.RenderLocalizationUploadResult(&result, false) },
+					func() error { return d.RenderLocalizationUploadResult(&result, true) },
 				); err != nil {
 					return err
 				}
@@ -487,27 +489,27 @@ Examples:
 			case shared.LocalizationTypeAppInfo:
 				resolvedAppID := shared.ResolveAppID(*appID)
 				if resolvedAppID == "" {
-					fmt.Fprintln(os.Stderr, "Error: --app is required for app-info localizations")
+					fmt.Fprintln(d.IO.ErrOut, "Error: --app is required for app-info localizations")
 					return shared.MissingRequiredUsageError("--app")
 				}
 				valuesByLocale, err := shared.ReadLocalizationStrings(*path, locales)
 				if err != nil {
 					if shared.IsLocalizationInputError(err) {
-						return shared.UsageError(err.Error())
+						return d.UsageError(err.Error())
 					}
 					return fmt.Errorf("app-setup localizations upload: %w", err)
 				}
 				if err := shared.ValidateAppInfoLocalizationValueSet(valuesByLocale); err != nil {
-					return shared.UsageError(err.Error())
+					return d.UsageError(err.Error())
 				}
 
-				client, err := shared.GetASCClient()
+				client, err := d.Client()
 				if err != nil {
 					return fmt.Errorf("app-setup localizations upload: %w", err)
 				}
 
-				appInfo, err := shared.RetryReadWithFreshTimeout(ctx, func(resolveCtx context.Context) (string, error) {
-					return shared.ResolveAppInfoID(resolveCtx, client, resolvedAppID, strings.TrimSpace(*appInfoID))
+				appInfo, err := shared.RetryReadWithFreshTimeoutWith(ctx, d, func(resolveCtx context.Context) (string, error) {
+					return d.ResolveAppInfoID(resolveCtx, client, resolvedAppID, strings.TrimSpace(*appInfoID))
 				})
 				if err != nil {
 					return fmt.Errorf("app-setup localizations upload: %w", err)
@@ -516,7 +518,7 @@ Examples:
 				results, err := shared.UploadAppInfoLocalizations(ctx, client, appInfo, valuesByLocale, *dryRun)
 				if err != nil && len(results) == 0 {
 					if shared.IsLocalizationInputError(err) {
-						return shared.UsageError(err.Error())
+						return d.UsageError(err.Error())
 					}
 					return fmt.Errorf("app-setup localizations upload: %w", err)
 				}
@@ -532,10 +534,10 @@ Examples:
 				}
 				shared.FinalizeLocalizationUploadResult(&result, "app-setup localizations upload")
 
-				if err := shared.PrintOutputWithRenderers(
+				if err := d.PrintOutputWithRenderers(
 					&result, *output.Output, *output.Pretty,
-					func() error { return shared.RenderLocalizationUploadResult(&result, false) },
-					func() error { return shared.RenderLocalizationUploadResult(&result, true) },
+					func() error { return d.RenderLocalizationUploadResult(&result, false) },
+					func() error { return d.RenderLocalizationUploadResult(&result, true) },
 				); err != nil {
 					return err
 				}

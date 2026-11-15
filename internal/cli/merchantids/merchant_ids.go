@@ -30,7 +30,7 @@ Examples:
   asc merchant-ids delete --merchant-id "MERCHANT_ID" --confirm
   asc merchant-ids certificates list --merchant-id "MERCHANT_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newMerchantIDsListCommand(d),
 			newMerchantIDsGetCommand(d),
@@ -240,7 +240,7 @@ func newMerchantIDsUpdateCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc merchant-ids update --merchant-id "MERCHANT_ID" --name "New Name"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			merchantIDValue := strings.TrimSpace(*merchantID)
 			if merchantIDValue == "" {

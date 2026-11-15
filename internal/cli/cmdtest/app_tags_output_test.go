@@ -20,7 +20,6 @@ func TestAppTagsListOutputAndQueryOptions(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-1/appTags", "fields[appTags]=name,visibleInAppStore", "fields[territories]=currency", "filter[visibleInAppStore]=true,false", "include=territories", "limit=5", "limit[territories]=2", "sort=-name"),
 		asctest.JSON(http.StatusOK, `{
 			"data":[
@@ -40,27 +39,20 @@ func TestAppTagsListOutputAndQueryOptions(t *testing.T) {
 			"links":{"next":""}
 		}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"app-tags", "list",
-			"--app", "app-1",
-			"--visible-in-app-store", "true,false",
-			"--sort", "-name",
-			"--fields", "name,visibleInAppStore",
-			"--include", "territories",
-			"--territory-fields", "currency",
-			"--territory-limit", "2",
-			"--limit", "5",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg),
+		"app-tags", "list",
+		"--app", "app-1",
+		"--visible-in-app-store", "true,false",
+		"--sort", "-name",
+		"--fields", "name,visibleInAppStore",
+		"--include", "territories",
+		"--territory-fields", "currency",
+		"--territory-limit", "2",
+		"--limit", "5",
+	)
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "Warning: App-tag territories are deprecated in API 4.5; remove territory selections and lookups. Requests are still forwarded for compatibility.\n" {
 		t.Fatalf("expected one deprecation warning, got %q", stderr)
@@ -92,15 +84,14 @@ func TestAppTagsListReturnsFetchFailure(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-1/appTags"),
 		asctest.JSON(http.StatusForbidden, `{"errors":[{"status":"403","title":"Forbidden","detail":"not allowed"}]}`))
 
-	root := RootCommand("1.2.3")
+	_, root, capture := appsDeps(t, reg)
 	root.FlagSet.SetOutput(io.Discard)
 
 	var runErr error
-	stdout, _ := captureOutput(t, func() {
+	stdout, _ := capture(func() {
 		if err := root.Parse([]string{"app-tags", "list", "--app", "app-1"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
@@ -126,7 +117,6 @@ func TestAppTagsListPaginateRejectsRepeatedNextURL(t *testing.T) {
 	const repeatedNextURL = "https://api.appstoreconnect.apple.com/v1/apps/app-1/appTags?cursor=AQ"
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-1/appTags", "limit=200"), asctest.JSON(http.StatusOK, `{
 				"data":[{"type":"appTags","id":"tag-1"}],
 				"links":{"next":"`+repeatedNextURL+`"}
@@ -136,11 +126,11 @@ func TestAppTagsListPaginateRejectsRepeatedNextURL(t *testing.T) {
 				"links":{"next":"`+repeatedNextURL+`"}
 			}`))
 
-	root := RootCommand("1.2.3")
+	_, root, capture := appsDeps(t, reg)
 	root.FlagSet.SetOutput(io.Discard)
 
 	var runErr error
-	stdout, _ := captureOutput(t, func() {
+	stdout, _ := capture(func() {
 		if err := root.Parse([]string{"app-tags", "list", "--app", "app-1", "--paginate"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
@@ -219,7 +209,6 @@ func TestAppTagsListPaginateWithFiltersUsesQueryOptions(t *testing.T) {
 	const secondURL = "https://api.appstoreconnect.apple.com/v1/apps/app-1/appTags?cursor=BQ&limit=200"
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-1/appTags", "fields[appTags]=name,visibleInAppStore", "fields[territories]=currency", "filter[visibleInAppStore]=true,false", "include=territories", "limit=200", "limit[territories]=2", "sort=-name"),
 		asctest.JSON(http.StatusOK, `{
 				"data":[{"type":"appTags","id":"tag-page-1"}],
@@ -230,27 +219,20 @@ func TestAppTagsListPaginateWithFiltersUsesQueryOptions(t *testing.T) {
 				"links":{"next":""}
 			}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"app-tags", "list",
-			"--app", "app-1",
-			"--visible-in-app-store", "true,false",
-			"--sort", "-name",
-			"--fields", "name,visibleInAppStore",
-			"--include", "territories",
-			"--territory-fields", "currency",
-			"--territory-limit", "2",
-			"--paginate",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg),
+		"app-tags", "list",
+		"--app", "app-1",
+		"--visible-in-app-store", "true,false",
+		"--sort", "-name",
+		"--fields", "name,visibleInAppStore",
+		"--include", "territories",
+		"--territory-fields", "currency",
+		"--territory-limit", "2",
+		"--paginate",
+	)
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "Warning: App-tag territories are deprecated in API 4.5; remove territory selections and lookups. Requests are still forwarded for compatibility.\n" {
 		t.Fatalf("expected one deprecation warning, got %q", stderr)
@@ -325,23 +307,15 @@ func TestAppTagsListMarkdownOutput(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/apps/app-1/appTags"), asctest.JSON(http.StatusOK, `{
 			"data":[{"type":"appTags","id":"tag-md-1","attributes":{"name":"Featured","visibleInAppStore":true}}],
 			"links":{"next":""}
 		}`))
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"app-tags", "list", "--app", "app-1", "--output", "markdown"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), "app-tags", "list", "--app", "app-1", "--output", "markdown")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)

@@ -25,7 +25,7 @@ Examples:
   asc docs list
   asc docs list --output table`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			_ = ctx
 			if err := d.PrintOutputWithRenderers(

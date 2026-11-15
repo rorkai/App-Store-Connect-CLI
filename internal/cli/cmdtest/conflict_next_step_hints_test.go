@@ -17,26 +17,22 @@ func TestConflictNamesReadCommandForCurrentState(t *testing.T) {
 
 	tests := []struct {
 		args         []string
-		deps         bool
 		lookupTester bool
 		request      asctest.Matcher
 		wantHint     string
 	}{
 		{
 			args:     []string{"review", "items", "add", "--submission", "sub-1", "--item-type", "appStoreVersions", "--item-id", "version-1"},
-			deps:     true,
 			request:  asctest.POST("/v1/reviewSubmissionItems").JSONBody(reviewItemBody),
 			wantHint: "Hint: Check the submission's state and items with `asc review submissions-get --id SUBMISSION_ID --include items`. If the item is already on it, `--if-exists skip` accepts it.",
 		},
 		{
 			args:     []string{"review", "items-add", "--submission", "sub-1", "--item-type", "appStoreVersions", "--item-id", "version-1"},
-			deps:     true,
 			request:  asctest.POST("/v1/reviewSubmissionItems").JSONBody(reviewItemBody),
 			wantHint: "Hint: Check the submission's state and items with `asc review submissions-get --id SUBMISSION_ID --include items`. If the item is already on it, `--if-exists skip` accepts it.",
 		},
 		{
 			args:     []string{"review", "submissions-submit", "--id", "sub-1", "--confirm"},
-			deps:     true,
 			request:  asctest.PATCH("/v1/reviewSubmissions/sub-1").JSONBody(`{"data":{"type":"reviewSubmissions","id":"sub-1","attributes":{"submitted":true}}}`),
 			wantHint: "Hint: Check the submission's state and items with `asc review submissions-get --id SUBMISSION_ID --include items`, and what blocks review with `asc review doctor --app APP_ID`.",
 		},
@@ -44,17 +40,14 @@ func TestConflictNamesReadCommandForCurrentState(t *testing.T) {
 			args:     []string{"localizations", "update", "--id", "loc-1", "--description", "Description"},
 			request:  asctest.PATCH("/v1/appStoreVersionLocalizations/loc-1").JSONBody(`{"data":{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"description":"Description"}}}`),
 			wantHint: "Hint: Check the version's state with `asc versions view --version-id VERSION_ID`, or for app-info localizations `asc localizations list --app APP_ID --type app-info --app-info-fields state`.",
-			deps:     true,
 		},
 		{
 			args:     []string{"testflight", "testers", "add", "--email", "tester@example.com", "--build-id", "build-1"},
-			deps:     true,
 			request:  asctest.POST("/v1/betaTesters").JSONBody(`{"data":{"type":"betaTesters","attributes":{"email":"tester@example.com"},"relationships":{"builds":{"data":[{"type":"builds","id":"build-1"}]}}}}`),
 			wantHint: "Hint: Check the tester's current state with `asc testflight testers list --app APP_ID --email EMAIL`.",
 		},
 		{
 			args:         []string{"testflight", "testers", "invite", "--app", "app-1", "--email", "tester@example.com"},
-			deps:         true,
 			lookupTester: true,
 			request:      asctest.POST("/v1/betaTesterInvitations").JSONBody(`{"data":{"type":"betaTesterInvitations","relationships":{"app":{"data":{"type":"apps","id":"app-1"}},"betaTester":{"data":{"type":"betaTesters","id":"tester-1"}}}}}`),
 			wantHint:     "Hint: Check the tester's current state with `asc testflight testers list --app APP_ID --email EMAIL`.",
@@ -68,28 +61,16 @@ func TestConflictNamesReadCommandForCurrentState(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(strings.Join(test.args[:3], " "), func(t *testing.T) {
-			if !test.deps {
-				setupAuth(t)
-			}
 			t.Setenv("ASC_APP_ID", "")
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 			reg := asctest.NewRegistry(t)
-			if !test.deps {
-				reg.Install()
-			}
 			if test.lookupTester {
 				reg.Register(asctest.GET("/v1/betaTesters", "filter[apps]=app-1", "filter[email]=tester@example.com"),
 					asctest.JSON(http.StatusOK, `{"data":[{"type":"betaTesters","id":"tester-1","attributes":{"email":"tester@example.com"}}],"links":{"self":"/v1/betaTesters"}}`))
 			}
 			reg.Register(test.request, asctest.JSON(http.StatusConflict, conflictBody))
 
-			var code int
-			var stdout, stderr string
-			if test.deps {
-				stdout, stderr, code = runWithDeps(t, stubClient(t, reg), test.args...)
-			} else {
-				code, stdout, stderr = runASCForExitCode(t, test.args...)
-			}
+			stdout, stderr, code := runWithDeps(t, stubClient(t, reg), test.args...)
 
 			if code != cmd.ExitConflict {
 				t.Fatalf("exit code = %d, want %d (stderr %q)", code, cmd.ExitConflict, stderr)

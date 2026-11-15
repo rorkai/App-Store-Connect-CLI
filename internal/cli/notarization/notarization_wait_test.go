@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -16,6 +15,7 @@ import (
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 const testNotarizationSubmissionID = "550e8400-e29b-41d4-a716-446655440000"
@@ -55,8 +55,8 @@ func TestWaitForNotarizationRetriesTransientStatusFailures(t *testing.T) {
 
 	var resp *asc.NotarySubmissionStatusResponse
 	var waitErr error
-	stderr := captureNotarizationStderr(t, func() {
-		resp, waitErr = waitForNotarization(context.Background(), client, testNotarizationSubmissionID, 5*time.Millisecond)
+	stderr := captureNotarizationStderr(t, func(d *shared.Deps) {
+		resp, waitErr = waitForNotarization(context.Background(), d, client, testNotarizationSubmissionID, 5*time.Millisecond)
 	})
 
 	if waitErr != nil {
@@ -95,8 +95,8 @@ func TestWaitForNotarizationFailsFastOnTerminalStatusError(t *testing.T) {
 	client := newNotarizationTestClient(t, server)
 
 	var waitErr error
-	captureNotarizationStderr(t, func() {
-		_, waitErr = waitForNotarization(context.Background(), client, testNotarizationSubmissionID, 5*time.Millisecond)
+	captureNotarizationStderr(t, func(d *shared.Deps) {
+		_, waitErr = waitForNotarization(context.Background(), d, client, testNotarizationSubmissionID, 5*time.Millisecond)
 	})
 
 	if waitErr == nil {
@@ -134,8 +134,8 @@ func TestWaitForNotarizationReportsWaitDeadlineDuringInFlightStatusRequest(t *te
 	defer cancel()
 
 	var waitErr error
-	captureNotarizationStderr(t, func() {
-		_, waitErr = waitForNotarization(ctx, client, testNotarizationSubmissionID, 5*time.Millisecond)
+	captureNotarizationStderr(t, func(d *shared.Deps) {
+		_, waitErr = waitForNotarization(ctx, d, client, testNotarizationSubmissionID, 5*time.Millisecond)
 	})
 
 	if waitErr == nil {
@@ -171,8 +171,8 @@ func TestWaitForNotarizationReportsLastTransientFailureAtDeadline(t *testing.T) 
 	client := newNotarizationTestClient(t, server)
 
 	var waitErr error
-	captureNotarizationStderr(t, func() {
-		_, waitErr = waitForNotarization(ctx, client, testNotarizationSubmissionID, 5*time.Millisecond)
+	captureNotarizationStderr(t, func(d *shared.Deps) {
+		_, waitErr = waitForNotarization(ctx, d, client, testNotarizationSubmissionID, 5*time.Millisecond)
 	})
 
 	if waitErr == nil {
@@ -197,7 +197,7 @@ func TestWaitForNotarizationReportsCancellationSeparatelyFromTimeout(t *testing.
 	})}, asc.NotaryBaseURL)
 
 	var waitErr error
-	captureNotarizationStderr(t, func() {
+	captureNotarizationStderr(t, func(d *shared.Deps) {
 		synctest.Test(t, func(*testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			go func() {
@@ -206,7 +206,7 @@ func TestWaitForNotarizationReportsCancellationSeparatelyFromTimeout(t *testing.
 			}()
 			defer cancel()
 
-			_, waitErr = waitForNotarization(ctx, client, testNotarizationSubmissionID, 5*time.Millisecond)
+			_, waitErr = waitForNotarization(ctx, d, client, testNotarizationSubmissionID, 5*time.Millisecond)
 		})
 	})
 
@@ -258,32 +258,10 @@ func writeNotaryStatus(t *testing.T, w http.ResponseWriter, status asc.NotarySub
 	}
 }
 
-func captureNotarizationStderr(t *testing.T, fn func()) string {
+func captureNotarizationStderr(t *testing.T, fn func(d *shared.Deps)) string {
 	t.Helper()
 
-	reader, writer, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("create stderr pipe: %v", err)
-	}
-	original := os.Stderr
-	os.Stderr = writer
-
-	captured := make(chan string, 1)
-	go func() {
-		var buf bytes.Buffer
-		_, _ = io.Copy(&buf, reader)
-		_ = reader.Close()
-		captured <- buf.String()
-	}()
-
-	defer func() {
-		os.Stderr = original
-		_ = writer.Close()
-	}()
-
-	fn()
-
-	os.Stderr = original
-	_ = writer.Close()
-	return <-captured
+	d := newNotarizationTestDeps(nil)
+	fn(d)
+	return d.IO.ErrOut.(*bytes.Buffer).String()
 }

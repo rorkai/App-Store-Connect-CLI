@@ -18,7 +18,7 @@ type screenshotUploadProgress struct {
 	FailedFile      string
 }
 
-func uploadScreenshotsToSetFromRootWithOpenedFiles(ctx context.Context, client *asc.Client, setID string, files []string, sourceRootPath string, preserveExistingOrder bool, openedFiles openedScreenshotFiles) ([]asc.AssetUploadResultItem, error) {
+func uploadScreenshotsToSetFromRootWithOpenedFiles(ctx context.Context, requestContext func(context.Context) (context.Context, context.CancelFunc), client *asc.Client, setID string, files []string, sourceRootPath string, preserveExistingOrder bool, openedFiles openedScreenshotFiles) ([]asc.AssetUploadResultItem, error) {
 	orderedIDs := make([]string, 0, len(files))
 	if preserveExistingOrder {
 		existingIDs, err := GetOrderedAppScreenshotIDs(ctx, client, setID)
@@ -28,15 +28,15 @@ func uploadScreenshotsToSetFromRootWithOpenedFiles(ctx context.Context, client *
 		orderedIDs = append(orderedIDs, existingIDs...)
 	}
 
-	progress, err := uploadScreenshotsWithOrderStateWithOpenedFiles(ctx, client, setID, orderedIDs, files, sourceRootPath, false, true, openedFiles)
+	progress, err := uploadScreenshotsWithOrderStateWithOpenedFiles(ctx, requestContext, client, setID, orderedIDs, files, sourceRootPath, false, true, openedFiles)
 	return progress.Results, err
 }
 
-func uploadScreenshotsWithOrderState(ctx context.Context, client *asc.Client, setID string, orderedIDs, files []string, sourceRootPath string, syncIfNoNew, syncAfterUpload bool) (screenshotUploadProgress, error) {
-	return uploadScreenshotsWithOrderStateWithOpenedFiles(ctx, client, setID, orderedIDs, files, sourceRootPath, syncIfNoNew, syncAfterUpload, nil)
+func uploadScreenshotsWithOrderState(ctx context.Context, requestContext func(context.Context) (context.Context, context.CancelFunc), client *asc.Client, setID string, orderedIDs, files []string, sourceRootPath string, syncIfNoNew, syncAfterUpload bool) (screenshotUploadProgress, error) {
+	return uploadScreenshotsWithOrderStateWithOpenedFiles(ctx, requestContext, client, setID, orderedIDs, files, sourceRootPath, syncIfNoNew, syncAfterUpload, nil)
 }
 
-func uploadScreenshotsWithOrderStateWithOpenedFiles(ctx context.Context, client *asc.Client, setID string, orderedIDs, files []string, sourceRootPath string, syncIfNoNew, syncAfterUpload bool, openedFiles openedScreenshotFiles) (screenshotUploadProgress, error) {
+func uploadScreenshotsWithOrderStateWithOpenedFiles(ctx context.Context, requestContext func(context.Context) (context.Context, context.CancelFunc), client *asc.Client, setID string, orderedIDs, files []string, sourceRootPath string, syncIfNoNew, syncAfterUpload bool, openedFiles openedScreenshotFiles) (screenshotUploadProgress, error) {
 	progress := screenshotUploadProgress{
 		Results:    make([]asc.AssetUploadResultItem, 0, len(files)),
 		OrderedIDs: append([]string(nil), orderedIDs...),
@@ -44,7 +44,7 @@ func uploadScreenshotsWithOrderStateWithOpenedFiles(ctx context.Context, client 
 
 	concurrency := screenshotUploadConcurrencyFromContext(ctx)
 	if concurrency > 1 && len(files) > 1 {
-		return uploadScreenshotsConcurrently(ctx, client, setID, progress, files, sourceRootPath, openedFiles, syncIfNoNew, syncAfterUpload, concurrency)
+		return uploadScreenshotsConcurrently(ctx, requestContext, client, setID, progress, files, sourceRootPath, openedFiles, syncIfNoNew, syncAfterUpload, concurrency)
 	}
 
 	for idx, filePath := range files {
@@ -83,7 +83,7 @@ func uploadScreenshotsWithOrderStateWithOpenedFiles(ctx context.Context, client 
 	return progress, nil
 }
 
-func resumeScreenshotsWithOrderState(ctx context.Context, client *asc.Client, setID string, orderedIDs, files []string, pendingAssets []screenshotPendingAsset, sourceRootPath string, syncIfNoNew, syncAfterUpload bool) (screenshotUploadProgress, error) {
+func resumeScreenshotsWithOrderState(ctx context.Context, requestContext func(context.Context) (context.Context, context.CancelFunc), client *asc.Client, setID string, orderedIDs, files []string, pendingAssets []screenshotPendingAsset, sourceRootPath string, syncIfNoNew, syncAfterUpload bool) (screenshotUploadProgress, error) {
 	progress := screenshotUploadProgress{
 		Results:    make([]asc.AssetUploadResultItem, 0, len(files)),
 		OrderedIDs: append([]string(nil), orderedIDs...),
@@ -123,7 +123,7 @@ func resumeScreenshotsWithOrderState(ctx context.Context, client *asc.Client, se
 		}
 	}
 
-	remaining, err := uploadScreenshotsWithOrderState(ctx, client, setID, progress.OrderedIDs, remainingFiles, sourceRootPath, syncIfNoNew, syncAfterUpload)
+	remaining, err := uploadScreenshotsWithOrderState(ctx, requestContext, client, setID, progress.OrderedIDs, remainingFiles, sourceRootPath, syncIfNoNew, syncAfterUpload)
 	progress.Results = append(progress.Results, remaining.Results...)
 	progress.OrderedIDs = remaining.OrderedIDs
 	progress.PendingFiles = remaining.PendingFiles

@@ -34,7 +34,7 @@ func TestScreenshotsReorder(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			calls := 0
 			var patched []string
-			installScreenshotsListTestClient(t, func(w http.ResponseWriter, req *http.Request) {
+			client := screenshotsListTestClient(t, func(w http.ResponseWriter, req *http.Request) {
 				calls++
 				if req.URL.Path != "/v1/appScreenshotSets/set-1/relationships/appScreenshots" {
 					t.Errorf("unexpected request: %s %s", req.Method, req.URL)
@@ -73,7 +73,7 @@ func TestScreenshotsReorder(t *testing.T) {
 				}
 			})
 
-			stdout, stderr, err := runRootCommand(t, append([]string{"screenshots", "reorder", "--output", "json"}, tt.args...))
+			stdout, stderr, err := runRootWithDeps(t, client, append([]string{"screenshots", "reorder", "--output", "json"}, tt.args...)...)
 			if tt.wantNoCall && calls != 0 {
 				t.Fatalf("expected no requests, got %d", calls)
 			}

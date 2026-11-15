@@ -30,7 +30,7 @@ func appTransactionViewCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("storekit app-transactions view", flag.ExitOnError)
 	id := fs.String("transaction-id", "", "Any transaction, original transaction, or app transaction ID for the customer")
 	flags := bindServerReadFlags(d, fs, true)
-	return documentedLeafCommand("view", "asc storekit app-transactions view --transaction-id ID --environment ENV [flags]", "Get a customer's app transaction information.",
+	return documentedLeafCommand(d, "view", "asc storekit app-transactions view --transaction-id ID --environment ENV [flags]", "Get a customer's app transaction information.",
 		"Get signed app-purchase information, including the original app version and purchase date.\n\n"+unverifiedJWSHelp+`
 
 Examples:
@@ -54,7 +54,7 @@ func setAccountTokenCommand(d *shared.Deps) *ffcli.Command {
 	id := fs.String("original-transaction-id", "", "Original transaction ID whose account association is replaced")
 	token := fs.String("app-account-token", "", "Customer account UUID to associate with the purchase")
 	flags := bindServerWriteFlags(d, fs)
-	return documentedLeafCommand("set-account-token", "asc storekit transactions set-account-token --original-transaction-id ID --app-account-token UUID --environment ENV --confirm [flags]", "Set or replace a purchase's app account token.",
+	return documentedLeafCommand(d, "set-account-token", "asc storekit transactions set-account-token --original-transaction-id ID --app-account-token UUID --environment ENV --confirm [flags]", "Set or replace a purchase's app account token.",
 		`Set an account association for any purchase type. For auto-renewable subscriptions,
 Apple updates the current and future renewals, leaving past transactions unchanged.
 Family Shared transactions are unsupported. Requires --confirm.
@@ -82,7 +82,7 @@ func finishTransactionCommand(d *shared.Deps) *ffcli.Command {
 	fs := d.NewFlagSet("storekit transactions finish", flag.ExitOnError)
 	id := fs.String("transaction-id", "", "Transaction ID to mark as finished after delivering its content")
 	flags := bindServerWriteFlags(d, fs)
-	return documentedLeafCommand("finish", "asc storekit transactions finish --transaction-id ID --environment ENV --confirm [flags]", "Mark a transaction as finished after content delivery.",
+	return documentedLeafCommand(d, "finish", "asc storekit transactions finish --transaction-id ID --environment ENV --confirm [flags]", "Mark a transaction as finished after content delivery.",
 		`Notify Apple only after your server has delivered the purchased content.
 If the app already calls StoreKit Transaction.finish(), this server call is
 unnecessary. Requires --confirm. The CLI sends once without automatic retries.
@@ -112,7 +112,7 @@ func sendConsumptionCommand(d *shared.Deps) *ffcli.Command {
 	percentage := fs.Int("consumption-percentage", 0, "Consumed portion in integer milliunits (0-100000); omit for auto-renewable subscriptions")
 	refund := fs.String("refund-preference", "", "Optional: DECLINE, GRANT_FULL, GRANT_PRORATED")
 	flags := bindServerWriteFlags(d, fs)
-	return documentedLeafCommand("send-consumption", "asc storekit transactions send-consumption --transaction-id ID --customer-consented true --delivery-status STATUS --sample-content-provided BOOL --environment ENV --confirm [flags]", "Send v2 consumption information for a refund request.",
+	return documentedLeafCommand(d, "send-consumption", "asc storekit transactions send-consumption --transaction-id ID --customer-consented true --delivery-status STATUS --sample-content-provided BOOL --environment ENV --confirm [flags]", "Send v2 consumption information for a refund request.",
 		`Respond to a CONSUMPTION_REQUEST notification within 12 hours. Send data only
 with the customer's consent. Apple makes the refund decision; acceptance of this
 request does not grant or deny a refund.
@@ -237,7 +237,7 @@ func extendSubscriptionCommand(d *shared.Deps) *ffcli.Command {
 	id := fs.String("original-transaction-id", "", "Original transaction ID of the paid, active subscription")
 	extension := bindExtensionFlags(fs)
 	flags := bindServerWriteFlags(d, fs)
-	return documentedLeafCommand("extend", "asc storekit subscriptions extend --original-transaction-id ID --days DAYS --reason CODE --request-id ID --environment ENV --confirm [flags]", "Extend one eligible subscription's renewal date.",
+	return documentedLeafCommand(d, "extend", "asc storekit subscriptions extend --original-transaction-id ID --days DAYS --reason CODE --request-id ID --environment ENV --confirm [flags]", "Extend one eligible subscription's renewal date.",
 		`Compensate for service interruptions by extending an eligible paid, active
 subscription by up to 90 days. Extensions cannot be reversed.
 
@@ -283,7 +283,7 @@ func extendAllSubscriptionsCommand(d *shared.Deps) *ffcli.Command {
 	countries := fs.String("storefront-country-codes", "", "Optional comma-separated three-letter storefront codes; omit for all eligible storefronts")
 	extension := bindExtensionFlags(fs)
 	flags := bindServerWriteFlags(d, fs)
-	return documentedLeafCommand("extend-all", "asc storekit subscriptions extend-all --product-id PRODUCT --days DAYS --reason CODE --request-id UUID --environment ENV --confirm [flags]", "Request renewal extensions for all eligible subscribers of a product.",
+	return documentedLeafCommand(d, "extend-all", "asc storekit subscriptions extend-all --product-id PRODUCT --days DAYS --reason CODE --request-id UUID --environment ENV --confirm [flags]", "Request renewal extensions for all eligible subscribers of a product.",
 		`Submit an asynchronous renewal extension. Omitting --storefront-country-codes
 targets all eligible storefronts. Extensions cannot be reversed. A successful
 submission only acknowledges processing; use extension-status or receive
@@ -332,7 +332,7 @@ func extensionStatusCommand(d *shared.Deps) *ffcli.Command {
 	product := fs.String("product-id", "", "Subscription product ID used in the bulk extension request")
 	id := fs.String("request-id", "", "Request UUID used in the bulk extension request")
 	flags := bindServerReadFlags(d, fs, false)
-	return documentedLeafCommand("extension-status", "asc storekit subscriptions extension-status --product-id PRODUCT --request-id UUID --environment ENV [flags]", "Check bulk renewal-extension completion and final counts.",
+	return documentedLeafCommand(d, "extension-status", "asc storekit subscriptions extension-status --product-id PRODUCT --request-id UUID --environment ENV [flags]", "Check bulk renewal-extension completion and final counts.",
 		`Get the status of a bulk renewal extension without polling automatically.
 Processing may take hours or days. Final counts appear when complete is true.
 RENEWAL_EXTENDED notifications report individual successes. RENEWAL_EXTENSION

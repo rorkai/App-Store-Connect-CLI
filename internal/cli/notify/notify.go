@@ -34,22 +34,17 @@ const (
 
 var slackThreadTSPattern = regexp.MustCompile(`^\d+\.\d+$`)
 
-var slackHTTPClient = func() *http.Client {
-	return &http.Client{Timeout: asc.ResolveTimeout()}
-}
-
-func slackClientWithoutRedirects(client *http.Client) *http.Client {
-	if client == nil {
-		client = &http.Client{Timeout: asc.ResolveTimeout()}
+func slackClientWithoutRedirects(d *shared.Deps) *http.Client {
+	return &http.Client{
+		Timeout:   d.ResolveTimeout(shared.RequestTimeoutSetting, asc.DefaultTimeout),
+		Transport: d.HTTPTransport(),
+		CheckRedirect: func(*http.Request, []*http.Request) error {
+			// Return the redirect response to the caller without making the next
+			// request. Following it can disclose the webhook path through Referer,
+			// and 307/308 responses can also replay the JSON message body.
+			return http.ErrUseLastResponse
+		},
 	}
-	safeClient := *client
-	safeClient.CheckRedirect = func(*http.Request, []*http.Request) error {
-		// Return the redirect response to the caller without making the next
-		// request. Following it can disclose the webhook path through Referer,
-		// and 307/308 responses can also replay the JSON message body.
-		return http.ErrUseLastResponse
-	}
-	return &safeClient
 }
 
 func slackFlags(fs *flag.FlagSet) (
@@ -77,8 +72,8 @@ func slackFlags(fs *flag.FlagSet) (
 	return
 }
 
-func NotifyCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("notify", flag.ExitOnError)
+func NewNotifyCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("notify", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "notify",
@@ -90,9 +85,9 @@ Examples:
   asc notify slack --webhook $WEBHOOK --message "Build uploaded"
   ASC_SLACK_WEBHOOK=$WEBHOOK asc notify slack --message "Done"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			SlackCommand(),
+			newSlackCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -100,8 +95,8 @@ Examples:
 	}
 }
 
-func SlackCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("notify slack", flag.ExitOnError)
+func newSlackCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("notify slack", flag.ExitOnError)
 
 	webhook, channel, message, threadTS, blocksJSON, blocksFile, payloadJSON, payloadFile, pretext, success := slackFlags(fs)
 
@@ -127,31 +122,31 @@ Examples:
   asc notify slack --message "Release update" --thread-ts "1733977745.12345"
   asc notify slack --message "Release submitted" --payload-json '{"app":"MyApp","version":"1.2.3","build":"42"}'`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			webhookURL := resolveWebhook(*webhook)
 			if webhookURL == "" {
-				fmt.Fprintf(os.Stderr, "Error: --webhook is required or set %s env var\n", slackWebhookEnvVar)
+				fmt.Fprintf(d.IO.ErrOut, "Error: --webhook is required or set %s env var\n", slackWebhookEnvVar)
 				return shared.MissingRequiredUsageError("--webhook")
 			}
 			if err := validateSlackWebhookURL(webhookURL); err != nil {
-				fmt.Fprintln(os.Stderr, "Error:", err.Error())
+				fmt.Fprintln(d.IO.ErrOut, "Error:", err.Error())
 				return shared.NewReportedUsageError(shared.UsageErrorInvalidValue, err.Error())
 			}
 
 			msg := strings.TrimSpace(*message)
 			if msg == "" {
-				return shared.RequiredFlag("--message")
+				return d.RequiredFlag("--message")
 			}
 
-			blocks, err := parseSlackBlocks(*blocksJSON, *blocksFile)
+			blocks, err := parseSlackBlocks(d, *blocksJSON, *blocksFile)
 			if err != nil {
-				fmt.Fprintln(os.Stderr, "Error:", err.Error())
+				fmt.Fprintln(d.IO.ErrOut, "Error:", err.Error())
 				return shared.NewReportedUsageError(shared.UsageErrorInvalidValue, err.Error())
 			}
-			releasePayload, err := parseSlackPayload(*payloadJSON, *payloadFile)
+			releasePayload, err := parseSlackPayload(d, *payloadJSON, *payloadFile)
 			if err != nil {
-				fmt.Fprintln(os.Stderr, "Error:", err.Error())
+				fmt.Fprintln(d.IO.ErrOut, "Error:", err.Error())
 				return shared.NewReportedUsageError(shared.UsageErrorInvalidValue, err.Error())
 			}
 			visited := map[string]bool{}
@@ -160,7 +155,7 @@ Examples:
 			})
 			if releasePayload == nil && (visited["pretext"] || visited["success"]) {
 				const message = "--pretext and --success require --payload-json or --payload-file"
-				fmt.Fprintln(os.Stderr, "Error:", message)
+				fmt.Fprintln(d.IO.ErrOut, "Error:", message)
 				parameter := "--pretext"
 				if !visited["pretext"] {
 					parameter = "--success"
@@ -181,7 +176,7 @@ Examples:
 			if ts := strings.TrimSpace(*threadTS); ts != "" {
 				if !slackThreadTSPattern.MatchString(ts) {
 					const message = "--thread-ts must be in Slack ts format (e.g. 1733977745.12345)"
-					fmt.Fprintln(os.Stderr, "Error:", message)
+					fmt.Fprintln(d.IO.ErrOut, "Error:", message)
 					return shared.NewReportedUsageError(shared.UsageErrorInvalidValue, message)
 				}
 				payload["thread_ts"] = ts
@@ -200,7 +195,7 @@ Examples:
 				return fmt.Errorf("notify slack: failed to marshal payload: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			// Name only the host: Slack webhook paths are the secret.
@@ -213,7 +208,7 @@ Examples:
 			}
 			req.Header.Set("Content-Type", "application/json")
 
-			client := slackClientWithoutRedirects(slackHTTPClient())
+			client := slackClientWithoutRedirects(d)
 			resp, err := client.Do(req)
 			if err != nil {
 				return fmt.Errorf("notify slack: failed to send: %w", newSanitizedWebhookError("webhook POST", webhookURL, err))
@@ -236,7 +231,7 @@ Examples:
 				return fmt.Errorf("notify slack: unexpected response %d: %s", resp.StatusCode, message)
 			}
 
-			fmt.Fprintln(os.Stderr, "Message sent to Slack successfully")
+			fmt.Fprintln(d.IO.ErrOut, "Message sent to Slack successfully")
 			return nil
 		},
 	}
@@ -294,7 +289,7 @@ func resolveWebhook(flagValue string) string {
 	return ""
 }
 
-func parseSlackBlocks(blocksJSON string, blocksFile string) ([]json.RawMessage, error) {
+func parseSlackBlocks(d *shared.Deps, blocksJSON string, blocksFile string) ([]json.RawMessage, error) {
 	blocksJSON = strings.TrimSpace(blocksJSON)
 	blocksFile = strings.TrimSpace(blocksFile)
 
@@ -307,7 +302,7 @@ func parseSlackBlocks(blocksJSON string, blocksFile string) ([]json.RawMessage, 
 
 	source := "--blocks-json"
 	if blocksFile != "" {
-		data, err := os.ReadFile(blocksFile)
+		data, err := os.ReadFile(d.OSPath(blocksFile))
 		if err != nil {
 			return nil, fmt.Errorf("--blocks-file must be readable: %w", err)
 		}
@@ -329,7 +324,7 @@ func parseSlackBlocks(blocksJSON string, blocksFile string) ([]json.RawMessage, 
 	return blocks, nil
 }
 
-func parseSlackPayload(payloadJSON string, payloadFile string) (map[string]any, error) {
+func parseSlackPayload(d *shared.Deps, payloadJSON string, payloadFile string) (map[string]any, error) {
 	payloadJSON = strings.TrimSpace(payloadJSON)
 	payloadFile = strings.TrimSpace(payloadFile)
 
@@ -342,7 +337,7 @@ func parseSlackPayload(payloadJSON string, payloadFile string) (map[string]any, 
 
 	source := "--payload-json"
 	if payloadFile != "" {
-		data, err := os.ReadFile(payloadFile)
+		data, err := os.ReadFile(d.OSPath(payloadFile))
 		if err != nil {
 			return nil, fmt.Errorf("--payload-file must be readable: %w", err)
 		}

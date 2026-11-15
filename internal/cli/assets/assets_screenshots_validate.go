@@ -54,13 +54,13 @@ type screenshotValidateResult struct {
 	Issues         []screenshotValidateIssue `json:"issues,omitempty"`
 }
 
-// AssetsScreenshotsValidateCommand returns the screenshots validate subcommand.
-func AssetsScreenshotsValidateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("validate", flag.ExitOnError)
+// NewAssetsScreenshotsValidateCommand returns the screenshots validate subcommand.
+func NewAssetsScreenshotsValidateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("validate", flag.ExitOnError)
 
 	path := fs.String("path", "", "Path to screenshot file or directory")
 	deviceType := fs.String("device-type", "", "Device type (e.g., IPHONE_65 or IPAD_PRO_3GEN_129)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "validate",
@@ -79,33 +79,33 @@ Examples:
   asc screenshots validate --path "./screenshots/ipad" --device-type "IPAD_PRO_3GEN_129"
   asc screenshots validate --path "./screenshots" --device-type "IPHONE_65" --output table`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			pathValue := strings.TrimSpace(*path)
 			if pathValue == "" {
-				return shared.RequiredFlag("--path")
+				return d.RequiredFlag("--path")
 			}
 			deviceValue := strings.TrimSpace(*deviceType)
 			if deviceValue == "" {
-				return shared.RequiredFlag("--device-type")
+				return d.RequiredFlag("--device-type")
 			}
 
 			displayType, err := normalizeScreenshotDisplayType(deviceValue)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
-			result, err := validateScreenshotAssets(pathValue, displayType)
+			result, err := validateScreenshotAssets(d, pathValue, displayType)
 			if err != nil {
 				return fmt.Errorf("screenshots validate: %w", err)
 			}
 
-			if err := shared.PrintOutputWithRenderers(
+			if err := d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
-				func() error { return renderScreenshotValidateResult(result, false) },
-				func() error { return renderScreenshotValidateResult(result, true) },
+				func() error { return renderScreenshotValidateResult(d, result, false) },
+				func() error { return renderScreenshotValidateResult(d, result, true) },
 			); err != nil {
 				return err
 			}
@@ -119,7 +119,7 @@ Examples:
 	}
 }
 
-func validateScreenshotAssets(pathValue, displayType string) (*screenshotValidateResult, error) {
+func validateScreenshotAssets(d *shared.Deps, pathValue, displayType string) (*screenshotValidateResult, error) {
 	rawPath := strings.TrimSpace(pathValue)
 	apiDisplayType := asc.CanonicalScreenshotDisplayTypeForAPI(displayType)
 	result := &screenshotValidateResult{
@@ -132,7 +132,7 @@ func validateScreenshotAssets(pathValue, displayType string) (*screenshotValidat
 		result.APIDisplayType = apiDisplayType
 	}
 
-	paths, err := collectAssetPaths(rawPath)
+	paths, err := collectAssetPaths(d.OSPath(rawPath))
 	if err != nil {
 		return nil, err
 	}
@@ -402,7 +402,7 @@ func appendScreenshotValidateIssue(result *screenshotValidateResult, issue scree
 	}
 }
 
-func renderScreenshotValidateResult(result *screenshotValidateResult, markdown bool) error {
+func renderScreenshotValidateResult(d *shared.Deps, result *screenshotValidateResult, markdown bool) error {
 	if result == nil {
 		return fmt.Errorf("result is nil")
 	}
@@ -423,7 +423,7 @@ func renderScreenshotValidateResult(result *screenshotValidateResult, markdown b
 	if strings.TrimSpace(result.APIDisplayType) != "" && result.APIDisplayType != result.DisplayType {
 		summaryRows = append(summaryRows[0:2], append([][]string{{"apiDisplayType", apiDisplayType}}, summaryRows[2:]...)...)
 	}
-	shared.RenderSection("Summary", []string{"field", "value"}, summaryRows, markdown)
+	d.RenderSection("Summary", []string{"field", "value"}, summaryRows, markdown)
 
 	if len(result.Files) > 0 {
 		rows := make([][]string, 0, len(result.Files))
@@ -441,7 +441,7 @@ func renderScreenshotValidateResult(result *screenshotValidateResult, markdown b
 				file.FilePath,
 			})
 		}
-		shared.RenderSection("Files", []string{"order", "file", "dimensions", "status", "hidden", "path"}, rows, markdown)
+		d.RenderSection("Files", []string{"order", "file", "dimensions", "status", "hidden", "path"}, rows, markdown)
 	}
 
 	issueRows := make([][]string, 0, len(result.Issues))
@@ -457,6 +457,6 @@ func renderScreenshotValidateResult(result *screenshotValidateResult, markdown b
 	if len(issueRows) == 0 {
 		issueRows = append(issueRows, []string{screenshotValidateSeverityInfo, "ok", "n/a", "No issues found", "n/a"})
 	}
-	shared.RenderSection("Issues", []string{"severity", "code", "file", "message", "remediation"}, issueRows, markdown)
+	d.RenderSection("Issues", []string{"severity", "code", "file", "message", "remediation"}, issueRows, markdown)
 	return nil
 }

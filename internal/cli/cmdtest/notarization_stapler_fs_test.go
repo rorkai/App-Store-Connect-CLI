@@ -36,13 +36,10 @@ func TestNotarizationTargetFilesystemFailuresAreRuntime(t *testing.T) {
 				return "", rawFilesystemError
 			})
 			t.Cleanup(restore)
-			resetCmdtestState()
-
-			stdout, stderr := captureOutput(t, func() {
-				if code := rootcmd.Run(test.args, "4.12.0"); code != rootcmd.ExitError {
-					t.Fatalf("Run() exit code = %d, want runtime exit %d", code, rootcmd.ExitError)
-				}
-			})
+			stdout, stderr, code := runWithDeps(t, nil, test.args...)
+			if code != rootcmd.ExitError {
+				t.Fatalf("Run() exit code = %d, want runtime exit %d", code, rootcmd.ExitError)
+			}
 			if stdout != "" {
 				t.Fatalf("stdout = %q, want empty", stdout)
 			}
@@ -80,13 +77,10 @@ func TestNotarizationUnsearchableLexicalParentIsRuntimeAndSkipsChild(t *testing.
 		return nil, syscall.EACCES
 	})
 	t.Cleanup(restore)
-	resetCmdtestState()
-
-	stdout, stderr := captureOutput(t, func() {
-		if code := rootcmd.Run([]string{"notarization", "validate", "--file", pathValue}, "4.12.0"); code != rootcmd.ExitError {
-			t.Fatalf("Run() exit code = %d, want runtime exit %d", code, rootcmd.ExitError)
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, nil, "notarization", "validate", "--file", pathValue)
+	if code != rootcmd.ExitError {
+		t.Fatalf("Run() exit code = %d, want runtime exit %d", code, rootcmd.ExitError)
+	}
 	if calls != 1 {
 		t.Fatalf("lexical directory opens = %d, want one pre-clean searchability check", calls)
 	}
@@ -123,12 +117,10 @@ func TestNotarizationTargetShapeFailuresRemainUsage(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			resetCmdtestState()
-			stdout, stderr := captureOutput(t, func() {
-				if code := rootcmd.Run(test.args, "4.12.0"); code != rootcmd.ExitUsage {
-					t.Fatalf("Run() exit code = %d, want usage exit %d", code, rootcmd.ExitUsage)
-				}
-			})
+			stdout, stderr, code := runWithDeps(t, nil, test.args...)
+			if code != rootcmd.ExitUsage {
+				t.Fatalf("Run() exit code = %d, want usage exit %d", code, rootcmd.ExitUsage)
+			}
 			if stdout != "" {
 				t.Fatalf("stdout = %q, want empty", stdout)
 			}

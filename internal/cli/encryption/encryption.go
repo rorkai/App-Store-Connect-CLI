@@ -316,7 +316,7 @@ Examples:
 				if plistValue == "" {
 					return d.UsageError("--plist must not be empty")
 				}
-				return updatePlistExemption(d.IO.ErrOut, plistValue)
+				return updatePlistExemption(d.IO.ErrOut, d.Abs, plistValue)
 			}
 
 			fmt.Fprintln(d.IO.ErrOut, `To declare encryption exemption, add the following to your Info.plist:
@@ -348,13 +348,13 @@ For details, see:
 	}
 }
 
-func updatePlistExemption(stderr io.Writer, plistPath string) error {
+func updatePlistExemption(stderr io.Writer, abs func(string) (string, error), plistPath string) error {
 	displayPath := strings.TrimSpace(plistPath)
 	if displayPath == "" {
 		return fmt.Errorf("encryption declarations exempt-declare: plist path is required")
 	}
 
-	safePath, err := validatePlistPathNoSymlinkComponents(displayPath)
+	safePath, err := validatePlistPathNoSymlinkComponents(abs, displayPath)
 	if err != nil {
 		return err
 	}
@@ -423,8 +423,8 @@ func updatePlistExemption(stderr io.Writer, plistPath string) error {
 	return nil
 }
 
-func validatePlistPathNoSymlinkComponents(plistPath string) (string, error) {
-	absPath, err := filepath.Abs(plistPath)
+func validatePlistPathNoSymlinkComponents(abs func(string) (string, error), plistPath string) (string, error) {
+	absPath, err := abs(plistPath)
 	if err != nil {
 		return "", fmt.Errorf("encryption declarations exempt-declare: failed to resolve plist path: %w", err)
 	}
@@ -617,7 +617,7 @@ Examples:
 				return d.RequiredFlag("--file")
 			}
 
-			info, err := os.Lstat(pathValue)
+			info, err := os.Lstat(d.OSPath(pathValue))
 			if err != nil {
 				return fmt.Errorf("encryption documents upload: %w", err)
 			}
@@ -648,13 +648,13 @@ Examples:
 			}
 
 			uploadCtx, uploadCancel := d.UploadTimeout(ctx)
-			err = asc.ExecuteUploadOperations(uploadCtx, pathValue, resp.Data.Attributes.UploadOperations)
+			err = asc.ExecuteUploadOperations(uploadCtx, d.OSPath(pathValue), resp.Data.Attributes.UploadOperations)
 			uploadCancel()
 			if err != nil {
 				return fmt.Errorf("encryption documents upload: upload failed: %w", err)
 			}
 
-			checksum, err := asc.ComputeFileChecksum(pathValue, asc.ChecksumAlgorithmMD5)
+			checksum, err := asc.ComputeFileChecksum(d.OSPath(pathValue), asc.ChecksumAlgorithmMD5)
 			if err != nil {
 				return fmt.Errorf("encryption documents upload: checksum failed: %w", err)
 			}

@@ -11,7 +11,7 @@ func TestShotsFramesListDevices_JSON(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
 
-	root := RootCommand("1.2.3")
+	root, rootStdout, rootStderr := shotsRootWithDeps(t)
 	if err := root.Parse([]string{
 		"screenshots", "list-frame-devices",
 		"--output", "json",
@@ -19,11 +19,10 @@ func TestShotsFramesListDevices_JSON(t *testing.T) {
 		t.Fatalf("parse error: %v", err)
 	}
 
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	if err := root.Run(context.Background()); err != nil {
+		t.Fatalf("run error: %v", err)
+	}
+	stdout, stderr := rootStdout.String(), rootStderr.String()
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}

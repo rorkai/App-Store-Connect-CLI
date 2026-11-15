@@ -53,9 +53,9 @@ func NewInitReferenceCommand(d *shared.Deps, flagSetName, commandName, shortUsag
 		ShortHelp:  shortHelp,
 		LongHelp:   longHelp,
 		FlagSet:    fs,
-		UsageFunc:  shared.DefaultUsageFunc,
+		UsageFunc:  d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			result, err := initReference(d.Getwd, InitOptions{
+			result, err := initReference(d, InitOptions{
 				Path:  *path,
 				Force: *force,
 				Link:  *link,
@@ -90,11 +90,11 @@ Examples:
 // destination and the agent files, runs before the first write, so a failed
 // init leaves the repository untouched.
 func InitReference(opts InitOptions) (InitResult, error) {
-	return initReference(os.Getwd, opts)
+	return initReference(shared.DefaultDeps(), opts)
 }
 
-func initReference(getwd func() (string, error), opts InitOptions) (InitResult, error) {
-	targetPath, linkRoot, err := resolveOutputPath(getwd, opts.Path)
+func initReference(d *shared.Deps, opts InitOptions) (InitResult, error) {
+	targetPath, linkRoot, err := resolveOutputPath(d, opts.Path)
 	if err != nil {
 		return InitResult{}, err
 	}
@@ -138,12 +138,11 @@ func initReference(getwd func() (string, error), opts InitOptions) (InitResult, 
 	}, nil
 }
 
-// resolveOutputPath resolves --path, or the repository root above the working
-// directory from getwd when --path is empty. A relative --path still resolves
-// against the process directory, as filepath.Abs does.
-func resolveOutputPath(getwd func() (string, error), path string) (string, string, error) {
+// resolveOutputPath resolves --path against d's working directory, or finds
+// the repository root above that directory when --path is empty.
+func resolveOutputPath(d *shared.Deps, path string) (string, string, error) {
 	if path != "" {
-		abs, err := filepath.Abs(path)
+		abs, err := d.Abs(path)
 		if err != nil {
 			return "", "", err
 		}
@@ -184,7 +183,7 @@ func resolveOutputPath(getwd func() (string, error), path string) (string, strin
 		return targetPath, root, nil
 	}
 
-	cwd, err := getwd()
+	cwd, err := d.Getwd()
 	if err != nil {
 		return "", "", err
 	}

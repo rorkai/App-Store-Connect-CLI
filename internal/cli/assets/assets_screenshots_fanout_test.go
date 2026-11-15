@@ -46,6 +46,7 @@ func TestUploadScreenshotsFanoutUsesLocaleDirectoriesForResolvedVersion(t *testi
 	})
 
 	result, err := uploadScreenshotsFanout(context.Background(), screenshotUploadFanoutConfig{
+		Deps:        newAssetsUploadTestDeps(),
 		Client:      newAssetsUploadTestClient(t),
 		AppID:       "123456789",
 		Version:     "1.2.3",
@@ -164,6 +165,7 @@ func TestUploadScreenshotsFanoutErrorsWhenLocalLocaleHasNoRemoteMatch(t *testing
 	})
 
 	_, err := uploadScreenshotsFanout(context.Background(), screenshotUploadFanoutConfig{
+		Deps:        newAssetsUploadTestDeps(),
 		Client:      newAssetsUploadTestClient(t),
 		AppID:       "123456789",
 		Version:     "1.2.3",
@@ -211,6 +213,7 @@ func TestUploadScreenshotsFanoutFiltersMixedDeviceTreesBySelectedDisplayType(t *
 	})
 
 	result, err := uploadScreenshotsFanout(context.Background(), screenshotUploadFanoutConfig{
+		Deps:        newAssetsUploadTestDeps(),
 		Client:      newAssetsUploadTestClient(t),
 		AppID:       "123456789",
 		Version:     "1.2.3",
@@ -259,6 +262,7 @@ func TestUploadScreenshotsFanoutAppliesMaxDuringFallbackDiscovery(t *testing.T) 
 
 	var gotFiles []string
 	_, err := uploadScreenshotsFanout(context.Background(), screenshotUploadFanoutConfig{
+		Deps:           newAssetsUploadTestDeps(),
 		Client:         client,
 		VersionID:      "version-1",
 		RootPath:       rootDir,
@@ -305,6 +309,7 @@ func TestUploadScreenshotsFanoutPreservesPartialResultsAndArtifactsOnLocaleFailu
 
 	callOrder := make([]string, 0, 2)
 	result, err := uploadScreenshotsFanout(context.Background(), screenshotUploadFanoutConfig{
+		Deps:        newAssetsUploadTestDeps(),
 		Client:      newAssetsUploadTestClient(t),
 		AppID:       "123456789",
 		Version:     "1.2.3",
@@ -621,17 +626,15 @@ func TestExecuteScreenshotUploadCommandValidatesFanoutFilesBeforeClientCreation(
 	writeAssetsTestPNGWithSize(t, enDir, "01-home.png", 100, 100)
 
 	clientCalled := false
-	_, err := executeScreenshotUploadCommand(context.Background(), screenshotUploadCommandOptions{
+	_, err := executeScreenshotUploadCommand(context.Background(), newAssetsClientTestDeps(func() (*asc.Client, error) {
+		clientCalled = true
+		return nil, nil
+	}), screenshotUploadCommandOptions{
 		AppID:      "123456789",
 		Version:    "1.2.3",
 		Path:       rootDir,
 		DeviceType: "IPHONE_65",
-	}, screenshotUploadDependencies{
-		GetClient: func() (*asc.Client, error) {
-			clientCalled = true
-			return nil, nil
-		},
-	})
+	}, screenshotUploadDependencies{})
 	if err == nil {
 		t.Fatal("expected local validation error")
 	}
@@ -659,16 +662,14 @@ func TestExecuteScreenshotUploadCommandUsesASCAppIDFallbackForExplicitAppMode(t 
 	sentinelErr := errors.New("client requested")
 	clientCalled := false
 
-	_, err := executeScreenshotUploadCommand(context.Background(), screenshotUploadCommandOptions{
+	_, err := executeScreenshotUploadCommand(context.Background(), newAssetsClientTestDeps(func() (*asc.Client, error) {
+		clientCalled = true
+		return nil, sentinelErr
+	}), screenshotUploadCommandOptions{
 		Version:    "1.2.3",
 		Path:       rootDir,
 		DeviceType: "IPHONE_65",
-	}, screenshotUploadDependencies{
-		GetClient: func() (*asc.Client, error) {
-			clientCalled = true
-			return nil, sentinelErr
-		},
-	})
+	}, screenshotUploadDependencies{})
 	if !errors.Is(err, sentinelErr) {
 		t.Fatalf("expected sentinel client error, got %v", err)
 	}
@@ -683,6 +684,7 @@ func TestUploadScreenshotsFanoutRejectsDuplicateLocaleAssets(t *testing.T) {
 	writeAssetsTestPNGWithSize(t, rootDir, "02-home.png", 1242, 2688)
 
 	_, err := uploadScreenshotsFanout(context.Background(), screenshotUploadFanoutConfig{
+		Deps:        newAssetsUploadTestDeps(),
 		Client:      newAssetsUploadTestClient(t),
 		VersionID:   "version-1",
 		DisplayType: asc.CanonicalScreenshotDisplayTypeForAPI("APP_IPHONE_65"),
@@ -722,6 +724,7 @@ func TestUploadScreenshotsFanoutRejectsDuplicateLocaleAssetFileNames(t *testing.
 	})
 
 	_, err := uploadScreenshotsFanout(context.Background(), screenshotUploadFanoutConfig{
+		Deps:      newAssetsUploadTestDeps(),
 		Client:    newAssetsUploadTestClient(t),
 		VersionID: "version-1",
 		LocaleAssets: []screenshotLocaleAssetFiles{

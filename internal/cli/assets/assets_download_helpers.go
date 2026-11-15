@@ -147,21 +147,21 @@ func resolveImageAssetDownloadURL(asset *asc.ImageAsset, fileName string) (strin
 	return resolved, nil
 }
 
-func downloadURLToFile(ctx context.Context, rawURL string, outputPath string, overwrite bool) (int64, string, error) {
-	return downloadURLToResolvedFile(ctx, rawURL, func(string) string { return outputPath }, overwrite)
+func downloadURLToFile(ctx context.Context, d *shared.Deps, rawURL string, outputPath string, overwrite bool) (int64, string, error) {
+	return downloadURLToResolvedFile(ctx, d, rawURL, func(string) string { return outputPath }, overwrite)
 }
 
 // downloadURLToResolvedFile picks the output path from the response Content-Type.
-func downloadURLToResolvedFile(ctx context.Context, rawURL string, outputPath func(contentType string) string, overwrite bool) (int64, string, error) {
-	written, contentType, _, err := downloadURLToFileWithEquivalence(ctx, rawURL, outputPath, overwrite, false)
+func downloadURLToResolvedFile(ctx context.Context, d *shared.Deps, rawURL string, outputPath func(contentType string) string, overwrite bool) (int64, string, error) {
+	written, contentType, _, err := downloadURLToFileWithEquivalence(ctx, d, rawURL, outputPath, overwrite, false)
 	return written, contentType, err
 }
 
-func downloadScreenshotURLToFile(ctx context.Context, rawURL string, outputPath string, overwrite bool) (int64, string, bool, error) {
-	return downloadURLToFileWithEquivalence(ctx, rawURL, func(string) string { return outputPath }, overwrite, true)
+func downloadScreenshotURLToFile(ctx context.Context, d *shared.Deps, rawURL string, outputPath string, overwrite bool) (int64, string, bool, error) {
+	return downloadURLToFileWithEquivalence(ctx, d, rawURL, func(string) string { return outputPath }, overwrite, true)
 }
 
-func downloadURLToFileWithEquivalence(ctx context.Context, rawURL string, outputPath func(contentType string) string, overwrite, preserveEquivalentPNG bool) (int64, string, bool, error) {
+func downloadURLToFileWithEquivalence(ctx context.Context, d *shared.Deps, rawURL string, outputPath func(contentType string) string, overwrite, preserveEquivalentPNG bool) (int64, string, bool, error) {
 	rawURL = strings.TrimSpace(rawURL)
 	if rawURL == "" {
 		return 0, "", false, fmt.Errorf("download URL is required")
@@ -175,7 +175,7 @@ func downloadURLToFileWithEquivalence(ctx context.Context, rawURL string, output
 	lastContentType := ""
 
 	for attempt := 1; attempt <= assetDownloadMaxAttempts; attempt++ {
-		written, contentType, unchanged, err := downloadURLToFileOnce(ctx, rawURL, outputPath, overwrite, preserveEquivalentPNG)
+		written, contentType, unchanged, err := downloadURLToFileOnce(ctx, d, rawURL, outputPath, overwrite, preserveEquivalentPNG)
 		if err == nil {
 			return written, contentType, unchanged, nil
 		}
@@ -187,7 +187,7 @@ func downloadURLToFileWithEquivalence(ctx context.Context, rawURL string, output
 			return 0, lastContentType, false, lastErr
 		}
 
-		if err := sleepWithContext(ctx, delay); err != nil {
+		if err := sleepWithContext(ctx, d, delay); err != nil {
 			return 0, lastContentType, false, err
 		}
 
@@ -200,7 +200,7 @@ func downloadURLToFileWithEquivalence(ctx context.Context, rawURL string, output
 	return 0, lastContentType, false, lastErr
 }
 
-func downloadURLToFileOnce(ctx context.Context, rawURL string, resolveOutputPath func(contentType string) string, overwrite, preserveEquivalentPNG bool) (int64, string, bool, error) {
+func downloadURLToFileOnce(ctx context.Context, d *shared.Deps, rawURL string, resolveOutputPath func(contentType string) string, overwrite, preserveEquivalentPNG bool) (int64, string, bool, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
 		return 0, "", false, err
@@ -208,7 +208,7 @@ func downloadURLToFileOnce(ctx context.Context, rawURL string, resolveOutputPath
 	req.Header.Set("Accept", "*/*")
 	req.Header.Set("User-Agent", assetDownloadUserAgent)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := (&http.Client{Transport: d.HTTPTransport()}).Do(req)
 	if err != nil {
 		return 0, "", false, err
 	}
@@ -230,7 +230,7 @@ func downloadURLToFileOnce(ctx context.Context, rawURL string, resolveOutputPath
 		}
 	}
 
-	outputPath := strings.TrimSpace(resolveOutputPath(contentType))
+	outputPath := d.OSPath(strings.TrimSpace(resolveOutputPath(contentType)))
 	if preserveEquivalentPNG && overwrite && isRegularFile(outputPath) {
 		written, unchanged, err := writeScreenshotDownload(outputPath, resp.Body)
 		return written, contentType, unchanged, err
@@ -796,18 +796,15 @@ func isRetryableDownloadError(err error) bool {
 	return errors.As(err, &netErr)
 }
 
-func sleepWithContext(ctx context.Context, delay time.Duration) error {
+func sleepWithContext(ctx context.Context, d *shared.Deps, delay time.Duration) error {
 	if delay <= 0 {
 		return nil
 	}
 
-	timer := time.NewTimer(delay)
-	defer timer.Stop()
-
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
-	case <-timer.C:
+	case <-d.After(delay):
 		return nil
 	}
 }
@@ -832,5 +829,5 @@ func ResolveImageAssetDownloadURL(asset *asc.ImageAsset, fileName string) (strin
 
 // DownloadMediaURL downloads an unauthenticated media URL using the asset transfer path.
 func DownloadMediaURL(ctx context.Context, url, outputPath string, overwrite bool) (int64, string, error) {
-	return downloadURLToFile(ctx, url, outputPath, overwrite)
+	return downloadURLToFile(ctx, shared.DefaultDeps(), url, outputPath, overwrite)
 }

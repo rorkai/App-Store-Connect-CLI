@@ -43,7 +43,6 @@ func TestImagePreflightsRejectAlphaBeforeNetwork(t *testing.T) {
 					t.Fatal(err)
 				}
 				reg := asctest.NewRegistry(t)
-				reg.Install()
 				args := []string{"screenshots", "upload", "--version-localization", "LOC", "--path", path, "--device-type", "IPHONE_35"}
 				switch command {
 				case "creative":
@@ -51,7 +50,7 @@ func TestImagePreflightsRejectAlphaBeforeNetwork(t *testing.T) {
 				case "validate":
 					args = []string{"screenshots", "validate", "--path", path, "--device-type", "IPHONE_35", "--output", "json"}
 				}
-				stdout, stderr, err := runRootCommand(t, args)
+				stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), args...)
 				if command == "validate" {
 					assertValidateReportsAlpha(t, stdout, stderr, err, path)
 				} else if err == nil || !strings.Contains(err.Error(), "alpha channel or transparency") {

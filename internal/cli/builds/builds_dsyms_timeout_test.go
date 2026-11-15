@@ -40,27 +40,25 @@ func TestBuildsDsymsCommandGivesEachDownloadFreshTimeout(t *testing.T) {
 	})
 
 	var downloadDeadlines []time.Time
-	restoreDownloadClient := SetDSYMHTTPClient(&http.Client{
-		Transport: buildsWaitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
-			deadline, ok := req.Context().Deadline()
-			if !ok {
-				return nil, fmt.Errorf("dSYM download has no deadline")
-			}
-			downloadDeadlines = append(downloadDeadlines, deadline)
-			if len(downloadDeadlines) == 1 {
-				time.Sleep(15 * time.Millisecond)
-			}
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Status:     "200 OK",
-				Body:       io.NopCloser(strings.NewReader("symbols")),
-				Request:    req,
-			}, nil
-		}),
+	downloads := buildsWaitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		deadline, ok := req.Context().Deadline()
+		if !ok {
+			return nil, fmt.Errorf("dSYM download has no deadline")
+		}
+		downloadDeadlines = append(downloadDeadlines, deadline)
+		if len(downloadDeadlines) == 1 {
+			time.Sleep(15 * time.Millisecond)
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Status:     "200 OK",
+			Body:       io.NopCloser(strings.NewReader("symbols")),
+			Request:    req,
+		}, nil
 	})
-	t.Cleanup(restoreDownloadClient)
 
 	d, _ := newBuildsTestDeps(func() (*asc.Client, error) { return client, nil })
+	d.HTTPTransport = func() http.RoundTripper { return downloads }
 	cmd := newBuildsDsymsCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--build-id", "build-1",
