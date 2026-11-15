@@ -47,7 +47,6 @@ func TestWebPrivacyPullMissingAppExposesStructuredDiagnostic(t *testing.T) {
 }
 
 func TestWebAppsCreateMissingRequiredInputExposesStructuredDiagnostics(t *testing.T) {
-
 	tests := []struct {
 		name       string
 		run        func(d *shared.Deps) error
