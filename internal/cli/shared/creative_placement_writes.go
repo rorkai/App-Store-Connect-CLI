@@ -15,20 +15,20 @@ import (
 
 var creativePlacementID = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
 
-func creativePlacementCreateCommand(resource, prefix, label string) *ffcli.Command {
-	return creativePlacementWriteCommand(resource, prefix, label, false)
+func creativePlacementCreateCommand(d *Deps, resource, prefix, label string) *ffcli.Command {
+	return creativePlacementWriteCommand(d, resource, prefix, label, false)
 }
 
-func creativePlacementSwapCommand(resource, prefix, label string) *ffcli.Command {
-	return creativePlacementWriteCommand(resource, prefix, label, true)
+func creativePlacementSwapCommand(d *Deps, resource, prefix, label string) *ffcli.Command {
+	return creativePlacementWriteCommand(d, resource, prefix, label, true)
 }
 
-func creativePlacementWriteCommand(resource, prefix, label string, swap bool) *ffcli.Command {
+func creativePlacementWriteCommand(d *Deps, resource, prefix, label string, swap bool) *ffcli.Command {
 	operation := "create"
 	if swap {
 		operation = "swap"
 	}
-	fs := flag.NewFlagSet("placements "+operation, flag.ExitOnError)
+	fs := d.NewFlagSet("placements "+operation, flag.ExitOnError)
 	loc := BindResourceIDFlag(fs, "localization-id", resource, label+" ID or API self-link")
 	image := BindResourceIDFlag(fs, "image-id", "appAssetLibraryImages", "Uploaded asset library image ID or API self-link")
 	video := BindResourceIDFlag(fs, "video-id", "appAssetLibraryVideos", "Uploaded asset library video ID or API self-link")
@@ -41,7 +41,7 @@ func creativePlacementWriteCommand(resource, prefix, label string, swap bool) *f
 	} else {
 		group = fs.String("placement-group", "", "Device placement group for screenshots/previews; creative assets use DEFAULT_PROFILE")
 	}
-	output := BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	usage := "asc " + prefix + " placements " + operation + " --localization-id ID (--image-id ID | --video-id ID) --placement-type TYPE"
 	shortHelp := "Assign an existing asset library image or video."
 	longHelp := "Assign library media to " + label + ". Supply exactly one image or video ID. Screenshots require images and previews require videos, with an explicit device placement group such as IPHONE_DUO_PROFILE. Header, search, and event creative assets use DEFAULT_PROFILE. Apple validates media compatibility and slot availability. This does not submit for review or promise publication; no existing placement is removed automatically."
@@ -56,43 +56,43 @@ func creativePlacementWriteCommand(resource, prefix, label string, swap bool) *f
 	}
 	longHelp += "\n\nExamples:\n  asc " + prefix + " placements " + operation + " --localization-id ID --image-id IMAGE_ID --placement-type " + creativePlacementTypes(resource)[0] + exampleSuffix + "\n  asc " + prefix + " placements " + operation + " --localization-id ID --video-id VIDEO_ID --placement-type " + creativePlacementTypes(resource)[0] + exampleSuffix
 	return &ffcli.Command{
-		Name: operation, ShortHelp: shortHelp, ShortUsage: usage, FlagSet: fs, UsageFunc: DefaultUsageFunc, LongHelp: longHelp,
+		Name: operation, ShortHelp: shortHelp, ShortUsage: usage, FlagSet: fs, UsageFunc: d.DefaultUsageFunc, LongHelp: longHelp,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := ValidateBoundOutputFlags(fs); err != nil {
-				return UsageErrorf("placements "+operation+": %v", err)
+				return d.UsageErrorf("placements "+operation+": %v", err)
 			}
 			localizationID, imageID, videoID := strings.TrimSpace(*loc), strings.TrimSpace(*image), strings.TrimSpace(*video)
 			if !creativePlacementID.MatchString(localizationID) {
-				return UsageError("placements " + operation + ": --localization-id requires a resource ID")
+				return d.UsageError("placements " + operation + ": --localization-id requires a resource ID")
 			}
 			if (imageID == "") == (videoID == "") {
-				return UsageError("placements " + operation + ": supply exactly one of --image-id or --video-id")
+				return d.UsageError("placements " + operation + ": supply exactly one of --image-id or --video-id")
 			}
 			mediaID, mediaType, mediaRelationship := imageID, "appAssetLibraryImages", "image"
 			if videoID != "" {
 				mediaID, mediaType, mediaRelationship = videoID, "appAssetLibraryVideos", "video"
 			}
 			if !creativePlacementID.MatchString(mediaID) {
-				return UsageError("placements " + operation + ": media ID must be a resource ID")
+				return d.UsageError("placements " + operation + ": media ID must be a resource ID")
 			}
 			placementType, err := validatedPlacementCSV(*kind, creativePlacementTypes(resource))
 			if err != nil || placementType == "" || strings.Contains(placementType, ",") {
-				return UsageError("placements " + operation + ": --placement-type must be one of " + strings.Join(creativePlacementTypes(resource), ", "))
+				return d.UsageError("placements " + operation + ": --placement-type must be one of " + strings.Join(creativePlacementTypes(resource), ", "))
 			}
 			native := placementType == "APP_SCREENSHOT" || placementType == "IMESSAGE_APP_SCREENSHOT" || placementType == "APP_PREVIEW"
 			if placementType == "APP_PREVIEW" && videoID == "" {
-				return UsageError("placements " + operation + ": APP_PREVIEW requires --video-id")
+				return d.UsageError("placements " + operation + ": APP_PREVIEW requires --video-id")
 			}
 			if (placementType == "APP_SCREENSHOT" || placementType == "IMESSAGE_APP_SCREENSHOT") && imageID == "" {
-				return UsageError("placements " + operation + ": screenshots require --image-id")
+				return d.UsageError("placements " + operation + ": screenshots require --image-id")
 			}
 			previousID, placementGroup := "", ""
 			if swap {
 				previousID = strings.TrimSpace(*previous)
 				if !creativePlacementID.MatchString(previousID) {
-					return UsageError("placements swap: --placement-id requires a resource ID")
+					return d.UsageError("placements swap: --placement-id requires a resource ID")
 				}
-				if err := RequireConfirm(*confirm); err != nil {
+				if err := d.RequireConfirm(*confirm); err != nil {
 					return err
 				}
 			} else {
@@ -100,11 +100,11 @@ func creativePlacementWriteCommand(resource, prefix, label string, swap bool) *f
 			}
 			if !swap && native {
 				if !creativePlacementID.MatchString(placementGroup) || placementGroup == "DEFAULT_PROFILE" {
-					return UsageError("placements " + operation + ": screenshots/previews require a device --placement-group")
+					return d.UsageError("placements " + operation + ": screenshots/previews require a device --placement-group")
 				}
 			} else if !swap {
 				if placementGroup != "" && placementGroup != "DEFAULT_PROFILE" {
-					return UsageError("placements " + operation + ": creative assets require DEFAULT_PROFILE")
+					return d.UsageError("placements " + operation + ": creative assets require DEFAULT_PROFILE")
 				}
 				placementGroup = "DEFAULT_PROFILE"
 			}
@@ -118,14 +118,14 @@ func creativePlacementWriteCommand(resource, prefix, label string, swap bool) *f
 			} else {
 				attributes["placementGroup"] = placementGroup
 			}
-			client, err := GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("placements "+operation+": %w", err)
 			}
 			if swap {
 				// Apple rejects a swap whose placementGroup differs from the
 				// placement being replaced, and requires it for screenshots.
-				placementGroup, err = existingPlacementGroup(ctx, client, previousID)
+				placementGroup, err = existingPlacementGroup(ctx, d.Timeout, client, previousID)
 				if err != nil {
 					return fmt.Errorf("placements swap: read placement %s: %w", previousID, err)
 				}
@@ -137,14 +137,14 @@ func creativePlacementWriteCommand(resource, prefix, label string, swap bool) *f
 			if err != nil {
 				return err
 			}
-			placementID, state, err := postLibraryPlacement(ctx, ContextWithTimeout, client, payload)
+			placementID, state, err := postLibraryPlacement(ctx, d.Timeout, client, payload)
 			if err != nil {
 				return fmt.Errorf("placements %s: %w", operation, err)
 			}
 			if swap {
-				return PrintOutput(&asc.CreativePlacementSwapResult{ID: placementID, Swapped: true, PreviousPlacementID: previousID, LocalizationID: localizationID, ImageID: imageID, VideoID: videoID, PlacementType: placementType, PlacementGroup: placementGroup, State: state}, *output.Output, *output.Pretty)
+				return d.PrintOutput(&asc.CreativePlacementSwapResult{ID: placementID, Swapped: true, PreviousPlacementID: previousID, LocalizationID: localizationID, ImageID: imageID, VideoID: videoID, PlacementType: placementType, PlacementGroup: placementGroup, State: state}, *output.Output, *output.Pretty)
 			}
-			return PrintOutput(&asc.CreativePlacementCreateResult{ID: placementID, Created: true, LocalizationID: localizationID, ImageID: imageID, VideoID: videoID, PlacementType: placementType, PlacementGroup: placementGroup, State: state}, *output.Output, *output.Pretty)
+			return d.PrintOutput(&asc.CreativePlacementCreateResult{ID: placementID, Created: true, LocalizationID: localizationID, ImageID: imageID, VideoID: videoID, PlacementType: placementType, PlacementGroup: placementGroup, State: state}, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -206,8 +206,8 @@ func postLibraryPlacement(ctx context.Context, timeout func(context.Context) (co
 }
 
 // existingPlacementGroup reads the placement group of an existing placement.
-func existingPlacementGroup(ctx context.Context, client *asc.Client, placementID string) (string, error) {
-	requestCtx, cancel := ContextWithTimeout(ctx)
+func existingPlacementGroup(ctx context.Context, timeout func(context.Context) (context.Context, context.CancelFunc), client *asc.Client, placementID string) (string, error) {
+	requestCtx, cancel := timeout(ctx)
 	defer cancel()
 	response, err := client.RawRequest(requestCtx, "GET", "/v1/appAssetLibraryPlacements/"+url.PathEscape(placementID), nil)
 	if err != nil {
@@ -231,46 +231,46 @@ func existingPlacementGroup(ctx context.Context, client *asc.Client, placementID
 	return strings.TrimSpace(envelope.Data.Attributes.PlacementGroup), nil
 }
 
-func creativePlacementDeleteCommand(prefix string) *ffcli.Command {
-	fs := flag.NewFlagSet("placements delete", flag.ExitOnError)
+func creativePlacementDeleteCommand(d *Deps, prefix string) *ffcli.Command {
+	fs := d.NewFlagSet("placements delete", flag.ExitOnError)
 	id := BindResourceIDFlag(fs, "id", "appAssetLibraryPlacements", "Asset library placement ID or API self-link")
 	ids := fs.String("placement-ids", "", "Placement IDs to remove sequentially with DELETE, comma-separated")
 	confirm := fs.Bool("confirm", false, "Confirm removal of these placements")
-	output := BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	return &ffcli.Command{
-		Name: "delete", ShortHelp: "Remove an asset placement without deleting its library media.", ShortUsage: "asc " + prefix + " placements delete (--id ID | --placement-ids ID1,ID2) --confirm", FlagSet: fs, UsageFunc: DefaultUsageFunc,
+		Name: "delete", ShortHelp: "Remove an asset placement without deleting its library media.", ShortUsage: "asc " + prefix + " placements delete (--id ID | --placement-ids ID1,ID2) --confirm", FlagSet: fs, UsageFunc: d.DefaultUsageFunc,
 		LongHelp: "Remove one placement with --id, or remove --placement-ids sequentially using the public DELETE endpoint. Supply exactly one of these flags and --confirm. Apple does not expose the website batch deletion route through the public API. Multiple deletes are not atomic: processing stops on the first error and prints a partial receipt of deleted IDs and the failed ID before returning failure. Library media remains available for reuse. IDs are authoritative: this command does not validate a placement's localization or type. Inspect placements before retrying an uncertain failure; earlier successful deletes are not rolled back.\n\nExamples:\n  asc " + prefix + " placements delete --id PLACEMENT_ID --confirm\n  asc " + prefix + " placements delete --placement-ids FIRST_ID,SECOND_ID --confirm",
 		Exec: func(ctx context.Context, args []string) error {
 			if err := ValidateBoundOutputFlags(fs); err != nil {
-				return UsageErrorf("placements delete: %v", err)
+				return d.UsageErrorf("placements delete: %v", err)
 			}
 			placementID := strings.TrimSpace(*id)
 			placementIDs, err := placementIDsCSV(*ids)
 			if err != nil {
-				return UsageErrorf("placements delete: --placement-ids %v", err)
+				return d.UsageErrorf("placements delete: --placement-ids %v", err)
 			}
 			if (placementID == "") == (len(placementIDs) == 0) {
-				return UsageError("placements delete: supply exactly one of --id or --placement-ids")
+				return d.UsageError("placements delete: supply exactly one of --id or --placement-ids")
 			}
 			if placementID != "" && !creativePlacementID.MatchString(placementID) {
-				return UsageError("placements delete: --id requires a resource ID")
+				return d.UsageError("placements delete: --id requires a resource ID")
 			}
-			if err := RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
-			client, err := GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("placements delete: %w", err)
 			}
 			if len(placementIDs) > 0 {
 				result := &asc.CreativePlacementBulkDeleteResult{PlacementIDs: placementIDs, DeletedPlacementIDs: make([]string, 0, len(placementIDs))}
 				for _, id := range placementIDs {
-					requestCtx, cancel := ContextWithTimeout(ctx)
+					requestCtx, cancel := d.Timeout(ctx)
 					_, err := client.RawRequest(requestCtx, "DELETE", "/v1/appAssetLibraryPlacements/"+url.PathEscape(id), nil)
 					cancel()
 					if err != nil {
 						result.FailedPlacementID = id
-						if outputErr := PrintOutput(result, *output.Output, *output.Pretty); outputErr != nil {
+						if outputErr := d.PrintOutput(result, *output.Output, *output.Pretty); outputErr != nil {
 							return fmt.Errorf("placements delete: failed on %s: %w (partial receipt output: %w)", id, err, outputErr)
 						}
 						return fmt.Errorf("placements delete: failed on %s after removing %d placement(s): %w", id, len(result.DeletedPlacementIDs), err)
@@ -278,14 +278,14 @@ func creativePlacementDeleteCommand(prefix string) *ffcli.Command {
 					result.DeletedPlacementIDs = append(result.DeletedPlacementIDs, id)
 				}
 				result.Deleted = true
-				return PrintOutput(result, *output.Output, *output.Pretty)
+				return d.PrintOutput(result, *output.Output, *output.Pretty)
 			}
-			requestCtx, cancel := ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 			if _, err := client.RawRequest(requestCtx, "DELETE", "/v1/appAssetLibraryPlacements/"+url.PathEscape(placementID), nil); err != nil {
 				return fmt.Errorf("placements delete: %w", err)
 			}
-			return PrintOutput(&asc.DeleteResult{ID: placementID, Deleted: true}, *output.Output, *output.Pretty)
+			return d.PrintOutput(&asc.DeleteResult{ID: placementID, Deleted: true}, *output.Output, *output.Pretty)
 		},
 	}
 }

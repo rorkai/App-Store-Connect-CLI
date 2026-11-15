@@ -459,15 +459,9 @@ func uploadVersionLocalizationsWithWarningsTo(ctx context.Context, stderr io.Wri
 	return uploadPrevalidatedVersionLocalizationsWithWarningsTo(ctx, stderr, client, versionID, valuesByLocale, dryRun, submitOpts)
 }
 
-// UploadPrevalidatedVersionLocalizationsWithWarnings uploads version localizations
-// after the caller has already validated the input value set.
-func UploadPrevalidatedVersionLocalizationsWithWarnings(ctx context.Context, client versionLocalizationClient, versionID string, valuesByLocale map[string]map[string]string, dryRun bool, submitOpts SubmitReadinessOptions) ([]asc.LocalizationUploadLocaleResult, []SubmitReadinessCreateWarning, error) {
-	return uploadPrevalidatedVersionLocalizationsWithWarningsTo(ctx, os.Stderr, client, versionID, valuesByLocale, dryRun, submitOpts)
-}
-
-// UploadPrevalidatedVersionLocalizationsWithWarnings is
-// UploadPrevalidatedVersionLocalizationsWithWarnings with the whatsNew retry
-// warning written to d's stderr.
+// UploadPrevalidatedVersionLocalizationsWithWarnings uploads version
+// localizations after the caller has already validated the input value set,
+// with the whatsNew retry warning written to d's stderr.
 func (d *Deps) UploadPrevalidatedVersionLocalizationsWithWarnings(ctx context.Context, client versionLocalizationClient, versionID string, valuesByLocale map[string]map[string]string, dryRun bool, submitOpts SubmitReadinessOptions) ([]asc.LocalizationUploadLocaleResult, []SubmitReadinessCreateWarning, error) {
 	return uploadPrevalidatedVersionLocalizationsWithWarningsTo(ctx, d.IO.ErrOut, client, versionID, valuesByLocale, dryRun, submitOpts)
 }

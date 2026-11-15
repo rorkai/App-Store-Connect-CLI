@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -14,8 +13,8 @@ import (
 )
 
 // LocalizationsCreateCommand returns the create localizations subcommand.
-func LocalizationsCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
+func newLocalizationsCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("create", flag.ExitOnError)
 
 	versionID := shared.BindResourceIDFlag(fs, "version", "appStoreVersions", "App Store version ID, or a version string with --app (required)")
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID, for version strings)")
@@ -28,7 +27,7 @@ func LocalizationsCreateCommand() *ffcli.Command {
 	supportURL := fs.String("support-url", "", "Support URL")
 	marketingURL := fs.String("marketing-url", "", "Marketing URL")
 	ifExists := shared.BindIfExistsFlag(fs, shared.IfExistsSkip, shared.IfExistsUpdate)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -65,33 +64,33 @@ PATCH /v1/appStoreVersionLocalizations/{id}; when no metadata field was
 supplied there is nothing to apply, so update behaves like skip. Any other
 409 keeps failing.`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if flagProvided(fs, "platform") && strings.TrimSpace(*platform) == "" {
-				return shared.UsageError("--platform must not be empty")
+				return d.UsageError("--platform must not be empty")
 			}
 
 			vid := strings.TrimSpace(*versionID)
 			if vid == "" {
-				return shared.RequiredFlag("--version")
+				return d.RequiredFlag("--version")
 			}
 
-			versionIsString, normalizedPlatform, err := normalizeLocalizationVersionSelector(vid, *appID, *platform)
+			versionIsString, normalizedPlatform, err := normalizeLocalizationVersionSelector(d, vid, *appID, *platform)
 			if err != nil {
 				return err
 			}
 
 			localeValue := strings.TrimSpace(*locale)
 			if localeValue == "" {
-				return shared.RequiredFlag("--locale")
+				return d.RequiredFlag("--locale")
 			}
 			normalizedLocale, err := shared.CanonicalizeAppStoreLocalizationLocale(localeValue)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			localeValue = normalizedLocale
 
-			ifExistsMode, err := shared.ParseIfExistsMode(*ifExists, shared.IfExistsSkip, shared.IfExistsUpdate)
+			ifExistsMode, err := d.ParseIfExistsMode(*ifExists, shared.IfExistsSkip, shared.IfExistsUpdate)
 			if err != nil {
 				return err
 			}
@@ -106,19 +105,19 @@ supplied there is nothing to apply, so update behaves like skip. Any other
 				MarketingURL:    strings.TrimSpace(*marketingURL),
 			}
 			if err := shared.ValidateVersionLocalizationAttributes(attrs); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("localizations create: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			if versionIsString {
-				vid, err = resolveLocalizationsVersionString(requestCtx, client, shared.ResolveAppID(*appID), vid, normalizedPlatform)
+				vid, err = resolveLocalizationsVersionString(requestCtx, d, client, shared.ResolveAppID(*appID), vid, normalizedPlatform)
 				if err != nil {
 					return fmt.Errorf("localizations create: %w", err)
 				}
@@ -154,7 +153,7 @@ supplied there is nothing to apply, so update behaves like skip. Any other
 					}
 					resp = detail
 				}
-				fmt.Fprintf(os.Stderr, "localizations create: locale %s already exists on version %s as %s; %s (--if-exists %s)\n",
+				fmt.Fprintf(d.IO.ErrOut, "localizations create: locale %s already exists on version %s as %s; %s (--if-exists %s)\n",
 					localeValue, vid, existing.Data.ID, outcome, ifExistsMode)
 			}
 
@@ -177,10 +176,10 @@ supplied there is nothing to apply, so update behaves like skip. Any other
 				}
 			}
 
-			if err := shared.PrintOutput(resp, *output.Output, *output.Pretty); err != nil {
+			if err := d.PrintOutput(resp, *output.Output, *output.Pretty); err != nil {
 				return err
 			}
-			if err := shared.PrintSubmitReadinessCreateWarnings(os.Stderr, warnings); err != nil {
+			if err := shared.PrintSubmitReadinessCreateWarnings(d.IO.ErrOut, warnings); err != nil {
 				return err
 			}
 			if submitWarningLookupErr == nil || len(warnings) > 0 {
@@ -195,7 +194,7 @@ supplied there is nothing to apply, so update behaves like skip. Any other
 				localeLabel = "<unknown>"
 			}
 			_, err = fmt.Fprintf(
-				os.Stderr,
+				d.IO.ErrOut,
 				"Warning: locale %s was created without whatsNew, but the CLI could not determine whether this version is an app update: %v\n",
 				localeLabel,
 				submitWarningLookupErr,

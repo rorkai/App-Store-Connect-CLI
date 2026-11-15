@@ -37,7 +37,7 @@ Examples:
 			newCustomPageLocalizationsSearchKeywordsCommand(d),
 			newCustomPageLocalizationsPreviewSetsCommand(d),
 			newCustomPageLocalizationsScreenshotSetsCommand(d),
-			shared.CreativePlacementsCommand("appCustomProductPageLocalizations", "product-pages custom-pages localizations", "a custom product page localization"),
+			d.CreativePlacementsCommand("appCustomProductPageLocalizations", "product-pages custom-pages localizations", "a custom product page localization"),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
