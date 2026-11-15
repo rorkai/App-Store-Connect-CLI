@@ -194,7 +194,7 @@ func TestPublishTestFlightUploadOnlyRejectsContradictoryFlagsDeterministically(t
 		t.Run(test.name, func(t *testing.T) {
 			restore := overridePublishCommandTestHooks(t)
 			defer restore()
-			getPublishASCClientFn = func(time.Duration) (*asc.Client, error) {
+			publishTestClientWithTimeout = func(time.Duration) (*asc.Client, error) {
 				t.Fatal("validation must complete before client construction")
 				return nil, nil
 			}
@@ -329,7 +329,7 @@ func TestPublishTestFlightUploadOnlyProcessingFailurePrintsPartialBuildAndDoesNo
 func configurePublishUploadOnlyIPA(t *testing.T, processingState string) *int {
 	t.Helper()
 
-	getPublishASCClientFn = func(time.Duration) (*asc.Client, error) { return newPublishCommandTestClient(t), nil }
+	publishTestClientWithTimeout = func(time.Duration) (*asc.Client, error) { return newPublishCommandTestClient(t), nil }
 	resolvePublishAppIDWithLookupFn = func(_ context.Context, _ *asc.Client, appID string) (string, error) {
 		if appID != "friendly-app" {
 			t.Fatalf("expected friendly-app lookup, got %q", appID)

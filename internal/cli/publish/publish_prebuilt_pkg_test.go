@@ -22,7 +22,7 @@ func TestPublishTestFlightPrebuiltPKGUploadOnly(t *testing.T) {
 	restore := overridePublishCommandTestHooks(t)
 	defer restore()
 
-	getPublishASCClientFn = func(time.Duration) (*asc.Client, error) { return newPublishCommandTestClient(t), nil }
+	publishTestClientWithTimeout = func(time.Duration) (*asc.Client, error) { return newPublishCommandTestClient(t), nil }
 	resolvePublishAppIDWithLookupFn = func(_ context.Context, _ *asc.Client, appID string) (string, error) {
 		if appID != "friendly-app" {
 			t.Fatalf("expected friendly-app lookup, got %q", appID)
@@ -133,7 +133,7 @@ func TestPublishAppStorePrebuiltPKGUploadsAndAttaches(t *testing.T) {
 	restore := overridePublishCommandTestHooks(t)
 	defer restore()
 
-	getPublishASCClientFn = func(time.Duration) (*asc.Client, error) { return newPublishCommandTestClient(t), nil }
+	publishTestClientWithTimeout = func(time.Duration) (*asc.Client, error) { return newPublishCommandTestClient(t), nil }
 	validatePublishPKGPathFn = func(path string) (os.FileInfo, error) {
 		if path != "Demo.pkg" {
 			t.Fatalf("expected Demo.pkg validation, got %q", path)

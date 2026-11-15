@@ -204,7 +204,7 @@ func TestPublishLocalBuildRejectsManagedExportFlagsBeforeSideEffects(t *testing.
 			restore := overridePublishCommandTestHooks(t)
 			defer restore()
 
-			getPublishASCClientFn = func(time.Duration) (*asc.Client, error) {
+			publishTestClientWithTimeout = func(time.Duration) (*asc.Client, error) {
 				t.Fatal("client creation ran before export flag validation")
 				return nil, nil
 			}
@@ -277,7 +277,7 @@ func TestPublishLocalBuildAcceptsActionNamedAuthenticationValues(t *testing.T) {
 			defer restore()
 
 			wantErr := errors.New("reached client creation")
-			getPublishASCClientFn = func(time.Duration) (*asc.Client, error) { return nil, wantErr }
+			publishTestClientWithTimeout = func(time.Duration) (*asc.Client, error) { return nil, wantErr }
 			preflightPublishXcodeFn = func(context.Context) error {
 				t.Fatal("Xcode preflight ran after failed client creation")
 				return nil
@@ -1349,7 +1349,7 @@ func stubPublishCommandSeams(t *testing.T) {
 	t.Helper()
 
 	t.Cleanup(overridePublishCommandTestHooks(t))
-	getPublishASCClientFn = func(time.Duration) (*asc.Client, error) { return newPublishCommandTestClient(t), nil }
+	publishTestClientWithTimeout = func(time.Duration) (*asc.Client, error) { return newPublishCommandTestClient(t), nil }
 	resolvePublishAppIDWithLookupFn = func(_ context.Context, _ *asc.Client, _ string) (string, error) {
 		return "app-123", nil
 	}
@@ -1506,7 +1506,7 @@ func overridePublishCommandTestHooks(t *testing.T) func() {
 	originalExport := runPublishExportFn
 	originalPreflightXcode := preflightPublishXcodeFn
 	originalGenerateExportOptions := generatePublishExportOptionsFn
-	originalGetClient := getPublishASCClientFn
+	originalGetClient := publishTestClientWithTimeout
 	originalResolveNextBuildNumber := resolvePublishNextBuildNumberFn
 	originalValidateIPAPath := validatePublishIPAPathFn
 	originalValidatePKGPath := validatePublishPKGPathFn
@@ -1523,7 +1523,7 @@ func overridePublishCommandTestHooks(t *testing.T) func() {
 		runPublishExportFn = originalExport
 		preflightPublishXcodeFn = originalPreflightXcode
 		generatePublishExportOptionsFn = originalGenerateExportOptions
-		getPublishASCClientFn = originalGetClient
+		publishTestClientWithTimeout = originalGetClient
 		resolvePublishNextBuildNumberFn = originalResolveNextBuildNumber
 		validatePublishIPAPathFn = originalValidateIPAPath
 		validatePublishPKGPathFn = originalValidatePKGPath

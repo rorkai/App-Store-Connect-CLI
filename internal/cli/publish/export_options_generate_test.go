@@ -312,7 +312,7 @@ func TestPublishRejectsExplicitOptionsWithGenerationFlagsBeforeSideEffects(t *te
 				restore := overridePublishCommandTestHooks(t)
 				defer restore()
 
-				getPublishASCClientFn = func(time.Duration) (*asc.Client, error) {
+				publishTestClientWithTimeout = func(time.Duration) (*asc.Client, error) {
 					t.Fatal("ASC client must not be created for conflicting export-options flags")
 					return nil, nil
 				}
@@ -360,7 +360,7 @@ func TestPublishRejectsInvalidSigningStyleBeforeSideEffects(t *testing.T) {
 				restore := overridePublishCommandTestHooks(t)
 				defer restore()
 
-				getPublishASCClientFn = func(time.Duration) (*asc.Client, error) {
+				publishTestClientWithTimeout = func(time.Duration) (*asc.Client, error) {
 					t.Fatal("ASC client must not be created for an invalid signing style")
 					return nil, nil
 				}
@@ -417,7 +417,7 @@ func TestPublishRejectsExplicitlyEmptyTeamIDBeforeSideEffects(t *testing.T) {
 				t.Fatalf("write conventional export-options plist: %v", err)
 			}
 
-			getPublishASCClientFn = func(time.Duration) (*asc.Client, error) {
+			publishTestClientWithTimeout = func(time.Duration) (*asc.Client, error) {
 				t.Fatal("ASC client must not be created for an empty team ID")
 				return nil, nil
 			}

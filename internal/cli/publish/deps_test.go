@@ -6,14 +6,22 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
+// publishTestClientWithTimeout is the client a test's commands get from their
+// deps' ClientWithTimeout; overridePublishCommandTestHooks restores it.
+var publishTestClientWithTimeout = shared.GetASCClientWithTimeout
+
 // newPublishTestDeps returns deps that write to buffers, with the process
-// clock, timers, timeouts and working directory. Commands in this package
-// take their client from getPublishASCClientFn, so Client is left unset.
+// clock, timers, timeouts and working directory, and the client from
+// publishTestClientWithTimeout.
 func newPublishTestDeps() *shared.Deps {
 	return &shared.Deps{
+		ClientWithTimeout: func(timeout time.Duration) (*asc.Client, error) {
+			return publishTestClientWithTimeout(timeout)
+		},
 		IO:             &shared.IO{In: strings.NewReader(""), Out: &bytes.Buffer{}, ErrOut: &bytes.Buffer{}},
 		Now:            time.Now,
 		Timeout:        shared.ContextWithTimeout,

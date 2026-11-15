@@ -287,7 +287,7 @@ Examples:
 			}
 
 			timeoutValue := resolvePublishTimeout(d, *timeout)
-			client, err := getPublishASCClientFn(timeoutValue)
+			client, err := publishClient(d, timeoutValue)
 			if err != nil {
 				return fmt.Errorf("publish testflight: %w", err)
 			}
@@ -708,7 +708,7 @@ Examples:
 					mode = asc.PublishModeLocalBuild
 				}
 			} else {
-				client, err = getPublishASCClientFn(timeoutValue)
+				client, err = publishClient(d, timeoutValue)
 				if err != nil {
 					return fmt.Errorf("publish appstore: %w", err)
 				}

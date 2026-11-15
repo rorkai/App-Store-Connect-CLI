@@ -24,12 +24,6 @@ var (
 	generatePublishExportOptionsFn = func(ctx context.Context, opts localxcode.ExportOptionsGenerateOptions) (*localxcode.ExportOptionsGenerateResult, error) {
 		return localxcode.GenerateExportOptions(ctx, opts)
 	}
-	getPublishASCClientFn = func(timeout time.Duration) (*asc.Client, error) {
-		if timeout > 0 {
-			return shared.GetASCClientWithTimeout(timeout)
-		}
-		return shared.GetASCClient()
-	}
 	validatePublishIPAPathFn        = shared.ValidateIPAPath
 	validatePublishPKGPathFn        = shared.ValidatePKGPath
 	resolvePublishNextBuildNumberFn = func(ctx context.Context, d *shared.Deps, client *asc.Client, opts shared.NextBuildNumberOptions) (*asc.BuildsNextBuildNumberResult, error) {
@@ -580,6 +574,15 @@ func publishOSPath(d *shared.Deps, path string) string {
 		return ""
 	}
 	return d.OSPath(path)
+}
+
+// publishClient returns d's client whose HTTP timeout is timeout, or d's
+// request-timeout client when timeout is not positive.
+func publishClient(d *shared.Deps, timeout time.Duration) (*asc.Client, error) {
+	if timeout > 0 {
+		return d.ClientWithTimeout(timeout)
+	}
+	return d.Client()
 }
 
 func firstNonEmpty(values ...string) string {
