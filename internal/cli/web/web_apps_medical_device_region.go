@@ -122,7 +122,7 @@ Examples:
 				return err
 			}
 
-			options, metadata, err := readWebMedicalDeviceRegionInput(pathValue)
+			options, metadata, err := readWebMedicalDeviceRegionInput(d.OSPath(pathValue))
 			if err != nil {
 				return d.UsageError(err.Error())
 			}
