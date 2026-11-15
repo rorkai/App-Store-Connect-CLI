@@ -1,11 +1,9 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -179,17 +177,10 @@ func TestWorkflowRun_DryRun(t *testing.T) {
 				}
 			}`)
 
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args(path)); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
+			stdout, stderr, err := runRootWithDeps(t, nil, test.args(path)...)
+			if err != nil {
+				t.Fatalf("run error: %v", err)
+			}
 
 			if !strings.Contains(stderr, "[dry-run] step 1: echo hello world") {
 				t.Fatalf("expected dry-run preview in stderr, got %q", stderr)
@@ -228,17 +219,10 @@ func TestWorkflowRun_FileFlagAfterName_AllowsDashPrefixedPath(t *testing.T) {
 		_ = os.Chdir(wd)
 	})
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{"workflow", "run", "beta", "--file", "-workflow.json", "--dry-run"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, _, err := runRootWithDeps(t, nil, "workflow", "run", "beta", "--file", "-workflow.json", "--dry-run")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	var result map[string]any
 	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
@@ -496,17 +480,10 @@ func TestWorkflowRun_Success(t *testing.T) {
 		}
 	}`)
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"workflow", "run", "--file", path, "test"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, nil, "workflow", "run", "--file", path, "test")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	var result map[string]any
 	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
@@ -531,17 +508,10 @@ func TestWorkflowRun_PrettyJSON(t *testing.T) {
 		}
 	}`)
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{"workflow", "run", "--pretty", "--file", path, "test"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, _, err := runRootWithDeps(t, nil, "workflow", "run", "--pretty", "--file", path, "test")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	// Pretty JSON should have indentation
 	if !strings.Contains(stdout, "  \"workflow\"") {
@@ -563,17 +533,10 @@ func TestWorkflowRun_WithParams(t *testing.T) {
 				}
 			}`)
 
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse([]string{"workflow", "run", "--file", path, "test", param}); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
+			stdout, stderr, err := runRootWithDeps(t, nil, "workflow", "run", "--file", path, "test", param)
+			if err != nil {
+				t.Fatalf("run error: %v", err)
+			}
 
 			if !strings.Contains(stderr, "RESULT_IS_yes") {
 				t.Fatalf("expected runtime param in command output, got %q", stderr)
@@ -692,11 +655,10 @@ func TestWorkflowRun_EnvFile(t *testing.T) {
 			}
 			args = append(append(args, "test"), test.extraArgs...)
 
-			stdout, stderr := captureOutput(t, func() {
-				if code := rootcmd.Run(args, "1.2.3"); code != test.wantCode {
-					t.Errorf("exit code = %d, want %d", code, test.wantCode)
-				}
-			})
+			stdout, stderr, code := runWithDeps(t, nil, args...)
+			if code != test.wantCode {
+				t.Errorf("exit code = %d, want %d", code, test.wantCode)
+			}
 			for _, want := range test.wantStderr {
 				if !strings.Contains(stderr, want) {
 					t.Errorf("stderr missing %q: %q", want, stderr)
@@ -725,17 +687,10 @@ func TestWorkflowRun_SkippedWorkflowStepIncludesName(t *testing.T) {
 		}
 	}`)
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{"workflow", "run", "--file", path, "main"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, _, err := runRootWithDeps(t, nil, "workflow", "run", "--file", path, "main")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	var result map[string]any
 	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
@@ -768,17 +723,10 @@ func TestWorkflowRun_NoHooks_OmitsHooksKey(t *testing.T) {
 		}
 	}`)
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{"workflow", "run", "--file", path, "test"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, _, err := runRootWithDeps(t, nil, "workflow", "run", "--file", path, "test")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	var result map[string]any
 	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
@@ -815,21 +763,13 @@ func TestWorkflowRun_ResumeFlagAfterName(t *testing.T) {
 		}
 	}`)
 
-	root1 := RootCommand("1.2.3")
-	root1.FlagSet.SetOutput(io.Discard)
-
-	stdout1, _ := captureOutput(t, func() {
-		if err := root1.Parse([]string{"workflow", "run", "--file", path, "release"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root1.Run(context.Background())
-		if err == nil {
-			t.Fatal("expected first run error")
-		}
-		if _, ok := errors.AsType[ReportedError](err); !ok {
-			t.Fatalf("expected ReportedError, got %v", err)
-		}
-	})
+	stdout1, _, err := runRootWithDeps(t, nil, "workflow", "run", "--file", path, "release")
+	if err == nil {
+		t.Fatal("expected first run error")
+	}
+	if _, ok := errors.AsType[ReportedError](err); !ok {
+		t.Fatalf("expected ReportedError, got %v", err)
+	}
 
 	var first map[string]any
 	if err := json.Unmarshal([]byte(stdout1), &first); err != nil {
@@ -844,17 +784,10 @@ func TestWorkflowRun_ResumeFlagAfterName(t *testing.T) {
 		t.Fatalf("write resume flag: %v", err)
 	}
 
-	root2 := RootCommand("1.2.3")
-	root2.FlagSet.SetOutput(io.Discard)
-
-	stdout2, _ := captureOutput(t, func() {
-		if err := root2.Parse([]string{"workflow", "run", "--file", path, "release", "--resume", runID}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root2.Run(context.Background()); err != nil {
-			t.Fatalf("resume run error: %v", err)
-		}
-	})
+	stdout2, _, err := runRootWithDeps(t, nil, "workflow", "run", "--file", path, "release", "--resume", runID)
+	if err != nil {
+		t.Fatalf("resume run error: %v", err)
+	}
 
 	var resumed map[string]any
 	if err := json.Unmarshal([]byte(stdout2), &resumed); err != nil {
@@ -893,22 +826,14 @@ func TestWorkflowRun_StepFailure_PartialJSON(t *testing.T) {
 		}
 	}`)
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{"workflow", "run", "--file", path, "test"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if err == nil {
-			t.Fatal("expected error on step failure")
-		}
-		// Should be a ReportedError (exit code 1, not 2)
-		if _, ok := errors.AsType[ReportedError](err); !ok {
-			t.Fatalf("expected ReportedError, got %T: %v", err, err)
-		}
-	})
+	stdout, _, err := runRootWithDeps(t, nil, "workflow", "run", "--file", path, "test")
+	if err == nil {
+		t.Fatal("expected error on step failure")
+	}
+	// Should be a ReportedError (exit code 1, not 2)
+	if _, ok := errors.AsType[ReportedError](err); !ok {
+		t.Fatalf("expected ReportedError, got %T: %v", err, err)
+	}
 
 	// Partial JSON result should be printed even on failure
 	var result map[string]any
@@ -963,21 +888,13 @@ func TestWorkflowRun_BeforeAllHookFailure_PrintsErrorInJSON(t *testing.T) {
 		}
 	}`)
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"workflow", "run", "--file", path, "test"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if err == nil {
-			t.Fatal("expected error on before_all failure")
-		}
-		if _, ok := errors.AsType[ReportedError](err); !ok {
-			t.Fatalf("expected ReportedError, got %T: %v", err, err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, nil, "workflow", "run", "--file", path, "test")
+	if err == nil {
+		t.Fatal("expected error on before_all failure")
+	}
+	if _, ok := errors.AsType[ReportedError](err); !ok {
+		t.Fatalf("expected ReportedError, got %T: %v", err, err)
+	}
 
 	var result map[string]any
 	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
@@ -1032,21 +949,13 @@ func TestWorkflowRun_AfterAllHookFailure_PrintsErrorInJSON(t *testing.T) {
 		}
 	}`)
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"workflow", "run", "--file", path, "test"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if err == nil {
-			t.Fatal("expected error on after_all failure")
-		}
-		if _, ok := errors.AsType[ReportedError](err); !ok {
-			t.Fatalf("expected ReportedError, got %T: %v", err, err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, nil, "workflow", "run", "--file", path, "test")
+	if err == nil {
+		t.Fatal("expected error on after_all failure")
+	}
+	if _, ok := errors.AsType[ReportedError](err); !ok {
+		t.Fatalf("expected ReportedError, got %T: %v", err, err)
+	}
 
 	var result map[string]any
 	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
