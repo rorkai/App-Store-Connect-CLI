@@ -524,7 +524,7 @@ func uploadIAPImportReviewScreenshot(ctx context.Context, d *shared.Deps, client
 		return "", fmt.Errorf("checksum review screenshot %q: %w", name, err)
 	}
 
-	uploadCtx, uploadCancel := context.WithTimeout(ctx, asc.ResolveUploadTimeoutWithDefault(iapAssetUploadDefaultTimeout))
+	uploadCtx, uploadCancel := d.ResolvedUploadTimeout(ctx, iapAssetUploadDefaultTimeout)
 	defer uploadCancel()
 
 	reservation, err := client.CreateInAppPurchaseAppStoreReviewScreenshot(uploadCtx, iapID, filepath.Base(name), info.Size())
@@ -554,7 +554,7 @@ func uploadIAPImportReviewScreenshot(ctx context.Context, d *shared.Deps, client
 		return screenshotID, fmt.Errorf("commit review screenshot: %w", err)
 	}
 
-	verifyCtx, verifyCancel := context.WithTimeout(ctx, asc.ResolveUploadTimeoutWithDefault(iapAssetUploadDefaultTimeout))
+	verifyCtx, verifyCancel := d.ResolvedUploadTimeout(ctx, iapAssetUploadDefaultTimeout)
 	defer verifyCancel()
 	if _, err := waitForIAPReviewScreenshotDelivery(verifyCtx, client, screenshotID); err != nil {
 		return screenshotID, fmt.Errorf("verify review screenshot: %w", err)
