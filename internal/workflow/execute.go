@@ -19,6 +19,10 @@ const MaxCallDepth = 16
 type RunOptions struct {
 	WorkflowName string
 	Params       map[string]string
+	// FileEnv holds values loaded with --env-file. They act like variables
+	// exported before the run: the process environment and every workflow,
+	// step, and parameter value override them.
+	FileEnv      map[string]string
 	DryRun       bool
 	Stdout       io.Writer
 	Stderr       io.Writer
@@ -167,6 +171,14 @@ func Run(ctx context.Context, def *Definition, opts RunOptions) (*RunResult, err
 		result.DurationMS = time.Since(start).Milliseconds()
 	}()
 
+	fileEnv := make(map[string]string, len(opts.FileEnv))
+	for k, v := range opts.FileEnv {
+		if _, set := os.LookupEnv(k); !set {
+			fileEnv[k] = v
+		}
+	}
+	opts.FileEnv = fileEnv
+
 	r, err := newRunner(def, opts, result)
 	if err != nil {
 		result.Status = "error"
@@ -175,43 +187,44 @@ func Run(ctx context.Context, def *Definition, opts RunOptions) (*RunResult, err
 	}
 
 	env := mergeEnv(def.Env, wf.Env, r.opts.Params)
+	hookEnv := mergeEnv(fileEnv, env)
 
 	if resumed := r.resumedHook("before_all", def.BeforeAll); resumed != nil {
 		result.ensureHooks().BeforeAll = resumed
-	} else if hr, hookErr := runHookAndRecord(ctx, def.BeforeAll, env, opts.DryRun, opts.Stdout, opts.Stderr); hr != nil {
+	} else if hr, hookErr := runHookAndRecord(ctx, def.BeforeAll, hookEnv, opts.DryRun, opts.Stdout, opts.Stderr); hr != nil {
 		result.ensureHooks().BeforeAll = hr
 		if hookErr != nil {
 			wrapped := markCommandError(ctx, fmt.Errorf("workflow: before_all hook failed: %w", hookErr))
 			r.markFailure(wrapped, "before_all")
-			recordErrorHook(ctx, def.Error, env, opts, result)
+			recordErrorHook(ctx, def.Error, hookEnv, opts, result)
 			return result, wrapped
 		}
 		if persistErr := r.persistHook("before_all", hr); persistErr != nil {
 			r.markFailure(persistErr, "before_all")
-			recordErrorHook(ctx, def.Error, env, opts, result)
+			recordErrorHook(ctx, def.Error, hookEnv, opts, result)
 			return result, persistErr
 		}
 	}
 
 	if execErr := r.executeSteps(ctx, opts.WorkflowName, wf.Steps, env, "", 0); execErr != nil {
 		r.markFailure(execErr, result.FailedStep)
-		recordErrorHook(ctx, def.Error, env, opts, result)
+		recordErrorHook(ctx, def.Error, hookEnv, opts, result)
 		return result, execErr
 	}
 
 	if resumed := r.resumedHook("after_all", def.AfterAll); resumed != nil {
 		result.ensureHooks().AfterAll = resumed
-	} else if hr, hookErr := runHookAndRecord(ctx, def.AfterAll, env, opts.DryRun, opts.Stdout, opts.Stderr); hr != nil {
+	} else if hr, hookErr := runHookAndRecord(ctx, def.AfterAll, hookEnv, opts.DryRun, opts.Stdout, opts.Stderr); hr != nil {
 		result.ensureHooks().AfterAll = hr
 		if hookErr != nil {
 			wrapped := markCommandError(ctx, fmt.Errorf("workflow: after_all hook failed: %w", hookErr))
 			r.markFailure(wrapped, "after_all")
-			recordErrorHook(ctx, def.Error, env, opts, result)
+			recordErrorHook(ctx, def.Error, hookEnv, opts, result)
 			return result, wrapped
 		}
 		if persistErr := r.persistHook("after_all", hr); persistErr != nil {
 			r.markFailure(persistErr, "after_all")
-			recordErrorHook(ctx, def.Error, env, opts, result)
+			recordErrorHook(ctx, def.Error, hookEnv, opts, result)
 			return result, persistErr
 		}
 	}
@@ -389,6 +402,10 @@ func (r *runner) executeSteps(ctx context.Context, workflowName string, steps []
 		if len(step.Env) > 0 {
 			stepEnv = mergeEnv(env, step.Env)
 		}
+		runEnv := stepEnv
+		if len(r.opts.FileEnv) > 0 {
+			runEnv = mergeEnv(r.opts.FileEnv, stepEnv)
+		}
 
 		// A recorded tolerated failure is replayed before the step's condition
 		// is evaluated again: the condition may read differently on resume, and
@@ -409,7 +426,7 @@ func (r *runner) executeSteps(ctx context.Context, workflowName string, steps []
 		}
 
 		if strings.TrimSpace(step.If) != "" {
-			pass, err := evalStepIf(step.If, stepEnv)
+			pass, err := evalStepIf(step.If, runEnv)
 			if err != nil {
 				fmt.Fprintf(r.opts.Stderr, "Warning: workflow %q step %d: if %q is not a supported condition, so the step is skipped; %v. A future major release will reject it.\n", workflowName, idx, step.If, err)
 			}
@@ -527,7 +544,7 @@ func (r *runner) executeSteps(ctx context.Context, workflowName string, steps []
 			continue
 		}
 
-		if err := r.executeRunStep(ctx, workflowName, idx, stepKey, step, command, stepEnv, &sr); err != nil {
+		if err := r.executeRunStep(ctx, workflowName, idx, stepKey, step, command, runEnv, &sr); err != nil {
 			sr.DurationMS = time.Since(stepStart).Milliseconds()
 			r.result.Steps = append(r.result.Steps, sr)
 			r.failStep(step.Name, stepKey)
