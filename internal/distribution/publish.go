@@ -1121,7 +1121,11 @@ func NewHTTPVerifierWithEnvironmentTrust(transport http.RoundTripper, timeout ti
 		return nil, fmt.Errorf("default HTTP transport is unavailable")
 	}
 	clone := base.Clone()
-	clone.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12, RootCAs: roots}
+	if clone.TLSClientConfig == nil {
+		clone.TLSClientConfig = &tls.Config{}
+	}
+	clone.TLSClientConfig.RootCAs = roots
+	clone.TLSClientConfig.MinVersion = max(clone.TLSClientConfig.MinVersion, tls.VersionTLS12)
 	return NewHTTPVerifier(&http.Client{Transport: clone}, timeout), nil
 }
 

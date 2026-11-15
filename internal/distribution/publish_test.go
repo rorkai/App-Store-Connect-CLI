@@ -4,11 +4,14 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"crypto/tls"
 	"encoding/hex"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -1166,3 +1169,39 @@ func sha256Hex(data []byte) string {
 }
 
 var _ = errors.Is
+
+func TestHTTPVerifierCABundleKeepsTransportTLSSettings(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	defer server.Close()
+	caPath := filepath.Join(t.TempDir(), "ca.pem")
+	if err := os.WriteFile(caPath, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw}), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("AWS_CA_BUNDLE", caPath)
+
+	for _, test := range []struct {
+		name           string
+		config         *tls.Config
+		wantServerName string
+		wantMinVersion uint16
+	}{
+		{name: "no TLS settings", wantMinVersion: tls.VersionTLS12},
+		{name: "custom server name", config: &tls.Config{ServerName: "objects.internal"}, wantServerName: "objects.internal", wantMinVersion: tls.VersionTLS12},
+		{name: "higher minimum version", config: &tls.Config{MinVersion: tls.VersionTLS13}, wantMinVersion: tls.VersionTLS13},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			base := &http.Transport{TLSClientConfig: test.config}
+			verifier, err := NewHTTPVerifierWithEnvironmentTrust(base, time.Second)
+			if err != nil {
+				t.Fatalf("NewHTTPVerifierWithEnvironmentTrust() error = %v", err)
+			}
+			got := verifier.client.Transport.(*http.Transport).TLSClientConfig
+			if got == nil || got.RootCAs == nil || got.ServerName != test.wantServerName || got.MinVersion != test.wantMinVersion {
+				t.Fatalf("verifier TLS config = %+v, want the CA bundle roots, server name %q and minimum version %x", got, test.wantServerName, test.wantMinVersion)
+			}
+			if test.config != nil && test.config.RootCAs != nil {
+				t.Fatal("the given transport's TLS config was changed")
+			}
+		})
+	}
+}
