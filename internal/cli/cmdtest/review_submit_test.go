@@ -115,6 +115,43 @@ func TestReviewSubmitLocalizationPreflightUsesReviewSubmitGuidance(t *testing.T)
 	}
 }
 
+func TestReviewSubmitAgeRatingPreflightStopsBeforeSubmission(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_APP_ID", "")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	reg := asctest.NewRegistry(t)
+	reg.Install()
+	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[platform]=IOS", "filter[versionString]=1.2.3", "limit=10"), asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}]}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionSubmission"), asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`))
+	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/appStoreVersionLocalizations", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"locale":"en-US","description":"Description","keywords":"keyword","supportUrl":"https://example.com/support"}}]}`))
+	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[appStoreState]=READY_FOR_SALE,DEVELOPER_REMOVED_FROM_SALE,REMOVED_FROM_SALE", "filter[platform]=IOS", "limit=1"), asctest.JSON(http.StatusOK, `{"data":[]}`))
+	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[appVersionState]=READY_FOR_DISTRIBUTION", "filter[platform]=IOS", "limit=1"), asctest.JSON(http.StatusOK, `{"data":[]}`))
+	registerSubmitPreflightAppInfos(reg, strings.Replace(completeAgeRatingAttributes, `"socialMedia":false,`, "", 1))
+
+	code, stdout, stderr := runASCForExitCode(t, "review", "submit", "--app", "app-1", "--version", "1.2.3", "--build-id", "build-1", "--confirm")
+
+	if code != cmd.ExitError {
+		t.Fatalf("expected exit code %d, got %d (stderr %q)", cmd.ExitError, code, stderr)
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	for _, want := range []string{
+		"socialMedia: age rating field is missing (age_rating.missing_field)",
+		"Complete the age rating declaration in App Store Connect before retrying `asc review submit`.",
+	} {
+		if !strings.Contains(stderr, want) {
+			t.Fatalf("expected stderr to contain %q, got %q", want, stderr)
+		}
+	}
+	for _, request := range reviewSubmitRequests(reg) {
+		if !strings.HasPrefix(request, "GET ") {
+			t.Fatalf("expected no mutating request, got %s", request)
+		}
+	}
+}
+
 func TestReviewSubmitPreflightRequiresWhatsNewWhenOnlyAppVersionStateIsLive(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_APP_ID", "")
@@ -191,6 +228,7 @@ func TestReviewSubmitSubscriptionPreflightUsesReviewSubmitGuidance(t *testing.T)
 	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[appStoreState]=READY_FOR_SALE,DEVELOPER_REMOVED_FROM_SALE,REMOVED_FROM_SALE", "filter[platform]=IOS", "limit=1"), asctest.JSON(http.StatusOK, `{"data":[]}`))
 	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[appVersionState]=READY_FOR_DISTRIBUTION", "filter[platform]=IOS", "limit=1"), asctest.JSON(http.StatusOK, `{"data":[]}`))
 	reg.Register(asctest.GET("/v1/apps/app-1/subscriptionGroups", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[{"type":"subscriptionGroups","id":"group-1","attributes":{"referenceName":"Premium"}}],"links":{}}`))
+	registerSubmitPreflightAppInfos(reg, completeAgeRatingAttributes)
 	reg.Register(asctest.GET("/v1/subscriptionGroups/group-1/subscriptions", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[{"type":"subscriptions","id":"sub-1","attributes":{"name":"Monthly","state":"READY_TO_SUBMIT"}}],"links":{}}`))
 	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/build"), asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`))
 
@@ -246,6 +284,7 @@ func TestReviewSubmitDryRunPreviewsWithoutMutations(t *testing.T) {
 	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[appStoreState]=READY_FOR_SALE,DEVELOPER_REMOVED_FROM_SALE,REMOVED_FROM_SALE", "filter[platform]=IOS", "limit=1"), asctest.JSON(http.StatusOK, `{"data":[]}`))
 	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[appVersionState]=READY_FOR_DISTRIBUTION", "filter[platform]=IOS", "limit=1"), asctest.JSON(http.StatusOK, `{"data":[]}`))
 	reg.Register(asctest.GET("/v1/apps/app-1/subscriptionGroups", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[]}`))
+	registerSubmitPreflightAppInfos(reg, completeAgeRatingAttributes)
 	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/build"), asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`))
 
 	stdout, stderr, runErr := runCommand(t, []string{
@@ -325,6 +364,7 @@ func TestReviewSubmitUsesModernReviewSubmissionFlow(t *testing.T) {
 	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[appStoreState]=READY_FOR_SALE,DEVELOPER_REMOVED_FROM_SALE,REMOVED_FROM_SALE", "filter[platform]=IOS", "limit=1"), asctest.JSON(http.StatusOK, `{"data":[]}`))
 	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[appVersionState]=READY_FOR_DISTRIBUTION", "filter[platform]=IOS", "limit=1"), asctest.JSON(http.StatusOK, `{"data":[]}`))
 	reg.Register(asctest.GET("/v1/apps/app-1/subscriptionGroups", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[]}`))
+	registerSubmitPreflightAppInfos(reg, completeAgeRatingAttributes)
 	reg.Register(asctest.GET("/v1/apps/app-1/reviewSubmissions", "filter[platform]=IOS", "filter[state]=READY_FOR_REVIEW", "include=appStoreVersionForReview", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[],"links":{"self":"https://api.appstoreconnect.apple.com/v1/apps/app-1/reviewSubmissions"}}`))
 	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/build"), asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`))
 	reg.Register(asctest.PATCH("/v1/appStoreVersions/version-1/relationships/build").JSONBody(`{"data":{"type":"builds","id":"build-1"}}`), asctest.JSON(http.StatusNoContent, ""))
@@ -496,6 +536,7 @@ func TestReviewSubmitConflictAtFinalSubmitReportsCreatedSubmissionAndHints(t *te
 	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[appStoreState]=READY_FOR_SALE,DEVELOPER_REMOVED_FROM_SALE,REMOVED_FROM_SALE", "filter[platform]=IOS", "limit=1"), asctest.JSON(http.StatusOK, `{"data":[]}`))
 	reg.Register(asctest.GET("/v1/apps/app-1/appStoreVersions", "filter[appVersionState]=READY_FOR_DISTRIBUTION", "filter[platform]=IOS", "limit=1"), asctest.JSON(http.StatusOK, `{"data":[]}`))
 	reg.Register(asctest.GET("/v1/apps/app-1/subscriptionGroups", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[]}`))
+	registerSubmitPreflightAppInfos(reg, completeAgeRatingAttributes)
 	reg.Register(asctest.GET("/v1/apps/app-1/reviewSubmissions", "filter[platform]=IOS", "filter[state]=READY_FOR_REVIEW", "include=appStoreVersionForReview", "limit=200"), asctest.JSON(http.StatusOK, `{"data":[],"links":{"self":"/v1/apps/app-1/reviewSubmissions"}}`))
 	reg.Register(asctest.GET("/v1/appStoreVersions/version-1/build"), asctest.JSON(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`))
 	reg.Register(asctest.PATCH("/v1/appStoreVersions/version-1/relationships/build").JSONBody(`{"data":{"type":"builds","id":"build-1"}}`), asctest.JSON(http.StatusNoContent, ""))
@@ -533,6 +574,18 @@ func TestReviewSubmitConflictAtFinalSubmitReportsCreatedSubmissionAndHints(t *te
 			t.Fatalf("expected stderr to contain %q, got %q", want, stderr)
 		}
 	}
+}
+
+const completeAgeRatingAttributes = `"advertising":false,"gambling":false,"healthOrWellnessTopics":false,"lootBox":false,"messagingAndChat":false,"parentalControls":false,"ageAssurance":false,"socialMedia":false,"socialMediaAgeRestricted":false,"unrestrictedWebAccess":false,"userGeneratedContent":false,"alcoholTobaccoOrDrugUseOrReferences":"NONE","contests":"NONE","gamblingSimulated":"NONE","gunsOrOtherWeapons":"NONE","medicalOrTreatmentInformation":"NONE","profanityOrCrudeHumor":"NONE","sexualContentGraphicAndNudity":"NONE","sexualContentOrNudity":"NONE","horrorOrFearThemes":"NONE","matureOrSuggestiveThemes":"NONE","violenceCartoonOrFantasy":"NONE","violenceRealistic":"NONE","violenceRealisticProlongedGraphicOrSadistic":"NONE"`
+
+// submitPreflightAppInfosJSON is the app info read by the submit age rating
+// preflight, with the declaration's attributes included.
+func submitPreflightAppInfosJSON(appID, ageRatingAttributes string) string {
+	return `{"data":[{"type":"appInfos","id":"info-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"},"relationships":{"app":{"data":{"type":"apps","id":"` + appID + `"}},"ageRatingDeclaration":{"data":{"type":"ageRatingDeclarations","id":"age-1"}}}}],"included":[{"type":"apps","id":"` + appID + `","attributes":{}},{"type":"ageRatingDeclarations","id":"age-1","attributes":{` + ageRatingAttributes + `}}]}`
+}
+
+func registerSubmitPreflightAppInfos(reg *asctest.Registry, ageRatingAttributes string) {
+	reg.Register(asctest.GET("/v1/apps/app-1/appInfos", "include=ageRatingDeclaration"), asctest.JSON(http.StatusOK, submitPreflightAppInfosJSON("app-1", ageRatingAttributes)))
 }
 
 func reviewSubmitRequests(reg *asctest.Registry) []string {

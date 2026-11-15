@@ -3,7 +3,7 @@ package validation
 import "testing"
 
 func TestAgeRatingChecks_Incomplete(t *testing.T) {
-	checks := ageRatingChecks(&AgeRatingDeclaration{})
+	checks := AgeRatingChecks(&AgeRatingDeclaration{})
 	if !hasCheckID(checks, "age_rating.missing_field") {
 		t.Fatalf("expected missing field check")
 	}
@@ -40,7 +40,7 @@ func TestAgeRatingChecks_Complete(t *testing.T) {
 		ViolenceRealisticProlongedGraphicOrSadistic: &level,
 	}
 
-	checks := ageRatingChecks(&decl)
+	checks := AgeRatingChecks(&decl)
 	if len(checks) != 0 {
 		t.Fatalf("expected no checks, got %d", len(checks))
 	}
@@ -52,7 +52,7 @@ func TestAgeRatingChecks_RequiresSocialMediaFields(t *testing.T) {
 		SocialMedia: &falseValue,
 	}
 
-	checks := ageRatingChecks(declaration)
+	checks := AgeRatingChecks(declaration)
 	if !hasCheckField(checks, "socialMediaAgeRestricted") {
 		t.Fatalf("expected missing socialMediaAgeRestricted check, got %#v", checks)
 	}
@@ -72,7 +72,7 @@ func hasCheckField(checks []CheckResult, field string) bool {
 
 func TestAgeRatingChecksKorea45(t *testing.T) {
 	for _, rating := range []string{"ALL", "TWELVE_PLUS"} {
-		checks := ageRatingChecks(&AgeRatingDeclaration{KoreaAgeRatingOverride: &rating})
+		checks := AgeRatingChecks(&AgeRatingDeclaration{KoreaAgeRatingOverride: &rating})
 		if hasCheckField(checks, "koreaAgeRatingOverride") {
 			t.Errorf("valid Korea rating %s rejected", rating)
 		}
