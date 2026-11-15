@@ -34,3 +34,9 @@ func newAssetsUploadTestDeps() *shared.Deps {
 	d, _, _ := newAssetsTestDeps(nil)
 	return d
 }
+
+// newAssetsClientTestDeps is newAssetsTestDeps without the buffers.
+func newAssetsClientTestDeps(client func() (*asc.Client, error)) *shared.Deps {
+	d, _, _ := newAssetsTestDeps(client)
+	return d
+}

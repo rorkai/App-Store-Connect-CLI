@@ -448,9 +448,7 @@ func TestLibraryUploadFlagConflicts(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(strings.Join(test.args, " "), func(t *testing.T) {
-			setupAuth(t)
-			asctest.NewRegistry(t).Install()
-			_, stderr, err := runRootCommand(t, test.args)
+			_, stderr, err := runRootWithDeps(t, stubClient(t, asctest.NewRegistry(t)), test.args...)
 			if err == nil || !strings.Contains(err.Error()+stderr, test.want) {
 				t.Fatalf("err = %v, stderr = %q, want %q", err, stderr, test.want)
 			}

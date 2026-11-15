@@ -49,6 +49,13 @@ func contextWithAssetUploadTimeoutResolved(ctx context.Context, resolve func(sha
 	return context.WithTimeoutCause(ctx, resolve(shared.UploadTimeoutSetting, shared.MediaUploadTimeoutForWork(work.files, work.bytes)), errAssetUploadDeadline)
 }
 
+// assetUploadContext returns ContextWithAssetUploadTimeoutWith bound to d.
+func assetUploadContext(d *shared.Deps) func(context.Context) (context.Context, context.CancelFunc) {
+	return func(ctx context.Context) (context.Context, context.CancelFunc) {
+		return ContextWithAssetUploadTimeoutWith(ctx, d)
+	}
+}
+
 // acquireAssetUploadLock waits for any other asc upload on this machine to
 // finish. Upload commands take it after validating their input and before
 // they start an upload deadline, so the wait is not charged to the upload.
