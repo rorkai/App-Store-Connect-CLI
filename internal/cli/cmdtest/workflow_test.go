@@ -39,46 +39,55 @@ func TestWorkflowUsageErrors(t *testing.T) {
 			name:    "run missing name",
 			args:    []string{"workflow", "run"},
 			wantErr: "workflow name is required",
+			deps:    true,
 		},
 		{
 			name:    "run invalid param",
 			args:    []string{"workflow", "run", "--file", path, "beta", "NOCOLON"},
 			wantErr: "NOCOLON",
+			deps:    true,
 		},
 		{
 			name:    "run unknown flag after name",
 			args:    []string{"workflow", "run", "--file", path, "beta", "--unknown"},
 			wantErr: "unknown flag",
+			deps:    true,
 		},
 		{
 			name:    "run dry-run flag after name invalid value",
 			args:    []string{"workflow", "run", "--file", path, "beta", "--dry-run=maybe"},
 			wantErr: "invalid value",
+			deps:    true,
 		},
 		{
 			name:    "run file flag after name missing value",
 			args:    []string{"workflow", "run", "--file", path, "beta", "--file", "--dry-run"},
 			wantErr: "--file requires a value",
+			deps:    true,
 		},
 		{
 			name:    "run file flag after name unknown long flag is missing value",
 			args:    []string{"workflow", "run", "--file", path, "beta", "--file", "--unknown"},
 			wantErr: "--file requires a value",
+			deps:    true,
 		},
 		{
 			name:    "run resume flag after name missing value",
 			args:    []string{"workflow", "run", "--file", path, "beta", "--resume"},
 			wantErr: "--resume requires a value",
+			deps:    true,
 		},
 		{
 			name:    "validate unexpected args",
 			args:    []string{"workflow", "validate", "--file", path, "extra"},
 			wantErr: "unexpected argument",
+			deps:    true,
 		},
 		{
 			name:    "list unexpected args",
 			args:    []string{"workflow", "list", "--file", path, "extra"},
 			wantErr: "unexpected argument",
+			deps:    true,
 		},
 	})
 }
@@ -91,11 +100,10 @@ func TestWorkflowMissingFileIsRuntimeError(t *testing.T) {
 		{"workflow", "list", "--file", missingPath},
 	} {
 		t.Run(args[1], func(t *testing.T) {
-			stdout, stderr := captureOutput(t, func() {
-				if code := rootcmd.Run(args, "1.2.3"); code != rootcmd.ExitError {
-					t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitError)
-				}
-			})
+			stdout, stderr, code := runWithDeps(t, nil, args...)
+			if code != rootcmd.ExitError {
+				t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitError)
+			}
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
 			}
@@ -115,25 +123,17 @@ func TestWorkflowRun_PrivateWorkflow(t *testing.T) {
 		}
 	}`)
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, _ = captureOutput(t, func() {
-		if err := root.Parse([]string{"workflow", "run", "--file", path, "helper"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if err == nil {
-			t.Fatal("expected error for private workflow")
-		}
-		if !strings.Contains(err.Error(), "private") {
-			t.Fatalf("expected 'private' in error, got %v", err)
-		}
-		// Must NOT be a ReportedError — cmd/run.go needs to print it to stderr.
-		if _, ok := errors.AsType[ReportedError](err); ok {
-			t.Fatal("private workflow error must not be ReportedError (would cause silent exit)")
-		}
-	})
+	_, _, err := runRootWithDeps(t, nil, "workflow", "run", "--file", path, "helper")
+	if err == nil {
+		t.Fatal("expected error for private workflow")
+	}
+	if !strings.Contains(err.Error(), "private") {
+		t.Fatalf("expected 'private' in error, got %v", err)
+	}
+	// Must NOT be a ReportedError — cmd/run.go needs to print it to stderr.
+	if _, ok := errors.AsType[ReportedError](err); ok {
+		t.Fatal("private workflow error must not be ReportedError (would cause silent exit)")
+	}
 }
 
 func TestWorkflowRun_UnknownWorkflow(t *testing.T) {
@@ -144,25 +144,17 @@ func TestWorkflowRun_UnknownWorkflow(t *testing.T) {
 		}
 	}`)
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, _ = captureOutput(t, func() {
-		if err := root.Parse([]string{"workflow", "run", "--file", path, "nonexistent"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if err == nil {
-			t.Fatal("expected error for unknown workflow")
-		}
-		if !strings.Contains(err.Error(), "unknown workflow") {
-			t.Fatalf("expected 'unknown workflow' in error, got %v", err)
-		}
-		// Must NOT be a ReportedError — cmd/run.go needs to print it to stderr.
-		if _, ok := errors.AsType[ReportedError](err); ok {
-			t.Fatal("unknown workflow error must not be ReportedError (would cause silent exit)")
-		}
-	})
+	_, _, err := runRootWithDeps(t, nil, "workflow", "run", "--file", path, "nonexistent")
+	if err == nil {
+		t.Fatal("expected error for unknown workflow")
+	}
+	if !strings.Contains(err.Error(), "unknown workflow") {
+		t.Fatalf("expected 'unknown workflow' in error, got %v", err)
+	}
+	// Must NOT be a ReportedError — cmd/run.go needs to print it to stderr.
+	if _, ok := errors.AsType[ReportedError](err); ok {
+		t.Fatal("unknown workflow error must not be ReportedError (would cause silent exit)")
+	}
 }
 
 func TestWorkflowRun_DryRun(t *testing.T) {
@@ -268,17 +260,10 @@ func TestWorkflowValidate_ValidFile(t *testing.T) {
 		}
 	}`)
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{"workflow", "validate", "--file", path}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, _, err := runRootWithDeps(t, nil, "workflow", "validate", "--file", path)
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	var result map[string]any
 	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
@@ -297,14 +282,11 @@ func TestWorkflowValidate_ExplicitJSONOutput(t *testing.T) {
 		}
 	}`)
 
-	var code int
-	stdout, stderr := captureOutput(t, func() {
-		code = rootcmd.Run([]string{
-			"workflow", "validate",
-			"--file", path,
-			"--output", "json",
-		}, "1.2.3")
-	})
+	stdout, stderr, code := runWithDeps(t, nil,
+		"workflow", "validate",
+		"--file", path,
+		"--output", "json",
+	)
 
 	if code != rootcmd.ExitSuccess {
 		t.Fatalf("exit code = %d, want %d; stderr=%q", code, rootcmd.ExitSuccess, stderr)
@@ -330,14 +312,11 @@ func TestWorkflowValidate_ExplicitJSONOutput(t *testing.T) {
 func TestWorkflowValidate_UnsupportedOutputExitsWithUsageCode(t *testing.T) {
 	for _, format := range []string{"table", "markdown"} {
 		t.Run(format, func(t *testing.T) {
-			var code int
-			stdout, stderr := captureOutput(t, func() {
-				code = rootcmd.Run([]string{
-					"workflow", "validate",
-					"--file", "/definitely/missing/workflow.json",
-					"--output", format,
-				}, "1.2.3")
-			})
+			stdout, stderr, code := runWithDeps(t, nil,
+				"workflow", "validate",
+				"--file", "/definitely/missing/workflow.json",
+				"--output", format,
+			)
 
 			if code != rootcmd.ExitUsage {
 				t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
@@ -363,14 +342,11 @@ func TestWorkflowValidate_InvalidWorkflowWithExplicitJSONExitsWithErrorCode(t *t
 		}
 	}`)
 
-	var code int
-	stdout, stderr := captureOutput(t, func() {
-		code = rootcmd.Run([]string{
-			"workflow", "validate",
-			"--output", "json",
-			"--file", path,
-		}, "1.2.3")
-	})
+	stdout, stderr, code := runWithDeps(t, nil,
+		"workflow", "validate",
+		"--output", "json",
+		"--file", path,
+	)
 
 	if code != rootcmd.ExitError {
 		t.Fatalf("exit code = %d, want %d; stderr=%q", code, rootcmd.ExitError, stderr)
@@ -395,14 +371,11 @@ func TestWorkflowValidate_MalformedWorkflowWithExplicitJSONExitsWithErrorCode(t 
 	dir := t.TempDir()
 	path := writeWorkflowJSON(t, dir, `{not valid json`)
 
-	var code int
-	stdout, stderr := captureOutput(t, func() {
-		code = rootcmd.Run([]string{
-			"workflow", "validate",
-			"--file", path,
-			"--output", "json",
-		}, "1.2.3")
-	})
+	stdout, stderr, code := runWithDeps(t, nil,
+		"workflow", "validate",
+		"--file", path,
+		"--output", "json",
+	)
 
 	if code != rootcmd.ExitError {
 		t.Fatalf("exit code = %d, want %d; stderr=%q", code, rootcmd.ExitError, stderr)
@@ -423,21 +396,13 @@ func TestWorkflowValidate_InvalidFile(t *testing.T) {
 		}
 	}`)
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{"workflow", "validate", "--file", path}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if err == nil {
-			t.Fatal("expected error for invalid workflow")
-		}
-		if _, ok := errors.AsType[ReportedError](err); !ok {
-			t.Fatalf("expected ReportedError, got %v", err)
-		}
-	})
+	stdout, _, err := runRootWithDeps(t, nil, "workflow", "validate", "--file", path)
+	if err == nil {
+		t.Fatal("expected error for invalid workflow")
+	}
+	if _, ok := errors.AsType[ReportedError](err); !ok {
+		t.Fatalf("expected ReportedError, got %v", err)
+	}
 
 	var result map[string]any
 	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
@@ -502,17 +467,10 @@ func TestWorkflowList(t *testing.T) {
 				args = []string{"workflow", "list", "--all", "--file", path}
 			}
 
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, _ := captureOutput(t, func() {
-				if err := root.Parse(args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
+			stdout, _, err := runRootWithDeps(t, nil, args...)
+			if err != nil {
+				t.Fatalf("run error: %v", err)
+			}
 
 			var workflows []map[string]any
 			if err := json.Unmarshal([]byte(stdout), &workflows); err != nil {
@@ -1150,21 +1108,13 @@ func TestWorkflowRun_InvalidJSON(t *testing.T) {
 		t.Fatalf("write: %v", err)
 	}
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	_, _ = captureOutput(t, func() {
-		if err := root.Parse([]string{"workflow", "run", "--file", badPath, "test"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if err == nil {
-			t.Fatal("expected error for invalid JSON")
-		}
-		if !strings.Contains(err.Error(), "parse workflow JSON") {
-			t.Fatalf("expected parse error, got %v", err)
-		}
-	})
+	_, _, err := runRootWithDeps(t, nil, "workflow", "run", "--file", badPath, "test")
+	if err == nil {
+		t.Fatal("expected error for invalid JSON")
+	}
+	if !strings.Contains(err.Error(), "parse workflow JSON") {
+		t.Fatalf("expected parse error, got %v", err)
+	}
 }
 
 func TestWorkflowValidate_MultipleErrors(t *testing.T) {
@@ -1176,21 +1126,13 @@ func TestWorkflowValidate_MultipleErrors(t *testing.T) {
 		}
 	}`)
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{"workflow", "validate", "--file", path}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if err == nil {
-			t.Fatal("expected error for invalid workflows")
-		}
-		if _, ok := errors.AsType[ReportedError](err); !ok {
-			t.Fatalf("expected ReportedError, got %T: %v", err, err)
-		}
-	})
+	stdout, _, err := runRootWithDeps(t, nil, "workflow", "validate", "--file", path)
+	if err == nil {
+		t.Fatal("expected error for invalid workflows")
+	}
+	if _, ok := errors.AsType[ReportedError](err); !ok {
+		t.Fatalf("expected ReportedError, got %T: %v", err, err)
+	}
 
 	var result map[string]any
 	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
@@ -1229,17 +1171,10 @@ func TestWorkflowValidate_Pretty(t *testing.T) {
 		}
 	}`)
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	stdout, _ := captureOutput(t, func() {
-		if err := root.Parse([]string{"workflow", "validate", "--output", "json", "--pretty", "--file", path}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, _, err := runRootWithDeps(t, nil, "workflow", "validate", "--output", "json", "--pretty", "--file", path)
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 
 	if !strings.Contains(stdout, "  ") {
 		t.Fatalf("expected indented JSON, got %q", stdout)
