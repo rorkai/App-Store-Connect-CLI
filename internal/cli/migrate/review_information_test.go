@@ -101,7 +101,7 @@ func TestMigrateImportRejectsRedactionPlaceholderBeforeMutation(t *testing.T) {
 			})
 			t.Cleanup(func() { http.DefaultTransport = originalTransport })
 
-			command := MigrateImportCommand()
+			command := newMigrateImportCommand(migrateTestDeps())
 			command.FlagSet.SetOutput(io.Discard)
 			args := append(append([]string{}, test.args...), "--fastlane-dir", fastlaneDir)
 			err := command.ParseAndRun(context.Background(), args)

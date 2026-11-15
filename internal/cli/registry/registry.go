@@ -300,7 +300,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("encryption", "Manage app encryption declarations and documents.", func() *ffcli.Command {
 			return encryption.NewEncryptionCommand(d)
 		}),
-		commandFactory("migrate", "Migrate metadata from/to fastlane format.", migrate.MigrateCommand),
+		commandFactory("migrate", "Migrate metadata from/to fastlane format.", func() *ffcli.Command {
+			return migrate.NewMigrateCommand(d)
+		}),
 		commandFactory("notify", "Send notifications to external services.", notify.NotifyCommand),
 		commandFactory("game-center", "Manage Game Center resources in App Store Connect.", func() *ffcli.Command {
 			return gamecenter.NewGameCenterCommand(d)

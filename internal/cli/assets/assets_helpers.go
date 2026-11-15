@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
@@ -37,11 +38,15 @@ func withAssetUploadWork(ctx context.Context, files []string) context.Context {
 }
 
 func contextWithAssetUploadTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
+	return contextWithAssetUploadTimeoutResolved(ctx, shared.ResolveTimeoutSetting)
+}
+
+func contextWithAssetUploadTimeoutResolved(ctx context.Context, resolve func(shared.TimeoutSetting, time.Duration) time.Duration) (context.Context, context.CancelFunc) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	work, _ := ctx.Value(assetUploadWorkKey{}).(assetUploadWork)
-	return context.WithTimeoutCause(ctx, asc.ResolveUploadTimeoutWithDefault(shared.MediaUploadTimeoutForWork(work.files, work.bytes)), errAssetUploadDeadline)
+	return context.WithTimeoutCause(ctx, resolve(shared.UploadTimeoutSetting, shared.MediaUploadTimeoutForWork(work.files, work.bytes)), errAssetUploadDeadline)
 }
 
 // acquireAssetUploadLock waits for any other asc upload on this machine to
@@ -54,6 +59,12 @@ func acquireAssetUploadLock(ctx context.Context) (func(), error) {
 // ContextWithAssetUploadTimeout returns a context with the asset upload timeout.
 func ContextWithAssetUploadTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
 	return contextWithAssetUploadTimeout(ctx)
+}
+
+// ContextWithAssetUploadTimeoutWith is ContextWithAssetUploadTimeout with the
+// upload timeout setting resolved through d.
+func ContextWithAssetUploadTimeoutWith(ctx context.Context, d *shared.Deps) (context.Context, context.CancelFunc) {
+	return contextWithAssetUploadTimeoutResolved(ctx, d.ResolveTimeout)
 }
 
 // CollectAssetFiles validates and collects files from a path.
