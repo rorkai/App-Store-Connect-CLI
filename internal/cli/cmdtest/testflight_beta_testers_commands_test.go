@@ -175,15 +175,18 @@ func TestBetaCreateRejectsEmptyRelationshipFlagsBeforeRequest(t *testing.T) {
 		name    string
 		args    []string
 		wantErr string
+		deps    bool // the command is built on shared.Deps: run it on test deps
 	}{
 		{
 			name:    "group create --build-id",
 			args:    []string{"testflight", "groups", "create", "--app", "app-1", "--name", "Beta", "--build-id", " , "},
+			deps:    true,
 			wantErr: "--build-id must include at least one ID",
 		},
 		{
 			name:    "group create --tester",
 			args:    []string{"testflight", "groups", "create", "--app", "app-1", "--name", "Beta", "--tester", ""},
+			deps:    true,
 			wantErr: "--tester must include at least one ID",
 		},
 		{
@@ -205,6 +208,10 @@ func TestBetaCreateRejectsEmptyRelationshipFlagsBeforeRequest(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			if test.deps {
+				assertUsageExitWithDeps(t, nil, test.args, test.wantErr)
+				return
+			}
 			assertUsageExit(t, test.args, test.wantErr)
 		})
 	}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"slices"
 	"strings"
 	"time"
@@ -146,9 +145,9 @@ func joinDashedFlagNames(names []string) string {
 	}
 }
 
-// BetaGroupsCommand returns the beta groups command with subcommands.
-func BetaGroupsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("beta-groups", flag.ExitOnError)
+// newBetaGroupsCommand returns the beta groups command with subcommands built on d.
+func newBetaGroupsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("beta-groups", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "beta-groups",
@@ -171,19 +170,19 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			BetaGroupsListCommand(),
-			BetaGroupsCreateCommand(),
-			BetaGroupsGetCommand(),
-			BetaGroupsAppCommand(),
-			BetaGroupsRecruitmentCriteriaCommand(),
-			BetaGroupsRecruitmentCriterionCompatibleBuildCheckCommand(),
-			BetaGroupsUpdateCommand(),
-			BetaGroupsAddTestersCommand(),
-			BetaGroupsRemoveTestersCommand(),
-			BetaGroupsBuildsCommand(),
-			BetaGroupsTestersCommand(),
-			BetaGroupsRelationshipsCommand(),
-			BetaGroupsDeleteCommand(),
+			newBetaGroupsListCommand(d),
+			newBetaGroupsCreateCommand(d),
+			newBetaGroupsGetCommand(d),
+			newBetaGroupsAppCommand(d),
+			newBetaGroupsRecruitmentCriteriaCommand(d),
+			newBetaGroupsRecruitmentCriterionCompatibleBuildCheckCommand(d),
+			newBetaGroupsUpdateCommand(d),
+			newBetaGroupsAddTestersCommand(d),
+			newBetaGroupsRemoveTestersCommand(d),
+			newBetaGroupsBuildsCommand(d),
+			newBetaGroupsTestersCommand(d),
+			newBetaGroupsRelationshipsCommand(d),
+			newBetaGroupsDeleteCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -191,9 +190,9 @@ Examples:
 	}
 }
 
-// BetaGroupsListCommand returns the beta groups list subcommand.
-func BetaGroupsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
+// newBetaGroupsListCommand returns the beta groups list subcommand built on d.
+func newBetaGroupsListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("list", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	buildID := shared.BindResourceIDFlag(fs, "build-id", "builds", "List groups that contain this build ID")
@@ -214,7 +213,7 @@ func BetaGroupsListCommand() *ffcli.Command {
 	include := fs.String("include", "", "Include related resources: "+strings.Join(betaGroupIncludeValues, ", "))
 	testersLimit := fs.Int("testers-limit", 0, "Maximum included beta testers (1-50)")
 	buildsLimit := fs.Int("builds-limit", 0, "Maximum included builds (1-1000)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
@@ -302,7 +301,7 @@ Examples:
 			// query-shaping flag passed alongside --next would be dropped
 			// without a trace. Reject the combination instead: the cursor URL
 			// already carries the filters and sort of the query it came from.
-			if err := shared.ValidatePaginationFlags(
+			if err := d.ValidatePaginationFlags(
 				ctx,
 				fs,
 				"testflight beta-groups list",
@@ -390,21 +389,21 @@ Examples:
 
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if !buildIDSet && !*global && resolvedAppID == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintf(os.Stderr, "Error: --app or --global is required (or set ASC_APP_ID)\n\n")
+				fmt.Fprintf(d.IO.ErrOut, "Error: --app or --global is required (or set ASC_APP_ID)\n\n")
 				return shared.MissingRequiredUsageError("")
 			}
 
 			command := shared.RewriteUsageMessage(ctx, "beta-groups list")
 			sortValue := strings.TrimSpace(*sort)
 			if sortSet && sortValue == "" {
-				return shared.UsageError(command + ": --sort cannot be empty")
+				return d.UsageError(command + ": --sort cannot be empty")
 			}
 			if err := shared.ValidateSort(sortValue, betaGroupSortValues...); err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			nameValue := strings.TrimSpace(*name)
 			if nameSet && nameValue == "" {
-				return shared.UsageError(command + ": --name cannot be empty")
+				return d.UsageError(command + ": --name cannot be empty")
 			}
 
 			if strings.TrimSpace(*next) != "" {
@@ -418,105 +417,105 @@ Examples:
 					{sortSet, "--sort"},
 				} {
 					if conflict.set {
-						return shared.UsageError(shared.RewriteUsageMessage(ctx, "testflight beta-groups list") + ": --next cannot be combined with " + conflict.name)
+						return d.UsageError(shared.RewriteUsageMessage(ctx, "testflight beta-groups list") + ": --next cannot be combined with " + conflict.name)
 					}
 				}
 			}
 
 			publicLinkEnabledValue, err := parseBetaGroupsListBool("--public-link-enabled", *publicLinkEnabled, publicLinkEnabledSet)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			publicLinkLimitEnabledValue, err := parseBetaGroupsListBool("--public-link-limit-enabled", *publicLinkLimitEnabled, publicLinkLimitEnabledSet)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
 			idValues, err := parseBetaGroupsListCSV(command, "--id", *id, idSet)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			publicLinkValue := strings.TrimSpace(*publicLink)
 			if publicLinkSet && publicLinkValue == "" {
-				return shared.UsageError(command + ": --public-link cannot be empty")
+				return d.UsageError(command + ": --public-link cannot be empty")
 			}
 			fieldsValue, err := parseBetaGroupsListFields(command, "--fields", *fields, fieldsSet, betaGroupFieldsValues)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			appFieldsValue, err := parseBetaGroupsListFields(command, "--app-fields", *appFields, appFieldsSet, shared.AppFieldsList())
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			buildFieldsValue, err := parseBetaGroupsListFields(command, "--build-fields", *buildFields, buildFieldsSet, betaGroupBuildFieldsValues)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			testerFieldsValue, err := parseBetaGroupsListFields(command, "--tester-fields", *testerFields, testerFieldsSet, betaGroupTesterFieldsValues)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			recruitmentCriteriaFieldsValue, err := parseBetaGroupsListFields(command, "--recruitment-criteria-fields", *recruitmentCriteriaFields, recruitmentCriteriaFieldsSet, betaGroupRecruitmentCriteriaFieldsValues)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			includeValue, err := shared.NormalizeSelection(*include, betaGroupIncludeValues, "--include")
 			if err != nil {
-				return shared.UsageError(command + ": " + err.Error())
+				return d.UsageError(command + ": " + err.Error())
 			}
 			if includeSet && len(includeValue) == 0 {
-				return shared.UsageError(command + ": --include cannot be empty")
+				return d.UsageError(command + ": --include cannot be empty")
 			}
 			if (len(appFieldsValue) > 0 || appFieldsSet) && !slices.Contains(includeValue, "app") {
-				return shared.UsageError(command + ": --app-fields requires --include app")
+				return d.UsageError(command + ": --app-fields requires --include app")
 			}
 			if (len(buildFieldsValue) > 0 || buildFieldsSet) && !slices.Contains(includeValue, "builds") {
-				return shared.UsageError(command + ": --build-fields requires --include builds")
+				return d.UsageError(command + ": --build-fields requires --include builds")
 			}
 			if (len(testerFieldsValue) > 0 || testerFieldsSet) && !slices.Contains(includeValue, "betaTesters") {
-				return shared.UsageError(command + ": --tester-fields requires --include betaTesters")
+				return d.UsageError(command + ": --tester-fields requires --include betaTesters")
 			}
 			if (len(recruitmentCriteriaFieldsValue) > 0 || recruitmentCriteriaFieldsSet) && !slices.Contains(includeValue, "betaRecruitmentCriteria") {
-				return shared.UsageError(command + ": --recruitment-criteria-fields requires --include betaRecruitmentCriteria")
+				return d.UsageError(command + ": --recruitment-criteria-fields requires --include betaRecruitmentCriteria")
 			}
 			if testersLimitSet && (*testersLimit < 1 || *testersLimit > 50) {
-				return shared.UsageError(command + ": --testers-limit must be between 1 and 50")
+				return d.UsageError(command + ": --testers-limit must be between 1 and 50")
 			}
 			if buildsLimitSet && (*buildsLimit < 1 || *buildsLimit > 1000) {
-				return shared.UsageError(command + ": --builds-limit must be between 1 and 1000")
+				return d.UsageError(command + ": --builds-limit must be between 1 and 1000")
 			}
 			if testersLimitSet && !slices.Contains(includeValue, "betaTesters") {
-				return shared.UsageError(command + ": --testers-limit requires --include betaTesters")
+				return d.UsageError(command + ": --testers-limit requires --include betaTesters")
 			}
 			if buildsLimitSet && !slices.Contains(includeValue, "builds") {
-				return shared.UsageError(command + ": --builds-limit requires --include builds")
+				return d.UsageError(command + ": --builds-limit requires --include builds")
 			}
 
 			resolvedBuildID := strings.TrimSpace(*buildID)
 			queryFilterSet := idSet || publicLinkEnabledSet || publicLinkLimitEnabledSet || publicLinkSet
 
 			if *internal && *external {
-				fmt.Fprintln(os.Stderr, "Error: --internal and --external are mutually exclusive")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --internal and --external are mutually exclusive")
 				return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticConflictingInput, "")
 			}
 			if buildIDSet && resolvedBuildID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --build-id cannot be empty")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --build-id cannot be empty")
 				return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticInvalidInput, "--build-id")
 			}
 			if resolvedBuildID != "" && appIDSet && strings.TrimSpace(*appID) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app cannot be empty when used with --build-id")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app cannot be empty when used with --build-id")
 				return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticInvalidInput, "--app")
 			}
 			if resolvedBuildID != "" && membershipPageControlSet {
-				fmt.Fprintf(os.Stderr, "Error: %s cannot be used with --build-id; membership lookup always fetches all required pages\n", joinDashedFlagNames(betaGroupsListMembershipPageControlFlags))
+				fmt.Fprintf(d.IO.ErrOut, "Error: %s cannot be used with --build-id; membership lookup always fetches all required pages\n", joinDashedFlagNames(betaGroupsListMembershipPageControlFlags))
 				return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticConflictingInput, "")
 			}
 			if resolvedBuildID != "" && nameSortSet {
-				fmt.Fprintf(os.Stderr, "Error: %s cannot be used with --build-id; membership lookup queries the build's app relationships directly\n", joinDashedFlagNames(betaGroupsListNameSortFlags))
+				fmt.Fprintf(d.IO.ErrOut, "Error: %s cannot be used with --build-id; membership lookup queries the build's app relationships directly\n", joinDashedFlagNames(betaGroupsListNameSortFlags))
 				return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticConflictingInput, "")
 			}
 			if resolvedBuildID != "" && querySurfaceSet {
-				fmt.Fprintln(os.Stderr, "Error: testflight groups query filters, sparse fields, includes, and relationship limits cannot be used with --build-id; membership lookup queries the build's app relationships directly")
+				fmt.Fprintln(d.IO.ErrOut, "Error: testflight groups query filters, sparse fields, includes, and relationship limits cannot be used with --build-id; membership lookup queries the build's app relationships directly")
 				return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticConflictingInput, "")
 			}
 
@@ -536,6 +535,7 @@ Examples:
 
 				return runBuildGroupMembershipList(
 					ctx,
+					d,
 					resolvedBuildID,
 					expectedAppID,
 					internalFilter,
@@ -547,16 +547,16 @@ Examples:
 
 			// Reject --global + --app combination (check explicit flag, not resolved value)
 			if *global && strings.TrimSpace(*appID) != "" {
-				fmt.Fprintln(os.Stderr, "Error: --global and --app are mutually exclusive")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --global and --app are mutually exclusive")
 				return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticConflictingInput, "")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("beta-groups list: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			var internalFilter *bool
@@ -632,7 +632,7 @@ Examples:
 				if err != nil || *global || !strings.ContainsFunc(nameValue, unicode.IsSpace) || len(page.(*asc.BetaGroupsResponse).Data) > 0 {
 					return page, err
 				}
-				appleName, err := appleBetaGroupNameSpelling(ctx, client, resolvedAppID, nameValue)
+				appleName, err := appleBetaGroupNameSpelling(ctx, d, client, resolvedAppID, nameValue)
 				if err != nil || appleName == "" {
 					return page, err
 				}
@@ -659,16 +659,16 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("beta-groups list: %w", err)
 				}
-				if err := preserveFilteredBetaGroupsLimit(groups, *limit); err != nil {
+				if err := preserveFilteredBetaGroupsLimit(d, groups, *limit); err != nil {
 					return fmt.Errorf("beta-groups list: %w", err)
 				}
 
-				return shared.PrintOutput(groups, *output.Output, *output.Pretty)
+				return d.PrintOutput(groups, *output.Output, *output.Pretty)
 			}
 
 			if *paginate {
 				paginateOpts := append(slices.Clone(opts), asc.Limit[asc.BetaGroupsOption](200))
-				groups, err := shared.PaginateWithSpinner(
+				groups, err := d.PaginateWithSpinner(
 					requestCtx,
 					func(ctx context.Context) (asc.PaginatedResponse, error) {
 						return firstPage(ctx, paginateOpts...)
@@ -681,12 +681,12 @@ Examples:
 					return fmt.Errorf("beta-groups list: %w", err)
 				}
 				if stableAppScopedFilter {
-					if err := preserveFilteredBetaGroupsLimit(groups, *limit); err != nil {
+					if err := preserveFilteredBetaGroupsLimit(d, groups, *limit); err != nil {
 						return fmt.Errorf("beta-groups list: %w", err)
 					}
 				}
 
-				return shared.PrintOutput(groups, *output.Output, *output.Pretty)
+				return d.PrintOutput(groups, *output.Output, *output.Pretty)
 			}
 
 			groups, err := firstPage(requestCtx, opts...)
@@ -694,7 +694,7 @@ Examples:
 				return fmt.Errorf("beta-groups list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(groups, *output.Output, *output.Pretty)
+			return d.PrintOutput(groups, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -702,7 +702,7 @@ Examples:
 // appleBetaGroupNameSpelling returns the app's group names that equal name
 // after shared.NormalizeBetaGroupName, joined for filter[name], where a comma
 // means OR.
-func appleBetaGroupNameSpelling(ctx context.Context, client *asc.Client, appID, name string) (string, error) {
+func appleBetaGroupNameSpelling(ctx context.Context, d *shared.Deps, client *asc.Client, appID, name string) (string, error) {
 	firstPage, err := client.GetBetaGroups(ctx, appID, asc.Limit[asc.BetaGroupsOption](200), asc.WithBetaGroupsFields([]string{"name"}))
 	if err != nil {
 		return "", err
@@ -721,12 +721,12 @@ func appleBetaGroupNameSpelling(ctx context.Context, client *asc.Client, appID, 
 		}
 	}
 	if slices.ContainsFunc(matches, func(match string) bool { return strings.Contains(match, ",") }) {
-		return "", shared.UsageErrorf("%s: --name %q matches %q, and filter[name] reads a comma as OR; use --id", shared.RewriteUsageMessage(ctx, "beta-groups list"), name, matches)
+		return "", d.UsageErrorf("%s: --name %q matches %q, and filter[name] reads a comma as OR; use --id", shared.RewriteUsageMessage(ctx, "beta-groups list"), name, matches)
 	}
 	return strings.Join(matches, ","), nil
 }
 
-func preserveFilteredBetaGroupsLimit(groups asc.PaginatedResponse, limit int) error {
+func preserveFilteredBetaGroupsLimit(d *shared.Deps, groups asc.PaginatedResponse, limit int) error {
 	if limit <= 0 {
 		return nil
 	}
@@ -741,7 +741,7 @@ func preserveFilteredBetaGroupsLimit(groups asc.PaginatedResponse, limit int) er
 
 	total := len(response.Data)
 	response.Data = response.Data[:limit]
-	fmt.Fprintf(os.Stderr, "Warning: showing %d of %d filtered groups (--limit %d); rerun without --limit for all\n", limit, total, limit)
+	fmt.Fprintf(d.IO.ErrOut, "Warning: showing %d of %d filtered groups (--limit %d); rerun without --limit for all\n", limit, total, limit)
 	return nil
 }
 
@@ -788,12 +788,18 @@ type BuildGroupsListCommandConfig struct {
 }
 
 // BuildGroupsListCommand returns a narrow list command for beta groups that
-// contain a required build ID.
+// contain a required build ID, built on the process dependencies.
 func BuildGroupsListCommand(config BuildGroupsListCommandConfig) *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
+	return BuildGroupsListCommandWith(shared.DefaultDeps(), config)
+}
+
+// BuildGroupsListCommandWith returns a narrow list command for beta groups
+// that contain a required build ID, built on d.
+func BuildGroupsListCommandWith(d *shared.Deps, config BuildGroupsListCommandConfig) *ffcli.Command {
+	fs := d.NewFlagSet("list", flag.ExitOnError)
 
 	buildID := shared.BindResourceIDFlag(fs, "build-id", "builds", "Build ID whose TestFlight groups should be listed")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	errorPrefix := strings.TrimSpace(config.ErrorPrefix)
 	if errorPrefix == "" {
@@ -816,15 +822,16 @@ func BuildGroupsListCommand(config BuildGroupsListCommandConfig) *ffcli.Command 
 				}
 			})
 			if buildIDSet && resolvedBuildID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --build-id cannot be empty")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --build-id cannot be empty")
 				return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticInvalidInput, "--build-id")
 			}
 			if resolvedBuildID == "" {
-				return shared.RequiredFlag("--build-id")
+				return d.RequiredFlag("--build-id")
 			}
 
 			return runBuildGroupMembershipList(
 				ctx,
+				d,
 				resolvedBuildID,
 				"",
 				nil,
@@ -838,6 +845,7 @@ func BuildGroupsListCommand(config BuildGroupsListCommandConfig) *ffcli.Command 
 
 func runBuildGroupMembershipList(
 	ctx context.Context,
+	d *shared.Deps,
 	buildID string,
 	expectedAppID string,
 	internalFilter *bool,
@@ -845,12 +853,12 @@ func runBuildGroupMembershipList(
 	pretty bool,
 	errorPrefix string,
 ) error {
-	client, err := shared.GetASCClient()
+	client, err := d.Client()
 	if err != nil {
 		return fmt.Errorf("%s: %w", errorPrefix, err)
 	}
 
-	requestCtx, cancel := contextWithBuildGroupMembershipTimeout(ctx)
+	requestCtx, cancel := contextWithBuildGroupMembershipTimeout(ctx, d)
 	defer cancel()
 
 	result, usedFallback, lookupErr := lookupBuildGroupMembership(
@@ -861,28 +869,28 @@ func runBuildGroupMembershipList(
 		internalFilter,
 	)
 	if usedFallback {
-		fmt.Fprintln(os.Stderr, "Apple rejected the documented betaGroups build filter; falling back to inverse group build relationships (cost scales with groups and build pages)")
+		fmt.Fprintln(d.IO.ErrOut, "Apple rejected the documented betaGroups build filter; falling back to inverse group build relationships (cost scales with groups and build pages)")
 	}
 	if result == nil {
 		return fmt.Errorf("%s: %w", errorPrefix, lookupErr)
 	}
-	if err := shared.PrintOutput(result, output, pretty); err != nil {
+	if err := d.PrintOutput(result, output, pretty); err != nil {
 		return err
 	}
 	if lookupErr != nil {
-		fmt.Fprintf(os.Stderr, "%d group relationship lookup failed; membership result is incomplete\n", len(result.Failures))
+		fmt.Fprintf(d.IO.ErrOut, "%d group relationship lookup failed; membership result is incomplete\n", len(result.Failures))
 		return shared.NewReportedError(lookupErr)
 	}
 	return nil
 }
 
-func contextWithBuildGroupMembershipTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
-	return shared.ContextWithResolvedTimeout(ctx, buildGroupMembershipTimeout)
+func contextWithBuildGroupMembershipTimeout(ctx context.Context, d *shared.Deps) (context.Context, context.CancelFunc) {
+	return d.ResolvedTimeout(ctx, buildGroupMembershipTimeout)
 }
 
-// BetaGroupsCreateCommand returns the beta groups create subcommand.
-func BetaGroupsCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
+// newBetaGroupsCreateCommand returns the beta groups create subcommand built on d.
+func newBetaGroupsCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("create", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	name := fs.String("name", "", "Beta group name")
@@ -904,7 +912,7 @@ func BetaGroupsCreateCommand() *ffcli.Command {
 	fs.Var(&feedbackEnabled, "feedback-enabled", "Enable tester feedback")
 	buildID := shared.BindOnceCSVFlag(fs, "build-id", "Build ID(s) to attach, comma-separated")
 	tester := shared.BindOnceCSVFlag(fs, "tester", "Beta tester ID(s) to attach, comma-separated")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -928,11 +936,11 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
-				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
+				fmt.Fprintf(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return shared.MissingRequiredUsageError("--app")
 			}
 			if strings.TrimSpace(*name) == "" {
-				return shared.RequiredFlag("--name")
+				return d.RequiredFlag("--name")
 			}
 
 			visited := map[string]bool{}
@@ -940,27 +948,27 @@ Examples:
 				visited[f.Name] = true
 			})
 			if internal.Value() && (publicLinkEnabled.IsSet() || publicLinkLimitEnabled.IsSet() || visited["public-link-limit"]) {
-				fmt.Fprintln(os.Stderr, "Error: --internal cannot be combined with public link controls")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --internal cannot be combined with public link controls")
 				return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticConflictingInput, "--internal")
 			}
 			if visited["public-link-limit"] && (*publicLinkLimit < 1 || *publicLinkLimit > 10000) {
-				fmt.Fprintln(os.Stderr, "Error: --public-link-limit must be between 1 and 10000")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --public-link-limit must be between 1 and 10000")
 				return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticInvalidInput, "--public-link-limit")
 			}
 			if publicLinkLimitEnabled.IsSet() && publicLinkLimitEnabled.Value() && !visited["public-link-limit"] {
-				fmt.Fprintln(os.Stderr, "Error: --public-link-limit is required when enabling public link limit")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --public-link-limit is required when enabling public link limit")
 				return shared.MissingRequiredUsageError("--public-link-limit")
 			}
-			buildIDs, err := parseCreateRelationshipIDs(buildID, "--build-id")
+			buildIDs, err := parseCreateRelationshipIDs(d, buildID, "--build-id")
 			if err != nil {
 				return err
 			}
-			testerIDs, err := parseCreateRelationshipIDs(tester, "--tester")
+			testerIDs, err := parseCreateRelationshipIDs(d, tester, "--tester")
 			if err != nil {
 				return err
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("beta-groups create: %w", err)
 			}
@@ -982,10 +990,10 @@ Examples:
 			hasRelationships := len(buildIDs) > 0 || len(testerIDs) > 0
 			var existingIDs map[string]bool
 			if hasRelationships {
-				existingIDs = listBetaGroupIDsByName(ctx, client, resolvedAppID, attrs.Name)
+				existingIDs = listBetaGroupIDsByName(ctx, d, client, resolvedAppID, attrs.Name)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			group, err := client.CreateBetaGroupWithAttributes(requestCtx, resolvedAppID, attrs, buildIDs, testerIDs)
@@ -997,10 +1005,10 @@ Examples:
 				if existingIDs == nil {
 					return maybeCreatedBetaGroupError(err, resolvedAppID, attrs.Name)
 				}
-				return explainPartialBetaGroupCreate(ctx, client, resolvedAppID, attrs.Name, existingIDs, buildIDs, testerIDs, err)
+				return explainPartialBetaGroupCreate(ctx, d, client, resolvedAppID, attrs.Name, existingIDs, buildIDs, testerIDs, err)
 			}
 
-			return shared.PrintOutput(group, *output.Output, *output.Pretty)
+			return d.PrintOutput(group, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -1009,8 +1017,8 @@ Examples:
 // Store Connect returned 404 for a missing build ID yet still created the
 // group, so a blind retry would make a duplicate. Only groups missing from
 // existingIDs, listed before the create, count as made by this command.
-func explainPartialBetaGroupCreate(ctx context.Context, client *asc.Client, appID, name string, existingIDs map[string]bool, buildIDs, testerIDs []string, createErr error) error {
-	lookupCtx, cancel := shared.ContextWithTimeout(ctx)
+func explainPartialBetaGroupCreate(ctx context.Context, d *shared.Deps, client *asc.Client, appID, name string, existingIDs map[string]bool, buildIDs, testerIDs []string, createErr error) error {
+	lookupCtx, cancel := d.Timeout(ctx)
 	defer cancel()
 
 	groups, err := listAllBetaGroupsByName(lookupCtx, client, appID, name)
@@ -1052,8 +1060,8 @@ func maybeCreatedBetaGroupError(createErr error, appID, name string) error {
 
 // listBetaGroupIDsByName returns nil when the lookup fails, so a failed create
 // claims nothing about which group it left behind.
-func listBetaGroupIDsByName(ctx context.Context, client *asc.Client, appID, name string) map[string]bool {
-	lookupCtx, cancel := shared.ContextWithTimeout(ctx)
+func listBetaGroupIDsByName(ctx context.Context, d *shared.Deps, client *asc.Client, appID, name string) map[string]bool {
+	lookupCtx, cancel := d.Timeout(ctx)
 	defer cancel()
 
 	groups, err := listAllBetaGroupsByName(lookupCtx, client, appID, name)
@@ -1095,9 +1103,10 @@ func optionalBetaGroupCreateBool(value shared.OptionalBool) *bool {
 	return &result
 }
 
-// BetaGroupsGetCommand returns the beta groups get subcommand.
-func BetaGroupsGetCommand() *ffcli.Command {
+// newBetaGroupsGetCommand returns the beta groups get subcommand built on d.
+func newBetaGroupsGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
+		Deps:       d,
 		Name:       "view",
 		ShortUsage: "asc testflight beta-groups view [flags]",
 		ShortHelp:  "View a TestFlight beta group by ID.",
@@ -1115,9 +1124,9 @@ Examples:
 	})
 }
 
-// BetaGroupsUpdateCommand returns the beta groups update subcommand.
-func BetaGroupsUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("update", flag.ExitOnError)
+// newBetaGroupsUpdateCommand returns the beta groups update subcommand built on d.
+func newBetaGroupsUpdateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("update", flag.ExitOnError)
 
 	id := shared.BindResourceIDFlag(fs, "id", "betaGroups", "Beta group ID")
 	name := fs.String("name", "", "Beta group name")
@@ -1131,7 +1140,7 @@ func BetaGroupsUpdateCommand() *ffcli.Command {
 	var iosBuildsAvailableForAppleVision shared.OptionalBool
 	iosBuildsAvailableForAppleVision.EnableBoolFlag()
 	fs.Var(&iosBuildsAvailableForAppleVision, "ios-builds-available-for-apple-vision", "Make the group's iOS builds available on Apple Vision")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -1149,7 +1158,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*id)
 			if trimmedID == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
 
 			visited := map[string]bool{}
@@ -1158,7 +1167,7 @@ Examples:
 			})
 
 			if visited["public-link-limit"] && (*publicLinkLimit < 1 || *publicLinkLimit > 10000) {
-				fmt.Fprintln(os.Stderr, "Error: --public-link-limit must be between 1 and 10000")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --public-link-limit must be between 1 and 10000")
 				return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticInvalidInput, "--public-link-limit")
 			}
 
@@ -1170,20 +1179,20 @@ Examples:
 				iosBuildsAvailableForAppleSiliconMac.IsSet() ||
 				iosBuildsAvailableForAppleVision.IsSet()
 			if !hasUpdates {
-				return shared.UpdateFlagRequired(fs, name, publicLinkEnabled, publicLinkLimitEnabled, publicLinkLimit, feedbackEnabled, &iosBuildsAvailableForAppleSiliconMac, &iosBuildsAvailableForAppleVision)
+				return d.UpdateFlagRequired(fs, name, publicLinkEnabled, publicLinkLimitEnabled, publicLinkLimit, feedbackEnabled, &iosBuildsAvailableForAppleSiliconMac, &iosBuildsAvailableForAppleVision)
 			}
 
 			if visited["public-link-limit-enabled"] && *publicLinkLimitEnabled && !visited["public-link-limit"] {
-				fmt.Fprintln(os.Stderr, "Error: --public-link-limit is required when enabling public link limit")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --public-link-limit is required when enabling public link limit")
 				return shared.MissingRequiredUsageError("--public-link-limit")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("beta-groups update: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			var publicLinkEnabledAttr *bool
@@ -1221,18 +1230,18 @@ Examples:
 				return fmt.Errorf("beta-groups update: failed to update: %w", err)
 			}
 
-			return shared.PrintOutput(group, *output.Output, *output.Pretty)
+			return d.PrintOutput(group, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// BetaGroupsDeleteCommand returns the beta groups delete subcommand.
-func BetaGroupsDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("delete", flag.ExitOnError)
+// newBetaGroupsDeleteCommand returns the beta groups delete subcommand built on d.
+func newBetaGroupsDeleteCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("delete", flag.ExitOnError)
 
 	id := shared.BindResourceIDFlag(fs, "id", "betaGroups", "Beta group ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "delete",
@@ -1246,18 +1255,18 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*id) == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("beta-groups delete: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteBetaGroup(requestCtx, strings.TrimSpace(*id)); err != nil {
@@ -1265,24 +1274,24 @@ Examples:
 			}
 
 			result := &asc.DeleteResult{ID: strings.TrimSpace(*id), Deleted: true}
-			if err := shared.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
+			if err := d.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
 				return err
 			}
 
-			fmt.Fprintf(os.Stderr, "Successfully deleted group %s\n", strings.TrimSpace(*id))
+			fmt.Fprintf(d.IO.ErrOut, "Successfully deleted group %s\n", strings.TrimSpace(*id))
 			return nil
 		},
 	}
 }
 
-// BetaGroupsAddTestersCommand returns the beta groups add-testers subcommand.
-func BetaGroupsAddTestersCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("add-testers", flag.ExitOnError)
+// newBetaGroupsAddTestersCommand returns the beta groups add-testers subcommand built on d.
+func newBetaGroupsAddTestersCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("add-testers", flag.ExitOnError)
 
 	group := shared.BindResourceIDFlag(fs, "group", "betaGroups", "Beta group ID")
 	tester := shared.BindOnceCSVFlag(fs, "tester", "Beta tester ID(s), comma-separated")
 	email := shared.BindOnceCSVFlag(fs, "email", "Beta tester email(s), comma-separated")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "add-testers",
@@ -1308,22 +1317,22 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			groupID := strings.TrimSpace(*group)
 			if groupID == "" {
-				return shared.RequiredFlag("--group")
+				return d.RequiredFlag("--group")
 			}
 
 			testerIDs := shared.SplitCSV(tester.String())
 			testerEmails := shared.SplitCSV(email.String())
 			if len(testerIDs) == 0 && len(testerEmails) == 0 {
-				fmt.Fprintln(os.Stderr, "Error: --tester or --email is required")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --tester or --email is required")
 				return shared.MissingRequiredUsageError("")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("beta-groups add-testers: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			if len(testerEmails) > 0 {
@@ -1358,7 +1367,7 @@ Examples:
 						return shared.WithDiagnostic(shared.NewValidationError(notFound), shared.DiagnosticResourceNotFound, "--email")
 					}
 					if len(resp.Data) > 1 || pageHasNext {
-						return shared.AmbiguousUsageError(fmt.Errorf("%s: %w", shared.RewriteUsageMessage(ctx, "beta-groups add-testers"), &shared.AmbiguousSelectionError{
+						return d.AmbiguousUsageError(fmt.Errorf("%s: %w", shared.RewriteUsageMessage(ctx, "beta-groups add-testers"), &shared.AmbiguousSelectionError{
 							Kind:                "tester",
 							Description:         fmt.Sprintf("email %q", testerEmail),
 							Flag:                "--tester",
@@ -1394,7 +1403,7 @@ Examples:
 					return fmt.Errorf("beta-groups add-testers: failed to add testers: %w", addErr)
 				}
 
-				membership, readBackErr := readBackBetaGroupMembership(ctx, client, groupID, testerIDs)
+				membership, readBackErr := readBackBetaGroupMembership(ctx, d, client, groupID, testerIDs)
 				if readBackErr != nil {
 					return fmt.Errorf(
 						"beta-groups add-testers: failed to add testers: %w (read-back of group membership failed: %w)",
@@ -1412,12 +1421,12 @@ Examples:
 					Action:         asc.BetaGroupTestersActionSkipped,
 					AlreadyPresent: true,
 				}
-				if err := shared.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
+				if err := d.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
 					return err
 				}
 
 				fmt.Fprintf(
-					os.Stderr,
+					d.IO.ErrOut,
 					"Skipped: %d tester(s) already in group %s (%s)\n",
 					len(membership.present),
 					groupID,
@@ -1431,24 +1440,24 @@ Examples:
 				TesterIDs: testerIDs,
 				Action:    asc.BetaGroupTestersActionAdded,
 			}
-			if err := shared.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
+			if err := d.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
 				return err
 			}
 
-			fmt.Fprintf(os.Stderr, "Successfully added %d tester(s) to group %s\n", len(testerIDs), groupID)
+			fmt.Fprintf(d.IO.ErrOut, "Successfully added %d tester(s) to group %s\n", len(testerIDs), groupID)
 			return nil
 		},
 	}
 }
 
-// BetaGroupsRemoveTestersCommand returns the beta groups remove-testers subcommand.
-func BetaGroupsRemoveTestersCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("remove-testers", flag.ExitOnError)
+// newBetaGroupsRemoveTestersCommand returns the beta groups remove-testers subcommand built on d.
+func newBetaGroupsRemoveTestersCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("remove-testers", flag.ExitOnError)
 
 	group := shared.BindResourceIDFlag(fs, "group", "betaGroups", "Beta group ID")
 	tester := shared.BindOnceCSVFlag(fs, "tester", "Beta tester ID(s), comma-separated")
 	confirm := fs.Bool("confirm", false, "Confirm removal")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "remove-testers",
@@ -1464,23 +1473,23 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			groupID := strings.TrimSpace(*group)
 			if groupID == "" {
-				return shared.RequiredFlag("--group")
+				return d.RequiredFlag("--group")
 			}
 
 			testerIDs := shared.SplitCSV(tester.String())
 			if len(testerIDs) == 0 {
-				return shared.RequiredFlag("--tester")
+				return d.RequiredFlag("--tester")
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("beta-groups remove-testers: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			if err := client.RemoveBetaTestersFromGroup(requestCtx, groupID, testerIDs); err != nil {
@@ -1492,11 +1501,11 @@ Examples:
 				TesterIDs: testerIDs,
 				Action:    asc.BetaGroupTestersActionRemoved,
 			}
-			if err := shared.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
+			if err := d.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
 				return err
 			}
 
-			fmt.Fprintf(os.Stderr, "Successfully removed %d tester(s) from group %s\n", len(testerIDs), groupID)
+			fmt.Fprintf(d.IO.ErrOut, "Successfully removed %d tester(s) from group %s\n", len(testerIDs), groupID)
 			return nil
 		},
 	}

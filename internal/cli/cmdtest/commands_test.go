@@ -578,30 +578,36 @@ func TestBetaManagementValidationErrors(t *testing.T) {
 		name    string
 		args    []string
 		wantErr string
+		deps    bool // the command is built on shared.Deps: run it on test deps
 	}{
 		{
 			name:    "beta-groups list missing app or global",
 			args:    []string{"testflight", "groups", "list"},
+			deps:    true,
 			wantErr: "--app or --global is required",
 		},
 		{
 			name:    "beta-groups list global with app",
 			args:    []string{"testflight", "groups", "list", "--global", "--app", "app-1"},
+			deps:    true,
 			wantErr: "Error: --global and --app are mutually exclusive",
 		},
 		{
 			name:    "beta-groups list internal with external",
 			args:    []string{"testflight", "groups", "list", "--global", "--internal", "--external"},
+			deps:    true,
 			wantErr: "Error: --internal and --external are mutually exclusive",
 		},
 		{
 			name:    "beta-groups create missing app",
 			args:    []string{"testflight", "groups", "create", "--name", "Beta"},
+			deps:    true,
 			wantErr: "--app is required",
 		},
 		{
 			name:    "beta-groups create missing name",
 			args:    []string{"testflight", "groups", "create", "--app", "APP_ID"},
+			deps:    true,
 			wantErr: "--name is required",
 		},
 		{
@@ -717,61 +723,80 @@ func TestBetaManagementValidationErrors(t *testing.T) {
 		{
 			name:    "beta-groups get missing id",
 			args:    []string{"testflight", "groups", "view"},
+			deps:    true,
 			wantErr: "--id is required",
 		},
 		{
 			name:    "beta-groups update missing id",
 			args:    []string{"testflight", "groups", "edit"},
+			deps:    true,
 			wantErr: "--id is required",
 		},
 		{
 			name:    "beta-groups update missing update flags",
 			args:    []string{"testflight", "groups", "edit", "--id", "GROUP_ID"},
+			deps:    true,
 			wantErr: "at least one update flag is required",
 		},
 		{
 			name:    "beta-groups update public-link-limit out of range",
 			args:    []string{"testflight", "groups", "edit", "--id", "GROUP_ID", "--public-link-limit", "50000"},
+			deps:    true,
 			wantErr: "--public-link-limit must be between 1 and 10000",
 		},
 		{
 			name:    "beta-groups add-testers missing group",
 			args:    []string{"testflight", "groups", "add-testers"},
+			deps:    true,
 			wantErr: "--group is required",
 		},
 		{
 			name:    "beta-groups add-testers missing tester",
 			args:    []string{"testflight", "groups", "add-testers", "--group", "GROUP_ID"},
+			deps:    true,
 			wantErr: "--tester or --email is required",
 		},
 		{
 			name:    "beta-groups remove-testers missing group",
 			args:    []string{"testflight", "groups", "remove-testers"},
+			deps:    true,
 			wantErr: "--group is required",
 		},
 		{
 			name:    "beta-groups remove-testers missing tester",
 			args:    []string{"testflight", "groups", "remove-testers", "--group", "GROUP_ID"},
+			deps:    true,
 			wantErr: "--tester is required",
 		},
 		{
 			name:    "beta-groups remove-testers missing confirm",
 			args:    []string{"testflight", "groups", "remove-testers", "--group", "GROUP_ID", "--tester", "TESTER_ID"},
+			deps:    true,
 			wantErr: "Error: --confirm is required",
 		},
 		{
 			name:    "beta-groups delete missing id",
 			args:    []string{"testflight", "groups", "delete"},
+			deps:    true,
 			wantErr: "--id is required",
 		},
 		{
 			name:    "beta-groups delete missing confirm",
 			args:    []string{"testflight", "groups", "delete", "--id", "GROUP_ID"},
+			deps:    true,
 			wantErr: "--confirm is required\n",
 		},
 	}
 
-	runValidationTests(t, tests)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if test.deps {
+				assertUsageExitWithDeps(t, nil, test.args, test.wantErr)
+				return
+			}
+			assertUsageExit(t, test.args, test.wantErr)
+		})
+	}
 }
 
 func TestIAPValidationErrors(t *testing.T) {

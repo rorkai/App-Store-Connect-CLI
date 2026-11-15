@@ -52,7 +52,6 @@ func TestTestFlightGroupsDestructiveCommandsPrintReceipts(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			setupAuth(t)
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 			matcher := asctest.DELETE(test.path)
@@ -60,10 +59,9 @@ func TestTestFlightGroupsDestructiveCommandsPrintReceipts(t *testing.T) {
 				matcher = matcher.JSONBody(test.body)
 			}
 			reg := asctest.NewRegistry(t)
-			reg.Install()
 			reg.Register(matcher, asctest.JSON(http.StatusNoContent, ""))
 
-			stdout, stderr, err := runCommand(t, test.args)
+			stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg), test.args...)
 			if err != nil {
 				t.Fatalf("run error: %v", err)
 			}

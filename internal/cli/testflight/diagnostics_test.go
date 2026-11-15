@@ -1,6 +1,7 @@
 package testflight
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"flag"
@@ -18,13 +19,16 @@ func TestTestFlightValidationDiagnosticsPreserveContracts(t *testing.T) {
 	outputPath := filepath.Join(t.TempDir(), "testflight.yaml")
 
 	tests := []struct {
-		name       string
-		command    func() *ffcli.Command
-		args       []string
-		wantStderr string
-		wantError  string
-		wantCode   shared.DiagnosticCode
-		wantParam  string
+		name    string
+		command func() *ffcli.Command
+		// depsCommand builds a command on shared.Deps; its stderr is read
+		// from the deps and the process stderr must stay empty.
+		depsCommand func(*shared.Deps) *ffcli.Command
+		args        []string
+		wantStderr  string
+		wantError   string
+		wantCode    shared.DiagnosticCode
+		wantParam   string
 		// usageError marks a pre-request flag check that reports its own
 		// diagnostic and exits with usage semantics: the error renders the
 		// message and still wraps flag.ErrHelp.
@@ -33,81 +37,81 @@ func TestTestFlightValidationDiagnosticsPreserveContracts(t *testing.T) {
 		setup      func(*testing.T)
 	}{
 		{
-			name:       "beta groups internal and external conflict",
-			command:    BetaGroupsListCommand,
-			args:       []string{"--app", "app-1", "--internal", "--external"},
-			wantStderr: "Error: --internal and --external are mutually exclusive\n",
-			wantCode:   shared.DiagnosticConflictingInput,
+			name:        "beta groups internal and external conflict",
+			depsCommand: newBetaGroupsListCommand,
+			args:        []string{"--app", "app-1", "--internal", "--external"},
+			wantStderr:  "Error: --internal and --external are mutually exclusive\n",
+			wantCode:    shared.DiagnosticConflictingInput,
 		},
 		{
-			name:       "beta groups empty build id",
-			command:    BetaGroupsListCommand,
-			args:       []string{"--build-id", "   "},
-			wantStderr: "Error: --build-id cannot be empty\n",
-			wantCode:   shared.DiagnosticInvalidInput,
-			wantParam:  "--build-id",
+			name:        "beta groups empty build id",
+			depsCommand: newBetaGroupsListCommand,
+			args:        []string{"--build-id", "   "},
+			wantStderr:  "Error: --build-id cannot be empty\n",
+			wantCode:    shared.DiagnosticInvalidInput,
+			wantParam:   "--build-id",
 		},
 		{
-			name:       "beta groups empty app with build id",
-			command:    BetaGroupsListCommand,
-			args:       []string{"--build-id", "build-1", "--app", "   "},
-			wantStderr: "Error: --app cannot be empty when used with --build-id\n",
-			wantCode:   shared.DiagnosticInvalidInput,
-			wantParam:  "--app",
+			name:        "beta groups empty app with build id",
+			depsCommand: newBetaGroupsListCommand,
+			args:        []string{"--build-id", "build-1", "--app", "   "},
+			wantStderr:  "Error: --app cannot be empty when used with --build-id\n",
+			wantCode:    shared.DiagnosticInvalidInput,
+			wantParam:   "--app",
 		},
 		{
-			name:       "beta groups membership controls with build id",
-			command:    BetaGroupsListCommand,
-			args:       []string{"--build-id", "build-1", "--limit", "10"},
-			wantStderr: "Error: --global, --limit, --next, and --paginate cannot be used with --build-id; membership lookup always fetches all required pages\n",
-			wantCode:   shared.DiagnosticConflictingInput,
+			name:        "beta groups membership controls with build id",
+			depsCommand: newBetaGroupsListCommand,
+			args:        []string{"--build-id", "build-1", "--limit", "10"},
+			wantStderr:  "Error: --global, --limit, --next, and --paginate cannot be used with --build-id; membership lookup always fetches all required pages\n",
+			wantCode:    shared.DiagnosticConflictingInput,
 		},
 		{
-			name:       "beta groups query surface with build id",
-			command:    BetaGroupsListCommand,
-			args:       []string{"--build-id", "build-1", "--fields", "name"},
-			wantStderr: "Error: testflight groups query filters, sparse fields, includes, and relationship limits cannot be used with --build-id; membership lookup queries the build's app relationships directly\n",
-			wantCode:   shared.DiagnosticConflictingInput,
+			name:        "beta groups query surface with build id",
+			depsCommand: newBetaGroupsListCommand,
+			args:        []string{"--build-id", "build-1", "--fields", "name"},
+			wantStderr:  "Error: testflight groups query filters, sparse fields, includes, and relationship limits cannot be used with --build-id; membership lookup queries the build's app relationships directly\n",
+			wantCode:    shared.DiagnosticConflictingInput,
 		},
 		{
-			name:       "beta groups global and app conflict",
-			command:    BetaGroupsListCommand,
-			args:       []string{"--global", "--app", "app-1"},
-			wantStderr: "Error: --global and --app are mutually exclusive\n",
-			wantCode:   shared.DiagnosticConflictingInput,
+			name:        "beta groups global and app conflict",
+			depsCommand: newBetaGroupsListCommand,
+			args:        []string{"--global", "--app", "app-1"},
+			wantStderr:  "Error: --global and --app are mutually exclusive\n",
+			wantCode:    shared.DiagnosticConflictingInput,
 		},
 		{
-			name:       "beta group public link limit range",
-			command:    BetaGroupsUpdateCommand,
-			args:       []string{"--id", "group-1", "--public-link-limit", "10001"},
-			wantStderr: "Error: --public-link-limit must be between 1 and 10000\n",
-			wantCode:   shared.DiagnosticInvalidInput,
-			wantParam:  "--public-link-limit",
+			name:        "beta group public link limit range",
+			depsCommand: newBetaGroupsUpdateCommand,
+			args:        []string{"--id", "group-1", "--public-link-limit", "10001"},
+			wantStderr:  "Error: --public-link-limit must be between 1 and 10000\n",
+			wantCode:    shared.DiagnosticInvalidInput,
+			wantParam:   "--public-link-limit",
 		},
 		{
-			name:       "beta group relationship type missing",
-			command:    BetaGroupsRelationshipsGetCommand,
-			args:       []string{"--group-id", "group-1"},
-			wantStderr: "Error: --type is required; must be one of: betaTesters, builds\n",
-			wantError:  "--type",
-			wantCode:   shared.DiagnosticRequiredInputMissing,
-			wantParam:  "--type",
-			usageError: true,
+			name:        "beta group relationship type missing",
+			depsCommand: newBetaGroupsRelationshipsGetCommand,
+			args:        []string{"--group-id", "group-1"},
+			wantStderr:  "Error: --type is required; must be one of: betaTesters, builds\n",
+			wantError:   "--type",
+			wantCode:    shared.DiagnosticRequiredInputMissing,
+			wantParam:   "--type",
+			usageError:  true,
 		},
 		{
-			name:       "beta group relationship enum",
-			command:    BetaGroupsRelationshipsGetCommand,
-			args:       []string{"--group-id", "group-1", "--type", "unknown"},
-			wantStderr: `Error: --type "unknown" is not a valid relationship type; must be one of: betaTesters, builds` + "\n",
-			wantCode:   shared.DiagnosticInvalidInput,
-			wantParam:  "--type",
+			name:        "beta group relationship enum",
+			depsCommand: newBetaGroupsRelationshipsGetCommand,
+			args:        []string{"--group-id", "group-1", "--type", "unknown"},
+			wantStderr:  `Error: --type "unknown" is not a valid relationship type; must be one of: betaTesters, builds` + "\n",
+			wantCode:    shared.DiagnosticInvalidInput,
+			wantParam:   "--type",
 		},
 		{
-			name:       "beta group relationship single conflict",
-			command:    BetaGroupsRelationshipsGetCommand,
-			args:       []string{"--group-id", "group-1", "--type", "betaTesters", "--paginate"},
-			wantStderr: "Error: --limit, --next, and --paginate are only valid for to-many relationships\n",
-			wantCode:   shared.DiagnosticConflictingInput,
+			name:        "beta group relationship single conflict",
+			depsCommand: newBetaGroupsRelationshipsGetCommand,
+			args:        []string{"--group-id", "group-1", "--type", "betaTesters", "--paginate"},
+			wantStderr:  "Error: --limit, --next, and --paginate are only valid for to-many relationships\n",
+			wantCode:    shared.DiagnosticConflictingInput,
 			setup: func(t *testing.T) {
 				previous := betaGroupRelationshipKinds["betaTesters"]
 				betaGroupRelationshipKinds["betaTesters"] = relationshipSingle
@@ -222,15 +226,7 @@ func TestTestFlightValidationDiagnosticsPreserveContracts(t *testing.T) {
 			if test.setup != nil {
 				test.setup(t)
 			}
-			cmd := test.command()
-			if err := cmd.FlagSet.Parse(test.args); err != nil {
-				t.Fatalf("parse flags: %v", err)
-			}
-
-			var runErr error
-			stderr := captureTestFlightDiagnosticStderr(t, func() {
-				runErr = cmd.Exec(context.Background(), nil)
-			})
+			stderr, runErr := runTestFlightDiagnosticCommand(t, test.command, test.depsCommand, test.args)
 			if runErr == nil {
 				t.Fatal("expected validation error")
 			}
@@ -268,6 +264,39 @@ func TestTestFlightValidationDiagnosticsPreserveContracts(t *testing.T) {
 			}
 		})
 	}
+}
+
+// runTestFlightDiagnosticCommand parses args on the command that build or
+// depsBuild returns, runs it, and returns its stderr and error. A command
+// built on shared.Deps writes stderr to the deps and nothing to the process.
+func runTestFlightDiagnosticCommand(t *testing.T, build func() *ffcli.Command, depsBuild func(*shared.Deps) *ffcli.Command, args []string) (string, error) {
+	t.Helper()
+
+	var depsStdout, depsStderr bytes.Buffer
+	var cmd *ffcli.Command
+	if depsBuild != nil {
+		cmd = depsBuild(&shared.Deps{IO: &shared.IO{Out: &depsStdout, ErrOut: &depsStderr}})
+	} else {
+		cmd = build()
+	}
+	if err := cmd.FlagSet.Parse(args); err != nil {
+		t.Fatalf("parse flags: %v", err)
+	}
+
+	var runErr error
+	stderr := captureTestFlightDiagnosticStderr(t, func() {
+		runErr = cmd.Exec(context.Background(), nil)
+	})
+	if depsBuild == nil {
+		return stderr, runErr
+	}
+	if stderr != "" {
+		t.Fatalf("process stderr = %q, want empty", stderr)
+	}
+	if depsStdout.Len() != 0 {
+		t.Fatalf("stdout = %q, want empty", depsStdout.String())
+	}
+	return depsStderr.String(), runErr
 }
 
 func captureTestFlightDiagnosticStderr(t *testing.T, fn func()) string {

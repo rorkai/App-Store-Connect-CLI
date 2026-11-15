@@ -719,7 +719,7 @@ Examples:
 
 			fieldsValue, err := normalizeBetaRecruitmentCriterionOptionsFields(*fields)
 			if err != nil {
-				return usageErrorFromValidation(ctx, "testflight recruitment options: %v", err)
+				return usageErrorFromValidation(ctx, shared.DefaultDeps(), "testflight recruitment options: %v", err)
 			}
 
 			client, err := shared.GetASCClient()
@@ -772,7 +772,7 @@ Examples:
 
 			filterValues, err := parseDeviceFamilyOsVersionFilters(*filters)
 			if err != nil {
-				return usageErrorFromValidation(ctx, "testflight recruitment set: %v", err)
+				return usageErrorFromValidation(ctx, shared.DefaultDeps(), "testflight recruitment set: %v", err)
 			}
 			if len(filterValues) == 0 {
 				return shared.RequiredFlag("--os-version-filter")

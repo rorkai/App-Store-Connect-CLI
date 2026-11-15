@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -22,9 +21,9 @@ var betaGroupRelationshipKinds = map[string]relationshipKind{
 	"builds":      relationshipList,
 }
 
-// BetaGroupsRelationshipsCommand returns the beta-groups relationships command group.
-func BetaGroupsRelationshipsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("relationships", flag.ExitOnError)
+// newBetaGroupsRelationshipsCommand returns the beta-groups relationships command group built on d.
+func newBetaGroupsRelationshipsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("relationships", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "relationships",
@@ -38,7 +37,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			BetaGroupsRelationshipsGetCommand(),
+			newBetaGroupsRelationshipsGetCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -46,9 +45,9 @@ Examples:
 	}
 }
 
-// BetaGroupsRelationshipsGetCommand returns the beta-groups relationships get subcommand.
-func BetaGroupsRelationshipsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("relationships view", flag.ExitOnError)
+// newBetaGroupsRelationshipsGetCommand returns the beta-groups relationships get subcommand built on d.
+func newBetaGroupsRelationshipsGetCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("relationships view", flag.ExitOnError)
 
 	groupID := shared.BindResourceIDFlag(fs, "group-id", "betaGroups", "Beta group ID")
 	aliasID := shared.BindResourceIDFlag(fs, "id", "betaGroups", "Beta group ID (alias of --group-id)")
@@ -56,7 +55,7 @@ func BetaGroupsRelationshipsGetCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "view",
@@ -70,18 +69,18 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "testflight beta-groups relationships view", 200); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "testflight beta-groups relationships view", 200); err != nil {
 				return err
 			}
 
 			relationshipType := strings.TrimSpace(*relType)
 			if relationshipType == "" {
-				return shared.MissingRelationshipTypeUsageError(relationshipTypeList(betaGroupRelationshipKinds))
+				return d.MissingRelationshipTypeUsageError(relationshipTypeList(betaGroupRelationshipKinds))
 			}
 
 			kind, ok := betaGroupRelationshipKinds[relationshipType]
 			if !ok {
-				shared.PrintInvalidRelationshipTypeError(relationshipType, relationshipTypeList(betaGroupRelationshipKinds))
+				d.PrintInvalidRelationshipTypeError(relationshipType, relationshipTypeList(betaGroupRelationshipKinds))
 				return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticInvalidInput, "--type")
 			}
 
@@ -91,7 +90,7 @@ Examples:
 				groupValue = aliasValue
 			} else if aliasValue != "" && aliasValue != groupValue {
 				return shared.WithDiagnostic(
-					shared.UsageErrorCtx(ctx, "testflight beta-groups relationships view: --group-id and --id must match"),
+					d.UsageErrorCtx(ctx, "testflight beta-groups relationships view: --group-id and --id must match"),
 					shared.DiagnosticConflictingInput,
 					"",
 				)
@@ -99,20 +98,20 @@ Examples:
 
 			nextValue := strings.TrimSpace(*next)
 			if groupValue == "" && nextValue == "" {
-				return shared.RequiredFlag("--group-id")
+				return d.RequiredFlag("--group-id")
 			}
 
 			if kind == relationshipSingle && (nextValue != "" || *paginate || *limit != 0) {
-				fmt.Fprintln(os.Stderr, "Error: --limit, --next, and --paginate are only valid for to-many relationships")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --limit, --next, and --paginate are only valid for to-many relationships")
 				return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticConflictingInput, "")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("testflight beta-groups relationships view: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			opts := []asc.LinkagesOption{
@@ -138,7 +137,7 @@ Examples:
 
 			if *paginate {
 				paginateOpts := append(opts, asc.Limit[asc.LinkagesOption](200))
-				resp, err := shared.PaginateWithSpinner(
+				resp, err := d.PaginateWithSpinner(
 					requestCtx,
 					func(ctx context.Context) (asc.PaginatedResponse, error) {
 						page, err := getBetaGroupRelationshipList(ctx, client, relationshipType, groupValue, paginateOpts...)
@@ -159,14 +158,14 @@ Examples:
 					return fmt.Errorf("testflight beta-groups relationships view: %w", err)
 				}
 
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := getBetaGroupRelationshipList(requestCtx, client, relationshipType, groupValue, opts...)
 			if err != nil {
 				return fmt.Errorf("testflight beta-groups relationships view: %w", shared.DescribeRelationshipLookupFailure(err, relationshipType, parent))
 			}
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

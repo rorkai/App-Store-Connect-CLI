@@ -192,20 +192,24 @@ func TestTestFlightRelationshipsValidationErrors(t *testing.T) {
 		name    string
 		args    []string
 		wantErr string
+		deps    bool // the command is built on shared.Deps: run it on test deps
 	}{
 		{
 			name:    "beta-groups relationships missing type",
 			args:    []string{"testflight", "groups", "links", "view", "--group-id", "GROUP_ID"},
+			deps:    true,
 			wantErr: "--type is required",
 		},
 		{
 			name:    "beta-groups relationships missing group-id",
 			args:    []string{"testflight", "groups", "links", "view", "--type", "betaTesters"},
+			deps:    true,
 			wantErr: "--group-id is required",
 		},
 		{
 			name:    "beta-groups relationships invalid type",
 			args:    []string{"testflight", "groups", "links", "view", "--group-id", "GROUP_ID", "--type", "nope"},
+			deps:    true,
 			wantErr: `--type "nope" is not a valid relationship type; must be one of`,
 		},
 		{
@@ -240,7 +244,15 @@ func TestTestFlightRelationshipsValidationErrors(t *testing.T) {
 		},
 	}
 
-	runValidationTests(t, tests)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if test.deps {
+				assertUsageExitWithDeps(t, nil, test.args, test.wantErr)
+				return
+			}
+			assertUsageExit(t, test.args, test.wantErr)
+		})
+	}
 }
 
 func TestTestFlightMetricsInvalidPeriodReturnsValidationError(t *testing.T) {
@@ -318,6 +330,7 @@ func TestParityRelatedCommandsValidationErrors(t *testing.T) {
 		name    string
 		args    []string
 		wantErr string
+		deps    bool // the command is built on shared.Deps: run it on test deps
 	}{
 		{
 			name:    "builds app view missing build id",
@@ -347,16 +360,19 @@ func TestParityRelatedCommandsValidationErrors(t *testing.T) {
 		{
 			name:    "groups app view missing group-id",
 			args:    []string{"testflight", "groups", "app", "view"},
+			deps:    true,
 			wantErr: "--group-id is required",
 		},
 		{
 			name:    "groups recruitment view missing group-id",
 			args:    []string{"testflight", "groups", "recruitment", "view"},
+			deps:    true,
 			wantErr: "--group-id is required",
 		},
 		{
 			name:    "groups compatibility view missing group-id",
 			args:    []string{"testflight", "groups", "compatibility", "view"},
+			deps:    true,
 			wantErr: "--group-id is required",
 		},
 		{
@@ -401,5 +417,13 @@ func TestParityRelatedCommandsValidationErrors(t *testing.T) {
 		},
 	}
 
-	runValidationTests(t, tests)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if test.deps {
+				assertUsageExitWithDeps(t, nil, test.args, test.wantErr)
+				return
+			}
+			assertUsageExit(t, test.args, test.wantErr)
+		})
+	}
 }

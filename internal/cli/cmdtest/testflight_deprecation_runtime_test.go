@@ -10,15 +10,13 @@ import (
 )
 
 func TestTestFlightGroupsDeleteUsesCanonicalSuccessMessage(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.DELETE("/v1/betaGroups/group-1"),
 		asctest.JSON(http.StatusNoContent, ""))
 
-	_, stderr, err := runCommand(t, []string{"testflight", "groups", "delete", "--id", "group-1", "--confirm"})
+	_, stderr, err := runRootWithDeps(t, stubClient(t, reg), "testflight", "groups", "delete", "--id", "group-1", "--confirm")
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}

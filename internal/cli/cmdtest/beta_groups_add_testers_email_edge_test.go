@@ -11,11 +11,9 @@ import (
 )
 
 func TestBetaGroupsAddTestersMergesTesterAndEmailWithoutDuplicates(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/betaGroups/group-1/app"),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"app-1"}}`))
 	reg.Register(asctest.GET("/v1/betaTesters", "filter[apps]=app-1", "filter[email]=tester@example.com", "limit=2"),
@@ -23,12 +21,12 @@ func TestBetaGroupsAddTestersMergesTesterAndEmailWithoutDuplicates(t *testing.T)
 	reg.Register(asctest.POST("/v1/betaGroups/group-1/relationships/betaTesters").JSONBody(`{"data":[{"type":"betaTesters","id":"tester-1"}]}`),
 		asctest.JSON(http.StatusNoContent, ""))
 
-	stdout, stderr, err := runCommand(t, []string{
+	stdout, stderr, err := runRootWithDeps(t, stubClient(t, reg),
 		"testflight", "groups", "add-testers",
 		"--group", "group-1",
 		"--tester", "tester-1",
 		"--email", "tester@example.com",
-	})
+	)
 	if err != nil {
 		t.Fatalf("run error: %v", err)
 	}
@@ -42,11 +40,9 @@ func TestBetaGroupsAddTestersMergesTesterAndEmailWithoutDuplicates(t *testing.T)
 }
 
 func TestBetaGroupsAddTestersEmailPartialLookupFailureDoesNotMutate(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/betaGroups/group-1/app"),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"app-1"}}`))
 	reg.Register(asctest.GET("/v1/betaTesters", "filter[apps]=app-1", "filter[email]=valid@example.com", "limit=2"),
@@ -54,11 +50,11 @@ func TestBetaGroupsAddTestersEmailPartialLookupFailureDoesNotMutate(t *testing.T
 	reg.Register(asctest.GET("/v1/betaTesters", "filter[apps]=app-1", "filter[email]=missing@example.com", "limit=2"),
 		asctest.JSON(http.StatusOK, `{"data":[]}`))
 
-	stdout, _, runErr := runCommand(t, []string{
+	stdout, _, runErr := runRootWithDeps(t, stubClient(t, reg),
 		"testflight", "groups", "add-testers",
 		"--group", "group-1",
 		"--email", "valid@example.com,missing@example.com",
-	})
+	)
 
 	if runErr == nil {
 		t.Fatal("expected lookup failure, got nil")
@@ -72,11 +68,9 @@ func TestBetaGroupsAddTestersEmailPartialLookupFailureDoesNotMutate(t *testing.T
 }
 
 func TestBetaGroupsAddTestersAmbiguousEmailListsIDsWithoutPersonalData(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/betaGroups/group-1/app"),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"app-1"}}`))
 	reg.Register(asctest.GET("/v1/betaTesters", "filter[apps]=app-1", "filter[email]=dup@example.com", "limit=2"),
@@ -85,16 +79,14 @@ func TestBetaGroupsAddTestersAmbiguousEmailListsIDsWithoutPersonalData(t *testin
 			{"type":"betaTesters","id":"tester-2","attributes":{"email":"dup@example.com","firstName":"Private","lastName":"Two"}}
 		]}`))
 
-	stdout, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{
-			"testflight", "groups", "add-testers",
-			"--group", "group-1",
-			"--email", "dup@example.com",
-		}, "1.2.3")
-		if code != cmd.ExitUsage {
-			t.Fatalf("exit code = %d, want %d", code, cmd.ExitUsage)
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, stubClient(t, reg),
+		"testflight", "groups", "add-testers",
+		"--group", "group-1",
+		"--email", "dup@example.com",
+	)
+	if code != cmd.ExitUsage {
+		t.Fatalf("exit code = %d, want %d", code, cmd.ExitUsage)
+	}
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
@@ -117,26 +109,22 @@ func TestBetaGroupsAddTestersAmbiguousEmailListsIDsWithoutPersonalData(t *testin
 }
 
 func TestBetaGroupsAddTestersSingleEmailSampleFailsClosed(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/betaGroups/group-1/app"),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"app-1"}}`))
 	reg.Register(asctest.GET("/v1/betaTesters", "filter[apps]=app-1", "filter[email]=sample@example.com", "limit=2"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaTesters","id":"tester-1","attributes":{"email":"sample@example.com"}}],"links":{"next":"https://api.appstoreconnect.apple.com/v1/apps/app-1/betaTesters?cursor=next"}}`))
 
-	stdout, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{
-			"testflight", "groups", "add-testers",
-			"--group", "group-1",
-			"--email", "sample@example.com",
-		}, "1.2.3")
-		if code != cmd.ExitUsage {
-			t.Fatalf("exit code = %d, want %d", code, cmd.ExitUsage)
-		}
-	})
+	stdout, stderr, code := runWithDeps(t, stubClient(t, reg),
+		"testflight", "groups", "add-testers",
+		"--group", "group-1",
+		"--email", "sample@example.com",
+	)
+	if code != cmd.ExitUsage {
+		t.Fatalf("exit code = %d, want %d", code, cmd.ExitUsage)
+	}
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}

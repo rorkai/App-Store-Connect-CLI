@@ -210,14 +210,12 @@ func TestBuildsGroupsListPreservesLookupAPIErrors(t *testing.T) {
 }
 
 func TestTestFlightGroupsListBuildMembershipUsesOfficialFilterAndPaginates(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "ambient-app-must-not-be-an-assertion")
 
 	const appNext = "https://api.appstoreconnect.apple.com/v1/betaGroups?cursor=app-next"
 	const buildNext = "https://api.appstoreconnect.apple.com/v1/betaGroups?cursor=build-next"
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/builds/build-1/relationships/app"),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"app-1"}}`))
 	reg.Register(asctest.GET("/v1/betaGroups", "fields[betaGroups]=name,isInternalGroup,hasAccessToAllBuilds", "filter[app]=app-1", "limit=200"),
@@ -250,7 +248,7 @@ func TestTestFlightGroupsListBuildMembershipUsesOfficialFilterAndPaginates(t *te
 	reg.Register(asctest.GET("/v1/betaGroups/group-both/relationships/builds", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"builds","id":"build-1"}]}`))
 
-	stdout, stderr, runErr := runCommand(t, []string{"testflight", "groups", "list", "--build-id", "build-1"})
+	stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), "testflight", "groups", "list", "--build-id", "build-1")
 
 	if runErr != nil {
 		t.Fatalf("run error: %v", runErr)
@@ -285,10 +283,9 @@ func TestTestFlightGroupsListBuildMembershipUsesOfficialFilterAndPaginates(t *te
 }
 
 func TestTestFlightGroupsListBuildMembershipRejectsExplicitBlankIDs(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	asctest.NewRegistry(t).Install()
+	reg := asctest.NewRegistry(t)
 
 	tests := []struct {
 		name       string
@@ -300,16 +297,8 @@ func TestTestFlightGroupsListBuildMembershipRejectsExplicitBlankIDs(t *testing.T
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-			var runErr error
 			args := append([]string{"testflight", "groups", "list"}, test.args...)
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				runErr = root.Run(context.Background())
-			})
+			stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), args...)
 			if !errors.Is(runErr, flag.ErrHelp) {
 				t.Fatalf("expected usage error, got %v", runErr)
 			}
@@ -324,11 +313,9 @@ func TestTestFlightGroupsListBuildMembershipRejectsExplicitBlankIDs(t *testing.T
 }
 
 func TestTestFlightGroupsListBuildMembershipEmptyIsSuccessful(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/builds/build-1/relationships/app"),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"app-1"}}`))
 	reg.Register(asctest.GET("/v1/betaGroups", "fields[betaGroups]=name,isInternalGroup,hasAccessToAllBuilds", "filter[app]=app-1", "limit=200"),
@@ -336,7 +323,7 @@ func TestTestFlightGroupsListBuildMembershipEmptyIsSuccessful(t *testing.T) {
 	reg.Register(asctest.GET("/v1/betaGroups", "fields[betaGroups]=name,isInternalGroup,hasAccessToAllBuilds", "filter[builds]=build-1", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[]}`))
 
-	stdout, stderr, runErr := runCommand(t, []string{"testflight", "groups", "list", "--build-id", "build-1"})
+	stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), "testflight", "groups", "list", "--build-id", "build-1")
 	if runErr != nil {
 		t.Fatalf("empty membership must succeed, got %v", runErr)
 	}
@@ -354,11 +341,9 @@ func TestTestFlightGroupsListBuildMembershipEmptyIsSuccessful(t *testing.T) {
 }
 
 func TestTestFlightGroupsListBuildMembershipRendersTable(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/builds/build-1/relationships/app"),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"app-1"}}`))
 	reg.Register(asctest.GET("/v1/betaGroups", "fields[betaGroups]=name,isInternalGroup,hasAccessToAllBuilds", "filter[app]=app-1", "limit=200"),
@@ -366,7 +351,7 @@ func TestTestFlightGroupsListBuildMembershipRendersTable(t *testing.T) {
 	reg.Register(asctest.GET("/v1/betaGroups", "fields[betaGroups]=name,isInternalGroup,hasAccessToAllBuilds", "filter[builds]=build-1", "limit=200"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"External QA","isInternalGroup":false}}]}`))
 
-	stdout, stderr, runErr := runCommand(t, []string{"testflight", "groups", "list", "--build-id", "build-1", "--output", "table"})
+	stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), "testflight", "groups", "list", "--build-id", "build-1", "--output", "table")
 	if runErr != nil {
 		t.Fatalf("run error: %v", runErr)
 	}
@@ -381,12 +366,10 @@ func TestTestFlightGroupsListBuildMembershipRendersTable(t *testing.T) {
 }
 
 func TestTestFlightGroupsListBuildMembershipFallsBackAndFindsLargeGroupMatch(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	const nextURL = "https://api.appstoreconnect.apple.com/v1/betaGroups/group-large/relationships/builds?cursor=next"
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/builds/build-1/relationships/app"),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"app-1"}}`))
 	reg.Register(asctest.GET("/v1/betaGroups", "fields[betaGroups]=name,isInternalGroup,hasAccessToAllBuilds", "filter[app]=app-1", "limit=200"),
@@ -398,7 +381,7 @@ func TestTestFlightGroupsListBuildMembershipFallsBackAndFindsLargeGroupMatch(t *
 	reg.Register(asctest.GET("/v1/betaGroups/group-large/relationships/builds", "cursor=next"),
 		asctest.JSON(http.StatusOK, `{"data":[{"type":"builds","id":"build-1"}]}`))
 
-	stdout, stderr, runErr := runCommand(t, []string{"testflight", "groups", "list", "--build-id", "build-1"})
+	stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), "testflight", "groups", "list", "--build-id", "build-1")
 	if runErr != nil {
 		t.Fatalf("run error: %v", runErr)
 	}
@@ -416,11 +399,9 @@ func TestTestFlightGroupsListBuildMembershipFallsBackAndFindsLargeGroupMatch(t *
 }
 
 func TestTestFlightGroupsListBuildMembershipPreservesPartialResultAndFails(t *testing.T) {
-	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	reg := asctest.NewRegistry(t)
-	reg.Install()
 	reg.Register(asctest.GET("/v1/builds/build-1/relationships/app"),
 		asctest.JSON(http.StatusOK, `{"data":{"type":"apps","id":"app-1"}}`))
 	reg.Register(asctest.GET("/v1/betaGroups", "fields[betaGroups]=name,isInternalGroup,hasAccessToAllBuilds", "filter[app]=app-1", "limit=200"),
@@ -438,7 +419,7 @@ func TestTestFlightGroupsListBuildMembershipPreservesPartialResultAndFails(t *te
 	reg.Register(asctest.GET("/v1/betaGroups/group-failed/relationships/builds", "limit=200"),
 		asctest.JSON(http.StatusInternalServerError, `{"errors":[{"status":"500","code":"INTERNAL_ERROR","title":"Temporary failure"}]}`))
 
-	stdout, stderr, runErr := runCommand(t, []string{"testflight", "groups", "list", "--build-id", "build-1"})
+	stdout, stderr, runErr := runRootWithDeps(t, stubClient(t, reg), "testflight", "groups", "list", "--build-id", "build-1")
 	if runErr == nil {
 		t.Fatal("expected incomplete lookup to fail")
 	}
@@ -475,16 +456,8 @@ func TestTestFlightGroupsListBuildMembershipRejectsPageControlsAndGlobal(t *test
 
 	for _, extra := range tests {
 		t.Run(strings.TrimPrefix(strings.Join(extra, "_"), "--"), func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
 			args := append([]string{"testflight", "groups", "list", "--build-id", "build-1"}, extra...)
-			var runErr error
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				runErr = root.Run(context.Background())
-			})
+			stdout, stderr, runErr := runRootWithDeps(t, nil, args...)
 			if !errors.Is(runErr, flag.ErrHelp) {
 				t.Fatalf("expected usage error, got %v", runErr)
 			}

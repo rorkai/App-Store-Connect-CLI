@@ -22,6 +22,7 @@ func TestTestFlightInputValidationReturnsUsageExitCode(t *testing.T) {
 		name    string
 		args    []string
 		wantErr string
+		deps    bool // the command is built on shared.Deps: run it on test deps
 	}{
 		{
 			name:    "app-localizations list app 123 limit 201",
@@ -41,21 +42,25 @@ func TestTestFlightInputValidationReturnsUsageExitCode(t *testing.T) {
 		{
 			name:    "groups list limit 201",
 			args:    []string{"testflight", "groups", "list", "--limit", "201"},
+			deps:    true,
 			wantErr: "testflight groups list: --limit must be between 1 and 200",
 		},
 		{
 			name:    "groups list next non apple url",
 			args:    []string{"testflight", "groups", "list", "--next", "http://example.com/x"},
+			deps:    true,
 			wantErr: "testflight groups list: --next must be an App Store Connect URL",
 		},
 		{
 			name:    "groups links view group-id g type betaTesters limit 201",
 			args:    []string{"testflight", "groups", "links", "view", "--group-id", "g", "--type", "betaTesters", "--limit", "201"},
+			deps:    true,
 			wantErr: "testflight groups links view: --limit must be between 1 and 200",
 		},
 		{
 			name:    "groups links view group-id g type betaTesters next non apple url",
 			args:    []string{"testflight", "groups", "links", "view", "--group-id", "g", "--type", "betaTesters", "--next", "http://example.com/x"},
+			deps:    true,
 			wantErr: "testflight groups links view: --next must be an App Store Connect URL",
 		},
 		{
@@ -242,7 +247,13 @@ func TestTestFlightInputValidationReturnsUsageExitCode(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			stdout, stderr, runErr := runCommand(t, test.args)
+			run := runCommand
+			if test.deps {
+				run = func(t *testing.T, args []string) (string, string, error) {
+					return runRootWithDeps(t, nil, args...)
+				}
+			}
+			stdout, stderr, runErr := run(t, test.args)
 
 			if runErr == nil {
 				t.Fatal("expected error, got nil")
