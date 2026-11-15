@@ -16,7 +16,9 @@ App Clip default-experience files use `metadata/<locale>/app_clip/subtitle.txt`,
 `metadata/<locale>/app_clip/header_image.png`, and `metadata/app_clip/action.txt`
 (`OPEN`, `PLAY`, or `VIEW`). App Preview videos use
 `app_previews/<locale>/<device_type>/*.mp4`, `*.mov`, or `*.m4v`, with an optional
-`<name>.poster_frame.txt` sidecar (`HH:MM:SS:FF` or `HH:MM:SS.mmm`).
+`<name>.poster_frame.txt` sidecar (`HH:MM:SS:FF` or `HH:MM:SS.mmm`). Import does
+not upload videos kept directly in a locale folder; it lists each one under
+`skipped`, so move it into a device folder.
 
 App Store Connect does not provide original preview videos, only an HLS
 streaming playlist. Exports save each preview, such as `preview.mp4`, as
@@ -177,7 +179,7 @@ fastlane/
 │   │   └── ...
 ```
 
-App-level text files directly in `metadata/` (`copyright.txt` and the category files) and a locale or `default` folder's `apple_tv_privacy_policy.txt` are not imported. Each non-empty one is listed in `skipped` with the `asc` command that sets that value.
+`metadata/copyright.txt` sets the copyright of the version being imported; an empty file is listed in `skipped` and the copyright is left unchanged. The category files directly in `metadata/` and a locale or `default` folder's `apple_tv_privacy_policy.txt` are not imported. Each non-empty one is listed in `skipped` with the `asc` command that sets that value.
 
 ### migrate export
 
@@ -186,6 +188,8 @@ Export current App Store metadata to fastlane directory structure:
 ```bash
 asc migrate export --app "APP_ID" --version-id "VERSION_ID" --output-dir ./fastlane
 ```
+
+The version's App Review details are written to `metadata/review_information/` in the files `migrate import` reads; empty fields write no file. The demo account password is never written, so add `demo_password.txt` yourself before an import that should set it.
 
 **Flags:**
 
@@ -446,10 +450,15 @@ of being uploaded to a guessed slot.
 When a folder holds both `0_home.png` and its framed copy `0_home_framed.png`,
 only the framed copy is uploaded and the raw file is listed under `skipped`.
 
+`screenshots/iMessage/<locale>/` is imported as iMessage screenshots.
+`screenshots/appleTV/<locale>/` is read as one more set of locale directories.
+Its files are judged by size alone: a 3840x2160 file is an Apple TV screenshot
+whatever its name, and a file that is not an Apple TV size fails the command.
+
 ## Partial Imports
 
 `migrate import --confirm` applies version localizations, App Info
-localizations, review information, and screenshots in that order. When a step
+localizations, review information, copyright, and screenshots in that order. When a step
 fails after earlier changes already reached App Store Connect, the command still
 writes the result document to stdout and exits non-zero:
 
@@ -513,7 +522,8 @@ The import command reports directories and files it did not read. Directory
 names that are not locales, symlinked entries, unsupported screenshot files, a
 missing conventional directory, configuration keys that import does not apply,
 and anything a Deliverfile or flag turned off all appear here (`metadata/review_information` and `metadata/default` are read
-as part of the import and are not reported):
+as part of the import and are not reported). `metadata/app_clip_review_information`
+is reported too; set invocation URLs with `asc app-clips review-details`:
 
 ```json
 {

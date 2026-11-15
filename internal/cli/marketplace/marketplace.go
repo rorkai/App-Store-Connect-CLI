@@ -23,7 +23,7 @@ Examples:
   asc marketplace search-details view --app "APP_ID"
   asc marketplace webhooks list`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newMarketplaceSearchDetailsCommand(d),
 			newMarketplaceWebhooksCommand(d),

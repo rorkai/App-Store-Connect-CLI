@@ -43,7 +43,7 @@ Examples:
   asc xcode-cloud build-runs --workflow-id "WORKFLOW_ID" --limit 50
   asc xcode-cloud build-runs --workflow-id "WORKFLOW_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newXcodeCloudBuildRunsListCommand(d),
 			newXcodeCloudBuildRunsGetCommand(d),
@@ -75,7 +75,7 @@ Examples:
   asc xcode-cloud build-runs list --workflow-id "WORKFLOW_ID" --limit 50
   asc xcode-cloud build-runs list --workflow-id "WORKFLOW_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "xcode-cloud build-runs list", 200, "sort"); err != nil {
 				return err

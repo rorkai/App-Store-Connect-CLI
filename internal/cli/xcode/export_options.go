@@ -15,8 +15,7 @@ import (
 )
 
 const (
-	defaultXcodeExportOptionsPath          = ".asc/export-options-app-store.plist"
-	defaultReleaseTestingExportOptionsPath = ".asc/export-options-release-testing.plist"
+	defaultXcodeExportOptionsPath = ".asc/export-options-app-store.plist"
 )
 
 // XcodeExportOptionsGroupCommand returns the export-options command group.
@@ -29,8 +28,8 @@ func XcodeExportOptionsGroupCommand() *ffcli.Command {
 		ShortHelp:  "Generate Xcode ExportOptions.plist files.",
 		LongHelp: `Generate Xcode ExportOptions.plist files.
 
-Use generate to create App Store Connect or release-testing export options from
-an existing .xcarchive. Automatic signing lets Xcode resolve signing for the
+Use generate to create app-store-connect, release-testing, debugging, or
+enterprise export options from an existing .xcarchive. Automatic signing lets Xcode resolve signing for the
 app and any embedded targets; provide --signing-style manual to resolve local
 profiles.
 
@@ -62,7 +61,7 @@ func XcodeExportOptionsCommand() *ffcli.Command {
 
 	archivePath := fs.String("archive-path", "", "Path to the .xcarchive input (required)")
 	outputPath := fs.String("output-path", "", "Destination path for the generated ExportOptions.plist (defaults to a method-specific .asc path)")
-	method := fs.String("method", "app-store-connect", "Xcode export method: app-store-connect or release-testing")
+	method := fs.String("method", "app-store-connect", "Xcode export method: app-store-connect, release-testing, debugging, or enterprise")
 	destination := fs.String("destination", "export", "Xcode export destination: export or upload")
 	signingStyle := fs.String("signing-style", "automatic", "Signing style: automatic or manual")
 	teamID := fs.String("team-id", "", "Apple Developer team ID (overrides archive metadata)")
@@ -76,9 +75,11 @@ func XcodeExportOptionsCommand() *ffcli.Command {
 		LongHelp: `Generate an ExportOptions.plist from an Xcode archive.
 
 The generated plist uses app-store-connect by default. Use
---method release-testing to create a local IPA for registered devices. Xcode's
-older ad-hoc method name is deprecated and is not accepted. Release-testing
-requires destination=export.
+--method release-testing to create a local IPA for registered devices,
+debugging for a development-signed IPA, or enterprise for in-house
+distribution. Xcode's deprecated ad-hoc and development names are not
+accepted. Methods other than app-store-connect require destination=export, and
+debugging and enterprise support automatic signing only.
 
 Examples:
   asc xcode export-options generate --archive-path .asc/artifacts/App.xcarchive
@@ -100,8 +101,11 @@ Examples:
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
-			if trimmedMethod == "release-testing" && trimmedDestination != "export" {
-				return shared.UsageError("release-testing requires destination=export")
+			if trimmedMethod != "app-store-connect" && trimmedDestination != "export" {
+				return shared.UsageErrorf("%s requires destination=export", trimmedMethod)
+			}
+			if err := localxcode.ValidateExportOptionsMethodSigningStyle(trimmedMethod, trimmedSigningStyle); err != nil {
+				return shared.UsageError(err.Error())
 			}
 
 			trimmedArchivePath := strings.TrimSpace(*archivePath)
@@ -117,8 +121,8 @@ Examples:
 			trimmedOutputPath := strings.TrimSpace(*outputPath)
 			if !outputPathSet {
 				trimmedOutputPath = defaultXcodeExportOptionsPath
-				if trimmedMethod == "release-testing" {
-					trimmedOutputPath = defaultReleaseTestingExportOptionsPath
+				if trimmedMethod != "app-store-connect" {
+					trimmedOutputPath = ".asc/export-options-" + trimmedMethod + ".plist"
 				}
 			}
 			if trimmedOutputPath == "" {

@@ -1,7 +1,6 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -13,7 +12,6 @@ import (
 
 	cmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestAppClipsMutationsRejectRepeatedCSVFlags(t *testing.T) {
@@ -82,17 +80,15 @@ func TestAppClipsMutationsRejectRepeatedCSVFlags(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			factoryCalls := 0
-			restore := shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+			clientFactory := func() (*asc.Client, error) {
 				factoryCalls++
 				return nil, errors.New("unexpected client creation")
-			})
-			t.Cleanup(restore)
+			}
 
-			stdout, stderr := captureOutput(t, func() {
-				if code := cmd.Run(test.args, "1.2.3"); code != cmd.ExitUsage {
-					t.Fatalf("Run() exit code = %d, want %d", code, cmd.ExitUsage)
-				}
-			})
+			stdout, stderr, code := runWithDeps(t, clientFactory, test.args...)
+			if code != cmd.ExitUsage {
+				t.Fatalf("Run() exit code = %d, want %d", code, cmd.ExitUsage)
+			}
 
 			if factoryCalls != 0 {
 				t.Fatalf("client factory calls = %d, want 0 before repeated-flag rejection", factoryCalls)
@@ -178,21 +174,14 @@ func TestAppClipsReviewDetailsCSVValuesPreserveOrder(t *testing.T) {
 			if err != nil {
 				t.Fatalf("new client: %v", err)
 			}
-			restore := shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+			clientFactory := func() (*asc.Client, error) {
 				return client, nil
-			})
-			t.Cleanup(restore)
+			}
 
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatalf("run error: %v", err)
-				}
-			})
+			stdout, stderr, err := runRootWithDeps(t, clientFactory, test.args...)
+			if err != nil {
+				t.Fatalf("run error: %v", err)
+			}
 			if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)
 			}
@@ -228,26 +217,19 @@ func TestAppClipsInvocationsCreateCSVValuesRemainCompatible(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new client: %v", err)
 	}
-	restore := shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+	clientFactory := func() (*asc.Client, error) {
 		return client, nil
-	})
-	t.Cleanup(restore)
+	}
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"app-clips", "invocations", "create",
-			"--build-bundle-id", "bundle-1",
-			"--url", "https://example.com/clip",
-			"--localization-id", "loc-1,loc-2",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithDeps(t, clientFactory,
+		"app-clips", "invocations", "create",
+		"--build-bundle-id", "bundle-1",
+		"--url", "https://example.com/clip",
+		"--localization-id", "loc-1,loc-2",
+	)
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}

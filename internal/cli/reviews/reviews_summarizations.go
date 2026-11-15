@@ -38,7 +38,7 @@ Examples:
   asc reviews summarizations --app "APP_ID" --platform IOS --limit 50
   asc reviews summarizations --next "<links.next>"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "reviews summarizations", 200, "platform", "territory", "fields", "territory-fields", "include", "limit"); err != nil {
 				return err

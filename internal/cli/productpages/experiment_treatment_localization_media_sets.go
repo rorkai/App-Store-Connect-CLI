@@ -30,7 +30,7 @@ Examples:
   asc product-pages experiments treatments localizations preview-sets list --localization-id "LOCALIZATION_ID"
   asc product-pages experiments treatments localizations preview-sets upload --localization-id "LOCALIZATION_ID" --path "./previews" --device-type "IPHONE_65"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newExperimentTreatmentLocalizationPreviewSetsListCommand(d),
 			newExperimentTreatmentLocalizationPreviewSetsUploadCommand(d),
@@ -90,7 +90,7 @@ Examples:
   asc product-pages experiments treatments localizations preview-sets upload --localization-id "LOCALIZATION_ID" --path "./previews" --device-type "IPHONE_65"
   asc product-pages experiments treatments localizations preview-sets upload --localization-id "LOCALIZATION_ID" --path "./previews/en-US.mov" --device-type "IPHONE_65"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			ctx, pollErr := pollInterval.Apply(ctx)
 			if pollErr != nil {
@@ -125,7 +125,7 @@ Examples:
   asc product-pages experiments treatments localizations screenshot-sets upload --localization-id "LOCALIZATION_ID" --path "./screenshots" --device-type "IPHONE_65"
   asc product-pages experiments treatments localizations screenshot-sets sync --localization-id "LOCALIZATION_ID" --path "./screenshots" --device-type "IPHONE_65" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newExperimentTreatmentLocalizationScreenshotSetsListCommand(d),
 			newExperimentTreatmentLocalizationScreenshotSetsUploadCommand(d),
@@ -158,7 +158,7 @@ Examples:
   asc product-pages experiments treatments localizations screenshot-sets list --localization-id "LOCALIZATION_ID"
   asc product-pages experiments treatments localizations screenshot-sets list --localization-id "LOCALIZATION_ID" --include-screenshots --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := d.ValidatePaginationFlags(ctx, fs, "product-pages experiments treatments localizations screenshot-sets list", productPagesMaxLimit); err != nil {
 				return err
@@ -257,7 +257,7 @@ Examples:
   asc product-pages experiments treatments localizations screenshot-sets upload --localization-id "LOCALIZATION_ID" --path "./screenshots" --device-type "IPHONE_65"
   asc product-pages experiments treatments localizations screenshot-sets upload --localization-id "LOCALIZATION_ID" --path "./screenshots/en-US.png" --device-type "IPHONE_65"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			ctx, pollErr := pollInterval.Apply(ctx)
 			if pollErr != nil {
@@ -299,7 +299,7 @@ This replaces existing screenshots in the matching display-type set with files f
 Examples:
   asc product-pages experiments treatments localizations screenshot-sets sync --localization-id "LOCALIZATION_ID" --path "./screenshots" --device-type "IPHONE_65" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			ctx, pollErr := pollInterval.Apply(ctx)
 			if pollErr != nil {

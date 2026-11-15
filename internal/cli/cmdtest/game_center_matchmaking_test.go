@@ -5,7 +5,7 @@ import (
 )
 
 func TestGameCenterMatchmakingValidationErrors(t *testing.T) {
-	runGameCenterUsageCases(t, []gameCenterUsageCase{
+	runGameCenterUsageCasesWithDeps(t, []gameCenterUsageCase{
 		{[]string{"game-center", "matchmaking", "queues", "create", "--rule-set-id", "RULE_SET_ID"}, "--reference-name is required"},
 		{[]string{"game-center", "matchmaking", "queues", "create", "--reference-name", "Queue"}, "--rule-set-id is required"},
 		{[]string{"game-center", "matchmaking", "queues", "update"}, "--id is required"},

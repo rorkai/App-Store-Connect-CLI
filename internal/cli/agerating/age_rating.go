@@ -71,7 +71,7 @@ Examples:
   asc age-rating view --app-info-id APP_INFO_ID
   asc age-rating edit --app APP_ID --kids-age-band FIVE_AND_UNDER --gambling false`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newAgeRatingViewCommand(d),
 			newAgeRatingEditCommand(d),
@@ -105,7 +105,7 @@ Examples:
   asc age-rating view --app-info-id APP_INFO_ID --fields socialMedia,socialMediaAgeRestricted
   asc age-rating view --version-id VERSION_ID`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			appInfoValue := strings.TrimSpace(*appInfoID)
 			versionValue := strings.TrimSpace(*versionID)
@@ -216,7 +216,7 @@ Examples:
   asc age-rating edit --app APP_ID --social-media true --user-generated-content true
   asc age-rating edit --app APP_ID --social-media-age-restricted true --age-assurance true --social-media true --user-generated-content true`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if len(args) > 0 {
 				return d.UsageErrorf("unexpected argument(s): %s", strings.Join(args, " "))

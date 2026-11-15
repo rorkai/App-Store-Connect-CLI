@@ -28,7 +28,7 @@ Examples:
   asc profiles links certificates --id "PROFILE_ID"
   asc profiles links devices --id "PROFILE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newProfilesRelationshipsBundleIDCommand(d),
 			newProfilesRelationshipsCertificatesCommand(d),
@@ -56,7 +56,7 @@ func newProfilesRelationshipsBundleIDCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc profiles links bundle-id --id "PROFILE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {

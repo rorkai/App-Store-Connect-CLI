@@ -29,7 +29,7 @@ Examples:
   asc product-pages custom-pages update --custom-page-id "PAGE_ID" --name "Updated"
   asc product-pages custom-pages delete --custom-page-id "PAGE_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newCustomPagesListCommand(d),
 			newCustomPagesGetCommand(d),
@@ -250,7 +250,7 @@ Examples:
   asc product-pages custom-pages create --app "APP_ID" --name "Summer Campaign" --from-version "VERSION_ID"
   asc product-pages custom-pages create --app "APP_ID" --name "Summer Campaign" --from-custom-page "PAGE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
@@ -306,7 +306,7 @@ Examples:
   asc product-pages custom-pages update --custom-page-id "PAGE_ID" --name "Updated"
   asc product-pages custom-pages update --custom-page-id "PAGE_ID" --visible true`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*customPageID)
 			if trimmedID == "" {

@@ -29,11 +29,11 @@ type supportedLocalesResult struct {
 }
 
 // LocalizationsSupportedLocalesCommand returns the supported-locales subcommand.
-func LocalizationsSupportedLocalesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("supported-locales", flag.ExitOnError)
+func newLocalizationsSupportedLocalesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("supported-locales", flag.ExitOnError)
 
 	versionID := shared.BindResourceIDFlag(fs, "version", "appStoreVersions", "App Store version ID (required)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "supported-locales",
@@ -45,19 +45,19 @@ Examples:
   asc localizations supported-locales --version "VERSION_ID"
   asc localizations supported-locales --version "VERSION_ID" --output json --pretty`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			vid := strings.TrimSpace(*versionID)
 			if vid == "" {
-				return shared.RequiredFlag("--version")
+				return d.RequiredFlag("--version")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("localizations supported-locales: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			firstPage, err := client.GetAppStoreVersionLocalizations(requestCtx, vid, asc.Limit[asc.AppStoreVersionLocalizationsOption](200))
@@ -78,16 +78,16 @@ Examples:
 			}
 
 			result := buildSupportedLocalesResult(vid, resp)
-			return shared.PrintOutputWithRenderers(
+			return d.PrintOutputWithRenderers(
 				result,
 				*output.Output,
 				*output.Pretty,
 				func() error {
-					renderSupportedLocales(result, false)
+					renderSupportedLocales(d, result, false)
 					return nil
 				},
 				func() error {
-					renderSupportedLocales(result, true)
+					renderSupportedLocales(d, result, true)
 					return nil
 				},
 			)
@@ -149,8 +149,8 @@ func buildSupportedLocalesResult(versionID string, resp *asc.AppStoreVersionLoca
 	return result
 }
 
-func renderSupportedLocales(result *supportedLocalesResult, markdown bool) {
-	shared.RenderSection(
+func renderSupportedLocales(d *shared.Deps, result *supportedLocalesResult, markdown bool) {
+	d.RenderSection(
 		"Summary",
 		[]string{"Version ID", "Catalog Locales", "Configured Locales"},
 		[][]string{{
@@ -162,7 +162,7 @@ func renderSupportedLocales(result *supportedLocalesResult, markdown bool) {
 	)
 
 	headers, rows := supportedLocalesRows(result)
-	shared.RenderSection("Supported Locales", headers, rows, markdown)
+	d.RenderSection("Supported Locales", headers, rows, markdown)
 }
 
 func supportedLocalesRows(result *supportedLocalesResult) ([]string, [][]string) {

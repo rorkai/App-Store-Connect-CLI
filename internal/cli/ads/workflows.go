@@ -19,18 +19,18 @@ type platformCampaignStatusWorkflowFlags struct {
 	confirm  *bool
 }
 
-func platformWorkflowSubcommands(path []string) []*ffcli.Command {
+func platformWorkflowSubcommands(d *shared.Deps, path []string) []*ffcli.Command {
 	if len(path) != 1 || path[0] != "campaigns" {
 		return nil
 	}
 	return []*ffcli.Command{
-		platformCampaignStatusWorkflowCommand("pause", "PAUSED", "Pause a Platform API campaign."),
-		platformCampaignStatusWorkflowCommand("resume", "ENABLED", "Resume a Platform API campaign."),
+		platformCampaignStatusWorkflowCommand(d, "pause", "PAUSED", "Pause a Platform API campaign."),
+		platformCampaignStatusWorkflowCommand(d, "resume", "ENABLED", "Resume a Platform API campaign."),
 	}
 }
 
-func platformCampaignStatusWorkflowCommand(name, status, shortHelp string) *ffcli.Command {
-	fs := flag.NewFlagSet("campaigns "+name, flag.ExitOnError)
+func platformCampaignStatusWorkflowCommand(d *shared.Deps, name, status, shortHelp string) *ffcli.Command {
+	fs := d.NewFlagSet("campaigns "+name, flag.ExitOnError)
 	flags := platformCampaignStatusWorkflowFlags{
 		common: commonFlags{
 			AdsProfile: fs.String("ads-profile", "", "Use named Apple Ads authentication profile"),
@@ -48,18 +48,18 @@ func platformCampaignStatusWorkflowCommand(name, status, shortHelp string) *ffcl
 		FlagSet:    fs,
 		UsageFunc:  shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			return executePlatformCampaignStatusWorkflow(ctx, name, status, flags)
+			return executePlatformCampaignStatusWorkflow(ctx, d, name, status, flags)
 		},
 	}
 }
 
-func executePlatformCampaignStatusWorkflow(ctx context.Context, commandName, status string, flags platformCampaignStatusWorkflowFlags) error {
+func executePlatformCampaignStatusWorkflow(ctx context.Context, d *shared.Deps, commandName, status string, flags platformCampaignStatusWorkflowFlags) error {
 	campaignID := value(flags.campaign)
 	if campaignID == "" {
-		return shared.UsageError("--campaign is required")
+		return d.UsageError("--campaign is required")
 	}
 	if status != "PAUSED" {
-		if err := shared.RequireConfirm(flags.confirm != nil && *flags.confirm); err != nil {
+		if err := d.RequireConfirm(flags.confirm != nil && *flags.confirm); err != nil {
 			return err
 		}
 	}
@@ -70,9 +70,9 @@ func executePlatformCampaignStatusWorkflow(ctx context.Context, commandName, sta
 	}
 	outputFormat, err := validateAdsRawOutput(flags.output)
 	if err != nil {
-		return shared.UsageError(err.Error())
+		return d.UsageError(err.Error())
 	}
-	client, _, err := resolvePlatformClientAndAdAccountID(ctx, flags.common, spec.Context)
+	client, _, err := resolvePlatformClientAndAdAccountID(ctx, d, flags.common, spec.Context)
 	if err != nil {
 		return fmt.Errorf("ads campaigns %s: %w", commandName, err)
 	}
@@ -81,13 +81,13 @@ func executePlatformCampaignStatusWorkflow(ctx context.Context, commandName, sta
 	if err != nil {
 		return err
 	}
-	requestCtx, cancel := requestContext(ctx)
+	requestCtx, cancel := d.Timeout(ctx)
 	defer cancel()
 	result, err := client.Do(requestCtx, spec, map[string]string{"id": campaignID}, nil, body)
 	if err != nil {
 		return fmt.Errorf("ads campaigns %s: %w", commandName, err)
 	}
-	return shared.PrintOutput(result, outputFormat, *flags.output.Pretty)
+	return d.PrintOutput(result, outputFormat, *flags.output.Pretty)
 }
 
 func platformCampaignStatusWorkflowHelp(name, status, shortHelp string) string {

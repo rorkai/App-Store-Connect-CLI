@@ -32,6 +32,8 @@ func TestExportReusesVersionLocalizationSnapshot(t *testing.T) {
 						return migrateJSONResponse(200, `{"data":[]}`), nil
 					case "/v1/appStoreVersions/VERSION_ID/appClipDefaultExperience":
 						return migrateJSONResponse(200, `{"data":null}`), nil
+					case "/v1/appStoreVersions/VERSION_ID/appStoreReviewDetail":
+						return migrateJSONResponse(404, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not found"}]}`), nil
 					case "/v1/appStoreVersions/VERSION_ID/appStoreVersionLocalizations":
 						pageRequests++
 						if empty {

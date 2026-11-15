@@ -7,8 +7,8 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"maps"
-	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -51,14 +51,14 @@ type appPriceResourceMetadata struct {
 	EndDate      string
 }
 
-// PricingCurrentCommand returns the current pricing command.
-func PricingCurrentCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("pricing current", flag.ExitOnError)
+// newPricingCurrentCommand returns the current pricing command.
+func newPricingCurrentCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("pricing current", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	allTerritories := fs.Bool("all-territories", false, "Show current prices for all territories")
 	territory := fs.String("territory", "", "Comma-separated territory filter(s); accepts alpha-2, alpha-3, or exact English country names (e.g., US,USA,France)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "current",
@@ -75,33 +75,33 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
 			}
 
 			if *allTerritories && strings.TrimSpace(*territory) != "" {
-				fmt.Fprintln(os.Stderr, "Error: --territory and --all-territories are mutually exclusive")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --territory and --all-territories are mutually exclusive")
 				return flag.ErrHelp
 			}
 			requestedTerritories, err := shared.NormalizeASCTerritoryCSV(*territory)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 			requestedTerritories = uniqueUpperList(requestedTerritories)
 			if strings.TrimSpace(*territory) != "" && len(requestedTerritories) == 0 {
-				fmt.Fprintln(os.Stderr, "Error: --territory must include at least one territory code")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --territory must include at least one territory code")
 				return flag.ErrHelp
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("pricing current: %w", err)
 			}
 
-			scheduleResp, err := getAppPriceScheduleWithTimeout(ctx, client, resolvedAppID)
+			scheduleResp, err := getAppPriceScheduleWithTimeout(ctx, d, client, resolvedAppID)
 			if err != nil {
 				if isAppPriceScheduleNotConfigured(err) {
-					return reportAppPriceScheduleNotConfigured(resolvedAppID, *output.Output, *output.Pretty)
+					return reportAppPriceScheduleNotConfigured(d, resolvedAppID, *output.Output, *output.Pretty)
 				}
 				return fmt.Errorf("pricing current: get app price schedule: %w", err)
 			}
@@ -111,10 +111,10 @@ Examples:
 				return fmt.Errorf("pricing current: app price schedule ID missing")
 			}
 
-			baseTerritoryResp, err := getAppPriceScheduleBaseTerritoryWithTimeout(ctx, client, scheduleID)
+			baseTerritoryResp, err := getAppPriceScheduleBaseTerritoryWithTimeout(ctx, d, client, scheduleID)
 			if err != nil {
 				if isAppPriceScheduleNotConfigured(err) {
-					return reportAppPriceScheduleNotConfigured(resolvedAppID, *output.Output, *output.Pretty)
+					return reportAppPriceScheduleNotConfigured(d, resolvedAppID, *output.Output, *output.Pretty)
 				}
 				return fmt.Errorf("pricing current: get base territory: %w", err)
 			}
@@ -133,10 +133,10 @@ Examples:
 					}
 				}
 			}
-			entries, values, currencies, err := fetchAppCurrentSchedulePrices(ctx, client, scheduleID, needAutomatic)
+			entries, values, currencies, err := fetchAppCurrentSchedulePrices(ctx, d, client, scheduleID, needAutomatic)
 			if err != nil {
 				if isAppPriceScheduleNotConfigured(err) {
-					return reportAppPriceScheduleNotConfigured(resolvedAppID, *output.Output, *output.Pretty)
+					return reportAppPriceScheduleNotConfigured(d, resolvedAppID, *output.Output, *output.Pretty)
 				}
 				return fmt.Errorf("pricing current: %w", err)
 			}
@@ -151,28 +151,29 @@ Examples:
 				currencies,
 				requestedTerritories,
 				*allTerritories,
-				shared.PricingNow(),
+				d.Now(),
 			)
 			if err != nil {
 				var noBasePrice noCurrentBasePriceError
 				if errors.As(err, &noBasePrice) {
-					return reportNoCurrentBasePrice(resolvedAppID, noBasePrice, *output.Output, *output.Pretty)
+					return reportNoCurrentBasePrice(d, resolvedAppID, noBasePrice, *output.Output, *output.Pretty)
 				}
 				return fmt.Errorf("pricing current: %w", err)
 			}
 
-			return printAppCurrentPricingResult(result, *output.Output, *output.Pretty)
+			return printAppCurrentPricingResult(d, result, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-func fetchAppCurrentSchedulePrices(ctx context.Context, client *asc.Client, scheduleID string, needAutomatic bool) ([]appPriceEntry, map[string]appPricePointValue, map[string]string, error) {
+func fetchAppCurrentSchedulePrices(ctx context.Context, d *shared.Deps, client *asc.Client, scheduleID string, needAutomatic bool) ([]appPriceEntry, map[string]appPricePointValue, map[string]string, error) {
 	type automaticResult struct {
 		entries    []appPriceEntry
 		values     map[string]appPricePointValue
 		currencies map[string]string
 		err        error
 	}
+	run := appPriceRequestRunner(d.Timeout)
 	var automatic chan automaticResult
 	if needAutomatic {
 		var cancel context.CancelFunc
@@ -186,13 +187,13 @@ func fetchAppCurrentSchedulePrices(ctx context.Context, client *asc.Client, sche
 			wg.Wait()
 		}()
 		wg.Go(func() {
-			entries, values, currencies, err := fetchAppSchedulePriceEntries(ctx, runAppPriceRequestWithTimeout, func(callCtx context.Context, opts ...asc.AppPriceSchedulePricesOption) (*asc.AppPricesResponse, error) {
+			entries, values, currencies, err := fetchAppSchedulePriceEntries(ctx, run, func(callCtx context.Context, opts ...asc.AppPriceSchedulePricesOption) (*asc.AppPricesResponse, error) {
 				return client.GetAppPriceScheduleAutomaticPrices(callCtx, scheduleID, opts...)
 			})
 			automatic <- automaticResult{entries: entries, values: values, currencies: currencies, err: err}
 		})
 	}
-	entries, values, currencies, err := fetchAppSchedulePriceEntries(ctx, runAppPriceRequestWithTimeout, func(callCtx context.Context, opts ...asc.AppPriceSchedulePricesOption) (*asc.AppPricesResponse, error) {
+	entries, values, currencies, err := fetchAppSchedulePriceEntries(ctx, run, func(callCtx context.Context, opts ...asc.AppPriceSchedulePricesOption) (*asc.AppPricesResponse, error) {
 		return client.GetAppPriceScheduleManualPrices(callCtx, scheduleID, opts...)
 	})
 	if err != nil {
@@ -226,12 +227,12 @@ func isAppPriceScheduleNotConfigured(err error) bool {
 // reportAppPriceScheduleNotConfigured prints the configured=false receipt on
 // stdout and the remediation hint on stderr, then returns the expected-negative
 // error so callers can distinguish "not configured yet" from a failed request.
-func reportAppPriceScheduleNotConfigured(appID, format string, pretty bool) error {
-	if err := shared.PrintOutput(&asc.AppPriceScheduleNotConfiguredResult{AppID: appID, Configured: false}, format, pretty); err != nil {
+func reportAppPriceScheduleNotConfigured(d *shared.Deps, appID, format string, pretty bool) error {
+	if err := d.PrintOutput(&asc.AppPriceScheduleNotConfiguredResult{AppID: appID, Configured: false}, format, pretty); err != nil {
 		return fmt.Errorf("pricing current: %w", err)
 	}
 	safeAppID := asc.SanitizeTerminalText(appID)
-	fmt.Fprintf(os.Stderr, "App %s has no price schedule configured yet; create it with: %s\n", safeAppID, appPriceScheduleCreateHint(safeAppID, "USA"))
+	fmt.Fprintf(d.IO.ErrOut, "App %s has no price schedule configured yet; create it with: %s\n", safeAppID, appPriceScheduleCreateHint(safeAppID, "USA"))
 	return shared.NewNotConfiguredReportedError(fmt.Errorf("pricing current: app %q has no price schedule configured", appID))
 }
 
@@ -255,7 +256,7 @@ func (e noCurrentBasePriceError) Error() string {
 // remediation as reportAppPriceScheduleNotConfigured for a schedule that
 // exists but has no current base territory price, so the app cannot be
 // submitted until a price is set.
-func reportNoCurrentBasePrice(appID string, missing noCurrentBasePriceError, format string, pretty bool) error {
+func reportNoCurrentBasePrice(d *shared.Deps, appID string, missing noCurrentBasePriceError, format string, pretty bool) error {
 	result := &asc.AppPriceScheduleNotConfiguredResult{
 		AppID:         appID,
 		Configured:    false,
@@ -263,7 +264,7 @@ func reportNoCurrentBasePrice(appID string, missing noCurrentBasePriceError, for
 		Reason:        appPriceScheduleNoCurrentBasePrice,
 		NextStartDate: missing.NextStartDate,
 	}
-	if err := shared.PrintOutput(result, format, pretty); err != nil {
+	if err := d.PrintOutput(result, format, pretty); err != nil {
 		return fmt.Errorf("pricing current: %w", err)
 	}
 	safeAppID := asc.SanitizeTerminalText(appID)
@@ -272,7 +273,7 @@ func reportNoCurrentBasePrice(appID string, missing noCurrentBasePriceError, for
 	if missing.NextStartDate != "" {
 		next = fmt.Sprintf(" (the next base price starts %s)", asc.SanitizeTerminalText(missing.NextStartDate))
 	}
-	fmt.Fprintf(os.Stderr, "App %s has no current price for base territory %s%s; set one with: %s\n", safeAppID, safeTerritory, next, appPriceScheduleCreateHint(safeAppID, safeTerritory))
+	fmt.Fprintf(d.IO.ErrOut, "App %s has no current price for base territory %s%s; set one with: %s\n", safeAppID, safeTerritory, next, appPriceScheduleCreateHint(safeAppID, safeTerritory))
 	return shared.NewNotConfiguredReportedError(fmt.Errorf("pricing current: app %q has no current price for base territory %s", appID, missing.BaseTerritory))
 }
 
@@ -750,37 +751,37 @@ func amountIsZero(value string) bool {
 	return parsed == 0
 }
 
-func getAppPriceScheduleWithTimeout(ctx context.Context, client *asc.Client, appID string) (*asc.AppPriceScheduleResponse, error) {
-	callCtx, cancel := shared.ContextWithTimeout(ctx)
+func getAppPriceScheduleWithTimeout(ctx context.Context, d *shared.Deps, client *asc.Client, appID string) (*asc.AppPriceScheduleResponse, error) {
+	callCtx, cancel := d.Timeout(ctx)
 	defer cancel()
 	return client.GetAppPriceSchedule(callCtx, appID)
 }
 
-func getAppPriceScheduleBaseTerritoryWithTimeout(ctx context.Context, client *asc.Client, scheduleID string) (*asc.TerritoryResponse, error) {
-	callCtx, cancel := shared.ContextWithTimeout(ctx)
+func getAppPriceScheduleBaseTerritoryWithTimeout(ctx context.Context, d *shared.Deps, client *asc.Client, scheduleID string) (*asc.TerritoryResponse, error) {
+	callCtx, cancel := d.Timeout(ctx)
 	defer cancel()
 	return client.GetAppPriceScheduleBaseTerritory(callCtx, scheduleID)
 }
 
-func printAppCurrentPricingResult(result *appCurrentPricingResult, format string, pretty bool) error {
-	return shared.PrintOutputWithRenderers(
+func printAppCurrentPricingResult(d *shared.Deps, result *appCurrentPricingResult, format string, pretty bool) error {
+	return d.PrintOutputWithRenderers(
 		result,
 		format,
 		pretty,
-		func() error { return printAppCurrentPricingTable(result) },
-		func() error { return printAppCurrentPricingMarkdown(result) },
+		func() error { return printAppCurrentPricingTable(d.IO.Out, result) },
+		func() error { return printAppCurrentPricingMarkdown(d.IO.Out, result) },
 	)
 }
 
-func printAppCurrentPricingTable(result *appCurrentPricingResult) error {
+func printAppCurrentPricingTable(w io.Writer, result *appCurrentPricingResult) error {
 	headers, rows := appCurrentPricingRows(result)
-	asc.RenderTable(headers, rows)
+	asc.RenderTableTo(w, headers, rows)
 	return nil
 }
 
-func printAppCurrentPricingMarkdown(result *appCurrentPricingResult) error {
+func printAppCurrentPricingMarkdown(w io.Writer, result *appCurrentPricingResult) error {
 	headers, rows := appCurrentPricingRows(result)
-	asc.RenderMarkdown(headers, rows)
+	asc.RenderMarkdownTo(w, headers, rows)
 	return nil
 }
 

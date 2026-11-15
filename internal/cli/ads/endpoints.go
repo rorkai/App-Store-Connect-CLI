@@ -60,14 +60,14 @@ type commandNode struct {
 	spec     *appleads.EndpointSpec
 }
 
-func platformEndpointCommands() []*ffcli.Command {
+func platformEndpointCommands(d *shared.Deps) []*ffcli.Command {
 	root := &commandNode{children: map[string]*commandNode{}}
 	for _, spec := range appleads.PlatformEndpointSpecs() {
 		addSpec(root, spec)
 	}
 	commands := make([]*ffcli.Command, 0, len(root.children))
 	for _, name := range sortedChildNames(root) {
-		commands = append(commands, buildNodeCommand(root.children[name], nil))
+		commands = append(commands, buildNodeCommand(d, root.children[name], nil))
 	}
 	return commands
 }
@@ -86,24 +86,24 @@ func addSpec(root *commandNode, spec appleads.EndpointSpec) {
 	current.spec = &specCopy
 }
 
-func buildNodeCommand(node *commandNode, parentPath []string) *ffcli.Command {
+func buildNodeCommand(d *shared.Deps, node *commandNode, parentPath []string) *ffcli.Command {
 	path := append(append([]string(nil), parentPath...), node.name)
 	if node.spec != nil && node.spec.Name == "platform-upload-asset" {
-		return PlatformAssetUploadCommand()
+		return newPlatformAssetUploadCommand(d)
 	}
 	var flags endpointFlagValues
 	var fs *flag.FlagSet
 	if node.spec != nil {
-		fs, flags = bindEndpointFlags(*node.spec, strings.Join(path, " "))
+		fs, flags = bindEndpointFlags(d, *node.spec, strings.Join(path, " "))
 	} else {
-		fs = flag.NewFlagSet(strings.Join(path, " "), flag.ExitOnError)
+		fs = d.NewFlagSet(strings.Join(path, " "), flag.ExitOnError)
 	}
 
 	subcommands := []*ffcli.Command{}
 	for _, name := range sortedChildNames(node) {
-		subcommands = append(subcommands, buildNodeCommand(node.children[name], path))
+		subcommands = append(subcommands, buildNodeCommand(d, node.children[name], path))
 	}
-	subcommands = append(subcommands, platformWorkflowSubcommands(path)...)
+	subcommands = append(subcommands, platformWorkflowSubcommands(d, path)...)
 
 	command := &ffcli.Command{
 		Name:        node.name,
@@ -117,7 +117,7 @@ func buildNodeCommand(node *commandNode, parentPath []string) *ffcli.Command {
 	if node.spec != nil {
 		spec := *node.spec
 		command.Exec = func(ctx context.Context, args []string) error {
-			return executeEndpoint(ctx, spec, flags)
+			return executeEndpoint(ctx, d, spec, flags)
 		}
 	}
 	return command
@@ -311,8 +311,8 @@ func sentenceFromEndpointName(name string) string {
 	return strings.TrimSuffix(text, ".") + "."
 }
 
-func bindEndpointFlags(spec appleads.EndpointSpec, flagSetName string) (*flag.FlagSet, endpointFlagValues) {
-	fs := flag.NewFlagSet(flagSetName, flag.ExitOnError)
+func bindEndpointFlags(d *shared.Deps, spec appleads.EndpointSpec, flagSetName string) (*flag.FlagSet, endpointFlagValues) {
+	fs := d.NewFlagSet(flagSetName, flag.ExitOnError)
 	values := endpointFlagValues{
 		common: commonFlags{
 			AdsProfile: fs.String("ads-profile", "", "Use named Apple Ads authentication profile"),
@@ -397,36 +397,36 @@ func confirmFlagUsage(spec appleads.EndpointSpec) string {
 	}
 }
 
-func executeEndpoint(ctx context.Context, spec appleads.EndpointSpec, flags endpointFlagValues) error {
+func executeEndpoint(ctx context.Context, d *shared.Deps, spec appleads.EndpointSpec, flags endpointFlagValues) error {
 	outputFormat, err := validateAdsRawOutput(flags.output)
 	if err != nil {
-		return shared.UsageError(err.Error())
+		return d.UsageError(err.Error())
 	}
 	pathParams, err := collectPathParams(spec, flags)
 	if err != nil {
-		return shared.UsageError(err.Error())
+		return d.UsageError(err.Error())
 	}
 	query, err := collectQuery(spec, flags)
 	if err != nil {
-		return shared.UsageError(err.Error())
+		return d.UsageError(err.Error())
 	}
 	if spec.RequiresConfirm && flags.confirm != nil {
-		if err := shared.RequireConfirm(*flags.confirm); err != nil {
+		if err := d.RequireConfirm(*flags.confirm); err != nil {
 			return err
 		}
 	}
 	if spec.RiskConfirm && spec.RiskConfirmBodyField == "" && flags.confirm != nil && !*flags.confirm {
-		return shared.UsageError("--confirm is required to acknowledge " + riskConfirmationImpact)
+		return d.UsageError("--confirm is required to acknowledge " + riskConfirmationImpact)
 	}
-	body, err := readBody(spec, flags)
+	body, err := readBody(d, spec, flags)
 	if err != nil {
 		return err
 	}
 	if err := validateEndpointBody(spec, body, flags.confirm != nil && *flags.confirm); err != nil {
-		return shared.UsageError(err.Error())
+		return d.UsageError(err.Error())
 	}
 
-	client, adAccountID, err := resolvePlatformClientAndAdAccountID(ctx, flags.common, spec.Context)
+	client, adAccountID, err := resolvePlatformClientAndAdAccountID(ctx, d, flags.common, spec.Context)
 	if err != nil {
 		return fmt.Errorf("ads: %w", err)
 	}
@@ -436,7 +436,7 @@ func executeEndpoint(ctx context.Context, spec appleads.EndpointSpec, flags endp
 		}
 	}
 
-	requestCtx, cancel := requestContext(ctx)
+	requestCtx, cancel := d.Timeout(ctx)
 	defer cancel()
 
 	var result appleads.RawResponse
@@ -455,7 +455,7 @@ func executeEndpoint(ctx context.Context, spec appleads.EndpointSpec, flags endp
 	if err != nil {
 		return fmt.Errorf("ads %s: %w", strings.Join(spec.CommandPath, " "), err)
 	}
-	return shared.PrintOutput(result, outputFormat, *flags.output.Pretty)
+	return d.PrintOutput(result, outputFormat, *flags.output.Pretty)
 }
 
 func collectPathParams(spec appleads.EndpointSpec, flags endpointFlagValues) (map[string]string, error) {
@@ -653,7 +653,7 @@ func validateAllowed(param appleads.ParamSpec, raw string) error {
 	return nil
 }
 
-func readBody(spec appleads.EndpointSpec, flags endpointFlagValues) (json.RawMessage, error) {
+func readBody(d *shared.Deps, spec appleads.EndpointSpec, flags endpointFlagValues) (json.RawMessage, error) {
 	if spec.BodyKind == appleads.BodyNone {
 		return nil, nil
 	}
@@ -662,13 +662,13 @@ func readBody(spec appleads.EndpointSpec, flags endpointFlagValues) (json.RawMes
 		if spec.BodyOptional && !spec.CLIRequiresBody {
 			return nil, nil
 		}
-		return nil, shared.RequiredFlag("--file")
+		return nil, d.RequiredFlag("--file")
 	}
 	kind := shared.JSONPayloadObject
 	if spec.BodyKind == appleads.BodyArray {
 		kind = shared.JSONPayloadArray
 	}
-	payload, err := shared.ReadJSONFilePayloadKind(fileValue, kind)
+	payload, err := d.ReadJSONFilePayloadKind(fileValue, kind)
 	if err != nil {
 		return nil, fmt.Errorf("ads %s: %w", strings.Join(spec.CommandPath, " "), err)
 	}

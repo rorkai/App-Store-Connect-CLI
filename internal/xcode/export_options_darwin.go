@@ -39,8 +39,9 @@ var ansiEscapePattern = regexp.MustCompile(`\x1b\[[0-9;]*m`)
 // buildPlatformExportOptionsPayload uses Bitrise's current typed v2 model on
 // macOS, where xcodebuild and local signing asset resolution are available.
 func buildPlatformExportOptionsPayload(opts ExportOptionsGenerateOptions, teamID string, manual manualExportOptions) map[string]any {
-	if opts.Method == exportOptionsMethodReleaseTesting {
-		model := exportoptions.NewNonAppStoreOptions(exportoptions.MethodReleaseTesting)
+	switch opts.Method {
+	case exportOptionsMethodReleaseTesting, exportOptionsMethodDebugging, exportOptionsMethodEnterprise:
+		model := exportoptions.NewNonAppStoreOptions(exportoptions.Method(opts.Method))
 		model.TeamID = teamID
 		model.Destination = exportoptions.Destination(opts.Destination)
 		model.SigningStyle = exportoptions.SigningStyle(opts.SigningStyle)

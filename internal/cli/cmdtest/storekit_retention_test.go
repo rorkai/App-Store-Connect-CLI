@@ -3,6 +3,7 @@ package cmdtest
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/config"
 )
 
@@ -306,8 +308,17 @@ func TestStoreKitInvalidValuesAreUsageErrors(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assertUsageExit(t, tt.args, tt.wantErr)
+			assertUsageExitWithDeps(t, unexpectedStoreKitASCClient(t), tt.args, tt.wantErr)
 		})
+	}
+}
+
+// unexpectedStoreKitASCClient fails the test when a storekit command asks for
+// an App Store Connect client: StoreKit uses its own credentials.
+func unexpectedStoreKitASCClient(t *testing.T) func() (*asc.Client, error) {
+	return func() (*asc.Client, error) {
+		t.Error("storekit asked for an App Store Connect client")
+		return nil, errors.New("unexpected App Store Connect client")
 	}
 }
 

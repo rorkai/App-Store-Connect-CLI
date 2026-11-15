@@ -32,7 +32,7 @@ Examples:
   asc reviews respond --review-id "REVIEW_ID" --response "Thanks for your feedback!"
   asc reviews respond --review-id "REVIEW_ID" --response "We appreciate your review." --output table`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*reviewID) == "" {
 				return d.RequiredFlag("--review-id")
@@ -73,7 +73,7 @@ Examples:
   asc reviews response delete --id "RESPONSE_ID" --confirm
   asc reviews response for-review --review-id "REVIEW_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newReviewsResponseGetCommand(d),
 			newReviewsResponseDeleteCommand(d),
@@ -148,7 +148,7 @@ Examples:
   asc reviews response for-review --review-id "REVIEW_ID"
   asc reviews response for-review --review-id "REVIEW_ID" --output table`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*reviewID) == "" {
 				return d.RequiredFlag("--review-id")

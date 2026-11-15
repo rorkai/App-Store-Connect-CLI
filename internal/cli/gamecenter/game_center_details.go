@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -13,9 +12,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// GameCenterDetailsCommand returns the details command group.
-func GameCenterDetailsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("details", flag.ExitOnError)
+// newGameCenterDetailsCommand returns the details command group.
+func newGameCenterDetailsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("details", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "details",
@@ -36,20 +35,20 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterDetailsListCommand(),
-			GameCenterBlockedPlayersCommand(),
-			GameCenterDetailsGetCommand(),
-			GameCenterDetailsCreateCommand(),
-			GameCenterDetailsUpdateCommand(),
-			GameCenterDetailsAppVersionsCommand(),
-			GameCenterDetailsGroupCommand(),
-			GameCenterDetailsAchievementsV2Command(),
-			GameCenterDetailsLeaderboardsV2Command(),
-			GameCenterDetailsLeaderboardSetsV2Command(),
-			GameCenterDetailsAchievementReleasesCommand(),
-			GameCenterDetailsLeaderboardReleasesCommand(),
-			GameCenterDetailsLeaderboardSetReleasesCommand(),
-			GameCenterDetailsMetricsCommand(),
+			newGameCenterDetailsListCommand(d),
+			newGameCenterBlockedPlayersCommand(d),
+			newGameCenterDetailsGetCommand(d),
+			newGameCenterDetailsCreateCommand(d),
+			newGameCenterDetailsUpdateCommand(d),
+			newGameCenterDetailsAppVersionsCommand(d),
+			newGameCenterDetailsGroupCommand(d),
+			newGameCenterDetailsAchievementsV2Command(d),
+			newGameCenterDetailsLeaderboardsV2Command(d),
+			newGameCenterDetailsLeaderboardSetsV2Command(d),
+			newGameCenterDetailsAchievementReleasesCommand(d),
+			newGameCenterDetailsLeaderboardReleasesCommand(d),
+			newGameCenterDetailsLeaderboardSetReleasesCommand(d),
+			newGameCenterDetailsMetricsCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -57,12 +56,12 @@ Examples:
 	}
 }
 
-// GameCenterDetailsListCommand returns the details list subcommand.
-func GameCenterDetailsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
+// newGameCenterDetailsListCommand returns the details list subcommand.
+func newGameCenterDetailsListCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("list", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -79,16 +78,16 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("game-center details list: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			detailID, err := client.GetGameCenterDetailID(requestCtx, resolvedAppID)
@@ -99,12 +98,12 @@ Examples:
 			if detailID == "" {
 				// App Store Connect returns 200 with an empty id when no detail exists yet.
 				// Treat this as an empty list rather than attempting /v1/gameCenterDetails/.
-				fmt.Fprintln(os.Stderr, noGameCenterDetailWarning)
+				fmt.Fprintln(d.IO.ErrOut, noGameCenterDetailWarning)
 				resp := &asc.GameCenterDetailsResponse{
 					Data:  []asc.Resource[asc.GameCenterDetailAttributes]{},
 					Links: asc.Links{},
 				}
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+				return d.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			detail, err := client.GetGameCenterDetail(requestCtx, detailID)
@@ -119,13 +118,13 @@ Examples:
 				Meta:     detail.Meta,
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// GameCenterDetailsGetCommand returns the details get subcommand.
-func GameCenterDetailsGetCommand() *ffcli.Command {
+// newGameCenterDetailsGetCommand returns the details get subcommand.
+func newGameCenterDetailsGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
 		Name:       "view",
 		ShortUsage: "asc game-center details view --id \"DETAIL_ID\"",
@@ -140,15 +139,16 @@ Examples:
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterDetail(ctx, id)
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterDetailsCreateCommand returns the details create subcommand.
-func GameCenterDetailsCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
+// newGameCenterDetailsCreateCommand returns the details create subcommand.
+func newGameCenterDetailsCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("create", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -163,16 +163,16 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("game-center details create: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateGameCenterDetail(requestCtx, resolvedAppID, nil)
@@ -180,14 +180,14 @@ Examples:
 				return fmt.Errorf("game-center details create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// GameCenterDetailsUpdateCommand returns the details update subcommand.
-func GameCenterDetailsUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("update", flag.ExitOnError)
+// newGameCenterDetailsUpdateCommand returns the details update subcommand.
+func newGameCenterDetailsUpdateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("update", flag.ExitOnError)
 
 	detailID := shared.BindResourceIDFlag(fs, "id", "gameCenterDetails", "Game Center detail ID")
 	gameCenterGroupID := shared.BindResourceIDFlag(fs, "game-center-group-id", "gameCenterGroups", "Game Center group ID to associate")
@@ -195,7 +195,7 @@ func GameCenterDetailsUpdateCommand() *ffcli.Command {
 	defaultLeaderboardV2ID := shared.BindResourceIDFlag(fs, "default-leaderboard-v2-id", "gameCenterLeaderboards", "Default V2 leaderboard ID")
 	defaultGroupLeaderboardID := shared.BindResourceIDFlag(fs, "default-group-leaderboard-id", "gameCenterLeaderboards", "Default group leaderboard ID (deprecated by Apple; sets the same default as --default-group-leaderboard-v2-id)")
 	defaultGroupLeaderboardV2ID := shared.BindResourceIDFlag(fs, "default-group-leaderboard-v2-id", "gameCenterLeaderboards", "Default V2 group leaderboard ID")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -212,15 +212,15 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*detailID)
 			if id == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
 
 			// Live: Apple accepts both relationships in one PATCH and keeps only the V2 value.
 			if strings.TrimSpace(*defaultLeaderboardID) != "" && strings.TrimSpace(*defaultLeaderboardV2ID) != "" {
-				return shared.UsageError("--default-leaderboard-id and --default-leaderboard-v2-id set the same default; pass one")
+				return d.UsageError("--default-leaderboard-id and --default-leaderboard-v2-id set the same default; pass one")
 			}
 			if strings.TrimSpace(*defaultGroupLeaderboardID) != "" && strings.TrimSpace(*defaultGroupLeaderboardV2ID) != "" {
-				return shared.UsageError("--default-group-leaderboard-id and --default-group-leaderboard-v2-id set the same default; pass one")
+				return d.UsageError("--default-group-leaderboard-id and --default-group-leaderboard-v2-id set the same default; pass one")
 			}
 
 			rels := &asc.GameCenterDetailUpdateRelationships{}
@@ -260,15 +260,15 @@ Examples:
 			}
 
 			if !hasUpdate {
-				return shared.UpdateFlagRequired(fs, gameCenterGroupID, defaultLeaderboardID, defaultLeaderboardV2ID, defaultGroupLeaderboardID, defaultGroupLeaderboardV2ID)
+				return d.UpdateFlagRequired(fs, gameCenterGroupID, defaultLeaderboardID, defaultLeaderboardV2ID, defaultGroupLeaderboardID, defaultGroupLeaderboardV2ID)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("game-center details update: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.UpdateGameCenterDetail(requestCtx, id, nil, rels)
@@ -276,14 +276,14 @@ Examples:
 				return fmt.Errorf("game-center details update: failed to update: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// GameCenterDetailsAppVersionsCommand returns the details app-versions command group.
-func GameCenterDetailsAppVersionsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("app-versions", flag.ExitOnError)
+// newGameCenterDetailsAppVersionsCommand returns the details app-versions command group.
+func newGameCenterDetailsAppVersionsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("app-versions", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "app-versions",
@@ -296,7 +296,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterDetailsAppVersionsListCommand(),
+			newGameCenterDetailsAppVersionsListCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -304,8 +304,8 @@ Examples:
 	}
 }
 
-// GameCenterDetailsAppVersionsListCommand returns the details app-versions list subcommand.
-func GameCenterDetailsAppVersionsListCommand() *ffcli.Command {
+// newGameCenterDetailsAppVersionsListCommand returns the details app-versions list subcommand.
+func newGameCenterDetailsAppVersionsListCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "list",
 		ShortUsage: "asc game-center details app-versions list --id \"DETAIL_ID\"",
@@ -325,12 +325,13 @@ Examples:
 		FetchPage: func(ctx context.Context, client *asc.Client, id string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterDetailGameCenterAppVersions(ctx, id, asc.Limit[asc.GCAppVersionsOption](limit), asc.NextURL[asc.GCAppVersionsOption](next))
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterDetailsGroupCommand returns the details group command group.
-func GameCenterDetailsGroupCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("group", flag.ExitOnError)
+// newGameCenterDetailsGroupCommand returns the details group command group.
+func newGameCenterDetailsGroupCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("group", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "group",
@@ -343,7 +344,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterDetailsGroupGetCommand(),
+			newGameCenterDetailsGroupGetCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -351,8 +352,8 @@ Examples:
 	}
 }
 
-// GameCenterDetailsGroupGetCommand returns the details group get subcommand.
-func GameCenterDetailsGroupGetCommand() *ffcli.Command {
+// newGameCenterDetailsGroupGetCommand returns the details group get subcommand.
+func newGameCenterDetailsGroupGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
 		Name:       "view",
 		ShortUsage: "asc game-center details group view --id \"DETAIL_ID\"",
@@ -367,12 +368,13 @@ Examples:
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterDetailGameCenterGroup(ctx, id)
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterDetailsAchievementsV2Command returns the achievements v2 command group.
-func GameCenterDetailsAchievementsV2Command() *ffcli.Command {
-	fs := flag.NewFlagSet("achievements-v2", flag.ExitOnError)
+// newGameCenterDetailsAchievementsV2Command returns the achievements v2 command group.
+func newGameCenterDetailsAchievementsV2Command(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("achievements-v2", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "achievements-v2",
@@ -385,7 +387,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterDetailsAchievementsV2ListCommand(),
+			newGameCenterDetailsAchievementsV2ListCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -393,8 +395,8 @@ Examples:
 	}
 }
 
-// GameCenterDetailsAchievementsV2ListCommand returns the achievements v2 list subcommand.
-func GameCenterDetailsAchievementsV2ListCommand() *ffcli.Command {
+// newGameCenterDetailsAchievementsV2ListCommand returns the achievements v2 list subcommand.
+func newGameCenterDetailsAchievementsV2ListCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "list",
 		ShortUsage: "asc game-center details achievements-v2 list --id \"DETAIL_ID\"",
@@ -414,12 +416,13 @@ Examples:
 		FetchPage: func(ctx context.Context, client *asc.Client, id string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterDetailsAchievementsV2(ctx, id, asc.Limit[asc.GCAchievementsOption](limit), asc.NextURL[asc.GCAchievementsOption](next))
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterDetailsLeaderboardsV2Command returns the leaderboards v2 command group.
-func GameCenterDetailsLeaderboardsV2Command() *ffcli.Command {
-	fs := flag.NewFlagSet("leaderboards-v2", flag.ExitOnError)
+// newGameCenterDetailsLeaderboardsV2Command returns the leaderboards v2 command group.
+func newGameCenterDetailsLeaderboardsV2Command(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("leaderboards-v2", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "leaderboards-v2",
@@ -432,7 +435,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterDetailsLeaderboardsV2ListCommand(),
+			newGameCenterDetailsLeaderboardsV2ListCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -440,8 +443,8 @@ Examples:
 	}
 }
 
-// GameCenterDetailsLeaderboardsV2ListCommand returns the leaderboards v2 list subcommand.
-func GameCenterDetailsLeaderboardsV2ListCommand() *ffcli.Command {
+// newGameCenterDetailsLeaderboardsV2ListCommand returns the leaderboards v2 list subcommand.
+func newGameCenterDetailsLeaderboardsV2ListCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "list",
 		ShortUsage: "asc game-center details leaderboards-v2 list --id \"DETAIL_ID\"",
@@ -461,12 +464,13 @@ Examples:
 		FetchPage: func(ctx context.Context, client *asc.Client, id string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterDetailsLeaderboardsV2(ctx, id, asc.Limit[asc.GCLeaderboardsOption](limit), asc.NextURL[asc.GCLeaderboardsOption](next))
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterDetailsLeaderboardSetsV2Command returns the leaderboard sets v2 command group.
-func GameCenterDetailsLeaderboardSetsV2Command() *ffcli.Command {
-	fs := flag.NewFlagSet("leaderboard-sets-v2", flag.ExitOnError)
+// newGameCenterDetailsLeaderboardSetsV2Command returns the leaderboard sets v2 command group.
+func newGameCenterDetailsLeaderboardSetsV2Command(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("leaderboard-sets-v2", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "leaderboard-sets-v2",
@@ -479,7 +483,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterDetailsLeaderboardSetsV2ListCommand(),
+			newGameCenterDetailsLeaderboardSetsV2ListCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -487,8 +491,8 @@ Examples:
 	}
 }
 
-// GameCenterDetailsLeaderboardSetsV2ListCommand returns the leaderboard sets v2 list subcommand.
-func GameCenterDetailsLeaderboardSetsV2ListCommand() *ffcli.Command {
+// newGameCenterDetailsLeaderboardSetsV2ListCommand returns the leaderboard sets v2 list subcommand.
+func newGameCenterDetailsLeaderboardSetsV2ListCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "list",
 		ShortUsage: "asc game-center details leaderboard-sets-v2 list --id \"DETAIL_ID\"",
@@ -508,12 +512,13 @@ Examples:
 		FetchPage: func(ctx context.Context, client *asc.Client, id string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterDetailsLeaderboardSetsV2(ctx, id, asc.Limit[asc.GCLeaderboardSetsOption](limit), asc.NextURL[asc.GCLeaderboardSetsOption](next))
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterDetailsAchievementReleasesCommand returns the achievement releases command group.
-func GameCenterDetailsAchievementReleasesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("achievement-releases", flag.ExitOnError)
+// newGameCenterDetailsAchievementReleasesCommand returns the achievement releases command group.
+func newGameCenterDetailsAchievementReleasesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("achievement-releases", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "achievement-releases",
@@ -526,7 +531,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterDetailsAchievementReleasesListCommand(),
+			newGameCenterDetailsAchievementReleasesListCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -534,8 +539,8 @@ Examples:
 	}
 }
 
-// GameCenterDetailsAchievementReleasesListCommand returns the achievement releases list subcommand.
-func GameCenterDetailsAchievementReleasesListCommand() *ffcli.Command {
+// newGameCenterDetailsAchievementReleasesListCommand returns the achievement releases list subcommand.
+func newGameCenterDetailsAchievementReleasesListCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "list",
 		ShortUsage: "asc game-center details achievement-releases list --id \"DETAIL_ID\"",
@@ -555,12 +560,13 @@ Examples:
 		FetchPage: func(ctx context.Context, client *asc.Client, id string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterDetailsAchievementReleases(ctx, id, asc.Limit[asc.GCAchievementReleasesOption](limit), asc.NextURL[asc.GCAchievementReleasesOption](next))
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterDetailsLeaderboardReleasesCommand returns the leaderboard releases command group.
-func GameCenterDetailsLeaderboardReleasesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("leaderboard-releases", flag.ExitOnError)
+// newGameCenterDetailsLeaderboardReleasesCommand returns the leaderboard releases command group.
+func newGameCenterDetailsLeaderboardReleasesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("leaderboard-releases", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "leaderboard-releases",
@@ -573,7 +579,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterDetailsLeaderboardReleasesListCommand(),
+			newGameCenterDetailsLeaderboardReleasesListCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -581,8 +587,8 @@ Examples:
 	}
 }
 
-// GameCenterDetailsLeaderboardReleasesListCommand returns the leaderboard releases list subcommand.
-func GameCenterDetailsLeaderboardReleasesListCommand() *ffcli.Command {
+// newGameCenterDetailsLeaderboardReleasesListCommand returns the leaderboard releases list subcommand.
+func newGameCenterDetailsLeaderboardReleasesListCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "list",
 		ShortUsage: "asc game-center details leaderboard-releases list --id \"DETAIL_ID\"",
@@ -602,12 +608,13 @@ Examples:
 		FetchPage: func(ctx context.Context, client *asc.Client, id string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterDetailsLeaderboardReleases(ctx, id, asc.Limit[asc.GCLeaderboardReleasesOption](limit), asc.NextURL[asc.GCLeaderboardReleasesOption](next))
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterDetailsLeaderboardSetReleasesCommand returns the leaderboard set releases command group.
-func GameCenterDetailsLeaderboardSetReleasesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("leaderboard-set-releases", flag.ExitOnError)
+// newGameCenterDetailsLeaderboardSetReleasesCommand returns the leaderboard set releases command group.
+func newGameCenterDetailsLeaderboardSetReleasesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("leaderboard-set-releases", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "leaderboard-set-releases",
@@ -620,7 +627,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterDetailsLeaderboardSetReleasesListCommand(),
+			newGameCenterDetailsLeaderboardSetReleasesListCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -628,8 +635,8 @@ Examples:
 	}
 }
 
-// GameCenterDetailsLeaderboardSetReleasesListCommand returns the leaderboard set releases list subcommand.
-func GameCenterDetailsLeaderboardSetReleasesListCommand() *ffcli.Command {
+// newGameCenterDetailsLeaderboardSetReleasesListCommand returns the leaderboard set releases list subcommand.
+func newGameCenterDetailsLeaderboardSetReleasesListCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "list",
 		ShortUsage: "asc game-center details leaderboard-set-releases list --id \"DETAIL_ID\"",
@@ -649,12 +656,13 @@ Examples:
 		FetchPage: func(ctx context.Context, client *asc.Client, id string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterDetailsLeaderboardSetReleases(ctx, id, asc.Limit[asc.GCLeaderboardSetReleasesOption](limit), asc.NextURL[asc.GCLeaderboardSetReleasesOption](next))
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterDetailsMetricsCommand returns the details metrics command group.
-func GameCenterDetailsMetricsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("metrics", flag.ExitOnError)
+// newGameCenterDetailsMetricsCommand returns the details metrics command group.
+func newGameCenterDetailsMetricsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("metrics", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "metrics",
@@ -668,8 +676,8 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterDetailsClassicMatchmakingCommand(),
-			GameCenterDetailsRuleBasedMatchmakingCommand(),
+			newGameCenterDetailsClassicMatchmakingCommand(d),
+			newGameCenterDetailsRuleBasedMatchmakingCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -677,9 +685,9 @@ Examples:
 	}
 }
 
-// GameCenterDetailsClassicMatchmakingCommand returns the classic matchmaking metrics subcommand.
-func GameCenterDetailsClassicMatchmakingCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("classic-matchmaking", flag.ExitOnError)
+// newGameCenterDetailsClassicMatchmakingCommand returns the classic matchmaking metrics subcommand.
+func newGameCenterDetailsClassicMatchmakingCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("classic-matchmaking", flag.ExitOnError)
 
 	detailID := shared.BindResourceIDFlag(fs, "id", "gameCenterDetails", "Game Center detail ID")
 	granularity := fs.String("granularity", "", "Granularity (P1D, PT1H, PT15M)")
@@ -689,16 +697,16 @@ func GameCenterDetailsClassicMatchmakingCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum groups per page (1-200)")
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
-	return detailsMetricsCommand("classic-matchmaking", fs, detailID, granularity, groupBy, filterResult, sort, limit, next, paginate, output.Output, output.Pretty, func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMetricsResponse, error) {
+	return detailsMetricsCommand(d, "classic-matchmaking", fs, detailID, granularity, groupBy, filterResult, sort, limit, next, paginate, output.Output, output.Pretty, func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMetricsResponse, error) {
 		return client.GetGameCenterDetailsClassicMatchmakingRequests(ctx, id, opts...)
 	})
 }
 
-// GameCenterDetailsRuleBasedMatchmakingCommand returns the rule-based matchmaking metrics subcommand.
-func GameCenterDetailsRuleBasedMatchmakingCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("rule-based-matchmaking", flag.ExitOnError)
+// newGameCenterDetailsRuleBasedMatchmakingCommand returns the rule-based matchmaking metrics subcommand.
+func newGameCenterDetailsRuleBasedMatchmakingCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("rule-based-matchmaking", flag.ExitOnError)
 
 	detailID := shared.BindResourceIDFlag(fs, "id", "gameCenterDetails", "Game Center detail ID")
 	granularity := fs.String("granularity", "", "Granularity (P1D, PT1H, PT15M)")
@@ -708,14 +716,14 @@ func GameCenterDetailsRuleBasedMatchmakingCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum groups per page (1-200)")
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
-	return detailsMetricsCommand("rule-based-matchmaking", fs, detailID, granularity, groupBy, filterResult, sort, limit, next, paginate, output.Output, output.Pretty, func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMetricsResponse, error) {
+	return detailsMetricsCommand(d, "rule-based-matchmaking", fs, detailID, granularity, groupBy, filterResult, sort, limit, next, paginate, output.Output, output.Pretty, func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMetricsResponse, error) {
 		return client.GetGameCenterDetailsRuleBasedMatchmakingRequests(ctx, id, opts...)
 	})
 }
 
-func detailsMetricsCommand(name string, fs *flag.FlagSet, detailID *string, granularity *string, groupBy *string, filterResult *string, sort *string, limit *int, next *string, paginate *bool, output *string, pretty *bool, fetch func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMetricsResponse, error)) *ffcli.Command {
+func detailsMetricsCommand(d *shared.Deps, name string, fs *flag.FlagSet, detailID *string, granularity *string, groupBy *string, filterResult *string, sort *string, limit *int, next *string, paginate *bool, output *string, pretty *bool, fetch func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMetricsResponse, error)) *ffcli.Command {
 	return &ffcli.Command{
 		Name:       name,
 		ShortUsage: "asc game-center details metrics " + name + " --id \"DETAIL_ID\" --granularity P1D",
@@ -727,31 +735,31 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			return runDetailsMetrics(ctx, name, fs, detailID, granularity, groupBy, filterResult, sort, limit, next, paginate, output, pretty, fetch)
+			return runDetailsMetrics(ctx, d, name, fs, detailID, granularity, groupBy, filterResult, sort, limit, next, paginate, output, pretty, fetch)
 		},
 	}
 }
 
-func runDetailsMetrics(ctx context.Context, name string, fs *flag.FlagSet, detailID *string, granularity *string, groupBy *string, filterResult *string, sort *string, limit *int, next *string, paginate *bool, output *string, pretty *bool, fetch func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMetricsResponse, error)) error {
-	if err := shared.ValidatePaginationFlags(ctx, fs, "game-center details metrics "+name, 200, "granularity", "group-by", "filter-result", "sort"); err != nil {
+func runDetailsMetrics(ctx context.Context, d *shared.Deps, name string, fs *flag.FlagSet, detailID *string, granularity *string, groupBy *string, filterResult *string, sort *string, limit *int, next *string, paginate *bool, output *string, pretty *bool, fetch func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMetricsResponse, error)) error {
+	if err := d.ValidatePaginationFlags(ctx, fs, "game-center details metrics "+name, 200, "granularity", "group-by", "filter-result", "sort"); err != nil {
 		return err
 	}
 
 	id := strings.TrimSpace(*detailID)
 	if id == "" && strings.TrimSpace(*next) == "" {
-		return shared.RequiredFlag("--id")
+		return d.RequiredFlag("--id")
 	}
 	gran := strings.TrimSpace(*granularity)
 	if gran == "" && strings.TrimSpace(*next) == "" {
-		return shared.RequiredFlag("--granularity")
+		return d.RequiredFlag("--granularity")
 	}
 
-	client, err := shared.GetASCClient()
+	client, err := d.Client()
 	if err != nil {
 		return fmt.Errorf("game-center details metrics %s: %w", name, err)
 	}
 
-	requestCtx, cancel := shared.ContextWithTimeout(ctx)
+	requestCtx, cancel := d.Timeout(ctx)
 	defer cancel()
 
 	opts := []asc.GCMatchmakingMetricsOption{
@@ -777,7 +785,7 @@ func runDetailsMetrics(ctx context.Context, name string, fs *flag.FlagSet, detai
 			return fmt.Errorf("game-center details metrics %s: %w", name, err)
 		}
 
-		return shared.PrintOutput(resp, *output, *pretty)
+		return d.PrintOutput(resp, *output, *pretty)
 	}
 
 	resp, err := fetch(client, requestCtx, id, opts...)
@@ -785,5 +793,5 @@ func runDetailsMetrics(ctx context.Context, name string, fs *flag.FlagSet, detai
 		return fmt.Errorf("game-center details metrics %s: failed to fetch: %w", name, err)
 	}
 
-	return shared.PrintOutput(resp, *output, *pretty)
+	return d.PrintOutput(resp, *output, *pretty)
 }

@@ -5,7 +5,7 @@ import (
 )
 
 func TestGameCenterGroupsValidationErrors(t *testing.T) {
-	runGameCenterUsageCases(t, []gameCenterUsageCase{
+	runGameCenterUsageCasesWithDeps(t, []gameCenterUsageCase{
 		{[]string{"game-center", "groups", "list"}, "--app is required (or set ASC_APP_ID)"},
 		{[]string{"game-center", "groups", "view"}, "--id is required"},
 		{[]string{"game-center", "groups", "update", "--reference-name", "Group 1"}, "--id is required"},

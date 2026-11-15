@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"math"
-	"os"
 	"strconv"
 	"strings"
 
@@ -15,9 +14,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// GameCenterMatchmakingCommand returns the matchmaking command group.
-func GameCenterMatchmakingCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("matchmaking", flag.ExitOnError)
+// newGameCenterMatchmakingCommand returns the matchmaking command group.
+func newGameCenterMatchmakingCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("matchmaking", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "matchmaking",
@@ -34,12 +33,12 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterMatchmakingQueuesCommand(),
-			GameCenterMatchmakingRuleSetsCommand(),
-			GameCenterMatchmakingRulesCommand(),
-			GameCenterMatchmakingTeamsCommand(),
-			GameCenterMatchmakingMetricsCommand(),
-			GameCenterMatchmakingRuleSetTestsCommand(),
+			newGameCenterMatchmakingQueuesCommand(d),
+			newGameCenterMatchmakingRuleSetsCommand(d),
+			newGameCenterMatchmakingRulesCommand(d),
+			newGameCenterMatchmakingTeamsCommand(d),
+			newGameCenterMatchmakingMetricsCommand(d),
+			newGameCenterMatchmakingRuleSetTestsCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -47,9 +46,9 @@ Examples:
 	}
 }
 
-// GameCenterMatchmakingQueuesCommand returns the matchmaking queues command group.
-func GameCenterMatchmakingQueuesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("queues", flag.ExitOnError)
+// newGameCenterMatchmakingQueuesCommand returns the matchmaking queues command group.
+func newGameCenterMatchmakingQueuesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("queues", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "queues",
@@ -66,11 +65,11 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterMatchmakingQueuesListCommand(),
-			GameCenterMatchmakingQueuesGetCommand(),
-			GameCenterMatchmakingQueuesCreateCommand(),
-			GameCenterMatchmakingQueuesUpdateCommand(),
-			GameCenterMatchmakingQueuesDeleteCommand(),
+			newGameCenterMatchmakingQueuesListCommand(d),
+			newGameCenterMatchmakingQueuesGetCommand(d),
+			newGameCenterMatchmakingQueuesCreateCommand(d),
+			newGameCenterMatchmakingQueuesUpdateCommand(d),
+			newGameCenterMatchmakingQueuesDeleteCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -78,8 +77,8 @@ Examples:
 	}
 }
 
-// GameCenterMatchmakingQueuesListCommand returns the matchmaking queues list subcommand.
-func GameCenterMatchmakingQueuesListCommand() *ffcli.Command {
+// newGameCenterMatchmakingQueuesListCommand returns the matchmaking queues list subcommand.
+func newGameCenterMatchmakingQueuesListCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "list",
 		ShortUsage: "asc game-center matchmaking queues list [flags]",
@@ -96,11 +95,12 @@ Examples:
 		FetchPage: func(ctx context.Context, client *asc.Client, _ string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterMatchmakingQueues(ctx, asc.Limit[asc.GCMatchmakingQueuesOption](limit), asc.NextURL[asc.GCMatchmakingQueuesOption](next))
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterMatchmakingQueuesGetCommand returns the matchmaking queues get subcommand.
-func GameCenterMatchmakingQueuesGetCommand() *ffcli.Command {
+// newGameCenterMatchmakingQueuesGetCommand returns the matchmaking queues get subcommand.
+func newGameCenterMatchmakingQueuesGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
 		Name:       "view",
 		ShortUsage: "asc game-center matchmaking queues view --id \"QUEUE_ID\"",
@@ -115,18 +115,19 @@ Examples:
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterMatchmakingQueue(ctx, id)
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterMatchmakingQueuesCreateCommand returns the matchmaking queues create subcommand.
-func GameCenterMatchmakingQueuesCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
+// newGameCenterMatchmakingQueuesCreateCommand returns the matchmaking queues create subcommand.
+func newGameCenterMatchmakingQueuesCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("create", flag.ExitOnError)
 
 	referenceName := fs.String("reference-name", "", "Reference name for the queue")
 	ruleSetID := shared.BindResourceIDFlag(fs, "rule-set-id", "gameCenterMatchmakingRuleSets", "Matchmaking rule set ID")
 	experimentRuleSetID := shared.BindResourceIDFlag(fs, "experiment-rule-set-id", "gameCenterMatchmakingRuleSets", "Experiment rule set ID")
 	classicBundleIDs := shared.BindOnceCSVFlag(fs, "classic-bundle-ids", "Comma-separated bundle IDs for classic matchmaking")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -142,11 +143,11 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			name := strings.TrimSpace(*referenceName)
 			if name == "" {
-				return shared.RequiredFlag("--reference-name")
+				return d.RequiredFlag("--reference-name")
 			}
 			ruleSet := strings.TrimSpace(*ruleSetID)
 			if ruleSet == "" {
-				return shared.RequiredFlag("--rule-set-id")
+				return d.RequiredFlag("--rule-set-id")
 			}
 
 			attrs := asc.GameCenterMatchmakingQueueCreateAttributes{
@@ -154,12 +155,12 @@ Examples:
 				ClassicMatchmakingBundleIDs: shared.SplitCSV(classicBundleIDs.String()),
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("game-center matchmaking queues create: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateGameCenterMatchmakingQueue(requestCtx, attrs, ruleSet, strings.TrimSpace(*experimentRuleSetID))
@@ -167,20 +168,20 @@ Examples:
 				return fmt.Errorf("game-center matchmaking queues create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// GameCenterMatchmakingQueuesUpdateCommand returns the matchmaking queues update subcommand.
-func GameCenterMatchmakingQueuesUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("update", flag.ExitOnError)
+// newGameCenterMatchmakingQueuesUpdateCommand returns the matchmaking queues update subcommand.
+func newGameCenterMatchmakingQueuesUpdateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("update", flag.ExitOnError)
 
 	queueID := shared.BindResourceIDFlag(fs, "id", "gameCenterMatchmakingQueues", "Matchmaking queue ID")
 	ruleSetID := shared.BindResourceIDFlag(fs, "rule-set-id", "gameCenterMatchmakingRuleSets", "Matchmaking rule set ID")
 	experimentRuleSetID := shared.BindResourceIDFlag(fs, "experiment-rule-set-id", "gameCenterMatchmakingRuleSets", "Experiment rule set ID")
 	classicBundleIDs := shared.BindOnceCSVFlag(fs, "classic-bundle-ids", "Comma-separated bundle IDs for classic matchmaking")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -196,7 +197,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*queueID)
 			if id == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
 
 			hasUpdate := false
@@ -207,15 +208,15 @@ Examples:
 			}
 
 			if !hasUpdate && strings.TrimSpace(*ruleSetID) == "" && strings.TrimSpace(*experimentRuleSetID) == "" {
-				return shared.UpdateFlagRequired(fs, ruleSetID, experimentRuleSetID, classicBundleIDs)
+				return d.UpdateFlagRequired(fs, ruleSetID, experimentRuleSetID, classicBundleIDs)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("game-center matchmaking queues update: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.UpdateGameCenterMatchmakingQueue(requestCtx, id, attrs, strings.TrimSpace(*ruleSetID), strings.TrimSpace(*experimentRuleSetID))
@@ -223,13 +224,13 @@ Examples:
 				return fmt.Errorf("game-center matchmaking queues update: failed to update: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// GameCenterMatchmakingQueuesDeleteCommand returns the matchmaking queues delete subcommand.
-func GameCenterMatchmakingQueuesDeleteCommand() *ffcli.Command {
+// newGameCenterMatchmakingQueuesDeleteCommand returns the matchmaking queues delete subcommand.
+func newGameCenterMatchmakingQueuesDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
 		Name:       "delete",
 		ShortUsage: "asc game-center matchmaking queues delete --id \"QUEUE_ID\" --confirm",
@@ -248,12 +249,13 @@ Examples:
 		Result: func(id string) any {
 			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterMatchmakingRuleSetsCommand returns the matchmaking rule sets command group.
-func GameCenterMatchmakingRuleSetsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("rule-sets", flag.ExitOnError)
+// newGameCenterMatchmakingRuleSetsCommand returns the matchmaking rule sets command group.
+func newGameCenterMatchmakingRuleSetsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("rule-sets", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "rule-sets",
@@ -271,12 +273,12 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterMatchmakingRuleSetsListCommand(),
-			GameCenterMatchmakingRuleSetsGetCommand(),
-			GameCenterMatchmakingRuleSetsCreateCommand(),
-			GameCenterMatchmakingRuleSetsUpdateCommand(),
-			GameCenterMatchmakingRuleSetsDeleteCommand(),
-			GameCenterMatchmakingRuleSetQueuesCommand(),
+			newGameCenterMatchmakingRuleSetsListCommand(d),
+			newGameCenterMatchmakingRuleSetsGetCommand(d),
+			newGameCenterMatchmakingRuleSetsCreateCommand(d),
+			newGameCenterMatchmakingRuleSetsUpdateCommand(d),
+			newGameCenterMatchmakingRuleSetsDeleteCommand(d),
+			newGameCenterMatchmakingRuleSetQueuesCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -284,8 +286,8 @@ Examples:
 	}
 }
 
-// GameCenterMatchmakingRuleSetsListCommand returns the rule sets list subcommand.
-func GameCenterMatchmakingRuleSetsListCommand() *ffcli.Command {
+// newGameCenterMatchmakingRuleSetsListCommand returns the rule sets list subcommand.
+func newGameCenterMatchmakingRuleSetsListCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "list",
 		ShortUsage: "asc game-center matchmaking rule-sets list [flags]",
@@ -302,11 +304,12 @@ Examples:
 		FetchPage: func(ctx context.Context, client *asc.Client, _ string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterMatchmakingRuleSets(ctx, asc.Limit[asc.GCMatchmakingRuleSetsOption](limit), asc.NextURL[asc.GCMatchmakingRuleSetsOption](next))
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterMatchmakingRuleSetsGetCommand returns the rule sets get subcommand.
-func GameCenterMatchmakingRuleSetsGetCommand() *ffcli.Command {
+// newGameCenterMatchmakingRuleSetsGetCommand returns the rule sets get subcommand.
+func newGameCenterMatchmakingRuleSetsGetCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
 		Name:       "view",
 		ShortUsage: "asc game-center matchmaking rule-sets view --id \"RULE_SET_ID\"",
@@ -321,18 +324,19 @@ Examples:
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetGameCenterMatchmakingRuleSet(ctx, id)
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterMatchmakingRuleSetsCreateCommand returns the rule sets create subcommand.
-func GameCenterMatchmakingRuleSetsCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
+// newGameCenterMatchmakingRuleSetsCreateCommand returns the rule sets create subcommand.
+func newGameCenterMatchmakingRuleSetsCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("create", flag.ExitOnError)
 
 	referenceName := fs.String("reference-name", "", "Reference name for the rule set")
 	ruleLanguageVersion := fs.Int("rule-language-version", 0, "Rule language version")
 	minPlayers := fs.Int("min-players", 0, "Minimum players")
 	maxPlayers := fs.Int("max-players", 0, "Maximum players")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -347,13 +351,13 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			name := strings.TrimSpace(*referenceName)
 			if name == "" {
-				return shared.RequiredFlag("--reference-name")
+				return d.RequiredFlag("--reference-name")
 			}
 			if *ruleLanguageVersion == 0 {
-				return shared.RequiredFlag("--rule-language-version")
+				return d.RequiredFlag("--rule-language-version")
 			}
 			if *minPlayers == 0 || *maxPlayers == 0 {
-				fmt.Fprintln(os.Stderr, "Error: --min-players and --max-players are required")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --min-players and --max-players are required")
 				return shared.MissingRequiredUsageError("")
 			}
 
@@ -364,12 +368,12 @@ Examples:
 				MaxPlayers:          *maxPlayers,
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("game-center matchmaking rule-sets create: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateGameCenterMatchmakingRuleSet(requestCtx, attrs)
@@ -377,19 +381,19 @@ Examples:
 				return fmt.Errorf("game-center matchmaking rule-sets create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// GameCenterMatchmakingRuleSetsUpdateCommand returns the rule sets update subcommand.
-func GameCenterMatchmakingRuleSetsUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("update", flag.ExitOnError)
+// newGameCenterMatchmakingRuleSetsUpdateCommand returns the rule sets update subcommand.
+func newGameCenterMatchmakingRuleSetsUpdateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("update", flag.ExitOnError)
 
 	ruleSetID := shared.BindResourceIDFlag(fs, "id", "gameCenterMatchmakingRuleSets", "Matchmaking rule set ID")
 	minPlayers := fs.Int("min-players", 0, "Minimum players")
 	maxPlayers := fs.Int("max-players", 0, "Maximum players")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -405,7 +409,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*ruleSetID)
 			if id == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
 
 			attrs := asc.GameCenterMatchmakingRuleSetUpdateAttributes{}
@@ -423,15 +427,15 @@ Examples:
 			}
 
 			if !hasUpdate {
-				return shared.UpdateFlagRequired(fs, minPlayers, maxPlayers)
+				return d.UpdateFlagRequired(fs, minPlayers, maxPlayers)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("game-center matchmaking rule-sets update: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.UpdateGameCenterMatchmakingRuleSet(requestCtx, id, attrs)
@@ -439,13 +443,13 @@ Examples:
 				return fmt.Errorf("game-center matchmaking rule-sets update: failed to update: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// GameCenterMatchmakingRuleSetsDeleteCommand returns the rule sets delete subcommand.
-func GameCenterMatchmakingRuleSetsDeleteCommand() *ffcli.Command {
+// newGameCenterMatchmakingRuleSetsDeleteCommand returns the rule sets delete subcommand.
+func newGameCenterMatchmakingRuleSetsDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
 		Name:       "delete",
 		ShortUsage: "asc game-center matchmaking rule-sets delete --id \"RULE_SET_ID\" --confirm",
@@ -464,12 +468,13 @@ Examples:
 		Result: func(id string) any {
 			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterMatchmakingRuleSetQueuesCommand returns the rule set queues command group.
-func GameCenterMatchmakingRuleSetQueuesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("queues", flag.ExitOnError)
+// newGameCenterMatchmakingRuleSetQueuesCommand returns the rule set queues command group.
+func newGameCenterMatchmakingRuleSetQueuesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("queues", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "queues",
@@ -482,7 +487,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterMatchmakingRuleSetQueuesListCommand(),
+			newGameCenterMatchmakingRuleSetQueuesListCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -490,8 +495,8 @@ Examples:
 	}
 }
 
-// GameCenterMatchmakingRuleSetQueuesListCommand returns the rule set queues list subcommand.
-func GameCenterMatchmakingRuleSetQueuesListCommand() *ffcli.Command {
+// newGameCenterMatchmakingRuleSetQueuesListCommand returns the rule set queues list subcommand.
+func newGameCenterMatchmakingRuleSetQueuesListCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "list",
 		ShortUsage: "asc game-center matchmaking rule-sets queues list --rule-set-id \"RULE_SET_ID\"",
@@ -511,12 +516,13 @@ Examples:
 		FetchPage: func(ctx context.Context, client *asc.Client, ruleSetId string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterMatchmakingRuleSetQueues(ctx, ruleSetId, asc.Limit[asc.GCMatchmakingQueuesOption](limit), asc.NextURL[asc.GCMatchmakingQueuesOption](next))
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterMatchmakingRulesCommand returns the matchmaking rules command group.
-func GameCenterMatchmakingRulesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("rules", flag.ExitOnError)
+// newGameCenterMatchmakingRulesCommand returns the matchmaking rules command group.
+func newGameCenterMatchmakingRulesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("rules", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "rules",
@@ -532,10 +538,10 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterMatchmakingRulesListCommand(),
-			GameCenterMatchmakingRulesCreateCommand(),
-			GameCenterMatchmakingRulesUpdateCommand(),
-			GameCenterMatchmakingRulesDeleteCommand(),
+			newGameCenterMatchmakingRulesListCommand(d),
+			newGameCenterMatchmakingRulesCreateCommand(d),
+			newGameCenterMatchmakingRulesUpdateCommand(d),
+			newGameCenterMatchmakingRulesDeleteCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -543,8 +549,8 @@ Examples:
 	}
 }
 
-// GameCenterMatchmakingRulesListCommand returns the rules list subcommand.
-func GameCenterMatchmakingRulesListCommand() *ffcli.Command {
+// newGameCenterMatchmakingRulesListCommand returns the rules list subcommand.
+func newGameCenterMatchmakingRulesListCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "list",
 		ShortUsage: "asc game-center matchmaking rules list --rule-set-id \"RULE_SET_ID\"",
@@ -564,12 +570,13 @@ Examples:
 		FetchPage: func(ctx context.Context, client *asc.Client, ruleSetId string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterMatchmakingRules(ctx, ruleSetId, asc.Limit[asc.GCMatchmakingRulesOption](limit), asc.NextURL[asc.GCMatchmakingRulesOption](next))
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterMatchmakingRulesCreateCommand returns the rules create subcommand.
-func GameCenterMatchmakingRulesCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
+// newGameCenterMatchmakingRulesCreateCommand returns the rules create subcommand.
+func newGameCenterMatchmakingRulesCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("create", flag.ExitOnError)
 
 	ruleSetID := shared.BindResourceIDFlag(fs, "rule-set-id", "gameCenterMatchmakingRuleSets", "Matchmaking rule set ID")
 	referenceName := fs.String("reference-name", "", "Reference name for the rule")
@@ -577,7 +584,7 @@ func GameCenterMatchmakingRulesCreateCommand() *ffcli.Command {
 	ruleType := fs.String("type", "", "Rule type (COMPATIBLE, DISTANCE, MATCH, TEAM)")
 	expression := fs.String("expression", "", "Rule expression")
 	weight := fs.String("weight", "", "Rule weight (finite number)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -592,23 +599,23 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			ruleSet := strings.TrimSpace(*ruleSetID)
 			if ruleSet == "" {
-				return shared.RequiredFlag("--rule-set-id")
+				return d.RequiredFlag("--rule-set-id")
 			}
 			name := strings.TrimSpace(*referenceName)
 			if name == "" {
-				return shared.RequiredFlag("--reference-name")
+				return d.RequiredFlag("--reference-name")
 			}
 			desc := strings.TrimSpace(*description)
 			if desc == "" {
-				return shared.RequiredFlag("--description")
+				return d.RequiredFlag("--description")
 			}
 			rtype := strings.TrimSpace(*ruleType)
 			if rtype == "" {
-				return shared.RequiredFlag("--type")
+				return d.RequiredFlag("--type")
 			}
 			expr := strings.TrimSpace(*expression)
 			if expr == "" {
-				return shared.RequiredFlag("--expression")
+				return d.RequiredFlag("--expression")
 			}
 
 			attrs := asc.GameCenterMatchmakingRuleCreateAttributes{
@@ -621,17 +628,17 @@ Examples:
 			if strings.TrimSpace(*weight) != "" {
 				val, err := parseMatchmakingRuleWeight(*weight)
 				if err != nil {
-					return shared.UsageError(err.Error())
+					return d.UsageError(err.Error())
 				}
 				attrs.Weight = &val
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("game-center matchmaking rules create: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateGameCenterMatchmakingRule(requestCtx, ruleSet, attrs)
@@ -639,20 +646,20 @@ Examples:
 				return fmt.Errorf("game-center matchmaking rules create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// GameCenterMatchmakingRulesUpdateCommand returns the rules update subcommand.
-func GameCenterMatchmakingRulesUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("update", flag.ExitOnError)
+// newGameCenterMatchmakingRulesUpdateCommand returns the rules update subcommand.
+func newGameCenterMatchmakingRulesUpdateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("update", flag.ExitOnError)
 
 	ruleID := shared.BindResourceIDFlag(fs, "id", "gameCenterMatchmakingRules", "Matchmaking rule ID")
 	description := fs.String("description", "", "Rule description")
 	expression := fs.String("expression", "", "Rule expression")
 	weight := fs.String("weight", "", "Rule weight (finite number)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -668,7 +675,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*ruleID)
 			if id == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
 
 			attrs := asc.GameCenterMatchmakingRuleUpdateAttributes{}
@@ -687,22 +694,22 @@ Examples:
 			if strings.TrimSpace(*weight) != "" {
 				val, err := parseMatchmakingRuleWeight(*weight)
 				if err != nil {
-					return shared.UsageError(err.Error())
+					return d.UsageError(err.Error())
 				}
 				attrs.Weight = &val
 				hasUpdate = true
 			}
 
 			if !hasUpdate {
-				return shared.UpdateFlagRequired(fs, description, expression, weight)
+				return d.UpdateFlagRequired(fs, description, expression, weight)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("game-center matchmaking rules update: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.UpdateGameCenterMatchmakingRule(requestCtx, id, attrs)
@@ -710,7 +717,7 @@ Examples:
 				return fmt.Errorf("game-center matchmaking rules update: failed to update: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -726,8 +733,8 @@ func parseMatchmakingRuleWeight(value string) (float64, error) {
 	return weight, nil
 }
 
-// GameCenterMatchmakingRulesDeleteCommand returns the rules delete subcommand.
-func GameCenterMatchmakingRulesDeleteCommand() *ffcli.Command {
+// newGameCenterMatchmakingRulesDeleteCommand returns the rules delete subcommand.
+func newGameCenterMatchmakingRulesDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
 		Name:       "delete",
 		ShortUsage: "asc game-center matchmaking rules delete --id \"RULE_ID\" --confirm",
@@ -746,12 +753,13 @@ Examples:
 		Result: func(id string) any {
 			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterMatchmakingTeamsCommand returns the matchmaking teams command group.
-func GameCenterMatchmakingTeamsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("teams", flag.ExitOnError)
+// newGameCenterMatchmakingTeamsCommand returns the matchmaking teams command group.
+func newGameCenterMatchmakingTeamsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("teams", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "teams",
@@ -767,10 +775,10 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterMatchmakingTeamsListCommand(),
-			GameCenterMatchmakingTeamsCreateCommand(),
-			GameCenterMatchmakingTeamsUpdateCommand(),
-			GameCenterMatchmakingTeamsDeleteCommand(),
+			newGameCenterMatchmakingTeamsListCommand(d),
+			newGameCenterMatchmakingTeamsCreateCommand(d),
+			newGameCenterMatchmakingTeamsUpdateCommand(d),
+			newGameCenterMatchmakingTeamsDeleteCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -778,8 +786,8 @@ Examples:
 	}
 }
 
-// GameCenterMatchmakingTeamsListCommand returns the teams list subcommand.
-func GameCenterMatchmakingTeamsListCommand() *ffcli.Command {
+// newGameCenterMatchmakingTeamsListCommand returns the teams list subcommand.
+func newGameCenterMatchmakingTeamsListCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		Name:       "list",
 		ShortUsage: "asc game-center matchmaking teams list --rule-set-id \"RULE_SET_ID\"",
@@ -799,18 +807,19 @@ Examples:
 		FetchPage: func(ctx context.Context, client *asc.Client, ruleSetId string, limit int, next string) (asc.PaginatedResponse, error) {
 			return client.GetGameCenterMatchmakingTeams(ctx, ruleSetId, asc.Limit[asc.GCMatchmakingTeamsOption](limit), asc.NextURL[asc.GCMatchmakingTeamsOption](next))
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterMatchmakingTeamsCreateCommand returns the teams create subcommand.
-func GameCenterMatchmakingTeamsCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
+// newGameCenterMatchmakingTeamsCreateCommand returns the teams create subcommand.
+func newGameCenterMatchmakingTeamsCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("create", flag.ExitOnError)
 
 	ruleSetID := shared.BindResourceIDFlag(fs, "rule-set-id", "gameCenterMatchmakingRuleSets", "Matchmaking rule set ID")
 	referenceName := fs.String("reference-name", "", "Reference name for the team")
 	minPlayers := fs.Int("min-players", 0, "Minimum players")
 	maxPlayers := fs.Int("max-players", 0, "Maximum players")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -825,14 +834,14 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			ruleSet := strings.TrimSpace(*ruleSetID)
 			if ruleSet == "" {
-				return shared.RequiredFlag("--rule-set-id")
+				return d.RequiredFlag("--rule-set-id")
 			}
 			name := strings.TrimSpace(*referenceName)
 			if name == "" {
-				return shared.RequiredFlag("--reference-name")
+				return d.RequiredFlag("--reference-name")
 			}
 			if *minPlayers == 0 || *maxPlayers == 0 {
-				fmt.Fprintln(os.Stderr, "Error: --min-players and --max-players are required")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --min-players and --max-players are required")
 				return shared.MissingRequiredUsageError("")
 			}
 
@@ -842,12 +851,12 @@ Examples:
 				MaxPlayers:    *maxPlayers,
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("game-center matchmaking teams create: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateGameCenterMatchmakingTeam(requestCtx, ruleSet, attrs)
@@ -855,19 +864,19 @@ Examples:
 				return fmt.Errorf("game-center matchmaking teams create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// GameCenterMatchmakingTeamsUpdateCommand returns the teams update subcommand.
-func GameCenterMatchmakingTeamsUpdateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("update", flag.ExitOnError)
+// newGameCenterMatchmakingTeamsUpdateCommand returns the teams update subcommand.
+func newGameCenterMatchmakingTeamsUpdateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("update", flag.ExitOnError)
 
 	teamID := shared.BindResourceIDFlag(fs, "id", "gameCenterMatchmakingTeams", "Matchmaking team ID")
 	minPlayers := fs.Int("min-players", 0, "Minimum players")
 	maxPlayers := fs.Int("max-players", 0, "Maximum players")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -883,7 +892,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*teamID)
 			if id == "" {
-				return shared.RequiredFlag("--id")
+				return d.RequiredFlag("--id")
 			}
 
 			attrs := asc.GameCenterMatchmakingTeamUpdateAttributes{}
@@ -899,15 +908,15 @@ Examples:
 				hasUpdate = true
 			}
 			if !hasUpdate {
-				return shared.UpdateFlagRequired(fs, minPlayers, maxPlayers)
+				return d.UpdateFlagRequired(fs, minPlayers, maxPlayers)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("game-center matchmaking teams update: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.UpdateGameCenterMatchmakingTeam(requestCtx, id, attrs)
@@ -915,13 +924,13 @@ Examples:
 				return fmt.Errorf("game-center matchmaking teams update: failed to update: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// GameCenterMatchmakingTeamsDeleteCommand returns the teams delete subcommand.
-func GameCenterMatchmakingTeamsDeleteCommand() *ffcli.Command {
+// newGameCenterMatchmakingTeamsDeleteCommand returns the teams delete subcommand.
+func newGameCenterMatchmakingTeamsDeleteCommand(d *shared.Deps) *ffcli.Command {
 	return shared.BuildConfirmDeleteCommand(shared.ConfirmDeleteCommandConfig{
 		Name:       "delete",
 		ShortUsage: "asc game-center matchmaking teams delete --id \"TEAM_ID\" --confirm",
@@ -940,12 +949,13 @@ Examples:
 		Result: func(id string) any {
 			return &asc.DeleteResult{ID: id, Deleted: true}
 		},
+		Deps: d,
 	})
 }
 
-// GameCenterMatchmakingMetricsCommand returns the matchmaking metrics command group.
-func GameCenterMatchmakingMetricsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("metrics", flag.ExitOnError)
+// newGameCenterMatchmakingMetricsCommand returns the matchmaking metrics command group.
+func newGameCenterMatchmakingMetricsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("metrics", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "metrics",
@@ -960,14 +970,14 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterMatchmakingQueueSizesCommand(),
-			GameCenterMatchmakingQueueRequestsCommand(),
-			GameCenterMatchmakingQueueSessionsCommand(),
-			GameCenterMatchmakingQueueExperimentSizesCommand(),
-			GameCenterMatchmakingQueueExperimentRequestsCommand(),
-			GameCenterMatchmakingBooleanRuleResultsCommand(),
-			GameCenterMatchmakingNumberRuleResultsCommand(),
-			GameCenterMatchmakingRuleErrorsCommand(),
+			newGameCenterMatchmakingQueueSizesCommand(d),
+			newGameCenterMatchmakingQueueRequestsCommand(d),
+			newGameCenterMatchmakingQueueSessionsCommand(d),
+			newGameCenterMatchmakingQueueExperimentSizesCommand(d),
+			newGameCenterMatchmakingQueueExperimentRequestsCommand(d),
+			newGameCenterMatchmakingBooleanRuleResultsCommand(d),
+			newGameCenterMatchmakingNumberRuleResultsCommand(d),
+			newGameCenterMatchmakingRuleErrorsCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -975,9 +985,9 @@ Examples:
 	}
 }
 
-// GameCenterMatchmakingQueueSizesCommand returns the queue sizes metrics subcommand.
-func GameCenterMatchmakingQueueSizesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("queue-sizes", flag.ExitOnError)
+// newGameCenterMatchmakingQueueSizesCommand returns the queue sizes metrics subcommand.
+func newGameCenterMatchmakingQueueSizesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("queue-sizes", flag.ExitOnError)
 
 	queueID := shared.BindResourceIDFlag(fs, "queue-id", "gameCenterMatchmakingQueues", "Matchmaking queue ID")
 	granularity := fs.String("granularity", "", "Granularity (P1D, PT1H, PT15M)")
@@ -985,16 +995,16 @@ func GameCenterMatchmakingQueueSizesCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum groups per page (1-200)")
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
-	return metricsQueueCommand("queue-sizes", fs, queueID, granularity, sort, limit, next, paginate, output.Output, output.Pretty, func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingQueueSizesResponse, error) {
+	return metricsQueueCommand(d, "queue-sizes", fs, queueID, granularity, sort, limit, next, paginate, output.Output, output.Pretty, func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingQueueSizesResponse, error) {
 		return client.GetGameCenterMatchmakingQueueSizes(ctx, id, opts...)
 	})
 }
 
-// GameCenterMatchmakingQueueRequestsCommand returns the queue requests metrics subcommand.
-func GameCenterMatchmakingQueueRequestsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("queue-requests", flag.ExitOnError)
+// newGameCenterMatchmakingQueueRequestsCommand returns the queue requests metrics subcommand.
+func newGameCenterMatchmakingQueueRequestsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("queue-requests", flag.ExitOnError)
 
 	queueID := shared.BindResourceIDFlag(fs, "queue-id", "gameCenterMatchmakingQueues", "Matchmaking queue ID")
 	granularity := fs.String("granularity", "", "Granularity (P1D, PT1H, PT15M)")
@@ -1005,16 +1015,16 @@ func GameCenterMatchmakingQueueRequestsCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum groups per page (1-200)")
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
-	return metricsQueueCommandWithFilters("queue-requests", fs, queueID, granularity, groupBy, filterResult, filterDetail, sort, limit, next, paginate, output.Output, output.Pretty, func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingQueueRequestsResponse, error) {
+	return metricsQueueCommandWithFilters(d, "queue-requests", fs, queueID, granularity, groupBy, filterResult, filterDetail, sort, limit, next, paginate, output.Output, output.Pretty, func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingQueueRequestsResponse, error) {
 		return client.GetGameCenterMatchmakingQueueRequests(ctx, id, opts...)
 	})
 }
 
-// GameCenterMatchmakingQueueSessionsCommand returns the queue sessions metrics subcommand.
-func GameCenterMatchmakingQueueSessionsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("queue-sessions", flag.ExitOnError)
+// newGameCenterMatchmakingQueueSessionsCommand returns the queue sessions metrics subcommand.
+func newGameCenterMatchmakingQueueSessionsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("queue-sessions", flag.ExitOnError)
 
 	queueID := shared.BindResourceIDFlag(fs, "queue-id", "gameCenterMatchmakingQueues", "Matchmaking queue ID")
 	granularity := fs.String("granularity", "", "Granularity (P1D, PT1H, PT15M)")
@@ -1022,16 +1032,16 @@ func GameCenterMatchmakingQueueSessionsCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum groups per page (1-200)")
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
-	return metricsQueueCommand("queue-sessions", fs, queueID, granularity, sort, limit, next, paginate, output.Output, output.Pretty, func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingQueueSessionsResponse, error) {
+	return metricsQueueCommand(d, "queue-sessions", fs, queueID, granularity, sort, limit, next, paginate, output.Output, output.Pretty, func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingQueueSessionsResponse, error) {
 		return client.GetGameCenterMatchmakingQueueSessions(ctx, id, opts...)
 	})
 }
 
-// GameCenterMatchmakingQueueExperimentSizesCommand returns the experiment queue sizes metrics subcommand.
-func GameCenterMatchmakingQueueExperimentSizesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("experiment-queue-sizes", flag.ExitOnError)
+// newGameCenterMatchmakingQueueExperimentSizesCommand returns the experiment queue sizes metrics subcommand.
+func newGameCenterMatchmakingQueueExperimentSizesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("experiment-queue-sizes", flag.ExitOnError)
 
 	queueID := shared.BindResourceIDFlag(fs, "queue-id", "gameCenterMatchmakingQueues", "Matchmaking queue ID")
 	granularity := fs.String("granularity", "", "Granularity (P1D, PT1H, PT15M)")
@@ -1039,16 +1049,16 @@ func GameCenterMatchmakingQueueExperimentSizesCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum groups per page (1-200)")
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
-	return metricsQueueCommand("experiment-queue-sizes", fs, queueID, granularity, sort, limit, next, paginate, output.Output, output.Pretty, func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingQueueExperimentSizesResponse, error) {
+	return metricsQueueCommand(d, "experiment-queue-sizes", fs, queueID, granularity, sort, limit, next, paginate, output.Output, output.Pretty, func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingQueueExperimentSizesResponse, error) {
 		return client.GetGameCenterMatchmakingQueueExperimentSizes(ctx, id, opts...)
 	})
 }
 
-// GameCenterMatchmakingQueueExperimentRequestsCommand returns the experiment queue requests metrics subcommand.
-func GameCenterMatchmakingQueueExperimentRequestsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("experiment-queue-requests", flag.ExitOnError)
+// newGameCenterMatchmakingQueueExperimentRequestsCommand returns the experiment queue requests metrics subcommand.
+func newGameCenterMatchmakingQueueExperimentRequestsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("experiment-queue-requests", flag.ExitOnError)
 
 	queueID := shared.BindResourceIDFlag(fs, "queue-id", "gameCenterMatchmakingQueues", "Matchmaking queue ID")
 	granularity := fs.String("granularity", "", "Granularity (P1D, PT1H, PT15M)")
@@ -1059,9 +1069,9 @@ func GameCenterMatchmakingQueueExperimentRequestsCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum groups per page (1-200)")
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
-	return metricsQueueCommandWithFilters("experiment-queue-requests", fs, queueID, granularity, groupBy, filterResult, filterDetail, sort, limit, next, paginate, output.Output, output.Pretty, func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingQueueExperimentRequestsResponse, error) {
+	return metricsQueueCommandWithFilters(d, "experiment-queue-requests", fs, queueID, granularity, groupBy, filterResult, filterDetail, sort, limit, next, paginate, output.Output, output.Pretty, func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingQueueExperimentRequestsResponse, error) {
 		return client.GetGameCenterMatchmakingQueueExperimentRequests(ctx, id, opts...)
 	})
 }
@@ -1085,9 +1095,9 @@ var (
 	}
 )
 
-// GameCenterMatchmakingBooleanRuleResultsCommand returns the boolean rule results metrics subcommand.
-func GameCenterMatchmakingBooleanRuleResultsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("rule-boolean-results", flag.ExitOnError)
+// newGameCenterMatchmakingBooleanRuleResultsCommand returns the boolean rule results metrics subcommand.
+func newGameCenterMatchmakingBooleanRuleResultsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("rule-boolean-results", flag.ExitOnError)
 
 	ruleID := shared.BindResourceIDFlag(fs, "rule-id", "gameCenterMatchmakingRules", "Matchmaking rule ID")
 	granularity := fs.String("granularity", "", "Granularity (P1D, PT1H, PT15M)")
@@ -1098,16 +1108,16 @@ func GameCenterMatchmakingBooleanRuleResultsCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum groups per page (1-200)")
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
-	return metricsRuleCommand("rule-boolean-results", fs, booleanRuleMetricsSupport, ruleID, granularity, groupBy, filterResult, filterQueue, sort, limit, next, paginate, output.Output, output.Pretty, func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingBooleanRuleResultsResponse, error) {
+	return metricsRuleCommand(d, "rule-boolean-results", fs, booleanRuleMetricsSupport, ruleID, granularity, groupBy, filterResult, filterQueue, sort, limit, next, paginate, output.Output, output.Pretty, func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingBooleanRuleResultsResponse, error) {
 		return client.GetGameCenterMatchmakingBooleanRuleResults(ctx, id, opts...)
 	})
 }
 
-// GameCenterMatchmakingNumberRuleResultsCommand returns the number rule results metrics subcommand.
-func GameCenterMatchmakingNumberRuleResultsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("rule-number-results", flag.ExitOnError)
+// newGameCenterMatchmakingNumberRuleResultsCommand returns the number rule results metrics subcommand.
+func newGameCenterMatchmakingNumberRuleResultsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("rule-number-results", flag.ExitOnError)
 
 	ruleID := shared.BindResourceIDFlag(fs, "rule-id", "gameCenterMatchmakingRules", "Matchmaking rule ID")
 	granularity := fs.String("granularity", "", "Granularity (P1D, PT1H, PT15M)")
@@ -1118,16 +1128,16 @@ func GameCenterMatchmakingNumberRuleResultsCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum groups per page (1-200)")
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
-	return metricsRuleCommand("rule-number-results", fs, queueOnlyRuleMetricsSupport, ruleID, granularity, groupBy, filterResult, filterQueue, sort, limit, next, paginate, output.Output, output.Pretty, func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingNumberRuleResultsResponse, error) {
+	return metricsRuleCommand(d, "rule-number-results", fs, queueOnlyRuleMetricsSupport, ruleID, granularity, groupBy, filterResult, filterQueue, sort, limit, next, paginate, output.Output, output.Pretty, func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingNumberRuleResultsResponse, error) {
 		return client.GetGameCenterMatchmakingNumberRuleResults(ctx, id, opts...)
 	})
 }
 
-// GameCenterMatchmakingRuleErrorsCommand returns the rule errors metrics subcommand.
-func GameCenterMatchmakingRuleErrorsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("rule-errors", flag.ExitOnError)
+// newGameCenterMatchmakingRuleErrorsCommand returns the rule errors metrics subcommand.
+func newGameCenterMatchmakingRuleErrorsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("rule-errors", flag.ExitOnError)
 
 	ruleID := shared.BindResourceIDFlag(fs, "rule-id", "gameCenterMatchmakingRules", "Matchmaking rule ID")
 	granularity := fs.String("granularity", "", "Granularity (P1D, PT1H, PT15M)")
@@ -1138,14 +1148,14 @@ func GameCenterMatchmakingRuleErrorsCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum groups per page (1-200)")
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
-	return metricsRuleCommand("rule-errors", fs, queueOnlyRuleMetricsSupport, ruleID, granularity, groupBy, filterResult, filterQueue, sort, limit, next, paginate, output.Output, output.Pretty, func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingRuleErrorsResponse, error) {
+	return metricsRuleCommand(d, "rule-errors", fs, queueOnlyRuleMetricsSupport, ruleID, granularity, groupBy, filterResult, filterQueue, sort, limit, next, paginate, output.Output, output.Pretty, func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingRuleErrorsResponse, error) {
 		return client.GetGameCenterMatchmakingRuleErrors(ctx, id, opts...)
 	})
 }
 
-func metricsQueueCommand(name string, fs *flag.FlagSet, queueID *string, granularity *string, sort *string, limit *int, next *string, paginate *bool, output *string, pretty *bool, fetch func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingQueueSizesResponse, error)) *ffcli.Command {
+func metricsQueueCommand(d *shared.Deps, name string, fs *flag.FlagSet, queueID *string, granularity *string, sort *string, limit *int, next *string, paginate *bool, output *string, pretty *bool, fetch func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingQueueSizesResponse, error)) *ffcli.Command {
 	return &ffcli.Command{
 		Name:       name,
 		ShortUsage: "asc game-center matchmaking metrics " + name + " --queue-id \"QUEUE_ID\" --granularity P1D",
@@ -1157,12 +1167,12 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			return runMetricsQueue(ctx, name, fs, queueID, granularity, sort, limit, next, paginate, output, pretty, fetch, nil, "", "", "")
+			return runMetricsQueue(ctx, d, name, fs, queueID, granularity, sort, limit, next, paginate, output, pretty, fetch, nil, "", "", "")
 		},
 	}
 }
 
-func metricsQueueCommandWithFilters(name string, fs *flag.FlagSet, queueID *string, granularity *string, groupBy *string, filterResult *string, filterDetail *string, sort *string, limit *int, next *string, paginate *bool, output *string, pretty *bool, fetch func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingQueueRequestsResponse, error)) *ffcli.Command {
+func metricsQueueCommandWithFilters(d *shared.Deps, name string, fs *flag.FlagSet, queueID *string, granularity *string, groupBy *string, filterResult *string, filterDetail *string, sort *string, limit *int, next *string, paginate *bool, output *string, pretty *bool, fetch func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingQueueRequestsResponse, error)) *ffcli.Command {
 	return &ffcli.Command{
 		Name:       name,
 		ShortUsage: "asc game-center matchmaking metrics " + name + " --queue-id \"QUEUE_ID\" --granularity P1D",
@@ -1174,12 +1184,12 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			return runMetricsQueue(ctx, name, fs, queueID, granularity, sort, limit, next, paginate, output, pretty, nil, fetch, *groupBy, *filterResult, *filterDetail)
+			return runMetricsQueue(ctx, d, name, fs, queueID, granularity, sort, limit, next, paginate, output, pretty, nil, fetch, *groupBy, *filterResult, *filterDetail)
 		},
 	}
 }
 
-func metricsRuleCommand(name string, fs *flag.FlagSet, support ruleMetricsSupport, ruleID *string, granularity *string, groupBy *string, filterResult *string, filterQueue *string, sort *string, limit *int, next *string, paginate *bool, output *string, pretty *bool, fetch func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingBooleanRuleResultsResponse, error)) *ffcli.Command {
+func metricsRuleCommand(d *shared.Deps, name string, fs *flag.FlagSet, support ruleMetricsSupport, ruleID *string, granularity *string, groupBy *string, filterResult *string, filterQueue *string, sort *string, limit *int, next *string, paginate *bool, output *string, pretty *bool, fetch func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingBooleanRuleResultsResponse, error)) *ffcli.Command {
 	return &ffcli.Command{
 		Name:       name,
 		ShortUsage: "asc game-center matchmaking metrics " + name + " --rule-id \"RULE_ID\" --granularity P1D",
@@ -1191,16 +1201,16 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			return runMetricsRule(ctx, name, fs, support, ruleID, granularity, groupBy, filterResult, filterQueue, sort, limit, next, paginate, output, pretty, fetch)
+			return runMetricsRule(ctx, d, name, fs, support, ruleID, granularity, groupBy, filterResult, filterQueue, sort, limit, next, paginate, output, pretty, fetch)
 		},
 	}
 }
 
 // resolveRuleMetricsDimensions rejects group-by and filter values the endpoint
 // does not document, and returns the canonical group-by dimensions to send.
-func resolveRuleMetricsDimensions(name string, support ruleMetricsSupport, groupBy string, filterResult string) ([]string, error) {
+func resolveRuleMetricsDimensions(d *shared.Deps, name string, support ruleMetricsSupport, groupBy string, filterResult string) ([]string, error) {
 	if strings.TrimSpace(filterResult) != "" && !support.filterResult {
-		return nil, shared.UsageErrorf("game-center matchmaking metrics %s: --filter-result is not supported by this endpoint (supported filters: --filter-queue)", name)
+		return nil, d.UsageErrorf("game-center matchmaking metrics %s: --filter-result is not supported by this endpoint (supported filters: --filter-queue)", name)
 	}
 
 	requested := shared.SplitCSV(groupBy)
@@ -1208,7 +1218,7 @@ func resolveRuleMetricsDimensions(name string, support ruleMetricsSupport, group
 	for _, value := range requested {
 		canonical, ok := canonicalRuleMetricsGroupBy(support.groupBy, value)
 		if !ok {
-			return nil, shared.UsageErrorf("game-center matchmaking metrics %s: unsupported --group-by value %q (supported values: %s)", name, value, strings.Join(support.groupBy, ", "))
+			return nil, d.UsageErrorf("game-center matchmaking metrics %s: unsupported --group-by value %q (supported values: %s)", name, value, strings.Join(support.groupBy, ", "))
 		}
 		dimensions = append(dimensions, canonical)
 	}
@@ -1224,26 +1234,26 @@ func canonicalRuleMetricsGroupBy(supported []string, value string) (string, bool
 	return "", false
 }
 
-func runMetricsQueue(ctx context.Context, name string, fs *flag.FlagSet, queueID *string, granularity *string, sort *string, limit *int, next *string, paginate *bool, output *string, pretty *bool, fetchSizes func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingQueueSizesResponse, error), fetchRequests func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingQueueRequestsResponse, error), groupBy string, filterResult string, filterDetail string) error {
-	if err := shared.ValidatePaginationFlags(ctx, fs, "game-center matchmaking metrics "+name, 200, "granularity", "group-by", "filter-result", "filter-detail", "filter-queue", "sort"); err != nil {
+func runMetricsQueue(ctx context.Context, d *shared.Deps, name string, fs *flag.FlagSet, queueID *string, granularity *string, sort *string, limit *int, next *string, paginate *bool, output *string, pretty *bool, fetchSizes func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingQueueSizesResponse, error), fetchRequests func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingQueueRequestsResponse, error), groupBy string, filterResult string, filterDetail string) error {
+	if err := d.ValidatePaginationFlags(ctx, fs, "game-center matchmaking metrics "+name, 200, "granularity", "group-by", "filter-result", "filter-detail", "filter-queue", "sort"); err != nil {
 		return err
 	}
 
 	id := strings.TrimSpace(*queueID)
 	if id == "" && strings.TrimSpace(*next) == "" {
-		return shared.RequiredFlag("--queue-id")
+		return d.RequiredFlag("--queue-id")
 	}
 	gran := strings.TrimSpace(*granularity)
 	if gran == "" && strings.TrimSpace(*next) == "" {
-		return shared.RequiredFlag("--granularity")
+		return d.RequiredFlag("--granularity")
 	}
 
-	client, err := shared.GetASCClient()
+	client, err := d.Client()
 	if err != nil {
 		return fmt.Errorf("game-center matchmaking metrics %s: %w", name, err)
 	}
 
-	requestCtx, cancel := shared.ContextWithTimeout(ctx)
+	requestCtx, cancel := d.Timeout(ctx)
 	defer cancel()
 
 	opts := []asc.GCMatchmakingMetricsOption{
@@ -1285,7 +1295,7 @@ func runMetricsQueue(ctx context.Context, name string, fs *flag.FlagSet, queueID
 			return fmt.Errorf("game-center matchmaking metrics %s: %w", name, err)
 		}
 
-		return shared.PrintOutput(resp, *output, *pretty)
+		return d.PrintOutput(resp, *output, *pretty)
 	}
 
 	var resp any
@@ -1298,34 +1308,34 @@ func runMetricsQueue(ctx context.Context, name string, fs *flag.FlagSet, queueID
 		return fmt.Errorf("game-center matchmaking metrics %s: failed to fetch: %w", name, err)
 	}
 
-	return shared.PrintOutput(resp, *output, *pretty)
+	return d.PrintOutput(resp, *output, *pretty)
 }
 
-func runMetricsRule(ctx context.Context, name string, fs *flag.FlagSet, support ruleMetricsSupport, ruleID *string, granularity *string, groupBy *string, filterResult *string, filterQueue *string, sort *string, limit *int, next *string, paginate *bool, output *string, pretty *bool, fetch func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingBooleanRuleResultsResponse, error)) error {
-	if err := shared.ValidatePaginationFlags(ctx, fs, "game-center matchmaking metrics "+name, 200, "granularity", "group-by", "filter-result", "filter-detail", "filter-queue", "sort"); err != nil {
+func runMetricsRule(ctx context.Context, d *shared.Deps, name string, fs *flag.FlagSet, support ruleMetricsSupport, ruleID *string, granularity *string, groupBy *string, filterResult *string, filterQueue *string, sort *string, limit *int, next *string, paginate *bool, output *string, pretty *bool, fetch func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingBooleanRuleResultsResponse, error)) error {
+	if err := d.ValidatePaginationFlags(ctx, fs, "game-center matchmaking metrics "+name, 200, "granularity", "group-by", "filter-result", "filter-detail", "filter-queue", "sort"); err != nil {
 		return err
 	}
 
 	id := strings.TrimSpace(*ruleID)
 	if id == "" && strings.TrimSpace(*next) == "" {
-		return shared.RequiredFlag("--rule-id")
+		return d.RequiredFlag("--rule-id")
 	}
 	gran := strings.TrimSpace(*granularity)
 	if gran == "" && strings.TrimSpace(*next) == "" {
-		return shared.RequiredFlag("--granularity")
+		return d.RequiredFlag("--granularity")
 	}
 
-	dimensions, err := resolveRuleMetricsDimensions(name, support, *groupBy, *filterResult)
+	dimensions, err := resolveRuleMetricsDimensions(d, name, support, *groupBy, *filterResult)
 	if err != nil {
 		return err
 	}
 
-	client, err := shared.GetASCClient()
+	client, err := d.Client()
 	if err != nil {
 		return fmt.Errorf("game-center matchmaking metrics %s: %w", name, err)
 	}
 
-	requestCtx, cancel := shared.ContextWithTimeout(ctx)
+	requestCtx, cancel := d.Timeout(ctx)
 	defer cancel()
 
 	opts := []asc.GCMatchmakingMetricsOption{
@@ -1354,7 +1364,7 @@ func runMetricsRule(ctx context.Context, name string, fs *flag.FlagSet, support 
 			return fmt.Errorf("game-center matchmaking metrics %s: %w", name, err)
 		}
 
-		return shared.PrintOutput(resp, *output, *pretty)
+		return d.PrintOutput(resp, *output, *pretty)
 	}
 
 	resp, err := fetch(client, requestCtx, id, opts...)
@@ -1362,12 +1372,12 @@ func runMetricsRule(ctx context.Context, name string, fs *flag.FlagSet, support 
 		return fmt.Errorf("game-center matchmaking metrics %s: failed to fetch: %w", name, err)
 	}
 
-	return shared.PrintOutput(resp, *output, *pretty)
+	return d.PrintOutput(resp, *output, *pretty)
 }
 
-// GameCenterMatchmakingRuleSetTestsCommand returns the rule set tests command group.
-func GameCenterMatchmakingRuleSetTestsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("rule-set-tests", flag.ExitOnError)
+// newGameCenterMatchmakingRuleSetTestsCommand returns the rule set tests command group.
+func newGameCenterMatchmakingRuleSetTestsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("rule-set-tests", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "rule-set-tests",
@@ -1380,7 +1390,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			GameCenterMatchmakingRuleSetTestsCreateCommand(),
+			newGameCenterMatchmakingRuleSetTestsCreateCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -1388,12 +1398,12 @@ Examples:
 	}
 }
 
-// GameCenterMatchmakingRuleSetTestsCreateCommand returns the rule set tests create subcommand.
-func GameCenterMatchmakingRuleSetTestsCreateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("create", flag.ExitOnError)
+// newGameCenterMatchmakingRuleSetTestsCreateCommand returns the rule set tests create subcommand.
+func newGameCenterMatchmakingRuleSetTestsCreateCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("create", flag.ExitOnError)
 
 	filePath := fs.String("file", "", "Path to rule set test JSON payload")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -1408,20 +1418,20 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			path := strings.TrimSpace(*filePath)
 			if path == "" {
-				return shared.RequiredFlag("--file")
+				return d.RequiredFlag("--file")
 			}
 
-			payload, err := shared.ReadJSONFilePayload(path)
+			payload, err := d.ReadJSONFilePayload(path)
 			if err != nil {
 				return fmt.Errorf("game-center matchmaking rule-set-tests create: %w", err)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("game-center matchmaking rule-set-tests create: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			resp, err := client.CreateGameCenterMatchmakingRuleSetTest(requestCtx, payload)
@@ -1429,7 +1439,7 @@ Examples:
 				return fmt.Errorf("game-center matchmaking rule-set-tests create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

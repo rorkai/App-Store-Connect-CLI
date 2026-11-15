@@ -28,7 +28,7 @@ Examples:
   asc pre-orders update --territory-availability "TERRITORY_AVAILABILITY_ID" --pre-order-enabled true --release-date "2026-03-01"
   asc pre-orders disable --territory-availability "TERRITORY_AVAILABILITY_ID"
   asc pre-orders end --territory-availability "TA_1,TA_2" --confirm`,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			newPreOrdersGetCommand(d),
 			newPreOrdersListCommand(d),
@@ -145,7 +145,7 @@ Examples:
   asc pre-orders enable --app "123456789" --territory "United States" --release-date "2026-06-01"
   asc pre-orders enable --app "123456789" --territory "US,France,DEU" --release-date "2026-06-01"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
@@ -270,7 +270,7 @@ Examples:
   asc pre-orders update --territory-availability "TERRITORY_AVAILABILITY_ID" --pre-order-enabled false
   asc pre-orders update --territory-availability "TERRITORY_AVAILABILITY_ID" --available true`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*territoryAvailabilityID)
 			if trimmedID == "" {
@@ -342,7 +342,7 @@ func newPreOrdersDisableCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc pre-orders disable --territory-availability "TERRITORY_AVAILABILITY_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*territoryAvailabilityID)
 			if trimmedID == "" {
@@ -388,7 +388,7 @@ func newPreOrdersEndCommand(d *shared.Deps) *ffcli.Command {
 Examples:
   asc pre-orders end --territory-availability "TA_1,TA_2" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			ids := shared.SplitCSV(*territoryAvailabilityIDs)
 			if len(ids) == 0 {

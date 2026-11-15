@@ -13,7 +13,6 @@ import (
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestGameCenterMatchmakingRulesRejectInvalidWeightBeforeClient(t *testing.T) {
@@ -32,16 +31,15 @@ func TestGameCenterMatchmakingRulesRejectInvalidWeightBeforeClient(t *testing.T)
 			t.Run(command+" "+test.weight, func(t *testing.T) {
 				clearASCAuth(t)
 				clientFactoryCalls := 0
-				t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+				factory := func() (*asc.Client, error) {
 					clientFactoryCalls++
 					return nil, fmt.Errorf("client should not be created")
-				}))
+				}
 
-				stdout, stderr := captureOutput(t, func() {
-					if code := rootcmd.Run(gameCenterMatchmakingRuleArgs(command, test.weight), "test"); code != rootcmd.ExitUsage {
-						t.Errorf("exit code = %d, want %d", code, rootcmd.ExitUsage)
-					}
-				})
+				stdout, stderr, code := runWithDeps(t, factory, gameCenterMatchmakingRuleArgs(command, test.weight)...)
+				if code != rootcmd.ExitUsage {
+					t.Errorf("exit code = %d, want %d", code, rootcmd.ExitUsage)
+				}
 
 				if stdout != "" {
 					t.Errorf("stdout = %q, want empty", stdout)
@@ -154,18 +152,17 @@ func TestGameCenterMatchmakingRulesSendFiniteWeight(t *testing.T) {
 
 			client := newGameCenterMatchmakingTestClient(t, server)
 			clientFactoryCalls := 0
-			t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+			factory := func() (*asc.Client, error) {
 				clientFactoryCalls++
 				return client, nil
-			}))
+			}
 
 			args := append(gameCenterMatchmakingRuleArgs(test.command, test.weight), test.extraArgs...)
 			args = append(args, "--output", "json")
-			stdout, stderr := captureOutput(t, func() {
-				if code := rootcmd.Run(args, "test"); code != rootcmd.ExitSuccess {
-					t.Errorf("exit code = %d, want %d", code, rootcmd.ExitSuccess)
-				}
-			})
+			stdout, stderr, code := runWithDeps(t, factory, args...)
+			if code != rootcmd.ExitSuccess {
+				t.Errorf("exit code = %d, want %d", code, rootcmd.ExitSuccess)
+			}
 
 			if stderr != "" {
 				t.Errorf("stderr = %q, want empty", stderr)

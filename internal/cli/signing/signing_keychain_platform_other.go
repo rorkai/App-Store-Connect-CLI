@@ -2,6 +2,6 @@
 
 package signing
 
-func platformSigningKeychainInstallDeps() signingKeychainInstallDeps {
+func platformSigningKeychainInstallDeps(bool) signingKeychainInstallDeps {
 	return signingKeychainInstallDeps{GOOS: "unsupported"}
 }

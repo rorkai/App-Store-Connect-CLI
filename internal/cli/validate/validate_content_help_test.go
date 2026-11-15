@@ -3,7 +3,8 @@ package validate
 import "testing"
 
 func TestValidateCommandAcceptsOptInURLChecks(t *testing.T) {
-	cmd := ValidateCommand()
+	d, _, _ := validateTestDeps()
+	cmd := NewValidateCommand(d)
 	if err := cmd.Parse([]string{"--app", "app-1", "--version-id", "version-1", "--check-urls"}); err != nil {
 		t.Fatalf("Parse() error: %v", err)
 	}

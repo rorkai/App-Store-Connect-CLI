@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -16,14 +15,14 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// AnalyticsRequestCommand creates a new analytics report request.
-func AnalyticsRequestCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("request", flag.ExitOnError)
+// newAnalyticsRequestCommand creates a new analytics report request.
+func newAnalyticsRequestCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("request", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	accessType := fs.String("access-type", "", "Access type: ONGOING or ONE_TIME_SNAPSHOT")
 	reuseExisting := fs.Bool("reuse-existing", false, "Return an existing active request with the same access type instead of creating a duplicate")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "request",
@@ -40,23 +39,23 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
 			}
 			if strings.TrimSpace(*accessType) == "" {
-				return shared.RequiredFlag("--access-type")
+				return d.RequiredFlag("--access-type")
 			}
 			normalizedAccessType, err := normalizeAnalyticsAccessType(*accessType)
 			if err != nil {
-				return shared.UsageError(err.Error())
+				return d.UsageError(err.Error())
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("analytics request: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			if *reuseExisting {
@@ -65,7 +64,7 @@ Examples:
 					return fmt.Errorf("analytics request: %w", err)
 				}
 
-				return shared.PrintOutput(result, *output.Output, *output.Pretty)
+				return d.PrintOutput(result, *output.Output, *output.Pretty)
 			}
 
 			response, err := client.CreateAnalyticsReportRequest(requestCtx, resolvedAppID, normalizedAccessType)
@@ -80,14 +79,14 @@ Examples:
 				StoppedDueToInactivity: response.Data.Attributes.StoppedDueToInactivity,
 			}
 
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// AnalyticsRequestsCommand lists analytics report requests.
-func AnalyticsRequestsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("requests", flag.ExitOnError)
+// newAnalyticsRequestsCommand lists analytics report requests.
+func newAnalyticsRequestsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("requests", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	requestID := shared.BindResourceIDFlag(fs, "request-id", "analyticsReportRequests", "Filter by request ID")
@@ -95,7 +94,7 @@ func AnalyticsRequestsCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, shared.PaginateFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "requests",
@@ -113,22 +112,22 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			AnalyticsRequestsDeleteCommand(),
+			newAnalyticsRequestsDeleteCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			if len(args) > 0 {
 				return flag.ErrHelp
 			}
-			if err := shared.ValidatePaginationFlags(ctx, fs, "analytics requests", analyticsMaxLimit); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "analytics requests", analyticsMaxLimit); err != nil {
 				return err
 			}
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if err := validateAnalyticsRequestsCursor(*next, resolvedAppID); err != nil {
-				return shared.UsageErrorf("analytics requests: %v", err)
+				return d.UsageErrorf("analytics requests: %v", err)
 			}
 			if strings.TrimSpace(*requestID) != "" {
 				if err := validateAnalyticsRequestID(*requestID); err != nil {
-					return shared.UsageErrorf("analytics requests: %v", err)
+					return d.UsageErrorf("analytics requests: %v", err)
 				}
 			}
 
@@ -136,28 +135,28 @@ Examples:
 			if strings.TrimSpace(*accessType) != "" {
 				accessTypeValue, err := normalizeAnalyticsAccessType(*accessType)
 				if err != nil {
-					return shared.UsageError(err.Error())
+					return d.UsageError(err.Error())
 				}
 				normalizedAccessType = accessTypeValue
 			}
 			if normalizedAccessType != "" && strings.TrimSpace(*requestID) != "" {
-				return shared.UsageError("--access-type cannot be used with --request-id")
+				return d.UsageError("--access-type cannot be used with --request-id")
 			}
 			if normalizedAccessType != "" && strings.TrimSpace(*next) != "" {
-				return shared.UsageError("--access-type cannot be used with --next")
+				return d.UsageError("--access-type cannot be used with --next")
 			}
 
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" && strings.TrimSpace(*requestID) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError("--app")
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("analytics requests: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			var response *asc.AnalyticsReportRequestsResponse
@@ -181,7 +180,7 @@ Examples:
 
 				if *paginate {
 					paginateOpts := append(opts, asc.Limit[asc.AnalyticsReportRequestsOption](200))
-					paginated, err := shared.PaginateWithSpinner(
+					paginated, err := d.PaginateWithSpinner(
 						requestCtx,
 						func(ctx context.Context) (asc.PaginatedResponse, error) {
 							return client.GetAnalyticsReportRequests(ctx, resolvedAppID, paginateOpts...)
@@ -194,7 +193,7 @@ Examples:
 						return fmt.Errorf("analytics requests: %w", err)
 					}
 
-					return shared.PrintOutput(paginated, *output.Output, *output.Pretty)
+					return d.PrintOutput(paginated, *output.Output, *output.Pretty)
 				}
 
 				response, err = client.GetAnalyticsReportRequests(requestCtx, resolvedAppID, opts...)
@@ -203,7 +202,7 @@ Examples:
 				}
 			}
 
-			return shared.PrintOutput(response, *output.Output, *output.Pretty)
+			return d.PrintOutput(response, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -320,13 +319,13 @@ func analyticsReportRequestReuseResult(appID string, request asc.AnalyticsReport
 	}
 }
 
-// AnalyticsRequestsDeleteCommand deletes an analytics report request.
-func AnalyticsRequestsDeleteCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("delete", flag.ExitOnError)
+// newAnalyticsRequestsDeleteCommand deletes an analytics report request.
+func newAnalyticsRequestsDeleteCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("delete", flag.ExitOnError)
 
 	requestID := shared.BindResourceIDFlag(fs, "request-id", "analyticsReportRequests", "Analytics report request ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "delete",
@@ -341,21 +340,21 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*requestID)
 			if id == "" {
-				return shared.RequiredFlag("--request-id")
+				return d.RequiredFlag("--request-id")
 			}
 			if err := validateAnalyticsRequestID(id); err != nil {
-				return shared.UsageErrorf("analytics requests delete: %v", err)
+				return d.UsageErrorf("analytics requests delete: %v", err)
 			}
-			if err := shared.RequireConfirm(*confirm); err != nil {
+			if err := d.RequireConfirm(*confirm); err != nil {
 				return err
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("analytics requests delete: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteAnalyticsReportRequest(requestCtx, id); err != nil {
@@ -367,7 +366,7 @@ Examples:
 				Deleted:   true,
 			}
 
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -395,9 +394,9 @@ func validateAnalyticsViewCursor(next, requestID string) error {
 	return nil
 }
 
-// AnalyticsViewCommand retrieves analytics reports and instances for a request.
-func AnalyticsViewCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("view", flag.ExitOnError)
+// newAnalyticsViewCommand retrieves analytics reports and instances for a request.
+func newAnalyticsViewCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("view", flag.ExitOnError)
 
 	requestID := shared.BindResourceIDFlag(fs, "request-id", "analyticsReportRequests", "Analytics report request ID")
 	instanceID := shared.BindResourceIDFlag(fs, "instance-id", "analyticsReportInstances", "Filter by specific instance ID")
@@ -407,7 +406,7 @@ func AnalyticsViewCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	paginate := fs.Bool("paginate", false, "Paginate all reports (recommended with --processing-date or --next)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "view",
@@ -432,7 +431,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "analytics view", analyticsMaxLimit); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "analytics view", analyticsMaxLimit); err != nil {
 				return err
 			}
 			var processingDateProvided, granularityProvided bool
@@ -445,27 +444,27 @@ Examples:
 				}
 			})
 			if strings.TrimSpace(*requestID) == "" && strings.TrimSpace(*next) == "" {
-				return shared.RequiredFlag("--request-id")
+				return d.RequiredFlag("--request-id")
 			}
 			if strings.TrimSpace(*requestID) != "" {
 				if err := validateAnalyticsRequestID(*requestID); err != nil {
-					return shared.UsageErrorf("analytics view: %v", err)
+					return d.UsageErrorf("analytics view: %v", err)
 				}
 			}
 			if strings.TrimSpace(*instanceID) != "" {
 				if _, err := asc.ValidateResourcePathSegment(*instanceID); err != nil {
-					return shared.UsageErrorf("analytics view: --instance-id: %v", err)
+					return d.UsageErrorf("analytics view: --instance-id: %v", err)
 				}
 			}
 			if err := validateAnalyticsViewCursor(*next, *requestID); err != nil {
-				return shared.UsageErrorf("analytics view: %v", err)
+				return d.UsageErrorf("analytics view: %v", err)
 			}
 
 			var processingDateFilter string
 			if processingDateProvided {
 				normalized, normalizeErr := normalizeAnalyticsProcessingDateFilter(*processingDate)
 				if normalizeErr != nil {
-					return shared.UsageErrorf("analytics view: %v", normalizeErr)
+					return d.UsageErrorf("analytics view: %v", normalizeErr)
 				}
 				processingDateFilter = normalized
 			}
@@ -473,12 +472,12 @@ Examples:
 			if granularityProvided {
 				normalized, normalizeErr := normalizeAnalyticsGranularities(*granularity)
 				if normalizeErr != nil {
-					return shared.UsageErrorf("analytics view: %v", normalizeErr)
+					return d.UsageErrorf("analytics view: %v", normalizeErr)
 				}
 				granularities = normalized
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("analytics view: %w", err)
 			}
@@ -495,27 +494,27 @@ Examples:
 			}
 
 			if targetInstanceID == "" {
-				reports, links, err := fetchAnalyticsReports(ctx, client, result.RequestID, *limit, *next, paginateReports)
+				reports, links, err := fetchAnalyticsReports(ctx, d, client, result.RequestID, *limit, *next, paginateReports)
 				if err != nil {
 					return fmt.Errorf("analytics view: %w", err)
 				}
 				result.Links = links
-				collected, instanceCount, err := collectAnalyticsReports(ctx, client, reports, instanceOpts, *includeSegments, processingDateFilter)
+				collected, instanceCount, err := collectAnalyticsReports(ctx, d, client, reports, instanceOpts, *includeSegments, processingDateFilter)
 				if err != nil {
 					return err
 				}
 				result.Data = collected
 				if processingDateFilter == "" && len(granularities) == 0 && instanceCount > 20 {
-					fmt.Fprintf(os.Stderr, "analytics view: fetched %d instances without --processing-date or --granularity; narrow the query to avoid a full fan-out\n", instanceCount)
+					fmt.Fprintf(d.IO.ErrOut, "analytics view: fetched %d instances without --processing-date or --granularity; narrow the query to avoid a full fan-out\n", instanceCount)
 				}
 			} else {
-				report, instances, links, err := findAnalyticsReportInstance(ctx, client, result.RequestID, targetInstanceID, *limit, *next, paginateReports, instanceOpts...)
+				report, instances, links, err := findAnalyticsReportInstance(ctx, d, client, result.RequestID, targetInstanceID, *limit, *next, paginateReports, instanceOpts...)
 				if err != nil {
 					return fmt.Errorf("analytics view: %w", err)
 				}
 				result.Links = links
 				if len(instances) > 0 {
-					reportResult, err := analyticsReportResultFromInstances(ctx, client, report, instances, *includeSegments)
+					reportResult, err := analyticsReportResultFromInstances(ctx, d, client, report, instances, *includeSegments)
 					if err != nil {
 						return err
 					}
@@ -533,14 +532,14 @@ Examples:
 				return analyticsNotFoundError(fmt.Errorf("analytics view: no instances found for processing date %q", processingDateFilter), "--processing-date")
 			}
 
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			return d.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
 
-// AnalyticsDownloadCommand downloads analytics report data.
-func AnalyticsDownloadCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("download", flag.ExitOnError)
+// newAnalyticsDownloadCommand downloads analytics report data.
+func newAnalyticsDownloadCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("download", flag.ExitOnError)
 
 	requestID := shared.BindResourceIDFlag(fs, "request-id", "analyticsReportRequests", "Analytics report request ID")
 	instanceID := shared.BindResourceIDFlag(fs, "instance-id", "analyticsReportInstances", "Analytics report instance ID")
@@ -562,36 +561,36 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.RejectOutputFormatAsPath(*output, "--output-format"); err != nil {
+			if err := d.RejectOutputFormatAsPath(*output, "--output-format"); err != nil {
 				return err
 			}
 			if strings.TrimSpace(*requestID) == "" {
-				return shared.RequiredFlag("--request-id")
+				return d.RequiredFlag("--request-id")
 			}
 			if strings.TrimSpace(*instanceID) == "" {
-				return shared.RequiredFlag("--instance-id")
+				return d.RequiredFlag("--instance-id")
 			}
 			if err := validateAnalyticsRequestID(*requestID); err != nil {
-				return shared.UsageErrorf("analytics download: %v", err)
+				return d.UsageErrorf("analytics download: %v", err)
 			}
 			if _, err := asc.ValidateResourcePathSegment(*instanceID); err != nil {
-				return shared.UsageErrorf("analytics download: --instance-id: %v", err)
+				return d.UsageErrorf("analytics download: --instance-id: %v", err)
 			}
 			if strings.TrimSpace(*segmentID) != "" {
 				if _, err := asc.ValidateResourcePathSegment(*segmentID); err != nil {
-					return shared.UsageErrorf("analytics download: --segment-id: %v", err)
+					return d.UsageErrorf("analytics download: --segment-id: %v", err)
 				}
 			}
 
 			defaultOutput := analyticsDownloadDefaultOutput(*requestID, *instanceID)
 			compressedPath, decompressedPath := shared.ResolveReportOutputPaths(*output, defaultOutput, ".csv", *decompress)
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("analytics download: %w", err)
 			}
 
-			_, instances, _, err := findAnalyticsReportInstance(ctx, client, strings.TrimSpace(*requestID), strings.TrimSpace(*instanceID), 0, "", true)
+			_, instances, _, err := findAnalyticsReportInstance(ctx, d, client, strings.TrimSpace(*requestID), strings.TrimSpace(*instanceID), 0, "", true)
 			if err != nil {
 				return fmt.Errorf("analytics download: %w", err)
 			}
@@ -599,7 +598,7 @@ Examples:
 				return analyticsNotFoundError(fmt.Errorf("analytics download: instance %q not found for request %q", strings.TrimSpace(*instanceID), strings.TrimSpace(*requestID)), "--instance-id")
 			}
 
-			segments, err := fetchAnalyticsReportSegmentsUntilMatch(ctx, client, strings.TrimSpace(*instanceID), strings.TrimSpace(*segmentID))
+			segments, err := fetchAnalyticsReportSegmentsUntilMatch(ctx, d, client, strings.TrimSpace(*instanceID), strings.TrimSpace(*segmentID))
 			if err != nil {
 				return fmt.Errorf("analytics download: failed to fetch segments: %w", err)
 			}
@@ -638,7 +637,7 @@ Examples:
 				return analyticsNotReadyError(errors.New("analytics download: segment download URL is empty"))
 			}
 
-			compressedSize, err := downloadAnalyticsReportToFile(ctx, client, downloadURL, compressedPath)
+			compressedSize, err := downloadAnalyticsReportToFile(ctx, d, client, downloadURL, compressedPath)
 			if err != nil {
 				return fmt.Errorf("analytics download: %w", err)
 			}
@@ -662,7 +661,7 @@ Examples:
 				DecompressedSize: decompressedSize,
 			}
 
-			return shared.PrintOutput(result, *outputFlags.OutputFormat, *outputFlags.Pretty)
+			return d.PrintOutput(result, *outputFlags.OutputFormat, *outputFlags.Pretty)
 		},
 	}
 }

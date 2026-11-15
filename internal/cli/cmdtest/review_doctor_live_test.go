@@ -1,7 +1,6 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -10,9 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/validate"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/handlertest"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/validation"
 )
@@ -40,8 +36,7 @@ func TestReviewDoctorLiveVersionReadiness(t *testing.T) {
 			if test.missingKeywords {
 				fixture.versionLocs = strings.ReplaceAll(fixture.versionLocs, `"keywords":"keyword"`, `"keywords":""`)
 			}
-			readinessClient := newValidateTestClient(t, fixture)
-			t.Cleanup(validate.SetClientFactory(func() (*asc.Client, error) { return readinessClient, nil }))
+			readinessTransport := validateTestTransport(t, fixture)
 
 			// Use the real readiness builder and its existing complete API fixture.
 			// This server supplies only the review snapshot consumed before it.
@@ -66,18 +61,22 @@ func TestReviewDoctorLiveVersionReadiness(t *testing.T) {
 				}
 			}))
 			t.Cleanup(server.Close)
-			client := newReviewTestServerClient(t, server)
-			t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) { return client, nil }))
+			client := stubClient(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				switch req.URL.Path {
+				case "/v1/apps", "/v1/appStoreVersions/ver-1", "/v1/appStoreVersions/ver-1/appStoreReviewDetail", "/v1/apps/app-1/reviewSubmissions":
+					forwarded := req.Clone(req.Context())
+					forwarded.URL.Scheme = "http"
+					forwarded.URL.Host = server.Listener.Addr().String()
+					return server.Client().Transport.RoundTrip(forwarded)
+				default:
+					return readinessTransport(req)
+				}
+			}))
 
-			root := RootCommand("test")
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse([]string{"review", "doctor", "--app", "app-1", "--version-id", "ver-1", "--output", "json"}); err != nil {
-					t.Fatal(err)
-				}
-				if err := root.Run(context.Background()); err != nil {
-					t.Fatal(err)
-				}
-			})
+			stdout, stderr, err := runRootWithDeps(t, client, "review", "doctor", "--app", "app-1", "--version-id", "ver-1", "--output", "json")
+			if err != nil {
+				t.Fatal(err)
+			}
 			if stderr != "" {
 				t.Fatalf("unexpected stderr: %s", stderr)
 			}

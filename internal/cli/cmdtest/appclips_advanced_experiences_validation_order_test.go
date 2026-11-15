@@ -7,7 +7,6 @@ import (
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	appclipscli "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/appclips"
 )
 
 func TestAppClipsAdvancedExperiencesCreateValidatesSelectorBeforeClient(t *testing.T) {
@@ -40,15 +39,12 @@ func assertAppClipAdvancedExperienceCreateUsageBeforeClient(t *testing.T, select
 	t.Helper()
 
 	clientFactoryCalls := 0
-	t.Cleanup(appclipscli.SetClientFactory(func() (*asc.Client, error) {
+	clientFactory := func() (*asc.Client, error) {
 		clientFactoryCalls++
 		return nil, errors.New("client factory must not run")
-	}))
+	}
 
-	var exitCode int
-	stdout, stderr := captureOutput(t, func() {
-		exitCode = rootcmd.Run(appClipAdvancedExperienceCreateArgs(selector...), "1.2.3")
-	})
+	stdout, stderr, exitCode := runWithDeps(t, clientFactory, appClipAdvancedExperienceCreateArgs(selector...)...)
 
 	if exitCode != rootcmd.ExitUsage {
 		t.Fatalf("exit code = %d, want %d", exitCode, rootcmd.ExitUsage)

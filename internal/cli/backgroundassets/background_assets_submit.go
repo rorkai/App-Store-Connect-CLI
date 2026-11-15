@@ -56,7 +56,7 @@ Examples:
   asc background-assets submit --app "APP_ID" --version-id "VERSION_ID" --review-submission-id "SUBMISSION_ID" --confirm
   asc background-assets submit --app "APP_ID" --all --dry-run`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
