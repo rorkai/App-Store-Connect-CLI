@@ -541,3 +541,44 @@ func publishExportOptionsTestFlagValues(t *testing.T, explicit string) *publishL
 	}
 	return values
 }
+
+func TestResolveLocalBuildConfigAnchorsPathsToDepsWorkingDirectory(t *testing.T) {
+	t.Chdir(t.TempDir())
+	workDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(workDir, filepath.Dir(defaultPublishExportOptionsPath)), 0o755); err != nil {
+		t.Fatalf("create default export-options directory: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(workDir, defaultPublishExportOptionsPath), []byte("checked-in plist"), 0o600); err != nil {
+		t.Fatalf("write default export options: %v", err)
+	}
+	d := newPublishTestDeps()
+	d.Getwd = func() (string, error) { return workDir, nil }
+
+	fs := flag.NewFlagSet("publish working directory", flag.ContinueOnError)
+	values := bindPublishLocalBuildFlags(fs)
+	if err := fs.Parse([]string{"--workspace", "Demo.xcworkspace", "--scheme", "Demo"}); err != nil {
+		t.Fatalf("parse local-build flags: %v", err)
+	}
+	if err := validatePublishExportOptionsFlags(d, values, collectSetFlags(fs)); err != nil {
+		t.Fatalf("validatePublishExportOptionsFlags() error: %v", err)
+	}
+	config, err := resolveLocalBuildConfig(d, values, "IOS", "1.2.3", "42")
+	if err != nil {
+		t.Fatalf("resolveLocalBuildConfig() error: %v", err)
+	}
+	want := publishLocalBuildConfig{
+		WorkspacePath:     filepath.Join(workDir, "Demo.xcworkspace"),
+		ExportOptionsPath: filepath.Join(workDir, defaultPublishExportOptionsPath),
+		ArchivePath:       filepath.Join(workDir, defaultPublishArchivePath("Demo", "IOS", "1.2.3", "42")),
+		IPAPath:           filepath.Join(workDir, defaultPublishIPAPath("Demo", "IOS", "1.2.3", "42")),
+	}
+	got := publishLocalBuildConfig{
+		WorkspacePath:     config.WorkspacePath,
+		ExportOptionsPath: config.ExportOptionsPath,
+		ArchivePath:       config.ArchivePath,
+		IPAPath:           config.IPAPath,
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("local-build paths = %#v, want %#v", got, want)
+	}
+}

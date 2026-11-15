@@ -232,8 +232,8 @@ func validateLocalBuildSelectors(d *shared.Deps, values *publishLocalBuildFlagVa
 
 func resolveLocalBuildConfig(d *shared.Deps, values *publishLocalBuildFlagValues, platform, version, buildNumber string) (publishLocalBuildConfig, error) {
 	config := publishLocalBuildConfig{
-		WorkspacePath:         values.trimmedWorkspacePath(),
-		ProjectPath:           values.trimmedProjectPath(),
+		WorkspacePath:         publishOSPath(d, values.trimmedWorkspacePath()),
+		ProjectPath:           publishOSPath(d, values.trimmedProjectPath()),
 		Scheme:                values.trimmedScheme(),
 		Configuration:         "Release",
 		Clean:                 values.clean != nil && *values.clean,
@@ -246,11 +246,11 @@ func resolveLocalBuildConfig(d *shared.Deps, values *publishLocalBuildFlagValues
 		config.Configuration = trimmedConfiguration
 	}
 
-	explicitExportOptionsPath := strings.TrimSpace(*values.exportOptionsPath)
+	explicitExportOptionsPath := publishOSPath(d, strings.TrimSpace(*values.exportOptionsPath))
 	exportOptionsPath := ""
 	var err error
 	if !values.generationFlagsSet {
-		exportOptionsPath, err = resolvePublishExportOptionsPath(explicitExportOptionsPath)
+		exportOptionsPath, err = resolvePublishExportOptionsPath(d, explicitExportOptionsPath)
 	} else {
 		exportOptionsPath = explicitExportOptionsPath
 	}
@@ -269,12 +269,14 @@ func resolveLocalBuildConfig(d *shared.Deps, values *publishLocalBuildFlagValues
 	if config.ArchivePath == "" {
 		config.ArchivePath = defaultPublishArchivePath(config.Scheme, platform, version, buildNumber)
 	}
+	config.ArchivePath = d.OSPath(config.ArchivePath)
 
 	if strings.EqualFold(strings.TrimSpace(platform), "MAC_OS") {
 		config.PKGPath = strings.TrimSpace(*values.pkgPath)
 		if config.PKGPath == "" {
 			config.PKGPath = defaultPublishPKGPath(config.Scheme, platform, version, buildNumber)
 		}
+		config.PKGPath = d.OSPath(config.PKGPath)
 		if err := localxcode.ValidateExportPKGDestination(config.PKGPath, true, false); err != nil {
 			if localxcode.IsExportDestinationUsageError(err) {
 				return publishLocalBuildConfig{}, d.UsageError(err.Error())
@@ -286,6 +288,7 @@ func resolveLocalBuildConfig(d *shared.Deps, values *publishLocalBuildFlagValues
 		if config.IPAPath == "" {
 			config.IPAPath = defaultPublishIPAPath(config.Scheme, platform, version, buildNumber)
 		}
+		config.IPAPath = d.OSPath(config.IPAPath)
 	}
 
 	return config, nil
@@ -484,13 +487,14 @@ func publishExportXcodebuildArgs(extra []string) []string {
 	return append(args, extra...)
 }
 
-func resolvePublishExportOptionsPath(explicit string) (string, error) {
+func resolvePublishExportOptionsPath(d *shared.Deps, explicit string) (string, error) {
 	if trimmed := strings.TrimSpace(explicit); trimmed != "" {
 		return trimmed, nil
 	}
-	info, err := os.Stat(defaultPublishExportOptionsPath)
+	defaultPath := d.OSPath(defaultPublishExportOptionsPath)
+	info, err := os.Stat(defaultPath)
 	if err == nil && !info.IsDir() {
-		return defaultPublishExportOptionsPath, nil
+		return defaultPath, nil
 	}
 	if err != nil && !os.IsNotExist(err) {
 		return "", fmt.Errorf("stat %s: %w", defaultPublishExportOptionsPath, err)
@@ -568,6 +572,14 @@ func sanitizePublishArtifactToken(value string) string {
 		return "artifact"
 	}
 	return result
+}
+
+// publishOSPath is d.OSPath for a path flag that may be empty.
+func publishOSPath(d *shared.Deps, path string) string {
+	if path == "" {
+		return ""
+	}
+	return d.OSPath(path)
 }
 
 func firstNonEmpty(values ...string) string {
