@@ -680,3 +680,22 @@ func assertClaim(t *testing.T, claims jwt.MapClaims, name, want string) {
 		t.Fatalf("%s = %v, want %s", name, got, want)
 	}
 }
+
+func TestWithTransportKeepsTheRequestTimeout(t *testing.T) {
+	t.Setenv("ASC_TIMEOUT", "17s")
+	transport := &http.Transport{}
+	withDefault, err := NewClient(Credentials{AccessToken: "ACCESS"})
+	if err != nil {
+		t.Fatalf("NewClient() error: %v", err)
+	}
+	client, err := NewClient(Credentials{AccessToken: "ACCESS"}, WithTransport(transport))
+	if err != nil {
+		t.Fatalf("NewClient(WithTransport) error: %v", err)
+	}
+	if client.httpClient.Transport != transport {
+		t.Fatalf("transport = %v, want the injected transport", client.httpClient.Transport)
+	}
+	if client.httpClient.Timeout != 17*time.Second || withDefault.httpClient.Timeout != 17*time.Second {
+		t.Fatalf("timeout = %v, default client timeout = %v, want 17s for both", client.httpClient.Timeout, withDefault.httpClient.Timeout)
+	}
+}

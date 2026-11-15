@@ -36,7 +36,7 @@ func resolvePlatformClientAndAdAccountID(ctx context.Context, d *shared.Deps, fl
 		credentials.AdAccountID = adAccountID
 	}
 	_ = ctx
-	client, err := appleads.NewClient(credentials)
+	client, err := appleads.NewClient(credentials, appleads.WithTransport(d.HTTPTransport()))
 	return client, adAccountID, err
 }
 

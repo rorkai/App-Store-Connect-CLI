@@ -276,3 +276,23 @@ func testCredentials(t *testing.T) Credentials {
 		BundleID:      "com.example.app",
 	}
 }
+
+func TestWithTransportKeepsTheRequestTimeout(t *testing.T) {
+	t.Setenv("ASC_TIMEOUT", "17s")
+	credentials := testCredentials(t)
+	transport := &http.Transport{}
+	withDefault, err := NewClient(credentials, Sandbox)
+	if err != nil {
+		t.Fatalf("NewClient() error: %v", err)
+	}
+	client, err := NewClient(credentials, Sandbox, WithTransport(transport))
+	if err != nil {
+		t.Fatalf("NewClient(WithTransport) error: %v", err)
+	}
+	if client.httpClient.Transport != transport {
+		t.Fatalf("transport = %v, want the injected transport", client.httpClient.Transport)
+	}
+	if client.httpClient.Timeout != 17*time.Second || withDefault.httpClient.Timeout != 17*time.Second {
+		t.Fatalf("timeout = %v, default client timeout = %v, want 17s for both", client.httpClient.Timeout, withDefault.httpClient.Timeout)
+	}
+}

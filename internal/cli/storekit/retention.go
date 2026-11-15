@@ -68,7 +68,7 @@ func imagesListCommand(d *shared.Deps) *ffcli.Command {
 	common := bindCommonFlags(fs)
 	output := d.BindOutputFlags(fs)
 	return leafCommand("list", "asc storekit retention-messaging images list --environment ENV [flags]", "List retention images.", fs, func(ctx context.Context, args []string) error {
-		client, _, err := resolveClient(ctx, common)
+		client, _, err := resolveClient(ctx, d, common)
 		if err != nil {
 			return usageOrWrap(d, "storekit retention-messaging images list", err)
 		}
@@ -111,7 +111,7 @@ func imagesUploadCommand(d *shared.Deps) *ffcli.Command {
 		if err != nil {
 			return d.UsageError(err.Error())
 		}
-		client, environment, err := resolveClient(ctx, common)
+		client, environment, err := resolveClient(ctx, d, common)
 		if err != nil {
 			return usageOrWrap(d, "storekit retention-messaging images upload", err)
 		}
@@ -141,7 +141,7 @@ func imagesDeleteCommand(d *shared.Deps) *ffcli.Command {
 		if err := validateUUIDFlag(d, "--image-id", *imageID); err != nil {
 			return err
 		}
-		client, environment, err := resolveClient(ctx, common)
+		client, environment, err := resolveClient(ctx, d, common)
 		if err != nil {
 			return usageOrWrap(d, "storekit retention-messaging images delete", err)
 		}
@@ -174,7 +174,7 @@ func messagesListCommand(d *shared.Deps) *ffcli.Command {
 	common := bindCommonFlags(fs)
 	output := d.BindOutputFlags(fs)
 	return leafCommand("list", "asc storekit retention-messaging messages list --environment ENV [flags]", "List retention messages.", fs, func(ctx context.Context, args []string) error {
-		client, _, err := resolveClient(ctx, common)
+		client, _, err := resolveClient(ctx, d, common)
 		if err != nil {
 			return usageOrWrap(d, "storekit retention-messaging messages list", err)
 		}
@@ -212,7 +212,7 @@ func messagesUploadCommand(d *shared.Deps) *ffcli.Command {
 		if err != nil {
 			return d.UsageError(err.Error())
 		}
-		client, environment, err := resolveClient(ctx, common)
+		client, environment, err := resolveClient(ctx, d, common)
 		if err != nil {
 			return usageOrWrap(d, "storekit retention-messaging messages upload", err)
 		}
@@ -241,7 +241,7 @@ func messagesDeleteCommand(d *shared.Deps) *ffcli.Command {
 		if err := validateUUIDFlag(d, "--message-id", *messageID); err != nil {
 			return err
 		}
-		client, environment, err := resolveClient(ctx, common)
+		client, environment, err := resolveClient(ctx, d, common)
 		if err != nil {
 			return usageOrWrap(d, "storekit retention-messaging messages delete", err)
 		}
@@ -282,7 +282,7 @@ func defaultViewCommand(d *shared.Deps) *ffcli.Command {
 		if err := validateDefaultInvocation(d, *productID, *locale); err != nil {
 			return err
 		}
-		client, _, err := resolveClient(ctx, common)
+		client, _, err := resolveClient(ctx, d, common)
 		if err != nil {
 			return usageOrWrap(d, "storekit retention-messaging defaults view", err)
 		}
@@ -312,7 +312,7 @@ func defaultSetCommand(d *shared.Deps) *ffcli.Command {
 		if err := validateUUIDFlag(d, "--message-id", *messageID); err != nil {
 			return err
 		}
-		client, _, err := resolveClient(ctx, common)
+		client, _, err := resolveClient(ctx, d, common)
 		if err != nil {
 			return usageOrWrap(d, "storekit retention-messaging defaults set", err)
 		}
@@ -339,7 +339,7 @@ func defaultDeleteCommand(d *shared.Deps) *ffcli.Command {
 		if err := d.RequireConfirm(*confirm); err != nil {
 			return err
 		}
-		client, environment, err := resolveClient(ctx, common)
+		client, environment, err := resolveClient(ctx, d, common)
 		if err != nil {
 			return usageOrWrap(d, "storekit retention-messaging defaults delete", err)
 		}
@@ -373,7 +373,7 @@ func endpointViewCommand(d *shared.Deps) *ffcli.Command {
 	common := bindCommonFlags(fs)
 	output := d.BindOutputFlags(fs)
 	return leafCommand("view", "asc storekit retention-messaging endpoint view --environment ENV [flags]", "View the realtime retention endpoint URL.", fs, func(ctx context.Context, args []string) error {
-		client, _, err := resolveClient(ctx, common)
+		client, _, err := resolveClient(ctx, d, common)
 		if err != nil {
 			return usageOrWrap(d, "storekit retention-messaging endpoint view", err)
 		}
@@ -399,7 +399,7 @@ func endpointSetCommand(d *shared.Deps) *ffcli.Command {
 		if err := storekitapi.ValidateRealtimeURL(*realtimeURL); err != nil {
 			return d.UsageError("--url " + strings.TrimPrefix(err.Error(), "realtime URL "))
 		}
-		client, _, err := resolveClient(ctx, common)
+		client, _, err := resolveClient(ctx, d, common)
 		if err != nil {
 			return usageOrWrap(d, "storekit retention-messaging endpoint set", err)
 		}
@@ -422,7 +422,7 @@ func endpointDeleteCommand(d *shared.Deps) *ffcli.Command {
 		if err := d.RequireConfirm(*confirm); err != nil {
 			return err
 		}
-		client, environment, err := resolveClient(ctx, common)
+		client, environment, err := resolveClient(ctx, d, common)
 		if err != nil {
 			return usageOrWrap(d, "storekit retention-messaging endpoint delete", err)
 		}
@@ -473,7 +473,7 @@ func performanceStartCommand(d *shared.Deps) *ffcli.Command {
 				return err
 			}
 		}
-		client, err := resolveSandboxClient(ctx, common)
+		client, err := resolveSandboxClient(ctx, d, common)
 		if err != nil {
 			return usageOrWrap(d, "storekit retention-messaging performance start", err)
 		}
@@ -503,7 +503,7 @@ func performanceViewCommand(d *shared.Deps) *ffcli.Command {
 		if err := requireFlag(d, "--request-id", *requestID); err != nil {
 			return err
 		}
-		client, err := resolveSandboxClient(ctx, common)
+		client, err := resolveSandboxClient(ctx, d, common)
 		if err != nil {
 			return usageOrWrap(d, "storekit retention-messaging performance view", err)
 		}
@@ -534,7 +534,7 @@ func performanceWaitCommand(d *shared.Deps) *ffcli.Command {
 		if err := validateWaitDurations(d, *interval, *timeout); err != nil {
 			return err
 		}
-		client, err := resolveSandboxClient(ctx, common)
+		client, err := resolveSandboxClient(ctx, d, common)
 		if err != nil {
 			return usageOrWrap(d, "storekit retention-messaging performance wait", err)
 		}
@@ -578,7 +578,7 @@ func usageOrWrap(d *shared.Deps, command string, err error) error {
 	return fmt.Errorf("%s: %w", command, err)
 }
 
-func resolveSandboxClient(ctx context.Context, common commonFlags) (*storekitapi.Client, error) {
+func resolveSandboxClient(ctx context.Context, d *shared.Deps, common commonFlags) (*storekitapi.Client, error) {
 	environment, err := resolveEnvironment(common.Environment)
 	if err != nil {
 		return nil, err
@@ -586,7 +586,7 @@ func resolveSandboxClient(ctx context.Context, common commonFlags) (*storekitapi
 	if environment != storekitapi.Sandbox {
 		return nil, fmt.Errorf("performance tests require --environment sandbox")
 	}
-	client, _, err := resolveClient(ctx, common)
+	client, _, err := resolveClient(ctx, d, common)
 	return client, err
 }
 

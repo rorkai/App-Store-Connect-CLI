@@ -48,9 +48,7 @@ func TestStoreKitRetentionMessagingCommandTree(t *testing.T) {
 
 func TestStoreKitMessagesListSuccess(t *testing.T) {
 	setupStoreKitAuth(t)
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		if req.Method != http.MethodGet || req.URL.Host != "api.storekit-sandbox.apple.com" || req.URL.Path != "/inApps/v1/messaging/message/list" {
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
 		}
@@ -66,16 +64,10 @@ func TestStoreKitMessagesListSuccess(t *testing.T) {
 		}, nil
 	})
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"storekit", "retention-messaging", "messages", "list", "--environment", "sandbox", "--output", "json"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithHTTPTransport(t, unexpectedStoreKitASCClient(t), transport, "storekit", "retention-messaging", "messages", "list", "--environment", "sandbox", "--output", "json")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 	if stderr != "" {
 		t.Fatalf("stderr = %q", stderr)
 	}
@@ -133,9 +125,7 @@ func TestStoreKitAuthLoginStoresDedicatedProfile(t *testing.T) {
 func TestStoreKitAuthStatusValidatesEnvironmentCredentials(t *testing.T) {
 	setupStoreKitAuth(t)
 	requests := 0
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		requests++
 		return &http.Response{
 			StatusCode: http.StatusOK,
@@ -144,16 +134,10 @@ func TestStoreKitAuthStatusValidatesEnvironmentCredentials(t *testing.T) {
 		}, nil
 	})
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"storekit", "auth", "status", "--validate", "--environment", "sandbox", "--output", "json"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithHTTPTransport(t, unexpectedStoreKitASCClient(t), transport, "storekit", "auth", "status", "--validate", "--environment", "sandbox", "--output", "json")
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 	if stderr != "" || requests != 1 {
 		t.Fatalf("stderr=%q requests=%d", stderr, requests)
 	}
@@ -169,9 +153,7 @@ func TestStoreKitMessagesUploadSuccess(t *testing.T) {
 	if err := os.WriteFile(messagePath, []byte(messageJSON), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		if req.Method != http.MethodPut || req.URL.Path != "/inApps/v1/messaging/message/33333333-3333-4333-8333-333333333333" {
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
 		}
@@ -185,20 +167,15 @@ func TestStoreKitMessagesUploadSuccess(t *testing.T) {
 		return &http.Response{StatusCode: http.StatusOK, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(""))}, nil
 	})
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"storekit", "retention-messaging", "messages", "upload",
-			"--message-id", "33333333-3333-4333-8333-333333333333",
-			"--file", messagePath, "--environment", "sandbox", "--output", "json",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("run error: %v", err)
-		}
-	})
+	stdout, stderr, err := runRootWithHTTPTransport(
+		t, unexpectedStoreKitASCClient(t), transport,
+		"storekit", "retention-messaging", "messages", "upload",
+		"--message-id", "33333333-3333-4333-8333-333333333333",
+		"--file", messagePath, "--environment", "sandbox", "--output", "json",
+	)
+	if err != nil {
+		t.Fatalf("run error: %v", err)
+	}
 	if stderr != "" {
 		t.Fatalf("stderr = %q", stderr)
 	}
@@ -213,9 +190,7 @@ func TestStoreKitMessagesUploadSuccess(t *testing.T) {
 
 func TestStoreKitPerformanceWaitReturnsErrorForFailedTest(t *testing.T) {
 	setupStoreKitAuth(t)
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		if req.Method != http.MethodGet || req.URL.Path != "/inApps/v1/messaging/performanceTest/result/request-1" {
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
 		}
@@ -226,18 +201,11 @@ func TestStoreKitPerformanceWaitReturnsErrorForFailedTest(t *testing.T) {
 		}, nil
 	})
 
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{
-			"storekit", "retention-messaging", "performance", "wait",
-			"--request-id", "request-1", "--environment", "sandbox", "--output", "json",
-		}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
+	stdout, stderr, runErr := runRootWithHTTPTransport(
+		t, unexpectedStoreKitASCClient(t), transport,
+		"storekit", "retention-messaging", "performance", "wait",
+		"--request-id", "request-1", "--environment", "sandbox", "--output", "json",
+	)
 	if runErr == nil || !strings.Contains(runErr.Error(), `performance test "request-1" failed`) {
 		t.Fatalf("run error = %v", runErr)
 	}

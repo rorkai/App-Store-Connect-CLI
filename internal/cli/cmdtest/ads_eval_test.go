@@ -1,7 +1,6 @@
 package cmdtest
 
 import (
-	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -19,7 +18,7 @@ func TestAdsAuthDiscoverSummarizesMeAndAcls(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))
 
 	log := newRequestLog(2)
-	installDefaultTransport(t, adsRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+	transport := adsRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		assertAdsEvalBearer(t, req)
 		if req.URL.Host != "api.ads.apple.com" {
 			t.Fatalf("unexpected auth discovery host %q", req.URL.Host)
@@ -37,9 +36,9 @@ func TestAdsAuthDiscoverSummarizesMeAndAcls(t *testing.T) {
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
 			return nil, nil
 		}
-	}))
+	})
 
-	stdout, stderr, err := runAdsEvalCommand(t, "ads", "auth", "discover", "--output", "json")
+	stdout, stderr, err := runRootWithHTTPTransport(t, nil, transport, "ads", "auth", "discover", "--output", "json")
 	if err != nil {
 		t.Fatalf("discover error: %v\nstderr: %s", err, stderr)
 	}
@@ -97,16 +96,16 @@ func TestAdsPlatformAdAccountViewUsesOneValueForPathAndContext(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))
 
 	seen := []string{}
-	installDefaultTransport(t, adsRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+	transport := adsRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		seen = append(seen, req.URL.Path+" "+req.Header.Get("X-AP-Context"))
 		return adsJSONResponse(`{"result":{"id":123}}`), nil
-	}))
+	})
 
 	for _, args := range [][]string{
 		{"ads", "ad-accounts", "view", "--output", "json"},
 		{"ads", "ad-accounts", "view", "--ad-account", "456", "--output", "json"},
 	} {
-		stdout, stderr, err := runAdsEvalCommand(t, args...)
+		stdout, stderr, err := runRootWithHTTPTransport(t, nil, transport, args...)
 		if err != nil || stderr != "" || !json.Valid([]byte(stdout)) {
 			t.Fatalf("asc %s stdout=%q stderr=%q error=%v", strings.Join(args, " "), stdout, stderr, err)
 		}
@@ -124,7 +123,7 @@ func TestAdsAuthDiscoverTableShowsUserAndAccounts(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))
 
 	log := newRequestLog(2)
-	installDefaultTransport(t, adsRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+	transport := adsRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		assertAdsEvalBearer(t, req)
 		if req.URL.Host != "api.ads.apple.com" {
 			t.Fatalf("unexpected auth discovery host %q", req.URL.Host)
@@ -142,9 +141,9 @@ func TestAdsAuthDiscoverTableShowsUserAndAccounts(t *testing.T) {
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
 			return nil, nil
 		}
-	}))
+	})
 
-	stdout, stderr, err := runAdsEvalCommand(t, "ads", "auth", "discover")
+	stdout, stderr, err := runRootWithHTTPTransport(t, nil, transport, "ads", "auth", "discover")
 	if err != nil {
 		t.Fatalf("discover table error: %v\nstderr: %s", err, stderr)
 	}
@@ -174,7 +173,7 @@ func TestAdsAuthDiscoverAcceptsRealMeFieldsAndSingletonACL(t *testing.T) {
 	t.Setenv("ASC_ADS_AD_ACCOUNT_ID", "111")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))
 
-	installDefaultTransport(t, adsRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+	transport := adsRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		assertAdsEvalBearer(t, req)
 		if req.URL.Host != "api.ads.apple.com" {
 			t.Fatalf("unexpected auth discovery host %q", req.URL.Host)
@@ -191,9 +190,9 @@ func TestAdsAuthDiscoverAcceptsRealMeFieldsAndSingletonACL(t *testing.T) {
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
 			return nil, nil
 		}
-	}))
+	})
 
-	stdout, stderr, err := runAdsEvalCommand(t, "ads", "auth", "discover")
+	stdout, stderr, err := runRootWithHTTPTransport(t, nil, transport, "ads", "auth", "discover")
 	if err != nil {
 		t.Fatalf("discover table error: %v\nstderr: %s", err, stderr)
 	}
@@ -237,7 +236,7 @@ func TestAdsAuthDiscoverRejectsMalformedDiscoveryResponses(t *testing.T) {
 			isolateAdsGuideEnv(t)
 			t.Setenv("ASC_ADS_ACCESS_TOKEN", "ACCESS")
 			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))
-			installDefaultTransport(t, adsRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+			transport := adsRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 				assertAdsEvalBearer(t, req)
 				if req.URL.Host != "api.ads.apple.com" {
 					t.Fatalf("unexpected auth discovery host %q", req.URL.Host)
@@ -266,9 +265,9 @@ func TestAdsAuthDiscoverRejectsMalformedDiscoveryResponses(t *testing.T) {
 					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
 					return nil, nil
 				}
-			}))
+			})
 
-			stdout, stderr, err := runAdsEvalCommand(t, "ads", "auth", "discover", "--output", "json")
+			stdout, stderr, err := runRootWithHTTPTransport(t, nil, transport, "ads", "auth", "discover", "--output", "json")
 			if err == nil || !strings.Contains(err.Error(), test.wantErr) {
 				t.Fatalf("error = %v, want %q", err, test.wantErr)
 			}
@@ -286,7 +285,7 @@ func TestAdsAuthDiscoverContinuesWhenOptionalOrgConfigIsInvalid(t *testing.T) {
 	configPath := writeAdsEvalPayload(t, "config.json", `{"ads":`)
 	t.Setenv("ASC_CONFIG_PATH", configPath)
 
-	installDefaultTransport(t, adsRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+	transport := adsRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		assertAdsEvalBearer(t, req)
 		if req.URL.Host != "api.ads.apple.com" {
 			t.Fatalf("unexpected auth discovery host %q", req.URL.Host)
@@ -303,9 +302,9 @@ func TestAdsAuthDiscoverContinuesWhenOptionalOrgConfigIsInvalid(t *testing.T) {
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
 			return nil, nil
 		}
-	}))
+	})
 
-	stdout, stderr, err := runAdsEvalCommand(t, "ads", "auth", "discover", "--output", "json")
+	stdout, stderr, err := runRootWithHTTPTransport(t, nil, transport, "ads", "auth", "discover", "--output", "json")
 	if err != nil {
 		t.Fatalf("discover error: %v\nstderr: %s", err, stderr)
 	}
@@ -329,21 +328,6 @@ func TestAdsAuthDiscoverContinuesWhenOptionalOrgConfigIsInvalid(t *testing.T) {
 	if len(result.Accounts) != 1 || result.Accounts[0].AdAccountID != "111" || result.Accounts[0].OrgID != "987654" {
 		t.Fatalf("accounts = %+v, want discovered account despite invalid config", result.Accounts)
 	}
-}
-
-func runAdsEvalCommand(t *testing.T, args ...string) (string, string, error) {
-	t.Helper()
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		root := RootCommand("dev")
-		if err := root.Parse(args); err != nil {
-			runErr = err
-			return
-		}
-		runErr = root.Run(context.Background())
-	})
-	return stdout, stderr, runErr
 }
 
 func writeAdsEvalPayload(t *testing.T, name string, body string) string {

@@ -66,6 +66,21 @@ func runRootWithDeps(t *testing.T, client func() (*asc.Client, error), args ...s
 	return stdout.String(), stderr.String(), err
 }
 
+// runRootWithHTTPTransport is runRootWithDeps whose clients for services other
+// than App Store Connect send every request to rt.
+func runRootWithHTTPTransport(t *testing.T, client func() (*asc.Client, error), rt http.RoundTripper, args ...string) (string, string, error) {
+	t.Helper()
+
+	d, stdout, stderr := newTestDeps(t, client)
+	d.HTTPTransport = func() http.RoundTripper { return rt }
+	root := rootcmd.RootCommandWithDeps("1.2.3", d)
+	if err := root.Parse(args); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	err := root.Run(context.Background())
+	return stdout.String(), stderr.String(), err
+}
+
 // runWithDeps runs args through rootcmd.RunWithDeps on test deps and returns
 // what was written to the deps' stdout and stderr, and the exit code. Only
 // commands built on shared.Deps use client and write to these streams.
@@ -93,6 +108,7 @@ func newTestDeps(t *testing.T, client func() (*asc.Client, error)) (*shared.Deps
 		ResolveTimeout: shared.ResolveTimeoutSetting,
 		After:          time.After,
 		Getwd:          os.Getwd,
+		HTTPTransport:  func() http.RoundTripper { return http.DefaultTransport },
 	}, &stdout, &stderr
 }
 

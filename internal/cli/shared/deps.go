@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"time"
 
@@ -29,7 +30,8 @@ type IO struct {
 // timer a command waits on, as time.After. Getwd is the working directory a
 // command reads explicitly, as os.Getwd; relative paths a command passes to
 // the operating system or to filepath.Abs still resolve against the process
-// directory.
+// directory. HTTPTransport is the transport of the clients a command builds
+// for services other than the App Store Connect API.
 type Deps struct {
 	Client         func() (*asc.Client, error)
 	IO             *IO
@@ -41,12 +43,14 @@ type Deps struct {
 	After func(time.Duration) <-chan time.Time
 
 	Getwd func() (string, error)
+
+	HTTPTransport func() http.RoundTripper
 }
 
 // DefaultDeps returns the dependencies of a normal run: the shared client
 // factory, the process streams, the system clock and timers, the timeouts
-// from the environment and the config file, and the process working
-// directory.
+// from the environment and the config file, the process working directory,
+// and the process HTTP transport.
 func DefaultDeps() *Deps {
 	return &Deps{
 		Client: GetASCClient,
@@ -66,7 +70,15 @@ func DefaultDeps() *Deps {
 		After: time.After,
 
 		Getwd: os.Getwd,
+
+		HTTPTransport: processHTTPTransport,
 	}
+}
+
+// processHTTPTransport returns http.DefaultTransport when a client is built,
+// the transport an http.Client without one sends through.
+func processHTTPTransport() http.RoundTripper {
+	return http.DefaultTransport
 }
 
 // stdinTerminal reports whether s.In is a terminal. The process stdin reader

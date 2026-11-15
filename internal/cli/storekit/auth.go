@@ -102,7 +102,7 @@ Examples:
 				KeyID: cleanKeyID, IssuerID: cleanIssuerID, PrivateKeyPath: cleanPrivateKey, BundleID: cleanBundleID,
 			}
 			if !*skipValidation {
-				localClient, err := storekitapi.NewClient(credentials, storekitapi.Sandbox)
+				localClient, err := storekitapi.NewClient(credentials, storekitapi.Sandbox, storekitapi.WithTransport(d.HTTPTransport()))
 				if err != nil {
 					return fmt.Errorf("storekit auth login: %w", err)
 				}
@@ -115,7 +115,7 @@ Examples:
 				if err != nil {
 					return d.UsageError(err.Error())
 				}
-				client, err := storekitapi.NewClient(credentials, target)
+				client, err := storekitapi.NewClient(credentials, target, storekitapi.WithTransport(d.HTTPTransport()))
 				if err != nil {
 					return fmt.Errorf("storekit auth login: %w", err)
 				}
@@ -218,7 +218,7 @@ Examples:
 				result.Environment = string(target)
 				failures := 0
 				for _, credential := range credentials {
-					client, clientErr := storekitapi.NewClient(credential.Credentials, target)
+					client, clientErr := storekitapi.NewClient(credential.Credentials, target, storekitapi.WithTransport(d.HTTPTransport()))
 					if clientErr == nil {
 						requestCtx, cancel := d.Timeout(ctx)
 						_, clientErr = client.ListMessages(requestCtx)
@@ -282,7 +282,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			client, environment, err := resolveClient(ctx, common)
+			client, environment, err := resolveClient(ctx, d, common)
 			if err != nil {
 				return usageOrWrap(d, "storekit auth doctor", err)
 			}

@@ -19,7 +19,7 @@ func TestAdsAuthNetworkValidationUsesPlatformV1(t *testing.T) {
 	t.Setenv("ASC_ADS_BYPASS_KEYCHAIN", "1")
 
 	seenMe := 0
-	installDefaultTransport(t, adsRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+	transport := adsRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch req.URL.Path {
 		case "/auth/oauth2/token":
 			return adsJSONResponse(`{"access_token":"ACCESS","token_type":"Bearer","expires_in":3600}`), nil
@@ -33,10 +33,12 @@ func TestAdsAuthNetworkValidationUsesPlatformV1(t *testing.T) {
 			t.Fatalf("unexpected auth validation request: %s %s", req.Method, req.URL.String())
 			return nil, nil
 		}
-	}))
+	})
 
-	_, stderr, err := runAdsEvalCommand(
+	_, stderr, err := runRootWithHTTPTransport(
 		t,
+		nil,
+		transport,
 		"ads", "auth", "login",
 		"--bypass-keychain",
 		"--name", "Marketing",
@@ -49,7 +51,7 @@ func TestAdsAuthNetworkValidationUsesPlatformV1(t *testing.T) {
 	if err != nil || stderr != "" {
 		t.Fatalf("network login stderr=%q error=%v", stderr, err)
 	}
-	_, stderr, err = runAdsEvalCommand(t, "ads", "auth", "status", "--validate", "--output", "json")
+	_, stderr, err = runRootWithHTTPTransport(t, nil, transport, "ads", "auth", "status", "--validate", "--output", "json")
 	if err != nil || stderr != "" {
 		t.Fatalf("validated status stderr=%q error=%v", stderr, err)
 	}
