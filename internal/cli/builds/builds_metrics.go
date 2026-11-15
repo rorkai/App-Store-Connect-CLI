@@ -40,7 +40,7 @@ Examples:
 func BuildsMetricsBetaUsagesCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("metrics beta-usages", flag.ExitOnError)
 
-	selectors := bindBuildSelectorFlags(fs, buildSelectorFlagOptions{})
+	selectors := bindBuildSelectorFlags(shared.DefaultDeps(), fs, buildSelectorFlagOptions{})
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
 	output := shared.BindOutputFlags(fs)

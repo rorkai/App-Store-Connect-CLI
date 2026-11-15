@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"math"
-	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -23,9 +22,9 @@ type buildExpireCandidate struct {
 	ageDays    int
 }
 
-// BuildsExpireAllCommand returns a command to batch expire builds.
-func BuildsExpireAllCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("builds expire-all", flag.ExitOnError)
+// newBuildsExpireAllCommand returns a command to batch expire builds.
+func newBuildsExpireAllCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("builds expire-all", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (required, or ASC_APP_ID env)")
 	version := fs.String("version", "", "Only consider builds of this marketing version (CFBundleShortVersionString)")
@@ -33,7 +32,7 @@ func BuildsExpireAllCommand() *ffcli.Command {
 	keepLatest := fs.Int("keep-latest", 0, "Keep the N most recent builds")
 	dryRun := fs.Bool("dry-run", false, "Preview builds that would be expired without expiring")
 	confirm := fs.Bool("confirm", false, "Confirm expiration (required unless --dry-run)")
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "expire-all",
@@ -63,42 +62,42 @@ Examples:
   asc builds expire-all --app "123456789" --version "1.2.3" --older-than 30d --confirm
   asc builds expire-all --app "123456789" --older-than "2025-01-01" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
-				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
+				fmt.Fprintf(d.IO.ErrOut, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return shared.MissingRequiredUsageError("--app")
 			}
 
 			versionValue := strings.TrimSpace(*version)
 			if versionValue == "" && flagProvided(fs, "version") {
-				return shared.UsageErrorf("builds expire-all: --version must not be empty")
+				return d.UsageErrorf("builds expire-all: --version must not be empty")
 			}
 
 			olderThanValue := strings.TrimSpace(*olderThan)
 			if olderThanValue == "" && *keepLatest == 0 {
-				fmt.Fprintln(os.Stderr, "Error: --older-than or --keep-latest is required")
+				fmt.Fprintln(d.IO.ErrOut, "Error: --older-than or --keep-latest is required")
 				return shared.MissingRequiredUsageError("")
 			}
 			if *keepLatest < 0 {
-				return shared.UsageError("builds expire-all: --keep-latest must be greater than or equal to 0")
+				return d.UsageError("builds expire-all: --keep-latest must be greater than or equal to 0")
 			}
-			if err := shared.RequireConfirmUnlessDryRun(*dryRun, *confirm); err != nil {
+			if err := d.RequireConfirmUnlessDryRun(*dryRun, *confirm); err != nil {
 				return err
 			}
 
-			now := time.Now().UTC()
+			now := d.Now().UTC()
 			var olderThanThreshold time.Time
 			if olderThanValue != "" {
 				threshold, err := parseOlderThanThreshold(olderThanValue, now)
 				if err != nil {
-					return shared.UsageErrorf("builds expire-all: %v", err)
+					return d.UsageErrorf("builds expire-all: %v", err)
 				}
 				olderThanThreshold = threshold
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("builds expire-all: %w", err)
 			}
@@ -108,8 +107,8 @@ Examples:
 			filterOpts := []asc.BuildsOption{}
 			versionMatchedNoTrain := false
 			if versionValue != "" {
-				lookupCtx, lookupCancel := shared.ContextWithTimeout(ctx)
-				preReleaseVersionIDs, lookupErr := shared.FindPreReleaseVersionIDs(lookupCtx, client, resolvedAppID, versionValue, "")
+				lookupCtx, lookupCancel := d.Timeout(ctx)
+				preReleaseVersionIDs, lookupErr := d.FindPreReleaseVersionIDs(lookupCtx, client, resolvedAppID, versionValue, "")
 				lookupCancel()
 				if lookupErr != nil {
 					return fmt.Errorf("builds expire-all: %w", lookupErr)
@@ -123,7 +122,7 @@ Examples:
 
 			var fetchedBuilds []asc.Resource[asc.BuildAttributes]
 			if !versionMatchedNoTrain {
-				fetchedBuilds, err = fetchBuildExpireAllCandidates(ctx, client, resolvedAppID, filterOpts)
+				fetchedBuilds, err = fetchBuildExpireAllCandidates(ctx, d, client, resolvedAppID, filterOpts)
 				if err != nil {
 					return err
 				}
@@ -140,7 +139,7 @@ Examples:
 				uploadedAt, err := shared.ParseBuildTimestamp(item.Attributes.UploadedDate)
 				if err != nil {
 					skippedInvalid++
-					fmt.Fprintf(os.Stderr, "Warning: build %s has invalid uploadedDate %q: %v\n", item.ID, item.Attributes.UploadedDate, err)
+					fmt.Fprintf(d.IO.ErrOut, "Warning: build %s has invalid uploadedDate %q: %v\n", item.ID, item.Attributes.UploadedDate, err)
 					continue
 				}
 				ageDays := max(int(now.Sub(uploadedAt).Hours()/24), 0)
@@ -184,7 +183,7 @@ Examples:
 					continue
 				}
 
-				requestCtx, cancel := shared.ContextWithTimeout(ctx)
+				requestCtx, cancel := d.Timeout(ctx)
 				_, expireErr := client.ExpireBuild(requestCtx, candidate.resource.ID)
 				cancel()
 				if expireErr != nil {
@@ -243,7 +242,7 @@ Examples:
 				Failures:            failures,
 			}
 
-			if err := shared.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
+			if err := d.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
 				return err
 			}
 
@@ -260,6 +259,7 @@ Examples:
 // uploaded first, so selection and --keep-latest operate on the same ordering.
 func fetchBuildExpireAllCandidates(
 	ctx context.Context,
+	d *shared.Deps,
 	client *asc.Client,
 	appID string,
 	filterOpts []asc.BuildsOption,
@@ -269,7 +269,7 @@ func fetchBuildExpireAllCandidates(
 		asc.WithBuildsSort("-uploadedDate"),
 	}, filterOpts...)
 
-	firstPageCtx, firstPageCancel := shared.ContextWithTimeout(ctx)
+	firstPageCtx, firstPageCancel := d.Timeout(ctx)
 	firstPage, err := client.GetBuilds(firstPageCtx, appID, opts...)
 	firstPageCancel()
 	if err != nil {
@@ -277,7 +277,7 @@ func fetchBuildExpireAllCandidates(
 	}
 
 	allPages, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		requestCtx, cancel := shared.ContextWithTimeout(ctx)
+		requestCtx, cancel := d.Timeout(ctx)
 		defer cancel()
 		return client.GetBuilds(requestCtx, appID, asc.NextURL[asc.BuildsOption](nextURL))
 	})

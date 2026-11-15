@@ -166,12 +166,14 @@ func includedFieldsCases() []includedFieldsCase {
 			command: []string{"builds", "list"}, selector: []string{"--app", "123456789"},
 			include: buildIncludes, path: "/v1/builds", query: map[string]string{"filter[app]": "123456789"},
 			flags: buildIncludedFieldFlags, alwaysIncluded: []string{"pre-release-version-fields"},
+			deps: true,
 		},
 		{
 			name: "builds info", operation: "builds_getInstance", resource: true, noNext: true,
 			command: []string{"builds", "info"}, selector: []string{"--build-id", "build-1"},
 			include: buildIncludes, path: "/v1/builds/build-1",
 			flags: buildIncludedFieldFlags,
+			deps:  true,
 		},
 		{
 			name: "versions list", operation: "apps_appStoreVersions_getToManyRelated",

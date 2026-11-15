@@ -92,7 +92,7 @@ Examples:
 				return shared.UsageErrorf("builds test-notes list: %v", err)
 			}
 			if strings.TrimSpace(*next) == "" {
-				if err := validateResolveBuildOptions(selectors.resolveOptions()); err != nil {
+				if err := validateResolveBuildOptions(shared.DefaultDeps(), selectors.resolveOptions()); err != nil {
 					return fmt.Errorf("builds test-notes list: %w", err)
 				}
 			} else if err := selectors.validateNextPageSelectorFlags(); err != nil {
@@ -244,7 +244,7 @@ Examples:
 			if err := shared.ValidateBuildLocalizationLocale(localeValue); err != nil {
 				return shared.UsageErrorf("builds test-notes create: %v", err)
 			}
-			if err := validateResolveBuildOptions(selectors.resolveOptions()); err != nil {
+			if err := validateResolveBuildOptions(shared.DefaultDeps(), selectors.resolveOptions()); err != nil {
 				return fmt.Errorf("builds test-notes create: %w", err)
 			}
 
@@ -423,7 +423,7 @@ Examples:
 
 func bindTestNotesBuildSelectorFlags(fs *flag.FlagSet) testNotesBuildSelectorFlags {
 	return testNotesBuildSelectorFlags{
-		buildSelectorFlags: bindBuildSelectorFlags(fs, buildSelectorFlagOptions{
+		buildSelectorFlags: bindBuildSelectorFlags(shared.DefaultDeps(), fs, buildSelectorFlagOptions{
 			buildIDUsage:     "Build ID",
 			appUsage:         "App ID, bundle ID, or app name (or ASC_APP_ID)",
 			latestUsage:      "Resolve the latest matching build for --app context",
@@ -446,14 +446,14 @@ func (f testNotesBuildSelectorFlags) hasAnyInputs() bool {
 
 func (f testNotesBuildSelectorFlags) resolveBuild(ctx context.Context, client *asc.Client) (*asc.BuildResponse, error) {
 	opts := f.resolveOptions()
-	if err := validateResolveBuildOptions(opts); err != nil {
+	if err := validateResolveBuildOptions(shared.DefaultDeps(), opts); err != nil {
 		return nil, err
 	}
 
 	requestCtx, cancel := shared.ContextWithTimeout(ctx)
 	defer cancel()
 
-	return ResolveBuild(requestCtx, client, opts)
+	return ResolveBuild(requestCtx, shared.DefaultDeps(), client, opts)
 }
 
 func validateTestNotesLocalizationTarget(command, localizationID, locale string, selectors testNotesBuildSelectorFlags) error {
@@ -471,7 +471,7 @@ func validateTestNotesLocalizationTarget(command, localizationID, locale string,
 	if err := shared.ValidateBuildLocalizationLocale(localeValue); err != nil {
 		return shared.UsageErrorf("%s: %v", command, err)
 	}
-	return validateResolveBuildOptions(selectors.resolveOptions())
+	return validateResolveBuildOptions(shared.DefaultDeps(), selectors.resolveOptions())
 }
 
 func resolveTestNotesLocalization(ctx context.Context, client *asc.Client, selectors testNotesBuildSelectorFlags, locale string) (*asc.BetaBuildLocalizationResponse, error) {

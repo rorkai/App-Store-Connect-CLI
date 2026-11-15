@@ -76,7 +76,7 @@ Examples:
 func BuildsRelationshipsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("links view", flag.ExitOnError)
 
-	selectors := bindBuildSelectorFlags(fs, buildSelectorFlagOptions{})
+	selectors := bindBuildSelectorFlags(shared.DefaultDeps(), fs, buildSelectorFlagOptions{})
 	relType := fs.String("type", "", shared.RelationshipTypeFlagUsage(buildRelationshipList()))
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)

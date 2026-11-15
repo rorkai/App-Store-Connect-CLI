@@ -38,7 +38,7 @@ Examples:
 func BuildsAppEncryptionDeclarationViewCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("app-encryption-declaration view", flag.ExitOnError)
 
-	selectors := bindBuildSelectorFlags(fs, buildSelectorFlagOptions{})
+	selectors := bindBuildSelectorFlags(shared.DefaultDeps(), fs, buildSelectorFlagOptions{})
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{

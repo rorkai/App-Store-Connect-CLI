@@ -57,6 +57,7 @@ func TestUnknownFlagSuggestsTheIntendedFlag(t *testing.T) {
 			want: "Error: unknown flag `--file` for `asc builds upload`\n" +
 				"Try:\n  --ipa\n  --pkg\n" +
 				"For help:\n  asc builds upload --help\n",
+			deps: true,
 		},
 		{
 			name: "review details-get --version-id",

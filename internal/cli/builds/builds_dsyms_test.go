@@ -144,7 +144,8 @@ func TestDsymFileName(t *testing.T) {
 }
 
 func TestResolveBuildOptions_RequiresInput(t *testing.T) {
-	_, err := ResolveBuild(t.Context(), nil, ResolveBuildOptions{})
+	d, _ := newBuildsTestDeps(nil)
+	_, err := ResolveBuild(t.Context(), d, nil, ResolveBuildOptions{})
 	if err == nil {
 		t.Fatal("expected error for empty options")
 	}
@@ -152,7 +153,8 @@ func TestResolveBuildOptions_RequiresInput(t *testing.T) {
 
 func TestResolveBuildOptions_RejectsConflictingSelectors(t *testing.T) {
 	t.Run("latest + build-number", func(t *testing.T) {
-		_, err := ResolveBuild(t.Context(), nil, ResolveBuildOptions{
+		d, _ := newBuildsTestDeps(nil)
+		_, err := ResolveBuild(t.Context(), d, nil, ResolveBuildOptions{
 			AppID:       "app-1",
 			Latest:      true,
 			BuildNumber: "42",
@@ -163,7 +165,8 @@ func TestResolveBuildOptions_RejectsConflictingSelectors(t *testing.T) {
 	})
 
 	t.Run("build + app selectors", func(t *testing.T) {
-		_, err := ResolveBuild(t.Context(), nil, ResolveBuildOptions{
+		d, _ := newBuildsTestDeps(nil)
+		_, err := ResolveBuild(t.Context(), d, nil, ResolveBuildOptions{
 			BuildID: "build-1",
 			AppID:   "app-1",
 			Latest:  true,
@@ -177,7 +180,8 @@ func TestResolveBuildOptions_RejectsConflictingSelectors(t *testing.T) {
 func TestValidateResolveBuildOptions_BuildIgnoresDefaultAppID(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "default-app")
 
-	err := validateResolveBuildOptions(ResolveBuildOptions{
+	d, _ := newBuildsTestDeps(nil)
+	err := validateResolveBuildOptions(d, ResolveBuildOptions{
 		BuildID: "build-1",
 	})
 	if err != nil {

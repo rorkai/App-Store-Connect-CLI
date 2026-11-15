@@ -43,6 +43,7 @@ func TestSelfLinkCoverageSendsExtractedID(t *testing.T) {
 				"/v1/builds/build-1":                   `{"data":{"type":"builds","id":"build-1","attributes":{"version":"9","processingState":"VALID","expired":false}}}`,
 				"/v1/builds/build-1/preReleaseVersion": `{"data":{"type":"preReleaseVersions","id":"prv-1","attributes":{"version":"1.2.3","platform":"IOS"}}}`,
 			},
+			deps: true,
 		},
 		{
 			name:     "versions view with query string",

@@ -1,6 +1,7 @@
 package cmdtest
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"io"
@@ -13,7 +14,7 @@ import (
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/builds"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // Recorded App Store Connect responses for a build whose upload is still
@@ -155,38 +156,42 @@ type buildsWaitPendingJSON struct {
 	ResumeCommand   string                       `json:"resumeCommand"`
 }
 
-// useBuildsWaitFakeClock makes every builds wait clock reading after the first
-// one land 50 seconds later, so reported elapsed times are deterministic while
-// the wait itself still expires on its real (millisecond) deadline.
-func useBuildsWaitFakeClock(t *testing.T) {
-	t.Helper()
-
-	start := time.Date(2026, time.September, 30, 10, 0, 0, 0, time.UTC)
-	var mu sync.Mutex
-	calls := 0
-	restore := builds.SetWaitClockForTesting(func() time.Time {
-		mu.Lock()
-		defer mu.Unlock()
-		calls++
-		if calls == 1 {
-			return start
-		}
-		return start.Add(50 * time.Second)
-	})
-	t.Cleanup(restore)
+// buildsWaitFakeClock reads a fixed start until the fake API answers its first
+// request and 50 seconds later from then on, so reported elapsed times are
+// deterministic while the wait itself still expires on its real (millisecond)
+// deadline.
+type buildsWaitFakeClock struct {
+	mu        sync.Mutex
+	requested bool
 }
 
-// serveBuildsWaitRecordedResponses answers GET requests from recorded bodies
-// keyed by path and fails the test on any other request.
-func serveBuildsWaitRecordedResponses(t *testing.T, responses map[string]string, inspect func(*http.Request)) {
+func (c *buildsWaitFakeClock) now() time.Time {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	start := time.Date(2026, time.September, 30, 10, 0, 0, 0, time.UTC)
+	if !c.requested {
+		return start
+	}
+	return start.Add(50 * time.Second)
+}
+
+// advanceOnRequest returns rt with the clock moved forward before the first
+// request it sends.
+func (c *buildsWaitFakeClock) advanceOnRequest(rt http.RoundTripper) http.RoundTripper {
+	return roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		c.mu.Lock()
+		c.requested = true
+		c.mu.Unlock()
+		return rt.RoundTrip(req)
+	})
+}
+
+// buildsWaitRecordedResponses answers GET requests from recorded bodies keyed
+// by path and fails the test on any other request.
+func buildsWaitRecordedResponses(t *testing.T, responses map[string]string, inspect func(*http.Request)) http.RoundTripper {
 	t.Helper()
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	return roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		if req.Method != http.MethodGet {
 			t.Errorf("unexpected %s %s", req.Method, req.URL.String())
 		}
@@ -211,14 +216,23 @@ func serveBuildsWaitRecordedResponses(t *testing.T, responses map[string]string,
 	})
 }
 
-func runBuildsWaitPending(t *testing.T, args []string) (string, string, int) {
+// newBuildsWaitPendingDeps returns test deps whose client sends every request
+// to rt and whose clock is a buildsWaitFakeClock.
+func newBuildsWaitPendingDeps(t *testing.T, rt http.RoundTripper) (*shared.Deps, *bytes.Buffer, *bytes.Buffer) {
 	t.Helper()
 
-	var code int
-	stdout, stderr := captureOutput(t, func() {
-		code = cmd.Run(args, "1.0.0")
-	})
-	return stdout, stderr, code
+	clock := &buildsWaitFakeClock{}
+	d, stdout, stderr := newTestDeps(t, stubClient(t, clock.advanceOnRequest(rt)))
+	d.Now = clock.now
+	return d, stdout, stderr
+}
+
+func runBuildsWaitPending(t *testing.T, rt http.RoundTripper, args []string) (string, string, int) {
+	t.Helper()
+
+	d, stdout, stderr := newBuildsWaitPendingDeps(t, rt)
+	code := cmd.RunWithDeps(args, "1.0.0", d)
+	return stdout.String(), stderr.String(), code
 }
 
 func parseBuildsWaitPending(t *testing.T, stdout string) buildsWaitPendingJSON {
@@ -238,7 +252,6 @@ func setupBuildsWaitPendingTest(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_MAX_RETRIES", "0")
-	useBuildsWaitFakeClock(t)
 }
 
 func TestBuildsWaitReportPendingDuringDiscoveryReportsVisibleUpload(t *testing.T) {
@@ -246,7 +259,7 @@ func TestBuildsWaitReportPendingDuringDiscoveryReportsVisibleUpload(t *testing.T
 
 	var uploadQueries []string
 	var mu sync.Mutex
-	serveBuildsWaitRecordedResponses(t, map[string]string{
+	api := buildsWaitRecordedResponses(t, map[string]string{
 		"/v1/preReleaseVersions":          buildsWaitPendingEmptyCollection,
 		"/v1/apps/123456789/buildUploads": buildsWaitPendingUploadProcessing,
 	}, func(req *http.Request) {
@@ -257,7 +270,7 @@ func TestBuildsWaitReportPendingDuringDiscoveryReportsVisibleUpload(t *testing.T
 		}
 	})
 
-	stdout, stderr, code := runBuildsWaitPending(t, []string{
+	stdout, stderr, code := runBuildsWaitPending(t, api, []string{
 		"builds", "wait",
 		"--app", "123456789",
 		"--build-number", "78",
@@ -366,7 +379,7 @@ func TestBuildsWaitReportPendingDuringDiscoveryWithoutVisibleUpload(t *testing.T
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			setupBuildsWaitPendingTest(t)
-			serveBuildsWaitRecordedResponses(t, map[string]string{
+			api := buildsWaitRecordedResponses(t, map[string]string{
 				"/v1/builds":                      buildsWaitPendingEmptyCollection,
 				"/v1/apps/123456789/buildUploads": test.uploads,
 			}, nil)
@@ -380,7 +393,7 @@ func TestBuildsWaitReportPendingDuringDiscoveryWithoutVisibleUpload(t *testing.T
 				"--report-pending",
 			}
 			args = append(args, test.extraArgs...)
-			stdout, stderr, code := runBuildsWaitPending(t, args)
+			stdout, stderr, code := runBuildsWaitPending(t, api, args)
 
 			if code != cmd.ExitPending {
 				t.Fatalf("exit code = %d, want %d; stderr=%q", code, cmd.ExitPending, stderr)
@@ -415,15 +428,10 @@ func TestBuildsWaitReportPendingDuringDiscoveryWithoutVisibleUpload(t *testing.T
 func TestBuildsWaitDiscoveryIgnoresBuildUploadLookupFailures(t *testing.T) {
 	setupBuildsWaitPendingTest(t)
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
 	var mu sync.Mutex
 	buildPolls := 0
 	uploadReads := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	api := roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		mu.Lock()
 		defer mu.Unlock()
 		switch req.URL.Path {
@@ -447,7 +455,7 @@ func TestBuildsWaitDiscoveryIgnoresBuildUploadLookupFailures(t *testing.T) {
 		}
 	})
 
-	stdout, stderr, code := runBuildsWaitPending(t, []string{
+	stdout, stderr, code := runBuildsWaitPending(t, api, []string{
 		"builds", "wait",
 		"--app", "123456789",
 		"--latest",
@@ -472,35 +480,35 @@ func TestBuildsWaitDiscoveryIgnoresBuildUploadLookupFailures(t *testing.T) {
 
 func TestBuildsWaitReportPendingDuringProcessingResumesByBuildID(t *testing.T) {
 	setupBuildsWaitPendingTest(t)
-	serveBuildsWaitRecordedResponses(t, map[string]string{
+	api := buildsWaitRecordedResponses(t, map[string]string{
 		"/v1/builds":          buildsWaitPendingBuildsProcessing,
 		"/v1/builds/build-99": buildsWaitPendingBuildProcessing,
 	}, nil)
 
+	d, stdoutBuf, stderrBuf := newBuildsWaitPendingDeps(t, api)
 	var code int
 	// The --timeout deadline runs on the bubble's fake clock, so host load
 	// cannot expire it before discovery observes the processing build.
-	stdout, stderr := captureOutput(t, func() {
-		synctest.Test(t, func(t *testing.T) {
-			root := RootCommand("1.0.0")
-			root.FlagSet.SetOutput(io.Discard)
-			err := root.Parse([]string{
-				"builds", "wait",
-				"--app", "123456789",
-				"--latest",
-				"--timeout", "200ms",
-				"--poll-interval", "20ms",
-				"--fail-on-invalid",
-				"--report-pending",
-				"--output", "json",
-				"--pretty",
-			})
-			if err == nil {
-				err = root.Run(context.Background())
-			}
-			code = cmd.ExitCodeFromError(err)
+	synctest.Test(t, func(t *testing.T) {
+		root := cmd.RootCommandWithDeps("1.0.0", d)
+		root.FlagSet.SetOutput(io.Discard)
+		err := root.Parse([]string{
+			"builds", "wait",
+			"--app", "123456789",
+			"--latest",
+			"--timeout", "200ms",
+			"--poll-interval", "20ms",
+			"--fail-on-invalid",
+			"--report-pending",
+			"--output", "json",
+			"--pretty",
 		})
+		if err == nil {
+			err = root.Run(context.Background())
+		}
+		code = cmd.ExitCodeFromError(err)
 	})
+	stdout, stderr := stdoutBuf.String(), stderrBuf.String()
 
 	if code != cmd.ExitPending {
 		t.Fatalf("exit code = %d, want %d; stderr=%q", code, cmd.ExitPending, stderr)
@@ -563,9 +571,9 @@ func TestBuildsWaitTimeoutWithoutReportPendingKeepsFailureAndAddsState(t *testin
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			setupBuildsWaitPendingTest(t)
-			serveBuildsWaitRecordedResponses(t, test.responses, nil)
+			api := buildsWaitRecordedResponses(t, test.responses, nil)
 
-			stdout, stderr, code := runBuildsWaitPending(t, test.args)
+			stdout, stderr, code := runBuildsWaitPending(t, api, test.args)
 
 			if code != cmd.ExitError {
 				t.Fatalf("exit code = %d, want %d; stderr=%q", code, cmd.ExitError, stderr)
@@ -583,12 +591,12 @@ func TestBuildsWaitTimeoutWithoutReportPendingKeepsFailureAndAddsState(t *testin
 
 func TestBuildsWaitReportPendingFailedUploadIsAFailure(t *testing.T) {
 	setupBuildsWaitPendingTest(t)
-	serveBuildsWaitRecordedResponses(t, map[string]string{
+	api := buildsWaitRecordedResponses(t, map[string]string{
 		"/v1/builds":                      buildsWaitPendingEmptyCollection,
 		"/v1/apps/123456789/buildUploads": buildsWaitPendingUploadFailed,
 	}, nil)
 
-	stdout, stderr, code := runBuildsWaitPending(t, []string{
+	stdout, stderr, code := runBuildsWaitPending(t, api, []string{
 		"builds", "wait",
 		"--app", "123456789",
 		"--build-number", "78",

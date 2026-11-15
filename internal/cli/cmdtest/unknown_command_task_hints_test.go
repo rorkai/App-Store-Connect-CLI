@@ -38,6 +38,7 @@ func TestRunUnknownSubcommandTaskHints(t *testing.T) {
 			},
 			// Angle brackets would be shell redirections in a pasted hint.
 			wantAbsent: []string{"Try:", "--sort -uploadedDate", "<", ">"},
+			deps:       true,
 		},
 		{
 			name:      "unplaceable guess on a curated nested group",
@@ -55,6 +56,7 @@ func TestRunUnknownSubcommandTaskHints(t *testing.T) {
 			wantOrder:    []string{"Error: unknown command `asc builds lsit`", "Try:", "For help:"},
 			wantContains: []string{"  asc builds list --help\n"},
 			wantAbsent:   []string{"Common tasks:"},
+			deps:         true,
 		},
 		{
 			name:       "group without curated hints is unchanged",
