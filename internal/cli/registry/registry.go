@@ -140,7 +140,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		}),
 		commandFactory("system-status", "Check Apple Developer service health.", systemstatus.Command),
 		commandFactory("status", "Show a release pipeline dashboard for an app.", status.StatusCommand),
-		commandFactory("insights", "Generate weekly and daily insights from App Store data sources.", insights.InsightsCommand),
+		commandFactory("insights", "Generate weekly and daily insights from App Store data sources.", func() *ffcli.Command {
+			return insights.NewInsightsCommand(d)
+		}),
 		commandFactory("release-notes", "Generate and manage App Store release notes.", releasenotes.ReleaseNotesCommand),
 		commandFactory("reviews", "List and manage App Store customer reviews.", reviews.ReviewsCommand),
 		commandFactory("review", "Manage App Store review details, attachments, and submissions.", reviews.ReviewCommand),
@@ -166,7 +168,9 @@ func NewCatalogWithDeps(version string, d *shared.Deps) *Catalog {
 		commandFactory("alternative-distribution", "Manage alternative distribution resources.", func() *ffcli.Command {
 			return alternativedistribution.NewAlternativeDistributionCommand(d)
 		}),
-		commandFactory("webhooks", "Manage webhooks in App Store Connect.", webhooks.WebhooksCommand),
+		commandFactory("webhooks", "Manage webhooks in App Store Connect.", func() *ffcli.Command {
+			return webhooks.NewWebhooksCommand(d)
+		}),
 		commandFactory("nominations", "Manage featuring nominations.", func() *ffcli.Command {
 			return nominations.NewNominationsCommand(d)
 		}),

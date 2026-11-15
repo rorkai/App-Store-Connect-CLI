@@ -5,13 +5,12 @@ import (
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestWebhooksListsRejectsInvalidNextURL(t *testing.T) {
 	runInvalidNextURLCases(t, []invalidNextURLCase{
-		{args: []string{"webhooks", "list"}, wantErr: "webhooks list: --next"},
-		{args: []string{"webhooks", "deliveries", "links"}, wantErr: "webhooks deliveries links: --next"},
+		{args: []string{"webhooks", "list"}, wantErr: "webhooks list: --next", deps: true},
+		{args: []string{"webhooks", "deliveries", "links"}, wantErr: "webhooks deliveries links: --next", deps: true},
 	})
 }
 
@@ -39,13 +38,12 @@ func TestWebhooksListRejectsNextQueryFlagConflicts(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			clientFactoryCalled := false
-			restore := shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+			client := func() (*asc.Client, error) {
 				clientFactoryCalled = true
 				return nil, errors.New("client factory must not run during validation")
-			})
-			defer restore()
+			}
 
-			assertUsageExit(t, test.args, test.wantErr)
+			assertUsageExitWithDeps(t, client, test.args, test.wantErr)
 			if clientFactoryCalled {
 				t.Fatal("client factory ran before --next conflict validation")
 			}
@@ -59,16 +57,19 @@ func TestWebhooksListsPaginateFromNext(t *testing.T) {
 			args:     []string{"webhooks", "list"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/apps/app-1/webhooks?cursor=AQ&limit=200",
 			dataType: "webhooks",
+			deps:     true,
 		},
 		{
 			args:     []string{"webhooks", "deliveries", "--webhook-id", "wh-1"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/webhooks/wh-1/deliveries?cursor=AQ&limit=200",
 			dataType: "webhookDeliveries",
+			deps:     true,
 		},
 		{
 			args:     []string{"webhooks", "deliveries", "links"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/webhooks/wh-1/relationships/deliveries?cursor=AQ&limit=200",
 			dataType: "webhookDeliveries",
+			deps:     true,
 		},
 	})
 }
