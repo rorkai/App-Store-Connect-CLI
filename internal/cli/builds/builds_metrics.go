@@ -12,9 +12,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// BuildsMetricsCommand returns the builds metrics command group.
-func BuildsMetricsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("metrics", flag.ExitOnError)
+// newBuildsMetricsCommand returns the builds metrics command group.
+func newBuildsMetricsCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("metrics", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "metrics",
@@ -26,9 +26,9 @@ Examples:
   asc builds metrics beta-usages --build-id "BUILD_ID"
   asc builds metrics beta-usages --app "123456789" --latest`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			BuildsMetricsBetaUsagesCommand(),
+			newBuildsMetricsBetaUsagesCommand(d),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -36,14 +36,14 @@ Examples:
 	}
 }
 
-// BuildsMetricsBetaUsagesCommand returns the beta usages metrics subcommand.
-func BuildsMetricsBetaUsagesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("metrics beta-usages", flag.ExitOnError)
+// newBuildsMetricsBetaUsagesCommand returns the beta usages metrics subcommand.
+func newBuildsMetricsBetaUsagesCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("metrics beta-usages", flag.ExitOnError)
 
-	selectors := bindBuildSelectorFlags(shared.DefaultDeps(), fs, buildSelectorFlagOptions{})
+	selectors := bindBuildSelectorFlags(d, fs, buildSelectorFlagOptions{})
 	limit := fs.Int("limit", 0, shared.LimitFlagUsage(200))
 	next := fs.String("next", "", shared.NextFlagUsage)
-	output := shared.BindOutputFlags(fs)
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "beta-usages",
@@ -56,9 +56,9 @@ Examples:
   asc builds metrics beta-usages --app "123456789" --latest
   asc builds metrics beta-usages --app "123456789" --latest --limit 50`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if err := shared.ValidatePaginationFlags(ctx, fs, "builds metrics beta-usages", 200); err != nil {
+			if err := d.ValidatePaginationFlags(ctx, fs, "builds metrics beta-usages", 200); err != nil {
 				return err
 			}
 
@@ -71,12 +71,12 @@ Examples:
 				return fmt.Errorf("builds metrics beta-usages: %w", err)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("builds metrics beta-usages: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			buildID := ""
@@ -97,7 +97,7 @@ Examples:
 				return fmt.Errorf("builds metrics beta-usages: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

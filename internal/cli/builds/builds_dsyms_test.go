@@ -7,7 +7,8 @@ import (
 )
 
 func TestDsymsCommandShape(t *testing.T) {
-	cmd := BuildsDsymsCommand()
+	d, _, _ := newBuildsTestDeps(nil)
+	cmd := newBuildsDsymsCommand(d)
 	if cmd == nil {
 		t.Fatal("expected dsyms command")
 		return
@@ -26,7 +27,8 @@ func TestDsymsCommandShape(t *testing.T) {
 
 func TestDsymsRequiresBuildOrApp(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
-	cmd := BuildsDsymsCommand()
+	d, _, _ := newBuildsTestDeps(nil)
+	cmd := newBuildsDsymsCommand(d)
 	err := cmd.Exec(t.Context(), nil)
 	if !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp usage error, got %v", err)

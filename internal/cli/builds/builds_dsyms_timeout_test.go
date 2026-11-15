@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestBuildsDsymsCommandGivesEachDownloadFreshTimeout(t *testing.T) {
@@ -40,11 +39,6 @@ func TestBuildsDsymsCommandGivesEachDownloadFreshTimeout(t *testing.T) {
 		return nil, fmt.Errorf("unexpected App Store Connect request %d", apiCalls)
 	})
 
-	restoreASCClient := shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
-		return client, nil
-	})
-	t.Cleanup(restoreASCClient)
-
 	var downloadDeadlines []time.Time
 	restoreDownloadClient := SetDSYMHTTPClient(&http.Client{
 		Transport: buildsWaitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
@@ -66,7 +60,8 @@ func TestBuildsDsymsCommandGivesEachDownloadFreshTimeout(t *testing.T) {
 	})
 	t.Cleanup(restoreDownloadClient)
 
-	cmd := BuildsDsymsCommand()
+	d, _, _ := newBuildsTestDeps(func() (*asc.Client, error) { return client, nil })
+	cmd := newBuildsDsymsCommand(d)
 	if err := cmd.FlagSet.Parse([]string{
 		"--build-id", "build-1",
 		"--output-dir", t.TempDir(),

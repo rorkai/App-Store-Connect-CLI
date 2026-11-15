@@ -15,13 +15,13 @@ import (
 
 func TestBuildsRejectsInvalidNextURL(t *testing.T) {
 	runInvalidNextURLCases(t, []invalidNextURLCase{
-		{args: []string{"builds", "icons", "list"}, wantErr: "builds icons list: --next"},
-		{args: []string{"builds", "individual-testers", "list"}, wantErr: "builds individual-testers list: --next"},
-		{args: []string{"builds", "metrics", "beta-usages"}, wantErr: "builds metrics beta-usages: --next"},
-		{args: []string{"builds", "links", "view", "--type", "icons"}, wantErr: "builds links view: --next"},
-		{args: []string{"builds", "test-notes", "list", "--build-id", "build-1"}, wantErr: "builds test-notes list: --next"},
-		{args: []string{"builds", "uploads", "files", "list"}, wantErr: "builds uploads files list: --next"},
-		{args: []string{"builds", "uploads", "list"}, wantErr: "builds uploads list: --next"},
+		{args: []string{"builds", "icons", "list"}, wantErr: "builds icons list: --next", deps: true},
+		{args: []string{"builds", "individual-testers", "list"}, wantErr: "builds individual-testers list: --next", deps: true},
+		{args: []string{"builds", "metrics", "beta-usages"}, wantErr: "builds metrics beta-usages: --next", deps: true},
+		{args: []string{"builds", "links", "view", "--type", "icons"}, wantErr: "builds links view: --next", deps: true},
+		{args: []string{"builds", "test-notes", "list", "--build-id", "build-1"}, wantErr: "builds test-notes list: --next", deps: true},
+		{args: []string{"builds", "uploads", "files", "list"}, wantErr: "builds uploads files list: --next", deps: true},
+		{args: []string{"builds", "uploads", "list"}, wantErr: "builds uploads list: --next", deps: true},
 	})
 }
 
@@ -31,41 +31,49 @@ func TestBuildsPaginateFromNext(t *testing.T) {
 			args:     []string{"builds", "icons", "list", "--build-id", "build-1"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/builds/build-1/icons?cursor=AQ&limit=200",
 			dataType: "buildIcons",
+			deps:     true,
 		},
 		{
 			args:     []string{"builds", "icons", "list"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/builds/build-1/icons?cursor=AQ&limit=200",
 			dataType: "buildIcons",
+			deps:     true,
 		},
 		{
 			args:     []string{"builds", "individual-testers", "list", "--build-id", "build-1"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/builds/build-1/individualTesters?cursor=AQ&limit=200",
 			dataType: "betaTesters",
+			deps:     true,
 		},
 		{
 			args:     []string{"builds", "individual-testers", "list"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/builds/build-1/individualTesters?cursor=AQ&limit=200",
 			dataType: "betaTesters",
+			deps:     true,
 		},
 		{
 			args:     []string{"builds", "links", "view", "--type", "icons"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/builds/build-1/relationships/icons?cursor=AQ&limit=200",
 			dataType: "buildIcons",
+			deps:     true,
 		},
 		{
 			args:     []string{"builds", "test-notes", "list", "--build-id", "build-1"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/betaBuildLocalizations?cursor=AQ&limit=200",
 			dataType: "betaBuildLocalizations",
+			deps:     true,
 		},
 		{
 			args:     []string{"builds", "uploads", "files", "list", "--upload", "upload-1"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/buildUploads/upload-1/buildUploadFiles?cursor=AQ&limit=200",
 			dataType: "buildUploadFiles",
+			deps:     true,
 		},
 		{
 			args:     []string{"builds", "uploads", "list"},
 			firstURL: "https://api.appstoreconnect.apple.com/v1/apps/app-1/buildUploads?cursor=AQ&limit=200",
 			dataType: "buildUploads",
+			deps:     true,
 		},
 	})
 }

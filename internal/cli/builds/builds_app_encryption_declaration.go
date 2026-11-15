@@ -9,10 +9,10 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// BuildsAppEncryptionDeclarationCommand returns the builds app-encryption-declaration command group.
-func BuildsAppEncryptionDeclarationCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("app-encryption-declaration", flag.ExitOnError)
-	viewCmd := BuildsAppEncryptionDeclarationViewCommand()
+// newBuildsAppEncryptionDeclarationCommand returns the builds app-encryption-declaration command group.
+func newBuildsAppEncryptionDeclarationCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("app-encryption-declaration", flag.ExitOnError)
+	viewCmd := newBuildsAppEncryptionDeclarationViewCommand(d)
 
 	return &ffcli.Command{
 		Name:       "app-encryption-declaration",
@@ -24,7 +24,7 @@ Examples:
   asc builds app-encryption-declaration view --build-id "BUILD_ID"
   asc builds app-encryption-declaration view --app "123456789" --latest`,
 		FlagSet:   fs,
-		UsageFunc: shared.VisibleUsageFunc,
+		UsageFunc: d.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
 			viewCmd,
 		},
@@ -34,12 +34,12 @@ Examples:
 	}
 }
 
-// BuildsAppEncryptionDeclarationViewCommand returns the view subcommand.
-func BuildsAppEncryptionDeclarationViewCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("app-encryption-declaration view", flag.ExitOnError)
+// newBuildsAppEncryptionDeclarationViewCommand returns the view subcommand.
+func newBuildsAppEncryptionDeclarationViewCommand(d *shared.Deps) *ffcli.Command {
+	fs := d.NewFlagSet("app-encryption-declaration view", flag.ExitOnError)
 
-	selectors := bindBuildSelectorFlags(shared.DefaultDeps(), fs, buildSelectorFlagOptions{})
-	output := shared.BindOutputFlags(fs)
+	selectors := bindBuildSelectorFlags(d, fs, buildSelectorFlagOptions{})
+	output := d.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "view",
@@ -51,18 +51,18 @@ Examples:
   asc builds app-encryption-declaration view --build-id "BUILD_ID"
   asc builds app-encryption-declaration view --app "123456789" --latest`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: d.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := selectors.validate(); err != nil {
 				return err
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := d.Client()
 			if err != nil {
 				return fmt.Errorf("builds app-encryption-declaration view: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := d.Timeout(ctx)
 			defer cancel()
 
 			buildID, err := selectors.resolveBuildID(requestCtx, client)
@@ -75,7 +75,7 @@ Examples:
 				return fmt.Errorf("builds app-encryption-declaration view: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return d.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

@@ -53,6 +53,7 @@ func TestLinksTypeUsageErrorsEnumerateValidValues(t *testing.T) {
 			name:   "builds links view",
 			base:   []string{"builds", "links", "view", "--build-id", "build-1"},
 			values: buildRelationshipTypeValues,
+			deps:   true,
 		},
 		{
 			name:   "testflight groups links view",
@@ -134,14 +135,14 @@ func TestLinksValidTypesReachTheirEndpoints(t *testing.T) {
 		many         bool
 		deps         bool // the command is built on shared.Deps: run it on test deps
 	}{
-		{name: "build app", args: []string{"builds", "links", "view", "--build-id", "build-1", "--type", "app", "--output", "json"}, path: "/v1/builds/build-1/relationships/app", resourceType: "apps"},
-		{name: "build app store version", args: []string{"builds", "links", "view", "--build-id", "build-1", "--type", "appStoreVersion", "--output", "json"}, path: "/v1/builds/build-1/relationships/appStoreVersion", resourceType: "appStoreVersions"},
-		{name: "build beta localizations", args: []string{"builds", "links", "view", "--build-id", "build-1", "--type", "betaBuildLocalizations", "--output", "json"}, path: "/v1/builds/build-1/relationships/betaBuildLocalizations", resourceType: "betaBuildLocalizations", many: true},
-		{name: "build beta detail", args: []string{"builds", "links", "view", "--build-id", "build-1", "--type", "buildBetaDetail", "--output", "json"}, path: "/v1/builds/build-1/relationships/buildBetaDetail", resourceType: "buildBetaDetails"},
-		{name: "build diagnostic signatures", args: []string{"builds", "links", "view", "--build-id", "build-1", "--type", "diagnosticSignatures", "--output", "json"}, path: "/v1/builds/build-1/relationships/diagnosticSignatures", resourceType: "diagnosticSignatures", many: true},
-		{name: "build icons", args: []string{"builds", "links", "view", "--build-id", "build-1", "--type", "icons", "--output", "json"}, path: "/v1/builds/build-1/relationships/icons", resourceType: "buildIcons", many: true},
-		{name: "build individual testers", args: []string{"builds", "links", "view", "--build-id", "build-1", "--type", "individualTesters", "--output", "json"}, path: "/v1/builds/build-1/relationships/individualTesters", resourceType: "betaTesters", many: true},
-		{name: "build pre-release version", args: []string{"builds", "links", "view", "--build-id", "build-1", "--type", "preReleaseVersion", "--output", "json"}, path: "/v1/builds/build-1/relationships/preReleaseVersion", resourceType: "preReleaseVersions"},
+		{name: "build app", args: []string{"builds", "links", "view", "--build-id", "build-1", "--type", "app", "--output", "json"}, path: "/v1/builds/build-1/relationships/app", resourceType: "apps", deps: true},
+		{name: "build app store version", args: []string{"builds", "links", "view", "--build-id", "build-1", "--type", "appStoreVersion", "--output", "json"}, path: "/v1/builds/build-1/relationships/appStoreVersion", resourceType: "appStoreVersions", deps: true},
+		{name: "build beta localizations", args: []string{"builds", "links", "view", "--build-id", "build-1", "--type", "betaBuildLocalizations", "--output", "json"}, path: "/v1/builds/build-1/relationships/betaBuildLocalizations", resourceType: "betaBuildLocalizations", many: true, deps: true},
+		{name: "build beta detail", args: []string{"builds", "links", "view", "--build-id", "build-1", "--type", "buildBetaDetail", "--output", "json"}, path: "/v1/builds/build-1/relationships/buildBetaDetail", resourceType: "buildBetaDetails", deps: true},
+		{name: "build diagnostic signatures", args: []string{"builds", "links", "view", "--build-id", "build-1", "--type", "diagnosticSignatures", "--output", "json"}, path: "/v1/builds/build-1/relationships/diagnosticSignatures", resourceType: "diagnosticSignatures", many: true, deps: true},
+		{name: "build icons", args: []string{"builds", "links", "view", "--build-id", "build-1", "--type", "icons", "--output", "json"}, path: "/v1/builds/build-1/relationships/icons", resourceType: "buildIcons", many: true, deps: true},
+		{name: "build individual testers", args: []string{"builds", "links", "view", "--build-id", "build-1", "--type", "individualTesters", "--output", "json"}, path: "/v1/builds/build-1/relationships/individualTesters", resourceType: "betaTesters", many: true, deps: true},
+		{name: "build pre-release version", args: []string{"builds", "links", "view", "--build-id", "build-1", "--type", "preReleaseVersion", "--output", "json"}, path: "/v1/builds/build-1/relationships/preReleaseVersion", resourceType: "preReleaseVersions", deps: true},
 		{name: "group beta testers", args: []string{"testflight", "groups", "links", "view", "--group-id", "group-1", "--type", "betaTesters", "--output", "json"}, path: "/v1/betaGroups/group-1/relationships/betaTesters", resourceType: "betaTesters", many: true, deps: true},
 		{name: "group builds", args: []string{"testflight", "groups", "links", "view", "--group-id", "group-1", "--type", "builds", "--output", "json"}, path: "/v1/betaGroups/group-1/relationships/builds", resourceType: "builds", many: true, deps: true},
 		{name: "tester apps", args: []string{"testflight", "testers", "links", "view", "--tester-id", "tester-1", "--type", "apps", "--output", "json"}, path: "/v1/betaTesters/tester-1/relationships/apps", resourceType: "apps", many: true, deps: true},
@@ -186,6 +187,7 @@ func TestLinksNotFoundNamesMissingResource(t *testing.T) {
 			path:    "/v1/builds/999999999999/relationships/app",
 			body:    notFoundBody("builds", "999999999999"),
 			wantErr: `builds links view: build "999999999999" was not found; --build-id expects a build ID (list them with: asc builds list --app "APP_ID")`,
+			deps:    true,
 		},
 		{
 			name:       "builds links missing relationship",
@@ -193,6 +195,7 @@ func TestLinksNotFoundNamesMissingResource(t *testing.T) {
 			path:       "/v1/builds/build-1/relationships/buildBetaDetail",
 			body:       notFoundBody("buildBetaDetails", "build-1"),
 			wantPrefix: `builds links view: buildBetaDetail relationship was not found for build "build-1"`,
+			deps:       true,
 		},
 		{
 			name:       "builds links missing icons relationship",
@@ -200,6 +203,7 @@ func TestLinksNotFoundNamesMissingResource(t *testing.T) {
 			path:       "/v1/builds/build-1/relationships/icons",
 			body:       notFoundBody("buildIcons", "build-1"),
 			wantPrefix: `builds links view: icons relationship was not found for build "build-1"`,
+			deps:       true,
 		},
 		{
 			name:       "builds links missing individual testers relationship",
@@ -207,6 +211,7 @@ func TestLinksNotFoundNamesMissingResource(t *testing.T) {
 			path:       "/v1/builds/build-1/relationships/individualTesters",
 			body:       notFoundBody("betaTesters", "build-1"),
 			wantPrefix: `builds links view: individualTesters relationship was not found for build "build-1"`,
+			deps:       true,
 		},
 		{
 			name:    "builds links next url",
@@ -214,6 +219,7 @@ func TestLinksNotFoundNamesMissingResource(t *testing.T) {
 			path:    "/v1/builds/other-build/relationships/individualTesters",
 			body:    notFoundBody("builds", "other-build"),
 			wantErr: "builds links view: the build referenced by the requested page URL was not found",
+			deps:    true,
 		},
 		{
 			name:    "builds links unrelated not found keeps api message",
@@ -221,6 +227,7 @@ func TestLinksNotFoundNamesMissingResource(t *testing.T) {
 			path:    "/v1/builds/build-1/relationships/app",
 			body:    notFoundBody("appStoreVersions", "version-1"),
 			wantErr: "builds links view: The specified resource does not exist: There is no resource of type 'appStoreVersions' with id 'version-1'",
+			deps:    true,
 		},
 		{
 			name:    "testflight groups links unknown group",
@@ -312,6 +319,7 @@ func TestLinksPaginateLaterPageNotFoundBlamesPageURL(t *testing.T) {
 			path: "/v1/builds/build-1/relationships/individualTesters",
 			body: notFoundBody("builds", "build-1"),
 			want: "builds links view: page 2: the build referenced by the requested page URL was not found",
+			deps: true,
 		},
 		{
 			name: "testflight groups links paginate",
